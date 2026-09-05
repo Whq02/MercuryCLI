@@ -177,7 +177,7 @@ section('stages 1a/1b/2b — tool-level rules and their precedence')
   check('ask rule beats allow rule (1b before 2b)', r.behavior === 'ask', j(r))
 
   r = await decide(makeTool(), makeContext({ mode: 'sovereign', ask: ['FakeTool'] }))
-  check('tool-level ask rule fires EVEN IN BYPASS (1b before 2a, as-is)', r.behavior === 'ask', j(r))
+  check('tool-level ask rule stands down under the bypass posture (carried past the verdict; ALLOW at its road, the rule inside the reason)', r.behavior === 'allow' && r.decisionReason?.type === 'bypassedAsk' && (r.decisionReason as { road?: string }).road === 'toolAskRule', j(r))
 
   r = await decide(makeTool({ name: 'mcp__srv__thing' }), makeContext({ deny: ['mcp__srv'] }))
   check('MCP server-level deny matches server tools', r.behavior === 'deny', j(r))
@@ -222,6 +222,17 @@ section("stages 1f/1f'/1g × the postures — the three ask roads ask, and stand
     ['autopilot', { mode: 'autopilot' }, 'autopilot'],
     ['strategy + bypassAvailable', { mode: 'strategy', bypassAvailable: true }, 'strategy'],
   ]
+  for (const [posture, ctx] of asking) {
+    const r = await decide(makeTool(), makeContext({ ...ctx, ask: ['FakeTool'] }))
+    check(`${posture} × whole-tool ask RULE (1b) → ask, the rule's own reason`, r.behavior === 'ask' && r.decisionReason?.type === 'rule', j(r))
+  }
+  for (const [posture, ctx, modeWord] of bypassing) {
+    const r = await decide(makeTool(), makeContext({ ...ctx, ask: ['FakeTool'] }))
+    const reason = r.decisionReason as { type?: string; mode?: string; road?: string; reason?: { type?: string } } | undefined
+    check(`${posture} × whole-tool ask RULE (1b) → ALLOW at the road, the reason naming the posture, the road and the rule`, r.behavior === 'allow' && reason?.type === 'bypassedAsk' && reason.mode === modeWord && reason.road === 'toolAskRule' && reason.reason?.type === 'rule', j(r))
+    const denied = await decide(makeTool({ verdict: { behavior: 'deny' } }), makeContext({ ...ctx, ask: ['FakeTool'] }))
+    check(`${posture} × whole-tool ask RULE + a deny verdict → deny (the rule is carried past the verdict; a deny still wins)`, denied.behavior === 'deny', j(denied))
+  }
   for (const road of roads) {
     for (const [posture, ctx] of asking) {
       const r = await decide(road.tool, makeContext(ctx))

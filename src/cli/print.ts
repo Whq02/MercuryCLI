@@ -104,6 +104,7 @@ import { isMcpCatalogueMember } from '../services/mcp/membership.js'
 import { applyProcessSessionKitEdit, completeProcessSessionKit, sessionKitOf, setProcessSessionKit } from '../services/mcp/sessionKitPin.js'
 import { kitDialCandidates, kitEditMcpDelta, dropMcpServerFromAppState } from '../services/mcp/kitDial.js'
 import { validateSessionKit } from '../daemon/sessionKit.js'
+import { TURN_STARTED_SUBTYPE, turnStartedFrame } from '../daemon/longLivedSupervisor.js'
 import {
   latchSessionScheduleRoster,
   markScheduleSeatObserved,
@@ -1321,6 +1322,7 @@ export async function runHeadless(
     'streamlined_tool_use_summary',
   ])
   const EXCLUDED_SYSTEM_SUBTYPES = new Set([
+    TURN_STARTED_SUBTYPE,
     'session_state_changed',
     'task_notification',
     'task_started',
@@ -1368,6 +1370,13 @@ export async function runHeadless(
       await updateSdkMcp()
     },
     onTurnStart: (command, batch) => {
+      io.outbound.enqueue(
+        turnStartedFrame(
+          getSessionId(),
+          batch.map(member => member.uuid).filter((uuid): uuid is UUID => uuid !== undefined),
+          randomUUID(),
+        ),
+      )
       if (options.replayUserMessages && batch.length > 1) {
         const surviving = command.uuid
         for (const member of batch) {

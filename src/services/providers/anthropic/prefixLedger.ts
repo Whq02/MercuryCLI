@@ -256,12 +256,14 @@ export function judgeAndRecordPrefix(
   key: string,
   parts: WirePrefixParts,
   wireMessageIds: ReadonlyArray<string | null> = [],
+  opts?: { replaceRecord?: boolean },
 ): PrefixVerdict {
+  const replace = opts?.replaceRecord !== false
   const current = recordOf(key, parts)
   current.wireMessageIds = [...wireMessageIds]
   const previous = records.get(owner)
   if (previous !== undefined && previous.key === key && previous.whole === current.whole) {
-    records.set(owner, current)
+    if (replace) records.set(owner, current)
     return verdicts.get(owner) ?? { mismatch: null, lastThinkingIndex: lastThinkingMessageIndex(parts.messages), compared: true, key, wireMessageIds: current.wireMessageIds }
   }
   const lastThinkingIndex = lastThinkingMessageIndex(parts.messages)
@@ -273,9 +275,11 @@ export function judgeAndRecordPrefix(
       logForDebugging(`preserved thinking: the prefix ledger names a rewrite of sent history before the request went out — ${mismatch.part} (${mismatch.path})${mismatch.before !== undefined ? `; before: ${j(mismatch.before)}; after: ${j(mismatch.after ?? '')}` : ''}`, { level: 'warn' })
     }
   }
-  records.set(owner, current)
   const verdict: PrefixVerdict = { mismatch, lastThinkingIndex, compared, key, wireMessageIds: current.wireMessageIds }
-  verdicts.set(owner, verdict)
+  if (replace) {
+    records.set(owner, current)
+    verdicts.set(owner, verdict)
+  }
   return verdict
 }
 

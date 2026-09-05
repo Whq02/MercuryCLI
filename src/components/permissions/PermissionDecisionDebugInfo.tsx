@@ -15,6 +15,7 @@ import type {
   PermissionResult,
 } from '../../utils/permissions/PermissionResult.js'
 import type { PermissionRuleValue, PermissionUpdate } from '../../types/permissions.js'
+import { BYPASSED_ASK_ROAD_WORDS } from '../../types/permissions.js'
 
 function DebugRow({
   label,
@@ -89,7 +90,7 @@ function ReasonView({
     case 'bypassedAsk':
       return (
         <Text>
-          {permissionModeTitle(reason.mode)} allowed it; {reason.road} would have asked:{' '}
+          {permissionModeTitle(reason.mode)} allowed it; {BYPASSED_ASK_ROAD_WORDS[reason.road]} would have asked:{' '}
           <ReasonView reason={reason.reason} nested={nested} />
         </Text>
       )

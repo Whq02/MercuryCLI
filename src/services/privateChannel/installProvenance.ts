@@ -294,6 +294,10 @@ export function provenanceNoticeMarkerPath(payloadDir: string): string | null {
   return join(parent, `${PROVENANCE_NOTICE_MARKER_PREFIX}${basename(dir)}.txt`)
 }
 
+export function provenanceNoticeIsOnce(state: string): boolean {
+  return state === 'unsigned' || state === 'unrecognized-key'
+}
+
 export function provenanceNoticeSaid(payloadDir: string, state: string): boolean {
   const marker = provenanceNoticeMarkerPath(payloadDir)
   if (marker === null) return false

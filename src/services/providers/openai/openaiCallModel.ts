@@ -1,4 +1,5 @@
 import { settleTranscriptMessage } from '../../../utils/sessionStorage/writer.js'
+import { processOwnerForLane } from '../../run/resolveOwner.js'
 import { createHash } from 'node:crypto'
 import { getCwd } from '../../../utils/cwd.js'
 import { mintCacheDomainKey } from '../../../utils/cache/cacheDomain.js'
@@ -422,6 +423,7 @@ export async function* openaiCallModel(
     messages,
     getToolPermissionContext: options.getToolPermissionContext,
     agents: options.agents,
+    latchKey: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)),
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
   })

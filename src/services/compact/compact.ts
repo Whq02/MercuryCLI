@@ -20,6 +20,9 @@ import { getUserContextAttachment } from '../../utils/attachments/userContext.js
 import { getMemoryPath } from '../../utils/config/derived.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { runForkedAgent, type CacheSafeParams } from '../../utils/forkedAgent.js'
+import { appendSystemContext } from '../../utils/api.js'
+import { asSystemPrompt } from '../../utils/systemPromptType.js'
+import type { EffortValue } from '../../utils/effort.js'
 import { getCommandQueue } from '../../utils/messageQueueManager.js'
 import { classifyModelRoute } from '../providers/routeLaw.js'
 import { executePostCompactHooks, executePreCompactHooks } from '../../utils/hooks/events.js'
@@ -44,7 +47,7 @@ import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { extractDiscoveredToolNames, isToolSearchEnabled } from '../../utils/toolSearch.js'
 import { sleep } from '../../utils/sleep.js'
 import { COMPACT_MAX_OUTPUT_TOKENS } from '../../utils/context.js'
-import { getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
+import { getModelMaxOutputTokens, servesPerMessageEffort } from '../../utils/model/capabilities.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { checkFeatureGate_CACHED_MAY_BE_STALE, getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/featureGates.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE, getPromptTooLongTokenGap } from '../api/errors.js'
@@ -109,6 +112,16 @@ const DEGRADED_SUMMARY_LENGTH = 80
 
 
 export const MECHANICAL_FOLD_EFFORT = 'low' as const
+
+export function foldEffortFor(model: string, sessionEffort: EffortValue | undefined): EffortValue | undefined {
+  const verdict = classifyModelRoute(model)
+  const anthropic = verdict.kind === 'route' && verdict.route === 'anthropic'
+  return anthropic ? sessionEffort : MECHANICAL_FOLD_EFFORT
+}
+
+export function foldEffortMessageFor(model: string): EffortValue | undefined {
+  return servesPerMessageEffort(model) ? MECHANICAL_FOLD_EFFORT : undefined
+}
 const FOLD_DEADLINE_MS = 10 * 60 * 1000
 const FOLD_STALL_MS = 120_000
 
@@ -601,6 +614,7 @@ async function summarizeViaCacheSharingFork(
       forkLabel: 'compact',
       maxTurns: 1,
       skipCacheWrite: true,
+      effortMessage: foldEffortMessageFor(context.options.mainLoopModel),
       onStreamEvent: event => {
         bound.touch()
         const inner = event as { type?: string; delta?: { type?: string; text?: string } }
@@ -613,15 +627,12 @@ async function summarizeViaCacheSharingFork(
         abortController: bound.controller,
         getAppState: () => {
           const state = context.getAppState()
-          const shielded = state.toolPermissionContext.shouldAvoidPermissionPrompts
+          return state.toolPermissionContext.shouldAvoidPermissionPrompts
             ? state
             : {
                 ...state,
                 toolPermissionContext: { ...state.toolPermissionContext, shouldAvoidPermissionPrompts: true },
               }
-          return shielded.effortValue === MECHANICAL_FOLD_EFFORT
-            ? shielded
-            : { ...shielded, effortValue: MECHANICAL_FOLD_EFFORT }
         },
       },
     })
@@ -732,12 +743,12 @@ async function streamingFallbackAttempts(
       'compact',
     )
     const toolMap = new Map<string, (typeof context.options.tools)[number]>()
-    toolMap.set(FileReadTool.name, FileReadTool)
-    if (toolSearchEnabled) {
-      toolMap.set(ToolSearchTool.name, ToolSearchTool)
-      for (const tool of context.options.tools) {
-        if (tool.name.startsWith('mcp__') && !toolMap.has(tool.name)) toolMap.set(tool.name, tool)
-      }
+    for (const tool of context.options.tools) {
+      if (!toolMap.has(tool.name)) toolMap.set(tool.name, tool)
+    }
+    if (toolMap.size === 0) {
+      toolMap.set(FileReadTool.name, FileReadTool)
+      if (toolSearchEnabled) toolMap.set(ToolSearchTool.name, ToolSearchTool)
     }
     const tools = [...toolMap.values()]
 
@@ -754,7 +765,7 @@ async function streamingFallbackAttempts(
     let captured: AssistantMessage | undefined
     const stream = routedCallModel({
       messages: apiMessages,
-      systemPrompt: cacheSafeParams.systemPrompt,
+      systemPrompt: asSystemPrompt(appendSystemContext([...cacheSafeParams.systemPrompt], cacheSafeParams.systemContext ?? {})),
       thinkingConfig: { type: 'disabled' },
       tools,
       signal: bound.signal,
@@ -767,7 +778,8 @@ async function streamingFallbackAttempts(
         querySource: 'compact' as never,
         agents: context.options.agentDefinitions.activeAgents,
         mcpTools: [],
-        effortValue: MECHANICAL_FOLD_EFFORT,
+        effortValue: foldEffortFor(model, context.getAppState().effortValue),
+        effortMessage: foldEffortMessageFor(model),
         ownerKey: String(rosterOwnerFromToolUseContext(context)),
       },
     })

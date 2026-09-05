@@ -186,6 +186,8 @@ section('full entry — decidedBy lands on the expected stage per terminal outco
     ['passthrough → ask at resolution', makeTool(), makeContext({}), 'resolution', 'ask'],
     ['tool allow stands at resolution', makeTool({ verdict: { behavior: 'allow' } }), makeContext({}), 'resolution', 'allow'],
     ['sovereign × content ask-rule', makeTool({ verdict: { behavior: 'ask', reason: 'rule-ask' } }), makeContext({ mode: 'sovereign' }), 'contentAskRule', 'allow'],
+    ['sovereign × whole-tool ask rule (carried past the verdict, decided at its road)', makeTool(), makeContext({ mode: 'sovereign', ask: ['FakeTool'] }), 'toolAskRuleCarried', 'allow'],
+    ['sovereign × whole-tool ask rule + a deny verdict → the deny wins', makeTool({ verdict: { behavior: 'deny' } }), makeContext({ mode: 'sovereign', ask: ['FakeTool'] }), 'toolVerdictDeny', 'deny'],
     ['sovereign × org ask-ceiling', makeTool({ orgAskCeiling: true }), makeContext({ mode: 'sovereign' }), 'orgAskCeiling', 'allow'],
     ['sovereign × safetyCheck ask', makeTool({ verdict: { behavior: 'ask', reason: 'safetyCheck' } }), makeContext({ mode: 'sovereign' }), 'safetyCheckAsk', 'allow'],
     ['autopilot × safetyCheck ask', makeTool({ verdict: { behavior: 'ask', reason: 'safetyCheck' } }), makeContext({ mode: 'autopilot' }), 'safetyCheckAsk', 'allow'],

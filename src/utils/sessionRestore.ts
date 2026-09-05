@@ -1,14 +1,6 @@
 import { dirname } from 'node:path'
 
-import {
-  clearSystemPromptSectionState,
-  getMainLoopModelOverride,
-  getSessionId,
-  setMainLoopModelOverride,
-  setMainThreadAgentType,
-  setOriginalCwd,
-  switchSession,
-} from '../bootstrap/state.js'
+import { clearSystemPromptSectionState, getMainLoopModelOverride, getSessionId, setMainLoopModelOverride, setMainThreadAgentType, setOriginalCwd, switchSession, getLastApiCompletionTimestamp, setLastApiCompletionTimestamp } from '../bootstrap/state.js'
 import { restoreCostStateForSession } from '../cost-tracker.js'
 import { clearInstructionFileCaches } from '../services/instructions/engine.js'
 import type { AppState } from '../state/AppStateStore.js'
@@ -85,6 +77,16 @@ export function extractTodosFromMessages(messages: Message[]): TodoList {
   return []
 }
 
+export function lastAssistantTimestamp(messages: ReadonlyArray<{ type: string; timestamp?: string }>): number | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const row = messages[i]!
+    if (row.type !== 'assistant' || typeof row.timestamp !== 'string') continue
+    const at = Date.parse(row.timestamp)
+    return Number.isFinite(at) ? at : null
+  }
+  return null
+}
+
 export function restoreSessionStateFromLog(
   result: ResumedConversationLog,
   setAppState: (updater: (prev: AppState) => AppState) => void,
@@ -93,6 +95,11 @@ export function restoreSessionStateFromLog(
     fileHistoryRestoreStateFromLog(result.fileHistorySnapshots, state => {
       setAppState(prev => ({ ...prev, fileHistory: state }))
     })
+  }
+
+  if (getLastApiCompletionTimestamp() === null) {
+    const lastAssistantAt = lastAssistantTimestamp(result.messages)
+    if (lastAssistantAt !== null) setLastApiCompletionTimestamp(lastAssistantAt)
   }
 
   if (!isTodoV2Enabled() && result.messages.length > 0) {

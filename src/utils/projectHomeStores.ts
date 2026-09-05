@@ -14,7 +14,6 @@ export const PROJECT_HOME_STORES: ReadonlyArray<readonly string[]> = Object.free
   ['ide-transactions'],
   ['reviews'],
   ['doctor'],
-  ['unity-test-results'],
 ])
 
 export function projectHomePath(root: string, ...segments: string[]): string {

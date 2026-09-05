@@ -8,6 +8,7 @@ export type DecisionStageId =
   | 'toolVerdict'
   | 'toolVerdictDeny'
   | 'userInteractionAsk'
+  | 'toolAskRuleCarried'
   | 'contentAskRule'
   | 'orgAskCeiling'
   | 'safetyCheckAsk'
@@ -26,6 +27,7 @@ export const DECISION_STAGE_ORDER: Record<
     'toolVerdict',
     'toolVerdictDeny',
     'userInteractionAsk',
+    'toolAskRuleCarried',
     'contentAskRule',
     'orgAskCeiling',
     'safetyCheckAsk',
@@ -38,6 +40,7 @@ export const DECISION_STAGE_ORDER: Record<
     'toolAskRule',
     'toolVerdict',
     'toolVerdictDeny',
+    'toolAskRuleCarried',
     'contentAskRule',
     'orgAskCeiling',
     'safetyCheckAsk',
