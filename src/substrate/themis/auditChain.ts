@@ -2,7 +2,7 @@
 
 
 import { projectConfigCandidates } from '../../utils/projectConfig.js'
-import { adoptiveProjectPath } from '../../utils/projectStoreAdoption.js'
+import { projectHomeStore } from '../../utils/projectHomeStores.js'
 import { appendFile, mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { dirname, join } from 'node:path'
@@ -35,12 +35,13 @@ export function hashRowBody(body: string): string {
 }
 
 export function themisDir(cwd: string = process.cwd()): string {
-  return adoptiveProjectPath(cwd, 'themis')
+  return projectHomeStore(cwd, 'themis')
 }
 
 export function themisDirs(cwd: string = process.cwd()): string[] {
-  const existing = projectConfigCandidates(cwd, 'themis')
-  return existing.length > 0 ? existing : [themisDir(cwd)]
+  const home = themisDir(cwd)
+  const existing = projectConfigCandidates(cwd, 'themis').filter(dir => dir !== home)
+  return [home, ...existing]
 }
 
 interface ChainState {

@@ -242,7 +242,15 @@ own home beside that folder's transcripts. From then on the folder is one of
 your projects everywhere — the Boot face's Projects rows, the board's REPO
 picker and the board's own scope all render the one list. The estate stays
 yours: Mercury writes no ignore rules, never touches `.gitignore`, and never
-deletes `.mercury/`.
+deletes `.mercury/`. The project folder holds shared configuration — the
+settings, the gates and wards, the Apollo specs, the agents, the saved
+workflow scripts — the way a team commits its shared config; everything a
+machine or a session writes for itself (run manifests, ledgers, evidence,
+test-run records, audit chains, local memory, the doctor's certificate)
+lives in the config home beside that folder's transcripts. A local store
+found in the project folder from before is read once and migrated on its
+first touch; the folder keeps its copy, and the doctor's Project estate row
+names it with the one `git rm --cached` line that untracks it.
 
 ## Closing chats
 

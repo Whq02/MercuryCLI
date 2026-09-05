@@ -1,5 +1,6 @@
 
 import { adoptiveProjectPath } from '../../utils/projectStoreAdoption.js'
+import { projectHomeStore } from '../../utils/projectHomeStores.js'
 import { randomUUID } from 'node:crypto'
 import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -313,7 +314,7 @@ export function workflowsDir(cwd: string): string {
 }
 
 export function workflowRunsRoot(cwd: string): string {
-  return path.join(workflowsDir(cwd), 'runs')
+  return projectHomeStore(cwd, 'workflows', 'runs')
 }
 
 const manifestParseCache = new Map<
