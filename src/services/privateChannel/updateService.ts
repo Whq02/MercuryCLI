@@ -341,7 +341,7 @@ async function acquireAndActivate(
             : looked.state === 'duplicate-entry'
               ? `${CHECKSUM_MANIFEST_NAME} lists ${check.assetName} ${looked.count} times`
               : `checksum manifest malformed: ${looked.note}`,
-        remedy: 'the release publication is inconsistent — report it; nothing was activated — the active installation was not changed',
+        remedy: `the release publication is inconsistent — report it; ${NOTHING_ACTIVATED_WORDS}`,
       }
     }
     const actual = sha256File(archivePath)
@@ -350,7 +350,7 @@ async function acquireAndActivate(
         state: 'refused',
         stage: 'checksum',
         reason: `SHA-256 mismatch for ${check.assetName} (expected ${looked.sha256.slice(0, 12)}…, got ${actual.slice(0, 12)}…)`,
-        remedy: 'the downloaded bytes do not match the release manifest — rerun `mercury update`; nothing was activated — the active installation was not changed',
+        remedy: `the downloaded bytes do not match the release manifest — rerun \`mercury update\`; ${NOTHING_ACTIVATED_WORDS}`,
         retryable: true,
       }
     }
@@ -374,19 +374,19 @@ async function acquireAndActivate(
       existsSync(join(extracted, PAYLOAD_ROOT)) ? readdirSync(join(extracted, PAYLOAD_ROOT)) : [],
     )
     if (layout.state !== 'ok') {
-      return { state: 'refused', stage: 'envelope', reason: `unexpected archive layout: ${layout.note}`, remedy: 'report the release as malformed; nothing was activated — the active installation was not changed' }
+      return { state: 'refused', stage: 'envelope', reason: `unexpected archive layout: ${layout.note}`, remedy: `report the release as malformed; ${NOTHING_ACTIVATED_WORDS}` }
     }
     const payloadDir = join(extracted, PAYLOAD_ROOT)
     const payload = validatePayloadDir(payloadDir)
     if (payload.state !== 'ok') {
-      return { state: 'refused', stage: 'payload', reason: `payload incomplete: ${payload.note}`, remedy: 'report the release as malformed; nothing was activated — the active installation was not changed' }
+      return { state: 'refused', stage: 'payload', reason: `payload incomplete: ${payload.note}`, remedy: `report the release as malformed; ${NOTHING_ACTIVATED_WORDS}` }
     }
     if (payload.version !== check.version) {
       return {
         state: 'refused',
         stage: 'payload',
         reason: `embedded version ${payload.version} does not equal the selected release ${check.version}`,
-        remedy: 'report the release as malformed; nothing was activated — the active installation was not changed',
+        remedy: `report the release as malformed; ${NOTHING_ACTIVATED_WORDS}`,
       }
     }
     const provenance = verifyPayloadDir(payloadDir, { depth: 'deep' })
@@ -396,14 +396,14 @@ async function acquireAndActivate(
         state: 'refused',
         stage: 'verify',
         reason: `the payload's signing block does not verify: ${provenance.verdict.note}`,
-        remedy: "nothing was activated — the active installation was not changed; download the release again, and if it repeats report it through the repository's Security tab",
+        remedy: `${NOTHING_ACTIVATED_WORDS}; download the release again, and if it repeats report it through the repository's Security tab`,
       }
     }
 
     progress('staging')
     const staged = smokeVersion(payloadDir, check.version, payload.bundle)
     if (staged.state !== 'ok') {
-      return { state: 'refused', stage: 'staged-smoke', reason: `staged smoke failed: ${staged.note}`, remedy: 'nothing was activated — the active installation was not changed; report this build' }
+      return { state: 'refused', stage: 'staged-smoke', reason: `staged smoke failed: ${staged.note}`, remedy: `${NOTHING_ACTIVATED_WORDS}; report this build` }
     }
     const installed = installPayload(roots, payloadDir, check.version)
     if (installed.state === 'failed') {
@@ -411,7 +411,7 @@ async function acquireAndActivate(
         state: 'refused',
         stage: 'staging',
         reason: `staging into the versions directory failed: ${installed.note}`,
-        remedy: installed.retryable ? 'nothing was activated — the active installation was not changed; rerun `mercury update`' : 'nothing was activated — the active installation was not changed; free disk space and retry',
+        remedy: installed.retryable ? `${NOTHING_ACTIVATED_WORDS}; rerun \`mercury update\`` : `${NOTHING_ACTIVATED_WORDS}; free disk space and retry`,
         retryable: installed.retryable,
       }
     }
