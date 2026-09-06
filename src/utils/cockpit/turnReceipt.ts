@@ -14,15 +14,31 @@ export interface TurnReceiptCounts {
   reads: number
   searches: number
   commands: number
+  agents: number
+  delegatedTokens: number
+  delegatedCostUSD: number
+  delegatedUnpriced: number
 }
 
 function emptyCounts(): TurnReceiptCounts {
-  return { scratchpadEdits: 0, fileEdits: 0, adds: 0, dels: 0, reads: 0, searches: 0, commands: 0 }
+  return {
+    scratchpadEdits: 0,
+    fileEdits: 0,
+    adds: 0,
+    dels: 0,
+    reads: 0,
+    searches: 0,
+    commands: 0,
+    agents: 0,
+    delegatedTokens: 0,
+    delegatedCostUSD: 0,
+    delegatedUnpriced: 0,
+  }
 }
 
 function hasActivity(c: TurnReceiptCounts): boolean {
   return (
-    c.scratchpadEdits + c.fileEdits + c.reads + c.searches + c.commands > 0
+    c.scratchpadEdits + c.fileEdits + c.reads + c.searches + c.commands + c.agents > 0
   )
 }
 
@@ -30,6 +46,27 @@ const READ_TOOLS = new Set(['Read', 'NotebookRead'])
 const SEARCH_TOOLS = new Set(['Grep', 'Glob', 'WebSearch', 'ProviderSearch', 'WebFetch'])
 const COMMAND_TOOLS = new Set(['Bash'])
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit'])
+const DELEGATE_TOOLS = new Set(['Agent'])
+
+export function formatDelegatedTokens(tokens: number): string {
+  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`
+  if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1)}k`
+  return String(tokens)
+}
+
+export function formatDelegatedCost(usd: number): string {
+  if (usd > 0 && usd < 0.01) return '<$0.01'
+  return `$${usd.toFixed(2)}`
+}
+
+export function delegatedSpendLine(c: TurnReceiptCounts): string | null {
+  if (c.agents === 0 && c.delegatedTokens === 0) return null
+  const parts = [`${c.agents} sub-agent${c.agents === 1 ? '' : 's'}`]
+  if (c.delegatedTokens > 0) parts.push(`${formatDelegatedTokens(c.delegatedTokens)} tokens`)
+  if (c.delegatedCostUSD > 0) parts.push(formatDelegatedCost(c.delegatedCostUSD))
+  const unpriced = c.delegatedUnpriced > 0 ? ` (${c.delegatedUnpriced} unpriced)` : ''
+  return `${parts.join(' · ')}${unpriced}`
+}
 
 export function isScratchpadPath(p: string): boolean {
   return /(^|\/)scratchpad(\/|$)/.test(p)
@@ -57,7 +94,16 @@ function countToolUses(m: LooseMessage, c: TurnReceiptCounts): void {
     if (READ_TOOLS.has(name)) c.reads += 1
     else if (SEARCH_TOOLS.has(name)) c.searches += 1
     else if (COMMAND_TOOLS.has(name)) c.commands += 1
+    else if (DELEGATE_TOOLS.has(name)) c.agents += 1
   }
+}
+
+function countDelegatedResult(m: LooseMessage, c: TurnReceiptCounts): void {
+  const r = m.toolUseResult as { agentId?: unknown; totalTokens?: unknown; costUSD?: unknown } | undefined
+  if (!r || typeof r.agentId !== 'string' || typeof r.totalTokens !== 'number') return
+  c.delegatedTokens += r.totalTokens
+  if (typeof r.costUSD === 'number') c.delegatedCostUSD += r.costUSD
+  else c.delegatedUnpriced += 1
 }
 
 function countEditResult(m: LooseMessage, c: TurnReceiptCounts): void {
@@ -107,10 +153,15 @@ export function injectTurnReceipts(messages: RenderableMessage[]): RenderableMes
     }
     out.push(raw)
     if (m.type === 'assistant') countToolUses(m, counts)
-    else if (m.type === 'user') countEditResult(m, counts)
-    else if (m.type === 'grouped_tool_use') {
+    else if (m.type === 'user') {
+      countEditResult(m, counts)
+      countDelegatedResult(m, counts)
+    } else if (m.type === 'grouped_tool_use') {
       for (const inner of m.messages ?? []) countToolUses(inner, counts)
-      for (const res of m.results ?? []) countEditResult(res, counts)
+      for (const res of m.results ?? []) {
+        countEditResult(res, counts)
+        countDelegatedResult(res, counts)
+      }
     }
   }
   if (hasActivity(counts)) out.push(makeReceipt(counts, anchorUuid) as unknown as RenderableMessage)

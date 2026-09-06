@@ -44,6 +44,8 @@ import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { AGENT_DISPATCH_MODELS } from '../../utils/model/aliases.js'
 import { SEAT_ALLOWED_FAMILIES } from '../../utils/model/seatSlots.js'
+import { EFFORT_LEVELS, type EffortLevel } from '../../utils/effort.js'
+import { subagentConcurrencyCap, subagentDefaultEffort } from '../../utils/agentDefaults.js'
 import { filterDeniedAgents } from '../../utils/permissions/decision/rules.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { getQuerySourceForAgent } from '../../utils/promptCategory.js'
@@ -91,7 +93,6 @@ import {
 import { getSchemaBoundStructuredOutputTool } from '../WorkflowTool/structuredOutputTool.js'
 import {
   AGENT_TOOL_NAME,
-  LEGACY_AGENT_TOOL_NAME,
   ONE_SHOT_BUILTIN_AGENT_TYPES,
 } from './constants.js'
 import {
@@ -120,7 +121,7 @@ const BACKGROUND_TASKS_DISABLED = false
 const AUTO_BACKGROUND_GATE = 'mercury_auto_background_agents'
 const AUTO_BACKGROUND_THRESHOLD_MS = 120_000
 
-const DEFAULT_AGENT_TYPE = 'general-purpose'
+const DEFAULT_AGENT_TYPE = 'mercury-general'
 const RESULT_SIZE_CAP = 100_000
 
 function autoBackgroundMs(): number | undefined {
@@ -135,6 +136,7 @@ export type AgentToolInput = {
   prompt: string
   subagent_type?: string
   model?: string
+  effort?: EffortLevel
   run_in_background?: boolean
   name?: string
   team_name?: string
@@ -161,6 +163,10 @@ function modelParamDescription(): string {
   return `${base} Engine backends all run in-process with this harness's own tools. Class aliases: 'gpt' (qualified OpenAI default) · 'glm' (Z.AI pin) · 'kimi' (Moonshot pin) · 'deepseek' (DeepSeek pin) · 'compat' (the operator-named OpenAI-compatible endpoint's first model) · 'huggingface' (the session's own Hugging Face model, else the router flagship) · 'local' (the session's own local model, else the first discovered one) · 'gemini' (the session's own Gemini model, else the live catalogue head) · 'openrouter' (the session's own OpenRouter model, else the auto router); exact catalogue-validated engine ids (gemini-*/openrouter/* included): ${exactIds.join(', ')}.`
 }
 
+function effortParamDescription(): string {
+  return `Reasoning effort for this agent: ${EFFORT_LEVELS.join(' | ')}. Omitted, the configured sub-agent default applies (high unless the operator changed it in /config) — never your own level, so a supercode session does not multiply every agent to max. A level the agent's model does not serve runs the nearest level it does and the transcript says so; a model with no effort control runs without one. Setting it also turns on extended reasoning where the model supports it. Spend the top tiers on the hardest judge and verify work.`
+}
+
 export const inputSchema = lazySchema(() => {
   const forkOn = isForkSubagentEnabled()
   const base = {
@@ -176,6 +182,10 @@ export const inputSchema = lazySchema(() => {
       .enum(modelEnumValues())
       .optional()
       .describe(modelParamDescription()),
+    effort: z
+      .enum(EFFORT_LEVELS)
+      .optional()
+      .describe(effortParamDescription()),
     ...(BACKGROUND_TASKS_DISABLED || forkOn
       ? {}
       : {
@@ -337,7 +347,6 @@ export const SUBAGENT_BRIEFING_LEAD =
 
 export const AgentTool = buildTool({
   name: AGENT_TOOL_NAME,
-  aliases: [LEGACY_AGENT_TOOL_NAME],
   maxResultSizeChars: RESULT_SIZE_CAP,
   searchHint: 'delegate a task to a subagent that works on its own',
   get inputSchema(): ZodType<AgentToolInput, AgentToolInput> {
@@ -537,14 +546,13 @@ export const AgentTool = buildTool({
       }
     }
 
-    const fanoutCap = agentFanoutCap()
-    if (fanoutCap !== null) {
-      const runningAgents = getRunningTasks(context.getAppState()).filter(isLocalAgentTask).length
-      if (runningAgents >= fanoutCap) {
-        throw new Error(
-          `Agent dispatch refused: ${runningAgents} agent${runningAgents === 1 ? ' is' : 's are'} already running and the operator's cap is ${fanoutCap} (MERCURY_AGENT_FANOUT_CAP). Wait for one to finish, stop one, or continue the work directly.`,
-        )
-      }
+    const fanout = subagentConcurrencyCap(agentFanoutCap())
+    const runningAgents = getRunningTasks(context.getAppState()).filter(isLocalAgentTask).length
+    if (runningAgents >= fanout.cap) {
+      const door = fanout.source === 'env' ? 'MERCURY_AGENT_FANOUT_CAP' : 'Sub-agents at once in /config'
+      throw new Error(
+        `Agent dispatch refused: ${runningAgents} agent${runningAgents === 1 ? ' is' : 's are'} already running and the cap is ${fanout.cap} (${door}). Wait for one to finish, stop one, or continue the work directly.`,
+      )
     }
 
     if (agentDef.background === true && isInProcessTeammate() && teamName) {
@@ -563,10 +571,10 @@ export const AgentTool = buildTool({
       harnessEffortFact(
         plan.model,
         resolveAgentEffort({
-          effortOverride: undefined,
+          effortOverride: input.effort,
           useExactTools: undefined,
           definitionEffort: agentDef.effort,
-          sessionEffort: context.getAppState().effortValue,
+          defaultEffort: subagentDefaultEffort(),
         }),
       ),
     )
@@ -748,6 +756,7 @@ export const AgentTool = buildTool({
           : {}),
       },
       ...(modelForRunLoop !== undefined ? { model: modelForRunLoop } : {}),
+      ...(input.effort !== undefined ? { effortOverride: input.effort } : {}),
       availableTools: workerTools,
       ...(isFork
         ? {

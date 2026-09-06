@@ -1,5 +1,6 @@
 
 import { GLYPH } from '../mercury-ui/glyphs.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import React, { useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
 import { apiTimeoutMsOverride } from '../../utils/envValidation.js'
@@ -233,16 +234,16 @@ export function AssistantTextMessage({
     return <Text color="error">{text}</Text>
   }
   if (text === API_TIMEOUT_ERROR_MESSAGE) {
-    const configured = process.env.API_TIMEOUT_MS
+    const configured = flagEnv('MERCURY_API_TIMEOUT_MS')
     return (
       <Box flexDirection="column">
         <Text color="error">{text}</Text>
         <Text dimColor>
           {configured
             ? apiTimeoutMsOverride() === null
-              ? `API_TIMEOUT_MS is set to ${configured}, which is not a whole number of milliseconds — the default applied; unset it or set e.g. 120000.`
-              : `API_TIMEOUT_MS is set to ${configured} — increase it to allow slower responses.`
-            : `Set the API_TIMEOUT_MS environment variable to raise the request budget (current default: ${DEFAULT_API_TIMEOUT_MS} ms).`}
+              ? `MERCURY_API_TIMEOUT_MS is set to ${configured}, which is not a whole number of milliseconds — the default applied; unset it or set e.g. 120000.`
+              : `MERCURY_API_TIMEOUT_MS is set to ${configured} — increase it to allow slower responses.`
+            : `Set the MERCURY_API_TIMEOUT_MS environment variable to raise the request budget (current default: ${DEFAULT_API_TIMEOUT_MS} ms).`}
         </Text>
       </Box>
     )

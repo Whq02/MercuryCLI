@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'dedup-delivery-home-'))
-process.env.MERCURY_SIMPLE = '1'
+process.env.MERCURY_BARE = '1'
 process.env.MERCURY_TIME_BASED_MC = '1'
 delete process.env.NODE_ENV
 

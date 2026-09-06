@@ -201,7 +201,7 @@ async function startFixture(opts: { agent: boolean; verdict: Verdict }): Promise
           blocks = opts.agent
             ? [
                 { type: 'text', text: 'flow-seat: delegating the shell probe' },
-                { type: 'tool_use', name: 'Agent', input: { description: 'flow-seat-agent', prompt: SEAT_BRIEF, subagent_type: 'general-purpose', run_in_background: true } },
+                { type: 'tool_use', name: 'Agent', input: { description: 'flow-seat-agent', prompt: SEAT_BRIEF, subagent_type: 'mercury-general', run_in_background: true } },
               ]
             : [{ type: 'tool_use', name: 'Bash', input: { command: WRITING_COMMAND, description: 'the probe commit and its sha' } }]
           break
@@ -394,7 +394,7 @@ function runStreamJson(world: World, fixture: Fixture, args: string[], turns: Ar
             child.stdin.write(
               JSON.stringify({
                 type: 'control_response',
-                response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updatedInput: request.input } },
+                response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updated_input: request.input } },
               }) + '\n',
             )
           }
@@ -448,7 +448,7 @@ async function runLeg(leg: Leg): Promise<void> {
     'flow',
     '--input-format=stream-json',
     '--output-format=stream-json',
-    ...(leg.channel ? ['--permission-prompt-tool', 'stdio'] : []),
+    ...(leg.channel ? ['--permission-channel', 'stdio'] : []),
     '--model',
     MODEL,
     '--debug-file',

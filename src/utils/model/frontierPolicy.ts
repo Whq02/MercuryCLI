@@ -142,7 +142,7 @@ export function gatherFrontierFacts(): FrontierFacts {
   const settings = getSettings_DEPRECATED() || {}
   const allowlist = settings.availableModels
   return {
-    fableEnvPin: !!process.env.ANTHROPIC_DEFAULT_FABLE_MODEL,
+    fableEnvPin: !!process.env.MERCURY_DEFAULT_FABLE_MODEL,
     fableId: getDefaultFableModel(),
     fableNatively1M: isDefaultFableNatively1M(),
     allowlistPresent: allowlist !== undefined,

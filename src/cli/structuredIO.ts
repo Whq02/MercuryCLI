@@ -28,7 +28,6 @@ import type {
   PermissionUpdate,
 } from '../types/permissions.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
-import { normalizeControlMessageKeys } from '../utils/controlMessageCompat.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
 import { executePermissionRequestHooks } from '../utils/hooks.js'
@@ -39,7 +38,6 @@ import {
   applyPermissionUpdates,
   persistPermissionUpdates,
 } from '../utils/permissions/PermissionUpdate.js'
-import type { SessionExternalMetadata } from '../utils/sessionState.js'
 import {
   notifySessionStateChanged,
   type RequiresActionDetails,
@@ -118,8 +116,6 @@ export function isBrokenPipeError(error: unknown): boolean {
 export class StructuredIO {
   readonly structuredInput: AsyncGenerator<StdinMessage, void, unknown>
   readonly outbound: Stream<StdoutMessage> = new Stream<StdoutMessage>()
-  restoredWorkerState: Promise<SessionExternalMetadata | null> =
-    Promise.resolve(null)
 
   readonly #replayUserMessages: boolean
   #inputClosed = false
@@ -194,7 +190,7 @@ export class StructuredIO {
     emitDiagnostic: boolean,
   ): Promise<StdinMessage | undefined> {
     try {
-      const parsed = normalizeControlMessageKeys(JSON.parse(line)) as {
+      const parsed = JSON.parse(line) as {
         type?: string
         [key: string]: unknown
       }
@@ -204,18 +200,6 @@ export class StructuredIO {
         })
       }
       switch (parsed.type) {
-        case 'keep_alive':
-          return undefined
-        case 'update_environment_variables': {
-          const variables = (parsed.variables ?? {}) as Record<string, string>
-          for (const [key, value] of Object.entries(variables)) {
-            process.env[key] = value
-          }
-          logForDebugging(
-            `update_environment_variables applied: ${Object.keys(variables).join(', ')}`,
-          )
-          return undefined
-        }
         case 'control_response': {
           const known = await this.#handleControlResponse(
             parsed as unknown as SDKControlResponse & { uuid?: string },
@@ -289,8 +273,8 @@ export class StructuredIO {
     const pending = requestId !== undefined ? this.#pending.get(requestId) : undefined
     if (!pending) {
       if (response?.subtype === 'success') {
-        const toolUseID = (response.response as { toolUseID?: string } | undefined)
-          ?.toolUseID
+        const toolUseID = (response.response as { tool_use_id?: string } | undefined)
+          ?.tool_use_id
         if (typeof toolUseID === 'string' && this.#resolvedToolUses.has(toolUseID)) {
           logForDebugging(
             `dropping duplicate control_response for already-resolved tool_use ${toolUseID}`,
@@ -602,8 +586,8 @@ export class StructuredIO {
           : await requestPromise) as {
           behavior?: string
           message?: string
-          updatedInput?: Record<string, unknown>
-          updatedPermissions?: PermissionUpdate[]
+          updated_input?: Record<string, unknown>
+          updated_permissions?: PermissionUpdate[]
           interrupt?: boolean
         }
         return this.#convertHostPermissionResult(
@@ -635,8 +619,8 @@ export class StructuredIO {
     result: {
       behavior?: string
       message?: string
-      updatedInput?: Record<string, unknown>
-      updatedPermissions?: PermissionUpdate[]
+      updated_input?: Record<string, unknown>
+      updated_permissions?: PermissionUpdate[]
       interrupt?: boolean
     },
     tool: Tool,
@@ -645,11 +629,11 @@ export class StructuredIO {
   ): PermissionDecision {
     if (result.behavior === 'allow') {
       const updatedInput =
-        result.updatedInput && Object.keys(result.updatedInput).length > 0
-          ? result.updatedInput
+        result.updated_input && Object.keys(result.updated_input).length > 0
+          ? result.updated_input
           : originalInput
-      if (result.updatedPermissions?.length) {
-        const updates = result.updatedPermissions
+      if (result.updated_permissions?.length) {
+        const updates = result.updated_permissions
         persistPermissionUpdates(updates)
         toolUseContext.setAppState(previous => {
           const updated = applyPermissionUpdates(previous.toolPermissionContext, updates)
@@ -801,13 +785,5 @@ export class StructuredIO {
       message,
     })) as { mcp_response?: JSONRPCMessage }
     return reply.mcp_response as JSONRPCMessage
-  }
-
-
-  async flushInternalEvents(): Promise<void> {
-  }
-
-  get internalEventsPending(): number {
-    return 0
   }
 }

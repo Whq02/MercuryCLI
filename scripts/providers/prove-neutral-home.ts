@@ -26,20 +26,20 @@ for (const key of [
   'HTTPS_PROXY',
   'http_proxy',
   'HTTP_PROXY',
-  'ANTHROPIC_UNIX_SOCKET',
+  'MERCURY_API_UNIX_SOCKET',
   'MERCURY_CLIENT_CERT',
   'MERCURY_CLIENT_KEY',
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
   'CLAUDE_CODE_OAUTH_TOKEN',
   'MERCURY_OAUTH_TOKEN',
-  'ANTHROPIC_MODEL',
-  'ANTHROPIC_SMALL_FAST_MODEL',
-  'ANTHROPIC_DEFAULT_OPUS_MODEL',
-  'ANTHROPIC_DEFAULT_SONNET_MODEL',
-  'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-  'ANTHROPIC_DEFAULT_FABLE_MODEL',
-  'ANTHROPIC_CUSTOM_MODEL_OPTION',
+  'MERCURY_MODEL',
+  'MERCURY_SMALL_FAST_MODEL',
+  'MERCURY_DEFAULT_OPUS_MODEL',
+  'MERCURY_DEFAULT_SONNET_MODEL',
+  'MERCURY_DEFAULT_HAIKU_MODEL',
+  'MERCURY_DEFAULT_FABLE_MODEL',
+  'MERCURY_CUSTOM_MODEL_OPTION',
   'OPENAI_API_KEY',
   'ZAI_API_KEY',
   'OPENROUTER_API_KEY',
@@ -195,8 +195,8 @@ const { homeLaneAdmissionRefusal } = await import('../../src/services/providers/
   check('the setting aliases are first-party (opus · fable[1m] · opusplan · sonnet5)',
     kind('opus') === 'first-party:alias' && kind('fable[1m]') === 'first-party:alias' && kind('opusplan') === 'first-party:alias' && kind('sonnet5') === 'first-party:alias')
   check('an env-pinned id is first-party by the pin\'s own name (a gateway-served spelling included)',
-    kind('my-gateway-model', { ANTHROPIC_CUSTOM_MODEL_OPTION: 'my-gateway-model' }) === 'first-party:env-pin' &&
-      kind('proxy-served', { ANTHROPIC_MODEL: 'proxy-served[1m]' }) === 'first-party:env-pin')
+    kind('my-gateway-model', { MERCURY_CUSTOM_MODEL_OPTION: 'my-gateway-model' }) === 'first-party:env-pin' &&
+      kind('proxy-served', { MERCURY_MODEL: 'proxy-served[1m]' }) === 'first-party:env-pin')
   check('a bare vendor slug is carrier-shaped (the wire owner refuses it on every bare lane)',
     kind('anthropic/claude-opus-5') === 'carrier-shaped' && kind('qwen/qwen3-coder') === 'carrier-shaped')
   check('an id no family declares is UNRECOGNISED — never first-party by remainder', kind('foo-bar-9') === 'unrecognised' && kind('nemotron-nano') === 'unrecognised')
@@ -217,8 +217,8 @@ const { homeLaneAdmissionRefusal } = await import('../../src/services/providers/
     homeLaneAdmissionRefusal('foo-bar-9', { ...firstPartyNoFact, env: { ANTHROPIC_AUTH_TOKEN: 'k', ANTHROPIC_API_KEY: 'k' } }) !== null &&
       !/anthropicCredentialPresence|firstPartyCredentialed/.test(admissionSource))
   check('the env-pin road admits — the pinned id is first-party by the pin\'s own name AND the routing law carries it home (routing joins recognition)',
-    homeLaneAdmissionRefusal('proxy-served', { ...firstPartyNoFact, env: { ANTHROPIC_MODEL: 'proxy-served' } }) === null &&
-      declaredRouteOf('proxy-served', { ANTHROPIC_MODEL: 'proxy-served' }) === 'anthropic')
+    homeLaneAdmissionRefusal('proxy-served', { ...firstPartyNoFact, env: { MERCURY_MODEL: 'proxy-served' } }) === null &&
+      declaredRouteOf('proxy-served', { MERCURY_MODEL: 'proxy-served' }) === 'anthropic')
   check('a first-party id keeps the lane\'s own auth refusal (admitted here)', homeLaneAdmissionRefusal('claude-sonnet-5', firstPartyNoFact) === null)
   check('a declared family never reaches this door (admitted here, routed elsewhere)', homeLaneAdmissionRefusal('gpt-5.6-sol', firstPartyNoFact) === null)
 

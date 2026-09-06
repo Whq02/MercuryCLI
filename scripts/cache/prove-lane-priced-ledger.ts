@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-lane-priced-'))
-delete process.env.ANTHROPIC_MODEL
+delete process.env.MERCURY_MODEL
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

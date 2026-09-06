@@ -8,29 +8,29 @@ process.env.MERCURY_CONFIG_DIR = join(HERMETIC, 'config')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 for (const k of [
   'ANTHROPIC_BASE_URL',
-  'ANTHROPIC_BETAS',
-  'ANTHROPIC_DEFAULT_OPUS_MODEL',
-  'ANTHROPIC_DEFAULT_SONNET_MODEL',
-  'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-  'DISABLE_INTERLEAVED_THINKING',
+  'MERCURY_PROVIDER_BETAS',
+  'MERCURY_DEFAULT_OPUS_MODEL',
+  'MERCURY_DEFAULT_SONNET_MODEL',
+  'MERCURY_DEFAULT_HAIKU_MODEL',
+  'MERCURY_INTERLEAVED_THINKING',
   'MERCURY_DISABLE_1M_CONTEXT',
-  'DISABLE_PROMPT_CACHING',
-  'DISABLE_PROMPT_CACHING_HAIKU',
-  'DISABLE_PROMPT_CACHING_SONNET',
-  'DISABLE_PROMPT_CACHING_OPUS',
+  'MERCURY_PROMPT_CACHING',
+  'MERCURY_PROMPT_CACHING_HAIKU',
+  'MERCURY_PROMPT_CACHING_SONNET',
+  'MERCURY_PROMPT_CACHING_OPUS',
   'MERCURY_EXTRA_BODY',
   'MERCURY_EXTRA_METADATA',
   'MERCURY_EFFORT_LEVEL',
   'HERMES_DEEPTHINK_MAX',
   'MERCURY_CACHE_TTL',
-  'MAX_THINKING_TOKENS',
-  'ANTHROPIC_SMALL_FAST_MODEL',
+  'MERCURY_THINKING_BUDGET',
+  'MERCURY_SMALL_FAST_MODEL',
   'MERCURY_AUGUR',
   'MERCURY_AUGUR_TOOL',
   'MERCURY_AUGUR_BRIEF',
   'MERCURY_AUGUR_MODEL',
-  'USE_CONNECTOR_TEXT_SUMMARIZATION',
-  'USE_API_CONTEXT_MANAGEMENT',
+  'MERCURY_CONNECTOR_TEXT_SUMMARIZATION',
+  'MERCURY_API_CONTEXT_MANAGEMENT',
 ]) {
   delete process.env[k]
 }
@@ -137,9 +137,9 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     ['firstParty opus-4-8', {}, 'claude-opus-4-8', [B.CODING_20250219_BETA_HEADER, B.INTERLEAVED_THINKING_BETA_HEADER]],
     ['firstParty haiku (no coding-20250219 beta)', {}, 'claude-haiku-4-5-20251001', [B.INTERLEAVED_THINKING_BETA_HEADER]],
     ['firstParty opus-4-6[1m]', {}, 'claude-opus-4-6[1m]', [B.CODING_20250219_BETA_HEADER, B.CONTEXT_1M_BETA_HEADER, B.INTERLEAVED_THINKING_BETA_HEADER]],
-    ['DISABLE_INTERLEAVED_THINKING strips the ISP header', { DISABLE_INTERLEAVED_THINKING: '1' }, 'claude-opus-4-8', [B.CODING_20250219_BETA_HEADER]],
+    ['MERCURY_INTERLEAVED_THINKING strips the ISP header', { MERCURY_INTERLEAVED_THINKING: '0' }, 'claude-opus-4-8', [B.CODING_20250219_BETA_HEADER]],
     ['MERCURY_DISABLE_1M_CONTEXT beats the [1m] suffix', { MERCURY_DISABLE_1M_CONTEXT: '1' }, 'claude-opus-4-6[1m]', [B.CODING_20250219_BETA_HEADER, B.INTERLEAVED_THINKING_BETA_HEADER]],
-    ['ANTHROPIC_BETAS passthrough splits + trims', { ANTHROPIC_BETAS: ' user-beta-1 , user-beta-2,' }, 'claude-opus-4-8', [B.CODING_20250219_BETA_HEADER, B.INTERLEAVED_THINKING_BETA_HEADER, 'user-beta-1', 'user-beta-2']],
+    ['MERCURY_PROVIDER_BETAS passthrough splits + trims', { MERCURY_PROVIDER_BETAS: ' user-beta-1 , user-beta-2,' }, 'claude-opus-4-8', [B.CODING_20250219_BETA_HEADER, B.INTERLEAVED_THINKING_BETA_HEADER, 'user-beta-1', 'user-beta-2']],
   ]
   const seen: string[][] = []
   for (const [label, env, m, want] of rows) {
@@ -173,7 +173,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
 
   betas.clearBetasCaches()
   const before = betas.getAllModelBetas('claude-opus-4-8')
-  const flipped = withEnv({ DISABLE_INTERLEAVED_THINKING: '1' }, () => betas.getAllModelBetas('claude-opus-4-8'))
+  const flipped = withEnv({ MERCURY_INTERLEAVED_THINKING: '0' }, () => betas.getAllModelBetas('claude-opus-4-8'))
   check(
     'beta-table: an env flip resolves FRESH — no stale memo (T16 resolve-once)',
     !flipped.includes(B.INTERLEAVED_THINKING_BETA_HEADER) && before.includes(B.INTERLEAVED_THINKING_BETA_HEADER),
@@ -182,7 +182,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     'beta-table: flipping back re-serves the base list unchanged',
     eq(betas.getAllModelBetas('claude-opus-4-8'), before),
   )
-  const cleared = withEnv({ DISABLE_INTERLEAVED_THINKING: '1' }, () => {
+  const cleared = withEnv({ MERCURY_INTERLEAVED_THINKING: '0' }, () => {
     betas.clearBetasCaches()
     const out = [...betas.getAllModelBetas('claude-opus-4-8')]
     betas.clearBetasCaches()
@@ -487,12 +487,12 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
 
   check('assembly: prompt caching defaults ON', rp.getPromptCachingEnabled('claude-opus-4-8'))
   check(
-    'assembly: DISABLE_PROMPT_CACHING is global',
-    withEnv({ DISABLE_PROMPT_CACHING: '1' }, () => !rp.getPromptCachingEnabled('claude-opus-4-8')),
+    'assembly: MERCURY_PROMPT_CACHING is global',
+    withEnv({ MERCURY_PROMPT_CACHING: '0' }, () => !rp.getPromptCachingEnabled('claude-opus-4-8')),
   )
   check(
     'assembly: the haiku-targeted disable only hits the small-fast model',
-    withEnv({ DISABLE_PROMPT_CACHING_HAIKU: '1' }, () => rp.getPromptCachingEnabled('claude-opus-4-8')),
+    withEnv({ MERCURY_PROMPT_CACHING_HAIKU: '0' }, () => rp.getPromptCachingEnabled('claude-opus-4-8')),
   )
 
   check('assembly: default cache control is bare ephemeral', eq(rp.getCacheControl(), { type: 'ephemeral' }))
@@ -528,10 +528,10 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   )
   const stray: Record<string, unknown> = {}
   const strayBetas: string[] = []
-  rp.configureEffortParams('ultra', stray as never, {}, strayBetas, 'claude-opus-4-8')
+  rp.configureEffortParams('ultra' as never, stray as never, {}, strayBetas, 'claude-opus-4-8')
   check(
-    'assembly: a raw word above the first-party wire enum (ultra) drops param AND beta — the owner steps it to max before this seam',
-    eq(stray, {}) && strayBetas.length === 0 && effort.resolveAppliedEffort('claude-opus-4-8', 'ultra') === 'max',
+    'assembly: a raw word above the first-party wire enum drops param AND beta — the ladder ends at max, so no door ever hands this seam such a word',
+    eq(stray, {}) && strayBetas.length === 0 && !effort.isEffortLevel('ultra') && effort.parseEffortValue('ultra') === undefined,
     JSON.stringify({ stray, strayBetas }),
   )
   const preset: Record<string, unknown> = { effort: 'low' }

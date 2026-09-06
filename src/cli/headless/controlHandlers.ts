@@ -3,7 +3,7 @@ import { errorMessage, toError } from '../../utils/errors.js'
 import { type UUID } from 'crypto'
 import { ask } from 'src/QueryEngine.js'
 import { type ToolPermissionContext, type Tools } from 'src/Tool.js'
-import { type ChannelEntry, getMainThreadAgentType,  registerHookCallbacks, setInitJsonSchema, setMainLoopModelOverride, setMainThreadAgentType } from 'src/bootstrap/state.js'
+import { getMainThreadAgentType, registerHookCallbacks, setInitJsonSchema, setMainLoopModelOverride, setMainThreadAgentType } from 'src/bootstrap/state.js'
 import { StructuredIO } from 'src/cli/structuredIO.js'
 import { type Command, formatDescriptionWithSource, getCommandName } from 'src/commands.js'
 import { type HookEvent, type McpServerConfigForProcessTransport, type ModelInfo, type PermissionResult, type RewindFilesResult } from 'src/entrypoints/agentSdkTypes.js'
@@ -13,7 +13,6 @@ import { createOperatorRewindRecordMessage } from 'src/services/compact/checkpoi
 import { type Message } from 'src/types/message.js'
 import { findLastCompactBoundaryIndex } from 'src/utils/messages/systemMessages.js'
 import { flushSessionStorage, recordTranscript } from 'src/utils/sessionStorage.js'
-import { findChannelEntry, gateChannelServer } from 'src/services/mcp/channelNotification.js'
 import { areMcpConfigsEqual, clearServerCache, connectToServer, fetchToolsForClient } from 'src/services/mcp/client.js'
 import { filterMcpServersByPolicy } from 'src/services/mcp/config.js'
 import { type MCPServerConnection, type McpSdkServerConfig, type ScopedMcpServerConfig } from 'src/services/mcp/types.js'
@@ -41,7 +40,6 @@ export async function handleInitializeRequest(
   commands: Command[],
   modelInfos: ModelInfo[],
   structuredIO: StructuredIO,
-  enableAuthStatus: boolean,
   options: {
     systemPrompt: string | undefined
     appendSystemPrompt: string | undefined
@@ -66,14 +64,14 @@ export async function handleInitializeRequest(
     return
   }
 
-  if (request.systemPrompt !== undefined) {
-    options.systemPrompt = request.systemPrompt
+  if (request.system_prompt !== undefined) {
+    options.systemPrompt = request.system_prompt
   }
-  if (request.appendSystemPrompt !== undefined) {
-    options.appendSystemPrompt = request.appendSystemPrompt
+  if (request.append_system_prompt !== undefined) {
+    options.appendSystemPrompt = request.append_system_prompt
   }
-  if (request.promptSuggestions !== undefined) {
-    options.promptSuggestions = request.promptSuggestions
+  if (request.prompt_suggestions !== undefined) {
+    options.promptSuggestions = request.prompt_suggestions
   }
 
   if (request.agents) {
@@ -116,7 +114,7 @@ export async function handleInitializeRequest(
     const hooks: Partial<Record<HookEvent, HookCallbackMatcher[]>> = {}
     for (const [event, matchers] of Object.entries(request.hooks)) {
       hooks[event as HookEvent] = matchers.map(matcher => {
-        const callbacks = matcher.hookCallbackIds.map(callbackId => {
+        const callbacks = matcher.hook_callback_ids.map(callbackId => {
           return structuredIO.createHookCallback(callbackId, matcher.timeout)
         })
         return {
@@ -127,8 +125,8 @@ export async function handleInitializeRequest(
     }
     registerHookCallbacks(hooks)
   }
-  if (request.jsonSchema) {
-    setInitJsonSchema(request.jsonSchema)
+  if (request.json_schema) {
+    setInitJsonSchema(request.json_schema)
   }
   const initResponse: SDKControlInitializeResponse = {
     commands: commands
@@ -136,7 +134,7 @@ export async function handleInitializeRequest(
       .map(cmd => ({
         name: getCommandName(cmd),
         description: formatDescriptionWithSource(cmd),
-        argumentHint: cmd.argumentHint || '',
+        argument_hint: cmd.argumentHint || '',
       })),
     agents: agents.map(agent => ({
       name: agent.agentType,
@@ -147,10 +145,9 @@ export async function handleInitializeRequest(
     account: {
       email: accountInfo?.email,
       organization: accountInfo?.organization,
-      subscriptionType: accountInfo?.subscription,
-      tokenSource: accountInfo?.tokenSource,
-      apiKeySource: accountInfo?.apiKeySource,
-      apiProvider: 'firstParty',
+      subscription_type: accountInfo?.subscription,
+      token_source: accountInfo?.tokenSource,
+      api_key_source: accountInfo?.apiKeySource,
     },
     pid: process.pid,
   }
@@ -174,11 +171,11 @@ export async function handleRewindFiles(
   drift?: RestoreDriftOracle,
 ): Promise<RewindFilesResult> {
   if (!fileHistoryEnabled()) {
-    return { canRewind: false, error: 'File rewinding is not enabled.' }
+    return { can_rewind: false, error: 'File rewinding is not enabled.' }
   }
   if (!fileHistoryCanRestore(appState.fileHistory, userMessageId)) {
     return {
-      canRewind: false,
+      can_rewind: false,
       error: 'No file checkpoint found for this message.',
     }
   }
@@ -190,15 +187,15 @@ export async function handleRewindFiles(
       ...(drift !== undefined ? { drift } : {}),
     })
   } catch (error) {
-    return { canRewind: false, error: `Failed to rewind: ${errorMessage(error)}` }
+    return { can_rewind: false, error: `Failed to rewind: ${errorMessage(error)}` }
   }
   if (!restored.ok) {
-    return { canRewind: false, error: `Failed to rewind: ${restored.detail}` }
+    return { can_rewind: false, error: `Failed to rewind: ${restored.detail}` }
   }
   if (dryRun) {
-    return { canRewind: true, filesChanged: restored.changed, insertions: restored.insertions, deletions: restored.deletions }
+    return { can_rewind: true, files_changed: restored.changed, insertions: restored.insertions, deletions: restored.deletions }
   }
-  return { canRewind: true }
+  return { can_rewind: true }
 }
 
 
@@ -334,7 +331,7 @@ function decidePermissionModeTransition(
     if (!toolPermissionContext.isBypassPermissionsModeAvailable) {
       return {
         ok: false,
-        error: 'Cannot set permission mode to sovereign because the session was not launched with --dangerously-skip-permissions',
+        error: 'Cannot set permission mode to sovereign because the session was not launched with --dangerously-bypass-permissions',
       }
     }
   }
@@ -380,27 +377,6 @@ export function handleSetPermissionMode(
   return resolved.context
 }
 
-export function handleChannelEnable(
-  requestId: string,
-  serverName: string,
-  connectionPool: readonly MCPServerConnection[],
-  output: Stream<StdoutMessage>,
-): void {
-  const respondError = (error: string) =>
-    output.enqueue({
-      type: 'control_response',
-      response: { subtype: 'error', request_id: requestId, error },
-    })
-
-  return respondError('channels feature not available in this build')
-}
-
-export function reregisterChannelHandlerAfterReconnect(
-  connection: MCPServerConnection,
-): void {
-  return
-}
-
 export async function handleOrphanedPermissionResponse({
   message,
   setAppState,
@@ -414,11 +390,11 @@ export async function handleOrphanedPermissionResponse({
 }): Promise<boolean> {
   if (
     message.response.subtype === 'success' &&
-    message.response.response?.toolUseID &&
-    typeof message.response.response.toolUseID === 'string'
+    message.response.response?.tool_use_id &&
+    typeof message.response.response.tool_use_id === 'string'
   ) {
     const permissionResult = message.response.response as PermissionResult
-    const { toolUseID } = permissionResult
+    const toolUseID = permissionResult.tool_use_id
     if (!toolUseID) {
       return false
     }
@@ -479,6 +455,7 @@ export type SdkMcpState = {
   tools: Tools
 }
 
+
 export type McpSetServersResult = {
   response: SDKControlMcpSetServersResponse
   newSdkState: SdkMcpState
@@ -503,7 +480,7 @@ export async function handleMcpSetServers(
   const processServers: Record<string, McpServerConfigForProcessTransport> = Object.create(null) as Record<string, McpServerConfigForProcessTransport>
 
   for (const [name, config] of Object.entries(allowedServers)) {
-    if (config.type === 'sdk') {
+    if (config.type === 'host') {
       sdkServers[name] = config
     } else {
       processServers[name] = config
@@ -627,7 +604,7 @@ export async function reconcileMcpServers(
     if (!config) continue
     const scopedConfig = toScopedConfig(config)
 
-    if (config.type === 'sdk') {
+    if (config.type === 'host') {
       added.push(name)
       continue
     }

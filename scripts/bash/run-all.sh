@@ -10,9 +10,14 @@
 # gate-watch: src/services/workshop/pythonRuntime.ts src/services/workshop/pythonRunnerSource.ts
 # gate-watch: src/services/tcpBridge/entry.ts src/services/ide/cppBuild.ts src/services/mcp/headersHelper.ts
 # gate-watch: src/utils/worktree.ts src/utils/projectStoreAdoption.ts
-# gate-watch: src/utils/bash/ShellSnapshot.ts
+# gate-watch: src/utils/bash/ShellSnapshot.ts src/utils/shell/engineSession.ts src/utils/shell/brushPack.ts
 # gate-watch: src/services/lsp/LSPClient.ts src/services/dap/dapClient.ts
 # gate-watch: src/utils/bash/bashPipeCommand* src/utils/bash/shellQuoting* src/utils/shell/bashProvider* src/utils/sandbox/sandbox-adapter*
+# gate-watch: src/utils/bash/bashPipeCommand* src/utils/bash/shellQuoting* src/utils/shell/bashProvider* src/utils/shell/shellProvider*
+# gate-watch: src/tools/BashTool/bashPermissions* src/tools/BashTool/readOnlyValidation* src/tools/BashTool/shouldUseSandbox* src/tools/BashTool/prompt*
+# gate-watch: src/utils/sandbox/sandbox-adapter* src/substrate/flagRegistry* scripts/bash/shell-engine-parity*
+# gate-watch: src/utils/shell/windowsShellRoad.ts src/utils/windowsPaths.ts src/utils/shell/shellToolUtils.ts
+# gate-watch: .github/workflows/shell-windows-probe.yml .github/workflows/private-release.yml
 set -u
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 
@@ -38,6 +43,15 @@ __t=$SECONDS; "$bun" run "$here/prove-shell-snapshot-path.ts" || fail=1; prover_
 __t=$SECONDS; "$bun" run "$here/prove-teardown-ends-the-tree.ts" || fail=1; prover_mark "$here/prove-teardown-ends-the-tree.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-shell-cwd-record.ts" || fail=1; prover_mark "$here/prove-shell-cwd-record.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-bash-tool-seams.ts" || fail=1; prover_mark "$here/prove-bash-tool-seams.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-shell-engine-pack.ts" || fail=1; prover_mark "$here/prove-shell-engine-pack.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-shell-engine-session.ts" || fail=1; prover_mark "$here/prove-shell-engine-session.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-shell-engine-exec.ts" || fail=1; prover_mark "$here/prove-shell-engine-exec.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-shell-engine-rules.ts" || fail=1; prover_mark "$here/prove-shell-engine-rules.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-shell-engine-sandbox.ts" || fail=1; prover_mark "$here/prove-shell-engine-sandbox.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-shell-engine-census.ts" || fail=1; prover_mark "$here/prove-shell-engine-census.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-shell-engine-parity.ts" || fail=1; prover_mark "$here/prove-shell-engine-parity.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-windows-shell-road.ts" || fail=1; prover_mark "$here/prove-windows-shell-road.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-shell-windows-pack-layout.ts" || fail=1; prover_mark "$here/prove-shell-windows-pack-layout.ts" "$__t"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL BASH PERMISSION PROOFS PASS"; else echo "# ❌ SOME BASH PERMISSION PROOFS FAILED"; fi
 echo "############################################################"

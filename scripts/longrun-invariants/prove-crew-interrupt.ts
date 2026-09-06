@@ -52,10 +52,10 @@ function makeStore(): Store & { set: (fn: (prev: never) => never) => void } {
   }
   return store
 }
-const FAKE_AGENT_DEF = { agentType: 'general-purpose', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
+const FAKE_AGENT_DEF = { agentType: 'mercury-general', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
 const userMsg = (text: string): MessageType =>
   ({ type: 'user', message: { role: 'user', content: text }, uuid: crypto.randomUUID() }) as never
-const META = { prompt: 'do the work', resolvedAgentModel: 'claude-opus-5', isBuiltInAgent: false, startTime: Date.now(), agentType: 'general-purpose', isAsync: true }
+const META = { prompt: 'do the work', resolvedAgentModel: 'claude-opus-5', isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-general', isAsync: true }
 
 section('§K1a the controller law — an agent task owns a fresh controller')
 {
@@ -75,9 +75,9 @@ section('§K1a the controller law — an agent task owns a fresh controller')
   const interruptArm = runner.slice(runner.indexOf("case 'interrupt': {"), runner.indexOf("case 'end_session': {"))
   check('the runner\'s interrupt releases the driver\'s hold and stops no task', interruptArm.includes('driver.releaseHold()') && !interruptArm.includes('stopRunningAgentTasks') && !runner.includes('stopRunningAgentTasks('))
   check('the crew census counts running agents and workflows, never the session\'s own row', crewStillRunning({
-    a: { type: 'local_agent', status: 'running', agentType: 'general-purpose' },
+    a: { type: 'local_agent', status: 'running', agentType: 'mercury-general' },
     b: { type: 'local_workflow', status: 'running' },
-    c: { type: 'local_agent', status: 'completed', agentType: 'general-purpose' },
+    c: { type: 'local_agent', status: 'completed', agentType: 'mercury-general' },
     d: { type: 'local_agent', status: 'running', agentType: 'main-session' },
     e: { type: 'local_bash', status: 'running' },
   }) === 2)
@@ -103,7 +103,6 @@ async function driverScenario(opts: { releaseBeforeResult: boolean; tasksRunning
     enqueueOutput: m => out.push((m as { type: string }).type),
     writeDirect: async () => {},
     drainSdkEvents: () => [],
-    flushInternalEvents: async () => {},
     executeTurn: async (_c, _batchUuids, onMessage) => {
       onMessage({ type: 'assistant' } as never)
       if (opts.releaseBeforeResult) driver.releaseHold()
@@ -301,7 +300,7 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   check('K10 the tracker folds and reports a change once', foldQueryProgressIntoTracker(tracker, { type: 'stream_request_start' }, t0) === true && foldQueryProgressIntoTracker(tracker, { type: 'stream_event', event: { type: 'ping' } }, t0 + 1) === false && getProgressUpdate(tracker).phase?.phase === 'request-sent')
   const { projectWorkRoster } = await import('../../src/utils/task/workRoster.js')
   const crew = await import('../../src/services/engine-connector/crewFacts.js')
-  const running = { id: 'ag-w', type: 'local_agent', status: 'running', description: 'crew-fable', agentId: 'ag-w', prompt: 'p', agentType: 'general-purpose', isBackgrounded: true, outputFile: '/n', outputOffset: 0, notified: false, startTime: t0, progress: { toolUseCount: 0, tokenCount: 0, recentActivities: [], phase: { phase: 'first-byte', sinceMs: t0, budgetMs: 45_000 } } }
+  const running = { id: 'ag-w', type: 'local_agent', status: 'running', description: 'crew-fable', agentId: 'ag-w', prompt: 'p', agentType: 'mercury-general', isBackgrounded: true, outputFile: '/n', outputOffset: 0, notified: false, startTime: t0, progress: { toolUseCount: 0, tokenCount: 0, recentActivities: [], phase: { phase: 'first-byte', sinceMs: t0, budgetMs: 45_000 } } }
   const rows = projectWorkRoster({ 'ag-w': running } as never)
   check('K10 the roster row carries the phase whole', rows[0]?.phase?.phase === 'first-byte' && rows[0]?.phase?.budgetMs === 45_000)
   const facts = crew.crewAgentFactsOf(rows[0]!, 'fx')!
@@ -349,14 +348,14 @@ section('§K10b a GPT seat pays no per-runner catalogue fetch — the daemon\'s 
   })
   check('K10b the runner\'s refresh within the TTL serves the primed snapshot and fetches nothing', fetched === 0 && refreshed?.models.length === 1 && refreshed.lastError === undefined)
   cat.__resetOpenaiCatalogueForTest()
-  check('K10b the claim carries the snapshot and the runner primes it at the claim', src('src/daemon/warmRunner.ts').includes('openai_catalogue: openaiCatalogue') && src('src/cli/print.ts').includes('primeOpenaiCatalogue(request.openai_catalogue'))
+  check('K10b the claim carries the snapshot in the feed\'s spelling and the runner decodes and primes it at the claim', src('src/daemon/warmRunner.ts').includes('openai_catalogue: openaiCatalogueToWire(openaiCatalogue)') && src('src/cli/print.ts').includes('primeOpenaiCatalogue(openaiCatalogueFromWire(request.openai_catalogue)'))
   check('K10b the daemon\'s live view keeps the snapshot warm', src('src/daemon/signInView.ts').includes('void refreshOpenaiCatalogue(openaiAccount.kind)'))
 }
 
 section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')
 {
   const { resolveWorkerTools } = await import('../../src/tools/AgentTool/agentToolUtils.js')
-  const def = { agentType: 'general-purpose', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
+  const def = { agentType: 'mercury-general', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
   const tool = (name: string): never => ({ name, description: '', inputSchema: {}, call: async () => ({}) }) as never
   const pool = [tool('Read'), tool('Bash'), tool('Agent')] as never
   const launch = resolveWorkerTools(def, 'implement', pool, true).map(t => t.name)

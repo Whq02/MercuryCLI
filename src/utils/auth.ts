@@ -63,7 +63,7 @@ import { binaryName } from './config.js'
 export function isAnthropicAuthEnabled(): boolean {
   if (isBareMode()) return false
 
-  if (process.env.ANTHROPIC_UNIX_SOCKET) {
+  if (process.env.MERCURY_API_UNIX_SOCKET) {
     return Boolean(process.env.MERCURY_OAUTH_TOKEN)
   }
 
@@ -1011,7 +1011,7 @@ export function getAccountInformation(): UserAccountInfo | null {
 export type OrgValidationResult = { valid: true } | { valid: false; message: string }
 
 export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
-  if (process.env.ANTHROPIC_UNIX_SOCKET) return { valid: true }
+  if (process.env.MERCURY_API_UNIX_SOCKET) return { valid: true }
   if (!isAnthropicAuthEnabled()) return { valid: true }
   const requiredOrg = getSettingsForSource('policySettings')?.forceLoginOrgUUID
   if (!requiredOrg) return { valid: true }
@@ -1028,7 +1028,7 @@ export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
       valid: false,
       message:
         `Could not verify your organization. This machine is pinned to organization ${requiredOrg}. ` +
-        `This may be a network problem, or a token without the profile scope (as minted by \`${cli} setup-token\`). ` +
+        `This may be a network problem, or a token without the profile scope (as minted by \`${cli} auth token\`). ` +
         `Retry, or acquire a full-scope token by running \`${cli} auth login\`.`,
     }
   }

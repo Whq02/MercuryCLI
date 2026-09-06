@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'sh-permit-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'sh-permit-daemon-'))
 process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'sh-permit-teams-'))
 for (const k of [
-  'MERCURY_SIMPLE',
+  'MERCURY_BARE',
   'MERCURY_EFFORT_LEVEL',
   'MERCURY_RELEVANT_RECALL',
   'CLAUDE_TEAM_NAME',

@@ -7,7 +7,7 @@ import * as path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(path.join(tmpdir(), 'repeated-target-home-'))
-process.env.MERCURY_SIMPLE = '1'
+process.env.MERCURY_BARE = '1'
 const csHome = mkdtempSync(path.join(tmpdir(), 'repeated-target-cs-'))
 process.env.MERCURY_CHANGESET_DIR = csHome
 

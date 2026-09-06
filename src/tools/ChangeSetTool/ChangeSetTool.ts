@@ -888,7 +888,7 @@ async function runApply(
       if (res.ok) publishedRegisters.push(name)
     }
   }
-  if (!isEnvTruthy(process.env.MERCURY_SIMPLE)) {
+  if (!isEnvTruthy(process.env.MERCURY_BARE)) {
     const paths = changedTargets.map(t => t.canonicalPath)
     discoverSkillDirsForPaths(paths, getCwd())
       .then(dirs => (dirs.length > 0 ? addSkillDirectories(dirs) : undefined))

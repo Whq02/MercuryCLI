@@ -25,7 +25,7 @@ const { getAddedDirectories, getCachedInstructionPrompt, setCachedInstructionPro
 const { getEmptyToolPermissionContext } = await import('${repo}/src/Tool.js')
 const { applyPermissionUpdate } = await import('${repo}/src/utils/permissions/PermissionUpdate.js')
 const { onChangeAppState } = await import('${repo}/src/state/onChangeAppState.js')
-const stateOf = toolPermissionContext => ({ toolPermissionContext, mainLoopModel: null, expandedView: null, verbose: false, settings: undefined, isUltraplanMode: false })
+const stateOf = toolPermissionContext => ({ toolPermissionContext, mainLoopModel: null, expandedView: null, verbose: false, settings: undefined })
 let permission = getEmptyToolPermissionContext()
 const changeWorkspace = (type, dir) => {
   const next = applyPermissionUpdate(permission, { type, directories: [dir], destination: 'session' })
@@ -295,12 +295,12 @@ check(
   `composed ${big.composedLength} chars, cap ${big.cap}`,
 )
 
-const bareAlone = drive(mirror, { MERCURY_SIMPLE: '1' })
+const bareAlone = drive(mirror, { MERCURY_BARE: '1' })
 check(
   bareAlone.discoveryDisabled && !bareAlone.userContextHasInstructions,
   'bare mode with no added directory disables instruction discovery: the user context carries no instructions',
 )
-const bareAdded = drive(mirror, { MERCURY_SIMPLE: '1', DRV_ADDED_DIR: added })
+const bareAdded = drive(mirror, { MERCURY_BARE: '1', DRV_ADDED_DIR: added })
 check(
   !bareAdded.discoveryDisabled && bareAdded.userContextHasAddedNeedle,
   "bare mode never refuses a directory the operator added: its guide reaches the user context (the context.ts law)",

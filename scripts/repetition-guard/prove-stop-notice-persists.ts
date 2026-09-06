@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'stop-notice-home-')
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'stop-notice-daemon-'))
 process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'stop-notice-teams-'))
 process.env.MERCURY_SCRIPTED_STREAM = 'hammer-breaker'
-for (const k of ['MERCURY_SIMPLE', 'NODE_ENV', 'MERCURY_SKIP_PROMPT_HISTORY']) {
+for (const k of ['MERCURY_BARE', 'NODE_ENV', 'MERCURY_SKIP_PROMPT_HISTORY']) {
   delete process.env[k]
 }
 

@@ -28,7 +28,6 @@ import {
   setLastApiCompletionTimestamp,
 } from 'src/bootstrap/state.js'
 import {
-  CONTEXT_1M_BETA_HEADER,
   CONTEXT_MANAGEMENT_BETA_HEADER,
   PROMPT_CACHING_SCOPE_BETA_HEADER,
   REDACT_THINKING_BETA_HEADER,
@@ -128,7 +127,6 @@ import {
 import {
   CAPPED_DEFAULT_MAX_TOKENS,
   getModelMaxOutputTokens,
-  getSonnet1mExpTreatmentEnabled,
 } from '../../../utils/context.js'
 import { isTurnOwningQuerySource, resolveAppliedEffort } from '../../../utils/effort.js'
 import { apiTimeoutMsOverride, validateBoundedIntEnvVar } from '../../../utils/envValidation.js'
@@ -225,6 +223,7 @@ import {
   firstByteTimeoutLine,
   requestWaitLine,
   retryReasonWords,
+  streamActivityFetchOptions,
   createStreamIdleWatchdog,
   streamEndReceiptLine,
   streamIdleTimeoutMs,
@@ -765,13 +764,6 @@ async function* queryModel(
   const paramsFromContext = (retryContext: RetryContext) => {
     const betasParams = [...betas]
 
-    if (
-      !betasParams.includes(CONTEXT_1M_BETA_HEADER) &&
-      getSonnet1mExpTreatmentEnabled(retryContext.model)
-    ) {
-      betasParams.push(CONTEXT_1M_BETA_HEADER)
-    }
-
     const extraBodyParams = getExtraBodyParams([])
 
     const outputConfig: BetaOutputConfig = {
@@ -1092,6 +1084,7 @@ async function* queryModel(
   try {
     streamingPass: for (;;) {
     if (pulseMain) pulseStageStart('client_setup')
+    let noteTransportActivity: (() => void) | null = null
     const generator = withRetry(
       () =>
         getAnthropicClient({
@@ -1152,6 +1145,7 @@ async function* queryModel(
               {
                 signal,
                 timeout: wait.budgetMs,
+                fetchOptions: streamActivityFetchOptions(() => noteTransportActivity?.()) as never,
                 ...(clientRequestId && {
                   headers: { [CLIENT_REQUEST_ID_HEADER]: clientRequestId },
                 }),
@@ -1247,7 +1241,9 @@ async function* queryModel(
         releaseStreamResources()
       },
     })
+    noteTransportActivity = () => streamIdleWatchdog.noteActivity()
     function clearStreamIdleTimers(): void {
+      noteTransportActivity = null
       streamIdleWatchdog.stop()
     }
     function settledTailStands(): boolean {

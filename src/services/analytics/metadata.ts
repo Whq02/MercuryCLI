@@ -10,7 +10,6 @@ import { getAgentContext, isTeammateAgentContext } from '../../utils/agentContex
 import { getSubscriptionType } from '../../utils/auth.js'
 import { getModelBetas } from '../../utils/betas.js'
 import { env, getHostPlatformForAnalytics } from '../../utils/env.js'
-import { isEnvTruthy } from '../../utils/envUtils.js'
 import { getRepoRemoteHash } from '../../utils/git.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { detectVcs, getLinuxDistroInfo, getWslVersion } from '../../utils/platform.js'
@@ -63,7 +62,7 @@ export function isToolDetailsLoggingEnabled(server: {
 }
 
 export function isAnalyticsToolDetailsLoggingEnabled(): boolean {
-  return isEnvTruthy(process.env.OTEL_LOG_TOOL_DETAILS)
+  return false
 }
 
 export function mcpToolDetailsForAnalytics(
@@ -166,14 +165,9 @@ export type EnvContext = {
   runtimes: string
   isRunningWithBun: boolean
   isCi: boolean
-  isClaubbit: boolean
   isLocalAgent: boolean
   isConductor: boolean
   tags?: string
-  isGithubAction: boolean
-  githubEventName?: string
-  runnerEnvironment?: string
-  runnerOs?: string
   isAuthenticated: boolean
   version: string
   baseVersion?: string
@@ -188,7 +182,6 @@ export type EnvContext = {
   remoteEnvironmentType?: string
   containerId?: string
   remoteSessionId?: string
-  actionRef?: string
 }
 
 const getBaseVersion = memoize((): string | undefined => {
@@ -203,7 +196,6 @@ const buildEnvContext = memoize(async (): Promise<EnvContext> => {
     getLinuxDistroInfo(),
     detectVcs(),
   ])
-  const inActions = isEnvTruthy(process.env.GITHUB_ACTIONS)
   const wslVersion = getWslVersion()
   const distroRecord = distro as { id?: string; version?: string; kernel?: string } | null
   return {
@@ -216,17 +208,8 @@ const buildEnvContext = memoize(async (): Promise<EnvContext> => {
     runtimes: runtimes.join(','),
     isRunningWithBun: env.isRunningWithBun(),
     isCi: env.isCI,
-    isClaubbit: isEnvTruthy(process.env.CLAUBBIT),
     isLocalAgent: process.env.MERCURY_ENTRYPOINT === 'local-agent',
     isConductor: env.isConductor(),
-    isGithubAction: inActions,
-    ...(inActions
-      ? {
-          githubEventName: process.env.GITHUB_EVENT_NAME,
-          runnerEnvironment: process.env.RUNNER_ENVIRONMENT,
-          runnerOs: process.env.RUNNER_OS,
-        }
-      : {}),
     isAuthenticated: true,
     version: MERCURY_VERSION,
     ...(getBaseVersion() !== undefined ? { baseVersion: getBaseVersion() } : {}),
@@ -290,13 +273,10 @@ export type EventMetadata = {
   betaHeaders?: string
   env: EnvContext
   entrypoint?: string
-  agentSdkVersion?: string
+  hostVersion?: string
   isInteractive: string
   clientType: string
   processMetrics?: ProcessMetrics
-  sweBenchRunId: string
-  sweBenchInstanceId: string
-  sweBenchTaskId: string
   agentId?: string
   parentSessionId?: string
   agentType?: string
@@ -342,15 +322,12 @@ export async function getEventMetadata(options?: EnrichMetadataOptions): Promise
     ...(betas.length > 0 ? { betaHeaders: betas.join(',') } : {}),
     env: envContext,
     ...(process.env.MERCURY_ENTRYPOINT ? { entrypoint: process.env.MERCURY_ENTRYPOINT } : {}),
-    ...(process.env.MERCURY_SDK_VERSION
-      ? { agentSdkVersion: process.env.MERCURY_SDK_VERSION }
+    ...(process.env.MERCURY_HOST_VERSION
+      ? { hostVersion: process.env.MERCURY_HOST_VERSION }
       : {}),
     isInteractive: String(!getIsNonInteractiveSession()),
     clientType: 'cli',
     ...(collectProcessMetrics() !== undefined ? { processMetrics: collectProcessMetrics() } : {}),
-    sweBenchRunId: process.env.SWE_BENCH_RUN_ID ?? '',
-    sweBenchInstanceId: process.env.SWE_BENCH_INSTANCE_ID ?? '',
-    sweBenchTaskId: process.env.SWE_BENCH_TASK_ID ?? '',
     ...agentIdentification(),
     ...(subscription ? { subscriptionType: subscription } : {}),
     ...(repoHash ? { repoRemoteHash: repoHash } : {}),
@@ -391,10 +368,8 @@ export function to1PEventFormat(
     runtimes: context.runtimes,
     is_running_with_bun: context.isRunningWithBun,
     is_ci: context.isCi,
-    is_claubbit: context.isClaubbit,
     is_local_agent: context.isLocalAgent,
     is_conductor: context.isConductor,
-    is_github_action: context.isGithubAction,
     is_authenticated: context.isAuthenticated,
     version: context.version,
   }
@@ -405,10 +380,6 @@ export function to1PEventFormat(
       .filter(tag => tag !== '')
   }
   for (const [snake, value] of [
-    ['github_event_name', context.githubEventName],
-    ['runner_environment', context.runnerEnvironment],
-    ['runner_os', context.runnerOs],
-    ['action_ref', context.actionRef],
     ['base_version', context.baseVersion],
     ['build_time', context.buildTime],
     ['deployment_environment', context.deploymentEnvironment],
@@ -419,9 +390,6 @@ export function to1PEventFormat(
     ['version_control_systems', context.versionControlSystems],
   ] as const) {
     if (value) envRecord[snake] = value
-  }
-  if (userData.githubActionsMetadata) {
-    envRecord.github_actions_metadata = userData.githubActionsMetadata
   }
 
   const auth: PublicApiAuth = {}
@@ -438,7 +406,7 @@ export function to1PEventFormat(
   for (const [snake, value] of [
     ['beta_headers', metadata.betaHeaders],
     ['entrypoint', metadata.entrypoint],
-    ['agent_sdk_version', metadata.agentSdkVersion],
+    ['host_version', metadata.hostVersion],
     ['agent_id', metadata.agentId],
     ['parent_session_id', metadata.parentSessionId],
     ['agent_type', metadata.agentType],

@@ -125,7 +125,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'scripts/vendor/fetch-node.ts', 'scripts/vendor/fetch-platform-packages.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'vendor/node.lock.json', 'bun.lock') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'scripts/vendor/fetch-node.ts', 'scripts/vendor/fetch-platform-packages.ts', 'scripts/vendor/fetch-brush.ts', 'scripts/vendor/build-brush.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'vendor/node.lock.json', 'vendor/brush.lock.json', 'bun.lock') }}
       - name: Fetch pinned vendor artifacts (hash-verified)
         run: |
           bun run scripts/vendor/fetch-pyright.ts
@@ -139,6 +139,9 @@ jobs:
         run: |
           arch -x86_64 /usr/bin/true 2>/dev/null || sudo softwareupdate --install-rosetta --agree-to-license
           arch -x86_64 /usr/bin/true
+      - name: Fetch the pinned shell engine pack (hash-verified)
+        if: runner.os != 'Windows'
+        run: bun run scripts/vendor/fetch-brush.ts --platform ${{ matrix.node_pack }}
       - name: Rust toolchain (pinned stable)
         id: rust
         continue-on-error: true
@@ -152,6 +155,10 @@ jobs:
       - name: Build the voice capture pack
         continue-on-error: true
         run: bun run scripts/vendor/build-voice.ts --target ${{ matrix.target }}
+      - name: Build the shell engine pack (Windows)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        run: bun run scripts/vendor/build-brush.ts --target ${{ matrix.target }}
       - name: cmake for the on-device transcriber pack
         continue-on-error: true
         shell: bash

@@ -1,4 +1,5 @@
 import memoize from 'lodash-es/memoize.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 
 import { getSkillToolCommands } from '../../commands.js'
 import { COMMAND_NAME_TAG } from '../../constants/xml.js'
@@ -18,7 +19,7 @@ const MIN_DESCRIPTION_ALLOWANCE = 20
 const NAME_OVERHEAD = 4
 
 export function getCharBudget(contextWindowTokens?: number): number {
-  const override = Number(process.env.SLASH_COMMAND_TOOL_CHAR_BUDGET)
+  const override = Number(flagEnv('MERCURY_SKILL_CHAR_BUDGET'))
   if (Number.isFinite(override) && override !== 0) return override
   if (contextWindowTokens !== undefined && contextWindowTokens > 0) {
     return Math.floor(contextWindowTokens * SKILL_BUDGET_CONTEXT_PERCENT * CHARS_PER_TOKEN)

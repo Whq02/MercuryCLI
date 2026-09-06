@@ -175,7 +175,7 @@ const agentLaunch = (id: string, seat: Seat, extra: Record<string, unknown>): An
   input: {
     description: SEATS[seat],
     prompt: `${SEAT_MARK}${seat} read the notes file, one read per turn, then report in one line`,
-    subagent_type: 'general-purpose',
+    subagent_type: 'mercury-general',
     ...extra,
   },
 })
@@ -570,7 +570,7 @@ if (cap !== null) {
   console.log('\n— F the death is delivered once, with its cause —')
   const inputRow = (l: string): boolean => /"kind":\s*"input"/.test(l)
   const faultRows = foliage?.lines.filter(l => /"kind":\s*"output"/.test(l) && l.includes('stream fault after partial content')) ?? []
-  const recoveryRows = foliage?.lines.filter(l => l.includes('continuing once from where it stopped')) ?? []
+  const recoveryRows = foliage?.lines.filter(l => l.includes('asked the model to continue from where it stopped')) ?? []
   check(`F1 the child's transcript holds two faults and the one recovery between them (${faultRows.length} faults, ${recoveryRows.length} recovery notices)`, faultRows.length === 2 && recoveryRows.length === 1)
   const faultCalls = gptHits.filter(h => !h.raw.includes(DEAD_WORD))
   check(`F1 the seat was asked twice before it died, the second time with the nudge (${faultCalls.length} calls)`, faultCalls.length === 2 && faultCalls[1]?.raw.includes('Pick up exactly where your output stopped') === true)

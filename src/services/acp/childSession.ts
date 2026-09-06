@@ -76,7 +76,7 @@ export class MercuryChildSession {
       '-p',
       '--input-format=stream-json',
       '--output-format=stream-json',
-      '--permission-prompt-tool',
+      '--permission-channel',
       'stdio',
       ...(opts.permissionMode ? ['--permission-mode', opts.permissionMode] : []),
       ...(opts.model ? ['--model', opts.model] : []),
@@ -284,7 +284,7 @@ export class MercuryChildSession {
         request_id: requestId,
         response: allow
           ?
-            { behavior: 'allow', updatedInput: opts?.updatedInput ?? {} }
+            { behavior: 'allow', updated_input: opts?.updatedInput ?? {} }
           : { behavior: 'deny', message: opts?.message ?? 'denied by the ACP client' },
       },
     })

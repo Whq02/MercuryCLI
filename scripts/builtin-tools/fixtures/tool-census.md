@@ -6,13 +6,13 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 70 built-in production tools · 169 operations · 70 with a declared capability contract.
+Census version 1 — 71 built-in production tools · 170 operations · 71 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 46 available · 13 conditional · 0 degraded · 11 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 20 observation · 22 mutation · 9 execution · 19 coordination · 0 unclassified
-- integrations: 10 declare transactions · 11 declare executions · 31 declare mercury:// outputs · 36 name a focused proof
+- support (at generation time): 44 available · 15 conditional · 0 degraded · 12 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 20 observation · 22 mutation · 10 execution · 19 coordination · 0 unclassified
+- integrations: 10 declare transactions · 12 declare executions · 32 declare mercury:// outputs · 36 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · planning · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
 - every tool is unit-classified
 
@@ -54,6 +54,7 @@ Census version 1 — 70 built-in production tools · 169 operations · 70 with a
 | LSP | mutation | code-intelligence | — | block | yes | lsp.rename +receipts | — | mercury://file, mercury://receipt | scripts/lsp/run-all.sh |
 | Monitor | observation | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
 | NotebookEdit | mutation | text-mutation | — | block | yes | notebook +receipts | — | mercury://file, mercury://receipt | NAMED GAP |
+| PowerShell | execution | process-execution | — | block | no | — | background-job (external-projection) | mercury://task | NAMED GAP |
 | ProviderSearch | observation | web-access | — | block | yes | — | — | — | scripts/search/run-all.sh |
 | PushNotification | coordination | operator-io | — | block | yes | — | — | — | NAMED GAP |
 | Read | observation | source-reading | — | block | no | — | — | mercury://file | scripts/project-services/prove-change-anchors.ts |

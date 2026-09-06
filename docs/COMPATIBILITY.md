@@ -34,7 +34,7 @@ the identity suite (`scripts/identity/`) pins each one and bounds the total.
 - The User-Agent surface (`src/utils/userAgent.ts`, `src/utils/http.ts`) is
   uniform: every Mercury-owned connection presents the product identity,
   `mercury/<version>` — the provider-API agent appends a parenthesised tail
-  (the entrypoint, optional `agent-sdk/…` and `client-app/…`, and the
+  (the entrypoint, optional `host/…` and `host-app/…`, and the
   turn-scoped `workload/…` segment). Provider-side client identification
   rides the auth material and the app/session headers, not this string. The
   user-initiated web-fetch agent is `Mozilla/5.0 (compatible;
@@ -64,8 +64,8 @@ Mercury stamps only its own spellings into processes it spawns: an MCP
 `headersHelper` receives `MERCURY_MCP_SERVER_NAME` and
 `MERCURY_MCP_SERVER_URL` (`src/services/mcp/headersHelper.ts`); teammate
 processes carry `MERCURY_TEAMMATE_COMMAND` / `MERCURY_AGENT_COLOR`
-(`src/utils/swarm/constants.ts`); SDK-spawned children receive the
-`MERCURY_SDK_*` handshake. Credential-bearing variables (the session OAuth
+(`src/utils/swarm/constants.ts`); a hosting application that spawns Mercury
+passes the `MERCURY_HOST_*` handshake. Credential-bearing variables (the session OAuth
 token among them) are stripped from ordinary subprocess environments.
 
 ## Settings schema

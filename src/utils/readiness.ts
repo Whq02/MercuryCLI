@@ -36,6 +36,7 @@ import { getBundledSkills } from '../skills/bundledSkills.js'
 import { dynamicWorkflowsEnabled, workflowsManagedDisabled } from '../tools/WorkflowTool/workflowEnablement.js'
 import { logForDebugging } from './debug.js'
 import { listCapabilityKills } from './permissions/capabilityGate.js'
+import { describeWindowsShellRoad } from './shell/windowsShellRoad.js'
 import { extensionReadinessRows } from '../extensions/boot.js'
 import { searchToolsAvailability } from './ripgrep.js'
 import { mcpGauge } from './cockpit/mcpGauge.js'
@@ -126,6 +127,18 @@ function toolRecords(): ReadinessRecord[] {
     latencyMs: Date.now() - t0,
   })
 
+  const shell = describeWindowsShellRoad()
+  records.push({
+    id: 'tool:shell',
+    kind: 'tool',
+    label: 'Bash tool shell',
+    state: shell.absent ? 'unavailable' : shell.road === 'system' ? 'configured' : 'ready',
+    detail: shell.line,
+    ...(shell.fix !== undefined ? { remedy: shell.fix } : {}),
+    source: 'Windows shell road',
+    lastCheckedAt: Date.now(),
+  })
+
   const kills = listCapabilityKills()
   const pairs: string[] = []
   for (const [agentType, tools] of Object.entries(kills)) {
@@ -160,7 +173,7 @@ function toolRecords(): ReadinessRecord[] {
 
 function injectionNote(connection: MCPServerConnection): string {
   const type = connection.config?.type
-  if (type === 'sdk') return ' (runtime-injected: SDK client)'
+  if (type === 'host') return ' (host-served)'
   if (type === 'ws-ide' || type === 'sse-ide') return ' (runtime-injected: editor bridge)'
   return ' (runtime-injected)'
 }

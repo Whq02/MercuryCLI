@@ -1,6 +1,6 @@
 import type { Command } from '../../commands.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { anyProviderCredentialed } from '../../services/providers/providerUsage.js'
-import { isEnvTruthy } from '../../utils/envUtils.js'
 import { shouldNavCommandBeImmediate } from '../../utils/immediateCommand.js'
 
 export default () =>
@@ -18,7 +18,7 @@ export default () =>
       }
     },
     argumentHint: '[anthropic|openai|console|openrouter|gemini|huggingface|kimi|glm|deepseek]',
-    isEnabled: () => !isEnvTruthy(process.env.DISABLE_LOGIN_COMMAND),
+    isEnabled: () => flagEnabled('MERCURY_LOGIN_COMMAND'),
     get immediate() {
       return shouldNavCommandBeImmediate()
     },

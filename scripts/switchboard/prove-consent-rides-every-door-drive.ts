@@ -241,11 +241,11 @@ const chatAndCycle = (presses: number): Send[] => {
 
 type Run = { id: string; title: string; argv: string[]; row: boolean; door: 'face' | 'board'; consented: boolean; bornSovereign: boolean; presses: number }
 const RUNS: Run[] = [
-  { id: 'r1', title: 'the skip flag → the face → ↵ New Session', argv: ['--dangerously-skip-permissions'], row: false, door: 'face', consented: true, bornSovereign: true, presses: 8 },
-  { id: 'r2', title: 'the skip flag → the face → o → the board → tab → n → (No) → the chat', argv: ['--dangerously-skip-permissions'], row: false, door: 'board', consented: true, bornSovereign: true, presses: 8 },
+  { id: 'r1', title: 'the skip flag → the face → ↵ New Session', argv: ['--dangerously-bypass-permissions'], row: false, door: 'face', consented: true, bornSovereign: true, presses: 8 },
+  { id: 'r2', title: 'the skip flag → the face → o → the board → tab → n → (No) → the chat', argv: ['--dangerously-bypass-permissions'], row: false, door: 'board', consented: true, bornSovereign: true, presses: 8 },
   { id: 'r3', title: 'the saved row (MERCURY_SKIP_PERMISSIONS=1) → the face → ↵ New Session', argv: [], row: true, door: 'face', consented: true, bornSovereign: true, presses: 8 },
   { id: 'r4', title: 'CONTROL — no consent → the face → ↵ New Session', argv: [], row: false, door: 'face', consented: false, bornSovereign: false, presses: 8 },
-  { id: 'r5', title: 'the allow flag (consent on, default posture) → the face → ↵ New Session → the press onto Sovereign', argv: ['--allow-dangerously-skip-permissions'], row: false, door: 'face', consented: true, bornSovereign: false, presses: 5 },
+  { id: 'r5', title: 'the allow flag (consent on, default posture) → the face → ↵ New Session → the press onto Sovereign', argv: ['--allow-dangerously-bypass-permissions'], row: false, door: 'face', consented: true, bornSovereign: false, presses: 5 },
 ]
 
 const counts: Record<string, { stations: string[]; distinct: number }> = {}

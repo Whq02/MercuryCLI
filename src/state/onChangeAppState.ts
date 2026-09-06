@@ -1,15 +1,7 @@
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import { updateSettingsForSource } from '../utils/settings/settings.js'
-import {
-  notifyPermissionModeChanged,
-  notifySessionMetadataChanged,
-} from '../utils/sessionState.js'
-import {
-  permissionModeFromString,
-  toExternalPermissionMode,
-} from '../utils/permissions/PermissionMode.js'
+import { notifyPermissionModeChanged } from '../utils/sessionState.js'
 import { auditModeChange } from '../utils/permissions/modeTransitions.js'
-import type { SessionExternalMetadata } from '../utils/sessionState.js'
 import { setMainLoopModelOverride } from '../bootstrap/state.js'
 import { getUserContext } from '../context.js'
 import { syncInstructionRootsWithWorkspace } from '../services/instructions/engine.js'
@@ -29,20 +21,6 @@ export function onChangeAppState({
   const oldMode = oldState.toolPermissionContext.mode
   if (newMode !== oldMode) {
     auditModeChange(oldMode, newMode)
-    const newExternal = toExternalPermissionMode(newMode)
-    const oldExternal = toExternalPermissionMode(oldMode)
-    if (newExternal !== oldExternal) {
-      const ultraplanIndicator =
-        newMode === 'strategy' &&
-        newState.isUltraplanMode === true &&
-        oldState.isUltraplanMode !== true
-          ? true
-          : null
-      notifySessionMetadataChanged({
-        permission_mode: newExternal,
-        is_ultraplan_mode: ultraplanIndicator,
-      })
-    }
     notifyPermissionModeChanged(newMode)
   }
 
@@ -57,16 +35,16 @@ export function onChangeAppState({
   }
 
   if (newState.expandedView !== oldState.expandedView) {
-    const showExpandedTodos = newState.expandedView === 'tasks'
+    const showExpandedTasks = newState.expandedView === 'tasks'
     const showSpinnerTree = newState.expandedView === 'teammates'
     const config = getGlobalConfig()
     if (
-      config.showExpandedTodos !== showExpandedTodos ||
+      config.showExpandedTasks !== showExpandedTasks ||
       config.showSpinnerTree !== showSpinnerTree
     ) {
       saveGlobalConfig(current => ({
         ...current,
-        showExpandedTodos,
+        showExpandedTasks,
         showSpinnerTree,
       }))
     }
@@ -102,28 +80,5 @@ export function onChangeAppState({
     } catch (error) {
       logError(error)
     }
-  }
-}
-
-export function externalMetadataToAppState(
-  metadata: SessionExternalMetadata,
-): (prevState: AppState) => AppState {
-  return prevState => {
-    let next = prevState
-    if (typeof metadata.permission_mode === 'string') {
-      const mode = permissionModeFromString(metadata.permission_mode)
-      if (mode !== next.toolPermissionContext.mode) {
-        next = {
-          ...next,
-          toolPermissionContext: { ...next.toolPermissionContext, mode },
-        }
-      }
-    }
-    if (typeof metadata.is_ultraplan_mode === 'boolean') {
-      if (next.isUltraplanMode !== metadata.is_ultraplan_mode) {
-        next = { ...next, isUltraplanMode: metadata.is_ultraplan_mode }
-      }
-    }
-    return next
   }
 }

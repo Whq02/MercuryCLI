@@ -41,7 +41,7 @@ t.section('§1 the projection is exhaustive and honest')
     id: 'la-1',
     description: 'poise probe',
     status: 'running',
-    agentType: 'general-purpose',
+    agentType: 'mercury-general',
     pendingMessages: [],
     messages: [],
   } as never
@@ -140,7 +140,7 @@ t.section('§2 journey: header + CREW root + mouse return')
       input: {
         description: 'poise probe',
         prompt: 'Count to three slowly.',
-        subagent_type: 'general-purpose',
+        subagent_type: 'mercury-general',
         run_in_background: true,
       },
       preText: 'Spawning the probe agent.',
@@ -251,7 +251,7 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
       id: 'la-x',
       description: 'quick probe',
       status: 'running',
-      agentType: 'general-purpose',
+      agentType: 'mercury-general',
       pendingMessages: [],
       ...over,
     }) as never
@@ -331,7 +331,7 @@ t.section('§4 journey: completed agent stays reachable from the footer')
       input: {
         description: 'quick probe',
         prompt: 'Reply with one word.',
-        subagent_type: 'general-purpose',
+        subagent_type: 'mercury-general',
         run_in_background: true,
       },
       preText: 'Spawning the quick probe.',

@@ -217,9 +217,11 @@ tool-economy	20
 # The real-terminal drive halves of the split suites: an estimate from each
 # parent's measured wall (the drives carry most of it) until a run re-seeds.
 attention-drives	245
+bash-drives	60
 core-runtime-drives	350
 critters-drives	175
 engine-connector-drives	74
+daemon-drives	260
 health-drives	91
 helm-console-drives	30
 mcp-drives	84

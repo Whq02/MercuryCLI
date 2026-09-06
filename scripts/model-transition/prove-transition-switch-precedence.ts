@@ -17,7 +17,7 @@ const section = (t: string): void => {
 delete process.env.NODE_ENV
 delete process.env.CI
 delete process.env.CLAUDE_EFFORT
-delete process.env.ANTHROPIC_MODEL
+delete process.env.MERCURY_MODEL
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'switch-precedence-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -109,18 +109,18 @@ section('§3 patch-key census — nothing beyond the transition slice moves')
   check('every settlement/boundary patch over the 24-case grid touches ONLY the transition slice (sub-model slots unreachable)', widest.length === 0, widest.join(','))
 }
 
-section('§4 setting layers: override > ANTHROPIC_MODEL > saved')
+section('§4 setting layers: override > MERCURY_MODEL > saved')
 {
-  delete process.env.ANTHROPIC_MODEL
+  delete process.env.MERCURY_MODEL
   setMainLoopModelOverride(undefined as never)
   const base = getUserSpecifiedModelSetting()
   check('a fresh scratch home has no user-specified setting (the default rung)', base === null, String(base))
-  process.env.ANTHROPIC_MODEL = 'glm-5.2'
-  check('ANTHROPIC_MODEL env speaks when no override exists', getUserSpecifiedModelSetting() === 'glm-5.2')
+  process.env.MERCURY_MODEL = 'glm-5.2'
+  check('MERCURY_MODEL env speaks when no override exists', getUserSpecifiedModelSetting() === 'glm-5.2')
   setMainLoopModelOverride('gpt-5.6-sol')
   check('the in-session override OUTRANKS the env', getUserSpecifiedModelSetting() === 'gpt-5.6-sol')
   setMainLoopModelOverride(undefined as never)
-  delete process.env.ANTHROPIC_MODEL
+  delete process.env.MERCURY_MODEL
   check('clearing both returns the default rung', getUserSpecifiedModelSetting() === null)
 }
 

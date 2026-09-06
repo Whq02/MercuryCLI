@@ -127,12 +127,7 @@ export async function authLogin(opts: {
   email?: string
   sso?: boolean
   console?: boolean
-  claudeai?: boolean
 }): Promise<void> {
-  if (opts.console && opts.claudeai) {
-    console.error('--console and --claudeai cannot be combined')
-    process.exit(1)
-  }
   const forcedMethod = getInitialSettings().forceLoginMethod
   const loginWithClaudeAi = forcedMethod
     ? forcedMethod === 'claudeai'
@@ -216,10 +211,8 @@ export async function authLogin(opts: {
   }
 }
 
-export async function authStatus(opts: {
-  json?: boolean
-  text?: boolean
-}): Promise<void> {
+export async function authStatus(opts: { json?: boolean }): Promise<void> {
+  const readable = opts.json !== true && process.stdout.isTTY === true
   const tokenSource = getAuthTokenSource()
   const apiKey = ((): ReturnType<typeof getAnthropicApiKeyWithSource> => {
     try {
@@ -251,7 +244,7 @@ export async function authStatus(opts: {
               ? 'claude.ai'
               : 'none'
 
-  if (opts.text) {
+  if (readable) {
     const properties = [...buildAccountProperties(), ...buildAPIProviderProperties()]
     let printed = 0
     for (const property of properties) {
@@ -293,7 +286,6 @@ export async function authStatus(opts: {
     const payload: Record<string, unknown> = {
       loggedIn,
       authMethod,
-      apiProvider: 'firstParty',
     }
     const apiKeySource =
       apiKey.source !== 'none'

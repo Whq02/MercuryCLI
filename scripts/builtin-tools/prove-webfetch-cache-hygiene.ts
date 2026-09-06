@@ -44,16 +44,12 @@ console.log('prove-webfetch-cache-hygiene — the self-cleaning cache is literal
     join(import.meta.dir, '..', '..', 'src', 'tools', 'WebFetchTool', 'utils.ts'),
     'utf-8',
   )
-  const urlCacheBlock = src.slice(src.indexOf('const urlCache'), src.indexOf('const domainCheckCache'))
+  const urlCacheBlock = src.slice(src.indexOf('const urlCache'), src.indexOf('export function clearWebFetchCache'))
   check(
     'the URL cache carries ttlAutopurge beside its ttl',
     urlCacheBlock.includes('ttl: 15 * 60 * 1000') && urlCacheBlock.includes('ttlAutopurge: true'),
   )
-  const domainBlock = src.slice(src.indexOf('const domainCheckCache'))
-  check(
-    'the domain-verdict cache deliberately skips the purge timer (boolean entries)',
-    !domainBlock.slice(0, domainBlock.indexOf('})')).includes('ttlAutopurge'),
-  )
+  check('the URL cache is the module\'s one cache (no domain-verdict cache remains)', !src.includes('domainCheckCache'))
   check(
     'the prompt copy still promises self-cleaning (the pin keeps it honest)',
     readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'WebFetchTool', 'prompt.ts'), 'utf-8').includes(

@@ -4,7 +4,7 @@ import type {
   ToolAnnotations,
 } from '../../services/mcp/sdk.js'
 
-const EFFORT_LADDER = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'] as const
+const EFFORT_LADDER = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 export type EffortLevel = (typeof EFFORT_LADDER)[number]
 export const EFFORT_LEVELS: readonly EffortLevel[] = EFFORT_LADDER
 
@@ -23,8 +23,8 @@ export type SdkMcpToolDefinition<
   searchHint?: string
   alwaysLoad?: boolean
 }
-export type McpSdkServerConfigWithInstance = {
-  type: 'sdk'
+export type McpHostServerConfigWithInstance = {
+  type: 'host'
   name: string
   instance: unknown
 }

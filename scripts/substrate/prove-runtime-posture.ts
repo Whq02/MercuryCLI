@@ -44,7 +44,7 @@ section('gate — default-ON, =0 byte-identical absence')
   check('=0 ⇒ disabled', runtimePostureEnabled() === false)
   check('=0 ⇒ section null (absent from the prompt)', getRuntimePostureSection() === null)
   check('=0 ⇒ doctrine line null', getRuntimePostureDoctrineLine() === null)
-  const sections = buildSubagentMercurySections({ agentDefinition: { agentType: 'general-purpose' } })
+  const sections = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-general' } })
   check(
     '=0 ⇒ no posture text in the subagent doctrine',
     sections.every(s => !s.includes('Runtime posture:')),
@@ -100,7 +100,7 @@ section('boot-state capture — kills + MCP cap render when armed at boot')
 
 section('composition into the subagent doctrine (both chokepoints share the seam)')
 {
-  const sections = buildSubagentMercurySections({ agentDefinition: { agentType: 'general-purpose' } })
+  const sections = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-general' } })
   check(
     'doctrine sections include the posture line',
     sections.some(s => s.startsWith('Runtime posture:')),

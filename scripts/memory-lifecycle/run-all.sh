@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/memdir/** src/services/mcp/coordinationServer* src/utils/backgroundHousekeeping* src/query/stopHooks* src/services/autoDream/**
+# gate-watch: src/memdir/** src/services/mcp/coordinationServer* src/utils/backgroundHousekeeping* src/query/stopHooks* src/services/memoryUpkeep/**
 set -u
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 

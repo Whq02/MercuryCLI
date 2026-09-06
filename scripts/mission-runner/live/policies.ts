@@ -48,7 +48,7 @@ export const HELIX_POLICIES: HelixPolicy[] = [
     env: {},
     reviewerArmed: true,
     briefSuffix:
-      ' Before declaring completion, dispatch the verification subagent (Task tool, subagent_type "verification") to adversarially review the work against this mission, then address any real findings it reports. End your final message with ONE line of the exact form: REVIEW: accept|revise|reject [reqs: <ids>] [next: <one action>] reflecting the reviewer’s verdict.',
+      ' Before declaring completion, dispatch the verification subagent (Task tool, subagent_type "mercury-verifier") to adversarially review the work against this mission, then address any real findings it reports. End your final message with ONE line of the exact form: REVIEW: accept|revise|reject [reqs: <ids>] [next: <one action>] reflecting the reviewer’s verdict.',
   },
   {
     id: 'specialist-sol',

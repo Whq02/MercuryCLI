@@ -21,7 +21,7 @@ import type {
 import type { Tools } from '../Tool.js'
 import type { Command } from '../commands.js'
 import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js'
-import { AGENT_TOOL_NAME, LEGACY_AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
+import { AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
 import { hiddenAgentToolUses } from '../tools/AgentTool/UI.js'
 import {
   buildMessageLookups,
@@ -48,7 +48,7 @@ import type {
 import type { StreamingTailStore } from '../utils/messages/streamingTailStore.js'
 import { applyGrouping } from '../utils/groupToolUses.js'
 import { collapseReadSearchGroups } from '../utils/collapseReadSearch.js'
-import { SentryErrorBoundary } from './SentryErrorBoundary.js'
+import { RowErrorBoundary } from './RowErrorBoundary.js'
 import { collapseTeammateShutdowns } from '../utils/collapseTeammateShutdowns.js'
 import { collapseHookSummaries } from '../utils/collapseHookSummaries.js'
 import { collapseBackgroundBashNotifications } from '../utils/collapseBackgroundBashNotifications.js'
@@ -517,7 +517,7 @@ function MessagesInner({
 
   const isAgentToolName = useCallback(
     (name?: string): boolean =>
-      name === AGENT_TOOL_NAME || name === LEGACY_AGENT_TOOL_NAME,
+      name === AGENT_TOOL_NAME,
     [],
   )
   const agentFoldHidden = useCallback(
@@ -748,7 +748,7 @@ function MessagesInner({
         >
           {
 }
-          <SentryErrorBoundary>
+          <RowErrorBoundary>
           <MessageRow
             message={msg_8}
             isUserContinuation={
@@ -785,7 +785,7 @@ function MessagesInner({
             )}
             clickExpanded={expandedKeys.has(key)}
           />
-          </SentryErrorBoundary>
+          </RowErrorBoundary>
         </NameplateContinuationContext.Provider>
       )
     },

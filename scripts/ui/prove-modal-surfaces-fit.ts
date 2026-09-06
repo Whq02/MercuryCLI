@@ -70,7 +70,7 @@ section('mechanism pins')
   check('the /help general tab hands the shell interior to the grid', general.includes('availableColumns={Math.max(20, columns - 4)}'))
 
   const figures = await import('../../src/constants/figures.ts')
-  const ladder = [figures.EFFORT_LOW, figures.EFFORT_MEDIUM, figures.EFFORT_HIGH, figures.EFFORT_XHIGH, figures.EFFORT_MAX, figures.EFFORT_ULTRA]
+  const ladder = [figures.EFFORT_LOW, figures.EFFORT_MEDIUM, figures.EFFORT_HIGH, figures.EFFORT_XHIGH, figures.EFFORT_MAX]
   check('no effort glyph is the band separator (`· · low` read as a doubled separator)', ladder.every(g => g !== '·'))
   check('the effort ladder glyphs are distinct', new Set(ladder).size === ladder.length)
 

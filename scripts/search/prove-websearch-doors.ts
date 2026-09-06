@@ -26,9 +26,9 @@ function repoRoot(): string {
 delete process.env.NODE_ENV
 delete process.env.CI
 for (const key of [
-  'https_proxy', 'HTTPS_PROXY', 'http_proxy', 'HTTP_PROXY', 'ANTHROPIC_UNIX_SOCKET',
+  'https_proxy', 'HTTPS_PROXY', 'http_proxy', 'HTTP_PROXY', 'MERCURY_API_UNIX_SOCKET',
   'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN',
-  'ANTHROPIC_MODEL', 'ANTHROPIC_SMALL_FAST_MODEL', 'ANTHROPIC_CUSTOM_MODEL_OPTION',
+  'MERCURY_MODEL', 'MERCURY_SMALL_FAST_MODEL', 'MERCURY_CUSTOM_MODEL_OPTION',
   'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY',
   'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'BRAVE_API_KEY', 'TAVILY_API_KEY',
   'MERCURY_SEARCH_BACKEND', 'MERCURY_SEARCH_KEYLESS', 'MERCURY_SEARCH_DDG_HTML_URL',
@@ -82,7 +82,7 @@ const { KEYED_DOOR_REMEDY } = await import('../../src/services/search/searchCont
 function seedHome(model: string): void {
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ model }))
   resetSettingsCache()
-  process.env.ANTHROPIC_MODEL = model
+  process.env.MERCURY_MODEL = model
 }
 
 function makeContext(model: string): Record<string, unknown> {
@@ -368,10 +368,9 @@ section('§8 KEY AT REST — the stored key: mode 600 in the engines\' store, re
   fixture.reset()
 }
 
-section('§9 THE WEBFETCH PREFLIGHT — first-party policy only for the first party')
+section('§9 THE WEBFETCH ROAD — no policy service is asked before a fetch, on any family')
 {
-  process.env.MERCURY_WEBFETCH_PREFLIGHT_URL = `${fixture.base}/api/web/domain_info`
-  const { getURLMarkdownContent, clearWebFetchCache, DomainBlockedError, DomainCheckFailedError } = await import('../../src/tools/WebFetchTool/utils.js')
+  const { getURLMarkdownContent, clearWebFetchCache } = await import('../../src/tools/WebFetchTool/utils.js')
   const fetchDuring = async (url: string): Promise<{ error?: Error; anthropic: number }> => {
     const before = fixture.hitsOn('anthropic').length
     let error: Error | undefined
@@ -384,21 +383,15 @@ section('§9 THE WEBFETCH PREFLIGHT — first-party policy only for the first pa
   }
   seedHome(NEMOTRON)
   clearWebFetchCache()
-  const anthropicPathsBefore = fixture.hitsOn('anthropic').length
   const sovereign = await fetchDuring(`https://127.0.0.1:${PORT}/fetch-me/one`)
-  check('a nemotron fetch touches ZERO anthropic hosts (no preflight dial)', sovereign.anthropic === 0,
-    j(fixture.hitsOn('anthropic').slice(anthropicPathsBefore).map(h => h.path)))
-  check('…and its failure (the loopback TLS refusal) is NEVER a preflight verdict',
-    !(sovereign.error instanceof DomainBlockedError) && !(sovereign.error instanceof DomainCheckFailedError), sovereign.error?.name)
+  check('a nemotron fetch touches ZERO anthropic hosts', sovereign.anthropic === 0, j(fixture.hitsOn('anthropic').map(h => h.path)))
   seedHome('claude-opus-4-8')
   clearWebFetchCache()
   const firstParty = await fetchDuring(`https://127.0.0.1:${PORT}/fetch-me/two`)
-  check('an anthropic-routed fetch DOES preflight (the spy bites — exactly one policy dial)', firstParty.anthropic === 1, String(firstParty.anthropic))
-  check('…at the policy path', fixture.hitsOn('anthropic').at(-1)?.path.startsWith('/api/web/domain_info?domain=127.0.0.1') === true, fixture.hitsOn('anthropic').at(-1)?.path)
-  delete process.env.MERCURY_WEBFETCH_PREFLIGHT_URL
+  check('an anthropic-routed fetch touches ZERO anthropic hosts too (no policy dial exists)', firstParty.anthropic === 0, j(fixture.hitsOn('anthropic').map(h => h.path)))
   const utilsSource = readFileSync(join(repoRoot(), 'src/tools/WebFetchTool/utils.ts'), 'utf8')
-  check('the gate is the routing law in the source (the production host is hardcoded, so the anthropic arm is source-pinned)',
-    /!skipPreflight && declaredRouteOf\(getMainLoopModel\(\)\) === 'anthropic'/.test(utilsSource))
+  check('the source names no policy endpoint and no preflight (the road is gone, not gated)',
+    !utilsSource.includes('domain_info') && !/preflight/i.test(utilsSource))
   const { getWebFetchUserAgent } = await import('../../src/utils/http.js')
   const webFetchUa = getWebFetchUserAgent()
   check('the WebFetch agent presents Mercury/<version> and DISCLOSES nothing (no +url, no repo, no operator)',
@@ -634,7 +627,7 @@ section("§13 THE BUILT BUNDLE — a headless gpt session on dist/mercury.mjs: t
         ...fixture.env,
       }
       return new Promise(resolve => {
-        const child = spawn(nodeBin, [DIST, '-p', prompt, '--model', 'gpt-5.5', '--output-format', 'stream-json', '--allowedTools', 'WebSearch', 'ProviderSearch'], { cwd, env })
+        const child = spawn(nodeBin, [DIST, '-p', prompt, '--model', 'gpt-5.5', '--output-format', 'stream-json', '--allowed-tools', 'WebSearch', 'ProviderSearch'], { cwd, env })
         let stdout = ''
         let stderr = ''
         child.stdout.on('data', d => (stdout += d))
