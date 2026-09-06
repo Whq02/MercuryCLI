@@ -32,7 +32,7 @@ for (const file of INVENTORY) {
   t(`§2 ${file} mounts MessageRow at least once`, mounts.length > 0)
   for (const at of mounts) {
     const above = lines.slice(Math.max(0, at - 30), at).join('\n')
-    t(`§2 ${file}:${at + 1} mount is contained (SentryErrorBoundary opens above it)`, above.includes('<SentryErrorBoundary'), 'a bare MessageRow mount — one poisoned row would end the session here')
+    t(`§2 ${file}:${at + 1} mount is contained (RowErrorBoundary opens above it)`, above.includes('<RowErrorBoundary'), 'a bare MessageRow mount — one poisoned row would end the session here')
   }
 }
 

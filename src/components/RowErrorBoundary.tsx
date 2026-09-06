@@ -13,7 +13,7 @@ interface State {
   hasError: boolean
 }
 
-export class SentryErrorBoundary extends React.Component<Props, State> {
+export class RowErrorBoundary extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props)
     this.state = { hasError: false }

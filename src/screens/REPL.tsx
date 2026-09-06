@@ -105,7 +105,6 @@ import { packHints } from '../components/mercury-ui/geometry.js';
 import { stringWidth } from '../ink/stringWidth.js';
 import type { VimMode } from '../hooks/useVimInput.js';
 import { useAutoModeUnavailableNotification } from '../hooks/notifs/useAutoModeUnavailableNotification.js';
-import { useCanSwitchToExistingSubscription } from '../hooks/notifs/useCanSwitchToExistingSubscription.js';
 import { useDeprecationWarningNotification } from '../hooks/notifs/useDeprecationWarningNotification.js';
 import { useLspInitializationNotification } from '../hooks/notifs/useLspInitializationNotification.js';
 import { useRateLimitWarningNotification } from '../hooks/notifs/useRateLimitWarningNotification.js';
@@ -1664,7 +1663,7 @@ export function REPL({
   }, []);
 
   useEffect(() => {
-    void apiKeyVerification.reverify().catch(() => {});
+    void apiKeyVerification.reverify({ probe: false }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1680,7 +1679,6 @@ export function REPL({
     return () => clearTimeout(timer);
   }, []);
 
-  useCanSwitchToExistingSubscription();
   useAutoModeUnavailableNotification();
   useSettingsErrors();
   useRateLimitWarningNotification(mainLoopModel);

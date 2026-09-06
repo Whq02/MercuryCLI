@@ -2,7 +2,6 @@ import type { EffortLevel } from '../../entrypoints/sdk/runtimeTypes.js'
 import type { McpServerConfig } from '../../services/mcp/types.js'
 import type { BillingType } from '../../services/oauth/types.js'
 import type { ImageDimensions } from '../imageResizer.js'
-import type { ModelOption } from '../model/modelOptions.js'
 import { DEFAULT_THEME_SETTING } from '../systemTheme.js'
 import type { ThemeSetting } from '../theme.js'
 
@@ -241,9 +240,6 @@ export type GlobalConfig = {
 
   lastStrategyModeUse?: number
 
-  subscriptionNoticeCount?: number
-  hasAvailableSubscription?: boolean
-
   showExpandedTasks?: boolean
   showSpinnerTree?: boolean
 
@@ -300,11 +296,7 @@ export type GlobalConfig = {
 
   voiceInputEnabled?: boolean
 
-  startupPrefetchedAt?: number
-
   remoteControlAtStartup?: boolean
-
-  clientDataCache?: Record<string, unknown> | null
 
   launchEffortUnpins?: {
     opus47?: boolean
@@ -312,8 +304,6 @@ export type GlobalConfig = {
     fable5?: boolean
     fable51?: boolean
   }
-
-  additionalModelOptionsCache?: ModelOption[]
 
   compatProvider?: {
     baseUrl?: string
