@@ -3,7 +3,7 @@ import '../lib/hermetic.ts'
 
 process.env.MERCURY_SHELL_ENGINE = 'brush'
 
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { resolveShellEngine, runEngineCommand, resetEngineSessionForTest } = await import(
@@ -13,9 +13,22 @@ const { getCwd } = await import(join(ROOT, 'src/utils/cwd.ts'))
 const state = await import(join(ROOT, 'src/bootstrap/state.ts'))
 const { quote } = await import(join(ROOT, 'src/utils/bash/shellQuote.ts'))
 const { stripExtendedLengthPrefix } = await import(join(ROOT, 'src/utils/windowsPaths.ts'))
+const os = await import('node:os')
+const fs = await import('node:fs')
 const sameDir = (a: string, b: string): boolean => {
-  const norm = (s: string): string => (process.platform === 'win32' ? stripExtendedLengthPrefix(s.trim()).toLowerCase() : s.trim())
-  return norm(a) === norm(b)
+  const spell = (s: string): string => stripExtendedLengthPrefix(s.trim())
+  try {
+    const sa = fs.statSync(spell(a), { bigint: true })
+    const sb = fs.statSync(spell(b), { bigint: true })
+    if (sa.ino !== 0n && sb.ino !== 0n) return sa.dev === sb.dev && sa.ino === sb.ino
+    const resolved = (s: string): string => {
+      const r = fs.realpathSync.native(spell(s))
+      return process.platform === 'win32' ? stripExtendedLengthPrefix(r).toLowerCase() : r
+    }
+    return resolved(a) === resolved(b)
+  } catch {
+    return false
+  }
 }
 const lastLine = (text: string): string => text.trim().split(/\r?\n/).pop() ?? ''
 
@@ -73,8 +86,6 @@ section('§1 sentinel framing · exit codes · stderr folded into stdout')
 section('§2 a variable, a function and the cwd persist across three calls')
 {
   resetEngineSessionForTest()
-  const os = await import('node:os')
-  const fs = await import('node:fs')
   const scratch = fs.mkdtempSync(join(os.tmpdir(), 'brush-cwd-'))
   state.setCwdState(fs.realpathSync(scratch))
 
@@ -84,6 +95,20 @@ section('§2 a variable, a function and the cwd persist across three calls')
   const c2 = await run('echo "var=$BRUSH_PROBE"; greet world')
   check('call 2 sees the variable set in call 1', c2.stdout.includes('var=persisted'), JSON.stringify(c2.stdout))
   check('call 2 sees the function defined in call 1', c2.stdout.includes('hi world'), JSON.stringify(c2.stdout))
+
+  const pairRoot = fs.mkdtempSync(join(os.tmpdir(), 'engine-samedir-'))
+  const dirA = join(pairRoot, 'a')
+  const dirB = join(pairRoot, 'b')
+  const linkA = join(pairRoot, 'a-link')
+  fs.mkdirSync(dirA)
+  fs.mkdirSync(dirB)
+  fs.symlinkSync(dirA, linkA, process.platform === 'win32' ? 'junction' : 'dir')
+  check('the directory comparison: a directory and a link to it are one directory', sameDir(dirA, linkA))
+  check('…a sibling directory is not', !sameDir(dirA, dirB))
+  check('…a trailing separator does not change identity', sameDir(dirA, dirA + sep))
+  check('…a spelling that does not exist is never the target', !sameDir(dirA, join(pairRoot, 'missing')))
+  if (process.platform === 'darwin') check('…/tmp and /private/tmp are one directory (the Mac link pair)', sameDir('/tmp', '/private/tmp'))
+  fs.rmSync(pairRoot, { recursive: true, force: true })
 
   const target = fs.realpathSync(os.tmpdir())
   const c3 = await run(`cd -- ${quote([target])} && pwd -P`)
