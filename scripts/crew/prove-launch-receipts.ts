@@ -644,7 +644,7 @@ section('R11 · the hand-back — every exit that is not a clean finish carries 
     check(`${exit.name}: the notice names the way back`, /its work is kept/.test(note) && /resume it from the crew view/.test(note), note.slice(0, 400))
   }
   const painter = src('src/components/messages/UserAgentNotificationMessage.tsx')
-  check('the notification card paints a kept partial result as its own line', /partial result kept/.test(painter) && /extractTag\(param\.text, 'result'\)/.test(painter))
+  check('the notification card paints a kept partial result as its own line', /partial result kept/.test(painter) && /partialResultOf\(param\.text\)/.test(painter))
   const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
   const failedBranch = agentTool.slice(agentTool.indexOf("if (status === 'failed')"), agentTool.indexOf("if (status === 'completed')"))
   check("the sync road's failed result carries the envelope and says the work is kept", /envelopeFor\(data\)/.test(failedBranch) && /its work is kept/.test(failedBranch))
@@ -804,6 +804,55 @@ section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a
     check('the resume road carries the automatic mark into the lifecycle it starts', /automaticResume: args\.automatic === true/.test(resumeSrc))
   }
   queue.resetCommandQueue()
+}
+
+section('R14 · nothing load-bearing on the partial shapes: an old notice paints as before, a resume receipt settles no launch, the envelope keeps its keys, an old transcript reads unchanged')
+{
+  const painter = (await import('../../src/components/messages/UserAgentNotificationMessage.tsx')) as { partialResultOf?: (text: string) => string | null }
+  check("the card's partial decision is a pure export", typeof painter.partialResultOf === 'function')
+  if (typeof painter.partialResultOf === 'function') {
+    const oldFailed = '<task-notification>\n<task-id>a1</task-id>\n<status>failed</status>\n<summary>Agent "x" failed: boom</summary>\n</task-notification>'
+    const newFailed = '<task-notification>\n<task-id>a1</task-id>\n<status>failed</status>\n<summary>Agent "x" failed: boom — its work is kept</summary>\n<result>three piers so far</result>\n</task-notification>'
+    const completed = '<task-notification>\n<task-id>a1</task-id>\n<status>completed</status>\n<summary>Agent "x" completed</summary>\n<result>done</result>\n</task-notification>'
+    check('an old-shaped failed notice (no result) paints as before — no partial line', painter.partialResultOf(oldFailed) === null)
+    check('a failed notice with a result paints the kept partial', painter.partialResultOf(newFailed) === 'three piers so far')
+    check("a completed notice's result is a report, never a partial", painter.partialResultOf(completed) === null)
+  }
+  const launchMsg = assistantLaunch()
+  const receiptsMsg = userReceipts()
+  const resumedRow = createUserMessage({ content: '<task-notification>\n<task-id>agent-one</task-id>\n<tool-use-id>toolu_launch_one</tool-use-id>\n<status>resumed</status>\n<summary>Agent "one" resumed by itself</summary>\n</task-notification>' })
+  const endedRow = createUserMessage({ content: '<task-notification>\n<task-id>agent-one</task-id>\n<tool-use-id>toolu_launch_one</tool-use-id>\n<status>completed</status>\n<summary>Agent "one" completed</summary>\n</task-notification>' })
+  const orphansWithResumed = lr.orphanedBackgroundLaunches([launchMsg, receiptsMsg, resumedRow], new Set())
+  const orphansWithEnd = lr.orphanedBackgroundLaunches([launchMsg, receiptsMsg, endedRow], new Set())
+  check('a resume receipt row settles no launch (a restart during the resumed run still writes the death notice)', orphansWithResumed.some(o => o.agentId === 'agent-one'), JSON.stringify(orphansWithResumed.map(o => o.agentId)))
+  check("…while the run's own terminal notice does settle it", !orphansWithEnd.some(o => o.agentId === 'agent-one'))
+  const { buildAgentResultEnvelope } = await import('../../src/services/agentResults/normalize.ts')
+  const failedEnvelope = await buildAgentResultEnvelope({ agentId: generateTaskId('local_agent'), agentType: 'general-purpose', status: 'failed', finalText: 'three piers so far', usage: { totalTokens: 1, toolUseCount: 1, durationMs: 1 } })
+  const completedEnvelope = await buildAgentResultEnvelope({ agentId: generateTaskId('local_agent'), agentType: 'general-purpose', status: 'completed', finalText: 'four piers', usage: { totalTokens: 1, toolUseCount: 1, durationMs: 1 } })
+  check('the envelope of a non-clean exit carries exactly the keys a finished one carries', JSON.stringify(Object.keys(failedEnvelope).sort()) === JSON.stringify(Object.keys(completedEnvelope).sort()), Object.keys(failedEnvelope).join(','))
+  {
+    const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
+    const { getAgentTranscript } = await import('../../src/utils/sessionStorage/logs.ts')
+    const { asAgentId } = await import('../../src/types/ids.ts')
+    const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
+    const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
+    const { getSessionId } = await import('../../src/bootstrap/state.ts')
+    const { mkdirSync } = await import('node:fs')
+    const { dirname } = await import('node:path')
+    const old = generateTaskId('local_agent')
+    const sessionId = String(getSessionId())
+    let n = 900
+    const encode = (e: unknown): string => JSON.stringify(entryToRecord(e as never, { sessionId, nextOrdinal: () => ordinalOf(++n), observedAt: '2026-01-01T00:00:00.000Z', source: { channel: 'interactive' } } as never))
+    const rowsOld = [
+      { type: 'user', uuid: '00000000-0000-4000-8000-0000000000d1', parentUuid: null, isSidechain: true, agentId: old, sessionId, timestamp: '2026-01-01T00:00:00.000Z', message: { role: 'user', content: 'old prompt' } },
+      { type: 'assistant', uuid: '00000000-0000-4000-8000-0000000000d2', parentUuid: '00000000-0000-4000-8000-0000000000d1', isSidechain: true, agentId: old, sessionId, timestamp: '2026-01-01T00:00:00.000Z', message: { id: 'msg_old', role: 'assistant', model: 'fixture', content: [{ type: 'text', text: 'old reply' }], usage: { input_tokens: 1, output_tokens: 1 } } },
+    ]
+    const path = getAgentTranscriptPath(asAgentId(old))
+    mkdirSync(dirname(path), { recursive: true })
+    writeFileSync(path, rowsOld.map(encode).join('\n') + '\n')
+    const loaded = await getAgentTranscript(asAgentId(old))
+    check('an old-shaped transcript reads its two rows unchanged', loaded !== null && loaded.messages.length === 2 && loaded.messages.map(m => m.type).join(',') === 'user,assistant')
+  }
 }
 
 console.log(failures === 0 ? '\nprove-launch-receipts: ALL LAWS HOLD' : `\nprove-launch-receipts: ${failures} FAILURE(S)`)
