@@ -53,9 +53,9 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
 - [APOLLO-MODE.md](APOLLO-MODE.md): the Apollo permission mode, the
   pre-flight interview that writes the spec and builds a prototype from it.
 - [VOICE.md](VOICE.md): voice input — `/speak on`, space in an empty composer
-  to dictate, the capture backends, the transcribing sign-ins, and the
-  privacy line (audio leaves only to the family you signed into, only after
-  you stop).
+  to dictate, the capture backends, the on-device transcriber and its
+  one-time model download, the cloud sign-ins, and the privacy line (on
+  this machine nothing leaves it; to a cloud family only after you stop).
 
 ### Loading, extending and delegating
 

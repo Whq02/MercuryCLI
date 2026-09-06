@@ -45,7 +45,7 @@ function runHeadless(fixtureUrl: string, home: string, cwd: string, mode: string
   return new Promise(resolvePromise => {
     const child = spawn(
       nodeBin!,
-      [DIST, '-p', 'say the sentinel', '--output-format', 'stream-json', '--verbose', '--permission-mode', mode, '--model', 'claude-opus-4-8'],
+      [DIST, '-p', 'say the sentinel', '--output-format', 'stream-json', '--permission-mode', mode, '--model', 'claude-opus-4-8'],
       {
         cwd,
         env: {
