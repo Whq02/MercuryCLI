@@ -1,5 +1,4 @@
 
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { getProjectRoot } from '../../bootstrap/state.js'
 import { getSkillToolCommands } from '../../commands.js'
 import type { Command, PromptCommand } from '../../types/command.js'
@@ -69,6 +68,7 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import {
   clearAgentTranscriptSubdir,
+  flushSessionStorage,
   getAgentTranscriptPath,
   recordSidechainTranscript,
   registerAgentTranscriptDestination,
@@ -172,7 +172,7 @@ function withoutInstructionBlob(context: {
 }
 
 function slimAgentGateOn(): boolean {
-  return getFeatureValue_CACHED_MAY_BE_STALE('mercury_slim_subagent_instructions', true)
+  return true
 }
 
 export async function connectAgentMcpServers(
@@ -450,6 +450,18 @@ export function agentOwnEffortWord(facts: {
       ? parseEffortValue(facts.effortOverride)
       : undefined
   return pin ?? facts.definitionEffort
+}
+
+export async function landAgentTranscriptRows(
+  messages: Message[],
+  agentId: AgentId,
+  parentUuid?: string | null,
+): Promise<void> {
+  try {
+    await recordSidechainTranscript(messages, agentId, parentUuid as never)
+    await flushSessionStorage()
+  } catch {
+  }
 }
 
 export async function* runAgent(
@@ -855,7 +867,7 @@ export async function* runAgent(
       )
     } catch {
     }
-    void recordSidechainTranscript(messages, agentId).catch(() => {})
+    await landAgentTranscriptRows(messages, agentId)
 
     void writeAgentMetadata(agentId, {
       agentType: agentDefinition.agentType,
@@ -941,11 +953,11 @@ export async function* runAgent(
       }
       if (anyMessage.type === 'stream_event' as never) continue
       if (anyMessage.type === 'attachment') {
-        void recordSidechainTranscript(
+        await landAgentTranscriptRows(
           [message as Message],
           agentId,
           lastRecordedUuid as never,
-        ).catch(() => {})
+        )
         lastRecordedUuid = (message as { uuid?: string }).uuid
         if (
           (anyMessage as { attachment?: { type?: string } }).attachment
@@ -969,11 +981,11 @@ export async function* runAgent(
           (subtype === 'compact_boundary' || subtype === 'informational' || subtype === 'api_error'))
       if (!recordable) continue
 
-      void recordSidechainTranscript(
+      await landAgentTranscriptRows(
         [message as Message],
         agentId,
         lastRecordedUuid as never,
-      ).catch(() => {})
+      )
       if (anyMessage.type !== 'progress') {
         lastRecordedUuid = (message as { uuid?: string }).uuid
       }
@@ -1016,12 +1028,6 @@ export async function* runAgent(
         clearSessionHooks(rootSetAppState, agentId)
       }
       clearAgentTranscriptSubdir(agentId)
-      rootSetAppState(prev => {
-        if (!(agentId in prev.todos)) return prev
-        const todos = { ...prev.todos }
-        delete todos[agentId]
-        return { ...prev, todos }
-      })
       killShellTasksForAgent(
         agentId,
         toolUseContext.getAppState,

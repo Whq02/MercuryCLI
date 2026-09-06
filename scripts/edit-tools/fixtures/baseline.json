@@ -215,7 +215,7 @@
       "rank": 1,
       "top": [
         "Read",
-        "ReadMcpResourceTool",
+        "ReadMcpResource",
         "TaskOutput"
       ]
     },
@@ -226,7 +226,7 @@
       "top": [
         "ArtifactsList",
         "CronList",
-        "ListMcpResourcesTool"
+        "ListMcpResources"
       ]
     },
     {
@@ -234,7 +234,7 @@
       "want": "Inspect",
       "rank": 3,
       "top": [
-        "ReadMcpResourceTool",
+        "ReadMcpResource",
         "Read",
         "Inspect"
       ]
@@ -246,7 +246,7 @@
       "top": [
         "WebFetch",
         "Read",
-        "ReadMcpResourceTool"
+        "ReadMcpResource"
       ]
     },
     {

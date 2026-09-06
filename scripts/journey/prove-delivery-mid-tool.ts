@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -55,7 +56,7 @@ writeFileSync(
 
 const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
   encoding: 'utf8',
-  timeout: 240_000,
+  timeout: vshotBudgetMs(240_000),
   env: {
     ...process.env,
     MERCURY_SCRIPTED_STREAM: 'hammer-breaker',

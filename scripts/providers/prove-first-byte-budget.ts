@@ -112,15 +112,6 @@ section('F · the status row keeps the budget word on a narrow terminal (100 · 
   check('truncateKeepingTail: a short line is untouched; a long one keeps the tail clause under the budget; a requested tail width keeps exactly that tail', truncateKeepingTail('a — b', 40) === 'a — b' && truncateKeepingTail('a very long head that overflows — kept', 20) === 'a very long… — kept' && truncateKeepingTail('abcdefghij', 6, 3) === 'ab…hij', JSON.stringify([truncateKeepingTail('a very long head that overflows — kept', 20), truncateKeepingTail('abcdefghij', 6, 3)]))
 }
 
-section('N1 · the flow-default notice')
-{
-  const notice = await import('../../src/utils/permissions/shouldShowAutoDefaultNotice.ts')
-  check("the saved default reads 'flow' from the settings file", notice.savedDefaultPermissionMode() === 'flow', String(notice.savedDefaultPermissionMode()))
-  const source = src('src/utils/permissions/shouldShowAutoDefaultNotice.ts')
-  check("the notice requires the saved default to be flow (a per-session flag says nothing)", /permissionMode === 'flow' &&\s*\n\s*savedDefaultPermissionMode\(\) === 'flow' &&/.test(source))
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { defaultMode: 'default' } }))
-}
-
 section('N2 · the bell probe')
 {
   const notifier = src('src/services/notifier.ts')

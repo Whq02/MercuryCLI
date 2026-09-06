@@ -1,6 +1,5 @@
 
 import type { ToolUseContext } from '../../Tool.js'
-import { LEGACY_SUBAGENT_ALIASES } from '../../tools/AgentTool/builtInAgents.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { isBuiltInAgent } from '../../tools/AgentTool/loadAgentsDir.js'
 import {
@@ -18,7 +17,7 @@ export function decodeAgentType(requested: string): string
 export function decodeAgentType(requested: string | undefined): string | undefined
 export function decodeAgentType(requested: string | undefined): string | undefined {
   if (!requested) return undefined
-  return LEGACY_SUBAGENT_ALIASES[requested] ?? requested
+  return requested
 }
 
 export function findRoleDefinition(

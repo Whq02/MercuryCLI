@@ -60,7 +60,7 @@ writeFileSync(
   }),
 )
 writeFileSync(
-  join(home, '.claude.json'),
+  join(home, '.mercury.json'),
   JSON.stringify({ oauthAccount: { accountUuid: 'uuid-fixture', emailAddress: 'stale@fixture.example' } }),
 )
 writeFileSync(
@@ -316,7 +316,7 @@ section('§4 the REAL owners on the fixture home (credential refused live, subsc
   check('the presence owner reads the Anthropic credential as PRESENT (existence by contract)', anthropicPresence?.credentialed === true && anthropicPresence.credentialLabel === 'Claude subscription (max)', JSON.stringify(anthropicPresence))
   check('the presence owner reads the OpenAI subscription as present', openaiPresence?.credentialed === true, JSON.stringify(openaiPresence))
 
-  const snapshot = (JSON.parse(readFileSync(join(home, '.claude.json'), 'utf8')) as { oauthAccount: { emailAddress: string } }).oauthAccount.emailAddress
+  const snapshot = (JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')) as { oauthAccount: { emailAddress: string } }).oauthAccount.emailAddress
   console.log(`    before: main loop · ${snapshot} (snapshot)`)
   const onGpt = mainLoopIdentity({ model: 'gpt-5.6-sol', presences, currentScopeIdentity: identity })
   console.log(`    after : main loop · ${onGpt.family} · ${onGpt.text}`)

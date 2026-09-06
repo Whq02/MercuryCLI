@@ -263,6 +263,20 @@ for (const ordering of ['old-first', 'resumed-first'] as const) {
   queue.resetCommandQueue()
   const store = makeStore()
   const id = generateTaskId('local_agent')
+  const first = registerAsyncAgent({ agentId: id, description: 'fails late', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  completeAgentTask({ agentId: id }, store.set as never)
+  const second = registerAsyncAgent({ agentId: id, description: 'fails late', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  enqueueAgentNotification({ taskId: id, description: 'fails late', status: 'failed', error: 'late failure', setAppState: store.set as never, controller: first.abortController })
+  const row = store.get().tasks[id] as { notified?: boolean } | undefined
+  check("an old run's FAILED notice goes out and leaves the resumed row unlatched", queue.getCommandQueue().filter(c => c.mode === 'task-notification').length === 1 && row?.notified !== true, JSON.stringify(row?.notified))
+  const lifecycle = src('src/tools/AgentTool/agentToolUtils.ts')
+  check('every notice the lifecycle enqueues names its registration (completed, killed, failed)', (lifecycle.match(/controller: args\.abortController,/g) ?? []).length >= 3, String((lifecycle.match(/controller: args\.abortController,/g) ?? []).length))
+  void second
+}
+{
+  queue.resetCommandQueue()
+  const store = makeStore()
+  const id = generateTaskId('local_agent')
   registerAsyncAgent({ agentId: id, description: 'once', prompt: 'count once', selectedAgent: FAKE_DEF, setAppState: store.set as never })
   completeAgentTask({ agentId: id }, store.set as never)
   enqueueAgentNotification({ taskId: id, description: 'once', status: 'completed', setAppState: store.set as never })
@@ -296,6 +310,154 @@ section('R8c · a named launch: the foreground road registers the name, the hand
   applyTaskOffsetsAndEvictions(store.set as never, {}, [older])
   const registry = store.get().agentNameRegistry
   check('the batch sweep evicts the settled task AND its alias; a name reassigned to a newer launch survives', store.get().tasks[older] === undefined && !registry.has('elder') && registry.get('scout') === newer, JSON.stringify([...registry.entries()]))
+}
+
+section("R8d · a worker a running workflow owns is never re-created by a message; a resume reads the live owner right before it registers")
+{
+  const wf = (await import('../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.js')) as {
+    registerWorkflowTask: Function
+    completeWorkflowTask: Function
+    updateWorkflowProgressBatch: Function
+    workflowOwningAgent?: (tasks: unknown, agentId: string) => { id: string } | undefined
+  }
+  const resumeModule = (await import('../../src/tools/AgentTool/resumeAgent.ts')) as {
+    resumeAgentBackground: Function
+    liveAgentOwner?: (agentId: string, tasks: unknown) => { kind: string; words: string } | null
+  }
+  const { completeAgentTask, failAgentTask, killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+  const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
+  const { asAgentId } = await import('../../src/types/ids.ts')
+  const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
+  const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
+  const { getSessionId } = await import('../../src/bootstrap/state.ts')
+  const { mkdirSync } = await import('node:fs')
+  const { dirname } = await import('node:path')
+  let ordinal = 0
+  const seedTranscript = (agentId: string, opening: string, reply: string): void => {
+    const sessionId = String(getSessionId())
+    const at = new Date(1_700_000_100_000).toISOString()
+    const entry = (uuid: string, parentUuid: string | null, role: 'user' | 'assistant', text: string) => ({
+      type: role, uuid, parentUuid, isSidechain: true, agentId, sessionId, timestamp: at,
+      message: role === 'user' ? { role, content: text } : { id: `msg_${uuid.slice(-4)}`, role, model: 'fixture', content: [{ type: 'text', text }], usage: { input_tokens: 1, output_tokens: 1 } },
+    })
+    const encode = (e: unknown): string => JSON.stringify(entryToRecord(e as never, { sessionId, nextOrdinal: () => ordinalOf(++ordinal), observedAt: at, source: { channel: 'interactive' } } as never))
+    const first = `00000000-0000-4000-8000-0000000${String(++ordinal).padStart(5, '0')}`
+    const second = `00000000-0000-4000-8000-0000000${String(++ordinal).padStart(5, '0')}`
+    const path = getAgentTranscriptPath(asAgentId(agentId))
+    mkdirSync(dirname(path), { recursive: true })
+    writeFileSync(path, [entry(first, null, 'user', opening), entry(second, first, 'assistant', reply)].map(encode).join('\n') + '\n')
+  }
+  check('the workflow task module owns the ownership read', typeof wf.workflowOwningAgent === 'function')
+  check("the resume road exports its live-owner decision", typeof resumeModule.liveAgentOwner === 'function')
+  const store = makeStore()
+  const ctx = makeCtx(store)
+  const child = generateTaskId('local_agent')
+  const settledChild = generateTaskId('local_agent')
+  const workflowTask = wf.registerWorkflowTask({ taskId: 'wf-task-1', script: '', workflowRunId: 'wf_fixture_run', workflowName: 'fixture-flow', setAppState: store.set }) as { agentControllers: Map<string, AbortController> }
+  workflowTask.agentControllers.set(child, new AbortController())
+  workflowTask.agentControllers.set(settledChild, new AbortController())
+  wf.updateWorkflowProgressBatch('wf-task-1', [
+    { type: 'workflow_agent', index: 1, label: 'fixture-worker', agentId: child, state: 'progress' },
+    { type: 'workflow_agent', index: 2, label: 'second-worker', agentId: settledChild, state: 'progress' },
+  ], store.set)
+  const toChild = (await SendMessageTool.call({ to: child, message: 'finish the bounded slice' } as never, ctx, undefined as never, { requestId: 'req_wf1' } as never)) as SendAnswer
+  check("a message to a running workflow's worker is refused, naming the workflow and the child ref, never a resume", toChild.data.success === false && toChild.data.message.includes('fixture-flow') && toChild.data.message.includes(`mercury://workflow/wf_fixture_run?child=${child}`) && !/resumed/.test(toChild.data.message), toChild.data.message.slice(0, 200))
+  check('…and no task was registered under the child id', store.get().tasks[child] === undefined)
+  check('the ownership read names the workflow that owns the child', wf.workflowOwningAgent?.(store.get().tasks, child)?.id === 'wf-task-1')
+  check("…and answers nothing for an id no workflow owns", wf.workflowOwningAgent?.(store.get().tasks, generateTaskId('local_agent')) === undefined)
+  if (typeof resumeModule.liveAgentOwner === 'function') {
+    seedTranscript(child, 'build the slice', 'building')
+    let refusal = ''
+    try {
+      await resumeModule.resumeAgentBackground({ agentId: child, prompt: 'go on', toolUseContext: ctx })
+    } catch (error) {
+      refusal = error instanceof Error ? error.message : String(error)
+    }
+    check('a resume of a live workflow child throws naming the workflow, and registers nothing', refusal.includes('fixture-flow') && store.get().tasks[child] === undefined, refusal.slice(0, 200))
+    const raced = generateTaskId('local_agent')
+    seedTranscript(raced, 'race me', 'racing')
+    const pending = resumeModule.resumeAgentBackground({ agentId: raced, prompt: 'go on', toolUseContext: ctx }) as Promise<unknown>
+    const live = registerAsyncAgent({ agentId: raced, description: 'raced', prompt: 'race me', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+    let racedRefusal = ''
+    try {
+      await pending
+    } catch (error) {
+      racedRefusal = error instanceof Error ? error.message : String(error)
+    }
+    const racedRow = store.get().tasks[raced] as { status?: string; registration?: AbortController } | undefined
+    check('a live owner appearing between the lookup and the registration prevents the duplicate: the resume throws, the live row and its registration stand', /running/.test(racedRefusal) && racedRow?.status === 'running' && racedRow.registration === live.abortController, racedRefusal.slice(0, 160))
+    killAsyncAgent(raced, store.set as never)
+  }
+  await wf.completeWorkflowTask('wf-task-1', null, 2, [], store.set)
+  check('once the workflow settled, nothing owns the child', wf.workflowOwningAgent?.(store.get().tasks, settledChild) === undefined)
+  const afterSettle = (await SendMessageTool.call({ to: settledChild, message: 'anyone there' } as never, ctx, undefined as never, { requestId: 'req_wf2' } as never)) as SendAnswer
+  check('a settled child resumes only through the transcript road (no transcript here ⇒ its own precise refusal, not the workflow words)', afterSettle.data.success === false && /no transcript/i.test(afterSettle.data.message) && !afterSettle.data.message.includes('fixture-flow'), afterSettle.data.message.slice(0, 160))
+  const twice = generateTaskId('local_agent')
+  const first = registerAsyncAgent({ agentId: twice, description: 'twice', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  completeAgentTask({ agentId: twice }, store.set as never)
+  const second = registerAsyncAgent({ agentId: twice, description: 'twice', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  ;(completeAgentTask as Function)({ agentId: twice }, store.set, first.abortController)
+  ;(killAsyncAgent as Function)(twice, store.set, 'late stop', first.abortController)
+  ;(failAgentTask as Function)(twice, 'late failure', store.set, first.abortController)
+  const successor = store.get().tasks[twice] as { status?: string } | undefined
+  check("an earlier run's late complete, kill and fail leave the successor running, its controller untouched", successor?.status === 'running' && second.abortController.signal.aborted === false, JSON.stringify(successor?.status))
+  ;(completeAgentTask as Function)({ agentId: twice }, store.set, second.abortController)
+  check("…and the successor's own settle lands", (store.get().tasks[twice] as { status?: string } | undefined)?.status === 'completed')
+  const resumeSrc = src('src/tools/AgentTool/resumeAgent.ts')
+  const checkAt = resumeSrc.indexOf('const owner = liveAgentOwner(agentId, tasksNow)')
+  const registerAt = resumeSrc.indexOf('const task = registerAsyncAgent({', checkAt)
+  check('the resume checks the live owner right before it registers, with no await between', checkAt > 0 && registerAt > checkAt && !/\bawait\b/.test(resumeSrc.slice(checkAt, registerAt)))
+  const sendSrc = src('src/tools/SendMessageTool/SendMessageTool.ts')
+  const askAt = sendSrc.indexOf('workflowOwningAgent(context.getAppState().tasks')
+  check('the message road asks the workflow owner before it reads a transcript', askAt > 0 && askAt < sendSrc.indexOf('const transcriptPath = agentTranscriptPathOf(String(agentId))'))
+  check('no new registration road, worktree fallback or permission road was added (one registration, the two fallback mentions, the one pre-existing permission default)', (resumeSrc.match(/registerAsyncAgent\(/g) ?? []).length === 1 && (resumeSrc.match(/cwdFallback/g) ?? []).length === 2 && (resumeSrc.match(/behavior: 'allow'/g) ?? []).length === 1 && !/process\.env\./.test(resumeSrc))
+}
+
+section('R8e · every non-terminal row has a live owner; the exit card counts what is alive, by kind, and names where to see it')
+{
+  const fw = await import('../../src/utils/task/framework.ts')
+  const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
+  const { workRowRuns } = await import('../../src/services/engine-connector/workCounts.ts')
+  const { registerMainSessionTask } = await import('../../src/tasks/LocalMainSessionTask.ts')
+  const wf = (await import('../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.js')) as { registerWorkflowTask: Function; completeWorkflowTask: Function; pauseWorkflowTask: Function }
+  const { killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+  const store = makeStore()
+  const crewAgents = (): number => projectWorkRoster(store.get().tasks ?? {}).filter(r => workRowRuns(r) && (r.kind === 'agent' || r.kind === 'named')).length
+  const shellId = generateTaskId('local_bash')
+  store.set(prev => ({ ...prev, tasks: { ...prev.tasks, [shellId]: { id: shellId, type: 'local_bash', status: 'running', description: 'sleep 60', command: 'sleep 60', isBackgrounded: true, startTime: Date.now(), notified: false, shellCommand: { status: 'running' } } as never } }))
+  let counts = fw.liveBackgroundCounts(store.get().tasks)
+  check('a live shell command counts as a shell command, with words a person can act on', counts.total === 1 && counts.shells === 1 && counts.agents === 0 && fw.liveWorkWords(counts) === '1 shell command', JSON.stringify(counts))
+  check('…while the crew view lists no agent (the two surfaces now say different things for a reason the card names)', crewAgents() === 0)
+  const { taskId: stoppedQuery } = registerMainSessionTask('a stopped background query', store.set as never)
+  ;(store.get().tasks[stoppedQuery] as { abortController?: AbortController }).abortController?.abort()
+  const before = store.get().tasks[stoppedQuery] as { status?: string } | undefined
+  check("a stopped background query's row reads running with its controller gone — the owner law names it", before?.status === 'running' && fw.taskOwnerGone(before as never) === 'its controller was stopped before the row settled', String(fw.taskOwnerGone(before as never)))
+  counts = fw.liveBackgroundCounts(store.get().tasks)
+  check('…and the count leaves it out', counts.total === 1 && counts.agents === 0, JSON.stringify(counts))
+  const settled = fw.settleOwnerlessTasks(store.set as never)
+  const after = store.get().tasks[stoppedQuery] as { status?: string; stopReason?: string } | undefined
+  check('…the door settles it to killed with the reason on the row', settled.length === 1 && settled[0]?.id === stoppedQuery && after?.status === 'killed' && after.stopReason === 'its controller was stopped before the row settled', JSON.stringify(after?.status))
+  const liveAgent = generateTaskId('local_agent')
+  registerAsyncAgent({ agentId: liveAgent, description: 'alive', prompt: 'work', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  wf.registerWorkflowTask({ taskId: 'wf-paused', script: '', workflowRunId: 'wf_paused_run', workflowName: 'paused-flow', setAppState: store.set })
+  wf.pauseWorkflowTask('wf-paused', store.set)
+  check('a live agent and a paused workflow have nothing to settle', fw.settleOwnerlessTasks(store.set as never).length === 0 && (store.get().tasks[liveAgent] as { status?: string } | undefined)?.status === 'running' && (store.get().tasks['wf-paused'] as { status?: string } | undefined)?.status === 'paused')
+  counts = fw.liveBackgroundCounts(store.get().tasks)
+  check('the words name the kinds in order', fw.liveWorkWords(counts) === '1 shell command and 1 agent' && fw.liveWorkWords({ total: 4, shells: 2, agents: 1, workflows: 1, teammates: 0, other: 0 }) === '2 shell commands, 1 agent and 1 workflow' && fw.liveWorkWords({ total: 0, shells: 0, agents: 0, workflows: 0, teammates: 0, other: 0 }) === 'nothing', fw.liveWorkWords(counts))
+  check('…and the crew view agrees on the agent', crewAgents() === 1)
+  const child = generateTaskId('local_agent')
+  wf.registerWorkflowTask({ taskId: 'wf-gone', script: '', workflowRunId: 'wf_gone_run', workflowName: 'gone-flow', setAppState: store.set })
+  registerAsyncAgent({ agentId: child, description: 'a child row', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  await wf.completeWorkflowTask('wf-gone', null, 1, [], store.set)
+  check('a leftover child row with a live controller is counted by both surfaces alike (never settled on a guess)', fw.taskOwnerGone(store.get().tasks[child] as never) === null && fw.liveBackgroundCounts(store.get().tasks).agents === 2 && crewAgents() === 2)
+  killAsyncAgent(liveAgent, store.set as never)
+  killAsyncAgent(child, store.set as never)
+  const exitSrc = src('src/commands/exit/exit.tsx')
+  check('the exit command settles ownerless rows, then counts by kind, and hands the words to the card', exitSrc.indexOf('settleOwnerlessTasks(context.setAppState)') > 0 && exitSrc.indexOf('settleOwnerlessTasks(context.setAppState)') < exitSrc.indexOf('liveBackgroundCounts(') && exitSrc.includes('liveWords={liveWorkWords(counts)}'))
+  const confirmSrc = src('src/components/MercuryExitConfirm.tsx')
+  check('the card says what is alive by kind and where to see it', confirmSrc.includes('{liveWords} still running') && confirmSrc.includes('see them with /tasks'))
+  const sessionSrc = src('src/tasks/LocalMainSessionTask.ts')
+  check("the background session's abort branch settles its row before it returns", /killAsyncAgent\(taskId, args\.setAppState, 'stopped'\)\n\s*return\n/.test(sessionSrc))
 }
 
 section('R9 · one status per agent — the inspection verbs read one fact, on the registry or on disk')
@@ -433,6 +595,264 @@ async function deathOf(name: string, writes: string[]): Promise<{ record: { stat
   const send = src('src/tools/SendMessageTool/SendMessageTool.ts')
   check('a resume of a settled agent names its real end — never "was stopped" for a failure', !send.includes('was stopped (status: ${liveLocal.status})'))
   queue.resetCommandQueue()
+}
+
+section('R11 · the hand-back — every exit that is not a clean finish carries the partial text, the files, the tool count, the cause and the way back')
+{
+  const { AbortError, DeadlineExceededError } = await import('../../src/utils/errors.ts')
+  type Exit = { name: string; thrown: () => Error; cause: RegExp; status: 'failed' | 'killed' }
+  const exits: Exit[] = [
+    { name: 'budget-cut', thrown: () => new Error('provider throttled — the 5-minute recovery budget is spent after 3 declared waits (HTTP 429); the agent stopped — retry later, or raise MERCURY_RECOVERY_BUDGET_MINUTES'), cause: /provider throttled/, status: 'failed' },
+    { name: 'stall', thrown: () => new DeadlineExceededError('no progress for 900000ms'), cause: /no progress/, status: 'failed' },
+    { name: 'provider-fault', thrown: () => new Error('the provider closed the stream mid-turn'), cause: /closed the stream/, status: 'failed' },
+    { name: 'kill', thrown: () => new AbortError(), cause: /stopped/, status: 'killed' },
+  ]
+  for (const exit of exits) {
+    queue.resetCommandQueue()
+    const store = makeStore()
+    const id = generateTaskId('local_agent')
+    const task = registerAsyncAgent({ agentId: id, description: `leaves-${exit.name}`, prompt: 'survey the harbour', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+    async function* stream(): AsyncGenerator<Message, void> {
+      yield createUserMessage({ content: 'survey the harbour' })
+      yield createAssistantMessage({ content: [{ type: 'tool_use', id: 'toolu_w1', name: 'Write', input: { file_path: '/tmp/harbour-notes.md', content: 'x' } }] })
+      yield createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'toolu_w1', content: 'File created successfully at: /tmp/harbour-notes.md' }] })
+      yield createAssistantMessage({ content: 'three piers counted so far, the fourth is behind the crane' })
+      if (exit.name === 'kill') task.abortController?.abort()
+      throw exit.thrown()
+    }
+    await runAsyncAgentLifecycle({
+      taskId: id,
+      abortController: task.abortController!,
+      makeStream: () => stream() as never,
+      metadata: META,
+      description: `leaves-${exit.name}`,
+      toolUseContext: { options: { tools: [] }, toolUseId: `toolu_${exit.name}` } as never,
+      rootSetAppState: store.set as never,
+      agentIdForCleanup: id,
+      enableSummarization: false,
+      getWorktreeResult: async () => ({}),
+    })
+    const row = store.get().tasks[id] as { status?: string; error?: string } | undefined
+    const notes = queue.getCommandQueue().filter(c => c.mode === 'task-notification').map(c => String(c.value ?? ''))
+    const note = notes[0] ?? ''
+    check(`${exit.name}: the record settles ${exit.status} once and one notice goes out`, row?.status === exit.status && notes.length === 1, `${row?.status} · ${notes.length} notice(s)`)
+    check(`${exit.name}: the notice carries the partial text as a result`, /<result>[\s\S]*three piers counted so far[\s\S]*<\/result>/.test(note), note.slice(0, 400))
+    check(`${exit.name}: the notice names the cause`, exit.cause.test(note), note.slice(0, 300))
+    check(`${exit.name}: the notice says what landed on disk`, /1 file write landed: \/tmp\/harbour-notes\.md/.test(note), note.slice(0, 300))
+    check(`${exit.name}: the notice counts the tools it ran`, /<tool_uses>1<\/tool_uses>/.test(note), note.slice(0, 400))
+    check(`${exit.name}: the notice carries the envelope with the observed changes`, /<envelope v="\d+" status="(failed|stopped)">/.test(note) && /changed \(observed\)/.test(note), note.slice(-400))
+    check(`${exit.name}: the notice names the way back`, /its work is kept/.test(note) && /resume it from the crew view/.test(note), note.slice(0, 400))
+  }
+  const painter = src('src/components/messages/UserAgentNotificationMessage.tsx')
+  check('the notification card paints a kept partial result as its own line', /partial result kept/.test(painter) && /partialResultOf\(param\.text\)/.test(painter))
+  const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
+  const failedBranch = agentTool.slice(agentTool.indexOf("if (status === 'failed')"), agentTool.indexOf("if (status === 'completed')"))
+  check("the sync road's failed result carries the envelope and says the work is kept", /envelopeFor\(data\)/.test(failedBranch) && /its work is kept/.test(failedBranch))
+  queue.resetCommandQueue()
+}
+
+section('R12 · durability — every row an agent yields is on its transcript first; a hard crash between rows loses nothing already shown')
+{
+  const { spawnSync } = await import('node:child_process')
+  const { existsSync, mkdirSync } = await import('node:fs')
+  const childHome = mkdtempSync(join(tmpdir(), 'durability-child-'))
+  const childScript = join(childHome, 'child.ts')
+  writeFileSync(childScript, [
+    ";(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }",
+    "import { writeFileSync } from 'node:fs'",
+    "const [road, home, root, agentId] = process.argv.slice(2) as [string, string, string, string]",
+    "process.env.MERCURY_CONFIG_DIR = home",
+    "process.env.MERCURY_CREDENTIAL_STORE = 'file'",
+    "const { enableConfigs } = await import(root + '/src/utils/config.ts')",
+    "enableConfigs()",
+    "const storage = await import(root + '/src/utils/sessionStorage.ts')",
+    "const { asAgentId } = await import(root + '/src/types/ids.ts')",
+    "const path = storage.getAgentTranscriptPath(asAgentId(agentId))",
+    "storage.registerAgentTranscriptDestination(agentId, path)",
+    "writeFileSync(home + '/agent-path.txt', path)",
+    "const row = (uuid: string, parentUuid: string | null, text: string) => ({ type: 'user', uuid, parentUuid, isSidechain: true, timestamp: new Date().toISOString(), message: { role: 'user', content: text } })",
+    "const rows = [row('00000000-0000-4000-8000-0000000000c1', null, 'one'), row('00000000-0000-4000-8000-0000000000c2', '00000000-0000-4000-8000-0000000000c1', 'two'), row('00000000-0000-4000-8000-0000000000c3', '00000000-0000-4000-8000-0000000000c2', 'three')]",
+    "if (road === 'durable') {",
+    "  const runner = await import(root + '/src/tools/AgentTool/runAgent.ts')",
+    "  let parent: string | null = null",
+    "  for (const r of rows) { await runner.landAgentTranscriptRows([r as never], agentId, parent as never); parent = r.uuid }",
+    "} else {",
+    "  let parent: string | null = null",
+    "  for (const r of rows) { void storage.recordSidechainTranscript([r as never], agentId, parent as never).catch(() => {}); parent = r.uuid }",
+    "}",
+    "process.kill(process.pid, 'SIGKILL')",
+  ].join('\n'))
+  const rowsOnDisk = (road: 'durable' | 'fire-and-forget'): number | null => {
+    const home = join(childHome, road)
+    mkdirSync(home, { recursive: true })
+    const env = { ...process.env }
+    delete env.NODE_ENV
+    const agentId = generateTaskId('local_agent')
+    const run = spawnSync(process.execPath, ['run', childScript, road, home, ROOT, agentId], { cwd: ROOT, encoding: 'utf8', env, timeout: 60_000 })
+    const pathFile = join(home, 'agent-path.txt')
+    if (!existsSync(pathFile)) return null
+    const path = readFileSync(pathFile, 'utf8')
+    if (!existsSync(path)) return 0
+    return (readFileSync(path, 'utf8').match(/"content":"(?:one|two|three)"/g) ?? []).length
+  }
+  const control = rowsOnDisk('fire-and-forget')
+  check('the control: rows handed to the writer and a crash at once — the batch window loses them (fewer than three on disk)', control !== null && control < 3, String(control))
+  const durable = rowsOnDisk('durable')
+  check('the durable road: every row is on disk before the next one is handed on — three on disk after the crash', durable === 3, String(durable))
+  const runner = src('src/tools/AgentTool/runAgent.ts')
+  check('the runner lands every recordable row before it yields (no fire-and-forget record left on its stream)', /export async function landAgentTranscriptRows\(/.test(runner) && !/void recordSidechainTranscript\(/.test(runner))
+  const lifecycle = src('src/tools/AgentTool/agentToolUtils.ts')
+  const foreground = src('src/tools/AgentTool/foregroundExecution.tsx')
+  check("the lifecycle's non-clean exits flush the transcript before the notice goes out", (lifecycle.match(/await flushSessionStorage\(\)/g) ?? []).length >= 2 && (foreground.match(/await flushSessionStorage\(\)/g) ?? []).length >= 2)
+}
+
+section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a receipt row; never on a kill, a stop, a hand resume, a live owner, or a second time')
+{
+  const lifecycle = (await import('../../src/tools/AgentTool/agentToolUtils.ts')) as {
+    recoveryBudgetCutOf?: (error: unknown) => string | null
+    armBudgetCutResume?: (args: Record<string, unknown>) => unknown
+    automaticResumePending?: (taskId: string) => boolean
+  }
+  const { AbortError } = await import('../../src/utils/errors.ts')
+  const budgetCut = () => new Error('provider throttled — the 5-minute recovery budget is spent after 3 declared waits (HTTP 429); the agent stopped — retry later, or raise MERCURY_RECOVERY_BUDGET_MINUTES')
+  check('the lifecycle reads a budget cut from the runner\'s own words', typeof lifecycle.recoveryBudgetCutOf === 'function' && lifecycle.recoveryBudgetCutOf?.(budgetCut()) !== null && lifecycle.recoveryBudgetCutOf?.(new Error('the provider closed the stream')) === null && lifecycle.recoveryBudgetCutOf?.(new AbortError()) === null)
+  check('the arm and its pending read are the lifecycle\'s own exports', typeof lifecycle.armBudgetCutResume === 'function' && typeof lifecycle.automaticResumePending === 'function')
+  if (typeof lifecycle.armBudgetCutResume === 'function' && typeof lifecycle.automaticResumePending === 'function') {
+    const arm = lifecycle.armBudgetCutResume
+    const pending = lifecycle.automaticResumePending
+    const wf = (await import('../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.js')) as { registerWorkflowTask: Function }
+    const { completeAgentTask, failAgentTask, killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+    const settle = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+    const receipts = (): string[] => queue.getCommandQueue().filter(c => c.mode === 'task-notification').map(c => String(c.value ?? '')).filter(v => /<status>resumed<\/status>/.test(v))
+    {
+      queue.resetCommandQueue()
+      const store = makeStore()
+      const id = generateTaskId('local_agent')
+      const task = registerAsyncAgent({ agentId: id, description: 'cut by the budget', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      failAgentTask(id, budgetCut().message, store.set as never, task.abortController)
+      const resumes: Array<Record<string, unknown>> = []
+      arm({ taskId: id, description: 'cut by the budget', registration: task.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 5, resume: async (args: Record<string, unknown>) => { resumes.push(args); return { agentId: id } } })
+      check('a budget-cut failure arms one pending resume', pending(id) === true)
+      await settle(60)
+      check('…it fires once, marked automatic, carrying the resume note', resumes.length === 1 && resumes[0]?.automatic === true && typeof resumes[0]?.prompt === 'string' && /recovery budget/.test(String(resumes[0]?.prompt)), JSON.stringify(resumes).slice(0, 200))
+      check('…and leaves a receipt row in the parent\'s transcript, exactly one', receipts().length === 1 && /resumed by itself/.test(receipts()[0] ?? ''), (receipts()[0] ?? '').slice(0, 200))
+      check('…and nothing stays pending', pending(id) === false)
+      const before = resumes.length
+      arm({ taskId: id, description: 'cut by the budget', registration: task.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 5, resume: async (args: Record<string, unknown>) => { resumes.push(args); return { agentId: id } } })
+      await settle(60)
+      check('a second arm for the same cut fires nothing', resumes.length === before && receipts().length === 1)
+    }
+    {
+      queue.resetCommandQueue()
+      const store = makeStore()
+      const fired: string[] = []
+      const resumeInto = (label: string) => async () => { fired.push(label); return {} }
+      const byHand = generateTaskId('local_agent')
+      const first = registerAsyncAgent({ agentId: byHand, description: 'by hand', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      failAgentTask(byHand, budgetCut().message, store.set as never, first.abortController)
+      arm({ taskId: byHand, description: 'by hand', registration: first.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 30, resume: resumeInto('by-hand') })
+      registerAsyncAgent({ agentId: byHand, description: 'by hand', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      const stoppedEarly = generateTaskId('local_agent')
+      const se = registerAsyncAgent({ agentId: stoppedEarly, description: 'stopped', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      killAsyncAgent(stoppedEarly, store.set as never)
+      check('a killed row is not a failed row of its registration — the arm refuses to fire for it', arm({ taskId: stoppedEarly, description: 'stopped', registration: se.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 5, resume: resumeInto('stopped') }) !== null)
+      const evicted = generateTaskId('local_agent')
+      const e = registerAsyncAgent({ agentId: evicted, description: 'evicted', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      failAgentTask(evicted, budgetCut().message, store.set as never, e.abortController)
+      arm({ taskId: evicted, description: 'evicted', registration: e.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 30, resume: resumeInto('evicted') })
+      store.set(prev => { const tasks = { ...prev.tasks }; delete tasks[evicted]; return { ...prev, tasks } })
+      const owned = generateTaskId('local_agent')
+      const o = registerAsyncAgent({ agentId: owned, description: 'owned', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      failAgentTask(owned, budgetCut().message, store.set as never, o.abortController)
+      arm({ taskId: owned, description: 'owned', registration: o.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 30, resume: resumeInto('owned') })
+      const workflowTask = wf.registerWorkflowTask({ taskId: 'wf-owner', script: '', workflowRunId: 'wf_owner_run', workflowName: 'owner-flow', setAppState: store.set }) as { agentControllers: Map<string, AbortController> }
+      workflowTask.agentControllers.set(owned, new AbortController())
+      const automatic = generateTaskId('local_agent')
+      const a = registerAsyncAgent({ agentId: automatic, description: 'automatic', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      failAgentTask(automatic, budgetCut().message, store.set as never, a.abortController)
+      const armed = arm({ taskId: automatic, description: 'automatic', registration: a.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 30, automaticResume: true, resume: resumeInto('automatic') })
+      check("an automatic run's own budget cut arms nothing (one automatic resume per cut chain)", armed === null && pending(automatic) === false)
+      await settle(120)
+      check('a hand resume, a stop, an eviction and a live workflow owner each stop the automatic resume; no receipt row for any', fired.length === 0 && receipts().length === 0, JSON.stringify(fired))
+      completeAgentTask({ agentId: byHand }, store.set as never)
+    }
+    {
+      const { cancelAutomaticResume } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+      for (const kind of ['budget-cut', 'stop'] as const) {
+        queue.resetCommandQueue()
+        const store = makeStore()
+        const id = generateTaskId('local_agent')
+        const task = registerAsyncAgent({ agentId: id, description: kind, prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+        async function* stream(): AsyncGenerator<Message, void> {
+          yield createUserMessage({ content: 'count' })
+          yield createAssistantMessage({ content: 'one so far' })
+          if (kind === 'stop') {
+            task.abortController?.abort()
+            throw new AbortError()
+          }
+          throw budgetCut()
+        }
+        await runAsyncAgentLifecycle({ taskId: id, abortController: task.abortController!, makeStream: () => stream() as never, metadata: META, description: kind, toolUseContext: { options: { tools: [] }, toolUseId: `toolu_${kind}` } as never, rootSetAppState: store.set as never, agentIdForCleanup: id, enableSummarization: false, getWorktreeResult: async () => ({}) })
+        const armed = pending(id)
+        const cancelled = cancelAutomaticResume(id)
+        check(kind === 'budget-cut' ? 'the lifecycle arms the one automatic resume on a budget cut' : "the lifecycle's stop road arms nothing", kind === 'budget-cut' ? armed && cancelled : !armed && !cancelled)
+      }
+    }
+    const lifecycleSrc = src('src/tools/AgentTool/agentToolUtils.ts')
+    const resumeSrc = src('src/tools/AgentTool/resumeAgent.ts')
+    check('the lifecycle arms the resume only when the failure is a budget cut, never on the stop road', (lifecycleSrc.match(/armBudgetCutResume\(\{/g) ?? []).length === 1 && /const budgetCut = recoveryBudgetCutOf\(error\)/.test(lifecycleSrc) && /if \(budgetCut !== null && !args\.automaticResume\)/.test(lifecycleSrc))
+    check('the resume road carries the automatic mark into the lifecycle it starts', /automaticResume: args\.automatic === true/.test(resumeSrc))
+  }
+  queue.resetCommandQueue()
+}
+
+section('R14 · nothing load-bearing on the partial shapes: an old notice paints as before, a resume receipt settles no launch, the envelope keeps its keys, an old transcript reads unchanged')
+{
+  const painter = (await import('../../src/components/messages/UserAgentNotificationMessage.tsx')) as { partialResultOf?: (text: string) => string | null }
+  check("the card's partial decision is a pure export", typeof painter.partialResultOf === 'function')
+  if (typeof painter.partialResultOf === 'function') {
+    const oldFailed = '<task-notification>\n<task-id>a1</task-id>\n<status>failed</status>\n<summary>Agent "x" failed: boom</summary>\n</task-notification>'
+    const newFailed = '<task-notification>\n<task-id>a1</task-id>\n<status>failed</status>\n<summary>Agent "x" failed: boom — its work is kept</summary>\n<result>three piers so far</result>\n</task-notification>'
+    const completed = '<task-notification>\n<task-id>a1</task-id>\n<status>completed</status>\n<summary>Agent "x" completed</summary>\n<result>done</result>\n</task-notification>'
+    check('an old-shaped failed notice (no result) paints as before — no partial line', painter.partialResultOf(oldFailed) === null)
+    check('a failed notice with a result paints the kept partial', painter.partialResultOf(newFailed) === 'three piers so far')
+    check("a completed notice's result is a report, never a partial", painter.partialResultOf(completed) === null)
+  }
+  const launchMsg = assistantLaunch()
+  const receiptsMsg = userReceipts()
+  const resumedRow = createUserMessage({ content: '<task-notification>\n<task-id>agent-one</task-id>\n<tool-use-id>toolu_launch_one</tool-use-id>\n<status>resumed</status>\n<summary>Agent "one" resumed by itself</summary>\n</task-notification>' })
+  const endedRow = createUserMessage({ content: '<task-notification>\n<task-id>agent-one</task-id>\n<tool-use-id>toolu_launch_one</tool-use-id>\n<status>completed</status>\n<summary>Agent "one" completed</summary>\n</task-notification>' })
+  const orphansWithResumed = lr.orphanedBackgroundLaunches([launchMsg, receiptsMsg, resumedRow], new Set())
+  const orphansWithEnd = lr.orphanedBackgroundLaunches([launchMsg, receiptsMsg, endedRow], new Set())
+  check('a resume receipt row settles no launch (a restart during the resumed run still writes the death notice)', orphansWithResumed.some(o => o.agentId === 'agent-one'), JSON.stringify(orphansWithResumed.map(o => o.agentId)))
+  check("…while the run's own terminal notice does settle it", !orphansWithEnd.some(o => o.agentId === 'agent-one'))
+  const { buildAgentResultEnvelope } = await import('../../src/services/agentResults/normalize.ts')
+  const failedEnvelope = await buildAgentResultEnvelope({ agentId: generateTaskId('local_agent'), agentType: 'general-purpose', status: 'failed', finalText: 'three piers so far', usage: { totalTokens: 1, toolUseCount: 1, durationMs: 1 } })
+  const completedEnvelope = await buildAgentResultEnvelope({ agentId: generateTaskId('local_agent'), agentType: 'general-purpose', status: 'completed', finalText: 'four piers', usage: { totalTokens: 1, toolUseCount: 1, durationMs: 1 } })
+  check('the envelope of a non-clean exit carries exactly the keys a finished one carries', JSON.stringify(Object.keys(failedEnvelope).sort()) === JSON.stringify(Object.keys(completedEnvelope).sort()), Object.keys(failedEnvelope).join(','))
+  {
+    const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
+    const { getAgentTranscript } = await import('../../src/utils/sessionStorage/logs.ts')
+    const { asAgentId } = await import('../../src/types/ids.ts')
+    const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
+    const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
+    const { getSessionId } = await import('../../src/bootstrap/state.ts')
+    const { mkdirSync } = await import('node:fs')
+    const { dirname } = await import('node:path')
+    const old = generateTaskId('local_agent')
+    const sessionId = String(getSessionId())
+    let n = 900
+    const encode = (e: unknown): string => JSON.stringify(entryToRecord(e as never, { sessionId, nextOrdinal: () => ordinalOf(++n), observedAt: '2026-01-01T00:00:00.000Z', source: { channel: 'interactive' } } as never))
+    const rowsOld = [
+      { type: 'user', uuid: '00000000-0000-4000-8000-0000000000d1', parentUuid: null, isSidechain: true, agentId: old, sessionId, timestamp: '2026-01-01T00:00:00.000Z', message: { role: 'user', content: 'old prompt' } },
+      { type: 'assistant', uuid: '00000000-0000-4000-8000-0000000000d2', parentUuid: '00000000-0000-4000-8000-0000000000d1', isSidechain: true, agentId: old, sessionId, timestamp: '2026-01-01T00:00:00.000Z', message: { id: 'msg_old', role: 'assistant', model: 'fixture', content: [{ type: 'text', text: 'old reply' }], usage: { input_tokens: 1, output_tokens: 1 } } },
+    ]
+    const path = getAgentTranscriptPath(asAgentId(old))
+    mkdirSync(dirname(path), { recursive: true })
+    writeFileSync(path, rowsOld.map(encode).join('\n') + '\n')
+    const loaded = await getAgentTranscript(asAgentId(old))
+    check('an old-shaped transcript reads its two rows unchanged', loaded !== null && loaded.messages.length === 2 && loaded.messages.map(m => m.type).join(',') === 'user,assistant')
+  }
 }
 
 console.log(failures === 0 ? '\nprove-launch-receipts: ALL LAWS HOLD' : `\nprove-launch-receipts: ${failures} FAILURE(S)`)

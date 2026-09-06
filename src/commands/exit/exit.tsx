@@ -2,37 +2,28 @@ import * as React from 'react'
 import { ExitFlow } from '../../components/ExitFlow.js'
 import { MercuryExitConfirm } from '../../components/MercuryExitConfirm.js'
 import type { AppState } from '../../state/AppState.js'
-import { isBackgroundTask, type TaskState } from '../../tasks/types.js'
-import { isTerminalTaskStatus } from '../../Task.js'
+import type { SetAppState } from '../../Task.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
+import { liveBackgroundCounts, liveWorkWords, settleOwnerlessTasks } from '../../utils/task/framework.js'
 import { gracefulShutdown } from '../../utils/gracefulShutdown.js'
 import { getCurrentWorktreeSession } from '../../utils/worktree.js'
 
 const FAREWELL = 'Session saved. Reopen it any time with /sessions.'
 
-function liveBackgroundCount(getAppState?: () => AppState): number {
-  if (!getAppState) return 0
-  const tasks: Record<string, TaskState> = getAppState().tasks ?? {}
-  let count = 0
-  for (const task of Object.values(tasks)) {
-    if (isBackgroundTask(task) && !isTerminalTaskStatus(task.status)) count++
-  }
-  return count
-}
-
 export async function call(
   onDone: LocalJSXCommandOnDone,
-  context: { getAppState?: () => AppState },
+  context: { getAppState?: () => AppState; setAppState?: SetAppState },
 ): Promise<React.ReactNode> {
   if (getCurrentWorktreeSession()) {
     return <ExitFlow onDone={message => onDone(message ?? undefined)} showWorktree={true} />
   }
 
-  const count = liveBackgroundCount(context.getAppState)
-  if (count > 0) {
+  if (context.setAppState) settleOwnerlessTasks(context.setAppState)
+  const counts = liveBackgroundCounts(context.getAppState?.().tasks)
+  if (counts.total > 0) {
     return (
       <MercuryExitConfirm
-        liveCount={count}
+        liveWords={liveWorkWords(counts)}
         onStay={() => onDone()}
         onQuit={() => {
           onDone(FAREWELL)

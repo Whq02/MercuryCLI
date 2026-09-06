@@ -51,7 +51,7 @@ t.section('§2 — the real parse + resolve path (a user null-unbind of space)')
   )
 
   const ctrlBindings = parseBindings([
-    { context: 'Chat', bindings: { 'ctrl+t': 'app:toggleTodos' } },
+    { context: 'Chat', bindings: { 'ctrl+t': 'app:toggleTasks' } },
     { context: 'Chat', bindings: { 'ctrl+t': null } },
   ] as Parameters<typeof parseBindings>[0])
   const rc = resolveKey('t', KEY({ ctrl: true }), ['Chat', 'Global'], ctrlBindings)
@@ -97,7 +97,7 @@ t.section('§3 — every consume site shares the decision, including the interce
 t.section('§4 — chord states are deterministic (pure resolution)')
 {
   const bindings = parseBindings([
-    { context: 'Chat', bindings: { 'ctrl+x p': 'app:commandPalette', 'ctrl+t': 'app:toggleTodos' } },
+    { context: 'Chat', bindings: { 'ctrl+x p': 'app:commandPalette', 'ctrl+t': 'app:toggleTasks' } },
   ] as Parameters<typeof parseBindings>[0])
   const ctx = ['Chat', 'Global']
 

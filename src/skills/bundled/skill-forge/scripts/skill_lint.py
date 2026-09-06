@@ -19,7 +19,7 @@ TRIGGER_RE = re.compile(r"\b(use when|when (the user|asked|you)|trigger)", re.I)
 PATH_RE = re.compile(r"`((?:scripts|references|assets|templates)/[A-Za-z0-9_./-]+)`")
 REQUIRED = ("name", "description")
 KNOWN = {
-    "name", "description", "when_to_use", "argument-hint", "allowed-tools",
+    "name", "description", "when-to-use", "argument-hint", "allowed-tools",
     "disable-model-invocation", "user-invocable", "context", "agent", "model",
     "effort", "paths", "version", "hooks", "shell",
 }
@@ -65,7 +65,7 @@ def lint(skill_dir: str, max_description: int = 1000, max_body_lines: int = 250)
     description = fields.get("description", "")
     if len(description) > max_description:
         findings.append(f"description is {len(description)} chars (budget {max_description})")
-    if description and not TRIGGER_RE.search(description + " " + fields.get("when_to_use", "")):
+    if description and not TRIGGER_RE.search(description + " " + fields.get("when-to-use", "")):
         findings.append("description carries no trigger (say when to use it)")
     for key in fields:
         if key not in KNOWN:
