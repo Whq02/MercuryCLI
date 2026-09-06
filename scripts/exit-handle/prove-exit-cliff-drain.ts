@@ -28,6 +28,8 @@ const later = (ms: number, fn?: () => void): Promise<void> =>
   )
 const never = (): Promise<never> => new Promise(() => {})
 
+const TIMER_LEAD_MS = 2
+
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — exit-cliff drain proof exceeded 120s')
   process.exit(1)
@@ -93,7 +95,7 @@ check(
   const ms = Date.now() - t0
   check(
     'a wedged seam is abandoned BY NAME at the grace, never held forever',
-    r.abandoned.join() === 'wedged' && ms >= 80 && ms < 500,
+    r.abandoned.join() === 'wedged' && r.settled.length === 0 && r.failed.length === 0 && ms >= 80 - TIMER_LEAD_MS && ms < 500,
     `${j(r)} in ${ms}ms`,
   )
 }
@@ -121,6 +123,7 @@ check(
 }
 {
   const ran: string[] = []
+  const t0 = Date.now()
   const r = await drainNamedSeams(
     [
       { name: 'source-wedged', phase: 1, settle: never },
@@ -134,10 +137,11 @@ check(
     ],
     60,
   )
+  const ms = Date.now() - t0
   check(
     'a spent grace abandons the LATER phases by name — the closer never runs under an unsettled producer',
-    r.abandoned.sort().join() === 'closer,source-wedged' && ran.length === 0,
-    j(r),
+    r.abandoned.sort().join() === 'closer,source-wedged' && r.settled.length === 0 && ran.length === 0 && ms < 500,
+    `${j(r)} ran=${j(ran)} in ${ms}ms`,
   )
 }
 {
