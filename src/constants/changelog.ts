@@ -2,6 +2,7 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
+- Updated and refactored internal names and structure across the codebase; settings, rules and records saved under former names still apply
 - Changed a permission ask on a session you are not looking at to wait for you with no time limit; its Session Concourse row reads "waiting for your answer" and the card is there when you focus the session; an ask raised by a sub-agent waits ten minutes
 - Added /speak options: it lists the transcribers this install can use, marks the one serving now, and saves the one you pick; a saved choice that cannot serve is named and the default serves
 - Changed the effort ladder to end at max; the extra word some provider lists advertise above it is never offered or sent
