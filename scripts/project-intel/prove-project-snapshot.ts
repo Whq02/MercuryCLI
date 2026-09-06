@@ -129,7 +129,7 @@ async function main(): Promise<void> {
   const changes = await registry.resolveResource('mercury://project/current?child=changes&limit=1', ctxFor(dir))
   check('changes child paginates', changes.state === 'ok' && changes.resource.page?.total === 1 && changes.resource.page.hasMore === false)
   const knowledge = await registry.resolveResource('mercury://project/current?child=knowledge', ctxFor(dir))
-  check('knowledge child resolves with presence rows', knowledge.state === 'ok' && /CLAUDE\.md: absent/.test(knowledge.resource.text ?? ''))
+  check('knowledge child resolves with presence rows', knowledge.state === 'ok' && /MERCURY\.md: absent/.test(knowledge.resource.text ?? '') && /other harness instruction files: none/.test(knowledge.resource.text ?? ''))
   const bogus = await registry.resolveResource('mercury://project/current?child=nope', ctxFor(dir))
   check('unknown child ⇒ absent (named)', bogus.state === 'absent')
   const bogusId = await registry.resolveResource('mercury://project/other', ctxFor(dir))
