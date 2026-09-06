@@ -1,5 +1,6 @@
 
 import { Worker } from 'node:worker_threads'
+import { realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import * as path from 'node:path'
 import { parse as parseSource } from 'acorn'
@@ -135,7 +136,14 @@ let cachedTs: { cwd: string; compiler: TsCompiler | null } | null = null
 function isWorkspaceResolution(cwd: string, resolved: string): boolean {
   let dir = path.resolve(cwd)
   for (;;) {
-    if (resolved.startsWith(path.join(dir, 'node_modules') + path.sep)) return true
+    const modules = path.join(dir, 'node_modules')
+    const roots = [modules]
+    try {
+      const real = realpathSync(modules)
+      if (real !== modules) roots.push(real)
+    } catch {
+    }
+    if (roots.some(root => resolved.startsWith(root + path.sep))) return true
     const parent = path.dirname(dir)
     if (parent === dir) return false
     dir = parent
