@@ -169,10 +169,10 @@ const risingPayload = (n: number): unknown => ({
 const FACE_THEN_CHAT: Send[] = [
   { data: '\r', atTick: 999, awaitText: 'New Session', requireAwait: true, minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3 },
 ]
-const usageThenBack = (tabNeedle: string): Send[] => [
+const usageThenBack = (tabNeedle: string, mark = 'after-usage'): Send[] => [
   { data: '/usage\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
   { data: '\x1b', atTick: 999, awaitText: tabNeedle, requireAwait: true, minTick: 4, awaitSettleTicks: 2 },
-  { data: '', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'after-usage' },
+  { data: '', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark },
 ]
 const markAfter = (label: string, ms: number): Send => ({ afterPrevTicks: ticks(ms), data: '', mark: label })
 
@@ -256,8 +256,8 @@ if (LEGS.has('a')) {
   const f2 = fiveHourPct(c.marks.floor2 ?? '')
   const f3 = fiveHourPct(c.marks.floor3 ?? '')
   check(`A: three floors later the row has NOT moved (${shown} → ${f1} → ${f2} → ${f3}): nothing reads on a clock`, f1 === shown && f2 === shown && f3 === shown, usageBlock(c.marks.floor3 ?? ''))
-  const asksBeforeRetry = api.usageRequests.filter(r => (r.at - t0) / 1000 < 3 * POLL_MS / 1000 + 12).length
-  check(`A: the fixture saw exactly two reads before the retry (the mount's and the tab's), none on a clock (${asksBeforeRetry})`, asksBeforeRetry === 2, usageAsks.join(' '))
+  const gapToRetry = api.usageRequests.length >= 3 ? (api.usageRequests[2]!.at - api.usageRequests[1]!.at) / 1000 : -1
+  check(`A: the fixture saw exactly three reads — the mount's, the tab's, and the retry's more than three floors later (${api.usageRequests.length} reads, gap ${gapToRetry.toFixed(1)} s) — none on a clock`, api.usageRequests.length === 3 && gapToRetry > (3 * POLL_MS) / 1000, usageAsks.join(' '))
   check(`A: the age tail grows in the open and reads stale past 2 × floor (${ageOf(c.marks.floor3 ?? '') ?? 'no age word'})`, /^stale ↻/.test(ageOf(c.marks.floor3 ?? '') ?? ''), usageBlock(c.marks.floor3 ?? ''))
   const retried = fiveHourPct(c.marks['retried-rail'] ?? c.marks.retried ?? '')
   check(`A: the tab's retry reads again — the row moves (5h ${retried ?? '—'}% > ${shown})`, retried !== undefined && shown !== undefined && retried > shown, usageBlock(c.marks['retried-rail'] ?? ''))
@@ -276,19 +276,20 @@ if (LEGS.has('b')) {
   }
   const t0 = Date.now()
   const backoffMs = 4 * POLL_MS
+  const debugFileB = join(home, 'usage-read.debug.log')
   const c = await capture(
     'rail-outage',
     {
       ...RAIL,
       total: 520,
-      argv: ['node', DIST],
+      argv: ['node', DIST, '--debug-file', debugFileB],
       cwd: workspace,
       sends: [
         ...FACE_THEN_CHAT,
         ...usageThenBack('500'),
         markAfter('inside-backoff', backoffMs / 2),
         markAfter('after-backoff', backoffMs / 2 + 2_000),
-        ...usageThenBack('Current session'),
+        ...usageThenBack('Current session', 'after-second-usage'),
         { data: '', afterPrevTicks: ticks(1_500), mark: 'recovered' },
       ],
       readyText: ['? for shortcuts'],
@@ -301,6 +302,9 @@ if (LEGS.has('b')) {
   reapHome(home)
   console.log('\nB · the rail at 160 cols — the outage')
   console.log(`  [FIXTURE] usage requests: ${asks.map(r => `#${r.n}@${r.s.toFixed(1)}s:${r.mode}`).join(' ') || 'none'}`)
+  const readLinesB = existsSync(debugFileB) ? readFileSync(debugFileB, 'utf8').split('\n').filter(l => l.includes('[usage] read #')) : []
+  console.log(`  [DEBUG] ${readLinesB.length} read line(s):`)
+  for (const line of readLinesB) console.log(`    ${line.replace(/^\S+ \[DEBUG\] /, '')}`)
   check('every send became due', c.sends > 0 && c.receipts === c.sends, c.tail.slice(-200))
   const after = c.marks['after-usage'] ?? ''
   const noteRe = /read failed · HTTP 500/
@@ -346,8 +350,8 @@ if (LEGS.has('c')) {
       cwd: workspace,
       sends: [
         ...FACE_THEN_CHAT,
-        ...usageThenBack('Current session'),
-        markAfter('young', POLL_MS + 2_000),
+        ...usageThenBack('Anthropic usage'),
+        markAfter('young', POLL_MS),
         markAfter('stale', staleAfterMs + 4_000),
       ],
       readyText: ['? for shortcuts'],
@@ -454,7 +458,7 @@ if (LEGS.has('f')) {
   for (const line of readLines) console.log(`    ${line.replace(/^\S+ \[DEBUG\] /, '')}`)
   check('every send became due', c.sends > 0 && c.receipts === c.sends, c.tail.slice(-200))
   const first = asks[0]
-  check("the request's identity headers are the release's shape (User-Agent mercury/<version> · Authorization Bearer · anthropic-beta oauth-2025-04-20 · Content-Type application/json)", first !== undefined && /^mercury\/\S+$/.test(String(first.headers['user-agent'] ?? '')) && /^Bearer /.test(String(first.headers['authorization'] ?? '')) && first.headers['anthropic-beta'] === 'oauth-2025-04-20' && String(first.headers['content-type'] ?? '').startsWith('application/json'), JSON.stringify(first?.headers ?? {}))
+  check("the request's identity headers are the release's shape (User-Agent mercury/<version> · Authorization Bearer · anthropic-beta oauth-2025-04-20 · Content-Type application/json)", first !== undefined && /^mercury\/\d+\.\d+\.\d+/.test(first.headers['user-agent'] ?? '') && first.headers.authScheme === 'Bearer' && first.headers['anthropic-beta'] === 'oauth-2025-04-20' && first.headers['content-type'] === 'application/json', JSON.stringify(first?.headers))
   check('every read leaves one debug line naming its reason (open · operator · sign-in) and the host', readLines.length === asks.length && readLines.every(l => /\((open|operator|sign-in)\) GET 127\.0\.0\.1:\d+\/api\/oauth\/usage/.test(l)), `${readLines.length} line(s) for ${asks.length} request(s)`)
   check('the mount read is admitted (200) and the figure paints (5h ≥ 36%)', asks[0]?.status === 200 && (fiveHourPct(c.marks.boot ?? '') ?? 0) >= 36, `#1:${asks[0]?.status} · ${usageBlock(c.marks.boot ?? '')}`)
   const tabAsk = asks[1]
