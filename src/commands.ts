@@ -513,7 +513,6 @@ export const getSkillToolCommands = memoize(
         command.source !== 'builtin' &&
         (command.loadedFrom === 'bundled' ||
           command.loadedFrom === 'skills' ||
-          command.loadedFrom === 'legacy-commands' ||
           command.hasUserSpecifiedDescription === true ||
           Boolean(command.whenToUse)),
     )

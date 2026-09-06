@@ -267,7 +267,7 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
     }),
     dirSkills: async () => [
       prompt('deploy', { source: 'projectSettings', loadedFrom: 'skills' }),
-      prompt('notes', { source: 'userSettings', loadedFrom: 'legacy-commands' }),
+      prompt('notes', { source: 'userSettings', loadedFrom: 'skills' }),
       prompt('extension-maker', { source: 'bundled', loadedFrom: 'bundled' }),
       prompt('mcp-derived', { source: 'mcp', loadedFrom: 'mcp' }),
     ],
@@ -304,7 +304,7 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
       dirSkills: async () => [
         prompt('good', { source: 'userSettings', loadedFrom: 'skills' }),
         prompt('good', { source: 'projectSettings', loadedFrom: 'skills' }),
-        prompt('good', { source: 'projectSettings', loadedFrom: 'legacy-commands' }),
+        prompt('good', { source: 'localSettings', loadedFrom: 'skills' }),
         prompt('deploy', { source: 'projectSettings', loadedFrom: 'skills' }),
       ],
       skillRefusals: () => [
@@ -316,7 +316,7 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
     const goodRows = cat2.rows.filter(r => r.kind === 'skill' && r.name === 'good')
     t.check('a name three files claim paints ONE row — the loader’s winner (user settings)', goodRows.length === 1 && goodRows[0]?.kind === 'skill' && goodRows[0].source === 'user settings', JSON.stringify(goodRows))
     const skillNotes = cat2.rows.filter(r => r.kind === 'note' && r.section === 'skill').map(r => r.text)
-    t.check('the shadowed copies are ONE note naming the winner and every loser', skillNotes[0] === shadowedSkillNote('good', 'user settings skill', ['project settings skill', 'project settings legacy command']) && skillNotes[0] === 'shadowed: good — the user settings skill loads; the project settings skill and the project settings legacy command stay on disk unused (rename one)', skillNotes[0])
+    t.check('the shadowed copies are ONE note naming the winner and every loser', skillNotes[0] === shadowedSkillNote('good', 'user settings skill', ['project settings skill', 'project, gitignored settings skill']) && skillNotes[0] === 'shadowed: good — the user settings skill loads; the project settings skill and the project, gitignored settings skill stay on disk unused (rename one)', skillNotes[0])
     t.check('a refused file is a note naming the file (cwd-relative) and the reason’s first line', skillNotes[1] === 'refused: .mercury/skills/broken/SKILL.md (project) — frontmatter did not parse: Nested mappings are not allowed in compact mappings at line 2, column 14:' && refusedSkillNote({ path: '/proof/cwd/.mercury/skills/broken/SKILL.md', error: 'x\ny', source: 'project' }, '/proof/cwd') === 'refused: .mercury/skills/broken/SKILL.md (project) — x', skillNotes[1])
     t.check('a refusal outside the cwd keeps its full path', skillNotes[2] === "refused: /elsewhere/skills/with space/SKILL.md (user) — uninvocable name: contains whitespace ('/with space' can never be one command token)", skillNotes[2])
     t.check('the ruled MCP note stays LAST; the section list keeps members before notes', skillNotes[skillNotes.length - 1] === MCP_SKILLS_NOTE && sectionRows(cat2).filter(r => r.section === 'skill').findIndex(r => r.kind === 'note') > sectionRows(cat2).filter(r => r.section === 'skill').findLastIndex(r => r.kind === 'skill'))
