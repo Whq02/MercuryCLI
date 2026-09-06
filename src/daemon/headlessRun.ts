@@ -233,7 +233,7 @@ export function buildStreamJsonInvocation(
     ...(spec.extraEnv ?? {}),
     ANTHROPIC_MODEL: model,
     MERCURY_EFFORT_LEVEL: spec.effort,
-    ...flagPair('MERCURY_SWARMS', '1'),
+    ...flagPair('MERCURY_TEAMMATES', '1'),
   }
   for (const v of sweptRoleSpellings()) {
     delete env[v]

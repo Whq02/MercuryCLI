@@ -475,7 +475,7 @@ export async function getSystemPrompt(
 
   const forkSubagentsEnabled = toolNames.has(AGENT_TOOL_NAME) && isForkSubagentEnabled()
   const hasSkills = toolNames.has(SKILL_TOOL_NAME)
-  const nonInteractive = process.env.MERCURY_ENTRYPOINT === 'sdk'
+  const nonInteractive = process.env.MERCURY_ENTRYPOINT === 'headless'
 
   const dynamicSpecs = [
     systemPromptSection('session_guidance', () =>

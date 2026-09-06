@@ -28,7 +28,7 @@ import { modelGauge } from '../../utils/cockpit/modelGauge.js'
 declare const MACRO: { VERSION: string }
 
 function providerAccountFacts(): StatusFact[] {
-  const isDemo = Boolean(process.env.IS_DEMO)
+  const isDemo = Boolean(process.env.MERCURY_DEMO)
   const allEntries = walletEntries()
   return providerFamilyPresences().map(family => {
     const entries = allEntries.filter(e => e.provider === family.id)

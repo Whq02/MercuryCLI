@@ -1,7 +1,7 @@
 import { isEnvTruthy } from './envUtils.js'
 
 
-const EXCLUDED_ENTRYPOINTS = new Set(['sdk', 'local-agent'])
+const EXCLUDED_ENTRYPOINTS = new Set(['headless', 'local-agent'])
 
 export function hasEmbeddedSearchTools(): boolean {
   if (!isEnvTruthy(process.env.EMBEDDED_SEARCH_TOOLS)) return false

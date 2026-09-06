@@ -335,14 +335,14 @@ export async function main(): Promise<void> {
   if (!process.env.MERCURY_ENTRYPOINT) {
     const mcpIndex = process.argv.indexOf('mcp')
     const mcpServe = mcpIndex >= 0 && process.argv[mcpIndex + 1] === 'serve'
-    process.env.MERCURY_ENTRYPOINT = mcpServe ? 'mcp' : isNonInteractive ? 'sdk' : 'cli'
+    process.env.MERCURY_ENTRYPOINT = mcpServe ? 'mcp' : isNonInteractive ? 'headless' : 'cli'
   }
 
   const entrypoint = process.env.MERCURY_ENTRYPOINT
-  const clientType = entrypoint === 'sdk' ? 'sdk' : entrypoint === 'local-agent' ? 'local-agent' : 'cli'
+  const clientType = entrypoint === 'headless' ? 'headless' : entrypoint === 'local-agent' ? 'local-agent' : 'cli'
   setClientType(clientType)
 
-  if (clientType !== 'sdk' && clientType !== 'local-agent') {
+  if (clientType !== 'headless' && clientType !== 'local-agent') {
     setQuestionPreviewFormat('markdown')
   }
   profileCheckpoint('main_client_type_determined')
@@ -495,7 +495,6 @@ async function run(): Promise<void> {
     .option('--dangerously-bypass-permissions', 'Bypass all permission checks')
     .option('--allow-dangerously-bypass-permissions', 'Allow the bypass mode to be toggled')
     .addOption(new Option('--thinking <mode>', 'Thinking mode').choices(['enabled', 'adaptive', 'disabled']).hideHelp())
-    .addOption(new Option('--max-thinking-tokens <tokens>', '[deprecated] Max thinking tokens').argParser(Number).hideHelp())
     .addOption(new Option('--max-turns <turns>', 'Maximum turns for a print run').argParser((value: string) => {
       const parsed = Number(value)
       if (!Number.isInteger(parsed) || parsed <= 0) {
@@ -1307,8 +1306,8 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   if (thinkingOpt === 'enabled' || thinkingOpt === 'adaptive') thinkingConfig = { type: 'adaptive' }
   else if (thinkingOpt === 'disabled') thinkingConfig = { type: 'disabled' }
   else {
-    const envTokens = process.env.MAX_THINKING_TOKENS
-    const budget = envTokens !== undefined ? Number.parseInt(envTokens, 10) : (opts.maxThinkingTokens as number | undefined)
+    const envTokens = flagEnv('MERCURY_THINKING_BUDGET')
+    const budget = envTokens !== undefined ? Number.parseInt(envTokens, 10) : undefined
     if (budget !== undefined && Number.isFinite(budget) && budget > 0) {
       thinkingConfig = { type: 'enabled', budgetTokens: budget }
     } else if (budget === 0) {

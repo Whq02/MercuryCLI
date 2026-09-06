@@ -18,7 +18,7 @@ for (const ambient of [
   'MERCURY_MAX_OUTPUT_TOKENS',
   'MERCURY_HOME',
   'MERCURY_EFFORT_LEVEL',
-  'MAX_THINKING_TOKENS',
+  'MERCURY_THINKING_BUDGET',
   'GOOGLE_API_KEY',
 ]) {
   delete process.env[ambient]
