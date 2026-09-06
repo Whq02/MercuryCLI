@@ -27,7 +27,7 @@ import {
   setSessionSettingsCache,
 } from '../../src/utils/settings/settingsCache.js'
 import type { SessionId } from '../../src/types/ids.js'
-import type { ModelUsage } from '../../src/entrypoints/agentSdkTypes.js'
+import type { ModelUsage } from '../../src/bootstrap/state.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(here, '..', '..')

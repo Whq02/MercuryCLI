@@ -12,7 +12,7 @@ export const MERCURY_GUIDE_AGENT_TYPE = 'mercury-guide'
 
 export function isGuideAgentMounted(): boolean {
   if (
-    isEnvTruthy(process.env.MERCURY_SDK_DISABLE_BUILTIN_AGENTS) &&
+    isEnvTruthy(process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS) &&
     getIsNonInteractiveSession()
   ) {
     return false
