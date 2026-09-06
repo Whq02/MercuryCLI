@@ -10,7 +10,7 @@ import { getProjectRoot } from '../bootstrap/state.js'
 import { sanitizePathComponent } from '../utils/tasks.js'
 
 export function isAutoMemoryEnabled(): boolean {
-  if (isEnvTruthy(process.env.MERCURY_SIMPLE)) return false
+  if (isEnvTruthy(process.env.MERCURY_BARE)) return false
   const setting = getInitialSettings().autoMemoryEnabled
   if (setting !== undefined) return setting
   return true

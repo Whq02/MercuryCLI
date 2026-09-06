@@ -187,7 +187,7 @@ async function main(): Promise<void> {
   }
 
   if (args.includes('--bare')) {
-    process.env.MERCURY_SIMPLE = '1'
+    process.env.MERCURY_BARE = '1'
   }
 
   {

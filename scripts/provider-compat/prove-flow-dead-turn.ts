@@ -10,7 +10,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'flow-dead-turn-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'flow-dead-turn-daemon-'))
 process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'flow-dead-turn-teams-'))
 for (const k of [
-  'MERCURY_SIMPLE',
+  'MERCURY_BARE',
   'MERCURY_EFFORT_LEVEL',
   'MERCURY_MAX_OUTPUT_TOKENS',
   'MERCURY_TIME_BASED_MC',

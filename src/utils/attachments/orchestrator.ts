@@ -90,7 +90,7 @@ export async function getAttachments(
   querySource?: QuerySource,
   options?: { skipSkillDiscovery?: boolean; localSubmission?: boolean },
 ): Promise<Attachment[]> {
-  if (isEnvTruthy(process.env.MERCURY_SIMPLE)) {
+  if (isEnvTruthy(process.env.MERCURY_BARE)) {
     return getQueuedCommandAttachments(queuedCommands)
   }
 

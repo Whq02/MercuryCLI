@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'hashline-home-'))
-process.env.MERCURY_SIMPLE = '1'
+process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_LINE_ANCHORS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 

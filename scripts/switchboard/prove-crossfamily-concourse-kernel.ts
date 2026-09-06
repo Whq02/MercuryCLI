@@ -20,7 +20,7 @@ const workP2 = join(SCRATCH, 'workP2')
 for (const d of [home, daemonDir, work, work2, work3, work4, work5, work6, work7, workP1, workP2]) mkdirSync(d, { recursive: true })
 
 delete process.env.NODE_ENV
-for (const ambient of ['ANTHROPIC_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_SIMPLE', 'GOOGLE_API_KEY']) {
+for (const ambient of ['ANTHROPIC_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE', 'GOOGLE_API_KEY']) {
   delete process.env[ambient]
 }
 process.env.MERCURY_CONFIG_DIR = home
