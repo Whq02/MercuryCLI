@@ -1085,7 +1085,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
 
   if (fault && typedEnd === null) {
     yield apiErrorMessage(
-      streamFaultAfterPartialText('OpenAI', fault.code, fault.message),
+      streamFaultAfterPartialText(auth.account.label, fault.code, fault.message),
       undefined,
       undefined,
       overflowOf(fault),

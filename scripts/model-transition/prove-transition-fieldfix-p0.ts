@@ -128,10 +128,10 @@ section('§C the Windows incident wave (intake F): evidence preserved, boundarie
 
   const wireSrc = readFileSync(join(ROOT, 'src/services/providers/openai/openaiWire.ts'), 'utf8')
   check('the raw stream error event is logged before reduction', wireSrc.includes('raw stream error event'))
-  check('a bodyless error is stated as itself, never as provider data', wireSrc.includes('no code or message'))
+  check('a bodyless error is stated as itself, never as provider data', wireSrc.includes('no code, no message'))
   check('unclassifiable is BOUNDED-RETRYABLE, not worst-branch', wireSrc.includes('RETRYABLE_OPENAI_CODES.has(code) || !hadCode'))
   const tmSrc = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
-  check('the bounded continuation is VISIBLE (law 12)', tmSrc.includes('continuing once from where it stopped'))
+  check('the bounded continuation is VISIBLE (law 12)', tmSrc.includes('asked the model to continue from where it stopped'))
 
   const wtSrc = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
   check('the unavailability error is agent-actionable', wtSrc.includes('Retry the same Agent call WITHOUT the isolation parameter'))
