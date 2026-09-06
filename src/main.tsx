@@ -389,7 +389,7 @@ function eagerLoadSettings(): void {
         const { join } = require('node:path') as typeof import('node:path')
         const { writeFileSync } = require('node:fs') as typeof import('node:fs')
         const hash = createHash('sha256').update(serialized).digest('hex').slice(0, 16)
-        const settingsPath = join(tmpdir(), `claude-settings-${hash}.json`)
+        const settingsPath = join(tmpdir(), `mercury-settings-${hash}.json`)
         writeFileSync(settingsPath, serialized)
         setFlagSettingsInline(parsed)
         setFlagSettingsPath(settingsPath)
@@ -593,7 +593,7 @@ async function run(): Promise<void> {
   ] as const) {
     program.addOption(new Option(flags, description).hideHelp())
   }
-  program.addOption(new Option('--plan-mode-required', 'Teammate requires plan mode').hideHelp())
+  program.addOption(new Option('--strategy-mode-required', 'Teammate requires strategy mode').hideHelp())
   program.addOption(new Option('--teammate-mode <mode>', 'Teammate pane mode').choices(['auto', 'tmux', 'in-process']).hideHelp())
 
   program.addOption(new Option('-V', 'Print the version').hideHelp())
@@ -1173,7 +1173,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const agentName = typedString(opts.agentName)
   const teamName = typedString(opts.teamName)
   const agentColor = typedString(opts.agentColor)
-  const planModeRequired = typedBoolean(opts.planModeRequired)
+  const planModeRequired = typedBoolean(opts.strategyModeRequired)
   const parentSessionId = typedString(opts.parentSessionId)
   const teammateMode = typedString(opts.teammateMode)
   const agentTypeOpt = typedString(opts.agentType)
@@ -1187,6 +1187,9 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
 
   if (opts.continue && opts.resume) {
     failCli('--continue and --resume name two different sessions — give exactly one')
+  }
+  if (opts.forkSession && !printMode) {
+    failCli('--fork-session is a print-mode option: a managed resume continues the session as itself')
   }
   const sessionIdOpt = typedString(opts.sessionId)
   if (sessionIdOpt) {
@@ -1228,15 +1231,15 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   if (inputFormat === 'stream-json' && outputFormat !== 'stream-json') {
     failCli('--input-format=stream-json requires --output-format=stream-json')
   }
-  if (opts.replayUserMessages && (inputFormat !== 'stream-json' || outputFormat !== 'stream-json')) {
-    failCli('--replay-user-messages requires stream-json input and output')
+  if (opts.replayUserMessages && outputFormat !== 'stream-json') {
+    failCli('--replay-user-messages requires --output-format=stream-json')
   }
   const includePartialMessages = Boolean(opts.includePartialMessages)
   if (opts.includePartialMessages && (!printMode || outputFormat !== 'stream-json')) {
     failCli('--include-partial-messages requires --print with --output-format=stream-json')
   }
   if (opts.sessionPersistence === false && !printMode) {
-    failCli('--no-session-persistence is only available in print mode')
+    failCli('--no-session-persistence is a print-mode option: an interactive session is hosted by the daemon and resumed from its transcript, so it always writes one')
   }
 
   if (opts.bare) {
@@ -1943,9 +1946,6 @@ async function interactiveLaunch(args: {
   try {
     type ResumeLog = { fullPath?: string; customTitle?: string; agentName?: string }
     const resumeAtBoot = async (sessionId: string, log: ResumeLog): Promise<boolean> => {
-      if (opts.forkSession) {
-        writeErr('--fork-session: a managed resume continues the session as itself — the flag is ignored')
-      }
       const { focusResumedSession } = await import('./services/switchboard/hopIntoSession.js')
       const outcome = await focusResumedSession(sessionId, log.fullPath, {
         ...(log.customTitle ?? log.agentName ? { title: (log.customTitle ?? log.agentName) as string } : {}),
