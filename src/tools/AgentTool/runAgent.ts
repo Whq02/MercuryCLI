@@ -49,11 +49,15 @@ import {
 } from '../WorkflowTool/structuredOutputTool.js'
 import { armInactivityDeadline, DeadlineExceededError, formatLimit, minutesKnobToMs } from '../../utils/deadline.js'
 import {
-  chargeRecoveryWait,
+  honourRecoveryWait,
   makeRecoveryBudget,
+  recoveryAnswerRefills,
   recoveryBudgetSpentLine,
   recoveryNoticeFacts,
+  refillRecoveryBudget,
   retryWaitWords,
+  settleRecoveryWait,
+  type RecoveryReservation,
 } from '../../services/api/recoveryBudget.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { createChildAbortController } from '../../utils/abortController.js'
@@ -552,6 +556,7 @@ export async function* runAgent(
   let throttled: Error | null = null
   let budgetCut: ReturnType<typeof setTimeout> | null = null
   let retryWordsStanding = false
+  let standingWait: RecoveryReservation | null = null
   const cutAtBudget = (): void => {
     throttled = new Error(recoveryBudgetSpentLine(recovery))
     abortController.abort(throttled)
@@ -914,18 +919,11 @@ export async function* runAgent(
       }
       const notice = recoveryNoticeFacts(message)
       if (notice !== null) {
-        const { honoredMs, spent } = chargeRecoveryWait(recovery, notice.declaredMs, notice.status)
+        settleRecoveryWait(recovery, standingWait)
+        const { honoredMs, spent, reservation } = honourRecoveryWait(recovery, notice)
+        standingWait = reservation
         retryWordsStanding = true
-        onWait?.(
-          retryWaitWords({
-            attempt: notice.attempt ?? recovery.waits,
-            of: notice.of,
-            declaredMs: notice.declaredMs,
-            honoredMs,
-            status: notice.status,
-            budget: recovery,
-          }),
-        )
+        onWait?.(retryWaitWords({ facts: notice, honoredMs, budget: recovery }))
         if (budgetCut !== null) clearTimeout(budgetCut)
         budgetCut = null
         if (spent && honoredMs <= 0) cutAtBudget()
@@ -934,11 +932,14 @@ export async function* runAgent(
           budgetCut.unref?.()
         }
       } else if (retryWordsStanding && (message as { type?: string }).type !== 'progress') {
+        settleRecoveryWait(recovery, standingWait)
+        standingWait = null
         retryWordsStanding = false
         if (budgetCut !== null) clearTimeout(budgetCut)
         budgetCut = null
         onWait?.(null)
       }
+      if (recoveryAnswerRefills(message)) refillRecoveryBudget(recovery)
       if ((message as { type?: string }).type === 'assistant') {
         const content = (message as { message?: { content?: unknown } }).message?.content
         if (Array.isArray(content) && content.some(block => (block as { type?: string })?.type === 'tool_use')) {
@@ -1011,6 +1012,7 @@ export async function* runAgent(
   } finally {
     watchdog.cancel()
     if (budgetCut !== null) clearTimeout(budgetCut)
+    settleRecoveryWait(recovery, standingWait)
     if (retryWordsStanding) onWait?.(null)
     if (askHeartbeat !== null) {
       clearInterval(askHeartbeat)

@@ -27,7 +27,7 @@ function shellPrefix(): string {
   return flagEnv('MERCURY_SHELL_PREFIX') ?? ''
 }
 
-function sandboxTempEnv(sandboxTmpDir: string): Record<string, string> {
+export function sandboxTempEnv(sandboxTmpDir: string): Record<string, string> {
   const dir = getPlatform() === 'windows' ? windowsPathToPosixPath(sandboxTmpDir) : sandboxTmpDir
   return { TMPDIR: dir, MERCURY_TMPDIR: dir, TMPPREFIX: posixPath.join(dir, 'zsh') }
 }

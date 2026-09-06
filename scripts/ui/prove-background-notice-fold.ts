@@ -90,8 +90,8 @@ console.log('§1 the pure owner — one row per run, counted by outcome')
   const sout = run(single)
   check('a run of one passes through unchanged (the same object)', sout.length === 3 && sout[1] === single[1])
 
-  const legacy = [userNotice('l1', 'lint', 'completed', 0), userNotice('l2', 'docs', 'completed', 0), userNotice('l3', 'tests', 'completed', 0)]
-  const lout = run(legacy)
+  const unfolded = [userNotice('l1', 'lint', 'completed', 0), userNotice('l2', 'docs', 'completed', 0), userNotice('l3', 'tests', 'completed', 0)]
+  const lout = run(unfolded)
   check('the older user-row form folds too, and clean completions keep the plain count', lout.length === 1 && lout[0]!.type === 'user' && summaryOf(lout[0]!) === '3 background commands completed' && foldedOf(lout[0]!) === '3', lout.length === 1 ? summaryOf(lout[0]!) : String(lout.length))
 
   const stopped = [attachmentNotice('k1', 'lint', 'completed', 0), attachmentNotice('k2', 'watch', 'killed')]
