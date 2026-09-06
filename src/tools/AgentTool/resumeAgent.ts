@@ -40,7 +40,7 @@ import {
 import { reconstructForSubagentResume } from '../../utils/toolResultStorage.js'
 import { getSdkAgentProgressSummariesEnabled } from '../../bootstrap/state.js'
 import { getSystemPrompt } from '../../constants/prompts.js'
-import { resolveWorkerTools, runAsyncAgentLifecycle } from './agentToolUtils.js'
+import { cancelAutomaticResume, resolveWorkerTools, runAsyncAgentLifecycle } from './agentToolUtils.js'
 import { FORK_AGENT, FORK_SUBAGENT_TYPE, isForkSubagentEnabled } from './forkSubagent.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { getAgentDefinitionsWithOverrides } from './loadAgentsDir.js'
@@ -80,6 +80,7 @@ export async function resumeAgentBackground(args: {
   toolUseContext: ToolUseContext
   canUseTool?: CanUseToolFn
   invokingRequestId?: string
+  automatic?: boolean
 }): Promise<ResumeAgentResult> {
   const { agentId, prompt, toolUseContext, canUseTool } = args
 
@@ -222,6 +223,7 @@ export async function resumeAgentBackground(args: {
   })
   const owner = liveAgentOwner(agentId, tasksNow)
   if (owner !== null) throw new Error(owner.words)
+  if (args.automatic !== true) cancelAutomaticResume(agentId)
   const task = registerAsyncAgent({
     agentId,
     description,
@@ -282,6 +284,7 @@ export async function resumeAgentBackground(args: {
       toolUseContext,
       rootSetAppState,
       agentIdForCleanup: agentId,
+      automaticResume: args.automatic === true,
       enableSummarization:
         isForkSubagentEnabled() || getSdkAgentProgressSummariesEnabled(),
       getWorktreeResult: async () =>

@@ -39,7 +39,8 @@ import { getCachedPowerShellPath } from '../shell/powershellDetection.js'
 import { DEFAULT_HOOK_SHELL } from '../shell/shellProvider.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { TaskOutput } from '../task/TaskOutput.js'
-import { findGitBashPath, windowsPathToPosixPath } from '../windowsPaths.js'
+import { hookBashShell } from '../shell/windowsShellRoad.js'
+import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { firstLineOf } from '../stringUtils.js'
 import type { HookCommand } from '../settings/types.js'
 import {
@@ -314,7 +315,7 @@ export async function execCommandHook(
       windowsHide: true,
     }) as ChildProcessWithoutNullStreams
   } else {
-    const shell = isWindows ? findGitBashPath() : true
+    const shell = isWindows ? hookBashShell(hook.command) : true
     child = spawn(finalCommand, [], {
       env: envVars,
       cwd: safeCwd,

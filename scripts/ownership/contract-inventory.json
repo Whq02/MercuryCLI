@@ -802,6 +802,7 @@
   "proxyAuthHelper",
   "respectGitignore",
   "sandbox",
+  "shellEngine",
   "showClearContextOnStrategyAccept",
   "showThinkingSummaries",
   "skipSovereignConsentPrompt",
