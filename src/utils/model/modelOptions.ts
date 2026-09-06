@@ -1,6 +1,5 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getSettings_DEPRECATED } from '../settings/settings.js'
-import { getGlobalConfig } from '../config.js'
 import {
   evaluateGptCandidate,
   getGptSeatAvailability,
@@ -599,10 +598,6 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
       label: process.env.MERCURY_CUSTOM_MODEL_OPTION_NAME || custom,
       description: process.env.MERCURY_CUSTOM_MODEL_OPTION_DESCRIPTION || '',
     })
-  }
-
-  for (const cached of getGlobalConfig().additionalModelOptionsCache ?? []) {
-    pushIfAbsent(options, cached)
   }
 
   for (const gpt of getQualifiedGptOptions()) {

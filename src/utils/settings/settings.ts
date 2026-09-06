@@ -5,7 +5,6 @@ import mergeWith from 'lodash-es/mergeWith.js'
 import { z } from 'zod/v4'
 
 import { getFlagSettingsInline, getFlagSettingsPath, getOriginalCwd } from '../../bootstrap/state.js'
-import { getRemoteManagedSettingsSyncFromCache } from '../../services/remoteManagedSettings/syncCacheState.js'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../debug.js'
 import { RETIRED_SETTINGS_KEYS, rewriteRetiredSettingsSpellings } from '../../migrations/migrateSettingsSpellings.js'
@@ -313,14 +312,6 @@ export function getManagedFileSettingsPresence(): { hasBase: boolean; hasDropIns
   return { hasBase, hasDropIns }
 }
 
-function getValidatedRemoteBlob(): { original: SettingsJson; parsed: SettingsJson } | null {
-  const blob = getRemoteManagedSettingsSyncFromCache()
-  if (blob === null) return null
-  const result = SettingsSchema().safeParse(blob)
-  if (!result.success) return null
-  return { original: blob as SettingsJson, parsed: result.data as SettingsJson }
-}
-
 function loadPolicyForMerge(): { settings: SettingsJson | null; errors: ValidationError[] } {
   const collected: ValidationError[] = []
   const dedupe = (errors: ValidationError[]): ValidationError[] => {
@@ -331,14 +322,6 @@ function loadPolicyForMerge(): { settings: SettingsJson | null; errors: Validati
       seen.add(key)
       return true
     })
-  }
-  const remoteBlob = getRemoteManagedSettingsSyncFromCache()
-  if (remoteBlob !== null) {
-    const result = SettingsSchema().safeParse(remoteBlob)
-    if (result.success) {
-      return { settings: result.data as SettingsJson, errors: dedupe(collected) }
-    }
-    collected.push(...formatZodError(result.error, 'remote managed settings'))
   }
   const mdm = getMdmSettings()
   collected.push(...mdm.errors)
@@ -358,8 +341,7 @@ function loadPolicyForMerge(): { settings: SettingsJson | null; errors: Validati
   return { settings: null, errors: dedupe(collected) }
 }
 
-export function getPolicySettingsOrigin(): 'remote' | 'plist' | 'hklm' | 'file' | 'hkcu' | null {
-  if (getValidatedRemoteBlob() !== null) return 'remote'
+export function getPolicySettingsOrigin(): 'plist' | 'hklm' | 'file' | 'hkcu' | null {
   if (Object.keys(getMdmSettings().settings).length > 0) {
     return process.platform === 'win32' ? 'hklm' : 'plist'
   }
@@ -371,8 +353,6 @@ export function getPolicySettingsOrigin(): 'remote' | 'plist' | 'hklm' | 'file' 
 
 function readSettingsForSourceUncached(source: SettingSource): SettingsJson | null {
   if (source === 'policySettings') {
-    const remote = getValidatedRemoteBlob()
-    if (remote !== null) return rewriteRetiredSettingsSpellings(remote.original) as SettingsJson
     const mdm = getMdmSettings()
     if (Object.keys(mdm.settings).length > 0) return rewriteRetiredSettingsSpellings(mdm.settings) as SettingsJson
     const file = loadManagedFileSettings()
