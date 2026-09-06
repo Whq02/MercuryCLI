@@ -9,7 +9,8 @@ import {
   shimmerPhaseOf,
   type ShimmerPhase,
 } from '../../utils/cockpit/greetingShimmer.js'
-import { liveGlyphsEnabled } from '../../utils/cockpit/liveGlyphs.js'
+import { glyphTickMs } from '../../utils/cockpit/liveGlyphs.js'
+import { useIdleMotion } from '../../hooks/useIdleMotion.js'
 
 
 export function useGreetingShimmer(
@@ -20,7 +21,8 @@ export function useGreetingShimmer(
   const reducedMotion =
     (useSettingsMaybe()?.prefersReducedMotion ?? false) ||
     isEnvTruthy(process.env.MERCURY_REDUCED_MOTION)
-  const enabled = !reducedMotion && liveGlyphsEnabled() && stops.length > 1 && spanCells > 1
+  const shimmerTick = glyphTickMs(useIdleMotion('glyphs'), SHIMMER_TICK_MS)
+  const enabled = !reducedMotion && shimmerTick !== null && stops.length > 1 && spanCells > 1
 
   const [settled, setSettled] = React.useState(false)
   const startRef = React.useRef<number | null>(null)
@@ -35,7 +37,7 @@ export function useGreetingShimmer(
   }
 
   const animate = enabled && !settled
-  const [, phaseKey] = useAnimationValue(animate ? SHIMMER_TICK_MS : null, timeMs => {
+  const [, phaseKey] = useAnimationValue(animate ? shimmerTick : null, timeMs => {
     if (startRef.current === null) startRef.current = timeMs
     return shimmerPhaseKey(timeMs - startRef.current, spanRef.current)
   })

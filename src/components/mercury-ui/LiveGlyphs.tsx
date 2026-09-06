@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { Text, useAnimationValue } from '../../ink.js'
+import { useIdleMotion } from '../../hooks/useIdleMotion.js'
 import { useSettingsMaybe } from '../../hooks/useSettings.js'
 import { useTypingPause } from '../../hooks/useTypingPause.js'
 import { lerpHex } from '../../utils/theme.js'
@@ -7,7 +8,7 @@ import {
   ATTENTION_BUCKETS,
   ATTENTION_TICK_MS,
   attentionBucket,
-  liveGlyphsEnabled,
+  glyphTickMs,
   READY_BUCKETS,
   READY_TICK_MS,
   readyBucket,
@@ -32,9 +33,11 @@ export function WorkingGlyph({
   tickMs?: number
 }): React.ReactNode {
   const reducedMotion = useSettingsMaybe()?.prefersReducedMotion ?? false
-  const animate = active && !reducedMotion && liveGlyphsEnabled()
-  const [, glyph] = useAnimationValue(animate ? tickMs : null, time =>
-    workGlyphForTime((time * WORK_TICK_MS) / tickMs),
+  const tick = glyphTickMs(useIdleMotion('glyphs'), tickMs)
+  const animate = active && !reducedMotion && tick !== null
+  const sampleMs = tick ?? tickMs
+  const [, glyph] = useAnimationValue(animate ? sampleMs : null, time =>
+    workGlyphForTime((time * WORK_TICK_MS) / sampleMs),
   )
   return <Text color={color}>{animate ? glyph : GLYPH.inProgress}</Text>
 }
@@ -49,11 +52,9 @@ export function AttentionPulse({
   bold?: boolean
 }): React.ReactNode {
   const reducedMotion = useSettingsMaybe()?.prefersReducedMotion ?? false
-  const animate = active && !reducedMotion && liveGlyphsEnabled()
-  const [, bucket] = useAnimationValue(
-    animate ? ATTENTION_TICK_MS : null,
-    attentionBucket,
-  )
+  const tick = glyphTickMs(useIdleMotion('glyphs'), ATTENTION_TICK_MS)
+  const animate = active && !reducedMotion && tick !== null
+  const [, bucket] = useAnimationValue(animate ? tick : null, attentionBucket)
   const color = animate ? lerpHex(FAINT, AMBER, bucket / ATTENTION_BUCKETS) : AMBER
   return (
     <Text bold={bold} color={color}>
@@ -76,7 +77,7 @@ export function ValueGlow({
   ms?: number
 }): React.ReactNode {
   const reducedMotion = useSettingsMaybe()?.prefersReducedMotion ?? false
-  const enabled = !reducedMotion && liveGlyphsEnabled()
+  const enabled = !reducedMotion && useIdleMotion('glyphs') !== 'off'
   const prevRef = React.useRef(value)
   const [glowing, setGlowing] = React.useState(false)
   React.useEffect(() => {
@@ -115,8 +116,9 @@ export function ReadyBreath({
 }): React.ReactNode {
   const reducedMotion = useSettingsMaybe()?.prefersReducedMotion ?? false
   const typing = useTypingPause()
-  const animate = active && !reducedMotion && !typing && liveGlyphsEnabled()
-  const [, bucket] = useAnimationValue(animate ? READY_TICK_MS : null, readyBucket)
+  const tick = glyphTickMs(useIdleMotion('glyphs'), READY_TICK_MS)
+  const animate = active && !reducedMotion && !typing && tick !== null
+  const [, bucket] = useAnimationValue(animate ? tick : null, readyBucket)
   const color = animate ? lerpHex(deep, to, bucket / READY_BUCKETS) : to
   return (
     <Text color={color} dimColor={dim}>
@@ -135,15 +137,16 @@ export function TwinkleSpark({
   const reducedMotion = useSettingsMaybe()?.prefersReducedMotion ?? false
   const { accentSoft } = useMercuryTokens()
   const typing = useTypingPause()
-  const animate = active && !reducedMotion && !typing && liveGlyphsEnabled()
-  const [, bright] = useAnimationValue(animate ? TWINKLE_TICK_MS : null, twinkleBright)
+  const tick = glyphTickMs(useIdleMotion('glyphs'), TWINKLE_TICK_MS)
+  const animate = active && !reducedMotion && !typing && tick !== null
+  const [, bright] = useAnimationValue(animate ? tick : null, twinkleBright)
   const glint = animate && bright
   return <Text color={glint ? accentSoft : color}>{glint ? GLYPH.sparkBright : GLYPH.spark}</Text>
 }
 
 export function useSettleFlash(settled: boolean): boolean {
   const reducedMotion = useSettingsMaybe()?.prefersReducedMotion ?? false
-  const enabled = !reducedMotion && liveGlyphsEnabled()
+  const enabled = !reducedMotion && useIdleMotion('glyphs') !== 'off'
   const prevRef = React.useRef(settled)
   const [flash, setFlash] = React.useState(false)
   React.useEffect(() => {

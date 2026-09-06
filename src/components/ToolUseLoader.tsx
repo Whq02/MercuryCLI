@@ -6,7 +6,8 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useBlink } from '../hooks/useBlink.js';
 import { useSettings } from '../hooks/useSettings.js';
 import { lerpHex } from '../utils/theme.js';
-import { liveGlyphsEnabled, workGlyphForTime } from '../utils/cockpit/liveGlyphs.js';
+import { glyphTickMs, workGlyphForTime } from '../utils/cockpit/liveGlyphs.js';
+import { useIdleMotion } from '../hooks/useIdleMotion.js';
 import { useSettleFlash } from './mercury-ui/LiveGlyphs.js';
 import { Box, Text, useAnimationValue, useTerminalFocus } from '../ink.js';
 
@@ -30,11 +31,13 @@ export function ToolUseLoader({
   const { accentSoft } = useMercuryTokens();
   const reducedMotion = useSettings().prefersReducedMotion ?? false;
   const focused = useTerminalFocus();
+  const motionLevel = useIdleMotion('glyphs');
+  const breathStep = glyphTickMs(motionLevel, BREATH_STEP_MS) ?? BREATH_STEP_MS;
   const breathing =
     isUnresolved && !isError && shouldAnimate && !reducedMotion && focused;
   const [breathRef, breathTime] = useAnimationValue(
-    breathing ? BREATH_STEP_MS : null,
-    t => Math.floor(t / BREATH_STEP_MS) * BREATH_STEP_MS,
+    breathing ? breathStep : null,
+    t => Math.floor(t / breathStep) * breathStep,
   );
   const settleFlash = useSettleFlash(!isUnresolved);
 
@@ -46,7 +49,7 @@ export function ToolUseLoader({
       : 0;
     const pulse = breathing ? lerpHex(FAINT, TEAL, t) : FAINT;
     const glyph =
-      breathing && liveGlyphsEnabled()
+      breathing && motionLevel !== 'off'
         ? workGlyphForTime(breathTime)
         : GLYPH.inProgress;
     return (

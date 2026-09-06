@@ -169,6 +169,7 @@ export type GlobalConfig = {
     assistModel?: string
     effort?: string
   }
+  motion?: 'auto' | 'full' | 'reduced' | 'off'
   supervisorEnabled?: boolean
   pingsBell?: boolean
   subModels?: {

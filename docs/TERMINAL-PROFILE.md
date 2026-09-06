@@ -104,3 +104,27 @@ ripple, the greeting shimmer, live glyph animation, spinner and tool-use
 ticking, and streaming paint effects. The appearance snapshot records the resulting
 `motion: reduced | full` beside the color and theme facts, so captures and
 diagnostics state the active profile plainly.
+
+## Motion (idle motion under load)
+
+The cockpit's idle motion — the mascot's blink and breath, the live glyphs,
+and the shared clock that paces them — follows the **Motion** setting, one
+saved value with two doors: the Motion row of `/config` and the Motion row
+of the Boot Menu's Performance section.
+
+- `auto` (the default): full motion on a machine that paints within budget.
+  When a run of frames costs more than the frame budget with the event loop
+  busy, motion drops to reduced — the clock at a quarter-second floor
+  (slower while a frame costs more than its interval), the mascot still, the
+  glyphs turning at that cadence — and comes back only after a longer run of
+  cheap frames, so it never flaps. While reduced, the status line says
+  `reduced`.
+- `full`: never reduces.
+- `reduced`: the slow cadence and the still mascot, always.
+- `off`: no idle motion at all — the mascot still, the glyphs static, the
+  clock ticking only for work in flight.
+
+The two registered switches read as the same choice, one part each:
+`MERCURY_CRITTER_IDLE=0` holds the critter part off and `MERCURY_LIVE_GLYPHS=0`
+the glyph part, whatever the saved value; both together read as off.
+Reduced motion above still applies on top.

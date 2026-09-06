@@ -9,7 +9,8 @@ import { getTools } from '../../tools.js'
 import type { RenderableMessage } from '../../types/message.js'
 import type { Screen } from '../../screens/REPL.js'
 import { EMPTY_STRING_SET } from '../../utils/messages.js'
-import { liveGlyphsEnabled, WORK_TICK_MS } from '../../utils/cockpit/liveGlyphs.js'
+import { WORK_TICK_MS } from '../../utils/cockpit/liveGlyphs.js'
+import { useIdleMotion } from '../../hooks/useIdleMotion.js'
 import { hasContentAfterIndex, MessageRow } from '../MessageRow.js'
 import { RowErrorBoundary } from '../RowErrorBoundary.js'
 import { controlNoteOf, type ControlNoteState } from './contracts.js'
@@ -160,7 +161,7 @@ export function SessionMirror({
   const derived = useMemo(() => deriveTranscriptRows(fold?.messages ?? [], tools), [fold, tools])
   const lastRecord = fold?.messages[fold.messages.length - 1]
   const turnLive = derived.inProgress.size > 0 || lastRecord?.type === 'user'
-  const canAnimate = liveGlyphsEnabled()
+  const canAnimate = useIdleMotion('glyphs') !== 'off'
 
   const scrollRef = useRef<ScrollBoxHandle | null>(null)
   const [away, setAway] = useState(false)
