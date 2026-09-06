@@ -342,7 +342,7 @@ t.section('§7 — REAL BINARY: /keys renders the live table')
       sends: [
         { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 60, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '/keys\r' },
-        { atTick: 110, awaitText: 'input atlas', minTick: 5, awaitSettleTicks: 3, data: 'toggleTasks' },
+        { atTick: 110, awaitText: 'input atlas', minTick: 5, awaitSettleTicks: 8, data: 'toggleTa' },
       ],
       readyText: expectChord, readySettleTicks: 4,
     }
@@ -383,7 +383,7 @@ t.section('§7 — REAL BINARY: /keys renders the live table')
     t.check(
       'the operator\'s own rebind is on screen — the table is resolved, not printed',
       text.includes(expectChord),
-      `${expectChord} → app:toggleTasks`,
+      `${expectChord} → app:toggleTasks; screen: ${text.replace(/\s+/g, ' ').slice(Math.max(0, text.replace(/\s+/g, ' ').indexOf('input atlas') - 100), Math.max(0, text.replace(/\s+/g, ' ').indexOf('input atlas') - 100) + 1400)}`,
     )
   }
 }
