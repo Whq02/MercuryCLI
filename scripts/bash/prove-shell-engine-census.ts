@@ -259,7 +259,7 @@ for (const sample of samples) {
 }
 
 
-const esc = (text: string): string => text.replace(/\|/g, '\\|').replace(/\n/g, '⏎')
+const esc = (text: string): string => text.replace(/\|/g, '\\|').replace(/\n/g, '\\n')
 const lines: string[] = ['# Shell-engine compatibility census', '']
 lines.push(`- corpus: ${samples.length} distinct model-written commands from ${files} files under scripts/ (${templated} templated skipped)`)
 lines.push(`- engines: ${engines.map(e => `${e.name} = ${e.bin}`).join(' · ')}${brush ? '' : ' (no vendored engine: control columns only)'}`)
