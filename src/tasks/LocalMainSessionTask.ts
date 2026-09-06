@@ -32,7 +32,12 @@ import {
 } from '../constants/xml.js'
 import { escapeXml } from '../utils/xml.js'
 import type { LocalAgentTaskState } from './LocalAgentTask/LocalAgentTask.js'
-import { createAgentLedger, foldResponseIntoLedger, isLocalAgentTask } from './LocalAgentTask/LocalAgentTask.js'
+import {
+  createAgentLedger,
+  foldResponseIntoLedger,
+  isLocalAgentTask,
+  killAsyncAgent,
+} from './LocalAgentTask/LocalAgentTask.js'
 
 
 const MAIN_SESSION_AGENT_TYPE = 'main-session'
@@ -241,6 +246,7 @@ export function startBackgroundSession(args: {
             if (!alreadyNotified) {
               emitTaskTerminatedSdk(taskId, 'stopped', { summary: args.description })
             }
+            killAsyncAgent(taskId, args.setAppState, 'stopped')
             return
           }
           const message = event as Message
