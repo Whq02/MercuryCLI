@@ -76,6 +76,7 @@ import {
   toggleSplitView,
 } from './splitView.js';
 import { SplitChatPane } from './SplitChatPane.js';
+import { CREW_ASK_WAIT_WORDS } from '../../services/engine-connector/crewFacts.js';
 import { hasFocusedSession, landingInFlight } from '../../services/engine-connector/focusedConnector.js';
 import { isPathTrusted, setPathTrusted } from '../../utils/config.js';
 import { clearPendingActivation, readPendingActivation } from '../../services/concourse/pendingActivation.js';
@@ -2003,7 +2004,7 @@ export function ConcourseScreen({
               {ask !== undefined ? (
                 <Box height={1} flexShrink={0} overflow="hidden">
                   <Text color={t.warning} wrap="truncate-end">
-                    asks: {askTileCopy(sel.title, ask)}
+                    {CREW_ASK_WAIT_WORDS} · {askTileCopy(sel.title, ask)}
                   </Text>
                 </Box>
               ) : null}
