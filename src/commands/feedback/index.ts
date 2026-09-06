@@ -1,4 +1,3 @@
-import { isPolicyAllowed } from '../../services/policyLimits/index.js'
 import type { Command } from '../../types/command.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isEssentialTrafficOnly } from '../../utils/privacyLevel.js'
@@ -11,7 +10,6 @@ function feedbackEnabled(): boolean {
     return false
   }
   if (isEssentialTrafficOnly()) return false
-  if (!isPolicyAllowed('allow_product_feedback')) return false
   return true
 }
 

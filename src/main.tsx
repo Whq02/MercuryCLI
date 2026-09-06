@@ -52,7 +52,6 @@ import {
   isCoordinationServerEnabled,
   COORDINATION_SERVER_NAME,
 } from './services/mcp/coordinationServer.js'
-import { loadPolicyLimits } from './services/policyLimits/index.js'
 import { loadRemoteManagedSettings } from './services/remoteManagedSettings/index.js'
 import { clearBootAttempts } from './substrate/bootBeacon.js'
 import { addBootNote, collectLauncherNotes } from './substrate/bootNotes.js'
@@ -691,8 +690,6 @@ async function run(): Promise<void> {
     profileCheckpoint('preAction_after_migrations')
     void loadRemoteManagedSettings().catch(() => {})
     profileCheckpoint('preAction_after_remote_settings')
-    void loadPolicyLimits().catch(() => {})
-    profileCheckpoint('preAction_after_settings_sync')
   })
 
   program.action(async (prompt: string | undefined) => {
@@ -1793,7 +1790,6 @@ async function interactiveLaunch(args: {
   }
   if (onboardingShown) {
     void loadRemoteManagedSettings().catch(() => {})
-    void loadPolicyLimits().catch(() => {})
     resetUserCache()
     const { refreshFeatureGates } = await import('./services/analytics/featureGates.js')
     await refreshFeatureGates().catch(() => {})
