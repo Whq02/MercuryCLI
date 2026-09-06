@@ -142,7 +142,7 @@ section('F2 — every declared key is snake_case outside the riding contracts')
   const coreKeys = scan(readFileSync(join(ROOT, 'src/entrypoints/sdk/coreSchemas.ts'), 'utf8'))
   const controlKeys = scan(readFileSync(join(ROOT, 'src/entrypoints/sdk/controlSchemas.ts'), 'utf8'))
   const allowed = new Set([
-    'hookEventName', 'additionalContext', 'watchPaths', 'worktreePath', 'updatedMCPToolOutput', 'updatedInput',
+    'hookSpecificOutput', 'hookEventName', 'additionalContext', 'watchPaths', 'worktreePath', 'updatedMCPToolOutput', 'updatedInput',
     'updatedPermissions', 'systemMessage', 'suppressOutput', 'stopReason', 'permissionDecision',
     'permissionDecisionReason', 'initialUserMessage', 'asyncTimeout',
     'toolName', 'ruleContent',
