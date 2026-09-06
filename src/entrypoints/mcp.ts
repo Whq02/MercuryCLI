@@ -32,7 +32,6 @@ function describeToolError(error: unknown): string {
 export async function startMCPServer(
   cwd: string,
   debug: boolean,
-  verbose: boolean,
 ): Promise<void> {
   const readFileStateCache = createFileStateCacheWithSizeLimit(100)
 
@@ -105,7 +104,7 @@ export async function startMCPServer(
         mcpResources: {},
         isNonInteractiveSession: true,
         debug,
-        verbose,
+        verbose: false,
         agentDefinitions: { activeAgents: [], allAgents: [] },
       },
       getAppState: () => ({ ...getDefaultAppState(), toolPermissionContext: permissionContext }),
