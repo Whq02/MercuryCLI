@@ -14,7 +14,7 @@ until the tag after it ships. Each page carries the same four parts:
 | --- | --- | --- |
 | v1.0.0-beta.1 | tagged, never published | [1.0.0-beta.1.md](1.0.0-beta.1.md) |
 | v1.0.0-beta.2 | published 2026-09-04 | [1.0.0-beta.2.md](1.0.0-beta.2.md) |
-| v1.0.0-beta.3 | release candidate, gated — the tag is next | [1.0.0-beta.3.md](1.0.0-beta.3.md) |
+| v1.0.0-beta.3 | published 2026-09-06 | [1.0.0-beta.3.md](1.0.0-beta.3.md) |
 | v1.0.0-beta.4 | queued | [1.0.0-beta.4.md](1.0.0-beta.4.md) |
 
 How a version moves: work lands on `working`; a release folds `working` into
