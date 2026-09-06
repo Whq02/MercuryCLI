@@ -2991,7 +2991,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: [
         'node', BIN, '--resume', SID,
-        '--dangerously-skip-permissions', '--settings', settingsPath,
+        '--dangerously-bypass-permissions', '--settings', settingsPath,
       ],
       sends: [{ atTick: 32, data: '\x1b[Z' }],
       total: 52, cols, rows,
@@ -3018,7 +3018,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: [
         'node', BIN, '--resume', SID,
-        '--dangerously-skip-permissions', '--settings', settingsPath,
+        '--dangerously-bypass-permissions', '--settings', settingsPath,
       ],
       sends: [],
       readyText: 'auto-approved',

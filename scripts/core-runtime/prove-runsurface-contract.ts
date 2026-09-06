@@ -1107,7 +1107,7 @@ section('P4 handleSetPermissionMode — autopilot refused, bypass gated, success
   check(
     'sovereign is refused without the launch-time eligibility',
     resp2.subtype === 'error' &&
-      String(resp2.error).includes('--dangerously-skip-permissions'),
+      String(resp2.error).includes('--dangerously-bypass-permissions'),
     JSON.stringify(resp2),
   )
 

@@ -180,11 +180,6 @@ function refuseDebugger(): void {
 }
 refuseDebugger()
 
-const BYPASS_ALIASES: Record<string, string> = {
-  '--dangerously-bypass-permissions': '--dangerously-skip-permissions',
-  '--allow-dangerously-bypass-permissions': '--allow-dangerously-skip-permissions',
-}
-
 function isPrintModeArgv(argv: readonly string[] = process.argv): boolean {
   return argv.includes('-p') || argv.includes('--print')
 }
@@ -290,8 +285,6 @@ function announceAbandonedLaunch(): void {
 
 export async function main(): Promise<void> {
   profileCheckpoint('main_function_start')
-
-  process.argv = process.argv.map(arg => BYPASS_ALIASES[arg] ?? arg)
 
   applyBootMenuEnv();
   recordBootAdmissionSnapshot(resolveEffectiveSettingsSnapshot({ sessionId: getSessionId() }));
@@ -493,8 +486,8 @@ async function run(): Promise<void> {
     .option('--json-schema <schema>', 'JSON schema for structured output')
     .option('--include-hook-events', 'Emit all hook event types')
     .option('--include-partial-messages', 'Emit partial message stream events')
-    .option('--dangerously-skip-permissions', 'Bypass all permission checks')
-    .option('--allow-dangerously-skip-permissions', 'Allow the bypass mode to be toggled')
+    .option('--dangerously-bypass-permissions', 'Bypass all permission checks')
+    .option('--allow-dangerously-bypass-permissions', 'Allow the bypass mode to be toggled')
     .addOption(new Option('--thinking <mode>', 'Thinking mode').choices(['enabled', 'adaptive', 'disabled']).hideHelp())
     .addOption(new Option('--max-thinking-tokens <tokens>', '[deprecated] Max thinking tokens').argParser(Number).hideHelp())
     .addOption(new Option('--max-turns <turns>', 'Maximum turns for a print run').argParser((value: string) => {
@@ -1253,7 +1246,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
 
   const bypassFromRegistry = isEnvTruthy(flagEnv('MERCURY_SKIP_PERMISSIONS')) && !isPrintModeArgv()
   const dangerouslySkipPermissions = Boolean(opts.dangerouslySkipPermissions) || bypassFromRegistry
-  const allowDangerousSkip = Boolean(opts.allowDangerouslySkipPermissions)
+  const allowDangerousSkip = Boolean(opts.allowDangerouslyBypassPermissions)
   const { initialPermissionModeFromCLI } = await import('./utils/permissions/permissionSetup.js')
   const resolved = initialPermissionModeFromCLI({
     permissionModeCli: typedString(opts.permissionMode),

@@ -120,7 +120,7 @@ check('initialPermissionModeFromCLI guards autopilot: flag', setupSrc.includes("
 check('initialPermissionModeFromCLI guards autopilot: policy kill', setupSrc.includes('if (disableBypassPermissionsMode) {\n        notification = growthBookDisableBypassPermissionsMode'))
 check('initialPermissionModeFromCLI guards autopilot: launch flag required', setupSrc.includes('if (!dangerouslySkipPermissions)'))
 check('explicit CLI autopilot + launch flag boots autopilot first (bypass fallback)', setupSrc.includes("if (requested === 'autopilot') candidates.push('autopilot')"))
-const runtimeGuard = setupSrc.includes("mode === 'autopilot'") && setupSrc.includes('Cannot set permission mode to autopilot because the session was not launched with --dangerously-skip-permissions')
+const runtimeGuard = setupSrc.includes("mode === 'autopilot'") && setupSrc.includes('Cannot set permission mode to autopilot because the session was not launched with --dangerously-bypass-permissions')
 check('setPermissionModeWithGuards: full bypass eligibility required at runtime', runtimeGuard)
 const ctrlSrc = src('cli', 'headless', 'controlHandlers.ts')
 check('SDK setPermissionMode refuses autopilot (interactive-only mode)', ctrlSrc.includes('Cannot set permission mode to autopilot in SDK/print mode'))
