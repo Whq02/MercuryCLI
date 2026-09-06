@@ -1,6 +1,9 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.4
+- Changed print mode's stream-json feed to carry every event on its own, retired the --verbose option, and made the tool cards' compact or full output the setting toolOutput with a /config row "Tool output"
+
 ## 1.0.0-beta.3
 - Added GPT-6 Astra as a first-class model: it appears once a connected OpenAI account serves it, effort reaches max, and each turn is priced at the published rate
 - Updated GPT-5.6 pricing to the current published rates, including the long-context tier
