@@ -69,6 +69,7 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import {
   clearAgentTranscriptSubdir,
+  flushSessionStorage,
   getAgentTranscriptPath,
   recordSidechainTranscript,
   registerAgentTranscriptDestination,
@@ -450,6 +451,18 @@ export function agentOwnEffortWord(facts: {
       ? parseEffortValue(facts.effortOverride)
       : undefined
   return pin ?? facts.definitionEffort
+}
+
+export async function landAgentTranscriptRows(
+  messages: Message[],
+  agentId: AgentId,
+  parentUuid?: string | null,
+): Promise<void> {
+  try {
+    await recordSidechainTranscript(messages, agentId, parentUuid as never)
+    await flushSessionStorage()
+  } catch {
+  }
 }
 
 export async function* runAgent(
@@ -855,7 +868,7 @@ export async function* runAgent(
       )
     } catch {
     }
-    void recordSidechainTranscript(messages, agentId).catch(() => {})
+    await landAgentTranscriptRows(messages, agentId)
 
     void writeAgentMetadata(agentId, {
       agentType: agentDefinition.agentType,
@@ -941,11 +954,11 @@ export async function* runAgent(
       }
       if (anyMessage.type === 'stream_event' as never) continue
       if (anyMessage.type === 'attachment') {
-        void recordSidechainTranscript(
+        await landAgentTranscriptRows(
           [message as Message],
           agentId,
           lastRecordedUuid as never,
-        ).catch(() => {})
+        )
         lastRecordedUuid = (message as { uuid?: string }).uuid
         if (
           (anyMessage as { attachment?: { type?: string } }).attachment
@@ -969,11 +982,11 @@ export async function* runAgent(
           (subtype === 'compact_boundary' || subtype === 'informational' || subtype === 'api_error'))
       if (!recordable) continue
 
-      void recordSidechainTranscript(
+      await landAgentTranscriptRows(
         [message as Message],
         agentId,
         lastRecordedUuid as never,
-      ).catch(() => {})
+      )
       if (anyMessage.type !== 'progress') {
         lastRecordedUuid = (message as { uuid?: string }).uuid
       }

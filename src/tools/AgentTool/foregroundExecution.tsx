@@ -38,6 +38,7 @@ import type { SetAppState } from '../../Task.js'
 import { runWithAgentContext, type AgentContext } from '../../utils/agentContext.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
+import { flushSessionStorage } from '../../utils/sessionStorage.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import {
   extractTextContent,
@@ -323,6 +324,7 @@ export async function runForegroundAgentExecution(
         const stopReason = agentStopReasonOf(foregroundTask?.abortController.signal.reason)
         killAsyncAgent(backgroundedTaskId, rootSetAppState, stopReason)
         const worktreeResult = await cleanupWorktreeIfNeeded()
+        await flushSessionStorage()
         const partialResult = extractPartialResult(agentMessages)
         const usage = {
           totalTokens: getTokenCountFromTracker(tracker),
@@ -354,6 +356,7 @@ export async function runForegroundAgentExecution(
       const failure = errorMessage(error)
       failAsyncAgent(backgroundedTaskId, failure, rootSetAppState)
       const worktreeResult = await cleanupWorktreeIfNeeded()
+      await flushSessionStorage()
       const partialResult = extractPartialResult(agentMessages)
       const usage = {
         totalTokens: getTokenCountFromTracker(tracker),
