@@ -15,6 +15,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed Workshop cells that put statements and an await on one line failing with a syntax error, and brace characters inside strings silently returning the wrong value; the cell grammar is parsed, never scanned line by line
 - Fixed a Workshop workspace failing to find TypeScript when node_modules is a link
 - Fixed the render_tui tool failing outside the checkout and on every release install; it resolves the checkout and the bun runtime, and says plainly when it cannot run
+- Changed Mercury's settings, files and names to one spelling each: keys nothing reads leave the settings and config schemas, a renamed key is rewritten once in the file on first read (tool names in saved rules and hook matchers with it), the hooks contract has its own page with block as the one top-level decision, the strategy tools and the /strategy command say strategy, the task tools are the one task surface, the MCP resource tools and the contract tool carry plain names, skill frontmatter spells when-to-use and agent frontmatter spells specVersion, the commands directory is no longer read, the /session door and the allowed-tools and bashes aliases are retired, an account's identity lives in the scope's own config file, the keychain entry is keyed to the resolved home, and the denial and error sentences speak Mercury's own words
 
 ## 1.0.0-beta.3
 - Added GPT-6 Astra as a first-class model: it appears once a connected OpenAI account serves it, effort reaches max, and each turn is priced at the published rate
