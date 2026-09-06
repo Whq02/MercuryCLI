@@ -136,8 +136,9 @@ One release archive per target. The target owner is
 `src/services/privateChannel/releaseTarget.ts`: the packager's and the build's
 `--target` vocabulary, the archive a machine asks for (`mercury update`), and
 the installers' `uname` map. Every archive carries its own Node runtime, search
-binary and image processor for that platform, and the voice addon where it was
-built.
+binary and image processor for that platform, and the voice capture and
+on-device transcriber addons where they were built (the speech model is a
+one-time download into the config home, never in the archive).
 
 | target | archive | machines | built |
 | --- | --- | --- | --- |
