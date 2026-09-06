@@ -107,7 +107,7 @@ check("child env MERCURY_WORKFLOWS='0'", inv.env.MERCURY_WORKFLOWS === '0')
 check('child ANTHROPIC_MODEL = the resolved seat model', inv.env.ANTHROPIC_MODEL === 'claude-sonnet-5', String(inv.env.ANTHROPIC_MODEL))
 const argvStr = inv.argv.join(' ')
 check('argv: --permission-mode flow', /--permission-mode(=| )flow/.test(argvStr))
-check('argv: --allowedTools with the recon rules', inv.argv.includes('--allowedTools'))
+check('argv: --allowed-tools with the recon rules', inv.argv.includes('--allowed-tools'))
 check('argv: identity triplet flags', inv.argv.includes('atlas') && inv.argv.includes('atlas@crew') && inv.argv.includes('crew'))
 
 section('role-pair hygiene — the three scrub seams (dual-polarity safe)')

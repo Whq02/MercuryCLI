@@ -117,7 +117,7 @@ async function runCase(
   if (arm === 'poison') env.MERCURY_EXIT_CLIFF_DRAIN = '0'
   const child = spawn(
     nodeBin,
-    ['--import', PRELOAD, DIST, '-p', 'please do the scripted thing', '--allowedTools', ...allowed],
+    ['--import', PRELOAD, DIST, '-p', 'please do the scripted thing', '--allowed-tools', ...allowed],
     { cwd: fix, env, stdio: ['ignore', 'pipe', 'pipe'] },
   )
   let stdout = ''
