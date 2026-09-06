@@ -267,7 +267,7 @@ async function startFixture(port: number, opts: { background: boolean; classifie
         case 'parent':
           blocks = [
             { type: 'text', text: 'agent-bash: launching the shell probe' },
-            { type: 'tool_use', name: 'Agent', input: { description: 'agent-bash-seat', prompt: SEAT_BRIEF, subagent_type: 'general-purpose', ...(opts.background ? { run_in_background: true } : {}) } },
+            { type: 'tool_use', name: 'Agent', input: { description: 'agent-bash-seat', prompt: SEAT_BRIEF, subagent_type: 'mercury-general', ...(opts.background ? { run_in_background: true } : {}) } },
           ]
           usage = { input: 1200, output: 60 }
           break

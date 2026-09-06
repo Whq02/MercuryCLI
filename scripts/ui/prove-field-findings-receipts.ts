@@ -139,8 +139,8 @@ async function startCrewFixture(seatSleepSeconds: number): Promise<Fixture> {
         case 'parent':
           blocks = [
             { type: 'text', text: 'launching two sub-agents' },
-            { type: 'tool_use', name: 'Agent', input: { description: SEAT_ONE, prompt: `crew-seat: survey the ${SEAT_ONE}`, subagent_type: 'general-purpose' } },
-            { type: 'tool_use', name: 'Agent', input: { description: SEAT_TWO, prompt: `crew-seat: map the ${SEAT_TWO}`, subagent_type: 'general-purpose' } },
+            { type: 'tool_use', name: 'Agent', input: { description: SEAT_ONE, prompt: `crew-seat: survey the ${SEAT_ONE}`, subagent_type: 'mercury-general' } },
+            { type: 'tool_use', name: 'Agent', input: { description: SEAT_TWO, prompt: `crew-seat: map the ${SEAT_TWO}`, subagent_type: 'mercury-general' } },
           ]
           usage = { input: 1200, output: 80 }
           break

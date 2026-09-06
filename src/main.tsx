@@ -137,11 +137,6 @@ import { writeShimSet, resolveLayoutRoots } from './services/privateChannel/inst
 import { migrateAutoUpdatesToSettings } from './migrations/migrateAutoUpdatesToSettings.js'
 import { migrateBypassPermissionsAcceptedToSettings } from './migrations/migrateBypassPermissionsAcceptedToSettings.js'
 import { migrateEnableAllProjectMcpServersToSettings } from './migrations/migrateEnableAllProjectMcpServersToSettings.js'
-import { resetProToOpusDefault } from './migrations/resetProToOpusDefault.js'
-import { migrateSonnet1mToSonnet45 } from './migrations/migrateSonnet1mToSonnet45.js'
-import { migrateLegacyOpusToCurrent } from './migrations/migrateLegacyOpusToCurrent.js'
-import { migrateSonnet45ToSonnet46 } from './migrations/migrateSonnet45ToSonnet46.js'
-import { migrateOpusToOpus1m } from './migrations/migrateOpusToOpus1m.js'
 import { migrateReplBridgeEnabledToRemoteControlAtStartup } from './migrations/migrateReplBridgeEnabledToRemoteControlAtStartup.js'
 import { migrateVerboseToToolOutput } from './migrations/migrateVerboseToToolOutput.js'
 import { migrateAutoupdateEnvName } from './migrations/migrateAutoupdateEnvName.js'
@@ -197,11 +192,6 @@ function runMigrationsIfNeeded(): void {
     landed.push(migrateAutoUpdatesToSettings())
     landed.push(migrateBypassPermissionsAcceptedToSettings())
     landed.push(migrateEnableAllProjectMcpServersToSettings())
-    resetProToOpusDefault()
-    landed.push(migrateSonnet1mToSonnet45())
-    landed.push(migrateLegacyOpusToCurrent())
-    landed.push(migrateSonnet45ToSonnet46())
-    landed.push(migrateOpusToOpus1m())
     migrateReplBridgeEnabledToRemoteControlAtStartup()
     migrateVerboseToToolOutput()
     landed.push(migrateAutoupdateEnvName())
@@ -735,8 +725,6 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     try {
       const { registerMcpAddCommand } = await import('./commands/mcp/addCommand.js')
       registerMcpAddCommand(mcp as unknown as Parameters<typeof registerMcpAddCommand>[0])
-      const { registerMcpXaaIdpCommand } = await import('./commands/mcp/xaaIdpCommand.js')
-      registerMcpXaaIdpCommand(mcp as unknown as Parameters<typeof registerMcpXaaIdpCommand>[0])
     } catch (error) {
       logError(error)
     }
@@ -1884,7 +1872,7 @@ async function interactiveLaunch(args: {
     ...getDefaultAppState(),
     toolPermissionContext: effectiveContext,
     verbose: config.toolOutput === 'full',
-    expandedView: config.showSpinnerTree ? 'teammates' : config.showExpandedTodos ? 'tasks' : 'none',
+    expandedView: config.showSpinnerTree ? 'teammates' : config.showExpandedTasks ? 'tasks' : 'none',
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
     ...(supercodeArmed ? { supercode: true } : {}),
     ...(isAdvisorEnabled() && args.advisorModel ? { advisorModel: args.advisorModel } : {}),

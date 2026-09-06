@@ -99,64 +99,27 @@ console.log('L2 A.1 auto-update opt-out and A.2 dangerous-mode acceptance — a 
   check('nothing landed in user settings', r.userSettings === null || !String(r.userSettings).includes('MERCURY_AUTOUPDATE'), String(r.userSettings))
 }
 
-console.log('L3 A.4 legacy Opus pin and A.6 sonnet[1m] pin — no notice, no completion flag for a write that did not land')
-{
-  const a = scratch()
-  const r4 = runIn(a.home, a.project, `
-    const a4 = await import(${JSON.stringify(join(SRC, 'migrations/migrateLegacyOpusToCurrent.ts'))})
-    fs.mkdirSync(path.dirname(userSettingsPath), { recursive: true })
-    fs.writeFileSync(userSettingsPath, JSON.stringify({ model: 'claude-opus-4-1' }, null, 2) + '\\n')
-    const before4 = raw(userSettingsPath)
-    out.v4 = a4.migrateLegacyOpusToCurrent()
-    out.pin4Same = raw(userSettingsPath) === before4
-    const cfg = JSON.parse(raw(configFile) ?? '{}')
-    out.opusStamp = cfg.legacyOpusMigrationTimestamp ?? null
-  `, { MERCURY_FAULT_INJECT: 'rename@settings.json:eperm' })
-  const b = scratch()
-  const r6 = runIn(b.home, b.project, `
-    const a6 = await import(${JSON.stringify(join(SRC, 'migrations/migrateSonnet1mToSonnet45.ts'))})
-    fs.mkdirSync(path.dirname(userSettingsPath), { recursive: true })
-    fs.writeFileSync(userSettingsPath, JSON.stringify({ model: 'sonnet[1m]' }, null, 2) + '\\n')
-    const before6 = raw(userSettingsPath)
-    out.v6 = a6.migrateSonnet1mToSonnet45()
-    out.pin6Same = raw(userSettingsPath) === before6
-    const cfg = JSON.parse(raw(configFile) ?? '{}')
-    out.sonnetFlag = cfg.sonnet1m45MigrationComplete ?? null
-  `, { MERCURY_FAULT_INJECT: 'rename@settings.json:eperm' })
-  const r = { ...r4, ...r6 }
-  check('A.4 reports itself incomplete', r.v4 === false, `v4=${JSON.stringify(r.v4)}`)
-  check('A.4 stamps no "model updated" notice', r.opusStamp === null, `legacyOpusMigrationTimestamp=${r.opusStamp}`)
-  check('A.4 leaves the pin on disk unchanged', r.pin4Same === true)
-  check('A.6 reports itself incomplete', r.v6 === false, `v6=${JSON.stringify(r.v6)}`)
-  check('A.6 leaves its completion flag unset (retries next boot)', r.sonnetFlag === null, `sonnet1m45MigrationComplete=${r.sonnetFlag}`)
-  check('A.6 leaves the pin on disk unchanged', r.pin6Same === true)
-}
-
 console.log('L4 controls — with healthy files every migration relocates, strips and reports true')
 {
   const { home, project } = scratch()
   const r = runIn(home, project, `
     const a1 = await import(${JSON.stringify(join(SRC, 'migrations/migrateAutoUpdatesToSettings.ts'))})
     const a3 = await import(${JSON.stringify(join(SRC, 'migrations/migrateEnableAllProjectMcpServersToSettings.ts'))})
-    const a6 = await import(${JSON.stringify(join(SRC, 'migrations/migrateSonnet1mToSonnet45.ts'))})
     g.saveGlobalConfig(c => ({ ...c, autoUpdates: false }))
     p.saveCurrentProjectConfig(c => ({ ...c, enabledMcpjsonServers: ['alpha'] }))
     fs.mkdirSync(path.dirname(userSettingsPath), { recursive: true })
-    fs.writeFileSync(userSettingsPath, JSON.stringify({ model: 'sonnet[1m]' }, null, 2) + '\\n')
+    fs.writeFileSync(userSettingsPath, '{}\\n')
     out.v1 = a1.migrateAutoUpdatesToSettings()
     out.v3 = a3.migrateEnableAllProjectMcpServersToSettings()
-    out.v6 = a6.migrateSonnet1mToSonnet45()
     const cfg = JSON.parse(raw(configFile))
     out.autoUpdates = cfg.autoUpdates ?? null
-    out.sonnetFlag = cfg.sonnet1m45MigrationComplete ?? null
     out.projectEnabled = p.getCurrentProjectConfig().enabledMcpjsonServers ?? null
     out.local = JSON.parse(raw(localSettingsPath) ?? '{}')
     out.user = JSON.parse(raw(userSettingsPath) ?? '{}')
   `)
   check('A.1: the retired keys are stripped and nothing is relocated', (r.user as { env?: Record<string, string> }).env?.MERCURY_AUTOUPDATE === undefined && r.autoUpdates === null, JSON.stringify({ user: r.user, autoUpdates: r.autoUpdates }))
   check('A.3: relocated (local settings carries the approvals) and stripped', (r.local as { enabledMcpjsonServers?: string[] }).enabledMcpjsonServers?.[0] === 'alpha' && r.projectEnabled === null, JSON.stringify({ local: r.local, projectEnabled: r.projectEnabled }))
-  check('A.6: rewrote the pin and stamped completion', (r.user as { model?: string }).model === 'sonnet-4-5-20250929[1m]' && r.sonnetFlag === true, JSON.stringify({ model: (r.user as { model?: string }).model, flag: r.sonnetFlag }))
-  check('all three report true (the verdict of a landed write)', r.v1 === true && r.v3 === true && r.v6 === true, JSON.stringify({ v1: r.v1, v3: r.v3, v6: r.v6 }))
+  check('both report true (the verdict of a landed write)', r.v1 === true && r.v3 === true, JSON.stringify({ v1: r.v1, v3: r.v3 }))
 }
 
 console.log('L5 the runner — the version stamp is gated on every verdict landing')

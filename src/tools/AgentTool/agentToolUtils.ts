@@ -60,7 +60,7 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { AGENT_TOOL_NAME } from './constants.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 
-const EXIT_PLAN_MODE_NAME = 'ExitPlanMode'
+const EXIT_PLAN_MODE_NAME = 'ExitStrategyMode'
 const MCP_TOOL_PREFIX = 'mcp__'
 
 

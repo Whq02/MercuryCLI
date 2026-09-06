@@ -38,7 +38,7 @@ const SCOUT = {
   getSystemPrompt: () => 'scout prompt',
 } as never as Record<string, unknown>
 const GENERAL = {
-  agentType: 'general-purpose',
+  agentType: 'mercury-general',
   whenToUse: 'anything',
   source: 'built-in',
   getSystemPrompt: () => 'gp prompt',
@@ -68,7 +68,7 @@ function base(over: Record<string, unknown> = {}): never {
     toolPermissionContext: getEmptyToolPermissionContext(),
     forkGateOn: false,
     forkAgent: FORK_STUB,
-    defaultAgentType: 'general-purpose',
+    defaultAgentType: 'mercury-general',
     mainLoopModel: 'claude-opus-4-8',
     backgroundTasksDisabled: false,
     forceAsync: false,
@@ -104,7 +104,7 @@ section('§2 — lookup, restriction, and the denial band')
   }
   check(
     'unknown type → the not-found error lists the available roster',
-    err?.message === `Agent type 'no-such-agent' not found. Available agents: mercury-scout, general-purpose, legacy-haiku-role, bg-role`,
+    err?.message === `Agent type 'no-such-agent' not found. Available agents: mercury-scout, mercury-general, legacy-haiku-role, bg-role`,
     err?.message,
   )
 
@@ -126,7 +126,7 @@ section('§2 — lookup, restriction, and the denial band')
 
   err = undefined
   try {
-    buildAgentLaunchPlan(base({ requestedType: 'mercury-scout', allowedAgentTypes: ['general-purpose'] }))
+    buildAgentLaunchPlan(base({ requestedType: 'mercury-scout', allowedAgentTypes: ['mercury-general'] }))
   } catch (e) {
     err = e as Error
   }
@@ -142,7 +142,7 @@ section('§2 — lookup, restriction, and the denial band')
   })())
   check('stamp gate OFF + no type → the default type', (() => {
     const p = buildAgentLaunchPlan(base({}))
-    return !p.isForkPath && p.agentType === 'general-purpose'
+    return !p.isForkPath && p.agentType === 'mercury-general'
   })())
 }
 
@@ -152,7 +152,7 @@ section('§3 — model resolution + the never-Haiku floor note')
   check('a legacy haiku frontmatter pin is FLOORED, never run', !/haiku/i.test(floored.model), floored.model)
   check('the floor is SURFACED: flooredFrom + the caller-visible note', !!floored.flooredFrom && !!floored.modelNote && floored.modelNote.includes("below Mercury's never-Haiku floor"), floored.modelNote)
 
-  const explicit = buildAgentLaunchPlan(base({ requestedType: 'general-purpose', modelParam: 'opus' }))
+  const explicit = buildAgentLaunchPlan(base({ requestedType: 'mercury-general', modelParam: 'opus' }))
   check('an explicit model param resolves without a floor note', /opus/i.test(explicit.model) && explicit.modelNote === undefined, explicit.model)
   const defPin = buildAgentLaunchPlan(base({ requestedType: 'mercury-scout' }))
   check("the definition's model pin resolves when no param is given", /sonnet/i.test(defPin.model), defPin.model)
@@ -162,16 +162,16 @@ section('§4 — isolation · the async decision law · worker permission mode')
 {
   check('explicit isolation param wins over the definition', buildAgentLaunchPlan(base({ requestedType: 'bg-role', isolationParam: 'remote' })).isolation === 'remote')
   check("the definition's isolation carries when no param is given", buildAgentLaunchPlan(base({ requestedType: 'bg-role' })).isolation === 'worktree')
-  check('no isolation anywhere → undefined', buildAgentLaunchPlan(base({ requestedType: 'general-purpose' })).isolation === undefined)
+  check('no isolation anywhere → undefined', buildAgentLaunchPlan(base({ requestedType: 'mercury-general' })).isolation === undefined)
 
-  check('run_in_background → async', buildAgentLaunchPlan(base({ requestedType: 'general-purpose', runInBackground: true })).shouldRunAsync === true)
+  check('run_in_background → async', buildAgentLaunchPlan(base({ requestedType: 'mercury-general', runInBackground: true })).shouldRunAsync === true)
   check('background:true definition → async', buildAgentLaunchPlan(base({ requestedType: 'bg-role' })).shouldRunAsync === true)
-  check('forceAsync → async', buildAgentLaunchPlan(base({ requestedType: 'general-purpose', forceAsync: true })).shouldRunAsync === true)
-  check('nothing forcing → sync', buildAgentLaunchPlan(base({ requestedType: 'general-purpose' })).shouldRunAsync === false)
+  check('forceAsync → async', buildAgentLaunchPlan(base({ requestedType: 'mercury-general', forceAsync: true })).shouldRunAsync === true)
+  check('nothing forcing → sync', buildAgentLaunchPlan(base({ requestedType: 'mercury-general' })).shouldRunAsync === false)
   check('backgroundTasksDisabled kills EVERY async route', buildAgentLaunchPlan(base({ requestedType: 'bg-role', runInBackground: true, forceAsync: true, backgroundTasksDisabled: true })).shouldRunAsync === false)
 
   check("the worker mode is the definition's permissionMode", buildAgentLaunchPlan(base({ requestedType: 'bg-role' })).workerPermissionMode === 'strategy')
-  check("no definition mode → the 'implement' worker default", buildAgentLaunchPlan(base({ requestedType: 'general-purpose' })).workerPermissionMode === 'implement')
+  check("no definition mode → the 'implement' worker default", buildAgentLaunchPlan(base({ requestedType: 'mercury-general' })).workerPermissionMode === 'implement')
 }
 
 section("§5 — the runner's definition product")

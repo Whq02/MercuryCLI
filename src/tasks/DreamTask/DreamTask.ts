@@ -1,6 +1,6 @@
 import type { SetAppState, Task, TaskStateBase } from '../../Task.js'
 import { createTaskStateBase, generateTaskId } from '../../Task.js'
-import { rollbackConsolidationLock } from '../../services/autoDream/consolidationLock.js'
+import { rollbackConsolidationLock } from '../../services/memoryUpkeep/consolidationLock.js'
 import { logError } from '../../utils/log.js'
 import { registerTask, updateTaskState } from '../../utils/task/framework.js'
 

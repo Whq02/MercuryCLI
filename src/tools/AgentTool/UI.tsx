@@ -168,7 +168,7 @@ export function AgentResponseDisplay({
 
 export function userFacingName(input?: AgentUiInput): string {
   const type = input?.subagent_type
-  if (!type || type === 'general-purpose' || type === 'worker') {
+  if (!type || type === 'mercury-general' || type === 'worker') {
     return GENERIC_AGENT_LABEL
   }
   return type
