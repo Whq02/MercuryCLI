@@ -2,6 +2,7 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
+- Changed the machine feed (the stream-json frames and the control protocol) to one spelling: every field the feed defines is snake_case, the frame types and control subtypes the product never served are gone, the declared shapes match what is emitted, the sign-in verbs are provider_sign_in, and a server the host serves is the host kind with a MERCURY_HOST_* handshake
 - Fixed a file read that starts at line 0 numbering its lines from 0, which made its anchors unusable by Edit; a read from offset 0 numbers its first line 1
 - Fixed the last-resort image read advertising JPEG for PNG bytes on the JavaScript image road; the type now follows the bytes
 - Fixed two cut paths losing their reason, an interruption during a Stop hook and a workflow permission ask that timed out; both now name their cause
