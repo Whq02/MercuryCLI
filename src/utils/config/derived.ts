@@ -1,4 +1,3 @@
-import { randomBytes } from 'crypto'
 import { join } from 'path'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { getAutoMemEntrypoint } from '../../memdir/paths.js'
@@ -50,17 +49,6 @@ export function isMouseCaptureEnabled(): boolean {
 export function isMercurySubstrateProfileOn(): boolean {
   if (isEnvDefinedFalsy(flagEnv('MERCURY_SUBSTRATE'))) return false
   return true
-}
-
-export function getOrCreateUserID(): string {
-  const config = getGlobalConfig()
-  if (config.userID) {
-    return config.userID
-  }
-
-  const userID = randomBytes(32).toString('hex')
-  saveGlobalConfig(current => ({ ...current, userID }))
-  return userID
 }
 
 export function recordFirstStartTime(): void {
