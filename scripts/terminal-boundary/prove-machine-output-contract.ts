@@ -185,9 +185,10 @@ function parseLines(cap: Capture): { parsed: Record<string, unknown>[]; bad: str
 section('L7 — stream-json success: every stdout line parses; typed result envelope')
 {
   const fx = await fixture([{ kind: 'text', text: 'PROOF-SJ-OK.' }])
-  const cap = await runDist(['-p', 'hello', '--output-format', 'stream-json', '--verbose'], { baseUrl: fx.url })
+  const cap = await runDist(['-p', 'hello', '--output-format', 'stream-json'], { baseUrl: fx.url })
   const { parsed, bad } = parseLines(cap)
   check('every stdout line individually JSON-parses', bad.length === 0, bad[0]?.slice(0, 120) ?? '')
+  check('the feed opens with the init event, with no option asked for', parsed[0]?.type === 'system' && parsed[0]?.subtype === 'init', JSON.stringify(parsed[0] ?? {}).slice(0, 120))
   const result = parsed.find(e => e.type === 'result') as { is_error?: boolean } | undefined
   check('a typed result envelope is present', !!result)
   check('the result is not an error', result?.is_error === false, JSON.stringify(result ?? {}).slice(0, 200))
@@ -200,7 +201,7 @@ section('L8 — stream-json failure: framing holds; the typed error record rides
   const fx = await fixture([
     { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'lucid-sj-bad-request' },
   ])
-  const cap = await runDist(['-p', 'hello', '--output-format', 'stream-json', '--verbose'], { baseUrl: fx.url })
+  const cap = await runDist(['-p', 'hello', '--output-format', 'stream-json'], { baseUrl: fx.url })
   const { parsed, bad } = parseLines(cap)
   check('every stdout line individually JSON-parses', bad.length === 0, bad[0]?.slice(0, 120) ?? '')
   const result = parsed.find(e => e.type === 'result') as { is_error?: boolean; subtype?: string; errors?: string[] } | undefined
@@ -214,6 +215,16 @@ section('L8 — stream-json failure: framing holds; the typed error record rides
   )
   check('exit 1', cap.exit === 1, String(cap.exit))
   assertClean('L8', cap)
+}
+
+section('L9 — --verbose is not an option: the plain format answers the unknown-option refusal')
+{
+  const cap = await runDist(['-p', 'hello', '--verbose'])
+  const control = await runDist(['-p', 'hello', '--zzz-not-an-option'])
+  check("stderr names the unknown option", cap.stderr.includes("unknown option '--verbose'"), cap.stderr.slice(0, 120))
+  check('stdout carries zero bytes', cap.stdout.length === 0, cap.stdout.slice(0, 80))
+  check('the exit code is the one every unknown option answers', cap.exit !== 0 && cap.exit === control.exit, `exit=${cap.exit} control=${control.exit}`)
+  assertClean('L9', cap)
 }
 
 async function driveDist(
@@ -233,7 +244,7 @@ async function driveDist(
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_TEAMS_DIR: join(home, 'teams'),
   }
-  const child = spawn(nodeBin!, [DIST, '-p', '--output-format', 'stream-json', '--input-format', 'stream-json', '--verbose', '--permission-prompt-tool', 'stdio'], { cwd, env })
+  const child = spawn(nodeBin!, [DIST, '-p', '--output-format', 'stream-json', '--input-format', 'stream-json', '--permission-prompt-tool', 'stdio'], { cwd, env })
   const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)
   const frames: Record<string, unknown>[] = []
   const waiters: Array<() => void> = []
@@ -296,7 +307,7 @@ function oddKeys(value: unknown, path: string, out: string[], namesAreData = fal
   }
 }
 
-section('L9 — the one spelling: every driven frame is a declared type with snake_case keys')
+section('L10 — the one spelling: every driven frame is a declared type with snake_case keys')
 {
   const fx = await fixture([
     { kind: 'tool_use', name: 'Glob', input: { pattern: '*.zzz-none' } },
@@ -355,7 +366,7 @@ section('L9 — the one spelling: every driven frame is a declared type with sna
   check('the context usage answer spells total_tokens and grid_rows', contextUsage !== undefined && 'total_tokens' in contextUsage && 'grid_rows' in contextUsage, JSON.stringify(Object.keys(contextUsage ?? {})))
   check('exit 0', run.exit === 0, `${String(run.exit)} ${run.stderr.slice(0, 200)}`)
 
-  section('L10 — a retired control subtype gets the generic unsupported-subtype answer')
+  section('L11 — a retired control subtype gets the generic unsupported-subtype answer')
   for (const [id, word] of [['spelling-7', 'channel_enable'], ['spelling-8', 'remote_control'], ['spelling-9', 'claude_authenticate'], ['spelling-10', 'no_such_subtype_probe']] as const) {
     const answer = answers.get(id)
     check(`${word} → unsupported control request subtype`, answer?.subtype === 'error' && String(answer.error) === `unsupported control request subtype: ${word}`, JSON.stringify(answer ?? null))

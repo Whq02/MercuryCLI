@@ -411,7 +411,7 @@ if (!existsSync(DIST)) {
     }
     return notices
   }
-  const common = ['-p', '--input-format', 'stream-json', '--model', 'claude-opus-4-8', '--output-format', 'stream-json', '--verbose']
+  const common = ['-p', '--input-format', 'stream-json', '--model', 'claude-opus-4-8', '--output-format', 'stream-json']
 
   section('§8a the wire — born with both switches off, the request carries neither tool')
   {

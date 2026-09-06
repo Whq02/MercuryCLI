@@ -126,6 +126,7 @@ section('(2b) client robustness + the follow-along wire (structural)')
   check('thoughts cross to the chat', ext.includes("'agent_thought_chunk'"))
   const child = readFileSync('src/services/acp/childSession.ts', 'utf8')
   check('the ACP child pipe is crash-isolated', child.includes("this.child.on('error'") && child.includes('private writeFrame'))
+  check('the ACP child spawn line carries no --verbose (the stream-json feed is complete on its own)', !child.includes("'--verbose'"))
   const mcpClient = readFileSync('src/services/mcp/client.ts', 'utf8')
   const rpcAt = mcpClient.indexOf('export async function callIdeRpc(')
   check(

@@ -203,7 +203,6 @@ export function buildStreamJsonInvocation(
   const argv = [
     script,
     '-p',
-    '--verbose',
     ...headlessPermissionArgv(getHeadlessPermissionMode(spec.permissionMode), spec.allowBypass === true),
     ...(spec.allowedTools && spec.allowedTools.length > 0
       ? ['--allowedTools', ...spec.allowedTools]

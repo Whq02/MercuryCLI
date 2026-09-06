@@ -231,6 +231,21 @@ section('§4 the JavaScript road\'s codec')
   check('a JPEG request on the road yields PNG bytes, fit inside the box', viaRoadDims.format === 'png' && viaRoadDims.width === 800 && viaRoadDims.height === 600, `${viaRoadDims.format} ${viaRoadDims.width}x${viaRoadDims.height}`)
 }
 
+section('§4b the last-resort read advertises the type of the bytes it returns')
+{
+  ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
+  const { readImageWithTokenBudget } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const grain = await sharp({ create: { width: 800, height: 600, channels: 3, noise: { type: 'gaussian', mean: 128, sigma: 60 } } }).png().toBuffer()
+  const grainPath = join(FIX, 'grain.png')
+  writeFileSync(grainPath, grain)
+  const lastResort = await readImageWithTokenBudget(grainPath, 1)
+  const returned = Buffer.from(lastResort.file.base64, 'base64')
+  const signature = resizer.detectImageFormatFromBuffer(returned)
+  check('the advertised type is the signature of the returned bytes', lastResort.file.type === signature, `advertised ${lastResort.file.type}, bytes ${signature}`)
+  check(JS_ROAD ? 'on the JavaScript road the last resort is a PNG' : 'on the native road the last resort is a JPEG', signature === (JS_ROAD ? 'image/png' : 'image/jpeg'), signature)
+  check('the last resort keeps the original size and drops the dimensions', lastResort.file.originalSize === grain.length && !('dimensions' in lastResort.file))
+}
+
 if (JS_ROAD) {
   console.log(failures === 0 ? '\n✅ [js-road] the JavaScript road holds the same laws' : `\n❌ [js-road] ${failures} failure(s)`)
   process.exit(failures === 0 ? 0 : 1)

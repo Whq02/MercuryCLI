@@ -110,7 +110,7 @@ const env: Record<string, string> = {
 }
 const child = spawn(
   nodeBin,
-  [DIST, '-p', '--verbose', '--output-format', 'stream-json', '--input-format', 'stream-json', '--model', 'claude-opus-4-8', '--session-id', sessionId, '--allowedTools', 'Read', 'Write'],
+  [DIST, '-p', '--output-format', 'stream-json', '--input-format', 'stream-json', '--model', 'claude-opus-4-8', '--session-id', sessionId, '--allowedTools', 'Read', 'Write'],
   { cwd, env },
 )
 const killer = setTimeout(() => child.kill('SIGKILL'), 200_000)
