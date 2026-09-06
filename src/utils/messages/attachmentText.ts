@@ -811,7 +811,7 @@ ${label} is off: its instructions above no longer apply, and the session's stand
       ])
     }
     case 'repo_surface_map': {
-      const content = `This repository has no CLAUDE.md, so here is an auto-derived surface map (a structure-only scan: languages, entry points, layout). Use it to orient instead of broad exploratory listing; verify anything load-bearing before relying on it, and prefer reading the repo's own docs where they exist.
+      const content = `This repository has no orientation file (MERCURY.md or AGENTS.md), so here is an auto-derived surface map (a structure-only scan: languages, entry points, layout). Use it to orient instead of broad exploratory listing; verify anything load-bearing before relying on it, and prefer reading the repo's own docs where they exist.
 
 ${attachment.markdown}`
       return wrapMessagesInSystemReminder([

@@ -164,8 +164,9 @@ export const projectAdapter: ResourceAdapter = {
       const k = snapshot.knowledge
       const i = snapshot.instructions
       const rows = [
-        `CLAUDE.md: ${i.claudeMd ? 'present' : 'absent'}`,
+        `MERCURY.md: ${i.mercuryMd ? 'present' : 'absent'}`,
         `AGENTS.md: ${i.agentsMd ? 'present' : 'absent'}`,
+        `other harness instruction files: ${i.otherHarnessInstructions.join(', ') || 'none'}`,
         `project config homes: ${i.configHomes.join(', ') || 'none'}`,
         `wiki index (docs/wiki/INDEX.md): ${k.wikiIndex ? 'present' : 'absent'}`,
       ]

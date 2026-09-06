@@ -52,7 +52,7 @@ async function main(): Promise<void> {
     'surface languages see TypeScript',
     s1.surface?.topLangs.some(([l]) => l === 'TypeScript') === true,
   )
-  check('instructions: fixture has no CLAUDE.md', s1.instructions.claudeMd === false)
+  check('instructions: fixture has no MERCURY.md and names no other harness file', s1.instructions.mercuryMd === false && s1.instructions.otherHarnessInstructions.length === 0)
   check('git facts: clean baseline tree', s1.git.state === 'ok' && s1.git.changed.length === 0)
 
   intel._resetProjectIntelForTesting()
