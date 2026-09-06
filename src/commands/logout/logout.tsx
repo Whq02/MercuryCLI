@@ -60,8 +60,6 @@ export async function performLogout({
     const next = { ...current, oauthAccount: undefined }
     if (clearOnboarding) {
       next.hasCompletedOnboarding = false
-      next.subscriptionNoticeCount = 0
-      next.hasAvailableSubscription = false
       if (next.customApiKeyResponses?.approved) {
         next.customApiKeyResponses = { ...next.customApiKeyResponses, approved: [] }
       }
