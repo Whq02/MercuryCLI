@@ -388,10 +388,7 @@ export function validateModeEntry(mode: PermissionMode, context: ToolPermissionC
 
 type AutoModeConfig = {
   enabled?: 'enabled' | 'disabled' | 'opt-in'
-  model?: string
-  twoStageClassifier?: boolean | 'fast' | 'thinking'
   forceExternalPermissions?: boolean
-  jsonlTranscript?: boolean
 }
 
 const AUTO_MODE_CONFIG_KEY = 'mercury_auto_mode_config'
