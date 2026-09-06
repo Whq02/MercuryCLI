@@ -87,7 +87,9 @@ import { logError } from '../utils/log.js'
 import {
   PROMPT_TOO_LONG_ERROR_MESSAGE,
   STREAM_FAULT_RECOVERY_NUDGE,
+  continuableStreamFaultTextOf,
   isContinuableStreamFaultMessage,
+  streamFaultNoticeLine,
 } from '../services/api/errors.js'
 import {
   collectRefusedToolCalls,
@@ -1415,7 +1417,10 @@ export async function* runEventCore(
           yield emit({
             kind: 'notice',
             message: createSystemMessage(
-              'Stream dropped after partial content — continuing once from where it stopped.',
+              streamFaultNoticeLine(
+                continuableStreamFaultTextOf(lastMessage),
+                `asked the model to continue from where it stopped (continuation ${decision.attempt} of ${STREAM_FAULT_RECOVERY_LIMIT})`,
+              ),
               'warning',
             ),
           })
@@ -1442,6 +1447,16 @@ export async function* runEventCore(
           state = next
           continue
         }
+        yield emit({
+          kind: 'notice',
+          message: createSystemMessage(
+            streamFaultNoticeLine(
+              continuableStreamFaultTextOf(lastMessage),
+              `stopped after ${streamFaultRecoveryCount} continuation${streamFaultRecoveryCount === 1 ? '' : 's'}; the reply so far stands`,
+            ),
+            'warning',
+          ),
+        })
       }
 
       if (refusedToolCalls.length > 0) {
