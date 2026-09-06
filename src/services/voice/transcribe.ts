@@ -2,6 +2,7 @@ import type { CallModelRoute } from '../providers/idSpaces.js'
 import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
 import { providerDisplayName } from '../providers/routeLaw.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { isVoiceWavShape, pcmDurationMs, readWav } from './wav.js'
 import { voiceCheckoutRoot } from './voicePack.js'
 import { loadWhisperAddon, probeCpuFloor, resolveWhisperPackDir, whisperCpuFloorWords, whisperPackAbsentNote, type WhisperAddon } from './whisperPack.js'
@@ -73,7 +74,7 @@ export type LocalTranscriberRead =
       label: string
       model: string
       language: WhisperModelLanguage
-      pack: { version: string; platform: string; engine: string; where: string }
+      pack: { version: string; platform: string; engine: string; gpu: string; where: string }
     }
   | {
       state: 'absent'
@@ -233,7 +234,7 @@ export function localTranscriberRead(): LocalTranscriberRead {
     label: `on-device transcriber (${model.name})`,
     model: model.name,
     language: model.language,
-    pack: { version: pack.manifest.version, platform: pack.manifest.platform, engine: `${pack.manifest.engine.name} ${pack.manifest.engine.version}`, where },
+    pack: { version: pack.manifest.version, platform: pack.manifest.platform, engine: `${pack.manifest.engine.name} ${pack.manifest.engine.version}`, gpu: pack.manifest.gpu, where },
   }
 }
 
@@ -463,11 +464,30 @@ export async function transcribeWav(wav: Buffer, opts: TranscribeOptions): Promi
   return opts.choice.family === 'openai' ? transcribeOpenai(wav, opts) : transcribeGemini(wav, opts)
 }
 
-export function resetLocalTranscriberForTest(): void {
+export function unloadLocalModels(): void {
+  if (loadedModels.size === 0) return
   try {
     const load = loadWhisperAddon()
-    if (load.state === 'ok') for (const handle of loadedModels.values()) load.addon.unloadModel(handle)
+    if (load.state === 'ok') {
+      for (const handle of loadedModels.values()) {
+        try {
+          load.addon.unloadModel(handle)
+        } catch {
+        }
+      }
+    }
   } catch {
   }
   loadedModels.clear()
+}
+
+registerCleanup(async () => {
+  unloadLocalModels()
+})
+process.once('exit', () => {
+  unloadLocalModels()
+})
+
+export function resetLocalTranscriberForTest(): void {
+  unloadLocalModels()
 }

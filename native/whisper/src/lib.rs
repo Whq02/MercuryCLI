@@ -20,6 +20,19 @@ fn quiet() {
     whisper_rs::install_logging_hooks();
 }
 
+fn without_metal_residency<T>(f: impl FnOnce() -> T) -> T {
+    const SWITCH: &str = "GGML_METAL_NO_RESIDENCY";
+    let was_unset = std::env::var_os(SWITCH).is_none();
+    if was_unset {
+        std::env::set_var(SWITCH, "1");
+    }
+    let out = f();
+    if was_unset {
+        std::env::remove_var(SWITCH);
+    }
+    out
+}
+
 fn model(handle: u32) -> Result<Arc<WhisperContext>> {
     let map = match models().lock() {
         Ok(guard) => guard,
@@ -45,7 +58,7 @@ pub fn engine_version() -> String {
 #[napi]
 pub fn system_info() -> String {
     quiet();
-    whisper_rs::print_system_info().to_string()
+    without_metal_residency(|| whisper_rs::print_system_info().to_string())
 }
 
 #[napi(object)]
@@ -102,9 +115,9 @@ pub fn load_model(path: String, use_gpu: Option<bool>) -> Result<u32> {
     quiet();
     let mut params = WhisperContextParameters::default();
     params.use_gpu(use_gpu.unwrap_or(true));
-    let ctx = WhisperContext::new_with_params(&path, params).map_err(|error| {
-        Error::from_reason(format!("the model at {path} could not be loaded: {error}"))
-    })?;
+    let ctx = without_metal_residency(|| WhisperContext::new_with_params(&path, params)).map_err(
+        |error| Error::from_reason(format!("the model at {path} could not be loaded: {error}")),
+    )?;
     let handle = NEXT_HANDLE.fetch_add(1, Ordering::SeqCst);
     let mut map = match models().lock() {
         Ok(guard) => guard,
