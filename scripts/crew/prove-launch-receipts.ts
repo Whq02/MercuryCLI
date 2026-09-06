@@ -413,6 +413,53 @@ section("R8d · a worker a running workflow owns is never re-created by a messag
   check('no new registration road, worktree fallback or permission road was added (one registration, the two fallback mentions, the one pre-existing permission default)', (resumeSrc.match(/registerAsyncAgent\(/g) ?? []).length === 1 && (resumeSrc.match(/cwdFallback/g) ?? []).length === 2 && (resumeSrc.match(/behavior: 'allow'/g) ?? []).length === 1 && !/process\.env\./.test(resumeSrc))
 }
 
+section('R8e · every non-terminal row has a live owner; the exit card counts what is alive, by kind, and names where to see it')
+{
+  const fw = await import('../../src/utils/task/framework.ts')
+  const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
+  const { workRowRuns } = await import('../../src/services/engine-connector/workCounts.ts')
+  const { registerMainSessionTask } = await import('../../src/tasks/LocalMainSessionTask.ts')
+  const wf = (await import('../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.js')) as { registerWorkflowTask: Function; completeWorkflowTask: Function; pauseWorkflowTask: Function }
+  const { killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+  const store = makeStore()
+  const crewAgents = (): number => projectWorkRoster(store.get().tasks ?? {}).filter(r => workRowRuns(r) && (r.kind === 'agent' || r.kind === 'named')).length
+  const shellId = generateTaskId('local_bash')
+  store.set(prev => ({ ...prev, tasks: { ...prev.tasks, [shellId]: { id: shellId, type: 'local_bash', status: 'running', description: 'sleep 60', command: 'sleep 60', isBackgrounded: true, startTime: Date.now(), notified: false, shellCommand: { status: 'running' } } as never } }))
+  let counts = fw.liveBackgroundCounts(store.get().tasks)
+  check('a live shell command counts as a shell command, with words a person can act on', counts.total === 1 && counts.shells === 1 && counts.agents === 0 && fw.liveWorkWords(counts) === '1 shell command', JSON.stringify(counts))
+  check('…while the crew view lists no agent (the two surfaces now say different things for a reason the card names)', crewAgents() === 0)
+  const { taskId: stoppedQuery } = registerMainSessionTask('a stopped background query', store.set as never)
+  ;(store.get().tasks[stoppedQuery] as { abortController?: AbortController }).abortController?.abort()
+  const before = store.get().tasks[stoppedQuery] as { status?: string } | undefined
+  check("a stopped background query's row reads running with its controller gone — the owner law names it", before?.status === 'running' && fw.taskOwnerGone(before as never) === 'its controller was stopped before the row settled', String(fw.taskOwnerGone(before as never)))
+  counts = fw.liveBackgroundCounts(store.get().tasks)
+  check('…and the count leaves it out', counts.total === 1 && counts.agents === 0, JSON.stringify(counts))
+  const settled = fw.settleOwnerlessTasks(store.set as never)
+  const after = store.get().tasks[stoppedQuery] as { status?: string; stopReason?: string } | undefined
+  check('…the door settles it to killed with the reason on the row', settled.length === 1 && settled[0]?.id === stoppedQuery && after?.status === 'killed' && after.stopReason === 'its controller was stopped before the row settled', JSON.stringify(after?.status))
+  const liveAgent = generateTaskId('local_agent')
+  registerAsyncAgent({ agentId: liveAgent, description: 'alive', prompt: 'work', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  wf.registerWorkflowTask({ taskId: 'wf-paused', script: '', workflowRunId: 'wf_paused_run', workflowName: 'paused-flow', setAppState: store.set })
+  wf.pauseWorkflowTask('wf-paused', store.set)
+  check('a live agent and a paused workflow have nothing to settle', fw.settleOwnerlessTasks(store.set as never).length === 0 && (store.get().tasks[liveAgent] as { status?: string } | undefined)?.status === 'running' && (store.get().tasks['wf-paused'] as { status?: string } | undefined)?.status === 'paused')
+  counts = fw.liveBackgroundCounts(store.get().tasks)
+  check('the words name the kinds in order', fw.liveWorkWords(counts) === '1 shell command and 1 agent' && fw.liveWorkWords({ total: 4, shells: 2, agents: 1, workflows: 1, teammates: 0, other: 0 }) === '2 shell commands, 1 agent and 1 workflow' && fw.liveWorkWords({ total: 0, shells: 0, agents: 0, workflows: 0, teammates: 0, other: 0 }) === 'nothing', fw.liveWorkWords(counts))
+  check('…and the crew view agrees on the agent', crewAgents() === 1)
+  const child = generateTaskId('local_agent')
+  wf.registerWorkflowTask({ taskId: 'wf-gone', script: '', workflowRunId: 'wf_gone_run', workflowName: 'gone-flow', setAppState: store.set })
+  registerAsyncAgent({ agentId: child, description: 'a child row', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  await wf.completeWorkflowTask('wf-gone', null, 1, [], store.set)
+  check('a leftover child row with a live controller is counted by both surfaces alike (never settled on a guess)', fw.taskOwnerGone(store.get().tasks[child] as never) === null && fw.liveBackgroundCounts(store.get().tasks).agents === 2 && crewAgents() === 2)
+  killAsyncAgent(liveAgent, store.set as never)
+  killAsyncAgent(child, store.set as never)
+  const exitSrc = src('src/commands/exit/exit.tsx')
+  check('the exit command settles ownerless rows, then counts by kind, and hands the words to the card', exitSrc.indexOf('settleOwnerlessTasks(context.setAppState)') > 0 && exitSrc.indexOf('settleOwnerlessTasks(context.setAppState)') < exitSrc.indexOf('liveBackgroundCounts(') && exitSrc.includes('liveWords={liveWorkWords(counts)}'))
+  const confirmSrc = src('src/components/MercuryExitConfirm.tsx')
+  check('the card says what is alive by kind and where to see it', confirmSrc.includes('{liveWords} still running') && confirmSrc.includes('see them with /tasks'))
+  const sessionSrc = src('src/tasks/LocalMainSessionTask.ts')
+  check("the background session's abort branch settles its row before it returns", /killAsyncAgent\(taskId, args\.setAppState, 'stopped'\)\n\s*return\n/.test(sessionSrc))
+}
+
 section('R9 · one status per agent — the inspection verbs read one fact, on the registry or on disk')
 const { agentAdapter } = await import('../../src/services/resources/adapters/agent.ts')
 const { transcriptAdapter } = await import('../../src/services/resources/adapters/transcript.ts')
