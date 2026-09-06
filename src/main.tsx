@@ -149,6 +149,7 @@ import { migrateLegacyOpusToCurrent } from './migrations/migrateLegacyOpusToCurr
 import { migrateSonnet45ToSonnet46 } from './migrations/migrateSonnet45ToSonnet46.js'
 import { migrateOpusToOpus1m } from './migrations/migrateOpusToOpus1m.js'
 import { migrateReplBridgeEnabledToRemoteControlAtStartup } from './migrations/migrateReplBridgeEnabledToRemoteControlAtStartup.js'
+import { migrateVerboseToToolOutput } from './migrations/migrateVerboseToToolOutput.js'
 import type { Root } from './ink.js'
 import chalk from 'chalk'
 import { randomUUID } from 'node:crypto'
@@ -196,7 +197,7 @@ function applyMergedConfigEnv(): void {
 }
 
 
-const MIGRATION_VERSION = 11
+const MIGRATION_VERSION = 12
 
 function runMigrationsIfNeeded(): void {
   try {
@@ -212,6 +213,7 @@ function runMigrationsIfNeeded(): void {
     landed.push(migrateSonnet45ToSonnet46())
     landed.push(migrateOpusToOpus1m())
     migrateReplBridgeEnabledToRemoteControlAtStartup()
+    migrateVerboseToToolOutput()
     const incomplete = landed.some(ok => ok === false)
     if (incomplete) {
       logForDebugging(
@@ -496,7 +498,6 @@ async function run(): Promise<void> {
     .option('-d, --debug [filter]', 'Enable debug output (with an optional category filter)')
     .addOption(new Option('--d2e, --debug-to-stderr', 'Mirror debug output to stderr').hideHelp())
     .option('--debug-file <path>', 'Write debug output to a file')
-    .option('--verbose', 'Verbose output')
     .option(
       '-p, --print',
       'Non-interactive output. A slash command this seat cannot serve (an interactive-only surface, a retired or unavailable command) answers its typed refusal on stderr and exits 1. The workspace-trust dialog is skipped in this mode — use it only in directories you trust.',
@@ -754,7 +755,6 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     .command('serve')
     .description('Run the MCP server')
     .option('-d, --debug', 'Debug output')
-    .option('--verbose', 'Verbose output')
     .action(async options => {
       const { mcpServeHandler } = await import('./cli/handlers/mcp.js')
       await mcpServeHandler(options)
@@ -1917,7 +1917,7 @@ async function interactiveLaunch(args: {
   const initialState: AppState = {
     ...getDefaultAppState(),
     toolPermissionContext: effectiveContext,
-    verbose: Boolean(opts.verbose) || Boolean(config.verbose),
+    verbose: config.toolOutput === 'full',
     expandedView: config.showSpinnerTree ? 'teammates' : config.showExpandedTodos ? 'tasks' : 'none',
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
     ...(supercodeArmed ? { supercode: true } : {}),
@@ -2262,7 +2262,7 @@ async function printLaunch(args: {
   const initialState: AppState = {
     ...getDefaultAppState(),
     toolPermissionContext: args.toolPermissionContext,
-    verbose: Boolean(opts.verbose) || Boolean(config.verbose),
+    verbose: config.toolOutput === 'full',
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
     ...(supercodeArmed ? { supercode: true } : {}),
     ...(isAdvisorEnabled() && args.advisorModel ? { advisorModel: args.advisorModel } : {}),
@@ -2339,7 +2339,6 @@ async function printLaunch(args: {
       {
         continue: Boolean(opts.continue),
         resume: opts.resume as string | boolean | undefined,
-        verbose: Boolean(opts.verbose) || Boolean(config.verbose),
         outputFormat: args.outputFormat,
         jsonSchema: parsedJsonSchema,
         permissionPromptToolName: typedString(opts.permissionPromptTool),

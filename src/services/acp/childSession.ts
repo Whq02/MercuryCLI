@@ -74,7 +74,6 @@ export class MercuryChildSession {
     const argv = [
       script,
       '-p',
-      '--verbose',
       '--input-format=stream-json',
       '--output-format=stream-json',
       '--permission-prompt-tool',

@@ -31,7 +31,7 @@ The session stops writing and only reads: explore the codebase, weigh approaches
 Note: this tool REQUIRES user approval before the session enters plan mode.`
 
 const MERCURY_DOCTRINE = `## Mercury doctrine (this harness)
-- A plan that reaches terminal-UI surfaces states how the rendering will be checked: the repository's render script (\`bun run scripts/ui/render_tui.ts --scenario <s>\`) at the two standard widths (80+120 columns) — a claim about layout is settled by looking at a render, never by reading source.
+- A plan that reaches terminal-UI surfaces states how the rendering will be checked: the repository's render script (\`bun run scripts/ui/render-tui.ts --scenario <s>\`) at the two standard widths (80+120 columns) — a claim about layout is settled by looking at a render, never by reading source.
 - A plan that lands code states what will demonstrate it: the relevant subset of the all-suites gate script judged by its EXIT CODE, or the particular proof script that pins the change.
 - A plan that reaches the off-distribution core (the build script, the identity floor and wrapper composition, the capability gate and lease guard, daemon control-protocol authentication, compiled renderers) says so plainly: those get an operator diff-read before merge and are preferably hand-coded rather than delegated.`
 
