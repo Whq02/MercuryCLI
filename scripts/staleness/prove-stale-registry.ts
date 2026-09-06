@@ -209,7 +209,6 @@ src/utils/env.ts :: detectDeploymentEnvironment :: static-for-process
 src/utils/env.ts :: getGlobalMercuryFile :: static-for-process
 src/utils/env.ts :: getPackageManagers :: static-for-process
 src/utils/env.ts :: getRuntimes :: static-for-process
-src/utils/env.ts :: hasInternetAccess :: static-for-process
 src/utils/env.ts :: isNpmFromWindowsPath :: static-for-process
 src/utils/env.ts :: isRunningWithBun :: static-for-process
 src/utils/env.ts :: isWslEnvironment :: static-for-process
