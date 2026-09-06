@@ -7,9 +7,9 @@ import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'spelling-fold-proof-'))
-delete process.env.ANTHROPIC_MODEL
-delete process.env.ANTHROPIC_DEFAULT_SONNET_MODEL
-delete process.env.ANTHROPIC_DEFAULT_OPUS_MODEL
+delete process.env.MERCURY_MODEL
+delete process.env.MERCURY_DEFAULT_SONNET_MODEL
+delete process.env.MERCURY_DEFAULT_OPUS_MODEL
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

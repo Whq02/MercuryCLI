@@ -246,7 +246,7 @@ export class McpServerRegistry {
       logMCPDebug(name, 'server is disabled, skipping automatic reconnection')
       return Promise.resolve()
     }
-    if (configType === 'stdio' || configType === 'sdk') {
+    if (configType === 'stdio' || configType === 'host') {
       return this.enqueue(slot, async gen => {
         if (this.stale(slot, gen, 'connection-lost')) return null
         slot.connection = {

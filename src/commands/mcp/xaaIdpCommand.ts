@@ -1,4 +1,5 @@
 import type { Command as CommanderCommand } from '@commander-js/extra-typings'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { cliError, cliOk } from '../../cli/exit.js'
 import {
   acquireIdpIdToken,
@@ -33,7 +34,7 @@ export function registerMcpXaaIdpCommand(mcp: CommanderCommand): void {
     .description('Configure the IdP all XAA-enabled servers reuse')
     .requiredOption('--issuer <url>', 'the IdP issuer URL')
     .requiredOption('--client-id <id>', 'the OAuth client id registered with the IdP')
-    .option('--client-secret', 'read the client secret from MCP_XAA_IDP_CLIENT_SECRET')
+    .option('--client-secret', 'read the client secret from MERCURY_MCP_XAA_IDP_CLIENT_SECRET')
     .option(
       '--callback-port <port>',
       'fixed loopback callback port (only when the IdP does not honour port-any matching)',
@@ -73,9 +74,9 @@ export function registerMcpXaaIdpCommand(mcp: CommanderCommand): void {
           }
           let secret: string | undefined
           if (options.clientSecret) {
-            secret = process.env.MCP_XAA_IDP_CLIENT_SECRET
+            secret = flagEnv('MERCURY_MCP_XAA_IDP_CLIENT_SECRET')
             if (!secret) {
-              cliError('--client-secret requires the MCP_XAA_IDP_CLIENT_SECRET environment variable')
+              cliError('--client-secret requires the MERCURY_MCP_XAA_IDP_CLIENT_SECRET environment variable')
               return
             }
           }

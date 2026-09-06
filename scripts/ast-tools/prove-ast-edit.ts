@@ -103,7 +103,7 @@ section('§4 — a denied path refuses the whole set; a whole-tool allow rule ne
   check('ZERO writes under the deny', unchanged(before))
   check('the deny never reached the ask', d.asks.length === 0, JSON.stringify(d.asks))
   const a = await drive(AstEditTool, { pattern: 'normaliseRecord($$$ARGS)', rewrite: 'normalizeRecord($$$ARGS)', path: 'rename', apply: true, plan: token }, prover)
-  check('a whole-tool allow rule (--allowedTools AstEdit) applies with no ask', !a.isError && a.asks.length === 0 && a.data?.state === 'applied', `${a.isError} ${JSON.stringify(a.asks)} ${a.text.slice(0, 120)}`)
+  check('a whole-tool allow rule (--allowed-tools AstEdit) applies with no ask', !a.isError && a.asks.length === 0 && a.data?.state === 'applied', `${a.isError} ${JSON.stringify(a.asks)} ${a.text.slice(0, 120)}`)
   check('the fixture is back to its original bytes', RENAME_FILES.every(r => read(r) === (r.endsWith('records.ts') ? before.get(r) : read(r))) && read('rename/src/stats.ts').includes('normalizeRecord(r)'))
 }
 

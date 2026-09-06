@@ -1,4 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 
 import type { SystemAPIErrorMessage } from '../../types/message.js'
 import {
@@ -11,7 +12,6 @@ import {
   isEnterpriseSubscriber,
 } from '../../utils/auth.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isRevokedSignInText } from '../providers/credentialWall.js'
 import { logError } from '../../utils/log.js'
 import { createSystemAPIErrorMessage } from '../../utils/messages.js'
@@ -261,7 +261,7 @@ export async function* withRetry<T>(
 
       if (overload) {
         const countingEnabled =
-          Boolean(process.env.FALLBACK_FOR_ALL_PRIMARY_MODELS) ||
+          flagEnabled('MERCURY_FALLBACK_ALL_MODELS') ||
           (!isClaudeAISubscriber() && isNonCustomOpusModel(retryContext.model))
         if (countingEnabled) {
           consecutive529Errors++
@@ -269,9 +269,7 @@ export async function* withRetry<T>(
             if (options.fallbackModel !== undefined) {
               throw new FallbackTriggeredError(retryContext.model, options.fallbackModel)
             }
-            if (!isEnvTruthy(process.env.IS_SANDBOX)) {
-              throw new CannotRetryError(new Error(REPEATED_529_ERROR_MESSAGE), retryContext)
-            }
+            throw new CannotRetryError(new Error(REPEATED_529_ERROR_MESSAGE), retryContext)
           }
         }
       } else {

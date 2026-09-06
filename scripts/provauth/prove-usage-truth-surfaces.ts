@@ -40,7 +40,7 @@ for (const key of [
   'MERCURY_USAGE_SEED',
   'MERCURY_CONFIG_DIR',
   'MERCURY_AUTH_SCOPE_DIR',
-  'ANTHROPIC_MODEL',
+  'MERCURY_MODEL',
 ]) {
   savedEnv[key] = process.env[key]
   delete process.env[key]

@@ -26,9 +26,9 @@ function repoRoot(): string {
 delete process.env.NODE_ENV
 delete process.env.CI
 for (const key of [
-  'https_proxy', 'HTTPS_PROXY', 'http_proxy', 'HTTP_PROXY', 'ANTHROPIC_UNIX_SOCKET',
+  'https_proxy', 'HTTPS_PROXY', 'http_proxy', 'HTTP_PROXY', 'MERCURY_API_UNIX_SOCKET',
   'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN',
-  'ANTHROPIC_MODEL', 'ANTHROPIC_SMALL_FAST_MODEL', 'ANTHROPIC_CUSTOM_MODEL_OPTION',
+  'MERCURY_MODEL', 'MERCURY_SMALL_FAST_MODEL', 'MERCURY_CUSTOM_MODEL_OPTION',
   'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY',
   'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'BRAVE_API_KEY', 'TAVILY_API_KEY',
   'MERCURY_SEARCH_BACKEND', 'MERCURY_SEARCH_KEYLESS', 'MERCURY_SEARCH_DDG_HTML_URL',
@@ -82,7 +82,7 @@ const { KEYED_DOOR_REMEDY } = await import('../../src/services/search/searchCont
 function seedHome(model: string): void {
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ model }))
   resetSettingsCache()
-  process.env.ANTHROPIC_MODEL = model
+  process.env.MERCURY_MODEL = model
 }
 
 function makeContext(model: string): Record<string, unknown> {
@@ -634,7 +634,7 @@ section("§13 THE BUILT BUNDLE — a headless gpt session on dist/mercury.mjs: t
         ...fixture.env,
       }
       return new Promise(resolve => {
-        const child = spawn(nodeBin, [DIST, '-p', prompt, '--model', 'gpt-5.5', '--output-format', 'stream-json', '--allowedTools', 'WebSearch', 'ProviderSearch'], { cwd, env })
+        const child = spawn(nodeBin, [DIST, '-p', prompt, '--model', 'gpt-5.5', '--output-format', 'stream-json', '--allowed-tools', 'WebSearch', 'ProviderSearch'], { cwd, env })
         let stdout = ''
         let stderr = ''
         child.stdout.on('data', d => (stdout += d))

@@ -448,7 +448,7 @@ export async function getSystemPrompt(
   mcpClients?: MCPServerConnection[],
   permissionMode?: import('../types/permissions.js').InternalPermissionMode,
 ): Promise<string[]> {
-  if (isEnvTruthy(process.env.MERCURY_SIMPLE)) {
+  if (isEnvTruthy(process.env.MERCURY_BARE)) {
     const simpleHead = `Mercury — a private terminal software-development harness.\nWorking directory: ${getOriginalCwd()}\nSession date: ${getSessionStartDate()}`
     return [`${simpleHead}\n\n${MERCURY_IDENTITY_FLOOR}`]
   }
@@ -470,7 +470,7 @@ export async function getSystemPrompt(
 
   const forkSubagentsEnabled = toolNames.has(AGENT_TOOL_NAME) && isForkSubagentEnabled()
   const hasSkills = toolNames.has(SKILL_TOOL_NAME)
-  const nonInteractive = process.env.MERCURY_ENTRYPOINT === 'sdk'
+  const nonInteractive = process.env.MERCURY_ENTRYPOINT === 'headless'
 
   const dynamicSpecs = [
     systemPromptSection('session_guidance', () =>

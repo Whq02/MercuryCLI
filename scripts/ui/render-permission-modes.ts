@@ -76,7 +76,7 @@ const MODES: { mode: string; args: string[]; bypass?: boolean }[] = [
   { mode: 'apollo', args: ['--permission-mode', 'apollo'] },
   { mode: 'implement', args: ['--permission-mode', 'implement'] },
   { mode: 'flow', args: ['--permission-mode', 'flow'] },
-  { mode: 'sovereign', args: ['--dangerously-skip-permissions'], bypass: true },
+  { mode: 'sovereign', args: ['--dangerously-bypass-permissions'], bypass: true },
 ]
 
 console.log('============================================================')

@@ -55,7 +55,7 @@ console.log('§3 the promoted rows live in the ratified owners (the removal orph
   )
   const { getDefaultOpusModel, getDefaultSonnetModel, getCanonicalName, getMarketingNameForModel } =
     await import('../../src/utils/model/model.js')
-  for (const k of ['ANTHROPIC_DEFAULT_OPUS_MODEL', 'ANTHROPIC_DEFAULT_SONNET_MODEL']) delete process.env[k]
+  for (const k of ['MERCURY_DEFAULT_OPUS_MODEL', 'MERCURY_DEFAULT_SONNET_MODEL']) delete process.env[k]
   check("getDefaultOpusModel() = 'claude-opus-5'", getDefaultOpusModel() === 'claude-opus-5', getDefaultOpusModel())
   check("getDefaultSonnetModel() = 'claude-sonnet-5'", getDefaultSonnetModel() === 'claude-sonnet-5', getDefaultSonnetModel())
   check(

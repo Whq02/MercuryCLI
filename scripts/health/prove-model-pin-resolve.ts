@@ -6,7 +6,7 @@ import { join } from 'node:path'
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'pin-resolve-home-')))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
-delete process.env.ANTHROPIC_MODEL
+delete process.env.MERCURY_MODEL
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
