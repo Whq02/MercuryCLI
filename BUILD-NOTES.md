@@ -13,7 +13,7 @@ is `docs/TERMINAL-RUNTIME.md`.
 ## The build command
 
 ```sh
-bun run setup        # once; bun install + the five vendored packs (network)
+bun run setup        # once; bun install + the six vendored packs (network)
 bun run build.ts     # -> dist/mercury.mjs + manifest.json + vendor payloads
 node dist/mercury.mjs --version    # "Mercury <package.json version>"
 ```
