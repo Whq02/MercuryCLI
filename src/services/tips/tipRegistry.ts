@@ -111,10 +111,10 @@ const GENERAL_TIPS: Tip[] = [
     id: 'strategy-first',
     cooldownSessions: 12,
     async content() {
-      return '/plan enters strategy mode — the plan comes first, the build only on your yes.'
+      return '/strategy enters strategy mode — the plan comes first, the build only on your yes.'
     },
     async isRelevant() {
-      return daysSince(getGlobalConfig().lastPlanModeUse) > 7
+      return daysSince(getGlobalConfig().lastStrategyModeUse) > 7
     },
   },
   {

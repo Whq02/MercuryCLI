@@ -17,7 +17,7 @@ const inputSchema = z.object({}).strict()
 export type Output = { message: string }
 
 const ENTERED_MESSAGE =
-  'Entered plan mode. The focus now is exploring the codebase and designing an implementation approach.'
+  'Entered strategy mode. The focus now is exploring the codebase and designing an implementation approach.'
 
 const TERSE_WORKFLOW =
   'Do not write or edit any file except the plan file. Detailed planning instructions follow.'
@@ -36,9 +36,9 @@ export const EnterPlanModeTool = buildTool({
   inputSchema,
   maxResultSizeChars: RESULT_SIZE_CAP,
   shouldDefer: true,
-  searchHint: 'enter plan mode to design an approach before coding',
+  searchHint: 'enter strategy mode to design an approach before coding',
   async description() {
-    return 'Enter plan mode: explore the codebase and design an implementation approach before writing code'
+    return 'Enter strategy mode: explore the codebase and design an implementation approach before writing code'
   },
   async prompt() {
     return getEnterPlanModeToolPrompt()
@@ -55,7 +55,7 @@ export const EnterPlanModeTool = buildTool({
   async call(_input: Record<string, never>, context) {
     if (getAgentContext() !== undefined || context.agentId) {
       throw new Error(
-        'Plan mode is a session-level concept — a subagent cannot enter it.',
+        'Strategy mode is a session-level concept — a subagent cannot enter it.',
       )
     }
 
@@ -94,7 +94,7 @@ export const EnterPlanModeTool = buildTool({
         toolPermissionContext: {
           ...prepared,
           mode: 'strategy' as never,
-          prePlanMode: currentMode as never,
+          preStrategyMode: currentMode as never,
         },
       }
     })

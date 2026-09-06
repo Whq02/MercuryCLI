@@ -6,7 +6,7 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { updateSettingsForSource } from '../utils/settings/settings.js'
 import { gracefulShutdownSync } from '../utils/gracefulShutdown.js'
 
-export function BypassPermissionsModeDialog({
+export function SovereignModeDialog({
   onAccept,
 }: {
   onAccept: () => void
@@ -46,7 +46,7 @@ export function BypassPermissionsModeDialog({
         onChange={value => {
           if (value === 'accept') {
             updateSettingsForSource('userSettings', {
-              skipDangerousModePermissionPrompt: true,
+              skipSovereignConsentPrompt: true,
             })
             onAccept()
           } else {
@@ -59,4 +59,4 @@ export function BypassPermissionsModeDialog({
   )
 }
 
-export default BypassPermissionsModeDialog
+export default SovereignModeDialog

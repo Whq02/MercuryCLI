@@ -8,6 +8,7 @@ import { getFlagSettingsInline, getFlagSettingsPath, getOriginalCwd } from '../.
 import { getRemoteManagedSettingsSyncFromCache } from '../../services/remoteManagedSettings/syncCacheState.js'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../debug.js'
+import { RETIRED_SETTINGS_KEYS, rewriteRetiredSettingsSpellings } from '../../migrations/migrateSettingsSpellings.js'
 import { getMercuryHome } from '../envUtils.js'
 import { errorMessage, isENOENT } from '../errors.js'
 import { readFileSync } from '../fileRead.js'
@@ -83,6 +84,26 @@ function adoptRetiredExcludesSpelling(parsed: unknown, filePath: string): Valida
   ]
 }
 
+function publishRewrittenSpellings(filePath: string, rewritten: unknown): ValidationError[] {
+  try {
+    markInternalWrite(filePath)
+    durableAtomicPublishSync(filePath, `${jsonStringify(rewritten, null, 2)}\n`)
+    logForDebugging(`settings: rewrote retired spellings in ${filePath}`)
+    return []
+  } catch (error) {
+    const renames = RETIRED_SETTINGS_KEYS.map(r => `${r.from.join('.')} → ${r.to.join('.')}`).join(', ')
+    return [
+      {
+        file: filePath,
+        path: '',
+        severity: 'warning',
+        message: `retired settings spellings could not be rewritten in place (${errorMessage(error)}); this run reads them as their current spellings — rename them in the file (${renames}; tool names in rules and matchers likewise)`,
+        suggestion: 'rename the keys and tool names to their current spellings',
+      },
+    ]
+  }
+}
+
 function parseSettingsFileUncached(filePath: string): { settings: SettingsJson | null; errors: ValidationError[] } {
   let raw: string
   try {
@@ -108,10 +129,13 @@ function parseSettingsFileUncached(filePath: string): { settings: SettingsJson |
     return { settings: {} as SettingsJson, errors: [] }
   }
   const shared = safeParseJSON(stripBOM(raw), false)
-  const parsed = typeof shared === 'object' && shared !== null ? (structuredClone(shared) as unknown) : shared
+  let parsed = typeof shared === 'object' && shared !== null ? (structuredClone(shared) as unknown) : shared
   adoptLegacySupercodeSpelling(parsed)
   const retiredKeyWarnings = adoptRetiredExcludesSpelling(parsed, filePath)
-  const warnings = [...retiredKeyWarnings, ...filterInvalidPermissionRules(parsed, filePath)]
+  const rewritten = rewriteRetiredSettingsSpellings(parsed)
+  const spellingWarnings = rewritten === parsed ? [] : publishRewrittenSpellings(filePath, rewritten)
+  parsed = rewritten
+  const warnings = [...retiredKeyWarnings, ...spellingWarnings, ...filterInvalidPermissionRules(parsed, filePath)]
   const result = SettingsSchema().safeParse(parsed)
   if (!result.success) {
     const salvaged = salvageValidSettings(parsed, result.error)
@@ -348,13 +372,13 @@ export function getPolicySettingsOrigin(): 'remote' | 'plist' | 'hklm' | 'file' 
 function readSettingsForSourceUncached(source: SettingSource): SettingsJson | null {
   if (source === 'policySettings') {
     const remote = getValidatedRemoteBlob()
-    if (remote !== null) return remote.original
+    if (remote !== null) return rewriteRetiredSettingsSpellings(remote.original) as SettingsJson
     const mdm = getMdmSettings()
-    if (Object.keys(mdm.settings).length > 0) return mdm.settings
+    if (Object.keys(mdm.settings).length > 0) return rewriteRetiredSettingsSpellings(mdm.settings) as SettingsJson
     const file = loadManagedFileSettings()
     if (file.settings !== null) return file.settings
     const hkcu = getHkcuSettings()
-    if (Object.keys(hkcu.settings).length > 0) return hkcu.settings
+    if (Object.keys(hkcu.settings).length > 0) return rewriteRetiredSettingsSpellings(hkcu.settings) as SettingsJson
     return null
   }
   const filePath = getSettingsFilePathForSource(source)
@@ -362,7 +386,7 @@ function readSettingsForSourceUncached(source: SettingSource): SettingsJson | nu
     if (source === 'flagSettings') {
       const inline = getFlagSettingsInline()
       if (inline !== null) {
-        const result = SettingsSchema().safeParse(inline)
+        const result = SettingsSchema().safeParse(rewriteRetiredSettingsSpellings(inline))
         if (result.success) return result.data as SettingsJson
       }
     }
@@ -373,7 +397,7 @@ function readSettingsForSourceUncached(source: SettingSource): SettingsJson | nu
   if (source === 'flagSettings') {
     const inline = getFlagSettingsInline()
     if (inline !== null) {
-      const result = SettingsSchema().safeParse(inline)
+      const result = SettingsSchema().safeParse(rewriteRetiredSettingsSpellings(inline))
       if (result.success) {
         settings = mergeWith(settings ?? {}, result.data, settingsMergeCustomizer) as SettingsJson
       }
@@ -531,11 +555,11 @@ export function getApiKeyHelperFromOutsideCheckoutSources(): string | undefined 
   return helper
 }
 
-export function hasSkipDangerousModePermissionPrompt(): boolean {
+export function hasSkipSovereignConsentPrompt(): boolean {
   const trustedSources: SettingSource[] = ['userSettings', 'localSettings', 'flagSettings', 'policySettings']
   for (const source of trustedSources) {
     const settings = getSettingsForSource(source)
-    if (settings?.skipDangerousModePermissionPrompt === true) return true
+    if (settings?.skipSovereignConsentPrompt === true) return true
   }
   return false
 }
@@ -660,6 +684,7 @@ export function updateSettingsForSource(
       }
     }
     adoptLegacySupercodeSpelling(baseSettings)
+    baseSettings = rewriteRetiredSettingsSpellings(baseSettings) as Record<string, unknown>
 
     const resolvedPartial =
       typeof partial === 'function' ? partial(structuredClone(baseSettings)) : partial
@@ -717,7 +742,7 @@ export function removeSettingsFileIfEmpty(source: EditableSettingSource): void {
 
 
 const KNOWN_LOGGING_CHILDREN: Record<string, string[]> = {
-  permissions: ['allow', 'deny', 'ask', 'defaultMode', 'disableBypassPermissionsMode', 'additionalDirectories'],
+  permissions: ['allow', 'deny', 'ask', 'defaultMode', 'disableSovereignMode', 'disableFlowMode', 'additionalDirectories'],
   sandbox: [
     'enabled',
     'failIfUnavailable',

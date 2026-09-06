@@ -6,7 +6,6 @@ import { clearInstructionFileCaches } from '../services/instructions/engine.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js'
 import type { AgentDefinition, AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js'
-import { TODO_WRITE_TOOL_NAME } from '../tools/TodoWriteTool/constants.js'
 import type { SessionId } from '../types/ids.js'
 import type { PersistedWorktreeSession } from '../types/logs.js'
 import type { AssistantMessage, Message } from '../types/message.js'
@@ -28,9 +27,7 @@ import {
   resetSessionFilePointer,
 } from './sessionStorage/writer.js'
 import { setCwd } from './Shell.js'
-import { isTodoV2Enabled } from './tasks.js'
-import type { TodoList } from './todo/types.js'
-import { TodoListSchema } from './todo/types.js'
+import { isTaskToolsEnabled } from './tasks.js'
 import type { ContentReplacementRecord } from './toolResultStorage.js'
 import type { WorktreeSession } from './worktree.js'
 import { getCurrentWorktreeSession, restoreWorktreeSession } from './worktree.js'
@@ -58,25 +55,6 @@ const DEFAULT_AGENT_COLOR = 'default'
 
 const INHERIT_MODEL_SENTINEL = 'inherit'
 
-export function extractTodosFromMessages(messages: Message[]): TodoList {
-  for (let index = messages.length - 1; index >= 0; index--) {
-    const message = messages[index]
-    if (message?.type !== 'assistant') continue
-    const content = message.message.content
-    if (!Array.isArray(content)) continue
-    const todoUses = content.filter(
-      block => (block as { type?: string; name?: string }).type === 'tool_use' &&
-        (block as { name?: string }).name === TODO_WRITE_TOOL_NAME,
-    )
-    if (todoUses.length === 0) continue
-    const input = (todoUses[todoUses.length - 1] as { input?: unknown }).input
-    if (typeof input !== 'object' || input === null) return []
-    const parsed = TodoListSchema().safeParse((input as { todos?: unknown }).todos)
-    return parsed.success ? parsed.data : []
-  }
-  return []
-}
-
 export function lastAssistantTimestamp(messages: ReadonlyArray<{ type: string; timestamp?: string }>): number | null {
   for (let i = messages.length - 1; i >= 0; i--) {
     const row = messages[i]!
@@ -100,14 +78,6 @@ export function restoreSessionStateFromLog(
   if (getLastApiCompletionTimestamp() === null) {
     const lastAssistantAt = lastAssistantTimestamp(result.messages)
     if (lastAssistantAt !== null) setLastApiCompletionTimestamp(lastAssistantAt)
-  }
-
-  if (!isTodoV2Enabled() && result.messages.length > 0) {
-    const todos = extractTodosFromMessages(result.messages)
-    if (todos.length > 0) {
-      const sessionId = getSessionId()
-      setAppState(prev => ({ ...prev, todos: { ...prev.todos, [sessionId]: todos } }))
-    }
   }
 
   if (result.teamName && result.agentName) {

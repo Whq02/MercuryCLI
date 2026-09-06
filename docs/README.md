@@ -80,6 +80,8 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
 
 - [TRUST.md](TRUST.md): workspace trust, what a grant is, when Mercury asks,
   what stays closed until trust, and what managed policy changes.
+- [HOOKS.md](HOOKS.md): hooks, where they are declared, the four kinds, the
+  events with their input fields, what a hook answers, and the policy knobs.
 - [THEMIS-CONTROL-PLANE.md](THEMIS-CONTROL-PLANE.md): the deterministic
   trust machinery, the execution-gate blocklist, audit chains, the config
   lockfile, and missions.

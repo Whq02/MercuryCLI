@@ -670,7 +670,7 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
 {
   const area = mkdtempSync(join(TMP, 's32-walk-'))
   const parent = join(area, 'parent')
-  mkdirSync(join(parent, '.mercury', 'commands'), { recursive: true })
+  mkdirSync(join(parent, '.mercury', 'skills'), { recursive: true })
   git(area, `init -q ${parent}`)
   writeFileSync(join(parent, 'README.md'), 'parent')
   git(parent, 'add -A')
@@ -686,17 +686,17 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
   writeFileSync(
     probe,
     `const { getProjectDirsUpToHome } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/markdownConfigLoader.ts'))})\n` +
-      `console.log(JSON.stringify(getProjectDirsUpToHome('commands', ${JSON.stringify(insideSub)})))\n`,
+      `console.log(JSON.stringify(getProjectDirsUpToHome('skills', ${JSON.stringify(insideSub)})))\n`,
   )
   const dirsFromSub = JSON.parse(execSync(`${process.execPath} run ${probe}`, { cwd: parent, encoding: 'utf8' }).trim()) as string[]
-  const reachesParent = dirsFromSub.includes(join(parent, '.mercury', 'commands'))
+  const reachesParent = dirsFromSub.includes(join(parent, '.mercury', 'skills'))
   const sibling = join(area, 'sibling')
   git(area, `init -q ${sibling}`)
   const probeSib = join(area, 'probe-sib.ts')
   writeFileSync(
     probeSib,
     `const { getProjectDirsUpToHome } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/markdownConfigLoader.ts'))})\n` +
-      `console.log(JSON.stringify(getProjectDirsUpToHome('commands', ${JSON.stringify(sibling)})))\n`,
+      `console.log(JSON.stringify(getProjectDirsUpToHome('skills', ${JSON.stringify(sibling)})))\n`,
   )
   const dirsSibling = JSON.parse(execSync(`${process.execPath} run ${probeSib}`, { cwd: parent, encoding: 'utf8' }).trim()) as string[]
   const siblingConfined = dirsSibling.every(d => !d.includes(parent))
@@ -706,13 +706,13 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
 {
   const area = mkdtempSync(join(TMP, 's32-symlink-'))
   const real = join(area, 'real-project')
-  mkdirSync(join(real, '.mercury', 'commands'), { recursive: true })
+  mkdirSync(join(real, '.mercury', 'skills'), { recursive: true })
   git(area, `init -q ${real}`)
-  writeFileSync(join(real, '.mercury', 'commands', 'x.md'), '# x\nbody')
+  writeFileSync(join(real, '.mercury', 'skills', 'x.md'), '# x\nbody')
   const linked = join(area, 'linked')
   symlinkSync(real, linked)
   clearMarkdownFileCache()
-  const files = await loadMarkdownFilesForSubdir('commands', linked)
+  const files = await loadMarkdownFilesForSubdir('skills', linked)
   const xCount = files.filter(f => f.filePath.endsWith('x.md')).length
   const source = src('src/utils/markdownConfigLoader.ts')
   pin(
@@ -725,37 +725,37 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
 {
   const area = mkdtempSync(join(TMP, 's32-worktree-'))
   const main = join(area, 'main')
-  mkdirSync(join(main, '.mercury', 'commands'), { recursive: true })
+  mkdirSync(join(main, '.mercury', 'skills'), { recursive: true })
   git(area, `init -q ${main}`)
-  writeFileSync(join(main, '.mercury', 'commands', 'w.md'), '# w\nbody')
+  writeFileSync(join(main, '.mercury', 'skills', 'w.md'), '# w\nbody')
   writeFileSync(join(main, 'README.md'), 'hi')
   git(main, 'add -A')
   git(main, '-c user.email=t@t -c user.name=t commit -qm init')
   const wtFull = join(area, 'wt-full')
   git(main, `worktree add -q ${wtFull}`)
   clearMarkdownFileCache()
-  const full = await loadMarkdownFilesForSubdir('commands', wtFull)
+  const full = await loadMarkdownFilesForSubdir('skills', wtFull)
   const fullCount = full.filter(f => f.filePath.endsWith('w.md')).length
   const wtBare = join(area, 'wt-bare')
   git(main, `worktree add -q ${wtBare} -b bare`)
   execSync(`rm -rf ${join(wtBare, '.mercury')}`)
   clearMarkdownFileCache()
-  const bare = await loadMarkdownFilesForSubdir('commands', wtBare)
+  const bare = await loadMarkdownFilesForSubdir('skills', wtBare)
   const bareCount = bare.filter(f => f.filePath.endsWith('w.md')).length
   check('45. worktree fallback to the canonical copy; full checkout not duplicated', fullCount === 1 && bareCount === 1, `full=${fullCount} bare=${bareCount}`)
 }
 
 {
-  const userDir = join(getMercuryHome(), 'commands')
+  const userDir = join(getMercuryHome(), 'skills')
   mkdirSync(userDir, { recursive: true })
   writeFileSync(join(userDir, 'u.md'), '# u\nuser')
   const area = mkdtempSync(join(TMP, 's32-order-'))
   const proj = join(area, 'proj')
-  mkdirSync(join(proj, '.mercury', 'commands'), { recursive: true })
+  mkdirSync(join(proj, '.mercury', 'skills'), { recursive: true })
   git(area, `init -q ${proj}`)
-  writeFileSync(join(proj, '.mercury', 'commands', 'p.md'), '# p\nproject')
+  writeFileSync(join(proj, '.mercury', 'skills', 'p.md'), '# p\nproject')
   clearMarkdownFileCache()
-  const files = await loadMarkdownFilesForSubdir('commands', proj)
+  const files = await loadMarkdownFilesForSubdir('skills', proj)
   const iUser = files.findIndex(f => f.filePath.endsWith('u.md'))
   const iProj = files.findIndex(f => f.filePath.endsWith('p.md'))
   check('46. user entries precede project entries (managed first by construction)', iUser !== -1 && iProj !== -1 && iUser < iProj, JSON.stringify(files.map(f => f.filePath)))
@@ -764,29 +764,29 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
 {
   const area = mkdtempSync(join(TMP, 's32-unread-'))
   const proj = join(area, 'proj')
-  mkdirSync(join(proj, '.mercury', 'commands'), { recursive: true })
+  mkdirSync(join(proj, '.mercury', 'skills'), { recursive: true })
   git(area, `init -q ${proj}`)
-  writeFileSync(join(proj, '.mercury', 'commands', 'ok.md'), '# ok\nfine')
-  writeFileSync(join(proj, '.mercury', 'commands', 'locked.md'), '# locked\nnope')
-  chmodSync(join(proj, '.mercury', 'commands', 'locked.md'), 0o000)
+  writeFileSync(join(proj, '.mercury', 'skills', 'ok.md'), '# ok\nfine')
+  writeFileSync(join(proj, '.mercury', 'skills', 'locked.md'), '# locked\nnope')
+  chmodSync(join(proj, '.mercury', 'skills', 'locked.md'), 0o000)
   clearMarkdownFileCache()
-  const files = await loadMarkdownFilesForSubdir('commands', proj)
+  const files = await loadMarkdownFilesForSubdir('skills', proj)
   const missing = await loadMarkdownFilesForSubdir('does-not-exist-subdir', proj)
-  chmodSync(join(proj, '.mercury', 'commands', 'locked.md'), 0o644)
+  chmodSync(join(proj, '.mercury', 'skills', 'locked.md'), 0o644)
   check('47. missing dir ⇒ []; unreadable file ⇒ the rest load', missing.length === 0 && files.some(f => f.filePath.endsWith('ok.md')), JSON.stringify(files.map(f => f.filePath)))
 }
 
 {
   const area = mkdtempSync(join(TMP, 's32-cache-'))
   const proj = join(area, 'proj')
-  mkdirSync(join(proj, '.mercury', 'commands'), { recursive: true })
+  mkdirSync(join(proj, '.mercury', 'skills'), { recursive: true })
   git(area, `init -q ${proj}`)
   clearMarkdownFileCache()
-  const before = await loadMarkdownFilesForSubdir('commands', proj)
-  writeFileSync(join(proj, '.mercury', 'commands', 'new.md'), '# new\nadded')
-  const cached = await loadMarkdownFilesForSubdir('commands', proj)
+  const before = await loadMarkdownFilesForSubdir('skills', proj)
+  writeFileSync(join(proj, '.mercury', 'skills', 'new.md'), '# new\nadded')
+  const cached = await loadMarkdownFilesForSubdir('skills', proj)
   clearMarkdownFileCache()
-  const after = await loadMarkdownFilesForSubdir('commands', proj)
+  const after = await loadMarkdownFilesForSubdir('skills', proj)
   check(
     '48. clearMarkdownFileCache forces a re-scan',
     cached.length === before.length && after.length === before.length + 1 && after.some(f => f.filePath.endsWith('new.md')),

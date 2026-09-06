@@ -16,7 +16,7 @@ import {
 } from '../path.js'
 import { getPlatform } from '../platform.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
-import { PROJECT_CONFIG_DIR_NAMES, apolloSpecDirectory } from '../projectConfig.js'
+import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, apolloSpecDirectory } from '../projectConfig.js'
 import { APOLLO_REVIEW_TOOL_NAME } from '../../tools/ApolloReviewTool/constants.js'
 import { checkFeatureGate_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { getSettingsFilePathForSource } from '../settings/settings.js'
@@ -48,8 +48,6 @@ export const DANGEROUS_DIRECTORIES: string[] = [
   '.claude',
   '.mercury',
 ]
-
-const CONFIG_HOME_SEGMENTS = ['.claude', '.mercury']
 
 
 export function normalizeCaseForComparison(path: string): string {
@@ -161,7 +159,7 @@ function isDangerousFileOrDirectory(rawPath: string, expandedPath: string, uncEx
   }
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i]?.toLowerCase() ?? ''
-    if (CONFIG_HOME_SEGMENTS.includes(segment) && segments[i + 1]?.toLowerCase() === 'worktrees') {
+    if (segment === MERCURY_PROJECT_DIR && segments[i + 1]?.toLowerCase() === 'worktrees') {
       continue
     }
     if (DANGEROUS_DIRECTORIES.some(name => name.toLowerCase() === segment)) {
@@ -271,14 +269,12 @@ export function getBundledSkillsRoot(): string {
 }
 
 
-export function isClaudeSettingsPath(filePath: string): boolean {
+export function isSettingsFilePath(filePath: string): boolean {
   const expanded = expandPath(filePath)
   const folded = normalizeCaseForComparison(expanded)
   const sep = platformSep.toLowerCase()
-  for (const home of CONFIG_HOME_SEGMENTS) {
-    for (const file of ['settings.json', 'settings.local.json']) {
-      if (folded.endsWith(`${sep}${home}${sep}${file}`)) return true
-    }
+  for (const file of ['settings.json', 'settings.local.json']) {
+    if (folded.endsWith(`${sep}${MERCURY_PROJECT_DIR}${sep}${file}`)) return true
   }
   for (const source of getEnabledSettingSources()) {
     try {
@@ -291,7 +287,7 @@ export function isClaudeSettingsPath(filePath: string): boolean {
 }
 
 function isProductConfigPath(expandedPath: string): boolean {
-  if (isClaudeSettingsPath(expandedPath)) return true
+  if (isSettingsFilePath(expandedPath)) return true
   const cwd = getOriginalCwd()
   const folded = normalizeCaseForComparison(expandedPath)
   for (const home of PROJECT_CONFIG_DIR_NAMES) {
@@ -441,10 +437,8 @@ function editableInternalCategory(path: string): string | null {
   if (isSessionScratchpad(path)) return 'session scratchpad'
   const folded = normalizeCaseForComparison(path)
   const cwd = getOriginalCwd()
-  for (const home of ['.mercury', '.claude']) {
-    if (folded === normalizeCaseForComparison(joinWithSep(joinWithSep(cwd, home), 'launch.json'))) {
-      return 'preview launch config'
-    }
+  if (folded === normalizeCaseForComparison(joinWithSep(joinWithSep(cwd, MERCURY_PROJECT_DIR), 'launch.json'))) {
+    return 'preview launch config'
   }
   if (isPlanFilePath(folded)) return 'session plan file'
   if (isAgentMemory(path)) return 'agent-memory directory'
