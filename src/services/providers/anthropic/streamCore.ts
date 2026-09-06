@@ -225,6 +225,7 @@ import {
   firstByteTimeoutLine,
   requestWaitLine,
   retryReasonWords,
+  streamActivityFetchOptions,
   createStreamIdleWatchdog,
   streamEndReceiptLine,
   streamIdleTimeoutMs,
@@ -1092,6 +1093,7 @@ async function* queryModel(
   try {
     streamingPass: for (;;) {
     if (pulseMain) pulseStageStart('client_setup')
+    let noteTransportActivity: (() => void) | null = null
     const generator = withRetry(
       () =>
         getAnthropicClient({
@@ -1152,6 +1154,7 @@ async function* queryModel(
               {
                 signal,
                 timeout: wait.budgetMs,
+                fetchOptions: streamActivityFetchOptions(() => noteTransportActivity?.()) as never,
                 ...(clientRequestId && {
                   headers: { [CLIENT_REQUEST_ID_HEADER]: clientRequestId },
                 }),
@@ -1247,7 +1250,9 @@ async function* queryModel(
         releaseStreamResources()
       },
     })
+    noteTransportActivity = () => streamIdleWatchdog.noteActivity()
     function clearStreamIdleTimers(): void {
+      noteTransportActivity = null
       streamIdleWatchdog.stop()
     }
     function settledTailStands(): boolean {

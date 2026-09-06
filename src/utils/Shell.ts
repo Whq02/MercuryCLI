@@ -16,6 +16,8 @@ import { getPlatform } from './platform.js'
 import { SandboxManager } from './sandbox/sandbox-adapter.js'
 import { invalidateSessionEnvCache } from './sessionEnvironment.js'
 import { createBashShellProvider } from './shell/bashProvider.js'
+import { resolveShellEngine, runEngineCommand } from './shell/engineSession.js'
+import { getInitialSettings } from './settings/settings.js'
 import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { createPowerShellProvider } from './shell/powershellProvider.js'
 import type { ShellProvider, ShellType } from './shell/shellProvider.js'
@@ -152,6 +154,7 @@ export type ExecOptions = {
   preventCwdChanges?: boolean
   shouldUseSandbox?: boolean
   shouldAutoBackground?: boolean
+  backgroundIntent?: boolean
   onStdout?: (chunk: string) => void
 }
 
@@ -171,17 +174,43 @@ export async function exec(
 ): Promise<ShellCommand> {
   const timeout = options.timeout || DEFAULT_TIMEOUT_MS
 
-  const provider = await PROVIDER_TABLE[shellType]()
-
-  const invocationId = Math.floor(Math.random() * 0x10000)
-    .toString(16)
-    .padStart(4, '0')
-
   const sandboxTmpDir = posixPath.join(
     process.env.MERCURY_TMPDIR || '/tmp',
     getMercuryTempDirName(),
   )
   const useSandbox = options.shouldUseSandbox === true
+
+  if (shellType === 'bash' && options.onStdout === undefined && options.backgroundIntent !== true) {
+    const engine = resolveShellEngine(getInitialSettings().shellEngine)
+    if (engine.engine === 'brush') {
+      if (abortSignal.aborted) return createAbortedCommand()
+      return runEngineCommand(engine.binaryPath, command, {
+        timeout,
+        signal: abortSignal,
+        sandbox: useSandbox ? { enabled: true, tmpDir: sandboxTmpDir } : { enabled: false },
+        onProgress: options.onProgress,
+        onCwd: reported => {
+          if (options.preventCwdChanges) return
+          try {
+            const before = getCwd()
+            if (reported.normalize('NFC') !== before.normalize('NFC')) {
+              setCwd(reported, before)
+              invalidateSessionEnvCache()
+              void onCwdChangedForHooks(before, reported)
+            }
+          } catch (error) {
+            logForDebugging(`engine cwd tracking: the session directory stays put — ${errorMessage(error)}`)
+          }
+        },
+      })
+    }
+  }
+
+  const provider = await PROVIDER_TABLE[shellType]()
+
+  const invocationId = Math.floor(Math.random() * 0x10000)
+    .toString(16)
+    .padStart(4, '0')
 
   const built = await provider.buildExecCommand(
     command,
