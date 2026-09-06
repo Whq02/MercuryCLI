@@ -274,7 +274,7 @@ function failCli(message: string): never {
         session_id: getSessionId(),
         total_cost_usd: 0,
         usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
-        modelUsage: {},
+        model_usage: {},
         permission_denials: [],
         uuid: randomUUID(),
         errors: [message],
