@@ -216,3 +216,50 @@ export function noGhParagraph(i: NoGhParagraphInput): string {
       : 'The draft file could not be written (see the error log).'
   return `The issue was not filed: ${i.note} — ${i.remedy}. ${where} File it by hand at https://github.com/${i.slug}/issues.`
 }
+
+
+export const ISSUE_FORM_URL_CAP = 7250
+
+export const URL_CUT_NOTE = ' … (cut to fit the link; the local draft has the rest)'
+
+export function percentSafeCut(encoded: string, budget: number): string {
+  if (encoded.length <= budget) return encoded
+  let cut = encoded.slice(0, Math.max(0, budget))
+  const lastPercent = cut.lastIndexOf('%')
+  if (lastPercent > cut.length - 3) cut = cut.slice(0, lastPercent)
+  return cut
+}
+
+export function doctorPointer(bodyPath: string | null): string {
+  return bodyPath !== null
+    ? `paste the doctor --json block here from the local draft: ${bodyPath}`
+    : 'paste the output of `mercury doctor --json` here'
+}
+
+export interface IssueFormUrlInput {
+  slug: string
+  title: string
+  values: Readonly<Partial<Record<string, string>>>
+}
+
+export function issueFormUrl(form: IssueForm, input: IssueFormUrlInput): string {
+  const base = `https://github.com/${input.slug}/issues/new?template=${encodeURIComponent(form.template)}&title=${encodeURIComponent(input.title)}`
+  const entries = form.fields.map(field => ({
+    id: field.id,
+    words: field.source === 'words',
+    encoded: encodeURIComponent((input.values[field.id] ?? '').replace(/\r\n/g, '\n').trim()),
+  }))
+  const length = (): number => base.length + entries.reduce((n, e) => n + 1 + e.id.length + 1 + e.encoded.length, 0)
+  if (length() > ISSUE_FORM_URL_CAP) {
+    const note = encodeURIComponent(URL_CUT_NOTE)
+    const order = [...entries.filter(e => !e.words).reverse(), ...entries.filter(e => e.words)]
+    for (const entry of order) {
+      if (length() <= ISSUE_FORM_URL_CAP) break
+      const over = length() - ISSUE_FORM_URL_CAP
+      const keep = entry.encoded.length - over - note.length
+      if (keep > 0) entry.encoded = percentSafeCut(entry.encoded, keep) + note
+      else if (entry.encoded !== '') entry.encoded = entry.encoded.length > note.length ? note : ''
+    }
+  }
+  return `${base}${entries.map(e => `&${e.id}=${e.encoded}`).join('')}`
+}

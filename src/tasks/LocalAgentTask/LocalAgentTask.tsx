@@ -309,6 +309,19 @@ export const AGENT_RESUME_DOOR = 'resume it from the crew view (r on its row) or
 export const AGENT_RESUME_NOTE =
   'The operator resumed you from the crew view after a stop. Continue from where your transcript ends — the work before the stop stands; do not redo it.'
 
+export const AGENT_BUDGET_RESUME_NOTE =
+  'The recovery budget refilled and you were resumed by yourself after the provider throttled the run. Continue from where your transcript ends — the work before the cut stands; do not redo it.'
+
+export function enqueueAgentReceiptRow(args: { taskId: string; description: string; summary: string }): void {
+  const message = `<${TASK_NOTIFICATION_TAG}>
+<${TASK_ID_TAG}>${args.taskId}</${TASK_ID_TAG}>
+<${OUTPUT_FILE_TAG}>${getTaskOutputPath(args.taskId)}</${OUTPUT_FILE_TAG}>
+<${STATUS_TAG}>resumed</${STATUS_TAG}>
+<${SUMMARY_TAG}>${args.summary}</${SUMMARY_TAG}>
+</${TASK_NOTIFICATION_TAG}>`
+  enqueuePendingNotification({ value: message, mode: 'task-notification', priority: 'next' })
+}
+
 export function crewStillRunning(tasks: Record<string, unknown> | undefined): number {
   let n = 0
   for (const task of Object.values(tasks ?? {})) {
@@ -777,8 +790,8 @@ export function enqueueAgentNotification(args: {
     (args.status === 'completed'
       ? `Agent "${args.description}" completed`
       : args.status === 'failed'
-        ? `Agent "${args.description}" failed: ${args.error || 'unknown error'}${landed}`
-        : `Agent "${args.description}" was ${args.stopReason ?? 'stopped'}${landed} — its transcript stands; ${AGENT_RESUME_DOOR}`)
+        ? `Agent "${args.description}" failed: ${args.error || 'unknown error'}${landed} — its work is kept; ${AGENT_RESUME_DOOR}`
+        : `Agent "${args.description}" was ${args.stopReason ?? 'stopped'}${landed} — its work is kept; ${AGENT_RESUME_DOOR}`)
 
   const toolUseIdLine = args.toolUseId
     ? `\n<${TOOL_USE_ID_TAG}>${args.toolUseId}</${TOOL_USE_ID_TAG}>`

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -169,6 +169,19 @@ section('B5 no gh = the honest fallback (three exact arms)')
   check('the fallback is ONE paragraph: the note, the remedy, both paths, the issues page', !para.includes('\n') && para.includes('not signed in') && para.includes('gh auth login') && para.includes('/d/bug-1.json') && para.includes('/d/bug-1.md') && para.includes(`https://github.com/${PUBLIC_HOME}/issues`), para)
   const noFiles = forms.noGhParagraph({ note: 'n', remedy: 'r', slug: PUBLIC_HOME, draftPath: null, bodyPath: null })
   check('a refused draft write is said, still one paragraph', !noFiles.includes('\n') && noFiles.includes('could not be written'))
+
+  const bugYml = parseTemplate('bug_report.yml')
+  const roadValues: Record<string, string> = {}
+  for (const f of forms.ISSUE_FORMS.bug.fields) roadValues[f.id] = `words for ${f.id} & more`
+  const link = forms.issueFormUrl(forms.ISSUE_FORMS.bug, { slug: PUBLIC_HOME, title: '[bug] Pill missing', values: roadValues })
+  const parsedLink = new URL(link)
+  check('B5 the link opens the bug form by template in the public home, with the filed title', parsedLink.origin === 'https://github.com' && parsedLink.pathname === `/${PUBLIC_HOME}/issues/new` && parsedLink.searchParams.get('template') === 'bug_report.yml' && parsedLink.searchParams.get('title') === '[bug] Pill missing', link.slice(0, 120))
+  check('B5 every field id of the yml is a query key, in the yml order', [...parsedLink.searchParams.keys()].filter(k => k !== 'template' && k !== 'title').join(' · ') === bugYml.fields.map(f => f.id).join(' · '), [...parsedLink.searchParams.keys()].join(' · '))
+  check('B5 the values are encoded (an & inside a value survives the trip)', bugYml.fields.every(f => parsedLink.searchParams.get(f.id) === `words for ${f.id} & more`))
+  const longLink = forms.issueFormUrl(forms.ISSUE_FORMS.bug, { slug: PUBLIC_HOME, title: '[bug] long', values: { ...roadValues, steps: 'S'.repeat(3000), actual: 'A'.repeat(9000) } })
+  const parsedLong = new URL(longLink)
+  check('B5 a long report stays under the link cap and keeps the steps whole; the cut section says so', longLink.length <= forms.ISSUE_FORM_URL_CAP && parsedLong.searchParams.get('steps') === 'S'.repeat(3000) && (parsedLong.searchParams.get('actual') ?? '').endsWith(forms.URL_CUT_NOTE), String(longLink.length))
+  check('B5 the doctor field points at the local draft (the block is pasted by hand)', forms.doctorPointer('~/.mercury/feedback/bug-1.md').includes('paste the doctor --json block') && forms.doctorPointer('~/.mercury/feedback/bug-1.md').includes('~/.mercury/feedback/bug-1.md') && forms.doctorPointer(null).includes('doctor --json'))
   delete process.env.MERCURY_GH_CMD
   delete process.env.GH_SHIM_LOG
 }
@@ -454,6 +467,52 @@ if (!existsSync(BIN)) {
   check('B3 /feedback opens the three-row chooser with the yml names', chooser.includes('Feedback — which kind?') && forms.ISSUE_KINDS.every(k => chooser.includes(forms.ISSUE_FORMS[k].name)))
   const closed = pick.marks.closed ?? ''
   check('B3 esc on the chooser closes it and files nothing (no draft, no gh)', !closed.includes('Feedback — which kind?') && !existsSync(join(HOME_PICK, 'feedback')))
+
+  const HOME_ROAD = join(SCRATCH, 'home-road')
+  const roadGhLog = join(SCRATCH, 'gh-road.log')
+  const browserLog = join(SCRATCH, 'browser.log')
+  const fakeBrowser = join(SCRATCH, 'browser.sh')
+  writeFileSync(fakeBrowser, '#!/bin/sh\nprintf \'%s\\n\' "$1" >> "$BROWSER_LOG"\n')
+  chmodSync(fakeBrowser, 0o755)
+  const road = await capture(
+    'road',
+    HOME_ROAD,
+    [
+      { atTick: 60, awaitText: '↑↓ choose', minTick: WARM_TICKS, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 90, data: '/bug the jump pill never paints after PgUp', awaitText: 'Type a prompt', minTick: 5 },
+      { afterPrevTicks: 4, data: '\r' },
+      { atTick: 150, requireAwait: true, awaitText: 'Steps to reproduce', awaitStableTicks: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 170, requireAwait: true, awaitText: 'What you expected', awaitStableTicks: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 190, requireAwait: true, awaitText: 'What happened instead', awaitStableTicks: 3, awaitSettleTicks: 2, data: 'it stayed hidden' },
+      { afterPrevTicks: 3, data: '\r' },
+      { atTick: 400, requireAwait: true, awaitText: 'not signed in', awaitStableTicks: 3, awaitSettleTicks: 2, mark: 'unavailable', data: '\r' },
+      { atTick: 440, requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 3, mark: 'closed', data: '' },
+    ],
+    470,
+    { MERCURY_GH_CMD: fakeGhCmd, GH_SHIM_AUTH: 'fail', GH_SHIM_LOG: roadGhLog, BROWSER: fakeBrowser, BROWSER_LOG: browserLog },
+  )
+  check('the browser-road journey delivered every send', road.status === 0, `exit ${road.status}: ${road.tail.trim().slice(-300)}`)
+  const roadYml = parseTemplate('bug_report.yml')
+  const unavailable = road.marks.unavailable ?? ''
+  const stripped = unavailable.split('\n').map(l => l.replace(/^[│ ]+|[│ ]+$/g, ''))
+  const unavailableWords = stripped.join(' ').replace(/\s+/g, ' ')
+  const unavailableFlat = stripped.join('')
+  check('B5 the no-gh screen names the road: not signed in, the remedy, the issues page', unavailableWords.includes('not signed in') && unavailableWords.includes('gh auth login') && unavailableWords.includes('File it by hand'))
+  check('B5 the screen offers the prefilled form and says the doctor block and the transcript stay local', unavailableWords.includes('issue form prefilled') && unavailableWords.includes('stay in the local draft') && unavailableWords.includes('enter to open the prefilled form in your browser'), unavailableWords.slice(0, 400))
+  check('B5 the link is on screen in full: the template, the title and every field id', unavailableFlat.includes(`https://github.com/${PUBLIC_HOME}/issues/new?template=bug_report.yml&title=`) && roadYml.fields.every(f => unavailableFlat.includes(`&${f.id}=`)), unavailableFlat.slice(Math.max(0, unavailableFlat.indexOf('https://')), Math.max(0, unavailableFlat.indexOf('https://')) + 160))
+  const handedText = existsSync(browserLog) ? readFileSync(browserLog, 'utf8').trim() : ''
+  const handed = handedText.startsWith('https://') ? new URL(handedText.split('\n')[0]!) : null
+  check('B5 ↵ handed the link to the BROWSER handler once, nothing else opened', handedText.split('\n').filter(Boolean).length === 1 && handed !== null && handed.pathname === `/${PUBLIC_HOME}/issues/new` && handed.searchParams.get('template') === 'bug_report.yml', handedText.slice(0, 160))
+  check('B5 the link carries the words under steps, the answer under actual, the gathered version, and the doctor pointer', handed !== null && handed.searchParams.get('steps') === 'the jump pill never paints after PgUp' && handed.searchParams.get('actual') === 'it stayed hidden' && handed.searchParams.get('version') === `Mercury ${pkg.version}` && (handed.searchParams.get('doctor') ?? '').startsWith('paste the doctor --json block'), handed?.search.slice(0, 200))
+  check('B5 the link never spells the home directory', !handedText.includes(homedir()))
+  const roadGh = existsSync(roadGhLog) ? readFileSync(roadGhLog, 'utf8') : ''
+  check('B5 no gh issue create rode the browser road', !roadGh.includes('gh issue create'))
+  const closedRoad = road.marks.closed ?? ''
+  check('B5 the dialog closed back to the composer', closedRoad.includes('Type a prompt') && !closedRoad.includes('enter to open the prefilled form'))
+  const roadDir = join(HOME_ROAD, 'feedback')
+  const roadDrafts = existsSync(roadDir) ? readdirSync(roadDir).filter(f => f.startsWith('bug-') && f.endsWith('.json')) : []
+  const roadDraft = roadDrafts.length === 1 ? (JSON.parse(readFileSync(join(roadDir, roadDrafts[0]!), 'utf8')) as Record<string, unknown>) : null
+  check('B5 the local draft records the link (the copyable text) and no filed URL', roadDraft !== null && roadDraft.issue_form_url === handedText.split('\n')[0] && !('issue_url' in roadDraft), roadDrafts.join(','))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
