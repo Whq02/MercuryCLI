@@ -170,6 +170,7 @@ import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
 import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
+import { recordSentRequest } from '../utils/forkedAgent.js'
 import { evaluateCycleLease, renderHandoffReport } from '../services/run/cycleLease.js'
 import { getRunSnapshot, noteRunEvent } from '../services/run/runCoordinator.js'
 import { buildQueryConfig, type QueryConfig } from '../query/config.js'
@@ -540,11 +541,15 @@ async function* streamModel(
       try {
         let streamingFallbackOccured = false
         if (pulseMain) pulseMark('model_call_stream_start')
+        const requestMessages =
+          latestUserContextBody(iter.messagesForQuery) === null
+            ? prependUserContext(iter.messagesForQuery, run.userContext)
+            : iter.messagesForQuery
+        if (isTurnOwningQuerySource(run.querySource)) {
+          recordSentRequest(String(rosterOwnerFromToolUseContext(toolUseContext)), requestMessages)
+        }
         for await (const message of run.deps.callModel({
-          messages:
-            latestUserContextBody(iter.messagesForQuery) === null
-              ? prependUserContext(iter.messagesForQuery, run.userContext)
-              : iter.messagesForQuery,
+          messages: requestMessages,
           systemPrompt: iter.fullSystemPrompt,
           thinkingConfig: toolUseContext.options.thinkingConfig,
           tools: toolUseContext.options.tools,

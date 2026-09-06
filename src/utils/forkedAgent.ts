@@ -106,6 +106,48 @@ export function createCacheSafeParams(hookContext: REPLHookContext): CacheSafePa
 }
 
 
+const sentRequests = new Map<string, Message[]>()
+const SENT_REQUESTS_CAP = 32
+
+export function recordSentRequest(ownerKey: string, messages: readonly Message[]): void {
+  sentRequests.delete(ownerKey)
+  sentRequests.set(ownerKey, [...messages])
+  while (sentRequests.size > SENT_REQUESTS_CAP) {
+    const oldest = sentRequests.keys().next().value
+    if (oldest === undefined) break
+    sentRequests.delete(oldest)
+  }
+}
+
+export function lastSentRequestFor(ownerKey: string): Message[] | null {
+  return sentRequests.get(ownerKey) ?? null
+}
+
+export function resetSentRequestsForTests(): void {
+  sentRequests.clear()
+}
+
+export function continuationOfSentRequest(
+  sent: readonly Message[] | null,
+  current: readonly Message[],
+): { sent: Message[]; tail: Message[] } | null {
+  if (sent === null || sent.length === 0) return null
+  const present = new Set(current.map(row => row.uuid))
+  let index = 0
+  for (const row of sent) {
+    const head = current[index]
+    if (head !== undefined && head.uuid === row.uuid) {
+      index++
+      continue
+    }
+    const minted = row.type === 'user' && row.isMeta === true && !present.has(row.uuid)
+    if (minted) continue
+    return null
+  }
+  return { sent: [...sent], tail: current.slice(index) }
+}
+
+
 export function createGetAppStateWithAllowedTools(
   baseGetAppState: () => AppState,
   allowedTools: string[],
