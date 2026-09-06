@@ -188,9 +188,11 @@ export function toBridgeMessages(
   messages: Message[],
   querySource: Options['querySource'],
   targetModelId: string,
-): { rows: BridgeMessage[]; reconstructedGptTurns: number } {
+): { rows: BridgeMessage[]; reconstructedGptTurns: number; foreignRecordsDropped: number; foreignRecordModels: string[] } {
   const out: BridgeMessage[] = []
   const target = targetModelId.trim().toLowerCase()
+  let foreignRecordsDropped = 0
+  const foreignRecordModels = new Set<string>()
   const gptTurnIds = new Set<string>()
   const recordedTurnIds = new Set<string>()
   const settledTurnIds = new Set<string>()
@@ -209,6 +211,10 @@ export function toBridgeMessages(
       const servedModel = typeof m.message.model === 'string' ? m.message.model : ''
       const sameModel = servedModel.trim().toLowerCase() === target
       const record = decoded && sameModel ? decoded : undefined
+      if (decoded && !sameModel) {
+        foreignRecordsDropped += 1
+        foreignRecordModels.add(servedModel.trim() === '' ? 'an unnamed model' : servedModel.trim())
+      }
       const turnKey = typeof m.message.id === 'string' ? m.message.id : m.uuid
       if (servedModel.toLowerCase().startsWith('gpt')) gptTurnIds.add(turnKey)
       if (decoded) recordedTurnIds.add(turnKey)
@@ -225,10 +231,11 @@ export function toBridgeMessages(
   for (const id of gptTurnIds) {
     if (settledTurnIds.has(id) && !recordedTurnIds.has(id)) reconstructed += 1
   }
-  return { rows: out, reconstructedGptTurns: reconstructed }
+  return { rows: out, reconstructedGptTurns: reconstructed, foreignRecordsDropped, foreignRecordModels: [...foreignRecordModels] }
 }
 
 const reconstructionNoted = new Set<string>()
+const foreignRecordNoted = new Set<string>()
 
 function activeApexRole(options: Options): ApexGptRole {
   if (options.querySource === 'concourse_coordinator') return 'coordinator'
@@ -454,6 +461,12 @@ export async function* openaiCallModel(
     reconstructionNoted.add(threadKey)
     settlementNotes.push(
       `[openai] reconstructed continuation: ${bridge.reconstructedGptTurns} earlier GPT turn(s) predate reasoning capture — their content replays from the Mercury transcript (benign; new turns record full replay items).`,
+    )
+  }
+  if (bridge.foreignRecordsDropped > 0 && !foreignRecordNoted.has(threadKey)) {
+    foreignRecordNoted.add(threadKey)
+    settlementNotes.push(
+      `[openai] ${bridge.foreignRecordsDropped} reasoning replay record(s) minted under ${bridge.foreignRecordModels.join(', ')} stay off this ${modelId} request — a replay is bound to the model that minted it; their content replays from the Mercury transcript.`,
     )
   }
 
