@@ -88,7 +88,7 @@ section('§1 — dialect readers · step clock · scorer arithmetic')
     { type: 'assistant', message: { id: 'm3', content: [{ type: 'tool_use', id: 't3', name: 'Read', input: { a: 1 } }] } },
     { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't3', content: 'Permission for this action has been denied.' }] } },
     { type: 'user', message: { role: 'user', content: 'z'.repeat(800) } },
-    { type: 'user', isReplay: true, message: { role: 'user', content: 'the operator prompt' } },
+    { type: 'user', is_replay: true, message: { role: 'user', content: 'the operator prompt' } },
     { type: 'assistant', message: { content: [{ type: 'text', text: 'done.' }] } },
     { type: 'result', subtype: 'success', num_turns: 4, result: 'done.', permission_denials: [{ tool_name: 'Read' }], usage: { input_tokens: 1 } },
   ]

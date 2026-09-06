@@ -238,6 +238,7 @@ section('§C the completion (poison: a second road to resolved; a resolved recor
 
   const seat = await import('../../src/daemon/sessionSeat.ts')
   const { readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { sessionKitToWire } = await import('../../src/services/engine-connector/seatWire.ts')
   const DAEMON_DIR = process.env.MERCURY_DAEMON_DIR
   const SID = '22222222-3333-4444-8555-666666666666'
   updateConcourseWorkers(workers => {
@@ -263,14 +264,14 @@ section('§C the completion (poison: a second road to resolved; a resolved recor
         request_id: 'mercury-session-facts-w-kit-1',
         response: {
           model: { effective: 'test-model', setting: null },
-          usage: { totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false },
-          identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null },
+          usage: { total_cost_usd: 0, total_api_duration_ms: 0, total_duration_ms: 0, total_lines_added: 0, total_lines_removed: 0, total_input_tokens: 0, total_output_tokens: 0, total_cache_read_input_tokens: 0, total_cache_creation_input_tokens: 0, has_unknown_model_cost: false },
+          identity: { first_party_api: false, console_billing: false, claude_ai_billing: false, account_email: null },
           skills: [],
           mcp: [],
-          permissionMode: 'flow',
-          workspace: { cwd: PROJECT, originalCwd: PROJECT, projectRoot: PROJECT, instructionRoots: [] },
+          permission_mode: 'flow',
+          workspace: { cwd: PROJECT, original_cwd: PROJECT, project_root: PROJECT, instruction_roots: [] },
           queue: [],
-          ...(kit !== undefined ? { kit } : {}),
+          ...(kit !== undefined ? { kit: sessionKitToWire(kit as never) } : {}),
         },
       },
     })

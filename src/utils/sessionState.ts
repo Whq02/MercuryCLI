@@ -13,10 +13,8 @@ export type RequiresActionDetails = {
 
 export type SessionExternalMetadata = {
   permission_mode?: string | null
-  is_ultraplan_mode?: boolean | null
   model?: string | null
   pending_action?: RequiresActionDetails | null
-  post_turn_summary?: unknown | null
   task_summary?: string | null
 }
 

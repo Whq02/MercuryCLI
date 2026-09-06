@@ -806,13 +806,13 @@ console.log('§T the facts-borne road')
   }
   const answer = {
     model: { effective: 'claude-opus-5', setting: null },
-    usage: { totalCostUSD: 0 },
+    usage: { total_cost_usd: 0 },
     skills: [],
     mcp: [],
-    permissionMode: 'flow',
-    workspace: { cwd: '/scratch/repo', originalCwd: '/scratch/repo', projectRoot: '/scratch/repo', instructionRoots: [] },
+    permission_mode: 'flow',
+    workspace: { cwd: '/scratch/repo', original_cwd: '/scratch/repo', project_root: '/scratch/repo', instruction_roots: [] },
     queue: [],
-    pendingScheduleEdits: [
+    pending_schedule_edits: [
       { op: 'add', schedule: { when: { kind: 'every', cron: '0 8 * * *', spelling: 'every day 08:00' }, action: { kind: 'fire', prompt: 'stand-up notes' } } },
       { op: 'bogus-op' },
     ],

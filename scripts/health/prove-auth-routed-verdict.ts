@@ -131,7 +131,7 @@ section('§4 auth status --json: per-family rows, frozen fields, routed exit')
   )
   check('the routed family is named', engineRouted.json?.routedProvider === 'deepseek', String(engineRouted.json?.routedProvider))
   check('the DeepSeek row reads present', providers.find(p => p.id === 'deepseek')?.present === true)
-  check('the frozen Anthropic fields are retained', 'loggedIn' in (engineRouted.json ?? {}) && 'authMethod' in (engineRouted.json ?? {}) && engineRouted.json?.apiProvider === 'firstParty')
+  check('the frozen Anthropic fields are retained, and no constant provider field rides beside them', 'loggedIn' in (engineRouted.json ?? {}) && 'authMethod' in (engineRouted.json ?? {}) && !('apiProvider' in (engineRouted.json ?? {})))
   check('the exit answers for the ROUTED family (present ⇒ 0, Anthropic ladder empty or not)', engineRouted.status === 0, `status=${engineRouted.status}`)
 
   const engineMissing = run(['auth', 'status', '--json'], {

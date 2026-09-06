@@ -7,8 +7,14 @@ import {
   type SessionFactsV1,
   type SessionProgressEntryV1,
 } from '../services/engine-connector/seatProjections.js'
-import { decodeRequestWait, type RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
-import { decodeFoldStatus, type FoldStatusV1 } from '../services/compact/foldStatus.js'
+import {
+  rewindOutcomeFromWire,
+  scheduleRosterToWire,
+  sessionFactsFromWire,
+  sessionKitToWire,
+} from '../services/engine-connector/seatWire.js'
+import { decodeRequestWait, requestWaitFromWire, type RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
+import { decodeFoldStatus, foldStatusFromWire, type FoldStatusV1 } from '../services/compact/foldStatus.js'
 import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
 import { readSessionWorkers, reviveConcourseWorker, updateConcourseWorkers, workerPidAlive, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
@@ -495,7 +501,7 @@ export function pushScheduleRoster(short: string, roster: SeatRosterPort, dir?: 
     JSON.stringify({
       type: 'control_request',
       request_id: verbRequestId(short, 'schedule-roster'),
-      request: { subtype: 'schedule_roster', schedules: saturnFactsOf(rec, Date.now()).schedules ?? [] },
+      request: { subtype: 'schedule_roster', schedules: scheduleRosterToWire(saturnFactsOf(rec, Date.now()).schedules ?? []) },
     }),
   )
 }
@@ -544,23 +550,6 @@ function maybeResolveSessionKit(short: string, answer: SessionFactsAnswerV1, dir
   }
 }
 
-function isFactsAnswer(raw: unknown): raw is SessionFactsAnswerV1 {
-  const r = raw as Partial<SessionFactsAnswerV1> | null
-  return (
-    !!r &&
-    typeof r === 'object' &&
-    !!r.model &&
-    typeof r.model.effective === 'string' &&
-    !!r.usage &&
-    typeof r.usage.totalCostUSD === 'number' &&
-    Array.isArray(r.skills) &&
-    Array.isArray(r.mcp) &&
-    typeof r.permissionMode === 'string' &&
-    !!r.workspace &&
-    Array.isArray(r.queue)
-  )
-}
-
 export function onSeatLine(short: string, line: string, roster: SeatRosterPort, dir?: string): void {
   if (line.includes('"stream_event"')) {
     const seat = seatOf(short)
@@ -590,16 +579,17 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
         response?: { subtype?: string; request_id?: string; response?: unknown }
       }
       const response = frame.response
-      if (
+      const answer =
         frame.type === 'control_response' &&
         response?.subtype === 'success' &&
         typeof response.request_id === 'string' &&
-        response.request_id.startsWith(SESSION_FACTS_REQUEST_PREFIX) &&
-        isFactsAnswer(response.response)
-      ) {
-        seatOf(short).lastAnswer = response.response
-        maybeResolveSessionKit(short, response.response, dir)
-        applySessionScheduleAnswer(short, response.response, roster, dir)
+        response.request_id.startsWith(SESSION_FACTS_REQUEST_PREFIX)
+          ? sessionFactsFromWire(response.response)
+          : null
+      if (answer !== null) {
+        seatOf(short).lastAnswer = answer
+        maybeResolveSessionKit(short, answer, dir)
+        applySessionScheduleAnswer(short, answer, roster, dir)
         publishSeatFacts(short, dir, roster)
         armWorkPoll(short, roster)
       }
@@ -674,7 +664,7 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
         if (seat.sessionId === null) seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
         if (frame.status !== null && typeof frame.status === 'object' && 'wait' in (frame.status as object)) {
           const raw = (frame.status as { wait?: unknown }).wait
-          const next = decodeRequestWait(raw)
+          const next = decodeRequestWait(requestWaitFromWire(raw))
           noteSeatEvent(seat, dir)
           if (JSON.stringify(seat.wait) !== JSON.stringify(next)) {
             seat.wait = next
@@ -682,8 +672,8 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
           }
           return
         }
-        const statusObject = frame.status !== null && typeof frame.status === 'object' ? (frame.status as { waitingOnAgents?: unknown; compacting?: unknown }) : null
-        const waiting = statusObject?.waitingOnAgents
+        const statusObject = frame.status !== null && typeof frame.status === 'object' ? (frame.status as { waiting_on_agents?: unknown; compacting?: unknown }) : null
+        const waiting = statusObject?.waiting_on_agents
         const foldStamped = statusObject !== null && 'compacting' in statusObject
         const next =
           frame.status === 'compacting' || foldStamped
@@ -692,7 +682,7 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
               ? ('waiting-on-agents' as const)
               : null
         const count = next === 'waiting-on-agents' ? Math.floor(waiting as number) : 0
-        const fold = foldStamped ? decodeFoldStatus(statusObject.compacting) : null
+        const fold = foldStamped ? decodeFoldStatus(foldStatusFromWire(statusObject.compacting)) : null
         noteSeatEvent(seat, dir)
         const foldMoved = JSON.stringify(seat.fold) !== JSON.stringify(fold)
         if (seat.stateWord !== next || seat.waitingOnAgents !== count || foldMoved) {
@@ -834,14 +824,6 @@ function refusedRewind(mode: SessionRewindMode, refusal: NonNullable<SessionRewi
   return { outcome: 'refused', mode, refusal, detail }
 }
 
-function isRewindOutcome(value: unknown): value is SessionRewindOutcomeV1 {
-  if (!value || typeof value !== 'object') return false
-  const v = value as { outcome?: unknown; mode?: unknown }
-  return (
-    (v.outcome === 'applied' || v.outcome === 'refused' || v.outcome === 'noop') &&
-    (v.mode === 'code' || v.mode === 'conversation' || v.mode === 'both')
-  )
-}
 
 export function rewindSession(
   sessionId: string,
@@ -898,8 +880,9 @@ function settleRewindAnswer(frame: { type?: string; response?: { subtype?: strin
   if (frame.type !== 'control_response' || !response || typeof response.request_id !== 'string') return false
   const waiter = rewindWaiters.get(response.request_id)
   if (waiter === undefined) return false
-  if (response.subtype === 'success' && isRewindOutcome(response.response)) {
-    waiter.settle(response.response)
+  const outcome = response.subtype === 'success' ? rewindOutcomeFromWire(response.response) : null
+  if (outcome !== null) {
+    waiter.settle(outcome)
     return true
   }
   const error = typeof response.error === 'string' && response.error !== '' ? response.error : 'the runner refused the rewind'
@@ -1324,7 +1307,7 @@ function forwardSessionKit(short: string, roster: SeatRosterPort, dir?: string):
     JSON.stringify({
       type: 'control_request',
       request_id: verbRequestId(short, 'kit-edit'),
-      request: { subtype: 'kit_edit', kit: rec.kit },
+      request: { subtype: 'kit_edit', kit: sessionKitToWire(rec.kit) },
     }),
   )
 }

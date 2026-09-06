@@ -32,16 +32,7 @@ export function onChangeAppState({
     const newExternal = toExternalPermissionMode(newMode)
     const oldExternal = toExternalPermissionMode(oldMode)
     if (newExternal !== oldExternal) {
-      const ultraplanIndicator =
-        newMode === 'strategy' &&
-        newState.isUltraplanMode === true &&
-        oldState.isUltraplanMode !== true
-          ? true
-          : null
-      notifySessionMetadataChanged({
-        permission_mode: newExternal,
-        is_ultraplan_mode: ultraplanIndicator,
-      })
+      notifySessionMetadataChanged({ permission_mode: newExternal })
     }
     notifyPermissionModeChanged(newMode)
   }
@@ -117,11 +108,6 @@ export function externalMetadataToAppState(
           ...next,
           toolPermissionContext: { ...next.toolPermissionContext, mode },
         }
-      }
-    }
-    if (typeof metadata.is_ultraplan_mode === 'boolean') {
-      if (next.isUltraplanMode !== metadata.is_ultraplan_mode) {
-        next = { ...next, isUltraplanMode: metadata.is_ultraplan_mode }
       }
     }
     return next
