@@ -133,7 +133,6 @@ src/services/mcp/client.ts :: fetchToolsForClientMemo :: invalidator=transport.o
 src/services/mcp/client.ts :: needsAuthReadMemo :: invalidator=clearMcpAuthCache
 src/services/mission/harnessApplication.ts :: liveEpochMemo :: keyed-by-truth
 src/services/mission/harnessProfiles.ts :: resolutionCache :: keyed-by-truth
-src/services/policyLimits/index.ts :: sessionCache :: static-for-process
 src/services/privateChannel/installProvenance.ts :: memoized :: static-for-process
 src/services/providers/deferralProbe.ts :: cache :: keyed-by-truth
 src/services/providers/gemini/geminiCatalogue.ts :: catalogueCache :: ttl-bounded
@@ -144,7 +143,6 @@ src/services/providers/openai/qualificationStore.ts :: wireMemoryCache :: ttl-bo
 src/services/providers/openrouter/openrouterCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/providerUsage.ts :: activeUsageCache :: ttl-bounded
 src/services/providers/providerUsage.ts :: otherUsagesCache :: ttl-bounded
-src/services/remoteManagedSettings/syncCacheState.ts :: sessionCache :: subscription-fed
 src/services/repoHost/repoHost.ts :: cache :: ttl-bounded
 src/services/saturn/sessionScheduleBridge.ts :: rosterCache :: subscription-fed
 src/services/schema/jsonSchemaEngine.ts :: compileCache :: keyed-by-truth
@@ -169,7 +167,6 @@ src/tools/SyntheticOutputTool/SyntheticOutputTool.ts :: schemaBoundCache :: keye
 src/tools/ToolSearchTool/ToolSearchTool.ts :: deferredSetCacheKey :: keyed-by-truth
 src/tools/ToolSearchTool/ToolSearchTool.ts :: getToolDescriptionMemoized :: keyed-by-truth
 src/tools/ToolSearchTool/cooccurPrior.ts :: tableCache :: static-for-process
-src/tools/WebFetchTool/utils.ts :: domainCheckCache :: ttl-bounded
 src/tools/WebFetchTool/utils.ts :: urlCache :: ttl-bounded
 src/tools/WorkflowTool/runManifest.ts :: manifestParseCache :: keyed-by-truth
 src/tools/WorkflowTool/structuredOutputTool.ts :: boundToolCache :: keyed-by-truth
@@ -212,7 +209,6 @@ src/utils/env.ts :: detectDeploymentEnvironment :: static-for-process
 src/utils/env.ts :: getGlobalMercuryFile :: static-for-process
 src/utils/env.ts :: getPackageManagers :: static-for-process
 src/utils/env.ts :: getRuntimes :: static-for-process
-src/utils/env.ts :: hasInternetAccess :: static-for-process
 src/utils/env.ts :: isNpmFromWindowsPath :: static-for-process
 src/utils/env.ts :: isRunningWithBun :: static-for-process
 src/utils/env.ts :: isWslEnvironment :: static-for-process

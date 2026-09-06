@@ -11,7 +11,7 @@ import type { Screen } from '../../screens/REPL.js'
 import { EMPTY_STRING_SET } from '../../utils/messages.js'
 import { liveGlyphsEnabled, WORK_TICK_MS } from '../../utils/cockpit/liveGlyphs.js'
 import { hasContentAfterIndex, MessageRow } from '../MessageRow.js'
-import { SentryErrorBoundary } from '../SentryErrorBoundary.js'
+import { RowErrorBoundary } from '../RowErrorBoundary.js'
 import { controlNoteOf, type ControlNoteState } from './contracts.js'
 import { isAssistantContinuationRow } from '../Messages.js'
 import {
@@ -336,7 +336,7 @@ export function SessionMirror({
                 >
                   {
 }
-                  <SentryErrorBoundary>
+                  <RowErrorBoundary>
                   <MessageRow
                     message={m}
                     isUserContinuation={m.type === 'user' && derived.collapsed[i - 1]?.type === 'user'}
@@ -362,7 +362,7 @@ export function SessionMirror({
                     isLoading={turnLive}
                     lookups={derived.lookups}
                   />
-                  </SentryErrorBoundary>
+                  </RowErrorBoundary>
                 </NameplateContinuationContext.Provider>
               ))}
             </ScrollBox>

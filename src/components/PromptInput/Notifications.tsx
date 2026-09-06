@@ -37,7 +37,7 @@ import { formatDuration, formatNumber } from '../../utils/format.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
 import { calculateTokenWarningState } from '../../services/compact/autoCompact.js'
-import { SentryErrorBoundary } from '../SentryErrorBoundary.js'
+import { RowErrorBoundary } from '../RowErrorBoundary.js'
 import { IdeStatusIndicator } from '../IdeStatusIndicator.js'
 import { TokenWarning } from '../TokenWarning.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
@@ -255,8 +255,8 @@ export function Notifications(props: {
   alignStart?: boolean
 }): React.ReactNode {
   return (
-    <SentryErrorBoundary>
+    <RowErrorBoundary>
       <NotificationsColumn {...props} />
-    </SentryErrorBoundary>
+    </RowErrorBoundary>
   )
 }

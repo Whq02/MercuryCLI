@@ -6,8 +6,6 @@ import { CommandCenter } from '../../components/mercury-ui/components.js'
 import { resetCostState } from '../../bootstrap/state.js'
 import { useAppState } from '../../state/AppState.js'
 import { refreshFeatureGates } from '../../services/analytics/featureGates.js'
-import { refreshPolicyLimits } from '../../services/policyLimits/index.js'
-import { refreshRemoteManagedSettings } from '../../services/remoteManagedSettings/index.js'
 import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
@@ -66,8 +64,6 @@ export function Login({
 
 async function runPostLoginRefresh(context: LocalJSXCommandContext): Promise<void> {
   resetCostState()
-  void refreshRemoteManagedSettings().catch(logError)
-  void refreshPolicyLimits().catch(logError)
   resetUserCache()
   await refreshFeatureGates()
   resetBypassPermissionsCheck()

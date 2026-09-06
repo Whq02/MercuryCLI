@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/bootstrap/state* src/services/remoteManagedSettings/syncCacheState*
+# gate-watch: src/bootstrap/state*
 # gate-watch: src/utils/settings/**
 # gate-watch: src/migrations/**
 # gate-watch: src/components/Settings/** src/services/providers/providerUsage* src/commands/usage/**

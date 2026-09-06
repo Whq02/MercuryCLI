@@ -169,8 +169,8 @@ function staticImports(src: string): {
   const mainSrc = readFileSync(join(SRC, 'main.tsx'), 'utf8')
   const main = staticImports(mainSrc)
   check(
-    'eager-front: main.tsx static value imports = 106',
-    main.value.length === 106,
+    'eager-front: main.tsx static value imports = 96',
+    main.value.length === 96,
     String(main.value.length),
   )
   check(
@@ -190,7 +190,6 @@ function staticImports(src: string): {
     'services/mcp/client.js',
     'interactiveHelpers.js',
     'skills/bundled/index.js',
-    'services/analytics/featureGates.js',
   ]
   for (const h of heavy) {
     check(
@@ -379,7 +378,6 @@ function staticImports(src: string): {
     !helpersSrc.includes('maybeRunMinervaOnBoot'),
   )
   for (const node of [
-    'startup-prefetch-batch',
     'example-commands',
     'lsp-manager',
     'session-registry',

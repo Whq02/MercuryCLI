@@ -911,15 +911,11 @@ export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLogin
     if (given !== undefined) return;
     void (async () => {
       try {
-        const [managed, limits, user, gates, killswitch] = await Promise.all([
-          import('../services/remoteManagedSettings/index.js'),
-          import('../services/policyLimits/index.js'),
+        const [user, gates, killswitch] = await Promise.all([
           import('../utils/user.js'),
           import('../services/analytics/featureGates.js'),
           import('../utils/permissions/bypassPermissionsKillswitch.js'),
         ]);
-        void managed.refreshRemoteManagedSettings().catch(() => {});
-        void limits.refreshPolicyLimits().catch(() => {});
         user.resetUserCache();
         await gates.refreshFeatureGates().catch(() => {});
         killswitch.resetBypassPermissionsCheck();

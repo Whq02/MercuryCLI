@@ -2,11 +2,9 @@ import { OAUTH_BETA_HEADER } from '../constants/oauth.js'
 import {
   getAnthropicApiKey,
   getClaudeAIOAuthTokens,
-  handleOAuth401Error,
   isClaudeAISubscriber,
 } from './auth.js'
 import { getWorkload } from './workloadContext.js'
-import { isRevokedSignInText } from '../services/providers/credentialWall.js'
 
 
 export function getUserAgent(): string {
@@ -73,39 +71,4 @@ export function getAuthHeaders(): AuthHeaders {
     return { headers: {}, error: 'No API key available' }
   }
   return { headers: { 'x-api-key': apiKey } }
-}
-
-
-function isHttpClientError(error: unknown): error is {
-  isAxiosError: true
-  response?: { status?: number; data?: unknown }
-} {
-  return (
-    error !== null &&
-    typeof error === 'object' &&
-    (error as { isAxiosError?: unknown }).isAxiosError === true
-  )
-}
-
-export async function withOAuth401Retry<T>(
-  request: () => Promise<T>,
-  opts?: { also403Revoked?: boolean },
-): Promise<T> {
-  try {
-    return await request()
-  } catch (error) {
-    if (!isHttpClientError(error)) throw error
-    const status = error.response?.status
-    const is401 = status === 401
-    const isRevoked403 =
-      opts?.also403Revoked === true &&
-      status === 403 &&
-      typeof error.response?.data === 'string' &&
-      isRevokedSignInText(error.response.data)
-    if (!is401 && !isRevoked403) throw error
-    const tokens = getClaudeAIOAuthTokens()
-    if (!tokens?.accessToken) throw error
-    await handleOAuth401Error(tokens.accessToken)
-    return await request()
-  }
 }

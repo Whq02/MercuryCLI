@@ -5,7 +5,6 @@ import { memoize } from 'lodash-es'
 
 import { fileSuffixForOauthConfig } from '../constants/oauth.js'
 import { getMercuryHome, isEnvTruthy } from './envUtils.js'
-import { createAxiosInstance } from './proxy.js'
 import { whichSync } from './which.js'
 
 
@@ -198,14 +197,6 @@ export const env = {
   }),
   isConductor: (): boolean => process.env.__CFBundleIdentifier === CONDUCTOR_BUNDLE_ID,
   detectDeploymentEnvironment,
-  hasInternetAccess: memoize(async (): Promise<boolean> => {
-    try {
-      await createAxiosInstance().head('http://1.1.1.1', { timeout: 1000 })
-      return true
-    } catch {
-      return false
-    }
-  }),
 }
 
 export function getHostPlatformForAnalytics(): 'win32' | 'darwin' | 'linux' {
