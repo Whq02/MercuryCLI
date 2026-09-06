@@ -211,7 +211,7 @@ export function localTranscriberRead(): LocalTranscriberRead {
   const pack = resolveWhisperPackDir()
   if (pack.state === 'unavailable') {
     const pinned = pack.note.startsWith('MERCURY_WHISPER_PACK_DIR')
-    if (pinned) return { state: 'absent', reason: 'pin', note: pack.note, short: 'on-device pack pin broken (see /speak)' }
+    if (pinned) return { state: 'absent', reason: 'pin', note: pack.note, short: 'on-device pack pin broken' }
     const checkout = voiceCheckoutRoot() !== null
     return { state: 'absent', reason: 'pack', note: whisperPackAbsentNote(), short: checkout ? 'no on-device pack (bun run setup)' : 'no on-device pack in this build' }
   }
@@ -221,13 +221,13 @@ export function localTranscriberRead(): LocalTranscriberRead {
       state: 'absent',
       reason: 'cpu',
       note: `this CPU lacks ${floor.missing.map(f => f.toUpperCase()).join(', ')} — the on-device transcriber needs ${whisperCpuFloorWords()}`,
-      short: 'this CPU is below the on-device floor',
+      short: 'CPU below the on-device floor',
     }
   }
   const model = checkWhisperModel()
-  if (model.state === 'broken') return { state: 'absent', reason: 'pin', note: model.note, short: 'on-device model pin broken (see /speak)' }
-  if (model.state === 'absent') return { state: 'absent', reason: 'model', note: model.note, short: 'no on-device model (/speak download)', download: model.row }
-  if (model.state === 'mismatch') return { state: 'absent', reason: 'model', note: `pack present, model damaged: ${model.note}`, short: 'on-device model damaged (/speak download)' }
+  if (model.state === 'broken') return { state: 'absent', reason: 'pin', note: model.note, short: 'on-device model pin broken' }
+  if (model.state === 'absent') return { state: 'absent', reason: 'model', note: model.note, short: 'on-device model: /speak download', download: model.row }
+  if (model.state === 'mismatch') return { state: 'absent', reason: 'model', note: `pack present, model damaged: ${model.note}`, short: 'damaged model: /speak download' }
   const where = pack.source === 'workspace' ? 'the checkout' : pack.source === 'override' ? 'MERCURY_WHISPER_PACK_DIR' : 'beside the bundle'
   return {
     state: 'ok',
