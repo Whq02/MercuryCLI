@@ -469,6 +469,7 @@ function parseCheck(binaryPath: string, command: string): Promise<{ ok: boolean;
     let child: ChildProcess
     try {
       child = spawn(binaryPath, [...ENGINE_FLAGS, '-n', '-c', command], {
+        env: subprocessEnv(),
         stdio: ['ignore', 'ignore', 'pipe'],
         windowsHide: true,
       })
