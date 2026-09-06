@@ -143,7 +143,6 @@ src/services/providers/openai/qualificationStore.ts :: wireMemoryCache :: ttl-bo
 src/services/providers/openrouter/openrouterCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/providerUsage.ts :: activeUsageCache :: ttl-bounded
 src/services/providers/providerUsage.ts :: otherUsagesCache :: ttl-bounded
-src/services/remoteManagedSettings/syncCacheState.ts :: sessionCache :: subscription-fed
 src/services/repoHost/repoHost.ts :: cache :: ttl-bounded
 src/services/saturn/sessionScheduleBridge.ts :: rosterCache :: subscription-fed
 src/services/schema/jsonSchemaEngine.ts :: compileCache :: keyed-by-truth

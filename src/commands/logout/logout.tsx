@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { Text } from '../../ink.js'
 import { refreshFeatureGates } from '../../services/analytics/featureGates.js'
-import { clearRemoteManagedSettingsCache } from '../../services/remoteManagedSettings/index.js'
 import { revokeOAuthToken } from '../../services/oauth/client.js'
 import {
   clearOAuthTokenCache,
@@ -26,7 +25,6 @@ export async function clearAuthRelatedCaches(): Promise<void> {
   clearToolSchemaCache()
   resetUserCache()
   await refreshFeatureGates()
-  await clearRemoteManagedSettingsCache()
 }
 
 export async function performLogout({

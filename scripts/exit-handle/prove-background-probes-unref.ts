@@ -19,8 +19,7 @@ check('the agent unrefs every socket it opens (createConnection → unref)', /ov
 
 console.log('§2 the probes')
 check('no policy-limits service exists (no boot-time organisation probe)', !existsSync(join(REPO, 'src/services/policyLimits')))
-const managed = read('src/services/remoteManagedSettings/index.ts')
-check('managed settings rides the background agent', /httpsAgent: backgroundHttpsAgent\(\)/.test(managed) && /import \{ backgroundHttpsAgent \} from '\.\.\/\.\.\/utils\/proxy\.js'/.test(managed))
+check('no remote managed-settings service exists (no boot-time settings fetch)', !existsSync(join(REPO, 'src/services/remoteManagedSettings')))
 const rg = read('src/utils/ripgrep.ts')
 check(
   'the ripgrep file-count probe unrefs its child and its pipe the moment they exist (a count never holds the exit cliff)',

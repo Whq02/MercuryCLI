@@ -52,7 +52,6 @@ import {
   isCoordinationServerEnabled,
   COORDINATION_SERVER_NAME,
 } from './services/mcp/coordinationServer.js'
-import { loadRemoteManagedSettings } from './services/remoteManagedSettings/index.js'
 import { clearBootAttempts } from './substrate/bootBeacon.js'
 import { addBootNote, collectLauncherNotes } from './substrate/bootNotes.js'
 import { flagEnv } from './substrate/flagRegistry.js'
@@ -688,8 +687,6 @@ async function run(): Promise<void> {
     }
     runMigrationsIfNeeded()
     profileCheckpoint('preAction_after_migrations')
-    void loadRemoteManagedSettings().catch(() => {})
-    profileCheckpoint('preAction_after_remote_settings')
   })
 
   program.action(async (prompt: string | undefined) => {
@@ -1789,7 +1786,6 @@ async function interactiveLaunch(args: {
     inputPrompt = undefined
   }
   if (onboardingShown) {
-    void loadRemoteManagedSettings().catch(() => {})
     resetUserCache()
     const { refreshFeatureGates } = await import('./services/analytics/featureGates.js')
     await refreshFeatureGates().catch(() => {})

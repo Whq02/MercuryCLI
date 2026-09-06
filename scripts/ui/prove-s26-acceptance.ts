@@ -5,12 +5,6 @@ import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
 
-import {
-  dangerousSettingNames,
-  extractDangerousSettings,
-  hasDangerousSettings,
-  hasDangerousSettingsChanged,
-} from '../../src/components/ManagedSettingsSecurityDialog/utils.js'
 import { describeReconnectOutcome } from '../../src/components/mcp/utils/reconnectHelpers.js'
 import { hunkPatchText } from '../../src/components/diff/DiffDialog.js'
 import { getRelativeMemoryPath } from '../../src/components/memory/MemoryUpdateNotification.js'
@@ -18,7 +12,6 @@ import {
   NULL_RENDERING_ATTACHMENT_TYPES,
   isNullRenderingAttachment,
 } from '../../src/components/messages/nullRenderingAttachments.js'
-import type { SettingsJson } from '../../src/utils/settings/types.js'
 
 let failures = 0
 let passes = 0
@@ -36,63 +29,6 @@ function section(name: string): void {
 }
 const ROOT = new URL('../../', import.meta.url).pathname
 const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
-
-section('dangerous-settings model')
-{
-  const empty = extractDangerousSettings({} as SettingsJson)
-  check('empty settings extract as not dangerous', !hasDangerousSettings(empty))
-
-  const shell = extractDangerousSettings({
-    apiKeyHelper: 'echo key',
-    statusLine: '',
-  } as unknown as SettingsJson)
-  check(
-    'non-empty shell-executing keys are dangerous; empty strings are not',
-    hasDangerousSettings(shell) &&
-      Object.keys(shell.shellSettings).join(',') === 'apiKeyHelper',
-  )
-
-  const env = extractDangerousSettings({
-    env: { PATH: '/bin', SOME_TOKEN: 'x', http_proxy: 'y', EMPTY: '' },
-  } as unknown as SettingsJson)
-  check(
-    'env vars are deny-by-default against the shared allow-list (upper-cased)',
-    Object.keys(env.envVars).includes('SOME_TOKEN') &&
-      !Object.keys(env.envVars).includes('EMPTY'),
-  )
-
-  const hooks = extractDangerousSettings({
-    hooks: { PreToolUse: [] },
-  } as unknown as SettingsJson)
-  check('a non-empty hooks object is dangerous', hasDangerousSettings(hooks))
-  const noHooks = extractDangerousSettings({ hooks: {} } as unknown as SettingsJson)
-  check('an empty hooks object is not', !hasDangerousSettings(noHooks))
-
-  const oldDoc = { apiKeyHelper: 'echo a' } as unknown as SettingsJson
-  const changedValue = { apiKeyHelper: 'echo b' } as unknown as SettingsJson
-  const safeDoc = {} as SettingsJson
-  check('not-dangerous incoming never requires approval', !hasDangerousSettingsChanged(oldDoc, safeDoc))
-  check('danger appearing over a safe cache requires approval', hasDangerousSettingsChanged(safeDoc, oldDoc))
-  check('a changed VALUE requires re-approval', hasDangerousSettingsChanged(oldDoc, changedValue))
-  check('an identical document does not', !hasDangerousSettingsChanged(oldDoc, oldDoc))
-  check('a null cache requires approval when dangerous', hasDangerousSettingsChanged(null, oldDoc))
-
-  const names = dangerousSettingNames(
-    extractDangerousSettings({
-      apiKeyHelper: 'echo topsecret',
-      env: { A_TOKEN: 'sekrit' },
-      hooks: { Stop: [] },
-    } as unknown as SettingsJson),
-  )
-  check(
-    'the UI list is names only — shell keys, env names, then the hooks token',
-    names.join(',') === 'apiKeyHelper,A_TOKEN,hooks',
-  )
-  check(
-    'no configured VALUE leaks into the list',
-    !names.some(name => name.includes('topsecret') || name.includes('sekrit')),
-  )
-}
 
 section('reconnect outcome mapper')
 {
