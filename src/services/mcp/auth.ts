@@ -30,23 +30,12 @@ import { join } from 'node:path'
 
 import { MCP_CLIENT_METADATA_URL } from '../../constants/oauth.js'
 import { openBrowser } from '../../utils/browser.js'
-import { describeHeadersRedacted } from '../../utils/redactHeaders.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { lock } from '../../utils/lockfile.js'
 import { clearKeychainCache, getSecureStorage } from '../../utils/secureStorage/index.js'
 import { buildRedirectUri, findAvailablePort } from './oauthPort.js'
 import type { McpServerConfig } from './types.js'
-import { performCrossAppAccess, XaaTokenExchangeError } from './xaa.js'
-import {
-  acquireIdpIdToken,
-  clearIdpIdToken,
-  discoverOidc,
-  getCachedIdpIdToken,
-  getIdpClientSecret,
-  getXaaIdpSettings,
-  isXaaEnabled,
-} from './xaaIdpLogin.js'
 
 
 export class AuthenticationCancelledError extends Error {
@@ -63,7 +52,6 @@ type RemoteServerConfig = McpServerConfig & {
     clientId?: string
     callbackPort?: number
     authServerMetadataUrl?: string
-    xaa?: boolean
   }
 }
 
@@ -375,18 +363,10 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     return entry.stepUpScope.split(' ').filter(Boolean).some(scope => !current.has(scope))
   }
 
-  private xaaConfigured(): boolean {
-    return isXaaEnabled() && this.config.oauth?.xaa === true
-  }
-
   async tokens(): Promise<OAuthTokens | undefined> {
     const entry = await readEntryAsync(this.serverKey)
     const nearExpiry = (record: StoredOAuthEntry): boolean =>
       !record.accessToken || record.expiresAt - Date.now() < REFRESH_LEAD_S * 1000
-    if (this.xaaConfigured() && !entry?.refreshToken && (entry === undefined || nearExpiry(entry))) {
-      const exchanged = await this.dedupe(() => this.silentCrossAppRefresh())
-      if (exchanged !== undefined) return exchanged
-    }
     if (entry === undefined) {
       logForDebugging(`mcp auth [${this.serverName}]: no stored tokens`)
       return undefined
@@ -644,87 +624,6 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
       return undefined
     })
   }
-
-  private async silentCrossAppRefresh(): Promise<OAuthTokens | undefined> {
-    const idp = getXaaIdpSettings()
-    if (idp === undefined) {
-      logForDebugging(`mcp auth [${this.serverName}]: xaa configured but IdP settings removed`)
-      return undefined
-    }
-    const idToken = getCachedIdpIdToken(idp.issuer)
-    if (idToken === undefined) {
-      logForDebugging(`mcp auth [${this.serverName}]: xaa identity token not cached`)
-      return undefined
-    }
-    const clientId = this.config.oauth?.clientId
-    const clientSecret = getMcpClientConfig(this.serverName, this.config)?.clientSecret
-    if (!clientId || !clientSecret) {
-      logForDebugging(`mcp auth [${this.serverName}]: xaa server is missing its client id or secret`)
-      return undefined
-    }
-    let oidc: Awaited<ReturnType<typeof discoverOidc>>
-    try {
-      oidc = await discoverOidc(idp.issuer)
-    } catch (err) {
-      logForDebugging(`mcp auth [${this.serverName}]: xaa OIDC discovery failed: ${String(err)}`)
-      return undefined
-    }
-    try {
-      const result = await performCrossAppAccess(
-        this.serverUrl(),
-        {
-          clientId,
-          clientSecret,
-          idpClientId: idp.clientId,
-          idpClientSecret: getIdpClientSecret(idp.issuer),
-          idpIdToken: idToken,
-          idpTokenEndpoint: (oidc as { token_endpoint: string }).token_endpoint,
-        } as never,
-        this.serverName,
-      )
-      writeXaaTokens(this.serverKey, this.serverName, this.serverUrl(), result, clientId, clientSecret)
-      return {
-        access_token: result.access_token,
-        refresh_token: result.refresh_token,
-        expires_in: result.expires_in ?? DEFAULT_TOKEN_LIFETIME_S,
-        scope: result.scope,
-        token_type: 'bearer',
-      }
-    } catch (err) {
-      if (err instanceof XaaTokenExchangeError && err.shouldClearIdToken) clearIdpIdToken(idp.issuer)
-      throw err
-    }
-  }
-}
-
-type XaaResultLike = {
-  access_token: string
-  refresh_token?: string
-  expires_in?: number
-  scope?: string
-  authorizationServerUrl: string
-}
-
-function writeXaaTokens(
-  serverKey: string,
-  serverName: string,
-  serverUrl: string,
-  result: XaaResultLike,
-  clientId: string,
-  clientSecret: string,
-): void {
-  const previous = readEntry(serverKey)
-  writeEntry(serverKey, {
-    serverName,
-    serverUrl,
-    accessToken: result.access_token,
-    refreshToken: result.refresh_token ?? previous?.refreshToken,
-    expiresAt: Date.now() + (result.expires_in ?? DEFAULT_TOKEN_LIFETIME_S) * 1000,
-    scope: result.scope,
-    clientId,
-    clientSecret,
-    discoveryState: { authorizationServerUrl: result.authorizationServerUrl },
-  })
 }
 
 
@@ -770,16 +669,6 @@ export async function performMCPOAuthFlow(
   const config = serverConfig as RemoteServerConfig
   const serverUrl = config.url ?? ''
   const serverKey = getServerKey(serverName, serverConfig)
-
-  if (config.oauth?.xaa === true) {
-    if (!isXaaEnabled()) {
-      throw new Error(
-        `Server ${serverName} is configured for cross-app access, which is not available. Remove the per-server xaa flag to use the standard consent flow.`,
-      )
-    }
-    await performInteractiveCrossAppAccess(serverName, config, serverKey, serverUrl, onAuthorizationUrl, abortSignal, opts)
-    return
-  }
 
   const previous = readEntry(serverKey)
   const stepUpScope = previous?.stepUpScope
@@ -989,76 +878,6 @@ export async function performMCPOAuthFlow(
   }
 }
 
-async function performInteractiveCrossAppAccess(
-  serverName: string,
-  config: RemoteServerConfig,
-  serverKey: string,
-  serverUrl: string,
-  onAuthorizationUrl: (url: string) => void,
-  abortSignal: AbortSignal | undefined,
-  opts: { skipBrowserOpen?: boolean } | undefined,
-): Promise<void> {
-  const idp = getXaaIdpSettings()
-  if (idp === undefined) {
-    throw new Error('Cross-app access requires identity-provider settings. Configure them with: mercury mcp xaa setup')
-  }
-  const clientId = config.oauth?.clientId
-  if (!clientId) {
-    throw new Error(`Server ${serverName} has no authorization-server client id. Re-add it with --client-id.`)
-  }
-  const clientSecret = getMcpClientConfig(serverName, config)?.clientSecret
-  if (!clientSecret) {
-    const stored = getSecureStorage().read()
-    const keys = Object.keys((stored?.mcpOAuthClientConfig as Record<string, unknown> | undefined) ?? {})
-    logForDebugging(
-      `mcp auth [${serverName}]: xaa client secret missing — wanted ${serverKey}, present ${keys.join(', ') || 'none'}, headers ${describeHeadersRedacted(config.headers)}`,
-    )
-    throw new Error(`Server ${serverName} has no authorization-server client secret. Re-add it with --client-secret.`)
-  }
-  const cachedBefore = getCachedIdpIdToken(idp.issuer) !== undefined
-  void cachedBefore
-  let stage: 'idp_login' | 'discovery' | 'token_exchange' | 'jwt_bearer' = 'idp_login'
-  try {
-    const idToken = await acquireIdpIdToken({
-      idpIssuer: idp.issuer,
-      idpClientId: idp.clientId,
-      idpClientSecret: getIdpClientSecret(idp.issuer),
-      callbackPort: idp.callbackPort,
-      onAuthorizationUrl,
-      skipBrowserOpen: opts?.skipBrowserOpen,
-      abortSignal,
-    } as never)
-    stage = 'discovery'
-    const oidc = await discoverOidc(idp.issuer)
-    stage = 'token_exchange'
-    const result = await performCrossAppAccess(
-      serverUrl,
-      {
-        clientId,
-        clientSecret,
-        idpClientId: idp.clientId,
-        idpClientSecret: getIdpClientSecret(idp.issuer),
-        idpIdToken: idToken,
-        idpTokenEndpoint: (oidc as { token_endpoint: string }).token_endpoint,
-      } as never,
-      serverName,
-      abortSignal,
-    )
-    writeXaaTokens(serverKey, serverName, serverUrl, result, clientId, clientSecret)
-    emitFlowEvent('success')
-  } catch (err) {
-    if (abortSignal?.aborted) throw new AuthenticationCancelledError()
-    if (err instanceof XaaTokenExchangeError) {
-      if (err.shouldClearIdToken) clearIdpIdToken(idp.issuer)
-    } else if (err instanceof Error) {
-      if (/protected resource|authorization server metadata|no authorization server/i.test(err.message)) stage = 'discovery'
-      else if (/jwt-bearer|bearer grant/i.test(err.message)) stage = 'jwt_bearer'
-    }
-    logForDebugging(`mcp auth [${serverName}]: cross-app access failed at ${stage}: ${String(err)}`)
-    throw err
-  }
-}
-
 
 async function revokeOne(
   endpoint: string,
@@ -1157,7 +976,6 @@ export function clearServerTokensFromLocalStorage(serverName: string, serverConf
 }
 
 export function hasMcpDiscoveryButNoToken(serverName: string, serverConfig: McpServerConfig): boolean {
-  if (isXaaEnabled() && (serverConfig as RemoteServerConfig).oauth?.xaa === true) return false
   const entry = readEntry(getServerKey(serverName, serverConfig))
   return entry !== undefined && !entry.accessToken && !entry.refreshToken
 }
