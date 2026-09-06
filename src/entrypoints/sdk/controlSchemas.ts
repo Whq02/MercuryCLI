@@ -10,7 +10,7 @@ import {
 export const SDKHookCallbackMatcherSchema = lazySchema(() =>
   z.object({
     matcher: z.string().optional(),
-    hookCallbackIds: z.array(z.string()),
+    hook_callback_ids: z.array(z.string()),
     timeout: z.number().optional(),
   }),
 )
@@ -19,13 +19,13 @@ export const SDKControlInitializeRequestSchema = lazySchema(() =>
   z.object({
     subtype: z.literal('initialize'),
     hooks: z.record(z.string(), z.array(SDKHookCallbackMatcherSchema())).optional(),
-    sdkMcpServers: z.array(z.string()).optional(),
-    jsonSchema: z.record(z.string(), z.unknown()).optional(),
-    systemPrompt: z.string().optional(),
-    appendSystemPrompt: z.string().optional(),
+    host_mcp_servers: z.array(z.string()).optional(),
+    json_schema: z.record(z.string(), z.unknown()).optional(),
+    system_prompt: z.string().optional(),
+    append_system_prompt: z.string().optional(),
     agents: z.record(z.string(), z.unknown()).optional(),
-    promptSuggestions: z.boolean().optional(),
-    agentProgressSummaries: z.boolean().optional(),
+    prompt_suggestions: z.boolean().optional(),
+    agent_progress_summaries: z.boolean().optional(),
   }),
 )
 export const SDKControlInterruptRequestSchema = lazySchema(() =>
@@ -136,12 +136,12 @@ export const SDKControlReloadExtensionsRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('reload_extensions') }),
 )
 export const SDKControlMcpReconnectRequestSchema = lazySchema(() =>
-  z.object({ subtype: z.literal('mcp_reconnect'), serverName: z.string() }),
+  z.object({ subtype: z.literal('mcp_reconnect'), server_name: z.string() }),
 )
 export const SDKControlMcpToggleRequestSchema = lazySchema(() =>
   z.object({
     subtype: z.literal('mcp_toggle'),
-    serverName: z.string(),
+    server_name: z.string(),
     enabled: z.boolean(),
   }),
 )
@@ -196,17 +196,17 @@ export const SDKControlEndSessionRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('end_session'), reason: z.string().optional() }),
 )
 export const SDKControlMcpAuthenticateRequestSchema = lazySchema(() =>
-  z.object({ subtype: z.literal('mcp_authenticate'), serverName: z.string() }),
+  z.object({ subtype: z.literal('mcp_authenticate'), server_name: z.string() }),
 )
 export const SDKControlMcpOauthCallbackUrlRequestSchema = lazySchema(() =>
   z.object({
     subtype: z.literal('mcp_oauth_callback_url'),
-    serverName: z.string(),
-    callbackUrl: z.string(),
+    server_name: z.string(),
+    callback_url: z.string(),
   }),
 )
 export const SDKControlMcpClearAuthRequestSchema = lazySchema(() =>
-  z.object({ subtype: z.literal('mcp_clear_auth'), serverName: z.string() }),
+  z.object({ subtype: z.literal('mcp_clear_auth'), server_name: z.string() }),
 )
 export const SDKControlProviderSignInRequestSchema = lazySchema(() =>
   z.object({

@@ -1260,17 +1260,18 @@ section('MAPPERS — the SDK↔internal mapping table (unpinned before T18)')
     surpassedThreshold: true,
     unifiedRateLimitFallbackAvailable: true,
   } as never) as AnyMsg
-  check('toSDKRateLimitInfo: full field table maps; internal-only field STRIPPED',
+  check('toSDKRateLimitInfo: full field table maps to the feed\'s spelling; internal-only field STRIPPED',
     full.status === 'allowed_warning' &&
-      full.resetsAt === 123 &&
-      full.rateLimitType === 'unified' &&
+      full.resets_at === 123 &&
+      full.rate_limit_type === 'unified' &&
       full.utilization === 0.5 &&
-      full.overageStatus === 'x' &&
-      full.overageResetsAt === 456 &&
-      full.overageDisabledReason === 'r' &&
-      full.isUsingOverage === true &&
-      full.surpassedThreshold === true &&
-      !('unifiedRateLimitFallbackAvailable' in full))
+      full.overage_status === 'x' &&
+      full.overage_resets_at === 456 &&
+      full.overage_disabled_reason === 'r' &&
+      full.is_using_overage === true &&
+      full.surpassed_threshold === true &&
+      !('unifiedRateLimitFallbackAvailable' in full) &&
+      Object.keys(full).every(key => /^[a-z0-9_]+$/.test(key)))
 
   const asst2 = mkAssistant([txt('a'), tu('toolu_map3')])
   const asstRows = mappers.toSDKMessages([asst2] as never) as AnyMsg[]

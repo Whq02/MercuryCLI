@@ -43,9 +43,9 @@ type Receipt = {
   mode?: string
   refusal?: string
   detail?: string
-  dryRun?: boolean
-  code?: { filesChanged: string[]; insertions: number; deletions: number }
-  conversation?: { turnUuid: string; removed: number }
+  dry_run?: boolean
+  code?: { files_changed: string[]; insertions: number; deletions: number }
+  conversation?: { turn_uuid: string; removed: number }
 }
 
 function findTranscript(root: string, sessionId: string): string | null {
@@ -194,19 +194,19 @@ check('alpha holds the turn-2 bytes and beta the turn-1 bytes before any rewind'
 
 section('§1 — the facts: capture on, both turns restorable')
 {
-  const facts = (await control({ subtype: 'session_facts' })) as { fileCheckpoints?: { capture?: boolean; restorable?: string[] } } | undefined
-  const fc = facts?.fileCheckpoints
-  check('session_facts carries fileCheckpoints with capture ON', fc?.capture === true, j(fc))
+  const facts = (await control({ subtype: 'session_facts' })) as { file_checkpoints?: { capture?: boolean; restorable?: string[] } } | undefined
+  const fc = facts?.file_checkpoints
+  check('session_facts carries file_checkpoints with capture ON', fc?.capture === true, j(fc))
   check('…and both turns are restorable (the cockpit offers a code restore there)', Array.isArray(fc?.restorable) && fc.restorable.includes(turn1) && fc.restorable.includes(turn2), j(fc?.restorable))
 }
 
 section('§2 — code: a dry run names the file and writes nothing; the restore puts the bytes back')
 {
   const dry = (await control({ subtype: 'rewind_session', user_message_id: turn2, mode: 'code', dry_run: true })) as Receipt | undefined
-  check('the dry run answers applied + dryRun naming alpha with its counts', dry?.outcome === 'applied' && dry.dryRun === true && dry.code?.filesChanged.length === 1 && dry.code.filesChanged[0]!.endsWith('alpha.txt') && dry.code.insertions === 1 && dry.code.deletions === 1, j(dry))
+  check('the dry run answers applied + dry_run naming alpha with its counts', dry?.outcome === 'applied' && dry.dry_run === true && dry.code?.files_changed.length === 1 && dry.code.files_changed[0]!.endsWith('alpha.txt') && dry.code.insertions === 1 && dry.code.deletions === 1, j(dry))
   check('…and wrote nothing', readFileSync(alpha, 'utf8') === 'alpha-2\n')
   const applied = (await control({ subtype: 'rewind_session', user_message_id: turn2, mode: 'code' })) as Receipt | undefined
-  check('the restore to turn 2 answers applied naming alpha', applied?.outcome === 'applied' && applied.code?.filesChanged.length === 1 && applied.code.filesChanged[0]!.endsWith('alpha.txt'), j(applied))
+  check('the restore to turn 2 answers applied naming alpha', applied?.outcome === 'applied' && applied.code?.files_changed.length === 1 && applied.code.files_changed[0]!.endsWith('alpha.txt'), j(applied))
   check('alpha is back to its turn-1 bytes (the state when turn 2 began)', readFileSync(alpha, 'utf8') === 'alpha-1\n', readFileSync(alpha, 'utf8'))
   check('beta, untouched since turn 1, is unchanged', readFileSync(beta, 'utf8') === 'beta-1\n')
   const again = (await control({ subtype: 'rewind_session', user_message_id: turn2, mode: 'code' })) as Receipt | undefined
@@ -242,9 +242,9 @@ section('§5 — conversation: the record lands in THIS transcript and the next 
 {
   const rowsBefore = readTranscriptRows().length
   const dry = (await control({ subtype: 'rewind_session', user_message_id: turn2, mode: 'conversation', dry_run: true })) as Receipt | undefined
-  check('a conversation dry run names the boundary and appends nothing', dry?.outcome === 'applied' && dry.conversation?.turnUuid === turn2 && readTranscriptRows().length === rowsBefore, j(dry))
+  check('a conversation dry run names the boundary and appends nothing', dry?.outcome === 'applied' && dry.conversation?.turn_uuid === turn2 && readTranscriptRows().length === rowsBefore, j(dry))
   const applied = (await control({ subtype: 'rewind_session', user_message_id: turn2, mode: 'conversation' })) as Receipt | undefined
-  check('the conversation rewind answers applied with the turn boundary', applied?.outcome === 'applied' && applied.conversation?.turnUuid === turn2 && (applied.conversation.removed ?? 0) >= 2, j(applied))
+  check('the conversation rewind answers applied with the turn boundary', applied?.outcome === 'applied' && applied.conversation?.turn_uuid === turn2 && (applied.conversation.removed ?? 0) >= 2, j(applied))
   const rows = readTranscriptRows()
   check('the record persisted to THIS session\'s transcript (same id, same file — append-only)', rows.length > rowsBefore && rows.some(l => l.includes('mercury-rewind-record') && l.includes(turn2)), `rows ${rowsBefore} → ${rows.length}`)
   check('…and turn 2\'s own row is still there (nothing deleted)', rows.some(l => l.includes('turn two: set alpha again')))
@@ -266,7 +266,7 @@ section('§6 — both: the files and the boundary in one receipt')
   const r4 = await turn('turn four: set alpha to four', turn4)
   check('turn four settled with alpha at four', r4?.subtype === 'success' && readFileSync(alpha, 'utf8') === 'alpha-4\n', `${r4?.subtype} ${readFileSync(alpha, 'utf8')}`)
   const both = (await control({ subtype: 'rewind_session', user_message_id: turn4, mode: 'both' })) as Receipt | undefined
-  check('one receipt carries the files AND the boundary', both?.outcome === 'applied' && both.mode === 'both' && both.code?.filesChanged.length === 1 && both.conversation?.turnUuid === turn4, j(both))
+  check('one receipt carries the files AND the boundary', both?.outcome === 'applied' && both.mode === 'both' && both.code?.files_changed.length === 1 && both.conversation?.turn_uuid === turn4, j(both))
   check('alpha is back to its state when turn four began', readFileSync(alpha, 'utf8') === 'alpha-2\n', readFileSync(alpha, 'utf8'))
   const rows = readTranscriptRows()
   check('the transcript keeps every row and holds the second record', rows.filter(l => l.includes('mercury-rewind-record')).length === 2 && rows.some(l => l.includes('turn four: set alpha to four')))

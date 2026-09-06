@@ -394,7 +394,7 @@ function runStreamJson(world: World, fixture: Fixture, args: string[], turns: Ar
             child.stdin.write(
               JSON.stringify({
                 type: 'control_response',
-                response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updatedInput: request.input } },
+                response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updated_input: request.input } },
               }) + '\n',
             )
           }

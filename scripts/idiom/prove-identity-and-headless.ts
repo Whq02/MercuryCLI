@@ -85,14 +85,14 @@ await fixture1.close()
   })
   check('every stdout line is JSON (no interactive surface bytes)', allJson, lines.find(l => { try { JSON.parse(l); return false } catch { return true } })?.slice(0, 120) ?? '')
   const init = lines.map(l => JSON.parse(l) as Record<string, unknown>).find(o => o.type === 'system' && o.subtype === 'init')
-  check('the init envelope reports EXACTLY the requested per-client mode', (init as { permissionMode?: string } | undefined)?.permissionMode === 'implement', JSON.stringify(init ?? {}).slice(0, 200))
+  check('the init envelope reports EXACTLY the requested per-client mode', (init as { permission_mode?: string } | undefined)?.permission_mode === 'implement', JSON.stringify(init ?? {}).slice(0, 200))
 
   const home2 = mkdtempSync(join(tmpdir(), 'idiom-e07b-'))
   const fixture2 = await freshFixture()
   const r2 = await runHeadless(fixture2.url, home2, join(home2, 'proj'), 'strategy')
   await fixture2.close()
   const init2 = r2.out.split('\n').filter(l => l.trim()).map(l => { try { return JSON.parse(l) as Record<string, unknown> } catch { return {} } }).find(o => o.type === 'system' && o.subtype === 'init')
-  check('a different client resolves ITS OWN policy (per-client, deterministic)', (init2 as { permissionMode?: string } | undefined)?.permissionMode === 'strategy', JSON.stringify(init2 ?? {}).slice(0, 200))
+  check('a different client resolves ITS OWN policy (per-client, deterministic)', (init2 as { permission_mode?: string } | undefined)?.permission_mode === 'strategy', JSON.stringify(init2 ?? {}).slice(0, 200))
 }
 
 section('§E02 — one uuid across the SDK envelope and the durable record')

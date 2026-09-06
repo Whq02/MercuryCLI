@@ -37,14 +37,14 @@ export const HOOK_EVENTS_SCHEMA_TUPLE = [
 
 export const ModelUsageSchema = lazySchema(() =>
   z.object({
-    inputTokens: z.number().describe('Prompt tokens the model read this turn'),
-    outputTokens: z.number().describe('Tokens the model generated'),
-    cacheReadInputTokens: z.number().describe('Prompt tokens served from the cache'),
-    cacheCreationInputTokens: z.number().describe('Prompt tokens written into the cache'),
-    webSearchRequests: z.number().describe('How many web searches the turn issued'),
-    costUSD: z.number().describe('Estimated cost of this usage in US dollars'),
-    contextWindow: z.number().optional().describe('The context-window size the model ran with'),
-    maxOutputTokens: z.number().optional().describe('The output-token ceiling in force'),
+    input_tokens: z.number().describe('Prompt tokens the model read this turn'),
+    output_tokens: z.number().describe('Tokens the model generated'),
+    cache_read_input_tokens: z.number().describe('Prompt tokens served from the cache'),
+    cache_creation_input_tokens: z.number().describe('Prompt tokens written into the cache'),
+    web_search_requests: z.number().describe('How many web searches the turn issued'),
+    cost_usd: z.number().describe('Estimated cost of this usage in US dollars'),
+    context_window: z.number().optional().describe('The context-window size the model ran with'),
+    max_output_tokens: z.number().optional().describe('The output-token ceiling in force'),
   }),
 )
 
@@ -143,13 +143,27 @@ export const McpServerStatusSchema = lazySchema(() =>
     status: z
       .enum(['connected', 'failed', 'needs-auth', 'pending', 'disabled'])
       .describe('Where the connection currently stands'),
-    serverInfo: z
+    scope: z.string().optional().describe('The configuration scope the server came from'),
+    config: z.unknown().optional().describe('The server configuration as configured, without secrets'),
+    server_info: z
       .object({
         name: z.string().describe('The name the server reports for itself'),
         version: z.string().describe('The server-reported version'),
       })
       .optional()
       .describe('Identity the server announced at handshake'),
+    tools: z
+      .array(
+        z.object({
+          name: z.string().describe('The tool name without the server prefix'),
+          read_only: z.boolean().optional().describe('Set when the tool declares itself read-only'),
+          destructive: z.boolean().optional().describe('Set when the tool declares itself destructive'),
+          open_world: z.boolean().optional().describe('Set when the tool declares itself open-world'),
+        }),
+      )
+      .optional()
+      .describe('The tools a connected server offers'),
+    error: z.string().optional().describe('Why the connection failed, when it did'),
   }),
 )
 export const McpSetServersResultSchema = lazySchema(() =>
@@ -214,21 +228,21 @@ export const PermissionResultSchema = lazySchema(() =>
   z.union([
     z.object({
       behavior: z.literal('allow'),
-      updatedInput: z
+      updated_input: z
         .record(z.string(), z.unknown())
         .optional()
         .describe('A replacement tool input to run instead of the original'),
-      updatedPermissions: z
+      updated_permissions: z
         .array(PermissionUpdateSchema())
         .optional()
         .describe('Permission updates to apply alongside the approval'),
-      toolUseID: z.string().optional().describe('The tool call this answer belongs to'),
+      tool_use_id: z.string().optional().describe('The tool call this answer belongs to'),
     }),
     z.object({
       behavior: z.literal('deny'),
       message: z.string().optional().describe('Why the call was refused, shown to the model'),
       interrupt: z.boolean().optional().describe('Also abort the turn rather than only refusing the call'),
-      toolUseID: z.string().optional().describe('The tool call this answer belongs to'),
+      tool_use_id: z.string().optional().describe('The tool call this answer belongs to'),
     }),
   ]),
 )
@@ -741,7 +755,7 @@ export const SlashCommandSchema = lazySchema(() =>
   z.object({
     name: z.string().describe('The command name, without the slash'),
     description: z.string().describe('What the command does'),
-    argumentHint: z.string().describe('The argument shape shown after the name'),
+    argument_hint: z.string().describe('The argument shape shown after the name'),
   }),
 )
 export const AgentInfoSchema = lazySchema(() =>
@@ -754,22 +768,24 @@ export const AgentInfoSchema = lazySchema(() =>
 export const ModelInfoSchema = lazySchema(() =>
   z.object({
     value: z.string().describe('The selectable model value'),
-    displayName: z.string().optional().describe('The marketing name shown in pickers'),
+    display_name: z.string().optional().describe('The marketing name shown in pickers'),
     description: z.string().optional().describe('A one-line positioning blurb'),
-    supportsEffort: z.boolean().optional().describe('Whether effort levels apply to this model'),
-    supportedEffortLevels: z
+    supports_effort: z.boolean().optional().describe('Whether effort levels apply to this model'),
+    supported_effort_levels: z
       .array(z.enum(EFFORT_LEVELS))
       .optional()
       .describe('The effort levels it accepts, from the one ladder'),
-    supportsAdaptiveThinking: z.boolean().optional().describe('Whether adaptive thinking is available'),
-    supportsAutoMode: z.boolean().optional().describe('Whether auto permission mode may run on it'),
+    supports_adaptive_thinking: z.boolean().optional().describe('Whether adaptive thinking is available'),
+    supports_auto_mode: z.boolean().optional().describe('Whether auto permission mode may run on it'),
   }),
 )
 export const AccountInfoSchema = lazySchema(() =>
   z.object({
     email: z.string().optional().describe('The signed-in account email'),
     organization: z.string().optional().describe('The active organization'),
-    subscriptionType: z.string().optional().describe('The subscription tier in force'),
+    subscription_type: z.string().optional().describe('The subscription tier in force'),
+    token_source: z.string().optional().describe('Where the session token came from, when one is in use'),
+    api_key_source: z.string().optional().describe('Where the API key came from, when one is in use'),
   }),
 )
 
@@ -857,8 +873,8 @@ export const SdkExtensionConfigSchema = lazySchema(() =>
 )
 export const RewindFilesResultSchema = lazySchema(() =>
   z.object({
-    canRewind: z.boolean().optional().describe('Whether a rewind is possible from here'),
-    filesChanged: z.array(z.string()).optional().describe('Paths a rewind would touch'),
+    can_rewind: z.boolean().optional().describe('Whether a rewind is possible from here'),
+    files_changed: z.array(z.string()).optional().describe('Paths a rewind would touch'),
     insertions: z.number().optional().describe('Lines a rewind would add back'),
     deletions: z.number().optional().describe('Lines a rewind would remove'),
     restored_files: z.number().optional().describe('Files actually restored'),
@@ -888,7 +904,12 @@ export const SDKUserMessageSchema = lazySchema(() =>
     parent_tool_use_id: z.string().nullable().optional().describe('The Agent tool call this message runs under, when inside a subagent'),
     uuid: z.string().optional().describe('Unique id for this message'),
     session_id: z.string().optional().describe('The session this message belongs to'),
-    isMeta: z.boolean().optional().describe('True for harness-injected meta turns'),
+    timestamp: z.string().optional().describe('When the message was recorded'),
+    is_synthetic: z.boolean().optional().describe('True for a turn the harness injected rather than the user typed'),
+    tool_use_result: z.unknown().optional().describe("The tool's full structured result, when the message carries a tool result"),
+    priority: z.enum(['now', 'next', 'later']).optional().describe('The queue band a sent line files under while the session is busy'),
+    mode: z.enum(['prompt', 'bash', 'task-notification']).optional().describe('How the words run: a prompt, a shell line, or a note addressed to one agent'),
+    agent_id: z.string().optional().describe("mode task-notification: the addressed agent's id"),
   }),
 )
 export const SDKUserMessageReplaySchema = lazySchema(() =>
@@ -898,53 +919,24 @@ export const SDKUserMessageReplaySchema = lazySchema(() =>
     parent_tool_use_id: z.string().nullable().optional().describe('The Agent tool call this message ran under, when inside a subagent'),
     uuid: z.string().describe('Unique id for this message'),
     session_id: z.string().describe('The session this message belongs to'),
-    isReplay: z.literal(true).describe('Marks a message re-emitted from history rather than freshly produced'),
+    timestamp: z.string().optional().describe('When the message was recorded'),
+    is_replay: z.literal(true).describe('Marks a message re-emitted from history rather than freshly produced'),
   }),
 )
 export const SDKRateLimitInfoSchema = lazySchema(() =>
   z.object({
     status: z.enum(['allowed', 'allowed_warning', 'rejected']).describe('Overall verdict for the request'),
-    unifiedRateLimit: z
-      .object({
-        status: z.enum(['allowed', 'allowed_warning', 'rejected']).describe('Verdict under the unified limit'),
-        type: z
-          .enum([
-            'five_hour',
-            'seven_day',
-            'seven_day_opus',
-            'seven_day_sonnet',
-            'seven_day_fable',
-            'overage',
-          ])
-          .optional()
-          .describe('Which limit window is binding'),
-        resetsAt: z.number().optional().describe('Epoch seconds when the window resets'),
-        utilization: z.number().optional().describe('Fraction of the window already spent'),
-        overageStatus: z
-          .enum(['allowed', 'allowed_warning', 'rejected'])
-          .optional()
-          .describe('Verdict for overage spending past the included quota'),
-        overageDisabledReason: z
-          .enum([
-            'overage_not_provisioned',
-            'org_level_disabled',
-            'org_level_disabled_until',
-            'out_of_credits',
-            'seat_tier_level_disabled',
-            'member_level_disabled',
-            'seat_tier_zero_credit_limit',
-            'group_zero_credit_limit',
-            'member_zero_credit_limit',
-            'org_service_level_disabled',
-            'org_service_zero_credit_limit',
-            'no_limits_configured',
-            'unknown',
-          ])
-          .optional()
-          .describe('Why overage spending is unavailable, when it is'),
-      })
+    resets_at: z.number().optional().describe('Epoch seconds when the window resets'),
+    rate_limit_type: z.string().optional().describe('Which limit window is binding (five_hour, seven_day, seven_day_opus, seven_day_sonnet, seven_day_fable, overage)'),
+    utilization: z.number().optional().describe('Fraction of the window already spent'),
+    overage_status: z
+      .enum(['allowed', 'allowed_warning', 'rejected'])
       .optional()
-      .describe('Detail for the unified rate limit, when the account is on it'),
+      .describe('Verdict for overage spending past the included quota'),
+    overage_resets_at: z.number().optional().describe('Epoch seconds when the overage window resets'),
+    overage_disabled_reason: z.string().optional().describe('Why overage spending is unavailable, when it is'),
+    is_using_overage: z.boolean().optional().describe('True while the request spends overage'),
+    surpassed_threshold: z.boolean().optional().describe('True once the warning threshold was crossed'),
   }),
 )
 export const SDKAssistantMessageSchema = lazySchema(() =>
@@ -980,7 +972,7 @@ const resultEnvelopeFields = {
   session_id: z.string().describe('The session this result closes'),
   total_cost_usd: z.number().describe('Estimated dollar cost of the run'),
   usage: z.unknown().describe('Aggregate token usage for the run'),
-  modelUsage: z.record(z.string(), ModelUsageSchema()).optional().describe('Per-model usage breakdown, keyed by model id'),
+  model_usage: z.record(z.string(), ModelUsageSchema()).optional().describe('Per-model usage breakdown, keyed by model id'),
   permission_denials: z.array(SDKPermissionDenialSchema()).optional().describe('Tool calls the permission system refused'),
   stop_reason: z.string().nullable().optional().describe('Why generation stopped, when the API said'),
   uuid: z.string().describe('Unique id for this message'),
@@ -1023,7 +1015,7 @@ export const SDKSystemMessageSchema = lazySchema(() =>
       .array(z.object({ name: z.string(), status: z.string() }))
       .describe('The configured MCP servers and their connection standing'),
     model: z.string().describe('The model the session starts on'),
-    permissionMode: externalPermissionModeWireEnum().describe(
+    permission_mode: externalPermissionModeWireEnum().describe(
       'The permission mode in force at start',
     ),
     slash_commands: z.array(z.string()).describe('Names of the slash commands available'),
@@ -1072,16 +1064,21 @@ export const SDKModelTransitionMessageSchema = lazySchema(() =>
   z.object({
     type: z.literal('system'),
     subtype: z.literal('model_transition'),
-    from_model: z.string().nullable().optional().describe('The model being left'),
-    to_model: z.string().nullable().optional().describe('The model being adopted'),
-    resolution: z
-      .enum(['applied', 'cancelled-pending'])
-      .optional()
-      .describe('Whether the switch took effect or a pending one was withdrawn'),
-    boundary: z
-      .enum(['idle', 'turn-boundary', 'autopilot-tool'])
-      .optional()
-      .describe('The seam the switch landed on'),
+    transition: z
+      .object({
+        previous: z.string().nullable().describe('The model being left'),
+        requested: z.string().nullable().describe('The model that was asked for'),
+        applied: z.string().nullable().describe('The model now in force'),
+        resolution: z
+          .enum(['applied', 'cancelled-pending'])
+          .describe('Whether the switch took effect or a pending one was withdrawn'),
+        boundary: z
+          .enum(['idle', 'turn-boundary', 'autopilot-tool'])
+          .describe('The seam the switch landed on'),
+        cross_provider: z.boolean().describe('True when the switch crossed provider families'),
+        cache_disposition: z.string().describe('What became of the prompt cache across the switch'),
+      })
+      .describe('The settlement receipt of the switch'),
     session_id: z.string(),
     uuid: z.string(),
   }),
@@ -1103,12 +1100,56 @@ export const SDKMissionUpdatedMessageSchema = lazySchema(() =>
     session_id: z.string(),
   }),
 )
+export const SDKRequestWaitSchema = lazySchema(() =>
+  z.union([
+    z.object({
+      kind: z.literal('first-byte'),
+      cold: z.boolean().describe('True when the prompt is ingesting uncached'),
+      prompt_tokens: z.number().describe('The prompt size being ingested'),
+      model: z.string().describe("The model's display name"),
+      budget_ms: z.number().describe('The first-byte budget that fires'),
+      since_ms: z.number().describe('Epoch milliseconds the wait began'),
+      attempt: z.number().describe('Which attempt this is'),
+    }),
+    z.object({
+      kind: z.literal('retry'),
+      attempt: z.number().describe('Which attempt this is'),
+      of: z.number().describe('How many attempts the ladder allows'),
+      reason: z.string().describe('The cause of the retry, in the row\'s words'),
+      delay_ms: z.number().describe('The delay before the retry'),
+      since_ms: z.number().describe('Epoch milliseconds the wait began'),
+    }),
+  ]),
+)
+export const SDKFoldStatusSchema = lazySchema(() =>
+  z.object({
+    schema: z.literal(1),
+    trigger: z.enum(['manual', 'auto']).describe('Whether the user asked or the window forced it'),
+    started_at_ms: z.number().describe('Epoch milliseconds the fold began'),
+    stages: z.array(z.string()).describe('The stages this fold walks, in order'),
+    stage: z.string().nullable().describe('The stage in flight; null before the first stage'),
+    fill: z.number().nullable().describe('The fill of the stage in flight, 0..1; null when it has no measurable fraction'),
+    summary_tokens: z.number().describe('The summary tokens streamed by the attempt in flight'),
+    summary_cap_tokens: z.number().describe("The summariser's output ceiling"),
+    attempt: z.number().describe('The narrowing attempt in flight'),
+    exit: z.enum(['landed', 'cancelled', 'failed']).optional().describe('The exit, once the fold ended'),
+    ended_at_ms: z.number().optional().describe('Epoch milliseconds the fold ended'),
+  }),
+)
 export const SDKStatusMessageSchema = lazySchema(() =>
   z.object({
     type: z.literal('system'),
     subtype: z.literal('status'),
-    status: SDKStatusSchema().nullable().describe('The session activity state, or null to clear it'),
-    permissionMode: z
+    status: z
+      .union([
+        z.null(),
+        z.literal('compacting'),
+        z.object({ waiting_on_agents: z.number().describe('Background agents still holding the turn open') }),
+        z.object({ compacting: SDKFoldStatusSchema().nullable().describe("The fold's record, or null while it has none") }),
+        z.object({ wait: SDKRequestWaitSchema().nullable().describe('The request wait, or null once the first byte landed') }),
+      ])
+      .describe('The session activity state, or null to clear it'),
+    permission_mode: z
       .preprocess(
         v => (typeof v === 'string' ? decodePermissionModeSpelling(v) : v),
         z.enum(['default', 'dontAsk', 'flow', 'implement', 'sovereign', 'strategy']),
