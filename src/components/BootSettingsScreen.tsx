@@ -30,6 +30,16 @@ import {
   seatSourceWords,
   setOperatorSeats,
 } from '../services/switchboard/capacityCheck.js';
+import {
+  MOTION_MENU_ROW,
+  MOTION_SETTINGS,
+  motionDetailLines,
+  motionReceiptWords,
+  motionValueWords,
+  readMotionSetting,
+  setMotionSetting,
+  type MotionSetting,
+} from '../utils/cockpit/motionSetting.js';
 import { daemonControlRpc } from '../daemon/controlSocket.js';
 import type { DaemonRequest } from '../daemon/protocol.js';
 import { getFocusedSessionConnector, hasFocusedSession } from '../services/engine-connector/focusedConnector.js';
@@ -122,8 +132,18 @@ export function BootSettingsScreen({
   );
   const [seatsTick, setSeatsTick] = useState(0);
   const seatFacts = useMemo(() => seatCeilingFacts(), [seatsTick, saveTick]);
-  const menuRows = useMemo<readonly MenuRow[]>(() => [...STARTUP_MENU, SEATS_MENU_ROW as MenuRow], []);
+  const [motionTick, setMotionTick] = useState(0);
+  const motionSetting = useMemo(() => readMotionSetting(), [motionTick, saveTick]);
+  const menuRows = useMemo<readonly MenuRow[]>(() => [...STARTUP_MENU, SEATS_MENU_ROW as MenuRow, MOTION_MENU_ROW as MenuRow], []);
   const isSeatsRow = (row: MenuRow): boolean => row.env === SEATS_MENU_ROW.env;
+  const isMotionRow = (row: MenuRow): boolean => row.env === MOTION_MENU_ROW.env;
+  const commitMotion = (next: MotionSetting): string => {
+    setMotionSetting(next);
+    setMotionTick(n => n + 1);
+    const words = motionReceiptWords(next);
+    setLastReceipt(words);
+    return words;
+  };
   const commitSeats = (next: number | null): string => {
     const facts = setOperatorSeats(next);
     setSeatsTick(n => n + 1);
@@ -228,6 +248,7 @@ export function BootSettingsScreen({
 
   const commitRow = (row: MenuRow, value: string | null): string => {
     if (isSeatsRow(row)) return commitSeats(value === null ? null : Number(value));
+    if (isMotionRow(row)) return commitMotion(value === null ? 'auto' : (value as MotionSetting));
     const env: Record<string, string> = { ...saved };
     if (value === null) delete env[row.env];
     else env[row.env] = value;
@@ -248,6 +269,10 @@ export function BootSettingsScreen({
 
   const cycleRow = (row: MenuRow, direction: 1 | -1): string => {
     if (isSeatsRow(row)) return commitSeats(direction > 0 ? seatFacts.seats + 1 : Math.max(1, seatFacts.seats - 1));
+    if (isMotionRow(row)) {
+      const at = MOTION_SETTINGS.indexOf(motionSetting);
+      return commitMotion(MOTION_SETTINGS[((at < 0 ? 0 : at) + direction + MOTION_SETTINGS.length) % MOTION_SETTINGS.length]!);
+    }
     const choices = menuRowChoices(row);
     const currentValue = saved[row.env] ?? null;
     const idx = Math.max(0, choices.findIndex(c => c.value === currentValue));
@@ -346,6 +371,18 @@ export function BootSettingsScreen({
           detailExtra: seatCeilingDetailLines(seatFacts),
         };
       }
+      if (isMotionRow(row)) {
+        return {
+          label: row.label,
+          group: row.group,
+          summary: row.summary,
+          valueLabel: motionValueWords(motionSetting),
+          valueIsDefault: motionSetting === 'auto',
+          pinnedVal: null,
+          detail: row.detail ?? null,
+          detailExtra: motionDetailLines(),
+        };
+      }
       const effective = effectiveByEnv.get(row.env);
       const envPinned = effective?.source === 'process-env';
       return {
@@ -399,7 +436,7 @@ export function BootSettingsScreen({
         : {}),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saved, effectiveByEnv, seatFacts, list.selectedIndex, list.note, lastReceipt, changed, liveCount, apply, mainModel, dirTail, profile, concourseLive, plainWorld, chatBoot, wordGlow?.peakCell, wordGlow?.gainLevel]);
+  }, [saved, effectiveByEnv, seatFacts, motionSetting, list.selectedIndex, list.note, lastReceipt, changed, liveCount, apply, mainModel, dirTail, profile, concourseLive, plainWorld, chatBoot, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {
     const menu = core.composeBootMenu(columns, rows, menuM) as {

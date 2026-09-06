@@ -67,6 +67,7 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { clearCliTeammateModeOverride } from '../../utils/swarm/backends/teammateModeSnapshot.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 import { SEAT_DOORS, seatCeilingFacts, seatCeilingValueWords, seatCostWarning, setOperatorSeats } from '../../services/switchboard/capacityCheck.js'
+import { MOTION_DOORS, MOTION_SETTINGS, motionDetailLines, motionValueWords, noteMotionSettingChanged, readMotionSetting, setMotionSetting } from '../../utils/cockpit/motionSetting.js'
 import { subagentDefaultsOf } from '../../utils/agentDefaults.js'
 import { agentFanoutCap } from '../../constants/subagentDoctrine.js'
 import { EFFORT_LEVELS } from '../../utils/effort.js'
@@ -434,6 +435,24 @@ export function Config({
       }
     },
   })
+  {
+    const motionSetting = readMotionSetting()
+    items.push({
+      id: 'motion',
+      label: 'Motion',
+      kind: 'enum',
+      value: <Text>{motionValueWords(motionSetting)}</Text>,
+      warning: `${motionDetailLines().slice(0, 2).join(' · ')} · auto = full until painting falls behind, then reduced · full never reduces · reduced slows the clock and stills the critter · off stops idle motion · doors: ${MOTION_DOORS}`,
+      change: direction => {
+        const next = cycleIn(MOTION_SETTINGS, motionSetting, direction)
+        setMotionSetting(next)
+        globalTouchedRef.current.add('motion')
+        snapshots.dirty = true
+        recordSet('motion', `set motion to ${next}`)
+        bump()
+      },
+    })
+  }
   items.push({
     id: 'instructionProfile',
     label: 'Instruction profile',
@@ -996,6 +1015,7 @@ export function Config({
     }
     setThemeSetting(snapshots.theme)
     if (globalTouchedRef.current.size > 0) {
+      const motionTouched = globalTouchedRef.current.has('motion')
       saveGlobalConfig(current => {
         const restored = { ...current } as Record<string, unknown>
         const snap = snapshots.global as unknown as Record<string, unknown>
@@ -1006,6 +1026,7 @@ export function Config({
         return restored as unknown as GlobalConfig
       })
       globalTouchedRef.current.clear()
+      if (motionTouched) noteMotionSettingChanged()
     }
     writeSource('localSettings', {
       spinnerTipsEnabled: snapshots.local.spinnerTipsEnabled,
