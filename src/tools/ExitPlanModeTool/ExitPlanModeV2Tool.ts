@@ -115,7 +115,7 @@ export const ExitPlanModeV2Tool = buildTool({
       return {
         result: false as const,
         message:
-          'This session is not planning. ExitPlanMode exists solely to leave a planning phase once a plan has been written — if a plan was already approved, simply carry it out.',
+          'This session is not planning. ExitStrategyMode exists solely to leave a planning phase once a plan has been written — if a plan was already approved, simply carry it out.',
         errorCode: 1,
       }
     }
@@ -136,7 +136,7 @@ export const ExitPlanModeV2Tool = buildTool({
         await writeFile(filePath, input.plan!, 'utf-8')
       } catch (error) {
         logForDebugging(
-          `ExitPlanMode: plan write-back failed: ${errorMessage(error)}`,
+          `ExitStrategyMode: plan write-back failed: ${errorMessage(error)}`,
         )
       }
     }
