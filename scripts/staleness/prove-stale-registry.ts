@@ -133,7 +133,6 @@ src/services/mcp/client.ts :: fetchToolsForClientMemo :: invalidator=transport.o
 src/services/mcp/client.ts :: needsAuthReadMemo :: invalidator=clearMcpAuthCache
 src/services/mission/harnessApplication.ts :: liveEpochMemo :: keyed-by-truth
 src/services/mission/harnessProfiles.ts :: resolutionCache :: keyed-by-truth
-src/services/policyLimits/index.ts :: sessionCache :: static-for-process
 src/services/privateChannel/installProvenance.ts :: memoized :: static-for-process
 src/services/providers/deferralProbe.ts :: cache :: keyed-by-truth
 src/services/providers/gemini/geminiCatalogue.ts :: catalogueCache :: ttl-bounded
