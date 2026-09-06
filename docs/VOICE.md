@@ -8,8 +8,10 @@ capture is the composer.
 ## The keys
 
 - `/speak on` turns voice input on for this machine; `/speak off` turns it
-  off (the default); bare `/speak` shows the status, the capture backend and
-  the transcribing sign-in the next take would use.
+  off (the default); bare `/speak` shows the status, the transcriber the
+  next take would use and your default, the capture backend.
+  `/speak options` chooses the transcriber; `/speak download` fetches the
+  on-device model.
 - With voice input on, press space in an empty composer to start a capture.
   A terminal sees no key-up, so a capture is press-to-start, press-to-stop:
   press space again to stop it and send the take to the transcriber, or
@@ -89,10 +91,20 @@ A finished take goes to the first transcriber that can serve, in this order:
      sign-in does not transcribe here.
    - **Anthropic** offers no speech-to-text endpoint.
 
-`MERCURY_VOICE_TRANSCRIBER` pins the road for a session: `on-device`,
-`cloud` (the ledger walk), or a family id such as `openai`; a pin that
-cannot serve says so in the receipt, in `/speak` and in the doctor row, and
-never falls back silently. With nothing to transcribe with, pressing space
+`/speak options` lists the transcribers this install can use — the
+on-device one with its model and pack, and each family with a
+speech-to-text slot, signed in or not — marks the one that would serve now,
+and `/speak options <name>` (`on-device`, `openai`, `gemini`) makes one
+your default: the choice is saved in the config home and survives a
+restart; `/speak options default` restores the shipped default. A saved
+choice that cannot serve — a family no longer signed in, a pack or model
+gone — is named in `/speak`, in the recording receipt and in the doctor
+row, and the shipped default serves; nothing is replaced silently.
+
+`MERCURY_VOICE_TRANSCRIBER` overrides the saved choice for one session:
+`on-device`, `cloud` (the ledger walk), or a family id such as `openai`; a
+pin that cannot serve says so in the receipt, in `/speak` and in the doctor
+row, and never falls back silently. With nothing to transcribe with, pressing space
 answers "nothing transcribes yet — <the on-device reason>; or /logins openai
 (API key) or /logins gemini" before any audio is captured. The doctor's
 `Voice input` row names the engine, the model and the pack, the families

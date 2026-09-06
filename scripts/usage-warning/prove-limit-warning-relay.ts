@@ -23,7 +23,7 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
   process.env[spelling] = home
 }
 process.env.MERCURY_DAEMON_DIR = daemonDir
-for (const key of ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_MODEL', 'OPENROUTER_API_KEY', 'OPENAI_API_KEY']) {
+for (const key of ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'MERCURY_MODEL', 'OPENROUTER_API_KEY', 'OPENAI_API_KEY']) {
   delete process.env[key]
 }
 delete process.env.NODE_ENV

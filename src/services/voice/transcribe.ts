@@ -66,6 +66,48 @@ export function liveTranscriberPin(): TranscriberPin {
 }
 
 
+export const ON_DEVICE_NAME = 'on-device'
+
+export type SavedTranscriber =
+  | { kind: 'unset' }
+  | { kind: 'on-device' }
+  | { kind: 'family'; family: CallModelRoute }
+  | { kind: 'unknown'; raw: string }
+
+export function transcriberOptionNames(): string[] {
+  return [ON_DEVICE_NAME, ...(Object.keys(FAMILY_TRANSCRIBER) as CallModelRoute[]).filter(f => FAMILY_TRANSCRIBER[f].slot === 'api-key')]
+}
+
+export function parseSavedTranscriber(raw: string | null | undefined): SavedTranscriber {
+  const value = (raw ?? '').trim().toLowerCase()
+  if (value === '') return { kind: 'unset' }
+  if (value === ON_DEVICE_NAME) return { kind: 'on-device' }
+  if (Object.prototype.hasOwnProperty.call(FAMILY_TRANSCRIBER, value)) return { kind: 'family', family: value as CallModelRoute }
+  return { kind: 'unknown', raw: value }
+}
+
+export function savedTranscriberDisplay(saved: SavedTranscriber): string {
+  return saved.kind === 'family' ? providerDisplayName(saved.family) : saved.kind === 'unknown' ? saved.raw : ON_DEVICE_NAME
+}
+
+export interface SavedChoiceOutcome {
+  name: string
+  display: string
+  state: 'serving' | 'unavailable' | 'overridden'
+  note?: string
+  short?: string
+}
+
+export function liveSavedTranscriber(): SavedTranscriber {
+  try {
+    const { getGlobalConfig } = require('../../utils/config.js') as typeof import('../../utils/config.js')
+    return parseSavedTranscriber(getGlobalConfig().voiceTranscriber)
+  } catch {
+    return { kind: 'unset' }
+  }
+}
+
+
 export type LocalAbsentReason = 'pack' | 'pin' | 'cpu' | 'model'
 
 export type LocalTranscriberRead =
@@ -112,8 +154,9 @@ export type TranscriberResolution =
       skipped: string[]
       local: LocalTranscriberRead
       unused: string[]
+      saved: SavedChoiceOutcome | null
     }
-  | { state: 'none'; note: string; skipped: string[]; local: LocalTranscriberRead }
+  | { state: 'none'; note: string; skipped: string[]; local: LocalTranscriberRead; saved: SavedChoiceOutcome | null }
 
 export function choiceDisplayName(choice: TranscriberChoice): string {
   return choice.kind === 'cloud' ? providerDisplayName(choice.family) : 'on-device'
@@ -135,10 +178,15 @@ export function pickTranscriber(
   reads: TranscriberReads,
   pin: TranscriberPin = { kind: 'unset' },
   order: TranscriberOrder = TRANSCRIBER_ORDER,
+  savedChoice: SavedTranscriber = { kind: 'unset' },
 ): TranscriberResolution {
   const local = reads.localTranscriber()
   const skipped: string[] = []
-  if (pin.kind === 'broken') return { state: 'none', note: pin.note, skipped, local }
+  const savedName = savedChoice.kind === 'unset' ? null : savedChoice.kind === 'family' ? savedChoice.family : savedChoice.kind === 'unknown' ? savedChoice.raw : ON_DEVICE_NAME
+  const savedDisplay = savedTranscriberDisplay(savedChoice)
+  const pinValue = pin.kind === 'on-device' || pin.kind === 'cloud' ? pin.kind : pin.kind === 'family' ? pin.family : pin.kind === 'broken' ? 'broken' : null
+  const overridden: SavedChoiceOutcome | null = savedName !== null && pinValue !== null ? { name: savedName, display: savedDisplay, state: 'overridden', note: `${TRANSCRIBER_PIN_ENV}=${pinValue} overrides your saved choice (${savedDisplay}) for this process` } : null
+  if (pin.kind === 'broken') return { state: 'none', note: pin.note, skipped, local, saved: overridden }
   const localChoice = (): TranscriberChoiceLocal | null => (local.state === 'ok' ? { kind: 'local', label: local.label, model: local.model } : null)
   const labelOf = (family: string): string | null => (family === 'openai' ? reads.openaiApiKeyLabel() : family === 'gemini' ? reads.geminiApiKeyLabel() : null)
   const walk = (): { choice: TranscriberChoiceCloud | null; withKeys: string[] } => {
@@ -164,8 +212,8 @@ export function pickTranscriber(
 
   if (pin.kind === 'on-device') {
     const choice = localChoice()
-    if (choice !== null) return { state: 'ok', choice, skipped, local, unused: [] }
-    return { state: 'none', note: `${TRANSCRIBER_PIN_ENV}=on-device but the on-device transcriber is ${local.state === 'absent' ? local.note : 'unusable'} — the pin names itself, no silent fallback`, skipped, local }
+    if (choice !== null) return { state: 'ok', choice, skipped, local, unused: [], saved: overridden }
+    return { state: 'none', note: `${TRANSCRIBER_PIN_ENV}=on-device but the on-device transcriber is ${local.state === 'absent' ? local.note : 'unusable'} — the pin names itself, no silent fallback`, skipped, local, saved: overridden }
   }
   if (pin.kind === 'family') {
     const family = pin.family
@@ -173,38 +221,59 @@ export function pickTranscriber(
     const display = providerDisplayName(family)
     if (local.state === 'ok') skipped.push(`${HELD_BACK} ${TRANSCRIBER_PIN_ENV}=${family}`)
     if (rule.slot === 'none') {
-      return { state: 'none', note: `${TRANSCRIBER_PIN_ENV}=${family} but ${display}: ${rule.why} — the pin names itself, no silent fallback`, skipped, local }
+      return { state: 'none', note: `${TRANSCRIBER_PIN_ENV}=${family} but ${display}: ${rule.why} — the pin names itself, no silent fallback`, skipped, local, saved: overridden }
     }
     const label = labelOf(family)
     if (label === null) {
-      return { state: 'none', note: `${TRANSCRIBER_PIN_ENV}=${family} but no ${display} API key is signed in — the pin names itself, no silent fallback`, skipped, local }
+      return { state: 'none', note: `${TRANSCRIBER_PIN_ENV}=${family} but no ${display} API key is signed in — the pin names itself, no silent fallback`, skipped, local, saved: overridden }
     }
-    return { state: 'ok', choice: { kind: 'cloud', family: family as TranscribingFamily, slot: 'api-key', label }, skipped, local, unused: [] }
+    return { state: 'ok', choice: { kind: 'cloud', family: family as TranscribingFamily, slot: 'api-key', label }, skipped, local, unused: [], saved: overridden }
   }
   if (pin.kind === 'cloud') {
     if (local.state === 'ok') skipped.push(`${HELD_BACK} ${TRANSCRIBER_PIN_ENV}=cloud`)
     const { choice } = walk()
-    if (choice !== null) return { state: 'ok', choice, skipped, local, unused: [] }
-    return { state: 'none', note: noTranscriberReceipt(local, pin), skipped, local }
+    if (choice !== null) return { state: 'ok', choice, skipped, local, unused: [], saved: overridden }
+    return { state: 'none', note: noTranscriberReceipt(local, pin), skipped, local, saved: overridden }
+  }
+  let saved: SavedChoiceOutcome | null = null
+  if (savedChoice.kind === 'on-device') {
+    const choice = localChoice()
+    if (choice !== null) {
+      const { withKeys } = walk()
+      return { state: 'ok', choice, skipped, local, unused: withKeys, saved: { name: ON_DEVICE_NAME, display: ON_DEVICE_NAME, state: 'serving' } }
+    }
+    saved = { name: ON_DEVICE_NAME, display: ON_DEVICE_NAME, state: 'unavailable', note: local.state === 'absent' ? local.note : 'unusable', short: 'cannot serve' }
+  } else if (savedChoice.kind === 'family') {
+    const family = savedChoice.family
+    const rule = FAMILY_TRANSCRIBER[family]
+    const display = providerDisplayName(family)
+    const label = rule.slot === 'api-key' ? labelOf(family) : null
+    if (label !== null) {
+      if (local.state === 'ok') skipped.push(`on-device transcriber: usable (${local.model}), your saved choice is ${display}`)
+      return { state: 'ok', choice: { kind: 'cloud', family: family as TranscribingFamily, slot: 'api-key', label }, skipped, local, unused: [], saved: { name: family, display, state: 'serving' } }
+    }
+    saved = rule.slot === 'none' ? { name: family, display, state: 'unavailable', note: `${display}: ${rule.why}`, short: 'cannot serve' } : { name: family, display, state: 'unavailable', note: `not signed in — /logins ${family} (API key)`, short: 'is not signed in' }
+  } else if (savedChoice.kind === 'unknown') {
+    saved = { name: savedChoice.raw, display: savedChoice.raw, state: 'unavailable', note: `"${savedChoice.raw}" is not a transcriber this install can use (${transcriberOptionNames().join(' · ')})`, short: 'is not a transcriber' }
   }
   if (order === 'on-device-first') {
     const choice = localChoice()
     if (choice !== null) {
       const { withKeys } = walk()
-      return { state: 'ok', choice, skipped, local, unused: withKeys }
+      return { state: 'ok', choice, skipped, local, unused: withKeys, saved }
     }
     const { choice: cloud } = walk()
-    if (cloud !== null) return { state: 'ok', choice: cloud, skipped, local, unused: [] }
-    return { state: 'none', note: noTranscriberReceipt(local, pin), skipped, local }
+    if (cloud !== null) return { state: 'ok', choice: cloud, skipped, local, unused: [], saved }
+    return { state: 'none', note: noTranscriberReceipt(local, pin), skipped, local, saved }
   }
   const { choice: cloud } = walk()
   if (cloud !== null) {
     if (local.state === 'ok') skipped.push('on-device transcriber: usable, second in the order (cloud first)')
-    return { state: 'ok', choice: cloud, skipped, local, unused: [] }
+    return { state: 'ok', choice: cloud, skipped, local, unused: [], saved }
   }
   const choice = localChoice()
-  if (choice !== null) return { state: 'ok', choice, skipped, local, unused: [] }
-  return { state: 'none', note: noTranscriberReceipt(local, pin), skipped, local }
+  if (choice !== null) return { state: 'ok', choice, skipped, local, unused: [], saved }
+  return { state: 'none', note: noTranscriberReceipt(local, pin), skipped, local, saved }
 }
 
 export function localTranscriberRead(): LocalTranscriberRead {
@@ -267,7 +336,29 @@ export function liveFamilyOrder(): string[] {
 }
 
 export function resolveTranscriber(env: NodeJS.ProcessEnv = process.env): TranscriberResolution {
-  return pickTranscriber(liveFamilyOrder(), liveTranscriberReads(env), liveTranscriberPin())
+  return pickTranscriber(liveFamilyOrder(), liveTranscriberReads(env), liveTranscriberPin(), TRANSCRIBER_ORDER, liveSavedTranscriber())
+}
+
+export interface TranscriberOption {
+  name: string
+  display: string
+  state: 'ready' | 'unavailable'
+  detail: string
+}
+
+export function transcriberOptions(reads: TranscriberReads): TranscriberOption[] {
+  const local = reads.localTranscriber()
+  const rows: TranscriberOption[] = [
+    local.state === 'ok'
+      ? { name: ON_DEVICE_NAME, display: ON_DEVICE_NAME, state: 'ready', detail: `${local.pack.engine.split(' ')[0]} ${local.model} (pack ${local.pack.version} ${local.pack.platform}, ${local.pack.where})` }
+      : { name: ON_DEVICE_NAME, display: ON_DEVICE_NAME, state: 'unavailable', detail: local.note },
+  ]
+  for (const family of Object.keys(FAMILY_TRANSCRIBER) as CallModelRoute[]) {
+    if (FAMILY_TRANSCRIBER[family].slot !== 'api-key') continue
+    const label = family === 'openai' ? reads.openaiApiKeyLabel() : family === 'gemini' ? reads.geminiApiKeyLabel() : null
+    rows.push(label !== null ? { name: family, display: providerDisplayName(family), state: 'ready', detail: label } : { name: family, display: providerDisplayName(family), state: 'unavailable', detail: `not signed in — /logins ${family} (API key)` })
+  }
+  return rows
 }
 
 

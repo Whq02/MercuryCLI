@@ -25,8 +25,6 @@ import type { ExecResult, ShellCommand } from '../ShellCommand.js'
 const SOH = String.fromCharCode(1)
 const STX = String.fromCharCode(2)
 const ETX = String.fromCharCode(3)
-const NUL = String.fromCharCode(0)
-
 const ENGINE_FLAGS = ['--norc', '--noprofile', '--no-config', '--disable-color'] as const
 
 const PARSE_GUARD_TIMEOUT_MS = 5_000
@@ -87,25 +85,30 @@ let queue: Promise<unknown> = Promise.resolve()
 let pendingResetNote: string | null = null
 let snapshotPromise: Promise<string | undefined> | null = null
 
-function loopScript(): string {
+export function loopScript(): string {
   return [
-    'exec 3<&0 </dev/null',
-    'exec 2>&1',
-    'IFS= read -r __brush_nonce <&3',
+    'IFS= read -r __brush_nonce',
     '__brush_run() { eval "$__brush_cmd"; }',
-    "while IFS= read -r -d '' __brush_b64 <&3; do",
-    '  pwd -P >/dev/null 2>&1 || cd / 2>/dev/null || true',
-    '  __brush_cmd=$(printf %s "$__brush_b64" | base64 -d)',
+    'while IFS= read -r __brush_esc; do',
+    '  __brush_probe=$(pwd -P 2>&1) || cd / 2>&1 || :',
+    '  __brush_cmd=$(printf %b "$__brush_esc")',
     '  __brush_st=0',
-    '  __brush_run || __brush_st=$?',
-    "  __brush_cwd=$(pwd -P 2>/dev/null) || __brush_cwd=''",
+    "  __brush_run <<'__BRUSH_STDIN__' 2>&1 || __brush_st=$?",
+    '__BRUSH_STDIN__',
+    "  __brush_cwd=$(pwd -P 2>&1) || __brush_cwd=''",
     `  printf '${SOH}%s %d${STX}%s${ETX}' "$__brush_nonce" "$__brush_st" "$__brush_cwd"`,
     'done',
   ].join('\n')
 }
 
 function encodeFrame(payload: string): string {
-  return Buffer.from(payload, 'utf8').toString('base64') + NUL
+  let out = ''
+  for (const byte of Buffer.from(payload, 'utf8')) {
+    if (byte === 0x5c) out += '\\\\'
+    else if (byte >= 0x20 && byte <= 0x7e) out += String.fromCharCode(byte)
+    else out += `\\x${byte.toString(16).padStart(2, '0')}`
+  }
+  return out + '\n'
 }
 
 function nextEvent(live: LiveSession): Promise<void> {
@@ -184,7 +187,7 @@ async function spawnSession(binaryPath: string, sandbox: EngineSandboxPolicy): P
   live.child.stdin?.write(nonce + '\n')
   const seeds: string[] = []
   const snapshot = await getSnapshot(binaryPath)
-  if (snapshot) seeds.push(`source ${quote([snapshot])} 2>/dev/null || true`)
+  if (snapshot) seeds.push(`source ${quote([snapshot])} 2>&1 || :`)
   const sessionScript = await getSessionEnvironmentScript()
   if (sessionScript) seeds.push(sessionScript)
   const preamble = getGlobPreambleCommand(binaryPath)
@@ -305,7 +308,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       return
     }
 
-    const payload = `cd -- ${quote([cwdThatResolves()])} 2>/dev/null || true\n${command}`
+    const payload = `cd -- ${quote([cwdThatResolves()])} || :\n${command}`
 
     const marker = Buffer.from(SOH + live.nonce + ' ', 'utf8')
     const etx = ETX.charCodeAt(0)
@@ -466,6 +469,7 @@ function parseCheck(binaryPath: string, command: string): Promise<{ ok: boolean;
     let child: ChildProcess
     try {
       child = spawn(binaryPath, [...ENGINE_FLAGS, '-n', '-c', command], {
+        env: subprocessEnv(),
         stdio: ['ignore', 'ignore', 'pipe'],
         windowsHide: true,
       })

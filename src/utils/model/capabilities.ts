@@ -3,7 +3,7 @@ import {
   checkFeatureGate_CACHED_MAY_BE_STALE,
   getFeatureValue_CACHED_MAY_BE_STALE,
 } from 'src/services/analytics/featureGates.js'
-import { flagEnabled } from 'src/substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from 'src/substrate/flagRegistry.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../entrypoints/sdk/runtimeTypes.js'
 import { getIsNonInteractiveSession, getSdkBetas } from '../../bootstrap/state.js'
 import {
@@ -863,9 +863,9 @@ const KEY_SEP = String.fromCharCode(0)
 
 function betasEnvFingerprint(): string {
   return [
-    process.env.DISABLE_INTERLEAVED_THINKING ?? '',
+    flagEnv('MERCURY_INTERLEAVED_THINKING') ?? '',
     process.env.MERCURY_DISABLE_1M_CONTEXT ?? '',
-    process.env.ANTHROPIC_BETAS ?? '',
+    process.env.MERCURY_PROVIDER_BETAS ?? '',
   ].join(KEY_SEP)
 }
 
@@ -888,7 +888,7 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     betaHeaders.push(CONTEXT_1M_BETA_HEADER)
   }
   if (
-    !isEnvTruthy(process.env.DISABLE_INTERLEAVED_THINKING) &&
+    flagEnabled('MERCURY_INTERLEAVED_THINKING') &&
     modelSupportsISP(model)
   ) {
     betaHeaders.push(INTERLEAVED_THINKING_BETA_HEADER)
@@ -907,14 +907,14 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER &&
     false &&
     includeFirstPartyOnlyBetas &&
-    !isEnvDefinedFalsy(process.env.USE_CONNECTOR_TEXT_SUMMARIZATION) &&
-    isEnvTruthy(process.env.USE_CONNECTOR_TEXT_SUMMARIZATION)
+    !isEnvDefinedFalsy(flagEnv('MERCURY_CONNECTOR_TEXT_SUMMARIZATION')) &&
+    isEnvTruthy(flagEnv('MERCURY_CONNECTOR_TEXT_SUMMARIZATION'))
   ) {
     betaHeaders.push(SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER)
   }
 
   const antOptedIntoToolClearing =
-    isEnvTruthy(process.env.USE_API_CONTEXT_MANAGEMENT) &&
+    flagEnabled('MERCURY_API_CONTEXT_MANAGEMENT') &&
     false
 
   const thinkingPreservationEnabled = modelSupportsContextManagement(model)
@@ -943,9 +943,9 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     betaHeaders.push(PROMPT_CACHING_SCOPE_BETA_HEADER)
   }
 
-  if (process.env.ANTHROPIC_BETAS) {
+  if (process.env.MERCURY_PROVIDER_BETAS) {
     betaHeaders.push(
-      ...process.env.ANTHROPIC_BETAS.split(',')
+      ...process.env.MERCURY_PROVIDER_BETAS.split(',')
         .map(_ => _.trim())
         .filter(Boolean),
     )

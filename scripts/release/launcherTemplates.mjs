@@ -39,14 +39,12 @@ export function verbSurfaceFromSource(mainSource, cliSource) {
     }
   }
   const fastPath = [...cliSource.matchAll(/args\[0\] === '([^']+)'/g)].map(m => m[1]).filter(v => !v.startsWith('-'))
-  const deadBlock = /const DEAD_SUBCOMMANDS = new Set\(\[([\s\S]*?)\]\)/.exec(cliSource)
-  const dead = deadBlock ? [...deadBlock[1].matchAll(/'([^']+)'/g)].map(m => m[1]) : []
-  if (commands.length === 0 || fastPath.length === 0 || dead.length === 0) {
+  if (commands.length === 0 || fastPath.length === 0) {
     throw new Error(
       'the launcher templates could not read the product\'s verb surface from src/main.tsx + src/entrypoints/cli.tsx — update verbSurfaceFromSource alongside any deliberate registration-shape change (a stale skip list lets a verb be cancelled into never running)',
     )
   }
-  return { commands, fastPath, dead: [...new Set(dead)] }
+  return { commands, fastPath }
 }
 
 export function splashSkipVerbsFrom(surface) {
@@ -56,7 +54,6 @@ export function splashSkipVerbsFrom(surface) {
     for (const alias of command.aliases) verbs.add(alias)
   }
   for (const verb of surface.fastPath) verbs.add(verb)
-  for (const verb of surface.dead) verbs.add(verb)
   return [...verbs].sort()
 }
 

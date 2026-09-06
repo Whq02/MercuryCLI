@@ -198,11 +198,11 @@ function orderOfWords(body: Record<string, unknown>, words: string[]): string[] 
 function toolStep(arm: ToolArm, step: number, cwd: string, call: number): { name: string; input: Record<string, unknown>; id: string } | null {
   if (arm === 'launch-agent') {
     return step === 0
-      ? { name: 'Agent', input: { description: 'first-byte-seat', prompt: SEAT_HOLD_PROMPT, subagent_type: 'general-purpose' }, id: `toolu_agent_c${call}` }
+      ? { name: 'Agent', input: { description: 'first-byte-seat', prompt: SEAT_HOLD_PROMPT, subagent_type: 'mercury-general' }, id: `toolu_agent_c${call}` }
       : null
   }
   if (arm === 'launch-and-sleep') {
-    if (step === 0) return { name: 'Agent', input: { description: ERRAND_PROMPT, prompt: ERRAND_PROMPT, subagent_type: 'general-purpose', run_in_background: true }, id: `toolu_agent_c${call}` }
+    if (step === 0) return { name: 'Agent', input: { description: ERRAND_PROMPT, prompt: ERRAND_PROMPT, subagent_type: 'mercury-general', run_in_background: true }, id: `toolu_agent_c${call}` }
     if (step === 1) return { name: 'Bash', input: { command: `sleep ${ERRAND_SLEEP_SECONDS}`, description: 'the errand sleep' }, id: `toolu_sleep_c${call}` }
     return null
   }

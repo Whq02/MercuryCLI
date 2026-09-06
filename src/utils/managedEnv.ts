@@ -12,7 +12,7 @@ type EnvObject = Record<string, string>
 
 
 const TUNNEL_PROTECTED_KEYS = [
-  'ANTHROPIC_UNIX_SOCKET',
+  'MERCURY_API_UNIX_SOCKET',
   'ANTHROPIC_BASE_URL',
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
@@ -20,7 +20,7 @@ const TUNNEL_PROTECTED_KEYS = [
 ] as const
 
 function filterTunnelProtected(env: EnvObject): EnvObject {
-  if (process.env.ANTHROPIC_UNIX_SOCKET === undefined) return env
+  if (process.env.MERCURY_API_UNIX_SOCKET === undefined) return env
   const out: EnvObject = { ...env }
   for (const key of TUNNEL_PROTECTED_KEYS) delete out[key]
   return out

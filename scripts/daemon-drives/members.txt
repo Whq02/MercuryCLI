@@ -1,0 +1,6 @@
+# scripts/daemon-drives/members.txt — the daemon suite's real-terminal drives, one
+# basename per line (the files live in scripts/daemon/). Each member boots the
+# real daemon and the built bundle in a pseudo-terminal; the daemon runner
+# names its provers one by one, so a drive joins the gate only through this
+# list. A name listed here but missing on disk is a loud red in this runner.
+prove-parked-ask-drive.ts

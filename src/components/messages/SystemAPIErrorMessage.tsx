@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { useState } from 'react'
 import { Box, Text } from 'src/ink.js'
 import { formatAPIError } from 'src/services/api/errorUtils.js'
@@ -55,14 +56,14 @@ export function SystemAPIErrorMessage({
     transport?.code === 'UND_ERR_CONNECT_TIMEOUT' ||
     transport?.code === 'UND_ERR_HEADERS_TIMEOUT' ||
     transport?.code === 'UND_ERR_BODY_TIMEOUT'
-  const timeoutRaw = process.env.API_TIMEOUT_MS
+  const timeoutRaw = flagEnv('MERCURY_API_TIMEOUT_MS')
   const timeoutParsed = apiTimeoutMsOverride()
   const timeoutHint = timeoutRaw
     ? timeoutParsed === null
-      ? ` · API_TIMEOUT_MS=${timeoutRaw} is not a whole number of milliseconds — unset it or set e.g. 120000`
-      : ` · API_TIMEOUT_MS=${timeoutParsed}ms, try increasing it`
+      ? ` · MERCURY_API_TIMEOUT_MS=${timeoutRaw} is not a whole number of milliseconds — unset it or set e.g. 120000`
+      : ` · MERCURY_API_TIMEOUT_MS=${timeoutParsed}ms, try increasing it`
     : isTimeoutClass
-      ? ' · slow link? set API_TIMEOUT_MS (current budget 600000ms)'
+      ? ' · slow link? set MERCURY_API_TIMEOUT_MS (current budget 600000ms)'
       : ''
 
   const statusLine =

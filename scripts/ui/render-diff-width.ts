@@ -4,7 +4,7 @@ const MARKER = '#'
 if (process.env.DIFF_WIDTH_CHILD) {
   ;(globalThis as Record<string, unknown>).MACRO = {
     VERSION: '1.0.0',
-    ISSUES_EXPLAINER: '', PACKAGE_URL: '', README_URL: '', IS_DEV: false, IS_DEMO: false,
+    ISSUES_EXPLAINER: '', PACKAGE_URL: '', README_URL: '', IS_DEV: false, MERCURY_DEMO: false,
   }
   Bun.plugin({
     name: 'stub-color-diff-napi-echo',

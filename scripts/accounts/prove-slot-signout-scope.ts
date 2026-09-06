@@ -47,7 +47,7 @@ const seed = (): void => {
     JSON.stringify({
       claudeAiOauth: { accessToken: 'fixture-access', refreshToken: '', expiresAt: far, scopes: ['user:inference'], subscriptionType: null },
       mcpOAuth: { 'srv|abc': { accessToken: 'mcp-fixture', clientId: 'c' } },
-      mcpXaaIdp: { 'srv|abc': { session: 'idp-fixture' } },
+      mcpOAuthClientConfig: { 'srv|abc': { clientId: 'c' } },
       extensionSecrets: { 'ext.one': { token: 'ext-fixture' } },
       trustedDeviceToken: 'device-fixture',
     }),
@@ -57,7 +57,7 @@ const readStore = (): Record<string, unknown> | null => {
   if (!existsSync(credentialsPath)) return null
   return JSON.parse(readFileSync(credentialsPath, 'utf8')) as Record<string, unknown>
 }
-const SIBLINGS = ['mcpOAuth', 'mcpXaaIdp', 'extensionSecrets', 'trustedDeviceToken'] as const
+const SIBLINGS = ['mcpOAuth', 'mcpOAuthClientConfig', 'extensionSecrets', 'trustedDeviceToken'] as const
 const siblingsIntact = (store: Record<string, unknown> | null): boolean =>
   store !== null && SIBLINGS.every(k => store[k] !== undefined)
 

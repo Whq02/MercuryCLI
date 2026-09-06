@@ -118,7 +118,7 @@ const agentLaunch = (id: string, seat: Seat): Answer => ({
   input: {
     description: SEATS[seat],
     prompt: `${SEAT_MARK}${seat} read the notes file ten times, one read per turn, then report in one line`,
-    subagent_type: 'general-purpose',
+    subagent_type: 'mercury-general',
     run_in_background: true,
   },
 })

@@ -240,7 +240,7 @@ export type GlobalConfig = {
 
   lastStrategyModeUse?: number
 
-  showExpandedTodos?: boolean
+  showExpandedTasks?: boolean
   showSpinnerTree?: boolean
 
   firstStartTime?: string
@@ -263,12 +263,6 @@ export type GlobalConfig = {
   bridgeOauthDeadFailCount?: number
 
   idleReturnDismissed?: boolean
-
-  opusProMigrationComplete?: boolean
-  opusProMigrationTimestamp?: number
-  sonnet1m45MigrationComplete?: boolean
-  legacyOpusMigrationTimestamp?: number
-  sonnet45To46MigrationTimestamp?: number
 
   respectGitignore: boolean
 
@@ -301,6 +295,10 @@ export type GlobalConfig = {
   prStatusFooterEnabled?: boolean
 
   voiceInputEnabled?: boolean
+
+  voiceTranscriber?: string
+
+  startupPrefetchedAt?: number
 
   remoteControlAtStartup?: boolean
 
@@ -341,7 +339,7 @@ export function createDefaultGlobalConfig(): GlobalConfig {
     env: {},
     tipsHistory: {},
     promptQueueUseCount: 0,
-    showExpandedTodos: false,
+    showExpandedTasks: false,
     messageIdleNotifThresholdMs: 60000,
     autoConnectIde: false,
     autoInstallIdeExtension: true,
@@ -367,7 +365,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'diffTool',
   'env',
   'tipsHistory',
-  'showExpandedTodos',
+  'showExpandedTasks',
   'messageIdleNotifThresholdMs',
   'autoConnectIde',
   'autoInstallIdeExtension',

@@ -217,7 +217,7 @@ function identityFlags(
     `--team-name ${quote([prepared.teamName])}`,
     `--agent-color ${quote([prepared.color])}`,
     `--parent-session-id ${quote([getSessionId()])}`,
-    prepared.planModeRequired ? '--plan-mode-required' : '',
+    prepared.planModeRequired ? '--strategy-mode-required' : '',
     canonicalAgentType ? `--agent-type ${quote([canonicalAgentType])}` : '',
   ].filter(flag => flag.length > 0)
 }
@@ -230,7 +230,7 @@ function inheritedFlags(prepared: PreparedSpawn, context: ToolUseContext): strin
       modeBypassesPermissions(permissionMode) ||
       getSessionBypassPermissionsMode()
     ) {
-      flags.push('--dangerously-skip-permissions')
+      flags.push('--dangerously-bypass-permissions')
     } else if (permissionMode === 'implement') {
       flags.push('--permission-mode implement')
     } else if (permissionMode === 'flow') {

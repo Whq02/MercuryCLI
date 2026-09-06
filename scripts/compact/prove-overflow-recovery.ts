@@ -10,10 +10,10 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'overflow-recovery-'
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'overflow-recovery-daemon-'))
 process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'overflow-recovery-teams-'))
 for (const k of [
-  'MERCURY_SIMPLE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_BLOCKING_LIMIT_OVERRIDE',
+  'MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_BLOCKING_LIMIT_OVERRIDE',
   'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_RELEVANT_RECALL', 'CLAUDE_TEAM_NAME', 'CLAUDE_AGENT_NAME',
-  'DISABLE_COMPACT', 'DISABLE_AUTO_COMPACT', 'MERCURY_OVERFLOW_RECOVERY', 'MERCURY_TIME_BASED_MC', 'NODE_ENV',
-  'ANTHROPIC_MODEL',
+  'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_OVERFLOW_RECOVERY', 'MERCURY_TIME_BASED_MC', 'NODE_ENV',
+  'MERCURY_MODEL',
 ]) {
   delete process.env[k]
 }
@@ -360,21 +360,21 @@ section('R4 the prune cannot cover a large gap → straight to the fold')
   check('nothing was pruned first (no placeholder in the retried request)', toolResultsOf(r.calls[1]!.messages).every(x => !isPlaceholder(x.content)))
 }
 
-section('R5 the switches — DISABLE_AUTO_COMPACT · DISABLE_COMPACT · the flag OFF')
+section('R5 the switches — MERCURY_AUTO_COMPACT · MERCURY_COMPACT · the flag OFF')
 {
-  process.env.DISABLE_AUTO_COMPACT = '1'
+  process.env.MERCURY_AUTO_COMPACT = '0'
   const a = await run({ seed: seedPlain(), script: [[ping(), overflowError()]] })
-  delete process.env.DISABLE_AUTO_COMPACT
+  delete process.env.MERCURY_AUTO_COMPACT
   const aText = textOf(errorYields(a.yields)[0])
   check('auto-compact off: terminal prompt_too_long after ONE call', a.terminal.reason === 'prompt_too_long' && a.calls.length === 1, JSON.stringify(a.terminal))
   check('auto-compact off: the refusal says the emergency fold did not run', aText.includes('automatic compaction is off, so the emergency fold did not run'), aText)
   check('auto-compact off: no fold was forced', a.compact.every(c => c.forced === undefined))
 
-  process.env.DISABLE_COMPACT = '1'
+  process.env.MERCURY_COMPACT = '0'
   const b = await run({ seed: seedPlain(), script: [[ping(), overflowError()]] })
-  delete process.env.DISABLE_COMPACT
+  delete process.env.MERCURY_COMPACT
   const bText = textOf(errorYields(b.yields)[0])
-  check('compaction off: the refusal names DISABLE_COMPACT', b.terminal.reason === 'prompt_too_long' && bText.includes('compaction is disabled (DISABLE_COMPACT)'), bText)
+  check('compaction off: the refusal names MERCURY_COMPACT', b.terminal.reason === 'prompt_too_long' && bText.includes('compaction is disabled (MERCURY_COMPACT)'), bText)
 
   process.env.MERCURY_OVERFLOW_RECOVERY = '0'
   const c = await run({ seed: seedPlain(), script: [[ping(), overflowError()]] })
@@ -452,9 +452,9 @@ section('R10 the interactive refusal names the slash-command remedies')
   const r = await run({ seed: seedPlain(), script: [[ping(), overflowError()], [ping(), overflowError()]], interactive: true })
   const text = textOf(errorYields(r.yields)[0])
   check('/clear and /model are named', text.includes('/clear starts fresh, or /model picks a model with a larger window.'), text)
-  process.env.DISABLE_AUTO_COMPACT = '1'
+  process.env.MERCURY_AUTO_COMPACT = '0'
   const a = await run({ seed: seedPlain(), script: [[ping(), overflowError()]], interactive: true })
-  delete process.env.DISABLE_AUTO_COMPACT
+  delete process.env.MERCURY_AUTO_COMPACT
   const aText = textOf(errorYields(a.yields)[0])
   check('auto-compact off (interactive): /compact by hand is named', aText.includes('/compact folds the conversation by hand'), aText)
 }

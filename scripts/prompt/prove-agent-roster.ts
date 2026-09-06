@@ -69,7 +69,7 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   check("§5 background sentinels verbatim: `result:`", bg.includes('`result:`') || bg.includes('\\`result:\\`'))
   check("§5 background sentinels verbatim: `needs input:`", bg.includes('needs input:'))
   check("§5 background sentinels verbatim: `failed:`", bg.includes('failed:'))
-  const verifier = promptTextOf(byType.get('verification')!)
+  const verifier = promptTextOf(byType.get('mercury-verifier')!)
   check('§5 verifier verdict contract verbatim (VERDICT: PASS|FAIL|PARTIAL)', /VERDICT/.test(verifier) && /PASS/.test(verifier) && /FAIL/.test(verifier))
   check("§5 verifier opens as Mercury's verification specialist", verifier.startsWith("You are Mercury's verification specialist"))
 }
@@ -95,7 +95,7 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   const prevInteractive = getIsInteractive()
   const mounted = (): boolean => getBuiltInAgents().some(a => a.agentType === MERCURY_GUIDE_AGENT_TYPE)
   delete process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS
-  process.env.MERCURY_ENTRYPOINT = 'sdk'
+  process.env.MERCURY_ENTRYPOINT = 'headless'
   setIsInteractive(false)
   check('§7 the guide is mounted under the sdk entrypoint (a headless -p run)', isGuideAgentMounted() && mounted())
   process.env.MERCURY_ENTRYPOINT = 'cli'

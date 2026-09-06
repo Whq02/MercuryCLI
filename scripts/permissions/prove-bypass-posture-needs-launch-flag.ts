@@ -38,7 +38,7 @@ section('§1 THE CLI SPELLING')
   )
   check(
     'the refusal is NAMED (a notification, not silence)',
-    typeof flagless.notification === 'string' && flagless.notification.includes('--dangerously-skip-permissions'),
+    typeof flagless.notification === 'string' && flagless.notification.includes('--dangerously-bypass-permissions'),
     JSON.stringify(flagless.notification),
   )
 
@@ -62,7 +62,7 @@ section('§2 THE SETTINGS ROAD')
   )
   check(
     'the settings-borne refusal is named too',
-    typeof settingsBorne.notification === 'string' && settingsBorne.notification.includes('--dangerously-skip-permissions'),
+    typeof settingsBorne.notification === 'string' && settingsBorne.notification.includes('--dangerously-bypass-permissions'),
     JSON.stringify(settingsBorne.notification),
   )
 

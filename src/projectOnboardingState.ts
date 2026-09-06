@@ -73,7 +73,7 @@ export const shouldShowProjectOnboarding = memoize((): boolean => {
   if ((config.projectOnboardingSeenCount ?? 0) >= ONBOARDING_SEEN_COUNT_LIMIT) {
     return false
   }
-  if (process.env.IS_DEMO) {
+  if (process.env.MERCURY_DEMO) {
     return false
   }
   return !isProjectOnboardingComplete()

@@ -110,9 +110,9 @@ export function headlessPermissionArgv(
   mode: SeatPermissionMode = getHeadlessPermissionMode(),
   allowBypass = false,
 ): string[] {
-  if (mode === 'sovereign') return ['--dangerously-skip-permissions']
+  if (mode === 'sovereign') return ['--dangerously-bypass-permissions']
   const words = mode === 'default' ? [] : ['--permission-mode', mode]
-  return allowBypass ? [...words, '--allow-dangerously-skip-permissions'] : words
+  return allowBypass ? [...words, '--allow-dangerously-bypass-permissions'] : words
 }
 
 export function killProcessTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -125,8 +125,8 @@ function cloneEnvWithoutRoles(): NodeJS.ProcessEnv {
     delete env[v]
   }
   stripCrewRolePair(env)
-  if (env.ANTHROPIC_MODEL) {
-    env.ANTHROPIC_MODEL = enforceSubagentModelFloor(env.ANTHROPIC_MODEL, 'daemon:headless-loop')
+  if (env.MERCURY_MODEL) {
+    env.MERCURY_MODEL = enforceSubagentModelFloor(env.MERCURY_MODEL, 'daemon:headless-loop')
   }
   env.MERCURY_BRIEF ??= '1'
   return env
@@ -205,7 +205,7 @@ export function buildStreamJsonInvocation(
     '-p',
     ...headlessPermissionArgv(getHeadlessPermissionMode(spec.permissionMode), spec.allowBypass === true),
     ...(spec.allowedTools && spec.allowedTools.length > 0
-      ? ['--allowedTools', ...spec.allowedTools]
+      ? ['--allowed-tools', ...spec.allowedTools]
       : []),
     '--input-format=stream-json',
     '--output-format=stream-json',
@@ -231,9 +231,9 @@ export function buildStreamJsonInvocation(
   const env: NodeJS.ProcessEnv = {
     ...inherited,
     ...(spec.extraEnv ?? {}),
-    ANTHROPIC_MODEL: model,
+    MERCURY_MODEL: model,
     MERCURY_EFFORT_LEVEL: spec.effort,
-    ...flagPair('MERCURY_SWARMS', '1'),
+    ...flagPair('MERCURY_TEAMMATES', '1'),
   }
   for (const v of sweptRoleSpellings()) {
     delete env[v]
@@ -314,7 +314,7 @@ export function runTaskHeadless(
           '-p',
           ...headlessPermissionArgv(getHeadlessPermissionMode(spec.permissionMode)),
           ...(spec.allowedTools && spec.allowedTools.length > 0
-            ? ['--allowedTools', ...spec.allowedTools]
+            ? ['--allowed-tools', ...spec.allowedTools]
             : []),
           ...(spec.resumeSessionId ? ['--resume', spec.resumeSessionId] : []),
           spec.prompt,

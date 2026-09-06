@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -202,7 +203,7 @@ function reportedCpuFlags(platform: string): Set<string> | null {
       return new Set(line.replace(/^flags\s*:/, '').trim().toLowerCase().split(/\s+/))
     }
     if (platform === 'darwin') {
-      const res = spawnSync('sysctl', ['-n', 'machdep.cpu.features', 'machdep.cpu.leaf7_features'], { encoding: 'utf8', timeout: 5_000 })
+      const res = spawnSync('sysctl', ['-n', 'machdep.cpu.features', 'machdep.cpu.leaf7_features'], { encoding: 'utf8', timeout: 5_000, env: subprocessEnv() })
       if (res.status !== 0) return null
       return new Set(res.stdout.toLowerCase().split(/\s+/).filter(f => f !== ''))
     }
@@ -215,7 +216,7 @@ function windowsAvx2(): boolean | null {
   try {
     const script =
       "Add-Type -Namespace MercuryProbe -Name Cpu -MemberDefinition '[DllImport(\"kernel32.dll\")] public static extern bool IsProcessorFeaturePresent(int feature);'; [MercuryProbe.Cpu]::IsProcessorFeaturePresent(40)"
-    const res = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 20_000, windowsHide: true })
+    const res = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 20_000, windowsHide: true, env: subprocessEnv() })
     if (res.status !== 0) return null
     const answer = res.stdout.trim().toLowerCase()
     if (answer === 'true') return true

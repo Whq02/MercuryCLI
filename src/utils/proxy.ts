@@ -267,7 +267,7 @@ export function getProxyFetchOptions(opts?: { forAnthropicAPI?: boolean }): Reco
   const isBun = isBunRuntime()
 
   if (opts?.forAnthropicAPI === true && isBun) {
-    const socket = process.env.ANTHROPIC_UNIX_SOCKET
+    const socket = process.env.MERCURY_API_UNIX_SOCKET
     if (socket) return { ...base, unix: socket }
   }
 
