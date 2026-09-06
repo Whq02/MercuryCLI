@@ -827,8 +827,8 @@ section('R14 · nothing load-bearing on the partial shapes: an old notice paints
   check('a resume receipt row settles no launch (a restart during the resumed run still writes the death notice)', orphansWithResumed.some(o => o.agentId === 'agent-one'), JSON.stringify(orphansWithResumed.map(o => o.agentId)))
   check("…while the run's own terminal notice does settle it", !orphansWithEnd.some(o => o.agentId === 'agent-one'))
   const { buildAgentResultEnvelope } = await import('../../src/services/agentResults/normalize.ts')
-  const failedEnvelope = await buildAgentResultEnvelope({ agentId: generateTaskId('local_agent'), agentType: 'general-purpose', status: 'failed', finalText: 'three piers so far', usage: { totalTokens: 1, toolUseCount: 1, durationMs: 1 } })
-  const completedEnvelope = await buildAgentResultEnvelope({ agentId: generateTaskId('local_agent'), agentType: 'general-purpose', status: 'completed', finalText: 'four piers', usage: { totalTokens: 1, toolUseCount: 1, durationMs: 1 } })
+  const failedEnvelope = await buildAgentResultEnvelope({ agentId: generateTaskId('local_agent'), agentType: 'mercury-general', status: 'failed', finalText: 'three piers so far', usage: { totalTokens: 1, toolUseCount: 1, durationMs: 1 } })
+  const completedEnvelope = await buildAgentResultEnvelope({ agentId: generateTaskId('local_agent'), agentType: 'mercury-general', status: 'completed', finalText: 'four piers', usage: { totalTokens: 1, toolUseCount: 1, durationMs: 1 } })
   check('the envelope of a non-clean exit carries exactly the keys a finished one carries', JSON.stringify(Object.keys(failedEnvelope).sort()) === JSON.stringify(Object.keys(completedEnvelope).sort()), Object.keys(failedEnvelope).join(','))
   {
     const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
