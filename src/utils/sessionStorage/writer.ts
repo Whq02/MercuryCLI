@@ -62,7 +62,6 @@ import {
   getNodeEnv,
   getTranscriptPath,
   getTranscriptPathForSession,
-  getUserType,
   isChainParticipant,
   isTranscriptMessage,
 } from './paths.js'
@@ -323,7 +322,7 @@ export async function recordContextCollapseCommit(commit: {
   const sessionId = getSessionId() as UUID
   if (!sessionId) return
   await getProject().appendEntry({
-    type: 'marble-origami-commit',
+    type: 'context-collapse-commit',
     sessionId,
     ...commit,
   })
@@ -343,7 +342,7 @@ export async function recordContextCollapseSnapshot(snapshot: {
   const sessionId = getSessionId() as UUID
   if (!sessionId) return
   await getProject().appendEntry({
-    type: 'marble-origami-snapshot',
+    type: 'context-collapse-snapshot',
     sessionId,
     ...snapshot,
   })
@@ -371,8 +370,8 @@ const ALWAYS_APPEND_KINDS = new Set<Entry['type']>([
   'speculation-accept',
   'mode',
   'worktree-state',
-  'marble-origami-commit',
-  'marble-origami-snapshot',
+  'context-collapse-commit',
+  'context-collapse-snapshot',
 ])
 
 class Project {
@@ -883,7 +882,6 @@ class Project {
             message.type === 'user' ? (getPromptId() ?? undefined) : undefined,
           agentId,
           ...message,
-          userType: getUserType(),
           entrypoint: getEntrypoint(),
           cwd: getCwd(),
           sessionId,

@@ -201,11 +201,11 @@ console.log('§13 git-bash refusal — the hold releases before the words')
   const wp = read('src/utils/windowsPaths.ts')
   check('the hold-release owner is imported', wp.includes("import { releaseLauncherAltHoldNow } from '../ink/launcherAltHold.js'"))
   const releases = [...wp.matchAll(/releaseLauncherAltHoldNow\(\)/g)].length
-  check('both refusal arms release the hold', releases === 2)
+  check('the one refusal arm (the pin that points nowhere) releases the hold', releases === 1)
   const overrideArm = wp.slice(wp.indexOf('const override = process.env.MERCURY_GIT_BASH_PATH'), wp.indexOf('for (const candidate of gitBashCandidatePaths'))
   check('override arm: release precedes the write', overrideArm.indexOf('releaseLauncherAltHoldNow()') !== -1 && overrideArm.indexOf('releaseLauncherAltHoldNow()') < overrideArm.indexOf('writeSync(2,'))
   const missingArm = wp.slice(wp.indexOf('for (const candidate of gitBashCandidatePaths'))
-  check('missing-git arm: release precedes the write', missingArm.indexOf('releaseLauncherAltHoldNow()') !== -1 && missingArm.indexOf('releaseLauncherAltHoldNow()') < missingArm.indexOf('writeSync('))
+  check('missing-git arm: a typed absence, never an exit', missingArm.includes('return { absent: true }') && !/process\.exit\(/.test(missingArm) && !missingArm.includes('writeSync('))
 }
 
 console.log('§14 boot settings — no sync git inside a render')
@@ -316,7 +316,7 @@ console.log('§20 /bug — the draft is a real file the done screen names')
   check('the done screen names the path (and the refused-write truth)', feedback.includes('the local draft (with the transcript): {paths?.json}') && feedback.includes('could not be written'))
   check('the one yes stands: the exact body is shown before it leaves, esc keeps the draft', feedback.includes('enter to file it · esc to keep the draft only') && feedback.includes('bytes) will be filed'))
   const cmd = read('src/commands/feedback/index.ts')
-  check('the palette line says the road: the reporter\'s own GitHub CLI, a local draft without it', !cmd.includes('becomes a GitHub issue') && cmd.includes('through your GitHub CLI') && cmd.includes('local draft without it'))
+  check('the palette line says the road: the reporter\'s own GitHub CLI, the prefilled browser form without it, the local draft kept', !cmd.includes('becomes a GitHub issue') && cmd.includes('through your GitHub CLI') && cmd.includes('prefilled issue form opens in your browser') && cmd.includes('local draft stays'))
 }
 
 console.log('§21 /config revert — targeted undo, never the mount snapshot')

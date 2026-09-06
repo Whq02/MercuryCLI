@@ -21,6 +21,7 @@ import {
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
 import { wrapFetchWithWireDump } from './dumpPrompts.js'
 import { recordTransportFailure } from './transportEvidence.js'
+import { observeStreamActivity, streamActivityNoteOf } from '../providers/streamIdleBudget.js'
 
 
 export const CLIENT_REQUEST_ID_HEADER = 'x-client-request-id'
@@ -87,7 +88,9 @@ function buildFetchWrapper(
     } catch {
     }
     try {
-      return await baseFetch(input, { ...init, headers })
+      const answered = await baseFetch(input, { ...init, headers })
+      const note = streamActivityNoteOf(init)
+      return note === null ? answered : observeStreamActivity(answered, note)
     } catch (err) {
       try {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
@@ -116,8 +119,8 @@ export async function getAnthropicClient(options: GetClientOptions): Promise<Ant
     'X-Claude-Code-Session-Id': getSessionId(),
     ...customHeaders,
   }
-  if (process.env.MERCURY_SDK_CLIENT_APP) {
-    defaultHeaders['x-client-app'] = process.env.MERCURY_SDK_CLIENT_APP
+  if (process.env.MERCURY_HOST_CLIENT_APP) {
+    defaultHeaders['x-client-app'] = process.env.MERCURY_HOST_CLIENT_APP
   }
   if (isEnvTruthy(process.env.MERCURY_ADDITIONAL_PROTECTION)) {
     defaultHeaders['x-anthropic-additional-protection'] = 'true'

@@ -1,5 +1,6 @@
-import type { ModelUsage } from '../entrypoints/agentSdkTypes.js'
+import type { ModelUsage } from './runtime/usage-ledger.js'
 import type { HookEvent } from '../entrypoints/agentSdkTypes.js'
+export type { ModelUsage } from './runtime/usage-ledger.js'
 import type { SessionId } from '../types/ids.js'
 import type { ApiRequestParams } from '../types/wire.js'
 import type { ModelSetting } from '../utils/model/model.js'

@@ -24,11 +24,7 @@
  },
  "hasInstructionsLoadedHook/probe": false,
  "hasWorktreeCreateHook/probe": false,
- "processHookJSONOutput/legacy-approve-with-reason": {
-  "hookPermissionDecisionReason": "fine by policy",
-  "permissionBehavior": "allow"
- },
- "processHookJSONOutput/legacy-block-with-reason": {
+ "processHookJSONOutput/block-with-reason-on-stop": {
   "blockingError": {
    "blockingError": "nope, blocked",
    "command": "echo fixture"
@@ -36,6 +32,8 @@
   "hookPermissionDecisionReason": "nope, blocked",
   "permissionBehavior": "deny"
  },
+ "processHookJSONOutput/top-level-decision-refused-on-pretooluse": "A PreToolUse hook answers with hookSpecificOutput.permissionDecision (allow, deny or ask); a top-level decision is not read on this event",
+ "processHookJSONOutput/unknown-decision-refused": "Unknown hook decision: approve. The one decision is block",
  "processHookJSONOutput/pretooluse-specific-reason-wins": {
   "blockingError": {
    "blockingError": "specific why",

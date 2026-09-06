@@ -562,6 +562,109 @@ let voiceMeta: { version: string; platform: string; addon: string; addonSha256: 
   }
 }
 
+const { BRUSH_PACK_PATH: brushRelPath, brushPackPlatform, checkBrushPackDir } = await import('./src/utils/shell/brushPack.ts');
+let brushVendored = false;
+let brushMeta: { source: string; version: string; platform: string; target: string; binary: string; binarySha256: string; license: string } | null = null;
+{
+  const brushDest = resolve(OUT, brushRelPath);
+  rmSync(brushDest, { recursive: true, force: true });
+  const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_BRUSH === '1';
+  const packPlatform = brushPackPlatform(SHIP.platform, SHIP.arch);
+  const packDir = packPlatform ? resolve(ROOT, brushRelPath, packPlatform) : null;
+  if (!forceNo && packPlatform && packDir && statSync(resolve(packDir, '.vendor-manifest.json'), { throwIfNoEntry: false })?.isFile()) {
+    const check = checkBrushPackDir(packDir, { digest: true, platform: packPlatform });
+    let lockWhy: string | null = null;
+    if (check.state === 'ok') {
+      try {
+        const lock = JSON.parse(readFileSync(resolve(ROOT, 'vendor', 'brush.lock.json'), 'utf8')) as {
+          version?: string;
+          platforms?: Record<string, { kind?: string; sha256?: string }>;
+        };
+        const pinned = lock.platforms?.[packPlatform];
+        if (lock.version !== check.manifest.version) lockWhy = `the pack is ${check.manifest.version}, the lock pins ${String(lock.version)}`;
+        else if (check.manifest.source === 'release-archive' && pinned && pinned.sha256 !== check.manifest.archiveSha256) lockWhy = "the pack's archive digest is not the lock's";
+        else if (check.manifest.source === 'cargo-build' && (pinned?.kind ?? 'fetch') !== 'build') lockWhy = "the pack was built from the crate with cargo, but the lock fetches this platform's release binary";
+      } catch (e) {
+        lockWhy = `vendor/brush.lock.json unreadable (${String(e)})`;
+      }
+    }
+    if (check.state === 'ok' && lockWhy === null) {
+      const { cpSync } = await import('node:fs');
+      cpSync(packDir, resolve(brushDest, packPlatform), { recursive: true });
+      brushVendored = true;
+      brushMeta = {
+        source: check.manifest.source,
+        version: check.manifest.version,
+        platform: packPlatform,
+        target: check.manifest.target,
+        binary: check.manifest.binary,
+        binarySha256: check.manifest.binarySha256,
+        license: check.manifest.license,
+      };
+      console.log(`VENDORED shell engine brush ${check.manifest.version} ${packPlatform} (${check.manifest.source === 'cargo-build' ? 'built from the published crate with cargo' : 'pinned upstream release binary'}, sha256-verified cache)\n  -> ${resolve(brushDest, packPlatform)}`);
+    } else {
+      const why = check.state !== 'ok' ? check.note : lockWhy;
+      console.error(
+        `BUILD FAILED: vendor/brush/${packPlatform} pack is present but stale — ${why}.\n` +
+          '  remedy: bun run scripts/vendor/fetch-brush.ts   (then rebuild)\n' +
+          '  (a missing pack degrades honestly instead — only a PRESENT-but-wrong pack fails the build)',
+      );
+      process.exit(1);
+    }
+  } else if (forceNo) {
+    console.warn('MERCURY_BUILD_NO_VENDOR_BRUSH=1 — shell engine NOT vendored (degraded: shell-engine; proof seam).');
+  } else if (!packPlatform) {
+    console.warn(`no shell-engine pack layout for ${SHIP_KEY} — the artifact ships WITHOUT the vendored shell engine (degraded: shell-engine; the Bash tool keeps the system bash).`);
+  } else {
+    console.warn(`no shell-engine pack for ${packPlatform} — the artifact ships WITHOUT the vendored shell engine (degraded: shell-engine; the Bash tool keeps the system bash and the engine setting refuses to arm). Prepare it: bun run scripts/vendor/fetch-brush.ts${CROSS ? ` --platform ${packPlatform}` : ''}`);
+  }
+}
+
+const { WHISPER_PACK_PATH: whisperRelPath, WHISPER_NATIVE_PATH: whisperNativePath, checkWhisperPackDir, whisperPackDirFor, whisperSourceTreeDigest } = await import('./src/services/voice/whisperPack.ts');
+const { whisperDefaultModel } = await import('./src/services/voice/whisperModels.ts');
+let whisperVendored = false;
+let whisperMeta: { version: string; platform: string; addon: string; addonSha256: string; crates: number; engine: { name: string; version: string }; cpuFloor: string; gpu: string } | null = null;
+{
+  const whisperDest = resolve(OUT, whisperRelPath);
+  rmSync(whisperDest, { recursive: true, force: true });
+  const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_WHISPER === '1';
+  const packPlatform = voicePackPlatform(SHIP.platform, SHIP.arch);
+  const packDir = whisperPackDirFor(ROOT, packPlatform);
+  const nativeDir = resolve(ROOT, whisperNativePath);
+  if (!forceNo && statSync(resolve(packDir, '.vendor-manifest.json'), { throwIfNoEntry: false })?.isFile()) {
+    const check = checkWhisperPackDir(packDir, { digest: true, platform: packPlatform });
+    const sourcesNow = statSync(nativeDir, { throwIfNoEntry: false })?.isDirectory() ? whisperSourceTreeDigest(nativeDir) : null;
+    if (check.state === 'ok' && sourcesNow !== null && check.manifest.sourceTreeDigest === sourcesNow) {
+      const { cpSync } = await import('node:fs');
+      cpSync(packDir, resolve(whisperDest, packPlatform), { recursive: true });
+      whisperVendored = true;
+      whisperMeta = {
+        version: check.manifest.version,
+        platform: packPlatform,
+        addon: check.manifest.addon,
+        addonSha256: check.manifest.addonSha256,
+        crates: check.manifest.crates.length,
+        engine: check.manifest.engine,
+        cpuFloor: check.manifest.cpuFloor,
+        gpu: check.manifest.gpu,
+      };
+      console.log(`VENDORED on-device transcriber pack ${check.manifest.version} ${packPlatform} (${check.manifest.engine.name} ${check.manifest.engine.version}, built from ${whisperNativePath}, ${check.manifest.crates.length} crate licences)\n  -> ${resolve(whisperDest, packPlatform)}`);
+    } else {
+      const why = check.state !== 'ok' ? check.note : sourcesNow === null ? `${whisperNativePath} is absent` : `the pack was built from other sources than ${whisperNativePath} now holds`;
+      console.error(
+        `BUILD FAILED: vendor/whisper/${packPlatform} pack is present but stale — ${why}.\n` +
+          '  remedy: bun run scripts/vendor/build-whisper.ts   (then rebuild)\n' +
+          '  (a missing pack degrades honestly instead — only a PRESENT-but-wrong pack fails the build)',
+      );
+      process.exit(1);
+    }
+  } else if (forceNo) {
+    console.warn('MERCURY_BUILD_NO_VENDOR_WHISPER=1 — on-device transcriber pack NOT vendored (degraded: on-device-transcriber; proof seam).');
+  } else {
+    console.warn(`no on-device transcriber pack for ${packPlatform} — the artifact ships WITHOUT it (degraded: on-device-transcriber; the cloud transcribers serve). Prepare it: bun run scripts/vendor/build-whisper.ts${CROSS ? ` --target ${TARGET_ARG}` : ''} (needs cargo and cmake${CROSS ? ' and the rustup target it names' : ''})`);
+  }
+}
+
 const typescriptRelPath = 'vendor/typescript';
 let typescriptVendored = false;
 let typescriptVersion: string | null = null;
@@ -938,6 +1041,46 @@ const manifest = {
         remedy:
           'build the voice capture pack (`bun run scripts/vendor/build-voice.ts`, needs cargo), then re-run `bun run build.ts` — the runtime falls back to sox/arecord/ffmpeg on PATH meanwhile, else /speak says no backend',
       },
+  shellEngine: brushVendored && brushMeta
+    ? {
+        vendored: true,
+        name: 'brush',
+        source: brushMeta.source,
+        path: `${brushRelPath}/${brushMeta.platform}`,
+        version: brushMeta.version,
+        platform: brushMeta.platform,
+        target: brushMeta.target,
+        binary: brushMeta.binary,
+        binarySha256: brushMeta.binarySha256,
+        license: brushMeta.license,
+      }
+    : {
+        vendored: false,
+        name: 'brush',
+        path: brushRelPath,
+        remedy:
+          'fetch the shell engine pack (`bun run scripts/vendor/fetch-brush.ts`), then re-run `bun run build.ts` — the Bash tool keeps the system bash meanwhile, and the engine setting refuses to arm naming this',
+      },
+  onDeviceTranscriber: whisperVendored && whisperMeta
+    ? {
+        vendored: true,
+        path: `${whisperRelPath}/${whisperMeta.platform}`,
+        version: whisperMeta.version,
+        platform: whisperMeta.platform,
+        engine: whisperMeta.engine,
+        addon: whisperMeta.addon,
+        addonSha256: whisperMeta.addonSha256,
+        cpuFloor: whisperMeta.cpuFloor,
+        gpu: whisperMeta.gpu,
+        crateLicences: whisperMeta.crates,
+        defaultModel: { name: whisperDefaultModel().name, file: whisperDefaultModel().file, bytes: whisperDefaultModel().bytes, sha256: whisperDefaultModel().sha256 },
+      }
+    : {
+        vendored: false,
+        path: whisperRelPath,
+        remedy:
+          'build the on-device transcriber pack (`bun run scripts/vendor/build-whisper.ts`, needs cargo and cmake), then re-run `bun run build.ts` — the cloud transcribers serve meanwhile (an OpenAI or Gemini API key)',
+      },
   typescript: typescriptVendored && typescriptVersion
     ? {
         vendored: true,
@@ -995,7 +1138,9 @@ const manifest = {
     ...(jsDebugVendored ? [] : ['js-debugger']),
     ...(nodeVendored ? [] : ['runtime']),
     ...(voiceVendored ? [] : ['voice-input']),
+    ...(whisperVendored ? [] : ['on-device-transcriber']),
     ...(imagePackVendored ? [] : ['image-processing']),
+    ...(brushVendored ? [] : ['shell-engine']),
     ...(typescriptVendored ? [] : ['structural-intelligence']),
     ...(treesitterVendored ? [] : ['structure-polyglot']),
     ...(treesitterVendored && !grammarPackVendored ? ['structure-polyglot-extended'] : []),

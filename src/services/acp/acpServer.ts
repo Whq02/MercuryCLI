@@ -105,8 +105,8 @@ export type AcpToolKind =
 const TOOL_KINDS: Readonly<Record<string, AcpToolKind>> = {
   Read: 'read',
   NotebookRead: 'read',
-  ReadMcpResourceTool: 'read',
-  ListMcpResourcesTool: 'read',
+  ReadMcpResource: 'read',
+  ListMcpResources: 'read',
   Inspect: 'read',
   Edit: 'edit',
   Write: 'edit',
@@ -132,8 +132,8 @@ const TOOL_KINDS: Readonly<Record<string, AcpToolKind>> = {
   TaskUpdate: 'think',
   TaskGet: 'think',
   TaskList: 'think',
-  EnterPlanMode: 'switch_mode',
-  ExitPlanMode: 'switch_mode',
+  EnterStrategyMode: 'switch_mode',
+  ExitStrategyMode: 'switch_mode',
   SetTier: 'switch_mode',
 }
 

@@ -26,9 +26,9 @@ process.env.MERCURY_CONFIG_DIR = home
 try {
   mkdirSync(join(home, '.claude'), { recursive: true })
   mkdirSync(join(home, '.claude-account-b'), { recursive: true })
-  writeFileSync(join(home, '.claude', '.claude.json'), id('uuid-user-a', 'user-a@example.com'))
+  writeFileSync(join(home, '.claude', '.mercury.json'), id('uuid-user-a', 'user-a@example.com'))
   writeFileSync(join(home, '.claude.json'), id('uuid-raverner', 'raverner.gaming@gmail.com'))
-  writeFileSync(join(home, '.claude-account-b', '.claude.json'), id('uuid-raverner', 'raverner.gaming@gmail.com'))
+  writeFileSync(join(home, '.claude-account-b', '.mercury.json'), id('uuid-raverner', 'raverner.gaming@gmail.com'))
   const stored = { storedLogin: () => true }
   const absent = { storedLogin: () => false }
 
@@ -41,15 +41,15 @@ try {
     !outlived.authed && outlived.uuid === 'uuid-user-a' && outlived.email === 'user-a@example.com', JSON.stringify(outlived))
 
   console.log('\n── no top-level fallback: another harness\'s rewritable file never answers')
-  rmSync(join(home, '.claude', '.claude.json'))
+  rmSync(join(home, '.claude', '.mercury.json'))
   const fell = probeScopeAuth(join(home, '.claude'), absent)
   check('snapshot missing ⇒ no identity, signed out (the top-level file is never consulted)', !fell.authed && fell.uuid === undefined && fell.email === undefined, JSON.stringify(fell))
   const loginOnly = probeScopeAuth(join(home, '.claude'), stored)
   check('a stored login with no snapshot ⇒ signed in, identity unknown (never the top-level file)', loginOnly.authed && loginOnly.uuid === undefined && loginOnly.email === undefined, JSON.stringify(loginOnly))
-  writeFileSync(join(home, '.claude', '.claude.json'), '{not json')
+  writeFileSync(join(home, '.claude', '.mercury.json'), '{not json')
   const malformed = probeScopeAuth(join(home, '.claude'), absent)
   check('malformed snapshot ⇒ no identity (a state, not a crash; never the top-level file)', !malformed.authed && malformed.uuid === undefined)
-  writeFileSync(join(home, '.claude', '.claude.json'), id('uuid-user-a', 'user-a@example.com'))
+  writeFileSync(join(home, '.claude', '.mercury.json'), id('uuid-user-a', 'user-a@example.com'))
 
   console.log("\n── the default store read: the scope's OWN credential store, in isolation")
   mkdirSync(join(home, '.claude-account-c'), { recursive: true })

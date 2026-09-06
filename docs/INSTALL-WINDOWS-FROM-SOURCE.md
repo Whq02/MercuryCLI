@@ -99,6 +99,15 @@ winget install --id Git.Git --source winget
 
 Close the terminal, open a new one, run the check again.
 
+Git for Windows also installs `bash.exe`, the shell Mercury's Bash tool runs
+under. Without it Mercury still starts, but the Bash tool is missing from the
+model's tool list (the PowerShell tool stays), the `doctor` report's **Bash
+tool shell** row (check id `shell`) warns, and a notice at the start of a
+session names the fix: install Git for Windows, or set `MERCURY_GIT_BASH_PATH`
+to your `bash.exe` when Git is installed somewhere Mercury does not look, or
+turn the shell engine on. A `MERCURY_GIT_BASH_PATH` that points at a file that
+does not exist stops Mercury at start with a message saying so — fix the path.
+
 ---
 
 ## 3. Install Node 24
@@ -232,10 +241,23 @@ bun run scripts/vendor/fetch-grammars.ts
 bun run scripts/vendor/fetch-node.ts
 ```
 
-A sixth pack, the voice capture addon, is built rather than fetched: with a
+Two more packs are built rather than fetched, both with a Rust toolchain
+installed (https://rustup.rs, the MSVC toolchain): the voice capture addon
+(`bun run scripts/vendor/build-voice.ts`) and the shell engine
+(`bun run scripts/vendor/build-brush.ts` — upstream publishes no Windows
+binary, so the engine is compiled from its published crate; the first build
+takes several minutes). Without cargo each says so and skips: Mercury runs
+without voice input, and the Bash tool keeps Git for Windows' bash (the
+doctor names each remedy).
+Another pack, the voice capture addon, is built rather than fetched: with a
 Rust toolchain installed (https://rustup.rs, the MSVC toolchain), run
 `bun run scripts/vendor/build-voice.ts`; without cargo it says so and skips,
-and Mercury runs without voice input (the doctor names the remedy).
+and Mercury runs without voice input (the doctor names the remedy). The
+on-device transcriber addon is built the same way and needs cmake beside
+cargo (`winget install Kitware.CMake`): run
+`bun run scripts/vendor/build-whisper.ts`; without either it says so and
+skips, and voice takes go to a cloud transcriber (the doctor names the
+remedy).
 
 Each should end without an error. `fetch-debugpy` unpacks the wheel with the
 first extractor it finds — `unzip`, `python3`, `tar.exe` (ships with Windows
@@ -379,3 +401,5 @@ Common cases:
 | `dist\manifest.json` lists names under `degraded` | a vendor fetch was skipped or failed — the build itself still succeeds and prints `BUILD OK` | re-run the fetch it names (step 7), then build again |
 | the interface says the window is too small | fewer than 80 columns or 22 rows | widen or maximise the window |
 | an immediate exit that mentions `--print` | stdout is not a terminal (piped or redirected), which Mercury reads as a headless run | run from an interactive Windows Terminal window, or pass a prompt for a headless run |
+| a "Bash tool absent" notice, or the `doctor` **Bash tool shell** row warns | Git for Windows (`bash.exe`) is missing, or not where Mercury looks | step 2, or set `MERCURY_GIT_BASH_PATH` to your `bash.exe` |
+| Mercury stops at start naming `MERCURY_GIT_BASH_PATH` | that variable points at a file that does not exist | fix or remove the variable |

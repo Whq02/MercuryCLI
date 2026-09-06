@@ -105,7 +105,6 @@ section("§3 the built artifact: a -p run's note is on disk after the process ex
       JSON.stringify({
         theme: 'dark',
         hasCompletedOnboarding: true,
-        userID: 'a'.repeat(64),
         firstStartTime: new Date().toISOString(),
         customApiKeyResponses: { approved: [API_KEY.slice(-20)] },
         projects: { [cwd]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } },

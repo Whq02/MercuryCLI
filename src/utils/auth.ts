@@ -4,6 +4,7 @@ import { randomInt } from 'node:crypto'
 import { mkdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { noteCredentialChange } from './accounts/signInLedger.js'
+import { scopeIdentityFile } from './accounts/scopeScan.js'
 
 import memoize from 'lodash-es/memoize.js'
 
@@ -934,7 +935,7 @@ const scopedAccountIdentityCache = new Map<
 >()
 
 function readScopedOauthAccount(dir: string) {
-  const file = join(dir, '.claude.json')
+  const file = scopeIdentityFile(dir)
   let stamp: { mtimeMs: number; size: number }
   try {
     const stat = statSync(file)

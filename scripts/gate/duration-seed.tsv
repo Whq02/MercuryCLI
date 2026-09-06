@@ -16,6 +16,10 @@
 # the movie-scaled capture profile (fixed-schedule drives run ~scale× their
 # authored seconds on the hosted runner — the local pool at scale 1 is
 # unchanged, and a stale row still only costs balance, never a verdict).
+# Under the hosted drives plan (scripts/gate/ci-shard.sh --class drives) a
+# row also RAISES its suite's hard ceiling to twice the row — never below
+# the suite's grant or the default — so a stale row still changes no
+# verdict: a low row costs balance, a high row lets a wedge run longer.
 
 ui	1800
 ui-2	200
@@ -33,7 +37,21 @@ cockpit-interaction	700
 diffws	1100
 prompts-panel	460
 render-migration	1200
-journey	2700
+# The journey estate on the hosted runner, one row per split suite: the
+# measured hosted wall where a run measured it, else the members' whole
+# stretched capture windows (every measured member of the same family ran
+# its window in full there). journey is the complement of the sibling lists.
+journey	1050
+journey-2	1262
+journey-3	662
+journey-4	566
+journey-5	730
+journey-6	1120
+journey-7	1120
+journey-8	1360
+journey-9	1080
+journey-10	1900
+journey-11	1260
 notifications	200
 transcript-rows	200
 prompt-input	700
@@ -199,6 +217,7 @@ tool-economy	20
 # The real-terminal drive halves of the split suites: an estimate from each
 # parent's measured wall (the drives carry most of it) until a run re-seeds.
 attention-drives	245
+bash-drives	60
 core-runtime-drives	350
 critters-drives	175
 engine-connector-drives	74

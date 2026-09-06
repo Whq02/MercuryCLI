@@ -25,7 +25,7 @@ const { getAddedDirectories, getCachedInstructionPrompt, setCachedInstructionPro
 const { getEmptyToolPermissionContext } = await import('${repo}/src/Tool.js')
 const { applyPermissionUpdate } = await import('${repo}/src/utils/permissions/PermissionUpdate.js')
 const { onChangeAppState } = await import('${repo}/src/state/onChangeAppState.js')
-const stateOf = toolPermissionContext => ({ toolPermissionContext, mainLoopModel: null, expandedView: null, verbose: false, settings: undefined, isUltraplanMode: false })
+const stateOf = toolPermissionContext => ({ toolPermissionContext, mainLoopModel: null, expandedView: null, verbose: false, settings: undefined })
 let permission = getEmptyToolPermissionContext()
 const changeWorkspace = (type, dir) => {
   const next = applyPermissionUpdate(permission, { type, directories: [dir], destination: 'session' })

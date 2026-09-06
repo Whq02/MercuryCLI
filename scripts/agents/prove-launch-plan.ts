@@ -82,11 +82,11 @@ console.log('============================================================')
 
 section('§1 — canonical decode: ONE truth with the teammate resolver')
 {
-  const plan = buildAgentLaunchPlan(base({ requestedType: 'Explore' }))
-  check("legacy 'Explore' decodes to the canonical Mercury id", plan.agentType === 'mercury-scout', plan.agentType)
+  const plan = buildAgentLaunchPlan(base({ requestedType: 'mercury-scout' }))
+  check('a registered id resolves to itself through the one seam', plan.agentType === 'mercury-scout', plan.agentType)
   const teammate = resolveTeammateRole({
     teammateName: 'x',
-    requestedAgentType: 'Explore',
+    requestedAgentType: 'mercury-scout',
     agents: getBuiltInAgents() as never,
     prompt: 'p',
   })

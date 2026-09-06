@@ -48,7 +48,7 @@ function seedSession(home: string): void {
   const lines: Record<string, unknown>[] = []
   let prevUuid: string | null = null
   const basePart = {
-    isSidechain: false, userType: 'external', entrypoint: 'cli',
+    isSidechain: false, entrypoint: 'cli',
     cwd: ROOT, sessionId: SID, version: '1.0.0-beta.1', gitBranch: 'main',
   }
   for (let n = 1; n <= 300; n++) {

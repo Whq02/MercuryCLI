@@ -10,7 +10,6 @@ export function skillsRosterOf(commands: readonly Command[], offNames: readonly 
         command.source !== 'builtin' &&
         (command.loadedFrom === 'bundled' ||
           command.loadedFrom === 'skills' ||
-          command.loadedFrom === 'legacy-commands' ||
           command.hasUserSpecifiedDescription === true ||
           Boolean(command.whenToUse)),
     )

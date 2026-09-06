@@ -1,4 +1,7 @@
 import { getDefaultBashTimeoutMs, getMaxBashTimeoutMs } from '../../utils/timeouts.js'
+import { resolveShellEngine } from '../../utils/shell/engineSession.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
+import { getPlatform } from '../../utils/platform.js'
 import { hasEmbeddedSearchTools } from '../../utils/embeddedTools.js'
 import { shouldIncludeGitInstructions } from '../../utils/gitSettings.js'
 import { getAttributionTexts } from '../../utils/attribution.js'
@@ -12,7 +15,7 @@ import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
 import { FILE_WRITE_TOOL_NAME } from '../FileWriteTool/prompt.js'
 import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
 import { AGENT_TOOL_NAME } from '../AgentTool/constants.js'
-import { TODO_WRITE_TOOL_NAME } from '../TodoWriteTool/constants.js'
+import { TASK_CREATE_TOOL_NAME } from '../TaskCreateTool/constants.js'
 
 
 export function getDefaultTimeoutMs(): number {
@@ -32,9 +35,20 @@ export function getSimplePrompt(): string {
   sections.push(
     'Command output comes back to you, the model — the operator does not reliably see it. Anything they need from a command belongs in your reply.',
   )
-  sections.push(
-    'The working directory persists from call to call; every other piece of shell state (variables, functions, options) resets between calls. Each call starts from your profile (bash or zsh).',
-  )
+  if (resolveShellEngine(getInitialSettings().shellEngine).engine === 'brush') {
+    sections.push(
+      'One shell session serves the whole conversation: the working directory and every other piece of shell state — variables, functions, aliases, options — persist from call to call. A command that hangs and is timed out, or that ends the shell (a bare `exit`, a `set -u` failure), resets the session; you are told when earlier state was lost. A call with `run_in_background` runs in its own shell: it does not see the session\'s state, and its own does not persist.',
+    )
+    if (getPlatform() === 'windows') {
+      sections.push(
+        'On Windows the engine has two known holes at this version: a `.cmd` shim such as `npm` or `npx` fails with os error 193 (exit 126) — run it through `cmd /c npm …`, or call `node` on the script directly — and a relative program path after a `cd` is not found — call it by its absolute path.',
+      )
+    }
+  } else {
+    sections.push(
+      'The working directory persists from call to call; every other piece of shell state (variables, functions, options) resets between calls. Each call starts from your profile (bash or zsh).',
+    )
+  }
 
   const avoidSet = embedded
     ? ['cat', 'head', 'tail', 'sed', 'awk', 'echo']
@@ -179,7 +193,7 @@ function buildGitSection(): string {
     `Commit workflow: (1) in parallel, run \`git status\` (never with \`-uall\`, which can exhaust memory on large repos), a diff of staged and unstaged changes, and a log to learn the repository's message style, each through the ${BASH_TOOL_NAME} tool; (2) read every staged change and compose the message, choosing the verb correctly (add = wholly new, update = an enhancement, fix = a bug fix), avoiding likely-secret files (\`.env\`, \`credentials.json\`) and warning if the user asks for them, keeping the message to one or two sentences focused on WHY; (3) in parallel, stage the relevant untracked files and create the commit${attribution.commit ? ' with the attribution trailer appended' : ''}, then run \`git status\` sequentially after the commit to verify; (4) on a pre-commit hook failure, fix the problem and create a NEW commit.`,
   )
   lines.push(
-    `Never run additional exploration commands beyond the git ones; never use the ${TODO_WRITE_TOOL_NAME} or ${AGENT_TOOL_NAME} tools here; do not push unless asked; never use git's interactive \`-i\` flag (rebase/add), since interactive input is unsupported; do not pass \`--no-edit\` to \`git rebase\`; nothing staged means no commit at all (never an empty one); the commit message always travels in a quoted heredoc.`,
+    `Never run additional exploration commands beyond the git ones; never use the ${TASK_CREATE_TOOL_NAME} or ${AGENT_TOOL_NAME} tools here; do not push unless asked; never use git's interactive \`-i\` flag (rebase/add), since interactive input is unsupported; do not pass \`--no-edit\` to \`git rebase\`; nothing staged means no commit at all (never an empty one); the commit message always travels in a quoted heredoc.`,
   )
   if (attribution.commit) {
     lines.push('Worked example (heredoc form with the attribution trailer):\n```\ngit commit -m "$(cat <<\'EOF\'\nfix: correct the off-by-one in the parser\n\n' + attribution.commit + '\nEOF\n)"\n```')
@@ -195,7 +209,7 @@ function buildGitSection(): string {
     'Worked example (PR body):\n```\ngh pr create --title "Fix the parser off-by-one" --body "$(cat <<\'EOF\'\n## Summary\n- corrects the boundary in the token walk\n- adds a regression test\n\n## Test plan\n- [ ] unit tests pass\n- [ ] manual check on the sample corpus' + (attribution.pr ? '\n\n' + attribution.pr : '') + '\nEOF\n)"\n```',
   )
   lines.push(
-    `The ${TODO_WRITE_TOOL_NAME} and ${AGENT_TOOL_NAME} tools stay out of this flow; finish by handing the user the PR URL to open.`,
+    `The ${TASK_CREATE_TOOL_NAME} and ${AGENT_TOOL_NAME} tools stay out of this flow; finish by handing the user the PR URL to open.`,
   )
   lines.push(
     'Other common operations: view PR comments through `gh api repos/<owner>/<repo>/pulls/<number>/comments`.',

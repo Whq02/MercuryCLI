@@ -279,13 +279,6 @@ export async function buildInstallationHealthDiagnostics(): Promise<Diagnostic[]
   for (const warning of health.warnings) {
     diagnostics.push(<Text key={warning.issue}>{warning.issue}</Text>)
   }
-  if (health.hasUpdatePermissions === false) {
-    diagnostics.push(
-      <Text key="update-permissions">
-        Auto-updates do not have write permission; updating requires elevation
-      </Text>,
-    )
-  }
   return diagnostics
 }
 

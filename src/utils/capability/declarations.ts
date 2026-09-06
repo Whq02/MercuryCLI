@@ -43,6 +43,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     resources: ['task'],
     cancellation: 'kill',
     latency: 'long-running',
+    conditions: ['a bash to run under — on Windows git-bash (bash.exe) or the shell engine; with neither the tool leaves the roster and the doctor’s shell row names the fix'],
   },
   Correct: {
     intents: ['correct a remembered fact', 'supersede or retract project memory'],
@@ -113,7 +114,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     latency: 'fast',
     proof: 'scripts/project-services/prove-change-receipts.ts',
   },
-  EnterPlanMode: {
+  EnterStrategyMode: {
     intents: ['start planning before implementation'],
     units: ['planning'],
     class: 'coordination',
@@ -144,7 +145,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     conditions: ['a Python 3.10+ interpreter or a node binary reachable for kernels'],
     proof: 'scripts/eval/prove-kernel-persistence.ts',
   },
-  ExitPlanMode: {
+  ExitStrategyMode: {
     intents: ['present the plan for approval', 'leave strategy mode'],
     units: ['planning'],
     class: 'coordination',
@@ -239,7 +240,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     cancellation: 'cooperative',
     latency: 'long-running',
   },
-  ListMcpResourcesTool: {
+  ListMcpResources: {
     intents: ['list resources exposed by mcp servers'],
     units: ['resource-inspection'],
     class: 'observation',
@@ -285,6 +286,16 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     cancellation: 'not-applicable',
     latency: 'fast',
   },
+  PowerShell: {
+    intents: ['run a PowerShell command', 'execute a Windows-native script or cmdlet', 'start a background process on Windows'],
+    units: ['process-execution'],
+    class: 'execution',
+    execution: { kind: 'background-job', representation: 'external-projection' },
+    resources: ['task'],
+    cancellation: 'kill',
+    latency: 'long-running',
+    conditions: ['Windows — the Windows shell road: the MERCURY_USE_POWERSHELL_TOOL opt-in, or no bash.exe found (the tool then stands in for Bash)'],
+  },
   PushNotification: {
     intents: ['send the operator a push notification'],
     units: ['operator-io'],
@@ -301,7 +312,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     latency: 'fast',
     proof: 'scripts/project-services/prove-change-anchors.ts',
   },
-  ReadMcpResourceTool: {
+  ReadMcpResource: {
     intents: ['read a resource from an mcp server'],
     units: ['resource-inspection'],
     class: 'observation',
@@ -488,14 +499,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     gate: 'MERCURY_TESTS',
     conditions: ['a discoverable test framework (pytest · unittest · node-test · vitest · jest · cargo · go)'],
     proof: 'scripts/ide/prove-python-tests.ts',
-  },
-  TodoWrite: {
-    intents: ['track a short todo list for the session'],
-    units: ['planning'],
-    class: 'coordination',
-    cancellation: 'not-applicable',
-    latency: 'fast',
-    conditions: ['the task list off — an interactive session (or MERCURY_TASKS=1) serves the task list in its place'],
   },
   ToolSearch: {
     intents: ['find the right tool for a job', 'load a deferred tool schema', 'discover capability by intent'],

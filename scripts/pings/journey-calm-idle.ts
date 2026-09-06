@@ -77,7 +77,7 @@ const SID = '00000000-aaaa-bbbb-cccc-000000000042'
     },
   ].map((r, i) => {
     const uuid = `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`
-    const out = { isSidechain: false, userType: 'external', entrypoint: 'cli', cwd, sessionId: SID, version: '1.0.0-beta.1', gitBranch: 'main', ...r, uuid, parentUuid: prev }
+    const out = { isSidechain: false, entrypoint: 'cli', cwd, sessionId: SID, version: '1.0.0-beta.1', gitBranch: 'main', ...r, uuid, parentUuid: prev }
     prev = uuid
     return out
   })

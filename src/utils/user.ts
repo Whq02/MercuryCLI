@@ -3,7 +3,6 @@ import memoize from 'lodash-es/memoize.js'
 
 import { getSessionId } from '../bootstrap/state.js'
 import { getOauthAccountInfo, getRateLimitTier, getSubscriptionType } from './auth.js'
-import { getOrCreateUserID } from './config.js'
 import { getCwd } from './cwd.js'
 import { getHostPlatformForAnalytics } from './env.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
@@ -11,7 +10,6 @@ import { gitExe } from './git.js'
 
 
 export type CoreUserData = {
-  deviceId: string
   sessionId: string
   email?: string
   appVersion: string
@@ -30,7 +28,6 @@ export const getCoreUserData = memoize(
   (includeAnalyticsMetadata?: boolean): CoreUserData => {
     const account = getOauthAccountInfo()
     return {
-      deviceId: getOrCreateUserID(),
       sessionId: getSessionId(),
       ...(resolvedEmail !== undefined
         ? { email: resolvedEmail }

@@ -46,7 +46,7 @@ section('§1 no approval: the outside guide is dropped and the diagnostic says s
 
 section('§2 approved: the outside guide composes through the nested road')
 {
-  projectConfig.saveCurrentProjectConfig(current => ({ ...current, hasClaudeMdExternalIncludesApproved: true }))
+  projectConfig.saveCurrentProjectConfig(current => ({ ...current, hasExternalIncludesApproved: true }))
   const diagnostics: Diagnostic[] = []
   const entries = await engine.getInstructionFilesForNestedDirectory(nested, join(nested, 'index.ts'), new Set(), diagnostics as never)
   const composed = entries.map(e => e.content).join('\n')

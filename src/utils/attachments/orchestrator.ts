@@ -20,7 +20,6 @@ import { isAgentSwarmsEnabled } from '../agentSwarmsEnabled.js'
 import { logAntError } from '../debug.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { logError } from '../log.js'
-import { isTodoV2Enabled } from '../tasks.js'
 import { getDiagnosticAttachments, getLSPDiagnosticAttachments } from './diagnostics.js'
 import { getChangedFiles } from './fileAttachments.js'
 import {
@@ -57,7 +56,6 @@ import {
 import {
   getContractReminderAttachments,
   getTaskReminderAttachments,
-  getTodoReminderAttachments,
   getVerifyPlanReminderAttachment,
 } from './reminders.js'
 import {
@@ -242,11 +240,7 @@ export async function getAttachments(
         getSupercodeKeywordAttachment(input, toolUseContext, options),
       ),
     ),
-    maybe('todo_reminders', () =>
-      isTodoV2Enabled()
-        ? getTaskReminderAttachments(messages, toolUseContext)
-        : getTodoReminderAttachments(messages, toolUseContext),
-    ),
+    maybe('task_reminders', () => getTaskReminderAttachments(messages, toolUseContext)),
     maybe('contract_reminder', () =>
       getContractReminderAttachments(messages, toolUseContext),
     ),

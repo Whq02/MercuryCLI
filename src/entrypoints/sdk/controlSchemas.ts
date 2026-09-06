@@ -4,16 +4,13 @@ import {
   PermissionModeSchema,
   PermissionUpdateSchema,
   SDKMessageSchema,
-  SDKPostTurnSummaryMessageSchema,
-  SDKStreamlinedTextMessageSchema,
-  SDKStreamlinedToolUseSummaryMessageSchema,
   SDKUserMessageSchema,
 } from './coreSchemas.js'
 
 export const SDKHookCallbackMatcherSchema = lazySchema(() =>
   z.object({
     matcher: z.string().optional(),
-    hookCallbackIds: z.array(z.string()),
+    hook_callback_ids: z.array(z.string()),
     timeout: z.number().optional(),
   }),
 )
@@ -22,13 +19,13 @@ export const SDKControlInitializeRequestSchema = lazySchema(() =>
   z.object({
     subtype: z.literal('initialize'),
     hooks: z.record(z.string(), z.array(SDKHookCallbackMatcherSchema())).optional(),
-    sdkMcpServers: z.array(z.string()).optional(),
-    jsonSchema: z.record(z.string(), z.unknown()).optional(),
-    systemPrompt: z.string().optional(),
-    appendSystemPrompt: z.string().optional(),
+    host_mcp_servers: z.array(z.string()).optional(),
+    json_schema: z.record(z.string(), z.unknown()).optional(),
+    system_prompt: z.string().optional(),
+    append_system_prompt: z.string().optional(),
     agents: z.record(z.string(), z.unknown()).optional(),
-    promptSuggestions: z.boolean().optional(),
-    agentProgressSummaries: z.boolean().optional(),
+    prompt_suggestions: z.boolean().optional(),
+    agent_progress_summaries: z.boolean().optional(),
   }),
 )
 export const SDKControlInterruptRequestSchema = lazySchema(() =>
@@ -54,7 +51,6 @@ export const SDKControlSetPermissionModeRequestSchema = lazySchema(() =>
   z.object({
     subtype: z.literal('set_permission_mode'),
     mode: PermissionModeSchema(),
-    ultraplan: z.boolean().optional(),
   }),
 )
 export const SDKControlSetModelRequestSchema = lazySchema(() =>
@@ -140,12 +136,12 @@ export const SDKControlReloadExtensionsRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('reload_extensions') }),
 )
 export const SDKControlMcpReconnectRequestSchema = lazySchema(() =>
-  z.object({ subtype: z.literal('mcp_reconnect'), serverName: z.string() }),
+  z.object({ subtype: z.literal('mcp_reconnect'), server_name: z.string() }),
 )
 export const SDKControlMcpToggleRequestSchema = lazySchema(() =>
   z.object({
     subtype: z.literal('mcp_toggle'),
-    serverName: z.string(),
+    server_name: z.string(),
     enabled: z.boolean(),
   }),
 )
@@ -199,37 +195,35 @@ export const SDKControlElicitationResponseSchema = lazySchema(() =>
 export const SDKControlEndSessionRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('end_session'), reason: z.string().optional() }),
 )
-export const SDKControlChannelEnableRequestSchema = lazySchema(() =>
-  z.object({ subtype: z.literal('channel_enable'), serverName: z.string() }),
-)
 export const SDKControlMcpAuthenticateRequestSchema = lazySchema(() =>
-  z.object({ subtype: z.literal('mcp_authenticate'), serverName: z.string() }),
+  z.object({ subtype: z.literal('mcp_authenticate'), server_name: z.string() }),
 )
 export const SDKControlMcpOauthCallbackUrlRequestSchema = lazySchema(() =>
   z.object({
     subtype: z.literal('mcp_oauth_callback_url'),
-    serverName: z.string(),
-    callbackUrl: z.string(),
+    server_name: z.string(),
+    callback_url: z.string(),
   }),
 )
 export const SDKControlMcpClearAuthRequestSchema = lazySchema(() =>
-  z.object({ subtype: z.literal('mcp_clear_auth'), serverName: z.string() }),
+  z.object({ subtype: z.literal('mcp_clear_auth'), server_name: z.string() }),
 )
-export const SDKControlClaudeAuthenticateRequestSchema = lazySchema(() =>
+export const SDKControlProviderSignInRequestSchema = lazySchema(() =>
   z.object({
-    subtype: z.literal('claude_authenticate'),
-    loginWithClaudeAi: z.boolean().optional(),
+    subtype: z.literal('provider_sign_in'),
+    provider: z.string(),
+    method: z.enum(['subscription', 'console']).optional(),
   }),
 )
-export const SDKControlClaudeOauthCallbackRequestSchema = lazySchema(() =>
+export const SDKControlProviderSignInCallbackRequestSchema = lazySchema(() =>
   z.object({
-    subtype: z.literal('claude_oauth_callback'),
-    authorizationCode: z.string(),
+    subtype: z.literal('provider_sign_in_callback'),
+    authorization_code: z.string(),
     state: z.string(),
   }),
 )
-export const SDKControlClaudeOauthWaitForCompletionRequestSchema = lazySchema(() =>
-  z.object({ subtype: z.literal('claude_oauth_wait_for_completion') }),
+export const SDKControlProviderSignInWaitRequestSchema = lazySchema(() =>
+  z.object({ subtype: z.literal('provider_sign_in_wait') }),
 )
 export const SDKControlGenerateSessionTitleRequestSchema = lazySchema(() =>
   z.object({
@@ -241,10 +235,6 @@ export const SDKControlGenerateSessionTitleRequestSchema = lazySchema(() =>
 export const SDKControlSideQuestionRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('side_question'), question: z.string() }),
 )
-export const SDKControlRemoteControlRequestSchema = lazySchema(() =>
-  z.object({ subtype: z.literal('remote_control'), enabled: z.boolean() }),
-)
-
 export const SDKControlRequestInnerSchema = lazySchema(() =>
   z.union([
     SDKControlInterruptRequestSchema(),
@@ -276,16 +266,14 @@ export const SDKControlRequestInnerSchema = lazySchema(() =>
     SDKControlGetSettingsRequestSchema(),
     SDKControlElicitationRequestSchema(),
     SDKControlEndSessionRequestSchema(),
-    SDKControlChannelEnableRequestSchema(),
     SDKControlMcpAuthenticateRequestSchema(),
     SDKControlMcpOauthCallbackUrlRequestSchema(),
     SDKControlMcpClearAuthRequestSchema(),
-    SDKControlClaudeAuthenticateRequestSchema(),
-    SDKControlClaudeOauthCallbackRequestSchema(),
-    SDKControlClaudeOauthWaitForCompletionRequestSchema(),
+    SDKControlProviderSignInRequestSchema(),
+    SDKControlProviderSignInCallbackRequestSchema(),
+    SDKControlProviderSignInWaitRequestSchema(),
     SDKControlGenerateSessionTitleRequestSchema(),
     SDKControlSideQuestionRequestSchema(),
-    SDKControlRemoteControlRequestSchema(),
   ]),
 )
 
@@ -326,26 +314,13 @@ export const SDKControlResponseSchema = lazySchema(() =>
     response: z.union([ControlResponseSchema(), ControlErrorResponseSchema()]),
   }),
 )
-export const SDKKeepAliveMessageSchema = lazySchema(() =>
-  z.object({ type: z.literal('keep_alive') }),
-)
-export const SDKUpdateEnvironmentVariablesMessageSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('update_environment_variables'),
-    variables: z.record(z.string(), z.string()),
-  }),
-)
 
 export const StdoutMessageSchema = lazySchema(() =>
   z.union([
     SDKMessageSchema(),
-    SDKStreamlinedTextMessageSchema(),
-    SDKStreamlinedToolUseSummaryMessageSchema(),
-    SDKPostTurnSummaryMessageSchema(),
     SDKControlResponseSchema(),
     SDKControlRequestSchema(),
     SDKControlCancelRequestSchema(),
-    SDKKeepAliveMessageSchema(),
   ]),
 )
 export const StdinMessageSchema = lazySchema(() =>
@@ -353,7 +328,5 @@ export const StdinMessageSchema = lazySchema(() =>
     SDKUserMessageSchema(),
     SDKControlRequestSchema(),
     SDKControlResponseSchema(),
-    SDKKeepAliveMessageSchema(),
-    SDKUpdateEnvironmentVariablesMessageSchema(),
   ]),
 )

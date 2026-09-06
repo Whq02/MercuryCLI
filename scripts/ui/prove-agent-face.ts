@@ -696,7 +696,7 @@ t.section('§7 — THE FRONTIER PASS (the authoring guidance · the availability
 
   const { FIELD_ROWS: fieldRows } = await import('../../src/components/agents/studio/studioEditorModel.js')
   const { KNOWN_AGENT_KEYS } = await import('../../src/services/agents/contracts.js')
-  const preserved = new Set(['mcpServers', 'hooks', 'spec-version'])
+  const preserved = new Set(['mcpServers', 'hooks', 'specVersion'])
   const formKeys = new Set(fieldRows.map(r => r.id).filter(id => id !== 'body'))
   const contractKeys = new Set(KNOWN_AGENT_KEYS.filter(k => !preserved.has(k)))
   t.check(

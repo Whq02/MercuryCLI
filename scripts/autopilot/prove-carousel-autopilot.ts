@@ -117,7 +117,7 @@ for (const [file, needles, why] of parityPins) {
 section('§6 boot + SDK entry guards (structural) — no consent backdoor')
 const setupSrc = src('utils', 'permissions', 'permissionSetup.ts')
 check('initialPermissionModeFromCLI guards autopilot: flag', setupSrc.includes("if (mode === 'autopilot')") && setupSrc.includes('if (!isAutopilotEnabled())'))
-check('initialPermissionModeFromCLI guards autopilot: policy kill', setupSrc.includes('if (disableBypassPermissionsMode) {\n        notification = growthBookDisableBypassPermissionsMode'))
+check('initialPermissionModeFromCLI guards autopilot: policy kill', setupSrc.includes('if (sovereignDisabled) {\n        notification = gateDisablesSovereign'))
 check('initialPermissionModeFromCLI guards autopilot: launch flag required', setupSrc.includes('if (!dangerouslySkipPermissions)'))
 check('explicit CLI autopilot + launch flag boots autopilot first (bypass fallback)', setupSrc.includes("if (requested === 'autopilot') candidates.push('autopilot')"))
 const runtimeGuard = setupSrc.includes("mode === 'autopilot'") && setupSrc.includes('Cannot set permission mode to autopilot because the session was not launched with --dangerously-bypass-permissions')

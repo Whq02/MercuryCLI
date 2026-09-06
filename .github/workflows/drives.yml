@@ -19,7 +19,6 @@ env:
   GIT_COMMITTER_NAME: mercury-gate
   GIT_COMMITTER_EMAIL: gate@mercury.invalid
   ANTHROPIC_API_KEY: proof-key-ci-gate-not-a-real-key
-  MERCURY_SUITE_TIMEOUT: '3000'
   MERCURY_VSHOT_BUDGET_SCALE: '3'
 
 jobs:
@@ -60,13 +59,14 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'scripts/vendor/fetch-brush.ts', 'vendor/brush.lock.json') }}
       - name: Fetch pinned vendor artifacts (hash-verified — an artifact without them is DEGRADED)
         run: |
           ~/.bun/bin/bun run scripts/vendor/fetch-pyright.ts
           ~/.bun/bin/bun run scripts/vendor/fetch-debugpy.ts
           ~/.bun/bin/bun run scripts/vendor/fetch-grammars.ts
           ~/.bun/bin/bun run scripts/vendor/fetch-js-debug.ts
+          ~/.bun/bin/bun run scripts/vendor/fetch-brush.ts
       - name: Build dist (Phase 0 — once for every shard)
         run: ~/.bun/bin/bun run build.ts
       - name: Pack dist (+ the vendor cache)
@@ -172,13 +172,14 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'scripts/vendor/fetch-brush.ts', 'vendor/brush.lock.json') }}
       - name: Fetch pinned vendor artifacts (hash-verified — an artifact without them is DEGRADED)
         run: |
           ~/.bun/bin/bun run scripts/vendor/fetch-pyright.ts
           ~/.bun/bin/bun run scripts/vendor/fetch-debugpy.ts
           ~/.bun/bin/bun run scripts/vendor/fetch-grammars.ts
           ~/.bun/bin/bun run scripts/vendor/fetch-js-debug.ts
+          ~/.bun/bin/bun run scripts/vendor/fetch-brush.ts
       - name: Build dist (platform-correct vendoring)
         run: ~/.bun/bin/bun run build.ts
       - name: Run darwin suites (the drives class)

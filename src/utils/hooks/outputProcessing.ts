@@ -54,7 +54,7 @@ export function parseHookOutput(stdout: string): {
         continue: 'boolean (optional)',
         suppressOutput: 'boolean (optional)',
         stopReason: 'string (optional)',
-        decision: '"approve" | "block" (optional)',
+        decision: '"block" (optional; never on PreToolUse — that event answers with hookSpecificOutput.permissionDecision)',
         reason: 'string (optional)',
         systemMessage: 'string (optional)',
         permissionDecision: '"allow" | "deny" | "ask" (optional)',
@@ -154,22 +154,19 @@ export function processHookJSONOutput({
     }
   }
 
-  if (json.decision) {
-    switch (json.decision) {
-      case 'approve':
-        result.permissionBehavior = 'allow'
-        break
-      case 'block':
-        result.permissionBehavior = 'deny'
-        result.blockingError = {
-          blockingError: json.reason || 'Blocked by hook',
-          command,
-        }
-        break
-      default:
-        throw new Error(
-          `Unknown hook decision type: ${json.decision}. Valid types are: approve, block`,
-        )
+  if (json.decision !== undefined) {
+    if (json.decision !== 'block') {
+      throw new Error(`Unknown hook decision: ${String(json.decision)}. The one decision is block`)
+    }
+    if (hookEvent === 'PreToolUse') {
+      throw new Error(
+        'A PreToolUse hook answers with hookSpecificOutput.permissionDecision (allow, deny or ask); a top-level decision is not read on this event',
+      )
+    }
+    result.permissionBehavior = 'deny'
+    result.blockingError = {
+      blockingError: json.reason || 'Blocked by hook',
+      command,
     }
   }
 

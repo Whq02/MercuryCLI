@@ -4,7 +4,7 @@ import type { Command } from '../commands.js'
 export function isKitGovernedSkillCommand(command: Command): boolean {
   if (command.type !== 'prompt') return false
   const loadedFrom = (command as { loadedFrom?: string }).loadedFrom
-  if (loadedFrom === 'skills' || loadedFrom === 'legacy-commands') return true
+  if (loadedFrom === 'skills') return true
   if (loadedFrom === 'extension') return (command as { skillRoot?: string }).skillRoot !== undefined
   return false
 }

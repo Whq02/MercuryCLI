@@ -156,7 +156,7 @@ try {
 }
 try {
   const relay = (await import('../../src/state/onChangeAppState.js')) as typeof import('../../src/state/onChangeAppState.js')
-  const base = { mainLoopModel: null, verbose: false, expandedView: false, isUltraplanMode: false, settings: {} }
+  const base = { mainLoopModel: null, verbose: false, expandedView: false, settings: {} }
   clearModeTransitions()
   relay.onChangeAppState({ newState: { ...base, toolPermissionContext: ctx('implement') } as never, oldState: { ...base, toolPermissionContext: ctx('apollo') } as never })
   check("the relay records a change nobody announced as 'unnamed'", last()?.road === 'unnamed' && last()?.from === 'apollo' && last()?.to === 'implement')
