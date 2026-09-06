@@ -142,7 +142,7 @@ section('(7) a signed-out boot stays silent on the wire — the API warm-up need
     const d = decidePreconnect(true, { [spelling]: '' })
     check(`${spelling} PRESENT (even empty) ⇒ skip, reason proxy`, !d.go && d.reason === 'proxy')
   }
-  const sock = decidePreconnect(true, { ANTHROPIC_UNIX_SOCKET: '/tmp/x' })
+  const sock = decidePreconnect(true, { MERCURY_API_UNIX_SOCKET: '/tmp/x' })
   check('a unix socket ⇒ skip, reason unix-socket', !sock.go && sock.reason === 'unix-socket')
   const cert = decidePreconnect(true, { MERCURY_CLIENT_KEY: '/k' })
   check('a client key ⇒ skip, reason client-cert', !cert.go && cert.reason === 'client-cert')
@@ -221,7 +221,7 @@ section('(11) the swallowed-prompt guard fires on the inferred print shape and k
   check('the guard fires for -p OR a non-TTY stdout (the inferred print shape)', guard.includes('(printMode || !process.stdout.isTTY) &&'))
   check('the guard still spares resume/continue/from-pr and stream-json input', guard.includes('!opts.resume &&') && guard.includes('!opts.continue &&') && guard.includes("inputFormat !== 'stream-json' &&"))
   check('--file is a candidate', guard.includes("['--file', opts.file]"))
-  check('the six earlier candidates are kept', ['--allowedTools', '--disallowedTools', '--tools', '--mcp-config', '--add-dir', '--betas'].every(f => guard.includes(`['${f}',`)))
+  check('the six earlier candidates are kept', ['--allowed-tools', '--disallowed-tools', '--tools', '--mcp-config', '--add-dir', '--betas'].every(f => guard.includes(`['${f}',`)))
 }
 
 section('(12) the reserved-shortcut table knows Windows')

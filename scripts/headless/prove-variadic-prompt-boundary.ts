@@ -87,24 +87,24 @@ const messagesBodies = (fixture: FixtureApi): string[] =>
     .filter(r => (r.path ?? '').includes('/v1/messages'))
     .map(r => JSON.stringify(r.body ?? null))
 
-section('(1) `-p --allowedTools "Bash" "do the thing"` refuses loudly — never a silent swallow')
+section('(1) `-p --allowed-tools "Bash" "do the thing"` refuses loudly — never a silent swallow')
 {
   const fixture = await startFixtureApi([{ kind: 'text', text: 'NEVER-SERVED.' }])
-  const res = await run(fixture, ['-p', '--allowedTools', 'Bash', 'do the thing'])
+  const res = await run(fixture, ['-p', '--allowed-tools', 'Bash', 'do the thing'])
   check('exit is non-zero', res.exit !== 0 && res.exit !== null, `exit ${res.exit}`)
-  check('the refusal names the flag that captured the values', res.stderr.includes('--allowedTools'), res.stderr.slice(-400))
+  check('the refusal names the flag that captured the values', res.stderr.includes('--allowed-tools'), res.stderr.slice(-400))
   check('…and echoes the swallowed value', res.stderr.includes('"do the thing"'), res.stderr.slice(-400))
-  check('…and names the -- remedy', res.stderr.includes('--allowedTools "..." -- '), res.stderr.slice(-400))
+  check('…and names the -- remedy', res.stderr.includes('--allowed-tools "..." -- '), res.stderr.slice(-400))
   check('…and the prompt-before-the-flag remedy', res.stderr.includes('before the flag'), res.stderr.slice(-400))
-  check('the generic input-must-be-provided line is NOT the answer', !res.stderr.includes('input must be provided'), res.stderr.slice(-400))
+  check('the generic no-prompt line is NOT the answer', !res.stderr.includes('No prompt reached --print: give one'), res.stderr.slice(-400))
   check('nothing reached the wire', messagesBodies(fixture).length === 0)
   await fixture.close()
 }
 
-section('(2) `-p --allowedTools "Bash" -- "prompt"` runs; the request body carries the prompt')
+section('(2) `-p --allowed-tools "Bash" -- "prompt"` runs; the request body carries the prompt')
 {
   const fixture = await startFixtureApi([{ kind: 'text', text: 'BOUNDARY-REPLY-ONE.' }])
-  const res = await run(fixture, ['-p', '--allowedTools', 'Bash', '--', 'say the boundary phrase alpha'])
+  const res = await run(fixture, ['-p', '--allowed-tools', 'Bash', '--', 'say the boundary phrase alpha'])
   check('exit 0', res.exit === 0, `exit ${res.exit} stderr ${res.stderr.slice(-300)}`)
   check('the scripted reply came back', res.stdout.includes('BOUNDARY-REPLY-ONE.'), res.stdout.slice(-300))
   const bodies = messagesBodies(fixture)
@@ -113,20 +113,20 @@ section('(2) `-p --allowedTools "Bash" -- "prompt"` runs; the request body carri
   await fixture.close()
 }
 
-section('(3) `-p "prompt" --allowedTools "Bash"` runs; the request body carries the prompt')
+section('(3) `-p "prompt" --allowed-tools "Bash"` runs; the request body carries the prompt')
 {
   const fixture = await startFixtureApi([{ kind: 'text', text: 'BOUNDARY-REPLY-TWO.' }])
-  const res = await run(fixture, ['-p', 'say the boundary phrase beta', '--allowedTools', 'Bash'])
+  const res = await run(fixture, ['-p', 'say the boundary phrase beta', '--allowed-tools', 'Bash'])
   check('exit 0', res.exit === 0, `exit ${res.exit} stderr ${res.stderr.slice(-300)}`)
   check('the scripted reply came back', res.stdout.includes('BOUNDARY-REPLY-TWO.'), res.stdout.slice(-300))
   check('the request body carries the prompt', messagesBodies(fixture).some(b => b.includes('say the boundary phrase beta')))
   await fixture.close()
 }
 
-section('(4) `echo prompt | -p --allowedTools Bash Edit` still runs (no refusal for real lists)')
+section('(4) `echo prompt | -p --allowed-tools Bash Edit` still runs (no refusal for real lists)')
 {
   const fixture = await startFixtureApi([{ kind: 'text', text: 'BOUNDARY-REPLY-THREE.' }])
-  const res = await run(fixture, ['-p', '--allowedTools', 'Bash', 'Edit'], {
+  const res = await run(fixture, ['-p', '--allowed-tools', 'Bash', 'Edit'], {
     stdinText: 'say the boundary phrase gamma\n',
   })
   check('exit 0', res.exit === 0, `exit ${res.exit} stderr ${res.stderr.slice(-300)}`)
@@ -135,7 +135,7 @@ section('(4) `echo prompt | -p --allowedTools Bash Edit` still runs (no refusal 
   await fixture.close()
 }
 
-section('(5) `-p --agent <with initialPrompt> --allowedTools A B` still runs (the agent supplies the input)')
+section('(5) `-p --agent <with initialPrompt> --allowed-tools A B` still runs (the agent supplies the input)')
 {
   const fixture = await startFixtureApi([{ kind: 'text', text: 'BOUNDARY-REPLY-FOUR.' }])
   const agents = JSON.stringify({
@@ -145,7 +145,7 @@ section('(5) `-p --agent <with initialPrompt> --allowedTools A B` still runs (th
       initialPrompt: 'say the boundary phrase delta',
     },
   })
-  const res = await run(fixture, ['-p', '--agents', agents, '--agent', 'runner', '--allowedTools', 'Bash', 'Edit'])
+  const res = await run(fixture, ['-p', '--agents', agents, '--agent', 'runner', '--allowed-tools', 'Bash', 'Edit'])
   check('exit 0', res.exit === 0, `exit ${res.exit} stderr ${res.stderr.slice(-300)}`)
   check('no refusal fired (the agent initialPrompt is the input)', !res.stderr.includes('captured'), res.stderr.slice(-300))
   check('the agent initialPrompt reached the wire', messagesBodies(fixture).some(b => b.includes('say the boundary phrase delta')))

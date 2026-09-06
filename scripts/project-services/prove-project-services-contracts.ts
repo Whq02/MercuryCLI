@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'vanguard-contracts-'))
-process.env.MERCURY_SIMPLE = '1'
+process.env.MERCURY_BARE = '1'
 
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')

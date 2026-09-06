@@ -25,8 +25,8 @@ async function main(): Promise<void> {
   console.log(' the small-fast tier follows the session family — proof')
   console.log('============================================================')
 
-  delete process.env.ANTHROPIC_SMALL_FAST_MODEL
-  delete process.env.ANTHROPIC_MODEL
+  delete process.env.MERCURY_SMALL_FAST_MODEL
+  delete process.env.MERCURY_MODEL
 
   const { providerSmallFastFact, smallFastModelFor, sessionLightModel, sessionSmallFastModel } =
     await import('../../src/utils/model/providerFrontier.js')
@@ -43,12 +43,12 @@ async function main(): Promise<void> {
       anthropic !== undefined && anthropic.modelId.toLowerCase().includes('haiku'),
       anthropic?.modelId,
     )
-    process.env.ANTHROPIC_SMALL_FAST_MODEL = 'claude-pin-test'
+    process.env.MERCURY_SMALL_FAST_MODEL = 'claude-pin-test'
     check(
-      'anthropic: ANTHROPIC_SMALL_FAST_MODEL honoured',
+      'anthropic: MERCURY_SMALL_FAST_MODEL honoured',
       providerSmallFastFact('anthropic')?.modelId === 'claude-pin-test',
     )
-    delete process.env.ANTHROPIC_SMALL_FAST_MODEL
+    delete process.env.MERCURY_SMALL_FAST_MODEL
     const openai = providerSmallFastFact('openai')
     check(
       'openai: the recorded mini/nano tier, grammar-derived and dated',
@@ -72,7 +72,7 @@ async function main(): Promise<void> {
     )
     const gpt = smallFastModelFor('gpt-5.6-sol')
     check('openai session → the recorded mini tier', /-(mini|nano)$/.test(gpt), gpt)
-    process.env.ANTHROPIC_SMALL_FAST_MODEL = 'claude-pin-test'
+    process.env.MERCURY_SMALL_FAST_MODEL = 'claude-pin-test'
     check(
       'the ANTHROPIC_ pin does NOT leak onto an openai session',
       smallFastModelFor('gpt-5.6-sol') !== 'claude-pin-test',
@@ -81,7 +81,7 @@ async function main(): Promise<void> {
       'the ANTHROPIC_ pin does apply on an anthropic session',
       smallFastModelFor('claude-opus-5') === 'claude-pin-test',
     )
-    delete process.env.ANTHROPIC_SMALL_FAST_MODEL
+    delete process.env.MERCURY_SMALL_FAST_MODEL
     const FOLLOW_SELF = [
       'glm-5.3',
       'kimi-k3',
@@ -103,23 +103,23 @@ async function main(): Promise<void> {
 
   section('§3 sessionLightModel — the hook-agent tier')
   {
-    delete process.env.ANTHROPIC_MODEL
+    delete process.env.MERCURY_MODEL
     const anthropicLight = sessionLightModel()
     check(
       'anthropic session: the SAME canonical the never-Haiku floor names (execAgentHook default unchanged)',
       getCanonicalName(anthropicLight) === getCanonicalName(NEVER_HAIKU_FALLBACK),
       `${anthropicLight} vs ${NEVER_HAIKU_FALLBACK}`,
     )
-    process.env.ANTHROPIC_MODEL = 'gpt-5.6-sol'
+    process.env.MERCURY_MODEL = 'gpt-5.6-sol'
     const gptLight = sessionLightModel()
     check(
       'openai session: the recorded light fact (sub-frontier base row)',
       /^gpt-\d/.test(gptLight) && !/-(sol|terra|luna)$/.test(gptLight),
       gptLight,
     )
-    process.env.ANTHROPIC_MODEL = 'glm-5.3'
+    process.env.MERCURY_MODEL = 'glm-5.3'
     check('zai session: follows the session model (no light fact recorded)', sessionLightModel() === 'glm-5.3')
-    delete process.env.ANTHROPIC_MODEL
+    delete process.env.MERCURY_MODEL
   }
 
   section('§4 the paid + standing debt sites (the census register stays honest)')

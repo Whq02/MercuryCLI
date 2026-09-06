@@ -1,4 +1,5 @@
 import { logForDebugging } from './debug.js'
+import { flagEnv } from '../substrate/flagRegistry.js'
 
 export type EnvVarValidationResult = {
   effective: number
@@ -30,7 +31,7 @@ export function validateBoundedIntEnvVar(
 }
 
 export function apiTimeoutMsOverride(
-  raw: string | undefined = process.env.API_TIMEOUT_MS,
+  raw: string | undefined = flagEnv('MERCURY_API_TIMEOUT_MS'),
 ): number | null {
   if (raw === undefined || raw.trim() === '') return null
   const value = Number(raw.trim())

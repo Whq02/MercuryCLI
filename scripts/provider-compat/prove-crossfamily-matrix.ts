@@ -24,11 +24,11 @@ guard.unref?.()
 delete process.env.NODE_ENV
 for (const ambient of [
   'ANTHROPIC_API_KEY',
-  'ANTHROPIC_MODEL',
+  'MERCURY_MODEL',
   'MERCURY_OAUTH_TOKEN',
   'MERCURY_SCRIPTED_STREAM',
   'MERCURY_WORKFLOW_ROUTING',
-  'MERCURY_SIMPLE',
+  'MERCURY_BARE',
   'GOOGLE_API_KEY',
 ]) {
   delete process.env[ambient]

@@ -32,7 +32,7 @@ function section(t: string): void {
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-recall-eval-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
-delete process.env.ANTHROPIC_MODEL
+delete process.env.MERCURY_MODEL
 
 const memoryDir = join(scratch, 'memdir')
 mkdirSync(memoryDir, { recursive: true })

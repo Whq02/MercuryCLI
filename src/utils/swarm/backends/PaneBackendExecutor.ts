@@ -71,7 +71,7 @@ export class PaneBackendExecutor implements TeammateExecutor {
         `--team-name ${quote([config.teamName])}`,
         color ? `--agent-color ${quote([color])}` : '',
         `--parent-session-id ${quote([config.parentSessionId || String(getSessionId())])}`,
-        config.planModeRequired ? '--plan-mode-required' : '',
+        config.planModeRequired ? '--strategy-mode-required' : '',
       ].filter(flag => flag.length > 0)
 
       const permissionMode = this.context.getAppState().toolPermissionContext.mode

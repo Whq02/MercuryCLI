@@ -473,7 +473,7 @@ export const AstEditTool = buildTool({
       rememberAnchoredSnapshot(owner, anchor, f.after, f.abs)
       dropSeenLines(owner, f.abs)
     }
-    if (!isEnvTruthy(process.env.MERCURY_SIMPLE)) {
+    if (!isEnvTruthy(process.env.MERCURY_BARE)) {
       const paths = plan.files.map(f => f.abs)
       discoverSkillDirsForPaths(paths, getCwd())
         .then(dirs => (dirs.length > 0 ? addSkillDirectories(dirs) : undefined))

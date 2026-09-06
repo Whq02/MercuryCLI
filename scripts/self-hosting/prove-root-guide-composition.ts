@@ -295,12 +295,12 @@ check(
   `composed ${big.composedLength} chars, cap ${big.cap}`,
 )
 
-const bareAlone = drive(mirror, { MERCURY_SIMPLE: '1' })
+const bareAlone = drive(mirror, { MERCURY_BARE: '1' })
 check(
   bareAlone.discoveryDisabled && !bareAlone.userContextHasInstructions,
   'bare mode with no added directory disables instruction discovery: the user context carries no instructions',
 )
-const bareAdded = drive(mirror, { MERCURY_SIMPLE: '1', DRV_ADDED_DIR: added })
+const bareAdded = drive(mirror, { MERCURY_BARE: '1', DRV_ADDED_DIR: added })
 check(
   !bareAdded.discoveryDisabled && bareAdded.userContextHasAddedNeedle,
   "bare mode never refuses a directory the operator added: its guide reaches the user context (the context.ts law)",

@@ -441,7 +441,7 @@ export function filterMcpServersByPolicy<T>(
   const allowed: Record<string, T> = {}
   const blocked: string[] = []
   for (const [name, config] of Object.entries(configs)) {
-    if ((config as { type?: string } | undefined)?.type === 'sdk') {
+    if ((config as { type?: string } | undefined)?.type === 'host') {
       allowed[name] = config
       continue
     }
@@ -473,7 +473,7 @@ export function areMcpConfigsAllowedWithEnterpriseMcpConfig(
   configs: Record<string, McpServerConfig | ScopedMcpServerConfig>,
 ): boolean {
   return Object.entries(configs).every(
-    ([name, config]) => (config as { type?: string }).type === 'sdk' && name === 'mercury-editor',
+    ([name, config]) => (config as { type?: string }).type === 'host' && name === 'mercury-editor',
   )
 }
 

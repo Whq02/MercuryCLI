@@ -61,7 +61,7 @@ try {
     env: {
       ...process.env,
       PATH: `${shim}:${process.env.PATH ?? ''}`,
-      USE_BUILTIN_RIPGREP: '0',
+      MERCURY_BUILTIN_RIPGREP: '0',
       MERCURY_CONFIG_DIR: process.env.MERCURY_CONFIG_DIR ?? '',
     },
   })

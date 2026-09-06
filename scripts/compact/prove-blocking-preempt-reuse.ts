@@ -19,8 +19,8 @@ const section = (t: string): void => {
 const ROOT = join(import.meta.dir, '..', '..')
 
 for (const key of [
-  'DISABLE_COMPACT', 'DISABLE_AUTO_COMPACT', 'MERCURY_AUTOCOMPACT_PCT_OVERRIDE',
-  'MERCURY_BLOCKING_LIMIT_OVERRIDE', 'MERCURY_LOCAL_PROBE_TARGETS', 'ANTHROPIC_MODEL',
+  'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_AUTOCOMPACT_PCT_OVERRIDE',
+  'MERCURY_BLOCKING_LIMIT_OVERRIDE', 'MERCURY_LOCAL_PROBE_TARGETS', 'MERCURY_MODEL',
 ]) {
   delete process.env[key]
 }
@@ -85,11 +85,11 @@ section('R2 · the early returns surface nothing')
     called++
   })
   check('forked sources (compact / session_memory) never call onMeasured', called === 0, `called=${called}`)
-  process.env.DISABLE_AUTO_COMPACT = '1'
+  process.env.MERCURY_AUTO_COMPACT = '0'
   await compact.shouldAutoCompact(transcriptAt(1000) as never, MODEL, undefined, 0, () => {
     called++
   })
-  delete process.env.DISABLE_AUTO_COMPACT
+  delete process.env.MERCURY_AUTO_COMPACT
   check('auto-compact off never calls onMeasured', called === 0, `called=${called}`)
 }
 
