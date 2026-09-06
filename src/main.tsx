@@ -1506,7 +1506,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
 
   if (isCoordinationServerEnabled()) {
     const reserved = Object.entries(dynamicMcpConfig).find(
-      ([name, config]) => name === COORDINATION_SERVER_NAME && (config as { type?: string }).type !== 'sdk',
+      ([name, config]) => name === COORDINATION_SERVER_NAME && (config as { type?: string }).type !== 'host',
     )
     if (reserved) {
       writeErr(
@@ -1561,14 +1561,14 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     const sdk: Record<string, McpSdkServerConfig> = Object.create(null) as Record<string, McpSdkServerConfig>
     const regular: Record<string, ScopedMcpServerConfig> = Object.create(null) as Record<string, ScopedMcpServerConfig>
     for (const [name, config] of Object.entries(merged)) {
-      if (config.type === 'sdk') sdk[name] = config
+      if (config.type === 'host') sdk[name] = config
       else regular[name] = config
     }
     logForDebugging(`MCP config resolution took ${Date.now() - mcpResolutionStartedAt}ms`)
     return { sdk, regular }
   })
   const regularDynamicMcpConfig: Record<string, ScopedMcpServerConfig> = Object.fromEntries(
-    Object.entries(dynamicMcpConfig).filter(([, config]) => config.type !== 'sdk'),
+    Object.entries(dynamicMcpConfig).filter(([, config]) => config.type !== 'host'),
   )
 
   if (process.env.MERCURY_ENTRYPOINT !== 'local-agent') {
