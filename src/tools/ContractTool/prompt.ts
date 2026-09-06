@@ -1,4 +1,4 @@
-export const CONTRACT_TOOL_NAME = 'contract'
+export const CONTRACT_TOOL_NAME = 'Contract'
 
 export const DESCRIPTION =
   "This session's work agreement (its contract): read it, acknowledge it in your own words, check a move against it, assess whether it is complete enough, propose an amendment, or file the closing report against it. Advisory always — it encourages, never blocks."

@@ -55,10 +55,10 @@ t.section('§1 — the effective table is derived from the live bindings')
   )
 
   const rebound = buildAtlas(
-    user([{ context: 'Global', bindings: { 'alt+j': 'app:toggleTodos' } }]),
+    user([{ context: 'Global', bindings: { 'alt+j': 'app:toggleTasks' } }]),
     OPTS,
   )
-  const mine = rebound.find(r => r.action === 'app:toggleTodos' && r.chord === 'alt+j')
+  const mine = rebound.find(r => r.action === 'app:toggleTasks' && r.chord === 'alt+j')
   t.check('a user rebind appears as its own row', mine !== undefined, 'alt+j')
   t.check('marked as the operator\'s, not a default', mine?.origin === 'user', `${mine?.origin}`)
 
@@ -153,7 +153,7 @@ t.section('§2 — the reverse lookup runs the runtime resolver')
   }
 
   const todos = explain('t', KEY({ ctrl: true }))
-  t.check('a bound chord names its action', todos.outcome === 'match' && todos.action === 'app:toggleTodos', todos.verdict)
+  t.check('a bound chord names its action', todos.outcome === 'match' && todos.action === 'app:toggleTasks', todos.verdict)
   t.check('and the context that owns it', todos.context === 'Global', `${todos.context}`)
 
   const prefix = explain('x', KEY({ ctrl: true }))
@@ -181,7 +181,7 @@ t.section('§2 — the reverse lookup runs the runtime resolver')
   t.check(
     'in resolver order — the last candidate is the winner',
     shadowed.candidates.at(-1)?.action === 'command:sessions' &&
-      shadowed.candidates.at(0)?.action === 'app:toggleTodos',
+      shadowed.candidates.at(0)?.action === 'app:toggleTasks',
     JSON.stringify(shadowed.candidates.map(c => c.action)),
   )
   t.check('with the layer that wrote it', shadowed.candidates.at(-1)?.origin === 'user', 'user')
@@ -227,12 +227,12 @@ t.section('§4 — the write half produces exact, deterministic bytes')
     'the template points editors at NO foreign schema ($docs, never $schema)',
     !template.includes("'$schema'") && !template.includes('"$schema"') && template.includes('$docs'),
   )
-  const fresh = applyBindingEdit(null, { context: 'Chat', chord: 'alt+j', action: 'app:toggleTodos' })
+  const fresh = applyBindingEdit(null, { context: 'Chat', chord: 'alt+j', action: 'app:toggleTasks' })
   t.check('a first rebind creates the file shape', fresh.ok, fresh.ok ? '' : fresh.error)
   if (fresh.ok) {
     const parsed = JSON.parse(fresh.content) as { bindings: { context: string; bindings: Record<string, string> }[] }
     t.check('with one block for the context', parsed.bindings.length === 1, `${parsed.bindings.length}`)
-    t.check('carrying the binding', parsed.bindings[0]?.bindings['alt+j'] === 'app:toggleTodos', 'ok')
+    t.check('carrying the binding', parsed.bindings[0]?.bindings['alt+j'] === 'app:toggleTasks', 'ok')
     t.check('and ending in a newline', fresh.content.endsWith('}\n'), 'trailing newline')
 
     const second = applyBindingEdit(fresh.content, { context: 'Chat', chord: 'alt+k', action: 'chat:stash' })
@@ -242,7 +242,7 @@ t.section('§4 — the write half produces exact, deterministic bytes')
       t.check('one block still', p2.bindings.length === 1, `${p2.bindings.length}`)
       t.check('with both bindings', Object.keys(p2.bindings[0]!.bindings).length === 2, 'alt+j + alt+k')
     }
-    const again = applyBindingEdit(null, { context: 'Chat', chord: 'alt+j', action: 'app:toggleTodos' })
+    const again = applyBindingEdit(null, { context: 'Chat', chord: 'alt+j', action: 'app:toggleTasks' })
     t.check('the same edit is byte-identical', again.ok && again.content === fresh.content, 'deterministic')
   }
 
@@ -271,10 +271,10 @@ t.section('§5 — suggested chords are free, reserved-aware and stable')
   t.check('none of them is already bound here', free.every(c => !taken.has(c)), free.join(' · '))
   t.check('and none is a reserved chord', !free.some(c => c.includes('ctrl+z') || c.includes('ctrl+c')), 'ok')
 
-  const bound = actionAffordance('app:toggleTodos', 'Global', defaults)
+  const bound = actionAffordance('app:toggleTasks', 'Global', defaults)
   t.check('a bound action reports its chord', bound.kind === 'bound', JSON.stringify(bound))
   const stolen = actionAffordance(
-    'app:toggleTodos',
+    'app:toggleTasks',
     'Global',
     user([{ context: 'Global', bindings: { 'ctrl+t': 'command:sessions' } }]),
   )
@@ -332,7 +332,7 @@ t.section('§7 — REAL BINARY: /keys renders the live table')
     })
     writeFileSync(
       join(home, 'keybindings.json'),
-      JSON.stringify({ bindings: [{ context: 'Global', bindings: { 'alt+j': 'app:toggleTodos' } }] }),
+      JSON.stringify({ bindings: [{ context: 'Global', bindings: { 'alt+j': 'app:toggleTasks' } }] }),
     )
     const expectChord = process.platform === 'darwin' ? 'opt+j' : 'alt+j'
     const out = join(scratch, 'keys.json')
@@ -342,7 +342,7 @@ t.section('§7 — REAL BINARY: /keys renders the live table')
       sends: [
         { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 60, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '/keys\r' },
-        { atTick: 110, awaitText: 'input atlas', minTick: 5, awaitSettleTicks: 3, data: 'toggleTodos' },
+        { atTick: 110, awaitText: 'input atlas', minTick: 5, awaitSettleTicks: 3, data: 'toggleTasks' },
       ],
       readyText: expectChord, readySettleTicks: 4,
     }
@@ -383,7 +383,7 @@ t.section('§7 — REAL BINARY: /keys renders the live table')
     t.check(
       'the operator\'s own rebind is on screen — the table is resolved, not printed',
       text.includes(expectChord),
-      `${expectChord} → app:toggleTodos`,
+      `${expectChord} → app:toggleTasks`,
     )
   }
 }

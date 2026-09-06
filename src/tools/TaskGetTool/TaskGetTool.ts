@@ -2,7 +2,7 @@ import { z } from 'zod/v4'
 
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { getTask, getTaskListId, isTodoV2Enabled, TASK_STATUSES } from '../../utils/tasks.js'
+import { getTask, getTaskListId, isTaskToolsEnabled, TASK_STATUSES } from '../../utils/tasks.js'
 import { TASK_GET_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, PROMPT } from './prompt.js'
 
@@ -43,7 +43,7 @@ export const TaskGetTool = buildTool({
   get outputSchema(): OutputSchema {
     return outputSchema()
   },
-  isEnabled: () => isTodoV2Enabled(),
+  isEnabled: () => isTaskToolsEnabled(),
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   userFacingName: () => 'TaskGet',

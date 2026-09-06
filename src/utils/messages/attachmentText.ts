@@ -43,7 +43,7 @@ import {
   isPlanModeInterviewPhaseEnabled,
 } from '../planModeV2.js'
 import { jsonStringify } from '../slowOperations.js'
-import { isTodoV2Enabled } from '../tasks.js'
+import { isTaskToolsEnabled } from '../tasks.js'
 import {
   formatDecisionRecordForPlanning,
   latestDecisionRecordSync,
@@ -593,25 +593,8 @@ The team config lists your teammates' names. Check the task list periodically; c
         }),
       ])
     }
-    case 'todo_reminder': {
-      const todoItems = attachment.content
-        .map((todo, index) => `${index + 1}. [${todo.status}] ${todo.content}`)
-        .join('\n')
-
-      let message = `The TodoWrite tool hasn't been touched in a while. If the current work would benefit from tracked progress, consider using it — and if the list below has gone stale against what you're actually doing, consider cleaning it up. Relevant work only; ignore this if it doesn't apply, and NEVER mention this reminder to the user.\n`
-      if (todoItems.length > 0) {
-        message += `\n\nThe current todo list:\n\n[${todoItems}]`
-      }
-
-      return wrapMessagesInSystemReminder([
-        createUserMessage({
-          content: message,
-          isMeta: true,
-        }),
-      ])
-    }
     case 'task_reminder': {
-      if (!isTodoV2Enabled()) {
+      if (!isTaskToolsEnabled()) {
         return []
       }
       const taskItems = attachment.content
@@ -1259,6 +1242,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
     'autocheckpointing',
     'background_task_status',
     'todo',
+    'todo_reminder',
     'task_progress',
     'ultramemory',
   ]
