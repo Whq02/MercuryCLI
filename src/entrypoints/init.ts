@@ -16,10 +16,6 @@ import { ensureLocalSettingsSchema } from '../utils/settings/localSchema.js'
 import { getGithubRepo } from '../utils/git.js'
 import { restoreGatewayAuth } from '../utils/gatewayTrust.js'
 import { populateOAuthAccountInfoIfNeeded } from '../services/oauth/client.js'
-import {
-  initializeRemoteManagedSettingsLoadingPromise,
-  isEligibleForRemoteManagedSettings,
-} from '../services/remoteManagedSettings/index.js'
 import { shutdownLspServerManager } from '../services/lsp/manager.js'
 import { ensureScratchpadDir, isScratchpadEnabled } from '../utils/permissions/filesystem.js'
 import { ConfigParseError, ConfigReadError } from '../utils/errors.js'
@@ -64,9 +60,6 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
       }
     })
 
-    if (isEligibleForRemoteManagedSettings()) {
-      initializeRemoteManagedSettingsLoadingPromise()
-    }
 
     recordFirstStartTime()
     profileCheckpoint('init_background_dispatch_done')

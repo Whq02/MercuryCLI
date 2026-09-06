@@ -246,8 +246,6 @@ export function buildSettingSourcesProperties(): Property[] {
       if (presence.hasBase && presence.hasDropIns) names.push('Managed (file + drop-ins)')
       else if (presence.hasDropIns) names.push('Managed (drop-ins)')
       else names.push('Managed (file)')
-    } else if (origin === 'remote') {
-      names.push('Managed (remote)')
     } else if (origin === 'plist') {
       names.push('Managed (plist)')
     } else if (origin === 'hklm') {
