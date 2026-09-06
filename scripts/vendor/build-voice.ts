@@ -188,8 +188,15 @@ function main(): void {
     console.log(`build-voice: pack already valid for ${PLATFORM} — nothing to do (--force rebuilds)`)
     process.exit(0)
   }
+  const dropStale = (): void => {
+    if (invalid !== null && existsSync(OUT_DIR)) {
+      rmSync(OUT_DIR, { recursive: true, force: true })
+      console.log(`build-voice: removed the stale pack at ${VOICE_PACK_PATH}/${PLATFORM} (${invalid}) — it cannot be rebuilt here`)
+    }
+  }
   const cargo = cargoVersion()
   if (cargo === null) {
+    dropStale()
     console.log(
       `build-voice: SKIPPED — no cargo on PATH, so the voice capture pack is not built for ${PLATFORM}. ` +
         'The build ships without voice input (degraded: voice-input) and the doctor says so; install a Rust toolchain (https://rustup.rs) and re-run bun run scripts/vendor/build-voice.ts, or put sox/ffmpeg on PATH for the recorder fallback.',
@@ -198,12 +205,14 @@ function main(): void {
   }
   if (CROSS) {
     if (TRIPLE === null) {
+      dropStale()
       console.log(`build-voice: SKIPPED — no cargo target triple is known for ${PLATFORM}; the build ships without voice input (degraded: voice-input) and the doctor says so.`)
       process.exit(0)
     }
     const installed = run('rustup', ['target', 'list', '--installed'], { capture: true })
     const present = installed.status === 0 && installed.stdout.split('\n').map(l => l.trim()).includes(TRIPLE)
     if (!present) {
+      dropStale()
       console.log(
         `build-voice: SKIPPED — the rustup target ${TRIPLE} is not installed on this machine, so the voice capture pack is not cross-compiled for ${PLATFORM}. ` +
           `The build ships without voice input (degraded: voice-input) and the doctor says so; install it (rustup target add ${TRIPLE}) and re-run bun run scripts/vendor/build-voice.ts --target ${TARGET_ARG}.`,
