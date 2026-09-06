@@ -4,9 +4,6 @@ import {
   PermissionModeSchema,
   PermissionUpdateSchema,
   SDKMessageSchema,
-  SDKPostTurnSummaryMessageSchema,
-  SDKStreamlinedTextMessageSchema,
-  SDKStreamlinedToolUseSummaryMessageSchema,
   SDKUserMessageSchema,
 } from './coreSchemas.js'
 
@@ -326,26 +323,13 @@ export const SDKControlResponseSchema = lazySchema(() =>
     response: z.union([ControlResponseSchema(), ControlErrorResponseSchema()]),
   }),
 )
-export const SDKKeepAliveMessageSchema = lazySchema(() =>
-  z.object({ type: z.literal('keep_alive') }),
-)
-export const SDKUpdateEnvironmentVariablesMessageSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('update_environment_variables'),
-    variables: z.record(z.string(), z.string()),
-  }),
-)
 
 export const StdoutMessageSchema = lazySchema(() =>
   z.union([
     SDKMessageSchema(),
-    SDKStreamlinedTextMessageSchema(),
-    SDKStreamlinedToolUseSummaryMessageSchema(),
-    SDKPostTurnSummaryMessageSchema(),
     SDKControlResponseSchema(),
     SDKControlRequestSchema(),
     SDKControlCancelRequestSchema(),
-    SDKKeepAliveMessageSchema(),
   ]),
 )
 export const StdinMessageSchema = lazySchema(() =>
@@ -353,7 +337,5 @@ export const StdinMessageSchema = lazySchema(() =>
     SDKUserMessageSchema(),
     SDKControlRequestSchema(),
     SDKControlResponseSchema(),
-    SDKKeepAliveMessageSchema(),
-    SDKUpdateEnvironmentVariablesMessageSchema(),
   ]),
 )

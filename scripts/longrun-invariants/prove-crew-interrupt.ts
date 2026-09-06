@@ -103,7 +103,6 @@ async function driverScenario(opts: { releaseBeforeResult: boolean; tasksRunning
     enqueueOutput: m => out.push((m as { type: string }).type),
     writeDirect: async () => {},
     drainSdkEvents: () => [],
-    flushInternalEvents: async () => {},
     executeTurn: async (_c, _batchUuids, onMessage) => {
       onMessage({ type: 'assistant' } as never)
       if (opts.releaseBeforeResult) driver.releaseHold()

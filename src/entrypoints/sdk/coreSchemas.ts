@@ -967,22 +967,6 @@ export const SDKRateLimitEventSchema = lazySchema(() =>
     session_id: z.string(),
   }),
 )
-export const SDKStreamlinedTextMessageSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('streamlined_text'),
-    text: z.string().describe('The condensed assistant text'),
-    session_id: z.string(),
-    uuid: z.string(),
-  }),
-)
-export const SDKStreamlinedToolUseSummaryMessageSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('streamlined_tool_use_summary'),
-    tool_summary: z.string().describe('A one-line account of the tool activity'),
-    session_id: z.string(),
-    uuid: z.string(),
-  }),
-)
 export const SDKPermissionDenialSchema = lazySchema(() =>
   z.object({
     tool_name: z.string().describe('The tool whose use was denied'),
@@ -1128,19 +1112,6 @@ export const SDKStatusMessageSchema = lazySchema(() =>
     uuid: z.string(),
   }),
 )
-export const SDKPostTurnSummaryMessageSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('system'),
-    subtype: z.literal('post_turn_summary'),
-    summary: z.string().optional().describe('A short account of what the turn accomplished'),
-    status_category: z
-      .enum(['blocked', 'waiting', 'completed', 'review_ready', 'failed'])
-      .optional()
-      .describe('Where the work stands after the turn'),
-    session_id: z.string(),
-    uuid: z.string(),
-  }),
-)
 export const SDKAPIRetryMessageSchema = lazySchema(() =>
   z.object({
     type: z.literal('system'),
@@ -1150,16 +1121,6 @@ export const SDKAPIRetryMessageSchema = lazySchema(() =>
     retry_delay_ms: z.number().optional().describe('The backoff before this attempt'),
     error_status: z.number().nullable().optional().describe('The HTTP status that forced the retry'),
     error: SDKAssistantMessageErrorSchema().optional().describe('The error class that forced the retry'),
-    session_id: z.string(),
-    uuid: z.string(),
-  }),
-)
-export const SDKLocalCommandOutputMessageSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('system'),
-    subtype: z.literal('local_command_output'),
-    stdout: z.string().optional().describe('What the command printed to stdout'),
-    stderr: z.string().optional().describe('What the command printed to stderr'),
     session_id: z.string(),
     uuid: z.string(),
   }),
@@ -1211,33 +1172,6 @@ export const SDKToolProgressMessageSchema = lazySchema(() =>
     elapsed_ms: z.number().optional().describe('Milliseconds the call has been running'),
     progress: z.unknown().optional().describe('Tool-specific progress payload'),
     parent_tool_use_id: z.string().nullable().optional().describe('The Agent tool call this runs under, when inside a subagent'),
-    session_id: z.string(),
-    uuid: z.string(),
-  }),
-)
-export const SDKAuthStatusMessageSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('auth_status'),
-    isAuthenticating: z.boolean().describe('True while an auth flow is in progress'),
-    output: z.array(z.string()).optional().describe('Lines the auth flow has printed'),
-    error: z.string().optional().describe('Why authentication failed, when it did'),
-    uuid: z.string(),
-    session_id: z.string(),
-  }),
-)
-export const SDKFilesPersistedEventSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('system'),
-    subtype: z.literal('files_persisted'),
-    files: z
-      .array(
-        z.object({
-          path: z.string().describe('The persisted file'),
-          tool_use_id: z.string().optional().describe('The tool call that wrote it'),
-        }),
-      )
-      .optional()
-      .describe('The files just written to durable storage'),
     session_id: z.string(),
     uuid: z.string(),
   }),
@@ -1335,9 +1269,7 @@ export const SDKMessageSchema = lazySchema(() =>
     SDKStatusMessageSchema(),
     SDKTurnStartedMessageSchema(),
     SDKMissionUpdatedMessageSchema(),
-    SDKPostTurnSummaryMessageSchema(),
     SDKAPIRetryMessageSchema(),
-    SDKLocalCommandOutputMessageSchema(),
     SDKHookStartedMessageSchema(),
     SDKHookProgressMessageSchema(),
     SDKHookResponseMessageSchema(),
@@ -1345,12 +1277,10 @@ export const SDKMessageSchema = lazySchema(() =>
     SDKTaskStartedMessageSchema(),
     SDKSessionStateChangedMessageSchema(),
     SDKTaskProgressMessageSchema(),
-    SDKFilesPersistedEventSchema(),
     SDKElicitationCompleteMessageSchema(),
     SDKPartialAssistantMessageSchema(),
     SDKToolProgressMessageSchema(),
     SDKToolUseSummaryMessageSchema(),
-    SDKAuthStatusMessageSchema(),
     SDKRateLimitEventSchema(),
     SDKPromptSuggestionMessageSchema(),
   ]),

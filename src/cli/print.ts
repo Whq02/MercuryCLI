@@ -502,7 +502,6 @@ export async function runHeadless(
     forkSession: options.forkSession,
     outputFormat: options.outputFormat,
     sessionStartHooksPromise: options.sessionStartHooksPromise,
-    restoredWorkerState: io.restoredWorkerState,
   })
   const messages: Message[] = loaded.messages
 
@@ -1339,10 +1338,7 @@ export async function runHeadless(
     'control_request',
     'control_cancel_request',
     'stream_event',
-    'keep_alive',
     'prompt_suggestion',
-    'streamlined_text',
-    'streamlined_tool_use_summary',
   ])
   const EXCLUDED_SYSTEM_SUBTYPES = new Set([
     TURN_STARTED_SUBTYPE,
@@ -1351,7 +1347,6 @@ export async function runHeadless(
     'task_notification',
     'task_started',
     'task_progress',
-    'post_turn_summary',
   ])
   let streamlinedTransformer: ((message: StdoutMessage) => StdoutMessage | null) | null = null
   void ((value: typeof streamlinedTransformer) => {
@@ -1389,7 +1384,6 @@ export async function runHeadless(
     enqueueOutput: message => io.outbound.enqueue(message),
     writeDirect: message => io.write(message),
     drainSdkEvents: () => drainSdkEvents(),
-    flushInternalEvents: () => io.flushInternalEvents(),
     beforeCycle: async () => {
       await updateSdkMcp()
     },
