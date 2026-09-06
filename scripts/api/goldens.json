@@ -136,7 +136,7 @@
   "«throws»": "undefined is not an object (evaluating 'msg.message.content')"
  },
  "getAPIMetadata/shape": {
-  "user_id": "{\"device_id\":\"«hash»\",\"account_uuid\":\"\",\"session_id\":\"«u1»\"}"
+  "user_id": "{\"account_uuid\":\"\",\"session_id\":\"«u1»\"}"
  },
  "getExtraBodyParams/probe": {}
 }
