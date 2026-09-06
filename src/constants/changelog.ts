@@ -2,6 +2,10 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
+- Fixed the "back to the bottom" pill never appearing after PgUp or PgDn in the transcript; it now paints as it does after the mouse wheel
+- Fixed a repeat install that changed nothing still telling you to open a new terminal; it now says the folder is already on PATH and stops
+- Added a browser road for /bug: when the GitHub CLI cannot file the report, the prefilled issue form opens in the browser and the link is printed in full
+- Changed finished background commands to fold into one transcript row counted by outcome while the model is busy, a failed one keeping its title, instead of one row each
 - Fixed a compaction on the OpenAI road sending a shorter request than the session had been sending, which left most of the context uncached afterwards; the summary request now carries the same rows plus the ask, and a forked agent keeps its parent's cache setting
 - Fixed a message to a worker owned by a running workflow starting a second copy of that worker; the message is refused and names the workflow, and a finished run can no longer settle its successor
 - Added on-device speech-to-text: with no API key at all, /speak on, space to talk, space to stop, and the words land in the composer without anything leaving the machine; the first use downloads a 60 MB English model once, behind /speak download, and the doctor names the engine, the model and the memory it takes
