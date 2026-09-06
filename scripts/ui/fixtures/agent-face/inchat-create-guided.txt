@@ -1,6 +1,5 @@
-0q● create agent  →  <PATH><identifier>.md
+● create agent  →  <PATH><identifier>.md
 
 where should this agent live?
 ❯ 1. Project (<PATH>)
   2. Personal (<PATH>)
-4mu
