@@ -87,7 +87,7 @@ function userProjection(message: NormalizedUserMessage, parentToolUseId: string 
     session_id: getSessionId(),
     uuid: message.uuid,
     timestamp: (message as { timestamp?: string }).timestamp,
-    isSynthetic:
+    is_synthetic:
       (message as { isMeta?: boolean }).isMeta === true ||
       (message as { isVisibleInTranscriptOnly?: boolean }).isVisibleInTranscriptOnly === true,
     tool_use_result: mcpMeta ? { ...mcpMeta, content: toolUseResult } : toolUseResult,
@@ -201,10 +201,10 @@ export async function* handleOrphanedPermission(
 ): AsyncGenerator<SdkProjection> {
   const decision = orphanedPermission.permissionResult as {
     behavior?: string
-    toolUseID?: string
-    updatedInput?: Record<string, unknown>
+    tool_use_id?: string
+    updated_input?: Record<string, unknown>
   }
-  const toolUseId = decision.toolUseID
+  const toolUseId = decision.tool_use_id
   if (!toolUseId) return
   const assistantMessage = orphanedPermission.assistantMessage
   const content = assistantMessage.message.content
@@ -219,8 +219,8 @@ export async function* handleOrphanedPermission(
 
   let input = toolUseBlock.input
   if (decision.behavior === 'allow') {
-    if (decision.updatedInput) {
-      input = decision.updatedInput
+    if (decision.updated_input) {
+      input = decision.updated_input
     } else {
       logForDebugging(
         `WARNING: orphaned permission for ${toolUseBlock.name} carried no updated input; using the original input`,
