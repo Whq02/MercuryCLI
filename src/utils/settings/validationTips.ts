@@ -58,7 +58,7 @@ function matchTip(context: TipContext): ValidationTip | null {
     }
   }
   if (context.code === 'invalid_type' && context.expected === 'boolean') {
-    return { suggestion: 'Use unquoted true or false, e.g. "verbose": true' }
+    return { suggestion: 'Use unquoted true or false, e.g. "alwaysThinkingEnabled": true' }
   }
   if (context.code === 'unrecognized_keys') {
     return { suggestion: 'Check for typos, or consult the settings documentation for the supported fields' }

@@ -110,7 +110,13 @@ export const workflowAdapter: ResourceAdapter = {
               running ? 'LATEST TEXT (agent still running — not final):' : 'OUTCOME:',
               view.finalText,
             )
-            if (view.finalTextTruncated) parts.push('[outcome truncated at cap]')
+            if (view.finalTextTruncated) {
+              const window = 50
+              const cursor = Math.max(0, view.entryCount - window)
+              parts.push(
+                `[outcome truncated at cap — the full text is in the raw stream: ${ref.canonical}?child=${ref.selectors.child}&cursor=${cursor}&limit=${window}]`,
+              )
+            }
           } else {
             parts.push(running ? '(no outcome yet — agent running)' : '(agent produced no final text)')
           }

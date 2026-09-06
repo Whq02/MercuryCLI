@@ -670,7 +670,7 @@ async function runHeadlessStdio(): Promise<void> {
     run = await runStreamJson(
       world,
       fixture,
-      ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--permission-prompt-tool', 'stdio', '--model', 'claude-opus-5'],
+      ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--permission-prompt-tool', 'stdio', '--model', 'claude-opus-5'],
       [
         { prompt: ASK },
         { prompt: FOLLOW_UP, waitFor: () => fixture.hits.some(h => h.route === 'seat-done') },
@@ -697,7 +697,7 @@ async function runHeadlessPlain(): Promise<void> {
   const world = seedWorld({ permissions: { defaultMode: 'default' } })
   let run: HeadlessRun
   try {
-    run = await runStreamJson(world, fixture, ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--model', 'claude-opus-5'], [{ prompt: ASK }])
+    run = await runStreamJson(world, fixture, ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', 'claude-opus-5'], [{ prompt: ASK }])
   } finally {
     await fixture.close()
   }

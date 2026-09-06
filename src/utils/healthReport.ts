@@ -1091,15 +1091,20 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'renders',
           label: 'Render-verify',
-          run: () => {
-            const renderer = join(cwd, 'scripts', 'ui', 'render-tui.ts')
-            const vshot = join(cwd, 'scripts', 'ui', 'vshot.py')
-            if (!existsSync(renderer)) {
+          run: async () => {
+            const { renderTuiCheckoutRoot, renderTuiRuntime } = await import('../services/mcp/renderTuiTool.js')
+            const root =
+              renderTuiCheckoutRoot() ?? (existsSync(join(cwd, 'scripts', 'ui', 'render-tui.ts')) ? cwd : null)
+            if (root === null) {
               return {
                 status: 'info',
-                evidence: 'not the harness source repo (scripts/ui/render-tui.ts absent) — render-verify n/a here',
+                evidence:
+                  'not the harness source repo (scripts/ui/render-tui.ts absent beside this build and under the cwd) — render-verify n/a here; the render_tui tool answers unavailable',
               }
             }
+            const vshot = join(root, 'scripts', 'ui', 'vshot.py')
+            const runtime = renderTuiRuntime()
+            const runtimeWords = 'bun' in runtime ? `bun at ${runtime.bun}` : runtime.missing
             const python = whichSync('python3') ?? whichSync('python')
             if (process.platform === 'win32') {
               return {
@@ -1111,13 +1116,20 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             if (!python) {
               return {
                 status: 'warn',
-                evidence: `render-tui.ts ${existsSync(vshot) ? '+ vshot.py ' : ''}present but no python on PATH — UI claims cannot be render-verified`,
+                evidence: `render-tui.ts ${existsSync(vshot) ? '+ vshot.py ' : ''}present at ${root} but no python on PATH — UI claims cannot be render-verified`,
                 fix: 'Install Python 3, or point MERCURY_PYTHON at one — the PTY renderer needs it.',
+              }
+            }
+            if ('missing' in runtime) {
+              return {
+                status: 'warn',
+                evidence: `render pipeline present at ${root} · python at ${python} · ${runtime.missing} — the render_tui tool answers unavailable until bun is found`,
+                fix: 'Install bun (~/.bun/bin/bun), put it on PATH, or point BUN at one — the render script runs under it.',
               }
             }
             return {
               status: 'ok',
-              evidence: `render pipeline present (render-tui.ts${existsSync(vshot) ? ' + vshot.py' : ''}) · python at ${python}`,
+              evidence: `render pipeline present at ${root} (render-tui.ts${existsSync(vshot) ? ' + vshot.py' : ''}) · python at ${python} · ${runtimeWords}`,
             }
           },
         },
