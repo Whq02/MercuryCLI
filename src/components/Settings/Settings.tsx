@@ -14,10 +14,17 @@ import { Usage } from './Usage.js'
 
 export type SettingsTabName = 'Status' | 'Config' | 'Usage'
 
+let settingsOpens = 0
+export function nextSettingsOpen(): number {
+  settingsOpens += 1
+  return settingsOpens
+}
+
 export function Settings({
   onClose,
   context,
   defaultTab,
+  openToken,
 }: {
   onClose: (
     result?: unknown,
@@ -25,6 +32,7 @@ export function Settings({
   ) => void
   context: LocalJSXCommandContext
   defaultTab: SettingsTabName
+  openToken: number
 }): React.ReactNode {
   const { rows } = useTerminalSize()
   const isInsideModal = useIsInsideModal()
@@ -80,7 +88,7 @@ export function Settings({
           </Suspense>
         </Tab>
         <Tab title="Usage">
-          <Usage />
+          <Usage openToken={openToken} />
         </Tab>
       </Tabs>
     </Pane>

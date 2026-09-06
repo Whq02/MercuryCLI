@@ -649,7 +649,18 @@ function MoonshotUsageSection(): React.ReactNode {
   )
 }
 
-function AnthropicUsageSection({ width }: { width?: number }): React.ReactNode {
+const askedOpens = new Set<number>()
+function markOpenAsked(token: number): boolean {
+  if (askedOpens.has(token)) return false
+  askedOpens.add(token)
+  if (askedOpens.size > 64) {
+    const oldest = askedOpens.values().next().value
+    if (oldest !== undefined) askedOpens.delete(oldest)
+  }
+  return true
+}
+
+function AnthropicUsageSection({ width, openToken }: { width?: number; openToken?: number }): React.ReactNode {
   const tokens = useMercuryTokens()
   const subscriber = isClaudeAISubscriber()
   const [state, setState] = useState<{
@@ -663,18 +674,24 @@ function AnthropicUsageSection({ width }: { width?: number }): React.ReactNode {
     disposedRef.current = true
   }, [])
 
+  const settle = useCallback((): void => {
+    if (disposedRef.current) return
+    const note = usageForProvider('anthropic').readerNote
+    setState(note !== undefined ? { loading: false, error: note, data: null } : { loading: false, error: null, data: {} })
+  }, [])
   const load = useCallback((): void => {
     if (!subscriber) return
     setState(previous => ({ ...previous, loading: true, error: null }))
-    void refreshProviderUsage('anthropic', { reason: 'operator' }).then(() => {
-      if (disposedRef.current) return
-      const note = usageForProvider('anthropic').readerNote
-      setState(note !== undefined ? { loading: false, error: note, data: null } : { loading: false, error: null, data: {} })
-    })
-  }, [subscriber])
+    void refreshProviderUsage('anthropic', { reason: 'operator' }).then(settle)
+  }, [subscriber, settle])
   useEffect(() => {
+    if (!subscriber) return
+    if (openToken !== undefined && !markOpenAsked(openToken)) {
+      void refreshProviderUsage('anthropic', { reason: 'open' }).then(settle)
+      return
+    }
     load()
-  }, [load])
+  }, [load, subscriber, openToken, settle])
 
   const showingError = !state.loading && state.error !== null
   useKeybinding(
@@ -768,7 +785,7 @@ function AnthropicUsageSection({ width }: { width?: number }): React.ReactNode {
   )
 }
 
-export function Usage(): React.ReactNode {
+export function Usage({ openToken }: { openToken?: number }): React.ReactNode {
   const { columns } = useTerminalSize()
   const plan = orderUsageSections(usageSectionPlan(providerFamilyPresences()), liveSignInRecency())
   const wide = columns >= 120 && plan.length > 1
@@ -777,7 +794,7 @@ export function Usage(): React.ReactNode {
       <Box flexDirection="column" gap={1}>
         {plan.map(section =>
           section.kind === 'anthropic' ? (
-            <AnthropicUsageSection key={section.id} />
+            <AnthropicUsageSection key={section.id} openToken={openToken} />
           ) : (
             <EngineUsageSection key={section.id} section={section} />
           ),
@@ -806,7 +823,7 @@ export function Usage(): React.ReactNode {
               marginRight={index < band.length - 1 ? gap : 0}
             >
               {section.kind === 'anthropic' ? (
-                <AnthropicUsageSection width={meterW} />
+                <AnthropicUsageSection width={meterW} openToken={openToken} />
               ) : (
                 <EngineUsageSection section={section} width={meterW} />
               )}

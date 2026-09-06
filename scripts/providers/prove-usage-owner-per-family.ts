@@ -247,7 +247,7 @@ section('§7 the shape: the tab reads only the owner')
   const tab = readFileSync(join(ROOT, 'src/components/Settings/Usage.tsx'), 'utf8')
   check('the tab imports no reader module (every *UsageState import is gone)', !/UsageState\.js'/.test(tab), (tab.match(/UsageState\.js'/g) ?? []).join(','))
   check('the tab never refreshes a reader directly (the discovery re-probe rides the door too)', !tab.includes('refreshLocalDiscovery') && !tab.includes('refreshOpenrouterKeyUsage') && !tab.includes('refreshDeepseekBalance') && !tab.includes('refreshMoonshotBalance') && !tab.includes('refreshKimiManagedUsage'))
-  check('the tab samples through the one door and reads the one view', tab.includes('refreshProviderUsage(id)') && tab.includes('return usageForProvider(id)'))
+  check('the tab samples through the one door and reads the one view', tab.includes("refreshProviderUsage(id, { reason: 'open' })") && tab.includes('return usageForProvider(id)'))
   for (const family of ['openrouter', 'moonshot', 'local'] as const) {
     check(`the ${family} section rides useOwnerUsage`, tab.includes(`useOwnerUsage('${family}'`))
   }
