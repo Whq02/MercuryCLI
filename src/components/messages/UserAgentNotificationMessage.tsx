@@ -19,6 +19,13 @@ function statusColor(status: string | null, accent: string): string {
   }
 }
 
+export function partialResultOf(text: string): string | null {
+  const status = extractTag(text, 'status')
+  if (status !== 'failed' && status !== 'killed') return null
+  const result = extractTag(text, 'result')
+  return result !== null && result !== '' ? result : null
+}
+
 export function UserAgentNotificationMessage({
   addMargin,
   param,
@@ -30,8 +37,7 @@ export function UserAgentNotificationMessage({
   const summary = extractTag(param.text, 'summary')
   if (!summary) return null
   const status = extractTag(param.text, 'status')
-  const result = extractTag(param.text, 'result')
-  const partial = result !== null && result !== '' && (status === 'failed' || status === 'killed') ? result : null
+  const partial = partialResultOf(param.text)
   return (
     <Box marginTop={addMargin ? 1 : 0} flexDirection="column">
       <Text>
