@@ -40,6 +40,7 @@ import { getInMemoryErrors, logError } from './utils/log.js'
 import {
   localCommandOutputToSDKAssistantMessage,
   toSDKCompactMetadata,
+  toSDKModelUsage,
 } from './utils/messages/mappers.js'
 import { buildSystemInitMessage } from './utils/messages/systemInit.js'
 import { getMainLoopModel } from './utils/model/model.js'
@@ -428,7 +429,7 @@ export class QueryEngine {
         session_id: getSessionId(),
         total_cost_usd: getTotalCostUSD(),
         usage: this.#accumulatedUsage,
-        modelUsage: getModelUsage(),
+        model_usage: toSDKModelUsage(getModelUsage()),
         permission_denials: [...this.#permissionDenials],
         uuid: randomUUID(),
       }
@@ -472,9 +473,9 @@ export class QueryEngine {
               session_id: getSessionId(),
               uuid: (message as { uuid?: string }).uuid,
               timestamp: (message as { timestamp?: string }).timestamp,
-              isReplay: !isCompactSummary,
+              is_replay: !isCompactSummary,
               ...(flags.isMeta === true || flags.isVisibleInTranscriptOnly === true
-                ? { isSynthetic: true }
+                ? { is_synthetic: true }
                 : {}),
             })
           }
@@ -700,7 +701,7 @@ export class QueryEngine {
                 uuid:
                   (attachment as { source_uuid?: string }).source_uuid ??
                   (projected as { uuid?: string }).uuid,
-                isReplay: true,
+                is_replay: true,
               })
             }
             break
@@ -824,7 +825,7 @@ export class QueryEngine {
                   parent_tool_use_id: null,
                   session_id: getSessionId(),
                   uuid: (replay as { uuid?: string }).uuid,
-                  isReplay: true,
+                  is_replay: true,
                 })
               }
             }

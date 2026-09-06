@@ -217,7 +217,7 @@ section('R3 — the hook allows first: updatedInput carries, the SDK request is 
   h.end()
 }
 
-section('R4 — a no-decision hook defers to the SDK; empty updatedInput falls back to the original')
+section('R4 — a no-decision hook defers to the SDK; an empty updated_input falls back to the original')
 {
   const h = makeHarness()
   h.addHook(`echo '{}'`)
@@ -225,11 +225,11 @@ section('R4 — a no-decision hook defers to the SDK; empty updatedInput falls b
   const frame = await h.waitOutbound(() => canUseToolFrame(h))
   h.push({
     type: 'control_response',
-    response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updatedInput: {} } },
+    response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updated_input: {} } },
   })
   const d = await p
   check('the SDK allow lands after the hook passed through', d.behavior === 'allow', j(d))
-  check('an EMPTY SDK updatedInput falls back to the ORIGINAL input (the mobile-client law)', j(d.updatedInput) === '{"probe":"original"}', j(d.updatedInput))
+  check('an EMPTY host updated_input falls back to the ORIGINAL input', j(d.updatedInput) === '{"probe":"original"}', j(d.updatedInput))
   check("decisionReason is {type:'permissionPromptTool'}", d.decisionReason?.type === 'permissionPromptTool', j(d.decisionReason))
   h.end()
 }

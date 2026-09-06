@@ -39,7 +39,7 @@ import {
 } from '../../Tool.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
-import { recoveryBudgetMs } from '../../services/api/recoveryBudget.js'
+import { recoveryBudgetMs, recoveryBudgetSpentFactsOf } from '../../services/api/recoveryBudget.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
 import { FILE_WRITE_TOOL_NAME } from '../FileWriteTool/prompt.js'
@@ -279,6 +279,8 @@ export const agentToolResultSchema = lazySchema(() =>
     totalToolUseCount: z.number(),
     totalDurationMs: z.number(),
     totalTokens: z.number(),
+    costUSD: z.number().optional(),
+    unpricedTurns: z.number().optional(),
     usage: z.object({
       input_tokens: z.number(),
       output_tokens: z.number(),
@@ -435,6 +437,8 @@ export function finalizeAgentTool(
     content,
     totalDurationMs: Date.now() - startTime,
     totalTokens,
+    costUSD: ledger.costUSD,
+    unpricedTurns: ledger.unpricedTurns,
     totalToolUseCount: countToolUses(messages),
     usage,
     ...(structured !== undefined ? { structured } : {}),
@@ -574,9 +578,15 @@ export async function partialResultEnvelopeBlock(args: {
 }
 
 
-export function recoveryBudgetCutOf(error: unknown): string | null {
-  if (!(error instanceof Error)) return null
-  return /^provider throttled — the .+ is spent after /.test(error.message) ? error.message : null
+export function recoveryBudgetCutOf(error: unknown): { words: string; resumeAfterMs: number } | null {
+  const facts = recoveryBudgetSpentFactsOf(error)
+  return facts === null ? null : { words: facts.words, resumeAfterMs: facts.resumeAfterMs }
+}
+
+const RESUME_AFTER_CUT_FLOOR_MS = 1_000
+
+export function budgetCutResumeDelayMs(cut: { resumeAfterMs: number }): number {
+  return Math.max(RESUME_AFTER_CUT_FLOOR_MS, cut.resumeAfterMs)
 }
 
 const pendingAutomaticResumes = new Map<string, ReturnType<typeof setTimeout>>()
@@ -645,7 +655,7 @@ export function armBudgetCutResume(args: {
     enqueueAgentReceiptRow({
       taskId: args.taskId,
       description: args.description,
-      summary: `Agent "${args.description}" resumed by itself — the recovery budget refilled after the provider throttled it; its partial work carried forward`,
+      summary: `Agent "${args.description}" resumed by itself — the recovery budget's allowance is back after it was spent waiting on the provider; its partial work carried forward`,
     })
   }
   const timer = setTimeout(() => {
@@ -935,6 +945,7 @@ export async function runAsyncAgentLifecycle(args: {
         toolUseContext,
         rootSetAppState,
         canUseTool: args.canUseTool,
+        delayMs: budgetCutResumeDelayMs(budgetCut),
       })
     }
   } finally {
