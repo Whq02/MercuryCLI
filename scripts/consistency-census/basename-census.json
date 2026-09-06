@@ -200,7 +200,7 @@
     },
     {
       "file": "src/utils/config/derived.ts",
-      "line": 156,
+      "line": 143,
       "needle": "MERCURY.md",
       "excerpt": "return join(getMercuryHome(), 'MERCURY.md')",
       "cls": "owner-internal",
@@ -208,7 +208,7 @@
     },
     {
       "file": "src/utils/config/derived.ts",
-      "line": 160,
+      "line": 147,
       "needle": "MERCURY.md",
       "excerpt": "return join(cwd, 'MERCURY.md')",
       "cls": "compat-boundary",
@@ -216,7 +216,7 @@
     },
     {
       "file": "src/utils/config/derived.ts",
-      "line": 162,
+      "line": 149,
       "needle": "MERCURY.md",
       "excerpt": "return join(getManagedFilePath(), 'MERCURY.md')",
       "cls": "baked-mirror",
@@ -224,7 +224,7 @@
     },
     {
       "file": "src/utils/config/derived.ts",
-      "line": 174,
+      "line": 161,
       "needle": ".mercury",
       "excerpt": "return join(getManagedFilePath(), '.mercury', 'rules')",
       "cls": "baked-mirror",
