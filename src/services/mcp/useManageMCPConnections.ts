@@ -14,6 +14,7 @@ import {
   fetchCommandsForClient,
   fetchResourcesForClient,
   fetchToolsForClient,
+  onMcpListChanged,
 } from './client.js'
 import {
   dedupClaudeAiMcpServers,
@@ -34,11 +35,6 @@ import { needsReadmission, readmitTools, toolsetHash } from './toolsetReadmissio
 import type { ConnectedMCPServer, MCPServerConnection, ScopedMcpServerConfig, ServerResource } from './types.js'
 import type { McpResolutionNotice } from './config.js'
 import { excludeCommandsByServer, excludeResourcesByServer, excludeStaleExtensionClients, excludeToolsByServer } from './utils.js'
-import {
-  PromptListChangedNotificationSchema,
-  ResourceListChangedNotificationSchema,
-  ToolListChangedNotificationSchema,
-} from './sdk.js'
 
 const HOOK_LABEL = 'useManageMCPConnections'
 const BATCH_WINDOW_MS = 16
@@ -179,7 +175,7 @@ export function useManageMCPConnections(
         resources?: { listChanged?: boolean }
       }
       if (capabilities.tools?.listChanged) {
-        client.client.setNotificationHandler(ToolListChangedNotificationSchema, () => {
+        onMcpListChanged(client.client, 'tools', () => {
           logForDebugging(`${HOOK_LABEL}: tools/list_changed from "${client.name}"`)
           void (async () => {
             try {
@@ -194,7 +190,7 @@ export function useManageMCPConnections(
         })
       }
       if (capabilities.prompts?.listChanged) {
-        client.client.setNotificationHandler(PromptListChangedNotificationSchema, () => {
+        onMcpListChanged(client.client, 'prompts', () => {
           logForDebugging(`${HOOK_LABEL}: prompts/list_changed from "${client.name}"`)
           void (async () => {
             try {
@@ -216,7 +212,7 @@ export function useManageMCPConnections(
         })
       }
       if (capabilities.resources?.listChanged) {
-        client.client.setNotificationHandler(ResourceListChangedNotificationSchema, () => {
+        onMcpListChanged(client.client, 'resources', () => {
           logForDebugging(`${HOOK_LABEL}: resources/list_changed from "${client.name}"`)
           void (async () => {
             try {

@@ -195,8 +195,7 @@ section('(2c) the terminal bridge — a real MCP client over SSE')
     JSON.stringify(lock),
   )
 
-  const { Client } = await import('@modelcontextprotocol/sdk/client/index.js')
-  const { SSEClientTransport } = await import('@modelcontextprotocol/sdk/client/sse.js')
+  const { Client, SSEClientTransport } = await import('@modelcontextprotocol/client')
   const mcp = new Client({ name: 'mercury-bridge-prover', version: '0.0.0' })
   const notifications: Array<{ method: string; params?: unknown }> = []
   mcp.fallbackNotificationHandler = async n => {

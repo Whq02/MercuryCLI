@@ -9,8 +9,8 @@ const t = (name: string, ok: boolean): void => {
 
 const client = readFileSync('src/services/mcp/client.ts', 'utf8')
 const handler = client.slice(
-  client.indexOf('client.setRequestHandler(ListRootsRequestSchema'),
-  client.indexOf('client.setRequestHandler(ListRootsRequestSchema') + 2200,
+  client.indexOf("client.setRequestHandler('roots/list'"),
+  client.indexOf("client.setRequestHandler('roots/list'") + 2200,
 )
 
 t('boot cwd stays the first root (pathToFileURL form)', handler.includes('const roots = [pathToFileURL(getOriginalCwd()).href]'))
