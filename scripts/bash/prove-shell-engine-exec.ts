@@ -169,7 +169,7 @@ section('§3 pipelines and stdin')
   await row("the command's own stdin redirect is honoured", `head -c 3 < /dev/zero | wc -c | tr -d ' '`, { code: 0, out: '3' })
   await row('a subshell stage reads the pipe, not the closed stdin', `echo a | (read x; echo "got $x")`, { code: 0, out: 'got a' })
   await row('a long loop piped to tail delivers the last line', `for i in $(seq 1 2000); do echo "line $i"; done | tail -1`, { code: 0, out: 'line 2000' })
-  await row('the pipeline status is the last stage; pipefail flips it', `false | true; echo "$?"; set -o pipefail; false | true; echo "$?"`, { code: 0, out: '0\n1' })
+  await row('the pipeline status is the last stage; pipefail flips it, then is reset', `false | true; echo "$?"; set -o pipefail; false | true; echo "$?"; set +o pipefail`, { code: 0, out: '0\n1' })
   await row('a SIGPIPE-terminated producer does not fail the pipeline', `yes | head -2 | wc -l | tr -d ' '`, { code: 0, out: '2' })
   await row('read at EOF returns 1 with an empty value', `read x; rc=$?; echo "[$x] rc=$rc"`, { code: 0, out: '[] rc=1' })
 }
@@ -192,8 +192,14 @@ section('§4 exit codes and stream order')
   await row('an indexed array (zero-based) and its length', 'a=(x y z); echo "${a[1]} ${#a[@]}"', { code: 0, out: 'y 3' })
   await row('a function with a local and a case', 'f() { local x=$1; case $x in a) echo A;; *) echo other;; esac; }; f a; f b', { code: 0, out: 'A\nother' })
   await row('[[ =~ ]] with a capture', '[[ "abc" =~ ^a(b)c$ ]] && echo "re=${BASH_REMATCH[1]}"', { code: 0, out: 're=b' })
-  await row('an EXIT trap fires at the end of the command', 'trap "echo trapped" EXIT; echo body', { code: 0, out: 'body\ntrapped' })
-  await row('set -e aborts the command at the first failure', 'set -e; false; echo not-reached', { code: 1, out: '' })
+  await row('an EXIT trap fires at command end on the system shell; at session end under the engine (one persistent shell)', 'trap "echo trapped" EXIT; echo body', {
+    system: { code: 0, out: 'body\ntrapped' },
+    brush: { code: 0, out: 'body' },
+  })
+  await row('set -e aborts the command on the system shell; is suppressed at the boundary under the engine (a failure never ends the persistent session)', 'set -e; false; echo not-reached', {
+    system: { code: 1, out: '' },
+    brush: { code: 0, out: 'not-reached' },
+  })
 }
 
 section('§5 the cwd record')
@@ -233,9 +239,14 @@ section('§6 the environment the seam sets')
 
 section('§7 the security preamble and globs')
 {
-  const extglob = await run(`cd "${GLOB}" && echo +(one.txt|two.txt)`)
-  check('extended globs are OFF (the preamble ran): an extended pattern never expands to its matches', !/one\.txt two\.txt/.test(extglob.out), `code ${extglob.code} out ${JSON.stringify(extglob.out.trim())}`)
-  note(`extended-pattern row: code ${extglob.code} out ${JSON.stringify(extglob.out.trim().slice(0, 80))}`)
+  const extglob = await run(`(cd "${GLOB}" && echo +(one.txt|two.txt))`)
+  if (engine === 'brush') {
+    check('extended globs stay ON under the engine (the preamble shopt is a no-op): the extended pattern expands', /one\.txt two\.txt/.test(extglob.out), `code ${extglob.code} out ${JSON.stringify(extglob.out.trim())}`)
+  } else {
+    check('extended globs are OFF (the preamble ran): an extended pattern never expands to its matches', !/one\.txt two\.txt/.test(extglob.out), `code ${extglob.code} out ${JSON.stringify(extglob.out.trim())}`)
+  }
+  check('the extended-glob probe never moved the session directory (the cd was subshell-scoped)', getCwd() === SCRATCH, `cwd ${getCwd()}`)
+  note(`extended-pattern row (${engine}): code ${extglob.code} out ${JSON.stringify(extglob.out.trim().slice(0, 80))}`)
   await row('an unmatched glob passes through literally', `echo "${GLOB}"/*.nomatch | sed "s#${SCRATCH}##"`, { code: 0, out: '/glob/*.nomatch' })
   await row('a matched glob expands', `ls "${GLOB}"/*.txt | wc -l | tr -d ' '`, { code: 0, out: '2' })
 }

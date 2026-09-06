@@ -88,16 +88,22 @@ let snapshotPromise: Promise<string | undefined> | null = null
 
 function loopScript(): string {
   return [
+    'exec 3<&0 </dev/null',
     'exec 2>&1',
-    'IFS= read -r __brush_nonce',
+    'IFS= read -r __brush_nonce <&3',
     '__brush_run() { eval "$__brush_cmd"; }',
-    "while IFS= read -r -d '' __brush_cmd; do",
+    "while IFS= read -r -d '' __brush_b64 <&3; do",
+    '  __brush_cmd=$(printf %s "$__brush_b64" | base64 -d)',
     '  __brush_st=0',
     '  __brush_run || __brush_st=$?',
     '  __brush_cwd=$(pwd -P)',
     `  printf '${SOH}%s %d${STX}%s${ETX}' "$__brush_nonce" "$__brush_st" "$__brush_cwd"`,
     'done',
   ].join('\n')
+}
+
+function encodeFrame(payload: string): string {
+  return Buffer.from(payload, 'utf8').toString('base64') + NUL
 }
 
 function nextEvent(live: LiveSession): Promise<void> {
@@ -179,7 +185,7 @@ async function spawnSession(binaryPath: string, sandbox: EngineSandboxPolicy): P
   const preamble = getGlobPreambleCommand(binaryPath)
   if (preamble) seeds.push(preamble)
   if (seeds.length > 0) {
-    live.child.stdin?.write(seeds.join('\n') + NUL)
+    live.child.stdin?.write(encodeFrame(seeds.join('\n')))
     await drainOneFrame(live)
   }
 
@@ -384,7 +390,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       options.signal.addEventListener('abort', onAbort, { once: true })
 
       try {
-        live.child.stdin?.write(payload + NUL)
+        live.child.stdin?.write(encodeFrame(payload))
       } catch (error) {
         void done({ stderr: `shell engine write failed: ${errorMessage(error)}`, code: 1, interrupted: false })
         return
