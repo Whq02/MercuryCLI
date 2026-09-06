@@ -222,6 +222,7 @@ export type QueryParams = {
   maxTurns?: number
   skipCacheWrite?: boolean
   effortMessage?: EffortValue
+  cacheTtlSource?: QuerySource
   taskBudget?: { total: number }
   deps?: QueryDeps
 }
@@ -252,6 +253,7 @@ type RunCtx = {
   querySource: QuerySource
   skipCacheWrite: boolean | undefined
   effortMessage: EffortValue | undefined
+  cacheTtlSource: QuerySource | undefined
   deps: QueryDeps
   config: QueryConfig
   budgetGuard: BudgetGuard
@@ -585,6 +587,7 @@ async function* streamModel(
             advisorModel: iter.appState.advisorModel,
             skipCacheWrite: run.skipCacheWrite,
             effortMessage: run.effortMessage,
+            ...(run.cacheTtlSource !== undefined ? { cacheTtlSource: run.cacheTtlSource } : {}),
             agentId: toolUseContext.agentId,
             ownerKey: String(rosterOwnerFromToolUseContext(toolUseContext)),
             addNotification: toolUseContext.addNotification,
@@ -802,6 +805,7 @@ export async function* runEventCore(
     maxTurns,
     skipCacheWrite,
     effortMessage,
+    cacheTtlSource,
   } = params
   const deps = params.deps ?? productionDeps()
 
@@ -834,6 +838,7 @@ export async function* runEventCore(
     querySource,
     skipCacheWrite,
     effortMessage,
+    cacheTtlSource,
     deps,
     config,
     budgetGuard,
@@ -998,6 +1003,7 @@ export async function* runEventCore(
         systemContext,
         toolUseContext,
         forkContextMessages: foldSplit.head,
+        parentQuerySource: querySource,
       },
       querySource,
       tracking,
