@@ -97,46 +97,9 @@ export async function awaitContextWindowSource(model: string, timeoutMs = SOURCE
 }
 
 export async function warmContextWindowSources(): Promise<void> {
-  const jobs: Array<Promise<unknown>> = []
-  try {
-    const { resolveOpenrouterAccount } = await import('../../services/providers/openrouter/openrouterAccounts.js')
-    const account = resolveOpenrouterAccount()
-    if (account) {
-      const { refreshOpenrouterCatalogue } = await import('../../services/providers/openrouter/openrouterCatalogue.js')
-      jobs.push(refreshOpenrouterCatalogue(account.keySource))
-    }
-  } catch {
-  }
-  try {
-    const { resolveGeminiAccount } = await import('../../services/providers/gemini/geminiAccounts.js')
-    const account = resolveGeminiAccount()
-    if (account) {
-      const { refreshGeminiCatalogue } = await import('../../services/providers/gemini/geminiCatalogue.js')
-      jobs.push(refreshGeminiCatalogue(account.kind === 'oauth' ? 'oauth' : 'api-key'))
-    }
-  } catch {
-  }
-  try {
-    const { resolveOpenaiAccount } = await import('../../services/providers/openai/openaiAccounts.js')
-    const account = resolveOpenaiAccount()
-    if (account) {
-      const { refreshOpenaiCatalogue } = await import('../../services/providers/openai/openaiCatalogue.js')
-      jobs.push(refreshOpenaiCatalogue(account.kind))
-    }
-  } catch {
-  }
-  try {
-    const { resolveHuggingfaceApiKey } = await import('../../services/providers/huggingface/huggingfaceAccounts.js')
-    if (resolveHuggingfaceApiKey()) {
-      const { refreshHuggingfaceCatalogue } = await import('../../services/providers/huggingface/huggingfaceCatalogue.js')
-      jobs.push(refreshHuggingfaceCatalogue())
-    }
-  } catch {
-  }
   try {
     const { refreshLocalDiscovery } = await import('../../services/providers/local/localDiscovery.js')
-    jobs.push(refreshLocalDiscovery())
+    await refreshLocalDiscovery()
   } catch {
   }
-  await Promise.allSettled(jobs)
 }

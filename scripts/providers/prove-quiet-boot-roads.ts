@@ -137,6 +137,12 @@ section('§1 the roads are gone (source)')
   check('the boot registers no startup request batch', !main.includes('startup-prefetch-batch') && !main.includes('runStartupPrefetchBatch'))
   const limits = readFileSync(join(ROOT, 'src/services/claudeAiLimits.ts'), 'utf8')
   check('the usage record holds no quota probe', !limits.includes('quota_check') && !limits.includes("content: 'quota'"))
+  check('the boot arms no usage clock', !main.includes("'usage-poll'") && !main.includes('armProviderUsagePoll'))
+  const usageOwner = readFileSync(join(ROOT, 'src/services/providers/providerUsage.ts'), 'utf8')
+  check('the usage owner keeps no timer and no turn poke', !usageOwner.includes('setInterval') && !usageOwner.includes('pokeProviderUsage'))
+  const frame = readFileSync(join(ROOT, 'src/components/MercuryFrame.tsx'), 'utf8')
+  check('the frame pokes no reader after a turn; its chips read on show', !frame.includes('pokeProviderUsage') && frame.includes('useProviderUsageOnShow('))
+  check("the picker's catalogue is not primed at boot idle", !repl.includes('getGptSeatAvailability'))
 }
 
 section('§2 the wire is quiet — the features the roads fed still answer, and the fixture serves nothing')
@@ -177,6 +183,26 @@ section('§2 the wire is quiet — the features the roads fed still answer, and 
 
   await sleep(300)
   check('the fixture served NOTHING across every ask (no first-party side road fired)', served.length === 0, JSON.stringify(served))
+
+  const usage = await import('../../src/services/providers/providerUsage.js')
+  const reader = await import('../../src/services/providers/anthropic/anthropicUsageState.js')
+  reader._resetAnthropicUsageReaderForTesting()
+  check('hidden: no meter is shown and nothing was read', !usage.providerUsageMeterShown() && served.length === 0)
+  const release = usage.watchProviderUsageWhileShown({ family: () => 'anthropic' })
+  await sleep(400)
+  const usageReads = (): number => served.filter(s => s.url.includes('/api/oauth/usage')).length
+  check('a shown meter reads the usage endpoint once', usageReads() === 1, JSON.stringify(served))
+  const releaseSecond = usage.watchProviderUsageWhileShown({ family: () => 'anthropic' })
+  await sleep(300)
+  check('a meter re-shown inside the floor makes no request', usageReads() === 1, JSON.stringify(served))
+  await usage.refreshProviderUsage('anthropic', { reason: 'operator' })
+  check("the operator's retry reads again", usageReads() === 2, JSON.stringify(served))
+  releaseSecond()
+  release()
+  await sleep(300)
+  check('hidden again, nothing reads', !usage.providerUsageMeterShown() && usageReads() === 2, JSON.stringify(served))
+  check('every request the fixture saw was the usage read', served.every(s => s.url.includes('/api/oauth/usage')), JSON.stringify(served))
+  served.length = 0
 }
 
 section('§3 poison control — the ledger works')

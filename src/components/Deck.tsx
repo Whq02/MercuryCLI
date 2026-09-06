@@ -10,6 +10,7 @@ import {
 } from '../cost-tracker.js'
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js'
 import { useDisplayedSessionModel } from '../hooks/useDisplayedSessionModel.js'
+import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { hasConsoleBillingAccess } from '../utils/billing.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { Box, Text } from '../ink.js'
@@ -58,6 +59,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }):
 export function Deck({ onClose }: { onClose: () => void }): React.ReactNode {
   const t = useMercuryTokens()
   const model = useDisplayedSessionModel().label
+  useProviderUsageOnShow(true)
   const cost = getTotalCost()
   const unpricedTurns = getTotalUnpricedTurns()
   const costFigure = unpricedTurns > 0 ? formatSessionCost(cost, unpricedTurns) : `$${cost.toFixed(2)}`
