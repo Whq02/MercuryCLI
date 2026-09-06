@@ -2,6 +2,8 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
+- Added a Motion setting (auto, full, reduced, off) in /config and in a new Boot Menu "Performance" section; auto keeps today's look and slows the idle motion only while the screen cannot keep up, saying "reduced" in the status line, then returns to full
+- Fixed the idle cockpit keeping a core busy on a slow machine: the clock and the idle animation now follow the measured cost of painting instead of ticking at full rate
 - Changed the usage meters to read when shown and after a retry, and the model picker to load its catalogue when it opens
 - Updated the MCP client to the current protocol revision: servers built for it connect without the old handshake, older servers keep working, and the doctor's MCP row reads current
 - Fixed a "still running" notice lingering after a compaction for an agent that had already finished, and a running workflow being counted as a sub-agent; the notice now names sub-agents and workflow runs separately, each with its own door
