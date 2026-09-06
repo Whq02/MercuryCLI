@@ -128,7 +128,7 @@
     },
     {
       "file": "src/skills/loadSkillsDir.ts",
-      "line": 162,
+      "line": 160,
       "needle": ".mercury",
       "excerpt": "return join(getManagedFilePath(), '.mercury', dir)",
       "cls": "baked-mirror",
@@ -136,7 +136,7 @@
     },
     {
       "file": "src/skills/loadSkillsDir.ts",
-      "line": 165,
+      "line": 163,
       "needle": ".mercury",
       "excerpt": "return join(process.cwd(), '.mercury', dir)",
       "cls": "compat-boundary",

@@ -72,7 +72,7 @@ check('plan-entry raise gated on autopilot mode ', enterSrc.includes("appState.t
 check('raise-only (levels below high only; numeric pins untouched)', enterSrc.includes("EFFORT_LEVELS.indexOf(current) < EFFORT_LEVELS.indexOf('high')"))
 check('raise is SURFACED (notification)', enterSrc.includes('autopilot-plan-effort-raise'))
 const exitSrc = src('tools', 'ExitPlanModeTool', 'ExitPlanModeV2Tool.ts')
-check("nudge computed from prePlanMode === 'autopilot'", exitSrc.includes("prePlanMode === 'autopilot'"))
+check("nudge computed from preStrategyMode === 'autopilot'", exitSrc.includes("preStrategyMode === 'autopilot'"))
 check('nudge appended to the approval result', exitSrc.includes('downshift via SetTier'))
 check('nudge rides the output schema (SDK-visible, optional)', exitSrc.includes('autopilotDownshiftNudge'))
 

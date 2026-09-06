@@ -75,7 +75,7 @@ export const VERIFICATION_AGENT: BuiltInAgentDefinition = {
     'Adversarial verification of completed work — it tries to break the implementation and returns a parsed VERDICT line. When the task already supplies complete runnable acceptance checks, run those directly instead of dispatching this agent (the spec is already the red team). Dispatch it when correctness has been left to you: vague or partly specified requirements; surfaces where a mistake is expensive (server and API changes, infrastructure, anything touching security, money, or user data); or work of any real size (three or more files touched) that arrived without its own checks. Hand it the user\'s original task wording, the changed-file list, and the chosen approach.',
   disallowedTools: [
     AGENT_TOOL_NAME,
-    'ExitPlanMode',
+    'ExitStrategyMode',
     'Edit',
     'Write',
     'NotebookEdit',

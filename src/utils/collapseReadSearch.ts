@@ -18,7 +18,6 @@ import { TASK_CREATE_TOOL_NAME } from '../tools/TaskCreateTool/constants.js'
 import { TASK_GET_TOOL_NAME } from '../tools/TaskGetTool/constants.js'
 import { TASK_LIST_TOOL_NAME } from '../tools/TaskListTool/constants.js'
 import { TASK_UPDATE_TOOL_NAME } from '../tools/TaskUpdateTool/constants.js'
-import { TODO_WRITE_TOOL_NAME } from '../tools/TodoWriteTool/constants.js'
 import type {
   AttachmentMessage,
   CollapsedReadSearchGroup,
@@ -254,7 +253,6 @@ function emptyGroup(): OpenGroup {
 }
 
 const STATUS_UPDATE_TOOLS: ReadonlySet<string> = new Set([
-  TODO_WRITE_TOOL_NAME,
   TASK_CREATE_TOOL_NAME,
   TASK_UPDATE_TOOL_NAME,
   TASK_GET_TOOL_NAME,

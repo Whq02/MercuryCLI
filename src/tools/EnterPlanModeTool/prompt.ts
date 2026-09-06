@@ -1,16 +1,16 @@
 
 import { isAutopilotEnabled } from '../../utils/autopilot/autopilotGates.js'
 
-export const ENTER_PLAN_MODE_TOOL_NAME = 'EnterPlanMode'
+export const ENTER_PLAN_MODE_TOOL_NAME = 'EnterStrategyMode'
 
-const BASE_PROMPT = `Reach for this tool only under genuine ambiguity: the right way to do the task is unsettled, and hearing from the user before writing code would save substantial rework. Calling it moves the session into plan mode.
+const BASE_PROMPT = `Reach for this tool only under genuine ambiguity: the right way to do the task is unsettled, and hearing from the user before writing code would save substantial rework. Calling it moves the session into strategy mode.
 
 ## When to Use This Tool
 - **Significant architectural ambiguity** — several reasonable approaches differ meaningfully. <example>Adding real-time sync where either polling or a websocket channel would work, with different infra costs.</example> <example>Introducing caching where the layer (client, server, storage) changes the invalidation story.</example>
 - **Unclear requirements needing exploration first** — the request cannot be pinned down without reading the code. <example>"Make startup faster" with no profile in hand.</example> <example>"Clean up the auth flow" in a codebase with three auth entry points.</example>
 - **High-impact restructuring where buy-in reduces risk** — the change touches many callers or a public contract. <example>Splitting a monolithic service module used across the tree.</example> <example>Changing a persistence format existing sessions replay.</example>
 
-## When NOT to enter plan mode
+## When NOT to enter strategy mode
 - The approach is inferable from the code or the request.
 - The task is straightforward, even when it spans many files.
 - The request is specific enough to start.
@@ -21,14 +21,14 @@ const BASE_PROMPT = `Reach for this tool only under genuine ambiguity: the right
 
 Tie-breaker: prefer starting work and using AskUserQuestion for the specific decisions that surface, over a full planning phase.
 
-## What happens in plan mode
+## What happens in strategy mode
 The session stops writing and only reads: explore the codebase, weigh approaches, and write the plan. Exiting goes through the plan-approval tool.
 
 ## Examples
 <good-example>A feature that could live in the daemon or the client, with different failure modes — plan first.</good-example>
 <bad-example>Renaming a function and its call sites — just do it.</bad-example>
 
-Note: this tool REQUIRES user approval before the session enters plan mode.`
+Note: this tool REQUIRES user approval before the session enters strategy mode.`
 
 const MERCURY_DOCTRINE = `## Mercury doctrine (this harness)
 - A plan that reaches terminal-UI surfaces states how the rendering will be checked: the repository's render script (\`bun run scripts/ui/render_tui.ts --scenario <s>\`) at the two standard widths (80+120 columns) — a claim about layout is settled by looking at a render, never by reading source.

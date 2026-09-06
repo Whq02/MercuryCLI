@@ -15,10 +15,9 @@ import Divider from '../design-system/Divider.js'
 const READ_ONLY_BUCKET = new Set([
   'Glob',
   'Grep',
-  'ExitPlanMode',
+  'ExitStrategyMode',
   'Read',
   'WebFetch',
-  'TodoWrite',
   'WebSearch',
   'ProviderSearch',
   'TaskStop',

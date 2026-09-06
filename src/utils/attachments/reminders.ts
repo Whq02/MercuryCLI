@@ -8,14 +8,13 @@ import {
 } from '../../services/compact/autoCompact.js'
 import { TASK_CREATE_TOOL_NAME } from '../../tools/TaskCreateTool/constants.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
-import { TODO_WRITE_TOOL_NAME } from '../../tools/TodoWriteTool/constants.js'
 import { getContextWindowForModel } from '../context.js'
 import { getSdkBetas } from '../../bootstrap/state.js'
 import { isThinkingMessage } from '../messages.js'
 import { isHumanTurn } from '../messagePredicates.js'
 import {
   getTaskListId,
-  isTodoV2Enabled,
+  isTaskToolsEnabled,
   listTasks,
 } from '../tasks.js'
 import {
@@ -23,7 +22,7 @@ import {
 } from '../tokens.js'
 import {
   CONTRACT_REMINDER_CONFIG,
-  TODO_REMINDER_CONFIG,
+  TASK_REMINDER_CONFIG,
   type Attachment,
 } from './types.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -31,100 +30,6 @@ import { CONTRACT_TOOL_NAME } from '../../tools/ContractTool/prompt.js'
 
 const BRIEF_TOOL_NAME: string | null =
   null
-
-function getTodoReminderTurnCounts(messages: Message[]): {
-  turnsSinceLastTodoWrite: number
-  turnsSinceLastReminder: number
-} {
-  let lastTodoWriteIndex = -1
-  let lastReminderIndex = -1
-  let assistantTurnsSinceWrite = 0
-  let assistantTurnsSinceReminder = 0
-
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]
-
-    if (message?.type === 'assistant') {
-      if (isThinkingMessage(message)) {
-        continue
-      }
-
-      if (
-        lastTodoWriteIndex === -1 &&
-        'message' in message &&
-        Array.isArray(message.message?.content) &&
-        message.message.content.some(
-          block => block.type === 'tool_use' && block.name === 'TodoWrite',
-        )
-      ) {
-        lastTodoWriteIndex = i
-      }
-
-      if (lastTodoWriteIndex === -1) assistantTurnsSinceWrite++
-      if (lastReminderIndex === -1) assistantTurnsSinceReminder++
-    } else if (
-      lastReminderIndex === -1 &&
-      message?.type === 'attachment' &&
-      message.attachment.type === 'todo_reminder'
-    ) {
-      lastReminderIndex = i
-    }
-
-    if (lastTodoWriteIndex !== -1 && lastReminderIndex !== -1) {
-      break
-    }
-  }
-
-  return {
-    turnsSinceLastTodoWrite: assistantTurnsSinceWrite,
-    turnsSinceLastReminder: assistantTurnsSinceReminder,
-  }
-}
-
-export async function getTodoReminderAttachments(
-  messages: Message[] | undefined,
-  toolUseContext: ToolUseContext,
-): Promise<Attachment[]> {
-  if (
-    !toolUseContext.options.tools.some(t =>
-      toolMatchesName(t, TODO_WRITE_TOOL_NAME),
-    )
-  ) {
-    return []
-  }
-
-  if (
-    BRIEF_TOOL_NAME &&
-    toolUseContext.options.tools.some(t => toolMatchesName(t, BRIEF_TOOL_NAME))
-  ) {
-    return []
-  }
-
-  if (!messages || messages.length === 0) {
-    return []
-  }
-
-  const { turnsSinceLastTodoWrite, turnsSinceLastReminder } =
-    getTodoReminderTurnCounts(messages)
-
-  if (
-    turnsSinceLastTodoWrite >= TODO_REMINDER_CONFIG.TURNS_SINCE_WRITE &&
-    turnsSinceLastReminder >= TODO_REMINDER_CONFIG.TURNS_BETWEEN_REMINDERS
-  ) {
-    const todoKey = toolUseContext.agentId ?? getSessionId()
-    const appState = toolUseContext.getAppState()
-    const todos = appState.todos[todoKey] ?? []
-    return [
-      {
-        type: 'todo_reminder',
-        content: todos,
-        itemCount: todos.length,
-      },
-    ]
-  }
-
-  return []
-}
 
 function getTaskReminderTurnCounts(messages: Message[]): {
   turnsSinceLastTaskManagement: number
@@ -182,7 +87,7 @@ export async function getTaskReminderAttachments(
   messages: Message[] | undefined,
   toolUseContext: ToolUseContext,
 ): Promise<Attachment[]> {
-  if (!isTodoV2Enabled()) {
+  if (!isTaskToolsEnabled()) {
     return []
   }
 
@@ -209,8 +114,8 @@ export async function getTaskReminderAttachments(
     getTaskReminderTurnCounts(messages)
 
   if (
-    turnsSinceLastTaskManagement >= TODO_REMINDER_CONFIG.TURNS_SINCE_WRITE &&
-    turnsSinceLastReminder >= TODO_REMINDER_CONFIG.TURNS_BETWEEN_REMINDERS
+    turnsSinceLastTaskManagement >= TASK_REMINDER_CONFIG.TURNS_SINCE_WRITE &&
+    turnsSinceLastReminder >= TASK_REMINDER_CONFIG.TURNS_BETWEEN_REMINDERS
   ) {
     const tasks = await listTasks(getTaskListId())
     return [
