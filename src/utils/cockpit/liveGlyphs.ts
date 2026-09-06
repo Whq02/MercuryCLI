@@ -54,3 +54,10 @@ export function attentionBucket(time: number): number {
 export function liveGlyphsEnabled(): boolean {
   return flagEnv('MERCURY_LIVE_GLYPHS') === '0' ? false : true
 }
+
+export const REDUCED_TICK_MS = 250
+
+export function glyphTickMs(level: 'full' | 'reduced' | 'off', fullTickMs: number): number | null {
+  if (level === 'off') return null
+  return level === 'reduced' ? Math.max(fullTickMs, REDUCED_TICK_MS) : fullTickMs
+}

@@ -156,7 +156,9 @@ the ten-row card:
 - **New Session in \<folder\>**: a fresh session here, born on Enter.
 - **Continue Last Session**: one keystroke back into the newest chat. It
   appears once session history exists; a first boot has none yet.
-- **Boot Menu**: boot settings. Its Agents section holds two per-session
+- **Boot Menu**: boot settings. Its Performance section holds the Motion
+  row (auto · full · reduced · off — how much idle motion the cockpit runs;
+  `/config` has the same row). Its Agents section holds two per-session
   switches, Sub-agents and Workflows: off removes the Agent or Workflow tool
   from the sessions born with it and every spawn road answers one receipt;
   inside a session, `/subagents on|off` and `/workflows on|off` flip it at

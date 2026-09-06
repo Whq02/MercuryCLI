@@ -16,6 +16,11 @@ export function critterIdleEnabled(): boolean {
   return flagEnv('MERCURY_CRITTER_IDLE') === '0' ? false : true
 }
 
+export function critterIdleTickMs(level: 'full' | 'reduced' | 'off', asleep: boolean): number | null {
+  if (level !== 'full') return null
+  return asleep ? SLEEP_TICK_MS : IDLE_TICK_MS
+}
+
 export function pupilForTime(time: number): string {
   const phase = time % BLINK_CYCLE
   const doubleBlink = Math.floor(time / BLINK_CYCLE) % 4 === 3
