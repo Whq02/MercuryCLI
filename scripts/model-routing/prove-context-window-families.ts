@@ -192,17 +192,19 @@ section('W5 · awaitContextWindowSource lands the source before a decision; boot
   delete process.env.GEMINI_API_KEY
   delete process.env.OPENAI_API_KEY
   await warmup.warmContextWindowSources()
-  check('warmContextWindowSources resolves; the TTL keeps the OpenRouter GET count at 1', modelsHits === 1)
+  check('warmContextWindowSources resolves and makes no catalogue request (the GET count stays at 1)', modelsHits === 1)
   openrouter.__resetOpenrouterCatalogueForTest()
   await warmup.warmContextWindowSources()
-  check('with the catalogue reset, boot warm-up fetches it (GET count 2) and the owner reads 1,048,576', modelsHits === 2 && resolveContextWindow('openrouter/stealth/ox-alpha').effectiveWindow === 1_048_576)
+  check('with the catalogue reset, the boot warm-up still fetches nothing (GET count 1); the owner reads the labelled default until an edge lands the source', modelsHits === 1 && resolveContextWindow('openrouter/stealth/ox-alpha').source !== 'live-current')
+  await warmup.awaitContextWindowSource('openrouter/stealth/ox-alpha')
+  check('…and the compaction edge lands it on demand (GET count 2, 1,048,576)', modelsHits === 2 && resolveContextWindow('openrouter/stealth/ox-alpha').effectiveWindow === 1_048_576)
   await new Promise<void>(resolve => server.close(() => resolve()))
 }
 
 section('W6 · the edges are wired (source pins)')
 {
   const repl = src('src/screens/REPL.tsx')
-  check('REPL boot warms every window source (deferred one macrotask past the mount)', /import\('\.\.\/utils\/model\/contextWindowWarmup\.js'\)[\s\S]{0,80}warmContextWindowSources\(\)/.test(repl))
+  check('REPL boot warms the local discovery only (deferred one macrotask past the mount); no provider catalogue is fetched at boot', /import\('\.\.\/utils\/model\/contextWindowWarmup\.js'\)[\s\S]{0,80}warmContextWindowSources\(\)/.test(repl) && !/refreshOpenaiCatalogue|refreshOpenrouterCatalogue|refreshGeminiCatalogue|refreshHuggingfaceCatalogue/.test(src('src/utils/model/contextWindowWarmup.ts').slice(src('src/utils/model/contextWindowWarmup.ts').indexOf('export async function warmContextWindowSources'))))
   const orLane = src('src/services/providers/openrouter/openrouterCallModel.ts')
   check('the OpenRouter dispatch edge refreshes the catalogue (TTL\'d, fire-and-forget)', /refreshOpenrouterCatalogue\(account\.keySource\)\.catch/.test(orLane))
   const compact = src('src/services/compact/autoCompact.ts')

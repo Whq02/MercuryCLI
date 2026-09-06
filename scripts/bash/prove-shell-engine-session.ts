@@ -3,7 +3,7 @@ import '../lib/hermetic.ts'
 
 process.env.MERCURY_SHELL_ENGINE = 'brush'
 
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { resolveShellEngine, runEngineCommand, resetEngineSessionForTest } = await import(
@@ -11,6 +11,26 @@ const { resolveShellEngine, runEngineCommand, resetEngineSessionForTest } = awai
 )
 const { getCwd } = await import(join(ROOT, 'src/utils/cwd.ts'))
 const state = await import(join(ROOT, 'src/bootstrap/state.ts'))
+const { quote } = await import(join(ROOT, 'src/utils/bash/shellQuote.ts'))
+const { stripExtendedLengthPrefix } = await import(join(ROOT, 'src/utils/windowsPaths.ts'))
+const os = await import('node:os')
+const fs = await import('node:fs')
+const sameDir = (a: string, b: string): boolean => {
+  const spell = (s: string): string => stripExtendedLengthPrefix(s.trim())
+  try {
+    const sa = fs.statSync(spell(a), { bigint: true })
+    const sb = fs.statSync(spell(b), { bigint: true })
+    if (sa.ino !== 0n && sb.ino !== 0n) return sa.dev === sb.dev && sa.ino === sb.ino
+    const resolved = (s: string): string => {
+      const r = fs.realpathSync.native(spell(s))
+      return process.platform === 'win32' ? stripExtendedLengthPrefix(r).toLowerCase() : r
+    }
+    return resolved(a) === resolved(b)
+  } catch {
+    return false
+  }
+}
+const lastLine = (text: string): string => text.trim().split(/\r?\n/).pop() ?? ''
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -66,8 +86,6 @@ section('§1 sentinel framing · exit codes · stderr folded into stdout')
 section('§2 a variable, a function and the cwd persist across three calls')
 {
   resetEngineSessionForTest()
-  const os = await import('node:os')
-  const fs = await import('node:fs')
   const scratch = fs.mkdtempSync(join(os.tmpdir(), 'brush-cwd-'))
   state.setCwdState(fs.realpathSync(scratch))
 
@@ -78,11 +96,26 @@ section('§2 a variable, a function and the cwd persist across three calls')
   check('call 2 sees the variable set in call 1', c2.stdout.includes('var=persisted'), JSON.stringify(c2.stdout))
   check('call 2 sees the function defined in call 1', c2.stdout.includes('hi world'), JSON.stringify(c2.stdout))
 
-  const c3 = await run('cd /tmp && pwd -P')
-  check('call 3 can cd and reports the new cwd', c3.stdout.includes('/tmp') || c3.stdout.includes('/private/tmp'), JSON.stringify(c3.stdout))
+  const pairRoot = fs.mkdtempSync(join(os.tmpdir(), 'engine-samedir-'))
+  const dirA = join(pairRoot, 'a')
+  const dirB = join(pairRoot, 'b')
+  const linkA = join(pairRoot, 'a-link')
+  fs.mkdirSync(dirA)
+  fs.mkdirSync(dirB)
+  fs.symlinkSync(dirA, linkA, process.platform === 'win32' ? 'junction' : 'dir')
+  check('the directory comparison: a directory and a link to it are one directory', sameDir(dirA, linkA))
+  check('…a sibling directory is not', !sameDir(dirA, dirB))
+  check('…a trailing separator does not change identity', sameDir(dirA, dirA + sep))
+  check('…a spelling that does not exist is never the target', !sameDir(dirA, join(pairRoot, 'missing')))
+  if (process.platform === 'darwin') check('…/tmp and /private/tmp are one directory (the Mac link pair)', sameDir('/tmp', '/private/tmp'))
+  fs.rmSync(pairRoot, { recursive: true, force: true })
+
+  const target = fs.realpathSync(os.tmpdir())
+  const c3 = await run(`cd -- ${quote([target])} && pwd -P`)
+  check('call 3 can cd and reports the new cwd', c3.code === 0 && sameDir(lastLine(c3.stdout), target), `code=${c3.code} out=${JSON.stringify(c3.stdout)}`)
   const c4 = await run('pwd -P')
-  check('call 4 starts where call 3 left off (cwd slaved through onCwd)',
-    c4.stdout.includes('/tmp') || c4.stdout.includes('/private/tmp'), `getCwd=${getCwd()} out=${JSON.stringify(c4.stdout)}`)
+  check('call 4 starts where call 3 left off (cwd slaved through onCwd)', sameDir(lastLine(c4.stdout), target), `getCwd=${getCwd()} out=${JSON.stringify(c4.stdout)}`)
+  check('the session records the directory in its native form (no extended-length prefix) and it is the target', !getCwd().startsWith('\\\\?\\') && sameDir(getCwd(), target), `getCwd=${getCwd()}`)
 }
 
 section('§3 a command printing sentinel-shaped bytes cannot fake completion')

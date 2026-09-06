@@ -1,16 +1,21 @@
 import type { z } from 'zod/v4'
 
-export function setMcpNotificationHandler<S extends z.ZodType>(
+type NotificationShape = { method: z.ZodLiteral<string>; params: z.ZodType }
+
+export function setMcpNotificationHandler<S extends z.ZodObject<NotificationShape>>(
   client: {
-    setNotificationHandler: (schema: never, handler: never) => void
+    setNotificationHandler: (method: never, schemas: never, handler: never) => void
   },
   schema: S,
   handler: (notification: z.output<S>) => void | Promise<void>,
 ): void {
+  const method = schema.shape.method.value
+  const params = schema.shape.params
   ;(
     client.setNotificationHandler as unknown as (
-      schema: unknown,
-      handler: unknown,
+      method: string,
+      schemas: { params: unknown },
+      handler: (params: unknown) => void | Promise<void>,
     ) => void
-  )(schema, handler)
+  )(method, { params }, parsed => handler({ method, params: parsed } as z.output<S>))
 }

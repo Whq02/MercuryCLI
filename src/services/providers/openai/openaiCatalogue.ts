@@ -268,7 +268,7 @@ export type GptSeatAvailability =
       sourceKind: OpenaiAccountSourceKind
     }
 
-export function getGptSeatAvailability(): GptSeatAvailability {
+export function getGptSeatAvailability(opts?: { fetch?: boolean }): GptSeatAvailability {
   const account = resolveOpenaiAccount()
   if (!account) {
     const presence = openaiSubscriptionPresence()
@@ -291,7 +291,7 @@ export function getGptSeatAvailability(): GptSeatAvailability {
     return { state: 'disabled', why: 'traffic-off', reason: verdict.reason }
   }
   if (!snapshot) {
-    void refreshOpenaiCatalogue(account.kind).catch(() => {})
+    if (opts?.fetch === true) void refreshOpenaiCatalogue(account.kind).catch(() => {})
     return {
       state: 'disabled',
       why: 'catalogue-pending',
@@ -299,7 +299,7 @@ export function getGptSeatAvailability(): GptSeatAvailability {
     }
   }
   if (snapshot.models.length === 0 && snapshot.lastError) {
-    void refreshOpenaiCatalogue(account.kind).catch(() => {})
+    if (opts?.fetch === true) void refreshOpenaiCatalogue(account.kind).catch(() => {})
     if (snapshot.lastError === 'account-source-unavailable') {
       return {
         state: 'disabled',

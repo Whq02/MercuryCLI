@@ -102,18 +102,18 @@ section('§2 the cadence: TTL-bounded · single-flight · a turn asks ahead · t
   const ttl = fresh.usagePollTtlMs()
   const host = `127.0.0.1:${api.port}`
   check('the reader is gated on the subscription and reads the fixture host', auth.isClaudeAISubscriber() && reader.anthropicUsageReadStatus().requests === 0)
-  let status = await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
-  check('the first poll asks the endpoint once and folds the answer (5h 36%)', status.requests === 1 && api.usageRequests.length === 1 && Math.round(owner.anthropicWindowViews()[0]?.usedPct ?? -1) === 36, JSON.stringify(status))
+  let status = await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
+  check('the first shown meter asks the endpoint once and folds the answer (5h 36%)', status.requests === 1 && api.usageRequests.length === 1 && Math.round(owner.anthropicWindowViews()[0]?.usedPct ?? -1) === 36, JSON.stringify(status))
   NOW += ttl / 2
-  status = await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
-  check('a poll inside the TTL asks nothing', status.requests === 1 && api.usageRequests.length === 1)
-  status = await reader.refreshAnthropicUsage({ reason: 'turn', now: clock })
-  check('a completed turn asks AHEAD of the cadence (5h 46%)', status.requests === 2 && Math.round(owner.anthropicWindowViews()[0]?.usedPct ?? -1) === 46, JSON.stringify(status))
+  status = await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
+  check('a meter re-shown inside the floor asks nothing (the last observation serves)', status.requests === 1 && api.usageRequests.length === 1)
+  status = await reader.refreshAnthropicUsage({ reason: 'operator', now: clock })
+  check("the operator's retry asks AHEAD of the floor (5h 46%)", status.requests === 2 && Math.round(owner.anthropicWindowViews()[0]?.usedPct ?? -1) === 46, JSON.stringify(status))
   NOW += 1_000
-  status = await reader.refreshAnthropicUsage({ reason: 'turn', now: clock })
-  check('…but a burst of turn asks coalesces inside the two-second floor', status.requests === 2)
+  status = await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
+  check("…and a re-show right after it serves the retry's observation", status.requests === 2)
   NOW += ttl
-  const twin = await Promise.all([reader.refreshAnthropicUsage({ reason: 'poll', now: clock }), reader.refreshAnthropicUsage({ reason: 'poll', now: clock })])
+  const twin = await Promise.all([reader.refreshAnthropicUsage({ reason: 'open', now: clock }), reader.refreshAnthropicUsage({ reason: 'open', now: clock })])
   check('two concurrent asks are ONE request (single-flight)', twin[0]!.requests === 3 && twin[1]!.requests === 3 && api.usageRequests.length === 3, JSON.stringify(twin.map(t => t.requests)))
   status = await reader.refreshAnthropicUsage({ reason: 'operator', now: clock })
   check('the operator\'s own ask is never refused (4 requests)', status.requests === 4 && status.failure === undefined)
@@ -126,7 +126,7 @@ section('§2 the cadence: TTL-bounded · single-flight · a turn asks ahead · t
   api.usage.mode = 'error'
   api.usage.status = 500
   NOW += ttl
-  status = await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
+  status = await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
   check('a 500 is a failure the reader names: HTTP 500 from the host', status.failure?.kind === 'http' && status.failure.status === 500 && status.failure.host === host, JSON.stringify(status.failure))
   check('…and backs off FOUR cadences', status.retryAtMs === NOW + 4 * ttl, String(status.retryAtMs))
   check('…and the painters\' change signal fired', signals >= 1)
@@ -142,20 +142,20 @@ section('§2 the cadence: TTL-bounded · single-flight · a turn asks ahead · t
   const first = existsSync(recordPath) ? (record().families as Record<string, Record<string, unknown>>).anthropic : undefined
   check("the doctor's record was written ONCE with the status and the host", first?.status === 500 && first?.host === host && first?.recoveredAtMs === undefined, existsSync(recordPath) ? readFileSync(recordPath, 'utf8') : 'absent')
   NOW += 2 * ttl
-  status = await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
-  check('a poll inside the backoff asks nothing (no silent retry loop)', status.requests === 5 && api.usageRequests.length === 5)
-  status = await reader.refreshAnthropicUsage({ reason: 'turn', now: clock })
-  check('…a turn inside the backoff asks nothing either', status.requests === 5)
+  status = await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
+  check('a meter shown inside the backoff asks nothing (no silent retry loop)', status.requests === 5 && api.usageRequests.length === 5)
+  status = await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
+  check('…a second meter shown inside the backoff asks nothing either', status.requests === 5)
   NOW += 2 * ttl + 1_000
   const signalsBefore = signals
-  status = await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
-  check('past the backoff the poll tries again (no silent stop) — and fails again', status.requests === 6 && status.failure?.status === 500 && status.consecutiveFailures === 2)
+  status = await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
+  check('past the backoff a shown meter tries again (no silent stop) — and fails again', status.requests === 6 && status.failure?.status === 500 && status.consecutiveFailures === 2)
   const again = (record().families as Record<string, Record<string, unknown>>).anthropic
   check('a repeat inside the episode rewrites nothing (the record keeps its first stamp)', again?.failedAtMs === first?.failedAtMs, JSON.stringify(again))
   check('the note names the new retry', reader.anthropicUsageReaderNote(NOW) === `usage endpoint answered HTTP 500 (${host}) · retry in 4 min`)
   api.usage.mode = 'ok'
   NOW += 4 * ttl + 1_000
-  status = await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
+  status = await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
   check('the endpoint answers again: the failure clears and the figure moves (5h 96%)', status.failure === undefined && status.consecutiveFailures === 0 && status.retryAtMs === undefined && Math.round(owner.anthropicWindowViews()[0]?.usedPct ?? -1) === 96, JSON.stringify(status))
   check('the note is gone from the owner\'s view', owner.usageForProvider('anthropic').readerNote === undefined)
   check('…and the change signal fired for the recovery too', signals > signalsBefore)
@@ -169,7 +169,7 @@ section('§2 the cadence: TTL-bounded · single-flight · a turn asks ahead · t
   api.usage.mode = 'hang'
   NOW += ttl + 1_000
   const started = Date.now()
-  status = await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
+  status = await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
   const waited = Date.now() - started
   check(`a hung endpoint fails as a timeout after the read's five seconds (${(waited / 1000).toFixed(1)} s)`, status.failure?.kind === 'timeout' && waited >= 4_500 && waited < 9_000, JSON.stringify(status.failure))
   check("the compact note names it: 'read failed · timeout'", reader.anthropicUsageReaderNote(NOW, 'compact') === 'read failed · timeout', reader.anthropicUsageReaderNote(NOW, 'compact'))
@@ -178,7 +178,7 @@ section('§2 the cadence: TTL-bounded · single-flight · a turn asks ahead · t
   check('a new episode (a new class) is recorded anew', frozen?.kind === 'timeout' && frozen.recoveredAtMs === undefined, JSON.stringify(frozen))
   api.usage.mode = 'ok'
   NOW += 4 * ttl + 1_000
-  await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
+  await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
   check('…and recovers', reader.anthropicUsageReadStatus().failure === undefined)
 }
 
@@ -194,10 +194,10 @@ section("§2b the 429 road: a Retry-After is HONOURED (never the fixed cadence o
   api.usage.payload = () => ({ five_hour: { utilization: 50, resets_at: hoursOn(2) }, seven_day: { utilization: 44, resets_at: hoursOn(24) } })
   api.usage.rateLimit = { limit: 1, windowMs: 30_000, retryAfterS: 30 }
   NOW += 10 * ttl
-  let s = await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
+  let s = await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
   check('the first read is admitted and folds (5h 50%)', s.failure === undefined && Math.round(owner.anthropicWindowViews()[0]?.usedPct ?? -1) === 50, JSON.stringify(s.failure))
   NOW += ttl
-  s = await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
+  s = await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
   check('the next read trips the limiter: a 429 that carries Retry-After 30 s', s.failure?.kind === 'http' && s.failure.status === 429 && s.failure.retryAfterMs === 30_000, JSON.stringify(s.failure))
   check('the reader HONOURS the server wait: retry = now + 30 s, NOT the fixed four cadences', s.retryAtMs === NOW + 30_000 && s.retryAtMs !== NOW + 4 * ttl, `retryAt ${s.retryAtMs} vs now ${NOW} (+30s ${NOW + 30_000}, +4ttl ${NOW + 4 * ttl})`)
   check("the compact note is a wait, not a failure: 'wait 30s · HTTP 429'", reader.anthropicUsageReaderNote(NOW, 'compact') === 'wait 30s · HTTP 429', reader.anthropicUsageReaderNote(NOW, 'compact'))
@@ -205,9 +205,9 @@ section("§2b the 429 road: a Retry-After is HONOURED (never the fixed cadence o
   const held = api.usageRequests.length
   s = await reader.refreshAnthropicUsage({ reason: 'operator', now: clock })
   check("the operator's own 'r' is HELD inside the server wait — no read re-trips the window", api.usageRequests.length === held && s.failure?.status === 429, `${api.usageRequests.length - held} request(s) fired`)
-  await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
-  await reader.refreshAnthropicUsage({ reason: 'turn', now: clock })
-  check('a poll and a turn inside the wait ask nothing either', api.usageRequests.length === held)
+  await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
+  await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
+  check('meters shown inside the wait ask nothing either', api.usageRequests.length === held)
   NOW += 20_000
   await reader.refreshAnthropicUsage({ reason: 'operator', now: clock })
   check('…and the operator is still held at 20 s (inside the 30 s the server asked)', api.usageRequests.length === held)
@@ -219,11 +219,11 @@ section("§2b the 429 road: a Retry-After is HONOURED (never the fixed cadence o
   reader._resetAnthropicUsageReaderForTesting()
   limits.resetLimitsForCredentialSwitch()
   NOW += 10 * ttl
-  await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
+  await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
   api.usage.mode = 'error'
   api.usage.status = 429
   NOW += ttl
-  s = await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
+  s = await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
   check('a 429 with NO Retry-After is a failed read on the fixed four-cadence back-off', s.failure?.kind === 'http' && s.failure.status === 429 && s.failure.retryAfterMs === undefined && s.retryAtMs === NOW + 4 * ttl, JSON.stringify({ failure: s.failure, retryAt: s.retryAtMs, want: NOW + 4 * ttl }))
   check("…its words are the failure spelling ('read failed · HTTP 429')", reader.anthropicUsageReaderNote(NOW, 'compact') === 'read failed · HTTP 429', reader.anthropicUsageReaderNote(NOW, 'compact'))
   const opBefore = reader.anthropicUsageReadStatus().requests
@@ -235,7 +235,7 @@ section("§2b the 429 road: a Retry-After is HONOURED (never the fixed cadence o
   api.usage.mode = 'ok'
   api.usage.status = 500
   NOW += 4 * ttl + 1_000
-  await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
+  await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
   reader._resetAnthropicUsageReaderForTesting()
   limits.resetLimitsForCredentialSwitch()
   api.usage.payload = (n: number) => ({
@@ -249,7 +249,7 @@ section('§3 one owner: the door routes through the reader · the freshest obser
 {
   const before = reader.anthropicUsageReadStatus().requests
   NOW += fresh.usagePollTtlMs() + 1_000
-  await owner.refreshProviderUsage('anthropic', { reason: 'poll', now: clock })
+  await owner.refreshProviderUsage('anthropic', { reason: 'open', now: clock })
   check('refreshProviderUsage(anthropic) is the reader (one request through the door)', reader.anthropicUsageReadStatus().requests === before + 1)
   const door = src('src/services/providers/providerUsage.ts')
   check('…by source: the door requires the reader, never the raw fetch', door.includes("require('./anthropic/anthropicUsageState.js')") && !door.includes('await fetchUtilization()'))
@@ -291,29 +291,35 @@ section('§3 one owner: the door routes through the reader · the freshest obser
   check('the tab colours by the door\'s typed wait, never a substring of the words', tab.includes("usageForProvider('anthropic').readerWait === true") && !tab.includes("includes('asked us to wait')"))
   check("the tab's own ask rides the owner's door as the operator (never the raw fetch, never a reader import)", tab.includes("refreshProviderUsage('anthropic', { reason: 'operator' })") && !tab.includes('fetchUtilization()') && !tab.includes('anthropicUsageState'))
   const frame = src('src/components/MercuryFrame.tsx')
-  check('a completed turn pokes the reader from the frame (the focused session\'s own totals)', frame.includes('pokeProviderUsage()') && frame.includes('[usageFacts.totalOutputTokens, usageFacts.totalAPIDurationMs]'))
+  check("the frame's quota chips are a shown meter (the on-show read), and no turn pokes the reader", frame.includes('useProviderUsageOnShow(tier.showFrameQuota)') && !frame.includes('pokeProviderUsage'))
   const boot = src('src/main.tsx')
-  check('the interactive boot arms the poll on the focused family; nothing headless does', boot.includes("registerBackgroundNode('usage-poll'") && boot.includes('armProviderUsagePoll({') && !src('src/cli/print.ts').includes('armProviderUsagePoll'))
+  check('the interactive boot arms no usage clock, and nothing headless shows a meter', !boot.includes("'usage-poll'") && !boot.includes('armProviderUsagePoll') && !src('src/cli/print.ts').includes('watchProviderUsageWhileShown'))
+  check('the owner keeps no timer', !usageDoor.includes('setInterval'))
+  for (const surface of ['src/components/HelmTelemetryRail.tsx', 'src/components/DeckPane.tsx', 'src/components/Deck.tsx', 'src/components/HelmLanesRail.tsx']) {
+    check(`${surface} reads its meter on show through the one hook`, src(surface).includes('useProviderUsageOnShow('))
+  }
   process.env.MERCURY_USAGE_POLL_MS = '3000'
   reader._resetAnthropicUsageReaderForTesting()
   const asked = api.usageRequests.length
-  const disarm = owner.armProviderUsagePoll({ family: () => 'anthropic' })
-  check('the driver is armed once (idempotent)', owner.providerUsagePollArmed())
+  check('hidden: no meter is shown', !owner.providerUsageMeterShown())
   await sleep(3_400)
-  check('the poll asked the endpoint on its cadence', api.usageRequests.length >= asked + 1, `${api.usageRequests.length - asked} request(s) in 3.4 s`)
-  const beforePoke = api.usageRequests.length
-  await sleep(1_700)
-  owner.pokeProviderUsage()
+  check('…and in more than a floor no request landed (a hidden meter makes no request)', api.usageRequests.length === asked, `${api.usageRequests.length - asked} request(s) in 3.4 s`)
+  const release = owner.watchProviderUsageWhileShown({ family: () => 'anthropic' })
+  check('a meter shown is shown', owner.providerUsageMeterShown())
   await sleep(300)
-  check('a poke asks ahead of the cadence', api.usageRequests.length >= beforePoke + 1, `${api.usageRequests.length - beforePoke}`)
-  disarm()
-  check('the disarm stops it', !owner.providerUsagePollArmed())
-  const settled = api.usageRequests.length
+  check('a shown meter reads once', api.usageRequests.length === asked + 1, `${api.usageRequests.length - asked}`)
+  const releaseSecond = owner.watchProviderUsageWhileShown({ family: () => 'anthropic' })
+  await sleep(300)
+  check('a second meter shown inside the floor makes no request (the last observation serves)', api.usageRequests.length === asked + 1, `${api.usageRequests.length - asked}`)
   await sleep(3_400)
-  check('…and no request lands after the disarm', api.usageRequests.length === settled)
-  owner.pokeProviderUsage()
-  await sleep(200)
-  check('a poke with no poll armed is a no-op (a headless process)', api.usageRequests.length === settled)
+  check('a floor passing with the meters shown asks nothing (no clock)', api.usageRequests.length === asked + 1, `${api.usageRequests.length - asked}`)
+  releaseSecond()
+  check('one release keeps the watch while another meter is shown', owner.providerUsageMeterShown())
+  release()
+  check('the last release ends the watch', !owner.providerUsageMeterShown())
+  const settled = api.usageRequests.length
+  await sleep(600)
+  check('…and nothing lands after it', api.usageRequests.length === settled)
   delete process.env.MERCURY_USAGE_POLL_MS
 }
 
@@ -322,7 +328,7 @@ section('§4 the subscription window: the OAuth account\'s windows and pools rid
   reader._resetAnthropicUsageReaderForTesting()
   limits.resetLimitsForCredentialSwitch()
   NOW += fresh.usagePollTtlMs() + 1_000
-  await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
+  await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
   const view = owner.usageForProvider('anthropic')
   const stamps = new Set([...view.windows, ...view.pools].map(w => `${w.source}:${w.observedAtMs}:${w.freshForMs}`))
   check('the 5h/7d pair and the Fable pool fold from the one answer with one stamp and one horizon', view.windows.length === 2 && view.pools.length === 1 && stamps.size === 1, JSON.stringify([...stamps]))
@@ -385,7 +391,7 @@ section('§5 the account behind the family moves: a sign-in or a removal forgets
   removeSignIn()
   reader._resetAnthropicUsageReaderForTesting()
   limits.resetLimitsForCredentialSwitch()
-  const disarm = owner.armProviderUsagePoll({ family: () => 'anthropic' })
+  const disarm = owner.watchProviderUsageWhileShown({ family: () => 'anthropic' })
   const asksBefore = reader.anthropicUsageReadStatus().requests
 
   const epochBefore = signInLedgerEpoch()
@@ -452,7 +458,7 @@ section('§5 the account behind the family moves: a sign-in or a removal forgets
     return reader.anthropicUsageReadStatus().requests === asks
   })())
   const door = src('src/services/providers/providerUsage.ts')
-  check('by source: the driver subscribes the sign-in ledger\'s epoch and asks with the sign-in reason — no second signal', door.includes('subscribeSignInEpoch(() => {') && door.includes("reason: 'sign-in'") && !door.includes('subscribeAccountChange'))
+  check('by source: the on-show watch subscribes the sign-in ledger\'s epoch and asks with the sign-in reason — no second signal', door.includes("subscribeSignInEpoch(() => readShownFamily('sign-in'))") && !door.includes('subscribeAccountChange'))
   removeSignIn()
   seedSubscriber(Date.now() + 7 * 24 * 3600 * 1000)
   auth.dropCredentialMemos()

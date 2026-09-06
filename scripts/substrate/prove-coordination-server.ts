@@ -13,7 +13,7 @@ const tmpHome = mkdtempSync(join(tmpdir(), 'mercury-coordination-'))
 const prevConfigDir = process.env.MERCURY_CONFIG_DIR
 process.env.MERCURY_CONFIG_DIR = tmpHome
 
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { Client } from '@modelcontextprotocol/client'
 import { createCoordinationServer } from '../../src/services/mcp/coordinationServer.js'
 import { createLinkedTransportPair } from '../../src/services/mcp/InProcessTransport.js'
 import {
@@ -39,7 +39,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-async function connect(): Promise<import('@modelcontextprotocol/sdk/client/index.js').Client> {
+async function connect(): Promise<Client> {
   const server = await createCoordinationServer()
   const [clientTransport, serverTransport] = createLinkedTransportPair()
   await server.connect(serverTransport)
@@ -142,7 +142,7 @@ try {
       check('no checkout above a directory ⇒ unavailable naming the script and the release install', !noCheckout.ready && noCheckout.reason.includes('render-tui.ts') && /release install/.test(noCheckout.reason), noCheckout.ready ? 'ready' : noCheckout.reason)
       const noRuntime = renderTuiRuntime({ env: { PATH: '' }, home: nowhere })
       check('no runtime anywhere ⇒ the three roads are named', 'missing' in noRuntime && /BUN=/.test(noRuntime.missing) && /PATH/.test(noRuntime.missing) && noRuntime.missing.includes(join(nowhere, '.bun', 'bin')), JSON.stringify(noRuntime))
-      const brokenPin = renderTuiRuntime({ env: { BUN: join(nowhere, 'no-bun') } })
+      const brokenPin = renderTuiRuntime({ env: { MERCURY_BUN: join(nowhere, 'no-bun') } })
       check('a broken BUN pin names itself, never a silent substitute', 'missing' in brokenPin && brokenPin.missing.includes(join(nowhere, 'no-bun')), JSON.stringify(brokenPin))
       mkdirSync(join(nowhere, 'bin'), { recursive: true })
       writeFileSync(join(nowhere, 'bin', process.platform === 'win32' ? 'bun.exe' : 'bun'), '')
@@ -152,15 +152,15 @@ try {
       writeFileSync(join(nowhere, '.bun', 'bin', process.platform === 'win32' ? 'bun.exe' : 'bun'), '')
       const atHome = renderTuiRuntime({ env: { PATH: join(nowhere, 'bin') }, home: nowhere })
       check('…and the home install wins over PATH', 'bun' in atHome && atHome.bun.startsWith(join(nowhere, '.bun', 'bin')), JSON.stringify(atHome))
-      const savedBun = process.env.BUN
-      process.env.BUN = join(nowhere, 'no-bun')
+      const savedBun = process.env.MERCURY_BUN
+      process.env.MERCURY_BUN = join(nowhere, 'no-bun')
       try {
         const client = await connect()
         const r = await client.callTool({ name: 'render_tui', arguments: {} })
         check('render_tui answers typed-unavailable through the MCP seam (no spawn, no module-not-found)', isError(r) && /^render_tui unavailable: /.test(textOf(r)) && textOf(r).includes('no-bun') && !/Module not found/.test(textOf(r)), textOf(r).slice(0, 200))
       } finally {
-        if (savedBun === undefined) delete process.env.BUN
-        else process.env.BUN = savedBun
+        if (savedBun === undefined) delete process.env.MERCURY_BUN
+        else process.env.MERCURY_BUN = savedBun
       }
     } finally {
       process.chdir(savedCwd)

@@ -1,7 +1,7 @@
 {
   "name": "mercury",
   "version": "1.0.0-beta.3",
-  "description": "Mercury \u2014 a private, standalone software-development harness (source-built terminal agent), built with bun",
+  "description": "Mercury — a private, standalone software-development harness (source-built terminal agent), built with bun",
   "repository": {
     "type": "git",
     "url": "https://github.com/Whq02/MercuryCLI.git"
@@ -30,7 +30,9 @@
     "@anthropic-ai/sandbox-runtime": "0.0.74",
     "@anthropic-ai/sdk": "0.122.0",
     "@commander-js/extra-typings": "~15.0.0",
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/client": "2.0.0",
+    "@modelcontextprotocol/core": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
     "@puppeteer/browsers": "3.2.1",
     "acorn": "^8.18.0",
     "acorn-walk": "^8.3.5",
