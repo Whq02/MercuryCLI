@@ -1,4 +1,5 @@
 
+import { flagEnabled } from '../../../substrate/flagRegistry.js'
 import {
   type BetaMessageParam as MessageParam,
   type BetaOutputConfig,
@@ -28,7 +29,6 @@ import { cacheClockTtlDecision } from 'src/utils/cache/cacheClock.js'
 import { getOrCreateUserID } from '../../../utils/config.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { modelSupportsEffort, type EffortValue } from 'src/utils/effort.js'
-import { isEnvTruthy } from '../../../utils/envUtils.js'
 import { errorMessage } from '../../../utils/errors.js'
 import { returnValue } from 'src/utils/generators.js'
 import { safeParseJSON } from '../../../utils/json.js'
@@ -87,15 +87,15 @@ export function getExtraBodyParams(betaHeaders?: string[]): JsonObject {
 }
 
 export function getPromptCachingEnabled(model: string): boolean {
-  if (isEnvTruthy(process.env.DISABLE_PROMPT_CACHING)) return false
+  if (!flagEnabled('MERCURY_PROMPT_CACHING')) return false
 
-  if (isEnvTruthy(process.env.DISABLE_PROMPT_CACHING_HAIKU)) {
+  if (!flagEnabled('MERCURY_PROMPT_CACHING_HAIKU')) {
     if (model === getSmallFastModel()) return false
   }
-  if (isEnvTruthy(process.env.DISABLE_PROMPT_CACHING_SONNET)) {
+  if (!flagEnabled('MERCURY_PROMPT_CACHING_SONNET')) {
     if (model === getDefaultSonnetModel()) return false
   }
-  if (isEnvTruthy(process.env.DISABLE_PROMPT_CACHING_OPUS)) {
+  if (!flagEnabled('MERCURY_PROMPT_CACHING_OPUS')) {
     if (model === getDefaultOpusModel()) return false
   }
 

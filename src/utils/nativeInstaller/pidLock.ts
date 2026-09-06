@@ -3,7 +3,6 @@ import { join } from 'node:path'
 
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { logForDebugging } from '../debug.js'
-import { isEnvDefinedFalsy, isEnvTruthy } from '../envUtils.js'
 import { getProcessCommand } from '../genericProcessUtils.js'
 import { logError } from '../log.js'
 
@@ -25,9 +24,6 @@ export type LockInfo = {
 }
 
 export function isPidBasedLockingEnabled(): boolean {
-  const envValue = process.env.ENABLE_PID_BASED_VERSION_LOCKING
-  if (isEnvTruthy(envValue)) return true
-  if (isEnvDefinedFalsy(envValue)) return false
   try {
     return getFeatureValue_CACHED_MAY_BE_STALE<boolean>('mercury_pid_based_version_locking', false) === true
   } catch {

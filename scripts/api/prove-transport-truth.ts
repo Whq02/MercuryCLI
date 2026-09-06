@@ -14,7 +14,7 @@ delete process.env.MERCURY_CONNECT_TIMEOUT_MS
 delete process.env.MERCURY_CONNECT_TIMEOUT_MS
 delete process.env.MERCURY_MAX_CONNECTIONS
 delete process.env.MERCURY_MAX_CONNECTIONS
-delete process.env.API_TIMEOUT_MS
+delete process.env.MERCURY_API_TIMEOUT_MS
 
 const proxy = await import('../../src/utils/proxy.ts')
 const evidence = await import('../../src/services/api/transportEvidence.ts')
@@ -32,14 +32,14 @@ console.log('— §1 transport knobs + dispatcher (N-01) —')
 
   process.env.MERCURY_CONNECT_TIMEOUT_MS = '45000'
   process.env.MERCURY_MAX_CONNECTIONS = '8'
-  process.env.API_TIMEOUT_MS = '120000'
+  process.env.MERCURY_API_TIMEOUT_MS = '120000'
   const o = proxy.resolveTransportKnobs()
   check('MERCURY_CONNECT_TIMEOUT_MS honored', o.connectTimeoutMs === 45_000)
   check('MERCURY_MAX_CONNECTIONS honored', o.maxConnections === 8)
-  check('API_TIMEOUT_MS aligns headers/body', o.headersTimeoutMs === 120_000 && o.bodyTimeoutMs === 120_000)
+  check('MERCURY_API_TIMEOUT_MS aligns headers/body', o.headersTimeoutMs === 120_000 && o.bodyTimeoutMs === 120_000)
   delete process.env.MERCURY_CONNECT_TIMEOUT_MS
   delete process.env.MERCURY_MAX_CONNECTIONS
-  delete process.env.API_TIMEOUT_MS
+  delete process.env.MERCURY_API_TIMEOUT_MS
 }
 
 {
@@ -227,12 +227,12 @@ check(
 )
 check(
   'renderer hint helps the UNSET operator too (H-02 site 1)',
-  !/\{process\.env\.API_TIMEOUT_MS\s*\?\s*` · API_TIMEOUT_MS=/.test(sysMsgTsx),
+  !/\{process\.env\.MERCURY_API_TIMEOUT_MS\s*\?\s*` · MERCURY_API_TIMEOUT_MS=/.test(sysMsgTsx),
 )
 const assistantTsx = src('src/components/messages/AssistantTextMessage.tsx')
 check(
   'assistant timeout hint helps the UNSET operator too (H-02 site 2)',
-  !assistantTsx.includes('{process.env.API_TIMEOUT_MS && ('),
+  !assistantTsx.includes('{process.env.MERCURY_API_TIMEOUT_MS && ('),
 )
 const registryTs = src('src/substrate/flagRegistry.ts')
 check(

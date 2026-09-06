@@ -18,8 +18,8 @@ for (const k of [
   'HERMES_DEEPTHINK_MAX',
   'CLAUDE_TEAM_NAME',
   'CLAUDE_AGENT_NAME',
-  'DISABLE_COMPACT',
-  'DISABLE_AUTO_COMPACT',
+  'MERCURY_COMPACT',
+  'MERCURY_AUTO_COMPACT',
   'NODE_ENV',
 ]) {
   delete process.env[k]

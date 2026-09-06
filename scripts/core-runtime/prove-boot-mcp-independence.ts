@@ -102,7 +102,7 @@ function bootEnv(home: string, extra: Record<string, string> = {}): NodeJS.Proce
     'MERCURY_LAUNCH_ID',
     'MERCURY_CONCOURSE',
     'MERCURY_ENTER_MENU',
-    'MCP_TIMEOUT',
+    'MERCURY_MCP_TIMEOUT_MS',
     'VSHOT_ACTIVE',
   ]) {
     delete env[k]
@@ -207,14 +207,14 @@ section('H1 — headless · --strict-mcp-config · a server that never answers i
   const cfg = mcpConfigFile(w.dir, { name: 'never', args: ['--never', '--spawn-marker', marker] })
   const r = await headlessFirstLine(
     ['-p', 'hi', '--output-format', 'stream-json', '--mcp-config', cfg, '--strict-mcp-config'],
-    bootEnv(w.home, { MCP_TIMEOUT: String(H1_MCP_TIMEOUT_MS) }),
+    bootEnv(w.home, { MERCURY_MCP_TIMEOUT_MS: String(H1_MCP_TIMEOUT_MS) }),
     w.cwd,
   )
   const init = parseInit(r.line)
   check('first output arrived within the budget', r.line !== null, `${r.ms}ms; stderr tail: ${r.stderr.slice(-200)}`)
   check('first output is the system/init line', init?.type === 'system' && init?.subtype === 'init', r.line?.slice(0, 160) ?? '(none)')
   check(
-    `first output is bounded by MCP_TIMEOUT (${H1_MCP_TIMEOUT_MS}ms ≤ t < ${HEADLESS_BUDGET_MS}ms)`,
+    `first output is bounded by MERCURY_MCP_TIMEOUT_MS (${H1_MCP_TIMEOUT_MS}ms ≤ t < ${HEADLESS_BUDGET_MS}ms)`,
     r.line !== null && r.ms >= H1_MCP_TIMEOUT_MS - 250 && r.ms < HEADLESS_BUDGET_MS,
     `${r.ms}ms`,
   )

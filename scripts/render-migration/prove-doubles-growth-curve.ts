@@ -34,8 +34,8 @@ for (const ambient of [
   'MERCURY_SCRIPTED_STREAM',
   'MERCURY_BARE',
   'GOOGLE_API_KEY',
-  'DISABLE_COMPACT',
-  'DISABLE_AUTO_COMPACT',
+  'MERCURY_COMPACT',
+  'MERCURY_AUTO_COMPACT',
   'MERCURY_RENDER_ENGINE',
 ]) {
   delete process.env[ambient]

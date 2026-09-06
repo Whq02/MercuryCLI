@@ -21,8 +21,8 @@ function check(name: string, ok: boolean, detail?: string): void {
     s.includes('isLspToolCatalogEnabled() ? [LSPTool] : []'),
   )
   check(
-    'tools.ts: no bare ENABLE_LSP_TOOL catalog read remains',
-    !s.includes('isEnvTruthy(process.env.ENABLE_LSP_TOOL) ? [LSPTool]'),
+    'tools.ts: no bare env catalog read remains',
+    !s.includes('isEnvTruthy(process.env.') || !s.includes('? [LSPTool]'),
   )
 }
 

@@ -192,7 +192,7 @@ process.stdin.on('end', () => process.exit(0))
     MERCURY_THINKING_BINDING: 'error',
     MERCURY_TOOL_SEARCH: 'on',
     MERCURY_AUTOPILOT: '1',
-    MCP_TIMEOUT: '60000',
+    MERCURY_MCP_TIMEOUT_MS: '60000',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_BOOT_PREFLIGHT: '0',
     MERCURY_LIVE_GLYPHS: '0',

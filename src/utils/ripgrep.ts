@@ -1,4 +1,5 @@
 import { spawn, execFile } from 'node:child_process'
+import { flagEnabled } from '../substrate/flagRegistry.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -6,7 +7,6 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { logForDebugging } from './debug.js'
-import { isEnvDefinedFalsy } from './envUtils.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { findExecutable } from './findExecutable.js'
 import { isInBundledMode } from './bundledMode.js'
@@ -83,7 +83,7 @@ let resolvedConfig: { mode: RipgrepMode; config: RipgrepConfig } | null = null
 export function resolveRipgrep(): { mode: RipgrepMode; config: RipgrepConfig } {
   if (resolvedConfig) return resolvedConfig
   let resolution: { mode: RipgrepMode; config: RipgrepConfig }
-  if (isEnvDefinedFalsy(process.env.USE_BUILTIN_RIPGREP) && systemRg()) {
+  if (!flagEnabled('MERCURY_BUILTIN_RIPGREP') && systemRg()) {
     resolution = { mode: 'system', config: { rgPath: RG_NAME, rgArgs: ['--no-config'] } }
   } else if (isInBundledMode()) {
     resolution = { mode: 'embedded', config: { rgPath: process.execPath, rgArgs: ['--no-config'], argv0: RG_NAME } }

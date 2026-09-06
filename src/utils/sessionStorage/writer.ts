@@ -806,11 +806,8 @@ class Project {
   }
 
   private shouldSkipPersistence(): boolean {
-    const allowTestPersistence = isEnvTruthy(
-      process.env.TEST_ENABLE_SESSION_PERSISTENCE,
-    )
     return (
-      (getNodeEnv() === 'test' && !allowTestPersistence) ||
+      getNodeEnv() === 'test' ||
       getSettings_DEPRECATED()?.cleanupPeriodDays === 0 ||
       isSessionPersistenceDisabled() ||
       isEnvTruthy(process.env.MERCURY_SKIP_PROMPT_HISTORY)

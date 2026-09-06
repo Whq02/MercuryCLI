@@ -235,12 +235,12 @@ section('B6 privacy: the `~` spelling, the bounded doctor, the gates')
   check('the description says the road (the GitHub CLI; a local draft without it)', (cmd?.description ?? '').includes('GitHub CLI') && (cmd?.description ?? '').includes('local draft'), cmd?.description)
   const enabled = (): boolean => (cmd?.isEnabled ? cmd.isEnabled() : true)
   check('enabled by default', enabled())
-  process.env.DISABLE_FEEDBACK_COMMAND = '1'
-  check('DISABLE_FEEDBACK_COMMAND disables the whole command', !enabled())
-  delete process.env.DISABLE_FEEDBACK_COMMAND
-  process.env.DISABLE_BUG_COMMAND = '1'
-  check('DISABLE_BUG_COMMAND disables the whole command', !enabled())
-  delete process.env.DISABLE_BUG_COMMAND
+  process.env.MERCURY_FEEDBACK_COMMAND = '0'
+  check('MERCURY_FEEDBACK_COMMAND disables the whole command', !enabled())
+  delete process.env.MERCURY_FEEDBACK_COMMAND
+  process.env.MERCURY_BUG_COMMAND = '0'
+  check('MERCURY_BUG_COMMAND disables the whole command', !enabled())
+  delete process.env.MERCURY_BUG_COMMAND
   process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
   check('essential-traffic-only disables the whole command', !enabled())
   delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
