@@ -273,6 +273,7 @@ export interface NoteStepOptions {
   outcome?: TxStepOutcome
   from?: string
   auto?: TxStepAuto
+  getAppState?: () => unknown
 }
 
 export type NoteStepResult =
@@ -309,7 +310,11 @@ export async function noteStep(opts: NoteStepOptions): Promise<NoteStepResult> {
     const { resolveResource } = await import('../resources/registry.js')
     const cwd = opts.from ?? getCwd()
     for (const ref of refs) {
-      const resolved = await resolveResource(ref, { owner: opts.owner, cwd })
+      const resolved = await resolveResource(ref, {
+        owner: opts.owner,
+        cwd,
+        ...(opts.getAppState ? { getAppState: opts.getAppState } : {}),
+      })
       if (resolved.state !== 'ok') {
         const note = resolved.note ? ` — ${resolved.note.slice(0, 160)}` : ''
         return {
@@ -426,6 +431,7 @@ export interface ResumeTransactionOptions {
   id: string
   owner: OwnerKey
   from?: string
+  getAppState?: () => unknown
 }
 
 export interface ApplyRefCheck {
@@ -445,7 +451,11 @@ export async function resumeTransaction(
     const { resolveResource } = await import('../resources/registry.js')
     const cwd = opts.from ?? getCwd()
     for (const ref of applyRefs) {
-      const resolved = await resolveResource(ref, { owner: opts.owner, cwd })
+      const resolved = await resolveResource(ref, {
+        owner: opts.owner,
+        cwd,
+        ...(opts.getAppState ? { getAppState: opts.getAppState } : {}),
+      })
       const live = resolved.state === 'ok'
       applyRefChecks.push({
         ref,

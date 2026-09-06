@@ -15,6 +15,7 @@ import { agentFanoutCap, buildSubagentMercurySections } from '../../constants/su
 import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthority.js'
 import { harnessEffortFact, noteHarnessBoundary } from '../../services/mission/harnessApplication.js'
 import {
+  registerAgentName,
   registerAsyncAgent,
   setAgentPendingAsks,
   setAgentWaitLine,
@@ -782,14 +783,7 @@ export const AgentTool = buildTool({
         toolUseId: context.toolUseId,
       })
 
-      if (input.name) {
-        const name = input.name
-        rootSetAppState(prev => {
-          const next = new Map(prev.agentNameRegistry)
-          next.set(name, asAgentId(earlyAgentId))
-          return { ...prev, agentNameRegistry: next }
-        })
-      }
+      if (input.name) registerAgentName(input.name, earlyAgentId, rootSetAppState)
 
       const enableSummarization =
         isForkSubagentEnabled() || getSdkAgentProgressSummariesEnabled()
@@ -856,6 +850,7 @@ export const AgentTool = buildTool({
           promptMessages,
           prompt: input.prompt,
           description: input.description,
+          name: input.name,
           ...(plan.modelNote ? { modelNote: plan.modelNote } : {}),
           metadata,
           startTime,

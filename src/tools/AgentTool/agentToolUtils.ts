@@ -734,6 +734,7 @@ export async function runAsyncAgentLifecycle(args: {
       status: declined ? 'failed' : 'completed',
       ...(declined ? { error: declined.error, landedWrites: landedWritesOf(accumulated) } : {}),
       setAppState: rootSetAppState,
+      controller: args.abortController,
       finalMessage,
       usage: {
         totalTokens: getTokenCountFromTracker(tracker),
@@ -756,6 +757,7 @@ export async function runAsyncAgentLifecycle(args: {
         description,
         status: 'killed',
         setAppState: rootSetAppState,
+        controller: args.abortController,
         toolUseId: toolUseContext.toolUseId,
         finalMessage: partialResult,
         landedWrites: landedWritesOf(accumulated),

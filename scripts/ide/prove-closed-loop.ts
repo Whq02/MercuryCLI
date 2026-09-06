@@ -163,6 +163,53 @@ try {
     const listing = await resolveResource('mercury://ide/transaction', { owner, cwd: proj })
     check('E3 the kind listing shows the trail', listing.state === 'ok' && (listing.state === 'ok' ? (listing.resource.children?.length ?? 0) === 2 : false))
   }
+
+  section('(F) the tool hands the binder its session reader — live-session refs note and resume')
+  {
+    const { TransactionTool } = await import('../../src/tools/TransactionTool/TransactionTool.js')
+    const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+    const { getCwd } = await import('../../src/utils/cwd.js')
+    const { realpathSync } = await import('node:fs')
+    const AGENT_REF = 'mercury://agent/b1234'
+    const root = getCwd()
+    const toolCtx = {
+      owner,
+      abortController: new AbortController(),
+      readFileState: new Map(),
+      getAppState: () => ({
+        toolPermissionContext: getEmptyToolPermissionContext(),
+        tasks: {
+          b1234: { id: 'b1234', type: 'local_bash', status: 'running', description: 'fixture shell', startTime: Date.now() - 3000 },
+        },
+      }),
+      setAppState: () => {},
+      options: { tools: [], isNonInteractiveSession: true },
+    }
+    type Reply = { data: { op: string; result: string; outcome: string } }
+    const call = (input: Record<string, unknown>): Promise<Reply> =>
+      (TransactionTool as unknown as { call: Function }).call(input, toolCtx) as Promise<Reply>
+    check('F0 the tool roots its records at the fixture project', realpathSync(root) === realpathSync(proj), root)
+    if (realpathSync(root) === realpathSync(proj)) {
+      const begun = await call({ op: 'begin', intent: 'note a running shell as evidence' })
+      const toolId = tx.latestTransaction(root)?.id ?? ''
+      check('F1 the tool opens a transaction of its own', begun.data.outcome === 'succeeded' && toolId !== '' && begun.data.result.includes(toolId), begun.data.result.slice(0, 120))
+      const noted = await call({ op: 'step', kind: 'diagnose', summary: 'the shell is still running', refs: [AGENT_REF] })
+      check('F2 an agent ref notes cleanly through the tool (the session reader rides the call)', noted.data.outcome === 'succeeded', noted.data.result.slice(0, 200))
+      const direct = await tx.noteStep({ id: toolId, owner, kind: 'diagnose', summary: 'no reader here', refs: [AGENT_REF], from: root })
+      check('F3 the same ref without a reader still refuses (the adapter answers unavailable, never optimistic)', direct.state === 'refused' && direct.reason.includes('unavailable'), JSON.stringify(direct).slice(0, 200))
+      const mixed = await call({ op: 'step', kind: 'diagnose', summary: 'one live, one fabricated', refs: [AGENT_REF, 'mercury://agent/nope'] })
+      const record = tx.getTransaction(toolId, root)
+      check('F4 a set with one fabricated ref refuses whole, names it, and writes no step', mixed.data.outcome === 'failed' && mixed.data.result.includes('mercury://agent/nope') && record?.steps.length === 1, `${mixed.data.result.slice(0, 160)} · steps ${record?.steps.length}`)
+      const applied = await call({ op: 'step', kind: 'apply', summary: 'applied while the shell ran', refs: [AGENT_REF] })
+      check('F5 an apply step with an agent ref notes through the tool', applied.data.outcome === 'succeeded', applied.data.result.slice(0, 160))
+      const resumed = await call({ op: 'resume', id: toolId })
+      check('F6 resume through the tool reads the agent ref live', resumed.data.outcome === 'no-change' && new RegExp(`\\[live\\] ${AGENT_REF}`).test(resumed.data.result), resumed.data.result.split('\n').filter(l => l.includes(AGENT_REF)).join(' | ').slice(0, 200))
+      const readerless = await tx.resumeTransaction({ id: toolId, owner, from: root })
+      check('F7 a reader-less resume reports the same ref stale (reported, never repaired)', readerless !== null && readerless.applyRefChecks.some(c => c.ref === AGENT_REF && c.resolves === false), JSON.stringify(readerless?.applyRefChecks).slice(0, 200))
+      const closed = await call({ op: 'finish', verdict: 'abandoned' })
+      check('F8 the tool closes its transaction', closed.data.outcome === 'no-change' || closed.data.outcome === 'succeeded', closed.data.result.slice(0, 120))
+    }
+  }
 } finally {
   process.chdir(ROOT)
   rmSync(proj, { recursive: true, force: true })

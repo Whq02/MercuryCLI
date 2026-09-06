@@ -20,6 +20,7 @@ import {
   publishAgentProgressSoon,
   publishAgentWaitFromEvent,
   registerAgentForeground,
+  registerAgentName,
   settleAgentForeground,
   unregisterAgentForeground,
   updateAgentProgress,
@@ -100,6 +101,7 @@ export type ForegroundAgentResult = {
         outputFile: string
         canReadOutputFile: boolean
         modelNote?: string
+        agentName?: string
         backgroundReason: BackgroundHandoverReason
       }
 }
@@ -109,6 +111,7 @@ type ForegroundAgentExecutionInput = {
   promptMessages: Message[]
   prompt: string
   description: string
+  name?: string
   modelNote?: string
   metadata: ForegroundAgentMetadata
   startTime: number
@@ -135,6 +138,7 @@ export async function runForegroundAgentExecution(
     promptMessages,
     prompt,
     description,
+    name,
     modelNote,
     metadata,
     startTime,
@@ -194,6 +198,7 @@ export async function runForegroundAgentExecution(
       autoBackgroundMs,
     })
     backgroundRace = foregroundTask.backgroundSignal.then(() => BACKGROUNDED)
+    if (name !== undefined) registerAgentName(name, syncAgentId, rootSetAppState)
   }
 
   const foregroundTaskId = foregroundTask?.taskId
@@ -423,6 +428,7 @@ export async function runForegroundAgentExecution(
                 outputFile: getTaskOutputPath(backgroundedTaskId),
                 canReadOutputFile,
                 ...(modelNote ? { modelNote } : {}),
+                ...(name !== undefined ? { agentName: name } : {}),
                 backgroundReason: handedByTurnAbort ? 'turn-interrupted' : 'backgrounded',
               },
             }

@@ -85,54 +85,7 @@ function dropFreshRequireCache() {
   }
 }
 
-/** Strip SIMPLE top-level declaration keywords ("const x = …") so a TLA
- *  cell's bindings land on the context global via sloppy-mode assignment.
- *  Line-anchored + depth-tracked: nested declarations keep their keywords;
- *  complex patterns (destructuring, multi-declarator) run fine but stay
- *  cell-local — the documented TLA-cell limitation. */
-function stripTopLevelDeclarations(code) {
-  const lines = code.split('\n');
-  let depth = 0;
-  const out = lines.map(line => {
-    let transformed = line;
-    if (depth === 0) {
-      const simple = line.match(/^(\s*)(?:const|let|var)\s+([A-Za-z_$][\w$]*\s*=)(?![=>])/);
-      if (simple) transformed = simple[1] + simple[2] + line.slice(simple[0].length);
-    }
-    for (const ch of line) {
-      if (ch === '{' || ch === '(' || ch === '[') depth++;
-      else if (ch === '}' || ch === ')' || ch === ']') depth = Math.max(0, depth - 1);
-    }
-    return transformed;
-  });
-  return out.join('\n');
-}
-
 let active = null;
-
-/** Make a TLA cell's completion value real: when the LAST top-level line
- *  reads as a bare expression, return it from the IIFE (mirrors script
- *  completion values). Statement keywords and multi-line tails stay as-is
- *  (value undefined — documented heuristic). */
-const STATEMENT_KEYWORD = /^\s*(const|let|var|function|class|if|for|while|do|switch|try|throw|return|import|export|break|continue|\}|\/\/)/;
-function returnLastExpression(body) {
-  const lines = body.split('\n');
-  let depth = 0;
-  let lastTopLevel = -1;
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim();
-    if (depth === 0 && trimmed.length > 0) lastTopLevel = i;
-    for (const ch of lines[i]) {
-      if (ch === '{' || ch === '(' || ch === '[') depth++;
-      else if (ch === '}' || ch === ')' || ch === ']') depth = Math.max(0, depth - 1);
-    }
-  }
-  if (lastTopLevel === -1) return body;
-  const candidate = lines[lastTopLevel];
-  if (STATEMENT_KEYWORD.test(candidate)) return body;
-  lines[lastTopLevel] = 'return (' + candidate.replace(/;\s*$/, '') + ');';
-  return lines.join('\n');
-}
 
 async function runCell(msg) {
   const { cellId, code, hasTopLevelAwait } = msg;
@@ -140,8 +93,9 @@ async function runCell(msg) {
   let value;
   try {
     if (hasTopLevelAwait) {
-      const body = returnLastExpression(stripTopLevelDeclarations(code));
-      const wrapped = '(async () => {\n' + body + '\n})()';
+      // The host prepared this body from the parsed cell; the wrapper is
+      // the only transformation the worker applies.
+      const wrapped = '(async () => {\n' + code + '\n})()';
       value = await vm.runInContext(wrapped, context, { filename: cellId + '.js' });
     } else {
       const script = new vm.Script(code, { filename: cellId + '.js' });
