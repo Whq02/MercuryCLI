@@ -1,6 +1,7 @@
 import { getDefaultBashTimeoutMs, getMaxBashTimeoutMs } from '../../utils/timeouts.js'
 import { resolveShellEngine } from '../../utils/shell/engineSession.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
+import { getPlatform } from '../../utils/platform.js'
 import { hasEmbeddedSearchTools } from '../../utils/embeddedTools.js'
 import { shouldIncludeGitInstructions } from '../../utils/gitSettings.js'
 import { getAttributionTexts } from '../../utils/attribution.js'
@@ -38,6 +39,11 @@ export function getSimplePrompt(): string {
     sections.push(
       'One shell session serves the whole conversation: the working directory and every other piece of shell state — variables, functions, aliases, options — persist from call to call. A command that hangs and is timed out, or that ends the shell (a bare `exit`, a `set -u` failure), resets the session; you are told when earlier state was lost.',
     )
+    if (getPlatform() === 'windows') {
+      sections.push(
+        'On Windows the engine has two known holes at this version: a `.cmd` shim such as `npm` or `npx` fails with os error 193 (exit 126) — run it through `cmd /c npm …`, or call `node` on the script directly — and a relative program path after a `cd` is not found — call it by its absolute path.',
+      )
+    }
   } else {
     sections.push(
       'The working directory persists from call to call; every other piece of shell state (variables, functions, options) resets between calls. Each call starts from your profile (bash or zsh).',
