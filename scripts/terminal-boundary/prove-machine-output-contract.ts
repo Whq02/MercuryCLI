@@ -56,7 +56,7 @@ interface Capture {
 
 async function runDist(
   argv: string[],
-  opts: { baseUrl?: string; stdinText?: string; extraEnv?: Record<string, string>; timeoutMs?: number } = {},
+  opts: { baseUrl?: string; stdinText?: string; extraEnv?: Record<string, string>; timeoutMs?: number; dropKeys?: string[] } = {},
 ): Promise<Capture> {
   const home = mkdtempSync(join(tmpdir(), 'lucid-mo-home-'))
   const cwd = mkdtempSync(join(tmpdir(), 'lucid-mo-cwd-'))
@@ -72,6 +72,7 @@ async function runDist(
     ...opts.extraEnv,
   }
   if (opts.baseUrl) env.ANTHROPIC_BASE_URL = opts.baseUrl
+  for (const key of opts.dropKeys ?? []) delete env[key]
   const child = spawn(nodeBin!, [DIST, ...argv], { cwd, env })
   const killer = setTimeout(() => child.kill('SIGKILL'), opts.timeoutMs ?? 120_000)
   let stdout = ''
@@ -393,6 +394,41 @@ section('L12 — every refusal of the feed is one envelope: one field set, one u
   check('the two refusals carry one field set', fa !== null && fb !== null && keys(fa) === keys(fb), `${keys(fa)} vs ${keys(fb)}`)
   check('an option refusal (a usage error) exits 2 and a load refusal exits 1', a.exit === 2 && b.exit === 1, `option=${a.exit} load=${b.exit}`)
   check('the two refusals carry one usage shape', fa !== null && fb !== null && keys(fa.usage) === keys(fb.usage) && keys(fa.usage).length > 0, `${keys(fa?.usage)} vs ${keys(fb?.usage)}`)
+}
+
+section('L13 — no credentials: an operational error, exit 1, the refusal where the format puts it')
+{
+  const noKey = { dropKeys: ['ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL'], extraEnv: { MERCURY_CREDENTIAL_STORE: 'file' } }
+  const text = await runDist(['-p', 'hello', '--max-turns', '1'], noKey)
+  check('text: exit 1', text.exit === 1, String(text.exit))
+  check('text: the refusal rides stderr and names the sign-in', /Not logged in/.test(text.stderr), text.stderr.slice(0, 120))
+  check('text: stdout carries zero bytes', text.stdout.length === 0, text.stdout.slice(0, 80))
+  const json = await runDist(['-p', 'hello', '--max-turns', '1', '--output-format', 'json'], noKey)
+  let parsed: { type?: string; is_error?: boolean; errors?: string[] } | null = null
+  try {
+    parsed = JSON.parse(json.stdout.trim()) as typeof parsed
+  } catch {
+    parsed = null
+  }
+  check('json: exit 1', json.exit === 1, String(json.exit))
+  check('json: stdout is one error object naming the sign-in', parsed !== null && parsed.type === 'result' && parsed.is_error === true && (parsed.errors ?? []).some(e => /Not logged in/.test(e)), json.stdout.slice(0, 160))
+  const sj = await runDist(['-p', 'hello', '--max-turns', '1', '--output-format', 'stream-json'], noKey)
+  const { parsed: frames, bad } = parseLines(sj)
+  const result = frames.find(f => f.type === 'result') as { is_error?: boolean } | undefined
+  check('stream-json: exit 1', sj.exit === 1, String(sj.exit))
+  check('stream-json: every line parses and the result envelope carries is_error', bad.length === 0 && result?.is_error === true, bad[0]?.slice(0, 80) ?? '')
+  assertClean('L13 text', text)
+  assertClean('L13 json', json)
+}
+
+section('L14 — --help carries none of the retired option spellings and every kept one')
+{
+  const cap = await runDist(['--help'])
+  check('--help exits 0', cap.exit === 0, String(cap.exit))
+  const retired = ['--include-hook-events', '--mcp-debug', '--file ', '--allowedTools', '--disallowedTools', '--dangerously-skip-permissions', '--allow-dangerously-skip-permissions', '--enable-auth-status', '--max-thinking-tokens', '--deep-link', '--verbose', 'setup-token']
+  for (const spelling of retired) check(`--help does not carry ${spelling.trim()}`, !cap.stdout.includes(spelling))
+  const kept = ['--allowed-tools', '--disallowed-tools', '--dangerously-bypass-permissions', '--allow-dangerously-bypass-permissions', '--betas', '--bare', '--replay-user-messages', '--no-session-persistence']
+  for (const spelling of kept) check(`--help carries ${spelling}`, cap.stdout.includes(spelling))
 }
 
 console.log('\n' + '═'.repeat(76))
