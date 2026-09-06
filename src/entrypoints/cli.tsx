@@ -5,23 +5,6 @@ import {
 
 process.env.COREPACK_ENABLE_AUTO_PIN = '0'
 
-const DEAD_SUBCOMMANDS = new Set([
-  'ps',
-  'logs',
-  'attach',
-  'kill',
-  'new',
-  'list',
-  'reply',
-  'remote-control',
-  'rc',
-  'remote',
-  'sync',
-  'bridge',
-  'environment-runner',
-  'self-hosted-runner',
-])
-
 async function main(): Promise<void> {
   if (!process.versions?.bun) {
     const nodeDecision = evaluateNodeRuntime(process.versions?.node)
@@ -201,20 +184,6 @@ async function main(): Promise<void> {
 
   if (args.length === 1 && (args[0] === '--update' || args[0] === '--upgrade')) {
     process.argv = [...process.argv.slice(0, 2), 'update']
-  }
-
-  if (args.length > 0 && DEAD_SUBCOMMANDS.has(args[0]!)) {
-    const [{ binaryName }, { releaseLauncherAltHoldNow }, { writeSync }] = await Promise.all([
-      import('../utils/config.js'),
-      import('../ink/launcherAltHold.js'),
-      import('node:fs'),
-    ])
-    releaseLauncherAltHoldNow()
-    try {
-      writeSync(2, `'${args[0]}' is not available in this build. Run ${binaryName()} --help for the available commands.\n`)
-    } catch {
-    }
-    process.exit(1)
   }
 
   if (args.includes('--bare')) {
