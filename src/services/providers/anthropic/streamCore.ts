@@ -28,7 +28,6 @@ import {
   setLastApiCompletionTimestamp,
 } from 'src/bootstrap/state.js'
 import {
-  CONTEXT_1M_BETA_HEADER,
   CONTEXT_MANAGEMENT_BETA_HEADER,
   PROMPT_CACHING_SCOPE_BETA_HEADER,
   REDACT_THINKING_BETA_HEADER,
@@ -128,7 +127,6 @@ import {
 import {
   CAPPED_DEFAULT_MAX_TOKENS,
   getModelMaxOutputTokens,
-  getSonnet1mExpTreatmentEnabled,
 } from '../../../utils/context.js'
 import { isTurnOwningQuerySource, resolveAppliedEffort } from '../../../utils/effort.js'
 import { apiTimeoutMsOverride, validateBoundedIntEnvVar } from '../../../utils/envValidation.js'
@@ -764,13 +762,6 @@ async function* queryModel(
 
   const paramsFromContext = (retryContext: RetryContext) => {
     const betasParams = [...betas]
-
-    if (
-      !betasParams.includes(CONTEXT_1M_BETA_HEADER) &&
-      getSonnet1mExpTreatmentEnabled(retryContext.model)
-    ) {
-      betasParams.push(CONTEXT_1M_BETA_HEADER)
-    }
 
     const extraBodyParams = getExtraBodyParams([])
 

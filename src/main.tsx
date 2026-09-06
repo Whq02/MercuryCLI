@@ -23,7 +23,6 @@ import { MERCURY_VERSION } from './constants/product.js'
 import { getSystemContext, getUserContext } from './context.js'
 import { initBundledSkills } from './skills/bundled/index.js'
 import { launchRepl } from './replLauncher.js'
-import { fetchBootstrapData } from './services/api/bootstrap.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from './services/analytics/featureGates.js'
 import { checkQuotaStatus } from './services/claudeAiLimits.js'
 import { getInstructionFiles } from './services/instructions/engine.js'
@@ -2104,7 +2103,6 @@ async function runStartupPrefetchBatch(): Promise<void> {
     return
   }
   await checkQuotaStatus().catch((error: unknown) => logError(error))
-  await fetchBootstrapData().catch((error: unknown) => logError(error))
   if (throttleMs > 0) {
     saveGlobalConfig(current => ({ ...current, startupPrefetchedAt: Date.now() }))
   }

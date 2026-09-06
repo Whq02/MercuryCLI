@@ -3,6 +3,11 @@ export const RETIRED_GLOBAL_CONFIG_KEYS: Readonly<Record<string, string>> = {
   lastPlanModeUse: 'lastStrategyModeUse',
 }
 
+export const DROPPED_GLOBAL_CONFIG_KEYS: readonly string[] = [
+  'clientDataCache',
+  'additionalModelOptionsCache',
+]
+
 export const RETIRED_PROJECT_CONFIG_KEYS: Readonly<Record<string, string>> = {
   hasClaudeMdExternalIncludesApproved: 'hasExternalIncludesApproved',
   hasClaudeMdExternalIncludesWarningShown: 'hasExternalIncludesWarningShown',
@@ -23,8 +28,19 @@ export function rewriteRetiredKeys<T extends object>(
   return next === null ? record : (next as T)
 }
 
+export function dropRetiredKeys<T extends object>(record: T, dropped: readonly string[]): T {
+  const raw = record as Record<string, unknown>
+  let next: Record<string, unknown> | null = null
+  for (const key of dropped) {
+    if (!(key in raw)) continue
+    next ??= { ...raw }
+    delete next[key]
+  }
+  return next === null ? record : (next as T)
+}
+
 export function rewriteRetiredGlobalConfigKeys<T extends object>(config: T): T {
-  return rewriteRetiredKeys(config, RETIRED_GLOBAL_CONFIG_KEYS)
+  return dropRetiredKeys(rewriteRetiredKeys(config, RETIRED_GLOBAL_CONFIG_KEYS), DROPPED_GLOBAL_CONFIG_KEYS)
 }
 
 export function rewriteRetiredProjectConfigKeys<T extends object>(

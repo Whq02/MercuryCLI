@@ -169,8 +169,8 @@ function staticImports(src: string): {
   const mainSrc = readFileSync(join(SRC, 'main.tsx'), 'utf8')
   const main = staticImports(mainSrc)
   check(
-    'eager-front: main.tsx static value imports = 106',
-    main.value.length === 106,
+    'eager-front: main.tsx static value imports = 105',
+    main.value.length === 105,
     String(main.value.length),
   )
   check(
