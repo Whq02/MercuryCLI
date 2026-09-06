@@ -154,6 +154,7 @@ export type ExecOptions = {
   preventCwdChanges?: boolean
   shouldUseSandbox?: boolean
   shouldAutoBackground?: boolean
+  backgroundIntent?: boolean
   onStdout?: (chunk: string) => void
 }
 
@@ -179,7 +180,7 @@ export async function exec(
   )
   const useSandbox = options.shouldUseSandbox === true
 
-  if (shellType === 'bash' && options.onStdout === undefined) {
+  if (shellType === 'bash' && options.onStdout === undefined && options.backgroundIntent !== true) {
     const engine = resolveShellEngine(getInitialSettings().shellEngine)
     if (engine.engine === 'brush') {
       if (abortSignal.aborted) return createAbortedCommand()

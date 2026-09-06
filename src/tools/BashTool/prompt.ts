@@ -37,7 +37,7 @@ export function getSimplePrompt(): string {
   )
   if (resolveShellEngine(getInitialSettings().shellEngine).engine === 'brush') {
     sections.push(
-      'One shell session serves the whole conversation: the working directory and every other piece of shell state — variables, functions, aliases, options — persist from call to call. A command that hangs and is timed out, or that ends the shell (a bare `exit`, a `set -u` failure), resets the session; you are told when earlier state was lost.',
+      'One shell session serves the whole conversation: the working directory and every other piece of shell state — variables, functions, aliases, options — persist from call to call. A command that hangs and is timed out, or that ends the shell (a bare `exit`, a `set -u` failure), resets the session; you are told when earlier state was lost. A call with `run_in_background` runs in its own shell: it does not see the session\'s state, and its own does not persist.',
     )
     if (getPlatform() === 'windows') {
       sections.push(

@@ -291,6 +291,16 @@ section('§11 concurrent calls')
   note(`concurrency wall time ${Date.now() - started}ms (${engine}: ${Date.now() - started < 550 ? 'parallel' : 'serialized'})`)
 }
 
+section('§12 a background-intent call takes its own shell; the session is untouched')
+{
+  await run('BG_MARK=kept; :')
+  const controller = new AbortController()
+  const handle = await exec('echo "${BRUSH_VERSION:-system} [${BG_MARK:-none}]"', controller.signal, 'bash', { timeout: 20_000, shouldAutoBackground: false, backgroundIntent: true })
+  const bg = await handle.result
+  check('a background-intent call is answered by the system shell in its own process — never the shared engine session, whose state it cannot see', bg.stdout.trim() === 'system [none]', JSON.stringify(bg.stdout.slice(0, 80)))
+  await row('the next foreground call: the session state stands on the engine, resets on the system shell', 'echo "[${BG_MARK:-none}]"', { system: { code: 0, out: '[none]' }, brush: { code: 0, out: '[kept]' } })
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 
 console.log('\n============================================================')
