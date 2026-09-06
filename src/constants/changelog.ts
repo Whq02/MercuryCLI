@@ -2,6 +2,7 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
+- Updated the MCP client to the current protocol revision: servers built for it connect without the old handshake, older servers keep working, and the doctor's MCP row reads current
 - Fixed a "still running" notice lingering after a compaction for an agent that had already finished, and a running workflow being counted as a sub-agent; the notice now names sub-agents and workflow runs separately, each with its own door
 - Updated and refactored internal names and structure across the codebase; settings, rules and records saved under former names still apply
 - Changed a permission ask on a session you are not looking at to wait for you with no time limit; its Session Concourse row reads "waiting for your answer" and the card is there when you focus the session; an ask raised by a sub-agent waits ten minutes
