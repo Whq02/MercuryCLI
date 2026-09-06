@@ -1,4 +1,3 @@
-import { isRemoteManagedSettingsEligible } from '../services/remoteManagedSettings/syncCache.js'
 import { clearCACertsCache } from './caCerts.js'
 import { getGlobalConfig } from './config.js'
 import { isEnvTruthy } from './envUtils.js'
@@ -53,7 +52,6 @@ export function applySafeConfigEnvironmentVariables(): void {
     if (!isSettingSourceEnabled(source)) continue
     applyFiltered(getSettingsForSource(source)?.env)
   }
-  isRemoteManagedSettingsEligible()
   applyFiltered(getSettingsForSource('policySettings')?.env)
   const merged = getSettings_DEPRECATED().env
   if (merged) {

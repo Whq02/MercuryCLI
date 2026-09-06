@@ -673,9 +673,6 @@
     "agent": {
       "type": "string"
     },
-    "skipWebFetchPreflight": {
-      "type": "boolean"
-    },
     "skipSovereignConsentPrompt": {
       "description": "True skips the consent card shown before entering Sovereign mode (honoured from the user, local, flag and policy sources)",
       "type": "boolean"
@@ -685,6 +682,13 @@
       "enum": [
         "bash",
         "powershell"
+      ]
+    },
+    "shellEngine": {
+      "type": "string",
+      "enum": [
+        "system",
+        "brush"
       ]
     },
     "instructionProfile": {

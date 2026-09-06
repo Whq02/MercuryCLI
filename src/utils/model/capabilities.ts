@@ -20,7 +20,6 @@ import {
 } from '../../constants/betas.js'
 import { OAUTH_BETA_HEADER } from '../../constants/oauth.js'
 import { isClaudeAISubscriber } from '../auth.js'
-import { getGlobalConfig } from '../config.js'
 import {
   isEnvDefinedFalsy,
   isEnvTruthy,
@@ -452,7 +451,6 @@ export interface ContextResolution {
     | 'static-pin'
     | 'capability'
     | 'beta-header'
-    | 'experiment'
     | 'fallback'
   outputReserve: number
   fallbackReason?: string
@@ -708,10 +706,6 @@ export function resolveContextWindow(
   if (betas?.includes(CONTEXT_1M_BETA_HEADER) && modelSupports1M(model)) {
     return finish({ effectiveWindow: 1_000_000, source: 'beta-header' })
   }
-  if (getSonnet1mExpTreatmentEnabled(model)) {
-    return finish({ effectiveWindow: 1_000_000, source: 'experiment' })
-  }
-
   return finish({
     effectiveWindow: MODEL_CONTEXT_WINDOW_DEFAULT,
     source: 'fallback',
@@ -724,19 +718,6 @@ export function getContextWindowForModel(
   betas?: string[],
 ): number {
   return resolveContextWindow(model, betas).effectiveWindow
-}
-
-export function getSonnet1mExpTreatmentEnabled(model: string): boolean {
-  if (is1mContextDisabled()) {
-    return false
-  }
-  if (has1mContext(model)) {
-    return false
-  }
-  if (!getCanonicalName(model).includes('sonnet-4-6')) {
-    return false
-  }
-  return getGlobalConfig().clientDataCache?.['coral_reef_sonnet'] === 'true'
 }
 
 export function getModelMaxOutputTokens(model: string): {

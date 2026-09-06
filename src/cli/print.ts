@@ -2697,9 +2697,7 @@ export async function runHeadless(
             }
             receivedUuids.add(uuid)
           }
-          const { resolveAndPrepend } = await import('../bridge/inboundAttachments.js')
-          const rawContent = (typed.message.content ?? '') as string | ContentBlockParam[]
-          const content = await resolveAndPrepend(typed, rawContent)
+          const content = (typed.message.content ?? '') as string | ContentBlockParam[]
           if (typed.mode === 'task-notification' && typeof typed.agent_id === 'string' && typed.agent_id !== '') {
             enqueue({
               value: content,

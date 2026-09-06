@@ -8,7 +8,6 @@ import {
   switchSession,
 } from 'src/bootstrap/state.js'
 import { armProvisionalSessionReconcile } from 'src/utils/provisionalSessionReconcile.js'
-import { isPolicyAllowed } from 'src/services/policyLimits/index.js'
 import type { AppState } from 'src/state/AppStateStore.js'
 import { asSessionId } from 'src/types/ids.js'
 import type { Message, NormalizedUserMessage } from 'src/types/message.js'

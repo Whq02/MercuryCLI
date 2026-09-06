@@ -23,9 +23,6 @@ import { MERCURY_VERSION } from './constants/product.js'
 import { getSystemContext, getUserContext } from './context.js'
 import { initBundledSkills } from './skills/bundled/index.js'
 import { launchRepl } from './replLauncher.js'
-import { fetchBootstrapData } from './services/api/bootstrap.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from './services/analytics/featureGates.js'
-import { checkQuotaStatus } from './services/claudeAiLimits.js'
 import { getInstructionFiles } from './services/instructions/engine.js'
 import { initializeLspServerManager } from './services/lsp/manager.js'
 import { fetchClaudeAIMcpConfigsIfEligible } from './services/mcp/claudeai.js'
@@ -55,8 +52,6 @@ import {
   isCoordinationServerEnabled,
   COORDINATION_SERVER_NAME,
 } from './services/mcp/coordinationServer.js'
-import { loadPolicyLimits } from './services/policyLimits/index.js'
-import { loadRemoteManagedSettings } from './services/remoteManagedSettings/index.js'
 import { clearBootAttempts } from './substrate/bootBeacon.js'
 import { addBootNote, collectLauncherNotes } from './substrate/bootNotes.js'
 import { flagEnv } from './substrate/flagRegistry.js'
@@ -69,7 +64,6 @@ import { setAssistantModeActive } from './tasks/LocalShellTask/LocalShellTask.js
 import { getTools } from './tools.js'
 import { getAgentDefinitionsWithOverrides, computeActiveAgents, parseAgentsFromJson, type AgentDefinition } from './tools/AgentTool/loadAgentsDir.js'
 import { init } from './entrypoints/init.js'
-import { preconnectAnthropicApi } from './utils/apiPreconnect.js'
 import { releaseLauncherAltHoldNow } from './ink/launcherAltHold.js'
 import { resolveTerminalExperience } from './ink/session/terminalExperience.js'
 import {
@@ -662,10 +656,6 @@ async function run(): Promise<void> {
     clearTimeout(slowBootNote)
     await init()
     profileCheckpoint('preAction_after_init')
-    if (actionCommand === program) {
-      preconnectAnthropicApi({ credentialed: hasFirstPartyCredential() })
-      profileCheckpoint('init_preconnect_dispatched')
-    }
     if (resolveTerminalExperience().terminalTitle.effective) {
       process.title = 'mercury'
     }
@@ -682,10 +672,6 @@ async function run(): Promise<void> {
     }
     runMigrationsIfNeeded()
     profileCheckpoint('preAction_after_migrations')
-    void loadRemoteManagedSettings().catch(() => {})
-    profileCheckpoint('preAction_after_remote_settings')
-    void loadPolicyLimits().catch(() => {})
-    profileCheckpoint('preAction_after_settings_sync')
   })
 
   program.action(async (prompt: string | undefined) => {
@@ -1785,8 +1771,6 @@ async function interactiveLaunch(args: {
     inputPrompt = undefined
   }
   if (onboardingShown) {
-    void loadRemoteManagedSettings().catch(() => {})
-    void loadPolicyLimits().catch(() => {})
     resetUserCache()
     const { refreshFeatureGates } = await import('./services/analytics/featureGates.js')
     await refreshFeatureGates().catch(() => {})
@@ -1809,9 +1793,6 @@ async function interactiveLaunch(args: {
 
   registerBackgroundNode('lsp-manager', async () => {
     initializeLspServerManager()
-  })
-  registerBackgroundNode('startup-prefetch-batch', async () => {
-    await runStartupPrefetchBatch()
   })
   registerBackgroundNode('usage-poll', async () => {
     const { armProviderUsagePoll } = await import('./services/providers/providerUsage.js')
@@ -2072,24 +2053,6 @@ async function interactiveLaunch(args: {
 
 function assistantBridgeSeed(): boolean {
   return false
-}
-
-async function runStartupPrefetchBatch(): Promise<void> {
-  if (isBareMode()) {
-    logForDebugging('startup prefetch batch skipped: bare mode')
-    return
-  }
-  const throttleMs = Number(getFeatureValue_CACHED_MAY_BE_STALE('mercury_cicada_nap_ms', 0))
-  const lastRunAt = getGlobalConfig().startupPrefetchedAt ?? 0
-  if (throttleMs > 0 && Date.now() - lastRunAt < throttleMs) {
-    logForDebugging('startup prefetch batch skipped: within the throttle interval')
-    return
-  }
-  await checkQuotaStatus().catch((error: unknown) => logError(error))
-  await fetchBootstrapData().catch((error: unknown) => logError(error))
-  if (throttleMs > 0) {
-    saveGlobalConfig(current => ({ ...current, startupPrefetchedAt: Date.now() }))
-  }
 }
 
 async function connectMcpBatch(
