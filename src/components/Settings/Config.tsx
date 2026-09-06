@@ -50,6 +50,7 @@ import {
 } from '../../utils/permissions/PermissionMode.js'
 import { getMainLoopModel, modelDisplayString } from '../../utils/model/model.js'
 import { useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
+import { resolveShellEngine } from '../../utils/shell/engineSession.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import {
   providerFamilyPresences,
@@ -250,6 +251,7 @@ export function Config({
         spinnerTipsEnabled: local.spinnerTipsEnabled,
         prefersReducedMotion: local.prefersReducedMotion,
         instructionProfile: local.instructionProfile,
+        shellEngine: local.shellEngine,
       },
       user: {
         alwaysThinkingEnabled: user.alwaysThinkingEnabled,
@@ -458,6 +460,35 @@ export function Config({
       }
     },
   })
+  {
+    const engineSetting = validated(['system', 'brush'] as const, merged.shellEngine, 'system')
+    const resolved = resolveShellEngine(engineSetting)
+    const detail =
+      engineSetting === 'brush' && resolved.engine !== 'brush'
+        ? ' · unavailable, system shell in use'
+        : resolved.engine === 'brush'
+          ? ` · brush ${resolved.version}`
+          : ''
+    items.push({
+      id: 'shellEngine',
+      label: 'Shell engine',
+      kind: 'enum',
+      value: <Text>{engineSetting}{detail}</Text>,
+      warning:
+        engineSetting === 'brush' && resolved.engine !== 'brush'
+          ? 'The vendored shell engine pack is not present in this build; the system shell runs instead.'
+          : undefined,
+      change: direction => {
+        const engines = ['system', 'brush'] as const
+        const next = cycleIn(engines, engineSetting, direction)
+        if (writeSource('localSettings', { shellEngine: next === 'system' ? undefined : next })) {
+          snapshots.dirty = true
+          recordSet('shellEngine', `set shell engine to ${next}`)
+          bump()
+        }
+      },
+    })
+  }
   items.push(providerScoped({
     id: 'thinking',
     label: 'Thinking mode',
@@ -956,6 +987,7 @@ export function Config({
       spinnerTipsEnabled: snapshots.local.spinnerTipsEnabled,
       prefersReducedMotion: snapshots.local.prefersReducedMotion,
       instructionProfile: snapshots.local.instructionProfile,
+      shellEngine: snapshots.local.shellEngine,
     })
     writeSource('userSettings', {
       alwaysThinkingEnabled: snapshots.user.alwaysThinkingEnabled,

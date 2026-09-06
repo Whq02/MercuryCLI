@@ -43,6 +43,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     resources: ['task'],
     cancellation: 'kill',
     latency: 'long-running',
+    conditions: ['a bash to run under — on Windows git-bash (bash.exe) or the shell engine; with neither the tool leaves the roster and the doctor’s shell row names the fix'],
   },
   Correct: {
     intents: ['correct a remembered fact', 'supersede or retract project memory'],
@@ -284,6 +285,16 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     resources: ['file', 'receipt'],
     cancellation: 'not-applicable',
     latency: 'fast',
+  },
+  PowerShell: {
+    intents: ['run a PowerShell command', 'execute a Windows-native script or cmdlet', 'start a background process on Windows'],
+    units: ['process-execution'],
+    class: 'execution',
+    execution: { kind: 'background-job', representation: 'external-projection' },
+    resources: ['task'],
+    cancellation: 'kill',
+    latency: 'long-running',
+    conditions: ['Windows — the Windows shell road: the MERCURY_USE_POWERSHELL_TOOL opt-in, or no bash.exe found (the tool then stands in for Bash)'],
   },
   PushNotification: {
     intents: ['send the operator a push notification'],

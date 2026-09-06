@@ -230,6 +230,7 @@ export const SettingsSchema = lazySchema(() => {
     skipDangerousModePermissionPrompt: z.boolean().optional(),
     disableAutoMode: z.literal('disable').optional(),
     defaultShell: z.enum(['bash', 'powershell']).optional(),
+    shellEngine: z.enum(['system', 'brush']).optional(),
     instructionProfile: z.enum(['auto', 'native']).optional(),
     channelsEnabled: z.boolean().optional(),
     apollo: z

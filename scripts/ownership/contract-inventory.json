@@ -815,6 +815,7 @@
   "remote",
   "respectGitignore",
   "sandbox",
+  "shellEngine",
   "showClearContextOnPlanAccept",
   "showThinkingSummaries",
   "skipDangerousModePermissionPrompt",
