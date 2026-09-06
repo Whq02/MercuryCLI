@@ -132,6 +132,30 @@ export function decodeFoldStatus(raw: unknown): FoldStatusV1 | null {
   }
 }
 
+const FOLD_WIRE_KEYS: Readonly<Record<string, string>> = {
+  startedAtMs: 'started_at_ms',
+  summaryTokens: 'summary_tokens',
+  summaryCapTokens: 'summary_cap_tokens',
+  endedAtMs: 'ended_at_ms',
+}
+const FOLD_RECORD_KEYS: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(FOLD_WIRE_KEYS).map(([record, wire]) => [wire, record]),
+)
+function renamedKeys(value: unknown, table: Readonly<Record<string, string>>): unknown {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return value
+  const out: Record<string, unknown> = {}
+  for (const [key, inner] of Object.entries(value as Record<string, unknown>)) out[table[key] ?? key] = inner
+  return out
+}
+
+export function foldStatusToWire(status: FoldStatusV1): Record<string, unknown> {
+  return renamedKeys(status, FOLD_WIRE_KEYS) as Record<string, unknown>
+}
+
+export function foldStatusFromWire(raw: unknown): unknown {
+  return renamedKeys(raw, FOLD_RECORD_KEYS)
+}
+
 export type FoldBarCell = 'done' | 'fill' | 'pulse' | 'empty'
 export function foldBarCells(status: FoldStatusV1): FoldBarCell[] {
   const per = FOLD_BAR_CELLS_PER_STAGE

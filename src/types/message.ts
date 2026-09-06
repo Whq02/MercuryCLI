@@ -581,6 +581,10 @@ export type TurnReceiptMessage = {
     reads: number
     searches: number
     commands: number
+    agents: number
+    delegatedTokens: number
+    delegatedCostUSD: number
+    delegatedUnpriced: number
   }
 }
 

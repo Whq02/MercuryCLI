@@ -60,9 +60,9 @@ export function SupercodeModeView({ onClose }: { onClose: () => void }): React.R
         <Text color={FAINT}> — a mode, not an effort level</Text>
       </Text>
       <Text>
-        <Text color={FAINT}>orchestrate </Text>
-        <Text color={IVORY}>standing</Text>
-        <Text color={FAINT}> — author/run subagents (Agent) + fleets (LaunchFleet) for substantive work by default</Text>
+        <Text color={FAINT}>delegate  </Text>
+        <Text color={IVORY}>proactive</Text>
+        <Text color={FAINT}> — sub-agents (Agent), workflows and fleets wherever parallel agents would materially improve speed or quality; solo at max otherwise</Text>
       </Text>
       <Text>
         <Text color={FAINT}>scope     </Text>
@@ -98,7 +98,7 @@ export function SupercodeModeView({ onClose }: { onClose: () => void }): React.R
       <SectionHeader>Run it</SectionHeader>
       <Text color={FAINT}>{`live levels (${EFFORT_AXIS.join('/')}): set with /effort — applies this session`}</Text>
       <Text color={FAINT}>supercode: /effort supercode — flips the session mode (pins max; needs a max-capable model)</Text>
-      <Text color={FAINT}>while on, a standing system-reminder keeps you orchestrating + exhaustive until /effort clears it</Text>
+      <Text color={FAINT}>while on, a standing system-reminder keeps you delegating where it pays + exhaustive until /effort clears it; sub-agents keep the configured sub-agent default effort</Text>
 
       {}
       <Box marginTop={1} flexDirection="column">
