@@ -289,7 +289,7 @@ section('F4 — the effort enums on the wire are the one ladder')
   const effortUnion = agentShape.effort!.unwrap!()
   const first = (effortUnion.options ?? effortUnion.def?.options ?? [])[0] as EnumLike
   check('an agent definition\'s effort enumerates the ladder', deepEq(first.options ?? first.def?.options, ladder), j(first.options ?? first.def?.options))
-  check('the ladder ends at ultra above max (six rungs)', ladder.length === 6 && ladder[5] === 'ultra' && ladder[4] === 'max')
+  check('the ladder ends at max (five rungs)', ladder.length === 5 && ladder[4] === 'max' && ladder[3] === 'xhigh')
 }
 
 section('F5 — the status, wait, fold, usage and context projections spell snake_case')
