@@ -353,10 +353,10 @@ export function getProjectMcpServerStatus(
 
   const projectSourceEnabled = isSettingSourceEnabled('projectSettings')
   const skipSources = ['userSettings', 'localSettings', 'flagSettings', 'policySettings'] as const
-  const dangerousSkip = skipSources.some(
-    source => getSettingsForSource(source)?.skipDangerousModePermissionPrompt === true,
+  const consentSkip = skipSources.some(
+    source => getSettingsForSource(source)?.skipSovereignConsentPrompt === true,
   )
-  if (dangerousSkip && projectSourceEnabled) return 'approved'
+  if (consentSkip && projectSourceEnabled) return 'approved'
 
   if (getIsNonInteractiveSession() && projectSourceEnabled && checkHasTrustDialogAccepted()) {
     return 'approved'

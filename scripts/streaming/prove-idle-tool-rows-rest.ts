@@ -36,7 +36,7 @@ const { liveTurnStateOf } = await import('../../src/utils/conversationRecovery.t
 const SID = '00000000-aaaa-bbbb-cccc-000000000501'
 const HUNG_ID = 'toolu_hung_mid_run'
 const base = (extra: Record<string, unknown>) => ({
-  isSidechain: false, userType: 'external', entrypoint: 'cli',
+  isSidechain: false, entrypoint: 'cli',
   cwd: PROJECT, sessionId: SID, version: '1.0.0-beta.1', gitBranch: 'main', ...extra,
 })
 const rows = [

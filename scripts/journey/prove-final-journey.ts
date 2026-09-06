@@ -73,7 +73,7 @@ const AGENT_REPORT_LINE = 'REPORT-LINE the journey manifest is pinned and the bu
 function writeSessions(): void {
   mkdirSync(PROJ_DIR, { recursive: true })
   const base = (sid: string) => (extra: Record<string, unknown>) => ({
-    isSidechain: false, userType: 'external', entrypoint: 'cli',
+    isSidechain: false, entrypoint: 'cli',
     cwd: FIX, sessionId: sid, version: '1.0.0-beta.1', gitBranch: 'main', ...extra,
   })
   const a = base(SID_A)

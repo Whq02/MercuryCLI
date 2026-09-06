@@ -77,14 +77,14 @@ const root = mkdtempSync(join(tmpdir(), 'dualdir-'))
 {
   const proj = join(root, 'walk', 'repo')
   const nested = join(proj, 'pkg')
-  mkdirSync(join(nested, '.mercury', 'commands'), { recursive: true })
-  mkdirSync(join(nested, '.claude', 'commands'), { recursive: true })
-  const dirs = getProjectDirsUpToHome('commands', nested)
-  const mercuryIdx = dirs.findIndex(d => d === join(nested, '.mercury', 'commands'))
-  const claudeIdx = dirs.findIndex(d => d === join(nested, '.claude', 'commands'))
+  mkdirSync(join(nested, '.mercury', 'skills'), { recursive: true })
+  mkdirSync(join(nested, '.claude', 'skills'), { recursive: true })
+  const dirs = getProjectDirsUpToHome('skills', nested)
+  const mercuryIdx = dirs.findIndex(d => d === join(nested, '.mercury', 'skills'))
+  const claudeIdx = dirs.findIndex(d => d === join(nested, '.claude', 'skills'))
   check(
     mercuryIdx !== -1 && claudeIdx === -1,
-    `the commands/agents/skills walk lists the Mercury home, external dirs never (got [${dirs.join(', ')}])`,
+    `the agents/skills walk lists the Mercury home, external dirs never (got [${dirs.join(', ')}])`,
   )
 }
 

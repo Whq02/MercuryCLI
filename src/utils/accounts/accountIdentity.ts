@@ -1,11 +1,13 @@
 
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { resolve } from 'node:path'
 import { getOauthConfig } from '../../constants/oauth.js'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../debug.js'
+import { globalConfigFileIn } from '../env.js'
+import { getMercuryHome } from '../envUtils.js'
 import { readAccountOAuthCreds } from './scopedCredentialRead.js'
-import { readScopeIdentity } from './scopeScan.js'
+import { isClaudeFamilyDir, readScopeIdentity, scopeIdentityFile } from './scopeScan.js'
 import { signInLedgerEpoch } from './signInLedger.js'
 
 export type ScopeIdentityState =
@@ -45,7 +47,15 @@ export async function resolveLiveScopeIdentity(
 }
 
 function snapshotEmail(dir: string): string | undefined {
-  return readScopeIdentity(join(dir, '.claude.json')).email
+  return readScopeIdentity(scopeIdentityFile(dir)).email
+}
+
+function isSessionHome(dir: string): boolean {
+  return resolve(dir) === resolve(getMercuryHome())
+}
+
+function configWriter(): typeof import('../config.js') {
+  return require('../config.js') as typeof import('../config.js')
 }
 
 async function resolveUncached(
@@ -114,8 +124,33 @@ export function healScopeIdentitySnapshot(
   dir: string,
   identity: { email: string; uuid?: string },
 ): void {
+  if (isClaudeFamilyDir(dir)) {
+    logForDebugging(`[accounts] identity heal skipped for ${dir}: a Claude-family home is never written`)
+    return
+  }
+  if (isSessionHome(dir)) {
+    try {
+      const { getGlobalConfig, saveGlobalConfig } = configWriter()
+      const prior = getGlobalConfig().oauthAccount
+      if (prior?.emailAddress === identity.email && (!identity.uuid || prior.accountUuid === identity.uuid)) {
+        return
+      }
+      saveGlobalConfig(current => ({
+        ...current,
+        oauthAccount: {
+          ...(current.oauthAccount ?? {}),
+          emailAddress: identity.email,
+          ...(identity.uuid !== undefined && { accountUuid: identity.uuid }),
+        } as NonNullable<typeof current.oauthAccount>,
+      }))
+      logForDebugging(`[accounts] healed the home's identity → ${identity.email}`)
+    } catch (err) {
+      logForDebugging(`[accounts] identity heal failed for the home: ${String(err)}`)
+    }
+    return
+  }
   try {
-    const file = join(dir, '.claude.json')
+    const file = globalConfigFileIn(dir)
     let parsed: Record<string, unknown> = {}
     if (existsSync(file)) {
       try {
@@ -146,8 +181,20 @@ export function healScopeIdentitySnapshot(
 }
 
 export function clearScopeIdentitySnapshot(dir: string): void {
+  if (isClaudeFamilyDir(dir)) return
+  if (isSessionHome(dir)) {
+    try {
+      const { getGlobalConfig, saveGlobalConfig } = configWriter()
+      if (getGlobalConfig().oauthAccount === undefined) return
+      saveGlobalConfig(current => ({ ...current, oauthAccount: undefined }))
+      logForDebugging(`[accounts] cleared the home's identity`)
+    } catch (err) {
+      logForDebugging(`[accounts] identity clear failed for the home: ${String(err)}`)
+    }
+    return
+  }
   try {
-    const file = join(dir, '.claude.json')
+    const file = globalConfigFileIn(dir)
     if (!existsSync(file)) return
     let parsed: unknown
     try {
