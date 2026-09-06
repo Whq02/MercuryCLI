@@ -54,6 +54,7 @@ section('default posture (env unset) — the fix itself')
   check('no bypass flag by default', !argv.includes('--dangerously-skip-permissions'))
   check('argv still stream-json shaped', argv.includes('--input-format=stream-json'))
   check('argv still carries the floored --model', argv.includes('--model'))
+  check('the stream-json feed is complete on its own: argv carries no --verbose', !argv.includes('--verbose'))
 }
 
 section('operator overrides — live-read per spawn, no re-import')
