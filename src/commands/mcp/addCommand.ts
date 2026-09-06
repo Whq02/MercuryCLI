@@ -47,7 +47,7 @@ export function registerMcpAddCommand(mcp: CommanderCommand): void {
     .option('-e, --env <env...>', 'environment variables for a stdio server (KEY=VALUE)')
     .option('-H, --header <header...>', 'HTTP headers for an SSE/HTTP server')
     .option('--client-id <clientId>', 'OAuth client id')
-    .option('--client-secret', 'read the OAuth client secret (prompt, or MCP_CLIENT_SECRET)')
+    .option('--client-secret', 'read the OAuth client secret (prompt, or MERCURY_MCP_CLIENT_SECRET)')
     .option('--callback-port <port>', 'fixed OAuth callback port')
     .addHelpText(
       'after',

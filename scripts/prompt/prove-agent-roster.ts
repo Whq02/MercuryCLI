@@ -95,7 +95,7 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   const prevInteractive = getIsInteractive()
   const mounted = (): boolean => getBuiltInAgents().some(a => a.agentType === MERCURY_GUIDE_AGENT_TYPE)
   delete process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS
-  process.env.MERCURY_ENTRYPOINT = 'sdk'
+  process.env.MERCURY_ENTRYPOINT = 'headless'
   setIsInteractive(false)
   check('§7 the guide is mounted under the sdk entrypoint (a headless -p run)', isGuideAgentMounted() && mounted())
   process.env.MERCURY_ENTRYPOINT = 'cli'

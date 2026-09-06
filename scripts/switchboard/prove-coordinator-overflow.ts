@@ -24,8 +24,8 @@ const home = join(scratch, 'home')
 mkdirSync(home, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = home
 for (const key of [
-  'ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'ZAI_API_KEY', 'OPENAI_API_KEY', 'DISABLE_COMPACT', 'DISABLE_AUTO_COMPACT',
-  'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_BLOCKING_LIMIT_OVERRIDE', 'MERCURY_OVERFLOW_RECOVERY', 'ANTHROPIC_MODEL',
+  'ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'ZAI_API_KEY', 'OPENAI_API_KEY', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT',
+  'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_BLOCKING_LIMIT_OVERRIDE', 'MERCURY_OVERFLOW_RECOVERY', 'MERCURY_MODEL',
 ]) {
   delete process.env[key]
 }
@@ -132,9 +132,9 @@ section('§2 — exhausted: the retry overflows too → one fold, two calls, the
 section('§3 — the automatic-fold switch off: no fold, the refusal names /compact')
 {
   await reseed(12)
-  process.env.DISABLE_AUTO_COMPACT = '1'
+  process.env.MERCURY_AUTO_COMPACT = '0'
   const r = await drive({ id: 'ovf-3', script: ['overflow', 'reply'] })
-  delete process.env.DISABLE_AUTO_COMPACT
+  delete process.env.MERCURY_AUTO_COMPACT
   const reason = String(r.receipt.reason ?? '')
   check('refused after ONE call, no fold', r.receipt.outcome === 'refused' && r.seen.length === 1 && r.summarizeCalls === 0, `outcome=${String(r.receipt.outcome)} calls=${r.seen.length} folds=${r.summarizeCalls}`)
   check('the refusal names /compact by hand', reason.includes('automatic compaction is off, so the emergency fold did not run; /compact folds the conversation by hand'), reason)

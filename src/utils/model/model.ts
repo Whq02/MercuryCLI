@@ -41,25 +41,25 @@ function firstPartyString(key: keyof typeof ALL_MODEL_CONFIGS): string {
 }
 
 export function getDefaultOpusModel(): string {
-  const pin = process.env.ANTHROPIC_DEFAULT_OPUS_MODEL
+  const pin = process.env.MERCURY_DEFAULT_OPUS_MODEL
   if (pin) return pin
   return firstPartyString(newestGenerationKey('opus'))
 }
 
 export function getDefaultSonnetModel(): string {
-  const pin = process.env.ANTHROPIC_DEFAULT_SONNET_MODEL
+  const pin = process.env.MERCURY_DEFAULT_SONNET_MODEL
   if (pin) return pin
   return firstPartyString(newestGenerationKey('sonnet'))
 }
 
 export function getDefaultHaikuModel(): string {
-  const pin = process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL
+  const pin = process.env.MERCURY_DEFAULT_HAIKU_MODEL
   if (pin) return pin
   return firstPartyString(newestGenerationKey('haiku'))
 }
 
 export function getDefaultFableModel(): string {
-  const pin = process.env.ANTHROPIC_DEFAULT_FABLE_MODEL
+  const pin = process.env.MERCURY_DEFAULT_FABLE_MODEL
   if (pin) return pin
   return firstPartyString(newestGenerationKey('fable'))
 }
@@ -69,7 +69,7 @@ export function isFableAvailable(): boolean {
 }
 
 export function getSmallFastModel(): string {
-  return process.env.ANTHROPIC_SMALL_FAST_MODEL || getDefaultHaikuModel()
+  return process.env.MERCURY_SMALL_FAST_MODEL || getDefaultHaikuModel()
 }
 
 
@@ -164,7 +164,7 @@ export function getUserSpecifiedModelSetting(): ModelSetting {
   if (override !== undefined) {
     setting = override
   } else {
-    const envModel = process.env.ANTHROPIC_MODEL
+    const envModel = process.env.MERCURY_MODEL
     if (envModel) {
       setting = envModel
     } else {

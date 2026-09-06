@@ -1,4 +1,3 @@
-import { isEnvTruthy } from '../envUtils.js'
 
 
 export type SetupMessage = {
@@ -8,6 +7,5 @@ export type SetupMessage = {
 }
 
 export async function checkInstall(_force?: boolean): Promise<SetupMessage[]> {
-  if (isEnvTruthy(process.env.DISABLE_INSTALLATION_CHECKS)) return []
   return []
 }

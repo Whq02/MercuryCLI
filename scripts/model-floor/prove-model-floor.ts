@@ -49,18 +49,18 @@ const ALLOWED = [
 for (const s of ALLOWED) check(`!isHaikuTier('${s}')`, mf.isHaikuTier(s) === false)
 
 section('isHaikuTier — the haiku-SLOT env-pin fold (AGENTVERIFY A1: the alias resolves to the pin VALUE before the floor sees it)')
-process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL = 'fastcheap-gw-v1'
+process.env.MERCURY_DEFAULT_HAIKU_MODEL = 'fastcheap-gw-v1'
 check("pinned haiku-slot value is haiku-tier ('fastcheap-gw-v1')", mf.isHaikuTier('fastcheap-gw-v1') === true)
 check('pinned value floors to sonnet-5', mf.enforceSubagentModelFloor('fastcheap-gw-v1', 'proof:pin') === mf.NEVER_HAIKU_FALLBACK)
 check("agent-def 'haiku' under the pin ⇒ sonnet-5 (the resolution road)", ag.getAgentModel('haiku', 'claude-opus-4-8') === mf.NEVER_HAIKU_FALLBACK)
 check("pin value with a [1m] rider still folds", mf.isHaikuTier('fastcheap-gw-v1[1m]') === true)
-process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL = 'my-claude-sonnet-5-gw'
+process.env.MERCURY_DEFAULT_HAIKU_MODEL = 'my-claude-sonnet-5-gw'
 check('sonnet-canonical pin value is NOT haiku-tier', mf.isHaikuTier('my-claude-sonnet-5-gw') === false)
 check("agent-def 'haiku' under a sonnet pin keeps the operator spelling", ag.getAgentModel('haiku', 'claude-opus-4-8') === 'my-claude-sonnet-5-gw')
-delete process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL
-process.env.ANTHROPIC_SMALL_FAST_MODEL = 'cheap-utility-x'
-check("ANTHROPIC_SMALL_FAST_MODEL value is haiku-tier ('cheap-utility-x')", mf.isHaikuTier('cheap-utility-x') === true)
-delete process.env.ANTHROPIC_SMALL_FAST_MODEL
+delete process.env.MERCURY_DEFAULT_HAIKU_MODEL
+process.env.MERCURY_SMALL_FAST_MODEL = 'cheap-utility-x'
+check("MERCURY_SMALL_FAST_MODEL value is haiku-tier ('cheap-utility-x')", mf.isHaikuTier('cheap-utility-x') === true)
+delete process.env.MERCURY_SMALL_FAST_MODEL
 check('unpinned: the opaque spellings are nobody-tier again', mf.isHaikuTier('fastcheap-gw-v1') === false && mf.isHaikuTier('cheap-utility-x') === false)
 
 section('enforceSubagentModelFloor — fork ON: haiku ⇒ claude-sonnet-5, else byte-identical')
@@ -119,10 +119,10 @@ const spec = {
 const inv = hr.buildStreamJsonInvocation(spec)
 const modelFlagIdx = inv.argv.indexOf('--model')
 check('--model floored to sonnet-5', inv.argv[modelFlagIdx + 1] === mf.NEVER_HAIKU_FALLBACK)
-check('ANTHROPIC_MODEL floored to sonnet-5', inv.env.ANTHROPIC_MODEL === mf.NEVER_HAIKU_FALLBACK)
+check('MERCURY_MODEL floored to sonnet-5', inv.env.MERCURY_MODEL === mf.NEVER_HAIKU_FALLBACK)
 const okSpec = { ...spec, model: 'claude-opus-4-8[1m]' }
 const okInv = hr.buildStreamJsonInvocation(okSpec)
-check('non-haiku spec unchanged', okInv.argv[okInv.argv.indexOf('--model') + 1] === 'claude-opus-4-8[1m]' && okInv.env.ANTHROPIC_MODEL === 'claude-opus-4-8[1m]')
+check('non-haiku spec unchanged', okInv.argv[okInv.argv.indexOf('--model') + 1] === 'claude-opus-4-8[1m]' && okInv.env.MERCURY_MODEL === 'claude-opus-4-8[1m]')
 
 setStamp(false)
 

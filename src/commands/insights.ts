@@ -877,7 +877,7 @@ function featureReference(): string {
   return `- MCP servers: register external tool servers with \`${cli} mcp add <name> <url> --transport http\`. Good for connecting databases, browsers, and internal APIs.
 - Custom skills: a SKILL.md under .mercury/skills/<name>/ becomes a slash command. Good for repeatable workflows you keep re-typing.
 - Hooks: lifecycle shell commands under the settings file's "hooks" key. Good for auto-formatting after edits or gating dangerous commands.
-- Headless mode: \`${cli} -p "<prompt>" --allowedTools <list>\` runs one task and exits. Good for CI and scripted usage.
+- Headless mode: \`${cli} -p "<prompt>" --allowed-tools <list>\` runs one task and exits. Good for CI and scripted usage.
 - Task agents: background subagents that work in parallel while you keep the main session. Good for wide searches and independent workstreams.`
 }
 
@@ -1755,7 +1755,7 @@ export function buildExportData(
     .filter((host): host is string => typeof host === 'string' && host !== '')
   return {
     metadata: {
-      username: process.env.SAFEUSER || process.env.USER || 'unknown',
+      username: process.env.USER || 'unknown',
       generated_at: new Date().toISOString(),
       mercury_version:
         (process.env.npm_package_version as string | undefined) ??

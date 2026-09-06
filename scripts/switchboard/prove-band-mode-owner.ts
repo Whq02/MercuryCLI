@@ -35,8 +35,8 @@ function section(title: string): void {
   console.log(`\n${title}`)
 }
 
-const SKIP = '--dangerously-skip-permissions'
-const ALLOW = '--allow-dangerously-skip-permissions'
+const SKIP = '--dangerously-bypass-permissions'
+const ALLOW = '--allow-dangerously-bypass-permissions'
 
 section('§1 the record stamps the posture and consent the runner was booted with')
 {
@@ -195,7 +195,7 @@ section("§5 a mode change's receipt is the runner's own word: refused with its 
     const parsed = JSON.parse(frame) as { request_id: string; request: { subtype: string; mode: string } }
     return { request_id: parsed.request_id, subtype: parsed.request.subtype, mode: parsed.request.mode }
   }
-  const REFUSAL = 'Cannot set permission mode to sovereign because the session was not launched with --dangerously-skip-permissions'
+  const REFUSAL = 'Cannot set permission mode to sovereign because the session was not launched with --dangerously-bypass-permissions'
   const pa = seat.setSessionPermissionMode(sid, 'sovereign', roster, dir, { deadlineMs: 2_000 })
   const reqA = requestOf(controls.at(-1)!.frame)
   check('(a) the verb rides a set_permission_mode control naming the mode', reqA.subtype === 'set_permission_mode' && reqA.mode === 'sovereign' && reqA.request_id.startsWith('mercury-seat-set-permission-mode-'), reqA.request_id)
@@ -251,7 +251,7 @@ section('§6 the carousel lists every station the seat may hold, Sovereign in a 
   check('every consented station is accepted by the runner under the worker stamp', refusedConsented.length === 0, refusedConsented.join(','))
   check('every unconsented station is accepted by an unconsented runner', refusedPlain.length === 0, refusedPlain.join(','))
   const bounce = resolvePermissionModeTransition('sovereign' as never, ctx('default', false))
-  check('…and the one station the ring withholds (Sovereign without consent) is exactly what the runner refuses', !bounce.ok && /dangerously-skip-permissions/.test(bounce.ok ? '' : bounce.error))
+  check('…and the one station the ring withholds (Sovereign without consent) is exactly what the runner refuses', !bounce.ok && /dangerously-bypass-permissions/.test(bounce.ok ? '' : bounce.error))
 }
 
 console.log(`\nprove-band-mode-owner: ${passes} PASS · ${failures} FAIL`)

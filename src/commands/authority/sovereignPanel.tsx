@@ -102,7 +102,7 @@ function SovereignPanel({ onClose }: { onClose: () => void }): React.ReactNode {
           <>
             <Text color={IVORY}>
               Every in-chat tool-permission prompt is auto-allowed and the turn
-              proceeds without asking — the in-UI --dangerously-skip-permissions.
+              proceeds without asking — the in-UI --dangerously-bypass-permissions.
             </Text>
             <Text color={SECOND}>
               The spawn allowlist and other safety locks are unchanged. Leave

@@ -1,3 +1,4 @@
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   type AuthResult,
   discoverAuthorizationServerMetadata,
@@ -292,9 +293,9 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
   }
 
   get clientMetadataUrl(): string {
-    const override = process.env.MCP_OAUTH_CLIENT_METADATA_URL
+    const override = flagEnv('MERCURY_MCP_OAUTH_CLIENT_METADATA_URL')
     if (override) {
-      logForDebugging(`mcp auth [${this.serverName}]: client metadata URL from MCP_OAUTH_CLIENT_METADATA_URL`)
+      logForDebugging(`mcp auth [${this.serverName}]: client metadata URL from MERCURY_MCP_OAUTH_CLIENT_METADATA_URL`)
       return override
     }
     return MCP_CLIENT_METADATA_URL
@@ -982,10 +983,10 @@ export function hasMcpDiscoveryButNoToken(serverName: string, serverConfig: McpS
 
 
 export async function readClientSecret(): Promise<string> {
-  const fromEnv = process.env.MCP_CLIENT_SECRET
+  const fromEnv = flagEnv('MERCURY_MCP_CLIENT_SECRET')
   if (fromEnv) return fromEnv
   if (!process.stdin.isTTY) {
-    throw new Error('No TTY available to prompt for the client secret; set MCP_CLIENT_SECRET.')
+    throw new Error('No TTY available to prompt for the client secret; set MERCURY_MCP_CLIENT_SECRET.')
   }
   process.stderr.write('Client secret: ')
   return new Promise<string>((resolve, reject) => {

@@ -52,14 +52,14 @@ const run = (args: string[]): Promise<{ code: number | null; out: string }> =>
 console.log('§1 --continue beside --resume refuses (nothing silently discarded)')
 {
   const r = await run(['--continue', '--resume', 'some-title', '-p', 'hi'])
-  check('exit 1, both flags named', r.code === 1 && /--continue and --resume name two different sessions/.test(r.out), `${r.code} · ${r.out.trim().slice(0, 120)}`)
+  check('exit 2 (a usage error), both flags named', r.code === 2 && /--continue and --resume name two different sessions/.test(r.out), `${r.code} · ${r.out.trim().slice(0, 120)}`)
 }
 
 console.log('§2 --extension with a missing path refuses, naming it')
 {
   const missing = join(cwd, 'no-such-extension-dir')
   const r = await run(['--extension', missing, '-p', 'hi'])
-  check('exit 1, the path named', r.code === 1 && r.out.includes('--extension path') && r.out.includes(missing), `${r.code} · ${r.out.trim().slice(0, 120)}`)
+  check('exit 2 (a usage error), the path named', r.code === 2 && r.out.includes('--extension path') && r.out.includes(missing), `${r.code} · ${r.out.trim().slice(0, 120)}`)
 }
 
 rmSync(home, { recursive: true, force: true })

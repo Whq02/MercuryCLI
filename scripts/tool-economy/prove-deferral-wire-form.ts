@@ -15,7 +15,7 @@ const section = (t: string): void => {
 }
 
 delete process.env.NODE_ENV
-for (const k of ['ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'ANTHROPIC_MODEL']) {
+for (const k of ['ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_MODEL']) {
   delete process.env[k]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'deferral-wire-'))

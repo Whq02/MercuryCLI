@@ -448,7 +448,7 @@ async function runLeg(leg: Leg): Promise<void> {
     'flow',
     '--input-format=stream-json',
     '--output-format=stream-json',
-    ...(leg.channel ? ['--permission-prompt-tool', 'stdio'] : []),
+    ...(leg.channel ? ['--permission-channel', 'stdio'] : []),
     '--model',
     MODEL,
     '--debug-file',

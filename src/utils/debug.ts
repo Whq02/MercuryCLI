@@ -29,7 +29,6 @@ let runtimeToggleEnabled = false
 export const isDebugMode = memoize((): boolean => {
   if (runtimeToggleEnabled) return true
   if (isEnvTruthy(process.env.DEBUG)) return true
-  if (isEnvTruthy(process.env.DEBUG_SDK)) return true
   if (process.argv.includes('--debug') || process.argv.includes('-d')) return true
   if (isDebugToStdErr()) return true
   if (process.argv.some(arg => arg.startsWith('--debug='))) return true

@@ -72,7 +72,7 @@ section('(B) no rg + MERCURY_BUILD_ALLOW_NO_RG=1 → loud degraded build, honest
 section('(C) runtime catalog agreement — source self-sufficiency · the unavailable arm · system preference')
 {
   const savedPath = process.env.PATH ?? ''
-  process.env.USE_BUILTIN_RIPGREP = '1'
+  process.env.MERCURY_BUILTIN_RIPGREP = '1'
   process.env.PATH = ''
 
   const { searchToolsAvailability } = await import('../../src/utils/ripgrep.js')
@@ -115,7 +115,7 @@ section('(C) runtime catalog agreement — source self-sufficiency · the unavai
     ].join('\n')
     const res = spawnSync(process.execPath, ['-e', probeCode], {
       encoding: 'utf8',
-      env: { ...process.env, PATH: bin, USE_BUILTIN_RIPGREP: '0' },
+      env: { ...process.env, PATH: bin, MERCURY_BUILTIN_RIPGREP: '0' },
     })
     let up: { available?: boolean; mode?: string } = {}
     try {
@@ -129,7 +129,7 @@ section('(C) runtime catalog agreement — source self-sufficiency · the unavai
     )
   }
   process.env.PATH = savedPath
-  delete process.env.USE_BUILTIN_RIPGREP
+  delete process.env.MERCURY_BUILTIN_RIPGREP
 }
 
 console.log('\n============================================================')

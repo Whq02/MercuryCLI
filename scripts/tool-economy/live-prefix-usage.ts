@@ -40,7 +40,7 @@ if (declaredRouteOf(model) !== route) {
   process.exit(2)
 }
 
-process.env.ANTHROPIC_MODEL = model
+process.env.MERCURY_MODEL = model
 const permissionContext = getEmptyToolPermissionContext()
 const mcpTools = buildFixtureMcpTools<Tool>(MCPTool)
 const pool = assembleToolPool(permissionContext, mcpTools)
