@@ -81,6 +81,20 @@ function retainedEvictionDue(task: TaskState, now: number): boolean {
   return deadline !== undefined && deadline <= now
 }
 
+function pruneAgentNameRegistry(
+  registry: AppState['agentNameRegistry'],
+  taskId: string,
+): AppState['agentNameRegistry'] {
+  const staleNames: string[] = []
+  for (const [name, agentId] of registry) {
+    if (String(agentId) === taskId) staleNames.push(name)
+  }
+  if (staleNames.length === 0) return registry
+  const pruned = new Map(registry)
+  for (const name of staleNames) pruned.delete(name)
+  return pruned
+}
+
 export function evictTerminalTask(taskId: string, setAppState: TaskAppStateSetter): void {
   setAppState(prevState => {
     const task = prevState.tasks?.[taskId]
@@ -91,17 +105,7 @@ export function evictTerminalTask(taskId: string, setAppState: TaskAppStateSette
 
     const tasks = { ...prevState.tasks }
     delete tasks[taskId]
-
-    let registry = prevState.agentNameRegistry
-    const staleNames: string[] = []
-    for (const [name, agentId] of registry) {
-      if (String(agentId) === taskId) staleNames.push(name)
-    }
-    if (staleNames.length > 0) {
-      registry = new Map(registry)
-      for (const name of staleNames) registry.delete(name)
-    }
-    return { ...prevState, tasks, agentNameRegistry: registry }
+    return { ...prevState, tasks, agentNameRegistry: pruneAgentNameRegistry(prevState.agentNameRegistry, taskId) }
   })
 }
 
@@ -149,6 +153,7 @@ export function applyTaskOffsetsAndEvictions(
       changed = true
     }
     const now = Date.now()
+    let registry = prevState.agentNameRegistry
     for (const taskId of evictedTaskIds) {
       const task = tasks[taskId]
       if (!task) continue
@@ -156,9 +161,10 @@ export function applyTaskOffsetsAndEvictions(
       if (!task.notified) continue
       if (!retainedEvictionDue(task, now)) continue
       delete tasks[taskId]
+      registry = pruneAgentNameRegistry(registry, taskId)
       changed = true
     }
     if (!changed) return prevState
-    return { ...prevState, tasks }
+    return { ...prevState, tasks, agentNameRegistry: registry }
   })
 }

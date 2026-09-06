@@ -64,9 +64,9 @@ export function onChangeAppState({
   }
 
   if (newState.verbose !== oldState.verbose) {
-    const config = getGlobalConfig()
-    if (config.verbose !== newState.verbose) {
-      saveGlobalConfig(current => ({ ...current, verbose: newState.verbose }))
+    const toolOutput = newState.verbose ? 'full' : 'compact'
+    if (getGlobalConfig().toolOutput !== toolOutput) {
+      saveGlobalConfig(current => ({ ...current, toolOutput }))
     }
   }
 

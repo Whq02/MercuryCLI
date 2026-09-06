@@ -257,7 +257,7 @@ async function* consumeHookStream(
     }
     if (options.signal?.aborted) {
       if (options.yieldInterruptionOnAbort) {
-        yield createUserInterruptionMessage({ toolUse: false })
+        yield createUserInterruptionMessage({ toolUse: false, reason: options.signal?.reason })
       }
       return { blockingErrors: [], preventContinuation: true }
     }

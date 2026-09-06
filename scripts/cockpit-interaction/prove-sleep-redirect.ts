@@ -281,7 +281,7 @@ t.section('§6 — REAL BINARY, REAL AGENT: the same-block dispatch-then-wait pa
     const started = Date.now()
     const child = spawn(
       'node',
-      [BIN, '-p', 'go', '--output-format', 'stream-json', '--verbose'],
+      [BIN, '-p', 'go', '--output-format', 'stream-json'],
       {
         cwd: process.cwd(),
         env: {
