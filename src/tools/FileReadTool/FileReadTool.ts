@@ -651,7 +651,7 @@ async function readTextLane(
       filePath: resolvedPath,
       content: range.content,
       numLines: range.lineCount,
-      startLine: input.offset ?? 1,
+      startLine: lineOffset + 1,
       totalLines: range.totalLines,
       ...(anchor !== undefined ? { anchor } : {}),
       ...(memoryUpdatedAt !== undefined ? { memoryUpdatedAt } : {}),
