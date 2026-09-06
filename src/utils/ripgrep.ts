@@ -506,6 +506,8 @@ export async function countFilesWithRg(args: string[], target: string, abortSign
       env: { ...subprocessEnv() },
       stdio: ['ignore', 'pipe', 'ignore'],
     })
+    child.unref()
+    ;(child.stdout as (NodeJS.ReadableStream & { unref?: () => void }) | null)?.unref?.()
     let count = 0
     let settled = false
     const settle = (err?: Error): void => {

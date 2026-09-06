@@ -38,18 +38,47 @@ function emptyReport(skipped: boolean): ExitCliffDrainReport {
   return { skipped, settled: [], failed: [], abandoned: [], elapsedMs: 0 }
 }
 
-export async function drainNamedSeams(
+type ExitCliffGrace = {
+  readonly spent: boolean
+  readonly fired: Promise<void>
+  elapsedMs(): number
+  disarm(): void
+}
+
+function armGrace(graceMs: number): ExitCliffGrace {
+  const armedAt = performance.now()
+  let spent = false
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const fired = new Promise<void>(resolve => {
+    const fire = (): void => {
+      spent = true
+      resolve()
+    }
+    if (graceMs > 0) timer = setTimeout(fire, graceMs)
+    else fire()
+  })
+  return {
+    get spent() {
+      return spent
+    },
+    fired,
+    elapsedMs: () => Math.ceil(performance.now() - armedAt),
+    disarm: () => {
+      if (timer !== undefined) clearTimeout(timer)
+      timer = undefined
+    },
+  }
+}
+
+async function drainSeamsUnder(
   list: readonly ExitCliffSeam[],
-  graceMs: number = EXIT_CLIFF_DRAIN_MS,
-): Promise<ExitCliffDrainReport> {
-  const started = Date.now()
-  const deadline = started + graceMs
-  const report = emptyReport(false)
+  grace: ExitCliffGrace,
+  report: ExitCliffDrainReport,
+): Promise<void> {
   for (const phase of [1, 2, 3] as const) {
     const batch = list.filter(seam => seam.phase === phase)
     if (batch.length === 0) continue
-    const remaining = deadline - Date.now()
-    if (remaining <= 0) {
+    if (grace.spent) {
       report.abandoned.push(...batch.map(seam => seam.name))
       continue
     }
@@ -59,38 +88,40 @@ export async function drainNamedSeams(
         .then(() => seam.settle())
         .then(
           () => {
-            report.settled.push(seam.name)
+            if (pending.delete(seam.name)) report.settled.push(seam.name)
           },
           err => {
+            if (!pending.delete(seam.name)) return
             report.failed.push(seam.name)
             logForDebugging(`exit-cliff drain: seam ${seam.name} failed (ignored): ${String(err)}`)
           },
-        )
-        .finally(() => {
-          pending.delete(seam.name)
-        }),
+        ),
     )
-    let grace: ReturnType<typeof setTimeout> | undefined
-    try {
-      await Promise.race([
-        Promise.all(runs),
-        new Promise<void>(resolve => {
-          grace = setTimeout(resolve, remaining)
-        }),
-      ])
-    } finally {
-      if (grace) clearTimeout(grace)
-    }
+    await Promise.race([Promise.all(runs), grace.fired])
     report.abandoned.push(...pending)
+    pending.clear()
   }
-  report.elapsedMs = Date.now() - started
+}
+
+export async function drainNamedSeams(
+  list: readonly ExitCliffSeam[],
+  graceMs: number = EXIT_CLIFF_DRAIN_MS,
+): Promise<ExitCliffDrainReport> {
+  const grace = armGrace(graceMs)
+  const report = emptyReport(false)
+  try {
+    await drainSeamsUnder(list, grace, report)
+  } finally {
+    grace.disarm()
+  }
+  report.elapsedMs = grace.elapsedMs()
   return report
 }
 
 export const EXIT_CLIFF_LOOP_TURNS = 2
-async function turnLoopForTeardown(deadline: number): Promise<void> {
+async function turnLoopForTeardown(grace: ExitCliffGrace): Promise<void> {
   for (let hop = 0; hop < EXIT_CLIFF_LOOP_TURNS; hop++) {
-    if (Date.now() >= deadline) return
+    if (grace.spent) return
     await new Promise<void>(resolve => setTimeout(resolve, 0))
   }
 }
@@ -106,10 +137,15 @@ export async function drainExitCliffSeams(
     drainChannel.publish({ phase: 'after', report })
     return report
   }
-  const started = Date.now()
-  const report = await drainNamedSeams(listExitCliffSeams(), graceMs)
-  await turnLoopForTeardown(started + graceMs)
-  report.elapsedMs = Date.now() - started
+  const grace = armGrace(graceMs)
+  const report = emptyReport(false)
+  try {
+    await drainSeamsUnder(listExitCliffSeams(), grace, report)
+    await turnLoopForTeardown(grace)
+  } finally {
+    grace.disarm()
+  }
+  report.elapsedMs = grace.elapsedMs()
   if (report.settled.length + report.failed.length + report.abandoned.length > 0) {
     logForDebugging(
       `exit-cliff drain: settled=[${report.settled.join(',')}] failed=[${report.failed.join(',')}] abandoned=[${report.abandoned.join(',')}] in ${report.elapsedMs}ms`,
