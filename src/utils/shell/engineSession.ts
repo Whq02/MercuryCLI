@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
+import { mkdirSync } from 'node:fs'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { createAndSaveSnapshot } from '../bash/ShellSnapshot.js'
 import { quote } from '../bash/shellQuote.js'
@@ -17,12 +18,15 @@ import { TaskOutput } from '../task/TaskOutput.js'
 import { generateTaskId } from '../../Task.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { resolveBrushPackDir } from './brushPack.js'
+import { sandboxTempEnv } from './bashProvider.js'
 import type { ExecResult, ShellCommand } from '../ShellCommand.js'
 
 const SOH = String.fromCharCode(1)
 const STX = String.fromCharCode(2)
 const ETX = String.fromCharCode(3)
 const NUL = String.fromCharCode(0)
+
+const ENGINE_FLAGS = ['--norc', '--noprofile', '--no-config', '--disable-color'] as const
 
 const PARSE_GUARD_TIMEOUT_MS = 5_000
 
@@ -63,6 +67,7 @@ type LiveSession = {
   reader: (() => void) | null
   onExit: ((code: number | null) => void) | null
   exited: boolean
+  sandboxed: boolean
 }
 
 let session: LiveSession | null = null
@@ -101,22 +106,31 @@ function nextEvent(live: LiveSession): Promise<void> {
   })
 }
 
-async function spawnSession(binaryPath: string): Promise<LiveSession> {
+async function spawnSession(binaryPath: string, sandbox: EngineSandboxPolicy): Promise<LiveSession> {
   const nonce = randomBytes(16).toString('hex')
   const script = loopScript()
 
   let file = binaryPath
-  let args = ['--norc', '--noprofile', '--no-config', '--disable-color', '-c', script]
-  if (SandboxManager.isSandboxingEnabled()) {
-    const wrapped = await SandboxManager.wrapWithSandbox(script, binaryPath)
+  let args: string[] = [...ENGINE_FLAGS, '-c', script]
+  if (sandbox.enabled) {
+    const temp = Object.entries(sandboxTempEnv(sandbox.tmpDir))
+      .map(([name, value]) => `${name}=${quote([value])}`)
+      .join(' ')
+    const payload = `export ${temp}; exec ${quote([binaryPath, ...ENGINE_FLAGS, '-c', script])}`
+    const wrapped = await SandboxManager.wrapWithSandbox(payload, '/bin/sh')
     file = '/bin/sh'
     args = ['-c', wrapped]
+    try {
+      mkdirSync(sandbox.tmpDir, { mode: 0o700 })
+    } catch (error) {
+      logForDebugging(`could not create the sandbox temp directory ${sandbox.tmpDir}: ${errorMessage(error)}`)
+    }
   }
 
   const live: LiveSession = {
     child: spawn(file, args, {
       cwd: cwdThatResolves(),
-      env: { ...subprocessEnv(), SHELL: binaryPath, GIT_EDITOR: 'true', MERCURY: '1', ...envOverrides() },
+      env: { ...subprocessEnv(), SHELL: binaryPath, GIT_EDITOR: 'true', MERCURY: '1', ...envOverrides(sandbox) },
       stdio: ['pipe', 'pipe', 'pipe'],
       detached: getPlatform() !== 'windows',
       windowsHide: true,
@@ -127,6 +141,7 @@ async function spawnSession(binaryPath: string): Promise<LiveSession> {
     reader: null,
     onExit: null,
     exited: false,
+    sandboxed: sandbox.enabled,
   }
 
   live.child.stdout?.on('data', (chunk: Buffer) => {
@@ -159,8 +174,8 @@ async function spawnSession(binaryPath: string): Promise<LiveSession> {
   return live
 }
 
-function envOverrides(): Record<string, string> {
-  const overrides: Record<string, string> = {}
+function envOverrides(sandbox: EngineSandboxPolicy): Record<string, string> {
+  const overrides: Record<string, string> = sandbox.enabled ? { ...sandboxTempEnv(sandbox.tmpDir) } : {}
   for (const [key, value] of getSessionEnvVars()) overrides[key] = value
   return overrides
 }
@@ -201,9 +216,12 @@ async function drainOneFrame(live: LiveSession): Promise<void> {
 }
 
 
+export type EngineSandboxPolicy = { enabled: false } | { enabled: true; tmpDir: string }
+
 export type EngineExecOptions = {
   timeout: number
   signal: AbortSignal
+  sandbox?: EngineSandboxPolicy
   onCwd?: (cwd: string) => void
   onProgress?: (recentLines: string, allLines: string, lineCount: number, byteCount: number, isIncomplete: boolean) => void
 }
@@ -232,7 +250,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
   })
 
   async function execute(): Promise<void> {
-    const inheritedNote = pendingResetNote
+    let inheritedNote = pendingResetNote
     pendingResetNote = null
     const withInherited = (stderr: string, interrupted: boolean): string =>
       inheritedNote !== null && !interrupted ? (stderr ? `${inheritedNote} ${stderr}` : inheritedNote) : stderr
@@ -247,9 +265,17 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       return
     }
 
+    const sandbox: EngineSandboxPolicy = options.sandbox ?? { enabled: false }
+    if (session !== null && !session.exited && session.sandboxed !== sandbox.enabled) {
+      await killSession(session)
+      session = null
+      const policyNote = `the shell engine session was restarted because this command runs ${sandbox.enabled ? 'inside' : 'outside'} the sandbox and the previous session ran ${sandbox.enabled ? 'outside' : 'inside'} it (the sandbox policy is the call's); variables, functions and shell options set earlier in this session were lost (the working directory is preserved).`
+      inheritedNote = inheritedNote === null ? policyNote : `${inheritedNote} ${policyNote}`
+    }
+
     let live: LiveSession
     try {
-      live = await ensureSession(binaryPath)
+      live = await ensureSession(binaryPath, sandbox)
     } catch (error) {
       settle({ stdout: '', stderr: withInherited(`shell engine failed to start: ${errorMessage(error)}`, false), code: 1, interrupted: false, preSpawnError: errorMessage(error) })
       return
@@ -379,9 +405,9 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
   }
 }
 
-async function ensureSession(binaryPath: string): Promise<LiveSession> {
+async function ensureSession(binaryPath: string, sandbox: EngineSandboxPolicy): Promise<LiveSession> {
   if (session !== null && !session.exited) return session
-  session = await spawnSession(binaryPath)
+  session = await spawnSession(binaryPath, sandbox)
   return session
 }
 
@@ -410,7 +436,7 @@ function parseCheck(binaryPath: string, command: string): Promise<{ ok: boolean;
     }
     let child: ChildProcess
     try {
-      child = spawn(binaryPath, ['--norc', '--noprofile', '--no-config', '--disable-color', '-n', '-c', command], {
+      child = spawn(binaryPath, [...ENGINE_FLAGS, '-n', '-c', command], {
         stdio: ['ignore', 'ignore', 'pipe'],
         windowsHide: true,
       })
