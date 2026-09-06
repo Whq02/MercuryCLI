@@ -1,6 +1,11 @@
 
 import { createTaskStateBase } from '../../Task.js'
-import { TASK_ID_TAG, TASK_NOTIFICATION_TAG, TOOL_USE_ID_TAG } from '../../constants/xml.js'
+import {
+  STATUS_TAG,
+  TASK_ID_TAG,
+  TASK_NOTIFICATION_TAG,
+  TOOL_USE_ID_TAG,
+} from '../../constants/xml.js'
 import type { AppState } from '../../state/AppStateStore.js'
 import type { Message } from '../../types/message.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
@@ -94,6 +99,7 @@ export function settledLaunchIds(messages: readonly Message[]): Set<string> {
     if (message.type !== 'user') continue
     const text = textOf(message.message.content)
     if (!text.includes(`<${TASK_NOTIFICATION_TAG}>`)) continue
+    if (pickTag(text, STATUS_TAG) === 'resumed') continue
     const toolUseId = pickTag(text, TOOL_USE_ID_TAG)
     const taskId = pickTag(text, TASK_ID_TAG)
     if (toolUseId) settled.add(toolUseId)
