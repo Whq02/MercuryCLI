@@ -1,7 +1,7 @@
 ---
 name: mcp-smithy
 description: Build, test, and register a Model Context Protocol server that gives Mercury (or any MCP host) new tools, resources, or prompts — scaffold with the current TypeScript or Python SDK, pick stdio or Streamable HTTP, return structured results, probe the server, then add it with `mercury mcp add`. Use when asked to write or fix an MCP server; not for configuring an existing third-party server.
-when_to_use: The user wants to expose an API, database, file set, or internal tool to the agent over MCP, or an MCP server they wrote fails to list or call its tools.
+when-to-use: The user wants to expose an API, database, file set, or internal tool to the agent over MCP, or an MCP server they wrote fails to list or call its tools.
 argument-hint: "<server purpose> [--transport stdio|http] [--python]"
 ---
 

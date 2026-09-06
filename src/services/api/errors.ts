@@ -176,35 +176,35 @@ export function getPdfTooLargeErrorMessage(): string {
   if (getIsNonInteractiveSession()) {
     return `The PDF is too large for the API. ${limits} Try reading the file another way, e.g. extracting its text with a PDF-to-text tool.`
   }
-  return `The PDF is too large for the API. ${limits} Press escape twice to go back, then retry with a smaller PDF or convert it to text first.`
+  return `The PDF is too large for the API. ${limits} Use /rewind (or shift+up) to edit your last message, then retry with a smaller PDF or convert it to text first.`
 }
 
 export function getPdfPasswordProtectedErrorMessage(): string {
   if (getIsNonInteractiveSession()) {
     return 'The PDF is password protected and cannot be read by the API. Use a CLI tool to extract or convert its contents first.'
   }
-  return 'The PDF is password protected and cannot be read by the API. Press escape twice and edit your message.'
+  return 'The PDF is password protected and cannot be read by the API. Use /rewind (or shift+up) to edit your message.'
 }
 
 export function getPdfInvalidErrorMessage(): string {
   if (getIsNonInteractiveSession()) {
     return 'The PDF was not valid and cannot be read by the API. Convert it to text first.'
   }
-  return 'The PDF was not valid and cannot be read by the API. Press escape twice and try a different file.'
+  return 'The PDF was not valid and cannot be read by the API. Use /rewind (or shift+up) to edit your message and try a different file.'
 }
 
 export function getImageTooLargeErrorMessage(): string {
   if (getIsNonInteractiveSession()) {
     return 'The image is too large for the API. Resize it or take another approach.'
   }
-  return 'The image is too large for the API. Press escape twice to go back, then retry with a smaller image.'
+  return 'The image is too large for the API. Use /rewind (or shift+up) to edit your last message, then retry with a smaller image.'
 }
 
 export function getRequestTooLargeErrorMessage(): string {
   if (getIsNonInteractiveSession()) {
     return 'The request is too large for the API (32 MB maximum). Use a smaller file.'
   }
-  return 'The request is too large for the API (32 MB maximum). Press escape twice and remove or shrink the attached content.'
+  return 'The request is too large for the API (32 MB maximum). Use /rewind (or shift+up) to edit your message and remove or shrink the attached content.'
 }
 
 
@@ -241,6 +241,35 @@ export function getOauthOrgNotAllowedErrorMessage(): string {
 
 export function streamFaultAfterPartialText(provider: string, code: string, message: string): string {
   return `${API_ERROR_MESSAGE_PREFIX}: ${provider} ${STREAM_FAULT_AFTER_PARTIAL_MARKER} (${code}) — ${message}`
+}
+
+export function streamFaultFactsOf(text: string): { provider: string; code: string; message: string } | null {
+  if (!startsWithApiErrorPrefix(text)) return null
+  const marker = ` ${STREAM_FAULT_AFTER_PARTIAL_MARKER} (`
+  const at = text.indexOf(marker)
+  if (at < 0) return null
+  const provider = text.slice(API_ERROR_MESSAGE_PREFIX.length + 2, at)
+  const rest = text.slice(at + marker.length)
+  const close = rest.indexOf(') — ')
+  if (close < 0) return null
+  return { provider, code: rest.slice(0, close), message: rest.slice(close + 4) }
+}
+
+export function continuableStreamFaultTextOf(msg: AssistantMessage): string | null {
+  if (msg.isApiErrorMessage !== true) return null
+  const content = msg.message.content
+  if (!Array.isArray(content)) return null
+  for (const block of content) {
+    const text = (block as { type?: string; text?: unknown }).type === 'text' ? (block as { text?: unknown }).text : undefined
+    if (typeof text === 'string' && text.includes(STREAM_FAULT_AFTER_PARTIAL_MARKER)) return text
+  }
+  return null
+}
+
+export function streamFaultNoticeLine(text: string | null, action: string): string {
+  const facts = text === null ? null : streamFaultFactsOf(text)
+  if (facts === null) return `The provider stream dropped after partial content — ${action}`
+  return `${facts.provider} ended the stream after partial content — ${facts.message} (${facts.code}); ${action}`
 }
 
 export function isContinuableStreamFaultText(text: string): boolean {
@@ -781,7 +810,7 @@ export function getErrorMessageIfRefusal(
   const nonInteractive = getIsNonInteractiveSession()
   let content = nonInteractive
     ? 'The model ended the response early (stop_reason: refusal). Try rephrasing the request or a different approach.'
-    : 'The model ended the response early (stop_reason: refusal). Press escape twice to edit your last message, or start a new session.'
+    : 'The model ended the response early (stop_reason: refusal). Use /rewind (or shift+up) to edit your last message, or start a new session.'
   try {
     const { providerLightFact } =
       require('../../utils/model/providerFrontier.js') as typeof import('../../utils/model/providerFrontier.js')

@@ -9,7 +9,6 @@ export { createFallbackStorage } from './fallbackStorage.js'
 export {
   clearKeychainCache,
   CREDENTIALS_SERVICE_SUFFIX,
-  getLegacyMacOsKeychainStorageServiceName,
   getMacOsKeychainStorageServiceName,
   getUsername,
   KEYCHAIN_CACHE_TTL_MS,

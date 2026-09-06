@@ -55,7 +55,7 @@ export function GlobalKeybindingHandlers({
 
   useKeybindings(
     {
-      'app:toggleTodos': () => {
+      'app:toggleTasks': () => {
         setAppState(prev => {
           const teammatesPresent = Object.values(prev.tasks).some(
             task => isInProcessTeammateTask(task) && task.status === 'running',

@@ -474,8 +474,8 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   const meta = rp.getAPIMetadata() as { user_id: string }
   const parsed = JSON.parse(meta.user_id) as Record<string, unknown>
   check(
-    'assembly: metadata user_id is JSON with device/account/session identity',
-    typeof parsed.device_id === 'string' &&
+    'assembly: metadata user_id is JSON with account/session identity',
+    !('device_id' in parsed) &&
       'account_uuid' in parsed &&
       typeof parsed.session_id === 'string',
     meta.user_id,

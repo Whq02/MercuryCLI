@@ -75,7 +75,7 @@ export function PromptInputFooterLeftSide({
   const selection = useSelection()
   const cancelChord = useShortcutDisplay('chat:cancel', 'Chat', 'esc')
   const killChord = useShortcutDisplay('chat:killAgents', 'Chat', 'ctrl+x k')
-  const todosChord = useShortcutDisplay('app:toggleTodos', 'Global', 'ctrl+t')
+  const tasksChord = useShortcutDisplay('app:toggleTasks', 'Global', 'ctrl+t')
   const copyChord = useShortcutDisplay('selection:copy', 'Scroll', 'ctrl+shift+c')
   const paletteChord = useShortcutDisplay('app:commandPalette', 'Global', 'ctrl+k')
   const killConfirmShowing = useAppState(
@@ -197,7 +197,7 @@ export function PromptInputFooterLeftSide({
             ? 'hide tasks'
             : 'show tasks'
       parts.push(
-        <KeyboardShortcutHint key="toggle" shortcut={todosChord} action={action} />,
+        <KeyboardShortcutHint key="toggle" shortcut={tasksChord} action={action} />,
       )
     }
   }

@@ -268,7 +268,7 @@ export function transitionPermissionMode(
 
   if (fromMode === 'strategy') {
     setHasExitedPlanMode(true)
-    next = clearPrePlanMode(next)
+    next = clearPreStrategyMode(next)
   }
   if (toMode === 'strategy' && fromMode !== 'strategy') {
     return prepareContextForPlanMode(next)
@@ -295,13 +295,13 @@ export function transitionPermissionMode(
 export function prepareContextForPlanMode(context: ToolPermissionContext): ToolPermissionContext {
   if (context.mode === 'strategy') return context
   logForDebugging(`strategy mode entry: stashing pre-strategy mode ${context.mode}`)
-  return { ...(context as object), prePlanMode: context.mode } as ToolPermissionContext
+  return { ...(context as object), preStrategyMode: context.mode } as ToolPermissionContext
 }
 
-function clearPrePlanMode(context: ToolPermissionContext): ToolPermissionContext {
-  if ((context as { prePlanMode?: PermissionMode }).prePlanMode === undefined) return context
-  const next = { ...(context as object) } as { prePlanMode?: PermissionMode }
-  delete next.prePlanMode
+function clearPreStrategyMode(context: ToolPermissionContext): ToolPermissionContext {
+  if ((context as { preStrategyMode?: PermissionMode }).preStrategyMode === undefined) return context
+  const next = { ...(context as object) } as { preStrategyMode?: PermissionMode }
+  delete next.preStrategyMode
   return next as ToolPermissionContext
 }
 
@@ -388,10 +388,7 @@ export function validateModeEntry(mode: PermissionMode, context: ToolPermissionC
 
 type AutoModeConfig = {
   enabled?: 'enabled' | 'disabled' | 'opt-in'
-  model?: string
-  twoStageClassifier?: boolean | 'fast' | 'thinking'
   forceExternalPermissions?: boolean
-  jsonlTranscript?: boolean
 }
 
 const AUTO_MODE_CONFIG_KEY = 'mercury_auto_mode_config'
@@ -406,11 +403,8 @@ function getCachedAutoModeConfigIfPresent(): AutoModeConfig | undefined {
 }
 
 function isAutoModeDisabledBySettings(): boolean {
-  const settings = getSettings_DEPRECATED() as {
-    disableAutoMode?: string
-    permissions?: { disableAutoMode?: string }
-  }
-  return settings.disableAutoMode === 'disable' || settings.permissions?.disableAutoMode === 'disable'
+  const settings = getSettings_DEPRECATED() as { permissions?: { disableFlowMode?: boolean } }
+  return settings.permissions?.disableFlowMode === true
 }
 
 export function isAutoModeGateEnabled(): boolean {
@@ -524,7 +518,7 @@ function kickOutOfAuto(context: ToolPermissionContext, available: boolean): Tool
     recordModeTransition({ from: 'flow', to: 'default', road: 'flow-unavailable' })
     next = { ...(next as object), mode: 'default' } as ToolPermissionContext
   } else {
-    next = clearPrePlanMode({ ...(next as object), prePlanMode: 'default' } as ToolPermissionContext)
+    next = clearPreStrategyMode({ ...(next as object), preStrategyMode: 'default' } as ToolPermissionContext)
   }
   return setAutoAvailability(next, available)
 }
@@ -533,8 +527,8 @@ function kickOutOfAuto(context: ToolPermissionContext, available: boolean): Tool
 const BYPASS_DISABLE_GATE = 'mercury_disable_bypass_permissions_mode'
 
 function isBypassDisabledBySettingsOrPolicy(): boolean {
-  const settings = getSettings_DEPRECATED() as { permissions?: { disableBypassPermissionsMode?: string } }
-  return settings.permissions?.disableBypassPermissionsMode === 'disable'
+  const settings = getSettings_DEPRECATED() as { permissions?: { disableSovereignMode?: boolean } }
+  return settings.permissions?.disableSovereignMode === true
 }
 
 export function isBypassPermissionsModeDisabled(): boolean {
@@ -615,12 +609,12 @@ export function initialPermissionModeFromCLI({
   const settingsMode = settingsDefaultMode()
   if (settingsMode) candidates.push(settingsMode)
 
-  const growthBookDisableBypassPermissionsMode = checkFeatureGate_CACHED_MAY_BE_STALE(
+  const gateDisablesSovereign = checkFeatureGate_CACHED_MAY_BE_STALE(
     'mercury_disable_bypass_permissions_mode',
   )
-  const settingDisableBypassPermissionsMode = isBypassDisabledBySettingsOrPolicy()
-  const disableBypassPermissionsMode =
-    growthBookDisableBypassPermissionsMode || settingDisableBypassPermissionsMode
+  const settingDisablesSovereign = isBypassDisabledBySettingsOrPolicy()
+  const sovereignDisabled =
+    gateDisablesSovereign || settingDisablesSovereign
   const orgPolicyNotice = 'Sovereign Mode has been disabled by your organization.'
   const settingsNotice = 'Sovereign Mode has been disabled by your settings.'
 
@@ -628,8 +622,8 @@ export function initialPermissionModeFromCLI({
   let resolvedMode: PermissionMode = 'default'
   for (const candidate of candidates) {
     if (candidate === 'sovereign') {
-      if (disableBypassPermissionsMode) {
-        notification = growthBookDisableBypassPermissionsMode ? orgPolicyNotice : settingsNotice
+      if (sovereignDisabled) {
+        notification = gateDisablesSovereign ? orgPolicyNotice : settingsNotice
         continue
       }
       if (!dangerouslySkipPermissions) {
@@ -643,8 +637,8 @@ export function initialPermissionModeFromCLI({
         notification = 'Autopilot requires the MERCURY_AUTOPILOT opt-in.'
         continue
       }
-      if (disableBypassPermissionsMode) {
-        notification = growthBookDisableBypassPermissionsMode ? orgPolicyNotice : settingsNotice
+      if (sovereignDisabled) {
+        notification = gateDisablesSovereign ? orgPolicyNotice : settingsNotice
         continue
       }
       if (!dangerouslySkipPermissions) {

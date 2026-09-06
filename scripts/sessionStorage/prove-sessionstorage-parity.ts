@@ -45,7 +45,6 @@ add('getNodeEnv', 'value', () => S.getNodeEnv())
 add('getProjectDir', 'sanitized-shape', () =>
   S.getProjectDir('/tmp/example repo/with.dots'),
 )
-add('getUserType', 'value', () => S.getUserType())
 add('isCustomTitleEnabled', 'value', () => S.isCustomTitleEnabled())
 
 const user = (uuid: string, parent: string | null, text: string) =>

@@ -34,14 +34,15 @@ import {
   loadAllSubagentTranscriptsFromDisk,
 } from '../utils/sessionStorage.js'
 import { getSessionId } from '../bootstrap/state.js'
-import { flagEnv } from '../substrate/flagRegistry.js'
 import { openBrowser } from '../utils/browser.js'
 import { logForDebugging } from '../utils/debug.js'
 import {
   ISSUE_FORMS,
   ISSUE_KINDS,
   composeIssueBody,
+  doctorPointer,
   fullIssueTitle,
+  issueFormUrl,
   noGhParagraph,
   promptedFields,
   type IssueForm,
@@ -100,60 +101,6 @@ export function redactSensitiveInfo(text: string): string {
     }
   }
   return result
-}
-
-
-const ISSUE_URL_CAP = 7250
-const TRUNCATION_NOTE = '\n\n[Truncated]'
-const SAFETY_MARGIN = 50
-
-function percentSafeTruncate(encoded: string, budget: number): string {
-  if (encoded.length <= budget) return encoded
-  let cut = encoded.slice(0, Math.max(0, budget))
-  const lastPercent = cut.lastIndexOf('%')
-  if (lastPercent > cut.length - 3) cut = cut.slice(0, lastPercent)
-  return cut
-}
-
-export function createGitHubIssueUrl(
-  feedbackId: string,
-  title: string,
-  description: string,
-  errors: { error: string; timestamp: string }[],
-): string {
-  const repoUrl = flagEnv('MERCURY_ISSUES_REPO_URL')
-  if (!repoUrl) return ''
-  const safeTitle = redactSensitiveInfo(title)
-  const safeDescription = redactSensitiveInfo(description)
-  const bodyPrefix = `**Bug Description**\n${safeDescription}\n\n**Environment Info**\n- Platform: ${process.platform}\n- Terminal: ${envDynamic.terminal ?? 'unknown'}\n- Version: ${typeof MACRO !== 'undefined' && MACRO.VERSION ? MACRO.VERSION : 'unknown'}\n- Feedback ID: ${feedbackId}\n\n**Errors**\n\`\`\`json\n`
-  const bodySuffix = '\n```\n'
-  const errorsJson = JSON.stringify(errors, null, 2)
-  const base = `${repoUrl.replace(/\/$/, '')}/issues/new?title=${encodeURIComponent(safeTitle)}&labels=${encodeURIComponent('user-reported,bug')}&body=`
-  const encodedPrefix = encodeURIComponent(bodyPrefix)
-  const encodedSuffix = encodeURIComponent(bodySuffix)
-  const encodedNote = encodeURIComponent(TRUNCATION_NOTE)
-  const ellipsis = encodeURIComponent('…')
-
-  const errorSpace =
-    ISSUE_URL_CAP - base.length - encodedPrefix.length - encodedSuffix.length - encodedNote.length
-  if (errorSpace <= 0) {
-    const whole = encodeURIComponent(bodyPrefix + errorsJson + bodySuffix)
-    const budget =
-      ISSUE_URL_CAP - base.length - ellipsis.length - encodedNote.length - SAFETY_MARGIN
-    return base + percentSafeTruncate(whole, budget) + ellipsis + encodedNote
-  }
-  const encodedErrors = encodeURIComponent(errorsJson)
-  if (encodedErrors.length <= errorSpace) {
-    return base + encodedPrefix + encodedErrors + encodedSuffix
-  }
-  return (
-    base +
-    encodedPrefix +
-    percentSafeTruncate(encodedErrors, errorSpace - ellipsis.length) +
-    ellipsis +
-    encodedSuffix +
-    encodedNote
-  )
 }
 
 
@@ -465,6 +412,7 @@ export function Feedback({
   const [access, setAccess] = useState<IssueAccess | null>(null)
   const [failure, setFailure] = useState<{ note: string; remedy: string } | null>(null)
   const [issueUrl, setIssueUrl] = useState<string | null>(null)
+  const [formUrl, setFormUrl] = useState<string | null>(null)
   const slugRef = useRef(issueRepoSlug())
   const recordRef = useRef<Record<string, unknown> | null>(null)
   const preparedRef = useRef(false)
@@ -550,7 +498,17 @@ export function Feedback({
         return
       }
       if (reach.state !== 'ok') {
-        doneMessageRef.current = keptMessage(written)
+        const url = issueFormUrl(form, {
+          slug,
+          title: fullTitle,
+          values: Object.fromEntries(
+            Object.entries({ ...values, doctor: doctorPointer(bodyWritten ? redactSensitiveInfo(p!.body) : null) }).map(([id, text]) => [id, redactSensitiveInfo(text)]),
+          ),
+        })
+        setFormUrl(url)
+        recordRef.current = { ...record, issue_form_url: url }
+        writeDraftFile(written.json, draftJson(recordRef.current))
+        doneMessageRef.current = `${keptMessage(written)} The prefilled issue form (copy the link if no browser opened; it is also in the draft): ${url}`
         setStep('unavailable')
         return
       }
@@ -636,12 +594,7 @@ export function Feedback({
         return
       }
       if (step === 'unavailable') {
-        const repoConfigured = Boolean(flagEnv('MERCURY_ISSUES_REPO_URL'))
-        if (key.return && repoConfigured && title !== null) {
-          const description = answersRef.current[prompted.find(f => f.source === 'words')?.id ?? ''] ?? ''
-          const url = createGitHubIssueUrl('', title, description, getInMemoryErrors())
-          if (url !== '') void openBrowser(url)
-        }
+        if (key.return && formUrl !== null) void openBrowser(formUrl)
         finish(doneMessageRef.current)
       }
     },
@@ -660,7 +613,6 @@ export function Feedback({
     { context: 'Confirmation', isActive: step !== 'preparing' && step !== 'filing' },
   )
 
-  const repoConfigured = Boolean(flagEnv('MERCURY_ISSUES_REPO_URL'))
   const slug = slugRef.current
 
   return (
@@ -755,13 +707,15 @@ export function Feedback({
               bodyPath: paths?.body ?? null,
             })}
           </Text>
-          {repoConfigured ? (
-            <Text dimColor>
-              enter to open a pre-filled issue draft in the browser · any other key to close
-            </Text>
-          ) : (
-            <Text dimColor>press any key to close</Text>
-          )}
+          {formUrl !== null ? (
+            <Box flexDirection="column">
+              <Text>
+                Or open the repository's issue form prefilled from this report; the doctor --json block and the transcript stay in the local draft (paste the doctor block by hand):
+              </Text>
+              <Text dimColor>{formUrl}</Text>
+            </Box>
+          ) : null}
+          <Text dimColor>enter to open the prefilled form in your browser · any other key to close (the link stays in the transcript, to copy)</Text>
         </Box>
       ) : null}
       {step === 'failed' && failure !== null ? (

@@ -250,3 +250,35 @@ export function typedStreamEndOf(args: {
   }
   return null
 }
+
+
+export const STREAM_ACTIVITY_OPTION = 'mercuryStreamActivity'
+
+export type StreamActivityNote = () => void
+
+export function streamActivityFetchOptions(note: StreamActivityNote): Record<string, unknown> {
+  return { [STREAM_ACTIVITY_OPTION]: note }
+}
+
+export function streamActivityNoteOf(init: unknown): StreamActivityNote | null {
+  const note = (init as Record<string, unknown> | null | undefined)?.[STREAM_ACTIVITY_OPTION]
+  return typeof note === 'function' ? (note as StreamActivityNote) : null
+}
+
+export function observeStreamActivity(response: Response, note: StreamActivityNote): Response {
+  if (response.body === null || response.status === 204 || response.status === 304) return response
+  const tapped = response.body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        note()
+        controller.enqueue(chunk)
+      },
+    }),
+  )
+  const observed = new Response(tapped, { status: response.status, statusText: response.statusText, headers: response.headers })
+  try {
+    Object.defineProperty(observed, 'url', { value: response.url, configurable: true })
+  } catch {
+  }
+  return observed
+}

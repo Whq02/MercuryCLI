@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { getEmptyToolPermissionContext } from '../../src/Tool.js'
-import { LEGACY_SUBAGENT_ALIASES } from '../../src/tools/AgentTool/builtInAgents.js'
 import type { AgentDefinition, CustomAgentDefinition } from '../../src/tools/AgentTool/loadAgentsDir.js'
 import { isHaikuTier } from '../../src/utils/model/modelFloor.js'
 import { anthropicProviderAdapter } from '../../src/utils/router/providers/anthropic.js'
@@ -90,23 +89,16 @@ section('2 · buildAgentLaunchPlan — decision laws')
     notFoundMsg,
   )
 
-  const aliasEntries = Object.entries(LEGACY_SUBAGENT_ALIASES)
-  check('legacy alias table is non-empty (Explore/Plan/claude era)', aliasEntries.length >= 3)
-  for (const [legacy, canonical] of aliasEntries) {
-    check(`decodeAgentType('${legacy}') → '${canonical}'`, decodeAgentType(legacy) === canonical)
-  }
+  check('decodeAgentType reads a registered id as written', decodeAgentType('mercury-scout') === 'mercury-scout')
   check('decodeAgentType passes unknown ids through', decodeAgentType('orbit-probe') === 'orbit-probe')
-  const [legacyId, canonicalId] = aliasEntries[0]!
-  const aliasPlan = buildAgentLaunchPlan(
+  check('decodeAgentType(undefined) is no type', decodeAgentType(undefined) === undefined)
+  const seamPlan = buildAgentLaunchPlan(
     base({
-      requestedType: legacyId,
-      activeAgents: [mkDef({ agentType: canonicalId })],
+      requestedType: 'mercury-scout',
+      activeAgents: [mkDef({ agentType: 'mercury-scout' })],
     }),
   )
-  check(
-    `plan decodes legacy '${legacyId}' to canonical '${canonicalId}'`,
-    aliasPlan.agentType === canonicalId,
-  )
+  check("the plan resolves a registered id through the seam", seamPlan.agentType === 'mercury-scout')
 
   const isoDef = buildAgentLaunchPlan(base({ activeAgents: [mkDef({ isolation: 'worktree' })] }))
   check("definition isolation rides ('worktree')", isoDef.isolation === 'worktree')

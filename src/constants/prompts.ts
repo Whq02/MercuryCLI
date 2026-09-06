@@ -48,7 +48,6 @@ import { RECORD_CONVENTION_TOOL_NAME } from '../tools/RecordConventionTool/promp
 import { REMEMBER_LESSON_TOOL_NAME } from '../tools/RememberLessonTool/prompt.js'
 import { SKILL_TOOL_NAME } from '../tools/SkillTool/constants.js'
 import { TASK_CREATE_TOOL_NAME } from '../tools/TaskCreateTool/constants.js'
-import { TODO_WRITE_TOOL_NAME } from '../tools/TodoWriteTool/constants.js'
 import { hasEmbeddedSearchTools } from '../utils/embeddedTools.js'
 import { getRuntimePostureSection } from '../utils/cockpit/runtimePosture.js'
 import { getHarnessMapSection } from '../utils/cockpit/harnessMap.js'
@@ -291,11 +290,7 @@ ${prependBullets(items).join('\n')}`
 }
 
 function usingToolsSection(toolNames: ReadonlySet<string>, replMode: boolean): string | '' {
-  const taskToolName = toolNames.has(TASK_CREATE_TOOL_NAME)
-    ? TASK_CREATE_TOOL_NAME
-    : toolNames.has(TODO_WRITE_TOOL_NAME)
-      ? TODO_WRITE_TOOL_NAME
-      : null
+  const taskToolName = toolNames.has(TASK_CREATE_TOOL_NAME) ? TASK_CREATE_TOOL_NAME : null
   const workBreakdown = taskToolName
     ? `Break down and manage work with the ${taskToolName} tool — useful for planning and for letting the user track progress. Mark each item complete as soon as it is done; do not batch completions.`
     : null

@@ -56,7 +56,6 @@ function liveRecord(runnerId: string, sessionId: string, workspaceId: string): C
 function baseRow(cwd: string, sessionId: string, extra: Record<string, unknown>): Record<string, unknown> {
   return {
     isSidechain: false,
-    userType: 'external',
     entrypoint: 'cli',
     cwd,
     sessionId,

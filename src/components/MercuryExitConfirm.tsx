@@ -5,11 +5,11 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 
 export function MercuryExitConfirm({
-  liveCount,
+  liveWords,
   onQuit,
   onStay,
 }: {
-  liveCount: number
+  liveWords: string
   onQuit: () => void
   onStay: () => void
 }): React.ReactNode {
@@ -25,7 +25,6 @@ export function MercuryExitConfirm({
       onQuit()
     }
   })
-  const noun = liveCount === 1 ? 'agent is' : 'agents are'
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={t.warning} paddingX={1} marginTop={1}>
       <Text>
@@ -36,10 +35,10 @@ export function MercuryExitConfirm({
           Leave Mercury?
         </Text>{' '}
         <Text color={t.textSecondary}>
-          {liveCount} {noun} still running
+          {liveWords} still running
         </Text>
       </Text>
-      <Text color={t.textMuted}>quitting stops them · the session itself stays resumable</Text>
+      <Text color={t.textMuted}>quitting stops them · see them with /tasks · the session itself stays resumable</Text>
       <Text>
         {
 }

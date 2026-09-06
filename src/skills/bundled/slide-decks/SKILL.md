@@ -1,7 +1,7 @@
 ---
 name: slide-decks
 description: Build, read, and revise PowerPoint decks (.pptx) — outline an existing deck, generate slides from a template's layouts with python-pptx, place text, tables, charts, and images on a consistent grid, and render to images or PDF for a visual check. Use when the request names slides, a deck, a presentation, or a .pptx; not for Word, spreadsheets, PDFs, or web pages.
-when_to_use: The user wants a presentation created or edited, a deck summarised, slides restyled to a template, or speaker notes added.
+when-to-use: The user wants a presentation created or edited, a deck summarised, slides restyled to a template, or speaker notes added.
 argument-hint: "<path.pptx or 'new'> [what to do]"
 ---
 
