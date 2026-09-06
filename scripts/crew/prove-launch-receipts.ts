@@ -706,5 +706,105 @@ section('R12 · durability — every row an agent yields is on its transcript fi
   check("the lifecycle's non-clean exits flush the transcript before the notice goes out", (lifecycle.match(/await flushSessionStorage\(\)/g) ?? []).length >= 2 && (foreground.match(/await flushSessionStorage\(\)/g) ?? []).length >= 2)
 }
 
+section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a receipt row; never on a kill, a stop, a hand resume, a live owner, or a second time')
+{
+  const lifecycle = (await import('../../src/tools/AgentTool/agentToolUtils.ts')) as {
+    recoveryBudgetCutOf?: (error: unknown) => string | null
+    armBudgetCutResume?: (args: Record<string, unknown>) => unknown
+    automaticResumePending?: (taskId: string) => boolean
+  }
+  const { AbortError } = await import('../../src/utils/errors.ts')
+  const budgetCut = () => new Error('provider throttled — the 5-minute recovery budget is spent after 3 declared waits (HTTP 429); the agent stopped — retry later, or raise MERCURY_RECOVERY_BUDGET_MINUTES')
+  check('the lifecycle reads a budget cut from the runner\'s own words', typeof lifecycle.recoveryBudgetCutOf === 'function' && lifecycle.recoveryBudgetCutOf?.(budgetCut()) !== null && lifecycle.recoveryBudgetCutOf?.(new Error('the provider closed the stream')) === null && lifecycle.recoveryBudgetCutOf?.(new AbortError()) === null)
+  check('the arm and its pending read are the lifecycle\'s own exports', typeof lifecycle.armBudgetCutResume === 'function' && typeof lifecycle.automaticResumePending === 'function')
+  if (typeof lifecycle.armBudgetCutResume === 'function' && typeof lifecycle.automaticResumePending === 'function') {
+    const arm = lifecycle.armBudgetCutResume
+    const pending = lifecycle.automaticResumePending
+    const wf = (await import('../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.js')) as { registerWorkflowTask: Function }
+    const { completeAgentTask, failAgentTask, killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+    const settle = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+    const receipts = (): string[] => queue.getCommandQueue().filter(c => c.mode === 'task-notification').map(c => String(c.value ?? '')).filter(v => /<status>resumed<\/status>/.test(v))
+    {
+      queue.resetCommandQueue()
+      const store = makeStore()
+      const id = generateTaskId('local_agent')
+      const task = registerAsyncAgent({ agentId: id, description: 'cut by the budget', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      failAgentTask(id, budgetCut().message, store.set as never, task.abortController)
+      const resumes: Array<Record<string, unknown>> = []
+      arm({ taskId: id, description: 'cut by the budget', registration: task.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 5, resume: async (args: Record<string, unknown>) => { resumes.push(args); return { agentId: id } } })
+      check('a budget-cut failure arms one pending resume', pending(id) === true)
+      await settle(60)
+      check('…it fires once, marked automatic, carrying the resume note', resumes.length === 1 && resumes[0]?.automatic === true && typeof resumes[0]?.prompt === 'string' && /recovery budget/.test(String(resumes[0]?.prompt)), JSON.stringify(resumes).slice(0, 200))
+      check('…and leaves a receipt row in the parent\'s transcript, exactly one', receipts().length === 1 && /resumed by itself/.test(receipts()[0] ?? ''), (receipts()[0] ?? '').slice(0, 200))
+      check('…and nothing stays pending', pending(id) === false)
+      const before = resumes.length
+      arm({ taskId: id, description: 'cut by the budget', registration: task.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 5, resume: async (args: Record<string, unknown>) => { resumes.push(args); return { agentId: id } } })
+      await settle(60)
+      check('a second arm for the same cut fires nothing', resumes.length === before && receipts().length === 1)
+    }
+    {
+      queue.resetCommandQueue()
+      const store = makeStore()
+      const fired: string[] = []
+      const resumeInto = (label: string) => async () => { fired.push(label); return {} }
+      const byHand = generateTaskId('local_agent')
+      const first = registerAsyncAgent({ agentId: byHand, description: 'by hand', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      failAgentTask(byHand, budgetCut().message, store.set as never, first.abortController)
+      arm({ taskId: byHand, description: 'by hand', registration: first.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 30, resume: resumeInto('by-hand') })
+      registerAsyncAgent({ agentId: byHand, description: 'by hand', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      const stoppedEarly = generateTaskId('local_agent')
+      const se = registerAsyncAgent({ agentId: stoppedEarly, description: 'stopped', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      killAsyncAgent(stoppedEarly, store.set as never)
+      check('a killed row is not a failed row of its registration — the arm refuses to fire for it', arm({ taskId: stoppedEarly, description: 'stopped', registration: se.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 5, resume: resumeInto('stopped') }) !== null)
+      const evicted = generateTaskId('local_agent')
+      const e = registerAsyncAgent({ agentId: evicted, description: 'evicted', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      failAgentTask(evicted, budgetCut().message, store.set as never, e.abortController)
+      arm({ taskId: evicted, description: 'evicted', registration: e.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 30, resume: resumeInto('evicted') })
+      store.set(prev => { const tasks = { ...prev.tasks }; delete tasks[evicted]; return { ...prev, tasks } })
+      const owned = generateTaskId('local_agent')
+      const o = registerAsyncAgent({ agentId: owned, description: 'owned', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      failAgentTask(owned, budgetCut().message, store.set as never, o.abortController)
+      arm({ taskId: owned, description: 'owned', registration: o.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 30, resume: resumeInto('owned') })
+      const workflowTask = wf.registerWorkflowTask({ taskId: 'wf-owner', script: '', workflowRunId: 'wf_owner_run', workflowName: 'owner-flow', setAppState: store.set }) as { agentControllers: Map<string, AbortController> }
+      workflowTask.agentControllers.set(owned, new AbortController())
+      const automatic = generateTaskId('local_agent')
+      const a = registerAsyncAgent({ agentId: automatic, description: 'automatic', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+      failAgentTask(automatic, budgetCut().message, store.set as never, a.abortController)
+      const armed = arm({ taskId: automatic, description: 'automatic', registration: a.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 30, automaticResume: true, resume: resumeInto('automatic') })
+      check("an automatic run's own budget cut arms nothing (one automatic resume per cut chain)", armed === null && pending(automatic) === false)
+      await settle(120)
+      check('a hand resume, a stop, an eviction and a live workflow owner each stop the automatic resume; no receipt row for any', fired.length === 0 && receipts().length === 0, JSON.stringify(fired))
+      completeAgentTask({ agentId: byHand }, store.set as never)
+    }
+    {
+      const { cancelAutomaticResume } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+      for (const kind of ['budget-cut', 'stop'] as const) {
+        queue.resetCommandQueue()
+        const store = makeStore()
+        const id = generateTaskId('local_agent')
+        const task = registerAsyncAgent({ agentId: id, description: kind, prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+        async function* stream(): AsyncGenerator<Message, void> {
+          yield createUserMessage({ content: 'count' })
+          yield createAssistantMessage({ content: 'one so far' })
+          if (kind === 'stop') {
+            task.abortController?.abort()
+            throw new AbortError()
+          }
+          throw budgetCut()
+        }
+        await runAsyncAgentLifecycle({ taskId: id, abortController: task.abortController!, makeStream: () => stream() as never, metadata: META, description: kind, toolUseContext: { options: { tools: [] }, toolUseId: `toolu_${kind}` } as never, rootSetAppState: store.set as never, agentIdForCleanup: id, enableSummarization: false, getWorktreeResult: async () => ({}) })
+        const armed = pending(id)
+        const cancelled = cancelAutomaticResume(id)
+        check(kind === 'budget-cut' ? 'the lifecycle arms the one automatic resume on a budget cut' : "the lifecycle's stop road arms nothing", kind === 'budget-cut' ? armed && cancelled : !armed && !cancelled)
+      }
+    }
+    const lifecycleSrc = src('src/tools/AgentTool/agentToolUtils.ts')
+    const resumeSrc = src('src/tools/AgentTool/resumeAgent.ts')
+    check('the lifecycle arms the resume only when the failure is a budget cut, never on the stop road', (lifecycleSrc.match(/armBudgetCutResume\(\{/g) ?? []).length === 1 && /const budgetCut = recoveryBudgetCutOf\(error\)/.test(lifecycleSrc) && /if \(budgetCut !== null && !args\.automaticResume\)/.test(lifecycleSrc))
+    check('the resume road carries the automatic mark into the lifecycle it starts', /automaticResume: args\.automatic === true/.test(resumeSrc))
+  }
+  queue.resetCommandQueue()
+}
+
 console.log(failures === 0 ? '\nprove-launch-receipts: ALL LAWS HOLD' : `\nprove-launch-receipts: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
