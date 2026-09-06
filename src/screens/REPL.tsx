@@ -1650,7 +1650,7 @@ export function REPL({
   }, []);
 
   useEffect(() => {
-    void apiKeyVerification.reverify().catch(() => {});
+    void apiKeyVerification.reverify({ probe: false }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
