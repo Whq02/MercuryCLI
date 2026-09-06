@@ -221,6 +221,7 @@ bash-drives	60
 core-runtime-drives	350
 critters-drives	175
 engine-connector-drives	74
+daemon-drives	260
 health-drives	91
 helm-console-drives	30
 mcp-drives	84
