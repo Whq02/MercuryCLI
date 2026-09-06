@@ -173,6 +173,7 @@ stuck_note() { # $1=captured output → the capture driver's first stuck-send re
 : >"$OUT/notes.tsv"
 FAILED=0
 echo "shard $IDX/$TOTAL ($CLASS): ${#MINE[@]} suites — ${MINE[*]:-none}"
+printf '  box: %s · %s cores\n' "$(uname -sm 2>/dev/null || echo unknown)" "$( (getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo '?') | head -1)"
 for dom in ${MINE[@]+"${MINE[@]}"}; do
   cls=$(suite_class "$dom")
   bash scripts/gate/run-suite.sh "$SUITES_DIR/$dom/run-all.sh" "$(budget_of "$dom")" "$OUT" "$(budget_note_of "$dom")" >/dev/null 2>&1
@@ -215,6 +216,7 @@ for dom in ${MINE[@]+"${MINE[@]}"}; do
       sed 's/^/      │ /' "$OUT/$dom.out" 2>/dev/null | tail -40
     else
       printf '  ✅ %-18s %3ss\n' "$dom" "$secs"
+      grep -a -m3 -E '\[SKIP' "$OUT/$dom.out" 2>/dev/null | cut -c1-200 | sed 's/^/      │ skip › /'
     fi
   else
     FAILED=1
