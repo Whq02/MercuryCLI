@@ -126,7 +126,6 @@ add('stripExcessMediaItems', 'over-limit', () => {
 add('getAPIMetadata', 'shape', () => {
   const meta = clone(C.getAPIMetadata()) as { user_id?: string }
   if (typeof meta.user_id === 'string') {
-    meta.user_id = meta.user_id.replace(/"device_id":"[0-9a-f]{64}"/, '"device_id":"«hash»"')
   }
   return meta
 })
