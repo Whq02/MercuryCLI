@@ -397,7 +397,7 @@ export function writeSyntheticSession(
 ): void {
   purgeFixtureDraft(sid)
   const base = (extra: Record<string, unknown>) => ({
-    isSidechain: false, userType: 'external', entrypoint: 'cli',
+    isSidechain: false, entrypoint: 'cli',
     cwd: RUNTIME_CWD, sessionId: sid,
     version: '1.0.0-beta.1', gitBranch: 'main', ...extra,
   })
