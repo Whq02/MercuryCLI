@@ -51,7 +51,7 @@ const NOTES = ['notes-a.txt', 'notes-b.txt'] as const
 const AUTO_REPLY = 'ok — surveyed.'
 
 function seedRows(sid: string, cwd: string, turns: number, fillers: number, inputTokens: number): string {
-  const base = { isSidechain: false, userType: 'external', entrypoint: 'cli', cwd, sessionId: sid, version: '1.0.0', gitBranch: 'main' }
+  const base = { isSidechain: false, entrypoint: 'cli', cwd, sessionId: sid, version: '1.0.0', gitBranch: 'main' }
   const rows: Record<string, unknown>[] = []
   let prev: string | null = null
   const uuid = (n: number): string => `${sid.slice(0, 24)}${String(n).padStart(12, '0')}`

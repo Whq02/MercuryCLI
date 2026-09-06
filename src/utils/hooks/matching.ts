@@ -21,8 +21,6 @@ import type {
   SkillHookMatcher,
 } from '../settings/types.js'
 import {
-  getLegacyToolNames,
-  normalizeLegacyToolName,
   permissionRuleValueFromString,
 } from '../permissions/permissionRuleParser.js'
 import { logError } from '../log.js'
@@ -40,25 +38,15 @@ export function matchesPattern(matchQuery: string, matcher: string): boolean {
   }
   if (/^[a-zA-Z0-9_|]+$/.test(matcher)) {
     if (matcher.includes('|')) {
-      const patterns = matcher
-        .split('|')
-        .map(p => normalizeLegacyToolName(p.trim()))
+      const patterns = matcher.split('|').map(p => p.trim())
       return patterns.includes(matchQuery)
     }
-    return matchQuery === normalizeLegacyToolName(matcher)
+    return matchQuery === matcher
   }
 
   try {
     const regex = new RegExp(matcher)
-    if (regex.test(matchQuery)) {
-      return true
-    }
-    for (const legacyName of getLegacyToolNames(matchQuery)) {
-      if (regex.test(legacyName)) {
-        return true
-      }
-    }
-    return false
+    return regex.test(matchQuery)
   } catch {
     logForDebugging(`Invalid regex pattern in hook matcher: ${matcher}`)
     return false
@@ -87,7 +75,7 @@ export async function prepareIfConditionMatcher(
   }
   const toolEventInput = hookInput as Extract<HookInput, { tool_name: string; tool_input: unknown }>
 
-  const toolName = normalizeLegacyToolName(toolEventInput.tool_name)
+  const toolName = toolEventInput.tool_name
   const tool = tools && findToolByName(tools, toolEventInput.tool_name)
   const input = tool?.inputSchema.safeParse(toolEventInput.tool_input)
   const patternMatcher =
@@ -97,7 +85,7 @@ export async function prepareIfConditionMatcher(
 
   return ifCondition => {
     const parsed = permissionRuleValueFromString(ifCondition)
-    if (normalizeLegacyToolName(parsed.toolName) !== toolName) {
+    if (parsed.toolName !== toolName) {
       return false
     }
     if (!parsed.ruleContent) {

@@ -167,10 +167,6 @@ export function getNodeEnv(): string {
   return process.env.NODE_ENV || 'development'
 }
 
-export function getUserType(): string {
-  return 'external'
-}
-
 export function getEntrypoint(): string | undefined {
   return process.env.MERCURY_ENTRYPOINT
 }

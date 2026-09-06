@@ -1,14 +1,14 @@
 
-export const EXIT_PLAN_MODE_TOOL_NAME = 'ExitPlanMode'
-export const EXIT_PLAN_MODE_V2_TOOL_NAME = 'ExitPlanMode'
+export const EXIT_PLAN_MODE_TOOL_NAME = 'ExitStrategyMode'
+export const EXIT_PLAN_MODE_V2_TOOL_NAME = 'ExitStrategyMode'
 
-export const EXIT_PLAN_MODE_V2_TOOL_PROMPT = `Signal that the plan is ready for the user's approval. Call it from plan mode once the plan file holds your finished plan.
+export const EXIT_PLAN_MODE_V2_TOOL_PROMPT = `Signal that the plan is ready for the user's approval. Call it from strategy mode once the plan file holds your finished plan.
 
 ## How This Tool Works
 The plan is read from the plan file on disk — it is not passed as a parameter. Calling this tool signals readiness; the user reviews the file's contents and approves or rejects.
 
 ## When to use
-- Only in plan mode, with the plan already written to the plan file.
+- Only in strategy mode, with the plan already written to the plan file.
 - Only for planning IMPLEMENTATION work — tasks that will write code. Research or comprehension tasks end with an answer, not a plan approval.
 
 ## When NOT to use
@@ -17,7 +17,7 @@ The plan is read from the plan file on disk — it is not passed as a parameter.
 
 ## Examples
 <example>"How does session restore work?" — a comprehension task: answer it directly; no plan, no exit call.</example>
-<example>"Add rate limiting to the API" in plan mode — write the plan file, then call this tool for approval.</example>
+<example>"Add rate limiting to the API" in strategy mode — write the plan file, then call this tool for approval.</example>
 <example>"Improve the build" with several plausible directions — clarify with the question tool first, plan, then call this tool.</example>
 
 ## Mercury doctrine (this harness)

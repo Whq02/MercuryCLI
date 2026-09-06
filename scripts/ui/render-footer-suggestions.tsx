@@ -27,7 +27,6 @@ const uuid = () => `00000000-0000-4000-8000-${String(++u).padStart(12, '0')}`
 function buildSession(): void {
   const common = (extra: Record<string, unknown>): Record<string, unknown> => ({
     isSidechain: false,
-    userType: 'external',
     entrypoint: 'cli',
     cwd: RUNTIME_CWD,
     sessionId: SID,

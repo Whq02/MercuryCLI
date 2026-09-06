@@ -45,8 +45,6 @@ writeFileSync(
     lastOnboardingVersion: '99.0.0',
     numStartups: 10,
     theme: 'dark',
-    hasSeenAutoDefaultNotice: true,
-    hasSeenAutoDefaultNudge: true,
     projects: { [FIXTURE_CWD]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } },
     customApiKeyResponses: { approved: [PROBE_KEY.slice(-20)], rejected: [] },
   }),

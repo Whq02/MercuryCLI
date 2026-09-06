@@ -1,6 +1,5 @@
 import * as React from 'react'
 
-import { getSkillToolCommands } from '../../commands.js'
 import { SubAgentProvider } from '../../components/CtrlOToExpand.js'
 import { Byline } from '../../components/design-system/Byline.js'
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js'
@@ -9,11 +8,9 @@ import { Message as MessageComponent } from '../../components/Message.js'
 import { MessageResponse } from '../../components/MessageResponse.js'
 import { Box, Text } from '../../ink.js'
 import type { Tools } from '../../Tool.js'
-import type { Command } from '../../types/command.js'
 import type { ProgressMessage } from '../../types/message.js'
 import type { SkillToolProgress } from '../../types/tools.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
-import { getCwd } from '../../utils/cwd.js'
 import { buildSubagentLookups } from '../../utils/messages.js'
 import { plural } from '../../utils/stringUtils.js'
 import type { Output } from './SkillTool.js'
@@ -22,28 +19,8 @@ import type { Output } from './SkillTool.js'
 const VISIBLE_PROGRESS_TAIL = 3
 const EMPTY_SET: Set<string> = new Set()
 
-const LEGACY_COMMANDS_ORIGIN = 'legacy-commands'
-
 function SkillHeader({ name }: { name: string }): React.ReactNode {
-  const [commands, setCommands] = React.useState<Command[] | null>(null)
-  React.useEffect(() => {
-    let cancelled = false
-    getSkillToolCommands(getCwd())
-      .then(loaded => {
-        if (!cancelled) setCommands(loaded)
-      })
-      .catch(() => {
-        if (!cancelled) setCommands([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-  const command = commands?.find(candidate => candidate.name === name) as
-    | (Command & { loadedFrom?: string })
-    | undefined
-  const prefix = command?.loadedFrom === LEGACY_COMMANDS_ORIGIN ? '/' : ''
-  return <Text>{`${prefix}${name}`}</Text>
+  return <Text>{name}</Text>
 }
 
 export function renderToolUseMessage(input?: { skill?: string }): React.ReactNode {

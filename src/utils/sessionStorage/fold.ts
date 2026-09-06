@@ -13,6 +13,7 @@ import type {
 import { isCompactBoundaryMessage } from '../messages.js'
 import type { ContentReplacementRecord } from '../toolResultStorage.js'
 import { isPersistedProgressEntry, isTranscriptMessage } from './paths.js'
+import { migrateTranscriptEntryKind } from '../../migrations/migrateTranscriptEntryKinds.js'
 
 export type TranscriptFoldState = {
   messages: Map<UUID, TranscriptMessage>
@@ -61,6 +62,7 @@ export function emptyFoldState(): TranscriptFoldState {
 }
 
 export function applyTranscriptEntry(st: TranscriptFoldState, entry: Entry): void {
+  entry = migrateTranscriptEntryKind(entry)
   const {
     messages, summaries, customTitles, tags, agentNames, agentColors,
     agentSettings, prNumbers, prUrls, prRepositories, modes, worktreeStates,
@@ -121,9 +123,9 @@ export function applyTranscriptEntry(st: TranscriptFoldState, entry: Entry): voi
       contentReplacements.set(entry.sessionId, existing)
       existing.push(...entry.replacements)
     }
-  } else if (entry.type === 'marble-origami-commit') {
+  } else if (entry.type === 'context-collapse-commit') {
     contextCollapseCommits.push(entry)
-  } else if (entry.type === 'marble-origami-snapshot') {
+  } else if (entry.type === 'context-collapse-snapshot') {
     st.contextCollapseSnapshot = entry
   }
 }

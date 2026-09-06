@@ -41,7 +41,7 @@ export const MERCURY_ARCHITECT_AGENT: BuiltInAgentDefinition = {
   ...(MERCURY_SCOUT_AGENT.tools ? { tools: MERCURY_SCOUT_AGENT.tools } : {}),
   disallowedTools: [
     AGENT_TOOL_NAME,
-    'ExitPlanMode',
+    'ExitStrategyMode',
     'Edit',
     'Write',
     'NotebookEdit',

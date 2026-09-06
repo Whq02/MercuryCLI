@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto'
-import { homedir, userInfo } from 'node:os'
-import { join } from 'node:path'
+import { userInfo } from 'node:os'
 
 import { fileSuffixForOauthConfig } from '../../constants/oauth.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -17,16 +16,8 @@ export const CREDENTIALS_SERVICE_SUFFIX = '-credentials'
 
 export function getMacOsKeychainStorageServiceName(serviceSuffix: string = ''): string {
   const configDir = getAuthConfigHomeDir().normalize('NFC')
-  const isDefaultDir = configDir === join(homedir(), '.claude').normalize('NFC')
-  const dirHash = isDefaultDir ? '' : `-${createHash('sha256').update(configDir).digest('hex').slice(0, 8)}`
+  const dirHash = `-${createHash('sha256').update(configDir).digest('hex').slice(0, 8)}`
   return `Mercury${fileSuffixForOauthConfig()}${serviceSuffix}${dirHash}`
-}
-
-export function getLegacyMacOsKeychainStorageServiceName(serviceSuffix: string = ''): string {
-  const configDir = getAuthConfigHomeDir().normalize('NFC')
-  const isDefaultDir = configDir === join(homedir(), '.claude').normalize('NFC')
-  const dirHash = isDefaultDir ? '' : `-${createHash('sha256').update(configDir).digest('hex').slice(0, 8)}`
-  return `Claude Code${fileSuffixForOauthConfig()}${serviceSuffix}${dirHash}`
 }
 
 export function getRawSpellingKeychainStorageServiceName(serviceSuffix: string = ''): string | null {
