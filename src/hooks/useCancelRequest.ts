@@ -14,7 +14,7 @@ import { enqueuePendingNotification } from '../input-core/command-queue.js'
 import { pressInterrupt } from '../input-core/interruptArity.js'
 import { getFocusedSessionConnector } from '../services/engine-connector/focusedConnector.js'
 import { crewStillRunningLine } from '../services/engine-connector/crewFacts.js'
-import { workRowRuns } from '../services/engine-connector/workCounts.js'
+import { workCounts } from '../services/engine-connector/workCounts.js'
 import type { Message } from '../types/message.js'
 import { createSystemMessage } from '../utils/messages/systemMessages.js'
 import * as pendingInput from '../input-core/pending-input.js'
@@ -31,7 +31,7 @@ const NONE_RUNNING_TIMEOUT_MS = 2000
 
 export function interruptFocusedTurn(): boolean {
   const focused = getFocusedSessionConnector()
-  const running = focused.workRoster().rows.filter(row => workRowRuns(row) && (row.kind === 'agent' || row.kind === 'workflow')).length
+  const running = workCounts(focused.workRoster().rows)
   if (!focused.interrupt()) return false
   const line = crewStillRunningLine(running)
   if (line !== null) {
