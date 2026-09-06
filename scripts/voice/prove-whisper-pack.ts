@@ -203,7 +203,7 @@ if (load.state === 'ok') {
   check('cpuFloor() answers the floor and whether this CPU has it; the JS probe agrees or says unknown', typeof floor.floor === 'string' && Array.isArray(floor.missing) && (probe.state === 'unknown' || (probe.state === 'met') === floor.met), `${JSON.stringify(floor)} · ${JSON.stringify(probe)}`)
   console.log(`  · engine ${load.addon.engineVersion()} · floor ${floor.floor} (${floor.met ? 'met' : 'unmet'}) · probe ${probe.state} · ${info.trim()}`)
   const local = transcribe.localTranscriberRead()
-  check('with the pack present and no model in the home, the on-device read names the download door', local.state === 'absent' && local.reason === 'model' && local.short === 'no on-device model (/speak download)' && local.download?.name === models.WHISPER_DEFAULT_MODEL, JSON.stringify(local))
+  check('with the pack present and no model in the home, the on-device read names the download door', local.state === 'absent' && local.reason === 'model' && local.short === 'on-device model: /speak download' && local.download?.name === models.WHISPER_DEFAULT_MODEL, JSON.stringify(local))
   const door = models.whisperDownloadDoor()
   check('the download door names the size, the model, the licence, the directory and the verb', door.startsWith('on-device transcription needs a one-time 60 MB download — Whisper base.en') && door.includes('(MIT)') && door.includes(models.whisperModelsDir()) && door.includes('/speak download starts it') && door.endsWith('until then the cloud road serves'), door)
 
@@ -214,7 +214,7 @@ if (load.state === 'ok') {
   const pinned = pack.resolveWhisperPackDir()
   check('a pack pin at an empty directory names itself, no silent fallback', pinned.state === 'unavailable' && pinned.note.startsWith('MERCURY_WHISPER_PACK_DIR set but') && pinned.note.endsWith('the pin names itself, no silent fallback'), pinned.state === 'unavailable' ? pinned.note : 'ok')
   const pinnedRead = transcribe.localTranscriberRead()
-  check('…and the on-device read says so in one row', pinnedRead.state === 'absent' && pinnedRead.reason === 'pin' && pinnedRead.short === 'on-device pack pin broken (see /speak)', JSON.stringify(pinnedRead))
+  check('…and the on-device read says so in one row', pinnedRead.state === 'absent' && pinnedRead.reason === 'pin' && pinnedRead.short === 'on-device pack pin broken', JSON.stringify(pinnedRead))
   delete process.env.MERCURY_WHISPER_PACK_DIR
   pack.resetWhisperAddonForTest()
 
