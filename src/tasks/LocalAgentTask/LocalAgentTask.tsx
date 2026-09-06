@@ -479,6 +479,17 @@ export function settleAgentForeground(
 }
 
 
+function heldByAnotherRegistration(
+  task: LocalAgentTaskState,
+  registration: AbortController | undefined,
+): boolean {
+  return (
+    registration !== undefined &&
+    task.registration !== undefined &&
+    task.registration !== registration
+  )
+}
+
 function terminalPatch(
   task: LocalAgentTaskState,
   status: TaskStatus,
@@ -500,27 +511,49 @@ function terminalPatch(
 export function completeAgentTask(
   result: { agentId: string; [key: string]: unknown },
   setAppState: SetAppState,
+  registration?: AbortController,
 ): void {
   const taskId = result.agentId
+  let successorHolds = false
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (heldByAnotherRegistration(task, registration)) {
+      successorHolds = true
+      return task
+    }
     if (task.status !== 'running') return task
     return terminalPatch(task, 'completed', { result })
   })
-  void evictTaskOutput(taskId)
+  if (!successorHolds) void evictTaskOutput(taskId)
 }
 
-export function failAgentTask(taskId: string, error: string, setAppState: SetAppState): void {
+export function failAgentTask(
+  taskId: string,
+  error: string,
+  setAppState: SetAppState,
+  registration?: AbortController,
+): void {
+  let successorHolds = false
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (heldByAnotherRegistration(task, registration)) {
+      successorHolds = true
+      return task
+    }
     if (task.status !== 'running') return task
     return terminalPatch(task, 'failed', { error })
   })
-  void evictTaskOutput(taskId)
+  if (!successorHolds) void evictTaskOutput(taskId)
 }
 
-export function killAsyncAgent(taskId: string, setAppState: SetAppState, stopReason?: string): void {
+export function killAsyncAgent(
+  taskId: string,
+  setAppState: SetAppState,
+  stopReason?: string,
+  registration?: AbortController,
+): void {
   let killed = false
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
     if (task.status !== 'running') return task
+    if (heldByAnotherRegistration(task, registration)) return task
     killed = true
     task.abortController?.abort()
     return terminalPatch(task, 'killed', stopReason !== undefined ? { stopReason } : {})
@@ -726,11 +759,7 @@ export function enqueueAgentNotification(args: {
 }): void {
   let shouldEnqueue = false
   updateTaskState<LocalAgentTaskState>(args.taskId, args.setAppState, task => {
-    if (
-      args.controller !== undefined &&
-      task.registration !== undefined &&
-      task.registration !== args.controller
-    ) {
+    if (heldByAnotherRegistration(task, args.controller)) {
       shouldEnqueue = true
       return task
     }
