@@ -255,6 +255,7 @@ export type LocalAgentTaskState = ReturnType<typeof createTaskStateBase> & {
   agentType: string
   model?: string
   abortController?: AbortController
+  registration?: AbortController
   cleanup?: () => void
   error?: string
   result?: any
@@ -353,6 +354,7 @@ export function registerAsyncAgent(args: {
     agentType: args.selectedAgent?.agentType ?? DEFAULT_AGENT_TYPE,
     model: args.model,
     abortController,
+    registration: abortController,
     cleanup,
     isBackgrounded: true,
     retain: false,
@@ -392,6 +394,7 @@ export function registerAgentForeground(args: {
     agentType: args.selectedAgent?.agentType ?? DEFAULT_AGENT_TYPE,
     model: args.model,
     abortController,
+    registration: abortController,
     cleanup,
     isBackgrounded: false,
   }
@@ -710,9 +713,18 @@ export function enqueueAgentNotification(args: {
   summary?: string
   stopReason?: string
   landedWrites?: readonly string[]
+  controller?: AbortController
 }): void {
   let shouldEnqueue = false
   updateTaskState<LocalAgentTaskState>(args.taskId, args.setAppState, task => {
+    if (
+      args.controller !== undefined &&
+      task.registration !== undefined &&
+      task.registration !== args.controller
+    ) {
+      shouldEnqueue = true
+      return task
+    }
     if (task.notified) return task
     shouldEnqueue = true
     return { ...task, notified: true }
