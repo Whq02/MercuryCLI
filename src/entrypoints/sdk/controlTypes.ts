@@ -45,7 +45,6 @@ export type SDKControlPermissionRequest = {
 export type SDKControlSetPermissionModeRequest = {
   subtype: 'set_permission_mode'
   mode: PermissionMode
-  ultraplan?: boolean
 }
 
 export type SDKControlSetModelRequest = {
@@ -185,11 +184,6 @@ export type SDKControlEndSessionRequest = {
   reason?: string
 }
 
-export type SDKControlChannelEnableRequest = {
-  subtype: 'channel_enable'
-  serverName: string
-}
-
 export type SDKControlMcpAuthenticateRequest = {
   subtype: 'mcp_authenticate'
   serverName: string
@@ -230,11 +224,6 @@ export type SDKControlGenerateSessionTitleRequest = {
 export type SDKControlSideQuestionRequest = {
   subtype: 'side_question'
   question: string
-}
-
-export type SDKControlRemoteControlRequest = {
-  subtype: 'remote_control'
-  enabled: boolean
 }
 
 export type SDKControlClaimSessionRequest = {
@@ -291,7 +280,6 @@ export type SDKControlRequestInner =
   | SDKControlGetSettingsRequest
   | SDKControlElicitationRequest
   | SDKControlEndSessionRequest
-  | SDKControlChannelEnableRequest
   | SDKControlMcpAuthenticateRequest
   | SDKControlMcpOauthCallbackUrlRequest
   | SDKControlMcpClearAuthRequest
@@ -300,7 +288,6 @@ export type SDKControlRequestInner =
   | SDKControlClaudeOauthWaitForCompletionRequest
   | SDKControlGenerateSessionTitleRequest
   | SDKControlSideQuestionRequest
-  | SDKControlRemoteControlRequest
   | SDKControlClaimSessionRequest
   | SDKControlSetEffortRequest
   | SDKControlWithdrawSendRequest

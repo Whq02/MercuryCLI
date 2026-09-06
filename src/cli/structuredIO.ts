@@ -28,7 +28,6 @@ import type {
   PermissionUpdate,
 } from '../types/permissions.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
-import { normalizeControlMessageKeys } from '../utils/controlMessageCompat.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
 import { executePermissionRequestHooks } from '../utils/hooks.js'
@@ -191,7 +190,7 @@ export class StructuredIO {
     emitDiagnostic: boolean,
   ): Promise<StdinMessage | undefined> {
     try {
-      const parsed = normalizeControlMessageKeys(JSON.parse(line)) as {
+      const parsed = JSON.parse(line) as {
         type?: string
         [key: string]: unknown
       }

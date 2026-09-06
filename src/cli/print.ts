@@ -51,7 +51,6 @@ import { ask } from '../QueryEngine.js'
 import { getCommands, findCommand, clearCommandMemoizationCaches, formatDescriptionWithSource } from '../commands.js'
 import { collectContextData } from '../commands/context/context-noninteractive.js'
 import {
-  handleChannelEnable,
   handleInitializeRequest,
   handleMcpSetServers,
   handleOrphanedPermissionResponse,
@@ -59,7 +58,6 @@ import {
   handleRewindSession,
   handleSetPermissionMode,
   reconcileMcpServers,
-  reregisterChannelHandlerAfterReconnect,
   resolvePermissionModeTransition,
   type DynamicMcpState,
   type SdkMcpState,
@@ -249,7 +247,6 @@ import { expandPath } from '../utils/path.js'
 import { getCwd } from '../utils/cwd.js'
 import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
 import { streamIdleTimeoutMsForRoute } from '../services/providers/streamIdleBudget.js'
-import { normalizeControlMessageKeys } from '../utils/controlMessageCompat.js'
 import { runWithWorkload } from '../utils/workloadContext.js'
 
 export { joinPromptValues, canBatchWith }
@@ -1726,11 +1723,7 @@ export async function runHeadless(
             getAppState().toolPermissionContext,
             io.outbound,
           )
-          setAppState(previous => ({
-            ...previous,
-            toolPermissionContext: updatedContext,
-            isUltraplanMode: request.ultraplan ?? previous.isUltraplanMode,
-          }))
+          setAppState(previous => ({ ...previous, toolPermissionContext: updatedContext }))
           return
         }
         case 'set_model': {
@@ -2100,7 +2093,6 @@ export async function runHeadless(
           await applyReconnectedClient(serverName, client)
           if (client.type === 'connected') {
             registerPerTurnHandlers([client])
-            reregisterChannelHandlerAfterReconnect(client)
             respondSuccess(requestId)
           } else if (client.type === 'failed') {
             respondError(requestId, client.error ?? `failed to reconnect ${serverName}`)
@@ -2221,7 +2213,6 @@ export async function runHeadless(
                 await applyReconnectedClient(name, client)
                 if (client.type === 'connected') {
                   registerPerTurnHandlers([client])
-                  reregisterChannelHandlerAfterReconnect(client)
                   connected.push(name)
                 } else if (client.type === 'failed') {
                   errors[name] = client.error ?? 'connection failed'
@@ -2251,15 +2242,6 @@ export async function runHeadless(
             }
             respondSuccess(requestId, { applied: true, connected, disconnected, errors })
           })
-          return
-        }
-        case 'channel_enable': {
-          handleChannelEnable(
-            requestId,
-            request.serverName,
-            [...getAppState().mcp.clients, ...sdkMcp.clients, ...dynamicMcp.clients],
-            io.outbound,
-          )
           return
         }
         case 'mcp_authenticate': {
@@ -2610,15 +2592,6 @@ export async function runHeadless(
           })()
           return
         }
-        case 'remote_control': {
-          const enable = request.enabled
-          if (enable) {
-            respondError(requestId, 'remote control is unavailable in this build')
-          } else {
-            respondSuccess(requestId)
-          }
-          return
-        }
         default:
           respondError(requestId, `unsupported control request subtype: ${request.subtype}`)
       }
@@ -2651,7 +2624,6 @@ export async function runHeadless(
         status: client.type,
         scope: config.scope,
         config: projectedConfig,
-        capabilities: undefined,
       }
       if (client.type === 'connected') {
         row.serverInfo = client.serverInfo
