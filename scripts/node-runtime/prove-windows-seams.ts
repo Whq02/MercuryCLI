@@ -131,28 +131,11 @@ section('(6) the build-tree stamp rides the staleness sweep')
   check('the stamp is still written on success (after the sweep, not before)', build.indexOf("rmSync(resolve(OUT, '.build-tree')") !== -1 && build.indexOf("writeFileSync(resolve(OUT, '.build-tree')") > build.indexOf("rmSync(resolve(OUT, '.build-tree')"))
 }
 
-section('(7) a signed-out boot stays silent on the wire — the API warm-up needs a credential')
+section('(7) a boot opens no connect of its own — no API-origin warm-up exists')
 {
-  ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '0.0.0' }
-  const { decidePreconnect } = await import('../../src/utils/apiPreconnect.js')
-  const signedOut = decidePreconnect(false, {})
-  check('no credential ⇒ skip, reason signed-out', !signedOut.go && signedOut.reason === 'signed-out')
-  check('a credential with a plain environment ⇒ go', decidePreconnect(true, {}).go)
-  for (const spelling of ['https_proxy', 'HTTPS_PROXY', 'http_proxy', 'HTTP_PROXY']) {
-    const d = decidePreconnect(true, { [spelling]: '' })
-    check(`${spelling} PRESENT (even empty) ⇒ skip, reason proxy`, !d.go && d.reason === 'proxy')
-  }
-  const sock = decidePreconnect(true, { ANTHROPIC_UNIX_SOCKET: '/tmp/x' })
-  check('a unix socket ⇒ skip, reason unix-socket', !sock.go && sock.reason === 'unix-socket')
-  const cert = decidePreconnect(true, { MERCURY_CLIENT_KEY: '/k' })
-  check('a client key ⇒ skip, reason client-cert', !cert.go && cert.reason === 'client-cert')
-  check('an extra-CA variable is deliberately NOT a skip', decidePreconnect(true, { NODE_EXTRA_CA_CERTS: '/ca.pem' }).go)
-  check('signed-out outranks every transport skip (the reason names the privacy law first)', decidePreconnect(false, { HTTPS_PROXY: 'x' }).reason === 'signed-out')
+  check('no warm-up module exists under src/utils', !existsSync(join(ROOT, 'src', 'utils', 'apiPreconnect.ts')))
   const main = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf8')
-  check('the root action passes the credential fact into the warm-up', main.includes('preconnectAnthropicApi({ credentialed: hasFirstPartyCredential() })'))
-  check('no unconditioned warm-up call survives', !/preconnectAnthropicApi\(\)/.test(main))
-  const pre = readFileSync(join(ROOT, 'src', 'utils', 'apiPreconnect.ts'), 'utf8')
-  check('the performer consults the pure decision before any fetch', pre.indexOf('decidePreconnect(opts.credentialed)') !== -1 && pre.indexOf('decidePreconnect(opts.credentialed)') < pre.indexOf('doFetch(target'))
+  check('the root action performs no warm-up call', !/preconnect/i.test(main))
   const auth = readFileSync(join(ROOT, 'src', 'utils', 'auth.ts'), 'utf8')
   check('hasFirstPartyCredential reads the three legs auth status calls logged in', /getAuthTokenSource\(\)\.hasToken \|\|\s*getAnthropicApiKeyWithSource\(\)\.source !== 'none' \|\|\s*Boolean\(process\.env\.ANTHROPIC_API_KEY\)/.test(auth))
 }
