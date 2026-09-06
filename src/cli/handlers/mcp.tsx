@@ -102,7 +102,6 @@ function scopeConfigFileLabel(scope: CliScope): string {
 
 export async function mcpServeHandler(options: {
   debug?: boolean
-  verbose?: boolean
 }): Promise<void> {
   const cwd = process.cwd()
   try {
@@ -118,7 +117,7 @@ export async function mcpServeHandler(options: {
     const { setup } = await import('../../setup.js')
     await setup(cwd, 'default', false, false, undefined, false)
     const { startMCPServer } = await import('../../entrypoints/mcp.js')
-    await startMCPServer(cwd, options.debug ?? false, options.verbose ?? false)
+    await startMCPServer(cwd, options.debug ?? false)
   } catch (error) {
     return cliError(
       `Failed to start the MCP server: ${error instanceof Error ? error.message : String(error)}`,

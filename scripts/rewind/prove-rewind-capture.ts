@@ -116,7 +116,6 @@ async function driveRunner(opts: { stamp: boolean; label: string }): Promise<voi
     [
       DIST,
       '-p',
-      '--verbose',
       '--output-format',
       'stream-json',
       '--input-format',

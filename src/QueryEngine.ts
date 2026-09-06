@@ -94,7 +94,6 @@ export type QueryEngineConfig = {
   maxBudgetUsd?: number
   taskBudget?: { total: number }
   jsonSchema?: Record<string, unknown>
-  verbose?: boolean
   replayUserMessages?: boolean
   handleElicitation?: ToolUseContext['handleElicitation']
   includePartialMessages?: boolean
@@ -290,7 +289,7 @@ export class QueryEngine {
       options: {
         commands: config.commands,
         debug: false,
-        verbose: config.verbose ?? false,
+        verbose: false,
         mainLoopModel: model,
         thinkingConfig,
         tools: config.tools,
