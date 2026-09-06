@@ -17,10 +17,13 @@ import type {
 
 import { governorCeilings } from '../../services/capacity/governor.js'
 import {
-  chargeRecoveryWait,
+  honourRecoveryWait,
+  isRecoveryBudgetSpentLine,
   makeRecoveryBudget,
+  recoveryAnswerRefills,
   recoveryBudgetSpentLine,
   recoveryNoticeFacts,
+  refillRecoveryBudget,
   retryWaitWords,
   type RecoveryBudget,
 } from '../../services/api/recoveryBudget.js'
@@ -922,7 +925,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         const notice = recoveryNoticeFacts(m)
         if (notice !== null) {
           const isRealDelay = typeof m?.retryInMs === 'number' && m.retryInMs > 0
-          const { honoredMs, spent } = chargeRecoveryWait(recovery, notice.declaredMs, notice.status)
+          const { honoredMs, spent } = honourRecoveryWait(recovery, notice)
           lastDeclaredEndsAt = Date.now() + notice.declaredMs
           clearBudgetCut()
           if (spent && honoredMs <= 0) {
@@ -941,14 +944,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           const window = isRealDelay
             ? { retryInMs: honoredMs }
             : { recoveryTimeoutMs: honoredMs }
-          const waitWords = retryWaitWords({
-            attempt: notice.attempt ?? recovery.waits,
-            of: notice.of,
-            declaredMs: notice.declaredMs,
-            honoredMs,
-            status: notice.status,
-            budget: recovery,
-          })
+          const waitWords = retryWaitWords({ facts: notice, honoredMs, budget: recovery })
           emitFrame('progress', {
             waiting: 'provider-backoff',
             ...window,
@@ -962,6 +958,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           return
         }
         if (m !== undefined && m.type !== 'progress') clearBudgetCut()
+        if (recoveryAnswerRefills(m)) refillRecoveryBudget(recovery)
         if (m?.type === 'request_wait') {
           const wait = (m as { wait?: unknown }).wait
           if (wait !== null && typeof wait === 'object' && (wait as { kind?: unknown }).kind === 'first-byte') {
@@ -1324,7 +1321,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         r.capPause === undefined &&
         (r.apiError === undefined ||
           (!DETERMINISTIC_400_RE.test(r.apiError) &&
-            !r.apiError.startsWith('provider throttled'))) &&
+            !isRecoveryBudgetSpentLine(r.apiError))) &&
         !r.stallCut &&
         !r.skipped &&
         r.stopReason == null &&
