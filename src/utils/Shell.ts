@@ -173,6 +173,12 @@ export async function exec(
 ): Promise<ShellCommand> {
   const timeout = options.timeout || DEFAULT_TIMEOUT_MS
 
+  const sandboxTmpDir = posixPath.join(
+    process.env.MERCURY_TMPDIR || '/tmp',
+    getMercuryTempDirName(),
+  )
+  const useSandbox = options.shouldUseSandbox === true
+
   if (shellType === 'bash' && options.onStdout === undefined) {
     const engine = resolveShellEngine(getInitialSettings().shellEngine)
     if (engine.engine === 'brush') {
@@ -180,6 +186,7 @@ export async function exec(
       return runEngineCommand(engine.binaryPath, command, {
         timeout,
         signal: abortSignal,
+        sandbox: useSandbox ? { enabled: true, tmpDir: sandboxTmpDir } : { enabled: false },
         onProgress: options.onProgress,
         onCwd: reported => {
           if (options.preventCwdChanges) return
@@ -203,12 +210,6 @@ export async function exec(
   const invocationId = Math.floor(Math.random() * 0x10000)
     .toString(16)
     .padStart(4, '0')
-
-  const sandboxTmpDir = posixPath.join(
-    process.env.MERCURY_TMPDIR || '/tmp',
-    getMercuryTempDirName(),
-  )
-  const useSandbox = options.shouldUseSandbox === true
 
   const built = await provider.buildExecCommand(
     command,

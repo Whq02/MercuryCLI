@@ -82,6 +82,10 @@ if (!ready) {
   }
 
   section('§1 the boundary through the seam')
+  const HOME_SCRATCH = join(SCRATCH, 'home')
+  mkdirSync(HOME_SCRATCH)
+  for (const rc of ['.bashrc', '.bash_profile', '.bash_login']) writeFileSync(join(HOME_SCRATCH, rc), `export BRUSH_CANARY=${rc}\n`)
+  process.env.HOME = HOME_SCRATCH
   const echo = await run('echo sandboxed-ok', true)
   check('a sandboxed command runs', /sandboxed-ok/.test(echo.out), `code ${echo.code} ${JSON.stringify(echo.out.slice(0, 120))}`)
   check('the cwd record lands inside the boundary (the command settles 0, no refusal of the tracking file)', echo.code === 0 && !/mercury-cwd-[0-9a-f]+: Operation not permitted|Permission denied/.test(echo.out), `code ${echo.code} ${JSON.stringify(echo.out.slice(0, 160))}`)
@@ -97,12 +101,19 @@ if (!ready) {
   check('a process left running in the background stays inside the boundary', !existsSync(join(OUTSIDE, 'late.txt')))
   const readOutside = await run(`cat "${PROJECT}/in.txt"; ls "${OUTSIDE}" | wc -l | tr -d ' '`, true)
   check('reads outside the write set still work (the boundary is on writes)', /^in\n0/.test(readOutside.out.replace(/\r/g, '')), JSON.stringify(readOutside.out.slice(0, 80)))
+  const canary = await run('echo "[${BRUSH_CANARY:-unread}]"', true)
+  check('the rc-file canaries in HOME stay unread under the sandboxed session (no rc, no profile, no config file on either road)', /^\[unread\]/.test(canary.out), JSON.stringify(canary.out.slice(0, 80)))
+  const owner = readFileSync(join(ROOT, 'src', 'utils', 'shell', 'engineSession.ts'), 'utf8')
+  check("the sandboxed spawn carries the engine's flags inside the wrapped payload, /bin/sh carrying it (source)", owner.includes("exec ${quote([binaryPath, ...ENGINE_FLAGS, '-c', script])}") && owner.includes("SandboxManager.wrapWithSandbox(payload, '/bin/sh')") && owner.includes("[...ENGINE_FLAGS, '-c', script]"))
+  const tmpInside = await run('echo "${TMPDIR:-none}"', true)
+  check("the sandboxed session's TMPDIR is the sandbox temp dir the classic road hands its child", /mercury/.test(tmpInside.out) && !/^none/.test(tmpInside.out), JSON.stringify(tmpInside.out.slice(0, 120)))
 
   section('§2 the policy is the call\'s, never the engine process\'s')
   const control = await run(`echo control > "${OUTSIDE}/control.txt"`, false)
   check("an unsandboxed call writes outside (the control: the sandbox is what refuses)", control.code === 0 && existsSync(join(OUTSIDE, 'control.txt')), `code ${control.code}`)
   const again = await run(`echo again > "${OUTSIDE}/again.txt"`, true)
   check('the next sandboxed call is refused again — no policy carried over from the unsandboxed call', again.code !== 0 && !existsSync(join(OUTSIDE, 'again.txt')), `code ${again.code} ${JSON.stringify(again.out.slice(0, 120))}`)
+  check("the policy switch is announced on the engine (the reset note names the sandbox policy, both directions); the system shell's fresh process needs no note", engine === 'brush' ? /sandbox policy/.test(control.stderr) && /sandbox policy/.test(again.stderr) : !/sandbox policy/.test(control.stderr + again.stderr), JSON.stringify((control.stderr + ' | ' + again.stderr).slice(0, 240)))
   const relaxed = await run(`echo relaxed > "${OUTSIDE}/relaxed.txt"`, false)
   check('the next unsandboxed call writes again — no policy carried over from the sandboxed call', relaxed.code === 0 && existsSync(join(OUTSIDE, 'relaxed.txt')), `code ${relaxed.code}`)
   const persisted = await run('SANDBOX_STATE=set; :', true)
