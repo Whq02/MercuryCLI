@@ -38,9 +38,9 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   process.env.MERCURY_FULLSCREEN = '1'
   const { collapseReadSearchGroups, isStatusUpdateTool } = await import('../../src/utils/collapseReadSearch.ts')
   const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-  const { TodoWriteTool } = await import('../../src/tools/TodoWriteTool/TodoWriteTool.ts')
+  const { TaskCreateTool } = await import('../../src/tools/TaskCreateTool/TaskCreateTool.ts')
   const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-  const tools = [BashTool, TodoWriteTool, FileEditTool] as never
+  const tools = [BashTool, TaskCreateTool, FileEditTool] as never
   let n = 0
   const uuid = () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`
   const use = (id: string, name: string, input: Record<string, unknown>) => ({
@@ -53,21 +53,21 @@ const t = (name: string, ok: boolean, detail = ''): void => {
     toolUseResult,
   })
   const bashResult = { stdout: 'hi', stderr: '', interrupted: false, isImage: false, noOutputExpected: false }
-  const todos = [{ content: 'a', status: 'completed', activeForm: 'a' }]
+  const task = { subject: 'a', description: 'a' }
   const seq = [
     use('b1', 'Bash', { command: 'echo hi' }), result('b1', 'hi', bashResult),
-    use('t1', 'TodoWrite', { todos }), result('t1', 'ok', { oldTodos: [], newTodos: todos }),
+    use('t1', 'TaskCreate', task), result('t1', 'ok', { task: { id: '1', ...task, status: 'pending' } }),
     use('b2', 'Bash', { command: 'echo again' }), result('b2', 'again', bashResult),
   ]
   const out = collapseReadSearchGroups(seq as never, tools) as Array<{ type: string; bashCount?: number; message?: { content?: Array<{ name?: string; tool_use_id?: string }> } }>
   const collapsed = out.filter(m => m.type === 'collapsed_read_search')
-  t('TodoWrite is a status-update tool; Bash is not', isStatusUpdateTool('TodoWrite') && !isStatusUpdateTool('Bash'))
-  t('bash · todo · bash collapses to ONE shell row', collapsed.length === 1, `${collapsed.length} collapsed rows`)
+  t('TaskCreate is a status-update tool; Bash is not', isStatusUpdateTool('TaskCreate') && !isStatusUpdateTool('Bash'))
+  t('bash · task · bash collapses to ONE shell row', collapsed.length === 1, `${collapsed.length} collapsed rows`)
   t('the one row counts both commands', collapsed[0]?.bashCount === 2, `bashCount ${collapsed[0]?.bashCount}`)
-  const todoUseAt = out.findIndex(m => m.type === 'assistant' && m.message?.content?.[0]?.name === 'TodoWrite')
+  const todoUseAt = out.findIndex(m => m.type === 'assistant' && m.message?.content?.[0]?.name === 'TaskCreate')
   const todoResultAt = out.findIndex(m => m.type === 'user' && m.message?.content?.[0]?.tool_use_id === 't1')
   const rowAt = out.findIndex(m => m.type === 'collapsed_read_search')
-  t('the todo use AND its result defer behind the collapsed row, in order', rowAt >= 0 && todoUseAt > rowAt && todoResultAt > todoUseAt, `row ${rowAt} use ${todoUseAt} result ${todoResultAt}`)
+  t('the task use AND its result defer behind the collapsed row, in order', rowAt >= 0 && todoUseAt > rowAt && todoResultAt > todoUseAt, `row ${rowAt} use ${todoUseAt} result ${todoResultAt}`)
   t('nothing is dropped', out.length === 3)
 
   const withEdit = [
@@ -78,8 +78,8 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   const split = collapseReadSearchGroups(withEdit as never, tools) as Array<{ type: string }>
   t('a non-status tool (Edit) still breaks the group into two rows', split.filter(m => m.type === 'collapsed_read_search').length === 2)
 
-  const alone = collapseReadSearchGroups([use('t2', 'TodoWrite', { todos }), result('t2', 'ok', { oldTodos: [], newTodos: todos })] as never, tools) as Array<{ type: string }>
-  t('a todo outside any group renders in place (no collapsed row)', alone.length === 2 && alone[0]!.type === 'assistant' && alone[1]!.type === 'user')
+  const alone = collapseReadSearchGroups([use('t2', 'TaskCreate', task), result('t2', 'ok', { task: { id: '2', ...task, status: 'pending' } })] as never, tools) as Array<{ type: string }>
+  t('a task update outside any group renders in place (no collapsed row)', alone.length === 2 && alone[0]!.type === 'assistant' && alone[1]!.type === 'user')
   delete process.env.MERCURY_FULLSCREEN
 }
 

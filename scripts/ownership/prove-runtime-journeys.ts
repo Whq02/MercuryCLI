@@ -128,7 +128,6 @@ section('J2 — headless stream-JSON run (byte-parseable protocol · envelope ki
     'claude-opus-4-8',
     '--output-format',
     'stream-json',
-    '--verbose',
   ])
   check('exit 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 200)}`)
   const lines = r.stdout.split('\n').filter(l => l.trim().length > 0)

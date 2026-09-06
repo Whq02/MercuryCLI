@@ -39,7 +39,6 @@ const { getDeferredToolsDeltaAttachment } = await import('../../src/utils/attach
 const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
 const { isDeferredToolsDeltaEnabled } = await import('../../src/utils/toolSearchFlags.ts')
-const { getFeatureValue_CACHED_MAY_BE_STALE } = await import('../../src/services/analytics/featureGates.ts')
 const { getPrompt, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
@@ -113,16 +112,12 @@ function renderedContent(row: Attachment): string {
 }
 const bytes = (s: string): number => Buffer.byteLength(s, 'utf8')
 
-section('§1 THE GATE ROW — the pin point holds the reviewed decision')
+section('§1 THE DEFERRAL FLAG — the reviewed decision is a constant')
 {
-  const gates = readFileSync(join(ROOT, 'src/services/analytics/featureGates.ts'), 'utf8')
-  const table = gates.slice(gates.indexOf('const FORK_GATE_TABLE'), gates.indexOf('\n}\n', gates.indexOf('const FORK_GATE_TABLE')))
-  check('FORK_GATE_TABLE pins mercury_glacier_2xr: true (a source pin, the documented pin point)', /^\s*mercury_glacier_2xr: true,/m.test(table))
-  check('the gate resolves true through the getter', getFeatureValue_CACHED_MAY_BE_STALE('mercury_glacier_2xr', false) === true)
-  check('the deferral flag reads it (the delta path is on)', isDeferredToolsDeltaEnabled() === true)
+  check('the deferral flag is on (the delta path is the one announcement road)', isDeferredToolsDeltaEnabled() === true)
   check("the ToolSearch description names the carrier (system-reminder rows), not the retired header tag", getPrompt('block').includes('inside <system-reminder> messages') && !getPrompt('block').includes('<available-deferred-tools>') && getPrompt('text').includes('inside <system-reminder> messages'))
   const flags = readFileSync(join(ROOT, 'src/utils/toolSearchFlags.ts'), 'utf8')
-  check('the inline default stays false (an unpinned table restores the prepend byte-for-byte)', /'mercury_glacier_2xr', false\)/.test(flags))
+  check('the flag reads no gate table (a constant, never a lookup)', !/featureGates/.test(flags) && /return true/.test(flags))
 }
 
 section('§2 NO PER-REQUEST ANNOUNCEMENT — every route, and the real first-party wire')

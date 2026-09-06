@@ -1,5 +1,5 @@
 
-import { abortWithCut } from '../../utils/messages/turnCut.js'
+import { abortWithCut, turnCutOf, turnCutWhy } from '../../utils/messages/turnCut.js'
 import crypto from 'node:crypto'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
@@ -1223,8 +1223,9 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             lastSchemaCallInput,
           }
         }
+        const cutWords = cutReason === undefined ? null : turnCutWhy(turnCutOf(cutReason))
         emitFrame('error', {
-          error: e instanceof Error ? e.message : String(e),
+          error: cutWords ?? (e instanceof Error ? e.message : String(e)),
           ...settledTotals(elapsed),
         })
         if (e instanceof AbortError) throw new Error('Workflow aborted')

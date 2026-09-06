@@ -18,7 +18,7 @@ export type PermissionOption =
   | { type: 'accept-once' }
   | {
       type: 'accept-session'
-      scope?: 'claude-folder' | 'global-claude-folder'
+      scope?: 'config-home' | 'global-config-home'
       pattern?: string
     }
   | { type: 'reject' }
@@ -97,7 +97,7 @@ export function getFilePermissionOptions({
   const projectHome = filePath !== null ? projectConfigHomeOf(filePath) : null
   const inGlobalHome = filePath !== null && isInGlobalConfigHome(filePath)
   if (operationType !== 'read' && (projectHome !== null || inGlobalHome)) {
-    const scope = inGlobalHome ? 'global-claude-folder' : 'claude-folder'
+    const scope = inGlobalHome ? 'global-config-home' : 'config-home'
     const pattern = inGlobalHome ? globalConfigHomePattern() : `/${projectHome}/**`
     options.push({
       label: (

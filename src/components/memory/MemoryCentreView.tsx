@@ -24,7 +24,7 @@ import {
 } from '../../memdir/curationLoop.js'
 import { getAutoMemPath, isAutoMemoryEnabled } from '../../memdir/paths.js'
 import { getProjectRoot } from '../../bootstrap/state.js'
-import { isAutoDreamEnabled } from '../../services/autoDream/config.js'
+import { isMemoryUpkeepEnabled } from '../../services/autoDream/config.js'
 
 
 const MAX_ROWS = 10
@@ -113,7 +113,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
     rows.push({
       id: 'dream',
       kind: 'info',
-      label: `nightly notes consolidation (auto-dream): ${isAutoDreamEnabled() ? 'on' : 'off'} — toggle in /memory files`,
+      label: `nightly notes consolidation (upkeep): ${isMemoryUpkeepEnabled() ? 'on' : 'off'} — toggle in /memory files`,
     })
     if (autoOn) {
       const sweep = readCurationSweep(getAutoMemPath())

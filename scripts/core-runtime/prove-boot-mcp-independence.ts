@@ -206,7 +206,7 @@ section('H1 — headless · --strict-mcp-config · a server that never answers i
   const marker = join(w.dir, 'never.marker')
   const cfg = mcpConfigFile(w.dir, { name: 'never', args: ['--never', '--spawn-marker', marker] })
   const r = await headlessFirstLine(
-    ['-p', 'hi', '--output-format', 'stream-json', '--verbose', '--mcp-config', cfg, '--strict-mcp-config'],
+    ['-p', 'hi', '--output-format', 'stream-json', '--mcp-config', cfg, '--strict-mcp-config'],
     bootEnv(w.home, { MCP_TIMEOUT: String(H1_MCP_TIMEOUT_MS) }),
     w.cwd,
   )
@@ -229,7 +229,7 @@ section('H2 — headless · no --strict-mcp-config · a user-scope server connec
   const marker = join(w.dir, 'disc.marker')
   addUserScopeServer(w.home, { name: 'disc', args: ['--spawn-marker', marker] })
   const r = await headlessFirstLine(
-    ['-p', 'hi', '--output-format', 'stream-json', '--verbose'],
+    ['-p', 'hi', '--output-format', 'stream-json'],
     bootEnv(w.home),
     w.cwd,
   )

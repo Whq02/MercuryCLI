@@ -9,13 +9,13 @@ import { createAxiosInstance } from './proxy.js'
 import { whichSync } from './which.js'
 
 
-export const getGlobalMercuryFile = memoize((): string => {
-  const home = getMercuryHome()
-  const legacyPath = join(home, '.config.json')
-  if (existsSync(legacyPath)) return legacyPath
-  const suffix = fileSuffixForOauthConfig()
-  return join(home, `.mercury${suffix}.json`)
-})
+export function globalConfigFileIn(home: string): string {
+  const preSuffixPath = join(home, '.config.json')
+  if (existsSync(preSuffixPath)) return preSuffixPath
+  return join(home, `.mercury${fileSuffixForOauthConfig()}.json`)
+}
+
+export const getGlobalMercuryFile = memoize((): string => globalConfigFileIn(getMercuryHome()))
 
 export const JETBRAINS_IDES: string[] = [
   'pycharm',

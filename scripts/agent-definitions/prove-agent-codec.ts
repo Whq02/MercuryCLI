@@ -191,16 +191,16 @@ const CRLF = '---\r\nname: crlf-agent\r\ndescription: "windows file"\r\nmodel: s
 }
 
 {
-  console.log('G6: spec-version')
+  console.log('G6: specVersion')
   const doc = decodeAgentDocument(
-    '---\nname: tomorrow\ndescription: "d"\nspec-version: 3\nfrom-the-future: [a, b]\n---\n\nBody.\n',
+    '---\nname: tomorrow\ndescription: "d"\nspecVersion: 3\nfrom-the-future: [a, b]\n---\n\nBody.\n',
   )
   check('future version decoded', doc.fields.specVersion === 3)
   check('flagged info, not error',
     doc.diagnostics.some(d => d.code === 'future-spec-version' && d.severity === 'info'))
   const patched = patchAgentDocument(doc, { set: { model: 'sonnet' } })
   check('future keys survive edits',
-    patched.raw.includes('spec-version: 3') && patched.raw.includes('from-the-future: [a, b]'))
+    patched.raw.includes('specVersion: 3') && patched.raw.includes('from-the-future: [a, b]'))
 }
 
 {

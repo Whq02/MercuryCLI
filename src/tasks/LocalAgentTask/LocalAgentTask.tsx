@@ -24,6 +24,7 @@ import { getTokenCountFromUsage } from '../../utils/tokens.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { getAgentTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import type { AgentId } from '../../types/ids.js'
+import { asAgentId } from '../../types/ids.js'
 import {
   evictTaskOutput,
   getTaskOutputPath,
@@ -255,6 +256,7 @@ export type LocalAgentTaskState = ReturnType<typeof createTaskStateBase> & {
   agentType: string
   model?: string
   abortController?: AbortController
+  registration?: AbortController
   cleanup?: () => void
   error?: string
   result?: any
@@ -353,6 +355,7 @@ export function registerAsyncAgent(args: {
     agentType: args.selectedAgent?.agentType ?? DEFAULT_AGENT_TYPE,
     model: args.model,
     abortController,
+    registration: abortController,
     cleanup,
     isBackgrounded: true,
     retain: false,
@@ -392,6 +395,7 @@ export function registerAgentForeground(args: {
     agentType: args.selectedAgent?.agentType ?? DEFAULT_AGENT_TYPE,
     model: args.model,
     abortController,
+    registration: abortController,
     cleanup,
     isBackgrounded: false,
   }
@@ -413,6 +417,14 @@ export function registerAgentForeground(args: {
   }
 
   return { taskId, abortController, backgroundSignal, cancelAutoBackground }
+}
+
+export function registerAgentName(name: string, agentId: string, setAppState: SetAppState): void {
+  setAppState(prev => {
+    const next = new Map(prev.agentNameRegistry)
+    next.set(name, asAgentId(agentId))
+    return { ...prev, agentNameRegistry: next }
+  })
 }
 
 export function backgroundAgentTask(
@@ -467,6 +479,17 @@ export function settleAgentForeground(
 }
 
 
+function heldByAnotherRegistration(
+  task: LocalAgentTaskState,
+  registration: AbortController | undefined,
+): boolean {
+  return (
+    registration !== undefined &&
+    task.registration !== undefined &&
+    task.registration !== registration
+  )
+}
+
 function terminalPatch(
   task: LocalAgentTaskState,
   status: TaskStatus,
@@ -488,27 +511,49 @@ function terminalPatch(
 export function completeAgentTask(
   result: { agentId: string; [key: string]: unknown },
   setAppState: SetAppState,
+  registration?: AbortController,
 ): void {
   const taskId = result.agentId
+  let successorHolds = false
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (heldByAnotherRegistration(task, registration)) {
+      successorHolds = true
+      return task
+    }
     if (task.status !== 'running') return task
     return terminalPatch(task, 'completed', { result })
   })
-  void evictTaskOutput(taskId)
+  if (!successorHolds) void evictTaskOutput(taskId)
 }
 
-export function failAgentTask(taskId: string, error: string, setAppState: SetAppState): void {
+export function failAgentTask(
+  taskId: string,
+  error: string,
+  setAppState: SetAppState,
+  registration?: AbortController,
+): void {
+  let successorHolds = false
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (heldByAnotherRegistration(task, registration)) {
+      successorHolds = true
+      return task
+    }
     if (task.status !== 'running') return task
     return terminalPatch(task, 'failed', { error })
   })
-  void evictTaskOutput(taskId)
+  if (!successorHolds) void evictTaskOutput(taskId)
 }
 
-export function killAsyncAgent(taskId: string, setAppState: SetAppState, stopReason?: string): void {
+export function killAsyncAgent(
+  taskId: string,
+  setAppState: SetAppState,
+  stopReason?: string,
+  registration?: AbortController,
+): void {
   let killed = false
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
     if (task.status !== 'running') return task
+    if (heldByAnotherRegistration(task, registration)) return task
     killed = true
     task.abortController?.abort()
     return terminalPatch(task, 'killed', stopReason !== undefined ? { stopReason } : {})
@@ -710,9 +755,14 @@ export function enqueueAgentNotification(args: {
   summary?: string
   stopReason?: string
   landedWrites?: readonly string[]
+  controller?: AbortController
 }): void {
   let shouldEnqueue = false
   updateTaskState<LocalAgentTaskState>(args.taskId, args.setAppState, task => {
+    if (heldByAnotherRegistration(task, args.controller)) {
+      shouldEnqueue = true
+      return task
+    }
     if (task.notified) return task
     shouldEnqueue = true
     return { ...task, notified: true }

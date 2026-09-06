@@ -7,7 +7,6 @@ import type { FileHistorySnapshot } from '../utils/fileHistory.js'
 
 export type SerializedMessage = Message & {
   cwd: string
-  userType: string
   entrypoint?: string
   sessionId: UUID
   version: string
@@ -154,7 +153,7 @@ export type SpeculationAcceptMessage = {
 }
 
 export type ContextCollapseCommitEntry = {
-  type: 'marble-origami-commit'
+  type: 'context-collapse-commit'
   sessionId: UUID
   collapseId: string
   summaryUuid: string
@@ -165,7 +164,7 @@ export type ContextCollapseCommitEntry = {
 }
 
 export type ContextCollapseSnapshotEntry = {
-  type: 'marble-origami-snapshot'
+  type: 'context-collapse-snapshot'
   sessionId: UUID
   staged: Array<{
     startUuid: string
