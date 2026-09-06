@@ -50,7 +50,7 @@ import {
 } from '../../utils/permissions/PermissionMode.js'
 import { getMainLoopModel, modelDisplayString } from '../../utils/model/model.js'
 import { useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
-import { resolveShellEngine } from '../../utils/shell/engineSession.js'
+import { endEngineSession, resetShellEngineResolution, resolveShellEngine } from '../../utils/shell/engineSession.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import {
   providerFamilyPresences,
@@ -484,6 +484,8 @@ export function Config({
         if (writeSource('localSettings', { shellEngine: next === 'system' ? undefined : next })) {
           snapshots.dirty = true
           recordSet('shellEngine', `set shell engine to ${next}`)
+          resetShellEngineResolution()
+          void endEngineSession()
           bump()
         }
       },

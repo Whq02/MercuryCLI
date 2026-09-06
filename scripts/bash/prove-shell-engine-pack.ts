@@ -2,7 +2,7 @@
 import '../lib/hermetic.ts'
 
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -98,6 +98,20 @@ section('§2 engine resolution, the env pin, and the honest degrade')
     process.env.MERCURY_SHELL_ENGINE = 'brush'
     check('the env pin brush arms even with the system setting', resolveShellEngine('system').engine === 'brush')
     delete process.env.MERCURY_SHELL_ENGINE
+    const { resetShellEngineResolution } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+    const manifestPath = join(vendored.dir, '.vendor-manifest.json')
+    const hidden = `${manifestPath}.hidden`
+    renameSync(manifestPath, hidden)
+    try {
+      check('the resolution is memoised per process: with the manifest hidden, brush still arms (no disk read)', resolveShellEngine('brush').engine === 'brush')
+      resetShellEngineResolution()
+      const r = resolveShellEngine('brush')
+      check('a reset re-reads the disk: the hidden manifest degrades to the system shell with the reason', r.engine === 'system' && r.requested === 'brush' && r.reason.length > 10, JSON.stringify(r))
+    } finally {
+      renameSync(hidden, manifestPath)
+      resetShellEngineResolution()
+    }
+    check('after the restore and a reset, brush arms again', resolveShellEngine('brush').engine === 'brush')
   } else {
     const r = resolveShellEngine('brush')
     check('an unavailable pack degrades to system with a named reason',

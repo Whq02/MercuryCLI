@@ -118,6 +118,39 @@ section('§5 large output rides back within the tool budget')
   check('the output is captured (head visible)', big.stdout.includes('line-1-') && big.stdout.length > 1000, `len=${big.stdout.length}`)
 }
 
+section('§6 the session ends on request: the switch road and the exit cleanup end the live brush')
+{
+  resetEngineSessionForTest()
+  const { endEngineSession } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+  const { runCleanupFunctions } = await import(join(ROOT, 'src/utils/cleanupRegistry.ts'))
+  const alive = (pid: number): boolean => {
+    try {
+      process.kill(pid, 0)
+      return true
+    } catch {
+      return false
+    }
+  }
+  const diedWithin = async (pid: number, ms: number): Promise<boolean> => {
+    const deadline = Date.now() + ms
+    while (Date.now() < deadline) {
+      if (!alive(pid)) return true
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+    return !alive(pid)
+  }
+  const first = await run('echo "pid=$$"')
+  const firstPid = Number(/pid=(\d+)/.exec(first.stdout)?.[1] ?? -1)
+  check('the session answers with its own pid', firstPid > 1 && alive(firstPid), JSON.stringify(first.stdout.slice(0, 40)))
+  await endEngineSession()
+  check('the switch road ends the live brush', firstPid > 1 && (await diedWithin(firstPid, 2_500)), `pid ${firstPid} still alive`)
+  const second = await run('echo "pid=$$"')
+  const secondPid = Number(/pid=(\d+)/.exec(second.stdout)?.[1] ?? -1)
+  check('the next command spawns a fresh session with no note owed', second.code === 0 && secondPid > 1 && secondPid !== firstPid && second.stderr === '', `pid ${secondPid} stderr ${JSON.stringify(second.stderr)}`)
+  await runCleanupFunctions()
+  check('the exit cleanup registry ends the session too (registered at the first spawn)', secondPid > 1 && (await diedWithin(secondPid, 2_500)), `pid ${secondPid} still alive`)
+}
+
 resetEngineSessionForTest()
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '✅ ALL SHELL-ENGINE SESSION PROOFS PASS' : `❌ ${failures} SHELL-ENGINE SESSION PROOF(S) FAILED`)

@@ -17,7 +17,8 @@ import { subprocessEnv } from '../subprocessEnv.js'
 import { TaskOutput } from '../task/TaskOutput.js'
 import { generateTaskId } from '../../Task.js'
 import { getFsImplementation } from '../fsOperations.js'
-import { resolveBrushPackDir } from './brushPack.js'
+import { resolveBrushPackDir, type BrushPackResolution } from './brushPack.js'
+import { registerCleanup } from '../cleanupRegistry.js'
 import { sandboxTempEnv } from './bashProvider.js'
 import type { ExecResult, ShellCommand } from '../ShellCommand.js'
 
@@ -41,7 +42,7 @@ export function resolveShellEngine(setting?: 'system' | 'brush'): ShellEngineRes
   if (requested !== 'brush') {
     return { engine: 'system', requested, reason: 'the system shell is selected' }
   }
-  const pack = resolveBrushPackDir()
+  const pack = resolvedPack()
   if (pack.state !== 'ok') {
     return {
       engine: 'system',
@@ -56,6 +57,16 @@ export function resolveShellEngine(setting?: 'system' | 'brush'): ShellEngineRes
     platform: pack.manifest.platform,
     source: pack.source,
   }
+}
+
+let packResolution: BrushPackResolution | null = null
+function resolvedPack(): BrushPackResolution {
+  packResolution ??= resolveBrushPackDir()
+  return packResolution
+}
+
+export function resetShellEngineResolution(): void {
+  packResolution = null
 }
 
 
@@ -107,6 +118,7 @@ function nextEvent(live: LiveSession): Promise<void> {
 }
 
 async function spawnSession(binaryPath: string, sandbox: EngineSandboxPolicy): Promise<LiveSession> {
+  registerEngineCleanup()
   const nonce = randomBytes(16).toString('hex')
   const script = loopScript()
 
@@ -468,10 +480,25 @@ function parseCheck(binaryPath: string, command: string): Promise<{ ok: boolean;
   })
 }
 
+export async function endEngineSession(): Promise<void> {
+  const live = session
+  session = null
+  pendingResetNote = null
+  if (live !== null && !live.exited) await killSession(live)
+}
+
+let cleanupRegistered = false
+function registerEngineCleanup(): void {
+  if (cleanupRegistered) return
+  cleanupRegistered = true
+  registerCleanup(endEngineSession)
+}
+
 export function resetEngineSessionForTest(): void {
   if (session) void killSession(session)
   session = null
   queue = Promise.resolve()
   pendingResetNote = null
   snapshotPromise = null
+  packResolution = null
 }
