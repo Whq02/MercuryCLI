@@ -1809,14 +1809,6 @@ async function interactiveLaunch(args: {
   registerBackgroundNode('lsp-manager', async () => {
     initializeLspServerManager()
   })
-  registerBackgroundNode('usage-poll', async () => {
-    const { armProviderUsagePoll } = await import('./services/providers/providerUsage.js')
-    const { declaredRouteOf } = await import('./services/providers/callModelRouter.js')
-    const { getFocusedSessionConnector } = await import('./services/engine-connector/focusedConnector.js')
-    armProviderUsagePoll({
-      family: () => declaredRouteOf(getFocusedSessionConnector().modelFacts().main) ?? 'unrecognised',
-    })
-  })
   registerBackgroundNode('example-commands', async () => {
     await refreshExampleCommands()
   })
