@@ -1,7 +1,7 @@
 ---
 name: pdf-documents
 description: Work with PDF files — extract text and tables, read metadata, merge, split, rotate, and watermark pages, fill forms, and generate new PDFs from data or HTML. Use when the request names a .pdf or asks to produce one; not for Word, Excel, or PowerPoint files (convert those to PDF with their own tools first).
-when_to_use: The user hands over a PDF to read or summarise, wants pages combined or separated, needs a form filled, or wants a report rendered as a PDF.
+when-to-use: The user hands over a PDF to read or summarise, wants pages combined or separated, needs a form filled, or wants a report rendered as a PDF.
 argument-hint: "<path.pdf or 'new'> [what to do]"
 ---
 

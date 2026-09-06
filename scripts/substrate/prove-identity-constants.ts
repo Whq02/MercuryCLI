@@ -27,7 +27,7 @@ const wtSrc = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
 check('worktree baseline speaks ONE filename: WORKTREE_BASE',
   wtSrc.includes("BASELINE_FILENAME = 'WORKTREE_BASE'") && !wtSrc.includes('CLAUDE' + '_BASE'))
 const cmdTypes = readFileSync(join(ROOT, 'src/types/command.ts'), 'utf8')
-check("LoadedFrom origin label renamed ('legacy-commands', non-persisted)", cmdTypes.includes("'legacy-commands'") && !cmdTypes.includes('commands_DEPRECATED'))
+check('LoadedFrom carries no commands-directory label (skills are the one markdown door)', !cmdTypes.includes("'legacy-commands'") && !cmdTypes.includes('commands_DEPRECATED'))
 check('the legacy instructions facade is folded away (consumers import the engine)', !existsSync(join(ROOT, 'src/utils/instructionsCompat.ts')) && !existsSync(join(ROOT, 'src/utils/claudemd.ts')))
 
 for (const p of [

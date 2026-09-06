@@ -50,7 +50,6 @@ function isSkillCommand(cmd: Command): cmd is SkillCommand {
   return (
     cmd.type === 'prompt' &&
     (cmd.loadedFrom === 'skills' ||
-      cmd.loadedFrom === 'legacy-commands' ||
       cmd.loadedFrom === 'extension' ||
       cmd.loadedFrom === 'mcp')
   )
@@ -83,13 +82,7 @@ function getSourceSubtitle(
     ]
     return servers.length > 0 ? servers.join(', ') : undefined
   }
-  const skillsPath = getDisplayPath(getSkillsPath(source, 'skills'))
-  const hasCommandsSkills = skills.some(
-    s => s.loadedFrom === 'legacy-commands',
-  )
-  return hasCommandsSkills
-    ? `${skillsPath}, ${getDisplayPath(getSkillsPath(source, 'commands'))}`
-    : skillsPath
+  return getDisplayPath(getSkillsPath(source, 'skills'))
 }
 
 function useSkillGroups(commands: Command[]): {
