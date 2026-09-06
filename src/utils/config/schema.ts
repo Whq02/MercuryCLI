@@ -244,7 +244,7 @@ export type GlobalConfig = {
   subscriptionNoticeCount?: number
   hasAvailableSubscription?: boolean
 
-  showExpandedTodos?: boolean
+  showExpandedTasks?: boolean
   showSpinnerTree?: boolean
 
   firstStartTime?: string
@@ -345,7 +345,7 @@ export function createDefaultGlobalConfig(): GlobalConfig {
     env: {},
     tipsHistory: {},
     promptQueueUseCount: 0,
-    showExpandedTodos: false,
+    showExpandedTasks: false,
     messageIdleNotifThresholdMs: 60000,
     autoConnectIde: false,
     autoInstallIdeExtension: true,
@@ -371,7 +371,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'diffTool',
   'env',
   'tipsHistory',
-  'showExpandedTodos',
+  'showExpandedTasks',
   'messageIdleNotifThresholdMs',
   'autoConnectIde',
   'autoInstallIdeExtension',
