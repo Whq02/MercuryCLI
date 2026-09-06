@@ -17,7 +17,7 @@ export const ConfigScopeSchema = lazy(() =>
 export type ConfigScope = z.infer<ReturnType<typeof ConfigScopeSchema>>
 
 export const TransportSchema = lazy(() =>
-  z.enum(['stdio', 'sse', 'sse-ide', 'http', 'ws', 'sdk']),
+  z.enum(['stdio', 'sse', 'sse-ide', 'http', 'ws', 'host']),
 )
 export type Transport = z.infer<ReturnType<typeof TransportSchema>>
 
@@ -115,7 +115,7 @@ export type McpWebSocketIDEServerConfig = z.infer<
 
 export const McpSdkServerConfigSchema = lazy(() =>
   z.object({
-    type: z.literal('sdk'),
+    type: z.literal('host'),
     name: z.string(),
   }),
 )
