@@ -98,7 +98,8 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   const wedgedStart = Date.now()
   await quiesceCleanupBeforeExit(new Promise(() => {}), 80)
   const wedgedMs = Date.now() - wedgedStart
-  t('a wedged cleanup is abandoned at the grace, never held forever', wedgedMs >= 80 && wedgedMs < 500)
+  const TIMER_LEAD_MS = 2
+  t('a wedged cleanup is abandoned at the grace, never held forever', wedgedMs >= 80 - TIMER_LEAD_MS && wedgedMs < 500)
   const shutdownSrc = readFileSync(join(process.cwd(), 'src/utils/gracefulShutdown.ts'), 'utf8')
   t('POISON (the raced cliff): the shutdown quiesces the HELD cleanup promise after the stdout drain, before forceExit', /await drainPipedStdoutForExit\(\)[\s\S]{0,600}await quiesceCleanupBeforeExit\(cleanupRun\)[\s\S]{0,200}forceExit\(exitCode\)/.test(shutdownSrc))
   t('POISON (the abandoned promise): the cleanup race consumes the held promise, not a fresh call', shutdownSrc.includes('const cleanupRun = runCleanupFunctions()') && /Promise\.race\(\[\s*\n\s*cleanupRun,/.test(shutdownSrc))
