@@ -1,6 +1,6 @@
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import {
-  hasSkipDangerousModePermissionPrompt,
+  hasSkipSovereignConsentPrompt,
   updateSettingsForSource,
 } from '../utils/settings/settings.js'
 import { logError } from '../utils/log.js'
@@ -13,9 +13,9 @@ export function migrateBypassPermissionsAcceptedToSettings(): boolean {
     const config = getGlobalConfig() as ReturnType<typeof getGlobalConfig> & RetiredAcceptanceKey
     if (!config.bypassPermissionsModeAccepted) return true
 
-    if (!hasSkipDangerousModePermissionPrompt()) {
+    if (!hasSkipSovereignConsentPrompt()) {
       const verdict = updateSettingsForSource('userSettings', {
-        skipDangerousModePermissionPrompt: true,
+        skipSovereignConsentPrompt: true,
       })
       if (!settingsWriteLanded('A.2 sovereign-mode acceptance', verdict)) return false
     }
