@@ -1,3 +1,4 @@
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-recovery-budget.ts" || fail=1; prover_mark "scripts/api/prove-recovery-budget.ts" "$__t"
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/providers/anthropic/** src/services/api/client* src/services/api/transportEvidence*

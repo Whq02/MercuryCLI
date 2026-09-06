@@ -50,10 +50,12 @@ import {
 } from '../WorkflowTool/structuredOutputTool.js'
 import { armInactivityDeadline, DeadlineExceededError, formatLimit, minutesKnobToMs } from '../../utils/deadline.js'
 import {
-  chargeRecoveryWait,
+  honourRecoveryWait,
   makeRecoveryBudget,
+  recoveryAnswerRefills,
   recoveryBudgetSpentLine,
   recoveryNoticeFacts,
+  refillRecoveryBudget,
   retryWaitWords,
 } from '../../services/api/recoveryBudget.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -902,18 +904,9 @@ export async function* runAgent(
       }
       const notice = recoveryNoticeFacts(message)
       if (notice !== null) {
-        const { honoredMs, spent } = chargeRecoveryWait(recovery, notice.declaredMs, notice.status)
+        const { honoredMs, spent } = honourRecoveryWait(recovery, notice)
         retryWordsStanding = true
-        onWait?.(
-          retryWaitWords({
-            attempt: notice.attempt ?? recovery.waits,
-            of: notice.of,
-            declaredMs: notice.declaredMs,
-            honoredMs,
-            status: notice.status,
-            budget: recovery,
-          }),
-        )
+        onWait?.(retryWaitWords({ facts: notice, honoredMs, budget: recovery }))
         if (budgetCut !== null) clearTimeout(budgetCut)
         budgetCut = null
         if (spent && honoredMs <= 0) cutAtBudget()
@@ -927,6 +920,7 @@ export async function* runAgent(
         budgetCut = null
         onWait?.(null)
       }
+      if (recoveryAnswerRefills(message)) refillRecoveryBudget(recovery)
       if ((message as { type?: string }).type === 'assistant') {
         const content = (message as { message?: { content?: unknown } }).message?.content
         if (Array.isArray(content) && content.some(block => (block as { type?: string })?.type === 'tool_use')) {
