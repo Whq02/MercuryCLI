@@ -45,9 +45,8 @@ const { shouldUseSandbox } = await import('../../src/tools/BashTool/shouldUseSan
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'shell-engine-sandbox-')))
 const PROJECT = join(SCRATCH, 'project')
-const OUTSIDE = join(SCRATCH, 'outside')
+const OUTSIDE = realpathSync(mkdtempSync('/tmp/shell-engine-sandbox-outside-'))
 mkdirSync(PROJECT)
-mkdirSync(OUTSIDE)
 process.chdir(PROJECT)
 setCwd(PROJECT)
 
@@ -127,6 +126,7 @@ if (!ready) {
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
+rmSync(OUTSIDE, { recursive: true, force: true })
 
 console.log('\n============================================================')
 if (failures === 0) console.log(` ✅ THE SANDBOX LAW HOLDS (${engine})`)
