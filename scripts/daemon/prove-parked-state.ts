@@ -249,7 +249,7 @@ console.log('L6 the board: one parked row, one parked group')
   const reasonSid = sid('b3')
   const file = workerTranscriptPath({ sessionId: parkedSid, workspaceId: project })
   mkdirSync(dirname(file), { recursive: true })
-  const userRow = { isSidechain: false, userType: 'external', entrypoint: 'cli', cwd: project, sessionId: parkedSid, version: '1.0.0-beta.1', gitBranch: 'main', parentUuid: null, uuid: '00000000-0000-4000-8000-00000000b001', timestamp: new Date(now).toISOString(), type: 'user', message: { role: 'user', content: 'park me please' } }
+  const userRow = { isSidechain: false, entrypoint: 'cli', cwd: project, sessionId: parkedSid, version: '1.0.0-beta.1', gitBranch: 'main', parentUuid: null, uuid: '00000000-0000-4000-8000-00000000b001', timestamp: new Date(now).toISOString(), type: 'user', message: { role: 'user', content: 'park me please' } }
   writeFileSync(file, encodeSeedTranscript([userRow] as never, parkedSid))
   seed(
     [

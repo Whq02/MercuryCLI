@@ -36,7 +36,6 @@ const base = (uuid: string, parent: string | null, i: number): Record<string, un
   uuid,
   parentUuid: parent,
   isSidechain: false,
-  userType: 'external',
   cwd: SCRATCH,
   sessionId: SID,
   version: '1.0.0',
@@ -267,7 +266,7 @@ section('§D five rounds of growth fold to the same facts as one full parse; the
     appendFileSync(file, encode(file, { type: 'pr-link', sessionId: SID, prNumber: 100 + round, prUrl: `https://example.invalid/pr/${round}`, prRepository: 'org/repo', timestamp: at(tick.i++) }))
     appendFileSync(file, encode(file, { type: 'agent-name', agentName: `agent-${round}`, sessionId: SID }))
     appendFileSync(file, encode(file, { type: 'mode', mode: 'normal', sessionId: SID }))
-    appendFileSync(file, encode(file, { type: 'marble-origami-commit', sessionId: SID, commitId: `c${round}`, collapsedSpans: [], timestamp: at(tick.i++) }))
+    appendFileSync(file, encode(file, { type: 'context-collapse-commit', sessionId: SID, commitId: `c${round}`, collapsedSpans: [], timestamp: at(tick.i++) }))
     commits++
     if (round === 2) {
       const summaryUuid = uid()

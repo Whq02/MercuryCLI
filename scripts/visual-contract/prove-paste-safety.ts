@@ -133,7 +133,6 @@ t.section('§2 — resumed history: persisted control bytes replay inert')
   mkdirSync(projects, { recursive: true })
   const base = (extra: Record<string, unknown>): Record<string, unknown> => ({
     isSidechain: false,
-    userType: 'external',
     entrypoint: 'cli',
     cwd,
     sessionId: SID,

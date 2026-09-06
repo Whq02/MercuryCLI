@@ -13,7 +13,7 @@ const PROJECTS = join(CONFIG_HOME, 'projects', sanitizePath(REPO.normalize('NFC'
 const SID = `00000000-aaaa-bbbb-ffff-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
 
 const base = (extra: Record<string, unknown>) => ({
-  isSidechain: false, userType: 'external', entrypoint: 'cli',
+  isSidechain: false, entrypoint: 'cli',
   cwd: REPO, sessionId: SID, version: '1.0.0-beta.1', gitBranch: 'main', ...extra,
 })
 const lines: unknown[] = []

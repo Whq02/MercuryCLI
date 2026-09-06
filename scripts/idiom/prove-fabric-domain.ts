@@ -77,7 +77,6 @@ section('§B codec exhaustiveness — every entry variant round-trips')
     parentUuid: null,
     isSidechain: false,
     sessionId: '00000000-aaaa-4000-8000-000000000001',
-    userType: 'external',
     cwd: '/tmp/x',
     version: '1.3.0',
     gitBranch: 'main',
@@ -197,8 +196,8 @@ section('§B codec exhaustiveness — every entry variant round-trips')
     { type: 'attribution-snapshot', files: {}, timestamp: base.timestamp },
     { type: 'queue-operation', operation: 'enqueue', timestamp: base.timestamp, sessionId: base.sessionId, content: 'queued' },
     { type: 'speculation-accept', uuid: base.uuid, accepted: true },
-    { type: 'marble-origami-commit', commitId: 'c1', timestamp: base.timestamp },
-    { type: 'marble-origami-snapshot', snapshotId: 's1', timestamp: base.timestamp },
+    { type: 'context-collapse-commit', commitId: 'c1', timestamp: base.timestamp },
+    { type: 'context-collapse-snapshot', snapshotId: 's1', timestamp: base.timestamp },
   ]) {
     roundTrip(`entry:${entry.type}`, entry as Record<string, unknown>)
   }

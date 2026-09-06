@@ -54,7 +54,6 @@ function chainRows(sessionId: string, rows: Row[]): Row[] {
     const out: Row = {
       parentUuid: parent,
       isSidechain: false,
-      userType: 'external',
       cwd: scratch,
       sessionId,
       version: '1.0.0-beta.1',
