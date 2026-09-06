@@ -154,7 +154,12 @@ async function runBegin(input: Input, owner: OwnerKey, from: string): Promise<Op
   }
 }
 
-async function runStep(input: Input, owner: OwnerKey, from: string): Promise<OpResult> {
+async function runStep(
+  input: Input,
+  owner: OwnerKey,
+  from: string,
+  getAppState: ToolUseContext['getAppState'] | undefined,
+): Promise<OpResult> {
   const id = resolveTargetId(input.id, from)
   if (id === null) {
     return {
@@ -172,6 +177,7 @@ async function runStep(input: Input, owner: OwnerKey, from: string): Promise<OpR
     ...(input.refs != null && { refs: input.refs }),
     ...(input.outcome != null && { outcome: input.outcome }),
     from,
+    ...(getAppState ? { getAppState } : {}),
   })
   if (noted.state !== 'ok') {
     return { op: 'step', result: noted.reason, outcome: 'failed' }
@@ -225,9 +231,17 @@ async function runFinish(input: Input, owner: OwnerKey, from: string): Promise<O
   }
 }
 
-async function runResume(input: Input, owner: OwnerKey, from: string): Promise<OpResult> {
+async function runResume(
+  input: Input,
+  owner: OwnerKey,
+  from: string,
+  getAppState: ToolUseContext['getAppState'] | undefined,
+): Promise<OpResult> {
   const id = resolveTargetId(input.id, from)
-  const resumed = id === null ? null : await resumeTransaction({ id, owner, from })
+  const resumed =
+    id === null
+      ? null
+      : await resumeTransaction({ id, owner, from, ...(getAppState ? { getAppState } : {}) })
   if (resumed === null) {
     return {
       op: 'resume',
@@ -344,7 +358,7 @@ id defaults to the open transaction at the current root, else the latest record.
           op = await runBegin(input, owner, from)
           break
         case 'step':
-          op = await runStep(input, owner, from)
+          op = await runStep(input, owner, from, context.getAppState)
           break
         case 'status':
           op = runStatus(input, from)
@@ -353,7 +367,7 @@ id defaults to the open transaction at the current root, else the latest record.
           op = await runFinish(input, owner, from)
           break
         case 'resume':
-          op = await runResume(input, owner, from)
+          op = await runResume(input, owner, from, context.getAppState)
           break
         case 'list':
           op = runList(from)
