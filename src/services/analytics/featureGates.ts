@@ -4,7 +4,6 @@ import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import { createSignal } from '../../utils/signal.js'
-import type { GitHubActionsMetadata } from '../../utils/user.js'
 
 export type FeatureGateUserAttributes = {
   id: string
@@ -20,7 +19,6 @@ export type FeatureGateUserAttributes = {
   firstTokenTime?: number
   email?: string
   appVersion?: string
-  github?: GitHubActionsMetadata
 }
 
 const FORK_GATE_TABLE: Readonly<Record<string, unknown>> = {

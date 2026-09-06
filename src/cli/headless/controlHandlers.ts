@@ -41,7 +41,6 @@ export async function handleInitializeRequest(
   commands: Command[],
   modelInfos: ModelInfo[],
   structuredIO: StructuredIO,
-  enableAuthStatus: boolean,
   options: {
     systemPrompt: string | undefined
     appendSystemPrompt: string | undefined

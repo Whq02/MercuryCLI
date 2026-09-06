@@ -1757,7 +1757,7 @@ export function buildExportData(
     .filter((host): host is string => typeof host === 'string' && host !== '')
   return {
     metadata: {
-      username: process.env.SAFEUSER || process.env.USER || 'unknown',
+      username: process.env.USER || 'unknown',
       generated_at: new Date().toISOString(),
       mercury_version:
         (process.env.npm_package_version as string | undefined) ??
