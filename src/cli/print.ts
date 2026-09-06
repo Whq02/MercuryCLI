@@ -789,12 +789,9 @@ export async function runHeadless(
     client: ConnectedMCPServer,
     serverName: string,
   ): Promise<void> => {
-    const { ElicitRequestSchema, ElicitationCompleteNotificationSchema } = await import(
-      '../services/mcp/sdk.js'
-    )
     client.client.setRequestHandler(
-      ElicitRequestSchema,
-      async (request, extra) => {
+      'elicitation/create',
+      async (request, ctx) => {
         const params = request.params
         const mode = params.mode === 'url' ? 'url' : 'form'
         const requestedSchema = params.mode === 'url' ? undefined : params.requestedSchema
@@ -804,7 +801,7 @@ export async function runHeadless(
           serverName,
           message: params.message,
           requestedSchema,
-          signal: extra.signal,
+          signal: ctx.mcpReq.signal,
           mode,
           url,
           elicitationId,
@@ -818,7 +815,7 @@ export async function runHeadless(
           serverName,
           params.message,
           requestedSchema,
-          extra.signal,
+          ctx.mcpReq.signal,
           mode,
           url,
           elicitationId,
@@ -837,7 +834,7 @@ export async function runHeadless(
       },
     )
     client.client.setNotificationHandler(
-      ElicitationCompleteNotificationSchema,
+      'notifications/elicitation/complete',
       async notification => {
         const elicitationId = notification.params.elicitationId
         await executeNotificationHooks({

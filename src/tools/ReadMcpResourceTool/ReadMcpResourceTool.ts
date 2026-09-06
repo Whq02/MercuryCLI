@@ -1,5 +1,4 @@
 import { randomBytes } from 'node:crypto'
-import { ReadResourceResultSchema } from '../../services/mcp/sdk.js'
 import { z } from 'zod/v4'
 
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
@@ -124,10 +123,7 @@ export const ReadMcpResourceTool = buildTool({
       throw new Error(`Server "${server}" does not support resources`)
     }
     const live = await ensureConnectedClient(client)
-    const result = await live.client.request(
-      { method: 'resources/read', params: { uri } },
-      ReadResourceResultSchema,
-    )
+    const result = await live.client.request({ method: 'resources/read', params: { uri } })
     const contents = await Promise.all(
       (result.contents as ResourceContent[]).map((entry, index) =>
         projectEntry(entry, index, server, uri),
