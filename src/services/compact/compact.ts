@@ -123,7 +123,7 @@ export function foldEffortMessageFor(model: string): EffortValue | undefined {
   return servesPerMessageEffort(model) ? MECHANICAL_FOLD_EFFORT : undefined
 }
 
-export function learnsPerMessageEffortRefusal(row: AssistantMessage | undefined, model: string): boolean {
+function learnsPerMessageEffortRefusal(row: AssistantMessage | undefined, model: string): boolean {
   if (row?.isApiErrorMessage !== true || foldEffortMessageFor(model) === undefined) return false
   const words = getAssistantMessageText(row) ?? ''
   if (!refusesPerMessageEffortRow(words)) return false
