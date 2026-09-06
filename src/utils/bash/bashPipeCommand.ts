@@ -138,7 +138,8 @@ function rebuildTokens(tokens: ParseEntry[]): string {
       }
     }
 
-    out.push(minimalQuote([text]))
+    const minimal = minimalQuote([text])
+    out.push(minimal === text ? text : singleQuote(text))
     sawCommandWord = true
     assignmentsAllowed = false
   }

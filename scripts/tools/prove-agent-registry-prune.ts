@@ -16,10 +16,11 @@ console.log('============================================================')
 console.log(' agent registry prune — evictTerminalTask drops stale routes (HB-0133)')
 console.log('============================================================')
 
-section('source: evictTerminalTask prunes the name→agentId registry by value===taskId')
-check('it collects registry names whose id === the evicted taskId', /for \(const \[name, agentId\] of registry\)[\s\S]{0,80}String\(agentId\) === taskId/.test(fw))
-check('it deletes those names (clone-on-write, only when something is removed)', /if \(staleNames\.length > 0\)[\s\S]{0,120}registry = new Map\(registry\)[\s\S]{0,80}registry\.delete\(name\)/.test(fw))
-check('the returned state carries the pruned registry', /return \{ \.\.\.prevState, tasks, agentNameRegistry: registry \}/.test(fw))
+section('source: ONE by-value prune helper, applied on BOTH eviction roads')
+check('a helper collects registry names whose id === the evicted taskId', /function pruneAgentNameRegistry\([\s\S]{0,400}String\(agentId\) === taskId/.test(fw))
+check('it deletes those names (clone-on-write, only when something is removed)', /function pruneAgentNameRegistry\([\s\S]{0,700}new Map\(registry\)[\s\S]{0,120}\.delete\(name\)/.test(fw))
+check('evictTerminalTask applies it and returns the pruned registry', /export function evictTerminalTask[\s\S]{0,1200}agentNameRegistry: pruneAgentNameRegistry\(prevState\.agentNameRegistry, taskId\)/.test(fw))
+check('the batch sweep applies it for every evicted id', /export function applyTaskOffsetsAndEvictions[\s\S]{0,1600}registry = pruneAgentNameRegistry\(registry, taskId\)/.test(fw))
 
 section('behavioural mirror: evict prunes the matching route, keeps the rest')
 const evict = (
