@@ -158,7 +158,8 @@ section('§1 the POSIX decision through the seam')
     f.io.env.PATH = '/usr/bin:/bin'
     const again = ensureBinDirOnPath(roots, f.io)
     check('a second run ⇒ present (the sentinel), the file untouched', again.state === 'present' && f.appends.length === 1 && f.files.get(`${HOME_P}/.zshrc`) === P_GUARD)
-    check('the present line points at a new terminal', describePathOutcome(again, false, HOME_P) === `PATH: ~/.zshrc already names ${HOME_P}/.local/bin — open a new terminal, or run: ${P_LINE}`)
+    check('the present line on a first install points at a new terminal', describePathOutcome(again, false, HOME_P) === `PATH: ~/.zshrc already names ${HOME_P}/.local/bin — open a new terminal, or run: ${P_LINE}`)
+    check('the present line on a repeat install says the folder is already on PATH and gives no advice', describePathOutcome(again, false, HOME_P, true) === `PATH: ${HOME_P}/.local/bin is already on your PATH — ~/.zshrc names it`)
   }
   {
     const f = fakeIo({ home: HOME_P, env: { SHELL: '/usr/local/bin/zsh' }, files: { [`${HOME_P}/.zshrc`]: 'alias ll=ls' } })
@@ -176,6 +177,9 @@ section('§1 the POSIX decision through the seam')
     check('bash with no profile ⇒ ~/.bashrc and ~/.profile (never a new ~/.bash_profile beside nothing else… the POSIX profile)', out.state === 'written' && out.targets.join() === `${HOME_P}/.bashrc,${HOME_P}/.profile`)
     check('both files carry the line exactly once', count(f.files.get(`${HOME_P}/.bashrc`) ?? '', PATH_SENTINEL) === 1 && count(f.files.get(`${HOME_P}/.profile`) ?? '', PATH_SENTINEL) === 1)
     check('the bash line names both files', describePathOutcome(out, false, HOME_P) === `PATH: added ${HOME_P}/.local/bin in ~/.bashrc and ~/.profile — open a new terminal, or run: ${P_LINE}`)
+    f.io.env.PATH = '/usr/bin:/bin'
+    const againBash = ensureBinDirOnPath(roots, f.io)
+    check('a repeat with two files ⇒ present, and the repeat line names both (plural) with no advice', againBash.state === 'present' && describePathOutcome(againBash, false, HOME_P, true) === `PATH: ${HOME_P}/.local/bin is already on your PATH — ~/.bashrc and ~/.profile name it`)
   }
   {
     const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/bash' }, files: { [`${HOME_P}/.bash_profile`]: '# mine\n' } })
@@ -270,7 +274,8 @@ section('§2 the win32 decision through the seam — the law of the empty value'
     const f = fakeIo({ home: 'C:\\Users\\Sam', env, userPath: { state: 'ok', value: `${STOCK};%LOCALAPPDATA%\\Mercury\\bin`, kind: 'ExpandString' } })
     const out = ensureBinDirOnPath(winRoots, f.io)
     check('a value that lists the folder as %LOCALAPPDATA%\\… ⇒ present, no write', out.state === 'present' && f.writes.length === 0)
-    check('the present line says the user PATH lists it', describePathOutcome(out, true) === `PATH: your user PATH already lists ${WIN_BIN} — open a new terminal`)
+    check('the present line on a first install says the user PATH lists it and points at a new terminal', describePathOutcome(out, true) === `PATH: your user PATH already lists ${WIN_BIN} — open a new terminal`)
+    check('the present line on a repeat install says the folder is already on PATH and gives no advice', describePathOutcome(out, true, undefined, true) === `PATH: ${WIN_BIN} is already on your PATH — your user PATH lists it`)
     const g = fakeIo({ home: 'C:\\Users\\Sam', userPath: { state: 'ok', value: `${STOCK};c:\\users\\sam\\appdata\\local\\mercury\\BIN\\`, kind: 'ExpandString' } })
     check('a value that lists it in another case with a trailing backslash ⇒ present', ensureBinDirOnPath(winRoots, g.io).state === 'present' && g.writes.length === 0)
     check('userPathListsDir ignores empty entries and unknown %VARS%', !userPathListsDir(';%NOPE%\\x;', WIN_BIN, {}) && userPathListsDir(`x;${WIN_BIN}`, WIN_BIN, {}))
@@ -364,6 +369,7 @@ if (IS_WIN) {
     mkdirSync(payload, { recursive: true })
     for (const member of ['mercury.mjs', 'manifest.json', 'splash.mjs', 'splash-core.mjs', 'verify-artifact.mjs']) cpSync(join(DIST, member), join(payload, member))
     cpSync(join(DIST, 'vendor', 'ripgrep'), join(payload, 'vendor', 'ripgrep'), { recursive: true })
+    if (existsSync(join(DIST, 'vendor', 'node'))) symlinkSync(join(DIST, 'vendor', 'node'), join(payload, 'vendor', 'node'))
     writeFileSync(join(payload, 'mercury'), posixLauncher(NODE_POLICY))
     writeFileSync(join(payload, 'install.sh'), '#!/bin/sh\n# fixture installer stub\n')
     for (const f of ['mercury', 'install.sh']) chmodSync(join(payload, f), 0o755)
@@ -421,7 +427,8 @@ if (IS_WIN) {
         check('… and it answers --version through the shim', (v.stdout ?? '').includes(VERSION), `exit ${v.status}: ${(v.stdout ?? '') + (v.stderr ?? '')}`.slice(0, 400))
       } else console.log('  [SKIP] zsh is not installed here')
       const again = run(['install'], h, '/bin/zsh')
-      check('the second install writes nothing and says ~/.zshrc already names it', again.code === 0 && again.stdout.includes(`PATH: ~/.zshrc already names ${bin} — open a new terminal`) && readFileSync(join(h, '.zshrc'), 'utf8') === zshrc, again.stdout)
+      check('the second install writes nothing and says the folder is already on PATH (~/.zshrc names it)', again.code === 0 && again.stdout.includes(`PATH: ${bin} is already on your PATH — ~/.zshrc names it`) && readFileSync(join(h, '.zshrc'), 'utf8') === zshrc, again.stdout)
+      check('the second install gives no new-terminal advice', !again.stdout.includes('open a new terminal'), again.stdout)
     }
     {
       const h = home('bash')

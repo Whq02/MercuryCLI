@@ -148,7 +148,6 @@ export type GlobalConfig = {
     lastAt: number
   }
   harnessProfilePin?: string
-  userID?: string
   theme: ThemeSetting
   hasCompletedOnboarding?: boolean
   lastOnboardingVersion?: string
