@@ -300,7 +300,7 @@ export function buildProviderAccountBlocks(
     usability?: () => Partial<Record<string, { blockers: string[] }>>
   },
 ): Property[] {
-  const isDemo = reads?.isDemo ?? Boolean(process.env.IS_DEMO)
+  const isDemo = reads?.isDemo ?? Boolean(process.env.MERCURY_DEMO)
   const allEntries = reads?.entries ? reads.entries() : walletEntries()
   let usabilityByFamily: Partial<Record<string, { blockers: string[] }>> = {}
   try {
@@ -373,7 +373,7 @@ export function buildAccountProperties(): Property[] {
   if (account.apiKeySource) {
     properties.push({ label: 'API key', value: <Text>{account.apiKeySource}</Text> })
   }
-  const isDemo = Boolean(process.env.IS_DEMO)
+  const isDemo = Boolean(process.env.MERCURY_DEMO)
   if (account.organization && !isDemo) {
     properties.push({ label: 'Organization', value: <Text>{account.organization}</Text> })
   }

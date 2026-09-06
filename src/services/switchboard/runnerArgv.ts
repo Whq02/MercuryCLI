@@ -5,7 +5,6 @@ const RUNNER_OPTIONS: Readonly<Record<string, 0 | 1 | 'many'>> = {
   '--append-system-prompt': 1,
   '--append-system-prompt-file': 1,
   '--thinking': 1,
-  '--max-thinking-tokens': 1,
   '--agent': 1,
   '--agents': 1,
   '--allowed-tools': 'many',

@@ -92,7 +92,7 @@ function drive(tag: string, cols: number, sends: Send[], readyText: string[], to
     MERCURY_DEEPSEEK_API_BASE: DEAD,
   }
   for (const key of [
-    'NODE_ENV', 'IS_DEMO',
+    'NODE_ENV', 'MERCURY_DEMO',
     'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY', 'MERCURY_OAUTH_TOKEN', 'MERCURY_API_KEY_FILE_DESCRIPTOR',
     'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY',
     'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN',

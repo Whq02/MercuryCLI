@@ -20,7 +20,7 @@ const savedEnv: Record<string, string | undefined> = {}
 for (const key of [
   'MERCURY_CONFIG_DIR',
   'MERCURY_AUTH_SCOPE_DIR',
-  'IS_DEMO',
+  'MERCURY_DEMO',
   'ANTHROPIC_DEFAULT_FABLE_MODEL',
   'OPENROUTER_API_KEY',
   'GOOGLE_API_KEY',
