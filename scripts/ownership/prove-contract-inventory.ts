@@ -4,6 +4,7 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import ts from 'typescript'
+import { parseWatchHeader } from '../verify/impactManifest.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const INVENTORY = join(import.meta.dir, 'contract-inventory.json')
@@ -234,6 +235,31 @@ for (const [domain, files] of Object.entries(MODULES)) {
     }
     scanned[domain][rel] = scanExports(abs)
   }
+}
+
+// The suite's `# gate-watch:` header is the declaration the impact plane
+section('(1b) the suite watches what it pins (the impact plane selects it for every inventoried owner)')
+{
+  const globs = parseWatchHeader(readFileSync(join(import.meta.dir, 'run-all.sh'), 'utf-8')).map(g => new Bun.Glob(g))
+  const pinned = new Set<string>()
+  const add = (rel: string): void => {
+    const abs = join(ROOT, rel)
+    if (!existsSync(abs)) return
+    if (!statSync(abs).isDirectory()) {
+      pinned.add(rel)
+      return
+    }
+    for (const f of readdirSync(abs, { withFileTypes: true })) {
+      if (f.isDirectory() || /\.tsx?$/.test(f.name)) add(`${rel}/${f.name}`)
+    }
+  }
+  for (const rel of [...Object.values(MODULES).flat(), ...NEEDLES.flatMap(n => n.files)]) add(rel)
+  const unwatched = [...pinned].filter(rel => !globs.some(g => g.match(rel)))
+  check(
+    `every inventoried path is under a gate-watch glob of scripts/ownership/run-all.sh (${pinned.size} paths / ${globs.length} globs)`,
+    unwatched.length === 0,
+    unwatched.length ? `UNWATCHED: ${unwatched.join(', ')} — add a gate-watch row so a change there selects this suite` : '',
+  )
 }
 
 section('(2) settings-key registry (live SettingsSchema shape)')

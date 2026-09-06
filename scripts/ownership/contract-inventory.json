@@ -550,7 +550,6 @@
     "foldEffortMessageFor",
     "foldFamilyOf",
     "isCompactCapsuleMessage",
-    "learnsPerMessageEffortRefusal",
     "mergeHookInstructions",
     "partialCompactConversation",
     "restorePreservedReads",
