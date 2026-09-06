@@ -155,16 +155,29 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
   )
   const sent: Array<{ short: string; frame: Record<string, unknown> }> = []
   const channel = { control: (short: string, frame: string) => (sent.push({ short, frame: JSON.parse(frame) }), true) }
-  const askFrame = (id: string, tool: string) => ({ type: 'control_request', request_id: id, request: { subtype: 'can_use_tool', tool_name: tool, input: { command: 'ls' } } })
+  const askFrame = (id: string, tool: string, agentId?: string) => ({
+    type: 'control_request',
+    request_id: id,
+    request: { subtype: 'can_use_tool', tool_name: tool, input: { command: 'ls' }, ...(agentId !== undefined ? { agent_id: agentId } : {}) },
+  })
+  const frameFor = (id: string) => sent.filter(s => (s.frame as { response?: { request_id?: string } }).response?.request_id === id)
 
-  t('default expiry is the registered 30-minute knob', permissionAskExpiryMs() === DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES * 60_000)
+  t("default expiry is the registered ten-minute knob — the ceiling a sub-agent's ask carries", DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES === 10 && permissionAskExpiryMs() === DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES * 60_000)
 
-  onWorkerControlRequest('concourse-w1', askFrame('req-expire', 'Bash'), daemonDir, channel, 40)
-  t('the ask parks', listPendingPermissionAsks().some(a => a.requestId === 'req-expire'))
+  onWorkerControlRequest('concourse-w1', askFrame('req-main-waits', 'Bash'), daemonDir, channel, 40)
+  t("the session's own ask parks", listPendingPermissionAsks().some(a => a.requestId === 'req-main-waits' && a.agentId === undefined))
+  await sleep(140)
+  t("the session's own ask is STILL parked past a 40ms limit (no clock on the main thread's ask)", listPendingPermissionAsks().some(a => a.requestId === 'req-main-waits'))
+  t('no expiry denial ever reached the child for it', frameFor('req-main-waits').length === 0)
+  const lateAnswer = answerPermissionAsk('req-main-waits', true, channel, 'operator')
+  t("the operator's answer, whenever it comes, lands where the ask waits", lateAnswer.outcome === 'applied' && frameFor('req-main-waits').length === 1 && (frameFor('req-main-waits')[0]!.frame as { response: { response: { behavior: string } } }).response.response.behavior === 'allow')
+
+  onWorkerControlRequest('concourse-w1', askFrame('req-expire', 'Bash', 'agent-park-1'), daemonDir, channel, 40)
+  t("a sub-agent's ask parks with its agent id", listPendingPermissionAsks().some(a => a.requestId === 'req-expire' && a.agentId === 'agent-park-1'))
   await sleep(140)
   const expired = sent.find(s => (s.frame as { response?: { request_id?: string } }).response?.request_id === 'req-expire')
   const denial = (expired?.frame as { response?: { response?: { behavior?: string; message?: string } } } | undefined)?.response?.response
-  t('expiry delivers a control_response DENY through the child channel', expired?.short === 'concourse-w1' && denial?.behavior === 'deny')
+  t("a sub-agent's expiry delivers a control_response DENY through the child channel", expired?.short === 'concourse-w1' && denial?.behavior === 'deny')
   t('the denial names the cause, the limit, and the next step',
     denial?.message === expiredAskDenialMessage('Bash', 40, 'expired') && /expired/.test(denial?.message ?? '') && /operator/.test(denial?.message ?? ''),
     denial?.message)
@@ -190,7 +203,7 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
       /const landed = ask\.obligationLanded \?\? Promise\.resolve\(ask\.obligationId\)/.test(asksSource),
     `mints=${(asksSource.match(/ask\.obligationLanded = upsertObligation\(/g) ?? []).length} settles=${(asksSource.match(/settleAskObligation\(ask, /g) ?? []).length}`)
 
-  onWorkerControlRequest('concourse-w2', askFrame('req-answer', 'Edit'), daemonDir, channel, 60)
+  onWorkerControlRequest('concourse-w2', askFrame('req-answer', 'Edit', 'agent-park-2'), daemonDir, channel, 60)
   const r = answerPermissionAsk('req-answer', true, channel, 'operator')
   t('an answered ask applies', r.outcome === 'applied')
   await sleep(120)
