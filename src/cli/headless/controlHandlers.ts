@@ -445,7 +445,7 @@ export type DynamicMcpState = {
 }
 
 function toScopedConfig(
-  config: McpServerConfigForProcessTransport,
+  config: DesiredServerConfig,
 ): ScopedMcpServerConfig {
   return { ...config, scope: 'dynamic' } as ScopedMcpServerConfig
 }
@@ -454,6 +454,16 @@ export type SdkMcpState = {
   configs: Record<string, McpSdkServerConfig>
   clients: MCPServerConnection[]
   tools: Tools
+}
+
+type DesiredServerConfig = Exclude<McpServerConfigForProcessTransport, { type: 'host' }> | McpSdkServerConfig
+
+function desiredServerConfigs(servers: Record<string, McpServerConfigForProcessTransport>): Record<string, DesiredServerConfig> {
+  const out: Record<string, DesiredServerConfig> = Object.create(null) as Record<string, DesiredServerConfig>
+  for (const [name, config] of Object.entries(servers)) {
+    out[name] = config.type === 'host' ? { type: 'sdk', name: config.name } : config
+  }
+  return out
 }
 
 export type McpSetServersResult = {
@@ -469,7 +479,7 @@ export async function handleMcpSetServers(
   dynamicState: DynamicMcpState,
   setAppState: (f: (prev: AppState) => AppState) => void,
 ): Promise<McpSetServersResult> {
-  const { allowed: allowedServers, blocked } = filterMcpServersByPolicy(servers)
+  const { allowed: allowedServers, blocked } = filterMcpServersByPolicy(desiredServerConfigs(servers))
   const policyErrors: Record<string, string> = Object.create(null) as Record<string, string>
   for (const name of blocked) {
     policyErrors[name] =
@@ -477,7 +487,7 @@ export async function handleMcpSetServers(
   }
 
   const sdkServers: Record<string, McpSdkServerConfig> = Object.create(null) as Record<string, McpSdkServerConfig>
-  const processServers: Record<string, McpServerConfigForProcessTransport> = Object.create(null) as Record<string, McpServerConfigForProcessTransport>
+  const processServers: Record<string, DesiredServerConfig> = Object.create(null) as Record<string, DesiredServerConfig>
 
   for (const [name, config] of Object.entries(allowedServers)) {
     if (config.type === 'sdk') {
@@ -546,7 +556,7 @@ export async function handleMcpSetServers(
 }
 
 export async function reconcileMcpServers(
-  desiredConfigs: Record<string, McpServerConfigForProcessTransport>,
+  desiredConfigs: Record<string, DesiredServerConfig>,
   currentState: DynamicMcpState,
   setAppState: (f: (prev: AppState) => AppState) => void,
 ): Promise<{

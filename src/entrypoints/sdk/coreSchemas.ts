@@ -111,10 +111,10 @@ export const McpHttpServerConfigSchema = lazySchema(() =>
     headers: z.record(z.string(), z.string()).optional().describe('Extra request headers, e.g. for auth'),
   }),
 )
-export const McpSdkServerConfigSchema = lazySchema(() =>
+export const McpHostServerConfigSchema = lazySchema(() =>
   z.object({
-    type: z.literal('sdk'),
-    name: z.string().describe('The in-process SDK server registration to bind'),
+    type: z.literal('host'),
+    name: z.string().describe('The host-served server registration to bind'),
   }),
 )
 export const McpServerConfigForProcessTransportSchema = lazySchema(() =>
@@ -122,7 +122,7 @@ export const McpServerConfigForProcessTransportSchema = lazySchema(() =>
     McpStdioServerConfigSchema(),
     McpSSEServerConfigSchema(),
     McpHttpServerConfigSchema(),
-    McpSdkServerConfigSchema(),
+    McpHostServerConfigSchema(),
   ]),
 )
 export const McpClaudeAIProxyServerConfigSchema = lazySchema(() =>
@@ -133,7 +133,7 @@ export const McpServerStatusConfigSchema = lazySchema(() =>
     McpStdioServerConfigSchema(),
     McpSSEServerConfigSchema(),
     McpHttpServerConfigSchema(),
-    McpSdkServerConfigSchema(),
+    McpHostServerConfigSchema(),
     McpClaudeAIProxyServerConfigSchema(),
   ]),
 )

@@ -2617,7 +2617,9 @@ export async function runHeadless(
           ? { type: config.type, url: config.url, headers: config.headers, oauth: config.oauth }
           : config.type === 'claudeai-proxy'
             ? { type: config.type, url: config.url, id: config.id }
-            : {
+            : config.type === 'sdk'
+              ? { type: 'host', name: config.name }
+              : {
                 type: 'stdio',
                 command: 'command' in config ? config.command : undefined,
                 args: 'args' in config ? config.args : undefined,

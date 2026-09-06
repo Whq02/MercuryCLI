@@ -17,7 +17,7 @@ export const LEGACY_SUBAGENT_ALIASES: Readonly<Record<string, string>> = {
 
 export function getBuiltInAgents(): AgentDefinition[] {
   if (
-    isEnvTruthy(process.env.MERCURY_SDK_DISABLE_BUILTIN_AGENTS) &&
+    isEnvTruthy(process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS) &&
     getIsNonInteractiveSession()
   ) {
     return []
