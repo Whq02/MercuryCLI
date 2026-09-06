@@ -1060,6 +1060,7 @@ const manifest = {
         path: brushRelPath,
         remedy:
           'fetch the shell engine pack (`bun run scripts/vendor/fetch-brush.ts`), then re-run `bun run build.ts` — the Bash tool keeps the system bash meanwhile, and the engine setting refuses to arm naming this',
+      },
   onDeviceTranscriber: whisperVendored && whisperMeta
     ? {
         vendored: true,
