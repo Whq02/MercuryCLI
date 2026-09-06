@@ -544,6 +544,31 @@ export function extractPartialResult(
   return undefined
 }
 
+export async function partialResultEnvelopeBlock(args: {
+  agentId: string
+  agentType: string
+  status: 'failed' | 'stopped'
+  partialText: string | undefined
+  usage: { totalTokens: number; toolUseCount: number; durationMs: number }
+}): Promise<string | undefined> {
+  try {
+    const { buildAgentResultEnvelope, formatEnvelopeBlock } = await import(
+      '../../services/agentResults/normalize.js'
+    )
+    return formatEnvelopeBlock(
+      await buildAgentResultEnvelope({
+        agentId: args.agentId,
+        agentType: args.agentType,
+        status: args.status,
+        finalText: args.partialText ?? '',
+        usage: args.usage,
+      }),
+    )
+  } catch {
+    return undefined
+  }
+}
+
 
 export async function runAsyncAgentLifecycle(args: {
   taskId: string
@@ -752,6 +777,18 @@ export async function runAsyncAgentLifecycle(args: {
       killAsyncAgent(taskId, rootSetAppState, stopReason, args.abortController)
       const worktreeResult = await getWorktreeResult()
       const partialResult = extractPartialResult(accumulated)
+      const usage = {
+        totalTokens: getTokenCountFromTracker(tracker),
+        toolUses: tracker.toolUseCount,
+        durationMs: Date.now() - metadata.startTime,
+      }
+      const envelopeBlock = await partialResultEnvelopeBlock({
+        agentId: String(taskId),
+        agentType: metadata.agentType,
+        status: 'stopped',
+        partialText: partialResult,
+        usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
+      })
       enqueueAgentNotification({
         taskId,
         description,
@@ -760,9 +797,11 @@ export async function runAsyncAgentLifecycle(args: {
         controller: args.abortController,
         toolUseId: toolUseContext.toolUseId,
         finalMessage: partialResult,
+        usage,
         landedWrites: landedWritesOf(accumulated),
         ...(stopReason !== undefined ? { stopReason } : {}),
         ...worktreeResult,
+        ...(envelopeBlock ? { envelopeBlock } : {}),
       })
       return
     }
@@ -770,16 +809,32 @@ export async function runAsyncAgentLifecycle(args: {
     const errMsg = errorMessage(error)
     failAgentTask(taskId, errMsg, rootSetAppState, args.abortController)
     const worktreeResult = await getWorktreeResult()
+    const partialResult = extractPartialResult(accumulated)
+    const usage = {
+      totalTokens: getTokenCountFromTracker(tracker),
+      toolUses: tracker.toolUseCount,
+      durationMs: Date.now() - metadata.startTime,
+    }
+    const envelopeBlock = await partialResultEnvelopeBlock({
+      agentId: String(taskId),
+      agentType: metadata.agentType,
+      status: 'failed',
+      partialText: partialResult,
+      usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
+    })
     enqueueAgentNotification({
       taskId,
       description,
       status: 'failed',
       error: errMsg,
+      finalMessage: partialResult,
+      usage,
       landedWrites: landedWritesOf(accumulated),
       setAppState: rootSetAppState,
       controller: args.abortController,
       toolUseId: toolUseContext.toolUseId,
       ...worktreeResult,
+      ...(envelopeBlock ? { envelopeBlock } : {}),
     })
   } finally {
     stopSummarization?.()

@@ -30,13 +30,20 @@ export function UserAgentNotificationMessage({
   const summary = extractTag(param.text, 'summary')
   if (!summary) return null
   const status = extractTag(param.text, 'status')
+  const result = extractTag(param.text, 'result')
+  const partial = result !== null && result !== '' && (status === 'failed' || status === 'killed') ? result : null
   return (
-    <Box marginTop={addMargin ? 1 : 0}>
+    <Box marginTop={addMargin ? 1 : 0} flexDirection="column">
       <Text>
         <NameplateClock />
         <Text color={statusColor(status, accent)}>● </Text>
         <Text dimColor>{summary}</Text>
       </Text>
+      {partial !== null ? (
+        <Text dimColor>
+          {'  '}partial result kept ({partial.length} chars) — send it a message to resume
+        </Text>
+      ) : null}
     </Box>
   )
 }

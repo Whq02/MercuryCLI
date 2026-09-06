@@ -777,8 +777,8 @@ export function enqueueAgentNotification(args: {
     (args.status === 'completed'
       ? `Agent "${args.description}" completed`
       : args.status === 'failed'
-        ? `Agent "${args.description}" failed: ${args.error || 'unknown error'}${landed}`
-        : `Agent "${args.description}" was ${args.stopReason ?? 'stopped'}${landed} — its transcript stands; ${AGENT_RESUME_DOOR}`)
+        ? `Agent "${args.description}" failed: ${args.error || 'unknown error'}${landed} — its work is kept; ${AGENT_RESUME_DOOR}`
+        : `Agent "${args.description}" was ${args.stopReason ?? 'stopped'}${landed} — its work is kept; ${AGENT_RESUME_DOOR}`)
 
   const toolUseIdLine = args.toolUseId
     ? `\n<${TOOL_USE_ID_TAG}>${args.toolUseId}</${TOOL_USE_ID_TAG}>`
