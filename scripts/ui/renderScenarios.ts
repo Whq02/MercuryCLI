@@ -2985,7 +2985,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     const settingsPath = join(tmpdir(), 'autopilot-band-settings.json')
     writeFileSync(
       settingsPath,
-      JSON.stringify({ skipDangerousModePermissionPrompt: true }),
+      JSON.stringify({ skipSovereignConsentPrompt: true }),
     )
     writeSyntheticSession('short')
     return {
@@ -3012,7 +3012,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     const settingsPath = join(tmpdir(), 'mode-band-bypass-settings.json')
     writeFileSync(
       settingsPath,
-      JSON.stringify({ skipDangerousModePermissionPrompt: true }),
+      JSON.stringify({ skipSovereignConsentPrompt: true }),
     )
     writeSyntheticSession('short')
     return {

@@ -64,7 +64,8 @@
       "description": "Where auto memory is written (default under the Mercury config home); ignored when set by checked-in project settings",
       "type": "string"
     },
-    "autoDreamEnabled": {
+    "memoryUpkeepEnabled": {
+      "description": "Background memory upkeep: the notes consolidation pass between sessions",
       "type": "boolean"
     },
     "env": {
@@ -126,9 +127,13 @@
             "apollo"
           ]
         },
-        "disableBypassPermissionsMode": {
-          "type": "string",
-          "const": "disable"
+        "disableSovereignMode": {
+          "description": "True closes Sovereign mode for every session that reads this file",
+          "type": "boolean"
+        },
+        "disableFlowMode": {
+          "description": "True closes Flow for every session that reads this file",
+          "type": "boolean"
         },
         "additionalDirectories": {
           "type": "array",
@@ -657,7 +662,7 @@
     "showThinkingSummaries": {
       "type": "boolean"
     },
-    "showClearContextOnPlanAccept": {
+    "showClearContextOnStrategyAccept": {
       "type": "boolean"
     },
     "progressReporting": {
@@ -672,12 +677,9 @@
     "skipWebFetchPreflight": {
       "type": "boolean"
     },
-    "skipDangerousModePermissionPrompt": {
+    "skipSovereignConsentPrompt": {
+      "description": "True skips the consent card shown before entering Sovereign mode (honoured from the user, local, flag and policy sources)",
       "type": "boolean"
-    },
-    "disableAutoMode": {
-      "type": "string",
-      "const": "disable"
     },
     "defaultShell": {
       "type": "string",
