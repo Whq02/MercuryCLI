@@ -89,7 +89,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       LIVE.length > 40 && LIVE.every(n => POOL.includes(n)),
       `${LIVE.length} registered live`,
     )
-    for (const name of ['ReadMcpResourceTool', 'Structure', 'Test', 'Journey', 'Git', 'Browser']) {
+    for (const name of ['ReadMcpResource', 'Structure', 'Test', 'Journey', 'Git', 'Browser']) {
       t.check(`${name} is in the ratchet's pool`, POOL.includes(name), 'seen')
     }
     const unclassified = POOL.filter(name => TOOL_FAMILY_BY_NAME[name] === undefined)

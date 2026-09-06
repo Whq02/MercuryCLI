@@ -1,7 +1,7 @@
 ---
 name: aesthetic-direction
 description: Give a web interface a deliberate visual identity — choose one direction, then derive type, colour, spacing, layout, and motion from it so the result does not read as a framework default. Use when designing or restyling pages, landing sites, dashboards, or components in HTML/CSS/React; not for terminal UIs, print, or brand-guideline documents.
-when_to_use: The user asks for a design, a redesign, "make it look better", a landing page, or says a UI looks generic or templated.
+when-to-use: The user asks for a design, a redesign, "make it look better", a landing page, or says a UI looks generic or templated.
 argument-hint: "<what is being designed> [audience] [constraints]"
 ---
 

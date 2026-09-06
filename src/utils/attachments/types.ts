@@ -16,9 +16,8 @@ import type { InstructionSourceEntry } from '../../services/instructions/contrac
 import type { EffortLevel } from '../effort.js'
 import type { HookBlockingError } from '../hooks.js'
 import type { Task } from '../tasks.js'
-import type { TodoList } from '../todo/types.js'
 
-export const TODO_REMINDER_CONFIG = {
+export const TASK_REMINDER_CONFIG = {
   TURNS_SINCE_WRITE: 10,
   TURNS_BETWEEN_REMINDERS: 10,
 } as const
@@ -222,11 +221,6 @@ export type Attachment =
   | {
       type: 'opened_file_in_ide'
       filename: string
-    }
-  | {
-      type: 'todo_reminder'
-      content: TodoList
-      itemCount: number
     }
   | {
       type: 'task_reminder'

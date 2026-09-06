@@ -3,7 +3,7 @@ import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { getBuiltInAgents, LEGACY_SUBAGENT_ALIASES } from '../../src/tools/AgentTool/builtInAgents.js'
+import { getBuiltInAgents } from '../../src/tools/AgentTool/builtInAgents.js'
 import { isGuideAgentMounted, MERCURY_GUIDE_AGENT_TYPE } from '../../src/tools/AgentTool/built-in/mercuryGuideAgent.js'
 import { getIsInteractive, setIsInteractive } from '../../src/bootstrap/state.js'
 
@@ -56,10 +56,7 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
 }
 
 {
-  for (const [legacy, target] of Object.entries(LEGACY_SUBAGENT_ALIASES)) {
-    check(`§4 legacy '${legacy}' → '${target}' resolves to a REGISTERED agent`, byType.has(target))
-  }
-  check('§4 the wrapper-routed Explore id resolves', LEGACY_SUBAGENT_ALIASES['Explore'] === 'mercury-scout')
+  check('§4 the scout id resolves to a REGISTERED agent', byType.has('mercury-scout'))
   const agentTool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
   const launchPlan = readFileSync(join(ROOT, 'src/utils/swarm/agentLaunchPlan.ts'), 'utf8')
   check('§4 the Agent tool resolves through the ONE launch-plan builder', agentTool.includes('buildAgentLaunchPlan({'))

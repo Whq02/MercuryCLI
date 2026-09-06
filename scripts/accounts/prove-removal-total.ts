@@ -82,7 +82,7 @@ const openai = await import('../../src/services/providers/openai/openaiAccounts.
 type AccountSlot = import('../../src/services/providers/accountSlots.ts').AccountSlot
 
 const CREDENTIALS = join(home, '.credentials.json')
-const SNAPSHOT = join(home, '.claude.json')
+const SNAPSHOT = join(home, '.mercury.json')
 const SIBLINGS = { mcpOAuth: { 'fixture-server': { accessToken: 'mcp-fixture-token' } }, trustedDeviceToken: 'device-fixture' }
 const ANTHROPIC_EMAIL = 'claude-operator@fixture.example'
 const OPENAI_EMAIL = 'gpt-operator@fixture.example'
@@ -103,7 +103,6 @@ function seedAnthropic(email: string, uuid: string): void {
       ...SIBLINGS,
     }),
   )
-  writeFileSync(SNAPSHOT, JSON.stringify({ oauthAccount: { accountUuid: uuid, emailAddress: email }, fixtureKey: 'kept' }))
   config.saveGlobalConfig(current => ({
     ...current,
     oauthAccount: { accountUuid: uuid, emailAddress: email, organizationUuid: 'org-fixture', organizationName: 'Fixture Org' },
@@ -196,7 +195,7 @@ section('R3 removing the Claude login through the REAL owner lands the keyless s
   check('the stored-login read says none (no memo served the departed token)', auth.hasStoredOAuthToken() === false && auth.isClaudeAISubscriber() === false && auth.getClaudeAIOAuthTokens() === null)
   check("the global config's account row is gone", config.getGlobalConfig().oauthAccount === undefined && auth.getOauthAccountInfo() === undefined)
   const snapshot = readJson(SNAPSHOT)
-  check("the scope's own snapshot lost its account and kept its other keys", snapshot !== null && snapshot.oauthAccount === undefined && snapshot.fixtureKey === 'kept', JSON.stringify(snapshot))
+  check("the scope's own identity file lost its account", snapshot !== null && snapshot.oauthAccount === undefined, JSON.stringify(snapshot))
   const scope = scan.scanAccountScopes()[0]!
   check('the scan: signed out, no identity', scope.authed === false && scope.email === undefined && scope.uuid === undefined, JSON.stringify(scope))
   const anthropicGroup = slots.deriveFamilySlotGroups().find(group => group.family.id === 'anthropic')

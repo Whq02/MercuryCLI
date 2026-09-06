@@ -921,8 +921,7 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     false &&
     includeFirstPartyOnlyBetas &&
     !isEnvDefinedFalsy(process.env.USE_CONNECTOR_TEXT_SUMMARIZATION) &&
-    (isEnvTruthy(process.env.USE_CONNECTOR_TEXT_SUMMARIZATION) ||
-      getFeatureValue_CACHED_MAY_BE_STALE('mercury_connector_text_summarization', false))
+    isEnvTruthy(process.env.USE_CONNECTOR_TEXT_SUMMARIZATION)
   ) {
     betaHeaders.push(SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER)
   }

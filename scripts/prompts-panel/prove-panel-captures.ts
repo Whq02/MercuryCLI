@@ -58,7 +58,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 mkdirSync(CAPTURE_DIR, { recursive: true })
 
 function base(extra: Record<string, unknown>): Record<string, unknown> {
-  return { isSidechain: false, userType: 'external', entrypoint: 'cli', cwd: RUNTIME_CWD, sessionId: SID, version: '1.0.0-beta.1', gitBranch: 'main', ...extra }
+  return { isSidechain: false, entrypoint: 'cli', cwd: RUNTIME_CWD, sessionId: SID, version: '1.0.0-beta.1', gitBranch: 'main', ...extra }
 }
 function chain(rows: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
   let prev: string | null = null

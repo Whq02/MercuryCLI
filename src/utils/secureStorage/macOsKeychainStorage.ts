@@ -5,7 +5,6 @@ import { logForDebugging } from '../debug.js'
 import {
   CREDENTIALS_SERVICE_SUFFIX,
   clearKeychainCache,
-  getLegacyMacOsKeychainStorageServiceName,
   getMacOsKeychainStorageServiceName,
   getRawSpellingKeychainStorageServiceName,
   getUsername,
@@ -37,10 +36,7 @@ function runSecurity(args: string[], input?: string): SecurityResult {
 }
 
 function credentialServiceNames(): string[] {
-  return [
-    getMacOsKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX),
-    getLegacyMacOsKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX),
-  ]
+  return [getMacOsKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX)]
 }
 
 export function readKeychainServiceSync(serviceName: string): string | null {
@@ -209,7 +205,6 @@ export const macOsKeychainStorage: SecureStorage = {
     const rawService = getRawSpellingKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX)
     const serviceNames = [
       getMacOsKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX),
-      getLegacyMacOsKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX),
       ...(rawService !== null ? [rawService] : []),
     ]
     for (const serviceName of serviceNames) {

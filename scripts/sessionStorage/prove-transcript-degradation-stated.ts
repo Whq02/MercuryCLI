@@ -24,7 +24,6 @@ function recordLines(path: string): string {
   let encoded = ''
   const meta = (uuid: string, parent: string | null) => ({
     isSidechain: false,
-    userType: 'external',
     entrypoint: 'cli',
     cwd: scratch,
     sessionId: SID,

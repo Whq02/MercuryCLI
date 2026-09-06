@@ -18,7 +18,6 @@ const SID = '00000000-aaaa-bbbb-cccc-0000000c121e'
 function buildSession(): string {
   const line = {
     isSidechain: false,
-    userType: 'external',
     entrypoint: 'cli',
     cwd: RUNTIME_CWD,
     sessionId: SID,
