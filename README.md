@@ -112,8 +112,9 @@ node dist/mercury.mjs doctor --json
 extra grammars · this machine's Node runtime · brush); a failed fetch skips its
 pack, and the build and the affected features say so (`bun install` alone ships
 that degraded build). With a Rust toolchain on the machine, `setup` also
-builds the voice capture addon from `native/voice` (the one pack that is
-built, not fetched; without cargo it is skipped and the doctor says so).
+builds the voice capture addon from `native/voice` (built, not fetched;
+without cargo it is skipped and the doctor says so); on Windows the shell
+engine is built the same way, since upstream publishes no Windows binary.
 The vendored shell engine (brush, a bash-compatible shell in Rust) is optional:
 the system shell stays the default, and the `shellEngine` setting (`/config`) or
 `MERCURY_SHELL_ENGINE=brush` runs the Bash tool on it, keeping shell state

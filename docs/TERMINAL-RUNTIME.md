@@ -176,7 +176,9 @@ everything else resets.
 An optional **brush** engine is a vendored payload — brush, a
 bash-compatible shell written in Rust (MIT), shipped as one upstream release
 binary per platform at `dist/vendor/brush/<platform>/` and verified against
-`vendor/brush.lock.json`. With it on, one long-lived brush process serves the
+`vendor/brush.lock.json` (on Windows, where upstream publishes no binary,
+built from the published crate at the same version). With it on, one
+long-lived brush process serves the
 whole session: variables, functions, aliases and options persist between
 calls, and the same shell runs on every OS with no Git-for-Windows
 dependency. The engine is a child process, so the OS sandbox still wraps it

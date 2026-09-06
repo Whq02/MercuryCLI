@@ -21,13 +21,23 @@ const LOCK_PATH = join(ROOT, 'vendor', 'brush.lock.json')
 const PACK_ROOT = join(ROOT, ...BRUSH_PACK_PATH.split('/'))
 const ARCHIVE_DIR = join(PACK_ROOT, 'archive')
 
-interface LockPlatform {
+interface LockFetchEntry {
+  kind?: 'fetch'
   target: string
   archive: string
   url: string
   checksum: string
   sha256: string
 }
+interface LockBuildEntry {
+  kind: 'build'
+  target: string
+  crate: string
+  crateVersion: string
+  crateSha256: string | null
+}
+type LockPlatform = LockFetchEntry | LockBuildEntry
+const isBuildEntry = (p: LockPlatform): p is LockBuildEntry => p.kind === 'build'
 
 interface Lock {
   name: string
@@ -62,6 +72,10 @@ function readLock(): Lock {
   if (typeof lock.platforms !== 'object' || lock.platforms === null) fail('lock names no platforms')
   for (const [platform, p] of Object.entries(lock.platforms)) {
     if (!(BRUSH_PACK_PLATFORMS as readonly string[]).includes(platform)) fail(`lock entry ${platform} is not a pack platform`)
+    if (isBuildEntry(p)) {
+      if (!p.target || !p.crate || !p.crateVersion) fail(`lock entry ${platform} (a build entry) lacks target/crate/crateVersion`)
+      continue
+    }
     if (!p.target || !p.archive || !p.url || !p.checksum) fail(`lock entry ${platform} lacks target/archive/url/checksum`)
     if (!/^[0-9a-f]{64}$/.test(p.sha256)) fail(`lock entry ${platform} sha256 is not a 64-hex digest`)
     const prefix = `${lock.repository}/releases/download/${lock.tag}/`
@@ -72,25 +86,30 @@ function readLock(): Lock {
 }
 
 function selectPlatforms(lock: Lock): BrushPackPlatform[] {
-  const pinned = Object.keys(lock.platforms) as BrushPackPlatform[]
-  if (all) return pinned
+  const fetched = Object.entries(lock.platforms).filter(([, p]) => !isBuildEntry(p)).map(([k]) => k) as BrushPackPlatform[]
+  if (all) return fetched
   const named: BrushPackPlatform[] = []
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] !== '--platform') continue
     const value = argv[i + 1]
-    if (!value || !(pinned as readonly string[]).includes(value)) {
-      fail(`--platform wants one of ${pinned.join(', ')} (got ${value ?? 'nothing'})`)
+    if (!value || !(fetched as readonly string[]).includes(value)) {
+      const entry = value ? lock.platforms[value] : undefined
+      if (entry && isBuildEntry(entry)) fail(`--platform ${value} is a build entry — that pack is compiled from the published crate by bun run scripts/vendor/build-brush.ts, never fetched`)
+      fail(`--platform wants one of ${fetched.join(', ')} (got ${value ?? 'nothing'})`)
     }
     named.push(value as BrushPackPlatform)
     i++
   }
   if (named.length > 0) return [...new Set(named)]
   const host = brushPackPlatform(process.platform, process.arch)
-  if (host === null || !lock.platforms[host]) {
+  const entry = host === null ? undefined : lock.platforms[host]
+  if (host === null || entry === undefined || isBuildEntry(entry)) {
     console.log(
-      `fetch-brush: the lock pins no upstream release binary for ${process.platform}/${process.arch}${host ? ` (${host})` : ''} — nothing to prepare here; ` +
+      `fetch-brush: the lock pins no upstream release binary for ${process.platform}/${process.arch}${host ? ` (${host})` : ''} — nothing to fetch here; ` +
         'the build ships without the vendored shell engine and says so (degraded: shell-engine; the system bash stays the Bash tool\'s engine). ' +
-        'That platform\'s pack is prepared on its own road.',
+        (entry && isBuildEntry(entry)
+          ? `That platform's pack is BUILT from the published crate: bun run scripts/vendor/build-brush.ts (cargo).`
+          : "That platform's pack is prepared on its own road."),
     )
     process.exit(0)
   }
@@ -106,7 +125,9 @@ function cacheInvalidReason(lock: Lock, platform: BrushPackPlatform): string | n
   const check = checkBrushPackDir(dir, { digest: true, platform })
   if (check.state !== 'ok') return check.note
   const pinned = lock.platforms[platform]!
+  if (isBuildEntry(pinned)) return "the lock builds this platform's pack (bun run scripts/vendor/build-brush.ts), the fetch never prepares it"
   const manifest = check.manifest
+  if (manifest.source !== 'release-archive') return 'the cache was built from the crate with cargo, not fetched from the pinned release'
   if (manifest.version !== lock.version) return `cache is ${manifest.version}, lock wants ${lock.version}`
   if (manifest.archiveSha256 !== pinned.sha256) return 'cache archiveSha256 does not match the lock'
   if (manifest.target !== pinned.target) return `cache target ${manifest.target} is not the lock's ${pinned.target}`
@@ -146,9 +167,11 @@ function installSelected(lock: Lock, platform: BrushPackPlatform, archivePath: s
   rmSync(tmpUnpack, { recursive: true, force: true })
   if (process.platform !== 'win32' && !binary.endsWith('.exe')) chmodSync(join(tmp, binary), 0o755)
   const pinned = lock.platforms[platform]!
+  if (isBuildEntry(pinned)) fail(`${platform} is a build entry — never fetched`)
   const tree = brushPackTreeDigest(tmp)
   const manifest: BrushPackManifest = {
     name: BRUSH_PACK_NAME,
+    source: 'release-archive',
     version: lock.version,
     platform,
     target: pinned.target,
@@ -170,6 +193,7 @@ function installSelected(lock: Lock, platform: BrushPackPlatform, archivePath: s
 
 async function secureArchive(lock: Lock, platform: BrushPackPlatform): Promise<string> {
   const pinned = lock.platforms[platform]!
+  if (isBuildEntry(pinned)) fail(`${platform} is a build entry — never fetched`)
   mkdirSync(ARCHIVE_DIR, { recursive: true })
   const archivePath = join(ARCHIVE_DIR, pinned.archive)
   if (existsSync(archivePath) && !force) {

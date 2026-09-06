@@ -2,7 +2,7 @@
 import '../lib/hermetic.ts'
 
 import { createHash } from 'node:crypto'
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -26,10 +26,16 @@ section('§1 the lock, the manifest decoder, and the pack checks')
   check('the lock pins a tag that is an upstream release', typeof lock.tag === 'string' && lock.tag.length > 0)
   const platformKeys = Object.keys(lock.platforms ?? {})
   check('the lock pins at least darwin + linux platforms', platformKeys.includes('darwin-arm64') && platformKeys.some(k => k.startsWith('linux')), platformKeys.join(','))
-  for (const [key, p] of Object.entries<Record<string, string>>(lock.platforms ?? {})) {
+  for (const [key, p] of Object.entries<Record<string, string | null>>(lock.platforms ?? {})) {
+    if (p.kind === 'build') {
+      check(`${key}: a build entry names the crate, its version at the pin and a Rust target (the crate digest is null until a build records it, else 64-hex)`,
+        typeof p.crate === 'string' && p.crateVersion === lock.version && typeof p.target === 'string' && (p.crateSha256 === null || /^[0-9a-f]{64}$/.test(p.crateSha256 ?? '')), JSON.stringify(p))
+      continue
+    }
     check(`${key}: sha256 is a 64-hex digest and the url is an asset of the pinned tag`,
-      /^[0-9a-f]{64}$/.test(p.sha256) && p.url.includes(`/download/${lock.tag}/`), p.url)
+      /^[0-9a-f]{64}$/.test(p.sha256 ?? '') && (p.url ?? '').includes(`/download/${lock.tag}/`), String(p.url))
   }
+  check('the lock BUILDS win-x64 (upstream publishes no Windows release binary)', lock.platforms?.['win-x64']?.kind === 'build')
   check('brushPackPlatform maps this host or returns null honestly',
     pack.brushPackPlatform('darwin', 'arm64') === 'darwin-arm64' && pack.brushPackPlatform('sunos', 'sparc') === null)
   check('brushBinaryFor names brush / brush.exe by platform',
@@ -44,7 +50,7 @@ section('§1 the lock, the manifest decoder, and the pack checks')
   const digest = createHash('sha256').update(readFileSync(binPath)).digest('hex')
   const tree = pack.brushPackTreeDigest(dir)
   const manifest = {
-    name: 'brush', version: '0.4.0', platform: 'linux-x64', target: 'x86_64-unknown-linux-gnu',
+    name: 'brush', source: 'release-archive', version: '0.4.0', platform: 'linux-x64', target: 'x86_64-unknown-linux-gnu',
     archive: 'brush-x86_64-unknown-linux-gnu.tar.gz', archiveSha256: 'a'.repeat(64),
     binary: 'brush', binarySha256: digest, license: 'MIT',
     licenseFiles: ['LICENSE', 'THIRD_PARTY_LICENSES.html'], fileCount: tree.fileCount, treeDigest: tree.treeDigest,
@@ -54,6 +60,26 @@ section('§1 the lock, the manifest decoder, and the pack checks')
   writeFileSync(binPath, 'tampered')
   check('a digest mismatch is caught', pack.checkBrushPackDir(dir, { digest: true, platform: 'linux-x64' }).state === 'mismatch')
   check('a wrong-platform pack is caught', pack.checkBrushPackDir(dir, { platform: 'darwin-arm64' }).state === 'mismatch')
+
+  const built = mkdtempSync(join(tmpdir(), 'brush-built-'))
+  writeFileSync(join(built, 'brush.exe'), 'not a real binary either')
+  mkdirSync(join(built, 'licenses', 'brush-shell-0.4.0'), { recursive: true })
+  writeFileSync(join(built, 'licenses', 'brush-shell-0.4.0', 'LICENSE'), 'MIT')
+  writeFileSync(join(built, 'NOTICES.json'), '{}')
+  const builtTree = pack.brushPackTreeDigest(built)
+  const builtManifest = {
+    name: 'brush', source: 'cargo-build', version: '0.4.0', platform: 'win-x64', target: 'x86_64-pc-windows-msvc',
+    crate: 'brush-shell', crateVersion: '0.4.0', crateSha256: null, cargo: 'cargo 1.90.0',
+    binary: 'brush.exe', binarySha256: createHash('sha256').update(readFileSync(join(built, 'brush.exe'))).digest('hex'), license: 'MIT',
+    licenseFiles: ['NOTICES.json', 'licenses/brush-shell-0.4.0/LICENSE'], fileCount: builtTree.fileCount, treeDigest: builtTree.treeDigest,
+  }
+  writeFileSync(join(built, '.vendor-manifest.json'), JSON.stringify(builtManifest))
+  const builtCheck = pack.checkBrushPackDir(built, { digest: true, platform: 'win-x64' })
+  check('a cargo-built pack (source cargo-build, no archive) decodes and checks ok', builtCheck.state === 'ok' && builtCheck.manifest?.source === 'cargo-build', JSON.stringify(builtCheck))
+  writeFileSync(join(built, '.vendor-manifest.json'), JSON.stringify({ ...builtManifest, source: undefined }))
+  check('a manifest that names no source is half a claim and decodes null', pack.readBrushPackManifest(built) === null)
+  writeFileSync(join(built, '.vendor-manifest.json'), JSON.stringify({ ...builtManifest, crateSha256: 'zz' }))
+  check('a cargo-build manifest with a malformed crate digest decodes null', pack.readBrushPackManifest(built) === null)
 }
 
 section('§2 engine resolution, the env pin, and the honest degrade')
