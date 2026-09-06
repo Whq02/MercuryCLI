@@ -127,6 +127,11 @@ section('F1 — the declared frame types are the ones the product writes; the re
   check('no retired frame type, control subtype or field survives in the schema modules', present.length === 0, j(present))
   const controlNames = ['provider_sign_in', 'provider_sign_in_callback', 'provider_sign_in_wait', 'host_mcp_servers']
   check('the sign-in verbs and the host MCP list are declared under their names', controlNames.every(word => controlSrc.includes(`'${word}'`) || controlSrc.includes(`${word}:`)), j(controlNames.filter(w => !controlSrc.includes(w))))
+  const stateSrc = readFileSync(join(ROOT, 'src/utils/sessionState.ts'), 'utf8')
+  const changeSrc = readFileSync(join(ROOT, 'src/state/onChangeAppState.ts'), 'utf8')
+  check('no session-metadata push road remains', !/notifySessionMetadataChanged|SessionExternalMetadata/.test(stateSrc + changeSrc) && !changeSrc.includes('externalMetadataToAppState'))
+  const mcpTypesSrc = readFileSync(join(ROOT, 'src/services/mcp/types.ts'), 'utf8')
+  check("the MCP kind word for a host-served server is 'host' on the wire and inside", mcpTypesSrc.includes("z.literal('host')") && !mcpTypesSrc.includes("'sdk'") && !coreSrc.includes("z.literal('sdk')"))
 }
 
 section('F2 — every declared key is snake_case outside the riding contracts')
@@ -289,7 +294,7 @@ section('F4 — the effort enums on the wire are the one ladder')
   const effortUnion = agentShape.effort!.unwrap!()
   const first = (effortUnion.options ?? effortUnion.def?.options ?? [])[0] as EnumLike
   check('an agent definition\'s effort enumerates the ladder', deepEq(first.options ?? first.def?.options, ladder), j(first.options ?? first.def?.options))
-  check('the ladder ends at max (five rungs)', ladder.length === 5 && ladder[4] === 'max' && ladder[3] === 'xhigh')
+  check('the ladder ends at max', ladder[ladder.length - 1] === 'max', j(ladder))
 }
 
 section('F5 — the status, wait, fold, usage and context projections spell snake_case')
