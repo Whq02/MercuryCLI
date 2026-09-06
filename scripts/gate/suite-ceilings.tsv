@@ -54,17 +54,13 @@ switchboard-3	2400
 # switchboard-3 at 1500 s inside prove-session-model-arms' second geometry
 # (two 120 s fixed-window legs run their whole stretched budget, 362 s each)
 # — honest walls, not hangs; both take the ui-class grant.
-# The fifth hosted run on the public tree: journey was tree-killed at 2400 s
-# with every prover completing honestly (agent-bash-live 106 s ·
-# cap-offer-list-live 797 s · cap-offer-live 109 s · concourse-roundtrip 244 s
-# · delivery-mid-tool 121 s · final-journey 730 s · mission-continue-live 85 s
-# and the short ones: 2283 s before the ceiling) and three still to run
-# (noping-stream-completes 181 s · steer-echo-single 154 s ·
-# switch-pickup-live 19 s), with two provers enrolled since (switch-cold-ingest
-# · switch-agents-live). The suite grew by the cap-offer pair and the
-# agent-bash journey since the 2006 s run its row was sized from; the grant is
-# the measured wall plus the unrun tail with the diffws-class slack.
-journey	3000
+# The journey estate carries no grant: it outgrew a 3000 s one on the hosted
+# runner (the longest journeys spend their whole stretched capture windows
+# there), so it is split into sibling suites (scripts/journey-2 … -11, the
+# slowest journeys alone) seeded at their measured hosted walls, and under
+# the drives plan each suite's ceiling is twice its seeded wall
+# (scripts/gate/ci-shard.sh, the drives ceiling rule) — a row here would be
+# a number no measurement of the new suites supports.
 # The drive halves of the split suites inherit their parent's grant: the
 # real-terminal captures are the part of the wall the grant was measured on.
 switchboard-drives	1200
