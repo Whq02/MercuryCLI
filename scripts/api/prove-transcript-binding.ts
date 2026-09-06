@@ -345,7 +345,7 @@ if (!existsSync(DIST)) {
     writeFileSync(notePath, 'hello-from-the-fixture-file\n')
     ;(turns[0] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: notePath }
     const debugFile = (n: number): string => join(arena.home, `turn-${n}.debug.log`)
-    const common = ['--model', 'claude-opus-4-8', '--allowedTools', 'Read', '--output-format', 'stream-json', '--verbose']
+    const common = ['--model', 'claude-opus-4-8', '--allowedTools', 'Read', '--output-format', 'stream-json']
     const r1 = await run(arena, ['-p', 'read the note', ...common, '--session-id', SID, '--debug-file', debugFile(1)])
     check('turn 1 (a tool round) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
     check('turn 1 answered with the post-tool text', r1.stdout.includes('B-TURN-1-DONE'), j(r1.stdout.slice(0, 200)))

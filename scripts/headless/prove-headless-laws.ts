@@ -85,7 +85,7 @@ async function driveProtocol(): Promise<void> {
 
   const child = spawn(
     nodeBin!,
-    [DIST, '-p', '--verbose', '--output-format', 'stream-json', '--input-format', 'stream-json', '--model', 'claude-opus-4-8'],
+    [DIST, '-p', '--output-format', 'stream-json', '--input-format', 'stream-json', '--model', 'claude-opus-4-8'],
     { cwd, env },
   )
   const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)

@@ -202,7 +202,7 @@ export type GlobalConfig = {
   hasSeenCoordinatorOffHint?: boolean
   responseProfile?: 'balanced' | 'concise'
   customNotifyCommand?: string
-  verbose: boolean
+  toolOutput: 'compact' | 'full'
   customApiKeyResponses?: {
     approved?: string[]
     rejected?: string[]
@@ -403,7 +403,7 @@ export function createDefaultGlobalConfig(): GlobalConfig {
     autoUpdates: undefined,
     theme: DEFAULT_THEME_SETTING,
     preferredNotifChannel: 'auto',
-    verbose: false,
+    toolOutput: 'compact',
     editorMode: 'normal',
     autoCompactEnabled: true,
     showTurnDuration: true,
@@ -441,7 +441,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'autoUpdates',
   'autoUpdatesProtectedForNative',
   'theme',
-  'verbose',
+  'toolOutput',
   'preferredNotifChannel',
   'shiftEnterKeyBindingInstalled',
   'editorMode',

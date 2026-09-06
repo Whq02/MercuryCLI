@@ -7,12 +7,14 @@ TOTAL=${2:?shard total}
 shift 2
 CLASS=all
 PLAN_ONLY=0
+PLAN_TABLE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     (--class) CLASS=${2:?--class wants release|drives|all}; shift 2 ;;
     (--class=*) CLASS=${1#--class=}; shift ;;
     (--plan-only) PLAN_ONLY=1; shift ;;
-    (*) echo "ci-shard: unknown argument '$1' (usage: ci-shard.sh <idx|darwin> <total> [--class release|drives|all] [--plan-only])" >&2; exit 2 ;;
+    (--plan-table) PLAN_ONLY=1; PLAN_TABLE=1; shift ;;
+    (*) echo "ci-shard: unknown argument '$1' (usage: ci-shard.sh <idx|darwin> <total> [--class release|drives|all] [--plan-only|--plan-table])" >&2; exit 2 ;;
   esac
 done
 case "$CLASS" in (release | drives | all) ;; (*) echo "ci-shard: --class wants release|drives|all (got '$CLASS')" >&2; exit 2 ;; esac
@@ -35,28 +37,46 @@ CEILING_DEFAULT=${MERCURY_SUITE_CEILING:-900}
 case "$CEILING_DEFAULT" in ('' | *[!0-9]*) CEILING_DEFAULT=900 ;; esac
 RETRY_MAX=${MERCURY_CI_RETRY_MAX_SECS:-240}
 case "$RETRY_MAX" in ('' | *[!0-9]*) RETRY_MAX=240 ;; esac
-ceiling_of() { # $1=dom → ceiling seconds
-  local c
-  c=$(sed -n "s/^$1	\([0-9][0-9]*\)$/\1/p" "$CEILING_FILE" 2>/dev/null | head -1)
-  printf '%s' "${c:-$CEILING_DEFAULT}"
+DRIVE_CEILING_K=2
+seed_ceiling_of() { # $1=dom → DRIVE_CEILING_K × the seeded wall (0 without a row); drives plan only
+  local s
+  [ "$CLASS" = drives ] || { printf '0'; return; }
+  s=$(seed_row "$1")
+  printf '%s' $(( ${s:-0} * DRIVE_CEILING_K ))
 }
-budget_of() { # $1=dom — the rule (or the operator pin), CAPPED at the ceiling
+ceiling_of() { # $1=dom → ceiling seconds: the grant or the default, raised to the seed rule under the drives plan
+  local c s
+  c=$(sed -n "s/^$1	\([0-9][0-9]*\)$/\1/p" "$CEILING_FILE" 2>/dev/null | head -1)
+  c=${c:-$CEILING_DEFAULT}
+  s=$(seed_ceiling_of "$1")
+  [ "$s" -gt "$c" ] && c=$s
+  printf '%s' "$c"
+}
+budget_of() { # $1=dom — the rule (or the operator pin), CAPPED at the ceiling; under the drives plan the ceiling itself
   local last b c
+  c=$(ceiling_of "$1")
   if [ -n "$BUDGET_OVERRIDE" ]; then
     b=$BUDGET_OVERRIDE
+  elif [ "$CLASS" = drives ]; then
+    b=$c
   else
     last=$(seed_row "$1")
     b=$(( ${last:-0} * BUDGET_K ))
     [ "$b" -lt "$BUDGET_FLOOR" ] && b=$BUDGET_FLOOR
   fi
-  c=$(ceiling_of "$1")
   [ "$b" -gt "$c" ] && b=$c
   printf '%s' "$b"
 }
-budget_note_of() { # $1=dom — names the ceiling when it is the binding bound
-  local c
+budget_note_of() { # $1=dom — names the ceiling when it is the binding bound, and the seed rule when that made it
+  local c s
   c=$(ceiling_of "$1")
-  [ "$(budget_of "$1")" -eq "$c" ] && printf 'the %ss suite ceiling — the hang law' "$c"
+  [ "$(budget_of "$1")" -eq "$c" ] || return 0
+  s=$(seed_ceiling_of "$1")
+  if [ "$s" -eq "$c" ] && [ "$s" -gt 0 ]; then
+    printf 'the %ss suite ceiling — %s × the %ss seeded wall, the hang law' "$c" "$DRIVE_CEILING_K" "$(seed_row "$1")"
+  else
+    printf 'the %ss suite ceiling — the hang law' "$c"
+  fi
 }
 
 PLAN_OUT=$(/usr/bin/python3 - "$IDX" "$TOTAL" "$SUITES_DIR" "$SEED_FILE" "$CLASS" <<'PYEOF'
@@ -128,7 +148,14 @@ while IFS= read -r _dom; do
 done <<<"$PLAN_OUT"
 
 if [ "$PLAN_ONLY" -eq 1 ]; then
-  for dom in ${MINE[@]+"${MINE[@]}"}; do printf '%s\n' "$dom"; done
+  for dom in ${MINE[@]+"${MINE[@]}"}; do
+    if [ "$PLAN_TABLE" -eq 1 ]; then
+      _seed=$(seed_row "$dom")
+      printf '%s\t%s\t%s\t%s\n' "$dom" "${_seed:--}" "$(ceiling_of "$dom")" "$(budget_of "$dom")"
+    else
+      printf '%s\n' "$dom"
+    fi
+  done
   exit 0
 fi
 

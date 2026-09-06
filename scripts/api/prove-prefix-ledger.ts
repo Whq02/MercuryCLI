@@ -353,7 +353,7 @@ if (!existsSync(DIST)) {
     }
     const debugText = (file: string): string => { try { return readFileSync(file, 'utf8') } catch { return '' } }
     const ledgerFile = (arena: Arena): string => join(arena.home, '.claude', 'preserved-thinking.json')
-    const common = ['-p', '--input-format', 'stream-json', '--model', 'claude-fable-5-1', '--allowedTools', 'Read', '--output-format', 'stream-json', '--verbose']
+    const common = ['-p', '--input-format', 'stream-json', '--model', 'claude-fable-5-1', '--allowedTools', 'Read', '--output-format', 'stream-json']
     const scripted = (tag: string, n: number, over: Partial<Extract<ScriptedTurn, { kind: 'text' }>> = {}): ScriptedTurn[] =>
       Array.from({ length: n }, (_, i) => ({ kind: 'text' as const, text: `${tag}-T${i + 1}`, thinking: `${tag} thinking ${i + 1}`, model: 'claude-fable-5-1', ...over }))
 
@@ -449,7 +449,7 @@ if (!existsSync(DIST)) {
       const arena = makeArena(fixture)
       const SID = 'c0ffee00-0000-4000-8000-00000000d009'
       const one = (model: string, first: boolean, extra: Record<string, string> = {}): Promise<{ exit: number | null; stdout: string; stderr: string }> =>
-        runStreaming({ ...arena, env: { ...arena.env, ...extra } }, ['-p', '--input-format', 'stream-json', '--model', model, '--allowedTools', 'Read', '--output-format', 'stream-json', '--verbose', first ? '--session-id' : '--resume', SID], [{ prompt: 'turn' }])
+        runStreaming({ ...arena, env: { ...arena.env, ...extra } }, ['-p', '--input-format', 'stream-json', '--model', model, '--allowedTools', 'Read', '--output-format', 'stream-json', first ? '--session-id' : '--resume', SID], [{ prompt: 'turn' }])
       await one('claude-fable-5-1', true)
       await one('claude-fable-5-1', false)
       await one('claude-opus-4-8', false)
@@ -484,7 +484,7 @@ if (!existsSync(DIST)) {
       spawnSync('git', ['commit', '-q', '-m', 'seed'], { cwd: arena.cwd, stdio: 'ignore', env: gitEnv })
       const SID = 'c0ffee00-0000-4000-8000-00000000d008'
       const debugFile = join(arena.home, 'wt.debug.log')
-      const r = await runStreaming(arena, ['-p', '--input-format', 'stream-json', '--model', 'claude-fable-5-1', '--allowedTools', 'Read,EnterWorktree', '--output-format', 'stream-json', '--verbose', '--session-id', SID, '--debug-file', debugFile], [
+      const r = await runStreaming(arena, ['-p', '--input-format', 'stream-json', '--model', 'claude-fable-5-1', '--allowedTools', 'Read,EnterWorktree', '--output-format', 'stream-json', '--session-id', SID, '--debug-file', debugFile], [
         { prompt: 'worktree turn 1' },
         { prompt: 'worktree turn 2: hop into a worktree' },
         { prompt: 'worktree turn 3' },
