@@ -19,7 +19,7 @@ import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js
 import { getUserContextAttachment } from '../../utils/attachments/userContext.js'
 import { getMemoryPath } from '../../utils/config/derived.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { runForkedAgent, type CacheSafeParams } from '../../utils/forkedAgent.js'
+import { continuationOfSentRequest, lastSentRequestFor, runForkedAgent, type CacheSafeParams } from '../../utils/forkedAgent.js'
 import { appendSystemContext } from '../../utils/api.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import type { EffortValue } from '../../utils/effort.js'
@@ -49,7 +49,7 @@ import { sleep } from '../../utils/sleep.js'
 import { COMPACT_MAX_OUTPUT_TOKENS } from '../../utils/context.js'
 import { getModelMaxOutputTokens, servesPerMessageEffort, notePerMessageEffortRefused, refusesPerMessageEffortRow } from '../../utils/model/capabilities.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
-import { checkFeatureGate_CACHED_MAY_BE_STALE, getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/featureGates.js'
+import { checkFeatureGate_CACHED_MAY_BE_STALE } from '../analytics/featureGates.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE, getPromptTooLongTokenGap } from '../api/errors.js'
 import { type OverflowSignal, overflowGapTokens, overflowSignalOf } from '../api/overflowSignal.js'
 import { routedCallModel } from '../providers/callModelRouter.js'
@@ -769,10 +769,22 @@ async function streamingFallbackAttempts(
       const sliced = index >= 0 ? messages.slice(index + 1) : messages
       return projectRewoundWindows(sliced)
     })()
-    const apiMessages = normalizeMessagesForAPI(
-      stripImagesFromMessages(stripReinjectedAttachments([...afterBoundary, promptMessage])),
-      context.options.tools,
+    const continuation = continuationOfSentRequest(
+      lastSentRequestFor(String(rosterOwnerFromToolUseContext(context))),
+      afterBoundary,
     )
+    if (continuation !== null && attempt === 1) {
+      logForDebugging(
+        `compact: direct lane re-sends the session's last request (${continuation.sent.length} rows) + ${continuation.tail.length} newer row(s) + the prompt`,
+      )
+    }
+    const apiMessages: Message[] =
+      continuation !== null
+        ? [...continuation.sent, ...stripImagesFromMessages([...continuation.tail, promptMessage])]
+        : normalizeMessagesForAPI(
+            stripImagesFromMessages(stripReinjectedAttachments([...afterBoundary, promptMessage])),
+            context.options.tools,
+          )
 
     let captured: AssistantMessage | undefined
     const stream = routedCallModel({
@@ -850,7 +862,6 @@ async function runSummarization(
 ): Promise<AssistantMessage> {
   return withKeepAlive(context, async () => {
     if (
-      getFeatureValue_CACHED_MAY_BE_STALE('mercury_compact_cache_prefix', true) &&
       shouldRideCacheSharingFork(context.options.mainLoopModel, context.options.thinkingConfig)
     ) {
       const viaFork = await summarizeViaCacheSharingFork(messages, cacheSafeParams, promptMessage, context)

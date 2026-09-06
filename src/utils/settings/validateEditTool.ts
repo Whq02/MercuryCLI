@@ -1,4 +1,4 @@
-import { isClaudeSettingsPath } from '../permissions/filesystem.js'
+import { isSettingsFilePath } from '../permissions/filesystem.js'
 import { validateSettingsFileContent } from './validation.js'
 
 export function validateInputForSettingsFileEdit(
@@ -6,7 +6,7 @@ export function validateInputForSettingsFileEdit(
   originalContent: string,
   getUpdatedContent: () => string,
 ): { result: false; message: string; errorCode: number } | null {
-  if (!isClaudeSettingsPath(filePath)) return null
+  if (!isSettingsFilePath(filePath)) return null
   const before = validateSettingsFileContent(originalContent)
   if (!before.isValid) return null
   const after = validateSettingsFileContent(getUpdatedContent())

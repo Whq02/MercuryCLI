@@ -64,7 +64,7 @@ export function PlanApprovalResponseDisplay({
         </Box>
       ) : null}
       <Text dimColor>
-        Revise the plan and call ExitPlanMode again when it is ready.
+        Revise the plan and call ExitStrategyMode again when it is ready.
       </Text>
     </Box>
   )

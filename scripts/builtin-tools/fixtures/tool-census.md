@@ -6,12 +6,12 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 71 built-in production tools · 170 operations · 71 with a declared capability contract.
+Census version 1 — 70 built-in production tools · 169 operations · 70 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 46 available · 14 conditional · 0 degraded · 11 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 20 observation · 22 mutation · 9 execution · 20 coordination · 0 unclassified
+- support (at generation time): 46 available · 13 conditional · 0 degraded · 11 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 20 observation · 22 mutation · 9 execution · 19 coordination · 0 unclassified
 - integrations: 10 declare transactions · 11 declare executions · 31 declare mercury:// outputs · 36 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · planning · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
 - every tool is unit-classified
@@ -37,10 +37,10 @@ Census version 1 — 71 built-in production tools · 170 operations · 71 with a
 | CronList | observation | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | Debug | execution | debugging | 27 | block | yes | — | debug-adapter (external-projection) | — | scripts/ide/prove-native-debug.ts |
 | Edit | mutation | text-mutation | — | block | no | file +receipts | — | mercury://file, mercury://receipt | scripts/project-services/prove-change-receipts.ts |
-| EnterPlanMode | coordination | planning | — | block | yes | — | — | — | NAMED GAP |
+| EnterStrategyMode | coordination | planning | — | block | yes | — | — | — | NAMED GAP |
 | EnterWorktree | mutation | git-transactions | — | block | yes | — | — | — | NAMED GAP |
 | Eval | execution | persistent-evaluation | — | block | no | — | eval-kernel (child-execution) | — | scripts/eval/prove-kernel-persistence.ts |
-| ExitPlanMode | coordination | planning | — | block | yes | — | — | — | NAMED GAP |
+| ExitStrategyMode | coordination | planning | — | block | yes | — | — | — | NAMED GAP |
 | ExitWorktree | mutation | git-transactions | — | block | yes | — | — | — | NAMED GAP |
 | Git | mutation | git-inspection, git-transactions | 21 | block | yes | git.commit +receipts | — | mercury://git | scripts/builtin-tools/prove-git-plans.ts |
 | Glob | observation | source-reading | — | block | no | — | — | — | NAMED GAP |
@@ -50,14 +50,14 @@ Census version 1 — 71 built-in production tools · 170 operations · 71 with a
 | Journey | execution | application-verification, service-management | 3 | cancel | yes | — | journey (full-execution-owner) | mercury://journey, mercury://service, mercury://execution, mercury://evidence | scripts/builtin-tools/prove-journeys.ts |
 | Launch | execution | process-execution, debugging | 7 | block | yes | — | debug-adapter (external-projection) | — | scripts/ide/prove-launch-profiles.ts |
 | LaunchFleet | coordination | task-coordination | — | block | yes | — | — | mercury://team | NAMED GAP |
-| ListMcpResourcesTool | observation | resource-inspection | — | block | yes | — | — | — | NAMED GAP |
+| ListMcpResources | observation | resource-inspection | — | block | yes | — | — | — | NAMED GAP |
 | LSP | mutation | code-intelligence | — | block | yes | lsp.rename +receipts | — | mercury://file, mercury://receipt | scripts/lsp/run-all.sh |
 | Monitor | observation | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
 | NotebookEdit | mutation | text-mutation | — | block | yes | notebook +receipts | — | mercury://file, mercury://receipt | NAMED GAP |
 | ProviderSearch | observation | web-access | — | block | yes | — | — | — | scripts/search/run-all.sh |
 | PushNotification | coordination | operator-io | — | block | yes | — | — | — | NAMED GAP |
 | Read | observation | source-reading | — | block | no | — | — | mercury://file | scripts/project-services/prove-change-anchors.ts |
-| ReadMcpResourceTool | observation | resource-inspection | — | block | yes | — | — | — | NAMED GAP |
+| ReadMcpResource | observation | resource-inspection | — | block | yes | — | — | — | NAMED GAP |
 | Recall | observation | memory | — | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |
 | RecordConvention | mutation | text-mutation | — | block | yes | file +receipts | — | — | NAMED GAP |
 | Reflect | observation | memory | — | block | yes | — | — | — | scripts/memory/prove-reflect-grounding.ts |
@@ -83,7 +83,6 @@ Census version 1 — 71 built-in production tools · 170 operations · 71 with a
 | TeamCreate | coordination | task-coordination | — | block | yes | — | — | mercury://team | NAMED GAP |
 | TeamDelete | coordination | task-coordination | — | block | yes | — | — | mercury://team | NAMED GAP |
 | Test | execution | application-verification | 5 | block | yes | — | background-job (external-projection) | mercury://test | scripts/ide/prove-python-tests.ts |
-| TodoWrite | coordination | planning | — | block | yes | — | — | — | NAMED GAP |
 | ToolSearch | observation | capability-discovery | — | block | no | — | — | — | scripts/builtin-tools/prove-toolsearch-capability.ts |
 | Transaction | coordination | application-verification | 6 | block | yes | — | — | mercury://ide | scripts/ide/prove-closed-loop.ts |
 | WebFetch | observation | web-access | — | block | yes | — | — | — | NAMED GAP |

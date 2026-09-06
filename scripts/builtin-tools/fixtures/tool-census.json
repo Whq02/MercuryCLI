@@ -631,7 +631,7 @@
       }
     },
     {
-      "name": "EnterPlanMode",
+      "name": "EnterStrategyMode",
       "category": "read",
       "risk": "low",
       "cancellation": "block",
@@ -715,7 +715,7 @@
       }
     },
     {
-      "name": "ExitPlanMode",
+      "name": "ExitStrategyMode",
       "category": "other",
       "risk": "medium",
       "cancellation": "block",
@@ -1101,7 +1101,7 @@
       }
     },
     {
-      "name": "ListMcpResourcesTool",
+      "name": "ListMcpResources",
       "category": "read",
       "risk": "low",
       "cancellation": "block",
@@ -1306,7 +1306,7 @@
       }
     },
     {
-      "name": "ReadMcpResourceTool",
+      "name": "ReadMcpResource",
       "category": "read",
       "risk": "low",
       "cancellation": "block",
@@ -2070,32 +2070,6 @@
           "a discoverable test framework (pytest · unittest · node-test · vitest · jest · cargo · go)"
         ],
         "proof": "scripts/ide/prove-python-tests.ts"
-      }
-    },
-    {
-      "name": "TodoWrite",
-      "category": "edit",
-      "risk": "medium",
-      "cancellation": "block",
-      "deferred": true,
-      "operations": null,
-      "units": [
-        "planning"
-      ],
-      "proof": null,
-      "declared": {
-        "intents": [
-          "track a short todo list for the session"
-        ],
-        "units": [
-          "planning"
-        ],
-        "class": "coordination",
-        "cancellation": "not-applicable",
-        "latency": "fast",
-        "conditions": [
-          "the task list off — an interactive session (or MERCURY_TASKS=1) serves the task list in its place"
-        ]
       }
     },
     {

@@ -20,8 +20,8 @@ export function ExternalInstructionIncludesDialog({
   const handleSelection = (value: 'yes' | 'no') => {
     saveCurrentProjectConfig((current: ProjectConfig) => ({
       ...current,
-      hasClaudeMdExternalIncludesApproved: value === 'yes',
-      hasClaudeMdExternalIncludesWarningShown: true,
+      hasExternalIncludesApproved: value === 'yes',
+      hasExternalIncludesWarningShown: true,
     }));
     onDone();
   };

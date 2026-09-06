@@ -14,12 +14,10 @@ export type {
   GlobalConfig,
   GlobalConfigKey,
   HistoryEntry,
-  InstallMethod,
   NotificationChannel,
   PastedContent,
   ProjectConfig,
   ProjectConfigKey,
-  ReleaseChannel,
   SerializedStructuredHistoryEntry,
 } from './config/schema.js'
 export {
@@ -54,19 +52,12 @@ export {
 } from './config/trust.js'
 export {
   binaryName,
-  formatAutoUpdaterDisabledReason,
-  getAutoUpdaterDisabledReason,
   getCustomApiKeyStatus,
   getManagedRulesDir,
   getMemoryPath,
-  getOrCreateUserID,
   getRemoteControlAtStartup,
   getUserRulesDir,
-  isAutoUpdaterDisabled,
   isCopyOnSelectEnabled,
   isMercurySubstrateProfileOn,
   recordFirstStartTime,
-} from './config/derived.js'
-export type {
-  AutoUpdaterDisabledReason,
 } from './config/derived.js'

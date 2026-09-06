@@ -109,7 +109,7 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
       f === 'src/daemon/saturnAccount.ts' ||
       f === 'src/components/mercury-ui/parity/AccountView.tsx',
     cls: 'compat-boundary',
-    why: "the account estate's documented compat surface — scoped-account homes + .claude.json identity files (Saturn's account facts read the same scope identity)",
+    why: "the account estate reads a scope's identity from the scope's own config file and adopts a snapshot left under the retired basename once (Saturn's account facts read the same scope identity)",
   },
   {
     test: f => f === 'src/entrypoints/cli.tsx',
@@ -152,6 +152,11 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
     test: f => f === 'src/services/mcp/channelsRoot.ts',
     cls: 'compat-boundary',
     why: 'legacy channel root honored in place beside the native root',
+  },
+  {
+    test: (f, needle) => needle === 'MERCURY.md' && f.startsWith('src/services/projectIntel/'),
+    cls: 'owner-internal',
+    why: "the project intel facts name Mercury's own instruction file — existence only, never a content load",
   },
   {
     test: (f, needle) =>

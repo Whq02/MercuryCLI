@@ -2,8 +2,8 @@
 export const PROTECTED_TOOL_NAMES: ReadonlySet<string> = new Set([
   'Skill',
   'Brief',
-  'ExitPlanMode',
-  'EnterPlanMode',
+  'ExitStrategyMode',
+  'EnterStrategyMode',
 ])
 
 const SKILL_PATH_MARKS = ['mercury-skills/', '/skills/'] as const

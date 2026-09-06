@@ -237,7 +237,7 @@ t.section('§6 — THE CONTAINER: cycling, the tri-state words, the master row, 
   t.check('a click activates through the same toggle body as ↵ (onActivate rides the primary action)', screen.includes('onActivate={props.onActivate}') && screen.includes("{ key: 'return', hint: 'change', run: row => ({ pending: 'saving…', result: Promise.resolve().then(() => cycleRow(row, 1)) }) }"))
   {
     const { withSkillState, withExtensionState } = await import('../../src/services/mcp/kitStore.js')
-    const slice = { allowedTools: [], mcpContextUris: [], projectOnboardingSeenCount: 0, skillStates: { deploy: 'invocable' as const }, extensionStates: { 'orchard-tools': 'off' as const } } as never
+    const slice = { allowedTools: [], projectOnboardingSeenCount: 0, skillStates: { deploy: 'invocable' as const }, extensionStates: { 'orchard-tools': 'off' as const } } as never
     const onSkill = withSkillState(slice, 'deploy', 'on') as { skillStates?: unknown }
     const onExt = withExtensionState(slice, 'orchard-tools', true) as { extensionStates?: unknown }
     t.check("the record keeps deviations only: the record's withSkillState/withExtensionState DELETE the key on 'on', and the store door rides exactly those pens", onSkill.skillStates === undefined && onExt.extensionStates === undefined && read('src/services/kitMenu/menuStore.ts').includes("from '../mcp/kitStore.js'"))
@@ -267,7 +267,7 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
     }),
     dirSkills: async () => [
       prompt('deploy', { source: 'projectSettings', loadedFrom: 'skills' }),
-      prompt('notes', { source: 'userSettings', loadedFrom: 'legacy-commands' }),
+      prompt('notes', { source: 'userSettings', loadedFrom: 'skills' }),
       prompt('extension-maker', { source: 'bundled', loadedFrom: 'bundled' }),
       prompt('mcp-derived', { source: 'mcp', loadedFrom: 'mcp' }),
     ],
@@ -304,7 +304,7 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
       dirSkills: async () => [
         prompt('good', { source: 'userSettings', loadedFrom: 'skills' }),
         prompt('good', { source: 'projectSettings', loadedFrom: 'skills' }),
-        prompt('good', { source: 'projectSettings', loadedFrom: 'legacy-commands' }),
+        prompt('good', { source: 'localSettings', loadedFrom: 'skills' }),
         prompt('deploy', { source: 'projectSettings', loadedFrom: 'skills' }),
       ],
       skillRefusals: () => [
@@ -316,7 +316,7 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
     const goodRows = cat2.rows.filter(r => r.kind === 'skill' && r.name === 'good')
     t.check('a name three files claim paints ONE row — the loader’s winner (user settings)', goodRows.length === 1 && goodRows[0]?.kind === 'skill' && goodRows[0].source === 'user settings', JSON.stringify(goodRows))
     const skillNotes = cat2.rows.filter(r => r.kind === 'note' && r.section === 'skill').map(r => r.text)
-    t.check('the shadowed copies are ONE note naming the winner and every loser', skillNotes[0] === shadowedSkillNote('good', 'user settings skill', ['project settings skill', 'project settings legacy command']) && skillNotes[0] === 'shadowed: good — the user settings skill loads; the project settings skill and the project settings legacy command stay on disk unused (rename one)', skillNotes[0])
+    t.check('the shadowed copies are ONE note naming the winner and every loser', skillNotes[0] === shadowedSkillNote('good', 'user settings skill', ['project settings skill', 'project, gitignored settings skill']) && skillNotes[0] === 'shadowed: good — the user settings skill loads; the project settings skill and the project, gitignored settings skill stay on disk unused (rename one)', skillNotes[0])
     t.check('a refused file is a note naming the file (cwd-relative) and the reason’s first line', skillNotes[1] === 'refused: .mercury/skills/broken/SKILL.md (project) — frontmatter did not parse: Nested mappings are not allowed in compact mappings at line 2, column 14:' && refusedSkillNote({ path: '/proof/cwd/.mercury/skills/broken/SKILL.md', error: 'x\ny', source: 'project' }, '/proof/cwd') === 'refused: .mercury/skills/broken/SKILL.md (project) — x', skillNotes[1])
     t.check('a refusal outside the cwd keeps its full path', skillNotes[2] === "refused: /elsewhere/skills/with space/SKILL.md (user) — uninvocable name: contains whitespace ('/with space' can never be one command token)", skillNotes[2])
     t.check('the ruled MCP note stays LAST; the section list keeps members before notes', skillNotes[skillNotes.length - 1] === MCP_SKILLS_NOTE && sectionRows(cat2).filter(r => r.section === 'skill').findIndex(r => r.kind === 'note') > sectionRows(cat2).filter(r => r.section === 'skill').findLastIndex(r => r.kind === 'skill'))
@@ -384,7 +384,7 @@ t.section("§8 — THE STORE WRITE: write-through per toggle onto the REAL recor
     store.write(WS, master, 'off')
     const deltas = kitDeltasForWorkspace(WS)
     t.check("the record's deltas after three writes are the record's exact shape", JSON.stringify(deltas) === JSON.stringify({ mcpOff: ['postgres'], skillStates: { deploy: 'invocable' }, extensionsOff: ['orchard-tools'] }), JSON.stringify(deltas))
-    t.check("statesFromDeltas renders the record's deltas to the screen's keys; deltasFromStates renders them back; the empty record is their emptyKitDeltas", JSON.stringify([...statesFromDeltas(deltas)]) === JSON.stringify([['mcp:postgres', 'off'], ['skill:deploy', 'invocable'], ['extension:orchard-tools', 'off']]) && JSON.stringify(deltasFromStates(statesFromDeltas(deltas))) === JSON.stringify(deltas) && JSON.stringify(kitDeltasOf({ allowedTools: [], mcpContextUris: [], projectOnboardingSeenCount: 0 } as never)) === JSON.stringify(emptyKitDeltas()))
+    t.check("statesFromDeltas renders the record's deltas to the screen's keys; deltasFromStates renders them back; the empty record is their emptyKitDeltas", JSON.stringify([...statesFromDeltas(deltas)]) === JSON.stringify([['mcp:postgres', 'off'], ['skill:deploy', 'invocable'], ['extension:orchard-tools', 'off']]) && JSON.stringify(deltasFromStates(statesFromDeltas(deltas))) === JSON.stringify(deltas) && JSON.stringify(kitDeltasOf({ allowedTools: [], projectOnboardingSeenCount: 0 } as never)) === JSON.stringify(emptyKitDeltas()))
     t.check('receipts name the row and its word; a master row names itself as an extension', receiptFor(master, 'off', true) === 'orchard-tools (extension) → off' && receiptFor(postgres, 'off', false) === 'postgres already off')
   } finally {
     if (savedHome === undefined) delete process.env.MERCURY_CONFIG_DIR

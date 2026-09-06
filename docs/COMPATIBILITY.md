@@ -52,10 +52,8 @@ the identity suite (`scripts/identity/`) pins each one and bounds the total.
 - Foreign-artifact detection: the GitHub Actions context (`src/utils/env.ts`),
   the harness-state classifier behind `/health`
   (`src/utils/knownAgentClis.ts` — Mercury's own fingerprint decides what is
-  foreign; the signature table only names a recognized writer), and the
-  `.claude/**` permission-dialog patterns
-  (`src/tools/FileEditTool/constants.ts`) — reading the external world by
-  its real names, never wearing them.
+  foreign; the signature table only names a recognized writer) — reading the
+  external world by its real names, never wearing them.
 - Defensive scrubs: `src/utils/subprocessEnv.ts` and
   `src/daemon/ownedDaemon.ts` strip foreign session/credential env a nested
   boot may inherit (another tool's token never reaches Mercury's children).
@@ -125,13 +123,12 @@ literal in the body.
 
 ## Credentials on macOS
 
-Keychain writes use Mercury's own service name (keyed to the resolved auth
-config home). Reads also try two bounded fallback entries
+Keychain writes use Mercury's own service name, keyed to the resolved auth
+config home (every home's name carries a hash of its path). Reads also try
+one bounded fallback entry
 (`src/utils/secureStorage/macOsKeychainHelpers.ts`): a credential stored
-under the vendor CLI's service name is carried across to the Mercury name on
-the first token refresh, and one stored under the raw spelling of a
-non-canonical config-home pin is moved to the canonical name on the first
-successful read.
+under the raw spelling of a non-canonical config-home pin is moved to the
+canonical name on the first successful read.
 
 ## Platforms
 
@@ -139,8 +136,9 @@ One release archive per target. The target owner is
 `src/services/privateChannel/releaseTarget.ts`: the packager's and the build's
 `--target` vocabulary, the archive a machine asks for (`mercury update`), and
 the installers' `uname` map. Every archive carries its own Node runtime, search
-binary and image processor for that platform, and the voice addon where it was
-built.
+binary and image processor for that platform, and the voice capture and
+on-device transcriber addons where they were built (the speech model is a
+one-time download into the config home, never in the archive).
 
 | target | archive | machines | built |
 | --- | --- | --- | --- |

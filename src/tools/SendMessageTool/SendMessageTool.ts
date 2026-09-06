@@ -12,6 +12,7 @@ import { daemonControlRpc } from '../../daemon/controlSocket.js'
 import { findTeammateTaskByAgentId } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
 import { isLocalAgentTask, queuePendingMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isMainSessionTask } from '../../tasks/LocalMainSessionTask.js'
+import { workflowOwnedAgentWords, workflowOwningAgent } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import { generateRequestId } from '../../utils/agentId.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -510,6 +511,11 @@ async function routeToLocalAgent(
         message: `Agent ${rawTo} ${ended} and could not be resumed: ${errorMessage(error)}`,
       }
     }
+  }
+
+  const owningWorkflow = workflowOwningAgent(context.getAppState().tasks, String(agentId))
+  if (owningWorkflow !== undefined) {
+    return { success: false, message: workflowOwnedAgentWords(owningWorkflow, String(agentId)) }
   }
 
   const transcriptPath = agentTranscriptPathOf(String(agentId))
