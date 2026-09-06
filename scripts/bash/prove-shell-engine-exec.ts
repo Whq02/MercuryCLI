@@ -127,11 +127,11 @@ section('§0 the live engine answers the pin')
   const probe = await run('echo "${BRUSH_VERSION:-system}"')
   const answered = probe.out.trim()
   note(`the shell that answered: ${answered === 'system' ? 'the system shell' : `brush ${answered}`}; $BASH_VERSION=${(await run('echo "$BASH_VERSION"')).out.trim() || '(empty)'}`)
-  if (engine === 'brush') {
-    check('the engine pin is live: the vendored engine answered, not the system shell', answered !== 'system' && answered !== '', `answered ${JSON.stringify(answered)}`)
-  } else {
-    check('the system lane is live: no vendored-engine version on the wire', answered === 'system', `answered ${JSON.stringify(answered)}`)
-  }
+  check(
+    'the engine under test is the one on the wire (brush answers a version; the system shell answers none)',
+    engine === 'brush' ? answered !== 'system' && answered !== '' : answered === 'system',
+    `answered ${JSON.stringify(answered)}`,
+  )
 }
 
 section('§1 quoting')
@@ -240,11 +240,11 @@ section('§6 the environment the seam sets')
 section('§7 the security preamble and globs')
 {
   const extglob = await run(`(cd "${GLOB}" && echo +(one.txt|two.txt))`)
-  if (engine === 'brush') {
-    check('extended globs stay ON under the engine (the preamble shopt is a no-op): the extended pattern expands', /one\.txt two\.txt/.test(extglob.out), `code ${extglob.code} out ${JSON.stringify(extglob.out.trim())}`)
-  } else {
-    check('extended globs are OFF (the preamble ran): an extended pattern never expands to its matches', !/one\.txt two\.txt/.test(extglob.out), `code ${extglob.code} out ${JSON.stringify(extglob.out.trim())}`)
-  }
+  check(
+    'extended globs: the preamble disables them on the system shell (the pattern never expands); brush keeps them on (the shopt is a no-op)',
+    engine === 'brush' ? /one\.txt two\.txt/.test(extglob.out) : !/one\.txt two\.txt/.test(extglob.out),
+    `code ${extglob.code} out ${JSON.stringify(extglob.out.trim())}`,
+  )
   check('the extended-glob probe never moved the session directory (the cd was subshell-scoped)', getCwd() === SCRATCH, `cwd ${getCwd()}`)
   note(`extended-pattern row (${engine}): code ${extglob.code} out ${JSON.stringify(extglob.out.trim().slice(0, 80))}`)
   await row('an unmatched glob passes through literally', `echo "${GLOB}"/*.nomatch | sed "s#${SCRATCH}##"`, { code: 0, out: '/glob/*.nomatch' })
