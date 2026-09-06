@@ -261,7 +261,7 @@ async function capture(cfg: Record<string, unknown>, env: Record<string, string>
   for (const m of payload.marks ?? []) marks[m.label] = gridText(m.grid)
   return { text: gridText(payload.grid), marks, sends: Array.isArray(cfg.sends) ? cfg.sends.length : 0, receipts: Array.isArray(payload.sendReceipts) ? payload.sendReceipts.length : 0, endReason: payload.endReason ?? '' }
 }
-const rowOf = (frame: string, needle: string): string => frame.split('\n').find(r => r.includes(needle)) ?? ''
+const listRowOf = (frame: string): string => frame.split('\n').find(r => !r.includes(`"${TITLE}"`) && !r.includes('enter session') && new RegExp(`${TITLE}\\s{2,}`).test(r)) ?? ''
 function dump(label: string, frame: string | undefined): void {
   console.log(`\n── ${label} ──`)
   for (const row of (frame ?? '(no frame)').split('\n')) if (row.trim()) console.log(`│ ${row.slice(0, 160)}`)
@@ -307,18 +307,17 @@ try {
       cwd: work,
       argv: ['node', DIST],
       sends: [
-        { data: '\t', atTick: 999, awaitText: WAIT_WORDS, requireAwait: true, minTick: 5, awaitStableTicks: 4, awaitSettleTicks: 3, mark: 'board' },
+        { data: '\t', atTick: 999, awaitText: WAIT_WORDS, requireAwait: true, minTick: 5, awaitSettleTicks: 3, mark: 'board' },
         { data: '\r', afterPrevTicks: 3, mark: 'armed' },
         { data: '\r', afterPrevTicks: 4, mark: 'entered' },
-        { data: '\r', atTick: 999, awaitText: CARD_WORDS, requireAwait: true, minTick: 2, awaitStableTicks: 3, awaitSettleTicks: 3, mark: 'card' },
+        { data: '\r', atTick: 999, awaitText: CARD_WORDS, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'card' },
         { data: '\x1b[1;2D', atTick: 999, awaitText: REPORT_LEAD, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'answered' },
-        { data: '', atTick: 999, awaitText: BOARD_WORDS, requireAwait: true, minTick: 2, awaitStableTicks: 5, awaitSettleTicks: 2, mark: 'board-after' },
+        { data: '', atTick: 999, awaitText: BOARD_WORDS, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'board-after' },
       ],
       readyText: [BOARD_WORDS],
       stableTicks: 6,
     },
     {
-      HOME: home,
       MERCURY_CONFIG_DIR: home,
       MERCURY_DAEMON_DIR: daemonDir,
       MERCURY_CONCOURSE: 'always',
@@ -341,7 +340,7 @@ try {
   )
   console.log(`  evidence · sends ${cap.receipts}/${cap.sends} · end ${cap.endReason} · hits: ${hits.map(h => `${h.n}:${h.route}${h.streaming ? '' : '/json'}`).join(' ')}`)
   const board = cap.marks['board'] ?? ''
-  check(`P4 the board's row for the session reads "${WAIT_WORDS}"`, rowOf(board, TITLE).includes(WAIT_WORDS), rowOf(board, TITLE) || '(no row)')
+  check(`P4 the board's row for the session reads "${WAIT_WORDS}"`, listRowOf(board).includes(WAIT_WORDS), listRowOf(board) || '(no row)')
   const card = cap.marks['card'] ?? ''
   check('P5 entering the session painted the consent card for the parked ask — the command on the card', card.includes(CARD_WORDS) && card.includes('git commit --allow-empty') && !card.includes(BOARD_WORDS))
   check("P5 the card explains the block (the safety check said no; the decision is the operator's) and quotes the check's reason", card.includes(CARD_BLOCK_WORDS) && card.includes(BLOCK_REASON))
@@ -354,7 +353,7 @@ try {
   check('P6 …and the report painted inside the focused chat', answered.includes(`${REPORT_LEAD}${shaAfter}`) && !answered.includes(BOARD_WORDS))
   check('P6 no denial anywhere on the wire', hits.every(h => h.results.every(r => !isDenial(r))) && transcriptText().split('\n').every(l => !isDenial(l)))
   const after = cap.marks['board-after'] ?? cap.text
-  check('P7 back on the board the row no longer waits', after.includes(BOARD_WORDS) && after.includes(TITLE) && !rowOf(after, TITLE).includes(WAIT_WORDS), rowOf(after, TITLE) || '(no row)')
+  check('P7 back on the board the row no longer waits', after.includes(BOARD_WORDS) && listRowOf(after) !== '' && !listRowOf(after).includes(WAIT_WORDS), listRowOf(after) || '(no row)')
   check('P8 every send became due (every frame the drive waited on painted)', cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
   if (failures > 0 || KEEP) {
     for (const [mark, frame] of Object.entries(cap.marks)) dump(mark, frame)
