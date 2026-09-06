@@ -21,7 +21,7 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 delete process.env.NODE_ENV
-for (const k of ['ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'ANTHROPIC_MODEL', 'MERCURY_SCRIPTED_STREAM']) {
+for (const k of ['ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_MODEL', 'MERCURY_SCRIPTED_STREAM']) {
   delete process.env[k]
 }
 process.env.ANTHROPIC_API_KEY = 'fixture-anthropic-key'
@@ -161,7 +161,7 @@ async function captureFirstParty(tools: Tools, messages: Message[]): Promise<Cap
     ].join('')
     return new Response(stream, { status: 200, headers: { 'content-type': 'text/event-stream' } })
   }) as unknown as typeof fetch
-  process.env.ANTHROPIC_MODEL = ROUTE_MODELS.anthropic
+  process.env.MERCURY_MODEL = ROUTE_MODELS.anthropic
   try {
     const stream = routedCallModel({
       messages,
@@ -184,7 +184,7 @@ async function captureFirstParty(tools: Tools, messages: Message[]): Promise<Cap
     for await (const _ of stream) {
     }
   } finally {
-    delete process.env.ANTHROPIC_MODEL
+    delete process.env.MERCURY_MODEL
   }
   return body
 }

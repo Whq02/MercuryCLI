@@ -29,7 +29,7 @@ const argTurns = ((): number => {
 delete process.env.NODE_ENV
 for (const ambient of [
   'ANTHROPIC_API_KEY',
-  'ANTHROPIC_MODEL',
+  'MERCURY_MODEL',
   'MERCURY_OAUTH_TOKEN',
   'MERCURY_SCRIPTED_STREAM',
   'MERCURY_BARE',

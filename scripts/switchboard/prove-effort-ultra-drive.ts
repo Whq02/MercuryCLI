@@ -12,7 +12,7 @@ const work = join(SCRATCH, 'work-effort')
 for (const d of [daemonDir, tabulaDir, work]) mkdirSync(d, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
-delete process.env.ANTHROPIC_MODEL
+delete process.env.MERCURY_MODEL
 delete process.env.MERCURY_EFFORT_LEVEL
 process.env.MERCURY_CONCOURSE = 'always'
 

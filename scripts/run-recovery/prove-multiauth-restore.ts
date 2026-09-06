@@ -7,7 +7,7 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'june-multiauth-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'june-multiauth-daemon-'))
-for (const k of ['MERCURY_BARE', 'ANTHROPIC_MODEL', 'CLAUDE_TEAM_NAME', 'CLAUDE_AGENT_NAME', 'NODE_ENV']) {
+for (const k of ['MERCURY_BARE', 'MERCURY_MODEL', 'CLAUDE_TEAM_NAME', 'CLAUDE_AGENT_NAME', 'NODE_ENV']) {
   delete process.env[k]
 }
 const scratch = mkdtempSync(join(tmpdir(), 'june-multiauth-cwd-'))

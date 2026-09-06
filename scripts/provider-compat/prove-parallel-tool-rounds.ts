@@ -22,7 +22,7 @@ const watchdog = setTimeout(() => {
 watchdog.unref?.()
 
 delete process.env.NODE_ENV
-for (const ambient of ['ANTHROPIC_API_KEY', 'ANTHROPIC_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE', 'GOOGLE_API_KEY', 'DISABLE_COMPACT', 'DISABLE_AUTO_COMPACT']) {
+for (const ambient of ['ANTHROPIC_API_KEY', 'MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE', 'GOOGLE_API_KEY', 'DISABLE_COMPACT', 'DISABLE_AUTO_COMPACT']) {
   delete process.env[ambient]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'parallel-rounds-'))

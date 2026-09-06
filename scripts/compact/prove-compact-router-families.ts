@@ -9,8 +9,8 @@ import { join } from 'node:path'
 delete process.env.NODE_ENV
 delete process.env.CI
 for (const ambient of [
-  'ANTHROPIC_MODEL',
-  'ANTHROPIC_SMALL_FAST_MODEL',
+  'MERCURY_MODEL',
+  'MERCURY_SMALL_FAST_MODEL',
   'ANTHROPIC_AUTH_TOKEN',
   'MERCURY_OAUTH_TOKEN',
   'MERCURY_SCRIPTED_STREAM',

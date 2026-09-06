@@ -3,7 +3,7 @@
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_MODEL', 'MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'CLAUDE_EFFORT']) {
+for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN', 'MERCURY_MODEL', 'MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'CLAUDE_EFFORT']) {
   delete process.env[key]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-ctx-sysprompt-'))

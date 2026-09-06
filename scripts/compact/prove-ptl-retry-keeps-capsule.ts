@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 delete process.env.NODE_ENV
-for (const ambient of ['ANTHROPIC_API_KEY', 'ANTHROPIC_MODEL', 'MERCURY_OAUTH_TOKEN', 'DISABLE_COMPACT', 'DISABLE_AUTO_COMPACT']) {
+for (const ambient of ['ANTHROPIC_API_KEY', 'MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'DISABLE_COMPACT', 'DISABLE_AUTO_COMPACT']) {
   delete process.env[ambient]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ptl-capsule-'))

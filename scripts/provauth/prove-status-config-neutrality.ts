@@ -21,7 +21,7 @@ for (const key of [
   'MERCURY_CONFIG_DIR',
   'MERCURY_AUTH_SCOPE_DIR',
   'MERCURY_DEMO',
-  'ANTHROPIC_DEFAULT_FABLE_MODEL',
+  'MERCURY_DEFAULT_FABLE_MODEL',
   'OPENROUTER_API_KEY',
   'GOOGLE_API_KEY',
   'GEMINI_API_KEY',
@@ -199,10 +199,10 @@ const presence = (
   check('a bare setting carries no suffix note', count(bare) === 0, bare)
   const description = model.getDefaultModelDescription()
   check('default description: at most one suffix note (hermetic decision)', count(description) <= 1, description)
-  process.env.ANTHROPIC_DEFAULT_FABLE_MODEL = 'claude-fable-5[1m]'
+  process.env.MERCURY_DEFAULT_FABLE_MODEL = 'claude-fable-5[1m]'
   const pinned = model.getDefaultModelDescription()
   check('default description: at most one suffix note (suffixed env pin)', count(pinned) <= 1, pinned)
-  delete process.env.ANTHROPIC_DEFAULT_FABLE_MODEL
+  delete process.env.MERCURY_DEFAULT_FABLE_MODEL
 }
 
 console.log('\n5. the headless text reading of a property (auth status on a terminal)')
