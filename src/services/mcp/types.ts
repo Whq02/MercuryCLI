@@ -41,7 +41,6 @@ const oauthConfigSchema = lazy(() =>
         },
         { message: 'authServerMetadataUrl must be a valid https:// URL' },
       ),
-    xaa: z.boolean().optional(),
   }),
 )
 

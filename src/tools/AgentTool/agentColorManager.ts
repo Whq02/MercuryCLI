@@ -1,7 +1,7 @@
 
 import type { Theme } from '../../utils/theme.js'
 
-const UNBRANDED_AGENT_TYPE = 'general-purpose'
+const UNBRANDED_AGENT_TYPE = 'mercury-general'
 
 export const AGENT_COLORS = [
   'red',

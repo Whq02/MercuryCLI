@@ -193,8 +193,6 @@ const LANGUAGE_MAP: Record<string, string> = {
 
 const INTERRUPT_MARKER = '[Request interrupted by user'
 
-const LEGACY_AGENT_TOOL_NAME = 'Task'
-
 const ERROR_BUCKETS: Array<{ label: string; needles: string[] }> = [
   { label: 'Command Failed', needles: ['exit code'] },
   { label: 'User Rejected', needles: ['rejected', "doesn't want"] },
@@ -292,7 +290,7 @@ function extractSessionStats(messages: Array<Record<string, unknown>>): SessionS
           const b = block as { type?: string; name?: string; input?: Record<string, unknown> }
           if (b.type !== 'tool_use' || typeof b.name !== 'string') continue
           stats.tool_counts[b.name] = (stats.tool_counts[b.name] ?? 0) + 1
-          if (b.name === AGENT_TOOL_NAME || b.name === LEGACY_AGENT_TOOL_NAME) {
+          if (b.name === AGENT_TOOL_NAME) {
             stats.uses_task_agent = true
           }
           if (b.name.startsWith('mcp__')) stats.uses_mcp = true

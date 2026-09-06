@@ -701,7 +701,7 @@ export const SyncHookJSONOutputSchema = lazySchema(() =>
     continue: z.boolean().optional().describe('False stops the whole turn after this hook'),
     suppressOutput: z.boolean().optional().describe('Keep the hook\'s stdout out of the transcript'),
     stopReason: z.string().optional().describe('Shown to the user when continue is false'),
-    decision: z.enum(['approve', 'block']).optional().describe('The hook\'s verdict on the event'),
+    decision: z.literal('block').optional().describe('The hook\'s verdict on the event'),
     reason: z.string().optional().describe('Why it decided that'),
     systemMessage: z.string().optional().describe('A message surfaced to the user'),
     hookSpecificOutput: z

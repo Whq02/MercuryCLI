@@ -197,7 +197,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
               type: 'tool_use',
               id: `toolu_roster_agent_${++toolSeq}`,
               name: 'Agent',
-              input: { description: PLAIN_DESCRIPTION, prompt: `${SEAT_MARK}${PLAIN_SEAT} read the notes file once, then report in one line`, subagent_type: 'general-purpose', run_in_background: true },
+              input: { description: PLAIN_DESCRIPTION, prompt: `${SEAT_MARK}${PLAIN_SEAT} read the notes file once, then report in one line`, subagent_type: 'mercury-general', run_in_background: true },
             },
             { type: 'tool_use', id: `toolu_roster_shell_${++toolSeq}`, name: 'Bash', input: { command: `sleep ${SHELL_SECONDS}`, description: SHELL_DESCRIPTION, run_in_background: true } },
           ]

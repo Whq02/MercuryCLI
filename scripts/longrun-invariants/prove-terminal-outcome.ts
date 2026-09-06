@@ -66,7 +66,7 @@ const META = {
   resolvedAgentModel: 'claude-opus-5',
   isBuiltInAgent: false,
   startTime: Date.now(),
-  agentType: 'general-purpose',
+  agentType: 'mercury-general',
   isAsync: false,
 }
 
@@ -141,7 +141,7 @@ const map = (AgentTool as unknown as { mapToolResultToToolResultBlockParam: Mapp
       error: 'API Error: 529 overloaded',
       prompt: 'p',
       agentId: 'ag1',
-      agentType: 'general-purpose',
+      agentType: 'mercury-general',
       outcome: { status: 'failed', reason: 'provider-declined', error: 'API Error: 529 overloaded' },
       content: [{ type: 'text', text: 'the real partial report' }],
       totalToolUseCount: 3,
@@ -223,7 +223,7 @@ function makeStore(): Store & { set: (fn: (prev: never) => never) => void } {
 }
 
 const FAKE_AGENT_DEF = {
-  agentType: 'general-purpose',
+  agentType: 'mercury-general',
   source: 'built-in',
   whenToUse: '',
   systemPrompt: '',

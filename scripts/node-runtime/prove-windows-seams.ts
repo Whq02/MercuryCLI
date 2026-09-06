@@ -22,7 +22,6 @@ section('(1) `mercury mcp add` is registered BEFORE the parser looks for it')
   const guardIdx = main.lastIndexOf("if (process.argv.includes('mcp'))", addIdx)
   check('the registration is gated on argv naming mcp (the general boot pays nothing)', guardIdx !== -1 && addIdx - guardIdx < 600)
   check('the registration is AWAITED, not a fire-and-forget IIFE', !/void \(async \(\) => \{[\s\S]{0,400}registerMcpAddCommand/.test(main))
-  check('the IdP command rides the same awaited path', main.indexOf('registerMcpXaaIdpCommand(mcp') > guardIdx)
 
   const dist = join(ROOT, 'dist', 'mercury.mjs')
   const { whichSync: whichExe } = await import('../../src/utils/which.js')

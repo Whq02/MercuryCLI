@@ -21,7 +21,7 @@ import type {
 import type { Tools } from '../Tool.js'
 import type { Command } from '../commands.js'
 import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js'
-import { AGENT_TOOL_NAME, LEGACY_AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
+import { AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
 import { hiddenAgentToolUses } from '../tools/AgentTool/UI.js'
 import {
   buildMessageLookups,
@@ -517,7 +517,7 @@ function MessagesInner({
 
   const isAgentToolName = useCallback(
     (name?: string): boolean =>
-      name === AGENT_TOOL_NAME || name === LEGACY_AGENT_TOOL_NAME,
+      name === AGENT_TOOL_NAME,
     [],
   )
   const agentFoldHidden = useCallback(

@@ -46,7 +46,7 @@ const READ_TOOLS = new Set(['Read', 'NotebookRead'])
 const SEARCH_TOOLS = new Set(['Grep', 'Glob', 'WebSearch', 'ProviderSearch', 'WebFetch'])
 const COMMAND_TOOLS = new Set(['Bash'])
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit'])
-const DELEGATE_TOOLS = new Set(['Agent', 'Task'])
+const DELEGATE_TOOLS = new Set(['Agent'])
 
 export function formatDelegatedTokens(tokens: number): string {
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`

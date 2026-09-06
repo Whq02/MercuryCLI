@@ -319,7 +319,7 @@ section('§8 — a REAL AgentTool.call() completes through the foreground machin
     {
       description: 'foreground probe',
       prompt: 'Reply once and stop.',
-      subagent_type: 'general-purpose',
+      subagent_type: 'mercury-general',
     } as never,
     ctx as never,
     (async () => ({ behavior: 'allow', updatedInput: {} })) as never,

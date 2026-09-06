@@ -10,7 +10,7 @@ export function RejectedPlanMessage({ plan }: { plan: string }) {
         <Text color="subtle">User rejected Mercury's plan:</Text>
         <Box
           borderStyle="round"
-          borderColor="planMode"
+          borderColor="strategyMode"
           paddingX={1}
           overflow="hidden"
         >
