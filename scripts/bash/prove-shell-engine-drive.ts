@@ -238,7 +238,7 @@ function seedWorld(): { home: string; cwd: string } {
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'shell-drive-cwd-')))
   mkdirSync(join(cwd, SUBDIR_NAME))
   seedFirstRun(home, [cwd])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { allow: ['Bash'] } }, null, 2))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { allow: ['Bash'] }, skipSovereignConsentPrompt: true }, null, 2))
   return { home, cwd }
 }
 
@@ -249,6 +249,7 @@ function driveEnv(home: string, fixtureBase: string, engine: Engine): Record<str
     MERCURY_TEAMS_DIR: join(home, 'teams'),
     MERCURY_TABULA_DIR: join(home, 'tabula'),
     MERCURY_CREDENTIAL_STORE: 'file',
+    MERCURY_SKIP_PERMISSIONS: '1',
     ANTHROPIC_BASE_URL: fixtureBase,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
     MERCURY_TERMINAL_TITLE: '0',
@@ -269,7 +270,6 @@ function driveEnv(home: string, fixtureBase: string, engine: Engine): Record<str
 const COLS = 160
 const ROWS = 50
 const bootSends = (ask: string): Array<Record<string, unknown>> => [
-  { data: '\x1b[B\r', atTick: 999, awaitText: 'Sovereign Mode', requireAwait: true, minTick: 5, awaitStableTicks: 4, awaitSettleTicks: 3 },
   { data: '\r', atTick: 999, awaitText: 'New Session', requireAwait: true, minTick: 5, awaitStableTicks: 6, awaitSettleTicks: 4 },
   { data: ask, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
   { data: '\r', afterPrevTicks: 4 },
