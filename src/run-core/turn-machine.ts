@@ -136,7 +136,6 @@ import {
   tokenCountWithEstimation,
 } from '../utils/tokens.js'
 import { ESCALATED_MAX_TOKENS } from '../utils/context.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/featureGates.js'
 import { SLEEP_TOOL_NAME } from '../tools/SleepTool/prompt.js'
 import {
   BRIEF_TOOL_NAME,
@@ -1331,10 +1330,7 @@ export async function* runEventCore(
 
       if (isWithheldMaxOutputTokens(lastMessage)) {
         const decision = decideMaxOutputTokensRecovery({
-          capEnabled: getFeatureValue_CACHED_MAY_BE_STALE(
-            'mercury_otk_slot_v1',
-            false,
-          ),
+          capEnabled: false,
           envPinned: !!process.env.MERCURY_MAX_OUTPUT_TOKENS,
           maxOutputTokensOverride,
           recoveryCount: maxOutputTokensRecoveryCount,

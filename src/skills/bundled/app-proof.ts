@@ -12,8 +12,8 @@ export function registerAppProofSkill(): void {
   registerBundledSkill({
     name: "app-proof",
     description: DESCRIPTION,
-    ...(typeof frontmatter.when_to_use === 'string' && frontmatter.when_to_use.trim()
-      ? { whenToUse: frontmatter.when_to_use }
+    ...(typeof frontmatter['when-to-use'] === 'string' && frontmatter['when-to-use'].trim()
+      ? { whenToUse: frontmatter['when-to-use'] }
       : {}),
     ...(typeof frontmatter['argument-hint'] === 'string' && frontmatter['argument-hint'].trim()
       ? { argumentHint: frontmatter['argument-hint'] }

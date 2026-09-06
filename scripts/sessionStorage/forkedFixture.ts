@@ -29,7 +29,6 @@ export async function writeForkedFixture(opts: {
     uuid,
     parentUuid,
     isSidechain: false,
-    userType: 'external',
     cwd: '/tmp/forked-fixture',
     sessionId,
     version: '1.0.0-beta.1',

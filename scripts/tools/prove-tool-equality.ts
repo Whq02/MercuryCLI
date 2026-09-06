@@ -69,7 +69,7 @@ section('§2 the tool roster derives from the registry')
 const roster = getAllBaseTools()
 check('the registry answers a non-trivial roster', roster.length >= 25, String(roster.length))
 check('tool names are unique', new Set(roster.map(t => t.name)).size === roster.length)
-const CORE = ['Bash', 'Read', 'Edit', 'Write', 'WebFetch', 'WebSearch', 'TodoWrite']
+const CORE = ['Bash', 'Read', 'Edit', 'Write', 'WebFetch', 'WebSearch', 'TaskStop']
 for (const name of CORE) {
   check(`core tool present: ${name}`, roster.some(t => t.name === name))
 }

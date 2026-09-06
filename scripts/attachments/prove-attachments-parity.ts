@@ -17,7 +17,7 @@ const add = (exportName: string, caseName: string, fn: () => unknown) => {
 }
 
 for (const c of [
-  'TODO_REMINDER_CONFIG',
+  'TASK_REMINDER_CONFIG',
   'PLAN_MODE_ATTACHMENT_CONFIG',
   'AUTO_MODE_ATTACHMENT_CONFIG',
   'RELEVANT_MEMORIES_CONFIG',

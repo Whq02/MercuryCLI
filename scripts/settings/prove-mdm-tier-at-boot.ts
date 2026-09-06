@@ -17,7 +17,7 @@ const BUN = process.execPath.includes('bun') ? process.execPath : join(process.e
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
 const SEAM_PRESENT = existsSync(join(SRC, 'utils/settings/mdm/rawRead.ts')) && readFileSync(join(SRC, 'utils/settings/mdm/rawRead.ts'), 'utf8').includes('_setMdmRawReadForProofs')
 
-const POLICY = { permissions: { deny: ['Bash(rm:*)'] }, disableBypassPermissionsMode: 'disable' }
+const POLICY = { permissions: { deny: ['Bash(rm:*)'], disableSovereignMode: true }, allowManagedHooksOnly: true }
 
 function runIn(body: string): Record<string, unknown> {
   const home = mkdtempSync(join(tmpdir(), 'mdm-boot-'))
@@ -31,7 +31,7 @@ function runIn(body: string): Record<string, unknown> {
     const cache = await import(${JSON.stringify(join(SRC, 'utils/settings/settingsCache.ts'))})
     const policy = ${JSON.stringify(POLICY)}
     const tier = () => ({ keys: Object.keys(mdm.getMdmSettings().settings), origin: s.getPolicySettingsOrigin() })
-    const merged = () => { const r = s.getSettingsWithErrors(); return { deny: r.settings?.permissions?.deny ?? null, bypass: r.settings?.disableBypassPermissionsMode ?? null } }
+    const merged = () => { const r = s.getSettingsWithErrors(); return { deny: r.settings?.permissions?.deny ?? null, sovereignLock: r.settings?.permissions?.disableSovereignMode ?? null, hooksLock: r.settings?.allowManagedHooksOnly ?? null } }
     const out = {}
     ${body}
     process.stdout.write('\\n' + JSON.stringify(out))
@@ -52,9 +52,9 @@ else {
     out.merged = merged()
   `)
   const tier = r.tier as { keys: string[]; origin: string | null }
-  const merged = r.merged as { deny: string[] | null; bypass: string | null }
+  const merged = r.merged as { deny: string[] | null; sovereignLock: boolean | null; hooksLock: boolean | null }
   check('the bare await leaves the mdm tier empty (the defect mechanism)', tier.keys.length === 0 && tier.origin === null, JSON.stringify(tier))
-  check('...and the merged settings carry no policy', merged.deny === null && merged.bypass === null, JSON.stringify(merged))
+  check('...and the merged settings carry no policy', merged.deny === null && merged.sovereignLock === null && merged.hooksLock === null, JSON.stringify(merged))
 }
 
 console.log('L2 the barrier — ensureMdmSettingsLoaded plus a cache reset puts the policy in force')
@@ -73,10 +73,10 @@ else {
     out.reads = reads
   `)
   const tier = r.tier as { keys: string[]; origin: string | null }
-  const merged = r.merged as { deny: string[] | null; bypass: string | null }
-  check('the mdm tier carries the policy keys', tier.keys.includes('permissions') && tier.keys.includes('disableBypassPermissionsMode'), JSON.stringify(tier))
+  const merged = r.merged as { deny: string[] | null; sovereignLock: boolean | null; hooksLock: boolean | null }
+  check('the mdm tier carries the policy keys', tier.keys.includes('permissions') && tier.keys.includes('allowManagedHooksOnly'), JSON.stringify(tier))
   check('the policy origin is the plist tier', tier.origin === 'plist', `origin=${tier.origin}`)
-  check('the merged settings carry the deny rule and the bypass lock', merged.deny?.[0] === 'Bash(rm:*)' && merged.bypass === 'disable', JSON.stringify(merged))
+  check('the merged settings carry the deny rule, the sovereign lock and the hooks lock', merged.deny?.[0] === 'Bash(rm:*)' && merged.sovereignLock === true && merged.hooksLock === true, JSON.stringify(merged))
   check('the load reused the one in-flight startup read', r.reads === 1, `reads=${r.reads}`)
 }
 

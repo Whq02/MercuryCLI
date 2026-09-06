@@ -32,7 +32,6 @@ function seedSession(home: string): string {
   mkdirSync(projects, { recursive: true })
   const base = (extra: Record<string, unknown>): Record<string, unknown> => ({
     isSidechain: false,
-    userType: 'external',
     entrypoint: 'cli',
     cwd,
     sessionId: SID,

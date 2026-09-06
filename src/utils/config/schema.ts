@@ -25,11 +25,8 @@ export interface HistoryEntry {
   pastedContents: Record<number, PastedContent>
 }
 
-export type ReleaseChannel = 'stable' | 'latest'
-
 export type ProjectConfig = {
   allowedTools: string[]
-  mcpContextUris: string[]
   mcpServers?: Record<string, McpServerConfig>
   lastAPIDuration?: number
   lastAPIDurationWithoutRetries?: number
@@ -83,8 +80,8 @@ export type ProjectConfig = {
 
   hasCompletedProjectOnboarding?: boolean
   projectOnboardingSeenCount: number
-  hasClaudeMdExternalIncludesApproved?: boolean
-  hasClaudeMdExternalIncludesWarningShown?: boolean
+  hasExternalIncludesApproved?: boolean
+  hasExternalIncludesWarningShown?: boolean
   enabledMcpjsonServers?: string[]
   disabledMcpjsonServers?: string[]
   enableAllProjectMcpServers?: boolean
@@ -100,22 +97,18 @@ export type ProjectConfig = {
     sessionId: string
     hookBased?: boolean
   }
-  remoteControlSpawnMode?: 'same-dir' | 'worktree'
 }
 
 export const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
   allowedTools: [],
-  mcpContextUris: [],
   mcpServers: {},
   enabledMcpjsonServers: [],
   disabledMcpjsonServers: [],
   hasTrustDialogAccepted: false,
   projectOnboardingSeenCount: 0,
-  hasClaudeMdExternalIncludesApproved: false,
-  hasClaudeMdExternalIncludesWarningShown: false,
+  hasExternalIncludesApproved: false,
+  hasExternalIncludesWarningShown: false,
 }
-
-export type InstallMethod = 'local' | 'native' | 'global' | 'unknown'
 
 export {
   EDITOR_MODES,
@@ -154,17 +147,12 @@ export type GlobalConfig = {
     lastKind: string
     lastAt: number
   }
-  installMethod?: InstallMethod
-  autoUpdates?: boolean
-  autoUpdatesProtectedForNative?: boolean
-  doctorShownAtSession?: number
   harnessProfilePin?: string
   userID?: string
   theme: ThemeSetting
   hasCompletedOnboarding?: boolean
   lastOnboardingVersion?: string
   lastReleaseNotesSeen?: string
-  changelogLastFetched?: number
   cachedChangelog?: string
   mcpServers?: Record<string, McpServerConfig>
   kitPresets?: Record<string, { mcpOff: string[]; skillStates: Record<string, 'off' | 'invocable'>; extensionsOff: string[] }>
@@ -200,7 +188,6 @@ export type GlobalConfig = {
   }
   hasSeenCoordinatorOffHint?: boolean
   responseProfile?: 'balanced' | 'concise'
-  customNotifyCommand?: string
   toolOutput: 'compact' | 'full'
   customApiKeyResponses?: {
     approved?: string[]
@@ -208,20 +195,15 @@ export type GlobalConfig = {
   }
   primaryApiKey?: string
   hasAcknowledgedCostThreshold?: boolean
-  hasResetAutoModeOptInForDefaultOffer?: boolean
   oauthAccount?: AccountInfo
   anthropicPreferredSource?: 'subscription' | 'api-key'
-  iterm2KeyBindingInstalled?: boolean
   editorMode?: EditorMode
-  bypassPermissionsModeAccepted?: boolean
   hasUsedBackslashReturn?: boolean
   autoCompactEnabled: boolean
   autoCompactWindow?: number
   showTurnDuration: boolean
   env: { [key: string]: string }
   hasSeenTasksHint?: boolean
-  hasSeenAutoDefaultNotice?: boolean
-  hasSeenAutoDefaultNudge?: boolean
   hasUsedStash?: boolean
   hasUsedBackgroundTask?: boolean
   expandedView?: 'none' | 'tasks' | 'teammates'
@@ -245,60 +227,29 @@ export type GlobalConfig = {
     [tipId: string]: number
   }
 
-  feedbackSurveyState?: {
-    lastShownTime?: number
-  }
-
-  transcriptShareDismissed?: boolean
-
   companionEnabled?: boolean
   defaultProvider?: string
   concourseEnabled?: boolean
   defaultCritter?: string
-
-  memoryUsageCount: number
-
-  hasShownS1MWelcomeV2?: Record<string, boolean>
-  s1mAccessCache?: Record<
-    string,
-    { hasAccess: boolean; hasAccessNotAsDefault?: boolean; timestamp: number }
-  >
-  s1mNonSubscriberAccessCache?: Record<
-    string,
-    { hasAccess: boolean; hasAccessNotAsDefault?: boolean; timestamp: number }
-  >
 
   voiceNoticeSeenCount?: number
   voiceLangHintShownCount?: number
   voiceLangHintLastLanguage?: string
   voiceFooterHintSeenCount?: number
 
-  opus1mMergeNoticeSeenCount?: number
-
-  experimentNoticesSeenCount?: Record<string, number>
-
-  hasShownOpusPlanWelcome?: Record<string, boolean>
-
   promptQueueUseCount: number
 
-  btwUseCount: number
-
-  lastPlanModeUse?: number
+  lastStrategyModeUse?: number
 
   subscriptionNoticeCount?: number
   hasAvailableSubscription?: boolean
-  subscriptionUpsellShownCount?: number
 
-  todoFeatureEnabled: boolean
   showExpandedTodos?: boolean
   showSpinnerTree?: boolean
 
   firstStartTime?: string
 
   messageIdleNotifThresholdMs: number
-
-  githubActionSetupCount?: number
-  slackAppInstallCount?: number
 
   fileCheckpointingEnabled: boolean
 
@@ -310,16 +261,10 @@ export type GlobalConfig = {
   inputNeededNotifEnabled?: boolean
   agentPushNotifEnabled?: boolean
 
-  effortCalloutDismissed?: boolean
-  effortCalloutV2Dismissed?: boolean
-
   remoteDialogSeen?: boolean
 
   bridgeOauthDeadExpiresAt?: number
   bridgeOauthDeadFailCount?: number
-
-  desktopUpsellSeenCount?: number
-  desktopUpsellDismissed?: boolean
 
   idleReturnDismissed?: boolean
 
@@ -328,8 +273,6 @@ export type GlobalConfig = {
   sonnet1m45MigrationComplete?: boolean
   legacyOpusMigrationTimestamp?: number
   sonnet45To46MigrationTimestamp?: number
-
-  lastShownEmergencyTip?: string
 
   respectGitignore: boolean
 
@@ -341,14 +284,11 @@ export type GlobalConfig = {
 
   githubRepoPaths?: Record<string, string[]>
 
-  deepLinkTerminal?: string
-
   iterm2It2SetupComplete?: boolean
   preferTmuxOverIterm2?: boolean
 
   skillUsage?: Record<string, { usageCount: number; lastUsedAt: number }>
 
-  lspRecommendationDisabled?: boolean
   lspRecommendationIgnoredCount?: number
 
   permissionExplainerEnabled?: boolean
@@ -381,19 +321,12 @@ export type GlobalConfig = {
     models?: string[]
   }
 
-  metricsStatusCache?: {
-    enabled: boolean
-    timestamp: number
-  }
-
   migrationVersion?: number
 }
 
 export function createDefaultGlobalConfig(): GlobalConfig {
   return {
     numStartups: 0,
-    installMethod: undefined,
-    autoUpdates: undefined,
     theme: DEFAULT_THEME_SETTING,
     preferredNotifChannel: 'auto',
     toolOutput: 'compact',
@@ -411,10 +344,7 @@ export function createDefaultGlobalConfig(): GlobalConfig {
     },
     env: {},
     tipsHistory: {},
-    memoryUsageCount: 0,
     promptQueueUseCount: 0,
-    btwUseCount: 0,
-    todoFeatureEnabled: true,
     showExpandedTodos: false,
     messageIdleNotifThresholdMs: 60000,
     autoConnectIde: false,
@@ -430,9 +360,6 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfig = createDefaultGlobalConfig()
 
 export const GLOBAL_CONFIG_KEYS = [
   'apiKeyHelper',
-  'installMethod',
-  'autoUpdates',
-  'autoUpdatesProtectedForNative',
   'theme',
   'toolOutput',
   'preferredNotifChannel',
@@ -444,7 +371,6 @@ export const GLOBAL_CONFIG_KEYS = [
   'diffTool',
   'env',
   'tipsHistory',
-  'todoFeatureEnabled',
   'showExpandedTodos',
   'messageIdleNotifThresholdMs',
   'autoConnectIde',
@@ -456,7 +382,6 @@ export const GLOBAL_CONFIG_KEYS = [
   'inputNeededNotifEnabled',
   'agentPushNotifEnabled',
   'respectGitignore',
-  'lspRecommendationDisabled',
   'lspRecommendationIgnoredCount',
   'copyFullResponse',
   'copyOnSelect',

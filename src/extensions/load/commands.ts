@@ -56,7 +56,7 @@ function buildCommand(input: BuildInput): Command {
   const userInvocable = frontmatter['user-invocable'] === undefined || frontmatter['user-invocable'] === null ? true : parseBooleanFrontmatter(frontmatter['user-invocable'])
   const shell = parseShellFrontmatter(frontmatter['shell'], file)
   const displayName = coerceDescriptionToString(frontmatter['name'])
-  const whenToUse = coerceDescriptionToString(frontmatter.when_to_use)
+  const whenToUse = coerceDescriptionToString(frontmatter['when-to-use'])
   const version = coerceDescriptionToString(frontmatter.version)
   const disableModelInvocation = parseBooleanFrontmatter(frontmatter['disable-model-invocation'])
   const optionSchema = ext.manifest.needs?.options

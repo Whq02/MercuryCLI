@@ -7,7 +7,6 @@ import {
 } from '../services/privateChannel/installProvenance.js'
 import { SandboxManager } from './sandbox/sandbox-adapter.js'
 import { getCwd } from './cwd.js'
-import { formatAutoUpdaterDisabledReason, getAutoUpdaterDisabledReason } from './config.js'
 import { isInBundledMode } from './bundledMode.js'
 import { getFsImplementation } from './fsOperations.js'
 import { getPlatform } from './platform.js'
@@ -26,12 +25,8 @@ export type DiagnosticInfo = {
   installationPath: string
   invokedBinary: string
   configInstallMethod: string
-  autoUpdates: string
-  hasUpdatePermissions: boolean | null
-  multipleInstallations: Array<{ type: string; path: string }>
   warnings: Array<{ issue: string; fix: string }>
   recommendation?: string
-  packageManager?: string
   ripgrepStatus: { working: boolean; mode: string; systemPath?: string }
 }
 
@@ -126,19 +121,12 @@ export async function getHealthDiagnostic(): Promise<DiagnosticInfo> {
     ...(ripgrep.mode === 'system' ? { systemPath: ripgrep.path } : {}),
   }
 
-  const disabledReason = getAutoUpdaterDisabledReason()
-
   return {
     installationType: provenance.kind,
     version: typeof MERCURY_VERSION === 'string' && MERCURY_VERSION ? MERCURY_VERSION : UNKNOWN_MARKER,
     installationPath: provenance.activeRoot || getCwd(),
     invokedBinary: getInvokedBinary(),
     configInstallMethod: provenance.updateOwner,
-    autoUpdates: disabledReason
-      ? `disabled (${formatAutoUpdaterDisabledReason(disabledReason)})`
-      : 'enabled',
-    hasUpdatePermissions: null,
-    multipleInstallations: [],
     warnings,
     ripgrepStatus,
   }

@@ -117,7 +117,7 @@ import { assessDeployedAssets } from './healthDeployedAssets.js'
 import { getMercuryAppearanceSnapshot } from './profile/appearanceSnapshot.js'
 import { isDarkThemeFamily, listUnresolvedTokenRoles, resolveMercuryTokens } from './mercuryTokens.js'
 import { oasisBgEnabled } from './cockpit/oasisBg.js'
-import { getBuiltInAgents, LEGACY_SUBAGENT_ALIASES } from '../tools/AgentTool/builtInAgents.js'
+import { getBuiltInAgents } from '../tools/AgentTool/builtInAgents.js'
 import {
   findRoleDefinition,
   getRoleSystemPrompt,
@@ -1199,10 +1199,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const problems: string[] = []
             const svc = getMacOsKeychainStorageServiceName()
             const authHome = getAuthConfigHomeDir()
-            const defaultAuthHome =
-              authHome === join(homedir(), '.claude').normalize('NFC')
-            if (!defaultAuthHome && !/-[0-9a-f]{8}$/.test(svc)) {
-              problems.push(`keychain service '${svc}' is UN-suffixed for the non-default auth home ${authHome} — credential identity split`)
+            if (!/-[0-9a-f]{8}$/.test(svc)) {
+              problems.push(`keychain service '${svc}' is UN-suffixed for the auth home ${authHome} — credential identity split`)
             }
             const globalFile = getGlobalMercuryFile()
             if (!globalFile.startsWith(home)) {
@@ -3439,16 +3437,13 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           run: () => {
             const agents = getBuiltInAgents()
             const unresolved = agents.filter(a => findRoleDefinition(a.agentType, agents)?.agentType !== a.agentType)
-            const badAlias = Object.entries(LEGACY_SUBAGENT_ALIASES).filter(
-              ([legacy]) => findRoleDefinition(legacy, agents) === undefined,
-            )
             const haiku = agents.filter(a => a.model === 'haiku')
             const composable = agents.filter(a => getRoleSystemPrompt(a) !== undefined)
-            const evidence = `${agents.length} built-in roles resolve · ${Object.keys(LEGACY_SUBAGENT_ALIASES).length} legacy aliases decode · role prompts compose ${composable.length}/${agents.length} without live context`
-            if (unresolved.length > 0 || badAlias.length > 0 || haiku.length > 0) {
+            const evidence = `${agents.length} built-in roles resolve · role prompts compose ${composable.length}/${agents.length} without live context`
+            if (unresolved.length > 0 || haiku.length > 0) {
               return {
                 status: 'fail' as const,
-                evidence: `${evidence} — unresolved: ${unresolved.map(a => a.agentType).join(',') || 'none'}; dead aliases: ${badAlias.map(([l]) => l).join(',') || 'none'}; haiku pins: ${haiku.map(a => a.agentType).join(',') || 'none'}`,
+                evidence: `${evidence} — unresolved: ${unresolved.map(a => a.agentType).join(',') || 'none'}; haiku pins: ${haiku.map(a => a.agentType).join(',') || 'none'}`,
                 fix: 'A built-in agent role fails normalization — sub-agents spawned with it would degrade to generic agents. Report this.',
               }
             }

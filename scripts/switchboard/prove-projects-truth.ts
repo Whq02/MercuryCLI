@@ -89,7 +89,6 @@ const read = (rel: string): string => readFileSync(rel, 'utf8')
   mkdirSync(projGhost, { recursive: true })
   const row = (cwd: string, sid: string, extra: Record<string, unknown>): Record<string, unknown> => ({
     isSidechain: false,
-    userType: 'external',
     entrypoint: 'cli',
     cwd,
     sessionId: sid,

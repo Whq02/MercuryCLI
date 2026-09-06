@@ -272,5 +272,5 @@ export type ToolPermissionContext = {
   strippedDangerousRules?: string[]
   shouldAvoidPermissionPrompts?: boolean
   awaitAutomatedChecksBeforeDialog?: boolean
-  prePlanMode?: InternalPermissionMode
+  preStrategyMode?: InternalPermissionMode
 }

@@ -78,8 +78,9 @@ function instructionFacts(workspace: string): InstructionFacts {
     .filter(dir => exists(dir))
     .map(dir => basename(dir))
   return {
-    claudeMd: exists(join(workspace, 'CLAUDE.md')),
+    mercuryMd: exists(join(workspace, 'MERCURY.md')),
     agentsMd: exists(join(workspace, 'AGENTS.md')),
+    otherHarnessInstructions: ['CLAUDE.md'].filter(name => exists(join(workspace, name))),
     configHomes,
   }
 }

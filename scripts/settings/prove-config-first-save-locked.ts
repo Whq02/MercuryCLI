@@ -132,14 +132,14 @@ console.log('L6 healScopeIdentitySnapshot — unreadable bytes stay as they are;
   mkdirSync(damaged)
   mkdirSync(readable)
   const damagedBytes = '{"oauthAccount": {"emailAddress": "old@example.org"}, "projects": {"/a": {"x": 1}'
-  writeFileSync(join(damaged, '.claude.json'), damagedBytes)
-  writeFileSync(join(readable, '.claude.json'), JSON.stringify({ oauthAccount: { emailAddress: 'stale@example.org' }, projects: { '/a': { x: 1 } } }))
+  writeFileSync(join(damaged, '.mercury.json'), damagedBytes)
+  writeFileSync(join(readable, '.mercury.json'), JSON.stringify({ oauthAccount: { emailAddress: 'stale@example.org' }, projects: { '/a': { x: 1 } } }))
   const r = runIn(home, `
     const ident = await import(${JSON.stringify(join(SRC, 'utils/accounts/accountIdentity.ts'))})
     ident.healScopeIdentitySnapshot(${JSON.stringify(damaged)}, { email: 'fresh@example.org', uuid: 'u-1' })
-    out.damagedAfter = fs.readFileSync(path.join(${JSON.stringify(damaged)}, '.claude.json'), 'utf8')
+    out.damagedAfter = fs.readFileSync(path.join(${JSON.stringify(damaged)}, '.mercury.json'), 'utf8')
     ident.healScopeIdentitySnapshot(${JSON.stringify(readable)}, { email: 'fresh@example.org', uuid: 'u-1' })
-    const healed = JSON.parse(fs.readFileSync(path.join(${JSON.stringify(readable)}, '.claude.json'), 'utf8'))
+    const healed = JSON.parse(fs.readFileSync(path.join(${JSON.stringify(readable)}, '.mercury.json'), 'utf8'))
     out.healedEmail = healed.oauthAccount?.emailAddress
     out.healedKeptProjects = healed.projects?.['/a']?.x === 1
   `)
