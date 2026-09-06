@@ -2,7 +2,9 @@
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import type { TextBlockParam } from '../../types/wire.js'
+import { FOLDED_COUNT_TAG } from '../../utils/collapseBackgroundBashNotifications.js'
 import { extractTag } from '../../utils/messages.js'
+import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { NameplateClock } from './TranscriptNameplate.js'
 
@@ -30,12 +32,19 @@ export function UserAgentNotificationMessage({
   const summary = extractTag(param.text, 'summary')
   if (!summary) return null
   const status = extractTag(param.text, 'status')
+  const folded = extractTag(param.text, FOLDED_COUNT_TAG) !== null
   return (
     <Box marginTop={addMargin ? 1 : 0}>
       <Text>
         <NameplateClock />
         <Text color={statusColor(status, accent)}>● </Text>
         <Text dimColor>{summary}</Text>
+        {folded ? (
+          <>
+            {' '}
+            <CtrlOToExpand />
+          </>
+        ) : null}
       </Text>
     </Box>
   )
