@@ -7,14 +7,7 @@ import {
   refreshAuthorization as sdkRefreshAuthorization,
   type OAuthClientProvider,
 } from './sdk.js'
-import {
-  InvalidClientError,
-  InvalidGrantError,
-  OAuthError,
-  ServerError,
-  TemporarilyUnavailableError,
-  TooManyRequestsError,
-} from './sdk.js'
+import { OAuthError, OAuthErrorCode } from './sdk.js'
 import {
   type AuthorizationServerMetadata,
   type OAuthClientInformationMixed,
@@ -603,7 +596,8 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
           emitRefreshEvent('success')
           return tokens
         } catch (err) {
-          if (err instanceof InvalidGrantError) {
+          const oauthCode = err instanceof OAuthError ? err.code : undefined
+          if (oauthCode === OAuthErrorCode.InvalidGrant) {
             const winner = this.freshStoredTokens()
             if (winner !== undefined) return winner
             this.invalidateCredentials('tokens')
@@ -613,9 +607,9 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
           const message = err instanceof Error ? err.message : String(err)
           const retryable =
             /timeout|timed out|ETIMEDOUT|ECONNRESET/i.test(message) ||
-            err instanceof ServerError ||
-            err instanceof TemporarilyUnavailableError ||
-            err instanceof TooManyRequestsError
+            oauthCode === OAuthErrorCode.ServerError ||
+            oauthCode === OAuthErrorCode.TemporarilyUnavailable ||
+            oauthCode === OAuthErrorCode.TooManyRequests
           lastRetryable = retryable
           if (!retryable || attempt === REFRESH_ATTEMPTS) break
           await new Promise(resolve => setTimeout(resolve, 1000 * 2 ** (attempt - 1)))
@@ -845,7 +839,7 @@ export async function performMCPOAuthFlow(
   }).catch(err => {
     const reason = classifyFlowFailure(err, codeObtained)
     emitFlowEvent(reason)
-    if (err instanceof InvalidClientError || /invalid_client/i.test(String(err))) {
+    if (isInvalidClient(err)) {
       provider.invalidateCredentials('client')
     }
     throw err
@@ -870,13 +864,17 @@ export async function performMCPOAuthFlow(
     emitFlowEvent(reason)
     if (err instanceof OAuthError) {
       const status = /^HTTP (\d+):/.exec(err.message)?.[1]
-      logForDebugging(`mcp auth [${serverName}]: OAuth error ${err.errorCode}${status ? ` (HTTP ${status})` : ''}`)
+      logForDebugging(`mcp auth [${serverName}]: OAuth error ${err.code}${status ? ` (HTTP ${status})` : ''}`)
     }
-    if (err instanceof InvalidClientError || /invalid_client/i.test(String(err))) {
+    if (isInvalidClient(err)) {
       provider.invalidateCredentials('client')
     }
     throw err
   }
+}
+
+function isInvalidClient(err: unknown): boolean {
+  return (err instanceof OAuthError && err.code === OAuthErrorCode.InvalidClient) || /invalid_client/i.test(String(err))
 }
 
 

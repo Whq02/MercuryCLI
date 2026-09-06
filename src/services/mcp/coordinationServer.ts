@@ -2,7 +2,7 @@
 
 
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import type { CallToolResult } from './sdk.js'
+import { serveStdio, type CallToolResult, type Transport } from './sdk.js'
 import { z } from 'zod/v4'
 import { errorMessage } from '../../utils/errors.js'
 import { logMCPDebug } from '../../utils/log.js'
@@ -68,12 +68,10 @@ function notInTeamResult(): CallToolResult {
 
 
 export async function createCoordinationServer(): Promise<{
-  connect: (transport: import('./sdk.js').Transport) => Promise<void>
+  connect: (transport: Transport) => Promise<void>
   close: () => Promise<void>
 }> {
-  const { McpServer } = await import(
-    '@modelcontextprotocol/sdk/server/mcp.js'
-  )
+  const { McpServer } = await import('@modelcontextprotocol/server')
 
   const sdkServer = new McpServer(
     {
@@ -104,13 +102,22 @@ export async function createCoordinationServer(): Promise<{
       },
       handler: (args: ShapeArgs<I>) => Promise<CallToolResult>,
     ): void {
+      const { inputSchema, outputSchema, ...rest } = config
       ;(
         sdkServer.registerTool as unknown as (
           name: string,
           config: unknown,
           handler: unknown,
         ) => void
-      )(name, config, handler)
+      )(
+        name,
+        {
+          ...rest,
+          inputSchema: z.object(inputSchema ?? {}),
+          ...(outputSchema ? { outputSchema: z.object(outputSchema) } : {}),
+        },
+        handler,
+      )
     },
   }
 
@@ -495,8 +502,14 @@ export async function createCoordinationServer(): Promise<{
     'In-process coordination server constructed',
   )
 
+  let served: { close: () => Promise<void> } | null = null
   return {
-    connect: transport => sdkServer.connect(transport),
-    close: () => sdkServer.close(),
+    connect: async transport => {
+      served = serveStdio(async () => sdkServer, { transport })
+    },
+    close: async () => {
+      if (served !== null) await served.close()
+      else await sdkServer.close()
+    },
   }
 }
