@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-proof' }
-process.env.MERCURY_ISSUES_REPO_URL = 'https://github.com/example/mercury-issues'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -16,8 +15,10 @@ const { parseReferences, expandPastedTextRefs, formatPastedTextRef, getPastedTex
   await import('../../src/history.js')
 const { initWheelAccel, computeWheelStep, dragScrollDirection } =
   await import('../../src/components/ScrollKeybindingHandler.js')
-const { redactSensitiveInfo, createGitHubIssueUrl, fallbackTitle } =
+const { redactSensitiveInfo, fallbackTitle } =
   await import('../../src/components/Feedback.js')
+const { ISSUE_FORMS, ISSUE_FORM_URL_CAP, URL_CUT_NOTE, issueFormUrl } =
+  await import('../../src/commands/feedback/issueForms.js')
 const { countUnseenAssistantTurns, computeUnseenDivider } =
   await import('../../src/components/FullscreenLayout.js')
 const { selectableUserMessagesFilter, messagesAfterAreOnlySynthetic } =
@@ -97,23 +98,27 @@ section('redaction: every credential class, text intact')
   check('surrounding text is left intact', redactSensitiveInfo('before sk-ant-abcdefghijk after').startsWith('before ') && redactSensitiveInfo('before sk-ant-abcdefghijk after').endsWith(' after'))
 }
 
-section('issue URL: 7250 cap, never mid-percent-escape')
+section('issue form link: under the cap, never mid-percent-escape, the steps kept')
 {
-  const bigErrors = Array.from({ length: 400 }, (_, i) => ({
-    error: `error ${i} — ${'あいうえお%'.repeat(30)}`,
-    timestamp: new Date().toISOString(),
-  }))
-  const url = createGitHubIssueUrl('fid', 'A title', 'A description', bigErrors)
-  check('URL stays within 7250 characters', url.length <= 7250, String(url.length))
-  const tailEscapeSafe = !/%[0-9A-Fa-f]?$/.test(url.slice(0, url.length))
-  check('URL never ends mid-percent-escape', tailEscapeSafe)
-  const hugeBody = [{ error: 'x'.repeat(20000), timestamp: 't' }]
-  const url2 = createGitHubIssueUrl('fid', 't'.repeat(3000), 'd'.repeat(6000), hugeBody)
-  check('even a giant title+description stays capped', url2.length <= 7250, String(url2.length))
-  check('labels ride the fixed set', url.includes(encodeURIComponent('user-reported,bug')))
-  const empty = createGitHubIssueUrl('fid', 't', 'd', [])
-  check('no configured repo ⇒ empty string', (() => { const saved = process.env.MERCURY_ISSUES_REPO_URL; delete process.env.MERCURY_ISSUES_REPO_URL; const r = createGitHubIssueUrl('f', 't', 'd', []); process.env.MERCURY_ISSUES_REPO_URL = saved; return r === '' })())
-  void empty
+  const bug = ISSUE_FORMS.bug
+  const values = {
+    version: 'Mercury 0.0.0-proof',
+    platform: 'macOS 15 · Terminal',
+    install: 'Built from source (node dist/mercury.mjs)',
+    steps: 'PgUp in the viewer',
+    expected: 'the pill',
+    actual: 'あいうえお%'.repeat(400),
+    doctor: 'paste the doctor block here',
+  }
+  const url = issueFormUrl(bug, { slug: 'example/mercury-issues', title: '[bug] A title', values })
+  check('the link stays within the cap', url.length <= ISSUE_FORM_URL_CAP, String(url.length))
+  check('the link never ends mid-percent-escape', !/%[0-9A-Fa-f]?$/.test(url))
+  check('the link opens the form by template in the configured repository', url.startsWith('https://github.com/example/mercury-issues/issues/new?template=bug_report.yml&title='))
+  const parsed = new URL(url)
+  check('the steps ride whole; the long section is the one cut, and says so', parsed.searchParams.get('steps') === values.steps && (parsed.searchParams.get('actual') ?? '').endsWith(URL_CUT_NOTE))
+  const giant = issueFormUrl(bug, { slug: 'example/mercury-issues', title: 't'.repeat(200), values: { ...values, steps: 'x'.repeat(20000), actual: 'y'.repeat(20000) } })
+  check('even giant steps beside a giant section stay capped', giant.length <= ISSUE_FORM_URL_CAP, String(giant.length))
+  check('the giant link never ends mid-percent-escape', !/%[0-9A-Fa-f]?$/.test(giant))
 }
 
 section('feedback: fallback title rules')
