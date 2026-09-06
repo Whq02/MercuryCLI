@@ -71,6 +71,13 @@ def main(outdir: str, wall_s: int) -> int:
             r['endS'] = pool_end
             r['secs'] = r['endS'] - r['startS']
 
+    if states:
+        pooled = [r for r in runs.values() if r['kind'] == 'pool']
+        states.insert(0, (pool_start, dict(
+            q_pty=sum(1 for r in pooled if r['lane'] == 'pty'),
+            q_cpu=sum(1 for r in pooled if r['lane'] == 'cpu'),
+            q_pure=sum(1 for r in pooled if r['lane'] == 'pure'),
+            pty_n=0, pure_n=0, slots=0)))
     busy = dict(pty=0, pure=0, slots=0)
     starved = dict(pty=0, cpu=0, pure=0)
     pty_starved_by_others = 0
