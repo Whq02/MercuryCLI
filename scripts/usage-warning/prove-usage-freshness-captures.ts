@@ -39,6 +39,7 @@ type Send = Record<string, unknown>
 interface Capture {
   text: string
   marks: Record<string, string>
+  markAt: Record<string, number>
   sends: number
   receipts: number
   tail: string
@@ -57,7 +58,7 @@ async function capture(tag: string, cfg: Record<string, unknown>, env: Record<st
     child.on('close', () => resolveRun(out))
   })
   type Grid = Array<Array<{ c?: string }>>
-  let payload: { grid?: Grid; sendReceipts?: unknown[]; marks?: Array<{ label: string; grid: Grid }> } = {}
+  let payload: { grid?: Grid; sendReceipts?: Array<{ ts?: number }>; marks?: Array<{ label: string; grid: Grid }> } = {}
   try {
     payload = JSON.parse(readFileSync(outPath, 'utf8')) as typeof payload
   } catch {
@@ -69,6 +70,12 @@ async function capture(tag: string, cfg: Record<string, unknown>, env: Record<st
   const text = gridText(payload.grid)
   const marks: Record<string, string> = {}
   for (const m of payload.marks ?? []) marks[m.label] = gridText(m.grid)
+  const markAt: Record<string, number> = {}
+  const sendList = Array.isArray(cfg.sends) ? (cfg.sends as Array<{ mark?: string }>) : []
+  ;(payload.sendReceipts ?? []).forEach((receipt, i) => {
+    const label = sendList[i]?.mark
+    if (label !== undefined && typeof receipt.ts === 'number') markAt[label] = receipt.ts
+  })
   if (SHOT_DIR) {
     for (const [label, frame] of Object.entries(marks)) writeFileSync(join(SHOT_DIR, `${tag}.${label}.txt`), frame + '\n')
     writeFileSync(join(SHOT_DIR, `${tag}.final.txt`), text + '\n')
@@ -76,6 +83,7 @@ async function capture(tag: string, cfg: Record<string, unknown>, env: Record<st
   return {
     text,
     marks,
+    markAt,
     sends: Array.isArray(cfg.sends) ? (cfg.sends as unknown[]).length : 0,
     receipts: Array.isArray(payload.sendReceipts) ? payload.sendReceipts.length : 0,
     tail,
@@ -379,13 +387,15 @@ if (LEGS.has('e')) {
   const { home, workspace } = seedHome()
   const api = await startFixtureApi(Array.from({ length: 6 }, () => ({ kind: 'text' as const, text: 'Spare.' })), { jsonForNonStream: true })
   api.usage.payload = risingPayload
+  const debugFileE = join(home, 'usage-read.debug.log')
+  const t0 = Date.now()
   const c = await capture(
     'band-on-show',
     {
       cols: 120,
       rows: 40,
       total: 360,
-      argv: ['node', DIST],
+      argv: ['node', DIST, '--debug-file', debugFileE],
       cwd: workspace,
       sends: [
         ...FACE_THEN_CHAT,
@@ -403,16 +413,31 @@ if (LEGS.has('e')) {
     },
   )
   const asks = api.usageRequests.length
+  const asksE = api.usageRequests.map(r => `#${r.n}@${((r.at - t0) / 1000).toFixed(1)}s:${r.mode}`)
   await api.close()
   reapHome(home)
+  const readLinesE = existsSync(debugFileE) ? readFileSync(debugFileE, 'utf8').split('\n').filter(l => l.includes('[usage] read #')) : []
   console.log('\nE · the band at 120 cols')
+  console.log(`  [FIXTURE] usage requests: ${asksE.join(' ') || 'none'}`)
+  console.log(`  [DEBUG] ${readLinesE.length} read line(s):`)
+  for (const line of readLinesE) console.log(`    ${line.replace(/^\S+ \[DEBUG\] /, '')}`)
   check('every send became due', c.sends > 0 && c.receipts === c.sends, c.tail.slice(-200))
   const after = (c.marks['after-usage'] ?? '').replace(/\s+/g, ' ')
   const afterChip = new RegExp(`5h ${BAR} (\\d+)%`).exec(after)
   check(`E: the band paints the endpoint's figure with its age tail (5h ${afterChip?.[1] ?? '?'}% ≥ 36 … ↻Ns)`, afterChip !== null && Number(afterChip[1]) >= 36 && new RegExp(`5h ${BAR} \\d+%.*${AGE}`).test(after), after.slice(0, 200))
   const p2 = (c.marks.floor2 ?? '').replace(/\s+/g, ' ')
   const held = new RegExp(`5h ${BAR} (\\d+)%`).exec(p2)
-  check(`E: the band's chip HOLDS its figure across two floors (5h ${held?.[1] ?? '?'}% = ${afterChip?.[1] ?? '?'}) and carries its age — nothing reads on a clock (${asks} reads)`, held !== null && afterChip !== null && Number(held[1]) === Number(afterChip[1]) && new RegExp(AGE).test(p2) && asks === 2, p2.slice(0, 200))
+  const readsE = readLinesE.map(l => l.replace(/^.*\[usage\] /, '')).join(' | ') || 'none'
+  check(`E: the band's chip HOLDS its figure across two floors (5h ${held?.[1] ?? '?'}% = ${afterChip?.[1] ?? '?'}) and carries its age`, held !== null && afterChip !== null && Number(held[1]) === Number(afterChip[1]) && new RegExp(AGE).test(p2), `${p2.slice(0, 200)} · reads: ${readsE}`)
+  const reasons = readLinesE.map(l => /read #\d+ \((open|operator|sign-in)\)/.exec(l)?.[1] ?? 'unnamed')
+  const instants = api.usageRequests.map(r => r.at)
+  const insideFloor = reasons
+    .map((reason, i) => (reason === 'open' && i > 0 && instants[i] !== undefined && instants[i - 1] !== undefined ? instants[i]! - instants[i - 1]! : Number.POSITIVE_INFINITY))
+    .filter(gap => gap < POLL_MS - 500)
+  check(`E: every read names a lawful trigger and no open read lands inside the floor (${reasons.join(', ')})`, reasons.length === asks && reasons.every(r => r !== 'unnamed') && insideFloor.length === 0, readsE)
+  const afterUsageAt = c.markAt['after-usage']
+  const late = afterUsageAt !== undefined ? api.usageRequests.filter(r => r.at > afterUsageAt) : []
+  check(`E: once the tab has closed nothing reads across two floors — no request after the after-usage mark (${asks} reads in all, ${late.length} after it)`, afterUsageAt !== undefined && late.length === 0, `mark at ${afterUsageAt} · asks ${asksE.join(' ')}`)
 }
 
 if (LEGS.has('f')) {
