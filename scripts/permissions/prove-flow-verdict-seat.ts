@@ -444,7 +444,6 @@ async function runLeg(leg: Leg): Promise<void> {
   const world = seedWorld()
   const argv = [
     '-p',
-    '--verbose',
     '--permission-mode',
     'flow',
     '--input-format=stream-json',
