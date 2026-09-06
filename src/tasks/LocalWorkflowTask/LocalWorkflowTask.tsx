@@ -98,6 +98,35 @@ export function isLocalWorkflowTask(
   )
 }
 
+export function workflowOwningAgent(
+  tasks: Record<string, unknown> | undefined,
+  agentId: string,
+): LocalWorkflowTaskState | undefined {
+  if (tasks === undefined) return undefined
+  for (const task of Object.values(tasks)) {
+    if (!isLocalWorkflowTask(task) || task.status !== 'running') continue
+    if (task.agentControllers?.has(agentId)) return task
+    const inFlight = task.workflowProgress.some(
+      row =>
+        row.type === 'workflow_agent' &&
+        row.agentId === agentId &&
+        (row.state === 'start' || row.state === 'progress'),
+    )
+    if (inFlight) return task
+  }
+  return undefined
+}
+
+export function workflowOwnedAgentWords(workflow: LocalWorkflowTaskState, agentId: string): string {
+  const name = workflow.workflowName ?? workflow.description
+  return (
+    `Agent ${agentId} is a worker of the running workflow "${name}" (${workflow.workflowRunId}) — the workflow owns its run, ` +
+    `so it takes no direct message and is never started a second time beside the original. ` +
+    `Inspect mercury://workflow/${workflow.workflowRunId}?child=${agentId} for its progress, skip or retry it from the crew view, ` +
+    `or message it once the workflow has finished.`
+  )
+}
+
 function isTerminalWorkflowStatus(
   status: LocalWorkflowTaskState['status'],
 ): boolean {
