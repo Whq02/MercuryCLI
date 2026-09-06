@@ -13,7 +13,7 @@ process.env.NODE_ENV = 'test'
 const { render } = await import('../../src/ink.ts')
 const { Box, Text } = await import('../../src/ink.ts')
 const { Byline } = await import('../../src/components/design-system/Byline.tsx')
-const { SentryErrorBoundary } = await import('../../src/components/SentryErrorBoundary.tsx')
+const { RowErrorBoundary } = await import('../../src/components/RowErrorBoundary.tsx')
 const SkillUI = await import('../../src/tools/SkillTool/UI.tsx')
 
 let failures = 0
@@ -82,7 +82,7 @@ section('§3 THE ROW BOUNDARY')
 {
   const caught = await tryRender(
     React.createElement(
-      SentryErrorBoundary,
+      RowErrorBoundary,
       null,
       React.createElement(Box, null, 'raw string straight into a Box'),
     ),
@@ -103,7 +103,7 @@ section('§4 THE SUCCESS-ROW SEAM')
   )
   check(
     'the rendered tree rides INSIDE the row boundary (call-shaped)',
-    /<SentryErrorBoundary>\{rendered \?\? null\}<\/SentryErrorBoundary>/.test(row),
+    /<RowErrorBoundary>\{rendered \?\? null\}<\/RowErrorBoundary>/.test(row),
   )
 }
 

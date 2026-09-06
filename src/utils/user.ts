@@ -77,10 +77,6 @@ export const getCoreUserData = memoize(
   },
 )
 
-export function getUserForGrowthBook(): CoreUserData {
-  return getCoreUserData(true)
-}
-
 export async function initUser(): Promise<void> {
   if (emailResolution === null) {
     emailResolution = (async () => {
