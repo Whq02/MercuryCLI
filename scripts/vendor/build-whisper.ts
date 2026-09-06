@@ -259,8 +259,15 @@ function main(): void {
     console.log(`build-whisper: pack already valid for ${PLATFORM} — nothing to do (--force rebuilds)`)
     process.exit(0)
   }
+  const dropStale = (): void => {
+    if (invalid !== null && existsSync(OUT_DIR)) {
+      rmSync(OUT_DIR, { recursive: true, force: true })
+      console.log(`build-whisper: removed the stale pack at ${WHISPER_PACK_PATH}/${PLATFORM} (${invalid}) — it cannot be rebuilt here`)
+    }
+  }
   const cargo = toolVersion('cargo')
   if (cargo === null) {
+    dropStale()
     console.log(
       `build-whisper: SKIPPED — no cargo on PATH, so the on-device transcriber pack is not built for ${PLATFORM}. ` +
         `The build ships without it (${DEGRADED}) and the doctor says so; install a Rust toolchain (https://rustup.rs) and cmake, and re-run bun run scripts/vendor/build-whisper.ts — the cloud transcribers serve meanwhile.`,
@@ -269,6 +276,7 @@ function main(): void {
   }
   const cmake = toolVersion('cmake')
   if (cmake === null) {
+    dropStale()
     console.log(
       `build-whisper: SKIPPED — no cmake on PATH (whisper.cpp compiles through it), so the on-device transcriber pack is not built for ${PLATFORM}. ` +
         `The build ships without it (${DEGRADED}) and the doctor says so; install cmake (${cmakeRemedy()}) and re-run bun run scripts/vendor/build-whisper.ts — the cloud transcribers serve meanwhile.`,
@@ -277,12 +285,14 @@ function main(): void {
   }
   if (CROSS) {
     if (TRIPLE === null) {
+      dropStale()
       console.log(`build-whisper: SKIPPED — no cargo target triple is known for ${PLATFORM}; the build ships without the on-device transcriber (${DEGRADED}) and the doctor says so.`)
       process.exit(0)
     }
     const installed = run('rustup', ['target', 'list', '--installed'], { capture: true })
     const present = installed.status === 0 && installed.stdout.split('\n').map(l => l.trim()).includes(TRIPLE)
     if (!present) {
+      dropStale()
       console.log(
         `build-whisper: SKIPPED — the rustup target ${TRIPLE} is not installed on this machine, so the on-device transcriber pack is not cross-compiled for ${PLATFORM}. ` +
           `The build ships without it (${DEGRADED}) and the doctor says so; install it (rustup target add ${TRIPLE}) and re-run bun run scripts/vendor/build-whisper.ts --target ${TARGET_ARG}.`,
