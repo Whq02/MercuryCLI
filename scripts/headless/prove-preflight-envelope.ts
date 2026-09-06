@@ -34,7 +34,7 @@ if (!existsSync(DIST)) {
       return null
     }
   }
-  const SJ = ['-p', '--output-format', 'stream-json', '--verbose']
+  const SJ = ['-p', '--output-format', 'stream-json']
 
   const settingsRefusal = run([...SJ, '--settings', '/no/such/settings-file.json', 'hi'])
   const settingsEnvelope = envelopeOf(settingsRefusal.out)

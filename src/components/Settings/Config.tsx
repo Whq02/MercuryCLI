@@ -485,14 +485,16 @@ export function Config({
     },
   }, 'anthropic'))
   items.push({
-    id: 'verbose',
-    label: 'Verbose output',
-    kind: 'boolean',
-    value: boolValue(appState.verbose === true),
-    change: () => {
+    id: 'toolOutput',
+    label: 'Tool output',
+    kind: 'enum',
+    value: <Text>{appState.verbose === true ? 'full' : 'compact'}</Text>,
+    change: direction => {
+      const levels = ['compact', 'full'] as const
+      const next = cycleIn(levels, appState.verbose === true ? 'full' : 'compact', direction)
       snapshots.dirty = true
-      setAppState(prev => ({ ...prev, verbose: prev.verbose !== true }))
-      recordToggle('verbose', `set verbose output to ${appState.verbose === true ? 'off' : 'on'}`)
+      setAppState(prev => ({ ...prev, verbose: next === 'full' }))
+      recordToggle('toolOutput', `set tool output to ${next}`)
     },
   })
   items.push({

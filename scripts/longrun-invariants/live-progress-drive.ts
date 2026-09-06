@@ -52,7 +52,7 @@ for (const d of ['daemon', 'teams', 'tabula']) mkdirSync(join(CHILD_HOME, d), { 
 
 const child = spawn(
   nodeBin,
-  [DIST, '-p', 'please do the scripted thing', '--output-format', 'stream-json', '--verbose', '--include-partial-messages', '--allowedTools', 'Bash'],
+  [DIST, '-p', 'please do the scripted thing', '--output-format', 'stream-json', '--include-partial-messages', '--allowedTools', 'Bash'],
   {
     cwd: WORKDIR,
     env: {

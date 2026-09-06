@@ -662,9 +662,9 @@ export async function runAsyncAgentLifecycle(args: {
       result.outcome?.status === 'failed' ? result.outcome : undefined
 
     if (declined) {
-      failAgentTask(taskId, declined.error, rootSetAppState)
+      failAgentTask(taskId, declined.error, rootSetAppState, args.abortController)
     } else {
-      completeAgentTask(result as { agentId: string }, rootSetAppState)
+      completeAgentTask(result as { agentId: string }, rootSetAppState, args.abortController)
       try {
         const stateReader =
           toolUseContext.getAppState ??
@@ -753,7 +753,7 @@ export async function runAsyncAgentLifecycle(args: {
     if (error instanceof AbortError) {
       stopSummarization?.()
       const stopReason = agentStopReasonOf(args.abortController.signal.reason)
-      killAsyncAgent(taskId, rootSetAppState, stopReason)
+      killAsyncAgent(taskId, rootSetAppState, stopReason, args.abortController)
       const worktreeResult = await getWorktreeResult()
       const partialResult = extractPartialResult(accumulated)
       enqueueAgentNotification({
@@ -772,7 +772,7 @@ export async function runAsyncAgentLifecycle(args: {
     }
     stopSummarization?.()
     const errMsg = errorMessage(error)
-    failAgentTask(taskId, errMsg, rootSetAppState)
+    failAgentTask(taskId, errMsg, rootSetAppState, args.abortController)
     const worktreeResult = await getWorktreeResult()
     enqueueAgentNotification({
       taskId,
@@ -781,6 +781,7 @@ export async function runAsyncAgentLifecycle(args: {
       error: errMsg,
       landedWrites: landedWritesOf(accumulated),
       setAppState: rootSetAppState,
+      controller: args.abortController,
       toolUseId: toolUseContext.toolUseId,
       ...worktreeResult,
     })
