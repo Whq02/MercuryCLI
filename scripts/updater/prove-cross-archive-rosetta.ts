@@ -75,6 +75,8 @@ try {
   check(`the image processor is vendored for ${platformKey(SHIP.platform, SHIP.arch)} (or honestly absent)`, image?.vendored === false || image?.platform === platformKey(SHIP.platform, SHIP.arch), JSON.stringify(image))
   const voice = manifest.voiceInput as { vendored?: boolean; platform?: string } | undefined
   check(`the voice pack is ${platformKey(SHIP.platform, SHIP.arch)} (or honestly absent)`, voice?.vendored === false || voice?.platform === platformKey(SHIP.platform, SHIP.arch), JSON.stringify(voice))
+  const whisper = manifest.onDeviceTranscriber as { vendored?: boolean; platform?: string } | undefined
+  check(`the on-device transcriber pack is ${platformKey(SHIP.platform, SHIP.arch)} (or honestly absent)`, whisper?.vendored === false || whisper?.platform === platformKey(SHIP.platform, SHIP.arch), JSON.stringify(whisper))
 
   const vendoredNode = runtime && runtime.vendored ? join(payload, ...runtime.path.split('/'), ...runtime.binary.split('/')) : null
   check('the vendored runtime binary is on disk', vendoredNode !== null && existsSync(vendoredNode))
