@@ -458,7 +458,7 @@ section('§5 the account behind the family moves: a sign-in or a removal forgets
     return reader.anthropicUsageReadStatus().requests === asks
   })())
   const door = src('src/services/providers/providerUsage.ts')
-  check('by source: the driver subscribes the sign-in ledger\'s epoch and asks with the sign-in reason — no second signal', door.includes('subscribeSignInEpoch(() => {') && door.includes("reason: 'sign-in'") && !door.includes('subscribeAccountChange'))
+  check('by source: the on-show watch subscribes the sign-in ledger\'s epoch and asks with the sign-in reason — no second signal', door.includes("subscribeSignInEpoch(() => readShownFamily('sign-in'))") && !door.includes('subscribeAccountChange'))
   removeSignIn()
   seedSubscriber(Date.now() + 7 * 24 * 3600 * 1000)
   auth.dropCredentialMemos()
