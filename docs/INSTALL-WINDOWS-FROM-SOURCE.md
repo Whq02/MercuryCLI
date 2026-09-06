@@ -235,7 +235,12 @@ bun run scripts/vendor/fetch-node.ts
 A sixth pack, the voice capture addon, is built rather than fetched: with a
 Rust toolchain installed (https://rustup.rs, the MSVC toolchain), run
 `bun run scripts/vendor/build-voice.ts`; without cargo it says so and skips,
-and Mercury runs without voice input (the doctor names the remedy).
+and Mercury runs without voice input (the doctor names the remedy). The
+on-device transcriber addon is built the same way and needs cmake beside
+cargo (`winget install Kitware.CMake`): run
+`bun run scripts/vendor/build-whisper.ts`; without either it says so and
+skips, and voice takes go to a cloud transcriber (the doctor names the
+remedy).
 
 Each should end without an error. `fetch-debugpy` unpacks the wheel with the
 first extractor it finds — `unzip`, `python3`, `tar.exe` (ships with Windows
