@@ -156,13 +156,13 @@ withEnv('1', () => {
   check('the settled results\' tokens are summed (a failed run\'s spend is spend)', c['delegatedTokens'] === 84_200)
   check('the list prices are summed and nothing was unpriced', Math.abs((c['delegatedCostUSD'] ?? 0) - 0.91) < 1e-9 && c['delegatedUnpriced'] === 0)
   check('the line reads `2 sub-agents · 84.2k tokens · $0.91`', delegatedSpendLine(c as never) === '2 sub-agents · 84.2k tokens · $0.91', String(delegatedSpendLine(c as never)))
-  const legacy = injectTurnReceipts([
-    prompt('one old agent', 'p1'),
-    toolUse('Task', { description: 'legacy spelling', prompt: 'x' }, 'a1'),
+  const unpriced = injectTurnReceipts([
+    prompt('one agent, no price', 'p1'),
+    toolUse('Agent', { description: 'no price', prompt: 'x' }, 'a1'),
     agentResult(900, undefined, 'r1'),
   ])
-  const lc = receipts(legacy)[0]!.counts
-  check('the earlier tool spelling counts as a launch; a result without a price is unpriced, never free', lc['agents'] === 1 && lc['delegatedTokens'] === 900 && lc['delegatedCostUSD'] === 0 && lc['delegatedUnpriced'] === 1)
+  const lc = receipts(unpriced)[0]!.counts
+  check('a result without a price is unpriced, never free', lc['agents'] === 1 && lc['delegatedTokens'] === 900 && lc['delegatedCostUSD'] === 0 && lc['delegatedUnpriced'] === 1)
   check('the line says so: `1 sub-agent · 900 tokens (1 unpriced)`', delegatedSpendLine(lc as never) === '1 sub-agent · 900 tokens (1 unpriced)', String(delegatedSpendLine(lc as never)))
   const solo = injectTurnReceipts([prompt('no delegation', 'p1'), toolUse('Bash', { command: 'ls' }, 'a1')])
   check('a turn that delegated nothing carries no spend line (null) and its counts stay zero', delegatedSpendLine(receipts(solo)[0]!.counts as never) === null && receipts(solo)[0]!.counts['agents'] === 0)
