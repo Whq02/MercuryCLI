@@ -1,4 +1,6 @@
 import { getDefaultBashTimeoutMs, getMaxBashTimeoutMs } from '../../utils/timeouts.js'
+import { resolveShellEngine } from '../../utils/shell/engineSession.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
 import { hasEmbeddedSearchTools } from '../../utils/embeddedTools.js'
 import { shouldIncludeGitInstructions } from '../../utils/gitSettings.js'
 import { getAttributionTexts } from '../../utils/attribution.js'
@@ -32,9 +34,15 @@ export function getSimplePrompt(): string {
   sections.push(
     'Command output comes back to you, the model — the operator does not reliably see it. Anything they need from a command belongs in your reply.',
   )
-  sections.push(
-    'The working directory persists from call to call; every other piece of shell state (variables, functions, options) resets between calls. Each call starts from your profile (bash or zsh).',
-  )
+  if (resolveShellEngine(getInitialSettings().shellEngine).engine === 'brush') {
+    sections.push(
+      'One shell session serves the whole conversation: the working directory and every other piece of shell state — variables, functions, aliases, options — persist from call to call. A command that hangs and is timed out, or that ends the shell (a bare `exit`, a `set -u` failure), resets the session; you are told when earlier state was lost.',
+    )
+  } else {
+    sections.push(
+      'The working directory persists from call to call; every other piece of shell state (variables, functions, options) resets between calls. Each call starts from your profile (bash or zsh).',
+    )
+  }
 
   const avoidSet = embedded
     ? ['cat', 'head', 'tail', 'sed', 'awk', 'echo']

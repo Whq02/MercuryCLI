@@ -562,6 +562,62 @@ let voiceMeta: { version: string; platform: string; addon: string; addonSha256: 
   }
 }
 
+const { BRUSH_PACK_PATH: brushRelPath, brushPackPlatform, checkBrushPackDir } = await import('./src/utils/shell/brushPack.ts');
+let brushVendored = false;
+let brushMeta: { version: string; platform: string; target: string; binary: string; binarySha256: string; license: string } | null = null;
+{
+  const brushDest = resolve(OUT, brushRelPath);
+  rmSync(brushDest, { recursive: true, force: true });
+  const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_BRUSH === '1';
+  const hostPlatform = brushPackPlatform();
+  const packDir = hostPlatform ? resolve(ROOT, brushRelPath, hostPlatform) : null;
+  if (!forceNo && hostPlatform && packDir && statSync(resolve(packDir, '.vendor-manifest.json'), { throwIfNoEntry: false })?.isFile()) {
+    const check = checkBrushPackDir(packDir, { digest: true, platform: hostPlatform });
+    let lockWhy: string | null = null;
+    if (check.state === 'ok') {
+      try {
+        const lock = JSON.parse(readFileSync(resolve(ROOT, 'vendor', 'brush.lock.json'), 'utf8')) as {
+          version?: string;
+          platforms?: Record<string, { sha256?: string }>;
+        };
+        const pinned = lock.platforms?.[hostPlatform];
+        if (lock.version !== check.manifest.version) lockWhy = `the pack is ${check.manifest.version}, the lock pins ${String(lock.version)}`;
+        else if (pinned && pinned.sha256 !== check.manifest.archiveSha256) lockWhy = "the pack's archive digest is not the lock's";
+      } catch (e) {
+        lockWhy = `vendor/brush.lock.json unreadable (${String(e)})`;
+      }
+    }
+    if (check.state === 'ok' && lockWhy === null) {
+      const { cpSync } = await import('node:fs');
+      cpSync(packDir, resolve(brushDest, hostPlatform), { recursive: true });
+      brushVendored = true;
+      brushMeta = {
+        version: check.manifest.version,
+        platform: hostPlatform,
+        target: check.manifest.target,
+        binary: check.manifest.binary,
+        binarySha256: check.manifest.binarySha256,
+        license: check.manifest.license,
+      };
+      console.log(`VENDORED shell engine brush ${check.manifest.version} ${hostPlatform} (pinned upstream release binary, sha256-verified cache)\n  -> ${resolve(brushDest, hostPlatform)}`);
+    } else {
+      const why = check.state !== 'ok' ? check.note : lockWhy;
+      console.error(
+        `BUILD FAILED: vendor/brush/${hostPlatform} pack is present but stale — ${why}.\n` +
+          '  remedy: bun run scripts/vendor/fetch-brush.ts   (then rebuild)\n' +
+          '  (a missing pack degrades honestly instead — only a PRESENT-but-wrong pack fails the build)',
+      );
+      process.exit(1);
+    }
+  } else if (forceNo) {
+    console.warn('MERCURY_BUILD_NO_VENDOR_BRUSH=1 — shell engine NOT vendored (degraded: shell-engine; proof seam).');
+  } else if (!hostPlatform) {
+    console.warn(`no shell-engine pack layout for ${process.platform}/${process.arch} — the artifact ships WITHOUT the vendored shell engine (degraded: shell-engine; the Bash tool keeps the system bash).`);
+  } else {
+    console.warn(`no shell-engine pack for ${hostPlatform} — the artifact ships WITHOUT the vendored shell engine (degraded: shell-engine; the Bash tool keeps the system bash and the engine setting refuses to arm). Prepare it: bun run scripts/vendor/fetch-brush.ts`);
+  }
+}
+
 const typescriptRelPath = 'vendor/typescript';
 let typescriptVendored = false;
 let typescriptVersion: string | null = null;
@@ -938,6 +994,25 @@ const manifest = {
         remedy:
           'build the voice capture pack (`bun run scripts/vendor/build-voice.ts`, needs cargo), then re-run `bun run build.ts` — the runtime falls back to sox/arecord/ffmpeg on PATH meanwhile, else /speak says no backend',
       },
+  shellEngine: brushVendored && brushMeta
+    ? {
+        vendored: true,
+        name: 'brush',
+        path: `${brushRelPath}/${brushMeta.platform}`,
+        version: brushMeta.version,
+        platform: brushMeta.platform,
+        target: brushMeta.target,
+        binary: brushMeta.binary,
+        binarySha256: brushMeta.binarySha256,
+        license: brushMeta.license,
+      }
+    : {
+        vendored: false,
+        name: 'brush',
+        path: brushRelPath,
+        remedy:
+          'fetch the shell engine pack (`bun run scripts/vendor/fetch-brush.ts`), then re-run `bun run build.ts` — the Bash tool keeps the system bash meanwhile, and the engine setting refuses to arm naming this',
+      },
   typescript: typescriptVendored && typescriptVersion
     ? {
         vendored: true,
@@ -996,6 +1071,7 @@ const manifest = {
     ...(nodeVendored ? [] : ['runtime']),
     ...(voiceVendored ? [] : ['voice-input']),
     ...(imagePackVendored ? [] : ['image-processing']),
+    ...(brushVendored ? [] : ['shell-engine']),
     ...(typescriptVendored ? [] : ['structural-intelligence']),
     ...(treesitterVendored ? [] : ['structure-polyglot']),
     ...(treesitterVendored && !grammarPackVendored ? ['structure-polyglot-extended'] : []),

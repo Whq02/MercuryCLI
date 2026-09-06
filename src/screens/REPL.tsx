@@ -187,6 +187,7 @@ import type { PromptInputHelpers } from '../types/promptInputHelpers.js';
 import { formatCommandLoadingMetadata, resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } from '../utils/processUserInput/processSlashCommand.js';
 import { addToHistory } from '../history.js';
 import { mercuryBootPreflightEnabled, runAndRecordPreflight } from '../utils/healthPreflight.js';
+import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js';
 import { createCommandInputMessage, createUserMessage, extractTag, getUserMessageText, textForResubmit } from '../utils/messages.js';
 import { shouldShowAutoDefaultNotice } from '../utils/permissions/shouldShowAutoDefaultNotice.js';
 import { shouldShowAutoDefaultNudge } from '../utils/permissions/shouldShowAutoDefaultNudge.js';
@@ -1559,6 +1560,18 @@ export function REPL({
         });
       })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const notice = windowsShellRoadNotice();
+    if (notice === null) return;
+    addNotification({
+      key: 'shell-road',
+      text: `${notice} · /health`,
+      priority: 'high',
+      timeoutMs: 60_000,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

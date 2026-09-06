@@ -42,15 +42,16 @@ for (const r of rows) {
   byLicense.set(r.license, list)
 }
 
-function vendorLock(file: string): { version?: string; license?: string; url?: string } {
+function vendorLock(file: string): { version?: string; license?: string; url?: string; repository?: string } {
   const p = join(ROOT, 'vendor', file)
   if (!existsSync(p)) return {}
-  return JSON.parse(readFileSync(p, 'utf8')) as { version?: string; license?: string; url?: string }
+  return JSON.parse(readFileSync(p, 'utf8')) as { version?: string; license?: string; url?: string; repository?: string }
 }
 const debugpy = vendorLock('debugpy.lock.json')
 const pyright = vendorLock('pyright.lock.json')
 const jsDebug = vendorLock('js-debug.lock.json')
 const nodeRuntime = vendorLock('node.lock.json')
+const brush = vendorLock('brush.lock.json')
 const tsMeta = pkgMeta('typescript')
 const treeSitterMeta = pkgMeta('@vscode/tree-sitter-wasm')
 const ripgrepMeta = pkgMeta('@vscode/ripgrep')
@@ -173,6 +174,9 @@ lines.push(
     `- **image-processor pack** (\`dist/vendor/image-processor/<platform>/node_modules/@img/\`) — sharp's prebuilt binding (@img/sharp-<platform> ${sharpMeta.version}, ${sharpMeta.license}, https://github.com/lovell/sharp) and the libvips library it links (@img/sharp-libvips-<platform>, LGPL-3.0-or-later, https://github.com/lovell/sharp-libvips — its bundled dependencies and their licences are inventoried upstream at https://github.com/lovell/sharp-libvips/blob/main/THIRD-PARTY-NOTICES.md; on Windows the binding package carries the libraries itself). Redistributed unmodified from the pinned dependency; each package's LICENSE, README and versions.json ship inside the pack.`,
   )
 }
+lines.push(
+  `- **shell engine pack** (\`dist/vendor/brush/<platform>/brush\`) — brush, a bash-compatible shell written in Rust by reuben olinsky and contributors, ${brush.license ?? 'MIT'} (${brush.repository ?? 'https://github.com/reubeno/brush'}). Receipt: vendor/brush.lock.json (one upstream release archive + sha256 per platform, every digest copied from that release's published \`<archive>.sha256\` asset); the release archive ships the platform's engine binary and upstream's own \`LICENSE\` + \`THIRD_PARTY_LICENSES.html\` (the crate notices of everything linked into the binary) at dist/vendor/brush/<platform>/.`,
+)
 lines.push('')
 lines.push('## Preserved NOTICE files (Apache-2.0 §4(d))')
 lines.push('')

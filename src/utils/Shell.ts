@@ -16,6 +16,8 @@ import { getPlatform } from './platform.js'
 import { SandboxManager } from './sandbox/sandbox-adapter.js'
 import { invalidateSessionEnvCache } from './sessionEnvironment.js'
 import { createBashShellProvider } from './shell/bashProvider.js'
+import { resolveShellEngine, runEngineCommand } from './shell/engineSession.js'
+import { getInitialSettings } from './settings/settings.js'
 import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { createPowerShellProvider } from './shell/powershellProvider.js'
 import type { ShellProvider, ShellType } from './shell/shellProvider.js'
@@ -170,6 +172,31 @@ export async function exec(
   options: ExecOptions = {},
 ): Promise<ShellCommand> {
   const timeout = options.timeout || DEFAULT_TIMEOUT_MS
+
+  if (shellType === 'bash' && options.onStdout === undefined) {
+    const engine = resolveShellEngine(getInitialSettings().shellEngine)
+    if (engine.engine === 'brush') {
+      if (abortSignal.aborted) return createAbortedCommand()
+      return runEngineCommand(engine.binaryPath, command, {
+        timeout,
+        signal: abortSignal,
+        onProgress: options.onProgress,
+        onCwd: reported => {
+          if (options.preventCwdChanges) return
+          try {
+            const before = getCwd()
+            if (reported.normalize('NFC') !== before.normalize('NFC')) {
+              setCwd(reported, before)
+              invalidateSessionEnvCache()
+              void onCwdChangedForHooks(before, reported)
+            }
+          } catch (error) {
+            logForDebugging(`engine cwd tracking: the session directory stays put — ${errorMessage(error)}`)
+          }
+        },
+      })
+    }
+  }
 
   const provider = await PROVIDER_TABLE[shellType]()
 

@@ -166,6 +166,32 @@ operator; `MERCURY_UPDATE_NOTICE=0` disables it.
   `verify-artifact.mjs` on interactive boots — warn-only, never blocking; `/health` reports the same
   verification from in-bundle.
 
+## The shell engine
+
+The Bash tool runs commands through a shell engine. The default is the
+**system** shell — the platform's bash or zsh (PowerShell on Windows), a
+fresh child per command: the working directory carries from call to call,
+everything else resets.
+
+An optional **brush** engine is a vendored payload — brush, a
+bash-compatible shell written in Rust (MIT), shipped as one upstream release
+binary per platform at `dist/vendor/brush/<platform>/` and verified against
+`vendor/brush.lock.json`. With it on, one long-lived brush process serves the
+whole session: variables, functions, aliases and options persist between
+calls, and the same shell runs on every OS with no Git-for-Windows
+dependency. The engine is a child process, so the OS sandbox still wraps it
+and everything it spawns; a command that hangs is killed by the tool's
+timeout and the session respawns with the working directory restored, the
+model told the earlier state was lost.
+
+Select it with the **Shell engine** row in `/config` (setting `shellEngine`:
+`system` | `brush`) or the `MERCURY_SHELL_ENGINE=brush` env pin, which
+outranks the setting; the system shell stays the default. A `brush` choice
+whose pack is absent degrades to the system shell and the `doctor` row names
+why — never a silent fallback. The Bash tool's own description always states
+which engine is live, and the command parser and permission rules judge the
+command text identically on either engine.
+
 ## Diagnostics
 
 `mercury doctor` (the alias of the `/health` surface) renders the report
