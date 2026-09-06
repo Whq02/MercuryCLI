@@ -247,7 +247,7 @@ export async function setup(
       process.env.IS_SANDBOX !== '1'
     ) {
       console.error(
-        'Refusing --dangerously-skip-permissions under root/sudo — running permission-free with superuser rights is a security hazard.',
+        'Refusing --dangerously-bypass-permissions under root/sudo — running permission-free with superuser rights is a security hazard.',
       )
       process.exit(1)
     }

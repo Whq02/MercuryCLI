@@ -442,7 +442,7 @@ export function buildConcourseWorkerSpec(args: {
   kit?: SessionKitV1
 }): StreamJsonChildSpec {
   const runnerArgv = splitAppendSystemPrompt(args.runnerArgv ?? [])
-  const wireArgv = ['--permission-prompt-tool', 'stdio', '--include-partial-messages'] as const
+  const wireArgv = ['--permission-channel', 'stdio', '--include-partial-messages'] as const
   return {
     model: foldLegacyWorkerModelKey(args.modelKey),
     ...(args.keyless ? { keyless: true } : {}),

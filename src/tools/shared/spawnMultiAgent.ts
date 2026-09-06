@@ -230,7 +230,7 @@ function inheritedFlags(prepared: PreparedSpawn, context: ToolUseContext): strin
       modeBypassesPermissions(permissionMode) ||
       getSessionBypassPermissionsMode()
     ) {
-      flags.push('--dangerously-skip-permissions')
+      flags.push('--dangerously-bypass-permissions')
     } else if (permissionMode === 'implement') {
       flags.push('--permission-mode implement')
     } else if (permissionMode === 'flow') {
