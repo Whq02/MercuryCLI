@@ -44,8 +44,8 @@ const assistantLaunch = (): Message =>
       role: 'assistant',
       content: [
         { type: 'text', text: 'launching two' },
-        { type: 'tool_use', id: 'toolu_one', name: 'Agent', input: { description: 'harbour-count', prompt: 'switch-seat: count the harbour', subagent_type: 'general-purpose', run_in_background: true } },
-        { type: 'tool_use', id: 'toolu_two', name: 'Agent', input: { description: 'lantern-index', prompt: 'switch-seat: index the lanterns', subagent_type: 'general-purpose', run_in_background: true } },
+        { type: 'tool_use', id: 'toolu_one', name: 'Agent', input: { description: 'harbour-count', prompt: 'switch-seat: count the harbour', subagent_type: 'mercury-general', run_in_background: true } },
+        { type: 'tool_use', id: 'toolu_two', name: 'Agent', input: { description: 'lantern-index', prompt: 'switch-seat: index the lanterns', subagent_type: 'mercury-general', run_in_background: true } },
       ],
       usage: { input_tokens: 10, output_tokens: 5, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
       stop_reason: 'tool_use',
@@ -82,7 +82,7 @@ const foregroundPair = (): Message[] => [
     uuid: `a-${++n}`,
     timestamp: stamp(),
     requestId: undefined,
-    message: { id: 'msg_fg', model: 'claude-fable-5-1', role: 'assistant', content: [{ type: 'tool_use', id: 'toolu_fg', name: 'Agent', input: { description: 'foreground-walk', prompt: 'walk', subagent_type: 'general-purpose' } }], usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }, stop_reason: 'tool_use' },
+    message: { id: 'msg_fg', model: 'claude-fable-5-1', role: 'assistant', content: [{ type: 'tool_use', id: 'toolu_fg', name: 'Agent', input: { description: 'foreground-walk', prompt: 'walk', subagent_type: 'mercury-general' } }], usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }, stop_reason: 'tool_use' },
   } as unknown as Message,
   {
     type: 'user',
@@ -102,7 +102,7 @@ section('R1 · the receipts')
 const receipts = lr.backgroundLaunchReceipts(transcript)
 check('two background launches carry receipts, in order', receipts.length === 2 && receipts[0]!.toolUseId === 'toolu_one' && receipts[1]!.toolUseId === 'toolu_two', JSON.stringify(receipts))
 check('each receipt names the agent id the tool result carried', receipts[0]?.agentId === 'agent-one' && receipts[1]?.agentId === 'agent-two')
-check('each receipt carries the launch words: description, prompt, agent type, the launch clock', receipts[0]?.description === 'harbour-count' && receipts[0]?.prompt === 'switch-seat: count the harbour' && receipts[0]?.agentType === 'general-purpose' && Number.isFinite(receipts[0]?.launchedAt))
+check('each receipt carries the launch words: description, prompt, agent type, the launch clock', receipts[0]?.description === 'harbour-count' && receipts[0]?.prompt === 'switch-seat: count the harbour' && receipts[0]?.agentType === 'mercury-general' && Number.isFinite(receipts[0]?.launchedAt))
 check('a foreground Agent result is not a launch receipt', !receipts.some(r => r.toolUseId === 'toolu_fg'))
 
 section('R2 · the settled set')
@@ -181,7 +181,7 @@ const { toAgentId } = await import('../../src/types/ids.ts')
 const { generateTaskId } = await import('../../src/Task.ts')
 const { registerAsyncAgent, enqueueAgentNotification } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
 const { SendMessageTool } = await import('../../src/tools/SendMessageTool/SendMessageTool.ts')
-const FAKE_DEF = { agentType: 'general-purpose', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
+const FAKE_DEF = { agentType: 'mercury-general', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
 type SendAnswer = { data: { success: boolean; message: string } }
 function makeStore(): { get: () => AppState; set: (u: (prev: AppState) => AppState) => void } {
   let st: AppState = getDefaultAppState()
@@ -496,7 +496,7 @@ section('R10 · a death is delivered once — the typed cause, what landed, neve
 const { runAsyncAgentLifecycle } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
 const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/utils/messages.ts')
 const { streamFaultAfterPartialText, STREAM_FAULT_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
-const META = { prompt: 'plant the foliage', resolvedAgentModel: 'gpt-5.6-sol', isBuiltInAgent: false, startTime: Date.now(), agentType: 'general-purpose', isAsync: true }
+const META = { prompt: 'plant the foliage', resolvedAgentModel: 'gpt-5.6-sol', isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-general', isAsync: true }
 const FAULT = streamFaultAfterPartialText('OpenAI', 'read-failed', 'terminated')
 async function deathOf(name: string, writes: string[]): Promise<{ record: { status?: string; error?: string; notified?: boolean } | undefined; notes: string[]; id: string }> {
   queue.resetCommandQueue()

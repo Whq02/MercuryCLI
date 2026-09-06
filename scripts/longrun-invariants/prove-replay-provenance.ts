@@ -84,7 +84,7 @@ const runDir = mkdtempSync(join(tmpdir(), 'replay-prov-run-'))
   const firstResult = rows.find(r => r.type === 'result')
   check('journal rows carry agentId (the join key)', typeof firstResult?.agentId === 'string' && firstResult.agentId.length > 0)
   await writeAgentMetadata(firstResult!.agentId as never, {
-    agentType: 'general-purpose',
+    agentType: 'mercury-general',
     model: 'claude-model-that-ran',
     effortOverride: 'high',
   } as never)

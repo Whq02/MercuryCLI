@@ -926,7 +926,7 @@ if (!existsSync(DIST)) {
       const SEAT_DESCRIPTION = 'prefix-seat'
       const summary = 'S9 SUMMARY needle: the main launched the seat and folded.'
       const turns: ScriptedTurn[] = [
-        { kind: 'tool_use', name: 'Agent', input: { description: SEAT_DESCRIPTION, prompt: 'prefix-seat: run three short shells, one per turn, then report in one line', subagent_type: 'general-purpose', run_in_background: true, model: SEAT_ALIAS }, thinking: 's9 launch', usage: { input_tokens: 97_000 }, model: FABLE, whenModel: 'fable' },
+        { kind: 'tool_use', name: 'Agent', input: { description: SEAT_DESCRIPTION, prompt: 'prefix-seat: run three short shells, one per turn, then report in one line', subagent_type: 'mercury-general', run_in_background: true, model: SEAT_ALIAS }, thinking: 's9 launch', usage: { input_tokens: 97_000 }, model: FABLE, whenModel: 'fable' },
         { kind: 'paced', deltas: [summary], gapMs: 0, startDelayMs: 7000, whenModel: 'fable' },
         { kind: 'text', text: 'S9-POST', thinking: 's9 after the fold', model: FABLE, whenModel: 'fable' },
         { kind: 'text', text: 'S9-NOTED', thinking: 's9 noted', model: FABLE, whenModel: 'fable' },

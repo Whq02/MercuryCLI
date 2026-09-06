@@ -201,7 +201,7 @@ async function startFixture(opts: { agent: boolean; verdict: Verdict }): Promise
           blocks = opts.agent
             ? [
                 { type: 'text', text: 'flow-seat: delegating the shell probe' },
-                { type: 'tool_use', name: 'Agent', input: { description: 'flow-seat-agent', prompt: SEAT_BRIEF, subagent_type: 'general-purpose', run_in_background: true } },
+                { type: 'tool_use', name: 'Agent', input: { description: 'flow-seat-agent', prompt: SEAT_BRIEF, subagent_type: 'mercury-general', run_in_background: true } },
               ]
             : [{ type: 'tool_use', name: 'Bash', input: { command: WRITING_COMMAND, description: 'the probe commit and its sha' } }]
           break

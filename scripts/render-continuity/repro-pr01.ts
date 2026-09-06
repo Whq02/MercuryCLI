@@ -67,7 +67,7 @@ const setAppState = (updater: (prev: AnyState) => AnyState): void => {
 }
 
 const AGENT_DEF = {
-  agentType: 'general-purpose',
+  agentType: 'mercury-general',
   whenToUse: 'poise repro',
   tools: ['*'],
   systemPrompt: 'poise fixture',
@@ -111,7 +111,7 @@ async function driveLifecycle(replyText: string): Promise<void> {
       resolvedAgentModel: 'fixture-model',
       isBuiltInAgent: true,
       startTime: Date.now(),
-      agentType: 'general-purpose',
+      agentType: 'mercury-general',
       isAsync: true,
     } as any,
     description: 'poise repro agent',
@@ -210,7 +210,7 @@ const lifecycleP = runAsyncAgentLifecycle({
     resolvedAgentModel: 'fixture-model',
     isBuiltInAgent: true,
     startTime: Date.now(),
-    agentType: 'general-purpose',
+    agentType: 'mercury-general',
     isAsync: true,
   } as any,
   description: 'poise repro agent',

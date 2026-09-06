@@ -196,7 +196,7 @@ async function startFixture(port: number): Promise<Fixture> {
                 team_name: TEAM,
                 description: 'mail probe',
                 prompt: `${SEAT_MARK} hold the line until told otherwise`,
-                subagent_type: 'general-purpose',
+                subagent_type: 'mercury-general',
               },
             },
           ]

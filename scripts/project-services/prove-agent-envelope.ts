@@ -252,7 +252,7 @@ section('D. doctrine splice')
     '../../src/constants/subagentDoctrine.ts'
   )
   const sections = buildSubagentMercurySections({
-    agentDefinition: { agentType: 'general-purpose' } as never,
+    agentDefinition: { agentType: 'mercury-general' } as never,
   })
   check('D1 the envelope doctrine reaches spawned agents',
     sections.some(s => s.includes('mercury-envelope')))
@@ -260,7 +260,7 @@ section('D. doctrine splice')
 
   process.env.MERCURY_CHANGE_RECEIPTS = '0'
   const off = buildSubagentMercurySections({
-    agentDefinition: { agentType: 'general-purpose' } as never,
+    agentDefinition: { agentType: 'mercury-general' } as never,
   })
   check('D3 gate OFF drops the doctrine (byte-identical prompts)',
     !off.some(s => s.includes('mercury-envelope')))

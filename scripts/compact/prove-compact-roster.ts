@@ -71,26 +71,26 @@ const store: Record<string, AnyTask> = {
     status: 'paused', script: 'x', prompt: 'x', workflowName: 'paused-survey', workflowRunId: 'run2', workflowProgress: [], progressVersion: 0, agentCount: 1, totalTokens: 0, totalToolCalls: 0, logs: [], retain: false, scriptPath: '/w/paused-survey.js', args: { n: 1 },
   }),
   aplain001: base('aplain001', 'local_agent', 'plain-survey', {
-    agentId: 'aplain001', prompt: 'read the notes', agentType: 'general-purpose', isBackgrounded: true, pendingMessages: ['one', 'two'],
+    agentId: 'aplain001', prompt: 'read the notes', agentType: 'mercury-general', isBackgrounded: true, pendingMessages: ['one', 'two'],
     progress: { toolUseCount: 3, tokenCount: 0, recentActivities: [], lastActivity: { toolName: 'Read', activityDescription: 'Read notes.txt' } },
   }),
   awaitseat: base('awaitseat', 'local_agent', 'seat-survey', {
-    status: 'pending', agentId: 'awaitseat', prompt: 'x', agentType: 'general-purpose', isBackgrounded: true, wait: SEAT_SENTENCE,
+    status: 'pending', agentId: 'awaitseat', prompt: 'x', agentType: 'mercury-general', isBackgrounded: true, wait: SEAT_SENTENCE,
   }),
   ascout001: base('ascout001', 'local_agent', 'scout the tree', {
     agentId: 'ascout001', prompt: 'x', agentType: 'Explore', isBackgrounded: true,
   }),
   adonequeued: base('adonequeued', 'local_agent', 'done-survey', {
-    status: 'completed', agentId: 'adonequeued', prompt: 'x', agentType: 'general-purpose', isBackgrounded: true, notified: true, endTime: now - 2000,
+    status: 'completed', agentId: 'adonequeued', prompt: 'x', agentType: 'mercury-general', isBackgrounded: true, notified: true, endTime: now - 2000,
   }),
   adonesent: base('adonesent', 'local_agent', 'delivered-survey', {
-    status: 'completed', agentId: 'adonesent', prompt: 'x', agentType: 'general-purpose', isBackgrounded: true, notified: true, endTime: now - 60_000,
+    status: 'completed', agentId: 'adonesent', prompt: 'x', agentType: 'mercury-general', isBackgrounded: true, notified: true, endTime: now - 60_000,
   }),
   afailed01: base('afailed01', 'local_agent', 'failed-survey', {
-    status: 'failed', agentId: 'afailed01', prompt: 'x', agentType: 'general-purpose', isBackgrounded: true, notified: true, error: 'the seat declined', endTime: now - 3000,
+    status: 'failed', agentId: 'afailed01', prompt: 'x', agentType: 'mercury-general', isBackgrounded: true, notified: true, error: 'the seat declined', endTime: now - 3000,
   }),
   [OWN_ID]: base(OWN_ID, 'local_agent', 'the compacting agent itself', {
-    agentId: OWN_ID, prompt: 'x', agentType: 'general-purpose', isBackgrounded: true,
+    agentId: OWN_ID, prompt: 'x', agentType: 'mercury-general', isBackgrounded: true,
   }),
   smain0001: base('smain0001', 'local_agent', 'the session itself', {
     agentId: 'smain0001', prompt: 'x', agentType: 'main-session', isBackgrounded: true,
