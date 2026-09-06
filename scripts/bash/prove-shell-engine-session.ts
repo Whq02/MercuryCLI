@@ -11,6 +11,13 @@ const { resolveShellEngine, runEngineCommand, resetEngineSessionForTest } = awai
 )
 const { getCwd } = await import(join(ROOT, 'src/utils/cwd.ts'))
 const state = await import(join(ROOT, 'src/bootstrap/state.ts'))
+const { quote } = await import(join(ROOT, 'src/utils/bash/shellQuote.ts'))
+const { stripExtendedLengthPrefix } = await import(join(ROOT, 'src/utils/windowsPaths.ts'))
+const sameDir = (a: string, b: string): boolean => {
+  const norm = (s: string): string => (process.platform === 'win32' ? stripExtendedLengthPrefix(s.trim()).toLowerCase() : s.trim())
+  return norm(a) === norm(b)
+}
+const lastLine = (text: string): string => text.trim().split(/\r?\n/).pop() ?? ''
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -78,11 +85,12 @@ section('§2 a variable, a function and the cwd persist across three calls')
   check('call 2 sees the variable set in call 1', c2.stdout.includes('var=persisted'), JSON.stringify(c2.stdout))
   check('call 2 sees the function defined in call 1', c2.stdout.includes('hi world'), JSON.stringify(c2.stdout))
 
-  const c3 = await run('cd /tmp && pwd -P')
-  check('call 3 can cd and reports the new cwd', c3.stdout.includes('/tmp') || c3.stdout.includes('/private/tmp'), JSON.stringify(c3.stdout))
+  const target = fs.realpathSync(os.tmpdir())
+  const c3 = await run(`cd -- ${quote([target])} && pwd -P`)
+  check('call 3 can cd and reports the new cwd', c3.code === 0 && sameDir(lastLine(c3.stdout), target), `code=${c3.code} out=${JSON.stringify(c3.stdout)}`)
   const c4 = await run('pwd -P')
-  check('call 4 starts where call 3 left off (cwd slaved through onCwd)',
-    c4.stdout.includes('/tmp') || c4.stdout.includes('/private/tmp'), `getCwd=${getCwd()} out=${JSON.stringify(c4.stdout)}`)
+  check('call 4 starts where call 3 left off (cwd slaved through onCwd)', sameDir(lastLine(c4.stdout), target), `getCwd=${getCwd()} out=${JSON.stringify(c4.stdout)}`)
+  check('the session records the directory in its native form (no extended-length prefix) and it is the target', !getCwd().startsWith('\\\\?\\') && sameDir(getCwd(), target), `getCwd=${getCwd()}`)
 }
 
 section('§3 a command printing sentinel-shaped bytes cannot fake completion')

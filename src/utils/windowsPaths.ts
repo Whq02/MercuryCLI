@@ -136,14 +136,20 @@ export function nativeCwdFromShellRecord(record: string): { path: string } | { r
   const posix = lines[0]
   if (posix === undefined) return { refused: 'the shell recorded no directory (the command may have died before writing it)' }
   const native = lines[1]
-  if (native !== undefined) return { path: posixPathToWindowsPath(native) }
-  const converted = posixPathToWindowsPath(posix)
+  if (native !== undefined) return { path: stripExtendedLengthPrefix(posixPathToWindowsPath(native)) }
+  const converted = stripExtendedLengthPrefix(posixPathToWindowsPath(posix))
   if (/^\\(?!\\)/.test(converted)) {
     return {
       refused: `${posix} is an MSYS virtual root the converter cannot place (it would become the drive-relative ${converted}); the shell's own Win32 spelling (pwd -W) was not recorded`,
     }
   }
   return { path: converted }
+}
+
+export function stripExtendedLengthPrefix(path: string): string {
+  if (/^\\\\\?\\UNC\\/i.test(path)) return '\\\\' + path.slice(8)
+  if (path.startsWith('\\\\?\\')) return path.slice(4)
+  return path
 }
 
 export const posixPathToWindowsPath = memoizeWithLRU(
