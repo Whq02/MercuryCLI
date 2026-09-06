@@ -1,0 +1,33 @@
+
+  (>_) MERCURY · boot menu
+
+  ↑ 4 more
+    C/C++ IDE lane (clangd)            default (on)
+    Skip permissions at boot           default (off)
+    Autopilot tier mode                default (off)
+  scale & spend
+    Minerva note curator               default (off)
+  memory & missions
+    Project facts & decisions (MNEME)  default (off)
+    Repo generation (DAEDALUS)         default (off)
+    Repo-gen planner model             default (ask per dispatch)
+    Repo-gen builder model             default (ask per dispatch)
+  agents
+    Sub-agents                         default (on)
+    Workflows                          default (on)
+  miscellaneous
+    Launch animation                   default (on)
+    Godot language lanes               default (off)
+    Godot control surface (VULCAN)     default (off)
+    Unity dev lanes                    default (off)
+    Blender dev lanes                  default (off)
+    Aseprite dev lanes                 default (off)
+    Cap failover posture               default (offer)
+    Session Concourse at boot          default (off)
+    Seats                              6 · this machine's reading
+  performance
+  ❯ Motion                             auto · full
+
+
+  how much idle motion the cockpit runs — auto follows the machine (full until painting falls beh…
+  ↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts · esc back

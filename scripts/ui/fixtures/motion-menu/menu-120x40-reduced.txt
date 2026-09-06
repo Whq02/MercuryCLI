@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                      ⌁ boot menu
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ … 12 more above                                                │  │ ❯ Motion                                   │
+   │   Project facts & decisions (MNEME)              default (off) │  │                                            │
+   │   Repo generation (DAEDALUS)                     default (off) │  │ What it controls                           │
+   │   Repo-gen planner model            default (ask per dispatch) │  │ The cockpit's idle motion — the mascot's   │
+   │   Repo-gen builder model            default (ask per dispatch) │  │ blink and breath, the live glyphs, and     │
+   │                                                                │  │ the clock that paces them. Applies now.    │
+   │ AGENTS                                                         │  │                                            │
+   │   Sub-agents                                      default (on) │  │ Current value                              │
+   │   Workflows                                       default (on) │  │ reduced                                    │
+   │                                                                │  │ now: reduced (set by you)                  │
+   │ MISCELLANEOUS                                                  │  │ … (the trail continues — a taller termina… │
+   │   Launch animation                                default (on) │  ╰────────────────────────────────────────────╯
+   │   Godot language lanes                           default (off) │  ╭────────────────────────────────────────────╮
+   │   Godot control surface (VULCAN)                 default (off) │  │ LAUNCH SUMMARY                             │
+   │   Unity dev lanes                                default (off) │  │ Profile    r0 · default                    │
+   │   Blender dev lanes                              default (off) │  │ Harness    helm · console                  │
+   │   Aseprite dev lanes                             default (off) │  │ Integrity  enforce                         │
+   │   Cap failover posture                         default (offer) │  │ Readiness  ● ready                         │
+   │   Session Concourse at boot                      default (off) │  ╰────────────────────────────────────────────╯
+   │   Seats                             6 · this machine's reading │  ╭────────────────────────────────────────────╮
+   │                                                                │  │ ENVIRONMENT                                │
+   │ PERFORMANCE                                                    │  │ Mercury    Opus 5                          │
+   │ ❯ Motion                                               reduced │  │ Theme      Octopus                         │
+   │                                                                │  │ Dir        orchard-src                     │
+   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  changes reach new sessions                                                                  │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                          ↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts · esc back
