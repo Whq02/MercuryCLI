@@ -9,7 +9,7 @@ import { join } from 'node:path'
 delete process.env.NODE_ENV
 delete process.env.CI
 for (const key of [
-  'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_MODEL', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE',
+  'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN', 'MERCURY_MODEL', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE',
   'MERCURY_EFFORT_LEVEL', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_AUTH_SCOPE_DIR',
 ]) delete process.env[key]
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'fault-ledger-'))

@@ -27,14 +27,14 @@ const FAMILY_PLANTS: ReadonlyArray<[label: string, model: string | undefined]> =
 ]
 
 function withModelEnv<T>(model: string | undefined, fn: () => T): T {
-  const saved = process.env.ANTHROPIC_MODEL
-  if (model === undefined) delete process.env.ANTHROPIC_MODEL
-  else process.env.ANTHROPIC_MODEL = model
+  const saved = process.env.MERCURY_MODEL
+  if (model === undefined) delete process.env.MERCURY_MODEL
+  else process.env.MERCURY_MODEL = model
   try {
     return fn()
   } finally {
-    if (saved === undefined) delete process.env.ANTHROPIC_MODEL
-    else process.env.ANTHROPIC_MODEL = saved
+    if (saved === undefined) delete process.env.MERCURY_MODEL
+    else process.env.MERCURY_MODEL = saved
   }
 }
 
@@ -64,7 +64,7 @@ async function main(): Promise<void> {
       'queryModel',
       'sideQuery',
       'getAnthropicClient',
-      'ANTHROPIC_MODEL',
+      'MERCURY_MODEL',
     ]
     const hits = FORBIDDEN.filter(f => gatesSrc.includes(f))
     check('autopilotGates.ts references no model seam', hits.length === 0, hits.join(', '))
@@ -83,7 +83,7 @@ async function main(): Promise<void> {
     )
     check(
       'no family identifier in the arming expression',
-      !/getMainLoopModel|resolveCallModelRoute|classifyModelRoute|declaredRouteOf|ANTHROPIC_MODEL|claude|gpt-|glm-/i.test(armLine),
+      !/getMainLoopModel|resolveCallModelRoute|classifyModelRoute|declaredRouteOf|MERCURY_MODEL|claude|gpt-|glm-/i.test(armLine),
     )
   }
 
@@ -172,7 +172,7 @@ async function main(): Promise<void> {
     check(
       'validateModeEntry (sovereign/autopilot/flow arms) reads no model identity',
       validateStart !== -1 &&
-        !/getMainLoopModel|getSmallFastModel|resolveCallModelRoute|classifyModelRoute|declaredRouteOf|ANTHROPIC_MODEL/.test(validateBody),
+        !/getMainLoopModel|getSmallFastModel|resolveCallModelRoute|classifyModelRoute|declaredRouteOf|MERCURY_MODEL/.test(validateBody),
     )
   }
 

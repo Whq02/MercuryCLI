@@ -156,9 +156,9 @@ try {
     const slots = await import('../../src/utils/model/subModelSlots.ts')
     const { enableConfigs } = await import('../../src/utils/config.ts')
     enableConfigs()
-    const priorModel = process.env.ANTHROPIC_MODEL
+    const priorModel = process.env.MERCURY_MODEL
     for (const main of ['gpt-5.6-sol', 'gemini-2.5-pro', 'claude-fable-5', 'openrouter/nvidia/nemotron-3.5-lightning:free']) {
-      process.env.ANTHROPIC_MODEL = main
+      process.env.MERCURY_MODEL = main
       const r7 = slots.resolveSubModel('minerva')
       check(
         `main ${main}: the curator resolves UNSET with the hint (no family default)`,
@@ -182,8 +182,8 @@ try {
       )
     }
     delete process.env.MERCURY_MINERVA_MODEL
-    if (priorModel === undefined) delete process.env.ANTHROPIC_MODEL
-    else process.env.ANTHROPIC_MODEL = priorModel
+    if (priorModel === undefined) delete process.env.MERCURY_MODEL
+    else process.env.MERCURY_MODEL = priorModel
   }
 
   section('(8) chat schema — the ops sandbox')

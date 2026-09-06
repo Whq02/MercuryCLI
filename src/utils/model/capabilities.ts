@@ -878,7 +878,7 @@ function betasEnvFingerprint(): string {
   return [
     process.env.DISABLE_INTERLEAVED_THINKING ?? '',
     process.env.MERCURY_DISABLE_1M_CONTEXT ?? '',
-    process.env.ANTHROPIC_BETAS ?? '',
+    process.env.MERCURY_PROVIDER_BETAS ?? '',
   ].join(KEY_SEP)
 }
 
@@ -957,9 +957,9 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     betaHeaders.push(PROMPT_CACHING_SCOPE_BETA_HEADER)
   }
 
-  if (process.env.ANTHROPIC_BETAS) {
+  if (process.env.MERCURY_PROVIDER_BETAS) {
     betaHeaders.push(
-      ...process.env.ANTHROPIC_BETAS.split(',')
+      ...process.env.MERCURY_PROVIDER_BETAS.split(',')
         .map(_ => _.trim())
         .filter(Boolean),
     )

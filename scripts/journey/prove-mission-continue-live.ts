@@ -116,7 +116,7 @@ function worldEnv(world: World, baseOverride?: string): NodeJS.ProcessEnv {
   }
   delete env.NODE_ENV
   delete env.ANTHROPIC_AUTH_TOKEN
-  delete env.ANTHROPIC_MODEL
+  delete env.MERCURY_MODEL
   return env
 }
 

@@ -494,7 +494,7 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
     { value: 'claude-opus-4-8[1m]', label: 'Opus 4.8 (1M)', description: '' },
     { value: 'haiku', label: 'Haiku', description: '' },
     { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', description: '' },
-    { value: 'my-custom-model', label: 'Custom', description: 'operator copy (ANTHROPIC_CUSTOM_MODEL_OPTION passthrough, no group)' },
+    { value: 'my-custom-model', label: 'Custom', description: 'operator copy (MERCURY_CUSTOM_MODEL_OPTION passthrough, no group)' },
     { value: 'gpt-6.2', label: 'GPT-6.2', description: '', group: 'Mercury — OpenAI models', unavailable: 'no OpenAI account connected' },
     { value: '__mercury_connect__:zai', label: 'Z.AI — attach a key', description: '↵ opens /logins zai', group: 'Mercury — Z.AI models' },
     { value: 'glm-5.3', label: 'GLM-5.3', description: '', group: 'Mercury — Z.AI models', unavailable: 'no API key attached' },
@@ -534,8 +534,8 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
   t.check('the anthropic sign-in sentinel is a connect row by SHAPE (the regex arm, no literal list)', rows.find(r => r.value === '__mercury_anthropic_connect__')?.kind === 'connect')
   t.check('a keyless compat model is a plain selectable row (no key ≠ unavailable when the endpoint is auth-free)', rows.find(r => r.value === 'compat/qwen3')?.unavailable === undefined)
   {
-    const priorPin = process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL
-    process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL = 'fastcheap-gw-v1'
+    const priorPin = process.env.MERCURY_DEFAULT_HAIKU_MODEL
+    process.env.MERCURY_DEFAULT_HAIKU_MODEL = 'fastcheap-gw-v1'
     try {
       const pinned = getAgentModelPickerRows([
         { value: 'fastcheap-gw-v1', label: 'Ops haiku', description: 'gateway spelling of the haiku slot' },
@@ -547,8 +547,8 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
         pinned.map(r => r.value).join(' · '),
       )
     } finally {
-      if (priorPin === undefined) delete process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL
-      else process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL = priorPin
+      if (priorPin === undefined) delete process.env.MERCURY_DEFAULT_HAIKU_MODEL
+      else process.env.MERCURY_DEFAULT_HAIKU_MODEL = priorPin
     }
   }
   t.check('picking a live model commits its value', JSON.stringify(agentModelPickOutcome(rows.find(r => r.value === 'compat/qwen3')!)) === '{"kind":"picked","model":"compat/qwen3"}')

@@ -125,8 +125,8 @@ function cloneEnvWithoutRoles(): NodeJS.ProcessEnv {
     delete env[v]
   }
   stripCrewRolePair(env)
-  if (env.ANTHROPIC_MODEL) {
-    env.ANTHROPIC_MODEL = enforceSubagentModelFloor(env.ANTHROPIC_MODEL, 'daemon:headless-loop')
+  if (env.MERCURY_MODEL) {
+    env.MERCURY_MODEL = enforceSubagentModelFloor(env.MERCURY_MODEL, 'daemon:headless-loop')
   }
   env.MERCURY_BRIEF ??= '1'
   return env
@@ -231,7 +231,7 @@ export function buildStreamJsonInvocation(
   const env: NodeJS.ProcessEnv = {
     ...inherited,
     ...(spec.extraEnv ?? {}),
-    ANTHROPIC_MODEL: model,
+    MERCURY_MODEL: model,
     MERCURY_EFFORT_LEVEL: spec.effort,
     ...flagPair('MERCURY_TEAMMATES', '1'),
   }

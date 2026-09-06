@@ -1781,7 +1781,7 @@ export async function runHeadless(
           if (claimedModel !== undefined) {
             activeModel = parseUserSpecifiedModel(claimedModel)
             setMainLoopModelOverride(claimedModel)
-            process.env.ANTHROPIC_MODEL = claimedModel
+            process.env.MERCURY_MODEL = claimedModel
           }
           if (claimedEffort !== undefined) {
             process.env.MERCURY_EFFORT_LEVEL = claimedEffort

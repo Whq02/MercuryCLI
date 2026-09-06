@@ -8,10 +8,10 @@ process.env.MERCURY_CONFIG_DIR = join(HERMETIC, 'config')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 for (const k of [
   'ANTHROPIC_BASE_URL',
-  'ANTHROPIC_BETAS',
-  'ANTHROPIC_DEFAULT_OPUS_MODEL',
-  'ANTHROPIC_DEFAULT_SONNET_MODEL',
-  'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+  'MERCURY_PROVIDER_BETAS',
+  'MERCURY_DEFAULT_OPUS_MODEL',
+  'MERCURY_DEFAULT_SONNET_MODEL',
+  'MERCURY_DEFAULT_HAIKU_MODEL',
   'DISABLE_INTERLEAVED_THINKING',
   'MERCURY_DISABLE_1M_CONTEXT',
   'DISABLE_PROMPT_CACHING',
@@ -24,7 +24,7 @@ for (const k of [
   'HERMES_DEEPTHINK_MAX',
   'MERCURY_CACHE_TTL',
   'MERCURY_THINKING_BUDGET',
-  'ANTHROPIC_SMALL_FAST_MODEL',
+  'MERCURY_SMALL_FAST_MODEL',
   'MERCURY_AUGUR',
   'MERCURY_AUGUR_TOOL',
   'MERCURY_AUGUR_BRIEF',
@@ -139,7 +139,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     ['firstParty opus-4-6[1m]', {}, 'claude-opus-4-6[1m]', [B.CODING_20250219_BETA_HEADER, B.CONTEXT_1M_BETA_HEADER, B.INTERLEAVED_THINKING_BETA_HEADER]],
     ['DISABLE_INTERLEAVED_THINKING strips the ISP header', { DISABLE_INTERLEAVED_THINKING: '1' }, 'claude-opus-4-8', [B.CODING_20250219_BETA_HEADER]],
     ['MERCURY_DISABLE_1M_CONTEXT beats the [1m] suffix', { MERCURY_DISABLE_1M_CONTEXT: '1' }, 'claude-opus-4-6[1m]', [B.CODING_20250219_BETA_HEADER, B.INTERLEAVED_THINKING_BETA_HEADER]],
-    ['ANTHROPIC_BETAS passthrough splits + trims', { ANTHROPIC_BETAS: ' user-beta-1 , user-beta-2,' }, 'claude-opus-4-8', [B.CODING_20250219_BETA_HEADER, B.INTERLEAVED_THINKING_BETA_HEADER, 'user-beta-1', 'user-beta-2']],
+    ['MERCURY_PROVIDER_BETAS passthrough splits + trims', { MERCURY_PROVIDER_BETAS: ' user-beta-1 , user-beta-2,' }, 'claude-opus-4-8', [B.CODING_20250219_BETA_HEADER, B.INTERLEAVED_THINKING_BETA_HEADER, 'user-beta-1', 'user-beta-2']],
   ]
   const seen: string[][] = []
   for (const [label, env, m, want] of rows) {

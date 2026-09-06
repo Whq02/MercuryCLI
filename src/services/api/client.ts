@@ -102,10 +102,10 @@ function buildFetchWrapper(
 export async function getAnthropicClient(options: GetClientOptions): Promise<Anthropic> {
   const { apiKey: callerApiKey, maxRetries, fetchOverride, source } = options
 
-  const customHeadersRaw = process.env.ANTHROPIC_CUSTOM_HEADERS
+  const customHeadersRaw = process.env.MERCURY_PROVIDER_HEADERS
   const customHeaders = parseCustomHeaders(customHeadersRaw)
   logForDebugging(
-    `client: ANTHROPIC_CUSTOM_HEADERS ${customHeadersRaw ? 'present' : 'absent'}${
+    `client: MERCURY_PROVIDER_HEADERS ${customHeadersRaw ? 'present' : 'absent'}${
       customHeadersRaw && 'Authorization' in customHeaders ? ' (carries Authorization)' : ''
     }`,
   )

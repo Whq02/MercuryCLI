@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = scratch
 process.env.MERCURY_HOME = scratch
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-delete process.env.ANTHROPIC_MODEL
+delete process.env.MERCURY_MODEL
 process.env.OPENROUTER_API_KEY = 'sk-or-fixture000'
 process.env.MERCURY_OPENROUTER_API_BASE = 'https://fixture.invalid/api/v1'
 

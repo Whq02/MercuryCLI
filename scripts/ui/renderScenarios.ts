@@ -1329,7 +1329,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
         planType: 'plus',
       },
     }))
-    process.env.ANTHROPIC_MODEL = 'gpt-5.6-sol'
+    process.env.MERCURY_MODEL = 'gpt-5.6-sol'
     return { argv: ['node', BIN, '--resume', SID], sends: [], total: 45, cols, rows }
   }
   if (name === 'usage-truth-signedout' || name === 'usage-truth-gpt-signedin') {
@@ -1345,7 +1345,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
           planType: 'plus',
         },
       }))
-      process.env.ANTHROPIC_MODEL = 'gpt-5.6-sol'
+      process.env.MERCURY_MODEL = 'gpt-5.6-sol'
     }
     return {
       argv: ['node', BIN, '--resume', SID],
@@ -2101,7 +2101,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
         planType: 'plus',
       },
     }))
-    process.env.ANTHROPIC_MODEL = 'gpt-5.6-sol'
+    process.env.MERCURY_MODEL = 'gpt-5.6-sol'
     process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
     process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
     process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:9'
@@ -2314,7 +2314,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
         planType: 'plus',
       },
     }))
-    process.env.ANTHROPIC_MODEL = 'gpt-5.6-sol'
+    process.env.MERCURY_MODEL = 'gpt-5.6-sol'
     return {
       argv: ['node', BIN, '--resume', SID],
       sends: [

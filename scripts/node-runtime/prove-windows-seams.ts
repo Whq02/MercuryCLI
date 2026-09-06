@@ -142,7 +142,7 @@ section('(7) a signed-out boot stays silent on the wire — the API warm-up need
     const d = decidePreconnect(true, { [spelling]: '' })
     check(`${spelling} PRESENT (even empty) ⇒ skip, reason proxy`, !d.go && d.reason === 'proxy')
   }
-  const sock = decidePreconnect(true, { ANTHROPIC_UNIX_SOCKET: '/tmp/x' })
+  const sock = decidePreconnect(true, { MERCURY_API_UNIX_SOCKET: '/tmp/x' })
   check('a unix socket ⇒ skip, reason unix-socket', !sock.go && sock.reason === 'unix-socket')
   const cert = decidePreconnect(true, { MERCURY_CLIENT_KEY: '/k' })
   check('a client key ⇒ skip, reason client-cert', !cert.go && cert.reason === 'client-cert')
