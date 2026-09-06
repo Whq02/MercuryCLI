@@ -597,5 +597,59 @@ async function deathOf(name: string, writes: string[]): Promise<{ record: { stat
   queue.resetCommandQueue()
 }
 
+section('R11 · the hand-back — every exit that is not a clean finish carries the partial text, the files, the tool count, the cause and the way back')
+{
+  const { AbortError, DeadlineExceededError } = await import('../../src/utils/errors.ts')
+  type Exit = { name: string; thrown: () => Error; cause: RegExp; status: 'failed' | 'killed' }
+  const exits: Exit[] = [
+    { name: 'budget-cut', thrown: () => new Error('provider throttled — the 5-minute recovery budget is spent after 3 declared waits (HTTP 429); the agent stopped — retry later, or raise MERCURY_RECOVERY_BUDGET_MINUTES'), cause: /provider throttled/, status: 'failed' },
+    { name: 'stall', thrown: () => new DeadlineExceededError('no progress for 900000ms'), cause: /no progress/, status: 'failed' },
+    { name: 'provider-fault', thrown: () => new Error('the provider closed the stream mid-turn'), cause: /closed the stream/, status: 'failed' },
+    { name: 'kill', thrown: () => new AbortError(), cause: /stopped/, status: 'killed' },
+  ]
+  for (const exit of exits) {
+    queue.resetCommandQueue()
+    const store = makeStore()
+    const id = generateTaskId('local_agent')
+    const task = registerAsyncAgent({ agentId: id, description: `leaves-${exit.name}`, prompt: 'survey the harbour', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+    async function* stream(): AsyncGenerator<Message, void> {
+      yield createUserMessage({ content: 'survey the harbour' })
+      yield createAssistantMessage({ content: [{ type: 'tool_use', id: 'toolu_w1', name: 'Write', input: { file_path: '/tmp/harbour-notes.md', content: 'x' } }] })
+      yield createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'toolu_w1', content: 'File created successfully at: /tmp/harbour-notes.md' }] })
+      yield createAssistantMessage({ content: 'three piers counted so far, the fourth is behind the crane' })
+      if (exit.name === 'kill') task.abortController?.abort()
+      throw exit.thrown()
+    }
+    await runAsyncAgentLifecycle({
+      taskId: id,
+      abortController: task.abortController!,
+      makeStream: () => stream() as never,
+      metadata: META,
+      description: `leaves-${exit.name}`,
+      toolUseContext: { options: { tools: [] }, toolUseId: `toolu_${exit.name}` } as never,
+      rootSetAppState: store.set as never,
+      agentIdForCleanup: id,
+      enableSummarization: false,
+      getWorktreeResult: async () => ({}),
+    })
+    const row = store.get().tasks[id] as { status?: string; error?: string } | undefined
+    const notes = queue.getCommandQueue().filter(c => c.mode === 'task-notification').map(c => String(c.value ?? ''))
+    const note = notes[0] ?? ''
+    check(`${exit.name}: the record settles ${exit.status} once and one notice goes out`, row?.status === exit.status && notes.length === 1, `${row?.status} · ${notes.length} notice(s)`)
+    check(`${exit.name}: the notice carries the partial text as a result`, /<result>[\s\S]*three piers counted so far[\s\S]*<\/result>/.test(note), note.slice(0, 400))
+    check(`${exit.name}: the notice names the cause`, exit.cause.test(note), note.slice(0, 300))
+    check(`${exit.name}: the notice says what landed on disk`, /1 file write landed: \/tmp\/harbour-notes\.md/.test(note), note.slice(0, 300))
+    check(`${exit.name}: the notice counts the tools it ran`, /<tool_uses>1<\/tool_uses>/.test(note), note.slice(0, 400))
+    check(`${exit.name}: the notice carries the envelope with the observed changes`, /<envelope v="\d+" status="(failed|stopped)">/.test(note) && /changed \(observed\)/.test(note), note.slice(-400))
+    check(`${exit.name}: the notice names the way back`, /its work is kept/.test(note) && /resume it from the crew view/.test(note), note.slice(0, 400))
+  }
+  const painter = src('src/components/messages/UserAgentNotificationMessage.tsx')
+  check('the notification card paints a kept partial result as its own line', /partial result kept/.test(painter) && /extractTag\(param\.text, 'result'\)/.test(painter))
+  const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
+  const failedBranch = agentTool.slice(agentTool.indexOf("if (status === 'failed')"), agentTool.indexOf("if (status === 'completed')"))
+  check("the sync road's failed result carries the envelope and says the work is kept", /envelopeFor\(data\)/.test(failedBranch) && /its work is kept/.test(failedBranch))
+  queue.resetCommandQueue()
+}
+
 console.log(failures === 0 ? '\nprove-launch-receipts: ALL LAWS HOLD' : `\nprove-launch-receipts: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -56,6 +56,7 @@ import {
   deriveAgentTerminalOutcome,
   emitTaskProgress,
   extractPartialResult,
+  partialResultEnvelopeBlock,
   finalizeAgentTool,
   getLastToolUseName,
   landedWritesOf,
@@ -322,31 +323,62 @@ export async function runForegroundAgentExecution(
         const stopReason = agentStopReasonOf(foregroundTask?.abortController.signal.reason)
         killAsyncAgent(backgroundedTaskId, rootSetAppState, stopReason)
         const worktreeResult = await cleanupWorktreeIfNeeded()
+        const partialResult = extractPartialResult(agentMessages)
+        const usage = {
+          totalTokens: getTokenCountFromTracker(tracker),
+          toolUses: tracker.toolUseCount,
+          durationMs: Date.now() - agentStartTime,
+        }
+        const envelopeBlock = await partialResultEnvelopeBlock({
+          agentId: String(backgroundedTaskId),
+          agentType: metadata.agentType,
+          status: 'stopped',
+          partialText: partialResult,
+          usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
+        })
         enqueueAgentNotification({
           taskId: backgroundedTaskId,
           description,
           status: 'killed',
           setAppState: rootSetAppState,
           toolUseId: toolUseContext.toolUseId,
-          finalMessage: extractPartialResult(agentMessages),
+          finalMessage: partialResult,
+          usage,
           landedWrites: landedWritesOf(agentMessages),
           ...(stopReason !== undefined ? { stopReason } : {}),
           ...worktreeResult,
+          ...(envelopeBlock ? { envelopeBlock } : {}),
         })
         return
       }
       const failure = errorMessage(error)
       failAsyncAgent(backgroundedTaskId, failure, rootSetAppState)
       const worktreeResult = await cleanupWorktreeIfNeeded()
+      const partialResult = extractPartialResult(agentMessages)
+      const usage = {
+        totalTokens: getTokenCountFromTracker(tracker),
+        toolUses: tracker.toolUseCount,
+        durationMs: Date.now() - agentStartTime,
+      }
+      const envelopeBlock = await partialResultEnvelopeBlock({
+        agentId: String(backgroundedTaskId),
+        agentType: metadata.agentType,
+        status: 'failed',
+        partialText: partialResult,
+        usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
+      })
       enqueueAgentNotification({
         taskId: backgroundedTaskId,
         description,
         status: 'failed',
         error: failure,
+        finalMessage: partialResult,
+        usage,
         landedWrites: landedWritesOf(agentMessages),
         setAppState: rootSetAppState,
         toolUseId: toolUseContext.toolUseId,
         ...worktreeResult,
+        ...(envelopeBlock ? { envelopeBlock } : {}),
       })
     } finally {
       stopForegroundSummarization?.()
