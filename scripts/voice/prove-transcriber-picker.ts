@@ -17,7 +17,7 @@ type Reads = import('../../src/services/voice/transcribe.js').TranscriberReads
 type Local = import('../../src/services/voice/transcribe.js').LocalTranscriberRead
 type Pin = import('../../src/services/voice/transcribe.js').TranscriberPin
 
-const OK: Local = { state: 'ok', label: 'on-device transcriber (base.en-q5_1)', model: 'base.en-q5_1', language: 'en', pack: { version: '0.1.0', platform: 'fixture-os-fixture-arch', engine: 'whisper.cpp 1.8.3', where: 'the checkout' } }
+const OK: Local = { state: 'ok', label: 'on-device transcriber (base.en-q5_1)', model: 'base.en-q5_1', language: 'en', pack: { version: '0.1.0', platform: 'fixture-os-fixture-arch', engine: 'whisper.cpp 1.8.3', gpu: 'none', where: 'the checkout' } }
 const NO_PACK: Local = { state: 'absent', reason: 'pack', note: 'absent on this checkout — bun run scripts/vendor/build-whisper.ts builds it (cargo and cmake)', short: 'no on-device pack (bun run setup)' }
 const NO_MODEL: Local = { state: 'absent', reason: 'model', note: 'pack present, model missing — /speak download fetches ggml-base.en-q5_1.bin (60 MB)', short: 'no on-device model (/speak download)' }
 const reads = (openai: string | null, gemini: string | null, local: Local): Reads => ({ openaiApiKeyLabel: () => openai, geminiApiKeyLabel: () => gemini, localTranscriber: () => local })
