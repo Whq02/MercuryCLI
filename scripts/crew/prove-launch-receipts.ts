@@ -229,6 +229,47 @@ function makeCtx(store: ReturnType<typeof makeStore>): never {
   check('the id grammar has one owner: the minter reads the alphabet the validator reads', ids.includes('export const TASK_ID_ALPHABET') && task.includes("import { TASK_ID_ALPHABET, TASK_ID_SUFFIX_LENGTH } from './types/ids.js'") && !/const TASK_ID_ALPHABET = /.test(task))
 }
 
+section("R8b · a queued-guidance resume re-registers the id — the old run's notice never latches the resumed run's row")
+const { completeAgentTask } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+for (const ordering of ['old-first', 'resumed-first'] as const) {
+  queue.resetCommandQueue()
+  const store = makeStore()
+  const id = generateTaskId('local_agent')
+  const first = registerAsyncAgent({ agentId: id, description: 'twice', prompt: 'count twice', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  completeAgentTask({ agentId: id }, store.set as never)
+  const second = registerAsyncAgent({ agentId: id, description: 'twice', prompt: 'count twice', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  check(`${ordering}: the resume minted a fresh controller for the same id`, first.abortController !== second.abortController && store.get().tasks[id]?.status === 'running')
+  const oldNotice = (): void =>
+    enqueueAgentNotification({ taskId: id, description: 'twice', status: 'completed', setAppState: store.set as never, controller: first.abortController })
+  const resumedSettle = (): void => {
+    completeAgentTask({ agentId: id }, store.set as never)
+    enqueueAgentNotification({ taskId: id, description: 'twice', status: 'completed', setAppState: store.set as never, controller: second.abortController })
+  }
+  if (ordering === 'old-first') {
+    oldNotice()
+    const row = store.get().tasks[id] as { status?: string; notified?: boolean } | undefined
+    check("old-first: the old run's notice leaves the resumed row running and unlatched", row?.status === 'running' && row.notified !== true, JSON.stringify(row ? { status: row.status, notified: row.notified } : row))
+    resumedSettle()
+  } else {
+    resumedSettle()
+    oldNotice()
+  }
+  const notes = (): number => queue.getCommandQueue().filter(c => c.mode === 'task-notification').length
+  check(`${ordering}: two runs, two notices`, notes() === 2, `${notes()} notice(s)`)
+  enqueueAgentNotification({ taskId: id, description: 'twice', status: 'completed', setAppState: store.set as never, controller: second.abortController })
+  check(`${ordering}: the resumed run's second report is swallowed by its own latch`, notes() === 2, `${notes()} notice(s)`)
+}
+{
+  queue.resetCommandQueue()
+  const store = makeStore()
+  const id = generateTaskId('local_agent')
+  registerAsyncAgent({ agentId: id, description: 'once', prompt: 'count once', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  completeAgentTask({ agentId: id }, store.set as never)
+  enqueueAgentNotification({ taskId: id, description: 'once', status: 'completed', setAppState: store.set as never })
+  enqueueAgentNotification({ taskId: id, description: 'once', status: 'completed', setAppState: store.set as never })
+  check('a token-less notice still latches the row once', queue.getCommandQueue().filter(c => c.mode === 'task-notification').length === 1)
+}
+
 section('R9 · one status per agent — the inspection verbs read one fact, on the registry or on disk')
 const { agentAdapter } = await import('../../src/services/resources/adapters/agent.ts')
 const { transcriptAdapter } = await import('../../src/services/resources/adapters/transcript.ts')
