@@ -2,14 +2,11 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
-<<<<<<< HEAD
-- Fixed an agent stopping as "provider throttled" after its stream went quiet or dropped: a recovery's ceiling is charged only for the time waited, only the provider's refusals are named as such, every wait names its cause, the stop line says how to resume the agent, and a live stream's heartbeats keep the idle watchdog from cutting it
-=======
 - Fixed a compaction on the OpenAI road sending a shorter request than the session had been sending, which left most of the context uncached afterwards; the summary request now carries the same rows plus the ask, and a forked agent keeps its parent's cache setting
 - Fixed a message to a worker owned by a running workflow starting a second copy of that worker; the message is refused and names the workflow, and a finished run can no longer settle its successor
 - Added on-device speech-to-text: with no API key at all, /speak on, space to talk, space to stop, and the words land in the composer without anything leaving the machine; the first use downloads a 60 MB English model once, behind /speak download, and the doctor names the engine, the model and the memory it takes
 - Changed voice input to prefer the on-device transcriber whenever its pack and model are present; a signed-in cloud transcriber serves when they are not, or when you pin one
->>>>>>> working
+- Fixed an agent stopping as "provider throttled" after its stream went quiet or dropped: a recovery's ceiling is charged only for the time waited, only the provider's refusals are named as such, every wait names its cause, the stop line says how to resume the agent, and a live stream's heartbeats keep the idle watchdog from cutting it
 - Fixed a file read that starts at line 0 numbering its lines from 0, which made its anchors unusable by Edit; a read from offset 0 numbers its first line 1
 - Fixed the last-resort image read advertising JPEG for PNG bytes on the JavaScript image road; the type now follows the bytes
 - Fixed two cut paths losing their reason, an interruption during a Stop hook and a workflow permission ask that timed out; both now name their cause
