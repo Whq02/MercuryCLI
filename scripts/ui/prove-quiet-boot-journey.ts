@@ -148,7 +148,7 @@ const port = await new Promise<number>(resolvePort => {
 })
 const FIXTURE_BASE = `http://127.0.0.1:${port}`
 
-function childEnv(home: string, netlog: string): NodeJS.ProcessEnv {
+function childEnv(home: string, netlog: string, extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     PATH: `${shimDir}${delimiter}${process.env.PATH ?? ''}`,
@@ -196,6 +196,7 @@ function childEnv(home: string, netlog: string): NodeJS.ProcessEnv {
   ]) {
     delete env[key]
   }
+  Object.assign(env, extra)
   return env
 }
 
@@ -216,14 +217,14 @@ type Grid = Array<Array<{ c?: string } | string>>
 const gridText = (grid: Grid): string =>
   grid.map(row => row.map(c => (typeof c === 'object' && c !== null ? (c.c ?? ' ') : String(c))).join('').trimEnd()).join('\n')
 
-async function drive(tag: string, home: string, netlog: string, sends: unknown[], total: number): Promise<DriveResult> {
+async function drive(tag: string, home: string, netlog: string, sends: unknown[], total: number, extra: Record<string, string> = {}): Promise<DriveResult> {
   const grid = join(scratch, `${tag}-grid.json`)
   const cfgPath = join(scratch, `${tag}-vshot.json`)
   writeFileSync(cfgPath, JSON.stringify({ argv: ['node', DIST, '--chat'], sends, total, cols: 120, rows: 40, out: grid, title: tag }))
   const stderr: string[] = []
   const status = await new Promise<number | null>((resolveStatus, reject) => {
     const child = spawn(driver.python, [VSHOT, cfgPath], {
-      env: childEnv(home, netlog),
+      env: childEnv(home, netlog, extra),
       cwd: join(scratch, 'cwd'),
       stdio: ['ignore', 'ignore', 'pipe'],
     })
@@ -354,6 +355,40 @@ console.log('[B] one turn — the only requests are model requests')
   check('every request the fixture served was a model request (POST /v1/messages) — no other road', served.every(s => s.method === 'POST' && s.path.endsWith('/v1/messages')), ledger.join(' · '))
   console.log(`  – model requests served in the turn leg: ${served.length}`)
   for (const s of served) console.log(`      ${s.method} ${s.path} @${Math.round(s.atMs / 1000)}s · ${s.shape}`)
+  const stray = uniq(strayLines(netlines(netlog)))
+  check('no non-loopback connect left the child (the release listing read excepted)', stray.length === 0, stray.join(' · '))
+  const netVerbs = shimLines().filter(l => NETWORK_VERBS.test(l))
+  check('no git/ssh network verb spawned', netVerbs.length === 0, netVerbs.join(' · '))
+}
+
+served.length = 0
+rmSync(shimLog, { force: true })
+
+console.log('[C] a connected OpenAI account beside the key — boot idle: no catalogue prime, no usage clock')
+{
+  const netlog = join(scratch, 'openai-idle-net.log')
+  fixtureStartedAt = Date.now()
+  const res = await drive(
+    'openai-idle',
+    seededHome('home-openai'),
+    netlog,
+    [
+      ...OPENING,
+      { data: '', atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'painted' },
+      { data: '', afterPrevTicks: 100, mark: 'idle' },
+    ],
+    180,
+    {
+      OPENAI_API_KEY: 'sk-fixture-quiet-boot-000000000000000000',
+      MERCURY_OPENAI_API_BASE: `${FIXTURE_BASE}/openai/v1`,
+      MERCURY_OPENAI_CHATGPT_BASE: `${FIXTURE_BASE}/openai/chatgpt`,
+      MERCURY_OPENAI_AUTH_BASE: `${FIXTURE_BASE}/openai/auth`,
+    },
+  )
+  check('the drive delivered every send (a real boot)', res.status === 0 && res.receipts === 3, `vshot ${res.status} · receipts ${res.receipts} · ${res.endReason} · ${res.stderr.slice(-300)}`)
+  check('the chat painted its composer', (res.marks.painted ?? '').includes('ype a prompt'), rows(res.marks.painted ?? '', '❯'))
+  const ledger = served.map(s => `${s.method} ${s.path} @${Math.round(s.atMs / 1000)}s`)
+  check('no catalogue was primed and no meter read on a clock (the fixture ledger is empty through twenty idle seconds)', served.length === 0, ledger.join(' · '))
   const stray = uniq(strayLines(netlines(netlog)))
   check('no non-loopback connect left the child (the release listing read excepted)', stray.length === 0, stray.join(' · '))
   const netVerbs = shimLines().filter(l => NETWORK_VERBS.test(l))
