@@ -2,6 +2,7 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
+- Fixed an agent stopping as "provider throttled" after its stream went quiet or dropped: a recovery's ceiling is charged only for the time waited, only the provider's refusals are named as such, every wait names its cause, the stop line says how to resume the agent, and a live stream's heartbeats keep the idle watchdog from cutting it
 - Fixed a file read that starts at line 0 numbering its lines from 0, which made its anchors unusable by Edit; a read from offset 0 numbers its first line 1
 - Fixed the last-resort image read advertising JPEG for PNG bytes on the JavaScript image road; the type now follows the bytes
 - Fixed two cut paths losing their reason, an interruption during a Stop hook and a workflow permission ask that timed out; both now name their cause
