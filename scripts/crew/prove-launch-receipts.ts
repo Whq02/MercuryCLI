@@ -229,6 +229,75 @@ function makeCtx(store: ReturnType<typeof makeStore>): never {
   check('the id grammar has one owner: the minter reads the alphabet the validator reads', ids.includes('export const TASK_ID_ALPHABET') && task.includes("import { TASK_ID_ALPHABET, TASK_ID_SUFFIX_LENGTH } from './types/ids.js'") && !/const TASK_ID_ALPHABET = /.test(task))
 }
 
+section("R8b · a queued-guidance resume re-registers the id — the old run's notice never latches the resumed run's row")
+const { completeAgentTask } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+for (const ordering of ['old-first', 'resumed-first'] as const) {
+  queue.resetCommandQueue()
+  const store = makeStore()
+  const id = generateTaskId('local_agent')
+  const first = registerAsyncAgent({ agentId: id, description: 'twice', prompt: 'count twice', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  completeAgentTask({ agentId: id }, store.set as never)
+  const second = registerAsyncAgent({ agentId: id, description: 'twice', prompt: 'count twice', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  check(`${ordering}: the resume minted a fresh controller for the same id`, first.abortController !== second.abortController && store.get().tasks[id]?.status === 'running')
+  const oldNotice = (): void =>
+    enqueueAgentNotification({ taskId: id, description: 'twice', status: 'completed', setAppState: store.set as never, controller: first.abortController })
+  const resumedSettle = (): void => {
+    completeAgentTask({ agentId: id }, store.set as never)
+    enqueueAgentNotification({ taskId: id, description: 'twice', status: 'completed', setAppState: store.set as never, controller: second.abortController })
+  }
+  if (ordering === 'old-first') {
+    oldNotice()
+    const row = store.get().tasks[id] as { status?: string; notified?: boolean } | undefined
+    check("old-first: the old run's notice leaves the resumed row running and unlatched", row?.status === 'running' && row.notified !== true, JSON.stringify(row ? { status: row.status, notified: row.notified } : row))
+    resumedSettle()
+  } else {
+    resumedSettle()
+    oldNotice()
+  }
+  const notes = (): number => queue.getCommandQueue().filter(c => c.mode === 'task-notification').length
+  check(`${ordering}: two runs, two notices`, notes() === 2, `${notes()} notice(s)`)
+  enqueueAgentNotification({ taskId: id, description: 'twice', status: 'completed', setAppState: store.set as never, controller: second.abortController })
+  check(`${ordering}: the resumed run's second report is swallowed by its own latch`, notes() === 2, `${notes()} notice(s)`)
+}
+{
+  queue.resetCommandQueue()
+  const store = makeStore()
+  const id = generateTaskId('local_agent')
+  registerAsyncAgent({ agentId: id, description: 'once', prompt: 'count once', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  completeAgentTask({ agentId: id }, store.set as never)
+  enqueueAgentNotification({ taskId: id, description: 'once', status: 'completed', setAppState: store.set as never })
+  enqueueAgentNotification({ taskId: id, description: 'once', status: 'completed', setAppState: store.set as never })
+  check('a token-less notice still latches the row once', queue.getCommandQueue().filter(c => c.mode === 'task-notification').length === 1)
+}
+
+section('R8c · a named launch: the foreground road registers the name, the handover receipt names it, both eviction roads prune it')
+{
+  const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
+  const foreground = src('src/tools/AgentTool/foregroundExecution.tsx')
+  check('the async road registers the launch name through the one alias helper, after its registration', /registerAsyncAgent\(\{[\s\S]{0,1500}registerAgentName\(input\.name, earlyAgentId, rootSetAppState\)/.test(agentTool))
+  check('the foreground road receives the name and registers it through the same helper, after its registration', /name: input\.name,/.test(agentTool) && /registerAgentForeground\(\{[\s\S]{0,1200}if \(name !== undefined\) registerAgentName\(name, syncAgentId, rootSetAppState\)/.test(foreground))
+  check('the handover receipt carries the name, so its address line names both addresses', /status: 'async_launched',[\s\S]{0,900}\.\.\.\(name !== undefined \? \{ agentName: name \} : \{\}\)/.test(foreground))
+  const { applyTaskOffsetsAndEvictions } = await import('../../src/utils/task/framework.ts')
+  const taskModule = (await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')) as { registerAgentName?: (name: string, agentId: string, set: unknown) => void }
+  const registerAgentName = taskModule.registerAgentName
+  check("the alias helper is the task module's own export", typeof registerAgentName === 'function')
+  const store = makeStore()
+  const older = generateTaskId('local_agent')
+  const newer = generateTaskId('local_agent')
+  registerAsyncAgent({ agentId: older, description: 'scout', prompt: 'scout the harbour', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  registerAgentName?.('scout', older, store.set)
+  registerAgentName?.('elder', older, store.set)
+  registerAsyncAgent({ agentId: newer, description: 'scout again', prompt: 'scout the harbour', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  registerAgentName?.('scout', newer, store.set)
+  check('the registry routes each name to its latest holder', store.get().agentNameRegistry.get('scout') === newer && store.get().agentNameRegistry.get('elder') === older, JSON.stringify([...store.get().agentNameRegistry.entries()]))
+  completeAgentTask({ agentId: older }, store.set as never)
+  enqueueAgentNotification({ taskId: older, description: 'scout', status: 'completed', setAppState: store.set as never })
+  store.set(prev => ({ ...prev, tasks: { ...prev.tasks, [older]: { ...prev.tasks[older], evictAfter: 0 } as never } }))
+  applyTaskOffsetsAndEvictions(store.set as never, {}, [older])
+  const registry = store.get().agentNameRegistry
+  check('the batch sweep evicts the settled task AND its alias; a name reassigned to a newer launch survives', store.get().tasks[older] === undefined && !registry.has('elder') && registry.get('scout') === newer, JSON.stringify([...registry.entries()]))
+}
+
 section('R9 · one status per agent — the inspection verbs read one fact, on the registry or on disk')
 const { agentAdapter } = await import('../../src/services/resources/adapters/agent.ts')
 const { transcriptAdapter } = await import('../../src/services/resources/adapters/transcript.ts')

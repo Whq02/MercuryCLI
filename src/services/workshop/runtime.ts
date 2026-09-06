@@ -1,7 +1,9 @@
 
 import { Worker } from 'node:worker_threads'
+import { realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import * as path from 'node:path'
+import { parse as parseSource } from 'acorn'
 import { storeArtifact } from '../../utils/artifacts/store.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
@@ -134,7 +136,14 @@ let cachedTs: { cwd: string; compiler: TsCompiler | null } | null = null
 function isWorkspaceResolution(cwd: string, resolved: string): boolean {
   let dir = path.resolve(cwd)
   for (;;) {
-    if (resolved.startsWith(path.join(dir, 'node_modules') + path.sep)) return true
+    const modules = path.join(dir, 'node_modules')
+    const roots = [modules]
+    try {
+      const real = realpathSync(modules)
+      if (real !== modules) roots.push(real)
+    } catch {
+    }
+    if (roots.some(root => resolved.startsWith(root + path.sep))) return true
     const parent = path.dirname(dir)
     if (parent === dir) return false
     dir = parent
@@ -175,17 +184,74 @@ function workspaceTypescript(cwd: string): TsCompiler | null {
 }
 
 
-function hasTopLevelAwait(code: string): boolean {
-  if (!/\bawait\b/.test(code)) return false
-  let depth = 0
-  for (const line of code.split('\n')) {
-    if (depth === 0 && /\bawait\b/.test(line.replace(/\/\/.*$/, ''))) return true
-    for (const ch of line) {
-      if (ch === '{' || ch === '(' || ch === '[') depth++
-      else if (ch === '}' || ch === ')' || ch === ']') depth = Math.max(0, depth - 1)
-    }
+export interface PreparedWorkshopCell {
+  code: string
+  hasTopLevelAwait: boolean
+}
+
+const FUNCTION_NODE_TYPES = new Set(['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression'])
+const NON_CHILD_KEYS = new Set(['type', 'start', 'end', 'loc', 'range'])
+
+function containsTopLevelAwait(node: unknown): boolean {
+  if (node === null || typeof node !== 'object') return false
+  if (Array.isArray(node)) return node.some(containsTopLevelAwait)
+  const n = node as { type?: unknown; await?: unknown }
+  if (typeof n.type !== 'string') return false
+  if (FUNCTION_NODE_TYPES.has(n.type)) return false
+  if (n.type === 'AwaitExpression') return true
+  if (n.type === 'ForOfStatement' && n.await === true) return true
+  for (const [key, child] of Object.entries(n)) {
+    if (NON_CHILD_KEYS.has(key)) continue
+    if (containsTopLevelAwait(child)) return true
   }
   return false
+}
+
+interface SpanNode {
+  type: string
+  start: number
+  end: number
+}
+interface DeclaratorNode {
+  id: SpanNode
+  init: SpanNode | null
+}
+type StatementNode = SpanNode & {
+  declarations?: DeclaratorNode[]
+  expression?: SpanNode
+}
+
+export function prepareWorkshopCell(code: string): PreparedWorkshopCell {
+  let statements: StatementNode[]
+  try {
+    const program = parseSource(code, {
+      ecmaVersion: 'latest',
+      sourceType: 'script',
+      allowAwaitOutsideFunction: true,
+      allowHashBang: true,
+    }) as unknown as { body: StatementNode[] }
+    statements = program.body
+  } catch {
+    return { code, hasTopLevelAwait: false }
+  }
+  if (!containsTopLevelAwait(statements)) return { code, hasTopLevelAwait: false }
+
+  const edits: Array<{ start: number; end: number; text: string }> = []
+  for (const statement of statements) {
+    if (statement.type !== 'VariableDeclaration' || statement.declarations?.length !== 1) continue
+    const [only] = statement.declarations
+    if (only === undefined || only.id.type !== 'Identifier' || only.init === null) continue
+    edits.push({ start: statement.start, end: only.id.start, text: '' })
+  }
+  const last = statements[statements.length - 1]
+  if (last !== undefined && last.type === 'ExpressionStatement' && last.expression !== undefined) {
+    const expression = code.slice(last.expression.start, last.expression.end)
+    edits.push({ start: last.start, end: last.end, text: `return (${expression});` })
+  }
+  edits.sort((a, b) => b.start - a.start)
+  let body = code
+  for (const edit of edits) body = body.slice(0, edit.start) + edit.text + body.slice(edit.end)
+  return { code: body, hasTopLevelAwait: true }
 }
 
 export interface RunCellOptions {
@@ -427,11 +493,12 @@ export async function runWorkshopCell(
       worker.on('message', onMessage)
       worker.once('exit', onExit)
       armIdle()
+      const prepared = prepareWorkshopCell(code)
       worker.postMessage({
         type: 'run',
         cellId,
-        code,
-        hasTopLevelAwait: hasTopLevelAwait(code),
+        code: prepared.code,
+        hasTopLevelAwait: prepared.hasTopLevelAwait,
       })
     })
 

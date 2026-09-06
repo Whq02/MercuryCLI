@@ -158,6 +158,9 @@ section('M. file targets byte-identical ON vs OFF')
   const offRange = await readViaTool(textFile, makeContext(new Map()), { offset: 2, limit: 1 })
   check('M1 full read identical', on.ok && off.ok && on.text === off.text)
   check('M2 ranged read identical', onRange.ok && offRange.ok && onRange.text === offRange.text)
+  const zeroRange = await readViaTool(textFile, makeContext(new Map()), { offset: 0, limit: 2 })
+  const oneRange = await readViaTool(textFile, makeContext(new Map()), { offset: 1, limit: 2 })
+  check('M2b a read from offset 0 numbers its first line 1, exactly as offset 1 does', zeroRange.ok && oneRange.ok && zeroRange.text === oneRange.text, zeroRange.ok ? zeroRange.text.split('\n')[0] : '')
   process.env.MERCURY_READ_TARGETS = '1'
   const missOn = await readViaTool(join(fixtures, 'ghost.txt'), makeContext(new Map()))
   process.env.MERCURY_READ_TARGETS = '0'
