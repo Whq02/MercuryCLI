@@ -200,6 +200,8 @@ try {
   check('the tool prompt names the three states and project_refresh_classes', /no editor running \/ editor open but unbridged \/ bridge up/.test(prompt) && prompt.includes('project_refresh_classes') && !/picks it up on focus/.test(prompt))
   const plugin = readFileSync(join(ROOT, 'assets/vulcan/addon/plugin.gd'), 'utf8')
   check('plugin.gd writes the autoload row only when absent, as the plain res:// setting (no add_autoload_singleton, no per-boot rewrite)', /if not ProjectSettings\.has_setting\("autoload\/" \+ RUNTIME_AUTOLOAD\):\n\t\tProjectSettings\.set_setting\("autoload\/" \+ RUNTIME_AUTOLOAD, "\*" \+ RUNTIME_BRIDGE_PATH\)/.test(plugin) && !/^\s*add_autoload_singleton\(/m.test(plugin))
+  const scriptCategory = readFileSync(join(ROOT, 'assets/vulcan/addon/categories/script.gd'), 'utf8')
+  check('the validator gives a path-backed script its own path before the parse (a class_name script is not a duplicate of itself), guarded for engines without the method', /if not src_path\.is_empty\(\) and s\.has_method\("set_path_cache"\):\n\t\ts\.set_path_cache\(src_path\)\n\ts\.source_code = content\n\tvar parse_err := s\.reload\(false\)/.test(scriptCategory))
   const server = readFileSync(join(ROOT, 'assets/vulcan/addon/core/server.gd'), 'utf8')
   const editorCat = readFileSync(join(ROOT, 'assets/vulcan/addon/categories/editor.gd'), 'utf8')
   check('the server carries a start stamp and editor_state reports it (the reload confirmation)', /started_ms = Time\.get_ticks_msec\(\)/.test(server) && editorCat.includes('"vulcan_server_started_ms"') && server.includes('"project_refresh_classes"'))

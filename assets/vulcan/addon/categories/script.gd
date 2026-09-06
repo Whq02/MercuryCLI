@@ -273,6 +273,8 @@ static func _validate(args: Dictionary, ctx: MercuryVulcanContext) -> Dictionary
 			return ctx.err("IO_ERROR", "cannot read %s" % src_path, "check file permissions")
 		content = f.get_as_text()
 	var s := GDScript.new()
+	if not src_path.is_empty() and s.has_method("set_path_cache"):
+		s.set_path_cache(src_path)
 	s.source_code = content
 	var parse_err := s.reload(false)
 	var result := {"valid": parse_err == OK}

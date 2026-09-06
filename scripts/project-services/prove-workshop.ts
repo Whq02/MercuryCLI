@@ -68,6 +68,72 @@ section('T. top-level await')
   check('T1 a TLA cell runs and returns its value', t1.state === 'succeeded' && t1.valuePreview === '41')
   const t2 = await run('fromAwait + 1')
   check('T2 simple const bindings from a TLA cell persist', t2.state === 'succeeded' && t2.valuePreview === '42')
+  const t3 = await run('const value = await Promise.resolve(1); console.log(value); value + 1')
+  check('T3 statements and an await on ONE line: the last expression is the value', t3.state === 'succeeded' && t3.valuePreview === '2', JSON.stringify(t3).slice(0, 200))
+  const t4 = await run("const brace = await Promise.resolve('{')\nbrace + 'done'")
+  check('T4 a brace inside a string does not swallow the next line', t4.state === 'succeeded' && t4.valuePreview === "'{done'", JSON.stringify(t4).slice(0, 200))
+  const t5 = await run("const s = '{'\nawait Promise.resolve(s)")
+  check('T5 a brace inside a string before the await: the cell is still a top-level-await cell', t5.state === 'succeeded' && t5.valuePreview === "'{'", JSON.stringify(t5).slice(0, 200))
+  const t6 = await run('let total = 0\nfor (const n of [1, 2, 3]) {\n  total += await Promise.resolve(n)\n}\ntotal')
+  check('T6 a loop with an await inside it', t6.state === 'succeeded' && t6.valuePreview === '6', JSON.stringify(t6).slice(0, 200))
+  const t7 = await run('const tail = await Promise.resolve(7)\ntail + 1 // the answer')
+  check('T7 a trailing comment after the final expression', t7.state === 'succeeded' && t7.valuePreview === '8', JSON.stringify(t7).slice(0, 200))
+  const t8 = await run('const asi = await Promise.resolve(2)\nconst twice = asi * 2\ntwice')
+  check('T8 no semicolons at all', t8.state === 'succeeded' && t8.valuePreview === '4', JSON.stringify(t8).slice(0, 200))
+  const t9 = await run('globalThis.__sentinelRuns = (globalThis.__sentinelRuns ?? 0) + 1\nawait null\nglobalThis.__sentinelRuns\n\n/* nothing after the value */\n')
+  check('T9 a final expression followed by non-executable text runs exactly once', t9.state === 'succeeded' && t9.valuePreview === '1', JSON.stringify(t9).slice(0, 200))
+  const t10 = await run('globalThis.__mustNotRun = (globalThis.__mustNotRun ?? 0) + 1\nawait null\nconst broken = (')
+  const t10b = await run('globalThis.__mustNotRun ?? 0')
+  check('T10 malformed trailing syntax runs NOTHING and reports a syntax error', t10.state === 'failed' && /SyntaxError/.test(t10.error ?? '') && t10b.valuePreview === '0', `${JSON.stringify(t10).slice(0, 160)} · after: ${JSON.stringify(t10b.valuePreview)}`)
+  const t11 = await run("const tpl = await Promise.resolve(`{${'a'}}`)\ntpl.length")
+  check('T11 a template literal with braces', t11.state === 'succeeded' && t11.valuePreview === '3', JSON.stringify(t11).slice(0, 200))
+  const t12 = await run("const re = /{/\nconst word = 'await'\nawait Promise.resolve(re.test('{') ? word.length : 0)")
+  check('T12 a regex literal with a brace, and the word await inside a string', t12.state === 'succeeded' && t12.valuePreview === '5', JSON.stringify(t12).slice(0, 200))
+  const t13 = await run('const later = await Promise.resolve(5)\nlater')
+  const t13b = await run('later + 1')
+  check('T13 a simple const from a top-level-await cell persists to the next cell', t13.valuePreview === '5' && t13b.state === 'succeeded' && t13b.valuePreview === '6', JSON.stringify(t13b).slice(0, 200))
+}
+
+section('T-worker. the worker runs the host-prepared body (a bare worker, no runtime around it)')
+{
+  const { Worker } = await import('node:worker_threads')
+  const { WORKSHOP_WORKER_SOURCE } = await import('../../src/services/workshop/workerSource.ts')
+  const runtimeModule = (await import('../../src/services/workshop/runtime.ts')) as { prepareWorkshopCell?: (code: string) => { code: string; hasTopLevelAwait: boolean } }
+  const prepare = runtimeModule.prepareWorkshopCell
+  check('the host owns the cell grammar (prepareWorkshopCell is its export)', typeof prepare === 'function')
+  const cases = [
+    { name: 'single-line', code: 'const value = await Promise.resolve(1); console.log(value); value + 1', expected: '2', outputs: 1 },
+    { name: 'multiline', code: 'const value = await Promise.resolve(1)\nconsole.log(value)\nvalue + 1', expected: '2', outputs: 1 },
+    { name: 'brace-in-string', code: "const value = await Promise.resolve('{')\nvalue + 'done'", expected: "'{done'", outputs: 0 },
+    { name: 'plain-script', code: 'const plain = 3\nplain * 2', expected: '6', outputs: 0 },
+  ]
+  for (const item of cases) {
+    if (typeof prepare !== 'function') break
+    const prepared = prepare(item.code)
+    const worker = new Worker(WORKSHOP_WORKER_SOURCE, { eval: true, workerData: { cwd: workDir } })
+    const outputs: string[] = []
+    try {
+      const done = await new Promise<{ ok?: boolean; valuePreview?: string; error?: string }>((resolve, reject) => {
+        const guard = setTimeout(() => reject(new Error('worker timed out')), 10_000)
+        worker.on('error', err => {
+          clearTimeout(guard)
+          reject(err)
+        })
+        worker.on('message', (msg: { type: string; id?: number; text?: string }) => {
+          if (msg.type === 'ready') worker.postMessage({ type: 'run', cellId: item.name, code: prepared.code, hasTopLevelAwait: prepared.hasTopLevelAwait })
+          if (msg.type === 'output') outputs.push(String(msg.text))
+          if (msg.type === 'rpc') worker.postMessage({ type: 'rpc-result', id: msg.id, ok: false, error: 'no bridge in this harness' })
+          if (msg.type === 'cell-done') {
+            clearTimeout(guard)
+            resolve(msg as never)
+          }
+        })
+      })
+      check(`worker · ${item.name} → ${item.expected}, ${item.outputs} output line(s)`, done.ok === true && done.valuePreview === item.expected && outputs.length === item.outputs, `${JSON.stringify(done).slice(0, 160)} · outputs ${JSON.stringify(outputs)}`)
+    } finally {
+      await worker.terminate()
+    }
+  }
 }
 
 section('I. require() freshness from cwd')
