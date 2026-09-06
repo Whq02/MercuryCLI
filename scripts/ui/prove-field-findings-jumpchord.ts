@@ -59,10 +59,14 @@ console.log('§2 the transcript viewer — PgUp paints the pill, PgDn clears it,
       frame('paged-up-again'),
       { afterPrevTicks: 1, data: ALT_DOWN },
       frame('jumped'),
+      ...press(8, PAGE_UP),
+      frame('paged-up-third'),
+      { afterPrevTicks: 1, targetText: 'back to the bottom', targetDx: 2, data: '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m' },
+      frame('clicked'),
     ]
     delete cfg.readyText
     delete cfg.stableTicks
-    cfg.total = 240
+    cfg.total = 280
     const gridPath = `/tmp/jumpchord-grid-${process.pid}.json`
     const cfgPath = `/tmp/jumpchord-cfg-${process.pid}.json`
     writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: gridPath }))
@@ -86,6 +90,8 @@ console.log('§2 the transcript viewer — PgUp paints the pill, PgDn clears it,
       check('the bottom is back after PgDn (the last reply is on screen)', has('paged-down', 'Reply 18:'))
       check('PgUp again paints the pill again', pillRow('paged-up-again') > 0 && has('paged-up-again', 'Reply 1:'))
       check('alt+↓ jumped to the bottom and cleared the pill', pillRow('jumped') === -1 && has('jumped', 'Reply 18:') && !has('jumped', 'Reply 1:'))
+      check('PgUp a third time paints the pill for the click', pillRow('paged-up-third') > 0 && has('paged-up-third', 'Reply 1:'))
+      check('a click on the pill takes the same jump: the bottom is back and the pill is gone', pillRow('clicked') === -1 && has('clicked', 'Reply 18:') && !has('clicked', 'Reply 1:'))
     }
     cleanupScenario('cockpit-scrolled')
   }
