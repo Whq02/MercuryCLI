@@ -1,0 +1,46 @@
+{
+  "name": "whisper-models",
+  "source": "https://huggingface.co/ggerganov/whisper.cpp",
+  "license": "MIT",
+  "licenseNote": "OpenAI Whisper weights (Copyright (c) 2022 OpenAI, MIT, https://github.com/openai/whisper), converted to the ggml format by the whisper.cpp authors (MIT, https://huggingface.co/ggerganov/whisper.cpp). The weights never ride a release archive: the product downloads one model on first use into <config-home>/models/whisper, verified against the sha256 below before the rename into place.",
+  "default": "base.en-q5_1",
+  "models": [
+    {
+      "name": "base.en-q5_1",
+      "file": "ggml-base.en-q5_1.bin",
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en-q5_1.bin",
+      "bytes": 59721011,
+      "sha256": "4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f",
+      "language": "en",
+      "words": "Whisper base.en, English, 5-bit weights"
+    },
+    {
+      "name": "tiny.en-q5_1",
+      "file": "ggml-tiny.en-q5_1.bin",
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en-q5_1.bin",
+      "bytes": 32166155,
+      "sha256": "c77c5766f1cef09b6b7d47f21b546cbddd4157886b3b5d6d4f709e91e66c7c2b",
+      "language": "en",
+      "words": "Whisper tiny.en, English, 5-bit weights — the smallest and fastest, less accurate"
+    },
+    {
+      "name": "small.en-q5_1",
+      "file": "ggml-small.en-q5_1.bin",
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en-q5_1.bin",
+      "bytes": 190098681,
+      "sha256": "bfdff4894dcb76bbf647d56263ea2a96645423f1669176f4844a1bf8e478ad30",
+      "language": "en",
+      "words": "Whisper small.en, English, 5-bit weights — more accurate, three times the size"
+    },
+    {
+      "name": "base-q5_1",
+      "file": "ggml-base-q5_1.bin",
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin",
+      "bytes": 59707625,
+      "sha256": "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898",
+      "language": "multilingual",
+      "words": "Whisper base, multilingual, 5-bit weights — for speech that is not English"
+    }
+  ],
+  "notes": "Pinned 2026-09-06 from the whisper.cpp model repository's resolve URLs; the upstream README publishes SHA-1 digests only, so every sha256 was taken once from the downloaded bytes and is re-verified on every later fetch (a moved or changed file fails the digest loudly, never silently). The default is base.en-q5_1 (English only — the English-only models are more accurate than the multilingual ones at this size); the multilingual row is for speech in another language, chosen through MERCURY_WHISPER_MODEL. The catalogue in the product is compiled from this file (src/services/voice/whisperModels.ts); `bun run scripts/vendor/fetch-whisper-models.ts` fetches the provers' copies into vendor/whisper-models/ (untracked). Update procedure: change a row's file and url, download it, record its byte count and sha256 here, run the fetch, and re-run `bash scripts/voice/run-all.sh`."
+}
