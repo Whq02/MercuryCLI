@@ -119,8 +119,8 @@ export async function getAnthropicClient(options: GetClientOptions): Promise<Ant
     'X-Claude-Code-Session-Id': getSessionId(),
     ...customHeaders,
   }
-  if (process.env.MERCURY_SDK_CLIENT_APP) {
-    defaultHeaders['x-client-app'] = process.env.MERCURY_SDK_CLIENT_APP
+  if (process.env.MERCURY_HOST_CLIENT_APP) {
+    defaultHeaders['x-client-app'] = process.env.MERCURY_HOST_CLIENT_APP
   }
   if (isEnvTruthy(process.env.MERCURY_ADDITIONAL_PROTECTION)) {
     defaultHeaders['x-anthropic-additional-protection'] = 'true'

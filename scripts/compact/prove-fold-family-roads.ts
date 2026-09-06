@@ -68,7 +68,7 @@ const { refreshLocalDiscovery } = await import('../../src/services/providers/loc
 await refreshLocalDiscovery({ force: true })
 
 const POSTURE_MARK = 'fixture-driven session posture'
-const SESSION_TIERS = new Set(['xhigh', 'x-high', 'high', 'medium', 'max', 'ultra'])
+const SESSION_TIERS = new Set(['xhigh', 'x-high', 'high', 'medium', 'max'])
 
 let uuidSeq = 0
 const nextUuid = (): string => `00000000-0000-4000-a000-${String(++uuidSeq).padStart(12, '0')}`

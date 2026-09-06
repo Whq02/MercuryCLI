@@ -1,6 +1,6 @@
 import { EFFORT_LEVELS, type EffortLevel } from '../entrypoints/sdk/runtimeTypes.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/featureGates.js'
-import { nearestSupportedWireEffort } from '../services/providers/openai/gptPins.js'
+import { nearestSupportedWireEffort, wireEffortForListDefault } from '../services/providers/openai/gptPins.js'
 import { isGlmModelId } from '../services/providers/zai/glmPins.js'
 import { isEnterpriseSubscriber, isMaxSubscriber, isProSubscriber, isTeamSubscriber } from './auth.js'
 import { getGlobalConfig, saveGlobalConfig } from './config.js'
@@ -228,18 +228,9 @@ function resolveEffortTruthWithEnv(
 
     if (gptView.state === 'live') {
       const vocabulary = gptView.vocabulary
-      const fallback =
-        gptView.defaultEffort ??
-        (vocabulary.includes('high') ? 'high' : vocabulary[0]) ??
-        undefined
-      let wire: string | undefined
-      if (request === undefined) {
-        wire = fallback
-      } else if (vocabulary.includes(request)) {
-        wire = request
-      } else {
-        wire = nearestSupportedWireEffort(request, vocabulary) ?? fallback
-      }
+      const fallback = wireEffortForListDefault(gptView.defaultEffort, vocabulary)
+      const wire =
+        request === undefined ? fallback : (nearestSupportedWireEffort(request, vocabulary) ?? fallback)
       const applied = wire !== undefined && isEffortLevel(wire) ? wire : undefined
       return freeze({
         model,
@@ -399,9 +390,22 @@ function resolveEffortTruthWithEnv(
 }
 
 
-export type EffortAdjustedV1 = { model: string; name: string; asked: string; sent?: string }
+export type EffortAdjustedV1 = {
+  model: string
+  name: string
+  asked: string
+  sent?: string
+  wireRefused?: { road: string; reprobeAfter: string }
+}
 
 export function effortAdjustedReceiptLine(adjusted: EffortAdjustedV1): string {
+  if (adjusted.wireRefused !== undefined) {
+    const sent =
+      adjusted.sent !== undefined
+        ? `sent ${adjusted.sent}, the nearest word it serves`
+        : 'no effort key was sent (the model default applies)'
+    return `effort ${adjusted.asked}: the wire refused it for ${adjusted.name} on the ${adjusted.wireRefused.road} road today — ${sent}; Mercury asks the wire again after ${adjusted.wireRefused.reprobeAfter}`
+  }
   return adjusted.sent !== undefined
     ? `effort ${adjusted.asked} is not served on ${adjusted.name} today — sent ${adjusted.sent}`
     : `effort ${adjusted.asked} is not served on ${adjusted.name} today — no effort key was sent (the model default applies)`
@@ -507,8 +511,6 @@ export function getEffortLevelDescription(level: EffortLevel): string {
       return `Extra depth of reasoning — the right pick for difficult coding and long agentic runs · ${effortFamiliesLabel(modelSupportsXHighEffort)}`
     case 'max':
       return `The model's fullest capability and deepest reasoning · ${effortFamiliesLabel(modelSupportsMaxEffort)}`
-    case 'ultra':
-      return `Beyond max — the deepest rung a served ladder carries, where the account serves it · ${effortFamiliesLabel(model => modelOffersEffortLevel(model, 'ultra'))}`
   }
 }
 

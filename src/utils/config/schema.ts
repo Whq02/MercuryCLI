@@ -1,3 +1,4 @@
+import type { EffortLevel } from '../../entrypoints/sdk/runtimeTypes.js'
 import type { McpServerConfig } from '../../services/mcp/types.js'
 import type { BillingType } from '../../services/oauth/types.js'
 import type { ImageDimensions } from '../imageResizer.js'
@@ -295,6 +296,12 @@ export type GlobalConfig = {
   teammateMode?: 'auto' | 'tmux' | 'in-process'
   teammateDefaultModel?: string | null
 
+  agents?: {
+    defaultEffort?: EffortLevel
+    defaultModel?: string
+    maxConcurrent?: number
+  }
+
   prStatusFooterEnabled?: boolean
 
   voiceInputEnabled?: boolean
@@ -393,6 +400,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'remoteControlAtStartup',
   'remoteDialogSeen',
   'harnessProfilePin',
+  'agents',
 ] as const
 
 export type GlobalConfigKey = (typeof GLOBAL_CONFIG_KEYS)[number]

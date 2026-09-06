@@ -284,7 +284,7 @@ export class MercuryChildSession {
         request_id: requestId,
         response: allow
           ?
-            { behavior: 'allow', updatedInput: opts?.updatedInput ?? {} }
+            { behavior: 'allow', updated_input: opts?.updatedInput ?? {} }
           : { behavior: 'deny', message: opts?.message ?? 'denied by the ACP client' },
       },
     })
