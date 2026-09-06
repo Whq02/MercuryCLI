@@ -564,7 +564,7 @@ let voiceMeta: { version: string; platform: string; addon: string; addonSha256: 
 
 const { BRUSH_PACK_PATH: brushRelPath, brushPackPlatform, checkBrushPackDir } = await import('./src/utils/shell/brushPack.ts');
 let brushVendored = false;
-let brushMeta: { version: string; platform: string; target: string; binary: string; binarySha256: string; license: string } | null = null;
+let brushMeta: { source: string; version: string; platform: string; target: string; binary: string; binarySha256: string; license: string } | null = null;
 {
   const brushDest = resolve(OUT, brushRelPath);
   rmSync(brushDest, { recursive: true, force: true });
@@ -578,11 +578,12 @@ let brushMeta: { version: string; platform: string; target: string; binary: stri
       try {
         const lock = JSON.parse(readFileSync(resolve(ROOT, 'vendor', 'brush.lock.json'), 'utf8')) as {
           version?: string;
-          platforms?: Record<string, { sha256?: string }>;
+          platforms?: Record<string, { kind?: string; sha256?: string }>;
         };
         const pinned = lock.platforms?.[packPlatform];
         if (lock.version !== check.manifest.version) lockWhy = `the pack is ${check.manifest.version}, the lock pins ${String(lock.version)}`;
-        else if (pinned && pinned.sha256 !== check.manifest.archiveSha256) lockWhy = "the pack's archive digest is not the lock's";
+        else if (check.manifest.source === 'release-archive' && pinned && pinned.sha256 !== check.manifest.archiveSha256) lockWhy = "the pack's archive digest is not the lock's";
+        else if (check.manifest.source === 'cargo-build' && (pinned?.kind ?? 'fetch') !== 'build') lockWhy = "the pack was built from the crate with cargo, but the lock fetches this platform's release binary";
       } catch (e) {
         lockWhy = `vendor/brush.lock.json unreadable (${String(e)})`;
       }
@@ -592,6 +593,7 @@ let brushMeta: { version: string; platform: string; target: string; binary: stri
       cpSync(packDir, resolve(brushDest, packPlatform), { recursive: true });
       brushVendored = true;
       brushMeta = {
+        source: check.manifest.source,
         version: check.manifest.version,
         platform: packPlatform,
         target: check.manifest.target,
@@ -599,7 +601,7 @@ let brushMeta: { version: string; platform: string; target: string; binary: stri
         binarySha256: check.manifest.binarySha256,
         license: check.manifest.license,
       };
-      console.log(`VENDORED shell engine brush ${check.manifest.version} ${packPlatform} (pinned upstream release binary, sha256-verified cache)\n  -> ${resolve(brushDest, packPlatform)}`);
+      console.log(`VENDORED shell engine brush ${check.manifest.version} ${packPlatform} (${check.manifest.source === 'cargo-build' ? 'built from the published crate with cargo' : 'pinned upstream release binary'}, sha256-verified cache)\n  -> ${resolve(brushDest, packPlatform)}`);
     } else {
       const why = check.state !== 'ok' ? check.note : lockWhy;
       console.error(
@@ -998,6 +1000,7 @@ const manifest = {
     ? {
         vendored: true,
         name: 'brush',
+        source: brushMeta.source,
         path: `${brushRelPath}/${brushMeta.platform}`,
         version: brushMeta.version,
         platform: brushMeta.platform,

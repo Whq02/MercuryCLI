@@ -241,10 +241,14 @@ bun run scripts/vendor/fetch-grammars.ts
 bun run scripts/vendor/fetch-node.ts
 ```
 
-A sixth pack, the voice capture addon, is built rather than fetched: with a
-Rust toolchain installed (https://rustup.rs, the MSVC toolchain), run
-`bun run scripts/vendor/build-voice.ts`; without cargo it says so and skips,
-and Mercury runs without voice input (the doctor names the remedy).
+Two more packs are built rather than fetched, both with a Rust toolchain
+installed (https://rustup.rs, the MSVC toolchain): the voice capture addon
+(`bun run scripts/vendor/build-voice.ts`) and the shell engine
+(`bun run scripts/vendor/build-brush.ts` — upstream publishes no Windows
+binary, so the engine is compiled from its published crate; the first build
+takes several minutes). Without cargo each says so and skips: Mercury runs
+without voice input, and the Bash tool keeps Git for Windows' bash (the
+doctor names each remedy).
 
 Each should end without an error. `fetch-debugpy` unpacks the wheel with the
 first extractor it finds — `unzip`, `python3`, `tar.exe` (ships with Windows

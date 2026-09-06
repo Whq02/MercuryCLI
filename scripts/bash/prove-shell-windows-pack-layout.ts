@@ -42,29 +42,36 @@ console.log('── §2 the release windows job ──')
   const body = step === -1 ? '' : yml.slice(step, step + 400)
   check('…on the Windows row only', body.includes("if: runner.os == 'Windows'"))
   check('…optional — a toolchain failure never sinks the archive', body.includes('continue-on-error: true'))
-  check('…through the pack build script', body.includes('run: bun run scripts/vendor/build-brush.ts'))
+  check("…through the pack build script, for the arm's target", body.includes('run: bun run scripts/vendor/build-brush.ts --target ${{ matrix.target }}'))
   check('the windows-x64 target row exists', yml.includes('target: windows-x64') && yml.includes('os: windows-latest'))
+  const packager = read('scripts/release/package.mjs')
+  check("the packager tolerates the absent pack on the Windows TARGET only (IS_WIN, never the host's platform)", packager.includes("if (IS_WIN) PUBLISHABLE_DEGRADATIONS.add('shell-engine')") && !packager.includes("process.platform === 'win32') PUBLISHABLE_DEGRADATIONS"))
 }
 
 console.log('── §3 the win-x64 layout ──')
 {
   const lock = join(ROOT, 'vendor', 'brush.lock.json')
   if (existsSync(lock)) {
-    const parsed = JSON.parse(readFileSync(lock, 'utf8')) as { version?: string }
+    const parsed = JSON.parse(readFileSync(lock, 'utf8')) as { version?: string; platforms?: Record<string, { kind?: string; crate?: string; crateVersion?: string; target?: string; crateSha256?: string | null }> }
     check('the engine pin (vendor/brush.lock.json) equals the probe\'s default version', parsed.version === pinnedVersion, `${parsed.version} vs ${pinnedVersion}`)
+    const entry = parsed.platforms?.['win-x64']
+    check('the lock carries a BUILD entry for win-x64 — the crate, its version at the pin, the MSVC target', entry?.kind === 'build' && entry.crate === 'brush-shell' && entry.crateVersion === parsed.version && entry.target === 'x86_64-pc-windows-msvc', JSON.stringify(entry))
   } else {
     console.log('  [SKIP] vendor/brush.lock.json is not on this tree — the version pin is the probe\'s default alone')
   }
   let packPlatform = 'win-x64'
   let binaryName = 'brush.exe'
+  let ownerDecode: ((dir: string) => { source?: string } | null) | null = null
   const ownerPath = join(ROOT, 'src', 'utils', 'shell', 'brushPack.ts')
   if (existsSync(ownerPath)) {
     ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '0.0.0' }
     const owner = (await import(ownerPath)) as {
       brushPackPlatform?: (platform: string, arch: string) => string | null
       brushBinaryFor?: (packPlatform: string) => string
+      readBrushPackManifest?: (dir: string) => { source?: string } | null
       BRUSH_PACK_PATH?: string
     }
+    ownerDecode = owner.readBrushPackManifest ?? null
     const spelled = owner.brushPackPlatform?.('win32', 'x64') ?? null
     check('the pack owner spells the Windows platform win-x64', spelled === 'win-x64', String(spelled))
     check('the pack root is vendor/brush', owner.BRUSH_PACK_PATH === 'vendor/brush', String(owner.BRUSH_PACK_PATH))
@@ -87,6 +94,8 @@ console.log('── §3 the win-x64 layout ──')
       const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>
       check(`the manifest names the platform ${packPlatform}`, manifest.platform === packPlatform, String(manifest.platform))
       check('the manifest carries a version', typeof manifest.version === 'string' && /^\d+\.\d+\.\d+/.test(manifest.version), String(manifest.version))
+      check('the manifest says the pack was built from the crate (source cargo-build)', manifest.source === 'cargo-build', String(manifest.source))
+      if (ownerDecode !== null) check('the pack owner decodes the built pack', ownerDecode(pack)?.source === 'cargo-build')
       const digest = createHash('sha256').update(readFileSync(exe)).digest('hex')
       const strings: string[] = []
       const walk = (v: unknown): void => {

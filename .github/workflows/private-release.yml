@@ -158,7 +158,7 @@ jobs:
       - name: Build the shell engine pack (Windows)
         if: runner.os == 'Windows'
         continue-on-error: true
-        run: bun run scripts/vendor/build-brush.ts
+        run: bun run scripts/vendor/build-brush.ts --target ${{ matrix.target }}
       - name: native build
         run: bun run build.ts --target ${{ matrix.target }}
       - name: signing key (the secret, or the unsigned decision)

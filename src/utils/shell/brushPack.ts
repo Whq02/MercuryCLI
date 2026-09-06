@@ -23,13 +23,13 @@ export function brushBinaryFor(packPlatform: string): string {
   return packPlatform === 'win-x64' ? 'brush.exe' : 'brush'
 }
 
-export interface BrushPackManifest {
+export type BrushPackSource = 'release-archive' | 'cargo-build'
+
+interface BrushPackManifestBase {
   name: typeof BRUSH_PACK_NAME
   version: string
   platform: string
   target: string
-  archive: string
-  archiveSha256: string
   binary: string
   binarySha256: string
   license: string
@@ -37,6 +37,22 @@ export interface BrushPackManifest {
   fileCount: number
   treeDigest: string
 }
+
+export interface BrushReleaseArchiveManifest extends BrushPackManifestBase {
+  source: 'release-archive'
+  archive: string
+  archiveSha256: string
+}
+
+export interface BrushCargoBuildManifest extends BrushPackManifestBase {
+  source: 'cargo-build'
+  crate: string
+  crateVersion: string
+  crateSha256: string | null
+  cargo: string
+}
+
+export type BrushPackManifest = BrushReleaseArchiveManifest | BrushCargoBuildManifest
 
 const HEX64 = /^[0-9a-f]{64}$/
 
@@ -71,9 +87,6 @@ export function readBrushPackManifest(dir: string): BrushPackManifest | null {
     typeof m.version !== 'string' ||
     typeof m.platform !== 'string' ||
     typeof m.target !== 'string' ||
-    typeof m.archive !== 'string' ||
-    typeof m.archiveSha256 !== 'string' ||
-    !HEX64.test(m.archiveSha256) ||
     typeof m.binary !== 'string' ||
     typeof m.binarySha256 !== 'string' ||
     !HEX64.test(m.binarySha256) ||
@@ -86,13 +99,11 @@ export function readBrushPackManifest(dir: string): BrushPackManifest | null {
   ) {
     return null
   }
-  return {
+  const base: BrushPackManifestBase = {
     name: BRUSH_PACK_NAME,
     version: m.version,
     platform: m.platform,
     target: m.target,
-    archive: m.archive,
-    archiveSha256: m.archiveSha256,
     binary: m.binary,
     binarySha256: m.binarySha256,
     license: m.license,
@@ -100,6 +111,16 @@ export function readBrushPackManifest(dir: string): BrushPackManifest | null {
     fileCount: m.fileCount,
     treeDigest: m.treeDigest,
   }
+  if (m.source === 'release-archive') {
+    if (typeof m.archive !== 'string' || typeof m.archiveSha256 !== 'string' || !HEX64.test(m.archiveSha256)) return null
+    return { ...base, source: 'release-archive', archive: m.archive, archiveSha256: m.archiveSha256 }
+  }
+  if (m.source === 'cargo-build') {
+    if (typeof m.crate !== 'string' || typeof m.crateVersion !== 'string' || typeof m.cargo !== 'string') return null
+    if (m.crateSha256 !== null && (typeof m.crateSha256 !== 'string' || !HEX64.test(m.crateSha256))) return null
+    return { ...base, source: 'cargo-build', crate: m.crate, crateVersion: m.crateVersion, crateSha256: m.crateSha256 as string | null, cargo: m.cargo }
+  }
+  return null
 }
 
 export type BrushPackCheck =
