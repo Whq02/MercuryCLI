@@ -66,7 +66,7 @@ function spawnRunner(role: boolean): Runner {
       'a session runner under proof',
       '--session-id',
       sessionId,
-      '--permission-prompt-tool',
+      '--permission-channel',
       'stdio',
     ],
     {

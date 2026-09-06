@@ -255,6 +255,12 @@ function wantsStreamJsonEnvelope(): boolean {
   return spelled === 'stream-json'
 }
 
+function permissionChannelOf(opts: { permissionChannel?: unknown; permissionPromptTool?: unknown }): 'stdio' | 'prompt-tool' | undefined {
+  const channel = typedString(opts.permissionChannel)
+  if (channel === 'stdio' || channel === 'prompt-tool') return channel
+  return typedString(opts.permissionPromptTool) !== undefined ? 'prompt-tool' : undefined
+}
+
 function failCli(message: string): never {
   if (wantsStreamJsonEnvelope()) {
     try {
@@ -522,6 +528,11 @@ async function run(): Promise<void> {
     .option('--mcp-config <configs...>', 'MCP server configs (JSON or file paths)')
     .option('--strict-mcp-config', 'Only use MCP servers from --mcp-config')
     .addOption(new Option('--permission-prompt-tool <tool>', 'MCP tool for permission prompts').hideHelp())
+    .addOption(
+      new Option('--permission-channel <channel>', 'The road a permission ask takes: stdio (the control protocol on stdin) or prompt-tool (the MCP tool named by --permission-prompt-tool)')
+        .choices(['stdio', 'prompt-tool'])
+        .hideHelp(),
+    )
     .option('--system-prompt <prompt>', 'Replace the system prompt')
     .addOption(new Option('--system-prompt-file <file>', 'Replace the system prompt from a file').hideHelp())
     .option('--append-system-prompt <prompt>', 'Append to the system prompt')
@@ -1225,6 +1236,12 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     failCli('--input-format=stream-json requires --output-format=stream-json')
   }
   if (opts.replayUserMessages && outputFormat !== 'stream-json') {
+  if (typedString(opts.permissionPromptTool) === 'stdio') {
+    failCli('stdio is not an MCP tool name: ask over the control protocol with --permission-channel stdio')
+  }
+  if (typedString(opts.permissionChannel) === 'prompt-tool' && typedString(opts.permissionPromptTool) === undefined) {
+    failCli('--permission-channel prompt-tool needs --permission-prompt-tool <tool>')
+  }
     failCli('--replay-user-messages requires --output-format=stream-json')
   }
   const includePartialMessages = Boolean(opts.includePartialMessages)
@@ -2290,6 +2307,7 @@ async function printLaunch(args: {
         continue: Boolean(opts.continue),
         resume: opts.resume as string | boolean | undefined,
         outputFormat: args.outputFormat,
+        permissionChannel: permissionChannelOf(opts),
         jsonSchema: parsedJsonSchema,
         permissionPromptToolName: typedString(opts.permissionPromptTool),
         allowedTools: (opts.allowedTools as string[] | undefined) ?? [],
