@@ -153,7 +153,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     }
 
     if (route === 'parent') {
-      answer([{ type: 'tool_use', name: 'Agent', input: { description: `throttle seat ${arm}`, prompt: `throttle-seat: ${arm}`, subagent_type: 'general-purpose' } }])
+      answer([{ type: 'tool_use', name: 'Agent', input: { description: `throttle seat ${arm}`, prompt: `throttle-seat: ${arm}`, subagent_type: 'mercury-general' } }])
       return
     }
     if (route === 'parent-ack') {

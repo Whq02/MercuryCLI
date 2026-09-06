@@ -20,7 +20,6 @@ const COUNTED_TOOLS = new Set<string>([
   'Bash',
   'Grep',
   'Glob',
-  'Task',
   'Agent',
   'WebFetch',
   'WebSearch',

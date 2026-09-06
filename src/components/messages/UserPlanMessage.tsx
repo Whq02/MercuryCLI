@@ -15,10 +15,10 @@ export function UserPlanMessage({
       flexDirection="column"
       marginTop={addMargin ? 1 : 0}
       borderStyle="round"
-      borderColor="planMode"
+      borderColor="strategyMode"
       paddingX={1}
     >
-      <Text bold color="planMode">
+      <Text bold color="strategyMode">
         Plan to implement
       </Text>
       <Markdown>{planContent}</Markdown>

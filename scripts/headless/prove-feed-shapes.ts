@@ -212,7 +212,7 @@ section('F3 — the seat-wire codecs: snake keys out, deep-equal back')
         agentCount: 1,
         pulse: { phaseTitle: 'p', running: 1, settled: 0, maxAttempt: 2, lastEventAt: 5 },
         pendingAsks: 1,
-        agentType: 'general-purpose',
+        agentType: 'mercury-general',
         team: 't',
         stopReason: 'operator',
         phase: { phase: 'first-byte' as never, sinceMs: 1, budgetMs: 2, reason: 'r', attempt: 1, of: 3 },

@@ -108,7 +108,7 @@ export function redactAndClip(text: string, n: number): string {
 
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit', 'MultiEdit'])
 const READ_TOOLS = new Set(['Read', 'Grep', 'Glob'])
-const ORCHESTRATION_TOOLS = new Set(['Agent', 'Task', 'TaskCreate', 'Workflow'])
+const ORCHESTRATION_TOOLS = new Set(['Agent', 'TaskCreate', 'Workflow'])
 
 type ContentBlock = { type?: string; text?: string; name?: string; id?: string }
 
