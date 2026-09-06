@@ -7,6 +7,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'seat-work-poll-home
 
 const { onSeatLine, SESSION_FACTS_REQUEST_PREFIX } = await import('../../src/daemon/sessionSeat.ts')
 const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+const { sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -45,7 +46,7 @@ const answer = (work: unknown[]): string =>
     response: {
       subtype: 'success',
       request_id: `${SESSION_FACTS_REQUEST_PREFIX}${SHORT}-${++seq}`,
-      response: {
+      response: sessionFactsToWire({
         model: { effective: 'claude-opus-5' },
         usage: { totalCostUSD: 0 },
         skills: [],
@@ -55,7 +56,7 @@ const answer = (work: unknown[]): string =>
         queue: [],
         work,
         mission: [],
-      },
+      } as never),
     },
   })
 const liveRow = { id: 'agent-live', kind: 'agent', name: 'scout', description: 'scout', status: 'running', startTime: Date.now() }
