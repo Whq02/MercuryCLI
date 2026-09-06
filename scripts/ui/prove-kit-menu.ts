@@ -237,7 +237,7 @@ t.section('§6 — THE CONTAINER: cycling, the tri-state words, the master row, 
   t.check('a click activates through the same toggle body as ↵ (onActivate rides the primary action)', screen.includes('onActivate={props.onActivate}') && screen.includes("{ key: 'return', hint: 'change', run: row => ({ pending: 'saving…', result: Promise.resolve().then(() => cycleRow(row, 1)) }) }"))
   {
     const { withSkillState, withExtensionState } = await import('../../src/services/mcp/kitStore.js')
-    const slice = { allowedTools: [], mcpContextUris: [], projectOnboardingSeenCount: 0, skillStates: { deploy: 'invocable' as const }, extensionStates: { 'orchard-tools': 'off' as const } } as never
+    const slice = { allowedTools: [], projectOnboardingSeenCount: 0, skillStates: { deploy: 'invocable' as const }, extensionStates: { 'orchard-tools': 'off' as const } } as never
     const onSkill = withSkillState(slice, 'deploy', 'on') as { skillStates?: unknown }
     const onExt = withExtensionState(slice, 'orchard-tools', true) as { extensionStates?: unknown }
     t.check("the record keeps deviations only: the record's withSkillState/withExtensionState DELETE the key on 'on', and the store door rides exactly those pens", onSkill.skillStates === undefined && onExt.extensionStates === undefined && read('src/services/kitMenu/menuStore.ts').includes("from '../mcp/kitStore.js'"))
@@ -384,7 +384,7 @@ t.section("§8 — THE STORE WRITE: write-through per toggle onto the REAL recor
     store.write(WS, master, 'off')
     const deltas = kitDeltasForWorkspace(WS)
     t.check("the record's deltas after three writes are the record's exact shape", JSON.stringify(deltas) === JSON.stringify({ mcpOff: ['postgres'], skillStates: { deploy: 'invocable' }, extensionsOff: ['orchard-tools'] }), JSON.stringify(deltas))
-    t.check("statesFromDeltas renders the record's deltas to the screen's keys; deltasFromStates renders them back; the empty record is their emptyKitDeltas", JSON.stringify([...statesFromDeltas(deltas)]) === JSON.stringify([['mcp:postgres', 'off'], ['skill:deploy', 'invocable'], ['extension:orchard-tools', 'off']]) && JSON.stringify(deltasFromStates(statesFromDeltas(deltas))) === JSON.stringify(deltas) && JSON.stringify(kitDeltasOf({ allowedTools: [], mcpContextUris: [], projectOnboardingSeenCount: 0 } as never)) === JSON.stringify(emptyKitDeltas()))
+    t.check("statesFromDeltas renders the record's deltas to the screen's keys; deltasFromStates renders them back; the empty record is their emptyKitDeltas", JSON.stringify([...statesFromDeltas(deltas)]) === JSON.stringify([['mcp:postgres', 'off'], ['skill:deploy', 'invocable'], ['extension:orchard-tools', 'off']]) && JSON.stringify(deltasFromStates(statesFromDeltas(deltas))) === JSON.stringify(deltas) && JSON.stringify(kitDeltasOf({ allowedTools: [], projectOnboardingSeenCount: 0 } as never)) === JSON.stringify(emptyKitDeltas()))
     t.check('receipts name the row and its word; a master row names itself as an extension', receiptFor(master, 'off', true) === 'orchard-tools (extension) → off' && receiptFor(postgres, 'off', false) === 'postgres already off')
   } finally {
     if (savedHome === undefined) delete process.env.MERCURY_CONFIG_DIR

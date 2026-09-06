@@ -651,9 +651,6 @@
     "syntaxHighlightingDisabled": {
       "type": "boolean"
     },
-    "terminalTitleFromRename": {
-      "type": "boolean"
-    },
     "prefersReducedMotion": {
       "type": "boolean"
     },
@@ -668,17 +665,6 @@
     },
     "promptSuggestionEnabled": {
       "type": "boolean"
-    },
-    "feedbackSurveyRate": {
-      "type": "number",
-      "minimum": 0,
-      "maximum": 1
-    },
-    "companyAnnouncements": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
     },
     "agent": {
       "type": "string"
@@ -886,57 +872,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "remote": {
-      "type": "object",
-      "properties": {
-        "defaultEnvironmentId": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
-    },
-    "sshConfigs": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "sshHost": {
-            "type": "string"
-          },
-          "sshPort": {
-            "type": "number"
-          },
-          "sshIdentityFile": {
-            "type": "string"
-          },
-          "startDirectory": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "sshHost"
-        ],
-        "additionalProperties": false
-      }
-    },
-    "autoUpdatesChannel": {
-      "type": "string",
-      "enum": [
-        "latest",
-        "stable"
-      ]
-    },
-    "minimumVersion": {
-      "type": "string"
     }
   },
   "additionalProperties": {}

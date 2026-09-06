@@ -114,7 +114,7 @@ const GENERAL_TIPS: Tip[] = [
       return '/plan enters strategy mode — the plan comes first, the build only on your yes.'
     },
     async isRelevant() {
-      return daysSince(getGlobalConfig().lastPlanModeUse) > 7
+      return daysSince(getGlobalConfig().lastStrategyModeUse) > 7
     },
   },
   {

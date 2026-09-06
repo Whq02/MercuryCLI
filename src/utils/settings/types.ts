@@ -217,14 +217,11 @@ export const SettingsSchema = lazySchema(() => {
       .object({ excludeDefault: z.boolean().optional(), tips: z.array(z.string()) })
       .optional(),
     syntaxHighlightingDisabled: z.boolean().optional(),
-    terminalTitleFromRename: z.boolean().optional(),
     prefersReducedMotion: z.boolean().optional(),
     showThinkingSummaries: z.boolean().optional(),
     showClearContextOnPlanAccept: z.boolean().optional(),
     progressReporting: z.boolean().optional(),
     promptSuggestionEnabled: z.boolean().optional(),
-    feedbackSurveyRate: z.number().min(0).max(1).optional(),
-    companyAnnouncements: z.array(z.string()).optional(),
     agent: z.string().optional(),
     skipWebFetchPreflight: z.boolean().optional(),
     skipDangerousModePermissionPrompt: z.boolean().optional(),
@@ -245,21 +242,6 @@ export const SettingsSchema = lazySchema(() => {
         sparsePaths: z.array(z.string()).optional(),
       })
       .optional(),
-    remote: z.object({ defaultEnvironmentId: z.string().optional() }).optional(),
-    sshConfigs: z
-      .array(
-        z.object({
-          id: z.string(),
-          name: z.string(),
-          sshHost: z.string(),
-          sshPort: z.number().optional(),
-          sshIdentityFile: z.string().optional(),
-          startDirectory: z.string().optional(),
-        }),
-      )
-      .optional(),
-    autoUpdatesChannel: z.enum(['latest', 'stable']).optional(),
-    minimumVersion: z.string().optional(),
   })
   return base.passthrough()
 })
