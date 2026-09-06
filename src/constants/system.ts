@@ -1,5 +1,4 @@
 import { getWorkload } from '../utils/workloadContext.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/featureGates.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getAnthropicClientContractVersion } from './oauth.js'
 
@@ -33,7 +32,6 @@ export function getCLISyspromptPrefix(options?: {
 const ATTESTATION_PLACEHOLDER = ''
 
 export function getAttributionHeader(fingerprint: string): string {
-  if (!getFeatureValue_CACHED_MAY_BE_STALE('mercury_attribution_header', true)) return ''
   const version = getAnthropicClientContractVersion()
   const entrypoint = process.env.MERCURY_ENTRYPOINT || 'unknown'
   const workload = getWorkload()

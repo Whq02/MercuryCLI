@@ -2,7 +2,6 @@
 import type { Message } from 'src/types/message.js'
 import { toolMatchesName, type ToolUseContext } from '../../Tool.js'
 import { getSessionId } from '../../bootstrap/state.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import {
   getEffectiveContextWindowSize,
   isAutoCompactEnabled,
@@ -335,32 +334,6 @@ export async function getVerifyPlanReminderAttachment(
   _toolUseContext: ToolUseContext,
 ): Promise<Attachment[]> {
   return []
-}
-
-export function getCompactionReminderAttachment(
-  messages: Message[],
-  model: string,
-): Attachment[] {
-  if (!getFeatureValue_CACHED_MAY_BE_STALE('mercury_marble_fox', false)) {
-    return []
-  }
-
-  if (!isAutoCompactEnabled()) {
-    return []
-  }
-
-  const contextWindow = getContextWindowForModel(model, getSdkBetas())
-  if (contextWindow < 1_000_000) {
-    return []
-  }
-
-  const effectiveWindow = getEffectiveContextWindowSize(model)
-  const usedTokens = tokenCountWithEstimation(messages)
-  if (usedTokens < effectiveWindow * 0.25) {
-    return []
-  }
-
-  return [{ type: 'compaction_reminder' }]
 }
 
 export function getContextEfficiencyAttachment(
