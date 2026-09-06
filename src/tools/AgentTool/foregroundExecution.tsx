@@ -576,7 +576,9 @@ export async function runForegroundAgentExecution(
         const why =
           outcome !== null && outcome.status === 'failed'
             ? { error: outcome.error, ...(outcome.reason === 'repetition-stop' ? { stopReason: REPETITION_STOP_WORDS } : {}) }
-            : undefined
+            : status === 'failed' && heldError !== undefined
+              ? { error: errorMessage(heldError) }
+              : undefined
         settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker), why)
         enqueueSdkEvent({
           type: 'system',
