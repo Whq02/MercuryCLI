@@ -25,13 +25,9 @@ import {
 } from './classifierFailClosed.js'
 import { usabilityForRoute } from '../../services/providers/providerUsability.js'
 import {
-  buildXmlSystemPrompt,
   classifierBaseModel,
   classifierModelChain,
   classifyOverRoutedTransport,
-  parseBlockVerdict,
-  parseReasonTag,
-  parseThinkingTag,
 } from './classifierRouted.js'
 
 export const YOLO_CLASSIFIER_TOOL_NAME = 'classify_result'
@@ -191,9 +187,8 @@ export function formatActionForClassifier(toolName: string, toolInput: unknown):
 
 export const LATEST_REQUEST_LEAD = 'User (latest request, the current task): '
 
-function serialiseBlock(block: TranscriptBlock, tools: Tools, jsonl: boolean, latest = false): string {
+function serialiseBlock(block: TranscriptBlock, tools: Tools, latest = false): string {
   if (block.type === 'text') {
-    if (jsonl) return `${JSON.stringify({ user: block.text ?? '', ...(latest ? { latest_request: true } : {}) })}\n`
     return `${latest ? LATEST_REQUEST_LEAD : 'User: '}${block.text ?? ''}\n`
   }
   if (block.type !== 'tool_use') return ''
@@ -208,7 +203,6 @@ function serialiseBlock(block: TranscriptBlock, tools: Tools, jsonl: boolean, la
   }
   if (value === undefined) value = block.input
   if (value === '') return ''
-  if (jsonl) return `${JSON.stringify({ [block.name ?? '']: value })}\n`
   const rendered = typeof value === 'string' ? value : JSON.stringify(value)
   return `${block.name} ${rendered}\n`
 }
@@ -218,7 +212,6 @@ function findTool(tools: Tools, name: string): Tool | undefined {
 }
 
 export function buildTranscriptForClassifier(messages: Message[], tools: Tools): string {
-  const jsonl = (getAutoModeConfig() as { jsonlTranscript?: boolean } | undefined)?.jsonlTranscript === true
   const entries = buildTranscriptEntries(messages)
   let latestUser = -1
   for (let i = entries.length - 1; i >= 0; i--) {
@@ -229,7 +222,7 @@ export function buildTranscriptForClassifier(messages: Message[], tools: Tools):
   }
   let out = ''
   entries.forEach((entry, index) => {
-    for (const block of entry.content) out += serialiseBlock(block, tools, jsonl, index === latestUser)
+    for (const block of entry.content) out += serialiseBlock(block, tools, index === latestUser)
   })
   return out
 }
@@ -406,12 +399,6 @@ export async function classifyYoloAction(
     return result
   }
 
-  const twoStage = (getAutoModeConfig() as { twoStageClassifier?: boolean | 'fast' | 'thinking' } | undefined)
-    ?.twoStageClassifier
-  if (twoStage === true || twoStage === 'fast' || twoStage === 'thinking') {
-    return classifyYoloActionTwoStage(messages, action, tools, systemPrompt, model, signal, twoStage)
-  }
-
   try {
     const response = await sideQuery(
       classifierRequestOptions({
@@ -531,10 +518,8 @@ function classifierToolDefinition() {
 }
 
 function serialiseTranscriptEntry(entry: TranscriptEntry, tools: Tools): string {
-  const jsonl =
-    (getAutoModeConfig() as { jsonlTranscript?: boolean } | undefined)?.jsonlTranscript === true
   let out = ''
-  for (const block of entry.content) out += serialiseBlock(block, tools, jsonl)
+  for (const block of entry.content) out += serialiseBlock(block, tools)
   return out
 }
 
@@ -592,113 +577,6 @@ function classifierRequestOptions(args: {
 }
 
 
-async function classifyYoloActionTwoStage(
-  messages: Message[],
-  action: TranscriptEntry,
-  tools: Tools,
-  systemPrompt: string,
-  model: string,
-  signal: AbortSignal,
-  twoStageMode: true | 'fast' | 'thinking',
-): Promise<YoloClassifierResult> {
-  const mode: 'both' | 'fast' | 'thinking' = twoStageMode === true ? 'both' : twoStageMode
-  const xmlSystem = buildXmlSystemPrompt(systemPrompt)
-  const transcript = buildTranscriptForClassifier(messages, tools)
-  const sharedPrefix: TextBlockParam[] = [
-    textBlock(`<transcript>\n${transcript}`),
-    textBlock(serialiseTranscriptEntry(action, tools), true),
-  ]
-
-  let stage1HadUsage = false
-  try {
-    if (mode !== 'thinking') {
-      const stage1Bias =
-        'Err strongly toward blocking, and emit your <block> verdict immediately rather than reasoning first.'
-      const stage1 = await sideQuery(
-        classifierRequestOptions({
-          model,
-          systemPrompt: xmlSystem,
-          content: [...sharedPrefix, textBlock(`</transcript>\n${stage1Bias}`)],
-          maxTokens: mode === 'fast' ? 256 : 64,
-          ...(mode === 'fast' ? {} : { stopSequences: ['</block>'] }),
-          signal,
-        }),
-      )
-      stage1HadUsage = true
-      const text1 = responseText(stage1)
-      const verdict1 = parseBlockVerdict(text1)
-      if (verdict1 === false) {
-        return { shouldBlock: false, reason: 'Allowed by the fast classifier.', model, stage: 'fast' } as unknown as YoloClassifierResult
-      }
-      if (mode === 'fast') {
-        if (verdict1 === null) {
-          return { shouldBlock: true, unreadable: true, reason: 'Stage 1 unparseable — blocking for safety.', model, stage: 'fast' } as unknown as YoloClassifierResult
-        }
-        return {
-          shouldBlock: true,
-          reason: parseReasonTag(text1) ?? 'Blocked by the fast classifier.',
-          model,
-          stage: 'fast',
-        } as unknown as YoloClassifierResult
-      }
-    }
-
-    const stage2Bias = [
-      'Work the classification procedure through again rather than answering from impression.',
-      'Err against letting a blockable action past. Accept a user go-ahead as an override only',
-      'when it was actually stated, never inferred. Put your reasoning inside a <thinking> element',
-      'before the <block> answer.',
-    ].join(' ')
-    const stage2 = await sideQuery(
-      classifierRequestOptions({
-        model,
-        systemPrompt: xmlSystem,
-        content: [...sharedPrefix, textBlock(`</transcript>\n${stage2Bias}`)],
-        maxTokens: 4096,
-        signal,
-      }),
-    )
-    const text2 = responseText(stage2)
-    const verdict2 = parseBlockVerdict(text2)
-    if (verdict2 === null) {
-      return { shouldBlock: true, unreadable: true, reason: 'Stage 2 unparseable — blocking for safety.', model, stage: 'thinking' } as unknown as YoloClassifierResult
-    }
-    return {
-      shouldBlock: verdict2,
-      reason: parseReasonTag(text2) ?? 'no reason provided',
-      thinking: parseThinkingTag(text2),
-      model,
-      stage: 'thinking',
-    } as unknown as YoloClassifierResult
-  } catch (error) {
-    if (signal.aborted) {
-      return { shouldBlock: true, unavailable: true, reason: 'Classifier request aborted.', model } as unknown as YoloClassifierResult
-    }
-    if (error instanceof Error && error.message.toLowerCase().includes('prompt is too long')) {
-      return { shouldBlock: true, transcriptTooLong: true, reason: 'Classifier transcript exceeded the context window.', model } as unknown as YoloClassifierResult
-    }
-    if (stage1HadUsage) {
-      return {
-        shouldBlock: true,
-        unavailable: false,
-        reason: 'Stage 2 classifier error — blocking based on stage 1 assessment.',
-        model,
-        stage: 'thinking',
-      } as unknown as YoloClassifierResult
-    }
-    return { shouldBlock: true, unavailable: true, reason: 'Classifier unavailable — blocking for safety.', model } as unknown as YoloClassifierResult
-  }
-}
-
-function responseText(response: unknown): string {
-  const content = (response as { content?: Array<{ type: string; text?: string }> }).content ?? []
-  return content
-    .filter(block => block.type === 'text')
-    .map(block => block.text ?? '')
-    .join('')
-}
-
-
 export function classifierFallbackEnabled(): boolean {
   return !(flagEnv('MERCURY_CLASSIFIER_FALLBACK') === '0')
 }
@@ -748,9 +626,7 @@ export async function classifyYoloActionWithFallback(
 }
 
 function getClassifierModelChain(): string[] {
-  const configured = (getAutoModeConfig() as { model?: string } | undefined)?.model
   return classifierModelChain({
-    configuredModel: configured || undefined,
     sessionModel: getMainLoopModel(),
     anthropicUsable: usabilityForRoute('anthropic').usable,
     anthropicTier: CLASSIFIER_FALLBACK_MODELS,
