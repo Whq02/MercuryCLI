@@ -1,6 +1,4 @@
 
-import { isAutoMemoryEnabled } from '../../memdir/paths.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 
 
 export * from './turnCut.js'
@@ -116,15 +114,4 @@ export function buildClassifierUnreadableMessage(
     `This is not a judgement on the action — the check may read its next verdict, the same action can be tried again, and work that does not need the check can continue. ` +
     `The built-in read-only tools (file reads, code search, glob listings) never need the check; MCP tools always do.`
   )
-}
-
-
-const MEMORY_CORRECTION_HINT =
-  "\n\nNote: The user's next message may contain a correction or preference. Pay close attention — if they explain what went wrong or how they'd prefer you to work, consider saving that to memory for future sessions."
-
-export function withMemoryCorrectionHint(message: string): string {
-  const armed =
-    isAutoMemoryEnabled() &&
-    getFeatureValue_CACHED_MAY_BE_STALE('mercury_memory_correction_hint', false)
-  return armed ? message + MEMORY_CORRECTION_HINT : message
 }

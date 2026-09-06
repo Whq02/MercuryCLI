@@ -24366,7 +24366,6 @@
    "type": "text"
   }
  ],
- "withMemoryCorrectionHint/basic": "base text",
  "normalizeAttachmentForAPI/todo": [],
  "getSiblingToolUseIDs/toolTurn": [
   {
