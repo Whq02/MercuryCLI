@@ -7,7 +7,7 @@ import { Box, Text } from '../../ink.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
-import { isAutoDreamEnabled } from '../../services/autoDream/config.js'
+import { isMemoryUpkeepEnabled } from '../../services/autoDream/config.js'
 import { readLastConsolidatedAt } from '../../services/autoDream/consolidationLock.js'
 import { getInstructionFiles } from '../../services/instructions/engine.js'
 import type { InstructionSourceEntry } from '../../services/instructions/contracts.js'
@@ -62,7 +62,7 @@ export function MemoryFileSelector({
   useExitOnCtrlCDWithKeybindings()
 
   const [autoMemoryOn, setAutoMemoryOn] = useState(() => isAutoMemoryEnabled())
-  const [autoDreamOn, setAutoDreamOn] = useState(() => isAutoDreamEnabled())
+  const [upkeepOn, setUpkeepOn] = useState(() => isMemoryUpkeepEnabled())
   const [showDreamRow] = useState(() => isAutoMemoryEnabled())
 
   const dreamRunning = useAppState(state =>
@@ -104,9 +104,9 @@ export function MemoryFileSelector({
             id: 'auto-dream' as const,
             flip: () => {
               updateSettingsForSource('userSettings', {
-                autoDreamEnabled: !autoDreamOn,
+                memoryUpkeepEnabled: !upkeepOn,
               })
-              setAutoDreamOn(value => !value)
+              setUpkeepOn(value => !value)
             },
           },
         ]
@@ -279,7 +279,7 @@ export function MemoryFileSelector({
             bold={focusedToggle === 1}
             inverse={focusedToggle === 1}
           >
-            Auto-dream: {autoDreamOn ? 'on' : 'off'}
+            Upkeep: {upkeepOn ? 'on' : 'off'}
             {dreamTail}
           </Text>
         ) : null}

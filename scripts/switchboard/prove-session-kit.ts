@@ -106,7 +106,7 @@ console.log('W — the menu store by EXPLICIT workspace (poison: the process-cwd
 
   const rendered = disabledMcpServerNamesIn({ disabledMcpServers: ['a', 'b', 'a'], enabledMcpServers: [] })
   check('W13 the MCP half renders through the disabled record (deduplicated names, the opt-in law folded in)', rendered.join(',') === 'a,b' && isMcpServerDisabledIn({ disabledMcpServers: ['a'] }, 'a') === true && isMcpServerDisabledIn({ disabledMcpServers: ['a'] }, 'z') === false)
-  const slice = { allowedTools: [], mcpContextUris: [], projectOnboardingSeenCount: 0, disabledMcpServers: ['a'] }
+  const slice = { allowedTools: [], projectOnboardingSeenCount: 0, disabledMcpServers: ['a'] }
   check('W14 the pure updater returns the input BY IDENTITY when nothing changes', withMcpServerEnabled(slice as never, 'a', false) === slice && withMcpServerEnabled(slice as never, 'a', true) !== slice && kit.withSkillState(slice as never, 'x', 'on') === slice && kit.withExtensionState(slice as never, 'x', true) === slice)
 
   const configSrc = read('src/services/mcp/config.ts')

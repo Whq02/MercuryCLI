@@ -109,8 +109,10 @@ node dist/mercury.mjs doctor --json
 extra grammars · this machine's Node runtime); a failed fetch skips its pack,
 and the build and the affected features say so (`bun install` alone ships
 that degraded build). With a Rust toolchain on the machine, `setup` also
-builds the voice capture addon from `native/voice` (the one pack that is
-built, not fetched; without cargo it is skipped and the doctor says so).
+builds the voice capture addon from `native/voice` and, with cmake beside
+it, the on-device transcriber addon from `native/whisper` (the packs that
+are built, not fetched; without the toolchain each is skipped and the
+doctor says so).
 The build writes only under `dist/`. Configuration and sessions live in the
 config home, `~/.mercury` or whatever `MERCURY_CONFIG_DIR` names; the first
 run creates it. Windows runs `node dist\mercury.mjs` directly.
@@ -289,8 +291,9 @@ the result envelope alone. The verbs:
 - **Memory**: experience cards, a project notepad, and Minerva's room over
   your saved prompts ([docs/TABULA-NOTES.md](docs/TABULA-NOTES.md)).
 - **Voice input**: `/speak on`, then space in an empty composer dictates
-  into it through the family you signed into; audio leaves only after you
-  stop, and Mercury never speaks aloud ([docs/VOICE.md](docs/VOICE.md)).
+  into it — on this machine through the on-device transcriber, or through
+  the family you pin; audio leaves only after you stop and only to a cloud
+  family, and Mercury never speaks aloud ([docs/VOICE.md](docs/VOICE.md)).
 - **Durability**: atomic publication, journaled operations and a boot-time
   reconciliation pass ([docs/DURABILITY.md](docs/DURABILITY.md)).
 - **Web search for every model**: the provider's own live search beside
@@ -316,7 +319,7 @@ catalogue, grouped the way `/help` groups it:
 | crew & delegation | `/agents` `/subagents` `/teammates` `/crew` `/team` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/seats` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
 | session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/cost` `/usage` `/insights` `/debrief` `/add-dir` `/realms` |
 | memory & goals | `/memory` `/cards` `/remember` `/tabula` `/note` `/minerva` `/console` `/orient` |
-| model & effort | `/model` `/effort` `/plan` `/supercode` `/submodels` `/counsel` `/harness` `/caching` |
+| model & effort | `/model` `/effort` `/strategy` `/supercode` `/submodels` `/counsel` `/harness` `/caching` |
 | git & review | `/branch` `/review` `/security-review` `/pr-comments` |
 | health & introspection | `/health` `/verify` `/status` `/trace` `/substrate` `/capabilities` `/capabilities-detail` `/ledger` `/provenance` |
 | config & setup | `/config` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/policy` `/authority` `/sovereign` `/sandbox` `/ide` `/browser` `/init` `/keybindings` `/keys` `/vim` `/mouse` `/pings` `/terminal-setup` `/bootmenu` `/speak` `/voice` |

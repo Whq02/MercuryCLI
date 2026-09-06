@@ -1,7 +1,7 @@
 ---
 name: skill-forge
 description: Author or revise a Mercury skill (a SKILL.md with optional helper files) — the frontmatter contract, a discovery description that triggers only when it should, a body that loads only on invocation, and where the skill lives so Mercury finds it. Use when asked to create, package, tighten, or debug a skill from a description of what it should do; not for capturing the current session's process (that is /skillify), and not for agent definitions, hooks, or extensions.
-when_to_use: The user wants a new skill, asks why a skill does or does not trigger, or wants an existing SKILL.md made smaller, sharper, or portable.
+when-to-use: The user wants a new skill, asks why a skill does or does not trigger, or wants an existing SKILL.md made smaller, sharper, or portable.
 argument-hint: "<skill name or path> [what it should do]"
 ---
 
@@ -29,7 +29,7 @@ collision; otherwise the first loaded copy wins and the rest are skipped.
 ---
 name: release-notes            # matches the directory; lowercase, hyphens
 description: One or two sentences — what it does AND when to reach for it.
-when_to_use: Optional extra trigger text, shown to the model beside description.
+when-to-use: Optional extra trigger text, shown to the model beside description.
 argument-hint: "[version] [--draft]"   # what follows /release-notes
 allowed-tools: Read, Grep, Glob        # narrow the tool grant while the skill runs
 disable-model-invocation: true         # user-only: never auto-discovered
