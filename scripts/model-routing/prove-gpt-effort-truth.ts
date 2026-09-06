@@ -75,11 +75,16 @@ const liveModel = (efforts: string[], def?: string) =>
   const p7 = resolveGptReasoningProfile(undefined, full)
   check("no request ⇒ the model default ('low'), source 'model-default'", p7.wireEffort === 'low' && p7.source === 'model-default')
 
-  const six = liveModel(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], 'medium')
-  const p8 = resolveGptReasoningProfile('ultra', six)
-  check("a served 'ultra' passes through as the user's choice", p8.wireEffort === 'ultra' && p8.source === 'user', JSON.stringify(p8))
+  const listed = liveModel(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], 'medium')
+  const p8 = resolveGptReasoningProfile('ultra', listed)
+  check("the list word above max is never sent even where the list carries it: the row default rides with the adjustment named", p8.wireEffort === 'medium' && p8.source === 'unsupported-fallback' && p8.adjustedFrom === 'ultra', JSON.stringify(p8))
   const p9 = resolveGptReasoningProfile('ultra', full)
-  check("'ultra' on a low…max vocabulary steps DOWN to 'max' with the adjustment named", p9.wireEffort === 'max' && p9.source === 'unsupported-fallback' && p9.adjustedFrom === 'ultra', JSON.stringify(p9))
+  check("…and on a low…max list the same: the default ('low'), never a step to max", p9.wireEffort === 'low' && p9.source === 'unsupported-fallback' && p9.adjustedFrom === 'ultra', JSON.stringify(p9))
+  const aboveDefault = liveModel(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], 'ultra')
+  const p10 = resolveGptReasoningProfile(undefined, aboveDefault)
+  check("a list default above the ladder: nothing asked ⇒ the convention word 'high' rides, source model-default", p10.wireEffort === 'high' && p10.source === 'model-default', JSON.stringify(p10))
+  const p11 = resolveGptReasoningProfile(undefined, liveModel(['ultra']))
+  check('a list of nothing but the word above the ladder: no key at all (the endpoint default applies)', p11.wireEffort === undefined && p11.source === 'model-default', JSON.stringify(p11))
 }
 
 {
@@ -122,10 +127,9 @@ const liveModel = (efforts: string[], def?: string) =>
     capabilities.getMaxSupportedEffortLevel('gpt-5.6-terra') === 'xhigh' &&
     capabilities.getMaxSupportedEffortLevel('gpt-5.6-luna') === 'high')
   check("Sol's Mercury-ladder default follows the LIVE default ('low')", capabilities.gptModelDefaultEffort('gpt-5.6-sol') === 'low')
-  check('Astra (live …ultra) serves ultra, Sol (live …max) does not, and the ceilings say so', capabilities.modelOffersEffortLevel('gpt-6-astra', 'ultra') && !capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && capabilities.getMaxSupportedEffortLevel('gpt-6-astra') === 'ultra')
-  check("applied 'ultra' on Astra stays 'ultra'; on Sol it steps to 'max'; on Luna to 'high'", effort.resolveAppliedEffort('gpt-6-astra', 'ultra') === 'ultra' && effort.resolveAppliedEffort('gpt-5.6-sol', 'ultra') === 'max' && effort.resolveAppliedEffort('gpt-5.6-luna', 'ultra') === 'high')
-  check('DISPLAY ≡ DISPATCH on Astra at ultra', effort.getDisplayedEffortLevel('gpt-6-astra', 'ultra') === 'ultra' && resolveGptReasoningProfile('ultra', liveModel(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], 'medium')).wireEffort === 'ultra')
-  check("the 'ultra' description names the GPT family when a live vocabulary serves it", effort.getEffortLevelDescription('ultra').includes('GPT'), effort.getEffortLevelDescription('ultra'))
+  check("Astra's list carries a word above max; the ceiling is still max, the word is never a stop, and the row is marked able to lead delegation", capabilities.getMaxSupportedEffortLevel('gpt-6-astra') === 'max' && !(effort.selectableEffortLevels('gpt-6-astra') as readonly string[]).includes('ultra') && capabilities.providerMarksDelegationLead('gpt-6-astra') && !capabilities.providerMarksDelegationLead('gpt-5.6-sol'))
+  check("the list word asked raw is never applied: on Astra the row default ('medium') rides; on Sol ('low'); on Luna ('medium')", effort.resolveAppliedEffort('gpt-6-astra', 'ultra' as never) === 'medium' && effort.resolveAppliedEffort('gpt-5.6-sol', 'ultra' as never) === 'low' && effort.resolveAppliedEffort('gpt-5.6-luna', 'ultra' as never) === 'medium')
+  check('DISPLAY ≡ DISPATCH on Astra for the list word (both the row default, never the word)', effort.getDisplayedEffortLevel('gpt-6-astra', 'ultra' as never) === 'medium' && resolveGptReasoningProfile('ultra', liveModel(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], 'medium')).wireEffort === 'medium')
 
   check("applied 'max' on Sol stays 'max' (the reported bug: it clamped to high)", effort.resolveAppliedEffort('gpt-5.6-sol', 'max') === 'max')
   check("applied 'max' on Terra steps to 'xhigh' (never straight past it)", effort.resolveAppliedEffort('gpt-5.6-terra', 'max') === 'xhigh')
@@ -157,7 +161,7 @@ const liveModel = (efforts: string[], def?: string) =>
 }
 
 {
-  console.log('\n— 6 · the FULL provider vocabulary rides the resolution; the served top rung is selectable —')
+  console.log('\n— 6 · the FULL provider vocabulary rides the resolution; a list word above the ladder is never offered or sent —')
   const ultraFetch: typeof fetch = (async () =>
     new Response(
       JSON.stringify({
@@ -178,17 +182,21 @@ const liveModel = (efforts: string[], def?: string) =>
     `got ${JSON.stringify(solTruth.providerVocabulary)}`,
   )
   check(
-    "`selectable` (what controls OFFER) reaches the served top: 'ultra' is a stop on the row that serves it, directly above max",
-    solTruth.selectable.includes('ultra') && solTruth.selectable.indexOf('ultra') === solTruth.selectable.indexOf('max') + 1,
+    "`selectable` (what controls OFFER) ends at max: the list word above it is never a stop",
+    !(solTruth.selectable as readonly string[]).includes('ultra') && solTruth.selectable[solTruth.selectable.length - 1] === 'max',
     JSON.stringify(solTruth.selectable),
   )
   check(
-    "EF-03 shape: a provider default of 'ultra' is REPRESENTED coherently — wire sends it, label shows it, applied is the ladder word, providerDefault records it",
-    solTruth.wire === 'ultra' &&
-      solTruth.label === 'ultra' &&
-      solTruth.applied === 'ultra' &&
+    "EF-03 shape: a provider default above the ladder is never sent — the convention word 'high' rides (wire, label, applied) while providerDefault records the list's own word verbatim",
+    solTruth.wire === 'high' &&
+      solTruth.label === 'high' &&
+      solTruth.applied === 'high' &&
       solTruth.providerDefault === 'ultra',
     `wire=${String(solTruth.wire)} label=${solTruth.label} providerDefault=${String(solTruth.providerDefault)}`,
+  )
+  check(
+    'the wire profile agrees (display ≡ dispatch): nothing asked on that row sends high',
+    resolveGptReasoningProfile(undefined, liveModel(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], 'ultra')).wireEffort === 'high',
   )
   const lunaTruth = effort.resolveEffortTruth('gpt-5.6-luna', undefined)
   check(
@@ -218,9 +226,9 @@ const liveModel = (efforts: string[], def?: string) =>
 
   const slider = readFileSync(join(ROOT, 'src/commands/effort/EffortSlider.tsx'), 'utf8')
   check(
-    'EF-06: the slider derives its base stops from the ladder owner (ultra among them, stamped from the vocabulary) and supercode rides max-support (separate mode, never masquerading)',
+    'EF-06: the slider derives its base stops from the ladder owner (max at the top, no word above it) and supercode rides max-support (separate mode, never masquerading)',
     slider.includes('EFFORT_LEVELS.map(level => ({') &&
-      slider.includes("ultra: 'blaze'") &&
+      !/\bultra\b/.test(slider) &&
       slider.includes('supported: vocabulary.has(String(tier.value))') &&
       /modelSupportsMaxEffort\(model\)[\s\S]{0,400}value: 'supercode'/.test(slider),
   )
@@ -252,21 +260,23 @@ const liveModel = (efforts: string[], def?: string) =>
     )) as unknown as typeof fetch
   __resetOpenaiCatalogueForTest()
   await refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: listFetch })
-  const WIRE_LIST = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
-  check('no memory ⇒ the list is the vocabulary (ultra offered on Sol)', capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && store.readWireEffortVocabularies().length === 0)
-  store.recordWireEffortRefusal({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', refused: 'ultra', levels: WIRE_LIST })
+  const WIRE_LIST = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh']
+  check('no memory ⇒ the list is the vocabulary (max offered on Sol; the listed word above it never is)', capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'max') && !(effort.selectableEffortLevels('gpt-5.6-sol') as readonly string[]).includes('ultra') && store.readWireEffortVocabularies().length === 0)
+  check("the LISTED words survive verbatim beside the served ones (the provider's delegation-lead word among them)", JSON.stringify(catalogue.liveGptListedEffortWords('gpt-5.6-sol')) === JSON.stringify(['low', 'medium', 'high', 'xhigh', 'max', 'ultra']) && capabilities.providerMarksDelegationLead('gpt-5.6-sol') && !capabilities.providerMarksDelegationLead('gpt-5.6-luna'))
+  store.recordWireEffortRefusal({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', refused: 'max', levels: WIRE_LIST })
   const view = capabilities.gptEffortVocabularyView('gpt-5.6-sol')
-  const truth = effort.resolveEffortTruth('gpt-5.6-sol', 'ultra')
+  const truth = effort.resolveEffortTruth('gpt-5.6-sol', 'max')
   check(
-    "a remembered refusal narrows the row's vocabulary to what the wire serves: five words, ultra not offered, the ceiling max, ultra asked runs max with the asked word on the record",
-    view.state === 'live' && JSON.stringify(view.vocabulary) === JSON.stringify(['low', 'medium', 'high', 'xhigh', 'max']) && !capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && capabilities.getMaxSupportedEffortLevel('gpt-5.6-sol') === 'max' && truth.wire === 'max' && truth.adjustedFrom === 'ultra' && !truth.selectable.includes('ultra'),
+    "a remembered refusal narrows the row's vocabulary to what the wire serves: four words, max not offered, the ceiling xhigh, max asked runs xhigh with the asked word on the record",
+    view.state === 'live' && JSON.stringify(view.vocabulary) === JSON.stringify(['low', 'medium', 'high', 'xhigh']) && !capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'max') && capabilities.getMaxSupportedEffortLevel('gpt-5.6-sol') === 'xhigh' && truth.wire === 'xhigh' && truth.adjustedFrom === 'max' && !truth.selectable.includes('max'),
     JSON.stringify({ view, wire: truth.wire, adjustedFrom: truth.adjustedFrom }),
   )
-  check("the wire profile reads the same narrowed row (display ≡ dispatch): the candidate's live row lacks ultra", (() => { const c = catalogue.evaluateGptCandidate('gpt-5.6-sol', 'api-key'); return c.ok && !c.candidate.live.supportedReasoningEfforts.includes('ultra') && c.candidate.live.supportedReasoningEfforts.includes('max') })())
+  check("the wire profile reads the same narrowed row (display ≡ dispatch): the candidate's live row lacks max", (() => { const c = catalogue.evaluateGptCandidate('gpt-5.6-sol', 'api-key'); return c.ok && !c.candidate.live.supportedReasoningEfforts.includes('max') && c.candidate.live.supportedReasoningEfforts.includes('xhigh') })())
+  check('the LISTED words are untouched by the memory (the list is the list; the wire is the wire)', JSON.stringify(catalogue.liveGptListedEffortWords('gpt-5.6-sol')) === JSON.stringify(['low', 'medium', 'high', 'xhigh', 'max', 'ultra']) && capabilities.providerMarksDelegationLead('gpt-5.6-sol'))
   check('another row keeps its own list (Luna untouched)', JSON.stringify(capabilities.gptEffortVocabularyView('gpt-5.6-luna')) === JSON.stringify({ state: 'live', vocabulary: ['low', 'medium', 'high'], defaultEffort: 'medium' }))
-  check('the memory is dated and names the refused word and the source', store.readWireEffortVocabularies().every(m => m.refused === 'ultra' && m.sourceKind === 'api-key' && m.observedAtMs > 0))
-  store.noteWireEffortAccepted({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', word: 'ultra' })
-  check('a served-and-accepted ultra clears the memory and the list is the vocabulary again', store.readWireEffortVocabularies().length === 0 && capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && capabilities.getMaxSupportedEffortLevel('gpt-5.6-sol') === 'ultra')
+  check('the memory is dated and names the refused word and the source', store.readWireEffortVocabularies().every(m => m.refused === 'max' && m.sourceKind === 'api-key' && m.observedAtMs > 0))
+  store.noteWireEffortAccepted({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', word: 'max' })
+  check('a served-and-accepted max clears the memory and the list is the vocabulary again (the ceiling max)', store.readWireEffortVocabularies().length === 0 && capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'max') && capabilities.getMaxSupportedEffortLevel('gpt-5.6-sol') === 'max')
 }
 
 for (const [key, value] of Object.entries(savedEnv)) {

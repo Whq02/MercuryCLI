@@ -33,8 +33,7 @@ export type DriverPhase =
   | 'starting'
   | 'draining_commands'
   | 'waiting_for_agents'
-  | 'finally_flush'
-  | 'finally_post_flush'
+  | 'finally'
   | 'settling_idle'
 
 export type TurnDriverPorts = {
@@ -45,7 +44,6 @@ export type TurnDriverPorts = {
   enqueueOutput(message: StdoutMessage): void
   writeDirect(message: StdoutMessage): Promise<void>
   drainSdkEvents(): StdoutMessage[]
-  flushInternalEvents(): Promise<void>
 
   executeTurn(
     command: QueuedCommand,
@@ -223,9 +221,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       return
     } finally {
       announceWait(0)
-      phase = 'finally_flush'
-      await ports.flushInternalEvents()
-      phase = 'finally_post_flush'
+      phase = 'finally'
       if (!ports.isShuttingDown()) {
         ports.notifySessionState('idle')
         flushSdkEvents()

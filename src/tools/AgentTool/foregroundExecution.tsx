@@ -59,6 +59,7 @@ import {
   armBudgetCutResume,
   extractPartialResult,
   partialResultEnvelopeBlock,
+  budgetCutResumeDelayMs,
   recoveryBudgetCutOf,
   finalizeAgentTool,
   getLastToolUseName,
@@ -385,13 +386,15 @@ export async function runForegroundAgentExecution(
         ...worktreeResult,
         ...(envelopeBlock ? { envelopeBlock } : {}),
       })
-      if (recoveryBudgetCutOf(error) !== null && foregroundTask !== undefined) {
+      const budgetCut = recoveryBudgetCutOf(error)
+      if (budgetCut !== null && foregroundTask !== undefined) {
         armBudgetCutResume({
           taskId: backgroundedTaskId,
           description,
           registration: foregroundTask.abortController,
           toolUseContext,
           rootSetAppState,
+          delayMs: budgetCutResumeDelayMs(budgetCut),
         })
       }
     } finally {
@@ -573,7 +576,9 @@ export async function runForegroundAgentExecution(
         const why =
           outcome !== null && outcome.status === 'failed'
             ? { error: outcome.error, ...(outcome.reason === 'repetition-stop' ? { stopReason: REPETITION_STOP_WORDS } : {}) }
-            : undefined
+            : status === 'failed' && heldError !== undefined
+              ? { error: errorMessage(heldError) }
+              : undefined
         settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker), why)
         enqueueSdkEvent({
           type: 'system',

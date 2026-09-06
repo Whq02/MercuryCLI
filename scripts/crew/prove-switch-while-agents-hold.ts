@@ -62,7 +62,7 @@ const roster = {
 const status = (value: unknown): string => JSON.stringify({ type: 'system', subtype: 'status', status: value, uuid: 'u', session_id: sid })
 const record = () => readSessionWorkers(dir)[SHORT] as { modelKey?: string; pendingModelKey?: string; effort?: string; pendingEffort?: string } | undefined
 
-seat.onSeatLine(SHORT, status({ waitingOnAgents: 2 }), roster as never, dir)
+seat.onSeatLine(SHORT, status({ waiting_on_agents: 2 }), roster as never, dir)
 const applied = await seat.setSessionModel(sid, 'claude-opus-5', roster as never, dir)
 check('with agents holding the turn, set-model APPLIES', applied.outcome === 'applied', JSON.stringify(applied))
 check('…the set_model control reached the child', controls.some(f => f.includes('"subtype":"set_model"') && f.includes('claude-opus-5')), controls.join(' | ').slice(0, 200))
@@ -79,7 +79,7 @@ check('with the turn closed, set-model applies', closed.outcome === 'applied' &&
 
 section('S3 · the effort sibling')
 turnActive = true
-seat.onSeatLine(SHORT, status({ waitingOnAgents: 1 }), roster as never, dir)
+seat.onSeatLine(SHORT, status({ waiting_on_agents: 1 }), roster as never, dir)
 const effortApplied = seat.setSessionEffort(sid, 'low', roster as never, dir)
 check('with agents holding the turn, set-effort APPLIES', effortApplied.outcome === 'applied' && record()?.effort === 'low', JSON.stringify(effortApplied))
 seat.onSeatLine(SHORT, status(null), roster as never, dir)

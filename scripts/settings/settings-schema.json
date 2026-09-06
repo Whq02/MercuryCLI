@@ -172,8 +172,7 @@
         "medium",
         "high",
         "xhigh",
-        "max",
-        "ultra"
+        "max"
       ]
     },
     "supercodeEffort": {

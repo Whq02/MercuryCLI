@@ -33,6 +33,7 @@ import type { MCPServerConnection } from '../../services/mcp/types.js'
 import { generateTaskId } from '../../Task.js'
 import { getUserContext, getSystemContext, isInstructionDiscoveryDisabled } from '../../context.js'
 import { forgetAgentEffortWord, noteAgentEffortWord, parseEffortValue, type EffortValue } from '../../utils/effort.js'
+import { subagentDefaultEffort } from '../../utils/agentDefaults.js'
 import { createSubagentContext } from '../../utils/forkedAgent.js'
 import {
   cloneFileStateCache,
@@ -52,7 +53,7 @@ import {
   honourRecoveryWait,
   makeRecoveryBudget,
   recoveryAnswerRefills,
-  recoveryBudgetSpentLine,
+  RecoveryBudgetSpentError,
   recoveryNoticeFacts,
   refillRecoveryBudget,
   retryWaitWords,
@@ -439,9 +440,9 @@ export function resolveAgentEffort(facts: {
   effortOverride: string | undefined
   useExactTools: boolean | undefined
   definitionEffort: EffortValue | undefined
-  sessionEffort: EffortValue | undefined
+  defaultEffort: EffortValue | undefined
 }): EffortValue | undefined {
-  return agentOwnEffortWord(facts) ?? facts.sessionEffort
+  return agentOwnEffortWord(facts) ?? facts.defaultEffort
 }
 
 export function agentOwnEffortWord(facts: {
@@ -514,7 +515,7 @@ export async function* runAgent(
     effortOverride,
     useExactTools,
     definitionEffort: agentDefinition.effort,
-    sessionEffort: (toolUseContext.getAppState?.() as { effortValue?: EffortValue } | undefined)?.effortValue,
+    defaultEffort: subagentDefaultEffort(),
   })
   onResolvedIdentity?.({ model: resolvedAgentModel, ...(resolvedEffort !== undefined ? { effort: String(resolvedEffort) } : {}) })
 
@@ -557,8 +558,9 @@ export async function* runAgent(
   let budgetCut: ReturnType<typeof setTimeout> | null = null
   let retryWordsStanding = false
   let standingWait: RecoveryReservation | null = null
+  let cuttingWait = { declaredMs: 0, honoredMs: 0 }
   const cutAtBudget = (): void => {
-    throttled = new Error(recoveryBudgetSpentLine(recovery))
+    throttled = new RecoveryBudgetSpentError(recovery, cuttingWait)
     abortController.abort(throttled)
   }
 
@@ -593,7 +595,7 @@ export async function* runAgent(
 
   const claim = Symbol('agent-executor')
   executorClaims.set(agentId, claim)
-  noteAgentEffortWord(agentId, agentOwnEffortWord({ effortOverride, useExactTools, definitionEffort: agentDefinition.effort }))
+  noteAgentEffortWord(agentId, resolvedEffort)
 
   if (transcriptSubdir) setAgentTranscriptSubdir(agentId, transcriptSubdir)
 
@@ -700,7 +702,7 @@ export async function* runAgent(
           effortOverride,
           useExactTools,
           definitionEffort: agentDefinition.effort,
-          sessionEffort: state.effortValue,
+          defaultEffort: subagentDefaultEffort(),
         }),
       })
     }
@@ -922,6 +924,7 @@ export async function* runAgent(
         settleRecoveryWait(recovery, standingWait)
         const { honoredMs, spent, reservation } = honourRecoveryWait(recovery, notice)
         standingWait = reservation
+        cuttingWait = { declaredMs: notice.declaredMs, honoredMs }
         retryWordsStanding = true
         onWait?.(retryWaitWords({ facts: notice, honoredMs, budget: recovery }))
         if (budgetCut !== null) clearTimeout(budgetCut)
