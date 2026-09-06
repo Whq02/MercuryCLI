@@ -16,7 +16,7 @@
   "sites": [
     {
       "file": "src/entrypoints/cli.tsx",
-      "line": 363,
+      "line": 322,
       "needle": ".mercury",
       "excerpt": "return join(home, '.mercury')",
       "cls": "owner-internal",
@@ -200,7 +200,7 @@
     },
     {
       "file": "src/utils/config/derived.ts",
-      "line": 143,
+      "line": 142,
       "needle": "MERCURY.md",
       "excerpt": "return join(getMercuryHome(), 'MERCURY.md')",
       "cls": "owner-internal",
@@ -208,7 +208,7 @@
     },
     {
       "file": "src/utils/config/derived.ts",
-      "line": 147,
+      "line": 146,
       "needle": "MERCURY.md",
       "excerpt": "return join(cwd, 'MERCURY.md')",
       "cls": "compat-boundary",
@@ -216,7 +216,7 @@
     },
     {
       "file": "src/utils/config/derived.ts",
-      "line": 149,
+      "line": 148,
       "needle": "MERCURY.md",
       "excerpt": "return join(getManagedFilePath(), 'MERCURY.md')",
       "cls": "baked-mirror",
@@ -224,7 +224,7 @@
     },
     {
       "file": "src/utils/config/derived.ts",
-      "line": 161,
+      "line": 160,
       "needle": ".mercury",
       "excerpt": "return join(getManagedFilePath(), '.mercury', 'rules')",
       "cls": "baked-mirror",
