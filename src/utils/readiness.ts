@@ -173,7 +173,7 @@ function toolRecords(): ReadinessRecord[] {
 
 function injectionNote(connection: MCPServerConnection): string {
   const type = connection.config?.type
-  if (type === 'sdk') return ' (runtime-injected: SDK client)'
+  if (type === 'host') return ' (host-served)'
   if (type === 'ws-ide' || type === 'sse-ide') return ' (runtime-injected: editor bridge)'
   return ' (runtime-injected)'
 }
