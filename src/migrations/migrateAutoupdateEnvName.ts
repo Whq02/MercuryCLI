@@ -9,12 +9,11 @@ export function migrateAutoupdateEnvName(): boolean {
     const settings = getSettingsForSource('userSettings') ?? {}
     const env = settings.env ?? {}
     if (!(RETIRED_KEY in env)) return true
-    const on = /^(1|true|yes|on)$/i.test(String(env[RETIRED_KEY] ?? '').trim())
-    const next = { ...env, [RETIRED_KEY]: undefined, ...(on ? { MERCURY_AUTOUPDATE: '0' } : {}) } as unknown as Record<string, string>
+    const next = { ...env, [RETIRED_KEY]: undefined } as unknown as Record<string, string>
     const verdict = updateSettingsForSource('userSettings', { env: next })
-    return settingsWriteLanded('A.10 auto-update switch name', verdict)
+    return settingsWriteLanded('A.10 retired auto-update key', verdict)
   } catch (error) {
-    logError(`auto-update switch migration failed: ${String(error)}`)
+    logError(`auto-update key migration failed: ${String(error)}`)
     return false
   }
 }

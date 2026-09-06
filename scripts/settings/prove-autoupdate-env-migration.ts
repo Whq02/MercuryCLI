@@ -46,22 +46,22 @@ function runIn(seed: Record<string, unknown> | null, body: string): Record<strin
   return JSON.parse(line) as Record<string, unknown>
 }
 
-console.log('L1 DISABLE_AUTOUPDATER=1 — the switch reads MERCURY_AUTOUPDATE=0 and the key is gone')
+console.log('L1 DISABLE_AUTOUPDATER=1 — the key is gone and nothing replaces it')
 {
   const r = runIn({ env: { DISABLE_AUTOUPDATER: '1', OTHER: 'kept' } }, `
     out.verdict = m.migrateAutoupdateEnvName()
     const env = parsed().env ?? {}
-    out.switched = env.MERCURY_AUTOUPDATE
+    out.switched = env.MERCURY_AUTOUPDATE ?? null
     out.hasOld = 'DISABLE_AUTOUPDATER' in env
     out.other = env.OTHER
   `)
   check('the migration reports true', r.verdict === true, JSON.stringify(r.verdict))
-  check("env.MERCURY_AUTOUPDATE reads '0'", r.switched === '0', JSON.stringify(r.switched))
+  check('nothing replaces the key', r.switched === null, JSON.stringify(r.switched))
   check('the key DISABLE_AUTOUPDATER is gone', r.hasOld === false)
   check('the other env entries ride along', r.other === 'kept', JSON.stringify(r.other))
 }
 
-console.log('L2 DISABLE_AUTOUPDATER=0 — the key is gone and no switch is written')
+console.log('L2 DISABLE_AUTOUPDATER=0 — the key is gone the same way')
 {
   const r = runIn({ env: { DISABLE_AUTOUPDATER: '0' } }, `
     out.verdict = m.migrateAutoupdateEnvName()
