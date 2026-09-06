@@ -24,6 +24,7 @@ import { getTokenCountFromUsage } from '../../utils/tokens.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { getAgentTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import type { AgentId } from '../../types/ids.js'
+import { asAgentId } from '../../types/ids.js'
 import {
   evictTaskOutput,
   getTaskOutputPath,
@@ -416,6 +417,14 @@ export function registerAgentForeground(args: {
   }
 
   return { taskId, abortController, backgroundSignal, cancelAutoBackground }
+}
+
+export function registerAgentName(name: string, agentId: string, setAppState: SetAppState): void {
+  setAppState(prev => {
+    const next = new Map(prev.agentNameRegistry)
+    next.set(name, asAgentId(agentId))
+    return { ...prev, agentNameRegistry: next }
+  })
 }
 
 export function backgroundAgentTask(

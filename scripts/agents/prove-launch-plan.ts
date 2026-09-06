@@ -220,6 +220,7 @@ section('§6 — seam ratchets: the consumers consume the plan')
 
   const fg = src('tools', 'AgentTool', 'foregroundExecution.tsx')
   check('AgentTool dispatches foreground runs to the execution module', agentTool.includes('runForegroundAgentExecution({'))
+  check('both launch roads register a launch name through the one alias helper', agentTool.includes('registerAgentName(') && fg.includes('registerAgentName('))
   for (const landmark of ['registerAgentForeground(', 'BackgroundHint', 'agentIterator', 'backgroundRace']) {
     check(`the execution machine landmark '${landmark}' lives in foregroundExecution, not the tool`, fg.includes(landmark) && !agentTool.includes(landmark))
   }
