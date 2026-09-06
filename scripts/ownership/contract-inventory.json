@@ -59,7 +59,6 @@
     "getGlobalConfigWriteCount",
     "getManagedRulesDir",
     "getMemoryPath",
-    "getOrCreateUserID",
     "getProjectConfigForWorkspace",
     "getProjectPathForConfig",
     "getRemoteControlAtStartup",

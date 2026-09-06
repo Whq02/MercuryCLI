@@ -2145,9 +2145,13 @@ export function REPL({
     setMessageCursor(null);
     unseen.jumpToNew(scrollRef.current);
   }, [unseen]);
-  const disarmSearchOnScroll = useCallback(() => {
-    jumpRef.current?.disarmSearch();
-  }, []);
+  const onTranscriptScroll = useCallback(
+    (sticky: boolean, handle: ScrollBoxHandle) => {
+      jumpRef.current?.disarmSearch();
+      onScroll(sticky, handle);
+    },
+    [onScroll],
+  );
 
   const lastMessage = messages[messages.length - 1];
   useEffect(() => {
@@ -2646,7 +2650,7 @@ export function REPL({
       <ScrollKeybindingHandler
         scrollRef={scrollRef}
         isActive={inVirtualTranscript || (fullscreen && (centredModalUp || focusedInputDialog === undefined || focusedInputDialog === 'tool-permission'))}
-        onScroll={inVirtualTranscript ? disarmSearchOnScroll : centredModalUp || permissionOverlay !== null ? undefined : onScroll}
+        onScroll={inVirtualTranscript ? onTranscriptScroll : centredModalUp || permissionOverlay !== null ? undefined : onScroll}
         isModal={inVirtualTranscript ? !searchBarOpen : false}
         modalScrollRef={modalScrollRef}
         modalUp={centredModalUp}

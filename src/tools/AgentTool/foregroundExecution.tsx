@@ -38,6 +38,7 @@ import type { SetAppState } from '../../Task.js'
 import { runWithAgentContext, type AgentContext } from '../../utils/agentContext.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
+import { flushSessionStorage } from '../../utils/sessionStorage.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import {
   extractTextContent,
@@ -55,7 +56,10 @@ import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
 import {
   deriveAgentTerminalOutcome,
   emitTaskProgress,
+  armBudgetCutResume,
   extractPartialResult,
+  partialResultEnvelopeBlock,
+  recoveryBudgetCutOf,
   finalizeAgentTool,
   getLastToolUseName,
   landedWritesOf,
@@ -322,32 +326,74 @@ export async function runForegroundAgentExecution(
         const stopReason = agentStopReasonOf(foregroundTask?.abortController.signal.reason)
         killAsyncAgent(backgroundedTaskId, rootSetAppState, stopReason)
         const worktreeResult = await cleanupWorktreeIfNeeded()
+        await flushSessionStorage()
+        const partialResult = extractPartialResult(agentMessages)
+        const usage = {
+          totalTokens: getTokenCountFromTracker(tracker),
+          toolUses: tracker.toolUseCount,
+          durationMs: Date.now() - agentStartTime,
+        }
+        const envelopeBlock = await partialResultEnvelopeBlock({
+          agentId: String(backgroundedTaskId),
+          agentType: metadata.agentType,
+          status: 'stopped',
+          partialText: partialResult,
+          usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
+        })
         enqueueAgentNotification({
           taskId: backgroundedTaskId,
           description,
           status: 'killed',
           setAppState: rootSetAppState,
           toolUseId: toolUseContext.toolUseId,
-          finalMessage: extractPartialResult(agentMessages),
+          finalMessage: partialResult,
+          usage,
           landedWrites: landedWritesOf(agentMessages),
           ...(stopReason !== undefined ? { stopReason } : {}),
           ...worktreeResult,
+          ...(envelopeBlock ? { envelopeBlock } : {}),
         })
         return
       }
       const failure = errorMessage(error)
       failAsyncAgent(backgroundedTaskId, failure, rootSetAppState)
       const worktreeResult = await cleanupWorktreeIfNeeded()
+      await flushSessionStorage()
+      const partialResult = extractPartialResult(agentMessages)
+      const usage = {
+        totalTokens: getTokenCountFromTracker(tracker),
+        toolUses: tracker.toolUseCount,
+        durationMs: Date.now() - agentStartTime,
+      }
+      const envelopeBlock = await partialResultEnvelopeBlock({
+        agentId: String(backgroundedTaskId),
+        agentType: metadata.agentType,
+        status: 'failed',
+        partialText: partialResult,
+        usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
+      })
       enqueueAgentNotification({
         taskId: backgroundedTaskId,
         description,
         status: 'failed',
         error: failure,
+        finalMessage: partialResult,
+        usage,
         landedWrites: landedWritesOf(agentMessages),
         setAppState: rootSetAppState,
         toolUseId: toolUseContext.toolUseId,
         ...worktreeResult,
+        ...(envelopeBlock ? { envelopeBlock } : {}),
       })
+      if (recoveryBudgetCutOf(error) !== null && foregroundTask !== undefined) {
+        armBudgetCutResume({
+          taskId: backgroundedTaskId,
+          description,
+          registration: foregroundTask.abortController,
+          toolUseContext,
+          rootSetAppState,
+        })
+      }
     } finally {
       stopForegroundSummarization?.()
       try {

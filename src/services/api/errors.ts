@@ -243,6 +243,35 @@ export function streamFaultAfterPartialText(provider: string, code: string, mess
   return `${API_ERROR_MESSAGE_PREFIX}: ${provider} ${STREAM_FAULT_AFTER_PARTIAL_MARKER} (${code}) — ${message}`
 }
 
+export function streamFaultFactsOf(text: string): { provider: string; code: string; message: string } | null {
+  if (!startsWithApiErrorPrefix(text)) return null
+  const marker = ` ${STREAM_FAULT_AFTER_PARTIAL_MARKER} (`
+  const at = text.indexOf(marker)
+  if (at < 0) return null
+  const provider = text.slice(API_ERROR_MESSAGE_PREFIX.length + 2, at)
+  const rest = text.slice(at + marker.length)
+  const close = rest.indexOf(') — ')
+  if (close < 0) return null
+  return { provider, code: rest.slice(0, close), message: rest.slice(close + 4) }
+}
+
+export function continuableStreamFaultTextOf(msg: AssistantMessage): string | null {
+  if (msg.isApiErrorMessage !== true) return null
+  const content = msg.message.content
+  if (!Array.isArray(content)) return null
+  for (const block of content) {
+    const text = (block as { type?: string; text?: unknown }).type === 'text' ? (block as { text?: unknown }).text : undefined
+    if (typeof text === 'string' && text.includes(STREAM_FAULT_AFTER_PARTIAL_MARKER)) return text
+  }
+  return null
+}
+
+export function streamFaultNoticeLine(text: string | null, action: string): string {
+  const facts = text === null ? null : streamFaultFactsOf(text)
+  if (facts === null) return `The provider stream dropped after partial content — ${action}`
+  return `${facts.provider} ended the stream after partial content — ${facts.message} (${facts.code}); ${action}`
+}
+
 export function isContinuableStreamFaultText(text: string): boolean {
   return startsWithApiErrorPrefix(text) && text.includes(STREAM_FAULT_AFTER_PARTIAL_MARKER)
 }
