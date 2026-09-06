@@ -1,4 +1,6 @@
 import { randomUUID, type UUID } from 'node:crypto'
+import { refusalEnvelope } from './headless/refusalEnvelope.js'
+import type { PermissionChannel } from '../Tool.js'
 import { readFile, stat } from 'node:fs/promises'
 import { liveSkillRootsOf, pruneSkillSessionHooks } from '../utils/hooks/sessionHooks.js'
 import {
@@ -279,6 +281,7 @@ type HeadlessOptions = {
   outputFormat?: string
   jsonSchema?: Record<string, unknown>
   permissionPromptToolName?: string
+  permissionChannel?: PermissionChannel
   allowedTools?: string[]
   thinkingConfig?: ThinkingConfig
   maxTurns?: number
@@ -292,7 +295,6 @@ type HeadlessOptions = {
   includePartialMessages?: boolean
   forkSession?: boolean
   rewindFiles?: string
-  enableAuthStatus?: boolean
   agent?: string
   workload?: string
   setupTrigger?: 'init' | 'maintenance'
@@ -651,7 +653,7 @@ export async function runHeadless(
     !resumeTargetValid
   ) {
     emitLoadError(
-      'Error: input must be provided either through stdin or as a prompt argument when using --print',
+      'No prompt reached --print: give one as the argument or on stdin',
       options.outputFormat,
     )
     gracefulShutdownSync(1)
@@ -665,10 +667,11 @@ export async function runHeadless(
   })
   let sessionTools: Tool[] = [...tools, ...startingMcpTools]
   const canUseTool = getCanUseToolFn(
+    options.permissionChannel,
     options.permissionPromptToolName,
     io,
     () => getAppState().mcp.tools as Tool[],
-    details => notifySessionStateChanged('requires_action', details),
+    () => notifySessionStateChanged('requires_action'),
   )
   if (options.permissionPromptToolName) {
     sessionTools = sessionTools.filter(
@@ -774,7 +777,7 @@ export async function runHeadless(
     for (const client of clients) {
       if (client.type !== 'connected') continue
       if (elicitationRegistered.has(client.name)) continue
-      if (client.config.type === 'sdk') continue
+      if (client.config.type === 'host') continue
       try {
         void registerElicitationHandlersForClient(client, client.name)
         elicitationRegistered.add(client.name)
@@ -1157,9 +1160,7 @@ export async function runHeadless(
           maxBudgetUsd: options.maxBudgetUsd,
           taskBudget: options.taskBudget,
           canUseTool,
-          ...(options.permissionPromptToolName === undefined
-            ? {}
-            : { permissionChannel: options.permissionPromptToolName === 'stdio' ? ('stdio' as const) : ('prompt-tool' as const) }),
+          ...(options.permissionChannel === undefined ? {} : { permissionChannel: options.permissionChannel }),
           userSpecifiedModel: activeModel,
           fallbackModel: options.fallbackModel,
           jsonSchema: initializeJsonSchema ?? options.jsonSchema,
@@ -1451,25 +1452,7 @@ export async function runHeadless(
     idleTimerStart: () => idleTimeout.start?.(),
     onCycleError: error => {
       abortSuggestion()
-      return {
-        type: 'result',
-        subtype: 'error_during_execution',
-        duration_ms: 0,
-        duration_api_ms: 0,
-        is_error: true,
-        num_turns: 0,
-        stop_reason: null,
-        session_id: getSessionId(),
-        total_cost_usd: 0,
-        usage: {},
-        model_usage: {},
-        permission_denials: [],
-        uuid: randomUUID(),
-        errors: [
-          errorMessage(error),
-          ...getInMemoryErrors().map(entry => entry.error),
-        ],
-      }
+      return refusalEnvelope([errorMessage(error), ...getInMemoryErrors().map(entry => entry.error)])
     },
     shutdown: code => void gracefulShutdown(code),
     clock: { sleep: ms => new Promise(resolve => setTimeout(resolve, ms)) },
@@ -1488,7 +1471,7 @@ export async function runHeadless(
   process.on('SIGINT', () => {
     logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGINT' })
     inFlightAbort?.abort()
-    void gracefulShutdown(0)
+    void gracefulShutdown(130)
   })
   process.on('SIGTERM', () => {
     logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGTERM' })
@@ -1624,7 +1607,7 @@ export async function runHeadless(
       switch (request.subtype) {
         case 'initialize': {
           for (const name of request.host_mcp_servers ?? []) {
-            sdkMcp.configs[name] = { type: 'sdk', name }
+            sdkMcp.configs[name] = { type: 'host', name }
           }
           await handleInitializeRequest(
             request,
@@ -1634,7 +1617,6 @@ export async function runHeadless(
             commands,
             modelInfos as ModelInfo[],
             io,
-            options.enableAuthStatus ?? false,
             {
               systemPrompt: options.systemPrompt,
               appendSystemPrompt: options.appendSystemPrompt,
@@ -1782,7 +1764,7 @@ export async function runHeadless(
           if (claimedModel !== undefined) {
             activeModel = parseUserSpecifiedModel(claimedModel)
             setMainLoopModelOverride(claimedModel)
-            process.env.ANTHROPIC_MODEL = claimedModel
+            process.env.MERCURY_MODEL = claimedModel
           }
           if (claimedEffort !== undefined) {
             process.env.MERCURY_EFFORT_LEVEL = claimedEffort
@@ -2598,7 +2580,7 @@ export async function runHeadless(
           ? { type: config.type, url: config.url, headers: config.headers, oauth: config.oauth }
           : config.type === 'claudeai-proxy'
             ? { type: config.type, url: config.url, id: config.id }
-            : config.type === 'sdk'
+            : config.type === 'host'
               ? { type: 'host', name: config.name }
               : {
                 type: 'stdio',
@@ -2715,9 +2697,7 @@ export async function runHeadless(
             }
             receivedUuids.add(uuid)
           }
-          const { resolveAndPrepend } = await import('../bridge/inboundAttachments.js')
-          const rawContent = (typed.message.content ?? '') as string | ContentBlockParam[]
-          const content = await resolveAndPrepend(typed, rawContent)
+          const content = (typed.message.content ?? '') as string | ContentBlockParam[]
           if (typed.mode === 'task-notification' && typeof typed.agent_id === 'string' && typed.agent_id !== '') {
             enqueue({
               value: content,

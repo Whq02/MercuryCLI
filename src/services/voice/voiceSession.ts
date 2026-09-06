@@ -12,7 +12,20 @@ import {
   type CaptureBackendResolution,
   type CaptureHandle,
 } from './capture.js'
-import { TRANSCRIBER_PIN_ENV, choiceDebugName, choiceDisplayName, resolveTranscriber, transcribeWav, warmLocalTranscriber, type TranscriberResolution } from './transcribe.js'
+import {
+  ON_DEVICE_NAME,
+  TRANSCRIBER_PIN_ENV,
+  choiceDebugName,
+  choiceDisplayName,
+  liveTranscriberReads,
+  parseSavedTranscriber,
+  resolveTranscriber,
+  transcribeWav,
+  transcriberOptionNames,
+  transcriberOptions,
+  warmLocalTranscriber,
+  type TranscriberResolution,
+} from './transcribe.js'
 import { mbWords, whisperDownloadDoor } from './whisperModels.js'
 
 export type VoicePhase = 'idle' | 'recording' | 'transcribing'
@@ -82,6 +95,24 @@ export function voiceSnapshot(): VoiceSnapshot {
 export function setVoiceInputEnabled(on: boolean): void {
   saveGlobalConfig(config => ({ ...config, voiceInputEnabled: on }))
   if (!on && active !== null) cancelVoiceCapture()
+  publish({})
+}
+
+export function voiceTranscriberChoice(): string | null {
+  try {
+    const raw = getGlobalConfig().voiceTranscriber
+    return typeof raw === 'string' && raw.trim() !== '' ? raw.trim() : null
+  } catch {
+    return null
+  }
+}
+
+export function setVoiceTranscriberChoice(name: string | null): void {
+  saveGlobalConfig(config => {
+    const next: Record<string, unknown> = { ...config }
+    next.voiceTranscriber = name === null ? undefined : name
+    return next as typeof config
+  })
   publish({})
 }
 
@@ -176,7 +207,12 @@ export async function toggleVoiceCapture(opts: { env?: NodeJS.ProcessEnv } = {})
   publish({ phase: 'recording', startedAt: handle.startedAt, backend: handle.backend })
   logForDebugging(`voice: capture started on ${handle.backend}; transcriber ${choiceDebugName(transcriber.choice)} (${transcriber.choice.label})`)
   if (transcriber.choice.kind === 'local') setImmediate(() => warmLocalTranscriber())
-  return { kind: 'started', text: `recording — space or esc stops it (${transcriber.choice.label} transcribes)` }
+  const saved = transcriber.saved
+  const words =
+    saved !== null && saved.state === 'unavailable'
+      ? `${choiceDisplayName(transcriber.choice)} transcribes — your saved ${saved.display} ${saved.short ?? 'cannot serve'}`
+      : `${transcriber.choice.label} transcribes`
+  return { kind: 'started', text: `recording — space or esc stops it (${words})` }
 }
 
 export function cancelVoiceCapture(): boolean {
@@ -225,8 +261,21 @@ function transcriberWords(transcriber: TranscriberResolution): string {
 function onDeviceWords(transcriber: TranscriberResolution): string | null {
   if (transcriber.state === 'ok' && transcriber.choice.kind === 'local') return null
   const local = transcriber.local
-  if (local.state === 'ok') return `on-device transcriber: usable (${local.model}), held back by ${TRANSCRIBER_PIN_ENV}`
+  if (local.state === 'ok') {
+    const saved = transcriber.saved
+    if (saved !== null && saved.state === 'serving') return `on-device transcriber: usable (${local.model}), your saved choice is ${saved.display}`
+    return `on-device transcriber: usable (${local.model}), held back by ${TRANSCRIBER_PIN_ENV}`
+  }
   return `on-device transcriber: ${local.note}`
+}
+
+function defaultWords(transcriber: TranscriberResolution): string {
+  const saved = transcriber.saved
+  const serving = transcriber.state === 'ok' ? choiceDisplayName(transcriber.choice) : 'nothing'
+  if (saved === null) return `default: the shipped one — ${ON_DEVICE_NAME} when the pack and a model are present, else the most recent signed-in family (/speak options chooses another)`
+  if (saved.state === 'serving') return `default: your saved choice — ${saved.display} (/speak options default restores the shipped default)`
+  if (saved.state === 'overridden') return `default: ${saved.note ?? `the pin overrides your saved choice (${saved.display})`}`
+  return `your saved choice (${saved.display}) cannot serve: ${saved.note ?? 'unusable'} — ${serving} serves (/speak options chooses another)`
 }
 
 function downloadDoorWords(transcriber: TranscriberResolution): string | null {
@@ -258,10 +307,32 @@ export function describeVoiceStatus(env: NodeJS.ProcessEnv = process.env): strin
   return [
     `voice input ${on ? 'ON — space in an empty composer starts a capture, space or esc stops it' : 'OFF — /speak on turns it on'}`,
     `transcriber: ${transcriber.state === 'ok' ? (transcriber.choice.kind === 'local' ? transcriberWords(transcriber) : `${choiceDisplayName(transcriber.choice)} · ${transcriber.choice.label}`) : `none — ${transcriber.note}`}`,
+    defaultWords(transcriber),
     ...(onDevice !== null ? [onDevice] : []),
     ...(door !== null ? [door] : []),
     `backend: ${backendWords(resolveCaptureBackend(env))}`,
   ].join('\n')
+}
+
+export function describeVoiceOptions(env: NodeJS.ProcessEnv = process.env): string {
+  const transcriber = resolveTranscriber(env)
+  const rows = transcriberOptions(liveTranscriberReads(env))
+  const saved = parseSavedTranscriber(voiceTranscriberChoice())
+  const savedName = saved.kind === 'unset' ? null : saved.kind === 'family' ? saved.family : saved.kind === 'unknown' ? saved.raw : ON_DEVICE_NAME
+  const servingName = transcriber.state === 'ok' ? (transcriber.choice.kind === 'local' ? ON_DEVICE_NAME : transcriber.choice.family) : null
+  const lines = [`transcribers this install can use — /speak options <name> makes one your default; /speak options default restores the shipped default`]
+  for (const row of rows) {
+    const mark = row.name === servingName ? '●' : '○'
+    const tags = [
+      ...(row.name === servingName ? ['serves now'] : []),
+      ...(row.name === savedName ? ['your saved choice'] : savedName === null && row.name === ON_DEVICE_NAME ? ['the shipped default'] : []),
+    ]
+    lines.push(`${mark} ${row.name} — ${row.display === row.name ? '' : `${row.display}: `}${row.detail}${tags.length > 0 ? ` (${tags.join(', ')})` : ''}`)
+  }
+  if (savedName !== null && !rows.some(r => r.name === savedName)) lines.push(`○ ${savedName} — your saved choice, not a transcriber this install can use (${transcriberOptionNames().join(' · ')})`)
+  lines.push(defaultWords(transcriber))
+  if (transcriber.saved?.state === 'overridden' && transcriber.saved.note) lines.push(transcriber.saved.note)
+  return lines.join('\n')
 }
 
 export interface VoiceReadiness {
@@ -289,6 +360,7 @@ export function describeVoiceReadiness(env: NodeJS.ProcessEnv = process.env): Vo
   const detail = [
     backend.state === 'ok' ? `capture: ${backend.detail}${backend.pinned ? ' (MERCURY_VOICE_BACKEND)' : ''}` : `capture: ${backend.note}`,
     transcriber.state === 'ok' ? (transcriber.choice.kind === 'local' ? `transcriber: on-device (${transcriber.choice.model})` : `transcriber: ${transcriber.choice.label}`) : `transcriber: ${transcriber.note}`,
+    defaultWords(transcriber),
     ...(cost !== null ? [cost] : []),
     ...(transcriber.state === 'ok' && transcriber.unused.length > 0 ? [`cloud families signed in, not used: ${transcriber.unused.join('; ')}`] : []),
     ...(onDeviceLine !== null ? [onDeviceLine] : []),

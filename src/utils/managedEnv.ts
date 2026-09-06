@@ -1,4 +1,3 @@
-import { isRemoteManagedSettingsEligible } from '../services/remoteManagedSettings/syncCache.js'
 import { clearCACertsCache } from './caCerts.js'
 import { getGlobalConfig } from './config.js'
 import { isEnvTruthy } from './envUtils.js'
@@ -13,7 +12,7 @@ type EnvObject = Record<string, string>
 
 
 const TUNNEL_PROTECTED_KEYS = [
-  'ANTHROPIC_UNIX_SOCKET',
+  'MERCURY_API_UNIX_SOCKET',
   'ANTHROPIC_BASE_URL',
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
@@ -21,7 +20,7 @@ const TUNNEL_PROTECTED_KEYS = [
 ] as const
 
 function filterTunnelProtected(env: EnvObject): EnvObject {
-  if (process.env.ANTHROPIC_UNIX_SOCKET === undefined) return env
+  if (process.env.MERCURY_API_UNIX_SOCKET === undefined) return env
   const out: EnvObject = { ...env }
   for (const key of TUNNEL_PROTECTED_KEYS) delete out[key]
   return out
@@ -53,7 +52,6 @@ export function applySafeConfigEnvironmentVariables(): void {
     if (!isSettingSourceEnabled(source)) continue
     applyFiltered(getSettingsForSource(source)?.env)
   }
-  isRemoteManagedSettingsEligible()
   applyFiltered(getSettingsForSource('policySettings')?.env)
   const merged = getSettings_DEPRECATED().env
   if (merged) {

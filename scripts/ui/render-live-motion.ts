@@ -36,7 +36,7 @@ const cfg = '/tmp/vs-live-motion.json'
 writeFileSync(
   cfg,
   JSON.stringify({
-    argv: ['node', BIN, '--allowedTools', `Bash(${SLEEP_CMD})`],
+    argv: ['node', BIN, '--allowed-tools', `Bash(${SLEEP_CMD})`],
     sends: [
       { atTick: 32, data: PROMPT.replace(/\n/g, ' ') },
       { atTick: 36, data: '\r' },

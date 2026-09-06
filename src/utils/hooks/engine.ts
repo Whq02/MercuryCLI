@@ -89,7 +89,7 @@ export async function* executeHooks({
     return
   }
 
-  if (isEnvTruthy(process.env.MERCURY_SIMPLE)) {
+  if (isEnvTruthy(process.env.MERCURY_BARE)) {
     return
   }
 

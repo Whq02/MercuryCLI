@@ -11,7 +11,7 @@ process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 delete process.env.CI
-process.env.MCP_TIMEOUT = '1500'
+process.env.MERCURY_MCP_TIMEOUT_MS = '1500'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0

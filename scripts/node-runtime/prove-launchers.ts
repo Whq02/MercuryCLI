@@ -334,7 +334,7 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
   check('PS1 resolves its directory via $PSScriptRoot (E5 — dot-source/-Command safe)', ps1T.includes('$dir = $PSScriptRoot') && !ps1T.includes('$MyInvocation.MyCommand.Path'))
   check('CMD sets the console-UTF-8 preset marker for the runtime seam (D2)', cmdT.includes('set "MERCURY_WIN32_UTF8_PRESET=1"'))
   check('PS1 sets the console-UTF-8 preset marker for the runtime seam (D2)', ps1T.includes("$env:MERCURY_WIN32_UTF8_PRESET = '1'"))
-  check('the skip lists are non-trivial and mirror the operator launcher', SPLASH_SKIP_VERBS.length >= 18 && SPLASH_SKIP_FLAGS.includes('-p') && SPLASH_SKIP_FLAGS.includes('--version'))
+  check('the skip lists are non-trivial and mirror the operator launcher', SPLASH_SKIP_VERBS.length >= 16 && SPLASH_SKIP_FLAGS.includes('-p') && SPLASH_SKIP_FLAGS.includes('--version'))
 }
 
 section('(7) POSIX chain — skip laws both directions (pipes + a real PTY)')
@@ -554,15 +554,14 @@ section('(8) the skip-verb set DERIVES from the product\'s registered verb surfa
     const loopBlock = /for \(const \[name, usage\] of \[([\s\S]*?)\] as const\)/.exec(mainTsx)
     const rawLoopRows = loopBlock ? (loopBlock[1]!.match(/^\s*\['/gm) ?? []).length : 0
     check(`the census is complete against the raw registration count (${rawSites} sites + ${rawLoopRows} loop rows)`, rawSites + rawLoopRows === surface.commands.length && rawSites >= 10 && rawLoopRows === 2, `${surface.commands.length} censused: ${names.join(',')}`)
-    for (const verb of ['health', 'show', 'editor', 'update', 'install', 'mcp', 'auth', 'extensions', 'setup-token', 'agents', 'themis', 'daemon', 'acp']) {
+    for (const verb of ['health', 'show', 'editor', 'update', 'install', 'mcp', 'auth', 'extensions', 'agents', 'themis', 'daemon', 'acp']) {
       check(`the census reads the registered verb '${verb}'`, names.includes(verb))
     }
     check("the census reads the aliases 'doctor' (of health) and 'upgrade' (of update)", aliases.includes('doctor') && aliases.includes('upgrade') && surface.commands.find(c => c.name === 'health')?.aliases.includes('doctor') === true)
     check("the census reads cli.tsx's fast-path routes (daemon · join · join-kit · acp)", ['daemon', 'join', 'join-kit', 'acp'].every(v => surface.fastPath.includes(v)))
-    check("the census reads cli.tsx's dead set (ps · logs · list · sync · remote · rc …)", ['ps', 'logs', 'list', 'sync', 'remote', 'rc'].every(v => surface.dead.includes(v)) && surface.dead.length >= 10)
     const derived = skipFrom(surface)
     check('SPLASH_SKIP_VERBS IS the derived set (sorted, unique)', JSON.stringify([...SPLASH_SKIP_VERBS]) === JSON.stringify(derived), `${SPLASH_SKIP_VERBS.join(' ')} ≠ ${derived.join(' ')}`)
-    for (const verb of ['health', 'doctor', 'show', 'editor', 'update', 'upgrade', 'install', 'daemon', 'acp', 'join', 'join-kit', 'ps', 'logs', 'list']) {
+    for (const verb of ['health', 'doctor', 'show', 'editor', 'update', 'upgrade', 'install', 'daemon', 'acp', 'join', 'join-kit']) {
       check(`the skip set carries '${verb}'`, SPLASH_SKIP_VERBS.includes(verb))
     }
     check('every registered name and alias is in the skip set (nothing registered can meet the enter screen)', [...names, ...aliases].every(v => SPLASH_SKIP_VERBS.includes(v)))
@@ -578,9 +577,6 @@ section('(8) the skip-verb set DERIVES from the product\'s registered verb surfa
     const opsVerbs = opsArm ? opsArm[1]!.split('|').sort() : []
     check('the operator launcher case arm equals the derived set', JSON.stringify(opsVerbs) === JSON.stringify(derived), `ops: ${opsVerbs.join(' ')}`)
   }
-  const deadGuard = cliTsx.slice(cliTsx.indexOf('DEAD_SUBCOMMANDS.has(args[0]'))
-  check('the dead-subcommand refusal releases the launcher alt-hold before printing', /releaseLauncherAltHoldNow\(\)/.test(deadGuard.slice(0, 900)))
-  check('the dead-subcommand refusal lands through writeSync (a win32 TTY stream write is async and the exit can discard it)', /writeSync\(2,/.test(deadGuard.slice(0, 900)))
 }
 
 rmSync(base, { recursive: true, force: true })

@@ -2,11 +2,7 @@ import axios, { type AxiosResponse } from 'axios'
 import { LRUCache } from 'lru-cache'
 
 import { querySmallFast } from '../../services/providers/anthropic/index.js'
-import { declaredRouteOf } from '../../services/providers/routeLaw.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
 import { AbortError } from '../../utils/errors.js'
-import { logError } from '../../utils/log.js'
 import { getWebFetchUserAgent } from '../../utils/http.js'
 import { isBinaryContentType, persistBinaryContent } from '../../utils/mcpOutputStorage.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
@@ -17,7 +13,6 @@ import { isPreapprovedHost } from './preapproved.js'
 const MAX_URL_LENGTH = 2000
 const MAX_RESPONSE_BYTES = 10 * 1024 * 1024
 const FETCH_TIMEOUT_MS = 60_000
-const PREFLIGHT_TIMEOUT_MS = 10_000
 const MAX_REDIRECT_HOPS = 10
 export const MAX_MARKDOWN_LENGTH = 100_000
 
@@ -45,27 +40,8 @@ const urlCache = new LRUCache<string, FetchedContent>({
   sizeCalculation: entry => Math.max(1, entry.content.length),
 })
 
-const domainCheckCache = new LRUCache<string, true>({ max: 128, ttl: 5 * 60 * 1000 })
-
 export function clearWebFetchCache(): void {
   urlCache.clear()
-  domainCheckCache.clear()
-}
-
-export class DomainBlockedError extends Error {
-  constructor(domain: string) {
-    super(`Fetching from the domain ${domain} is not permitted.`)
-    this.name = 'DomainBlockedError'
-  }
-}
-
-export class DomainCheckFailedError extends Error {
-  constructor(domain: string) {
-    super(
-      `Could not verify whether ${domain} is safe to fetch. This may be due to network restrictions or enterprise security policies blocking api.anthropic.com.`,
-    )
-    this.name = 'DomainCheckFailedError'
-  }
 }
 
 export class EgressBlockedError extends Error {
@@ -102,34 +78,6 @@ export function isPreapprovedUrl(url: string): boolean {
     return isPreapprovedHost(parsed.hostname, parsed.pathname)
   } catch {
     return false
-  }
-}
-
-const DOMAIN_PREFLIGHT_URL = 'https://api.anthropic.com/api/web/domain_info'
-function domainPreflightUrl(): string {
-  return flagEnv('MERCURY_WEBFETCH_PREFLIGHT_URL')?.trim() || DOMAIN_PREFLIGHT_URL
-}
-
-export async function checkDomainBlocklist(
-  domain: string,
-): Promise<{ status: 'allowed' | 'blocked' | 'check_failed'; error?: Error }> {
-  if (domainCheckCache.has(domain)) return { status: 'allowed' }
-  try {
-    const response = await axios.get(
-      `${domainPreflightUrl()}?domain=${encodeURIComponent(domain)}`,
-      { timeout: PREFLIGHT_TIMEOUT_MS },
-    )
-    if (response.status !== 200) {
-      return { status: 'check_failed', error: new Error(`HTTP ${response.status}`) }
-    }
-    if ((response.data as { can_fetch?: unknown })?.can_fetch === true) {
-      domainCheckCache.set(domain, true)
-      return { status: 'allowed' }
-    }
-    return { status: 'blocked' }
-  } catch (error) {
-    logError(error)
-    return { status: 'check_failed', error: error instanceof Error ? error : new Error(String(error)) }
   }
 }
 
@@ -231,20 +179,6 @@ export async function getURLMarkdownContent(
   const parsedForUpgrade = new URL(url)
   if (parsedForUpgrade.protocol === 'http:') parsedForUpgrade.protocol = 'https:'
   const upgraded = parsedForUpgrade.toString()
-  const hostname = new URL(upgraded).hostname
-
-  try {
-    const skipPreflight = (await import('../../utils/settings/settings.js')).getSettings_DEPRECATED()
-      ?.skipWebFetchPreflight
-    if (!skipPreflight && declaredRouteOf(getMainLoopModel()) === 'anthropic') {
-      const verdict = await checkDomainBlocklist(hostname)
-      if (verdict.status === 'blocked') throw new DomainBlockedError(hostname)
-      if (verdict.status === 'check_failed') throw new DomainCheckFailedError(hostname)
-    }
-  } catch (error) {
-    if (error instanceof DomainBlockedError || error instanceof DomainCheckFailedError) throw error
-    logError(error)
-  }
 
   const response = await getWithPermittedRedirects(upgraded, abortController.signal, isPermittedRedirect)
   if ('type' in response && response.type === 'redirect') {

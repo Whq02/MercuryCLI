@@ -869,7 +869,7 @@ export class QueryEngine {
           const retries =
             this.#countSyntheticOutputCalls() - syntheticCallsBeforeTurn
           const maxRetries = Number.parseInt(
-            process.env.MAX_STRUCTURED_OUTPUT_RETRIES ??
+            flagEnv('MERCURY_STRUCTURED_OUTPUT_RETRIES') ??
               String(DEFAULT_MAX_STRUCTURED_OUTPUT_RETRIES),
             10,
           )

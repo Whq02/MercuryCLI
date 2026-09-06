@@ -871,7 +871,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             const commitMs = commitSec * 1000
             if (entryMtime < commitMs) {
-              const bun = process.env.BUN || join(homedir(), '.bun', 'bin', 'bun')
+              const bun = flagEnv('MERCURY_BUN') || join(homedir(), '.bun', 'bin', 'bun')
               return {
                 status: 'stale',
                 evidence: `bundle built ${formatAge(Date.now() - entryMtime)}, but src/ last changed ${formatAge(Date.now() - commitMs)} (committed) — the running build predates the source`,
@@ -1258,29 +1258,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             } catch {
             }
             return { status: 'ok' as const, evidence: `${dir} · ${projectCount} project dir(s), writable` }
-          },
-        },
-        {
-          id: 'policy-limits-cache',
-          label: 'Org policy cache',
-          run: async () => {
-            const { readPolicyCacheState } = await import('../services/policyLimits/index.js')
-            const state = readPolicyCacheState()
-            if (!state.present) {
-              return { status: 'info' as const, evidence: 'no organisation policy cache on disk (never fetched, or not an org account)' }
-            }
-            const restricted = state.restrictions
-              ? Object.values(state.restrictions).filter(r => r.allowed === false).length
-              : 0
-            const total = state.restrictions ? Object.keys(state.restrictions).length : 0
-            if (state.problems.length > 0) {
-              return {
-                status: 'warn' as const,
-                evidence: `${state.problems.length} malformed cache entr${state.problems.length === 1 ? 'y' : 'ies'} dropped (each reads unrestricted): ${state.problems.slice(0, 2).join(' · ')}${state.problems.length > 2 ? ` … +${state.problems.length - 2} more` : ''} — ${total} salvaged, ${restricted} restricted`,
-                fix: 'The cache re-fetches on the next eligible boot; delete <config-home>/policy-limits.json to force it.',
-              }
-            }
-            return { status: 'ok' as const, evidence: `${total} policies cached, ${restricted} restricted — cache parses whole` }
           },
         },
         {

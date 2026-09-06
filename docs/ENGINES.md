@@ -15,7 +15,7 @@ arm.
 
 | Family | Id space | Display name |
 | --- | --- | --- |
-| `anthropic` | `claude-*` ids (the mark anywhere in the id — gateway spellings included), the setting aliases (`opus` · `sonnet` · `haiku` · `fable` · `fable51` · `mythos` · `best` · `opusplan`), the `ANTHROPIC_*` model env pins and `ANTHROPIC_CUSTOM_MODEL_OPTION`. An id NO family declares also classes here (the routing law's total remainder), but the ride is earned, never the remainder's accident: it is recognised as *unrecognised*, `/model`, `/health` and the dispatch seam name it, and bound for the first-party origin it refuses before the wire, credentialed or not, unless an operator-owned fact carries it — an `ANTHROPIC_*` model pin, or `ANTHROPIC_BASE_URL` re-pointed at a gateway | Anthropic |
+| `anthropic` | `claude-*` ids (the mark anywhere in the id — gateway spellings included), the setting aliases (`opus` · `sonnet` · `haiku` · `fable` · `fable51` · `mythos` · `best` · `opusplan`), the `ANTHROPIC_*` model env pins and `MERCURY_CUSTOM_MODEL_OPTION`. An id NO family declares also classes here (the routing law's total remainder), but the ride is earned, never the remainder's accident: it is recognised as *unrecognised*, `/model`, `/health` and the dispatch seam name it, and bound for the first-party origin it refuses before the wire, credentialed or not, unless an operator-owned fact carries it — an `ANTHROPIC_*` model pin, or `ANTHROPIC_BASE_URL` re-pointed at a gateway | Anthropic |
 | `openai` | `gpt-*`, alias `gpt` | OpenAI |
 | `zai` | `glm-*`, alias `glm` | Z.AI |
 | `moonshot` | `kimi-*`, `moonshot-*`, alias `kimi` | Moonshot |
@@ -142,7 +142,7 @@ existed, env-pinned keys included, order after every recorded sign-in — the
 config's older `defaultProvider` record first, so a home keeps its lane until
 its next sign-in. With no sign-in anywhere there is no default: the face and
 `/model` say so and point at `/logins`. An explicit `/model` choice,
-`ANTHROPIC_MODEL` or a session override always outranks the default.
+`MERCURY_MODEL` or a session override always outranks the default.
 
 ## Capabilities
 
@@ -204,13 +204,12 @@ one honest line as a note. Failures are typed values (`rate-limited` ·
 parse-failed, never a guessed hit. `/health`'s AUTH section states both
 doors' facts for the session's model.
 
-The same family law covers `WebFetch`'s domain preflight: the first party's
-policy endpoint is consulted only for an anthropic-routed session — every
-other family fetches with no first-party call, under Mercury's own URL
-validation and the hostname-scoped permission gate. A keyless home searches
-— and fetches — with zero first-party requests and zero model calls; a
-prompted fetch's extraction leg is the one model call, and it rides the
-session's own family through the routed seam, never a first-party hop.
+`WebFetch` asks no policy service before a fetch, on any family: every
+fetch runs under Mercury's own URL validation and the hostname-scoped
+permission gate alone. A keyless home searches — and fetches — with zero
+first-party requests and zero model calls; a prompted fetch's extraction
+leg is the one model call, and it rides the session's own family through
+the routed seam, never a first-party hop.
 
 ## Usability, usage, and readiness
 

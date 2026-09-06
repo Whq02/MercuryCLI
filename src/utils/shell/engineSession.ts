@@ -94,10 +94,11 @@ function loopScript(): string {
     'IFS= read -r __brush_nonce <&3',
     '__brush_run() { eval "$__brush_cmd"; }',
     "while IFS= read -r -d '' __brush_b64 <&3; do",
+    '  pwd -P >/dev/null 2>&1 || cd / 2>/dev/null || true',
     '  __brush_cmd=$(printf %s "$__brush_b64" | base64 -d)',
     '  __brush_st=0',
     '  __brush_run || __brush_st=$?',
-    '  __brush_cwd=$(pwd -P)',
+    "  __brush_cwd=$(pwd -P 2>/dev/null) || __brush_cwd=''",
     `  printf '${SOH}%s %d${STX}%s${ETX}' "$__brush_nonce" "$__brush_st" "$__brush_cwd"`,
     'done',
   ].join('\n')
@@ -364,7 +365,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       const tryComplete = (): void => {
         const frame = frameFromBuffer()
         if (frame === null) return
-        options.onCwd?.(frame.cwd)
+        if (frame.cwd !== '') options.onCwd?.(frame.cwd)
         void done({ stderr: '', code: frame.code, interrupted: false })
       }
 

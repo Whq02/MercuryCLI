@@ -6,7 +6,7 @@ import { join } from 'node:path'
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'mcp-launch-budget-')))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
-process.env.MCP_TIMEOUT = '1500'
+process.env.MERCURY_MCP_TIMEOUT_MS = '1500'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
@@ -27,7 +27,7 @@ section('§1 THE LAUNCH BUDGET')
   const withBudget = client.withMcpLaunchBudget as ((work: Promise<unknown>, ms: number) => Promise<string>) | undefined
   const budgetMs = client.mcpLaunchBudgetMs as (() => number) | undefined
   check('the budget helper is exported from the MCP owner', typeof withBudget === 'function')
-  check('the budget reads the connect deadline (MCP_TIMEOUT, live)', budgetMs?.() === 1500, String(budgetMs?.()))
+  check('the budget reads the connect deadline (MERCURY_MCP_TIMEOUT_MS, live)', budgetMs?.() === 1500, String(budgetMs?.()))
   if (withBudget) {
     const t0 = Date.now()
     const verdict = await withBudget(new Promise(() => {}), 120)

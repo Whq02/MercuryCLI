@@ -701,7 +701,7 @@ async function runHeadlessStdio(): Promise<void> {
     run = await runStreamJson(
       world,
       fixture,
-      ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--permission-prompt-tool', 'stdio', '--model', 'claude-opus-5'],
+      ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--permission-channel', 'stdio', '--model', 'claude-opus-5'],
       [
         { prompt: ASK },
         { prompt: FOLLOW_UP, waitFor: () => fixture.hits.some(h => h.route === 'seat-done') },
