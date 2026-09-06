@@ -255,23 +255,37 @@ function wantsStreamJsonEnvelope(): boolean {
   return spelled === 'stream-json'
 }
 
+const USAGE_ERROR_CODES = new Set([
+  'commander.unknownOption',
+  'commander.unknownCommand',
+  'commander.missingArgument',
+  'commander.optionMissingArgument',
+  'commander.missingMandatoryOptionValue',
+  'commander.invalidArgument',
+  'commander.excessArguments',
+  'commander.conflictingOption',
+])
+function exitForCommanderError(error: { code?: string; exitCode?: number }): void {
+  if (error.code !== undefined && USAGE_ERROR_CODES.has(error.code)) process.exit(2)
+}
+
 function permissionChannelOf(opts: { permissionChannel?: unknown; permissionPromptTool?: unknown }): 'stdio' | 'prompt-tool' | undefined {
   const channel = typedString(opts.permissionChannel)
   if (channel === 'stdio' || channel === 'prompt-tool') return channel
   return typedString(opts.permissionPromptTool) !== undefined ? 'prompt-tool' : undefined
 }
 
-function failCli(message: string): never {
+function failCli(message: string, code: 1 | 2 = 2): never {
   if (wantsStreamJsonEnvelope()) {
     try {
       const envelope = refusalEnvelope([message])
       writeSync(1, `${JSON.stringify(envelope)}\n`)
-      process.exit(1)
+      process.exit(code)
     } catch {
     }
   }
   writeErr(chalk.red(message))
-  process.exit(1)
+  process.exit(code)
 }
 
 let abandonAnnounced = false
@@ -314,7 +328,7 @@ export async function main(): Promise<void> {
     process.stderr.write('\x1b]111\x07')
   })
   if (!isPrintModeArgv()) {
-    process.on('SIGINT', () => process.exit(0))
+    process.on('SIGINT', () => process.exit(130))
   }
   profileCheckpoint('main_warning_handler_initialized')
 
@@ -407,7 +421,7 @@ function eagerLoadSettings(): void {
         } catch (error) {
           if (error instanceof Error && error.message.startsWith('Settings file not found')) throw error
           logError(error)
-          failCli(`Failed while processing --settings: ${error instanceof Error ? error.message : String(error)}`)
+          failCli(`Failed while processing --settings: ${error instanceof Error ? error.message : String(error)}`, 1)
         }
       }
     }
@@ -420,7 +434,7 @@ function eagerLoadSettings(): void {
       resetSettingsCache()
     } catch (error) {
       logError(error)
-      failCli(`Failed to process --setting-sources: ${error instanceof Error ? error.message : String(error)}`)
+      failCli(`Failed to process --setting-sources: ${error instanceof Error ? error.message : String(error)}`, 1)
     }
   }
   profileCheckpoint('eagerLoadSettings_end')
@@ -468,6 +482,7 @@ async function run(): Promise<void> {
         process.stderr.write(text)
       },
     })
+    .exitOverride(exitForCommanderError)
     .helpOption('-h, --help', 'Show help')
   profileCheckpoint('run_commander_initialized')
 
@@ -693,9 +708,11 @@ async function run(): Promise<void> {
         const { emitLoadError } = await import('./cli/headless/resume.js')
         emitLoadError(String(commanderError.message ?? error), 'stream-json')
         process.exit(
-          typeof commanderError.exitCode === 'number' && commanderError.exitCode !== 0
-            ? commanderError.exitCode
-            : 1,
+          commanderError.code !== undefined && USAGE_ERROR_CODES.has(commanderError.code)
+            ? 2
+            : typeof commanderError.exitCode === 'number' && commanderError.exitCode !== 0
+              ? commanderError.exitCode
+              : 1,
         )
       }
     } else {
@@ -1166,7 +1183,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   if (tmuxEnabled) {
     const { isTmuxAvailable, getTmuxInstallInstructions } = await import('./utils/worktree.js')
     if (!(await isTmuxAvailable())) {
-      failCli(`tmux is not installed. ${getTmuxInstallInstructions()}`)
+      failCli(`tmux is not installed. ${getTmuxInstallInstructions()}`, 1)
     }
   }
 
@@ -1198,7 +1215,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       failCli('--session-id cannot be combined with --continue/--resume unless --fork-session is given')
     }
     if (!UUID_SHAPE.test(sessionIdOpt)) failCli(`--session-id must be a valid UUID: ${sessionIdOpt}`)
-    if (await sessionIdExists(sessionIdOpt)) failCli(`Session id already exists: ${sessionIdOpt}`)
+    if (await sessionIdExists(sessionIdOpt)) failCli(`Session id already exists: ${sessionIdOpt}`, 1)
   }
   if (opts.fallbackModel && opts.fallbackModel === opts.model) {
     failCli('--fallback-model cannot equal --model')
@@ -1221,7 +1238,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       try {
         assign(readFileSync(resolved, 'utf8'))
       } catch (error) {
-        failCli(`Failed to read the prompt file: ${error instanceof Error ? error.message : String(error)}`)
+        failCli(`Failed to read the prompt file: ${error instanceof Error ? error.message : String(error)}`, 1)
       }
     }
   }
@@ -1495,10 +1512,10 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   dynamicMcpConfig = policyFiltered.allowed as typeof dynamicMcpConfig
 
   if (doesEnterpriseMcpConfigExist()) {
-    if (opts.strictMcpConfig) failCli('--strict-mcp-config is not available when an enterprise MCP configuration exists')
+    if (opts.strictMcpConfig) failCli('--strict-mcp-config is not available when an enterprise MCP configuration exists', 1)
     const allowedCheck = areMcpConfigsAllowedWithEnterpriseMcpConfig(dynamicMcpConfig)
     if (allowedCheck !== true) {
-      failCli('Dynamic MCP servers are not allowed when an enterprise MCP configuration exists')
+      failCli('Dynamic MCP servers are not allowed when an enterprise MCP configuration exists', 1)
     }
   }
   if (isCoordinationServerEnabled()) {

@@ -1480,7 +1480,7 @@ export async function runHeadless(
   process.on('SIGINT', () => {
     logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGINT' })
     inFlightAbort?.abort()
-    void gracefulShutdown(0)
+    void gracefulShutdown(130)
   })
   process.on('SIGTERM', () => {
     logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGTERM' })
