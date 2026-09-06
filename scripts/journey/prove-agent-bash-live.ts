@@ -29,6 +29,8 @@ const READ_ONLY_COMMAND = 'git rev-parse --short HEAD'
 const PROBE_COMMIT = 'agent-bash-probe'
 const WRITING_COMMAND = `git commit --allow-empty -q -m ${PROBE_COMMIT} && git rev-parse --short HEAD`
 const CARD_WORDS = 'Do you want to proceed?'
+const BLOCK_REASON = 'agent-bash: the fixture safety check blocks the probe commit'
+const CARD_BLOCK_WORDS = "Flow's safety check blocked this"
 const GPT_MODEL = 'gpt-5.6-sol'
 const FIXTURE_API_KEY = 'fixture-key-000'
 
@@ -208,7 +210,7 @@ function parentReport(body: unknown): string {
   return `agent-bash: reported ${last[1]}`
 }
 
-async function startFixture(port: number, opts: { background: boolean }): Promise<Fixture> {
+async function startFixture(port: number, opts: { background: boolean; classifierBlocks?: boolean }): Promise<Fixture> {
   const hits: Hit[] = []
   const gptModel = {
     id: GPT_MODEL,
@@ -252,7 +254,15 @@ async function startFixture(port: number, opts: { background: boolean }): Promis
       let usage = { input: 40, output: 8 }
       switch (route) {
         case 'classifier':
-          blocks = [{ type: 'tool_use', name: 'classify_result', input: { thinking: 'The action writes one file inside the working directory.', shouldBlock: false, reason: 'agent-bash: allowed by the fixture classifier' } }]
+          blocks = [
+            {
+              type: 'tool_use',
+              name: 'classify_result',
+              input: opts.classifierBlocks === true
+                ? { thinking: 'The command writes a commit to the working directory.', shouldBlock: true, reason: BLOCK_REASON }
+                : { thinking: 'The action writes one file inside the working directory.', shouldBlock: false, reason: 'agent-bash: allowed by the fixture classifier' },
+            },
+          ]
           break
         case 'parent':
           blocks = [
@@ -510,6 +520,22 @@ const PTY_LEGS: Record<string, PtyLeg> = {
     sends: [],
     total: 450,
   },
+  'flow-bg': {
+    name: 'flow-bg',
+    port: 25177,
+    background: true,
+    settings: {},
+    argv: ['--permission-mode', 'flow'],
+    sends: [
+      cardSend('card'),
+      { data: '/teammates', afterPrevTicks: 6 },
+      { data: '\r', afterPrevTicks: 4 },
+      { data: '\x1b', atTick: 999, awaitText: '0 running · 1 sub-agent', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-landed' },
+      { data: FOLLOW_UP, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
+      { data: '\r', afterPrevTicks: 4 },
+    ],
+    total: 550,
+  },
   'openai-fg': {
     name: 'openai-fg',
     port: 25174,
@@ -524,7 +550,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
 async function runPtyLeg(leg: PtyLeg): Promise<void> {
   console.log(`\n— leg ${leg.name} —`)
   const before = failures
-  const fixture = await startFixture(Number(process.env[`AB_PORT_${leg.name.replace('-', '_').toUpperCase()}`] ?? String(leg.port)), { background: leg.background })
+  const fixture = await startFixture(Number(process.env[`AB_PORT_${leg.name.replace('-', '_').toUpperCase()}`] ?? String(leg.port)), { background: leg.background, classifierBlocks: leg.name === 'flow-bg' })
   const world = seedWorld(leg.settings)
   let cap: Capture | null = null
   try {
@@ -552,14 +578,19 @@ async function runPtyLeg(leg: PtyLeg): Promise<void> {
   if (leg.name === 'flow-fg') {
     check('flow-fg: the classifier was reached exactly once — for the writing command, never the read-only one', classifierHits.length === 1 && JSON.stringify(classifierHits[0]?.body).includes(PROBE_COMMIT), `${classifierHits.length} classifier call(s)`)
     check('flow-fg: no consent card (the classifier answered)', !cap.text.includes(CARD_WORDS) && !Object.values(cap.marks).some(f => f.includes(CARD_WORDS)))
+  } else if (leg.name === 'flow-bg') {
+    check("flow-bg: the classifier was reached exactly once — for the background agent's writing command, never the read-only one", classifierHits.length === 1 && JSON.stringify(classifierHits[0]?.body).includes(PROBE_COMMIT), `${classifierHits.length} classifier call(s)`)
+    const card = cap.marks['card'] ?? ''
+    check("flow-bg: the block PARKED as the operator's ask — the consent card painted in the focused chat for the agent's writing command", card.includes(CARD_WORDS) && card.includes('git commit --allow-empty'))
+    check("flow-bg: the card explains the block (the safety check said no; the decision is the operator's) and quotes the check's reason", card.includes(CARD_BLOCK_WORDS) && card.includes(BLOCK_REASON))
   } else {
     check(`${leg.name}: the classifier was never called (not a flow session)`, classifierHits.length === 0, `${classifierHits.length} classifier call(s)`)
     const card = cap.marks['card'] ?? ''
     check(`${leg.name}: the consent card painted for the agent's writing command`, card.includes(CARD_WORDS) && card.includes('git commit --allow-empty'))
   }
-  if (leg.name === 'default-bg') {
+  if (leg.name === 'default-bg' || leg.name === 'flow-bg') {
     const landed = cap.marks['crew-landed'] ?? ''
-    check('default-bg: the Crew view read the background agent landed', landed.includes('0 running · 1 sub-agent'))
+    check(`${leg.name}: the Crew view read the background agent landed`, landed.includes('0 running · 1 sub-agent'))
   }
   if (leg.name === 'openai-fg') {
     const seat = fixture.hits.find(h => h.route === 'seat-1')
@@ -716,7 +747,7 @@ async function runHeadlessPlain(): Promise<void> {
 }
 
 const LEG = process.env.AB_LEG ?? 'all'
-const ORDER = ['default-fg', 'default-bg', 'flow-fg', 'openai-fg', 'headless-stdio', 'headless-plain']
+const ORDER = ['default-fg', 'default-bg', 'flow-fg', 'flow-bg', 'openai-fg', 'headless-stdio', 'headless-plain']
 const wanted = LEG === 'all' ? ORDER : LEG.split(',').map(s => s.trim())
 for (const name of wanted) {
   if (name === 'headless-stdio') await runHeadlessStdio()
