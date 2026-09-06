@@ -57,6 +57,8 @@ import {
   recoveryNoticeFacts,
   refillRecoveryBudget,
   retryWaitWords,
+  settleRecoveryWait,
+  type RecoveryReservation,
 } from '../../services/api/recoveryBudget.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { createChildAbortController } from '../../utils/abortController.js'
@@ -542,6 +544,7 @@ export async function* runAgent(
   let throttled: Error | null = null
   let budgetCut: ReturnType<typeof setTimeout> | null = null
   let retryWordsStanding = false
+  let standingWait: RecoveryReservation | null = null
   const cutAtBudget = (): void => {
     throttled = new Error(recoveryBudgetSpentLine(recovery))
     abortController.abort(throttled)
@@ -904,7 +907,9 @@ export async function* runAgent(
       }
       const notice = recoveryNoticeFacts(message)
       if (notice !== null) {
-        const { honoredMs, spent } = honourRecoveryWait(recovery, notice)
+        settleRecoveryWait(recovery, standingWait)
+        const { honoredMs, spent, reservation } = honourRecoveryWait(recovery, notice)
+        standingWait = reservation
         retryWordsStanding = true
         onWait?.(retryWaitWords({ facts: notice, honoredMs, budget: recovery }))
         if (budgetCut !== null) clearTimeout(budgetCut)
@@ -915,6 +920,8 @@ export async function* runAgent(
           budgetCut.unref?.()
         }
       } else if (retryWordsStanding && (message as { type?: string }).type !== 'progress') {
+        settleRecoveryWait(recovery, standingWait)
+        standingWait = null
         retryWordsStanding = false
         if (budgetCut !== null) clearTimeout(budgetCut)
         budgetCut = null
@@ -993,6 +1000,7 @@ export async function* runAgent(
   } finally {
     watchdog.cancel()
     if (budgetCut !== null) clearTimeout(budgetCut)
+    settleRecoveryWait(recovery, standingWait)
     if (retryWordsStanding) onWait?.(null)
     if (askHeartbeat !== null) {
       clearInterval(askHeartbeat)
