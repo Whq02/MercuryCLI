@@ -71,8 +71,8 @@ const harness = await import('../../src/services/mission/harnessApplication.ts')
 const harnessProfiles = await import('../../src/services/mission/harnessProfiles.ts')
 const coordinatorModels = await import('../../src/services/concourse/coordinatorModels.ts')
 
-type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra'
-const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra']
+type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max']
 const REQUESTS: Array<Level | undefined> = [...LEVELS, undefined]
 const DEFAULT_LABEL = 'default'
 const ABSENT = effort.NO_EFFORT_CONTROL_LABEL
@@ -202,7 +202,7 @@ section('§2 the GPT wire: reasoning.effort of the built request ≡ the owner a
     }
   }
   check('luna · max steps to high; the request names the adjustment', effort.resolveEffortTruth('gpt-5.6-luna', 'max').adjustedFrom === 'max' && gptWire('gpt-5.6-luna', 'max') === 'high')
-  check('astra · ultra is served as asked; sol · ultra steps to max and the request names the adjustment', gptWire('gpt-6-astra', 'ultra') === 'ultra' && effort.resolveEffortTruth('gpt-6-astra', 'ultra').adjustedFrom === undefined && gptWire('gpt-5.6-sol', 'ultra') === 'max' && effort.resolveEffortTruth('gpt-5.6-sol', 'ultra').adjustedFrom === 'ultra')
+  check("astra · the list's word above max is never sent: asked raw, the row default ('medium') rides on the wire and in the owner; on sol ('low') the same", gptWire('gpt-6-astra', 'ultra' as never) === 'medium' && effort.resolveEffortTruth('gpt-6-astra', 'ultra' as never).wire === 'medium' && gptWire('gpt-5.6-sol', 'ultra' as never) === 'low' && effort.resolveEffortTruth('gpt-5.6-sol', 'ultra' as never).wire === 'low')
   const voidTruth = effort.resolveEffortTruth('gpt-5.6-void', 'max')
   check('known-empty: no key, no stop, the one absence word', gptWire('gpt-5.6-void', 'max') === undefined && voidTruth.wire === undefined && voidTruth.selectable.length === 0 && voidTruth.label === ABSENT && !caps.modelSupportsEffort('gpt-5.6-void'))
   const bareTruth = effort.resolveEffortTruth('gpt-5.6-bare', 'max')
@@ -368,11 +368,11 @@ section('§7 the surfaces read the owner')
 section('§8 the two effort doors say what they do')
 {
   const refused = effort.parseCliEffort('banana')
-  check('the flag refuses an off-ladder word with a sentence that names the ladder', refused.level === undefined && refused.refusal !== undefined && refused.refusal.includes('low, medium, high, xhigh, max, ultra'), String(refused.refusal))
+  check('the flag refuses an off-ladder word with a sentence that names the ladder', refused.level === undefined && refused.refusal !== undefined && refused.refusal.includes('low, medium, high, xhigh, max.'), String(refused.refusal))
   check("…and never claims the run went ahead ('ignoring')", !/ignoring/i.test(String(refused.refusal)))
   check('the flag keeps the one normalizer: med → medium, max effort → max', effort.parseCliEffort('med').level === 'medium' && effort.parseCliEffort('max effort').level === 'max')
   const mainSrc = src('src/main.tsx')
-  check('--help names the ladder and the flag door prints the owner\'s refusal sentence', mainSrc.includes("Reasoning effort level (${EFFORT_LEVELS.join(', ')})") && mainSrc.includes('`Unrecognised effort level "${value}". Valid values: ${EFFORT_LEVELS.join(\', \')}.`') && String(effort.parseCliEffort('banana').refusal) === 'Unrecognised effort level "banana". Valid values: low, medium, high, xhigh, max, ultra.')
+  check('--help names the ladder and the flag door prints the owner\'s refusal sentence', mainSrc.includes("Reasoning effort level (${EFFORT_LEVELS.join(', ')})") && mainSrc.includes('`Unrecognised effort level "${value}". Valid values: ${EFFORT_LEVELS.join(\', \')}.`') && String(effort.parseCliEffort('banana').refusal) === 'Unrecognised effort level "banana". Valid values: low, medium, high, xhigh, max.')
   check('the owner carries no sentence that claims the value was ignored', !/ignoring it in favour/.test(src('src/utils/effort.ts')))
   check('the boot notes an ignored env word (interactive: a boot note; headless: stderr)', mainSrc.includes("if (effortEnv.state === 'ignored') addBootNote('warn', effortEnv.sentence)") && mainSrc.includes("if (effortEnv.state === 'ignored') process.stderr.write(`${effortEnv.sentence}\\n`)"))
   const view = (raw: string | undefined) => effort.describeEffortEnvOverride(raw === undefined ? {} : { MERCURY_EFFORT_LEVEL: raw })
@@ -380,7 +380,7 @@ section('§8 the two effort doors say what they do')
   check('env auto/unset defers (null)', view('auto').state === 'deferred' && view('auto').override === null && view('unset').override === null)
   check("env 'x high' pins xhigh through the normalizer", view('x high').state === 'level' && view('x high').override === 'xhigh')
   const junk = view('banana')
-  check('env junk is ignored and the sentence says so, naming the ladder', junk.state === 'ignored' && junk.override === undefined && 'sentence' in junk && junk.sentence.includes('ignored') && junk.sentence.includes('low, medium, high, xhigh, max, ultra'))
+  check('env junk is ignored and the sentence says so, naming the ladder', junk.state === 'ignored' && junk.override === undefined && 'sentence' in junk && junk.sentence.includes('ignored') && junk.sentence.includes('low, medium, high, xhigh, max;'))
   check('an integer is off the ladder on the env door too (no wire encodes one)', view('3').state === 'ignored' && view('7').override === undefined)
   process.env.MERCURY_EFFORT_LEVEL = '3'
   check('getEffortEnvOverride ignores the integer (resolves as unset)', effort.getEffortEnvOverride() === undefined && effort.resolveEffortTruth('claude-opus-5', 'low').wire === 'low')

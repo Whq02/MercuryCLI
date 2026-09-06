@@ -1,3 +1,4 @@
+import { subagentDefaultModel } from '../agentDefaults.js'
 import { MODEL_ALIASES } from './aliases.js'
 import { enforceSubagentModelFloor } from './modelFloor.js'
 import { getCanonicalName, parseUserSpecifiedModel, getRuntimeMainLoopModel } from './model.js'
@@ -38,6 +39,14 @@ function resolveAgentModelRaw(
   if (toolSpecifiedModel !== undefined && toolSpecifiedModel !== '') {
     if (aliasMatchesParentTier(toolSpecifiedModel, parentModel)) return parentModel
     return parseUserSpecifiedModel(toolSpecifiedModel)
+  }
+
+  if (agentModel === undefined) {
+    const configured = subagentDefaultModel()
+    if (configured !== undefined) {
+      if (aliasMatchesParentTier(configured, parentModel)) return parentModel
+      return parseUserSpecifiedModel(configured)
+    }
   }
 
   const declared = agentModel ?? INHERIT

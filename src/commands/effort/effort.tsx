@@ -118,7 +118,7 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
     unpinAllLaunchEffort()
     return {
       message:
-        'SUPERCODE is on, and persists as your default for new sessions. It means the maximum effort tier plus a standing expectation of dynamic orchestration — authoring and running subagents and fleets for substantive work — in service of the most thorough correct answer.',
+        'SUPERCODE is on, and persists as your default for new sessions. It means the maximum effort tier plus proactive delegation — sub-agents, workflows and fleets wherever parallel agents would materially improve speed or quality, solo at max otherwise — in service of the most thorough correct answer. Sub-agents keep the configured sub-agent default effort (high unless /config changes it).',
       effortUpdate: { value: 'max' },
       supercodeUpdate: { value: true },
     }
@@ -226,7 +226,7 @@ function helpText(): string {
     lines.push(`  ${level.padEnd(9)} ${getEffortLevelDescription(level)}`)
   }
   lines.push(
-    '  supercode max effort plus standing dynamic-orchestration doctrine — session-scoped in effect, mutually exclusive with a co-set level',
+    '  supercode max effort plus proactive delegation where parallel agents help — session-scoped in effect, mutually exclusive with a co-set level',
   )
   lines.push("  auto      use the model's default")
   return lines.join('\n')
@@ -273,7 +273,7 @@ async function settleEffortResult(result: EffortCommandResult, context: LocalJSX
     return `${level} was not applied to this session: ${receipt.detail}.${saved}`
   }
   applyEffortResult(result, context)
-  const supercode = result.supercodeUpdate?.value === true ? ' SUPERCODE is on — the maximum tier plus a standing expectation of dynamic orchestration, persisted as your default.' : ''
+  const supercode = result.supercodeUpdate?.value === true ? ' SUPERCODE is on — the maximum tier plus proactive delegation where parallel agents help, persisted as your default.' : ''
   if (receipt.state === 'no-op') return `Already on ${level} — nothing to change.${supercode}`
   if (receipt.state === 'queued') {
     return `Effort switch queued: ${level} applies when this session's turn settles — the running turn keeps its effort.${supercode}${saved}`

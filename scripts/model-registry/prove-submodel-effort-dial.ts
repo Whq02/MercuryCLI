@@ -79,8 +79,8 @@ const localDiscovery = await import('../../src/services/providers/local/localDis
 const localCatalogue = await import('../../src/services/providers/local/localCatalogue.ts')
 const sideQuestion = await import('../../src/utils/sideQuestion.ts')
 
-type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra'
-const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra']
+type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max']
 type Container = 'minerva' | 'console'
 const CONTAINERS: Container[] = ['minerva', 'console']
 
