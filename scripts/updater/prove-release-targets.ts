@@ -10,6 +10,7 @@ const { assetNameFor, platformNote } = await import('../../src/services/privateC
 const { nodePackPlatform, readRuntimeRecord } = await import('../../src/services/privateChannel/vendoredRuntime.ts')
 const { imagePackPlatform } = await import('../../src/tools/FileReadTool/imagePackArm.ts')
 const { voiceCargoTriple, voicePackPlatform } = await import('../../src/services/voice/voicePack.ts')
+const { brushPackPlatform } = await import('../../src/utils/shell/brushPack.ts')
 const { lockedPackage, platformPackagesFor, registryTarballUrl, resolvePlatformPackage } = await import('../vendor/platformPackages.ts')
 
 let failures = 0
@@ -40,8 +41,8 @@ for (const target of RELEASE_TARGETS) {
   const key = platformKey(p.platform, p.arch)
   const imageKey = imagePackPlatform(p.platform, p.arch)
   const imageKeyHolds = platformKey(process.platform, process.arch) === key ? /^linux(musl)?-x64$/.test(imageKey) || imageKey === key : imageKey === key
-  check(`${target}: every pack owner keys the pair (node ${nodePackPlatform(p.platform, p.arch)}, image ${imageKey}, voice ${voicePackPlatform(p.platform, p.arch)} → ${voiceCargoTriple(voicePackPlatform(p.platform, p.arch))})`,
-    nodePackPlatform(p.platform, p.arch) !== null && imageKeyHolds && voicePackPlatform(p.platform, p.arch) === key && voiceCargoTriple(key) !== null)
+  check(`${target}: every pack owner keys the pair (node ${nodePackPlatform(p.platform, p.arch)}, image ${imageKey}, voice ${voicePackPlatform(p.platform, p.arch)} → ${voiceCargoTriple(voicePackPlatform(p.platform, p.arch))}, shell engine ${brushPackPlatform(p.platform, p.arch)})`,
+    nodePackPlatform(p.platform, p.arch) !== null && imageKeyHolds && voicePackPlatform(p.platform, p.arch) === key && voiceCargoTriple(key) !== null && brushPackPlatform(p.platform, p.arch) === nodePackPlatform(p.platform, p.arch))
 }
 
 section('§2 the channel — the asset a machine asks for')
@@ -70,7 +71,7 @@ section('§4 the build — --target, the target\'s packs, the manifest declarati
   const build = read('build.ts')
   check('build.ts reads --target through the owner', build.includes("await import('./src/services/privateChannel/releaseTarget.ts')") && build.includes("process.argv.indexOf('--target')"))
   check('the manifest declares the shipped pair, its release target and the host', build.includes('target: { platform: SHIP.platform, arch: SHIP.arch, release: SHIP_RELEASE, host: HOST_KEY }'))
-  check('the search binary, the runtime, the voice pack and the image processor all key the SHIPPED pair', build.includes('vendor/ripgrep/${SHIP.arch}-${SHIP.platform}/') && build.includes('nodePackPlatform(SHIP.platform, SHIP.arch)') && build.includes('voicePackPlatform(SHIP.platform, SHIP.arch)') && build.includes('imagePackPlatform(SHIP.platform, SHIP.arch)'))
+  check('the search binary, the runtime, the voice pack, the image processor and the shell engine all key the SHIPPED pair', build.includes('vendor/ripgrep/${SHIP.arch}-${SHIP.platform}/') && build.includes('nodePackPlatform(SHIP.platform, SHIP.arch)') && build.includes('voicePackPlatform(SHIP.platform, SHIP.arch)') && build.includes('imagePackPlatform(SHIP.platform, SHIP.arch)') && build.includes('brushPackPlatform(SHIP.platform, SHIP.arch)'))
   check('the search binary comes from the shipped pair\'s platform package, resolved node_modules-first', build.includes('resolvePlatformPackage(ROOT, SHIP.platform, SHIP.arch, rgPackage)') && build.includes("pkg.source === 'node_modules' ? '@vscode/ripgrep'"))
   check('a cross build never falls back to the host\'s system rg', build.includes('if (!rgSource && !forceNoRg && !CROSS)'))
   const voice = read('scripts/vendor/build-voice.ts')
@@ -103,6 +104,8 @@ section('§5 the built dist — the packs follow the declared target')
       check('the image processor record follows the target', image.vendored !== true || image.platform === imagePackPlatform(record.platform, record.arch), JSON.stringify(image))
       const voice = manifest.voiceInput as { vendored?: boolean; platform?: string }
       check('the voice pack record follows the target', voice.vendored !== true || voice.platform === voicePackPlatform(record.platform, record.arch), JSON.stringify(voice))
+      const shell = manifest.shellEngine as { vendored?: boolean; platform?: string }
+      check('the shell engine record follows the target', shell.vendored !== true || shell.platform === brushPackPlatform(record.platform, record.arch), JSON.stringify(shell))
       const whisperRecord = manifest.onDeviceTranscriber as { vendored?: boolean; platform?: string } | undefined
       check('the on-device transcriber record follows the target', whisperRecord !== undefined && (whisperRecord.vendored !== true || whisperRecord.platform === voicePackPlatform(record.platform, record.arch)), JSON.stringify(whisperRecord))
     }
@@ -157,6 +160,8 @@ section('§7 the release workflow — four arms, the Intel one cross-packaged an
   const intel = pkg.find(r => r.target === 'macos-x64')
   check('the Intel arm is cross-packaged on the arm64 runner with the darwin-x64 runtime and the x86_64-apple-darwin rustup target', intel !== undefined && intel.os === 'macos-14' && intel.node_pack === 'darwin-x64' && intel.cross === 'true' && intel.rust_targets === 'x86_64-apple-darwin', intel ? triple(intel) : 'absent')
   check('every arm\'s node pack is the owner\'s projection of its target', pkg.every(r => isReleaseTarget(r.target ?? '') && nodePackPlatform(buildPlatformOf(r.target as never).platform, buildPlatformOf(r.target as never).arch) === r.node_pack))
+  check('every arm builds, builds the voice pack, fetches its platform packages and its shell engine pack for ITS target', wf.includes('bun run build.ts --target ${{ matrix.target }}') && wf.includes('bun run scripts/vendor/build-voice.ts --target ${{ matrix.target }}') && wf.includes('bun run scripts/vendor/fetch-platform-packages.ts --target ${{ matrix.target }}') && wf.includes('bun run scripts/vendor/fetch-brush.ts --platform ${{ matrix.node_pack }}'))
+  check('the shell engine fetch skips the Windows arm, whose pack is built on its own step', /if: runner\.os != 'Windows'\n\s+run: bun run scripts\/vendor\/fetch-brush\.ts --platform/.test(wf) && wf.includes('- name: Build the shell engine pack (Windows)'))
   check('every arm builds, builds the voice pack and fetches its platform packages for ITS target', wf.includes('bun run build.ts --target ${{ matrix.target }}') && wf.includes('bun run scripts/vendor/build-voice.ts --target ${{ matrix.target }}') && wf.includes('bun run scripts/vendor/fetch-platform-packages.ts --target ${{ matrix.target }}'))
   check('every arm builds the on-device transcriber pack for ITS target, optional like the voice pack', wf.includes('bun run scripts/vendor/build-whisper.ts --target ${{ matrix.target }}') && /name: Build the on-device transcriber pack\n\s+continue-on-error: true/.test(wf))
   check('the rust toolchain step installs the arm\'s rustup targets', wf.includes("targets: ${{ matrix.rust_targets || '' }}"))

@@ -284,6 +284,7 @@ src/utils/settings/settingsCache.ts :: parsedFileCache :: invalidator=resetSetti
 src/utils/settings/settingsCache.ts :: perSourceCache :: invalidator=resetSettingsCache
 src/utils/settings/settingsCache.ts :: sessionSettingsCache :: invalidator=resetSettingsCache
 src/utils/settings/snapshot.ts :: lastSnapshot :: keyed-by-truth
+src/utils/shell/engineSession.ts :: snapshotPromise :: static-for-process
 src/utils/shell/powershellDetection.ts :: cachedPowerShellPath :: static-for-process
 src/utils/suggestions/directoryCompletion.ts :: directoryCache :: ttl-bounded
 src/utils/suggestions/directoryCompletion.ts :: pathCache :: ttl-bounded
@@ -306,7 +307,8 @@ src/utils/user.ts :: getGitEmail :: static-for-process
 src/utils/verification/projectGates.ts :: cache :: ttl-bounded
 src/utils/verification/verificationState.ts :: digestCache :: invalidator=markMutation
 src/utils/verification/verificationState.ts :: verifiableCache :: ttl-bounded
-src/utils/windowsPaths.ts :: findGitBashPath :: static-for-process
+src/utils/shell/windowsShellRoad.ts :: windowsBashRoad :: static-for-process
+src/utils/windowsPaths.ts :: locateGitBash :: static-for-process
 src/utils/zodToJsonSchema.ts :: conversionCache :: keyed-by-truth
 `.trim()
 
