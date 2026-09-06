@@ -3,11 +3,16 @@ import { randomUUID, type UUID } from 'node:crypto'
 import stripAnsi from 'strip-ansi'
 import { getSessionId } from '../../bootstrap/state.js'
 import type {
+  ModelUsage as SDKModelUsage,
   SDKAssistantMessage,
   SDKMessage,
   SDKRateLimitInfo,
 } from '../../entrypoints/agentSdkTypes.js'
 import type { ClaudeAILimits } from '../../services/claudeAiLimits.js'
+import { foldStatusToWire, type FoldStatusV1 } from '../../services/compact/foldStatus.js'
+import { requestWaitToWire, type RequestWaitV1 } from '../../services/providers/streamIdleBudget.js'
+import type { ModelUsage } from '../../bootstrap/state.js'
+import type { ContextData } from '../analyzeContext.js'
 import {
   LOCAL_COMMAND_STDERR_TAG,
   LOCAL_COMMAND_STDOUT_TAG,
@@ -72,17 +77,72 @@ export function toSDKRateLimitInfo(
 ): SDKRateLimitInfo | undefined {
   if (!limits) return undefined
   const out: Record<string, unknown> = { status: limits.status }
-  if (limits.resetsAt !== undefined) out.resetsAt = limits.resetsAt
-  if (limits.rateLimitType !== undefined) out.rateLimitType = limits.rateLimitType
+  if (limits.resetsAt !== undefined) out.resets_at = limits.resetsAt
+  if (limits.rateLimitType !== undefined) out.rate_limit_type = limits.rateLimitType
   if (limits.utilization !== undefined) out.utilization = limits.utilization
-  if (limits.overageStatus !== undefined) out.overageStatus = limits.overageStatus
-  if (limits.overageResetsAt !== undefined) out.overageResetsAt = limits.overageResetsAt
+  if (limits.overageStatus !== undefined) out.overage_status = limits.overageStatus
+  if (limits.overageResetsAt !== undefined) out.overage_resets_at = limits.overageResetsAt
   if (limits.overageDisabledReason !== undefined) {
-    out.overageDisabledReason = limits.overageDisabledReason
+    out.overage_disabled_reason = limits.overageDisabledReason
   }
-  if (limits.isUsingOverage !== undefined) out.isUsingOverage = limits.isUsingOverage
-  if (limits.surpassedThreshold !== undefined) out.surpassedThreshold = limits.surpassedThreshold
+  if (limits.isUsingOverage !== undefined) out.is_using_overage = limits.isUsingOverage
+  if (limits.surpassedThreshold !== undefined) out.surpassed_threshold = limits.surpassedThreshold
   return out as SDKRateLimitInfo
+}
+
+
+export function toSDKModelUsage(
+  usage: Record<string, ModelUsage> | undefined,
+): Record<string, SDKModelUsage> {
+  const out: Record<string, SDKModelUsage> = {}
+  for (const [model, row] of Object.entries(usage ?? {})) {
+    out[model] = {
+      input_tokens: row.inputTokens,
+      output_tokens: row.outputTokens,
+      cache_read_input_tokens: row.cacheReadInputTokens,
+      cache_creation_input_tokens: row.cacheCreationInputTokens,
+      web_search_requests: row.webSearchRequests,
+      cost_usd: row.costUSD,
+      ...(row.contextWindow !== undefined ? { context_window: row.contextWindow } : {}),
+      ...(row.maxOutputTokens !== undefined ? { max_output_tokens: row.maxOutputTokens } : {}),
+    }
+  }
+  return out
+}
+
+
+export function toSDKStatusPayload(status: unknown): unknown {
+  if (status === null || typeof status !== 'object') return status
+  const record = status as { waitingOnAgents?: unknown; compacting?: unknown; wait?: unknown }
+  if ('waitingOnAgents' in record) return { waiting_on_agents: record.waitingOnAgents }
+  if ('compacting' in record) {
+    return {
+      compacting:
+        record.compacting !== null && typeof record.compacting === 'object'
+          ? foldStatusToWire(record.compacting as FoldStatusV1)
+          : record.compacting,
+    }
+  }
+  if ('wait' in record) {
+    return { wait: record.wait !== null && typeof record.wait === 'object' ? requestWaitToWire(record.wait as RequestWaitV1) : record.wait }
+  }
+  return status
+}
+
+
+const snakeKey = (key: string): string => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()
+
+export function toSDKContextUsage(data: ContextData): Record<string, unknown> {
+  const respell = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(respell)
+    if (value !== null && typeof value === 'object') {
+      const out: Record<string, unknown> = {}
+      for (const [key, inner] of Object.entries(value as Record<string, unknown>)) out[snakeKey(key)] = respell(inner)
+      return out
+    }
+    return value
+  }
+  return respell(data) as Record<string, unknown>
 }
 
 
@@ -95,7 +155,7 @@ export function toInternalMessages(messages: readonly DeepImmutable<SDKMessage>[
       message?: unknown
       uuid?: string
       timestamp?: string
-      isSynthetic?: boolean
+      is_synthetic?: boolean
       compact_metadata?: Parameters<typeof fromSDKCompactMetadata>[0]
       transition?: {
         previous: string | null
@@ -123,7 +183,7 @@ export function toInternalMessages(messages: readonly DeepImmutable<SDKMessage>[
         message: sdk.message as UserMessage['message'],
         uuid: (sdk.uuid ?? randomUUID()) as UUID,
         timestamp: sdk.timestamp ?? new Date().toISOString(),
-        ...(sdk.isSynthetic ? { isMeta: true as const } : {}),
+        ...(sdk.is_synthetic ? { isMeta: true as const } : {}),
       } as UserMessage)
       continue
     }
@@ -245,7 +305,7 @@ export function toSDKMessages(messages: Message[]): SDKMessage[] {
         parent_tool_use_id: null,
         uuid: user.uuid,
         timestamp: user.timestamp,
-        ...(Boolean(user.isMeta) || Boolean(user.isVisibleInTranscriptOnly) ? { isSynthetic: true } : {}),
+        ...(Boolean(user.isMeta) || Boolean(user.isVisibleInTranscriptOnly) ? { is_synthetic: true } : {}),
         ...(user.toolUseResult !== undefined ? { tool_use_result: user.toolUseResult } : {}),
       } as unknown as SDKMessage)
       continue

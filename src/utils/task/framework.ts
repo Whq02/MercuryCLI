@@ -1,7 +1,7 @@
 import type { AppState } from '../../state/AppState.js'
 import type { TaskStatus, TaskType } from '../../Task.js'
 import { isTerminalTaskStatus } from '../../Task.js'
-import type { TaskState } from '../../tasks/types.js'
+import { isBackgroundTask, type TaskState } from '../../tasks/types.js'
 import { enqueueSdkEvent } from '../sdkEventQueue.js'
 import { getTaskOutputDelta } from './diskOutput.js'
 import { projectTaskExecution } from './executionProjection.js'
@@ -93,6 +93,87 @@ function pruneAgentNameRegistry(
   const pruned = new Map(registry)
   for (const name of staleNames) pruned.delete(name)
   return pruned
+}
+
+
+export function taskOwnerGone(task: TaskState): string | null {
+  if (task.status !== 'running') return null
+  if (task.type === 'local_bash') {
+    const handle = (task as { shellCommand?: { status?: string } | null }).shellCommand
+    if (handle === null || handle === undefined) return 'its command handle is gone'
+    if (handle.status !== 'running' && handle.status !== 'backgrounded') return `its command already ${handle.status}`
+    return null
+  }
+  if (task.type === 'local_agent' || task.type === 'local_workflow' || task.type === 'in_process_teammate') {
+    const controller = (task as { abortController?: AbortController }).abortController
+    if (controller === undefined) return 'its controller is gone'
+    if (controller.signal.aborted) return 'its controller was stopped before the row settled'
+    return null
+  }
+  return null
+}
+
+export type LiveWorkCounts = {
+  total: number
+  shells: number
+  agents: number
+  workflows: number
+  teammates: number
+  other: number
+}
+
+export function liveBackgroundCounts(tasks: Record<string, TaskState> | undefined): LiveWorkCounts {
+  const counts: LiveWorkCounts = { total: 0, shells: 0, agents: 0, workflows: 0, teammates: 0, other: 0 }
+  for (const task of Object.values(tasks ?? {})) {
+    if (!isBackgroundTask(task) || isTerminalTaskStatus(task.status as TaskStatus)) continue
+    if (taskOwnerGone(task) !== null) continue
+    counts.total++
+    if (task.type === 'local_bash') counts.shells++
+    else if (task.type === 'local_agent') counts.agents++
+    else if (task.type === 'local_workflow') counts.workflows++
+    else if (task.type === 'in_process_teammate') counts.teammates++
+    else counts.other++
+  }
+  return counts
+}
+
+export function liveWorkWords(counts: LiveWorkCounts): string {
+  const parts: string[] = []
+  const say = (n: number, one: string, many: string): void => {
+    if (n > 0) parts.push(`${n} ${n === 1 ? one : many}`)
+  }
+  say(counts.shells, 'shell command', 'shell commands')
+  say(counts.agents, 'agent', 'agents')
+  say(counts.workflows, 'workflow', 'workflows')
+  say(counts.teammates, 'teammate', 'teammates')
+  say(counts.other, 'background task', 'background tasks')
+  if (parts.length === 0) return 'nothing'
+  if (parts.length === 1) return parts[0]!
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+}
+
+export function settleOwnerlessTasks(
+  setAppState: TaskAppStateSetter,
+  now: number = Date.now(),
+): Array<{ id: string; reason: string }> {
+  const settled: Array<{ id: string; reason: string }> = []
+  setAppState(prevState => {
+    const tasks = { ...prevState.tasks }
+    for (const [id, task] of Object.entries(tasks)) {
+      const reason = taskOwnerGone(task)
+      if (reason === null) continue
+      settled.push({ id, reason })
+      tasks[id] = {
+        ...task,
+        status: 'killed',
+        endTime: now,
+        ...(task.type === 'local_agent' ? { stopReason: reason } : {}),
+      } as TaskState
+    }
+    if (settled.length === 0) return prevState
+    return { ...prevState, tasks }
+  })
+  return settled
 }
 
 export function evictTerminalTask(taskId: string, setAppState: TaskAppStateSetter): void {

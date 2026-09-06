@@ -118,6 +118,30 @@ export function decodeRequestWait(raw: unknown): RequestWaitV1 | null {
   return null
 }
 
+const WAIT_WIRE_KEYS: Readonly<Record<string, string>> = {
+  promptTokens: 'prompt_tokens',
+  budgetMs: 'budget_ms',
+  sinceMs: 'since_ms',
+  delayMs: 'delay_ms',
+}
+const WAIT_RECORD_KEYS: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(WAIT_WIRE_KEYS).map(([record, wire]) => [wire, record]),
+)
+function renamedKeys(value: unknown, table: Readonly<Record<string, string>>): unknown {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return value
+  const out: Record<string, unknown> = {}
+  for (const [key, inner] of Object.entries(value as Record<string, unknown>)) out[table[key] ?? key] = inner
+  return out
+}
+
+export function requestWaitToWire(wait: RequestWaitV1): Record<string, unknown> {
+  return renamedKeys(wait, WAIT_WIRE_KEYS) as Record<string, unknown>
+}
+
+export function requestWaitFromWire(raw: unknown): unknown {
+  return renamedKeys(raw, WAIT_RECORD_KEYS)
+}
+
 export function retryReasonWords(status: number | null | undefined, message?: string): string {
   if (typeof status === 'number' && status > 0) return `a ${status}`
   if (message !== undefined && /no first byte/.test(message)) return 'a first-byte timeout'
@@ -249,4 +273,36 @@ export function typedStreamEndOf(args: {
     return { reason: 'closed-after-last-item', provider: args.provider }
   }
   return null
+}
+
+
+export const STREAM_ACTIVITY_OPTION = 'mercuryStreamActivity'
+
+export type StreamActivityNote = () => void
+
+export function streamActivityFetchOptions(note: StreamActivityNote): Record<string, unknown> {
+  return { [STREAM_ACTIVITY_OPTION]: note }
+}
+
+export function streamActivityNoteOf(init: unknown): StreamActivityNote | null {
+  const note = (init as Record<string, unknown> | null | undefined)?.[STREAM_ACTIVITY_OPTION]
+  return typeof note === 'function' ? (note as StreamActivityNote) : null
+}
+
+export function observeStreamActivity(response: Response, note: StreamActivityNote): Response {
+  if (response.body === null || response.status === 204 || response.status === 304) return response
+  const tapped = response.body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        note()
+        controller.enqueue(chunk)
+      },
+    }),
+  )
+  const observed = new Response(tapped, { status: response.status, statusText: response.statusText, headers: response.headers })
+  try {
+    Object.defineProperty(observed, 'url', { value: response.url, configurable: true })
+  } catch {
+  }
+  return observed
 }

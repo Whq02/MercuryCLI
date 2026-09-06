@@ -11,7 +11,6 @@ import {
 import { EMPTY_USAGE } from 'src/services/api/logging.js'
 import { armProvisionalSessionReconcile } from 'src/utils/provisionalSessionReconcile.js'
 import type { AppState } from 'src/state/AppStateStore.js'
-import { externalMetadataToAppState } from 'src/state/onChangeAppState.js'
 import { asSessionId } from 'src/types/ids.js'
 import type { Message, NormalizedUserMessage } from 'src/types/message.js'
 import { binaryName } from 'src/utils/config.js'
@@ -23,7 +22,6 @@ import {
 import { gracefulShutdownSync } from 'src/utils/gracefulShutdown.js'
 import { logError } from 'src/utils/log.js'
 import { restoreSessionStateFromLog } from 'src/utils/sessionRestore.js'
-import type { SessionExternalMetadata } from 'src/utils/sessionState.js'
 import { processSessionStartHooks } from 'src/utils/sessionStart.js'
 import { consumeSessionHomePin } from 'src/utils/sessionStorage/sessionHomePin.js'
 import {
@@ -51,7 +49,7 @@ export function emitLoadError(
       session_id: getSessionId(),
       total_cost_usd: 0,
       usage: EMPTY_USAGE,
-      modelUsage: {},
+      model_usage: {},
       permission_denials: [],
       uuid: randomUUID(),
       errors: [message],
@@ -87,7 +85,6 @@ export async function loadInitialMessages(
     forkSession: boolean | undefined
     outputFormat: string | undefined
     sessionStartHooksPromise?: ReturnType<typeof processSessionStartHooks>
-    restoredWorkerState: Promise<SessionExternalMetadata | null>
   },
 ): Promise<LoadInitialMessagesResult> {
   const persistSession = !isSessionPersistenceDisabled()

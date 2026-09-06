@@ -1121,7 +1121,7 @@ section('MAPPERS — the SDK↔internal mapping table (unpinned before T18)')
       message: { role: 'user', content: 'from sdk' },
       uuid: 'aaaaaaaa-0000-4000-8000-000000000002',
       timestamp: '2026-01-02T00:00:00.000Z',
-      isSynthetic: true,
+      is_synthetic: true,
     },
     { type: 'user', message: { role: 'user', content: 'no uuid' } },
     {
@@ -1136,7 +1136,7 @@ section('MAPPERS — the SDK↔internal mapping table (unpinned before T18)')
   const internal = mappers.toInternalMessages(sdkIn as never) as AnyMsg[]
   check('toInternalMessages: assistant/user/compact rows map; init/result drop', internal.length === 4)
   check('toInternalMessages: assistant message object by REFERENCE', internal[0]!.message === asstInternal.message)
-  check('toInternalMessages: user isMeta ← isSynthetic; uuid/timestamp preserved',
+  check('toInternalMessages: user isMeta ← is_synthetic; uuid/timestamp preserved',
     internal[1]!.isMeta === true &&
       internal[1]!.uuid === 'aaaaaaaa-0000-4000-8000-000000000002' &&
       internal[1]!.timestamp === '2026-01-02T00:00:00.000Z')
@@ -1215,8 +1215,8 @@ section('MAPPERS — the SDK↔internal mapping table (unpinned before T18)')
   for (const [msg, want] of isSynthTable) {
     const rows = mappers.toSDKMessages([msg] as never) as AnyMsg[]
     check(
-      `toSDKMessages: isSynthetic table (meta=${!!msg.isMeta}, transcriptOnly=${!!msg.isVisibleInTranscriptOnly})`,
-      rows.length === 1 && Boolean(rows[0]!.isSynthetic) === want,
+      `toSDKMessages: is_synthetic table (meta=${!!msg.isMeta}, transcriptOnly=${!!msg.isVisibleInTranscriptOnly})`,
+      rows.length === 1 && Boolean(rows[0]!.is_synthetic) === want && !('isSynthetic' in rows[0]!),
     )
   }
   const withResult = mkUser([tr('toolu_map1')], { toolUseResult: { stdout: 'x' } })
@@ -1260,17 +1260,18 @@ section('MAPPERS — the SDK↔internal mapping table (unpinned before T18)')
     surpassedThreshold: true,
     unifiedRateLimitFallbackAvailable: true,
   } as never) as AnyMsg
-  check('toSDKRateLimitInfo: full field table maps; internal-only field STRIPPED',
+  check('toSDKRateLimitInfo: full field table maps to the feed\'s spelling; internal-only field STRIPPED',
     full.status === 'allowed_warning' &&
-      full.resetsAt === 123 &&
-      full.rateLimitType === 'unified' &&
+      full.resets_at === 123 &&
+      full.rate_limit_type === 'unified' &&
       full.utilization === 0.5 &&
-      full.overageStatus === 'x' &&
-      full.overageResetsAt === 456 &&
-      full.overageDisabledReason === 'r' &&
-      full.isUsingOverage === true &&
-      full.surpassedThreshold === true &&
-      !('unifiedRateLimitFallbackAvailable' in full))
+      full.overage_status === 'x' &&
+      full.overage_resets_at === 456 &&
+      full.overage_disabled_reason === 'r' &&
+      full.is_using_overage === true &&
+      full.surpassed_threshold === true &&
+      !('unifiedRateLimitFallbackAvailable' in full) &&
+      Object.keys(full).every(key => /^[a-z0-9_]+$/.test(key)))
 
   const asst2 = mkAssistant([txt('a'), tu('toolu_map3')])
   const asstRows = mappers.toSDKMessages([asst2] as never) as AnyMsg[]

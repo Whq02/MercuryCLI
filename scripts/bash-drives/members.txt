@@ -1,0 +1,6 @@
+# scripts/bash-drives/members.txt — the bash suite's real-terminal drives, one
+# basename per line (the files live in scripts/bash/). Each member boots the
+# built bundle in a pseudo-terminal; the parent suite names its provers one
+# by one, so a new prover lands there and moves here only by editing both
+# lists. A name listed here but missing on disk is a loud red in this runner.
+prove-shell-engine-drive.ts

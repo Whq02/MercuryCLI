@@ -11,7 +11,7 @@ import { VERIFICATION_AGENT } from './built-in/verificationAgent.js'
 
 export function getBuiltInAgents(): AgentDefinition[] {
   if (
-    isEnvTruthy(process.env.MERCURY_SDK_DISABLE_BUILTIN_AGENTS) &&
+    isEnvTruthy(process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS) &&
     getIsNonInteractiveSession()
   ) {
     return []

@@ -364,9 +364,11 @@ section('2 · honest refusals + the §10 effort-adjustment note')
   __resetOpenaiCatalogueForTest()
   patchWire()
   makeResponses = () => sseResponse(HAPPY_STREAM)
-  const ultraServed = await collect('gpt-5.6-sol', 'ultra')
-  const ultraBody = lastResponsesBody as { reasoning?: { effort?: string } }
-  check("a served 'ultra' reaches the wire as reasoning.effort ultra, unclamped and unreceipted", ultraBody?.reasoning?.effort === 'ultra' && stampOf(ultraServed) === undefined, JSON.stringify(ultraBody?.reasoning))
+  const listWord = await collect('gpt-5.6-sol', 'ultra')
+  const listWordBody = lastResponsesBody as { reasoning?: { effort?: string } }
+  check("the list's word above the ladder never reaches the wire: reasoning.effort is the row default ('low'), never 'ultra'", listWordBody?.reasoning?.effort === 'low', JSON.stringify(listWordBody?.reasoning))
+  const listWordStamp = stampOf(listWord)
+  check('…and the settled message carries the receipt (asked ultra, sent low) without a wire-refusal note (the wire was never asked the word)', listWordStamp !== undefined && listWordStamp.asked === 'ultra' && listWordStamp.sent === 'low' && listWordStamp.wireRefused === undefined, JSON.stringify(listWordStamp))
   __resetOpenaiCatalogueForTest()
   patchWire({
     data: [
@@ -379,10 +381,10 @@ section('2 · honest refusals + the §10 effort-adjustment note')
     ],
   })
   makeResponses = () => sseResponse(HAPPY_STREAM)
-  const ultraAdjusted = await collect('gpt-5.6-sol', 'ultra')
-  const ultraAdjustedBody = lastResponsesBody as { reasoning?: { effort?: string } }
-  const ultraStamp = stampOf(ultraAdjusted)
-  check("unsupported 'ultra' adjusts to the deepest served 'max' on the wire and is RECEIPTED (asked ultra, sent max)", ultraAdjustedBody?.reasoning?.effort === 'max' && ultraStamp !== undefined && ultraStamp.asked === 'ultra' && ultraStamp.sent === 'max', JSON.stringify(ultraStamp))
+  const listWordUnlisted = await collect('gpt-5.6-sol', 'ultra')
+  const listWordUnlistedBody = lastResponsesBody as { reasoning?: { effort?: string } }
+  const listWordUnlistedStamp = stampOf(listWordUnlisted)
+  check("on a list without the word the same: the row default ('medium') rides and the receipt names the adjustment", listWordUnlistedBody?.reasoning?.effort === 'medium' && listWordUnlistedStamp !== undefined && listWordUnlistedStamp.asked === 'ultra' && listWordUnlistedStamp.sent === 'medium', JSON.stringify(listWordUnlistedStamp))
 
   __resetOpenaiCatalogueForTest()
   patchWire({
@@ -422,8 +424,8 @@ section("2b · the wire's own vocabulary: a refused word is remembered, re-issue
   const stampOf = (items: Array<StreamEvent | AssistantMessage>): AssistantMessage['effortAdjusted'] | undefined =>
     items.map(m => (m as AssistantMessage).effortAdjusted).find(s => s !== undefined)
   const sentEffort = (): string | undefined => (lastResponsesBody as { reasoning?: { effort?: string } } | undefined)?.reasoning?.effort
-  const WIRE_LIST = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
-  const REFUSAL = "Invalid value: 'ultra'. Supported values are: 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', and 'max'."
+  const WIRE_LIST = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh']
+  const REFUSAL = "Invalid value: 'max'. Supported values are: 'none', 'minimal', 'low', 'medium', 'high', and 'xhigh'."
   const refusalResponse = (): Response =>
     new Response(
       JSON.stringify({ error: { message: REFUSAL, type: 'invalid_request_error', param: 'reasoning.effort', code: 'invalid_value' } }),
@@ -435,76 +437,82 @@ section("2b · the wire's own vocabulary: a refused word is remembered, re-issue
   patchWire()
   let refusals = 0
   const refusingHost = (): Response => {
-    if (sentEffort() === 'ultra') {
+    if (sentEffort() === 'max') {
       refusals++
       return refusalResponse()
     }
     return sseResponse(HAPPY_STREAM)
   }
   makeResponses = refusingHost
-  const probed = await collect('gpt-5.6-sol', 'ultra')
+  const probed = await collect('gpt-5.6-sol', 'max')
   check(
-    'the refused call is re-issued ONCE at the nearest word the endpoint serves (max) — two wire calls, one refusal',
-    responsesCalls === 2 && refusals === 1 && sentEffort() === 'max',
+    'the refused call is re-issued ONCE at the nearest word the endpoint serves (xhigh) — two wire calls, one refusal',
+    responsesCalls === 2 && refusals === 1 && sentEffort() === 'xhigh',
     `calls=${responsesCalls} refusals=${refusals} last=${String(sentEffort())}`,
   )
   const probedRows = probed.filter(m => (m as { type?: string }).type === 'system')
   check(
     "the re-issue is a row: the retry notice carries the endpoint's own sentence and the attempt",
-    probedRows.length === 1 && JSON.stringify(probedRows[0]).includes("Invalid value: 'ultra'") && (probedRows[0] as { retryAttempt?: number }).retryAttempt === 1,
+    probedRows.length === 1 && JSON.stringify(probedRows[0]).includes("Invalid value: 'max'") && (probedRows[0] as { retryAttempt?: number }).retryAttempt === 1,
     JSON.stringify(probedRows[0]).slice(0, 220),
   )
   const probedStamp = stampOf(probed)
   check(
-    'the settled message carries the downgrade receipt (asked ultra, sent max) and the turn answered',
-    probedStamp !== undefined && probedStamp.asked === 'ultra' && probedStamp.sent === 'max' && probed.some(m => (m as { type?: string }).type === 'assistant') && !probed.some(isApiErrorAssistant),
+    'the settled message carries the downgrade receipt (asked max, sent xhigh) naming the road and the re-probe, and the turn answered',
+    probedStamp !== undefined && probedStamp.asked === 'max' && probedStamp.sent === 'xhigh' && probedStamp.wireRefused !== undefined && probedStamp.wireRefused.road.length > 0 && probedStamp.wireRefused.reprobeAfter === store.describeWireEffortProbeWindow() && probed.some(m => (m as { type?: string }).type === 'assistant') && !probed.some(isApiErrorAssistant),
     JSON.stringify(probedStamp),
   )
+  check(
+    "the receipt line names the road the refusal came over and the re-probe ('a day')",
+    probedStamp !== undefined && effort.effortAdjustedReceiptLine(probedStamp).startsWith('effort max: the wire refused it for ') && effort.effortAdjustedReceiptLine(probedStamp).includes(` on the ${probedStamp.wireRefused?.road ?? ''} road today — sent xhigh, the nearest word it serves; Mercury asks the wire again after a day`),
+    probedStamp !== undefined ? effort.effortAdjustedReceiptLine(probedStamp) : 'no stamp',
+  )
+  check('the probe window reads as a day', store.describeWireEffortProbeWindow() === 'a day' && store.describeWireEffortProbeWindow(3_600_000) === 'an hour' && store.describeWireEffortProbeWindow(3 * 3_600_000) === '3 hours' && store.describeWireEffortProbeWindow(48 * 3_600_000) === '2 days')
   const memory = store.readWireEffortVocabularies()
   check(
     "the store remembers the row's WIRE vocabulary, dated, verbatim from the refusal",
-    memory.length === 1 && memory[0]!.modelId === 'gpt-5.6-sol' && memory[0]!.sourceKind === 'api-key' && memory[0]!.refused === 'ultra' && JSON.stringify(memory[0]!.levels) === JSON.stringify(WIRE_LIST) && typeof memory[0]!.observedAtMs === 'number',
+    memory.length === 1 && memory[0]!.modelId === 'gpt-5.6-sol' && memory[0]!.sourceKind === 'api-key' && memory[0]!.refused === 'max' && JSON.stringify(memory[0]!.levels) === JSON.stringify(WIRE_LIST) && typeof memory[0]!.observedAtMs === 'number',
     JSON.stringify(memory),
   )
-  const narrowed = effort.resolveEffortTruth('gpt-5.6-sol', 'ultra')
+  const narrowed = effort.resolveEffortTruth('gpt-5.6-sol', 'max')
   check(
-    "the controls' ladder is narrowed on the next read: ultra is not offered on the row, the ceiling is max, the owner steps ultra to max with the asked word on the record",
-    !capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && capabilities.getMaxSupportedEffortLevel('gpt-5.6-sol') === 'max' && effort.selectableEffortLevels('gpt-5.6-sol').join(',') === 'low,medium,high,xhigh,max' && narrowed.wire === 'max' && narrowed.adjustedFrom === 'ultra',
+    "the controls' ladder is narrowed on the next read: max is not offered on the row, the ceiling is xhigh, the owner steps max to xhigh with the asked word on the record",
+    !capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'max') && capabilities.getMaxSupportedEffortLevel('gpt-5.6-sol') === 'xhigh' && effort.selectableEffortLevels('gpt-5.6-sol').join(',') === 'low,medium,high,xhigh' && narrowed.wire === 'xhigh' && narrowed.adjustedFrom === 'max',
     JSON.stringify({ selectable: effort.selectableEffortLevels('gpt-5.6-sol'), wire: narrowed.wire, adjustedFrom: narrowed.adjustedFrom }),
   )
 
   patchWire()
   makeResponses = refusingHost
-  const again = await collect('gpt-5.6-sol', 'ultra')
+  const again = await collect('gpt-5.6-sol', 'max')
   const againStamp = stampOf(again)
   check(
-    'the next request at the word goes out at max directly — ONE wire call, no refusal, the receipt',
-    responsesCalls === 1 && refusals === 1 && sentEffort() === 'max' && againStamp?.asked === 'ultra' && againStamp.sent === 'max',
+    'the next request at the word goes out at xhigh directly — ONE wire call, no refusal, the receipt naming the road',
+    responsesCalls === 1 && refusals === 1 && sentEffort() === 'xhigh' && againStamp?.asked === 'max' && againStamp.sent === 'xhigh' && againStamp.wireRefused !== undefined,
     `calls=${responsesCalls} refusals=${refusals} last=${String(sentEffort())} stamp=${JSON.stringify(againStamp)}`,
   )
 
-  store.recordWireEffortRefusal({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', refused: 'ultra', levels: WIRE_LIST, now: () => Date.now() - store.WIRE_EFFORT_MEMORY_PROBE_MS - 1 })
-  check('past the probe window the row offers the word again (the wire will be asked again)', capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && effort.selectableEffortLevels('gpt-5.6-sol').includes('ultra'), JSON.stringify(effort.selectableEffortLevels('gpt-5.6-sol')))
+  store.recordWireEffortRefusal({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', refused: 'max', levels: WIRE_LIST, now: () => Date.now() - store.WIRE_EFFORT_MEMORY_PROBE_MS - 1 })
+  check('past the probe window the row offers the word again (the wire will be asked again)', capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'max') && effort.selectableEffortLevels('gpt-5.6-sol').includes('max'), JSON.stringify(effort.selectableEffortLevels('gpt-5.6-sol')))
   patchWire()
   makeResponses = () => sseResponse(HAPPY_STREAM)
-  const accepted = await collect('gpt-5.6-sol', 'ultra')
+  const accepted = await collect('gpt-5.6-sol', 'max')
   check(
-    'a served-and-accepted ultra reaches the wire unclamped and unreceipted, and clears the memory',
-    responsesCalls === 1 && sentEffort() === 'ultra' && stampOf(accepted) === undefined && store.readWireEffortVocabularies().length === 0,
+    'a served-and-accepted max reaches the wire unclamped and unreceipted, and clears the memory',
+    responsesCalls === 1 && sentEffort() === 'max' && stampOf(accepted) === undefined && store.readWireEffortVocabularies().length === 0,
     `calls=${responsesCalls} last=${String(sentEffort())} memory=${JSON.stringify(store.readWireEffortVocabularies())}`,
   )
-  check('a host that accepts the word leaves no memory and no clamp', capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && effort.selectableEffortLevels('gpt-5.6-sol').includes('ultra'))
+  check('a host that accepts the word leaves no memory and no clamp', capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'max') && effort.selectableEffortLevels('gpt-5.6-sol').includes('max'))
 
-  store.recordWireEffortRefusal({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', refused: 'ultra', levels: WIRE_LIST })
-  check('an accepted word inside the remembered list keeps the memory; a word beyond it clears the memory', store.noteWireEffortAccepted({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', word: 'max' }) === false && store.readWireEffortVocabularies().length === 1 && store.noteWireEffortAccepted({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', word: 'ultra' }) === true && store.readWireEffortVocabularies().length === 0)
+  store.recordWireEffortRefusal({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', refused: 'max', levels: WIRE_LIST })
+  check('an accepted word inside the remembered list keeps the memory; a word beyond it clears the memory', store.noteWireEffortAccepted({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', word: 'xhigh' }) === false && store.readWireEffortVocabularies().length === 1 && store.noteWireEffortAccepted({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', word: 'max' }) === true && store.readWireEffortVocabularies().length === 0)
 
   check(
     "the parser reads the endpoint's list from the refusal of the sent word, and nothing else",
-    JSON.stringify(effortVocabularyRefusalOf({ code: 'openai-invalid_value', message: REFUSAL }, 'ultra')) === JSON.stringify({ refused: 'ultra', levels: WIRE_LIST }) &&
-      effortVocabularyRefusalOf({ code: 'openai-invalid_value', message: REFUSAL }, 'max') === undefined &&
-      effortVocabularyRefusalOf({ code: 'openai-invalid_value', message: "Invalid value: 'ultra'. Supported values are: 'low' and 'high'." }, 'ultra')?.levels.join(',') === 'low,high' &&
-      effortVocabularyRefusalOf({ code: 'http-400', message: REFUSAL }, 'ultra') === undefined &&
-      effortVocabularyRefusalOf({ code: 'openai-invalid_value', message: 'Unsupported parameter: max_output_tokens' }, 'ultra') === undefined &&
+    JSON.stringify(effortVocabularyRefusalOf({ code: 'openai-invalid_value', message: REFUSAL }, 'max')) === JSON.stringify({ refused: 'max', levels: WIRE_LIST }) &&
+      effortVocabularyRefusalOf({ code: 'openai-invalid_value', message: REFUSAL }, 'xhigh') === undefined &&
+      effortVocabularyRefusalOf({ code: 'openai-invalid_value', message: "Invalid value: 'max'. Supported values are: 'low' and 'high'." }, 'max')?.levels.join(',') === 'low,high' &&
+      effortVocabularyRefusalOf({ code: 'http-400', message: REFUSAL }, 'max') === undefined &&
+      effortVocabularyRefusalOf({ code: 'openai-invalid_value', message: 'Unsupported parameter: max_output_tokens' }, 'max') === undefined &&
       effortVocabularyRefusalOf({ code: 'openai-invalid_value', message: REFUSAL }, undefined) === undefined,
   )
   restoreWire()

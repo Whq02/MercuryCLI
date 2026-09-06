@@ -201,11 +201,11 @@ console.log('§13 git-bash refusal — the hold releases before the words')
   const wp = read('src/utils/windowsPaths.ts')
   check('the hold-release owner is imported', wp.includes("import { releaseLauncherAltHoldNow } from '../ink/launcherAltHold.js'"))
   const releases = [...wp.matchAll(/releaseLauncherAltHoldNow\(\)/g)].length
-  check('both refusal arms release the hold', releases === 2)
+  check('the one refusal arm (the pin that points nowhere) releases the hold', releases === 1)
   const overrideArm = wp.slice(wp.indexOf('const override = process.env.MERCURY_GIT_BASH_PATH'), wp.indexOf('for (const candidate of gitBashCandidatePaths'))
   check('override arm: release precedes the write', overrideArm.indexOf('releaseLauncherAltHoldNow()') !== -1 && overrideArm.indexOf('releaseLauncherAltHoldNow()') < overrideArm.indexOf('writeSync(2,'))
   const missingArm = wp.slice(wp.indexOf('for (const candidate of gitBashCandidatePaths'))
-  check('missing-git arm: release precedes the write', missingArm.indexOf('releaseLauncherAltHoldNow()') !== -1 && missingArm.indexOf('releaseLauncherAltHoldNow()') < missingArm.indexOf('writeSync('))
+  check('missing-git arm: a typed absence, never an exit', missingArm.includes('return { absent: true }') && !/process\.exit\(/.test(missingArm) && !missingArm.includes('writeSync('))
 }
 
 console.log('§14 boot settings — no sync git inside a render')

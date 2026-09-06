@@ -51,7 +51,16 @@ export const WIRE_EFFORT_RANK: Record<string, number> = {
   high: 4,
   xhigh: 5,
   max: 6,
-  ultra: 7,
+}
+
+export function isRankedWireEffort(word: string): boolean {
+  return WIRE_EFFORT_RANK[word] !== undefined
+}
+
+export const DELEGATION_LEAD_LIST_WORD = 'ultra'
+
+export function listMarksDelegationLead(listed: readonly string[] | undefined): boolean {
+  return listed !== undefined && listed.includes(DELEGATION_LEAD_LIST_WORD)
 }
 
 export function nearestSupportedWireEffort(
@@ -69,6 +78,16 @@ export function nearestSupportedWireEffort(
     if (WIRE_EFFORT_RANK[level]! <= want) best = level
   }
   return best ?? ranked[0]
+}
+
+export const CONVENTION_WIRE_EFFORT = 'high'
+
+export function wireEffortForListDefault(
+  listDefault: string | undefined,
+  supported: readonly string[],
+): string | undefined {
+  if (listDefault !== undefined && isRankedWireEffort(listDefault)) return listDefault
+  return nearestSupportedWireEffort(CONVENTION_WIRE_EFFORT, supported)
 }
 
 

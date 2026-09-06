@@ -152,6 +152,14 @@ export function readQualificationReceipts(): ReceiptCurrency[] {
 
 export const WIRE_EFFORT_MEMORY_PROBE_MS = 24 * 60 * 60 * 1000
 
+export function describeWireEffortProbeWindow(ms: number = WIRE_EFFORT_MEMORY_PROBE_MS): string {
+  const hours = Math.round(ms / 3_600_000)
+  if (hours === 24) return 'a day'
+  if (hours === 1) return 'an hour'
+  if (hours > 1 && hours % 24 === 0) return `${hours / 24} days`
+  return `${hours} hours`
+}
+
 export interface StoredWireEffortVocabulary {
   modelId: string
   sourceKind: OpenaiAccountSourceKind

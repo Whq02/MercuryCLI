@@ -540,7 +540,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
         fetch: wrapped as never,
         requestInit: requestInit as never,
       })
-    } else if (type === 'sdk') {
+    } else if (type === 'host') {
       throw new Error('SDK servers are connected through setupSdkMcpClients')
     } else if (type === 'claudeai-proxy') {
       const token = getClaudeAIOAuthTokens()?.accessToken
@@ -781,7 +781,7 @@ export async function clearServerCache(name: string, serverRef: ScopedMcpServerC
 }
 
 export async function ensureConnectedClient(client: MCPServerConnection): Promise<ConnectedMCPServer> {
-  if (client.config.type === 'sdk') return client as ConnectedMCPServer
+  if (client.config.type === 'host') return client as ConnectedMCPServer
   const connection = await connectToServer(client.name, client.config)
   if (connection.type !== 'connected') {
     throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
@@ -816,7 +816,7 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
   const rawHint = meta['anthropic/searchHint']
   const searchHint = typeof rawHint === 'string' ? rawHint.replace(/\s+/g, ' ').trim() || undefined : undefined
   const alwaysLoad = meta['anthropic/alwaysLoad'] === true
-  const skipPrefix = client.config.type === 'sdk' && isEnvTruthy(process.env.MERCURY_SDK_MCP_NO_PREFIX)
+  const skipPrefix = client.config.type === 'host' && isEnvTruthy(process.env.MERCURY_HOST_MCP_NO_PREFIX)
   const qualifiedName = buildMcpToolName(serverName, toolName)
   const modelFacingName = skipPrefix ? toolName : wireSafeMcpToolName(serverName, toolName)
   const rawDescription = sdkTool.description ?? ''
@@ -1560,7 +1560,7 @@ export async function getMcpToolsCommandsAndResources(
       continue
     }
     const type = config.type ?? 'stdio'
-    if (type === 'stdio' || type === 'sdk') local.push([name, config])
+    if (type === 'stdio' || type === 'host') local.push([name, config])
     else remote.push([name, config])
   }
   let resourceToolsAdded = false

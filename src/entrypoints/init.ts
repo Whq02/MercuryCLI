@@ -9,7 +9,7 @@ import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { recordFirstStartTime } from '../utils/config/derived.js'
 import { configureGlobalMTLS } from '../utils/mtls.js'
 import { configureGlobalAgents } from '../utils/proxy.js'
-import { setShellIfWindows } from '../utils/windowsPaths.js'
+import { armWindowsShellRoad } from '../utils/shell/windowsShellRoad.js'
 import { applyConfigEnvironmentVariables, applySafeConfigEnvironmentVariables } from '../utils/managedEnv.js'
 import { initJetBrainsDetection } from '../utils/envDynamic.js'
 import { ensureLocalSettingsSchema } from '../utils/settings/localSchema.js'
@@ -70,7 +70,7 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
     profileCheckpoint('init_agents_configured')
 
 
-    setShellIfWindows()
+    armWindowsShellRoad()
 
     registerCleanup(() => shutdownLspServerManager())
 

@@ -67,8 +67,7 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
 
   const stamped = effort.resolveStampedEffortTruth(MODEL, 'xhigh')
   check("a seat row's stamped truth resolves the seat's own word (no env, no agent)", stamped.requested === 'xhigh' && stamped.requestedSource === 'session')
-  const capped = effort.resolveStampedEffortTruth(MODEL, 'ultra')
-  check('ultra asked on a first-party row runs max (the first-party ladder ends at max) and the record keeps the asked word', capped.applied === 'max' && capped.wire === 'max' && capped.adjustedFrom === 'ultra' && !effort.selectableEffortLevels(MODEL).includes('ultra'), JSON.stringify(capped))
+  check('the ladder ends at max and a word above it is not a level (no door admits it; the ceiling is max)', effort.EFFORT_LEVELS[effort.EFFORT_LEVELS.length - 1] === 'max' && effort.normalizeEffortLevelString('ultra') === undefined && effort.parseEffortValue('ultra') === undefined && effort.getMaxSupportedEffortLevel(MODEL) === 'max' && !(effort.selectableEffortLevels(MODEL) as readonly string[]).includes('ultra'))
   delete process.env.MERCURY_EFFORT_LEVEL
 }
 
@@ -81,9 +80,10 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   check('no pin, no definition ⇒ no own word (the agent rides the session)', agentOwnEffortWord({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined }) === undefined)
   check('a pin off the ladder yields to the definition, never rides raw', agentOwnEffortWord({ effortOverride: 'turbo', useExactTools: false, definitionEffort: 'medium' }) === 'medium')
   check('a spoken pin normalises through the one normaliser', agentOwnEffortWord({ effortOverride: 'x-high', useExactTools: false, definitionEffort: undefined }) === 'xhigh')
-  check('resolveAgentEffort is the own word else the session (unchanged ladder)', resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined, sessionEffort: 'high' }) === 'high' && resolveAgentEffort({ effortOverride: 'max', useExactTools: false, definitionEffort: 'low', sessionEffort: 'high' }) === 'max')
+  check("resolveAgentEffort is the own word else the configured sub-agent default (the session's word is not a rung)", resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined, defaultEffort: 'high' }) === 'high' && resolveAgentEffort({ effortOverride: 'max', useExactTools: false, definitionEffort: 'low', defaultEffort: 'high' }) === 'max' && resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: 'low', defaultEffort: 'high' }) === 'low')
   const src = readFileSync(join(ROOT, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
-  check('the runner notes the own word under the agent id once the claim is held, and forgets it with the claim', /executorClaims\.set\(agentId, claim\)[\s\S]{0,400}noteAgentEffortWord\(agentId, agentOwnEffortWord\(\{ effortOverride, useExactTools, definitionEffort: agentDefinition\.effort \}\)\)/.test(src) && /executorClaims\.delete\(agentId\)\s*\n\s*forgetAgentEffortWord\(agentId\)/.test(src))
+  check('the runner notes the RESOLVED word under the agent id once the claim is held, and forgets it with the claim', /executorClaims\.set\(agentId, claim\)[\s\S]{0,400}noteAgentEffortWord\(agentId, resolvedEffort\)/.test(src) && /executorClaims\.delete\(agentId\)\s*\n\s*forgetAgentEffortWord\(agentId\)/.test(src))
+  check('the runner resolves the default through the one reader (never the session state)', /defaultEffort: subagentDefaultEffort\(\)/.test(src) && !/sessionEffort/.test(src))
   const machine = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
   check("the turn machine's byline resolution names the agent", machine.includes('resolveEffortTruth(iter.currentModel, effortValue, { agentId: toolUseContext.agentId })'))
   for (const [lane, needle] of [
@@ -98,7 +98,7 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
 }
 
 {
-  console.log('\n— §3 · a seat stamped high, an agent asking max, a live list serving it —')
+  console.log('\n— §3 · a seat stamped max, agents asking their own words, a live list serving them —')
   process.env.OPENAI_API_KEY = 'prover-key'
   const fixtureFetch: typeof fetch = (async () =>
     new Response(
@@ -112,7 +112,7 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
     )) as unknown as typeof fetch
   catalogue.__resetOpenaiCatalogueForTest()
   await catalogue.refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: fixtureFetch })
-  process.env.MERCURY_EFFORT_LEVEL = 'high'
+  process.env.MERCURY_EFFORT_LEVEL = 'max'
   effort.noteAgentEffortWord('astra-deep', 'max')
   effort.noteAgentEffortWord('astra-quick', 'xhigh')
   const deep = effort.resolveEffortTruth('gpt-6-astra', 'max', { agentId: 'astra-deep' })
@@ -120,14 +120,16 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   const seat = effort.resolveEffortTruth('gpt-6-astra', 'high')
   check("the deep agent's request carries max (asked max → sent max)", deep.wire === 'max' && deep.requestedSource === 'agent', JSON.stringify(deep))
   check("the quick agent's request carries xhigh", quick.wire === 'xhigh' && quick.requestedSource === 'agent', JSON.stringify(quick))
-  check("the seat's own request still carries its stamp (high)", seat.wire === 'high' && seat.requestedSource === 'env', JSON.stringify(seat))
+  check("the seat's own request still carries its stamp (max)", seat.wire === 'max' && seat.requestedSource === 'env', JSON.stringify(seat))
   const stepped = effort.resolveEffortTruth('gpt-5.5', 'max', { agentId: 'astra-deep' })
   check("an own word the row lacks steps to the nearest served word (max → xhigh) and the record keeps both", stepped.wire === 'xhigh' && stepped.requested === 'max' && stepped.adjustedFrom === 'max', JSON.stringify(stepped))
-  effort.noteAgentEffortWord('astra-top', 'ultra')
-  const top = effort.resolveEffortTruth('gpt-6-astra', 'ultra', { agentId: 'astra-top' })
-  check('an agent asking the served top word sends it (asked ultra → sent ultra)', top.wire === 'ultra' && top.applied === 'ultra' && top.requestedSource === 'agent' && top.adjustedFrom === undefined, JSON.stringify(top))
-  const topStepped = effort.resolveEffortTruth('gpt-5.5', 'ultra', { agentId: 'astra-top' })
-  check('the same word on a row that lacks it steps to the nearest served word (ultra → xhigh) with both words on the record', topStepped.wire === 'xhigh' && topStepped.requested === 'ultra' && topStepped.adjustedFrom === 'ultra', JSON.stringify(topStepped))
+  effort.noteAgentEffortWord('astra-top', 'ultra' as never)
+  const top = effort.resolveEffortTruth('gpt-6-astra', 'ultra' as never, { agentId: 'astra-top' })
+  check("a list word above the ladder is never sent: asked raw, the row default (high on this list) rides", top.wire === 'high' && top.applied === 'high' && top.requestedSource === 'agent', JSON.stringify(top))
+  effort.noteAgentEffortWord('astra-default', 'high')
+  const riding = effort.resolveEffortTruth('gpt-6-astra', 'high', { agentId: 'astra-default' })
+  check("a sub-agent on the configured default keeps it under a seat stamped max (the stamp is the seat's, never the crew's)", riding.wire === 'high' && riding.requestedSource === 'agent', JSON.stringify(riding))
+  effort.forgetAgentEffortWord('astra-default')
   effort.forgetAgentEffortWord('astra-top')
   effort.forgetAgentEffortWord('astra-deep')
   effort.forgetAgentEffortWord('astra-quick')
@@ -141,8 +143,10 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   check('the line names the asked word, the model and the served word', line === 'effort max is not served on GPT-5.5 today — sent xhigh', line)
   const omitted = effort.effortAdjustedReceiptLine({ model: 'gpt-5.5', name: 'GPT-5.5', asked: 'max' })
   check('a wire that omits the key says so', omitted === 'effort max is not served on GPT-5.5 today — no effort key was sent (the model default applies)', omitted)
-  const sixth = effort.effortAdjustedReceiptLine({ model: 'gpt-5.5', name: 'GPT-5.5', asked: 'ultra', sent: 'xhigh' })
-  check('the line names the sixth word the same way', sixth === 'effort ultra is not served on GPT-5.5 today — sent xhigh', sixth)
+  const refused = effort.effortAdjustedReceiptLine({ model: 'gpt-5.5', name: 'GPT-5.5', asked: 'max', sent: 'xhigh', wireRefused: { road: 'ChatGPT subscription', reprobeAfter: 'a day' } })
+  check('a wire-refused word names the road and the re-probe', refused === 'effort max: the wire refused it for GPT-5.5 on the ChatGPT subscription road today — sent xhigh, the nearest word it serves; Mercury asks the wire again after a day', refused)
+  const refusedNoKey = effort.effortAdjustedReceiptLine({ model: 'gpt-5.5', name: 'GPT-5.5', asked: 'max', wireRefused: { road: 'API key', reprobeAfter: 'a day' } })
+  check('…and with no key sent the line says the model default applies', refusedNoKey === 'effort max: the wire refused it for GPT-5.5 on the API key road today — no effort key was sent (the model default applies); Mercury asks the wire again after a day', refusedNoKey)
   const messageTypes = readFileSync(join(ROOT, 'src/types/message.ts'), 'utf8')
   check('the settled assistant message carries the typed stamp beside the typed end', /streamEnd\?: StreamEndV1[\s\S]{0,600}effortAdjusted\?: EffortAdjustedV1/.test(messageTypes))
   const lane = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')

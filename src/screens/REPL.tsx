@@ -184,6 +184,7 @@ import type { PromptInputHelpers } from '../types/promptInputHelpers.js';
 import { formatCommandLoadingMetadata, resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } from '../utils/processUserInput/processSlashCommand.js';
 import { addToHistory } from '../history.js';
 import { mercuryBootPreflightEnabled, runAndRecordPreflight } from '../utils/healthPreflight.js';
+import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js';
 import { createCommandInputMessage, createUserMessage, extractTag, getUserMessageText, textForResubmit } from '../utils/messages.js';
 import { getTipToShowOnSpinner, recordShownTip } from '../services/tips/tipScheduler.js';
 import { sendNotification } from '../services/notifier.js';
@@ -1553,6 +1554,18 @@ export function REPL({
   }, []);
 
   useEffect(() => {
+    const notice = windowsShellRoadNotice();
+    if (notice === null) return;
+    addNotification({
+      key: 'shell-road',
+      text: `${notice} · /health`,
+      priority: 'high',
+      timeoutMs: 60_000,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     try {
       const unnoticed = unnoticedCrashReports();
       const newest = unnoticed[0];
@@ -2137,6 +2150,13 @@ export function REPL({
     },
     [onScroll],
   );
+  const onTranscriptPillClick = useCallback(() => {
+    const handle = scrollRef.current;
+    if (!handle) return;
+    handle.scrollTo(Math.max(0, handle.getScrollHeight() - handle.getViewportHeight()));
+    handle.scrollToBottom();
+    onTranscriptScroll(true, handle);
+  }, [onTranscriptScroll]);
 
   const lastMessage = messages[messages.length - 1];
   useEffect(() => {
@@ -2656,7 +2676,7 @@ export function REPL({
           hidePill={inVirtualTranscript ? undefined : false}
           hideSticky={inVirtualTranscript ? undefined : false}
           newMessageCount={inVirtualTranscript ? 0 : newMessageCount}
-          onPillClick={inVirtualTranscript ? undefined : onPillClick}
+          onPillClick={inVirtualTranscript ? onTranscriptPillClick : onPillClick}
           scrollable={transcriptBody}
           bottom={
             <Box flexDirection="column">
