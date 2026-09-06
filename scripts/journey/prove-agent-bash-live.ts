@@ -323,7 +323,7 @@ function seedWorld(settings: Record<string, unknown>): World {
   seedFirstRun(home, [cwd])
   const cfgPath = join(home, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
-  writeFileSync(cfgPath, JSON.stringify({ ...cfg, hasSeenAutoDefaultNotice: true, hasSeenAutoDefaultNudge: true }, null, 2) + '\n')
+  writeFileSync(cfgPath, JSON.stringify({ ...cfg }, null, 2) + '\n')
   writeFileSync(join(home, 'settings.json'), JSON.stringify(settings, null, 2) + '\n')
   return { home, cwd, sha }
 }
