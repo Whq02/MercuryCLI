@@ -668,7 +668,7 @@ export async function runHeadless(
     options.permissionPromptToolName,
     io,
     () => getAppState().mcp.tools as Tool[],
-    details => notifySessionStateChanged('requires_action', details),
+    () => notifySessionStateChanged('requires_action'),
   )
   if (options.permissionPromptToolName) {
     sessionTools = sessionTools.filter(
