@@ -256,7 +256,6 @@ function driveEnv(home: string, fixtureBase: string, engine: Engine): Record<str
     MERCURY_CRITTER_IDLE: '0',
     MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_SLEEP: '0',
-    MERCURY_LIVE_CLOCK: '0',
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_OASIS_BG: '0',
@@ -301,7 +300,7 @@ async function leg(engine: Engine, port: number): Promise<void> {
         rows: ROWS,
         total: 320,
         cwd,
-        argv: ['node', DIST, '--dangerously-skip-permissions'],
+        argv: ['node', DIST, '--dangerously-bypass-permissions'],
         sends: [
           ...bootSends(ASK),
           { data: '', atTick: 999, awaitText: 'setting state', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'text' },
