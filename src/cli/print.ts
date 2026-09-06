@@ -774,7 +774,7 @@ export async function runHeadless(
     for (const client of clients) {
       if (client.type !== 'connected') continue
       if (elicitationRegistered.has(client.name)) continue
-      if (client.config.type === 'sdk') continue
+      if (client.config.type === 'host') continue
       try {
         void registerElicitationHandlersForClient(client, client.name)
         elicitationRegistered.add(client.name)
@@ -1624,7 +1624,7 @@ export async function runHeadless(
       switch (request.subtype) {
         case 'initialize': {
           for (const name of request.host_mcp_servers ?? []) {
-            sdkMcp.configs[name] = { type: 'sdk', name }
+            sdkMcp.configs[name] = { type: 'host', name }
           }
           await handleInitializeRequest(
             request,
@@ -2598,7 +2598,7 @@ export async function runHeadless(
           ? { type: config.type, url: config.url, headers: config.headers, oauth: config.oauth }
           : config.type === 'claudeai-proxy'
             ? { type: config.type, url: config.url, id: config.id }
-            : config.type === 'sdk'
+            : config.type === 'host'
               ? { type: 'host', name: config.name }
               : {
                 type: 'stdio',

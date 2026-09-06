@@ -229,7 +229,7 @@ export async function connectAgentMcpServers(
           )
           continue
         }
-        if (row.config.type === 'sdk') {
+        if (row.config.type === 'host') {
           logForDebugging(
             `runAgent: MCP server '${spec}' refused — sdk-typed servers connect only over the SDK control transport, which agent dispatch does not hold`,
           )
@@ -249,7 +249,7 @@ export async function connectAgentMcpServers(
       }
       const name = keys[0]!
       const inlineConfig = spec[name] as Record<string, unknown>
-      if ((inlineConfig as { type?: string }).type === 'sdk') {
+      if ((inlineConfig as { type?: string }).type === 'host') {
         logForDebugging(
           `runAgent: inline MCP server '${name}' refused — sdk-typed servers connect only over the SDK control transport, which agent dispatch does not hold`,
         )
