@@ -1,5 +1,3 @@
-import { quote } from './shellQuote.js'
-
 const DIGIT_SHIFT_RE = /\d\s*<<\s*\d/
 const ARITH_TEST_SHIFT_RE = /\[\[\s*\d+\s*<<\s*\d+\s*\]\]/
 
@@ -72,18 +70,11 @@ export function shouldAddStdinRedirect(command: string): boolean {
 }
 
 export function quoteShellCommand(command: string, addStdinRedirect = true): string {
-  const heredoc = containsHeredoc(command)
-  if (heredoc || hasMultilineQuotedString(command)) {
-    const quoted = posixSingleQuote(command)
-    if (!heredoc && addStdinRedirect) {
-      return `${quoted} < /dev/null`
-    }
-    return quoted
+  const quoted = posixSingleQuote(command)
+  if (addStdinRedirect && !containsHeredoc(command)) {
+    return `${quoted} < /dev/null`
   }
-  if (addStdinRedirect) {
-    return quote([command, '<', '/dev/null'])
-  }
-  return quote([command])
+  return quoted
 }
 
 export function rewriteWindowsNullRedirect(command: string): string {
