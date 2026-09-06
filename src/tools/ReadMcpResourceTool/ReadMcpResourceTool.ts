@@ -7,11 +7,9 @@ import { ensureConnectedClient } from '../../services/mcp/client.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getBinaryBlobSavedMessage, persistBinaryContent } from '../../utils/mcpOutputStorage.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
-import { DESCRIPTION, PROMPT } from './prompt.js'
+import { DESCRIPTION, PROMPT, READ_MCP_RESOURCE_TOOL_NAME } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage, userFacingName } from './UI.js'
 
-
-const READ_MCP_RESOURCE_TOOL_NAME = 'ReadMcpResourceTool'
 
 export const inputSchema = lazySchema(() =>
   z.strictObject({

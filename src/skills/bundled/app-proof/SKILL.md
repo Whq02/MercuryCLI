@@ -1,7 +1,7 @@
 ---
 name: app-proof
 description: Prove a web application works by driving it — start the server under Mercury's Service tool, wait until it is genuinely ready, drive real pages with Mercury's Browser tool (open, click, type, waitFor, extract, screenshot), and record the verdict. Use when asked to test, verify, smoke-check, or reproduce a bug in a web app or API; not for unit tests of a single function.
-when_to_use: After a frontend or API change lands, when a page "looks wrong", when a form or flow must be confirmed end to end, or when the user asks whether the app actually runs.
+when-to-use: After a frontend or API change lands, when a page "looks wrong", when a form or flow must be confirmed end to end, or when the user asks whether the app actually runs.
 argument-hint: "<url or start command> [journey to check]"
 ---
 

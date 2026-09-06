@@ -53,7 +53,7 @@ export const MERCURY_SCOUT_AGENT: BuiltInAgentDefinition = {
     'Fast read-only repository recon: locating files by pattern, searching code for keywords, and answering questions about how something works — with paths, line numbers, and excerpts as evidence. State a thoroughness level: "quick" for a first solid hit, "medium" for moderate exploration, "very thorough" for multiple locations and naming conventions. Examples: <example>Find every file that registers a flag → quick file location by pattern.</example> <example>Search for where retry backoff is computed → keyword search across code.</example> <example>How does session restore decide which transcript to load? → a how-it-works question answered from read evidence.</example>',
   disallowedTools: [
     AGENT_TOOL_NAME,
-    'ExitPlanMode',
+    'ExitStrategyMode',
     'Edit',
     'Write',
     'NotebookEdit',

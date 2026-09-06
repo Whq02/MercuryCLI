@@ -290,7 +290,7 @@ for (const row of ROWS) {
 
 section('§3 the roster — the shell rides every definition that carries it, foreground and background')
 {
-  const POOL_NAMES = ['Agent', 'AskUserQuestion', 'Bash', 'Edit', 'ExitPlanMode', 'Glob', 'Grep', 'NotebookEdit', 'Read', 'SendMessage', 'Skill', 'Sleep', 'TaskOutput', 'TaskStop', 'TodoWrite', 'ToolSearch', 'WebFetch', 'WebSearch', 'Workflow', 'Write']
+  const POOL_NAMES = ['Agent', 'AskUserQuestion', 'Bash', 'Edit', 'ExitStrategyMode', 'Glob', 'Grep', 'NotebookEdit', 'Read', 'SendMessage', 'Skill', 'Sleep', 'TaskOutput', 'TaskStop', 'ToolSearch', 'WebFetch', 'WebSearch', 'Workflow', 'Write']
   const pool = POOL_NAMES.map(name => ({ name })) as never
   const definitions = [GENERAL_PURPOSE_AGENT, MERCURY_BACKGROUND_AGENT, MERCURY_SCOUT_AGENT, MERCURY_ARCHITECT_AGENT, VERIFICATION_AGENT]
   for (const definition of definitions) {

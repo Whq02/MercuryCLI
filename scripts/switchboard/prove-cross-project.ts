@@ -57,7 +57,6 @@ function liveRecord(runnerId: string, sessionId: string, workspaceId: string, ex
 function transcriptRows(cwd: string, sessionId: string, words: string): Record<string, unknown>[] {
   const row = (extra: Record<string, unknown>): Record<string, unknown> => ({
     isSidechain: false,
-    userType: 'external',
     entrypoint: 'cli',
     cwd,
     sessionId,

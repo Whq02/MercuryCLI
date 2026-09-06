@@ -23,7 +23,6 @@ import { logForDebugging } from './debug.js'
 import { logError } from './log.js'
 
 export const MERCURY_CONFIG_DIRECTORIES = [
-  'commands',
   'agents',
   'skills',
   'workflows',
