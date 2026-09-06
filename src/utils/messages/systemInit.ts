@@ -7,7 +7,6 @@ import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { SDKMessage } from '../../entrypoints/agentSdkTypes.js'
-import { getAnthropicApiKeyWithSource } from '../auth.js'
 import { getCwd } from '../cwd.js'
 
 export type SystemInitInputs = {
@@ -39,7 +38,6 @@ export function buildSystemInitMessage(inputs: SystemInitInputs): SDKMessage {
     model: inputs.model,
     permissionMode: inputs.permissionMode,
     slash_commands: inputs.commands.filter(isInvocable).map(command => command.name),
-    apiKeySource: getAnthropicApiKeyWithSource().source,
     betas: getSdkBetas() ?? [],
     mercury_version: MACRO.VERSION,
     agents: inputs.agents.map(agent => agent.agentType),

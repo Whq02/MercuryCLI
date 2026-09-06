@@ -7,7 +7,6 @@ export type OutputFormatType = z.infer<ReturnType<S["OutputFormatTypeSchema"]>>;
 export type BaseOutputFormat = z.infer<ReturnType<S["BaseOutputFormatSchema"]>>;
 export type JsonSchemaOutputFormat = z.infer<ReturnType<S["JsonSchemaOutputFormatSchema"]>>;
 export type OutputFormat = z.infer<ReturnType<S["OutputFormatSchema"]>>;
-export type ApiKeySource = z.infer<ReturnType<S["ApiKeySourceSchema"]>>;
 export type ConfigScope = z.infer<ReturnType<S["ConfigScopeSchema"]>>;
 export type SdkBeta = z.infer<ReturnType<S["SdkBetaSchema"]>>;
 export type ThinkingAdaptive = z.infer<ReturnType<S["ThinkingAdaptiveSchema"]>>;
