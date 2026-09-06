@@ -65,7 +65,6 @@ import releaseNotes from './commands/release-notes/index.js'
 import rename from './commands/rename/index.js'
 import title from './commands/title/index.js'
 import resume from './commands/resume/index.js'
-import session from './commands/session/index.js'
 import skills from './commands/skills/index.js'
 import status from './commands/status/index.js'
 import feedback from './commands/feedback/index.js'
@@ -253,7 +252,6 @@ const COMMANDS = memoize((): Command[] => [
   releaseNotes,
   rename,
   resume,
-  session,
   skills,
   status,
   title,
