@@ -191,7 +191,7 @@ section('§8 — a malformed ledger row is an error, never a silent "unverified"
   writeFileSync(ledgerPath, good)
 }
 
-section('§9 — the codeTree exclusion list is exactly the ledger')
+section('§9 — the codeTree exclusions are the ledger and the release pages, nothing else')
 {
   const mod = await import('./ledger.ts')
   check(
@@ -199,6 +199,13 @@ section('§9 — the codeTree exclusion list is exactly the ledger')
     mod.CODE_TREE_EXCLUDED.length === 1 && mod.CODE_TREE_EXCLUDED[0] === mod.LEDGER_PATH,
     `[${mod.CODE_TREE_EXCLUDED.join(', ')}]`,
   )
+  check(
+    "CODE_TREE_EXCLUDED_PREFIXES === ['docs/releases/'] (a release page is written after the verdict it reports; no archive ships it)",
+    mod.CODE_TREE_EXCLUDED_PREFIXES.length === 1 && mod.CODE_TREE_EXCLUDED_PREFIXES[0] === 'docs/releases/',
+    `[${mod.CODE_TREE_EXCLUDED_PREFIXES.join(', ')}]`,
+  )
+  check('the schema is 2 and a schema-1 tree still differs from a schema-2 tree only by the release pages',
+    mod.LEDGER_SCHEMA === 2 && typeof mod.computeCodeTree('HEAD', 1) === 'string' && mod.computeCodeTree('HEAD', 1) !== mod.computeCodeTree('HEAD', 2))
   check(
     'the ledger lives at a committed, non-ignored path',
     spawnSync('git', ['check-ignore', '-q', mod.LEDGER_PATH], { cwd: REPO }).status !== 0,

@@ -8,8 +8,10 @@ import { join } from 'node:path'
 export const LEDGER_PATH = 'scripts/gate/gate-ledger.jsonl'
 
 export const CODE_TREE_EXCLUDED: readonly string[] = [LEDGER_PATH]
+export const CODE_TREE_EXCLUDED_PREFIXES: readonly string[] = ['docs/releases/']
 
-export const LEDGER_SCHEMA = 1 as const
+export const LEDGER_SCHEMA = 2 as const
+export type LedgerSchema = 1 | 2
 
 export type ShardStatus = 'success' | 'failure' | 'missing' | 'duplicated'
 
@@ -23,7 +25,7 @@ export type VerdictScope = 'release' | 'drives' | 'all'
 export const VERDICT_SCOPES: readonly VerdictScope[] = ['release', 'drives', 'all']
 
 export interface GateLedgerRow {
-  schema: typeof LEDGER_SCHEMA
+  schema: LedgerSchema
   recordedAt: string
   commit: string
   codeTree: string
@@ -45,14 +47,17 @@ function git(args: string[]): string {
   return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
 }
 
-export function computeCodeTree(rev = 'HEAD'): string {
+export function computeCodeTree(rev = 'HEAD', schema: LedgerSchema = LEDGER_SCHEMA): string {
   const raw = git(['ls-tree', '-r', '--full-tree', rev])
   const lines = raw
     .split('\n')
     .filter(Boolean)
     .filter(line => {
       const tab = line.indexOf('\t')
-      return tab === -1 || !CODE_TREE_EXCLUDED.includes(line.slice(tab + 1))
+      if (tab === -1) return true
+      const path = line.slice(tab + 1)
+      if (CODE_TREE_EXCLUDED.includes(path)) return false
+      return schema < 2 || !CODE_TREE_EXCLUDED_PREFIXES.some(prefix => path.startsWith(prefix))
     })
     .sort()
   return createHash('sha256').update(lines.join('\n')).digest('hex')
@@ -130,13 +135,14 @@ export function findVerdict(q: EligibilityQuery = {}): EligibilityResult {
   const rev = q.rev ?? 'HEAD'
   const kind = q.kind ?? 'any'
   const codeTree = computeCodeTree(rev)
+  const treeBySchema: Record<LedgerSchema, string> = { 1: computeCodeTree(rev, 1), 2: codeTree }
   const lockfile = lockfileDigest(rev)
   const declared = declaredToolchain(rev)
 
   if (kind !== 'any' && isAdvisoryKind(kind)) {
     return { eligible: false, reason: `a "${kind}" verdict is advisory — it reports the drives and verifies nothing`, codeTree }
   }
-  const rows = readLedger().filter(r => r.ok && r.codeTree === codeTree && !isAdvisoryKind(r.kind))
+  const rows = readLedger().filter(r => r.ok && r.codeTree === treeBySchema[r.schema === 2 ? 2 : 1] && !isAdvisoryKind(r.kind))
   if (rows.length === 0) {
     return { eligible: false, reason: 'no green verdict recorded for this codeTree', codeTree }
   }
