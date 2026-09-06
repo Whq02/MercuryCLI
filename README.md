@@ -112,9 +112,11 @@ node dist/mercury.mjs doctor --json
 extra grammars · this machine's Node runtime · brush); a failed fetch skips its
 pack, and the build and the affected features say so (`bun install` alone ships
 that degraded build). With a Rust toolchain on the machine, `setup` also
-builds the voice capture addon from `native/voice` (built, not fetched;
-without cargo it is skipped and the doctor says so); on Windows the shell
-engine is built the same way, since upstream publishes no Windows binary.
+builds the voice capture addon from `native/voice` and, with cmake beside
+it, the on-device transcriber addon from `native/whisper` (the packs that
+are built, not fetched; without the toolchain each is skipped and the
+doctor says so); on Windows the shell engine is built the same way, since
+upstream publishes no Windows binary.
 The vendored shell engine (brush, a bash-compatible shell in Rust) is optional:
 the system shell stays the default, and the `shellEngine` setting (`/config`) or
 `MERCURY_SHELL_ENGINE=brush` runs the Bash tool on it, keeping shell state
@@ -181,7 +183,8 @@ while whatever the last chat held keeps running.
 
 **The chat.** You type; the agent reads, edits, runs and verifies code under
 the permission mode you chose, and each tool call shows in the chat as it
-runs. `/model` and `/effort` tune the session, `/permissions` shapes what
+runs, as a compact card or its full output (the `/config` row Tool output,
+saved for later boots). `/model` and `/effort` tune the session, `/permissions` shapes what
 runs free and what asks first, `/policy` is the governance posture, `/diff`
 reviews the changes by source, file and hunk, `/tasks` is the board of
 running shells and agents, and `/help` browses every command. `/clear` parks
@@ -237,7 +240,10 @@ The same artifact is a command-line tool; `node dist/mercury.mjs --help`
 lists every flag. `-p "<prompt>"` runs one non-interactive turn (with
 `--output-format text|json|stream-json`), `-c` continues the most recent
 conversation, `-r` resumes by id, title or picker, `-w` runs the session
-inside a managed worktree, and `--bare` is the minimal mode. The verbs:
+inside a managed worktree, and `--bare` is the minimal mode. The stream-json
+feed is complete on its own: every event of the run, from the init row to
+the result envelope, rides it with no other option asked for; `json` prints
+the result envelope alone. The verbs:
 
 - `mercury health` (alias `doctor`): the health certificate; `--json` prints
   it whole, `--deep` runs the deep inventory, `--fix` runs the guided fixes.
@@ -293,8 +299,9 @@ inside a managed worktree, and `--bare` is the minimal mode. The verbs:
 - **Memory**: experience cards, a project notepad, and Minerva's room over
   your saved prompts ([docs/TABULA-NOTES.md](docs/TABULA-NOTES.md)).
 - **Voice input**: `/speak on`, then space in an empty composer dictates
-  into it through the family you signed into; audio leaves only after you
-  stop, and Mercury never speaks aloud ([docs/VOICE.md](docs/VOICE.md)).
+  into it — on this machine through the on-device transcriber, or through
+  the family you pin; audio leaves only after you stop and only to a cloud
+  family, and Mercury never speaks aloud ([docs/VOICE.md](docs/VOICE.md)).
 - **Durability**: atomic publication, journaled operations and a boot-time
   reconciliation pass ([docs/DURABILITY.md](docs/DURABILITY.md)).
 - **Web search for every model**: the provider's own live search beside
@@ -320,7 +327,7 @@ catalogue, grouped the way `/help` groups it:
 | crew & delegation | `/agents` `/subagents` `/teammates` `/crew` `/team` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/seats` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
 | session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/cost` `/usage` `/insights` `/debrief` `/add-dir` `/realms` |
 | memory & goals | `/memory` `/cards` `/remember` `/tabula` `/note` `/minerva` `/console` `/orient` |
-| model & effort | `/model` `/effort` `/plan` `/supercode` `/submodels` `/counsel` `/harness` `/caching` |
+| model & effort | `/model` `/effort` `/strategy` `/supercode` `/submodels` `/counsel` `/harness` `/caching` |
 | git & review | `/branch` `/review` `/security-review` `/pr-comments` |
 | health & introspection | `/health` `/verify` `/status` `/trace` `/substrate` `/capabilities` `/capabilities-detail` `/ledger` `/provenance` |
 | config & setup | `/config` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/policy` `/authority` `/sovereign` `/sandbox` `/ide` `/browser` `/init` `/keybindings` `/keys` `/vim` `/mouse` `/pings` `/terminal-setup` `/bootmenu` `/speak` `/voice` |

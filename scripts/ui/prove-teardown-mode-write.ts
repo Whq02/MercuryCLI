@@ -161,7 +161,7 @@ section('§4 the built artifact under a PTY that hangs up after the quiet spell'
     const lines: Record<string, unknown>[] = []
     let prev: string | null = null
     const base = {
-      isSidechain: false, userType: 'external', entrypoint: 'cli',
+      isSidechain: false, entrypoint: 'cli',
       cwd: ROOT, sessionId: SID, version: '1.0.0-beta.1', gitBranch: 'main',
     }
     for (let n = 1; n <= 3; n++) {

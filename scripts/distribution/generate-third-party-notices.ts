@@ -169,6 +169,14 @@ lines.push(
   )
 }
 {
+  lines.push(
+    `- **on-device transcriber pack** (\`dist/vendor/whisper/<platform>/mercury_whisper.node\`) — Mercury's own Node-API addon, built from the repository's native/whisper sources with cargo (never fetched). It statically links whisper.cpp and ggml (The ggml authors, MIT, https://github.com/ggml-org/whisper.cpp) through whisper-rs (Unlicense, https://codeberg.org/tazz4843/whisper-rs) and napi-rs (MIT, https://github.com/napi-rs/napi-rs); the per-platform crate inventory ships beside the addon as \`NOTICES.json\`, with every licence text under \`licenses/<crate>-<version>/\` and whisper.cpp's LICENSE (it covers ggml) under \`licenses/whisper.cpp-<version>/\`.`,
+  )
+  lines.push(
+    `- **Whisper speech models** (downloaded on first use into the config home, never in the archive) — OpenAI Whisper weights (Copyright (c) 2022 OpenAI, MIT, https://github.com/openai/whisper), converted to the ggml format by the whisper.cpp authors (https://huggingface.co/ggerganov/whisper.cpp, MIT). Receipt: vendor/whisper-models.lock.json (url · bytes · sha256 per model); the download verifies the digest before the file takes its name.`,
+  )
+}
+{
   const sharpMeta = pkgMeta('sharp')
   lines.push(
     `- **image-processor pack** (\`dist/vendor/image-processor/<platform>/node_modules/@img/\`) — sharp's prebuilt binding (@img/sharp-<platform> ${sharpMeta.version}, ${sharpMeta.license}, https://github.com/lovell/sharp) and the libvips library it links (@img/sharp-libvips-<platform>, LGPL-3.0-or-later, https://github.com/lovell/sharp-libvips — its bundled dependencies and their licences are inventoried upstream at https://github.com/lovell/sharp-libvips/blob/main/THIRD-PARTY-NOTICES.md; on Windows the binding package carries the libraries itself). Redistributed unmodified from the pinned dependency; each package's LICENSE, README and versions.json ship inside the pack.`,

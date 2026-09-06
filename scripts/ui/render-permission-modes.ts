@@ -25,7 +25,6 @@ const uuid = () => `00000000-0000-4000-8000-${String(++u).padStart(12, '0')}`
 type Line = Record<string, unknown>
 const common = (extra: Line): Line => ({
   isSidechain: false,
-  userType: 'external',
   entrypoint: 'cli',
   cwd: RUNTIME_CWD,
   sessionId: SID,

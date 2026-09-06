@@ -72,7 +72,6 @@ export function buildCompass1k(cwd: string, chapters: number = CHAPTERS_DEFAULT)
 
   const base = (extra: Record<string, unknown>): Record<string, unknown> => ({
     isSidechain: false,
-    userType: 'external',
     entrypoint: 'cli',
     cwd,
     sessionId: COMPASS_SID,

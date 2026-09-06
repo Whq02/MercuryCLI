@@ -487,7 +487,7 @@ if (!existsSync(DIST)) {
       }
       return notices
     }
-    const common = ['--model', 'claude-opus-4-8', '--allowedTools', 'Read', '--output-format', 'stream-json', '--verbose']
+    const common = ['--model', 'claude-opus-4-8', '--allowedTools', 'Read', '--output-format', 'stream-json']
 
     section('§2 the wire, one process — three turns, a file rewritten on disk between them')
     {
@@ -589,7 +589,7 @@ if (!existsSync(DIST)) {
     const systemTextOf = (body: Body): string => (Array.isArray(body.system) ? (body.system as Array<{ text?: string }>).map(b => b.text ?? '').join('\n') : String(body.system ?? ''))
     const thinkingBlocksOf = (body: Body): number =>
       ((body.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0)
-    const switchArgs = (model: string): string[] => ['--model', model, '--allowedTools', 'Read', '--output-format', 'stream-json', '--verbose']
+    const switchArgs = (model: string): string[] => ['--model', model, '--allowedTools', 'Read', '--output-format', 'stream-json']
     {
       const turns: ScriptedTurn[] = [
         { kind: 'text', text: 'S5-OPUS-1', thinking: 'opus one', model: 'claude-opus-4-8' },
@@ -796,7 +796,7 @@ if (!existsSync(DIST)) {
       }))
       const r = await runStreaming(
         arena,
-        ['-p', '--input-format', 'stream-json', '--model', 'claude-fable-5-1', '--allowedTools', 'ToolSearch,Read', '--permission-mode', 'apollo', '--output-format', 'stream-json', '--verbose', '--session-id', SID, '--debug-file', debugFile],
+        ['-p', '--input-format', 'stream-json', '--model', 'claude-fable-5-1', '--allowedTools', 'ToolSearch,Read', '--permission-mode', 'apollo', '--output-format', 'stream-json', '--session-id', SID, '--debug-file', debugFile],
         [
           { prompt: 'start the interview' },
           { prompt: 'find the fetch tool' },
@@ -880,7 +880,7 @@ if (!existsSync(DIST)) {
       const debugFile = join(arena.home, 's8.debug.log')
       const r = await runStreaming(
         arena,
-        ['-p', '--input-format', 'stream-json', '--model', FABLE, '--allowedTools', 'Read', '--output-format', 'stream-json', '--verbose', '--session-id', SID, '--debug-file', debugFile],
+        ['-p', '--input-format', 'stream-json', '--model', FABLE, '--allowedTools', 'Read', '--output-format', 'stream-json', '--session-id', SID, '--debug-file', debugFile],
         [
           { prompt: 'first on fable' },
           { prompt: 'read the note' },
@@ -941,7 +941,7 @@ if (!existsSync(DIST)) {
       const debugFile = join(arena.home, 's9.debug.log')
       const r = await runStreaming(
         arena,
-        ['-p', '--input-format', 'stream-json', '--model', FABLE, '--dangerously-skip-permissions', '--output-format', 'stream-json', '--verbose', '--session-id', SID, '--debug-file', debugFile],
+        ['-p', '--input-format', 'stream-json', '--model', FABLE, '--dangerously-skip-permissions', '--output-format', 'stream-json', '--session-id', SID, '--debug-file', debugFile],
         [{ prompt: 'launch the seat and carry on' }],
       )
       check('§9 the process exits 0 (the turn held for the seat, the fold ran, the notice turn landed)', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)

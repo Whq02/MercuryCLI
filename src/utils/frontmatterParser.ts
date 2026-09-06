@@ -10,7 +10,7 @@ export type FrontmatterData = {
   description?: string | null
   type?: string | null
   'argument-hint'?: string | null
-  when_to_use?: string | null
+  'when-to-use'?: string | null
   version?: string | null
   'hide-from-slash-command-tool'?: string | null
   model?: string | null

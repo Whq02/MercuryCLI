@@ -114,7 +114,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     latency: 'fast',
     proof: 'scripts/project-services/prove-change-receipts.ts',
   },
-  EnterPlanMode: {
+  EnterStrategyMode: {
     intents: ['start planning before implementation'],
     units: ['planning'],
     class: 'coordination',
@@ -145,7 +145,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     conditions: ['a Python 3.10+ interpreter or a node binary reachable for kernels'],
     proof: 'scripts/eval/prove-kernel-persistence.ts',
   },
-  ExitPlanMode: {
+  ExitStrategyMode: {
     intents: ['present the plan for approval', 'leave strategy mode'],
     units: ['planning'],
     class: 'coordination',
@@ -240,7 +240,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     cancellation: 'cooperative',
     latency: 'long-running',
   },
-  ListMcpResourcesTool: {
+  ListMcpResources: {
     intents: ['list resources exposed by mcp servers'],
     units: ['resource-inspection'],
     class: 'observation',
@@ -312,7 +312,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     latency: 'fast',
     proof: 'scripts/project-services/prove-change-anchors.ts',
   },
-  ReadMcpResourceTool: {
+  ReadMcpResource: {
     intents: ['read a resource from an mcp server'],
     units: ['resource-inspection'],
     class: 'observation',
@@ -499,14 +499,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     gate: 'MERCURY_TESTS',
     conditions: ['a discoverable test framework (pytest · unittest · node-test · vitest · jest · cargo · go)'],
     proof: 'scripts/ide/prove-python-tests.ts',
-  },
-  TodoWrite: {
-    intents: ['track a short todo list for the session'],
-    units: ['planning'],
-    class: 'coordination',
-    cancellation: 'not-applicable',
-    latency: 'fast',
-    conditions: ['the task list off — an interactive session (or MERCURY_TASKS=1) serves the task list in its place'],
   },
   ToolSearch: {
     intents: ['find the right tool for a job', 'load a deferred tool schema', 'discover capability by intent'],

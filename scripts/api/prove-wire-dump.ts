@@ -360,7 +360,7 @@ if (!existsSync(DIST)) {
         })
       })
     const SID = 'd0d0d0d0-0000-4000-8000-00000000d0d0'
-    const common = ['--model', 'claude-opus-4-8', '--output-format', 'stream-json', '--verbose']
+    const common = ['--model', 'claude-opus-4-8', '--output-format', 'stream-json']
     const r1 = await run(['-p', 'wire dump probe; the key sk-ant-api03-QRSTUVWXYZ0123456789 must never land', ...common, '--session-id', SID], { MERCURY_WIRE_DUMP: dumpDir })
     check('the armed turn exits 0 and answers', r1.exit === 0 && r1.stdout.includes('DUMP-WIRE-DONE'), `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
     const file = join(dumpDir, `${SID}.jsonl`)

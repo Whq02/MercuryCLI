@@ -113,6 +113,7 @@ function childEnv(home: string, netlog: string, extra: Record<string, string | u
     BROWSER: 'true',
     MERCURY_VOICE_BACKEND: 'fixture',
     MERCURY_VOICE_FIXTURE_WAV: TONE,
+    MERCURY_UPDATE_NOTICE: '0',
   }
   for (const key of [
     'ANTHROPIC_API_KEY',
@@ -128,6 +129,9 @@ function childEnv(home: string, netlog: string, extra: Record<string, string | u
     'MERCURY_VOICE_PACK_DIR',
     'MERCURY_VOICE_DEBUG_WAV_DIR',
     'MERCURY_VOICE_BOUND_MS',
+    'MERCURY_WHISPER_PACK_DIR',
+    'MERCURY_WHISPER_MODEL',
+    'MERCURY_VOICE_TRANSCRIBER',
     'MERCURY_OPENAI_API_BASE',
     'MERCURY_GEMINI_API_BASE',
     'MERCURY_CONCOURSE',
@@ -218,7 +222,7 @@ const seededHome = (name: string): string => {
   return home
 }
 
-const ADMITTED = 'new session ·'
+const ADMITTED = ' · ready'
 
 const OPENING: unknown[] = [
   { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
@@ -287,7 +291,7 @@ console.log('[A] /speak → /speak on → v → v → the words land, cursor at 
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
 
-console.log('[B] a keyless home — v answers the no-transcriber receipt before any take')
+console.log('[B] a keyless, packless home — v answers the no-transcriber receipt before any take')
 {
   const netlog = join(scratch, 'keyless-net.log')
   const res = drive(
@@ -297,14 +301,14 @@ console.log('[B] a keyless home — v answers the no-transcriber receipt before 
     [
       ...OPENING,
       { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
-      { requireAwait: true, awaitText: 'or /logins gemini', awaitStableTicks: 1, mark: 'receipt', data: '' },
+      { requireAwait: true, awaitText: '\nnothing transcribes yet — on-device pack pin broken; or /logins openai (API key) or /logins gemini', awaitStableTicks: 2, mark: 'receipt', data: '' },
       { afterPrevTicks: 3, data: '' },
     ],
     90,
-    {},
+    { MERCURY_WHISPER_PACK_DIR: EMPTY_PACK },
   )
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
-  check('the receipt names the doors in the neutral grammar', (res.marks.receipt ?? '').includes('no sign-in transcribes yet — /logins openai (API key) or /logins gemini'), (res.marks.receipt ?? '').split('\n').filter(l => l.includes('sign-in')).join(' · '))
+  check('the receipt names the on-device reason, then the doors in the neutral grammar', (res.marks.receipt ?? '').includes('nothing transcribes yet — on-device pack pin broken; or /logins openai (API key) or /logins gemini'), (res.marks.receipt ?? '').split('\n').filter(l => l.includes('transcribes')).join(' · '))
   check('no take started (the footer never said recording)', !(res.marks.receipt ?? '').includes('recording ·'))
   const stray = nonLoopback(netlines(netlog))
   check('nothing left loopback', stray.length === 0, stray.join(' · '))

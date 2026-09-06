@@ -56,7 +56,6 @@ function spawnRunner(role: boolean): Runner {
     [
       BIN,
       '-p',
-      '--verbose',
       '--permission-mode',
       'flow',
       '--input-format=stream-json',

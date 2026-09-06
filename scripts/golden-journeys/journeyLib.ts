@@ -97,7 +97,6 @@ type Row = Record<string, unknown>
 export function rowBase(sid: string, extra: Row): Row {
   return {
     isSidechain: false,
-    userType: 'external',
     entrypoint: 'cli',
     cwd: FIXTURE_CWD,
     sessionId: sid,

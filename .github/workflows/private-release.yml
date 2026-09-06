@@ -159,6 +159,19 @@ jobs:
         if: runner.os == 'Windows'
         continue-on-error: true
         run: bun run scripts/vendor/build-brush.ts --target ${{ matrix.target }}
+      - name: cmake for the on-device transcriber pack
+        continue-on-error: true
+        shell: bash
+        run: |
+          cmake --version && exit 0
+          case "$RUNNER_OS" in
+            Linux) sudo apt-get update && sudo apt-get install -y cmake ;;
+            macOS) brew install cmake ;;
+            Windows) choco install cmake --no-progress -y ;;
+          esac
+      - name: Build the on-device transcriber pack
+        continue-on-error: true
+        run: bun run scripts/vendor/build-whisper.ts --target ${{ matrix.target }}
       - name: native build
         run: bun run build.ts --target ${{ matrix.target }}
       - name: signing key (the secret, or the unsigned decision)

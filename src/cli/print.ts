@@ -274,7 +274,6 @@ type HeadlessOptions = {
   continue?: boolean
   resume?: string | boolean
   resumeSessionAt?: string
-  verbose?: boolean
   outputFormat?: string
   jsonSchema?: Record<string, unknown>
   permissionPromptToolName?: string
@@ -468,7 +467,7 @@ export async function runHeadless(
     }
   }
 
-  if (options.outputFormat === 'stream-json' && options.verbose) {
+  if (options.outputFormat === 'stream-json') {
     registerHookEventHandler(event => {
       const subtype =
         event.type === 'started'
@@ -652,14 +651,6 @@ export async function runHeadless(
   ) {
     emitLoadError(
       'Error: input must be provided either through stdin or as a prompt argument when using --print',
-      options.outputFormat,
-    )
-    gracefulShutdownSync(1)
-    return
-  }
-  if (options.outputFormat === 'stream-json' && !options.verbose) {
-    emitLoadError(
-      'Error: --output-format=stream-json requires --verbose',
       options.outputFormat,
     )
     gracefulShutdownSync(1)
@@ -1159,7 +1150,6 @@ export async function runHeadless(
           ...(command.mode === 'bash' ? { promptMode: 'bash' as const } : {}),
           cwd: getCwd(),
           tools: assembledTools,
-          verbose: options.verbose,
           mcpClients: turnClients,
           thinkingConfig,
           maxTurns: options.maxTurns,
@@ -1336,7 +1326,6 @@ export async function runHeadless(
   const idleTimeout = createIdleTimeoutManager(() => !driver.isRunning())
 
   let lastMessage: StdoutMessage | null = null
-  const collected: StdoutMessage[] = []
   const EXCLUDED_LAST = new Set([
     'control_response',
     'control_request',
@@ -1365,7 +1354,7 @@ export async function runHeadless(
     if (streamlinedTransformer) {
       const transformed = streamlinedTransformer(message)
       if (transformed) void io.write(transformed)
-    } else if (options.outputFormat === 'stream-json' && options.verbose) {
+    } else if (options.outputFormat === 'stream-json') {
       void io.write(message)
     }
     const type = message.type
@@ -1376,9 +1365,6 @@ export async function runHeadless(
       type !== 'tool_progress'
     ) {
       lastMessage = message
-    }
-    if (options.outputFormat === 'json' && options.verbose) {
-      collected.push(message)
     }
   }
 
@@ -2825,11 +2811,7 @@ export async function runHeadless(
     if (!last || last.type !== 'result') {
       throw new Error('No messages returned')
     }
-    if (options.verbose) {
-      await flushWrite(process.stdout, `${jsonStringify(collected)}\n`)
-    } else {
-      await flushWrite(process.stdout, `${jsonStringify(last)}\n`)
-    }
+    await flushWrite(process.stdout, `${jsonStringify(last)}\n`)
   } else if (options.outputFormat !== 'stream-json') {
     if (!last || last.type !== 'result') {
       throw new Error('No messages returned')

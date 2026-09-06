@@ -192,7 +192,7 @@ async function drive(tag: string, turns: ScriptedTurn[], sends: Send[], readyTex
       switchboardCapacity: { askedAt: 0, allowed: true, recommendedSeats: 5 },
     }),
   )
-  writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ permissions: { disableAutoMode: 'disable' } }))
+  writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ permissions: { disableFlowMode: true } }))
   const out = join(world, `grid-${tag}.json`)
   const cfgPath = join(world, `cfg-${tag}.json`)
   writeFileSync(

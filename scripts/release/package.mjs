@@ -38,7 +38,7 @@ if (!existsSync(join(dist, 'mercury.mjs'))) fail('dist/mercury.mjs missing — r
 if (!existsSync(join(dist, 'manifest.json'))) fail('dist/manifest.json missing')
 const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8'))
 const degraded = Array.isArray(manifest.degraded) ? manifest.degraded : []
-const PUBLISHABLE_DEGRADATIONS = new Set(['voice-input'])
+const PUBLISHABLE_DEGRADATIONS = new Set(['voice-input', 'on-device-transcriber'])
 if (IS_WIN) PUBLISHABLE_DEGRADATIONS.add('shell-engine')
 const blocking = degraded.filter(d => !PUBLISHABLE_DEGRADATIONS.has(d))
 if (blocking.length > 0 && !process.argv.includes('--allow-degraded')) {
@@ -46,6 +46,7 @@ if (blocking.length > 0 && !process.argv.includes('--allow-degraded')) {
 }
 if (degraded.includes('voice-input')) ok('the voice capture pack is absent from this build — the archive ships without voice input (degraded: voice-input, publishable)')
 if (degraded.includes('shell-engine') && PUBLISHABLE_DEGRADATIONS.has('shell-engine')) ok('the shell engine pack is absent from this build — the archive ships without the vendored shell engine (degraded: shell-engine, publishable on this platform)')
+if (degraded.includes('on-device-transcriber')) ok('the on-device transcriber pack is absent from this build — the archive ships without it, the cloud transcribers serve (degraded: on-device-transcriber, publishable)')
 const rgDirs = existsSync(join(dist, 'vendor', 'ripgrep')) ? readdirSync(join(dist, 'vendor', 'ripgrep')) : []
 if (rgDirs.length === 0) fail('dist/vendor/ripgrep missing — the build must vendor the platform rg')
 const TARGET_NODE_PACK = { 'linux-x64': 'linux-x64', 'macos-arm64': 'darwin-arm64', 'macos-x64': 'darwin-x64', 'windows-x64': 'win-x64' }[TARGET]

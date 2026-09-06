@@ -77,6 +77,9 @@ section('§4 the build — --target, the target\'s packs, the manifest declarati
   const voice = read('scripts/vendor/build-voice.ts')
   check('build-voice.ts cross-compiles through the rustup target the owner names, or skips loudly', voice.includes("run('rustup', ['target', 'list', '--installed']") && voice.includes("...(CROSS && TRIPLE ? ['--target', TRIPLE] : [])") && voice.includes('rustup target add ${TRIPLE}'))
   check('build-voice.ts keys the pack on the shipped pair', voice.includes('voicePackPlatform(SHIP.platform, SHIP.arch)') && voice.includes('voiceCargoTriple(PLATFORM)'))
+  const whisper = read('scripts/vendor/build-whisper.ts')
+  check('build-whisper.ts keys the pack on the shipped pair through the voice pack owner\'s table and cross-compiles through the same rustup target, or skips loudly', whisper.includes('voicePackPlatform(SHIP.platform, SHIP.arch)') && whisper.includes('voiceCargoTriple(PLATFORM)') && whisper.includes("run('rustup', ['target', 'list', '--installed']") && whisper.includes('rustup target add ${TRIPLE}'))
+  check('build.ts vendors the on-device transcriber pack of the SHIPPED pair through the same key', build.includes('whisperPackDirFor(ROOT, packPlatform)') && build.includes("['on-device-transcriber']"))
 }
 
 section('§5 the built dist — the packs follow the declared target')
@@ -103,6 +106,8 @@ section('§5 the built dist — the packs follow the declared target')
       check('the voice pack record follows the target', voice.vendored !== true || voice.platform === voicePackPlatform(record.platform, record.arch), JSON.stringify(voice))
       const shell = manifest.shellEngine as { vendored?: boolean; platform?: string }
       check('the shell engine record follows the target', shell.vendored !== true || shell.platform === brushPackPlatform(record.platform, record.arch), JSON.stringify(shell))
+      const whisperRecord = manifest.onDeviceTranscriber as { vendored?: boolean; platform?: string } | undefined
+      check('the on-device transcriber record follows the target', whisperRecord !== undefined && (whisperRecord.vendored !== true || whisperRecord.platform === voicePackPlatform(record.platform, record.arch)), JSON.stringify(whisperRecord))
     }
   }
 }
@@ -157,6 +162,8 @@ section('§7 the release workflow — four arms, the Intel one cross-packaged an
   check('every arm\'s node pack is the owner\'s projection of its target', pkg.every(r => isReleaseTarget(r.target ?? '') && nodePackPlatform(buildPlatformOf(r.target as never).platform, buildPlatformOf(r.target as never).arch) === r.node_pack))
   check('every arm builds, builds the voice pack, fetches its platform packages and its shell engine pack for ITS target', wf.includes('bun run build.ts --target ${{ matrix.target }}') && wf.includes('bun run scripts/vendor/build-voice.ts --target ${{ matrix.target }}') && wf.includes('bun run scripts/vendor/fetch-platform-packages.ts --target ${{ matrix.target }}') && wf.includes('bun run scripts/vendor/fetch-brush.ts --platform ${{ matrix.node_pack }}'))
   check('the shell engine fetch skips the Windows arm, whose pack is built on its own step', /if: runner\.os != 'Windows'\n\s+run: bun run scripts\/vendor\/fetch-brush\.ts --platform/.test(wf) && wf.includes('- name: Build the shell engine pack (Windows)'))
+  check('every arm builds, builds the voice pack and fetches its platform packages for ITS target', wf.includes('bun run build.ts --target ${{ matrix.target }}') && wf.includes('bun run scripts/vendor/build-voice.ts --target ${{ matrix.target }}') && wf.includes('bun run scripts/vendor/fetch-platform-packages.ts --target ${{ matrix.target }}'))
+  check('every arm builds the on-device transcriber pack for ITS target, optional like the voice pack', wf.includes('bun run scripts/vendor/build-whisper.ts --target ${{ matrix.target }}') && /name: Build the on-device transcriber pack\n\s+continue-on-error: true/.test(wf))
   check('the rust toolchain step installs the arm\'s rustup targets', wf.includes("targets: ${{ matrix.rust_targets || '' }}"))
   check('a cross arm ensures Rosetta 2 before the packager\'s smoke', /if: matrix\.cross\n\s+run: \|\n\s+arch -x86_64 \/usr\/bin\/true 2>\/dev\/null \|\| sudo softwareupdate --install-rosetta --agree-to-license\n\s+arch -x86_64 \/usr\/bin\/true/.test(wf))
   check('the vendor cache key covers the platform-package fetch and bun.lock', wf.includes("'scripts/vendor/fetch-platform-packages.ts'") && wf.includes("'bun.lock'"))

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -18,10 +18,13 @@ const {
   healScopeIdentitySnapshot,
   _resetIdentityCacheForTesting,
 } = await import('../../src/utils/accounts/accountIdentity.ts')
+const { scopeIdentityFile, _resetIdentityAdoptionForTesting } = await import(
+  '../../src/utils/accounts/scopeScan.ts'
+)
 
 const dir = mkdtempSync(join(tmpdir(), 'acct-identity-'))
 writeFileSync(
-  join(dir, '.claude.json'),
+  join(dir, '.mercury.json'),
   JSON.stringify({ oauthAccount: { accountUuid: 'stale-uuid', emailAddress: 'stale@old.example' } }),
 )
 
@@ -35,7 +38,7 @@ try {
   console.log('── verified: live identity wins + snapshot heals ──')
   const verified = await resolveLiveScopeIdentity(dir, { readCreds: () => creds, fetchImpl: okFetch })
   check('state verified with the LIVE email', verified.state === 'verified' && verified.email === 'true@now.example')
-  const healed = JSON.parse(readFileSync(join(dir, '.claude.json'), 'utf8')) as {
+  const healed = JSON.parse(readFileSync(join(dir, '.mercury.json'), 'utf8')) as {
     oauthAccount: { emailAddress: string; accountUuid: string }
   }
   check(
@@ -82,16 +85,39 @@ try {
 
   console.log('── heal is a merge, never a wipe ──')
   writeFileSync(
-    join(dir, '.claude.json'),
+    join(dir, '.mercury.json'),
     JSON.stringify({ keepMe: true, oauthAccount: { emailAddress: 'old@x', organizationName: 'Org' } }),
   )
   healScopeIdentitySnapshot(dir, { email: 'new@x', uuid: 'u2' })
-  const merged = JSON.parse(readFileSync(join(dir, '.claude.json'), 'utf8')) as Record<string, unknown>
+  const merged = JSON.parse(readFileSync(join(dir, '.mercury.json'), 'utf8')) as Record<string, unknown>
   const oa = merged.oauthAccount as Record<string, unknown>
   check(
     'heal merges (sibling keys + other oauthAccount fields survive)',
     merged.keepMe === true && oa.organizationName === 'Org' && oa.emailAddress === 'new@x' && oa.accountUuid === 'u2',
   )
+
+  console.log('── a snapshot under the retired basename is adopted once, only with a stored login ──')
+  const adoptDir = mkdtempSync(join(tmpdir(), 'acct-adopt-'))
+  const retiredBytes = JSON.stringify({ oauthAccount: { accountUuid: 'adopt-uuid', emailAddress: 'adopt@x' } })
+  writeFileSync(join(adoptDir, '.claude.json'), retiredBytes)
+  const target = scopeIdentityFile(adoptDir, { storedLogin: () => false })
+  check('the identity file is the scope config file', target === join(adoptDir, '.mercury.json'))
+  check('no stored login ⇒ nothing adopted (a snapshot that outlived its credential is never resurrected)', !existsSync(target))
+  _resetIdentityAdoptionForTesting()
+  scopeIdentityFile(adoptDir, { storedLogin: () => true })
+  const adopted = JSON.parse(readFileSync(target, 'utf8')) as { oauthAccount?: { accountUuid?: string; emailAddress?: string } }
+  check('a stored login ⇒ the identity is adopted into the scope config file', adopted.oauthAccount?.accountUuid === 'adopt-uuid' && adopted.oauthAccount?.emailAddress === 'adopt@x', JSON.stringify(adopted))
+  check('the retired file is left as it is', readFileSync(join(adoptDir, '.claude.json'), 'utf8') === retiredBytes)
+  const before = readFileSync(target, 'utf8')
+  _resetIdentityAdoptionForTesting()
+  scopeIdentityFile(adoptDir, { storedLogin: () => true })
+  check('a second read is a no-op (the adopted file is the truth)', readFileSync(target, 'utf8') === before)
+  const foreign = join(adoptDir, '.claude-other')
+  mkdirSync(foreign)
+  writeFileSync(join(foreign, '.claude.json'), retiredBytes)
+  scopeIdentityFile(foreign, { storedLogin: () => true })
+  check('a Claude-family home is never written', !existsSync(join(foreign, '.mercury.json')))
+  rmSync(adoptDir, { recursive: true, force: true })
 } finally {
   rmSync(dir, { recursive: true, force: true })
   _resetIdentityCacheForTesting()

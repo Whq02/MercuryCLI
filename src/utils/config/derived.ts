@@ -33,16 +33,6 @@ export function getCustomApiKeyStatus(
   return 'new'
 }
 
-export function isAutoUpdaterDisabled(): boolean {
-  return getAutoUpdaterDisabledReason() !== null
-}
-
-export type AutoUpdaterDisabledReason =
-  | { type: 'development' }
-  | { type: 'env'; envVar: string }
-  | { type: 'config' }
-  | { type: 'standalone' }
-
 
 export function binaryName(): string {
   return 'mercury'
@@ -60,25 +50,6 @@ export function isMouseCaptureEnabled(): boolean {
 export function isMercurySubstrateProfileOn(): boolean {
   if (isEnvDefinedFalsy(flagEnv('MERCURY_SUBSTRATE'))) return false
   return true
-}
-
-export function formatAutoUpdaterDisabledReason(
-  reason: AutoUpdaterDisabledReason,
-): string {
-  switch (reason.type) {
-    case 'development':
-      return 'development build'
-    case 'env':
-      return `${reason.envVar} set`
-    case 'config':
-      return 'config'
-    case 'standalone':
-      return 'Mercury source build'
-  }
-}
-
-export function getAutoUpdaterDisabledReason(): AutoUpdaterDisabledReason | null {
-  return { type: 'standalone' }
 }
 
 export function getOrCreateUserID(): string {
