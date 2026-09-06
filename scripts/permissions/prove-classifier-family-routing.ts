@@ -63,16 +63,12 @@ t(
   ),
 )
 t(
-  'a configured Anthropic model stays primary over an engine session model',
-  eq(
-    classifierModelChain({
-      configuredModel: 'claude-opus-5',
-      sessionModel: 'gpt-5.2',
-      anthropicUsable: true,
-      anthropicTier: TIER,
-    }),
-    ['claude-opus-5', 'claude-sonnet-5'],
-  ),
+  'the chain reads no configured classifier model: the session model is the one input that names a model (the dead remote-config switch is gone)',
+  !readFileSync('src/utils/permissions/classifierRouted.ts', 'utf8').includes('configuredModel') &&
+    eq(
+      classifierModelChain({ sessionModel: 'gpt-5.2', anthropicUsable: true, anthropicTier: TIER }),
+      ['claude-sonnet-5', 'claude-opus-5', 'gpt-5.2'],
+    ),
 )
 t(
   'chain is never empty and never Haiku',
@@ -213,9 +209,37 @@ t(
     classifyBand.includes('classifyOverRoutedTransport({'),
 )
 t(
-  'the routed branch sits before the two-stage gate (no sideQuery for routed models)',
-  classifyBand.indexOf('classifyOverRoutedTransport') !== -1 && classifyBand.indexOf('classifyOverRoutedTransport') < classifyBand.indexOf('classifyYoloActionTwoStage'),
+  'the routed branch sits before the one-shot sideQuery call (no sideQuery for routed models)',
+  classifyBand.indexOf('classifyOverRoutedTransport') !== -1 && classifyBand.indexOf('classifyOverRoutedTransport') < classifyBand.indexOf('await sideQuery('),
 )
+const setupSource = readFileSync('src/utils/permissions/permissionSetup.ts', 'utf8')
+t(
+  'no dead auto-mode switch survives in the classifier or the config shape (two-stage · transcript grammar · configured model)',
+  !setupSource.includes('twoStageClassifier') &&
+    !setupSource.includes('jsonlTranscript') &&
+    !/^\s*model\?: string$/m.test(setupSource) &&
+    !yolo.includes('twoStageClassifier') &&
+    !yolo.includes('classifyYoloActionTwoStage') &&
+    !yolo.includes('jsonlTranscript') &&
+    !yolo.includes('configuredModel') &&
+    !yolo.includes("stage: 'fast'") &&
+    !yolo.includes("stage: 'thinking'"),
+)
+{
+  const { buildTranscriptForClassifier, LATEST_REQUEST_LEAD } = await import('../../src/utils/permissions/yoloClassifier.ts')
+  const transcript = buildTranscriptForClassifier(
+    [
+      { type: 'user', uuid: '00000000-0000-4000-a000-000000000001', timestamp: new Date().toISOString(), message: { role: 'user', content: 'tidy the repo' } },
+      { type: 'user', uuid: '00000000-0000-4000-a000-000000000002', timestamp: new Date().toISOString(), message: { role: 'user', content: 'then run the tests' } },
+    ] as never,
+    [],
+  )
+  t(
+    'the transcript grammar is the one plain form: a `User: ` line per prompt, the latest wearing its lead — never a JSON line',
+    transcript === `User: tidy the repo\n${LATEST_REQUEST_LEAD}then run the tests\n`,
+    JSON.stringify(transcript),
+  )
+}
 t('the fallback walk iterates the family-aware chain', yolo.includes('for (const candidate of getClassifierModelChain())'))
 t('the primary model is the chain head', yolo.includes('return getClassifierModelChain()[0]!'))
 t(

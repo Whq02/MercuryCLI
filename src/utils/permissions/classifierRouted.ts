@@ -11,14 +11,13 @@ export function classifierBaseModel(m: string): string {
 
 
 export type ClassifierChainInput = {
-  configuredModel?: string
   sessionModel: string
   anthropicUsable: boolean
   anthropicTier: readonly string[]
 }
 
 export function classifierModelChain(input: ClassifierChainInput): string[] {
-  const preferred = input.configuredModel || input.sessionModel
+  const preferred = input.sessionModel
   let chain: string[]
   if (declaredRouteOf(preferred) === 'anthropic') {
     chain = [preferred, ...input.anthropicTier]

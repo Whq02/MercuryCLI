@@ -267,6 +267,7 @@ export type Options = {
   fetchOverride?: ClientOptions['fetch']
   enablePromptCaching?: boolean
   skipCacheWrite?: boolean
+  cacheTtlSource?: QuerySource
   effortMessage?: EffortValue
   temperatureOverride?: number
   effortValue?: EffortValue
@@ -694,9 +695,10 @@ async function* queryModel(
 
   const enablePromptCaching =
     options.enablePromptCaching ?? getPromptCachingEnabled(options.model)
+  const cacheTtlSource = options.cacheTtlSource ?? options.querySource
   const system = buildSystemPromptBlocks(systemPrompt, enablePromptCaching, {
     skipGlobalCacheForSystemPrompt: needsToolBasedCacheMarker,
-    querySource: options.querySource,
+    querySource: cacheTtlSource,
   })
   const useBetas = betas.length > 0
 
@@ -879,7 +881,7 @@ async function* queryModel(
       messages: addCacheBreakpoints(
         messagesForAPI,
         enablePromptCaching,
-        options.querySource,
+        cacheTtlSource,
         useCachedMC,
         consumedCacheEdits as CachedMCEditsBlock | null,
         consumedPinnedEdits as CachedMCPinnedEdits[],
