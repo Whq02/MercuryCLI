@@ -21,7 +21,6 @@ const src = (rel: string): string => readFileSync(rel, 'utf8')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { flagEnabled } = await import('../../src/substrate/flagRegistry.ts')
-const { getAutoUpdaterDisabledReason } = await import('../../src/utils/config/derived.ts')
 const { getPrivacyLevel } = await import('../../src/utils/privacyLevel.ts')
 const { getPromptCachingEnabled } = await import('../../src/services/providers/anthropic/requestParams.ts')
 const { getSmallFastModel, getDefaultSonnetModel, getDefaultOpusModel } = await import('../../src/utils/model/model.ts')
@@ -31,7 +30,7 @@ const health = (await import('../../src/commands/health/index.ts')).default as {
 const login = ((await import('../../src/commands/login/index.ts')).default as () => { isEnabled?: () => boolean })()
 const logout = (await import('../../src/commands/logout/index.ts')).default as { isEnabled?: () => boolean }
 
-const SWITCHES = ['MERCURY_AUTOUPDATE', 'MERCURY_TELEMETRY', 'MERCURY_ERROR_REPORTING', 'MERCURY_BUG_COMMAND', 'MERCURY_FEEDBACK_COMMAND', 'MERCURY_DOCTOR_COMMAND', 'MERCURY_LOGIN_COMMAND', 'MERCURY_LOGOUT_COMMAND', 'MERCURY_PROMPT_CACHING', 'MERCURY_PROMPT_CACHING_HAIKU', 'MERCURY_PROMPT_CACHING_SONNET', 'MERCURY_PROMPT_CACHING_OPUS', 'MERCURY_INTERLEAVED_THINKING', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_BUILTIN_RIPGREP', 'MERCURY_MCP_LARGE_OUTPUT_FILES']
+const SWITCHES = ['MERCURY_TELEMETRY', 'MERCURY_ERROR_REPORTING', 'MERCURY_BUG_COMMAND', 'MERCURY_FEEDBACK_COMMAND', 'MERCURY_DOCTOR_COMMAND', 'MERCURY_LOGIN_COMMAND', 'MERCURY_LOGOUT_COMMAND', 'MERCURY_PROMPT_CACHING', 'MERCURY_PROMPT_CACHING_HAIKU', 'MERCURY_PROMPT_CACHING_SONNET', 'MERCURY_PROMPT_CACHING_OPUS', 'MERCURY_INTERLEAVED_THINKING', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_BUILTIN_RIPGREP', 'MERCURY_MCP_LARGE_OUTPUT_FILES']
 for (const name of SWITCHES) unset(name)
 
 section('§1 the registry polarity: unset ⇒ on, =0 ⇒ off, live')
@@ -46,13 +45,6 @@ for (const name of SWITCHES) {
 
 section('§2 each switch at its owner')
 {
-  unset('MERCURY_AUTOUPDATE')
-  check('auto-update: unset ⇒ the standalone reason', getAutoUpdaterDisabledReason()?.type === 'standalone')
-  off('MERCURY_AUTOUPDATE')
-  const reason = getAutoUpdaterDisabledReason()
-  check('auto-update: =0 ⇒ the reason names the variable', reason?.type === 'env' && (reason as { envVar?: string }).envVar === 'MERCURY_AUTOUPDATE', JSON.stringify(reason))
-  unset('MERCURY_AUTOUPDATE')
-
   unset('MERCURY_TELEMETRY')
   check('telemetry: unset ⇒ the default privacy level', getPrivacyLevel() === 'default', getPrivacyLevel())
   off('MERCURY_TELEMETRY')
