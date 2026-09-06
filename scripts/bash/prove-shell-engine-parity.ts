@@ -11,6 +11,7 @@ const OWNER_LEVEL = [
   'scripts/bash/prove-output-tail-truth.ts',
   'scripts/bash/prove-shell-snapshot-path.ts',
   'scripts/bash/prove-shell-settlement.ts',
+  'scripts/bash/prove-bash-tool-seams.ts',
   'scripts/decisions/prove-command-analysis.ts',
 ]
 
@@ -61,6 +62,9 @@ if (chosen.length > 0) {
       console.log(`         ↳ exit: system ${system.exit ?? system.signal} · brush ${brush.exit ?? brush.signal}`)
     }
   }
+  const controlOnly = report.provers.filter(prover => prover.grade === 'control-only').map(prover => basename(prover.prover))
+  if (controlOnly.length > 0) console.log(`  control-only (the harness, not the engine): ${controlOnly.join(', ')}`)
+  check(`on a wired lane at least one enrolled prover exercised the engine (${report.exercised} of ${report.provers.length} carry the live-engine line)`, lane.state !== 'wired' || report.exercised > 0)
   console.log(`\n  report: ${report.reportPath}`)
   if (process.env.PARITY_PRINT_REPORT === '1') console.log(renderReport(report))
 }
