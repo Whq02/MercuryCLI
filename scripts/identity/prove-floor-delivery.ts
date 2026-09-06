@@ -214,7 +214,7 @@ section('§5 subagent doctrine — floor LEADS every spawned child')
   const { buildSubagentMercurySections } = await import('../../src/constants/subagentDoctrine.ts')
   const { VERIFICATION_AGENT } = await import('../../src/tools/AgentTool/built-in/verificationAgent.ts')
 
-  const normal = buildSubagentMercurySections({ agentDefinition: { agentType: 'general-purpose' } })
+  const normal = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-general' } })
   check('normal agent: floor is element 0', normal[0] === FLOOR)
   check('normal agent: the operating register follows', typeof normal[1] === 'string' && normal[1]!.includes('<subagent-doctrine>'))
 
@@ -226,7 +226,7 @@ section('§6 source pins — the bun-unloadable seats, one line each')
 {
   const pins: Array<[string, string, string]> = [
     ['every session turn — interactive (the concourse runner) and SDK alike (custom prompt)', 'src/QueryEngine.ts', '? [MERCURY_IDENTITY_FLOOR, config.customSystemPrompt]'],
-    ['bare MERCURY_SIMPLE prompt', 'src/constants/prompts.ts', '${simpleHead}\\n\\n${MERCURY_IDENTITY_FLOOR}'],
+    ['bare MERCURY_BARE prompt', 'src/constants/prompts.ts', '${simpleHead}\\n\\n${MERCURY_IDENTITY_FLOOR}'],
     ['default prompt contract splice (frozen per conversation through the section cache)', 'src/constants/prompts.ts', "systemPromptSection('mercury-contract', () => JSON.stringify(getMercuryContractSections()))"],
     ['switchboard coordinator seat (its own floor, then its engine line)', 'src/services/concourse/coordinatorCall.ts', 'asSystemPrompt([\n          MERCURY_COORDINATOR_FLOOR,\n          engineLine,\n          input.contract,'],
     ['every seat states its engine from ONE owner', 'src/constants/prompts.ts', 'return mercuryEngineIdentityLine(modelId)'],

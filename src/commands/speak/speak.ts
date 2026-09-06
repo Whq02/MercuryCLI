@@ -1,6 +1,6 @@
 import type { LocalCommandCall } from '../../types/command.js'
-import { localTranscriberRead } from '../../services/voice/transcribe.js'
-import { describeVoiceStatus, setVoiceInputEnabled, voiceInputEnabled } from '../../services/voice/voiceSession.js'
+import { localTranscriberRead, transcriberOptionNames } from '../../services/voice/transcribe.js'
+import { describeVoiceOptions, describeVoiceStatus, setVoiceInputEnabled, setVoiceTranscriberChoice, voiceInputEnabled } from '../../services/voice/voiceSession.js'
 import { WHISPER_MODELS, checkWhisperModel, downloadWhisperModel, mbWords, resolveWhisperModelPin, whisperModelByName, whisperModelsDir } from '../../services/voice/whisperModels.js'
 
 const seconds = (ms: number): string => `${Math.max(1, Math.round(ms / 1000))}s`
@@ -31,14 +31,31 @@ async function download(rawName: string): Promise<string> {
   }
 }
 
+function options(rawName: string): string {
+  if (rawName === '') return describeVoiceOptions()
+  const names = transcriberOptionNames()
+  if (rawName === 'default') {
+    setVoiceTranscriberChoice(null)
+    return `default transcriber: the shipped default (saved choice cleared)\n${describeVoiceOptions()}`
+  }
+  if (!names.includes(rawName)) {
+    return `/speak options takes one of ${names.join(' · ')} or default (got "${rawName}"); bare /speak options lists them`
+  }
+  setVoiceTranscriberChoice(rawName)
+  return `default transcriber: ${rawName} (saved)\n${describeVoiceOptions()}`
+}
+
 export const call: LocalCommandCall = async rawArg => {
   const arg = rawArg.trim().toLowerCase()
   if (arg === '') return { type: 'text', value: describeVoiceStatus() }
   if (arg === 'download' || arg.startsWith('download ')) {
     return { type: 'text', value: await download(arg.slice('download'.length).trim()) }
   }
+  if (arg === 'options' || arg.startsWith('options ')) {
+    return { type: 'text', value: options(arg.slice('options'.length).trim()) }
+  }
   if (arg !== 'on' && arg !== 'off') {
-    return { type: 'text', value: `/speak takes on, off or download (got "${rawArg.trim()}"); bare /speak shows the status` }
+    return { type: 'text', value: `/speak takes on, off, options or download (got "${rawArg.trim()}"); bare /speak shows the status` }
   }
   const next = arg === 'on'
   if (voiceInputEnabled() === next) {

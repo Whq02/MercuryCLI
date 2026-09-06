@@ -11,7 +11,7 @@ const CREDENTIAL_KEYS = [
   'MOONSHOT_API_KEY', 'MOONSHOT_TOKEN', 'HF_TOKEN', 'HF_OAUTH_TOKEN', 'MERCURY_COMPAT_API_KEY', 'MERCURY_COMPAT_BASE_URL',
 ] as const
 for (const key of CREDENTIAL_KEYS) delete process.env[key]
-for (const ambient of ['ANTHROPIC_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_WORKFLOW_ROUTING']) delete process.env[ambient]
+for (const ambient of ['MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_WORKFLOW_ROUTING']) delete process.env[ambient]
 delete process.env.NODE_ENV
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'

@@ -117,7 +117,7 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
       input: {
         description: 'poise probe',
         prompt: 'Count to three slowly.',
-        subagent_type: 'general-purpose',
+        subagent_type: 'mercury-general',
         run_in_background: true,
       },
       preText: 'Spawning the probe agent.',

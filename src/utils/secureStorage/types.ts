@@ -8,8 +8,6 @@ export interface SecureStorageData {
   gatewayTrust?: Record<string, string>
   mcpOAuth?: Record<string, any>
   mcpOAuthClientConfig?: Record<string, any>
-  mcpXaaIdp?: Record<string, any>
-  mcpXaaIdpConfig?: Record<string, any>
   extensionSecrets?: Record<string, Record<string, string>>
   trustedDeviceToken?: string
 }

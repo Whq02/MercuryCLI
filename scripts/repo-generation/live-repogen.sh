@@ -79,7 +79,7 @@ set -x
 cd "$target" || exit 1
 MERCURY_THEMIS=warn MERCURY_DAEDALUS=1 \
   node "$dist" -p "$prompt" --permission-mode flow --model opus \
-  --allowedTools 'Workflow' 'Read' 'Glob' 'Grep' 'Write' 'Edit' \
+  --allowed-tools 'Workflow' 'Read' 'Glob' 'Grep' 'Write' 'Edit' \
     'Bash(git:*)' 'Bash(node:*)' 'Bash(mkdir:*)' 'Bash(rm:*)' 'Bash(ls:*)' 'Bash(cat:*)' 'Bash(echo:*)' 'Bash(cd:*)'
 set +x
 

@@ -1,3 +1,5 @@
+import { flagEnabled } from '../substrate/flagRegistry.js'
+
 
 type PrivacyLevel = 'default' | 'no-telemetry' | 'essential-traffic'
 
@@ -5,7 +7,7 @@ const NONESSENTIAL_TRAFFIC_VAR = 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC'
 
 export function getPrivacyLevel(): PrivacyLevel {
   if (process.env[NONESSENTIAL_TRAFFIC_VAR]) return 'essential-traffic'
-  if (process.env.DISABLE_TELEMETRY) return 'no-telemetry'
+  if (!flagEnabled('MERCURY_TELEMETRY')) return 'no-telemetry'
   return 'default'
 }
 

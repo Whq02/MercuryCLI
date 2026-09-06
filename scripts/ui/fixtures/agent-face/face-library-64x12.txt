@@ -3,7 +3,7 @@
  
 Shared project settings
 ❯ fixture-scout    opus
-Built-in agents
+User settings
 ↓ 3 more
 
 agents wants at least 64×13 · this window is 64×12

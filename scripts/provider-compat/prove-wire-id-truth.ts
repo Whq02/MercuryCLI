@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0', PACKAGE_URL: 'fixture' }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'wid-truth-'))
-delete process.env.ANTHROPIC_MODEL
+delete process.env.MERCURY_MODEL
 delete process.env.ANTHROPIC_API_KEY
 delete process.env.OPENAI_API_KEY
 delete process.env.ZAI_API_KEY

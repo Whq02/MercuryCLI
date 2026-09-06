@@ -1,4 +1,4 @@
-0q4mu● edit fixture-scout  →  <PATH>
+● edit fixture-scout  →  <PATH>
 
 All fields (one draft — guided, advanced and raw share it) ─────────────────────────────────────────
 ▸ identifier          fixture-scout

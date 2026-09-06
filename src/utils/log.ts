@@ -1,4 +1,5 @@
 import { setLastAPIRequest, setLastAPIRequestMessages } from '../bootstrap/state.js'
+import { flagEnabled } from '../substrate/flagRegistry.js'
 import type { QuerySource } from '../constants/querySource.js'
 import { TICK_TAG } from '../constants/xml.js'
 import type { LogOption } from '../types/logs.js'
@@ -54,7 +55,7 @@ function queueOrDispatch(event: QueuedEvent): void {
 }
 
 function errorLoggingSuppressed(): boolean {
-  if (process.env.DISABLE_ERROR_REPORTING) return true
+  if (!flagEnabled('MERCURY_ERROR_REPORTING')) return true
   return isEssentialTrafficOnly()
 }
 

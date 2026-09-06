@@ -122,14 +122,14 @@ section('§5 — prompt doctrine + generated roster')
   const { getPrompt } = await import('../../src/tools/TeamCreateTool/prompt.js')
   const fakeAgents = [
     { agentType: 'mercury-scout', whenToUse: 'Read-only search agent for broad fan-out searches. Long tail here.', tools: ['Read', 'Grep', 'Glob'], source: 'built-in' },
-    { agentType: 'general-purpose', whenToUse: 'General-purpose agent for complex tasks.', source: 'built-in' },
+    { agentType: 'mercury-general', whenToUse: 'General-purpose agent for complex tasks.', source: 'built-in' },
   ] as never[]
   const p = getPrompt(fakeAgents as never)
   check('two-independent-lanes rule present', p.includes('TWO OR MORE genuinely independent lanes'))
   check('"when in doubt, prefer a team" is GONE', !/when in doubt/i.test(p))
   check('anti-default: do not create a team just in case', p.includes('Do not create a team "just in case"'))
   check('roster generated from the registry (scout line)', p.includes('**mercury-scout** (read-only)'))
-  check('roster capability derived from tool contract', p.includes('**general-purpose** (full-capability)'))
+  check('roster capability derived from tool contract', p.includes('**mercury-general** (full-capability)'))
   check('charter-before-spawn: synthesis owner + owned surface + deliverable', p.includes('synthesis owner') && p.includes('owned surface') && p.includes('deliverable'))
   check('decomposition by ownership, not job titles', p.includes('not by vague job titles'))
   check('no periodic file re-reading doctrine', p.includes('Do not re-read team/task files each turn'))

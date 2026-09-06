@@ -191,7 +191,7 @@ const COMMAND_TOOLS = new Set(['Bash', 'Shell'])
 const CHECK_HINTS = /\b(test|typecheck|lint|check|verify|prove)\b/i
 const QUESTION_TOOLS = new Set(['AskUserQuestion'])
 const PLAN_TOOLS = new Set(['EnterStrategyMode', 'ExitStrategyMode'])
-const WORK_TOOLS = new Set(['TaskCreate', 'TaskUpdate', 'Task'])
+const WORK_TOOLS = new Set(['TaskCreate', 'TaskUpdate'])
 
 interface ToolUseShape {
   id?: string

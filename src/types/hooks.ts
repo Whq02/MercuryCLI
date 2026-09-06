@@ -161,7 +161,7 @@ export const syncHookResponseSchema = lazySchema(() =>
       .string()
       .optional()
       .describe('Message shown when continue is false.'),
-    decision: z.enum(['approve', 'block']).optional(),
+    decision: z.literal('block').optional(),
     reason: z.string().optional(),
     systemMessage: z
       .string()

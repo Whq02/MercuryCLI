@@ -28,20 +28,16 @@ function check(name: string, ok: boolean, detail?: string): void {
 const saved = {
   lsp: process.env.MERCURY_LSP,
   servers: process.env.MERCURY_LSP_SERVERS,
-  foreign: process.env.ENABLE_LSP_TOOL,
 }
 function restore(): void {
   if (saved.lsp === undefined) delete process.env.MERCURY_LSP
   else process.env.MERCURY_LSP = saved.lsp
   if (saved.servers === undefined) delete process.env.MERCURY_LSP_SERVERS
   else process.env.MERCURY_LSP_SERVERS = saved.servers
-  if (saved.foreign === undefined) delete process.env.ENABLE_LSP_TOOL
-  else process.env.ENABLE_LSP_TOOL = saved.foreign
 }
 
 try {
   delete process.env.MERCURY_LSP
-  delete process.env.ENABLE_LSP_TOOL
   check('unset ⇒ bridge ON', mercuryLspEnabled() === true)
   check('unset ⇒ catalog ON', isLspToolCatalogEnabled() === true)
   check('unset ⇒ write ops ON', mercuryLspWriteOpsEnabled() === true)
@@ -63,12 +59,7 @@ try {
     )
   }
 
-  process.env.ENABLE_LSP_TOOL = '1'
-  check(
-    "'0' + ENABLE_LSP_TOOL=1 ⇒ catalog ON via the compat env",
-    isLspToolCatalogEnabled() === true && mercuryLspEnabled() === false,
-  )
-  delete process.env.ENABLE_LSP_TOOL
+  check("'0' ⇒ catalog OFF, no second switch", isLspToolCatalogEnabled() === false)
 
   delete process.env.MERCURY_LSP
   delete process.env.MERCURY_LSP_SIDECAR_ENTRY

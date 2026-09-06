@@ -11,8 +11,8 @@ delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_EFFORT_LEVEL
 delete process.env.MERCURY_AUTOCOMPACT_PCT_OVERRIDE
 delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
-delete process.env.DISABLE_AUTO_COMPACT
-delete process.env.DISABLE_COMPACT
+delete process.env.MERCURY_AUTO_COMPACT
+delete process.env.MERCURY_COMPACT
 delete process.env.MERCURY_CTX_COMPACTION
 
 import { z } from 'zod/v4'
@@ -287,7 +287,7 @@ section('§4 — autocompact disabled + blocked level: the preempt fires with ZE
     turns: [],
     history: makeHistory(50_000),
     env: {
-      DISABLE_AUTO_COMPACT: '1',
+      MERCURY_AUTO_COMPACT: '0',
       MERCURY_BLOCKING_LIMIT_OVERRIDE: '10000',
     },
   })

@@ -14,12 +14,12 @@ const client = await import(join(SRC, 'services/mcp/client.ts'))
 
 console.log('L1 the budget oracle')
 {
-  process.env.MCP_TOOL_TIMEOUT = '444000'
+  process.env.MERCURY_MCP_TOOL_TIMEOUT_MS = '444000'
   const budget = client.mcpRequestBudgetMs as ((body: unknown) => number) | undefined
   if (budget === undefined) {
     t('the method-scoped budget oracle exists', false, 'mcpRequestBudgetMs is absent (pre-fix tree)')
   } else {
-    t('tools/call rides the tool timeout (MCP_TOOL_TIMEOUT respected)', budget(rpc('tools/call', { name: 'x', arguments: {} })) === 444_000, String(budget(rpc('tools/call'))))
+    t('tools/call rides the tool timeout (MERCURY_MCP_TOOL_TIMEOUT_MS respected)', budget(rpc('tools/call', { name: 'x', arguments: {} })) === 444_000, String(budget(rpc('tools/call'))))
     t('initialize keeps the short budget', budget(rpc('initialize')) === 60_000)
     t('tools/list keeps the short budget', budget(rpc('tools/list')) === 60_000)
     t('a batch body reads its first entry', budget(`[${rpc('tools/call')},${rpc('tools/list')}]`) === 444_000)
@@ -27,12 +27,12 @@ console.log('L1 the budget oracle')
     t('a non-string body keeps the short budget', budget(undefined) === 60_000)
     t('a method buried past the head is still found (full-parse fallback)', budget(JSON.stringify({ jsonrpc: '2.0', id: 1, params: { pad: 'x'.repeat(4000) }, method: 'tools/call' })) === 444_000)
   }
-  delete process.env.MCP_TOOL_TIMEOUT
+  delete process.env.MERCURY_MCP_TOOL_TIMEOUT_MS
 }
 
 console.log('L2 the wire at small scales')
 {
-  process.env.MCP_TOOL_TIMEOUT = '300'
+  process.env.MERCURY_MCP_TOOL_TIMEOUT_MS = '300'
   const never: (input: unknown, init?: { signal?: AbortSignal }) => Promise<Response> = (_input, init) =>
     new Promise((_resolve, reject) => {
       init?.signal?.addEventListener('abort', () => reject(init.signal!.reason), { once: true })
@@ -40,7 +40,7 @@ console.log('L2 the wire at small scales')
   const wrapped = client.wrapFetchWithTimeout(never as never) as (input: string, init?: Record<string, unknown>) => Promise<Response>
 
   const call = wrapped('https://mcp.example/rpc', { method: 'POST', body: rpc('tools/call', { name: 'x' }) })
-  delete process.env.MCP_TOOL_TIMEOUT
+  delete process.env.MERCURY_MCP_TOOL_TIMEOUT_MS
   const callVerdict = await Promise.race([
     call.then(
       () => 'resolved',

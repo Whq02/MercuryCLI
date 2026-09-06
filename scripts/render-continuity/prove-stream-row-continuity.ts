@@ -107,7 +107,7 @@ const scenes: Scene[] = [
         tools: [
           {
             name: 'Agent',
-            input: { description: 'poise piece probe', prompt: 'Reply done.', subagent_type: 'general-purpose', run_in_background: true },
+            input: { description: 'poise piece probe', prompt: 'Reply done.', subagent_type: 'mercury-general', run_in_background: true },
           },
         ],
       },

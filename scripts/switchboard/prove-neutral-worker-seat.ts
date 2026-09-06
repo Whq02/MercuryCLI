@@ -44,7 +44,7 @@ const CREDENTIAL_KEYS = [
   'MERCURY_COMPAT_BASE_URL',
 ] as const
 for (const key of CREDENTIAL_KEYS) delete process.env[key]
-for (const ambient of ['ANTHROPIC_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_WORKFLOW_ROUTING', 'MERCURY_DAEDALUS_MODEL', 'MERCURY_DAEDALUS_EXECUTOR_MODEL']) {
+for (const ambient of ['MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_WORKFLOW_ROUTING', 'MERCURY_DAEDALUS_MODEL', 'MERCURY_DAEDALUS_EXECUTOR_MODEL']) {
   delete process.env[ambient]
 }
 delete process.env.NODE_ENV

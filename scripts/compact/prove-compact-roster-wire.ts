@@ -197,7 +197,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
               type: 'tool_use',
               id: `toolu_roster_agent_${++toolSeq}`,
               name: 'Agent',
-              input: { description: PLAIN_DESCRIPTION, prompt: `${SEAT_MARK}${PLAIN_SEAT} read the notes file once, then report in one line`, subagent_type: 'general-purpose', run_in_background: true },
+              input: { description: PLAIN_DESCRIPTION, prompt: `${SEAT_MARK}${PLAIN_SEAT} read the notes file once, then report in one line`, subagent_type: 'mercury-general', run_in_background: true },
             },
             { type: 'tool_use', id: `toolu_roster_shell_${++toolSeq}`, name: 'Bash', input: { command: `sleep ${SHELL_SECONDS}`, description: SHELL_DESCRIPTION, run_in_background: true } },
           ]
@@ -318,7 +318,7 @@ if (!existsSync(DIST)) {
     const r = await runStreaming(
       nodeBin,
       arena,
-      ['-p', '--input-format', 'stream-json', '--model', 'claude-fable-5-1', '--dangerously-skip-permissions', '--output-format', 'stream-json', '--session-id', SID, '--debug-file', debugFile],
+      ['-p', '--input-format', 'stream-json', '--model', 'claude-fable-5-1', '--dangerously-bypass-permissions', '--output-format', 'stream-json', '--session-id', SID, '--debug-file', debugFile],
       ASK,
       150_000,
     )

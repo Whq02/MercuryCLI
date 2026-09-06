@@ -41,8 +41,8 @@ const warm = await import('../../src/daemon/warmRunner.ts')
 const { resolvePermissionModeTransition } = await import('../../src/cli/headless/controlHandlers.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
-const SKIP = '--dangerously-skip-permissions'
-const ALLOW = '--allow-dangerously-skip-permissions'
+const SKIP = '--dangerously-bypass-permissions'
+const ALLOW = '--allow-dangerously-bypass-permissions'
 
 console.log('============================================================')
 console.log(' the launch consent rides every door — the unit half')

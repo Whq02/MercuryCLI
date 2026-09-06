@@ -7,8 +7,8 @@ import { Box, Text } from '../../ink.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
-import { isMemoryUpkeepEnabled } from '../../services/autoDream/config.js'
-import { readLastConsolidatedAt } from '../../services/autoDream/consolidationLock.js'
+import { isMemoryUpkeepEnabled } from '../../services/memoryUpkeep/config.js'
+import { readLastConsolidatedAt } from '../../services/memoryUpkeep/consolidationLock.js'
 import { getInstructionFiles } from '../../services/instructions/engine.js'
 import type { InstructionSourceEntry } from '../../services/instructions/contracts.js'
 import { useAppState } from '../../state/AppState.js'
@@ -63,7 +63,7 @@ export function MemoryFileSelector({
 
   const [autoMemoryOn, setAutoMemoryOn] = useState(() => isAutoMemoryEnabled())
   const [upkeepOn, setUpkeepOn] = useState(() => isMemoryUpkeepEnabled())
-  const [showDreamRow] = useState(() => isAutoMemoryEnabled())
+  const [showUpkeepRow] = useState(() => isAutoMemoryEnabled())
 
   const dreamRunning = useAppState(state =>
     Object.values(state.tasks).some(
@@ -86,7 +86,7 @@ export function MemoryFileSelector({
   )
 
   const toggles: Array<{
-    id: 'auto-memory' | 'auto-dream'
+    id: 'auto-memory' | 'upkeep'
     flip: () => void
   }> = [
     {
@@ -98,10 +98,10 @@ export function MemoryFileSelector({
         setAutoMemoryOn(value => !value)
       },
     },
-    ...(showDreamRow
+    ...(showUpkeepRow
       ? [
           {
-            id: 'auto-dream' as const,
+            id: 'upkeep' as const,
             flip: () => {
               updateSettingsForSource('userSettings', {
                 memoryUpkeepEnabled: !upkeepOn,
@@ -274,7 +274,7 @@ export function MemoryFileSelector({
         >
           Auto-memory: {autoMemoryOn ? 'on' : 'off'}
         </Text>
-        {showDreamRow ? (
+        {showUpkeepRow ? (
           <Text
             bold={focusedToggle === 1}
             inverse={focusedToggle === 1}

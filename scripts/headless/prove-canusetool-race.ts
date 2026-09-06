@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'race-laws-'))
-delete process.env.MERCURY_SIMPLE
+delete process.env.MERCURY_BARE
 
 import { z } from 'zod/v4'
 

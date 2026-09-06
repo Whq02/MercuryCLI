@@ -393,7 +393,7 @@ section('3 · honest refusals + fault mapping (never a throw, never a fallthroug
 section('4 · the launch-plan engine law (role→sandbox · denials · no floor)')
 {
   const GENERAL = {
-    agentType: 'general-purpose',
+    agentType: 'mercury-general',
     whenToUse: 'default',
     source: 'built-in',
     getSystemPrompt: () => 'general',
@@ -409,7 +409,7 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
     toolPermissionContext: getEmptyToolPermissionContext(),
     forkGateOn: false,
     forkAgent: FORK_STUB,
-    defaultAgentType: 'general-purpose',
+    defaultAgentType: 'mercury-general',
     mainLoopModel: 'claude-opus-4-8',
     backgroundTasksDisabled: false,
     forceAsync: false,
@@ -417,7 +417,7 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
 
   const gptPlan = buildAgentLaunchPlan({
     ...base,
-    requestedType: 'general-purpose',
+    requestedType: 'mercury-general',
     engineDispatch: { backend: 'openai', model: 'gpt-5.6-sol' },
   })
   check("openai: model is the exact resolved id", gptPlan.model === 'gpt-5.6-sol')
@@ -436,14 +436,14 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
   check('openai: no isolation unless asked', gptPlan.isolation === undefined)
   const gptWorktree = buildAgentLaunchPlan({
     ...base,
-    requestedType: 'general-purpose',
+    requestedType: 'mercury-general',
     isolationParam: 'worktree',
     engineDispatch: { backend: 'openai', model: 'gpt-5.6-sol' },
   })
   check("openai: explicit worktree isolation honored", gptWorktree.isolation === 'worktree')
   const gptAsync = buildAgentLaunchPlan({
     ...base,
-    requestedType: 'general-purpose',
+    requestedType: 'mercury-general',
     runInBackground: true,
     engineDispatch: { backend: 'openai', model: 'gpt-5.6-sol' },
   })
@@ -451,7 +451,7 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
 
   const zaiPlan = buildAgentLaunchPlan({
     ...base,
-    requestedType: 'general-purpose',
+    requestedType: 'mercury-general',
     runInBackground: true,
     engineDispatch: { backend: 'zai', model: 'glm-5.2' },
   })
@@ -470,7 +470,7 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
     zaiPlan.modelNote,
   )
 
-  const plain = buildAgentLaunchPlan({ ...base, requestedType: 'general-purpose' })
+  const plain = buildAgentLaunchPlan({ ...base, requestedType: 'mercury-general' })
   check('no dispatch: engine fields absent', plain.engineBackend === undefined && plain.engineToolDenials === undefined)
 
   {

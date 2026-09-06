@@ -178,7 +178,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
           usage = USAGE.alpha
           break
         case 'scout':
-          blocks = [{ type: 'tool_use', id: `toolu_ring_agent_${++toolSeq}`, name: 'Agent', input: { description: 'ring-scout', prompt: `${SEAT_MARK} read both seat files and report`, subagent_type: 'general-purpose' } }]
+          blocks = [{ type: 'tool_use', id: `toolu_ring_agent_${++toolSeq}`, name: 'Agent', input: { description: 'ring-scout', prompt: `${SEAT_MARK} read both seat files and report`, subagent_type: 'mercury-general' } }]
           usage = USAGE.scout
           break
         case 'seat-one':

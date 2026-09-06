@@ -932,7 +932,7 @@ export const FileReadTool = buildTool({
       }
     }
 
-    if (!isEnvTruthy(process.env.MERCURY_SIMPLE)) {
+    if (!isEnvTruthy(process.env.MERCURY_BARE)) {
       try {
         const dirs = await discoverSkillDirsForPaths([fullFilePath], getCwd())
         const fresh = dirs.filter(dir => !context.dynamicSkillDirTriggers?.has(dir))
