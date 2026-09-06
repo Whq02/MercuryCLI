@@ -349,7 +349,7 @@ export interface UsageRefreshIo {
   env?: NodeJS.ProcessEnv
   now?: () => number
   force?: boolean
-  reason?: 'poll' | 'turn' | 'operator' | 'sign-in'
+  reason?: 'open' | 'operator' | 'sign-in'
 }
 
 export async function refreshProviderUsage(provider: RouterProviderId, io?: UsageRefreshIo): Promise<void> {
@@ -398,46 +398,39 @@ export async function refreshProviderUsage(provider: RouterProviderId, io?: Usag
   }
 }
 
-let usagePoll: {
-  timer: ReturnType<typeof setInterval>
-  family: () => RouterProviderId | 'unrecognised'
-  unsubscribeSignIns: () => void
-} | null = null
+let shownMeters = 0
+let shownFamily: (() => RouterProviderId | 'unrecognised') | null = null
+let unsubscribeSignIns: (() => void) | null = null
 
-export function armProviderUsagePoll(opts: { family: () => RouterProviderId | 'unrecognised' }): () => void {
-  if (usagePoll !== null) {
-    usagePoll.family = opts.family
-  } else {
-    const timer = setInterval(() => {
-      const family = usagePoll?.family() ?? 'unrecognised'
-      if (family === 'unrecognised') return
-      void refreshProviderUsage(family, { reason: 'poll' })
-    }, usagePollTtlMs())
-    timer.unref?.()
-    const unsubscribeSignIns = subscribeSignInEpoch(() => {
-      const family = usagePoll?.family() ?? 'unrecognised'
-      if (family === 'unrecognised') return
-      void refreshProviderUsage(family, { reason: 'sign-in' })
-    })
-    usagePoll = { timer, family: opts.family, unsubscribeSignIns }
-  }
-  return () => {
-    if (usagePoll === null) return
-    clearInterval(usagePoll.timer)
-    usagePoll.unsubscribeSignIns()
-    usagePoll = null
-  }
-}
-
-export function pokeProviderUsage(): void {
-  if (usagePoll === null) return
-  const family = usagePoll.family()
+function readShownFamily(reason: 'open' | 'sign-in'): void {
+  const family = shownFamily?.() ?? 'unrecognised'
   if (family === 'unrecognised') return
-  void refreshProviderUsage(family, { reason: 'turn' })
+  void refreshProviderUsage(family, { reason })
 }
 
-export function providerUsagePollArmed(): boolean {
-  return usagePoll !== null
+export function watchProviderUsageWhileShown(opts: { family: () => RouterProviderId | 'unrecognised' }): () => void {
+  shownFamily = opts.family
+  shownMeters += 1
+  if (unsubscribeSignIns === null) {
+    unsubscribeSignIns = subscribeSignInEpoch(() => readShownFamily('sign-in'))
+  }
+  readShownFamily('open')
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    shownMeters -= 1
+    if (shownMeters <= 0) {
+      shownMeters = 0
+      unsubscribeSignIns?.()
+      unsubscribeSignIns = null
+      shownFamily = null
+    }
+  }
+}
+
+export function providerUsageMeterShown(): boolean {
+  return shownMeters > 0
 }
 
 export interface MoonshotObservedBalanceView {

@@ -23,6 +23,7 @@ import { ctxForecastEnabled, estimateTurnsToCompact } from '../utils/cockpit/ctx
 import { formatCountdown, formatCountdownCoarse } from '../utils/cockpit/quota.js'
 import { usageCreditsLine, usageViewIsStale, windowSourceUsages, type UsageWindowView } from '../services/providers/providerUsage.js'
 import { NO_USAGE_READ_WORDS, usageAgeTail, usagePollTtlMs } from '../services/providers/usageFreshness.js'
+import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 import {
   getFocusedSessionConnector,
@@ -182,6 +183,7 @@ function HelmTelemetryRailImpl({
     getFocusedRailModel,
   )
   useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
+  useProviderUsageOnShow(true, sessionModel)
   const { primary: usage, others: otherUsages } = windowSourceUsages({ model: sessionModel })
   const liveWindows = usage.windows.filter(w => w.state === 'live')
   const workRoster = useFocusedWorkRoster()

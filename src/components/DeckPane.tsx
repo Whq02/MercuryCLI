@@ -11,6 +11,7 @@ import {
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js'
 import { useDisplayedSessionModel, useFocusedServedModel } from '../hooks/useDisplayedSessionModel.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
+import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { Box, Text } from '../ink.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
 import { useTelemetry } from '../state/telemetryBus.js'
@@ -103,6 +104,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
     : null
   const killCount = Object.values(listCapabilityKills()).reduce((n, arr) => n + arr.length, 0)
   useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
+  useProviderUsageOnShow(true)
   const sourceUsage = activeSourceUsage()
   const stripFirst = sourceUsage.windows[0]
   const stripSecond =

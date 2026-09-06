@@ -1672,9 +1672,6 @@ export function REPL({
       void import('../services/projectIntel/snapshot.js')
         .then(m => m.getProjectSnapshotAsync(getOriginalCwd(), { maxStaleMs: 120_000 }))
         .catch(() => {});
-      void import('../services/providers/openai/openaiCatalogue.js')
-        .then(m => m.getGptSeatAvailability())
-        .catch(() => {});
     }, BOOT_WARMUP_MS);
     return () => clearTimeout(timer);
   }, []);
