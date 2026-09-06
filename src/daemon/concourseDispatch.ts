@@ -315,7 +315,7 @@ export function buildConcoursePromptFrame(prompt: string, extras?: ConcourseProm
     ...(extras?.priority !== undefined ? { priority: extras.priority } : {}),
     ...(extras?.mode === 'bash' ? { mode: 'bash' } : {}),
     ...(extras?.mode === 'task-notification' && extras.agentId !== undefined
-      ? { mode: 'task-notification', agentId: extras.agentId }
+      ? { mode: 'task-notification', agent_id: extras.agentId }
       : {}),
   })
 }

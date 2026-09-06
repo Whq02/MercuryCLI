@@ -310,7 +310,7 @@ export const AGENT_RESUME_NOTE =
   'The operator resumed you from the crew view after a stop. Continue from where your transcript ends — the work before the stop stands; do not redo it.'
 
 export const AGENT_BUDGET_RESUME_NOTE =
-  'The recovery budget refilled and you were resumed by yourself after the provider throttled the run. Continue from where your transcript ends — the work before the cut stands; do not redo it.'
+  "The recovery budget's allowance is back and you were resumed by yourself after it was spent waiting on the provider. Continue from where your transcript ends — the work before the cut stands; do not redo it."
 
 export function enqueueAgentReceiptRow(args: { taskId: string; description: string; summary: string }): void {
   const message = `<${TASK_NOTIFICATION_TAG}>

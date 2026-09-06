@@ -36,6 +36,7 @@ import { getBundledSkills } from '../skills/bundledSkills.js'
 import { dynamicWorkflowsEnabled, workflowsManagedDisabled } from '../tools/WorkflowTool/workflowEnablement.js'
 import { logForDebugging } from './debug.js'
 import { listCapabilityKills } from './permissions/capabilityGate.js'
+import { describeWindowsShellRoad } from './shell/windowsShellRoad.js'
 import { extensionReadinessRows } from '../extensions/boot.js'
 import { searchToolsAvailability } from './ripgrep.js'
 import { mcpGauge } from './cockpit/mcpGauge.js'
@@ -124,6 +125,18 @@ function toolRecords(): ReadinessRecord[] {
     source: 'ripgrep availability probe',
     lastCheckedAt: Date.now(),
     latencyMs: Date.now() - t0,
+  })
+
+  const shell = describeWindowsShellRoad()
+  records.push({
+    id: 'tool:shell',
+    kind: 'tool',
+    label: 'Bash tool shell',
+    state: shell.absent ? 'unavailable' : shell.road === 'system' ? 'configured' : 'ready',
+    detail: shell.line,
+    ...(shell.fix !== undefined ? { remedy: shell.fix } : {}),
+    source: 'Windows shell road',
+    lastCheckedAt: Date.now(),
   })
 
   const kills = listCapabilityKills()

@@ -602,7 +602,7 @@ section('R11 · the hand-back — every exit that is not a clean finish carries 
   const { AbortError, DeadlineExceededError } = await import('../../src/utils/errors.ts')
   type Exit = { name: string; thrown: () => Error; cause: RegExp; status: 'failed' | 'killed' }
   const exits: Exit[] = [
-    { name: 'budget-cut', thrown: () => new Error('provider throttled — the 5-minute recovery budget is spent after 3 declared waits (HTTP 429); the agent stopped — retry later, or raise MERCURY_RECOVERY_BUDGET_MINUTES'), cause: /provider throttled/, status: 'failed' },
+    { name: 'budget-cut', thrown: () => Object.assign(new Error('the provider refused 3 times in a row (HTTP 429, busy) — the 5m retry budget is spent and the agent stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECOVERY_BUDGET_MINUTES'), { recoveryBudgetSpent: true, resumeAfterMs: 0 }), cause: /the provider refused/, status: 'failed' },
     { name: 'stall', thrown: () => new DeadlineExceededError('no progress for 900000ms'), cause: /no progress/, status: 'failed' },
     { name: 'provider-fault', thrown: () => new Error('the provider closed the stream mid-turn'), cause: /closed the stream/, status: 'failed' },
     { name: 'kill', thrown: () => new AbortError(), cause: /stopped/, status: 'killed' },
@@ -714,7 +714,7 @@ section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a
     automaticResumePending?: (taskId: string) => boolean
   }
   const { AbortError } = await import('../../src/utils/errors.ts')
-  const budgetCut = () => new Error('provider throttled — the 5-minute recovery budget is spent after 3 declared waits (HTTP 429); the agent stopped — retry later, or raise MERCURY_RECOVERY_BUDGET_MINUTES')
+  const budgetCut = () => Object.assign(new Error('the provider refused 3 times in a row (HTTP 429, busy) — the 5m retry budget is spent and the agent stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECOVERY_BUDGET_MINUTES'), { recoveryBudgetSpent: true, resumeAfterMs: 0 })
   check('the lifecycle reads a budget cut from the runner\'s own words', typeof lifecycle.recoveryBudgetCutOf === 'function' && lifecycle.recoveryBudgetCutOf?.(budgetCut()) !== null && lifecycle.recoveryBudgetCutOf?.(new Error('the provider closed the stream')) === null && lifecycle.recoveryBudgetCutOf?.(new AbortError()) === null)
   check('the arm and its pending read are the lifecycle\'s own exports', typeof lifecycle.armBudgetCutResume === 'function' && typeof lifecycle.automaticResumePending === 'function')
   if (typeof lifecycle.armBudgetCutResume === 'function' && typeof lifecycle.automaticResumePending === 'function') {

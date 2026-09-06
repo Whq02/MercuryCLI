@@ -166,6 +166,7 @@ section('§C the seat dial: idle forwards whole, busy parks honest, the beat dra
   const seat = await import('../../src/daemon/sessionSeat.ts')
   const { readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
   const { readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
+  const { sessionKitToWire } = await import('../../src/services/engine-connector/seatWire.ts')
   const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
   const DAEMON_DIR = process.env.MERCURY_DAEMON_DIR!
   const SID = '22222222-3333-4444-8555-777777777777'
@@ -205,7 +206,7 @@ section('§C the seat dial: idle forwards whole, busy parks honest, the beat dra
 
   const c1 = seat.setSessionKitDial(SID, { mcp: [{ name: 'beta', on: false }] }, 'operator', roster as never, DAEMON_DIR)
   t('C1a idle dial applies through the one writer', c1.outcome === 'applied' && deepEq(recOf().kit?.mcp, ['alpha']))
-  t('C1b ONE kit_edit forward, byte-equal to the record kit', kitFrames().length === 1 && deepEq(kitFrames()[0]!.kit, recOf().kit))
+  t('C1b ONE kit_edit forward, the record kit in the feed\'s spelling', kitFrames().length === 1 && deepEq(kitFrames()[0]!.kit, sessionKitToWire(recOf().kit as never)))
   const framesBefore = kitFrames().length
   const c2 = seat.setSessionKitDial(SID, { mcp: [{ name: 'beta', on: false }] }, 'operator', roster as never, DAEMON_DIR)
   t('C2 an identity dial answers noop and forwards nothing', c2.outcome === 'noop' && kitFrames().length === framesBefore)

@@ -91,17 +91,17 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
 
 {
   const prevEntry = process.env.MERCURY_ENTRYPOINT
-  const prevKill = process.env.MERCURY_SDK_DISABLE_BUILTIN_AGENTS
+  const prevKill = process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS
   const prevInteractive = getIsInteractive()
   const mounted = (): boolean => getBuiltInAgents().some(a => a.agentType === MERCURY_GUIDE_AGENT_TYPE)
-  delete process.env.MERCURY_SDK_DISABLE_BUILTIN_AGENTS
+  delete process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS
   process.env.MERCURY_ENTRYPOINT = 'sdk'
   setIsInteractive(false)
   check('§7 the guide is mounted under the sdk entrypoint (a headless -p run)', isGuideAgentMounted() && mounted())
   process.env.MERCURY_ENTRYPOINT = 'cli'
   setIsInteractive(true)
   check('§7 the guide is mounted in an interactive session', isGuideAgentMounted() && mounted())
-  process.env.MERCURY_SDK_DISABLE_BUILTIN_AGENTS = '1'
+  process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS = '1'
   setIsInteractive(false)
   check('§7 the SDK builtin-agent kill in a non-interactive session is the ONE opt-out: the guide is unmounted and the roster is empty', !isGuideAgentMounted() && getBuiltInAgents().length === 0)
   setIsInteractive(true)
@@ -112,8 +112,8 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   check('§7 the prompt\'s guide line reads the same mount predicate', /isGuideAgentMounted\(\)/.test(prompts))
   if (prevEntry === undefined) delete process.env.MERCURY_ENTRYPOINT
   else process.env.MERCURY_ENTRYPOINT = prevEntry
-  if (prevKill === undefined) delete process.env.MERCURY_SDK_DISABLE_BUILTIN_AGENTS
-  else process.env.MERCURY_SDK_DISABLE_BUILTIN_AGENTS = prevKill
+  if (prevKill === undefined) delete process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS
+  else process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS = prevKill
   setIsInteractive(prevInteractive)
 }
 

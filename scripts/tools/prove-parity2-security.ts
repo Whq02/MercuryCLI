@@ -269,20 +269,20 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
     return { runs: toolRuns - before, settled: text }
   }
 
-  const denied = await drive({ behavior: 'deny', toolUseID: 'toolu_lateanswer', message: 'not on this machine' })
+  const denied = await drive({ behavior: 'deny', tool_use_id: 'toolu_lateanswer', message: 'not on this machine' })
   t('a late DENY runs NOTHING', denied.runs === 0)
   t('the deny settles as a rendered refusal carrying the reason', /Permission denied: not on this machine/.test(denied.settled ?? '') && /did not run/.test(denied.settled ?? ''), denied.settled ?? '(none)')
-  const unanswered = await drive({ toolUseID: 'toolu_lateanswer' })
+  const unanswered = await drive({ tool_use_id: 'toolu_lateanswer' })
   t('a verdict-less answer runs NOTHING and says so', unanswered.runs === 0 && /never granted/.test(unanswered.settled ?? ''))
-  const junk = await drive({ behavior: 'ask', toolUseID: 'toolu_lateanswer' })
+  const junk = await drive({ behavior: 'ask', tool_use_id: 'toolu_lateanswer' })
   t('an ask-with-no-answer runs NOTHING', junk.runs === 0 && /never granted/.test(junk.settled ?? ''))
 
   killCapability(undefined, 'SpyTool')
-  const killedRun = await drive({ behavior: 'allow', toolUseID: 'toolu_lateanswer', updatedInput: { command: 'echo hi' } })
+  const killedRun = await drive({ behavior: 'allow', tool_use_id: 'toolu_lateanswer', updated_input: { command: 'echo hi' } })
   t('an ALLOW for a tool killed since the ask is refused at replay time', killedRun.runs === 0 && /kill switch/.test(killedRun.settled ?? ''), killedRun.settled ?? '(none)')
   restoreCapability(undefined, 'SpyTool')
 
-  const allowed = await drive({ behavior: 'allow', toolUseID: 'toolu_lateanswer', updatedInput: { command: 'echo hi' } })
+  const allowed = await drive({ behavior: 'allow', tool_use_id: 'toolu_lateanswer', updated_input: { command: 'echo hi' } })
   t('the allow arm still runs exactly once (the control)', allowed.runs === 1)
 
   const { handleOrphanedPermissionResponse } = await import('../../src/cli/headless/controlHandlers.ts')
@@ -295,7 +295,7 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
   const response = {
     subtype: 'success',
     request_id: 'req-late-deny',
-    response: { behavior: 'deny', toolUseID: 'toolu_lateanswer', message: 'not on this machine' },
+    response: { behavior: 'deny', tool_use_id: 'toolu_lateanswer', message: 'not on this machine' },
   }
   const admitted = await handleOrphanedPermissionResponse({
     message: { type: 'control_response', response } as never,
