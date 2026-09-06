@@ -1,4 +1,4 @@
-import { Option, type Command as CommanderCommand } from '@commander-js/extra-typings'
+import { type Command as CommanderCommand } from '@commander-js/extra-typings'
 import { cliError, cliOk } from '../../cli/exit.js'
 import { addMcpConfig } from '../../services/mcp/config.js'
 import { readClientSecret, saveMcpClientSecret } from '../../services/mcp/auth.js'
@@ -9,7 +9,6 @@ import {
   ensureTransport,
   parseHeaders,
 } from '../../services/mcp/utils.js'
-import { getXaaIdpSettings, isXaaEnabled } from '../../services/mcp/xaaIdpLogin.js'
 import { binaryName } from '../../utils/config/derived.js'
 import { describeHeadersRedacted } from '../../utils/redactHeaders.js'
 
@@ -50,7 +49,6 @@ export function registerMcpAddCommand(mcp: CommanderCommand): void {
     .option('--client-id <clientId>', 'OAuth client id')
     .option('--client-secret', 'read the OAuth client secret (prompt, or MCP_CLIENT_SECRET)')
     .option('--callback-port <port>', 'fixed OAuth callback port')
-    .addOption(new Option('--xaa', 'authenticate through the cross-app-access IdP').hideHelp(!isXaaEnabled()))
     .addHelpText(
       'after',
       `
@@ -73,7 +71,6 @@ Examples:
           clientId?: string
           clientSecret?: boolean
           callbackPort?: string
-          xaa?: boolean
         },
       ) => {
         try {
@@ -91,21 +88,6 @@ Examples:
           const transportExplicit =
             options.transport !== undefined && options.transport !== ''
 
-          if (options.xaa) {
-            if (!isXaaEnabled()) {
-              cliError('--xaa is not available: cross-app access is disabled in this build')
-            }
-            const missing: string[] = []
-            if (!options.clientId) missing.push('--client-id')
-            if (!options.clientSecret) missing.push('--client-secret')
-            if (!getXaaIdpSettings()) {
-              missing.push(`a configured IdP (run \`${cli} mcp xaa setup\`; settings key xaaIdp)`)
-            }
-            if (missing.length > 0) {
-              cliError(`--xaa requires: ${missing.join(', ')}`)
-            }
-          }
-
           if (transport === 'sse' || transport === 'http') {
             const headers = options.header ? parseHeaders(options.header) : undefined
             const callbackPort =
@@ -113,12 +95,11 @@ Examples:
                 ? parseInt(options.callbackPort, 10)
                 : undefined
             const wantsOauth =
-              Boolean(options.clientId) || callbackPort !== undefined || options.xaa === true
+              Boolean(options.clientId) || callbackPort !== undefined
             const oauth = wantsOauth
               ? {
                   ...(options.clientId ? { clientId: options.clientId } : {}),
                   ...(callbackPort !== undefined ? { callbackPort } : {}),
-                  ...(options.xaa === true ? { xaa: true } : {}),
                 }
               : undefined
             const clientSecret =
