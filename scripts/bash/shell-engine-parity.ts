@@ -29,6 +29,8 @@ export interface ProverRun {
   checks: Check[]
 }
 export type SideStatus = CheckStatus | 'absent'
+export const LIVE_ENGINE_LINE = /the shell that answered: brush/
+export type EngineGrade = 'exercised' | 'control-only'
 export interface ParityRow {
   key: string
   label: string
@@ -45,6 +47,7 @@ export interface ProverParity {
   mismatches: ParityRow[]
   exitMismatch: boolean
   verdict: 'same' | 'mismatch'
+  grade: EngineGrade
 }
 export type LaneState = { state: 'wired' | 'unwired'; reason: string; pack: string | null }
 export interface ParityReport {
@@ -52,6 +55,7 @@ export interface ParityReport {
   shell: string | null
   provers: ProverParity[]
   verdict: 'same' | 'mismatch'
+  exercised: number
   reportPath: string | null
 }
 export interface RunOptions {
@@ -211,6 +215,7 @@ export function compareProver(prover: string, options: RunOptions = {}): ProverP
     mismatches,
     exitMismatch,
     verdict: mismatches.length === 0 && !exitMismatch ? 'same' : 'mismatch',
+    grade: LIVE_ENGINE_LINE.test(brush.stdout) ? 'exercised' : 'control-only',
   }
 }
 
@@ -222,6 +227,7 @@ export function runParity(provers: readonly string[], options: RunOptions & { ou
     shell: options.shell ?? null,
     provers: results,
     verdict: results.every(result => result.verdict === 'same') ? 'same' : 'mismatch',
+    exercised: results.filter(result => result.grade === 'exercised').length,
     reportPath: null,
   }
   report.reportPath = writeReport(report, options.out)
@@ -241,10 +247,11 @@ export function renderReport(report: ParityReport): string {
   out.push('# Shell-engine parity report', '')
   out.push(`- engine lane: **${report.lane.state}** — ${report.lane.reason}`)
   out.push(`- system lane shell: ${report.shell ?? 'the inherited SHELL (the product\'s own discovery)'}`)
-  out.push(`- verdict: **${report.verdict}**`, '')
+  out.push(`- verdict: **${report.verdict}**`)
+  out.push(`- engine exercised by ${report.exercised} of ${report.provers.length} provers (the rest are control-only: no live-engine line in their brush run — both runs executed the same code)`, '')
   for (const prover of report.provers) {
     const { system, brush } = prover.runs
-    out.push(`## ${prover.prover} — ${prover.verdict}`, '')
+    out.push(`## ${prover.prover} — ${prover.verdict} (${prover.grade})`, '')
     out.push(
       `- system: exit ${system.exit ?? `signal ${system.signal}`} in ${(system.ms / 1000).toFixed(1)}s, ${system.checks.length} checks`,
     )
@@ -280,7 +287,7 @@ function writeReport(report: ParityReport, out?: string): string {
 
 export function summarize(prover: ProverParity): string {
   const { system, brush } = prover.runs
-  const head = `${prover.prover}: ${prover.verdict} — ${prover.rows.length} checks, ${prover.mismatches.length} mismatches${prover.exitMismatch ? ', exit mismatch' : ''} (system ${(system.ms / 1000).toFixed(1)}s · brush ${(brush.ms / 1000).toFixed(1)}s)`
+  const head = `${prover.prover}: ${prover.verdict}, ${prover.grade} — ${prover.rows.length} checks, ${prover.mismatches.length} mismatches${prover.exitMismatch ? ', exit mismatch' : ''} (system ${(system.ms / 1000).toFixed(1)}s · brush ${(brush.ms / 1000).toFixed(1)}s)`
   if (prover.mismatches.length === 0) return head
   const named = prover.mismatches
     .slice(0, 5)
@@ -310,6 +317,7 @@ if (import.meta.main) {
   const report = runParity(provers, { out, shell, timeoutMs })
   console.log(`engine lane: ${report.lane.state} — ${report.lane.reason}`)
   for (const prover of report.provers) console.log(`  ${summarize(prover)}`)
+  console.log(`engine exercised by ${report.exercised} of ${report.provers.length} provers`)
   console.log(`report: ${report.reportPath}`)
   console.log(`verdict: ${report.verdict}`)
   process.exit(report.verdict === 'same' ? 0 : 1)
