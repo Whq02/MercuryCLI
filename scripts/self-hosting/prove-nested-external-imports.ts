@@ -6,7 +6,7 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'nested-ext-home-'))
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
-delete process.env.MERCURY_SIMPLE
+delete process.env.MERCURY_BARE
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

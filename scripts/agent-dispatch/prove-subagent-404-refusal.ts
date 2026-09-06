@@ -10,7 +10,7 @@ delete process.env.NODE_ENV
 delete process.env.CI
 for (const ambient of [
   'ANTHROPIC_MODEL', 'ANTHROPIC_SMALL_FAST_MODEL', 'ANTHROPIC_AUTH_TOKEN',
-  'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_SIMPLE',
+  'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE',
 ]) delete process.env[ambient]
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'agent-404-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key-agent-404'

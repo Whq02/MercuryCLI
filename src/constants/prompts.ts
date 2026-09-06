@@ -453,7 +453,7 @@ export async function getSystemPrompt(
   mcpClients?: MCPServerConnection[],
   permissionMode?: import('../types/permissions.js').InternalPermissionMode,
 ): Promise<string[]> {
-  if (isEnvTruthy(process.env.MERCURY_SIMPLE)) {
+  if (isEnvTruthy(process.env.MERCURY_BARE)) {
     const simpleHead = `Mercury — a private terminal software-development harness.\nWorking directory: ${getOriginalCwd()}\nSession date: ${getSessionStartDate()}`
     return [`${simpleHead}\n\n${MERCURY_IDENTITY_FLOOR}`]
   }

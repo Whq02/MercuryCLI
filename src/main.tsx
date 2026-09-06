@@ -498,7 +498,7 @@ async function run(): Promise<void> {
     )
     .option(
       '--bare',
-      `Minimal mode: skips hooks, LSP, the extensions load, attribution, auto-memory, background prefetches, keychain reads and project instruction auto-discovery, and sets MERCURY_SIMPLE=1. First-party auth is strictly an API key (or an API-key helper supplied via --settings); OAuth and the keychain are never read; third-party gateways use their own credentials. Skills still resolve by name. Supply context explicitly with --system-prompt, --append-system-prompt, --mcp-config, --allowed-tools and --add-dir.`,
+      `Minimal mode: skips hooks, LSP, the extensions load, attribution, auto-memory, background prefetches, keychain reads and project instruction auto-discovery, and sets MERCURY_BARE=1. First-party auth is strictly an API key (or an API-key helper supplied via --settings); OAuth and the keychain are never read; third-party gateways use their own credentials. Skills still resolve by name. Supply context explicitly with --system-prompt, --append-system-prompt, --mcp-config, --allowed-tools and --add-dir.`,
     )
     .addOption(new Option('--init', 'Run initialization only').hideHelp())
     .addOption(new Option('--init-only', 'Run initialization and exit').hideHelp())
@@ -1255,7 +1255,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
 
   if (opts.bare) {
-    process.env.MERCURY_SIMPLE = '1'
+    process.env.MERCURY_BARE = '1'
   }
   let inputPrompt = inputPromptArg
   if (typedString(opts.prefill)) {

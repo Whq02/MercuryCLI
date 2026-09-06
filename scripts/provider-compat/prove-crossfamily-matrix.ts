@@ -28,7 +28,7 @@ for (const ambient of [
   'MERCURY_OAUTH_TOKEN',
   'MERCURY_SCRIPTED_STREAM',
   'MERCURY_WORKFLOW_ROUTING',
-  'MERCURY_SIMPLE',
+  'MERCURY_BARE',
   'GOOGLE_API_KEY',
 ]) {
   delete process.env[ambient]

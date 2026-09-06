@@ -66,7 +66,7 @@ if (process.platform !== 'darwin') {
   const env: Record<string, string> = { ...process.env } as Record<string, string>
   env.PATH = `${bin}:${env.PATH ?? ''}`
   env.MERCURY_CONFIG_DIR = home
-  for (const k of ['MERCURY_HOME', 'MERCURY_CREDENTIAL_STORE', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR', 'MERCURY_API_KEY_FILE_DESCRIPTOR', 'MERCURY_SIMPLE', 'CI', 'NODE_ENV']) delete env[k]
+  for (const k of ['MERCURY_HOME', 'MERCURY_CREDENTIAL_STORE', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR', 'MERCURY_API_KEY_FILE_DESCRIPTOR', 'MERCURY_BARE', 'CI', 'NODE_ENV']) delete env[k]
   const script = [
     "(globalThis).MACRO = { VERSION: '1.0.0' }",
     `const { enableConfigs } = await import(${JSON.stringify(join(ROOT, 'src/utils/config/globalConfig.ts'))})`,
