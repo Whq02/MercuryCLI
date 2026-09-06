@@ -19,6 +19,7 @@ import {
   nearestSupportedWireEffort,
   parseGptModelId,
   stripGptServedWindowSuffix,
+  wireEffortForListDefault,
   type GptDisplayPin,
   type GptModelIdentity,
 } from './gptPins.js'
@@ -341,22 +342,17 @@ export function resolveGptReasoningProfile(
       ...(requested ? { adjustedFrom: requested } : {}),
     }
   }
-  if (requested && supported.includes(requested)) {
-    return { wireEffort: requested, source: 'user' }
-  }
   if (requested) {
     const nearest = nearestSupportedWireEffort(requested, supported)
-    const fallback =
-      nearest ??
-      live.defaultReasoningEffort ??
-      (supported.includes('high') ? 'high' : supported[0])
+    if (nearest === requested) return { wireEffort: requested, source: 'user' }
+    const fallback = nearest ?? wireEffortForListDefault(live.defaultReasoningEffort, supported)
     return {
       ...(fallback ? { wireEffort: fallback } : {}),
       source: 'unsupported-fallback',
       adjustedFrom: requested,
     }
   }
-  const fallback = live.defaultReasoningEffort ?? (supported.includes('high') ? 'high' : supported[0])
+  const fallback = wireEffortForListDefault(live.defaultReasoningEffort, supported)
   return { ...(fallback ? { wireEffort: fallback } : {}), source: 'model-default' }
 }
 
@@ -408,6 +404,16 @@ export function liveGptEffortCatalogue(modelId: string):
 
 export function liveGptDefaultEffort(modelId: string): string | undefined {
   return liveGptModel(modelId)?.defaultReasoningEffort
+}
+
+export function liveGptListedEffortWords(modelId: string): readonly string[] | undefined {
+  const identity = parseGptModelId(modelId)
+  if (!identity) return undefined
+  const discovery = primeOpenaiDiscovery()
+  const account = discovery?.provider === 'openai' ? discovery.account : undefined
+  if (!account) return undefined
+  const row = getCachedOpenaiCatalogue(account.kind)?.models.find(m => m.id.toLowerCase() === identity.canonicalId)
+  return row === undefined ? undefined : [...row.supportedReasoningEfforts]
 }
 
 export function __resetOpenaiCatalogueForTest(): void {

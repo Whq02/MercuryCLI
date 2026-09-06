@@ -226,6 +226,7 @@ export const SettingsSchema = lazySchema(() => {
     agent: z.string().optional(),
     skipSovereignConsentPrompt: z.boolean().optional().describe('True skips the consent card shown before entering Sovereign mode (honoured from the user, local, flag and policy sources)'),
     defaultShell: z.enum(['bash', 'powershell']).optional(),
+    shellEngine: z.enum(['system', 'brush']).optional(),
     instructionProfile: z.enum(['auto', 'native']).optional(),
     channelsEnabled: z.boolean().optional(),
     apollo: z

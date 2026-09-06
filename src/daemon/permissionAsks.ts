@@ -392,7 +392,7 @@ export function answerPermissionAsk(
       subtype: 'success',
       request_id: requestId,
       response: allow
-        ? { behavior: 'allow', updatedInput, ...(updatedPermissions !== undefined ? { updatedPermissions } : {}) }
+        ? { behavior: 'allow', updated_input: updatedInput, ...(updatedPermissions !== undefined ? { updated_permissions: updatedPermissions } : {}) }
         : { behavior: 'deny', message: denial, ...(answer?.interrupt === true ? { interrupt: true } : {}) },
     },
   })

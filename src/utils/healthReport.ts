@@ -2659,6 +2659,29 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'iface-shell-engine',
+          label: 'Shell engine',
+          run: async () => {
+            const { resolveShellEngine } = await import('./shell/engineSession.js')
+            const { getInitialSettings } = await import('./settings/settings.js')
+            const setting = getInitialSettings().shellEngine ?? 'system'
+            const resolved = resolveShellEngine(setting === 'brush' ? 'brush' : 'system')
+            if (resolved.engine === 'brush') {
+              return {
+                status: 'ok' as const,
+                evidence: `brush ${resolved.version} (${resolved.platform}, ${resolved.source}) — one persistent process per session, shell state persists between calls`,
+                detail: `setting: ${setting}${process.env.MERCURY_SHELL_ENGINE ? ` · env pin MERCURY_SHELL_ENGINE=${process.env.MERCURY_SHELL_ENGINE}` : ''}`,
+              }
+            }
+            const wanted = resolved.requested === 'brush'
+            return {
+              status: 'info' as const,
+              evidence: wanted ? resolved.reason : 'the system shell serves the Bash tool (the default); arm the vendored engine with the Shell engine setting or MERCURY_SHELL_ENGINE=brush',
+              ...(wanted ? { fix: 'Fetch the pack: bun run scripts/vendor/fetch-brush.ts, then rebuild.' } : {}),
+            }
+          },
+        },
+        {
           id: 'iface-inventory',
           label: 'Interaction inventory',
           run: () => {
@@ -2753,6 +2776,16 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             return { status: 'ok', evidence }
+          },
+        },
+        {
+          id: 'shell',
+          label: 'Bash tool shell',
+          run: async () => {
+            const { describeWindowsShellRoad } = await import('./shell/windowsShellRoad.js')
+            const shell = describeWindowsShellRoad()
+            if (shell.absent) return { status: 'warn', evidence: shell.line, fix: shell.fix }
+            return { status: 'ok', evidence: shell.line }
           },
         },
         {

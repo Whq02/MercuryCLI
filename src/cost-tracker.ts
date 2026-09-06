@@ -19,7 +19,7 @@ import {
   recordUnpricedTurn,
   setCostStateForRestore,
 } from './bootstrap/state.js'
-import type { ModelUsage } from './entrypoints/agentSdkTypes.js'
+import type { ModelUsage } from './bootstrap/state.js'
 import type { NonNullableUsage } from './services/api/logging.js'
 import type { ProviderSessionSpend } from './services/providers/providerUsage.js'
 import { formatCost, formatSessionCost, formatLaneSpend } from './utils/spendSpelling.js'

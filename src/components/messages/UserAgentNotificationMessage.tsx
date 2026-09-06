@@ -21,6 +21,13 @@ function statusColor(status: string | null, accent: string): string {
   }
 }
 
+export function partialResultOf(text: string): string | null {
+  const status = extractTag(text, 'status')
+  if (status !== 'failed' && status !== 'killed') return null
+  const result = extractTag(text, 'result')
+  return result !== null && result !== '' ? result : null
+}
+
 export function UserAgentNotificationMessage({
   addMargin,
   param,
@@ -32,9 +39,10 @@ export function UserAgentNotificationMessage({
   const summary = extractTag(param.text, 'summary')
   if (!summary) return null
   const status = extractTag(param.text, 'status')
+  const partial = partialResultOf(param.text)
   const folded = extractTag(param.text, FOLDED_COUNT_TAG) !== null
   return (
-    <Box marginTop={addMargin ? 1 : 0}>
+    <Box marginTop={addMargin ? 1 : 0} flexDirection="column">
       <Text>
         <NameplateClock />
         <Text color={statusColor(status, accent)}>● </Text>
@@ -46,6 +54,11 @@ export function UserAgentNotificationMessage({
           </>
         ) : null}
       </Text>
+      {partial !== null ? (
+        <Text dimColor>
+          {'  '}partial result kept ({partial.length} chars) — send it a message to resume
+        </Text>
+      ) : null}
     </Box>
   )
 }

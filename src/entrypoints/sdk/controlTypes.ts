@@ -6,7 +6,7 @@ import type { DecisionReasonWireV1 } from '../../utils/permissions/decisionReaso
 
 export type SDKHookCallbackMatcher = {
   matcher?: string
-  hookCallbackIds: string[]
+  hook_callback_ids: string[]
   timeout?: number
 }
 
@@ -14,13 +14,13 @@ export type SDKHookCallbackMatcher = {
 export type SDKControlInitializeRequest = {
   subtype: 'initialize'
   hooks?: Record<string, SDKHookCallbackMatcher[]>
-  sdkMcpServers?: string[]
-  jsonSchema?: Record<string, unknown>
-  systemPrompt?: string
-  appendSystemPrompt?: string
+  host_mcp_servers?: string[]
+  json_schema?: Record<string, unknown>
+  system_prompt?: string
+  append_system_prompt?: string
   agents?: Record<string, unknown>
-  promptSuggestions?: boolean
-  agentProgressSummaries?: boolean
+  prompt_suggestions?: boolean
+  agent_progress_summaries?: boolean
 }
 
 export type SDKControlInterruptRequest = {
@@ -45,7 +45,6 @@ export type SDKControlPermissionRequest = {
 export type SDKControlSetPermissionModeRequest = {
   subtype: 'set_permission_mode'
   mode: PermissionMode
-  ultraplan?: boolean
 }
 
 export type SDKControlSetModelRequest = {
@@ -123,12 +122,12 @@ export type SDKControlReloadExtensionsRequest = {
 
 export type SDKControlMcpReconnectRequest = {
   subtype: 'mcp_reconnect'
-  serverName: string
+  server_name: string
 }
 
 export type SDKControlMcpToggleRequest = {
   subtype: 'mcp_toggle'
-  serverName: string
+  server_name: string
   enabled: boolean
 }
 
@@ -185,40 +184,36 @@ export type SDKControlEndSessionRequest = {
   reason?: string
 }
 
-export type SDKControlChannelEnableRequest = {
-  subtype: 'channel_enable'
-  serverName: string
-}
-
 export type SDKControlMcpAuthenticateRequest = {
   subtype: 'mcp_authenticate'
-  serverName: string
+  server_name: string
 }
 
 export type SDKControlMcpOauthCallbackUrlRequest = {
   subtype: 'mcp_oauth_callback_url'
-  serverName: string
-  callbackUrl: string
+  server_name: string
+  callback_url: string
 }
 
 export type SDKControlMcpClearAuthRequest = {
   subtype: 'mcp_clear_auth'
-  serverName: string
+  server_name: string
 }
 
-export type SDKControlClaudeAuthenticateRequest = {
-  subtype: 'claude_authenticate'
-  loginWithClaudeAi?: boolean
+export type SDKControlProviderSignInRequest = {
+  subtype: 'provider_sign_in'
+  provider: string
+  method?: 'subscription' | 'console'
 }
 
-export type SDKControlClaudeOauthCallbackRequest = {
-  subtype: 'claude_oauth_callback'
-  authorizationCode: string
+export type SDKControlProviderSignInCallbackRequest = {
+  subtype: 'provider_sign_in_callback'
+  authorization_code: string
   state: string
 }
 
-export type SDKControlClaudeOauthWaitForCompletionRequest = {
-  subtype: 'claude_oauth_wait_for_completion'
+export type SDKControlProviderSignInWaitRequest = {
+  subtype: 'provider_sign_in_wait'
 }
 
 export type SDKControlGenerateSessionTitleRequest = {
@@ -232,11 +227,6 @@ export type SDKControlSideQuestionRequest = {
   question: string
 }
 
-export type SDKControlRemoteControlRequest = {
-  subtype: 'remote_control'
-  enabled: boolean
-}
-
 export type SDKControlClaimSessionRequest = {
   subtype: 'claim_session'
   session_id: string
@@ -245,9 +235,9 @@ export type SDKControlClaimSessionRequest = {
   effort?: string
   resume?: boolean
   openai_catalogue?: {
-    sourceKind: 'chatgpt-subscription' | 'api-key'
+    source_kind: 'chatgpt-subscription' | 'api-key'
     models: unknown[]
-    fetchedAtMs: number
+    fetched_at_ms: number
   }
 }
 
@@ -291,16 +281,14 @@ export type SDKControlRequestInner =
   | SDKControlGetSettingsRequest
   | SDKControlElicitationRequest
   | SDKControlEndSessionRequest
-  | SDKControlChannelEnableRequest
   | SDKControlMcpAuthenticateRequest
   | SDKControlMcpOauthCallbackUrlRequest
   | SDKControlMcpClearAuthRequest
-  | SDKControlClaudeAuthenticateRequest
-  | SDKControlClaudeOauthCallbackRequest
-  | SDKControlClaudeOauthWaitForCompletionRequest
+  | SDKControlProviderSignInRequest
+  | SDKControlProviderSignInCallbackRequest
+  | SDKControlProviderSignInWaitRequest
   | SDKControlGenerateSessionTitleRequest
   | SDKControlSideQuestionRequest
-  | SDKControlRemoteControlRequest
   | SDKControlClaimSessionRequest
   | SDKControlSetEffortRequest
   | SDKControlWithdrawSendRequest
@@ -359,18 +347,8 @@ export type SDKControlReloadExtensionsResponse = {
   commands: unknown[]
   agents: unknown[]
   extensions: { name: string; path: string; source?: string }[]
-  mcpServers: unknown[]
+  mcp_servers: unknown[]
   error_count: number
-}
-
-
-export type SDKKeepAliveMessage = {
-  type: 'keep_alive'
-}
-
-export type SDKUpdateEnvironmentVariablesMessage = {
-  type: 'update_environment_variables'
-  variables: Record<string, string>
 }
 
 
@@ -389,11 +367,11 @@ export type SDKUserMessage = {
   parent_tool_use_id?: string | null
   uuid?: string
   session_id?: string
-  isReplay?: true
+  is_replay?: true
   timestamp?: string
   priority?: 'now' | 'next' | 'later'
   mode?: 'prompt' | 'bash' | 'task-notification'
-  agentId?: string
+  agent_id?: string
 }
 
 export type SDKStreamRawEvent =
@@ -424,20 +402,6 @@ export type SDKPartialAssistantMessage = {
   session_id: string
 }
 
-export type SDKStreamlinedTextMessage = {
-  type: 'streamlined_text'
-  text: string
-  session_id: string
-  uuid: string
-}
-
-export type SDKStreamlinedToolUseSummaryMessage = {
-  type: 'streamlined_tool_use_summary'
-  tool_summary: string
-  session_id: string
-  uuid: string
-}
-
 export type SDKResultMessage = {
   type: 'result'
   subtype?: string
@@ -461,14 +425,6 @@ export type SDKToolProgressMessage = {
   [key: string]: unknown
 }
 
-export type SDKAuthStatusMessage = {
-  type: 'auth_status'
-  isAuthenticating: boolean
-  uuid: string
-  session_id: string
-  [key: string]: unknown
-}
-
 export type SDKPromptSuggestionMessage = {
   type: 'prompt_suggestion'
   suggestion: string
@@ -483,12 +439,6 @@ export type SDKRateLimitEvent = {
   session_id: string
 }
 
-export type SDKPostTurnSummaryMessage = {
-  type: 'post_turn_summary'
-  uuid: string
-  session_id: string
-}
-
 export type SDKMessage =
   | SDKAssistantMessage
   | SDKUserMessage
@@ -496,20 +446,15 @@ export type SDKMessage =
   | SDKSystemMessage
   | SDKPartialAssistantMessage
   | SDKToolProgressMessage
-  | SDKAuthStatusMessage
   | SDKRateLimitEvent
   | SDKPromptSuggestionMessage
 
 
 export type StdoutMessage =
   | SDKMessage
-  | SDKStreamlinedTextMessage
-  | SDKStreamlinedToolUseSummaryMessage
-  | SDKPostTurnSummaryMessage
   | SDKControlResponse
   | SDKControlRequest
   | SDKControlCancelRequest
-  | SDKKeepAliveMessage
 
 export type StdinMessage =
   | SDKUserMessage
@@ -517,5 +462,3 @@ export type StdinMessage =
   | SDKSystemMessage
   | SDKControlRequest
   | SDKControlResponse
-  | SDKKeepAliveMessage
-  | SDKUpdateEnvironmentVariablesMessage

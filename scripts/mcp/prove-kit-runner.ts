@@ -238,6 +238,7 @@ section('§C the completion (poison: a second road to resolved; a resolved recor
 
   const seat = await import('../../src/daemon/sessionSeat.ts')
   const { readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { sessionKitToWire } = await import('../../src/services/engine-connector/seatWire.ts')
   const DAEMON_DIR = process.env.MERCURY_DAEMON_DIR
   const SID = '22222222-3333-4444-8555-666666666666'
   updateConcourseWorkers(workers => {
@@ -263,14 +264,14 @@ section('§C the completion (poison: a second road to resolved; a resolved recor
         request_id: 'mercury-session-facts-w-kit-1',
         response: {
           model: { effective: 'test-model', setting: null },
-          usage: { totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false },
-          identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null },
+          usage: { total_cost_usd: 0, total_api_duration_ms: 0, total_duration_ms: 0, total_lines_added: 0, total_lines_removed: 0, total_input_tokens: 0, total_output_tokens: 0, total_cache_read_input_tokens: 0, total_cache_creation_input_tokens: 0, has_unknown_model_cost: false },
+          identity: { first_party_api: false, console_billing: false, claude_ai_billing: false, account_email: null },
           skills: [],
           mcp: [],
-          permissionMode: 'flow',
-          workspace: { cwd: PROJECT, originalCwd: PROJECT, projectRoot: PROJECT, instructionRoots: [] },
+          permission_mode: 'flow',
+          workspace: { cwd: PROJECT, original_cwd: PROJECT, project_root: PROJECT, instruction_roots: [] },
           queue: [],
-          ...(kit !== undefined ? { kit } : {}),
+          ...(kit !== undefined ? { kit: sessionKitToWire(kit as never) } : {}),
         },
       },
     })
@@ -338,8 +339,8 @@ section('§I the inline agent-def door (poison: the byte-identical cache-hit tea
     { name: 'off-server', type: 'disabled', config: disabledCfg },
   ] as never[]
 
-  let outcome = await connectAgentMcpServers([{ 'sdk-inline': { type: 'sdk', name: 'x' } }] as never, definition, catalogue as never)
-  t('I1 an sdk-typed INLINE spec refuses typed (parity with the sdk name-ref) and never dials', outcome.clients.length === 0 && !memo.has(getServerCacheKey('sdk-inline', { type: 'sdk', name: 'x', scope: 'dynamic' } as never)))
+  let outcome = await connectAgentMcpServers([{ 'sdk-inline': { type: 'host', name: 'x' } }] as never, definition, catalogue as never)
+  t('I1 a host-typed INLINE spec refuses typed (parity with the host name-ref) and never dials', outcome.clients.length === 0 && !memo.has(getServerCacheKey('sdk-inline', { type: 'host', name: 'x', scope: 'dynamic' } as never)))
   outcome = await connectAgentMcpServers([{ 'off-server': { type: 'stdio', command: 'smuggle' } }] as never, definition, catalogue as never)
   t("I2 POISON armed (parent-∩-grant at the inline door): an inline RE-SPELLING of a kit/record-excluded name refuses — an agent definition cannot re-enable what the session excluded", outcome.clients.length === 0 && !memo.has(getServerCacheKey('off-server', { type: 'stdio', command: 'smuggle', scope: 'dynamic' } as never)))
 
@@ -377,7 +378,7 @@ section('§I the inline agent-def door (poison: the byte-identical cache-hit tea
   memo.delete(depth1Key)
 
   const agentSrc = readFileSync(join(REPO, 'src', 'tools', 'AgentTool', 'runAgent.ts'), 'utf8')
-  t('I6 the gates stand in source, in order (sdk → managed policy → enterprise exclusivity → the excluded-name refusal), and the nonce is minted ONCE per dispatch and spread into every inline dial', ['sdk-typed servers connect only', 'blocked by managed policy', 'an enterprise MCP configuration exists', "the session's catalogue excludes this name"].every(n => agentSrc.includes(n)) && agentSrc.includes('const dispatchNonce = randomUUID()') && agentSrc.includes('inlineDispatchId: dispatchNonce'))
+  t('I6 the gates stand in source, in order (host → managed policy → enterprise exclusivity → the excluded-name refusal), and the nonce is minted ONCE per dispatch and spread into every inline dial', ['sdk-typed servers connect only', 'blocked by managed policy', 'an enterprise MCP configuration exists', "the session's catalogue excludes this name"].every(n => agentSrc.includes(n)) && agentSrc.includes('const dispatchNonce = randomUUID()') && agentSrc.includes('inlineDispatchId: dispatchNonce'))
 }
 
 section('§N non-session insulation (poison: a kit env appearing on a warm/crew/utility spec)')

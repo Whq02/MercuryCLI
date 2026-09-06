@@ -31,6 +31,7 @@ import { isCarrierShapedId } from '../../services/providers/idSpaces.js'
 import {
   gptDisplayPin,
   hasGptServedWindowSuffix,
+  listMarksDelegationLead,
   parseGptModelId,
 } from '../../services/providers/openai/gptPins.js'
 import {
@@ -38,6 +39,7 @@ import {
   liveGptContextCeiling,
   liveGptDefaultEffort,
   liveGptEffortCatalogue,
+  liveGptListedEffortWords,
 } from '../../services/providers/openai/openaiCatalogue.js'
 import {
   glmEffortsFor,
@@ -390,6 +392,10 @@ export function getMaxSupportedEffortLevel(model: string): EffortLevel {
   const view = effortVocabularyFor(model)
   const aboveHigh = EFFORT_LEVELS.slice(EFFORT_LEVELS.indexOf('high') + 1).reverse()
   return aboveHigh.find(level => vocabularyOffers(view, level)) ?? 'high'
+}
+
+export function providerMarksDelegationLead(model: string): boolean {
+  return listMarksDelegationLead(liveGptListedEffortWords(model))
 }
 
 
@@ -1110,7 +1116,6 @@ export type ModelCapabilityRecord = Readonly<{
     supported: boolean
     max: boolean
     xhigh: boolean
-    ultra: boolean
     ceiling: EffortLevel
   }>
   tools: Readonly<{
@@ -1154,7 +1159,6 @@ export function resolveModelCapabilities(model: string): ModelCapabilityRecord {
       supported: modelSupportsEffort(model),
       max: modelSupportsMaxEffort(model),
       xhigh: modelSupportsXHighEffort(model),
-      ultra: modelOffersEffortLevel(model, 'ultra'),
       ceiling: getMaxSupportedEffortLevel(model),
     }),
     tools: Object.freeze({

@@ -188,6 +188,7 @@ function supplementalTools(): Tool[] {
     () => require('../../tools/MemoryTools/MemoryTools.js').RecallTool,
     () => require('../../tools/MemoryTools/MemoryTools.js').ReflectTool,
     () => require('../../tools/MemoryTools/MemoryTools.js').CorrectTool,
+    () => require('../../tools/PowerShellTool/PowerShellTool.js').PowerShellTool,
     /* eslint-enable @typescript-eslint/no-require-imports */
   ]
   const out: Tool[] = []
