@@ -1339,16 +1339,8 @@ export async function runHeadless(
     'task_started',
     'task_progress',
   ])
-  let streamlinedTransformer: ((message: StdoutMessage) => StdoutMessage | null) | null = null
-  void ((value: typeof streamlinedTransformer) => {
-    streamlinedTransformer = value
-  })
-
   const routeOutbound = (message: StdoutMessage): void => {
-    if (streamlinedTransformer) {
-      const transformed = streamlinedTransformer(message)
-      if (transformed) void io.write(transformed)
-    } else if (options.outputFormat === 'stream-json') {
+    if (options.outputFormat === 'stream-json') {
       void io.write(message)
     }
     const type = message.type
