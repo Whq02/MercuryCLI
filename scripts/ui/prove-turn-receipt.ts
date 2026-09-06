@@ -53,7 +53,7 @@ const agentResult = (totalTokens: number, costUSD: number | undefined, uuid = 'a
     toolUseResult: {
       agentId: `agent-${uuid}`,
       outcome: status === 'completed' ? { status, promotedNarration: false } : { status, reason: 'provider-declined', error: 'declined' },
-      agentType: 'general-purpose',
+      agentType: 'mercury-general',
       content: [{ type: 'text', text: 'done' }],
       totalToolUseCount: 1,
       totalDurationMs: 1,
