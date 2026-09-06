@@ -435,6 +435,7 @@ export async function* openaiCallModel(
     ? resolveGptReasoningProfile(requestedEffort, candidate.live)
     : { source: 'model-default' }
   const settlementNotes: string[] = []
+  const accountRoad = auth.account.label
   const listedWords = candidate !== undefined ? liveGptListedEffortWords(modelId) : undefined
   const wireRefusedWord = (asked: string): boolean =>
     candidate !== undefined &&
@@ -452,7 +453,7 @@ export async function* openaiCallModel(
           asked: profile.adjustedFrom,
           ...(profile.wireEffort !== undefined ? { sent: profile.wireEffort } : {}),
           ...(refusedByWire
-            ? { wireRefused: { road: auth.account.label, reprobeAfter: describeWireEffortProbeWindow() } }
+            ? { wireRefused: { road: accountRoad, reprobeAfter: describeWireEffortProbeWindow() } }
             : {}),
         }
       : undefined
