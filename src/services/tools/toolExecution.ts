@@ -608,7 +608,7 @@ async function runTransactionBody(args: {
       toolUseContext.getAppState().toolPermissionContext.shouldAvoidPermissionPrompts === true
     const headlessAskNote =
       decision.behavior === 'ask' && cannotPrompt
-        ? `\n\nThis session runs headless and cannot ask for approval, so the request was auto-denied — it was not run. To allow it, pre-approve the tool at launch with --allowedTools (for example --allowedTools "${tool.name}"), or start in a permission mode that does not stop here with --permission-mode. (Interactive-only shortcuts such as the "!" prefix do not apply to a headless run.)`
+        ? `\n\nThis session runs headless and cannot ask for approval, so the request was auto-denied — it was not run. To allow it, pre-approve the tool at launch with --allowed-tools (for example --allowed-tools "${tool.name}"), or start in a permission mode that does not stop here with --permission-mode. (Interactive-only shortcuts such as the "!" prefix do not apply to a headless run.)`
         : ''
     const composed = `${baseComposed}${headlessAskNote}`
     const rejectionBlocks = decision.behavior === 'ask' ? (decision.contentBlocks ?? []) : []

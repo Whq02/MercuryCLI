@@ -174,7 +174,7 @@ section('J3 — read-tool round (tool_use → local execution → tool_result �
     'read the note',
     '--model',
     'claude-opus-4-8',
-    '--allowedTools',
+    '--allowed-tools',
     'Read',
   ])
   const msgs = fixture2.messageRequests()

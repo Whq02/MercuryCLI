@@ -516,9 +516,9 @@ async function run(): Promise<void> {
         .hideHelp(),
     )
     .option('--replay-user-messages', 'Replay user messages on the stream-json output')
-    .option('--allowedTools, --allowed-tools <tools...>', 'Allowed tool rules')
+    .option('--allowed-tools <tools...>', 'Allowed tool rules')
     .option('--tools <tools...>', 'Base tool set')
-    .option('--disallowedTools, --disallowed-tools <tools...>', 'Denied tool rules')
+    .option('--disallowed-tools <tools...>', 'Denied tool rules')
     .option('--mcp-config <configs...>', 'MCP server configs (JSON or file paths)')
     .option('--strict-mcp-config', 'Only use MCP servers from --mcp-config')
     .addOption(new Option('--permission-prompt-tool <tool>', 'MCP tool for permission prompts').hideHelp())
@@ -1412,8 +1412,8 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     mainThreadAgentDefinition?.initialPrompt == null
   ) {
     const variadicCandidates: Array<[string, unknown]> = [
-      ['--allowedTools', opts.allowedTools],
-      ['--disallowedTools', opts.disallowedTools],
+      ['--allowed-tools', opts.allowedTools],
+      ['--disallowed-tools', opts.disallowedTools],
       ['--tools', opts.tools],
       ['--mcp-config', opts.mcpConfig],
       ['--add-dir', opts.addDir],
