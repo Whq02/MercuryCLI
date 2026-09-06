@@ -52,10 +52,8 @@ the identity suite (`scripts/identity/`) pins each one and bounds the total.
 - Foreign-artifact detection: the GitHub Actions context (`src/utils/env.ts`),
   the harness-state classifier behind `/health`
   (`src/utils/knownAgentClis.ts` — Mercury's own fingerprint decides what is
-  foreign; the signature table only names a recognized writer), and the
-  `.claude/**` permission-dialog patterns
-  (`src/tools/FileEditTool/constants.ts`) — reading the external world by
-  its real names, never wearing them.
+  foreign; the signature table only names a recognized writer) — reading the
+  external world by its real names, never wearing them.
 - Defensive scrubs: `src/utils/subprocessEnv.ts` and
   `src/daemon/ownedDaemon.ts` strip foreign session/credential env a nested
   boot may inherit (another tool's token never reaches Mercury's children).
