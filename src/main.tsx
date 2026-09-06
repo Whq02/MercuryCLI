@@ -567,7 +567,7 @@ async function run(): Promise<void> {
       return level
     })
     .option('--agent <agent>', 'The agent to run as')
-    .option('--betas <betas...>', 'SDK beta headers')
+    .option('--betas <betas...>', 'Provider beta headers')
     .option('--fallback-model <model>', 'Fallback model when the primary is overloaded')
     .addOption(new Option('--workload <tag>', 'Workload tag').hideHelp())
     .option('--settings <file-or-json>', 'Extra settings (path or inline JSON)')
@@ -783,6 +783,14 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
 
   const auth = program.command('auth').description('Manage authentication')
   auth
+    .command('token')
+    .description('Create a long-lived authentication token')
+    .action(async () => {
+      const { setupTokenHandler } = await import('./cli/handlers/util.js')
+      const { createRoot } = await import('./ink.js')
+      await setupTokenHandler(await createRoot())
+    })
+  auth
     .command('login')
     .description('Sign in')
     .option('--email <email>', 'Account email')
@@ -795,8 +803,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
   auth
     .command('status')
     .description('Show authentication status')
-    .option('--json', 'JSON output', true)
-    .option('--text', 'Text output')
+    .option('--json', 'JSON output (the default when stdout is not a terminal)')
     .action(async options => {
       const { authStatus } = await import('./cli/handlers/auth.js')
       await authStatus(options)
@@ -935,15 +942,6 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     .action(async (name, options) => {
       const { initVerb } = await import('./extensions/cli.js')
       process.exitCode = (await initVerb(name, options)).exit
-    })
-
-  program
-    .command('setup-token')
-    .description('Create a long-lived authentication token')
-    .action(async () => {
-      const { setupTokenHandler } = await import('./cli/handlers/util.js')
-      const { createRoot } = await import('./ink.js')
-      await setupTokenHandler(await createRoot())
     })
 
   program
@@ -1236,13 +1234,13 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     failCli('--input-format=stream-json requires --output-format=stream-json')
   }
   if (opts.replayUserMessages && outputFormat !== 'stream-json') {
+    failCli('--replay-user-messages requires --output-format=stream-json')
+  }
   if (typedString(opts.permissionPromptTool) === 'stdio') {
     failCli('stdio is not an MCP tool name: ask over the control protocol with --permission-channel stdio')
   }
   if (typedString(opts.permissionChannel) === 'prompt-tool' && typedString(opts.permissionPromptTool) === undefined) {
     failCli('--permission-channel prompt-tool needs --permission-prompt-tool <tool>')
-  }
-    failCli('--replay-user-messages requires --output-format=stream-json')
   }
   const includePartialMessages = Boolean(opts.includePartialMessages)
   if (opts.includePartialMessages && (!printMode || outputFormat !== 'stream-json')) {
@@ -2307,9 +2305,9 @@ async function printLaunch(args: {
         continue: Boolean(opts.continue),
         resume: opts.resume as string | boolean | undefined,
         outputFormat: args.outputFormat,
-        permissionChannel: permissionChannelOf(opts),
         jsonSchema: parsedJsonSchema,
         permissionPromptToolName: typedString(opts.permissionPromptTool),
+        permissionChannel: permissionChannelOf(opts),
         allowedTools: (opts.allowedTools as string[] | undefined) ?? [],
         thinkingConfig: args.thinkingConfig,
         maxTurns: opts.maxTurns as number | undefined,
