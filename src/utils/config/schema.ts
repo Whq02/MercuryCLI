@@ -299,8 +299,6 @@ export type GlobalConfig = {
 
   voiceInputEnabled?: boolean
 
-  startupPrefetchedAt?: number
-
   remoteControlAtStartup?: boolean
 
   launchEffortUnpins?: {
