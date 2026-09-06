@@ -481,7 +481,7 @@ if (pathLine.includes('already runs from')) {
 
 const repeatOut = run(['install'])
 if (!repeatOut.includes('already present')) fail(`smoke: repeat install was not a truthful no-op: ${repeatOut.slice(0, 300)}`)
-if (!/already (names|lists|runs from|on your PATH)/.test(pathLineOf(repeatOut))) fail(`smoke: the repeat install did not leave PATH as it found it: ${pathLineOf(repeatOut)}`)
+if (!/already (names?|lists|runs from|on your PATH)/.test(pathLineOf(repeatOut))) fail(`smoke: the repeat install did not leave PATH as it found it: ${pathLineOf(repeatOut)}`)
 ok('repeat install is a truthful no-op (idempotent) and leaves PATH as it found it')
 
 const statusOut = run(['update', '--status'])
