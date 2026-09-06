@@ -139,7 +139,7 @@ export async function resumeAgentBackground(args: {
         agent => agent.agentType === meta?.agentType,
       ) ??
       definitions.activeAgents.find(
-        agent => agent.agentType === 'general-purpose',
+        agent => agent.agentType === 'mercury-general',
       ) ??
       definitions.activeAgents[0]!
   }
