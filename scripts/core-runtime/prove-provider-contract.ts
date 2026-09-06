@@ -528,10 +528,10 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   )
   const stray: Record<string, unknown> = {}
   const strayBetas: string[] = []
-  rp.configureEffortParams('ultra', stray as never, {}, strayBetas, 'claude-opus-4-8')
+  rp.configureEffortParams('ultra' as never, stray as never, {}, strayBetas, 'claude-opus-4-8')
   check(
-    'assembly: a raw word above the first-party wire enum (ultra) drops param AND beta — the owner steps it to max before this seam',
-    eq(stray, {}) && strayBetas.length === 0 && effort.resolveAppliedEffort('claude-opus-4-8', 'ultra') === 'max',
+    'assembly: a raw word above the first-party wire enum drops param AND beta — the ladder ends at max, so no door ever hands this seam such a word',
+    eq(stray, {}) && strayBetas.length === 0 && !effort.isEffortLevel('ultra') && effort.parseEffortValue('ultra') === undefined,
     JSON.stringify({ stray, strayBetas }),
   )
   const preset: Record<string, unknown> = { effort: 'low' }
