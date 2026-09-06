@@ -10,3 +10,10 @@
 *.js   text eol=lf
 *.json text eol=lf
 *.sh   text eol=lf
+# The licence documents are a BYTE contract: LICENSE.md states the SHA-256 of
+# MERCURY-COMMUNITY-PRODUCTION-TERMS.md, and the packager refuses an archive
+# whose terms file hashes differently. A CRLF checkout (the Windows release
+# runner, core.autocrlf on) changed those bytes and failed the beta.3 package
+# job on Windows alone. Every markdown document is pinned to LF on every
+# platform, so the stated hash is true wherever the tree is checked out.
+*.md   text eol=lf
