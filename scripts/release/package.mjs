@@ -484,8 +484,10 @@ if (pathLine.includes('already runs from')) {
 
 const repeatOut = run(['install'])
 if (!repeatOut.includes('already present')) fail(`smoke: repeat install was not a truthful no-op: ${repeatOut.slice(0, 300)}`)
-if (!/already (names?|lists|runs from|on your PATH)/.test(pathLineOf(repeatOut))) fail(`smoke: the repeat install did not leave PATH as it found it: ${pathLineOf(repeatOut)}`)
-ok('repeat install is a truthful no-op (idempotent) and leaves PATH as it found it')
+const repeatPathLine = pathLineOf(repeatOut)
+if (!/is already on your PATH|already runs from/.test(repeatPathLine)) fail(`smoke: the repeat install did not leave PATH as it found it: ${repeatPathLine}`)
+if (repeatPathLine.includes('open a new terminal')) fail(`smoke: the repeat install still advised a new terminal: ${repeatPathLine}`)
+ok('repeat install is a truthful no-op (idempotent), leaves PATH as it found it and gives no new-terminal advice')
 
 const statusOut = run(['update', '--status'])
 if (!statusOut.includes(`installed version: ${VERSION}`)) fail(`smoke: update --status missing installed version: ${statusOut.slice(0, 300)}`)

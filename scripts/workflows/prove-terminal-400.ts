@@ -63,7 +63,7 @@ check(
 )
 check(
   'looksThrottled refuses DETERMINISTIC-400 and provider-throttled apiError results (the natural-settle race)',
-  /const looksThrottled = \(r: \w+\): boolean =>\s*\n\s*(?:r\.capPause === undefined &&\s*\n\s*)?\(r\.apiError === undefined \|\|\s*\n\s*\(!DETERMINISTIC_400_RE\.test\(r\.apiError\) &&\s*\n\s*!r\.apiError\.startsWith\('provider throttled'\)\)\) &&/.test(src),
+  /const looksThrottled = \(r: \w+\): boolean =>\s*\n\s*(?:r\.capPause === undefined &&\s*\n\s*)?\(r\.apiError === undefined \|\|\s*\n\s*\(!DETERMINISTIC_400_RE\.test\(r\.apiError\) &&\s*\n\s*!isRecoveryBudgetSpentLine\(r\.apiError\)\)\) &&/.test(src),
 )
 if (re) {
   const detRe = re
