@@ -34,7 +34,7 @@ the identity suite (`scripts/identity/`) pins each one and bounds the total.
 - The User-Agent surface (`src/utils/userAgent.ts`, `src/utils/http.ts`) is
   uniform: every Mercury-owned connection presents the product identity,
   `mercury/<version>` — the provider-API agent appends a parenthesised tail
-  (the entrypoint, optional `agent-sdk/…` and `client-app/…`, and the
+  (the entrypoint, optional `host/…` and `host-app/…`, and the
   turn-scoped `workload/…` segment). Provider-side client identification
   rides the auth material and the app/session headers, not this string. The
   user-initiated web-fetch agent is `Mozilla/5.0 (compatible;
