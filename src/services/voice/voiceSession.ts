@@ -2,7 +2,6 @@ import * as pendingInput from '../../input-core/pending-input.js'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { providerDisplayName } from '../providers/routeLaw.js'
 import {
   captureBoundMs,
   microphonePermissionHint,
@@ -13,7 +12,7 @@ import {
   type CaptureBackendResolution,
   type CaptureHandle,
 } from './capture.js'
-import { resolveTranscriber, transcribeWav, type TranscriberResolution } from './transcribe.js'
+import { choiceDebugName, choiceDisplayName, resolveTranscriber, transcribeWav, type TranscriberResolution } from './transcribe.js'
 
 export type VoicePhase = 'idle' | 'recording' | 'transcribing'
 
@@ -123,7 +122,7 @@ async function finishCapture(reason: 'key' | 'bound', env: NodeJS.ProcessEnv): P
     }
     try {
       const transcript = await transcribeWav(result.wav, { choice: transcriber.choice, env })
-      const via = `${providerDisplayName(transcriber.choice.family)} (${transcript.model})`
+      const via = `${choiceDisplayName(transcriber.choice)} (${transcript.model})`
       if (transcript.text === '') {
         receipt(`${via} heard no words in this take (${seconds(result.durationMs)})`, 'info')
         return
@@ -173,7 +172,7 @@ export async function toggleVoiceCapture(opts: { env?: NodeJS.ProcessEnv } = {})
   }
   active = handle
   publish({ phase: 'recording', startedAt: handle.startedAt, backend: handle.backend })
-  logForDebugging(`voice: capture started on ${handle.backend}; transcriber ${transcriber.choice.family} (${transcriber.choice.label})`)
+  logForDebugging(`voice: capture started on ${handle.backend}; transcriber ${choiceDebugName(transcriber.choice)} (${transcriber.choice.label})`)
   return { kind: 'started', text: `recording — space or esc stops it (${transcriber.choice.label} transcribes)` }
 }
 
@@ -209,7 +208,7 @@ function backendWords(backend: CaptureBackendResolution): string {
 
 function transcriberWords(transcriber: TranscriberResolution): string {
   if (transcriber.state === 'ok') {
-    return `${providerDisplayName(transcriber.choice.family)} — ${transcriber.choice.label}, the most recent transcribing sign-in`
+    return `${choiceDisplayName(transcriber.choice)} — ${transcriber.choice.label}, the most recent transcribing sign-in`
   }
   return `none — ${transcriber.note}`
 }
@@ -219,7 +218,7 @@ export function describeVoiceStatus(env: NodeJS.ProcessEnv = process.env): strin
   const transcriber = resolveTranscriber(env)
   return [
     `voice input ${on ? 'ON — space in an empty composer starts a capture, space or esc stops it' : 'OFF — /speak on turns it on'}`,
-    `transcriber: ${transcriber.state === 'ok' ? `${providerDisplayName(transcriber.choice.family)} · ${transcriber.choice.label}` : `none — ${transcriber.note}`}`,
+    `transcriber: ${transcriber.state === 'ok' ? `${choiceDisplayName(transcriber.choice)} · ${transcriber.choice.label}` : `none — ${transcriber.note}`}`,
     `backend: ${backendWords(resolveCaptureBackend(env))}`,
   ].join('\n')
 }
