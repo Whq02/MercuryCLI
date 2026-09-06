@@ -1263,7 +1263,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
 
   const bypassFromRegistry = isEnvTruthy(flagEnv('MERCURY_SKIP_PERMISSIONS')) && !isPrintModeArgv()
-  const dangerouslySkipPermissions = Boolean(opts.dangerouslySkipPermissions) || bypassFromRegistry
+  const dangerouslySkipPermissions = Boolean(opts.dangerouslyBypassPermissions) || bypassFromRegistry
   const allowDangerousSkip = Boolean(opts.allowDangerouslyBypassPermissions)
   const { initialPermissionModeFromCLI } = await import('./utils/permissions/permissionSetup.js')
   const resolved = initialPermissionModeFromCLI({
