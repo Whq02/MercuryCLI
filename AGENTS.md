@@ -16,16 +16,16 @@ On Windows, use Windows Terminal or PowerShell 7.
 ## Build and run
 
 ```sh
-bun run setup                      # once; bun install + the five vendored packs
+bun run setup                      # once; bun install + the six vendored packs
 bun run build.ts                   # writes dist/mercury.mjs + dist/manifest.json
 node dist/mercury.mjs --version
 node dist/mercury.mjs              # the cockpit needs a real TTY, 100+ columns
 node dist/mercury.mjs doctor --json
 ```
 
-`setup` fetches the vendored packs (pyright · debugpy · js-debug · extra
-grammars · this machine's Node runtime) and, with cargo present, builds the
-voice capture addon; a skipped pack is named by the build and the doctor.
+`setup` fetches the vendored packs (pyright · debugpy · js-debug · grammars ·
+this machine's Node runtime · brush, the optional shell engine) and, with cargo
+present, builds the voice capture addon; a skipped pack is named by the doctor.
 
 The first run walks theme and sign-in. Every interactive boot with no explicit
 journey lands on the Boot face — the ten-row card: New Session,

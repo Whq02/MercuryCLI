@@ -1,13 +1,14 @@
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
 import { isEnvTruthy } from '../envUtils.js'
-import { getPlatform } from '../platform.js'
+import { windowsBashRoad, windowsShellRoadActive } from './windowsShellRoad.js'
 
 export const SHELL_TOOL_NAMES: string[] = [BASH_TOOL_NAME, POWERSHELL_TOOL_NAME]
 
 export function isPowerShellToolEnabled(): boolean {
-  if (getPlatform() !== 'windows') return false
-  return isEnvTruthy(process.env.MERCURY_USE_POWERSHELL_TOOL)
+  if (!windowsShellRoadActive()) return false
+  if (isEnvTruthy(process.env.MERCURY_USE_POWERSHELL_TOOL)) return true
+  return windowsBashRoad().kind === 'absent'
 }
 
 export function firstCommandWord(subcommand: string): string {
