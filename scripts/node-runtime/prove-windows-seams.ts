@@ -197,14 +197,14 @@ section('(10) the starter keybindings.json passes the product\'s own validator')
   void checkReservedShortcuts
 }
 
-section('(11) the swallowed-prompt guard fires on the inferred print shape and knows --file')
+section('(11) the swallowed-prompt guard fires on the inferred print shape and knows every variadic option')
 {
   const main = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf8')
   const guard = main.slice(main.indexOf('A print run with NO input anywhere'), main.indexOf('const variadicCandidates') + 900)
   check('the guard fires for -p OR a non-TTY stdout (the inferred print shape)', guard.includes('(printMode || !process.stdout.isTTY) &&'))
   check('the guard still spares resume/continue/from-pr and stream-json input', guard.includes('!opts.resume &&') && guard.includes('!opts.continue &&') && guard.includes("inputFormat !== 'stream-json' &&"))
-  check('--file is a candidate', guard.includes("['--file', opts.file]"))
-  check('the six earlier candidates are kept', ['--allowedTools', '--disallowedTools', '--tools', '--mcp-config', '--add-dir', '--betas'].every(f => guard.includes(`['${f}',`)))
+  check('a retired option is no candidate', !guard.includes("['--file',") && !guard.includes("['--allowedTools',"))
+  check('the six candidates are kept in their one spelling', ['--allowed-tools', '--disallowed-tools', '--tools', '--mcp-config', '--add-dir', '--betas'].every(f => guard.includes(`['${f}',`)))
 }
 
 section('(12) the reserved-shortcut table knows Windows')
