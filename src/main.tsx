@@ -514,7 +514,6 @@ async function run(): Promise<void> {
     .option('--json-schema <schema>', 'JSON schema for structured output')
     .option('--include-hook-events', 'Emit all hook event types')
     .option('--include-partial-messages', 'Emit partial message stream events')
-    .option('--mcp-debug', '[deprecated — use --debug] MCP debug output')
     .option('--dangerously-skip-permissions', 'Bypass all permission checks')
     .option('--allow-dangerously-skip-permissions', 'Allow the bypass mode to be toggled')
     .addOption(new Option('--thinking <mode>', 'Thinking mode').choices(['enabled', 'adaptive', 'disabled']).hideHelp())
@@ -572,16 +571,6 @@ async function run(): Promise<void> {
     .option('--fork-session', 'Fork to a new session id on resume')
     .option('--from-pr [value]', 'Resume a session linked to a PR')
     .addOption(new Option('--prefill <text>', 'Prefill the input buffer').hideHelp())
-    .addOption(new Option('--deep-link-origin', 'Deep-link origin').hideHelp())
-    .addOption(new Option('--deep-link-repo <slug>', 'Deep-link repository').hideHelp())
-    .addOption(
-      new Option('--deep-link-last-fetch <ms>', 'Deep-link last fetch')
-        .argParser(value => {
-          const parsed = Number(value)
-          return Number.isFinite(parsed) ? parsed : undefined
-        })
-        .hideHelp(),
-    )
     .option('--no-session-persistence', 'Do not persist the session transcript')
     .addOption(new Option('--resume-session-at <message-id>', 'Truncate the resumed session at a message').hideHelp())
     .addOption(new Option('--rewind-files <user-message-id>', 'Rewind files to a user message').hideHelp())
@@ -611,7 +600,6 @@ async function run(): Promise<void> {
     .option('--setting-sources <sources>', 'Comma-separated allowed setting sources')
     .option('--extension <path>', 'An extension folder approved for this session only (repeatable)', (value, previous: string[]) => [...previous, value], [] as string[])
     .option('--disable-slash-commands', 'Disable all slash commands')
-    .option('--file <specs...>', 'Attach files (file_id:relative_path pairs)')
     .option('-v, --version', 'Print the version')
     .option('-w, --worktree [name]', 'Run inside a managed worktree')
     .option('--tmux', 'Create a tmux session for the worktree')
@@ -707,8 +695,7 @@ async function run(): Promise<void> {
     await defaultAction(prompt, program.opts())
   })
 
-  const hasControlUri = process.argv.some(arg => arg.startsWith('cc://') || arg.startsWith('cc+unix://'))
-  if (isPrintModeArgv() && !hasControlUri) {
+  if (isPrintModeArgv()) {
     profileCheckpoint('run_before_parse')
     if (wantsStreamJsonEnvelope()) {
       program.exitOverride()
@@ -1279,12 +1266,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     process.env.MERCURY_SIMPLE = '1'
   }
   let inputPrompt = inputPromptArg
-  if (inputPrompt === 'code') {
-    console.warn(
-      chalk.yellow(`Tip: launch ${cliName} with no arguments to start an interactive session`),
-    )
-    inputPrompt = undefined
-  }
   if (typedString(opts.prefill)) {
     startCapturingEarlyInput()
     process.stdin.unshift?.(Buffer.from(String(opts.prefill)))
@@ -1464,7 +1445,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       ['--mcp-config', opts.mcpConfig],
       ['--add-dir', opts.addDir],
       ['--betas', opts.betas],
-      ['--file', opts.file],
     ]
     const multi = variadicCandidates.filter(
       (pair): pair is [string, string[]] => Array.isArray(pair[1]) && pair[1].length >= 2,
