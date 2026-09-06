@@ -12,7 +12,7 @@ const tmpHome = mkdtempSync(join(tmpdir(), 'mercury-coordination-service-'))
 const prevConfigDir = process.env.MERCURY_CONFIG_DIR
 process.env.MERCURY_CONFIG_DIR = tmpHome
 
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { Client } from '@modelcontextprotocol/client'
 import { createCoordinationServer } from '../../src/services/mcp/coordinationServer.js'
 import { createLinkedTransportPair } from '../../src/services/mcp/InProcessTransport.js'
 import {

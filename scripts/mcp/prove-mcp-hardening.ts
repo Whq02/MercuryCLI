@@ -7,8 +7,8 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'mcp-hard-home-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { z } from 'zod/v4'
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { Client } from '@modelcontextprotocol/client'
+import { McpServer } from '@modelcontextprotocol/server'
 import { urlElicitationVerdict } from '../../src/services/mcp/toolPolicy.js'
 import { registerElicitationHandler, type ElicitationRequestEvent } from '../../src/services/mcp/elicitationHandler.js'
 import { createLinkedTransportPair } from '../../src/services/mcp/InProcessTransport.js'
@@ -33,7 +33,7 @@ function section(t: string): void {
 const SRC = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
 console.log('============================================================')
-console.log(' MCP hardening (2025-11-25) — phishing gate · structured output ·')
+console.log(' MCP hardening — phishing gate · structured output ·')
 console.log(' coordination verbs · doctor currency · consent surfaces')
 console.log('============================================================')
 
@@ -72,7 +72,7 @@ await (async () => {
     const server = new McpServer({ name: serverName, version: '1.0.0' })
     const client = new Client(
       { name: 'mercury-proof', version: '0' },
-      { capabilities: { elicitation: { url: {} } } },
+      { capabilities: { elicitation: { form: {}, url: {} } } },
     )
     const store = makeStore()
     registerElicitationHandler(client as never, serverName, store.set as never)
@@ -122,7 +122,7 @@ await (async () => {
   const server = new McpServer({ name: 'schema-srv', version: '1.0.0' })
   server.registerTool(
     'bad_shape',
-    { description: 'returns a violating shape', inputSchema: {}, outputSchema: { n: z.number() } },
+    { description: 'returns a violating shape', inputSchema: z.object({}), outputSchema: z.object({ n: z.number() }) },
     async () => ({
       content: [{ type: 'text' as const, text: '{"n":"not-a-number"}' }],
       structuredContent: { n: 'not-a-number' },
@@ -130,7 +130,7 @@ await (async () => {
   )
   server.registerTool(
     'good_shape',
-    { description: 'returns a conforming shape', inputSchema: {}, outputSchema: { n: z.number() } },
+    { description: 'returns a conforming shape', inputSchema: z.object({}), outputSchema: z.object({ n: z.number() }) },
     async () => ({
       content: [{ type: 'text' as const, text: '{"n":42}' }],
       structuredContent: { n: 42 },
@@ -158,7 +158,10 @@ await (async () => {
   await server.close()
 
   const clientSrc = SRC('src/services/mcp/client.ts')
-  check('production discovery primes the validator cache after pagination', clientSrc.includes('cacheToolMetadata'))
+  check(
+    'production hands each call its discovered tool definition',
+    clientSrc.includes('toolDefinition: sdkTool') && clientSrc.includes('...(toolDefinition ? { toolDefinition } : {})'),
+  )
 })()
 
 section('(4) coordination verbs — outputSchema declared + conforming structured results')
@@ -186,7 +189,12 @@ section('(5) doctor `mcp` currency — auth summary + protocol-rev seam')
     auth !== null && auth.tokens === 0 && auth.expired === 0 && auth.expiringSoon === 0,
   )
   const doctor = SRC('src/utils/healthReport.ts')
-  check('doctor mcp check carries the protocol-rev line', doctor.includes('LATEST_PROTOCOL_VERSION') && doctor.includes("KNOWN_NEXT_MCP_REV = '2026-07-28'"))
+  check('doctor mcp check reads the protocol-revision line from its owner', doctor.includes('describeMcpProtocolCurrency()') && doctor.includes('currency.behind'))
+  const revision = SRC('src/services/mcp/protocolRevision.ts')
+  check(
+    'the revision owner carries the negotiated and the published revision and the behind text',
+    revision.includes("MCP_PROTOCOL_REVISION = '2026-07-28'") && revision.includes('MCP_PUBLISHED_REVISION') && revision.includes('SDK behind'),
+  )
   check('doctor mcp check carries the auth-currency line', doctor.includes('summarizeMcpAuthCurrency'))
 }
 

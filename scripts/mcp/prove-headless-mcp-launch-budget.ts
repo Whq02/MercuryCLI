@@ -66,7 +66,7 @@ section('§3 THE WIRE OPTION')
     capabilities: { tools: true, prompts: true, resources: true },
     config: { type: 'stdio', command: 'scripted' },
     client: {
-      request: async (req: { method: string }, _schema: unknown, options?: { timeout?: number }) => {
+      request: async (req: { method: string }, options?: { timeout?: number }) => {
         seen[req.method] = options?.timeout
         return { tools: [], prompts: [], resources: [] }
       },
