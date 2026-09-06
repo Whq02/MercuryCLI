@@ -316,8 +316,31 @@ function parseUsage(usage: Record<string, unknown>): OpenaiUsage {
   }
 }
 
+let bareStreamErrors = 0
+
+export function bareStreamErrorCount(): number {
+  return bareStreamErrors
+}
+
+const ordinal = (n: number): string => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`)
+
+export function bareStreamErrorFault(nth: number): OpenaiFault {
+  return {
+    kind: 'response-failed',
+    code: 'openai-stream-error',
+    message: `the provider ended the stream with an error carrying no reason — no code, no message (the ${ordinal(nth)} this session)`,
+    retryable: true,
+  }
+}
+
 export class ResponsesStreamFold {
   finished = false
+  private bareStreamError: OpenaiFault | null = null
+  takeBareStreamError(): OpenaiFault | null {
+    const held = this.bareStreamError
+    this.bareStreamError = null
+    return held
+  }
   settledItems(): OpenaiInputItem[] {
     return [...this.orderedItems]
   }
@@ -491,6 +514,7 @@ export class ResponsesStreamFold {
       case 'response.completed':
       case 'response.failed':
       case 'response.incomplete': {
+        this.bareStreamError = null
         const response = asRecord(o.response)
         const usage = asRecord(response?.usage)
         if (usage) {
@@ -523,14 +547,17 @@ export class ResponsesStreamFold {
         const hadCode = typeof o.code === 'string'
         const code = hadCode ? (o.code as string) : 'stream-error'
         const hadMessage = o.message !== undefined && o.message !== null
+        if (!hadCode && !hadMessage) {
+          bareStreamErrors += 1
+          this.bareStreamError = bareStreamErrorFault(bareStreamErrors)
+          break
+        }
         out.push({
           type: 'stream-fault',
           fault: {
             kind: 'response-failed',
             code: `openai-${code}`,
-            message: hadMessage
-              ? String(o.message)
-              : 'the provider sent a stream error event with no code or message',
+            message: hadMessage ? String(o.message) : 'the provider sent a stream error event with no message',
             retryable: RETRYABLE_OPENAI_CODES.has(code) || !hadCode,
           },
         })
