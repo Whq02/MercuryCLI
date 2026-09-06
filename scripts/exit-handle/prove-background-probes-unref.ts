@@ -22,6 +22,11 @@ const limits = read('src/services/policyLimits/index.ts')
 const managed = read('src/services/remoteManagedSettings/index.ts')
 check('policy limits rides the background agent', /httpsAgent: backgroundHttpsAgent\(\)/.test(limits) && /import \{ backgroundHttpsAgent \} from '\.\.\/\.\.\/utils\/proxy\.js'/.test(limits))
 check('managed settings rides the background agent', /httpsAgent: backgroundHttpsAgent\(\)/.test(managed) && /import \{ backgroundHttpsAgent \} from '\.\.\/\.\.\/utils\/proxy\.js'/.test(managed))
+const rg = read('src/utils/ripgrep.ts')
+check(
+  'the ripgrep file-count probe unrefs its child and its pipe the moment they exist (a count never holds the exit cliff)',
+  /const child = spawn\(config\.rgPath, \[\.\.\.config\.rgArgs, \.\.\.args, target\][\s\S]{0,400}\n\s*child\.unref\(\)\n[\s\S]{0,200}child\.stdout as [^\n]*\)\?\.unref\?\.\(\)/.test(rg),
+)
 
 console.log('§3 live')
 {
