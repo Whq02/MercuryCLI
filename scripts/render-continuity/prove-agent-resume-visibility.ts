@@ -58,7 +58,7 @@ t.section('§2 guidance queued during a running turn drains into a real resume')
       input: {
         description: 'poise probe',
         prompt: 'Count to three slowly.',
-        subagent_type: 'general-purpose',
+        subagent_type: 'mercury-general',
         run_in_background: true,
       },
       preText: 'Spawning the probe agent.',
@@ -151,7 +151,7 @@ t.section('§3 per-target composer drafts across main/A/B switches')
   const agentInput = (name: string): Record<string, unknown> => ({
     description: name,
     prompt: 'Work quietly.',
-    subagent_type: 'general-purpose',
+    subagent_type: 'mercury-general',
     run_in_background: true,
   })
   const agentPaced: ScriptedTurn = {

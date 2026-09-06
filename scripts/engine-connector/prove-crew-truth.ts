@@ -131,7 +131,7 @@ const agentTask = (id: string, description: string, extra: Record<string, unknow
   description,
   agentId: id,
   prompt: 'p',
-  agentType: 'general-purpose',
+  agentType: 'mercury-general',
   isBackgrounded: false,
   outputFile: '/n',
   outputOffset: 0,
@@ -443,8 +443,8 @@ console.log('— T7 the status vocabulary and the transcript card —')
   const grouped = await paint(
     ui.renderGroupedAgentToolUse(
       [
-        { toolUseID: 'tu-ag1', input: { description: 'tide-gauges', prompt: 'p', subagent_type: 'general-purpose' }, progressMessages: [] },
-        { toolUseID: 'tu-ag2', input: { description: 'reef-survey', prompt: 'p', subagent_type: 'general-purpose' }, progressMessages: [] },
+        { toolUseID: 'tu-ag1', input: { description: 'tide-gauges', prompt: 'p', subagent_type: 'mercury-general' }, progressMessages: [] },
+        { toolUseID: 'tu-ag2', input: { description: 'reef-survey', prompt: 'p', subagent_type: 'mercury-general' }, progressMessages: [] },
         { toolUseID: 'tu-none', input: { description: 'unjoined', prompt: 'p' }, progressMessages: [] },
       ] as never,
       { shouldAnimate: false, tools: [] as never },

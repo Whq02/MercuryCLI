@@ -174,8 +174,8 @@ async function startFixture(port: number, home: string, opts: { killAfterLaunchM
         case 'launch':
           blocks = [
             { type: 'text', text: 'launching two in the background' },
-            { type: 'tool_use', name: 'Agent', input: { description: SEAT_ONE, prompt: `switch-seat: count the ${SEAT_ONE}`, subagent_type: 'general-purpose', run_in_background: true } },
-            { type: 'tool_use', name: 'Agent', input: { description: SEAT_TWO, prompt: `switch-seat: index the ${SEAT_TWO}`, subagent_type: 'general-purpose', run_in_background: true } },
+            { type: 'tool_use', name: 'Agent', input: { description: SEAT_ONE, prompt: `switch-seat: count the ${SEAT_ONE}`, subagent_type: 'mercury-general', run_in_background: true } },
+            { type: 'tool_use', name: 'Agent', input: { description: SEAT_TWO, prompt: `switch-seat: index the ${SEAT_TWO}`, subagent_type: 'mercury-general', run_in_background: true } },
           ]
           usage = { input: 1200, output: 90 }
           break

@@ -26,8 +26,8 @@ export function isHaikuTier(model: string): boolean {
 }
 
 const HAIKU_SLOT_ENV_PINS = [
-  'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-  'ANTHROPIC_SMALL_FAST_MODEL',
+  'MERCURY_DEFAULT_HAIKU_MODEL',
+  'MERCURY_SMALL_FAST_MODEL',
 ] as const
 
 const PIN_ANNOTATION_RE = /\[(?:[0-9]+m|served)\]/gi

@@ -1,12 +1,12 @@
 import type { Command } from '../../types/command.js'
-import { isEnvTruthy } from '../../utils/envUtils.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 
 const compact = {
   type: 'local',
   name: 'compact',
   description: 'Compact the conversation — /compact [instructions for summarization]',
   argumentHint: '[instructions for summarization]',
-  isEnabled: () => !isEnvTruthy(process.env.DISABLE_COMPACT),
+  isEnabled: () => flagEnabled('MERCURY_COMPACT'),
   supportsNonInteractive: true,
   load: () => import('./compact.js'),
 } satisfies Command

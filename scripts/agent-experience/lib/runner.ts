@@ -118,7 +118,7 @@ export function parseEnvelopes(envelopes: Array<Record<string, unknown>>): Pick<
     if (type === 'user') {
       const message = e.message as { content?: unknown } | undefined
       const content = message?.content
-      if (!parent && e.isReplay !== true) {
+      if (!parent && e.is_replay !== true) {
         if (typeof content === 'string') injectedChars += content.length
         else if (Array.isArray(content)) for (const block of content as Array<Record<string, unknown>>) if (block.type === 'text' && typeof block.text === 'string') injectedChars += block.text.length
       }
@@ -155,7 +155,7 @@ function killTree(pid: number, signal: NodeJS.Signals): void {
 
 export async function runHeadless(spec: RunSpec): Promise<RunRecord> {
   const args = [spec.dist, '-p', '--output-format', 'stream-json', '--model', spec.model, '--permission-mode', spec.permissionMode, '--max-turns', String(spec.maxTurns)]
-  if (spec.allowedTools.length > 0) args.push('--allowedTools', ...spec.allowedTools)
+  if (spec.allowedTools.length > 0) args.push('--allowed-tools', ...spec.allowedTools)
   if (spec.sessionId) args.push('--session-id', spec.sessionId)
   if (spec.resume) args.push('--resume', spec.resume)
   args.push(spec.prompt)

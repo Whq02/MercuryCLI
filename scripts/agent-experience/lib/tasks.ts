@@ -230,7 +230,7 @@ export const TASKS: TaskDef[] = [
     prompt: ctx => withMarker(ctx, 'delegate-agent', TASKS_ASK('delegate-agent')),
     probeTools: [],
     script: ctx => [
-      call('Agent', { description: 'Summarize test coverage', prompt: `[ax-seat:summary] Read ${join(ctx.projectDir, 'test', 'stats.test.js')} and report which functions the tests cover.`, subagent_type: 'general-purpose' }),
+      call('Agent', { description: 'Summarize test coverage', prompt: `[ax-seat:summary] Read ${join(ctx.projectDir, 'test', 'stats.test.js')} and report which functions the tests cover.`, subagent_type: 'mercury-general' }),
       final('The subagent reports the tests cover two functions: mean (one case) and median (two cases, odd- and even-length).'),
     ],
     seats: ctx => ({
@@ -329,8 +329,8 @@ export const TASKS: TaskDef[] = [
     script: ctx => [
       {
         calls: [
-          { name: 'Agent', input: { description: 'Seat A: count tests', prompt: `[ax-seat:count] Count the test cases in ${join(ctx.projectDir, 'test', 'stats.test.js')}.`, subagent_type: 'general-purpose' } },
-          { name: 'Agent', input: { description: 'Seat B: list exports', prompt: `[ax-seat:exports] List the functions ${join(ctx.projectDir, 'src', 'stats.js')} exports.`, subagent_type: 'general-purpose' } },
+          { name: 'Agent', input: { description: 'Seat A: count tests', prompt: `[ax-seat:count] Count the test cases in ${join(ctx.projectDir, 'test', 'stats.test.js')}.`, subagent_type: 'mercury-general' } },
+          { name: 'Agent', input: { description: 'Seat B: list exports', prompt: `[ax-seat:exports] List the functions ${join(ctx.projectDir, 'src', 'stats.js')} exports.`, subagent_type: 'mercury-general' } },
         ],
       },
       final(`Seat A: test/stats.test.js holds ${ctx.facts.testCount} test cases. Seat B: src/stats.js exports ${ctx.facts.exports.join(', ')}.`),

@@ -37,7 +37,7 @@ const { isDeferredTool, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/
 const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
 type Message = import('../../src/types/message.ts').Message
 
-process.env.ANTHROPIC_MODEL = model
+process.env.MERCURY_MODEL = model
 const permissionContext = getEmptyToolPermissionContext()
 const pool = assembleToolPool(permissionContext, [])
 const deferred = pool.filter(t => isDeferredTool(t)).map(t => t.name)

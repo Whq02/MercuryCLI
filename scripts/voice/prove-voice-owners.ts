@@ -270,6 +270,10 @@ section("§3 ONE transcriber owner — the order law, the ledger's order, the AP
   check('pin cloud ⇒ the ledger walk; the on-device road is held back by name', r.state === 'ok' && r.choice.kind === 'cloud' && r.choice.family === 'openai' && r.skipped.includes('on-device transcriber: held back by MERCURY_VOICE_TRANSCRIBER=cloud'), JSON.stringify(r))
   r = transcribe.pickTranscriber(['openai'], reads('OpenAI API key (env)', null, NO_PACK), { kind: 'on-device' })
   check('pin on-device with no pack ⇒ none naming the pin, never a silent fallback to the key', r.state === 'none' && r.note.startsWith('MERCURY_VOICE_TRANSCRIBER=on-device but') && r.note.endsWith('the pin names itself, no silent fallback'), r.state === 'none' ? r.note : 'ok')
+  r = transcribe.pickTranscriber(['openai'], reads('OpenAI API key (env)', null, ON_DEVICE), { kind: 'unset' }, transcribe.TRANSCRIBER_ORDER, { kind: 'family', family: 'openai' })
+  check('a saved family that is signed in serves over the present on-device road', r.state === 'ok' && r.choice.kind === 'cloud' && r.choice.family === 'openai' && r.saved?.state === 'serving', JSON.stringify(r.saved))
+  r = transcribe.pickTranscriber(['openai'], reads('OpenAI API key (env)', null, ON_DEVICE), { kind: 'unset' }, transcribe.TRANSCRIBER_ORDER, { kind: 'family', family: 'gemini' })
+  check('a saved family no longer signed in is named and the default serves, never silently', r.state === 'ok' && r.choice.kind === 'local' && r.saved?.state === 'unavailable' && r.saved.short === 'is not signed in', JSON.stringify(r.saved))
   check('every family answers the table: API-key slots for OpenAI and Gemini, none elsewhere', transcribe.FAMILY_TRANSCRIBER.openai.slot === 'api-key' && transcribe.FAMILY_TRANSCRIBER.gemini.slot === 'api-key' && transcribe.FAMILY_TRANSCRIBER.anthropic.slot === 'none' && Object.values(transcribe.FAMILY_TRANSCRIBER).every(v => v.slot === 'api-key' || v.why !== ''))
   check('the OpenAI rows: the newer transcription row first, the classic one as the fallback', transcribe.OPENAI_TRANSCRIBE_MODELS.join(',') === 'gpt-4o-transcribe,whisper-1')
 
@@ -440,6 +444,24 @@ section('§5 the session — the refusals before a take, v/v, the landing, esc, 
     await session.toggleVoiceCapture({ env: noTools() })
     check('…and exactly one request leaves, after the stop', await until(() => session.voiceSnapshot().phase === 'idle') && fetchCalls.length === before + 1 && posts(fx.lines()).length === servedBefore + 1, fetchCalls.slice(before).join(','))
     delete process.env.MERCURY_VOICE_TRANSCRIBER
+    session.setVoiceTranscriberChoice('openai')
+    check('/speak options openai persists the choice', getGlobalConfig().voiceTranscriber === 'openai')
+    const beforeSaved = fetchCalls.length
+    pendingInput.edit('')
+    outcome = await session.toggleVoiceCapture({ env: noTools() })
+    check('the saved family serves over the present pack: the started receipt names its credential', outcome.kind === 'started' && outcome.text === 'recording — space or esc stops it (OpenAI API key (env) transcribes)', JSON.stringify(outcome))
+    await session.toggleVoiceCapture({ env: noTools() })
+    check('…and exactly one request leaves', await until(() => session.voiceSnapshot().phase === 'idle') && fetchCalls.length === beforeSaved + 1, fetchCalls.slice(beforeSaved).join(','))
+    session.setVoiceTranscriberChoice('gemini')
+    pendingInput.edit('')
+    process.env.MERCURY_VOICE_FIXTURE_WAV = SPEECH
+    outcome = await session.toggleVoiceCapture({ env: noTools() })
+    check('a saved family that is not signed in: the started receipt names it and the on-device road transcribes', outcome.kind === 'started' && outcome.text === 'recording — space or esc stops it (on-device transcribes — your saved Gemini is not signed in)', JSON.stringify(outcome))
+    await session.toggleVoiceCapture({ env: noTools() })
+    check('…the words land on this machine with no request', await until(() => /lighthouse|seven|ships/i.test(pendingInput.text()), 60_000) && (await until(() => session.voiceSnapshot().phase === 'idle')) && fetchCalls.length === beforeSaved + 1, `${pendingInput.text()} · ${fetchCalls.slice(beforeSaved).join(',')}`)
+    session.setVoiceTranscriberChoice(null)
+    check('/speak options default clears the saved choice', getGlobalConfig().voiceTranscriber === undefined)
+    process.env.MERCURY_VOICE_FIXTURE_WAV = TONE
     delete process.env.MERCURY_WHISPER_MODEL
     transcribe.resetLocalTranscriberForTest()
   }
@@ -541,13 +563,29 @@ section('§6 the doctor row and the commands')
   out = await speakCall('', ctx)
   check('bare /speak answers the status: the toggle, the backend, the transcriber', out.type === 'text' && out.value.includes('voice input ON') && out.value.includes('backend: fixture WAV') && out.value.includes('transcriber: OpenAI'), out.type === 'text' ? out.value : out.type)
   out = await speakCall('loud', ctx)
-  check('/speak with another word answers the usage line', out.type === 'text' && out.value.includes('takes on, off or download'))
+  check('/speak with another word answers the usage line', out.type === 'text' && out.value.includes('takes on, off, options or download'))
   process.env.MERCURY_WHISPER_PACK_DIR = EMPTY_PACK
   out = await speakCall('download', ctx)
   check('/speak download without a usable pack refuses, naming the pin and that the download waits for the pack', out.type === 'text' && out.value.startsWith('on-device transcriber: MERCURY_WHISPER_PACK_DIR set but') && out.value.endsWith('the model download waits for the pack'), out.type === 'text' ? out.value : out.type)
   delete process.env.MERCURY_WHISPER_PACK_DIR
   out = await speakCall('download bogus', ctx)
   check('/speak download with a name outside the catalogue names the catalogue', out.type === 'text' && (out.value.includes('takes a model name from the catalogue') || out.value.endsWith('the model download waits for the pack')), out.type === 'text' ? out.value : out.type)
+  const { getGlobalConfig: savedConfig } = await import('../../src/utils/config.js')
+  process.env.OPENAI_API_KEY = 'sk-fixture-voice-000000000000000000000000'
+  resetComputedDefaultMemo()
+  out = await speakCall('options', ctx)
+  const listing = out.type === 'text' ? out.value : ''
+  check('/speak options lists every transcriber this install could use, marks the one that serves now, and names the switch', listing.startsWith('transcribers this install can use — /speak options <name> makes one your default') && /^● (on-device|openai) — /m.test(listing) && listing.includes('○ gemini — Gemini: not signed in — /logins gemini (API key)') && listing.includes('default: the shipped one'), listing)
+  out = await speakCall('options openai', ctx)
+  check('/speak options openai saves the choice and says so', out.type === 'text' && out.value.startsWith('default transcriber: openai (saved)') && out.value.includes('● openai — OpenAI: OpenAI API key (env) (serves now, your saved choice)') && savedConfig().voiceTranscriber === 'openai', out.type === 'text' ? out.value : out.type)
+  out = await speakCall('', ctx)
+  check('bare /speak names the saved choice as the default', out.type === 'text' && out.value.includes('default: your saved choice — OpenAI'), out.type === 'text' ? out.value : out.type)
+  r = await row()
+  check('the doctor row carries the default line with the saved choice', r.detail.includes('default: your saved choice — OpenAI'), r.detail)
+  out = await speakCall('options bogus', ctx)
+  check('/speak options with a word outside the vocabulary answers the vocabulary', out.type === 'text' && out.value.startsWith('/speak options takes one of on-device · openai · gemini or default (got "bogus")'), out.type === 'text' ? out.value : out.type)
+  out = await speakCall('options default', ctx)
+  check('/speak options default restores the shipped default', out.type === 'text' && out.value.startsWith('default transcriber: the shipped default (saved choice cleared)') && savedConfig().voiceTranscriber === undefined, out.type === 'text' ? out.value : out.type)
   out = await speakCall('off', ctx)
   check('/speak off turns it off', out.type === 'text' && out.value.startsWith('voice input OFF') && !session.voiceInputEnabled())
   const voiceCall = (await import('../../src/commands/voice/voice.js')).call

@@ -12,19 +12,19 @@ process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'runsurface-daemon-'
 process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'runsurface-teams-'))
 const ENGINE_CWD = mkdtempSync(join(tmpdir(), 'runsurface-cwd-'))
 for (const k of [
-  'MERCURY_SIMPLE',
+  'MERCURY_BARE',
   'MERCURY_EFFORT_LEVEL',
   'MERCURY_MAX_OUTPUT_TOKENS',
   'MERCURY_BLOCKING_LIMIT_OVERRIDE',
   'MERCURY_EAGER_FLUSH',
-  'MAX_STRUCTURED_OUTPUT_RETRIES',
+  'MERCURY_STRUCTURED_OUTPUT_RETRIES',
   'MERCURY_RELEVANT_RECALL',
   'HERMES_ULTRATHINK_MAX',
   'MERCURY_FORCE_READ_FILES',
   'CLAUDE_TEAM_NAME',
   'CLAUDE_AGENT_NAME',
-  'DISABLE_COMPACT',
-  'DISABLE_AUTO_COMPACT',
+  'MERCURY_COMPACT',
+  'MERCURY_AUTO_COMPACT',
   'NODE_ENV',
 ]) {
   delete process.env[k]
@@ -426,9 +426,9 @@ section('E2 PARTIALS + ACK — stream passthrough; the prompt ack precedes the p
     'passthrough preserves the raw event payload',
     (streamYields[0]!.event as AnyMsg).type === 'message_start',
   )
-  const ackIdx = r.yields.findIndex(y => y.type === 'user' && y.isReplay === true)
+  const ackIdx = r.yields.findIndex(y => y.type === 'user' && y.is_replay === true)
   const asstIdx = r.yields.findIndex(y => y.type === 'assistant')
-  check('the prompt is acked as an isReplay user message', ackIdx !== -1, types.join(','))
+  check('the prompt is acked as an is_replay user message', ackIdx !== -1, types.join(','))
   check(
     'the ack precedes the assistant projection (recorded-then-acked order)',
     ackIdx !== -1 && asstIdx !== -1 && ackIdx < asstIdx,
@@ -459,7 +459,7 @@ section('E3 TURN COUNT — num_turns = 1 + yielded user messages (tool_results c
     res.num_turns === 2,
     String(res.num_turns),
   )
-  const userYields = r.yields.filter(y => y.type === 'user' && y.isReplay !== true)
+  const userYields = r.yields.filter(y => y.type === 'user' && y.is_replay !== true)
   check('the tool_result user message projects to the SDK stream', userYields.length === 1, String(userYields.length))
   check(
     'the SDK user yield carries the tool_result block',
@@ -615,7 +615,7 @@ section('E7 ATTACHMENTS — structured_output capture; queued_command replay gat
   const replay = r2.yields.find(
     y =>
       y.type === 'user' &&
-      y.isReplay === true &&
+      y.is_replay === true &&
       JSON.stringify(y.message).includes('queued follow-up'),
   )
   check('queued_command replays as an SDK user message (replayUserMessages on)', replay !== undefined)
@@ -1107,7 +1107,7 @@ section('P4 handleSetPermissionMode — autopilot refused, bypass gated, success
   check(
     'sovereign is refused without the launch-time eligibility',
     resp2.subtype === 'error' &&
-      String(resp2.error).includes('--dangerously-skip-permissions'),
+      String(resp2.error).includes('--dangerously-bypass-permissions'),
     JSON.stringify(resp2),
   )
 
@@ -1666,7 +1666,7 @@ section('X1 CROSS-SURFACE REPLAY — the recorded corpus replayed through QueryE
       r.yields.some(
         y =>
           y.type === 'user' &&
-          y.isReplay !== true &&
+          y.is_replay !== true &&
           JSON.stringify(y.message).includes('tu_eq'),
       ),
   )

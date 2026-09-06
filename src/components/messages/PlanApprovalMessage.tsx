@@ -22,8 +22,8 @@ export function PlanApprovalRequestDisplay({
   senderName?: string
 }): React.ReactNode {
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="planMode" paddingX={1}>
-      <Text bold color="planMode">
+    <Box flexDirection="column" borderStyle="round" borderColor="strategyMode" paddingX={1}>
+      <Text bold color="strategyMode">
         Plan approval requested by {senderName ?? request.from}
       </Text>
       <Text dimColor>{DASHED_RULE}</Text>

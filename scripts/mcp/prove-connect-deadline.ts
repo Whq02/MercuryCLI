@@ -10,7 +10,7 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
 if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 delete process.env.CI
-process.env.MCP_TIMEOUT = '1500'
+process.env.MERCURY_MCP_TIMEOUT_MS = '1500'
 const DEADLINE_LABEL = '1.5s'
 const SETTLE_BUDGET_MS = 8_000
 const FIXTURE_MARK = `mcp-frozen-fixture-${process.pid}`
@@ -168,7 +168,7 @@ section('§4 sdk — a control host that never answers settles the batch')
   const started = Date.now()
   const settled = await Promise.race([
     mcp.setupSdkMcpClients(
-      { 'frozen-sdk': { type: 'sdk' } as never },
+      { 'frozen-sdk': { type: 'host' } as never },
       () => new Promise(() => {}),
     ),
     new Promise<null>(r => setTimeout(() => r(null), SETTLE_BUDGET_MS)),

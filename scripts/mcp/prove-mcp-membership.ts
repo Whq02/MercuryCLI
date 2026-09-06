@@ -117,7 +117,7 @@ section('§3 subagent ∩: names resolve only within the parent catalogue')
 
   const parentCfg = { type: 'stdio', command: 'parent-cmd', scope: 'local' } as never
   const disabledCfg = { type: 'stdio', command: 'blocked-cmd', scope: 'local' } as never
-  const sdkCfg = { type: 'sdk', name: 'wired', scope: 'dynamic' } as never
+  const sdkCfg = { type: 'host', name: 'wired', scope: 'dynamic' } as never
   const catalogue = [
     { name: 'shared-server', type: 'connected', config: parentCfg },
     { name: 'blocked-server', type: 'disabled', config: disabledCfg },
@@ -156,7 +156,7 @@ section('§3 subagent ∩: names resolve only within the parent catalogue')
     !outcome.clients.some(c => (c as { name?: string }).name === 'blocked-server'),
   )
   t(
-    'the sdk-typed row refused typed (the child path cannot construct the SDK transport)',
+    'the host-typed row refused typed (the child path cannot construct the host transport)',
     !outcome.clients.some(c => (c as { name?: string }).name === 'wired-sdk'),
   )
   t(

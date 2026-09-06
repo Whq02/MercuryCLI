@@ -47,6 +47,7 @@ import {
 } from '../../utils/permissions/PermissionMode.js'
 import { getMainLoopModel, modelDisplayString } from '../../utils/model/model.js'
 import { useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
+import { endEngineSession, resetShellEngineResolution, resolveShellEngine } from '../../utils/shell/engineSession.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import {
   providerFamilyPresences,
@@ -66,6 +67,10 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { clearCliTeammateModeOverride } from '../../utils/swarm/backends/teammateModeSnapshot.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 import { SEAT_DOORS, seatCeilingFacts, seatCeilingValueWords, seatCostWarning, setOperatorSeats } from '../../services/switchboard/capacityCheck.js'
+import { subagentDefaultsOf } from '../../utils/agentDefaults.js'
+import { agentFanoutCap } from '../../constants/subagentDoctrine.js'
+import { EFFORT_LEVELS } from '../../utils/effort.js'
+import { AGENT_DISPATCH_MODELS } from '../../utils/model/aliases.js'
 
 const LABEL_CELLS = 44
 
@@ -240,6 +245,7 @@ export function Config({
         spinnerTipsEnabled: local.spinnerTipsEnabled,
         prefersReducedMotion: local.prefersReducedMotion,
         instructionProfile: local.instructionProfile,
+        shellEngine: local.shellEngine,
       },
       user: {
         alwaysThinkingEnabled: user.alwaysThinkingEnabled,
@@ -446,6 +452,37 @@ export function Config({
       }
     },
   })
+  {
+    const engineSetting = validated(['system', 'brush'] as const, merged.shellEngine, 'system')
+    const resolved = resolveShellEngine(engineSetting)
+    const detail =
+      engineSetting === 'brush' && resolved.engine !== 'brush'
+        ? ' · unavailable, system shell in use'
+        : resolved.engine === 'brush'
+          ? ` · brush ${resolved.version}`
+          : ''
+    items.push({
+      id: 'shellEngine',
+      label: 'Shell engine',
+      kind: 'enum',
+      value: <Text>{engineSetting}{detail}</Text>,
+      warning:
+        engineSetting === 'brush' && resolved.engine !== 'brush'
+          ? 'The vendored shell engine pack is not present in this build; the system shell runs instead.'
+          : undefined,
+      change: direction => {
+        const engines = ['system', 'brush'] as const
+        const next = cycleIn(engines, engineSetting, direction)
+        if (writeSource('localSettings', { shellEngine: next === 'system' ? undefined : next })) {
+          snapshots.dirty = true
+          recordSet('shellEngine', `set shell engine to ${next}`)
+          resetShellEngineResolution()
+          void endEngineSession()
+          bump()
+        }
+      },
+    })
+  }
   items.push(providerScoped({
     id: 'thinking',
     label: 'Thinking mode',
@@ -826,6 +863,70 @@ export function Config({
     }, 'anthropic'))
   }
 
+  const agentDefaults = subagentDefaultsOf(config.agents)
+  const writeAgents = (patch: Partial<NonNullable<GlobalConfig['agents']>>): void => {
+    writeGlobal(c => ({ ...c, agents: { ...c.agents, ...patch } }))
+  }
+  items.push({
+    id: 'agentsDefaultEffort',
+    label: 'Sub-agent default effort',
+    searchText: 'sub-agent subagent agent default effort delegate workflow supercode',
+    kind: 'enum',
+    value: (
+      <Text>
+        {agentDefaults.effort}
+        {agentDefaults.effortSource === 'convention' ? <Text color={tokens.textSecondary}> (default)</Text> : null}
+      </Text>
+    ),
+    warning: 'the effort a spawned agent runs at when the call names none — never the session\'s own level, so supercode pins max on the lead alone · ←/→ walk the ladder',
+    change: direction => {
+      const next = cycleIn(EFFORT_LEVELS, agentDefaults.effort, direction)
+      writeAgents({ defaultEffort: next })
+      recordSet('agentsDefaultEffort', `set the sub-agent default effort to ${next}`)
+    },
+  })
+  const agentModelChoices: readonly string[] = ['inherit', ...AGENT_DISPATCH_MODELS]
+  const agentModelChoice = agentDefaults.model ?? 'inherit'
+  items.push({
+    id: 'agentsDefaultModel',
+    label: 'Sub-agent default model',
+    searchText: 'sub-agent subagent agent default model inherit parent',
+    kind: 'enum',
+    value: (
+      <Text>
+        {agentDefaults.model === undefined ? "inherit (the parent's model)" : modelDisplayString(agentDefaults.model)}
+      </Text>
+    ),
+    warning: 'the model a spawned agent runs on when neither the call nor its definition names one · ←/→ walk the aliases; inherit follows the parent',
+    change: direction => {
+      const next = cycleIn(agentModelChoices, agentModelChoice, direction)
+      writeAgents({ defaultModel: next === 'inherit' ? undefined : next })
+      recordSet('agentsDefaultModel', `set the sub-agent default model to ${next === 'inherit' ? "inherit (the parent's model)" : next}`)
+    },
+  })
+  const envFanoutCap = agentFanoutCap()
+  items.push({
+    id: 'agentsMaxConcurrent',
+    label: 'Sub-agents at once',
+    searchText: 'sub-agent subagent agents at once concurrent cap fan-out maximum',
+    kind: 'enum',
+    value: (
+      <Text>
+        {agentDefaults.maxConcurrent}
+        {agentDefaults.maxConcurrentSource === 'convention' ? <Text color={tokens.textSecondary}> (default)</Text> : null}
+        {envFanoutCap !== null ? (
+          <Text color={tokens.textSecondary}> · MERCURY_AGENT_FANOUT_CAP={envFanoutCap} outranks it this boot</Text>
+        ) : null}
+      </Text>
+    ),
+    warning: 'how many Agent-tool sub-agents may run at once; a spawn past the cap is refused with the live count (workflows keep their own ceiling) · ←/→ move it by one',
+    change: direction => {
+      const next = Math.max(1, agentDefaults.maxConcurrent + direction)
+      writeAgents({ maxConcurrent: next })
+      recordSet('agentsMaxConcurrent', `set sub-agents at once to ${next}`)
+    },
+  })
+
   const [searchMode, setSearchMode] = useState(true)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(0)
@@ -910,6 +1011,7 @@ export function Config({
       spinnerTipsEnabled: snapshots.local.spinnerTipsEnabled,
       prefersReducedMotion: snapshots.local.prefersReducedMotion,
       instructionProfile: snapshots.local.instructionProfile,
+      shellEngine: snapshots.local.shellEngine,
     })
     writeSource('userSettings', {
       alwaysThinkingEnabled: snapshots.user.alwaysThinkingEnabled,

@@ -1,7 +1,7 @@
+import type { EffortLevel } from '../../entrypoints/sdk/runtimeTypes.js'
 import type { McpServerConfig } from '../../services/mcp/types.js'
 import type { BillingType } from '../../services/oauth/types.js'
 import type { ImageDimensions } from '../imageResizer.js'
-import type { ModelOption } from '../model/modelOptions.js'
 import { DEFAULT_THEME_SETTING } from '../systemTheme.js'
 import type { ThemeSetting } from '../theme.js'
 
@@ -240,10 +240,7 @@ export type GlobalConfig = {
 
   lastStrategyModeUse?: number
 
-  subscriptionNoticeCount?: number
-  hasAvailableSubscription?: boolean
-
-  showExpandedTodos?: boolean
+  showExpandedTasks?: boolean
   showSpinnerTree?: boolean
 
   firstStartTime?: string
@@ -267,12 +264,6 @@ export type GlobalConfig = {
 
   idleReturnDismissed?: boolean
 
-  opusProMigrationComplete?: boolean
-  opusProMigrationTimestamp?: number
-  sonnet1m45MigrationComplete?: boolean
-  legacyOpusMigrationTimestamp?: number
-  sonnet45To46MigrationTimestamp?: number
-
   respectGitignore: boolean
 
   copyFullResponse: boolean
@@ -295,15 +286,21 @@ export type GlobalConfig = {
   teammateMode?: 'auto' | 'tmux' | 'in-process'
   teammateDefaultModel?: string | null
 
+  agents?: {
+    defaultEffort?: EffortLevel
+    defaultModel?: string
+    maxConcurrent?: number
+  }
+
   prStatusFooterEnabled?: boolean
 
   voiceInputEnabled?: boolean
 
+  voiceTranscriber?: string
+
   startupPrefetchedAt?: number
 
   remoteControlAtStartup?: boolean
-
-  clientDataCache?: Record<string, unknown> | null
 
   launchEffortUnpins?: {
     opus47?: boolean
@@ -311,8 +308,6 @@ export type GlobalConfig = {
     fable5?: boolean
     fable51?: boolean
   }
-
-  additionalModelOptionsCache?: ModelOption[]
 
   compatProvider?: {
     baseUrl?: string
@@ -344,7 +339,7 @@ export function createDefaultGlobalConfig(): GlobalConfig {
     env: {},
     tipsHistory: {},
     promptQueueUseCount: 0,
-    showExpandedTodos: false,
+    showExpandedTasks: false,
     messageIdleNotifThresholdMs: 60000,
     autoConnectIde: false,
     autoInstallIdeExtension: true,
@@ -370,7 +365,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'diffTool',
   'env',
   'tipsHistory',
-  'showExpandedTodos',
+  'showExpandedTasks',
   'messageIdleNotifThresholdMs',
   'autoConnectIde',
   'autoInstallIdeExtension',
@@ -393,6 +388,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'remoteControlAtStartup',
   'remoteDialogSeen',
   'harnessProfilePin',
+  'agents',
 ] as const
 
 export type GlobalConfigKey = (typeof GLOBAL_CONFIG_KEYS)[number]

@@ -150,14 +150,14 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
   const shelved = result.allAgents.find(a => a.agentType === 'foundry-plain')
   check('disabled agent stays visible in allAgents', shelved?.disabled === true)
 
-  await setAgentDisabled('user', project, 'general-purpose', true)
+  await setAgentDisabled('user', project, 'mercury-general', true)
   clearAgentDefinitionsCache()
   result = await getAgentDefinitionsWithOverrides(project)
   check(
     'built-ins cannot be disabled',
-    result.activeAgents.some(a => a.agentType === 'general-purpose'),
+    result.activeAgents.some(a => a.agentType === 'mercury-general'),
   )
-  await setAgentDisabled('user', project, 'general-purpose', false)
+  await setAgentDisabled('user', project, 'mercury-general', false)
   await setAgentDisabled('user', project, 'foundry-plain', false)
   await setAgentOverride('project', project, 'foundry-plain', undefined)
 }
@@ -198,10 +198,10 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
   console.log('E6: dispatch seam pins (display truth = dispatch truth inputs)')
   const runAgent = readFileSync('src/tools/AgentTool/runAgent.ts', 'utf-8')
   check(
-    'runAgent consumes definition-effort-over-session (the one ladder at the dispatch seam)',
-    /definitionEffort:\s*agentDefinition\.effort,\s*sessionEffort:\s*state\.effortValue,/.test(
+    'runAgent consumes definition-effort-over-the-configured-default (the one ladder at the dispatch seam), never the session state',
+    /definitionEffort:\s*agentDefinition\.effort,\s*defaultEffort:\s*subagentDefaultEffort\(\),/.test(
       runAgent,
-    ),
+    ) && !/sessionEffort/.test(runAgent),
   )
   const agentTool = readFileSync('src/tools/AgentTool/AgentTool.tsx', 'utf-8')
   check(
@@ -219,13 +219,13 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
 {
   console.log('E7: the agent-scoped state dispatches the resolved effort (FN-018 rank 2)')
   const { resolveAgentEffort } = await import('../../src/tools/AgentTool/runAgent.js')
-  check('pin wins on a non-exact-tools run', resolveAgentEffort({ effortOverride: 'max', useExactTools: false, definitionEffort: 'low', sessionEffort: 'medium' }) === 'max')
-  check('an exact-tools run ignores the pin (the definition rules)', resolveAgentEffort({ effortOverride: 'max', useExactTools: true, definitionEffort: 'low', sessionEffort: 'medium' }) === 'low')
-  check('no pin ⇒ the definition over the session', resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: 'xhigh', sessionEffort: 'low' }) === 'xhigh')
-  check('no pin, no definition ⇒ the session', resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined, sessionEffort: 'high' }) === 'high')
-  check('nothing declared anywhere ⇒ undefined (the resolver keeps its own default)', resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined, sessionEffort: undefined }) === undefined)
-  check('a pin off the ladder yields to the next rung, never rides raw', resolveAgentEffort({ effortOverride: 'turbo', useExactTools: false, definitionEffort: undefined, sessionEffort: 'low' }) === 'low')
-  check('a spoken pin normalises through the one effort normaliser', resolveAgentEffort({ effortOverride: 'x-high', useExactTools: false, definitionEffort: undefined, sessionEffort: undefined }) === 'xhigh')
+  check('pin wins on a non-exact-tools run', resolveAgentEffort({ effortOverride: 'max', useExactTools: false, definitionEffort: 'low', defaultEffort: 'medium' }) === 'max')
+  check('an exact-tools run ignores the pin (the definition rules)', resolveAgentEffort({ effortOverride: 'max', useExactTools: true, definitionEffort: 'low', defaultEffort: 'medium' }) === 'low')
+  check('no pin ⇒ the definition over the configured default', resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: 'xhigh', defaultEffort: 'low' }) === 'xhigh')
+  check('no pin, no definition ⇒ the configured default', resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined, defaultEffort: 'high' }) === 'high')
+  check('nothing declared anywhere ⇒ undefined (the resolver keeps its own default)', resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined, defaultEffort: undefined }) === undefined)
+  check('a pin off the ladder yields to the next rung, never rides raw', resolveAgentEffort({ effortOverride: 'turbo', useExactTools: false, definitionEffort: undefined, defaultEffort: 'low' }) === 'low')
+  check('a spoken pin normalises through the one effort normaliser', resolveAgentEffort({ effortOverride: 'x-high', useExactTools: false, definitionEffort: undefined, defaultEffort: undefined }) === 'xhigh')
   const runAgent = readFileSync('src/tools/AgentTool/runAgent.ts', 'utf-8')
   const scoped = runAgent.slice(runAgent.indexOf('const agentGetAppState'), runAgent.indexOf('// ── Hooks'))
   const posture = readFileSync('src/tools/AgentTool/agentPermissionPosture.ts', 'utf-8')
@@ -233,7 +233,7 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
     'the scoped state writes effortValue (the key dispatch reads) through the one posture owner',
     /return composeAgentAppState\(state, \{/.test(scoped) &&
       /effortValue: resolveAgentEffort\(\{/.test(scoped) &&
-      /sessionEffort: state\.effortValue,/.test(scoped) &&
+      /defaultEffort: subagentDefaultEffort\(\),/.test(scoped) &&
       /if \(facts\.effortValue !== undefined && next\.effortValue !== facts\.effortValue\) \{\s*next = \{ \.\.\.next, effortValue: facts\.effortValue \}/.test(posture),
     scoped.slice(0, 80),
   )

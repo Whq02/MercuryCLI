@@ -8,6 +8,7 @@ import { validateWorkerModelChoice } from '../services/concourse/workerModels.js
 import { resolveOpenaiAccount } from '../services/providers/openai/openaiAccounts.js'
 import { getCachedOpenaiCatalogue } from '../services/providers/openai/openaiCatalogue.js'
 import { deriveSessionKitForWorkspace, type SessionKitV1 } from './sessionKit.js'
+import { openaiCatalogueToWire } from '../services/engine-connector/seatWire.js'
 import {
   buildConcourseWorkerSpec,
   canonicalWorkspaceId,
@@ -357,7 +358,7 @@ export async function claimWarmRunner(
       permission_mode: args.permissionMode,
       effort: args.effort,
       ...(args.resume === true ? { resume: true } : {}),
-      ...(openaiCatalogue !== null ? { openai_catalogue: openaiCatalogue } : {}),
+      ...(openaiCatalogue !== null ? { openai_catalogue: openaiCatalogueToWire(openaiCatalogue) } : {}),
     },
   })
   const answered = new Promise<{ ok: boolean; error?: string }>(resolve => {
@@ -386,7 +387,7 @@ export async function claimWarmRunner(
   const spec = roster.patchSeatClaim(entry.short, {
     model: args.modelKey,
     effort: args.effort,
-    respawnExtraArgv: ['--resume', args.sessionId, '--permission-prompt-tool', 'stdio', '--include-partial-messages'],
+    respawnExtraArgv: ['--resume', args.sessionId, '--permission-channel', 'stdio', '--include-partial-messages'],
   })
   if (spec === null) {
     roster.kill(entry.short)

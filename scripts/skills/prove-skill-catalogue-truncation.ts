@@ -24,13 +24,13 @@ const longDesc = 'a deliberately long selection signal '.repeat(4).trim()
 const pair = [skill('alpha', longDesc), skill('omega', longDesc)] as never[]
 
 const withBudget = <T>(budget: number, run: () => T): T => {
-  const prior = process.env.SLASH_COMMAND_TOOL_CHAR_BUDGET
-  process.env.SLASH_COMMAND_TOOL_CHAR_BUDGET = String(budget)
+  const prior = process.env.MERCURY_SKILL_CHAR_BUDGET
+  process.env.MERCURY_SKILL_CHAR_BUDGET = String(budget)
   try {
     return run()
   } finally {
-    if (prior === undefined) delete process.env.SLASH_COMMAND_TOOL_CHAR_BUDGET
-    else process.env.SLASH_COMMAND_TOOL_CHAR_BUDGET = prior
+    if (prior === undefined) delete process.env.MERCURY_SKILL_CHAR_BUDGET
+    else process.env.MERCURY_SKILL_CHAR_BUDGET = prior
   }
 }
 

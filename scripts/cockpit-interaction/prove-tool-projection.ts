@@ -8,7 +8,7 @@ process.env.NODE_ENV = 'test'
   PACKAGE_URL: '',
   README_URL: '',
   IS_DEV: false,
-  IS_DEMO: false,
+  MERCURY_DEMO: false,
 }
 
 const SELF = new URL(import.meta.url).pathname

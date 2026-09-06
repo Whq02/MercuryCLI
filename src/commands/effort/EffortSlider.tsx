@@ -12,11 +12,12 @@ import {
   effortFamiliesLabel,
   getDisplayedEffortLabel,
   getDisplayedEffortLevel,
-  modelOffersEffortLevel,
   modelSupportsMaxEffort,
   modelSupportsXHighEffort,
   selectableEffortLevels,
 } from '../../utils/effort.js'
+import { providerMarksDelegationLead } from '../../utils/model/capabilities.js'
+import { DELEGATION_LEAD_NOTE } from '../../utils/cockpit/effortModel.js'
 import {
   AMBER,
   BELLY,
@@ -44,7 +45,6 @@ type Treatment =
   | 'accent'
   | 'shimmer'
   | 'rainbow'
-  | 'blaze'
   | 'code-trace'
 
 type SliderLevel = {
@@ -60,7 +60,6 @@ const TREATMENTS: Record<EffortLevel, Treatment> = {
   high: 'accent',
   xhigh: 'shimmer',
   max: 'rainbow',
-  ultra: 'blaze',
 }
 const BASE_TIERS: Omit<SliderLevel, 'supported'>[] = EFFORT_LEVELS.map(level => ({
   value: level,
@@ -211,7 +210,6 @@ function BreathingLabel({
 }
 
 const EMBER_RING: RGB[] = [RGB_CLAW, RGB_TERRA, RGB_BELLY, RGB_AMBER]
-const BLAZE_RING: RGB[] = [RGB_TERRA, RGB_BELLY, RGB_IVORY, RGB_AMBER]
 
 function ringAt(ring: RGB[], pos: number): string {
   const n = ring.length
@@ -226,27 +224,24 @@ function EmberLabel({
   active,
   time,
   bold,
-  blaze,
 }: {
   text: string
   active: boolean
   time: number
   bold?: boolean
-  blaze?: boolean
 }): React.ReactNode {
   if (!active) {
     return (
-      <Text color={blaze ? AMBER : TERRA} bold={bold}>
+      <Text color={TERRA} bold={bold}>
         {text}
       </Text>
     )
   }
-  const ring = blaze ? BLAZE_RING : EMBER_RING
-  const drift = time / (blaze ? 100 : 140)
+  const drift = time / 140
   return (
     <Text bold={bold}>
       {[...text].map((ch, i) => (
-        <Text key={i} color={ringAt(ring, drift + i * 0.5)}>
+        <Text key={i} color={ringAt(EMBER_RING, drift + i * 0.5)}>
           {ch}
         </Text>
       ))}
@@ -480,7 +475,7 @@ export function EffortSlider({
 
       {}
       <Box marginTop={1}>
-        <Text color={SECOND}>{tierSummary(level)}</Text>
+        <Text color={SECOND}>{tierSummary(level, model)}</Text>
       </Box>
       <Box>
         <Text color={FAINT}>←/→ adjust · ↵ apply · esc cancel</Text>
@@ -566,8 +561,6 @@ function TierWord({
       )
     case 'rainbow':
       return <EmberLabel text={tier.label} active={selected} time={time} bold={bold} />
-    case 'blaze':
-      return <EmberLabel text={tier.label} active={selected} time={time} bold={bold} blaze />
     case 'code-trace':
       return selected ? (
         <BreathingLabel text={tier.label} active time={time} bold={bold} />
@@ -581,7 +574,7 @@ function TierWord({
   }
 }
 
-function tierSummary(level: SliderLevel | undefined): string {
+function tierSummary(level: SliderLevel | undefined, model: string): string {
   switch (level?.value) {
     case 'low':
       return 'low — quick, straightforward implementation'
@@ -595,12 +588,8 @@ function tierSummary(level: SliderLevel | undefined): string {
     }
     case 'max':
       return 'max — maximum capability with the deepest reasoning'
-    case 'ultra': {
-      const families = effortFamiliesLabel(model => modelOffersEffortLevel(model, 'ultra'))
-      return `ultra — beyond max, the deepest rung the served ladder carries${families ? ` (${families})` : ''}`
-    }
     case 'supercode':
-      return 'supercode — max + standing dynamic-orchestration (session-only)'
+      return `supercode — max + proactive delegation where parallel agents help (session-only)${providerMarksDelegationLead(model) ? ` · ${DELEGATION_LEAD_NOTE}` : ''}`
     default:
       return ''
   }

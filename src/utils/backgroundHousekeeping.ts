@@ -1,7 +1,7 @@
 import * as fs from 'fs/promises'
 import { join } from 'path'
 import { scheduleMnemeMaintenance } from '../memdir/mnemeMaintenance.js'
-import { initAutoDream } from '../services/autoDream/autoDream.js'
+import { initMemoryUpkeep } from '../services/memoryUpkeep/memoryUpkeep.js'
 import { initMagicDocs } from '../services/MagicDocs/magicDocs.js'
 import { getMercuryHome } from './envUtils.js'
 import { initSkillImprovement } from './hooks/skillImprovement.js'
@@ -112,7 +112,7 @@ export function startBackgroundHousekeeping(): void {
   void initMagicDocs()
   void initSkillImprovement()
 
-  initAutoDream()
+  initMemoryUpkeep()
   scheduleMnemeMaintenance('boot')
 
   startCleanupCycleLoop()

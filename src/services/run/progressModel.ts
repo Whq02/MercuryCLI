@@ -21,7 +21,7 @@ export interface AttemptFingerprint {
 const MUTATING_FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'ChangeSet'])
 const SHELL_TOOLS = new Set(['Bash', 'PowerShell'])
 const OBSERVE_TOOLS = new Set(['Read', 'Grep', 'Glob', 'LSP', 'WebFetch', 'WebSearch', 'ProviderSearch'])
-const DELEGATE_TOOLS = new Set(['Task', 'Agent', 'Workflow', 'LaunchFleet'])
+const DELEGATE_TOOLS = new Set(['Agent', 'Workflow', 'LaunchFleet'])
 const VERIFY_HEADS = new Set(['test', 'pytest', 'jest', 'vitest', 'typecheck', 'tsc', 'verify'])
 
 export function toolFamilyOf(toolName: string): { family: string; evidence: EvidenceClass } {

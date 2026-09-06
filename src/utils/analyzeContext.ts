@@ -335,7 +335,7 @@ async function countMemoryFiles(): Promise<{
   tokens: number
   details: Array<{ path: string; type: string; tokens: number }>
 }> {
-  if (isEnvTruthy(process.env.MERCURY_SIMPLE)) {
+  if (isEnvTruthy(process.env.MERCURY_BARE)) {
     return { tokens: 0, details: [] }
   }
   const own = filterInjectedInstructionFiles(await getInstructionFiles())

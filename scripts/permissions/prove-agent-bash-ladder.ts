@@ -155,7 +155,7 @@ function contextFor(subject: Subject, mode: Mode, rules: Rules): unknown {
     setAppState: () => {},
     messages: [],
     agentId: isAgent ? `agent-${subject}` : undefined,
-    agentType: isAgent ? 'general-purpose' : undefined,
+    agentType: isAgent ? 'mercury-general' : undefined,
     options: { isNonInteractiveSession, tools: [], ...(permissionChannel !== undefined ? { permissionChannel } : {}) },
     ...(isAsync ? { localDenialTracking: createDenialTrackingState() } : {}),
   }

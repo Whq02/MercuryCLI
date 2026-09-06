@@ -2,6 +2,7 @@ import React from 'react'
 import { Text } from '../../ink.js'
 import { fireDeltaWords } from '../BootSaturnScreen.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
+import { CREW_ASK_WAIT_WORDS } from '../../services/engine-connector/crewFacts.js'
 import { concourseWaitCopy, type ConcourseRowV1 } from './contracts.js'
 import { askTileCopy, useLiveTile } from './liveTiles.js'
 
@@ -40,7 +41,7 @@ export const LiveNowCell = React.memo(function LiveNowCell({
       <Text wrap="truncate-end">
         {workflowsLead(true)}
         {nextFireLead(true)}
-        <Text color={t.warning}>asks: {question}</Text>
+        <Text color={t.warning}>{CREW_ASK_WAIT_WORDS} · {question}</Text>
       </Text>
     )
   }

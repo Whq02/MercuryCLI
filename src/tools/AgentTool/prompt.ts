@@ -9,6 +9,7 @@ import { isInProcessTeammate } from '../../utils/teammateContext.js'
 import { isTeammate } from '../../utils/teammate.js'
 import { searchToolsAvailability } from '../../utils/ripgrep.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../SendMessageTool/constants.js'
+import { EFFORT_LEVELS } from '../../utils/effort.js'
 import { AGENT_TOOL_NAME } from './constants.js'
 import { isForkSubagentEnabled } from './forkSubagent.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
@@ -68,7 +69,7 @@ export async function getPrompt(
 
   const typeSelection = forkOn
     ? 'Specify `subagent_type` for a specialist, or omit it to fork yourself — the fork inherits your full conversation context.'
-    : 'Specify `subagent_type` to select an agent; omitting it gives the general-purpose agent.'
+    : 'Specify `subagent_type` to select an agent; omitting it gives mercury-general.'
 
   const core = `Launch a new agent to work through a complicated, multi-step job on its own. The available agents are specialised — each has its own capabilities and tool access:
 
@@ -113,6 +114,7 @@ ${typeSelection}`
     'When an agent description says to use it proactively, honour that cue without waiting to be asked.',
     `Genuinely parallel launches are ONE message with multiple ${AGENT_TOOL_NAME} tool-use blocks (for example: three review agents launched together in a single message, one block each) — separate messages run serially.`,
     'Passing `isolation: "worktree"` hands the agent a temporary git worktree of its own. It requires a git repository (or a configured worktree-create hook); outside one, omit the parameter. A worktree the agent left untouched cleans itself up; one with changes survives, its path and branch riding back in the result.',
+    `The \`effort\` parameter sets the agent's reasoning effort (${EFFORT_LEVELS.join(' | ')}). Omitted, the agent runs at the configured sub-agent default (high unless the operator changed it in /config) — never at your own level. Spend the top tiers on the hardest judge and verify work; a level the agent's model does not serve runs the nearest one it does.`,
   )
   if (inProcess) {
     usage.push(

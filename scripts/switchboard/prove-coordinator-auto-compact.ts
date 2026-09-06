@@ -18,7 +18,7 @@ mkdirSync(home, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
   process.env[spelling] = home
 }
-for (const key of ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'ZAI_API_KEY', 'OPENAI_API_KEY', 'DISABLE_COMPACT', 'DISABLE_AUTO_COMPACT', 'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_BLOCKING_LIMIT_OVERRIDE']) {
+for (const key of ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'ZAI_API_KEY', 'OPENAI_API_KEY', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_BLOCKING_LIMIT_OVERRIDE']) {
   delete process.env[key]
 }
 delete process.env.NODE_ENV
@@ -112,7 +112,7 @@ section('§4 — the kill switch gates both arms (the one law with the main chat
   mkdirSync(dir, { recursive: true })
   await seed(dir, 12)
   await conv.stampCoordinatorGauge({ contextTokens: CEILING + 1, modelId: MODEL, ts: 1 }, dir)
-  process.env.DISABLE_COMPACT = '1'
+  process.env.MERCURY_COMPACT = '0'
   let calls = 0
   const r = await compact.maybeAutoCompactCoordinator(MODEL, {
     dir,
@@ -121,8 +121,8 @@ section('§4 — the kill switch gates both arms (the one law with the main chat
       return 'never'
     },
   })
-  delete process.env.DISABLE_COMPACT
-  check('DISABLE_COMPACT held the fold', r.compacted === 0 && calls === 0, JSON.stringify({ r, calls }))
+  delete process.env.MERCURY_COMPACT
+  check('MERCURY_COMPACT held the fold', r.compacted === 0 && calls === 0, JSON.stringify({ r, calls }))
 }
 
 section('§5 — the door folds FIRST, and the turn reads the folded tail')

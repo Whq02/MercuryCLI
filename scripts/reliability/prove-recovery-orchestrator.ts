@@ -176,7 +176,7 @@ console.log('— boot 3: leader projection rebuild —')
       {
         agentId: `scout@${ledTeam}`,
         name: 'scout',
-        agentType: 'general-purpose',
+        agentType: 'mercury-general',
         color: 'blue',
         joinedAt: 222,
         tmuxPaneId: '',

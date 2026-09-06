@@ -58,7 +58,7 @@ function findGitInitFolderByRef(requestId: string): string | undefined {
   return readGitInitAsks()[requestId]
 }
 
-export const DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES = 30
+export const DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES = 10
 
 export function permissionAskExpiryMs(): number {
   return minutesKnobToMs(flagEnv('MERCURY_PERMISSION_ASK_EXPIRY_MINUTES'), DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES)
@@ -220,14 +220,16 @@ export function onWorkerControlRequest(
   }
   pending.set(requestId, ask)
   publishAsksFor(rec.sessionId, dir)
-  ask.deadline = armInactivityDeadline({
-    seam: `permission ask ${requestId} (${toolName} for ${short})`,
-    limitMs: expiryMs,
-    onExpire: () => {
-      if (pending.get(requestId) !== ask) return
-      settleUnanswered(requestId, ask, 'expired', channel, expiryMs)
-    },
-  })
+  if (ask.agentId !== undefined) {
+    ask.deadline = armInactivityDeadline({
+      seam: `permission ask ${requestId} (${toolName} for ${short})`,
+      limitMs: expiryMs,
+      onExpire: () => {
+        if (pending.get(requestId) !== ask) return
+        settleUnanswered(requestId, ask, 'expired', channel, expiryMs)
+      },
+    })
+  }
   ask.obligationLanded = upsertObligation({
     ref: `permission:${requestId}`,
     sessionId: rec.sessionId,
@@ -392,7 +394,7 @@ export function answerPermissionAsk(
       subtype: 'success',
       request_id: requestId,
       response: allow
-        ? { behavior: 'allow', updatedInput, ...(updatedPermissions !== undefined ? { updatedPermissions } : {}) }
+        ? { behavior: 'allow', updated_input: updatedInput, ...(updatedPermissions !== undefined ? { updated_permissions: updatedPermissions } : {}) }
         : { behavior: 'deny', message: denial, ...(answer?.interrupt === true ? { interrupt: true } : {}) },
     },
   })

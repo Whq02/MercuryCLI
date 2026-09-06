@@ -12,11 +12,11 @@
    │ Shared project settings                                        │  │ ❯ fixture-scout                            │
    │ ❯ fixture-scout                                           opus │  │                                            │
    │                                                                │  │ fixture-scout                              │
-   │ Built-in agents                                                │  │                                            │
-   │   general-purpose                                      inherit │  │ /repo/.mercury/agents/fixture-scout.md     │
-   │                                                                │  │ scope: Shared project settings             │
    │ User settings                                                  │  │                                            │
-   │   ledger-keeper                                            off │  │                                            │
+   │   ledger-keeper                                            off │  │ /repo/.mercury/agents/fixture-scout.md     │
+   │                                                                │  │ scope: Shared project settings             │
+   │ Built-in agents                                                │  │                                            │
+   │   mercury-general                                      inherit │  │                                            │
    ╰────────────────────────────────────────────────────────────────╯  │                                            │
                                                                        │                                            │
                                                                        │                                            │

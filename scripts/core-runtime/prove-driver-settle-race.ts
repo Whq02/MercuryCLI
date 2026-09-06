@@ -46,7 +46,6 @@ function makeRig(): Rig {
     enqueueOutput: () => {},
     writeDirect: async () => {},
     drainSdkEvents: () => [],
-    flushInternalEvents: async () => {},
     executeTurn: async command => {
       rig.executed.push(String(command.value))
       await tick()

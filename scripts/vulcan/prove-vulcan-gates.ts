@@ -186,7 +186,7 @@ section('§7 · behavioral seams — harness map, doctrine, boot menu, doctor, p
 
   const { buildSubagentMercurySections } = await import('../../src/constants/subagentDoctrine.js')
   const doctrine = () =>
-    buildSubagentMercurySections({ agentDefinition: { agentType: 'general-purpose' } }).join('\n')
+    buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-general' } }).join('\n')
   const armedDoctrine = runWithCwdOverride(proj, doctrine)
   check('subagent doctrine: VULCAN line when armed + project', armedDoctrine.includes('VULCAN'))
   delete process.env.MERCURY_GODOT_TOOLS

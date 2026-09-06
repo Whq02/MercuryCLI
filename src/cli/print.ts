@@ -1,10 +1,11 @@
 import { randomUUID, type UUID } from 'node:crypto'
+import { refusalEnvelope } from './headless/refusalEnvelope.js'
+import type { PermissionChannel } from '../Tool.js'
 import { readFile, stat } from 'node:fs/promises'
 import { liveSkillRootsOf, pruneSkillSessionHooks } from '../utils/hooks/sessionHooks.js'
 import {
   getMainLoopModelOverride,
   getSessionId,
-  registerHookCallbacks,
   setInitJsonSchema,
   setMainLoopModelOverride,
   setMainThreadAgentType,
@@ -46,12 +47,17 @@ import { getCurrentProjectConfig, getGlobalConfig } from '../utils/config.js'
 import { mcpRosterEntriesOf, skillsRosterOf } from '../services/engine-connector/rosterTerms.js'
 import type { SessionFactsAnswerV1 } from '../services/engine-connector/seatProjections.js'
 import { effortSentOf } from '../services/engine-connector/seatProjections.js'
+import {
+  openaiCatalogueFromWire,
+  rewindOutcomeToWire,
+  sessionFactsToWire,
+  sessionKitFromWire,
+} from '../services/engine-connector/seatWire.js'
 import { openaiObservedUsage } from '../services/providers/openai/openaiLimitState.js'
 import { ask } from '../QueryEngine.js'
 import { getCommands, findCommand, clearCommandMemoizationCaches, formatDescriptionWithSource } from '../commands.js'
 import { collectContextData } from '../commands/context/context-noninteractive.js'
 import {
-  handleChannelEnable,
   handleInitializeRequest,
   handleMcpSetServers,
   handleOrphanedPermissionResponse,
@@ -59,7 +65,6 @@ import {
   handleRewindSession,
   handleSetPermissionMode,
   reconcileMcpServers,
-  reregisterChannelHandlerAfterReconnect,
   resolvePermissionModeTransition,
   type DynamicMcpState,
   type SdkMcpState,
@@ -166,7 +171,7 @@ const DEFAULT_HEADLESS_IDLE_MINUTES = 20
 import { getInMemoryErrors, logError } from '../utils/log.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
 import { getRunSnapshot, reconcileOnResume } from '../services/run/runCoordinator.js'
-import { toSDKRateLimitInfo } from '../utils/messages/mappers.js'
+import { toSDKContextUsage, toSDKRateLimitInfo, toSDKStatusPayload } from '../utils/messages/mappers.js'
 import type { Message } from '../types/message.js'
 import type { ContentBlockParam } from '../types/wire.js'
 import type { McpServerConfigForProcessTransport, ModelInfo } from '../entrypoints/agentSdkTypes.js'
@@ -229,6 +234,7 @@ import { isLocalWorkflowTask, killWorkflowTask } from '../tasks/LocalWorkflowTas
 import { primeOpenaiCatalogue } from '../services/providers/openai/openaiCatalogue.js'
 import { stopOrDismissAgent } from '../state/teammateViewHelpers.js'
 import { markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
+import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
 import { drainSdkEvents } from '../utils/sdkEventQueue.js'
 import { projectWorkRoster } from '../utils/task/workRoster.js'
 import { listSessionMission, onTasksUpdated } from '../utils/tasks.js'
@@ -249,7 +255,6 @@ import { expandPath } from '../utils/path.js'
 import { getCwd } from '../utils/cwd.js'
 import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
 import { streamIdleTimeoutMsForRoute } from '../services/providers/streamIdleBudget.js'
-import { normalizeControlMessageKeys } from '../utils/controlMessageCompat.js'
 import { runWithWorkload } from '../utils/workloadContext.js'
 
 export { joinPromptValues, canBatchWith }
@@ -276,6 +281,7 @@ type HeadlessOptions = {
   outputFormat?: string
   jsonSchema?: Record<string, unknown>
   permissionPromptToolName?: string
+  permissionChannel?: PermissionChannel
   allowedTools?: string[]
   thinkingConfig?: ThinkingConfig
   maxTurns?: number
@@ -289,7 +295,6 @@ type HeadlessOptions = {
   includePartialMessages?: boolean
   forkSession?: boolean
   rewindFiles?: string
-  enableAuthStatus?: boolean
   agent?: string
   workload?: string
   setupTrigger?: 'init' | 'maintenance'
@@ -322,12 +327,12 @@ class BoundedUuidSet {
 
 type ModelCatalogueEntry = {
   value: string
-  displayName?: string
+  display_name?: string
   description?: string
-  supportsEffort?: boolean
-  supportedEffortLevels?: string[]
-  supportsAdaptiveThinking?: boolean
-  supportsAutoMode?: boolean
+  supports_effort?: boolean
+  supported_effort_levels?: string[]
+  supports_adaptive_thinking?: boolean
+  supports_auto_mode?: boolean
 }
 
 function buildModelCatalogue(): ModelCatalogueEntry[] {
@@ -339,15 +344,15 @@ function buildModelCatalogue(): ModelCatalogueEntry[] {
         : (parseUserSpecifiedModel(option.value) ?? option.value)
     const entry: ModelCatalogueEntry = {
       value: option.value === null ? 'default' : option.value,
-      displayName: option.label,
+      display_name: option.label,
       description: option.description,
     }
     if (modelSupportsEffort(resolved)) {
-      entry.supportsEffort = true
-      entry.supportedEffortLevels = [...resolveEffortTruth(resolved, undefined).selectable]
+      entry.supports_effort = true
+      entry.supported_effort_levels = [...resolveEffortTruth(resolved, undefined).selectable]
     }
-    if (modelSupportsAdaptiveThinking(resolved)) entry.supportsAdaptiveThinking = true
-    if (modelSupportsAutoMode(resolved)) entry.supportsAutoMode = true
+    if (modelSupportsAdaptiveThinking(resolved)) entry.supports_adaptive_thinking = true
+    if (modelSupportsAutoMode(resolved)) entry.supports_auto_mode = true
     return entry
   })
 }
@@ -382,6 +387,8 @@ export async function runHeadless(
   options: HeadlessOptions,
 ): Promise<void> {
   markSessionNonInteractive(getAppState().toolPermissionContext?.mode)
+  const shellRoadNotice = windowsShellRoadNotice()
+  if (shellRoadNotice !== null) process.stderr.write(`${shellRoadNotice}\n`)
   const streamingInput = typeof inputPrompt !== 'string'
   noteHeadlessActivity(
     options.outputFormat === 'stream-json' && streamingInput ? 'sdk' : 'print',
@@ -501,7 +508,6 @@ export async function runHeadless(
     forkSession: options.forkSession,
     outputFormat: options.outputFormat,
     sessionStartHooksPromise: options.sessionStartHooksPromise,
-    restoredWorkerState: io.restoredWorkerState,
   })
   const messages: Message[] = loaded.messages
 
@@ -625,7 +631,7 @@ export async function runHeadless(
       setAppState,
       false,
     )
-    if (rewindResult && rewindResult.canRewind === false) {
+    if (rewindResult && rewindResult.can_rewind === false) {
       process.stderr.write(
         `${rewindResult.error ?? 'An unexpected error prevented the rewind'}\n`,
       )
@@ -647,7 +653,7 @@ export async function runHeadless(
     !resumeTargetValid
   ) {
     emitLoadError(
-      'Error: input must be provided either through stdin or as a prompt argument when using --print',
+      'No prompt reached --print: give one as the argument or on stdin',
       options.outputFormat,
     )
     gracefulShutdownSync(1)
@@ -661,10 +667,11 @@ export async function runHeadless(
   })
   let sessionTools: Tool[] = [...tools, ...startingMcpTools]
   const canUseTool = getCanUseToolFn(
+    options.permissionChannel,
     options.permissionPromptToolName,
     io,
     () => getAppState().mcp.tools as Tool[],
-    details => notifySessionStateChanged('requires_action', details),
+    () => notifySessionStateChanged('requires_action'),
   )
   if (options.permissionPromptToolName) {
     sessionTools = sessionTools.filter(
@@ -770,7 +777,7 @@ export async function runHeadless(
     for (const client of clients) {
       if (client.type !== 'connected') continue
       if (elicitationRegistered.has(client.name)) continue
-      if (client.config.type === 'sdk') continue
+      if (client.config.type === 'host') continue
       try {
         void registerElicitationHandlersForClient(client, client.name)
         elicitationRegistered.add(client.name)
@@ -882,7 +889,7 @@ export async function runHeadless(
 
   const injectModelSwitchBreadcrumbs = async (toModel: string): Promise<void> => {
     const { createModelSwitchBreadcrumbs } = await import('../utils/messages/factories.js')
-    const display = modelInfos.find(info => info.value === toModel)?.displayName ?? toModel
+    const display = modelInfos.find(info => info.value === toModel)?.display_name ?? toModel
     const breadcrumbs = createModelSwitchBreadcrumbs(toModel, display)
     for (const breadcrumb of breadcrumbs) {
       messages.push(breadcrumb)
@@ -895,7 +902,7 @@ export async function runHeadless(
           session_id: getSessionId(),
           uuid: breadcrumb.uuid,
           timestamp: breadcrumb.timestamp,
-          isReplay: true,
+          is_replay: true,
         })
       }
     }
@@ -908,7 +915,7 @@ export async function runHeadless(
       type: 'system',
       subtype: 'status',
       status: null,
-      permissionMode: mode,
+      permission_mode: mode,
       uuid: randomUUID(),
       session_id: getSessionId(),
     })
@@ -1153,9 +1160,7 @@ export async function runHeadless(
           maxBudgetUsd: options.maxBudgetUsd,
           taskBudget: options.taskBudget,
           canUseTool,
-          ...(options.permissionPromptToolName === undefined
-            ? {}
-            : { permissionChannel: options.permissionPromptToolName === 'stdio' ? ('stdio' as const) : ('prompt-tool' as const) }),
+          ...(options.permissionChannel === undefined ? {} : { permissionChannel: options.permissionChannel }),
           userSpecifiedModel: activeModel,
           fallbackModel: options.fallbackModel,
           jsonSchema: initializeJsonSchema ?? options.jsonSchema,
@@ -1192,7 +1197,7 @@ export async function runHeadless(
             io.outbound.enqueue({
               type: 'system',
               subtype: 'status',
-              status,
+              status: toSDKStatusPayload(status),
               uuid: randomUUID(),
               session_id: getSessionId(),
             })
@@ -1328,10 +1333,7 @@ export async function runHeadless(
     'control_request',
     'control_cancel_request',
     'stream_event',
-    'keep_alive',
     'prompt_suggestion',
-    'streamlined_text',
-    'streamlined_tool_use_summary',
   ])
   const EXCLUDED_SYSTEM_SUBTYPES = new Set([
     TURN_STARTED_SUBTYPE,
@@ -1340,18 +1342,9 @@ export async function runHeadless(
     'task_notification',
     'task_started',
     'task_progress',
-    'post_turn_summary',
   ])
-  let streamlinedTransformer: ((message: StdoutMessage) => StdoutMessage | null) | null = null
-  void ((value: typeof streamlinedTransformer) => {
-    streamlinedTransformer = value
-  })
-
   const routeOutbound = (message: StdoutMessage): void => {
-    if (streamlinedTransformer) {
-      const transformed = streamlinedTransformer(message)
-      if (transformed) void io.write(transformed)
-    } else if (options.outputFormat === 'stream-json') {
+    if (options.outputFormat === 'stream-json') {
       void io.write(message)
     }
     const type = message.type
@@ -1375,7 +1368,6 @@ export async function runHeadless(
     enqueueOutput: message => io.outbound.enqueue(message),
     writeDirect: message => io.write(message),
     drainSdkEvents: () => drainSdkEvents(),
-    flushInternalEvents: () => io.flushInternalEvents(),
     beforeCycle: async () => {
       await updateSdkMcp()
     },
@@ -1396,7 +1388,7 @@ export async function runHeadless(
             parent_tool_use_id: null,
             session_id: getSessionId(),
             uuid,
-            isReplay: true,
+            is_replay: true,
           })
         }
       }
@@ -1423,7 +1415,7 @@ export async function runHeadless(
       io.outbound.enqueue({
         type: 'system',
         subtype: 'status',
-        status: count > 0 ? { waitingOnAgents: count } : null,
+        status: count > 0 ? { waiting_on_agents: count } : null,
         uuid: randomUUID(),
         session_id: getSessionId(),
       })
@@ -1460,25 +1452,7 @@ export async function runHeadless(
     idleTimerStart: () => idleTimeout.start?.(),
     onCycleError: error => {
       abortSuggestion()
-      return {
-        type: 'result',
-        subtype: 'error_during_execution',
-        duration_ms: 0,
-        duration_api_ms: 0,
-        is_error: true,
-        num_turns: 0,
-        stop_reason: null,
-        session_id: getSessionId(),
-        total_cost_usd: 0,
-        usage: {},
-        modelUsage: {},
-        permission_denials: [],
-        uuid: randomUUID(),
-        errors: [
-          errorMessage(error),
-          ...getInMemoryErrors().map(entry => entry.error),
-        ],
-      }
+      return refusalEnvelope([errorMessage(error), ...getInMemoryErrors().map(entry => entry.error)])
     },
     shutdown: code => void gracefulShutdown(code),
     clock: { sleep: ms => new Promise(resolve => setTimeout(resolve, ms)) },
@@ -1497,7 +1471,7 @@ export async function runHeadless(
   process.on('SIGINT', () => {
     logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGINT' })
     inFlightAbort?.abort()
-    void gracefulShutdown(0)
+    void gracefulShutdown(130)
   })
   process.on('SIGTERM', () => {
     logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGTERM' })
@@ -1632,8 +1606,8 @@ export async function runHeadless(
     try {
       switch (request.subtype) {
         case 'initialize': {
-          for (const name of request.sdkMcpServers ?? []) {
-            sdkMcp.configs[name] = { type: 'sdk', name }
+          for (const name of request.host_mcp_servers ?? []) {
+            sdkMcp.configs[name] = { type: 'host', name }
           }
           await handleInitializeRequest(
             request,
@@ -1643,7 +1617,6 @@ export async function runHeadless(
             commands,
             modelInfos as ModelInfo[],
             io,
-            options.enableAuthStatus ?? false,
             {
               systemPrompt: options.systemPrompt,
               appendSystemPrompt: options.appendSystemPrompt,
@@ -1654,24 +1627,20 @@ export async function runHeadless(
             agents,
             getAppState,
           )
-          if (request.promptSuggestions) {
+          if (request.prompt_suggestions) {
             streamingOptions.promptSuggestionEnabled = true
             setAppState(previous => ({ ...previous, promptSuggestionEnabled: true }))
           }
           const wantsSummaries = Boolean(
-            request.agentProgressSummaries,
+            request.agent_progress_summaries,
           )
           if (wantsSummaries) {
             setSdkAgentProgressSummariesEnabled(true)
           }
-          const initSchema = request.jsonSchema
+          const initSchema = request.json_schema
           if (initSchema) {
             initializeJsonSchema = initSchema
             setInitJsonSchema(initSchema)
-          }
-          const hooks = request.hooks
-          if (hooks) {
-            registerHookCallbacks(hooks)
           }
           sessionInitialized = true
           if (getCommandQueue().length > 0) driver.kick()
@@ -1718,11 +1687,7 @@ export async function runHeadless(
             getAppState().toolPermissionContext,
             io.outbound,
           )
-          setAppState(previous => ({
-            ...previous,
-            toolPermissionContext: updatedContext,
-            isUltraplanMode: request.ultraplan ?? previous.isUltraplanMode,
-          }))
+          setAppState(previous => ({ ...previous, toolPermissionContext: updatedContext }))
           return
         }
         case 'set_model': {
@@ -1771,7 +1736,7 @@ export async function runHeadless(
           }
           dropCredentialMemos()
           if (request.openai_catalogue !== undefined) {
-            primeOpenaiCatalogue(request.openai_catalogue as Parameters<typeof primeOpenaiCatalogue>[0])
+            primeOpenaiCatalogue(openaiCatalogueFromWire(request.openai_catalogue) as Parameters<typeof primeOpenaiCatalogue>[0])
           }
           const claimedHome = consumeSessionHomePin()
           if (request.resume === true) {
@@ -1799,7 +1764,7 @@ export async function runHeadless(
           if (claimedModel !== undefined) {
             activeModel = parseUserSpecifiedModel(claimedModel)
             setMainLoopModelOverride(claimedModel)
-            process.env.ANTHROPIC_MODEL = claimedModel
+            process.env.MERCURY_MODEL = claimedModel
           }
           if (claimedEffort !== undefined) {
             process.env.MERCURY_EFFORT_LEVEL = claimedEffort
@@ -1912,7 +1877,7 @@ export async function runHeadless(
             },
           }
           markScheduleSeatObserved()
-          respondSuccess(requestId, answer as unknown as Record<string, unknown>)
+          respondSuccess(requestId, sessionFactsToWire(answer))
           return
         }
         case 'schedule_roster': {
@@ -1927,7 +1892,7 @@ export async function runHeadless(
                   {
                     id: r.id,
                     when: r.when,
-                    nextFireMs: typeof r.nextFireMs === 'number' ? r.nextFireMs : null,
+                    nextFireMs: typeof r.next_fire_ms === 'number' ? r.next_fire_ms : null,
                     kind,
                     ...(r.paused === true ? { paused: true as const } : {}),
                   },
@@ -1947,7 +1912,7 @@ export async function runHeadless(
           return
         }
         case 'mcp_status': {
-          respondSuccess(requestId, { mcpServers: await buildServerStatusList() })
+          respondSuccess(requestId, { mcp_servers: await buildServerStatusList() })
           return
         }
         case 'get_context_usage': {
@@ -1963,7 +1928,7 @@ export async function runHeadless(
                 appendSystemPrompt: options.appendSystemPrompt,
               },
             })
-            respondSuccess(requestId, { ...data })
+            respondSuccess(requestId, toSDKContextUsage(data))
           } catch (error) {
             respondError(requestId, errorMessage(error))
           }
@@ -1986,7 +1951,7 @@ export async function runHeadless(
             request.dry_run ?? false,
             getReadFileCache(),
           )
-          if (rewind.canRewind || request.dry_run) {
+          if (rewind.can_rewind || request.dry_run) {
             respondSuccess(requestId, { ...rewind })
           } else {
             respondError(requestId, rewind.error ?? 'rewind is not possible')
@@ -2000,7 +1965,7 @@ export async function runHeadless(
             drift: getReadFileCache(),
             turnActive: inFlightAbort !== null,
           })
-          respondSuccess(requestId, outcome as unknown as Record<string, unknown>)
+          respondSuccess(requestId, rewindOutcomeToWire(outcome))
           return
         }
         case 'cancel_async_message': {
@@ -2056,7 +2021,7 @@ export async function runHeadless(
                 .map(command => ({
                   name: command.name,
                   description: formatDescriptionWithSource(command),
-                  argumentHint: command.argumentHint ?? '',
+                  argument_hint: command.argumentHint ?? '',
                 })),
               agents: activeAgents.map(agent => ({
                 name: agent.agentType,
@@ -2064,7 +2029,7 @@ export async function runHeadless(
                 model: agent.model === 'inherit' ? undefined : agent.model,
               })),
               extensions,
-              mcpServers: await buildServerStatusList(),
+              mcp_servers: await buildServerStatusList(),
               error_count: errorCount,
             })
           } catch (error) {
@@ -2073,7 +2038,7 @@ export async function runHeadless(
           return
         }
         case 'mcp_reconnect': {
-          const serverName = request.serverName
+          const serverName = request.server_name
           const config = resolveServerConfigFromAllSources(serverName)
           if (!config) {
             respondError(requestId, `MCP server ${serverName} not found`)
@@ -2092,7 +2057,6 @@ export async function runHeadless(
           await applyReconnectedClient(serverName, client)
           if (client.type === 'connected') {
             registerPerTurnHandlers([client])
-            reregisterChannelHandlerAfterReconnect(client)
             respondSuccess(requestId)
           } else if (client.type === 'failed') {
             respondError(requestId, client.error ?? `failed to reconnect ${serverName}`)
@@ -2102,7 +2066,7 @@ export async function runHeadless(
           return
         }
         case 'mcp_toggle': {
-          const serverName = request.serverName
+          const serverName = request.server_name
           const enabled = Boolean(request.enabled)
           const config = resolveServerConfigFromAllSources(serverName)
           if (!config) {
@@ -2154,7 +2118,7 @@ export async function runHeadless(
         }
         case 'kit_edit': {
           await serializeMcpChange(async () => {
-            const verdict = validateSessionKit(request.kit)
+            const verdict = validateSessionKit(sessionKitFromWire(request.kit))
             if (!verdict.ok) {
               respondError(requestId, `kit refused — ${verdict.reason}`)
               return
@@ -2213,7 +2177,6 @@ export async function runHeadless(
                 await applyReconnectedClient(name, client)
                 if (client.type === 'connected') {
                   registerPerTurnHandlers([client])
-                  reregisterChannelHandlerAfterReconnect(client)
                   connected.push(name)
                 } else if (client.type === 'failed') {
                   errors[name] = client.error ?? 'connection failed'
@@ -2245,17 +2208,8 @@ export async function runHeadless(
           })
           return
         }
-        case 'channel_enable': {
-          handleChannelEnable(
-            requestId,
-            request.serverName,
-            [...getAppState().mcp.clients, ...sdkMcp.clients, ...dynamicMcp.clients],
-            io.outbound,
-          )
-          return
-        }
         case 'mcp_authenticate': {
-          const serverName = request.serverName
+          const serverName = request.server_name
           const config = resolveServerConfigFromAllSources(serverName)
           if (!config) {
             respondError(requestId, `MCP server ${serverName} not found`)
@@ -2298,9 +2252,9 @@ export async function runHeadless(
             flowPromise.then(() => ({ kind: 'done' as const })),
           ])
           if (raced.kind === 'url') {
-            respondSuccess(requestId, { authUrl: raced.url, requiresUserAction: true })
+            respondSuccess(requestId, { auth_url: raced.url, requires_user_action: true })
           } else {
-            respondSuccess(requestId, { requiresUserAction: false })
+            respondSuccess(requestId, { requires_user_action: false })
           }
           void flowPromise
             .then(async () => {
@@ -2318,13 +2272,13 @@ export async function runHeadless(
           return
         }
         case 'mcp_oauth_callback_url': {
-          const serverName = request.serverName
+          const serverName = request.server_name
           const entry = mcpOAuth.get(serverName)
           if (!entry?.submitter) {
             respondError(requestId, `no OAuth flow is active for ${serverName}`)
             return
           }
-          const url = String(request.callbackUrl ?? '')
+          const url = String(request.callback_url ?? '')
           let parsedUrl: URL | null = null
           try {
             parsedUrl = new URL(url)
@@ -2352,7 +2306,7 @@ export async function runHeadless(
           return
         }
         case 'mcp_clear_auth': {
-          const serverName = request.serverName
+          const serverName = request.server_name
           const config = resolveServerConfigFromAllSources(serverName)
           if (!config) {
             respondError(requestId, `MCP server ${serverName} not found`)
@@ -2369,7 +2323,11 @@ export async function runHeadless(
           respondSuccess(requestId, {})
           return
         }
-        case 'claude_authenticate': {
+        case 'provider_sign_in': {
+          if (request.provider !== 'anthropic') {
+            respondError(requestId, `no control-channel sign-in for the ${request.provider} family — sign in from the terminal (auth login) or /logins`)
+            return
+          }
           activeOAuth.service?.cleanup()
           const service = new OAuthService()
           activeOAuth.service = service
@@ -2388,7 +2346,7 @@ export async function runHeadless(
               },
               {
                 skipBrowserOpen: true,
-                loginWithClaudeAi: request.loginWithClaudeAi ?? true,
+                loginWithClaudeAi: request.method !== 'console',
               },
             )
             .then(async tokens => {
@@ -2409,22 +2367,22 @@ export async function runHeadless(
             return
           }
           respondSuccess(requestId, {
-            authUrl: autoUrl,
-            manualAuthUrl: manualUrl,
+            auth_url: autoUrl,
+            manual_auth_url: manualUrl,
           })
           return
         }
-        case 'claude_oauth_callback':
-        case 'claude_oauth_wait_for_completion': {
+        case 'provider_sign_in_callback':
+        case 'provider_sign_in_wait': {
           const service = activeOAuth.service
           const flow = activeOAuth.flow
           if (!service || !flow) {
-            respondError(requestId, 'no authentication flow is active')
+            respondError(requestId, 'no sign-in flow is active')
             return
           }
-          if (request.subtype === 'claude_oauth_callback') {
+          if (request.subtype === 'provider_sign_in_callback') {
             service.handleManualAuthCodeInput({
-              authorizationCode: request.authorizationCode,
+              authorizationCode: request.authorization_code,
               state: request.state,
             })
           }
@@ -2433,13 +2391,11 @@ export async function runHeadless(
               const account = getAccountInformation()
               respondSuccess(requestId, {
                 account: {
-                  email: (account as { email?: string } | null)?.email,
-                  organization: (account as { organization?: string } | null)?.organization,
-                  subscriptionType: (account as { subscriptionType?: string } | null)
-                    ?.subscriptionType,
-                  tokenSource: (account as { tokenSource?: string } | null)?.tokenSource,
-                  apiKeySource: (account as { apiKeySource?: string } | null)?.apiKeySource,
-                  apiProvider: 'firstParty',
+                  email: account?.email,
+                  organization: account?.organization,
+                  subscription_type: account?.subscription,
+                  token_source: account?.tokenSource,
+                  api_key_source: account?.apiKeySource,
                 },
               })
             })
@@ -2488,7 +2444,7 @@ export async function runHeadless(
             applied: {
               model,
               effort: effortTruth.supportsEffort ? (effortTruth.wire ?? null) : undefined,
-              effortRequested: effortTruth.requested === undefined ? null : String(effortTruth.requested),
+              effort_requested: effortTruth.requested === undefined ? null : String(effortTruth.requested),
             },
           })
           return
@@ -2529,9 +2485,9 @@ export async function runHeadless(
               canUseTool,
             })
             respondSuccess(requestId, {
-              agentId: resumed.agentId,
-              outputFile: resumed.outputFile,
-              ...(resumed.cwdFallback !== undefined ? { cwdFallback: resumed.cwdFallback } : {}),
+              agent_id: resumed.agentId,
+              output_file: resumed.outputFile,
+              ...(resumed.cwdFallback !== undefined ? { cwd_fallback: resumed.cwdFallback } : {}),
             })
           } catch (error) {
             respondError(requestId, errorMessage(error))
@@ -2602,15 +2558,6 @@ export async function runHeadless(
           })()
           return
         }
-        case 'remote_control': {
-          const enable = request.enabled
-          if (enable) {
-            respondError(requestId, 'remote control is unavailable in this build')
-          } else {
-            respondSuccess(requestId)
-          }
-          return
-        }
         default:
           respondError(requestId, `unsupported control request subtype: ${request.subtype}`)
       }
@@ -2633,7 +2580,9 @@ export async function runHeadless(
           ? { type: config.type, url: config.url, headers: config.headers, oauth: config.oauth }
           : config.type === 'claudeai-proxy'
             ? { type: config.type, url: config.url, id: config.id }
-            : {
+            : config.type === 'host'
+              ? { type: 'host', name: config.name }
+              : {
                 type: 'stdio',
                 command: 'command' in config ? config.command : undefined,
                 args: 'args' in config ? config.args : undefined,
@@ -2643,17 +2592,16 @@ export async function runHeadless(
         status: client.type,
         scope: config.scope,
         config: projectedConfig,
-        capabilities: undefined,
       }
       if (client.type === 'connected') {
-        row.serverInfo = client.serverInfo
+        row.server_info = client.serverInfo
         const tools = await fetchToolsForClient(client)
         const prefix = getMcpPrefix(name)
         row.tools = tools.map(tool => ({
           name: tool.name.startsWith(prefix) ? tool.name.slice(prefix.length) : tool.name,
-          ...(tool.isReadOnly?.(undefined) ? { readOnly: true } : {}),
+          ...(tool.isReadOnly?.(undefined) ? { read_only: true } : {}),
           ...(tool.isDestructive?.(undefined) ? { destructive: true } : {}),
-          ...(tool.isOpenWorld?.(undefined) ? { openWorld: true } : {}),
+          ...(tool.isOpenWorld?.(undefined) ? { open_world: true } : {}),
         }))
       } else if (client.type === 'failed') {
         row.error = client.error ?? ''
@@ -2739,7 +2687,7 @@ export async function runHeadless(
                   session_id: getSessionId(),
                   uuid,
                   timestamp: typed.timestamp,
-                  isReplay: true,
+                  is_replay: true,
                 })
               }
               if (historical && !runtime) {
@@ -2749,14 +2697,12 @@ export async function runHeadless(
             }
             receivedUuids.add(uuid)
           }
-          const { resolveAndPrepend } = await import('../bridge/inboundAttachments.js')
-          const rawContent = (typed.message.content ?? '') as string | ContentBlockParam[]
-          const content = await resolveAndPrepend(typed, rawContent)
-          if (typed.mode === 'task-notification' && typeof typed.agentId === 'string' && typed.agentId !== '') {
+          const content = (typed.message.content ?? '') as string | ContentBlockParam[]
+          if (typed.mode === 'task-notification' && typeof typed.agent_id === 'string' && typed.agent_id !== '') {
             enqueue({
               value: content,
               mode: 'task-notification',
-              agentId: typed.agentId as never,
+              agentId: typed.agent_id as never,
               priority: 'next',
               ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
             })

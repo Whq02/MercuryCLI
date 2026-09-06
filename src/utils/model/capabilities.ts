@@ -3,7 +3,7 @@ import {
   checkFeatureGate_CACHED_MAY_BE_STALE,
   getFeatureValue_CACHED_MAY_BE_STALE,
 } from 'src/services/analytics/featureGates.js'
-import { flagEnabled } from 'src/substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from 'src/substrate/flagRegistry.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../entrypoints/sdk/runtimeTypes.js'
 import { getIsNonInteractiveSession, getSdkBetas } from '../../bootstrap/state.js'
 import {
@@ -20,7 +20,6 @@ import {
 } from '../../constants/betas.js'
 import { OAUTH_BETA_HEADER } from '../../constants/oauth.js'
 import { isClaudeAISubscriber } from '../auth.js'
-import { getGlobalConfig } from '../config.js'
 import {
   isEnvDefinedFalsy,
   isEnvTruthy,
@@ -32,6 +31,7 @@ import { isCarrierShapedId } from '../../services/providers/idSpaces.js'
 import {
   gptDisplayPin,
   hasGptServedWindowSuffix,
+  listMarksDelegationLead,
   parseGptModelId,
 } from '../../services/providers/openai/gptPins.js'
 import {
@@ -39,6 +39,7 @@ import {
   liveGptContextCeiling,
   liveGptDefaultEffort,
   liveGptEffortCatalogue,
+  liveGptListedEffortWords,
 } from '../../services/providers/openai/openaiCatalogue.js'
 import {
   glmEffortsFor,
@@ -393,6 +394,10 @@ export function getMaxSupportedEffortLevel(model: string): EffortLevel {
   return aboveHigh.find(level => vocabularyOffers(view, level)) ?? 'high'
 }
 
+export function providerMarksDelegationLead(model: string): boolean {
+  return listMarksDelegationLead(liveGptListedEffortWords(model))
+}
+
 
 export const MODEL_CONTEXT_WINDOW_DEFAULT = 200_000
 
@@ -446,7 +451,6 @@ export interface ContextResolution {
     | 'static-pin'
     | 'capability'
     | 'beta-header'
-    | 'experiment'
     | 'fallback'
   outputReserve: number
   fallbackReason?: string
@@ -702,10 +706,6 @@ export function resolveContextWindow(
   if (betas?.includes(CONTEXT_1M_BETA_HEADER) && modelSupports1M(model)) {
     return finish({ effectiveWindow: 1_000_000, source: 'beta-header' })
   }
-  if (getSonnet1mExpTreatmentEnabled(model)) {
-    return finish({ effectiveWindow: 1_000_000, source: 'experiment' })
-  }
-
   return finish({
     effectiveWindow: MODEL_CONTEXT_WINDOW_DEFAULT,
     source: 'fallback',
@@ -718,19 +718,6 @@ export function getContextWindowForModel(
   betas?: string[],
 ): number {
   return resolveContextWindow(model, betas).effectiveWindow
-}
-
-export function getSonnet1mExpTreatmentEnabled(model: string): boolean {
-  if (is1mContextDisabled()) {
-    return false
-  }
-  if (has1mContext(model)) {
-    return false
-  }
-  if (!getCanonicalName(model).includes('sonnet-4-6')) {
-    return false
-  }
-  return getGlobalConfig().clientDataCache?.['coral_reef_sonnet'] === 'true'
 }
 
 export function getModelMaxOutputTokens(model: string): {
@@ -876,9 +863,9 @@ const KEY_SEP = String.fromCharCode(0)
 
 function betasEnvFingerprint(): string {
   return [
-    process.env.DISABLE_INTERLEAVED_THINKING ?? '',
+    flagEnv('MERCURY_INTERLEAVED_THINKING') ?? '',
     process.env.MERCURY_DISABLE_1M_CONTEXT ?? '',
-    process.env.ANTHROPIC_BETAS ?? '',
+    process.env.MERCURY_PROVIDER_BETAS ?? '',
   ].join(KEY_SEP)
 }
 
@@ -901,7 +888,7 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     betaHeaders.push(CONTEXT_1M_BETA_HEADER)
   }
   if (
-    !isEnvTruthy(process.env.DISABLE_INTERLEAVED_THINKING) &&
+    flagEnabled('MERCURY_INTERLEAVED_THINKING') &&
     modelSupportsISP(model)
   ) {
     betaHeaders.push(INTERLEAVED_THINKING_BETA_HEADER)
@@ -920,14 +907,14 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER &&
     false &&
     includeFirstPartyOnlyBetas &&
-    !isEnvDefinedFalsy(process.env.USE_CONNECTOR_TEXT_SUMMARIZATION) &&
-    isEnvTruthy(process.env.USE_CONNECTOR_TEXT_SUMMARIZATION)
+    !isEnvDefinedFalsy(flagEnv('MERCURY_CONNECTOR_TEXT_SUMMARIZATION')) &&
+    isEnvTruthy(flagEnv('MERCURY_CONNECTOR_TEXT_SUMMARIZATION'))
   ) {
     betaHeaders.push(SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER)
   }
 
   const antOptedIntoToolClearing =
-    isEnvTruthy(process.env.USE_API_CONTEXT_MANAGEMENT) &&
+    flagEnabled('MERCURY_API_CONTEXT_MANAGEMENT') &&
     false
 
   const thinkingPreservationEnabled = modelSupportsContextManagement(model)
@@ -956,9 +943,9 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     betaHeaders.push(PROMPT_CACHING_SCOPE_BETA_HEADER)
   }
 
-  if (process.env.ANTHROPIC_BETAS) {
+  if (process.env.MERCURY_PROVIDER_BETAS) {
     betaHeaders.push(
-      ...process.env.ANTHROPIC_BETAS.split(',')
+      ...process.env.MERCURY_PROVIDER_BETAS.split(',')
         .map(_ => _.trim())
         .filter(Boolean),
     )
@@ -1129,7 +1116,6 @@ export type ModelCapabilityRecord = Readonly<{
     supported: boolean
     max: boolean
     xhigh: boolean
-    ultra: boolean
     ceiling: EffortLevel
   }>
   tools: Readonly<{
@@ -1173,7 +1159,6 @@ export function resolveModelCapabilities(model: string): ModelCapabilityRecord {
       supported: modelSupportsEffort(model),
       max: modelSupportsMaxEffort(model),
       xhigh: modelSupportsXHighEffort(model),
-      ultra: modelOffersEffortLevel(model, 'ultra'),
       ceiling: getMaxSupportedEffortLevel(model),
     }),
     tools: Object.freeze({

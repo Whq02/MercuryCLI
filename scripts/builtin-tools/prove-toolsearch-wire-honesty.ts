@@ -7,7 +7,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'toolsearch-wire-'))
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_TOOL_SEARCH
 delete process.env.MERCURY_TOOL_DEFER
-delete process.env.ANTHROPIC_MODEL
+delete process.env.MERCURY_MODEL
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

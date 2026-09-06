@@ -151,7 +151,8 @@ function clearEffortEnv(): void {
   await armWithCatalogue()
   clearEffortEnv()
   check('live (Sol): effort supported, selectable = the full stated ladder', capabilities.modelSupportsEffort('gpt-5.6-sol') && effort.selectableEffortLevels('gpt-5.6-sol').join(',') === 'low,medium,high,xhigh,max')
-  check('live (Nox): the served ultra is selectable above max and the ceiling is ultra', effort.selectableEffortLevels('gpt-5.6-nox').join(',') === 'low,medium,high,xhigh,max,ultra' && capabilities.getMaxSupportedEffortLevel('gpt-5.6-nox') === 'ultra' && !capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra'))
+  check("live (Nox): the list's word above max is never a stop — the selectable ladder ends at max and the ceiling is max", effort.selectableEffortLevels('gpt-5.6-nox').join(',') === 'low,medium,high,xhigh,max' && capabilities.getMaxSupportedEffortLevel('gpt-5.6-nox') === 'max' && !(effort.selectableEffortLevels('gpt-5.6-nox') as readonly string[]).includes('ultra'))
+  check("live (Nox): the list word asked raw is never sent — the row default ('minimal') rides, owner and wire profile alike", effort.resolveEffortTruth('gpt-5.6-nox', 'ultra' as never).wire === 'minimal' && resolveGptReasoningProfile('ultra', liveRow('gpt-5.6-nox')).wireEffort === 'minimal')
   check('known-empty (Void): effort NOT selectable — no control, no capability claim', !capabilities.modelSupportsEffort('gpt-5.6-void') && effort.selectableEffortLevels('gpt-5.6-void').length === 0)
   const voidTruth = effort.resolveEffortTruth('gpt-5.6-void', 'max')
   const voidProfile = resolveGptReasoningProfile('max', liveRow('gpt-5.6-void'))
@@ -163,8 +164,8 @@ function clearEffortEnv(): void {
   __resetOpenaiCatalogueForTest()
   const unavail = effort.resolveEffortTruth('gpt-5.6-sol', 'max')
   check("unavailable (unfetched): applied claim is honestly 'default' (was: banked 'max' while the degraded wire omitted)", unavail.wire === undefined && unavail.label === 'default' && unavail.catalogue === 'gpt-unavailable')
-  check('unavailable: the full-ladder offering survives for controls', effort.selectableEffortLevels('gpt-5.6-sol').join(',') === 'low,medium,high,xhigh,max,ultra')
-  check('unavailable: any gpt id offers the same full ladder (dispatch re-validates live)', effort.selectableEffortLevels('gpt-5.5').join(',') === 'low,medium,high,xhigh,max,ultra')
+  check('unavailable: the full-ladder offering survives for controls', effort.selectableEffortLevels('gpt-5.6-sol').join(',') === 'low,medium,high,xhigh,max')
+  check('unavailable: any gpt id offers the same full ladder (dispatch re-validates live)', effort.selectableEffortLevels('gpt-5.5').join(',') === 'low,medium,high,xhigh,max')
 }
 
 {

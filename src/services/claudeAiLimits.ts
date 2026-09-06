@@ -1,14 +1,7 @@
-import { getIsNonInteractiveSession } from '../bootstrap/state.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { isClaudeAISubscriber } from '../utils/auth.js'
-import { getModelBetas } from '../utils/betas.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logError } from '../utils/log.js'
-import { getSmallFastModel } from '../utils/model/model.js'
-import { isEssentialTrafficOnly } from '../utils/privacyLevel.js'
-import { getAnthropicClient } from './api/client.js'
-import { getAPIMetadata } from './providers/anthropic/index.js'
-import { APIError } from './api/sdkErrors.js'
 import type { UsageFeed } from './providers/usageFreshness.js'
 import { processRateLimitHeaders, shouldProcessRateLimits } from './rateLimitMocking.js'
 
@@ -440,33 +433,6 @@ export function extractQuotaStatusFromError(error: unknown): void {
   }
 }
 
-
-export async function checkQuotaStatus(): Promise<void> {
-  try {
-    if (isEssentialTrafficOnly()) return
-    if (!shouldProcessRateLimits(isClaudeAISubscriber())) return
-    if (getIsNonInteractiveSession()) return
-    const model = getSmallFastModel()
-    const betas = getModelBetas(model)
-    const client = await getAnthropicClient({ maxRetries: 0, source: 'quota_check' })
-    const { response } = await client.beta.messages
-      .create({
-        model,
-        max_tokens: 1,
-        messages: [{ role: 'user', content: 'quota' }],
-        metadata: getAPIMetadata(),
-        ...(betas.length > 0 ? { betas } : {}),
-      })
-      .withResponse()
-    extractQuotaStatusFromHeaders(response.headers)
-  } catch (err) {
-    if (err instanceof APIError) {
-      extractQuotaStatusFromError(err)
-      return
-    }
-    logForDebugging(`checkQuotaStatus: probe achieved nothing: ${String(err)}`)
-  }
-}
 
 export function __setRawUtilizationForTest(record: RawUtilization): void {
   rawUtilization = record

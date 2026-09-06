@@ -28,7 +28,7 @@ for (const key of [
   'MERCURY_GEMINI_API_BASE',
   'MERCURY_COMPAT_BASE_URL',
   'MERCURY_LOCAL_PROBE_TARGETS',
-  'MAX_THINKING_TOKENS',
+  'MERCURY_THINKING_BUDGET',
   'CLAUDE_EFFORT',
   'MERCURY_EFFORT',
 ]) {
@@ -79,8 +79,8 @@ const localDiscovery = await import('../../src/services/providers/local/localDis
 const localCatalogue = await import('../../src/services/providers/local/localCatalogue.ts')
 const sideQuestion = await import('../../src/utils/sideQuestion.ts')
 
-type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra'
-const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra']
+type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max']
 type Container = 'minerva' | 'console'
 const CONTAINERS: Container[] = ['minerva', 'console']
 

@@ -22,7 +22,7 @@ import { summarizeToolResult } from '../../../utils/toolResultSummary.js'
 import { logError } from '../../../utils/log.js'
 import { getTheme } from '../../../utils/theme.js'
 import { useTheme } from '../../design-system/ThemeProvider.js'
-import { SentryErrorBoundary } from '../../SentryErrorBoundary.js'
+import { RowErrorBoundary } from '../../RowErrorBoundary.js'
 import { HookProgressMessage } from '../HookProgressMessage.js'
 
 export function UserToolSuccessMessage({
@@ -106,15 +106,15 @@ export function UserToolSuccessMessage({
     <Box flexDirection="column" width={unconstrained ? undefined : width}>
       {
 }
-      <SentryErrorBoundary>{rendered ?? null}</SentryErrorBoundary>
-      <SentryErrorBoundary>
+      <RowErrorBoundary>{rendered ?? null}</RowErrorBoundary>
+      <RowErrorBoundary>
         <HookProgressMessage
           hookEvent="PostToolUse"
           toolUseID={toolUseID}
           lookups={lookups}
           isTranscriptMode={isTranscriptMode}
         />
-      </SentryErrorBoundary>
+      </RowErrorBoundary>
     </Box>
   )
 }
