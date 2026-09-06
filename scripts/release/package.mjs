@@ -39,7 +39,7 @@ if (!existsSync(join(dist, 'manifest.json'))) fail('dist/manifest.json missing')
 const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8'))
 const degraded = Array.isArray(manifest.degraded) ? manifest.degraded : []
 const PUBLISHABLE_DEGRADATIONS = new Set(['voice-input'])
-if (process.platform === 'win32') PUBLISHABLE_DEGRADATIONS.add('shell-engine')
+if (IS_WIN) PUBLISHABLE_DEGRADATIONS.add('shell-engine')
 const blocking = degraded.filter(d => !PUBLISHABLE_DEGRADATIONS.has(d))
 if (blocking.length > 0 && !process.argv.includes('--allow-degraded')) {
   fail(`dist manifest is DEGRADED (${blocking.join(', ')}) — run the scripts/vendor/fetch-*.ts commands and rebuild, or pass --allow-degraded deliberately`)
