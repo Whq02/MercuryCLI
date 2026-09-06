@@ -359,7 +359,7 @@ function keepOrDrop(world: World, label: string): void {
   rmSync(world.cwd, { recursive: true, force: true })
 }
 
-const DENIAL_WORDS = ['has been denied', 'auto-denied', 'was denied', "doesn't want to proceed", 'tool_use_error', 'was rejected', 'blocked this action']
+const DENIAL_WORDS = ['has been denied', 'auto-denied', 'was denied', 'declined this tool call', 'tool_use_error', 'was rejected', 'blocked this action']
 const isDenial = (text: string): boolean => DENIAL_WORDS.some(word => text.includes(word))
 
 function evidence(fixture: Fixture, world: World): void {
