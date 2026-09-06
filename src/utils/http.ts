@@ -18,10 +18,10 @@ export function getProductUserAgent(): string {
   const entrypoint = process.env.MERCURY_ENTRYPOINT
   if (entrypoint) parts.push(entrypoint)
   if (process.env.MERCURY_HOST_VERSION) {
-    parts.push(`agent-sdk/${process.env.MERCURY_HOST_VERSION}`)
+    parts.push(`host/${process.env.MERCURY_HOST_VERSION}`)
   }
   if (process.env.MERCURY_HOST_CLIENT_APP) {
-    parts.push(`client-app/${process.env.MERCURY_HOST_CLIENT_APP}`)
+    parts.push(`host-app/${process.env.MERCURY_HOST_CLIENT_APP}`)
   }
   const workload = getWorkload()
   if (workload) {
@@ -36,10 +36,10 @@ export function getMCPUserAgent(): string {
   const entrypoint = process.env.MERCURY_ENTRYPOINT
   if (entrypoint) parts.push(entrypoint)
   if (process.env.MERCURY_HOST_VERSION) {
-    parts.push(`agent-sdk/${process.env.MERCURY_HOST_VERSION}`)
+    parts.push(`host/${process.env.MERCURY_HOST_VERSION}`)
   }
   if (process.env.MERCURY_HOST_CLIENT_APP) {
-    parts.push(`client-app/${process.env.MERCURY_HOST_CLIENT_APP}`)
+    parts.push(`host-app/${process.env.MERCURY_HOST_CLIENT_APP}`)
   }
   const suffix = parts.length > 0 ? ` (${parts.join(', ')})` : ''
   return `mercury/${MACRO.VERSION}${suffix}`
