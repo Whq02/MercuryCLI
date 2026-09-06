@@ -68,7 +68,7 @@ export async function getPrompt(
 
   const typeSelection = forkOn
     ? 'Specify `subagent_type` for a specialist, or omit it to fork yourself — the fork inherits your full conversation context.'
-    : 'Specify `subagent_type` to select an agent; omitting it gives the general-purpose agent.'
+    : 'Specify `subagent_type` to select an agent; omitting it gives mercury-general.'
 
   const core = `Launch a new agent to work through a complicated, multi-step job on its own. The available agents are specialised — each has its own capabilities and tool access:
 
