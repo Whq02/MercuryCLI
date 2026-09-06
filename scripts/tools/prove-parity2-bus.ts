@@ -90,11 +90,11 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   const rejectedStart = Date.now()
   await quiesceCleanupBeforeExit(Promise.reject(new Error('cleanup failed')))
   t('a rejected cleanup never throws at the cliff and costs nothing', Date.now() - rejectedStart < 50)
-  const landAt = Date.now() + 60
+  const lateStart = Date.now()
   let landed = false
   const late = new Promise<void>(res => setTimeout(() => { landed = true; res() }, 60))
   await quiesceCleanupBeforeExit(late, 500)
-  t('an in-flight cleanup LANDS inside the grace (the exit is quiesced, not raced)', landed && Date.now() >= landAt)
+  t('an in-flight cleanup LANDS inside the grace (the exit is quiesced, not raced)', landed && Date.now() - lateStart < 500)
   const wedgedStart = Date.now()
   await quiesceCleanupBeforeExit(new Promise(() => {}), 80)
   const wedgedMs = Date.now() - wedgedStart
