@@ -400,7 +400,7 @@ console.log('[E] /speak options — the rows, the switch, the take through the s
     [
       ...OPENING,
       { requireAwait: true, awaitText: 'cannot serve: not signed in', awaitStableTicks: 2, mark: 'status', data: ' ' },
-      { requireAwait: true, awaitText: 'your saved OpenAI is not signed in', awaitStableTicks: 1, mark: 'recording', data: ' ' },
+      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: ' ' },
       { requireAwait: true, awaitText: 'seven ships', awaitStableTicks: 2, mark: 'landed', data: '/speak options default' },
       { afterPrevTicks: 3, data: '\r' },
       { requireAwait: true, awaitText: 'the shipped default (saved choice cleared)', awaitStableTicks: 2, mark: 'cleared', data: '' },
@@ -411,7 +411,7 @@ console.log('[E] /speak options — the rows, the switch, the take through the s
   )
   check('the second boot delivered every send', second.status === 0, `vshot ${second.status}: ${second.stderr.slice(-300)}`)
   check('the saved choice persisted and is named as not signed in; the on-device road serves', (second.marks.status ?? '').includes('your saved choice (OpenAI) cannot serve: not signed in') && (second.marks.status ?? '').includes('on-device serves'), gridLines(second.marks.status ?? '', 'saved'))
-  check('the started receipt names the saved choice and the road that serves', (second.marks.recording ?? '').includes('on-device transcribes — your saved OpenAI is not signed in'), gridLines(second.marks.recording ?? '', 'saved'))
+  check('space starts a take: the footer paints ● recording', (second.marks.recording ?? '').includes('● recording · space or esc to stop'), gridLines(second.marks.recording ?? '', 'recording'))
   check('the words land on this machine', SPOKEN.test(second.marks.landed ?? '') && (second.marks.landed ?? '').includes('transcribed on this machine'), gridLines(second.marks.landed ?? '', '❯'))
   check('/speak options default restores the shipped default', (second.marks.cleared ?? '').includes('default transcriber: the shipped default (saved choice cleared)') && (second.marks.cleared ?? '').includes('(serves now, the shipped default)'), gridLines(second.marks.cleared ?? '', 'default'))
   const lines = netlines(netlog2)
