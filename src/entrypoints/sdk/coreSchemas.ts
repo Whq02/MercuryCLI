@@ -2,6 +2,7 @@ import { z } from 'zod/v4'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { decodePermissionModeSpelling } from '../../types/permissions.js'
 import { MEMORY_TYPES } from '../../memdir/memoryTypes.js'
+import { EFFORT_LEVELS } from './runtimeTypes.js'
 
 export const HOOK_EVENTS_SCHEMA_TUPLE = [
   'PreToolUse',
@@ -63,9 +64,6 @@ export const OutputFormatSchema = lazySchema(() =>
   z.union([JsonSchemaOutputFormatSchema(), BaseOutputFormatSchema()]),
 )
 
-export const ApiKeySourceSchema = lazySchema(() =>
-  z.enum(['user', 'project', 'org', 'temporary', 'oauth']),
-)
 export const ConfigScopeSchema = lazySchema(() => z.enum(['local', 'user', 'project']))
 export const SdkBetaSchema = lazySchema(() => z.enum(['context-1m-2025-08-07']))
 
@@ -760,9 +758,9 @@ export const ModelInfoSchema = lazySchema(() =>
     description: z.string().optional().describe('A one-line positioning blurb'),
     supportsEffort: z.boolean().optional().describe('Whether effort levels apply to this model'),
     supportedEffortLevels: z
-      .array(z.enum(['low', 'medium', 'high', 'max']))
+      .array(z.enum(EFFORT_LEVELS))
       .optional()
-      .describe('The effort levels it accepts'),
+      .describe('The effort levels it accepts, from the one ladder'),
     supportsAdaptiveThinking: z.boolean().optional().describe('Whether adaptive thinking is available'),
     supportsAutoMode: z.boolean().optional().describe('Whether auto permission mode may run on it'),
   }),
@@ -801,7 +799,7 @@ export const AgentDefinitionSchema = lazySchema(() =>
       .string()
       .optional()
       .describe(
-        "An alias such as 'sonnet', 'opus' or 'haiku', or a full model ID such as 'claude-opus-5'; leaving it out — or writing 'inherit' — keeps the main conversation's model",
+        "A model alias or id any configured provider serves; leaving it out — or writing 'inherit' — keeps the main conversation's model",
       ),
     criticalSystemReminder_EXPERIMENTAL: z
       .string()
@@ -839,9 +837,9 @@ export const AgentDefinitionSchema = lazySchema(() =>
           "'project' - <project>/.mercury/agent-memory/<agentType>/, 'local' - <project>/.mercury/agent-memory-local/<agentType>/",
       ),
     effort: z
-      .union([z.enum(['low', 'medium', 'high', 'max']), z.number().int()])
+      .union([z.enum(EFFORT_LEVELS), z.number().int()])
       .optional()
-      .describe('How much reasoning effort the agent spends per turn'),
+      .describe('How much reasoning effort the agent spends per turn: a rung of the one ladder, or a number'),
     permissionMode: z
       .string()
       .optional()
@@ -1019,7 +1017,6 @@ export const SDKSystemMessageSchema = lazySchema(() =>
     subtype: z.literal('init'),
     session_id: z.string().describe('The session that just started'),
     uuid: z.string().describe('Unique id for this message'),
-    apiKeySource: ApiKeySourceSchema().optional().describe('Where the API credential came from'),
     cwd: z.string().describe('The working directory the session runs in'),
     tools: z.array(z.string()).describe('Names of the tools available this session'),
     mcp_servers: z
@@ -1030,9 +1027,19 @@ export const SDKSystemMessageSchema = lazySchema(() =>
       'The permission mode in force at start',
     ),
     slash_commands: z.array(z.string()).describe('Names of the slash commands available'),
-    mercury_version: z.string().optional().describe('The harness version string'),
-    agents: z.array(z.string()).optional().describe('Names of the agent types available'),
-    betas: z.array(SdkBetaSchema()).optional().describe('The beta features switched on'),
+    mercury_version: z.string().describe('The harness version string'),
+    agents: z.array(z.string()).describe('Names of the agent types available'),
+    skills: z.array(z.string()).describe('Names of the skills the user can invoke'),
+    extensions: z
+      .array(
+        z.object({
+          name: z.string().describe('The extension name'),
+          path: z.string().describe('The extension folder'),
+          source: z.string().describe('The extension id'),
+        }),
+      )
+      .describe('The active extensions'),
+    betas: z.array(SdkBetaSchema()).describe('The beta features switched on'),
   }),
 )
 export const SDKPartialAssistantMessageSchema = lazySchema(() =>
@@ -1157,6 +1164,7 @@ export const SDKHookResponseMessageSchema = lazySchema(() =>
     hook_name: z.string().optional().describe('The hook that finished'),
     hook_event: z.string().optional().describe('The event that fired it'),
     outcome: z.enum(['success', 'error', 'cancelled']).optional().describe('How the run ended'),
+    exit_code: z.number().nullable().optional().describe('The exit code the hook process ended with'),
     stdout: z.string().optional().describe('Everything it printed to stdout'),
     stderr: z.string().optional().describe('Everything it printed to stderr'),
     output: z.unknown().optional().describe('The structured hook output, when it returned one'),
