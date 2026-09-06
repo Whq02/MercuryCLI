@@ -188,6 +188,41 @@ export function recoveryBudgetSpentLine(budget: RecoveryBudget): string {
   return `the ${words} is spent waiting on the provider — ${n} wait${n === 1 ? '' : 's'} in a row (${parts.join(', ')}${last}) — ${RESUME_WORDS}`
 }
 
+export class RecoveryBudgetSpentError extends Error {
+  readonly recoveryBudgetSpent = true as const
+  readonly capMs: number
+  readonly waits: number
+  readonly refusals: number
+  readonly faults: number
+  readonly recoveries: number
+  readonly lastStatus: number | undefined
+  readonly lastCause: string | undefined
+  readonly resumeAfterMs: number
+  constructor(budget: RecoveryBudget, cut: { declaredMs: number; honoredMs: number }) {
+    super(recoveryBudgetSpentLine(budget))
+    this.name = 'RecoveryBudgetSpentError'
+    this.capMs = budget.capMs
+    this.waits = budget.waits
+    this.refusals = budget.refusals
+    this.faults = budget.faults
+    this.recoveries = budget.recoveries
+    this.lastStatus = budget.lastStatus
+    this.lastCause = budget.lastCause
+    this.resumeAfterMs = Math.max(0, cut.declaredMs - cut.honoredMs)
+  }
+}
+
+export function recoveryBudgetSpentFactsOf(error: unknown): { words: string; resumeAfterMs: number; capMs: number; waits: number } | null {
+  const e = error as { recoveryBudgetSpent?: unknown; message?: unknown; resumeAfterMs?: unknown; capMs?: unknown; waits?: unknown } | null
+  if (e === null || typeof e !== 'object' || e.recoveryBudgetSpent !== true || typeof e.message !== 'string') return null
+  return {
+    words: e.message,
+    resumeAfterMs: typeof e.resumeAfterMs === 'number' && Number.isFinite(e.resumeAfterMs) ? Math.max(0, e.resumeAfterMs) : 0,
+    capMs: typeof e.capMs === 'number' ? e.capMs : 0,
+    waits: typeof e.waits === 'number' ? e.waits : 0,
+  }
+}
+
 export function isRecoveryBudgetSpentLine(text: string): boolean {
   return text.includes('retry budget is spent') && /^(the provider refused \d+ times? in a row \(|the \S+ retry budget is spent waiting on the provider)/.test(text)
 }

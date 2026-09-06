@@ -52,7 +52,7 @@ import {
   honourRecoveryWait,
   makeRecoveryBudget,
   recoveryAnswerRefills,
-  recoveryBudgetSpentLine,
+  RecoveryBudgetSpentError,
   recoveryNoticeFacts,
   refillRecoveryBudget,
   retryWaitWords,
@@ -557,8 +557,9 @@ export async function* runAgent(
   let budgetCut: ReturnType<typeof setTimeout> | null = null
   let retryWordsStanding = false
   let standingWait: RecoveryReservation | null = null
+  let cuttingWait = { declaredMs: 0, honoredMs: 0 }
   const cutAtBudget = (): void => {
-    throttled = new Error(recoveryBudgetSpentLine(recovery))
+    throttled = new RecoveryBudgetSpentError(recovery, cuttingWait)
     abortController.abort(throttled)
   }
 
@@ -922,6 +923,7 @@ export async function* runAgent(
         settleRecoveryWait(recovery, standingWait)
         const { honoredMs, spent, reservation } = honourRecoveryWait(recovery, notice)
         standingWait = reservation
+        cuttingWait = { declaredMs: notice.declaredMs, honoredMs }
         retryWordsStanding = true
         onWait?.(retryWaitWords({ facts: notice, honoredMs, budget: recovery }))
         if (budgetCut !== null) clearTimeout(budgetCut)
