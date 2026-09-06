@@ -18,6 +18,7 @@ import { TaskOutput } from '../task/TaskOutput.js'
 import { generateTaskId } from '../../Task.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { resolveBrushPackDir, type BrushPackResolution } from './brushPack.js'
+import { nativeCwdFromShellRecord } from '../windowsPaths.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { sandboxTempEnv } from './bashProvider.js'
 import type { ExecResult, ShellCommand } from '../ShellCommand.js'
@@ -55,6 +56,16 @@ export function resolveShellEngine(setting?: 'system' | 'brush'): ShellEngineRes
     platform: pack.manifest.platform,
     source: pack.source,
   }
+}
+
+export function recordedCwdToNative(reported: string, platform: string = getPlatform()): string | null {
+  if (platform !== 'windows') return reported
+  const native = nativeCwdFromShellRecord(reported)
+  if ('refused' in native) {
+    logForDebugging(`engine cwd record refused — the session directory stays put: ${native.refused}`)
+    return null
+  }
+  return native.path
 }
 
 let packResolution: BrushPackResolution | null = null
@@ -368,7 +379,10 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       const tryComplete = (): void => {
         const frame = frameFromBuffer()
         if (frame === null) return
-        if (frame.cwd !== '') options.onCwd?.(frame.cwd)
+        if (frame.cwd !== '') {
+          const native = recordedCwdToNative(frame.cwd)
+          if (native !== null) options.onCwd?.(native)
+        }
         void done({ stderr: '', code: frame.code, interrupted: false })
       }
 

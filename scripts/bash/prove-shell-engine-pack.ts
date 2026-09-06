@@ -191,6 +191,21 @@ section('§5 the loop script uses only builtins the Windows engine build has')
   check(`every command word is one of ${[...ALLOWED].join(' · ')} (${words.length} words read)`, words.length > 0 && foreign.length === 0, foreign.join(', '))
 }
 
+section('§6 the directory a frame reports reaches the session in its native form')
+{
+  const { recordedCwdToNative } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+  const { stripExtendedLengthPrefix, nativeCwdFromShellRecord } = await import(join(ROOT, 'src/utils/windowsPaths.ts'))
+  const ext = '\\\\?\\C:\\Users\\x\\AppData\\Local\\Temp\\brush-cwd-1'
+  check('the extended-length prefix is stripped to the plain drive path', stripExtendedLengthPrefix(ext) === 'C:\\Users\\x\\AppData\\Local\\Temp\\brush-cwd-1', stripExtendedLengthPrefix(ext))
+  check('…and the UNC form to the plain UNC path', stripExtendedLengthPrefix('\\\\?\\UNC\\server\\share\\dir') === '\\\\server\\share\\dir', stripExtendedLengthPrefix('\\\\?\\UNC\\server\\share\\dir'))
+  check('a plain drive path and a POSIX path pass through untouched', stripExtendedLengthPrefix('C:\\dir') === 'C:\\dir' && stripExtendedLengthPrefix('/private/tmp/x') === '/private/tmp/x')
+  const viaRecord = nativeCwdFromShellRecord(ext)
+  check("the classic road's converter hands back the plain drive path for the shell's extended answer", 'path' in viaRecord && viaRecord.path === 'C:\\Users\\x\\AppData\\Local\\Temp\\brush-cwd-1', JSON.stringify(viaRecord))
+  check('the engine records the plain drive path on Windows', recordedCwdToNative(ext, 'windows') === 'C:\\Users\\x\\AppData\\Local\\Temp\\brush-cwd-1', String(recordedCwdToNative(ext, 'windows')))
+  check('a POSIX temp path is the record untouched off Windows', recordedCwdToNative('/private/tmp/brush-cwd-2', 'macos') === '/private/tmp/brush-cwd-2' && recordedCwdToNative('/private/tmp/brush-cwd-2', 'linux') === '/private/tmp/brush-cwd-2')
+  check("an MSYS virtual root the converter cannot place is refused: the session keeps its own directory (null)", recordedCwdToNative('/tmp', 'windows') === null)
+}
+
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '✅ ALL SHELL-ENGINE PACK PROOFS PASS' : `❌ ${failures} SHELL-ENGINE PACK PROOF(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)
