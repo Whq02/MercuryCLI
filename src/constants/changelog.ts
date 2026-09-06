@@ -2,6 +2,8 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
+- Fixed the exit prompt counting agents that had already ended, and the crew view disagreeing with it; a row whose process is gone now settles, and the prompt names what is still running by kind and points at /tasks
+- Changed what happens when an agent stops mid-stream: it hands back what it produced so far, the files it touched and why it stopped, and its work stays resumable; a seat cut by the recovery budget resumes once by itself when its allowance refills
 - Fixed the "back to the bottom" pill never appearing after PgUp or PgDn in the transcript; it now paints as it does after the mouse wheel
 - Fixed a repeat install that changed nothing still telling you to open a new terminal; it now says the folder is already on PATH and stops
 - Added a browser road for /bug: when the GitHub CLI cannot file the report, the prefilled issue form opens in the browser and the link is printed in full
