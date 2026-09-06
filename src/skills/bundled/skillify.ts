@@ -34,7 +34,7 @@ const TEMPLATE = `---
 name: <skill-name>
 description: <one-line description>
 allowed-tools: <minimum necessary, pattern-scoped rather than whole-tool>
-when_to_use: Use when <trigger conditions; include trigger phrases>
+when-to-use: Use when <trigger conditions; include trigger phrases>
 argument-hint: <only when the skill takes parameters>
 arguments: <only when the skill takes parameters; $name substitutes in the body>
 context: <fork only for self-contained skills needing no mid-process input>
@@ -89,7 +89,7 @@ Save-location options to offer: the repository path .mercury/skills/<name>/SKILL
 
 Write the SKILL.md using this template:
 ${TEMPLATE}
-Template rules: SUCCESS CRITERIA ARE REQUIRED ON EVERY STEP. Optional per-step annotations: execution mode (direct by default; task agent; teammate; human-performed), produced artefacts, human checkpoints, hard rules. Concurrent steps use sub-numbering; human steps are marked in the title. Simple skills stay simple. allowed-tools is the minimum necessary, pattern-scoped rather than whole-tool. context: fork is only for self-contained skills needing no mid-process input. when_to_use is critical: start it with "Use when" and include trigger phrases. The arguments fields appear only when the skill takes parameters, with $name substitution in the body.
+Template rules: SUCCESS CRITERIA ARE REQUIRED ON EVERY STEP. Optional per-step annotations: execution mode (direct by default; task agent; teammate; human-performed), produced artefacts, human checkpoints, hard rules. Concurrent steps use sub-numbering; human steps are marked in the title. Simple skills stay simple. allowed-tools is the minimum necessary, pattern-scoped rather than whole-tool. context: fork is only for self-contained skills needing no mid-process input. when-to-use is critical: start it with "Use when" and include trigger phrases. The arguments fields appear only when the skill takes parameters, with $name substitution in the body.
 
 Before writing: output the complete file content for review as a fenced code block, then confirm via the ${ASK_USER_QUESTION_TOOL_NAME} tool with a concise question. After writing: tell the user where it was saved, how to invoke it, and that they can edit the file directly.`
       return [{ type: 'text', text }]

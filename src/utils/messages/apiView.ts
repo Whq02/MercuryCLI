@@ -29,7 +29,6 @@ import { logForDebugging } from '../debug.js'
 import { validateImagesForAPI } from '../imageValidation.js'
 import { safeParseJSON } from '../json.js'
 import { logError } from '../log.js'
-import { normalizeLegacyToolName } from '../permissions/permissionRuleParser.js'
 import {
   isToolReferenceBlock,
   isToolSearchEnabledOptimistic,
@@ -112,7 +111,7 @@ function stripUnavailableToolReferencesFromUserMessage(
         if (!isToolReferenceBlock(c)) return false
         const toolName = (c as { tool_name?: string }).tool_name
         return (
-          toolName && !availableToolNames.has(normalizeLegacyToolName(toolName))
+          toolName && !availableToolNames.has(toolName)
         )
       }),
   )
@@ -134,7 +133,7 @@ function stripUnavailableToolReferencesFromUserMessage(
           if (!isToolReferenceBlock(c)) return true
           const rawToolName = (c as { tool_name?: string }).tool_name
           if (!rawToolName) return true
-          const toolName = normalizeLegacyToolName(rawToolName)
+          const toolName = rawToolName
           const isAvailable = availableToolNames.has(toolName)
           if (!isAvailable) {
             logForDebugging(

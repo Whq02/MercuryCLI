@@ -42,7 +42,7 @@ export function shadowedSkillNote(name: string, winner: string, shadowed: readon
 }
 
 function skillCopyWords(command: Command): string {
-  return `${skillSourceWords(command)} ${command.loadedFrom === 'legacy-commands' ? 'legacy command' : 'skill'}`
+  return `${skillSourceWords(command)} skill`
 }
 
 export function refreshKitCatalogueDoors(): void {
@@ -75,7 +75,7 @@ export function contributesWords(manifest: ExtensionManifest): string {
 }
 
 function isLoaderSkill(command: Command): boolean {
-  return command.type === 'prompt' && (command.loadedFrom === 'skills' || command.loadedFrom === 'legacy-commands')
+  return command.type === 'prompt' && command.loadedFrom === 'skills'
 }
 
 function skillSourceWords(command: Command): string {

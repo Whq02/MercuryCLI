@@ -419,7 +419,7 @@ export async function readImageWithTokenBudget(
       type: 'image',
       file: {
         base64: lastResort.toString('base64'),
-        type: 'image/jpeg',
+        type: detectImageFormatFromBuffer(lastResort) as ImageOutput['file']['type'],
         originalSize: buffer.length,
       },
     }
@@ -651,7 +651,7 @@ async function readTextLane(
       filePath: resolvedPath,
       content: range.content,
       numLines: range.lineCount,
-      startLine: input.offset ?? 1,
+      startLine: lineOffset + 1,
       totalLines: range.totalLines,
       ...(anchor !== undefined ? { anchor } : {}),
       ...(memoryUpdatedAt !== undefined ? { memoryUpdatedAt } : {}),

@@ -169,7 +169,7 @@ for (const sc of SCENARIOS) {
     }
     const r = spawnSync(
       process.env.NODE_BIN ?? 'node',
-      [DIST, '-p', sc.task, '--permission-mode', 'strategy', '--output-format', 'stream-json', '--verbose', '--max-turns', '3'],
+      [DIST, '-p', sc.task, '--permission-mode', 'strategy', '--output-format', 'stream-json', '--max-turns', '3'],
       {
         cwd,
         encoding: 'utf8',

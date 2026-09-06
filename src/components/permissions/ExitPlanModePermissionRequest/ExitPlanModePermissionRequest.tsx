@@ -162,7 +162,7 @@ export function ExitPlanModePermissionRequest({
 }: PermissionRequestProps): React.ReactNode {
   const setAppState = useSetAppState()
   const showClearContext = useAppState(
-    state => state.settings.showClearContextOnPlanAccept ?? false,
+    state => state.settings.showClearContextOnStrategyAccept ?? false,
   )
   const toolPermissionContext = useAppState(state => state.toolPermissionContext)
   const currentMode = toolPermissionContext.mode

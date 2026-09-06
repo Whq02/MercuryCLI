@@ -145,7 +145,7 @@ export function buildMemoryLines(
   skipIndex = false,
 ): string[] {
   const searchSection =
-    getFeatureGateForSearchSection() || relevantMemoryRecallEnabled()
+    relevantMemoryRecallEnabled()
       ? buildSearchingPastContextSection(memoryDir)
       : []
   return [
@@ -163,11 +163,6 @@ export function buildMemoryLines(
     ...(extraGuidelines ?? []),
     ...searchSection,
   ]
-}
-
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/featureGates.js'
-function getFeatureGateForSearchSection(): boolean {
-  return getFeatureValue_CACHED_MAY_BE_STALE('mercury_coral_fern', false)
 }
 
 export function buildMemoryPrompt(options: {

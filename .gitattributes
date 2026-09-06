@@ -17,3 +17,13 @@
 # job on Windows alone. Every markdown document is pinned to LF on every
 # platform, so the stated hash is true wherever the tree is checked out.
 *.md   text eol=lf
+# The Godot addon under assets/vulcan/addon/ is embedded byte-for-byte into a
+# generated module, and the vulcan suite's first step compares the checked-out
+# bytes with the committed module: a CRLF checkout turned every .gd and .cfg
+# file into drift and reddened the suite before a prover ran, and the
+# discovery prover's cross-line anchor over plugin.gd failed the same way.
+# Pinned to LF on every platform, with the Python drivers (read by the same
+# class of cross-line checks) beside them.
+*.gd   text eol=lf
+*.cfg  text eol=lf
+*.py   text eol=lf

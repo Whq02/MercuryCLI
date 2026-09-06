@@ -181,12 +181,12 @@ export const ExitPlanModeV2Tool = buildTool({
     }
 
     const permissionContext = context.getAppState().toolPermissionContext
-    const prePlanMode = permissionContext.prePlanMode as string | undefined
+    const preStrategyMode = permissionContext.preStrategyMode as string | undefined
     const autopilotDownshiftNudge =
-      permissionContext.mode === 'strategy' && prePlanMode === 'autopilot'
+      permissionContext.mode === 'strategy' && preStrategyMode === 'autopilot'
 
     if (permissionContext.mode === 'strategy') {
-      let restoreMode = prePlanMode ?? 'default'
+      let restoreMode = preStrategyMode ?? 'default'
       if (AUTOMATIC_MODE_BREAKER_TRIPPED) {
         restoreMode = 'default'
       }
@@ -197,7 +197,7 @@ export const ExitPlanModeV2Tool = buildTool({
         let nextContext = {
           ...prev.toolPermissionContext,
           mode: restoreMode as never,
-          prePlanMode: undefined,
+          preStrategyMode: undefined,
         }
         const reconciler = getStrippedRuleReconciler()
         if (reconciler) {
@@ -238,7 +238,7 @@ export const ExitPlanModeV2Tool = buildTool({
       content =
         'Plan approved — nothing further is needed from you. Acknowledge briefly.'
     } else if (!output.plan || output.plan.trim() === '') {
-      content = 'The user approved exiting plan mode. Work may proceed.'
+      content = 'The operator approved leaving strategy mode. Work may proceed.'
     } else {
       const parts = [
         'The plan was approved — coding may start, beginning with a todo-list update when applicable.',

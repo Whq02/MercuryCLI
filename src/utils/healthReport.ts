@@ -117,7 +117,7 @@ import { assessDeployedAssets } from './healthDeployedAssets.js'
 import { getMercuryAppearanceSnapshot } from './profile/appearanceSnapshot.js'
 import { isDarkThemeFamily, listUnresolvedTokenRoles, resolveMercuryTokens } from './mercuryTokens.js'
 import { oasisBgEnabled } from './cockpit/oasisBg.js'
-import { getBuiltInAgents, LEGACY_SUBAGENT_ALIASES } from '../tools/AgentTool/builtInAgents.js'
+import { getBuiltInAgents } from '../tools/AgentTool/builtInAgents.js'
 import {
   findRoleDefinition,
   getRoleSystemPrompt,
@@ -1091,15 +1091,20 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'renders',
           label: 'Render-verify',
-          run: () => {
-            const renderer = join(cwd, 'scripts', 'ui', 'render-tui.ts')
-            const vshot = join(cwd, 'scripts', 'ui', 'vshot.py')
-            if (!existsSync(renderer)) {
+          run: async () => {
+            const { renderTuiCheckoutRoot, renderTuiRuntime } = await import('../services/mcp/renderTuiTool.js')
+            const root =
+              renderTuiCheckoutRoot() ?? (existsSync(join(cwd, 'scripts', 'ui', 'render-tui.ts')) ? cwd : null)
+            if (root === null) {
               return {
                 status: 'info',
-                evidence: 'not the harness source repo (scripts/ui/render-tui.ts absent) — render-verify n/a here',
+                evidence:
+                  'not the harness source repo (scripts/ui/render-tui.ts absent beside this build and under the cwd) — render-verify n/a here; the render_tui tool answers unavailable',
               }
             }
+            const vshot = join(root, 'scripts', 'ui', 'vshot.py')
+            const runtime = renderTuiRuntime()
+            const runtimeWords = 'bun' in runtime ? `bun at ${runtime.bun}` : runtime.missing
             const python = whichSync('python3') ?? whichSync('python')
             if (process.platform === 'win32') {
               return {
@@ -1111,13 +1116,20 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             if (!python) {
               return {
                 status: 'warn',
-                evidence: `render-tui.ts ${existsSync(vshot) ? '+ vshot.py ' : ''}present but no python on PATH — UI claims cannot be render-verified`,
+                evidence: `render-tui.ts ${existsSync(vshot) ? '+ vshot.py ' : ''}present at ${root} but no python on PATH — UI claims cannot be render-verified`,
                 fix: 'Install Python 3, or point MERCURY_PYTHON at one — the PTY renderer needs it.',
+              }
+            }
+            if ('missing' in runtime) {
+              return {
+                status: 'warn',
+                evidence: `render pipeline present at ${root} · python at ${python} · ${runtime.missing} — the render_tui tool answers unavailable until bun is found`,
+                fix: 'Install bun (~/.bun/bin/bun), put it on PATH, or point BUN at one — the render script runs under it.',
               }
             }
             return {
               status: 'ok',
-              evidence: `render pipeline present (render-tui.ts${existsSync(vshot) ? ' + vshot.py' : ''}) · python at ${python}`,
+              evidence: `render pipeline present at ${root} (render-tui.ts${existsSync(vshot) ? ' + vshot.py' : ''}) · python at ${python} · ${runtimeWords}`,
             }
           },
         },
@@ -1187,10 +1199,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const problems: string[] = []
             const svc = getMacOsKeychainStorageServiceName()
             const authHome = getAuthConfigHomeDir()
-            const defaultAuthHome =
-              authHome === join(homedir(), '.claude').normalize('NFC')
-            if (!defaultAuthHome && !/-[0-9a-f]{8}$/.test(svc)) {
-              problems.push(`keychain service '${svc}' is UN-suffixed for the non-default auth home ${authHome} — credential identity split`)
+            if (!/-[0-9a-f]{8}$/.test(svc)) {
+              problems.push(`keychain service '${svc}' is UN-suffixed for the auth home ${authHome} — credential identity split`)
             }
             const globalFile = getGlobalMercuryFile()
             if (!globalFile.startsWith(home)) {
@@ -3427,16 +3437,13 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           run: () => {
             const agents = getBuiltInAgents()
             const unresolved = agents.filter(a => findRoleDefinition(a.agentType, agents)?.agentType !== a.agentType)
-            const badAlias = Object.entries(LEGACY_SUBAGENT_ALIASES).filter(
-              ([legacy]) => findRoleDefinition(legacy, agents) === undefined,
-            )
             const haiku = agents.filter(a => a.model === 'haiku')
             const composable = agents.filter(a => getRoleSystemPrompt(a) !== undefined)
-            const evidence = `${agents.length} built-in roles resolve · ${Object.keys(LEGACY_SUBAGENT_ALIASES).length} legacy aliases decode · role prompts compose ${composable.length}/${agents.length} without live context`
-            if (unresolved.length > 0 || badAlias.length > 0 || haiku.length > 0) {
+            const evidence = `${agents.length} built-in roles resolve · role prompts compose ${composable.length}/${agents.length} without live context`
+            if (unresolved.length > 0 || haiku.length > 0) {
               return {
                 status: 'fail' as const,
-                evidence: `${evidence} — unresolved: ${unresolved.map(a => a.agentType).join(',') || 'none'}; dead aliases: ${badAlias.map(([l]) => l).join(',') || 'none'}; haiku pins: ${haiku.map(a => a.agentType).join(',') || 'none'}`,
+                evidence: `${evidence} — unresolved: ${unresolved.map(a => a.agentType).join(',') || 'none'}; haiku pins: ${haiku.map(a => a.agentType).join(',') || 'none'}`,
                 fix: 'A built-in agent role fails normalization — sub-agents spawned with it would degrade to generic agents. Report this.',
               }
             }

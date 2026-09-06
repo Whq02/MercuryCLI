@@ -32,12 +32,8 @@ import {
 const YAML_SPECIAL_CHARS = /[{}[\]*&#!|>%@`'"]|: /
 const TOP_LEVEL_KEY = /^([A-Za-z0-9_-]+)\s*:(.*)$/
 
-const FIELD_TO_KEY: Record<string, string> = { specVersion: 'spec-version' }
-const KEY_TO_FIELD: Record<string, keyof AgentSpecFields> = {
-  'spec-version': 'specVersion',
-}
 function keyForField(field: string): string {
-  return FIELD_TO_KEY[field] ?? field
+  return field
 }
 
 function isKnownKey(key: string): boolean {
@@ -330,7 +326,7 @@ function extractFields(
     }
   }
 
-  const specVersionRaw = frontmatter['spec-version']
+  const specVersionRaw = frontmatter.specVersion
   if (specVersionRaw !== undefined && specVersionRaw !== null) {
     const v = parsePositiveIntFromFrontmatter(specVersionRaw)
     if (v !== undefined) {
@@ -339,16 +335,16 @@ function extractFields(
         diag(
           'info',
           'future-spec-version',
-          'spec-version',
-          `Declared spec-version ${v} is newer than this build (${AGENT_SPEC_VERSION}); all content is preserved as-is.`,
+          'specVersion',
+          `Declared specVersion ${v} is newer than this build (${AGENT_SPEC_VERSION}); all content is preserved as-is.`,
         )
       }
     } else {
       diag(
         'error',
         'invalid-spec-version',
-        'spec-version',
-        `Invalid spec-version '${String(specVersionRaw)}'. Must be a positive integer.`,
+        'specVersion',
+        `Invalid specVersion '${String(specVersionRaw)}'. Must be a positive integer.`,
       )
     }
   }

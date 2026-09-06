@@ -1,12 +1,12 @@
 {
  "INTERRUPT_MESSAGE/value": "[Request interrupted by user]",
  "INTERRUPT_MESSAGE_FOR_TOOL_USE/value": "[Request interrupted by user for tool use]",
- "CANCEL_MESSAGE/value": "The user doesn't want to take this action right now. STOP what you are doing and wait for the user to tell you how to proceed.",
- "REJECT_MESSAGE/value": "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.",
- "REJECT_MESSAGE_WITH_REASON_PREFIX/value": "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). To tell you how to proceed, the user said:\n",
- "SUBAGENT_REJECT_MESSAGE/value": "Permission for this tool use was denied. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). Try a different approach or report the limitation to complete your task.",
- "SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX/value": "Permission for this tool use was denied. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). The user said:\n",
- "PLAN_REJECTION_PREFIX/value": "The agent proposed a plan that was rejected by the user. The user chose to stay in strategy mode rather than proceed with implementation.\n\nRejected plan:\n",
+ "CANCEL_MESSAGE/value": "The operator stopped this action before it ran; nothing was changed. Stop what you are doing and wait for the operator to say how to proceed.",
+ "REJECT_MESSAGE/value": "The operator declined this tool call; it was not run and nothing was changed. Do not try to reach the same effect by another route. If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.",
+ "REJECT_MESSAGE_WITH_REASON_PREFIX/value": "The operator declined this tool call; it was not run and nothing was changed. The operator said:\n",
+ "SUBAGENT_REJECT_MESSAGE/value": "Permission for this tool call was declined; it was not run and nothing was changed. Do not try to reach the same effect by another route. If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.",
+ "SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX/value": "Permission for this tool call was declined; it was not run and nothing was changed. The operator said:\n",
+ "PLAN_REJECTION_PREFIX/value": "The operator declined the proposed plan and chose to stay in strategy mode rather than proceed with implementation.\n\nDeclined plan:\n",
  "DENIAL_WORKAROUND_GUIDANCE/value": "Do not try to reach the same effect by another route. If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.",
  "AUTO_REJECT_MESSAGE/value": "«fn/1»",
  "DONT_ASK_REJECT_MESSAGE/value": "«fn/1»",
@@ -18,8 +18,8 @@
    "[Request interrupted by user for tool use]",
    "[Request interrupted by user]",
    "No response requested.",
-   "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.",
-   "The user doesn't want to take this action right now. STOP what you are doing and wait for the user to tell you how to proceed."
+   "The operator declined this tool call; it was not run and nothing was changed. Do not try to reach the same effect by another route. If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.",
+   "The operator stopped this action before it ran; nothing was changed. Stop what you are doing and wait for the operator to say how to proceed."
   ]
  },
  "EMPTY_LOOKUPS/value": {
@@ -24366,7 +24366,6 @@
    "type": "text"
   }
  ],
- "withMemoryCorrectionHint/basic": "base text",
  "normalizeAttachmentForAPI/todo": [],
  "getSiblingToolUseIDs/toolTurn": [
   {
@@ -24810,7 +24809,7 @@
   "uuid": "«u1»"
  },
  "createToolResultStopMessage/basic": {
-  "content": "The user doesn't want to take this action right now. STOP what you are doing and wait for the user to tell you how to proceed.",
+  "content": "The operator stopped this action before it ran; nothing was changed. Stop what you are doing and wait for the operator to say how to proceed.",
   "is_error": true,
   "tool_use_id": "toolu_0009",
   "type": "tool_result"

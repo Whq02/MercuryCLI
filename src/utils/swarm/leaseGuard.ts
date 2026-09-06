@@ -3,7 +3,6 @@ import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../../tools/NotebookEditTool/constants.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
 import { logForDebugging } from '../debug.js'
-import { normalizeLegacyToolName } from '../permissions/permissionRuleParser.js'
 import { getTeamName, resolveCoordAgentId } from '../teammate.js'
 import { getLeaseConflict } from './leaseGlob.js'
 
@@ -30,7 +29,7 @@ export async function checkLeaseGuard(
   input: Record<string, unknown>,
   leaderTeamContext?: { teamName?: string },
 ): Promise<string | null> {
-  const normalized = normalizeLegacyToolName(toolName)
+  const normalized = toolName
   if (!GUARDED_TOOLS.has(normalized)) return null
 
   const team = getTeamName(

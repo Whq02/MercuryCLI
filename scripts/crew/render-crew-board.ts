@@ -35,7 +35,7 @@ const PROJECTS = join(home, 'projects', sanitizePath(RUNTIME_CWD))
 mkdirSync(PROJECTS, { recursive: true })
 
 const base = (extra: Record<string, unknown>) => ({
-  isSidechain: false, userType: 'external', entrypoint: 'cli',
+  isSidechain: false, entrypoint: 'cli',
   cwd: RUNTIME_CWD, sessionId: SID,
   version: '1.0.0-beta.1', gitBranch: 'main', ...extra,
 })
