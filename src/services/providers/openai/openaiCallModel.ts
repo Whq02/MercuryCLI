@@ -69,6 +69,7 @@ import {
 } from './openaiAccounts.js'
 import {
   evaluateGptCandidate,
+  liveGptListedEffortWords,
   qualifiedGptCandidates,
   refreshOpenaiCatalogue,
   resolveGptReasoningProfile,
@@ -76,7 +77,7 @@ import {
   type GptCandidate,
   type GptReasoningProfile,
 } from './openaiCatalogue.js'
-import { noteWireEffortAccepted, recordLiveQualification, recordWireEffortRefusal } from './qualificationStore.js'
+import { describeWireEffortProbeWindow, noteWireEffortAccepted, recordLiveQualification, recordWireEffortRefusal } from './qualificationStore.js'
 import { recordOpenaiUsageLimit } from './openaiLimitState.js'
 import { resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
@@ -434,13 +435,25 @@ export async function* openaiCallModel(
     ? resolveGptReasoningProfile(requestedEffort, candidate.live)
     : { source: 'model-default' }
   const settlementNotes: string[] = []
-  const receiptOf = (profile: GptReasoningProfile): EffortAdjustedV1 | undefined =>
+  const listedWords = candidate !== undefined ? liveGptListedEffortWords(modelId) : undefined
+  const wireRefusedWord = (asked: string): boolean =>
+    candidate !== undefined &&
+    listedWords !== undefined &&
+    listedWords.includes(asked) &&
+    !candidate.live.supportedReasoningEfforts.includes(asked)
+  const receiptOf = (
+    profile: GptReasoningProfile,
+    refusedByWire = profile.adjustedFrom !== undefined && wireRefusedWord(profile.adjustedFrom),
+  ): EffortAdjustedV1 | undefined =>
     profile.source === 'unsupported-fallback' && profile.adjustedFrom !== undefined
       ? {
           model: modelId,
           name: getPublicModelDisplayName(modelId) ?? modelId,
           asked: profile.adjustedFrom,
           ...(profile.wireEffort !== undefined ? { sent: profile.wireEffort } : {}),
+          ...(refusedByWire
+            ? { wireRefused: { road: auth.account.label, reprobeAfter: describeWireEffortProbeWindow() } }
+            : {}),
         }
       : undefined
   let effortAdjusted: EffortAdjustedV1 | undefined = receiptOf(profile)
@@ -567,7 +580,7 @@ export async function* openaiCallModel(
       recordWireEffortRefusal({ modelId, sourceKind: auth.account.kind, refused: refusal.refused, levels: refusal.levels })
       const served = candidate.live.supportedReasoningEfforts.filter(level => refusal.levels.includes(level))
       profile = resolveGptReasoningProfile(requestedEffort, { ...candidate.live, supportedReasoningEfforts: served })
-      effortAdjusted = receiptOf(profile)
+      effortAdjusted = receiptOf(profile, true)
       request = buildRequest(profile.wireEffort)
     }
     const retryable =
