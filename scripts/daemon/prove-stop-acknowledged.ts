@@ -201,8 +201,9 @@ try {
 
   console.log('\nS4 the row and the live count read one set of facts')
   if (justAfter !== undefined && after !== undefined) {
-    const preAck = { ...justAfter, stoppedAt: undefined as number | undefined }
+    const preAck = { ...justAfter, stoppedAt: undefined as number | undefined, lastTurnSettledAt: undefined as number | undefined }
     delete preAck.stoppedAt
+    delete preAck.lastTurnSettledAt
     const pre = concourseRecordState(preAck as never, { needsYou: false, alive: true })
     const post = concourseRecordState(after as never, { needsYou: false, alive: false })
     check("the ladder reads a stop on its way over a live runner as 'working' (still a live session, still counted)", pre === 'working', pre)
