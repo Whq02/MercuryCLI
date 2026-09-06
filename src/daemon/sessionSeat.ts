@@ -479,7 +479,9 @@ function armWorkPoll(short: string, roster: SeatRosterPort): void {
   if (seat.workPoll !== null) return
   const t = setTimeout(() => {
     seat.workPoll = null
-    if (seats.get(short) !== undefined) requestSessionFacts(short, roster, { immediate: true })
+    if (seats.get(short) === undefined) return
+    requestSessionFacts(short, roster, { immediate: true })
+    armWorkPoll(short, roster)
   }, WORK_POLL_MS)
   t.unref?.()
   seat.workPoll = t

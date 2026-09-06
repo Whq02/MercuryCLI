@@ -30,8 +30,6 @@ export interface AnthropicUsageReadStatus {
 
 const READ_TIMEOUT_S = 5
 const FAILURE_BACKOFF_CADENCES = 4
-const TURN_ASK_FLOOR_MS = 2_000
-const POLL_JITTER_MS = 500
 
 let lastAttemptAtMs: number | undefined
 let lastOkAtMs: number | undefined
@@ -294,8 +292,8 @@ function dropIfAccountMoved(): boolean {
   return true
 }
 
-export function refreshAnthropicUsage(opts?: { reason?: 'poll' | 'turn' | 'operator' | 'sign-in'; now?: () => number }): Promise<AnthropicUsageReadStatus> {
-  const reason = opts?.reason ?? 'poll'
+export function refreshAnthropicUsage(opts?: { reason?: 'open' | 'operator' | 'sign-in'; now?: () => number }): Promise<AnthropicUsageReadStatus> {
+  const reason = opts?.reason ?? 'open'
   const now = opts?.now ?? Date.now
   if (reason === 'sign-in') {
     dropIfAccountMoved()
@@ -319,10 +317,7 @@ export function refreshAnthropicUsage(opts?: { reason?: 'poll' | 'turn' | 'opera
   }
   if (reason !== 'operator' && reason !== 'sign-in') {
     if (retryAtMs !== undefined && at < retryAtMs) return Promise.resolve(anthropicUsageReadStatus())
-    const ttl = usagePollTtlMs()
-    const turnFloor = Math.min(TURN_ASK_FLOOR_MS, ttl / 2)
-    const floor = reason === 'turn' ? turnFloor : Math.max(turnFloor, ttl - POLL_JITTER_MS)
-    if (lastAttemptAtMs !== undefined && at - lastAttemptAtMs < floor) return Promise.resolve(anthropicUsageReadStatus())
+    if (lastAttemptAtMs !== undefined && at - lastAttemptAtMs < usagePollTtlMs()) return Promise.resolve(anthropicUsageReadStatus())
   }
   const issued = generation
   observedCredential = currentCredential()

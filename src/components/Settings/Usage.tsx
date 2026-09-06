@@ -190,7 +190,7 @@ function useOwnerUsage(id: RouterProviderId, credentialed: boolean): ActiveSourc
   useEffect(() => {
     if (!credentialed) return
     let disposed = false
-    void refreshProviderUsage(id).then(() => {
+    void refreshProviderUsage(id, { reason: 'open' }).then(() => {
       if (!disposed) setSample(s => s + 1)
     })
     return () => {

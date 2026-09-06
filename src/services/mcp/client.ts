@@ -6,16 +6,11 @@ import { StreamableHTTPClientTransport } from './sdk.js'
 import type { Transport } from './sdk.js'
 import type { JSONRPCMessage } from './sdk.js'
 import {
-  CallToolResultSchema,
-  ElicitRequestSchema,
-  ErrorCode,
-  GetPromptResultSchema,
-  ListPromptsResultSchema,
-  ListResourcesResultSchema,
-  ListRootsRequestSchema,
-  ListToolsResultSchema,
-  McpError,
-  ProgressNotificationSchema,
+  ProtocolError,
+  ProtocolErrorCode,
+  SdkError,
+  SdkErrorCode,
+  type ListToolsResult,
   type Tool as McpSdkTool,
 } from './sdk.js'
 import memoize from 'lodash-es/memoize.js'
@@ -24,7 +19,6 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { z } from 'zod'
 
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
 import { deepestErrorDetail, isStaleSocketCode } from '../api/transportEvidence.js'
@@ -61,6 +55,7 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { persistToolResult } from '../../utils/toolResultStorage.js'
 import { hasMcpDiscoveryButNoToken, MercuryMcpAuthProvider, wrapFetchWithStepUpDetection } from './auth.js'
 import { markClaudeAiMcpConnected } from './claudeai.js'
+import { clearEraVerdict, readEraVerdict, recordEraVerdict } from './eraVerdictCache.js'
 import { getAllMcpConfigs } from './config.js'
 import { isMcpCatalogueMember } from './membership.js'
 import { runElicitationHooks, runElicitationResultHooks } from './elicitationHandler.js'
@@ -117,7 +112,15 @@ export function isMcpSessionExpiredError(error: unknown): boolean {
 }
 
 function isConnectionClosedError(error: unknown): boolean {
-  return error instanceof McpError && error.code === ErrorCode.ConnectionClosed
+  return error instanceof SdkError && error.code === SdkErrorCode.ConnectionClosed
+}
+
+function isProbeExitError(error: unknown): boolean {
+  return (
+    error instanceof SdkError &&
+    error.code === SdkErrorCode.EraNegotiationFailed &&
+    /closed during the server\/discover probe/.test(error.message)
+  )
 }
 
 const STALE_SOCKET_MESSAGE_SUBSTRINGS = ['other side closed', 'socket hang up', 'ECONNRESET', 'terminated']
@@ -207,7 +210,7 @@ function routeProgress(client: Client, token: string, handler: (params: Progress
     const table = new Map<string, (params: ProgressParams) => void>()
     routes = table
     progressRouters.set(client, table)
-    client.setNotificationHandler(ProgressNotificationSchema, notification => {
+    client.setNotificationHandler('notifications/progress', notification => {
       const params = notification.params as ProgressParams
       if (params.progressToken === undefined) return
       table.get(String(params.progressToken))?.(params)
@@ -356,16 +359,59 @@ function clientVersion(): string {
   return typeof MACRO !== 'undefined' ? (MACRO.VERSION ?? 'unknown') : 'unknown'
 }
 
-function buildClient(): Client {
-  return new Client(
+type ProbeTransportKind = 'stdio' | 'remote'
+
+class OwnedStdioClientTransport extends StdioClientTransport {}
+
+function externalVersionNegotiation(transportKind: ProbeTransportKind): { mode: 'auto'; probe: { timeoutMs: number; maxRetries: number } } {
+  const deadline = connectTimeoutMs()
+  const timeoutMs = transportKind === 'stdio' ? Math.max(1000, Math.floor(deadline / 3)) : deadline + 1000
+  return { mode: 'auto', probe: { timeoutMs, maxRetries: 0 } }
+}
+
+type ListChangedKind = 'tools' | 'prompts' | 'resources'
+const listChangedListeners = new WeakMap<Client, Partial<Record<ListChangedKind, () => void>>>()
+
+export function onMcpListChanged(client: Client, kind: ListChangedKind, listener: () => void): void {
+  const slots = listChangedListeners.get(client) ?? {}
+  slots[kind] = listener
+  listChangedListeners.set(client, slots)
+}
+
+function listChangedHandlers(lookup: () => Client | undefined): {
+  tools: { autoRefresh: false; onChanged: () => void }
+  prompts: { autoRefresh: false; onChanged: () => void }
+  resources: { autoRefresh: false; onChanged: () => void }
+} {
+  const signal =
+    (kind: ListChangedKind) => (): void => {
+      const client = lookup()
+      if (client === undefined) return
+      listChangedListeners.get(client)?.[kind]?.()
+    }
+  return {
+    tools: { autoRefresh: false, onChanged: signal('tools') },
+    prompts: { autoRefresh: false, onChanged: signal('prompts') },
+    resources: { autoRefresh: false, onChanged: signal('resources') },
+  }
+}
+
+function buildClient(negotiate: boolean, transportKind: ProbeTransportKind = 'remote'): Client {
+  let built: Client | undefined
+  built = new Client(
     {
       name: 'mercury',
       title: 'Mercury',
       version: clientVersion(),
       description: 'Mercury, an agentic coding harness',
     },
-    { capabilities: { roots: {}, elicitation: {} } },
+    {
+      capabilities: { roots: {}, elicitation: { form: {}, url: {} } },
+      versionNegotiation: negotiate ? externalVersionNegotiation(transportKind) : { mode: 'legacy' },
+      listChanged: listChangedHandlers(() => built),
+    },
   )
+  return built
 }
 
 function buildSdkClient(): Client {
@@ -376,12 +422,12 @@ function buildSdkClient(): Client {
       version: clientVersion(),
       description: 'Mercury, an agentic coding harness',
     },
-    { capabilities: {} },
+    { capabilities: {}, versionNegotiation: { mode: 'legacy' } },
   )
 }
 
 function installRootsHandler(client: Client): void {
-  client.setRequestHandler(ListRootsRequestSchema, async () => {
+  client.setRequestHandler('roots/list', async () => {
     const roots = [pathToFileURL(getOriginalCwd()).href]
     const add = (p: string): void => {
       const stripped = p.replace(/[\\/]+$/, '')
@@ -480,6 +526,18 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   let stderrBuffer = ''
   let inProcess = false
   const isIde = type === 'sse-ide' || type === 'ws-ide'
+  const buildStdioTransport = (): StdioClientTransport => {
+    const stdioConfig = config as { command: string; args?: string[]; env?: Record<string, string> }
+    const prefix = flagEnv('MERCURY_SHELL_PREFIX')
+    const command = prefix ? prefix : stdioConfig.command
+    const args = prefix ? [[stdioConfig.command, ...(stdioConfig.args ?? [])].join(' ')] : (stdioConfig.args ?? [])
+    return new OwnedStdioClientTransport({
+      command,
+      args,
+      env: { ...(subprocessEnv() as Record<string, string>), ...(stdioConfig.env ?? {}) },
+      stderr: 'pipe',
+    })
+  }
   const provider =
     type === 'sse' || type === 'http' ? new MercuryMcpAuthProvider(name, serverRef, undefined, false) : null
 
@@ -563,16 +621,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
       transport = clientSide
       inProcess = true
     } else if (type === 'stdio') {
-      const stdioConfig = config as { command: string; args?: string[]; env?: Record<string, string> }
-      const prefix = flagEnv('MERCURY_SHELL_PREFIX')
-      const command = prefix ? prefix : stdioConfig.command
-      const args = prefix ? [[stdioConfig.command, ...(stdioConfig.args ?? [])].join(' ')] : (stdioConfig.args ?? [])
-      stdioTransport = new StdioClientTransport({
-        command,
-        args,
-        env: { ...(subprocessEnv() as Record<string, string>), ...(stdioConfig.env ?? {}) },
-        stderr: 'pipe',
-      })
+      stdioTransport = buildStdioTransport()
       transport = stdioTransport
     } else {
       throw new Error(`Unsupported MCP server type: ${String(type)}`)
@@ -614,10 +663,28 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     }
   }
 
-  const client = buildClient()
+  let client = buildClient(!isIde, stdioTransport !== null ? 'stdio' : 'remote')
   installRootsHandler(client)
+  const eraKey = getServerCacheKey(name, serverRef)
+  const prior = isIde ? undefined : await readEraVerdict(eraKey)
 
-  const connectPromise = client.connect(transport)
+  const connectPromise = (async (): Promise<void> => {
+    try {
+      await client.connect(transport, prior ? { prior } : undefined)
+    } catch (err) {
+      if (stdioTransport === null || prior || !isProbeExitError(err)) throw err
+      logMCPDebug(name, 'the server exited on the revision probe — remembered as an older server; connecting again with the handshake')
+      void recordEraVerdict(eraKey, 'legacy')
+      await endStdioTree()
+      stdioTransport.stderr?.off('data', onStderr)
+      stdioTransport = buildStdioTransport()
+      transport = stdioTransport
+      stdioTransport.stderr?.on('data', onStderr)
+      client = buildClient(false)
+      installRootsHandler(client)
+      await client.connect(transport)
+    }
+  })()
   let timer: NodeJS.Timeout | null = null
   const timeoutPromise = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
@@ -641,7 +708,11 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
       stderrBuffer = ''
     }
     logMCPDebug(name, `Connected in ${Date.now() - startedAt}ms via ${type}`)
+    const era = client.getProtocolEra()
+    logMCPDebug(name, `protocol ${client.getNegotiatedProtocolVersion() ?? 'unknown'} (${era ?? 'unknown'} era)`)
+    if (era !== undefined && !isIde) void recordEraVerdict(eraKey, era)
   } catch (err) {
+    if (!isIde) void clearEraVerdict(eraKey)
     if (type === 'sse') logMCPError(name, `SSE connect failed: ${getLoggingSafeMcpBaseUrl(config) ?? '(url withheld)'} ${errorMessage(err)} ${(err as Error)?.stack ?? ''}`)
     else if (type === 'http') logMCPError(name, `HTTP connect failed: ${errorMessage(err)} code=${getErrnoCode(err) ?? 'none'}`)
     else if (type === 'claudeai-proxy') logMCPError(name, `proxy connect failed: ${errorMessage(err)}`)
@@ -678,7 +749,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     instructions = `${instructions.slice(0, INSTRUCTIONS_MAX_CHARS)}\n\n[instructions truncated]`
     logMCPDebug(name, `instructions truncated ${original} → ${instructions.length}`)
   }
-  client.setRequestHandler(ElicitRequestSchema, async () => ({ action: 'cancel' }))
+  client.setRequestHandler('elicitation/create', async () => ({ action: 'cancel' as const }))
   if (isIde) {
     client.notification({ method: 'ide_connected', params: { pid: process.pid } }).catch(err => {
       logMCPDebug(name, `ide_connected notification failed: ${errorMessage(err)}`)
@@ -871,6 +942,7 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
         client,
         tool: toolName,
         args,
+        toolDefinition: sdkTool,
         signal: context.abortController.signal,
         parentMessage,
         onProgress: onProgress as ((progress: unknown) => void) | undefined,
@@ -894,11 +966,10 @@ async function listAllTools(client: ConnectedMCPServer): Promise<McpSdkTool[]> {
   let cursor: string | undefined
   const seenCursors = new Set<string>()
   for (let page = 0; page < TOOLS_MAX_PAGES; page++) {
-    let result: z.infer<typeof ListToolsResultSchema>
+    let result: ListToolsResult
     try {
       result = await client.client.request(
         { method: 'tools/list', params: cursor ? { cursor } : {} },
-        ListToolsResultSchema,
         { timeout: connectTimeoutMs() },
       )
     } catch (err) {
@@ -920,12 +991,6 @@ async function listAllTools(client: ConnectedMCPServer): Promise<McpSdkTool[]> {
     }
     seenCursors.add(next)
     cursor = next
-  }
-  try {
-    const primer = (client.client as unknown as { cacheToolMetadata?: (tools: McpSdkTool[]) => void }).cacheToolMetadata
-    if (typeof primer === 'function') primer.call(client.client, accumulated)
-  } catch (err) {
-    logMCPDebug(client.name, `output-schema validator priming failed (validation off): ${errorMessage(err)}`)
   }
   return accumulated
 }
@@ -987,7 +1052,7 @@ export const fetchResourcesForClient = memoize(
     if (client.type !== 'connected') return []
     if (!client.capabilities.resources) return []
     try {
-      const result = await client.client.request({ method: 'resources/list', params: {} }, ListResourcesResultSchema, { timeout: connectTimeoutMs() })
+      const result = await client.client.request({ method: 'resources/list', params: {} }, { timeout: connectTimeoutMs() })
       return (result.resources ?? []).map(resource => ({ ...resource, server: client.name })) as ServerResource[]
     } catch (err) {
       logMCPError(client.name, err)
@@ -1003,7 +1068,7 @@ export const fetchCommandsForClient = memoize(
     if (client.type !== 'connected') return []
     if (!client.capabilities.prompts) return []
     try {
-      const result = await client.client.request({ method: 'prompts/list', params: {} }, ListPromptsResultSchema, { timeout: connectTimeoutMs() })
+      const result = await client.client.request({ method: 'prompts/list', params: {} }, { timeout: connectTimeoutMs() })
       const prompts = recursivelySanitizeUnicode(result.prompts ?? [])
       return prompts.map(prompt => {
         const commandName = `mcp__${normalizeNameForMCP(client.name)}__${normalizeNameForMCP(prompt.name)}`
@@ -1029,10 +1094,10 @@ export const fetchCommandsForClient = memoize(
             })
             try {
               const connected = await ensureConnectedClient(client)
-              const response = await connected.client.request(
-                { method: 'prompts/get', params: { name: prompt.name, arguments: promptArgs } },
-                GetPromptResultSchema,
-              )
+              const response = await connected.client.request({
+                method: 'prompts/get',
+                params: { name: prompt.name, arguments: promptArgs },
+              })
               const blocks: ContentBlockParam[] = []
               for (const message of response.messages ?? []) {
                 const content = Array.isArray(message.content) ? message.content : [message.content]
@@ -1196,6 +1261,7 @@ async function callToolOnce(
   signal: AbortSignal,
   toolUseId: string | undefined,
   onProgress: ((event: Record<string, unknown>) => void) | undefined,
+  toolDefinition: McpSdkTool | undefined,
 ): Promise<MCPToolCallResult> {
   const startedAt = Date.now()
   const timeoutMs = toolTimeoutMs()
@@ -1224,17 +1290,13 @@ async function callToolOnce(
       : () => {}
   let timer: NodeJS.Timeout | null = null
   try {
-    const call = connected.client.request(
+    const call = connected.client.callTool(
       {
-        method: 'tools/call',
-        params: {
-          name: tool,
-          arguments: args,
-          ...(toolUseId ? { _meta: { 'claudecode/toolUseId': toolUseId, ...(progressToken ? { progressToken } : {}) } } : {}),
-        },
+        name: tool,
+        arguments: args,
+        ...(toolUseId ? { _meta: { 'claudecode/toolUseId': toolUseId, ...(progressToken ? { progressToken } : {}) } } : {}),
       },
-      CallToolResultSchema,
-      { signal: requestController.signal, timeout: timeoutMs },
+      { signal: requestController.signal, timeout: timeoutMs, ...(toolDefinition ? { toolDefinition } : {}) },
     )
     const result = await Promise.race([
       call,
@@ -1304,7 +1366,7 @@ async function callToolOnce(
         'MCP tool call connection closed',
       )
     }
-    if (err instanceof McpError && err.code === ErrorCode.RequestTimeout) {
+    if (err instanceof SdkError && err.code === SdkErrorCode.RequestTimeout) {
       throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
         `MCP tool "${tool}" on server "${connected.name}" failed: no answer within ${Math.round(timeoutMs / 1000)}s (MERCURY_MCP_TOOL_TIMEOUT_MS) — retry, or raise MERCURY_MCP_TOOL_TIMEOUT_MS for a slow tool`,
         'MCP tool call request timeout',
@@ -1341,6 +1403,7 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
   client: MCPServerConnection
   tool: string
   args: Record<string, unknown>
+  toolDefinition?: McpSdkTool
   signal: AbortSignal
   parentMessage?: AssistantMessage
   onProgress?: (progress: unknown) => void
@@ -1349,7 +1412,7 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
   handleUrlElicitation?: (elicitation: UrlElicitation) => Promise<'accept' | 'decline' | 'cancel'>
   callFn?: (attemptClient: ConnectedMCPServer, toolUseId: string | undefined, onProgress: ((event: Record<string, unknown>) => void) | undefined) => Promise<MCPToolCallResult>
 }): Promise<MCPToolCallResult> {
-  const { client, tool, args, signal, parentMessage } = params
+  const { client, tool, args, signal, parentMessage, toolDefinition } = params
   const parentContent = parentMessage?.message.content
   let toolUseId: string | undefined
   if (Array.isArray(parentContent)) {
@@ -1375,7 +1438,7 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
       try {
         return params.callFn
           ? await params.callFn(connected, toolUseId, progressSink)
-          : await callToolOnce(connected, tool, args, signal, toolUseId, progressSink)
+          : await callToolOnce(connected, tool, args, signal, toolUseId, progressSink, toolDefinition)
       } catch (err) {
         if (err instanceof McpSessionExpiredError && !sessionRetried) {
           sessionRetried = true
@@ -1397,12 +1460,12 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
         progressSink?.({ status: 'completed', elapsedTimeMs: Date.now() - startedAt })
         return result
       } catch (err) {
-        if (!(err instanceof McpError && err.code === ErrorCode.UrlElicitationRequired) || retry >= URL_ELICITATION_RETRIES) {
+        if (!(err instanceof ProtocolError && err.code === ProtocolErrorCode.UrlElicitationRequired) || retry >= URL_ELICITATION_RETRIES) {
           throw err
         }
         const elicitations = parseUrlElicitations(err)
         if (elicitations.length === 0) {
-          logMCPDebug(client.name, `URL elicitation error (${ErrorCode.UrlElicitationRequired}) carried no valid elicitations`)
+          logMCPDebug(client.name, `URL elicitation error (${ProtocolErrorCode.UrlElicitationRequired}) carried no valid elicitations`)
           throw err
         }
         for (const elicitation of elicitations) {
@@ -1426,8 +1489,11 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
   } catch (err) {
     progressSink?.({ status: 'failed', elapsedTimeMs: Date.now() - startedAt })
     if (!(err instanceof TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS)) {
-      if (err instanceof McpError && typeof err.code === 'number') {
+      if (err instanceof ProtocolError) {
         throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(err.message, `MCP protocol error ${err.code}`)
+      }
+      if (err instanceof SdkError) {
+        throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(err.message, `MCP client error ${err.code}`)
       }
       if (err instanceof Error && err.constructor === Error) {
         throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(err.message, err.message.slice(0, 200))
@@ -1483,7 +1549,6 @@ export async function callIdeRpc(
   const controller = new AbortController()
   const result = await client.client.request(
     { method: 'tools/call', params: { name: toolName, arguments: args } },
-    CallToolResultSchema,
     { signal: controller.signal, timeout: 10 * 60_000 },
   )
   return processMCPResult(result, toolName, client.name)

@@ -283,7 +283,7 @@ function MercuryModelWrapper({
     plan: TransitionPlan
     refreshed: boolean
   } | null>(null)
-  const gptAvailability = getGptSeatAvailability()
+  const gptAvailability = getGptSeatAvailability({ fetch: true })
   const withFrontier = (detail: string, route: Parameters<typeof providerFrontierLine>[0]): string => {
     const line = providerFrontierLine(route)
     return line ? `${line} · ${detail}` : detail
