@@ -1,6 +1,6 @@
 import type { WorkRowV1 } from './types.js'
 import { splitWaitSentence } from '../capacity/seatWords.js'
-import { workRowRuns } from './workCounts.js'
+import { workRowRuns, type WorkCountsV1 } from './workCounts.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import { formatSessionCost } from '../../utils/spendSpelling.js'
 import { agentWaitWords, type AgentWaitV1 } from '../../tasks/LocalAgentTask/agentWait.js'
@@ -199,9 +199,15 @@ export function crewWaitingLine(agents: readonly CrewAgentFacts[]): string | nul
   return crewWaitingWords(crewRunning(agents).length)
 }
 
-export function crewStillRunningLine(running: number): string | null {
-  if (!(running > 0)) return null
-  return `${running} sub-agent${running === 1 ? '' : 's'} still running — open the crew view (/teammates) to stop one`
+export function crewStillRunningLine(
+  running: number | Pick<WorkCountsV1, 'agents' | 'teammates' | 'workflows'>,
+): string | null {
+  const agents = typeof running === 'number' ? running : running.agents + running.teammates
+  const workflows = typeof running === 'number' ? 0 : running.workflows
+  const parts: string[] = []
+  if (agents > 0) parts.push(`${agents} sub-agent${agents === 1 ? '' : 's'} still running — open the crew view (/teammates) to stop one`)
+  if (workflows > 0) parts.push(`${workflows} workflow run${workflows === 1 ? '' : 's'} still running — see /workflows`)
+  return parts.length === 0 ? null : parts.join(' · ')
 }
 
 export function crewTokensLabel(facts: CrewAgentFacts): string | null {
