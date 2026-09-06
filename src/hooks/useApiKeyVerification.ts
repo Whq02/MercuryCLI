@@ -19,7 +19,7 @@ export type VerificationStatus =
 
 export type ApiKeyVerificationResult = {
   status: VerificationStatus
-  reverify: () => Promise<void>
+  reverify: (opts?: { probe?: boolean }) => Promise<void>
   error: Error | null
 }
 
@@ -39,7 +39,7 @@ export function useApiKeyVerification(): ApiKeyVerificationResult {
   })
   const [error, setError] = useState<Error | null>(null)
 
-  const reverify = useCallback(async (): Promise<void> => {
+  const reverify = useCallback(async (opts?: { probe?: boolean }): Promise<void> => {
     if (!isAnthropicAuthEnabled() || isClaudeAISubscriber()) {
       setStatus('valid')
       return
@@ -64,6 +64,10 @@ export function useApiKeyVerification(): ApiKeyVerificationResult {
           return
         }
         setStatus('missing')
+        return
+      }
+      if (opts?.probe === false) {
+        setStatus('valid')
         return
       }
       const valid = await verifyApiKey(key, getIsNonInteractiveSession())

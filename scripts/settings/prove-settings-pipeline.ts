@@ -15,9 +15,7 @@ state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSetting
 
 const settingsMod = await import('../../src/utils/settings/settings.ts')
 const cacheMod = await import('../../src/utils/settings/settingsCache.ts')
-const { setSessionCache, setEligibility, resetSyncCache } = await import(
-  '../../src/services/remoteManagedSettings/syncCacheState.ts'
-)
+const { setMdmSettingsCache, clearMdmSettingsCache } = await import('../../src/utils/settings/mdm/settings.ts')
 
 const {
   getInitialSettings,
@@ -91,7 +89,7 @@ section('(1) precedence and merge shapes across user/project/local')
   )
 }
 
-section('(2) flag settings (file + inline) and remote policy sit above local')
+section('(2) flag settings (file + inline) and policy sit above local')
 {
   const flagPath = join(PROJ, 'flag-settings.json')
   writeFileSync(flagPath, JSON.stringify({ model: 'flag-model', env: { FROM_FLAG: '1' } }))
@@ -106,8 +104,7 @@ section('(2) flag settings (file + inline) and remote policy sit above local')
     j(s.env),
   )
 
-  setEligibility(true)
-  setSessionCache({ model: 'policy-model' })
+  setMdmSettingsCache({ settings: { model: 'policy-model' }, errors: [] }, { settings: {}, errors: [] })
   state.setAllowedSettingSources([
     'userSettings',
     'projectSettings',
@@ -117,7 +114,7 @@ section('(2) flag settings (file + inline) and remote policy sit above local')
   ])
   resetSettingsCache()
   s = getInitialSettings()
-  check('policy (remote) beats flag settings (default source list)', s.model === 'policy-model', j(s.model))
+  check('policy beats flag settings (default source list)', s.model === 'policy-model', j(s.model))
   check("per-source read agrees (getSettingsForSource('policySettings'))", getSettingsForSource('policySettings')?.model === 'policy-model')
 
   state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSettings'])
@@ -129,14 +126,14 @@ section('(2) flag settings (file + inline) and remote policy sit above local')
     j(restricted.model),
   )
 
-  setSessionCache({ model: 123 } as never)
+  clearMdmSettingsCache()
   resetSettingsCache()
   check(
-    'malformed remote policy rejected by schema (per-source read null)',
+    'with the device tier cleared the policy source reads null',
     getSettingsForSource('policySettings') === null,
     j(getSettingsForSource('policySettings')),
   )
-  resetSyncCache()
+  check('no policy origin is ever "remote"', String(settingsMod.getPolicySettingsOrigin()) !== 'remote')
   state.setFlagSettingsPath(undefined)
   state.setFlagSettingsInline(undefined)
   resetSettingsCache()

@@ -1,8 +1,6 @@
 import * as React from 'react'
 import { Text } from '../../ink.js'
 import { refreshFeatureGates } from '../../services/analytics/featureGates.js'
-import { clearPolicyLimitsCache } from '../../services/policyLimits/index.js'
-import { clearRemoteManagedSettingsCache } from '../../services/remoteManagedSettings/index.js'
 import { revokeOAuthToken } from '../../services/oauth/client.js'
 import {
   clearOAuthTokenCache,
@@ -27,8 +25,6 @@ export async function clearAuthRelatedCaches(): Promise<void> {
   clearToolSchemaCache()
   resetUserCache()
   await refreshFeatureGates()
-  await clearRemoteManagedSettingsCache()
-  clearPolicyLimitsCache()
 }
 
 export async function performLogout({
@@ -64,8 +60,6 @@ export async function performLogout({
     const next = { ...current, oauthAccount: undefined }
     if (clearOnboarding) {
       next.hasCompletedOnboarding = false
-      next.subscriptionNoticeCount = 0
-      next.hasAvailableSubscription = false
       if (next.customApiKeyResponses?.approved) {
         next.customApiKeyResponses = { ...next.customApiKeyResponses, approved: [] }
       }

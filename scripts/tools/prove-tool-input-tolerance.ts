@@ -193,7 +193,7 @@ console.log('── 5. structural pins ──')
   t('no classifier call site widens raw input with a cast', widened.length === 0, widened.join(', '))
   t('every classifier consumer goes through the seam', direct.length === 0, direct.join(', '))
   const messages = readFileSync('src/components/Messages.tsx', 'utf8')
-  t('the transcript list wraps each row in the per-row boundary', /<SentryErrorBoundary>\s*<MessageRow/.test(messages) && /\/>\s*<\/SentryErrorBoundary>/.test(messages))
+  t('the transcript list wraps each row in the per-row boundary', /<RowErrorBoundary>\s*<MessageRow/.test(messages) && /\/>\s*<\/RowErrorBoundary>/.test(messages))
 }
 
 console.log('── 6. per-row boundary ──')
@@ -201,7 +201,7 @@ console.log('── 6. per-row boundary ──')
   const React = await import('react')
   const { default: Ink } = await import('../../src/ink/ink.js')
   const { Box, Text } = await import('../../src/ink.js')
-  const { SentryErrorBoundary } = await import('../../src/components/SentryErrorBoundary.js')
+  const { RowErrorBoundary } = await import('../../src/components/RowErrorBoundary.js')
   class FakeStdout extends EventEmitter {
     isTTY = true
     columns = 260
@@ -231,7 +231,7 @@ console.log('── 6. per-row boundary ──')
   ink.render(
     h(Box, { flexDirection: 'column' },
       h(Text, null, 'row-before-the-broken-one'),
-      h(SentryErrorBoundary, null, h(Thrower, null)),
+      h(RowErrorBoundary, null, h(Thrower, null)),
       h(Text, null, 'row-after-the-broken-one')),
   )
   await new Promise(resolve => setTimeout(resolve, 200))

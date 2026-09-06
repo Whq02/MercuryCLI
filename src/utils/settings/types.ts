@@ -224,7 +224,6 @@ export const SettingsSchema = lazySchema(() => {
     progressReporting: z.boolean().optional(),
     promptSuggestionEnabled: z.boolean().optional(),
     agent: z.string().optional(),
-    skipWebFetchPreflight: z.boolean().optional(),
     skipSovereignConsentPrompt: z.boolean().optional().describe('True skips the consent card shown before entering Sovereign mode (honoured from the user, local, flag and policy sources)'),
     defaultShell: z.enum(['bash', 'powershell']).optional(),
     shellEngine: z.enum(['system', 'brush']).optional(),
