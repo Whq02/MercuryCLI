@@ -1187,10 +1187,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const problems: string[] = []
             const svc = getMacOsKeychainStorageServiceName()
             const authHome = getAuthConfigHomeDir()
-            const defaultAuthHome =
-              authHome === join(homedir(), '.claude').normalize('NFC')
-            if (!defaultAuthHome && !/-[0-9a-f]{8}$/.test(svc)) {
-              problems.push(`keychain service '${svc}' is UN-suffixed for the non-default auth home ${authHome} — credential identity split`)
+            if (!/-[0-9a-f]{8}$/.test(svc)) {
+              problems.push(`keychain service '${svc}' is UN-suffixed for the auth home ${authHome} — credential identity split`)
             }
             const globalFile = getGlobalMercuryFile()
             if (!globalFile.startsWith(home)) {
