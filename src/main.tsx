@@ -149,6 +149,7 @@ import { migrateLegacyOpusToCurrent } from './migrations/migrateLegacyOpusToCurr
 import { migrateSonnet45ToSonnet46 } from './migrations/migrateSonnet45ToSonnet46.js'
 import { migrateOpusToOpus1m } from './migrations/migrateOpusToOpus1m.js'
 import { migrateReplBridgeEnabledToRemoteControlAtStartup } from './migrations/migrateReplBridgeEnabledToRemoteControlAtStartup.js'
+import { migrateVerboseToToolOutput } from './migrations/migrateVerboseToToolOutput.js'
 import type { Root } from './ink.js'
 import chalk from 'chalk'
 import { randomUUID } from 'node:crypto'
@@ -196,7 +197,7 @@ function applyMergedConfigEnv(): void {
 }
 
 
-const MIGRATION_VERSION = 11
+const MIGRATION_VERSION = 12
 
 function runMigrationsIfNeeded(): void {
   try {
@@ -212,6 +213,7 @@ function runMigrationsIfNeeded(): void {
     landed.push(migrateSonnet45ToSonnet46())
     landed.push(migrateOpusToOpus1m())
     migrateReplBridgeEnabledToRemoteControlAtStartup()
+    migrateVerboseToToolOutput()
     const incomplete = landed.some(ok => ok === false)
     if (incomplete) {
       logForDebugging(
@@ -1915,7 +1917,7 @@ async function interactiveLaunch(args: {
   const initialState: AppState = {
     ...getDefaultAppState(),
     toolPermissionContext: effectiveContext,
-    verbose: Boolean(config.verbose),
+    verbose: config.toolOutput === 'full',
     expandedView: config.showSpinnerTree ? 'teammates' : config.showExpandedTodos ? 'tasks' : 'none',
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
     ...(supercodeArmed ? { supercode: true } : {}),
@@ -2260,7 +2262,7 @@ async function printLaunch(args: {
   const initialState: AppState = {
     ...getDefaultAppState(),
     toolPermissionContext: args.toolPermissionContext,
-    verbose: Boolean(config.verbose),
+    verbose: config.toolOutput === 'full',
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
     ...(supercodeArmed ? { supercode: true } : {}),
     ...(isAdvisorEnabled() && args.advisorModel ? { advisorModel: args.advisorModel } : {}),
