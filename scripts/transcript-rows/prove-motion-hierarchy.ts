@@ -75,8 +75,8 @@ section('the GLOW greeting joins the lattice')
     hook.includes('animate ? SHIMMER_TICK_MS : null') && hook.includes('SHIMMER_SETTLED') && hook.includes('setSettled(true)'),
   )
   check(
-    'the React owner honors the reduced-motion pair + the live-glyphs capture gate',
-    hook.includes('prefersReducedMotion') && hook.includes('MERCURY_REDUCED_MOTION') && hook.includes('liveGlyphsEnabled()'),
+    "the React owner honors the reduced-motion pair + the glyph part of the Motion choice (the live-glyphs gate's one owner)",
+    hook.includes('prefersReducedMotion') && hook.includes('MERCURY_REDUCED_MOTION') && hook.includes("useIdleMotion('glyphs') !== 'off'"),
   )
 }
 
