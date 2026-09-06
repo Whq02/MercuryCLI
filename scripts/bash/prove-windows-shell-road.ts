@@ -17,6 +17,8 @@ function check(label: string, ok: boolean, detail = ''): void {
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n')
 const SEAM = 'MERCURY_WINDOWS_SHELL_ROAD'
 const PIN = 'MERCURY_GIT_BASH_PATH'
+const ENGINE_PIN = 'MERCURY_SHELL_ENGINE'
+const SUB_HOME = mkdtempSync(join(tmpdir(), 'shell-road-sub-home-'))
 
 function roadSubprocess(body: string, env: Record<string, string | undefined>): { status: number | null; stdout: string; stderr: string } {
   const road = join(ROOT, 'src/utils/shell/windowsShellRoad.ts').replace(/\\/g, '\\\\')
@@ -31,7 +33,7 @@ function roadSubprocess(body: string, env: Record<string, string | undefined>): 
   `
   const r = spawnSync(BUN, ['-e', script], {
     encoding: 'utf8',
-    env: { ...process.env, [SEAM]: undefined, [PIN]: undefined, MERCURY_USE_POWERSHELL_TOOL: undefined, ...env },
+    env: { ...process.env, MERCURY_CONFIG_DIR: SUB_HOME, MERCURY_CREDENTIAL_STORE: 'file', [SEAM]: undefined, [PIN]: undefined, [ENGINE_PIN]: undefined, MERCURY_USE_POWERSHELL_TOOL: undefined, ...env },
     timeout: 60_000,
   })
   return { status: r.status, stdout: (r.stdout ?? '').trim(), stderr: (r.stderr ?? '').trim() }
@@ -98,6 +100,18 @@ console.log('── §3 the roster follows the road ──')
   const wo = withBashOptIn.status === 0 ? (JSON.parse(withBashOptIn.stdout) as { bash: boolean; ps: boolean }) : null
   check('…and the opt-in still turns PowerShell on beside Bash', wo?.bash === true && wo.ps === true)
 
+  const engineProbe = "const engine = await import('" + join(ROOT, 'src/utils/shell/engineSession.ts').replace(/\\/g, '\\\\') + "'); console.log(JSON.stringify({ armed: engine.resolveShellEngine('brush').engine, kind: road.windowsBashRoad().kind, bash: road.bashToolAvailable(), ps: utils.isPowerShellToolEnabled(), notice: road.windowsShellRoadNotice(), line: road.describeWindowsShellRoad().line }))"
+  const engineLeg = roadSubprocess(engineProbe, { [SEAM]: 'no-bash', [ENGINE_PIN]: 'brush' })
+  const el = engineLeg.status === 0 ? (JSON.parse(engineLeg.stdout) as { armed: string; kind: string; bash: boolean; ps: boolean; notice: string | null; line: string }) : null
+  check('the engine leg walks the road', el !== null, engineLeg.stderr.slice(0, 200))
+  if (el !== null && el.armed !== 'brush') {
+    console.log('  [SKIP] no shell engine pack resolves on this host (bun run scripts/vendor/fetch-brush.ts, or the Windows build) — the engine arm is proven where the pack is')
+  } else {
+    check('on the road without bash, an ARMED engine is the road: kind engine', el?.kind === 'engine', JSON.stringify(el))
+    check('…the Bash tool stands with no Git at all', el?.bash === true)
+    check('…PowerShell is back to its opt-in, and there is no notice', el?.ps === false && el?.notice === null)
+    check("…and the doctor's line names the engine", /shell engine at .*brush/.test(el?.line ?? ''), el?.line)
+  }
   const offRoad = roadSubprocess(probe, {})
   const off = offRoad.status === 0 ? (JSON.parse(offRoad.stdout) as { active: boolean; bash: boolean; ps: boolean; notice: string | null }) : null
   const hostIsWindows = process.platform === 'win32'
@@ -207,7 +221,10 @@ console.log('── §6 the consumers are wired (source) ──')
   check('the seam is registered', FLAG_REGISTRY.some(s => s.env === SEAM))
   const utils = read('src/utils/shell/shellToolUtils.ts')
   check('the PowerShell predicate reads the road and keeps its literal opt-in read', utils.includes("windowsBashRoad().kind === 'absent'") && utils.includes('process.env.MERCURY_USE_POWERSHELL_TOOL'))
+  const road = read('src/utils/shell/windowsShellRoad.ts')
+  check('the road reads the engine owner — the arm is the resolved engine, required lazily', road.includes("require('./engineSession.js')") && road.includes("resolved.engine === 'brush' ? { path: resolved.binaryPath } : null"))
 }
 
+rmSync(SUB_HOME, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ WINDOWS SHELL ROAD PROOF PASS' : `\n❌ WINDOWS SHELL ROAD PROOF RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

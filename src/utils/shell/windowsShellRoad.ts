@@ -32,7 +32,10 @@ export function composeWindowsBashRoad(gitBash: GitBashLocation, engine: ShellEn
 }
 
 function armedShellEngine(): ShellEngineBinary {
-  return null
+  const { resolveShellEngine } = require('./engineSession.js') as typeof import('./engineSession.js')
+  const { getInitialSettings } = require('../settings/settings.js') as typeof import('../settings/settings.js')
+  const resolved = resolveShellEngine(getInitialSettings().shellEngine)
+  return resolved.engine === 'brush' ? { path: resolved.binaryPath } : null
 }
 
 export const windowsBashRoad = memoize((): WindowsBashRoad => {
