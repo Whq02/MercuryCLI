@@ -23,8 +23,8 @@ export type SdkMcpToolDefinition<
   searchHint?: string
   alwaysLoad?: boolean
 }
-export type McpSdkServerConfigWithInstance = {
-  type: 'sdk'
+export type McpHostServerConfigWithInstance = {
+  type: 'host'
   name: string
   instance: unknown
 }

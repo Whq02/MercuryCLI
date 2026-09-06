@@ -66,8 +66,8 @@ Mercury stamps only its own spellings into processes it spawns: an MCP
 `headersHelper` receives `MERCURY_MCP_SERVER_NAME` and
 `MERCURY_MCP_SERVER_URL` (`src/services/mcp/headersHelper.ts`); teammate
 processes carry `MERCURY_TEAMMATE_COMMAND` / `MERCURY_AGENT_COLOR`
-(`src/utils/swarm/constants.ts`); SDK-spawned children receive the
-`MERCURY_SDK_*` handshake. Credential-bearing variables (the session OAuth
+(`src/utils/swarm/constants.ts`); a hosting application that spawns Mercury
+passes the `MERCURY_HOST_*` handshake. Credential-bearing variables (the session OAuth
 token among them) are stripped from ordinary subprocess environments.
 
 ## Settings schema
