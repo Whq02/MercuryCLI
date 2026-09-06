@@ -12,7 +12,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const SERVER = 'progress-srv'
-const sdkClient = { name: SERVER, config: { type: 'sdk' }, client: {} } as never
+const sdkClient = { name: SERVER, config: { type: 'host' }, client: {} } as never
 
 type Call = { toolUseId: string | undefined; progress: Array<Record<string, unknown>> }
 

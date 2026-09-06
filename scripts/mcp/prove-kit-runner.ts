@@ -339,8 +339,8 @@ section('§I the inline agent-def door (poison: the byte-identical cache-hit tea
     { name: 'off-server', type: 'disabled', config: disabledCfg },
   ] as never[]
 
-  let outcome = await connectAgentMcpServers([{ 'sdk-inline': { type: 'sdk', name: 'x' } }] as never, definition, catalogue as never)
-  t('I1 an sdk-typed INLINE spec refuses typed (parity with the sdk name-ref) and never dials', outcome.clients.length === 0 && !memo.has(getServerCacheKey('sdk-inline', { type: 'sdk', name: 'x', scope: 'dynamic' } as never)))
+  let outcome = await connectAgentMcpServers([{ 'sdk-inline': { type: 'host', name: 'x' } }] as never, definition, catalogue as never)
+  t('I1 a host-typed INLINE spec refuses typed (parity with the host name-ref) and never dials', outcome.clients.length === 0 && !memo.has(getServerCacheKey('sdk-inline', { type: 'host', name: 'x', scope: 'dynamic' } as never)))
   outcome = await connectAgentMcpServers([{ 'off-server': { type: 'stdio', command: 'smuggle' } }] as never, definition, catalogue as never)
   t("I2 POISON armed (parent-∩-grant at the inline door): an inline RE-SPELLING of a kit/record-excluded name refuses — an agent definition cannot re-enable what the session excluded", outcome.clients.length === 0 && !memo.has(getServerCacheKey('off-server', { type: 'stdio', command: 'smuggle', scope: 'dynamic' } as never)))
 
@@ -378,7 +378,7 @@ section('§I the inline agent-def door (poison: the byte-identical cache-hit tea
   memo.delete(depth1Key)
 
   const agentSrc = readFileSync(join(REPO, 'src', 'tools', 'AgentTool', 'runAgent.ts'), 'utf8')
-  t('I6 the gates stand in source, in order (sdk → managed policy → enterprise exclusivity → the excluded-name refusal), and the nonce is minted ONCE per dispatch and spread into every inline dial', ['sdk-typed servers connect only', 'blocked by managed policy', 'an enterprise MCP configuration exists', "the session's catalogue excludes this name"].every(n => agentSrc.includes(n)) && agentSrc.includes('const dispatchNonce = randomUUID()') && agentSrc.includes('inlineDispatchId: dispatchNonce'))
+  t('I6 the gates stand in source, in order (host → managed policy → enterprise exclusivity → the excluded-name refusal), and the nonce is minted ONCE per dispatch and spread into every inline dial', ['sdk-typed servers connect only', 'blocked by managed policy', 'an enterprise MCP configuration exists', "the session's catalogue excludes this name"].every(n => agentSrc.includes(n)) && agentSrc.includes('const dispatchNonce = randomUUID()') && agentSrc.includes('inlineDispatchId: dispatchNonce'))
 }
 
 section('§N non-session insulation (poison: a kit env appearing on a warm/crew/utility spec)')
