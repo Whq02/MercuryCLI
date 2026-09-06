@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -365,6 +365,71 @@ section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')
   check('K4b the launch narrows through the worker derivation', src('src/tools/AgentTool/AgentTool.tsx').includes('resolveWorkerTools(\n          agentDef,\n          plan.workerPermissionMode,'))
   const resumeSrc = src('src/tools/AgentTool/resumeAgent.ts')
   check('K4b the resume narrows through the SAME derivation under the same mode, never the raw pool', resumeSrc.includes('resolveWorkerTools(\n        definition,\n        workerPermissionMode,') && !resumeSrc.includes('const tools = isForkResume\n    ? toolUseContext.options.tools\n    : assembleToolPool('))
+}
+
+{
+  section('§K11 the fold releases the receipt')
+  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.js')
+  const { createSystemMessage } = await import('../../src/utils/messages/systemMessages.js')
+  const vnext = await import('../../src/utils/sessionStorage/vnext.js')
+  const home = mkdtempSync(join(tmpdir(), 'crew-fold-ws-'))
+  const SID = '00000000-aaaa-4000-8000-00000000f01d'
+  const file = join(home, `${SID}.jsonl`)
+  let n = 0
+  const uid = (): string => `00000000-0000-4000-8000-${String(100000000000 + ++n).slice(1)}`
+  const at = (i: number): string => new Date(Date.parse('2026-01-01T00:00:00.000Z') + i * 1000).toISOString()
+  const line = (uuid: string, parent: string | null, i: number, role: 'user' | 'assistant', text: string, extra: Record<string, unknown> = {}): string =>
+    (
+      vnext.encodeTranscriptLine(file, {
+        uuid,
+        parentUuid: parent,
+        isSidechain: false,
+        cwd: home,
+        sessionId: SID,
+        version: '1.0.0',
+        timestamp: at(i),
+        type: role,
+        message:
+          role === 'user'
+            ? { role, content: text }
+            : { id: `msg_${uuid.slice(-6)}`, role, model: 'm', stop_reason: 'end_turn', stop_sequence: null, content: [{ type: 'text', text }], usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } },
+        ...extra,
+      }) as { line: string }
+    ).line
+  const u1 = uid()
+  const a1 = uid()
+  const u2 = uid()
+  const a2 = uid()
+  writeFileSync(file, line(u1, null, 1, 'user', 'launch') + line(a1, u1, 2, 'assistant', 'launched') + line(u2, a1, 3, 'user', 'more') + line(a2, u2, 4, 'assistant', 'done'))
+  const conn = new DaemonSessionConnector({ sessionId: SID, runnerId: 'concourse-w1', title: 'fold', projectLabel: 'scratch', workspaceId: home, home })
+  const seam = conn as unknown as { tick: () => Promise<void> }
+  await conn.attach()
+  const shape = (): string => conn.records().map(m => (m.type === 'system' ? `system:${String((m as { content?: unknown }).content)}` : m.type)).join(' | ')
+  check('K11 the chain paints its four rows', conn.records().length === 4, shape())
+  const receipt = crewStillRunningLine({ agents: 1, teammates: 0, workflows: 1 })!
+  conn.addDisplayRow(createSystemMessage(receipt, 'warning'))
+  check('K11 the receipt paints after the rows it followed', shape() === `user | assistant | user | assistant | system:${receipt}`, shape())
+  const s = uid()
+  const u3 = uid()
+  appendFileSync(file, line(s, null, 5, 'user', 'summary of the folded turns', { isCompactSummary: true }) + line(u3, s, 6, 'user', 'after'))
+  await seam.tick()
+  check('K11 the folded chain paints the summary and the post-fold row only — the pre-fold receipt left with the rows it followed', shape() === 'user | user', shape())
+  const after = crewStillRunningLine({ agents: 0, teammates: 0, workflows: 1 })!
+  conn.addDisplayRow(createSystemMessage(after, 'warning'))
+  const a3 = uid()
+  appendFileSync(file, line(a3, u3, 7, 'assistant', 'noted'))
+  await seam.tick()
+  check('K11 a receipt minted after the fold keeps its anchor through a plain append', shape() === `user | user | system:${after} | assistant`, shape())
+  const u4 = uid()
+  appendFileSync(file, line(u4, a3, 8, 'user', 'again'))
+  await seam.tick()
+  conn.addDisplayRow(createSystemMessage('late', 'warning'))
+  const a3b = uid()
+  appendFileSync(file, line(a3b, u3, 9, 'assistant', 'noted differently'))
+  await seam.tick()
+  check('K11 a partial rewrite keeps the receipt that followed the rows it kept and releases the one past its first moved row', shape() === `user | user | system:${after} | assistant`, shape())
+  conn.detach()
+  rmSync(home, { recursive: true, force: true })
 }
 
 rmSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true, force: true })
