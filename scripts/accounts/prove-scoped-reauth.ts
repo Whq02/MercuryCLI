@@ -19,7 +19,7 @@ const { startScopedReauth, completeScopedReauth } = await import(
 const { getAuthScope } = await import('../../src/utils/envUtils.ts')
 
 const dir = mkdtempSync(join(tmpdir(), 'scoped-reauth-'))
-writeFileSync(join(dir, '.claude.json'), JSON.stringify({ oauthAccount: { emailAddress: 'old@x', accountUuid: 'old' } }))
+writeFileSync(join(dir, '.mercury.json'), JSON.stringify({ oauthAccount: { emailAddress: 'old@x', accountUuid: 'old' } }))
 
 try {
   console.log('── start: link minted + opened immediately ──')
@@ -87,7 +87,7 @@ try {
       (savedTokens as { refreshToken?: string }).refreshToken === 'new-refresh' &&
       Array.isArray((savedTokens as { scopes?: string[] }).scopes),
   )
-  const healed = JSON.parse(readFileSync(join(dir, '.claude.json'), 'utf8')) as {
+  const healed = JSON.parse(readFileSync(join(dir, '.mercury.json'), 'utf8')) as {
     oauthAccount: { emailAddress: string }
   }
   check("the scope's OWN snapshot healed (never the primary config)", healed.oauthAccount.emailAddress === 'fresh@now.example')

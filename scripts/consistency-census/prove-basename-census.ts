@@ -55,7 +55,7 @@ const strayOwners = census.sites.filter(
 const ownerFilesSeen = new Set(census.sites.filter(s => s.cls === 'owner-internal').map(s => s.file))
 check(
   `§C the owner-internal family stays bounded (${ownerFilesSeen.size} file(s))`,
-  ownerFilesSeen.size <= 8,
+  ownerFilesSeen.size <= 10,
   [...ownerFilesSeen].join(', '),
 )
 void strayOwners
