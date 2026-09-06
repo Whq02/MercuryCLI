@@ -372,13 +372,14 @@ function getUltraEffortInstructions(attachment: {
 function getUltraEffortFullInstructions(): UserMessage[] {
   const content = `## Supercode is on
 
-The user opted this session into supercode: optimize for the most exhaustive, correct answer — not the fastest or cheapest. Token cost is not a constraint. This opt-in is standing until it is turned off.
+The user opted this session into supercode: you run at max, and the answer they want is the most complete, correct one — not the fastest or cheapest. Token cost is not a constraint. This opt-in is standing until it is turned off.
 
-1. **Be exhaustive and correct** — prefer thoroughness over brevity; verify your work and close loops rather than stopping at the first plausible answer.
-2. **Orchestrate by default for substantive work** — author and run a dynamic Workflow (the Workflow tool: agent()/parallel()/pipeline() scripts) for anything multi-part: understand → design → implement → review. Decompose the task and fan out where independent work allows, then synthesize. Reach for a single Agent-tool subagent when one focused worker suffices, or LaunchFleet for teammate fan-out. Solo only conversational/trivial turns.
-3. **Stay in the loop between phases** — multi-phase work often means several workflows in sequence (one per phase) so you review and steer between them, rather than one giant unsupervised run.
-4. **Adversarially verify** — have work checked (a reviewer pass, a completeness critic, a re-derivation) before declaring it done; loop until the checks come back clean.
-5. **No new risk license** — exhaustiveness is not a license for destructive or outward-facing actions; those still need the usual confirmation.`
+What that means in practice:
+
+- **Delegate proactively when parallel agents would materially improve speed or quality** — a dynamic Workflow (the Workflow tool: agent()/parallel()/pipeline() scripts) for independent breadth, a single Agent-tool subagent for one focused worker, LaunchFleet for teammate fan-out. The question is whether the work gains from running in parallel or from an independent pair of eyes, not how many parts it has. Otherwise work solo at max: a task one careful pass answers is done best by you, now. Sub-agents run at the configured sub-agent default effort, not at max — the depth is yours to spend, theirs to keep proportionate.
+- **Stay in the loop between phases** — multi-phase work often means several workflows in sequence (one per phase) so you review and steer between them, rather than one giant unsupervised run.
+- **Verify before you declare** — have work checked (a reviewer pass, a completeness critic, a re-derivation) before calling it done; loop until the checks come back clean.
+- **No new risk license** — thoroughness is not a license for destructive or outward-facing actions; those still need the usual confirmation.`
 
   return wrapMessagesInSystemReminder([
     createUserMessage({ content, isMeta: true }),
@@ -386,7 +387,7 @@ The user opted this session into supercode: optimize for the most exhaustive, co
 }
 
 function getUltraEffortSparseInstructions(): UserMessage[] {
-  const content = `Supercode is still on (see the full instructions earlier in this conversation). Keep optimizing for the most exhaustive, correct answer; author Workflow scripts (or subagents/fleets) for substantive work; solo only trivial turns.`
+  const content = `Supercode is still on (see the full instructions earlier in this conversation). Keep optimizing for the most complete, correct answer; delegate where parallel agents would materially improve speed or quality, and otherwise work solo at max; verify before you declare.`
 
   return wrapMessagesInSystemReminder([
     createUserMessage({ content, isMeta: true }),
@@ -814,7 +815,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
       return getUltraEffortInstructions(attachment)
     }
     case 'ultra_effort_exit': {
-      const content = `Supercode is off — the standard opt-in rules apply again. Orchestrate (a Workflow / subagents / fleets) when a task genuinely benefits from it, and otherwise work solo.`
+      const content = `Supercode is off — the standard opt-in rules apply again: delegate (a Workflow / subagents / fleets) only when the user opts in or the work plainly calls for a separate worker, and otherwise work solo.`
 
       return wrapMessagesInSystemReminder([
         createUserMessage({ content, isMeta: true }),

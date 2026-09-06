@@ -37,12 +37,6 @@ export function describeEffortLevel(
             reach: 'live',
             note: 'accepted as standing intent — this model runs its deepest supported tier (the control states the applied value)',
           }
-    case 'ultra':
-      return {
-        level,
-        reach: 'live',
-        note: "the served top — above max only where the model's live vocabulary carries it; elsewhere it runs its deepest served tier (the control states the applied value)",
-      }
   }
 }
 
@@ -56,13 +50,16 @@ export type SupercodeModeInfo = {
   gatedReason: string
 }
 
-export function describeSupercodeMode(): SupercodeModeInfo {
+export const DELEGATION_LEAD_NOTE = "the provider's list marks this row as able to lead delegation"
+
+export function describeSupercodeMode(facts: { providerMarksDelegationLead?: boolean } = {}): SupercodeModeInfo {
+  const lead = facts.providerMarksDelegationLead === true ? ` · ${DELEGATION_LEAD_NOTE}` : ''
   return {
     pinsEffort: 'max',
     excludes: ['a co-set effort level'],
     reach: 'live',
     workflows: 'auto',
-    summary: 'max reasoning + standing dynamic-orchestration · session-only · the mode owns the effort pin',
+    summary: `max reasoning + proactive delegation where parallel agents help · session-only · the mode owns the effort pin${lead}`,
     gatedReason: '',
   }
 }
