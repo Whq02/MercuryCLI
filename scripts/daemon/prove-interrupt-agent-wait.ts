@@ -50,7 +50,6 @@ console.log('\nA1 the driver announces the agent wait and its end')
     enqueueOutput: () => {},
     writeDirect: async () => {},
     drainSdkEvents: () => [],
-    flushInternalEvents: async () => {},
     executeTurn: async () => {
       await tick()
     },

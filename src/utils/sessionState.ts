@@ -16,7 +16,6 @@ export type SessionExternalMetadata = {
   is_ultraplan_mode?: boolean | null
   model?: string | null
   pending_action?: RequiresActionDetails | null
-  post_turn_summary?: unknown | null
   task_summary?: string | null
 }
 

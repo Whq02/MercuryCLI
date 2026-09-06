@@ -364,16 +364,6 @@ export type SDKControlReloadExtensionsResponse = {
 }
 
 
-export type SDKKeepAliveMessage = {
-  type: 'keep_alive'
-}
-
-export type SDKUpdateEnvironmentVariablesMessage = {
-  type: 'update_environment_variables'
-  variables: Record<string, string>
-}
-
-
 export type SDKAssistantMessage = {
   type: 'assistant'
   message: { id: string; content: unknown }
@@ -424,20 +414,6 @@ export type SDKPartialAssistantMessage = {
   session_id: string
 }
 
-export type SDKStreamlinedTextMessage = {
-  type: 'streamlined_text'
-  text: string
-  session_id: string
-  uuid: string
-}
-
-export type SDKStreamlinedToolUseSummaryMessage = {
-  type: 'streamlined_tool_use_summary'
-  tool_summary: string
-  session_id: string
-  uuid: string
-}
-
 export type SDKResultMessage = {
   type: 'result'
   subtype?: string
@@ -461,14 +437,6 @@ export type SDKToolProgressMessage = {
   [key: string]: unknown
 }
 
-export type SDKAuthStatusMessage = {
-  type: 'auth_status'
-  isAuthenticating: boolean
-  uuid: string
-  session_id: string
-  [key: string]: unknown
-}
-
 export type SDKPromptSuggestionMessage = {
   type: 'prompt_suggestion'
   suggestion: string
@@ -483,12 +451,6 @@ export type SDKRateLimitEvent = {
   session_id: string
 }
 
-export type SDKPostTurnSummaryMessage = {
-  type: 'post_turn_summary'
-  uuid: string
-  session_id: string
-}
-
 export type SDKMessage =
   | SDKAssistantMessage
   | SDKUserMessage
@@ -496,20 +458,15 @@ export type SDKMessage =
   | SDKSystemMessage
   | SDKPartialAssistantMessage
   | SDKToolProgressMessage
-  | SDKAuthStatusMessage
   | SDKRateLimitEvent
   | SDKPromptSuggestionMessage
 
 
 export type StdoutMessage =
   | SDKMessage
-  | SDKStreamlinedTextMessage
-  | SDKStreamlinedToolUseSummaryMessage
-  | SDKPostTurnSummaryMessage
   | SDKControlResponse
   | SDKControlRequest
   | SDKControlCancelRequest
-  | SDKKeepAliveMessage
 
 export type StdinMessage =
   | SDKUserMessage
@@ -517,5 +474,3 @@ export type StdinMessage =
   | SDKSystemMessage
   | SDKControlRequest
   | SDKControlResponse
-  | SDKKeepAliveMessage
-  | SDKUpdateEnvironmentVariablesMessage

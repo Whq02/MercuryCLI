@@ -39,7 +39,6 @@ import {
   applyPermissionUpdates,
   persistPermissionUpdates,
 } from '../utils/permissions/PermissionUpdate.js'
-import type { SessionExternalMetadata } from '../utils/sessionState.js'
 import {
   notifySessionStateChanged,
   type RequiresActionDetails,
@@ -118,8 +117,6 @@ export function isBrokenPipeError(error: unknown): boolean {
 export class StructuredIO {
   readonly structuredInput: AsyncGenerator<StdinMessage, void, unknown>
   readonly outbound: Stream<StdoutMessage> = new Stream<StdoutMessage>()
-  restoredWorkerState: Promise<SessionExternalMetadata | null> =
-    Promise.resolve(null)
 
   readonly #replayUserMessages: boolean
   #inputClosed = false
@@ -204,18 +201,6 @@ export class StructuredIO {
         })
       }
       switch (parsed.type) {
-        case 'keep_alive':
-          return undefined
-        case 'update_environment_variables': {
-          const variables = (parsed.variables ?? {}) as Record<string, string>
-          for (const [key, value] of Object.entries(variables)) {
-            process.env[key] = value
-          }
-          logForDebugging(
-            `update_environment_variables applied: ${Object.keys(variables).join(', ')}`,
-          )
-          return undefined
-        }
         case 'control_response': {
           const known = await this.#handleControlResponse(
             parsed as unknown as SDKControlResponse & { uuid?: string },
@@ -801,13 +786,5 @@ export class StructuredIO {
       message,
     })) as { mcp_response?: JSONRPCMessage }
     return reply.mcp_response as JSONRPCMessage
-  }
-
-
-  async flushInternalEvents(): Promise<void> {
-  }
-
-  get internalEventsPending(): number {
-    return 0
   }
 }
