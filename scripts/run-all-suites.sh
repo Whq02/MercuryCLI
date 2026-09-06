@@ -19,6 +19,7 @@ T_START=$SECONDS
 
 CORES=$( (sysctl -n hw.ncpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 8) | head -1 )
 case "$CORES" in ('' | *[!0-9]*) CORES=8 ;; esac
+case "${MERCURY_GATE_CORES:-}" in ('' | *[!0-9]* | 0) ;; (*) CORES=$MERCURY_GATE_CORES ;; esac
 JOBS=${MERCURY_GATE_JOBS:-}
 case "$JOBS" in (*[!0-9]*) JOBS= ;; esac
 SEQUENTIAL=0
