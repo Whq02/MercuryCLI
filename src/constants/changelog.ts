@@ -2,6 +2,7 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
+- Fixed a message to a worker owned by a running workflow starting a second copy of that worker; the message is refused and names the workflow, and a finished run can no longer settle its successor
 - Added on-device speech-to-text: with no API key at all, /speak on, space to talk, space to stop, and the words land in the composer without anything leaving the machine; the first use downloads a 60 MB English model once, behind /speak download, and the doctor names the engine, the model and the memory it takes
 - Changed voice input to prefer the on-device transcriber whenever its pack and model are present; a signed-in cloud transcriber serves when they are not, or when you pin one
 - Fixed a file read that starts at line 0 numbering its lines from 0, which made its anchors unusable by Edit; a read from offset 0 numbers its first line 1
