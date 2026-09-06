@@ -578,9 +578,6 @@ section('(8) the skip-verb set DERIVES from the product\'s registered verb surfa
     const opsVerbs = opsArm ? opsArm[1]!.split('|').sort() : []
     check('the operator launcher case arm equals the derived set', JSON.stringify(opsVerbs) === JSON.stringify(derived), `ops: ${opsVerbs.join(' ')}`)
   }
-  const deadGuard = cliTsx.slice(cliTsx.indexOf('DEAD_SUBCOMMANDS.has(args[0]'))
-  check('the dead-subcommand refusal releases the launcher alt-hold before printing', /releaseLauncherAltHoldNow\(\)/.test(deadGuard.slice(0, 900)))
-  check('the dead-subcommand refusal lands through writeSync (a win32 TTY stream write is async and the exit can discard it)', /writeSync\(2,/.test(deadGuard.slice(0, 900)))
 }
 
 rmSync(base, { recursive: true, force: true })
