@@ -72,7 +72,7 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   WebSearch: 'browser',
   Agent: 'agent',
   Brief: 'agent',
-  contract: 'agent',
+  Contract: 'agent',
   LaunchFleet: 'agent',
   SendMessage: 'agent',
   SendUserMessage: 'agent',
