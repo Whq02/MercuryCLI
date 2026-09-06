@@ -86,6 +86,9 @@ LTS runtime beside the bundle, and the launcher, `mercury install` and
 - bun 1.3.x, the build runtime (never vendored).
 - git. On Windows, Windows Terminal or PowerShell 7; the step-by-step guide
   is [docs/INSTALL-WINDOWS-FROM-SOURCE.md](docs/INSTALL-WINDOWS-FROM-SOURCE.md).
+  Git for Windows also supplies the `bash.exe` the Bash tool runs under:
+  without it Mercury still starts, the Bash tool is absent (the PowerShell
+  tool stays) and the doctor's `shell` row names the fix.
 
 The floor is 24.20.0 because it carries the fix for nodejs/node#56645. Below
 it, a headless `-p` run that dispatched any tool aborts at exit on Windows.
@@ -98,7 +101,7 @@ range; a missing rung is named, never skipped silently.
 Mercury builds with bun and runs on Node 24 LTS:
 
 ```sh
-bun run setup                      # once; bun install + the five vendored packs
+bun run setup                      # once; bun install + the vendored packs
 bun run build.ts                   # writes dist/mercury.mjs + dist/manifest.json
 node dist/mercury.mjs --version
 node dist/mercury.mjs              # the cockpit needs a real TTY, 100+ columns
@@ -106,13 +109,18 @@ node dist/mercury.mjs doctor --json
 ```
 
 `setup` fetches the vendored capability packs (pyright · debugpy · js-debug ·
-extra grammars · this machine's Node runtime); a failed fetch skips its pack,
-and the build and the affected features say so (`bun install` alone ships
+extra grammars · this machine's Node runtime · brush); a failed fetch skips its
+pack, and the build and the affected features say so (`bun install` alone ships
 that degraded build). With a Rust toolchain on the machine, `setup` also
 builds the voice capture addon from `native/voice` and, with cmake beside
 it, the on-device transcriber addon from `native/whisper` (the packs that
 are built, not fetched; without the toolchain each is skipped and the
-doctor says so).
+doctor says so); on Windows the shell engine is built the same way, since
+upstream publishes no Windows binary.
+The vendored shell engine (brush, a bash-compatible shell in Rust) is optional:
+the system shell stays the default, and the `shellEngine` setting (`/config`) or
+`MERCURY_SHELL_ENGINE=brush` runs the Bash tool on it, keeping shell state
+across calls; see [docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md).
 The build writes only under `dist/`. Configuration and sessions live in the
 config home, `~/.mercury` or whatever `MERCURY_CONFIG_DIR` names; the first
 run creates it. Windows runs `node dist\mercury.mjs` directly.

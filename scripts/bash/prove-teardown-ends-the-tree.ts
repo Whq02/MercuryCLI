@@ -179,6 +179,36 @@ section('§4 the win32 survivor half — the reap covers the acted set')
   check('the POSIX arm keeps its snapshot-walk-strike-reap shape (untouched by this half)', /async function endPosixTree\(/.test(group) && /collectPosixTargets\(/.test(group) && /process\.kill\(-pid, signal\)/.test(group))
 }
 
+section("§5 the shell engine's end ends the brush AND its descendants")
+if (process.platform !== 'win32') {
+  const { resolveShellEngine, runEngineCommand, endEngineSession, resetEngineSessionForTest } = await import('../../src/utils/shell/engineSession.ts')
+  const resolution = resolveShellEngine('brush')
+  if (resolution.engine !== 'brush') {
+    console.log(`  [SKIP — LOUD] no shell engine pack on this host (${resolution.reason}) — the engine leg runs where the pack is`)
+  } else {
+    const root = mkdtempSync(join(tmpdir(), 'teardown-tree-engine-'))
+    const pidFile = join(root, 'grandchild.pid')
+    const controller = new AbortController()
+    const run = (command: string) => runEngineCommand(resolution.binaryPath, command, { timeout: 10_000, signal: controller.signal }).result
+    let grandchild = -1
+    try {
+      const who = await run('echo "pid=$$"')
+      const brushPid = Number(/pid=(\d+)/.exec(who.stdout)?.[1] ?? -1)
+      check('the engine session answered with its pid', brushPid > 1, JSON.stringify(who.stdout.slice(0, 80)))
+      await run(`sh -c 'sleep 30 & echo $! > ${JSON.stringify(pidFile)}; wait' >/dev/null 2>&1 &`)
+      grandchild = await readPid(pidFile)
+      check('the fixture recorded a descendant of the session', grandchild > 1, `pid=${grandchild}`)
+      await endEngineSession()
+      check('the brush process is gone after the session end', brushPid > 1 && (await diedWithin(brushPid, 2_500)), `pid ${brushPid} still alive 2.5 s after the end`)
+      check('the descendant is gone too (tree, not leader)', grandchild > 1 && (await diedWithin(grandchild, 2_500)), `pid ${grandchild} still alive 2.5 s after the end`)
+    } finally {
+      reap(grandchild)
+      resetEngineSessionForTest()
+      rmSync(root, { recursive: true, force: true })
+    }
+  }
+}
+
 if (failures > 0) {
   console.error(`\nprove-teardown-ends-the-tree: ${failures} FAILURE(S)`)
   process.exit(1)
