@@ -125,6 +125,48 @@ try {
     )
   }
 
+  section("render_tui — the checkout from the build's own location, the runtime the suites' way; a missing one answers typed-unavailable")
+  {
+    const { renderTuiCheckoutRoot, renderTuiPrerequisites, renderTuiRuntime, RENDER_TUI_SCRIPT } = await import('../../src/services/mcp/renderTuiTool.ts')
+    const { existsSync, mkdirSync, mkdtempSync, writeFileSync } = await import('node:fs')
+    const { tmpdir } = await import('node:os')
+    const { join } = await import('node:path')
+    const root = renderTuiCheckoutRoot()
+    check("the checkout root is found from the module's own location", root !== null && existsSync(join(root ?? '', RENDER_TUI_SCRIPT)), String(root))
+    const nowhere = mkdtempSync(join(tmpdir(), 'render-tui-nowhere-'))
+    const savedCwd = process.cwd()
+    process.chdir(nowhere)
+    try {
+      check('…whatever the session cwd is', renderTuiCheckoutRoot() === root)
+      const noCheckout = renderTuiPrerequisites({ from: nowhere })
+      check('no checkout above a directory ⇒ unavailable naming the script and the release install', !noCheckout.ready && noCheckout.reason.includes('render-tui.ts') && /release install/.test(noCheckout.reason), noCheckout.ready ? 'ready' : noCheckout.reason)
+      const noRuntime = renderTuiRuntime({ env: { PATH: '' }, home: nowhere })
+      check('no runtime anywhere ⇒ the three roads are named', 'missing' in noRuntime && /BUN=/.test(noRuntime.missing) && /PATH/.test(noRuntime.missing) && noRuntime.missing.includes(join(nowhere, '.bun', 'bin')), JSON.stringify(noRuntime))
+      const brokenPin = renderTuiRuntime({ env: { BUN: join(nowhere, 'no-bun') } })
+      check('a broken BUN pin names itself, never a silent substitute', 'missing' in brokenPin && brokenPin.missing.includes(join(nowhere, 'no-bun')), JSON.stringify(brokenPin))
+      mkdirSync(join(nowhere, 'bin'), { recursive: true })
+      writeFileSync(join(nowhere, 'bin', process.platform === 'win32' ? 'bun.exe' : 'bun'), '')
+      const onPath = renderTuiRuntime({ env: { PATH: join(nowhere, 'bin') }, home: nowhere })
+      check('a bun on PATH is found when the pin and the home install are absent', 'bun' in onPath && onPath.bun.startsWith(join(nowhere, 'bin')), JSON.stringify(onPath))
+      mkdirSync(join(nowhere, '.bun', 'bin'), { recursive: true })
+      writeFileSync(join(nowhere, '.bun', 'bin', process.platform === 'win32' ? 'bun.exe' : 'bun'), '')
+      const atHome = renderTuiRuntime({ env: { PATH: join(nowhere, 'bin') }, home: nowhere })
+      check('…and the home install wins over PATH', 'bun' in atHome && atHome.bun.startsWith(join(nowhere, '.bun', 'bin')), JSON.stringify(atHome))
+      const savedBun = process.env.BUN
+      process.env.BUN = join(nowhere, 'no-bun')
+      try {
+        const client = await connect()
+        const r = await client.callTool({ name: 'render_tui', arguments: {} })
+        check('render_tui answers typed-unavailable through the MCP seam (no spawn, no module-not-found)', isError(r) && /^render_tui unavailable: /.test(textOf(r)) && textOf(r).includes('no-bun') && !/Module not found/.test(textOf(r)), textOf(r).slice(0, 200))
+      } finally {
+        if (savedBun === undefined) delete process.env.BUN
+        else process.env.BUN = savedBun
+      }
+    } finally {
+      process.chdir(savedCwd)
+    }
+  }
+
   section('SOLO (no team): every verb is a benign no-op, NOT a tool error')
   clearDynamicTeamContext()
   {
