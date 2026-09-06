@@ -10,7 +10,6 @@ import { getAgentContext, isTeammateAgentContext } from '../../utils/agentContex
 import { getSubscriptionType } from '../../utils/auth.js'
 import { getModelBetas } from '../../utils/betas.js'
 import { env, getHostPlatformForAnalytics } from '../../utils/env.js'
-import { isEnvTruthy } from '../../utils/envUtils.js'
 import { getRepoRemoteHash } from '../../utils/git.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { detectVcs, getLinuxDistroInfo, getWslVersion } from '../../utils/platform.js'
@@ -63,7 +62,7 @@ export function isToolDetailsLoggingEnabled(server: {
 }
 
 export function isAnalyticsToolDetailsLoggingEnabled(): boolean {
-  return isEnvTruthy(process.env.OTEL_LOG_TOOL_DETAILS)
+  return false
 }
 
 export function mcpToolDetailsForAnalytics(

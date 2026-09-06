@@ -2,6 +2,7 @@ import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import { getSettingsForSource, updateSettingsForSource } from '../utils/settings/settings.js'
 import { logError } from '../utils/log.js'
 import { settingsWriteLanded } from './settingsWriteLanded.js'
+import { setFlagEnv } from '../substrate/flagRegistry.js'
 
 export function migrateAutoUpdatesToSettings(): boolean {
   try {
@@ -11,10 +12,10 @@ export function migrateAutoUpdatesToSettings(): boolean {
 
     const settings = getSettingsForSource('userSettings') ?? {}
     const verdict = updateSettingsForSource('userSettings', {
-      env: { ...(settings.env ?? {}), DISABLE_AUTOUPDATER: '1' },
+      env: { ...(settings.env ?? {}), MERCURY_AUTOUPDATE: '0' },
     })
     if (!settingsWriteLanded('A.1 auto-update opt-out', verdict)) return false
-    process.env.DISABLE_AUTOUPDATER = '1'
+    setFlagEnv('MERCURY_AUTOUPDATE', '0')
 
     saveGlobalConfig(current => {
       const next = { ...current }

@@ -40,13 +40,13 @@ import { classifyMcpToolForCollapse } from '../../tools/MCPTool/classifyForColla
 import { ListMcpResourcesTool } from '../../tools/ListMcpResourcesTool/ListMcpResourcesTool.js'
 import { createMcpAuthTool } from '../../tools/McpAuthTool/McpAuthTool.js'
 import { ReadMcpResourceTool } from '../../tools/ReadMcpResourceTool/ReadMcpResourceTool.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { checkAndRefreshOAuthTokenIfNeeded, getClaudeAIOAuthTokens, handleOAuth401Error } from '../../utils/auth.js'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
 import { armInactivityDeadline, formatLimit, minutesKnobToMs } from '../../utils/deadline.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { getMercuryHome, isEnvDefinedFalsy, isEnvTruthy } from '../../utils/envUtils.js'
+import { getMercuryHome, isEnvTruthy } from '../../utils/envUtils.js'
 import { errorMessage, getErrnoCode, isAbortError, TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../utils/errors.js'
 import { getMCPUserAgent } from '../../utils/http.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
@@ -158,13 +158,13 @@ const TERMINAL_ERROR_SUBSTRINGS = [
 ]
 
 function connectTimeoutMs(): number {
-  const raw = process.env.MCP_TIMEOUT
+  const raw = flagEnv('MERCURY_MCP_TIMEOUT_MS')
   const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_CONNECT_TIMEOUT_MS
 }
 
 function toolTimeoutMs(): number {
-  const raw = process.env.MCP_TOOL_TIMEOUT
+  const raw = flagEnv('MERCURY_MCP_TOOL_TIMEOUT_MS')
   const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TOOL_TIMEOUT_MS
 }
@@ -220,13 +220,13 @@ function routeProgress(client: Client, token: string, handler: (params: Progress
 }
 
 export function getMcpServerConnectionBatchSize(): number {
-  const raw = process.env.MCP_SERVER_CONNECTION_BATCH_SIZE
+  const raw = flagEnv('MERCURY_MCP_CONNECTION_BATCH')
   const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 3
 }
 
 function getRemoteConnectionBatchSize(): number {
-  const raw = process.env.MCP_REMOTE_SERVER_CONNECTION_BATCH_SIZE
+  const raw = flagEnv('MERCURY_MCP_REMOTE_CONNECTION_BATCH')
   const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 20
 }
@@ -1176,7 +1176,7 @@ export async function processMCPResult(result: unknown, tool: string, name: stri
   if (name === IDE_SERVER_NAME) return transformed.content
   if (transformed.content === undefined) return transformed.content
   if (!(await mcpContentNeedsTruncation(transformed.content))) return transformed.content
-  if (isEnvDefinedFalsy(process.env.ENABLE_MCP_LARGE_OUTPUT_FILES)) return truncateMcpContent(transformed.content)
+  if (!flagEnabled('MERCURY_MCP_LARGE_OUTPUT_FILES')) return truncateMcpContent(transformed.content)
   if (transformed.isImage) return truncateMcpContent(transformed.content)
   const serialized = typeof transformed.content === 'string' ? transformed.content : JSON.stringify(transformed.content, null, 2)
   const persisted = await persistToolResult(serialized, persistId(name, tool))
@@ -1306,7 +1306,7 @@ async function callToolOnce(
     }
     if (err instanceof McpError && err.code === ErrorCode.RequestTimeout) {
       throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-        `MCP tool "${tool}" on server "${connected.name}" failed: no answer within ${Math.round(timeoutMs / 1000)}s (MCP_TOOL_TIMEOUT) — retry, or raise MCP_TOOL_TIMEOUT for a slow tool`,
+        `MCP tool "${tool}" on server "${connected.name}" failed: no answer within ${Math.round(timeoutMs / 1000)}s (MERCURY_MCP_TOOL_TIMEOUT_MS) — retry, or raise MERCURY_MCP_TOOL_TIMEOUT_MS for a slow tool`,
         'MCP tool call request timeout',
       )
     }

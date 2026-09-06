@@ -18,7 +18,7 @@ import {
   getCurrentProjectConfig,
 } from './utils/config.js'
 import { logForDiagnosticsNoPII } from './utils/diagLogs.js'
-import { isBareMode, isEnvTruthy } from './utils/envUtils.js'
+import { isBareMode } from './utils/envUtils.js'
 import { findCanonicalGitRoot, getIsGit } from './utils/git.js'
 import { hasWorktreeCreateHook } from './utils/hooks.js'
 import { captureHooksConfigSnapshot } from './utils/hooks/hooksConfigSnapshot.js'
@@ -243,8 +243,7 @@ export async function setup(
     if (
       process.platform !== 'win32' &&
       typeof process.getuid === 'function' &&
-      process.getuid() === 0 &&
-      process.env.IS_SANDBOX !== '1'
+      process.getuid() === 0
     ) {
       console.error(
         'Refusing --dangerously-bypass-permissions under root/sudo — running permission-free with superuser rights is a security hazard.',

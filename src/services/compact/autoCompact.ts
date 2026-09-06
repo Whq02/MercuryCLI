@@ -10,7 +10,7 @@ import { logError } from '../../utils/log.js'
 import { getContextWindowForModel, getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
 import { awaitContextWindowSource } from '../../utils/model/contextWindowWarmup.js'
 import { getTokenUsage, tokenCountWithEstimation } from '../../utils/tokens.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
 import { ownerFromToolUseContext } from '../run/resolveOwner.js'
 import { setLastSummarizedMessageId } from '../SessionMemory/sessionMemoryUtils.js'
@@ -115,8 +115,8 @@ export function getAutoCompactThreshold(model: string): number {
 }
 
 export function isAutoCompactEnabled(): boolean {
-  if (isEnvTruthy(process.env.DISABLE_COMPACT)) return false
-  if (isEnvTruthy(process.env.DISABLE_AUTO_COMPACT)) return false
+  if (!flagEnabled('MERCURY_COMPACT')) return false
+  if (!flagEnabled('MERCURY_AUTO_COMPACT')) return false
   return getGlobalConfig().autoCompactEnabled
 }
 
@@ -264,8 +264,8 @@ export async function autoCompactIfNeeded(
 }> {
   const notCompacted = { wasCompacted: false as const, consecutiveFailures: tracking?.consecutiveFailures }
   const forced = overflowSignal !== undefined
-  if (isEnvTruthy(process.env.DISABLE_COMPACT)) {
-    return forced ? { ...notCompacted, refusal: 'compaction is disabled (DISABLE_COMPACT)' } : notCompacted
+  if (!flagEnabled('MERCURY_COMPACT')) {
+    return forced ? { ...notCompacted, refusal: 'compaction is disabled (MERCURY_COMPACT=0)' } : notCompacted
   }
   const failures = tracking?.consecutiveFailures ?? 0
   if (failures >= MAX_CONSECUTIVE_FAILURES) {

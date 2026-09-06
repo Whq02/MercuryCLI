@@ -150,6 +150,7 @@ import { migrateSonnet45ToSonnet46 } from './migrations/migrateSonnet45ToSonnet4
 import { migrateOpusToOpus1m } from './migrations/migrateOpusToOpus1m.js'
 import { migrateReplBridgeEnabledToRemoteControlAtStartup } from './migrations/migrateReplBridgeEnabledToRemoteControlAtStartup.js'
 import { migrateVerboseToToolOutput } from './migrations/migrateVerboseToToolOutput.js'
+import { migrateAutoupdateEnvName } from './migrations/migrateAutoupdateEnvName.js'
 import type { Root } from './ink.js'
 import chalk from 'chalk'
 import { refusalEnvelope } from './cli/headless/refusalEnvelope.js'
@@ -192,7 +193,7 @@ function applyMergedConfigEnv(): void {
 }
 
 
-const MIGRATION_VERSION = 12
+const MIGRATION_VERSION = 13
 
 function runMigrationsIfNeeded(): void {
   try {
@@ -209,6 +210,7 @@ function runMigrationsIfNeeded(): void {
     landed.push(migrateOpusToOpus1m())
     migrateReplBridgeEnabledToRemoteControlAtStartup()
     migrateVerboseToToolOutput()
+    landed.push(migrateAutoupdateEnvName())
     const incomplete = landed.some(ok => ok === false)
     if (incomplete) {
       logForDebugging(

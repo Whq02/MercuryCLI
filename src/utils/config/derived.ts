@@ -2,12 +2,11 @@ import { randomBytes } from 'crypto'
 import { join } from 'path'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { getAutoMemEntrypoint } from '../../memdir/paths.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import {
   getMercuryHome,
   isEnvDefinedFalsy,
-  isEnvTruthy,
-} from '../envUtils.js'
+  } from '../envUtils.js'
 import type { MemoryType } from '../memory/types.js'
 import { getManagedFilePath } from '../settings/managedPath.js'
 
@@ -78,6 +77,7 @@ export function formatAutoUpdaterDisabledReason(
 }
 
 export function getAutoUpdaterDisabledReason(): AutoUpdaterDisabledReason | null {
+  if (!flagEnabled('MERCURY_AUTOUPDATE')) return { type: 'env', envVar: 'MERCURY_AUTOUPDATE' }
   return { type: 'standalone' }
 }
 
