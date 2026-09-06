@@ -25,7 +25,9 @@ import {
   recoveryNoticeFacts,
   refillRecoveryBudget,
   retryWaitWords,
+  settleRecoveryWait,
   type RecoveryBudget,
+  type RecoveryReservation,
 } from '../../services/api/recoveryBudget.js'
 import { runAgent } from '../AgentTool/runAgent.js'
 import { readAgentMetadata } from '../../utils/sessionStorage.js'
@@ -873,6 +875,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       let recoveryHeartbeat: ReturnType<typeof setInterval> | undefined
       let budgetCut: ReturnType<typeof setTimeout> | undefined
       let lastDeclaredEndsAt: number | undefined
+      let standingWait: RecoveryReservation | null = null
       const clearBudgetCut = (): void => {
         if (budgetCut !== undefined) clearTimeout(budgetCut)
         budgetCut = undefined
@@ -925,7 +928,9 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         const notice = recoveryNoticeFacts(m)
         if (notice !== null) {
           const isRealDelay = typeof m?.retryInMs === 'number' && m.retryInMs > 0
-          const { honoredMs, spent } = honourRecoveryWait(recovery, notice)
+          settleRecoveryWait(recovery, standingWait)
+          const { honoredMs, spent, reservation } = honourRecoveryWait(recovery, notice)
+          standingWait = reservation
           lastDeclaredEndsAt = Date.now() + notice.declaredMs
           clearBudgetCut()
           if (spent && honoredMs <= 0) {
@@ -957,7 +962,11 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           }, RECOVERY_HEARTBEAT_MS)
           return
         }
-        if (m !== undefined && m.type !== 'progress') clearBudgetCut()
+        if (m !== undefined && m.type !== 'progress') {
+          clearBudgetCut()
+          settleRecoveryWait(recovery, standingWait)
+          standingWait = null
+        }
         if (recoveryAnswerRefills(m)) refillRecoveryBudget(recovery)
         if (m?.type === 'request_wait') {
           const wait = (m as { wait?: unknown }).wait
@@ -1231,6 +1240,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         clearStallTimer()
         clearHeartbeat()
         clearBudgetCut()
+        settleRecoveryWait(recovery, standingWait)
         parentSignal?.removeEventListener('abort', onParentAbort)
         onAgentController?.(agentId, null)
       }
