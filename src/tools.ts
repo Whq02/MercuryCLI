@@ -5,7 +5,7 @@ import { flagEnv } from './substrate/flagRegistry.js'
 import { getDenyRuleForTool } from './utils/permissions/permissions.js'
 import { searchToolsAvailability } from './utils/ripgrep.js'
 import { isAgentSwarmsEnabled } from './utils/agentSwarmsEnabled.js'
-import { isTodoV2Enabled } from './utils/tasks.js'
+import { isTaskToolsEnabled } from './utils/tasks.js'
 import { isWorktreeModeEnabled } from './utils/worktreeModeEnabled.js'
 import { isAutopilotEnabled } from './utils/autopilot/autopilotGates.js'
 import { vulcanToolCatalogEnabled } from './utils/vulcan/vulcanGates.js'
@@ -104,7 +104,6 @@ import { TeamCreateTool } from './tools/TeamCreateTool/TeamCreateTool.js'
 import { TeamDeleteTool } from './tools/TeamDeleteTool/TeamDeleteTool.js'
 import { TestingPermissionTool } from './tools/testing/TestingPermissionTool.js'
 import { TestTool } from './tools/TestTool/TestTool.js'
-import { TodoWriteTool } from './tools/TodoWriteTool/TodoWriteTool.js'
 import { ToolSearchTool } from './tools/ToolSearchTool/ToolSearchTool.js'
 import { TransactionTool } from './tools/TransactionTool/TransactionTool.js'
 import { WebFetchTool } from './tools/WebFetchTool/WebFetchTool.js'
@@ -195,7 +194,6 @@ export function getAllBaseTools(): Tools {
     FileWriteTool,
     NotebookEditTool,
     WebFetchTool,
-    TodoWriteTool,
     WebSearchTool,
     ProviderSearchTool,
     TaskStopTool,
@@ -203,7 +201,7 @@ export function getAllBaseTools(): Tools {
     SkillTool,
     EnterPlanModeTool,
     ApolloReviewTool,
-    ...(isTodoV2Enabled() ? [TaskCreateTool, TaskGetTool, TaskUpdateTool, TaskListTool] : []),
+    ...(isTaskToolsEnabled() ? [TaskCreateTool, TaskGetTool, TaskUpdateTool, TaskListTool] : []),
     ...(isLspToolCatalogEnabled() ? [LSPTool] : []),
     ...(mercuryRefsEnabled() ? [InspectTool] : []),
     ...(workshopEnabled() ? [WorkshopTool] : []),
@@ -276,8 +274,8 @@ export function filterToolsByDenyRules<T extends { name: string; mcpInfo?: unkno
 }
 
 const SPECIAL_TOOL_NAMES = new Set([
-  'ListMcpResourcesTool',
-  'ReadMcpResourceTool',
+  'ListMcpResources',
+  'ReadMcpResource',
   SyntheticOutputTool.name,
 ])
 

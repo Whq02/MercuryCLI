@@ -19,7 +19,7 @@ import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
 import { getDynamicConfig_CACHED_MAY_BE_STALE } from '../analytics/featureGates.js'
 import { createAutoMemCanUseTool } from './autoMemCanUseTool.js'
-import { isAutoDreamEnabled } from './config.js'
+import { isMemoryUpkeepEnabled } from './config.js'
 import {
   listSessionsTouchedSince,
   readLastConsolidatedAt,
@@ -78,7 +78,7 @@ function createRunner(): Runner {
     if (isRemoteMode()) return
     if (!isAutoMemoryEnabled()) return
     const forced = isForcedRun()
-    if (!forced && !isAutoDreamEnabled()) return
+    if (!forced && !isMemoryUpkeepEnabled()) return
 
     let lastConsolidatedAt: number
     try {

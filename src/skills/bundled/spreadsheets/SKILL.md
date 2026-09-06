@@ -1,7 +1,7 @@
 ---
 name: spreadsheets
 description: Read, build, and repair Excel workbooks (.xlsx) — inspect sheets and headers, load data with openpyxl or pandas, write formulas that recalculate, apply number formats and conditional styles, and verify the result opens cleanly. Use when the request names a spreadsheet, workbook, .xlsx, or .csv-to-Excel task; not for Word, slides, PDFs, or SQL databases.
-when_to_use: The user wants a workbook created from data, an existing .xlsx analysed or changed, formulas added or fixed, or a CSV turned into a formatted sheet.
+when-to-use: The user wants a workbook created from data, an existing .xlsx analysed or changed, formulas added or fixed, or a CSV turned into a formatted sheet.
 argument-hint: "<path.xlsx or 'new'> [what to do]"
 ---
 

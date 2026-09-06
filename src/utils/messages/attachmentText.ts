@@ -43,7 +43,7 @@ import {
   isPlanModeInterviewPhaseEnabled,
 } from '../planModeV2.js'
 import { jsonStringify } from '../slowOperations.js'
-import { isTodoV2Enabled } from '../tasks.js'
+import { isTaskToolsEnabled } from '../tasks.js'
 import {
   formatDecisionRecordForPlanning,
   latestDecisionRecordSync,
@@ -593,25 +593,8 @@ The team config lists your teammates' names. Check the task list periodically; c
         }),
       ])
     }
-    case 'todo_reminder': {
-      const todoItems = attachment.content
-        .map((todo, index) => `${index + 1}. [${todo.status}] ${todo.content}`)
-        .join('\n')
-
-      let message = `The TodoWrite tool hasn't been touched in a while. If the current work would benefit from tracked progress, consider using it — and if the list below has gone stale against what you're actually doing, consider cleaning it up. Relevant work only; ignore this if it doesn't apply, and NEVER mention this reminder to the user.\n`
-      if (todoItems.length > 0) {
-        message += `\n\nThe current todo list:\n\n[${todoItems}]`
-      }
-
-      return wrapMessagesInSystemReminder([
-        createUserMessage({
-          content: message,
-          isMeta: true,
-        }),
-      ])
-    }
     case 'task_reminder': {
-      if (!isTodoV2Enabled()) {
+      if (!isTaskToolsEnabled()) {
         return []
       }
       const taskItems = attachment.content
@@ -811,7 +794,7 @@ ${label} is off: its instructions above no longer apply, and the session's stand
       ])
     }
     case 'repo_surface_map': {
-      const content = `This repository has no CLAUDE.md, so here is an auto-derived surface map (a structure-only scan: languages, entry points, layout). Use it to orient instead of broad exploratory listing; verify anything load-bearing before relying on it, and prefer reading the repo's own docs where they exist.
+      const content = `This repository has no orientation file (MERCURY.md or AGENTS.md), so here is an auto-derived surface map (a structure-only scan: languages, entry points, layout). Use it to orient instead of broad exploratory listing; verify anything load-bearing before relying on it, and prefer reading the repo's own docs where they exist.
 
 ${attachment.markdown}`
       return wrapMessagesInSystemReminder([
@@ -1259,6 +1242,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
     'autocheckpointing',
     'background_task_status',
     'todo',
+    'todo_reminder',
     'task_progress',
     'ultramemory',
   ]

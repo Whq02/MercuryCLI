@@ -28,7 +28,6 @@ const base = (uuid: string, parent: string | null): Record<string, unknown> => (
   uuid,
   parentUuid: parent,
   isSidechain: false,
-  userType: 'external',
   cwd: SCRATCH,
   sessionId: SID,
   version: '1.0.0',

@@ -32,8 +32,8 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   const transcriptShortcut = formatShortcut(
     useShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o'),
   )
-  const todosShortcut = formatShortcut(
-    useShortcutDisplay('app:toggleTodos', 'Global', 'ctrl+t'),
+  const tasksShortcut = formatShortcut(
+    useShortcutDisplay('app:toggleTasks', 'Global', 'ctrl+t'),
   )
   const undoShortcut = formatShortcut(
     useShortcutDisplay('chat:undo', 'Chat', 'ctrl+_'),
@@ -95,7 +95,7 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
     { key: 'esc', text: 'double tap esc to clear input' },
     { key: 'mode', text: `${cycleModeShortcut} for implement mode` },
     { key: 'tsc', text: `${transcriptShortcut} for the transcript` },
-    { key: 'todos', text: `${todosShortcut} to toggle tasks` },
+    { key: 'todos', text: `${tasksShortcut} to toggle tasks` },
     { key: 'nl', text: getNewlineInstructions() },
   ]
   const stripRow = stripKeyMapHint()

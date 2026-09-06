@@ -47,7 +47,7 @@ const projectDir = join(configDir, 'projects', slug)
 mkdirSync(projectDir, { recursive: true })
 const SID = '00000000-aaaa-bbbb-cccc-000000000001'
 const base = (extra: Record<string, unknown>) => ({
-  isSidechain: false, userType: 'external', entrypoint: 'cli',
+  isSidechain: false, entrypoint: 'cli',
   cwd, sessionId: SID, version: '1.0.0-beta.1', gitBranch: 'main', ...extra,
 })
 const rows = [
