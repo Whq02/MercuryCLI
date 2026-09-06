@@ -3,6 +3,7 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, statSync, unlinkSync } from 'node:fs'
+import { connect as netConnect, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -204,11 +205,32 @@ check(
 )
 check('no record or delta file was rewritten at idle', !Object.keys(win.fsByPath).some(k => /rename|writeFile|openSync .*\.tmp/.test(k)), top(win.fsByPath, 6))
 
+interface Lease {
+  sock: Socket
+  connected: boolean
+  closed: boolean
+}
+function openLease(path: string): Promise<Lease> {
+  return new Promise(resolve => {
+    const lease: Lease = { sock: netConnect(path), connected: false, closed: false }
+    lease.sock.on('error', () => {})
+    lease.sock.once('connect', () => {
+      lease.connected = true
+      resolve(lease)
+    })
+    lease.sock.once('close', () => {
+      lease.closed = true
+      resolve(lease)
+    })
+  })
+}
+
 section('§2 THE HEAL FOLLOWS THE WATCH — the control socket removed comes back within seconds, once')
 if (POSIX) {
   const sock = controlSockPath()
   check('the control socket is where the daemon says it is', existsSync(sock), sock)
-  const before = statSync(sock).ino
+  const old = await openLease(sock)
+  check('a lease on the current bind is open (the witness for the heal)', old.connected && !old.closed)
   unlinkSync(sock)
   const removedAt = Date.now()
   const healed = await until(() => existsSync(sock), 10_000)
@@ -216,13 +238,19 @@ if (POSIX) {
   console.log(`  socket back after ${healMs} ms`)
   check('the socket came back', healed)
   check('…from the watch, well under the 30 s floor (≤ 3000 ms)', healed && healMs <= 3_000, `${healMs} ms`)
-  const inoAfter = healed ? statSync(sock).ino : -1
-  check('…as a new bind (a different inode)', healed && inoAfter !== before)
+  check('…as a socket node, not a stray file', healed && statSync(sock).isSocket())
+  const oldDied = await until(() => old.closed, 3_000)
+  check('…as a new bind: the lease on the removed bind died (rebind destroys every open connection before it binds again)', healed && old.connected && oldDied)
+  old.sock.destroy()
+  const fresh = await openLease(sock)
+  check('the re-bound socket accepts a lease', fresh.connected && !fresh.closed)
   await wait(3_000)
-  check('…once: the bind holds for the next seconds (same inode)', healed && existsSync(sock) && statSync(sock).ino === inoAfter)
+  check('…once: the lease on the new bind holds for the next seconds (no second rebind)', fresh.connected && !fresh.closed && existsSync(sock) && statSync(sock).isSocket())
+  fresh.sock.destroy()
   const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
   const status = await daemonControlRpc({ op: 'status' } as never, { timeoutMs: 5_000 }).catch(e => ({ error: String(e) }))
   check('the plane answers on the re-bound socket', typeof status === 'object' && status !== null && !('error' in (status as Record<string, unknown>)), JSON.stringify(status).slice(0, 200))
+  check('…and it is the daemon we booted (the status pid)', (status as { status?: { pid?: number } }).status?.pid === daemonPid, JSON.stringify(status).slice(0, 200))
 } else {
   console.log('  (win32: a named pipe cannot be unlinked from under its listener — the key/state halves keep the heal; not staged here)')
 }

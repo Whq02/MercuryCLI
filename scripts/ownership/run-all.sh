@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/utils/settings/types*
+# gate-watch: src/utils/config.ts src/utils/settings/** src/utils/permissions/** src/types/permissions.ts src/types/message.ts
+# gate-watch: src/services/compact/** src/services/mcp/** src/services/tools/** src/services/run/effectObserver*
+# gate-watch: src/query.ts src/QueryEngine.ts src/run-core/** src/cli/print.ts src/cli/headless/** src/cli/structuredIO.ts
+# gate-watch: src/tools/AgentTool/AgentTool* src/utils/swarm/** src/main.tsx src/screens/REPL.tsx src/components/PromptInput/PromptInput*
 set -u
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 
