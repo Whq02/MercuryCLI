@@ -507,7 +507,6 @@ async function run(): Promise<void> {
     .addOption(new Option('--output-format <format>', 'Output format').choices(['text', 'json', 'stream-json']))
     .addOption(new Option('--input-format <format>', 'Input format').choices(['text', 'stream-json']))
     .option('--json-schema <schema>', 'JSON schema for structured output')
-    .option('--include-hook-events', 'Emit all hook event types')
     .option('--include-partial-messages', 'Emit partial message stream events')
     .option('--dangerously-bypass-permissions', 'Bypass all permission checks')
     .option('--allow-dangerously-bypass-permissions', 'Allow the bypass mode to be toggled')
