@@ -1,11 +1,11 @@
 
 import React from 'react'
+import { flagEnabled } from '../substrate/flagRegistry.js'
 import { Text } from '../ink.js'
 import {
   calculateTokenWarningState,
   isAutoCompactEnabled,
 } from '../services/compact/autoCompact.js'
-import { isEnvTruthy } from '../utils/envUtils.js'
 import { useCompactWarningSuppression } from '../services/compact/compactWarningHook.js'
 import { getUpgradeMessage } from '../utils/model/contextWindowUpgradeCheck.js'
 
@@ -31,10 +31,10 @@ export function TokenWarning({
       </Text>
     )
   }
-  const envKill = isEnvTruthy(process.env.DISABLE_COMPACT)
-    ? 'DISABLE_COMPACT'
-    : isEnvTruthy(process.env.DISABLE_AUTO_COMPACT)
-      ? 'DISABLE_AUTO_COMPACT'
+  const envKill = !flagEnabled('MERCURY_COMPACT')
+    ? 'MERCURY_COMPACT=0'
+    : !flagEnabled('MERCURY_AUTO_COMPACT')
+      ? 'MERCURY_AUTO_COMPACT=0'
       : null
   return (
     <Text color="error" wrap="truncate">

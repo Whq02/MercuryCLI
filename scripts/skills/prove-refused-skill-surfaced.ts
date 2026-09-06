@@ -7,7 +7,7 @@ const scratch = mkdtempSync(join(tmpdir(), 'refused-skill-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 delete process.env.MERCURY_HOME
-delete process.env.MERCURY_SIMPLE
+delete process.env.MERCURY_BARE
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 
 let failures = 0

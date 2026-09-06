@@ -554,7 +554,7 @@ export const FileEditTool = buildTool({
     const usingHunks = hunksInUse(input)
     const anchorChecked = changeTransactionEnabled() && input.expected_anchor !== undefined
 
-    if (!isEnvTruthy(process.env.MERCURY_SIMPLE)) {
+    if (!isEnvTruthy(process.env.MERCURY_BARE)) {
       await discoverSkillsForPath(context, expandedPath)
     }
     await diagnosticTracker.beforeFileEdited(expandedPath)

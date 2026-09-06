@@ -232,7 +232,7 @@ section('§3 — black-holed socket, belt disabled: transport budgets alone end 
   const run = await runDistTurns(
     hermeticEnv(`http://127.0.0.1:${port}`, {
       MERCURY_HEADLESS_IDLE_MINUTES: '0',
-      API_TIMEOUT_MS: '2000',
+      MERCURY_API_TIMEOUT_MS: '2000',
       MERCURY_MAX_RETRIES: '1',
     }),
     ['black-hole floor probe'],
@@ -300,7 +300,7 @@ section('§5 — mid-stream stall, belt disabled: undici bodyTimeout ends the ru
   const run = await runDistTurns(
     hermeticEnv(`http://127.0.0.1:${port}`, {
       MERCURY_HEADLESS_IDLE_MINUTES: '0',
-      API_TIMEOUT_MS: '2000',
+      MERCURY_API_TIMEOUT_MS: '2000',
       MERCURY_MAX_RETRIES: '1',
     }),
     ['stall floor probe'],

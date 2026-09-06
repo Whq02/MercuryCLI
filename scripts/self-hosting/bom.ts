@@ -18,7 +18,7 @@ const model = values.model!
 const mode = values.mode!
 
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
-delete process.env.MERCURY_SIMPLE
+delete process.env.MERCURY_BARE
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()

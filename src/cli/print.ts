@@ -1,4 +1,6 @@
 import { randomUUID, type UUID } from 'node:crypto'
+import { refusalEnvelope } from './headless/refusalEnvelope.js'
+import type { PermissionChannel } from '../Tool.js'
 import { readFile, stat } from 'node:fs/promises'
 import { liveSkillRootsOf, pruneSkillSessionHooks } from '../utils/hooks/sessionHooks.js'
 import {
@@ -279,6 +281,7 @@ type HeadlessOptions = {
   outputFormat?: string
   jsonSchema?: Record<string, unknown>
   permissionPromptToolName?: string
+  permissionChannel?: PermissionChannel
   allowedTools?: string[]
   thinkingConfig?: ThinkingConfig
   maxTurns?: number
@@ -292,7 +295,6 @@ type HeadlessOptions = {
   includePartialMessages?: boolean
   forkSession?: boolean
   rewindFiles?: string
-  enableAuthStatus?: boolean
   agent?: string
   workload?: string
   setupTrigger?: 'init' | 'maintenance'
@@ -651,7 +653,7 @@ export async function runHeadless(
     !resumeTargetValid
   ) {
     emitLoadError(
-      'Error: input must be provided either through stdin or as a prompt argument when using --print',
+      'No prompt reached --print: give one as the argument or on stdin',
       options.outputFormat,
     )
     gracefulShutdownSync(1)
@@ -665,6 +667,7 @@ export async function runHeadless(
   })
   let sessionTools: Tool[] = [...tools, ...startingMcpTools]
   const canUseTool = getCanUseToolFn(
+    options.permissionChannel,
     options.permissionPromptToolName,
     io,
     () => getAppState().mcp.tools as Tool[],
@@ -1157,9 +1160,7 @@ export async function runHeadless(
           maxBudgetUsd: options.maxBudgetUsd,
           taskBudget: options.taskBudget,
           canUseTool,
-          ...(options.permissionPromptToolName === undefined
-            ? {}
-            : { permissionChannel: options.permissionPromptToolName === 'stdio' ? ('stdio' as const) : ('prompt-tool' as const) }),
+          ...(options.permissionChannel === undefined ? {} : { permissionChannel: options.permissionChannel }),
           userSpecifiedModel: activeModel,
           fallbackModel: options.fallbackModel,
           jsonSchema: initializeJsonSchema ?? options.jsonSchema,
@@ -1451,25 +1452,7 @@ export async function runHeadless(
     idleTimerStart: () => idleTimeout.start?.(),
     onCycleError: error => {
       abortSuggestion()
-      return {
-        type: 'result',
-        subtype: 'error_during_execution',
-        duration_ms: 0,
-        duration_api_ms: 0,
-        is_error: true,
-        num_turns: 0,
-        stop_reason: null,
-        session_id: getSessionId(),
-        total_cost_usd: 0,
-        usage: {},
-        model_usage: {},
-        permission_denials: [],
-        uuid: randomUUID(),
-        errors: [
-          errorMessage(error),
-          ...getInMemoryErrors().map(entry => entry.error),
-        ],
-      }
+      return refusalEnvelope([errorMessage(error), ...getInMemoryErrors().map(entry => entry.error)])
     },
     shutdown: code => void gracefulShutdown(code),
     clock: { sleep: ms => new Promise(resolve => setTimeout(resolve, ms)) },
@@ -1488,7 +1471,7 @@ export async function runHeadless(
   process.on('SIGINT', () => {
     logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGINT' })
     inFlightAbort?.abort()
-    void gracefulShutdown(0)
+    void gracefulShutdown(130)
   })
   process.on('SIGTERM', () => {
     logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGTERM' })
@@ -1634,7 +1617,6 @@ export async function runHeadless(
             commands,
             modelInfos as ModelInfo[],
             io,
-            options.enableAuthStatus ?? false,
             {
               systemPrompt: options.systemPrompt,
               appendSystemPrompt: options.appendSystemPrompt,
@@ -1782,7 +1764,7 @@ export async function runHeadless(
           if (claimedModel !== undefined) {
             activeModel = parseUserSpecifiedModel(claimedModel)
             setMainLoopModelOverride(claimedModel)
-            process.env.ANTHROPIC_MODEL = claimedModel
+            process.env.MERCURY_MODEL = claimedModel
           }
           if (claimedEffort !== undefined) {
             process.env.MERCURY_EFFORT_LEVEL = claimedEffort

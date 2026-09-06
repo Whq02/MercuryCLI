@@ -41,7 +41,7 @@ const FORBIDDEN = [
   'queryWithModel',
   'sideQuery',
   'getAnthropicClient',
-  'ANTHROPIC_MODEL',
+  'MERCURY_MODEL',
   'claude-',
   'anthropic',
   'gpt-',
@@ -57,14 +57,14 @@ const FAMILY_PLANTS: ReadonlyArray<[label: string, model: string | undefined]> =
 ]
 
 function withModelEnv<T>(model: string | undefined, fn: () => T): T {
-  const saved = process.env.ANTHROPIC_MODEL
-  if (model === undefined) delete process.env.ANTHROPIC_MODEL
-  else process.env.ANTHROPIC_MODEL = model
+  const saved = process.env.MERCURY_MODEL
+  if (model === undefined) delete process.env.MERCURY_MODEL
+  else process.env.MERCURY_MODEL = model
   try {
     return fn()
   } finally {
-    if (saved === undefined) delete process.env.ANTHROPIC_MODEL
-    else process.env.ANTHROPIC_MODEL = saved
+    if (saved === undefined) delete process.env.MERCURY_MODEL
+    else process.env.MERCURY_MODEL = saved
   }
 }
 

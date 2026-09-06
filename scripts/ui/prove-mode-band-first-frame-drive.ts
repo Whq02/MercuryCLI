@@ -257,10 +257,10 @@ type Run = {
   born: 'sovereign' | 'blank'
 }
 const RUNS: Run[] = [
-  { id: 'r1', title: 'the skip flag → the consent card → the face → ↵ New Session (a fresh birth)', argv: () => ['--dangerously-skip-permissions'], home: () => freshHome('r1'), door: 'face', consented: true, born: 'sovereign' },
+  { id: 'r1', title: 'the skip flag → the consent card → the face → ↵ New Session (a fresh birth)', argv: () => ['--dangerously-bypass-permissions'], home: () => freshHome('r1'), door: 'face', consented: true, born: 'sovereign' },
   { id: 'r2', title: 'CONTROL — no consent → the face → ↵ New Session (born default)', argv: () => [], home: () => freshHome('r2'), door: 'face', consented: false, born: 'blank' },
-  { id: 'r3', title: 'the skip flag → the face → o → the board → tab → n → (No) → the chat (the concourse door)', argv: () => ['--dangerously-skip-permissions'], home: () => freshHome('r3'), door: 'board', consented: true, born: 'sovereign' },
-  { id: 'r4', title: "the skip flag → --continue in R1's home (its runner reaped: a cold reactivation)", argv: () => ['--dangerously-skip-permissions', '--continue'], home: homes => homes.r1 ?? freshHome('r4'), door: 'direct', consented: true, born: 'sovereign' },
+  { id: 'r3', title: 'the skip flag → the face → o → the board → tab → n → (No) → the chat (the concourse door)', argv: () => ['--dangerously-bypass-permissions'], home: () => freshHome('r3'), door: 'board', consented: true, born: 'sovereign' },
+  { id: 'r4', title: "the skip flag → --continue in R1's home (its runner reaped: a cold reactivation)", argv: () => ['--dangerously-bypass-permissions', '--continue'], home: homes => homes.r1 ?? freshHome('r4'), door: 'direct', consented: true, born: 'sovereign' },
   { id: 'r5', title: "--resume <id> in R2's home (its runner reaped: the resume verb's road, born default)", argv: homes => ['--resume', sessionIdOf(homes.r2 ?? '')], home: homes => homes.r2 ?? freshHome('r5'), door: 'direct', consented: false, born: 'blank' },
 ]
 function sessionIdOf(home: string): string {

@@ -40,7 +40,6 @@ export async function handleInitializeRequest(
   commands: Command[],
   modelInfos: ModelInfo[],
   structuredIO: StructuredIO,
-  enableAuthStatus: boolean,
   options: {
     systemPrompt: string | undefined
     appendSystemPrompt: string | undefined
@@ -332,7 +331,7 @@ function decidePermissionModeTransition(
     if (!toolPermissionContext.isBypassPermissionsModeAvailable) {
       return {
         ok: false,
-        error: 'Cannot set permission mode to sovereign because the session was not launched with --dangerously-skip-permissions',
+        error: 'Cannot set permission mode to sovereign because the session was not launched with --dangerously-bypass-permissions',
       }
     }
   }

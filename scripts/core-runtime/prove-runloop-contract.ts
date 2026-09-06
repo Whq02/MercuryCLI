@@ -10,7 +10,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'runloop-laws-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'runloop-daemon-'))
 process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'runloop-teams-'))
 for (const k of [
-  'MERCURY_SIMPLE',
+  'MERCURY_BARE',
   'MERCURY_EFFORT_LEVEL',
   'MERCURY_MAX_OUTPUT_TOKENS',
   'MERCURY_BLOCKING_LIMIT_OVERRIDE',
@@ -18,8 +18,8 @@ for (const k of [
   'HERMES_DEEPTHINK_MAX',
   'CLAUDE_TEAM_NAME',
   'CLAUDE_AGENT_NAME',
-  'DISABLE_COMPACT',
-  'DISABLE_AUTO_COMPACT',
+  'MERCURY_COMPACT',
+  'MERCURY_AUTO_COMPACT',
   'NODE_ENV',
 ]) {
   delete process.env[k]

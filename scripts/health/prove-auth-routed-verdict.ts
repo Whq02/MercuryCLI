@@ -32,7 +32,7 @@ const SCRUB = [
   'HF_TOKEN',
   'MERCURY_COMPAT_API_KEY',
   'MERCURY_LOCAL_API_KEY',
-  'ANTHROPIC_MODEL',
+  'MERCURY_MODEL',
 ]
 
 function run(verb: string[], env: Record<string, string>): { status: number; json: Record<string, unknown> | null; stdout: string; stderr: string } {
@@ -82,7 +82,7 @@ section('§1 engine-routed with its credential: Anthropic absence is info, exit 
 {
   const r = run(['health', '--json'], {
     DEEPSEEK_API_KEY: 'fixture-deepseek-key',
-    ANTHROPIC_MODEL: 'deepseek-chat',
+    MERCURY_MODEL: 'deepseek-chat',
   })
   const anthropicRow = rowOf(r.json, 'auth-anthropic')
   const deepseekRow = rowOf(r.json, 'auth-deepseek')
@@ -96,7 +96,7 @@ section('§2 engine-routed with the engine credential MISSING: fail, FAULT, exit
 {
   const r = run(['health', '--json'], {
     ANTHROPIC_API_KEY: 'fixture-anthropic-key',
-    ANTHROPIC_MODEL: 'deepseek-chat',
+    MERCURY_MODEL: 'deepseek-chat',
   })
   const deepseekRow = rowOf(r.json, 'auth-deepseek')
   check('the routed family with no credential reads fail', deepseekRow?.status === 'fail', JSON.stringify(deepseekRow))
@@ -119,7 +119,7 @@ section('§4 auth status --json: per-family rows, frozen fields, routed exit')
   const engineRouted = run(['auth', 'status', '--json'], {
     CI: 'true',
     DEEPSEEK_API_KEY: 'fixture-deepseek-key',
-    ANTHROPIC_MODEL: 'deepseek-chat',
+    MERCURY_MODEL: 'deepseek-chat',
   })
   check('stdout is JSON-only', engineRouted.json !== null, `stdout: ${engineRouted.stdout.slice(0, 120)} · stderr: ${engineRouted.stderr.slice(0, 200)}`)
   const providers = (engineRouted.json?.providers ?? []) as Array<{ id: string; kind: string; source: string; present: boolean }>
@@ -136,7 +136,7 @@ section('§4 auth status --json: per-family rows, frozen fields, routed exit')
 
   const engineMissing = run(['auth', 'status', '--json'], {
     ANTHROPIC_API_KEY: 'fixture-anthropic-key',
-    ANTHROPIC_MODEL: 'deepseek-chat',
+    MERCURY_MODEL: 'deepseek-chat',
   })
   check('engine-routed with the credential missing exits 1', engineMissing.status === 1, `status=${engineMissing.status}`)
   check('…while the Anthropic ladder still reports loggedIn true (frozen field, unchanged meaning)', engineMissing.json?.loggedIn === true)

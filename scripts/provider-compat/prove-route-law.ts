@@ -214,8 +214,8 @@ section('6 · the earned ride (the neutrality ruling): total classifier, admissi
   )
   check(
     'the env-pin road: the pinned id admits AND routes home (routing joins recognition)',
-    homeLaneAdmissionRefusal('ops-gateway-model', { ...noFact, env: { ANTHROPIC_MODEL: 'ops-gateway-model' } }) === null &&
-      declaredRouteOf('ops-gateway-model', { ANTHROPIC_MODEL: 'ops-gateway-model' }) === 'anthropic',
+    homeLaneAdmissionRefusal('ops-gateway-model', { ...noFact, env: { MERCURY_MODEL: 'ops-gateway-model' } }) === null &&
+      declaredRouteOf('ops-gateway-model', { MERCURY_MODEL: 'ops-gateway-model' }) === 'anthropic',
   )
   check(
     'the gateway road: a re-pointed base URL admits the unknown id onto the home lane',
@@ -277,7 +277,7 @@ section('7 · the honest verdict (phase 2): absence and unknownness first-class'
   )
   const mark = classifyModelRoute('claude-sonnet-5', empty)
   const alias = classifyModelRoute('opus', empty)
-  const pinned = classifyModelRoute('ops-pinned', { ANTHROPIC_MODEL: 'ops-pinned' })
+  const pinned = classifyModelRoute('ops-pinned', { MERCURY_MODEL: 'ops-pinned' })
   check(
     'first-party carries its earned why (claude-mark · alias · env-pin)',
     mark.kind === 'route' && mark.route === 'anthropic' && mark.why === 'claude-mark' &&

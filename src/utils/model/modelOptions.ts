@@ -592,12 +592,12 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
 
   options = dedupOneModelOneRow(options)
 
-  const custom = process.env.ANTHROPIC_CUSTOM_MODEL_OPTION
+  const custom = process.env.MERCURY_CUSTOM_MODEL_OPTION
   if (custom) {
     pushIfAbsent(options, {
       value: custom,
-      label: process.env.ANTHROPIC_CUSTOM_MODEL_OPTION_NAME || custom,
-      description: process.env.ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION || '',
+      label: process.env.MERCURY_CUSTOM_MODEL_OPTION_NAME || custom,
+      description: process.env.MERCURY_CUSTOM_MODEL_OPTION_DESCRIPTION || '',
     })
   }
 

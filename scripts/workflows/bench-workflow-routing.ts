@@ -98,7 +98,7 @@ async function runArm(
         'claude-opus-4-8',
         '--permission-mode',
         'flow',
-        ...['--allowedTools', 'Workflow', ...recon],
+        ...['--allowed-tools', 'Workflow', ...recon],
       ],
       {
         cwd: clone,
