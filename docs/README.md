@@ -26,13 +26,8 @@ and `/keybindings` edits your keybindings file.
 
 ## Direction
 
-The session is the unit; every screen is a view. A session owns its
-conversation, model, posture, workspace and running work, and it survives
-whatever screen is looking at it; the chat, the concourse board, a live tile
-and the Boot face render sessions and never store their truth. The solo
-journey stays sovereign: one Enter from the Boot face to a working chat, with
-everything beneath invisible until summoned, and nothing reachable without
-the concourse ever comes to require it.
+The session is the unit and every screen is a view; the reasoning, and the
+solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
 
 ## Operator guide, by task
 
@@ -132,5 +127,5 @@ the concourse ever comes to require it.
   is the published release; [1.0.0-beta.4](releases/1.0.0-beta.4.md) is
   the queue). The notes themselves ride each release and `/release-notes`
   prints the bundled history.
-- Generated sections are regenerated from their sources, never hand-edited;
-  each names its generator in its own header.
+- Generated sections are regenerated from their sources, never hand-edited
+  ([CONTRIBUTING.md](../CONTRIBUTING.md), Conventions).
