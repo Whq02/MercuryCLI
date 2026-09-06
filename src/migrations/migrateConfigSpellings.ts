@@ -1,6 +1,7 @@
 
 export const RETIRED_GLOBAL_CONFIG_KEYS: Readonly<Record<string, string>> = {
   lastPlanModeUse: 'lastStrategyModeUse',
+  showExpandedTodos: 'showExpandedTasks',
 }
 
 export const RETIRED_PROJECT_CONFIG_KEYS: Readonly<Record<string, string>> = {
