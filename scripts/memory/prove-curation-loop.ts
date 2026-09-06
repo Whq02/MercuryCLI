@@ -141,8 +141,8 @@ section('§3 never silent destruction: retired bodies recoverable byte-for-byte'
 
 section('§4 the consent wiring is structural')
 {
-  const dream = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'autoDream', 'autoDream.ts'), 'utf8')
-  check('autoDream sweeps before the fork and feeds the brief', dream.includes('proposeCuration') && dream.includes('renderProposalsForBrief'))
+  const dream = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'memoryUpkeep', 'memoryUpkeep.ts'), 'utf8')
+  check('the upkeep run sweeps before the fork and feeds the brief', dream.includes('proposeCuration') && dream.includes('renderProposalsForBrief'))
   const centre = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'memory', 'MemoryCentreView.tsx'), 'utf8')
   check('the Memory Centre carries the consent row + apply action', centre.includes("id: 'curation'") && centre.includes('applyCurationProposals'))
   const loop = readFileSync(join(import.meta.dir, '..', '..', 'src', 'memdir', 'curationLoop.ts'), 'utf8')
@@ -156,7 +156,7 @@ section('§4 the consent wiring is structural')
 section('§5 the agent corridor is receipted: audit-on-write through the REAL gate')
 {
   const { getAutoMemPath } = await import('../../src/memdir/paths.js')
-  const { createAutoMemCanUseTool } = await import('../../src/services/autoDream/autoMemCanUseTool.js')
+  const { createAutoMemCanUseTool } = await import('../../src/services/memoryUpkeep/autoMemCanUseTool.js')
   const { readCurationReceipts: readReceipts } = await import('../../src/memdir/curationLoop.js')
   const autoMem = getAutoMemPath()
   mkdirSync(autoMem, { recursive: true })

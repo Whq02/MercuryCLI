@@ -84,7 +84,7 @@ function createRunner(): Runner {
     try {
       lastConsolidatedAt = await readLastConsolidatedAt()
     } catch (err) {
-      logForDebugging(`autoDream: could not read the last consolidation time: ${String(err)}`)
+      logForDebugging(`memory upkeep: could not read the last consolidation time: ${String(err)}`)
       return
     }
     const hoursSince = (Date.now() - lastConsolidatedAt) / (60 * 60 * 1000)
@@ -92,7 +92,7 @@ function createRunner(): Runner {
 
     const sinceScan = Date.now() - lastScanAt
     if (lastScanAt !== 0 && sinceScan < SCAN_THROTTLE_MS) {
-      logForDebugging(`autoDream: session scan throttled (${Math.round(sinceScan / 1000)}s since last scan)`)
+      logForDebugging(`memory upkeep: session scan throttled (${Math.round(sinceScan / 1000)}s since last scan)`)
       return
     }
     lastScanAt = Date.now()
@@ -103,11 +103,11 @@ function createRunner(): Runner {
       const current = getSessionId()
       sessions = touched.filter(id => id !== current)
     } catch (err) {
-      logForDebugging(`autoDream: session scan failed: ${String(err)}`)
+      logForDebugging(`memory upkeep: session scan failed: ${String(err)}`)
       return
     }
     if (!forced && sessions.length < knobs.minSessions) {
-      logForDebugging(`autoDream: ${sessions.length} sessions since last consolidation (< ${knobs.minSessions})`)
+      logForDebugging(`memory upkeep: ${sessions.length} sessions since last consolidation (< ${knobs.minSessions})`)
       return
     }
 
@@ -140,7 +140,7 @@ function createRunner(): Runner {
       await writeCurationSweep(memoryRoot, sweep)
       proposalsSection = renderProposalsForBrief(sweep)
     } catch (err) {
-      logForDebugging(`autoDream: curation sweep failed: ${String(err)}`)
+      logForDebugging(`memory upkeep: curation sweep failed: ${String(err)}`)
     }
     const extra = [
       'Shell access is restricted to read-only commands for this run (ls, cat, grep, rg, find, head, tail, wc, git log/show/diff and similar). Anything that writes, redirects to a file, or modifies state will be denied — plan your exploration accordingly and do not probe.',
@@ -189,11 +189,11 @@ function createRunner(): Runner {
         appendSystemMessage({ ...createMemorySavedMessage(filesTouched), verb: 'Improved' } as never)
       }
       logForDebugging(
-        `autoDream: complete (cache read ${result.totalUsage.cache_read_input_tokens}, cache creation ${result.totalUsage.cache_creation_input_tokens})`,
+        `memory upkeep: complete (cache read ${result.totalUsage.cache_read_input_tokens}, cache creation ${result.totalUsage.cache_creation_input_tokens})`,
       )
     } catch (err) {
       if (abortController.signal.aborted) {
-        logForDebugging('autoDream: run aborted by the operator')
+        logForDebugging('memory upkeep: run aborted by the operator')
         return
       }
       logError(err)
@@ -212,11 +212,11 @@ function touchedFilesOfTask(context: REPLHookContext, taskId: string): string[] 
   }
 }
 
-export function initAutoDream(): void {
+export function initMemoryUpkeep(): void {
   runner = createRunner()
 }
 
-export async function executeAutoDream(
+export async function executeMemoryUpkeep(
   context: REPLHookContext,
   appendSystemMessage?: AppendSystemMessage,
 ): Promise<void> {

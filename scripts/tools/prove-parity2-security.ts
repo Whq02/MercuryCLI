@@ -105,13 +105,13 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
   rmSync(join(lock, 'pid'))
   t('mneme lock: no pid file (pre-pid shape) ⇒ releasable', consolidateLockOwnedBy(lock, process.pid))
 
-  const { consolidationLockHeldBy } = await import('../../src/services/autoDream/consolidationLock.ts')
+  const { consolidationLockHeldBy } = await import('../../src/services/memoryUpkeep/consolidationLock.ts')
   const dream = join(SCRATCH, '.consolidation.lock')
   writeFileSync(dream, String(process.pid))
-  t('autoDream lock: our pid ⇒ held by us', await consolidationLockHeldBy(dream, process.pid))
+  t('upkeep lock: our pid ⇒ held by us', await consolidationLockHeldBy(dream, process.pid))
   writeFileSync(dream, String(process.pid + 7))
-  t("autoDream lock: a reclaimer's pid ⇒ not ours", !(await consolidationLockHeldBy(dream, process.pid)))
-  t('autoDream lock: missing file ⇒ nobody holds it', !(await consolidationLockHeldBy(join(SCRATCH, 'absent'), process.pid)))
+  t("upkeep lock: a reclaimer's pid ⇒ not ours", !(await consolidationLockHeldBy(dream, process.pid)))
+  t('upkeep lock: missing file ⇒ nobody holds it', !(await consolidationLockHeldBy(join(SCRATCH, 'absent'), process.pid)))
 
   const { artifactLockOwnedBy } = await import('../../src/utils/artifacts/reviewStore.ts')
   const fence = join(SCRATCH, '.write-lock')

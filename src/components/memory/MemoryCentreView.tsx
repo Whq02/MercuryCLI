@@ -24,7 +24,7 @@ import {
 } from '../../memdir/curationLoop.js'
 import { getAutoMemPath, isAutoMemoryEnabled } from '../../memdir/paths.js'
 import { getProjectRoot } from '../../bootstrap/state.js'
-import { isMemoryUpkeepEnabled } from '../../services/autoDream/config.js'
+import { isMemoryUpkeepEnabled } from '../../services/memoryUpkeep/config.js'
 
 
 const MAX_ROWS = 10
