@@ -275,6 +275,8 @@ export const agentToolResultSchema = lazySchema(() =>
     totalToolUseCount: z.number(),
     totalDurationMs: z.number(),
     totalTokens: z.number(),
+    costUSD: z.number().optional(),
+    unpricedTurns: z.number().optional(),
     usage: z.object({
       input_tokens: z.number(),
       output_tokens: z.number(),
@@ -431,6 +433,8 @@ export function finalizeAgentTool(
     content,
     totalDurationMs: Date.now() - startTime,
     totalTokens,
+    costUSD: ledger.costUSD,
+    unpricedTurns: ledger.unpricedTurns,
     totalToolUseCount: countToolUses(messages),
     usage,
     ...(structured !== undefined ? { structured } : {}),
