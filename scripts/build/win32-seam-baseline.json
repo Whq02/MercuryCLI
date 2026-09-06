@@ -31,6 +31,7 @@
  "src/utils/gracefulShutdown.ts :: kill-signal": 1,
  "src/utils/imageResizer.ts :: split-slash": 2,
  "src/utils/imageStore.ts :: split-slash": 1,
+ "src/utils/shell/brushPack.ts :: split-slash": 2,
  "src/utils/swarm/leaseGlob.ts :: split-slash": 1,
  "src/utils/worktree.ts :: split-slash": 1
 }
