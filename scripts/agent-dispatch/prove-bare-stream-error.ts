@@ -89,11 +89,20 @@ const MODELS_BODY = {
   ],
 }
 const posts: string[] = []
+const requestInputTypes: string[][] = []
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   const chunks: Buffer[] = []
   req.on('data', c => chunks.push(c as Buffer))
   req.on('end', () => {
     const path = (req.url ?? '').split('?')[0] ?? ''
+    if (req.method === 'POST') {
+      try {
+        const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as { input?: unknown }
+        requestInputTypes.push(Array.isArray(body.input) ? body.input.map(item => String((item as { type?: unknown })?.type ?? '?')) : [])
+      } catch {
+        requestInputTypes.push(['unparseable'])
+      }
+    }
     if (req.method === 'GET' && path.endsWith('/models')) {
       res.writeHead(200, { 'content-type': 'application/json', connection: 'close' })
       res.end(JSON.stringify(MODELS_BODY))
@@ -140,13 +149,13 @@ const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 type Drive = { yielded: Array<Record<string, unknown>>; thrown: string | null }
-async function drive(): Promise<Drive> {
+async function drive(earlier: unknown[] = []): Promise<Drive> {
   const abort = new AbortController()
   const yielded: Array<Record<string, unknown>> = []
   let thrown: string | null = null
   try {
     const stream = routedCallModel({
-      messages: [createUserMessage({ content: 'the operator asks for a long answer ' + 'x'.repeat(400) })] as never,
+      messages: [...earlier, createUserMessage({ content: 'the operator asks for a long answer ' + 'x'.repeat(400) })] as never,
       systemPrompt: asSystemPrompt(['You are the stream fixture. ' + 'y'.repeat(800)]),
       thinkingConfig: { type: 'disabled' },
       tools: [],
@@ -213,6 +222,39 @@ try {
   check('an error carrying a code keeps its road: the row names the code and the message', codedText !== null && codedText.includes('(openai-server_error) — the fixture broke the stream'), codedText ?? '(none)')
   check('one request per drive (no reissue after content)', posts.length === 4, JSON.stringify(posts))
   check('the session count advanced by the three bare errors', wire.bareStreamErrorCount() === countBefore + 3, `${countBefore} → ${wire.bareStreamErrorCount()}`)
+
+  section('§3 the model boundary: a reasoning replay recorded under another model stays off the request, said once; the same model keeps its record')
+  const call = await import('../../src/services/providers/openai/openaiCallModel.ts')
+  const recordedRow = (model: string, id: string): Record<string, unknown> => ({
+    type: 'assistant',
+    uuid: `${id}-uuid`,
+    timestamp: new Date().toISOString(),
+    message: { id, model, role: 'assistant', type: 'message', content: [{ type: 'text', text: 'the earlier answer' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 10, output_tokens: 4 } },
+    apexProviderTurn: {
+      provider: 'openai',
+      responseId: `resp_${id}`,
+      items: [
+        { type: 'reasoning', id: `rs_${id}`, encrypted_content: 'sealed-for-the-minting-model', summary: [] },
+        { type: 'message', id: `msg_${id}`, role: 'assistant', content: [{ type: 'output_text', text: 'the earlier answer' }] },
+      ],
+    },
+  })
+  const foreign = call.toBridgeMessages([recordedRow('gpt-6-astra', 'm1'), createUserMessage({ content: 'go on' })] as never, 'agent' as never, 'gpt-5.6-sol')
+  check('the bridge keeps a record minted under another model off the row and counts it with its model', foreign.rows[0]?.turnRecord === undefined && foreign.foreignRecordsDropped === 1 && foreign.foreignRecordModels.join() === 'gpt-6-astra', JSON.stringify({ record: foreign.rows[0]?.turnRecord, dropped: foreign.foreignRecordsDropped, models: foreign.foreignRecordModels }))
+  const same = call.toBridgeMessages([recordedRow('gpt-5.6-sol', 'm2'), createUserMessage({ content: 'go on' })] as never, 'agent' as never, 'gpt-5.6-sol')
+  check('the same model keeps its record', same.rows[0]?.turnRecord !== undefined && same.foreignRecordsDropped === 0, JSON.stringify(same.rows[0]?.turnRecord))
+
+  mode = 'bare-then-completed'
+  const before = requestInputTypes.length
+  const foreignDrive = await drive([recordedRow('gpt-6-astra', 'm3')])
+  const foreignInput = requestInputTypes[before] ?? []
+  check('on the wire, a record minted under another model sends no reasoning item — its content replays as the transcript row', foreignDrive.thrown === null && requestInputTypes.length === before + 1 && !foreignInput.includes('reasoning') && foreignInput.includes('message'), JSON.stringify(foreignInput))
+  const noteText = streamedText(foreignDrive)
+  check('the receipt leads the reply once: the record, the models, and where its content comes from', /1 reasoning replay record\(s\) minted under gpt-6-astra stay off this gpt-5\.6-sol request — a replay is bound to the model that minted it; their content replays from the Mercury transcript\./.test(noteText), noteText.slice(0, 260))
+  const sameDrive = await drive([recordedRow('gpt-5.6-sol', 'm4')])
+  const sameInput = requestInputTypes[before + 1] ?? []
+  check("the same model's record rides the wire whole", sameDrive.thrown === null && sameInput.includes('reasoning') && sameInput.includes('message'), JSON.stringify(sameInput))
+  check('the receipt is said once per thread, never on the same-model request', !/stay off this/.test(streamedText(sameDrive)), streamedText(sameDrive).slice(0, 200))
 } finally {
   server.close()
 }

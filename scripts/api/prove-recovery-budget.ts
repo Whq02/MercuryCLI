@@ -213,6 +213,23 @@ section('S6 — the words name the answer and the wait')
   delete process.env.MERCURY_RECOVERY_BUDGET_MINUTES
 }
 
+section("S8 — the cut's signal: the typed stop carries the words and the moment the allowance is back")
+{
+  const b = budget.makeRecoveryBudget(6_000)
+  budget.honourRecoveryWait(b, factsOf(notice({ retryInMs: 4_000, status: 429 })), 0)
+  const cutting = budget.honourRecoveryWait(b, factsOf(notice({ retryInMs: 10_000, status: 429, headers: { 'retry-after': '10' } })), 0)
+  const stop = new budget.RecoveryBudgetSpentError(b, { declaredMs: 10_000, honoredMs: cutting.honoredMs })
+  check('the stop is an Error whose message is the spent line', stop instanceof Error && stop.message === budget.recoveryBudgetSpentLine(b) && stop.name === 'RecoveryBudgetSpentError', stop.message)
+  check('the moment the allowance is back is the part of the cutting wait the budget did not honour', cutting.honoredMs === 2_000 && stop.resumeAfterMs === 8_000, `${cutting.honoredMs} ${stop.resumeAfterMs}`)
+  const facts = budget.recoveryBudgetSpentFactsOf(stop)
+  check('the typed read: the words, the moment, the budget', facts !== null && facts.words === stop.message && facts.resumeAfterMs === 8_000 && facts.capMs === 6_000 && facts.waits === 2, JSON.stringify(facts))
+  check('the read survives a module copy (the shape, not the class)', budget.recoveryBudgetSpentFactsOf(Object.assign(new Error('x'), { recoveryBudgetSpent: true, resumeAfterMs: 3 }))?.resumeAfterMs === 3)
+  check('a plain error is no cut, whatever its words', budget.recoveryBudgetSpentFactsOf(new Error('provider throttled — the 5m retry budget is spent after 2 declared waits')) === null && budget.recoveryBudgetSpentFactsOf(new Error(budget.recoveryBudgetSpentLine(b))) === null && budget.recoveryBudgetSpentFactsOf(null) === null)
+  const whole = budget.makeRecoveryBudget(6_000)
+  const last = budget.honourRecoveryWait(whole, factsOf(notice({ retryInMs: 6_000, status: 429 })), 0)
+  check('a wait honoured whole that spends the last of the budget: the allowance is back at once', new budget.RecoveryBudgetSpentError(whole, { declaredMs: 6_000, honoredMs: last.honoredMs }).resumeAfterMs === 0)
+}
+
 section('S7 — the notice reader')
 {
   const real = factsOf(notice({ retryInMs: 40_000, recoveryTimeoutMs: 300_000, status: 429, attempt: 2, of: 10 }))

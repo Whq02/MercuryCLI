@@ -59,6 +59,7 @@ import {
   armBudgetCutResume,
   extractPartialResult,
   partialResultEnvelopeBlock,
+  budgetCutResumeDelayMs,
   recoveryBudgetCutOf,
   finalizeAgentTool,
   getLastToolUseName,
@@ -385,13 +386,15 @@ export async function runForegroundAgentExecution(
         ...worktreeResult,
         ...(envelopeBlock ? { envelopeBlock } : {}),
       })
-      if (recoveryBudgetCutOf(error) !== null && foregroundTask !== undefined) {
+      const budgetCut = recoveryBudgetCutOf(error)
+      if (budgetCut !== null && foregroundTask !== undefined) {
         armBudgetCutResume({
           taskId: backgroundedTaskId,
           description,
           registration: foregroundTask.abortController,
           toolUseContext,
           rootSetAppState,
+          delayMs: budgetCutResumeDelayMs(budgetCut),
         })
       }
     } finally {
