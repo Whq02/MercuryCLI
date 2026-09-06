@@ -212,7 +212,7 @@ async function startSeatsFixture(port: number, mainDialect: Dialect): Promise<Fi
         case 'parent':
           blocks = [
             { type: 'text', text: 'launching four sub-agents' },
-            ...SEATS.map(name => ({ type: 'tool_use' as const, name: 'Agent', input: { description: name, prompt: `crew-seat: survey the ${name}`, subagent_type: 'general-purpose', model: seatModel } })),
+            ...SEATS.map(name => ({ type: 'tool_use' as const, name: 'Agent', input: { description: name, prompt: `crew-seat: survey the ${name}`, subagent_type: 'mercury-general', model: seatModel } })),
           ]
           usage = { input: 1200, output: 120 }
           break

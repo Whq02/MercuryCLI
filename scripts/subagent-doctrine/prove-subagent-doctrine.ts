@@ -24,8 +24,8 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const GP = { agentType: 'general-purpose' }
-const EXEMPT = ['verification', 'mercury-scout', 'mercury-architect', 'workflow-subagent']
+const GP = { agentType: 'mercury-general' }
+const EXEMPT = ['mercury-verifier', 'mercury-scout', 'mercury-architect', 'workflow-subagent']
 const NORMAL_MARK = 'You are a subagent OF Mercury'
 const CARD_MARK = /^## .*experience cards/im
 const GATE_CLAUSE = 'bypass a safety, permission, approval, or capability gate'
@@ -38,10 +38,10 @@ console.log('============================================================')
 section('(a) bare stamp ⇒ SAME sections (stamp-independence)')
 setStamp(false)
 const gpStock = JSON.stringify(buildSubagentMercurySections({ agentDefinition: GP }))
-const exemptStock = JSON.stringify(buildSubagentMercurySections({ agentDefinition: { agentType: 'verification' } }))
+const exemptStock = JSON.stringify(buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-verifier' } }))
 setStamp(true)
-check('general-purpose: bare-stamped === full-stamped', gpStock === JSON.stringify(buildSubagentMercurySections({ agentDefinition: GP })))
-check('exempt agent: bare-stamped === full-stamped', exemptStock === JSON.stringify(buildSubagentMercurySections({ agentDefinition: { agentType: 'verification' } })))
+check('mercury-general: bare-stamped === full-stamped', gpStock === JSON.stringify(buildSubagentMercurySections({ agentDefinition: GP })))
+check('exempt agent: bare-stamped === full-stamped', exemptStock === JSON.stringify(buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-verifier' } })))
 
 section('(b) ON (fork) ⇒ floor leads, the ONE NORMAL doctrine')
 setStamp(true)
@@ -53,7 +53,7 @@ delete process.env.MERCURY_EXPERIENCE_CARDS
   check('NORMAL doctrine present', join(s).includes(NORMAL_MARK) && join(s).includes('<subagent-doctrine>'))
 }
 
-section('(c) the 4 fixed-output agents get the SAME NORMAL doctrine as general-purpose')
+section('(c) the 4 fixed-output agents get the SAME NORMAL doctrine as mercury-general')
 for (const a of EXEMPT) {
   const s = join(buildSubagentMercurySections({ agentDefinition: { agentType: a } }))
   check(`${a}: NORMAL doctrine (one register for every agent)`, s.includes(NORMAL_MARK) && s.includes('<subagent-doctrine>'))
@@ -68,7 +68,7 @@ delete process.env.MERCURY_EXPERIENCE_CARDS
     check(`${def.agentType}: agentType ∈ derived exempt Set (card doctrine omitted)`, !CARD_MARK.test(s) && s.includes('<subagent-doctrine>'))
   }
   check("'workflow-subagent' literal ∈ derived exempt Set (card doctrine omitted)", !CARD_MARK.test(join(buildSubagentMercurySections({ agentDefinition: { agentType: 'workflow-subagent' } }))))
-  check('a non-flagged agent (general-purpose) is NOT exempt (keeps the card doctrine)', CARD_MARK.test(join(buildSubagentMercurySections({ agentDefinition: GP }))))
+  check('a non-flagged agent (mercury-general) is NOT exempt (keeps the card doctrine)', CARD_MARK.test(join(buildSubagentMercurySections({ agentDefinition: GP }))))
   check('a made-up agentType is NOT exempt (no drift to over-exempting)', CARD_MARK.test(join(buildSubagentMercurySections({ agentDefinition: { agentType: 'not-a-real-fixed-output-agent' } }))))
 }
 
@@ -85,18 +85,18 @@ section('(d2) C14 source — derived Set (not a string literal) + WORKFLOW_SUBAG
 
 section('(e) experience-card doctrine — gated on cards-enabled + omitted for exempt agents')
 delete process.env.MERCURY_EXPERIENCE_CARDS
-check('cards ON: general-purpose INCLUDES the card doctrine', CARD_MARK.test(join(buildSubagentMercurySections({ agentDefinition: GP }))))
+check('cards ON: mercury-general INCLUDES the card doctrine', CARD_MARK.test(join(buildSubagentMercurySections({ agentDefinition: GP }))))
 for (const a of EXEMPT) {
   check(`${a}: card doctrine OMITTED (fixed-output/read-only worker)`, !CARD_MARK.test(join(buildSubagentMercurySections({ agentDefinition: { agentType: a } }))))
 }
 process.env.MERCURY_EXPERIENCE_CARDS = '0'
-check('cards OFF (=0): general-purpose drops the card doctrine', !CARD_MARK.test(join(buildSubagentMercurySections({ agentDefinition: GP }))))
+check('cards OFF (=0): mercury-general drops the card doctrine', !CARD_MARK.test(join(buildSubagentMercurySections({ agentDefinition: GP }))))
 delete process.env.MERCURY_EXPERIENCE_CARDS
 
 section('(e2) API-currency: doctrine line for ALL agents + env-block currency note')
 {
   const CURRENCY_MARK = 'provider-apis'
-  check('general-purpose carries the API-currency line', join(buildSubagentMercurySections({ agentDefinition: GP })).includes(CURRENCY_MARK))
+  check('mercury-general carries the API-currency line', join(buildSubagentMercurySections({ agentDefinition: GP })).includes(CURRENCY_MARK))
   for (const a of EXEMPT) {
     check(`${a}: carries the API-currency line (fact line, not a register)`, join(buildSubagentMercurySections({ agentDefinition: { agentType: a } })).includes(CURRENCY_MARK))
   }

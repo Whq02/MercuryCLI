@@ -41,7 +41,7 @@ function anthropicAgentCall(prompt: string, background: boolean): string {
   const input = {
     description: 'switch probe',
     prompt,
-    subagent_type: 'general-purpose',
+    subagent_type: 'mercury-general',
     ...(background ? { run_in_background: true } : {}),
   }
   return [
@@ -78,7 +78,7 @@ function responsesAgentCall(prompt: string): string {
   const id = `call_sub_${++toolSeq}`
   return [
     sse({ type: 'response.created', response: { id: 'resp_fx' } }),
-    sse({ type: 'response.output_item.done', item: { type: 'function_call', name: 'Agent', call_id: id, arguments: JSON.stringify({ description: 'switch probe', prompt, subagent_type: 'general-purpose' }) } }),
+    sse({ type: 'response.output_item.done', item: { type: 'function_call', name: 'Agent', call_id: id, arguments: JSON.stringify({ description: 'switch probe', prompt, subagent_type: 'mercury-general' }) } }),
     sse({ type: 'response.completed', response: { id: 'resp_fx', usage: { input_tokens: 6, output_tokens: 5, input_tokens_details: { cached_tokens: 0 } } } }),
   ].join('')
 }

@@ -214,7 +214,7 @@ section('§5 subagent doctrine — floor LEADS every spawned child')
   const { buildSubagentMercurySections } = await import('../../src/constants/subagentDoctrine.ts')
   const { VERIFICATION_AGENT } = await import('../../src/tools/AgentTool/built-in/verificationAgent.ts')
 
-  const normal = buildSubagentMercurySections({ agentDefinition: { agentType: 'general-purpose' } })
+  const normal = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-general' } })
   check('normal agent: floor is element 0', normal[0] === FLOOR)
   check('normal agent: the operating register follows', typeof normal[1] === 'string' && normal[1]!.includes('<subagent-doctrine>'))
 

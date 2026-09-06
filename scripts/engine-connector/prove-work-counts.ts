@@ -41,17 +41,17 @@ console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
     },
     ag1: {
       id: 'ag1', type: 'local_agent', status: 'running', description: 'the dispatched helper',
-      agentId: 'ag1', prompt: 'p', agentType: 'general-purpose', isBackgrounded: true,
+      agentId: 'ag1', prompt: 'p', agentType: 'mercury-general', isBackgrounded: true,
       startTime: t0 + 2, outputFile: '/n', outputOffset: 0, notified: false,
     },
     ag2: {
       id: 'ag2', type: 'local_agent', status: 'running', description: 'the helper\'s nested spawn',
-      agentId: 'ag2', prompt: 'p', agentType: 'general-purpose', isBackgrounded: true,
+      agentId: 'ag2', prompt: 'p', agentType: 'mercury-general', isBackgrounded: true,
       startTime: t0 + 3, outputFile: '/n', outputOffset: 0, notified: false,
     },
     ag3: {
       id: 'ag3', type: 'local_agent', status: 'completed', description: 'yesterday\'s helper',
-      agentId: 'ag3', prompt: 'p', agentType: 'general-purpose', isBackgrounded: true,
+      agentId: 'ag3', prompt: 'p', agentType: 'mercury-general', isBackgrounded: true,
       startTime: t0 + 4, outputFile: '/n', outputOffset: 0, notified: false,
     },
     main1: {

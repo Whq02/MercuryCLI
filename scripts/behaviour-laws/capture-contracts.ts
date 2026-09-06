@@ -65,7 +65,7 @@ async function main(): Promise<void> {
     const agentDefinition =
       spec.kind === 'subagent-fixed'
         ? VERIFICATION_AGENT
-        : ({ agentType: 'general-purpose' } as never)
+        : ({ agentType: 'mercury-general' } as never)
     const agentPrompt =
       spec.kind === 'subagent-fixed'
         ? (VERIFICATION_AGENT as { getSystemPrompt?: (a: unknown) => string }).getSystemPrompt?.({ toolUseContext: { options: {} } }) ?? prompts.DEFAULT_AGENT_PROMPT

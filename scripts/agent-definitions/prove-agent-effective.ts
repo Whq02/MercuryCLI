@@ -150,14 +150,14 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
   const shelved = result.allAgents.find(a => a.agentType === 'foundry-plain')
   check('disabled agent stays visible in allAgents', shelved?.disabled === true)
 
-  await setAgentDisabled('user', project, 'general-purpose', true)
+  await setAgentDisabled('user', project, 'mercury-general', true)
   clearAgentDefinitionsCache()
   result = await getAgentDefinitionsWithOverrides(project)
   check(
     'built-ins cannot be disabled',
-    result.activeAgents.some(a => a.agentType === 'general-purpose'),
+    result.activeAgents.some(a => a.agentType === 'mercury-general'),
   )
-  await setAgentDisabled('user', project, 'general-purpose', false)
+  await setAgentDisabled('user', project, 'mercury-general', false)
   await setAgentDisabled('user', project, 'foundry-plain', false)
   await setAgentOverride('project', project, 'foundry-plain', undefined)
 }

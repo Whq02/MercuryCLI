@@ -175,7 +175,7 @@ const agentLaunch = (id: string, seat: Seat, extra: Record<string, unknown>): An
   input: {
     description: SEATS[seat],
     prompt: `${SEAT_MARK}${seat} read the notes file, one read per turn, then report in one line`,
-    subagent_type: 'general-purpose',
+    subagent_type: 'mercury-general',
     ...extra,
   },
 })

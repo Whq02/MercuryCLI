@@ -11,7 +11,7 @@
  "getSessionEndHookTimeoutMs/default": 1500,
  "createBaseHookInput/pinned-session": {
   "agent_id": "agent-1",
-  "agent_type": "general-purpose",
+  "agent_type": "mercury-general",
   "cwd": "«parity-cwd-abs»",
   "permission_mode": "default",
   "session_id": "fixture-session-1",

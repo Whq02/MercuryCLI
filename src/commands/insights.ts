@@ -193,7 +193,6 @@ const LANGUAGE_MAP: Record<string, string> = {
 
 const INTERRUPT_MARKER = '[Request interrupted by user'
 
-
 const ERROR_BUCKETS: Array<{ label: string; needles: string[] }> = [
   { label: 'Command Failed', needles: ['exit code'] },
   { label: 'User Rejected', needles: ['rejected', "doesn't want"] },
