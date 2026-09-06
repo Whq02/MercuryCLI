@@ -359,6 +359,65 @@ console.log('[D] the pack present, the model absent — the download door at /sp
   check('nothing left loopback, and no download was attempted', nonLoopback(lines).length === 0 && !lines.some(l => l.includes('huggingface')), lines.join(' · '))
 }
 
+console.log('[E] /speak options — the rows, the switch, the take through the saved family; a second boot names the saved choice gone and serves on-device')
+{
+  const home = seededHome('home-e')
+  const netlog1 = join(scratch, 'options-1-net.log')
+  const fx = await startFixture('options', 800)
+  const first = drive(
+    'options-1',
+    home,
+    netlog1,
+    [
+      ...OPENING,
+      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, data: '/speak options' },
+      { afterPrevTicks: 3, data: '\r' },
+      { requireAwait: true, awaitText: 'the shipped default', awaitStableTicks: 2, mark: 'rows', data: '/speak options openai' },
+      { afterPrevTicks: 3, data: '\r' },
+      { requireAwait: true, awaitText: 'default transcriber: openai (saved)', awaitStableTicks: 2, mark: 'switched', data: ' ' },
+      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: ' ' },
+      { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: '' },
+      { afterPrevTicks: 3, data: '' },
+    ],
+    200,
+    { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1` },
+  )
+  fx.child.kill('SIGTERM')
+  check('the first boot delivered every send', first.status === 0, `vshot ${first.status}: ${first.stderr.slice(-300)}`)
+  const rows = first.marks.rows ?? ''
+  check('/speak options lists on-device (serves now, the shipped default), OpenAI signed in, Gemini not signed in', rows.includes('● on-device — whisper.cpp') && rows.includes('(serves now, the shipped default)') && rows.includes('○ openai — OpenAI: OpenAI API key (env)') && rows.includes('○ gemini — Gemini: not signed in'), gridLines(rows, '— '))
+  check('/speak options openai saves the choice and marks the row', (first.marks.switched ?? '').includes('default transcriber: openai (saved)') && (first.marks.switched ?? '').includes('● openai — OpenAI: OpenAI API key (env) (serves now, your saved choice)'), gridLines(first.marks.switched ?? '', 'openai'))
+  check('the take goes to the saved family: the cloud words land, the receipt names OpenAI', (first.marks.landed ?? '').includes(CLOUD_TRANSCRIPT) && (first.marks.landed ?? '').includes('transcribed by OpenAI ('), gridLines(first.marks.landed ?? '', '❯'))
+  const served = ledgerPosts(fx.ledger)
+  check('the loopback transcriber served exactly ONE take', served.length === 1, served.join(' | '))
+  check('nothing left loopback', nonLoopback(netlines(netlog1)).length === 0, nonLoopback(netlines(netlog1)).join(' · '))
+
+  const netlog2 = join(scratch, 'options-2-net.log')
+  const second = drive(
+    'options-2',
+    home,
+    netlog2,
+    [
+      ...OPENING,
+      { requireAwait: true, awaitText: 'cannot serve: not signed in', awaitStableTicks: 2, mark: 'status', data: ' ' },
+      { requireAwait: true, awaitText: 'your saved OpenAI is not signed in', awaitStableTicks: 1, mark: 'recording', data: ' ' },
+      { requireAwait: true, awaitText: 'seven ships', awaitStableTicks: 2, mark: 'landed', data: '/speak options default' },
+      { afterPrevTicks: 3, data: '\r' },
+      { requireAwait: true, awaitText: 'the shipped default (saved choice cleared)', awaitStableTicks: 2, mark: 'cleared', data: '' },
+      { afterPrevTicks: 2, data: '' },
+    ],
+    200,
+    {},
+  )
+  check('the second boot delivered every send', second.status === 0, `vshot ${second.status}: ${second.stderr.slice(-300)}`)
+  check('the saved choice persisted and is named as not signed in; the on-device road serves', (second.marks.status ?? '').includes('your saved choice (OpenAI) cannot serve: not signed in') && (second.marks.status ?? '').includes('on-device serves'), gridLines(second.marks.status ?? '', 'saved'))
+  check('the started receipt names the saved choice and the road that serves', (second.marks.recording ?? '').includes('on-device transcribes — your saved OpenAI is not signed in'), gridLines(second.marks.recording ?? '', 'saved'))
+  check('the words land on this machine', SPOKEN.test(second.marks.landed ?? '') && (second.marks.landed ?? '').includes('transcribed on this machine'), gridLines(second.marks.landed ?? '', '❯'))
+  check('/speak options default restores the shipped default', (second.marks.cleared ?? '').includes('default transcriber: the shipped default (saved choice cleared)') && (second.marks.cleared ?? '').includes('(serves now, the shipped default)'), gridLines(second.marks.cleared ?? '', 'default'))
+  const lines = netlines(netlog2)
+  check('the second boot made no request of any kind', voiceWires(lines).length === 0 && nonLoopback(lines).length === 0 && !lines.some(l => l.startsWith('fetch')), lines.filter(l => !l.startsWith('tcp-local')).join(' · '))
+}
+
 if (failures > 0) {
   console.log(`\nprove-voice-local-journey: RED (${failures}) — grids kept under ${scratch}`)
   process.exit(1)
