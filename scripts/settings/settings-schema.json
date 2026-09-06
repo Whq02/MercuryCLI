@@ -684,6 +684,13 @@
         "powershell"
       ]
     },
+    "shellEngine": {
+      "type": "string",
+      "enum": [
+        "system",
+        "brush"
+      ]
+    },
     "instructionProfile": {
       "type": "string",
       "enum": [
