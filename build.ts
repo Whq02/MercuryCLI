@@ -562,6 +562,51 @@ let voiceMeta: { version: string; platform: string; addon: string; addonSha256: 
   }
 }
 
+const { WHISPER_PACK_PATH: whisperRelPath, WHISPER_NATIVE_PATH: whisperNativePath, checkWhisperPackDir, whisperPackDirFor, whisperSourceTreeDigest } = await import('./src/services/voice/whisperPack.ts');
+const { whisperDefaultModel } = await import('./src/services/voice/whisperModels.ts');
+let whisperVendored = false;
+let whisperMeta: { version: string; platform: string; addon: string; addonSha256: string; crates: number; engine: { name: string; version: string }; cpuFloor: string; gpu: string } | null = null;
+{
+  const whisperDest = resolve(OUT, whisperRelPath);
+  rmSync(whisperDest, { recursive: true, force: true });
+  const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_WHISPER === '1';
+  const packPlatform = voicePackPlatform(SHIP.platform, SHIP.arch);
+  const packDir = whisperPackDirFor(ROOT, packPlatform);
+  const nativeDir = resolve(ROOT, whisperNativePath);
+  if (!forceNo && statSync(resolve(packDir, '.vendor-manifest.json'), { throwIfNoEntry: false })?.isFile()) {
+    const check = checkWhisperPackDir(packDir, { digest: true, platform: packPlatform });
+    const sourcesNow = statSync(nativeDir, { throwIfNoEntry: false })?.isDirectory() ? whisperSourceTreeDigest(nativeDir) : null;
+    if (check.state === 'ok' && sourcesNow !== null && check.manifest.sourceTreeDigest === sourcesNow) {
+      const { cpSync } = await import('node:fs');
+      cpSync(packDir, resolve(whisperDest, packPlatform), { recursive: true });
+      whisperVendored = true;
+      whisperMeta = {
+        version: check.manifest.version,
+        platform: packPlatform,
+        addon: check.manifest.addon,
+        addonSha256: check.manifest.addonSha256,
+        crates: check.manifest.crates.length,
+        engine: check.manifest.engine,
+        cpuFloor: check.manifest.cpuFloor,
+        gpu: check.manifest.gpu,
+      };
+      console.log(`VENDORED on-device transcriber pack ${check.manifest.version} ${packPlatform} (${check.manifest.engine.name} ${check.manifest.engine.version}, built from ${whisperNativePath}, ${check.manifest.crates.length} crate licences)\n  -> ${resolve(whisperDest, packPlatform)}`);
+    } else {
+      const why = check.state !== 'ok' ? check.note : sourcesNow === null ? `${whisperNativePath} is absent` : `the pack was built from other sources than ${whisperNativePath} now holds`;
+      console.error(
+        `BUILD FAILED: vendor/whisper/${packPlatform} pack is present but stale — ${why}.\n` +
+          '  remedy: bun run scripts/vendor/build-whisper.ts   (then rebuild)\n' +
+          '  (a missing pack degrades honestly instead — only a PRESENT-but-wrong pack fails the build)',
+      );
+      process.exit(1);
+    }
+  } else if (forceNo) {
+    console.warn('MERCURY_BUILD_NO_VENDOR_WHISPER=1 — on-device transcriber pack NOT vendored (degraded: on-device-transcriber; proof seam).');
+  } else {
+    console.warn(`no on-device transcriber pack for ${packPlatform} — the artifact ships WITHOUT it (degraded: on-device-transcriber; the cloud transcribers serve). Prepare it: bun run scripts/vendor/build-whisper.ts${CROSS ? ` --target ${TARGET_ARG}` : ''} (needs cargo and cmake${CROSS ? ' and the rustup target it names' : ''})`);
+  }
+}
+
 const typescriptRelPath = 'vendor/typescript';
 let typescriptVendored = false;
 let typescriptVersion: string | null = null;
@@ -938,6 +983,26 @@ const manifest = {
         remedy:
           'build the voice capture pack (`bun run scripts/vendor/build-voice.ts`, needs cargo), then re-run `bun run build.ts` — the runtime falls back to sox/arecord/ffmpeg on PATH meanwhile, else /speak says no backend',
       },
+  onDeviceTranscriber: whisperVendored && whisperMeta
+    ? {
+        vendored: true,
+        path: `${whisperRelPath}/${whisperMeta.platform}`,
+        version: whisperMeta.version,
+        platform: whisperMeta.platform,
+        engine: whisperMeta.engine,
+        addon: whisperMeta.addon,
+        addonSha256: whisperMeta.addonSha256,
+        cpuFloor: whisperMeta.cpuFloor,
+        gpu: whisperMeta.gpu,
+        crateLicences: whisperMeta.crates,
+        defaultModel: { name: whisperDefaultModel().name, file: whisperDefaultModel().file, bytes: whisperDefaultModel().bytes, sha256: whisperDefaultModel().sha256 },
+      }
+    : {
+        vendored: false,
+        path: whisperRelPath,
+        remedy:
+          'build the on-device transcriber pack (`bun run scripts/vendor/build-whisper.ts`, needs cargo and cmake), then re-run `bun run build.ts` — the cloud transcribers serve meanwhile (an OpenAI or Gemini API key)',
+      },
   typescript: typescriptVendored && typescriptVersion
     ? {
         vendored: true,
@@ -995,6 +1060,7 @@ const manifest = {
     ...(jsDebugVendored ? [] : ['js-debugger']),
     ...(nodeVendored ? [] : ['runtime']),
     ...(voiceVendored ? [] : ['voice-input']),
+    ...(whisperVendored ? [] : ['on-device-transcriber']),
     ...(imagePackVendored ? [] : ['image-processing']),
     ...(typescriptVendored ? [] : ['structural-intelligence']),
     ...(treesitterVendored ? [] : ['structure-polyglot']),

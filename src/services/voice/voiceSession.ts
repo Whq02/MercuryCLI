@@ -2,7 +2,6 @@ import * as pendingInput from '../../input-core/pending-input.js'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { providerDisplayName } from '../providers/routeLaw.js'
 import {
   captureBoundMs,
   microphonePermissionHint,
@@ -13,7 +12,8 @@ import {
   type CaptureBackendResolution,
   type CaptureHandle,
 } from './capture.js'
-import { resolveTranscriber, transcribeWav, type TranscriberResolution } from './transcribe.js'
+import { TRANSCRIBER_PIN_ENV, choiceDebugName, choiceDisplayName, resolveTranscriber, transcribeWav, warmLocalTranscriber, type TranscriberResolution } from './transcribe.js'
+import { mbWords, whisperDownloadDoor } from './whisperModels.js'
 
 export type VoicePhase = 'idle' | 'recording' | 'transcribing'
 
@@ -123,13 +123,14 @@ async function finishCapture(reason: 'key' | 'bound', env: NodeJS.ProcessEnv): P
     }
     try {
       const transcript = await transcribeWav(result.wav, { choice: transcriber.choice, env })
-      const via = `${providerDisplayName(transcriber.choice.family)} (${transcript.model})`
+      const onDevice = transcriber.choice.kind === 'local'
+      const via = onDevice ? transcriber.choice.label : `${choiceDisplayName(transcriber.choice)} (${transcript.model})`
       if (transcript.text === '') {
         receipt(`${via} heard no words in this take (${seconds(result.durationMs)})`, 'info')
         return
       }
       landTranscript(transcript.text)
-      receipt(`transcribed by ${via} · ${seconds(result.durationMs)}`, 'info')
+      receipt(onDevice ? `transcribed on this machine (${transcript.model}) · ${seconds(result.durationMs)}` : `transcribed by ${via} · ${seconds(result.durationMs)}`, 'info')
     } catch (error) {
       receipt(`transcription failed — ${error instanceof Error ? error.message : String(error)}`, 'error')
     }
@@ -173,7 +174,8 @@ export async function toggleVoiceCapture(opts: { env?: NodeJS.ProcessEnv } = {})
   }
   active = handle
   publish({ phase: 'recording', startedAt: handle.startedAt, backend: handle.backend })
-  logForDebugging(`voice: capture started on ${handle.backend}; transcriber ${transcriber.choice.family} (${transcriber.choice.label})`)
+  logForDebugging(`voice: capture started on ${handle.backend}; transcriber ${choiceDebugName(transcriber.choice)} (${transcriber.choice.label})`)
+  if (transcriber.choice.kind === 'local') setImmediate(() => warmLocalTranscriber())
   return { kind: 'started', text: `recording — space or esc stops it (${transcriber.choice.label} transcribes)` }
 }
 
@@ -209,17 +211,55 @@ function backendWords(backend: CaptureBackendResolution): string {
 
 function transcriberWords(transcriber: TranscriberResolution): string {
   if (transcriber.state === 'ok') {
-    return `${providerDisplayName(transcriber.choice.family)} — ${transcriber.choice.label}, the most recent transcribing sign-in`
+    if (transcriber.choice.kind === 'local') {
+      const local = transcriber.local
+      const engine = local.state === 'ok' ? local.pack.engine.split(' ')[0] : 'whisper.cpp'
+      const pack = local.state === 'ok' ? ` (pack ${local.pack.version} ${local.pack.platform}, ${local.pack.where})` : ''
+      return `on-device — ${engine} ${transcriber.choice.model}${pack}`
+    }
+    return `${choiceDisplayName(transcriber.choice)} — ${transcriber.choice.label}, the most recent transcribing sign-in`
   }
   return `none — ${transcriber.note}`
+}
+
+function onDeviceWords(transcriber: TranscriberResolution): string | null {
+  if (transcriber.state === 'ok' && transcriber.choice.kind === 'local') return null
+  const local = transcriber.local
+  if (local.state === 'ok') return `on-device transcriber: usable (${local.model}), held back by ${TRANSCRIBER_PIN_ENV}`
+  return `on-device transcriber: ${local.note}`
+}
+
+function downloadDoorWords(transcriber: TranscriberResolution): string | null {
+  const local = transcriber.local
+  if (local.state === 'absent' && local.reason === 'model' && local.download !== undefined) return whisperDownloadDoor(local.download)
+  return null
+}
+
+function onDeviceCostWords(transcriber: TranscriberResolution): string | null {
+  if (transcriber.state !== 'ok' || transcriber.choice.kind !== 'local' || transcriber.local.state !== 'ok') return null
+  const local = transcriber.local
+  const road = local.pack.gpu === 'metal' ? 'Metal on the GPU' : 'the CPU'
+  return `on-device: ${local.pack.engine}, ${local.model} (${local.language === 'en' ? 'English' : 'multilingual'}), ${road}; ${onDeviceMemoryWords(local.model)}`
+}
+
+export function onDeviceMemoryWords(model: string): string {
+  const { whisperModelByName } = require('./whisperModels.js') as typeof import('./whisperModels.js')
+  const row = whisperModelByName(model)
+  const bytes = row?.bytes ?? 59_721_011
+  const mb = Math.round((bytes / 1_000_000) * 1.35 / 5) * 5
+  return `about ${mb} MB more memory while the model is loaded${row ? ` (the file is ${mbWords(row.bytes)})` : ''}`
 }
 
 export function describeVoiceStatus(env: NodeJS.ProcessEnv = process.env): string {
   const on = voiceInputEnabled()
   const transcriber = resolveTranscriber(env)
+  const onDevice = onDeviceWords(transcriber)
+  const door = downloadDoorWords(transcriber)
   return [
     `voice input ${on ? 'ON — space in an empty composer starts a capture, space or esc stops it' : 'OFF — /speak on turns it on'}`,
-    `transcriber: ${transcriber.state === 'ok' ? `${providerDisplayName(transcriber.choice.family)} · ${transcriber.choice.label}` : `none — ${transcriber.note}`}`,
+    `transcriber: ${transcriber.state === 'ok' ? (transcriber.choice.kind === 'local' ? transcriberWords(transcriber) : `${choiceDisplayName(transcriber.choice)} · ${transcriber.choice.label}`) : `none — ${transcriber.note}`}`,
+    ...(onDevice !== null ? [onDevice] : []),
+    ...(door !== null ? [door] : []),
     `backend: ${backendWords(resolveCaptureBackend(env))}`,
   ].join('\n')
 }
@@ -241,15 +281,22 @@ export function describeVoiceReadiness(env: NodeJS.ProcessEnv = process.env): Vo
   const line = `backend: ${backendWords(backend)} · transcriber: ${transcriberWords(transcriber)} · /speak ${on ? 'on' : 'off'}`
   const anthropicNamed = transcriber.skipped.some(s => s.startsWith('Anthropic'))
   const debugDir = voiceDebugWavDir()
+  const onDevice = transcriber.state === 'ok' && transcriber.choice.kind === 'local'
+  const onDeviceLine = onDeviceWords(transcriber)
+  const cost = onDeviceCostWords(transcriber)
+  const door = downloadDoorWords(transcriber)
+  const disk = debugDir === null ? 'nothing is written to disk' : `a debug copy of every take is written to ${debugDir} (MERCURY_VOICE_DEBUG_WAV_DIR)`
   const detail = [
     backend.state === 'ok' ? `capture: ${backend.detail}${backend.pinned ? ' (MERCURY_VOICE_BACKEND)' : ''}` : `capture: ${backend.note}`,
-    transcriber.state === 'ok' ? `transcriber: ${transcriber.choice.label}` : `transcriber: ${transcriber.note}`,
+    transcriber.state === 'ok' ? (transcriber.choice.kind === 'local' ? `transcriber: on-device (${transcriber.choice.model})` : `transcriber: ${transcriber.choice.label}`) : `transcriber: ${transcriber.note}`,
+    ...(cost !== null ? [cost] : []),
+    ...(transcriber.state === 'ok' && transcriber.unused.length > 0 ? [`cloud families signed in, not used: ${transcriber.unused.join('; ')}`] : []),
+    ...(onDeviceLine !== null ? [onDeviceLine] : []),
+    ...(door !== null ? [door] : []),
     ...(transcriber.skipped.length > 0 ? [`families passed over: ${transcriber.skipped.join('; ')}`] : []),
     ...(anthropicNamed ? [] : ['Anthropic: no speech-to-text endpoint']),
     permission,
-    `audio leaves the box only to the transcribing family, only after a take stops; ${
-      debugDir === null ? 'nothing is written to disk' : `a debug copy of every take is written to ${debugDir} (MERCURY_VOICE_DEBUG_WAV_DIR)`
-    }`,
+    onDevice ? `audio never leaves the box: the take is transcribed on this machine; ${disk}` : `audio leaves the box only to the transcribing family, only after a take stops; ${disk}`,
   ].join('\n')
   return { ready: backend.state === 'ok' && transcriber.state === 'ok', line, detail }
 }
