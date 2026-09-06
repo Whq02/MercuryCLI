@@ -168,7 +168,7 @@ section('§4 sdk — a control host that never answers settles the batch')
   const started = Date.now()
   const settled = await Promise.race([
     mcp.setupSdkMcpClients(
-      { 'frozen-sdk': { type: 'sdk' } as never },
+      { 'frozen-sdk': { type: 'host' } as never },
       () => new Promise(() => {}),
     ),
     new Promise<null>(r => setTimeout(() => r(null), SETTLE_BUDGET_MS)),

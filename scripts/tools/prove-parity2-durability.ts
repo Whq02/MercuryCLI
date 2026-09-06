@@ -68,7 +68,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
     name: 'prover',
     client,
     capabilities: {},
-    config: { type: 'sdk', name: 'prover', scope: 'session' } as never,
+    config: { type: 'host', name: 'prover', scope: 'session' } as never,
     cleanup: async () => {},
   }
 

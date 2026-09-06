@@ -273,7 +273,7 @@ export type EventMetadata = {
   betaHeaders?: string
   env: EnvContext
   entrypoint?: string
-  agentSdkVersion?: string
+  hostVersion?: string
   isInteractive: string
   clientType: string
   processMetrics?: ProcessMetrics
@@ -323,7 +323,7 @@ export async function getEventMetadata(options?: EnrichMetadataOptions): Promise
     env: envContext,
     ...(process.env.MERCURY_ENTRYPOINT ? { entrypoint: process.env.MERCURY_ENTRYPOINT } : {}),
     ...(process.env.MERCURY_HOST_VERSION
-      ? { agentSdkVersion: process.env.MERCURY_HOST_VERSION }
+      ? { hostVersion: process.env.MERCURY_HOST_VERSION }
       : {}),
     isInteractive: String(!getIsNonInteractiveSession()),
     clientType: 'cli',
@@ -406,7 +406,7 @@ export function to1PEventFormat(
   for (const [snake, value] of [
     ['beta_headers', metadata.betaHeaders],
     ['entrypoint', metadata.entrypoint],
-    ['agent_sdk_version', metadata.agentSdkVersion],
+    ['host_version', metadata.hostVersion],
     ['agent_id', metadata.agentId],
     ['parent_session_id', metadata.parentSessionId],
     ['agent_type', metadata.agentType],
