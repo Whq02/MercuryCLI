@@ -268,12 +268,6 @@ export type GlobalConfig = {
 
   idleReturnDismissed?: boolean
 
-  opusProMigrationComplete?: boolean
-  opusProMigrationTimestamp?: number
-  sonnet1m45MigrationComplete?: boolean
-  legacyOpusMigrationTimestamp?: number
-  sonnet45To46MigrationTimestamp?: number
-
   respectGitignore: boolean
 
   copyFullResponse: boolean
