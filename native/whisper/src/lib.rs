@@ -16,6 +16,10 @@ fn models() -> &'static Mutex<HashMap<u32, Arc<WhisperContext>>> {
     MODELS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+fn quiet() {
+    whisper_rs::install_logging_hooks();
+}
+
 fn model(handle: u32) -> Result<Arc<WhisperContext>> {
     let map = match models().lock() {
         Ok(guard) => guard,
@@ -28,16 +32,19 @@ fn model(handle: u32) -> Result<Arc<WhisperContext>> {
 
 #[napi]
 pub fn pack_version() -> String {
+    quiet();
     env!("CARGO_PKG_VERSION").to_string()
 }
 
 #[napi]
 pub fn engine_version() -> String {
+    quiet();
     whisper_rs::get_whisper_version().to_string()
 }
 
 #[napi]
 pub fn system_info() -> String {
+    quiet();
     whisper_rs::print_system_info().to_string()
 }
 
@@ -92,7 +99,7 @@ pub fn cpu_floor() -> CpuFloorAnswer {
 
 #[napi]
 pub fn load_model(path: String, use_gpu: Option<bool>) -> Result<u32> {
-    whisper_rs::install_logging_hooks();
+    quiet();
     let mut params = WhisperContextParameters::default();
     params.use_gpu(use_gpu.unwrap_or(true));
     let ctx = WhisperContext::new_with_params(&path, params).map_err(|error| {
