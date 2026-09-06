@@ -224,6 +224,7 @@ section('L9 — --verbose is not an option: the plain format answers the unknown
   check("stderr names the unknown option", cap.stderr.includes("unknown option '--verbose'"), cap.stderr.slice(0, 120))
   check('stdout carries zero bytes', cap.stdout.length === 0, cap.stdout.slice(0, 80))
   check('the exit code is the one every unknown option answers', cap.exit !== 0 && cap.exit === control.exit, `exit=${cap.exit} control=${control.exit}`)
+  check('a usage error exits 2', cap.exit === 2, String(cap.exit))
   assertClean('L9', cap)
 }
 
@@ -244,7 +245,7 @@ async function driveDist(
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_TEAMS_DIR: join(home, 'teams'),
   }
-  const child = spawn(nodeBin!, [DIST, '-p', '--output-format', 'stream-json', '--input-format', 'stream-json', '--permission-prompt-tool', 'stdio'], { cwd, env })
+  const child = spawn(nodeBin!, [DIST, '-p', '--output-format', 'stream-json', '--input-format', 'stream-json', '--permission-channel', 'stdio'], { cwd, env })
   const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)
   const frames: Record<string, unknown>[] = []
   const waiters: Array<() => void> = []
@@ -371,6 +372,27 @@ section('L10 — the one spelling: every driven frame is a declared type with sn
     const answer = answers.get(id)
     check(`${word} → unsupported control request subtype`, answer?.subtype === 'error' && String(answer.error) === `unsupported control request subtype: ${word}`, JSON.stringify(answer ?? null))
   }
+}
+
+section('L12 — every refusal of the feed is one envelope: one field set, one usage shape')
+{
+  const a = await runDist(['-p', 'hello', '--output-format', 'stream-json', '--max-turns', '0'])
+  const b = await runDist(['-p', '--resume', '', 'hello', '--output-format', 'stream-json'])
+  const frame = (cap: Capture): Record<string, unknown> | null => {
+    try {
+      return JSON.parse(cap.stdout.trim().split('\n')[0] ?? '') as Record<string, unknown>
+    } catch {
+      return null
+    }
+  }
+  const keys = (f: unknown): string => (f && typeof f === 'object' ? Object.keys(f as object).sort().join(',') : '')
+  const fa = frame(a)
+  const fb = frame(b)
+  check('an option refusal rides one parseable result envelope', fa !== null && fa.type === 'result' && fa.subtype === 'error_during_execution' && fa.is_error === true, a.stdout.slice(0, 120))
+  check('a load refusal rides the same envelope', fb !== null && fb.type === 'result' && fb.subtype === 'error_during_execution' && fb.is_error === true, b.stdout.slice(0, 120))
+  check('the two refusals carry one field set', fa !== null && fb !== null && keys(fa) === keys(fb), `${keys(fa)} vs ${keys(fb)}`)
+  check('an option refusal (a usage error) exits 2 and a load refusal exits 1', a.exit === 2 && b.exit === 1, `option=${a.exit} load=${b.exit}`)
+  check('the two refusals carry one usage shape', fa !== null && fb !== null && keys(fa.usage) === keys(fb.usage) && keys(fa.usage).length > 0, `${keys(fa?.usage)} vs ${keys(fb?.usage)}`)
 }
 
 console.log('\n' + '═'.repeat(76))

@@ -4,7 +4,7 @@ process.env.NODE_ENV = 'test'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-for (const key of ['OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'OPENAI_API_KEY', 'HF_TOKEN', 'ANTHROPIC_MODEL', 'MERCURY_DISABLE_1M_CONTEXT', 'CLAUDE_EFFORT']) {
+for (const key of ['OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'OPENAI_API_KEY', 'HF_TOKEN', 'MERCURY_MODEL', 'MERCURY_DISABLE_1M_CONTEXT', 'CLAUDE_EFFORT']) {
   delete process.env[key]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-ctx-fill-'))

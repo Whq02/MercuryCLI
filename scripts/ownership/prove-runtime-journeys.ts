@@ -174,7 +174,7 @@ section('J3 — read-tool round (tool_use → local execution → tool_result �
     'read the note',
     '--model',
     'claude-opus-4-8',
-    '--allowedTools',
+    '--allowed-tools',
     'Read',
   ])
   const msgs = fixture2.messageRequests()
@@ -253,6 +253,7 @@ section('J5 — cancellation during model streaming (SIGINT tears down cleanly)'
   const elapsed = Date.now() - startedAt
   check('process exited promptly after SIGINT (<20s)', elapsed < 20_000, `${elapsed}ms`)
   check('no second request after cancellation', fixture.messageRequests().length === 1, String(fixture.messageRequests().length))
+  check('an interrupted headless run exits 130', r.exit === 130, `exit=${r.exit} signal=${r.signal}`)
   journeys['J5'] = {
     exitKind: r.signal ?? `code:${r.exit}`,
     stdout: r.stdout,

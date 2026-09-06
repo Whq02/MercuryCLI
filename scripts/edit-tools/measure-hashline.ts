@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'hashline-measure-'))
-process.env.MERCURY_SIMPLE = '1'
+process.env.MERCURY_BARE = '1'
 
 const repoRoot = resolve(import.meta.dir, '../..')
 

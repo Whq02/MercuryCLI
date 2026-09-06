@@ -524,7 +524,7 @@ async function loadAgentDefinitionsUncached(
   cwd: string,
 ): Promise<AgentDefinitionsResult> {
   try {
-    if (isEnvTruthy(process.env.MERCURY_SIMPLE)) {
+    if (isEnvTruthy(process.env.MERCURY_BARE)) {
       const builtIns = getBuiltInAgents()
       return { activeAgents: builtIns, allAgents: builtIns }
     }

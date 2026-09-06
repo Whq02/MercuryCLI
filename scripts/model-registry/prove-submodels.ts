@@ -192,14 +192,14 @@ section("3b · THE UNSET DEFAULT (the operator's word) — the choice is the ope
     "the hint is the ruling's words, verbatim",
     SUB_MODEL_UNSET_HINT === 'use /submodels to pin one of the available model catalogues',
   )
-  const priorModel = process.env.ANTHROPIC_MODEL
+  const priorModel = process.env.MERCURY_MODEL
   for (const main of [
     'claude-fable-5',
     'gpt-5.6-sol',
     'gemini-2.5-pro',
     'openrouter/nvidia/nemotron-3.5-lightning:free',
   ]) {
-    process.env.ANTHROPIC_MODEL = main
+    process.env.MERCURY_MODEL = main
     for (const container of ['minerva', 'console'] as const) {
       const resolution = resolveSubModel(container)
       check(
@@ -209,8 +209,8 @@ section("3b · THE UNSET DEFAULT (the operator's word) — the choice is the ope
       )
     }
   }
-  if (priorModel === undefined) delete process.env.ANTHROPIC_MODEL
-  else process.env.ANTHROPIC_MODEL = priorModel
+  if (priorModel === undefined) delete process.env.MERCURY_MODEL
+  else process.env.MERCURY_MODEL = priorModel
 }
 
 section('4 · persistence — env pin > saved pick > UNSET')

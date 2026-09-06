@@ -106,7 +106,7 @@ fi
 
 MERCURY_TAKEOVER=1
 case "${1:-}" in
-  acp|agents|attach|auth|bridge|daemon|doctor|editor|environment-runner|extensions|health|install|join|join-kit|kill|list|logs|mcp|new|ps|rc|remote|remote-control|reply|self-hosted-runner|setup-token|show|sync|themis|update|upgrade) MERCURY_TAKEOVER=0 ;;
+  acp|agents|auth|daemon|doctor|editor|extensions|health|install|join|join-kit|mcp|show|themis|update|upgrade) MERCURY_TAKEOVER=0 ;;
 esac
 for _mercury_arg in "$@"; do
   case "$_mercury_arg" in

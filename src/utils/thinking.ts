@@ -1,4 +1,5 @@
 import { getSettings_DEPRECATED } from './settings/settings.js'
+import { flagEnv } from '../substrate/flagRegistry.js'
 
 
 export { modelSupportsAdaptiveThinking, modelSupportsThinking } from './model/capabilities.js'
@@ -32,7 +33,7 @@ export function findThinkingTriggerPositions(
 }
 
 export function shouldEnableThinkingByDefault(): boolean {
-  const envValue = process.env.MAX_THINKING_TOKENS
+  const envValue = flagEnv('MERCURY_THINKING_BUDGET')
   if (envValue !== undefined && envValue !== '') {
     const parsed = parseInt(envValue, 10)
     return parsed > 0

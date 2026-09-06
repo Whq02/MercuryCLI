@@ -871,7 +871,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             const commitMs = commitSec * 1000
             if (entryMtime < commitMs) {
-              const bun = process.env.BUN || join(homedir(), '.bun', 'bin', 'bun')
+              const bun = flagEnv('MERCURY_BUN') || join(homedir(), '.bun', 'bin', 'bun')
               return {
                 status: 'stale',
                 evidence: `bundle built ${formatAge(Date.now() - entryMtime)}, but src/ last changed ${formatAge(Date.now() - commitMs)} (committed) — the running build predates the source`,
