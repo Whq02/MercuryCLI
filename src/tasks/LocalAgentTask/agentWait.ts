@@ -25,6 +25,22 @@ type StreamEventLike = {
   retryInMs?: number
   retryAttempt?: number
   message?: { content?: unknown }
+  errorDetail?: { status?: unknown; message?: unknown }
+  error?: { message?: unknown }
+}
+
+function retryReasonOf(event: StreamEventLike): string {
+  const status = typeof event.errorDetail?.status === 'number' ? event.errorDetail.status : undefined
+  const message =
+    typeof event.error?.message === 'string' ? event.error.message : typeof event.errorDetail?.message === 'string' ? event.errorDetail.message : ''
+  if (status === 429) return 'the provider busy (HTTP 429)'
+  if (status === 529 || message.includes('"type":"overloaded_error"')) return 'the provider overloaded (HTTP 529)'
+  if (status === 408) return 'a request timeout (HTTP 408)'
+  if (status !== undefined && status >= 500) return `a provider error (HTTP ${status})`
+  if (status !== undefined) return `the provider's HTTP ${status}`
+  if (/no first byte/.test(message)) return 'no first byte'
+  if (/connection|socket|ECONN|EPIPE|fetch failed|timed? ?out/i.test(message)) return 'a connection fault'
+  return 'a provider fault'
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
@@ -97,7 +113,7 @@ export function foldAgentWaitEvent(prev: AgentWaitV1 | null, raw: unknown, nowMs
         phase: 'retry',
         sinceMs: nowMs,
         budgetMs: delay,
-        reason: 'a provider fault',
+        reason: retryReasonOf(event),
         ...(typeof event.retryAttempt === 'number' ? { attempt: event.retryAttempt } : {}),
       }
     }
