@@ -66,7 +66,6 @@ import { setAssistantModeActive } from './tasks/LocalShellTask/LocalShellTask.js
 import { getTools } from './tools.js'
 import { getAgentDefinitionsWithOverrides, computeActiveAgents, parseAgentsFromJson, type AgentDefinition } from './tools/AgentTool/loadAgentsDir.js'
 import { init } from './entrypoints/init.js'
-import { preconnectAnthropicApi } from './utils/apiPreconnect.js'
 import { releaseLauncherAltHoldNow } from './ink/launcherAltHold.js'
 import { resolveTerminalExperience } from './ink/session/terminalExperience.js'
 import {
@@ -674,10 +673,6 @@ async function run(): Promise<void> {
     clearTimeout(slowBootNote)
     await init()
     profileCheckpoint('preAction_after_init')
-    if (actionCommand === program) {
-      preconnectAnthropicApi({ credentialed: hasFirstPartyCredential() })
-      profileCheckpoint('init_preconnect_dispatched')
-    }
     if (resolveTerminalExperience().terminalTitle.effective) {
       process.title = 'mercury'
     }
