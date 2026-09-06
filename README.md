@@ -175,7 +175,8 @@ while whatever the last chat held keeps running.
 
 **The chat.** You type; the agent reads, edits, runs and verifies code under
 the permission mode you chose, and each tool call shows in the chat as it
-runs. `/model` and `/effort` tune the session, `/permissions` shapes what
+runs, as a compact card or its full output (the `/config` row Tool output,
+saved for later boots). `/model` and `/effort` tune the session, `/permissions` shapes what
 runs free and what asks first, `/policy` is the governance posture, `/diff`
 reviews the changes by source, file and hunk, `/tasks` is the board of
 running shells and agents, and `/help` browses every command. `/clear` parks
@@ -231,7 +232,10 @@ The same artifact is a command-line tool; `node dist/mercury.mjs --help`
 lists every flag. `-p "<prompt>"` runs one non-interactive turn (with
 `--output-format text|json|stream-json`), `-c` continues the most recent
 conversation, `-r` resumes by id, title or picker, `-w` runs the session
-inside a managed worktree, and `--bare` is the minimal mode. The verbs:
+inside a managed worktree, and `--bare` is the minimal mode. The stream-json
+feed is complete on its own: every event of the run, from the init row to
+the result envelope, rides it with no other option asked for; `json` prints
+the result envelope alone. The verbs:
 
 - `mercury health` (alias `doctor`): the health certificate; `--json` prints
   it whole, `--deep` runs the deep inventory, `--fix` runs the guided fixes.

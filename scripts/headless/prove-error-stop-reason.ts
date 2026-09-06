@@ -52,7 +52,7 @@ console.log('§1 --output-format json')
 
 console.log('\n§2 --output-format stream-json')
 {
-  const r = run(['-p', 'hi', '--model', 'compat/w17-mock', '--output-format', 'stream-json', '--verbose'])
+  const r = run(['-p', 'hi', '--model', 'compat/w17-mock', '--output-format', 'stream-json'])
   const frames = r.out
     .split('\n')
     .filter(l => l.trim() !== '')
