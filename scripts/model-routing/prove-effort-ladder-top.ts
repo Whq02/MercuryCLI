@@ -145,7 +145,7 @@ const LIST_WORD = 'ultra'
   check('a wire-refused word names the road and the re-probe', refused === 'effort max: the wire refused it for GPT-6 Astra on the ChatGPT subscription road today — sent xhigh, the nearest word it serves; Mercury asks the wire again after a day', refused)
   check('the window words: a day · an hour · 3 hours · 2 days', store.describeWireEffortProbeWindow() === 'a day' && store.describeWireEffortProbeWindow(3_600_000) === 'an hour' && store.describeWireEffortProbeWindow(3 * 3_600_000) === '3 hours' && store.describeWireEffortProbeWindow(48 * 3_600_000) === '2 days')
   const lane = src('src/services/providers/openai/openaiCallModel.ts')
-  check('the OpenAI lane stamps the road and the re-probe on a fresh refusal and on a remembered one (the listed word the served row lacks)', lane.includes('effortAdjusted = receiptOf(profile, true)') && lane.includes('wireRefused: { road: auth.account.label, reprobeAfter: describeWireEffortProbeWindow() }') && lane.includes('listedWords.includes(asked)'))
+  check('the OpenAI lane stamps the road and the re-probe on a fresh refusal and on a remembered one (the listed word the served row lacks)', lane.includes('effortAdjusted = receiptOf(profile, true)') && lane.includes('wireRefused: { road: accountRoad, reprobeAfter: describeWireEffortProbeWindow() }') && lane.includes('const accountRoad = auth.account.label') && lane.includes('listedWords.includes(asked)'))
   check('the turn machine paints the line from the one owner', src('src/run-core/turn-machine.ts').includes('effortAdjustedReceiptLine(adjusted)'))
 }
 
