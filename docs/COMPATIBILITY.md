@@ -123,13 +123,12 @@ literal in the body.
 
 ## Credentials on macOS
 
-Keychain writes use Mercury's own service name (keyed to the resolved auth
-config home). Reads also try two bounded fallback entries
+Keychain writes use Mercury's own service name, keyed to the resolved auth
+config home (every home's name carries a hash of its path). Reads also try
+one bounded fallback entry
 (`src/utils/secureStorage/macOsKeychainHelpers.ts`): a credential stored
-under the vendor CLI's service name is carried across to the Mercury name on
-the first token refresh, and one stored under the raw spelling of a
-non-canonical config-home pin is moved to the canonical name on the first
-successful read.
+under the raw spelling of a non-canonical config-home pin is moved to the
+canonical name on the first successful read.
 
 ## Platforms
 
