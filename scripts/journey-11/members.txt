@@ -1,0 +1,11 @@
+# scripts/journey-11/members.txt — this sub-suite's provers, one basename
+# per line (the files live in scripts/journey/). The parent suite runs every
+# prover NOT named by a sibling list, so a NEW prover lands there
+# automatically; a name listed here but missing on disk is a loud red in
+# this runner. This slice: the model-switch and stream journeys — five
+# short windows.
+prove-interrupt-after-switch.ts
+prove-switch-cold-ingest.ts
+prove-flow-neverstop-live.ts
+prove-concourse-roundtrip-transcript.ts
+prove-noping-stream-completes.ts
