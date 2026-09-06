@@ -284,6 +284,7 @@ src/utils/settings/settingsCache.ts :: parsedFileCache :: invalidator=resetSetti
 src/utils/settings/settingsCache.ts :: perSourceCache :: invalidator=resetSettingsCache
 src/utils/settings/settingsCache.ts :: sessionSettingsCache :: invalidator=resetSettingsCache
 src/utils/settings/snapshot.ts :: lastSnapshot :: keyed-by-truth
+src/utils/shell/engineSession.ts :: snapshotPromise :: static-for-process
 src/utils/shell/powershellDetection.ts :: cachedPowerShellPath :: static-for-process
 src/utils/suggestions/directoryCompletion.ts :: directoryCache :: ttl-bounded
 src/utils/suggestions/directoryCompletion.ts :: pathCache :: ttl-bounded
