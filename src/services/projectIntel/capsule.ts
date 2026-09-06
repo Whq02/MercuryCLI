@@ -235,7 +235,7 @@ export function assembleContextCapsule(input: CapsuleInput): ContextCapsule | nu
     if (existsFile(input.workspace, r)) add(r, 'recent change', 4, `recently observed this session`)
   }
 
-  if (snapshot.instructions.claudeMd) add('CLAUDE.md', 'instruction', 5, `repository instructions`)
+  if (snapshot.instructions.mercuryMd) add('MERCURY.md', 'instruction', 5, `repository instructions`)
   if (snapshot.instructions.agentsMd) add('AGENTS.md', 'instruction', 5, `repository agent instructions`)
   if (snapshot.knowledge.wikiIndex)
     add('docs/wiki/INDEX.md', 'instruction', 5, `the repo's architecture router`)

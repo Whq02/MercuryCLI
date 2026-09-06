@@ -154,6 +154,11 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
     why: 'legacy channel root honored in place beside the native root',
   },
   {
+    test: (f, needle) => needle === 'MERCURY.md' && f.startsWith('src/services/projectIntel/'),
+    cls: 'owner-internal',
+    why: "the project intel facts name Mercury's own instruction file — existence only, never a content load",
+  },
+  {
     test: (f, needle) =>
       needle === 'CLAUDE.md' &&
       (f.startsWith('src/services/projectIntel/') ||
