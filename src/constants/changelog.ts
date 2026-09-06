@@ -2,6 +2,11 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
+- Added an optional built-in shell engine: with the setting "Shell engine" set to the built-in one, the Bash tool runs one shell per session whose directory, variables, functions and aliases persist between calls, the same shell on every platform, and Windows no longer needs Git for Windows; the system shell stays the default and the doctor names which engine is live
+- Fixed the Bash tool under the built-in engine mangling non-ASCII text, hanging on a command that reads stdin, and dropping an external command's error output
+- Fixed agents stopping with "provider throttled" after a stream went quiet or dropped, when no provider had refused anything: a recovery is now charged only for the time actually waited, every wait names its real cause, and the stop line says how to resume the agent
+- Fixed a live but quiet model stream being cut after 90 seconds; the watchdog now sees the provider's keep-alive signals
+- Changed a stream that ends with a bare error to read the stream's own closing reason first; the notice names the road and what Mercury did next
 - Fixed the exit prompt counting agents that had already ended, and the crew view disagreeing with it; a row whose process is gone now settles, and the prompt names what is still running by kind and points at /tasks
 - Changed what happens when an agent stops mid-stream: it hands back what it produced so far, the files it touched and why it stopped, and its work stays resumable; a seat cut by the recovery budget resumes once by itself when its allowance refills
 - Fixed the "back to the bottom" pill never appearing after PgUp or PgDn in the transcript; it now paints as it does after the mouse wheel
@@ -12,7 +17,6 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a message to a worker owned by a running workflow starting a second copy of that worker; the message is refused and names the workflow, and a finished run can no longer settle its successor
 - Added on-device speech-to-text: with no API key at all, /speak on, space to talk, space to stop, and the words land in the composer without anything leaving the machine; the first use downloads a 60 MB English model once, behind /speak download, and the doctor names the engine, the model and the memory it takes
 - Changed voice input to prefer the on-device transcriber whenever its pack and model are present; a signed-in cloud transcriber serves when they are not, or when you pin one
-- Fixed an agent stopping as "provider throttled" after its stream went quiet or dropped: a recovery's ceiling is charged only for the time waited, only the provider's refusals are named as such, every wait names its cause, the stop line says how to resume the agent, and a live stream's heartbeats keep the idle watchdog from cutting it
 - Fixed a file read that starts at line 0 numbering its lines from 0, which made its anchors unusable by Edit; a read from offset 0 numbers its first line 1
 - Fixed the last-resort image read advertising JPEG for PNG bytes on the JavaScript image road; the type now follows the bytes
 - Fixed two cut paths losing their reason, an interruption during a Stop hook and a workflow permission ask that timed out; both now name their cause

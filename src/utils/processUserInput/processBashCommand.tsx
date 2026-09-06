@@ -15,6 +15,7 @@ import {
 } from '../messages.js'
 import { resolveDefaultShell } from '../shell/resolveDefaultShell.js'
 import { isPowerShellToolEnabled } from '../shell/shellToolUtils.js'
+import { bashToolAvailable, WINDOWS_BASH_NOTICE } from '../shell/windowsShellRoad.js'
 import { BashTool, type Out } from '../../tools/BashTool/BashTool.tsx'
 import { BashModeProgress } from '../../components/BashModeProgress.js'
 import type { ProcessUserInputContext } from './processUserInput.js'
@@ -58,6 +59,20 @@ export async function processBashCommand(
   const tool = usePowerShell
     ? (await import('../../tools/PowerShellTool/PowerShellTool.tsx')).PowerShellTool
     : BashTool
+
+  if (!usePowerShell && !bashToolAvailable()) {
+    return {
+      messages: [
+        caveat,
+        commandMessage,
+        ...attachmentMessages,
+        createUserMessage({
+          content: `<${BASH_STDERR_TAG}>${escapeXml(`Command refused: ${WINDOWS_BASH_NOTICE}`)}</${BASH_STDERR_TAG}>`,
+        }),
+      ],
+      shouldQuery: false,
+    }
+  }
 
   let latestProgress: ShellProgress | null = null
   let progressJsx: React.ReactNode = null
