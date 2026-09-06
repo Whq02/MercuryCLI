@@ -110,7 +110,7 @@ import { describeUntrustedMcpHardening, getMcpPolicyRejects } from '../services/
 import { getEnabledSettingSources } from './settings/constants.js'
 import { getSettingsForSource } from './settings/settings.js'
 import { summarizeMcpAuthCurrency } from '../services/mcp/auth.js'
-import { LATEST_PROTOCOL_VERSION } from '../services/mcp/sdk.js'
+import { describeMcpProtocolCurrency } from '../services/mcp/protocolRevision.js'
 import { extensionsHealthRow } from '../extensions/boot.js'
 import { healthFixEnabled } from './healthFix.js'
 import { assessDeployedAssets } from './healthDeployedAssets.js'
@@ -2916,13 +2916,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return { status: 'unknown', evidence: mcp.reason ?? 'mcp config unreadable' }
             }
             const hardening = describeUntrustedMcpHardening()
-            const KNOWN_NEXT_MCP_REV = '2026-07-28'
-            const revBehind =
-              new Date().toISOString().slice(0, 10) >= KNOWN_NEXT_MCP_REV &&
-              LATEST_PROTOCOL_VERSION < KNOWN_NEXT_MCP_REV
-            const revLine = revBehind
-              ? `proto ${LATEST_PROTOCOL_VERSION} · rev ${KNOWN_NEXT_MCP_REV} is published — SDK behind`
-              : `proto ${LATEST_PROTOCOL_VERSION} (next: ${KNOWN_NEXT_MCP_REV} RC)`
+            const currency = describeMcpProtocolCurrency()
+            const revLine = currency.line
             const auth = summarizeMcpAuthCurrency()
             const authLine =
               auth === null
@@ -2945,11 +2940,11 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 fix: 'Re-authenticate the expired server(s) via /mcp (tokens refresh on next use; this makes the stale ones visible).',
               }
             }
-            if (revBehind) {
+            if (currency.behind) {
               return {
                 status: 'warn',
                 evidence,
-                fix: `The bundled SDK speaks MCP ${LATEST_PROTOCOL_VERSION}; ${KNOWN_NEXT_MCP_REV} is out. Newer servers may refuse — update Mercury when a build ships the migration.`,
+                ...(currency.fix ? { fix: currency.fix } : {}),
               }
             }
             if (!policyActive) {

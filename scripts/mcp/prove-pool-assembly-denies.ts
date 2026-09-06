@@ -58,8 +58,8 @@ section('§2 THE -p ASSEMBLY')
 section('§3 THE SERVE CONTEXT')
 {
   const serve = readFileSync(join(ROOT, 'src/entrypoints/mcp.ts'), 'utf8')
-  const listAt = serve.indexOf('setRequestHandler(ListToolsRequestSchema')
-  const callAt = serve.indexOf('setRequestHandler(CallToolRequestSchema')
+  const listAt = serve.indexOf("setRequestHandler('tools/list'")
+  const callAt = serve.indexOf("setRequestHandler('tools/call'")
   const listSlice = serve.slice(listAt, listAt + 600)
   const callSlice = serve.slice(callAt, callAt + 600)
   check(

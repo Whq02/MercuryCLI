@@ -9,8 +9,7 @@ process.env.MERCURY_CONFIG_DIR = memDir
 process.env.MERCURY_COORDINATION_MCP = '1'
 
 const { createCoordinationServer } = await import('../../src/services/mcp/coordinationServer.ts')
-const { InMemoryTransport } = await import('@modelcontextprotocol/sdk/inMemory.js')
-const { Client } = await import('@modelcontextprotocol/sdk/client/index.js')
+const { Client, InMemoryTransport } = await import('@modelcontextprotocol/client')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

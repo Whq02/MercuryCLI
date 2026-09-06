@@ -51,8 +51,12 @@ rl.on('line', line => {
     send({ jsonrpc: '2.0', id: msg.id, result: {} })
     return
   }
+  if (msg.method === 'prompts/list' || msg.method === 'resources/list' || msg.method === 'resources/templates/list') {
+    send({ jsonrpc: '2.0', id: msg.id, result: { prompts: [], resources: [], resourceTemplates: [] } })
+    return
+  }
   if (msg.id !== undefined) {
-    send({ jsonrpc: '2.0', id: msg.id, result: { prompts: [], resources: [] } })
+    send({ jsonrpc: '2.0', id: msg.id, error: { code: -32601, message: `Method not found: ${msg.method}` } })
   }
 })
 
