@@ -496,7 +496,6 @@ async function run(): Promise<void> {
     .option('-d, --debug [filter]', 'Enable debug output (with an optional category filter)')
     .addOption(new Option('--d2e, --debug-to-stderr', 'Mirror debug output to stderr').hideHelp())
     .option('--debug-file <path>', 'Write debug output to a file')
-    .option('--verbose', 'Verbose output')
     .option(
       '-p, --print',
       'Non-interactive output. A slash command this seat cannot serve (an interactive-only surface, a retired or unavailable command) answers its typed refusal on stderr and exits 1. The workspace-trust dialog is skipped in this mode — use it only in directories you trust.',
@@ -754,7 +753,6 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     .command('serve')
     .description('Run the MCP server')
     .option('-d, --debug', 'Debug output')
-    .option('--verbose', 'Verbose output')
     .action(async options => {
       const { mcpServeHandler } = await import('./cli/handlers/mcp.js')
       await mcpServeHandler(options)
@@ -1917,7 +1915,7 @@ async function interactiveLaunch(args: {
   const initialState: AppState = {
     ...getDefaultAppState(),
     toolPermissionContext: effectiveContext,
-    verbose: Boolean(opts.verbose) || Boolean(config.verbose),
+    verbose: Boolean(config.verbose),
     expandedView: config.showSpinnerTree ? 'teammates' : config.showExpandedTodos ? 'tasks' : 'none',
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
     ...(supercodeArmed ? { supercode: true } : {}),
@@ -2262,7 +2260,7 @@ async function printLaunch(args: {
   const initialState: AppState = {
     ...getDefaultAppState(),
     toolPermissionContext: args.toolPermissionContext,
-    verbose: Boolean(opts.verbose) || Boolean(config.verbose),
+    verbose: Boolean(config.verbose),
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
     ...(supercodeArmed ? { supercode: true } : {}),
     ...(isAdvisorEnabled() && args.advisorModel ? { advisorModel: args.advisorModel } : {}),
@@ -2339,7 +2337,6 @@ async function printLaunch(args: {
       {
         continue: Boolean(opts.continue),
         resume: opts.resume as string | boolean | undefined,
-        verbose: Boolean(opts.verbose) || Boolean(config.verbose),
         outputFormat: args.outputFormat,
         jsonSchema: parsedJsonSchema,
         permissionPromptToolName: typedString(opts.permissionPromptTool),

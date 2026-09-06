@@ -217,6 +217,16 @@ section('L8 — stream-json failure: framing holds; the typed error record rides
   assertClean('L8', cap)
 }
 
+section('L9 — --verbose is not an option: the plain format answers the unknown-option refusal')
+{
+  const cap = await runDist(['-p', 'hello', '--verbose'])
+  const control = await runDist(['-p', 'hello', '--zzz-not-an-option'])
+  check("stderr names the unknown option", cap.stderr.includes("unknown option '--verbose'"), cap.stderr.slice(0, 120))
+  check('stdout carries zero bytes', cap.stdout.length === 0, cap.stdout.slice(0, 80))
+  check('the exit code is the one every unknown option answers', cap.exit !== 0 && cap.exit === control.exit, `exit=${cap.exit} control=${control.exit}`)
+  assertClean('L9', cap)
+}
+
 console.log('\n' + '═'.repeat(76))
 await Promise.all(fixtures.map(f => f.close().catch(() => {})))
 if (failures > 0) {

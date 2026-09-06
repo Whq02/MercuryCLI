@@ -273,7 +273,6 @@ type HeadlessOptions = {
   continue?: boolean
   resume?: string | boolean
   resumeSessionAt?: string
-  verbose?: boolean
   outputFormat?: string
   jsonSchema?: Record<string, unknown>
   permissionPromptToolName?: string
@@ -1148,7 +1147,6 @@ export async function runHeadless(
           ...(command.mode === 'bash' ? { promptMode: 'bash' as const } : {}),
           cwd: getCwd(),
           tools: assembledTools,
-          verbose: options.verbose,
           mcpClients: turnClients,
           thinkingConfig,
           maxTurns: options.maxTurns,
