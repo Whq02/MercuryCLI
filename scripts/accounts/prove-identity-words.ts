@@ -133,7 +133,7 @@ section('I3 every identity surface reads the ONE composer (structural)')
   const picker = read('src/commands/defaultprovider/defaultprovider.tsx')
   check('the /defaultprovider picker reads the composer', picker.includes("presenceIdentityWords(presence) ?? 'signed in'"))
   const verb = read('src/cli/handlers/auth.ts')
-  check('the headless auth verb carries the presence identity on its rows (additive) and prints it in --text', verb.includes('identity?: string') && verb.includes('row.identity ?? row.source'))
+  check('the headless auth verb carries the presence identity on its rows (additive) and prints it on a terminal', verb.includes('identity?: string') && verb.includes('row.identity ?? row.source'))
   check('…and a ChatGPT-only operator is no longer told "Not signed in"', verb.includes('No Anthropic credential —'))
 }
 

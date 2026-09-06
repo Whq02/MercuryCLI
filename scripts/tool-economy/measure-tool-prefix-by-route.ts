@@ -27,11 +27,11 @@ for (const ambient of [
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
   'ANTHROPIC_BASE_URL',
-  'ANTHROPIC_MODEL',
+  'MERCURY_MODEL',
   'MERCURY_OAUTH_TOKEN',
   'MERCURY_SCRIPTED_STREAM',
   'MERCURY_WORKFLOW_ROUTING',
-  'MERCURY_SIMPLE',
+  'MERCURY_BARE',
   'MERCURY_TOOL_SEARCH',
   'MERCURY_TOOL_DEFER',
   'GOOGLE_API_KEY',
@@ -495,7 +495,7 @@ for (const leg of LEGS) {
     if (v === undefined) delete process.env[k]
     else process.env[k] = v
   }
-  process.env.ANTHROPIC_MODEL = leg.model
+  process.env.MERCURY_MODEL = leg.model
   const pool = assembleToolPool(permissionContext, mcpTools)
   if (admittedNames.length === 0) {
     const builtins = pool.filter(t => isDeferredTool(t) && !t.isMcp).slice(0, 2).map(t => t.name)
@@ -509,7 +509,7 @@ for (const leg of LEGS) {
   check(`${leg.route} (${leg.model}): both views captured on the wire`, fresh.captured && admitted.captured, `${fresh.error ?? ''} ${admitted.error ?? ''}`.trim())
   for (const k of Object.keys(leg.env)) delete process.env[k]
 }
-delete process.env.ANTHROPIC_MODEL
+delete process.env.MERCURY_MODEL
 
 const fp = rows.find(r => r.route === 'anthropic' && r.view === 'fresh')
 const gw = rows.find(r => r.route === 'anthropic-gateway' && r.view === 'fresh')

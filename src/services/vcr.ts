@@ -8,7 +8,7 @@ import { addToTotalSessionCost } from '../cost-tracker.js'
 import type { AssistantMessage, Message } from '../types/message.js'
 import { getCwd } from '../utils/cwd.js'
 import { env } from '../utils/env.js'
-import { getMercuryHome, isEnvTruthy } from '../utils/envUtils.js'
+import { getMercuryHome } from '../utils/envUtils.js'
 import { normalizeMessagesForAPI } from '../utils/messages.js'
 import { calculateUSDCost } from '../utils/modelCost.js'
 import { jsonParse, jsonStringify } from '../utils/slowOperations.js'
@@ -29,7 +29,7 @@ function fixturePath(name: string): string {
 }
 
 function isRecordingEnabled(): boolean {
-  return isEnvTruthy(process.env.VCR_RECORD)
+  return false
 }
 
 
@@ -116,7 +116,7 @@ async function withFixture<T>(fixtureName: string, input: unknown, produce: () =
   }
   if (isCiEnvironment() && !isRecordingEnabled()) {
     throw new Error(
-      `Missing VCR fixture ${path}. Re-run with VCR_RECORD=1 to record it, then commit the result.`,
+      `Missing VCR fixture ${path}. this build does not record fixtures.`,
     )
   }
   const result = await produce()
@@ -240,7 +240,7 @@ export async function withVCR<T>(
   }
   if (isCiEnvironment() && !isRecordingEnabled()) {
     throw new Error(
-      `Missing VCR fixture ${path}. Re-run with VCR_RECORD=1 to record it, then commit the result.`,
+      `Missing VCR fixture ${path}. this build does not record fixtures.`,
     )
   }
   const live = await produce()

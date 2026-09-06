@@ -124,7 +124,7 @@ async function driveRunner(opts: { stamp: boolean; label: string }): Promise<voi
       'claude-opus-4-8',
       '--session-id',
       pinnedSessionId,
-      '--allowedTools',
+      '--allowed-tools',
       'Read',
       'Write',
     ],

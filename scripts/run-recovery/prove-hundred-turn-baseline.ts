@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'convergence-s28-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'convergence-s28-daemon-'))
 process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'convergence-s28-teams-'))
 for (const k of [
-  'MERCURY_SIMPLE',
+  'MERCURY_BARE',
   'MERCURY_EFFORT_LEVEL',
   'MERCURY_RELEVANT_RECALL',
   'CLAUDE_TEAM_NAME',

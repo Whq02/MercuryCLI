@@ -40,7 +40,7 @@ export function decidePreconnect(
     env.http_proxy !== undefined ||
     env.HTTP_PROXY !== undefined
   if (proxyPresent) return { go: false, reason: 'proxy' }
-  if (env.ANTHROPIC_UNIX_SOCKET !== undefined) return { go: false, reason: 'unix-socket' }
+  if (env.MERCURY_API_UNIX_SOCKET !== undefined) return { go: false, reason: 'unix-socket' }
   if (env.MERCURY_CLIENT_CERT !== undefined || env.MERCURY_CLIENT_KEY !== undefined) {
     return { go: false, reason: 'client-cert' }
   }

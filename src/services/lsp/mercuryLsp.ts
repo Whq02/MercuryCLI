@@ -1,5 +1,4 @@
 
-import { isEnvTruthy } from '../../utils/envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export function mercuryLspEnabled(): boolean {
@@ -8,8 +7,7 @@ export function mercuryLspEnabled(): boolean {
 }
 
 export function isLspToolCatalogEnabled(): boolean {
-  if (mercuryLspEnabled()) return true
-  return isEnvTruthy(process.env.ENABLE_LSP_TOOL)
+  return mercuryLspEnabled()
 }
 
 export function mercuryLspWriteOpsEnabled(): boolean {

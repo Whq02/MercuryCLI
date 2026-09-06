@@ -119,7 +119,7 @@ console.log('\n── W3/W4/W11: the warm spawn ──')
   const spec = roster.registered[0]!.spec
   const argv = [...(spec.extraArgv ?? [])]
   check('W11 warm argv carries NO identity (--session-id/--resume/--name absent)', !argv.includes('--session-id') && !argv.includes('--resume') && !argv.includes('--name'))
-  check('W11 warm argv keeps the wire flags (ask wire + live tail)', argv.includes('--permission-prompt-tool') && argv.includes('--include-partial-messages'))
+  check('W11 warm argv keeps the wire flags (ask wire + live tail)', argv.includes('--permission-channel') && argv.includes('--include-partial-messages'))
   check('W11 warm respawn argv re-warms identityless too', ![...(spec.respawnExtraArgv ?? [])].includes('--resume'))
   const cold = buildConcourseWorkerSpec({ runnerId: 'concourse-w9', sessionId: '11111111-1111-4111-8111-111111111111', workspaceId: wsA, modelKey: spec.model, effort: 'high' })
   check('W11 the cold spec still pins --session-id (the warm arm changed nothing)', [...(cold.extraArgv ?? [])].includes('--session-id'))

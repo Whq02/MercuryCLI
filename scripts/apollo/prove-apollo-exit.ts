@@ -106,7 +106,7 @@ try {
   check("the guarded setter's default road is the carousel", last()?.road === 'carousel')
   const s3 = { ctx: ctx('default') }
   const refused = setup.setPermissionModeWithGuards('sovereign' as never, s3.ctx as never, apply(s3) as never, 'crew-lead')
-  check('a refused entry is HELD under its road with the refusal words', !refused.ok && s3.ctx.mode === 'default' && last()?.held === true && last()?.road === 'crew-lead' && /dangerously-skip-permissions/.test(last()?.detail ?? ''))
+  check('a refused entry is HELD under its road with the refusal words', !refused.ok && s3.ctx.mode === 'default' && last()?.held === true && last()?.road === 'crew-lead' && /dangerously-bypass-permissions/.test(last()?.detail ?? ''))
   const s4 = { ctx: ctx('implement') }
   setup.setPermissionModeWithGuards('implement' as never, s4.ctx as never, apply(s4) as never)
   check('a same-mode set records nothing', last()?.road === 'crew-lead')
@@ -124,7 +124,7 @@ try {
   const claim = control.resolvePermissionModeTransition('default' as never, ctx('flow') as never, 'claim')
   check("the claim names its road ('claim': flow → default)", claim.ok && last()?.road === 'claim')
   const doorRefused = control.resolvePermissionModeTransition('sovereign' as never, ctx('default') as never)
-  check('a refused door entry is HELD with the refusal words', !doorRefused.ok && last()?.held === true && last()?.road === 'control-door' && /dangerously-skip-permissions/.test(last()?.detail ?? ''))
+  check('a refused door entry is HELD with the refusal words', !doorRefused.ok && last()?.held === true && last()?.road === 'control-door' && /dangerously-bypass-permissions/.test(last()?.detail ?? ''))
   const same = control.resolvePermissionModeTransition('default' as never, ctx('default') as never)
   check('a same-mode door call records nothing', same.ok && modeTransitions().length === 3)
 

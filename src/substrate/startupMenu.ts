@@ -95,9 +95,9 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     kind: 'toggle',
     options: ['1'],
     defaultLabel: 'off',
-    summary: 'boot interactive sessions as if --dangerously-skip-permissions was passed — every tool call auto-approved',
+    summary: 'boot interactive sessions as if --dangerously-bypass-permissions was passed — every tool call auto-approved',
     detail: {
-      controls: "The env spelling of --dangerously-skip-permissions: interactive boots start in sovereign mode without typing the flag. Saving this row is the standing consent; the launch confirmation dialog and the root/sudo refusal still apply. Headless runs (-p) and daemon workers NEVER inherit it — their stricter permission floor stands.",
+      controls: "The env spelling of --dangerously-bypass-permissions: interactive boots start in sovereign mode without typing the flag. Saving this row is the standing consent; the launch confirmation dialog and the root/sudo refusal still apply. Headless runs (-p) and daemon workers NEVER inherit it — their stricter permission floor stands.",
       on: ["interactive boots start with permissions bypassed (the crimson banner)", "the launch consent dialog still confirms once", "-p runs and daemon workers are unaffected"],
       off: ["permissions prompt normally; the CLI flag still works when passed by hand"],
     },

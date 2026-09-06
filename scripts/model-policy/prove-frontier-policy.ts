@@ -55,7 +55,7 @@ console.log('\n§3 launch matrix')
 {
   const d = evaluateFrontierDecision({ ...base(), fableEnvPin: true, fableId: 'my-custom-fable-id' })
   check(
-    'row 2: ANTHROPIC_DEFAULT_FABLE_MODEL pin resolves VERBATIM (no suffix growth)',
+    'row 2: MERCURY_DEFAULT_FABLE_MODEL pin resolves VERBATIM (no suffix growth)',
     d.source === 'frontier' && d.setting === 'my-custom-fable-id' && d.code === 'eligible-env-pin',
   )
   const d2 = evaluateFrontierDecision({
@@ -147,7 +147,7 @@ console.log('\nsuccession law: no registration seam — a later frontier arrives
 
 console.log('\nprecedence rungs (live chain — explicit inputs only, ambient-safe)')
 {
-  const priorEnv = process.env.ANTHROPIC_MODEL
+  const priorEnv = process.env.MERCURY_MODEL
   try {
     setMainLoopModelOverride('opus')
     check(
@@ -155,14 +155,14 @@ console.log('\nprecedence rungs (live chain — explicit inputs only, ambient-sa
       /^claude-opus-/.test(getMainLoopModel()),
       getMainLoopModel(),
     )
-    process.env.ANTHROPIC_MODEL = 'sonnet'
-    check('session override outranks ANTHROPIC_MODEL', getUserSpecifiedModelSetting() === 'opus')
+    process.env.MERCURY_MODEL = 'sonnet'
+    check('session override outranks MERCURY_MODEL', getUserSpecifiedModelSetting() === 'opus')
     setMainLoopModelOverride(undefined)
-    check('ANTHROPIC_MODEL outranks the built-in default', getUserSpecifiedModelSetting() === 'sonnet')
+    check('MERCURY_MODEL outranks the built-in default', getUserSpecifiedModelSetting() === 'sonnet')
   } finally {
     setMainLoopModelOverride(undefined)
-    if (priorEnv === undefined) delete process.env.ANTHROPIC_MODEL
-    else process.env.ANTHROPIC_MODEL = priorEnv
+    if (priorEnv === undefined) delete process.env.MERCURY_MODEL
+    else process.env.MERCURY_MODEL = priorEnv
   }
 }
 

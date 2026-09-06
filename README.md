@@ -247,7 +247,8 @@ the result envelope alone. The verbs:
 
 - `mercury health` (alias `doctor`): the health certificate; `--json` prints
   it whole, `--deep` runs the deep inventory, `--fix` runs the guided fixes.
-- `mercury auth login|status|logout`: sign in, show the status, sign out.
+- `mercury auth login|status|logout|token`: sign in, show the status, sign
+  out, mint a long-lived token.
 - `mercury mcp`: manage MCP servers (add, add-json, list, get, remove, serve).
 - `mercury extensions`: install extensions and manage their sources (list,
   sources, add, remove, check, install, approve, enable, disable, update,
@@ -258,7 +259,6 @@ the result envelope alone. The verbs:
   `mercury editor <action>` manages the IDE side.
 - `mercury themis`: THEMIS integrity tooling.
 - `mercury show <image>`: render an image to the terminal.
-- `mercury setup-token`: create a long-lived authentication token.
 - `mercury install` and `mercury update` (alias `upgrade`): release archives
   only; see [Install](#install).
 

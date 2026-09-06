@@ -18,7 +18,7 @@ console.log('============================================================')
 
 const mainSrc = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
 check("process.title = 'mercury'", mainSrc.includes("process.title = 'mercury'") && !mainSrc.includes("process.title = 'claude'"))
-check('entrypoint init stamps the one MERCURY_ENTRYPOINT spelling', mainSrc.includes("process.env.MERCURY_ENTRYPOINT = mcpServe ? 'mcp' : isNonInteractive ? 'sdk' : 'cli'"))
+check('entrypoint init stamps the one MERCURY_ENTRYPOINT spelling', mainSrc.includes("process.env.MERCURY_ENTRYPOINT = mcpServe ? 'mcp' : isNonInteractive ? 'headless' : 'cli'"))
 const FOREIGN = ['CLAUDE', 'CODE'].join('_')
 check('no second entrypoint spelling is representable', !mainSrc.includes(`${FOREIGN}_ENTRYPOINT`))
 const mcpSrc = readFileSync(join(ROOT, 'src/entrypoints/mcp.ts'), 'utf8')

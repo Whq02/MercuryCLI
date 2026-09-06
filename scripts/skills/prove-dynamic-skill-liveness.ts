@@ -12,7 +12,7 @@ mkdirSync(join(project, 'packages', 'api', 'src'), { recursive: true })
 mkdirSync(join(project, 'packages', 'web', 'src'), { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
-delete process.env.MERCURY_SIMPLE
+delete process.env.MERCURY_BARE
 process.chdir(project)
 
 const skills = await import(join(SRC, 'skills/loadSkillsDir.ts'))

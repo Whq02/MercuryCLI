@@ -17,7 +17,7 @@ const section = (t: string): void => {
 }
 
 delete process.env.NODE_ENV
-for (const k of ['ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'ANTHROPIC_MODEL']) {
+for (const k of ['ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_MODEL']) {
   delete process.env[k]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'deferral-route-'))
@@ -270,13 +270,13 @@ section('§4 TYPED REFUSALS — the discovery path is named, the economy never r
   const nonDeferredMiss = gateToolCall(POOL as never, { id: 'c5', name: 'Read', argumentsRaw: '{}', malformed: false }, hints)
   check('a non-deferred tool never names the road', !nonDeferredMiss.ok && !nonDeferredMiss.refusal.reason.includes('select:'))
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
-    process.env.ANTHROPIC_MODEL = model
+    process.env.MERCURY_MODEL = model
     const hint = buildSchemaNotSentHint(DEFERRED_BUILTINS[0]!, messages, POOL as never)
     check(`${route}: the schema-not-sent hint fires for an unadmitted deferred tool`, hint !== null && /select:WebFetch/.test(hint ?? ''))
     const none = buildSchemaNotSentHint(DEFERRED_BUILTINS[0]!, [...messages, ...admission('toolu_h', ['WebFetch'])], POOL as never)
     check(`${route}: …and stays silent once admitted`, none === null)
   }
-  delete process.env.ANTHROPIC_MODEL
+  delete process.env.MERCURY_MODEL
 }
 
 section('§5 THE SUBAGENT BOUND — inheriting the whole pool costs the non-deferred schemas plus ONE name-lines row')
