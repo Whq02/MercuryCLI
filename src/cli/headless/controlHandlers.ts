@@ -3,7 +3,7 @@ import { errorMessage, toError } from '../../utils/errors.js'
 import { type UUID } from 'crypto'
 import { ask } from 'src/QueryEngine.js'
 import { type ToolPermissionContext, type Tools } from 'src/Tool.js'
-import { type ChannelEntry, getMainThreadAgentType,  registerHookCallbacks, setInitJsonSchema, setMainLoopModelOverride, setMainThreadAgentType } from 'src/bootstrap/state.js'
+import { getMainThreadAgentType, registerHookCallbacks, setInitJsonSchema, setMainLoopModelOverride, setMainThreadAgentType } from 'src/bootstrap/state.js'
 import { StructuredIO } from 'src/cli/structuredIO.js'
 import { type Command, formatDescriptionWithSource, getCommandName } from 'src/commands.js'
 import { type HookEvent, type McpServerConfigForProcessTransport, type ModelInfo, type PermissionResult, type RewindFilesResult } from 'src/entrypoints/agentSdkTypes.js'
@@ -13,7 +13,6 @@ import { createOperatorRewindRecordMessage } from 'src/services/compact/checkpoi
 import { type Message } from 'src/types/message.js'
 import { findLastCompactBoundaryIndex } from 'src/utils/messages/systemMessages.js'
 import { flushSessionStorage, recordTranscript } from 'src/utils/sessionStorage.js'
-import { findChannelEntry, gateChannelServer } from 'src/services/mcp/channelNotification.js'
 import { areMcpConfigsEqual, clearServerCache, connectToServer, fetchToolsForClient } from 'src/services/mcp/client.js'
 import { filterMcpServersByPolicy } from 'src/services/mcp/config.js'
 import { type MCPServerConnection, type McpSdkServerConfig, type ScopedMcpServerConfig } from 'src/services/mcp/types.js'
@@ -378,27 +377,6 @@ export function handleSetPermissionMode(
   })
 
   return resolved.context
-}
-
-export function handleChannelEnable(
-  requestId: string,
-  serverName: string,
-  connectionPool: readonly MCPServerConnection[],
-  output: Stream<StdoutMessage>,
-): void {
-  const respondError = (error: string) =>
-    output.enqueue({
-      type: 'control_response',
-      response: { subtype: 'error', request_id: requestId, error },
-    })
-
-  return respondError('channels feature not available in this build')
-}
-
-export function reregisterChannelHandlerAfterReconnect(
-  connection: MCPServerConnection,
-): void {
-  return
 }
 
 export async function handleOrphanedPermissionResponse({

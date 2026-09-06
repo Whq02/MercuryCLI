@@ -51,7 +51,6 @@ export const SDKControlSetPermissionModeRequestSchema = lazySchema(() =>
   z.object({
     subtype: z.literal('set_permission_mode'),
     mode: PermissionModeSchema(),
-    ultraplan: z.boolean().optional(),
   }),
 )
 export const SDKControlSetModelRequestSchema = lazySchema(() =>
@@ -196,9 +195,6 @@ export const SDKControlElicitationResponseSchema = lazySchema(() =>
 export const SDKControlEndSessionRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('end_session'), reason: z.string().optional() }),
 )
-export const SDKControlChannelEnableRequestSchema = lazySchema(() =>
-  z.object({ subtype: z.literal('channel_enable'), serverName: z.string() }),
-)
 export const SDKControlMcpAuthenticateRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('mcp_authenticate'), serverName: z.string() }),
 )
@@ -238,10 +234,6 @@ export const SDKControlGenerateSessionTitleRequestSchema = lazySchema(() =>
 export const SDKControlSideQuestionRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('side_question'), question: z.string() }),
 )
-export const SDKControlRemoteControlRequestSchema = lazySchema(() =>
-  z.object({ subtype: z.literal('remote_control'), enabled: z.boolean() }),
-)
-
 export const SDKControlRequestInnerSchema = lazySchema(() =>
   z.union([
     SDKControlInterruptRequestSchema(),
@@ -273,7 +265,6 @@ export const SDKControlRequestInnerSchema = lazySchema(() =>
     SDKControlGetSettingsRequestSchema(),
     SDKControlElicitationRequestSchema(),
     SDKControlEndSessionRequestSchema(),
-    SDKControlChannelEnableRequestSchema(),
     SDKControlMcpAuthenticateRequestSchema(),
     SDKControlMcpOauthCallbackUrlRequestSchema(),
     SDKControlMcpClearAuthRequestSchema(),
@@ -282,7 +273,6 @@ export const SDKControlRequestInnerSchema = lazySchema(() =>
     SDKControlClaudeOauthWaitForCompletionRequestSchema(),
     SDKControlGenerateSessionTitleRequestSchema(),
     SDKControlSideQuestionRequestSchema(),
-    SDKControlRemoteControlRequestSchema(),
   ]),
 )
 
