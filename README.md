@@ -101,7 +101,7 @@ range; a missing rung is named, never skipped silently.
 Mercury builds with bun and runs on Node 24 LTS:
 
 ```sh
-bun run setup                      # once; bun install + the six vendored packs
+bun run setup                      # once; bun install + the vendored packs
 bun run build.ts                   # writes dist/mercury.mjs + dist/manifest.json
 node dist/mercury.mjs --version
 node dist/mercury.mjs              # the cockpit needs a real TTY, 100+ columns

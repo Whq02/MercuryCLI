@@ -2,6 +2,8 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
+- Added an optional built-in shell engine: with the setting "Shell engine" set to the built-in one, the Bash tool runs one shell per session whose directory, variables, functions and aliases persist between calls, the same shell on every platform, and Windows no longer needs Git for Windows; the system shell stays the default and the doctor names which engine is live
+- Fixed the Bash tool under the built-in engine mangling non-ASCII text, hanging on a command that reads stdin, and dropping an external command's error output
 - Fixed agents stopping with "provider throttled" after a stream went quiet or dropped, when no provider had refused anything: a recovery is now charged only for the time actually waited, every wait names its real cause, and the stop line says how to resume the agent
 - Fixed a live but quiet model stream being cut after 90 seconds; the watchdog now sees the provider's keep-alive signals
 - Changed a stream that ends with a bare error to read the stream's own closing reason first; the notice names the road and what Mercury did next

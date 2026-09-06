@@ -16,7 +16,7 @@ On Windows, use Windows Terminal or PowerShell 7.
 ## Build and run
 
 ```sh
-bun run setup                      # once; bun install + the six vendored packs
+bun run setup                      # once; bun install + the vendored packs
 bun run build.ts                   # writes dist/mercury.mjs + dist/manifest.json
 node dist/mercury.mjs --version
 node dist/mercury.mjs              # the cockpit needs a real TTY, 100+ columns
