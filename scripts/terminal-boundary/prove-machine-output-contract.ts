@@ -281,7 +281,8 @@ async function driveDist(
 
 const SNAKE = /^[a-z0-9]+(_[a-z0-9]+)*$/
 const RIDING_PATHS = new Set(['message', 'event', 'usage', 'input', 'tool_use_result', 'permission_suggestions', 'updated_permissions', 'config', 'effective', 'sources', 'provenance', 'models'])
-function oddKeys(value: unknown, path: string, out: string[]): void {
+const NAME_KEYED = new Set(['model_usage', 'extensions', 'skill_states', 'errors', 'headers', 'env'])
+function oddKeys(value: unknown, path: string, out: string[], namesAreData = false): void {
   if (Array.isArray(value)) {
     for (const item of value) oddKeys(item, `${path}[]`, out)
     return
@@ -289,9 +290,9 @@ function oddKeys(value: unknown, path: string, out: string[]): void {
   if (value === null || typeof value !== 'object') return
   for (const [key, inner] of Object.entries(value as Record<string, unknown>)) {
     const here = `${path}.${key}`
-    if (!SNAKE.test(key)) out.push(here)
+    if (!namesAreData && !SNAKE.test(key)) out.push(here)
     if (RIDING_PATHS.has(key)) continue
-    oddKeys(inner, here, out)
+    oddKeys(inner, here, out, NAME_KEYED.has(key))
   }
 }
 
