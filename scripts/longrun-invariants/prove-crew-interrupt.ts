@@ -348,7 +348,7 @@ section('§K10b a GPT seat pays no per-runner catalogue fetch — the daemon\'s 
   })
   check('K10b the runner\'s refresh within the TTL serves the primed snapshot and fetches nothing', fetched === 0 && refreshed?.models.length === 1 && refreshed.lastError === undefined)
   cat.__resetOpenaiCatalogueForTest()
-  check('K10b the claim carries the snapshot and the runner primes it at the claim', src('src/daemon/warmRunner.ts').includes('openai_catalogue: openaiCatalogue') && src('src/cli/print.ts').includes('primeOpenaiCatalogue(request.openai_catalogue'))
+  check('K10b the claim carries the snapshot in the feed\'s spelling and the runner decodes and primes it at the claim', src('src/daemon/warmRunner.ts').includes('openai_catalogue: openaiCatalogueToWire(openaiCatalogue)') && src('src/cli/print.ts').includes('primeOpenaiCatalogue(openaiCatalogueFromWire(request.openai_catalogue)'))
   check('K10b the daemon\'s live view keeps the snapshot warm', src('src/daemon/signInView.ts').includes('void refreshOpenaiCatalogue(openaiAccount.kind)'))
 }
 
