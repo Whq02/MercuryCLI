@@ -36,7 +36,7 @@ import { emitTaskTerminatedSdk } from '../../utils/sdkEventQueue.js'
 import { foldAgentWaitEvent, type AgentWaitV1 } from './agentWait.js'
 
 
-const DEFAULT_AGENT_TYPE = 'general-purpose'
+const DEFAULT_AGENT_TYPE = 'mercury-general'
 
 const MAIN_SESSION_AGENT_TYPE = 'main-session'
 
