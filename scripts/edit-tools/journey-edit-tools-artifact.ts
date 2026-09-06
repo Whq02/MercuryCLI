@@ -21,7 +21,7 @@ for (const name of ['alpha.txt', 'bravo.md', 'charlie.json']) {
 const prompt = `Call the Read tool exactly once with file_path set to the directory ${join(dir, 'payload')} . Then reply with ONLY the entry names it listed, comma-separated, nothing else.`
 
 console.log('journey: one -p turn through the built artifact (billed)')
-const out = execFileSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, '-p', prompt, '--allowedTools', 'Read'], {
+const out = execFileSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, '-p', prompt, '--allowed-tools', 'Read'], {
   cwd: dir,
   encoding: 'utf8',
   timeout: 240_000,

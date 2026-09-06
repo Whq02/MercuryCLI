@@ -1,3 +1,4 @@
+import { flagEnabled } from '../substrate/flagRegistry.js'
 import {
   getAnthropicApiKey,
   getAuthTokenSource,
@@ -6,7 +7,6 @@ import {
   isClaudeAISubscriber,
 } from './auth.js'
 import { getGlobalConfig } from './config/globalConfig.js'
-import { isEnvTruthy } from './envUtils.js'
 
 function hasResolvableApiKey(): boolean {
   try {
@@ -17,7 +17,7 @@ function hasResolvableApiKey(): boolean {
 }
 
 export function hasConsoleBillingAccess(): boolean {
-  if (isEnvTruthy(process.env.DISABLE_COST_WARNINGS)) return false
+  if (!flagEnabled('MERCURY_COST_WARNINGS')) return false
   if (isClaudeAISubscriber()) return false
   if (!getAuthTokenSource().hasToken && !hasResolvableApiKey()) return false
   const account = getGlobalConfig().oauthAccount

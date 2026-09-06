@@ -1,4 +1,5 @@
 
+import type { PermissionChannel } from '../../Tool.js'
 import { StructuredIO } from 'src/cli/structuredIO.js'
 import type { CanUseToolFn } from 'src/hooks/useCanUseTool.js'
 import { toolMatchesName, type Tool } from 'src/Tool.js'
@@ -117,12 +118,13 @@ export function createCanUseToolWithPermissionPrompt(
 }
 
 export function getCanUseToolFn(
+  channel: PermissionChannel | undefined,
   permissionPromptToolName: string | undefined,
   structuredIO: StructuredIO,
   getMcpTools: () => Tool[],
   onPermissionPrompt?: (details: RequiresActionDetails) => void,
 ): CanUseToolFn {
-  if (permissionPromptToolName === 'stdio') {
+  if (channel === 'stdio') {
     return structuredIO.createCanUseTool(onPermissionPrompt)
   }
   if (!permissionPromptToolName) {

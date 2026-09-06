@@ -1,6 +1,5 @@
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import type { Message } from '../../types/message.js'
-import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isTurnOwningQuerySource } from '../../utils/effort.js'
 import { PROMPT_TOO_LONG_ERROR_MESSAGE } from '../api/errors.js'
 import {
@@ -45,7 +44,7 @@ export function foldAvailability(input: {
   headFoldDetail?: string
   hasHistory: boolean
 }): FoldAvailability {
-  if (isEnvTruthy(process.env.DISABLE_COMPACT)) return { available: false, why: 'compaction-off' }
+  if (!flagEnabled('MERCURY_COMPACT')) return { available: false, why: 'compaction-off' }
   if (!isAutoCompactEnabled()) return { available: false, why: 'auto-compact-off' }
   if (!compactionBreakerAllows(input.tracking?.consecutiveFailures)) return { available: false, why: 'breaker' }
   if (input.headFold === 'failed') {
@@ -158,7 +157,7 @@ export function overflowRefusalText(
       case 'retry-overflowed':
         return 'the conversation was folded and the request retried once, and it still overflows.'
       case 'compaction-off':
-        return 'compaction is disabled (DISABLE_COMPACT), so nothing could fold.'
+        return 'compaction is disabled (MERCURY_COMPACT=0), so nothing could fold.'
       case 'auto-compact-off':
         return `automatic compaction is off, so the emergency fold did not run.${byHand}`
       case 'breaker':

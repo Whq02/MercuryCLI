@@ -12,7 +12,7 @@ function setStamp(on: boolean): void {
 }
 
 function clearAnalyticsEnv(): void {
-  delete process.env.DISABLE_TELEMETRY
+  delete process.env.MERCURY_TELEMETRY
   delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
   if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 }
@@ -49,9 +49,9 @@ check(`bare stamp: binaryName() === 'mercury' too (stamp-independence)`, binaryN
 
 console.log('\n[3] the compat env gate still composes (no regression)')
 setStamp(false)
-process.env.DISABLE_TELEMETRY = '1'
-check('DISABLE_TELEMETRY=1 ⇒ isAnalyticsDisabled() === true (env gate intact)', isAnalyticsDisabled() === true)
-delete process.env.DISABLE_TELEMETRY
+process.env.MERCURY_TELEMETRY = '0'
+check('MERCURY_TELEMETRY=0 ⇒ isAnalyticsDisabled() === true (env gate intact)', isAnalyticsDisabled() === true)
+delete process.env.MERCURY_TELEMETRY
 
 console.log('\n============================================================')
 console.log(fail === 0 ? ' ✅ NO-TELEMETRY-EGRESS PROOF PASS' : ' ❌ PROOF FAILED')

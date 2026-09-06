@@ -44,7 +44,7 @@ if (cli.includes('console.log(`Mercury ${MACRO.VERSION}`)'))
 else bad('cli.tsx fast-path must render `Mercury ${MACRO.VERSION}`')
 
 const logo = readFileSync(join(root, 'src/utils/logoV2Utils.ts'), 'utf8')
-if (/process\.env\.DEMO_VERSION \?\? MERCURY_VERSION/.test(logo))
+if (/process\.env\.MERCURY_DEMO_VERSION \?\? MERCURY_VERSION/.test(logo))
   ok('home logo (getLogoDisplayData) displays MERCURY_VERSION')
 else bad('logoV2Utils.ts getLogoDisplayData must fall back to MERCURY_VERSION')
 

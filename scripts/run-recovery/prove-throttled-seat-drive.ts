@@ -336,7 +336,7 @@ try {
       check('L1 the third refusal spends the budget: the seat stops typed', leg.cut !== null && leg.notices >= 3, `cut=${leg.cut} notices=${leg.notices}`)
       check('L1 the cut fires at the budget, on the harness clock', near(cutAfterMs(leg)), String(cutAfterMs(leg)))
       check('L1 the receipt names the refusals and the budget', leg.receipt !== null && spent.test(leg.receipt) && /HTTP 429/.test(leg.receipt), leg.receipt ?? '(none)')
-      check('L1 the seat row settled failed', leg.seatStatus === 'failed', `${leg.seatStatus} ${leg.seatError}`)
+      check('L1 the seat row settled failed with the spent line as its reason', leg.seatStatus === 'failed' && leg.seatError !== null && /retry budget is spent/.test(leg.seatError), `${leg.seatStatus} ${leg.seatError}`)
     }
     if (arm === '429-bare') {
       check('L2 no header: the ladder\'s own back-off (the first gap under 1.5 s)', gapsOf(arm, 429).length >= 2 && gapsOf(arm, 429)[0]! < 1_500, JSON.stringify(gapsOf(arm, 429)))

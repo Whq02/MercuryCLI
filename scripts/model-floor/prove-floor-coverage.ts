@@ -26,7 +26,7 @@ const hr = src('daemon', 'headlessRun.ts')
 check('buildStreamJsonInvocation floors every autonomous role and passes the operator’s own concourse session through',
   /const model =\s*\n\s*spec\.role === 'MERCURY_CONCOURSE_WORKER'\s*\n\s*\? spec\.model\s*\n\s*: enforceSubagentModelFloor\(spec\.model,\s*`daemon:\$\{spec\.agentName\}`\)/.test(hr))
 check('argv uses the floored model (not spec.model)', /\['--model', model\]/.test(hr))
-check('ANTHROPIC_MODEL uses the floored model', /ANTHROPIC_MODEL:\s*model,/.test(hr))
+check('MERCURY_MODEL uses the floored model', /MERCURY_MODEL:\s*model,/.test(hr))
 check('imports the floor', /from '\.\.\/utils\/model\/modelFloor\.js'/.test(hr))
 
 section('spawnMultiAgent.ts — teammate resolver floors its return (bypasses getAgentModel)')

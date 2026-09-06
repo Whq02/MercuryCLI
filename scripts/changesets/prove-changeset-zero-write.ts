@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'fulcrum-zw-home-'))
-process.env.MERCURY_SIMPLE = '1'
+process.env.MERCURY_BARE = '1'
 const csHome = mkdtempSync(join(tmpdir(), 'fulcrum-zw-cs-'))
 process.env.MERCURY_CHANGESET_DIR = csHome
 

@@ -1,16 +1,13 @@
 
-import { randomUUID, type UUID } from 'crypto'
+import { type UUID } from 'crypto'
 import { existsSync } from 'fs'
 import { dirname, join } from 'path'
 import {
-  getSessionId,
   isSessionPersistenceDisabled,
   setMainLoopModelOverride,
   switchSession,
 } from 'src/bootstrap/state.js'
-import { EMPTY_USAGE } from 'src/services/api/logging.js'
 import { armProvisionalSessionReconcile } from 'src/utils/provisionalSessionReconcile.js'
-import { isPolicyAllowed } from 'src/services/policyLimits/index.js'
 import type { AppState } from 'src/state/AppStateStore.js'
 import { asSessionId } from 'src/types/ids.js'
 import type { Message, NormalizedUserMessage } from 'src/types/message.js'
@@ -30,6 +27,7 @@ import {
   restoreSessionMetadata,
 } from 'src/utils/sessionStorage.js'
 import { parseSessionIdentifier } from 'src/utils/sessionUrl.js'
+import { refusalEnvelope } from './refusalEnvelope.js'
 import { errorMessage } from '../../utils/errors.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
@@ -39,23 +37,7 @@ export function emitLoadError(
   outputFormat: string | undefined,
 ): void {
   if (outputFormat === 'stream-json') {
-    const errorResult = {
-      type: 'result',
-      subtype: 'error_during_execution',
-      duration_ms: 0,
-      duration_api_ms: 0,
-      is_error: true,
-      num_turns: 0,
-      stop_reason: null,
-      session_id: getSessionId(),
-      total_cost_usd: 0,
-      usage: EMPTY_USAGE,
-      model_usage: {},
-      permission_denials: [],
-      uuid: randomUUID(),
-      errors: [message],
-    }
-    process.stdout.write(jsonStringify(errorResult) + '\n')
+    process.stdout.write(jsonStringify(refusalEnvelope([message])) + '\n')
   } else {
     process.stderr.write(message + '\n')
   }
@@ -139,12 +121,11 @@ export async function loadInitialMessages(
         typeof options.resume === 'string' ? options.resume : '',
       )
       if (!parsedSessionId) {
-        let errorMessage =
-          `Error: --resume requires a valid session ID when used with --print. Usage: ${binaryName()} -p --resume <session-id>`
-        if (typeof options.resume === 'string') {
-          errorMessage += `. Session IDs must be in UUID format (e.g., 550e8400-e29b-41d4-a716-446655440000). Provided value "${options.resume}" is not a valid UUID`
-        }
-        emitLoadError(errorMessage, options.outputFormat)
+        const given = typeof options.resume === 'string' ? options.resume : ''
+        emitLoadError(
+          `--resume in print mode needs a session id (a UUID) or a .jsonl transcript path: ${JSON.stringify(given)} is neither (${binaryName()} -p --resume <session-id>)`,
+          options.outputFormat,
+        )
         gracefulShutdownSync(1)
         return { messages: [] }
       }
@@ -164,7 +145,7 @@ export async function loadInitialMessages(
 
       if (!result || !hasConversationTurn(result.messages)) {
         emitLoadError(
-          parsedSessionId.isJsonlFile || parsedSessionId.isUrl
+          parsedSessionId.isJsonlFile
             ? `No conversation could be loaded from: ${typeof options.resume === 'string' ? options.resume : parsedSessionId.sessionId}`
             : `No conversation found with session ID: ${parsedSessionId.sessionId}`,
           options.outputFormat,

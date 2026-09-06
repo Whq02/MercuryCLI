@@ -40,7 +40,7 @@ section('§1 FC-038 — the empty resume target')
   check('--resume "" REFUSES (nonzero exit)', run.rc !== 0, `rc=${run.rc}`)
   check(
     'with the usage sentence, not a fresh session',
-    /--resume requires a valid session ID/.test(run.err + run.out),
+    /--resume in print mode needs a session id/.test(run.err + run.out),
     JSON.stringify((run.err + run.out).slice(0, 160)),
   )
   rmSync(home, { recursive: true, force: true })

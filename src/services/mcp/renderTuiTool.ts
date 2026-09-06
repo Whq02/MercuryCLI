@@ -31,9 +31,9 @@ export function renderTuiCheckoutRoot(from: string = dirname(fileURLToPath(impor
 export function renderTuiRuntime(opts: { env?: NodeJS.ProcessEnv; home?: string } = {}): { bun: string } | { missing: string } {
   const env = opts.env ?? process.env
   const home = opts.home ?? homedir()
-  const pinned = (env.BUN ?? '').trim()
+  const pinned = (env.MERCURY_BUN ?? '').trim()
   if (pinned !== '') {
-    return existsSync(pinned) ? { bun: pinned } : { missing: `the BUN pin ${pinned} does not exist` }
+    return existsSync(pinned) ? { bun: pinned } : { missing: `the MERCURY_BUN pin ${pinned} does not exist` }
   }
   const exe = process.platform === 'win32' ? 'bun.exe' : 'bun'
   const userBun = join(home, '.bun', 'bin', exe)

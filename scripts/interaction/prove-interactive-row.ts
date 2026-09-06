@@ -18,7 +18,7 @@ if (process.env.IROW_CHILD) {
     PACKAGE_URL: '',
     README_URL: '',
     IS_DEV: false,
-    IS_DEMO: false,
+    MERCURY_DEMO: false,
   }
   const React = await import('react')
   const ink = (await import('../../src/ink.js')) as unknown as {

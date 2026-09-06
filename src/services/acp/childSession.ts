@@ -76,7 +76,7 @@ export class MercuryChildSession {
       '-p',
       '--input-format=stream-json',
       '--output-format=stream-json',
-      '--permission-prompt-tool',
+      '--permission-channel',
       'stdio',
       ...(opts.permissionMode ? ['--permission-mode', opts.permissionMode] : []),
       ...(opts.model ? ['--model', opts.model] : []),

@@ -21,8 +21,8 @@ function section(t: string): void {
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-recall-route-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
-delete process.env.ANTHROPIC_MODEL
-delete process.env.ANTHROPIC_SMALL_FAST_MODEL
+delete process.env.MERCURY_MODEL
+delete process.env.MERCURY_SMALL_FAST_MODEL
 
 const memoryDir = join(scratch, 'memdir')
 mkdirSync(memoryDir, { recursive: true })
@@ -142,7 +142,7 @@ const QUERY = 'why does fetch fail with the undici dispatcher on node'
 
 section('§1 anthropic session → the anthropic dialect, sonnet-class light owner')
 {
-  process.env.ANTHROPIC_MODEL = 'claude-opus-5'
+  process.env.MERCURY_MODEL = 'claude-opus-5'
   const before = captured.length
   const got = await findRelevantMemories(QUERY, memoryDir, new AbortController().signal)
   const hit = captured[before]
@@ -156,7 +156,7 @@ section('§1 anthropic session → the anthropic dialect, sonnet-class light own
 
 section('§2 openai session → the family\'s OWN wire, light fact, tolerant decode')
 {
-  process.env.ANTHROPIC_MODEL = 'gpt-5.6-sol'
+  process.env.MERCURY_MODEL = 'gpt-5.6-sol'
   const before = captured.length
   const got = await findRelevantMemories(QUERY, memoryDir, new AbortController().signal)
   const hit = captured[before]
@@ -170,7 +170,7 @@ section('§2 openai session → the family\'s OWN wire, light fact, tolerant dec
 
 section('§3 a signed-out family degrades honestly — empty, no cross-family fallback')
 {
-  process.env.ANTHROPIC_MODEL = 'glm-4.7'
+  process.env.MERCURY_MODEL = 'glm-4.7'
   delete process.env.ZAI_API_KEY
   const before = captured.length
   const got = await findRelevantMemories(QUERY, memoryDir, new AbortController().signal)
@@ -190,7 +190,7 @@ section('§4 source pins — the re-plumb is structural')
 }
 
 server.close()
-delete process.env.ANTHROPIC_MODEL
+delete process.env.MERCURY_MODEL
 console.log('\n' + '═'.repeat(76))
 console.log(failures === 0 ? '✅ ALL RECALL-ROUTING PROOFS PASS' : `❌ ${failures} RECALL-ROUTING CHECK(S) FAILED`)
 console.log('═'.repeat(76))

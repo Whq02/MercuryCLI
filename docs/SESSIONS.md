@@ -379,7 +379,7 @@ anyway, the turn recovers instead of ending:
 Each step runs at most once per stretch of work; a completed tool round
 starts a fresh one. The coordinator's chat recovers the same way. The
 provider's own refusal never becomes the reply. `MERCURY_OVERFLOW_RECOVERY=0`
-turns the recovery off; `DISABLE_AUTO_COMPACT` keeps the automatic fold off
+turns the recovery off; `MERCURY_AUTO_COMPACT=0` keeps the automatic fold off
 while leaving the pruning step and the plain line.
 
 ## Where the pieces live

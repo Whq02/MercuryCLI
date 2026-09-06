@@ -7,7 +7,7 @@ const SCRATCH = mkdtempSync(join(tmpdir(), 'restored-read-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 delete process.env.NODE_ENV
-delete process.env.MERCURY_SIMPLE
+delete process.env.MERCURY_BARE
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 
 let failures = 0

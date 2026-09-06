@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createServer } from 'node:net'
 
@@ -18,10 +18,8 @@ check('proxy.ts owns backgroundHttpsAgent (memoized, keepAlive off)', /export fu
 check('the agent unrefs every socket it opens (createConnection → unref)', /override createConnection\(/.test(proxy) && /\.unref\?\.\(\)/.test(proxy))
 
 console.log('§2 the probes')
-const limits = read('src/services/policyLimits/index.ts')
-const managed = read('src/services/remoteManagedSettings/index.ts')
-check('policy limits rides the background agent', /httpsAgent: backgroundHttpsAgent\(\)/.test(limits) && /import \{ backgroundHttpsAgent \} from '\.\.\/\.\.\/utils\/proxy\.js'/.test(limits))
-check('managed settings rides the background agent', /httpsAgent: backgroundHttpsAgent\(\)/.test(managed) && /import \{ backgroundHttpsAgent \} from '\.\.\/\.\.\/utils\/proxy\.js'/.test(managed))
+check('no policy-limits service exists (no boot-time organisation probe)', !existsSync(join(REPO, 'src/services/policyLimits')))
+check('no remote managed-settings service exists (no boot-time settings fetch)', !existsSync(join(REPO, 'src/services/remoteManagedSettings')))
 const rg = read('src/utils/ripgrep.ts')
 check(
   'the ripgrep file-count probe unrefs its child and its pipe the moment they exist (a count never holds the exit cliff)',

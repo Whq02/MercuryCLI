@@ -1,4 +1,5 @@
 import { createServer } from 'node:http'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 
 const FALLBACK_PORT = 3118
 
@@ -27,7 +28,7 @@ function isPortAvailable(port: number): Promise<boolean> {
 }
 
 export async function findAvailablePort(): Promise<number> {
-  const override = process.env.MCP_OAUTH_CALLBACK_PORT
+  const override = flagEnv('MERCURY_MCP_OAUTH_CALLBACK_PORT')
   if (override !== undefined) {
     const parsed = parseInt(override, 10)
     if (Number.isFinite(parsed) && parsed > 0) return parsed

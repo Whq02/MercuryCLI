@@ -5,19 +5,9 @@ import { getSessionId } from '../bootstrap/state.js'
 import { getOauthAccountInfo, getRateLimitTier, getSubscriptionType } from './auth.js'
 import { getCwd } from './cwd.js'
 import { getHostPlatformForAnalytics } from './env.js'
-import { isEnvTruthy } from './envUtils.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { gitExe } from './git.js'
 
-
-export type GitHubActionsMetadata = {
-  actor?: string
-  actorId?: string
-  repository?: string
-  repositoryId?: string
-  repositoryOwner?: string
-  repositoryOwnerId?: string
-}
 
 export type CoreUserData = {
   sessionId: string
@@ -29,28 +19,14 @@ export type CoreUserData = {
   userType: 'external'
   subscriptionType?: string
   rateLimitTier?: string
-  githubActionsMetadata?: GitHubActionsMetadata
 }
 
 let resolvedEmail: string | undefined
 let emailResolution: Promise<void> | null = null
 
-function getGitHubActionsMetadata(): GitHubActionsMetadata | undefined {
-  if (!isEnvTruthy(process.env.GITHUB_ACTIONS)) return undefined
-  return {
-    actor: process.env.GITHUB_ACTOR,
-    actorId: process.env.GITHUB_ACTOR_ID,
-    repository: process.env.GITHUB_REPOSITORY,
-    repositoryId: process.env.GITHUB_REPOSITORY_ID,
-    repositoryOwner: process.env.GITHUB_REPOSITORY_OWNER,
-    repositoryOwnerId: process.env.GITHUB_REPOSITORY_OWNER_ID,
-  }
-}
-
 export const getCoreUserData = memoize(
   (includeAnalyticsMetadata?: boolean): CoreUserData => {
     const account = getOauthAccountInfo()
-    const github = getGitHubActionsMetadata()
     return {
       sessionId: getSessionId(),
       ...(resolvedEmail !== undefined
@@ -69,14 +45,9 @@ export const getCoreUserData = memoize(
             ...(getRateLimitTier() !== null ? { rateLimitTier: getRateLimitTier() as string } : {}),
           }
         : {}),
-      ...(github !== undefined ? { githubActionsMetadata: github } : {}),
     }
   },
 )
-
-export function getUserForGrowthBook(): CoreUserData {
-  return getCoreUserData(true)
-}
 
 export async function initUser(): Promise<void> {
   if (emailResolution === null) {

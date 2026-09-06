@@ -22,6 +22,7 @@ const pins = await import('../../src/services/providers/openai/gptPins.js')
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
 const capabilities = await import('../../src/utils/model/capabilities.js')
 const effort = await import('../../src/utils/effort.js')
+const effortModel = await import('../../src/utils/cockpit/effortModel.js')
 const cost = await import('../../src/utils/modelCost.js')
 const model = await import('../../src/utils/model/model.js')
 const { getContextWindowForModel } = await import('../../src/utils/context.js')
@@ -52,7 +53,7 @@ console.log('============================================================')
 const ID = 'gpt-6-astra'
 const NAME = 'GPT-6 Astra'
 const LADDER = ['low', 'medium', 'high', 'xhigh', 'max'] as const
-const SERVED_LADDER = [...LADDER, 'ultra'] as const
+const LISTED = [...LADDER, 'ultra'] as const
 
 section('§1 THE ROW — the pin states the model-page facts; everything derives')
 {
@@ -196,7 +197,7 @@ const liveRow = (
   input_modalities: ['text', 'image'],
   supported_in_api: true,
 })
-const LIVE_ASTRA = liveRow(ID, 'GPT-6-Astra', 1, SERVED_LADDER, 272_000, 872_000, 'medium')
+const LIVE_ASTRA = liveRow(ID, 'GPT-6-Astra', 1, LISTED, 272_000, 872_000, 'medium')
 const LIVE_SOL = liveRow('gpt-5.6-sol', 'GPT-5.6 Sol', 2, ['low', 'medium', 'high', 'xhigh'], 272_000)
 const fetchOf = (models: LiveRow[]): typeof fetch =>
   (async () =>
@@ -235,13 +236,14 @@ process.env.OPENAI_API_KEY = 'prover-key'
   check('the rows keep the live priority order (Astra above Sol)', astraIndex >= 0 && solIndex > astraIndex, `${astraIndex} vs ${solIndex}`)
 
   const view = capabilities.gptEffortVocabularyView(ID)
-  check("the live vocabulary is the served six-level ladder (the page's five plus ultra)", view.state === 'live' && JSON.stringify(view.vocabulary) === JSON.stringify(SERVED_LADDER), JSON.stringify(view))
-  check('ultra ranks above max in the one wire-effort order, so max never clamps down', pins.WIRE_EFFORT_RANK.ultra! > pins.WIRE_EFFORT_RANK.max! && pins.nearestSupportedWireEffort('max', SERVED_LADDER) === 'max')
-  check('max is supported and the ceiling is the served top (ultra)', capabilities.modelSupportsMaxEffort(ID) && capabilities.modelOffersEffortLevel(ID, 'ultra') && capabilities.getMaxSupportedEffortLevel(ID) === 'ultra')
+  check("the decoded row keeps the list verbatim (the page's five plus the word above max)", view.state === 'live' && JSON.stringify(view.vocabulary) === JSON.stringify(LISTED), JSON.stringify(view))
+  check('the wire order ends at max and does not rank the list word, so max is the top and never clamps down', pins.WIRE_EFFORT_RANK.max === Math.max(...Object.values(pins.WIRE_EFFORT_RANK)) && !pins.isRankedWireEffort('ultra') && pins.nearestSupportedWireEffort('max', LISTED) === 'max')
+  check('max is supported and IS the ceiling; the list word is never a stop', capabilities.modelSupportsMaxEffort(ID) && capabilities.getMaxSupportedEffortLevel(ID) === 'max' && !(effort.selectableEffortLevels(ID) as readonly string[]).includes('ultra'))
+  check("the provider's list marks the row as able to lead delegation, and the supercode summary says so when told", capabilities.providerMarksDelegationLead(ID) && !capabilities.providerMarksDelegationLead('gpt-5.6-sol') && effortModel.describeSupercodeMode({ providerMarksDelegationLead: true }).summary.includes(effortModel.DELEGATION_LEAD_NOTE) && !effortModel.describeSupercodeMode().summary.includes(effortModel.DELEGATION_LEAD_NOTE))
   check('xhigh is supported', capabilities.modelSupportsXHighEffort(ID))
   check("applied 'max' stays 'max'", effort.resolveAppliedEffort(ID, 'max') === 'max', String(effort.resolveAppliedEffort(ID, 'max')))
   check("applied 'xhigh' stays 'xhigh'", effort.resolveAppliedEffort(ID, 'xhigh') === 'xhigh', String(effort.resolveAppliedEffort(ID, 'xhigh')))
-  check("applied 'ultra' stays 'ultra' (the served top)", effort.resolveAppliedEffort(ID, 'ultra') === 'ultra', String(effort.resolveAppliedEffort(ID, 'ultra')))
+  check("the list word asked raw is never applied or sent — the row default ('medium') rides", effort.resolveAppliedEffort(ID, 'ultra' as never) === 'medium' && effort.resolveEffortTruth(ID, 'ultra' as never).wire === 'medium', String(effort.resolveAppliedEffort(ID, 'ultra' as never)))
   check("no effort set ⇒ the live default ('medium' on this list)", effort.resolveAppliedEffort(ID, undefined) === 'medium', String(effort.resolveAppliedEffort(ID, undefined)))
   const live = catalogue.evaluateGptCandidate(ID, 'api-key')
   const liveModel = live.ok ? live.candidate.live : undefined
@@ -249,8 +251,8 @@ process.env.OPENAI_API_KEY = 'prover-key'
   const pXhigh = liveModel ? catalogue.resolveGptReasoningProfile('xhigh', liveModel) : undefined
   check("the wire profile sends 'max' as the user's own choice", pMax?.wireEffort === 'max' && pMax.source === 'user', JSON.stringify(pMax))
   check("the wire profile sends 'xhigh' as the user's own choice", pXhigh?.wireEffort === 'xhigh' && pXhigh.source === 'user', JSON.stringify(pXhigh))
-  const pUltra = liveModel ? catalogue.resolveGptReasoningProfile('ultra', liveModel) : undefined
-  check("the wire profile sends 'ultra' as the user's own choice", pUltra?.wireEffort === 'ultra' && pUltra.source === 'user', JSON.stringify(pUltra))
+  const pList = liveModel ? catalogue.resolveGptReasoningProfile('ultra', liveModel) : undefined
+  check("the wire profile never sends the list word: asked raw it falls to the row default with the adjustment named", pList?.wireEffort === 'medium' && pList.source === 'unsupported-fallback' && pList.adjustedFrom === 'ultra', JSON.stringify(pList))
   check('the live row admits images', liveModel?.inputModalities?.includes('image') === true)
 
   check('credentialed, the budget is the served CEILING (872,000 — the bare id budgets the declared ceiling)', getContextWindowForModel(ID) === 872_000, String(getContextWindowForModel(ID)))

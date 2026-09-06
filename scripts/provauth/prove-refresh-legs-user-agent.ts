@@ -142,8 +142,6 @@ section('§5 no auxiliary surface composes its own agent string (structural)')
   check('every Anthropic OAuth axios leg (exchange · refresh · roles · key) names the product agent', (oauth.match(/'User-Agent': getMercuryUserAgent\(\)/g) ?? []).length === 4)
   const userAgent = readFileSync(join(ROOT, 'src/utils/userAgent.ts'), 'utf8')
   check('the Anthropic client UA IS the product identity (one owner)', /return getMercuryUserAgent\(\)/.test(userAgent))
-  const preconnect = readFileSync(join(ROOT, 'src/utils/apiPreconnect.ts'), 'utf8')
-  check('the API-origin warm-up HEAD presents the product agent', /'user-agent': getMercuryUserAgent\(\)/.test(preconnect))
   check('the source fetch reads the agent per request, never at module load (the version macro is a build define)', !/^const [A-Z_]+ = getMercuryUserAgent\(\)/m.test(sources))
 }
 

@@ -1,7 +1,7 @@
+import type { EffortLevel } from '../../entrypoints/sdk/runtimeTypes.js'
 import type { McpServerConfig } from '../../services/mcp/types.js'
 import type { BillingType } from '../../services/oauth/types.js'
 import type { ImageDimensions } from '../imageResizer.js'
-import type { ModelOption } from '../model/modelOptions.js'
 import { DEFAULT_THEME_SETTING } from '../systemTheme.js'
 import type { ThemeSetting } from '../theme.js'
 
@@ -240,9 +240,6 @@ export type GlobalConfig = {
 
   lastStrategyModeUse?: number
 
-  subscriptionNoticeCount?: number
-  hasAvailableSubscription?: boolean
-
   showExpandedTodos?: boolean
   showSpinnerTree?: boolean
 
@@ -295,15 +292,21 @@ export type GlobalConfig = {
   teammateMode?: 'auto' | 'tmux' | 'in-process'
   teammateDefaultModel?: string | null
 
+  agents?: {
+    defaultEffort?: EffortLevel
+    defaultModel?: string
+    maxConcurrent?: number
+  }
+
   prStatusFooterEnabled?: boolean
 
   voiceInputEnabled?: boolean
 
+  voiceTranscriber?: string
+
   startupPrefetchedAt?: number
 
   remoteControlAtStartup?: boolean
-
-  clientDataCache?: Record<string, unknown> | null
 
   launchEffortUnpins?: {
     opus47?: boolean
@@ -311,8 +314,6 @@ export type GlobalConfig = {
     fable5?: boolean
     fable51?: boolean
   }
-
-  additionalModelOptionsCache?: ModelOption[]
 
   compatProvider?: {
     baseUrl?: string
@@ -393,6 +394,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'remoteControlAtStartup',
   'remoteDialogSeen',
   'harnessProfilePin',
+  'agents',
 ] as const
 
 export type GlobalConfigKey = (typeof GLOBAL_CONFIG_KEYS)[number]
