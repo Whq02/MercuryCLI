@@ -28,7 +28,7 @@ type Seam = {
 }
 
 function transcriptLines(sessionId: string, cwd: string, turns: number, textBytes: number): string[] {
-  const base = { isSidechain: false, userType: 'external', entrypoint: 'cli', cwd, sessionId, version: '1.0.0', gitBranch: 'main' }
+  const base = { isSidechain: false, entrypoint: 'cli', cwd, sessionId, version: '1.0.0', gitBranch: 'main' }
   const rows: Record<string, unknown>[] = []
   let prev: string | null = null
   const filler = 'the ledger row holds steady against the recorded baseline and needs no further survey. '

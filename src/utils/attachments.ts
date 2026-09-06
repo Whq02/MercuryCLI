@@ -32,7 +32,6 @@ export {
 export { getDateChangeAttachments } from './attachments/modeLifecycles.js'
 
 export {
-  getCompactionReminderAttachment,
   getContextEfficiencyAttachment,
   getVerifyPlanReminderTurnCount,
 } from './attachments/reminders.js'

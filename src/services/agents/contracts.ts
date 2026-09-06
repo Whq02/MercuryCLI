@@ -46,7 +46,7 @@ export const KNOWN_AGENT_KEYS = [
   'initialPrompt',
   'memory',
   'isolation',
-  'spec-version',
+  'specVersion',
 ] as const
 
 export type AgentDiagnosticSeverity = 'error' | 'warning' | 'info'

@@ -26,10 +26,6 @@ function toolAllowsBash(tool: string): boolean {
   return tool === BASH_TOOL_NAME || tool.startsWith(BASH_TOOL_NAME + "(");
 }
 
-function isDeprecatedCommandWithBash(command: Command): boolean {
-  return command.type === "prompt" && command.loadedFrom === "legacy-commands" && (command.source === "projectSettings" || command.source === "localSettings") && (command.allowedTools?.some(toolAllowsBash) ?? false);
-}
-
 function isSkillOrExtensionCommandWithBash(command: Command): boolean {
   return command.type === "prompt" && (command.loadedFrom === "skills" || command.loadedFrom === "extension") && (command.source === "projectSettings" || command.source === "localSettings" || command.source === "extension") && (command.allowedTools?.some(toolAllowsBash) ?? false);
 }
@@ -44,9 +40,8 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
   const hasDangerousEnvVars = getDangerousEnvVarsSources().length > 0;
   const hasAutoMemoryDirectory = getAutoMemoryDirectorySources().length > 0;
 
-  const hasSlashCommandBash = commands?.some(isDeprecatedCommandWithBash) ?? false;
   const hasSkillsBash = commands?.some(isSkillOrExtensionCommandWithBash) ?? false;
-  const hasAnyBashExecution = bashSettingSources.length > 0 || hasSlashCommandBash || hasSkillsBash;
+  const hasAnyBashExecution = bashSettingSources.length > 0 || hasSkillsBash;
 
   const { rows } = useTerminalSize();
   const hasTrustDialogAccepted = checkHasTrustDialogAccepted();

@@ -99,7 +99,7 @@ try {
   t.check('a tool_result crossed after the finish', result.length > 0)
   t.check('it NAMES the early finish', result.includes('finished the interview early'))
   t.check('and instructs the model to stop asking', result.includes('Stop asking further questions'))
-  t.check('it is not a disguised rejection', !result.includes("doesn't want to proceed"))
+  t.check('it is not a disguised rejection', !result.includes('declined this tool call'))
   t.check(
     'the turn CONTINUED to the next model text',
     timeline.some(s => textOf(s).includes('proceeding without further questions')),

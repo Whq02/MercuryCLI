@@ -24,7 +24,6 @@ type CommandSource =
   | 'bundled'
 
 type LoadedFromLabel =
-  | 'legacy-commands'
   | 'skills'
   | 'extension'
   | 'managed'

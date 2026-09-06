@@ -2,7 +2,6 @@ import type { UUID } from 'crypto'
 import { closeSync, openSync, readSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { decodeTranscriptBuffer } from '../../fabric/transcriptDecode.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import type { Entry, SerializedMessage, TranscriptMessage } from '../../types/logs.js'
 import { logForDebugging } from '../debug.js'
@@ -672,16 +671,6 @@ export function computeResumeLeaves(messages: Map<UUID, TranscriptMessage>): Set
   )
   const terminalMessages = allMessages.filter(msg => !parentUuids.has(msg.uuid))
 
-  const pruneMidConversation = getFeatureValue_CACHED_MAY_BE_STALE('mercury_pebble_leaf_prune', false)
-  const hasUserAssistantChild = new Set<UUID>()
-  if (pruneMidConversation) {
-    for (const msg of allMessages) {
-      if (msg.parentUuid && (msg.type === 'user' || msg.type === 'assistant')) {
-        hasUserAssistantChild.add(msg.parentUuid)
-      }
-    }
-  }
-
   const leafUuids = new Set<UUID>()
   let hasCycle = false
   for (const terminal of terminalMessages) {
@@ -694,9 +683,7 @@ export function computeResumeLeaves(messages: Map<UUID, TranscriptMessage>): Set
       }
       seen.add(current.uuid)
       if (current.type === 'user' || current.type === 'assistant') {
-        if (!pruneMidConversation || !hasUserAssistantChild.has(current.uuid)) {
-          leafUuids.add(current.uuid)
-        }
+        leafUuids.add(current.uuid)
         break
       }
       current = current.parentUuid ? messages.get(current.parentUuid) : undefined

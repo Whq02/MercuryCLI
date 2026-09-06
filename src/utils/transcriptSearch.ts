@@ -157,13 +157,13 @@ export const NON_INDEXING_TOOLS: ReadonlySet<string> = new Set([
   'CronCreate',
   'CronDelete',
   'CronList',
-  'EnterPlanMode',
+  'EnterStrategyMode',
   'EnterWorktree',
-  'ExitPlanMode',
+  'ExitStrategyMode',
   'ExitWorktree',
   'Eval',
   'LaunchFleet',
-  'ListMcpResourcesTool',
+  'ListMcpResources',
   'Monitor',
   'NotebookEdit',
   'PushNotification',
@@ -188,10 +188,9 @@ export const NON_INDEXING_TOOLS: ReadonlySet<string> = new Set([
   'TaskUpdate',
   'TeamBrief',
   'TeamDelete',
-  'TodoWrite',
   'ToolSearch',
   'Workflow',
-  'contract',
+  'Contract',
 ])
 
 export type TranscriptFacets = {

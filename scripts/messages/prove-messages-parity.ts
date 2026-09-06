@@ -296,9 +296,6 @@ add('prepareUserContent', 'with-blocks', () =>
     precedingInputBlocks: [{ type: 'text', text: 'pre' }] as never,
   }),
 );
-add('withMemoryCorrectionHint', 'basic', () =>
-  snapSafe(() => M.withMemoryCorrectionHint('base text' as never)),
-);
 add('normalizeAttachmentForAPI', 'todo', () =>
   snapSafe(() => M.normalizeAttachmentForAPI({ type: 'todo', itemCount: 1, context: 'x' } as never)),
 );

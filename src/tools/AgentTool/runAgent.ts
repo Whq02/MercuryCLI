@@ -1,5 +1,4 @@
 
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { getProjectRoot } from '../../bootstrap/state.js'
 import { getSkillToolCommands } from '../../commands.js'
 import type { Command, PromptCommand } from '../../types/command.js'
@@ -173,7 +172,7 @@ function withoutInstructionBlob(context: {
 }
 
 function slimAgentGateOn(): boolean {
-  return getFeatureValue_CACHED_MAY_BE_STALE('mercury_slim_subagent_instructions', true)
+  return true
 }
 
 export async function connectAgentMcpServers(
@@ -1029,12 +1028,6 @@ export async function* runAgent(
         clearSessionHooks(rootSetAppState, agentId)
       }
       clearAgentTranscriptSubdir(agentId)
-      rootSetAppState(prev => {
-        if (!(agentId in prev.todos)) return prev
-        const todos = { ...prev.todos }
-        delete todos[agentId]
-        return { ...prev, todos }
-      })
       killShellTasksForAgent(
         agentId,
         toolUseContext.getAppState,
