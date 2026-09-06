@@ -205,7 +205,7 @@ const presence = (
   delete process.env.ANTHROPIC_DEFAULT_FABLE_MODEL
 }
 
-console.log('\n5. the headless text reading of a property (auth status --text)')
+console.log('\n5. the headless text reading of a property (auth status on a terminal)')
 {
   const React = (await import('react')).default
   const { Text } = await import('../../src/ink.js')
@@ -218,8 +218,8 @@ console.log('\n5. the headless text reading of a property (auth status --text)')
   check('null / undefined / boolean read empty', status.propertyValueToText(null) === '' && status.propertyValueToText(undefined) === '' && status.propertyValueToText(true) === '')
   check('the product walker agrees with this prover\'s textOf on a real element', status.propertyValueToText(nested) === textOf(nested))
   const authSrc = (await import('node:fs')).readFileSync(new URL('../../src/cli/handlers/auth.ts', import.meta.url), 'utf8')
-  check('auth status --text renders rows through propertyValueToText', /const rendered = propertyValueToText\(value\)/.test(authSrc))
-  check('no String(value) row rendering survives in the --text path', !/Array\.isArray\(value\) \? value\.join\(', '\) : String\(value\)/.test(authSrc))
+  check('the readable auth status renders rows through propertyValueToText', /const rendered = propertyValueToText\(value\)/.test(authSrc))
+  check('no String(value) row rendering survives in the readable path', !/Array\.isArray\(value\) \? value\.join\(', '\) : String\(value\)/.test(authSrc))
 }
 
 for (const [key, value] of Object.entries(savedEnv)) {
