@@ -195,45 +195,45 @@ function checkLiveAge(label: string, frame: string): void {
   const m = row !== undefined ? new RegExp(`(${AGE})`).exec(row) : null
   const age = m ? m[1]! : undefined
   const seconds = age !== undefined && /s$/.test(age) ? Number(age.slice(1, -1)) : undefined
-  check(`${label}: the 5h row names its age, younger than the TTL (${age ?? 'no age word'})`, seconds !== undefined && seconds <= POLL_MS / 1000 && !/stale/.test(row ?? ''), row ?? usageBlock(frame))
+  check(`${label}: the 5h row names its age, younger than the floor (${age ?? 'no age word'})`, seconds !== undefined && seconds <= POLL_MS / 1000 && !/stale/.test(row ?? ''), row ?? usageBlock(frame))
 }
 
 console.log('============================================================')
-console.log(' usage freshness captures — the figure moves, ages, and a failed read speaks')
+console.log(' usage freshness captures — a shown meter reads once, ages in the open, reads again on retry, and a failed read speaks')
 console.log('============================================================')
+
+const retryInTab = (needle: string, mark: string): Send[] => [
+  { data: '/usage\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
+  { data: 'r', atTick: 999, awaitText: needle, requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
+  { data: '', afterPrevTicks: ticks(2_500), mark },
+  { data: '\x1b', atTick: 999, awaitText: needle, requireAwait: true, minTick: 1, awaitSettleTicks: 1 },
+  { data: '', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: `${mark}-rail` },
+]
+const ageOf = (frame: string): string | undefined => {
+  const row = rowOf(frame, new RegExp(`5h ${BAR} \\d+%`))
+  return row !== undefined ? new RegExp(`(stale )?${AGE}`).exec(row)?.[0] : undefined
+}
 
 if (LEGS.has('a')) {
   const { home, workspace } = seedHome()
-  const resetEpoch = Math.floor(Date.now() / 1000) + 2 * 3600
-  const api = await startFixtureApi(
-    Array.from({ length: 6 }, () => ({ kind: 'text' as const, text: 'Spare.' })),
-    {
-      jsonForNonStream: true,
-      messageHeaders: {
-        'anthropic-ratelimit-unified-status': 'allowed',
-        'anthropic-ratelimit-unified-5h-utilization': '0.11',
-        'anthropic-ratelimit-unified-5h-reset': String(resetEpoch),
-        'anthropic-ratelimit-unified-7d-utilization': '0.22',
-        'anthropic-ratelimit-unified-7d-reset': String(resetEpoch + 5 * 24 * 3600),
-      },
-    },
-  )
+  const api = await startFixtureApi(Array.from({ length: 6 }, () => ({ kind: 'text' as const, text: 'Spare.' })), { jsonForNonStream: true })
   api.usage.payload = risingPayload
   const t0 = Date.now()
   const c = await capture(
-    'rail-cadence',
+    'rail-on-show',
     {
       ...RAIL,
-      total: 420,
+      total: 520,
       argv: ['node', DIST],
       cwd: workspace,
       sends: [
         ...FACE_THEN_CHAT,
         { data: '', atTick: 999, awaitText: 'USAGE', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'before-usage' },
         ...usageThenBack('Current session'),
-        markAfter('poll1', POLL_MS + 1_500),
-        markAfter('poll2', POLL_MS),
-        markAfter('poll3', POLL_MS),
+        markAfter('floor1', POLL_MS + 1_500),
+        markAfter('floor2', POLL_MS),
+        markAfter('floor3', POLL_MS),
+        ...retryInTab('Current session', 'retried'),
       ],
       readyText: ['? for shortcuts'],
       stableTicks: 4,
@@ -243,22 +243,26 @@ if (LEGS.has('a')) {
   const usageAsks = api.usageRequests.map(r => `#${r.n}@${((r.at - t0) / 1000).toFixed(1)}s:${r.mode}`)
   await api.close()
   reapHome(home)
-  console.log('\nA + D · the rail at 160 cols — the cadence over a header observation')
+  console.log('\nA · the rail at 160 cols — the read on show, no clock, the retry')
   console.log(`  [FIXTURE] usage requests: ${usageAsks.join(' ') || 'none'}`)
   check('every send became due', c.sends > 0 && c.receipts === c.sends, c.tail.slice(-200))
   const before = c.marks['before-usage'] ?? ''
-  check("D: before /usage the rail paints the probe's header-fed windows (5h 11%) or the mount's first answer (36%)", fiveHourPct(before) === 11 || fiveHourPct(before) === 36, usageBlock(before))
+  check("A: before /usage the rail paints the gauges' own first read (5h 36%) or says no usage read yet — never a fabricated figure", fiveHourPct(before) === 36 || /no usage read/.test(before), usageBlock(before))
   const after = c.marks['after-usage'] ?? ''
-  check(`D: after the /usage mount the endpoint's FRESHER answer wins the row (5h ${fiveHourPct(after)}% ≥ 36, never the 11% headers)`, (fiveHourPct(after) ?? 0) >= 36, usageBlock(after))
-  checkLiveAge('D: after the mount', after)
-  const p1 = fiveHourPct(c.marks.poll1 ?? '')
-  const p2 = fiveHourPct(c.marks.poll2 ?? '')
-  const p3 = fiveHourPct(c.marks.poll3 ?? '')
-  check(`A: the poll asked the endpoint at least three times after the tab's ask (${api.usageRequests.length} requests)`, api.usageRequests.length >= 5, usageAsks.join(' '))
-  check(`A: the figure MOVES on the cadence (${fiveHourPct(after)} → ${p1} → ${p2} → ${p3})`, p1 !== undefined && p3 !== undefined && p3 > (fiveHourPct(after) ?? 0) && p3 >= (p1 ?? 0) && p3 >= (p2 ?? 0), [c.marks.poll1, c.marks.poll2, c.marks.poll3].map(f => usageBlock(f ?? '')).join('\n'))
-  for (const label of ['poll1', 'poll2', 'poll3']) checkLiveAge(`A: ${label}`, c.marks[label] ?? '')
-  check('A: the week and the pool ride the same answer (7d 44% · Opus 61%)', new RegExp(`7d ${BAR} 44%`).test(c.marks.poll3?.replace(/\s+/g, ' ') ?? '') && new RegExp(`Opus ${BAR} 61%`).test(c.marks.poll3?.replace(/\s+/g, ' ') ?? ''), usageBlock(c.marks.poll3 ?? ''))
-  check('A: nothing reads stale while the poll answers', !/stale/.test(c.marks.poll3 ?? ''), usageBlock(c.marks.poll3 ?? ''))
+  const shown = fiveHourPct(after)
+  check(`A: the tab's own ask is the second read and wins the row (5h ${shown ?? '—'}% = 46)`, shown === 46, usageBlock(after))
+  checkLiveAge('A: after the tab', after)
+  const f1 = fiveHourPct(c.marks.floor1 ?? '')
+  const f2 = fiveHourPct(c.marks.floor2 ?? '')
+  const f3 = fiveHourPct(c.marks.floor3 ?? '')
+  check(`A: three floors later the row has NOT moved (${shown} → ${f1} → ${f2} → ${f3}): nothing reads on a clock`, f1 === shown && f2 === shown && f3 === shown, usageBlock(c.marks.floor3 ?? ''))
+  const asksBeforeRetry = api.usageRequests.filter(r => (r.at - t0) / 1000 < 3 * POLL_MS / 1000 + 12).length
+  check(`A: the fixture saw exactly two reads before the retry (the mount's and the tab's), none on a clock (${asksBeforeRetry})`, asksBeforeRetry === 2, usageAsks.join(' '))
+  check(`A: the age tail grows in the open and reads stale past 2 × floor (${ageOf(c.marks.floor3 ?? '') ?? 'no age word'})`, /^stale ↻/.test(ageOf(c.marks.floor3 ?? '') ?? ''), usageBlock(c.marks.floor3 ?? ''))
+  const retried = fiveHourPct(c.marks['retried-rail'] ?? c.marks.retried ?? '')
+  check(`A: the tab's retry reads again — the row moves (5h ${retried ?? '—'}% > ${shown})`, retried !== undefined && shown !== undefined && retried > shown, usageBlock(c.marks['retried-rail'] ?? ''))
+  checkLiveAge('A: after the retry', c.marks['retried-rail'] ?? '')
+  check('A: the week and the pool ride the same answer (7d 44% · Opus 61%)', new RegExp(`7d ${BAR} 44%`).test(c.marks['retried-rail']?.replace(/\s+/g, ' ') ?? '') && new RegExp(`Opus ${BAR} 61%`).test(c.marks['retried-rail']?.replace(/\s+/g, ' ') ?? ''), usageBlock(c.marks['retried-rail'] ?? ''))
 }
 
 if (LEGS.has('b')) {
@@ -276,14 +280,16 @@ if (LEGS.has('b')) {
     'rail-outage',
     {
       ...RAIL,
-      total: 480,
+      total: 520,
       argv: ['node', DIST],
       cwd: workspace,
       sends: [
         ...FACE_THEN_CHAT,
         ...usageThenBack('500'),
         markAfter('inside-backoff', backoffMs / 2),
-        markAfter('after-backoff', backoffMs / 2 + 2 * POLL_MS + 4_000),
+        markAfter('after-backoff', backoffMs / 2 + 2_000),
+        ...usageThenBack('Current session'),
+        { data: '', afterPrevTicks: ticks(1_500), mark: 'recovered' },
       ],
       readyText: ['? for shortcuts'],
       stableTicks: 4,
@@ -302,12 +308,15 @@ if (LEGS.has('b')) {
   check('B: …and paints no figure it never read (no usage read, never 0%)', /no usage read/.test(after) && !new RegExp(`5h ${BAR} \\d+%`).test(after.replace(/\s+/g, ' ')), usageBlock(after))
   const inside = c.marks['inside-backoff'] ?? ''
   check('B: inside the backoff the note stands and nothing else moved', noteRe.test(inside.replace(/\s+/g, ' ')), usageBlock(inside))
-  const lastFailed = asks.filter(r => r.mode === 'error').at(-1)
+  const failed = asks.filter(r => r.mode === 'error')
+  check(`B: the mount's read and the tab's own ask both met the 500 (${failed.length} failed asks) — the operator's ask is never refused by the floor`, failed.length === 2, asks.map(r => `#${r.n}:${r.mode}`).join(' '))
+  const lastFailed = failed.at(-1)
+  const afterMark = c.marks['after-backoff'] ?? ''
+  const landedByAfterBackoff = lastFailed !== undefined ? asks.filter(r => r.s > lastFailed.s && r.s < lastFailed.s + backoffMs / 1000 + 2).length : -1
+  check(`B: no request lands inside the backoff (4 × floor = ${backoffMs / 1000} s) NOR after it on its own — nothing reads on a clock (${landedByAfterBackoff} landed)`, landedByAfterBackoff === 0 && noteRe.test(afterMark.replace(/\s+/g, ' ')), usageBlock(afterMark))
+  const recovered = c.marks.recovered ?? ''
   const retry = asks.find(r => r.mode === 'ok')
-  check(`B: the operator's own ask (the tab) is never refused — it met the 500 too (${asks.filter(r => r.mode === 'error').length} failed asks)`, asks.filter(r => r.mode === 'error').length === 2, asks.map(r => `#${r.n}@${r.s.toFixed(1)}s:${r.mode}`).join(' '))
-  check(`B: no request lands inside the backoff (4 × TTL = ${backoffMs / 1000} s): the retry came ${retry !== undefined && lastFailed !== undefined ? (retry.s - lastFailed.s).toFixed(1) : '(never)'} s after the last failure`, lastFailed !== undefined && retry !== undefined && retry.s - lastFailed.s >= (backoffMs / 1000) * 0.9, asks.map(r => `#${r.n}@${r.s.toFixed(1)}s:${r.mode}`).join(' '))
-  const recovered = c.marks['after-backoff'] ?? ''
-  check(`B: the retry after the backoff succeeds and the figure paints (5h ${fiveHourPct(recovered) ?? '—'}%)`, (fiveHourPct(recovered) ?? 0) > 0, usageBlock(recovered))
+  check(`B: the tab's ask after the backoff is admitted, succeeds and the figure paints (5h ${fiveHourPct(recovered) ?? '—'}%)`, retry !== undefined && (fiveHourPct(recovered) ?? 0) > 0, usageBlock(recovered))
   check('B: …and the failure note is gone', !/read failed/.test(recovered), usageBlock(recovered))
   const record = join(home, 'usage-reader.json')
   let recorded: { families?: Record<string, { host?: string; status?: number; recoveredAtMs?: number }> } = {}
@@ -316,7 +325,7 @@ if (LEGS.has('b')) {
   } catch {
   }
   const fam = recorded.families?.anthropic
-  check("B: the doctor's record in the config home names the status and the host, and the recovery", fam?.status === 500 && typeof fam.host === 'string' && fam.host.includes('127.0.0.1') && typeof fam.recoveredAtMs === 'number', existsSync(record) ? readFileSync(record, 'utf8').slice(0, 300) : 'usage-reader.json absent')
+  check("B: the doctor's record in the config home names the status and the host, and the recovery", fam?.status === 500 && typeof fam.host === 'string' && fam.host.includes('127.0.0.1') && typeof fam.recoveredAtMs === 'number', existsSync(record) ? readFileSync(record, 'utf8').slice(0, 300) : 'no record')
 }
 
 if (LEGS.has('c')) {
@@ -354,10 +363,10 @@ if (LEGS.has('c')) {
   check('every send became due', c.sends > 0 && c.receipts === c.sends, c.tail.slice(-200))
   const young = c.marks.young ?? ''
   const youngRow = rowOf(young, new RegExp(`5h ${BAR} 36%`))
-  check('C: the mount\'s figure stands with its age while the first poll hangs (5h 36% ↻Ns, not yet stale)', youngRow !== undefined && new RegExp(AGE).test(youngRow) && !/stale/.test(youngRow), youngRow ?? usageBlock(young))
+  check("C: the mount's figure stands with its age while the tab's ask hangs (5h 36% ↻Ns, not yet stale)", youngRow !== undefined && new RegExp(AGE).test(youngRow) && !/stale/.test(youngRow), youngRow ?? usageBlock(young))
   const stale = c.marks.stale ?? ''
   const staleRow = rowOf(stale, new RegExp(`5h ${BAR} 36%`))
-  check(`C: past 2 × TTL the same figure reads STALE with its age (${staleRow?.match(new RegExp(`stale ${AGE}`))?.[0] ?? 'no stale word'})`, staleRow !== undefined && new RegExp(`stale ${AGE}`).test(staleRow), staleRow ?? usageBlock(stale))
+  check(`C: past 2 × floor the same figure reads STALE with its age (${staleRow?.match(new RegExp(`stale ${AGE}`))?.[0] ?? 'no stale word'}) — no request landed on its own`, staleRow !== undefined && new RegExp(`stale ${AGE}`).test(staleRow) && api.usageRequests.length === 2, `${api.usageRequests.length} request(s) · ${staleRow ?? usageBlock(stale)}`)
   check('C: the note names the timeout', /read failed · timeout/.test(stale.replace(/\s+/g, ' ')), usageBlock(stale))
   check('C: the figure itself is never blanked — the last observation stands beside the note', fiveHourPct(stale) === 36, usageBlock(stale))
 }
@@ -367,7 +376,7 @@ if (LEGS.has('e')) {
   const api = await startFixtureApi(Array.from({ length: 6 }, () => ({ kind: 'text' as const, text: 'Spare.' })), { jsonForNonStream: true })
   api.usage.payload = risingPayload
   const c = await capture(
-    'band-cadence',
+    'band-on-show',
     {
       cols: 120,
       rows: 40,
@@ -377,8 +386,8 @@ if (LEGS.has('e')) {
       sends: [
         ...FACE_THEN_CHAT,
         ...usageThenBack('Current session'),
-        markAfter('poll1', POLL_MS + 1_500),
-        markAfter('poll2', POLL_MS),
+        markAfter('floor1', POLL_MS + 1_500),
+        markAfter('floor2', POLL_MS),
       ],
       readyText: ['? for shortcuts'],
       stableTicks: 4,
@@ -389,16 +398,17 @@ if (LEGS.has('e')) {
       MERCURY_SUBSTRATE: '0',
     },
   )
+  const asks = api.usageRequests.length
   await api.close()
   reapHome(home)
   console.log('\nE · the band at 120 cols')
   check('every send became due', c.sends > 0 && c.receipts === c.sends, c.tail.slice(-200))
   const after = (c.marks['after-usage'] ?? '').replace(/\s+/g, ' ')
   const afterChip = new RegExp(`5h ${BAR} (\\d+)%`).exec(after)
-  check(`E: the band paints the endpoint's figure with its age tail (5h ${afterChip?.[1] ?? '?'}% ≥ 36 … ↻Ns)`, afterChip !== null && Number(afterChip[1]) >= 36 && new RegExp(`5h ${BAR} \\d+%.*${AGE}`).test(after), after.slice(-300))
-  const p2 = (c.marks.poll2 ?? '').replace(/\s+/g, ' ')
-  const moved = new RegExp(`5h ${BAR} (\\d+)%`).exec(p2)
-  check(`E: the band's chip moves on the cadence (5h ${moved?.[1] ?? '?'}% > ${afterChip?.[1] ?? '?'}) and stays young`, moved !== null && afterChip !== null && Number(moved[1]) > Number(afterChip[1]) && new RegExp(AGE).test(p2) && !/stale/.test(p2), p2.slice(-300))
+  check(`E: the band paints the endpoint's figure with its age tail (5h ${afterChip?.[1] ?? '?'}% ≥ 36 … ↻Ns)`, afterChip !== null && Number(afterChip[1]) >= 36 && new RegExp(`5h ${BAR} \\d+%.*${AGE}`).test(after), after.slice(0, 200))
+  const p2 = (c.marks.floor2 ?? '').replace(/\s+/g, ' ')
+  const held = new RegExp(`5h ${BAR} (\\d+)%`).exec(p2)
+  check(`E: the band's chip HOLDS its figure across two floors (5h ${held?.[1] ?? '?'}% = ${afterChip?.[1] ?? '?'}) and carries its age — nothing reads on a clock (${asks} reads)`, held !== null && afterChip !== null && Number(held[1]) === Number(afterChip[1]) && new RegExp(AGE).test(p2) && asks === 2, p2.slice(0, 200))
 }
 
 if (LEGS.has('f')) {
@@ -419,10 +429,14 @@ if (LEGS.has('f')) {
       sends: [
         ...FACE_THEN_CHAT,
         { data: '', atTick: 999, awaitText: 'USAGE', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'boot' },
-        { data: '', atTick: 999, awaitText: 'HTTP 429', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'rail' },
+        markAfter('floor', POLL_MS + 1_500),
+        { data: 'Spare a word.\r', afterPrevTicks: 2 },
+        { data: '', atTick: 999, awaitText: 'Spare.', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'turn' },
         { data: '/usage\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '', atTick: 999, awaitText: 'asked us to wait', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'tab' },
-        { data: '\x1b', atTick: 999, awaitText: 'asked us to wait', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
+        { data: 'r', atTick: 999, awaitText: 'asked us to wait', requireAwait: true, minTick: 1, awaitSettleTicks: 2 },
+        { data: '', afterPrevTicks: ticks(2_000), mark: 'held' },
+        { data: '\x1b', atTick: 999, awaitText: 'asked us to wait', requireAwait: true, minTick: 1, awaitSettleTicks: 2 },
         { data: '', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'after-usage' },
       ],
       readyText: ['? for shortcuts'],
@@ -434,25 +448,26 @@ if (LEGS.has('f')) {
   await api.close()
   reapHome(home)
   const readLines = existsSync(debugFile) ? readFileSync(debugFile, 'utf8').split('\n').filter(l => l.includes('[usage] read #')) : []
-  console.log('\nF · the rail at 160 cols — a 429 with Retry-After is a WAIT on screen')
+  console.log('\nF · the rail at 160 cols — the count, and a 429 with Retry-After is a WAIT on screen')
   console.log(`  [FIXTURE] usage requests: ${asks.map(r => `#${r.n}@${r.s.toFixed(1)}s:${r.status}`).join(' ') || 'none'}`)
   console.log(`  [DEBUG] ${readLines.length} read line(s):`)
   for (const line of readLines) console.log(`    ${line.replace(/^\S+ \[DEBUG\] /, '')}`)
   check('every send became due', c.sends > 0 && c.receipts === c.sends, c.tail.slice(-200))
   const first = asks[0]
-  check("the request's identity headers are the release's shape (User-Agent mercury/<version> · Authorization Bearer · anthropic-beta oauth-2025-04-20 · Content-Type application/json)", first !== undefined && /^mercury\/\d+\.\d+\.\d+/.test(first.headers['user-agent'] ?? '') && first.headers.authScheme === 'Bearer' && first.headers['anthropic-beta'] === 'oauth-2025-04-20' && first.headers['content-type'] === 'application/json', JSON.stringify(first?.headers))
-  check('every read leaves one debug line naming its reason and the host', readLines.length === asks.length && readLines.every(l => /\((poll|turn|operator|sign-in)\) GET 127\.0\.0\.1:\d+\/api\/oauth\/usage → /.test(l)), `${readLines.length} line(s) for ${asks.length} request(s)`)
+  check("the request's identity headers are the release's shape (User-Agent mercury/<version> · Authorization Bearer · anthropic-beta oauth-2025-04-20 · Content-Type application/json)", first !== undefined && /^mercury\/\S+$/.test(String(first.headers['user-agent'] ?? '')) && /^Bearer /.test(String(first.headers['authorization'] ?? '')) && first.headers['anthropic-beta'] === 'oauth-2025-04-20' && String(first.headers['content-type'] ?? '').startsWith('application/json'), JSON.stringify(first?.headers ?? {}))
+  check('every read leaves one debug line naming its reason (open · operator · sign-in) and the host', readLines.length === asks.length && readLines.every(l => /\((open|operator|sign-in)\) GET 127\.0\.0\.1:\d+\/api\/oauth\/usage/.test(l)), `${readLines.length} line(s) for ${asks.length} request(s)`)
   check('the mount read is admitted (200) and the figure paints (5h ≥ 36%)', asks[0]?.status === 200 && (fiveHourPct(c.marks.boot ?? '') ?? 0) >= 36, `#1:${asks[0]?.status} · ${usageBlock(c.marks.boot ?? '')}`)
+  const tabAsk = asks[1]
+  const beforeTab = asks.filter(r => r.s < (tabAsk?.s ?? Number.POSITIVE_INFINITY)).length
+  check(`a floor passing and a completed turn read nothing — the tab's own ask is the SECOND request (${beforeTab} before it)`, beforeTab === 1 && (fiveHourPct(c.marks.turn ?? '') ?? 0) >= 36, asks.map(r => `#${r.n}@${r.s.toFixed(1)}s`).join(' '))
   const refused = asks.find(r => r.status === 429)
-  check(`the next read trips the limiter: 429 with Retry-After ${RETRY_AFTER_S} s`, refused !== undefined && readLines.some(l => /HTTP 429 · retry-after 240 s/.test(l)), asks.map(r => `#${r.n}:${r.status}`).join(' '))
+  check(`the tab's ask trips the limiter: 429 with Retry-After ${RETRY_AFTER_S} s`, refused !== undefined && readLines.some(l => /HTTP 429 · retry-after 240 s/.test(l)), asks.map(r => `#${r.n}:${r.status}`).join(' '))
   const tab = c.marks.tab ?? ''
-  check("the tab says 'the usage endpoint asked us to wait … (HTTP 429, host)' — the wording, the 429 and the host — never 'Failed to load'", /the usage endpoint asked us to wait/.test(tab) && /HTTP 429/.test(tab) && /127\.0\.0\.1:\d+/.test(tab) && !/Failed to load/.test(tab), tab.split('\n').filter(l => /wait|HTTP 429|Anthropic usage/.test(l)).join(' | ').slice(0, 400))
-  const rail = (c.marks.rail ?? '').replace(/\s+/g, ' ')
-  check("the rail's compact note says 'wait 4m · HTTP 429' — never 'read failed'", /wait 4m · HTTP 429/.test(rail) && !/read failed/.test(rail), usageBlock(c.marks.rail ?? ''))
+  check("the tab says 'the usage endpoint asked us to wait … (HTTP 429, host)' — the wording, the 429 and the host — never 'Failed to load'", /the usage endpoint asked us to wait/.test(tab) && /HTTP 429/.test(tab) && /127\.0\.0\.1/.test(tab) && !/Failed to load/.test(tab), tab.split('\n').filter(l => /wait|429/.test(l)).join(' | '))
   const afterRefused = refused !== undefined ? asks.filter(r => r.s > refused.s) : []
-  check(`inside the server's wait no read re-trips the endpoint (${afterRefused.length} read(s) after the 429, in a ${((Date.now() - t0) / 1000).toFixed(0)} s drive « ${RETRY_AFTER_S} s)`, afterRefused.length === 0, asks.map(r => `#${r.n}@${r.s.toFixed(1)}s:${r.status}`).join(' '))
+  check(`the operator's retry inside the server's wait is HELD — no read re-trips the endpoint (${afterRefused.length} read(s) after the 429)`, refused !== undefined && afterRefused.length === 0, asks.map(r => `#${r.n}:${r.status}`).join(' '))
   const held = c.marks['after-usage'] ?? ''
-  check('…and the figure still stands beside the wait note (5h ≥ 36%, never blanked)', (fiveHourPct(held) ?? 0) >= 36 && /wait 4m · HTTP 429/.test(held.replace(/\s+/g, ' ')), usageBlock(held))
+  check("the rail's compact note says 'wait 4m · HTTP 429' and the figure still stands (5h ≥ 36%, never blanked)", /wait 4m · HTTP 429/.test(held.replace(/\s+/g, ' ')) && !/read failed/.test(held) && (fiveHourPct(held) ?? 0) >= 36, usageBlock(held))
   const record = join(home, 'usage-reader.json')
   let recorded: { families?: Record<string, { status?: number; retryAfterMs?: number; recoveredAtMs?: number }> } = {}
   try {
@@ -460,7 +475,7 @@ if (LEGS.has('f')) {
   } catch {
   }
   const fam = recorded.families?.anthropic
-  check("the doctor's record names the 429 and the stated wait (Retry-After 240 s)", fam?.status === 429 && fam.retryAfterMs === RETRY_AFTER_S * 1000, existsSync(record) ? readFileSync(record, 'utf8').slice(0, 400) : 'usage-reader.json absent')
+  check("the doctor's record names the 429 and the stated wait (Retry-After 240 s)", fam?.status === 429 && fam.retryAfterMs === RETRY_AFTER_S * 1000, existsSync(record) ? readFileSync(record, 'utf8').slice(0, 300) : 'no record')
 }
 
 console.log(failures === 0 ? '\n✅ prove-usage-freshness-captures — all checks pass' : `\n❌ prove-usage-freshness-captures — ${failures} check(s) failed`)

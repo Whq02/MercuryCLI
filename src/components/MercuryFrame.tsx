@@ -33,7 +33,8 @@ import '../services/workbench/attentionBridge.js'
 import { isDeckPaneActive } from '../utils/fullscreen.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
-import { activeSourceUsage, pokeProviderUsage, usageViewIsStale } from '../services/providers/providerUsage.js'
+import { activeSourceUsage, usageViewIsStale } from '../services/providers/providerUsage.js'
+import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { usageAgeTail, usagePollTtlMs } from '../services/providers/usageFreshness.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 import inkInstances from '../ink/instances.js'
@@ -216,9 +217,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const usageFacts = getFocusedSessionConnector().usage()
   const cost = usageFacts.totalCostUSD
   const unpricedTurns = usageFacts.unpricedTurns ?? 0
-  useEffect(() => {
-    pokeProviderUsage()
-  }, [usageFacts.totalOutputTokens, usageFacts.totalAPIDurationMs])
+  useProviderUsageOnShow(tier.showFrameQuota)
   const usageNow = useNowTick(tier.showFrameQuota ? Math.min(30_000, usagePollTtlMs()) : null)
   const costNode =
     (cost > 0 || unpricedTurns > 0) && getFocusedSessionConnector().identity().consoleBilling ? (

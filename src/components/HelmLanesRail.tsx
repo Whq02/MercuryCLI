@@ -69,6 +69,7 @@ import {
 import { contextPercentLabel, contextWindowLabel } from '../utils/contextFill.js'
 import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js'
 import { useNowTick } from './mercury-ui/components.js'
+import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { GLYPH, displayWidth, truncateToWidth } from './mercury-ui/glyphs.js'
 import { ValueGlow, CURSOR_NUDGE_MS, AttentionPulse, WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
 import { RailPanel, railPanelInnerWidth } from './mercury-ui/RailPanel.js'
@@ -1171,6 +1172,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   useNowTick(
     getMinervaPending() ? 1_000 : mergedTelemetry || runsLive > 0 ? 15_000 : null,
   )
+  useProviderUsageOnShow(mergedTelemetry)
   let glanceSection: React.ReactNode = null
   if (mergedTelemetry) {
     const glanceUsage = activeSourceUsage()
