@@ -131,6 +131,7 @@ section('§4 the built bundle: manifest record, doctor row, prompt sentence')
     check('the bundle carries the shell-engine doctor row', bundle.includes('iface-shell-engine'))
     check('the bundle carries the engine-aware Bash prompt sentence', bundle.includes('One shell session serves the whole conversation'))
     check('the bundle carries the system-shell reset sentence too', bundle.includes('every other piece of shell state (variables, functions, options) resets between calls'))
+    check('the bundle carries the Windows arm of the engine sentence — the two known holes at this version', bundle.includes('os error 193') && bundle.includes('relative program path after a `cd`'))
   }
 }
 
