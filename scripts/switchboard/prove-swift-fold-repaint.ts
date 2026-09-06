@@ -41,7 +41,6 @@ const convo = (sessionId: string, text: string): string => {
   const row = (uuid: string, extra: Record<string, unknown>): void => {
     rows.push({
       isSidechain: false,
-      userType: 'external',
       entrypoint: 'cli',
       cwd: work,
       sessionId,

@@ -13,7 +13,6 @@ import {
   REJECT_MESSAGE_WITH_REASON_PREFIX,
   SUBAGENT_REJECT_MESSAGE,
   SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX,
-  withMemoryCorrectionHint,
 } from '../../utils/messages.js'
 import { executePermissionRequestHooks } from '../../utils/hooks.js'
 import { decideRuleBasedPermissions } from '../../utils/permissions/decision/engine.js'
@@ -210,9 +209,6 @@ export function createPermissionContext(
             : REJECT_MESSAGE_WITH_REASON_PREFIX) + feedback
       } else {
         message = isSubagent ? SUBAGENT_REJECT_MESSAGE : REJECT_MESSAGE
-      }
-      if (!isSubagent) {
-        message = withMemoryCorrectionHint(message)
       }
       if (
         isAbort ||

@@ -449,6 +449,141 @@ section("§8 the OpenAI road: the fold's request IS the session's last request p
   check("§8: the fold's input is the session's items with the summariser prompt appended (merged into the last user item, the head byte-identical)", foldItems.length === sessionItems.length && sameHead && lastCarries, `fold ${foldItems.length} items vs session ${sessionItems.length}; head ${sameHead}; last ${lastCarries}`)
 }
 
+section("§8b the OpenAI road: the fold re-sends the session's LAST REQUEST's rows — each reminder its own item, the reply's replay items behind them, then the prompt as its own item")
+{
+  const { query } = await import('../../src/query.ts')
+  const { productionDeps } = await import('../../src/query/deps.ts')
+  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+  const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+  const { continuationOfSentRequest, lastSentRequestFor, resetSentRequestsForTests } = await import('../../src/utils/forkedAgent.ts')
+  const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+  const { getCompactPrompt } = await import('../../src/services/compact/prompt.ts')
+  const bootstrap = await import('../../src/bootstrap/state.ts')
+  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
+  const model = 'gpt-5.5'
+  const pool = [FileReadTool, ToolSearchTool]
+  const posture = asSystemPrompt([`You are a ${POSTURE_MARK}.`])
+  const systemContext = { gitStatus: 'clean' }
+  resetSentRequestsForTests()
+
+  let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'xhigh' }
+  const sessionCtx = {
+    abortController: new AbortController(),
+    options: {
+      commands: [],
+      tools: pool,
+      mainLoopModel: model,
+      thinkingConfig: { type: 'disabled' },
+      mcpClients: [],
+      mcpResources: {},
+      isNonInteractiveSession: true,
+      debug: false,
+      verbose: false,
+      agentDefinitions: { activeAgents: [], allAgents: [] },
+    },
+    getAppState: () => appState,
+    setAppState: (f: (prev: never) => never): void => {
+      appState = f(appState as never) as unknown as Record<string, unknown>
+    },
+    messages: [],
+    readFileState: createFileStateCacheWithSizeLimit(100),
+    setInProgressToolUseIDs: () => {},
+    setResponseLength: () => {},
+    updateFileHistoryState: () => {},
+    updateAttributionState: () => {},
+    agentId: undefined,
+  }
+  const replay = (k: string, text: string): Record<string, unknown> => ({
+    apexProviderTurn: {
+      provider: 'openai',
+      responseId: `resp_${k}`,
+      items: [
+        { type: 'reasoning', id: `rs_${k}`, summary: [], encrypted_content: `enc-${k}` },
+        { type: 'message', role: 'assistant', content: [{ type: 'output_text', text }] },
+      ],
+      contractDigest: 'fixture',
+    },
+  })
+  const seed: Array<{ uuid: string }> = [
+    createUserMessage({ content: 'please bump the version and run the tests' }),
+    assistantRow('Bumped the version and ran the suite — all green.', replay('s1', 'Bumped the version and ran the suite — all green.'), model),
+    createUserMessage({ content: 'now write the changelog entry' }),
+    createUserMessage({ content: '<system-reminder>the working set: two files open, none dirty</system-reminder>', isMeta: true }),
+    createUserMessage({ content: '<system-reminder>skills available for this task: none</system-reminder>', isMeta: true }),
+  ] as never
+
+  const wasInteractive = !bootstrap.getIsNonInteractiveSession()
+  if (wasInteractive) bootstrap.setIsInteractive(false)
+  const before = shared.captured.length
+  const yields: unknown[] = []
+  let threw: string | undefined
+  try {
+    const gen = query({
+      messages: seed as never,
+      systemPrompt: posture,
+      userContext: {},
+      systemContext,
+      canUseTool: (async () => ({ behavior: 'deny', message: 'no tools in this rig' })) as never,
+      toolUseContext: sessionCtx as never,
+      querySource: 'sdk' as never,
+      deps: productionDeps(),
+    })
+    let r = await gen.next()
+    while (!r.done) {
+      yields.push(r.value)
+      r = await gen.next()
+    }
+  } catch (err) {
+    threw = err instanceof Error ? err.message : String(err)
+  } finally {
+    if (wasInteractive) bootstrap.setIsInteractive(true)
+  }
+  const sessionHits = shared.captured.slice(before).filter(h => h.lane === 'openai-seat')
+  check('§8b: the session turn ran through the turn machine and reached the OpenAI wire once', threw === undefined && sessionHits.length === 1, threw ?? `${sessionHits.length} hit(s)`)
+  type Item = { type?: string; role?: string; id?: string; content?: unknown }
+  const itemText = (item: Item | undefined): string => {
+    const content = item?.content
+    if (typeof content === 'string') return content
+    return Array.isArray(content) ? content.map(b => String((b as { text?: string }).text ?? '')).join('\n') : ''
+  }
+  const shapeOfItems = (items: Item[]): string => j(items.map(it => `${it.type ?? '?'}${it.role ? `:${it.role}` : ''}${it.id ? `:${it.id}` : ''}`))
+  const sessionBody = (sessionHits[0]?.body ?? {}) as { input?: Item[]; prompt_cache_key?: string }
+  const sessionItems = sessionBody.input ?? []
+  const userItemsOf = (items: Item[]): Item[] => items.filter(it => it.type === 'message' && it.role === 'user')
+  check('§8b: the wire kept the ask and its two reminders as their own items (four user items in all) and replayed the recorded reasoning item in place', userItemsOf(sessionItems).length === 4 && sessionItems.some(it => it.type === 'reasoning' && it.id === 'rs_s1'), shapeOfItems(sessionItems))
+  const ownerKey = String(rosterOwnerFromToolUseContext(sessionCtx as never))
+  const recorded = lastSentRequestFor(ownerKey)
+  check("§8b: the turn machine recorded the request's rows under the conversation — the seed's five rows, in order", recorded !== null && recorded.length === seed.length && recorded.every((row, i) => row.uuid === seed[i]!.uuid), `${recorded?.length ?? 'none'} row(s)`)
+  const reply = yields.find(y => (y as { type?: string }).type === 'assistant') as { uuid: string } | undefined
+  check('§8b: the turn settled a reply', reply !== undefined)
+  const foldInput = [...seed, ...(reply !== undefined ? [reply] : [])]
+  const continuation = continuationOfSentRequest(recorded, foldInput as never)
+  check('§8b: the fold input continues the recorded request — the reply is the whole tail', continuation !== null && continuation.tail.length === 1 && continuation.sent.length === seed.length, j({ sent: continuation?.sent.length, tail: continuation?.tail.length }))
+  const minted = createUserMessage({ content: '<system-reminder>a per-request reminder the request minted</system-reminder>', isMeta: true })
+  const withMinted = continuationOfSentRequest([minted, ...(recorded ?? [])] as never, foldInput as never)
+  check('§8b: a meta row the request minted and the conversation never held rides again (skipped in the walk, kept in the sent rows)', withMinted !== null && withMinted.sent.length === seed.length + 1 && withMinted.tail.length === 1)
+  check('§8b: a rewound conversation, or no request yet, is no continuation (the normalised road stands)', continuationOfSentRequest(recorded, foldInput.slice(0, 2) as never) === null && continuationOfSentRequest(null, foldInput as never) === null && continuationOfSentRequest([], foldInput as never) === null)
+
+  const foldFrom = shared.captured.length
+  const run = await runFold(model, 'direct', foldInput, undefined, { systemPrompt: posture, systemContext })
+  const foldHits = shared.captured.slice(foldFrom).filter(h => h.lane === 'openai-seat')
+  check('§8b: the fold resolved on the OpenAI direct road', run.error === undefined && foldHits.length >= 1, (run.error?.message ?? '').slice(0, 200))
+  const foldBody = (foldHits[foldHits.length - 1]?.body ?? {}) as { input?: Item[]; prompt_cache_key?: string }
+  const foldItems = foldBody.input ?? []
+  console.log(`  [record] §8b session items: ${shapeOfItems(sessionItems)}`)
+  console.log(`  [record] §8b fold items:    ${shapeOfItems(foldItems)}`)
+  const sameHead = j(foldItems.slice(0, sessionItems.length)) === j(sessionItems)
+  check("§8b: the fold's items open with the session's items byte-for-byte — the reminders as their own items, the reasoning replay item in place", sameHead && foldItems.length > sessionItems.length, `fold ${foldItems.length} items vs session ${sessionItems.length}; head ${sameHead}`)
+  const between = foldItems.slice(sessionItems.length, -1)
+  check("§8b: behind the head ride the reply's own items (assistant-side only) — nothing merged, nothing re-derived", between.length >= 1 && between.every(it => it.type === 'reasoning' || it.type === 'function_call' || (it.type === 'message' && it.role === 'assistant')), shapeOfItems(between))
+  const last = foldItems.at(-1)
+  const promptHead = getCompactPrompt().slice(0, 120)
+  check("§8b: the last item is the summariser prompt as its own user item — never merged into the session's last reminder", last !== undefined && last.type === 'message' && last.role === 'user' && itemText(last).startsWith(promptHead) && userItemsOf(foldItems).length === userItemsOf(sessionItems).length + 1, `${last?.type}:${last?.role} · ${itemText(last).slice(0, 80)}`)
+  check("§8b: the fold's prompt_cache_key is the session's (the same roster, the same key)", typeof foldBody.prompt_cache_key === 'string' && foldBody.prompt_cache_key === sessionBody.prompt_cache_key, `${foldBody.prompt_cache_key} vs ${sessionBody.prompt_cache_key}`)
+  resetSentRequestsForTests()
+}
+
 console.log('\n  the census as the wire saw it:')
 for (const row of shapes) {
   const s = row.shape

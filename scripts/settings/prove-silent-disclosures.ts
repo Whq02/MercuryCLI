@@ -52,7 +52,7 @@ section('§1 the door — enqueue displays, dedupes, immediate pre-empts')
 
 section('§2 the killswitch drive — the mode flip says why')
 {
-  writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ permissions: { disableBypassPermissionsMode: 'disable' } }))
+  writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ permissions: { disableSovereignMode: true } }))
   const { enableConfigs } = await import('../../src/utils/config.js')
   enableConfigs()
   const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')

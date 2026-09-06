@@ -145,7 +145,6 @@ const FIX_SID = `00000000-aaaa-bbbb-eeee-${(process.pid % 0xffffff).toString(16)
 function writeFixture(): void {
   const base = (extra: Record<string, unknown>) => ({
     isSidechain: false,
-    userType: 'external',
     entrypoint: 'cli',
     cwd: RUNTIME_CWD,
     sessionId: FIX_SID,

@@ -25,7 +25,6 @@ export type FeatureGateUserAttributes = {
 
 const FORK_GATE_TABLE: Readonly<Record<string, unknown>> = {
   mercury_disable_keepalive_on_econnreset: true,
-  mercury_glacier_2xr: true,
 }
 
 

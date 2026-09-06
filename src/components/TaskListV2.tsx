@@ -13,7 +13,7 @@ import {
 import { describeTeammateActivity } from './tasks/taskStatusUtils.js'
 import { isAgentSwarmsEnabled } from '../utils/agentSwarmsEnabled.js'
 import { toInkColor } from '../utils/ink.js'
-import { isTodoV2Enabled } from '../utils/tasks.js'
+import { isTaskToolsEnabled } from '../utils/tasks.js'
 
 export type TaskRowV2 = { id: string; status: 'pending' | 'in_progress' | 'completed'; subject: string; blockedBy?: readonly string[]; owner?: string }
 import { truncateToWidth } from '../utils/truncate.js'
@@ -88,7 +88,7 @@ export function TaskListV2({
     }
   }, [tasks])
 
-  if (!isTodoV2Enabled() || tasks.length === 0) return null
+  if (!isTaskToolsEnabled() || tasks.length === 0) return null
 
   const swarmOn = isAgentSwarmsEnabled()
   const ownerColors = new Map<string, string>()

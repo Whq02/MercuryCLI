@@ -83,9 +83,10 @@ const hangUntilAbort = async (args: FakeArgs): Promise<never> => {
   throw new Error('aborted by watchdog')
 }
 
-const apiError = (retryInMs: number): unknown => ({
+const apiError = (retryInMs: number, status?: number): unknown => ({
   type: 'system',
   subtype: 'api_error',
+  ...(status !== undefined ? { errorDetail: { status } } : {}),
   retryInMs,
   retryAttempt: 1,
   maxRetries: 10,
@@ -181,25 +182,50 @@ section('(c) deterministic-400 fails immediately — no retry, no recovery wait'
   check('failures[] carries the deterministic-400', fails.some(f => /prompt is too long/i.test(f)))
 }
 
-section('(e) recoveries past the TOTAL cap settle THROTTLED — no ladder, no 45s throttle rescue')
+section('(e) refusals past the retry budget settle typed — no ladder, no 45s throttle rescue')
 {
   const t0 = Date.now()
   const { hooks, calls } = makeRig({
     behaviors: [
       async function* (args) {
-        args.onQueryProgress?.(apiError(700_000))
-        args.onQueryProgress?.(apiError(700_000))
-        args.onQueryProgress?.(apiError(700_000))
+        args.onQueryProgress?.(apiError(700_000, 529))
+        args.onQueryProgress?.(apiError(700_000, 529))
+        args.onQueryProgress?.(apiError(700_000, 529))
         await hangUntilAbort(args)
       },
     ],
   })
   const res = await hooks.agent('saturated', { stallMs: 200 })
-  check('agent() resolved null (throttled settle)', res === null, String(res).slice(0, 60))
+  check('agent() resolved null (the typed settle)', res === null, String(res).slice(0, 60))
   check('exactly ONE spawn (the ladder never touched it)', calls.length === 1, `${calls.length}`)
   const fails = hooks.getFailures()
-  check('failures[] carries the provider-throttled verdict', fails.some(f => /provider throttled/.test(f)))
+  check('failures[] carries the refusals and the spent budget', fails.some(f => /the provider refused \d+ times in a row \(HTTP 529, overloaded\) — the 5m retry budget is spent/.test(f)), fails.join(' | '))
   check('no 45s throttle-rescue sleep was bought', Date.now() - t0 < 30_000)
+}
+
+section('(e2) a fault past the budget is not a refusal: honoured whole, the budget untouched, the stall verdict still stands')
+{
+  const t0 = Date.now()
+  const { hooks, calls } = makeRig({
+    behaviors: [
+      async function* (args) {
+        args.onQueryProgress?.(apiError(300, 503))
+        args.onQueryProgress?.(apiError(300, 503))
+        args.onQueryProgress?.(apiError(300, 503))
+        await hangUntilAbort(args)
+      },
+    ],
+  })
+  let threw = ''
+  try {
+    await hooks.agent('faulting', { stallMs: 200 })
+  } catch (e) {
+    threw = String(e)
+  }
+  const fails = hooks.getFailures()
+  check('the faults never spent the budget: no refusal verdict anywhere', !/retry budget is spent/.test(threw) && !fails.some(f => /retry budget is spent/.test(f)), `${threw.slice(0, 100)} | ${fails.join(' | ')}`)
+  check('the silence after the faults is the stall verdict, and the ladder ran', /stalled on all/.test(threw) && calls.length === 6, `${threw.slice(0, 100)} calls=${calls.length}`)
+  check('bounded: the leg ended well inside a minute', Date.now() - t0 < 60_000, String(Date.now() - t0))
 }
 
 section('(f) resume semantics: balanced prefix continues; unpaired tool_use restarts fresh')

@@ -1,10 +1,6 @@
 import { env } from '../../../utils/env.js'
 import { logUnaryEvent, type CompletionType } from '../../../utils/unaryLogging.js'
 import { FILE_EDIT_TOOL_NAME } from '../../../tools/FileEditTool/constants.js'
-import {
-  CLAUDE_FOLDER_PERMISSION_PATTERN,
-  GLOBAL_CLAUDE_FOLDER_PERMISSION_PATTERN,
-} from '../../../tools/FileEditTool/constants.js'
 import { generateSuggestions } from '../../../utils/permissions/filesystem.js'
 import type { ToolPermissionContext } from '../../../Tool.js'
 import type { PermissionUpdate } from '../../../types/permissions.js'
@@ -27,7 +23,7 @@ export type PermissionHandlerOptions = {
   hasFeedback?: boolean
   feedback?: string
   enteredFeedbackMode?: boolean
-  scope?: 'claude-folder' | 'global-claude-folder'
+  scope?: 'config-home' | 'global-config-home'
   pattern?: string
 }
 
@@ -60,15 +56,11 @@ export const PERMISSION_HANDLERS: Record<
   'accept-session': (params, options) => {
     logFileDecision(params, 'accept')
     params.onDone()
-    if (options?.scope) {
-      const fallback =
-        options.scope === 'global-claude-folder'
-          ? GLOBAL_CLAUDE_FOLDER_PERMISSION_PATTERN
-          : CLAUDE_FOLDER_PERMISSION_PATTERN
+    if (options?.scope !== undefined && options.pattern !== undefined) {
       const updates: PermissionUpdate[] = [
         {
           type: 'addRules',
-          rules: [{ toolName: FILE_EDIT_TOOL_NAME, ruleContent: options.pattern ?? fallback }],
+          rules: [{ toolName: FILE_EDIT_TOOL_NAME, ruleContent: options.pattern }],
           behavior: 'allow',
           destination: 'session',
         },
