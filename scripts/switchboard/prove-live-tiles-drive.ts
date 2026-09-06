@@ -155,6 +155,7 @@ try {
     extraEnv: {
       MERCURY_CONCOURSE: 'always',
       MERCURY_DAEMON_DIR: daemonDir,
+      MERCURY_UPDATE_NOTICE: '0',
       ANTHROPIC_BASE_URL: api.url,
       ANTHROPIC_API_KEY: 'fixture-key-000',
       MERCURY_CACHE_CLOCK: '0',
