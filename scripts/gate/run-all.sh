@@ -17,6 +17,7 @@ bash "$here/prove-dist-cache.sh" || fail=1
 bash "$here/prove-ci-verdict.sh" || fail=1
 "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-gate-ledger.ts" || fail=1
 "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-suite-class-census.ts" || fail=1
+"${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-drives-plan.ts" || fail=1
 "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hermetic-shard.ts" || fail=1
 bash "$here/../typecheck/prove-warm-replay.sh" || fail=1
 echo "############################################################"
