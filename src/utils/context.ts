@@ -4,7 +4,6 @@ export {
   has1mContext,
   modelSupports1M,
   getContextWindowForModel,
-  getSonnet1mExpTreatmentEnabled,
   getModelMaxOutputTokens,
   getMaxThinkingTokensForModel,
 } from './model/capabilities.js'

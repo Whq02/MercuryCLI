@@ -288,7 +288,7 @@ console.log('── 5. the seams are guarded (structural) ──')
   const yolo = read('src/utils/permissions/yoloClassifier.ts')
   t('the auto-mode classifier wraps every projection call in a catch', (yolo.match(/toAutoClassifierInput\?\.\(/g) ?? []).length >= 2 && (yolo.match(/try \{\s*(value =|const value =)\s*tool\.toAutoClassifierInput/g) ?? []).length >= 2)
   const messages = read('src/components/Messages.tsx')
-  t('every transcript row still sits in the per-row boundary', /<SentryErrorBoundary>\s*<MessageRow/.test(messages))
+  t('every transcript row still sits in the per-row boundary', /<RowErrorBoundary>\s*<MessageRow/.test(messages))
   const display = read('src/utils/file.ts')
   t('getDisplayPath is total over non-string and NUL-bearing paths', /if \(typeof filePath !== 'string'\)/.test(display) && /try \{\s*relativePath = getAbsoluteAndRelativePaths\(filePath\)\.relativePath/.test(display))
 }

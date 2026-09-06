@@ -3,8 +3,8 @@ import type { Command } from '../../commands.js'
 const speak = {
   type: 'local',
   name: 'speak',
-  description: 'Voice input on or off — with it on, space in an empty composer dictates into it; download fetches the on-device model',
-  argumentHint: '[on|off|download]',
+  description: 'Voice input on or off — with it on, space in an empty composer dictates into it; options chooses the transcriber, download fetches the on-device model',
+  argumentHint: '[on|off|options|download]',
   supportsNonInteractive: false,
   seat: 'screen',
   load: () => import('./speak.js'),
