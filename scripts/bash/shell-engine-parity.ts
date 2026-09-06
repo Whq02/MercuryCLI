@@ -3,13 +3,14 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, isAbsolute, join, relative, resolve } from 'node:path'
+import { brushPackPlatform } from '../../src/utils/shell/brushPack.ts'
 
 export const ENGINES = ['system', 'brush'] as const
 export type Engine = (typeof ENGINES)[number]
 export const ENGINE_ENV = 'MERCURY_SHELL_ENGINE'
 
 export const ROOT: string = resolve(import.meta.dir, '..', '..')
-const BUN = process.env.BUN ?? join(process.env.HOME ?? '', '.bun', 'bin', 'bun')
+const BUN = process.env.BUN ?? process.execPath
 
 export type CheckStatus = 'PASS' | 'FAIL' | 'SKIP'
 export interface Check {
@@ -69,6 +70,13 @@ export function findVendoredBrush(root: string = ROOT): string | null {
   const packRoot = join(root, 'vendor', 'brush')
   if (!existsSync(packRoot)) return null
   const names = new Set(['brush', 'brush.exe'])
+  const host = brushPackPlatform()
+  if (host !== null) {
+    for (const bin of ['brush', 'brush.exe']) {
+      const p = join(packRoot, host, bin)
+      if (existsSync(p)) return p
+    }
+  }
   const stack: string[] = [packRoot]
   while (stack.length > 0) {
     const dir = stack.pop() as string
