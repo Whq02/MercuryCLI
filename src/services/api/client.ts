@@ -21,6 +21,7 @@ import {
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
 import { wrapFetchWithWireDump } from './dumpPrompts.js'
 import { recordTransportFailure } from './transportEvidence.js'
+import { observeStreamActivity, streamActivityNoteOf } from '../providers/streamIdleBudget.js'
 
 
 export const CLIENT_REQUEST_ID_HEADER = 'x-client-request-id'
@@ -87,7 +88,9 @@ function buildFetchWrapper(
     } catch {
     }
     try {
-      return await baseFetch(input, { ...init, headers })
+      const answered = await baseFetch(input, { ...init, headers })
+      const note = streamActivityNoteOf(init)
+      return note === null ? answered : observeStreamActivity(answered, note)
     } catch (err) {
       try {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
