@@ -16,7 +16,17 @@ console.log('============================================================')
 console.log(' cockpit scroll — rails stay pinned (rail-drag regression)')
 console.log('============================================================')
 
-const cfg = scenario('cockpit-scrolled', 150, 40)
+const scrolledCfg = scenario('cockpit-scrolled', 150, 40)
+const PAGE_DOWN = '\x1b[6~'
+const cfg = {
+  ...scrolledCfg,
+  sends: [
+    ...scrolledCfg.sends,
+    { afterPrevTicks: 4, awaitStableTicks: 3, data: PAGE_DOWN, mark: 'scrolled' },
+    ...Array.from({ length: 13 }, () => ({ afterPrevTicks: 2, data: PAGE_DOWN })),
+  ],
+  total: 210,
+}
 
 const RECENT_SID = `00000000-aaaa-bbbb-eeee-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
 const { sanitizePath: sanitizeRail } = await import('../../src/utils/sessionStoragePortable.ts')
@@ -52,9 +62,14 @@ check('PTY capture ran', res.status === 0, res.stderr?.slice(0, 200) ?? '')
 if (res.status === 0) {
   const grid = JSON.parse(readFileSync(gridPath, 'utf8')) as {
     grid: Array<Array<{ c: string }>>
+    marks?: Array<{ label: string; grid: Array<Array<{ c: string }>> }>
   }
-  const lines = grid.grid.map(r => r.map(c => c.c).join(''))
+  const rowsOf = (g: Array<Array<{ c: string }>>): string[] => g.map(r => r.map(c => c.c).join(''))
+  const lines = rowsOf(grid.marks?.find(m => m.label === 'scrolled')?.grid ?? [])
+  const bottom = rowsOf(grid.grid)
   const rowOf = (needle: string): number => lines.findIndex(l => l.includes(needle))
+  const bottomRowOf = (needle: string): number => bottom.findIndex(l => l.includes(needle))
+  check('the scrolled frame was taken', lines.length > 0)
 
   check(
     'scrolled state on screen (jump-to-bottom pill up)',
@@ -79,6 +94,14 @@ if (res.status === 0) {
   check('NEXT section present', rowOf('NEXT') > 0)
 
   check('right rail present (USAGE panel)', rowOf('USAGE') >= 0 && rowOf('USAGE') <= 2, `row ${rowOf('USAGE')}`)
+
+  check('PageDown back to the bottom clears the pill', bottomRowOf('back to the bottom') === -1 && !bottom.some(l => / \d+ new message/.test(l)))
+  check('the bottom is back (the last reply on screen)', bottomRowOf('Reply 18:') > 0)
+  const bottomSeatRow = bottomRowOf('SEAT')
+  const bottomSelfRow = bottom.findIndex(l => /● .+ \(you\)/.test(l))
+  check('SEAT header still pinned after the return scroll', bottomSeatRow === 2, `row ${bottomSeatRow}`)
+  check('seat body still under its header after the return scroll', bottomSelfRow === bottomSeatRow + 1, `row ${bottomSelfRow}`)
+  check('right rail still top-pinned after the return scroll', bottomRowOf('USAGE') >= 0 && bottomRowOf('USAGE') <= 2, `row ${bottomRowOf('USAGE')}`)
 }
 
 cleanupScenario('cockpit-scrolled')
