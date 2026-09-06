@@ -55,7 +55,6 @@ export {
   getCustomApiKeyStatus,
   getManagedRulesDir,
   getMemoryPath,
-  getOrCreateUserID,
   getRemoteControlAtStartup,
   getUserRulesDir,
   isCopyOnSelectEnabled,

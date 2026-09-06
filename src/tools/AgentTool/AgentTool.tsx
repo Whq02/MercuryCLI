@@ -948,14 +948,17 @@ export const AgentTool = buildTool({
                 text: 'The subagent failed before returning any output.',
               },
             ]
+      const failedTrailer = [
+        `Agent execution failed: ${data.error ?? 'unknown error'}`,
+        'Anything above is partial work, not a final answer — it was captured before the failure and must not be read as a conclusion; its work is kept on its transcript.',
+        continuationHint(String(data.agentId ?? '')),
+        usageBlock(data),
+      ]
+      const failedEnvelope = envelopeFor(data)
+      if (failedEnvelope) failedTrailer.push(formatEnvelopeBlock(failedEnvelope))
       blocks.push({
         type: 'text' as const,
-        text: [
-          `Agent execution failed: ${data.error ?? 'unknown error'}`,
-          'Anything above is partial work, not a final answer — it was captured before the failure and must not be read as a conclusion.',
-          continuationHint(String(data.agentId ?? '')),
-          usageBlock(data),
-        ].join('\n'),
+        text: failedTrailer.join('\n'),
       })
       return {
         type: 'tool_result' as const,
