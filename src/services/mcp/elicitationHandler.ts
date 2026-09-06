@@ -1,9 +1,4 @@
-import type { Client } from './sdk.js'
-import {
-  ElicitationCompleteNotificationSchema,
-  ElicitRequestSchema,
-  type ElicitResult,
-} from './sdk.js'
+import type { Client, ElicitResult } from './sdk.js'
 
 import type { AppState } from '../../state/AppState.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -126,10 +121,11 @@ export function registerElicitationHandler(
   setAppState: SetAppState,
 ): void {
   try {
-    client.setRequestHandler(ElicitRequestSchema, async (request, extra) => {
+    client.setRequestHandler('elicitation/create', async (request, ctx) => {
       logMCPDebug(serverName, `elicitation request: ${JSON.stringify(request)}`)
       const params = (request.params ?? {}) as ElicitationParams
       const isUrlMode = params.mode === 'url'
+      const signal = ctx.mcpReq.signal
 
       let riskPosture: string | undefined
       if (isUrlMode) {
@@ -149,25 +145,25 @@ export function registerElicitationHandler(
       }
 
       try {
-        const hookResponse = await runElicitationHooks(serverName, params, extra.signal)
+        const hookResponse = await runElicitationHooks(serverName, params, signal)
         if (hookResponse !== undefined) return hookResponse
 
         const response = await new Promise<ElicitResult>(resolvePromise => {
-          if (extra.signal.aborted) {
+          if (signal.aborted) {
             resolvePromise({ action: 'cancel' })
             return
           }
           const onAbort = (): void => {
             resolvePromise({ action: 'cancel' })
           }
-          extra.signal.addEventListener('abort', onAbort, { once: true })
+          signal.addEventListener('abort', onAbort, { once: true })
           const event: ElicitationRequestEvent = {
             serverName,
-            requestId: extra.requestId as string | number,
+            requestId: ctx.mcpReq.id as string | number,
             params,
-            signal: extra.signal,
+            signal,
             respond: result => {
-              extra.signal.removeEventListener('abort', onAbort)
+              signal.removeEventListener('abort', onAbort)
               resolvePromise(result)
             },
             ...(isUrlMode && params.elicitationId !== undefined
@@ -190,7 +186,7 @@ export function registerElicitationHandler(
         return await runElicitationResultHooks(
           serverName,
           response,
-          extra.signal,
+          signal,
           isUrlMode ? 'url' : 'form',
           params.elicitationId,
         )
@@ -200,7 +196,7 @@ export function registerElicitationHandler(
       }
     })
 
-    client.setNotificationHandler(ElicitationCompleteNotificationSchema, notification => {
+    client.setNotificationHandler('notifications/elicitation/complete', notification => {
       const elicitationId = (notification.params as { elicitationId?: string } | undefined)
         ?.elicitationId
       logForDebugging(

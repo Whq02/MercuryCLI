@@ -1,9 +1,4 @@
-import { Server } from '../services/mcp/sdk.js'
-import { StdioServerTransport } from '../services/mcp/sdk.js'
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '../services/mcp/sdk.js'
+import { Server, serveStdio, type Tool as McpTool } from '../services/mcp/sdk.js'
 import { getEmptyToolPermissionContext, type Tool, type ToolUseContext } from '../Tool.js'
 import review from '../commands/review.js'
 import { getDefaultAppState } from '../state/AppStateStore.js'
@@ -53,7 +48,7 @@ export async function startMCPServer(
     }
   }
 
-  server.setRequestHandler(ListToolsRequestSchema, async () => {
+  server.setRequestHandler('tools/list', async () => {
     const permissionContext = await buildServePermissionContext()
     const pool = getTools(permissionContext)
     const surviving = pool.filter(tool => !isToolKilled(tool))
@@ -74,19 +69,19 @@ export async function startMCPServer(
           (outputSchemaRaw as { type?: string }).type === 'object'
             ? outputSchemaRaw
             : undefined
-        return {
-          ...tool,
+        const wire: McpTool = {
           name: tool.name,
           description,
-          inputSchema,
-          ...(outputSchema !== undefined ? { outputSchema } : {}),
+          inputSchema: inputSchema as unknown as McpTool['inputSchema'],
+          ...(outputSchema !== undefined ? { outputSchema: outputSchema as unknown as McpTool['outputSchema'] } : {}),
         }
+        return wire
       }),
     )
     return { tools }
   })
 
-  server.setRequestHandler(CallToolRequestSchema, async request => {
+  server.setRequestHandler('tools/call', async request => {
     const permissionContext = await buildServePermissionContext()
     const pool = getTools(permissionContext)
     const tool = pool.find(candidate => candidate.name === request.params.name)
@@ -170,6 +165,5 @@ export async function startMCPServer(
     }
   })
 
-  const transport = new StdioServerTransport()
-  return await server.connect(transport)
+  serveStdio(async () => server)
 }

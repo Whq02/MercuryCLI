@@ -5,85 +5,65 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 const ROOT = join(import.meta.dir, '..', '..')
 const SRC = join(ROOT, 'src')
 const DOORWAY = 'src/services/mcp/sdk.ts'
-const PKG = '@modelcontextprotocol/sdk'
+const SCOPE = '@modelcontextprotocol'
+const PACKAGES = ['client', 'core', 'server'] as const
+const RETIRED = `${SCOPE}/sdk`
 
 const CENSUS: Record<string, { values: string[]; types: string[] }> = {
-  'client/index.js': { values: ['Client'], types: [] },
-  'client/auth.js': {
+  client: {
     values: [
+      'Client',
+      'LATEST_PROTOCOL_VERSION',
+      'OAuthError',
+      'OAuthErrorCode',
+      'ProtocolError',
+      'ProtocolErrorCode',
+      'SSEClientTransport',
+      'SdkError',
+      'SdkErrorCode',
+      'StreamableHTTPClientTransport',
+      'UnauthorizedError',
       'auth',
       'discoverAuthorizationServerMetadata',
-      'discoverOAuthProtectedResourceMetadata',
       'discoverOAuthServerInfo',
-      'exchangeAuthorization',
       'refreshAuthorization',
-      'startAuthorization',
-      'UnauthorizedError',
-    ],
-    types: ['AuthResult', 'OAuthClientProvider'],
-  },
-  'client/sse.js': { values: ['SSEClientTransport'], types: [] },
-  'client/stdio.js': { values: ['StdioClientTransport'], types: [] },
-  'client/streamableHttp.js': { values: ['StreamableHTTPClientTransport'], types: [] },
-  'server/index.js': { values: ['Server'], types: [] },
-  'server/stdio.js': { values: ['StdioServerTransport'], types: [] },
-  'server/auth/errors.js': {
-    values: [
-      'InvalidClientError',
-      'InvalidGrantError',
-      'OAuthError',
-      'ServerError',
-      'TemporarilyUnavailableError',
-      'TooManyRequestsError',
-    ],
-    types: [],
-  },
-  'shared/auth.js': {
-    values: ['OAuthErrorResponseSchema', 'OAuthMetadataSchema', 'OAuthTokensSchema', 'OpenIdProviderMetadataSchema'],
-    types: ['AuthorizationServerMetadata', 'OAuthClientInformationMixed', 'OAuthClientMetadata', 'OAuthTokens'],
-  },
-  'shared/transport.js': { values: [], types: ['Transport'] },
-  'types.js': {
-    values: [
-      'CallToolRequestSchema',
-      'CallToolResultSchema',
-      'ElicitationCompleteNotificationSchema',
-      'ElicitRequestSchema',
-      'ErrorCode',
-      'GetPromptResultSchema',
-      'LATEST_PROTOCOL_VERSION',
-      'ListPromptsResultSchema',
-      'ListResourcesResultSchema',
-      'ListRootsRequestSchema',
-      'ListToolsRequestSchema',
-      'ListToolsResultSchema',
-      'McpError',
-      'ProgressNotificationSchema',
-      'PromptListChangedNotificationSchema',
-      'ReadResourceResultSchema',
-      'ResourceListChangedNotificationSchema',
-      'ToolListChangedNotificationSchema',
     ],
     types: [
+      'AuthResult',
+      'AuthorizationServerMetadata',
       'CallToolResult',
       'ElicitResult',
       'Implementation',
       'JSONRPCMessage',
+      'ListToolsResult',
+      'OAuthClientInformationMixed',
+      'OAuthClientMetadata',
+      'OAuthClientProvider',
+      'OAuthTokens',
       'PrimitiveSchemaDefinition',
+      'ProtocolEra',
       'ReadResourceResult',
       'Resource',
       'ServerCapabilities',
       'Tool',
       'ToolAnnotations',
+      'Transport',
     ],
   },
+  'client/stdio': { values: ['StdioClientTransport'], types: [] },
+  core: {
+    values: ['OAuthErrorResponseSchema', 'OAuthMetadataSchema', 'OAuthTokensSchema'],
+    types: [],
+  },
+  server: { values: ['Server'], types: [] },
+  'server/stdio': { values: ['serveStdio'], types: [] },
 }
 
-const LAZY_SITES: ReadonlyArray<{ file: string; subpath: string; reason: string }> = [
+const LAZY_SITES: ReadonlyArray<{ file: string; specifier: string; reason: string }> = [
   {
     file: 'src/services/mcp/coordinationServer.ts',
-    subpath: 'server/mcp.js',
-    reason: 'the coordination server SDK loads only when the server is enabled+connected',
+    specifier: 'server',
+    reason: 'the coordination server builds its SDK layer only when it is enabled and connected',
   },
 ]
 
@@ -114,16 +94,16 @@ console.log(' SDK doorway — one static door · pinned surface · no wrappers')
 console.log('============================================================')
 console.log(`  src files walked: ${files.length}`)
 
-section('(a) no direct static SDK import outside the doorway')
+section('(a) no direct static SDK import outside the doorway; the retired name is gone')
 {
   const STATIC = new RegExp(
-    '(?:\\b(?:import|export)\\b[^;\'"]*?\\bfrom\\s*|\\bimport\\s*|\\brequire\\s*[(]\\s*)[\'"]' +
-      PKG.replace('/', '[/]') +
-      '(?:[/][^\'"]*)?[\'"]',
+    '(?:\\b(?:import|export)\\b[^;\'"]*?\\bfrom\\s*|\\bimport\\s*|\\brequire\\s*[(]\\s*)[\'"]' + SCOPE + '[/][^\'"]*[\'"]',
     'g',
   )
   const offenders: string[] = []
+  const retired: string[] = []
   for (const [file, text] of texts) {
+    if (text.includes(RETIRED)) retired.push(file)
     if (file === DOORWAY) continue
     for (const m of text.matchAll(STATIC)) {
       const line = text.slice(0, m.index).split('\n').length
@@ -132,22 +112,23 @@ section('(a) no direct static SDK import outside the doorway')
   }
   check('the doorway exists', doorwayText !== undefined, DOORWAY)
   check('zero direct static SDK imports outside the doorway', offenders.length === 0, offenders.join(' · '))
+  check(`the retired package name (${RETIRED}) appears nowhere under src`, retired.length === 0, retired.join(' · '))
 }
 
 section('(b) dynamic SDK imports are exactly the recorded lazy sites')
 {
-  const DYNAMIC = new RegExp('\\bimport\\s*[(]\\s*[\'"]' + PKG.replace('/', '[/]') + '[/]([^\'"]+)[\'"]\\s*[)]', 'g')
+  const DYNAMIC = new RegExp('\\bimport\\s*[(]\\s*[\'"]' + SCOPE + '[/]([^\'"]+)[\'"]\\s*[)]', 'g')
   const found = new Set<string>()
   for (const [file, text] of texts) {
     if (file === DOORWAY) continue
     for (const m of text.matchAll(DYNAMIC)) found.add(`${file} → ${m[1]}`)
   }
-  const recorded = new Set(LAZY_SITES.map(s => `${s.file} → ${s.subpath}`))
+  const recorded = new Set(LAZY_SITES.map(s => `${s.file} → ${s.specifier}`))
   const extra = [...found].filter(k => !recorded.has(k))
   const vanished = [...recorded].filter(k => !found.has(k))
   check('no unrecorded dynamic SDK import site', extra.length === 0, extra.join(' · '))
   check('every recorded lazy site still exists (retire the row with the site)', vanished.length === 0, vanished.join(' · '))
-  for (const s of LAZY_SITES) console.log(`    lazy: ${s.file} → ${s.subpath} (${s.reason})`)
+  for (const s of LAZY_SITES) console.log(`    lazy: ${s.file} → ${s.specifier} (${s.reason})`)
 }
 
 section('(c) the doorway is re-export lines only')
@@ -158,53 +139,55 @@ const surface = new Map<string, { values: Set<string>; types: Set<string> }>()
     .replace(/^[ \t]*[/][/].*$/gm, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-  const STMT = new RegExp(
-    '^export (type )?[{] ?([^}]*?) ?[}] from \'' + PKG.replace('/', '[/]') + '[/]([^\']+)\'( ;)? ?',
-  )
+  const STMT = new RegExp('^export (type )?[{] ?([^}]*?) ?[}] from \'' + SCOPE + '[/]([^\']+)\'( ;)? ?')
   let rest = stripped
   let statements = 0
   const badNames: string[] = []
+  const badSpecifiers: string[] = []
   while (rest.length > 0) {
     const m = STMT.exec(rest)
     if (!m) break
     statements++
     const kind = m[1] ? 'types' : 'values'
-    const subpath = m[3]
-    const entry = surface.get(subpath) ?? { values: new Set<string>(), types: new Set<string>() }
-    for (const raw of m[2].split(',')) {
+    const specifier = m[3]!
+    const root = specifier.split('/')[0]!
+    if (!(PACKAGES as readonly string[]).includes(root)) badSpecifiers.push(specifier)
+    const entry = surface.get(specifier) ?? { values: new Set<string>(), types: new Set<string>() }
+    for (const raw of m[2]!.split(',')) {
       const name = raw.trim()
       if (!name) continue
-      if (!/^[A-Za-z_$][\w$]*$/.test(name)) badNames.push(`${subpath}: ${name}`)
+      if (!/^[A-Za-z_$][\w$]*$/.test(name)) badNames.push(`${specifier}: ${name}`)
       else entry[kind].add(name)
     }
-    surface.set(subpath, entry)
+    surface.set(specifier, entry)
     rest = rest.slice(m[0].length)
   }
-  check(`every statement is an export-from of an SDK subpath (${statements} statements)`, rest.length === 0, `residue: ${rest.slice(0, 120)}`)
+  check(`every statement is an export-from of an SDK package (${statements} statements)`, rest.length === 0, `residue: ${rest.slice(0, 120)}`)
   check('no rename / inline type modifier inside a re-export list', badNames.length === 0, badNames.join(' · '))
+  check(`every specifier names one of the three packages (${PACKAGES.join(', ')})`, badSpecifiers.length === 0, badSpecifiers.join(' · '))
   check('the doorway has no import, no function, no const, no class', statements > 0 && rest.length === 0)
 }
 
 section('(d) the doorway surface == the census')
 const surfaceKeys = new Set<string>()
 {
-  const key = (sub: string, kind: string, name: string): string => `${sub} ${kind} ${name}`
+  const key = (spec: string, kind: string, name: string): string => `${spec} ${kind} ${name}`
   const censusKeys = new Set<string>()
-  for (const [sub, e] of Object.entries(CENSUS)) {
-    for (const n of e.values) censusKeys.add(key(sub, 'value', n))
-    for (const n of e.types) censusKeys.add(key(sub, 'type', n))
+  for (const [spec, e] of Object.entries(CENSUS)) {
+    for (const n of e.values) censusKeys.add(key(spec, 'value', n))
+    for (const n of e.types) censusKeys.add(key(spec, 'type', n))
   }
-  for (const [sub, e] of surface) {
-    for (const n of e.values) surfaceKeys.add(key(sub, 'value', n))
-    for (const n of e.types) surfaceKeys.add(key(sub, 'type', n))
+  for (const [spec, e] of surface) {
+    for (const n of e.values) surfaceKeys.add(key(spec, 'value', n))
+    for (const n of e.types) surfaceKeys.add(key(spec, 'type', n))
   }
   const extra = [...surfaceKeys].filter(k => !censusKeys.has(k))
   const missing = [...censusKeys].filter(k => !surfaceKeys.has(k))
   check(`the doorway exports nothing the census lacks (${surfaceKeys.size} names)`, extra.length === 0, extra.join(' · '))
   check(`the doorway exports everything the census records (${censusKeys.size} names)`, missing.length === 0, missing.join(' · '))
-  const subpaths = [...surface.keys()].sort()
-  check(`exactly the census subpaths (${subpaths.length})`, subpaths.join(',') === Object.keys(CENSUS).sort().join(','), subpaths.join(','))
-  const dup = subpaths.filter(s => [...(surface.get(s)?.values ?? [])].some(n => surface.get(s)?.types.has(n)))
+  const specifiers = [...surface.keys()].sort()
+  check(`exactly the census specifiers (${specifiers.length})`, specifiers.join(',') === Object.keys(CENSUS).sort().join(','), specifiers.join(','))
+  const dup = specifiers.filter(s => [...(surface.get(s)?.values ?? [])].some(n => surface.get(s)?.types.has(n)))
   check('no name is exported both as a value and as a type', dup.length === 0, dup.join(','))
 }
 
@@ -242,6 +225,16 @@ section('(e) every doorway name is consumed through the doorway; consumers take 
   check('consumers take only names the doorway has', unknown.length === 0, unknown.join(','))
   check('consumers address the doorway by name (no default / namespace import)', nonNamed.length === 0, nonNamed.join(','))
   check('the doorway has consumers', consumerFiles.size > 0)
+}
+
+section('(f) the manifest names the three packages at one pinned version, not the retired one')
+{
+  const manifest = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { dependencies?: Record<string, string> }
+  const deps = manifest.dependencies ?? {}
+  const versions = PACKAGES.map(p => deps[`${SCOPE}/${p}`])
+  check(`every package is a dependency (${PACKAGES.join(', ')})`, versions.every(v => typeof v === 'string' && v.length > 0), versions.join(','))
+  check('the three packages share one exact version (no range)', new Set(versions).size === 1 && /^\d+[.]\d+[.]\d+(-[\w.]+)?$/.test(versions[0] ?? ''), versions.join(','))
+  check(`the retired package (${RETIRED}) is not a dependency`, deps[RETIRED] === undefined)
 }
 
 console.log('\n============================================================')

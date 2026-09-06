@@ -18,23 +18,21 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 {
   process.env.MERCURY_MCP_CALL_IDLE_MINUTES = '0.002'
-  const { Client } = await import('@modelcontextprotocol/sdk/client/index.js')
-  const { Server } = await import('@modelcontextprotocol/sdk/server/index.js')
-  const { InMemoryTransport } = await import('@modelcontextprotocol/sdk/inMemory.js')
-  const { CallToolRequestSchema, ListToolsRequestSchema } = await import('@modelcontextprotocol/sdk/types.js')
+  const { Client } = await import('@modelcontextprotocol/client')
+  const { InMemoryTransport, Server } = await import('@modelcontextprotocol/server')
   const { callMCPToolWithUrlElicitationRetry, mcpCallIdleLimitMs } = await import('../../src/services/mcp/client.ts')
 
   t('the idle knob reads 120ms from the minutes flag', mcpCallIdleLimitMs() === 120)
 
   const server = new Server({ name: 'prover', version: '1.0.0' }, { capabilities: { tools: {} } })
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+  server.setRequestHandler('tools/list', async () => ({
     tools: [
       { name: 'stall', description: 'never answers', inputSchema: { type: 'object' } },
       { name: 'slow-with-progress', description: 'progress then answer', inputSchema: { type: 'object' } },
       { name: 'echo', description: 'answers with its tag', inputSchema: { type: 'object' } },
     ],
   }))
-  server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
+  server.setRequestHandler('tools/call', async request => {
     const name = request.params.name
     if (name === 'stall') {
       await new Promise(() => {})

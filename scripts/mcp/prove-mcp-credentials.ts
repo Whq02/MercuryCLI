@@ -140,9 +140,10 @@ section('the SDK auth adapter pin — the exact consumed entry points')
     'utf8',
   )
   check(
-    'the SDK error classes come from server/auth/errors through the doorway (classification only)',
-    src.includes('InvalidGrantError') &&
-      /InvalidGrantError,[^}]*[}] from '@modelcontextprotocol[/]sdk[/]server[/]auth[/]errors[.]js'/.test(doorway),
+    'the SDK OAuth error class and its code vocabulary come through the doorway (classification only)',
+    src.includes('OAuthErrorCode.InvalidGrant') &&
+      src.includes('OAuthErrorCode.InvalidClient') &&
+      /export [{][^}]*\bOAuthError,[^}]*\bOAuthErrorCode,[^}]*[}] from '@modelcontextprotocol[/]client'/.test(doorway),
   )
 }
 
