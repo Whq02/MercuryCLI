@@ -225,6 +225,7 @@ import {
   firstByteTimeoutLine,
   requestWaitLine,
   retryReasonWords,
+  streamActivityFetchOptions,
   createStreamIdleWatchdog,
   streamEndReceiptLine,
   streamIdleTimeoutMs,
@@ -267,6 +268,7 @@ export type Options = {
   fetchOverride?: ClientOptions['fetch']
   enablePromptCaching?: boolean
   skipCacheWrite?: boolean
+  cacheTtlSource?: QuerySource
   effortMessage?: EffortValue
   temperatureOverride?: number
   effortValue?: EffortValue
@@ -694,9 +696,10 @@ async function* queryModel(
 
   const enablePromptCaching =
     options.enablePromptCaching ?? getPromptCachingEnabled(options.model)
+  const cacheTtlSource = options.cacheTtlSource ?? options.querySource
   const system = buildSystemPromptBlocks(systemPrompt, enablePromptCaching, {
     skipGlobalCacheForSystemPrompt: needsToolBasedCacheMarker,
-    querySource: options.querySource,
+    querySource: cacheTtlSource,
   })
   const useBetas = betas.length > 0
 
@@ -879,7 +882,7 @@ async function* queryModel(
       messages: addCacheBreakpoints(
         messagesForAPI,
         enablePromptCaching,
-        options.querySource,
+        cacheTtlSource,
         useCachedMC,
         consumedCacheEdits as CachedMCEditsBlock | null,
         consumedPinnedEdits as CachedMCPinnedEdits[],
@@ -1090,6 +1093,7 @@ async function* queryModel(
   try {
     streamingPass: for (;;) {
     if (pulseMain) pulseStageStart('client_setup')
+    let noteTransportActivity: (() => void) | null = null
     const generator = withRetry(
       () =>
         getAnthropicClient({
@@ -1150,6 +1154,7 @@ async function* queryModel(
               {
                 signal,
                 timeout: wait.budgetMs,
+                fetchOptions: streamActivityFetchOptions(() => noteTransportActivity?.()) as never,
                 ...(clientRequestId && {
                   headers: { [CLIENT_REQUEST_ID_HEADER]: clientRequestId },
                 }),
@@ -1245,7 +1250,9 @@ async function* queryModel(
         releaseStreamResources()
       },
     })
+    noteTransportActivity = () => streamIdleWatchdog.noteActivity()
     function clearStreamIdleTimers(): void {
+      noteTransportActivity = null
       streamIdleWatchdog.stop()
     }
     function settledTailStands(): boolean {

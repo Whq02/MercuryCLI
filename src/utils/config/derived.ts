@@ -1,4 +1,3 @@
-import { randomBytes } from 'crypto'
 import { join } from 'path'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { getAutoMemEntrypoint } from '../../memdir/paths.js'
@@ -32,16 +31,6 @@ export function getCustomApiKeyStatus(
   return 'new'
 }
 
-export function isAutoUpdaterDisabled(): boolean {
-  return getAutoUpdaterDisabledReason() !== null
-}
-
-export type AutoUpdaterDisabledReason =
-  | { type: 'development' }
-  | { type: 'env'; envVar: string }
-  | { type: 'config' }
-  | { type: 'standalone' }
-
 
 export function binaryName(): string {
   return 'mercury'
@@ -59,37 +48,6 @@ export function isMouseCaptureEnabled(): boolean {
 export function isMercurySubstrateProfileOn(): boolean {
   if (isEnvDefinedFalsy(flagEnv('MERCURY_SUBSTRATE'))) return false
   return true
-}
-
-export function formatAutoUpdaterDisabledReason(
-  reason: AutoUpdaterDisabledReason,
-): string {
-  switch (reason.type) {
-    case 'development':
-      return 'development build'
-    case 'env':
-      return `${reason.envVar} set`
-    case 'config':
-      return 'config'
-    case 'standalone':
-      return 'Mercury source build'
-  }
-}
-
-export function getAutoUpdaterDisabledReason(): AutoUpdaterDisabledReason | null {
-  if (!flagEnabled('MERCURY_AUTOUPDATE')) return { type: 'env', envVar: 'MERCURY_AUTOUPDATE' }
-  return { type: 'standalone' }
-}
-
-export function getOrCreateUserID(): string {
-  const config = getGlobalConfig()
-  if (config.userID) {
-    return config.userID
-  }
-
-  const userID = randomBytes(32).toString('hex')
-  saveGlobalConfig(current => ({ ...current, userID }))
-  return userID
 }
 
 export function recordFirstStartTime(): void {

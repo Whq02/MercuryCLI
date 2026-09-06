@@ -2,7 +2,6 @@ import { homedir } from 'node:os'
 import { isAbsolute, join, normalize, sep } from 'node:path'
 import { memoize } from 'lodash-es'
 import { getMercuryHome, isEnvTruthy } from '../utils/envUtils.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/featureGates.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getInitialSettings, getSettingsForSource } from '../utils/settings/settings.js'
 import { findCanonicalGitRoot } from '../utils/git.js'
@@ -17,7 +16,6 @@ export function isAutoMemoryEnabled(): boolean {
 }
 
 export function relevantMemoryRecallEnabled(): boolean {
-  if (getFeatureValue_CACHED_MAY_BE_STALE('mercury_moth_copse', false)) return true
   return flagEnv('MERCURY_RELEVANT_RECALL') === '1'
 }
 

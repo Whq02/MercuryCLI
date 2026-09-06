@@ -17,7 +17,7 @@ const SID = '00000000-aaaa-bbbb-cccc-00000000fmc1'.replace('fmc1', '0fc1')
 
 mkdirSync(OUT, { recursive: true })
 const line = {
-  isSidechain: false, userType: 'external', entrypoint: 'cli', cwd: RUNTIME_CWD,
+  isSidechain: false, entrypoint: 'cli', cwd: RUNTIME_CWD,
   sessionId: SID, version: '1.0.0-beta.1', gitBranch: 'main', parentUuid: null,
   type: 'user', message: { role: 'user', content: 'boot into the repl' },
   uuid: '00000000-0000-4000-8000-000000000001', timestamp: '2026-06-19T10:00:01.000Z',

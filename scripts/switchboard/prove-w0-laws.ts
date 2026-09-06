@@ -181,7 +181,7 @@ type ControlFrame = {
   response?: {
     request_id?: string
     subtype?: string
-    response?: { behavior?: string; updatedInput?: { command?: string }; message?: string }
+    response?: { behavior?: string; updated_input?: { command?: string }; message?: string }
   }
 }
 onWorkerControlRequest(
@@ -216,7 +216,7 @@ check(
     allowFrame.response?.request_id === 'req-allow-1' &&
     allowFrame.response?.subtype === 'success' &&
     allowFrame.response?.response?.behavior === 'allow' &&
-    allowFrame.response?.response?.updatedInput?.command === 'echo hi',
+    allowFrame.response?.response?.updated_input?.command === 'echo hi',
 )
 const denyRes = answerPermissionAsk('req-deny-1', false, controlRoster, 'operator')
 const denyFrame = JSON.parse(controlFrames[1]?.frame ?? '{}') as ControlFrame

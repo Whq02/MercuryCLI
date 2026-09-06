@@ -2,6 +2,7 @@ import * as React from 'react'
 import { BULLET_OPERATOR } from '../../constants/figures.js'
 import { Box, Text } from '../../ink.js'
 import type { TurnReceiptMessage } from '../../types/message.js'
+import { delegatedSpendLine } from '../../utils/cockpit/turnReceipt.js'
 import { plural } from '../../utils/stringUtils.js'
 
 export function TurnReceiptRow({
@@ -58,6 +59,10 @@ export function TurnReceiptRow({
         {c.commands} shell {plural(c.commands, 'command')}
       </Text>,
     )
+  }
+  const delegated = delegatedSpendLine(c)
+  if (delegated !== null) {
+    push(<Text key="delegated">{delegated}</Text>)
   }
   if (parts.length === 0) return null
   return (

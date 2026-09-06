@@ -19,7 +19,7 @@ import { Onboarding } from './components/Onboarding.js'
 import { TrustDialog } from './components/TrustDialog/TrustDialog.js'
 import { MercurySetupFrame, type SetupRailStep } from './components/MercurySetupFrame.js'
 import { ApproveApiKey } from './components/ApproveApiKey.js'
-import { BypassPermissionsModeDialog } from './components/BypassPermissionsModeDialog.js'
+import { SovereignModeDialog } from './components/SovereignModeDialog.js'
 import { ExternalInstructionIncludesDialog } from './components/ExternalInstructionIncludesDialog.js'
 import { KeybindingSetup } from './keybindings/KeybindingProviderSetup.js'
 import { AppStateProvider } from './state/AppState.js'
@@ -46,7 +46,7 @@ import { applyConfigEnvironmentVariables } from './utils/managedEnv.js'
 import { updateGithubRepoPathMapping } from './utils/githubRepoPathMapping.js'
 import { getCwd } from './utils/cwd.js'
 import {
-  hasSkipDangerousModePermissionPrompt,
+  hasSkipSovereignConsentPrompt,
 } from './utils/settings/settings.js'
 import { flagEnv } from './substrate/flagRegistry.js'
 import { isEnvTruthy } from './utils/envUtils.js'
@@ -306,10 +306,10 @@ export async function showSetupScreens(
 
   const bypassArmed =
     modeBypassesPermissions(permissionMode) || allowDangerouslySkipPermissions
-  const dialogSuppressed = hasSkipDangerousModePermissionPrompt()
+  const dialogSuppressed = hasSkipSovereignConsentPrompt()
   if (bypassArmed && !dialogSuppressed) {
     await showSetupDialog<void>(root, done => (
-      <BypassPermissionsModeDialog onAccept={done} />
+      <SovereignModeDialog onAccept={done} />
     ))
   }
 

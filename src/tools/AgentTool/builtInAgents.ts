@@ -9,15 +9,9 @@ import { MERCURY_GUIDE_AGENT, isGuideAgentMounted } from './built-in/mercuryGuid
 import { MERCURY_SCOUT_AGENT } from './built-in/mercuryScoutAgent.js'
 import { VERIFICATION_AGENT } from './built-in/verificationAgent.js'
 
-export const LEGACY_SUBAGENT_ALIASES: Readonly<Record<string, string>> = {
-  claude: 'mercury-background',
-  Explore: 'mercury-scout',
-  Plan: 'mercury-architect',
-}
-
 export function getBuiltInAgents(): AgentDefinition[] {
   if (
-    isEnvTruthy(process.env.MERCURY_SDK_DISABLE_BUILTIN_AGENTS) &&
+    isEnvTruthy(process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS) &&
     getIsNonInteractiveSession()
   ) {
     return []

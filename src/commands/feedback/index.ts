@@ -19,7 +19,7 @@ const feedback = {
   type: 'local-jsx',
   name: 'feedback',
   aliases: ['bug'],
-  description: 'Report a bug — a redacted report is shown, then filed through your GitHub CLI (a local draft without it)',
+  description: 'Report a bug — a redacted report is shown, then filed through your GitHub CLI; without it a prefilled issue form opens in your browser and the local draft stays',
   argumentHint: '[report]',
   isEnabled: feedbackEnabled,
   load: () => import('./feedback.js'),

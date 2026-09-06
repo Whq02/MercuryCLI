@@ -1,5 +1,4 @@
 
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { getProjectRoot } from '../../bootstrap/state.js'
 import { getSkillToolCommands } from '../../commands.js'
 import type { Command, PromptCommand } from '../../types/command.js'
@@ -34,6 +33,7 @@ import type { MCPServerConnection } from '../../services/mcp/types.js'
 import { generateTaskId } from '../../Task.js'
 import { getUserContext, getSystemContext, isInstructionDiscoveryDisabled } from '../../context.js'
 import { forgetAgentEffortWord, noteAgentEffortWord, parseEffortValue, type EffortValue } from '../../utils/effort.js'
+import { subagentDefaultEffort } from '../../utils/agentDefaults.js'
 import { createSubagentContext } from '../../utils/forkedAgent.js'
 import {
   cloneFileStateCache,
@@ -50,11 +50,15 @@ import {
 } from '../WorkflowTool/structuredOutputTool.js'
 import { armInactivityDeadline, DeadlineExceededError, formatLimit, minutesKnobToMs } from '../../utils/deadline.js'
 import {
-  chargeRecoveryWait,
+  honourRecoveryWait,
   makeRecoveryBudget,
-  recoveryBudgetSpentLine,
+  recoveryAnswerRefills,
+  RecoveryBudgetSpentError,
   recoveryNoticeFacts,
+  refillRecoveryBudget,
   retryWaitWords,
+  settleRecoveryWait,
+  type RecoveryReservation,
 } from '../../services/api/recoveryBudget.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { createChildAbortController } from '../../utils/abortController.js'
@@ -69,6 +73,7 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import {
   clearAgentTranscriptSubdir,
+  flushSessionStorage,
   getAgentTranscriptPath,
   recordSidechainTranscript,
   registerAgentTranscriptDestination,
@@ -172,7 +177,7 @@ function withoutInstructionBlob(context: {
 }
 
 function slimAgentGateOn(): boolean {
-  return getFeatureValue_CACHED_MAY_BE_STALE('mercury_slim_subagent_instructions', true)
+  return true
 }
 
 export async function connectAgentMcpServers(
@@ -435,9 +440,9 @@ export function resolveAgentEffort(facts: {
   effortOverride: string | undefined
   useExactTools: boolean | undefined
   definitionEffort: EffortValue | undefined
-  sessionEffort: EffortValue | undefined
+  defaultEffort: EffortValue | undefined
 }): EffortValue | undefined {
-  return agentOwnEffortWord(facts) ?? facts.sessionEffort
+  return agentOwnEffortWord(facts) ?? facts.defaultEffort
 }
 
 export function agentOwnEffortWord(facts: {
@@ -450,6 +455,18 @@ export function agentOwnEffortWord(facts: {
       ? parseEffortValue(facts.effortOverride)
       : undefined
   return pin ?? facts.definitionEffort
+}
+
+export async function landAgentTranscriptRows(
+  messages: Message[],
+  agentId: AgentId,
+  parentUuid?: string | null,
+): Promise<void> {
+  try {
+    await recordSidechainTranscript(messages, agentId, parentUuid as never)
+    await flushSessionStorage()
+  } catch {
+  }
 }
 
 export async function* runAgent(
@@ -498,7 +515,7 @@ export async function* runAgent(
     effortOverride,
     useExactTools,
     definitionEffort: agentDefinition.effort,
-    sessionEffort: (toolUseContext.getAppState?.() as { effortValue?: EffortValue } | undefined)?.effortValue,
+    defaultEffort: subagentDefaultEffort(),
   })
   onResolvedIdentity?.({ model: resolvedAgentModel, ...(resolvedEffort !== undefined ? { effort: String(resolvedEffort) } : {}) })
 
@@ -540,8 +557,10 @@ export async function* runAgent(
   let throttled: Error | null = null
   let budgetCut: ReturnType<typeof setTimeout> | null = null
   let retryWordsStanding = false
+  let standingWait: RecoveryReservation | null = null
+  let cuttingWait = { declaredMs: 0, honoredMs: 0 }
   const cutAtBudget = (): void => {
-    throttled = new Error(recoveryBudgetSpentLine(recovery))
+    throttled = new RecoveryBudgetSpentError(recovery, cuttingWait)
     abortController.abort(throttled)
   }
 
@@ -576,7 +595,7 @@ export async function* runAgent(
 
   const claim = Symbol('agent-executor')
   executorClaims.set(agentId, claim)
-  noteAgentEffortWord(agentId, agentOwnEffortWord({ effortOverride, useExactTools, definitionEffort: agentDefinition.effort }))
+  noteAgentEffortWord(agentId, resolvedEffort)
 
   if (transcriptSubdir) setAgentTranscriptSubdir(agentId, transcriptSubdir)
 
@@ -683,7 +702,7 @@ export async function* runAgent(
           effortOverride,
           useExactTools,
           definitionEffort: agentDefinition.effort,
-          sessionEffort: state.effortValue,
+          defaultEffort: subagentDefaultEffort(),
         }),
       })
     }
@@ -855,7 +874,7 @@ export async function* runAgent(
       )
     } catch {
     }
-    void recordSidechainTranscript(messages, agentId).catch(() => {})
+    await landAgentTranscriptRows(messages, agentId)
 
     void writeAgentMetadata(agentId, {
       agentType: agentDefinition.agentType,
@@ -902,18 +921,12 @@ export async function* runAgent(
       }
       const notice = recoveryNoticeFacts(message)
       if (notice !== null) {
-        const { honoredMs, spent } = chargeRecoveryWait(recovery, notice.declaredMs, notice.status)
+        settleRecoveryWait(recovery, standingWait)
+        const { honoredMs, spent, reservation } = honourRecoveryWait(recovery, notice)
+        standingWait = reservation
+        cuttingWait = { declaredMs: notice.declaredMs, honoredMs }
         retryWordsStanding = true
-        onWait?.(
-          retryWaitWords({
-            attempt: notice.attempt ?? recovery.waits,
-            of: notice.of,
-            declaredMs: notice.declaredMs,
-            honoredMs,
-            status: notice.status,
-            budget: recovery,
-          }),
-        )
+        onWait?.(retryWaitWords({ facts: notice, honoredMs, budget: recovery }))
         if (budgetCut !== null) clearTimeout(budgetCut)
         budgetCut = null
         if (spent && honoredMs <= 0) cutAtBudget()
@@ -922,11 +935,14 @@ export async function* runAgent(
           budgetCut.unref?.()
         }
       } else if (retryWordsStanding && (message as { type?: string }).type !== 'progress') {
+        settleRecoveryWait(recovery, standingWait)
+        standingWait = null
         retryWordsStanding = false
         if (budgetCut !== null) clearTimeout(budgetCut)
         budgetCut = null
         onWait?.(null)
       }
+      if (recoveryAnswerRefills(message)) refillRecoveryBudget(recovery)
       if ((message as { type?: string }).type === 'assistant') {
         const content = (message as { message?: { content?: unknown } }).message?.content
         if (Array.isArray(content) && content.some(block => (block as { type?: string })?.type === 'tool_use')) {
@@ -941,11 +957,11 @@ export async function* runAgent(
       }
       if (anyMessage.type === 'stream_event' as never) continue
       if (anyMessage.type === 'attachment') {
-        void recordSidechainTranscript(
+        await landAgentTranscriptRows(
           [message as Message],
           agentId,
           lastRecordedUuid as never,
-        ).catch(() => {})
+        )
         lastRecordedUuid = (message as { uuid?: string }).uuid
         if (
           (anyMessage as { attachment?: { type?: string } }).attachment
@@ -969,11 +985,11 @@ export async function* runAgent(
           (subtype === 'compact_boundary' || subtype === 'informational' || subtype === 'api_error'))
       if (!recordable) continue
 
-      void recordSidechainTranscript(
+      await landAgentTranscriptRows(
         [message as Message],
         agentId,
         lastRecordedUuid as never,
-      ).catch(() => {})
+      )
       if (anyMessage.type !== 'progress') {
         lastRecordedUuid = (message as { uuid?: string }).uuid
       }
@@ -999,6 +1015,7 @@ export async function* runAgent(
   } finally {
     watchdog.cancel()
     if (budgetCut !== null) clearTimeout(budgetCut)
+    settleRecoveryWait(recovery, standingWait)
     if (retryWordsStanding) onWait?.(null)
     if (askHeartbeat !== null) {
       clearInterval(askHeartbeat)
@@ -1016,12 +1033,6 @@ export async function* runAgent(
         clearSessionHooks(rootSetAppState, agentId)
       }
       clearAgentTranscriptSubdir(agentId)
-      rootSetAppState(prev => {
-        if (!(agentId in prev.todos)) return prev
-        const todos = { ...prev.todos }
-        delete todos[agentId]
-        return { ...prev, todos }
-      })
       killShellTasksForAgent(
         agentId,
         toolUseContext.getAppState,

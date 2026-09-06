@@ -26,7 +26,6 @@ export {
   turnCutWhy,
   type TurnCut,
   type TurnCutKind,
-  withMemoryCorrectionHint,
 } from './messages/rejectionText.js'
 
 export { deriveShortMessageId, deriveUUID } from './messages/identity.js'

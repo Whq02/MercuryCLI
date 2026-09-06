@@ -26,7 +26,6 @@ import {
   shouldIncludeFirstPartyOnlyBetas,
 } from '../../../utils/betas.js'
 import { cacheClockTtlDecision } from 'src/utils/cache/cacheClock.js'
-import { getOrCreateUserID } from '../../../utils/config.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { modelSupportsEffort, type EffortValue } from 'src/utils/effort.js'
 import { errorMessage } from '../../../utils/errors.js'
@@ -236,7 +235,6 @@ export function getAPIMetadata() {
   return {
     user_id: jsonStringify({
       ...extra,
-      device_id: getOrCreateUserID(),
       account_uuid: getOauthAccountInfo()?.accountUuid ?? '',
       session_id: getSessionId(),
     }),

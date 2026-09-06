@@ -26,7 +26,6 @@ import {
   createProgressMessage,
   createToolResultStopMessage,
   createUserMessage,
-  withMemoryCorrectionHint,
 } from '../../utils/messages.js'
 import { emitInvocationTrace } from '../../utils/observability/invocationTrace.js'
 import type { HermesKillInfo } from '../../utils/permissions/capabilityGate.js'
@@ -188,7 +187,7 @@ function interruptResultUpdate(
 ): MessageUpdateLazy {
   const block = {
     ...createToolResultStopMessage(toolUseID),
-    content: withMemoryCorrectionHint(CANCEL_MESSAGE),
+    content: CANCEL_MESSAGE,
   }
   return {
     message: createUserMessage({

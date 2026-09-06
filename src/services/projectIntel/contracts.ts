@@ -26,8 +26,9 @@ export interface GitFacts {
 }
 
 export interface InstructionFacts {
-  claudeMd: boolean
+  mercuryMd: boolean
   agentsMd: boolean
+  otherHarnessInstructions: string[]
   configHomes: string[]
 }
 

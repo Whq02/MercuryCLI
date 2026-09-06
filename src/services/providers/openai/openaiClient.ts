@@ -209,6 +209,11 @@ export async function* streamOpenaiResponses(
     }
 
     if (!fold.finished) {
+      const bare = fold.takeBareStreamError()
+      if (bare !== null) {
+        yield { type: 'stream-fault', fault: bare, settledItems: fold.settledItems() }
+        return
+      }
       yield {
         type: 'stream-fault',
         fault: {

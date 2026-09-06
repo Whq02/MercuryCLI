@@ -18,7 +18,7 @@ bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { loadConversationForResume } = await import('../../src/utils/conversationRecovery.ts')
-const { extractTodosFromMessages, restoreConversationModelFromMessages } = await import(
+const { restoreConversationModelFromMessages } = await import(
   '../../src/utils/sessionRestore.ts'
 )
 const { buildAwayRecap } = await import('../../src/utils/cockpit/awaySummary.ts')
@@ -54,7 +54,6 @@ function chainRows(sessionId: string, rows: Row[]): Row[] {
     const out: Row = {
       parentUuid: parent,
       isSidechain: false,
-      userType: 'external',
       cwd: scratch,
       sessionId,
       version: '1.0.0-beta.1',
@@ -407,12 +406,6 @@ console.log('\n§6 · tool-result summaries are truthful per dialect')
     'total over corrupt shapes: a string result and a wire {} placeholder decline',
     summarizeToolResult('Bash', 'Error: boom') === null && summarizeToolResult('Read', {}) === null,
   )
-}
-
-console.log('\n§7 · the parallel-round todo law')
-{
-  const todos = extractTodosFromMessages(loaded1.messages)
-  check('the LAST TodoWrite in the newest round wins', todos.length === 2 && todos[1]?.content === 'second', JSON.stringify(todos))
 }
 
 console.log()

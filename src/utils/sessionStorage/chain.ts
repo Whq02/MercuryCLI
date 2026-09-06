@@ -21,7 +21,6 @@ import { logForDebugging } from '../debug.js'
 import type { FileHistorySnapshot } from '../fileHistory.js'
 import { logError } from '../log.js'
 import { extractTag, isCompactBoundaryMessage, normalizeAttachmentForAPI } from '../messages.js'
-import { getUserType } from './paths.js'
 
 const SKIP_FIRST_PROMPT_PATTERN =
   /^(?:\s*<[a-z][\w-]*[\s>]|\[Request interrupted by user[^\]]*\])/
@@ -458,12 +457,10 @@ export function cleanMessagesForLogging(
   replIds?: Set<string>,
 ): Transcript {
   const filtered = messages.filter(isLoggableMessage) as Transcript
-  return getUserType() !== 'ant'
-    ? transformMessagesForExternalTranscript(
-        filtered,
-        replIds ?? collectReplIds(allMessages),
-      )
-    : filtered
+  return transformMessagesForExternalTranscript(
+    filtered,
+    replIds ?? collectReplIds(allMessages),
+  )
 }
 
 export type Transcript = (
@@ -475,7 +472,7 @@ export type Transcript = (
 
 export function isLoggableMessage(m: Message): boolean {
   if (m.type === 'progress') return false
-  if (m.type === 'attachment' && getUserType() !== 'ant') {
+  if (m.type === 'attachment') {
     const att = m.attachment
     if (att.type === 'hook_non_blocking_error' || att.type === 'hook_error_during_execution') return true
     if (att.type === 'bypassed_ask') return true

@@ -322,8 +322,8 @@ export async function getEventMetadata(options?: EnrichMetadataOptions): Promise
     ...(betas.length > 0 ? { betaHeaders: betas.join(',') } : {}),
     env: envContext,
     ...(process.env.MERCURY_ENTRYPOINT ? { entrypoint: process.env.MERCURY_ENTRYPOINT } : {}),
-    ...(process.env.MERCURY_SDK_VERSION
-      ? { agentSdkVersion: process.env.MERCURY_SDK_VERSION }
+    ...(process.env.MERCURY_HOST_VERSION
+      ? { agentSdkVersion: process.env.MERCURY_HOST_VERSION }
       : {}),
     isInteractive: String(!getIsNonInteractiveSession()),
     clientType: 'cli',

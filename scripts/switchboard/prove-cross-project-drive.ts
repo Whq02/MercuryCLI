@@ -54,7 +54,6 @@ seedFirstRun(TEMPLATE, [CWD, OTHER])
   mkdirSync(dirname(file), { recursive: true })
   const row = (extra: Record<string, unknown>): Record<string, unknown> => ({
     isSidechain: false,
-    userType: 'external',
     entrypoint: 'cli',
     cwd: OTHER,
     sessionId,

@@ -1,29 +1,34 @@
 
-import { isAutoMemoryEnabled } from '../../memdir/paths.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 
 
 export * from './turnCut.js'
 import { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, interruptedToolsLine, turnCutOf, turnCutWhy, turnCutLine, turnCutResultText, turnCutOfText, isTurnCutText } from './turnCut.js'
 
-export const CANCEL_MESSAGE =
-  "The user doesn't want to take this action right now. STOP what you are doing and wait for the user to tell you how to proceed."
-
-
-export const REJECT_MESSAGE =
-  "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed."
-export const REJECT_MESSAGE_WITH_REASON_PREFIX =
-  "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). To tell you how to proceed, the user said:\n"
-export const SUBAGENT_REJECT_MESSAGE =
-  'Permission for this tool use was denied. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). Try a different approach or report the limitation to complete your task.'
-export const SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX =
-  'Permission for this tool use was denied. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). The user said:\n'
-export const PLAN_REJECTION_PREFIX =
-  'The agent proposed a plan that was rejected by the user. The user chose to stay in strategy mode rather than proceed with implementation.\n\nRejected plan:\n'
-
 export const DENIAL_WORKAROUND_GUIDANCE =
   `Do not try to reach the same effect by another route. ` +
   `If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.`
+
+export const CANCEL_MESSAGE =
+  'The operator stopped this action before it ran; nothing was changed. Stop what you are doing and wait for the operator to say how to proceed.'
+
+
+export const REJECT_MESSAGE =
+  `The operator declined this tool call; it was not run and nothing was changed. ${DENIAL_WORKAROUND_GUIDANCE}`
+export const REJECT_MESSAGE_WITH_REASON_PREFIX =
+  'The operator declined this tool call; it was not run and nothing was changed. The operator said:\n'
+export const SUBAGENT_REJECT_MESSAGE =
+  `Permission for this tool call was declined; it was not run and nothing was changed. ${DENIAL_WORKAROUND_GUIDANCE}`
+export const SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX =
+  'Permission for this tool call was declined; it was not run and nothing was changed. The operator said:\n'
+export const PLAN_REJECTION_PREFIX =
+  'The operator declined the proposed plan and chose to stay in strategy mode rather than proceed with implementation.\n\nDeclined plan:\n'
+
+const DENIAL_SENTENCES_ON_DISK = [
+  "The user doesn't want to proceed with this tool use.",
+  "The user doesn't want to take this action right now.",
+  'Permission for this tool use was denied.',
+  'The agent proposed a plan that was rejected by the user.',
+]
 
 export function AUTO_REJECT_MESSAGE(toolName: string): string {
   return (
@@ -51,6 +56,7 @@ export function isDenialResultText(raw: string): boolean {
     text === SUBAGENT_REJECT_MESSAGE ||
     text.startsWith(SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX) ||
     text.startsWith(PLAN_REJECTION_PREFIX) ||
+    DENIAL_SENTENCES_ON_DISK.some(sentence => text.startsWith(sentence)) ||
     text.startsWith(AUTO_MODE_REJECTION_PREFIX) ||
     (text.includes(' has been denied') && text.includes(DENIAL_WORKAROUND_GUIDANCE))
   )
@@ -116,15 +122,4 @@ export function buildClassifierUnreadableMessage(
     `This is not a judgement on the action — the check may read its next verdict, the same action can be tried again, and work that does not need the check can continue. ` +
     `The built-in read-only tools (file reads, code search, glob listings) never need the check; MCP tools always do.`
   )
-}
-
-
-const MEMORY_CORRECTION_HINT =
-  "\n\nNote: The user's next message may contain a correction or preference. Pay close attention — if they explain what went wrong or how they'd prefer you to work, consider saving that to memory for future sessions."
-
-export function withMemoryCorrectionHint(message: string): string {
-  const armed =
-    isAutoMemoryEnabled() &&
-    getFeatureValue_CACHED_MAY_BE_STALE('mercury_memory_correction_hint', false)
-  return armed ? message + MEMORY_CORRECTION_HINT : message
 }

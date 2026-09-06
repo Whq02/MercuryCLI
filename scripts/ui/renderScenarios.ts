@@ -397,7 +397,7 @@ export function writeSyntheticSession(
 ): void {
   purgeFixtureDraft(sid)
   const base = (extra: Record<string, unknown>) => ({
-    isSidechain: false, userType: 'external', entrypoint: 'cli',
+    isSidechain: false, entrypoint: 'cli',
     cwd: RUNTIME_CWD, sessionId: sid,
     version: '1.0.0-beta.1', gitBranch: 'main', ...extra,
   })
@@ -2985,7 +2985,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     const settingsPath = join(tmpdir(), 'autopilot-band-settings.json')
     writeFileSync(
       settingsPath,
-      JSON.stringify({ skipDangerousModePermissionPrompt: true }),
+      JSON.stringify({ skipSovereignConsentPrompt: true }),
     )
     writeSyntheticSession('short')
     return {
@@ -3012,7 +3012,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     const settingsPath = join(tmpdir(), 'mode-band-bypass-settings.json')
     writeFileSync(
       settingsPath,
-      JSON.stringify({ skipDangerousModePermissionPrompt: true }),
+      JSON.stringify({ skipSovereignConsentPrompt: true }),
     )
     writeSyntheticSession('short')
     return {

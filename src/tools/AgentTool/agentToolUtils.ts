@@ -9,14 +9,15 @@ import {
 import type { Message } from '../../types/message.js'
 import type { SetAppState } from '../../Task.js'
 import {
+  AGENT_BUDGET_RESUME_NOTE,
+  agentStopReasonOf,
   completeAgentTask,
   createActivityDescriptionResolver,
   createAgentLedger,
   createProgressTracker,
   drainPendingMessages,
-  agentStopReasonOf,
   enqueueAgentNotification,
-  publishAgentWaitFromEvent,
+  enqueueAgentReceiptRow,
   failAgentTask,
   foldResponseIntoLedger,
   getProgressUpdate,
@@ -24,9 +25,10 @@ import {
   isLocalAgentTask,
   killAsyncAgent,
   publishAgentProgressSoon,
+  publishAgentWaitFromEvent,
+  type ProgressTracker,
   updateAgentProgress,
   updateProgressFromMessage,
-  type ProgressTracker,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import {
   findToolByName,
@@ -36,6 +38,8 @@ import {
   type ToolUseContext,
 } from '../../Tool.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
+import { flushSessionStorage } from '../../utils/sessionStorage.js'
+import { recoveryBudgetMs, recoveryBudgetSpentFactsOf } from '../../services/api/recoveryBudget.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
 import { FILE_WRITE_TOOL_NAME } from '../FileWriteTool/prompt.js'
@@ -275,6 +279,8 @@ export const agentToolResultSchema = lazySchema(() =>
     totalToolUseCount: z.number(),
     totalDurationMs: z.number(),
     totalTokens: z.number(),
+    costUSD: z.number().optional(),
+    unpricedTurns: z.number().optional(),
     usage: z.object({
       input_tokens: z.number(),
       output_tokens: z.number(),
@@ -431,6 +437,8 @@ export function finalizeAgentTool(
     content,
     totalDurationMs: Date.now() - startTime,
     totalTokens,
+    costUSD: ledger.costUSD,
+    unpricedTurns: ledger.unpricedTurns,
     totalToolUseCount: countToolUses(messages),
     usage,
     ...(structured !== undefined ? { structured } : {}),
@@ -544,6 +552,120 @@ export function extractPartialResult(
   return undefined
 }
 
+export async function partialResultEnvelopeBlock(args: {
+  agentId: string
+  agentType: string
+  status: 'failed' | 'stopped'
+  partialText: string | undefined
+  usage: { totalTokens: number; toolUseCount: number; durationMs: number }
+}): Promise<string | undefined> {
+  try {
+    const { buildAgentResultEnvelope, formatEnvelopeBlock } = await import(
+      '../../services/agentResults/normalize.js'
+    )
+    return formatEnvelopeBlock(
+      await buildAgentResultEnvelope({
+        agentId: args.agentId,
+        agentType: args.agentType,
+        status: args.status,
+        finalText: args.partialText ?? '',
+        usage: args.usage,
+      }),
+    )
+  } catch {
+    return undefined
+  }
+}
+
+
+export function recoveryBudgetCutOf(error: unknown): { words: string; resumeAfterMs: number } | null {
+  const facts = recoveryBudgetSpentFactsOf(error)
+  return facts === null ? null : { words: facts.words, resumeAfterMs: facts.resumeAfterMs }
+}
+
+const RESUME_AFTER_CUT_FLOOR_MS = 1_000
+
+export function budgetCutResumeDelayMs(cut: { resumeAfterMs: number }): number {
+  return Math.max(RESUME_AFTER_CUT_FLOOR_MS, cut.resumeAfterMs)
+}
+
+const pendingAutomaticResumes = new Map<string, ReturnType<typeof setTimeout>>()
+const cutsAlreadyResumed = new WeakSet<AbortController>()
+
+export function automaticResumePending(taskId: string): boolean {
+  return pendingAutomaticResumes.has(taskId)
+}
+
+export function cancelAutomaticResume(taskId: string): boolean {
+  const timer = pendingAutomaticResumes.get(taskId)
+  if (timer === undefined) return false
+  clearTimeout(timer)
+  pendingAutomaticResumes.delete(taskId)
+  return true
+}
+
+export function armBudgetCutResume(args: {
+  taskId: string
+  description: string
+  registration: AbortController
+  toolUseContext: ToolUseContext
+  rootSetAppState: SetAppState
+  canUseTool?: CanUseToolFn
+  invokingRequestId?: string
+  delayMs?: number
+  automaticResume?: boolean
+  resume?: (resumeArgs: {
+    agentId: string
+    prompt: string
+    toolUseContext: ToolUseContext
+    canUseTool?: CanUseToolFn
+    invokingRequestId?: string
+    automatic: true
+  }) => Promise<unknown>
+}): ReturnType<typeof setTimeout> | null {
+  if (args.automaticResume === true) return null
+  if (pendingAutomaticResumes.has(args.taskId)) return null
+  if (cutsAlreadyResumed.has(args.registration)) return null
+  const fire = async (): Promise<void> => {
+    pendingAutomaticResumes.delete(args.taskId)
+    cutsAlreadyResumed.add(args.registration)
+    let tasksNow: Record<string, unknown> | undefined
+    args.rootSetAppState(prev => {
+      tasksNow = prev.tasks
+      return prev
+    })
+    const row = tasksNow?.[args.taskId]
+    if (!isLocalAgentTask(row) || row.status !== 'failed' || row.registration !== args.registration) return
+    const { liveAgentOwner, resumeAgentBackground } = await import('./resumeAgent.js')
+    if (liveAgentOwner(args.taskId, tasksNow) !== null) return
+    const resume = args.resume ?? (resumeAgentBackground as unknown as NonNullable<typeof args.resume>)
+    try {
+      await resume({
+        agentId: args.taskId,
+        prompt: AGENT_BUDGET_RESUME_NOTE,
+        toolUseContext: args.toolUseContext,
+        canUseTool: args.canUseTool,
+        invokingRequestId: args.invokingRequestId,
+        automatic: true,
+      })
+    } catch (error) {
+      logForDebugging(`agent lifecycle: the automatic resume of ${args.taskId} did not start: ${errorMessage(error)}`)
+      return
+    }
+    enqueueAgentReceiptRow({
+      taskId: args.taskId,
+      description: args.description,
+      summary: `Agent "${args.description}" resumed by itself — the recovery budget's allowance is back after it was spent waiting on the provider; its partial work carried forward`,
+    })
+  }
+  const timer = setTimeout(() => {
+    void fire()
+  }, args.delayMs ?? recoveryBudgetMs())
+  timer.unref?.()
+  pendingAutomaticResumes.set(args.taskId, timer)
+  return timer
+}
+
 
 export async function runAsyncAgentLifecycle(args: {
   taskId: string
@@ -566,6 +688,7 @@ export async function runAsyncAgentLifecycle(args: {
   rootSetAppState: SetAppState
   agentIdForCleanup: string
   enableSummarization: boolean
+  automaticResume?: boolean
   getWorktreeResult: () => Promise<{
     worktreePath?: string
     worktreeBranch?: string
@@ -658,9 +781,9 @@ export async function runAsyncAgentLifecycle(args: {
       result.outcome?.status === 'failed' ? result.outcome : undefined
 
     if (declined) {
-      failAgentTask(taskId, declined.error, rootSetAppState)
+      failAgentTask(taskId, declined.error, rootSetAppState, args.abortController)
     } else {
-      completeAgentTask(result as { agentId: string }, rootSetAppState)
+      completeAgentTask(result as { agentId: string }, rootSetAppState, args.abortController)
       try {
         const stateReader =
           toolUseContext.getAppState ??
@@ -749,9 +872,22 @@ export async function runAsyncAgentLifecycle(args: {
     if (error instanceof AbortError) {
       stopSummarization?.()
       const stopReason = agentStopReasonOf(args.abortController.signal.reason)
-      killAsyncAgent(taskId, rootSetAppState, stopReason)
+      killAsyncAgent(taskId, rootSetAppState, stopReason, args.abortController)
       const worktreeResult = await getWorktreeResult()
+      await flushSessionStorage()
       const partialResult = extractPartialResult(accumulated)
+      const usage = {
+        totalTokens: getTokenCountFromTracker(tracker),
+        toolUses: tracker.toolUseCount,
+        durationMs: Date.now() - metadata.startTime,
+      }
+      const envelopeBlock = await partialResultEnvelopeBlock({
+        agentId: String(taskId),
+        agentType: metadata.agentType,
+        status: 'stopped',
+        partialText: partialResult,
+        usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
+      })
       enqueueAgentNotification({
         taskId,
         description,
@@ -760,26 +896,58 @@ export async function runAsyncAgentLifecycle(args: {
         controller: args.abortController,
         toolUseId: toolUseContext.toolUseId,
         finalMessage: partialResult,
+        usage,
         landedWrites: landedWritesOf(accumulated),
         ...(stopReason !== undefined ? { stopReason } : {}),
         ...worktreeResult,
+        ...(envelopeBlock ? { envelopeBlock } : {}),
       })
       return
     }
     stopSummarization?.()
     const errMsg = errorMessage(error)
-    failAgentTask(taskId, errMsg, rootSetAppState)
+    failAgentTask(taskId, errMsg, rootSetAppState, args.abortController)
     const worktreeResult = await getWorktreeResult()
+    await flushSessionStorage()
+    const partialResult = extractPartialResult(accumulated)
+    const usage = {
+      totalTokens: getTokenCountFromTracker(tracker),
+      toolUses: tracker.toolUseCount,
+      durationMs: Date.now() - metadata.startTime,
+    }
+    const envelopeBlock = await partialResultEnvelopeBlock({
+      agentId: String(taskId),
+      agentType: metadata.agentType,
+      status: 'failed',
+      partialText: partialResult,
+      usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
+    })
     enqueueAgentNotification({
       taskId,
       description,
       status: 'failed',
       error: errMsg,
+      finalMessage: partialResult,
+      usage,
       landedWrites: landedWritesOf(accumulated),
       setAppState: rootSetAppState,
+      controller: args.abortController,
       toolUseId: toolUseContext.toolUseId,
       ...worktreeResult,
+      ...(envelopeBlock ? { envelopeBlock } : {}),
     })
+    const budgetCut = recoveryBudgetCutOf(error)
+    if (budgetCut !== null && !args.automaticResume) {
+      armBudgetCutResume({
+        taskId,
+        description,
+        registration: args.abortController,
+        toolUseContext,
+        rootSetAppState,
+        canUseTool: args.canUseTool,
+        delayMs: budgetCutResumeDelayMs(budgetCut),
+      })
+    }
   } finally {
     stopSummarization?.()
     try {

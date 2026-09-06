@@ -6,7 +6,7 @@ export type {
 } from '../sandboxTypes.js'
 export * from './coreTypes.generated.js'
 
-export const MERCURY_SDK_CONTRACT_VERSION = 2
+export const MERCURY_SDK_CONTRACT_VERSION = 3
 
 export const HOOK_EVENTS = [
   'PreToolUse',

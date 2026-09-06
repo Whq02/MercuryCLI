@@ -286,7 +286,6 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
     const payload: Record<string, unknown> = {
       loggedIn,
       authMethod,
-      apiProvider: 'firstParty',
     }
     const apiKeySource =
       apiKey.source !== 'none'

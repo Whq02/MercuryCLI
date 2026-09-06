@@ -13,7 +13,7 @@ export type RefusalEnvelope = {
   session_id: string
   total_cost_usd: 0
   usage: typeof EMPTY_USAGE
-  modelUsage: Record<string, never>
+  model_usage: Record<string, never>
   permission_denials: never[]
   uuid: string
   errors: string[]
@@ -31,7 +31,7 @@ export function refusalEnvelope(errors: string[]): RefusalEnvelope {
     session_id: getSessionId(),
     total_cost_usd: 0,
     usage: EMPTY_USAGE,
-    modelUsage: {},
+    model_usage: {},
     permission_denials: [],
     uuid: randomUUID(),
     errors,

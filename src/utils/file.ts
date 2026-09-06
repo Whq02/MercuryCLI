@@ -18,7 +18,6 @@ import { realpath, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, extname, isAbsolute, join, normalize, parse, relative, resolve, sep } from 'node:path'
 
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/featureGates.js'
 import { faultPoint, isTransientWin32FsCode, renameWithWin32RetrySync, WIN32_RENAME_RETRY_DELAYS_MS } from '../substrate/durablePublish.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
@@ -420,7 +419,7 @@ export async function suggestPathUnderCwd(requestedPath: string): Promise<string
 }
 
 export function isCompactLinePrefixEnabled(): boolean {
-  return !getFeatureValue_CACHED_MAY_BE_STALE('mercury_compact_line_prefix_killswitch', false)
+  return true
 }
 
 export function addLineNumbers({ content, startLine }: { content: string; startLine: number }): string {

@@ -168,7 +168,6 @@ section('§6 — a record-less resume retains the transcript’s model (the vNex
   const rows: Array<Record<string, unknown>> = [
     {
       isSidechain: false,
-      userType: 'external',
       entrypoint: 'cli',
       cwd: work,
       sessionId: SID,
@@ -182,7 +181,6 @@ section('§6 — a record-less resume retains the transcript’s model (the vNex
     },
     {
       isSidechain: false,
-      userType: 'external',
       entrypoint: 'cli',
       cwd: work,
       sessionId: SID,
@@ -226,7 +224,6 @@ section('§6b — the retained walk runs the ONE provenance law (FN-013 MODEL-01
     }
     const meta = (uuid: string) => ({
       isSidechain: false,
-      userType: 'external',
       entrypoint: 'cli',
       cwd: work,
       sessionId: sid,

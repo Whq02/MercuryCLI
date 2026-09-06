@@ -77,6 +77,12 @@ async function run(command: string, sandboxed: boolean): Promise<Outcome> {
   return { code: result.code, out: result.stdout, stderr: result.stderr, cwd: getCwd() }
 }
 
+{
+  const probe = await run('echo "${BRUSH_VERSION:-system}"', false)
+  const answered = probe.out.trim()
+  note(`the shell that answered: ${answered === 'system' ? 'the system shell' : `brush ${answered}`}`)
+}
+
 section('§1 the sandbox law — through exec')
 const platformOk = process.platform === 'darwin' || process.platform === 'linux'
 const enabledInSettings = SandboxManager.isSandboxEnabledInSettings()

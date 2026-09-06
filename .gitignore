@@ -19,10 +19,20 @@ vendor/pyright/
 vendor/grammars/
 vendor/js-debug/
 vendor/node/
+# The shell engine pack is FETCHED as an upstream release binary (brush),
+# never tracked: the binary and its licences land here per platform.
+vendor/brush/
 # The voice capture pack is BUILT from native/voice (cargo), never fetched
 # and never tracked: the addon and its licences land here per platform.
 vendor/voice/
 native/voice/target/
+# The on-device transcriber pack is BUILT from native/whisper (cargo and
+# cmake), never fetched and never tracked; its speech models are fetched
+# into vendor/whisper-models/ for the provers only (a release install
+# downloads its model into the config home) and never tracked.
+vendor/whisper/
+vendor/whisper-models/
+native/whisper/target/
 # A cross build's target platform packages (the search binary and the image
 # processor of another platform than the host's), reproduced from bun.lock's
 # pins by scripts/vendor/fetch-platform-packages.ts; never tracked.

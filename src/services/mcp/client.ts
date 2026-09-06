@@ -816,7 +816,7 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
   const rawHint = meta['anthropic/searchHint']
   const searchHint = typeof rawHint === 'string' ? rawHint.replace(/\s+/g, ' ').trim() || undefined : undefined
   const alwaysLoad = meta['anthropic/alwaysLoad'] === true
-  const skipPrefix = client.config.type === 'sdk' && isEnvTruthy(process.env.MERCURY_SDK_MCP_NO_PREFIX)
+  const skipPrefix = client.config.type === 'sdk' && isEnvTruthy(process.env.MERCURY_HOST_MCP_NO_PREFIX)
   const qualifiedName = buildMcpToolName(serverName, toolName)
   const modelFacingName = skipPrefix ? toolName : wireSafeMcpToolName(serverName, toolName)
   const rawDescription = sdkTool.description ?? ''

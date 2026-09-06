@@ -13,7 +13,6 @@ import type { ModelTransitionReceipt } from '../utils/model/modelTransition.js'
 import type { EffortValue } from '../utils/effort.js'
 import type { FileHistoryState } from '../utils/fileHistory.js'
 import type { SessionHooksState } from '../utils/hooks/sessionHooks.js'
-import type { TodoItem } from '../utils/todo/types.js'
 import type { DenialTrackingState } from '../utils/permissions/denialTracking.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { shouldEnableThinkingByDefault } from '../utils/thinking.js'
@@ -196,7 +195,6 @@ type AppStateMutableHalf = {
   notifications: { current: Notification | null; queue: Notification[] }
   elicitation: { queue: ElicitationRequestEvent[] }
   inbox: { messages: InboxMessage[] }
-  todos: Record<string, TodoItem[]>
 
   fileHistory: FileHistoryState
   attribution: AttributionState
@@ -264,7 +262,6 @@ type AppStateMutableHalf = {
   denialTracking?: DenialTrackingState
   thinkingEnabled: boolean
   advisorModel?: string
-  isUltraplanMode?: boolean
   channelPermissionCallbacks?: Record<string, (result: unknown) => void>
 }
 
@@ -322,7 +319,6 @@ export function getDefaultAppState(): AppState {
     notifications: { current: null, queue: [] },
     elicitation: { queue: [] },
     inbox: { messages: [] },
-    todos: {},
 
     fileHistory: { snapshots: [], trackedFiles: new Set(), snapshotSequence: 0 },
     attribution: createEmptyAttributionState(),

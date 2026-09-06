@@ -323,7 +323,7 @@ function seedWorld(settings: Record<string, unknown>): World {
   seedFirstRun(home, [cwd])
   const cfgPath = join(home, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
-  writeFileSync(cfgPath, JSON.stringify({ ...cfg, hasSeenAutoDefaultNotice: true, hasSeenAutoDefaultNudge: true }, null, 2) + '\n')
+  writeFileSync(cfgPath, JSON.stringify({ ...cfg }, null, 2) + '\n')
   writeFileSync(join(home, 'settings.json'), JSON.stringify(settings, null, 2) + '\n')
   return { home, cwd, sha }
 }
@@ -359,7 +359,7 @@ function keepOrDrop(world: World, label: string): void {
   rmSync(world.cwd, { recursive: true, force: true })
 }
 
-const DENIAL_WORDS = ['has been denied', 'auto-denied', 'was denied', "doesn't want to proceed", 'tool_use_error', 'was rejected', 'blocked this action']
+const DENIAL_WORDS = ['has been denied', 'auto-denied', 'was denied', 'declined this tool call', 'tool_use_error', 'was rejected', 'blocked this action']
 const isDenial = (text: string): boolean => DENIAL_WORDS.some(word => text.includes(word))
 
 function evidence(fixture: Fixture, world: World): void {
@@ -640,7 +640,7 @@ function runStreamJson(world: World, fixture: Fixture, args: string[], turns: Ar
             child.stdin.write(
               JSON.stringify({
                 type: 'control_response',
-                response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updatedInput: request.input } },
+                response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updated_input: request.input } },
               }) + '\n',
             )
           }

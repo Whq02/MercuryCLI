@@ -97,7 +97,8 @@ export const PermissionsSchema = lazySchema(() =>
           z.enum(PERMISSION_MODES),
         )
         .optional(),
-      disableBypassPermissionsMode: z.literal('disable').optional(),
+      disableSovereignMode: z.boolean().optional().describe('True closes Sovereign mode for every session that reads this file'),
+      disableFlowMode: z.boolean().optional().describe('True closes Flow for every session that reads this file'),
       additionalDirectories: z.array(z.string()).optional(),
     })
     .passthrough(),
@@ -156,7 +157,7 @@ export const SettingsSchema = lazySchema(() => {
     plansDirectory: z.string().optional().describe('Project-root-relative directory for plan files (replacing the default plans/ directory under the Mercury config home)'),
     autoMemoryEnabled: z.boolean().optional(),
     autoMemoryDirectory: z.string().optional().describe('Where auto memory is written (default under the Mercury config home); ignored when set by checked-in project settings'),
-    autoDreamEnabled: z.boolean().optional(),
+    memoryUpkeepEnabled: z.boolean().optional().describe('Background memory upkeep: the notes consolidation pass between sessions'),
 
     env: EnvironmentVariablesSchema().optional(),
     attribution: z.object({ commit: z.string().optional(), pr: z.string().optional() }).optional(),
@@ -217,19 +218,16 @@ export const SettingsSchema = lazySchema(() => {
       .object({ excludeDefault: z.boolean().optional(), tips: z.array(z.string()) })
       .optional(),
     syntaxHighlightingDisabled: z.boolean().optional(),
-    terminalTitleFromRename: z.boolean().optional(),
     prefersReducedMotion: z.boolean().optional(),
     showThinkingSummaries: z.boolean().optional(),
-    showClearContextOnPlanAccept: z.boolean().optional(),
+    showClearContextOnStrategyAccept: z.boolean().optional(),
     progressReporting: z.boolean().optional(),
     promptSuggestionEnabled: z.boolean().optional(),
-    feedbackSurveyRate: z.number().min(0).max(1).optional(),
-    companyAnnouncements: z.array(z.string()).optional(),
     agent: z.string().optional(),
     skipWebFetchPreflight: z.boolean().optional(),
-    skipDangerousModePermissionPrompt: z.boolean().optional(),
-    disableAutoMode: z.literal('disable').optional(),
+    skipSovereignConsentPrompt: z.boolean().optional().describe('True skips the consent card shown before entering Sovereign mode (honoured from the user, local, flag and policy sources)'),
     defaultShell: z.enum(['bash', 'powershell']).optional(),
+    shellEngine: z.enum(['system', 'brush']).optional(),
     instructionProfile: z.enum(['auto', 'native']).optional(),
     channelsEnabled: z.boolean().optional(),
     apollo: z
@@ -245,21 +243,6 @@ export const SettingsSchema = lazySchema(() => {
         sparsePaths: z.array(z.string()).optional(),
       })
       .optional(),
-    remote: z.object({ defaultEnvironmentId: z.string().optional() }).optional(),
-    sshConfigs: z
-      .array(
-        z.object({
-          id: z.string(),
-          name: z.string(),
-          sshHost: z.string(),
-          sshPort: z.number().optional(),
-          sshIdentityFile: z.string().optional(),
-          startDirectory: z.string().optional(),
-        }),
-      )
-      .optional(),
-    autoUpdatesChannel: z.enum(['latest', 'stable']).optional(),
-    minimumVersion: z.string().optional(),
   })
   return base.passthrough()
 })

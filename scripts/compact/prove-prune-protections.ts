@@ -26,7 +26,7 @@ section('§A the predicate')
 {
   check('Skill results are protected', law.isProtectedFromPruning('Skill'))
   check('Brief results are protected', law.isProtectedFromPruning('Brief'))
-  check('plan-mode references are protected', law.isProtectedFromPruning('ExitPlanMode') && law.isProtectedFromPruning('EnterPlanMode'))
+  check('strategy-mode references are protected', law.isProtectedFromPruning('ExitStrategyMode') && law.isProtectedFromPruning('EnterStrategyMode'))
   check('a skill-file Read is protected by its path', law.isProtectedFromPruning('Read', { file_path: '/repo/mercury-skills/deploy/SKILL.md' }) && law.isProtectedFromPruning('Read', { file_path: '/Users/x/.mercury/skills/review/SKILL.md' }))
   check(
     'a skill-file Read spelled with Windows separators is protected',

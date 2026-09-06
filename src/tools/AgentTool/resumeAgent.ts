@@ -7,9 +7,15 @@ import type { AgentId } from '../../types/ids.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { assembleToolPool } from '../../tools.js'
 import {
+  isLocalAgentTask,
   registerAsyncAgent,
   setAgentWaitLine,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { isMainSessionTask } from '../../tasks/LocalMainSessionTask.js'
+import {
+  workflowOwnedAgentWords,
+  workflowOwningAgent,
+} from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import {
   runWithAgentContext,
@@ -34,7 +40,7 @@ import {
 import { reconstructForSubagentResume } from '../../utils/toolResultStorage.js'
 import { getSdkAgentProgressSummariesEnabled } from '../../bootstrap/state.js'
 import { getSystemPrompt } from '../../constants/prompts.js'
-import { resolveWorkerTools, runAsyncAgentLifecycle } from './agentToolUtils.js'
+import { cancelAutomaticResume, resolveWorkerTools, runAsyncAgentLifecycle } from './agentToolUtils.js'
 import { FORK_AGENT, FORK_SUBAGENT_TYPE, isForkSubagentEnabled } from './forkSubagent.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { getAgentDefinitionsWithOverrides } from './loadAgentsDir.js'
@@ -50,12 +56,31 @@ export type ResumeAgentResult = {
 
 const RESUMED_AGENT_DESCRIPTION = 'Resumed agent'
 
+export function liveAgentOwner(
+  agentId: string,
+  tasks: Record<string, unknown> | undefined,
+): { kind: 'agent' | 'workflow'; words: string } | null {
+  const own = tasks?.[agentId]
+  if (isLocalAgentTask(own) && !isMainSessionTask(own) && own.status === 'running') {
+    return {
+      kind: 'agent',
+      words:
+        `Agent ${agentId} is running in this session — guidance for a running agent is queued by SendMessage ` +
+        `and delivered at its next tool round; a second run is never started beside it.`,
+    }
+  }
+  const workflow = workflowOwningAgent(tasks, agentId)
+  if (workflow !== undefined) return { kind: 'workflow', words: workflowOwnedAgentWords(workflow, agentId) }
+  return null
+}
+
 export async function resumeAgentBackground(args: {
   agentId: string
   prompt: string
   toolUseContext: ToolUseContext
   canUseTool?: CanUseToolFn
   invokingRequestId?: string
+  automatic?: boolean
 }): Promise<ResumeAgentResult> {
   const { agentId, prompt, toolUseContext, canUseTool } = args
 
@@ -191,6 +216,14 @@ export async function resumeAgentBackground(args: {
 
   const rootSetAppState =
     toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState
+  let tasksNow: Record<string, unknown> | undefined
+  rootSetAppState(prev => {
+    tasksNow = prev.tasks
+    return prev
+  })
+  const owner = liveAgentOwner(agentId, tasksNow)
+  if (owner !== null) throw new Error(owner.words)
+  if (args.automatic !== true) cancelAutomaticResume(agentId)
   const task = registerAsyncAgent({
     agentId,
     description,
@@ -251,6 +284,7 @@ export async function resumeAgentBackground(args: {
       toolUseContext,
       rootSetAppState,
       agentIdForCleanup: agentId,
+      automaticResume: args.automatic === true,
       enableSummarization:
         isForkSubagentEnabled() || getSdkAgentProgressSummariesEnabled(),
       getWorktreeResult: async () =>

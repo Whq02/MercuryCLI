@@ -278,7 +278,6 @@ section('§6 THE RESUME SIBLING — a resumed session whose retained model has n
   mkdirSync(dirname(file2), { recursive: true })
   const row = (extra: Record<string, unknown>): Record<string, unknown> => ({
     isSidechain: false,
-    userType: 'external',
     entrypoint: 'cli',
     cwd: cwd2,
     sessionId: sessionId2,

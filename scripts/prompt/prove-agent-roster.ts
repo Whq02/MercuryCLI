@@ -3,7 +3,7 @@ import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { getBuiltInAgents, LEGACY_SUBAGENT_ALIASES } from '../../src/tools/AgentTool/builtInAgents.js'
+import { getBuiltInAgents } from '../../src/tools/AgentTool/builtInAgents.js'
 import { isGuideAgentMounted, MERCURY_GUIDE_AGENT_TYPE } from '../../src/tools/AgentTool/built-in/mercuryGuideAgent.js'
 import { getIsInteractive, setIsInteractive } from '../../src/bootstrap/state.js'
 
@@ -56,10 +56,7 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
 }
 
 {
-  for (const [legacy, target] of Object.entries(LEGACY_SUBAGENT_ALIASES)) {
-    check(`§4 legacy '${legacy}' → '${target}' resolves to a REGISTERED agent`, byType.has(target))
-  }
-  check('§4 the wrapper-routed Explore id resolves', LEGACY_SUBAGENT_ALIASES['Explore'] === 'mercury-scout')
+  check('§4 the scout id resolves to a REGISTERED agent', byType.has('mercury-scout'))
   const agentTool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
   const launchPlan = readFileSync(join(ROOT, 'src/utils/swarm/agentLaunchPlan.ts'), 'utf8')
   check('§4 the Agent tool resolves through the ONE launch-plan builder', agentTool.includes('buildAgentLaunchPlan({'))
@@ -94,17 +91,17 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
 
 {
   const prevEntry = process.env.MERCURY_ENTRYPOINT
-  const prevKill = process.env.MERCURY_SDK_DISABLE_BUILTIN_AGENTS
+  const prevKill = process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS
   const prevInteractive = getIsInteractive()
   const mounted = (): boolean => getBuiltInAgents().some(a => a.agentType === MERCURY_GUIDE_AGENT_TYPE)
-  delete process.env.MERCURY_SDK_DISABLE_BUILTIN_AGENTS
+  delete process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS
   process.env.MERCURY_ENTRYPOINT = 'headless'
   setIsInteractive(false)
   check('§7 the guide is mounted under the sdk entrypoint (a headless -p run)', isGuideAgentMounted() && mounted())
   process.env.MERCURY_ENTRYPOINT = 'cli'
   setIsInteractive(true)
   check('§7 the guide is mounted in an interactive session', isGuideAgentMounted() && mounted())
-  process.env.MERCURY_SDK_DISABLE_BUILTIN_AGENTS = '1'
+  process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS = '1'
   setIsInteractive(false)
   check('§7 the SDK builtin-agent kill in a non-interactive session is the ONE opt-out: the guide is unmounted and the roster is empty', !isGuideAgentMounted() && getBuiltInAgents().length === 0)
   setIsInteractive(true)
@@ -115,8 +112,8 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   check('§7 the prompt\'s guide line reads the same mount predicate', /isGuideAgentMounted\(\)/.test(prompts))
   if (prevEntry === undefined) delete process.env.MERCURY_ENTRYPOINT
   else process.env.MERCURY_ENTRYPOINT = prevEntry
-  if (prevKill === undefined) delete process.env.MERCURY_SDK_DISABLE_BUILTIN_AGENTS
-  else process.env.MERCURY_SDK_DISABLE_BUILTIN_AGENTS = prevKill
+  if (prevKill === undefined) delete process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS
+  else process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS = prevKill
   setIsInteractive(prevInteractive)
 }
 

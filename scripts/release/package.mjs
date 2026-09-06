@@ -38,12 +38,15 @@ if (!existsSync(join(dist, 'mercury.mjs'))) fail('dist/mercury.mjs missing — r
 if (!existsSync(join(dist, 'manifest.json'))) fail('dist/manifest.json missing')
 const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8'))
 const degraded = Array.isArray(manifest.degraded) ? manifest.degraded : []
-const PUBLISHABLE_DEGRADATIONS = new Set(['voice-input'])
+const PUBLISHABLE_DEGRADATIONS = new Set(['voice-input', 'on-device-transcriber'])
+if (IS_WIN) PUBLISHABLE_DEGRADATIONS.add('shell-engine')
 const blocking = degraded.filter(d => !PUBLISHABLE_DEGRADATIONS.has(d))
 if (blocking.length > 0 && !process.argv.includes('--allow-degraded')) {
   fail(`dist manifest is DEGRADED (${blocking.join(', ')}) — run the scripts/vendor/fetch-*.ts commands and rebuild, or pass --allow-degraded deliberately`)
 }
 if (degraded.includes('voice-input')) ok('the voice capture pack is absent from this build — the archive ships without voice input (degraded: voice-input, publishable)')
+if (degraded.includes('shell-engine') && PUBLISHABLE_DEGRADATIONS.has('shell-engine')) ok('the shell engine pack is absent from this build — the archive ships without the vendored shell engine (degraded: shell-engine, publishable on this platform)')
+if (degraded.includes('on-device-transcriber')) ok('the on-device transcriber pack is absent from this build — the archive ships without it, the cloud transcribers serve (degraded: on-device-transcriber, publishable)')
 const rgDirs = existsSync(join(dist, 'vendor', 'ripgrep')) ? readdirSync(join(dist, 'vendor', 'ripgrep')) : []
 if (rgDirs.length === 0) fail('dist/vendor/ripgrep missing — the build must vendor the platform rg')
 const TARGET_NODE_PACK = { 'linux-x64': 'linux-x64', 'macos-arm64': 'darwin-arm64', 'macos-x64': 'darwin-x64', 'windows-x64': 'win-x64' }[TARGET]
@@ -481,8 +484,10 @@ if (pathLine.includes('already runs from')) {
 
 const repeatOut = run(['install'])
 if (!repeatOut.includes('already present')) fail(`smoke: repeat install was not a truthful no-op: ${repeatOut.slice(0, 300)}`)
-if (!/already (names?|lists|runs from|on your PATH)/.test(pathLineOf(repeatOut))) fail(`smoke: the repeat install did not leave PATH as it found it: ${pathLineOf(repeatOut)}`)
-ok('repeat install is a truthful no-op (idempotent) and leaves PATH as it found it')
+const repeatPathLine = pathLineOf(repeatOut)
+if (!/is already on your PATH|already runs from/.test(repeatPathLine)) fail(`smoke: the repeat install did not leave PATH as it found it: ${repeatPathLine}`)
+if (repeatPathLine.includes('open a new terminal')) fail(`smoke: the repeat install still advised a new terminal: ${repeatPathLine}`)
+ok('repeat install is a truthful no-op (idempotent), leaves PATH as it found it and gives no new-terminal advice')
 
 const statusOut = run(['update', '--status'])
 if (!statusOut.includes(`installed version: ${VERSION}`)) fail(`smoke: update --status missing installed version: ${statusOut.slice(0, 300)}`)

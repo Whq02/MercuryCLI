@@ -80,7 +80,7 @@ function makeWorld(tag: string): World {
     },
   ].map((r, i) => {
     const uuid = `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`
-    const outRow = { isSidechain: false, userType: 'external', entrypoint: 'cli', cwd, sessionId: SID, version: '1.0.0-beta.1', gitBranch: 'main', ...r, uuid, parentUuid: prev }
+    const outRow = { isSidechain: false, entrypoint: 'cli', cwd, sessionId: SID, version: '1.0.0-beta.1', gitBranch: 'main', ...r, uuid, parentUuid: prev }
     prev = uuid
     return outRow
   })
