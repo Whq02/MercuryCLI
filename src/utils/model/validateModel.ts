@@ -203,7 +203,7 @@ export async function validateModel(model: string): Promise<ValidateModelResult>
     return { valid: false, error: `Model "${trimmed}" is not in the list of available models` }
   }
   if (isModelAlias(trimmed.toLowerCase())) return { valid: true }
-  if (trimmed === process.env.ANTHROPIC_CUSTOM_MODEL_OPTION) return { valid: true }
+  if (trimmed === process.env.MERCURY_CUSTOM_MODEL_OPTION) return { valid: true }
   if (validatedModels.has(trimmed)) return { valid: true }
 
   const { declaredRouteOf } = await import(

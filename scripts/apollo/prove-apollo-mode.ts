@@ -363,7 +363,7 @@ section('the seat runner accepts apollo; the SDK embedder still refuses')
     const noLaunch = resolvePermissionModeTransition('autopilot' as never, noBypassContext)
     check(
       'autopilot on the seat WITHOUT the bypass launch flag: refused with the runtime guard sentence',
-      noLaunch.ok === false && /dangerously-skip-permissions/.test(noLaunch.ok === false ? noLaunch.error : ''),
+      noLaunch.ok === false && /dangerously-bypass-permissions/.test(noLaunch.ok === false ? noLaunch.error : ''),
       JSON.stringify(noLaunch),
     )
     const eligible = resolvePermissionModeTransition('autopilot' as never, bypassContext)

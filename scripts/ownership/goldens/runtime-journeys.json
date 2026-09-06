@@ -42,7 +42,7 @@
   "stdout": "J4-MUTATION-DONE\n"
  },
  "J5": {
-  "exitKind": "code:0",
+  "exitKind": "code:130",
   "secondRequestIssued": false,
   "stdout": ""
  },

@@ -82,21 +82,21 @@ console.log('L2 A.1 auto-update opt-out and A.2 dangerous-mode acceptance — a 
     const a1 = await import(${JSON.stringify(join(SRC, 'migrations/migrateAutoUpdatesToSettings.ts'))})
     const a2 = await import(${JSON.stringify(join(SRC, 'migrations/migrateBypassPermissionsAcceptedToSettings.ts'))})
     g.saveGlobalConfig(c => ({ ...c, autoUpdates: false, bypassPermissionsModeAccepted: true }))
-    delete process.env.DISABLE_AUTOUPDATER
+    delete process.env.MERCURY_AUTOUPDATE
     out.v1 = a1.migrateAutoUpdatesToSettings()
     out.v2 = a2.migrateBypassPermissionsAcceptedToSettings()
     const cfg = JSON.parse(raw(configFile))
     out.autoUpdates = cfg.autoUpdates
     out.accepted = cfg.bypassPermissionsModeAccepted
-    out.envSet = process.env.DISABLE_AUTOUPDATER ?? null
+    out.envSet = process.env.MERCURY_AUTOUPDATE ?? null
     out.userSettings = raw(userSettingsPath)
   `, { MERCURY_FAULT_INJECT: 'rename@settings.json:eperm' })
-  check('A.1 reports itself incomplete', r.v1 === false, `v1=${JSON.stringify(r.v1)}`)
-  check('A.1 keeps autoUpdates:false in the config', r.autoUpdates === false, `autoUpdates=${JSON.stringify(r.autoUpdates)}`)
-  check('A.1 does not arm the in-session opt-out for a write that did not land', r.envSet === null, `DISABLE_AUTOUPDATER=${r.envSet}`)
+  check('A.1 has no settings write to refuse: it reports true', r.v1 === true, `v1=${JSON.stringify(r.v1)}`)
+  check('A.1 strips the retired config keys regardless of the settings seam', r.autoUpdates === null || r.autoUpdates === undefined, `autoUpdates=${JSON.stringify(r.autoUpdates)}`)
+  check('A.1 arms nothing in the session', r.envSet === null, `MERCURY_AUTOUPDATE=${r.envSet}`)
   check('A.2 reports itself incomplete', r.v2 === false, `v2=${JSON.stringify(r.v2)}`)
   check('A.2 keeps bypassPermissionsModeAccepted in the config', r.accepted === true, `accepted=${JSON.stringify(r.accepted)}`)
-  check('nothing landed in user settings', r.userSettings === null || !String(r.userSettings).includes('DISABLE_AUTOUPDATER'), String(r.userSettings))
+  check('nothing landed in user settings', r.userSettings === null || !String(r.userSettings).includes('MERCURY_AUTOUPDATE'), String(r.userSettings))
 }
 
 console.log('L4 controls — with healthy files every migration relocates, strips and reports true')
@@ -117,7 +117,7 @@ console.log('L4 controls — with healthy files every migration relocates, strip
     out.local = JSON.parse(raw(localSettingsPath) ?? '{}')
     out.user = JSON.parse(raw(userSettingsPath) ?? '{}')
   `)
-  check('A.1: relocated (user settings carries the opt-out) and stripped', (r.user as { env?: Record<string, string> }).env?.DISABLE_AUTOUPDATER === '1' && r.autoUpdates === null, JSON.stringify({ user: r.user, autoUpdates: r.autoUpdates }))
+  check('A.1: the retired keys are stripped and nothing is relocated', (r.user as { env?: Record<string, string> }).env?.MERCURY_AUTOUPDATE === undefined && r.autoUpdates === null, JSON.stringify({ user: r.user, autoUpdates: r.autoUpdates }))
   check('A.3: relocated (local settings carries the approvals) and stripped', (r.local as { enabledMcpjsonServers?: string[] }).enabledMcpjsonServers?.[0] === 'alpha' && r.projectEnabled === null, JSON.stringify({ local: r.local, projectEnabled: r.projectEnabled }))
   check('both report true (the verdict of a landed write)', r.v1 === true && r.v3 === true, JSON.stringify({ v1: r.v1, v3: r.v3 }))
 }

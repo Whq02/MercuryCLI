@@ -232,7 +232,7 @@ export const setupGracefulShutdown = (): void => {
     process.on('SIGINT', () => {
       if (isPrintMode()) return
       logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGINT' })
-      gracefulShutdownSync(0)
+      gracefulShutdownSync(130)
     })
     process.on('SIGTERM', () => {
       if (isPrintMode()) return

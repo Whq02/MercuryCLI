@@ -192,7 +192,7 @@ export function describeComputedDefault(
 
 
 const FIRST_PARTY_EVIDENCE: Record<string, string> = {
-  'eligible-env-pin': 'the ANTHROPIC_DEFAULT_FABLE_MODEL pin names it',
+  'eligible-env-pin': 'the MERCURY_DEFAULT_FABLE_MODEL pin names it',
   'eligible-allowlist': 'the model allowlist names it',
   'eligible-max-20x': 'a confirmed Max 20x subscription',
 }

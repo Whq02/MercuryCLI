@@ -155,7 +155,7 @@ function killTree(pid: number, signal: NodeJS.Signals): void {
 
 export async function runHeadless(spec: RunSpec): Promise<RunRecord> {
   const args = [spec.dist, '-p', '--output-format', 'stream-json', '--model', spec.model, '--permission-mode', spec.permissionMode, '--max-turns', String(spec.maxTurns)]
-  if (spec.allowedTools.length > 0) args.push('--allowedTools', ...spec.allowedTools)
+  if (spec.allowedTools.length > 0) args.push('--allowed-tools', ...spec.allowedTools)
   if (spec.sessionId) args.push('--session-id', spec.sessionId)
   if (spec.resume) args.push('--resume', spec.resume)
   args.push(spec.prompt)

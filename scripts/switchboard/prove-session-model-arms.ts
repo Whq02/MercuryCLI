@@ -23,7 +23,7 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
 for (const key of [
   'CLAUDE_CODE_OAUTH_TOKEN',
   'OPENAI_API_KEY',
-  'ANTHROPIC_MODEL',
+  'MERCURY_MODEL',
   'OPENROUTER_API_KEY',
   'GOOGLE_API_KEY',
   'GEMINI_API_KEY',
