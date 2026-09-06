@@ -19,9 +19,9 @@ capture is the composer.
   the one running.
 - The footer says `● recording · space or esc to stop` while a take runs and
   `transcribing…` while it is in flight. Every refusal is a receipt with
-  its reason: no backend, no transcribing sign-in, a microphone that could
-  not be opened, a take that carried only silence, a transcriber that
-  answered with an error.
+  its reason: no backend, nothing to transcribe with, a microphone that
+  could not be opened, a take that carried only silence, a transcriber
+  that answered with an error.
 - A take is bounded at five minutes; at the bound Mercury stops it, says
   so, and transcribes what it has.
 
@@ -57,28 +57,53 @@ capture; the take arrives as silence, and the receipt names System Settings
 
 ## The transcribers
 
-A finished take goes to the most recent sign-in that offers speech-to-text,
-in the order of the sign-in ledger (the same order that picks the default
-model):
+A finished take goes to the first transcriber that can serve, in this order:
 
-- **OpenAI**, through an API key: the transcription endpoint, with the
-  newer transcription model first and the classic one as the fallback. A
-  ChatGPT subscription sign-in does not transcribe; it speaks the
-  subscription backend, not the API.
-- **Gemini**, through an API key: a generate-content request with the
-  audio inline and a verbatim-transcript instruction. The Google account
-  sign-in does not transcribe here.
-- **Anthropic** offers no speech-to-text endpoint.
+1. **On this machine.** Mercury's own on-device transcriber: whisper.cpp,
+   built from the repository's `native/whisper` sources into a pack beside
+   the bundle by `bun run scripts/vendor/build-whisper.ts` (which
+   `bun run setup` runs; it needs cargo and cmake), with a Whisper speech
+   model in the config home. Nothing leaves the machine. The model is a
+   one-time download: with the pack present and no model, `/speak on` and
+   bare `/speak` name the door — a 60 MB download, Whisper base.en
+   (English, MIT) into `<config-home>/models/whisper` — and
+   `/speak download` fetches it from the pinned address, verifying the size
+   and the digest before the file takes its name; until then a cloud
+   family serves. The other models — `tiny.en-q5_1` (smaller, faster, less
+   accurate), `small.en-q5_1` (more accurate, three times the size) and the
+   multilingual `base-q5_1` for speech that is not English — are listed in
+   `vendor/whisper-models.lock.json`; `/speak download <name>` fetches one,
+   and `MERCURY_WHISPER_MODEL` picks it for a session, by name or by the
+   path of a ggml file. Release archives carry the pack for their platform
+   when the packaging host could build it. The x86-64 pack is compiled for
+   CPUs with AVX2, FMA and F16C (every desktop CPU since 2013); a machine
+   below that floor is told so and served by a cloud family.
+2. **A signed-in family with a speech-to-text endpoint**, in the order of
+   the sign-in ledger (the same order that picks the default model):
+   - **OpenAI**, through an API key: the transcription endpoint, with the
+     newer transcription model first and the classic one as the fallback. A
+     ChatGPT subscription sign-in does not transcribe; it speaks the
+     subscription backend, not the API.
+   - **Gemini**, through an API key: a generate-content request with the
+     audio inline and a verbatim-transcript instruction. The Google account
+     sign-in does not transcribe here.
+   - **Anthropic** offers no speech-to-text endpoint.
 
-With no transcribing sign-in, pressing space answers "no sign-in transcribes
-yet — /logins openai (API key) or /logins gemini" before any audio is
-captured. Transcription runs through one of those cloud endpoints; there is
-no on-device transcriber.
+`MERCURY_VOICE_TRANSCRIBER` pins the road for a session: `on-device`,
+`cloud` (the ledger walk), or a family id such as `openai`; a pin that
+cannot serve says so in the receipt, in `/speak` and in the doctor row, and
+never falls back silently. With nothing to transcribe with, pressing space
+answers "nothing transcribes yet — <the on-device reason>; or /logins openai
+(API key) or /logins gemini" before any audio is captured. The doctor's
+`Voice input` row names the engine, the model and the pack, the families
+signed in but not used, and the cost: about 80 MB more memory while the
+default model is loaded, and every core for a moment per take.
 
 ## The privacy line
 
-Audio leaves the machine only to the family you signed into, and only after
-you stop a take. Nothing is sent while you speak; a cancelled take is
-dropped without a request; nothing is written to disk. The doctor's
-INTERFACE section carries a `Voice input` row naming the backend, the
-transcriber and the permission words for this machine.
+With the on-device transcriber, audio never leaves the machine: the take is
+decoded here, and nothing is written to disk. With a cloud family, audio
+leaves the machine only to that family, and only after you stop a take.
+Nothing is sent while you speak; a cancelled take is dropped without a
+request. The doctor's INTERFACE section carries a `Voice input` row naming
+the backend, the transcriber and the permission words for this machine.

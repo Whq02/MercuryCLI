@@ -10,8 +10,20 @@ prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/script
 cd "$(dirname "$0")/../.." || exit 1
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
+claimed=$(cat scripts/journey-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
+dupes=$(printf '%s\n' "$claimed" | sort | uniq -d)
+if [ -n "$dupes" ]; then
+  echo "❌ journey: prover(s) named by TWO sibling member lists (a double run across shards):"
+  printf '%s\n' "$dupes" | sed 's/^/    /'
+  fail=1
+fi
+
 for f in scripts/journey/prove-*.ts; do
   [ -e "$f" ] || continue
+  name=$(basename "$f")
+  if printf '%s\n' "$claimed" | grep -qx "$name"; then
+    continue
+  fi
   echo "▶ $f"
   __t=$SECONDS; if ! "$BUN" run "$f"; then fail=1; fi; prover_mark "$f" "$__t"
   echo
