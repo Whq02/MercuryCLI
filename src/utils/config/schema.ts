@@ -240,9 +240,6 @@ export type GlobalConfig = {
 
   lastStrategyModeUse?: number
 
-  subscriptionNoticeCount?: number
-  hasAvailableSubscription?: boolean
-
   showExpandedTodos?: boolean
   showSpinnerTree?: boolean
 
