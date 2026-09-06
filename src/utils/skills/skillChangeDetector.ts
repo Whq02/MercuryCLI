@@ -145,7 +145,6 @@ async function armWatcher(gen: number): Promise<string[]> {
   addCandidate(getSkillsPath('userSettings', 'skills'))
   addCandidate(getSkillsPath('userSettings', 'commands'))
   for (const path of getProjectSkillsWatchPaths('skills')) addCandidate(path)
-  for (const path of getProjectSkillsWatchPaths('commands')) addCandidate(path)
   for (const additionalDir of getAddedDirectories()) {
     for (const path of getProjectSkillsWatchPaths('skills', additionalDir)) addCandidate(path)
   }

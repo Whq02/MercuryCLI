@@ -16,10 +16,7 @@ import {
   NOTIFICATION_CHANNELS,
   getGlobalConfig,
   saveGlobalConfig,
-  getAutoUpdaterDisabledReason,
-  formatAutoUpdaterDisabledReason,
   getCustomApiKeyStatus,
-  isAutoUpdaterDisabled,
   type GlobalConfig,
   type NotificationChannel,
 } from '../../utils/config.js'
@@ -64,7 +61,6 @@ import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js'
 import { SearchBox } from '../SearchBox.js'
 import { Select } from '../CustomSelect/select.js'
 import { LanguagePicker } from '../LanguagePicker.js'
-import { ChannelDowngradeDialog } from '../ChannelDowngradeDialog.js'
 import { ExternalInstructionIncludesDialog } from '../ExternalInstructionIncludesDialog.js'
 import type { ExternalInstructionInclude } from '../../services/instructions/engine.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
@@ -74,17 +70,11 @@ import { SEAT_DOORS, seatCeilingFacts, seatCeilingValueWords, seatCostWarning, s
 
 const LABEL_CELLS = 44
 
-function currentAppVersion(): string {
-  return typeof MACRO !== 'undefined' && MACRO.VERSION ? MACRO.VERSION : 'unknown'
-}
-
 type SubMenu =
   | 'theme'
   | 'teammate-model'
   | 'external-includes'
   | 'language'
-  | 'channel-downgrade'
-  | 'auto-updates-info'
 
 type ItemKind = 'boolean' | 'enum' | 'managed-enum' | 'info'
 
@@ -256,8 +246,6 @@ export function Config({
       user: {
         alwaysThinkingEnabled: user.alwaysThinkingEnabled,
         promptSuggestionEnabled: user.promptSuggestionEnabled,
-        autoUpdatesChannel: user.autoUpdatesChannel,
-        minimumVersion: user.minimumVersion,
         language: user.language,
         syntaxHighlightingDisabled: user.syntaxHighlightingDisabled,
         permissions: user.permissions,
@@ -514,14 +502,16 @@ export function Config({
     },
   }, 'anthropic'))
   items.push({
-    id: 'verbose',
-    label: 'Verbose output',
-    kind: 'boolean',
-    value: boolValue(appState.verbose === true),
-    change: () => {
+    id: 'toolOutput',
+    label: 'Tool output',
+    kind: 'enum',
+    value: <Text>{appState.verbose === true ? 'full' : 'compact'}</Text>,
+    change: direction => {
+      const levels = ['compact', 'full'] as const
+      const next = cycleIn(levels, appState.verbose === true ? 'full' : 'compact', direction)
       snapshots.dirty = true
-      setAppState(prev => ({ ...prev, verbose: prev.verbose !== true }))
-      recordToggle('verbose', `set verbose output to ${appState.verbose === true ? 'off' : 'on'}`)
+      setAppState(prev => ({ ...prev, verbose: next === 'full' }))
+      recordToggle('toolOutput', `set tool output to ${next}`)
     },
   })
   items.push({
@@ -583,42 +573,6 @@ export function Config({
     },
   })
 
-  const updatesDisabled = isAutoUpdaterDisabled()
-  const channel = validated(['latest', 'stable'] as const, merged.autoUpdatesChannel, 'latest')
-  items.push({
-    id: 'autoUpdateChannel',
-    label: 'Auto-update channel',
-    kind: 'managed-enum',
-    value: updatesDisabled ? (
-      <Text color={tokens.textSecondary}>
-        disabled · {(() => {
-          const reason = getAutoUpdaterDisabledReason()
-          return reason !== null ? formatAutoUpdaterDisabledReason(reason) : 'unknown reason'
-        })()}
-      </Text>
-    ) : (
-      <Text>{channel}</Text>
-    ),
-    open: updatesDisabled
-      ? 'auto-updates-info'
-      : channel === 'latest'
-        ? 'channel-downgrade'
-        : undefined,
-    change: !updatesDisabled && channel === 'stable'
-      ? () => {
-          if (
-            writeSource('userSettings', {
-              autoUpdatesChannel: 'latest',
-              minimumVersion: undefined,
-            })
-          ) {
-            snapshots.dirty = true
-            recordSet('autoUpdateChannel', 'set auto-update channel to latest')
-            bump()
-          }
-        }
-      : undefined,
-  })
   items.push({
     id: 'theme',
     label: 'Theme',
@@ -994,8 +948,6 @@ export function Config({
     writeSource('userSettings', {
       alwaysThinkingEnabled: snapshots.user.alwaysThinkingEnabled,
       promptSuggestionEnabled: snapshots.user.promptSuggestionEnabled,
-      autoUpdatesChannel: snapshots.user.autoUpdatesChannel,
-      minimumVersion: snapshots.user.minimumVersion,
       language: snapshots.user.language,
       syntaxHighlightingDisabled: snapshots.user.syntaxHighlightingDisabled,
       permissions: { defaultMode: snapshots.user.permissions?.defaultMode } as never,
@@ -1178,30 +1130,6 @@ export function Config({
       />
     )
   }
-  if (subMenu === 'channel-downgrade') {
-    return (
-      <ChannelDowngradeDialog
-        currentVersion={currentAppVersion()}
-        onChoice={choice => {
-          if (choice === 'cancel') {
-            setSubMenu(null)
-            return
-          }
-          const pin = choice === 'stay'
-          if (
-            writeSource('userSettings', {
-              autoUpdatesChannel: 'stable',
-              minimumVersion: pin ? currentAppVersion() : undefined,
-            })
-          ) {
-            snapshots.dirty = true
-            recordSet('autoUpdateChannel', `set auto-update channel to stable${pin ? ' (pinned)' : ''}`)
-          }
-          setSubMenu(null)
-        }}
-      />
-    )
-  }
   if (subMenu === 'external-includes') {
     return (
       <ExternalInstructionIncludesDialog
@@ -1211,49 +1139,6 @@ export function Config({
           setSubMenu(null)
         }}
       />
-    )
-  }
-  if (subMenu === 'auto-updates-info') {
-    const reason = getAutoUpdaterDisabledReason()
-    const fromConfiguration = reason !== null && reason.type === 'config'
-    if (!fromConfiguration) {
-      return (
-        <Box flexDirection="column">
-          <Text>
-            Auto-updates are disabled:{' '}
-            {reason !== null ? formatAutoUpdaterDisabledReason(reason) : 'unknown reason'}
-          </Text>
-          <Select
-            options={[{ label: 'Back', value: 'back' }]}
-            onChange={() => setSubMenu(null)}
-            onCancel={() => setSubMenu(null)}
-          />
-        </Box>
-      )
-    }
-    return (
-      <Box flexDirection="column">
-        <Text>Auto-updates are disabled by configuration.</Text>
-        <Select
-          options={[
-            { label: 'Re-enable on the latest channel', value: 'latest' },
-            { label: 'Re-enable on the stable channel', value: 'stable' },
-          ]}
-          onChange={value => {
-            writeGlobal(c => ({ ...c, autoUpdates: true }))
-            if (
-              writeSource('userSettings', {
-                autoUpdatesChannel: value as 'latest' | 'stable',
-                minimumVersion: undefined,
-              })
-            ) {
-              recordSet('autoUpdateChannel', `re-enabled auto-updates on ${value}`)
-            }
-            setSubMenu(null)
-          }}
-          onCancel={() => setSubMenu(null)}
-        />
-      </Box>
     )
   }
 

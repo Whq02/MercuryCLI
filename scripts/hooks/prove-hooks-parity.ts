@@ -173,12 +173,25 @@ const opCall = (json: unknown, expectedHookEvent?: string) =>
       expectedHookEvent: expectedHookEvent as never,
     }),
   )
-add('processHookJSONOutput', 'legacy-approve-with-reason', () =>
-  opCall({ decision: 'approve', reason: 'fine by policy' }),
+add('processHookJSONOutput', 'block-with-reason-on-stop', () =>
+  opCall({ decision: 'block', reason: 'nope, blocked' }, 'Stop'),
 )
-add('processHookJSONOutput', 'legacy-block-with-reason', () =>
-  opCall({ decision: 'block', reason: 'nope, blocked' }),
-)
+add('processHookJSONOutput', 'top-level-decision-refused-on-pretooluse', () => {
+  try {
+    opCall({ decision: 'block', reason: 'nope, blocked' }, 'PreToolUse')
+    return 'no error'
+  } catch (error) {
+    return (error as Error).message
+  }
+})
+add('processHookJSONOutput', 'unknown-decision-refused', () => {
+  try {
+    opCall({ decision: 'approve', reason: 'fine by policy' }, 'Stop')
+    return 'no error'
+  } catch (error) {
+    return (error as Error).message
+  }
+})
 add('processHookJSONOutput', 'pretooluse-specific-reason-wins', () =>
   opCall(
     {

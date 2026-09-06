@@ -8,7 +8,7 @@ export type ActionMeta = {
 export const ACTION_GRAPH = {
   'app:interrupt': { description: 'Interrupt the current turn (double-press quits)', contexts: ['Global'] },
   'app:exit': { description: 'Exit Mercury (double-press)', contexts: ['Global'] },
-  'app:toggleTodos': { description: 'Toggle the task list panel', contexts: ['Global'] },
+  'app:toggleTasks': { description: 'Toggle the task list panel', contexts: ['Global'] },
   'app:toggleTranscript': { description: 'Toggle the transcript viewer', contexts: ['Global'] },
   'app:toggleTeammatePreview': { description: 'Toggle the teammate preview pane', contexts: ['Global'] },
   'app:toggleTerminal': {

@@ -249,6 +249,15 @@ binary, so the engine is compiled from its published crate; the first build
 takes several minutes). Without cargo each says so and skips: Mercury runs
 without voice input, and the Bash tool keeps Git for Windows' bash (the
 doctor names each remedy).
+A sixth pack, the voice capture addon, is built rather than fetched: with a
+Rust toolchain installed (https://rustup.rs, the MSVC toolchain), run
+`bun run scripts/vendor/build-voice.ts`; without cargo it says so and skips,
+and Mercury runs without voice input (the doctor names the remedy). The
+on-device transcriber addon is built the same way and needs cmake beside
+cargo (`winget install Kitware.CMake`): run
+`bun run scripts/vendor/build-whisper.ts`; without either it says so and
+skips, and voice takes go to a cloud transcriber (the doctor names the
+remedy).
 
 Each should end without an error. `fetch-debugpy` unpacks the wheel with the
 first extractor it finds — `unzip`, `python3`, `tar.exe` (ships with Windows

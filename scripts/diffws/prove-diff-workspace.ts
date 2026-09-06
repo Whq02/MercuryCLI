@@ -72,7 +72,6 @@ function buildFixture(): void {
   mkdirSync(PROJ_DIR, { recursive: true })
   const base = (extra: Record<string, unknown>) => ({
     isSidechain: false,
-    userType: 'external',
     entrypoint: 'cli',
     cwd: FIX,
     sessionId: SID,

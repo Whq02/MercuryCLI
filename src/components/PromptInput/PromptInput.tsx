@@ -1670,7 +1670,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       teamContext,
     )
     if (nextMode === 'strategy') {
-      saveGlobalConfig(config => ({ ...config, lastPlanModeUse: Date.now() }))
+      saveGlobalConfig(config => ({ ...config, lastStrategyModeUse: Date.now() }))
     }
     setToolPermissionContext({ ...nextContext, mode: nextMode })
     syncTeammateMode(nextMode, teamContext?.teamName)

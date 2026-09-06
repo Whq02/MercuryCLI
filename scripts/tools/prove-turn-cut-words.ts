@@ -27,5 +27,22 @@ for (const file of ['src/tools/WorkflowTool/agentHooks.ts', 'src/tools/WorkflowT
   check(`${file}: no abort site hands a bare literal (every cut goes through abortWithCut)`, raw.length === 0, raw.join(' '))
 }
 
+
+{
+  const stopHooks = readFileSync(join(ROOT, 'src/query/stopHooks.ts'), 'utf8')
+  check(
+    "the Stop-hook interruption row carries the abort signal's own reason",
+    /createUserInterruptionMessage\(\{\s*toolUse: false,\s*reason: options\.signal\?\.reason,?\s*\}\)/.test(stopHooks),
+  )
+  const hooks = readFileSync(join(ROOT, 'src/tools/WorkflowTool/agentHooks.ts'), 'utf8')
+  check(
+    "the workflow child's generic catch reads a typed reason's words from the one table",
+    /turnCutWhy\(turnCutOf\(cutReason\)\)/.test(hooks) && /import \{[^}]*\bturnCutWhy\b[^}]*\} from '\.\.\/\.\.\/utils\/messages\/turnCut\.js'/.test(hooks),
+  )
+  const timedOut = cut.turnCutWhy(cut.turnCutOf('workflow-permission-timeout'))
+  check("…and the permission ask's timeout has words there", timedOut === 'the permission ask timed out', String(timedOut))
+  check("…while the operator's own stop keeps the runtime's message (no words to paint)", cut.turnCutWhy(cut.turnCutOf('interrupt')) === null)
+}
+
 console.log(failures === 0 ? '\nprove-turn-cut-words: all green' : `\nprove-turn-cut-words: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

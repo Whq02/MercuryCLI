@@ -82,11 +82,11 @@ console.log('============================================================')
 
 section('§1 — canonical decode: ONE truth with the teammate resolver')
 {
-  const plan = buildAgentLaunchPlan(base({ requestedType: 'Explore' }))
-  check("legacy 'Explore' decodes to the canonical Mercury id", plan.agentType === 'mercury-scout', plan.agentType)
+  const plan = buildAgentLaunchPlan(base({ requestedType: 'mercury-scout' }))
+  check('a registered id resolves to itself through the one seam', plan.agentType === 'mercury-scout', plan.agentType)
   const teammate = resolveTeammateRole({
     teammateName: 'x',
-    requestedAgentType: 'Explore',
+    requestedAgentType: 'mercury-scout',
     agents: getBuiltInAgents() as never,
     prompt: 'p',
   })
@@ -220,6 +220,7 @@ section('§6 — seam ratchets: the consumers consume the plan')
 
   const fg = src('tools', 'AgentTool', 'foregroundExecution.tsx')
   check('AgentTool dispatches foreground runs to the execution module', agentTool.includes('runForegroundAgentExecution({'))
+  check('both launch roads register a launch name through the one alias helper', agentTool.includes('registerAgentName(') && fg.includes('registerAgentName('))
   for (const landmark of ['registerAgentForeground(', 'BackgroundHint', 'agentIterator', 'backgroundRace']) {
     check(`the execution machine landmark '${landmark}' lives in foregroundExecution, not the tool`, fg.includes(landmark) && !agentTool.includes(landmark))
   }

@@ -282,6 +282,33 @@ section('R. the anchored read mode (real FileReadTool)')
     bomRead.ok && bomRead.ok === true && bomRead.text.split('\n')[0] === `1#${mintLineHash('hello')}\thello`,
   )
 
+  const TAB = String.fromCharCode(9)
+  const zeroRead = await readViaTool(plainFile, makeReadContext(new Map()), { line_anchors: true, offset: 0 })
+  const oneRead = await readViaTool(plainFile, makeReadContext(new Map()), { line_anchors: true, offset: 1 })
+  check(
+    'R10 offset 0, offset 1 and no offset paint byte-identical anchored reads',
+    zeroRead.ok && zeroRead.ok === true && oneRead.ok && oneRead.ok === true && anchoredRead.ok && anchoredRead.ok === true &&
+      zeroRead.text === oneRead.text && zeroRead.text === anchoredRead.text,
+    zeroRead.ok && zeroRead.ok === true ? zeroRead.text.split('\n')[0] : '',
+  )
+  const zeroWindow = await readViaTool(plainFile, makeReadContext(new Map()), { line_anchors: true, offset: 0, limit: 3 })
+  const zeroRows = (zeroWindow.ok && zeroWindow.ok === true ? zeroWindow.text : '').split('\n')
+  const zeroSpelling = parseHashedLinesSpelling(zeroRows[0]?.split(TAB)[0] ?? '')
+  check(
+    'R10b a window from offset 0 numbers its first row 1#, the tail says L1, and the row parses as an edit address',
+    zeroWindow.ok && zeroWindow.ok === true &&
+      zeroRows[0] === `1#${mintLineHash('one')}${TAB}one` &&
+      zeroWindow.text.includes(':L1+3)') &&
+      zeroSpelling !== null && zeroSpelling.ok,
+    zeroRows[0] ?? '',
+  )
+  const bomZero = await readViaTool(bomFile, makeReadContext(new Map()), { line_anchors: true, offset: 0 })
+  check(
+    'R10c a BOM never reaches line 1 of an anchored read from offset 0 either',
+    bomZero.ok && bomZero.ok === true && bomZero.text.split('\n')[0] === `1#${mintLineHash('hello')}${TAB}hello`,
+    bomZero.ok && bomZero.ok === true ? bomZero.text.split('\n')[0] : '',
+  )
+
   process.env.MERCURY_LINE_ANCHORS = '0'
   const gatedOff = await readViaTool(plainFile, makeReadContext(new Map()), { line_anchors: true })
   check(

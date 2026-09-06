@@ -19,7 +19,6 @@ env:
   GIT_COMMITTER_NAME: mercury-gate
   GIT_COMMITTER_EMAIL: gate@mercury.invalid
   ANTHROPIC_API_KEY: proof-key-ci-gate-not-a-real-key
-  MERCURY_SUITE_TIMEOUT: '3000'
   MERCURY_VSHOT_BUDGET_SCALE: '3'
 
 jobs:
