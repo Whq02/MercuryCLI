@@ -202,6 +202,69 @@ section('§3 a here-string feeds stdin')
   check('a bare stdin reader still meets EOF at once', bare.code === 0 && bare.out === '' && bare.ms < 5000, `${bare.ms}ms ${JSON.stringify(bare.out.slice(0, 40))}`)
 }
 
+section('§3b a bang reaches the command exactly as written')
+{
+  const { quoteShellCommand } = await import('../../src/utils/bash/shellQuoting.ts')
+  const { rearrangePipeCommand } = await import('../../src/utils/bash/bashPipeCommand.ts')
+  const BS = String.fromCharCode(92)
+  const bangEscape = `${BS}!`
+  const hasPython = (() => {
+    try {
+      return execFileSync('/bin/sh', ['-c', 'command -v python3'], { encoding: 'utf8' }).trim() !== ''
+    } catch {
+      return false
+    }
+  })()
+  const printfBatch = [
+    `printf '%s${BS}n' "A: x !=0"`,
+    `printf '%s${BS}n' "B: x!=0"`,
+    `printf '%s${BS}n' 'C: x!=0'`,
+    `printf '%s${BS}n' "D: hi!"`,
+    `printf '%s${BS}n' "E: !x"`,
+    `printf '%s${BS}n' "F: a! b"`,
+  ].join('; ')
+  const rows: Array<[string, string]> = [
+    ['echo "hi!"', 'hi!'],
+    [`printf '%s${BS}n' "don't break!"`, "don't break!"],
+    [`${printfBatch}; printf '%s${BS}n' 'G: done'`, 'A: x !=0\nB: x!=0\nC: x!=0\nD: hi!\nE: !x\nF: a! b\nG: done'],
+    [`printf '%s${BS}n' "literal: x]!=0" "it's!"`, "literal: x]!=0\nit's!"],
+    ['echo "it\'s `echo x`!"', "it's x!"],
+    ['X=5; echo "got $X! and it\'s $((1+1))"', "got 5! and it's 2"],
+  ]
+  if (hasPython) {
+    rows.push(
+      ['python3 -c "print(1 != 2)"', 'True'],
+      ['python3 -c "print(1!=2)"', 'True'],
+      ['python3 -c "x=[1]; print(x[0]!=0)"', 'True'],
+      [`python3 -c "print('a'!='b')"`, 'True'],
+      [`${printfBatch}; python3 -c 'print(1!=2)'`, 'A: x !=0\nB: x!=0\nC: x!=0\nD: hi!\nE: !x\nF: a! b\nTrue'],
+      [`python3 -c "x=[1]; print(x[0]!=0)"; echo "exit=$?"; python3 -c "print([1]!=[2])"; echo "exit=$?"; python3 -c "print('a'!='b')"; echo "exit=$?"; printf '%s${BS}n' "literal: x]!=0"`, 'True\nexit=0\nTrue\nexit=0\nTrue\nexit=0\nliteral: x]!=0'],
+    )
+  } else {
+    console.log('  [SKIP] the python rows — no python3 on PATH (the printf rows pin the same seam)')
+  }
+  for (const [command, expected] of rows) {
+    const got = await plain(command)
+    check(`\`${command.length > 60 ? command.slice(0, 57) + '…' : command}\` prints the bang unescaped`, got.code === 0 && trimmed(got) === expected && !got.out.includes(bangEscape), `code ${got.code} ${JSON.stringify(got.out.slice(0, 120))} ${JSON.stringify(got.stderr.slice(0, 120))}`)
+  }
+  const stage = await plain(`printf "%s" "it's!" | cat`)
+  check("a pipe stage holding a single quote and a bang reaches printf as written", stage.code === 0 && stage.out === "it's!", JSON.stringify(stage.out.slice(0, 80)))
+  const stageForm = rearrangePipeCommand(`printf "%s" "it's!" | cat`)
+  check('…its rearranged form carries no backslash-bang', !stageForm.includes(bangEscape) && stageForm.includes("it'"), stageForm)
+  const tokenForm = rearrangePipeCommand('printf "%s" "hi there!" | cat')
+  check('…and a token that needs quoting on the token road is single-quoted, the bare words bare', /^'printf %s 'hi there!' < \/dev\/null \| cat'$/.test(tokenForm.replace(/'\\''/g, "'")) && !tokenForm.includes(bangEscape), tokenForm)
+  const tokenRow = await plain('printf "%s" "hi there!" | cat')
+  check('…and prints as written', tokenRow.code === 0 && tokenRow.out === 'hi there!', JSON.stringify(tokenRow.out.slice(0, 80)))
+
+  const bangCommand = `python3 -c "print('a'!='b')"`
+  const quoted = quoteShellCommand(bangCommand, false)
+  check('the quoting owner writes no backslash before a bang', !quoted.includes(bangEscape), quoted)
+  check('…and single-quotes the whole command by close/reopen, so the shell sees the exact text', quoted === `'python3 -c "print('${BS}''a'${BS}''!='${BS}''b'${BS}'')"'`, quoted)
+  check('…with the stdin redirect outside the quotes when asked', quoteShellCommand(bangCommand, true) === `${quoted} < /dev/null`, quoteShellCommand(bangCommand, true))
+  check('…and never a redirect on a heredoc', !quoteShellCommand("cat <<'EOF'\nhi!\nEOF", true).endsWith('< /dev/null'))
+  check('a command without a single quote is quoted the same way', quoteShellCommand('echo "hi!"', false) === `'echo "hi!"'`, quoteShellCommand('echo "hi!"', false))
+}
+
 section("§4 the cwd record never replaces the command's status")
 {
   const gone = await plain(`mkdir -p "${SCRATCH}/gone" && cd "${SCRATCH}/gone" && rm -rf "${SCRATCH}/gone"; echo done`)

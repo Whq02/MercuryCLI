@@ -125,7 +125,7 @@ function runStreaming(args: string[], prompts: string[], debugFile: string): Pro
   })
 }
 
-const common = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--model', MODEL, '--allowedTools', 'ToolSearch,WebFetch']
+const common = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', MODEL, '--allowedTools', 'ToolSearch,WebFetch']
 const scratch = mkdtempSync(path.join(tmpdir(), 'wire-truth-live-logs-'))
 const debugA = path.join(scratch, 'a.debug.log')
 const debugB = path.join(scratch, 'b.debug.log')

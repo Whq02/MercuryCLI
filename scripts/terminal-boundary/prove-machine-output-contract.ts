@@ -185,9 +185,10 @@ function parseLines(cap: Capture): { parsed: Record<string, unknown>[]; bad: str
 section('L7 — stream-json success: every stdout line parses; typed result envelope')
 {
   const fx = await fixture([{ kind: 'text', text: 'PROOF-SJ-OK.' }])
-  const cap = await runDist(['-p', 'hello', '--output-format', 'stream-json', '--verbose'], { baseUrl: fx.url })
+  const cap = await runDist(['-p', 'hello', '--output-format', 'stream-json'], { baseUrl: fx.url })
   const { parsed, bad } = parseLines(cap)
   check('every stdout line individually JSON-parses', bad.length === 0, bad[0]?.slice(0, 120) ?? '')
+  check('the feed opens with the init event, with no option asked for', parsed[0]?.type === 'system' && parsed[0]?.subtype === 'init', JSON.stringify(parsed[0] ?? {}).slice(0, 120))
   const result = parsed.find(e => e.type === 'result') as { is_error?: boolean } | undefined
   check('a typed result envelope is present', !!result)
   check('the result is not an error', result?.is_error === false, JSON.stringify(result ?? {}).slice(0, 200))
@@ -200,7 +201,7 @@ section('L8 — stream-json failure: framing holds; the typed error record rides
   const fx = await fixture([
     { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'lucid-sj-bad-request' },
   ])
-  const cap = await runDist(['-p', 'hello', '--output-format', 'stream-json', '--verbose'], { baseUrl: fx.url })
+  const cap = await runDist(['-p', 'hello', '--output-format', 'stream-json'], { baseUrl: fx.url })
   const { parsed, bad } = parseLines(cap)
   check('every stdout line individually JSON-parses', bad.length === 0, bad[0]?.slice(0, 120) ?? '')
   const result = parsed.find(e => e.type === 'result') as { is_error?: boolean; subtype?: string; errors?: string[] } | undefined
@@ -214,6 +215,16 @@ section('L8 — stream-json failure: framing holds; the typed error record rides
   )
   check('exit 1', cap.exit === 1, String(cap.exit))
   assertClean('L8', cap)
+}
+
+section('L9 — --verbose is not an option: the plain format answers the unknown-option refusal')
+{
+  const cap = await runDist(['-p', 'hello', '--verbose'])
+  const control = await runDist(['-p', 'hello', '--zzz-not-an-option'])
+  check("stderr names the unknown option", cap.stderr.includes("unknown option '--verbose'"), cap.stderr.slice(0, 120))
+  check('stdout carries zero bytes', cap.stdout.length === 0, cap.stdout.slice(0, 80))
+  check('the exit code is the one every unknown option answers', cap.exit !== 0 && cap.exit === control.exit, `exit=${cap.exit} control=${control.exit}`)
+  assertClean('L9', cap)
 }
 
 console.log('\n' + '═'.repeat(76))

@@ -203,10 +203,13 @@ section('W. workflow adapter (manifest fixtures)')
       endTime: Date.now() - 1000,
       status: 'completed',
       ownerPid: process.pid,
-      agentCount: 1,
+      agentCount: 2,
       totalTokens: 123,
       totalToolCalls: 4,
-      agents: [{ agentId: 'a1', label: 'fixture agent', state: 'completed' }],
+      agents: [
+        { agentId: 'a1', label: 'fixture agent', state: 'completed' },
+        { agentId: 'a2', label: 'long agent', state: 'completed' },
+      ],
     }),
   )
   const run = await resolveResource('mercury://workflow/wf_fixture1', ctx as never)
@@ -225,6 +228,45 @@ section('W. workflow adapter (manifest fixtures)')
     noAgent.state === 'absent' && noAgent.note.includes('a1'))
   const noRun = await resolveResource('mercury://workflow/wf_nope', ctx as never)
   check('W4 an unknown run is ABSENT', noRun.state === 'absent')
+
+  const { entryToRecord } = await import('../../src/fabric/entryCodec.js')
+  const { ordinalOf } = await import('../../src/fabric/ordinal.js')
+  const { OUTCOME_CAP_CHARS } = await import('../../src/tools/WorkflowTool/agentTranscriptReader.js')
+  const sentinel = 'END-OF-THE-LONG-OUTCOME'
+  let ordinal = 0
+  const encode = (entry: unknown): string =>
+    JSON.stringify(
+      entryToRecord(entry as never, {
+        sessionId: 'wf-fixture',
+        nextOrdinal: () => ordinalOf(++ordinal),
+        observedAt: '2026-07-02T12:00:00.000Z',
+        source: { channel: 'interactive' },
+      } as never),
+    )
+  const longEntries = [
+    { type: 'user', message: { role: 'user', content: 'do the long thing' } },
+    {
+      type: 'assistant',
+      timestamp: '2026-07-02T12:00:00.000Z',
+      message: {
+        id: 'm1',
+        role: 'assistant',
+        model: 'claude-sonnet-5',
+        content: [{ type: 'text', text: 'O'.repeat(OUTCOME_CAP_CHARS + 500) + sentinel }],
+        usage: { input_tokens: 10, output_tokens: 5 },
+      },
+    },
+  ]
+  writeFileSync(join(transcriptDir, 'agent-a2.jsonl'), longEntries.map(encode).join('\n') + '\n')
+  const capped = await resolveResource('mercury://workflow/wf_fixture1?child=a2', ctx as never)
+  const cappedText = capped.state === 'ok' ? (capped.resource.text ?? '') : ''
+  check('W5 a capped outcome is marked and does not carry the tail',
+    capped.state === 'ok' && cappedText.includes('[outcome truncated at cap') && !cappedText.includes(sentinel), cappedText.slice(-160))
+  const continuation = /mercury:\/\/workflow\/wf_fixture1\?child=a2&cursor=\d+&limit=\d+/.exec(cappedText)
+  check('W5b …and names the raw-stream ref that holds the rest', continuation !== null, cappedText.slice(-200))
+  const rest = continuation ? await resolveResource(continuation[0], ctx as never) : null
+  check('W5c the named ref resolves to a page holding the end of the outcome',
+    rest !== null && rest.state === 'ok' && (rest.resource.text ?? '').includes(sentinel), rest?.state ?? 'no ref')
 }
 
 section('A. artifact adapter (real store round trip)')
