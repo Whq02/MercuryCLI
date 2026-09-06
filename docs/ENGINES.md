@@ -204,13 +204,12 @@ one honest line as a note. Failures are typed values (`rate-limited` ·
 parse-failed, never a guessed hit. `/health`'s AUTH section states both
 doors' facts for the session's model.
 
-The same family law covers `WebFetch`'s domain preflight: the first party's
-policy endpoint is consulted only for an anthropic-routed session — every
-other family fetches with no first-party call, under Mercury's own URL
-validation and the hostname-scoped permission gate. A keyless home searches
-— and fetches — with zero first-party requests and zero model calls; a
-prompted fetch's extraction leg is the one model call, and it rides the
-session's own family through the routed seam, never a first-party hop.
+`WebFetch` asks no policy service before a fetch, on any family: every
+fetch runs under Mercury's own URL validation and the hostname-scoped
+permission gate alone. A keyless home searches — and fetches — with zero
+first-party requests and zero model calls; a prompted fetch's extraction
+leg is the one model call, and it rides the session's own family through
+the routed seam, never a first-party hop.
 
 ## Usability, usage, and readiness
 

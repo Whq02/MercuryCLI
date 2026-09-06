@@ -167,7 +167,6 @@ src/tools/SyntheticOutputTool/SyntheticOutputTool.ts :: schemaBoundCache :: keye
 src/tools/ToolSearchTool/ToolSearchTool.ts :: deferredSetCacheKey :: keyed-by-truth
 src/tools/ToolSearchTool/ToolSearchTool.ts :: getToolDescriptionMemoized :: keyed-by-truth
 src/tools/ToolSearchTool/cooccurPrior.ts :: tableCache :: static-for-process
-src/tools/WebFetchTool/utils.ts :: domainCheckCache :: ttl-bounded
 src/tools/WebFetchTool/utils.ts :: urlCache :: ttl-bounded
 src/tools/WorkflowTool/runManifest.ts :: manifestParseCache :: keyed-by-truth
 src/tools/WorkflowTool/structuredOutputTool.ts :: boundToolCache :: keyed-by-truth
