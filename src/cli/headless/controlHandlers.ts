@@ -65,14 +65,14 @@ export async function handleInitializeRequest(
     return
   }
 
-  if (request.systemPrompt !== undefined) {
-    options.systemPrompt = request.systemPrompt
+  if (request.system_prompt !== undefined) {
+    options.systemPrompt = request.system_prompt
   }
-  if (request.appendSystemPrompt !== undefined) {
-    options.appendSystemPrompt = request.appendSystemPrompt
+  if (request.append_system_prompt !== undefined) {
+    options.appendSystemPrompt = request.append_system_prompt
   }
-  if (request.promptSuggestions !== undefined) {
-    options.promptSuggestions = request.promptSuggestions
+  if (request.prompt_suggestions !== undefined) {
+    options.promptSuggestions = request.prompt_suggestions
   }
 
   if (request.agents) {
@@ -115,7 +115,7 @@ export async function handleInitializeRequest(
     const hooks: Partial<Record<HookEvent, HookCallbackMatcher[]>> = {}
     for (const [event, matchers] of Object.entries(request.hooks)) {
       hooks[event as HookEvent] = matchers.map(matcher => {
-        const callbacks = matcher.hookCallbackIds.map(callbackId => {
+        const callbacks = matcher.hook_callback_ids.map(callbackId => {
           return structuredIO.createHookCallback(callbackId, matcher.timeout)
         })
         return {
@@ -126,8 +126,8 @@ export async function handleInitializeRequest(
     }
     registerHookCallbacks(hooks)
   }
-  if (request.jsonSchema) {
-    setInitJsonSchema(request.jsonSchema)
+  if (request.json_schema) {
+    setInitJsonSchema(request.json_schema)
   }
   const initResponse: SDKControlInitializeResponse = {
     commands: commands
@@ -135,7 +135,7 @@ export async function handleInitializeRequest(
       .map(cmd => ({
         name: getCommandName(cmd),
         description: formatDescriptionWithSource(cmd),
-        argumentHint: cmd.argumentHint || '',
+        argument_hint: cmd.argumentHint || '',
       })),
     agents: agents.map(agent => ({
       name: agent.agentType,
@@ -146,9 +146,9 @@ export async function handleInitializeRequest(
     account: {
       email: accountInfo?.email,
       organization: accountInfo?.organization,
-      subscriptionType: accountInfo?.subscription,
-      tokenSource: accountInfo?.tokenSource,
-      apiKeySource: accountInfo?.apiKeySource,
+      subscription_type: accountInfo?.subscription,
+      token_source: accountInfo?.tokenSource,
+      api_key_source: accountInfo?.apiKeySource,
     },
     pid: process.pid,
   }
@@ -172,11 +172,11 @@ export async function handleRewindFiles(
   drift?: RestoreDriftOracle,
 ): Promise<RewindFilesResult> {
   if (!fileHistoryEnabled()) {
-    return { canRewind: false, error: 'File rewinding is not enabled.' }
+    return { can_rewind: false, error: 'File rewinding is not enabled.' }
   }
   if (!fileHistoryCanRestore(appState.fileHistory, userMessageId)) {
     return {
-      canRewind: false,
+      can_rewind: false,
       error: 'No file checkpoint found for this message.',
     }
   }
@@ -188,15 +188,15 @@ export async function handleRewindFiles(
       ...(drift !== undefined ? { drift } : {}),
     })
   } catch (error) {
-    return { canRewind: false, error: `Failed to rewind: ${errorMessage(error)}` }
+    return { can_rewind: false, error: `Failed to rewind: ${errorMessage(error)}` }
   }
   if (!restored.ok) {
-    return { canRewind: false, error: `Failed to rewind: ${restored.detail}` }
+    return { can_rewind: false, error: `Failed to rewind: ${restored.detail}` }
   }
   if (dryRun) {
-    return { canRewind: true, filesChanged: restored.changed, insertions: restored.insertions, deletions: restored.deletions }
+    return { can_rewind: true, files_changed: restored.changed, insertions: restored.insertions, deletions: restored.deletions }
   }
-  return { canRewind: true }
+  return { can_rewind: true }
 }
 
 
@@ -391,11 +391,11 @@ export async function handleOrphanedPermissionResponse({
 }): Promise<boolean> {
   if (
     message.response.subtype === 'success' &&
-    message.response.response?.toolUseID &&
-    typeof message.response.response.toolUseID === 'string'
+    message.response.response?.tool_use_id &&
+    typeof message.response.response.tool_use_id === 'string'
   ) {
     const permissionResult = message.response.response as PermissionResult
-    const { toolUseID } = permissionResult
+    const toolUseID = permissionResult.tool_use_id
     if (!toolUseID) {
       return false
     }

@@ -118,7 +118,7 @@ export function parseEnvelopes(envelopes: Array<Record<string, unknown>>): Pick<
     if (type === 'user') {
       const message = e.message as { content?: unknown } | undefined
       const content = message?.content
-      if (!parent && e.isReplay !== true) {
+      if (!parent && e.is_replay !== true) {
         if (typeof content === 'string') injectedChars += content.length
         else if (Array.isArray(content)) for (const block of content as Array<Record<string, unknown>>) if (block.type === 'text' && typeof block.text === 'string') injectedChars += block.text.length
       }

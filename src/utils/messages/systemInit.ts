@@ -36,7 +36,7 @@ export function buildSystemInitMessage(inputs: SystemInitInputs): SDKMessage {
       status: client.type,
     })),
     model: inputs.model,
-    permissionMode: inputs.permissionMode,
+    permission_mode: inputs.permissionMode,
     slash_commands: inputs.commands.filter(isInvocable).map(command => command.name),
     betas: getSdkBetas() ?? [],
     mercury_version: MACRO.VERSION,

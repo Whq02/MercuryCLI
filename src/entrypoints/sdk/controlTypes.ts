@@ -6,7 +6,7 @@ import type { DecisionReasonWireV1 } from '../../utils/permissions/decisionReaso
 
 export type SDKHookCallbackMatcher = {
   matcher?: string
-  hookCallbackIds: string[]
+  hook_callback_ids: string[]
   timeout?: number
 }
 
@@ -14,13 +14,13 @@ export type SDKHookCallbackMatcher = {
 export type SDKControlInitializeRequest = {
   subtype: 'initialize'
   hooks?: Record<string, SDKHookCallbackMatcher[]>
-  sdkMcpServers?: string[]
-  jsonSchema?: Record<string, unknown>
-  systemPrompt?: string
-  appendSystemPrompt?: string
+  host_mcp_servers?: string[]
+  json_schema?: Record<string, unknown>
+  system_prompt?: string
+  append_system_prompt?: string
   agents?: Record<string, unknown>
-  promptSuggestions?: boolean
-  agentProgressSummaries?: boolean
+  prompt_suggestions?: boolean
+  agent_progress_summaries?: boolean
 }
 
 export type SDKControlInterruptRequest = {
@@ -122,12 +122,12 @@ export type SDKControlReloadExtensionsRequest = {
 
 export type SDKControlMcpReconnectRequest = {
   subtype: 'mcp_reconnect'
-  serverName: string
+  server_name: string
 }
 
 export type SDKControlMcpToggleRequest = {
   subtype: 'mcp_toggle'
-  serverName: string
+  server_name: string
   enabled: boolean
 }
 
@@ -186,18 +186,18 @@ export type SDKControlEndSessionRequest = {
 
 export type SDKControlMcpAuthenticateRequest = {
   subtype: 'mcp_authenticate'
-  serverName: string
+  server_name: string
 }
 
 export type SDKControlMcpOauthCallbackUrlRequest = {
   subtype: 'mcp_oauth_callback_url'
-  serverName: string
-  callbackUrl: string
+  server_name: string
+  callback_url: string
 }
 
 export type SDKControlMcpClearAuthRequest = {
   subtype: 'mcp_clear_auth'
-  serverName: string
+  server_name: string
 }
 
 export type SDKControlProviderSignInRequest = {
@@ -235,9 +235,9 @@ export type SDKControlClaimSessionRequest = {
   effort?: string
   resume?: boolean
   openai_catalogue?: {
-    sourceKind: 'chatgpt-subscription' | 'api-key'
+    source_kind: 'chatgpt-subscription' | 'api-key'
     models: unknown[]
-    fetchedAtMs: number
+    fetched_at_ms: number
   }
 }
 
@@ -347,7 +347,7 @@ export type SDKControlReloadExtensionsResponse = {
   commands: unknown[]
   agents: unknown[]
   extensions: { name: string; path: string; source?: string }[]
-  mcpServers: unknown[]
+  mcp_servers: unknown[]
   error_count: number
 }
 
@@ -367,11 +367,11 @@ export type SDKUserMessage = {
   parent_tool_use_id?: string | null
   uuid?: string
   session_id?: string
-  isReplay?: true
+  is_replay?: true
   timestamp?: string
   priority?: 'now' | 'next' | 'later'
   mode?: 'prompt' | 'bash' | 'task-notification'
-  agentId?: string
+  agent_id?: string
 }
 
 export type SDKStreamRawEvent =

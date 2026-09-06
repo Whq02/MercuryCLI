@@ -273,8 +273,8 @@ export class StructuredIO {
     const pending = requestId !== undefined ? this.#pending.get(requestId) : undefined
     if (!pending) {
       if (response?.subtype === 'success') {
-        const toolUseID = (response.response as { toolUseID?: string } | undefined)
-          ?.toolUseID
+        const toolUseID = (response.response as { tool_use_id?: string } | undefined)
+          ?.tool_use_id
         if (typeof toolUseID === 'string' && this.#resolvedToolUses.has(toolUseID)) {
           logForDebugging(
             `dropping duplicate control_response for already-resolved tool_use ${toolUseID}`,
@@ -586,8 +586,8 @@ export class StructuredIO {
           : await requestPromise) as {
           behavior?: string
           message?: string
-          updatedInput?: Record<string, unknown>
-          updatedPermissions?: PermissionUpdate[]
+          updated_input?: Record<string, unknown>
+          updated_permissions?: PermissionUpdate[]
           interrupt?: boolean
         }
         return this.#convertHostPermissionResult(
@@ -619,8 +619,8 @@ export class StructuredIO {
     result: {
       behavior?: string
       message?: string
-      updatedInput?: Record<string, unknown>
-      updatedPermissions?: PermissionUpdate[]
+      updated_input?: Record<string, unknown>
+      updated_permissions?: PermissionUpdate[]
       interrupt?: boolean
     },
     tool: Tool,
@@ -629,11 +629,11 @@ export class StructuredIO {
   ): PermissionDecision {
     if (result.behavior === 'allow') {
       const updatedInput =
-        result.updatedInput && Object.keys(result.updatedInput).length > 0
-          ? result.updatedInput
+        result.updated_input && Object.keys(result.updated_input).length > 0
+          ? result.updated_input
           : originalInput
-      if (result.updatedPermissions?.length) {
-        const updates = result.updatedPermissions
+      if (result.updated_permissions?.length) {
+        const updates = result.updated_permissions
         persistPermissionUpdates(updates)
         toolUseContext.setAppState(previous => {
           const updated = applyPermissionUpdates(previous.toolPermissionContext, updates)

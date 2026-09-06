@@ -50,7 +50,7 @@ export function emitLoadError(
       session_id: getSessionId(),
       total_cost_usd: 0,
       usage: EMPTY_USAGE,
-      modelUsage: {},
+      model_usage: {},
       permission_denials: [],
       uuid: randomUUID(),
       errors: [message],

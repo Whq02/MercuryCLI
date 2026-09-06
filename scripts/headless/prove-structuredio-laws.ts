@@ -183,10 +183,10 @@ section('S5 — unknown ids route to the orphan callback; already-resolved tool_
     }
   ).sendRequest.bind(h.io)
   const p = sendRequest({ subtype: 'can_use_tool', tool_name: 'X', input: {}, tool_use_id: 'tu_dup' }, z.object({}).passthrough(), undefined, 'req_dup1')
-  h.push({ type: 'control_response', response: { subtype: 'success', request_id: 'req_dup1', response: { toolUseID: 'tu_dup' } } })
+  h.push({ type: 'control_response', response: { subtype: 'success', request_id: 'req_dup1', response: { tool_use_id:'tu_dup' } } })
   await p
   orphans.length = 0
-  h.push({ type: 'control_response', response: { subtype: 'success', request_id: 'req_dup2_unknown', response: { toolUseID: 'tu_dup' } } })
+  h.push({ type: 'control_response', response: { subtype: 'success', request_id: 'req_dup2_unknown', response: { tool_use_id:'tu_dup' } } })
   await h.settle()
   check('a duplicate response for an ALREADY-RESOLVED tool_use is ignored (no orphan handling)', orphans.length === 0, `${orphans.length}`)
   h.end()
@@ -215,7 +215,7 @@ section('S6 — aborting a pending request cancels, rejects, and immunizes the t
   check('the pending request rejects with AbortError', rejected === 'AbortError', String(rejected))
   await h.settle()
   check('a control_cancel_request is enqueued for the host', h.outbound.some(m => m.type === 'control_cancel_request' && j(m).includes('req_abort')), j(h.outbound.map(m => m.type)))
-  h.push({ type: 'control_response', response: { subtype: 'success', request_id: 'req_late', response: { toolUseID: 'tu_abort' } } })
+  h.push({ type: 'control_response', response: { subtype: 'success', request_id: 'req_late', response: { tool_use_id:'tu_abort' } } })
   await h.settle()
   check('a LATE response for the aborted tool_use is ignored', orphans.length === 0, `${orphans.length}`)
   h.end()

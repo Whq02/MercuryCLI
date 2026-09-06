@@ -1,5 +1,15 @@
 import sumBy from 'lodash-es/sumBy.js'
-import type { ModelUsage } from 'src/entrypoints/agentSdkTypes.js'
+
+export type ModelUsage = {
+  inputTokens: number
+  outputTokens: number
+  cacheReadInputTokens: number
+  cacheCreationInputTokens: number
+  webSearchRequests: number
+  costUSD: number
+  contextWindow?: number
+  maxOutputTokens?: number
+}
 
 export class UsageLedgerOwner {
   totalCostUSD = 0
