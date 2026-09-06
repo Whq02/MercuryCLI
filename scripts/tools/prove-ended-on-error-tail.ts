@@ -37,7 +37,6 @@ const uid = () => `u-${seq++}`
 const stamp = {
   parentUuid: null as string | null,
   isSidechain: false,
-  userType: 'external',
   cwd: '/tmp/x',
   sessionId: 'sess-1',
   version: '1.0.0-beta.1',

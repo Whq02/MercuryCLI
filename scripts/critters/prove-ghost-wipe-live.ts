@@ -26,7 +26,7 @@ const SID = '00000000-aaaa-bbbb-cccc-0000000ab1e5'
   if (!existsSync(projects)) mkdirSync(projects, { recursive: true })
   const path = join(projects, `${SID}.jsonl`)
   const line = {
-    isSidechain: false, userType: 'external', entrypoint: 'cli', cwd: REPO, sessionId: SID, version: '1.0.0-beta.1',
+    isSidechain: false, entrypoint: 'cli', cwd: REPO, sessionId: SID, version: '1.0.0-beta.1',
     gitBranch: 'main', parentUuid: null, type: 'user', message: { role: 'user', content: 'boot into the repl' },
     uuid: '00000000-0000-4000-8000-000000000001', timestamp: '2026-06-19T10:00:01.000Z',
   }
