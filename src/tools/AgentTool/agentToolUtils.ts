@@ -36,6 +36,7 @@ import {
   type ToolUseContext,
 } from '../../Tool.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
+import { flushSessionStorage } from '../../utils/sessionStorage.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
 import { FILE_WRITE_TOOL_NAME } from '../FileWriteTool/prompt.js'
@@ -776,6 +777,7 @@ export async function runAsyncAgentLifecycle(args: {
       const stopReason = agentStopReasonOf(args.abortController.signal.reason)
       killAsyncAgent(taskId, rootSetAppState, stopReason, args.abortController)
       const worktreeResult = await getWorktreeResult()
+      await flushSessionStorage()
       const partialResult = extractPartialResult(accumulated)
       const usage = {
         totalTokens: getTokenCountFromTracker(tracker),
@@ -809,6 +811,7 @@ export async function runAsyncAgentLifecycle(args: {
     const errMsg = errorMessage(error)
     failAgentTask(taskId, errMsg, rootSetAppState, args.abortController)
     const worktreeResult = await getWorktreeResult()
+    await flushSessionStorage()
     const partialResult = extractPartialResult(accumulated)
     const usage = {
       totalTokens: getTokenCountFromTracker(tracker),

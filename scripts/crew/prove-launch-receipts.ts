@@ -651,5 +651,60 @@ section('R11 · the hand-back — every exit that is not a clean finish carries 
   queue.resetCommandQueue()
 }
 
+section('R12 · durability — every row an agent yields is on its transcript first; a hard crash between rows loses nothing already shown')
+{
+  const { spawnSync } = await import('node:child_process')
+  const { existsSync, mkdirSync } = await import('node:fs')
+  const childHome = mkdtempSync(join(tmpdir(), 'durability-child-'))
+  const childScript = join(childHome, 'child.ts')
+  writeFileSync(childScript, [
+    ";(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }",
+    "import { writeFileSync } from 'node:fs'",
+    "const [road, home, root, agentId] = process.argv.slice(2) as [string, string, string, string]",
+    "process.env.MERCURY_CONFIG_DIR = home",
+    "process.env.MERCURY_CREDENTIAL_STORE = 'file'",
+    "const { enableConfigs } = await import(root + '/src/utils/config.ts')",
+    "enableConfigs()",
+    "const storage = await import(root + '/src/utils/sessionStorage.ts')",
+    "const { asAgentId } = await import(root + '/src/types/ids.ts')",
+    "const path = storage.getAgentTranscriptPath(asAgentId(agentId))",
+    "storage.registerAgentTranscriptDestination(agentId, path)",
+    "writeFileSync(home + '/agent-path.txt', path)",
+    "const row = (uuid: string, parentUuid: string | null, text: string) => ({ type: 'user', uuid, parentUuid, isSidechain: true, timestamp: new Date().toISOString(), message: { role: 'user', content: text } })",
+    "const rows = [row('00000000-0000-4000-8000-0000000000c1', null, 'one'), row('00000000-0000-4000-8000-0000000000c2', '00000000-0000-4000-8000-0000000000c1', 'two'), row('00000000-0000-4000-8000-0000000000c3', '00000000-0000-4000-8000-0000000000c2', 'three')]",
+    "if (road === 'durable') {",
+    "  const runner = await import(root + '/src/tools/AgentTool/runAgent.ts')",
+    "  let parent: string | null = null",
+    "  for (const r of rows) { await runner.landAgentTranscriptRows([r as never], agentId, parent as never); parent = r.uuid }",
+    "} else {",
+    "  let parent: string | null = null",
+    "  for (const r of rows) { void storage.recordSidechainTranscript([r as never], agentId, parent as never).catch(() => {}); parent = r.uuid }",
+    "}",
+    "process.kill(process.pid, 'SIGKILL')",
+  ].join('\n'))
+  const rowsOnDisk = (road: 'durable' | 'fire-and-forget'): number | null => {
+    const home = join(childHome, road)
+    mkdirSync(home, { recursive: true })
+    const env = { ...process.env }
+    delete env.NODE_ENV
+    const agentId = generateTaskId('local_agent')
+    const run = spawnSync(process.execPath, ['run', childScript, road, home, ROOT, agentId], { cwd: ROOT, encoding: 'utf8', env, timeout: 60_000 })
+    const pathFile = join(home, 'agent-path.txt')
+    if (!existsSync(pathFile)) return null
+    const path = readFileSync(pathFile, 'utf8')
+    if (!existsSync(path)) return 0
+    return (readFileSync(path, 'utf8').match(/"content":"(?:one|two|three)"/g) ?? []).length
+  }
+  const control = rowsOnDisk('fire-and-forget')
+  check('the control: rows handed to the writer and a crash at once — the batch window loses them (fewer than three on disk)', control !== null && control < 3, String(control))
+  const durable = rowsOnDisk('durable')
+  check('the durable road: every row is on disk before the next one is handed on — three on disk after the crash', durable === 3, String(durable))
+  const runner = src('src/tools/AgentTool/runAgent.ts')
+  check('the runner lands every recordable row before it yields (no fire-and-forget record left on its stream)', /export async function landAgentTranscriptRows\(/.test(runner) && !/void recordSidechainTranscript\(/.test(runner))
+  const lifecycle = src('src/tools/AgentTool/agentToolUtils.ts')
+  const foreground = src('src/tools/AgentTool/foregroundExecution.tsx')
+  check("the lifecycle's non-clean exits flush the transcript before the notice goes out", (lifecycle.match(/await flushSessionStorage\(\)/g) ?? []).length >= 2 && (foreground.match(/await flushSessionStorage\(\)/g) ?? []).length >= 2)
+}
+
 console.log(failures === 0 ? '\nprove-launch-receipts: ALL LAWS HOLD' : `\nprove-launch-receipts: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
