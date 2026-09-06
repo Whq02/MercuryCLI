@@ -6,7 +6,6 @@
  "sessionIdExists/absent": false,
  "getNodeEnv/value": "development",
  "getProjectDir/sanitized-shape": "/tmp/mercury-parity-home/projects/-tmp-example-repo-with-dots-9e4efec0",
- "getUserType/value": "external",
  "isCustomTitleEnabled/value": true,
  "isChainParticipant/kinds": [
   true,

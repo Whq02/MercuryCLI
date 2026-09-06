@@ -48,7 +48,6 @@ import { parseUserSpecifiedModel } from '../utils/model/model.js'
 import { roughTokenCountEstimation } from '../services/tokenEstimation.js'
 
 export type LoadedFrom =
-  | 'legacy-commands'
   | 'skills'
   | 'extension'
   | 'managed'
@@ -57,7 +56,6 @@ export type LoadedFrom =
 
 const SKILL_FILE_NAME = 'SKILL.md'
 const SKILL_FALLBACK_LABEL = 'skill'
-const COMMAND_FALLBACK_LABEL = 'custom command'
 
 
 export type SkillLoadRefusal = { path: string; error: string; source: string }
@@ -98,7 +96,7 @@ export function skillFrontmatterProblem(frontmatter: Record<string, unknown>): s
 
 
 export function getProjectSkillsWatchPaths(
-  dir: 'skills' | 'commands',
+  dir: 'skills',
   cwd: string = process.cwd(),
 ): string[] {
   return projectConfigCandidatePaths(cwd, dir)
@@ -195,8 +193,8 @@ export function parseSkillFrontmatterFields(
       frontmatter['arguments'] as string | string[] | undefined,
     ),
     whenToUse:
-      frontmatter['when_to_use'] !== undefined
-        ? String(frontmatter['when_to_use'])
+      frontmatter['when-to-use'] !== undefined
+        ? String(frontmatter['when-to-use'])
         : undefined,
     version:
       frontmatter['version'] !== undefined ? String(frontmatter['version']) : undefined,
@@ -420,99 +418,6 @@ type MarkdownFileEntry = {
   parseError?: { message: string }
 }
 
-export function transformSkillFiles(files: MarkdownFileEntry[]): LoadedSkill[] {
-  const byDir = new Map<string, MarkdownFileEntry[]>()
-  for (const file of files) {
-    const dir = dirname(file.filePath)
-    const list = byDir.get(dir) ?? []
-    list.push(file)
-    byDir.set(dir, list)
-  }
-  const kept: Array<{ file: MarkdownFileEntry; isSkillForm: boolean }> = []
-  for (const [dir, list] of byDir) {
-    const skillNamed = list.filter(
-      file => basename(file.filePath).toLowerCase() === SKILL_FILE_NAME.toLowerCase(),
-    )
-    if (skillNamed.length > 0) {
-      const [chosen] = skillNamed
-      if (skillNamed.length > 1) {
-        logForDebugging(
-          `legacy commands: ${dir} holds ${skillNamed.length} skill files — keeping ${chosen!.filePath}`,
-        )
-      }
-      kept.push({ file: chosen!, isSkillForm: true })
-      for (const file of list) {
-        if (file !== chosen && basename(file.filePath).toLowerCase() !== SKILL_FILE_NAME.toLowerCase()) {
-          kept.push({ file, isSkillForm: false })
-        }
-      }
-    } else {
-      for (const file of list) kept.push({ file, isSkillForm: false })
-    }
-  }
-  const out: LoadedSkill[] = []
-  for (const { file, isSkillForm } of kept) {
-    if (file.parseError) {
-      recordSkillRefusal(file.filePath, `frontmatter did not parse: ${file.parseError.message}`, 'legacy-commands')
-      continue
-    }
-    const fieldProblem = skillFrontmatterProblem(file.frontmatter)
-    if (fieldProblem !== null) {
-      recordSkillRefusal(file.filePath, fieldProblem, 'legacy-commands')
-      continue
-    }
-    try {
-      const fileDir = dirname(file.filePath)
-      let base: string
-      let namespaceRoot: string
-      if (isSkillForm) {
-        base = basename(fileDir)
-        namespaceRoot = dirname(dirname(file.filePath))
-      } else {
-        base = basename(file.filePath).replace(/\.md$/i, '')
-        namespaceRoot = fileDir
-      }
-      const namespace = relative(file.baseDir, namespaceRoot).split(sep).filter(Boolean).join(':')
-      const name = namespace === '' ? base : `${namespace}:${base}`
-      const nameProblem = slashNameProblem(name)
-      if (nameProblem !== null) {
-        recordSkillRefusal(file.filePath, `uninvocable name: ${nameProblem}`, 'legacy-commands')
-        continue
-      }
-      const fields = parseSkillFrontmatterFields(
-        file.frontmatter,
-        file.content,
-        name,
-        COMMAND_FALLBACK_LABEL,
-      )
-      fields.displayName = undefined
-      const command = createSkillCommand({
-        name,
-        markdownContent: file.content,
-        source: file.source,
-        baseDir: isSkillForm ? fileDir : undefined,
-        loadedFrom: 'legacy-commands',
-        fields,
-        pathFilters: undefined,
-      })
-      out.push({ command, filePath: file.filePath, source: 'legacy-commands' })
-    } catch (error) {
-      logForDebugging(`legacy commands: failed to load ${file.filePath}: ${errorMessage(error)}`)
-    }
-  }
-  return out
-}
-
-async function loadLegacyCommandSkills(cwd: string): Promise<LoadedSkill[]> {
-  try {
-    const files = await loadMarkdownFilesForSubdir('commands', cwd)
-    return transformSkillFiles(files)
-  } catch (error) {
-    logForDebugging(`legacy commands: walk failed: ${errorMessage(error)}`)
-    return []
-  }
-}
-
 
 const pendingConditional = new Map<string, Command>()
 const activatedSkillNames = new Set<string>()
@@ -564,18 +469,13 @@ async function loadAllSkillsUncached(cwd: string): Promise<Command[]> {
         additionalDirs.map(dir => loadSkillsFromDir(dir, 'projectSettings', 'additional')),
       ).then(groups => groups.flat())
     : Promise.resolve([] as LoadedSkill[])
-  const legacyPromise = extensionsOnly
-    ? Promise.resolve([] as LoadedSkill[])
-    : loadLegacyCommandSkills(cwd)
-
-  const [managed, user, project, additional, legacy] = await Promise.all([
+  const [managed, user, project, additional] = await Promise.all([
     managedPromise,
     userPromise,
     projectPromise,
     additionalPromise,
-    legacyPromise,
   ])
-  const ordered = [...managed, ...user, ...project, ...additional, ...legacy]
+  const ordered = [...managed, ...user, ...project, ...additional]
 
   const identities = await Promise.all(
     ordered.map(async skill => {

@@ -141,7 +141,7 @@ async function walkConventions(
   const config = getCurrentProjectConfig()
   const includeExternal =
     forceIncludeExternal ||
-    config.hasClaudeMdExternalIncludesApproved ||
+    config.hasExternalIncludesApproved ||
     false
 
   const push = (
@@ -640,7 +640,7 @@ export async function getInstructionFilesForNestedDirectory(
 ): Promise<InstructionSourceEntry[]> {
   const result: InstructionSourceEntry[] = []
   const conventions = activeConventions()
-  const includeExternal = getCurrentProjectConfig().hasClaudeMdExternalIncludesApproved ?? false
+  const includeExternal = getCurrentProjectConfig().hasExternalIncludesApproved ?? false
 
   for (const convention of conventions) {
     if (isSettingSourceEnabled('projectSettings')) {
@@ -767,8 +767,8 @@ export function hasExternalInstructionIncludes(
 export async function shouldShowExternalInstructionIncludesWarning(): Promise<boolean> {
   const config = getCurrentProjectConfig()
   if (
-    config.hasClaudeMdExternalIncludesApproved ||
-    config.hasClaudeMdExternalIncludesWarningShown
+    config.hasExternalIncludesApproved ||
+    config.hasExternalIncludesWarningShown
   ) {
     return false
   }

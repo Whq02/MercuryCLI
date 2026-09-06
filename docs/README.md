@@ -53,9 +53,9 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
 - [APOLLO-MODE.md](APOLLO-MODE.md): the Apollo permission mode, the
   pre-flight interview that writes the spec and builds a prototype from it.
 - [VOICE.md](VOICE.md): voice input — `/speak on`, space in an empty composer
-  to dictate, the capture backends, the transcribing sign-ins, and the
-  privacy line (audio leaves only to the family you signed into, only after
-  you stop).
+  to dictate, the capture backends, the on-device transcriber and its
+  one-time model download, the cloud sign-ins, and the privacy line (on
+  this machine nothing leaves it; to a cloud family only after you stop).
 
 ### Loading, extending and delegating
 
@@ -80,6 +80,8 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
 
 - [TRUST.md](TRUST.md): workspace trust, what a grant is, when Mercury asks,
   what stays closed until trust, and what managed policy changes.
+- [HOOKS.md](HOOKS.md): hooks, where they are declared, the four kinds, the
+  events with their input fields, what a hook answers, and the policy knobs.
 - [THEMIS-CONTROL-PLANE.md](THEMIS-CONTROL-PLANE.md): the deterministic
   trust machinery, the execution-gate blocklist, audit chains, the config
   lockfile, and missions.

@@ -13,19 +13,18 @@ import { safeParseJSON } from '../json.js'
 import { stripBOM } from '../jsonRead.js'
 import * as lockfile from '../lockfile.js'
 import { logError } from '../log.js'
+import { rewriteRetiredGlobalConfigKeys, rewriteRetiredProjectConfigKeys } from '../../migrations/migrateConfigSpellings.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 
 import {
   createDefaultGlobalConfig,
   DEFAULT_GLOBAL_CONFIG,
   type GlobalConfig,
-  type InstallMethod,
   type ProjectConfig,
 } from './schema.js'
 
 const TEST_GLOBAL_CONFIG_FOR_TESTING: GlobalConfig = {
   ...DEFAULT_GLOBAL_CONFIG,
-  autoUpdates: false,
 }
 
 export function wouldLoseAuthState(fresh: {
@@ -211,47 +210,9 @@ export function noteConfigLocklessFallback(): void {
 export const CONFIG_WRITE_DISPLAY_THRESHOLD = 20
 
 function migrateConfigFields(config: GlobalConfig): GlobalConfig {
-  if (config.installMethod !== undefined) {
-    return config
-  }
-
-  const legacy = config as GlobalConfig & {
-    autoUpdaterStatus?:
-      | 'migrated'
-      | 'installed'
-      | 'disabled'
-      | 'enabled'
-      | 'no_permissions'
-      | 'not_configured'
-  }
-
-  let installMethod: InstallMethod = 'unknown'
-  let autoUpdates = config.autoUpdates ?? true
-
-  switch (legacy.autoUpdaterStatus) {
-    case 'migrated':
-      installMethod = 'local'
-      break
-    case 'installed':
-      installMethod = 'native'
-      break
-    case 'disabled':
-      autoUpdates = false
-      break
-    case 'enabled':
-    case 'no_permissions':
-    case 'not_configured':
-      installMethod = 'global'
-      break
-    case undefined:
-      break
-  }
-
-  return {
-    ...config,
-    installMethod,
-    autoUpdates,
-  }
+  const rewritten = rewriteRetiredGlobalConfigKeys(config)
+  const projects = rewriteRetiredProjectConfigKeys(rewritten.projects)
+  return projects === rewritten.projects ? rewritten : { ...rewritten, projects }
 }
 
 function removeProjectHistory(

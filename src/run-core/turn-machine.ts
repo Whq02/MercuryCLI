@@ -138,7 +138,6 @@ import {
   tokenCountWithEstimation,
 } from '../utils/tokens.js'
 import { ESCALATED_MAX_TOKENS } from '../utils/context.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/featureGates.js'
 import { SLEEP_TOOL_NAME } from '../tools/SleepTool/prompt.js'
 import {
   BRIEF_TOOL_NAME,
@@ -172,6 +171,7 @@ import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
 import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
+import { recordSentRequest } from '../utils/forkedAgent.js'
 import { evaluateCycleLease, renderHandoffReport } from '../services/run/cycleLease.js'
 import { getRunSnapshot, noteRunEvent } from '../services/run/runCoordinator.js'
 import { buildQueryConfig, type QueryConfig } from '../query/config.js'
@@ -223,6 +223,7 @@ export type QueryParams = {
   maxTurns?: number
   skipCacheWrite?: boolean
   effortMessage?: EffortValue
+  cacheTtlSource?: QuerySource
   taskBudget?: { total: number }
   deps?: QueryDeps
 }
@@ -253,6 +254,7 @@ type RunCtx = {
   querySource: QuerySource
   skipCacheWrite: boolean | undefined
   effortMessage: EffortValue | undefined
+  cacheTtlSource: QuerySource | undefined
   deps: QueryDeps
   config: QueryConfig
   budgetGuard: BudgetGuard
@@ -542,11 +544,15 @@ async function* streamModel(
       try {
         let streamingFallbackOccured = false
         if (pulseMain) pulseMark('model_call_stream_start')
+        const requestMessages =
+          latestUserContextBody(iter.messagesForQuery) === null
+            ? prependUserContext(iter.messagesForQuery, run.userContext)
+            : iter.messagesForQuery
+        if (isTurnOwningQuerySource(run.querySource)) {
+          recordSentRequest(String(rosterOwnerFromToolUseContext(toolUseContext)), requestMessages)
+        }
         for await (const message of run.deps.callModel({
-          messages:
-            latestUserContextBody(iter.messagesForQuery) === null
-              ? prependUserContext(iter.messagesForQuery, run.userContext)
-              : iter.messagesForQuery,
+          messages: requestMessages,
           systemPrompt: iter.fullSystemPrompt,
           thinkingConfig: toolUseContext.options.thinkingConfig,
           tools: toolUseContext.options.tools,
@@ -582,6 +588,7 @@ async function* streamModel(
             advisorModel: iter.appState.advisorModel,
             skipCacheWrite: run.skipCacheWrite,
             effortMessage: run.effortMessage,
+            ...(run.cacheTtlSource !== undefined ? { cacheTtlSource: run.cacheTtlSource } : {}),
             agentId: toolUseContext.agentId,
             ownerKey: String(rosterOwnerFromToolUseContext(toolUseContext)),
             addNotification: toolUseContext.addNotification,
@@ -799,6 +806,7 @@ export async function* runEventCore(
     maxTurns,
     skipCacheWrite,
     effortMessage,
+    cacheTtlSource,
   } = params
   const deps = params.deps ?? productionDeps()
 
@@ -831,6 +839,7 @@ export async function* runEventCore(
     querySource,
     skipCacheWrite,
     effortMessage,
+    cacheTtlSource,
     deps,
     config,
     budgetGuard,
@@ -995,6 +1004,7 @@ export async function* runEventCore(
         systemContext,
         toolUseContext,
         forkContextMessages: foldSplit.head,
+        parentQuerySource: querySource,
       },
       querySource,
       tracking,
@@ -1333,10 +1343,7 @@ export async function* runEventCore(
 
       if (isWithheldMaxOutputTokens(lastMessage)) {
         const decision = decideMaxOutputTokensRecovery({
-          capEnabled: getFeatureValue_CACHED_MAY_BE_STALE(
-            'mercury_otk_slot_v1',
-            false,
-          ),
+          capEnabled: false,
           envPinned: !!process.env.MERCURY_MAX_OUTPUT_TOKENS,
           maxOutputTokensOverride,
           recoveryCount: maxOutputTokensRecoveryCount,

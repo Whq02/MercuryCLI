@@ -228,7 +228,7 @@ if (!ONLY || ONLY.has('sovereign')) {
     seedHome: (configDir, cwd) => {
       mkdirSync(join(cwd, '.mercury'), { recursive: true })
       writeFileSync(join(cwd, '.mercury', 'HANDOFF.md'), SHORT_BEFORE)
-      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ skipDangerousModePermissionPrompt: true }))
+      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ skipSovereignConsentPrompt: true }))
     },
     extraEnv: { MERCURY_SKIP_PERMISSIONS: '1' },
     sends: ['after:Type a prompt:300:hello', 'after:hello:400:\\r'],
@@ -258,7 +258,7 @@ if (!ONLY || ONLY.has('sovereign')) {
     ],
     seedHome: (configDir, cwd) => {
       writeFileSync(join(cwd, 'notes.md'), SHORT_BEFORE)
-      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ skipDangerousModePermissionPrompt: true, permissions: { ask: ['Edit'] } }))
+      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ skipSovereignConsentPrompt: true, permissions: { ask: ['Edit'] } }))
     },
     extraEnv: { MERCURY_SKIP_PERMISSIONS: '1' },
     sends: ['after:Type a prompt:300:hello', 'after:hello:400:\\r'],

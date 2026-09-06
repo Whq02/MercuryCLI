@@ -92,8 +92,7 @@ prompting modes messages deliver as always.
 
 Named-agent roles resolve through one resolver, whichever way the agent launches. A role is an agent definition — built-in,
 custom, or from an extension — the same registry the in-session subagent tool
-loads, and legacy type aliases decode to canonical ids, so a given role is the
-same agent no matter how it was launched. `/agents` opens the Agent Studio for
+loads, so a given role is the same agent no matter how it was launched. `/agents` opens the Agent Studio for
 building and tuning those definitions.
 
 The living-crew directory (`/crew`) is the

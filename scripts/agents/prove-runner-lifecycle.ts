@@ -1,296 +1,27 @@
 #!/usr/bin/env bun
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-
-import { spawn } from 'node:child_process'
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
-process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'runner-life-config-'))
-process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'runner-life-teams-'))
-process.env.ANTHROPIC_API_KEY = 'fixture-key'
-delete process.env.ANTHROPIC_BASE_URL
-delete process.env.MERCURY_EFFORT_LEVEL
-delete process.env.MERCURY_AUTOCOMPACT_PCT_OVERRIDE
-
-import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
-
-const { enableConfigs } = await import('../../src/utils/config.ts')
-enableConfigs()
-const bootstrap = await import('../../src/bootstrap/state.ts')
-const projDir = mkdtempSync(join(tmpdir(), 'runner-life-proj-'))
-bootstrap.setOriginalCwd(projDir)
-bootstrap.setProjectRoot(projDir)
-
-const { spawnInProcessTeammate, killInProcessTeammate } = await import(
-  '../../src/utils/swarm/spawnInProcess.ts'
-)
-const { runInProcessTeammate } = await import('../../src/utils/swarm/inProcessRunner.ts')
-const { drainSdkEvents } = await import('../../src/utils/sdkEventQueue.ts')
-const { readMailbox, writeToMailbox, isIdleNotification } = await import(
-  '../../src/utils/teammateMailbox.ts'
-)
-const { injectUserMessageToTeammate } = await import(
-  '../../src/tasks/InProcessTeammateTask/InProcessTeammateTask.tsx'
-)
-const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import(
-  '../../src/utils/fileStateCache.ts'
-)
-const { getBuiltInAgents } = await import('../../src/tools/AgentTool/builtInAgents.ts')
-const { resolveTeammateRole } = await import('../../src/utils/swarm/roleResolver.ts')
-const { deriveTeamCharter } = await import('../../src/utils/swarm/teamCharter.ts')
-const { ERROR_MESSAGE_USER_ABORT } = await import('../../src/services/compact/compact.ts')
-
-let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
-  if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
-}
-function section(t: string): void {
-  console.log('\n' + '─'.repeat(76) + '\n' + t)
-}
-const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — runner lifecycle proof exceeded 240s')
-  process.exit(1)
-}, 240_000)
-guard.unref?.()
-const WALL_CLOCK_SECONDS = 300
-if (process.platform !== 'win32') {
-  const wallClock = spawn('/bin/sh', ['-c', `sleep ${WALL_CLOCK_SECONDS} && kill -9 ${process.pid}`], { detached: true, stdio: 'ignore' })
-  wallClock.unref()
-  process.on('exit', () => {
-    try {
-      if (wallClock.pid !== undefined) process.kill(-wallClock.pid, 'SIGKILL')
-    } catch {
-    }
-  })
-}
-
-
-type AnyState = Record<string, unknown> & { tasks: Record<string, unknown> }
-type Store = {
-  getAppState: () => AnyState
-  setAppState: (updater: (prev: AnyState) => AnyState) => void
-}
-
-function makeStore(): Store {
-  let state: AnyState = {
-    toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' as const },
-    sessionHooks: new Map(),
-    tasks: {},
-    todos: {},
-    agentNameRegistry: new Map(),
-    mcp: { clients: [], tools: [], commands: [], resources: {} },
-  }
-  return {
-    getAppState: () => state,
-    setAppState: updater => {
-      state = updater(state)
-    },
-  }
-}
-
-function makeCtx(store: Store): Record<string, unknown> {
-  return {
-    abortController: new AbortController(),
-    getAppState: store.getAppState,
-    setAppState: store.setAppState,
-    setAppStateForTasks: store.setAppState,
-    messages: [],
-    readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
-    options: {
-      tools: [],
-      commands: [],
-      mcpClients: [],
-      mcpResources: {},
-      mainLoopModel: 'claude-opus-4-8',
-      maxThinkingTokens: 0,
-      isNonInteractiveSession: true,
-      agentDefinitions: { activeAgents: [] },
-      debug: false,
-      verbose: false,
-    },
-  }
-}
-
-type RunResult = { success: boolean; error?: string; messages: unknown[] }
-
-async function settleWithin(
-  promise: Promise<RunResult>,
-  s: { api: FixtureApi },
-  label: string,
-  ms = 45_000,
-): Promise<RunResult> {
-  const parked = Symbol('parked')
-  const timer = new Promise<typeof parked>(resolve => {
-    const t = setTimeout(() => resolve(parked), ms)
-    t.unref?.()
-  })
-  const raced = await Promise.race([promise, timer])
-  if (raced !== parked) return raced
-  return {
-    success: false,
-    error: `PARKED: ${label} runPromise unsettled after ${ms / 1000}s — the fixture saw ${s.api.messageRequests().length} request(s)`,
-    messages: [],
-  }
-}
-
-async function waitFor(
-  cond: () => boolean | Promise<boolean>,
-  timeoutMs = 30_000,
-): Promise<boolean> {
-  const start = Date.now()
-  for (;;) {
-    if (await cond()) return true
-    if (Date.now() - start > timeoutMs) return false
-    await new Promise(r => setTimeout(r, 25))
-  }
-}
-
-type TaskView = {
-  status: string
-  isIdle: boolean
-  notified: boolean
-  error?: string
-  endTime?: number
-  messages?: Array<{ type: string; message: { content: unknown } }>
-  pendingUserMessages: string[]
-  inProgressToolUseIDs?: Set<string>
-  abortController?: AbortController
-  currentWorkAbortController?: AbortController
-  unregisterCleanup?: () => void
-  onIdleCallbacks?: Array<() => void>
-  identity: { agentId: string; agentName: string; teamName: string; parentSessionId: string }
-  toolUseId?: string
-}
-const task = (store: Store, id: string): TaskView => store.getAppState().tasks[id] as TaskView
-
-type SdkEventView = {
-  subtype: string
-  task_id: string
-  status?: string
-  tool_use_id?: string
-}
-const allDrained: SdkEventView[] = []
-function drainInto(): void {
-  allDrained.push(...(drainSdkEvents() as unknown as SdkEventView[]))
-}
-const bookendsFor = (taskId: string): SdkEventView[] =>
-  allDrained.filter(e => e.subtype === 'task_notification' && e.task_id === taskId)
-
-async function idleNotificationsFor(
-  team: string,
-): Promise<Array<{ idleReason?: string; failureReason?: string }>> {
-  const msgs = await readMailbox('team-lead', team)
-  return msgs
-    .map(m => isIdleNotification(m.text))
-    .filter(Boolean) as Array<{ idleReason?: string; failureReason?: string }>
-}
-
-type Spawned = {
-  api: FixtureApi
-  store: Store
-  ctx: Record<string, unknown>
-  taskId: string
-  team: string
-  lifecycle: AbortController
-  runPromise: Promise<{ success: boolean; error?: string; messages: unknown[] }>
-  settled: () => boolean
-  rejection: () => unknown
-  cleanupCalls: () => number
-}
-
-async function launch(opts: {
-  name: string
-  team: string
-  turns: ScriptedTurn[]
-  prompt: string
-  description?: string
-  replacePrompt?: string
-  role?: unknown
-  agentDefinition?: unknown
-  poisonCtx?: (ctx: Record<string, unknown>) => void
-}): Promise<Spawned> {
-  const api = await startFixtureApi(opts.turns)
-  process.env.ANTHROPIC_BASE_URL = api.url
-  const store = makeStore()
-  const ctx = makeCtx(store)
-  opts.poisonCtx?.(ctx)
-
-  const spawned = await spawnInProcessTeammate(
-    {
-      name: opts.name,
-      teamName: opts.team,
-      prompt: opts.prompt,
-      planModeRequired: false,
-    },
-    { setAppState: store.setAppState as never, toolUseId: `toolu_${opts.name}` },
-  )
-  if (!spawned.success || !spawned.taskId) {
-    throw new Error(`spawn failed: ${spawned.error}`)
-  }
-  const taskId = spawned.taskId
-
-  let cleanupCalls = 0
-  store.setAppState(prev => {
-    const t = prev.tasks[taskId] as TaskView
-    const orig = t.unregisterCleanup
-    return {
-      ...prev,
-      tasks: {
-        ...prev.tasks,
-        [taskId]: {
-          ...t,
-          unregisterCleanup: () => {
-            cleanupCalls++
-            orig?.()
-          },
-        },
-      },
-    }
-  })
-
-  let settled = false
-  let rejection: unknown
-  const runPromise = runInProcessTeammate({
-    identity: task(store, taskId).identity as never,
-    taskId,
-    prompt: opts.prompt,
-    description: opts.description,
-    role: opts.role as never,
-    agentDefinition: opts.agentDefinition as never,
-    teammateContext: spawned.teammateContext as never,
-    toolUseContext: ctx as never,
-    abortController: spawned.abortController!,
-    allowPermissionPrompts: false,
-    ...(opts.replacePrompt
-      ? { systemPrompt: opts.replacePrompt, systemPromptMode: 'replace' as const }
-      : {}),
-  })
-  runPromise.then(
-    () => {
-      settled = true
-    },
-    err => {
-      settled = true
-      rejection = err
-    },
-  )
-
-  return {
-    api,
-    store,
-    ctx,
-    taskId,
-    team: opts.team,
-    lifecycle: spawned.abortController!,
-    runPromise,
-    settled: () => settled,
-    rejection: () => rejection,
-    cleanupCalls: () => cleanupCalls,
-  }
-}
+import {
+  ERROR_MESSAGE_USER_ABORT,
+  bookendsFor,
+  bootstrap,
+  check,
+  deriveTeamCharter,
+  drainInto,
+  failureCount,
+  getBuiltInAgents,
+  idleNotificationsFor,
+  killInProcessTeammate,
+  launch,
+  makeCtx,
+  makeStore,
+  resolveTeammateRole,
+  section,
+  settleWithin,
+  task,
+  waitFor,
+  writeToMailbox,
+  allDrained,
+} from './lib/runnerLifecycleHarness.ts'
+import { startFixtureApi } from '../lib/fixtureApi.ts'
 
 section('§1 — harness preconditions')
 {
@@ -561,71 +292,7 @@ section('§7 — work abort interrupts the TURN, not the teammate; revival works
   await s.api.close()
 }
 
-section('§7b — mail queued while working is delivered AT the interrupt; the teammate continues unnudged')
-if (typeof Bun !== 'undefined') {
-  console.log('  [SKIP] §7b under bun: the fetch-abort park is the runtime\'s, not the product\'s — the law is driven on the built bundle by prove-teammate-mail-abort-drive')
-} else {
-  const team = 'own7b-s7'
-  const s = await launch({
-    name: 'probe7',
-    team,
-    turns: [
-      { kind: 'hang', deltas: ['working…'] },
-      { kind: 'text', text: 'S7 reply one.' },
-      { kind: 'text', text: 'S7 reply two.' },
-      { kind: 'text', text: 'S7 reply three.' },
-      { kind: 'text', text: 'S7 reply four.' },
-    ],
-    prompt: 'Work until told otherwise.',
-    replacePrompt: 'You are a lifecycle probe. Reply tersely.',
-  })
-  await s.api.messageRequestStarted(1)
-  check(
-    'the turn is live (work controller present)',
-    await waitFor(() => task(s.store, s.taskId)?.currentWorkAbortController !== undefined, 20_000),
-  )
-  check('operator line 1 accepted mid-turn', injectUserMessageToTeammate(s.taskId, 'MAIL-OP-1 first operator line', s.store.setAppState as never))
-  check('operator line 2 accepted mid-turn', injectUserMessageToTeammate(s.taskId, 'MAIL-OP-2 second operator line', s.store.setAppState as never))
-  await writeToMailbox('probe7', { from: 'peer-b', text: 'MAIL-PEER a peer note', timestamp: new Date().toISOString() }, team)
-  await writeToMailbox('probe7', { from: 'team-lead', text: 'MAIL-LEAD the lead speaks', timestamp: new Date().toISOString() }, team)
-  check('the mail is queued, unread, while the turn still hangs', (await readMailbox('probe7', team)).filter(m => !m.read).length === 2 && s.api.messageRequests().length === 1)
-
-  const abortedAt = Date.now()
-  const pulse = setInterval(() => {
-    console.error(`  [§7b] alive +${Math.round((Date.now() - abortedAt) / 1000)}s — requests=${s.api.messageRequests().length} pending=${(task(s.store, s.taskId)?.pendingUserMessages ?? []).length}`)
-  }, 5_000)
-  task(s.store, s.taskId).currentWorkAbortController!.abort()
-  console.error(`  [§7b] abort() returned after ${Date.now() - abortedAt} ms`)
-  check(
-    'four further turns run on their own — one per queued message',
-    await waitFor(() => s.api.messageRequests().length === 5, 60_000),
-    `requests=${s.api.messageRequests().length}`,
-  )
-  clearInterval(pulse)
-  check('…and the teammate settles idle, alive', await waitFor(() => task(s.store, s.taskId)?.isIdle === true && s.api.messageRequests().length === 5, 30_000))
-  const lastUserText = (req: { body: unknown }): string => {
-    const msgs = (req.body as { messages?: Array<{ role: string; content: unknown }> }).messages ?? []
-    const user = [...msgs].reverse().find(m => m.role === 'user')
-    const c = user?.content
-    return typeof c === 'string' ? c : Array.isArray(c) ? c.map(b => (b as { text?: string }).text ?? '').join(' ') : ''
-  }
-  const turns = s.api.messageRequests().slice(1).map(lastUserText)
-  check('every queued message was delivered (none left unread)', (await readMailbox('probe7', team)).every(m => m.read) && (task(s.store, s.taskId).pendingUserMessages ?? []).length === 0)
-  check(
-    "the runner's order: operator lines first, then the lead, then peers",
-    turns[0]?.includes('MAIL-OP-1') === true && turns[1]?.includes('MAIL-OP-2') === true && turns[2]?.includes('MAIL-LEAD') === true && turns[3]?.includes('MAIL-PEER') === true,
-    JSON.stringify(turns.map(t => t.slice(0, 60))),
-  )
-  check("the interrupt itself was reported 'interrupted' (the lead knows why the turn ended)", await waitFor(async () => (await idleNotificationsFor(team)).some(n => n.idleReason === 'interrupted'), 10_000))
-  check("status stays 'running' throughout", task(s.store, s.taskId).status === 'running', task(s.store, s.taskId).status)
-
-  s.lifecycle.abort()
-  const result = await settleWithin(s.runPromise, s, '§7b')
-  drainInto()
-  check('the teammate terminalizes cleanly after the delivered mail', result.success === true && task(s.store, s.taskId).status === 'completed')
-  check('all four replies made it into the conversation', ['S7 reply one.', 'S7 reply two.', 'S7 reply three.', 'S7 reply four.'].every(r => JSON.stringify(result.messages).includes(r)))
-  await s.api.close()
-}
+section('§7b — mail queued while working is delivered AT the interrupt: proven under node by prove-runner-mail-at-interrupt.ts (this leg aborts a held stream; bun parks on that abort)')
 
 section('§8 — a REAL AgentTool.call() completes through the foreground machine')
 {
@@ -675,9 +342,9 @@ section('§8 — a REAL AgentTool.call() completes through the foreground machin
 }
 
 console.log('\n============================================================')
-if (failures === 0) {
+if (failureCount() === 0) {
   console.log(' ✅ RUNNER LIFECYCLE LAWS GREEN')
   process.exit(0)
 }
-console.log(` ❌ ${failures} RUNNER LIFECYCLE FAILURE(S)`)
+console.log(` ❌ ${failureCount()} RUNNER LIFECYCLE FAILURE(S)`)
 process.exit(1)

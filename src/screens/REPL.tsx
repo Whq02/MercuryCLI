@@ -19,7 +19,6 @@ import React, {
 } from 'react';
 import { getOriginalCwd, getProjectRoot, getSessionId } from '../bootstrap/state.js';
 import { commandOffInPlainWorld, commandRetired, commandSeat, getCommandName, isCommandEnabled, type Command, type ResumeEntrypoint } from '../commands.js';
-import { AutoDefaultNotice, AutoDefaultNudgeDialog } from '../components/AutoDefaultDialogs.js';
 import { CostThresholdDialog } from '../components/CostThresholdDialog.js';
 import { ExitFlow } from '../components/ExitFlow.js';
 import { computeUnseenDivider, countUnseenAssistantTurns, FullscreenLayout, useUnseenDivider } from '../components/FullscreenLayout.js';
@@ -109,7 +108,6 @@ import { useAutoModeUnavailableNotification } from '../hooks/notifs/useAutoModeU
 import { useCanSwitchToExistingSubscription } from '../hooks/notifs/useCanSwitchToExistingSubscription.js';
 import { useDeprecationWarningNotification } from '../hooks/notifs/useDeprecationWarningNotification.js';
 import { useLspInitializationNotification } from '../hooks/notifs/useLspInitializationNotification.js';
-import { useModelMigrationNotifications } from '../hooks/notifs/useModelMigrationNotifications.js';
 import { useRateLimitWarningNotification } from '../hooks/notifs/useRateLimitWarningNotification.js';
 import { useSettingsErrors } from '../hooks/notifs/useSettingsErrors.js';
 import { Box, type DOMElement, measureElement, Text, useStdin, useTheme } from '../ink.js';
@@ -188,8 +186,6 @@ import { formatCommandLoadingMetadata, resolveUnknownSlashName, unavailableComma
 import { addToHistory } from '../history.js';
 import { mercuryBootPreflightEnabled, runAndRecordPreflight } from '../utils/healthPreflight.js';
 import { createCommandInputMessage, createUserMessage, extractTag, getUserMessageText, textForResubmit } from '../utils/messages.js';
-import { shouldShowAutoDefaultNotice } from '../utils/permissions/shouldShowAutoDefaultNotice.js';
-import { shouldShowAutoDefaultNudge } from '../utils/permissions/shouldShowAutoDefaultNudge.js';
 import { getTipToShowOnSpinner, recordShownTip } from '../services/tips/tipScheduler.js';
 import { sendNotification } from '../services/notifier.js';
 import { startPreventSleep, stopPreventSleep } from '../services/preventSleep.js';
@@ -286,7 +282,7 @@ const INERT_PROMPT_HELPERS: PromptInputHelpers = {
 
 type PaintsRows = { addDisplayRow?: (row: Message) => void; transcriptFile?: () => string };
 
-type FocusedInputDialog = 'message-selector' | 'tool-permission' | 'elicitation' | 'ide-onboarding' | 'cost-threshold' | 'idle-return' | 'crash-resume' | 'auto-mode';
+type FocusedInputDialog = 'message-selector' | 'tool-permission' | 'elicitation' | 'ide-onboarding' | 'cost-threshold' | 'idle-return' | 'crash-resume';
 
 type ToolJSXState = Parameters<SetToolJSXFn>[0];
 
@@ -309,9 +305,8 @@ function getFocusedInputDialog(args: {
   showCostThreshold: boolean;
   showIdleReturn: boolean;
   showCrashResume: boolean;
-  showAutoModeSurface: boolean;
 }): FocusedInputDialog | undefined {
-  const { isExiting, showMessageSelector, isPromptInputActive, toolJSX, toolUseConfirmQueueLength, elicitationQueueLength, showIdeOnboarding, showCostThreshold, showIdleReturn, showCrashResume, showAutoModeSurface } = args;
+  const { isExiting, showMessageSelector, isPromptInputActive, toolJSX, toolUseConfirmQueueLength, elicitationQueueLength, showIdeOnboarding, showCostThreshold, showIdleReturn, showCrashResume } = args;
   if (isExiting) return undefined;
   if (showMessageSelector) return 'message-selector';
   if (isPromptInputActive) return undefined;
@@ -323,7 +318,6 @@ function getFocusedInputDialog(args: {
   if (showCostThreshold) return 'cost-threshold';
   if (showIdleReturn) return 'idle-return';
   if (showCrashResume) return 'crash-resume';
-  if (showAutoModeSurface) return 'auto-mode';
   return undefined;
 }
 
@@ -718,8 +712,6 @@ export function REPL({
   } | null>(null);
   const crashNoticeLatchedRef = useRef(false);
   const idleCheckLatchedOffRef = useRef(false);
-  const [autoModeSurface, setAutoModeSurface] = useState<'nudge' | 'notice' | null>(null);
-  const [nudgeStagedMode, setNudgeStagedMode] = useState<PermissionMode | null>(null);
   const [frozenTranscriptState, setFrozenTranscriptState] = useState<FrozenTranscriptState | null>(null);
   const [searchBarOpen, setSearchBarOpen] = useState(false);
   const [committedSearchQuery, setCommittedSearchQuery] = useState('');
@@ -939,7 +931,6 @@ export function REPL({
     showCostThreshold,
     showIdleReturn: idleReturnStaged !== null,
     showCrashResume: crashResumeStaged !== null,
-    showAutoModeSurface: autoModeSurface !== null,
   });
   const focusedInputDialogRef = useRef(focusedInputDialog);
   focusedInputDialogRef.current = focusedInputDialog;
@@ -1660,22 +1651,6 @@ export function REPL({
   }, []);
 
   useEffect(() => {
-    void (async () => {
-      try {
-        const nudge = shouldShowAutoDefaultNudge();
-        if (nudge !== null) {
-          setNudgeStagedMode(nudge);
-          setAutoModeSurface('nudge');
-          return;
-        }
-        if (shouldShowAutoDefaultNotice(store.getState().toolPermissionContext.mode)) setAutoModeSurface('notice');
-      } catch {
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
     void apiKeyVerification.reverify().catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1692,7 +1667,6 @@ export function REPL({
     return () => clearTimeout(timer);
   }, []);
 
-  useModelMigrationNotifications();
   useCanSwitchToExistingSubscription();
   useAutoModeUnavailableNotification();
   useSettingsErrors();
@@ -2408,10 +2382,6 @@ export function REPL({
           })();
         }}
       />
-    ) : focusedInputDialog === 'auto-mode' && autoModeSurface === 'nudge' ? (
-      <AutoDefaultNudgeDialog currentMode={nudgeStagedMode ?? toolPermissionContext.mode} onDone={() => setAutoModeSurface(null)} />
-    ) : focusedInputDialog === 'auto-mode' ? (
-      <AutoDefaultNotice onDone={() => setAutoModeSurface(null)} />
     ) : null;
 
   const handleExit = useCallback(() => {

@@ -4,7 +4,7 @@ import { anthropicCredentialPresence } from '../services/providers/providerUsage
 import { buildRouterModelSnapshot } from '../utils/router/modelRegistry.js'
 import { getClaudeAIOAuthTokens, isAnthropicOAuthSignInExpired, isClaudeAISubscriber } from '../utils/auth.js'
 import { getAuthConfigHomeDir } from '../utils/envUtils.js'
-import { readScopeIdentity } from '../utils/accounts/scopeScan.js'
+import { readScopeIdentity, scopeIdentityFile } from '../utils/accounts/scopeScan.js'
 import { LOCAL_UNREACHABLE_REMEDY } from '../services/providers/local/localAccounts.js'
 import type { ScheduleAccountV1, ScheduleAccountVerdictV1 } from './saturn.js'
 
@@ -71,7 +71,7 @@ function productionAnthropicDetail(): AnthropicOauthDetailV1 | null {
     const scopeDir = getAuthConfigHomeDir()
     const identity = ((): string | undefined => {
       try {
-        return readScopeIdentity(join(scopeDir, '.claude.json')).email
+        return readScopeIdentity(scopeIdentityFile(scopeDir)).email
       } catch {
         return undefined
       }

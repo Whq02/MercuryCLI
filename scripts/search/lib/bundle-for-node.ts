@@ -49,7 +49,7 @@ const result = await Bun.build({
   splitting: true,
   sourcemap: 'none',
   plugins: [plugin],
-  loader: { '.md': 'text', '.txt': 'text' },
+  loader: { '.md': 'text', '.txt': 'text', '.sh': 'text', '.py': 'text', '.html': 'text', '.xml': 'text', '.dot': 'text' },
 })
 if (!result.success) {
   for (const log of result.logs) console.error(String(log))
