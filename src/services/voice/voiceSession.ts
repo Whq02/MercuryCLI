@@ -109,10 +109,9 @@ export function voiceTranscriberChoice(): string | null {
 
 export function setVoiceTranscriberChoice(name: string | null): void {
   saveGlobalConfig(config => {
-    const next = { ...config }
-    if (name === null) delete next.voiceTranscriber
-    else next.voiceTranscriber = name
-    return next
+    const next: Record<string, unknown> = { ...config }
+    next.voiceTranscriber = name === null ? undefined : name
+    return next as typeof config
   })
   publish({})
 }
