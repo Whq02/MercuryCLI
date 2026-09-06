@@ -528,15 +528,25 @@ export function completeAgentTask(
 ): void {
   const taskId = result.agentId
   let successorHolds = false
+  let settled: LocalAgentTaskState | undefined
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
     if (heldByAnotherRegistration(task, registration)) {
       successorHolds = true
       return task
     }
     if (task.status !== 'running') return task
+    settled = task
     return terminalPatch(task, 'completed', { result })
   })
   if (!successorHolds) void evictTaskOutput(taskId)
+  if (settled !== undefined) emitSettleFrame(settled, 'completed')
+}
+
+function emitSettleFrame(task: LocalAgentTaskState, status: 'completed' | 'failed'): void {
+  emitTaskTerminatedSdk(task.id, status, {
+    ...(task.toolUseId !== undefined ? { toolUseId: task.toolUseId } : {}),
+    summary: task.description,
+  })
 }
 
 export function failAgentTask(
@@ -546,15 +556,18 @@ export function failAgentTask(
   registration?: AbortController,
 ): void {
   let successorHolds = false
+  let settled: LocalAgentTaskState | undefined
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
     if (heldByAnotherRegistration(task, registration)) {
       successorHolds = true
       return task
     }
     if (task.status !== 'running') return task
+    settled = task
     return terminalPatch(task, 'failed', { error })
   })
   if (!successorHolds) void evictTaskOutput(taskId)
+  if (settled !== undefined) emitSettleFrame(settled, 'failed')
 }
 
 export function killAsyncAgent(
