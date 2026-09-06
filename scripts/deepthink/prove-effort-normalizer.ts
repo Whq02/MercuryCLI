@@ -67,7 +67,8 @@ t('claude-opus-5 serves the whole ladder (max included)', effort.modelSupportsMa
 t('claude-fable-5 serves the whole ladder', effort.modelSupportsMaxEffort('claude-fable-5') && effort.modelSupportsXHighEffort('claude-fable-5'))
 t("claude-opus-4-6 serves max but NOT xhigh (the step-down specimen)", effort.modelSupportsMaxEffort('claude-opus-4-6') && !effort.modelSupportsXHighEffort('claude-opus-4-6'))
 t("getMaxSupportedEffortLevel('claude-opus-5') = max", effort.getMaxSupportedEffortLevel('claude-opus-5') === 'max')
-t('the top served stop on opus-5 is max, and the selectable stops never carry a word above it', (effort.selectableEffortLevels('claude-opus-5') as readonly string[]).indexOf('max') === effort.selectableEffortLevels('claude-opus-5').length - 1 && !(effort.selectableEffortLevels('claude-opus-5') as readonly string[]).includes('ultra'))
+const opusStops = effort.selectableEffortLevelsForLadder('claude-opus-5') as readonly string[]
+t('the top served stop on opus-5 is max, and the ladder-domain stops never carry a word above it', opusStops.indexOf('max') === opusStops.length - 1 && !opusStops.includes('ultra'), JSON.stringify(opusStops))
 
 console.log('— §5 the stamped-truth projection is env-free —')
 process.env.MERCURY_EFFORT_LEVEL = 'low'
