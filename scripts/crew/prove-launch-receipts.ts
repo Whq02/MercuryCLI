@@ -460,6 +460,50 @@ section('R8e · every non-terminal row has a live owner; the exit card counts wh
   check("the background session's abort branch settles its row before it returns", /killAsyncAgent\(taskId, args\.setAppState, 'stopped'\)\n\s*return\n/.test(sessionSrc))
 }
 
+section("R8f · the interrupt receipt counts what the crew view lists: a running workflow is not a 'sub-agent', and a settled agent is not counted")
+{
+  const crew = (await import('../../src/services/engine-connector/crewFacts.ts')) as { crewStillRunningLine: Function }
+  const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
+  const { workCounts, workRowRuns } = await import('../../src/services/engine-connector/workCounts.ts')
+  const wf = (await import('../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.js')) as { registerWorkflowTask: Function }
+  const { completeAgentTask } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+  const store = makeStore()
+  wf.registerWorkflowTask({ taskId: 'wf-live', script: '', workflowRunId: 'wf_live_run', workflowName: 'live-flow', setAppState: store.set })
+  const settled = generateTaskId('local_agent')
+  registerAsyncAgent({ agentId: settled, description: 'settled during the fold', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  completeAgentTask({ agentId: settled }, store.set as never)
+  const roster = projectWorkRoster(store.get().tasks ?? {})
+  const crewViewRows = roster.filter(r => workRowRuns(r) && (r.kind === 'agent' || r.kind === 'named')).length
+  const receiptBefore = roster.filter(r => workRowRuns(r) && (r.kind === 'agent' || r.kind === 'workflow')).length
+  check('the roster holds one running workflow and no running sub-agent — the crew view lists nothing', crewViewRows === 0 && receiptBefore === 1)
+  const counts = workCounts(roster)
+  const line = crew.crewStillRunningLine(counts) as string | null
+  check('the receipt counts by kind: a running workflow is named as one, with its own door, never as a sub-agent', line !== null && /1 workflow run still running/.test(line) && /\/workflows/.test(line) && !/sub-agent/.test(line), String(line))
+  const both = crew.crewStillRunningLine({ ...counts, agents: 2 }) as string | null
+  check('…and sub-agents keep their words and the crew-view door', both !== null && /2 sub-agents still running/.test(both) && /crew view \(\/teammates\)/.test(both) && /1 workflow run/.test(both), String(both))
+  check('…nothing running, no line', crew.crewStillRunningLine({ workflows: 0, agents: 0, teammates: 0, shells: 0, asks: 0 }) === null)
+  const cancel = src('src/hooks/useCancelRequest.ts')
+  check('the interrupt receipt reads the one counting law (workCounts over the roster), never its own filter', /const running = workCounts\(focused\.workRoster\(\)\.rows\)/.test(cancel) && /crewStillRunningLine\(running\)/.test(cancel) && !/row\.kind === 'agent' \|\| row\.kind === 'workflow'/.test(cancel))
+  const { drainSdkEvents } = await import('../../src/utils/sdkEventQueue.ts')
+  const { failAgentTask } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+  drainSdkEvents()
+  const done = generateTaskId('local_agent')
+  registerAsyncAgent({ agentId: done, description: 'settles', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never, toolUseId: 'toolu_settles' })
+  drainSdkEvents()
+  completeAgentTask({ agentId: done }, store.set as never)
+  const completedFrames = drainSdkEvents().filter(e => (e as { subtype?: string; task_id?: string; status?: string }).subtype === 'task_notification' && (e as { task_id?: string }).task_id === done)
+  check("a background agent's completion emits the settle frame once, with its status and tool-use id", completedFrames.length === 1 && (completedFrames[0] as { status?: string }).status === 'completed' && (completedFrames[0] as { tool_use_id?: string }).tool_use_id === 'toolu_settles', JSON.stringify(completedFrames).slice(0, 200))
+  const failedId = generateTaskId('local_agent')
+  const failedTask = registerAsyncAgent({ agentId: failedId, description: 'fails', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  drainSdkEvents()
+  failAgentTask(failedId, 'boom', store.set as never)
+  const failedFrames = drainSdkEvents().filter(e => (e as { subtype?: string; task_id?: string }).subtype === 'task_notification' && (e as { task_id?: string }).task_id === failedId)
+  check("…and a failure emits it with 'failed'", failedFrames.length === 1 && (failedFrames[0] as { status?: string }).status === 'failed')
+  failAgentTask(failedId, 'again', store.set as never)
+  check('…a settle that lands nothing emits nothing', drainSdkEvents().filter(e => (e as { task_id?: string }).task_id === failedId).length === 0)
+  void failedTask
+}
+
 section('R9 · one status per agent — the inspection verbs read one fact, on the registry or on disk')
 const { agentAdapter } = await import('../../src/services/resources/adapters/agent.ts')
 const { transcriptAdapter } = await import('../../src/services/resources/adapters/transcript.ts')

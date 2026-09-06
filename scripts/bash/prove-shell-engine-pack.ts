@@ -149,6 +149,63 @@ section('§4 the built bundle: manifest record, doctor row, prompt sentence')
   }
 }
 
+section('§5 the loop script uses only builtins the Windows engine build has')
+{
+  const { loopScript } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+  const script: string = loopScript()
+  check('the loop names no exec', !/(^|[\s;|&(])exec(\s|$)/m.test(script))
+  check('the loop opens no numbered descriptor beyond 0-2', !/[<>]&[3-9]/.test(script) && !/(^|\s)[3-9][<>]/.test(script))
+  check('the loop never names /dev/null', !script.includes('/dev/null'))
+  check("the loop reads newline-delimited frames (no NUL delimiter)", !/read\s[^\n]*-d\s*''/.test(script))
+  const ALLOWED = new Set(['read', 'eval', 'printf', 'pwd', 'cd', ':', '__brush_run'])
+  const words: string[] = []
+  const visit = (text: string): void => {
+    const fn = /^\s*([A-Za-z_][A-Za-z0-9_]*)\(\)\s*\{\s*([\s\S]*)\}\s*$/.exec(text)
+    if (fn) {
+      visit(fn[2] ?? '')
+      return
+    }
+    for (const piece of text.split(/\|\||&&|;|\|/)) {
+      let seg = piece.trim()
+      if (seg === '' || seg === '__BRUSH_STDIN__') continue
+      for (const inner of seg.matchAll(/\$\(([^()]*)\)/g)) visit(inner[1] ?? '')
+      for (;;) {
+        const assignment = /^[A-Za-z_][A-Za-z0-9_]*=(\$\([^)]*\)|'[^']*'|"[^"]*"|[^\s]*)\s*/.exec(seg)
+        if (assignment) {
+          seg = seg.slice(assignment[0].length)
+          continue
+        }
+        const keyword = /^(while|do|done|if|then|else|fi|!)(\s+|$)/.exec(seg)
+        if (keyword) {
+          seg = seg.slice(keyword[0].length)
+          continue
+        }
+        break
+      }
+      if (seg === '') continue
+      words.push(seg.split(/\s+/)[0] ?? '')
+    }
+  }
+  for (const line of script.split('\n')) visit(line)
+  const foreign = words.filter(w => !ALLOWED.has(w))
+  check(`every command word is one of ${[...ALLOWED].join(' · ')} (${words.length} words read)`, words.length > 0 && foreign.length === 0, foreign.join(', '))
+}
+
+section('§6 the directory a frame reports reaches the session in its native form')
+{
+  const { recordedCwdToNative } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+  const { stripExtendedLengthPrefix, nativeCwdFromShellRecord } = await import(join(ROOT, 'src/utils/windowsPaths.ts'))
+  const ext = '\\\\?\\C:\\Users\\x\\AppData\\Local\\Temp\\brush-cwd-1'
+  check('the extended-length prefix is stripped to the plain drive path', stripExtendedLengthPrefix(ext) === 'C:\\Users\\x\\AppData\\Local\\Temp\\brush-cwd-1', stripExtendedLengthPrefix(ext))
+  check('…and the UNC form to the plain UNC path', stripExtendedLengthPrefix('\\\\?\\UNC\\server\\share\\dir') === '\\\\server\\share\\dir', stripExtendedLengthPrefix('\\\\?\\UNC\\server\\share\\dir'))
+  check('a plain drive path and a POSIX path pass through untouched', stripExtendedLengthPrefix('C:\\dir') === 'C:\\dir' && stripExtendedLengthPrefix('/private/tmp/x') === '/private/tmp/x')
+  const viaRecord = nativeCwdFromShellRecord(ext)
+  check("the classic road's converter hands back the plain drive path for the shell's extended answer", 'path' in viaRecord && viaRecord.path === 'C:\\Users\\x\\AppData\\Local\\Temp\\brush-cwd-1', JSON.stringify(viaRecord))
+  check('the engine records the plain drive path on Windows', recordedCwdToNative(ext, 'windows') === 'C:\\Users\\x\\AppData\\Local\\Temp\\brush-cwd-1', String(recordedCwdToNative(ext, 'windows')))
+  check('a POSIX temp path is the record untouched off Windows', recordedCwdToNative('/private/tmp/brush-cwd-2', 'macos') === '/private/tmp/brush-cwd-2' && recordedCwdToNative('/private/tmp/brush-cwd-2', 'linux') === '/private/tmp/brush-cwd-2')
+  check("an MSYS virtual root the converter cannot place is refused: the session keeps its own directory (null)", recordedCwdToNative('/tmp', 'windows') === null)
+}
+
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '✅ ALL SHELL-ENGINE PACK PROOFS PASS' : `❌ ${failures} SHELL-ENGINE PACK PROOF(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

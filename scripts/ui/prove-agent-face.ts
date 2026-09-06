@@ -782,7 +782,7 @@ t.section('§8 — THE SIGN-IN WALK, DRIVEN (AGENTVERIFY A3: the face swap on a 
       stdin,
       patchConsole: false,
     })
-    await settle(90)
+    for (let i = 0; i < 60 && !frameText().includes('n new'); i++) await settle(30)
     t.check('the library mounts under keys', frameText().includes('n new'))
 
     const modelRowIdx = agentFormRowIds('create').indexOf('model')

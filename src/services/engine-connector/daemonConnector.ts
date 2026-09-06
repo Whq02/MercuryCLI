@@ -720,6 +720,13 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.paint()
   }
 
+  private releaseDisplayRowsPast(since: number): void {
+    const kept = this.displayRows.filter(d => d.anchor <= since)
+    if (kept.length === this.displayRows.length) return
+    connectorTrace({ ev: 'display-release', sid: this.record.sessionId, since, released: this.displayRows.length - kept.length, display: kept.length })
+    this.displayRows = kept
+  }
+
   transcriptFile(): string {
     return this.transcriptPath
   }
@@ -804,6 +811,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       connectorTrace({ ev: 'load', sid: this.record.sessionId, rawLen: raw.length, reusedAll: merge.reusedAll, prevLen: this.rawRecords.length, since: chain.since, rewound: chain.rewound })
       if (merge.reusedAll) return
       this.rawRecords = merge.records
+      if (chain.rewound) this.releaseDisplayRowsPast(chain.since)
       this.liveState = this.liveFold.fold(this.rawRecords, chain.since)
       this.reconcileSends()
       this.paint()
