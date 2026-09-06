@@ -79,6 +79,7 @@ type LiveSession = {
   onExit: ((code: number | null) => void) | null
   exited: boolean
   sandboxed: boolean
+  stderrBuf: Buffer
 }
 
 let session: LiveSession | null = null
@@ -160,13 +161,16 @@ async function spawnSession(binaryPath: string, sandbox: EngineSandboxPolicy): P
     onExit: null,
     exited: false,
     sandboxed: sandbox.enabled,
+    stderrBuf: Buffer.alloc(0),
   }
 
   live.child.stdout?.on('data', (chunk: Buffer) => {
     live.buffer = live.buffer.length === 0 ? Buffer.from(chunk) : Buffer.concat([live.buffer, chunk])
     live.reader?.()
   })
-  live.child.stderr?.on('data', () => {})
+  live.child.stderr?.on('data', (chunk: Buffer) => {
+    live.stderrBuf = live.stderrBuf.length === 0 ? Buffer.from(chunk) : Buffer.concat([live.stderrBuf, chunk])
+  })
   live.child.once('exit', code => {
     live.exited = true
     live.onExit?.(code)
@@ -185,6 +189,7 @@ async function spawnSession(binaryPath: string, sandbox: EngineSandboxPolicy): P
   const preamble = getGlobPreambleCommand(binaryPath)
   if (preamble) seeds.push(preamble)
   if (seeds.length > 0) {
+    live.stderrBuf = Buffer.alloc(0)
     live.child.stdin?.write(encodeFrame(seeds.join('\n')))
     await drainOneFrame(live)
   }
@@ -346,6 +351,10 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
         if (onAbort) options.signal.removeEventListener('abort', onAbort)
         live.reader = null
         live.onExit = null
+        await new Promise<void>(r => setImmediate(r))
+        const externalStderr = live.stderrBuf.toString('utf8')
+        live.stderrBuf = Buffer.alloc(0)
+        if (externalStderr.length > 0) taskOutput.writeStdout(externalStderr)
         await taskOutput.flush().catch(() => {})
         const stdout = await taskOutput.getStdout()
         settle({ stdout, stderr: withInherited(partial.stderr, partial.interrupted), code: partial.code, interrupted: partial.interrupted })
@@ -389,6 +398,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       }
       options.signal.addEventListener('abort', onAbort, { once: true })
 
+      live.stderrBuf = Buffer.alloc(0)
       try {
         live.child.stdin?.write(encodeFrame(payload))
       } catch (error) {

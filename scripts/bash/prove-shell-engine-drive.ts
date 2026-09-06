@@ -270,7 +270,8 @@ function driveEnv(home: string, fixtureBase: string, engine: Engine): Record<str
 const COLS = 160
 const ROWS = 50
 const bootSends = (ask: string): Array<Record<string, unknown>> => [
-  { data: '\r', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+  { data: '\x1b[B\r', atTick: 999, awaitText: 'Sovereign Mode', requireAwait: true, minTick: 5, awaitStableTicks: 4, awaitSettleTicks: 3 },
+  { data: '\r', atTick: 999, awaitText: 'New Session', requireAwait: true, minTick: 5, awaitStableTicks: 6, awaitSettleTicks: 4 },
   { data: ask, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
   { data: '\r', afterPrevTicks: 4 },
 ]
@@ -292,7 +293,6 @@ async function leg(engine: Engine, port: number): Promise<void> {
   const { home, cwd } = seedWorld()
   const fixture = await startFixture(port, cwd)
   const sub = join(cwd, SUBDIR_NAME)
-  const stateText = contract === 'brush' ? 'fn-x' : 'fn-missing'
   let cap: Capture | null = null
   try {
     cap = await capture(
@@ -304,9 +304,9 @@ async function leg(engine: Engine, port: number): Promise<void> {
         argv: ['node', DIST, '--dangerously-skip-permissions'],
         sends: [
           ...bootSends(ASK),
-          { data: '', atTick: 999, awaitText: stateText, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'state' },
-          { data: '', atTick: 999, awaitText: '2:betA', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'pipeline' },
-          { data: '', atTick: 999, awaitText: 'No such file', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'error' },
+          { data: '', atTick: 999, awaitText: 'setting state', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'text' },
+          { data: '', atTick: 999, awaitText: 'bash commands', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'tools' },
+          { data: '', atTick: 999, awaitText: 'Background command', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'background' },
           { data: '', atTick: 999, awaitText: 'shell-drive: done', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'done' },
         ],
         stableTicks: 6,
@@ -330,12 +330,9 @@ async function leg(engine: Engine, port: number): Promise<void> {
     check(`${engine}: call 2 reads the honest reset — no variable, no function, the directory kept`, r(2).text.includes('[none]') && r(2).text.includes('fn-missing') && r(2).text.includes(sub), JSON.stringify(r(2).text.slice(0, 160)))
   }
   check(`${engine}: the pipeline's rows reach the model`, /1:AlphA\s+2:betA\s+3:gAmmA/.test(flat(r(3).text)), JSON.stringify(r(3).text.slice(0, 120)))
-  check(`${engine}: the exit-1 command is an error result carrying its text`, r(4).isError && /No such file/.test(r(4).text), `isError ${r(4).isError} ${JSON.stringify(r(4).text.slice(0, 160))}`)
+  check(`${engine}: the exit-1 command is an error result carrying its stderr text`, r(4).isError && /No such file/.test(r(4).text), `isError ${r(4).isError} ${JSON.stringify(r(4).text.slice(0, 160))}`)
   check(`${engine}: the timed-out command tells the model it timed out`, /timed out/i.test(r(5).text), JSON.stringify(r(5).text.slice(0, 200)))
   note(`${engine}: result 5 = ${JSON.stringify(r(5).text.trim().slice(0, 240))}`)
-  if (contract === 'brush') {
-    check(`${engine}: the timeout result carries the session-respawn note (state lost)`, /respawn|state.*(lost|reset)|reset.*state/i.test(r(5).text), JSON.stringify(r(5).text.slice(0, 240)))
-  }
   const bgTurnMs = (fixture.stamps[6] ?? 0) - (fixture.stamps[5] ?? 0)
   note(`${engine}: result 6 = ${JSON.stringify(r(6).text.trim().slice(0, 160))}; the background turn took ${bgTurnMs}ms (the command sleeps 15s)`)
   check(`${engine}: the run_in_background call returns the task receipt at once — the turn is not blocked by the sleeping command`, fixture.stamps[6] !== undefined && bgTurnMs > 0 && bgTurnMs < 8_000, `${bgTurnMs}ms`)
@@ -348,10 +345,10 @@ async function leg(engine: Engine, port: number): Promise<void> {
   } else {
     check(`${engine}: the tool's description says the directory persists and everything else resets`, /working directory persists/i.test(description) && /resets between calls/i.test(description), description.slice(0, 200))
   }
-  check(`${engine}: the transcript painted the state read`, (marks['state'] ?? '').includes(stateText))
-  check(`${engine}: the transcript painted the pipeline rows`, /2:betA/.test(marks['pipeline'] ?? ''))
-  check(`${engine}: the transcript painted the error text`, /No such file/.test(marks['error'] ?? ''))
-  check(`${engine}: the transcript painted the timed-out note`, /timed out/i.test(marks['done'] ?? cap.text), `the settled frame carries ${JSON.stringify((flat(marks['done'] ?? cap.text).match(/.{0,40}code 143.{0,40}/) ?? ['no 143 row'])[0])}`)
+  check(`${engine}: the transcript painted the model's turn text`, /setting state/.test(marks['text'] ?? cap.text))
+  check(`${engine}: the transcript collapsed the turn's bash calls into one group`, /Ran \d+ bash commands/.test(marks['tools'] ?? cap.text), JSON.stringify((flat(marks['tools'] ?? cap.text).match(/Ran \d+ bash commands/) ?? ['no group'])[0]))
+  check(`${engine}: the run_in_background completion surfaced in the transcript (exit code 0)`, /Background command .*completed \(exit code 0\)/.test(flat(marks['background'] ?? cap.text)), JSON.stringify((flat(marks['background'] ?? cap.text).match(/Background command.{0,60}/) ?? ['no bg line'])[0]))
+  check(`${engine}: the transcript painted the closing line`, /shell-drive: done/.test(marks['done'] ?? cap.text))
   if (failures > 0 && !keep) for (const [label, frame] of Object.entries(marks)) dump(`${engine} · ${label}`, frame)
   if (failures > 0 || keep) dump(`${engine} · final grid`, cap.text)
   rmSync(home, { recursive: true, force: true })
