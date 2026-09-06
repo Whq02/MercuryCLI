@@ -4,6 +4,7 @@ import type { DOMElement } from '../../ink.js'
 import { Box, Text, useAnimationValue } from '../../ink.js'
 import { nodeCache } from '../../ink/node-cache.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
+import { useIdleMotion } from '../../hooks/useIdleMotion.js'
 import {
   critterGazeEnabled,
   gazeKeyForPointer,
@@ -17,12 +18,10 @@ import {
   BREATH_BUCKETS,
   BREATH_TICK_MS,
   breathBucket,
-  critterIdleEnabled,
+  critterIdleTickMs,
   EYE_OPEN,
   EYE_SHUT,
-  IDLE_TICK_MS,
   readCritterFrameKey,
-  SLEEP_TICK_MS,
 } from '../../utils/cockpit/critterIdle.js'
 import {
   critterLiveFrameKey,
@@ -37,12 +36,12 @@ import { CritterArt } from './CritterArt.js'
 
 
 function useIdleAnimation<T extends string | number>(
-  intervalMs: number,
+  intervalMs: number | null,
   derive: (timeMs: number) => T,
   enabled = true,
 ): { animate: boolean; ref: unknown; value: T } {
   const motionOk =
-    critterIdleEnabled() && !(getInitialSettings().prefersReducedMotion ?? false)
+    intervalMs !== null && !(getInitialSettings().prefersReducedMotion ?? false)
   const animate = motionOk && enabled
   const [ref, value] = useAnimationValue(animate ? intervalMs : null, derive)
   return { animate, ref, value }
@@ -68,8 +67,9 @@ export function AnimatedCritterArt({ def, chunky = false, hero = false, wide = f
     const asleepNow = critterSleepSince() !== 0 && (!specimen || critterSleepMode() === 'forced')
     return `${key[0] ?? ''}${effectiveSwayPhase(def, form, asleepNow, sampled.swayPhase)}${key[2] ?? ''}`
   }, [def, form, specimen])
+  const motionLevel = useIdleMotion('critter')
   const { animate, ref, value: frameKey } = useIdleAnimation(
-    asleep ? SLEEP_TICK_MS : IDLE_TICK_MS,
+    critterIdleTickMs(motionLevel, asleep),
     frameDerive,
     true,
   )
@@ -127,7 +127,11 @@ export function AnimatedCritterArt({ def, chunky = false, hero = false, wide = f
 }
 
 export function BreathingDot(): React.ReactNode {
-  const { animate, ref, value: bucket } = useIdleAnimation(BREATH_TICK_MS, breathBucket)
+  const motionLevel = useIdleMotion('critter')
+  const { animate, ref, value: bucket } = useIdleAnimation(
+    motionLevel === 'full' ? BREATH_TICK_MS : null,
+    breathBucket,
+  )
   if (!animate) return <Text color={TEAL}>●</Text>
   const color = lerpHex(FAINT, TEAL, 0.45 + 0.55 * (bucket / BREATH_BUCKETS))
   return (

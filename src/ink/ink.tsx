@@ -14,6 +14,7 @@ import { isMouseTrackingEnabled as mouseTrackingEnabledByEnvironment } from '../
 import { logError } from '../utils/log.js'
 import { notePulseFrameWritten } from '../utils/pulse/turnTrace.js'
 import { applyPointerShape, resetPointerShape } from '../utils/cockpit/pointerShape.js'
+import { burnFrameCostPad, noteFrameCost } from '../utils/cockpit/motionGovernor.js'
 import {
   CharPool,
   charInCellAt,
@@ -649,6 +650,7 @@ export default class Ink {
 
   private renderFrame(): void {
     const frameStart = performance.now()
+    burnFrameCostPad()
     fluxMark('paint:entry')
     this.scheduler.onRenderEntry()
     flushInteractionTime()
@@ -851,6 +853,7 @@ export default class Ink {
 
     const durationMs = performance.now() - frameStart
     this.engine?.notePaintCost(durationMs, 'normal')
+    noteFrameCost(durationMs)
     fluxFrame(durationMs, patches.length)
     const commitMs = getLastCommitMs()
     const yogaMs = getLastYogaMs()

@@ -28,6 +28,8 @@ import { FLAG_ICON } from '../constants/figures.js'
 import { chatOnlyBoot } from '../context/surfaceRoute.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import { needsYouJump } from './mercury-ui/needsYouJump.js'
+import { useIdleMotion } from '../hooks/useIdleMotion.js'
+import { motionPosture } from '../utils/cockpit/motionGovernor.js'
 import '../services/crew/obligationsBridge.js'
 import '../services/workbench/attentionBridge.js'
 import { isDeckPaneActive } from '../utils/fullscreen.js'
@@ -159,6 +161,15 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
         <Sep />
         <Text color={tok.warning}>{FLAG_ICON} {needsYouCount(attentionView.needsYou)}</Text>
         <Text color={tok.textMuted}> · {needsJump}</Text>
+      </Text>
+    ) : null
+
+  const motionLevel = useIdleMotion('clock')
+  const motionNode =
+    motionLevel === 'reduced' ? (
+      <Text>
+        <Sep />
+        <Text color={motionPosture() === 'auto' ? tok.warning : tok.textSecondary}>reduced</Text>
       </Text>
     ) : null
 
@@ -436,6 +447,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
         ) : null}
         {turnsNode}
         {needsNode}
+        {motionNode}
         {
 }
         {wfNode}
