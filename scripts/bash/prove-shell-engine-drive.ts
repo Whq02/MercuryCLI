@@ -22,7 +22,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const note = (text: string): void => console.log(`        note: ${text}`)
 
-const ASK = 'shell-drive: run the five'
+const ASK = 'shell-drive: run the six'
 const lane = engineLaneState()
 
 interface ToolResultSeen {
@@ -34,6 +34,7 @@ interface Fixture {
   base: string
   results: ToolResultSeen[]
   descriptions: string[]
+  stamps: Record<number, number>
   close(): Promise<void>
 }
 
@@ -129,6 +130,8 @@ function callFor(count: number, cwd: string): Block[] | null {
       return [{ type: 'tool_use', name: 'Bash', input: { command: `ls "${join(cwd, MISSING_DIR)}"`, description: 'a command that fails' } }]
     case 4:
       return [{ type: 'tool_use', name: 'Bash', input: { command: 'sleep 30', timeout: 3000, description: 'a command past its timeout' } }]
+    case 5:
+      return [{ type: 'tool_use', name: 'Bash', input: { command: 'sleep 15; echo bg-done', run_in_background: true, description: 'a background call' } }]
     default:
       return null
   }
@@ -137,6 +140,7 @@ function callFor(count: number, cwd: string): Block[] | null {
 async function startFixture(port: number, cwd: string): Promise<Fixture> {
   const results: ToolResultSeen[] = []
   const descriptions: string[] = []
+  const stamps: Record<number, number> = {}
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = []
     req.on('data', c => chunks.push(c))
@@ -160,6 +164,7 @@ async function startFixture(port: number, cwd: string): Promise<Fixture> {
         blocks = [{ type: 'text', text: 'ok' }]
       } else {
         const seen = toolResults(body)
+        stamps[seen.length] ??= Date.now()
         for (const r of seen) if (!results.some(k => k.index === r.index)) results.push(r)
         const description = bashDescription(body)
         if (description !== null && !descriptions.includes(description)) descriptions.push(description)
@@ -174,6 +179,7 @@ async function startFixture(port: number, cwd: string): Promise<Fixture> {
     base: `http://127.0.0.1:${port}`,
     results,
     descriptions,
+    stamps,
     close: () => new Promise<void>(resolve => server.close(() => resolve())),
   }
 }
@@ -315,7 +321,7 @@ async function leg(engine: Engine, port: number): Promise<void> {
   if (keep) for (const [label, frame] of Object.entries(marks)) dump(`${engine} · ${label}`, frame)
   check(`${engine}: every send became due (the frames the sends waited on all painted)`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
   const results = fixture.results
-  check(`${engine}: the model saw five tool results on the wire`, results.length === 5, `${results.length}: ${results.map(r => JSON.stringify(r.text.slice(0, 40))).join(' ')}`)
+  check(`${engine}: the model saw six tool results on the wire`, results.length === 6, `${results.length}: ${results.map(r => JSON.stringify(r.text.slice(0, 40))).join(' ')}`)
   const r = (n: number): ToolResultSeen => results[n - 1] ?? { index: n, text: '', isError: false }
   note(`${engine}: result 2 = ${JSON.stringify(r(2).text.trim())}`)
   if (contract === 'brush') {
@@ -330,10 +336,15 @@ async function leg(engine: Engine, port: number): Promise<void> {
   if (contract === 'brush') {
     check(`${engine}: the timeout result carries the session-respawn note (state lost)`, /respawn|state.*(lost|reset)|reset.*state/i.test(r(5).text), JSON.stringify(r(5).text.slice(0, 240)))
   }
+  const bgTurnMs = (fixture.stamps[6] ?? 0) - (fixture.stamps[5] ?? 0)
+  note(`${engine}: result 6 = ${JSON.stringify(r(6).text.trim().slice(0, 160))}; the background turn took ${bgTurnMs}ms (the command sleeps 15s)`)
+  check(`${engine}: the run_in_background call returns the task receipt at once — the turn is not blocked by the sleeping command`, fixture.stamps[6] !== undefined && bgTurnMs > 0 && bgTurnMs < 8_000, `${bgTurnMs}ms`)
+  check(`${engine}: the receipt names the background task`, /background/i.test(r(6).text), JSON.stringify(r(6).text.slice(0, 160)))
   const description = fixture.descriptions[0] ?? ''
   note(`${engine}: the tool's word — ${JSON.stringify((description.match(/[^.]*(persist|reset)[^.]*\./i) ?? [''])[0].trim())}`)
   if (contract === 'brush') {
     check(`${engine}: the tool's description says state persists across calls`, /persist/i.test(description) && !/resets between calls/i.test(description), description.slice(0, 200))
+    check(`${engine}: the tool's description says a run_in_background call runs in its own shell`, /run_in_background.*own shell/i.test(description), description.slice(0, 200))
   } else {
     check(`${engine}: the tool's description says the directory persists and everything else resets`, /working directory persists/i.test(description) && /resets between calls/i.test(description), description.slice(0, 200))
   }
