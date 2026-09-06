@@ -6,6 +6,7 @@ export const RETIRED_GLOBAL_CONFIG_KEYS: Readonly<Record<string, string>> = {
 export const DROPPED_GLOBAL_CONFIG_KEYS: readonly string[] = [
   'clientDataCache',
   'additionalModelOptionsCache',
+  'startupPrefetchedAt',
 ]
 
 export const RETIRED_PROJECT_CONFIG_KEYS: Readonly<Record<string, string>> = {

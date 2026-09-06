@@ -23,8 +23,6 @@ import { MERCURY_VERSION } from './constants/product.js'
 import { getSystemContext, getUserContext } from './context.js'
 import { initBundledSkills } from './skills/bundled/index.js'
 import { launchRepl } from './replLauncher.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from './services/analytics/featureGates.js'
-import { checkQuotaStatus } from './services/claudeAiLimits.js'
 import { getInstructionFiles } from './services/instructions/engine.js'
 import { initializeLspServerManager } from './services/lsp/manager.js'
 import { fetchClaudeAIMcpConfigsIfEligible } from './services/mcp/claudeai.js'
@@ -1824,9 +1822,6 @@ async function interactiveLaunch(args: {
   registerBackgroundNode('lsp-manager', async () => {
     initializeLspServerManager()
   })
-  registerBackgroundNode('startup-prefetch-batch', async () => {
-    await runStartupPrefetchBatch()
-  })
   registerBackgroundNode('usage-poll', async () => {
     const { armProviderUsagePoll } = await import('./services/providers/providerUsage.js')
     const { declaredRouteOf } = await import('./services/providers/callModelRouter.js')
@@ -2089,23 +2084,6 @@ async function interactiveLaunch(args: {
 
 function assistantBridgeSeed(): boolean {
   return false
-}
-
-async function runStartupPrefetchBatch(): Promise<void> {
-  if (isBareMode()) {
-    logForDebugging('startup prefetch batch skipped: bare mode')
-    return
-  }
-  const throttleMs = Number(getFeatureValue_CACHED_MAY_BE_STALE('mercury_cicada_nap_ms', 0))
-  const lastRunAt = getGlobalConfig().startupPrefetchedAt ?? 0
-  if (throttleMs > 0 && Date.now() - lastRunAt < throttleMs) {
-    logForDebugging('startup prefetch batch skipped: within the throttle interval')
-    return
-  }
-  await checkQuotaStatus().catch((error: unknown) => logError(error))
-  if (throttleMs > 0) {
-    saveGlobalConfig(current => ({ ...current, startupPrefetchedAt: Date.now() }))
-  }
 }
 
 async function connectMcpBatch(
