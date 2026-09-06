@@ -19,7 +19,7 @@ const settings = await import('../../src/utils/settings/settings.js')
 console.log('— the persistable ladder —')
 t("toPersistableEffort('max') persists (the task-#11 flip)", effort.toPersistableEffort('max') === 'max')
 t("toPersistableEffort('xhigh') still persists", effort.toPersistableEffort('xhigh') === 'xhigh')
-t("toPersistableEffort('ultra') persists (the sixth word)", effort.toPersistableEffort('ultra') === 'ultra')
+t('a word above the ladder never persists (the ladder ends at max)', effort.toPersistableEffort('ultra' as never) === undefined)
 t('numeric (ant-only) values never persist', effort.toPersistableEffort(3) === undefined)
 t('undefined stays undefined', effort.toPersistableEffort(undefined) === undefined)
 
@@ -64,12 +64,9 @@ const raw3 = JSON.parse(readFileSync(join(home, settingsFile!), 'utf8')) as Reco
 t('auto deletes both keys on disk', !('effortLevel' in raw3) && !('supercodeEffort' in raw3))
 t('getInitialEffortSetting reads auto (undefined)', effort.getInitialEffortSetting() === undefined)
 
-console.log('— the sixth word round-trips through the schema (write → disk → boot read) —')
-const w4 = settings.updateSettingsForSource('userSettings', { effortLevel: 'ultra', supercodeEffort: undefined })
-t('ultra write lands', w4.error === null, String(w4.error))
-const raw4 = JSON.parse(readFileSync(join(home, settingsFile!), 'utf8')) as Record<string, unknown>
-t('disk carries effortLevel ultra', raw4.effortLevel === 'ultra')
-t('getInitialEffortSetting reads ultra back (the schema admits the word)', effort.getInitialEffortSetting() === 'ultra')
+console.log('— a stored word above the ladder degrades to absent (an earlier release wrote it; the schema no longer admits it) —')
+const w4 = settings.updateSettingsForSource('userSettings', { effortLevel: 'ultra' as never, supercodeEffort: undefined })
+t('a stored word off the ladder never reaches the boot read: the write is refused typed, or it lands and the read answers auto (undefined) — never the word, never a crash', w4.error !== null || effort.getInitialEffortSetting() === undefined, `error=${String(w4.error)} read=${String(effort.getInitialEffortSetting())}`)
 
 console.log('— the wiring (command + boot seeds + chip stay honest) —')
 const effortCmd = readFileSync('src/commands/effort/effort.tsx', 'utf8')
