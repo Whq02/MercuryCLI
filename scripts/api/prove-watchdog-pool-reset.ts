@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.API_TIMEOUT_MS = '2500'
+process.env.MERCURY_API_TIMEOUT_MS = '2500'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const ROOT = join(import.meta.dir, '..', '..')

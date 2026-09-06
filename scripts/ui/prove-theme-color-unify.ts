@@ -36,7 +36,7 @@ section('behaviour: chart series === legend bullet (the desync is closed)')
   PACKAGE_URL: '',
   README_URL: '',
   IS_DEV: false,
-  IS_DEMO: false,
+  MERCURY_DEMO: false,
 }
 process.env.FORCE_COLOR = '3'
 
@@ -93,7 +93,7 @@ check('the NEW chart path does NOT return magenta for that ansi: color', theme.t
 
 section('behaviour: NO_COLOR (chalk level 0) — no magenta leak, chart === legend')
 const childScript =
-  `globalThis.MACRO={VERSION:'1.0.0',ISSUES_EXPLAINER:'',PACKAGE_URL:'',README_URL:'',IS_DEV:false,IS_DEMO:false};` +
+  `globalThis.MACRO={VERSION:'1.0.0',ISSUES_EXPLAINER:'',PACKAGE_URL:'',README_URL:'',IS_DEV:false,MERCURY_DEMO:false};` +
   `const t=await import(${JSON.stringify(join(root, 'src', 'utils', 'theme.ts'))});` +
   `const c=await import(${JSON.stringify(join(root, 'src', 'ink', 'colorize.ts'))});` +
   `const out={};for(const color of ['#DE4A35','rgb(87,105,247)','ansi:blueBright']){` +

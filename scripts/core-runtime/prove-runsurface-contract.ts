@@ -12,19 +12,19 @@ process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'runsurface-daemon-'
 process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'runsurface-teams-'))
 const ENGINE_CWD = mkdtempSync(join(tmpdir(), 'runsurface-cwd-'))
 for (const k of [
-  'MERCURY_SIMPLE',
+  'MERCURY_BARE',
   'MERCURY_EFFORT_LEVEL',
   'MERCURY_MAX_OUTPUT_TOKENS',
   'MERCURY_BLOCKING_LIMIT_OVERRIDE',
   'MERCURY_EAGER_FLUSH',
-  'MAX_STRUCTURED_OUTPUT_RETRIES',
+  'MERCURY_STRUCTURED_OUTPUT_RETRIES',
   'MERCURY_RELEVANT_RECALL',
   'HERMES_ULTRATHINK_MAX',
   'MERCURY_FORCE_READ_FILES',
   'CLAUDE_TEAM_NAME',
   'CLAUDE_AGENT_NAME',
-  'DISABLE_COMPACT',
-  'DISABLE_AUTO_COMPACT',
+  'MERCURY_COMPACT',
+  'MERCURY_AUTO_COMPACT',
   'NODE_ENV',
 ]) {
   delete process.env[k]
@@ -1107,7 +1107,7 @@ section('P4 handleSetPermissionMode — autopilot refused, bypass gated, success
   check(
     'sovereign is refused without the launch-time eligibility',
     resp2.subtype === 'error' &&
-      String(resp2.error).includes('--dangerously-skip-permissions'),
+      String(resp2.error).includes('--dangerously-bypass-permissions'),
     JSON.stringify(resp2),
   )
 

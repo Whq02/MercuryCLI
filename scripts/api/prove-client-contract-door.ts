@@ -12,7 +12,7 @@ process.env.MERCURY_CONFIG_DIR = scratch
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
 delete process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
 delete process.env.ANTHROPIC_BASE_URL
-delete process.env.ANTHROPIC_CUSTOM_HEADERS
+delete process.env.MERCURY_PROVIDER_HEADERS
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

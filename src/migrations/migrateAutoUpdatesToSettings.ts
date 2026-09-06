@@ -1,8 +1,5 @@
-//  global config into user settings (env.DISABLE_AUTOUPDATER = "1"). The
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
-import { getSettingsForSource, updateSettingsForSource } from '../utils/settings/settings.js'
 import { logError } from '../utils/log.js'
-import { settingsWriteLanded } from './settingsWriteLanded.js'
 
 type RetiredAutoUpdateKeys = {
   autoUpdates?: boolean
@@ -12,16 +9,7 @@ type RetiredAutoUpdateKeys = {
 export function migrateAutoUpdatesToSettings(): boolean {
   try {
     const config = getGlobalConfig() as ReturnType<typeof getGlobalConfig> & RetiredAutoUpdateKeys
-    if (config.autoUpdates !== false) return true
-    if (config.autoUpdatesProtectedForNative === true) return true
-
-    const settings = getSettingsForSource('userSettings') ?? {}
-    const verdict = updateSettingsForSource('userSettings', {
-      env: { ...(settings.env ?? {}), DISABLE_AUTOUPDATER: '1' },
-    })
-    if (!settingsWriteLanded('A.1 auto-update opt-out', verdict)) return false
-    process.env.DISABLE_AUTOUPDATER = '1'
-
+    if (config.autoUpdates === undefined && config.autoUpdatesProtectedForNative === undefined) return true
     saveGlobalConfig(current => {
       const next = { ...current } as typeof current & RetiredAutoUpdateKeys
       delete next.autoUpdates
@@ -30,7 +18,7 @@ export function migrateAutoUpdatesToSettings(): boolean {
     })
     return true
   } catch (error) {
-    logError(`auto-update settings migration failed: ${String(error)}`)
+    logError(`auto-update key retirement failed: ${String(error)}`)
     return false
   }
 }

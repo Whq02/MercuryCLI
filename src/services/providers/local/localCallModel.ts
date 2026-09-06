@@ -36,7 +36,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
       const OUTPUT_FLOOR = 1024
       if (estTokens + OUTPUT_FLOOR <= window) return undefined
       const sourceWords = localContextSourceWords(record.contextWindow!.source)
-      return `the composed request (≈${Math.round(estTokens / 1000)}k tokens, ${toolCount} tool schemas included) cannot fit '${record.id}'s served context window (${window} tokens — ${sourceWords}) and the server would silently truncate it. Raise the served window (OLLAMA_CONTEXT_LENGTH or num_ctx), restrict the tool catalog (--disallowedTools / --strict-mcp-config), or pick a larger-window local model.`
+      return `the composed request (≈${Math.round(estTokens / 1000)}k tokens, ${toolCount} tool schemas included) cannot fit '${record.id}'s served context window (${window} tokens — ${sourceWords}) and the server would silently truncate it. Raise the served window (OLLAMA_CONTEXT_LENGTH or num_ctx), restrict the tool catalog (--disallowed-tools / --strict-mcp-config), or pick a larger-window local model.`
     },
     toolCapabilityRefusal: () => {
       if (record.toolsDeclared === false) {

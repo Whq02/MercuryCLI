@@ -49,8 +49,8 @@ function runStreamSession(): Promise<{ turns: TurnObs[]; exit: number | null }> 
     const argv = [
       DIST, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--session-id', sid, '-n', 'crown-journey',
       '--max-budget-usd', '6',
-      '--disallowedTools', 'Edit', 'Write', 'NotebookEdit',
-      '--allowedTools', ...ALLOW,
+      '--disallowed-tools', 'Edit', 'Write', 'NotebookEdit',
+      '--allowed-tools', ...ALLOW,
     ]
     const child = spawn('node', argv, {
       cwd: fixture,
@@ -121,7 +121,7 @@ function runStreamSession(): Promise<{ turns: TurnObs[]; exit: number | null }> 
 function runOnce(argvExtra: string[], prompt: string): { models: string[]; subtype: string } {
   const out = execFileSync(
     'node',
-    [DIST, '-p', prompt, '--output-format', 'stream-json', '--max-budget-usd', '2', '--disallowedTools', 'Edit', 'Write', ...argvExtra],
+    [DIST, '-p', prompt, '--output-format', 'stream-json', '--max-budget-usd', '2', '--disallowed-tools', 'Edit', 'Write', ...argvExtra],
     { cwd: fixture, env: childEnv(), encoding: 'utf8', timeout: 600_000, maxBuffer: 64 * 1024 * 1024 },
   )
   const models: string[] = []

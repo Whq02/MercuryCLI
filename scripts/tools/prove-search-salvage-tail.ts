@@ -15,7 +15,7 @@ mkdirSync(BIN, { recursive: true })
 mkdirSync(WORK, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
-process.env.USE_BUILTIN_RIPGREP = '0'
+process.env.MERCURY_BUILTIN_RIPGREP = '0'
 process.env.PATH = `${BIN}:${process.env.PATH ?? ''}`
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
