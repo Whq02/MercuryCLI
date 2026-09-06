@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -24,6 +24,9 @@ for (const key of [
   'MERCURY_VOICE_FIXTURE_WAV',
   'MERCURY_VOICE_DEBUG_WAV_DIR',
   'MERCURY_VOICE_PACK_DIR',
+  'MERCURY_WHISPER_PACK_DIR',
+  'MERCURY_WHISPER_MODEL',
+  'MERCURY_VOICE_TRANSCRIBER',
   'MERCURY_OPENAI_API_BASE',
   'MERCURY_GEMINI_API_BASE',
   'MERCURY_HOME',
@@ -66,6 +69,27 @@ mkdirSync(EMPTY_PACK, { recursive: true })
 const EMPTY_BIN = join(SCRATCH, 'empty-bin')
 mkdirSync(EMPTY_BIN, { recursive: true })
 const noTools = (): NodeJS.ProcessEnv => ({ ...process.env, PATH: EMPTY_BIN })
+const SPEECH = join(import.meta.dir, 'fixtures', 'on-device-take.wav')
+const whisperModels = await import('../../src/services/voice/whisperModels.js')
+const whisperPack = await import('../../src/services/voice/whisperPack.js')
+const ON_DEVICE_MODEL = 'tiny.en-q5_1'
+function seedOnDeviceModel(): string | null {
+  const row = whisperModels.whisperModelByName(ON_DEVICE_MODEL)
+  if (row === null) return `the catalogue has no ${ON_DEVICE_MODEL}`
+  const cached = join(ROOT, 'vendor', 'whisper-models', row.file)
+  if (!existsSync(cached)) return `${whisperModels.WHISPER_MODELS_VENDOR_PATH}/${row.file} is absent (bun run scripts/vendor/fetch-whisper-models.ts fetches it)`
+  if (whisperPack.resolveWhisperPackDir().state !== 'ok') return 'the on-device pack is not built on this host (cargo and cmake)'
+  const dir = whisperModels.whisperModelsDir(HOME)
+  mkdirSync(dir, { recursive: true })
+  if (!existsSync(join(dir, row.file))) {
+    try {
+      symlinkSync(cached, join(dir, row.file))
+    } catch {
+      copyFileSync(cached, join(dir, row.file))
+    }
+  }
+  return null
+}
 
 interface Fixture {
   child: ChildProcess
@@ -215,33 +239,47 @@ section('§2 ONE capture owner — the ladder, the fixture, the bound, the cance
   check('ONE transcriber owner speaks the speech-to-text wires', filesWith('audio/transcriptions').join(',') === 'src/services/voice/transcribe.ts', filesWith('audio/transcriptions').join(','))
 }
 
-section("§3 ONE transcriber owner — the ledger's order, the API-key slots, the doors")
+section("§3 ONE transcriber owner — the order law, the ledger's order, the API-key slots, the pin, the doors")
 {
-  const reads = (openai: string | null, gemini: string | null): import('../../src/services/voice/transcribe.js').TranscriberReads => ({
+  type Local = import('../../src/services/voice/transcribe.js').LocalTranscriberRead
+  const NO_PACK: Local = { state: 'absent', reason: 'pack', note: 'absent on this checkout — bun run scripts/vendor/build-whisper.ts builds it (cargo and cmake)', short: 'no on-device pack (bun run setup)' }
+  const ON_DEVICE: Local = { state: 'ok', label: 'on-device transcriber (base.en-q5_1)', model: 'base.en-q5_1', language: 'en', pack: { version: '0.1.0', platform: 'fixture-os-fixture-arch', engine: 'whisper.cpp 1.8.3', gpu: 'none', where: 'the checkout' } }
+  const reads = (openai: string | null, gemini: string | null, local: Local = NO_PACK): import('../../src/services/voice/transcribe.js').TranscriberReads => ({
     openaiApiKeyLabel: () => openai,
     geminiApiKeyLabel: () => gemini,
+    localTranscriber: () => local,
   })
   let r = transcribe.pickTranscriber(['anthropic', 'openai', 'gemini'], reads('OpenAI API key (stored)', 'Gemini API key (stored)'))
-  check('the most recent transcribing sign-in wins (OpenAI before Gemini here)', r.state === 'ok' && r.choice.family === 'openai' && r.choice.slot === 'api-key', JSON.stringify(r))
+  check('without the on-device road, the most recent transcribing sign-in wins (OpenAI before Gemini here)', r.state === 'ok' && r.choice.kind === 'cloud' && r.choice.family === 'openai' && r.choice.slot === 'api-key', JSON.stringify(r))
   check('Anthropic is passed over by name: no speech-to-text endpoint', r.skipped.some(s => s.startsWith('Anthropic') && s.includes('no speech-to-text endpoint')), r.skipped.join(' | '))
   r = transcribe.pickTranscriber(['gemini', 'openai'], reads('OpenAI API key (stored)', 'Gemini API key (stored)'))
-  check("the order is the ledger's, never a fixed provider order (Gemini first here)", r.state === 'ok' && r.choice.family === 'gemini', JSON.stringify(r))
+  check("the order is the ledger's, never a fixed provider order (Gemini first here)", r.state === 'ok' && r.choice.kind === 'cloud' && r.choice.family === 'gemini', JSON.stringify(r))
   r = transcribe.pickTranscriber(['openai', 'gemini'], reads(null, 'Gemini API key (env-gemini)'))
-  check('an OpenAI sign-in without an API key (the subscription slot) is passed over by name', r.state === 'ok' && r.choice.family === 'gemini' && r.skipped.some(s => s.startsWith('OpenAI') && s.includes('without an API key')), JSON.stringify(r))
+  check('an OpenAI sign-in without an API key (the subscription slot) is passed over by name', r.state === 'ok' && r.choice.kind === 'cloud' && r.choice.family === 'gemini' && r.skipped.some(s => s.startsWith('OpenAI') && s.includes('without an API key')), JSON.stringify(r))
   r = transcribe.pickTranscriber(['openai', 'anthropic'], reads(null, null))
-  check('no transcribing sign-in ⇒ the doors, in the neutral grammar', r.state === 'none' && r.note === transcribe.NO_TRANSCRIBER_RECEIPT && r.note === 'no sign-in transcribes yet — /logins openai (API key) or /logins gemini', JSON.stringify(r))
+  check('no transcribing sign-in and no on-device road ⇒ the doors, in the neutral grammar', r.state === 'none' && r.note === transcribe.noTranscriberReceipt(NO_PACK) && r.note === 'nothing transcribes yet — no on-device pack (bun run setup); or /logins openai (API key) or /logins gemini', JSON.stringify(r))
   r = transcribe.pickTranscriber([], reads('x', 'y'))
-  check('a home with no sign-in at all ⇒ the same doors', r.state === 'none' && r.note === transcribe.NO_TRANSCRIBER_RECEIPT)
+  check('a home with no sign-in at all ⇒ the same doors', r.state === 'none' && r.note === transcribe.noTranscriberReceipt(NO_PACK))
+  check('the order that ships is on-device first', transcribe.TRANSCRIBER_ORDER === 'on-device-first')
+  r = transcribe.pickTranscriber(['anthropic', 'openai', 'gemini'], reads('OpenAI API key (stored)', 'Gemini API key (stored)', ON_DEVICE))
+  check('the on-device road present wins over every signed-in family', r.state === 'ok' && r.choice.kind === 'local' && r.choice.model === 'base.en-q5_1', JSON.stringify(r))
+  check('…the families with a key are listed as not used, with the pin that would choose each', r.state === 'ok' && r.unused.length === 2 && r.unused.every(u => /MERCURY_VOICE_TRANSCRIBER=(openai|gemini) chooses it$/.test(u)), r.state === 'ok' ? r.unused.join(' | ') : r.note)
+  r = transcribe.pickTranscriber([], reads(null, null, ON_DEVICE))
+  check('keyless + on-device ⇒ ok: voice input with no key at all', r.state === 'ok' && r.choice.kind === 'local' && r.choice.label === 'on-device transcriber (base.en-q5_1)')
+  r = transcribe.pickTranscriber(['openai'], reads('OpenAI API key (env)', null, ON_DEVICE), { kind: 'cloud' })
+  check('pin cloud ⇒ the ledger walk; the on-device road is held back by name', r.state === 'ok' && r.choice.kind === 'cloud' && r.choice.family === 'openai' && r.skipped.includes('on-device transcriber: held back by MERCURY_VOICE_TRANSCRIBER=cloud'), JSON.stringify(r))
+  r = transcribe.pickTranscriber(['openai'], reads('OpenAI API key (env)', null, NO_PACK), { kind: 'on-device' })
+  check('pin on-device with no pack ⇒ none naming the pin, never a silent fallback to the key', r.state === 'none' && r.note.startsWith('MERCURY_VOICE_TRANSCRIBER=on-device but') && r.note.endsWith('the pin names itself, no silent fallback'), r.state === 'none' ? r.note : 'ok')
   check('every family answers the table: API-key slots for OpenAI and Gemini, none elsewhere', transcribe.FAMILY_TRANSCRIBER.openai.slot === 'api-key' && transcribe.FAMILY_TRANSCRIBER.gemini.slot === 'api-key' && transcribe.FAMILY_TRANSCRIBER.anthropic.slot === 'none' && Object.values(transcribe.FAMILY_TRANSCRIBER).every(v => v.slot === 'api-key' || v.why !== ''))
   check('the OpenAI rows: the newer transcription row first, the classic one as the fallback', transcribe.OPENAI_TRANSCRIBE_MODELS.join(',') === 'gpt-4o-transcribe,whisper-1')
 
   let live = transcribe.resolveTranscriber()
-  check('LIVE keyless home ⇒ none, the doors', live.state === 'none' && live.note === transcribe.NO_TRANSCRIBER_RECEIPT, JSON.stringify(live))
+  check('LIVE keyless home ⇒ none, the doors with the on-device reason', live.state === 'none' && live.local.state === 'absent' && live.note === transcribe.noTranscriberReceipt(live.local, transcribe.liveTranscriberPin()), JSON.stringify(live))
   process.env.OPENAI_API_KEY = 'sk-fixture-voice-000000000000000000000000'
   const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.js')
   resetComputedDefaultMemo()
   live = transcribe.resolveTranscriber()
-  check('LIVE an OpenAI env key ⇒ OpenAI through the API-key slot', live.state === 'ok' && live.choice.family === 'openai' && live.choice.label === 'OpenAI API key (env)', JSON.stringify(live))
+  check('LIVE an OpenAI env key ⇒ OpenAI through the API-key slot', live.state === 'ok' && live.choice.kind === 'cloud' && live.choice.family === 'openai' && live.choice.label === 'OpenAI API key (env)', JSON.stringify(live))
   delete process.env.OPENAI_API_KEY
   resetComputedDefaultMemo()
 }
@@ -252,14 +290,14 @@ section('§4 the wire shapes against the loopback transcriber — multipart, inl
   const fx = await startFixture('wire')
   process.env.OPENAI_API_KEY = 'sk-fixture-voice-000000000000000000000000'
   process.env.MERCURY_OPENAI_API_BASE = `http://127.0.0.1:${fx.port}/v1`
-  const openai = await transcribe.transcribeWav(take, { choice: { family: 'openai', slot: 'api-key', label: 'OpenAI API key (env)' } })
+  const openai = await transcribe.transcribeWav(take, { choice: { kind: 'cloud', family: 'openai', slot: 'api-key', label: 'OpenAI API key (env)' } })
   check('OpenAI: the canned transcript comes back through the first row', openai.text === 'the quick brown fox jumps over the lazy dog' && openai.model === 'gpt-4o-transcribe', JSON.stringify(openai))
   let served = posts(fx.lines())
   check('OpenAI: ONE multipart POST /audio/transcriptions carrying the WAV file and the model part', served.length === 1 && served[0]!.includes('/v1/audio/transcriptions') && served[0]!.includes('model=gpt-4o-transcribe') && served[0]!.includes('wav=yes'), served.join(' | '))
 
   process.env.GEMINI_API_KEY = 'fixture-gemini-key-000000'
   process.env.MERCURY_GEMINI_API_BASE = `http://127.0.0.1:${fx.port}/v1beta`
-  const gemini = await transcribe.transcribeWav(take, { choice: { family: 'gemini', slot: 'api-key', label: 'Gemini API key (env-gemini)' } })
+  const gemini = await transcribe.transcribeWav(take, { choice: { kind: 'cloud', family: 'gemini', slot: 'api-key', label: 'Gemini API key (env-gemini)' } })
   check('Gemini: the canned transcript comes back', gemini.text === 'the quick brown fox jumps over the lazy dog' && gemini.model !== '', JSON.stringify(gemini))
   served = posts(fx.lines())
   check('Gemini: ONE POST models/<row>:generateContent with the WAV inline and the verbatim instruction', served.length === 2 && served[1]!.includes(':generateContent') && served[1]!.includes('wav=yes') && served[1]!.includes('verbatim=yes'), served.join(' | '))
@@ -267,7 +305,7 @@ section('§4 the wire shapes against the loopback transcriber — multipart, inl
 
   const refusing = await startFixture('fallback', { refuse: 'gpt-4o-transcribe' })
   process.env.MERCURY_OPENAI_API_BASE = `http://127.0.0.1:${refusing.port}/v1`
-  const fallback = await transcribe.transcribeWav(take, { choice: { family: 'openai', slot: 'api-key', label: 'OpenAI API key (env)' } })
+  const fallback = await transcribe.transcribeWav(take, { choice: { kind: 'cloud', family: 'openai', slot: 'api-key', label: 'OpenAI API key (env)' } })
   const rows = posts(refusing.lines())
   check('OpenAI: a 404 on the first row falls to whisper-1 (two POSTs, the second answers)', fallback.model === 'whisper-1' && rows.length === 2 && rows[0]!.includes('model=gpt-4o-transcribe') && rows[1]!.includes('model=whisper-1'), rows.join(' | '))
   refusing.stop()
@@ -276,7 +314,7 @@ section('§4 the wire shapes against the loopback transcriber — multipart, inl
   process.env.MERCURY_OPENAI_API_BASE = `http://127.0.0.1:${slow.port}/v1`
   let breach = ''
   try {
-    await transcribe.transcribeWav(take, { choice: { family: 'openai', slot: 'api-key', label: 'OpenAI API key (env)' }, deadlineMs: 500 })
+    await transcribe.transcribeWav(take, { choice: { kind: 'cloud', family: 'openai', slot: 'api-key', label: 'OpenAI API key (env)' }, deadlineMs: 500 })
   } catch (error) {
     breach = error instanceof Error ? error.message : String(error)
   }
@@ -320,7 +358,7 @@ section('§5 the session — the refusals before a take, v/v, the landing, esc, 
   delete process.env.OPENAI_API_KEY
   resetComputedDefaultMemo()
   outcome = await session.toggleVoiceCapture({ env: noTools() })
-  check('a keyless home ⇒ the no-transcriber receipt BEFORE any take, zero requests', outcome.kind === 'refused' && outcome.text === transcribe.NO_TRANSCRIBER_RECEIPT && posts(fx.lines()).length === 0 && fetchCalls.length === 0, outcome.text)
+  check('a keyless home ⇒ the no-transcriber receipt BEFORE any take, zero requests', outcome.kind === 'refused' && outcome.text === transcribe.noTranscriberReceipt(transcribe.localTranscriberRead(), transcribe.liveTranscriberPin()) && outcome.text.startsWith('nothing transcribes yet — ') && posts(fx.lines()).length === 0 && fetchCalls.length === 0, outcome.text)
   process.env.OPENAI_API_KEY = 'sk-fixture-voice-000000000000000000000000'
   resetComputedDefaultMemo()
 
@@ -377,6 +415,35 @@ section('§5 the session — the refusals before a take, v/v, the landing, esc, 
   check('the exit release drops the open take: idle, no request, no receipt', released && session.voiceSnapshot().phase === 'idle' && !session.releaseVoiceCaptureOnExit() && fetchCalls.length === 2 && session.voiceSnapshot().receipt?.text !== session.CANCELLED_RECEIPT, `${session.voiceSnapshot().phase} · ${session.voiceSnapshot().receipt?.text ?? ''}`)
   check('the release is registered with the shutdown cleanups (the one exit owner)', readFileSync(join(ROOT, 'src', 'services', 'voice', 'voiceSession.ts'), 'utf8').includes('registerCleanup(async () => {\n  releaseVoiceCaptureOnExit()'))
 
+  const onDeviceSkip = seedOnDeviceModel()
+  if (onDeviceSkip !== null) {
+    console.log(`  [WARN] the on-device legs are skipped — ${onDeviceSkip}`)
+  } else {
+    process.env.MERCURY_WHISPER_MODEL = ON_DEVICE_MODEL
+    process.env.MERCURY_VOICE_FIXTURE_WAV = SPEECH
+    const before = fetchCalls.length
+    const servedBefore = posts(fx.lines()).length
+    pendingInput.edit('')
+    outcome = await session.toggleVoiceCapture({ env: noTools() })
+    check('with the pack and the model present a take starts on the on-device road, beside the signed-in key', outcome.kind === 'started' && outcome.text === `recording — space or esc stops it (on-device transcriber (${ON_DEVICE_MODEL}) transcribes)`, JSON.stringify(outcome))
+    await sleep(100)
+    outcome = await session.toggleVoiceCapture({ env: noTools() })
+    check('the take stops: transcribing', outcome.kind === 'stopping')
+    check('the words land in the composer, decoded on this machine (matched loosely)', await until(() => /lighthouse|seven|ships/i.test(pendingInput.text()), 60_000), pendingInput.text())
+    check('…the receipt says so, naming the model', await until(() => session.voiceSnapshot().phase === 'idle') && new RegExp(`^transcribed on this machine \\(${ON_DEVICE_MODEL}\\) · \\d+s$`).test(session.voiceSnapshot().receipt?.text ?? ''), session.voiceSnapshot().receipt?.text ?? '')
+    check('ZERO requests left the box — the fetch spy and the loopback ledger did not move', fetchCalls.length === before && posts(fx.lines()).length === servedBefore, fetchCalls.slice(before).join(','))
+    process.env.MERCURY_VOICE_TRANSCRIBER = 'cloud'
+    pendingInput.edit('')
+    process.env.MERCURY_VOICE_FIXTURE_WAV = TONE
+    outcome = await session.toggleVoiceCapture({ env: noTools() })
+    check('pin cloud ⇒ the take starts on the signed-in family, the on-device road held back', outcome.kind === 'started' && outcome.text.includes('OpenAI API key (env) transcribes'), JSON.stringify(outcome))
+    await session.toggleVoiceCapture({ env: noTools() })
+    check('…and exactly one request leaves, after the stop', await until(() => session.voiceSnapshot().phase === 'idle') && fetchCalls.length === before + 1 && posts(fx.lines()).length === servedBefore + 1, fetchCalls.slice(before).join(','))
+    delete process.env.MERCURY_VOICE_TRANSCRIBER
+    delete process.env.MERCURY_WHISPER_MODEL
+    transcribe.resetLocalTranscriberForTest()
+  }
+
   session.setVoiceInputEnabled(false)
   check('/speak off persists', !session.voiceInputEnabled() && getGlobalConfig().voiceInputEnabled === false)
   globalThis.fetch = realFetch
@@ -401,7 +468,7 @@ section('§6 the doctor row and the commands')
   resetComputedDefaultMemo()
   let r = await row()
   check('the Voice input row sits in INTERFACE', r.section === 'INTERFACE', r.section)
-  check('keyless, no backend ⇒ info naming both: none + the receipts, /speak off', r.status === 'info' && r.evidence.includes('backend: none') && r.evidence.includes(capture.NO_BACKEND_RECEIPT.slice(0, 22)) && r.evidence.includes('transcriber: none') && r.evidence.includes(transcribe.NO_TRANSCRIBER_RECEIPT) && r.evidence.includes('/speak off'), `${r.status}: ${r.evidence}`)
+  check('keyless, no backend ⇒ info naming both: none + the receipts, /speak off', r.status === 'info' && r.evidence.includes('backend: none') && r.evidence.includes(capture.NO_BACKEND_RECEIPT.slice(0, 22)) && r.evidence.includes('transcriber: none — nothing transcribes yet') && r.evidence.includes(transcribe.NO_TRANSCRIBER_DOORS) && r.evidence.includes('/speak off'), `${r.status}: ${r.evidence}`)
   check('the detail carries the permission words and the privacy line', r.detail.includes('microphone permission') && r.detail.includes('audio leaves the box only'), r.detail)
   check('the detail says Anthropic has no speech-to-text endpoint', r.detail.includes('Anthropic: no speech-to-text endpoint'))
   delete process.env.MERCURY_VOICE_PACK_DIR
@@ -426,6 +493,39 @@ section('§6 the doctor row and the commands')
   delete process.env.ANTHROPIC_BASE_URL
   resetComputedDefaultMemo()
 
+  process.env.MERCURY_WHISPER_PACK_DIR = EMPTY_PACK
+  r = await row()
+  check('pack pin broken ⇒ the cloud road serves and the detail names the pin, no silent fallback', r.status === 'ok' && r.evidence.includes('transcriber: OpenAI — OpenAI API key (env)') && r.detail.includes('on-device transcriber: MERCURY_WHISPER_PACK_DIR set but') && r.detail.includes('the pin names itself, no silent fallback'), r.detail)
+  delete process.env.MERCURY_WHISPER_PACK_DIR
+  const packHere = whisperPack.resolveWhisperPackDir().state === 'ok'
+  if (!packHere) {
+    r = await row()
+    check('pack absent ⇒ the cloud road serves and the detail names the remedy that fits a checkout', r.status === 'ok' && r.detail.includes(`on-device transcriber: ${whisperPack.whisperPackAbsentNote()}`) && r.detail.includes('build-whisper.ts'), r.detail)
+    console.log('  [WARN] the on-device present states are skipped — the pack is not built on this host (cargo and cmake)')
+  } else {
+    r = await row()
+    check('pack present, model missing ⇒ the cloud road serves; the detail names the download door with the file and the size', r.status === 'ok' && r.detail.includes('on-device transcriber: pack present, model missing — /speak download fetches ggml-base.en-q5_1.bin (60 MB)') && r.detail.includes('on-device transcription needs a one-time 60 MB download') && r.detail.includes('/speak download starts it'), r.detail)
+    process.env.MERCURY_VOICE_TRANSCRIBER = 'on-device'
+    r = await row()
+    check('pin on-device with the model missing ⇒ none naming the pin, info never a fault', r.status === 'info' && r.evidence.includes('transcriber: none — MERCURY_VOICE_TRANSCRIBER=on-device but the on-device transcriber is pack present, model missing') && r.evidence.includes('the pin names itself, no silent fallback'), r.evidence)
+    delete process.env.MERCURY_VOICE_TRANSCRIBER
+    const seeded = seedOnDeviceModel()
+    if (seeded !== null) {
+      console.log(`  [WARN] the on-device present state is skipped — ${seeded}`)
+    } else {
+      process.env.MERCURY_WHISPER_MODEL = ON_DEVICE_MODEL
+      r = await row()
+      check('pack and model present ⇒ ok; the evidence names the engine, the model and the pack', r.status === 'ok' && new RegExp(`transcriber: on-device — whisper\\.cpp ${ON_DEVICE_MODEL} \\(pack \\S+ \\S+, the checkout\\)`).test(r.evidence), r.evidence)
+      check('…the detail: the on-device line, the cost line with the memory words, the families signed in but not used', r.detail.includes(`transcriber: on-device (${ON_DEVICE_MODEL})`) && r.detail.includes('on-device: whisper.cpp ') && r.detail.includes('MB more memory while the model is loaded') && r.detail.includes('cloud families signed in, not used: OpenAI (OpenAI API key (env)) — MERCURY_VOICE_TRANSCRIBER=openai chooses it'), r.detail)
+      check('…the privacy line: audio never leaves the box', r.detail.includes('audio never leaves the box: the take is transcribed on this machine; nothing is written to disk') && !r.detail.includes('audio leaves the box only'), r.detail)
+      process.env.MERCURY_VOICE_TRANSCRIBER = 'cloud'
+      r = await row()
+      check('pin cloud ⇒ the family serves and the on-device road is named as held back', r.status === 'ok' && r.evidence.includes('transcriber: OpenAI — OpenAI API key (env)') && r.detail.includes(`on-device transcriber: usable (${ON_DEVICE_MODEL}), held back by MERCURY_VOICE_TRANSCRIBER`) && r.detail.includes('families passed over: on-device transcriber: held back by MERCURY_VOICE_TRANSCRIBER=cloud'), r.detail)
+      delete process.env.MERCURY_VOICE_TRANSCRIBER
+      delete process.env.MERCURY_WHISPER_MODEL
+    }
+  }
+
   const { builtinCommands, commandSeat } = await import('../../src/commands.js')
   const { COMMAND_DOMAINS } = await import('../../src/components/HelpV2/commandDomains.js')
   const roster = builtinCommands()
@@ -441,7 +541,13 @@ section('§6 the doctor row and the commands')
   out = await speakCall('', ctx)
   check('bare /speak answers the status: the toggle, the backend, the transcriber', out.type === 'text' && out.value.includes('voice input ON') && out.value.includes('backend: fixture WAV') && out.value.includes('transcriber: OpenAI'), out.type === 'text' ? out.value : out.type)
   out = await speakCall('loud', ctx)
-  check('/speak with another word answers the usage line', out.type === 'text' && out.value.includes('takes on or off'))
+  check('/speak with another word answers the usage line', out.type === 'text' && out.value.includes('takes on, off or download'))
+  process.env.MERCURY_WHISPER_PACK_DIR = EMPTY_PACK
+  out = await speakCall('download', ctx)
+  check('/speak download without a usable pack refuses, naming the pin and that the download waits for the pack', out.type === 'text' && out.value.startsWith('on-device transcriber: MERCURY_WHISPER_PACK_DIR set but') && out.value.endsWith('the model download waits for the pack'), out.type === 'text' ? out.value : out.type)
+  delete process.env.MERCURY_WHISPER_PACK_DIR
+  out = await speakCall('download bogus', ctx)
+  check('/speak download with a name outside the catalogue names the catalogue', out.type === 'text' && (out.value.includes('takes a model name from the catalogue') || out.value.endsWith('the model download waits for the pack')), out.type === 'text' ? out.value : out.type)
   out = await speakCall('off', ctx)
   check('/speak off turns it off', out.type === 'text' && out.value.startsWith('voice input OFF') && !session.voiceInputEnabled())
   const voiceCall = (await import('../../src/commands/voice/voice.js')).call
