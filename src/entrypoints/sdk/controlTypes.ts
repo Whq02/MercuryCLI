@@ -200,19 +200,20 @@ export type SDKControlMcpClearAuthRequest = {
   serverName: string
 }
 
-export type SDKControlClaudeAuthenticateRequest = {
-  subtype: 'claude_authenticate'
-  loginWithClaudeAi?: boolean
+export type SDKControlProviderSignInRequest = {
+  subtype: 'provider_sign_in'
+  provider: string
+  method?: 'subscription' | 'console'
 }
 
-export type SDKControlClaudeOauthCallbackRequest = {
-  subtype: 'claude_oauth_callback'
-  authorizationCode: string
+export type SDKControlProviderSignInCallbackRequest = {
+  subtype: 'provider_sign_in_callback'
+  authorization_code: string
   state: string
 }
 
-export type SDKControlClaudeOauthWaitForCompletionRequest = {
-  subtype: 'claude_oauth_wait_for_completion'
+export type SDKControlProviderSignInWaitRequest = {
+  subtype: 'provider_sign_in_wait'
 }
 
 export type SDKControlGenerateSessionTitleRequest = {
@@ -283,9 +284,9 @@ export type SDKControlRequestInner =
   | SDKControlMcpAuthenticateRequest
   | SDKControlMcpOauthCallbackUrlRequest
   | SDKControlMcpClearAuthRequest
-  | SDKControlClaudeAuthenticateRequest
-  | SDKControlClaudeOauthCallbackRequest
-  | SDKControlClaudeOauthWaitForCompletionRequest
+  | SDKControlProviderSignInRequest
+  | SDKControlProviderSignInCallbackRequest
+  | SDKControlProviderSignInWaitRequest
   | SDKControlGenerateSessionTitleRequest
   | SDKControlSideQuestionRequest
   | SDKControlClaimSessionRequest

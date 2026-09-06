@@ -293,7 +293,6 @@ export async function authStatus(opts: {
     const payload: Record<string, unknown> = {
       loggedIn,
       authMethod,
-      apiProvider: 'firstParty',
     }
     const apiKeySource =
       apiKey.source !== 'none'

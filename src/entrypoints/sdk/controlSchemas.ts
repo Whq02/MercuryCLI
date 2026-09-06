@@ -208,21 +208,22 @@ export const SDKControlMcpOauthCallbackUrlRequestSchema = lazySchema(() =>
 export const SDKControlMcpClearAuthRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('mcp_clear_auth'), serverName: z.string() }),
 )
-export const SDKControlClaudeAuthenticateRequestSchema = lazySchema(() =>
+export const SDKControlProviderSignInRequestSchema = lazySchema(() =>
   z.object({
-    subtype: z.literal('claude_authenticate'),
-    loginWithClaudeAi: z.boolean().optional(),
+    subtype: z.literal('provider_sign_in'),
+    provider: z.string(),
+    method: z.enum(['subscription', 'console']).optional(),
   }),
 )
-export const SDKControlClaudeOauthCallbackRequestSchema = lazySchema(() =>
+export const SDKControlProviderSignInCallbackRequestSchema = lazySchema(() =>
   z.object({
-    subtype: z.literal('claude_oauth_callback'),
-    authorizationCode: z.string(),
+    subtype: z.literal('provider_sign_in_callback'),
+    authorization_code: z.string(),
     state: z.string(),
   }),
 )
-export const SDKControlClaudeOauthWaitForCompletionRequestSchema = lazySchema(() =>
-  z.object({ subtype: z.literal('claude_oauth_wait_for_completion') }),
+export const SDKControlProviderSignInWaitRequestSchema = lazySchema(() =>
+  z.object({ subtype: z.literal('provider_sign_in_wait') }),
 )
 export const SDKControlGenerateSessionTitleRequestSchema = lazySchema(() =>
   z.object({
@@ -268,9 +269,9 @@ export const SDKControlRequestInnerSchema = lazySchema(() =>
     SDKControlMcpAuthenticateRequestSchema(),
     SDKControlMcpOauthCallbackUrlRequestSchema(),
     SDKControlMcpClearAuthRequestSchema(),
-    SDKControlClaudeAuthenticateRequestSchema(),
-    SDKControlClaudeOauthCallbackRequestSchema(),
-    SDKControlClaudeOauthWaitForCompletionRequestSchema(),
+    SDKControlProviderSignInRequestSchema(),
+    SDKControlProviderSignInCallbackRequestSchema(),
+    SDKControlProviderSignInWaitRequestSchema(),
     SDKControlGenerateSessionTitleRequestSchema(),
     SDKControlSideQuestionRequestSchema(),
   ]),

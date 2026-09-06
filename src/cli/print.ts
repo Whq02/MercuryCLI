@@ -2359,7 +2359,11 @@ export async function runHeadless(
           respondSuccess(requestId, {})
           return
         }
-        case 'claude_authenticate': {
+        case 'provider_sign_in': {
+          if (request.provider !== 'anthropic') {
+            respondError(requestId, `no control-channel sign-in for the ${request.provider} family — sign in from the terminal (auth login) or /logins`)
+            return
+          }
           activeOAuth.service?.cleanup()
           const service = new OAuthService()
           activeOAuth.service = service
@@ -2378,7 +2382,7 @@ export async function runHeadless(
               },
               {
                 skipBrowserOpen: true,
-                loginWithClaudeAi: request.loginWithClaudeAi ?? true,
+                loginWithClaudeAi: request.method !== 'console',
               },
             )
             .then(async tokens => {
@@ -2404,17 +2408,17 @@ export async function runHeadless(
           })
           return
         }
-        case 'claude_oauth_callback':
-        case 'claude_oauth_wait_for_completion': {
+        case 'provider_sign_in_callback':
+        case 'provider_sign_in_wait': {
           const service = activeOAuth.service
           const flow = activeOAuth.flow
           if (!service || !flow) {
-            respondError(requestId, 'no authentication flow is active')
+            respondError(requestId, 'no sign-in flow is active')
             return
           }
-          if (request.subtype === 'claude_oauth_callback') {
+          if (request.subtype === 'provider_sign_in_callback') {
             service.handleManualAuthCodeInput({
-              authorizationCode: request.authorizationCode,
+              authorizationCode: request.authorization_code,
               state: request.state,
             })
           }
@@ -2429,7 +2433,6 @@ export async function runHeadless(
                     ?.subscriptionType,
                   tokenSource: (account as { tokenSource?: string } | null)?.tokenSource,
                   apiKeySource: (account as { apiKeySource?: string } | null)?.apiKeySource,
-                  apiProvider: 'firstParty',
                 },
               })
             })

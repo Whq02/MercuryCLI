@@ -149,7 +149,6 @@ export async function handleInitializeRequest(
       subscriptionType: accountInfo?.subscription,
       tokenSource: accountInfo?.tokenSource,
       apiKeySource: accountInfo?.apiKeySource,
-      apiProvider: 'firstParty',
     },
     pid: process.pid,
   }
