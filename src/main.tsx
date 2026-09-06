@@ -355,13 +355,7 @@ export async function main(): Promise<void> {
   }
 
   const entrypoint = process.env.MERCURY_ENTRYPOINT
-  const clientType = isEnvTruthy(process.env.GITHUB_ACTIONS)
-    ? 'github-action'
-    : entrypoint === 'sdk'
-      ? 'sdk'
-      : entrypoint === 'local-agent'
-        ? 'local-agent'
-        : 'cli'
+  const clientType = entrypoint === 'sdk' ? 'sdk' : entrypoint === 'local-agent' ? 'local-agent' : 'cli'
   setClientType(clientType)
 
   if (clientType !== 'sdk' && clientType !== 'local-agent') {
@@ -544,7 +538,6 @@ async function run(): Promise<void> {
         .hideHelp(),
     )
     .option('--replay-user-messages', 'Replay user messages on the stream-json output')
-    .addOption(new Option('--enable-auth-status', 'Emit auth status envelopes').default(false).hideHelp())
     .option('--allowedTools, --allowed-tools <tools...>', 'Allowed tool rules')
     .option('--tools <tools...>', 'Base tool set')
     .option('--disallowedTools, --disallowed-tools <tools...>', 'Denied tool rules')
@@ -805,8 +798,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     .description('Sign in')
     .option('--email <email>', 'Account email')
     .option('--sso', 'Use SSO')
-    .option('--console', 'Console account')
-    .option('--claudeai', 'Claude subscription account')
+    .option('--console', 'Console account (the default is the subscription sign-in)')
     .action(async options => {
       const { authLogin } = await import('./cli/handlers/auth.js')
       await authLogin(options)
@@ -2336,7 +2328,6 @@ async function printLaunch(args: {
         forkSession: Boolean(opts.forkSession),
         resumeSessionAt: typedString(opts.resumeSessionAt),
         rewindFiles: typedString(opts.rewindFiles),
-        enableAuthStatus: Boolean(opts.enableAuthStatus),
         agent: typedString(opts.agent),
         workload: typedString(opts.workload),
         setupTrigger: args.setupTrigger,

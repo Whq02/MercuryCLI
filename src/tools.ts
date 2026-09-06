@@ -1,5 +1,4 @@
 import type { Tool, ToolPermissionContext, Tools } from './Tool.js'
-import { toolMatchesName } from './Tool.js'
 import { isEnvTruthy } from './utils/envUtils.js'
 import { flagEnv } from './substrate/flagRegistry.js'
 import { getDenyRuleForTool } from './utils/permissions/permissions.js'
@@ -166,12 +165,6 @@ const RECORD_CONVENTION_TOOL = cycleTolerant(() => RecordConventionTool)
 const SEND_USER_FILE_TOOL = cycleTolerant(() => SendUserFileTool)
 const PUSH_NOTIFICATION_TOOL = cycleTolerant(() => PushNotificationTool)
 
-const REPL_TOOL: Tool | null = null
-
-function isReplModeEnabled(): boolean {
-  return process.env.USER_TYPE === 'ant'
-}
-
 export function getAllBaseTools(): Tools {
   const search = searchToolsAvailability()
   const includeSearchTools = search.available && search.mode !== 'embedded'
@@ -283,16 +276,10 @@ const SPECIAL_TOOL_NAMES = new Set([
 
 export function getTools(permissionContext: ToolPermissionContext): Tools {
   if (isEnvTruthy(process.env.MERCURY_SIMPLE)) {
-    if (isReplModeEnabled() && REPL_TOOL) {
-      return filterToolsByDenyRules([REPL_TOOL], permissionContext)
-    }
     return filterToolsByDenyRules([BashTool, FileReadTool, FileEditTool] as Tool[], permissionContext)
   }
   const base = getAllBaseTools().filter(tool => !SPECIAL_TOOL_NAMES.has(tool.name))
-  let filtered = filterToolsByDenyRules(base, permissionContext)
-  if (isReplModeEnabled() && REPL_TOOL && filtered.some(tool => toolMatchesName(tool, (REPL_TOOL as Tool).name))) {
-    filtered = filtered.filter(tool => !REPL_ONLY_TOOLS.has(tool.name))
-  }
+  const filtered = filterToolsByDenyRules(base, permissionContext)
   const enabled = filtered.map(tool => {
     try {
       return tool.isEnabled()

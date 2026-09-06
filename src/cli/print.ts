@@ -289,7 +289,6 @@ type HeadlessOptions = {
   includePartialMessages?: boolean
   forkSession?: boolean
   rewindFiles?: string
-  enableAuthStatus?: boolean
   agent?: string
   workload?: string
   setupTrigger?: 'init' | 'maintenance'
@@ -1643,7 +1642,6 @@ export async function runHeadless(
             commands,
             modelInfos as ModelInfo[],
             io,
-            options.enableAuthStatus ?? false,
             {
               systemPrompt: options.systemPrompt,
               appendSystemPrompt: options.appendSystemPrompt,

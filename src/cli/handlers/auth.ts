@@ -127,12 +127,7 @@ export async function authLogin(opts: {
   email?: string
   sso?: boolean
   console?: boolean
-  claudeai?: boolean
 }): Promise<void> {
-  if (opts.console && opts.claudeai) {
-    console.error('--console and --claudeai cannot be combined')
-    process.exit(1)
-  }
   const forcedMethod = getInitialSettings().forceLoginMethod
   const loginWithClaudeAi = forcedMethod
     ? forcedMethod === 'claudeai'
