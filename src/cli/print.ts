@@ -1,5 +1,6 @@
 import { randomUUID, type UUID } from 'node:crypto'
 import { refusalEnvelope } from './headless/refusalEnvelope.js'
+import type { PermissionChannel } from '../Tool.js'
 import { readFile, stat } from 'node:fs/promises'
 import { liveSkillRootsOf, pruneSkillSessionHooks } from '../utils/hooks/sessionHooks.js'
 import {
@@ -277,6 +278,7 @@ type HeadlessOptions = {
   outputFormat?: string
   jsonSchema?: Record<string, unknown>
   permissionPromptToolName?: string
+  permissionChannel?: PermissionChannel
   allowedTools?: string[]
   thinkingConfig?: ThinkingConfig
   maxTurns?: number
@@ -661,6 +663,7 @@ export async function runHeadless(
   })
   let sessionTools: Tool[] = [...tools, ...startingMcpTools]
   const canUseTool = getCanUseToolFn(
+    options.permissionChannel,
     options.permissionPromptToolName,
     io,
     () => getAppState().mcp.tools as Tool[],
@@ -1153,9 +1156,7 @@ export async function runHeadless(
           maxBudgetUsd: options.maxBudgetUsd,
           taskBudget: options.taskBudget,
           canUseTool,
-          ...(options.permissionPromptToolName === undefined
-            ? {}
-            : { permissionChannel: options.permissionPromptToolName === 'stdio' ? ('stdio' as const) : ('prompt-tool' as const) }),
+          ...(options.permissionChannel === undefined ? {} : { permissionChannel: options.permissionChannel }),
           userSpecifiedModel: activeModel,
           fallbackModel: options.fallbackModel,
           jsonSchema: initializeJsonSchema ?? options.jsonSchema,
