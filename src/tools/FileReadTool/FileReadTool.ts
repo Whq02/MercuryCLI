@@ -419,7 +419,7 @@ export async function readImageWithTokenBudget(
       type: 'image',
       file: {
         base64: lastResort.toString('base64'),
-        type: 'image/jpeg',
+        type: detectImageFormatFromBuffer(lastResort) as ImageOutput['file']['type'],
         originalSize: buffer.length,
       },
     }
