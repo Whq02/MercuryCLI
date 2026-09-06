@@ -91,7 +91,6 @@ import {
 import { getSchemaBoundStructuredOutputTool } from '../WorkflowTool/structuredOutputTool.js'
 import {
   AGENT_TOOL_NAME,
-  LEGACY_AGENT_TOOL_NAME,
   ONE_SHOT_BUILTIN_AGENT_TYPES,
 } from './constants.js'
 import {
@@ -120,7 +119,7 @@ const BACKGROUND_TASKS_DISABLED = false
 const AUTO_BACKGROUND_GATE = 'mercury_auto_background_agents'
 const AUTO_BACKGROUND_THRESHOLD_MS = 120_000
 
-const DEFAULT_AGENT_TYPE = 'general-purpose'
+const DEFAULT_AGENT_TYPE = 'mercury-general'
 const RESULT_SIZE_CAP = 100_000
 
 function autoBackgroundMs(): number | undefined {
@@ -337,7 +336,6 @@ export const SUBAGENT_BRIEFING_LEAD =
 
 export const AgentTool = buildTool({
   name: AGENT_TOOL_NAME,
-  aliases: [LEGACY_AGENT_TOOL_NAME],
   maxResultSizeChars: RESULT_SIZE_CAP,
   searchHint: 'delegate a task to a subagent that works on its own',
   get inputSchema(): ZodType<AgentToolInput, AgentToolInput> {
