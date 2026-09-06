@@ -152,7 +152,7 @@ import { migrateReplBridgeEnabledToRemoteControlAtStartup } from './migrations/m
 import { migrateVerboseToToolOutput } from './migrations/migrateVerboseToToolOutput.js'
 import type { Root } from './ink.js'
 import chalk from 'chalk'
-import { randomUUID } from 'node:crypto'
+import { refusalEnvelope } from './cli/headless/refusalEnvelope.js'
 
 profileCheckpoint('main_tsx_entry')
 startMdmRawRead();
@@ -263,22 +263,7 @@ function wantsStreamJsonEnvelope(): boolean {
 function failCli(message: string): never {
   if (wantsStreamJsonEnvelope()) {
     try {
-      const envelope = {
-        type: 'result',
-        subtype: 'error_during_execution',
-        duration_ms: 0,
-        duration_api_ms: 0,
-        is_error: true,
-        num_turns: 0,
-        stop_reason: null,
-        session_id: getSessionId(),
-        total_cost_usd: 0,
-        usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
-        modelUsage: {},
-        permission_denials: [],
-        uuid: randomUUID(),
-        errors: [message],
-      }
+      const envelope = refusalEnvelope([message])
       writeSync(1, `${JSON.stringify(envelope)}\n`)
       process.exit(1)
     } catch {

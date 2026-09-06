@@ -1,4 +1,5 @@
 import { randomUUID, type UUID } from 'node:crypto'
+import { refusalEnvelope } from './headless/refusalEnvelope.js'
 import { readFile, stat } from 'node:fs/promises'
 import { liveSkillRootsOf, pruneSkillSessionHooks } from '../utils/hooks/sessionHooks.js'
 import {
@@ -646,7 +647,7 @@ export async function runHeadless(
     !resumeTargetValid
   ) {
     emitLoadError(
-      'Error: input must be provided either through stdin or as a prompt argument when using --print',
+      'No prompt reached --print: give one as the argument or on stdin',
       options.outputFormat,
     )
     gracefulShutdownSync(1)
@@ -1459,25 +1460,7 @@ export async function runHeadless(
     idleTimerStart: () => idleTimeout.start?.(),
     onCycleError: error => {
       abortSuggestion()
-      return {
-        type: 'result',
-        subtype: 'error_during_execution',
-        duration_ms: 0,
-        duration_api_ms: 0,
-        is_error: true,
-        num_turns: 0,
-        stop_reason: null,
-        session_id: getSessionId(),
-        total_cost_usd: 0,
-        usage: {},
-        modelUsage: {},
-        permission_denials: [],
-        uuid: randomUUID(),
-        errors: [
-          errorMessage(error),
-          ...getInMemoryErrors().map(entry => entry.error),
-        ],
-      }
+      return refusalEnvelope([errorMessage(error), ...getInMemoryErrors().map(entry => entry.error)])
     },
     shutdown: code => void gracefulShutdown(code),
     clock: { sleep: ms => new Promise(resolve => setTimeout(resolve, ms)) },

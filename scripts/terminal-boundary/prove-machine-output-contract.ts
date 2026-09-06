@@ -227,6 +227,26 @@ section('L9 — --verbose is not an option: the plain format answers the unknown
   assertClean('L9', cap)
 }
 
+section('L10 — every refusal of the feed is one envelope: one field set, one usage shape')
+{
+  const a = await runDist(['-p', 'hello', '--output-format', 'stream-json', '--max-turns', '0'])
+  const b = await runDist(['-p', '--resume', '', 'hello', '--output-format', 'stream-json'])
+  const frame = (cap: Capture): Record<string, unknown> | null => {
+    try {
+      return JSON.parse(cap.stdout.trim().split('\n')[0] ?? '') as Record<string, unknown>
+    } catch {
+      return null
+    }
+  }
+  const keys = (f: unknown): string => (f && typeof f === 'object' ? Object.keys(f as object).sort().join(',') : '')
+  const fa = frame(a)
+  const fb = frame(b)
+  check('an option refusal rides one parseable result envelope', fa !== null && fa.type === 'result' && fa.subtype === 'error_during_execution' && fa.is_error === true, a.stdout.slice(0, 120))
+  check('a load refusal rides the same envelope', fb !== null && fb.type === 'result' && fb.subtype === 'error_during_execution' && fb.is_error === true, b.stdout.slice(0, 120))
+  check('the two refusals carry one field set', fa !== null && fb !== null && keys(fa) === keys(fb), `${keys(fa)} vs ${keys(fb)}`)
+  check('the two refusals carry one usage shape', fa !== null && fb !== null && keys(fa.usage) === keys(fb.usage) && keys(fa.usage).length > 0, `${keys(fa?.usage)} vs ${keys(fb?.usage)}`)
+}
+
 console.log('\n' + '═'.repeat(76))
 await Promise.all(fixtures.map(f => f.close().catch(() => {})))
 if (failures > 0) {
