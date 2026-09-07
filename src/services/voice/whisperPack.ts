@@ -3,7 +3,6 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { release } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -189,10 +188,27 @@ export function resolveWhisperPackDir(): WhisperPackResolution {
 }
 
 
+export type CpuFloorRoad = 'architecture' | 'flags' | 'helper'
+
 export type CpuFloorProbe =
-  | { state: 'met' }
-  | { state: 'unmet'; missing: string[] }
-  | { state: 'unknown'; note: string }
+  | { state: 'met'; via: CpuFloorRoad }
+  | { state: 'unmet'; via: CpuFloorRoad; missing: string[]; faulted?: boolean }
+  | { state: 'unknown'; via: CpuFloorRoad; note: string }
+
+export function cpuFloorRefusal(probe: Exclude<CpuFloorProbe, { state: 'met' }>, arch: string = process.arch): string {
+  const floor = whisperCpuFloorWords(arch)
+  if (probe.state === 'unknown') return `the on-device transcriber is held back: ${probe.note} — it needs ${floor}, and whether this CPU has that could not be read`
+  if (probe.faulted) return `this CPU cannot run the on-device transcriber: loading it in a helper process faulted — it needs ${floor}`
+  return `this CPU lacks ${probe.missing.map(f => f.toUpperCase()).join(', ')} — the on-device transcriber needs ${floor}`
+}
+
+export function cpuFloorRoadWords(probe: CpuFloorProbe, arch: string = process.arch): string {
+  const floor = whisperCpuFloorWords(arch)
+  if (probe.state !== 'met') return cpuFloorRefusal(probe, arch)
+  if (probe.via === 'architecture') return `${floor} — met by the architecture`
+  if (probe.via === 'flags') return `${floor} — met, from the operating system's flag list`
+  return `${floor} — met, checked by loading the pack once in a helper process at the first read`
+}
 
 function reportedCpuFlags(platform: string): Set<string> | null {
   try {
@@ -203,7 +219,7 @@ function reportedCpuFlags(platform: string): Set<string> | null {
       return new Set(line.replace(/^flags\s*:/, '').trim().toLowerCase().split(/\s+/))
     }
     if (platform === 'darwin') {
-      const res = spawnSync('sysctl', ['-n', 'machdep.cpu.features', 'machdep.cpu.leaf7_features'], { encoding: 'utf8', timeout: 5_000, env: subprocessEnv() })
+      const res = spawnSync('sysctl', ['-n', 'machdep.cpu.features', 'machdep.cpu.leaf7_features'], { encoding: 'utf8', timeout: 5_000, windowsHide: true, env: subprocessEnv() })
       if (res.status !== 0) return null
       return new Set(res.stdout.toLowerCase().split(/\s+/).filter(f => f !== ''))
     }
@@ -212,42 +228,93 @@ function reportedCpuFlags(platform: string): Set<string> | null {
   return null
 }
 
-function windowsAvx2(): boolean | null {
-  try {
-    const script =
-      "Add-Type -Namespace MercuryProbe -Name Cpu -MemberDefinition '[DllImport(\"kernel32.dll\")] public static extern bool IsProcessorFeaturePresent(int feature);'; [MercuryProbe.Cpu]::IsProcessorFeaturePresent(40)"
-    const res = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 20_000, windowsHide: true, env: subprocessEnv() })
-    if (res.status !== 0) return null
-    const answer = res.stdout.trim().toLowerCase()
-    if (answer === 'true') return true
-    if (answer !== 'false') return null
-    const build = Number(release().split('.')[2] ?? '0')
-    return build >= 17763 ? false : null
-  } catch {
-    return null
-  }
+const FLOOR_MARK = 'MERCURY_WHISPER_FLOOR '
+const FLOOR_ERROR_MARK = 'MERCURY_WHISPER_FLOOR_ERROR '
+const ILLEGAL_INSTRUCTION_STATUS = 0xc000001d
+export const CPU_FLOOR_HELPER_TIMEOUT_MS = 10_000
+
+export interface CpuFloorHelperOptions {
+  exe?: string
+  timeoutMs?: number
 }
 
-let floorProbe: CpuFloorProbe | null = null
-
-export function probeCpuFloor(arch: string = process.arch, platform: string = process.platform): CpuFloorProbe {
-  if (arch === process.arch && platform === process.platform && floorProbe !== null) return floorProbe
-  let probe: CpuFloorProbe
-  if (arch !== 'x64') {
-    probe = { state: 'met' }
-  } else if (platform === 'win32') {
-    const avx2 = windowsAvx2()
-    probe = avx2 === null ? { state: 'unknown', note: 'Windows reported no instruction-set answer' } : avx2 ? { state: 'met' } : { state: 'unmet', missing: ['avx2'] }
-  } else {
-    const flags = reportedCpuFlags(platform)
-    if (flags === null) probe = { state: 'unknown', note: `${platform} reported no instruction-set flags` }
-    else {
-      const missing = WHISPER_CPU_FLOOR_X64.filter(f => !flags.has(f))
-      probe = missing.length === 0 ? { state: 'met' } : { state: 'unmet', missing: [...missing] }
+export function probeCpuFloorByLoad(addonPath: string, opts: CpuFloorHelperOptions = {}): CpuFloorProbe {
+  const exe = opts.exe ?? process.execPath
+  const timeout = opts.timeoutMs ?? CPU_FLOOR_HELPER_TIMEOUT_MS
+  const say = (mark: string, expr: string): string => `process.stdout.write(${JSON.stringify(mark)} + ${expr} + "\\n")`
+  const firstLine = 'String(e && e.message || e).split("\\n")[0]'
+  const script = [
+    'let a',
+    `try { a = require(${JSON.stringify(addonPath)}) } catch (e) { ${say(FLOOR_ERROR_MARK, firstLine)}; process.exit(2) }`,
+    `if (typeof a.cpuFloor !== "function") { ${say(FLOOR_ERROR_MARK, '"the addon exports no cpuFloor()"')}; process.exit(2) }`,
+    `try { ${say(FLOOR_MARK, 'JSON.stringify(a.cpuFloor())')} } catch (e) { ${say(FLOOR_ERROR_MARK, firstLine)}; process.exit(2) }`,
+  ].join('; ')
+  let res: ReturnType<typeof spawnSync>
+  try {
+    res = spawnSync(exe, ['-e', script], { encoding: 'utf8', timeout, windowsHide: true, env: subprocessEnv() })
+  } catch (error) {
+    return { state: 'unknown', via: 'helper', note: `the helper process could not start: ${error instanceof Error ? error.message : String(error)}` }
+  }
+  const out = String(res.stdout ?? '').split('\n').reverse()
+  const line = out.find(l => l.startsWith(FLOOR_MARK))
+  if (line !== undefined) {
+    try {
+      const answer = JSON.parse(line.slice(FLOOR_MARK.length)) as { met?: unknown; missing?: unknown }
+      if (typeof answer.met === 'boolean' && Array.isArray(answer.missing)) {
+        return answer.met ? { state: 'met', via: 'helper' } : { state: 'unmet', via: 'helper', missing: answer.missing.map(String) }
+      }
+    } catch {
     }
   }
-  if (arch === process.arch && platform === process.platform) floorProbe = probe
+  const said = out.find(l => l.startsWith(FLOOR_ERROR_MARK))
+  if (said !== undefined) return { state: 'unknown', via: 'helper', note: `the helper process could not load the addon: ${said.slice(FLOOR_ERROR_MARK.length).slice(0, 200)}` }
+  const stderr = String(res.stderr ?? '')
+  if (
+    res.signal === 'SIGILL' ||
+    res.status === ILLEGAL_INSTRUCTION_STATUS ||
+    res.status === ILLEGAL_INSTRUCTION_STATUS - 2 ** 32 ||
+    (res.signal !== null && /illegal instruction/i.test(stderr))
+  ) {
+    return { state: 'unmet', via: 'helper', missing: [], faulted: true }
+  }
+  const code = (res.error as NodeJS.ErrnoException | undefined)?.code
+  if (code === 'ETIMEDOUT') return { state: 'unknown', via: 'helper', note: `the helper process gave no answer within ${Math.round(timeout / 1000)}s` }
+  if (res.error) return { state: 'unknown', via: 'helper', note: `the helper process could not start: ${res.error.message}` }
+  const why = res.signal ? `signal ${res.signal}` : `exit ${String(res.status)}`
+  const lines = stderr.split('\n').map(l => l.trim()).filter(l => l !== '' && !/^Node\.js v\d/.test(l))
+  const lastErr = lines.find(l => /\berror\b/i.test(l)) ?? lines.slice(-1)[0] ?? ''
+  return { state: 'unknown', via: 'helper', note: `the helper process ended with ${why} before answering${lastErr ? ` (${lastErr.slice(0, 160)})` : ''}` }
+}
+
+let floorProbe: { addonPath: string | null; probe: CpuFloorProbe } | null = null
+let seededProbe: CpuFloorProbe | null = null
+
+export function probeCpuFloor(opts: { addonPath?: string | null; arch?: string; platform?: string; helper?: CpuFloorHelperOptions } = {}): CpuFloorProbe {
+  if (seededProbe !== null) return seededProbe
+  const arch = opts.arch ?? process.arch
+  const platform = opts.platform ?? process.platform
+  const addonPath = opts.addonPath ?? null
+  const live = arch === process.arch && platform === process.platform && opts.helper === undefined
+  if (live && floorProbe !== null && floorProbe.addonPath === addonPath) return floorProbe.probe
+  let probe: CpuFloorProbe
+  if (arch !== 'x64') probe = { state: 'met', via: 'architecture' }
+  else {
+    const flags = platform === 'win32' ? null : reportedCpuFlags(platform)
+    if (flags !== null) {
+      const missing = WHISPER_CPU_FLOOR_X64.filter(f => !flags.has(f))
+      probe = missing.length === 0 ? { state: 'met', via: 'flags' } : { state: 'unmet', via: 'flags', missing: [...missing] }
+    } else if (addonPath !== null) {
+      probe = probeCpuFloorByLoad(addonPath, opts.helper ?? {})
+    } else {
+      probe = { state: 'unknown', via: 'flags', note: platform === 'win32' ? 'Windows keeps no instruction-set list and no pack was given to load' : `${platform} reported no instruction-set flags and no pack was given to load` }
+    }
+  }
+  if (live) floorProbe = { addonPath, probe }
   return probe
+}
+
+export function seedCpuFloorProbeForTest(probe: CpuFloorProbe | null): void {
+  seededProbe = probe
 }
 
 
@@ -291,12 +358,9 @@ export function loadWhisperAddon(): WhisperAddonLoad {
   if (resolution.state === 'unavailable') {
     return resolution
   }
-  const floor = probeCpuFloor()
-  if (floor.state === 'unmet') {
-    loaded = {
-      state: 'unavailable',
-      note: `this CPU lacks ${floor.missing.map(f => f.toUpperCase()).join(', ')} — the on-device transcriber needs ${whisperCpuFloorWords()}; the cloud road serves`,
-    }
+  const floor = probeCpuFloor({ addonPath: resolution.addonPath })
+  if (floor.state !== 'met') {
+    loaded = { state: 'unavailable', note: `${cpuFloorRefusal(floor)}; the cloud road serves` }
     return loaded
   }
   try {
@@ -322,4 +386,5 @@ export function loadWhisperAddon(): WhisperAddonLoad {
 export function resetWhisperAddonForTest(): void {
   loaded = null
   floorProbe = null
+  seededProbe = null
 }

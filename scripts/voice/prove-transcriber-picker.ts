@@ -18,7 +18,7 @@ type Local = import('../../src/services/voice/transcribe.js').LocalTranscriberRe
 type Pin = import('../../src/services/voice/transcribe.js').TranscriberPin
 type Saved = import('../../src/services/voice/transcribe.js').SavedTranscriber
 
-const OK: Local = { state: 'ok', label: 'on-device transcriber (base.en-q5_1)', model: 'base.en-q5_1', language: 'en', pack: { version: '0.1.0', platform: 'fixture-os-fixture-arch', engine: 'whisper.cpp 1.8.3', gpu: 'none', where: 'the checkout' } }
+const OK: Local = { state: 'ok', label: 'on-device transcriber (base.en-q5_1)', model: 'base.en-q5_1', language: 'en', pack: { version: '0.1.0', platform: 'fixture-os-fixture-arch', engine: 'whisper.cpp 1.8.3', gpu: 'none', where: 'the checkout', floor: 'fixture-arch — met by the architecture' } }
 const NO_PACK: Local = { state: 'absent', reason: 'pack', note: 'absent on this checkout — bun run scripts/vendor/build-whisper.ts builds it (cargo and cmake)', short: 'no on-device pack (bun run setup)' }
 const NO_MODEL: Local = { state: 'absent', reason: 'model', note: 'pack present, model missing — /speak download fetches ggml-base.en-q5_1.bin (60 MB)', short: 'on-device model: /speak download' }
 const reads = (openai: string | null, gemini: string | null, local: Local): Reads => ({ openaiApiKeyLabel: () => openai, geminiApiKeyLabel: () => gemini, localTranscriber: () => local })
@@ -28,7 +28,7 @@ section('§1 the matrix against the oracle')
   const locals: Array<[string, Local]> = [['ok', OK], ['no-pack', NO_PACK], ['no-model', NO_MODEL]]
   const orders: string[][] = [[], ['openai'], ['gemini', 'openai'], ['anthropic', 'openai', 'gemini'], ['anthropic']]
   const keys: Array<[string, string | null, string | null]> = [['none', null, null], ['openai', 'OpenAI API key (env)', null], ['gemini', null, 'Gemini API key (stored)'], ['both', 'OpenAI API key (stored)', 'Gemini API key (env-gemini)']]
-  const pins: Array<[string, Pin]> = [['unset', { kind: 'unset' }], ['on-device', { kind: 'on-device' }], ['cloud', { kind: 'cloud' }], ['openai', { kind: 'family', family: 'openai' }], ['gemini', { kind: 'family', family: 'gemini' }], ['anthropic', { kind: 'family', family: 'anthropic' }], ['broken', { kind: 'broken', note: 'MERCURY_VOICE_TRANSCRIBER=bogus is not on-device, cloud or a family id' }]]
+  const pins: Array<[string, Pin]> = [['unset', { kind: 'unset' }], ['on-device', { kind: 'on-device' }], ['cloud', { kind: 'cloud' }], ['openai', { kind: 'family', family: 'openai' }], ['gemini', { kind: 'family', family: 'gemini' }], ['anthropic', { kind: 'family', family: 'anthropic' }], ['broken', { kind: 'broken', value: 'bogus', note: 'MERCURY_VOICE_TRANSCRIBER=bogus is not on-device, cloud or a family id' }]]
   const saveds: Array<[string, Saved]> = [['unset', { kind: 'unset' }], ['on-device', { kind: 'on-device' }], ['openai', { kind: 'family', family: 'openai' }], ['gemini', { kind: 'family', family: 'gemini' }], ['anthropic', { kind: 'family', family: 'anthropic' }], ['unknown', { kind: 'unknown', raw: 'bogus' }]]
   let cells = 0
   let wrong = 0
@@ -122,7 +122,7 @@ section('§2 the words — skipped, unused, the pin naming itself, the receipt a
   check('keyless + no pack ⇒ the receipt names the pack door then the cloud doors', t.noTranscriberReceipt(NO_PACK) === 'nothing transcribes yet — no on-device pack (bun run setup); or /logins openai (API key) or /logins gemini', t.noTranscriberReceipt(NO_PACK))
   check('keyless + no model ⇒ the receipt names the download door then the cloud doors', t.noTranscriberReceipt(NO_MODEL) === 'nothing transcribes yet — on-device model: /speak download; or /logins openai (API key) or /logins gemini', t.noTranscriberReceipt(NO_MODEL))
   check('keyless + pin cloud with the road usable ⇒ the receipt says the pin held it back', t.noTranscriberReceipt(OK, { kind: 'cloud' }) === 'nothing transcribes yet — on-device held back by the pin; or /logins openai (API key) or /logins gemini', t.noTranscriberReceipt(OK, { kind: 'cloud' }))
-  const shorts = [NO_PACK.short, NO_MODEL.short, 'no on-device pack in this build', 'on-device pack pin broken', 'on-device model pin broken', 'damaged model: /speak download', 'CPU below the on-device floor', 'on-device held back by the pin']
+  const shorts = [NO_PACK.short, NO_MODEL.short, 'no on-device pack in this build', 'on-device pack pin broken', 'on-device model pin broken', 'damaged model: /speak download', 'CPU below the on-device floor', 'on-device CPU check inconclusive', 'on-device held back by the pin']
   const longest = Math.max(...shorts.map(s => t.noTranscriberReceipt({ ...NO_PACK, short: s }).length))
   check(`every receipt keeps the cloud doors as its tail and fits the notice row at 120 columns (longest ${longest})`, longest <= 106 && shorts.every(s => t.noTranscriberReceipt({ ...NO_PACK, short: s }).endsWith(`; or ${t.NO_TRANSCRIBER_DOORS}`)))
   check('the doors are the neutral grammar', t.NO_TRANSCRIBER_DOORS === '/logins openai (API key) or /logins gemini')
@@ -151,6 +151,8 @@ section('§2b the saved choice — served when it can be, named when it cannot, 
   check('a saved word outside the vocabulary is named with the vocabulary, and the default serves', r.state === 'ok' && r.choice.kind === 'local' && r.saved?.state === 'unavailable' && r.saved.note === '"bogus" is not a transcriber this install can use (on-device · openai · gemini)' && r.saved.short === 'is not a transcriber', JSON.stringify(r.saved))
   r = t.pickTranscriber(['openai'], reads('OpenAI API key (env)', null, OK), { kind: 'cloud' }, 'on-device-first', { kind: 'on-device' })
   check('the pin overrides a saved choice and names it', r.state === 'ok' && r.choice.kind === 'cloud' && r.saved?.state === 'overridden' && r.saved.note === 'MERCURY_VOICE_TRANSCRIBER=cloud overrides your saved choice (on-device) for this process', JSON.stringify(r.saved))
+  r = t.pickTranscriber(['openai'], reads('OpenAI API key (env)', null, OK), t.parseTranscriberPin('bogus'), 'on-device-first', { kind: 'on-device' })
+  check('a broken pin overrides a saved choice under its own value, never the kind word', r.state === 'none' && r.saved?.state === 'overridden' && r.saved.note === 'MERCURY_VOICE_TRANSCRIBER=bogus overrides your saved choice (on-device) for this process', JSON.stringify(r.saved))
   r = t.pickTranscriber([], reads(null, null, NO_PACK), { kind: 'unset' }, 'on-device-first', SAVED_OPENAI)
   check('a saved family with nothing to fall to ⇒ none with the doors, the saved choice still named', r.state === 'none' && r.note.startsWith('nothing transcribes yet — ') && r.saved?.state === 'unavailable' && r.saved.display === 'OpenAI', JSON.stringify(r))
   check('the saved vocabulary parses: unset · on-device (case-blind) · a family · an unknown word kept as written', t.parseSavedTranscriber(undefined).kind === 'unset' && t.parseSavedTranscriber('ON-Device').kind === 'on-device' && JSON.stringify(t.parseSavedTranscriber('openai')) === JSON.stringify({ kind: 'family', family: 'openai' }) && JSON.stringify(t.parseSavedTranscriber('Bogus')) === JSON.stringify({ kind: 'unknown', raw: 'bogus' }))

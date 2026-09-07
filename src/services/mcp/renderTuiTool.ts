@@ -43,7 +43,7 @@ export function renderTuiRuntime(opts: { env?: NodeJS.ProcessEnv; home?: string 
     const candidate = join(dir, exe)
     if (existsSync(candidate)) return { bun: candidate }
   }
-  return { missing: `no bun runtime: set BUN=<path>, install bun at ${userBun}, or put bun on PATH` }
+  return { missing: `no bun runtime: set MERCURY_BUN=<path>, install bun at ${userBun}, or put bun on PATH` }
 }
 
 export function renderTuiPrerequisites(opts: { from?: string; env?: NodeJS.ProcessEnv; home?: string } = {}): RenderTuiPrerequisites {
