@@ -9,15 +9,15 @@
 
    ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ signed in                                                      │  │ ❯ Claude subscription account              │
-   │ ❯ Claude subscription account                   op@example.com │  │                                            │
-   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │ Anthropic · subscription arm               │
+   │ signed in                                                      │  │ ❯ OpenAI — ChatGPT subscription or API key │
+   │ ❯ OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │                                            │
+   │   Claude subscription account                   op@example.com │  │ OpenAI                                     │
    │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │                                            │
-   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ Claude subscription account                │
-   │                                                                │  │                                            │
-   │ available                                                      │  │ state: op@example.com                      │
-   │   Usage-based billing — Anthropic Console…       not signed in │  │ · claude.ai sign-in — op@example.com ·     │
-   │   OpenRouter — one credential, the whole …       not signed in │  │ active                                     │
+   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ OpenAI — ChatGPT subscription or API       │
+   │                                                                │  │ key                                        │
+   │ available                                                      │  │                                            │
+   │   Usage-based billing — Anthropic Console…       not signed in │  │ state: ChatGPT Plus                        │
+   │   OpenRouter — one credential, the whole …       not signed in │  │ · ChatGPT sign-in — ChatGPT Plus           │
    │   Google Gemini — API key or Google OAuth        not signed in │  │                                            │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ ready · oauth                              │
    │   DeepSeek — API key                             not signed in │  │                                            │
