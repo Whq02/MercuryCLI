@@ -1,5 +1,5 @@
 import { getDefaultBashTimeoutMs, getMaxBashTimeoutMs } from '../../utils/timeouts.js'
-import { resolveShellEngine } from '../../utils/shell/engineSession.js'
+import { resolveShellEngine, resolveEngineSessionCeiling } from '../../utils/shell/engineSession.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { getPlatform } from '../../utils/platform.js'
 import { hasEmbeddedSearchTools } from '../../utils/embeddedTools.js'
@@ -37,7 +37,13 @@ export function getSimplePrompt(): string {
   )
   if (resolveShellEngine(getInitialSettings().shellEngine).engine === 'brush') {
     sections.push(
-      'One shell session serves the whole conversation: the working directory and every other piece of shell state — variables, functions, aliases, options — persist from call to call. A command that hangs and is timed out, or that ends the shell (a bare `exit`, a `set -u` failure), resets the session; you are told when earlier state was lost. A call with `run_in_background` runs in its own shell: it does not see the session\'s state, and its own does not persist.',
+      'One shell session serves the whole conversation: the working directory and every other piece of shell state — variables, functions, aliases, options — persist from call to call. Each sub-agent has a shell session of its own: state set by one agent is not seen by another or by the main conversation, and an agent\'s session ends with the agent. A command that hangs and is timed out, or that ends the shell (a bare `exit`, a `set -u` failure), resets the session; you are told when earlier state was lost. A stop from the operator while a command runs ends that command and resets the session; the result says so. A call with `run_in_background` runs in its own shell: it does not see the session\'s state, and its own does not persist.',
+    )
+    const ceiling = resolveEngineSessionCeiling(getInitialSettings().shellEngineSessions)
+    sections.push(
+      ceiling === 1
+        ? 'The shellEngineSessions setting is 1: only the main conversation has an engine session. A sub-agent\'s call is refused with the reason; a `run_in_background` call still runs, in its own system shell.'
+        : `At most ${ceiling} engine sessions are kept alive at once (the shellEngineSessions setting): the main conversation's own and ${ceiling - 1} for sub-agents. A sub-agent that needs one when all are in use waits for a free session — never sharing another's — and the wait is bounded by the call's timeout.`,
     )
     if (getPlatform() === 'windows') {
       sections.push(
