@@ -2669,7 +2669,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             if (resolved.engine === 'brush') {
               return {
                 status: 'ok' as const,
-                evidence: `brush ${resolved.version} (${resolved.platform}, ${resolved.source}) — one persistent process per conversation and one per sub-agent; shell state persists between calls`,
+                evidence: `brush ${resolved.version} (${resolved.platform}, ${resolved.source}) — one persistent process per conversation and one per sub-agent; shell state persists between calls; a message sent while a command runs stops that command`,
                 detail: `setting: ${setting}${process.env.MERCURY_SHELL_ENGINE ? ` · env pin MERCURY_SHELL_ENGINE=${process.env.MERCURY_SHELL_ENGINE}` : ''}`,
               }
             }

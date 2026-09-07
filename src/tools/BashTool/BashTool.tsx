@@ -369,6 +369,7 @@ async function* runBash(
         setAppState: context.setAppState,
       },
     )
+    if (handle.accepted === false) return
     backgroundId = handle.taskId
     progressResolve?.()
     fromTrigger?.(backgroundId)
@@ -408,6 +409,11 @@ async function* runBash(
         setAppState: context.setAppState,
       },
     )
+    if (handle.accepted === false) {
+      const result = await shellCommand.result
+      shellCommand.cleanup()
+      return await postProcess(result)
+    }
     return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: handle.taskId }
   }
 
