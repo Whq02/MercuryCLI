@@ -129,7 +129,7 @@ import {
   getModelMaxOutputTokens,
 } from '../../../utils/context.js'
 import { isTurnOwningQuerySource, resolveAppliedEffort } from '../../../utils/effort.js'
-import { apiTimeoutMsOverride, validateBoundedIntEnvVar } from '../../../utils/envValidation.js'
+import { validateBoundedIntEnvVar } from '../../../utils/envValidation.js'
 import { isEnvTruthy } from '../../../utils/envUtils.js'
 import { errorMessage } from '../../../utils/errors.js'
 import { computeFingerprintFromMessages } from '../../../utils/fingerprint.js'
@@ -226,11 +226,12 @@ import {
   streamActivityFetchOptions,
   createStreamIdleWatchdog,
   streamEndReceiptLine,
-  streamIdleTimeoutMs,
+  streamIdleTimeoutMsForRoute,
   streamIdleWarningMsOf,
   type RequestWaitV1,
   type StreamEndV1,
 } from '../streamIdleBudget.js'
+import { nonstreamingFallbackCeilingMs, patienceSeconds } from '../patience.js'
 import {
   configureEffortParams,
   configureTaskBudgetParams,
@@ -397,7 +398,7 @@ function shouldDeferLspTool(tool: Tool): boolean {
 }
 
 function getNonstreamingFallbackTimeoutMs(): number {
-  return apiTimeoutMsOverride() ?? 300_000
+  return nonstreamingFallbackCeilingMs()
 }
 
 export async function* executeNonStreamingRequest(
@@ -418,6 +419,7 @@ export async function* executeNonStreamingRequest(
   onAttempt: (attempt: number, start: number, maxOutputTokens: number) => void,
   captureRequest: (params: BetaMessageStreamParams) => void,
   originatingRequestId?: string | null,
+  afterSilence?: { idleMs: number; model: string },
 ): AsyncGenerator<SystemAPIErrorMessage, BetaMessage> {
   const fallbackTimeoutMs = getNonstreamingFallbackTimeoutMs()
   const generator = withRetry(
@@ -453,6 +455,11 @@ export async function* executeNonStreamingRequest(
         if (err instanceof APIUserAbortError) throw err
 
         logForDiagnosticsNoPII('error', 'cli_nonstreaming_fallback_error')
+        if (afterSilence !== undefined && isFirstByteTimeout(err)) {
+          throw new Error(
+            `the stream went quiet for ${patienceSeconds(afterSilence.idleMs)} and one non-streamed answer got nothing in ${patienceSeconds(fallbackTimeoutMs)} from ${afterSilence.model} — no keep-alive arrived: a dead connection, or a request the provider parked; the turn was ended`,
+          )
+        }
         throw err
       }
     },
@@ -1121,7 +1128,7 @@ async function* queryModel(
           cold,
           promptTokens,
           model: getPublicModelDisplayName(context.model) ?? context.model,
-          budgetMs: firstByteBudgetMs({ cold, promptTokens }),
+          budgetMs: firstByteBudgetMs({ cold, promptTokens, idleMs: streamIdleTimeoutMsForRoute('anthropic') }),
           sinceMs: Date.now(),
           attempt,
         }
@@ -1213,7 +1220,7 @@ async function* queryModel(
     ledgerSettled = false
     isAdvisorInProgress = false
 
-    const STREAM_IDLE_TIMEOUT_MS = streamIdleTimeoutMs()
+    const STREAM_IDLE_TIMEOUT_MS = streamIdleTimeoutMsForRoute('anthropic')
     const STREAM_IDLE_WARNING_MS = streamIdleWarningMsOf(STREAM_IDLE_TIMEOUT_MS)
     let streamIdleAborted = false
     let streamedToolUse = false
@@ -1704,6 +1711,9 @@ async function* queryModel(
         },
         params => captureAPIRequest(params, options.querySource),
         streamRequestId,
+        streamIdleAborted
+          ? { idleMs: STREAM_IDLE_TIMEOUT_MS, model: getPublicModelDisplayName(options.model) ?? options.model }
+          : undefined,
       )
 
       noteServedModel(
@@ -1795,6 +1805,9 @@ async function* queryModel(
           return
         }
 
+        if ((error as { status?: unknown }).status === 429) {
+          await (await import('../catalogueOnDemand.js')).readCataloguesForOtherFamilies('anthropic')
+        }
         yield getAssistantMessageFromError(error, errorModel, {
           messages,
           messagesForAPI,
@@ -1815,6 +1828,9 @@ async function* queryModel(
         return
       }
 
+      if ((error as { status?: unknown }).status === 429) {
+        await (await import('../catalogueOnDemand.js')).readCataloguesForOtherFamilies('anthropic')
+      }
       yield getAssistantMessageFromError(error, errorModel, {
         messages,
         messagesForAPI,

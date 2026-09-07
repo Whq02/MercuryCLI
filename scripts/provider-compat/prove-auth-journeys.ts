@@ -95,7 +95,7 @@ function fixtureChatResponse(): Response {
     case 'http-429':
       return new Response(JSON.stringify({ error: { message: 'rate limit reached' } }), {
         status: 429,
-        headers: { 'content-type': 'application/json', 'retry-after': '120' },
+        headers: { 'content-type': 'application/json', 'retry-after': '1' },
       })
     case 'http-500':
       return new Response('oops', { status: 500 })
@@ -430,33 +430,33 @@ const MATRIX: MatrixLane[] = [
   },
 ]
 
-for (const lane of MATRIX) {
-  const model = FAMILY_MODEL[lane.family]!
-  console.log(`\n  · ${lane.family}`)
+for (const row of MATRIX) {
+  const model = FAMILY_MODEL[row.family]!
+  console.log(`\n  · ${row.family}`)
 
   wire.scenario = 'http-401'
   wire.chatHits = 0
   {
-    const { errors } = await drain(lane.run(model))
+    const { errors } = await drain(row.run(model))
     const text = errors.map(messageText).join('\n')
     check(
-      `${lane.family}: 401 → ONE typed authentication_failed refusal`,
+      `${row.family}: 401 → ONE typed authentication_failed refusal`,
       errors.length === 1 && errors[0]!.error === 'authentication_failed',
       `errors=${errors.length} error=${errors[0]?.error}`,
     )
-    check(`${lane.family}: 401 is not retried (hits=1)`, wire.chatHits === 1, `hits=${wire.chatHits}`)
+    check(`${row.family}: 401 is not retried (hits=1)`, wire.chatHits === 1, `hits=${wire.chatHits}`)
     check(
-      `${lane.family}: the key value never appears in the refusal`,
+      `${row.family}: the key value never appears in the refusal`,
       !text.includes(SECRET_MARKER),
     )
     check(
-      `${lane.family}: the wire saw the lane credential${lane.bearer === undefined ? ' (keyless dispatch)' : ''}`,
-      wire.lastAuth === lane.bearer,
+      `${row.family}: the wire saw the family's credential${row.bearer === undefined ? ' (keyless dispatch)' : ''}`,
+      wire.lastAuth === row.bearer,
       `auth=${wire.lastAuth ?? '(none)'}`,
     )
     check(
-      `${lane.family}: the wire model id is the vendor spelling`,
-      wire.lastBody?.model === lane.wireModel,
+      `${row.family}: the wire model id is the vendor spelling`,
+      wire.lastBody?.model === row.wireModel,
       `wire=${String(wire.lastBody?.model)}`,
     )
   }
@@ -464,20 +464,23 @@ for (const lane of MATRIX) {
   wire.scenario = 'http-429'
   wire.chatHits = 0
   {
-    const { errors } = await drain(lane.run(model))
+    const { errors } = await drain(row.run(model))
     check(
-      `${lane.family}: 429 → typed rate_limit after exactly one retry`,
+      `${row.family}: 429 → typed rate_limit after exactly one retry`,
       errors.length === 1 && errors[0]!.error === 'rate_limit' && wire.chatHits === 2,
       `errors=${errors.length} error=${errors[0]?.error} hits=${wire.chatHits}`,
     )
+    if (row.family === 'openrouter') check('openrouter: the 429 retry-after landed as a real limit window', openrouterLimitWindow().state === 'limited')
+    if (row.family === 'gemini') check('gemini: the 429 retry-after landed as a real limit window', geminiLimitWindow().state === 'limited')
+    if (row.family === 'huggingface') check('huggingface: the 429 landed as a limit window', huggingfaceLimitWindow().state === 'limited')
   }
 
   wire.scenario = 'http-500'
   wire.chatHits = 0
   {
-    const { errors } = await drain(lane.run(model))
+    const { errors } = await drain(row.run(model))
     check(
-      `${lane.family}: 500 → typed server_error after exactly one retry`,
+      `${row.family}: 500 → typed server_error after exactly one retry`,
       errors.length === 1 && errors[0]!.error === 'server_error' && wire.chatHits === 2,
       `errors=${errors.length} error=${errors[0]?.error} hits=${wire.chatHits}`,
     )
@@ -486,9 +489,9 @@ for (const lane of MATRIX) {
   wire.scenario = 'malformed-json'
   wire.chatHits = 0
   {
-    const { errors } = await drain(lane.run(model))
+    const { errors } = await drain(row.run(model))
     check(
-      `${lane.family}: malformed SSE JSON → ONE typed fault, no retry`,
+      `${row.family}: malformed SSE JSON → ONE typed fault, no retry`,
       errors.length === 1 && errors[0]!.error === 'server_error' && wire.chatHits === 1,
       `errors=${errors.length} hits=${wire.chatHits}`,
     )
@@ -497,10 +500,10 @@ for (const lane of MATRIX) {
   wire.scenario = 'truncated-sse'
   wire.chatHits = 0
   {
-    const { errors, assistants } = await drain(lane.run(model))
+    const { errors, assistants } = await drain(row.run(model))
     const settledText = assistants.filter(a => !a.isApiErrorMessage).map(messageText).join('')
     check(
-      `${lane.family}: truncated stream → partial text settles AND a typed fault follows`,
+      `${row.family}: truncated stream → partial text settles AND a typed fault follows`,
       settledText.includes('partial answer') && errors.length === 1 && errors[0]!.error === 'server_error',
       `text='${settledText.slice(0, 30)}' errors=${errors.length}`,
     )
@@ -515,16 +518,16 @@ for (const lane of MATRIX) {
       output: ledgerRow?.outputTokens ?? 0,
       cached: ledgerRow?.cacheReadInputTokens ?? 0,
     }
-    const { errors, assistants } = await drain(lane.run(model))
+    const { errors, assistants } = await drain(row.run(model))
     const settled = assistants.filter(a => !a.isApiErrorMessage)
     const after = getUsageForModel(compatDispatchModelId(model))
     check(
-      `${lane.family}: happy turn settles with no error message`,
+      `${row.family}: happy turn settles with no error message`,
       errors.length === 0 && settled.length > 0 && wire.chatHits === 1,
       `errors=${errors.length} settled=${settled.length} hits=${wire.chatHits}`,
     )
     check(
-      `${lane.family}: usage joins the ledger under the persisted id (inclusive wire → disjoint ledger)`,
+      `${row.family}: usage joins the ledger under the persisted id (inclusive wire → disjoint ledger)`,
       (after?.inputTokens ?? 0) - before.input === 5 &&
         (after?.cacheReadInputTokens ?? 0) - before.cached === 2 &&
         (after?.outputTokens ?? 0) - before.output === 3,
@@ -533,18 +536,6 @@ for (const lane of MATRIX) {
   }
 }
 
-check(
-  'openrouter: the 429 retry-after landed as a real limit window',
-  openrouterLimitWindow().state === 'limited',
-)
-check(
-  'gemini: the 429 retry-after landed as a real limit window',
-  geminiLimitWindow().state === 'limited',
-)
-check(
-  'huggingface: the 429 landed as a limit window',
-  huggingfaceLimitWindow().state === 'limited',
-)
 check(
   'openrouter: the polled key-usage truth was observed through the response seam',
   openrouterObservedKeyUsage().usage !== null,
