@@ -1796,7 +1796,7 @@ async function* queryModel(
         }
 
         if ((error as { status?: unknown }).status === 429) {
-          await (await import('../catalogueOnDemand.js')).readCataloguesForLanes('anthropic')
+          await (await import('../catalogueOnDemand.js')).readCataloguesForOtherFamilies('anthropic')
         }
         yield getAssistantMessageFromError(error, errorModel, {
           messages,
@@ -1819,7 +1819,7 @@ async function* queryModel(
       }
 
       if ((error as { status?: unknown }).status === 429) {
-        await (await import('../catalogueOnDemand.js')).readCataloguesForLanes('anthropic')
+        await (await import('../catalogueOnDemand.js')).readCataloguesForOtherFamilies('anthropic')
       }
       yield getAssistantMessageFromError(error, errorModel, {
         messages,

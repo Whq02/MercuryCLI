@@ -68,7 +68,7 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
   }
 }
 
-export async function readCataloguesForLanes(home: string | null, opts?: { boundMs?: number }): Promise<KeyedCatalogueFamily[]> {
+export async function readCataloguesForOtherFamilies(home: string | null, opts?: { boundMs?: number }): Promise<KeyedCatalogueFamily[]> {
   const outcomes = await Promise.all(
     KEYED_CATALOGUE_FAMILIES.filter(family => family !== home).map(async family => ((await readCatalogueIfPending(family, opts)) ? family : null)),
   )
