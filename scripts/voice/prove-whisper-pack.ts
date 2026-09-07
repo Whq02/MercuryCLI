@@ -366,14 +366,36 @@ if (load.state === 'ok') {
     const words = speech.text.toLowerCase()
     check('the synthesized speech fixture answers its words, loosely (lighthouse · seven · ships)', ['lighthouse', 'seven', 'ships'].filter(w => words.includes(w)).length >= 2, speech.text)
     console.log(`  · fixture ⇒ ${JSON.stringify(speech.text)} in ${speech.ms} ms`)
-    let bound = ''
-    try {
-      await transcribe.transcribeWav(fixture, { choice, deadlineMs: 1 })
-    } catch (error) {
-      bound = error instanceof Error ? error.message : String(error)
-    }
-    check('the decode rides its own bound and names it', bound.includes('did not answer within') && bound.includes(tiny.name), bound)
-    await new Promise(r => setTimeout(r, 1500))
+    check('the engine holds no decode before', transcribe.localDecodesInFlight() === 0)
+    const first = transcribe.transcribeWav(fixture, { choice, deadlineMs: 1 }).catch((e: unknown) => e)
+    check('a decode past its bound still holds the engine', transcribe.localDecodesInFlight() === 1, String(transcribe.localDecodesInFlight()))
+    const second = transcribe.transcribeWav(fixture, { choice, deadlineMs: 1 }).catch((e: unknown) => e)
+    check('a second take queues behind it, never beside it', transcribe.localDecodesInFlight() === 2, String(transcribe.localDecodesInFlight()))
+    const [e1, e2] = await Promise.all([first, second])
+    const m1 = e1 instanceof Error ? e1.message : JSON.stringify(e1)
+    const m2 = e2 instanceof Error ? e2.message : JSON.stringify(e2)
+    check('the first names its bound; the second names the wait behind the previous take', m1.includes('did not answer within') && m1.includes(tiny.name) && m2.includes('still decoding the previous take') && m2.includes(tiny.name), `${m1} · ${m2}`)
+    const third = await transcribe.transcribeWav(fixture, { choice })
+    check('a third take waits its turn and answers the words, and the engine is free after', ['lighthouse', 'seven', 'ships'].filter(w => third.text.toLowerCase().includes(w)).length >= 2 && transcribe.localDecodesInFlight() === 0, `${third.text} · held ${transcribe.localDecodesInFlight()}`)
+
+    process.env.MERCURY_VOICE_BACKEND = 'fixture'
+    process.env.MERCURY_VOICE_FIXTURE_WAV = join(import.meta.dir, 'fixtures', 'on-device-take.wav')
+    process.env.MERCURY_VOICE_TRANSCRIBER = 'on-device'
+    voiceSession.setVoiceInputEnabled(true)
+    const held = transcribe.transcribeWav(fixture, { choice, deadlineMs: 1 }).catch((e: unknown) => e)
+    check('a decode is held', transcribe.localDecodesInFlight() === 1)
+    let outcome = await voiceSession.toggleVoiceCapture()
+    check('space refuses a new take while the engine is held, naming the wait and the cloud door, and stays idle', outcome.kind === 'refused' && outcome.text === voiceSession.ENGINE_BUSY_RECEIPT && voiceSession.voiceSnapshot().phase === 'idle', JSON.stringify(outcome))
+    await held
+    await transcribe.transcribeWav(fixture, { choice })
+    check('the engine is free once the held decode ends', transcribe.localDecodesInFlight() === 0)
+    outcome = await voiceSession.toggleVoiceCapture()
+    check('…and space opens a take again', outcome.kind === 'started', JSON.stringify(outcome))
+    voiceSession.cancelVoiceCapture()
+    voiceSession.setVoiceInputEnabled(false)
+    delete process.env.MERCURY_VOICE_BACKEND
+    delete process.env.MERCURY_VOICE_FIXTURE_WAV
+    delete process.env.MERCURY_VOICE_TRANSCRIBER
     let shape = ''
     try {
       await transcribe.transcribeWav(wav.encodeWav(new Int16Array(8000), { sampleRate: 8000 }), { choice })

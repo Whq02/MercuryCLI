@@ -18,6 +18,7 @@ import {
   choiceDebugName,
   choiceDisplayName,
   liveTranscriberReads,
+  localDecodesInFlight,
   parseSavedTranscriber,
   resolveTranscriber,
   transcribeWav,
@@ -50,6 +51,7 @@ export const TRANSCRIBING_FOOTER = 'transcribing…'
 export const VOICE_OFF_RECEIPT = 'voice input is off — /speak on turns it on; then space in an empty composer starts a capture'
 export const CANCELLED_RECEIPT = 'capture cancelled — nothing sent'
 export const BUSY_RECEIPT = 'transcribing the last take — a moment'
+export const ENGINE_BUSY_RECEIPT = 'the on-device transcriber is still decoding the previous take — try again in a moment, or /speak options <family> chooses a cloud transcriber'
 
 const listeners = new Set<() => void>()
 let snapshot: VoiceSnapshot = { enabled: false, phase: 'idle', startedAt: null, backend: null, receipt: null }
@@ -191,6 +193,7 @@ export async function toggleVoiceCapture(opts: { env?: NodeJS.ProcessEnv } = {})
   if (backend.state === 'none') return refuse(backend.note)
   const transcriber = resolveTranscriber(env)
   if (transcriber.state === 'none') return refuse(transcriber.note)
+  if (transcriber.choice.kind === 'local' && localDecodesInFlight() > 0) return refuse(ENGINE_BUSY_RECEIPT)
   let handle: CaptureHandle
   try {
     handle = await startCapture({
