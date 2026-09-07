@@ -21,10 +21,10 @@ This summary is only a guide. The operative terms below control.
 
 - **Licensor:** Waleed Al Qusous, trading as Mercury CLI
 - **Licensed Work:** The version of Mercury CLI identified below, including its Mercury-owned source code, object code, documentation, and other materials distributed with this notice, but excluding third-party components expressly identified as being under another licence.
-- **Version:** `v1.0.0-beta.3` — the Mercury CLI release this file is distributed with, as named by its release tag and by `mercury --version`; a later version ships its own copy of this file with its own values
-- **Version Release Date:** 2026-09-06 (published at https://github.com/Whq02/MercuryCLI/releases/tag/v1.0.0-beta.3)
+- **Version:** `v1.0.0-beta.4` — the Mercury CLI release this file is distributed with, as named by its release tag and by `mercury --version`; a later version ships its own copy of this file with its own values
+- **Version Release Date:** 2026-09-07 (published at https://github.com/Whq02/MercuryCLI/releases/tag/v1.0.0-beta.4)
 - **Additional Use Grant:** The Mercury Community Production Grant set out below.
-- **Change Date:** 2029-09-06 (exactly three years after the Version Release Date)
+- **Change Date:** 2029-09-07 (exactly three years after the Version Release Date)
 - **Change License:** Apache License, Version 2.0 (`Apache-2.0`)
 - **Companion Production Terms:** `MERCURY-COMMUNITY-PRODUCTION-TERMS.md` distributed with the same version, terms version 1, SHA-256 `fa79191caba8270a78a7ae731939921a2959126ab9b036da73dac21906a47863`
 - **Commercial Licensing Contact:** https://mercury-cli.ai/licensing
