@@ -18,6 +18,7 @@ import {
   choiceDebugName,
   choiceDisplayName,
   liveTranscriberReads,
+  localDecodesInFlight,
   parseSavedTranscriber,
   resolveTranscriber,
   transcribeWav,
@@ -26,7 +27,7 @@ import {
   warmLocalTranscriber,
   type TranscriberResolution,
 } from './transcribe.js'
-import { mbWords, whisperDownloadDoor } from './whisperModels.js'
+import { mbWords, whisperDownloadDoor, whisperModelByName } from './whisperModels.js'
 
 export type VoicePhase = 'idle' | 'recording' | 'transcribing'
 
@@ -50,6 +51,7 @@ export const TRANSCRIBING_FOOTER = 'transcribing…'
 export const VOICE_OFF_RECEIPT = 'voice input is off — /speak on turns it on; then space in an empty composer starts a capture'
 export const CANCELLED_RECEIPT = 'capture cancelled — nothing sent'
 export const BUSY_RECEIPT = 'transcribing the last take — a moment'
+export const ENGINE_BUSY_RECEIPT = 'the on-device transcriber is still decoding the previous take — try again in a moment, or /speak options <family> chooses a cloud transcriber'
 
 const listeners = new Set<() => void>()
 let snapshot: VoiceSnapshot = { enabled: false, phase: 'idle', startedAt: null, backend: null, receipt: null }
@@ -191,6 +193,7 @@ export async function toggleVoiceCapture(opts: { env?: NodeJS.ProcessEnv } = {})
   if (backend.state === 'none') return refuse(backend.note)
   const transcriber = resolveTranscriber(env)
   if (transcriber.state === 'none') return refuse(transcriber.note)
+  if (transcriber.choice.kind === 'local' && localDecodesInFlight() > 0) return refuse(ENGINE_BUSY_RECEIPT)
   let handle: CaptureHandle
   try {
     handle = await startCapture({
@@ -292,7 +295,6 @@ function onDeviceCostWords(transcriber: TranscriberResolution): string | null {
 }
 
 export function onDeviceMemoryWords(model: string): string {
-  const { whisperModelByName } = require('./whisperModels.js') as typeof import('./whisperModels.js')
   const row = whisperModelByName(model)
   const bytes = row?.bytes ?? 59_721_011
   const mb = Math.round((bytes / 1_000_000) * 1.35 / 5) * 5
@@ -357,9 +359,11 @@ export function describeVoiceReadiness(env: NodeJS.ProcessEnv = process.env): Vo
   const cost = onDeviceCostWords(transcriber)
   const door = downloadDoorWords(transcriber)
   const disk = debugDir === null ? 'nothing is written to disk' : `a debug copy of every take is written to ${debugDir} (MERCURY_VOICE_DEBUG_WAV_DIR)`
+  const local = transcriber.local
   const detail = [
     backend.state === 'ok' ? `capture: ${backend.detail}${backend.pinned ? ' (MERCURY_VOICE_BACKEND)' : ''}` : `capture: ${backend.note}`,
     transcriber.state === 'ok' ? (transcriber.choice.kind === 'local' ? `transcriber: on-device (${transcriber.choice.model})` : `transcriber: ${transcriber.choice.label}`) : `transcriber: ${transcriber.note}`,
+    ...(local.state === 'ok' ? [`on-device CPU floor: ${local.pack.floor}`] : []),
     defaultWords(transcriber),
     ...(cost !== null ? [cost] : []),
     ...(transcriber.state === 'ok' && transcriber.unused.length > 0 ? [`cloud families signed in, not used: ${transcriber.unused.join('; ')}`] : []),

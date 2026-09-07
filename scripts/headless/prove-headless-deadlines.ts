@@ -403,6 +403,11 @@ async function startMcpFixture(behavior: { stallCalls?: boolean; killNthToolCall
         return
       }
       if (body.method === 'notifications/cancelled') cancels++
+      if (body.id !== undefined && body.method !== undefined) {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(j({ jsonrpc: '2.0', id: body.id, error: { code: -32601, message: `Method not found: ${body.method}` } }))
+        return
+      }
       res.writeHead(202).end()
     })
   })
