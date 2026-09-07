@@ -490,6 +490,13 @@ async function transcribeGemini(wav: Buffer, opts: TranscribeOptions): Promise<T
 
 const loadedModels = new Map<string, number>()
 
+let decodeTail: Promise<unknown> = Promise.resolve()
+let decodesHeld = 0
+
+export function localDecodesInFlight(): number {
+  return decodesHeld
+}
+
 function modelHandle(addon: WhisperAddon, path: string): number {
   const cached = loadedModels.get(path)
   if (cached !== undefined) return cached
@@ -535,13 +542,33 @@ async function transcribeLocal(wav: Buffer, opts: TranscribeOptions): Promise<Tr
   }
   const audioMs = pcmDurationMs(read.pcm)
   const deadlineMs = opts.deadlineMs ?? localTranscribeDeadlineMs(audioMs)
+  const queued = decodesHeld > 0
   let timer: ReturnType<typeof setTimeout> | null = null
   const bound = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new TranscribeError('local', `the on-device transcriber did not answer within ${Math.round(deadlineMs / 1000)}s (${model.name})`)), deadlineMs)
+    timer = setTimeout(
+      () =>
+        reject(
+          new TranscribeError(
+            'local',
+            queued
+              ? `the on-device transcriber is still decoding the previous take — this one waited ${Math.round(deadlineMs / 1000)}s for it (${model.name})`
+              : `the on-device transcriber did not answer within ${Math.round(deadlineMs / 1000)}s (${model.name})`,
+          ),
+        ),
+      deadlineMs,
+    )
     timer.unref?.()
   })
+  const pcm = Buffer.from(read.pcm)
+  decodesHeld += 1
+  const decode = decodeTail
+    .then(() => load.addon.transcribe(handle, pcm, { language: model.language === 'en' ? 'en' : 'auto' }))
+    .finally(() => {
+      decodesHeld -= 1
+    })
+  decodeTail = decode.catch(() => {})
   try {
-    const answer = await Promise.race([load.addon.transcribe(handle, Buffer.from(read.pcm), { language: model.language === 'en' ? 'en' : 'auto' }), bound])
+    const answer = await Promise.race([decode, bound])
     return { text: stripNonSpeechMarkers(answer.text), kind: 'local', family: null, model: model.name, ms: answer.ms }
   } catch (error) {
     if (error instanceof TranscribeError) throw error
