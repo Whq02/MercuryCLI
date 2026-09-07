@@ -100,9 +100,6 @@ add('getDirectoriesToProcess', 'nested', () =>
   A.getDirectoriesToProcess('/repo/src/deep/file.ts', '/repo'),
 )
 
-add('getCompactionReminderAttachment', 'first-turn', () =>
-  snap(() => (A as Record<string, CallableFunction>).getCompactionReminderAttachment([])),
-)
 add('getContextEfficiencyAttachment', 'fold-dead', () =>
   (A as Record<string, CallableFunction>).getContextEfficiencyAttachment([]),
 )

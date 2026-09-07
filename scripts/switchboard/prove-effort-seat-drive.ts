@@ -44,7 +44,7 @@ const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const projections = await import('../../src/services/engine-connector/seatProjections.ts')
 
 const fixture = await startCrossfamilyFixture({
-  port: Number(process.env.EFFORT_SEAT_PORT ?? '25171'),
+  port: Number(process.env.EFFORT_SEAT_PORT ?? '0'),
   gptReasoningLevels: LADDER,
 })
 

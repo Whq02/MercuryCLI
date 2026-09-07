@@ -121,8 +121,8 @@ function genSkill(name: string): { importLine: string; callLine: string } | null
     `  registerBundledSkill({\n` +
     `    name: ${JSON.stringify(name)},\n` +
     `    description: DESCRIPTION,\n` +
-    `    ...(typeof frontmatter.when_to_use === 'string' && frontmatter.when_to_use.trim()\n` +
-    `      ? { whenToUse: frontmatter.when_to_use }\n` +
+    `    ...(typeof frontmatter['when-to-use'] === 'string' && frontmatter['when-to-use'].trim()\n` +
+    `      ? { whenToUse: frontmatter['when-to-use'] }\n` +
     `      : {}),\n` +
     `    ...(typeof frontmatter['argument-hint'] === 'string' && frontmatter['argument-hint'].trim()\n` +
     `      ? { argumentHint: frontmatter['argument-hint'] }\n` +

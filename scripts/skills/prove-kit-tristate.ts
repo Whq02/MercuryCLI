@@ -38,30 +38,30 @@ section('§1 the classifier and the two overlay halves, pure')
   const g = await import('../../src/skills/kitGovernance.ts')
   g._resetKitGovernanceForTesting()
   const loader = { type: 'prompt', name: 'ns:alpha', description: 'a', loadedFrom: 'skills', source: 'projectSettings' } as never
-  const legacy = { type: 'prompt', name: 'old-cmd', description: 'l', loadedFrom: 'legacy-commands', source: 'projectSettings' } as never
+  const invocable = { type: 'prompt', name: 'old-cmd', description: 'l', loadedFrom: 'skills', source: 'projectSettings' } as never
   const extSkill = { type: 'prompt', name: 'orchard:prune', description: 'e', loadedFrom: 'extension', source: 'extension', skillRoot: '/x/skills/prune' } as never
   const extCommand = { type: 'prompt', name: 'orchard:sweep', description: 'c', loadedFrom: 'extension', source: 'extension' } as never
   const bundled = { type: 'prompt', name: 'debug', description: 'b', loadedFrom: 'bundled', source: 'builtin' } as never
   const builtin = { type: 'local', name: 'help', description: 'h', source: 'builtin' } as never
   t(
-    'T1 governed BY NAME = loader skills + legacy commands + extension SKILLS (skillRoot, the build\'s own discriminator); extension COMMANDS, bundled organs and builtins are not',
-    g.isKitGovernedSkillCommand(loader) && g.isKitGovernedSkillCommand(legacy) && g.isKitGovernedSkillCommand(extSkill) && !g.isKitGovernedSkillCommand(extCommand) && !g.isKitGovernedSkillCommand(bundled) && !g.isKitGovernedSkillCommand(builtin),
+    'T1 governed BY NAME = loader skills + extension SKILLS (skillRoot, the build\'s own discriminator); extension COMMANDS, bundled organs and builtins are not',
+    g.isKitGovernedSkillCommand(loader) && g.isKitGovernedSkillCommand(invocable) && g.isKitGovernedSkillCommand(extSkill) && !g.isKitGovernedSkillCommand(extCommand) && !g.isKitGovernedSkillCommand(bundled) && !g.isKitGovernedSkillCommand(builtin),
   )
   const authorDisabled = { ...(loader as object), name: 'ns:quiet', disableModelInvocation: true } as never
   g.noteBootSkillRoster(['ns:alpha', 'old-cmd', 'orchard:prune', 'ns:quiet'])
   const resolved = { schema: 1, mcp: [], skills: ['ns:alpha', 'ns:quiet'], invocable: ['old-cmd'], extensions: {} } as never
   t('T2 resolved kit: a listed-on skill keeps its author object BY IDENTITY (no copy, no mutation)', g.withKitSkillMark(resolved, loader) === loader && !g.kitDropsCommand(resolved, loader))
-  const marked = g.withKitSkillMark(resolved, legacy) as { disableModelInvocation?: boolean; kitSkillState?: string }
-  t('T3 resolved kit: an invocable skill is a COPY with disableModelInvocation set + the kit provenance named; the input object is untouched', marked !== (legacy as object) && marked.disableModelInvocation === true && marked.kitSkillState === 'invocable' && (legacy as { disableModelInvocation?: boolean }).disableModelInvocation === undefined)
+  const marked = g.withKitSkillMark(resolved, invocable) as { disableModelInvocation?: boolean; kitSkillState?: string }
+  t('T3 resolved kit: an invocable skill is a COPY with disableModelInvocation set + the kit provenance named; the input object is untouched', marked !== (invocable as object) && marked.disableModelInvocation === true && marked.kitSkillState === 'invocable' && (invocable as { disableModelInvocation?: boolean }).disableModelInvocation === undefined)
   t('T4 resolved kit: a boot-roster skill ABSENT from the lists is OFF (dropped — the operator\'s screen saw the row)', g.kitDropsCommand(resolved, extSkill) === true)
   t("T5 POISON armed (the widening law): kit-on NEVER clears the author's own disable-model-invocation — the on arm passes the object through, switch intact", (g.withKitSkillMark(resolved, authorDisabled) as { disableModelInvocation?: boolean }).disableModelInvocation === true)
   const bornLater = { ...(loader as object), name: 'ns:newborn' } as never
   t("T6 the boot-roster rule: a governed skill born AFTER the snapshot passes on its author's frontmatter (the kit can only narrow what it could see)", !g.kitDropsCommand(resolved, bornLater) && g.withKitSkillMark(resolved, bornLater) === bornLater)
   t('T7 extension COMMANDS are never name-governed (their gate is the master row at the switch door)', !g.kitDropsCommand(resolved, extCommand) && g.withKitSkillMark(resolved, extCommand) === extCommand)
   const unresolved = { schema: 1, mcp: [], skills: [], invocable: [], resolved: false, deltas: { mcpOff: [], skillStates: { 'old-cmd': 'invocable', 'orchard:prune': 'off' }, extensionsOff: [] } } as never
-  const uMarked = g.withKitSkillMark(unresolved, legacy) as { disableModelInvocation?: boolean; kitSkillState?: string }
+  const uMarked = g.withKitSkillMark(unresolved, invocable) as { disableModelInvocation?: boolean; kitSkillState?: string }
   t('T8 the deltas arm AGREES with the resolved arm over the same roster (the completion relies on this agreement): same drop, same mark, same pass', g.kitDropsCommand(unresolved, extSkill) === true && uMarked.disableModelInvocation === true && uMarked.kitSkillState === 'invocable' && !g.kitDropsCommand(unresolved, loader) && g.withKitSkillMark(unresolved, loader) === loader)
-  t('T9 no kit ⇒ both halves are identity (an un-kitted process does not move a byte)', !g.kitDropsCommand(undefined, extSkill) && g.withKitSkillMark(undefined, legacy) === legacy)
+  t('T9 no kit ⇒ both halves are identity (an un-kitted process does not move a byte)', !g.kitDropsCommand(undefined, extSkill) && g.withKitSkillMark(undefined, invocable) === invocable)
   g._resetKitGovernanceForTesting()
 }
 

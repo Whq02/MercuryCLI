@@ -187,7 +187,7 @@ function childEnv(home: string, netlog: string, extra: Record<string, string> = 
     'MOONSHOT_API_KEY',
     'DEEPSEEK_API_KEY',
     'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC',
-    'DISABLE_TELEMETRY',
+    'MERCURY_TELEMETRY',
     'MERCURY_UPDATE_NOTICE',
     'MERCURY_CONCOURSE',
     'MERCURY_CONCOURSE_FIXTURE',
