@@ -1,6 +1,6 @@
 import { spawnSync, execSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { homedir, tmpdir } from 'node:os'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
@@ -10,7 +10,7 @@ const check = (ok: boolean, label: string): void => {
 }
 
 const REPO = join(new URL('.', import.meta.url).pathname, '../..')
-const BUN = process.env.BUN ?? join(homedir(), '.bun/bin/bun')
+const BUN = process.env.BUN ?? process.execPath
 
 interface Rec {
   id: string
