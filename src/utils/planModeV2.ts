@@ -1,4 +1,3 @@
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/featureGates.js'
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import { getRateLimitTier, getSubscriptionType } from './auth.js'
 
@@ -16,11 +15,4 @@ export function getPlanModeV2ExploreAgentCount(): number {
 
 export function isPlanModeInterviewPhaseEnabled(): boolean {
   return flagEnabled('MERCURY_INTERVIEW')
-}
-
-export type PewterLedgerVariant = 'trim' | 'cut' | 'cap' | null
-
-export function getPewterLedgerVariant(): PewterLedgerVariant {
-  const value = getFeatureValue_CACHED_MAY_BE_STALE<string | null>('mercury_pewter_ledger', null)
-  return value === 'trim' || value === 'cut' || value === 'cap' ? value : null
 }

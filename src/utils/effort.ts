@@ -1,5 +1,4 @@
 import { EFFORT_LEVELS, type EffortLevel } from '../entrypoints/sdk/runtimeTypes.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/featureGates.js'
 import { nearestSupportedWireEffort, wireEffortForListDefault } from '../services/providers/openai/gptPins.js'
 import { isGlmModelId } from '../services/providers/zai/glmPins.js'
 import { isEnterpriseSubscriber, isMaxSubscriber, isProSubscriber, isTeamSubscriber } from './auth.js'
@@ -537,11 +536,7 @@ const DEFAULT_OPUS_EFFORT_CONFIG: OpusDefaultEffortConfig = {
 }
 
 export function getOpusDefaultEffortConfig(): OpusDefaultEffortConfig {
-  const remote = getFeatureValue_CACHED_MAY_BE_STALE<Partial<OpusDefaultEffortConfig>>(
-    'mercury_grey_step2',
-    DEFAULT_OPUS_EFFORT_CONFIG,
-  )
-  return { ...DEFAULT_OPUS_EFFORT_CONFIG, ...remote }
+  return { ...DEFAULT_OPUS_EFFORT_CONFIG }
 }
 
 
