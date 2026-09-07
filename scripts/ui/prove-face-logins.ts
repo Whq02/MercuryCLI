@@ -491,6 +491,10 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
 
   const arms = loginsCatalogue()
   t.check('the catalogue is the row owner’s nine, engine legs offered', arms.length === 9 && arms.map(a => a.row.value).join(',') === 'openai,claudeai,console,openrouter,gemini,huggingface,moonshot,zai,deepseek')
+  const { loginFamilyInitialFocus, loginFamilyFocusFor } = await import('../../src/components/loginFamilyRows.js')
+  const signedOutRows = loginsSortedArms(signedOutFacts()).map(arm => arm.row)
+  t.check('signed-out opening focus is the first displayed row', loginFamilyInitialFocus(signedOutRows, undefined) === signedOutRows[0]!.value && signedOutRows[0]!.value === 'openai')
+  t.check('recent Anthropic sign-in retains named-row focus', loginFamilyInitialFocus(signedOutRows, loginFamilyFocusFor('anthropic')) === 'claudeai')
   const claudeArm = arms.find(a => a.row.value === 'claudeai')!
   const consoleArm = arms.find(a => a.row.value === 'console')!
   const geminiArm = arms.find(a => a.row.value === 'gemini')!

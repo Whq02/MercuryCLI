@@ -69,6 +69,7 @@ import { wrapPlain } from './BootHealthScreen.js';
 import {
   loginFamilyFocusFor,
   loginFamilyRows,
+  loginFamilyInitialFocus,
   openaiArmPickRows,
   type LoginFamilyRow,
 } from './loginFamilyRows.js';
@@ -1219,12 +1220,13 @@ export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLogin
   };
 
   const recordedFocus = loginFamilyFocusFor(mostRecentSignInFamily());
+  const initialFocus = loginFamilyInitialFocus(arms.map(arm => arm.row), recordedFocus);
 
   const list = useInteractiveList<LoginsArmV1>({
     rows: arms,
     rowId: a => `logins:${a.row.value}`,
     idNamespace: 'boot-logins',
-    ...(recordedFocus !== undefined ? { initialId: `logins:${recordedFocus}` } : {}),
+    ...(initialFocus !== undefined ? { initialId: `logins:${initialFocus}` } : {}),
     active: flow === null,
     onClose: () => onClose?.(),
     actions: [
