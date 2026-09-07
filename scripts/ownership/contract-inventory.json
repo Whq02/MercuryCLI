@@ -795,6 +795,7 @@
   "memoryUpkeepEnabled",
   "model",
   "modelOverrides",
+  "patience",
   "permissions",
   "plansDirectory",
   "prefersReducedMotion",
