@@ -243,7 +243,7 @@ section("§3 ONE transcriber owner — the order law, the ledger's order, the AP
 {
   type Local = import('../../src/services/voice/transcribe.js').LocalTranscriberRead
   const NO_PACK: Local = { state: 'absent', reason: 'pack', note: 'absent on this checkout — bun run scripts/vendor/build-whisper.ts builds it (cargo and cmake)', short: 'no on-device pack (bun run setup)' }
-  const ON_DEVICE: Local = { state: 'ok', label: 'on-device transcriber (base.en-q5_1)', model: 'base.en-q5_1', language: 'en', pack: { version: '0.1.0', platform: 'fixture-os-fixture-arch', engine: 'whisper.cpp 1.8.3', gpu: 'none', where: 'the checkout' } }
+  const ON_DEVICE: Local = { state: 'ok', label: 'on-device transcriber (base.en-q5_1)', model: 'base.en-q5_1', language: 'en', pack: { version: '0.1.0', platform: 'fixture-os-fixture-arch', engine: 'whisper.cpp 1.8.3', gpu: 'none', where: 'the checkout', floor: 'fixture-arch — met by the architecture' } }
   const reads = (openai: string | null, gemini: string | null, local: Local = NO_PACK): import('../../src/services/voice/transcribe.js').TranscriberReads => ({
     openaiApiKeyLabel: () => openai,
     geminiApiKeyLabel: () => gemini,

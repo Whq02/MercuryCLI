@@ -33,6 +33,8 @@ const voicePack = await import('../../src/services/voice/voicePack.js')
 const transcribe = await import('../../src/services/voice/transcribe.js')
 const wav = await import('../../src/services/voice/wav.js')
 const capture = await import('../../src/services/voice/capture.js')
+const voiceSession = await import('../../src/services/voice/voiceSession.js')
+const speak = await import('../../src/commands/speak/speak.js')
 
 const PLATFORM = voicePack.voicePackPlatform()
 const PACK_DIR = pack.whisperPackDirFor(ROOT, PLATFORM)
@@ -150,6 +152,123 @@ console.log('\n[M] the model road — the lock, the three states, the pin, the d
   void cachedTiny
 }
 
+console.log('\n[F] the CPU floor — the helper-process probe, the decision per platform, the loader\'s rule')
+{
+  const fixtures = join(SCRATCH, 'floor-fixtures')
+  mkdirSync(fixtures, { recursive: true })
+  const meets = join(fixtures, 'meets.js')
+  writeFileSync(meets, "module.exports = { cpuFloor: () => ({ arch: 'x86_64', floor: 'AVX2, FMA and F16C', met: true, missing: [] }) }\n")
+  const answers = join(fixtures, 'answers.js')
+  writeFileSync(answers, "module.exports = { cpuFloor: () => ({ arch: 'x86_64', floor: 'AVX2, FMA and F16C', met: false, missing: ['avx2', 'fma'] }) }\n")
+  const faults = join(fixtures, 'faults.js')
+  writeFileSync(faults, "if (process.platform === 'win32') process.exit(3221225501); else process.kill(process.pid, 'SIGILL')\n")
+  const throws = join(fixtures, 'throws.js')
+  writeFileSync(throws, "throw new Error('not an addon')\n")
+  const hangs = join(fixtures, 'hangs.js')
+  writeFileSync(hangs, 'try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0) } catch { for (;;) {} }\n')
+  const absent = join(fixtures, 'absent.js')
+  const noFloor = join(fixtures, 'no-floor.js')
+  writeFileSync(noFloor, 'module.exports = {}\n')
+  const noRuntime = join(fixtures, 'no-such-runtime')
+
+  const hosts: Array<[string, string | null]> = [
+    ['this prover\'s runtime', BUN],
+    ['a PATH node', capture.findOnPath('node')],
+  ]
+  for (const [label, exe] of hosts) {
+    if (exe === null) {
+      warn(`${label} is absent on this host — that helper leg is skipped`)
+      continue
+    }
+    const helper = { exe }
+    let p = pack.probeCpuFloorByLoad(meets, helper)
+    check(`${label}: an addon that answers met ⇒ met, read by the helper`, p.state === 'met' && p.via === 'helper', JSON.stringify(p))
+    p = pack.probeCpuFloorByLoad(answers, helper)
+    check(`${label}: an addon that answers unmet ⇒ unmet naming the missing sets, no fault`, p.state === 'unmet' && p.missing.join(',') === 'avx2,fma' && p.faulted === undefined, JSON.stringify(p))
+    const t0 = Date.now()
+    p = pack.probeCpuFloorByLoad(faults, helper)
+    check(`${label}: an addon that faults at load ⇒ unmet, faulted — the fault stayed in the helper (this prover is still running)`, p.state === 'unmet' && p.faulted === true, JSON.stringify(p))
+    console.log(`  · ${label}: the faulting helper answered in ${Date.now() - t0} ms`)
+    p = pack.probeCpuFloorByLoad(throws, helper)
+    check(`${label}: an addon that throws at load ⇒ unknown, the load's own words named`, p.state === 'unknown' && p.note.includes('could not load the addon') && p.note.includes('not an addon'), JSON.stringify(p))
+    p = pack.probeCpuFloorByLoad(absent, helper)
+    check(`${label}: an absent addon ⇒ unknown, the path named`, p.state === 'unknown' && p.note.includes('could not load the addon') && p.note.includes('absent.js'), JSON.stringify(p))
+    p = pack.probeCpuFloorByLoad(noFloor, helper)
+    check(`${label}: an addon without cpuFloor() ⇒ unknown, saying so`, p.state === 'unknown' && p.note.includes('exports no cpuFloor()'), JSON.stringify(p))
+    p = pack.probeCpuFloorByLoad(hangs, { exe, timeoutMs: 1_000 })
+    check(`${label}: a helper that never answers ⇒ unknown at the bound, naming it`, p.state === 'unknown' && p.note.includes('gave no answer within 1s'), JSON.stringify(p))
+  }
+  let p = pack.probeCpuFloorByLoad(meets, { exe: noRuntime })
+  check('a runtime that cannot start ⇒ unknown, named', p.state === 'unknown' && p.note.includes('could not start'), JSON.stringify(p))
+  check('the helper\'s bound is well under the 20 s the old probe could freeze the screen for', pack.CPU_FLOOR_HELPER_TIMEOUT_MS <= 10_000, String(pack.CPU_FLOOR_HELPER_TIMEOUT_MS))
+
+  const nowhere = { exe: noRuntime }
+  let d = pack.probeCpuFloor({ platform: 'win32', arch: 'x64', addonPath: answers })
+  check('Windows x64: the helper is the probe — an unmet answer holds the road back, naming the sets', d.state === 'unmet' && d.via === 'helper' && d.missing.join(',') === 'avx2,fma', JSON.stringify(d))
+  d = pack.probeCpuFloor({ platform: 'win32', arch: 'x64', addonPath: meets })
+  check('Windows x64: a met answer opens the road', d.state === 'met' && d.via === 'helper', JSON.stringify(d))
+  d = pack.probeCpuFloor({ platform: 'win32', arch: 'x64', addonPath: faults })
+  check('Windows x64: a fault in the helper is unmet (faulted) — never a fault in Mercury', d.state === 'unmet' && d.faulted === true, JSON.stringify(d))
+  d = pack.probeCpuFloor({ platform: 'win32', arch: 'x64', addonPath: hangs, helper: { timeoutMs: 1_000 } })
+  check('Windows x64: a helper that never answers leaves the floor unknown at the bound', d.state === 'unknown' && d.note.includes('gave no answer'), JSON.stringify(d))
+  d = pack.probeCpuFloor({ platform: 'win32', arch: 'x64', addonPath: throws })
+  check('Windows x64: a helper that cannot answer leaves the floor unknown', d.state === 'unknown' && d.via === 'helper', JSON.stringify(d))
+  d = pack.probeCpuFloor({ platform: 'win32', arch: 'x64', addonPath: null })
+  check('Windows x64 with nothing to load: unknown, saying Windows keeps no list', d.state === 'unknown' && d.note.includes('Windows keeps no instruction-set list'), JSON.stringify(d))
+  d = pack.probeCpuFloor({ platform: 'linux', arch: 'x64', addonPath: answers })
+  check('Linux x64 with no flag list: the helper is the probe (a host with /proc/cpuinfo reads the flags instead)', (d.via === 'helper' && d.state === 'unmet') || (existsSync('/proc/cpuinfo') && d.via === 'flags'), JSON.stringify(d))
+  d = pack.probeCpuFloor({ platform: 'win32', arch: 'arm64', addonPath: answers, helper: nowhere })
+  check('Windows arm64: met by the architecture, no helper spawned', d.state === 'met' && d.via === 'architecture', JSON.stringify(d))
+  d = pack.probeCpuFloor({ platform: 'darwin', arch: 'arm64', addonPath: answers, helper: nowhere })
+  check('darwin arm64: met by the architecture, no helper spawned', d.state === 'met' && d.via === 'architecture', JSON.stringify(d))
+  d = pack.probeCpuFloor({ platform: 'linux', arch: 'arm64', addonPath: faults, helper: nowhere })
+  check('Linux arm64: met by the architecture, no helper spawned', d.state === 'met' && d.via === 'architecture', JSON.stringify(d))
+
+  const unread = pack.cpuFloorRefusal({ state: 'unknown', via: 'helper', note: 'fixture: nothing reported' }, 'x64')
+  check('the refusal for an unread floor names the floor, the reason and that it could not be read', unread.includes('x86-64 with AVX2, FMA and F16C') && unread.includes('fixture: nothing reported') && unread.includes('could not be read'), unread)
+  const faulted = pack.cpuFloorRefusal({ state: 'unmet', via: 'helper', missing: [], faulted: true }, 'x64')
+  check('…for a fault, that loading it in a helper process faulted', faulted.includes('loading it in a helper process faulted') && faulted.includes('x86-64 with AVX2, FMA and F16C'), faulted)
+  check('…for a CPU below the floor, the missing sets (the words unchanged)', pack.cpuFloorRefusal({ state: 'unmet', via: 'flags', missing: ['avx2', 'fma'] }, 'x64') === 'this CPU lacks AVX2, FMA — the on-device transcriber needs x86-64 with AVX2, FMA and F16C')
+  check('the road words: the architecture, the flag list, the helper (the first read paid a moment)', pack.cpuFloorRoadWords({ state: 'met', via: 'architecture' }, 'arm64') === 'arm64 (NEON) — met by the architecture' && pack.cpuFloorRoadWords({ state: 'met', via: 'flags' }, 'x64').includes("operating system's flag list") && pack.cpuFloorRoadWords({ state: 'met', via: 'helper' }, 'x64').includes('helper process'))
+
+  const fake = join(SCRATCH, 'fake-pack')
+  mkdirSync(fake, { recursive: true })
+  writeFileSync(join(fake, pack.WHISPER_ADDON_FILE), 'not an addon')
+  const zeros = '0'.repeat(64)
+  writeFileSync(
+    join(fake, pack.WHISPER_PACK_MANIFEST_FILE),
+    JSON.stringify({ name: pack.WHISPER_PACK_NAME, version: '0.0.0', platform: PLATFORM, addon: pack.WHISPER_ADDON_FILE, addonSha256: zeros, sourceTreeDigest: zeros, cargo: '', engine: { name: 'whisper.cpp', version: '0.0.0' }, cpuFloor: pack.whisperCpuFloorWords(), gpu: 'none', crates: [], fileCount: 1, treeDigest: zeros }),
+  )
+  process.env.MERCURY_WHISPER_PACK_DIR = fake
+  pack.resetWhisperAddonForTest()
+  check('the synthesised pack resolves through the pin', pack.resolveWhisperPackDir().state === 'ok')
+  const unknownProbe = { state: 'unknown' as const, via: 'helper' as const, note: 'fixture: nothing reported' }
+  pack.seedCpuFloorProbeForTest(unknownProbe)
+  let l = pack.loadWhisperAddon()
+  check('an unknown floor never reaches the require: unavailable with the reason, the cloud road named, the junk file never loaded', l.state === 'unavailable' && l.note.includes('could not be read') && l.note.includes(pack.whisperCpuFloorWords()) && l.note.includes('fixture: nothing reported') && !l.note.includes('failed to load') && l.note.endsWith('; the cloud road serves'), l.state === 'unavailable' ? l.note : 'ok')
+  let r = transcribe.localTranscriberRead()
+  check('the on-device read says so in one row, the same sentence', r.state === 'absent' && r.reason === 'cpu' && r.short === 'on-device CPU check inconclusive' && r.note === pack.cpuFloorRefusal(unknownProbe), JSON.stringify(r))
+  const status = voiceSession.describeVoiceStatus()
+  check('/speak says why', status.includes('on-device transcriber: the on-device transcriber is held back: fixture: nothing reported') && status.includes('could not be read'), status)
+  const readiness = voiceSession.describeVoiceReadiness()
+  check('the doctor row says why', readiness.detail.includes('fixture: nothing reported') && readiness.detail.includes('could not be read'), readiness.detail)
+  const door = await speak.call('download', {} as never)
+  check('/speak download refuses: nothing to download while the on-device transcriber cannot run here', door.type === 'text' && door.value.includes('could not be read') && door.value.includes('nothing to download while the on-device transcriber cannot run here'), door.type === 'text' ? door.value : door.type)
+  pack.resetWhisperAddonForTest()
+  pack.seedCpuFloorProbeForTest({ state: 'unmet', via: 'helper', missing: [], faulted: true })
+  l = pack.loadWhisperAddon()
+  check('a fault in the helper: unavailable naming the fault, the junk file never loaded', l.state === 'unavailable' && l.note.includes('loading it in a helper process faulted') && !l.note.includes('failed to load'), l.state === 'unavailable' ? l.note : 'ok')
+  r = transcribe.localTranscriberRead()
+  check('…and the on-device read is CPU below the on-device floor', r.state === 'absent' && r.reason === 'cpu' && r.short === 'CPU below the on-device floor', JSON.stringify(r))
+  pack.resetWhisperAddonForTest()
+  pack.seedCpuFloorProbeForTest({ state: 'met', via: 'flags' })
+  l = pack.loadWhisperAddon()
+  check('only met reaches the require: the junk file fails to load, with the rebuild remedy', l.state === 'unavailable' && l.note.includes('failed to load') && l.note.includes('build-whisper.ts'), l.state === 'unavailable' ? l.note : 'ok')
+  pack.resetWhisperAddonForTest()
+  delete process.env.MERCURY_WHISPER_PACK_DIR
+  check('the seed is lifted with the reset', pack.resolveWhisperPackDir().state !== 'ok' || pack.probeCpuFloor({ platform: 'win32', arch: 'x64', addonPath: meets }).via === 'helper')
+}
+
 console.log('\n[1] the vendor build')
 const build = spawnSync(BUN, ['run', 'scripts/vendor/build-whisper.ts'], { cwd: ROOT, encoding: 'utf8', env: process.env, timeout: 540_000, maxBuffer: 64 * 1024 * 1024 })
 const buildOut = `${build.stdout ?? ''}\n${build.stderr ?? ''}`
@@ -199,9 +318,14 @@ if (load.state === 'ok') {
   const info = load.addon.systemInfo()
   check('systemInfo() answers ggml\'s feature line', typeof info === 'string' && /CPU|NEON|AVX/.test(info), info.slice(0, 120))
   const floor = load.addon.cpuFloor()
-  const probe = pack.probeCpuFloor()
-  check('cpuFloor() answers the floor and whether this CPU has it; the JS probe agrees or says unknown', typeof floor.floor === 'string' && Array.isArray(floor.missing) && (probe.state === 'unknown' || (probe.state === 'met') === floor.met), `${JSON.stringify(floor)} · ${JSON.stringify(probe)}`)
-  console.log(`  · engine ${load.addon.engineVersion()} · floor ${floor.floor} (${floor.met ? 'met' : 'unmet'}) · probe ${probe.state} · ${info.trim()}`)
+  const realAddon = join(load.dir, load.manifest.addon)
+  const probe = pack.probeCpuFloor({ addonPath: realAddon })
+  check('cpuFloor() answers the floor and whether this CPU has it; the JS probe agrees (met is the only road to this load)', typeof floor.floor === 'string' && Array.isArray(floor.missing) && probe.state === 'met' && floor.met, `${JSON.stringify(floor)} · ${JSON.stringify(probe)}`)
+  const t0 = Date.now()
+  const byLoad = pack.probeCpuFloorByLoad(realAddon)
+  const helperMs = Date.now() - t0
+  check('the helper on the real addon agrees with the in-process cpuFloor()', byLoad.state === (floor.met ? 'met' : 'unmet') && byLoad.via === 'helper', JSON.stringify(byLoad))
+  console.log(`  · engine ${load.addon.engineVersion()} · floor ${floor.floor} (${floor.met ? 'met' : 'unmet'}) · probe ${probe.state} by ${probe.via} · helper ${byLoad.state} in ${helperMs} ms · ${info.trim()}`)
   const local = transcribe.localTranscriberRead()
   check('with the pack present and no model in the home, the on-device read names the download door', local.state === 'absent' && local.reason === 'model' && local.short === 'on-device model: /speak download' && local.download?.name === models.WHISPER_DEFAULT_MODEL, JSON.stringify(local))
   const door = models.whisperDownloadDoor()
@@ -242,14 +366,36 @@ if (load.state === 'ok') {
     const words = speech.text.toLowerCase()
     check('the synthesized speech fixture answers its words, loosely (lighthouse · seven · ships)', ['lighthouse', 'seven', 'ships'].filter(w => words.includes(w)).length >= 2, speech.text)
     console.log(`  · fixture ⇒ ${JSON.stringify(speech.text)} in ${speech.ms} ms`)
-    let bound = ''
-    try {
-      await transcribe.transcribeWav(fixture, { choice, deadlineMs: 1 })
-    } catch (error) {
-      bound = error instanceof Error ? error.message : String(error)
-    }
-    check('the decode rides its own bound and names it', bound.includes('did not answer within') && bound.includes(tiny.name), bound)
-    await new Promise(r => setTimeout(r, 1500))
+    check('the engine holds no decode before', transcribe.localDecodesInFlight() === 0)
+    const first = transcribe.transcribeWav(fixture, { choice, deadlineMs: 1 }).catch((e: unknown) => e)
+    check('a decode past its bound still holds the engine', transcribe.localDecodesInFlight() === 1, String(transcribe.localDecodesInFlight()))
+    const second = transcribe.transcribeWav(fixture, { choice, deadlineMs: 1 }).catch((e: unknown) => e)
+    check('a second take queues behind it, never beside it', transcribe.localDecodesInFlight() === 2, String(transcribe.localDecodesInFlight()))
+    const [e1, e2] = await Promise.all([first, second])
+    const m1 = e1 instanceof Error ? e1.message : JSON.stringify(e1)
+    const m2 = e2 instanceof Error ? e2.message : JSON.stringify(e2)
+    check('the first names its bound; the second names the wait behind the previous take', m1.includes('did not answer within') && m1.includes(tiny.name) && m2.includes('still decoding the previous take') && m2.includes(tiny.name), `${m1} · ${m2}`)
+    const third = await transcribe.transcribeWav(fixture, { choice })
+    check('a third take waits its turn and answers the words, and the engine is free after', ['lighthouse', 'seven', 'ships'].filter(w => third.text.toLowerCase().includes(w)).length >= 2 && transcribe.localDecodesInFlight() === 0, `${third.text} · held ${transcribe.localDecodesInFlight()}`)
+
+    process.env.MERCURY_VOICE_BACKEND = 'fixture'
+    process.env.MERCURY_VOICE_FIXTURE_WAV = join(import.meta.dir, 'fixtures', 'on-device-take.wav')
+    process.env.MERCURY_VOICE_TRANSCRIBER = 'on-device'
+    voiceSession.setVoiceInputEnabled(true)
+    const held = transcribe.transcribeWav(fixture, { choice, deadlineMs: 1 }).catch((e: unknown) => e)
+    check('a decode is held', transcribe.localDecodesInFlight() === 1)
+    let outcome = await voiceSession.toggleVoiceCapture()
+    check('space refuses a new take while the engine is held, naming the wait and the cloud door, and stays idle', outcome.kind === 'refused' && outcome.text === voiceSession.ENGINE_BUSY_RECEIPT && voiceSession.voiceSnapshot().phase === 'idle', JSON.stringify(outcome))
+    await held
+    await transcribe.transcribeWav(fixture, { choice })
+    check('the engine is free once the held decode ends', transcribe.localDecodesInFlight() === 0)
+    outcome = await voiceSession.toggleVoiceCapture()
+    check('…and space opens a take again', outcome.kind === 'started', JSON.stringify(outcome))
+    voiceSession.cancelVoiceCapture()
+    voiceSession.setVoiceInputEnabled(false)
+    delete process.env.MERCURY_VOICE_BACKEND
+    delete process.env.MERCURY_VOICE_FIXTURE_WAV
+    delete process.env.MERCURY_VOICE_TRANSCRIBER
     let shape = ''
     try {
       await transcribe.transcribeWav(wav.encodeWav(new Int16Array(8000), { sampleRate: 8000 }), { choice })
