@@ -12,6 +12,13 @@ import {
   type AgentLaunchPlanInput,
 } from '../../src/utils/swarm/agentLaunchPlan.js'
 import { decodeAgentType } from '../../src/utils/swarm/roleResolver.js'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 's1-contracts-'))
+const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+enableConfigs()
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

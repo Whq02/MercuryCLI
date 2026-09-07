@@ -170,6 +170,12 @@ report_path = sys.argv[1]
 mode = sys.argv[2]            # discover | run
 start_dir = sys.argv[3]
 selection = sys.argv[4:]      # node ids for run (empty = all)
+# A by-name load imports from the project root the way discover() does:
+# the runner script lives elsewhere, so the root is not on sys.path by
+# itself, and a rerun of one failing test must import its module the same
+# way the full run did.
+if start_dir not in sys.path:
+    sys.path.insert(0, start_dir)
 
 out = open(report_path, "a")
 def emit(obj):

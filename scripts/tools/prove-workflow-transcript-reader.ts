@@ -100,6 +100,23 @@ check('torn trailing line tolerated (live tail)', v.entryCount === entries.lengt
 const meta = await readAgentMeta(dir, agentId)
 check('meta sidecar read', meta?.agentType === 'workflow-subagent' && meta.description === 'proof agent')
 
+section('a row persisted twice counts once')
+{
+  const twinFile = agentTranscriptFile(dir, 'twin')
+  const twinEntries: unknown[] = [
+    user('run one command'),
+    asst('mt', [{ type: 'tool_use', id: 'tw1', name: 'Bash', input: { command: 'echo once' } }], { input_tokens: 10, output_tokens: 5 }),
+    asst('mt', [{ type: 'tool_use', id: 'tw1', name: 'Bash', input: { command: 'echo once' } }], { input_tokens: 10, output_tokens: 5 }),
+    user([{ type: 'tool_result', tool_use_id: 'tw1', content: 'once', is_error: false }]),
+    asst('mt2', [{ type: 'text', text: 'ran it once' }], { input_tokens: 10, output_tokens: 5 }),
+  ]
+  writeFileSync(twinFile, twinEntries.map(encLine).join('\n') + '\n', 'utf8')
+  const tv = (await readAgentTranscript(twinFile))!
+  check('one tool_use id in two assistant rows counts ONE call', tv.toolCallsTotal === 1, String(tv.toolCallsTotal))
+  check('the result joins that one call', tv.toolCalls[0]?.resultPreview === 'once' && tv.toolCalls[0]?.isError === false, JSON.stringify(tv.toolCalls))
+  check('usage still counts the doubled message once (2 API turns)', tv.usage?.apiTurns === 2, String(tv.usage?.apiTurns))
+}
+
 section('edge cases')
 check('missing file → undefined (honest not-found)', (await readAgentTranscript(join(dir, 'agent-none.jsonl'))) === undefined)
 check("summarizeToolInput prefers the meaningful field", summarizeToolInput({ command: 'ls -la' }) === 'ls -la')

@@ -41,6 +41,7 @@ export type { GptDisplayPin, GptModelIdentity } from './gptPins.js'
 
 const OPENAI_CATALOGUE_TTL_MS = 5 * 60_000
 const OPENAI_CATALOGUE_FAILURE_RETRY_MS = 10_000
+const OPENAI_ADMISSION_READ_BOUND_MS = 5_000
 
 export interface OpenaiCatalogueSnapshot {
   sourceKind: OpenaiAccountSourceKind
@@ -135,6 +136,23 @@ export function refreshOpenaiCatalogue(
   })()
   catalogueInFlight.set(identity, work)
   return work
+}
+
+export async function readOpenaiCatalogueIfPending(opts?: { boundMs?: number }): Promise<boolean> {
+  const account = resolveOpenaiAccount()
+  if (!account || !catalogueTrafficVerdict('openai').allowed) return false
+  const cached = getCachedOpenaiCatalogue(account.kind)
+  if (cached && (cached.models.length > 0 || !cached.lastError)) return false
+  let timer: ReturnType<typeof setTimeout> | undefined
+  await Promise.race([
+    refreshOpenaiCatalogue(account.kind).catch(() => null),
+    new Promise<void>(resolve => {
+      timer = setTimeout(resolve, opts?.boundMs ?? OPENAI_ADMISSION_READ_BOUND_MS)
+      timer.unref?.()
+    }),
+  ])
+  clearTimeout(timer)
+  return true
 }
 
 export function primeOpenaiCatalogue(

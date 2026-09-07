@@ -445,6 +445,7 @@ console.log('§M1 the burst cap has one truth')
 {
   const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
   const seatMod = await import('../../src/daemon/sessionSeat.ts')
+  const { sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
   check(
     'M1 the bridge latch cap IS the seat clip (one bound; the bridge spells it literally to keep the runner graph light)',
     bridge.PENDING_SCHEDULE_EDIT_CAP === saturn.SATURN_EDIT_BURST_CAP,
@@ -506,7 +507,7 @@ console.log('§M1 the burst cap has one truth')
   }
   seatMod.onSeatLine(
     'concourse-m1',
-    JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: 'mercury-session-facts-concourse-m1-1', response: answer } }),
+    JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: 'mercury-session-facts-concourse-m1-1', response: sessionFactsToWire(answer as never) } }),
     fixtureRoster as never,
     DAEMON_DIR,
   )

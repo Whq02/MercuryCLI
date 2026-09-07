@@ -17,7 +17,6 @@ console.log(' main() boot-order contract (Phase 10.1)')
 console.log('============================================================')
 
 const chain: Array<[string, string]> = [
-  ['B1 argv alias normalization', 'BYPASS_ALIASES[arg] ?? arg'],
   ['B2 boot-env applied first', 'applyBootMenuEnv()'],
   ['B3 private config home tightened', 'ensurePrivateConfigHome()'],
   ['B5a Windows PATH-hijack guard', "NoDefaultCurrentDirectoryInExePath = '1'"],

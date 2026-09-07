@@ -187,7 +187,7 @@ section('§7 resolveConfigFile ↔ runtime parity (K1 — the frozen-stale class
     'utf8',
   )
   const eDot = envSrc.indexOf("'.config.json'")
-  const eNative = envSrc.indexOf('`.mercury${suffix}.json`')
+  const eNative = envSrc.indexOf('`.mercury${fileSuffixForOauthConfig()}.json`')
   const eLegacy = envSrc.indexOf('`.claude${suffix}.json`')
   check(
     'runtime owner expresses the same two-rung chain (env.ts getGlobalMercuryFile)',
