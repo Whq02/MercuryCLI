@@ -491,6 +491,10 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
 
   const arms = loginsCatalogue()
   t.check('the catalogue is the row owner’s nine, engine legs offered', arms.length === 9 && arms.map(a => a.row.value).join(',') === 'openai,claudeai,console,openrouter,gemini,huggingface,moonshot,zai,deepseek')
+  const { loginFamilyInitialFocus, loginFamilyFocusFor } = await import('../../src/components/loginFamilyRows.js')
+  const signedOutRows = loginsSortedArms(signedOutFacts()).map(arm => arm.row)
+  t.check('signed-out opening focus is the first displayed row', loginFamilyInitialFocus(signedOutRows, undefined) === signedOutRows[0]!.value && signedOutRows[0]!.value === 'openai')
+  t.check('recent Anthropic sign-in retains named-row focus', loginFamilyInitialFocus(signedOutRows, loginFamilyFocusFor('anthropic')) === 'claudeai')
   const claudeArm = arms.find(a => a.row.value === 'claudeai')!
   const consoleArm = arms.find(a => a.row.value === 'console')!
   const geminiArm = arms.find(a => a.row.value === 'gemini')!
@@ -840,7 +844,7 @@ t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the 
   t.check("the card row opens the layer (the recut's wiring)", face.includes("case 'logins':") && face.includes('setLoginsOpen(true);'))
 
   const screen = read('src/components/BootLoginsScreen.tsx')
-  t.check('the settle runs the parity subset in the /logins ordering', screen.includes('user.resetUserCache();') && screen.includes('await gates.refreshFeatureGates().catch(() => {});') && screen.includes('resetUserCache') && screen.indexOf('resetUserCache') < screen.indexOf('refreshFeatureGates().catch'))
+  t.check('credential caches reset before policy checks', screen.includes('user.resetUserCache();') && screen.includes('killswitch.resetBypassPermissionsCheck();') && screen.indexOf('user.resetUserCache();') < screen.indexOf('killswitch.resetBypassPermissionsCheck();') && !screen.includes('services/analytics/featureGates'))
   t.check('the authVersion bump rides the MAYBE setter; the killswitch re-check stays outside the updater', screen.includes('const setAppStateMaybe = useSetAppStateMaybe();') && screen.includes('authVersion: (prev.authVersion ?? 0) + 1') && screen.includes('checkAndDisableBypassPermissionsIfNeeded(capturedContext, setAppStateMaybe)'))
   t.check('the settle fires on OK settles only and never on injected facts', screen.includes('if (current.ok) postLoginSettle();') && screen.includes('if (given !== undefined) return;'))
 }

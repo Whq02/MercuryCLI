@@ -166,11 +166,10 @@ section('classifier verdicts (injected classify port)')
     makeContext({ mode: 'flow' }),
     makePorts({
       classify: async () => classifierResult({ shouldBlock: true, unavailable: true }),
-      ironGateClosed: () => true,
     }),
   )
   check(
-    'unavailable + interactive → human ask (gate closed does not deny a present human)',
+    'unavailable + interactive returns the approval request',
     r.decision.behavior === 'ask' && (r.decision.decisionReason?.reason ?? '').includes('unavailable'),
     j(r.decision),
   )
@@ -185,25 +184,15 @@ section('classifier verdicts (injected classify port)')
     makeContext({ mode: 'flow', avoidPrompts: true }),
     makePorts({
       classify: async () => classifierResult({ shouldBlock: true, unavailable: true }),
-      ironGateClosed: () => true,
     }),
   )
   check(
-    'unavailable + headless + iron gate closed → deny (fail closed)',
+    'unavailable + headless denies',
     r.decision.behavior === 'deny' && (r.decision.decisionReason?.reason ?? '').includes('unavailable'),
     j(r.decision),
   )
 
-  r = await run(
-    makeTool(),
-    makeContext({ mode: 'flow', avoidPrompts: true }),
-    makePorts({
-      classify: async () => classifierResult({ shouldBlock: true, unavailable: true }),
-      ironGateClosed: () => false,
-    }),
-  )
-  check('unavailable + headless + iron gate open → falls back to the channel ask', r.decision.behavior === 'ask', j(r.decision))
-  check('fail-open trace notes it', (r.wrapper.stages.find(s => s.stage === 'classifier')?.note ?? '').includes('fail open'), j(r.wrapper))
+  check('unavailable denial reports fail closed', (r.wrapper.stages.find(s => s.stage === 'classifier')?.note ?? '').includes('fail closed'), j(r.wrapper))
 
   r = await run(
     makeTool(),

@@ -49,7 +49,6 @@ import {
   getQueuedCommandAttachments,
 } from './queuedCommands.js'
 import {
-  getAgentListingDeltaAttachment,
   getDeferredToolsDeltaAttachment,
   getMcpInstructionsDeltaAttachment,
 } from './deltas.js'
@@ -174,9 +173,6 @@ export async function getAttachments(
           },
         ),
       ),
-    ),
-    maybe('agent_listing_delta', () =>
-      Promise.resolve(getAgentListingDeltaAttachment(toolUseContext, messages)),
     ),
     maybe('mcp_instructions_delta', () =>
       Promise.resolve(

@@ -169,7 +169,6 @@ export const SettingsSchema = lazySchema(() => {
     model: z.string().optional(),
     availableModels: z.array(z.string()).optional(),
     modelOverrides: z.record(z.string(), z.string()).optional(),
-    advisorModel: z.string().optional(),
     effortLevel: z.enum(EFFORT_LEVELS).optional().catch(undefined),
     supercodeEffort: z.boolean().optional(),
     alwaysThinkingEnabled: z.boolean().optional(),

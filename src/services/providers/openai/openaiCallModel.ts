@@ -188,7 +188,6 @@ function overflowOf(fault: { status?: number; code: string; message: string }): 
 
 export function toBridgeMessages(
   messages: Message[],
-  querySource: Options['querySource'],
   targetModelId: string,
 ): { rows: BridgeMessage[]; reconstructedGptTurns: number; foreignRecordsDropped: number; foreignRecordModels: string[] } {
   const out: BridgeMessage[] = []
@@ -200,14 +199,13 @@ export function toBridgeMessages(
   const settledTurnIds = new Set<string>()
   for (const m of messages) {
     if (m.type === 'user') {
-      const param = userMessageToMessageParam(m, false, false, querySource)
+      const param = userMessageToMessageParam(m, false, false)
       out.push({ role: 'user', content: param.content })
     } else if (m.type === 'assistant') {
       const param = assistantMessageToMessageParam(
         m,
         false,
         false,
-        querySource,
       )
       const decoded = decodeOpenaiTurnRecord(m.apexProviderTurn)
       const servedModel = typeof m.message.model === 'string' ? m.message.model : ''
@@ -470,7 +468,7 @@ export async function* openaiCallModel(
     settlementNotes.push(qualification.note)
   }
 
-  const bridge = toBridgeMessages(healWalkableForWire(wireMessages), options.querySource, modelId)
+  const bridge = toBridgeMessages(healWalkableForWire(wireMessages), modelId)
   const threadKey = `${getSessionId()}:${options.agentId ?? 'main'}`
   if (bridge.reconstructedGptTurns > 0 && !reconstructionNoted.has(threadKey)) {
     reconstructionNoted.add(threadKey)

@@ -17,7 +17,6 @@ import { createMemorySavedMessage, createUserMessage } from '../../utils/message
 import { getTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
-import { getDynamicConfig_CACHED_MAY_BE_STALE } from '../analytics/featureGates.js'
 import { createAutoMemCanUseTool } from './autoMemCanUseTool.js'
 import { isMemoryUpkeepEnabled } from './config.js'
 import {
@@ -32,23 +31,6 @@ import { buildConsolidationPrompt } from './consolidationPrompt.js'
 const DEFAULT_MIN_HOURS = 24
 const DEFAULT_MIN_SESSIONS = 5
 const SCAN_THROTTLE_MS = 10 * 60 * 1000
-
-type SchedulingKnobs = { minHours: number; minSessions: number }
-
-function positive(value: unknown, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback
-}
-
-function readSchedulingKnobs(): SchedulingKnobs {
-  const remote = getDynamicConfig_CACHED_MAY_BE_STALE<{ minHours?: unknown; minSessions?: unknown }>(
-    'mercury_onyx_plover',
-    {},
-  )
-  return {
-    minHours: positive(remote?.minHours, DEFAULT_MIN_HOURS),
-    minSessions: positive(remote?.minSessions, DEFAULT_MIN_SESSIONS),
-  }
-}
 
 function isForcedRun(): boolean {
   return false
@@ -72,8 +54,6 @@ function createRunner(): Runner {
   let lastScanAt = 0
 
   return async function run(context, appendSystemMessage) {
-    const knobs = readSchedulingKnobs()
-
     if (isDiskSkillDreamModeActive()) return
     if (isRemoteMode()) return
     if (!isAutoMemoryEnabled()) return
@@ -88,7 +68,7 @@ function createRunner(): Runner {
       return
     }
     const hoursSince = (Date.now() - lastConsolidatedAt) / (60 * 60 * 1000)
-    if (!forced && hoursSince < knobs.minHours) return
+    if (!forced && hoursSince < DEFAULT_MIN_HOURS) return
 
     const sinceScan = Date.now() - lastScanAt
     if (lastScanAt !== 0 && sinceScan < SCAN_THROTTLE_MS) {
@@ -106,8 +86,8 @@ function createRunner(): Runner {
       logForDebugging(`memory upkeep: session scan failed: ${String(err)}`)
       return
     }
-    if (!forced && sessions.length < knobs.minSessions) {
-      logForDebugging(`memory upkeep: ${sessions.length} sessions since last consolidation (< ${knobs.minSessions})`)
+    if (!forced && sessions.length < DEFAULT_MIN_SESSIONS) {
+      logForDebugging(`memory upkeep: ${sessions.length} sessions since last consolidation (< ${DEFAULT_MIN_SESSIONS})`)
       return
     }
 

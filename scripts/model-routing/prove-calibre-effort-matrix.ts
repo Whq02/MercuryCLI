@@ -320,17 +320,17 @@ function clearEffortEnv(): void {
         }
       : {}),
   })
-  const same = bridge.toBridgeMessages([mkAssistant('gpt-5.6-sol', { record: true })] as never, 'repl_main_thread', 'gpt-5.6-sol')
+  const same = bridge.toBridgeMessages([mkAssistant('gpt-5.6-sol', { record: true })] as never, 'gpt-5.6-sol')
   check('same-model record replays (turnRecord present)', same.rows[0]?.turnRecord !== undefined && same.reconstructedGptTurns === 0)
-  const spelled = bridge.toBridgeMessages([mkAssistant(' GPT-5.6-SOL ', { record: true })] as never, 'repl_main_thread', 'gpt-5.6-sol')
+  const spelled = bridge.toBridgeMessages([mkAssistant(' GPT-5.6-SOL ', { record: true })] as never, 'gpt-5.6-sol')
   check('case/whitespace spellings of the SAME model share the record', spelled.rows[0]?.turnRecord !== undefined && spelled.reconstructedGptTurns === 0)
-  const cross = bridge.toBridgeMessages([mkAssistant('gpt-5.6-luna', { record: true })] as never, 'repl_main_thread', 'gpt-5.6-sol')
+  const cross = bridge.toBridgeMessages([mkAssistant('gpt-5.6-luna', { record: true })] as never, 'gpt-5.6-sol')
   check('a DIFFERENT model’s record is dropped (content derivation) with NO reconstruction receipt', cross.rows[0]?.turnRecord === undefined && cross.reconstructedGptTurns === 0)
-  const legacy = bridge.toBridgeMessages([mkAssistant('gpt-5.6-sol', { record: false, settled: true })] as never, 'repl_main_thread', 'gpt-5.6-sol')
+  const legacy = bridge.toBridgeMessages([mkAssistant('gpt-5.6-sol', { record: false, settled: true })] as never, 'gpt-5.6-sol')
   check('a settled recordless GPT turn counts as reconstruction (once per turn)', legacy.reconstructedGptTurns === 1)
-  const interrupted = bridge.toBridgeMessages([mkAssistant('gpt-5.6-sol', { record: false, settled: false })] as never, 'repl_main_thread', 'gpt-5.6-sol')
+  const interrupted = bridge.toBridgeMessages([mkAssistant('gpt-5.6-sol', { record: false, settled: false })] as never, 'gpt-5.6-sol')
   check('an interrupted partial derives silently (no receipt)', interrupted.reconstructedGptTurns === 0)
-  const anthropic = bridge.toBridgeMessages([mkAssistant('claude-opus-4-8', { record: false })] as never, 'repl_main_thread', 'gpt-5.6-sol')
+  const anthropic = bridge.toBridgeMessages([mkAssistant('claude-opus-4-8', { record: false })] as never, 'gpt-5.6-sol')
   check('Anthropic turns never count', anthropic.reconstructedGptTurns === 0)
 }
 

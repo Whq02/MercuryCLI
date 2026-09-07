@@ -17,7 +17,6 @@ import { getGithubRepo } from '../utils/git.js'
 import { restoreGatewayAuth } from '../utils/gatewayTrust.js'
 import { populateOAuthAccountInfoIfNeeded } from '../services/oauth/client.js'
 import { shutdownLspServerManager } from '../services/lsp/manager.js'
-import { ensureScratchpadDir, isScratchpadEnabled } from '../utils/permissions/filesystem.js'
 import { ConfigParseError, ConfigReadError } from '../utils/errors.js'
 import { logForDebugging } from '../utils/debug.js'
 import { isSessionMarkedNonInteractive } from '../utils/cockpit/runtimePosture.js'
@@ -79,9 +78,6 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
       await cleanupSessionTeams()
     })
 
-    if (isScratchpadEnabled()) {
-      await ensureScratchpadDir()
-    }
     profileCheckpoint('init_function_end')
   } catch (error) {
     if (error instanceof ConfigReadError) {

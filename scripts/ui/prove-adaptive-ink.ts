@@ -20,7 +20,6 @@ const REGISTRY: Entry[] = [
   { file: 'src/components/LedgerView.tsx' },
   { file: 'src/components/mercury-ui/screens/MonitorView.tsx' },
   { file: 'src/components/diff/DiffDialog.tsx' },
-  { file: 'src/components/IdleReturnDialog.tsx' },
   { file: 'src/components/CostThresholdDialog.tsx' },
   { file: 'src/components/diff/DiffFileList.tsx' },
   { file: 'src/components/diff/DiffDetailView.tsx' },

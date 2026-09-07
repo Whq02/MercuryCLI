@@ -136,7 +136,6 @@ type ForegroundAgentExecutionInput = {
   }) => void
   rootSetAppState: SetAppState
   backgroundTasksDisabled: boolean
-  autoBackgroundMs?: number
   cleanupWorktreeIfNeeded: () => Promise<WorktreeFields>
 }
 
@@ -160,7 +159,6 @@ export async function runForegroundAgentExecution(
     onProgress,
     rootSetAppState,
     backgroundTasksDisabled,
-    autoBackgroundMs,
     cleanupWorktreeIfNeeded,
   } = i
 
@@ -192,7 +190,6 @@ export async function runForegroundAgentExecution(
         taskId: string
         abortController: AbortController
         backgroundSignal: Promise<void>
-        cancelAutoBackground?: () => void
       }
     | undefined
   let backgroundRace: Promise<typeof BACKGROUNDED> | undefined
@@ -205,7 +202,6 @@ export async function runForegroundAgentExecution(
       selectedAgent,
       model: metadata.resolvedAgentModel,
       toolUseId: toolUseContext.toolUseId,
-      autoBackgroundMs,
     })
     backgroundRace = foregroundTask.backgroundSignal.then(() => BACKGROUNDED)
     if (name !== undefined) registerAgentName(name, syncAgentId, rootSetAppState)
@@ -629,7 +625,6 @@ export async function runForegroundAgentExecution(
     }
     clearInvokedSkillsForAgent(syncAgentId)
     if (!backgrounded) clearDumpState(syncAgentId)
-    foregroundTask?.cancelAutoBackground?.()
     if (!backgrounded) worktreeFields = await cleanupWorktreeIfNeeded()
   }
 

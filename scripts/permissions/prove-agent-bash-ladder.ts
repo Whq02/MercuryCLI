@@ -180,7 +180,6 @@ async function decide(subject: Subject, mode: Mode, rules: Rules, command: strin
       classifier++
       return { shouldBlock: classifierBlocks, reason: classifierBlocks ? 'the fixture classifier blocked it' : 'the fixture classifier allowed it', model: 'fixture' } as never
     },
-    ironGateClosed: () => true,
     runHeadlessHooks: async () => null,
   }
   const context = contextFor(subject, mode, rules) as never

@@ -1,7 +1,6 @@
 
 import { dirname, parse, relative, resolve } from 'path'
 import { getCwd } from 'src/utils/cwd.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import type { ToolPermissionContext, ToolUseContext } from '../../Tool.js'
 import { getAddedDirectories, getOriginalCwd } from '../../bootstrap/state.js'
 import type { InstructionSourceEntry } from '../../services/instructions/contracts.js'
@@ -147,31 +146,18 @@ export async function getNestedMemoryAttachmentsForFile(
       getAddedDirectories(),
     )
 
-    const skipProjectLevel = getFeatureValue_CACHED_MAY_BE_STALE(
-      'mercury_paper_halyard',
-      false,
-    )
-
     for (const dir of nestedDirs) {
-      const memoryFiles = (
-        await getInstructionFilesForNestedDirectory(dir, filePath, processedPaths)
-      ).filter(
-        f => !skipProjectLevel || (f.type !== 'Project' && f.type !== 'Local'),
-      )
+      const memoryFiles = await getInstructionFilesForNestedDirectory(dir, filePath, processedPaths)
       attachments.push(
         ...memoryFilesToAttachments(memoryFiles, toolUseContext, filePath),
       )
     }
 
     for (const dir of cwdLevelDirs) {
-      const conditionalRules = (
-        await getConditionalInstructionRulesForCwdLevelDirectory(
-          dir,
-          filePath,
-          processedPaths,
-        )
-      ).filter(
-        f => !skipProjectLevel || (f.type !== 'Project' && f.type !== 'Local'),
+      const conditionalRules = await getConditionalInstructionRulesForCwdLevelDirectory(
+        dir,
+        filePath,
+        processedPaths,
       )
       attachments.push(
         ...memoryFilesToAttachments(conditionalRules, toolUseContext, filePath),

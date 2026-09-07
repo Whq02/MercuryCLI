@@ -149,7 +149,7 @@ async function parentRequest(): Promise<Body> {
   return lastBody(from)
 }
 
-async function forkRequest(parentQuerySource: string | undefined): Promise<Body> {
+async function forkRequest(querySource: string): Promise<Body> {
   const from = api.messageRequests().length
   const ctx = makeContext()
   await runForkedAgent({
@@ -160,10 +160,9 @@ async function forkRequest(parentQuerySource: string | undefined): Promise<Body>
       systemContext: {},
       toolUseContext: ctx as never,
       forkContextMessages: messages as never,
-      ...(parentQuerySource !== undefined ? { parentQuerySource: parentQuerySource as never } : {}),
     },
     canUseTool: (async () => ({ behavior: 'deny', message: 'no tools in this rig' })) as never,
-    querySource: 'compact',
+    querySource: querySource as never,
     forkLabel: 'compact',
     maxTurns: 1,
     skipCacheWrite: true,
@@ -174,34 +173,32 @@ async function forkRequest(parentQuerySource: string | undefined): Promise<Body>
 
 const allWord = (system: Array<string | null>, word: string | null): boolean => system.length >= 1 && system.every(ttl => ttl === word)
 
-section("§1 the default road: the allowlist names the parent's source — the fork naming its parent carries the parent's 1h; a fork naming none carries its own (none)")
+section('§1 default lifetimes match across query sources')
 {
   bootstrap.setPromptCache1hEligible(true)
-  bootstrap.setPromptCache1hAllowlist([PARENT_SOURCE])
 
   const parent = markersOf(await parentRequest())
-  check("the parent's request carries ttl:'1h' on its system markers and its message marker", allWord(parent.system, '1h') && parent.message === '1h', j(parent))
+  check('parent markers use the default lifetime', allWord(parent.system, null) && parent.message === null, j(parent))
 
-  const fork = markersOf(await forkRequest(PARENT_SOURCE))
-  check("the fork naming its parent carries the parent's word: ttl:'1h' on its system markers and its message marker", allWord(fork.system, '1h') && fork.message === '1h', j(fork))
+  const fork = markersOf(await forkRequest('compact'))
+  check('compaction markers use the same default lifetime', allWord(fork.system, null) && fork.message === null, j(fork))
   check('…and its markers are present (a marker on the shared prefix, not a request without one)', fork.system.length === parent.system.length && fork.message !== 'none', j({ fork, parent }))
 
-  const control = markersOf(await forkRequest(undefined))
-  check("the control — a fork naming no parent — decides for its own source ('compact', not allowlisted): markers present, no ttl", allWord(control.system, null) && control.message === null, j(control))
+  const control = markersOf(await forkRequest('session_memory'))
+  check('a different query source also uses the default lifetime', allWord(control.system, null) && control.message === null, j(control))
 }
 
-section("§2 the clock engaged (an operator 1h pin): one word per session — the parent and both forks carry ttl:'1h' alike")
+section('§2 an explicit one-hour lifetime applies to every request')
 {
   process.env.MERCURY_CACHE_CLOCK = '1'
   process.env.MERCURY_CACHE_TTL = '1h'
-  bootstrap.setPromptCache1hAllowlist([])
 
   const parent = markersOf(await parentRequest())
   check("the parent's request carries the clock's word (ttl:'1h') on every marker", allWord(parent.system, '1h') && parent.message === '1h', j(parent))
-  const fork = markersOf(await forkRequest(PARENT_SOURCE))
-  check("the fork naming its parent carries the clock's word too", allWord(fork.system, '1h') && fork.message === '1h', j(fork))
-  const unnamed = markersOf(await forkRequest(undefined))
-  check("a fork naming no parent carries the clock's word as well — the clock decides once per session, for every source", allWord(unnamed.system, '1h') && unnamed.message === '1h', j(unnamed))
+  const fork = markersOf(await forkRequest('compact'))
+  check("the compaction request carries the clock's word too", allWord(fork.system, '1h') && fork.message === '1h', j(fork))
+  const unnamed = markersOf(await forkRequest('session_memory'))
+  check("the other query source carries the same clock-selected lifetime", allWord(unnamed.system, '1h') && unnamed.message === '1h', j(unnamed))
 }
 
 await api.close()

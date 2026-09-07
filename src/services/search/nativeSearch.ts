@@ -1,13 +1,10 @@
 import type { ToolPermissionContext, ToolUseContext } from '../../Tool.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/featureGates.js'
 import { routedCallModel } from '../providers/callModelRouter.js'
-import { declaredRouteOf } from '../providers/routeLaw.js'
 import type { WebSearchProgress } from '../../types/tools.js'
 import type { ContentBlock } from '../../types/wire.js'
 import { logError } from '../../utils/log.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
-import { sessionSmallFastModel } from '../../utils/model/providerFrontier.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import type { NativeSearchFamily } from './nativeSearchRequest.js'
 import {
@@ -20,22 +17,12 @@ import {
   type SearchRequest,
 } from './searchContract.js'
 
-const SMALL_MODEL_ROUTE_GATE = 'mercury_plum_vx3'
 const MAX_SEARCH_USES = 8
 
 export type SearchProgressSink = (progress: { toolUseID: string; data: WebSearchProgress }) => void
 
 export function nativeBackendIdFor(family: NativeSearchFamily): SearchBackendId {
   return family === 'anthropic' ? 'anthropic-native' : 'openai-native'
-}
-
-export function nativeSearchLegModel(
-  family: NativeSearchFamily,
-  mainModel: string,
-  smallFastResolved: string | undefined,
-): { model: string; small: boolean } {
-  const small = smallFastResolved !== undefined && declaredRouteOf(smallFastResolved) === family
-  return { model: small ? smallFastResolved : mainModel, small }
 }
 
 export function extractQueryFromPartialJson(partial: string): string | undefined {
@@ -60,10 +47,7 @@ export async function nativeSearch(
 ): Promise<SearchOutcome> {
   const { context } = io
   const via = nativeBackendIdFor(family)
-  const useSmallModel = getFeatureValue_CACHED_MAY_BE_STALE(SMALL_MODEL_ROUTE_GATE, false)
-  const mainModel = (context.options.mainLoopModel as string | undefined) || getMainLoopModel()
-  const leg = nativeSearchLegModel(family, mainModel, useSmallModel ? sessionSmallFastModel() : undefined)
-  const model = leg.model
+  const model = (context.options.mainLoopModel as string | undefined) || getMainLoopModel()
   const appState = context.getAppState()
 
   const blocks: ContentBlock[] = []
@@ -80,13 +64,12 @@ export async function nativeSearch(
   const stream = routedCallModel({
     messages: [createUserMessage({ content: `Perform a web search for the query: ${request.query}` })],
     systemPrompt: asSystemPrompt(['You are an assistant performing a web-search tool use.']),
-    thinkingConfig: leg.small ? { type: 'disabled' } : context.options.thinkingConfig,
+    thinkingConfig: context.options.thinkingConfig,
     tools: [],
     signal: context.abortController.signal,
     options: {
       getToolPermissionContext: async () => appState.toolPermissionContext as ToolPermissionContext,
       model,
-      ...(leg.small ? { toolChoice: { type: 'tool' as const, name: 'web_search' } } : {}),
       isNonInteractiveSession: context.options.isNonInteractiveSession,
       nativeWebSearch: {
         ...(request.allowedDomains && request.allowedDomains.length > 0 ? { allowedDomains: request.allowedDomains } : {}),

@@ -86,7 +86,7 @@ const HISTORY = [
 ] as never[]
 
 function walkObservations(target: string, imagesSupported: boolean) {
-  const bridge = toBridgeMessages(HISTORY as never, undefined as never, target)
+  const bridge = toBridgeMessages(HISTORY as never, target)
   const carriedRecords = bridge.rows.filter(r => (r as { turnRecord?: unknown }).turnRecord).length
   const items = mapMessagesToOpenaiInput(bridge.rows as never, { imagesSupported } as never)
   const flat = JSON.stringify(items)

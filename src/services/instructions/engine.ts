@@ -35,7 +35,6 @@ import type { MemoryType } from '../../utils/memory/types.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/featureGates.js'
 import { adapterForProfile } from './adapters/index.js'
 import type {
   InstructionBundle,
@@ -552,15 +551,9 @@ export const composeInstructionPrompt = (
   filter?: (type: MemoryType) => boolean,
 ): string => {
   const memories: string[] = []
-  const skipProjectLevel = getFeatureValue_CACHED_MAY_BE_STALE(
-    'mercury_paper_halyard',
-    false,
-  )
 
   for (const file of memoryFiles) {
     if (filter && !filter(file.type)) continue
-    if (skipProjectLevel && (file.type === 'Project' || file.type === 'Local'))
-      continue
     if (file.content) {
       const content = file.content.trim()
       memories.push(

@@ -1,6 +1,5 @@
 
 export class CacheLatchOwner {
-  promptCache1hAllowlist: string[] | null = null
   promptCache1hEligible: boolean | null = null
   afkModeHeaderLatched: boolean | null = null
   cacheEditingHeaderLatched: boolean | null = null

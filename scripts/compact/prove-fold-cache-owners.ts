@@ -71,12 +71,12 @@ section("§2 the fork's marker sits on the parent's last user row")
       return marked ? [i] : []
     })
   const forkMessages = [createUserMessage({ content: 'first' }), assistant('a'), toolResult(), assistant('b'), createUserMessage({ content: 'summarise' })]
-  const fork = addCacheBreakpoints(forkMessages as never, true, 'compact' as never, false, null, [], true)
+  const fork = addCacheBreakpoints(forkMessages as never, true, false, null, [], true)
   check('a fork over [user, assistant, user(tool_result), assistant] + prompt marks the tool_result row (index 2), never the assistant at length minus two', j(markedIndexes(fork as never)) === j([2]), j(markedIndexes(fork as never)))
   const forkAfterUser = [createUserMessage({ content: 'first' }), assistant('a'), createUserMessage({ content: 'second' }), createUserMessage({ content: 'summarise' })]
-  const fork2 = addCacheBreakpoints(forkAfterUser as never, true, 'compact' as never, false, null, [], true)
+  const fork2 = addCacheBreakpoints(forkAfterUser as never, true, false, null, [], true)
   check("a parent ending in a user row: the fork marks that row (the parent's own marker position)", j(markedIndexes(fork2 as never)) === j([2]), j(markedIndexes(fork2 as never)))
-  const plain = addCacheBreakpoints(forkMessages.slice(0, 4) as never, true, 'repl_main_thread' as never, false, null, [], false)
+  const plain = addCacheBreakpoints(forkMessages.slice(0, 4) as never, true, false, null, [], false)
   check("a plain request marks its last row (the parent's own law is untouched)", j(markedIndexes(plain as never)) === j([3]), j(markedIndexes(plain as never)))
   check('exactly one marker per request in every shape', markedIndexes(fork as never).length === 1 && markedIndexes(fork2 as never).length === 1 && markedIndexes(plain as never).length === 1)
 }

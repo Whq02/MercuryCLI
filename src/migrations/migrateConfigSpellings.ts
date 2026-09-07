@@ -10,6 +10,8 @@ export const DROPPED_GLOBAL_CONFIG_KEYS: readonly string[] = [
   'startupPrefetchedAt',
   'subscriptionNoticeCount',
   'hasAvailableSubscription',
+  'showStatusInTerminalTab',
+  'idleReturnDismissed',
 ]
 
 export const RETIRED_PROJECT_CONFIG_KEYS: Readonly<Record<string, string>> = {

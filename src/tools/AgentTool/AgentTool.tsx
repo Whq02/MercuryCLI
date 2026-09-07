@@ -110,7 +110,6 @@ import { setAgentColor } from './agentColorManager.js'
 import * as UI from './UI.js'
 import { isResultTruncated } from './UI.js'
 import type { AgentToolProgress, ShellProgress } from '../../types/tools.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { envelopeFor } from '../../services/agentResults/ingest.js'
 import { formatEnvelopeBlock } from '../../services/agentResults/normalize.js'
 
@@ -118,17 +117,8 @@ export type Progress = AgentToolProgress | ShellProgress
 
 const BACKGROUND_TASKS_DISABLED = false
 
-const AUTO_BACKGROUND_GATE = 'mercury_auto_background_agents'
-const AUTO_BACKGROUND_THRESHOLD_MS = 120_000
-
 const DEFAULT_AGENT_TYPE = 'mercury-general'
 const RESULT_SIZE_CAP = 100_000
-
-function autoBackgroundMs(): number | undefined {
-  const enabled = getFeatureValue_CACHED_MAY_BE_STALE(AUTO_BACKGROUND_GATE, false)
-  if (!enabled) return undefined
-  return AUTO_BACKGROUND_THRESHOLD_MS
-}
 
 
 export type AgentToolInput = {
@@ -875,7 +865,6 @@ export const AgentTool = buildTool({
           onProgress,
           rootSetAppState,
           backgroundTasksDisabled: BACKGROUND_TASKS_DISABLED,
-          autoBackgroundMs: autoBackgroundMs(),
           cleanupWorktreeIfNeeded,
         })
       return cwdOverride

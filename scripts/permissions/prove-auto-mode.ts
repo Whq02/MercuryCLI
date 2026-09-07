@@ -86,17 +86,15 @@ section('isAutoModeAllowlistedTool name/action gating (classifierDecision.ts)')
   check('write/edit tools are NOT on the safe set (comment + absence)', has('Does NOT include write/edit tools') && !has('FILE_WRITE_TOOL_NAME,') && !has('FILE_EDIT_TOOL_NAME,'))
 }
 
-section('item-1 (permissionSetup.ts) — fork AUTO is available-by-default; honors a REAL cached "disabled" incident')
+section('Flow availability uses settings and runtime safety state')
 {
   const ps = src('utils', 'permissions', 'permissionSetup.ts')
-  const cachedDisabledChecks = (ps.match(/getAutoModeEnabledStateIfCached\(\) === 'disabled'/g) || []).length
-  check('both incident gates use the IfCached variant (not the default-disabled getAutoModeEnabledState)', cachedDisabledChecks === 2, `found ${cachedDisabledChecks}`)
-  check('the default-disabled getAutoModeEnabledState() is NOT used in an incident check', !/getAutoModeEnabledState\(\) === 'disabled'/.test(ps))
-  check("AUTO_MODE_ENABLED_DEFAULT is 'disabled' (why IfCached matters)", /AUTO_MODE_ENABLED_DEFAULT: AutoModeEnabledState = 'disabled'/.test(ps))
-  check('getAutoModeEnabledStateIfCached returns undefined for the not-cached (no-GB-sink) case', /getAutoModeEnabledStateIfCached[\s\S]{0,400}return undefined/.test(ps))
-  check('auto is available by default (isAutoModeGateEnabled ends `return true` after the kill-switches)', /isAutoModeDisabledBySettings\(\)\) return false[\s\S]{0,700}return true\n\}/.test(ps.slice(ps.indexOf('export function isAutoModeGateEnabled'))))
-  check("the incident-disabled reason maps to 'circuit-breaker'", /getAutoModeEnabledStateIfCached\(\) === 'disabled'\)[\s\S]{0,120}return 'circuit-breaker'/.test(ps))
-  check('the verify-path circuitBroken setter is preserved (the verify path unaffected)', ps.includes('autoModeStateModule?.setAutoModeCircuitBroken('))
+  check('availability does not import an external configuration table', !ps.includes('services/analytics/featureGates'))
+  check('the runtime circuit breaker closes availability', ps.includes('if (isAutoModeCircuitBroken()) return false'))
+  check('settings close availability', ps.includes('if (isAutoModeDisabledBySettings()) return false'))
+  check('verification updates the circuit breaker from settings', ps.includes('const circuitBroken = disabledBySettings') && ps.includes('autoModeStateModule?.setAutoModeCircuitBroken(circuitBroken)'))
+  check('the runtime restriction has an explanatory reason', ps.includes("if (isAutoModeCircuitBroken()) return 'circuit-breaker'"))
+  check('explicit availability still requires a supported model', ps.includes('const explicitAvailable = !disabledBySettings && modelSupported'))
   const gnpm = src('utils', 'permissions', 'getNextPermissionMode.ts')
   check('the carousel gates auto SOLELY on canCycleToAuto (unconditional)', gnpm.includes('canCycleToAuto(toolPermissionContext)'))
   const planBlock = gnpm.slice(gnpm.indexOf("case 'strategy':"), gnpm.indexOf("case 'flow':"))
@@ -137,7 +135,7 @@ section('STARTUP-AUTO DESYNC fix — a fork that BOOTS into auto arms the safety
   check(
     'hazard-guard: main.tsx does NOT call setAutoModeActive at startup (module is null there)',
     !/setAutoModeActive\(true\)/.test(
-      mn.slice(mn.indexOf('initializeToolPermissionContext'), mn.indexOf('assertMinVersion')),
+      mn.slice(mn.indexOf('initializeToolPermissionContext'), mn.indexOf('const setupTrigger:')),
     ),
   )
 

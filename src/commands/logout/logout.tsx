@@ -1,6 +1,5 @@
 import * as React from 'react'
 import { Text } from '../../ink.js'
-import { refreshFeatureGates } from '../../services/analytics/featureGates.js'
 import { revokeOAuthToken } from '../../services/oauth/client.js'
 import {
   clearOAuthTokenCache,
@@ -19,12 +18,11 @@ import { getSecureStorage } from '../../utils/secureStorage/index.js'
 import { clearToolSchemaCache } from '../../utils/toolSchemaCache.js'
 import { resetUserCache } from '../../utils/user.js'
 
-export async function clearAuthRelatedCaches(): Promise<void> {
+export function clearAuthRelatedCaches(): void {
   clearOAuthTokenCache()
   clearBetasCaches()
   clearToolSchemaCache()
   resetUserCache()
-  await refreshFeatureGates()
 }
 
 export async function performLogout({
@@ -53,7 +51,7 @@ export async function performLogout({
     logError(error)
   }
 
-  await clearAuthRelatedCaches()
+  clearAuthRelatedCaches()
   noteCredentialChange()
 
   saveGlobalConfig(current => {

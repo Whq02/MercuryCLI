@@ -88,17 +88,17 @@ const userTurn = (n: number, text: string): Record<string, unknown> => ({
 section('§B the sameModel guard — carried iff served == target')
 {
   const history = [userTurn(1, 'q'), gptTurn(2, 'gpt-5.2', 'matching', true), gptTurn(3, 'gpt-5.1', 'older', true)] as never[]
-  const walk = toBridgeMessages(history as never, undefined as never, 'gpt-5.2')
+  const walk = toBridgeMessages(history as never, 'gpt-5.2')
   const carried = walk.rows.filter(r => (r as { turnRecord?: unknown }).turnRecord).length
   check('served==target carries; served!=target resets (1 of 2)', carried === 1, String(carried))
-  const other = toBridgeMessages(history as never, undefined as never, 'gpt-5.3')
+  const other = toBridgeMessages(history as never, 'gpt-5.3')
   check('a different target carries NOTHING', other.rows.filter(r => (r as { turnRecord?: unknown }).turnRecord).length === 0)
 }
 
 section('§C the receipt rides its message — never extracted, never re-attached')
 {
   const history = [userTurn(1, 'q'), gptTurn(2, 'gpt-5.1', 'older', true), gptTurn(3, 'gpt-5.2', 'plain', false)] as never[]
-  const walk = toBridgeMessages(history as never, undefined as never, 'gpt-5.2')
+  const walk = toBridgeMessages(history as never, 'gpt-5.2')
   const rows = walk.rows as Array<{ role: string; content?: unknown; turnRecord?: unknown }>
   check('dropping a record never drops its message (content derives)', rows.length === 3 && rows[1]?.content !== undefined && rows[1]?.turnRecord === undefined)
   check('no row gains a record its message lacked', rows[2]?.turnRecord === undefined)
@@ -107,10 +107,10 @@ section('§C the receipt rides its message — never extracted, never re-attache
 section('§D typed reconstruction — visible, once-per-thread, honest')
 {
   const recordless = [userTurn(1, 'q'), gptTurn(2, 'gpt-5.2', 'settled-no-record', false)] as never[]
-  const walk = toBridgeMessages(recordless as never, undefined as never, 'gpt-5.2')
+  const walk = toBridgeMessages(recordless as never, 'gpt-5.2')
   check('a settled recordless GPT turn counts as reconstructed', walk.reconstructedGptTurns === 1, String(walk.reconstructedGptTurns))
   const recorded = [userTurn(1, 'q'), gptTurn(2, 'gpt-5.2', 'recorded', true)] as never[]
-  check('a carried record does NOT count', toBridgeMessages(recorded as never, undefined as never, 'gpt-5.2').reconstructedGptTurns === 0)
+  check('a carried record does NOT count', toBridgeMessages(recorded as never, 'gpt-5.2').reconstructedGptTurns === 0)
   const lane = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
   check('the lane surfaces the reconstruction receipt note once per thread', lane.includes('reconstructed continuation') && lane.includes('reconstructionNoted'))
 }

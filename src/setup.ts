@@ -8,7 +8,6 @@ import {
 } from './bootstrap/state.js'
 import { getCommands } from './commands.js'
 import { MERCURY_VERSION } from './constants/product.js'
-import { initSessionMemory } from './services/SessionMemory/sessionMemory.js'
 import type { SessionId } from './types/ids.js'
 import { isAgentSwarmsEnabled } from './utils/agentSwarmsEnabled.js'
 import { checkAndRestoreTerminalBackup } from './utils/appleTerminalBackup.js'
@@ -201,12 +200,6 @@ export async function setup(
     saveWorktreeState(worktreeSession)
     captureHooksConfigSnapshot()
   }
-
-  logForDiagnosticsNoPII('info', 'setup_background_jobs_starting')
-  if (!isBareMode()) {
-    initSessionMemory()
-  }
-  logForDiagnosticsNoPII('info', 'setup_background_jobs_launched')
 
   profileCheckpoint('setup_before_prefetch')
   logForDiagnosticsNoPII('info', 'setup_prefetch_starting')

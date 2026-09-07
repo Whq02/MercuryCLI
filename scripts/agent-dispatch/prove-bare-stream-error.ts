@@ -239,9 +239,9 @@ try {
       ],
     },
   })
-  const foreign = call.toBridgeMessages([recordedRow('gpt-6-astra', 'm1'), createUserMessage({ content: 'go on' })] as never, 'agent' as never, 'gpt-5.6-sol')
+  const foreign = call.toBridgeMessages([recordedRow('gpt-6-astra', 'm1'), createUserMessage({ content: 'go on' })] as never, 'gpt-5.6-sol')
   check('the bridge keeps a record minted under another model off the row and counts it with its model', foreign.rows[0]?.turnRecord === undefined && foreign.foreignRecordsDropped === 1 && foreign.foreignRecordModels.join() === 'gpt-6-astra', JSON.stringify({ record: foreign.rows[0]?.turnRecord, dropped: foreign.foreignRecordsDropped, models: foreign.foreignRecordModels }))
-  const same = call.toBridgeMessages([recordedRow('gpt-5.6-sol', 'm2'), createUserMessage({ content: 'go on' })] as never, 'agent' as never, 'gpt-5.6-sol')
+  const same = call.toBridgeMessages([recordedRow('gpt-5.6-sol', 'm2'), createUserMessage({ content: 'go on' })] as never, 'gpt-5.6-sol')
   check('the same model keeps its record', same.rows[0]?.turnRecord !== undefined && same.foreignRecordsDropped === 0, JSON.stringify(same.rows[0]?.turnRecord))
 
   mode = 'bare-then-completed'

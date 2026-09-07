@@ -17,7 +17,6 @@ import {
   getModelKnowledgeCutoff,
   shouldUseGlobalCacheScope,
 } from '../utils/model/capabilities.js'
-import { getScratchpadDir, isScratchpadEnabled } from '../utils/permissions/filesystem.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { getCurrentWorktreeSession } from '../utils/worktree.js'
 import { loadMemoryPrompt } from '../memdir/memdir.js'
@@ -149,24 +148,6 @@ export async function computeSimpleEnvInfo(
     'Mercury is a private, standalone terminal software-development harness.',
   )
   return `# Environment\nYou have been invoked in the following environment: \n${prependBullets(items).join('\n')}`
-}
-
-export function getScratchpadInstructions(): string | null {
-  if (!isScratchpadEnabled()) return null
-  const dir = getScratchpadDir()
-  if (!dir) return null
-  return [
-    '# The Scratchpad',
-    '',
-    `Every temporary file this session makes belongs in the session scratchpad, never the system temp directory:`,
-    `\`${dir}\``,
-    '',
-    'It is the room for all of it: intermediate results mid-task, throwaway scripts and configuration, working files during analysis, and any output that must not land in the user\'s project tree.',
-    '',
-    'Reach for the system temp directory only when the user names it outright.',
-    '',
-    'The scratchpad is per-session, sits outside the user\'s project, and writing there rarely raises a permission prompt.',
-  ].join('\n')
 }
 
 
@@ -493,7 +474,6 @@ export async function getSystemPrompt(
       () => (isMcpInstructionsDeltaEnabled() ? null : buildMcpInstructionsSection(mcpClients ?? [])),
       'servers connect and disconnect between turns',
     ),
-    systemPromptSection('scratchpad', () => getScratchpadInstructions()),
     keyedSystemPromptSection('frc', () => model, () => null),
     systemPromptSection('summarize_tool_results', () => SUMMARIZE_TOOL_RESULTS_LINE),
     systemPromptSection('brief', () => buildBriefSection(toolNames)),

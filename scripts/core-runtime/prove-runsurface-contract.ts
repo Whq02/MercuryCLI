@@ -149,9 +149,6 @@ const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import(
 )
 const { AGENT_TOOL_NAME } = await import('../../src/tools/AgentTool/constants.ts')
 const { logError } = await import('../../src/utils/log.ts')
-const { checkFeatureGate_CACHED_MAY_BE_STALE } = await import(
-  '../../src/services/analytics/featureGates.ts'
-)
 const printMod = await import('../../src/cli/print.ts')
 const resumeMod = await import('../../src/cli/headless/resume.ts')
 const controlMod = await import('../../src/cli/headless/controlHandlers.ts')
@@ -322,15 +319,6 @@ async function runEngine(opts: EngineOpts): Promise<EngineRun> {
   }
   await settle()
   return { yields, calls: [...engineQueryCalls], engine }
-}
-
-section('R1 T9 PIN — the streaming-tool-execution gate is permanently FALSE')
-{
-  check(
-    'mercury_streaming_tool_execution2 is false (FORK_GATE_TABLE empty) — StreamingToolExecutor unreachable',
-    checkFeatureGate_CACHED_MAY_BE_STALE('mercury_streaming_tool_execution2') ===
-      false,
-  )
 }
 
 section('E1 INIT + PLAIN TURN — init first, chrome swallowed, envelope synthesized')
@@ -1092,7 +1080,7 @@ section('P4 handleSetPermissionMode — autopilot refused, bypass gated, success
   const resp1 = (responses.at(-1)?.response ?? {}) as AnyMsg
   check(
     'autopilot is refused in SDK/print mode (error response)',
-    resp1.subtype === 'error' && String(resp1.error).includes('autopilot'),
+    resp1.subtype === 'error' && /autopilot/i.test(String(resp1.error)),
     JSON.stringify(resp1),
   )
   check('the refused context is returned unchanged (same reference)', afterAutopilot === (baseCtx as never))
