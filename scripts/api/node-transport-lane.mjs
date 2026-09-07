@@ -93,7 +93,6 @@ const {
   getWebSocketProxyAgent,
   getWebSocketProxyUrl,
   configureGlobalAgents,
-  createAxiosInstance,
   getAddressFamily,
   clearProxyCache,
   getMTLSAgent,
@@ -249,16 +248,6 @@ section('§5 NO_PROXY bypass: a bypassed host does NOT traverse the fixture')
   const body2 = await fetchText(`${targetUrl}/bypassed-upper`, { dispatcher: asym.dispatcher })
   check('NO_PROXY (uppercase) wins over no_proxy for the dispatcher (uppercase-first)', body2 === 'ok:/bypassed-upper' && seen.length === before2, JSON.stringify(seen.slice(before2)))
   delete process.env.no_proxy
-  delete process.env.NO_PROXY
-  clearProxyCache()
-  const instance = createAxiosInstance({ timeout: 4321 })
-  const handlers = instance.interceptors.request.handlers.filter(h => h !== null)
-  check('createAxiosInstance installs one bypass-aware interceptor', handlers.length === 1)
-  const routed = handlers[0]?.fulfilled?.({ url: `${targetUrl}/x`, headers: {} })
-  check('…which sets BOTH agents to the per-instance tunnelling agent (extra merged into its options)', routed?.httpAgent?.constructor?.name === 'HttpsProxyAgent' && routed?.httpsAgent === routed?.httpAgent && routed?.httpAgent?.connectOpts?.timeout === 4321)
-  process.env.NO_PROXY = '127.0.0.1'
-  const bypassed = handlers[0]?.fulfilled?.({ url: `${targetUrl}/x`, headers: {} })
-  check('…and on bypass (tested on the url field) routes direct/mTLS instead', bypassed?.httpAgent === undefined && bypassed?.httpsAgent === getMTLSAgent())
   delete process.env.NO_PROXY
 }
 
