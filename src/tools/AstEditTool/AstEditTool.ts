@@ -45,6 +45,7 @@ import type { PermissionDecision } from '../../utils/permissions/PermissionResul
 import {
   checkReadPermissionForTool,
   checkWritePermissionForTool,
+  describeWriteScope,
   matchingRuleForInput,
   pathInAllowedWorkingPath,
 } from '../../utils/permissions/filesystem.js'
@@ -394,7 +395,7 @@ export const AstEditTool = buildTool({
         ...outOfScope.map(p => `  ${p} — outside the session's write scope`),
       ]
       throw new Error(
-        `Apply refused — ${rows.length} ${plural(rows.length, 'file')} not writable:\n${rows.join('\n')}\nNothing was written (a refused path refuses the whole edit). Add the directory with /add-dir or adjust permission rules, then apply again.`,
+        `Apply refused — ${rows.length} ${plural(rows.length, 'file')} not writable:\n${rows.join('\n')}\nNothing was written (a refused path refuses the whole edit). ${outOfScope.length > 0 ? `${describeWriteScope(permCtx)} ` : ''}Add the directory with /add-dir or adjust permission rules, then apply again.`,
       )
     }
     if (context.abortController.signal.aborted) {
