@@ -4,7 +4,6 @@ import {
   isEnvDefinedFalsy,
   isEnvTruthy,
 } from '../../utils/envUtils.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { isInProcessTeammate } from '../../utils/teammateContext.js'
 import { isTeammate } from '../../utils/teammate.js'
 import { searchToolsAvailability } from '../../utils/ripgrep.js'
@@ -13,8 +12,6 @@ import { EFFORT_LEVELS } from '../../utils/effort.js'
 import { AGENT_TOOL_NAME } from './constants.js'
 import { isForkSubagentEnabled } from './forkSubagent.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
-
-const AGENT_LIST_ATTACH_GATE = 'mercury_agent_list_attach'
 
 function describeTools(agent: AgentDefinition): string {
   const allow = agent.tools
@@ -32,10 +29,6 @@ function describeTools(agent: AgentDefinition): string {
 
 export function formatAgentLine(agent: AgentDefinition): string {
   return `- ${agent.agentType}: ${agent.whenToUse} (Tools: ${describeTools(agent)})`
-}
-
-export function shouldInjectAgentListInMessages(): boolean {
-  return getFeatureValue_CACHED_MAY_BE_STALE(AGENT_LIST_ATTACH_GATE, false)
 }
 
 function fileLocationHint(): string {
@@ -56,16 +49,13 @@ export async function getPrompt(
   allowedAgentTypes?: readonly string[],
 ): Promise<string> {
   const forkOn = isForkSubagentEnabled()
-  const attachListing = shouldInjectAgentListInMessages()
   const effectiveAgents = allowedAgentTypes
     ? agentDefinitions.filter(agent =>
         allowedAgentTypes.includes(agent.agentType),
       )
     : agentDefinitions
 
-  const listing = attachListing
-    ? 'The roster of agent types arrives in system-reminder messages in this conversation.'
-    : effectiveAgents.map(formatAgentLine).join('\n')
+  const listing = effectiveAgents.map(formatAgentLine).join('\n')
 
   const typeSelection = forkOn
     ? 'Specify `subagent_type` for a specialist, or omit it to fork yourself — the fork inherits your full conversation context.'
@@ -94,7 +84,7 @@ ${typeSelection}`
   const usage: string[] = [
     'Always include a short (3–5 word) `description` of the task.',
   ]
-  if (!isProSubscriber() && !attachListing) {
+  if (!isProSubscriber()) {
     usage.push(
       'When several agents can run at once, launch them all in a single message so they overlap rather than queue.',
     )

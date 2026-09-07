@@ -474,12 +474,10 @@ export function registerAgentForeground(args: {
   selectedAgent?: AgentDefinition
   model?: string
   toolUseId?: string
-  autoBackgroundMs?: number
 }): {
   taskId: string
   abortController: AbortController
   backgroundSignal: Promise<void>
-  cancelAutoBackground?: () => void
 } {
   const taskId = args.agentId
   void initTaskOutputAsSymlink(taskId, getAgentTranscriptPath(taskId as AgentId))
@@ -507,18 +505,7 @@ export function registerAgentForeground(args: {
     backgroundSignalResolvers.set(taskId, resolve)
   })
 
-  let cancelAutoBackground: (() => void) | undefined
-  if (args.autoBackgroundMs !== undefined && args.autoBackgroundMs > 0) {
-    const timer = setTimeout(() => {
-      updateTaskState<LocalAgentTaskState>(taskId, args.setAppState, task =>
-        task.isBackgrounded ? task : { ...task, isBackgrounded: true },
-      )
-      resolveBackgroundSignal(taskId)
-    }, args.autoBackgroundMs)
-    cancelAutoBackground = () => clearTimeout(timer)
-  }
-
-  return { taskId, abortController, backgroundSignal, cancelAutoBackground }
+  return { taskId, abortController, backgroundSignal }
 }
 
 export function registerAgentName(name: string, agentId: string, setAppState: SetAppState): void {

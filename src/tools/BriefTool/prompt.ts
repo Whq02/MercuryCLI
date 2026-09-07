@@ -31,8 +31,6 @@ Write tight, second-person messages: what happened, what it means for them, what
 
 The reply has exactly one channel per turn: a ${BRIEF_TOOL_NAME} call IS the reply, so nothing that follows it should repeat what the call already carried — no summary line after the tool call, and no sign-off that re-announces a heading the worklog already gave.`
 
-export const ASSISTANT_BRIEF_STOP_HOOK_TEXT_FLAG = 'mercury_assistant_brief_stop_hook_text'
-
 export const BRIEF_ENFORCE_SENTINEL = `You ended the turn without calling ${BRIEF_TOOL_NAME}.`
 
 export const BRIEF_RECAP_SENTINEL = `You emitted plain text after your ${BRIEF_TOOL_NAME} call this turn.`
@@ -46,15 +44,6 @@ export const ASSISTANT_BRIEF = `Only the ${BRIEF_TOOL_NAME} tool reliably reache
 export const AUGUR_BRIEF = `Only a ${BRIEF_TOOL_NAME} call reaches the user. Send exactly one verbatim-quality message carrying what this turn produced — no meta-commentary, no narration of the work, nothing after the call. If there is nothing worth showing, end the turn without calling the tool.`
 
 export function getBriefEnforceText(): string {
-  /* eslint-disable @typescript-eslint/no-require-imports */
-  const featureGates =
-    require('../../services/analytics/featureGates.js') as typeof import('../../services/analytics/featureGates.js')
-  /* eslint-enable @typescript-eslint/no-require-imports */
-  const served = featureGates.getFeatureValue_CACHED_MAY_BE_STALE(
-    ASSISTANT_BRIEF_STOP_HOOK_TEXT_FLAG,
-    '',
-  )
-  if (typeof served === 'string' && served !== '') return served
   /* eslint-disable @typescript-eslint/no-require-imports */
   const augur =
     require('../../utils/model/augur.js') as typeof import('../../utils/model/augur.js')

@@ -1,8 +1,4 @@
 import memoize from 'lodash-es/memoize.js'
-import {
-  checkFeatureGate_CACHED_MAY_BE_STALE,
-  getFeatureValue_CACHED_MAY_BE_STALE,
-} from 'src/services/analytics/featureGates.js'
 import { flagEnabled, flagEnv } from 'src/substrate/flagRegistry.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../entrypoints/sdk/runtimeTypes.js'
 import { getIsNonInteractiveSession, getSdkBetas } from '../../bootstrap/state.js'
@@ -14,7 +10,6 @@ import {
   PROMPT_CACHING_SCOPE_BETA_HEADER,
   REDACT_THINKING_BETA_HEADER,
   SERVER_SIDE_FALLBACK_BETA_HEADER,
-  STRUCTURED_OUTPUTS_BETA_HEADER,
   SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER,
   TOOL_SEARCH_BETA_HEADER_1P,
 } from '../../constants/betas.js'
@@ -171,18 +166,6 @@ export function modelSupportsAutoMode(model: string): boolean {
   if (declaredRouteOf(model) !== 'anthropic') return true
   {
     const m = getCanonicalName(model)
-    const config = getFeatureValue_CACHED_MAY_BE_STALE<{
-      allowModels?: string[]
-    }>('mercury_auto_mode_config', {})
-    const rawLower = model.toLowerCase()
-    if (
-      config?.allowModels?.some(
-        am => am.toLowerCase() === rawLower || am.toLowerCase() === m,
-      )
-    ) {
-      return true
-    }
-
     return (
       /^claude-(opus|sonnet)-4-6/.test(m) ||
       m === 'claude-fable-5' ||
@@ -928,15 +911,6 @@ export const getAllModelBetas = memoize((model: string): string[] => {
 
   if (includeFirstPartyOnlyBetas && isAugurHeader()) {
     betaHeaders.push(AUGUR_BETA_HEADER)
-  }
-  const strictToolsEnabled =
-    checkFeatureGate_CACHED_MAY_BE_STALE('mercury_tool_pear')
-  if (
-    includeFirstPartyOnlyBetas &&
-    modelSupportsStructuredOutputs(model) &&
-    strictToolsEnabled
-  ) {
-    betaHeaders.push(STRUCTURED_OUTPUTS_BETA_HEADER)
   }
 
   if (includeFirstPartyOnlyBetas) {

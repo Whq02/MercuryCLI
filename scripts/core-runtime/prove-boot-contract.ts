@@ -169,9 +169,9 @@ function staticImports(src: string): {
   const mainSrc = readFileSync(join(SRC, 'main.tsx'), 'utf8')
   const main = staticImports(mainSrc)
   check(
-    'eager-front: main.tsx static value imports = 97',
-    main.value.length === 97,
-    String(main.value.length),
+    'startup does not eagerly import inactive configuration, advisor or version modules',
+    !main.value.some(spec => /analytics\/featureGates|\/advisor\.js$|\/autoUpdater\.js$/.test(spec)),
+    JSON.stringify(main.value),
   )
   check(
     'eager-front: main.tsx imports the launch-graph owner',

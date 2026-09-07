@@ -742,14 +742,6 @@ export function setLastEmittedDate(date: string | null): void {
   cacheLatches.lastEmittedDate = date
 }
 
-export function getPromptCache1hAllowlist(): string[] | null {
-  return cacheLatches.promptCache1hAllowlist
-}
-
-export function setPromptCache1hAllowlist(allowlist: string[] | null): void {
-  cacheLatches.promptCache1hAllowlist = allowlist
-}
-
 export function getPromptCache1hEligible(): boolean | null {
   return cacheLatches.promptCache1hEligible
 }

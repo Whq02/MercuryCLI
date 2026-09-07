@@ -73,7 +73,6 @@ import {
   showSetupScreens,
 } from './interactiveHelpers.js'
 import { launchInvalidSettingsDialog, launchResumeChooser } from './dialogLaunchers.js'
-import { isValidAdvisorModel, canUserConfigureAdvisor, getInitialAdvisorSetting, isAdvisorEnabled, modelSupportsAdvisor } from './utils/advisor.js'
 import { hasFirstPartyCredential, validateForceLoginOrg } from './utils/auth.js'
 import { startBackgroundHousekeeping } from './utils/backgroundHousekeeping.js'
 import { getGlobalConfig, saveGlobalConfig, saveGlobalConfigDeferred, flushDeferredGlobalConfigSaves, binaryName, getRemoteControlAtStartup, getCurrentProjectConfig } from './utils/config.js'
@@ -92,7 +91,7 @@ import { logError } from './utils/log.js'
 import { createUserMessage } from './utils/messages/factories.js'
 import { getRecentActivity } from './utils/logoV2Utils.js'
 import { getModelDeprecationWarning } from './utils/model/deprecation.js'
-import { getDefaultMainLoopModelSetting, getMainLoopModel, getCanonicalName, normalizeModelStringForAPI } from './utils/model/model.js'
+import { getDefaultMainLoopModelSetting, getMainLoopModel, getCanonicalName } from './utils/model/model.js'
 import {
   initializeToolPermissionContext,
   stripDangerousPermissionsForAutoMode,
@@ -584,7 +583,6 @@ async function run(): Promise<void> {
     .option('-v, --version', 'Print the version')
     .option('-w, --worktree [name]', 'Run inside a managed worktree')
     .option('--tmux', 'Create a tmux session for the worktree')
-
 
   for (const [flags, description] of [
     ['--agent-id <id>', 'Teammate agent id'],
@@ -1352,22 +1350,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   setInitialMainLoopModel(userSpecifiedModel ?? null)
   const resolvedInitialModel = getMainLoopModel()
 
-  let advisorModel: string | undefined
-  if (isAdvisorEnabled()) {
-    if (canUserConfigureAdvisor()) {
-      advisorModel = getInitialAdvisorSetting()
-      if (advisorModel) {
-        if (!modelSupportsAdvisor(resolvedInitialModel)) {
-          failCli(`The model ${resolvedInitialModel} does not support an advisor`)
-        }
-        if (!isValidAdvisorModel(normalizeModelStringForAPI(advisorModel))) {
-          failCli(`Invalid advisor model: ${advisorModel}`)
-        }
-        logForDebugging(`advisor model resolved: ${advisorModel}`)
-      }
-    }
-  }
-
   if (teammateMode === 'auto' || teammateMode === 'tmux' || teammateMode === 'in-process') {
     setCliTeammateModeOverride(teammateMode)
   }
@@ -1578,9 +1560,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   registerCleanup(async () => {
     logForDiagnosticsNoPII('info', 'mercury_exited')
   })
-  void import('./utils/autoUpdater.js')
-    .then(m => m.assertMinVersion())
-    .catch(() => {})
 
   const setupTrigger: 'init' | 'maintenance' | undefined =
     opts.initOnly || opts.init ? 'init' : opts.maintenance ? 'maintenance' : undefined
@@ -1604,7 +1583,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       thinkingConfig,
       resolvedInitialModel,
       userSpecifiedModel,
-      advisorModel,
       mainThreadAgentDefinition,
       activeAgents,
       allAgents,
@@ -1626,7 +1604,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     thinkingConfig,
     userSpecifiedModel,
     fallbackModel,
-    advisorModel,
     mainThreadAgentDefinition,
     activeAgents,
     allAgents,
@@ -1715,7 +1692,6 @@ async function interactiveLaunch(args: {
   thinkingConfig: import('./utils/thinking.js').ThinkingConfig
   resolvedInitialModel: string
   userSpecifiedModel: string | undefined
-  advisorModel: string | undefined
   mainThreadAgentDefinition: AgentDefinition | undefined
   activeAgents: AgentDefinition[]
   allAgents: AgentDefinition[]
@@ -1758,11 +1734,7 @@ async function interactiveLaunch(args: {
   if (onboardingShown && inputPrompt?.trim().toLowerCase() === '/logins') {
     inputPrompt = undefined
   }
-  if (onboardingShown) {
-    resetUserCache()
-    const { refreshFeatureGates } = await import('./services/analytics/featureGates.js')
-    await refreshFeatureGates().catch(() => {})
-  }
+  if (onboardingShown) resetUserCache()
   const orgValidation = await validateForceLoginOrg()
   if (!orgValidation.valid) {
     await exitWithError(root, orgValidation.message)
@@ -1867,12 +1839,11 @@ async function interactiveLaunch(args: {
     expandedView: config.showSpinnerTree ? 'teammates' : config.showExpandedTasks ? 'tasks' : 'none',
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
     ...(supercodeArmed ? { supercode: true } : {}),
-    ...(isAdvisorEnabled() && args.advisorModel ? { advisorModel: args.advisorModel } : {}),
     agent: args.mainThreadAgentDefinition?.agentType,
     agentDefinitions: { activeAgents: args.activeAgents, allAgents: args.allAgents },
     ...(initialTeamContext ? { teamContext: initialTeamContext } : {}),
     replBridgeEnabled: getRemoteControlAtStartup() || assistantBridgeSeed(),
-    promptSuggestionEnabled: (await import('./services/PromptSuggestion/promptSuggestion.js')).shouldEnablePromptSuggestion(),
+    promptSuggestionEnabled: false,
     ...(inputPrompt
       ? {
           initialMessage: {
@@ -2111,7 +2082,6 @@ async function printLaunch(args: {
   thinkingConfig: import('./utils/thinking.js').ThinkingConfig
   userSpecifiedModel: string | undefined
   fallbackModel: string | undefined
-  advisorModel: string | undefined
   mainThreadAgentDefinition: AgentDefinition | undefined
   activeAgents: AgentDefinition[]
   allAgents: AgentDefinition[]
@@ -2190,7 +2160,6 @@ async function printLaunch(args: {
     verbose: config.toolOutput === 'full',
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
     ...(supercodeArmed ? { supercode: true } : {}),
-    ...(isAdvisorEnabled() && args.advisorModel ? { advisorModel: args.advisorModel } : {}),
   }
   const store = createStore<AppState>(initialState, ({ newState, oldState }) =>
     onChangeAppState({ newState, oldState }),

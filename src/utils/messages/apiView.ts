@@ -444,7 +444,6 @@ export function normalizeMessagesForAPI(
     filterWhitespaceOnlyAssistantMessages(withFilteredThinking)
   const withNonEmpty = ensureNonEmptyAssistantContent(withFilteredWhitespace)
 
-
   const sanitized = sanitizeErrorToolResultContent(withNonEmpty)
 
   validateImagesForAPI(sanitized)

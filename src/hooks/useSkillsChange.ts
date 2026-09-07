@@ -5,12 +5,10 @@ import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { resolveWatchRoot } from '../utils/watchRoot.js'
 import {
-  clearCommandMemoizationCaches,
   clearCommandsCache,
   getCommands,
   type Command,
 } from '../commands.js'
-import { onFeatureGatesRefresh } from '../services/analytics/featureGates.js'
 import { projectConfigCandidatePaths } from '../utils/projectConfig.js'
 import { logForDebugging } from '../utils/debug.js'
 import { useSetAppStateMaybe } from '../state/AppState.js'
@@ -31,10 +29,9 @@ export function useSkillsChange(
     if (!cwd) return
 
     let alive = true
-    const rescan = (full: boolean): void => {
+    const rescan = (): void => {
       try {
-        if (full) clearCommandsCache()
-        else clearCommandMemoizationCaches()
+        clearCommandsCache()
         void getCommands(cwd)
           .then(commands => {
             if (!alive) return
@@ -52,7 +49,7 @@ export function useSkillsChange(
     const armFor = (dir: string): void => {
       try {
         if (existsSync(dir)) {
-          const watcher = watch(resolveWatchRoot(dir), { recursive: true }, () => rescan(true))
+          const watcher = watch(resolveWatchRoot(dir), { recursive: true }, rescan)
           watcher.unref?.()
           watcher.on('error', error =>
             logForDebugging(`skills watcher error: ${error}`),
@@ -69,7 +66,7 @@ export function useSkillsChange(
         const birth = watch(ancestor, {}, () => {
           if (!alive) return
           birth.close()
-          if (existsSync(dir)) rescan(true)
+          if (existsSync(dir)) rescan()
           armFor(dir)
         })
         birth.unref?.()
@@ -83,11 +80,8 @@ export function useSkillsChange(
     }
     for (const dir of projectConfigCandidatePaths(cwd, 'skills')) armFor(dir)
 
-    const unsubscribeGates = onFeatureGatesRefresh(() => rescan(false))
-
     return () => {
       alive = false
-      unsubscribeGates()
       for (const watcher of watchers) watcher.close()
     }
   }, [cwd])

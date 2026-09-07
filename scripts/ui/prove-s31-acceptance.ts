@@ -24,7 +24,6 @@ import {
   supportsTabStatus,
   wrapForMultiplexer,
 } from '../../src/ink/termio/osc.js'
-import { useTabStatus } from '../../src/ink/hooks/use-tab-status.js'
 import { parseChord, parseKeystroke, parseBindings } from '../../src/keybindings/parser.js'
 import { matchesKeystroke } from '../../src/keybindings/match.js'
 import {
@@ -51,16 +50,10 @@ import { runWithCwdOverride } from '../../src/utils/cwd.js'
 import type { Key } from '../../src/ink/events/input-event.js'
 
 let failures = 0
-let skips = 0
 function check(name: string, ok: boolean, detail = ''): void {
   console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)
   if (!ok) failures++
 }
-function skip(name: string, reason: string): void {
-  console.log(`  ∅ ${name} — SKIPPED: ${reason}`)
-  skips++
-}
-
 const ESC = '\x1b'
 const src = (p: string): string => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8')
 
@@ -410,19 +403,8 @@ check(
 }
 
 {
-  check('21/31. the emission gate is closed (supportsTabStatus() === false)', supportsTabStatus() === false)
-  check(
-    '21/31. useTabStatus is the ruled no-op (no throw, no return)',
-    useTabStatus('busy') === undefined && useTabStatus(null) === undefined,
-  )
-  skip(
-    '21. set-then-null emits a clear; null-first emits nothing',
-    'the OSC 21337 emission lane is not built (operator drop-dead-machinery ruling); no emission surface exists to test',
-  )
-  skip(
-    '31. gate-closed kind is remembered so a later clear is correct',
-    'same ruling — the remembered-kind machinery is part of the unbuilt emission lane',
-  )
+  check('21/31. tab-status output is unsupported', supportsTabStatus() === false)
+  check('21/31. no tab-status hook is exported', !src('src/ink.ts').includes('useTabStatus'))
 }
 
 {
@@ -502,7 +484,7 @@ check(
   )
 }
 
-console.log(`\nS31 acceptance: ${failures === 0 ? 'green' : `${failures} FAILURE(S)`} (${skips} named skip(s))`)
+console.log(`\nS31 acceptance: ${failures === 0 ? 'green' : `${failures} FAILURE(S)`}`)
 if (existsSync(SCRATCH_HOME)) {
 }
 process.exit(failures === 0 ? 0 : 1)

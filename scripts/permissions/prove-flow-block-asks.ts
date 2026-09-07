@@ -224,16 +224,13 @@ section('an unreadable verdict is its own outcome — never a policy denial, nev
 
   const headlessCtx = makeContext({ mode: 'flow', avoidPrompts: true })
   const headless = await run(makeTool(), headlessCtx, unreadablePorts)
-  check('unreadable + no card + iron gate closed → deny', headless.decision.behavior === 'deny', j(headless.decision))
+  check('unreadable + no approval channel denies', headless.decision.behavior === 'deny', j(headless.decision))
   check('…with the unreadable words (the model, the field, the missing card)', headless.decision.message === texts.buildClassifierUnreadableMessage('Bash', 'stub-model', ISSUE), j(headless.decision.message))
   check('…never the policy-denial words', !texts.isClassifierDenial(headless.decision.message ?? '') && !(headless.decision.message ?? '').includes('blocked this action'), j(headless.decision.message))
   check('…the reason says unreadable, not a policy block', headless.decision.decisionReason?.type === 'classifier' && /unreadable/.test(headless.decision.decisionReason.reason ?? ''), j(headless.decision.decisionReason))
   check('…the ledger is untouched', (headlessCtx as Ctx).localDenialTracking.consecutiveDenials === 0 && (headlessCtx as Ctx).localDenialTracking.totalDenials === 0, j((headlessCtx as Ctx).localDenialTracking))
   check('…the note says fail closed', noteOf(headless).includes('unreadable verdict — fail closed'), j(headless.wrapper))
   checkSubsequenceLaw('unreadable headless', headless.wrapper)
-
-  const open = await run(makeTool(), makeContext({ mode: 'flow', avoidPrompts: true }), makePorts({ ...unreadablePorts, ironGateClosed: () => false }))
-  check('unreadable + no card + iron gate open → the channel ask', open.decision.behavior === 'ask' && noteOf(open).includes('unreadable verdict — fail open'), j(open))
 
   const nearLimit = makeContext({ mode: 'flow', avoidPrompts: true, denial: { consecutiveDenials: DENIAL_LIMITS.maxConsecutive - 1, totalDenials: 5 } })
   let threw = false

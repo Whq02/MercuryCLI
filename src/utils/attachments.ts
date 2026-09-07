@@ -42,7 +42,6 @@ export {
 } from './attachments/queuedCommands.js'
 
 export {
-  getAgentListingDeltaAttachment,
   getDeferredToolsDeltaAttachment,
   getMcpInstructionsDeltaAttachment,
 } from './attachments/deltas.js'

@@ -41,6 +41,18 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
   ]
 }
 
+export function loginFamilyInitialFocus<T extends string>(
+  rows: readonly { value: T }[],
+  recordedFocus: string | undefined,
+  initialFocus?: string,
+): T | undefined {
+  for (const value of [initialFocus, recordedFocus]) {
+    const row = rows.find(candidate => candidate.value === value)
+    if (row) return row.value
+  }
+  return rows[0]?.value
+}
+
 export const openaiArmPickRows = [
   { label: 'ChatGPT subscription — browser sign-in', value: 'subscription' },
   { label: 'OpenAI API key — paste one (stored locally, mode 600)', value: 'key' },

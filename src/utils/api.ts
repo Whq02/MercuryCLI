@@ -1,10 +1,8 @@
 import { isEnvTruthy } from './envUtils.js'
 import { logForDebugging } from './debug.js'
 import { isAnalyticsDisabled } from '../services/analytics/config.js'
-import { checkFeatureGate_CACHED_MAY_BE_STALE } from '../services/analytics/featureGates.js'
 import {
   fineGrainedToolStreamingEnabled,
-  modelSupportsStructuredOutputs,
   resolveModelCapabilities,
   shouldUseGlobalCacheScope,
   toolDeferralEnabled,
@@ -230,15 +228,6 @@ export async function toolToAPISchema(
     const input_schema = stripSwarmFields(tool.name, rawSchema) as ToolInputSchema
 
     const built: ApiTool = { name: tool.name, description, input_schema }
-    const declaresStrict = (tool as { strict?: boolean }).strict === true
-    if (
-      checkFeatureGate_CACHED_MAY_BE_STALE('mercury_tool_pear') &&
-      declaresStrict &&
-      options.model !== undefined &&
-      modelSupportsStructuredOutputs(options.model)
-    ) {
-      built.strict = true
-    }
     if (fineGrainedToolStreamingEnabled()) {
       built.eager_input_streaming = true
     }
@@ -251,7 +240,6 @@ export async function toolToAPISchema(
     name: base.name,
     description: base.description,
     input_schema: base.input_schema,
-    ...(base.strict !== undefined ? { strict: base.strict } : {}),
     ...(base.eager_input_streaming !== undefined && base.eager_input_streaming !== null
       ? { eager_input_streaming: base.eager_input_streaming }
       : {}),

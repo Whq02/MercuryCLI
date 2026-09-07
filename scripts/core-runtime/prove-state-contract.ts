@@ -133,7 +133,6 @@ const OBSERVABLES: Array<{
   { key: 'promptId', family: 'apiCapture', scope: 'conversation', read: () => state.getPromptId() },
   { key: 'lastMainRequestId', family: 'apiCapture', scope: 'conversation', read: () => state.getLastMainRequestId() },
   { key: 'lastApiCompletionTimestamp', family: 'apiCapture', scope: 'conversation', read: () => state.getLastApiCompletionTimestamp() },
-  { key: 'promptCache1hAllowlist', family: 'latches', scope: 'session', read: () => state.getPromptCache1hAllowlist() },
   { key: 'promptCache1hEligible', family: 'latches', scope: 'session', read: () => state.getPromptCache1hEligible() },
   { key: 'afkModeHeaderLatched', family: 'latches', scope: 'conversation', read: () => state.getAfkModeHeaderLatched() },
   { key: 'cacheEditingHeaderLatched', family: 'latches', scope: 'conversation', read: () => state.getCacheEditingHeaderLatched() },
@@ -281,7 +280,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'getLastApiCompletionTimestamp', 'getLastClassifierRequests', 'getLastEmittedDate',
     'getLastInteractionTime', 'getLastMainRequestId', 'getMainLoopModelOverride', 'getMainThreadAgentType', 'getModelStrings', 'getModelUsage', 'getOauthTokenFromFd', 'getOriginalCwd',
     'getParentSessionId', 'getPlanSlugCache', 'getProjectRoot',
-    'getPromptCache1hAllowlist', 'getPromptCache1hEligible', 'getPromptId',
+    'getPromptCache1hEligible', 'getPromptId',
     'getQuestionPreviewFormat', 'getRegisteredHooks',
     'getSdkAgentProgressSummariesEnabled', 'getSdkBetas', 'getSessionBypassPermissionsMode',
     'getSessionCreatedTeams', 'getSessionId',
@@ -318,7 +317,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'setLastApiCompletionTimestamp', 'setLastClassifierRequests', 'setLastEmittedDate',
     'setLastMainRequestId',
     'setMainLoopModelOverride', 'setMainThreadAgentType', 'setModelStrings', 'setNeedsAutoModeExitAttachment', 'setNeedsPlanModeExitAttachment',
-    'setOauthTokenFromFd', 'setOriginalCwd', 'setProjectRoot', 'setPromptCache1hAllowlist',
+    'setOauthTokenFromFd', 'setOriginalCwd', 'setProjectRoot',
     'setPromptCache1hEligible', 'setPromptId', 'setQuestionPreviewFormat',
     'setSdkAgentProgressSummariesEnabled', 'setSdkBetas',
     'setSessionBypassPermissionsMode', 'setSessionIngressToken',
@@ -859,7 +858,6 @@ section('LAW 5 LATCH — sticky beta headers · clear completeness · tripwire')
   state.setAfkModeHeaderLatched(true)
   state.setCacheEditingHeaderLatched(true)
   state.setThinkingClearLatched(true)
-  state.setPromptCache1hAllowlist(['acct-a'])
   state.setPromptCache1hEligible(true)
 
   state.addToTotalCostState(0.01, usage(1), 'latch-noise')
@@ -874,9 +872,7 @@ section('LAW 5 LATCH — sticky beta headers · clear completeness · tripwire')
 
   state.clearBetaHeaderLatches()
   check('clearBetaHeaderLatches: nulls ALL THREE', state.getAfkModeHeaderLatched() === null && state.getCacheEditingHeaderLatched() === null && state.getThinkingClearLatched() === null)
-  check('clearBetaHeaderLatches: 1h allowlist NOT in the clear set (session-scoped)', ser(state.getPromptCache1hAllowlist()) === ser(['acct-a']))
   check('clearBetaHeaderLatches: 1h eligibility NOT in the clear set (session-latched)', state.getPromptCache1hEligible() === true)
-  state.setPromptCache1hAllowlist(null)
   state.setPromptCache1hEligible(null)
 
   const latchOwnerSrc = readFileSync(
@@ -1182,7 +1178,6 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.setAfkModeHeaderLatched(true)
     state.setCacheEditingHeaderLatched(true)
     state.setThinkingClearLatched(true)
-    state.setPromptCache1hAllowlist(['pop'])
     state.setPromptCache1hEligible(true)
     state.setSystemPromptSectionCacheEntry('section-a', 'value-a')
     state.setLastEmittedDate('2026-07-16')

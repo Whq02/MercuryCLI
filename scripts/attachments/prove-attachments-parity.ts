@@ -111,7 +111,6 @@ const SKIPPED: Record<string, string> = {
   getAgentPendingMessageAttachments: 'reads teammate mailbox state',
   getDateChangeAttachments: 'reads session clock state',
   getDeferredToolsDeltaAttachment: 'reads MCP registry state',
-  getAgentListingDeltaAttachment: 'reads agent registry state',
   getMcpInstructionsDeltaAttachment: 'reads MCP connection state',
   memoryFilesToAttachments: 'filesystem-coupled (memdir reads)',
   getChangedFiles: 'reads readFileState vs disk mtimes',

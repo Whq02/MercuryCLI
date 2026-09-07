@@ -3,7 +3,6 @@ import { sliceHeadAtGrapheme, sliceTailAtGrapheme } from './intl.js'
 import { join } from 'node:path'
 
 import { getOriginalCwd, getSessionId } from '../bootstrap/state.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/featureGates.js'
 import type { Tool } from '../Tool.js'
 import type { Message } from '../types/message.js'
 import type { ToolResultBlockParam } from '../types/wire.js'
@@ -54,16 +53,8 @@ export type ContentReplacementState = {
   replacements: Map<string, string>
 }
 
-export function getPersistenceThreshold(toolName: string, declaredMaxResultSizeChars: number): number {
+export function getPersistenceThreshold(declaredMaxResultSizeChars: number): number {
   if (!Number.isFinite(declaredMaxResultSizeChars)) return declaredMaxResultSizeChars
-  let overrides: Record<string, unknown> | null = null
-  try {
-    overrides = getFeatureValue_CACHED_MAY_BE_STALE<Record<string, unknown> | null>('mercury_satin_quoll', {})
-  } catch {
-    overrides = null
-  }
-  const entry = overrides?.[toolName]
-  if (typeof entry === 'number' && Number.isFinite(entry) && entry > 0) return entry
   return Math.min(declaredMaxResultSizeChars, DEFAULT_MAX_RESULT_SIZE_CHARS)
 }
 
@@ -222,7 +213,7 @@ export async function processToolResultBlock<T>(
       mapToolResultToToolResultBlockParam: (result: T, id: string) => ToolResultBlockParam
     }
   ).mapToolResultToToolResultBlockParam(toolUseResult, toolUseID)
-  const threshold = getPersistenceThreshold(tool.name, (tool as { maxResultSizeChars?: number }).maxResultSizeChars ?? DEFAULT_MAX_RESULT_SIZE_CHARS)
+  const threshold = getPersistenceThreshold((tool as { maxResultSizeChars?: number }).maxResultSizeChars ?? DEFAULT_MAX_RESULT_SIZE_CHARS)
   return applySizePersistence(block, tool.name, threshold)
 }
 
@@ -231,7 +222,7 @@ export async function processPreMappedToolResultBlock(
   toolName: string,
   maxResultSizeChars: number,
 ): Promise<ToolResultBlockParam> {
-  return applySizePersistence(block, toolName, getPersistenceThreshold(toolName, maxResultSizeChars))
+  return applySizePersistence(block, toolName, getPersistenceThreshold(maxResultSizeChars))
 }
 
 export function createContentReplacementState(): ContentReplacementState {
@@ -240,30 +231,6 @@ export function createContentReplacementState(): ContentReplacementState {
 
 export function cloneContentReplacementState(source: ContentReplacementState): ContentReplacementState {
   return { seenIds: new Set(source.seenIds), replacements: new Map(source.replacements) }
-}
-
-export function getPerMessageBudgetLimit(): number {
-  try {
-    const fromGate = getFeatureValue_CACHED_MAY_BE_STALE<number | null>('mercury_hawthorn_window', null)
-    if (typeof fromGate === 'number' && Number.isFinite(fromGate) && fromGate > 0) return fromGate
-  } catch {
-  }
-  return MAX_TOOL_RESULTS_PER_MESSAGE_CHARS
-}
-
-export function provisionContentReplacementState(
-  initialMessages?: Message[],
-  initialContentReplacements?: ContentReplacementRecord[],
-): ContentReplacementState | undefined {
-  let enabled = false
-  try {
-    enabled = getFeatureValue_CACHED_MAY_BE_STALE<boolean>('mercury_hawthorn_steeple', false) === true
-  } catch {
-    enabled = false
-  }
-  if (!enabled) return undefined
-  if (!initialMessages || initialMessages.length === 0) return createContentReplacementState()
-  return reconstructContentReplacementState(initialMessages, initialContentReplacements ?? [])
 }
 
 type BudgetCandidate = {
@@ -293,7 +260,7 @@ export async function enforceToolResultBudget(
   state: ContentReplacementState,
   skipToolNames: ReadonlySet<string> = new Set(),
 ): Promise<{ messages: Message[]; replacements: ToolResultReplacementRecord[] }> {
-  const limit = getPerMessageBudgetLimit()
+  const limit = MAX_TOOL_RESULTS_PER_MESSAGE_CHARS
 
   const groups: BudgetCandidate[][] = []
   let currentGroup: BudgetCandidate[] = []

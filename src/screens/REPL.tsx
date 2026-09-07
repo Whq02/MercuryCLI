@@ -22,7 +22,6 @@ import { commandOffInPlainWorld, commandRetired, commandSeat, getCommandName, is
 import { CostThresholdDialog } from '../components/CostThresholdDialog.js';
 import { ExitFlow } from '../components/ExitFlow.js';
 import { computeUnseenDivider, countUnseenAssistantTurns, FullscreenLayout, useUnseenDivider } from '../components/FullscreenLayout.js';
-import { IdleReturnDialog } from '../components/IdleReturnDialog.js';
 import { MercuryTurnRollup } from '../components/MercuryTurnRollup.js';
 import {
   MessageActionsKeybindings,
@@ -115,7 +114,6 @@ import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
 import useInput from '../ink/hooks/use-input.js';
 import { useInterval } from '../ink/hooks/use-interval.js';
 import { useSearchHighlight } from '../ink/hooks/use-search-highlight.js';
-import { useTabStatus, type TabStatusKind } from '../ink/hooks/use-tab-status.js';
 import { useTerminalFocus } from '../ink/hooks/use-terminal-focus.js';
 import { useTerminalTitle } from '../ink/hooks/use-terminal-title.js';
 import { streamingRevealSuppressed } from '../ink/session/capabilities.js';
@@ -156,7 +154,6 @@ import {
 import type { RewindReceiptV1, SessionAskV1 } from '../services/engine-connector/types.js';
 import { flagEnv } from '../substrate/flagRegistry.js';
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js';
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/featureGates.js';
 import { themisBootVerify } from '../substrate/themis/boot.js';
 import { themisActive } from '../substrate/themis/level.js';
 import type { SetToolJSXFn, Tool, ToolPermissionContext } from '../Tool.js';
@@ -208,10 +205,6 @@ export type Props = {
   disableSlashCommands?: boolean;
 };
 
-const IDLE_THRESHOLD_MINUTES_ENV = 'MERCURY_IDLE_THRESHOLD_MINUTES';
-const IDLE_TOKEN_THRESHOLD_ENV = 'MERCURY_IDLE_TOKEN_THRESHOLD';
-const DEFAULT_IDLE_THRESHOLD_MINUTES = 75;
-const DEFAULT_IDLE_TOKEN_THRESHOLD = 100_000;
 const TITLE_FRAMES = ['⠂', '⠐'] as const;
 const TITLE_STATIC_MARK = '✻';
 const TITLE_INTERVAL_MS = 960;
@@ -282,7 +275,7 @@ const INERT_PROMPT_HELPERS: PromptInputHelpers = {
 
 type PaintsRows = { addDisplayRow?: (row: Message) => void; transcriptFile?: () => string };
 
-type FocusedInputDialog = 'message-selector' | 'tool-permission' | 'elicitation' | 'ide-onboarding' | 'cost-threshold' | 'idle-return' | 'crash-resume';
+type FocusedInputDialog = 'message-selector' | 'tool-permission' | 'elicitation' | 'ide-onboarding' | 'cost-threshold' | 'crash-resume';
 
 type ToolJSXState = Parameters<SetToolJSXFn>[0];
 
@@ -291,8 +284,6 @@ type ResumableLog = Omit<Partial<LogOption>, 'messages'> & { messages: Message[]
 type FrozenTranscriptState = { messageCount: number; streamingToolUseCount: number };
 
 type ScrollRestore = { gap: number; sticky: boolean };
-
-type IdleReturnTreatment = 'off' | 'dialog' | 'hint-dim' | 'hint-plain';
 
 function getFocusedInputDialog(args: {
   isExiting: boolean;
@@ -303,10 +294,9 @@ function getFocusedInputDialog(args: {
   elicitationQueueLength: number;
   showIdeOnboarding: boolean;
   showCostThreshold: boolean;
-  showIdleReturn: boolean;
   showCrashResume: boolean;
 }): FocusedInputDialog | undefined {
-  const { isExiting, showMessageSelector, isPromptInputActive, toolJSX, toolUseConfirmQueueLength, elicitationQueueLength, showIdeOnboarding, showCostThreshold, showIdleReturn, showCrashResume } = args;
+  const { isExiting, showMessageSelector, isPromptInputActive, toolJSX, toolUseConfirmQueueLength, elicitationQueueLength, showIdeOnboarding, showCostThreshold, showCrashResume } = args;
   if (isExiting) return undefined;
   if (showMessageSelector) return 'message-selector';
   if (isPromptInputActive) return undefined;
@@ -316,37 +306,8 @@ function getFocusedInputDialog(args: {
   if (elicitationQueueLength > 0) return 'elicitation';
   if (showIdeOnboarding) return 'ide-onboarding';
   if (showCostThreshold) return 'cost-threshold';
-  if (showIdleReturn) return 'idle-return';
   if (showCrashResume) return 'crash-resume';
   return undefined;
-}
-
-function positiveNumberEnv(name: string, fallback: number): number {
-  const raw = process.env[name];
-  const parsed = raw === undefined || raw === '' ? NaN : Number(raw);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
-function idleThresholdMinutes(): number {
-  return positiveNumberEnv(IDLE_THRESHOLD_MINUTES_ENV, DEFAULT_IDLE_THRESHOLD_MINUTES);
-}
-
-function idleTokenThreshold(): number {
-  return positiveNumberEnv(IDLE_TOKEN_THRESHOLD_ENV, DEFAULT_IDLE_TOKEN_THRESHOLD);
-}
-
-function idleReturnTreatment(): IdleReturnTreatment {
-  const raw = getFeatureValue_CACHED_MAY_BE_STALE<string>('idle_return_treatment', 'off');
-  if (raw === 'dialog') return 'dialog';
-  if (raw === 'hint') return 'hint-dim';
-  if (raw === 'hint_v2') return 'hint-plain';
-  return 'off';
-}
-
-function formatTokenCount(tokens: number): string {
-  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
-  if (tokens >= 1_000) return `${Math.round(tokens / 1_000)}k`;
-  return String(tokens);
 }
 
 function stopHookSuffix(messages: readonly Message[], isLoading: boolean): string | undefined {
@@ -700,7 +661,6 @@ export function REPL({
   const [lastCompletedAt, setLastCompletedAt] = useState<number | null>(null);
   const [remountKey, setRemountKey] = useState(0);
   const [showCostThreshold, setShowCostThreshold] = useState(false);
-  const [idleReturnStaged, setIdleReturnStaged] = useState<{ input: string; idleMinutes: number } | null>(null);
   const [crashResumeStaged, setCrashResumeStaged] = useState<{
     origin: string;
     component: string | null;
@@ -711,7 +671,6 @@ export function REPL({
     moreCount: number;
   } | null>(null);
   const crashNoticeLatchedRef = useRef(false);
-  const idleCheckLatchedOffRef = useRef(false);
   const [frozenTranscriptState, setFrozenTranscriptState] = useState<FrozenTranscriptState | null>(null);
   const [searchBarOpen, setSearchBarOpen] = useState(false);
   const [committedSearchQuery, setCommittedSearchQuery] = useState('');
@@ -929,13 +888,12 @@ export function REPL({
     elicitationQueueLength: elicitationQueue.length,
     showIdeOnboarding,
     showCostThreshold,
-    showIdleReturn: idleReturnStaged !== null,
     showCrashResume: crashResumeStaged !== null,
   });
   const focusedInputDialogRef = useRef(focusedInputDialog);
   focusedInputDialogRef.current = focusedInputDialog;
   const dialogsHiddenWhileTyping =
-    isPromptInputActive && !isExiting && !showMessageSelector && (toolUseConfirmQueue.length > 0 || showCostThreshold || idleReturnStaged !== null);
+    isPromptInputActive && !isExiting && !showMessageSelector && (toolUseConfirmQueue.length > 0 || showCostThreshold);
 
   const seatStartTimeRef = useRef(0);
   const seatPausedMsRef = useRef(0);
@@ -1066,7 +1024,6 @@ export function REPL({
   useEffect(() => {
     if (wasLoadingRef.current && !isLoading) {
       setLastCompletedAt(Date.now());
-      idleCheckLatchedOffRef.current = false;
       seatPausedMsRef.current = 0;
       seatPauseStartRef.current = null;
       pickTurnTip();
@@ -1197,24 +1154,6 @@ export function REPL({
       }
     }
     if (seat === 'session') {
-      const treatment = idleReturnTreatment();
-      if (
-        treatment === 'dialog' &&
-        getGlobalConfig().idleReturnDismissed !== true &&
-        !idleCheckLatchedOffRef.current &&
-        seatCommand === undefined &&
-        seatMode !== 'bash' &&
-        lastCompletedAt !== null &&
-        focusedNow.usage().totalInputTokens >= idleTokenThreshold()
-      ) {
-        const idleMinutes = (Date.now() - lastCompletedAt) / 60_000;
-        if (idleMinutes >= idleThresholdMinutes()) {
-          setIdleReturnStaged({ input, idleMinutes });
-          setInputValue('');
-          setPastedContents({});
-          return;
-        }
-      }
       if (landingInFlight() && !hasFocusedSession()) {
         takeComposer();
         setAppState(prev => ({
@@ -1372,7 +1311,6 @@ export function REPL({
   }, [toolJSX, drainQueuedDialogCommand]);
 
   const onCancel = useCallback(() => {
-    idleCheckLatchedOffRef.current = false;
     interruptFocusedTurn();
   }, []);
 
@@ -1688,12 +1626,6 @@ export function REPL({
   const sessionTitle = sessionTitleSetting === false ? undefined : getCurrentSessionTitle(asSessionId(focusedConnector.sessionId()));
   const agentTitle = store.getState().standaloneAgentContext?.name;
   const title = sessionTitle ?? agentTitle ?? generatedTitle ?? 'Mercury';
-  const tabStatus: TabStatusKind = isWaitingForApproval || showingLocalDialog ? 'waiting' : isLoading ? 'busy' : 'idle';
-  const tabStatusEnabled =
-    getFeatureValue_CACHED_MAY_BE_STALE<boolean>('terminal_tab_status', false) &&
-    getGlobalConfig().showStatusInTerminalTab === true &&
-    terminalTitleEnabled;
-  useTabStatus(tabStatusEnabled ? tabStatus : null);
   const titleAnimating = isLoading && !isWaitingForApproval && !showingLocalDialog;
   useEffect(() => {
     if (!titleAnimating) return;
@@ -1722,37 +1654,6 @@ export function REPL({
   useEffect(() => {
     if (lastCompletedAt !== null) editGenerationAtCompleteRef.current = pendingInput.editGeneration();
   }, [lastCompletedAt]);
-
-  useEffect(() => {
-    const treatment = idleReturnTreatment();
-    if (treatment !== 'hint-dim' && treatment !== 'hint-plain') return;
-    if (getGlobalConfig().idleReturnDismissed === true) return;
-    if (lastCompletedAt === null || isLoading || messages.length === 0) return;
-    const tokensUsed = getFocusedSessionConnector().usage().totalInputTokens;
-    if (tokensUsed < idleTokenThreshold()) return;
-    const remaining = Math.max(0, idleThresholdMinutes() * 60_000 - (Date.now() - lastCompletedAt));
-    const timer = setTimeout(() => {
-      const formatted = formatTokenCount(tokensUsed);
-      addNotification({
-        key: 'idle-return-hint',
-        jsx:
-          treatment === 'hint-dim' ? (
-            <Text color={tokens.textMuted}>
-              this may be a new task — <Text color={tokens.textPrimary}>/clear</Text> would save{' '}
-              <Text color={tokens.textPrimary}>{formatted}</Text> tokens
-            </Text>
-          ) : (
-            <Text color={tokens.warning}>{`this may be a new task — /clear would save ${formatted} tokens`}</Text>
-          ),
-        priority: 'medium',
-        timeoutMs: PERSISTENT_NOTIFICATION_MS,
-      });
-    }, remaining);
-    return () => {
-      clearTimeout(timer);
-      removeNotification('idle-return-hint');
-    };
-  }, [lastCompletedAt, isLoading, messages.length, addNotification, removeNotification, tokens]);
 
   const costThresholdShownRef = useRef<boolean>(getGlobalConfig().hasAcknowledgedCostThreshold === true);
   useEffect(() => {
@@ -2343,28 +2244,6 @@ export function REPL({
           saveGlobalConfig(config => ({ ...config, hasAcknowledgedCostThreshold: true }));
         }}
       />
-    ) : focusedInputDialog === 'idle-return' && idleReturnStaged !== null ? (
-      <IdleReturnDialog
-        idleMinutes={idleReturnStaged.idleMinutes}
-        totalInputTokens={getFocusedSessionConnector().usage().totalInputTokens}
-        onDone={action => {
-          const stagedText = idleReturnStaged.input;
-          setIdleReturnStaged(null);
-          if (action === 'dismiss') {
-            setInputValue(stagedText);
-            return;
-          }
-          if (action === 'never') saveGlobalConfig(config => ({ ...config, idleReturnDismissed: true }));
-          idleCheckLatchedOffRef.current = true;
-          void (async () => {
-            if (action === 'clear') {
-              const hops = await import('../services/switchboard/hopIntoSession.js');
-              await hops.clearFocusedSession();
-            }
-            await onSubmitRef.current(stagedText, INERT_PROMPT_HELPERS);
-          })();
-        }}
-      />
     ) : focusedInputDialog === 'crash-resume' && crashResumeStaged !== null ? (
       <CrashResumeDialog
         origin={crashResumeStaged.origin}
@@ -2621,7 +2500,7 @@ export function REPL({
   if (legacyTranscript) {
     return (
       <KeybindingSetup>
-        <AnimatedTitle enabled={terminalTitleEnabled} title={title} wantsPrefix={!tabStatusEnabled} animating={titleAnimating} />
+        <AnimatedTitle enabled={terminalTitleEnabled} title={title} wantsPrefix animating={titleAnimating} />
         <GlobalKeybindingHandlers {...globalKeybindingProps} />
         <CommandKeybindingHandlers onSubmit={onSubmit} commands={commands} isActive={!dialogOwnsKeys} />
         {cancelHandler}
@@ -2646,7 +2525,7 @@ export function REPL({
 
   const tree = (
     <KeybindingSetup>
-      <AnimatedTitle enabled={terminalTitleEnabled} title={title} wantsPrefix={!tabStatusEnabled} animating={titleAnimating} />
+      <AnimatedTitle enabled={terminalTitleEnabled} title={title} wantsPrefix animating={titleAnimating} />
       <GlobalKeybindingHandlers {...globalKeybindingProps} />
       <CommandKeybindingHandlers onSubmit={onSubmit} commands={commands} isActive={!dialogOwnsKeys} />
       <ScrollKeybindingHandler

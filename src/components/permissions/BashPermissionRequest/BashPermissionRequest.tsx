@@ -4,7 +4,6 @@ import { Box, Text } from '../../../ink.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
 import { Select } from '../../CustomSelect/select.js'
 import { useKeybinding } from '../../../keybindings/useKeybinding.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../../services/analytics/featureGates.js'
 import { getGlobalConfig } from '../../../utils/config.js'
 import { getSystemThemeName } from '../../../utils/systemTheme.js'
 import { BashTool } from '../../../tools/BashTool/BashTool.js'
@@ -83,12 +82,8 @@ function BashCommandPermissionRequest(
   })
 
   const derived = useMemo(() => {
-    const warningEnabled = getFeatureValue_CACHED_MAY_BE_STALE(
-      'mercury_destructive_command_warning',
-      true,
-    )
     return {
-      warning: warningEnabled ? getDestructiveCommandWarning(command) : null,
+      warning: getDestructiveCommandWarning(command),
       unsandboxed:
         SandboxManager.isSandboxingEnabled() &&
         !shouldUseSandbox(toolUseConfirm.input as { command?: string }),

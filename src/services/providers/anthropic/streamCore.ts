@@ -37,16 +37,8 @@ import type { QuerySource } from 'src/constants/querySource.js'
 import type { Notification } from 'src/context/notifications.js'
 import { applyThinkingBinding } from './thinkingBinding.js'
 import { addToTotalSessionCost } from 'src/cost-tracker.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/featureGates.js'
 import type { AgentId } from 'src/types/ids.js'
 import type { NativeWebSearchRequest } from 'src/services/search/nativeSearchRequest.js'
-import {
-  ADVISOR_TOOL_INSTRUCTIONS,
-  getExperimentAdvisorModels,
-  isAdvisorEnabled,
-  isValidAdvisorModel,
-  modelSupportsAdvisor,
-} from 'src/utils/advisor.js'
 import { getAgentContext } from 'src/utils/agentContext.js'
 import {
   getToolSearchBetaHeader,
@@ -125,7 +117,6 @@ import {
   modelSupportsTemperature,
 } from '../../../utils/betas.js'
 import {
-  CAPPED_DEFAULT_MAX_TOKENS,
   getModelMaxOutputTokens,
 } from '../../../utils/context.js'
 import { isTurnOwningQuerySource, resolveAppliedEffort } from '../../../utils/effort.js'
@@ -153,7 +144,6 @@ import {
   getCanonicalName,
   getPublicModelDisplayName,
   normalizeModelStringForAPI,
-  parseUserSpecifiedModel,
 } from '../../../utils/model/model.js'
 import { sessionSmallFastModel } from '../../../utils/model/providerFrontier.js'
 import {
@@ -267,7 +257,6 @@ export type Options = {
   fetchOverride?: ClientOptions['fetch']
   enablePromptCaching?: boolean
   skipCacheWrite?: boolean
-  cacheTtlSource?: QuerySource
   effortMessage?: EffortValue
   temperatureOverride?: number
   effortValue?: EffortValue
@@ -277,7 +266,6 @@ export type Options = {
   agentId?: AgentId
   ownerKey?: string
   outputFormat?: JsonOutputFormat
-  advisorModel?: string
   addNotification?: (notif: Notification) => void
   taskBudget?: { total: number; remaining?: number }
   callReference?: ModelCallReference
@@ -514,45 +502,6 @@ async function* queryModel(
     options.querySource === 'verification_agent'
   const betas = getMergedBetas(options.model, { isAgenticQuery })
 
-  if (isAdvisorEnabled()) {
-    betas.push(ADVISOR_BETA_HEADER)
-  }
-
-  let advisorModel: string | undefined
-  if (isAgenticQuery && isAdvisorEnabled()) {
-    let advisorOption = options.advisorModel
-
-    const advisorExperiment = getExperimentAdvisorModels()
-    if (advisorExperiment !== undefined) {
-      if (
-        normalizeModelStringForAPI(advisorExperiment.baseModel) ===
-        normalizeModelStringForAPI(options.model)
-      ) {
-        advisorOption = advisorExperiment.advisorModel
-      }
-    }
-
-    if (advisorOption) {
-      const normalizedAdvisorModel = normalizeModelStringForAPI(
-        parseUserSpecifiedModel(advisorOption),
-      )
-      if (!modelSupportsAdvisor(options.model)) {
-        logForDebugging(
-          `[AdvisorTool] Skipping advisor - base model ${options.model} does not support advisor`,
-        )
-      } else if (!isValidAdvisorModel(normalizedAdvisorModel)) {
-        logForDebugging(
-          `[AdvisorTool] Skipping advisor - ${normalizedAdvisorModel} is not a valid advisor model`,
-        )
-      } else {
-        advisorModel = normalizedAdvisorModel
-        logForDebugging(
-          `[AdvisorTool] Server-side tool enabled with ${advisorModel} as the advisor model`,
-        )
-      }
-    }
-  }
-
   const rosterOwnerKey = options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null))
   const plan = await planToolPayload({
     model: options.model,
@@ -693,7 +642,6 @@ async function* queryModel(
         hasAppendSystemPrompt: options.hasAppendSystemPrompt,
       }),
       ...systemPrompt,
-      ...(advisorModel ? [ADVISOR_TOOL_INSTRUCTIONS] : []),
     ].filter(Boolean),
   )
 
@@ -701,10 +649,8 @@ async function* queryModel(
 
   const enablePromptCaching =
     options.enablePromptCaching ?? getPromptCachingEnabled(options.model)
-  const cacheTtlSource = options.cacheTtlSource ?? options.querySource
   const system = buildSystemPromptBlocks(systemPrompt, enablePromptCaching, {
     skipGlobalCacheForSystemPrompt: needsToolBasedCacheMarker,
-    querySource: cacheTtlSource,
   })
   const useBetas = betas.length > 0
 
@@ -718,13 +664,6 @@ async function* queryModel(
       ...(blockedDomains && blockedDomains.length > 0 ? { blocked_domains: blockedDomains } : {}),
       max_uses: maxUses,
     })
-  }
-  if (advisorModel) {
-    extraToolSchemas.push({
-      type: 'advisor_20260301',
-      name: 'advisor',
-      model: advisorModel,
-    } as unknown as ApiToolUnion)
   }
   const allTools = [...toolSchemas, ...extraToolSchemas] as unknown as BetaToolUnion[]
 
@@ -880,7 +819,6 @@ async function* queryModel(
       messages: addCacheBreakpoints(
         messagesForAPI,
         enablePromptCaching,
-        cacheTtlSource,
         useCachedMC,
         consumedCacheEdits as CachedMCEditsBlock | null,
         consumedPinnedEdits as CachedMCPinnedEdits[],
@@ -1001,7 +939,6 @@ async function* queryModel(
     type: 'assistant',
     uuid: randomUUID(),
     timestamp: new Date().toISOString(),
-    ...(advisorModel && { advisorModel }),
   })
 
   function* yieldAbortedPartialText(): Generator<AssistantMessage> {
@@ -1627,10 +1564,6 @@ async function* queryModel(
 
       const disableFallback =
         isEnvTruthy(process.env.MERCURY_DISABLE_NONSTREAMING_FALLBACK) ||
-        getFeatureValue_CACHED_MAY_BE_STALE(
-          'mercury_disable_streaming_to_non_streaming_fallback',
-          false,
-        ) ||
         (streamIdleAborted && streamedToolUse)
 
       if (disableFallback) {
@@ -1997,21 +1930,13 @@ export function adjustParamsForNonStreaming<
   }
 }
 
-function isMaxTokensCapEnabled(): boolean {
-  return getFeatureValue_CACHED_MAY_BE_STALE('mercury_otk_slot_v1', false)
-}
-
 export function getMaxOutputTokensForModel(model: string): number {
   const maxOutputTokens = getModelMaxOutputTokens(model)
-
-  const defaultTokens = isMaxTokensCapEnabled()
-    ? Math.min(maxOutputTokens.default, CAPPED_DEFAULT_MAX_TOKENS)
-    : maxOutputTokens.default
 
   const result = validateBoundedIntEnvVar(
     'MERCURY_MAX_OUTPUT_TOKENS',
     process.env.MERCURY_MAX_OUTPUT_TOKENS,
-    defaultTokens,
+    maxOutputTokens.default,
     maxOutputTokens.upperLimit,
   )
   return result.effective

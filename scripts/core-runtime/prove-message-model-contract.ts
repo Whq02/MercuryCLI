@@ -18,7 +18,6 @@ const mergeMod = await import('../../src/utils/messages/merge.ts')
 const rejection = await import('../../src/utils/messages/rejectionText.ts')
 const mappers = await import('../../src/utils/messages/mappers.ts')
 const bootstrap = await import('../../src/bootstrap/state.ts')
-const featureGates = await import('../../src/services/analytics/featureGates.ts')
 
 type AnyMsg = Record<string, any>
 type Block = Record<string, any>
@@ -97,15 +96,7 @@ const serverTr = (id: string): Block => ({
   content: [],
 })
 
-section('DORMANT-GATE — the owned gate table pins the smoosh family dead')
-check(
-  'mercury_chair_sermon resolves false',
-  featureGates.checkFeatureGate_CACHED_MAY_BE_STALE('mercury_chair_sermon') === false,
-)
-check(
-  'mercury_toolref_defer_j8m resolves false',
-  featureGates.checkFeatureGate_CACHED_MAY_BE_STALE('mercury_toolref_defer_j8m') === false,
-)
+section('MERGING — string results merge text; array results retain blocks')
 {
   const a = [txt('lead'), tr('toolu_l1')]
   const b = [txt('sibling')]

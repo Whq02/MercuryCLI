@@ -82,7 +82,7 @@ export function buildTransitionPlan(args: {
     const walkable = messages.filter(
       m => m.type === 'user' || m.type === 'assistant',
     )
-    const bridge = toBridgeMessages(walkable as Message[], undefined as never, to)
+    const bridge = toBridgeMessages(walkable as Message[], to)
     walkable.forEach((m, i) => {
       const row = bridge.rows[i] as { turnRecord?: unknown } | undefined
       replayCarried.set(

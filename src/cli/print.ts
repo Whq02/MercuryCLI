@@ -92,7 +92,6 @@ import type {
   StdinMessage,
   StdoutMessage,
 } from '../entrypoints/sdk/controlTypes.js'
-import { initializeFeatureGates } from '../services/analytics/featureGates.js'
 import { statusListeners, type ClaudeAILimits } from '../services/claudeAiLimits.js'
 import { providerLimitWarning } from '../services/providers/limitWarning.js'
 import {
@@ -403,7 +402,6 @@ export async function runHeadless(
   headlessProfilerStartTurn()
   notePrintPhase('graph_load', getPerformance().getEntriesByName('cli_entry')[0]?.startTime)
   notePrintPhase('cli_parse')
-  void initializeFeatureGates()
 
   if (options.resumeSessionAt !== undefined && !options.resume) {
     process.stderr.write('--resume-session-at requires --resume\n')

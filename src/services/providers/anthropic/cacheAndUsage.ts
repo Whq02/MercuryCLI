@@ -5,7 +5,6 @@ import {
 } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
 import { type TextBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
 import { type Stream } from '@anthropic-ai/sdk/streaming.mjs'
-import { type QuerySource } from 'src/constants/querySource.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import {
   type AssistantMessage,
@@ -156,7 +155,6 @@ function lastUserIndexBefore(messages: ReadonlyArray<{ type: string }>, end: num
 export function addCacheBreakpoints(
   messages: (UserMessage | AssistantMessage)[],
   enablePromptCaching: boolean,
-  querySource?: QuerySource,
   useCachedMC = false,
   newCacheEdits?: CachedMCEditsBlock | null,
   pinnedEdits?: CachedMCPinnedEdits[],
@@ -170,14 +168,12 @@ export function addCacheBreakpoints(
         msg,
         addCache,
         enablePromptCaching,
-        querySource,
       )
     }
     return assistantMessageToMessageParam(
       msg,
       addCache,
       enablePromptCaching,
-      querySource,
     )
   }) as unknown as MessageParam[]
 
@@ -275,7 +271,6 @@ export function buildSystemPromptBlocks(
   enablePromptCaching: boolean,
   options?: {
     skipGlobalCacheForSystemPrompt?: boolean
-    querySource?: QuerySource
   },
 ): TextBlockParam[] {
   return splitSysPromptPrefix(systemPrompt, {
@@ -288,7 +283,6 @@ export function buildSystemPromptBlocks(
         block.cacheScope !== null && {
           cache_control: getCacheControl({
             scope: block.cacheScope,
-            querySource: options?.querySource,
           }),
         }),
     }

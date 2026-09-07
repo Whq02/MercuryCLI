@@ -69,6 +69,7 @@ import { wrapPlain } from './BootHealthScreen.js';
 import {
   loginFamilyFocusFor,
   loginFamilyRows,
+  loginFamilyInitialFocus,
   openaiArmPickRows,
   type LoginFamilyRow,
 } from './loginFamilyRows.js';
@@ -911,13 +912,11 @@ export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLogin
     if (given !== undefined) return;
     void (async () => {
       try {
-        const [user, gates, killswitch] = await Promise.all([
+        const [user, killswitch] = await Promise.all([
           import('../utils/user.js'),
-          import('../services/analytics/featureGates.js'),
           import('../utils/permissions/bypassPermissionsKillswitch.js'),
         ]);
         user.resetUserCache();
-        await gates.refreshFeatureGates().catch(() => {});
         killswitch.resetBypassPermissionsCheck();
         if (setAppStateMaybe !== null) {
           let capturedContext: Parameters<typeof killswitch.checkAndDisableBypassPermissionsIfNeeded>[0] | null = null;
@@ -1221,12 +1220,13 @@ export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLogin
   };
 
   const recordedFocus = loginFamilyFocusFor(mostRecentSignInFamily());
+  const initialFocus = loginFamilyInitialFocus(arms.map(arm => arm.row), recordedFocus);
 
   const list = useInteractiveList<LoginsArmV1>({
     rows: arms,
     rowId: a => `logins:${a.row.value}`,
     idNamespace: 'boot-logins',
-    ...(recordedFocus !== undefined ? { initialId: `logins:${recordedFocus}` } : {}),
+    ...(initialFocus !== undefined ? { initialId: `logins:${initialFocus}` } : {}),
     active: flow === null,
     onClose: () => onClose?.(),
     actions: [
