@@ -2,6 +2,8 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
+- Changed the built-in shell engine to give each sub-agent its own shell session, ended with the agent, so agents no longer wait on one another's commands or see one another's variables; a "Shell engine sessions" setting caps how many stay alive at once, and an agent past the cap waits for a free one
+- Fixed the built-in engine's progress view missing a command's first line and going quiet during a silent command; a shell that dies as it starts now refuses the command at once with the reason instead of timing out
 - Fixed a background file count started at boot being left running when Mercury exits right away
 - Fixed on-device voice loading its speed-optimised pack on a CPU that cannot run it, which could end Mercury on the doctor's voice row or the first take; the check now runs once in a helper, and the doctor and /speak say what it found. The first use of voice on Windows no longer stalls while it checks
 - Fixed the MCP connection memory keeping a server's full configuration on disk; it now keeps a fingerprint only
