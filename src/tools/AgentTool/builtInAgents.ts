@@ -6,6 +6,7 @@ import { GENERAL_PURPOSE_AGENT } from './built-in/generalPurposeAgent.js'
 import { MERCURY_ARCHITECT_AGENT } from './built-in/mercuryArchitectAgent.js'
 import { MERCURY_BACKGROUND_AGENT } from './built-in/mercuryBackgroundAgent.js'
 import { MERCURY_GUIDE_AGENT, isGuideAgentMounted } from './built-in/mercuryGuideAgent.js'
+import { MERCURY_REVIEWER_AGENT } from './built-in/mercuryReviewerAgent.js'
 import { MERCURY_SCOUT_AGENT } from './built-in/mercuryScoutAgent.js'
 import { VERIFICATION_AGENT } from './built-in/verificationAgent.js'
 
@@ -23,5 +24,6 @@ export function getBuiltInAgents(): AgentDefinition[] {
     MERCURY_ARCHITECT_AGENT,
     ...(isGuideAgentMounted() ? [MERCURY_GUIDE_AGENT] : []),
     VERIFICATION_AGENT,
+    MERCURY_REVIEWER_AGENT,
   ]
 }
