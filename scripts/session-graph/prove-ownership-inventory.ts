@@ -102,6 +102,7 @@ t.section('§2 — no NEW crew export ships without an inventory row')
     '__identityLawsForProof', '__continuityLawsForProof', '__dispatchLawsForProof',
     '_resetCrewIdentityBootForTesting', '_resetSeatBridgeForTesting', '_resetCapabilitiesForTesting',
     '_resetActivityFeedForTesting', '_resetCrewProjectionForTesting',
+    '_faultSourceForProofs',
     'migrateLegacyIdentities', 'readIdentityMigrationReceipt',
     'subscribeCrewIdentity', 'subscribeConversations', 'subscribeCrew', 'subscribeSessionDescriptors',
     'isCrewProjectionArmed',
