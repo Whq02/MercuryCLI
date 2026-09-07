@@ -916,7 +916,7 @@
     },
     {
       "file": "scripts/journey/prove-flow-neverstop-live.ts",
-      "line": 181,
+      "line": 178,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
