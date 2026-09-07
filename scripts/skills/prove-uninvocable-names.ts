@@ -47,7 +47,7 @@ const roster = await getCommands(PROJ)
 const names = roster.map(c => c.name)
 const refusals = skillsMod.getSkillLoadRefusals()
 
-section('§2 THE SKILLS LANE')
+section('§2 THE SKILLS ROAD')
 {
   check('the fine skill registers', names.includes('fine'))
   check('no EMPTY-named command sits in the roster', !names.some(n => n === '' || n.endsWith(':')))
