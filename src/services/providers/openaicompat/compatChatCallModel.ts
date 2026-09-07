@@ -17,6 +17,9 @@ import type {
 } from '../../../types/message.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
 import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
+import { providerWaitIsWindow, stampProviderWait } from '../../api/recoveryBudget.js'
+import { patienceSeconds } from '../patience.js'
+import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
 import { EMPTY_USAGE } from '../../api/emptyUsage.js'
@@ -220,7 +223,7 @@ export function compatFaultToTypedError(
 
 export function compatTerminalFaultText(
   profile: Pick<CompatLaneProfile, 'providerLabel' | 'credentialHint' | 'authRemedy' | 'billingRemedy'>,
-  fault: Pick<CompatFault, 'code' | 'message'>,
+  fault: Pick<CompatFault, 'code' | 'message'> & { retryAfterMs?: number },
   typed: TypedError,
   opts?: { recovery?: 'retried' | 'no-new-credential' },
 ): string {
@@ -237,8 +240,13 @@ export function compatTerminalFaultText(
     }
     case 'billing_error':
       return `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} reports the account out of credit (${detail}) — ${profile.billingRemedy ?? 'top up the account at the provider, then retry; /model picks another model meanwhile.'}`
-    case 'rate_limit':
-      return `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} is rate-limiting this account (${detail}) — retry in a moment, or /model picks another model meanwhile.`
+    case 'rate_limit': {
+      const asked =
+        fault.retryAfterMs !== undefined
+          ? ` — the provider asks for a ${patienceSeconds(fault.retryAfterMs)} wait${providerWaitIsWindow(fault.retryAfterMs) ? ', past the retry budget: a dispatched agent pauses until then' : ''}`
+          : ''
+      return `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} is rate-limiting this account (${detail})${asked} — retry in a moment, or /model picks another model meanwhile.`
+    }
     default:
       return `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} stream failed (${fault.code}) — ${fault.message}`
   }
@@ -455,11 +463,22 @@ export async function* compatChatCallModel(
       }
       if (fresh !== null) recovery = 'no-new-credential'
     }
+    const askedMs = outcome.fault.retryAfterMs
     const retryable =
-      outcome.retryEligible && outcome.fault.retryable && attempt < COMPAT_MAX_ATTEMPTS
+      !providerWaitIsWindow(askedMs) && outcome.retryEligible && outcome.fault.retryable && attempt < COMPAT_MAX_ATTEMPTS
     if (retryable) {
+      const delayMs = Math.max(COMPAT_RETRY_BACKOFF_MS * attempt, askedMs ?? 0)
+      yield createSystemAPIErrorMessage(
+        Object.assign(new Error(outcome.fault.message), {
+          ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
+          ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
+        }),
+        delayMs,
+        attempt,
+        COMPAT_MAX_ATTEMPTS - 1,
+      )
       await new Promise(resolve => {
-        const t = setTimeout(resolve, COMPAT_RETRY_BACKOFF_MS * attempt)
+        const t = setTimeout(resolve, delayMs)
         ;(t as any).unref?.()
       })
       if (signal.aborted) return
@@ -480,11 +499,14 @@ export async function* compatChatCallModel(
         remedy: profile.billingRemedy ?? 'top up the account at the provider, then retry; /model picks another model meanwhile.',
       })
     }
-    yield apiErrorMessage(
-      compatTerminalFaultText(profile, outcome.fault, typed, recovery ? { recovery } : undefined),
-      typed,
-      outcome.fault.code,
-      overflowOf(profile.lane, outcome.fault),
+    yield stampProviderWait(
+      apiErrorMessage(
+        compatTerminalFaultText(profile, outcome.fault, typed, recovery ? { recovery } : undefined),
+        typed,
+        outcome.fault.code,
+        overflowOf(profile.lane, outcome.fault),
+      ),
+      outcome.fault.retryAfterMs,
     )
     return
   }

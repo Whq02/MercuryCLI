@@ -204,6 +204,21 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       tick()
       return
     }
+    if (arm === 'window') {
+      record({ kind: 'answered', route, arm, status: 429, retryAfter: 10800, nth })
+      refusal(res, 429, { 'retry-after': '10800' }, RATE_LIMITED)
+      return
+    }
+    if (arm === 'hung') {
+      if (!streaming) {
+        record({ kind: 'held-json', route, arm, nth })
+        return
+      }
+      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
+      res.flushHeaders()
+      record({ kind: 'held', route, arm, nth })
+      return
+    }
     if (arm === 'quiet' || arm === 'drop') {
       if (toolResult) {
         if (nth === 1 && streaming) {

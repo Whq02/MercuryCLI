@@ -58,6 +58,7 @@ import {
   getSchemaBoundStructuredOutputTool,
   STRUCTURED_OUTPUT_TOOL_NAME,
 } from './structuredOutputTool.js'
+import { formatQuietAge } from './livePulse.js'
 export { STRUCTURED_OUTPUT_TOOL_NAME }
 
 const AGENT_LIFETIME_CAP = 1000
@@ -1062,7 +1063,17 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       ): AttemptReport => {
         const model = modelOverride ?? statics.model
         const family = providerFamilyOfSetting(model ?? null)
-        const pausedFrame = (): void => emitFrame('progress', { waiting: 'usage-window', waitWords: words, ...settledTotals(elapsed) })
+        const pausedWords = (): string => {
+          const left = resetsAtMs !== undefined ? resetsAtMs - Date.now() : undefined
+          const when =
+            left === undefined
+              ? 'no reset stated'
+              : left <= 0
+                ? 'resuming now'
+                : `resumes by itself at ${clockOf(resetsAtMs as number)} (in ${formatQuietAge(left)})`
+          return `paused — ${words}; ${when}; /model switches this agent, /workflows stops it`
+        }
+        const pausedFrame = (): void => emitFrame('progress', { waiting: 'usage-window', waitWords: pausedWords(), ...settledTotals(elapsed) })
         pausedFrame()
         return {
           structured,
@@ -1077,7 +1088,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           schemaCallCount,
           lastSchemaCallInput,
           capPause: {
-            words,
+            words: pausedWords(),
             family,
             model,
             resetsAtMs,
@@ -1182,7 +1193,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         if (cutReason === 'throttled') {
           if (structured !== undefined) return deliveredSettle(elapsed)
           const message = recoveryBudgetSpentLine(recovery)
-          if (recovery.lastStatus === 429) return capPauseSettle(elapsed, '', `${message}; waiting for a model switch${lastDeclaredEndsAt !== undefined ? ` or the declared wait's end at ${clockOf(lastDeclaredEndsAt)}` : ''} — /model switches this agent`, lastDeclaredEndsAt)
+          if (recovery.lastStatus === 429) return capPauseSettle(elapsed, '', `provider busy: ${message}`, lastDeclaredEndsAt)
           return apiErrorSettle(elapsed, message)
         }
         if (cutReason === 'stalled' || cutReason === 'user-retry') {
@@ -1268,7 +1279,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             return model
           }
         })()
-        const words = `waiting for ${who}'s ${window.windowName ?? 'usage window'} — ${window.resetsAtMs !== undefined ? `resets at ${clockOf(window.resetsAtMs)}` : 'no reset stated'}; /model switches this agent`
+        const words = `usage limit: ${who}'s ${window.windowName ?? 'usage window'} is spent`
         return capPauseSettle(elapsed, finalText, words, window.resetsAtMs, finalOutputTokens)
       }
       if (lastAssistant?.isApiErrorMessage) {
@@ -1360,7 +1371,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           report = { ...report, capPause: undefined, apiError: pause.words }
           break
         }
-        log(`[${label}] paused — ${pause.words}`)
+        log(`[${label}] ${pause.words}`)
         const lift = await waitForCapLift(pause, ctx.abortController?.signal)
         if (lift.kind === 'aborted') throw new Error('Workflow aborted')
         if (lift.kind === 'switched') resumedModel = lift.model

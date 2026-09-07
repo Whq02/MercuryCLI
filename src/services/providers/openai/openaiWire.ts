@@ -1,5 +1,6 @@
 
 import { logForDebugging } from '../../../utils/debug.js'
+import { retryAfterHeaderMs } from '../../api/retryAfter.js'
 import type { StreamCapabilityAdvertisement, TextPhase } from '../../../types/wire.js'
 
 
@@ -116,6 +117,7 @@ export interface OpenaiFault {
   message: string
   retryable: boolean
   resetsAtMs?: number
+  retryAfterMs?: number
   status?: number
 }
 
@@ -216,6 +218,11 @@ export function mapOpenaiHttpFailure(
       message: resetFacts.length > 0 ? `${message} (${resetFacts.join(' · ')})` : message,
       retryable: true,
       ...(resetsAtMs !== undefined ? { resetsAtMs } : {}),
+      ...((): { retryAfterMs?: number } => {
+        const asked = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined)
+        if (asked !== undefined) return { retryAfterMs: asked }
+        return resetsAtMs !== undefined && resetsAtMs > Date.now() ? { retryAfterMs: resetsAtMs - Date.now() } : {}
+      })(),
       status,
     }
   }

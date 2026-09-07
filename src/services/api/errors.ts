@@ -28,6 +28,7 @@ import { ImageSizeError } from '../../utils/imageValidation.js'
 
 
 import { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
+import { providerAskedWaitMs } from './recoveryBudget.js'
 export { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
 
 export function malformedStreamFrameText(
@@ -386,6 +387,16 @@ function extractProviderDetail(
 }
 
 export function getAssistantMessageFromError(
+  error: unknown,
+  model: string,
+  _context?: { messages?: Message[]; messagesForAPI?: unknown[] },
+): AssistantMessage {
+  const row = composeAssistantMessageFromError(error, model, _context)
+  const asked = providerAskedWaitMs(error)
+  return asked === undefined ? row : { ...row, providerWaitEndsAtMs: Date.now() + asked }
+}
+
+function composeAssistantMessageFromError(
   error: unknown,
   model: string,
   _context?: { messages?: Message[]; messagesForAPI?: unknown[] },

@@ -1,12 +1,14 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { SseDecoder } from '../sseDecoder.js'
+import { retryAfterHeaderMs } from '../../api/retryAfter.js'
 import {
   createStreamIdleWatchdog,
   firstByteBudgetMs,
   firstByteTimeoutLine,
   streamIdleTimeoutMs,
   StreamIdleTimeoutError,
+  streamIdleFaultWords,
   type RequestWaitV1,
   type StreamIdleWatchdog,
 } from '../streamIdleBudget.js'
@@ -107,16 +109,19 @@ export interface ZaiFault {
   message: string
   retryable: boolean
   status?: number
+  retryAfterMs?: number
 }
 
 
 const RETRYABLE_ZAI_CODES = new Set([1302, 1305, 1113, 1234, 1230])
 
-export function mapZaiHttpFailure(status: number, body: unknown): ZaiFault {
+export function mapZaiHttpFailure(status: number, body: unknown, headers?: { get(name: string): string | null }): ZaiFault {
   const o = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : undefined
   const err = typeof o?.error === 'object' && o.error !== null ? (o.error as Record<string, unknown>) : undefined
   const codeNum = Number(err?.code ?? o?.code)
   const message = String(err?.message ?? o?.message ?? `HTTP ${status}`)
+  const retryAfterMs = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined)
+  const asked = retryAfterMs !== undefined ? { retryAfterMs } : {}
   if (Number.isFinite(codeNum) && codeNum > 0) {
     return {
       kind: 'api-error',
@@ -124,6 +129,7 @@ export function mapZaiHttpFailure(status: number, body: unknown): ZaiFault {
       message,
       retryable: RETRYABLE_ZAI_CODES.has(codeNum) || status === 429 || status >= 500,
       status,
+      ...asked,
     }
   }
   return {
@@ -132,6 +138,7 @@ export function mapZaiHttpFailure(status: number, body: unknown): ZaiFault {
     message,
     retryable: status === 429 || status >= 500,
     status,
+    ...asked,
   }
 }
 
@@ -289,7 +296,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
       } catch {
         body = undefined
       }
-      yield { type: 'stream-fault', fault: mapZaiHttpFailure(response.status, body) }
+      yield { type: 'stream-fault', fault: mapZaiHttpFailure(response.status, body, response.headers) }
       return
     }
     if (!response.body) {
@@ -318,7 +325,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
           fault: cancelled
             ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled mid-stream', retryable: false }
             : isIdle
-              ? { kind: 'timeout', code: 'idle-timeout', message: `no bytes for ${idleMs}ms`, retryable: true }
+              ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
               : {
                   kind: 'transport-error',
                   code: 'read-failed',

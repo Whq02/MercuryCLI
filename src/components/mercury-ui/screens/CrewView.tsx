@@ -289,9 +289,10 @@ function AgentRow({
   const tokens = useMercuryTokens()
   const failed = facts.state === 'failed'
   const stopped = facts.state === 'stopped'
+  const paused = facts.state === 'paused'
   const pending = facts.status === 'pending'
-  const tone = facts.running ? tokens.success : failed ? tokens.failure : stopped ? tokens.warning : tokens.textMuted
-  const glyph = failed || stopped ? GLYPH.fail : pending ? GLYPH.pending : facts.running ? GLYPH.busy : GLYPH.done
+  const tone = facts.running ? tokens.success : failed ? tokens.failure : stopped || paused ? tokens.warning : tokens.textMuted
+  const glyph = failed || stopped ? GLYPH.fail : pending || paused ? GLYPH.pending : facts.running ? GLYPH.busy : GLYPH.done
   const spend = billed ? crewCostLabel(facts) : null
   const wait = crewWaitLine(facts)
   const holders = crewWaitHolders(facts)
@@ -314,6 +315,7 @@ function AgentRow({
           {
 }
           {stopped || failed ? ` · ${facts.stopReason !== null ? `${facts.stopReason} · ` : ''}${CREW_RESUME_HINT}` : ''}
+          {paused && facts.paused !== null ? ` · ${facts.paused.words} · ${CREW_RESUME_HINT}` : ''}
         </Text>
         {holders !== null ? <Text color={tokens.warning}> · {holders}</Text> : null}
       </Text>
