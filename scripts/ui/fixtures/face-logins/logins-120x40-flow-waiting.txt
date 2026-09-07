@@ -10,8 +10,8 @@
    ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
    │ signed in                                                      │  │ ❯ Claude subscription account              │
-   │ ❯ Claude subscription account                   op@example.com │  │                                            │
-   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │ A browser window has been opened —         │
+   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │                                            │
+   │ ❯ Claude subscription account                   op@example.com │  │ A browser window has been opened —         │
    │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │ finish signing in there.                   │
    │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ Browser did not open? Use this URL:        │
    │                                                                │  │ https://console.example.test/authorize     │

@@ -220,8 +220,8 @@ bell once when it needs you or finishes a run. The whole lifecycle is
 `/logins` opens the sign-in catalogue, the same card the first run shows,
 and `/accounts` manages the provider slots afterwards. The doors:
 
-- Claude subscription account
 - OpenAI: ChatGPT subscription or API key
+- Claude subscription account
 - Usage-based billing: Anthropic Console sign-in or API key
 - OpenRouter: one credential, the whole catalogue (OAuth or key)
 - Google Gemini: API key or Google OAuth
