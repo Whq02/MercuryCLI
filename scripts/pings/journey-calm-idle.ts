@@ -218,6 +218,7 @@ function drive(cols: number, rows: number): void {
     MERCURY_LIVE_CLOCK: '0',
     MERCURY_DECK_COMPANION: '0',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
+    MERCURY_UPDATE_NOTICE: '0',
     MERCURY_DOCTOR_STATE_DIR: join(aux, 'doctor'),
     MERCURY_DAEMON_DIR: join(aux, 'daemon'),
     MERCURY_TEAMS_DIR: join(aux, 'teams'),
