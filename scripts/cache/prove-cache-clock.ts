@@ -357,8 +357,8 @@ const claude = readFileSync(join(repoRoot, 'src/services/providers/anthropic/ind
   const allowlistIdx = claude.indexOf("'mercury_prompt_cache_1h_config'")
   check('claude.ts consults the clock', decisionIdx > 0)
   check(
-    'clock verdict precedes the (dead) remote-allowlist path',
-    decisionIdx > 0 && allowlistIdx > decisionIdx,
+    'the clock verdict is the whole decision (no remote allowlist path remains)',
+    decisionIdx > 0 && allowlistIdx === -1,
   )
   check('claude.ts taps the meter (cacheClockObserve)', claude.includes('cacheClockObserve({'))
 
