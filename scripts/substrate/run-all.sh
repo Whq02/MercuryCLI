@@ -35,6 +35,7 @@ __t=$SECONDS; "$bun" run "$here/prove-coordination-service.ts" || fail=1; prover
 __t=$SECONDS; "$bun" run "$here/prove-pidlock.ts" || fail=1; prover_mark "$here/prove-pidlock.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-mailbox-reaper.ts" || fail=1; prover_mark "$here/prove-mailbox-reaper.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-flag-registry.ts" || fail=1; prover_mark "$here/prove-flag-registry.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-env-switches.ts" || fail=1; prover_mark "$here/prove-env-switches.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-prompt-provenance.ts" || fail=1; prover_mark "$here/prove-prompt-provenance.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-runtime-posture.ts" || fail=1; prover_mark "$here/prove-runtime-posture.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-harness-map.ts" || fail=1; prover_mark "$here/prove-harness-map.ts" "$__t"
