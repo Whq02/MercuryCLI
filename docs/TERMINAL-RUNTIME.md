@@ -181,7 +181,11 @@ built from the published crate at the same version). With it on, one
 long-lived brush process serves the
 whole session: variables, functions, aliases and options persist between
 calls, and the same shell runs on every OS with no Git-for-Windows
-dependency. The engine is a child process, so the OS sandbox still wraps it
+dependency. Two things the engine cannot do on Windows at this version (the
+Bash tool's own description says so there): run a `.cmd` shim such as `npm`
+or `npx` directly (`cmd /c npm …` works, or `node` on the script), and find
+a program named by a relative path after a `cd` (use its absolute path).
+The engine is a child process, so the OS sandbox still wraps it
 and everything it spawns; a command that hangs is killed by the tool's
 timeout and the session respawns with the working directory restored, the
 model told the earlier state was lost.
