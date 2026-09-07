@@ -241,23 +241,17 @@ bun run scripts/vendor/fetch-grammars.ts
 bun run scripts/vendor/fetch-node.ts
 ```
 
-Two more packs are built rather than fetched, both with a Rust toolchain
+Three more packs are built rather than fetched, each with a Rust toolchain
 installed (https://rustup.rs, the MSVC toolchain): the voice capture addon
-(`bun run scripts/vendor/build-voice.ts`) and the shell engine
+(`bun run scripts/vendor/build-voice.ts`), the on-device transcriber addon
+(`bun run scripts/vendor/build-whisper.ts`, which also needs cmake beside
+cargo: `winget install Kitware.CMake`) and the shell engine
 (`bun run scripts/vendor/build-brush.ts` — upstream publishes no Windows
 binary, so the engine is compiled from its published crate; the first build
-takes several minutes). Without cargo each says so and skips: Mercury runs
-without voice input, and the Bash tool keeps Git for Windows' bash (the
-doctor names each remedy).
-Another pack, the voice capture addon, is built rather than fetched: with a
-Rust toolchain installed (https://rustup.rs, the MSVC toolchain), run
-`bun run scripts/vendor/build-voice.ts`; without cargo it says so and skips,
-and Mercury runs without voice input (the doctor names the remedy). The
-on-device transcriber addon is built the same way and needs cmake beside
-cargo (`winget install Kitware.CMake`): run
-`bun run scripts/vendor/build-whisper.ts`; without either it says so and
-skips, and voice takes go to a cloud transcriber (the doctor names the
-remedy).
+takes several minutes). Without cargo, or without cmake for the transcriber,
+each says so and skips: Mercury runs without voice input, voice takes go to a
+cloud transcriber, and the Bash tool keeps Git for Windows' bash (the doctor
+names each remedy).
 
 Each should end without an error. `fetch-debugpy` unpacks the wheel with the
 first extractor it finds — `unzip`, `python3`, `tar.exe` (ships with Windows
