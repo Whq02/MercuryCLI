@@ -1220,7 +1220,7 @@
     },
     {
       "file": "scripts/pings/journey-calm-idle.ts",
-      "line": 274,
+      "line": 279,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(200000), env })",
       "cls": "platform-owner",
@@ -3020,7 +3020,7 @@
     },
     {
       "file": "scripts/winreg/prove-capture-grammar.ts",
-      "line": 100,
+      "line": 105,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['-c', `import ast; ast.parse(open('${f}').read())`], { encoding: 'utf8' })",
       "cls": "platform-owner",
