@@ -141,7 +141,7 @@ t.section('§G — the next-session facts (L18): one record, every door, never a
   const b = menu.resolveEffectiveSettingsSnapshot({ sessionId: 's', path: profPath, env: {} })
   t.check("a menu row changed AFTER boot changes the next session's snapshot (the profile is read per admission, not once at boot)", menuRow !== undefined && saved.ok === true && a.snapshotId !== b.snapshotId && b.rows.find(r => r.env === menuRow.env)?.source === 'profile')
   const warm = read('src/daemon/warmRunner.ts')
-  t.check('the warm pool never serves a stale snapshot (the settings-drift guard retires it; admission spawns fresh)', warm.includes('currentSnapshotId() !== entry.snapshotId') && warm.includes("retireWarmRunner(args.workspaceId, 'settings-drift', deps)"))
+  t.check('the warm pool never serves a stale snapshot (the settings-drift guard retires it; admission spawns fresh)', warm.includes('currentSnapshotId(args.workspaceId) !== entry.snapshotId') && warm.includes("retireWarmRunner(args.workspaceId, 'settings-drift', deps)"))
   t.check('the daemon resolves the snapshot per admission (the claim and the cold road both)', (read('src/daemon/concourseSupervisor.ts').match(/resolveEffectiveSettingsSnapshot\(\{ sessionId/g) ?? []).length >= 2)
   const route = await import('../../src/context/surfaceRoute.ts')
   const plain = { concourseEnabled: true, chatBoot: true, chatPresent: false }
