@@ -32,7 +32,6 @@ const permissionRuleParserModule =
   (require('../permissionRuleParser.js') as typeof import('../permissionRuleParser.js'))
 
 import { addToTurnClassifierDuration } from '../../../bootstrap/state.js'
-import { getFeatureValue_CACHED_WITH_REFRESH } from '../../../services/analytics/featureGates.js'
 import {
   clearClassifierChecking,
   setClassifierChecking,
@@ -82,8 +81,6 @@ import type {
   WrapperStageRecord,
   WrapperTrace,
 } from './trace.js'
-
-const IRON_GATE_REFRESH_MS = 30 * 60 * 1000
 
 
 function reasonCarriesAskRule(
@@ -372,7 +369,6 @@ export interface WrapperPorts {
     permissionContext: ToolPermissionContext,
     signal: AbortSignal,
   ): Promise<WrapperClassifierResult>
-  ironGateClosed(): boolean
   runHeadlessHooks(
     tool: Tool,
     input: { [key: string]: unknown },
@@ -411,12 +407,6 @@ export const defaultWrapperPorts: WrapperPorts = {
       context.options.tools,
       permissionContext,
       signal,
-    ),
-  ironGateClosed: () =>
-    getFeatureValue_CACHED_WITH_REFRESH(
-      'mercury_iron_gate_closed',
-      true,
-      IRON_GATE_REFRESH_MS,
     ),
   runHeadlessHooks: consultHeadlessPermissionHooks,
 }
@@ -605,19 +595,11 @@ export async function decideToolPermissionWithModes(
               : undefined,
           )
         } catch {
-          if (ports.ironGateClosed()) {
-            recordPass(
-              'fastPathDangerFilter',
-              'danger classifier outage — fail closed; fast-path skipped',
-            )
-            probeContext = null
-          } else {
-            recordPass(
-              'fastPathDangerFilter',
-              'danger classifier outage — fail open; unfiltered view',
-            )
-            probeContext = context
-          }
+          recordPass(
+            'fastPathDangerFilter',
+            'danger classifier outage — fail closed; fast-path skipped',
+          )
+          probeContext = null
         }
 
         if (probeContext !== null) {
@@ -737,33 +719,26 @@ export async function decideToolPermissionWithModes(
               'unavailable — human ask',
             )
           }
-          if (ports.ironGateClosed()) {
-            logForDebugging(
-              'Flow classifier unreachable — iron gate closed; denying with retry guidance',
-              { level: 'warn' },
-            )
-            return decide(
-              'classifier',
-              {
-                behavior: 'deny',
-                decisionReason: {
-                  type: 'classifier',
-                  classifier: 'auto-mode',
-                  reason: 'Classifier unavailable',
-                },
-                message: buildClassifierUnavailableMessage(
-                  tool.name,
-                  classifierResult.model,
-                ),
-              },
-              'unavailable — fail closed',
-            )
-          }
           logForDebugging(
-            'Flow classifier unreachable — iron gate open; the ask returns to the operator path',
+            'Flow classifier unreachable — denying with retry guidance',
             { level: 'warn' },
           )
-          return decide('classifier', engineDecision, 'unavailable — fail open')
+          return decide(
+            'classifier',
+            {
+              behavior: 'deny',
+              decisionReason: {
+                type: 'classifier',
+                classifier: 'auto-mode',
+                reason: 'Classifier unavailable',
+              },
+              message: buildClassifierUnavailableMessage(
+                tool.name,
+                classifierResult.model,
+              ),
+            },
+            'unavailable — fail closed',
+          )
         }
 
         if (classifierResult.unreadable) {
@@ -786,30 +761,23 @@ export async function decideToolPermissionWithModes(
               'unreadable verdict — human ask',
             )
           }
-          if (ports.ironGateClosed()) {
-            logForDebugging(
-              `Flow classifier verdict unreadable (${model}) — iron gate closed; denying without a policy verdict`,
-              { level: 'warn' },
-            )
-            return decide(
-              'classifier',
-              {
-                behavior: 'deny',
-                decisionReason: {
-                  type: 'classifier',
-                  classifier: 'auto-mode',
-                  reason: `Classifier verdict unreadable (${model})`,
-                },
-                message: buildClassifierUnreadableMessage(tool.name, model, detail),
-              },
-              'unreadable verdict — fail closed',
-            )
-          }
           logForDebugging(
-            `Flow classifier verdict unreadable (${model}) — iron gate open; the ask returns to the operator path`,
+            `Flow classifier verdict unreadable (${model}) — denying without a policy verdict`,
             { level: 'warn' },
           )
-          return decide('classifier', engineDecision, 'unreadable verdict — fail open')
+          return decide(
+            'classifier',
+            {
+              behavior: 'deny',
+              decisionReason: {
+                type: 'classifier',
+                classifier: 'auto-mode',
+                reason: `Classifier verdict unreadable (${model})`,
+              },
+              message: buildClassifierUnreadableMessage(tool.name, model, detail),
+            },
+            'unreadable verdict — fail closed',
+          )
         }
 
         const afterDenial = recordDenial(denialState)
