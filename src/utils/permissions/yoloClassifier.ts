@@ -527,7 +527,7 @@ function textBlock(text: string, cache = false): TextBlockParam {
   return {
     type: 'text' as const,
     text,
-    ...(cache ? { cache_control: getCacheControl({ querySource: 'auto_mode' }) } : {}),
+    ...(cache ? { cache_control: getCacheControl() } : {}),
   }
 }
 
@@ -560,7 +560,7 @@ function classifierRequestOptions(args: {
       {
         type: 'text' as const,
         text: args.systemPrompt,
-        cache_control: getCacheControl({ querySource: 'auto_mode' }),
+        cache_control: getCacheControl(),
       },
     ],
     messages,

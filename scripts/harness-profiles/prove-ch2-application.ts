@@ -95,10 +95,10 @@ function encodeAllFamilies(): { anthropic: string; openai: string; zai: string }
   const normalized = normalizeMessagesForAPI(fixtureMessages as never)
   const anthropicParams = normalized.map(m =>
     (m as { type: string }).type === 'user'
-      ? userMessageToMessageParam(m as never, false, false, undefined)
-      : assistantMessageToMessageParam(m as never, false, false, undefined),
+      ? userMessageToMessageParam(m as never, false, false)
+      : assistantMessageToMessageParam(m as never, false, false),
   )
-  const bridge = toBridgeMessages(fixtureMessages as never, undefined as never, 'gpt-5.2')
+  const bridge = toBridgeMessages(fixtureMessages as never, 'gpt-5.2')
   const openaiItems = mapMessagesToOpenaiInput(bridge.rows, { imagesSupported: true } as never)
   const zaiMessages = mapMessagesToZai('system prompt bytes', zaiParamFixture as never)
   return { anthropic: digest(anthropicParams), openai: digest(openaiItems), zai: digest(zaiMessages) }

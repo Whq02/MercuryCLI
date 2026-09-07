@@ -6,18 +6,14 @@ import {
 } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
 import {
   getLastApiCompletionTimestamp,
-  getPromptCache1hAllowlist,
   getPromptCache1hEligible,
   getSessionId,
-  setPromptCache1hAllowlist,
   setPromptCache1hEligible,
 } from 'src/bootstrap/state.js'
 import {
   EFFORT_BETA_HEADER,
   TASK_BUDGETS_BETA_HEADER,
 } from 'src/constants/betas.js'
-import { type QuerySource } from 'src/constants/querySource.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/featureGates.js'
 import { type CacheScope } from '../../../utils/api.js'
 import { getOauthAccountInfo, isClaudeAISubscriber } from '../../../utils/auth.js'
 import {
@@ -103,10 +99,8 @@ export function getPromptCachingEnabled(model: string): boolean {
 
 export function getCacheControl({
   scope,
-  querySource,
 }: {
   scope?: CacheScope
-  querySource?: QuerySource
 } = {}): {
   type: 'ephemeral'
   ttl?: '1h'
@@ -114,7 +108,7 @@ export function getCacheControl({
 } {
   return {
     type: 'ephemeral',
-    ...(should1hCacheTTL(querySource) && { ttl: '1h' }),
+    ...(should1hCacheTTL() && { ttl: '1h' }),
     ...(scope === 'global' && { scope }),
   }
 }
@@ -128,33 +122,13 @@ export function latched1hEligibility(): boolean {
   return userEligible
 }
 
-export function should1hCacheTTL(querySource?: QuerySource): boolean {
+export function should1hCacheTTL(): boolean {
   const clockTtl = cacheClockTtlDecision({
     eligible: latched1hEligibility(),
     lastCompletionAt: getLastApiCompletionTimestamp(),
     now: Date.now(),
   })
-  if (clockTtl !== null) return clockTtl === '1h'
-
-  if (!latched1hEligibility()) return false
-
-  let allowlist = getPromptCache1hAllowlist()
-  if (allowlist === null) {
-    const config = getFeatureValue_CACHED_MAY_BE_STALE<{
-      allowlist?: string[]
-    }>('mercury_prompt_cache_1h_config', {})
-    allowlist = config.allowlist ?? []
-    setPromptCache1hAllowlist(allowlist)
-  }
-
-  return (
-    querySource !== undefined &&
-    allowlist.some(pattern =>
-      pattern.endsWith('*')
-        ? querySource.startsWith(pattern.slice(0, -1))
-        : querySource === pattern,
-    )
-  )
+  return clockTtl === '1h'
 }
 
 const FIRST_PARTY_WIRE_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const satisfies readonly NonNullable<BetaOutputConfig['effort']>[]
