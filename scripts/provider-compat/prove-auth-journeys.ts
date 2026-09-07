@@ -95,7 +95,7 @@ function fixtureChatResponse(): Response {
     case 'http-429':
       return new Response(JSON.stringify({ error: { message: 'rate limit reached' } }), {
         status: 429,
-        headers: { 'content-type': 'application/json', 'retry-after': '120' },
+        headers: { 'content-type': 'application/json', 'retry-after': '1' },
       })
     case 'http-500':
       return new Response('oops', { status: 500 })
@@ -470,6 +470,9 @@ for (const lane of MATRIX) {
       errors.length === 1 && errors[0]!.error === 'rate_limit' && wire.chatHits === 2,
       `errors=${errors.length} error=${errors[0]?.error} hits=${wire.chatHits}`,
     )
+    if (lane.family === 'openrouter') check('openrouter: the 429 retry-after landed as a real limit window', openrouterLimitWindow().state === 'limited')
+    if (lane.family === 'gemini') check('gemini: the 429 retry-after landed as a real limit window', geminiLimitWindow().state === 'limited')
+    if (lane.family === 'huggingface') check('huggingface: the 429 landed as a limit window', huggingfaceLimitWindow().state === 'limited')
   }
 
   wire.scenario = 'http-500'
@@ -533,18 +536,6 @@ for (const lane of MATRIX) {
   }
 }
 
-check(
-  'openrouter: the 429 retry-after landed as a real limit window',
-  openrouterLimitWindow().state === 'limited',
-)
-check(
-  'gemini: the 429 retry-after landed as a real limit window',
-  geminiLimitWindow().state === 'limited',
-)
-check(
-  'huggingface: the 429 landed as a limit window',
-  huggingfaceLimitWindow().state === 'limited',
-)
 check(
   'openrouter: the polled key-usage truth was observed through the response seam',
   openrouterObservedKeyUsage().usage !== null,
