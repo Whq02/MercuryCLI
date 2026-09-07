@@ -79,7 +79,6 @@ complete -c mercury -n "not __fish_seen_subcommand_from acp agents auth daemon d
 complete -c mercury -n "not __fish_seen_subcommand_from acp agents auth daemon doctor editor extensions health install mcp show themis update upgrade" -l "from-pr"
 complete -c mercury -n "not __fish_seen_subcommand_from acp agents auth daemon doctor editor extensions health install mcp show themis update upgrade" -l "help"
 complete -c mercury -n "not __fish_seen_subcommand_from acp agents auth daemon doctor editor extensions health install mcp show themis update upgrade" -l "ide"
-complete -c mercury -n "not __fish_seen_subcommand_from acp agents auth daemon doctor editor extensions health install mcp show themis update upgrade" -l "include-hook-events"
 complete -c mercury -n "not __fish_seen_subcommand_from acp agents auth daemon doctor editor extensions health install mcp show themis update upgrade" -l "include-partial-messages"
 complete -c mercury -n "not __fish_seen_subcommand_from acp agents auth daemon doctor editor extensions health install mcp show themis update upgrade" -l "input-format"
 complete -c mercury -n "not __fish_seen_subcommand_from acp agents auth daemon doctor editor extensions health install mcp show themis update upgrade" -l "json-schema"
