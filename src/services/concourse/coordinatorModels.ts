@@ -94,6 +94,7 @@ export async function composeCoordinatorModelRegistry(
       ...(wrapped.receipt.displayName !== undefined ? { displayName: wrapped.receipt.displayName } : {}),
     })
   }
+  if (credentialed('openai')) await (await import('../providers/catalogueOnDemand.js')).readCatalogueIfPending('openai')
   const { getGptSeatAvailability } = await import('../providers/openai/openaiCatalogue.js')
   const gptCatalogueLanded = getGptSeatAvailability().state === 'ready'
   const gptEntry = (modelId: string, displayName: string, catalogueReason?: string): CoordinatorModelEntryV1 => {

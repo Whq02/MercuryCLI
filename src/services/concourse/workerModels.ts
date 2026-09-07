@@ -300,20 +300,20 @@ export type WorkerModelValidation =
       action?: string
     }
 
-async function admissionNamesOpenai(idOrKey: string): Promise<boolean> {
-  if (idOrKey === 'openai') return true
+async function admissionNamesKeyedFamily(idOrKey: string): Promise<string | null> {
+  const { isKeyedCatalogueFamily } = await import('../providers/catalogueOnDemand.js')
+  if (isKeyedCatalogueFamily(idOrKey)) return idOrKey
   const { declaredRouteOf } = await import('../providers/routeLaw.js')
-  return declaredRouteOf(idOrKey) === 'openai'
-}
-
-async function readOpenaiCatalogueIfPending(): Promise<boolean> {
-  const { readOpenaiCatalogueIfPending: read } = await import('../providers/openai/openaiCatalogue.js')
-  return read()
+  const route = declaredRouteOf(idOrKey)
+  return route !== null && isKeyedCatalogueFamily(route) ? route : null
 }
 
 export async function validateWorkerModelChoice(idOrKey: string | undefined, arm: WorkerDispatchArm): Promise<WorkerModelValidation> {
-  if (idOrKey !== undefined && (await admissionNamesOpenai(idOrKey)) && (await readOpenaiCatalogueIfPending())) {
-    resetComputedDefaultMemo()
+  if (idOrKey !== undefined) {
+    const family = await admissionNamesKeyedFamily(idOrKey)
+    if (family !== null && (await (await import('../providers/catalogueOnDemand.js')).readCatalogueIfPending(family))) {
+      resetComputedDefaultMemo()
+    }
   }
   if (idOrKey !== undefined && SEAT_FAMILY_WORDS.has(idOrKey) && familySeatSetting(idOrKey) === undefined) {
     if (idOrKey === 'local') {

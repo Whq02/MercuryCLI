@@ -1805,6 +1805,9 @@ async function* queryModel(
           return
         }
 
+        if ((error as { status?: unknown }).status === 429) {
+          await (await import('../catalogueOnDemand.js')).readCataloguesForOtherFamilies('anthropic')
+        }
         yield getAssistantMessageFromError(error, errorModel, {
           messages,
           messagesForAPI,
@@ -1825,6 +1828,9 @@ async function* queryModel(
         return
       }
 
+      if ((error as { status?: unknown }).status === 429) {
+        await (await import('../catalogueOnDemand.js')).readCataloguesForOtherFamilies('anthropic')
+      }
       yield getAssistantMessageFromError(error, errorModel, {
         messages,
         messagesForAPI,

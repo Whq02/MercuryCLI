@@ -631,6 +631,7 @@ export async function* openaiCallModel(
           return ''
         }
       })()
+      await (await import('../catalogueOnDemand.js')).readCataloguesForOtherFamilies('openai')
       const laneRemedy = ((): string => {
         try {
           const { crossFamilyLaneRemedy } =
