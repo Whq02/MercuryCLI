@@ -49,7 +49,5 @@ console.log('\n[2] the compat-changelog fetch pipeline is REMOVED (structural)')
 
 console.log('\n============================================================')
 console.log(fail === 0 ? ' ✅ HEALTH-LOYALTY PROOF PASS' : ' ❌ HEALTH-LOYALTY PROOF FAILED')
-console.log('  (healthDiagnostic.ts / autoUpdater.ts fork branches:')
-console.log('   build-compiled + RENDER-VERIFY — not bun-loadable, see header.)')
 console.log('============================================================')
 process.exit(fail)
