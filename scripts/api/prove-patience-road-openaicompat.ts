@@ -64,16 +64,16 @@ section('R2 — silence: the response opens, then nothing — cut at the budget 
   check('the read was cancelled: no socket outlives the cut', run.fixture.cancelled())
 }
 
-section('R3 — the number: the fed road lives under the fed budget; the pin outranks it; the other lanes keep the shared number')
+section('R3 — the number: the fed road lives under the fed budget; the pin outranks it; the other roads keep the shared number')
 {
-  const otherLanes = ['moonshot', 'deepseek', 'openrouter', 'gemini', 'huggingface', 'local']
+  const otherRoads = ['moonshot', 'deepseek', 'openrouter', 'gemini', 'huggingface', 'local']
   check('normal: 90 s', idle.streamIdleTimeoutMsForRoute('openai-compat') === 90_000, String(idle.streamIdleTimeoutMsForRoute('openai-compat')))
   const { error } = settings.updateSettingsForSource('userSettings', { patience: 'patient' } as never)
   settingsCache.resetSettingsCache()
   check('patient: 3 min', error === null && idle.streamIdleTimeoutMsForRoute('openai-compat') === 180_000, String(idle.streamIdleTimeoutMsForRoute('openai-compat')))
-  check('the other lanes on this transport keep the shared 90 s under patient', otherLanes.every(lane => idle.streamIdleTimeoutMsForRoute(lane) === 90_000), otherLanes.map(lane => `${lane}=${idle.streamIdleTimeoutMsForRoute(lane)}`).join(' '))
+  check('the other roads on this transport keep the shared 90 s under patient', otherRoads.every(road => idle.streamIdleTimeoutMsForRoute(road) === 90_000), otherRoads.map(road => `${road}=${idle.streamIdleTimeoutMsForRoute(road)}`).join(' '))
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '2000'
-  check('the env pin outranks the setting, the other lanes included', idle.streamIdleTimeoutMsForRoute('openai-compat') === 2_000 && otherLanes.every(lane => idle.streamIdleTimeoutMsForRoute(lane) === 2_000))
+  check('the env pin outranks the setting, the other roads included', idle.streamIdleTimeoutMsForRoute('openai-compat') === 2_000 && otherRoads.every(road => idle.streamIdleTimeoutMsForRoute(road) === 2_000))
   delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
   settings.updateSettingsForSource('userSettings', { patience: undefined } as never)
   settingsCache.resetSettingsCache()
