@@ -203,8 +203,10 @@ section('§4 exit codes and stream order')
     system: { code: 0, out: 'body\ntrapped' },
     brush: { code: 0, out: 'body' },
   })
-  await row('set -e aborts the command on the system shell; is suppressed at the boundary under the engine (a failure never ends the persistent session)', 'set -e; false; echo not-reached', {
-    system: { code: 1, out: '' },
+  const bashMajor = engine === 'system' ? Number((await run('echo "${BASH_VERSINFO[0]}"')).out.trim()) : NaN
+  if (engine === 'system') note(`the system shell is bash ${bashMajor}: set -e ${bashMajor >= 4 ? 'is ignored inside the tool\'s && chain (the command runs on)' : 'aborts the command'}`)
+  await row('set -e inside a command: bash 3 aborts it on the system shell and bash 4+ runs on (errexit is ignored inside the && chain); the engine suppresses it at the boundary (a failure never ends the persistent session)', 'set -e; false; echo not-reached', {
+    system: bashMajor >= 4 ? { code: 0, out: 'not-reached' } : { code: 1, out: '' },
     brush: { code: 0, out: 'not-reached' },
   })
 }
@@ -267,7 +269,7 @@ section('§8 state between calls (the engines differ by contract)')
   })
   const opt = await run('set -e; :')
   const leak = await run('false; echo survived')
-  note(`a set -e from a previous call: code ${opt.code} then ${JSON.stringify(leak.out.trim())} code ${leak.code} (${engine}: ${leak.out.includes('survived') ? 'options reset per call' : 'the option persisted'})`)
+  note(`a set -e from a previous call: code ${opt.code} then ${JSON.stringify(leak.out.trim())} code ${leak.code} (${engine}: ${leak.out.includes('survived') ? (engine === 'brush' ? 'the option persists but errexit is suppressed at the command boundary' : 'options reset per call') : 'the option persisted and aborted the command'})`)
   check('the cwd persists on both engines', (await run('pwd')).out.trim() === SCRATCH)
 }
 
