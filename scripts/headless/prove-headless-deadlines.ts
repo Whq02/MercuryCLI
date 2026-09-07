@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { createServer as createNetServer, type Server as NetServer, type Socket } from 'node:net'
 import { createServer as createHttpServer, type Server as HttpServer } from 'node:http'
 import { tmpdir } from 'node:os'
@@ -38,7 +38,7 @@ const guard = setTimeout(() => {
 }, 300_000)
 guard.unref?.()
 
-section('§1 — stale-socket classifier · gate pin · real pool reset (pure)')
+section('§1 — stale-socket classifier · recovery binding · real pool reset')
 {
   const { isStaleConnectionError } = await import('../../src/services/api/withRetry.ts')
   class APIConnectionError extends Error {}
@@ -75,10 +75,10 @@ section('§1 — stale-socket classifier · gate pin · real pool reset (pure)')
     ),
   )
 
-  const { checkFeatureGate_CACHED_MAY_BE_STALE } = await import('../../src/services/analytics/featureGates.ts')
+  const retrySource = readFileSync(join(ROOT, 'src/services/api/withRetry.ts'), 'utf8')
   check(
-    'the stale-pool-reset gate is pinned LIVE in the owned table',
-    checkFeatureGate_CACHED_MAY_BE_STALE('mercury_disable_keepalive_on_econnreset') === true,
+    'stale connections disable keepalive before rebuilding the client',
+    retrySource.includes('if (isStaleConnectionError(previousError)) {\n        disableKeepAlive()\n      }\n      client = await getClient()'),
   )
 
   const proxy = await import('../../src/utils/proxy.ts')

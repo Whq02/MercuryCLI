@@ -19,7 +19,6 @@ import { isNonCustomOpusModel } from '../../utils/model/model.js'
 import { disableKeepAlive } from '../../utils/proxy.js'
 import { sleep } from '../../utils/sleep.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
-import { checkFeatureGate_CACHED_MAY_BE_STALE } from '../analytics/featureGates.js'
 import { isMockRateLimitError } from '../rateLimitMocking.js'
 import { REPEATED_529_ERROR_MESSAGE } from './errors.js'
 import { isSpentUsageWindowAnswer, providerAskedWaitMs, providerWaitIsWindow } from './recoveryBudget.js'
@@ -230,9 +229,7 @@ export async function* withRetry<T>(
         }
       }
       if (isStaleConnectionError(previousError)) {
-        if (checkFeatureGate_CACHED_MAY_BE_STALE('mercury_disable_keepalive_on_econnreset')) {
-          disableKeepAlive()
-        }
+        disableKeepAlive()
       }
       client = await getClient()
     }
