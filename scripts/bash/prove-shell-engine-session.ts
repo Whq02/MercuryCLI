@@ -229,6 +229,64 @@ section('§10 two owners: a shell each — side by side, isolated, reset and end
   check("the switch road ends every owner's session (both processes)", (await diedWithin(lastA, 2_500)) && (await diedWithin(pidB, 2_500)), `A ${lastA} alive=${alive(lastA)} B ${pidB} alive=${alive(pidB)}`)
 }
 
+section('§11 the ceiling on engine sessions: nine owners against 8 — the ninth waits and gets a session when an agent ends; a ceiling of 1 leaves none for agents')
+{
+  resetEngineSessionForTest()
+  const { endEngineSessionFor, engineChildForTest, engineWaitingOwnersForTest, resolveEngineSessionCeiling } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+  const pause = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 20))
+  const savedPin = process.env.MERCURY_SHELL_ENGINE_SESSIONS
+  process.env.MERCURY_SHELL_ENGINE_SESSIONS = '8'
+  check('the env pin outranks the setting and the default', resolveEngineSessionCeiling(3) === 8 && resolveEngineSessionCeiling() === 8)
+  const agents = ['agent-1', 'agent-2', 'agent-3', 'agent-4', 'agent-5', 'agent-6', 'agent-7']
+  const pids = new Set<number>([pidOf(await run('echo "pid=$$"'))])
+  for (const owner of agents) pids.add(pidOf(await run('echo "pid=$$"', 30_000, owner)))
+  check('the main conversation and seven sub-agents hold eight distinct sessions', pids.size === 8 && [...pids].every(pid => pid > 1), [...pids].join(','))
+  let rowNote = ''
+  const ninthController = new AbortController()
+  const ninth = runEngineCommand(binaryPath, 'echo ninth; echo "pid=$$"', {
+    timeout: 30_000,
+    signal: ninthController.signal,
+    owner: 'agent-8',
+    onProgress: (recent: string) => {
+      if (/waiting for a free shell engine session/.test(recent)) rowNote = recent
+    },
+  })
+  let deadline = Date.now() + 10_000
+  while (!engineWaitingOwnersForTest().includes('agent-8') && Date.now() < deadline) await pause()
+  check('the ninth owner waits for a free session — never a ninth process', engineWaitingOwnersForTest().includes('agent-8') && engineChildForTest('agent-8') === null && ninth.status === 'running', `waiting=${engineWaitingOwnersForTest().join(',')}`)
+  check("the wait is said on the ninth's row, with the count and the ceiling", /waiting for a free shell engine session: 7 of 7 sub-agent sessions are in use \(the ceiling is 8/.test(rowNote), JSON.stringify(rowNote))
+  await endEngineSessionFor('agent-3')
+  const ninthResult = (await ninth.result) as Result
+  check('when an agent ends, the waiting owner gets a session and its command runs, on a process of its own', ninthResult.code === 0 && ninthResult.stdout.includes('ninth') && pidOf(ninthResult) > 1 && !pids.has(pidOf(ninthResult)), JSON.stringify(ninthResult))
+  check('…and its output carries no trace of the wait (the note was the row\'s, never the output\'s)', !/waiting for a free/.test(ninthResult.stdout) && ninthResult.stderr === '', JSON.stringify(ninthResult))
+  check('the ninth is no longer waiting', !engineWaitingOwnersForTest().includes('agent-8'))
+  const late = (await runEngineCommand(binaryPath, 'echo late', { timeout: 600, signal: new AbortController().signal, owner: 'agent-9' }).result) as Result & { preSpawnError?: string }
+  check("a wait past the call's timeout settles as a not-started result naming the ceiling", late.code === 1 && !late.interrupted && late.stdout === '' && /no shell engine session was free within 1s/.test(late.preSpawnError ?? '') && /the ceiling is 8/.test(late.stderr), JSON.stringify(late))
+  const abortController = new AbortController()
+  const parked = runEngineCommand(binaryPath, 'echo never', { timeout: 30_000, signal: abortController.signal, owner: 'agent-10' })
+  deadline = Date.now() + 10_000
+  while (!engineWaitingOwnersForTest().includes('agent-10') && Date.now() < deadline) await pause()
+  check('a second waiter is parked too', engineWaitingOwnersForTest().includes('agent-10'))
+  abortController.abort('stop')
+  const parkedResult = (await parked.result) as Result
+  check('a waiting call that is aborted settles as aborted before execution (code 145), and leaves the wait', parkedResult.interrupted && parkedResult.code === 145 && !engineWaitingOwnersForTest().includes('agent-10'), JSON.stringify(parkedResult))
+  process.env.MERCURY_SHELL_ENGINE_SESSIONS = '1'
+  resetEngineSessionForTest()
+  const mainOnly = await run('echo main-runs')
+  check('under a ceiling of 1 the main conversation runs', mainOnly.code === 0 && mainOnly.stdout.includes('main-runs'), JSON.stringify(mainOnly))
+  const refused = (await runEngineCommand(binaryPath, 'echo agent', { timeout: 30_000, signal: new AbortController().signal, owner: 'agent-1' }).result) as Result & { preSpawnError?: string }
+  check("…and a sub-agent's call is refused at once, typed, naming the ceiling and the way round", refused.code === 1 && refused.stdout === '' && /the ceiling is 1/.test(refused.preSpawnError ?? '') && /run_in_background/.test(refused.preSpawnError ?? '') && engineChildForTest('agent-1') === null, JSON.stringify(refused))
+  check('the main conversation still runs afterwards, with no note', (await run('echo still')).stderr === '')
+  delete process.env.MERCURY_SHELL_ENGINE_SESSIONS
+  check('with no pin the setting decides, else 8', resolveEngineSessionCeiling() === 8 && resolveEngineSessionCeiling(3) === 3)
+  process.env.MERCURY_SHELL_ENGINE_SESSIONS = '0'
+  check('a pin below 1 is ignored', resolveEngineSessionCeiling(3) === 3)
+  process.env.MERCURY_SHELL_ENGINE_SESSIONS = 'many'
+  check('a pin that is not a whole number is ignored', resolveEngineSessionCeiling() === 8)
+  if (savedPin === undefined) delete process.env.MERCURY_SHELL_ENGINE_SESSIONS
+  else process.env.MERCURY_SHELL_ENGINE_SESSIONS = savedPin
+}
+
 section('§7 an engine that ends during its start refuses the command at once, with the reason')
 {
   resetEngineSessionForTest()

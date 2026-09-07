@@ -30,6 +30,26 @@ const ENGINE_FLAGS = ['--norc', '--noprofile', '--no-config', '--disable-color']
 
 const PARSE_GUARD_TIMEOUT_MS = 5_000
 
+export const ENGINE_SESSION_CEILING_DEFAULT = 8
+
+function pinnedEngineSessionCeiling(): number | null {
+  const text = process.env.MERCURY_SHELL_ENGINE_SESSIONS
+  if (text === undefined || !/^\d+$/.test(text.trim())) return null
+  const value = Number(text.trim())
+  return Number.isSafeInteger(value) && value >= 1 ? value : null
+}
+
+export function resolveEngineSessionCeiling(setting?: number): number {
+  const pinned = pinnedEngineSessionCeiling()
+  if (pinned !== null) return pinned
+  if (setting !== undefined && Number.isSafeInteger(setting) && setting >= 1) return setting
+  return ENGINE_SESSION_CEILING_DEFAULT
+}
+
+export function engineSessionCeilingPinned(): boolean {
+  return pinnedEngineSessionCeiling() !== null
+}
+
 export type ShellEngineResolution =
   | { engine: 'brush'; binaryPath: string; version: string; platform: string; source: 'vendored' | 'workspace' }
   | { engine: 'system'; requested: 'system' | 'brush'; reason: string }
@@ -92,19 +112,97 @@ type LiveSession = {
 }
 
 type Lane = {
+  owner: string
   session: LiveSession | null
   queue: Promise<unknown>
   pendingResetNote: string | null
+  reserved: boolean
 }
 const MAIN_OWNER = 'main conversation'
 const lanes = new Map<string, Lane>()
 function laneFor(owner: string): Lane {
   let lane = lanes.get(owner)
   if (lane === undefined) {
-    lane = { session: null, queue: Promise.resolve(), pendingResetNote: null }
+    lane = { owner, session: null, queue: Promise.resolve(), pendingResetNote: null, reserved: false }
     lanes.set(owner, lane)
   }
   return lane
+}
+
+function liveAgentSessions(): number {
+  let count = 0
+  for (const lane of lanes.values()) {
+    if (lane.owner === MAIN_OWNER) continue
+    if (lane.reserved || (lane.session !== null && !lane.session.exited)) count++
+  }
+  return count
+}
+
+const waitingOwners = new Set<string>()
+let releaseWakes: Array<() => void> = []
+function nextRelease(): Promise<void> {
+  return new Promise(resolve => releaseWakes.push(resolve))
+}
+function announceRelease(): void {
+  const wakes = releaseWakes
+  releaseWakes = []
+  for (const wake of wakes) wake()
+}
+
+const CEILING_WORDS = 'the shellEngineSessions setting, or the MERCURY_SHELL_ENGINE_SESSIONS pin'
+
+async function admitAgentSession(
+  lane: Lane,
+  ceiling: number,
+  taskOutput: TaskOutput,
+  options: EngineExecOptions,
+): Promise<'admitted' | 'aborted' | { refused: string }> {
+  const share = ceiling - 1
+  if (share <= 0) {
+    return {
+      refused: `no shell engine session is free for a sub-agent: the ceiling is ${ceiling} (${CEILING_WORDS}), the main conversation's own session; raise the ceiling, or run this call with run_in_background (its own system shell)`,
+    }
+  }
+  if (liveAgentSessions() < share) {
+    lane.reserved = true
+    return 'admitted'
+  }
+  const rowNote = (): string =>
+    `waiting for a free shell engine session: ${liveAgentSessions()} of ${share} sub-agent sessions are in use (the ceiling is ${ceiling}; a session frees when an agent ends)`
+  waitingOwners.add(lane.owner)
+  taskOutput.setLiveNotice(rowNote())
+  taskOutput.emitLiveView()
+  let onAbort: (() => void) | undefined
+  const aborted = new Promise<'aborted'>(resolve => {
+    onAbort = () => resolve('aborted')
+    options.signal.addEventListener('abort', onAbort, { once: true })
+  })
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timedOut = new Promise<'timed out'>(resolve => {
+    timer = setTimeout(() => resolve('timed out'), options.timeout)
+  })
+  try {
+    for (;;) {
+      const woke = await Promise.race([nextRelease().then(() => 'released' as const), aborted, timedOut])
+      if (woke === 'aborted') return 'aborted'
+      if (woke === 'timed out') {
+        return {
+          refused: `no shell engine session was free within ${Math.round(options.timeout / 1000)}s: ${liveAgentSessions()} of ${share} sub-agent sessions stayed in use (the ceiling is ${ceiling}, ${CEILING_WORDS}); the command did not run`,
+        }
+      }
+      if (liveAgentSessions() < share) {
+        lane.reserved = true
+        return 'admitted'
+      }
+      taskOutput.setLiveNotice(rowNote())
+      taskOutput.emitLiveView()
+    }
+  } finally {
+    waitingOwners.delete(lane.owner)
+    taskOutput.setLiveNotice(null)
+    if (timer !== undefined) clearTimeout(timer)
+    if (onAbort !== undefined) options.signal.removeEventListener('abort', onAbort)
+  }
 }
 let snapshotPromise: Promise<string | undefined> | null = null
 
@@ -204,10 +302,12 @@ async function spawnSession(binaryPath: string, sandbox: EngineSandboxPolicy): P
   live.child.once('exit', code => {
     live.exited = true
     live.onExit?.(code)
+    announceRelease()
   })
   live.child.once('error', () => {
     live.exited = true
     live.onExit?.(1)
+    announceRelease()
   })
 
   live.child.stdin?.write(nonce + '\n')
@@ -279,6 +379,7 @@ export type EngineExecOptions = {
   onCwd?: (cwd: string) => void
   onProgress?: (recentLines: string, allLines: string, lineCount: number, byteCount: number, isIncomplete: boolean) => void
   owner?: string
+  sessionCeiling?: number
 }
 
 export function runEngineCommand(binaryPath: string, command: string, options: EngineExecOptions): ShellCommand {
@@ -333,6 +434,19 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       lane.session = null
       const policyNote = `the shell engine session was restarted because this command runs ${sandbox.enabled ? 'inside' : 'outside'} the sandbox and the previous session ran ${sandbox.enabled ? 'outside' : 'inside'} it (the sandbox policy is the call's); variables, functions and shell options set earlier in this session were lost (the working directory is preserved).`
       inheritedNote = inheritedNote === null ? policyNote : `${inheritedNote} ${policyNote}`
+    }
+
+    if (lane.owner !== MAIN_OWNER && (lane.session === null || lane.session.exited)) {
+      const ceiling = options.sessionCeiling ?? resolveEngineSessionCeiling()
+      const admission = await admitAgentSession(lane, ceiling, taskOutput, options)
+      if (admission === 'aborted') {
+        settle({ stdout: '', stderr: 'Command was aborted before execution', code: 145, interrupted: true })
+        return
+      }
+      if (admission !== 'admitted') {
+        settle({ stdout: '', stderr: withInherited(admission.refused, false), code: 1, interrupted: false, preSpawnError: admission.refused })
+        return
+      }
     }
 
     let live: LiveSession
@@ -480,8 +594,18 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
 }
 
 async function ensureSession(lane: Lane, binaryPath: string, sandbox: EngineSandboxPolicy): Promise<LiveSession> {
-  if (lane.session !== null && !lane.session.exited) return lane.session
-  lane.session = await spawnSession(binaryPath, sandbox)
+  if (lane.session !== null && !lane.session.exited) {
+    lane.reserved = false
+    return lane.session
+  }
+  try {
+    lane.session = await spawnSession(binaryPath, sandbox)
+  } catch (error) {
+    lane.reserved = false
+    announceRelease()
+    throw error
+  }
+  lane.reserved = false
   return lane.session
 }
 
@@ -550,6 +674,8 @@ export async function endEngineSessionFor(owner: string): Promise<void> {
   const live = lane.session
   lane.session = null
   lane.pendingResetNote = null
+  lane.reserved = false
+  announceRelease()
   if (live !== null && !live.exited) await killSession(live)
 }
 
@@ -568,11 +694,16 @@ export function engineChildForTest(owner: string = MAIN_OWNER): ChildProcess | n
   return lanes.get(owner)?.session?.child ?? null
 }
 
+export function engineWaitingOwnersForTest(): string[] {
+  return [...waitingOwners]
+}
+
 export function resetEngineSessionForTest(): void {
   for (const lane of lanes.values()) {
     if (lane.session) void killSession(lane.session)
   }
   lanes.clear()
+  announceRelease()
   snapshotPromise = null
   packResolution = null
 }

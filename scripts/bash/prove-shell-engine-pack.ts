@@ -128,6 +128,21 @@ section('§3 the flag registry row and the settings key')
 
   const typesSrc = readFileSync(join(ROOT, 'src/utils/settings/types.ts'), 'utf8')
   check("the settings schema carries shellEngine: 'system' | 'brush'", /shellEngine:\s*z\.enum\(\['system',\s*'brush'\]\)/.test(typesSrc))
+
+  const ceilingRow = (FLAG_REGISTRY as Array<{ env: string; kind: string; consumer: string }>).find(r => r.env === 'MERCURY_SHELL_ENGINE_SESSIONS')
+  check('MERCURY_SHELL_ENGINE_SESSIONS is registered as a value knob consumed by the engine session', ceilingRow?.kind === 'value' && (ceilingRow?.consumer.includes('engineSession') ?? false), JSON.stringify(ceilingRow))
+  check('the settings schema carries shellEngineSessions as a whole number of at least 1', /shellEngineSessions:\s*z\s*\.number\(\)\s*\.int\(\)\s*\.min\(1\)/.test(typesSrc))
+  const { ENGINE_SESSION_CEILING_DEFAULT, resolveEngineSessionCeiling } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+  const savedPin = process.env.MERCURY_SHELL_ENGINE_SESSIONS
+  delete process.env.MERCURY_SHELL_ENGINE_SESSIONS
+  check('the ceiling defaults to 8 — the conversation plus seven agents', ENGINE_SESSION_CEILING_DEFAULT === 8 && resolveEngineSessionCeiling() === 8)
+  check('the setting decides when no pin is set; a setting below 1 is ignored', resolveEngineSessionCeiling(3) === 3 && resolveEngineSessionCeiling(0) === 8)
+  process.env.MERCURY_SHELL_ENGINE_SESSIONS = '12'
+  check('the env pin outranks the setting', resolveEngineSessionCeiling(3) === 12)
+  process.env.MERCURY_SHELL_ENGINE_SESSIONS = 'many'
+  check('a pin that is not a whole number of at least 1 is ignored', resolveEngineSessionCeiling(3) === 3)
+  if (savedPin === undefined) delete process.env.MERCURY_SHELL_ENGINE_SESSIONS
+  else process.env.MERCURY_SHELL_ENGINE_SESSIONS = savedPin
 }
 
 section('§4 the built bundle: manifest record, doctor row, prompt sentence')
@@ -148,6 +163,7 @@ section('§4 the built bundle: manifest record, doctor row, prompt sentence')
     check("the bundle carries the doctor row's per-owner words", bundle.includes('one persistent process per conversation and one per sub-agent'))
     check("the bundle tells the model an operator's stop ends the command and resets the session under the engine", bundle.includes('A stop from the operator while a command runs ends that command and resets the session'))
     check("the bundle carries the doctor row's word on the stop", bundle.includes('a stop while a command runs resets the session'))
+    check('the bundle tells the model the ceiling on engine sessions by its setting', bundle.includes('the shellEngineSessions setting'))
     check('the bundle carries the system-shell reset sentence too', bundle.includes('every other piece of shell state (variables, functions, options) resets between calls'))
     check('the bundle carries the Windows arm of the engine sentence — the two known holes at this version', bundle.includes('os error 193') && bundle.includes('relative program path after a `cd`'))
   }

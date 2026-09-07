@@ -16,7 +16,7 @@ import { getPlatform } from './platform.js'
 import { SandboxManager } from './sandbox/sandbox-adapter.js'
 import { invalidateSessionEnvCache } from './sessionEnvironment.js'
 import { createBashShellProvider } from './shell/bashProvider.js'
-import { resolveShellEngine, runEngineCommand } from './shell/engineSession.js'
+import { resolveShellEngine, runEngineCommand, resolveEngineSessionCeiling } from './shell/engineSession.js'
 import { getInitialSettings } from './settings/settings.js'
 import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { createPowerShellProvider } from './shell/powershellProvider.js'
@@ -191,6 +191,7 @@ export async function exec(
         sandbox: useSandbox ? { enabled: true, tmpDir: sandboxTmpDir } : { enabled: false },
         onProgress: options.onProgress,
         owner: options.owner,
+        sessionCeiling: resolveEngineSessionCeiling(getInitialSettings().shellEngineSessions),
         onCwd: reported => {
           if (options.preventCwdChanges) return
           try {

@@ -64,6 +64,8 @@ export class TaskOutput {
   private lineCount = 0
   private byteTotal = 0
 
+  private liveNotice: string | null = null
+
   private fileRedundant = false
   private fileSize = 0
 
@@ -105,10 +107,20 @@ export class TaskOutput {
     return this.onProgress !== null
   }
 
+  setLiveNotice(notice: string | null): void {
+    this.liveNotice = notice
+  }
+
+  private viewOf(count: number): string {
+    const lines = this.joinRecent(count)
+    if (this.liveNotice === null) return lines
+    return lines === '' ? this.liveNotice : `${this.liveNotice}\n${lines}`
+  }
+
   emitLiveView(): void {
     this.onProgress?.(
-      this.joinRecent(RECENT_VIEW_LINES),
-      this.joinRecent(FULL_VIEW_LINES),
+      this.viewOf(RECENT_VIEW_LINES),
+      this.viewOf(FULL_VIEW_LINES),
       this.lineCount,
       this.byteTotal,
       this.spilled,
@@ -171,8 +183,8 @@ export class TaskOutput {
     const harvestedAny = this.harvest(data)
     if (harvestedAny && this.onProgress) {
       this.onProgress(
-        this.joinRecent(RECENT_VIEW_LINES),
-        this.joinRecent(FULL_VIEW_LINES),
+        this.viewOf(RECENT_VIEW_LINES),
+        this.viewOf(FULL_VIEW_LINES),
         this.lineCount,
         this.byteTotal,
         this.spilled,
@@ -370,6 +382,7 @@ export class TaskOutput {
     this.stderrChunks = []
     this.stderrLength = 0
     this.recentLines.clear()
+    this.liveNotice = null
     this.onProgress = null
     this.diskWriter?.cancel()
     TaskOutput.stopPolling(this.taskId)
