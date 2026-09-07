@@ -186,6 +186,9 @@ async function spawnSession(binaryPath: string, sandbox: EngineSandboxPolicy): P
   live.child.stderr?.on('data', (chunk: Buffer) => {
     live.stderrBuf = live.stderrBuf.length === 0 ? Buffer.from(chunk) : Buffer.concat([live.stderrBuf, chunk])
   })
+  live.child.stdin?.on('error', error => {
+    logForDebugging(`engine stdin closed: ${errorMessage(error)}`)
+  })
   live.child.once('exit', code => {
     live.exited = true
     live.onExit?.(code)
@@ -288,15 +291,15 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
   })
 
   async function execute(): Promise<void> {
+    if (options.signal.aborted) {
+      settle({ stdout: '', stderr: 'Command was aborted before execution', code: 145, interrupted: true })
+      return
+    }
     let inheritedNote = pendingResetNote
     pendingResetNote = null
     const withInherited = (stderr: string, interrupted: boolean): string =>
       inheritedNote !== null && !interrupted ? (stderr ? `${inheritedNote} ${stderr}` : inheritedNote) : stderr
 
-    if (options.signal.aborted) {
-      settle({ stdout: '', stderr: withInherited('Command was aborted before execution', true), code: 145, interrupted: true })
-      return
-    }
     const parse = await parseCheck(binaryPath, command)
     if (!parse.ok) {
       settle({ stdout: '', stderr: withInherited(parse.message, false), code: 2, interrupted: false })
