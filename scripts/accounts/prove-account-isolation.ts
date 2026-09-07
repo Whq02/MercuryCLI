@@ -46,7 +46,7 @@ check(svcForkEnvless === svcForkExplicit,
   `fork: env-less and explicit MERCURY_CONFIG_DIR=${resolvedDefaultHome} (the resolver's own answer) share ONE service (${svcForkEnvless.slice(-10)}) — no re-login between launcher and env-less runs`)
 check(/-[0-9a-f]{8}$/.test(svcForkEnvless), 'a non-default home is suffix-keyed (credential identity split impossible)')
 const svcForkStock = svcFor(join(homedir(), '.claude'))
-check(!/-[0-9a-f]{8}$/.test(svcForkStock), 'fork run explicitly on ~/.claude keeps the un-suffixed service (deliberate foreign-home runs keep working)')
+check(/-[0-9a-f]{8}$/.test(svcForkStock), 'a run pinned to a foreign-named home is hashed like any other (one law, no bare entry)')
 
 if (prevEnv === undefined) delete process.env.MERCURY_CONFIG_DIR
 else process.env.MERCURY_CONFIG_DIR = prevEnv

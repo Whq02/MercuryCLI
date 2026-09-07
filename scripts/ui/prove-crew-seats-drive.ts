@@ -241,8 +241,10 @@ async function startSeatsFixture(port: number, mainDialect: Dialect): Promise<Fi
     })
   })
   await new Promise<void>(resolve => server.listen(port, '127.0.0.1', resolve))
+  const address = server.address()
+  const bound = typeof address === 'object' && address !== null ? address.port : port
   return {
-    base: `http://127.0.0.1:${port}`,
+    base: `http://127.0.0.1:${bound}`,
     hits,
     close: () => new Promise<void>(resolve => server.close(() => resolve())),
   }
@@ -359,7 +361,7 @@ function dump(label: string, frame: string | undefined): void {
 }
 
 const LEG = process.env.CREW_SEATS_LEG ?? 'all'
-const portFor = (dialect: Dialect): number => Number(process.env[`CREW_SEATS_PORT_${dialect.toUpperCase()}`] ?? (dialect === 'anthropic' ? 25171 : 25172))
+const portFor = (dialect: Dialect): number => Number(process.env[`CREW_SEATS_PORT_${dialect.toUpperCase()}`] ?? '0')
 
 async function leg(mainDialect: Dialect): Promise<void> {
   const mainModel = mainDialect === 'anthropic' ? CLAUDE_ID : GPT_ID

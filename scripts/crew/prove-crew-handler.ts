@@ -28,10 +28,12 @@ console.log('============================================================')
 console.log(' Crew spawn handler (policy floor) — proof')
 console.log('============================================================')
 
-section('the ladder never throws — before configs are allowed, a NAMED key answers a typed refusal')
+section('the ladder never throws — before configs are allowed, a NAMED key answers TYPED (the registry needs no config)')
 {
-  const early = await cs.resolveCrewSeatModel('sonnet')
-  check('a named key with configs not yet allowed ⇒ a typed refusal naming the fault (never a throw up the control socket)', !early.ok && /registry-unavailable/.test(early.error ?? '') && /Config accessed before allowed/.test(early.error ?? ''), early.ok ? 'ok' : early.error)
+  let early: Awaited<ReturnType<typeof cs.resolveCrewSeatModel>> | null = null
+  let threw = ''
+  try { early = await cs.resolveCrewSeatModel('sonnet') } catch (e) { threw = String(e) }
+  check('a named key with configs not yet allowed answers a typed value, never a throw up the control socket', threw === '' && early !== null && (early.ok ? /sonnet/.test(early.model) : /^model refused \(/.test(early.error)), threw || JSON.stringify(early))
   const earlyHaiku = await cs.resolveCrewSeatModel('haiku')
   check('…and the never-Haiku floor answers pure ahead of the registry, configs or not', !earlyHaiku.ok && /worker-policy:frontier-only/.test(earlyHaiku.error ?? ''), earlyHaiku.ok ? 'ok' : earlyHaiku.error)
 }

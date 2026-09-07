@@ -226,13 +226,14 @@ if (LEGS.has('a')) {
   const { home, workspace } = seedHome()
   const api = await startFixtureApi(Array.from({ length: 6 }, () => ({ kind: 'text' as const, text: 'Spare.' })), { jsonForNonStream: true })
   api.usage.payload = risingPayload
+  const debugFileA = join(home, 'usage-read.debug.log')
   const t0 = Date.now()
   const c = await capture(
     'rail-on-show',
     {
       ...RAIL,
       total: 520,
-      argv: ['node', DIST],
+      argv: ['node', DIST, '--debug-file', debugFileA],
       cwd: workspace,
       sends: [
         ...FACE_THEN_CHAT,
@@ -264,8 +265,15 @@ if (LEGS.has('a')) {
   const f2 = fiveHourPct(c.marks.floor2 ?? '')
   const f3 = fiveHourPct(c.marks.floor3 ?? '')
   check(`A: three floors later the row has NOT moved (${shown} → ${f1} → ${f2} → ${f3}): nothing reads on a clock`, f1 === shown && f2 === shown && f3 === shown, usageBlock(c.marks.floor3 ?? ''))
-  const gapToRetry = api.usageRequests.length >= 3 ? (api.usageRequests[2]!.at - api.usageRequests[1]!.at) / 1000 : -1
-  check(`A: the fixture saw exactly three reads — the mount's, the tab's, and the retry's more than three floors later (${api.usageRequests.length} reads, gap ${gapToRetry.toFixed(1)} s) — none on a clock`, api.usageRequests.length === 3 && gapToRetry > (3 * POLL_MS) / 1000, usageAsks.join(' '))
+  const readLinesA = existsSync(debugFileA) ? readFileSync(debugFileA, 'utf8').split('\n').filter(l => l.includes('[usage] read #')) : []
+  const reasonsA = readLinesA.map(l => /read #\d+ \((open|operator|sign-in)\)/.exec(l)?.[1] ?? 'unnamed')
+  const instantsA = api.usageRequests.map(r => r.at)
+  const insideFloorA = reasonsA
+    .map((reason, i) => (reason === 'open' && i > 0 && instantsA[i] !== undefined && instantsA[i - 1] !== undefined ? instantsA[i]! - instantsA[i - 1]! : Number.POSITIVE_INFINITY))
+    .filter(gap => gap < POLL_MS - 500)
+  const gapToRetry = api.usageRequests.length >= 3 ? (api.usageRequests.at(-1)!.at - api.usageRequests[1]!.at) / 1000 : -1
+  check(`A: every read names a lawful trigger (${reasonsA.join(', ')}); the tab's ask and the retry are the operator's own, the retry last and more than three floors after the tab's ask (gap ${gapToRetry.toFixed(1)} s)`, reasonsA.length === api.usageRequests.length && reasonsA.length >= 3 && reasonsA.every(r => r !== 'unnamed') && reasonsA[1] === 'operator' && reasonsA.at(-1) === 'operator' && gapToRetry > (3 * POLL_MS) / 1000, `${readLinesA.join(' | ')} · ${usageAsks.join(' ')}`)
+  check('A: no read on show lands inside the floor of the read before it — nothing reads on a clock', insideFloorA.length === 0, usageAsks.join(' '))
   check(`A: the age tail grows in the open and reads stale past 2 × floor (${ageOf(c.marks.floor3 ?? '') ?? 'no age word'})`, /^stale ↻/.test(ageOf(c.marks.floor3 ?? '') ?? ''), usageBlock(c.marks.floor3 ?? ''))
   const retried = fiveHourPct(c.marks['retried-rail'] ?? c.marks.retried ?? '')
   check(`A: the tab's retry reads again — the row moves (5h ${retried ?? '—'}% > ${shown})`, retried !== undefined && shown !== undefined && retried > shown, usageBlock(c.marks['retried-rail'] ?? ''))
