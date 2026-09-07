@@ -547,6 +547,14 @@
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
     {
+      "file": "scripts/gate/generated-assets.ts",
+      "line": 97,
+      "mechanism": "shell-dash-c",
+      "excerpt": "const res = spawnSync('bash', ['-c', row.check], { cwd: ROOT, stdio: 'inherit', env: process.env })",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
       "file": "scripts/gate/prove-hermetic-shard.ts",
       "line": 336,
       "mechanism": "hardcoded-interpreter",
