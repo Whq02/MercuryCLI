@@ -20,6 +20,7 @@ for (const p of [
   'src/services/analytics/datadog.ts',
   'src/services/analytics/firstPartyEventLogger.ts',
   'src/services/analytics/growthbook.ts',
+  'src/services/analytics/featureGates.ts',
   'src/types/generated/events_mono',
 ]) {
   check(`absent: ${p}`, !existsSync(join(ROOT, p)))
@@ -40,19 +41,15 @@ for (const f of tsFiles(join(ROOT, 'src'))) {
   lines.forEach((line, i) => {
     if (/^\s*(\/\/|\*|\/\*)/.test(line)) return
     if (/\blogEvent(Async)?\s*\(/.test(line)) offenders.push(`${f}:${i + 1}`)
+    if (/['"][^'"]*analytics\/featureGates(?:\.[cm]?[jt]s)?['"]/.test(line)) offenders.push(`${f}:${i + 1} (configuration import)`)
+    if (/\b(?:getFeatureValue_[A-Z_]+|getDynamicConfig_[A-Z_]+|checkFeatureGate_[A-Z_]+|checkSecurityRestrictionGate|initializeFeatureGates|refreshFeatureGates(?:AfterAuthChange)?|resetFeatureGates|onFeatureGatesRefresh|setupPeriodicFeatureGateRefresh|stopPeriodicFeatureGateRefresh)\s*(?:<[^>]*>)?\(/.test(line)) offenders.push(`${f}:${i + 1} (configuration call)`)
     if (/from\s+['"][^'"]*services\/analytics\/(index|sink)(\.js)?['"]/.test(line)) offenders.push(`${f}:${i + 1} (facade import)`)
   })
 }
-check('zero logEvent facade call sites and zero facade imports in src', offenders.length === 0, offenders.slice(0, 5).join(' · '))
+check('no telemetry or feature-configuration calls and imports in src', offenders.length === 0, offenders.slice(0, 5).join(' · '))
 
 const sinks = readFileSync(join(ROOT, 'src/utils/sinks.ts'), 'utf8')
 check('initSinks: error-log sink only', sinks.includes('initializeErrorLogSink()') && !sinks.includes('initializeAnalyticsSink'))
-
-const gates = readFileSync(join(ROOT, 'src/services/analytics/featureGates.ts'), 'utf8')
-check(
-  'featureGates: the owned static table (no SDK/network import)',
-  !/from '@growthbook|from 'axios|node:https/.test(gates),
-)
 
 for (const p of [
   'src/utils/telemetry/sessionTracing.ts',
