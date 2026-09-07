@@ -13,6 +13,18 @@ import {
 } from '../verification/verificationState.js'
 import { addFunctionHook, removeFunctionHook } from './sessionHooks.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { execFileSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
+import { isAbsolute, join, resolve } from 'node:path'
+import { findGitRoot } from '../git.js'
+import { subprocessEnv } from '../subprocessEnv.js'
+import {
+  GENERATED_ASSETS_MAP,
+  describeOwedAssets,
+  generatedAssetsOwed,
+  parseGeneratedAssetsMap,
+  type GeneratedAssetRow,
+} from './generatedAssets.js'
 
 
 export const COMMIT_GATE_ID = 'commit-gate'
@@ -121,6 +133,15 @@ export const COMMIT_GATE_REPROMPT =
   'Do not use --no-verify. If this repo\'s verify runner is a custom script the gate ' +
   'doesn\'t recognize, set MERCURY_VERIFY_PATTERN to a regex that matches it.'
 
+function generatedAssetsVerdict(command: string): true | string {
+  try {
+    const refusal = generatedAssetsRefusal(command, getCwd())
+    return refusal === null ? true : refusal
+  } catch (error) {
+    return `Commit gate: the generated-asset rule could not read the commit (${error instanceof Error ? error.message : String(error)}) — commit again once git answers.`
+  }
+}
+
 function commandFromContext(hookInput: unknown): string | null {
   if (
     hookInput == null ||
@@ -154,7 +175,7 @@ export function registerCommitGate(
         const command = commandFromContext(context?.hookInput)
         if (command === null) return true
         const shape = evaluateCommitGate(command)
-        if (shape.allow) return true
+        if (shape.allow) return generatedAssetsVerdict(command)
         if (shape.rule === 'no-verify-flag') return false
         let fresh = false
         try {
@@ -168,7 +189,8 @@ export function registerCommitGate(
         } catch {
           fresh = false
         }
-        return evaluateCommitGate(command, { freshReceipt: fresh }).allow
+        if (!evaluateCommitGate(command, { freshReceipt: fresh }).allow) return false
+        return generatedAssetsVerdict(command)
       } catch {
         return false
       }
@@ -176,6 +198,90 @@ export function registerCommitGate(
     COMMIT_GATE_REPROMPT,
     { timeout: 5000, id: COMMIT_GATE_ID },
   )
+}
+
+
+export function chainedSegmentsBeforeCommit(command: string): string[] {
+  const segments = splitShellControlOps(command)
+  const commitIdx = segments.findIndex(s => isGitCommit(s.text))
+  if (commitIdx <= 0 || segments[commitIdx]!.opBefore !== '&&') return []
+  const out: string[] = []
+  for (let i = commitIdx - 1; i >= 0; i--) {
+    out.push(segments[i]!.text.trim())
+    const op = segments[i]!.opBefore
+    if (op === '&&') continue
+    if (op === 'pipe' && pipefailActiveBefore(segments, i)) continue
+    break
+  }
+  return out
+}
+
+export function commitRepositoryRoot(commitSegment: string, cwd: string): string | null {
+  const m = /\bgit\s+(?:(?:-c\s+\S+|--git-dir(?:=\S+|\s+\S+)|--work-tree(?:=\S+|\s+\S+))\s+)*-C\s+(?:"([^"]+)"|'([^']+)'|(\S+))/.exec(commitSegment)
+  const dir = m ? (m[1] ?? m[2] ?? m[3] ?? '') : ''
+  const start = dir === '' ? cwd : isAbsolute(dir) ? dir : resolve(cwd, dir)
+  return findGitRoot(start)
+}
+
+function gitLines(root: string, args: string[]): string[] {
+  return execFileSync('git', args, { cwd: root, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true })
+    .split('\n')
+    .map(l => l.trim())
+    .filter(Boolean)
+}
+
+export function commitPathsOf(root: string, commitSegment: string): string[] {
+  const paths = new Set(gitLines(root, ['diff', '--cached', '--name-only']))
+  const bare = stripQuotedShellArgs(commitSegment)
+  if (/(?:^|\s)(?:--all|-[a-zA-Z]*a[a-zA-Z]*)(?=\s|$)/.test(bare)) {
+    for (const p of gitLines(root, ['diff', '--name-only'])) paths.add(p)
+  }
+  return [...paths].sort()
+}
+
+export function loadGeneratedAssetsMap(root: string): { rows: GeneratedAssetRow[]; errors: string[] } | null {
+  const path = join(root, GENERATED_ASSETS_MAP)
+  if (!existsSync(path)) return null
+  return parseGeneratedAssetsMap(readFileSync(path, 'utf8'))
+}
+
+export function generatedAssetsRefusal(command: string, cwd: string): string | null {
+  const segments = splitShellControlOps(command)
+  const commitSeg = segments.find(s => isGitCommit(s.text))
+  if (commitSeg === undefined) return null
+  const root = commitRepositoryRoot(commitSeg.text, cwd)
+  if (root === null) return null
+  const map = loadGeneratedAssetsMap(root)
+  if (map === null) return null
+  if (map.errors.length > 0) return `The generated-asset map (${GENERATED_ASSETS_MAP}) does not parse: ${map.errors.join('; ')} — fix the map before committing.`
+  const commitPaths = commitPathsOf(root, commitSeg.text)
+  if (commitPaths.length === 0) return null
+  const staged = new Map<string, string | null>()
+  const contentOf = (path: string): string | null => {
+    if (staged.has(path)) return staged.get(path)!
+    let text: string | null
+    try {
+      text = execFileSync('git', ['show', `:${path}`], { cwd: root, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 })
+    } catch {
+      try {
+        text = readFileSync(join(root, path), 'utf8')
+      } catch {
+        text = null
+      }
+    }
+    if (text !== null && text.includes('\0')) text = null
+    staged.set(path, text)
+    return text
+  }
+  const readFile = (path: string): string | null => {
+    try {
+      return readFileSync(join(root, path), 'utf8')
+    } catch {
+      return null
+    }
+  }
+  const owed = generatedAssetsOwed({ rows: map.rows, commitPaths, contentOf, readFile, chainedVerifies: chainedSegmentsBeforeCommit(command) })
+  return owed.length === 0 ? null : describeOwedAssets(owed)
 }
 
 export function unregisterCommitGate(

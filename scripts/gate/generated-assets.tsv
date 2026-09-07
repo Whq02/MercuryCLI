@@ -1,0 +1,28 @@
+# Generated assets: what regenerates each tracked asset, what proves it current, and which sources feed it.
+#
+# Columns (tab-separated): asset	generator	check	sources
+#   asset      the tracked file(s) the generator writes (space-separated paths or globs; one in a commit counts)
+#   generator  the command that regenerates the asset — never hand-edit the asset
+#   check      the command that is green iff the asset is current ('-' when the generator's output is the only check)
+#   sources    what the asset is derived from: path globs; `files-of:<json>` (every repo path named inside that
+#              file); `re:<pattern>` (any changed file whose content matches the pattern)
+#
+# The commit gate reads this file: a commit whose files touch a row's sources must carry the row's asset or chain
+# the row's check with && before the commit. `bun scripts/gate/generated-assets.ts` lists what a diff owes and
+# runs the owed checks; `--all` runs every check.
+scripts/settings/settings-schema.json	bun scripts/settings/gen-settings-schema.ts	bun scripts/settings/prove-settings-schema.ts	src/utils/settings/**
+assets/splash/mercury-splash.mjs	bun scripts/splash/bake-menu.mjs	bun scripts/splash/bake-menu.mjs --check	src/substrate/startupMenu.ts
+assets/splash/mercury-splash.mjs	bun scripts/splash/bake-ramp.mjs	bun scripts/splash/bake-ramp.mjs --check	src/utils/mercuryTokens.ts src/components/mercury-ui/focalRamp.ts
+scripts/ownership/contract-inventory.json	bun scripts/ownership/prove-contract-inventory.ts --record	bun scripts/ownership/prove-contract-inventory.ts	files-of:scripts/ownership/contract-inventory.json
+scripts/ink-runtime/facade-inventory.json	bun scripts/ink-runtime/prove-facade-inventory.ts --record	bun scripts/ink-runtime/prove-facade-inventory.ts	src/ink.ts
+scripts/ink-runtime/deep-import-inventory.json	bun scripts/ink-runtime/prove-deep-import-policy.ts --record	bun scripts/ink-runtime/prove-deep-import-policy.ts	re:from\s+['"][^'"]*/ink/[^'"]+['"]
+scripts/consistency-census/shellstring-census.json	bun scripts/consistency-census/gen-shellstring-census.ts	bun scripts/consistency-census/prove-shellstring-census.ts	files-of:scripts/consistency-census/shellstring-census.json
+scripts/consistency-census/lockup-census.json	bun scripts/consistency-census/gen-lockup-census.ts	bun scripts/consistency-census/prove-lockup-census.ts	files-of:scripts/consistency-census/lockup-census.json
+scripts/consistency-census/basename-census.json	bun scripts/consistency-census/gen-basename-census.ts	bun scripts/consistency-census/prove-basename-census.ts	files-of:scripts/consistency-census/basename-census.json
+assets/completions/mercury.bash assets/completions/_mercury assets/completions/mercury.fish	bun run build.ts && bun scripts/project-services/gen-completions.ts	bun scripts/project-services/gen-completions.ts --check	src/main.tsx src/commands/mcp/addCommand.ts
+docs/EXTENSIONS.md mercury-skills/extension-maker/references/CONTRACT.md	bun scripts/extensions/gen-contract.ts	bun scripts/extensions/prove-contract-in-sync.ts	src/extensions/manifest.ts src/extensions/catalogue.ts
+src/skills/bundled/**	bun scripts/skills/gen-bundled.ts	-	mercury-skills/**
+THIRD_PARTY_NOTICES.md	bun scripts/distribution/generate-third-party-notices.ts	bun scripts/distribution/prove-distribution-notices.ts	package.json bun.lock vendor/*.lock.json
+src/services/blender/bridgeFiles.generated.ts	node scripts/blender-bridge/regen-bridge.mjs	node scripts/blender-bridge/regen-bridge.mjs --check	assets/blender/bridge/**
+src/services/unity/bridgeFiles.generated.ts	node scripts/unity-bridge/regen-bridge.mjs	node scripts/unity-bridge/regen-bridge.mjs --check	assets/unity/bridge/**
+src/services/vulcan/addonFiles.generated.ts	node scripts/vulcan/regen-addon.mjs	node scripts/vulcan/regen-addon.mjs --check	assets/vulcan/addon/**
