@@ -334,9 +334,13 @@ export function normalizeToolInput<Input extends Record<string, unknown>>(
     case FILE_EDIT_TOOL_NAME: {
       const parsed = reparse<{
         file_path: string
-        old_string: string
-        new_string: string
+        old_string?: string
+        new_string?: string
         replace_all?: boolean
+        expected_anchor?: string
+        hunks?: unknown
+        append?: string
+        section?: string
       }>(tool, input)
       const normalized = normalizeFileEditInput({
         file_path: parsed.file_path,
@@ -349,12 +353,15 @@ export function normalizeToolInput<Input extends Record<string, unknown>>(
         ],
       })
       const edit = normalized.edits[0] ?? {}
-      return {
-        file_path: normalized.file_path,
-        old_string: edit.old_string,
-        new_string: edit.new_string,
-        replace_all: edit.replace_all,
-      } as unknown as Input
+      const rebuilt: Record<string, unknown> = { file_path: normalized.file_path }
+      if (edit.old_string !== undefined) rebuilt.old_string = edit.old_string
+      if (edit.new_string !== undefined) rebuilt.new_string = edit.new_string
+      if (edit.replace_all !== undefined) rebuilt.replace_all = edit.replace_all
+      if (parsed.expected_anchor !== undefined) rebuilt.expected_anchor = parsed.expected_anchor
+      if (parsed.hunks !== undefined) rebuilt.hunks = parsed.hunks
+      if (parsed.append !== undefined) rebuilt.append = parsed.append
+      if (parsed.section !== undefined) rebuilt.section = parsed.section
+      return rebuilt as unknown as Input
     }
     case FILE_WRITE_TOOL_NAME: {
       const parsed = reparse<{ file_path: string; content: string }>(tool, input)
