@@ -295,6 +295,7 @@ try {
 
   section('§2 C1 the spent window ends the turn typed — the runner stays, its channel open')
   const before2 = mainHits().length
+  const modelsBefore2 = wire().filter(c => c.kind === 'models').length
   const spent = await say(SPEND_ASK, sid)
   check('the ask that spends the window was delivered', spent.ok === true, JSON.stringify(spent))
   check('the wire answered 429 with the unified headers', await untilAsync(() => sinceHits(before2).some(h => h.kind === 'anthropic' && h.status === 429), 60_000), JSON.stringify(sinceHits(before2)))
@@ -307,6 +308,10 @@ try {
   const wall = lastAssistantText(sid)
   check('C1 the wall row is the typed end: it names the window and its reset', /window|limit/i.test(wall) && /resets/i.test(wall), wall.slice(0, 300))
   check('C1 the wall row names the /model door', wall.includes('/model'), wall.slice(0, 300))
+  const capAt = sinceHits(before2).find(h => h.kind === 'anthropic' && h.status === 429)?.at ?? 0
+  const modelsReads = wire().filter(c => c.kind === 'models')
+  check('C1 the OpenAI catalogue was read when the wall row asked, not before (no models request before the cap; one at the wall)', modelsBefore2 === 0 && modelsReads.length >= 1 && modelsReads[0]!.at >= capAt, JSON.stringify({ before: modelsBefore2, readsSinceCapMs: modelsReads.map(r => r.at - capAt) }))
+  check('C1 the wall row names the OpenAI lane it read', /The OpenAI lane is usable now — \/model moves there/.test(wall), wall.slice(0, 400))
   console.log(`      wall row: ${wall.replace(/\n/g, ' ↵ ').slice(0, 400)}`)
 
   section('§3 C2/C4 the family switch on the live idle runner: Fable → GPT lands in place')

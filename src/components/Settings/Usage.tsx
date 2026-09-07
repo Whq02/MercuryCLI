@@ -28,6 +28,8 @@ import {
 import { usageSourceWords } from '../../services/providers/usageFreshness.js'
 import { activeWalletEntry, walletEntries } from '../../services/wallet/wallet.js'
 import { getGptSeatAvailability } from '../../services/providers/openai/openaiCatalogue.js'
+import { readCatalogueIfPending } from '../../services/providers/catalogueOnDemand.js'
+import { useCatalogueEpoch } from '../../hooks/useCatalogueEpoch.js'
 import {
   resolveMoonshotAccount,
   resolveMoonshotApiKey,
@@ -333,6 +335,10 @@ export function usageSectionPlan(families: ProviderFamilyPresence[]): UsageSecti
 }
 
 function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
+  useCatalogueEpoch()
+  useEffect(() => {
+    void readCatalogueIfPending('openai')
+  }, [])
   const view = providerUsageView('openai')
   const active = view.activeEntry
   const spend = view.sessionSpend
@@ -477,6 +483,10 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
 }
 
 function HuggingfaceUsageSection(): React.ReactNode {
+  useCatalogueEpoch()
+  useEffect(() => {
+    void readCatalogueIfPending('huggingface')
+  }, [])
   const account = resolveHuggingfaceAccount()
   const spend = providerSessionSpend('huggingface')
   const availability = getHuggingfaceAvailability()
