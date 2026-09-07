@@ -311,7 +311,7 @@ try {
   const capAt = sinceHits(before2).find(h => h.kind === 'anthropic' && h.status === 429)?.at ?? 0
   const modelsReads = wire().filter(c => c.kind === 'models')
   check('C1 the OpenAI catalogue was read when the wall row asked, not before (no models request before the cap; one at the wall)', modelsBefore2 === 0 && modelsReads.length >= 1 && modelsReads[0]!.at >= capAt, JSON.stringify({ before: modelsBefore2, readsSinceCapMs: modelsReads.map(r => r.at - capAt) }))
-  check('C1 the wall row names the OpenAI lane it read', /The OpenAI lane is usable now — \/model moves there/.test(wall), wall.slice(0, 400))
+  check('C1 the wall row names the OpenAI family it read', /\/model moves there \(bills under your OpenAI account/.test(wall), wall.slice(0, 400))
   console.log(`      wall row: ${wall.replace(/\n/g, ' ↵ ').slice(0, 400)}`)
 
   section('§3 C2/C4 the family switch on the live idle runner: Fable → GPT lands in place')
