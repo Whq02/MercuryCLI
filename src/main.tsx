@@ -2386,7 +2386,7 @@ export function startDeferredPrefetches(): void {
         prefetchThirdPartyCredentials?: () => void
       }
       prefetchThirdPartyCredentials?.()
-      void countFilesRoundedRg(process.cwd(), AbortSignal.timeout(3000)).catch(() => {})
+      if (getIsInteractive()) void countFilesRoundedRg(process.cwd(), AbortSignal.timeout(3000)).catch(() => {})
       const { getModelCapability } = (await import('./utils/model/capabilities.js')) as {
         getModelCapability?: (model: string) => unknown
       }
