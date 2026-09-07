@@ -27,6 +27,7 @@ type MessageMeta = {
   role: MessageRole
   attachedAuthor?: AttachedAuthor
   queued?: boolean
+  heldFor?: 'compaction'
 }
 
 const MessageMetaContext = React.createContext<MessageMeta | null>(null)
@@ -41,7 +42,7 @@ export function MessageMetaProvider({
   message,
   children,
 }: {
-  message: { type?: string; timestamp?: string; queued?: true }
+  message: { type?: string; timestamp?: string; queued?: true; heldFor?: 'compaction' }
   children: React.ReactNode
 }): React.ReactNode {
   const role: MessageRole =
@@ -52,12 +53,13 @@ export function MessageMetaProvider({
       : 'user'
   const timestamp = message?.timestamp
   const queued = message?.queued === true
+  const heldFor = message?.heldFor === 'compaction' ? ('compaction' as const) : undefined
   const attachedClassify = React.useContext(AttachedAttributionContext)
   const attachedAuthor: AttachedAuthor | undefined =
     attachedClassify !== null ? (role === 'assistant' ? 'agent' : attachedClassify(message)) : undefined
   const value = React.useMemo<MessageMeta>(
-    () => ({ timestamp, role, attachedAuthor, queued }),
-    [timestamp, role, attachedAuthor, queued],
+    () => ({ timestamp, role, attachedAuthor, queued, ...(heldFor !== undefined ? { heldFor } : {}) }),
+    [timestamp, role, attachedAuthor, queued, heldFor],
   )
   return (
     <MessageMetaContext.Provider value={value}>
@@ -86,6 +88,9 @@ export function userHandle(): string {
 const pad2 = (n: number): string => (n < 10 ? `0${n}` : `${n}`)
 
 export const QUEUED_PLATE = 'queued'.padEnd(8)
+export const HELD_PLATE = 'held'.padEnd(8)
+export const HELD_FOR_COMPACTION_LINE = 'held until the compaction lands — it delivers once, on its own (↑ takes it back)'
+const plateOf = (meta: { queued?: boolean; heldFor?: 'compaction' }): string => (meta.heldFor === 'compaction' ? HELD_PLATE : QUEUED_PLATE)
 
 export function formatClock(ts?: string): string | null {
   if (!ts) return null
@@ -97,7 +102,7 @@ export function formatClock(ts?: string): string | null {
 export function NameplateClock(): React.ReactNode {
   const meta = React.useContext(MessageMetaContext)
   if (!meta) return null
-  if (meta.queued) return <Text color={FAINT}>{QUEUED_PLATE} </Text>
+  if (meta.queued) return <Text color={FAINT}>{plateOf(meta)} </Text>
   const clock = formatClock(meta.timestamp)
   if (!clock) return null
   return <Text color={FAINT}>{clock} </Text>
@@ -132,7 +137,7 @@ export function TranscriptNameplate(): React.ReactNode {
   return (
     <Text>
       {meta.queued ? (
-        <Text color={FAINT}>{QUEUED_PLATE} </Text>
+        <Text color={FAINT}>{plateOf(meta)} </Text>
       ) : clock ? (
         <Text color={FAINT}>{clock} </Text>
       ) : null}
