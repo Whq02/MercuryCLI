@@ -184,7 +184,7 @@ console.log('\nL6 structural — no surface reads transcript growth as liveness'
   const seatSrc = read('src/daemon/sessionSeat.ts')
   check('the seat stamps every stream event before the arms (the runner speaking, whatever the event)', seatSrc.includes("if (frame.type !== 'stream_event' || !frame.event) return false") && seatSrc.indexOf('noteSeatEvent(seat, dir)') > 0)
   const watchdog = read('src/services/providers/anthropic/streamCore.ts')
-  check('the watchdog reads its budget from the one owner (no second constant)', watchdog.includes('streamIdleTimeoutMs()') && watchdog.includes('streamIdleWarningMsOf(STREAM_IDLE_TIMEOUT_MS)') && !watchdog.includes('parsed >= 1_000 ? parsed : 90_000'))
+  check('the watchdog reads its budget from the one owner (no second constant)', watchdog.includes("streamIdleTimeoutMsForRoute('anthropic')") && watchdog.includes('streamIdleWarningMsOf(STREAM_IDLE_TIMEOUT_MS)') && !watchdog.includes('parsed >= 1_000 ? parsed : 90_000'))
   const facts = read('src/cli/print.ts')
   check('the runner reports its own budget in the facts answer', facts.includes('streamIdleTimeoutMs: streamIdleTimeoutMsForRoute('))
 }
