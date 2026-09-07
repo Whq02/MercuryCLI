@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 
 process.chdir(resolve(import.meta.dir, '..', '..'))
 delete process.env.NODE_ENV
-for (const key of ['ANTHROPIC_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_EFFORT_LEVEL', 'DISABLE_PROMPT_CACHING', 'MERCURY_CACHE_TTL', 'MERCURY_CREW_AGENT', 'MERCURY_DAEMON_PERMISSION_MODE']) {
+for (const key of ['MERCURY_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_EFFORT_LEVEL', 'MERCURY_PROMPT_CACHING', 'MERCURY_CACHE_TTL', 'MERCURY_CREW_AGENT', 'MERCURY_DAEMON_PERMISSION_MODE']) {
   delete process.env[key]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'fork-ttl-'))
