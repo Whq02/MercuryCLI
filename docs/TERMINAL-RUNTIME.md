@@ -178,13 +178,34 @@ bash-compatible shell written in Rust (MIT), shipped as one upstream release
 binary per platform at `dist/vendor/brush/<platform>/` and verified against
 `vendor/brush.lock.json` (on Windows, where upstream publishes no binary,
 built from the published crate at the same version). With it on, one
-long-lived brush process serves the
-whole session: variables, functions, aliases and options persist between
-calls, and the same shell runs on every OS with no Git-for-Windows
-dependency. The engine is a child process, so the OS sandbox still wraps it
-and everything it spawns; a command that hangs is killed by the tool's
-timeout and the session respawns with the working directory restored, the
-model told the earlier state was lost.
+long-lived brush process serves the whole conversation and one more serves
+each sub-agent: variables, functions, aliases and options persist between
+calls for their owner — state set by one agent is never seen by another or
+by the main conversation, and an agent's session ends with the agent — and
+the same shell runs on every OS with no Git-for-Windows dependency. Two
+things the engine cannot do on Windows at this version (the Bash tool's own
+description says so there): run a `.cmd` shim such as `npm` or `npx`
+directly (`cmd /c npm …` works, or `node` on the script), and find a
+program named by a relative path after a `cd` (use its absolute path).
+
+The sessions have a ceiling: the `shellEngineSessions` setting (a whole
+number, 8 by default — the conversation plus seven agents), the
+`MERCURY_SHELL_ENGINE_SESSIONS` env pin over it, and the `/config` row
+**Shell engine sessions** beside **Shell engine**. The main conversation
+never waits for a session; a sub-agent that needs one while the agents'
+share is full waits for a release (an agent ending releases its own), the
+wait shown on its row and bounded by the call's timeout, and never shares
+another's. A ceiling of 1 leaves no session for sub-agents: their engine
+calls are refused at once with the reason, and a `run_in_background` call
+still runs, in its own system shell.
+
+The engine is a child process, so the OS sandbox still wraps it and
+everything it spawns. A command that hangs is killed by the tool's timeout
+and the session respawns with the working directory restored, the model
+told the earlier state was lost; a stop from the operator while a command
+runs ends that command and resets the session, and the result says so; a
+message typed while a command runs is queued and delivered when the command
+ends.
 
 Select it with the **Shell engine** row in `/config` (setting `shellEngine`:
 `system` | `brush`) or the `MERCURY_SHELL_ENGINE=brush` env pin, which

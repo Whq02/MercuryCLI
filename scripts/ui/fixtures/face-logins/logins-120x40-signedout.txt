@@ -9,17 +9,17 @@
 
    ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ available                                                      │  │ ❯ Claude subscription account              │
-   │ ❯ Claude subscription account                    not signed in │  │                                            │
-   │   OpenAI — ChatGPT subscription or API key       not signed in │  │ Anthropic · subscription arm               │
+   │ available                                                      │  │ ❯ OpenAI — ChatGPT subscription or API key │
+   │ ❯ OpenAI — ChatGPT subscription or API key       not signed in │  │                                            │
+   │   Claude subscription account                    not signed in │  │ OpenAI                                     │
    │   Usage-based billing — Anthropic Console…       not signed in │  │                                            │
-   │   OpenRouter — one credential, the whole …       not signed in │  │ Claude subscription account                │
-   │   Google Gemini — API key or Google OAuth        not signed in │  │                                            │
-   │   Hugging Face — device-code sign-in or a…       not signed in │  │ state: not signed in                       │
-   │   Kimi (Moonshot) — device-code sign-in o…       not signed in │  │ · no sign-in on this arm yet               │
-   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │                                            │
-   │   DeepSeek — API key                             not signed in │  │ · no credential for this family            │
-   ╰────────────────────────────────────────────────────────────────╯  │                                            │
+   │   OpenRouter — one credential, the whole …       not signed in │  │ OpenAI — ChatGPT subscription or API       │
+   │   Google Gemini — API key or Google OAuth        not signed in │  │ key                                        │
+   │   Hugging Face — device-code sign-in or a…       not signed in │  │                                            │
+   │   Kimi (Moonshot) — device-code sign-in o…       not signed in │  │ state: not signed in                       │
+   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ · no sign-in on this arm yet               │
+   │   DeepSeek — API key                             not signed in │  │                                            │
+   ╰────────────────────────────────────────────────────────────────╯  │ · no credential for this family            │
                                                                        │                                            │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
