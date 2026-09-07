@@ -2,6 +2,13 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
+- Changed a provider's model list to be fetched only when something on screen needs it, once per sign-in, so a session on one provider can still show another provider's usage row without any request at start
+- Added a "Patience with a quiet model" setting in /config (normal, patient, custom): how long Mercury waits on a silent model, how long a slow retry may take, and how much recovery time a run gets, set together, with the environment variables as overrides
+- Fixed a sub-agent failing on a short provider throttle: a brief "try again in a few seconds" is waited out and the agent finishes; only a limit hours away stops it, and then its work is kept and resumable and the parent is told which it was
+- Changed a paused agent to say so: its row reads paused, why, and when it resumes, with the ways out; a sub-agent that hits a usage limit pauses and resumes at the reset instead of ending
+- Changed the parent to hear from each sub-agent the moment it finishes or fails, and a wait on several agents to return at the first failure instead of the last finish
+- Fixed the crew row reading "no tokens yet" beside a growing context; it now shows the tokens used so far
+- Fixed a sub-agent that stops answering, with no sign of life from the model and no tool running, being left as running; it is now stopped with its reason
 - Fixed a background file count started at boot being left running when Mercury exits right away
 - Fixed on-device voice loading its speed-optimised pack on a CPU that cannot run it, which could end Mercury on the doctor's voice row or the first take; the check now runs once in a helper, and the doctor and /speak say what it found. The first use of voice on Windows no longer stalls while it checks
 - Fixed the MCP connection memory keeping a server's full configuration on disk; it now keeps a fingerprint only

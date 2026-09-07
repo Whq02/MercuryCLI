@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
+import axios, { type InternalAxiosRequestConfig } from 'axios'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import { Agent, EnvHttpProxyAgent, fetch as undiciFetch, setGlobalDispatcher, type Dispatcher } from 'undici'
 
@@ -8,8 +8,6 @@ import { apiTimeoutMsOverride } from './envValidation.js'
 import { getCACertificates } from './caCerts.js'
 import { isEnvTruthy } from './envUtils.js'
 import { getMTLSAgent, getMTLSConfig, getTLSFetchOptions } from './mtls.js'
-import { Agent as HttpsAgent } from 'node:https'
-import { connect as tlsConnect } from 'node:tls'
 
 
 type EnvLike = Record<string, string | undefined>
@@ -348,8 +346,8 @@ export function getProxyAgent(uri: string): Dispatcher {
   return agent
 }
 
-function buildTunnelAgentOptions(extra?: Record<string, unknown>): Record<string, unknown> {
-  const options: Record<string, unknown> = { ...(tlsConnectMaterial() ?? {}), ...(extra ?? {}) }
+function buildTunnelAgentOptions(): Record<string, unknown> {
+  const options: Record<string, unknown> = { ...(tlsConnectMaterial() ?? {}) }
   if (isEnvTruthy(process.env.MERCURY_PROXY_RESOLVES_HOSTS)) {
     options.lookup = (
       hostname: string,
@@ -364,8 +362,8 @@ function buildTunnelAgentOptions(extra?: Record<string, unknown>): Record<string
   return options
 }
 
-function createTunnelAgent(uri: string, extra?: Record<string, unknown>): HttpsProxyAgent<string> {
-  return new HttpsProxyAgent(uri, buildTunnelAgentOptions(extra) as never)
+function createTunnelAgent(uri: string): HttpsProxyAgent<string> {
+  return new HttpsProxyAgent(uri, buildTunnelAgentOptions() as never)
 }
 
 function getTunnelAgent(uri: string): HttpsProxyAgent<string> {
@@ -400,18 +398,6 @@ function proxyRouteInterceptor(
   }
 }
 
-export function createAxiosInstance(extra?: Record<string, unknown>): AxiosInstance {
-  const instance = axios.create({ proxy: false })
-  const proxyUrl = getProxyUrl()
-  const mtlsAgent = getMTLSAgent()
-  if (!proxyUrl) {
-    if (mtlsAgent) instance.defaults.httpsAgent = mtlsAgent
-    return instance
-  }
-  instance.interceptors.request.use(proxyRouteInterceptor(createTunnelAgent(proxyUrl, extra), mtlsAgent))
-  return instance
-}
-
 let globalInterceptorId: number | null = null
 
 export function configureGlobalAgents(): void {
@@ -444,21 +430,4 @@ export function clearProxyCache(): void {
   proxyDispatcherCache = new Map()
   tunnelAgentCache = new Map()
   logForDebugging('proxy: cache cleared')
-}
-
-
-class BackgroundHttpsAgent extends HttpsAgent {
-  override createConnection(options: unknown, callback?: unknown): ReturnType<HttpsAgent['createConnection']> {
-    const inherited = (HttpsAgent.prototype as unknown as { createConnection?: (o: unknown, cb?: unknown) => unknown }).createConnection
-    const socket = (typeof inherited === 'function'
-      ? inherited.call(this, options, callback)
-      : tlsConnect(options as never, callback as never)) as ReturnType<HttpsAgent['createConnection']>
-    ;(socket as { unref?: () => unknown } | undefined)?.unref?.()
-    return socket
-  }
-}
-let backgroundAgent: HttpsAgent | null = null
-export function backgroundHttpsAgent(): HttpsAgent {
-  if (backgroundAgent === null) backgroundAgent = new BackgroundHttpsAgent({ keepAlive: false })
-  return backgroundAgent
 }

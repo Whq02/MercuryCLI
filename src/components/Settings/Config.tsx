@@ -47,6 +47,7 @@ import {
 } from '../../utils/permissions/PermissionMode.js'
 import { getMainLoopModel, modelDisplayString } from '../../utils/model/model.js'
 import { useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
+import { customPatienceSetting, patienceEnvPins, patienceOf, patienceWords } from '../../services/providers/patience.js'
 import {
   ENGINE_SESSION_CEILING_DEFAULT,
   endEngineSession,
@@ -271,6 +272,7 @@ export function Config({
         language: user.language,
         syntaxHighlightingDisabled: user.syntaxHighlightingDisabled,
         permissions: user.permissions,
+        patience: user.patience,
       },
       appVerbose: appState.verbose === true,
       dirty: false,
@@ -514,6 +516,38 @@ export function Config({
           recordSet('shellEngine', `set shell engine to ${next}`)
           resetShellEngineResolution()
           void endEngineSession()
+          bump()
+        }
+      },
+    })
+  }
+  {
+    const patience = patienceOf(merged.patience)
+    const patiencePins = patienceEnvPins()
+    items.push({
+      id: 'patience',
+      label: 'Patience with a quiet model',
+      searchText: 'patience quiet model stream idle watchdog stuck silent fallback retry budget timeout wait slow link',
+      kind: 'enum',
+      value: (
+        <Text>
+          {patience.mode}
+          <Text color={tokens.textSecondary}> · {patienceWords(patience.numbers)}</Text>
+          {patiencePins.length > 0 ? (
+            <Text color={tokens.textSecondary}> · {patiencePins.join(' ')} outranks it this boot</Text>
+          ) : null}
+        </Text>
+      ),
+      warning:
+        'the three waits while a provider is slow or silent: the stream-idle budget (90 s where keep-alives feed the watchdog; 15 min on the OpenAI road, silent while the model reasons), the non-streamed fallback ceiling and the retry budget · patient doubles every wait · custom writes the numbers to your user settings file to edit (patience: streamIdleSeconds · quietStreamIdleSeconds · fallbackCeilingSeconds · recoveryBudgetMinutes) · ←/→ walk the modes',
+      change: direction => {
+        const modes = ['normal', 'patient', 'custom'] as const
+        const next = cycleIn(modes, patience.mode, direction)
+        const value =
+          next === 'normal' ? undefined : next === 'patient' ? 'patient' : customPatienceSetting(patience.numbers)
+        if (writeSource('userSettings', { patience: value })) {
+          snapshots.dirty = true
+          recordSet('patience', `set patience with a quiet model to ${next}`)
           bump()
         }
       },
@@ -1080,6 +1114,7 @@ export function Config({
       promptSuggestionEnabled: snapshots.user.promptSuggestionEnabled,
       language: snapshots.user.language,
       syntaxHighlightingDisabled: snapshots.user.syntaxHighlightingDisabled,
+      patience: snapshots.user.patience,
       permissions: { defaultMode: snapshots.user.permissions?.defaultMode } as never,
     })
     setAppState(prev => ({ ...prev, verbose: snapshots.appVerbose }))

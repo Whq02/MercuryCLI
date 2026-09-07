@@ -286,7 +286,10 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   wait = foldAgentWaitEvent(wait, { type: 'stream_event', event: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'weighing' } } }, t0 + 4000)
   check('K10 a thinking delta ⇒ reasoning with the counter moving on the thinking clock', wait?.phase === 'reasoning' && agentWaitWords(wait, t0 + 4000 + 130_000) === 'reasoning 2m 10s, no tokens yet')
   const stillReasoning = foldAgentWaitEvent(wait, { type: 'stream_event', event: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'more' } } }, t0 + 9000)
-  check('K10 later thinking deltas keep the SAME reasoning wait (the clock stands)', stillReasoning === wait)
+  check('K10 later thinking deltas keep the reasoning phase and its clock and advance the counter (a new wait); a ping while reasoning returns the SAME wait',
+    stillReasoning !== wait && stillReasoning?.phase === 'reasoning' && stillReasoning.sinceMs === wait?.sinceMs && stillReasoning.streamedChars === 'weighing'.length + 'more'.length
+      && agentWaitWords(stillReasoning, t0 + 4000 + 130_000) === 'reasoning 2m 10s, no tokens yet'
+      && foldAgentWaitEvent(stillReasoning, { type: 'stream_event', event: { type: 'ping' } }, t0 + 9500) === stillReasoning)
   wait = foldAgentWaitEvent(wait, { type: 'stream_event', event: { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: 'hi' } } }, t0 + 10_000)
   check('K10 a visible token ⇒ streaming', wait?.phase === 'streaming' && agentWaitWords(wait, t0 + 11_000) === 'streaming')
   wait = foldAgentWaitEvent(wait, { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Read', input: {} }] } }, t0 + 12_000)
@@ -349,7 +352,7 @@ section('§K10b a GPT seat pays no per-runner catalogue fetch — the daemon\'s 
   check('K10b the runner\'s refresh within the TTL serves the primed snapshot and fetches nothing', fetched === 0 && refreshed?.models.length === 1 && refreshed.lastError === undefined)
   cat.__resetOpenaiCatalogueForTest()
   check('K10b the claim carries the snapshot in the feed\'s spelling and the runner decodes and primes it at the claim', src('src/daemon/warmRunner.ts').includes('openai_catalogue: openaiCatalogueToWire(openaiCatalogue)') && src('src/cli/print.ts').includes('primeOpenaiCatalogue(openaiCatalogueFromWire(request.openai_catalogue)'))
-  check('K10b the daemon\'s live view keeps the snapshot warm', src('src/daemon/signInView.ts').includes('void refreshOpenaiCatalogue(openaiAccount.kind)'))
+  check('K10b the daemon\'s sign-in view fetches no catalogue; the claim road reads the daemon\'s snapshot', !src('src/daemon/signInView.ts').includes('refreshOpenaiCatalogue') && src('src/daemon/warmRunner.ts').includes('getCachedOpenaiCatalogue(openaiAccount.kind)'))
 }
 
 section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')

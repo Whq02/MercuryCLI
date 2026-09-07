@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const FOREIGN = ['CLAUDE', 'CODE'].join('_')
-const BUN = process.env.BUN ?? join(process.env.HOME ?? '', '.bun/bin/bun')
+const BUN = process.env.BUN ?? process.execPath
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

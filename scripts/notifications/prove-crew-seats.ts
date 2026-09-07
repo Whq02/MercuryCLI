@@ -113,7 +113,7 @@ t.section('S4 — the retry budget: one budget across attempts, words that speak
   budget.honourRecoveryWait(slept, refusal(60_000, 1))
   budget.refillRecoveryBudget(slept)
   t.check("the provider's answer refills the budget", slept.spentMs === 0 && slept.waits === 0 && budget.recoveryAnswerRefills({ type: 'stream_event', event: { type: 'message_start' } }) && !budget.recoveryAnswerRefills({ type: 'progress' }), JSON.stringify(slept))
-  t.check('the knob: unset ⇒ 5 minutes', budget.recoveryBudgetMs() === 5 * 60_000, String(budget.recoveryBudgetMs()))
+  t.check('the knob: unset ⇒ the patience setting, 20 minutes by default', budget.recoveryBudgetMs() === 20 * 60_000, String(budget.recoveryBudgetMs()))
   process.env.MERCURY_RECOVERY_BUDGET_MINUTES = '2'
   t.check('the knob: 2 ⇒ two minutes', budget.recoveryBudgetMs() === 120_000, String(budget.recoveryBudgetMs()))
   process.env.MERCURY_RECOVERY_BUDGET_MINUTES = '0'
@@ -121,7 +121,7 @@ t.section('S4 — the retry budget: one budget across attempts, words that speak
   const whole = budget.chargeRecoveryWait(off, 3_600_000)
   t.check('the knob: 0 ⇒ the budget is off and every wait is honoured whole', off.capMs === Infinity && whole.honoredMs === 3_600_000 && whole.spent === false, JSON.stringify(whole))
   process.env.MERCURY_RECOVERY_BUDGET_MINUTES = 'junk'
-  t.check('the knob: junk ⇒ the default', budget.recoveryBudgetMs() === 5 * 60_000, String(budget.recoveryBudgetMs()))
+  t.check('the knob: junk ⇒ the default', budget.recoveryBudgetMs() === 20 * 60_000, String(budget.recoveryBudgetMs()))
   delete process.env.MERCURY_RECOVERY_BUDGET_MINUTES
   const facts = budget.recoveryNoticeFacts({ type: 'system', subtype: 'api_error', retryInMs: 40_000, retryAttempt: 2, maxRetries: 10, errorDetail: { status: 429 } })
   t.check('a recovery notice reads: the declared delay, the attempt numbers, the status', facts !== null && facts.declaredMs === 40_000 && facts.attempt === 2 && facts.of === 10 && facts.status === 429, JSON.stringify(facts))
