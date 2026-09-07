@@ -273,7 +273,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
   check(
     'the /logins catalogue carries the eight sign-in families (anthropic as claudeai+console)',
     rows.join('|') ===
-      ['claudeai', 'openai', 'console', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek'].join('|'),
+      ['openai', 'claudeai', 'console', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek'].join('|'),
     rows.join('|'),
   )
   check(
