@@ -1,4 +1,3 @@
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/featureGates.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { countMessagesTokensWithAPI, roughTokenCountEstimation } from '../services/tokenEstimation.js'
 import type { ContentBlockParam, ImageBlockParam, MessageParam, TextBlockParam } from '../types/wire.js'
@@ -16,9 +15,6 @@ export type MCPToolResult = string | ContentBlockParam[] | undefined
 export function getMaxMcpOutputTokens(): number {
   const fromEnv = parseInt(flagEnv('MERCURY_MCP_OUTPUT_TOKENS') ?? '', 10)
   if (Number.isFinite(fromEnv) && fromEnv > 0) return fromEnv
-  const flagMap = getFeatureValue_CACHED_MAY_BE_STALE<Record<string, unknown>>('mercury_satin_quoll', {})
-  const fromFlag = flagMap?.mcp_tool
-  if (typeof fromFlag === 'number' && Number.isFinite(fromFlag) && fromFlag > 0) return fromFlag
   return DEFAULT_MAX_MCP_OUTPUT_TOKENS
 }
 
