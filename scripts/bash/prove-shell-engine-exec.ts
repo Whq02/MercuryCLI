@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { plugin } from 'bun'
 import '../lib/hermetic.ts'
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ENGINE_ENV, ROOT, engineLaneState, resolveEngineUnderTest, type Engine } from './shell-engine-parity.ts'
@@ -374,6 +374,50 @@ section('§14 two owners through the seam: a process each on the system shell, a
   await row("owner A's hung command is killed by its own timeout", 'sleep 3', { code: 143, stderrMatch: /timed out/ }, { timeout: 400, owner: 'owner-a' })
   await row("owner B's shell is untouched by owner A's reset (its state kept on the engine; the system shell never held it) and its result carries no note", 'echo "[${KEEP_B:-gone}]"', { system: { code: 0, out: '[gone]', stderrMatch: /^$/ }, brush: { code: 0, out: '[kept]', stderrMatch: /^$/ } }, { owner: 'owner-b' })
   await row("owner A's next result carries the reset note on the engine (the system shell owes none)", 'echo "[${OWNER_VAR:-gone}]"', { system: { code: 0, out: '[gone]', stderrMatch: /^$/ }, brush: { code: 0, out: '[gone]', stderrMatch: /reset/ } }, { owner: 'owner-a' })
+}
+
+section('§15 a new message while a command runs: kept for the background on the system shell; stopped, and said, on the engine')
+{
+  const { spawnShellTask } = await import('../../src/tasks/LocalShellTask/LocalShellTask.tsx')
+  type State = { tasks: Record<string, { status?: string; notified?: boolean }> }
+  let state: State = { tasks: {} }
+  const setAppState = (f: (prev: State) => State): void => {
+    state = f(state)
+  }
+  const taskContext = { abortController: new AbortController(), getAppState: () => state, setAppState } as never
+  const gate = join(mkdtempSync(join(tmpdir(), 'interrupt-gate-')), 'in-flight')
+  const turn = new AbortController()
+  const handle = await exec(`: > "${gate}"; echo started; sleep 1; echo ended`, turn.signal, 'bash', { timeout: 20_000, shouldAutoBackground: false })
+  const deadline = Date.now() + 10_000
+  while (!existsSync(gate) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20))
+  check('the command is in flight (its gate file exists)', existsSync(gate))
+  turn.abort('interrupt')
+  const spawned = await spawnShellTask({ command: 'interrupt probe', description: 'interrupt probe', shellCommand: handle }, taskContext)
+  const result = await handle.result
+  check(
+    "the spawn reports acceptance truthfully: the system shell's running command is accepted; the engine's stopped command is refused",
+    engine === 'brush' ? spawned.accepted === false : spawned.accepted === true,
+    `accepted=${String(spawned.accepted)} status=${handle.status}`,
+  )
+  check(
+    "the command settles by its engine's contract: run to its end and backgrounded on the system shell; stopped and marked interrupted on the engine",
+    engine === 'brush'
+      ? result.interrupted && result.code === 137 && result.backgroundTaskId === undefined
+      : !result.interrupted && result.code === 0 && result.backgroundTaskId === spawned.taskId,
+    JSON.stringify({ code: result.code, interrupted: result.interrupted, backgroundTaskId: result.backgroundTaskId }),
+  )
+  check('a refused background settles its row from the real result, never a running phantom', engine === 'brush' ? state.tasks[spawned.taskId]?.status === 'failed' && state.tasks[spawned.taskId]?.notified === true : state.tasks[spawned.taskId]?.status !== undefined, JSON.stringify(state.tasks[spawned.taskId] ?? null)?.slice(0, 120))
+  if (spawned.accepted === false) handle.cleanup()
+  await row("the next call: the engine's result says the session was reset by the interrupt; the system shell owes no note", 'echo next', { system: { code: 0, out: 'next', stderrMatch: /^$/ }, brush: { code: 0, out: 'next', stderrMatch: /interrupted/ } })
+  const finished = await exec('echo finished', new AbortController().signal, 'bash', { timeout: 20_000, shouldAutoBackground: false })
+  await finished.result
+  const late = await spawnShellTask({ command: 'late probe', description: 'late probe', shellCommand: finished }, taskContext)
+  check('a command that already ended is refused on both engines (accepted false)', late.accepted === false, `accepted=${String(late.accepted)}`)
+  finished.cleanup()
+  const bashSrc = readFileSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx'), 'utf8')
+  const psSrc = readFileSync(join(ROOT, 'src/tools/PowerShellTool/PowerShellTool.tsx'), 'utf8')
+  check('the Bash tool never sets a background id on a refused spawn (the steer and the explicit road)', (bashSrc.match(/if \(handle\.accepted === false\)/g) ?? []).length === 2 && /if \(handle\.accepted === false\) return\n\s*backgroundId = handle\.taskId/.test(bashSrc))
+  check('the PowerShell tool keeps the same guard on both roads (parity)', (psSrc.match(/if \(handle\.accepted === false\)/g) ?? []).length === 2 && /if \(handle\.accepted === false\) return\n\s*backgroundId = handle\.taskId/.test(psSrc))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
