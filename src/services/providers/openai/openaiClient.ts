@@ -148,6 +148,7 @@ export async function* streamOpenaiResponses(
       let chunk: ReadableStreamReadResult<Uint8Array>
       try {
         chunk = await watchdog.guard(reader.read())
+        watchdog.noteActivity()
       } catch (error) {
         const isIdle = error instanceof StreamIdleTimeoutError
         const cancelled = options.signal?.aborted === true
@@ -182,7 +183,6 @@ export async function* streamOpenaiResponses(
           }
           continue
         }
-        watchdog.noteActivity()
         const payload = item.event.data
         if (payload.trim() === '[DONE]') break readLoop
         let parsed: unknown

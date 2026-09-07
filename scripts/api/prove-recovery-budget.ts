@@ -207,7 +207,7 @@ section('S6 — the words name the answer and the wait')
   check('a budget spent by stream recoveries alone says so', budget.recoveryBudgetSpentLine(recoveriesOnly) === 'the 6s retry budget is spent waiting on the provider — 1 wait in a row (1 stream recovery; the last: the stream dropped) — the agent stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECOVERY_BUDGET_MINUTES', budget.recoveryBudgetSpentLine(recoveriesOnly))
   check('every spent line names the way back', [line, mixedLine, budget.recoveryBudgetSpentLine(recoveriesOnly)].every(l => l.includes('its work is kept — a message to it resumes it')))
   check('the spent-line predicate: both shapes yes, other prose no', budget.isRecoveryBudgetSpentLine(line) && budget.isRecoveryBudgetSpentLine(mixedLine) && !budget.isRecoveryBudgetSpentLine('API Error: 529 overloaded_error') && !budget.isRecoveryBudgetSpentLine('Prompt is too long') && !budget.isRecoveryBudgetSpentLine('provider throttled — the 5m retry budget is spent after 2 declared waits'))
-  check('the knob: unset ⇒ 5 minutes', budget.recoveryBudgetMs() === 5 * 60_000)
+  check('the knob: unset ⇒ the patience setting, 20 minutes by default', budget.recoveryBudgetMs() === 20 * 60_000, String(budget.recoveryBudgetMs()))
   process.env.MERCURY_RECOVERY_BUDGET_MINUTES = '0.1'
   check('the knob: 0.1 ⇒ six seconds', budget.recoveryBudgetMs() === 6_000)
   delete process.env.MERCURY_RECOVERY_BUDGET_MINUTES

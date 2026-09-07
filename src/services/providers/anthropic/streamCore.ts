@@ -129,7 +129,7 @@ import {
   getModelMaxOutputTokens,
 } from '../../../utils/context.js'
 import { isTurnOwningQuerySource, resolveAppliedEffort } from '../../../utils/effort.js'
-import { apiTimeoutMsOverride, validateBoundedIntEnvVar } from '../../../utils/envValidation.js'
+import { validateBoundedIntEnvVar } from '../../../utils/envValidation.js'
 import { isEnvTruthy } from '../../../utils/envUtils.js'
 import { errorMessage } from '../../../utils/errors.js'
 import { computeFingerprintFromMessages } from '../../../utils/fingerprint.js'
@@ -226,11 +226,12 @@ import {
   streamActivityFetchOptions,
   createStreamIdleWatchdog,
   streamEndReceiptLine,
-  streamIdleTimeoutMs,
+  streamIdleTimeoutMsForRoute,
   streamIdleWarningMsOf,
   type RequestWaitV1,
   type StreamEndV1,
 } from '../streamIdleBudget.js'
+import { nonstreamingFallbackCeilingMs } from '../patience.js'
 import {
   configureEffortParams,
   configureTaskBudgetParams,
@@ -397,7 +398,7 @@ function shouldDeferLspTool(tool: Tool): boolean {
 }
 
 function getNonstreamingFallbackTimeoutMs(): number {
-  return apiTimeoutMsOverride() ?? 300_000
+  return nonstreamingFallbackCeilingMs()
 }
 
 export async function* executeNonStreamingRequest(
@@ -1121,7 +1122,7 @@ async function* queryModel(
           cold,
           promptTokens,
           model: getPublicModelDisplayName(context.model) ?? context.model,
-          budgetMs: firstByteBudgetMs({ cold, promptTokens }),
+          budgetMs: firstByteBudgetMs({ cold, promptTokens, idleMs: streamIdleTimeoutMsForRoute('anthropic') }),
           sinceMs: Date.now(),
           attempt,
         }
@@ -1213,7 +1214,7 @@ async function* queryModel(
     ledgerSettled = false
     isAdvisorInProgress = false
 
-    const STREAM_IDLE_TIMEOUT_MS = streamIdleTimeoutMs()
+    const STREAM_IDLE_TIMEOUT_MS = streamIdleTimeoutMsForRoute('anthropic')
     const STREAM_IDLE_WARNING_MS = streamIdleWarningMsOf(STREAM_IDLE_TIMEOUT_MS)
     let streamIdleAborted = false
     let streamedToolUse = false

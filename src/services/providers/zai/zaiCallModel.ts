@@ -16,7 +16,7 @@ import type {
   SystemAPIErrorMessage,
 } from '../../../types/message.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
-import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMs, typedStreamEndOf } from '../streamIdleBudget.js'
+import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
 import { EMPTY_USAGE } from '../../api/emptyUsage.js'
@@ -428,6 +428,7 @@ async function* streamOneZaiAttempt(ctx: {
     request,
     signal,
     baseUrl: requestUrl,
+    idleTimeoutMs: streamIdleTimeoutMsForRoute('zai'),
     firstByte: {
       cold: coldPrefixOf(ctx.messages, modelId),
       promptTokens: estimateRequestTokens(request),
@@ -498,7 +499,7 @@ async function* streamOneZaiAttempt(ctx: {
           fault,
           provider: 'Z.AI',
           tailStands: blocks.open === null && minted.at(-1)?.message.content[0]?.type === 'text',
-          silentMs: streamIdleTimeoutMs(),
+          silentMs: streamIdleTimeoutMsForRoute('zai'),
         })
       : null
 

@@ -1,3 +1,8 @@
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-numbers.ts" || fail=1; prover_mark "scripts/api/prove-patience-numbers.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-anthropic.ts" || fail=1; prover_mark "scripts/api/prove-patience-road-anthropic.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-openai.ts" || fail=1; prover_mark "scripts/api/prove-patience-road-openai.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-openaicompat.ts" || fail=1; prover_mark "scripts/api/prove-patience-road-openaicompat.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-zai.ts" || fail=1; prover_mark "scripts/api/prove-patience-road-zai.ts" "$__t"
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/providers/anthropic/** src/services/api/client* src/services/api/transportEvidence*
@@ -28,5 +33,10 @@ __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-prefix-ledger.ts" ||
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-lawful-change-owners.ts" || fail=1; prover_mark "scripts/api/prove-lawful-change-owners.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-recovery-budget.ts" || fail=1; prover_mark "scripts/api/prove-recovery-budget.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-stream-liveness-tap.ts" || fail=1; prover_mark "scripts/api/prove-stream-liveness-tap.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-numbers.ts" || fail=1; prover_mark "scripts/api/prove-patience-numbers.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-anthropic.ts" || fail=1; prover_mark "scripts/api/prove-patience-road-anthropic.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-openai.ts" || fail=1; prover_mark "scripts/api/prove-patience-road-openai.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-openaicompat.ts" || fail=1; prover_mark "scripts/api/prove-patience-road-openaicompat.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-zai.ts" || fail=1; prover_mark "scripts/api/prove-patience-road-zai.ts" "$__t"
 if [[ "$fail" == "0" ]]; then echo "✅ API SUITE GREEN"; exit 0; else
   echo "❌ API SUITE RED"; exit 1; fi

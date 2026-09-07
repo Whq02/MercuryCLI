@@ -1,13 +1,13 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { PATIENCE_NORMAL, recoveryBudgetMinutesSetting } from '../providers/patience.js'
 import { retryAfterOf } from './retryAfter.js'
 
-export const RECOVERY_BUDGET_DEFAULT_MINUTES = 5
+export const RECOVERY_BUDGET_DEFAULT_MINUTES = PATIENCE_NORMAL.recoveryBudgetMinutes
 
 export function recoveryBudgetMs(): number {
   const raw = flagEnv('MERCURY_RECOVERY_BUDGET_MINUTES')
-  if (raw === undefined || raw.trim() === '') return RECOVERY_BUDGET_DEFAULT_MINUTES * 60_000
-  const minutes = Number.parseFloat(raw)
-  if (!Number.isFinite(minutes) || minutes < 0) return RECOVERY_BUDGET_DEFAULT_MINUTES * 60_000
+  const pinned = raw === undefined || raw.trim() === '' ? Number.NaN : Number.parseFloat(raw)
+  const minutes = Number.isFinite(pinned) && pinned >= 0 ? pinned : recoveryBudgetMinutesSetting()
   return minutes === 0 ? Infinity : minutes * 60_000
 }
 
