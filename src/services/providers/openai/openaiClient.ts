@@ -17,6 +17,7 @@ import {
   firstByteTimeoutLine,
   streamIdleTimeoutMs,
   StreamIdleTimeoutError,
+  streamIdleFaultWords,
   type RequestWaitV1,
   type StreamIdleWatchdog,
 } from '../streamIdleBudget.js'
@@ -148,6 +149,7 @@ export async function* streamOpenaiResponses(
       let chunk: ReadableStreamReadResult<Uint8Array>
       try {
         chunk = await watchdog.guard(reader.read())
+        watchdog.noteActivity()
       } catch (error) {
         const isIdle = error instanceof StreamIdleTimeoutError
         const cancelled = options.signal?.aborted === true
@@ -156,7 +158,7 @@ export async function* streamOpenaiResponses(
           fault: cancelled
             ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled mid-stream', retryable: false }
             : isIdle
-              ? { kind: 'timeout', code: 'idle-timeout', message: `no bytes for ${idleMs}ms`, retryable: true }
+              ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
               : {
                   kind: 'transport-error',
                   code: 'read-failed',
@@ -182,7 +184,6 @@ export async function* streamOpenaiResponses(
           }
           continue
         }
-        watchdog.noteActivity()
         const payload = item.event.data
         if (payload.trim() === '[DONE]') break readLoop
         let parsed: unknown

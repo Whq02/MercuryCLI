@@ -34,6 +34,11 @@ import { PANEL_GRACE_MS, registerTask, updateTaskState } from '../../utils/task/
 import { emitTaskProgress } from '../../utils/task/sdkProgress.js'
 import { emitTaskTerminatedSdk } from '../../utils/sdkEventQueue.js'
 import { foldAgentWaitEvent, type AgentWaitV1 } from './agentWait.js'
+import { pauseClockWords, type AgentPauseV1 } from './agentPause.js'
+import { isSyntheticApiErrorMessage } from '../../utils/messages/factories.js'
+import { observedFamilyWindow } from '../../services/capFailover.js'
+import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
+import { getMarketingNameForModel } from '../../utils/model/model.js'
 
 
 const DEFAULT_AGENT_TYPE = 'mercury-general'
@@ -266,6 +271,7 @@ export type LocalAgentTaskState = ReturnType<typeof createTaskStateBase> & {
   pendingAsks?: number
   retrieved?: boolean
   stopReason?: string
+  paused?: AgentPauseV1
   messages?: Message[]
   lastReportedToolCount?: number
   lastReportedTokenCount?: number
@@ -312,6 +318,57 @@ export const AGENT_RESUME_NOTE =
 export const AGENT_BUDGET_RESUME_NOTE =
   "The recovery budget's allowance is back and you were resumed by yourself after it was spent waiting on the provider. Continue from where your transcript ends — the work before the cut stands; do not redo it."
 
+export const AGENT_WINDOW_RESUME_NOTE =
+  'The usage window reset and you were resumed by yourself after it paused you. Continue from where your transcript ends — the work before the pause stands; do not redo it.'
+
+export function pauseAgentTask(
+  taskId: string,
+  pause: AgentPauseV1,
+  setAppState: SetAppState,
+  registration?: AbortController,
+): void {
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (heldByAnotherRegistration(task, registration)) return task
+    if (task.status === 'running') return task
+    return { ...task, paused: pause }
+  })
+}
+
+export function usageWindowPauseOf(messages: readonly Message[], model: string | null | undefined): AgentPauseV1 | null {
+  let last: Message | undefined
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]!
+    if (message.type !== 'assistant') continue
+    last = message
+    break
+  }
+  if (last === undefined || last.type !== 'assistant' || !isSyntheticApiErrorMessage(last)) return null
+  const asked = typeof last.providerWaitEndsAtMs === 'number' && last.providerWaitEndsAtMs > Date.now() ? last.providerWaitEndsAtMs : undefined
+  if (last.error !== 'rate_limit' && asked === undefined) return null
+  const family = providerFamilyOfSetting(model ?? null)
+  const window = ((): { resetsAtMs?: number; windowName?: string } => {
+    if (last.error !== 'rate_limit') return {}
+    try {
+      return observedFamilyWindow(family, undefined, { model: model ?? null })
+    } catch {
+      return {}
+    }
+  })()
+  const who = ((): string => {
+    if (model === undefined || model === null) return family
+    try {
+      return getMarketingNameForModel(model) ?? model
+    } catch {
+      return model
+    }
+  })()
+  const resumesAtMs = asked ?? (window.resetsAtMs !== undefined && window.resetsAtMs > Date.now() ? window.resetsAtMs : undefined)
+  const until = resumesAtMs !== undefined ? ` until ${pauseClockWords(resumesAtMs)}` : ''
+  return last.error === 'rate_limit'
+    ? { why: 'usage limit', words: `${who}'s ${window.windowName ?? 'usage window'} is spent${until}`, ...(resumesAtMs !== undefined ? { resumesAtMs } : {}) }
+    : { why: 'provider busy', words: `the provider asked ${who} to wait${until}`, ...(resumesAtMs !== undefined ? { resumesAtMs } : {}) }
+}
+
 export function enqueueAgentReceiptRow(args: { taskId: string; description: string; summary: string }): void {
   const message = `<${TASK_NOTIFICATION_TAG}>
 <${TASK_ID_TAG}>${args.taskId}</${TASK_ID_TAG}>
@@ -341,6 +398,38 @@ function resolveBackgroundSignal(taskId: string): void {
     backgroundSignalResolvers.delete(taskId)
     resolve()
   }
+}
+
+export type AgentSiblingEnd = { taskId: string; description: string; status: 'failed' | 'stopped'; error?: string }
+
+const siblingEnds = new Map<string, AgentSiblingEnd>()
+
+export function releaseForegroundSiblings(end: AgentSiblingEnd, setAppState: SetAppState): string[] {
+  const released: string[] = []
+  for (const taskId of [...backgroundSignalResolvers.keys()]) {
+    if (taskId === end.taskId) continue
+    let running = false
+    updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+      if (task.status !== 'running' || task.isBackgrounded) return task
+      running = true
+      return { ...task, isBackgrounded: true }
+    })
+    if (!running) continue
+    siblingEnds.set(taskId, end)
+    resolveBackgroundSignal(taskId)
+    released.push(taskId)
+  }
+  return released
+}
+
+export function takeSiblingEnd(taskId: string): AgentSiblingEnd | null {
+  const end = siblingEnds.get(taskId) ?? null
+  siblingEnds.delete(taskId)
+  return end
+}
+
+export function resetSiblingEnds(): void {
+  siblingEnds.clear()
 }
 
 export function registerAsyncAgent(args: {
@@ -478,17 +567,24 @@ export function settleAgentForeground(
   why?: { error: string; stopReason?: string },
 ): void {
   let settled = false
+  let description = ''
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
     if (task.isBackgrounded) return task
     if (task.status !== 'running') return progress !== undefined ? { ...task, progress } : task
     settled = true
+    description = task.description
     return terminalPatch(task, status === 'stopped' ? 'killed' : status, {
       ...(progress !== undefined ? { progress } : {}),
       ...(why !== undefined ? { error: why.error, ...(why.stopReason !== undefined ? { stopReason: why.stopReason } : {}) } : {}),
     })
   })
   backgroundSignalResolvers.delete(taskId)
-  if (settled) void evictTaskOutput(taskId)
+  if (settled) {
+    void evictTaskOutput(taskId)
+    if (status !== 'completed') {
+      releaseForegroundSiblings({ taskId, description, status, ...(why !== undefined ? { error: why.error } : {}) }, setAppState)
+    }
+  }
 }
 
 
@@ -567,7 +663,10 @@ export function failAgentTask(
     return terminalPatch(task, 'failed', { error })
   })
   if (!successorHolds) void evictTaskOutput(taskId)
-  if (settled !== undefined) emitSettleFrame(settled, 'failed')
+  if (settled !== undefined) {
+    emitSettleFrame(settled, 'failed')
+    releaseForegroundSiblings({ taskId, description: settled.description, status: 'failed', error }, setAppState)
+  }
 }
 
 export function killAsyncAgent(
@@ -577,14 +676,19 @@ export function killAsyncAgent(
   registration?: AbortController,
 ): void {
   let killed = false
+  let description = ''
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
     if (task.status !== 'running') return task
     if (heldByAnotherRegistration(task, registration)) return task
     killed = true
+    description = task.description
     task.abortController?.abort()
     return terminalPatch(task, 'killed', stopReason !== undefined ? { stopReason } : {})
   })
-  if (killed) void evictTaskOutput(taskId)
+  if (killed) {
+    void evictTaskOutput(taskId)
+    releaseForegroundSiblings({ taskId, description, status: 'stopped', ...(stopReason !== undefined ? { error: stopReason } : {}) }, setAppState)
+  }
 }
 
 export function killAllRunningAgentTasks(

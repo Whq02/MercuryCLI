@@ -83,7 +83,7 @@ section('§3 D08/D09 · TIMING FEEDS THE LEDGER; THE RETRY LAW IS PURE')
   )
   check(
     'the retry backoff rides the pure law (the inline arithmetic lives ONLY in its definition)',
-    callModel.includes('const delayMs = openaiRetryDelayMs(attempt)') &&
+    callModel.includes('const delayMs = Math.max(openaiRetryDelayMs(attempt), askedMs ?? 0)') &&
       callModel.includes('setTimeout(resolve, delayMs)') &&
       (callModel.match(/OPENAI_RETRY_BACKOFF_MS \* attempt/g) ?? []).length === 1,
   )

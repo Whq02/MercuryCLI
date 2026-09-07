@@ -81,6 +81,7 @@ export type AssistantMessage = {
   requestId: string | undefined
   error?: AssistantMessageError
   errorDetails?: string
+  providerWaitEndsAtMs?: number
   overflowSignal?: OverflowSignal
   apiError?: 'max_output_tokens'
   isApiErrorMessage?: boolean

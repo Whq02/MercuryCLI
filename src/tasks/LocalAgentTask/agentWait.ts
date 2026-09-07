@@ -15,12 +15,17 @@ export type AgentWaitV1 = {
   reason?: string
   attempt?: number
   of?: number
+  streamedChars?: number
 }
 
 type StreamEventLike = {
   type?: string
   subtype?: string
-  event?: { type?: string; content_block?: { type?: string }; delta?: { type?: string } }
+  event?: {
+    type?: string
+    content_block?: { type?: string }
+    delta?: { type?: string; text?: string; thinking?: string; partial_json?: string }
+  }
   wait?: unknown
   retryInMs?: number
   retryAttempt?: number
@@ -97,11 +102,21 @@ export function foldAgentWaitEvent(prev: AgentWaitV1 | null, raw: unknown, nowMs
       }
       const blockType = ev.type === 'content_block_start' ? ev.content_block?.type : undefined
       const deltaType = ev.type === 'content_block_delta' ? ev.delta?.type : undefined
+      const streamed =
+        deltaType === 'thinking_delta'
+          ? (ev.delta?.thinking?.length ?? 0)
+          : deltaType === 'text_delta'
+            ? (ev.delta?.text?.length ?? 0)
+            : deltaType === 'input_json_delta'
+              ? (ev.delta?.partial_json?.length ?? 0)
+              : 0
+      const carried = prev !== null && (prev.phase === 'reasoning' || prev.phase === 'streaming' || prev.phase === 'replying') ? (prev.streamedChars ?? 0) : 0
+      const counted = carried + streamed
       if (blockType === 'thinking' || blockType === 'redacted_thinking' || deltaType === 'thinking_delta') {
-        return prev !== null && prev.phase === 'reasoning' ? prev : { phase: 'reasoning', sinceMs: nowMs }
+        return prev !== null && prev.phase === 'reasoning' && streamed === 0 ? prev : { phase: 'reasoning', sinceMs: prev !== null && prev.phase === 'reasoning' ? prev.sinceMs : nowMs, ...(counted > 0 ? { streamedChars: counted } : {}) }
       }
       if (blockType === 'text' || blockType === 'tool_use' || deltaType === 'text_delta' || deltaType === 'input_json_delta') {
-        return prev !== null && prev.phase === 'streaming' ? prev : { phase: 'streaming', sinceMs: nowMs }
+        return prev !== null && prev.phase === 'streaming' && streamed === 0 ? prev : { phase: 'streaming', sinceMs: prev !== null && prev.phase === 'streaming' ? prev.sinceMs : nowMs, ...(counted > 0 ? { streamedChars: counted } : {}) }
       }
       return prev
     }
@@ -151,11 +166,25 @@ export function agentWaitWords(wait: AgentWaitV1 | null | undefined, nowMs: numb
     }
     case 'replying':
       return 'first byte in, no tokens yet'
-    case 'reasoning':
-      return `reasoning${counter !== null ? ` ${counter}` : ''}, no tokens yet`
-    case 'streaming':
-      return 'streaming'
+    case 'reasoning': {
+      const streamed = streamedTokensWords(wait.streamedChars)
+      return `reasoning${counter !== null ? ` ${counter}` : ''}${streamed !== null ? ` · ${streamed}` : ', no tokens yet'}`
+    }
+    case 'streaming': {
+      const streamed = streamedTokensWords(wait.streamedChars)
+      return streamed !== null ? `streaming · ${streamed}` : 'streaming'
+    }
     case 'tool':
       return null
   }
+}
+
+const CHARS_PER_TOKEN = 4
+
+export function streamedTokensWords(streamedChars: number | undefined): string | null {
+  if (streamedChars === undefined || !Number.isFinite(streamedChars)) return null
+  const tokens = Math.round(streamedChars / CHARS_PER_TOKEN)
+  if (tokens < 10) return null
+  const figure = tokens >= 1000 ? `${(tokens / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(tokens)
+  return `~${figure} tokens so far`
 }
