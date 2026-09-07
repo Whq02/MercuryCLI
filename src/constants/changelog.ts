@@ -24,12 +24,10 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed finished background commands to collapse into one transcript line while the model is busy; a failed one keeps its title
 - Changed the sign-in list in the Logins screen, /logins and the first run to put OpenAI first
 - Changed voice input to prefer the on-device transcriber when its pack and model are present; a signed-in cloud transcriber serves otherwise, or when chosen with /speak options or MERCURY_VOICE_TRANSCRIBER
-- Changed the command line to one spelling per option: --allowed-tools, --disallowed-tools, --dangerously-bypass-permissions and --allow-dangerously-bypass-permissions; the camel-case and "skip" spellings are gone
-- Changed mercury setup-token to mercury auth token, and an option Mercury does not know is refused with exit code 2
-- Changed every environment switch to a MERCURY_ spelling (MERCURY_MODEL, MERCURY_API_TIMEOUT_MS, MERCURY_MCP_TIMEOUT_MS, MERCURY_PROMPT_CACHING=0, MERCURY_BARE and the rest); ANTHROPIC_MODEL, API_TIMEOUT_MS, MCP_TIMEOUT, MERCURY_SIMPLE and the DISABLE_* family are no longer read
+- Changed an option Mercury does not know to be refused with exit code 2
 - Changed the stream-json feed to spell every key it defines in snake_case at every depth (feed contract 3); provider, tool, hook and permission-rule shapes keep their own spellings
-- Changed a settings file carrying an older key or tool name (Task is now Agent, KillShell is TaskStop, EnterPlanMode and ExitPlanMode are EnterStrategyMode and ExitStrategyMode) to be rewritten in place on first read, a project's checked-in file included
-- Changed the macOS keychain read to Mercury's own entry, one per config home; a sign-in read from another tool's entry or stored by a much older build asks for one fresh sign-in
+- Changed a settings file written for an older version to be rewritten in place the first time it is read, a project's checked-in file included; it shows as modified once
+- Changed the macOS keychain to one entry per config home; a sign-in stored by a much older build asks for one fresh sign-in
 - Changed the MCP connection memory to keep a server's fingerprint instead of its full configuration
 - Removed the "ultra" effort level; effort now ends at max
 - Removed the .mercury/commands folder from the project command search; move a command to .mercury/skills/<name>/SKILL.md
