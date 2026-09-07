@@ -13,7 +13,7 @@ import type {
 import type { CompactMetadata, HookResultMessage } from '../../types/message.js'
 import type { UUID } from 'node:crypto'
 import { getAgentRosterAttachment, queuedNoticeTaskIds } from '../../utils/attachments/agentRoster.js'
-import { getDeferredToolsDeltaAttachment, getAgentListingDeltaAttachment, getMcpInstructionsDeltaAttachment } from '../../utils/attachments/deltas.js'
+import { getDeferredToolsDeltaAttachment, getMcpInstructionsDeltaAttachment } from '../../utils/attachments/deltas.js'
 import { generateFileAttachment } from '../../utils/attachments/fileAttachments.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import { getUserContextAttachment } from '../../utils/attachments/userContext.js'
@@ -954,7 +954,6 @@ async function assembleAttachments(
   const model = context.options.mainLoopModel
   const deltas = [
     ...getDeferredToolsDeltaAttachment(context.options.tools, model, preserved, { callSite }),
-    ...getAgentListingDeltaAttachment(context, preserved),
     ...getMcpInstructionsDeltaAttachment(context.options.mcpClients, context.options.tools, model, preserved),
   ]
   for (const delta of deltas) attachments.push(createAttachmentMessage(delta))

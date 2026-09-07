@@ -1,11 +1,9 @@
 
 import {
   getIsNonInteractiveSession,
-  isAssistantFamilyAvailable,
   isAssistantSessionActive,
   getUserMsgOptIn,
 } from '../../bootstrap/state.js'
-import { getFeatureValue_CACHED_WITH_REFRESH } from '../../services/analytics/featureGates.js'
 import { buildTool } from '../../Tool.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
@@ -21,9 +19,6 @@ import * as UI from './UI.js'
 
 const RESULT_SIZE_CAP = 100_000
 
-const BRIEF_FEATURE_GATE = 'mercury_assistant_brief'
-const BRIEF_GATE_REFRESH_MS = 5 * 60_000
-
 export function isBriefEntitled(): boolean {
   if (flagEnv('MERCURY_BRIEF') === '0') return false
   const explicitBriefOptIn =
@@ -33,15 +28,7 @@ export function isBriefEntitled(): boolean {
   if (getIsNonInteractiveSession() && !explicitBriefOptIn) {
     return false
   }
-  return (
-    isAssistantFamilyAvailable() ||
-    isEnvTruthy(flagEnv('MERCURY_BRIEF')) ||
-    getFeatureValue_CACHED_WITH_REFRESH(
-      BRIEF_FEATURE_GATE,
-      true,
-      BRIEF_GATE_REFRESH_MS,
-    )
-  )
+  return true
 }
 
 export function isBriefEnabled(): boolean {

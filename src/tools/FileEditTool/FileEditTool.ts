@@ -29,7 +29,6 @@ import {
 } from '../../services/changeTransaction/snapshotAnchor.js'
 import { serializeIntentDigest } from '../../services/changeTransaction/repetitionPolicy.js'
 import { diagnosticTracker } from '../../services/diagnosticTracking.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { clearDeliveredDiagnosticsForFile } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
