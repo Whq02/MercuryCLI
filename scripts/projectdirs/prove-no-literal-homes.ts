@@ -20,15 +20,12 @@ const JOIN_ALLOWLIST: Record<string, string> = {
   'src/services/projectIntel/impact.ts': 'scan-ignore vocabulary (both homes)',
   'src/skills/loadSkillsDir.ts': 'managed-policy dir joins (external convention); project paths ride the seam',
   'src/utils/config/derived.ts': 'managed-policy dir join + user-scope compat file names',
-  'src/utils/healthReport.ts': 'foreign-artifact + foreign-home comparison rows (deliberate cross-harness checks)',
-  'src/utils/secureStorage/macOsKeychainHelpers.ts': 'foreign-home comparison (bare vs suffixed keychain service)',
   'src/utils/accounts/scopeScan.ts': 'the foreign identity file + the Claude-family basename test (class isolation)',
 }
 
 const PROSE_ALLOWLIST: Record<string, string> = {
   'src/constants/prompts.ts':
     'the .mercury parcel doctrine — operator-ruled instruction prose names the project-local working directory',
-  'src/tools/FileEditTool/constants.ts': 'legacy permission-pattern vocabulary (saved rules keep matching; recognizer accepts the estate triple)',
  'src/tools/EnterWorktreeTool/prompt.ts': 'truthful naming of the worktree store under the project-local home',
   'src/services/privateChannel/installLayout.ts': 'the stable shim BODY carries the full home chain (the D-1 runtime mirror)',
   'src/substrate/flagRegistry.ts': 'registry off:/summary prose names the sticky store truthfully (F9)',
