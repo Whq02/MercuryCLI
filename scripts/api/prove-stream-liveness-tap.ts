@@ -20,9 +20,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const BUDGET_MS = 120
+const BUDGET_MS = 600
 const PING_EVERY_MS = 20
-const PINGS = 12
+const PINGS = 60
 
 type Run = { sentPings: number; yielded: number; terminal: boolean; fire: ReturnType<ReturnType<typeof idle.createStreamIdleWatchdog>['fired']>; noted: number }
 
