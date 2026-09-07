@@ -131,6 +131,7 @@ src/services/mcp/client.ts :: fetchCommandsForClient :: invalidator=transport.on
 src/services/mcp/client.ts :: fetchResourcesForClient :: invalidator=transport.onclose
 src/services/mcp/client.ts :: fetchToolsForClientMemo :: invalidator=transport.onclose
 src/services/mcp/client.ts :: needsAuthReadMemo :: invalidator=clearMcpAuthCache
+src/services/mcp/eraVerdictCache.ts :: readMemo :: invalidator=resetEraVerdictMemo
 src/services/mission/harnessApplication.ts :: liveEpochMemo :: keyed-by-truth
 src/services/mission/harnessProfiles.ts :: resolutionCache :: keyed-by-truth
 src/services/privateChannel/installProvenance.ts :: memoized :: static-for-process
