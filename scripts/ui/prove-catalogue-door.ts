@@ -24,7 +24,7 @@ const DOOR = row('__mercury_openrouter_expand__', 'OpenRouter — 30 models live
 const STALE = row('__mercury_openrouter_connect__', 'OpenRouter — catalogue stale (3m)', OR, { action: true })
 const topN = Array.from({ length: 24 }, (_, i) => row(`openrouter/v/m-${i}`, `M ${i}`, OR))
 const full = Array.from({ length: 30 }, (_, i) => (i === 27 ? row('openrouter/deepvendor/needle-model', 'Needle Model', OR) : row(`openrouter/v/m-${i}`, `M ${i}`, OR)))
-const listed: Row[] = [row('default', 'Default', AN), row('claude-opus-5', 'Opus 5', AN), STALE, ...topN, DOOR, row('huggingface/o/x', 'X', HF)]
+const listed: Row[] = [row('claude-fable-5-1', 'Fable 5.1', AN), row('claude-opus-5', 'Opus 5', AN), STALE, ...topN, DOOR, row('huggingface/o/x', 'X', HF)]
 const ids = (rows: readonly Row[]): string => rows.map(r => r.id).join(',')
 
 console.log('============================================================')
@@ -41,7 +41,7 @@ console.log('[1] closed')
 console.log('[2] open, empty filter')
 {
   const out = composeCatalogueRows(listed, OR, '', full)
-  check('the rows before the group and the group\'s other action row keep their place', out[0]?.id === 'default' && out[1]?.id === 'claude-opus-5' && out[2]?.id === STALE.id)
+  check('the rows before the group and the group\'s other action row keep their place', out[0]?.id === 'claude-fable-5-1' && out[1]?.id === 'claude-opus-5' && out[2]?.id === STALE.id)
   const header = out[3]
   check('the header sits where the group\'s first model row sat, on the door\'s id, facet open', header?.id === DOOR.id && header?.expand?.open === true && header?.expand?.group === OR && header?.action === true)
   check('the header sentence is exact', header?.name === 'OpenRouter — 30 live · filter:  · esc collapse' && catalogueDoorHeader({ family: 'OpenRouter', total: 30 }, 'abc') === 'OpenRouter — 30 live · filter: abc · esc collapse')

@@ -25,7 +25,6 @@ import type { ModelOption } from '../../src/utils/model/modelOptions.ts'
 
 console.log('§1 the fold over an injected provider-equal catalogue')
 const cat: ModelOption[] = [
-  { value: null, label: 'Recommended', description: 'the default row never folds' },
   { value: 'sonnet', label: 'Sonnet 5', description: '' },
   { value: 'sonnet[1m]', label: 'Sonnet 5 (1M context)', description: 'the suffixed twin collapses' },
   { value: 'claude-opus-4-6', label: 'Opus 4.6', description: 'dots meet hyphens' },

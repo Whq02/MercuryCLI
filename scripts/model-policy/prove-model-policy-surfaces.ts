@@ -83,7 +83,7 @@ console.log('\n§4 picker: pin row + fallback row + dedup law')
     return end === -1 ? '' : options.slice(start, end)
   })()
   check(
-    'the decision no longer touches the Fable row (neutrality ruling: model rows carry EMPTY descriptions; the decision projects only through the Default row and the Opus fallback)',
+    'the Fable option has no description and does not consult the default decision',
     fableRowBody.includes("description: ''") && !fableRowBody.includes('isFableAvailable'),
   )
   check(
@@ -95,7 +95,6 @@ console.log('\n§4 picker: pin row + fallback row + dedup law')
     !options.includes("value: 'claude-fable-5'"),
   )
   const rows: ModelOption[] = [
-    { value: null, label: 'Default (recommended)', description: 'x' },
     { value: 'fable[1m]', label: 'Fable 5.1', description: 'x' },
     { value: 'opus[1m]', label: 'Opus', description: 'x' },
   ]

@@ -230,7 +230,7 @@ export async function composeWorkerModelRegistry(): Promise<WorkerModelRegistryV
     }
   }
   for (const o of getModelOptions()) {
-    const v = typeof o.value === 'string' ? o.value : null
+    const v = o.value
     if (!v || v.startsWith('__')) continue
     const modelId = await canonicalWorkerModelId(v)
     if (seen.has(modelId)) continue

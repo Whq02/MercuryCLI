@@ -34,17 +34,16 @@ import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeyb
 const VISIBLE_OPTIONS = 10
 
 export type Props = {
-  initial: string | null
+  initial: string
   sessionModel?: string | null
-  onSelect: (model: string | null, effort: EffortLevel | undefined) => void
+  onSelect: (model: string, effort: EffortLevel | undefined) => void
   onCancel?: () => void
   isStandaloneCommand?: boolean
   headerText?: string
   skipSettingsWrite?: boolean
 }
 
-function initialContextToggle(value: string | null): boolean {
-  if (value === null) return false
+function initialContextToggle(value: string): boolean {
   return stripContext1m(value) !== value
 }
 
@@ -61,9 +60,8 @@ export function ModelPicker({
   const setAppState = useSetAppState()
   const appStateEffort = useAppState((s: AppState) => s.effortValue)
   const options = useMemo(() => {
-    const catalogue = getModelOptions().filter(o => o.unavailable === undefined && !(typeof o.value === 'string' && isCatalogueDoorRow(o.value)))
+    const catalogue = getModelOptions().filter(o => o.unavailable === undefined && !isCatalogueDoorRow(o.value))
     if (
-      initial !== null &&
       !resolvesToExistingOption(catalogue, initial) &&
       !catalogue.some(option => option.value === initial)
     ) {
@@ -79,39 +77,31 @@ export function ModelPicker({
 
   const focusDefault = options.some(option => option.value === initial)
     ? initial
-    : (options[0]?.value ?? null)
+    : options[0]!.value
 
-  const [focusedValue, setFocusedValue] = useState<string | null>(focusDefault)
+  const [focusedValue, setFocusedValue] = useState(focusDefault)
 
   const [effortToggled, setEffortToggled] = useState(false)
   const [effortLevel, setEffortLevel] = useState<EffortLevel | undefined>(
     () =>
       toPersistableEffort(appStateEffort) ??
-      (focusDefault !== null
-        ? toPersistableEffort(getDefaultEffortForModel(focusDefault))
-        : undefined),
+      toPersistableEffort(getDefaultEffortForModel(focusDefault)),
   )
   const [contextToggle, setContextToggle] = useState(() =>
     initialContextToggle(focusDefault),
   )
 
-  const focusedModel =
-    focusedValue !== null ? stripContext1m(focusedValue) : null
-  const focusedSupportsEffort =
-    focusedModel !== null && modelSupportsEffort(focusedModel)
+  const focusedModel = stripContext1m(focusedValue)
+  const focusedSupportsEffort = modelSupportsEffort(focusedModel)
   const focusedSupports1m = focusedOptionSupports1m(focusedValue)
 
   const onFocusOption = useCallback(
-    (value: string | null) => {
+    (value: string) => {
       setFocusedValue(value)
       setContextToggle(initialContextToggle(value))
       if (!effortToggled && toPersistableEffort(appStateEffort) === undefined) {
         setEffortLevel(
-          value !== null
-            ? toPersistableEffort(
-                getDefaultEffortForModel(stripContext1m(value)),
-              )
-            : undefined,
+          toPersistableEffort(getDefaultEffortForModel(stripContext1m(value))),
         )
       }
     },
@@ -120,7 +110,7 @@ export function ModelPicker({
 
   const cycleEffort = useCallback(
     (direction: 'left' | 'right') => {
-      if (focusedModel === null || !focusedSupportsEffort) return
+      if (!focusedSupportsEffort) return
       setEffortToggled(true)
       setEffortLevel(current =>
         cycleSelectableEffort(focusedModel, current, direction),
@@ -138,16 +128,14 @@ export function ModelPicker({
   })
 
   const handleSelect = useCallback(
-    (value_0: string | null) => {
+    (value_0: string) => {
       const chosen =
-        value_0 !== null &&
         contextToggle &&
         focusedOptionSupports1m(value_0)
           ? withContext1m(value_0)
           : value_0
-      const chosenModel = chosen !== null ? stripContext1m(chosen) : null
-      const supportsEffort =
-        chosenModel !== null && modelSupportsEffort(chosenModel)
+      const chosenModel = stripContext1m(chosen)
+      const supportsEffort = modelSupportsEffort(chosenModel)
       const toggledLevel = effortToggled ? effortLevel : undefined
 
       if (!skipSettingsWrite) {
@@ -156,9 +144,7 @@ export function ModelPicker({
         }
         const persisted = resolvePickerEffortPersistence(
           toggledLevel,
-          chosenModel !== null
-            ? toPersistableEffort(getDefaultEffortForModel(chosenModel))
-            : undefined,
+          toPersistableEffort(getDefaultEffortForModel(chosenModel)),
           getInitialEffortSetting(),
           effortToggled,
         )
@@ -189,7 +175,6 @@ export function ModelPicker({
   const exitState = useExitOnCtrlCDWithKeybindings(() => onCancel?.())
 
   const effortRow = ((): React.ReactNode => {
-    if (focusedModel === null) return null
     if (!focusedSupportsEffort) {
       return (
         <Text dimColor>
@@ -243,7 +228,7 @@ export function ModelPicker({
         options={options.map(option => ({
           label: option.label,
           description: option.description,
-          value: option.value as string | null,
+          value: option.value,
         }))}
         defaultFocusValue={focusDefault}
         visibleOptionCount={VISIBLE_OPTIONS}

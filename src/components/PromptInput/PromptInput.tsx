@@ -558,7 +558,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     hasSuppressedDialogs
 
   const [transitionConfirm, setTransitionConfirm] = useState<{
-    value: string | null
+    value: string
     plan: TransitionPlan
     refreshed: boolean
   } | null>(null)
@@ -660,7 +660,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     })
   }
 
-  const handleModelSelect = (value: string | null): void => {
+  const handleModelSelect = (value: string): void => {
     if (value === ANTHROPIC_CONNECT_OPTION_VALUE) {
       setOverlay(null)
       requestCommandDispatch('/logins anthropic')
@@ -677,7 +677,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       return
     }
     {
-      const keyLane = value === null ? undefined : parseKeyConnectValue(value)
+      const keyLane = parseKeyConnectValue(value)
       if (keyLane !== undefined) {
         setOverlay(null)
         if (keyLane === 'compat') {
@@ -2479,7 +2479,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         plan={held.plan}
         targetUsability={usabilityForRoute(held.plan.targetRoute)}
         fromLabel={renderModelName(effectiveNow)}
-        toLabel={held.value === null ? 'Default' : renderModelName(held.value)}
+        toLabel={renderModelName(held.value)}
         refreshed={held.refreshed}
         onConfirm={() => {
           const verdict = reconfirmTransitionPlan(held.plan, messages)
@@ -2506,7 +2506,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   if (overlay === 'model-picker') {
     return (
       <ModelPicker
-        initial={mainLoopModelForSession ?? mainLoopModel}
+        initial={mainLoopModelForSession ?? mainLoopModel ?? focusedMainModel}
         sessionModel={mainLoopModelForSession}
         onSelect={value => handleModelSelect(value)}
         onCancel={() => setOverlay(null)}
