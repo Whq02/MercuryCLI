@@ -23,7 +23,7 @@ export interface CellFrameHandlers {
   onStderr: (chunk: string) => void
   onDisplay: (frame: Extract<RunnerFrame, { t: 'display' }>) => void
   onResult: (repr: string) => void
-  onError: (error: { name: string; value: string; traceback: string }) => void
+  onError: (error: { name: string; value: string; traceback: string; survived?: string[] }) => void
   onBridge: (frame: BridgeRequestFrame) => void
 }
 
@@ -187,7 +187,7 @@ export class ProcKernel {
         return
       case 'error':
         if (frame.id === this.currentCellId) {
-          this.handlers?.onError({ name: frame.name, value: frame.value, traceback: frame.traceback })
+          this.handlers?.onError({ name: frame.name, value: frame.value, traceback: frame.traceback, ...(frame.survived !== undefined ? { survived: frame.survived } : {}) })
         }
         return
       case 'bridge':
@@ -240,7 +240,7 @@ export class ProcKernel {
     this.send({ t: 'bridge_result', bridgeId, ok, ...(ok ? { value } : { error }) })
   }
 
-  exec(cellId: string, code: string, handlers: CellFrameHandlers): Promise<CellEnd> {
+  exec(cellId: string, code: string, handlers: CellFrameHandlers, names?: string[]): Promise<CellEnd> {
     if (this.currentCellId !== null) {
       return Promise.resolve({ kind: 'done', status: 'error' })
     }
@@ -253,7 +253,7 @@ export class ProcKernel {
     this.pendingDone = null
     return new Promise<CellEnd>(resolve => {
       this.cellEnd = resolve
-      this.send({ t: 'exec', id: cellId, code, seq: this.executionCount })
+      this.send({ t: 'exec', id: cellId, code, seq: this.executionCount, ...(names !== undefined ? { names } : {}) })
     })
   }
 
