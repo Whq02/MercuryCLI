@@ -1,6 +1,5 @@
 import memoize from 'lodash-es/memoize.js'
 
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/featureGates.js'
 import type { Tool, ToolPermissionContext, Tools } from '../Tool.js'
 import { toolMatchesName } from '../Tool.js'
 import { formatDeferredToolLine, isDeferredTool, TOOL_SEARCH_TOOL_NAME } from '../tools/ToolSearchTool/prompt.js'
@@ -78,15 +77,8 @@ export function getAutoToolSearchCharThreshold(model: string): number {
 const DEFAULT_UNSUPPORTED_PATTERNS = ['haiku']
 
 export function modelSupportsToolReference(model: string): boolean {
-  let patterns = DEFAULT_UNSUPPORTED_PATTERNS
-  try {
-    const fromGate = getFeatureValue_CACHED_MAY_BE_STALE<string[]>('mercury_tool_search_unsupported_models', [])
-    if (Array.isArray(fromGate) && fromGate.length > 0) patterns = fromGate
-  } catch {
-    patterns = DEFAULT_UNSUPPORTED_PATTERNS
-  }
   const lowered = model.toLowerCase()
-  return !patterns.some(pattern => lowered.includes(pattern.toLowerCase()))
+  return !DEFAULT_UNSUPPORTED_PATTERNS.some(pattern => lowered.includes(pattern))
 }
 
 let optimisticDebugEmitted = false
