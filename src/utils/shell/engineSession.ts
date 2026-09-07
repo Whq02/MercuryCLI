@@ -111,29 +111,29 @@ type LiveSession = {
   stderrBuf: Buffer
 }
 
-type Lane = {
+type OwnerSession = {
   owner: string
-  session: LiveSession | null
+  live: LiveSession | null
   queue: Promise<unknown>
   pendingResetNote: string | null
   reserved: boolean
 }
 const MAIN_OWNER = 'main conversation'
-const lanes = new Map<string, Lane>()
-function laneFor(owner: string): Lane {
-  let lane = lanes.get(owner)
-  if (lane === undefined) {
-    lane = { owner, session: null, queue: Promise.resolve(), pendingResetNote: null, reserved: false }
-    lanes.set(owner, lane)
+const sessions = new Map<string, OwnerSession>()
+function sessionFor(owner: string): OwnerSession {
+  let owned = sessions.get(owner)
+  if (owned === undefined) {
+    owned = { owner, live: null, queue: Promise.resolve(), pendingResetNote: null, reserved: false }
+    sessions.set(owner, owned)
   }
-  return lane
+  return owned
 }
 
 function liveAgentSessions(): number {
   let count = 0
-  for (const lane of lanes.values()) {
-    if (lane.owner === MAIN_OWNER) continue
-    if (lane.reserved || (lane.session !== null && !lane.session.exited)) count++
+  for (const owned of sessions.values()) {
+    if (owned.owner === MAIN_OWNER) continue
+    if (owned.reserved || (owned.live !== null && !owned.live.exited)) count++
   }
   return count
 }
@@ -152,7 +152,7 @@ function announceRelease(): void {
 const CEILING_WORDS = 'the shellEngineSessions setting, or the MERCURY_SHELL_ENGINE_SESSIONS pin'
 
 async function admitAgentSession(
-  lane: Lane,
+  owned: OwnerSession,
   ceiling: number,
   taskOutput: TaskOutput,
   options: EngineExecOptions,
@@ -164,12 +164,12 @@ async function admitAgentSession(
     }
   }
   if (liveAgentSessions() < share) {
-    lane.reserved = true
+    owned.reserved = true
     return 'admitted'
   }
   const rowNote = (): string =>
     `waiting for a free shell engine session: ${liveAgentSessions()} of ${share} sub-agent sessions are in use (the ceiling is ${ceiling}; a session frees when an agent ends)`
-  waitingOwners.add(lane.owner)
+  waitingOwners.add(owned.owner)
   taskOutput.setLiveNotice(rowNote())
   taskOutput.emitLiveView()
   let onAbort: (() => void) | undefined
@@ -191,14 +191,14 @@ async function admitAgentSession(
         }
       }
       if (liveAgentSessions() < share) {
-        lane.reserved = true
+        owned.reserved = true
         return 'admitted'
       }
       taskOutput.setLiveNotice(rowNote())
       taskOutput.emitLiveView()
     }
   } finally {
-    waitingOwners.delete(lane.owner)
+    waitingOwners.delete(owned.owner)
     taskOutput.setLiveNotice(null)
     if (timer !== undefined) clearTimeout(timer)
     if (onAbort !== undefined) options.signal.removeEventListener('abort', onAbort)
@@ -383,7 +383,7 @@ export type EngineExecOptions = {
 }
 
 export function runEngineCommand(binaryPath: string, command: string, options: EngineExecOptions): ShellCommand {
-  const lane = laneFor(options.owner ?? MAIN_OWNER)
+  const owned = sessionFor(options.owner ?? MAIN_OWNER)
   const taskId = generateTaskId('local_bash')
   const taskOutput = new TaskOutput(taskId, options.onProgress ?? null, false)
 
@@ -401,7 +401,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
     resolveResult(execResult)
   }
 
-  lane.queue = lane.queue.then(() => execute()).catch(error => {
+  owned.queue = owned.queue.then(() => execute()).catch(error => {
     logForDebugging(`engine command failed unexpectedly: ${errorMessage(error)}`)
     settle({ stdout: '', stderr: `shell engine error: ${errorMessage(error)}`, code: 1, interrupted: false })
   })
@@ -412,13 +412,13 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       return
     }
     if (settled) return
-    if (lane.session !== null && lane.session.exited) {
-      lane.session = null
-      lane.pendingResetNote ??=
+    if (owned.live !== null && owned.live.exited) {
+      owned.live = null
+      owned.pendingResetNote ??=
         'the shell engine session ended between commands and was restarted; variables, functions and shell options set earlier in this session were lost (the working directory is preserved).'
     }
-    let inheritedNote = lane.pendingResetNote
-    lane.pendingResetNote = null
+    let inheritedNote = owned.pendingResetNote
+    owned.pendingResetNote = null
     const withInherited = (stderr: string, interrupted: boolean): string =>
       inheritedNote !== null && !interrupted ? (stderr ? `${inheritedNote} ${stderr}` : inheritedNote) : stderr
 
@@ -429,16 +429,16 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
     }
 
     const sandbox: EngineSandboxPolicy = options.sandbox ?? { enabled: false }
-    if (lane.session !== null && !lane.session.exited && lane.session.sandboxed !== sandbox.enabled) {
-      await killSession(lane.session)
-      lane.session = null
+    if (owned.live !== null && !owned.live.exited && owned.live.sandboxed !== sandbox.enabled) {
+      await killSession(owned.live)
+      owned.live = null
       const policyNote = `the shell engine session was restarted because this command runs ${sandbox.enabled ? 'inside' : 'outside'} the sandbox and the previous session ran ${sandbox.enabled ? 'outside' : 'inside'} it (the sandbox policy is the call's); variables, functions and shell options set earlier in this session were lost (the working directory is preserved).`
       inheritedNote = inheritedNote === null ? policyNote : `${inheritedNote} ${policyNote}`
     }
 
-    if (lane.owner !== MAIN_OWNER && (lane.session === null || lane.session.exited)) {
+    if (owned.owner !== MAIN_OWNER && (owned.live === null || owned.live.exited)) {
       const ceiling = options.sessionCeiling ?? resolveEngineSessionCeiling()
-      const admission = await admitAgentSession(lane, ceiling, taskOutput, options)
+      const admission = await admitAgentSession(owned, ceiling, taskOutput, options)
       if (admission === 'aborted') {
         settle({ stdout: '', stderr: 'Command was aborted before execution', code: 145, interrupted: true })
         return
@@ -451,7 +451,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
 
     let live: LiveSession
     try {
-      live = await ensureSession(lane, binaryPath, sandbox)
+      live = await ensureSession(owned, binaryPath, sandbox)
     } catch (error) {
       settle({ stdout: '', stderr: withInherited(`shell engine failed to start: ${errorMessage(error)}`, false), code: 1, interrupted: false, preSpawnError: errorMessage(error) })
       return
@@ -529,8 +529,8 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       live.reader = () => tryComplete()
       live.onExit = code => {
         flushUpTo(live.buffer.length)
-        lane.session = null
-        lane.pendingResetNote =
+        owned.live = null
+        owned.pendingResetNote =
           'the shell session was reset after that command ended it; variables, functions and shell options set earlier in this session were lost (the working directory is preserved).'
         void done({ stderr: '', code: code ?? 1, interrupted: false })
       }
@@ -539,8 +539,8 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
         status = 'killed'
         flushUpTo(live.buffer.length)
         void killSession(live)
-        lane.session = null
-        lane.pendingResetNote =
+        owned.live = null
+        owned.pendingResetNote =
           'the shell engine session was reset after the command hit its timeout; earlier variables, functions and options were lost (the working directory is preserved).'
         void done({ stderr: `Command timed out after ${Math.round(options.timeout / 1000)}s.`, code: 143, interrupted: false })
       }, options.timeout)
@@ -549,8 +549,8 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
         status = 'killed'
         flushUpTo(live.buffer.length)
         void killSession(live)
-        lane.session = null
-        lane.pendingResetNote =
+        owned.live = null
+        owned.pendingResetNote =
           'the shell engine session was reset after the command was interrupted; earlier variables, functions and options were lost (the working directory is preserved).'
         void done({ stderr: '', code: 137, interrupted: true })
       }
@@ -570,10 +570,10 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
   const kill = (): void => {
     if (settled) return
     status = 'killed'
-    if (lane.session) {
-      void killSession(lane.session)
-      lane.session = null
-      lane.pendingResetNote =
+    if (owned.live) {
+      void killSession(owned.live)
+      owned.live = null
+      owned.pendingResetNote =
         'the shell engine session was reset after the command was stopped; earlier variables, functions and options were lost (the working directory is preserved).'
     }
     settle({ stdout: '', stderr: '', code: 137, interrupted: true })
@@ -593,20 +593,20 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
   }
 }
 
-async function ensureSession(lane: Lane, binaryPath: string, sandbox: EngineSandboxPolicy): Promise<LiveSession> {
-  if (lane.session !== null && !lane.session.exited) {
-    lane.reserved = false
-    return lane.session
+async function ensureSession(owned: OwnerSession, binaryPath: string, sandbox: EngineSandboxPolicy): Promise<LiveSession> {
+  if (owned.live !== null && !owned.live.exited) {
+    owned.reserved = false
+    return owned.live
   }
   try {
-    lane.session = await spawnSession(binaryPath, sandbox)
+    owned.live = await spawnSession(binaryPath, sandbox)
   } catch (error) {
-    lane.reserved = false
+    owned.reserved = false
     announceRelease()
     throw error
   }
-  lane.reserved = false
-  return lane.session
+  owned.reserved = false
+  return owned.live
 }
 
 async function killSession(live: LiveSession): Promise<void> {
@@ -668,19 +668,19 @@ function parseCheck(binaryPath: string, command: string): Promise<{ ok: boolean;
 }
 
 export async function endEngineSessionFor(owner: string): Promise<void> {
-  const lane = lanes.get(owner)
-  if (lane === undefined) return
-  lanes.delete(owner)
-  const live = lane.session
-  lane.session = null
-  lane.pendingResetNote = null
-  lane.reserved = false
+  const owned = sessions.get(owner)
+  if (owned === undefined) return
+  sessions.delete(owner)
+  const live = owned.live
+  owned.live = null
+  owned.pendingResetNote = null
+  owned.reserved = false
   announceRelease()
   if (live !== null && !live.exited) await killSession(live)
 }
 
 export async function endEngineSession(): Promise<void> {
-  await Promise.all([...lanes.keys()].map(owner => endEngineSessionFor(owner)))
+  await Promise.all([...sessions.keys()].map(owner => endEngineSessionFor(owner)))
 }
 
 let cleanupRegistered = false
@@ -691,7 +691,7 @@ function registerEngineCleanup(): void {
 }
 
 export function engineChildForTest(owner: string = MAIN_OWNER): ChildProcess | null {
-  return lanes.get(owner)?.session?.child ?? null
+  return sessions.get(owner)?.live?.child ?? null
 }
 
 export function engineWaitingOwnersForTest(): string[] {
@@ -699,10 +699,10 @@ export function engineWaitingOwnersForTest(): string[] {
 }
 
 export function resetEngineSessionForTest(): void {
-  for (const lane of lanes.values()) {
-    if (lane.session) void killSession(lane.session)
+  for (const owned of sessions.values()) {
+    if (owned.live) void killSession(owned.live)
   }
-  lanes.clear()
+  sessions.clear()
   announceRelease()
   snapshotPromise = null
   packResolution = null
