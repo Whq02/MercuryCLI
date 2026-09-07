@@ -178,7 +178,7 @@ section('B. the AgentTool parent boundary')
   check('B1 the completed trailer carries the envelope block',
     trailer.includes('<envelope v="1" status="completed">') &&
     trailer.includes('full output: mercury://agent/'))
-  const oneShot = map({ ...data, agentType: 'Explore' }, 'toolu_b2')
+  const oneShot = map({ ...data, agentType: 'mercury-scout' }, 'toolu_b2')
   check('B2 one-shot builtins still drop the whole trailer (envelope included)',
     (oneShot.content as unknown[]).length === 1)
   const noEnvelope = map({ ...data, agentId: 'other-agent' }, 'toolu_b3')

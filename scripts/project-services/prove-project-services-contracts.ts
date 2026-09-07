@@ -206,7 +206,7 @@ section('B. Agent parent-boundary shape (mapToolResultToToolResultBlockParam)')
   check('B3 empty completion carries the explicit no-output marker',
     emptyTexts[0]?.includes('The subagent finished without producing any output'))
 
-  const oneShot = map({ ...base, agentType: 'Explore' }, 'toolu_fixture')
+  const oneShot = map({ ...base, agentType: 'mercury-scout' }, 'toolu_fixture')
   check('B4 one-shot builtin drops the agentId/usage trailer',
     (oneShot.content as unknown[]).length === 1)
 }
