@@ -295,8 +295,6 @@ export type GlobalConfig = {
 
   voiceTranscriber?: string
 
-  startupPrefetchedAt?: number
-
   remoteControlAtStartup?: boolean
 
   launchEffortUnpins?: {
