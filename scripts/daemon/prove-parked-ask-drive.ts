@@ -316,6 +316,7 @@ try {
       ],
       readyText: [BOARD_WORDS],
       stableTicks: 6,
+      liveSeat: true,
     },
     {
       MERCURY_CONFIG_DIR: home,

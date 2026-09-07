@@ -14,6 +14,7 @@ const CFG_KEYS = [
   '"cols"', '"rows"', '"total"', '"argv"', '"sends"', '"out"',
   '"readyText"', '"readySettleTicks"', '"stableTicks"', '"resizes"', '"cwd"',
   '"stableRegion"', '"requireStable"',
+  '"liveSeat"',
 ]
 const RESIZE_KEYS = ['"atTick"', '"atMs"', '"afterMark"', '"afterMs"', '"afterPrevMs"']
 const SEND_KEYS = [
@@ -46,6 +47,7 @@ t.section('the shared capture laws crossed the port')
   t.check('NEVER-READY refusal (exit 3)', win.includes('NEVER-READY') && win.includes('sys.exit(3)'), 'wrong-frame class')
   t.check('UNDELIVERED-SENDS refusal (exit 4)', win.includes('UNDELIVERED-SENDS') && win.includes('sys.exit(4)'), 'silently-shorter-journey class')
   t.check('NEVER-STABLE refusal (exit 5)', win.includes('NEVER-STABLE') && win.includes('sys.exit(5)'), 'stale-layout-anchor class')
+  t.check('LIVE-SEAT-STABILITY refusal (exit 7)', win.includes('LIVE-SEAT-STABILITY') && win.includes('sys.exit(7)'), 'the starved whole-grid gate class')
   t.check('bounded drain epilogue', win.includes('drain_hard_deadline'), 'never end mid-burst')
   t.check(
     'host profiles are driver parameters (WT_SESSION / TERM_PROGRAM=vscode)',
