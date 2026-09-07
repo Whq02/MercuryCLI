@@ -5,7 +5,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { isVoiceWavShape, pcmDurationMs, readWav } from './wav.js'
 import { voiceCheckoutRoot } from './voicePack.js'
-import { loadWhisperAddon, probeCpuFloor, resolveWhisperPackDir, whisperCpuFloorWords, whisperPackAbsentNote, type WhisperAddon } from './whisperPack.js'
+import { cpuFloorRefusal, cpuFloorRoadWords, loadWhisperAddon, probeCpuFloor, resolveWhisperPackDir, whisperPackAbsentNote, type WhisperAddon } from './whisperPack.js'
 import { checkWhisperModel, type WhisperModelLanguage, type WhisperModelRow } from './whisperModels.js'
 
 export const NO_TRANSCRIBER_DOORS = '/logins openai (API key) or /logins gemini'
@@ -117,7 +117,7 @@ export type LocalTranscriberRead =
       label: string
       model: string
       language: WhisperModelLanguage
-      pack: { version: string; platform: string; engine: string; gpu: string; where: string }
+      pack: { version: string; platform: string; engine: string; gpu: string; where: string; floor: string }
     }
   | {
       state: 'absent'
@@ -285,13 +285,13 @@ export function localTranscriberRead(): LocalTranscriberRead {
     const checkout = voiceCheckoutRoot() !== null
     return { state: 'absent', reason: 'pack', note: whisperPackAbsentNote(), short: checkout ? 'no on-device pack (bun run setup)' : 'no on-device pack in this build' }
   }
-  const floor = probeCpuFloor()
-  if (floor.state === 'unmet') {
+  const floor = probeCpuFloor({ addonPath: pack.addonPath })
+  if (floor.state !== 'met') {
     return {
       state: 'absent',
       reason: 'cpu',
-      note: `this CPU lacks ${floor.missing.map(f => f.toUpperCase()).join(', ')} — the on-device transcriber needs ${whisperCpuFloorWords()}`,
-      short: 'CPU below the on-device floor',
+      note: cpuFloorRefusal(floor),
+      short: floor.state === 'unmet' ? 'CPU below the on-device floor' : 'on-device CPU check inconclusive',
     }
   }
   const model = checkWhisperModel()
@@ -304,7 +304,7 @@ export function localTranscriberRead(): LocalTranscriberRead {
     label: `on-device transcriber (${model.name})`,
     model: model.name,
     language: model.language,
-    pack: { version: pack.manifest.version, platform: pack.manifest.platform, engine: `${pack.manifest.engine.name} ${pack.manifest.engine.version}`, gpu: pack.manifest.gpu, where },
+    pack: { version: pack.manifest.version, platform: pack.manifest.platform, engine: `${pack.manifest.engine.name} ${pack.manifest.engine.version}`, gpu: pack.manifest.gpu, where, floor: cpuFloorRoadWords(floor) },
   }
 }
 

@@ -356,9 +356,11 @@ export function describeVoiceReadiness(env: NodeJS.ProcessEnv = process.env): Vo
   const cost = onDeviceCostWords(transcriber)
   const door = downloadDoorWords(transcriber)
   const disk = debugDir === null ? 'nothing is written to disk' : `a debug copy of every take is written to ${debugDir} (MERCURY_VOICE_DEBUG_WAV_DIR)`
+  const local = transcriber.local
   const detail = [
     backend.state === 'ok' ? `capture: ${backend.detail}${backend.pinned ? ' (MERCURY_VOICE_BACKEND)' : ''}` : `capture: ${backend.note}`,
     transcriber.state === 'ok' ? (transcriber.choice.kind === 'local' ? `transcriber: on-device (${transcriber.choice.model})` : `transcriber: ${transcriber.choice.label}`) : `transcriber: ${transcriber.note}`,
+    ...(local.state === 'ok' ? [`on-device CPU floor: ${local.pack.floor}`] : []),
     defaultWords(transcriber),
     ...(cost !== null ? [cost] : []),
     ...(transcriber.state === 'ok' && transcriber.unused.length > 0 ? [`cloud families signed in, not used: ${transcriber.unused.join('; ')}`] : []),
