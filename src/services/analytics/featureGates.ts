@@ -8,7 +8,6 @@ import { createSignal } from '../../utils/signal.js'
 export type FeatureGateUserAttributes = {
   id: string
   sessionId: string
-  deviceID: string
   platform: 'win32' | 'darwin' | 'linux'
   apiBaseUrlHost?: string
   organizationUUID?: string

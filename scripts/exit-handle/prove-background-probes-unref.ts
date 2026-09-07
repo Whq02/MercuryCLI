@@ -4,7 +4,6 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createServer } from 'node:net'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SCRATCH = mkdtempSync(join(tmpdir(), 'background-probes-'))
@@ -17,10 +16,9 @@ const check = (name: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-console.log('§1 the owner')
+console.log('§1 no background agent')
 const proxy = read('src/utils/proxy.ts')
-check('proxy.ts owns backgroundHttpsAgent (memoized, keepAlive off)', /export function backgroundHttpsAgent\(\)/.test(proxy) && /new BackgroundHttpsAgent\(\{ keepAlive: false \}\)/.test(proxy))
-check('the agent unrefs every socket it opens (createConnection → unref)', /override createConnection\(/.test(proxy) && /\.unref\?\.\(\)/.test(proxy))
+check('proxy.ts keeps no background https agent (the probes it served are gone)', !/backgroundHttpsAgent|BackgroundHttpsAgent/.test(proxy))
 
 console.log('§2 the probes')
 check('no policy-limits service exists (no boot-time organisation probe)', !existsSync(join(REPO, 'src/services/policyLimits')))
@@ -30,22 +28,13 @@ check(
   'the ripgrep file-count probe unrefs its child and its pipe the moment they exist (a count never holds the exit cliff)',
   /const child = spawn\(config\.rgPath, \[\.\.\.config\.rgArgs, \.\.\.args, target\][\s\S]{0,400}\n\s*child\.unref\(\)\n[\s\S]{0,200}child\.stdout as [^\n]*\)\?\.unref\?\.\(\)/.test(rg),
 )
+const main = read('src/main.tsx')
+check(
+  'the boot starts the file count only for an interactive run (a headless run never reads it)',
+  /if \(getIsInteractive\(\)\) void countFilesRoundedRg\(/.test(main) && !/^\s*void countFilesRoundedRg\(/m.test(main),
+)
 
-console.log('§3 live')
-{
-  const { backgroundHttpsAgent } = await import('../../src/utils/proxy.ts')
-  const server = createServer(() => {})
-  await new Promise<void>(r => server.listen(0, '127.0.0.1', r))
-  const port = (server.address() as { port: number }).port
-  const agent = backgroundHttpsAgent()
-  const socket = (agent as unknown as { createConnection: (o: unknown) => { _handle?: { hasRef?: () => boolean }; destroy: () => void } }).createConnection({ host: '127.0.0.1', port, servername: 'localhost', rejectUnauthorized: false })
-  const handle = socket._handle
-  check('a socket the agent opens reads unref’d on its handle (hasRef false) — or the host cannot say', handle === undefined || typeof handle.hasRef !== 'function' || handle.hasRef() === false, String(handle?.hasRef?.()))
-  socket.destroy()
-  await new Promise<void>(r => server.close(() => r()))
-}
-
-console.log('§4 the exit ends what the unref let go')
+console.log('§3 the exit ends what the unref let go')
 {
   const owner = await import('../../src/utils/ripgrep.ts')
   const target = join(REPO, 'node_modules')
