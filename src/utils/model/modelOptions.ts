@@ -646,6 +646,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
   const SECTION_ORDER: readonly string[] = [
     OPENAI_MODEL_GROUP,
     OPENROUTER_MODEL_GROUP,
+    ANTHROPIC_MODEL_GROUP,
     GEMINI_MODEL_GROUP,
     HUGGINGFACE_MODEL_GROUP,
     ZAI_MODEL_GROUP,
@@ -655,8 +656,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     LOCAL_MODEL_GROUP,
   ]
   const sectionRank = (opt: ModelOption): number => {
-    if (opt.group === undefined) return 0
-    const index = SECTION_ORDER.indexOf(opt.group)
+    const index = SECTION_ORDER.indexOf(opt.group ?? ANTHROPIC_MODEL_GROUP)
     return index === -1 ? 0 : index + 1
   }
   options = SECTION_ORDER.map((_, i) => i + 1)

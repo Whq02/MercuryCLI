@@ -1553,12 +1553,11 @@ function scenarioInner(name: string, cols: number, rows: number) {
       process.env.MERCURY_OPENAI_AUTH_BASE = `http://127.0.0.1:${port}`
     }
     if (name === 'model-picker-gpt-toggle') {
-      const downs = Array.from({ length: 11 }, (_, k) => ({ atTick: 38 + k * 2, data: '\u001b[B' }))
       return {
         argv: ['node', BIN, '--resume', SID],
         sends: [
           { atTick: 30, data: '/model\r' },
-          ...downs,
+          { atTick: 40, awaitText: 'CHOOSE A MODEL', requireAwait: true, awaitSettleTicks: 3, data: '\u001b[H' },
           { atTick: 64, data: 'c' },
         ],
         total: 78,
@@ -4264,7 +4263,7 @@ export function cleanupScenario(name: string): void {
     } catch {
     }
   }
-  if (name === 'model-picker-gpt') {
+  if (name === 'model-picker-gpt' || name === 'model-picker-gpt-toggle' || name === 'submodels-gpt') {
     const pidFile = join(tmpdir(), 'mercury-render-gpt-fixture.pid')
     try {
       const pid = Number(readFileSync(pidFile, 'utf8').trim())
