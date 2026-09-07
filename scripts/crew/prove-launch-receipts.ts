@@ -844,7 +844,7 @@ section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a
     }
     const lifecycleSrc = src('src/tools/AgentTool/agentToolUtils.ts')
     const resumeSrc = src('src/tools/AgentTool/resumeAgent.ts')
-    check('the lifecycle arms the resume only when the failure is a budget cut, never on the stop road', (lifecycleSrc.match(/armBudgetCutResume\(\{/g) ?? []).length === 1 && /const budgetCut = recoveryBudgetCutOf\(error\)/.test(lifecycleSrc) && /if \(budgetCut !== null && !args\.automaticResume\)/.test(lifecycleSrc))
+    check('the lifecycle arms the resume on exactly two roads — a budget cut, and a spent usage window with a stated reset — never on the stop road', (lifecycleSrc.match(/armBudgetCutResume\(\{/g) ?? []).length === 2 && /const budgetCut = recoveryBudgetCutOf\(error\)/.test(lifecycleSrc) && /if \(budgetCut !== null && !args\.automaticResume\)/.test(lifecycleSrc) && /usageWindowPauseOf\(accumulated, metadata\.resolvedAgentModel\)/.test(lifecycleSrc) && /windowPause\.resumesAtMs !== undefined && !args\.automaticResume/.test(lifecycleSrc))
     check('the resume road carries the automatic mark into the lifecycle it starts', /automaticResume: args\.automatic === true/.test(resumeSrc))
   }
   queue.resetCommandQueue()

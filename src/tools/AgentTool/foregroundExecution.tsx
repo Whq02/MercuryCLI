@@ -6,6 +6,7 @@ import {
 import { startAgentSummarization } from '../../services/AgentSummary/agentSummary.js'
 import { clearDumpState } from '../../services/api/dumpPrompts.js'
 import {
+  AGENT_WINDOW_RESUME_NOTE,
   agentStopReasonOf,
   backgroundAgentTask,
   completeAgentTask,
@@ -17,14 +18,17 @@ import {
   getTokenCountFromTracker,
   isLocalAgentTask,
   killAsyncAgent,
+  pauseAgentTask,
   publishAgentProgressSoon,
   publishAgentWaitFromEvent,
   registerAgentForeground,
   registerAgentName,
   settleAgentForeground,
+  takeSiblingEnd,
   unregisterAgentForeground,
   updateAgentProgress,
   updateProgressFromMessage,
+  usageWindowPauseOf,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { toolMatchesName, type ToolUseContext } from '../../Tool.js'
 import type { AgentId } from '../../types/ids.js'
@@ -40,6 +44,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
+import { pauseLineWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import {
   extractTextContent,
   isSyntheticMessage,
@@ -388,13 +393,15 @@ export async function runForegroundAgentExecution(
       })
       const budgetCut = recoveryBudgetCutOf(error)
       if (budgetCut !== null && foregroundTask !== undefined) {
+        const delayMs = budgetCutResumeDelayMs(budgetCut)
         armBudgetCutResume({
           taskId: backgroundedTaskId,
           description,
           registration: foregroundTask.abortController,
           toolUseContext,
           rootSetAppState,
-          delayMs: budgetCutResumeDelayMs(budgetCut),
+          delayMs,
+          pause: { why: 'provider busy', words: budgetCut.words, resumesAtMs: Date.now() + delayMs },
         })
       }
     } finally {
@@ -413,6 +420,7 @@ export async function runForegroundAgentExecution(
   let backgrounded = false
   let hintShown = false
   let heldError: unknown
+  let seatPause: AgentPauseV1 | null = null
   let worktreeFields: WorktreeFields = {}
 
   const turnSignal = toolUseContext.abortController.signal
@@ -459,6 +467,7 @@ export async function runForegroundAgentExecution(
           if (isLocalAgentTask(task) && task.isBackgrounded) {
             backgrounded = true
             const backgroundedTaskId = foregroundTask.taskId
+            const sibling = takeSiblingEnd(backgroundedTaskId)
             void runWithAgentContext(syncAgentContext, () =>
               continueDetached(backgroundedTaskId, nextPromise),
             )
@@ -478,7 +487,8 @@ export async function runForegroundAgentExecution(
                 canReadOutputFile,
                 ...(modelNote ? { modelNote } : {}),
                 ...(name !== undefined ? { agentName: name } : {}),
-                backgroundReason: handedByTurnAbort ? 'turn-interrupted' : 'backgrounded',
+                backgroundReason: handedByTurnAbort ? 'turn-interrupted' : sibling !== null ? 'sibling-ended' : 'backgrounded',
+                ...(sibling !== null && !handedByTurnAbort ? { siblingEnd: sibling } : {}),
               },
             }
           }
@@ -580,6 +590,25 @@ export async function runForegroundAgentExecution(
               ? { error: errorMessage(heldError) }
               : undefined
         settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker), why)
+        const windowPause = outcome !== null && outcome.status === 'failed' ? usageWindowPauseOf(agentMessages, metadata.resolvedAgentModel) : null
+        seatPause = windowPause
+        if (windowPause !== null) {
+          if (windowPause.resumesAtMs !== undefined) {
+            armBudgetCutResume({
+              taskId: foregroundTask.taskId,
+              description,
+              registration: foregroundTask.abortController,
+              toolUseContext,
+              rootSetAppState,
+              delayMs: Math.max(1_000, windowPause.resumesAtMs - Date.now() + 1_000),
+              pause: windowPause,
+              prompt: AGENT_WINDOW_RESUME_NOTE,
+              summary: `Agent "${description}" resumed by itself — the usage window reset; its partial work carried forward`,
+            })
+          } else {
+            pauseAgentTask(foregroundTask.taskId, windowPause, rootSetAppState, foregroundTask.abortController)
+          }
+        }
         enqueueSdkEvent({
           type: 'system',
           subtype: 'task_notification',
@@ -630,7 +659,10 @@ export async function runForegroundAgentExecution(
     heldError !== undefined
       ? errorMessage(heldError)
       : finalized.outcome?.status === 'failed'
-        ? finalized.outcome.error
+        ?
+          seatPause !== null
+          ? `${pauseLineWords(seatPause, Date.now())} — ${finalized.outcome.error}`
+          : finalized.outcome.error
         : undefined
 
   const data: ForegroundAgentResult['data'] =

@@ -102,7 +102,7 @@ section('P1/P2 the pause on the Fable row, the switch to the GPT row resumes it'
   const paused = lastAgentFrame()
   check("P1 the frame stays 'progress' and waits on the usage window", paused?.state === 'progress' && paused?.waiting === 'usage-window', JSON.stringify(paused))
   const words = String(paused?.waitWords ?? '')
-  check("P1 the words: waiting for Fable 5.1's window … /model switches this agent", /^waiting for Fable 5\.1's /.test(words) && /; \/model switches this agent$/.test(words), words)
+  check("P1 the words: paused — usage limit: Fable 5.1's window is spent … the doors", /^paused — usage limit: Fable 5\.1's /.test(words) && / is spent; /.test(words) && /; \/model switches this agent, \/workflows stops it$/.test(words), words)
   check('P1 the words say no reset is stated when the wire stated none (this process holds no Anthropic latch)', /no reset stated/.test(words), words)
   check('P1 the log names the pause', logs.some(l => l.includes('paused —') && l.includes('/model switches this agent')), logs.join(' | ').slice(0, 300))
 
@@ -136,7 +136,7 @@ section('P3 an OpenAI wall with a stated reset resumes on the same model when th
   check('P3 agent() is PENDING on the wall', early.settled === false)
   const paused = lastAgentFrame()
   const words = String(paused?.waitWords ?? '')
-  check('P3 the words name the stated reset (resets at HH:MM)', /^waiting for GPT-5\.6 Sol's / .test(words) && /resets at \d\d:\d\d; \/model switches this agent$/.test(words), words)
+  check('P3 the words name the stated reset as a clock and a countdown', /^paused — usage limit: GPT-5\.6 Sol's / .test(words) && /resumes by itself at \d\d:\d\d \(in [0-9hms]+\); \/model switches this agent, \/workflows stops it$/.test(words), words)
   const late = await settledOf(pending, 6_000)
   check('P3 the reset lifted the pause without a switch', late.settled === true && late.value === 'finished after the reset', JSON.stringify(late))
   check('P3 the pause held until the stated reset (not before)', Date.now() - t0 >= 1_200, `${Date.now() - t0}ms`)

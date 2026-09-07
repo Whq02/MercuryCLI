@@ -23,6 +23,7 @@ process.env.MERCURY_MAX_RETRIES = '1'
 process.env.OPENAI_API_KEY = 'sk-test-turn-end-typed'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const BUDGET_MS = 1500
+const KEEPALIVE_SPAN_MS = BUDGET_MS * 2
 
 const guard = setTimeout(() => {
   console.log('\nTIMEOUT — the typed-end prover exceeded 180s')
@@ -58,8 +59,9 @@ function responsesBody(res: ServerResponse): void {
   if (arm === 'hold-after-settle') return void holds.add(res)
   if (arm === 'keepalive-after-settle') {
     holds.add(res)
+    const startedAt = Date.now()
     const t = setInterval(() => {
-      if (res.destroyed) return clearInterval(t)
+      if (res.destroyed || Date.now() - startedAt >= KEEPALIVE_SPAN_MS) return clearInterval(t)
       res.write(': keepalive\n\n')
     }, 100)
     keepalives.add(t)
@@ -410,14 +412,14 @@ section('T10 — the OpenAI road end to end: headers never answered')
   check('T10: the request reached the fixture (once, then the bounded retry)', calls.openai >= 1 && calls.openai <= 2, `calls=${calls.openai}`)
 }
 
-section('T11 — liveness on the Responses client is a decoded event, never a byte')
+section('T11 — liveness on the Responses client counts every byte: keep-alives hold the stream, the silence after them still ends it typed')
 {
   calls.openai = 0
   arm = 'keepalive-after-settle'
   const r = await drive('gpt-5.6-sol', 'keepalive-after-settle')
-  check('T11: comment keepalives never counted — the typed end came at the budget', r.last?.streamEnd?.reason === 'silent-after-last-item', JSON.stringify(r.last?.streamEnd))
+  check('T11: the typed end came once the keep-alives stopped — silence after the last item', r.last?.streamEnd?.reason === 'silent-after-last-item', JSON.stringify(r.last?.streamEnd))
   check('T11: the reply stands', textOf(r.last) === REPLY_TEXT, textOf(r.last))
-  check('T11: the end came at the budget, not at the fifty-minute ceiling', r.wallMs >= BUDGET_MS - 100 && r.wallMs < BUDGET_MS + 4000, `wall=${r.wallMs}ms`)
+  check('T11: the keep-alives held the stream past the budget (the transport feeds the watchdog); the end came one budget after they stopped, never at the fifty-minute ceiling', r.wallMs >= KEEPALIVE_SPAN_MS + BUDGET_MS - 300 && r.wallMs < KEEPALIVE_SPAN_MS + BUDGET_MS + 4000, `wall=${r.wallMs}ms`)
 }
 
 for (const res of holds) res.destroy()

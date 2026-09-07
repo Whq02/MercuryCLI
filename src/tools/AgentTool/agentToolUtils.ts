@@ -10,8 +10,12 @@ import type { Message } from '../../types/message.js'
 import type { SetAppState } from '../../Task.js'
 import {
   AGENT_BUDGET_RESUME_NOTE,
+  AGENT_RESUME_DOOR,
+  AGENT_WINDOW_RESUME_NOTE,
   agentStopReasonOf,
   completeAgentTask,
+  pauseAgentTask,
+  usageWindowPauseOf,
   createActivityDescriptionResolver,
   createAgentLedger,
   createProgressTracker,
@@ -40,6 +44,7 @@ import {
 import { AbortError, errorMessage } from '../../utils/errors.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
 import { recoveryBudgetMs, recoveryBudgetSpentFactsOf } from '../../services/api/recoveryBudget.js'
+import { pauseResumeWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
 import { FILE_WRITE_TOOL_NAME } from '../FileWriteTool/prompt.js'
@@ -614,6 +619,9 @@ export function armBudgetCutResume(args: {
   invokingRequestId?: string
   delayMs?: number
   automaticResume?: boolean
+  pause?: AgentPauseV1
+  prompt?: string
+  summary?: string
   resume?: (resumeArgs: {
     agentId: string
     prompt: string
@@ -626,6 +634,7 @@ export function armBudgetCutResume(args: {
   if (args.automaticResume === true) return null
   if (pendingAutomaticResumes.has(args.taskId)) return null
   if (cutsAlreadyResumed.has(args.registration)) return null
+  if (args.pause !== undefined) pauseAgentTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
   const fire = async (): Promise<void> => {
     pendingAutomaticResumes.delete(args.taskId)
     cutsAlreadyResumed.add(args.registration)
@@ -642,7 +651,7 @@ export function armBudgetCutResume(args: {
     try {
       await resume({
         agentId: args.taskId,
-        prompt: AGENT_BUDGET_RESUME_NOTE,
+        prompt: args.prompt ?? AGENT_BUDGET_RESUME_NOTE,
         toolUseContext: args.toolUseContext,
         canUseTool: args.canUseTool,
         invokingRequestId: args.invokingRequestId,
@@ -655,7 +664,9 @@ export function armBudgetCutResume(args: {
     enqueueAgentReceiptRow({
       taskId: args.taskId,
       description: args.description,
-      summary: `Agent "${args.description}" resumed by itself — the recovery budget's allowance is back after it was spent waiting on the provider; its partial work carried forward`,
+      summary:
+        args.summary ??
+        `Agent "${args.description}" resumed by itself — the recovery budget's allowance is back after it was spent waiting on the provider; its partial work carried forward`,
     })
   }
   const timer = setTimeout(() => {
@@ -780,8 +791,27 @@ export async function runAsyncAgentLifecycle(args: {
     const declined =
       result.outcome?.status === 'failed' ? result.outcome : undefined
 
+    const windowPause = declined ? usageWindowPauseOf(accumulated, metadata.resolvedAgentModel) : null
     if (declined) {
       failAgentTask(taskId, declined.error, rootSetAppState, args.abortController)
+      if (windowPause !== null) {
+        if (windowPause.resumesAtMs !== undefined && !args.automaticResume) {
+          armBudgetCutResume({
+            taskId,
+            description,
+            registration: args.abortController,
+            toolUseContext,
+            rootSetAppState,
+            canUseTool: args.canUseTool,
+            delayMs: Math.max(RESUME_AFTER_CUT_FLOOR_MS, windowPause.resumesAtMs - Date.now() + RESUME_AFTER_CUT_FLOOR_MS),
+            pause: windowPause,
+            prompt: AGENT_WINDOW_RESUME_NOTE,
+            summary: `Agent "${description}" resumed by itself — the usage window reset; its partial work carried forward`,
+          })
+        } else {
+          pauseAgentTask(taskId, windowPause, rootSetAppState, args.abortController)
+        }
+      }
     } else {
       completeAgentTask(result as { agentId: string }, rootSetAppState, args.abortController)
       try {
@@ -856,6 +886,11 @@ export async function runAsyncAgentLifecycle(args: {
       description,
       status: declined ? 'failed' : 'completed',
       ...(declined ? { error: declined.error, landedWrites: landedWritesOf(accumulated) } : {}),
+      ...(windowPause !== null
+        ? {
+            summary: `Agent "${description}" paused — ${windowPause.words}; ${pauseResumeWords(windowPause, Date.now())} — its work so far is kept and rides below; ${AGENT_RESUME_DOOR}`,
+          }
+        : {}),
       setAppState: rootSetAppState,
       controller: args.abortController,
       finalMessage,
@@ -938,6 +973,7 @@ export async function runAsyncAgentLifecycle(args: {
     })
     const budgetCut = recoveryBudgetCutOf(error)
     if (budgetCut !== null && !args.automaticResume) {
+      const delayMs = budgetCutResumeDelayMs(budgetCut)
       armBudgetCutResume({
         taskId,
         description,
@@ -945,7 +981,8 @@ export async function runAsyncAgentLifecycle(args: {
         toolUseContext,
         rootSetAppState,
         canUseTool: args.canUseTool,
-        delayMs: budgetCutResumeDelayMs(budgetCut),
+        delayMs,
+        pause: { why: 'provider busy', words: budgetCut.words, resumesAtMs: Date.now() + delayMs },
       })
     }
   } finally {

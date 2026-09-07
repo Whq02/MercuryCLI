@@ -30,10 +30,11 @@ const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number, ev
   return false
 }
 
-const BUDGET_MINUTES = '0.1'
+const BUDGET_MINUTES = 0.1
 const BUDGET_MS = 6_000
 const IDLE_MS = 2_000
 const FALLBACK_MS = 8_000
+const HUNG_BUDGET_MINUTES = 0.5
 const LEG_MS = 40_000
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'throttled-seat-'))
@@ -57,6 +58,19 @@ seedFirstRun(configDir, [work])
   cfg.switchboardCapacity = { askedAt: 0, allowed: true, recommendedSeats: 8 }
   writeFileSync(cfgPath, `${JSON.stringify(cfg, null, 2)}\n`)
 }
+function writePatience(recoveryBudgetMinutes: number): void {
+  const settingsPath = join(configDir, 'settings.json')
+  const current = ((): Record<string, unknown> => {
+    try {
+      return JSON.parse(readFileSync(settingsPath, 'utf8')) as Record<string, unknown>
+    } catch {
+      return {}
+    }
+  })()
+  current.patience = { streamIdleSeconds: IDLE_MS / 1000, quietStreamIdleSeconds: IDLE_MS / 1000, fallbackCeilingSeconds: FALLBACK_MS / 1000, recoveryBudgetMinutes }
+  writeFileSync(settingsPath, `${JSON.stringify(current, null, 2)}\n`)
+}
+writePatience(BUDGET_MINUTES)
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 
@@ -82,7 +96,7 @@ const seatTranscript = (sid: string): string => {
     .map(f => readFileSync(join(dir, f), 'utf8'))
     .join('\n')
 }
-type WorkRow = { kind?: string; status?: string; wait?: string; error?: string; name?: string }
+type WorkRow = { kind?: string; status?: string; wait?: string; error?: string; name?: string; paused?: { why?: string; words?: string; resumesAtMs?: number } }
 const seatRows = (sid: string): WorkRow[] => {
   try {
     const facts = JSON.parse(readFileSync(join(daemonDir, 'session-facts', `${sid}.json`), 'utf8')) as { work?: WorkRow[] }
@@ -139,7 +153,7 @@ const receiptOf = (sid: string): string | null => {
     try {
       const out: string[] = []
       toolResultTexts(JSON.parse(line) as unknown, out)
-      const hit = out.find(s => /Agent execution failed|refused|throttled|overload|recovered after busy|slow but alive/i.test(s))
+      const hit = out.find(s => /Agent execution failed|refused|throttled|overload|recovered after busy|slow but alive|paused/i.test(s))
       if (hit !== undefined) return hit
     } catch {
     }
@@ -154,6 +168,10 @@ const readFacts = (sid: string): { busy?: boolean } | undefined => {
   }
 }
 const noticeCount = (sid: string): number => (seatTranscript(sid).match(/"noticeKind":"api_error"/g) ?? []).length
+const pausedOf = (sid: string): WorkRow['paused'] | null => {
+  for (const row of seatRows(sid)) if (row.paused !== undefined) return row.paused
+  return null
+}
 const cutRow = (sid: string): string | null => {
   const m = /\[Request cut off[^\]]*\]/.exec(seatTranscript(sid))
   return m === null ? null : m[0]
@@ -191,9 +209,9 @@ const daemon = spawn('node', [DIST, 'daemon', 'run', work], {
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_API_KEY: 'fixture-key-000',
     ANTHROPIC_BASE_URL: base,
-    MERCURY_RECOVERY_BUDGET_MINUTES: BUDGET_MINUTES,
-    MERCURY_STREAM_IDLE_TIMEOUT_MS: String(IDLE_MS),
-    MERCURY_API_TIMEOUT_MS: String(FALLBACK_MS),
+    MERCURY_RECOVERY_BUDGET_MINUTES: '',
+    MERCURY_STREAM_IDLE_TIMEOUT_MS: '',
+    MERCURY_API_TIMEOUT_MS: '',
     MERCURY_TOOL_DEFER: '0',
     MERCURY_CACHE_CLOCK: '0',
     MERCURY_PARTY: '0',
@@ -232,8 +250,11 @@ type Leg = {
   seatError: string | null
   landed: boolean
   parentDone: boolean
+  paused: WorkRow['paused'] | null
+  endedAt: number | null
 }
 const runLeg = async (arm: string): Promise<Leg> => {
+  writePatience(arm === 'hung' ? HUNG_BUDGET_MINUTES : BUDGET_MINUTES)
   const opened = (await daemonControlRpc({
     op: 'concourseDispatch',
     clientMessageId: `throttle-open-${arm}`,
@@ -259,8 +280,9 @@ const runLeg = async (arm: string): Promise<Leg> => {
     targetSessionId: sid,
   } as never)) as { ok?: boolean; sessionId?: string; error?: string }
   check(`${arm}: the ask delivered into the opened session`, reply.ok === true && reply.sessionId === sid, JSON.stringify(reply))
-  const leg: Leg = { arm, sid, notices: 0, waits: [], firstNoticeAt: null, cutAt: null, cut: null, receipt: null, seatStatus: null, seatError: null, landed: false, parentDone: false }
+  const leg: Leg = { arm, sid, notices: 0, waits: [], firstNoticeAt: null, cutAt: null, cut: null, receipt: null, seatStatus: null, seatError: null, landed: false, parentDone: false, paused: null, endedAt: null }
   const t0 = Date.now()
+  legStarts.set(arm, t0)
   let sawBusy = false
   while (Date.now() - t0 < LEG_MS) {
     for (const row of seatRows(sid)) {
@@ -294,6 +316,8 @@ const runLeg = async (arm: string): Promise<Leg> => {
     if (typeof row.status === 'string') leg.seatStatus = row.status
     if (typeof row.error === 'string') leg.seatError = row.error
   }
+  leg.paused = pausedOf(sid)
+  leg.endedAt = Date.now()
   leg.notices = noticeCount(sid)
   leg.landed = /recovered after busy|slow but alive/.test(seatTranscript(sid))
   try {
@@ -315,8 +339,10 @@ const printLeg = (leg: Leg): void => {
   if (leg.cut !== null) console.log(`  [table]   cut row: ${leg.cut.slice(0, 220)}`)
 }
 
-const ARMS = (process.env.THROTTLE_SEAT_ARMS ?? '429-retry-after,429-bare,529,quiet,drop,slow').split(',').map(s => s.trim()).filter(s => s !== '')
+const ARMS = (process.env.THROTTLE_SEAT_ARMS ?? '429-retry-after,429-bare,529,quiet,drop,slow,window,hung').split(',').map(s => s.trim()).filter(s => s !== '')
 const legs: Leg[] = []
+const legStarts = new Map<string, number>()
+const t0Of = (leg: Leg): number => legStarts.get(leg.arm) ?? 0
 console.log('throttled seat — the retry budget under each provider answer, on the real daemon')
 try {
   check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
@@ -357,6 +383,21 @@ try {
       check(`${tag} the busy answer after the tool call is waited out with the budget whole`, leg.waits.some(w => busy.test(w) && /waiting 1 s/.test(w) && /5 s of the 6s retry budget left$/.test(w)), leg.waits.join(' | '))
       check(`${tag} the seat is never cut and lands`, leg.cut === null && leg.landed, `cut=${leg.cut} landed=${leg.landed}`)
       check(`${tag} the receipt is the seat's reply`, leg.receipt !== null && /recovered after busy/.test(leg.receipt), leg.receipt ?? '(none)')
+    }
+    if (arm === 'window') {
+      const seatRequests = wire().filter(c => c.kind === 'request' && c.arm === arm && c.route === 'seat')
+      check('L7 a wait past the budget is the provider\'s window: ONE request, no retry, no notice', seatRequests.length === 1 && leg.notices === 0, `requests=${seatRequests.length} notices=${leg.notices}`)
+      check('L7 the seat PAUSES on the window: the roster row carries why and when it resumes by itself', leg.paused !== null && leg.paused.why === 'provider busy' && typeof leg.paused.resumesAtMs === 'number' && leg.paused.resumesAtMs > Date.now() + 2 * 3_600_000, JSON.stringify(leg.paused))
+      check('L7 the receipt says the seat paused, leads its trailer with the pause, the countdown and the doors, then the provider\'s own row', leg.receipt !== null && /The subagent paused before returning any output\./.test(leg.receipt) && /Agent execution failed: paused — provider busy · resumes by itself at \d\d:\d\d \(in 2h5\dm\)/.test(leg.receipt) && /a message resumes it now/.test(leg.receipt) && /429/.test(leg.receipt), leg.receipt ?? '(none)')
+      check('L7 the seat row settled with the provider\'s row as its reason', leg.seatStatus === 'failed' && leg.seatError !== null && /429/.test(leg.seatError), `${leg.seatStatus} ${leg.seatError}`)
+    }
+    if (arm === 'hung') {
+      const seatRequests = wire().filter(c => c.kind === 'request' && c.arm === arm && c.route === 'seat')
+      const nonStreamed = seatRequests.filter(c => c.streaming === false)
+      check('L8 a hung wire: the stream, its reissue, then ONE non-streamed answer — never a ladder of ceilings', seatRequests.filter(c => c.streaming === true).length === 2 && nonStreamed.length === 1, JSON.stringify(seatRequests.map(c => [c.streaming, c.nth])))
+      check('L8 the seat is cut with the silence named: the stream\'s budget, the fallback\'s ceiling, the model', leg.receipt !== null && /the stream went quiet for 2 s and one non-streamed answer got nothing in 8 s from /.test(leg.receipt) && /no keep-alive arrived/.test(leg.receipt), leg.receipt ?? '(none)')
+      check('L8 the seat row settled failed with the same reason', leg.seatStatus === 'failed' && leg.seatError !== null && /the stream went quiet for 2 s/.test(leg.seatError), `${leg.seatStatus} ${leg.seatError}`)
+      check('L8 the cut came inside the two budgets and the one ceiling, with slack', leg.endedAt !== null && leg.endedAt - t0Of(leg) < IDLE_MS * 2 + FALLBACK_MS + 12_000, String(leg.endedAt !== null ? leg.endedAt - t0Of(leg) : null))
     }
     if (arm === 'slow') {
       check('L6 a live slow stream raises no notice and no wait words', leg.notices === 0 && leg.waits.length === 0, `notices=${leg.notices} waits=${leg.waits.join(' | ')}`)

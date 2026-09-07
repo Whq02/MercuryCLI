@@ -80,6 +80,7 @@ export type TaskRecord = {
 export type Output = {
   retrieval_status: RetrievalStatus
   task: TaskRecord | null
+  interrupted_by?: { task_id: string; description: string; status: string; error?: string }
 }
 
 
@@ -119,6 +120,22 @@ async function extractTaskRecord(task: TaskState): Promise<TaskRecord> {
 
 function isSettled(status: string): boolean {
   return status !== 'running' && status !== 'pending'
+}
+
+function siblingEndedSince(context: ToolUseContext, waitedTaskId: string, sinceMs: number): Output['interrupted_by'] | null {
+  for (const task of Object.values(context.getAppState().tasks ?? {})) {
+    if (!isLocalAgentTask(task) || task.id === waitedTaskId) continue
+    if (task.status !== 'failed' && task.status !== 'killed') continue
+    const endedAt = (task as { endTime?: unknown }).endTime
+    if (typeof endedAt !== 'number' || endedAt < sinceMs) continue
+    return {
+      task_id: task.id,
+      description: task.description,
+      status: task.status === 'killed' ? 'stopped' : task.status,
+      ...(typeof task.error === 'string' && task.error !== '' ? { error: task.error } : {}),
+    }
+  }
+  return null
 }
 
 function markNotified(taskId: string, context: ToolUseContext): void {
@@ -221,7 +238,8 @@ export const TaskOutputTool = buildTool({
       data: { type: 'waiting_for_task', taskDescription: task.description, taskType: task.type },
     })
 
-    const deadline = Date.now() + timeout
+    const startedAt = Date.now()
+    const deadline = startedAt + timeout
     while (timeout > 0 && !isSettled(task.status)) {
       if (context.abortController.signal.aborted) throw new AbortError()
       if (Date.now() >= deadline) break
@@ -231,6 +249,10 @@ export const TaskOutputTool = buildTool({
         return { data: { retrieval_status: 'timeout', task: null } satisfies Output }
       }
       task = next
+      const sibling = siblingEndedSince(context, taskId, startedAt)
+      if (sibling !== null) {
+        return { data: { retrieval_status: 'timeout', task: await extractTaskRecord(task), interrupted_by: sibling } satisfies Output }
+      }
     }
 
     if (!isSettled(task.status)) {
@@ -255,6 +277,15 @@ export const TaskOutputTool = buildTool({
         parts.push(`<output>\n${formatted}\n</output>`)
       }
       if (task.error) parts.push(tagged('error', task.error))
+    }
+    if (output.interrupted_by) {
+      const member = output.interrupted_by
+      parts.push(
+        tagged(
+          'interrupted_by',
+          `the wait ended early: agent "${member.description}" [${member.task_id}] ${member.status}${member.error ? ` — ${member.error}` : ''}; the waited task runs on (its own notice follows)`,
+        ),
+      )
     }
     return {
       tool_use_id: toolUseID,

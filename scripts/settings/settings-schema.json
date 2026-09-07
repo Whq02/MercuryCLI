@@ -691,6 +691,41 @@
         "brush"
       ]
     },
+    "patience": {
+      "description": "Patience with a quiet model: normal (a 90 s stream-idle budget where keep-alives feed the watchdog, 15 min on the OpenAI road, a 15 min non-streamed fallback ceiling, a 20 min retry budget), patient (every wait doubled), or the custom numbers; MERCURY_STREAM_IDLE_TIMEOUT_MS, MERCURY_API_TIMEOUT_MS and MERCURY_RECOVERY_BUDGET_MINUTES outrank it",
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "normal",
+            "patient"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "streamIdleSeconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "quietStreamIdleSeconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "fallbackCeilingSeconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "recoveryBudgetMinutes": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "description": "Custom patience: the stream-idle budget in seconds on the roads whose keep-alives feed the watchdog, the same budget on the OpenAI road (silent while the model reasons), the non-streamed fallback ceiling in seconds, and the retry budget in minutes (0 = no budget); a missing number takes the normal one"
+        }
+      ]
+    },
     "shellEngineSessions": {
       "description": "The ceiling on live shell-engine sessions Mercury keeps at once: the main conversation's own plus that many minus one for sub-agents (default 8). A sub-agent past the ceiling waits for a free session, never sharing another owner's; a ceiling of 1 leaves no session for sub-agents",
       "type": "integer",
