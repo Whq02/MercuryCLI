@@ -2,6 +2,7 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
+- Fixed the /model picker undoing keys typed within its first second on a chat that was still landing; it now waits for the landing, briefly, before it paints
 - Changed a provider's model list to be fetched only when something on screen needs it, once per sign-in, so a session on one provider can still show another provider's usage row without any request at start
 - Added a "Patience with a quiet model" setting in /config (normal, patient, custom): how long Mercury waits on a silent model, how long a slow retry may take, and how much recovery time a run gets, set together, with the environment variables as overrides
 - Fixed a sub-agent failing on a short provider throttle: a brief "try again in a few seconds" is waited out and the agent finishes; only a limit hours away stops it, and then its work is kept and resumable and the parent is told which it was
