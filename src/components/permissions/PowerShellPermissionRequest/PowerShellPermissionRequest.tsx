@@ -4,12 +4,10 @@ import { Box, Text } from '../../../ink.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
 import { Select } from '../../CustomSelect/select.js'
 import { useKeybinding } from '../../../keybindings/useKeybinding.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../../services/analytics/featureGates.js'
 import { getGlobalConfig } from '../../../utils/config.js'
 import { getSystemThemeName } from '../../../utils/systemTheme.js'
 import { PowerShellTool } from '../../../tools/PowerShellTool/PowerShellTool.js'
 import { POWERSHELL_TOOL_NAME } from '../../../tools/PowerShellTool/toolName.js'
-import { getDestructiveCommandWarning } from '../../../tools/PowerShellTool/destructiveCommandWarning.js'
 import { isAllowlistedCommand } from '../../../tools/PowerShellTool/readOnlyValidation.js'
 import { getCompoundCommandPrefixesStatic } from '../../../utils/powershell/staticPrefix.js'
 import { shouldShowAlwaysAllowOptions } from '../../../utils/permissions/permissionsLoader.js'
@@ -59,14 +57,6 @@ export function PowerShellPermissionRequest({
     onReject,
     explainerVisible: undefined,
   })
-
-  const warning = useMemo(() => {
-    const warningEnabled = getFeatureValue_CACHED_MAY_BE_STALE(
-      'mercury_destructive_command_warning',
-      false,
-    )
-    return warningEnabled ? getDestructiveCommandWarning(command) : null
-  }, [command])
 
   const explainer = usePermissionExplainerUI({
     toolName: toolUseConfirm.tool.name,
@@ -206,7 +196,6 @@ export function PowerShellPermissionRequest({
             />
           ) : (
             <>
-              {warning ? <Text color="warning">{warning}</Text> : null}
               <PermissionRuleExplanation
                 permissionResult={toolUseConfirm.permissionResult}
                 toolType="command"
