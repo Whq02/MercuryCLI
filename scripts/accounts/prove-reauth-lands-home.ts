@@ -57,9 +57,9 @@ section('§3 nothing on the settle path can reject')
 {
   check('no remote refresh remains on the settle path (neither settings nor policy limits)', !loginSrc.includes('refreshRemoteManagedSettings') && !loginSrc.includes('refreshPolicyLimits'))
   check('the killswitch re-check is void-catch', loginSrc.includes('.catch(logError)') && loginSrc.includes('checkAndDisableBypassPermissionsIfNeeded'))
-  const gates = readFileSync(join(ROOT, 'src/services/analytics/featureGates.ts'), 'utf8')
-  const refreshBody = gates.slice(gates.indexOf('export async function refreshFeatureGates'), gates.indexOf('export function setupPeriodicFeatureGateRefresh'))
-  check('the ONE awaited member (refreshFeatureGates) is the static table — cannot reject', refreshBody.includes('Static table') && !refreshBody.includes('fetch') && !refreshBody.includes('throw'))
+  const refreshBody = loginSrc.slice(loginSrc.indexOf('function runPostLoginRefresh'), loginSrc.indexOf('export function parseFamilyFocus'))
+  check('credential cache refresh is synchronous', !refreshBody.includes('await ') && refreshBody.includes('resetUserCache()') && refreshBody.includes('resetCostState()'))
+  check('login does not import configuration refresh plumbing', !loginSrc.includes('services/analytics/featureGates'))
 }
 
 section('§4 credential-change hygiene')

@@ -911,13 +911,11 @@ export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLogin
     if (given !== undefined) return;
     void (async () => {
       try {
-        const [user, gates, killswitch] = await Promise.all([
+        const [user, killswitch] = await Promise.all([
           import('../utils/user.js'),
-          import('../services/analytics/featureGates.js'),
           import('../utils/permissions/bypassPermissionsKillswitch.js'),
         ]);
         user.resetUserCache();
-        await gates.refreshFeatureGates().catch(() => {});
         killswitch.resetBypassPermissionsCheck();
         if (setAppStateMaybe !== null) {
           let capturedContext: Parameters<typeof killswitch.checkAndDisableBypassPermissionsIfNeeded>[0] | null = null;

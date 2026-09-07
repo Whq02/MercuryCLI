@@ -5,7 +5,6 @@ import { ConsoleOAuthFlow, type LoginFamilyFocus } from '../../components/Consol
 import { CommandCenter } from '../../components/mercury-ui/components.js'
 import { resetCostState } from '../../bootstrap/state.js'
 import { useAppState } from '../../state/AppState.js'
-import { refreshFeatureGates } from '../../services/analytics/featureGates.js'
 import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
@@ -62,10 +61,9 @@ export function Login({
   )
 }
 
-async function runPostLoginRefresh(context: LocalJSXCommandContext): Promise<void> {
+function runPostLoginRefresh(context: LocalJSXCommandContext): void {
   resetCostState()
   resetUserCache()
-  await refreshFeatureGates()
   resetBypassPermissionsCheck()
   void checkAndDisableBypassPermissionsIfNeeded(
     context.getAppState().toolPermissionContext,
@@ -126,7 +124,7 @@ export async function call(
       context.onChangeAPIKey()
       context.setMessages(prev => stripSignatureBlocks(prev))
       if (success) {
-        await runPostLoginRefresh(context)
+        runPostLoginRefresh(context)
         const shadow = loginShadowWarning()
         onDone(shadow ? `Login successful\n${shadow}` : 'Login successful', chain)
       } else {

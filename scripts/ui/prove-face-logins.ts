@@ -840,7 +840,7 @@ t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the 
   t.check("the card row opens the layer (the recut's wiring)", face.includes("case 'logins':") && face.includes('setLoginsOpen(true);'))
 
   const screen = read('src/components/BootLoginsScreen.tsx')
-  t.check('the settle runs the parity subset in the /logins ordering', screen.includes('user.resetUserCache();') && screen.includes('await gates.refreshFeatureGates().catch(() => {});') && screen.includes('resetUserCache') && screen.indexOf('resetUserCache') < screen.indexOf('refreshFeatureGates().catch'))
+  t.check('credential caches reset before policy checks', screen.includes('user.resetUserCache();') && screen.includes('killswitch.resetBypassPermissionsCheck();') && screen.indexOf('user.resetUserCache();') < screen.indexOf('killswitch.resetBypassPermissionsCheck();') && !screen.includes('services/analytics/featureGates'))
   t.check('the authVersion bump rides the MAYBE setter; the killswitch re-check stays outside the updater', screen.includes('const setAppStateMaybe = useSetAppStateMaybe();') && screen.includes('authVersion: (prev.authVersion ?? 0) + 1') && screen.includes('checkAndDisableBypassPermissionsIfNeeded(capturedContext, setAppStateMaybe)'))
   t.check('the settle fires on OK settles only and never on injected facts', screen.includes('if (current.ok) postLoginSettle();') && screen.includes('if (given !== undefined) return;'))
 }
