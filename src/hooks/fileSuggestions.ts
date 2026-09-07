@@ -214,7 +214,7 @@ function relativise(paths: string[], base: string, cwd: string): string[] {
 function configFiles(): string[] {
   const out: string[] = []
   const home = getMercuryHome()
-  for (const sub of ['commands', 'agents', 'skills']) {
+  for (const sub of ['agents', 'skills']) {
     try {
       const dir = join(home, sub)
       const walk = (at: string, depth: number): void => {

@@ -1124,7 +1124,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return {
                 status: 'warn',
                 evidence: `render pipeline present at ${root} · python at ${python} · ${runtime.missing} — the render_tui tool answers unavailable until bun is found`,
-                fix: 'Install bun (~/.bun/bin/bun), put it on PATH, or point BUN at one — the render script runs under it.',
+                fix: 'Install bun (~/.bun/bin/bun), put it on PATH, or point MERCURY_BUN at one — the render script runs under it.',
               }
             }
             return {
@@ -2662,15 +2662,17 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'iface-shell-engine',
           label: 'Shell engine',
           run: async () => {
-            const { resolveShellEngine } = await import('./shell/engineSession.js')
+            const { engineSessionCeilingPinned, resolveEngineSessionCeiling, resolveShellEngine } = await import('./shell/engineSession.js')
             const { getInitialSettings } = await import('./settings/settings.js')
-            const setting = getInitialSettings().shellEngine ?? 'system'
+            const settings = getInitialSettings()
+            const setting = settings.shellEngine ?? 'system'
             const resolved = resolveShellEngine(setting === 'brush' ? 'brush' : 'system')
             if (resolved.engine === 'brush') {
+              const ceiling = resolveEngineSessionCeiling(settings.shellEngineSessions)
               return {
                 status: 'ok' as const,
-                evidence: `brush ${resolved.version} (${resolved.platform}, ${resolved.source}) — one persistent process per session, shell state persists between calls`,
-                detail: `setting: ${setting}${process.env.MERCURY_SHELL_ENGINE ? ` · env pin MERCURY_SHELL_ENGINE=${process.env.MERCURY_SHELL_ENGINE}` : ''}`,
+                evidence: `brush ${resolved.version} (${resolved.platform}, ${resolved.source}) — one persistent process per conversation and one per sub-agent, up to ${ceiling} at once; shell state persists between calls; a stop while a command runs resets the session`,
+                detail: `setting: ${setting}${process.env.MERCURY_SHELL_ENGINE ? ` · env pin MERCURY_SHELL_ENGINE=${process.env.MERCURY_SHELL_ENGINE}` : ''} · sessions ceiling ${ceiling} (${engineSessionCeilingPinned() ? 'the env pin MERCURY_SHELL_ENGINE_SESSIONS' : 'the shellEngineSessions setting'})`,
               }
             }
             const wanted = resolved.requested === 'brush'

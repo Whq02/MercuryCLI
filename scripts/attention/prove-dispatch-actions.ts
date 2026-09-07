@@ -107,22 +107,9 @@ t.section('§6 — the addressed frame rides the ONE wire whole (cpu-pure)')
     buildConcoursePromptFrame('revise the folio', { mode: 'task-notification', agentId: 'ag-7', identity }),
   ) as Record<string, unknown>
   t.check('the frame uuid IS the clientMessageId (one identity, composer to queue entry)', frame.uuid === identity)
-  t.check('the addressed form rides mode + agentId on the frame', frame.mode === 'task-notification' && frame.agentId === 'ag-7')
+  t.check('the addressed form rides mode + agent_id on the frame', frame.mode === 'task-notification' && frame.agent_id === 'ag-7')
   const plain = JSON.parse(buildConcoursePromptFrame('plain words', { identity })) as Record<string, unknown>
-  t.check('a plain frame carries NO agent addressing', plain.mode === undefined && plain.agentId === undefined)
-}
-
-t.section('§6 — the addressed frame rides the ONE wire whole (cpu-pure)')
-{
-  const { buildConcoursePromptFrame } = await import('../../src/daemon/concourseDispatch.ts')
-  const identity = 'aaaabbbb-cccc-4ddd-8eee-ffff00001111'
-  const frame = JSON.parse(
-    buildConcoursePromptFrame('revise the folio', { mode: 'task-notification', agentId: 'ag-7', identity }),
-  ) as Record<string, unknown>
-  t.check('the frame uuid IS the clientMessageId (one identity, composer to queue entry)', frame.uuid === identity)
-  t.check('the addressed form rides mode + agentId on the frame', frame.mode === 'task-notification' && frame.agentId === 'ag-7')
-  const plain = JSON.parse(buildConcoursePromptFrame('plain words', { identity })) as Record<string, unknown>
-  t.check('a plain frame carries NO agent addressing', plain.mode === undefined && plain.agentId === undefined)
+  t.check('a plain frame carries NO agent addressing', plain.mode === undefined && plain.agent_id === undefined)
 }
 
 t.finish('prove-dispatch-actions')

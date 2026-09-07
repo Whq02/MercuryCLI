@@ -80,8 +80,8 @@ console.log('§4 C1/C2 win32 fixes (source pins)')
   check('C1: the editor spawn parses with the canonical legacy parser and quotes the executable',
     pe.includes('parseLegacyCommandString(editorCommand)') && pe.includes('`"${editorExe}"'))
   const rt = src('src/services/mcp/renderTuiTool.ts')
-  check('C2: render_tui writes under tmpdir() and resolves the runtime the way the suites do (BUN, then ~/.bun/bin/bun, then PATH), never a hard-coded spawn',
-    rt.includes('join(tmpdir(), `render-tui-mcp-') && /env\.BUN/.test(rt) && rt.includes("join(home, '.bun', 'bin', exe)") && rt.includes('split(delimiter)'))
+  check('C2: render_tui writes under tmpdir() and resolves the runtime the way the suites do (MERCURY_BUN, then ~/.bun/bin/bun, then PATH), never a hard-coded spawn',
+    rt.includes('join(tmpdir(), `render-tui-mcp-') && /env\.MERCURY_BUN/.test(rt) && rt.includes("join(home, '.bun', 'bin', exe)") && rt.includes('split(delimiter)'))
   check("C2: the checkout root comes from the module's own location, never the session cwd",
     rt.includes('fileURLToPath(import.meta.url)') && !rt.includes('process.cwd()'))
   check('C2: the spawn error surfaces (never a bare no-PNG)', rt.includes('res.error') && rt.includes('res.error ? String(res.error)'))

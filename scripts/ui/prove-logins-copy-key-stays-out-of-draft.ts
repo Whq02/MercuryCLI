@@ -284,7 +284,8 @@ console.log('L2 — the face’s logins layer: c copies and the masked draft sta
     rows: FACE_ROWS,
     sends: [
       ...FACE_TO_ROSTER(),
-      g(ROSTER_LEGEND, ENTER, { mark: 'roster', awaitSettleTicks: 3 }),
+      g(ROSTER_LEGEND, DOWN, { mark: 'roster', awaitSettleTicks: 3 }),
+      { afterPrevTicks: 2, data: ENTER },
       g('the paste fallback appears in a moment', 'c', { mark: 'waiting-early' }),
       g(FACE_HINT, 'c', { mark: 'prompt' }),
       ...COPY_BEAT(),
@@ -355,8 +356,7 @@ console.log('L4 — the face’s OpenAI browser leg: c copies and the masked pas
     rows: FACE_ROWS,
     sends: [
       ...FACE_TO_ROSTER(),
-      g(ROSTER_LEGEND, DOWN, { mark: 'roster', awaitSettleTicks: 3 }),
-      { afterPrevTicks: 2, data: ENTER },
+      g(ROSTER_LEGEND, ENTER, { mark: 'roster', awaitSettleTicks: 3 }),
       g('ChatGPT subscription — browser sign-in', ENTER, { mark: 'pick' }),
       g(HANDLES_EMPTY_PASTE, 'c', { mark: 'wait' }),
       ...COPY_BEAT(),

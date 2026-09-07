@@ -5,7 +5,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { isVoiceWavShape, pcmDurationMs, readWav } from './wav.js'
 import { voiceCheckoutRoot } from './voicePack.js'
-import { loadWhisperAddon, probeCpuFloor, resolveWhisperPackDir, whisperCpuFloorWords, whisperPackAbsentNote, type WhisperAddon } from './whisperPack.js'
+import { cpuFloorRefusal, cpuFloorRoadWords, loadWhisperAddon, probeCpuFloor, resolveWhisperPackDir, whisperPackAbsentNote, type WhisperAddon } from './whisperPack.js'
 import { checkWhisperModel, type WhisperModelLanguage, type WhisperModelRow } from './whisperModels.js'
 
 export const NO_TRANSCRIBER_DOORS = '/logins openai (API key) or /logins gemini'
@@ -47,7 +47,7 @@ export type TranscriberPin =
   | { kind: 'on-device' }
   | { kind: 'cloud' }
   | { kind: 'family'; family: CallModelRoute }
-  | { kind: 'broken'; note: string }
+  | { kind: 'broken'; value: string; note: string }
 
 export function parseTranscriberPin(raw: string | undefined): TranscriberPin {
   const value = (raw ?? '').trim().toLowerCase()
@@ -57,6 +57,7 @@ export function parseTranscriberPin(raw: string | undefined): TranscriberPin {
   if (Object.prototype.hasOwnProperty.call(FAMILY_TRANSCRIBER, value)) return { kind: 'family', family: value as CallModelRoute }
   return {
     kind: 'broken',
+    value,
     note: `${TRANSCRIBER_PIN_ENV}=${value} is not on-device, cloud or a family id (${Object.keys(FAMILY_TRANSCRIBER).join(' · ')}) — the pin names itself, no silent fallback`,
   }
 }
@@ -116,7 +117,7 @@ export type LocalTranscriberRead =
       label: string
       model: string
       language: WhisperModelLanguage
-      pack: { version: string; platform: string; engine: string; gpu: string; where: string }
+      pack: { version: string; platform: string; engine: string; gpu: string; where: string; floor: string }
     }
   | {
       state: 'absent'
@@ -184,7 +185,7 @@ export function pickTranscriber(
   const skipped: string[] = []
   const savedName = savedChoice.kind === 'unset' ? null : savedChoice.kind === 'family' ? savedChoice.family : savedChoice.kind === 'unknown' ? savedChoice.raw : ON_DEVICE_NAME
   const savedDisplay = savedTranscriberDisplay(savedChoice)
-  const pinValue = pin.kind === 'on-device' || pin.kind === 'cloud' ? pin.kind : pin.kind === 'family' ? pin.family : pin.kind === 'broken' ? 'broken' : null
+  const pinValue = pin.kind === 'on-device' || pin.kind === 'cloud' ? pin.kind : pin.kind === 'family' ? pin.family : pin.kind === 'broken' ? pin.value : null
   const overridden: SavedChoiceOutcome | null = savedName !== null && pinValue !== null ? { name: savedName, display: savedDisplay, state: 'overridden', note: `${TRANSCRIBER_PIN_ENV}=${pinValue} overrides your saved choice (${savedDisplay}) for this process` } : null
   if (pin.kind === 'broken') return { state: 'none', note: pin.note, skipped, local, saved: overridden }
   const localChoice = (): TranscriberChoiceLocal | null => (local.state === 'ok' ? { kind: 'local', label: local.label, model: local.model } : null)
@@ -284,13 +285,13 @@ export function localTranscriberRead(): LocalTranscriberRead {
     const checkout = voiceCheckoutRoot() !== null
     return { state: 'absent', reason: 'pack', note: whisperPackAbsentNote(), short: checkout ? 'no on-device pack (bun run setup)' : 'no on-device pack in this build' }
   }
-  const floor = probeCpuFloor()
-  if (floor.state === 'unmet') {
+  const floor = probeCpuFloor({ addonPath: pack.addonPath })
+  if (floor.state !== 'met') {
     return {
       state: 'absent',
       reason: 'cpu',
-      note: `this CPU lacks ${floor.missing.map(f => f.toUpperCase()).join(', ')} — the on-device transcriber needs ${whisperCpuFloorWords()}`,
-      short: 'CPU below the on-device floor',
+      note: cpuFloorRefusal(floor),
+      short: floor.state === 'unmet' ? 'CPU below the on-device floor' : 'on-device CPU check inconclusive',
     }
   }
   const model = checkWhisperModel()
@@ -303,7 +304,7 @@ export function localTranscriberRead(): LocalTranscriberRead {
     label: `on-device transcriber (${model.name})`,
     model: model.name,
     language: model.language,
-    pack: { version: pack.manifest.version, platform: pack.manifest.platform, engine: `${pack.manifest.engine.name} ${pack.manifest.engine.version}`, gpu: pack.manifest.gpu, where },
+    pack: { version: pack.manifest.version, platform: pack.manifest.platform, engine: `${pack.manifest.engine.name} ${pack.manifest.engine.version}`, gpu: pack.manifest.gpu, where, floor: cpuFloorRoadWords(floor) },
   }
 }
 
@@ -489,6 +490,13 @@ async function transcribeGemini(wav: Buffer, opts: TranscribeOptions): Promise<T
 
 const loadedModels = new Map<string, number>()
 
+let decodeTail: Promise<unknown> = Promise.resolve()
+let decodesHeld = 0
+
+export function localDecodesInFlight(): number {
+  return decodesHeld
+}
+
 function modelHandle(addon: WhisperAddon, path: string): number {
   const cached = loadedModels.get(path)
   if (cached !== undefined) return cached
@@ -534,13 +542,33 @@ async function transcribeLocal(wav: Buffer, opts: TranscribeOptions): Promise<Tr
   }
   const audioMs = pcmDurationMs(read.pcm)
   const deadlineMs = opts.deadlineMs ?? localTranscribeDeadlineMs(audioMs)
+  const queued = decodesHeld > 0
   let timer: ReturnType<typeof setTimeout> | null = null
   const bound = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new TranscribeError('local', `the on-device transcriber did not answer within ${Math.round(deadlineMs / 1000)}s (${model.name})`)), deadlineMs)
+    timer = setTimeout(
+      () =>
+        reject(
+          new TranscribeError(
+            'local',
+            queued
+              ? `the on-device transcriber is still decoding the previous take — this one waited ${Math.round(deadlineMs / 1000)}s for it (${model.name})`
+              : `the on-device transcriber did not answer within ${Math.round(deadlineMs / 1000)}s (${model.name})`,
+          ),
+        ),
+      deadlineMs,
+    )
     timer.unref?.()
   })
+  const pcm = Buffer.from(read.pcm)
+  decodesHeld += 1
+  const decode = decodeTail
+    .then(() => load.addon.transcribe(handle, pcm, { language: model.language === 'en' ? 'en' : 'auto' }))
+    .finally(() => {
+      decodesHeld -= 1
+    })
+  decodeTail = decode.catch(() => {})
   try {
-    const answer = await Promise.race([load.addon.transcribe(handle, Buffer.from(read.pcm), { language: model.language === 'en' ? 'en' : 'auto' }), bound])
+    const answer = await Promise.race([decode, bound])
     return { text: stripNonSpeechMarkers(answer.text), kind: 'local', family: null, model: model.name, ms: answer.ms }
   } catch (error) {
     if (error instanceof TranscribeError) throw error

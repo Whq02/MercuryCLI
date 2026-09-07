@@ -327,6 +327,7 @@ async function* runBash(
     shouldUseSandbox: useSandbox,
     shouldAutoBackground,
     backgroundIntent: input.run_in_background === true && !BACKGROUND_TASKS_DISABLED,
+    owner: agentId,
     onProgress: (recent, all, lines, bytes, incomplete) => {
       latest = { recent, all, lines, bytes: incomplete ? bytes : 0, incomplete }
       progressResolve?.()
@@ -368,6 +369,7 @@ async function* runBash(
         setAppState: context.setAppState,
       },
     )
+    if (handle.accepted === false) return
     backgroundId = handle.taskId
     progressResolve?.()
     fromTrigger?.(backgroundId)
@@ -407,6 +409,11 @@ async function* runBash(
         setAppState: context.setAppState,
       },
     )
+    if (handle.accepted === false) {
+      const result = await shellCommand.result
+      shellCommand.cleanup()
+      return await postProcess(result)
+    }
     return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: handle.taskId }
   }
 

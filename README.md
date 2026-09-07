@@ -86,9 +86,15 @@ LTS runtime beside the bundle, and the launcher, `mercury install` and
 - bun 1.3.x, the build runtime (never vendored).
 - git. On Windows, Windows Terminal or PowerShell 7; the step-by-step guide
   is [docs/INSTALL-WINDOWS-FROM-SOURCE.md](docs/INSTALL-WINDOWS-FROM-SOURCE.md).
-  Git for Windows also supplies the `bash.exe` the Bash tool runs under:
-  without it Mercury still starts, the Bash tool is absent (the PowerShell
-  tool stays) and the doctor's `shell` row names the fix.
+  Git for Windows also supplies the `bash.exe` the Bash tool runs under by
+  default: without it Mercury still starts, the Bash tool is absent (the
+  PowerShell tool stays) and the doctor's `shell` row names the three ways
+  out — install Git for Windows, point `MERCURY_GIT_BASH_PATH` at a
+  `bash.exe`, or turn the built-in shell engine on (the `/config` row Shell
+  engine set to `brush`, or `MERCURY_SHELL_ENGINE=brush`), which needs no
+  Git for Windows but at this version cannot run a `.cmd` shim such as `npm`
+  directly (`cmd /c npm …` works) and needs an absolute path for a program
+  run after a `cd`.
 
 The floor is 24.20.0 because it carries the fix for nodejs/node#56645. Below
 it, a headless `-p` run that dispatched any tool aborts at exit on Windows.
@@ -214,8 +220,8 @@ bell once when it needs you or finishes a run. The whole lifecycle is
 `/logins` opens the sign-in catalogue, the same card the first run shows,
 and `/accounts` manages the provider slots afterwards. The doors:
 
-- Claude subscription account
 - OpenAI: ChatGPT subscription or API key
+- Claude subscription account
 - Usage-based billing: Anthropic Console sign-in or API key
 - OpenRouter: one credential, the whole catalogue (OAuth or key)
 - Google Gemini: API key or Google OAuth
@@ -301,8 +307,9 @@ the result envelope alone. The verbs:
 - **Memory**: experience cards, a project notepad, and Minerva's room over
   your saved prompts ([docs/TABULA-NOTES.md](docs/TABULA-NOTES.md)).
 - **Voice input**: `/speak on`, then space in an empty composer dictates
-  into it — on this machine through the on-device transcriber, or through
-  the family you pin; audio leaves only after you stop and only to a cloud
+  into it — on this machine through the on-device transcriber (its 60 MB
+  English model is a one-time `/speak download`), or through the cloud
+  family you choose; audio leaves only after you stop and only to a cloud
   family, and Mercury never speaks aloud ([docs/VOICE.md](docs/VOICE.md)).
 - **Durability**: atomic publication, journaled operations and a boot-time
   reconciliation pass ([docs/DURABILITY.md](docs/DURABILITY.md)).

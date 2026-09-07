@@ -9,7 +9,7 @@ export type FixtureUsage = {
   cache_creation_input_tokens?: number
 }
 
-export type ScriptedTurn = ScriptedTurnBody & { whenModel?: string }
+export type ScriptedTurn = ScriptedTurnBody & { whenModel?: string; whenBody?: string }
 
 type ScriptedTurnBody =
   | {
@@ -527,11 +527,14 @@ export async function startFixtureApi(
         typeof (body as { model?: unknown })?.model === 'string'
           ? ((body as { model: string }).model)
           : ''
-      let pick = queue.findIndex(
-        candidate => candidate.whenModel !== undefined && requestedModel.includes(candidate.whenModel),
-      )
+      const bodyText = JSON.stringify(body ?? null)
+      const gated = (candidate: ScriptedTurn): boolean => candidate.whenModel !== undefined || candidate.whenBody !== undefined
+      const admits = (candidate: ScriptedTurn): boolean =>
+        (candidate.whenModel === undefined || requestedModel.includes(candidate.whenModel)) &&
+        (candidate.whenBody === undefined || bodyText.includes(candidate.whenBody))
+      let pick = queue.findIndex(candidate => gated(candidate) && admits(candidate))
       if (pick === -1) {
-        pick = queue.findIndex(candidate => candidate.whenModel === undefined)
+        pick = queue.findIndex(candidate => !gated(candidate))
       }
       let turn = pick === -1 ? undefined : queue.splice(pick, 1)[0]
       if (opts?.apiChecks) {

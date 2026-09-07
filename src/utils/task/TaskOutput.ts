@@ -36,7 +36,8 @@ function pollTick(): void {
   for (const taskId of activePolling) {
     const instance = pollRegistry.get(taskId)
     if (!instance || !instance.hasProgressCallback()) continue
-    void instance.sampleFileProgress()
+    if (instance.stdoutToFile) void instance.sampleFileProgress()
+    else instance.emitLiveView()
   }
 }
 
@@ -63,6 +64,8 @@ export class TaskOutput {
   private lineCount = 0
   private byteTotal = 0
 
+  private liveNotice: string | null = null
+
   private fileRedundant = false
   private fileSize = 0
 
@@ -77,7 +80,7 @@ export class TaskOutput {
     this.stdoutToFile = stdoutToFile
     this.onProgress = onProgress
     this.maxMemoryBytes = maxMemoryBytes
-    if (stdoutToFile && onProgress) {
+    if (onProgress) {
       pollRegistry.set(taskId, this)
     }
   }
@@ -102,6 +105,26 @@ export class TaskOutput {
 
   hasProgressCallback(): boolean {
     return this.onProgress !== null
+  }
+
+  setLiveNotice(notice: string | null): void {
+    this.liveNotice = notice
+  }
+
+  private viewOf(count: number): string {
+    const lines = this.joinRecent(count)
+    if (this.liveNotice === null) return lines
+    return lines === '' ? this.liveNotice : `${this.liveNotice}\n${lines}`
+  }
+
+  emitLiveView(): void {
+    this.onProgress?.(
+      this.viewOf(RECENT_VIEW_LINES),
+      this.viewOf(FULL_VIEW_LINES),
+      this.lineCount,
+      this.byteTotal,
+      this.spilled,
+    )
   }
 
   async sampleFileProgress(): Promise<void> {
@@ -160,8 +183,8 @@ export class TaskOutput {
     const harvestedAny = this.harvest(data)
     if (harvestedAny && this.onProgress) {
       this.onProgress(
-        this.joinRecent(RECENT_VIEW_LINES),
-        this.joinRecent(FULL_VIEW_LINES),
+        this.viewOf(RECENT_VIEW_LINES),
+        this.viewOf(FULL_VIEW_LINES),
         this.lineCount,
         this.byteTotal,
         this.spilled,
@@ -184,6 +207,8 @@ export class TaskOutput {
     }
   }
 
+  private atLineStart = true
+
   private harvest(chunk: string): boolean {
     const collected: string[] = []
     let budget = HARVEST_BUDGET_UNITS
@@ -204,6 +229,20 @@ export class TaskOutput {
       }
       cursor = newline
     }
+    const firstNewline = chunk.indexOf('\n')
+    if (this.atLineStart && firstNewline !== -1) {
+      const first = chunk.slice(0, firstNewline)
+      if (
+        collected.length < HARVEST_MAX_SEGMENTS &&
+        first.length > 0 &&
+        first.length <= budget &&
+        first.trim().length > 0
+      ) {
+        budget -= first.length
+        collected.push(materialiseSegment(first))
+      }
+    }
+    if (chunk.length > 0) this.atLineStart = chunk.endsWith('\n')
     for (let i = collected.length - 1; i >= 0; i--) {
       this.recentLines.add(collected[i]!)
     }
@@ -343,6 +382,7 @@ export class TaskOutput {
     this.stderrChunks = []
     this.stderrLength = 0
     this.recentLines.clear()
+    this.liveNotice = null
     this.onProgress = null
     this.diskWriter?.cancel()
     TaskOutput.stopPolling(this.taskId)

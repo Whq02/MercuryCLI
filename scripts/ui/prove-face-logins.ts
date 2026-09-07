@@ -490,23 +490,26 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   )
 
   const arms = loginsCatalogue()
-  t.check('the catalogue is the row owner’s nine, engine legs offered', arms.length === 9 && arms.map(a => a.row.value).join(',') === 'claudeai,openai,console,openrouter,gemini,huggingface,moonshot,zai,deepseek')
-  t.check('the two Anthropic rows read one family through two arms', arms[0]!.familyId === 'anthropic' && arms[0]!.arm === 'subscription' && arms[2]!.familyId === 'anthropic' && arms[2]!.arm === 'key')
+  t.check('the catalogue is the row owner’s nine, engine legs offered', arms.length === 9 && arms.map(a => a.row.value).join(',') === 'openai,claudeai,console,openrouter,gemini,huggingface,moonshot,zai,deepseek')
+  const claudeArm = arms.find(a => a.row.value === 'claudeai')!
+  const consoleArm = arms.find(a => a.row.value === 'console')!
+  const geminiArm = arms.find(a => a.row.value === 'gemini')!
+  t.check('the two Anthropic rows read one family through two arms', claudeArm.familyId === 'anthropic' && claudeArm.arm === 'subscription' && consoleArm.familyId === 'anthropic' && consoleArm.arm === 'key')
   t.check("the walk's sign-in-later row is structurally absent", !arms.some(a => (a.row.value as string) === 'later'))
 
   const facts = mixedFacts()
-  t.check('a signed-in arm wears its slot identity', loginsRowStateOf(arms[0]!, facts).chip === 'op@example.com' && loginsRowStateOf(arms[0]!, facts).signedIn === true)
-  t.check('the key arm of a subscription-signed family stays honestly absent', loginsRowStateOf(arms[2]!, facts).chip === 'not signed in' && loginsRowStateOf(arms[2]!, facts).signedIn === false)
-  t.check('absence is a DEFAULT tone, never loud', loginsRowStateOf(arms[4]!, facts).loud === false)
+  t.check('a signed-in arm wears its slot identity', loginsRowStateOf(claudeArm, facts).chip === 'op@example.com' && loginsRowStateOf(claudeArm, facts).signedIn === true)
+  t.check('the key arm of a subscription-signed family stays honestly absent', loginsRowStateOf(consoleArm, facts).chip === 'not signed in' && loginsRowStateOf(consoleArm, facts).signedIn === false)
+  t.check('absence is a DEFAULT tone, never loud', loginsRowStateOf(geminiArm, facts).loud === false)
   const kimi = arms.find(a => a.row.value === 'moonshot')!
   t.check('a reached window is LOUD on the chip', loginsRowStateOf(kimi, facts).chip.endsWith('· window reached') && loginsRowStateOf(kimi, facts).loud === true)
   const expired = expiredFacts()
-  t.check('a present-but-dead subscription says expired and stands out', loginsRowStateOf(arms[0]!, expired).chip === 'op@example.com · expired' && loginsRowStateOf(arms[0]!, expired).loud === true)
-  t.check('the expired pane carries the typed blocker VERBATIM', loginsDetailLines(arms[0]!, expired).join('\n').includes('the claude.ai sign-in has expired —\n/logins re-authenticates it'))
+  t.check('a present-but-dead subscription says expired and stands out', loginsRowStateOf(claudeArm, expired).chip === 'op@example.com · expired' && loginsRowStateOf(claudeArm, expired).loud === true)
+  t.check('the expired pane carries the typed blocker VERBATIM', loginsDetailLines(claudeArm, expired).join('\n').includes('the claude.ai sign-in has expired —\n/logins re-authenticates it'))
 
   const sorted = loginsSortedArms(facts)
-  t.check('signed-in rows float first, catalogue order within each class', sorted.map(a => a.row.value).join(',') === 'claudeai,openai,huggingface,moonshot,console,openrouter,gemini,zai,deepseek')
-  const entry = loginsEntryOf(arms[0]!, facts)
+  t.check('signed-in rows float first, catalogue order within each class', sorted.map(a => a.row.value).join(',') === 'openai,claudeai,huggingface,moonshot,console,openrouter,gemini,zai,deepseek')
+  const entry = loginsEntryOf(claudeArm, facts)
   t.check('an entry groups under its state class with the owner’s row label', entry.group === 'signed in' && entry.label === 'Claude subscription account' && entry.valueLabel === 'op@example.com')
 
   t.check('the summary counts distinct families (8), signed and ready', JSON.stringify(loginsSummaryRows(facts).map(r => `${r.key}=${r.value}`)) === JSON.stringify(['Families=8', 'Signed in=4 of 8', 'Ready=4 lanes']))

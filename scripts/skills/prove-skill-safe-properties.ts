@@ -3,9 +3,7 @@ import { join } from 'node:path'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 const { skillHasOnlySafeProperties } = await import(join(SRC, 'tools/SkillTool/SkillTool.ts'))
-const { createSkillCommand, parseSkillFrontmatterFields, transformSkillFiles } = await import(
-  join(SRC, 'skills/loadSkillsDir.ts')
-)
+const { createSkillCommand, parseSkillFrontmatterFields } = await import(join(SRC, 'skills/loadSkillsDir.ts'))
 const { registerLoopSkill } = await import(join(SRC, 'skills/bundled/loop.ts'))
 const { getBundledSkills } = await import(join(SRC, 'skills/bundledSkills.ts'))
 
@@ -16,17 +14,17 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 function buildSkill(frontmatter: Record<string, unknown>): Record<string, unknown> {
-  const loaded = transformSkillFiles([
-    {
-      filePath: '/scratch/.mercury/skills/cond-skill/SKILL.md',
-      baseDir: '/scratch/.mercury/skills',
-      frontmatter: { name: 'cond-skill', description: 'a conditional skill', ...frontmatter },
-      content: 'Follow the conditional instructions.',
-      source: 'projectSettings',
-    },
-  ]) as Array<{ command: Record<string, unknown> } | Record<string, unknown>>
-  const first = loaded[0] as Record<string, unknown>
-  return (first?.command as Record<string, unknown> | undefined) ?? first
+  const markdownContent = 'Follow the conditional instructions.'
+  const merged = { name: 'cond-skill', description: 'a conditional skill', ...frontmatter }
+  const fields = parseSkillFrontmatterFields(merged, markdownContent, 'cond-skill')
+  return createSkillCommand({
+    name: 'cond-skill',
+    markdownContent,
+    source: 'projectSettings',
+    baseDir: '/scratch/.mercury/skills',
+    loadedFrom: 'project' as never,
+    fields,
+  }) as Record<string, unknown>
 }
 
 console.log('L1 a paths-filtered skill auto-allows')

@@ -310,11 +310,11 @@ const HOLD_SECONDS = 40
 
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const api = await startFixtureApi([
-  { kind: 'text', whenModel: 'opus', text: 'ready.' },
-  { kind: 'tool_use', whenModel: 'opus', name: 'Workflow', input: { script: WORKFLOW_SCRIPT }, preText: 'launching the probe. ' },
+  { kind: 'text', whenModel: 'opus', whenBody: 'say ready', text: 'ready.' },
+  { kind: 'tool_use', whenModel: 'opus', whenBody: 'say ready', name: 'Workflow', input: { script: WORKFLOW_SCRIPT }, preText: 'launching the probe. ' },
+  { kind: 'text', whenModel: 'opus', whenBody: 'say ready', text: 'workflow launched.' },
   { kind: 'tool_use', whenModel: 'opus', name: 'Sleep', input: { seconds: HOLD_SECONDS }, preText: 'holding the probe. ' },
   { kind: 'text', whenModel: 'opus', text: 'done' },
-  { kind: 'text', whenModel: 'opus', text: 'workflow launched.' },
   { kind: 'tool_use', whenModel: 'haiku', name: 'Agent', input: { description: 'helper', prompt: 'reply with the word done', run_in_background: true }, preText: 'dispatching a helper. ' },
   { kind: 'text', whenModel: 'haiku', text: 'helper dispatched.' },
   { kind: 'text', text: 'hi from B.' },
