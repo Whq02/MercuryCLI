@@ -1,7 +1,7 @@
 ---
 name: word-documents
 description: Create, read, edit, and review Word (.docx) files — generate documents with python-docx, inspect or restructure the underlying OOXML, fill templates, add tables and images, work with tracked changes and comments, and convert to PDF. Use when the request names a .docx or Word document; not for spreadsheets, slides, PDFs, or plain Markdown drafting.
-when_to_use: The user wants a .docx produced, summarised, edited in place, compared, or exported, or hands over a Word file to read.
+when-to-use: The user wants a .docx produced, summarised, edited in place, compared, or exported, or hands over a Word file to read.
 argument-hint: "<path.docx or 'new'> [what to do]"
 ---
 
