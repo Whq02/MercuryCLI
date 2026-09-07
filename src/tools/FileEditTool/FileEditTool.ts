@@ -8,11 +8,13 @@ import { recoverStaleHunks, staleEditRecoveryEnabled } from '../../services/chan
 import {
   applyHunks,
   editHunksEnabled,
+  formatHunkOutcomes,
   planApplyRegions,
   planHunks,
   spanText,
   type EditHunkInput,
 } from '../../services/changeTransaction/hunks.js'
+import { checkSeenLines, fileGeneration } from '../../services/changeTransaction/seenLines.js'
 import {
   recordNoChangeOutcome,
 } from '../../services/changeTransaction/repetitionPolicy.js'
@@ -80,6 +82,7 @@ import {
   getPatchForEdit,
   preserveQuoteStyle,
 } from './utils.js'
+import { findSection, planAppend, planSectionEdit } from './sectionEdit.js'
 import { getPatchFromContents } from '../../utils/diff.js'
 import { convertLeadingTabsToSpaces } from '../../utils/file.js'
 import {
@@ -189,6 +192,47 @@ function hunksInUse(input: FileEditInput): boolean {
   return editHunksEnabled() && input.hunks !== undefined
 }
 
+type EditMode = 'exact' | 'hunks' | 'append' | 'section'
+function editMode(input: FileEditInput): EditMode {
+  if (hunksInUse(input)) return 'hunks'
+  if (input.section !== undefined) return 'section'
+  if (input.append !== undefined) return 'append'
+  return 'exact'
+}
+
+function linesOfFirstMatch(content: string, oldString: string): { start: number; end: number } | null {
+  const actual = findActualString(content, oldString)
+  if (actual === null) return null
+  const at = content.indexOf(actual)
+  const start = content.slice(0, at).split('\n').length
+  const end = start + actual.split('\n').length - 1
+  return { start, end }
+}
+
+function readKnowledgeRefusal(
+  context: ToolUseContext,
+  expandedPath: string,
+  displayPath: string,
+  currentContent: string,
+  expectedAnchor: string | undefined,
+  touched: { start: number; end: number } | null,
+): string | null {
+  const entry = context.readFileState.get(expandedPath)
+  if (entry !== undefined && !entry.isPartialView) return null
+  if (expectedAnchor !== undefined && expectedAnchor.startsWith('fa:') && checkAnchor(expectedAnchor, currentContent, displayPath).ok) return null
+  if (touched !== null) {
+    try {
+      const generation = fileGeneration(expandedPath)
+      if (generation !== null) {
+        const seen = checkSeenLines(ownerFromToolUseContext(context), expandedPath, generation, [{ index: 1, start: touched.start, end: touched.end, replace: '' }], displayPath)
+        if (seen.ok) return null
+      }
+    } catch {
+    }
+  }
+  return 'Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands).'
+}
+
 function attemptStaleHunkRecovery(
   context: ToolUseContext,
   staleAnchor: string,
@@ -296,12 +340,31 @@ export const FileEditTool = buildTool({
   },
   async validateInput(input: FileEditInput, context: ToolUseContext) {
     const usingHunks = hunksInUse(input)
+    const mode = editMode(input)
 
-    if (!usingHunks && (input.old_string === undefined || input.new_string === undefined)) {
+    if (mode === 'append' || mode === 'section') {
+      const clash =
+        input.old_string !== undefined ||
+        input.hunks !== undefined ||
+        (mode === 'append' && input.new_string !== undefined) ||
+        (mode === 'section' && input.append !== undefined && input.new_string !== undefined) ||
+        (mode === 'section' && input.append === undefined && input.new_string === undefined)
+      if (clash) {
+        return {
+          result: false as const,
+          behavior: 'ask' as const,
+          message:
+            mode === 'append'
+              ? 'append stands alone (or with section): drop old_string, new_string and hunks.'
+              : 'section takes exactly one of new_string (replace the section) or append (add inside it), and no old_string or hunks.',
+          errorCode: 13,
+        }
+      }
+    } else if (!usingHunks && (input.old_string === undefined || input.new_string === undefined)) {
       return {
         result: false as const,
         behavior: 'ask' as const,
-        message: 'old_string and new_string are required unless hunks are provided.',
+        message: 'old_string and new_string are required unless hunks, append or section are provided.',
         errorCode: 13,
       }
     }
@@ -339,7 +402,7 @@ export const FileEditTool = buildTool({
 
     const proposedBodies = usingHunks
       ? (input.hunks ?? []).map(hunk => hunk.replace)
-      : [input.new_string ?? '']
+      : [input.new_string ?? input.append ?? '']
     for (const body of proposedBodies) {
     }
 
@@ -347,7 +410,7 @@ export const FileEditTool = buildTool({
     const newString = input.new_string ?? ''
 
     const { old_string, new_string } = input
-    if (!usingHunks && old_string === new_string) {
+    if (mode === 'exact' && old_string === new_string) {
       return {
         result: false as const,
         behavior: 'ask' as const,
@@ -406,7 +469,10 @@ export const FileEditTool = buildTool({
     }
 
     if (!fileExists) {
-      if (!usingHunks && oldString === '') {
+      if (mode === 'exact' && oldString === '') {
+        return { result: true as const }
+      }
+      if (mode === 'append') {
         return { result: true as const }
       }
       const suggestion = await notFoundSuggestionSentence(expandedPath)
@@ -419,7 +485,7 @@ export const FileEditTool = buildTool({
       }
     }
 
-    if (!usingHunks && oldString === '') {
+    if (mode === 'exact' && oldString === '') {
       if (currentContent.trim() !== '') {
         return {
           result: false as const,
@@ -441,19 +507,34 @@ export const FileEditTool = buildTool({
       }
     }
 
-    const entry = context.readFileState.get(expandedPath)
-    if (!entry || entry.isPartialView) {
+    const touched =
+      mode === 'exact'
+        ? linesOfFirstMatch(currentContent, oldString)
+        : mode === 'section'
+          ? (() => {
+              const found = findSection(currentContent, input.section ?? '')
+              return found.ok ? { start: found.start, end: found.end } : null
+            })()
+          : null
+    const knowledge =
+      mode === 'append'
+        ? null
+        : readKnowledgeRefusal(context, expandedPath, input.file_path, currentContent, input.expected_anchor, touched)
+    if (knowledge !== null) {
       return {
         result: false as const,
         behavior: 'ask' as const,
-        message: 'Read the file before editing it — the edit needs a prior read of the current content.',
+        message: knowledge,
         errorCode: 6,
         meta: { isPathAbsolute: String(isAbsolute(input.file_path)) },
       }
     }
 
+    const entry = context.readFileState.get(expandedPath)
     if (
-      await staleAtValidation(entry, expandedPath, currentContent, context.abortController.signal)
+      entry !== undefined &&
+      !entry.isPartialView &&
+      (await staleAtValidation(entry, expandedPath, currentContent, context.abortController.signal))
     ) {
       return {
         result: false as const,
@@ -499,7 +580,7 @@ export const FileEditTool = buildTool({
         return {
           result: false as const,
           behavior: 'ask' as const,
-          message: `${plan.message} Nothing was written.`,
+          message: `${plan.message} Nothing was written.${plan.outcomes.length > 1 ? ` Outcomes: ${formatHunkOutcomes(plan.outcomes)}.` : ''}`,
           errorCode: 13,
         }
       }
@@ -512,6 +593,25 @@ export const FileEditTool = buildTool({
         return { ...settingsRefusal, behavior: 'ask' as const }
       }
       return { result: true as const, meta: { plannedHunkCount: String(plan.spans.length) } }
+    }
+
+    if (mode === 'append' || mode === 'section') {
+      const planned =
+        mode === 'append'
+          ? { ok: true as const, updated: planAppend(currentContent, input.append ?? '') }
+          : planSectionEdit(
+              currentContent,
+              input.section ?? '',
+              input.append !== undefined ? { append: input.append } : { replace: input.new_string ?? '' },
+            )
+      if (!planned.ok) {
+        return { result: false as const, behavior: 'ask' as const, message: `${planned.message} Nothing was written.`, errorCode: 8 }
+      }
+      const settingsRefusal = validateInputForSettingsFileEdit(expandedPath, currentContent, () => planned.updated)
+      if (settingsRefusal !== null) {
+        return { ...settingsRefusal, behavior: 'ask' as const }
+      }
+      return { result: true as const }
     }
 
     const actualOldString = findActualString(currentContent, oldString)
@@ -551,6 +651,7 @@ export const FileEditTool = buildTool({
     const startedAt = Date.now()
     const expandedPath = expandPath(input.file_path)
     const usingHunks = hunksInUse(input)
+    const mode = editMode(input)
     const anchorChecked = changeTransactionEnabled() && input.expected_anchor !== undefined
 
     if (!isEnvTruthy(process.env.MERCURY_BARE)) {
@@ -588,14 +689,27 @@ export const FileEditTool = buildTool({
       fileExists = false
     }
 
-    if (fileExists) {
+    if (fileExists && mode !== 'append') {
       const entry = context.readFileState.get(expandedPath)
-      const intact =
-        entry !== undefined &&
-        (getFileModificationTime(expandedPath) <= entry.timestamp ||
-          (isFullReadEntry(entry) && entry.content === freshContent))
-      if (!intact) {
-        throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
+      if (entry !== undefined && !entry.isPartialView) {
+        const intact =
+          getFileModificationTime(expandedPath) <= entry.timestamp ||
+          (isFullReadEntry(entry) && entry.content === freshContent)
+        if (!intact) {
+          throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
+        }
+      } else {
+        const touched =
+          mode === 'exact'
+            ? linesOfFirstMatch(freshContent, input.old_string ?? '')
+            : mode === 'section'
+              ? (() => {
+                  const found = findSection(freshContent, input.section ?? '')
+                  return found.ok ? { start: found.start, end: found.end } : null
+                })()
+              : null
+        const knowledge = readKnowledgeRefusal(context, expandedPath, input.file_path, freshContent, input.expected_anchor, touched)
+        if (knowledge !== null) throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
       }
     }
 
@@ -633,7 +747,7 @@ export const FileEditTool = buildTool({
       const { bom, body } = splitLeadingBom(freshContent)
       const plan = planHunks(body, effectiveHunks as EditHunkInput[], effectiveAnchor)
       if (!plan.ok) {
-        throw new Error(`${plan.message} Nothing was written.`)
+        throw new Error(`${plan.message} Nothing was written.${plan.outcomes.length > 1 ? ` Outcomes: ${formatHunkOutcomes(plan.outcomes)}.` : ''}`)
       }
       updatedFile = bom + applyHunks(body, plan)
       if (
@@ -649,6 +763,29 @@ export const FileEditTool = buildTool({
       reportedNewString = (effectiveHunks as EditHunkInput[])
         .map(hunk => hunk.replace)
         .join(HUNK_SPAN_ELISION)
+      patch =
+        updatedFile === freshContent
+          ? []
+          : getPatchFromContents({
+              filePath: expandedPath,
+              oldContent: convertLeadingTabsToSpaces(freshContent),
+              newContent: convertLeadingTabsToSpaces(updatedFile),
+            })
+    } else if (mode === 'append' || mode === 'section') {
+      const planned =
+        mode === 'append'
+          ? { ok: true as const, updated: planAppend(freshContent, input.append ?? ''), sectionText: '' }
+          : planSectionEdit(
+              freshContent,
+              input.section ?? '',
+              input.append !== undefined ? { append: input.append } : { replace: input.new_string ?? '' },
+            )
+      if (!planned.ok) {
+        throw new Error(`${planned.message} Nothing was written.`)
+      }
+      updatedFile = planned.updated
+      reportedOldString = planned.sectionText
+      reportedNewString = input.append ?? input.new_string ?? ''
       patch =
         updatedFile === freshContent
           ? []
@@ -690,7 +827,9 @@ export const FileEditTool = buildTool({
                 hunk.insert ?? '',
               ]),
             ]
-          : [reportedOldString, reportedNewString, replaceAll],
+          : mode === 'exact'
+            ? [reportedOldString, reportedNewString, replaceAll]
+            : [mode, input.section ?? '', input.append ?? '', input.new_string ?? ''],
       )
       const verdict = recordNoChangeOutcome(owner, {
         operation: 'file.edit',
@@ -717,7 +856,7 @@ export const FileEditTool = buildTool({
           changedPaths: [],
           evidence: usingHunks
             ? 'hunks lane: the planned result is byte-identical to the current content'
-            : 'exact-string lane: the computed result is byte-identical to the current content',
+            : `${mode === 'exact' ? 'exact-string' : mode} mode: the computed result is byte-identical to the current content`,
           startedAt,
           completedAt: Date.now(),
           details: { anchorChecked },
@@ -780,7 +919,7 @@ export const FileEditTool = buildTool({
         changedPaths: [expandedPath],
         evidence: usingHunks
           ? `applied ${hunkCount} anchored hunk(s): +${added}/-${removed} lines${staleRecoveryNote !== undefined ? ` · ${staleRecoveryNote}` : ''}`
-          : `exact-string lane: +${added}/-${removed} lines`,
+          : `${mode === 'exact' ? 'exact-string' : mode} mode: +${added}/-${removed} lines`,
         startedAt,
         completedAt: Date.now(),
         details: {

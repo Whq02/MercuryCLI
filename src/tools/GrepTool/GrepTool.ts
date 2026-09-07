@@ -4,6 +4,7 @@ import { z } from 'zod/v4'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { anchorPatchEnabled } from '../../services/changeTransaction/anchorPatch.js'
+import { staleEditRecoveryEnabled } from '../../services/changeTransaction/stalePatchRecovery.js'
 import { fileGeneration, recordSeenLines } from '../../services/changeTransaction/seenLines.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { discoveryPoolWidth, mapWithConcurrency } from '../../utils/concurrency.js'
@@ -274,7 +275,7 @@ export const GrepTool = buildTool({
 
     if (mode === 'content') {
       const { slice, appliedLimit, appliedOffset } = paginate(lines, input.head_limit, offset)
-      if (anchorPatchEnabled() && (input['-n'] ?? true)) {
+      if ((anchorPatchEnabled() || staleEditRecoveryEnabled()) && (input['-n'] ?? true)) {
         try {
           const owner = ownerFromToolUseContext(context)
           const generations = new Map<string, string | null>()
