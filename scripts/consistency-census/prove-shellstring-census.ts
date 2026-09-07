@@ -19,7 +19,19 @@ execFileSync(process.execPath, [join(ROOT, 'scripts/consistency-census/gen-shell
 const after = readFileSync(censusPath, 'utf8')
 if (before !== after) writeFileSync(censusPath, before)
 check('§A regeneration reproduces the SHELL-STRING census byte-for-byte', before === after)
-const census = JSON.parse(after) as { sites: Array<{ cls: string; file: string }> }
+type Site = { cls: string; file: string; line: number; mechanism: string }
+const census = JSON.parse(after) as { sites: Site[] }
+if (before !== after) {
+  const rows = (sites: Site[]): Map<string, Site> => new Map(sites.map(s => [JSON.stringify(s), s]))
+  const committed = rows((JSON.parse(before) as { sites: Site[] }).sites)
+  const regenerated = rows(census.sites)
+  const name = (s: Site): string => `${s.file}:${s.line} (${s.mechanism})`
+  const stale = [...committed].filter(([k]) => !regenerated.has(k)).map(([, s]) => s)
+  const unrecorded = [...regenerated].filter(([k]) => !committed.has(k)).map(([, s]) => s)
+  for (const s of stale.slice(0, 20)) console.log(`    committed but not in the tree: ${name(s)}`)
+  for (const s of unrecorded.slice(0, 20)) console.log(`    in the tree but not committed: ${name(s)}`)
+  console.log(`    ${stale.length} stale row(s), ${unrecorded.length} unrecorded row(s) — regenerate with scripts/consistency-census/gen-shellstring-census.ts`)
+}
 check(
   '§B zero unclassified sites',
   census.sites.every(s => s.cls !== 'UNCLASSIFIED'),
