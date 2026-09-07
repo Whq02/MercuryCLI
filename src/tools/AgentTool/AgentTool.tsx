@@ -260,9 +260,13 @@ export const outputSchema = lazySchema(() => {
       modelNote: z.string().optional().describe('The model-floor note'),
       agentName: z.string().optional().describe('The name the launch gave the agent — an address beside the id'),
       backgroundReason: z
-        .enum(['turn-interrupted', 'backgrounded', 'agent-type'])
+        .enum(['turn-interrupted', 'backgrounded', 'agent-type', 'sibling-ended'])
         .optional()
-        .describe('Why a foreground ask ran in the background: the turn was interrupted, the agent was moved, or the type always does'),
+        .describe('Why a foreground ask ran in the background: the turn was interrupted, the agent was moved, the type always does, or a sibling agent failed or stopped and the group wait returned'),
+      siblingEnd: z
+        .object({ taskId: z.string(), description: z.string(), status: z.enum(['failed', 'stopped']), error: z.string().optional() })
+        .optional()
+        .describe('The sibling whose failure or stop returned the group wait'),
     }),
   ])
 })
@@ -923,10 +927,11 @@ export const AgentTool = buildTool({
         modelNote?: string
         agentName?: string
         backgroundReason?: BackgroundHandoverReason
+        siblingEnd?: { taskId: string; description: string; status: 'failed' | 'stopped'; error?: string }
       }
       const lines = [
         'Agent launched in the background.',
-        ...(async.backgroundReason ? [foregroundNotKeptLine(async.backgroundReason)] : []),
+        ...(async.backgroundReason ? [foregroundNotKeptLine(async.backgroundReason, async.siblingEnd)] : []),
         ...(async.modelNote ? [async.modelNote] : []),
         continuationHint(async.agentId, async.agentName),
         'The agent is working in the background — you will be notified automatically when it completes.',
