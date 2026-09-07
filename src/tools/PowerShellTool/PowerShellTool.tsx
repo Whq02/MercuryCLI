@@ -208,6 +208,7 @@ async function* runPowerShell(
       { command: input.command, description: input.description ?? input.command, shellCommand, toolUseId: context.toolUseId, agentId: agentId as never },
       { abortController, getAppState: () => { throw new Error('spawn must not read app state') }, setAppState: context.setAppState },
     )
+    if (handle.accepted === false) return
     backgroundId = handle.taskId
     progressResolve?.()
     fromTrigger?.(backgroundId)
@@ -235,6 +236,11 @@ async function* runPowerShell(
       { command: input.command, description: input.description ?? input.command, shellCommand, toolUseId: context.toolUseId, agentId: agentId as never },
       { abortController, getAppState: () => { throw new Error('spawn must not read app state') }, setAppState: context.setAppState },
     )
+    if (handle.accepted === false) {
+      const result = await shellCommand.result
+      shellCommand.cleanup()
+      return await postProcess(result)
+    }
     return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: handle.taskId }
   }
 

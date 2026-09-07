@@ -227,6 +227,13 @@ export const SettingsSchema = lazySchema(() => {
     skipSovereignConsentPrompt: z.boolean().optional().describe('True skips the consent card shown before entering Sovereign mode (honoured from the user, local, flag and policy sources)'),
     defaultShell: z.enum(['bash', 'powershell']).optional(),
     shellEngine: z.enum(['system', 'brush']).optional(),
+    shellEngineSessions: z
+      .number()
+      .int()
+      .min(1)
+      .max(64)
+      .optional()
+      .describe("The ceiling on live shell-engine sessions Mercury keeps at once: the main conversation's own plus that many minus one for sub-agents (default 8). A sub-agent past the ceiling waits for a free session, never sharing another owner's; a ceiling of 1 leaves no session for sub-agents"),
     instructionProfile: z.enum(['auto', 'native']).optional(),
     channelsEnabled: z.boolean().optional(),
     apollo: z
