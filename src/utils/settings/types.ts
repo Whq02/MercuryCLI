@@ -227,6 +227,24 @@ export const SettingsSchema = lazySchema(() => {
     skipSovereignConsentPrompt: z.boolean().optional().describe('True skips the consent card shown before entering Sovereign mode (honoured from the user, local, flag and policy sources)'),
     defaultShell: z.enum(['bash', 'powershell']).optional(),
     shellEngine: z.enum(['system', 'brush']).optional(),
+    patience: z
+      .union([
+        z.enum(['normal', 'patient']),
+        z
+          .object({
+            streamIdleSeconds: z.number().positive().optional(),
+            quietStreamIdleSeconds: z.number().positive().optional(),
+            fallbackCeilingSeconds: z.number().positive().optional(),
+            recoveryBudgetMinutes: z.number().min(0).optional(),
+          })
+          .describe(
+            'Custom patience: the stream-idle budget in seconds on the roads whose keep-alives feed the watchdog, the same budget on the OpenAI road (silent while the model reasons), the non-streamed fallback ceiling in seconds, and the retry budget in minutes (0 = no budget); a missing number takes the normal one',
+          ),
+      ])
+      .optional()
+      .describe(
+        'Patience with a quiet model: normal (a 90 s stream-idle budget where keep-alives feed the watchdog, 15 min on the OpenAI road, a 15 min non-streamed fallback ceiling, a 20 min retry budget), patient (every wait doubled), or the custom numbers; MERCURY_STREAM_IDLE_TIMEOUT_MS, MERCURY_API_TIMEOUT_MS and MERCURY_RECOVERY_BUDGET_MINUTES outrank it',
+      ),
     instructionProfile: z.enum(['auto', 'native']).optional(),
     channelsEnabled: z.boolean().optional(),
     apollo: z

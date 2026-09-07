@@ -82,7 +82,7 @@ import { recordOpenaiUsageLimit } from './openaiLimitState.js'
 import { resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { streamOpenaiResponses } from './openaiClient.js'
-import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMs, typedStreamEndOf } from '../streamIdleBudget.js'
+import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import {
   buildOpenaiResponsesRequest,
@@ -851,6 +851,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
       headers: auth.headers,
       request,
       signal,
+      idleTimeoutMs: streamIdleTimeoutMsForRoute('openai'),
       firstByte: {
         cold: coldPrefixOf(ctx.messages, modelId),
         promptTokens: estimateRequestTokens(request),
@@ -975,7 +976,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
           fault,
           provider: 'OpenAI',
           tailStands: blocks.open === null && minted.at(-1)?.message.content[0]?.type === 'text',
-          silentMs: streamIdleTimeoutMs(),
+          silentMs: streamIdleTimeoutMsForRoute('openai'),
         })
       : null
 
