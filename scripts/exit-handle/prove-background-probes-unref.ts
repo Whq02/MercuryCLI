@@ -28,6 +28,11 @@ check(
   'the ripgrep file-count probe unrefs its child and its pipe the moment they exist (a count never holds the exit cliff)',
   /const child = spawn\(config\.rgPath, \[\.\.\.config\.rgArgs, \.\.\.args, target\][\s\S]{0,400}\n\s*child\.unref\(\)\n[\s\S]{0,200}child\.stdout as [^\n]*\)\?\.unref\?\.\(\)/.test(rg),
 )
+const main = read('src/main.tsx')
+check(
+  'the boot starts the file count only for an interactive run (a headless run never reads it)',
+  /if \(getIsInteractive\(\)\) void countFilesRoundedRg\(/.test(main) && !/^\s*void countFilesRoundedRg\(/m.test(main),
+)
 
 console.log('§3 the exit ends what the unref let go')
 {
