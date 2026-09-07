@@ -1,6 +1,12 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.5
+- Removed the internal feature-gate table; every setting it used to answer is now plain code with the same behaviour
+- Changed the sign-in list in the Logins screen, /login and the first run to start on the most recent sign-in's row when one is recorded and on the first row otherwise
+- Changed /model to list its sections as OpenAI, OpenRouter, Anthropic, then the other families
+- Removed three environment variables that had no effect: MERCURY_IDLE_THRESHOLD_MINUTES, MERCURY_IDLE_TOKEN_THRESHOLD and MERCURY_AGENT_ID
+
 ## 1.0.0-beta.4
 - Added an optional built-in shell engine (the /config row "Shell engine" set to brush, or MERCURY_SHELL_ENGINE=brush): one persistent shell for the conversation and one per sub-agent, the same shell on every platform, and Windows no longer needs Git for Windows
 - Added a "Shell engine sessions" setting that caps how many shell sessions stay alive (8 by default; MERCURY_SHELL_ENGINE_SESSIONS overrides it); an agent past the cap waits for a free one
