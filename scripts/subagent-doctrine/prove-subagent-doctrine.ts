@@ -25,7 +25,7 @@ function section(t: string): void {
 }
 
 const GP = { agentType: 'mercury-general' }
-const EXEMPT = ['mercury-verifier', 'mercury-scout', 'mercury-architect', 'workflow-subagent']
+const EXEMPT = ['mercury-verifier', 'mercury-scout', 'mercury-architect', 'mercury-reviewer', 'workflow-subagent']
 const NORMAL_MARK = 'You are a subagent OF Mercury'
 const CARD_MARK = /^## .*experience cards/im
 const GATE_CLAUSE = 'bypass a safety, permission, approval, or capability gate'

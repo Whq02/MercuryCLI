@@ -97,6 +97,7 @@ import {
 } from './constants.js'
 import {
   buildForkedMessages,
+  buildFrozenWorktreeNotice,
   buildWorktreeNotice,
   FORK_AGENT,
   isForkSubagentEnabled,
@@ -132,6 +133,7 @@ export type AgentToolInput = {
   team_name?: string
   mode?: string
   isolation?: 'worktree'
+  worktree_at?: string
   output_schema?: Record<string, unknown>
   schema_mode?: 'permissive' | 'strict'
   cwd?: string
@@ -202,6 +204,12 @@ export const inputSchema = lazySchema(() => {
       .literal('worktree')
       .optional()
       .describe('Run the agent in a temporary git worktree.'),
+    worktree_at: z
+      .string()
+      .optional()
+      .describe(
+        "With isolation 'worktree': pin the worktree to this commit, detached — the agent reads a frozen tree no later commit or edit can move (a reviewer reads exactly the reviewed commit). The spelling must resolve to a commit in the repository.",
+      ),
     output_schema: z
       .record(z.string(), z.unknown())
       .optional()
@@ -638,7 +646,10 @@ export const AgentTool = buildTool({
       | Awaited<ReturnType<typeof createAgentWorktree>>
       | undefined
     if (plan.isolation === 'worktree') {
-      worktreeInfo = await createAgentWorktree(`agent-${earlyAgentId.slice(0, 8)}`)
+      worktreeInfo = await createAgentWorktree(
+        `agent-${earlyAgentId.slice(0, 8)}`,
+        input.worktree_at !== undefined ? { at: input.worktree_at } : undefined,
+      )
       if (isFork) {
         promptMessages = [
           ...promptMessages,
@@ -647,6 +658,16 @@ export const AgentTool = buildTool({
           }),
         ]
       }
+      if (input.worktree_at !== undefined && worktreeInfo.headCommit !== undefined) {
+        promptMessages = [
+          ...promptMessages,
+          createUserMessage({
+            content: buildFrozenWorktreeNotice(worktreeInfo.worktreePath, worktreeInfo.headCommit),
+          }),
+        ]
+      }
+    } else if (input.worktree_at !== undefined) {
+      throw new Error("worktree_at needs isolation: 'worktree' — the pin names the commit a temporary worktree stands at.")
     }
 
     let cleanupDone = false

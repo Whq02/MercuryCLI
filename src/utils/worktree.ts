@@ -116,7 +116,7 @@ async function runGit(
 
 type CreateOrResumeResult = {
   worktreePath: string
-  worktreeBranch: string
+  worktreeBranch?: string
   headCommit: string | null
   existed: boolean
   baseBranch?: string
@@ -125,10 +125,35 @@ type CreateOrResumeResult = {
 async function createOrResumeWorktree(
   repoRoot: string,
   slug: string,
-  options?: { prNumber?: number },
+  options?: { prNumber?: number; at?: string },
 ): Promise<CreateOrResumeResult> {
   const worktreePath = worktreePathForSlug(repoRoot, slug)
   const branchName = worktreeBranchName(slug)
+
+  if (options?.at !== undefined) {
+    if (!/^[A-Za-z0-9._\/~^-]+$/.test(options.at)) {
+      throw new Error(`The worktree commit ${JSON.stringify(options.at)} is not a commit spelling`)
+    }
+    const resolved = await runGit(['rev-parse', '--verify', '--quiet', `${options.at}^{commit}`], repoRoot)
+    const sha = resolved.stdout.trim()
+    if (resolved.code !== 0 || !/^[0-9a-f]{40}$/.test(sha)) {
+      throw new Error(`The worktree commit ${options.at} does not resolve to a commit in this repository`)
+    }
+    const existingHead = await readWorktreeHeadSha(worktreePath)
+    if (existingHead !== null) {
+      if (existingHead !== sha) {
+        throw new Error(`The worktree ${worktreePath} already exists at ${existingHead.slice(0, 12)}, not at ${sha.slice(0, 12)}`)
+      }
+      return { worktreePath, headCommit: sha, existed: true }
+    }
+    await mkdir(worktreesHome(repoRoot), { recursive: true })
+    const add = await runGit(['worktree', 'add', '--detach', worktreePath, sha], repoRoot)
+    if (add.code !== 0) {
+      throw new Error(`git worktree add failed: ${add.stderr.trim()}`)
+    }
+    await writeWorktreeBaseline(worktreePath, sha)
+    return { worktreePath, headCommit: sha, existed: false }
+  }
 
   const existingHead = await readWorktreeHeadSha(worktreePath)
   if (existingHead !== null) {
@@ -555,7 +580,12 @@ export function preflightWorktreeCapability(cwd: string = getCwd()): WorktreeCap
   }
 }
 
-export async function createAgentWorktree(slug: string): Promise<{
+export async function createAgentWorktree(
+  slug: string,
+  options?: {
+    at?: string
+  },
+): Promise<{
   worktreePath: string
   worktreeBranch?: string
   headCommit?: string
@@ -564,6 +594,9 @@ export async function createAgentWorktree(slug: string): Promise<{
 }> {
   validateWorktreeSlug(slug)
   if (hasWorktreeCreateHook()) {
+    if (options?.at !== undefined) {
+      throw new Error('A worktree pinned to a commit cannot be created through the WorktreeCreate hook; drop the pin or the hook.')
+    }
     const hookResult = await executeWorktreeCreateHook(slug)
     return { worktreePath: hookResult.worktreePath, hookBased: true }
   }
@@ -574,7 +607,7 @@ export async function createAgentWorktree(slug: string): Promise<{
         'Retry the same Agent call WITHOUT the isolation parameter; the agent will run in the current directory.',
     )
   }
-  const created = await createOrResumeWorktree(gitRoot, slug)
+  const created = await createOrResumeWorktree(gitRoot, slug, options?.at !== undefined ? { at: options.at } : undefined)
   if (!created.existed) {
     await runPostCreationSetup(gitRoot, created.worktreePath)
     const lock = await runGit(
