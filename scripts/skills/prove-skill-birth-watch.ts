@@ -78,7 +78,7 @@ console.log('L4 the REPL watcher arms for missing candidates too')
   const hook = readFileSync(join(SRC, 'hooks/useSkillsChange.ts'), 'utf8')
   t('it derives unfiltered candidates', hook.includes('projectConfigCandidatePaths(cwd,'))
   t('it walks to the nearest existing ancestor for a missing candidate', hook.includes('while (!existsSync(ancestor))'))
-  t('a birth re-arms and rescans', hook.includes('if (existsSync(dir)) rescan(true)'))
+  t('a birth re-arms and rescans', hook.includes('if (existsSync(dir)) rescan()'))
 }
 
 console.log(failures === 0 ? 'SKILL BIRTH WATCH: ALL PASS' : 'SKILL BIRTH WATCH: RED')
