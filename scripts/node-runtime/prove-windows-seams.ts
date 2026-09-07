@@ -237,6 +237,7 @@ section('(13) the Windows install guide tells the tree\'s truth (a ratchet on th
   check('the code-page sentence no longer pins one mojibake spelling', /437/.test(doc) && /850/.test(doc))
   check('step 1 names Windows Terminal as the HOST and PowerShell 7 as the SHELL, not as alternatives', /Windows Terminal is the\s+host/.test(doc) && /PowerShell 7 \(`pwsh`\) is the shell/.test(doc) && !/Use \*\*Windows Terminal\*\* or \*\*PowerShell 7\*\*/.test(doc))
   check('the standalone console is told about the terminal-check card and that its first row, 1, continues', /terminal-check card first, and its first row — `1`, Continue anyway —/.test(doc))
+  check('where the engine is offered instead of Git, its two Windows limits are named with the way round each', doc.includes('cmd /c npm') && /relative\s+path after a `cd`/.test(doc) && /absolute path/.test(doc))
 }
 
 section('(14) a deep probe\'s scratch sweep never outranks its verdict')
