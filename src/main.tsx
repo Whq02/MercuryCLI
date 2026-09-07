@@ -1735,11 +1735,7 @@ async function interactiveLaunch(args: {
   if (onboardingShown && inputPrompt?.trim().toLowerCase() === '/logins') {
     inputPrompt = undefined
   }
-  if (onboardingShown) {
-    resetUserCache()
-    const { refreshFeatureGates } = await import('./services/analytics/featureGates.js')
-    await refreshFeatureGates().catch(() => {})
-  }
+  if (onboardingShown) resetUserCache()
   const orgValidation = await validateForceLoginOrg()
   if (!orgValidation.valid) {
     await exitWithError(root, orgValidation.message)

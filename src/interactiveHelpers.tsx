@@ -35,7 +35,6 @@ import {
 } from './utils/config/trust.js'
 import { setSessionTrustAccepted } from './bootstrap/state.js'
 import { setStatsStore } from './bootstrap/state.js'
-import { resetFeatureGates, initializeFeatureGates } from './services/analytics/featureGates.js'
 import { handleMcpjsonServerApprovals } from './services/mcpServerApproval.js'
 import { getExternalInstructionIncludes, getInstructionFiles, shouldShowExternalInstructionIncludesWarning } from './services/instructions/engine.js'
 import { getSettingsWithAllErrors } from './utils/settings/allErrors.js'
@@ -254,12 +253,6 @@ export async function showSetupScreens(
       ))
     }
     setSessionTrustAccepted(true)
-    try {
-      resetFeatureGates()
-      void initializeFeatureGates()
-    } catch (error) {
-      logError(error)
-    }
     registerBackgroundNode('setup:prefetch-system-context', async () => {
       await import('./utils/queryContext.js')
     })
