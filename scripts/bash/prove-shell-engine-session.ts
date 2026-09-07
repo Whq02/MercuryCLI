@@ -184,6 +184,75 @@ section('§6 the session ends on request: the switch road and the exit cleanup e
   check('the exit cleanup registry ends the session too (registered at the first spawn)', secondPid > 1 && (await diedWithin(secondPid, 2_500)), `pid ${secondPid} still alive`)
 }
 
+section('§7 an engine that ends during its start refuses the command at once, with the reason')
+{
+  resetEngineSessionForTest()
+  const notABinary = fs.mkdtempSync(join(os.tmpdir(), 'engine-not-a-binary-'))
+  const controller = new AbortController()
+  const refused = (await runEngineCommand(notABinary, 'echo never', { timeout: 3_000, signal: controller.signal }).result) as Result & { preSpawnError?: string }
+  check('the command settles as a start failure (code 1), never as the timeout (143) after the whole wait', refused.code === 1 && !refused.interrupted, JSON.stringify(refused))
+  check('…and the result names the failed start, typed as a not-started result', /shell engine failed to start/.test(refused.stderr) && typeof refused.preSpawnError === 'string', JSON.stringify(refused.stderr))
+  fs.rmSync(notABinary, { recursive: true, force: true })
+  resetEngineSessionForTest()
+  const recovered = await run('echo alive')
+  check('the real engine still spawns fresh afterwards, with no note owed', recovered.code === 0 && recovered.stdout.includes('alive') && recovered.stderr === '', JSON.stringify(recovered))
+}
+
+section('§8 an engine that dies between commands: the pipe error is heard, the loss is said')
+{
+  resetEngineSessionForTest()
+  const { engineChildForTest } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+  await run('DEAD_MARK=set; echo ready')
+  const child = engineChildForTest()
+  check('the live engine is reachable through the seam', child !== null && typeof child?.pid === 'number')
+  check("the engine's stdin pipe carries an error listener", (child?.stdin?.listenerCount('error') ?? 0) >= 1, `listeners=${child?.stdin?.listenerCount('error') ?? 'none'}`)
+  let unheard: string | null = null
+  const onUncaught = (error: unknown): void => {
+    unheard = String(error)
+  }
+  process.on('uncaughtException', onUncaught)
+  const exited = new Promise<void>(resolve => child?.once('exit', () => resolve()))
+  child?.kill('SIGKILL')
+  const writeQuietly = (): void => {
+    try {
+      child?.stdin?.write('x\n', () => {})
+    } catch {
+    }
+  }
+  writeQuietly()
+  await exited
+  writeQuietly()
+  await new Promise(resolve => setTimeout(resolve, 100))
+  process.off('uncaughtException', onUncaught)
+  check('a write to the dead engine is heard, never an uncaught error', unheard === null, unheard ?? '')
+  const after = await run('echo "[${DEAD_MARK:-gone}]"')
+  check('the next command runs on a fresh engine and finds the state gone', after.code === 0 && after.stdout.includes('[gone]'), JSON.stringify(after))
+  check('…and its result says the session ended between commands', /ended between commands/.test(after.stderr) && /restarted/.test(after.stderr), JSON.stringify(after.stderr))
+  const later = await run('echo "[${DEAD_MARK:-gone}]"')
+  check('the note rides one result only', later.stderr === '', JSON.stringify(later.stderr))
+}
+
+section('§9 an interrupt with one command running and one waiting in line: the note survives the aborted queued command')
+{
+  resetEngineSessionForTest()
+  await run('QUEUE_MARK=set')
+  const gate = join(fs.mkdtempSync(join(os.tmpdir(), 'engine-gate-')), 'in-flight')
+  const turn = new AbortController()
+  const running = runEngineCommand(binaryPath, `: > ${quote([gate])}; sleep 30`, { timeout: 30_000, signal: turn.signal })
+  const waiting = runEngineCommand(binaryPath, 'echo b', { timeout: 30_000, signal: turn.signal })
+  const deadline = Date.now() + 10_000
+  while (!fs.existsSync(gate) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20))
+  check('the first command is in flight (its gate file exists)', fs.existsSync(gate))
+  turn.abort('stop')
+  const ra = (await running.result) as Result
+  const rb = (await waiting.result) as Result
+  check('the running command is interrupted', ra.interrupted && ra.code === 137, JSON.stringify(ra))
+  check('the waiting command is aborted before execution and carries no note', rb.interrupted && rb.code === 145 && rb.stderr === 'Command was aborted before execution', JSON.stringify(rb.stderr))
+  const next = await run('echo "[${QUEUE_MARK:-gone}]"')
+  check('the next command finds the state gone', next.stdout.includes('[gone]'), JSON.stringify(next.stdout))
+  check('…and is told — the note the aborted command must not swallow', /interrupted/.test(next.stderr) && /reset/.test(next.stderr), JSON.stringify(next.stderr))
+}
+
 resetEngineSessionForTest()
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '✅ ALL SHELL-ENGINE SESSION PROOFS PASS' : `❌ ${failures} SHELL-ENGINE SESSION PROOF(S) FAILED`)

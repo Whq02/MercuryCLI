@@ -211,6 +211,7 @@ async function spawnSession(binaryPath: string, sandbox: EngineSandboxPolicy): P
     live.child.stdin?.write(encodeFrame(seeds.join('\n')))
     await drainOneFrame(live)
   }
+  if (live.exited) throw new Error('the shell engine ended during its start')
 
   return live
 }
@@ -294,6 +295,12 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
     if (options.signal.aborted) {
       settle({ stdout: '', stderr: 'Command was aborted before execution', code: 145, interrupted: true })
       return
+    }
+    if (settled) return
+    if (session !== null && session.exited) {
+      session = null
+      pendingResetNote ??=
+        'the shell engine session ended between commands and was restarted; variables, functions and shell options set earlier in this session were lost (the working directory is preserved).'
     }
     let inheritedNote = pendingResetNote
     pendingResetNote = null
@@ -436,6 +443,8 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
     if (session) {
       void killSession(session)
       session = null
+      pendingResetNote =
+        'the shell engine session was reset after the command was stopped; earlier variables, functions and options were lost (the working directory is preserved).'
     }
     settle({ stdout: '', stderr: '', code: 137, interrupted: true })
   }
@@ -530,6 +539,10 @@ function registerEngineCleanup(): void {
   if (cleanupRegistered) return
   cleanupRegistered = true
   registerCleanup(endEngineSession)
+}
+
+export function engineChildForTest(): ChildProcess | null {
+  return session?.child ?? null
 }
 
 export function resetEngineSessionForTest(): void {
