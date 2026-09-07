@@ -24,6 +24,7 @@ delete process.env.MERCURY_WORKFLOW_ROUTING
 
 const resolver = await import('../../src/utils/swarm/roleResolver.js')
 const { getBuiltInAgents } = await import('../../src/tools/AgentTool/builtInAgents.js')
+const { ONE_SHOT_BUILTIN_AGENT_TYPES } = await import('../../src/tools/AgentTool/constants.js')
 
 const agents = getBuiltInAgents()
 const customDef = {
@@ -54,8 +55,9 @@ section('§1 — one resolver for built-in + custom + legacy ids')
   check('custom resolves through the SAME path', custom.definition === customDef && custom.agentType === 'repo-auditor')
   check('custom role prompt composes', resolver.getRoleSystemPrompt(custom.definition!) === 'You audit repositories with evidence.')
 
-  const legacy = resolver.resolveTeammateRole({ ...baseResolve, requestedAgentType: 'Explore' })
-  check('legacy alias decodes to the canonical Mercury id', legacy.agentType === 'mercury-scout' && legacy.definition?.agentType === 'mercury-scout')
+  const unknown = resolver.resolveTeammateRole({ ...baseResolve, requestedAgentType: 'Explore' })
+  check('an id no definition carries resolves to itself with no definition (no alias table)', unknown.agentType === 'Explore' && unknown.definition === undefined)
+  check('every one-shot built-in id is a registered built-in', [...ONE_SHOT_BUILTIN_AGENT_TYPES].every(id => agents.some(a => a.agentType === id)), [...ONE_SHOT_BUILTIN_AGENT_TYPES].join(','))
 
   const rolePacket = scout.rolePacket
   check('role packet derives mission from description', rolePacket.mission === 'auth recon')

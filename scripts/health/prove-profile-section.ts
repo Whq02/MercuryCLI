@@ -40,7 +40,7 @@ const byId = new Map((profile?.checks ?? []).map(c => [c.id, c]))
 {
   const c = byId.get('roster-normalization')
   check('roster check present + OK on the live registry', c?.status === 'ok', c?.evidence)
-  check('roster evidence counts roles, aliases, and composable prompts', !!c && /\d+ built-in roles resolve · \d+ legacy aliases decode · role prompts compose \d+\/\d+/.test(c.evidence))
+  check('roster evidence counts roles and composable prompts', !!c && /\d+ built-in roles resolve · role prompts compose \d+\/\d+/.test(c.evidence))
 }
 {
   const c = byId.get('team-launch')
