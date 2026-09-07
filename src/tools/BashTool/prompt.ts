@@ -37,7 +37,7 @@ export function getSimplePrompt(): string {
   )
   if (resolveShellEngine(getInitialSettings().shellEngine).engine === 'brush') {
     sections.push(
-      'One shell session serves the whole conversation: the working directory and every other piece of shell state — variables, functions, aliases, options — persist from call to call. Each sub-agent has a shell session of its own: state set by one agent is not seen by another or by the main conversation, and an agent\'s session ends with the agent. A command that hangs and is timed out, or that ends the shell (a bare `exit`, a `set -u` failure), resets the session; you are told when earlier state was lost. A message from the operator while a command runs stops that command and resets the session (the result says so); it is not moved to the background. A call with `run_in_background` runs in its own shell: it does not see the session\'s state, and its own does not persist.',
+      'One shell session serves the whole conversation: the working directory and every other piece of shell state — variables, functions, aliases, options — persist from call to call. Each sub-agent has a shell session of its own: state set by one agent is not seen by another or by the main conversation, and an agent\'s session ends with the agent. A command that hangs and is timed out, or that ends the shell (a bare `exit`, a `set -u` failure), resets the session; you are told when earlier state was lost. A stop from the operator while a command runs ends that command and resets the session; the result says so. A call with `run_in_background` runs in its own shell: it does not see the session\'s state, and its own does not persist.',
     )
     if (getPlatform() === 'windows') {
       sections.push(

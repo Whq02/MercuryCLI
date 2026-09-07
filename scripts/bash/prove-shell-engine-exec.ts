@@ -378,7 +378,7 @@ section('§14 two owners through the seam: a process each on the system shell, a
   await row("owner A's next result carries the reset note on the engine (the system shell owes none)", 'echo "[${OWNER_VAR:-gone}]"', { system: { code: 0, out: '[gone]', stderrMatch: /^$/ }, brush: { code: 0, out: '[gone]', stderrMatch: /reset/ } }, { owner: 'owner-a' })
 }
 
-section('§15 a new message while a command runs: kept for the background on the system shell; stopped, and said, on the engine')
+section('§15 an abort with the interrupt reason (the steer road): kept for the background on the system shell; stopped, and said, on the engine')
 {
   const { spawnShellTask } = await import('../../src/tasks/LocalShellTask/LocalShellTask.tsx')
   type State = { tasks: Record<string, { status?: string; notified?: boolean }> }
