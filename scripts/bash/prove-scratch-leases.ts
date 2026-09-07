@@ -62,8 +62,8 @@ try {
     doctrine.includes('session scratchpad directory') &&
     doctrine.includes('never bare /tmp or the project tree') &&
     /delete what your run created/i.test(doctrine))
-  const fsSrc = readFileSync(join(ROOT, 'src/utils/permissions/filesystem.ts'), 'utf8')
-  check('session scratchpads auto-register their lease', fsSrc.includes('registerScratchLease'))
+  const worktreeSrc = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
+  check('a session worktree registers its lease (the one production registrar)', worktreeSrc.includes("registerScratchLease({ kind: 'session'"))
   const doctorSrc = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
   check('the doctor lists leftovers lease-exact', doctorSrc.includes("id: 'scratch-leases'") && doctorSrc.includes('never a broad /tmp sweep'))
 } finally {
