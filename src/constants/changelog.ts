@@ -2,62 +2,69 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
-- Fixed the /model picker undoing keys typed within its first second on a chat that was still landing; it now waits for the landing, briefly, before it paints
-- Changed a provider's model list to be fetched only when something on screen needs it, once per sign-in, so a session on one provider can still show another provider's usage row without any request at start
-- Added a "Patience with a quiet model" setting in /config (normal, patient, custom): how long Mercury waits on a silent model, how long a slow retry may take, and how much recovery time a run gets, set together, with the environment variables as overrides
-- Fixed a sub-agent failing on a short provider throttle: a brief "try again in a few seconds" is waited out and the agent finishes; only a limit hours away stops it, and then its work is kept and resumable and the parent is told which it was
-- Changed a paused agent to say so: its row reads paused, why, and when it resumes, with the ways out; a sub-agent that hits a usage limit pauses and resumes at the reset instead of ending
-- Changed the parent to hear from each sub-agent the moment it finishes or fails, and a wait on several agents to return at the first failure instead of the last finish
-- Fixed the crew row reading "no tokens yet" beside a growing context; it now shows the tokens used so far
-- Fixed a sub-agent that stops answering, with no sign of life from the model and no tool running, being left as running; it is now stopped with its reason
-- Fixed a background file count started at boot being left running when Mercury exits right away
-- Fixed on-device voice loading its speed-optimised pack on a CPU that cannot run it, which could end Mercury on the doctor's voice row or the first take; the check now runs once in a helper, and the doctor and /speak say what it found. The first use of voice on Windows no longer stalls while it checks
-- Fixed the MCP connection memory keeping a server's full configuration on disk; it now keeps a fingerprint only
-- Added a Motion setting (auto, full, reduced, off) in /config and in a new Boot Menu "Performance" section; auto keeps the normal look and, only while painting falls behind, slows the idle animations — the mascot holds still — saying "reduced" in the status line until the screen keeps up again
-- Fixed the idle cockpit keeping a core busy on a slow machine: the clock and the idle animation now follow the measured cost of painting instead of ticking at full rate
-- Changed the usage meters to read only when shown and after a retry, never on a timer: a meter you have not looked at for two minutes reads "stale · last read N min ago" until it is shown again or a reply refreshes it; the model picker loads its catalogue when it opens
-- Changed the start of a session to make no request of its own before your first turn: nothing primes a model list and nothing reads a usage meter on a timer; sign-in and the model requests themselves are the only calls that reach a provider, and the update notice's release check is the one other call a boot may make
-- Fixed a session with only an OpenAI sign-in being refused at its start: when a session names an OpenAI model, that family's model list is now read once, right then, and the session is admitted
-- Updated the MCP client to the 2026-07-28 protocol revision: servers built for it connect without the older handshake, older servers still connect, and the doctor's MCP row names the revision in use
-- Fixed a "still running" notice lingering after a compaction for an agent that had already finished, and a running workflow being counted as a sub-agent; the notice now counts sub-agents and workflow runs separately and names the command that reaches each (/teammates, /workflows)
-- Changed the sign-in list to put OpenAI first: the Boot face's Logins screen, /logins and the first-run walk list OpenAI above the Claude subscription row
-- Updated and refactored internal names and structure across the codebase; settings, rules and records saved under former names still apply
-- Changed how a settings file written with an older spelling is read: a renamed key, or a renamed tool name in a permission rule or hook matcher (Task is now Agent, KillShell is TaskStop, EnterPlanMode and ExitPlanMode are EnterStrategyMode and ExitStrategyMode), is rewritten in the file itself the first time it is read — a project's checked-in settings file included, rewritten before the workspace trust card is answered and showing as modified once — and a file Mercury cannot write is read as if rewritten while the doctor's Settings row says so
-- Changed where a project's own commands live: the .mercury/commands folder is no longer read; move a command to .mercury/skills/<name>/SKILL.md
-- Changed the macOS keychain read to Mercury's own entry only: a sign-in that Mercury had been reading from another tool's keychain entry is no longer read, every config home keeps a keychain entry of its own (keyed to the home's path), and a sign-in stored by a much older build needs a fresh one — in each case Mercury asks you to sign in again once (/logins)
-- Changed the command line to one spelling per option: --allowed-tools, --disallowed-tools, --dangerously-bypass-permissions and --allow-dangerously-bypass-permissions are the names (the camel-case and "skip" spellings are gone); --verbose, --include-hook-events and --mcp-debug are gone, and stream-json output no longer needs --verbose; mercury auth token replaces mercury setup-token; an option Mercury does not know is refused with exit code 2
-- Changed the machine-readable feed (--output-format stream-json) to spell every key it defines in snake_case at every depth (feed contract 3); the provider's own message and usage shapes, a tool's input and result, hook payloads and permission rules keep their own spellings
-- Changed every environment switch to a MERCURY_ spelling — MERCURY_MODEL, MERCURY_API_TIMEOUT_MS, MERCURY_MCP_TIMEOUT_MS, MERCURY_PROMPT_CACHING=0, MERCURY_BARE and the rest; the older names without the prefix (ANTHROPIC_MODEL, API_TIMEOUT_MS, MCP_TIMEOUT, MERCURY_SIMPLE and the DISABLE_* family) are no longer read
-- Changed a permission ask on a session you are not looking at to wait for you with no time limit; its Session Concourse row reads "waiting for your answer" and the card is there when you focus the session; an ask raised by a sub-agent still expires after ten minutes
-- Added /speak options: it lists the transcribers this install can use, marks the one that would serve now, and saves the one you pick; a saved choice that cannot serve is named and the built-in default is used instead
-- Removed the "ultra" effort level: effort now ends at max, and a level a provider lists above max is neither offered nor sent
-- Added an effort field to the Agent tool, defaulting to high or the provider's equivalent, and sub-agent defaults (model, effort, how many at once) as settings with /config rows; in /supercode mode a turn delegates to parallel agents when that would help and otherwise works alone at max, and the one-line summary after a turn shows the tokens and cost of the agents it delegated to, counted as their results arrive
-- Added an optional built-in shell engine: with the /config row "Shell engine" set to brush (or MERCURY_SHELL_ENGINE=brush), the Bash tool runs one shell session for the whole conversation and one for each sub-agent — the working directory, variables, functions and aliases persist between calls, state set by one agent is never seen by another, an agent's session ends with the agent, the same shell runs on every platform, and Windows no longer needs Git for Windows; the "Shell engine sessions" setting caps how many sessions stay alive at once (8 by default, the conversation plus seven agents; MERCURY_SHELL_ENGINE_SESSIONS overrides it) and an agent past the cap waits for a free one; a command that times out or ends the shell, or a stop from you while a command runs, resets that session and the model is told, while a message typed during a command waits until the command ends; the system shell stays the default and the doctor names which engine is live. On Windows at this version a .cmd shim such as npm or npx fails under the engine (run it as cmd /c npm … or call node on the script) and a program named by a relative path after a cd is not found (use its absolute path)
-- Fixed agents stopping with "provider throttled" after a stream went quiet or dropped when no provider had refused anything: such a retry now counts against the retry budget only for the time actually waited, every wait names its real cause, and the stop line says how to resume the agent
-- Fixed a live but quiet model stream being cut after 90 seconds; the provider's keep-alive signals now count as signs of life
-- Changed the notice for a model stream that ends in an error carrying no code and no message: it now reads the stream's own closing reason first, names the provider that ended the stream, and says what Mercury did next
-- Fixed the exit prompt counting agents that had already ended, and the crew view disagreeing with it; an agent whose process is gone is now marked finished, and the prompt says what is still running by kind and points at /tasks
-- Changed what happens when an agent stops mid-stream: it hands back what it produced so far, the files it touched and why it stopped, and its work stays resumable; an agent stopped by the retry budget resumes once by itself when the budget refills
-- Fixed the "back to the bottom" pill never appearing after PgUp or PgDn in the transcript; it now paints as it does after the mouse wheel
-- Fixed a repeat install that changed nothing still telling you to open a new terminal; it now says the folder is already on PATH and stops
-- Added a browser fallback for /bug: when the GitHub CLI cannot file the report, the prefilled issue form opens in the browser and the link is printed in full
-- Changed finished background commands to collapse into one transcript line, counted by outcome, while the model is busy — a failed one keeps its title — instead of one line each
-- Fixed a compaction with an OpenAI model sending a shorter request than the session had been sending, which left most of the context uncached afterwards; the summary request now carries the same messages plus the summary instruction, and a forked agent keeps its parent's cache setting
-- Fixed a message to a worker owned by a running workflow starting a second copy of that worker; the message is refused and names the workflow, and a late result from an earlier run of a resumed agent can no longer mark the new run finished
-- Added on-device speech-to-text: when this install carries the on-device pack (the doctor's Voice input row says) and you have fetched its model once with /speak download — a 60 MB English model; nothing is downloaded on its own — /speak on, space to talk and space to stop put the words in the composer with no API key and nothing leaving the machine, and the doctor names the engine, the model and the memory it takes
-- Changed voice input to prefer the on-device transcriber whenever its pack and model are present; a signed-in cloud transcriber serves when they are not, or when you choose one with /speak options or MERCURY_VOICE_TRANSCRIBER
-- Fixed a file read starting at line 0 numbering its lines from 0, which made the lines it showed unusable as Edit targets; a read from offset 0 numbers its first line 1
-- Fixed the fallback image reader labelling PNG bytes as JPEG when the image processor is absent; the type now follows the bytes
-- Fixed two ways an agent could stop without a reason — an interruption during a Stop hook, and a workflow permission ask that timed out; both now say why
-- Fixed the Transaction tool refusing agent, transcript and workbench evidence references when noting a step or resuming; they are now read the same way the session reads them
-- Fixed the Bash tool inserting a backslash before every ! once a command contained a single quote, which corrupted commit messages; a command reaches the shell exactly as written
-- Fixed a workflow child's capped report ending with a bare "[outcome truncated at cap]"; it now says where the full text is
-- Fixed Godot validation of a script with a class_name reporting a duplicate global class; validating by path reuses the script's own identity
+- Added an optional built-in shell engine (the /config row "Shell engine" set to brush, or MERCURY_SHELL_ENGINE=brush): one persistent shell for the conversation and one per sub-agent, the same shell on every platform, and Windows no longer needs Git for Windows
+- Added a "Shell engine sessions" setting that caps how many shell sessions stay alive (8 by default; MERCURY_SHELL_ENGINE_SESSIONS overrides it); an agent past the cap waits for a free one
+- Added on-device speech-to-text: /speak on, space to talk, space to stop, no API key and nothing leaving the machine, once the install carries the on-device pack and you have fetched its 60 MB English model with /speak download
+- Added /speak options to list the transcribers this install can use and save the one you pick
+- Added a "Patience with a quiet model" setting in /config (normal, patient, custom) that sets the wait on a silent model, the retry ceiling and the recovery budget together, with environment variables as overrides
+- Added a Motion setting (auto, full, reduced, off) in /config and the Boot Menu; auto slows the idle animations only while painting falls behind and says "reduced" in the status line
+- Added an effort field to the Agent tool, and sub-agent defaults (model, effort, how many at once) as /config rows
+- Added a browser fallback for /bug: when the GitHub CLI cannot file the report, the prefilled issue form opens in the browser
+- Changed /supercode to delegate to parallel agents only when that helps, with the agents' tokens and cost shown in the turn summary
+- Changed a sub-agent that hits a short provider throttle to wait it out and finish; only a limit hours away stops it, with its work kept and the parent told
+- Changed a sub-agent that hits a usage limit to pause and resume at the reset; its row says why and when
+- Changed the parent agent to hear from each sub-agent the moment it finishes or fails, and a wait on several agents to return at the first failure
+- Changed an agent stopped mid-stream to hand back its partial work, the files it touched and the reason, resumable; one stopped by the retry budget resumes by itself once
+- Changed the notice for a stream that ends with no error code and no message to name the provider, the stream's closing reason and what Mercury did next
+- Changed a shell-engine command that times out, ends the shell or is stopped by you to reset that session and tell the model; a message typed during a command waits until it ends
+- Changed a session to make no request of its own before your first turn; sign-in, the model requests and the update check are the only calls that leave the machine
+- Changed a provider's model list to load only when something on screen needs it, once per sign-in
+- Changed the usage meters to read only when shown or after a retry, never on a timer; a meter not shown for two minutes reads stale until it is shown again
+- Changed a permission ask on a session you are not looking at to wait with no time limit; a sub-agent's ask still expires after ten minutes
+- Changed finished background commands to collapse into one transcript line while the model is busy; a failed one keeps its title
+- Changed the sign-in list in the Logins screen, /logins and the first run to put OpenAI first
+- Changed voice input to prefer the on-device transcriber when its pack and model are present; a signed-in cloud transcriber serves otherwise, or when chosen with /speak options or MERCURY_VOICE_TRANSCRIBER
+- Changed the command line to one spelling per option: --allowed-tools, --disallowed-tools, --dangerously-bypass-permissions and --allow-dangerously-bypass-permissions; the camel-case and "skip" spellings are gone
+- Changed mercury setup-token to mercury auth token, and an option Mercury does not know is refused with exit code 2
+- Changed every environment switch to a MERCURY_ spelling (MERCURY_MODEL, MERCURY_API_TIMEOUT_MS, MERCURY_MCP_TIMEOUT_MS, MERCURY_PROMPT_CACHING=0, MERCURY_BARE and the rest); ANTHROPIC_MODEL, API_TIMEOUT_MS, MCP_TIMEOUT, MERCURY_SIMPLE and the DISABLE_* family are no longer read
+- Changed the stream-json feed to spell every key it defines in snake_case at every depth (feed contract 3); provider, tool, hook and permission-rule shapes keep their own spellings
+- Changed a settings file carrying an older key or tool name (Task is now Agent, KillShell is TaskStop, EnterPlanMode and ExitPlanMode are EnterStrategyMode and ExitStrategyMode) to be rewritten in place on first read, a project's checked-in file included
+- Changed the macOS keychain read to Mercury's own entry, one per config home; a sign-in read from another tool's entry or stored by a much older build asks for one fresh sign-in
+- Changed the MCP connection memory to keep a server's fingerprint instead of its full configuration
+- Removed --verbose, --include-hook-events and --mcp-debug; stream-json output no longer needs --verbose
+- Removed the "ultra" effort level; effort now ends at max
+- Removed the .mercury/commands folder from the project command search; move a command to .mercury/skills/<name>/SKILL.md
+- Updated the MCP client to the 2026-07-28 protocol revision; older servers still connect and the doctor names the revision in use
+- Updated internal names and structure across the codebase; settings, rules and records saved under former names still apply
+- Fixed agents stopping with "provider throttled" after a quiet or dropped stream when nothing was refused; a retry now counts only the time waited, and the stop line says how to resume
+- Fixed a live but quiet model stream being cut after 90 seconds; keep-alive signals now count as signs of life
+- Fixed a sub-agent with no sign of life from the model and no tool running being left as running; it is now stopped with its reason
+- Fixed the crew row reading "no tokens yet" beside a growing context
+- Fixed the exit prompt counting agents that had already ended and disagreeing with the crew view
+- Fixed a "still running" notice lingering after a compaction for an agent that had finished, and a workflow being counted as a sub-agent
+- Fixed a compaction with an OpenAI model sending a shorter request than the session, which left most of the context uncached afterwards
+- Fixed a session with only an OpenAI sign-in being refused at its start
+- Fixed a message to a worker inside a running workflow starting a second copy of it, and a late result from an earlier run marking a resumed agent finished
 - Fixed a resumed agent losing one of its two completion notices when queued guidance restarted it
-- Fixed a named foreground agent never getting its name for SendMessage, its handover receipt missing the name, and retired names lingering after eviction
-- Fixed Workshop cells that put statements and an await on one line failing with a syntax error, and brace characters inside strings silently returning the wrong value; the cell grammar is parsed, never scanned line by line
+- Fixed a named foreground agent never getting its name for SendMessage, and retired names lingering after eviction
+- Fixed an agent stopping without a reason after an interruption during a Stop hook or a workflow permission ask that timed out
+- Fixed a workflow child's capped report ending with a bare "[outcome truncated at cap]" instead of saying where the full text is
+- Fixed the /model picker dropping keys typed in its first second while a chat was still loading
+- Fixed the idle screen keeping a CPU core busy on a slow machine
+- Fixed the "back to the bottom" pill never appearing after PgUp or PgDn
+- Fixed a background file count started at boot outliving a Mercury that exits right away
+- Fixed on-device voice loading its speed-optimised pack on a CPU that cannot run it, which could end Mercury on the doctor's voice row or the first take
+- Fixed the first use of voice on Windows stalling while it checked the CPU
+- Fixed a file read from offset 0 numbering its lines from 0, which broke them as Edit targets
+- Fixed the fallback image reader labelling PNG bytes as JPEG when the image processor is absent
+- Fixed the Bash tool inserting a backslash before every ! once a command contained a single quote, which corrupted commit messages
+- Fixed the Transaction tool refusing agent, transcript and workbench evidence references when noting a step or resuming
+- Fixed a repeat install that changed nothing still telling you to open a new terminal
+- Fixed Godot validation of a script with a class_name reporting a duplicate global class
+- Fixed Workshop cells with statements and an await on one line failing with a syntax error, and braces inside strings returning the wrong value
 - Fixed a Workshop workspace failing to find TypeScript when node_modules is a link
-- Fixed the render_tui tool failing when a session runs outside the source checkout, and failing on a release install: it now finds the checkout and the bun runtime itself, and on a release install — which carries no render script — says so plainly instead of failing
+- Fixed the render_tui tool failing outside the source checkout; on a release install it now says there is no render script instead of failing
+- Known on Windows with the shell engine at this version: a .cmd shim such as npm fails (run cmd /c npm … or node on the script) and a program named by a relative path after a cd is not found (use its absolute path)
 
 ## 1.0.0-beta.3
 - Added GPT-6 Astra as a first-class model: it appears once a connected OpenAI account serves it, effort reaches max, and each turn is priced at the published rate
