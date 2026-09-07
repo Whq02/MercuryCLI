@@ -134,8 +134,8 @@ section('structural pins — owner consumption (rule 4)')
     memSel.includes('use(getInstructionFiles())'),
   )
   check(
-    'the dream row visibility is latched at mount',
-    memSel.includes('const [showDreamRow] = useState(() => isAutoMemoryEnabled())'),
+    'the upkeep row visibility is latched at mount',
+    memSel.includes('const [showUpkeepRow] = useState(() => isAutoMemoryEnabled())'),
   )
 
   const collapsed = src('src/components/messages/CollapsedReadSearchContent.tsx')

@@ -216,6 +216,10 @@ function validate(body: WireBody, betaHeader: string): string | null {
   for (let k = 0; k < messages.length; k++) {
     const row = messages[k]!
     const content = row.content
+    if (row.role === 'system' && Array.isArray(content) && content.length === 0 && (row as { output_config?: unknown }).output_config !== undefined) {
+      if (!isFable(model)) return `messages..output_config: Extra inputs are not permitted`
+      continue
+    }
     if (Array.isArray(content) && content.length === 0 && !(k === messages.length - 1 && row.role === 'assistant')) {
       return `messages.${k}: all messages must have non-empty content except for the optional final assistant message`
     }

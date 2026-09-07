@@ -88,7 +88,7 @@ for (const cmd of seenCommands) {
 check('the loyalty-pinned appearance tip id is present', ids.has('appearance-command'))
 check(
   'the catalogue advertises the load-bearing surfaces (spot pins)',
-  ['help', 'logins', 'concourse', 'plan', 'resume', 'diff', 'review', 'themis', 'caching', 'rewind', 'remember'].every(c => seenCommands.has(c)),
+  ['help', 'logins', 'concourse', 'strategy', 'resume', 'diff', 'review', 'themis', 'caching', 'rewind', 'remember'].every(c => seenCommands.has(c)),
 )
 check('the chord parser reads the ctrl+x family whole and never eats the next word', chordsSpelled('ctrl+x s opens it; shift+tab cycles').join(',') === 'ctrl+x s,shift+tab')
 check('the mode tip spells a chord the table carries', chordsSpelled(await tips.find(t => t.id === 'cycle-mode')!.content({ theme: 'dark' })).length === 1)
