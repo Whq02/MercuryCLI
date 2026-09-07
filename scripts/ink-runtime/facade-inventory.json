@@ -276,11 +276,6 @@
       "from": "./ink/hooks/use-stdin.js"
     },
     {
-      "name": "useTabStatus",
-      "kind": "value",
-      "from": "./ink/hooks/use-tab-status.js"
-    },
-    {
       "name": "useTerminalFocus",
       "kind": "value",
       "from": "./ink/hooks/use-terminal-focus.js"

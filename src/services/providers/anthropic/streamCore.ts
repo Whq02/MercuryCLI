@@ -266,7 +266,6 @@ export type Options = {
   agentId?: AgentId
   ownerKey?: string
   outputFormat?: JsonOutputFormat
-  advisorModel?: string
   addNotification?: (notif: Notification) => void
   taskBudget?: { total: number; remaining?: number }
   callReference?: ModelCallReference

@@ -752,7 +752,6 @@
  },
  "settingsKeys": [
   "$schema",
-  "advisorModel",
   "agent",
   "allowManagedHooksOnly",
   "allowManagedMcpServersOnly",
