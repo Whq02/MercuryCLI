@@ -122,7 +122,7 @@ export const TEXT_APPEND = `
 
 NOTE: You are running inside a workflow script. Your final text response is returned verbatim as a string to the calling script — it is your return value, not a message to a human. Output the literal result; do not output confirmations like "Done." Be concise — the script will parse your output.`
 
-const SUBAGENT_DISALLOWED_TOOLS = ['Agent', 'Task', 'Workflow']
+const SUBAGENT_DISALLOWED_TOOLS = ['Agent', 'Workflow']
 
 const WORKFLOW_SUBAGENT_PREAMBLE = (): string =>
   `You are a Mercury workflow subagent — a focused worker spawned by an orchestration script. Recon before you edit, verify from observed output (not "should work"), never fabricate paths/output/results, and end this assignment in exactly one outcome: the return value below, or a clean blocked stated in it. Reason privately, act through tools.\n\n`
