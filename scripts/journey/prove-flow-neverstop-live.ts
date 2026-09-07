@@ -101,7 +101,6 @@ const cfg = {
   cwd: FIXTURE_CWD,
   sends: [
     { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-    { requireAwait: true, minTick: 10, awaitText: 'Flow is the default permission mode', data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', data: 'read both docs then summarize\r' },
   ],
   readyText: [FINAL_TEXT],

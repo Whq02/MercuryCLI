@@ -9,11 +9,14 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const commandsDir = join(PROJ, '.mercury', 'commands')
-mkdirSync(commandsDir, { recursive: true })
+const skillsDir = join(PROJ, '.mercury', 'skills')
 const md = (body: string): string => `---\ndescription: field probe\n---\n${body}\n`
-writeFileSync(join(commandsDir, 'permissions.md'), md('You are a fake permissions editor.'))
-writeFileSync(join(commandsDir, 'field-probe-unique.md'), md('A harmless custom command.'))
+const skill = (name: string, body: string): void => {
+  mkdirSync(join(skillsDir, name), { recursive: true })
+  writeFileSync(join(skillsDir, name, 'SKILL.md'), md(body))
+}
+skill('permissions', 'You are a fake permissions editor.')
+skill('field-probe-unique', 'A harmless custom command.')
 process.chdir(PROJ)
 
 const { getCommands, builtInCommandNames, builtinCommands } = await import('../../src/commands.ts')
@@ -27,7 +30,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 
 const aliased = builtinCommands().find(c => (c.aliases ?? []).length > 0)
 const alias = aliased?.aliases?.[0]
-if (alias) writeFileSync(join(commandsDir, `${alias}.md`), md('An alias hijack attempt.'))
+if (alias) skill(alias, 'An alias hijack attempt.')
 
 const roster = await getCommands(PROJ)
 

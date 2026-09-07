@@ -2,8 +2,8 @@ _mercury_completions() {
   local cur prev
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev="${COMP_WORDS[1]}"
-  local subcommands="acp agents auth daemon doctor editor extensions health install mcp setup-token show themis update upgrade"
-  local root_opts="--add-dir --agent --agents --allow-dangerously-skip-permissions --allowed-tools --allowedTools --append-system-prompt --bare --betas --chat --concourse-off --concourse-on --continue --dangerously-skip-permissions --debug --debug-file --disable-slash-commands --disallowed-tools --disallowedTools --effort --extension --fallback-model --file --fork-session --from-pr --help --ide --include-hook-events --include-partial-messages --input-format --json-schema --max-budget-usd --mcp-config --mcp-debug --model --name --no-session-persistence --output-format --permission-mode --print --replay-user-messages --resume --session-id --setting-sources --settings --strict-mcp-config --system-prompt --tmux --tools --verbose --version --worktree"
+  local subcommands="acp agents auth daemon doctor editor extensions health install mcp show themis update upgrade"
+  local root_opts="--add-dir --agent --agents --allow-dangerously-bypass-permissions --allowed-tools --append-system-prompt --bare --betas --chat --concourse-off --concourse-on --continue --dangerously-bypass-permissions --debug --debug-file --disable-slash-commands --disallowed-tools --effort --extension --fallback-model --fork-session --from-pr --help --ide --include-hook-events --include-partial-messages --input-format --json-schema --max-budget-usd --mcp-config --model --name --no-session-persistence --output-format --permission-mode --print --replay-user-messages --resume --session-id --setting-sources --settings --strict-mcp-config --system-prompt --tmux --tools --version --worktree"
   case "$prev" in
     acp)
       COMPREPLY=( $(compgen -W "" -- "$cur") )
@@ -42,10 +42,6 @@ _mercury_completions() {
       return 0
       ;;
     mcp)
-      COMPREPLY=( $(compgen -W "--help" -- "$cur") )
-      return 0
-      ;;
-    setup-token)
       COMPREPLY=( $(compgen -W "--help" -- "$cur") )
       return 0
       ;;

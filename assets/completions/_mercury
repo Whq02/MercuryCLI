@@ -4,8 +4,8 @@
 # (the prove-completions-current.ts gate enforces this).
 _mercury() {
   local -a subcommands root_opts
-  subcommands=('acp' 'agents' 'auth' 'daemon' 'doctor' 'editor' 'extensions' 'health' 'install' 'mcp' 'setup-token' 'show' 'themis' 'update' 'upgrade')
-  root_opts=('--add-dir' '--agent' '--agents' '--allow-dangerously-skip-permissions' '--allowed-tools' '--allowedTools' '--append-system-prompt' '--bare' '--betas' '--chat' '--concourse-off' '--concourse-on' '--continue' '--dangerously-skip-permissions' '--debug' '--debug-file' '--disable-slash-commands' '--disallowed-tools' '--disallowedTools' '--effort' '--extension' '--fallback-model' '--file' '--fork-session' '--from-pr' '--help' '--ide' '--include-hook-events' '--include-partial-messages' '--input-format' '--json-schema' '--max-budget-usd' '--mcp-config' '--mcp-debug' '--model' '--name' '--no-session-persistence' '--output-format' '--permission-mode' '--print' '--replay-user-messages' '--resume' '--session-id' '--setting-sources' '--settings' '--strict-mcp-config' '--system-prompt' '--tmux' '--tools' '--verbose' '--version' '--worktree')
+  subcommands=('acp' 'agents' 'auth' 'daemon' 'doctor' 'editor' 'extensions' 'health' 'install' 'mcp' 'show' 'themis' 'update' 'upgrade')
+  root_opts=('--add-dir' '--agent' '--agents' '--allow-dangerously-bypass-permissions' '--allowed-tools' '--append-system-prompt' '--bare' '--betas' '--chat' '--concourse-off' '--concourse-on' '--continue' '--dangerously-bypass-permissions' '--debug' '--debug-file' '--disable-slash-commands' '--disallowed-tools' '--effort' '--extension' '--fallback-model' '--fork-session' '--from-pr' '--help' '--ide' '--include-hook-events' '--include-partial-messages' '--input-format' '--json-schema' '--max-budget-usd' '--mcp-config' '--model' '--name' '--no-session-persistence' '--output-format' '--permission-mode' '--print' '--replay-user-messages' '--resume' '--session-id' '--setting-sources' '--settings' '--strict-mcp-config' '--system-prompt' '--tmux' '--tools' '--version' '--worktree')
   if (( CURRENT == 2 )); then
     _describe 'mercury command' subcommands
     compadd -- ${root_opts[@]}
@@ -40,9 +40,6 @@ _mercury() {
       compadd -- '--dry-run' '--force' '--help' '--json' '--uninstall'
       ;;
     mcp)
-      compadd -- '--help'
-      ;;
-    setup-token)
       compadd -- '--help'
       ;;
     show)
