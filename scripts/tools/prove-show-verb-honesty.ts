@@ -70,7 +70,7 @@ if (!existsSync(DIST)) {
   )
 
   const bare = run([])
-  check('the bare verb refuses rc 1', bare.status === 1 && bare.err.includes('missing required argument'), `rc=${bare.status}`)
+  check('the bare verb refuses rc 2 (a usage error)', bare.status === 2 && bare.err.includes('missing required argument'), `rc=${bare.status}`)
 
   rmSync(home, { recursive: true, force: true })
   rmSync(dir, { recursive: true, force: true })
