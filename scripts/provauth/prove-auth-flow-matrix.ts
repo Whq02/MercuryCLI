@@ -68,7 +68,7 @@ const { classifyCredentialWall, credentialWallLine, reconnectDoorFor, isRevokedS
 const { compatFaultToTypedError } = await import(
   '../../src/services/providers/openaicompat/compatChatCallModel.js'
 )
-const { loginFamilyRows, loginFamilyFocusFor } = await import(
+const { loginFamilyRows, loginFamilyFocusFor, loginFamilyInitialFocus } = await import(
   '../../src/components/loginFamilyRows.js'
 )
 const { isAnthropicOAuthSignInExpired, clearOAuthTokenCache } = await import(
@@ -269,7 +269,17 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     )
   }
 
-  const rows = loginFamilyRows({ engineLegs: true }).map(row => row.value)
+  const offered = loginFamilyRows({ engineLegs: true })
+  const rows = offered.map(row => row.value)
+  check('no sign-in starts on the first offered row (OpenAI)', loginFamilyInitialFocus(offered, undefined) === 'openai')
+  check('recent Anthropic sign-in selects its named row', loginFamilyInitialFocus(offered, loginFamilyFocusFor('anthropic')) === 'claudeai')
+  check('explicit selection takes precedence over recent sign-in', loginFamilyInitialFocus(offered, 'claudeai', 'openrouter') === 'openrouter')
+  check('unlisted family falls back to the first offered row', loginFamilyInitialFocus(offered, loginFamilyFocusFor('local')) === 'openai')
+  const restricted = loginFamilyRows({ engineLegs: false })
+  check('a host without engine support starts on its actual first row', loginFamilyInitialFocus(restricted, 'openai') === 'claudeai')
+  const reversed = [...offered].reverse()
+  check('the starting row follows display order, not a fixed index mapping', loginFamilyInitialFocus(reversed, undefined) === reversed[0]!.value)
+  check('an empty list has no selected row', loginFamilyInitialFocus([], undefined) === undefined)
   check(
     'the /logins catalogue carries the eight sign-in families (anthropic as claudeai+console)',
     rows.join('|') ===

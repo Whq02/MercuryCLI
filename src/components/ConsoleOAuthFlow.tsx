@@ -32,6 +32,7 @@ import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
 import {
   loginFamilyFocusFor,
   loginFamilyRows,
+  loginFamilyInitialFocus,
   openaiArmPickRows,
   SIGN_IN_LATER_ROW,
   type LoginFamilyValue,
@@ -212,8 +213,7 @@ export function ConsoleOAuthFlow({
         ...(onSkip !== undefined ? [SIGN_IN_LATER_ROW] : []),
       ]
       const recordedFocus = loginFamilyFocusFor(mostRecentSignInFamily())
-      const defaultFocus =
-        initialFocus ?? (idleRows.some(row => row.value === recordedFocus) ? recordedFocus : undefined)
+      const defaultFocus = loginFamilyInitialFocus(idleRows, recordedFocus, initialFocus)
       return frame(
         <Box flexDirection="column" gap={1}>
           <Text>
