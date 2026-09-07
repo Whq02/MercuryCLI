@@ -47,7 +47,14 @@ import {
 } from '../../utils/permissions/PermissionMode.js'
 import { getMainLoopModel, modelDisplayString } from '../../utils/model/model.js'
 import { useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
-import { endEngineSession, resetShellEngineResolution, resolveShellEngine } from '../../utils/shell/engineSession.js'
+import {
+  ENGINE_SESSION_CEILING_DEFAULT,
+  endEngineSession,
+  engineSessionCeilingPinned,
+  resetShellEngineResolution,
+  resolveEngineSessionCeiling,
+  resolveShellEngine,
+} from '../../utils/shell/engineSession.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import {
   providerFamilyPresences,
@@ -189,6 +196,16 @@ function cycleIn<T>(list: readonly T[], current: T, direction: 1 | -1): T {
   const at = list.indexOf(current)
   const base = at < 0 ? 0 : at
   return list[(base + direction + list.length) % list.length] as T
+}
+
+const SESSION_CEILING_LADDER: readonly number[] = [1, 2, 4, 8, 12, 16, 24, 32]
+function nextSessionCeiling(current: number, direction: 1 | -1): number {
+  if (direction === 1) return SESSION_CEILING_LADDER.find(rung => rung > current) ?? (SESSION_CEILING_LADDER[0] as number)
+  for (let i = SESSION_CEILING_LADDER.length - 1; i >= 0; i--) {
+    const rung = SESSION_CEILING_LADDER[i] as number
+    if (rung < current) return rung
+  }
+  return SESSION_CEILING_LADDER[SESSION_CEILING_LADDER.length - 1] as number
 }
 
 function validated<T extends string>(
@@ -497,6 +514,30 @@ export function Config({
           recordSet('shellEngine', `set shell engine to ${next}`)
           resetShellEngineResolution()
           void endEngineSession()
+          bump()
+        }
+      },
+    })
+  }
+  {
+    const ceiling = resolveEngineSessionCeiling(merged.shellEngineSessions)
+    const pinned = engineSessionCeilingPinned()
+    const share = ceiling === 1 ? 'no session for sub-agents' : `the conversation + ${ceiling - 1} sub-agent${ceiling === 2 ? '' : 's'}`
+    items.push({
+      id: 'shellEngineSessions',
+      label: 'Shell engine sessions',
+      kind: 'enum',
+      value: <Text>{ceiling} · {share}{pinned ? ' · pinned by MERCURY_SHELL_ENGINE_SESSIONS' : ''}</Text>,
+      warning: pinned
+        ? 'The env pin MERCURY_SHELL_ENGINE_SESSIONS decides the ceiling for this process; a value written here applies once the pin is gone.'
+        : ceiling === 1
+          ? "A ceiling of 1 keeps the main conversation's session only: a sub-agent's engine call is refused with the reason (a run_in_background call still runs, in its own system shell)."
+          : undefined,
+      change: direction => {
+        const next = nextSessionCeiling(merged.shellEngineSessions ?? ENGINE_SESSION_CEILING_DEFAULT, direction)
+        if (writeSource('localSettings', { shellEngineSessions: next === ENGINE_SESSION_CEILING_DEFAULT ? undefined : next })) {
+          snapshots.dirty = true
+          recordSet('shellEngineSessions', `set shell engine sessions to ${next}`)
           bump()
         }
       },

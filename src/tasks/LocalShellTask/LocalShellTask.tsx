@@ -460,7 +460,7 @@ export async function spawnShellTask(
       output: { artifactPath: artifactPathFor(taskId, input.toolUseId) },
     })
     unregister()
-    return { taskId, cleanup: () => {} }
+    return { taskId, cleanup: () => {}, accepted: false }
   }
 
   const cancelWatchdog =
@@ -481,7 +481,7 @@ export async function spawnShellTask(
     runCleanupAfterUpdate: false,
   })
 
-  return { taskId, cleanup: unregister }
+  return { taskId, cleanup: unregister, accepted: true }
 }
 
 export function registerForeground(
