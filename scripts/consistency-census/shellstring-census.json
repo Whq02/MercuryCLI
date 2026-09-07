@@ -20,7 +20,7 @@
     },
     {
       "file": "src/utils/Shell.ts",
-      "line": 272,
+      "line": 276,
       "mechanism": "hardcoded-tmp",
       "excerpt": "process.env.MERCURY_TMPDIR || '/tmp',",
       "cls": "platform-owner",
@@ -148,9 +148,25 @@
     },
     {
       "file": "scripts/bash/prove-shell-engine-exec.ts",
-      "line": 373,
+      "line": 395,
       "mechanism": "exec-string",
       "excerpt": "const handle = await exec('echo \"${BRUSH_VERSION:-system} [${BG_MARK:-none}]\"', controller.signal, 'bash', { timeout: 20_000, shouldAutoBack",
+      "cls": "test-fixture",
+      "why": "shell parsing is the subject under test"
+    },
+    {
+      "file": "scripts/bash/prove-shell-engine-exec.ts",
+      "line": 476,
+      "mechanism": "exec-string",
+      "excerpt": "const handle = await exec(`: > \"${gate}\"; echo started; sleep 1; echo ended`, turn.signal, 'bash', { timeout: 20_000, shouldAutoBackground: ",
+      "cls": "test-fixture",
+      "why": "shell parsing is the subject under test"
+    },
+    {
+      "file": "scripts/bash/prove-shell-engine-exec.ts",
+      "line": 505,
+      "mechanism": "exec-string",
+      "excerpt": "const finished = await exec('echo finished', new AbortController().signal, 'bash', { timeout: 20_000, shouldAutoBackground: false })",
       "cls": "test-fixture",
       "why": "shell parsing is the subject under test"
     },
