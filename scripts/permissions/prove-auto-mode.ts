@@ -135,7 +135,7 @@ section('STARTUP-AUTO DESYNC fix — a fork that BOOTS into auto arms the safety
   check(
     'hazard-guard: main.tsx does NOT call setAutoModeActive at startup (module is null there)',
     !/setAutoModeActive\(true\)/.test(
-      mn.slice(mn.indexOf('initializeToolPermissionContext'), mn.indexOf('assertMinVersion')),
+      mn.slice(mn.indexOf('initializeToolPermissionContext'), mn.indexOf('const setupTrigger:')),
     ),
   )
 
