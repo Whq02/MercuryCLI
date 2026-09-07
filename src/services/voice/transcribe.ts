@@ -47,7 +47,7 @@ export type TranscriberPin =
   | { kind: 'on-device' }
   | { kind: 'cloud' }
   | { kind: 'family'; family: CallModelRoute }
-  | { kind: 'broken'; note: string }
+  | { kind: 'broken'; value: string; note: string }
 
 export function parseTranscriberPin(raw: string | undefined): TranscriberPin {
   const value = (raw ?? '').trim().toLowerCase()
@@ -57,6 +57,7 @@ export function parseTranscriberPin(raw: string | undefined): TranscriberPin {
   if (Object.prototype.hasOwnProperty.call(FAMILY_TRANSCRIBER, value)) return { kind: 'family', family: value as CallModelRoute }
   return {
     kind: 'broken',
+    value,
     note: `${TRANSCRIBER_PIN_ENV}=${value} is not on-device, cloud or a family id (${Object.keys(FAMILY_TRANSCRIBER).join(' · ')}) — the pin names itself, no silent fallback`,
   }
 }
@@ -184,7 +185,7 @@ export function pickTranscriber(
   const skipped: string[] = []
   const savedName = savedChoice.kind === 'unset' ? null : savedChoice.kind === 'family' ? savedChoice.family : savedChoice.kind === 'unknown' ? savedChoice.raw : ON_DEVICE_NAME
   const savedDisplay = savedTranscriberDisplay(savedChoice)
-  const pinValue = pin.kind === 'on-device' || pin.kind === 'cloud' ? pin.kind : pin.kind === 'family' ? pin.family : pin.kind === 'broken' ? 'broken' : null
+  const pinValue = pin.kind === 'on-device' || pin.kind === 'cloud' ? pin.kind : pin.kind === 'family' ? pin.family : pin.kind === 'broken' ? pin.value : null
   const overridden: SavedChoiceOutcome | null = savedName !== null && pinValue !== null ? { name: savedName, display: savedDisplay, state: 'overridden', note: `${TRANSCRIBER_PIN_ENV}=${pinValue} overrides your saved choice (${savedDisplay}) for this process` } : null
   if (pin.kind === 'broken') return { state: 'none', note: pin.note, skipped, local, saved: overridden }
   const localChoice = (): TranscriberChoiceLocal | null => (local.state === 'ok' ? { kind: 'local', label: local.label, model: local.model } : null)
