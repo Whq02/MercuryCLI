@@ -302,8 +302,10 @@ async function startFixture(port: number, opts: { background: boolean; classifie
     })
   })
   await new Promise<void>(resolve => server.listen(port, '127.0.0.1', resolve))
+  const address = server.address()
+  const bound = typeof address === 'object' && address !== null ? address.port : port
   return {
-    base: `http://127.0.0.1:${port}`,
+    base: `http://127.0.0.1:${bound}`,
     hits,
     close: () => new Promise<void>(resolve => server.close(() => resolve())),
   }
@@ -488,7 +490,7 @@ interface PtyLeg {
 const PTY_LEGS: Record<string, PtyLeg> = {
   'default-fg': {
     name: 'default-fg',
-    port: 25171,
+    port: 0,
     background: false,
     settings: { permissions: { defaultMode: 'default' } },
     argv: [],
@@ -497,7 +499,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
   },
   'default-bg': {
     name: 'default-bg',
-    port: 25172,
+    port: 0,
     background: true,
     settings: { permissions: { defaultMode: 'default' } },
     argv: [],
@@ -513,7 +515,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
   },
   'flow-fg': {
     name: 'flow-fg',
-    port: 25173,
+    port: 0,
     background: false,
     settings: {},
     argv: ['--permission-mode', 'flow'],
@@ -522,7 +524,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
   },
   'flow-bg': {
     name: 'flow-bg',
-    port: 25177,
+    port: 0,
     background: true,
     settings: {},
     argv: ['--permission-mode', 'flow'],
@@ -538,7 +540,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
   },
   'openai-fg': {
     name: 'openai-fg',
-    port: 25174,
+    port: 0,
     background: false,
     settings: { permissions: { defaultMode: 'default' } },
     argv: ['--model', GPT_MODEL],
@@ -694,7 +696,7 @@ const resultTexts = (run: HeadlessRun): string[] => run.frames.filter(f => f.typ
 async function runHeadlessStdio(): Promise<void> {
   console.log('\n— leg headless-stdio (background agent · the stdio prompt tool) —')
   const before = failures
-  const fixture = await startFixture(Number(process.env.AB_PORT_HEADLESS_STDIO ?? '25175'), { background: true })
+  const fixture = await startFixture(Number(process.env.AB_PORT_HEADLESS_STDIO ?? '0'), { background: true })
   const world = seedWorld({ permissions: { defaultMode: 'default' } })
   let run: HeadlessRun
   try {
@@ -724,7 +726,7 @@ async function runHeadlessStdio(): Promise<void> {
 async function runHeadlessPlain(): Promise<void> {
   console.log('\n— leg headless-plain (foreground agent · no prompt tool) —')
   const before = failures
-  const fixture = await startFixture(Number(process.env.AB_PORT_HEADLESS_PLAIN ?? '25176'), { background: false })
+  const fixture = await startFixture(Number(process.env.AB_PORT_HEADLESS_PLAIN ?? '0'), { background: false })
   const world = seedWorld({ permissions: { defaultMode: 'default' } })
   let run: HeadlessRun
   try {

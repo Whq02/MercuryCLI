@@ -353,7 +353,9 @@ export async function startCrossfamilyFixture(opts: CrossfamilyFixtureOpts): Pro
     })
   })
   await new Promise<void>(resolve => server.listen(opts.port, '127.0.0.1', resolve))
-  const base = `http://127.0.0.1:${opts.port}`
+  const address = server.address()
+  const bound = typeof address === 'object' && address !== null ? address.port : opts.port
+  const base = `http://127.0.0.1:${bound}`
   const env: Record<string, string> = {
     ANTHROPIC_BASE_URL: base,
     ANTHROPIC_API_KEY: 'fixture-key-000',

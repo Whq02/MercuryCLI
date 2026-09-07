@@ -1,7 +1,7 @@
 ---
 name: drafting-partner
 description: Co-write a substantial document with the user — a proposal, spec, report, policy, or long memo — by agreeing the brief, building the outline together, drafting section by section, and running review passes that the user steers. Use when the user wants to write something with you rather than have it generated in one shot; not for code, short messages, or editing a finished file's formatting.
-when_to_use: The user says "help me write", "let's draft", "I need a document for…", shares notes to turn into a document, or wants structured feedback on a draft.
+when-to-use: The user says "help me write", "let's draft", "I need a document for…", shares notes to turn into a document, or wants structured feedback on a draft.
 argument-hint: "<document type and purpose> [existing notes or draft path]"
 ---
 

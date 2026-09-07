@@ -958,7 +958,7 @@ if (!existsSync(DIST)) {
       const summaryIndex = reqs.findIndex(q => modelOf(q).includes('fable') && j((q.body as Body).messages).includes('Reply with prose only'))
       const postIndex = reqs.findIndex((q, i) => i > summaryIndex && modelOf(q).includes('fable'))
       const seatIndexes = reqs.map((q, i) => (modelOf(q).includes('opus') ? i : -1)).filter(i => i >= 0)
-      check("§9 the seat's rounds straddled the fold (a seat request before the summary, one or more during it)", summaryIndex > 0 && postIndex > summaryIndex && seatIndexes.some(i => i < summaryIndex) && seatIndexes.some(i => i > summaryIndex && i < postIndex), `summary@${summaryIndex + 1} post@${postIndex + 1} seat@${seatIndexes.map(i => i + 1).join(',')}`)
+      check("§9 the seat's rounds ran through the fold (two or more seat requests between the summary request and the post-fold request)", summaryIndex > 0 && postIndex > summaryIndex && seatIndexes.filter(i => i > summaryIndex && i < postIndex).length >= 2, `summary@${summaryIndex + 1} post@${postIndex + 1} seat@${seatIndexes.map(i => i + 1).join(',')}`)
       census('§9 the seat', seatReqs, true)
       const seatLast = seatReqs[seatReqs.length - 1]?.body as Body | undefined
       check("§9 the seat's last request carries no thinking block (a thinking-off seat declares none and sends none)", seatLast !== undefined && thinkingBlocksOf(seatLast) === 0, String(seatLast && thinkingBlocksOf(seatLast)))

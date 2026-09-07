@@ -148,7 +148,7 @@ async function startFixture(port: number, home: string, opts: { killAfterLaunchM
   const hits: Hit[] = []
   let inspectAskedAt = 0
   let checks = 0
-  const fixture: Fixture = { base: `http://127.0.0.1:${port}`, hits, killedPid: null, close: async () => {} }
+  const fixture: Fixture = { base: '', hits, killedPid: null, close: async () => {} }
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = []
     req.on('data', c => chunks.push(c))
@@ -228,6 +228,9 @@ async function startFixture(port: number, home: string, opts: { killAfterLaunchM
     })
   })
   await new Promise<void>(resolve => server.listen(port, '127.0.0.1', resolve))
+  const address = server.address()
+  const bound = typeof address === 'object' && address !== null ? address.port : port
+  fixture.base = `http://127.0.0.1:${bound}`
   fixture.close = () => new Promise<void>(resolve => server.close(() => resolve()))
   return fixture
 }
@@ -342,7 +345,7 @@ async function switchLeg(): Promise<void> {
   console.log('\n— switch · 120×40 —')
   const before = failures
   const { home, cwd } = seedWorld()
-  const fixture = await startFixture(Number(process.env.SWITCH_PORT_SWITCH ?? 25171), home, {})
+  const fixture = await startFixture(Number(process.env.SWITCH_PORT_SWITCH ?? 0), home, {})
   const COLS = 120
   const ROWS = 40
   let cap: Capture
@@ -414,7 +417,7 @@ async function restartLeg(): Promise<void> {
   console.log('\n— restart · 80×22 —')
   const before = failures
   const { home, cwd } = seedWorld()
-  const fixture = await startFixture(Number(process.env.SWITCH_PORT_RESTART ?? 25172), home, { killAfterLaunchMs: 2_500 })
+  const fixture = await startFixture(Number(process.env.SWITCH_PORT_RESTART ?? 0), home, { killAfterLaunchMs: 2_500 })
   const COLS = 80
   const ROWS = 22
   let cap: Capture
