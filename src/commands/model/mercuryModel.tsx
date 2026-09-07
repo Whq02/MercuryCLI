@@ -1,6 +1,7 @@
 import * as React from 'react'
 import type { CommandResultDisplay } from '../../commands.js'
 import { MercuryModelPicker, fmtCtx as fmtCtxWindow, type ModelChoice } from '../../components/MercuryModelPicker.js'
+import { MercuryModelLandingGate } from './modelPickerLandingGate.js'
 import { getSdkBetas } from '../../bootstrap/state.js'
 import { useAppState, useSetAppState, useAppStateStore } from '../../state/AppState.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
@@ -648,5 +649,9 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
     const base = await import('./model.js')
     return base.call(onDone, context, args)
   }
-  return <MercuryModelWrapper messages={context.messages ?? []} onDone={onDone} />
+  return (
+    <MercuryModelLandingGate>
+      <MercuryModelWrapper messages={context.messages ?? []} onDone={onDone} />
+    </MercuryModelLandingGate>
+  )
 }
