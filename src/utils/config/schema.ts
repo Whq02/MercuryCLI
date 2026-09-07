@@ -252,8 +252,6 @@ export type GlobalConfig = {
 
   terminalProgressBarEnabled: boolean
 
-  showStatusInTerminalTab?: boolean
-
   taskCompleteNotifEnabled?: boolean
   inputNeededNotifEnabled?: boolean
   agentPushNotifEnabled?: boolean
@@ -262,8 +260,6 @@ export type GlobalConfig = {
 
   bridgeOauthDeadExpiresAt?: number
   bridgeOauthDeadFailCount?: number
-
-  idleReturnDismissed?: boolean
 
   respectGitignore: boolean
 
@@ -372,7 +368,6 @@ export const GLOBAL_CONFIG_KEYS = [
   'autoInstallIdeExtension',
   'fileCheckpointingEnabled',
   'terminalProgressBarEnabled',
-  'showStatusInTerminalTab',
   'taskCompleteNotifEnabled',
   'inputNeededNotifEnabled',
   'agentPushNotifEnabled',

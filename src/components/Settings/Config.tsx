@@ -33,7 +33,6 @@ import {
   setSessionInstructionProfile,
   isInstructionProfile,
 } from '../../services/instructions/profile.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import { isFullscreenActive } from '../../utils/fullscreen.js'
 import inkInstances from '../../ink/instances.js'
@@ -761,23 +760,6 @@ export function Config({
     })
   }
 
-  if (getFeatureValue_CACHED_MAY_BE_STALE<boolean>('mercury_chomp_inflection', false) === true) {
-    const on = merged.promptSuggestionEnabled !== false
-    items.push({
-      id: 'promptSuggestions',
-      label: 'Prompt suggestions',
-      kind: 'boolean',
-      value: boolValue(on),
-      change: () => {
-        const next = !on
-        if (writeSource('userSettings', { promptSuggestionEnabled: next ? undefined : false })) {
-          snapshots.dirty = true
-          recordToggle('promptSuggestions', `set prompt suggestions to ${next ? 'on' : 'off'}`)
-          bump()
-        }
-      },
-    })
-  }
   {
     items.push({
       id: 'fileCheckpointing',
@@ -804,18 +786,6 @@ export function Config({
       searchText: 'checkpoints session rewind restore points capture',
       kind: 'info',
       value: <Text color={facts.capture === 'on' ? tokens.success : tokens.textSecondary}>{sessionText}</Text>,
-    })
-  }
-  if (getFeatureValue_CACHED_MAY_BE_STALE<boolean>('terminal_tab_status', false) === true) {
-    items.push({
-      id: 'terminalTabStatus',
-      label: 'Terminal-tab status',
-      kind: 'boolean',
-      value: boolValue(config.showStatusInTerminalTab === true),
-      change: () => {
-        writeGlobal(c => ({ ...c, showStatusInTerminalTab: c.showStatusInTerminalTab !== true }))
-        recordToggle('terminalTabStatus', `set terminal-tab status to ${config.showStatusInTerminalTab !== true ? 'on' : 'off'}`)
-      },
     })
   }
   if (isFullscreenActive()) {
