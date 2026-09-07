@@ -261,7 +261,6 @@ type AppStateMutableHalf = {
   }
   denialTracking?: DenialTrackingState
   thinkingEnabled: boolean
-  advisorModel?: string
   channelPermissionCallbacks?: Record<string, (result: unknown) => void>
 }
 

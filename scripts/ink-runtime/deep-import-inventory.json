@@ -82,7 +82,6 @@
         "hooks/use-interval",
         "hooks/use-search-highlight",
         "hooks/use-selection",
-        "hooks/use-tab-status",
         "hooks/use-terminal-focus",
         "hooks/use-terminal-title",
         "hooks/use-terminal-viewport",

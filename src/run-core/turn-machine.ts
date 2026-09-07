@@ -583,7 +583,6 @@ async function* streamModel(
             callReference,
             queryTracking,
             effortValue,
-            advisorModel: iter.appState.advisorModel,
             skipCacheWrite: run.skipCacheWrite,
             effortMessage: run.effortMessage,
             agentId: toolUseContext.agentId,
