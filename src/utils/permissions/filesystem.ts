@@ -18,7 +18,6 @@ import { getPlatform } from '../platform.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, apolloSpecDirectory } from '../projectConfig.js'
 import { APOLLO_REVIEW_TOOL_NAME } from '../../tools/ApolloReviewTool/constants.js'
-import { checkFeatureGate_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { getSettingsFilePathForSource } from '../settings/settings.js'
 import { getEnabledSettingSources } from '../settings/constants.js'
 import type { PermissionRule, PermissionUpdate } from '../../types/permissions.js'
@@ -229,26 +228,6 @@ export function getScratchpadDir(): string {
   return joinWithSep(joinWithSep(getProjectTempDir(), getSessionId()), 'scratchpad')
 }
 
-export function isScratchpadEnabled(): boolean {
-  return checkFeatureGate_CACHED_MAY_BE_STALE('mercury_scratch')
-}
-
-export async function ensureScratchpadDir(): Promise<string> {
-  if (!isScratchpadEnabled()) {
-    throw new Error('The scratchpad feature is disabled.')
-  }
-  const dir = getScratchpadDir()
-  await getFsImplementation().mkdir(dir, { mode: 0o700 })
-  try {
-    const { registerScratchLease } = await import('../scratchLeases.js')
-    registerScratchLease(getSessionId() as never, dir, {
-      recovery: 'Scratch space for a single Mercury session; safe to remove once that session is over.',
-    })
-  } catch {
-  }
-  return dir
-}
-
 export function getSessionMemoryDir(): string {
   const projectDir = joinWithSep(getProjectTempDir(), getSessionId())
   return ensureTrailingSep(joinWithSep(projectDir, 'session-memory'))
@@ -434,7 +413,6 @@ function autoMemoryOverridden(): boolean {
 }
 
 function editableInternalCategory(path: string): string | null {
-  if (isSessionScratchpad(path)) return 'session scratchpad'
   const folded = normalizeCaseForComparison(path)
   const cwd = getOriginalCwd()
   if (folded === normalizeCaseForComparison(joinWithSep(joinWithSep(cwd, MERCURY_PROJECT_DIR), 'launch.json'))) {
@@ -447,7 +425,6 @@ function editableInternalCategory(path: string): string | null {
 }
 
 function readableInternalCategory(path: string): string | null {
-  if (isSessionScratchpad(path)) return 'session scratchpad'
   const folded = normalizeCaseForComparison(path)
   const projectTemp = normalizeCaseForComparison(getProjectTempDir())
   if (folded.startsWith(projectTemp)) return 'project temp directory'
@@ -477,14 +454,6 @@ function readableInternalCategory(path: string): string | null {
   if (isAgentMemory(path)) return 'agent-memory directory'
   if (isAutoMemory(path)) return 'auto-memory directory'
   return null
-}
-
-function isSessionScratchpad(path: string): boolean {
-  if (!isScratchpadEnabled()) return false
-  const scratch = normalizeCaseForComparison(getScratchpadDir())
-  const folded = normalizeCaseForComparison(path)
-  if (folded === scratch) return true
-  return folded.startsWith(scratch + platformSep.toLowerCase()) || folded.startsWith(scratch + '/')
 }
 
 

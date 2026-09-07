@@ -1,6 +1,5 @@
 import { memoizeWithLRU } from '../memoize.js'
 import { logForDebugging } from '../debug.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { sideQuery } from '../sideQuery.js'
 
 export type CommandPrefixResult = { commandPrefix: string | null }
@@ -23,8 +22,6 @@ const DANGEROUS_SHELL_PREFIXES: ReadonlySet<string> = new Set([
   'sh', 'bash', 'zsh', 'fish', 'csh', 'tcsh', 'ksh', 'dash', 'cmd', 'cmd.exe',
   'powershell', 'powershell.exe', 'pwsh', 'pwsh.exe', 'bash.exe',
 ])
-
-const CORK_GATE = 'mercury_cork_m4q'
 
 const API_ERROR_MARKER = 'API Error'
 
@@ -50,20 +47,10 @@ function interpretAnswer(answer: string, command: string): CommandPrefixResult |
 function buildPrompts(config: PrefixExtractorConfig, command: string): {
   systemPrompt: string
   userMessage: string
-  cacheEnabled: boolean
 } {
-  const gateOn = getFeatureValue_CACHED_MAY_BE_STALE<boolean>(CORK_GATE, false)
-  if (gateOn) {
-    return {
-      systemPrompt: `You process ${config.toolName} commands that an AI coding agent wants to run.\n\n${config.policySpec}`,
-      userMessage: command,
-      cacheEnabled: true,
-    }
-  }
   return {
     systemPrompt: `You process ${config.toolName} commands that an AI coding agent wants to run. The policy spec that follows defines how to determine the prefix of a ${config.toolName} command.`,
     userMessage: `${config.policySpec}\n\nCommand: ${command}`,
-    cacheEnabled: false,
   }
 }
 
@@ -87,13 +74,13 @@ export function createCommandPrefixExtractor(config: PrefixExtractorConfig) {
     }, 10_000)
 
     try {
-      const { systemPrompt, userMessage, cacheEnabled } = buildPrompts(config, command)
+      const { systemPrompt, userMessage } = buildPrompts(config, command)
       const response = await sideQuery({
         systemPrompt,
         userPrompt: userMessage,
         signal: abortSignal,
         querySource: config.querySource,
-        cacheSystemPrompt: cacheEnabled,
+        cacheSystemPrompt: false,
         useSmallFastModel: true,
       } as never)
       const answer = extractAnswer((response as { content?: unknown }).content).trim()
