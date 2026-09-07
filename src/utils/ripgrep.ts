@@ -1,5 +1,6 @@
-import { spawn, execFile } from 'node:child_process'
+import { spawn, execFile, type ChildProcess } from 'node:child_process'
 import { flagEnabled } from '../substrate/flagRegistry.js'
+import { registerCleanup } from './cleanupRegistry.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -215,6 +216,41 @@ export function getRipgrepStatus(): { mode: RipgrepMode | 'none'; path: string; 
 }
 
 
+const liveChildren = new Set<ChildProcess>()
+
+function track<T extends ChildProcess>(child: T): T {
+  liveChildren.add(child)
+  const forget = (): void => {
+    liveChildren.delete(child)
+  }
+  child.once('close', forget)
+  child.once('error', forget)
+  return child
+}
+
+export function endLiveRipgrepChildren(): number {
+  let ended = 0
+  for (const child of liveChildren) {
+    try {
+      if (child.exitCode === null && child.signalCode === null) {
+        if (process.platform === 'win32') child.kill()
+        else child.kill('SIGKILL')
+        ended++
+      }
+    } catch {
+    }
+  }
+  liveChildren.clear()
+  return ended
+}
+
+registerCleanup(async () => {
+  endLiveRipgrepChildren()
+})
+process.once('exit', () => {
+  endLiveRipgrepChildren()
+})
+
 type SpawnOutcome = {
   stdout: string
   stderr: string
@@ -229,12 +265,14 @@ function spawnWithArgv0(
   timeoutMs: number,
 ): Promise<SpawnOutcome> {
   return new Promise(resolvePromise => {
-    const child = spawn(config.rgPath, args, {
-      argv0: config.argv0,
-      windowsHide: true,
-      env: { ...subprocessEnv() },
-      ...(abortSignal ? { signal: abortSignal } : {}),
-    })
+    const child = track(
+      spawn(config.rgPath, args, {
+        argv0: config.argv0,
+        windowsHide: true,
+        env: { ...subprocessEnv() },
+        ...(abortSignal ? { signal: abortSignal } : {}),
+      }),
+    )
     let stdout = ''
     let stderr = ''
     let stdoutLatched = false
@@ -305,25 +343,27 @@ function spawnExecFile(
   timeoutMs: number,
 ): Promise<SpawnOutcome> {
   return new Promise(resolvePromise => {
-    execFile(
-      config.rgPath,
-      args,
-      {
-        maxBuffer: OUTPUT_CAP,
-        timeout: timeoutMs,
-        windowsHide: true,
-        env: { ...subprocessEnv() },
-        killSignal: process.platform === 'win32' ? undefined : 'SIGKILL',
-        ...(abortSignal ? { signal: abortSignal } : {}),
-      },
-      (error, stdout, stderr) => {
-        const err = error as (Error & { code?: string | number; signal?: NodeJS.Signals; killed?: boolean }) | null
-        if (err && typeof err.code === 'number' && (err.code === 0 || err.code === 1)) {
-          resolvePromise({ stdout, stderr, error: null, signal: err.signal ?? null })
-          return
-        }
-        resolvePromise({ stdout, stderr, error: err, signal: err?.signal ?? null })
-      },
+    track(
+      execFile(
+        config.rgPath,
+        args,
+        {
+          maxBuffer: OUTPUT_CAP,
+          timeout: timeoutMs,
+          windowsHide: true,
+          env: { ...subprocessEnv() },
+          killSignal: process.platform === 'win32' ? undefined : 'SIGKILL',
+          ...(abortSignal ? { signal: abortSignal } : {}),
+        },
+        (error, stdout, stderr) => {
+          const err = error as (Error & { code?: string | number; signal?: NodeJS.Signals; killed?: boolean }) | null
+          if (err && typeof err.code === 'number' && (err.code === 0 || err.code === 1)) {
+            resolvePromise({ stdout, stderr, error: null, signal: err.signal ?? null })
+            return
+          }
+          resolvePromise({ stdout, stderr, error: err, signal: err?.signal ?? null })
+        },
+      ),
     )
   })
 }
@@ -508,6 +548,7 @@ export async function countFilesWithRg(args: string[], target: string, abortSign
     })
     child.unref()
     ;(child.stdout as (NodeJS.ReadableStream & { unref?: () => void }) | null)?.unref?.()
+    track(child)
     let count = 0
     let settled = false
     const settle = (err?: Error): void => {

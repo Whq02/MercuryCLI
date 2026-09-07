@@ -1124,7 +1124,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return {
                 status: 'warn',
                 evidence: `render pipeline present at ${root} · python at ${python} · ${runtime.missing} — the render_tui tool answers unavailable until bun is found`,
-                fix: 'Install bun (~/.bun/bin/bun), put it on PATH, or point BUN at one — the render script runs under it.',
+                fix: 'Install bun (~/.bun/bin/bun), put it on PATH, or point MERCURY_BUN at one — the render script runs under it.',
               }
             }
             return {
