@@ -176,6 +176,21 @@ const cutRow = (sid: string): string | null => {
   const m = /\[Request cut off[^\]]*\]/.exec(seatTranscript(sid))
   return m === null ? null : m[0]
 }
+const runnerOf = (sid: string): string | null => {
+  try {
+    const file = JSON.parse(readFileSync(join(daemonDir, 'concourse-workers.json'), 'utf8')) as { workers?: Record<string, { runnerId?: string; sessionId?: string; endedAt?: number }> }
+    const rec = Object.values(file.workers ?? {}).find(r => r.sessionId === sid && r.endedAt === undefined)
+    return rec?.runnerId ?? null
+  } catch {
+    return null
+  }
+}
+const turnOpenOnRoster = async (runnerId: string): Promise<boolean | null> => {
+  const listed = (await daemonControlRpc({ op: 'list' } as never)) as { ok?: boolean; jobs?: Array<{ short?: string; busy?: boolean; turnActive?: boolean }> }
+  const row = listed.ok === true ? listed.jobs?.find(j => j.short === runnerId) : undefined
+  if (row === undefined) return null
+  return row.turnActive === true || row.busy === true
+}
 
 const fixture = spawn('node', [join(import.meta.dir, 'throttle-fixture-server.ts'), captureFile], {
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -263,12 +278,20 @@ const runLeg = async (arm: string): Promise<Leg> => {
     title: `throttle ${arm}`,
     model: 'claude-opus-5',
     effort: 'high',
-  } as never)) as { ok?: boolean; sessionId?: string; error?: string }
+  } as never)) as { ok?: boolean; sessionId?: string; runnerId?: string; error?: string }
   check(`${arm}: the session opened`, opened.ok === true && typeof opened.sessionId === 'string', JSON.stringify(opened))
   const sid = opened.sessionId ?? ''
   await untilAsync(() => parentTranscript(sid).includes('fixture answers') && readFacts(sid)?.busy === false, 45_000, 50)
   const granted = (await daemonControlRpc({ op: 'sessionControl', action: 'grant-workflows', sessionId: sid, by: 'seat-drive' } as never)) as { ok?: boolean; outcome?: string; error?: string; detail?: string }
   check(`${arm}: the session holds the workflows-allowed tag`, granted.ok === true && (granted.outcome === undefined || granted.outcome === 'applied' || granted.outcome === 'noop'), JSON.stringify(granted))
+  const runnerId = opened.runnerId ?? runnerOf(sid) ?? ''
+  if (granted.outcome === 'applied') {
+    check(
+      `${arm}: the notice turn closed before the ask`,
+      await untilAsync(async () => parentTranscript(sid).includes('[switchboard notice]') && (await turnOpenOnRoster(runnerId)) === false, 30_000, 50),
+      `runner=${runnerId}`,
+    )
+  }
   const reply = (await daemonControlRpc({
     op: 'concourseDispatch',
     clientMessageId: `throttle-${arm}`,
@@ -304,11 +327,12 @@ const runLeg = async (arm: string): Promise<Leg> => {
       leg.parentDone = true
       break
     }
-    const busy = readFacts(sid)?.busy
-    if (busy === true) sawBusy = true
-    if (sawBusy && busy === false) break
+    const open = await turnOpenOnRoster(runnerId)
+    if (open === true) sawBusy = true
+    if (sawBusy && open === false) break
     await sleep(40)
   }
+  if (!leg.parentDone) leg.parentDone = await untilAsync(() => parentTranscript(sid).includes('parent done'), 2_000, 25)
   await untilAsync(() => receiptOf(sid) !== null, 5_000, 50)
   leg.receipt = receiptOf(sid)
   await untilAsync(() => seatRows(sid).length > 0 && seatRows(sid).every(row => row.status !== 'running'), 5_000, 50)
