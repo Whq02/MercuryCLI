@@ -171,7 +171,7 @@ section('§4 the entry seam — the direct road runs before the receipt consumer
   check('the alt-hold consumer is imported only after the direct road (its marker is read at module evaluation)', altHold === -1 || altHold > direct)
   const owner = readFileSync(join(ROOT, 'src', 'substrate', 'directSplash.ts'), 'utf8')
   check('the owner spawns the asset on the runtime\'s own node with the terminal inherited', owner.includes('spawnSync(process.execPath, [asset.driver]') && owner.includes("stdio: 'inherit'") && owner.includes('windowsHide: false'))
-  check('the owner mints the per-launch id before the splash (the launchers\' isolation law)', /MERCURY_LAUNCH_ID = `direct-/.test(owner))
+  check('the owner mints the per-launch id before the splash (the launchers\' isolation law)', /setFlagEnv\('MERCURY_LAUNCH_ID', `direct-/.test(owner))
 }
 
 section('§5 the ordinary build ships the pair beside the bundle')

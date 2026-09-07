@@ -11,6 +11,7 @@
 # gate-watch: src/types/ids* src/types/textInputTypes* src/utils/**
 # gate-watch: src/commands/caching/**
 set -uo pipefail
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 cd "$(dirname "$0")/../.." || exit 1
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 fail=0

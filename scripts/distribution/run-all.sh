@@ -4,6 +4,7 @@
 # gate-watch: THIRD_PARTY_NOTICES.md package.json bun.lock vendor/*.lock.json
 # gate-watch: LICENSE.md TRADEMARKS.md MERCURY-COMMUNITY-PRODUCTION-TERMS.md scripts/release/releaseDocuments.mjs scripts/release/payloadContract.mjs
 set -u
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0

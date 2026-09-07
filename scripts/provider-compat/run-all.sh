@@ -6,6 +6,7 @@
 # gate-watch: src/services/providers/zai/glmPins* src/utils/router/providers/**
 # gate-watch: src/utils/model/modelOptions* src/utils/model/capabilities*
 set -u
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 
 here="$(cd "$(dirname "$0")" && pwd)"

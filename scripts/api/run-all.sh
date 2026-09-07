@@ -10,6 +10,7 @@ __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-window-retry.ts" || 
 # gate-watch: src/services/providers/streamIdleBudget* src/services/providers/openai/** src/services/providers/zai/**
 # gate-watch: src/utils/proxy* src/utils/mtls* src/components/messages/SystemAPIErrorMessage*
 set -uo pipefail
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

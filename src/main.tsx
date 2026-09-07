@@ -54,7 +54,7 @@ import {
 } from './services/mcp/coordinationServer.js'
 import { clearBootAttempts } from './substrate/bootBeacon.js'
 import { addBootNote, collectLauncherNotes } from './substrate/bootNotes.js'
-import { flagEnv } from './substrate/flagRegistry.js'
+import { flagEnv, setFlagEnv } from './substrate/flagRegistry.js'
 import { recordInvocation } from './substrate/invocationRecord.js'
 import { recordLaunchMilestone } from './substrate/launchMilestones.js'
 import { markExplicitBootJourney, retractExplicitBootJourney } from './substrate/splashHandover.js'
@@ -1090,7 +1090,7 @@ async function showAction(
         )
         process.exit(1)
       }
-      process.env.MERCURY_IMAGE_PROTOCOL = options.protocol
+      setFlagEnv('MERCURY_IMAGE_PROTOCOL', options.protocol)
     }
     {
       const { readSync: readBytes, openSync: openFd, closeSync: closeFd } = await import('node:fs')
@@ -1240,7 +1240,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
 
   if (opts.bare) {
-    process.env.MERCURY_BARE = '1'
+    setFlagEnv('MERCURY_BARE', '1')
   }
   let inputPrompt = inputPromptArg
   if (typedString(opts.prefill)) {

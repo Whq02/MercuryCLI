@@ -4,6 +4,7 @@
 # gate-watch: src/services/run/ownerKey* src/services/tcpBridge/entry* src/substrate/flagRegistry*
 # gate-watch: src/tools/LSPTool/** src/utils/**
 set -uo pipefail
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

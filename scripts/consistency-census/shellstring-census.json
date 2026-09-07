@@ -20,7 +20,7 @@
     },
     {
       "file": "src/utils/Shell.ts",
-      "line": 276,
+      "line": 286,
       "mechanism": "hardcoded-tmp",
       "excerpt": "process.env.MERCURY_TMPDIR || '/tmp',",
       "cls": "platform-owner",
@@ -175,6 +175,14 @@
       "line": 87,
       "mechanism": "hardcoded-tmp",
       "excerpt": "const OUTSIDE = realpathSync(mkdtempSync('/tmp/shell-engine-sandbox-outside-'))",
+      "cls": "test-fixture",
+      "why": "shell parsing is the subject under test"
+    },
+    {
+      "file": "scripts/bash/prove-shell-session-env.ts",
+      "line": 147,
+      "mechanism": "exec-string",
+      "excerpt": "const handle = await exec(`env > ${JSON.stringify(out)}`, new AbortController().signal, 'bash', {",
       "cls": "test-fixture",
       "why": "shell parsing is the subject under test"
     },

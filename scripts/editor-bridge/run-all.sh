@@ -5,6 +5,7 @@
 # gate-watch: src/services/acp/** src/services/workContexts/** src/services/walkthrough/**
 # gate-watch: src/utils/artifacts/** src/components/diff/** src/components/prompts-panel/**
 set -u
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 

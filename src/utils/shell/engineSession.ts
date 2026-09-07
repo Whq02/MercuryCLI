@@ -14,6 +14,7 @@ import { SandboxManager } from '../sandbox/sandbox-adapter.js'
 import { getSessionEnvironmentScript } from '../sessionEnvironment.js'
 import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { subprocessEnv } from '../subprocessEnv.js'
+import { scrubSessionEnvStamps } from '../../substrate/envStamps.js'
 import { TaskOutput } from '../task/TaskOutput.js'
 import { generateTaskId } from '../../Task.js'
 import { getFsImplementation } from '../fsOperations.js'
@@ -109,6 +110,7 @@ type LiveSession = {
   exited: boolean
   sandboxed: boolean
   stderrBuf: Buffer
+  scrubbedSessionEnv: readonly string[]
 }
 
 type OwnerSession = {
@@ -271,10 +273,11 @@ async function spawnSession(binaryPath: string, sandbox: EngineSandboxPolicy): P
     }
   }
 
+  const base = scrubSessionEnvStamps(subprocessEnv())
   const live: LiveSession = {
     child: spawn(file, args, {
       cwd: cwdThatResolves(),
-      env: { ...subprocessEnv(), SHELL: binaryPath, GIT_EDITOR: 'true', MERCURY: '1', ...envOverrides(sandbox) },
+      env: { ...base.env, SHELL: binaryPath, GIT_EDITOR: 'true', MERCURY: '1', ...envOverrides(sandbox) },
       stdio: ['pipe', 'pipe', 'pipe'],
       detached: getPlatform() !== 'windows',
       windowsHide: true,
@@ -287,6 +290,7 @@ async function spawnSession(binaryPath: string, sandbox: EngineSandboxPolicy): P
     exited: false,
     sandboxed: sandbox.enabled,
     stderrBuf: Buffer.alloc(0),
+    scrubbedSessionEnv: base.scrubbed,
   }
 
   live.child.stdout?.on('data', (chunk: Buffer) => {
@@ -393,6 +397,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
   })
   let status: ShellCommand['status'] = 'running'
   let settled = false
+  let scrubbedSessionEnv: readonly string[] = []
 
   const settle = (execResult: ExecResult): void => {
     if (settled) return
@@ -456,6 +461,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       settle({ stdout: '', stderr: withInherited(`shell engine failed to start: ${errorMessage(error)}`, false), code: 1, interrupted: false, preSpawnError: errorMessage(error) })
       return
     }
+    scrubbedSessionEnv = live.scrubbedSessionEnv
 
     const payload = `cd -- ${quote([cwdThatResolves()])} || :\n${command}`
 
@@ -585,6 +591,9 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
     kill,
     get status() {
       return status
+    },
+    get scrubbedSessionEnv() {
+      return scrubbedSessionEnv
     },
     cleanup: () => {
       taskOutput.clear()

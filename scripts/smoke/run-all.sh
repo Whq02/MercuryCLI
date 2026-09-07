@@ -2,6 +2,7 @@
 # gate-class: cpu
 # gate-watch: build.ts src/**
 set -u
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 here="$(cd "$(dirname "$0")" && pwd)"
 fail=0
 echo "############################################################"

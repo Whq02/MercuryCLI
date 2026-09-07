@@ -10,6 +10,7 @@
 # gate-watch: src/commands/console/console.tsx src/commands/effort/effort.tsx src/hooks/useTextInput.ts
 # gate-watch: src/components/concourse/ConcourseRoute.tsx src/ink/session/capabilities.ts src/ink/root/screen-session.ts
 set -uo pipefail
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 
 cd "$(dirname "$0")/../.." || exit 1

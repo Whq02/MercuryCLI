@@ -3,6 +3,7 @@
 # gate-watch: scripts/verify/** src/utils/verification/**
 # gate-watch: .githooks/** scripts/gate/ledger.ts
 set -u
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
