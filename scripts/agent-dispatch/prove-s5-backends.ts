@@ -387,7 +387,8 @@ section('3 · honest refusals + fault mapping (never a throw, never a fallthroug
   const retried = await collectCall('glm-5.2')
   restoreFetch()
   check('retryable pre-content fault: exactly two attempts (bounded)', fetchCalls === 2, String(fetchCalls))
-  check('…then ONE API-error assistant message', retried.length === 1 && isApiErrorAssistant(retried[0]))
+  const retryNotices = retried.filter(m => (m as { type?: string; subtype?: string }).type === 'system' && (m as { subtype?: string }).subtype === 'api_error')
+  check('…then ONE API-error assistant message, after ONE retry notice', retried.filter(isApiErrorAssistant).length === 1 && retryNotices.length === 1 && isApiErrorAssistant(retried[retried.length - 1]), JSON.stringify(retried.map(m => [(m as { type?: string }).type, (m as { subtype?: string }).subtype])))
 }
 
 section('4 · the launch-plan engine law (role→sandbox · denials · no floor)')

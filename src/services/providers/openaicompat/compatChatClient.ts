@@ -1,12 +1,14 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { SseDecoder } from '../sseDecoder.js'
+import { retryAfterHeaderMs } from '../../api/retryAfter.js'
 import {
   createStreamIdleWatchdog,
   firstByteBudgetMs,
   firstByteTimeoutLine,
   streamIdleTimeoutMs,
   StreamIdleTimeoutError,
+  streamIdleFaultWords,
   type RequestWaitV1,
   type StreamIdleWatchdog,
 } from '../streamIdleBudget.js'
@@ -92,6 +94,7 @@ export interface CompatFault {
   message: string
   retryable: boolean
   status?: number
+  retryAfterMs?: number
 }
 
 
@@ -139,18 +142,20 @@ export function describeTransportFailure(error: unknown, baseURL: string | undef
   return host !== undefined ? `${detail} (endpoint ${host})` : detail
 }
 
-export function mapCompatHttpFailure(status: number, body: unknown): CompatFault {
+export function mapCompatHttpFailure(status: number, body: unknown, headers?: { get(name: string): string | null }): CompatFault {
   const o = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : undefined
   const err = typeof o?.error === 'object' && o.error !== null ? (o.error as Record<string, unknown>) : undefined
   const stringError = typeof o?.error === 'string' && o.error.trim() !== '' ? o.error : undefined
   const message = String(err?.message ?? stringError ?? o?.message ?? `HTTP ${status}`)
   const word = vendorErrorWord(err)
+  const retryAfterMs = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined)
   return {
     kind: word !== undefined ? 'api-error' : 'http-error',
     code: word !== undefined ? `api-${word}` : `http-${status}`,
     message,
     retryable: status === 429 || status === 408 || status >= 500,
     status,
+    ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
   }
 }
 
@@ -316,7 +321,7 @@ export async function* streamCompatChat(
       } catch {
         body = undefined
       }
-      yield { type: 'stream-fault', fault: mapCompatHttpFailure(response.status, body) }
+      yield { type: 'stream-fault', fault: mapCompatHttpFailure(response.status, body, response.headers) }
       return
     }
     if (!response.body) {
@@ -345,7 +350,7 @@ export async function* streamCompatChat(
           fault: cancelled
             ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled mid-stream', retryable: false }
             : isIdle
-              ? { kind: 'timeout', code: 'idle-timeout', message: `no bytes for ${idleMs}ms`, retryable: true }
+              ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
               : {
                   kind: 'transport-error',
                   code: 'read-failed',

@@ -1,12 +1,17 @@
+import { currentPatience } from './patience.js'
 
 export const STREAM_IDLE_DEFAULT_MS = 90_000
 
 const STREAM_IDLE_FLOOR_MS = 1_000
 
-export function streamIdleTimeoutMs(): number {
+function pinnedStreamIdleTimeoutMs(): number | null {
   const raw = process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
   const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
-  return Number.isFinite(parsed) && parsed >= STREAM_IDLE_FLOOR_MS ? parsed : STREAM_IDLE_DEFAULT_MS
+  return Number.isFinite(parsed) && parsed >= STREAM_IDLE_FLOOR_MS ? parsed : null
+}
+
+export function streamIdleTimeoutMs(): number {
+  return pinnedStreamIdleTimeoutMs() ?? STREAM_IDLE_DEFAULT_MS
 }
 
 export function streamIdleWarningMsOf(timeoutMs: number): number {
@@ -14,8 +19,18 @@ export function streamIdleWarningMsOf(timeoutMs: number): number {
 }
 
 export function streamIdleTimeoutMsForRoute(route: string | null): number {
-  void route
-  return streamIdleTimeoutMs()
+  const pinned = pinnedStreamIdleTimeoutMs()
+  if (pinned !== null) return pinned
+  switch (route) {
+    case 'anthropic':
+    case 'zai':
+    case 'openai-compat':
+      return currentPatience().numbers.streamIdleMs
+    case 'openai':
+      return currentPatience().numbers.quietStreamIdleMs
+    default:
+      return STREAM_IDLE_DEFAULT_MS
+  }
 }
 
 
@@ -161,6 +176,19 @@ export class StreamIdleTimeoutError extends Error {
     this.name = 'StreamIdleTimeoutError'
     this.silentMs = silentMs
   }
+}
+
+export function streamIdleFaultWords(idleMs: number): string {
+  const budget = idleMs >= 1000 ? idleSeconds(idleMs) : `${idleMs} ms`
+  return `no bytes for ${budget} — the stream went quiet (no keep-alive arrived) and the watchdog cut it`
+}
+
+const idleSeconds = (ms: number): string => {
+  const s = Math.max(0, Math.round(ms / 1000))
+  if (s < 60) return `${s} s`
+  const m = Math.floor(s / 60)
+  const rest = s % 60
+  return rest === 0 ? `${m}m` : `${m}m ${rest}s`
 }
 
 export interface StreamIdleWatchdog {

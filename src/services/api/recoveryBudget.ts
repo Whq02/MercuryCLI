@@ -1,14 +1,35 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { retryAfterOf } from './retryAfter.js'
+import { PATIENCE_NORMAL, recoveryBudgetMinutesSetting } from '../providers/patience.js'
+import { errorHeaders, headerValue, retryAfterHeaderMs, retryAfterOf } from './retryAfter.js'
 
-export const RECOVERY_BUDGET_DEFAULT_MINUTES = 5
+export const RECOVERY_BUDGET_DEFAULT_MINUTES = PATIENCE_NORMAL.recoveryBudgetMinutes
 
 export function recoveryBudgetMs(): number {
   const raw = flagEnv('MERCURY_RECOVERY_BUDGET_MINUTES')
-  if (raw === undefined || raw.trim() === '') return RECOVERY_BUDGET_DEFAULT_MINUTES * 60_000
-  const minutes = Number.parseFloat(raw)
-  if (!Number.isFinite(minutes) || minutes < 0) return RECOVERY_BUDGET_DEFAULT_MINUTES * 60_000
+  const pinned = raw === undefined || raw.trim() === '' ? Number.NaN : Number.parseFloat(raw)
+  const minutes = Number.isFinite(pinned) && pinned >= 0 ? pinned : recoveryBudgetMinutesSetting()
   return minutes === 0 ? Infinity : minutes * 60_000
+}
+
+export function providerWaitIsWindow(waitMs: number | undefined, capMs: number = recoveryBudgetMs()): boolean {
+  return waitMs !== undefined && Number.isFinite(waitMs) && waitMs > capMs
+}
+
+export function providerAskedWaitMs(error: unknown, nowMs: number = Date.now()): number | undefined {
+  const asked = retryAfterHeaderMs(retryAfterOf(error), nowMs)
+  if (asked !== undefined) return asked
+  const reset = headerValue(errorHeaders(error), 'anthropic-ratelimit-unified-reset')
+  if (reset === undefined || reset.trim() === '') return undefined
+  const resetsAtMs = Number(reset) * 1000
+  return Number.isFinite(resetsAtMs) && resetsAtMs > nowMs ? resetsAtMs - nowMs : undefined
+}
+
+export function isSpentUsageWindowAnswer(error: unknown): boolean {
+  return headerValue(errorHeaders(error), 'anthropic-ratelimit-unified-status') === 'rejected'
+}
+
+export function stampProviderWait<T extends object>(row: T, askedMs: number | undefined, nowMs: number = Date.now()): T & { providerWaitEndsAtMs?: number } {
+  return askedMs === undefined || !Number.isFinite(askedMs) || askedMs <= 0 ? row : { ...row, providerWaitEndsAtMs: nowMs + askedMs }
 }
 
 export type RecoveryWaitClass = 'throttle' | 'fault' | 'recovery'
@@ -224,7 +245,7 @@ export function recoveryBudgetSpentFactsOf(error: unknown): { words: string; res
 }
 
 export function isRecoveryBudgetSpentLine(text: string): boolean {
-  return text.includes('retry budget is spent') && /^(the provider refused \d+ times? in a row \(|the \S+ retry budget is spent waiting on the provider)/.test(text)
+  return text.includes('retry budget is spent') && /^(the provider refused \d+ times? in a row \(|the \S+( \S+)? retry budget is spent waiting on the provider)/.test(text)
 }
 
 export function recoveryNoticeFacts(message: unknown): RecoveryNoticeFacts | null {

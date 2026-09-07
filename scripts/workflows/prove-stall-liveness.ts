@@ -199,7 +199,7 @@ section('(e) refusals past the retry budget settle typed — no ladder, no 45s t
   check('agent() resolved null (the typed settle)', res === null, String(res).slice(0, 60))
   check('exactly ONE spawn (the ladder never touched it)', calls.length === 1, `${calls.length}`)
   const fails = hooks.getFailures()
-  check('failures[] carries the refusals and the spent budget', fails.some(f => /the provider refused \d+ times in a row \(HTTP 529, overloaded\) — the 5m retry budget is spent/.test(f)), fails.join(' | '))
+  check('failures[] carries the refusals and the spent budget', fails.some(f => /the provider refused \d+ times in a row \(HTTP 529, overloaded\) — the 20m retry budget is spent/.test(f)), fails.join(' | '))
   check('no 45s throttle-rescue sleep was bought', Date.now() - t0 < 30_000)
 }
 

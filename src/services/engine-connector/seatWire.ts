@@ -88,6 +88,10 @@ const WORK_PULSE: KeyTable = {
 const AGENT_WAIT: KeyTable = {
   sinceMs: 'since_ms',
   budgetMs: 'budget_ms',
+  streamedChars: 'streamed_chars',
+}
+const AGENT_PAUSE: KeyTable = {
+  resumesAtMs: 'resumes_at_ms',
 }
 const MISSION_ROW: KeyTable = {
   blockedBy: 'blocked_by',
@@ -157,10 +161,11 @@ function usageNested(table: KeyTable, bandTable: KeyTable, observedKey: string):
   }
 }
 
-function workRowNested(pulseTable: KeyTable, waitTable: KeyTable): (out: Row) => void {
+function workRowNested(pulseTable: KeyTable, waitTable: KeyTable, pauseTable: KeyTable): (out: Row) => void {
   return out => {
     if (isRow(out.pulse)) out.pulse = renamed(out.pulse, pulseTable)
     if (isRow(out.phase)) out.phase = renamed(out.phase, waitTable)
+    if (isRow(out.paused)) out.paused = renamed(out.paused, pauseTable)
   }
 }
 
@@ -202,7 +207,7 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
     out.usage = row(out.usage, t(USAGE), usageNested(t(USAGE), t(BAND), observedKey))
     out.identity = row(out.identity, t(IDENTITY))
     out.workspace = row(out.workspace, t(WORKSPACE))
-    if (workKey in out) out[workKey] = rows(out[workKey], t(WORK_ROW), workRowNested(t(WORK_PULSE), t(AGENT_WAIT)))
+    if (workKey in out) out[workKey] = rows(out[workKey], t(WORK_ROW), workRowNested(t(WORK_PULSE), t(AGENT_WAIT), t(AGENT_PAUSE)))
     if (missionKey in out) out[missionKey] = rows(out[missionKey], t(MISSION_ROW))
     if (kitKey in out) out[kitKey] = row(out[kitKey], t(KIT), kitNested(t(KIT_DELTAS)))
     if (editsKey in out) out[editsKey] = rows(out[editsKey], t(SCHEDULE_EDIT), scheduleEditNested(t(SUBMISSION), t(WHEN), t(ACTION), t(BIRTH)))
