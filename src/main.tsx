@@ -584,7 +584,6 @@ async function run(): Promise<void> {
     .option('-w, --worktree [name]', 'Run inside a managed worktree')
     .option('--tmux', 'Create a tmux session for the worktree')
 
-
   for (const [flags, description] of [
     ['--agent-id <id>', 'Teammate agent id'],
     ['--agent-name <name>', 'Teammate agent name'],

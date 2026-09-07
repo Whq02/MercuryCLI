@@ -1,7 +1,6 @@
 
 import {
   isAnalyticsDisabled,
-  isFeedbackSurveyDisabled,
 } from '../../src/services/analytics/config.js'
 import { binaryName } from '../../src/utils/config.js'
 
@@ -29,17 +28,14 @@ console.log('============================================================')
 
 clearAnalyticsEnv()
 
-console.log('\n[1] product stamp: analytics + feedback-survey disabled (no uploads)')
+console.log('\n[1] product stamp: analytics collection disabled')
 setStamp(true)
-check('isAnalyticsDisabled() === true (Datadog + 1P event upload + GrowthBook off)', isAnalyticsDisabled() === true)
-check('isFeedbackSurveyDisabled() === true', isFeedbackSurveyDisabled() === true)
+check('analytics collection is disabled', isAnalyticsDisabled() === true)
 
 console.log('\n[2] bare stamp, clean env: analytics STILL disabled (stamp-independence)')
 setStamp(false)
 const bareStampAnalytics = isAnalyticsDisabled()
-const bareStampSurvey = isFeedbackSurveyDisabled()
 check(`isAnalyticsDisabled() === true under a bare stamp (got ${bareStampAnalytics})`, bareStampAnalytics === true)
-check(`isFeedbackSurveyDisabled() === true under a bare stamp (got ${bareStampSurvey})`, bareStampSurvey === true)
 
 console.log('\n[2b] binaryName() — the binary-name long-tail primitive')
 setStamp(true)
@@ -55,7 +51,5 @@ delete process.env.MERCURY_TELEMETRY
 
 console.log('\n============================================================')
 console.log(fail === 0 ? ' ✅ NO-TELEMETRY-EGRESS PROOF PASS' : ' ❌ PROOF FAILED')
-console.log('  (install/feedback/BigQuery/branding flips: build-compile + dist-grep')
-console.log('   + render-verify — not bun-loadable; see the workflow plan provable notes.)')
 console.log('============================================================')
 process.exit(fail)

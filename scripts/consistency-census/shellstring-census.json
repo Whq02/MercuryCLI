@@ -1172,7 +1172,7 @@
     },
     {
       "file": "scripts/permissions/prove-auto-mode.ts",
-      "line": 256,
+      "line": 237,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
@@ -1196,7 +1196,7 @@
     },
     {
       "file": "scripts/permissions/prove-flow-block-asks.ts",
-      "line": 456,
+      "line": 452,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
@@ -2844,7 +2844,7 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 2332,
+      "line": 2326,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q', { cwd: project })",
       "cls": "intentional-shell",
@@ -2852,7 +2852,7 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 2361,
+      "line": 2355,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git add -A && git -c user.email=fix@x -c user.name=fix commit -qm seed', { cwd: project })",
       "cls": "intentional-shell",
@@ -2860,7 +2860,7 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 3842,
+      "line": 3836,
       "mechanism": "execSync-string",
       "excerpt": "execSync(",
       "cls": "intentional-shell",
@@ -2868,7 +2868,7 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 4991,
+      "line": 4985,
       "mechanism": "execSync-string",
       "excerpt": "execSync(",
       "cls": "intentional-shell",
