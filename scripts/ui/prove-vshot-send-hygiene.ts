@@ -1,7 +1,10 @@
 #!/usr/bin/env bun
 import * as ts from 'typescript'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
+import { resolveCaptureDriver } from '../lib/captureDriver.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 
@@ -57,6 +60,34 @@ console.log('§2 the poison: a bare awaitText literal is flagged')
 const poison = `const sends = [\n  { data: '\\t', awaitText: 'SESSIONS', awaitSettleTicks: 2 },\n  { data: 's', afterPrevTicks: 2, mark: 'x' },\n  { data: '', awaitText: 'FOCUSED CHAT', requireAwait: true, mark: 'y' },\n  { atTick: 40, awaitText: 'gate', data: '\\r' },\n]\n`
 const flagged = blindAwaitSends(poison, 'poison.ts')
 check('exactly the bare literal is flagged (requireAwait and an atTick deadline both pass)', flagged.length === 1 && flagged[0]!.line === 2, JSON.stringify(flagged))
+
+console.log('§3 the live-seat rule: a board with a live seat refuses whole-grid stability gates by name')
+{
+  const driver = resolveCaptureDriver()
+  if (driver.kind !== 'posix-pty') {
+    check(`the POSIX capture engine is on this host (${driver.kind}) — the rule's refusal cannot be driven here`, false)
+  } else {
+    const scratch = mkdtempSync(join(tmpdir(), 'vshot-live-seat-'))
+    const run = (name: string, cfg: Record<string, unknown>): { status: number | null; stderr: string } => {
+      const cfgPath = join(scratch, `${name}.json`)
+      writeFileSync(cfgPath, JSON.stringify({ argv: ['true'], cols: 20, rows: 4, total: 2, out: join(scratch, `${name}.grid.json`), ...cfg }))
+      const r = spawnSync(driver.python, [join(REPO, 'scripts', 'ui', 'vshot.py'), cfgPath], { encoding: 'utf8', timeout: 30_000, env: { ...process.env, VSHOT_SLOTS: '0' } })
+      return { status: r.status, stderr: r.stderr ?? '' }
+    }
+    const spoken = (r: { stderr: string }): boolean => r.stderr.includes('LIVE-SEAT-STABILITY')
+    const whole = run('whole-grid-send', { liveSeat: true, sends: [{ requireAwait: true, awaitText: 'x', awaitStableTicks: 2, data: '' }] })
+    check('a live-seat board refuses a send gated on whole-grid stability, by name (exit 7)', whole.status === 7 && spoken(whole), `exit ${whole.status}: ${whole.stderr.slice(0, 200)}`)
+    const end = run('whole-grid-end', { liveSeat: true, requireStable: true, stableTicks: 2 })
+    check('…and a capture that requires whole-grid stability of itself (exit 7)', end.status === 7 && spoken(end), `exit ${end.status}: ${end.stderr.slice(0, 200)}`)
+    const region = run('region-send', { liveSeat: true, sends: [{ requireAwait: true, awaitText: 'x', awaitStableTicks: 2, awaitStableRegion: [0, 0, 10, 2], data: '' }] })
+    check('a send that names its region passes the rule', region.status !== 7 && !spoken(region), `exit ${region.status}: ${region.stderr.slice(0, 200)}`)
+    const settle = run('settle-send', { liveSeat: true, sends: [{ requireAwait: true, awaitText: 'x', awaitSettleTicks: 2, data: '' }] })
+    check('a send gated on settle ticks passes the rule', settle.status !== 7 && !spoken(settle), `exit ${settle.status}: ${settle.stderr.slice(0, 200)}`)
+    const plain = run('plain-board', { sends: [{ requireAwait: true, awaitText: 'x', awaitStableTicks: 2, data: '' }] })
+    check('a board that declares no live seat keeps its whole-grid gates (the rule is declared, never guessed)', plain.status !== 7 && !spoken(plain), `exit ${plain.status}: ${plain.stderr.slice(0, 200)}`)
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
 
 console.log(failures === 0 ? '\nvshot send hygiene: GREEN' : `\nvshot send hygiene: ${failures} RED`)
 process.exit(failures === 0 ? 0 : 1)

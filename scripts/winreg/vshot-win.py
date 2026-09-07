@@ -98,6 +98,22 @@ end_reason = "budget"
 ended_at_tick = 0
 stable_need = int(cfg.get("stableTicks", 0))
 stable_region = cfg.get("stableRegion")
+if cfg.get("liveSeat"):
+    _whole_grid = [
+        "send %d (%r)" % (i, str(s.get("awaitText") or s.get("awaitRaw") or s.get("data", ""))[:40])
+        for i, s in enumerate(sends)
+        if int(s.get("awaitStableTicks", 0)) and not s.get("awaitStableRegion")
+    ]
+    if cfg.get("requireStable") and stable_need and not stable_region:
+        _whole_grid.append("the capture's own requireStable/stableTicks end gate")
+    if _whole_grid:
+        sys.stderr.write(
+            "[vshot-win] LIVE-SEAT-STABILITY: this board carries a live seat (liveSeat), "
+            "and %s gate(s) on whole-grid stability — the peek pane keeps painting, so "
+            "the gate starves and the journey never happens. Gate on settle ticks "
+            "(awaitSettleTicks) or name the region the assertion reads "
+            "(awaitStableRegion / stableRegion).\n" % "; ".join(_whole_grid))
+        sys.exit(7)
 stable_run = 0
 last_grid_text = None
 last_stable_eval_tick = -1
