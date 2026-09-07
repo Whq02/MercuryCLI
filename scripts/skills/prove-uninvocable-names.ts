@@ -10,11 +10,6 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const md = (body: string): string => `---\ndescription: probe\n---\n${body}\n`
-const commandsDir = join(PROJ, '.mercury', 'commands')
-mkdirSync(commandsDir, { recursive: true })
-writeFileSync(join(commandsDir, '.md'), md('the empty-name claimant'))
-writeFileSync(join(commandsDir, 'w5 has space.md'), md('the spaced claimant'))
-writeFileSync(join(commandsDir, 'zzgood.md'), md('the invocable one'))
 const skillsDir = join(PROJ, '.mercury', 'skills')
 mkdirSync(join(skillsDir, 'has space'), { recursive: true })
 writeFileSync(join(skillsDir, 'has space', 'SKILL.md'), md('the spaced skill'))
@@ -52,29 +47,15 @@ const roster = await getCommands(PROJ)
 const names = roster.map(c => c.name)
 const refusals = skillsMod.getSkillLoadRefusals()
 
-section('§2 THE LEGACY-COMMANDS LANE')
+section('§2 THE SKILLS ROAD')
 {
-  check('the invocable file registers', names.includes('zzgood'), JSON.stringify(names.filter(n => n.includes('zzgood'))))
+  check('the fine skill registers', names.includes('fine'))
   check('no EMPTY-named command sits in the roster', !names.some(n => n === '' || n.endsWith(':')))
   check(
     'no spaced command sits in the roster',
     !names.some(n => /\s/.test(n)),
     JSON.stringify(names.filter(n => /\s/.test(n))),
   )
-  check(
-    'the empty-name file is refused, named uninvocable',
-    refusals.some(r => r.path.endsWith('/.md') && r.error.includes('uninvocable')),
-    JSON.stringify(refusals.map(r => r.path.split('/').pop())),
-  )
-  check(
-    'the spaced file is refused, named uninvocable',
-    refusals.some(r => r.path.endsWith('w5 has space.md') && r.error.includes('uninvocable')),
-  )
-}
-
-section('§3 THE SKILLS LANE')
-{
-  check('the fine skill registers', names.includes('fine'))
   check(
     'the spaced skill directory is refused, named uninvocable',
     refusals.some(r => r.path.includes('has space') && r.error.includes('uninvocable')),

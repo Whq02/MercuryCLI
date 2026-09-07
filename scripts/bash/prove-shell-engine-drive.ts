@@ -175,8 +175,10 @@ async function startFixture(port: number, cwd: string): Promise<Fixture> {
     })
   })
   await new Promise<void>(resolve => server.listen(port, '127.0.0.1', resolve))
+  const address = server.address()
+  const bound = typeof address === 'object' && address !== null ? address.port : port
   return {
-    base: `http://127.0.0.1:${port}`,
+    base: `http://127.0.0.1:${bound}`,
     results,
     descriptions,
     stamps,
@@ -355,8 +357,8 @@ async function leg(engine: Engine, port: number): Promise<void> {
 }
 
 const LEG = process.env.DRIVE_LEG ?? 'both'
-if (LEG !== 'brush') await leg('system', Number(process.env.DRIVE_PORT_SYSTEM ?? '25171'))
-if (LEG !== 'system') await leg('brush', Number(process.env.DRIVE_PORT_BRUSH ?? '25172'))
+if (LEG !== 'brush') await leg('system', Number(process.env.DRIVE_PORT_SYSTEM ?? '0'))
+if (LEG !== 'system') await leg('brush', Number(process.env.DRIVE_PORT_BRUSH ?? '0'))
 
 console.log('\n============================================================')
 if (failures === 0) console.log(' ✅ THE SHELL-ENGINE DRIVE HOLDS')

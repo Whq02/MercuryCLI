@@ -54,9 +54,9 @@ const launcherSvc = svc(true, envlessDefault, undefined)
 const envlessSvc = svc(true, undefined, undefined)
 check('launcher (env=resolved default) and env-less fork share ONE service', launcherSvc === envlessSvc, `${launcherSvc} vs ${envlessSvc}`)
 check('the Mercury service is suffixed (never the foreign bare entry)', /-[0-9a-f]{8}$/.test(envlessSvc), envlessSvc)
-check('an explicit ~/.claude uses the bare (foreign) service', !/-[0-9a-f]{8}$/.test(svc(true, join(home, '.claude'), undefined)))
+check('an explicit foreign-named home is hashed like every other home (no bare service anywhere)', /-[0-9a-f]{8}$/.test(svc(true, join(home, '.claude'), undefined)))
 check('bare stamp env-less service is Mercury\'s (suffixed, stamp-independence)', svc(false, undefined, undefined) === envlessSvc)
-check('bare stamp + explicit ~/.claude uses the bare service (resolved-home keying)', !/-[0-9a-f]{8}$/.test(svc(false, join(home, '.claude'), undefined)))
+check('bare stamp + an explicit foreign-named home is hashed too (resolved-home keying)', /-[0-9a-f]{8}$/.test(svc(false, join(home, '.claude'), undefined)))
 
 console.log('\ndoctor coherence keys on the AUTH home (a foreign slot is not a split)')
 {
@@ -64,10 +64,9 @@ console.log('\ndoctor coherence keys on the AUTH home (a foreign slot is not a s
   envUtils.setAuthScope(join(home, '.claude'))
   try {
     const slottedSvc = kc.getMacOsKeychainStorageServiceName()
-    check("a foreign ~/.claude slot reads the default's bare service (by design)", !/-[0-9a-f]{8}$/.test(slottedSvc), slottedSvc)
-    const authHome = envUtils.getAuthConfigHomeDir()
-    const defaultAuthHome = authHome === join(home, '.claude').normalize('NFC')
-    check('the auth-home-keyed predicate does NOT flag the slot', !(!defaultAuthHome && !/-[0-9a-f]{8}$/.test(slottedSvc)))
+    check('a foreign-named auth slot is hashed too — one law, every home', /-[0-9a-f]{8}$/.test(slottedSvc), slottedSvc)
+    const flagged = !/-[0-9a-f]{8}$/.test(slottedSvc)
+    check('the auth-home-keyed predicate flags nothing for a hashed slot', !flagged)
     check('…while the session home stays ~/.mercury (never ~/.claude)', envUtils.getMercuryHome() === mercuryDefault, envUtils.getMercuryHome())
   } finally {
     envUtils.clearAuthScope()
@@ -76,8 +75,8 @@ console.log('\ndoctor coherence keys on the AUTH home (a foreign slot is not a s
   check('at rest the auth home is the resolved session home', restAuthHome === envUtils.getMercuryHome())
   check('at rest the env-less service is suffixed (the split test still bites on a bare one)', /-[0-9a-f]{8}$/.test(kc.getMacOsKeychainStorageServiceName()))
   const doctorSrc = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf-8')
-  check('doctor config-home keys the keychain test on getAuthConfigHomeDir()', doctorSrc.includes('const authHome = getAuthConfigHomeDir()') && doctorSrc.includes('non-default auth home'))
-  check("doctor mirrors the helper's NFC compare", doctorSrc.includes(".claude').normalize('NFC')"))
+  check('doctor config-home keys the keychain test on getAuthConfigHomeDir()', doctorSrc.includes('const authHome = getAuthConfigHomeDir()') && doctorSrc.includes('UN-suffixed for the auth home'))
+  check('the doctor carries no foreign-home arm', !doctorSrc.includes(".claude')"))
   check('a live slot is NAMED in the ok evidence, never flagged', doctorSrc.includes('auth scope slotted →'))
 }
 
@@ -85,7 +84,7 @@ console.log('\nstore-plane agreement — every inline resolver follows the ONE r
 const controlSocketSrc = readFileSync(join(ROOT, 'src', 'daemon', 'controlSocket.ts'), 'utf-8')
 check('daemon controlSocket configHome delegates to getMercuryHome', /function configHome\(\): string \{\s*\n\s*return getMercuryHome\(\)/.test(controlSocketSrc))
 const envSrc = readFileSync(join(ROOT, 'src', 'utils', 'env.ts'), 'utf-8')
-check('getGlobalMercuryFile env-less defaults into the resolved home (Mercury-named)', envSrc.includes('const home = getMercuryHome()') && envSrc.includes('`.mercury${suffix}.json`'))
+check('getGlobalMercuryFile env-less defaults into the resolved home (Mercury-named)', envSrc.includes('globalConfigFileIn(getMercuryHome())') && envSrc.includes('`.mercury${fileSuffixForOauthConfig()}.json`'))
 const envUtilsSrc = readFileSync(join(ROOT, 'src', 'utils', 'envUtils.ts'), 'utf-8')
 check('envUtils source carries no ~/.claude default arm', !envUtilsSrc.includes(".claude').normalize"))
 check('envUtils source never probes the filesystem to pick a home (no existence rung)', !/existsSync\([^)]*\.mercury/.test(envUtilsSrc))

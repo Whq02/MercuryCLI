@@ -59,7 +59,7 @@ const projections: unknown[] = []
 const mutableMessages: unknown[] = []
 for await (const projection of handleOrphanedPermission(
   {
-    permissionResult: { behavior: 'allow', toolUseID: 'toolu_parity_1' },
+    permissionResult: { behavior: 'allow', tool_use_id: 'toolu_parity_1' },
     assistantMessage,
   } as never,
   [fakeTool] as never,

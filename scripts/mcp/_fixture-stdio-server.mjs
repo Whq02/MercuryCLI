@@ -1,6 +1,23 @@
 #!/usr/bin/env node
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, readFileSync } from 'node:fs'
 import { createInterface } from 'node:readline'
+
+if (process.env.MCP_FIXTURE_SPAWN_LOG) {
+  try {
+    appendFileSync(process.env.MCP_FIXTURE_SPAWN_LOG, `${process.pid}\n`)
+  } catch {
+  }
+}
+let mode = ''
+if (process.env.MCP_FIXTURE_MODE_FILE) {
+  try {
+    mode = readFileSync(process.env.MCP_FIXTURE_MODE_FILE, 'utf8').trim()
+  } catch {
+    mode = ''
+  }
+}
+if (mode === 'crash-at-start') process.exit(1)
+let initialized = false
 
 const send = obj => process.stdout.write(JSON.stringify(obj) + '\n')
 const rl = createInterface({ input: process.stdin })
@@ -12,7 +29,9 @@ rl.on('line', line => {
   } catch {
     return
   }
+  if (mode === 'exit-before-init' && !initialized && msg.id !== undefined && msg.method !== 'initialize') process.exit(1)
   if (msg.method === 'initialize') {
+    initialized = true
     if (process.env.MCP_FIXTURE_LOG) {
       try {
         appendFileSync(process.env.MCP_FIXTURE_LOG, JSON.stringify(msg.params ?? {}) + '\n')

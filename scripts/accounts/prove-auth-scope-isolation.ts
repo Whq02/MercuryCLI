@@ -90,7 +90,7 @@ section('§3 REST = IDENTITY — no override ⇒ getAuthConfigHomeDir() === getM
   check(env.getAuthConfigHomeDir() === env.getMercuryHome(), 'auth home === session home at rest (byte-identical)')
 }
 
-section('§4 NO KEYCHAIN COLLISION — Mercury ~/.mercury vs the foreign ~/.claude are DISTINCT entries')
+section('§4 NO KEYCHAIN COLLISION — Mercury ~/.mercury and a foreign-named home are DISTINCT entries, both hashed')
 {
   env.clearAuthScope()
   process.env.MERCURY_CONFIG_DIR = join(homedir(), '.mercury')
@@ -98,8 +98,8 @@ section('§4 NO KEYCHAIN COLLISION — Mercury ~/.mercury vs the foreign ~/.clau
   process.env.MERCURY_CONFIG_DIR = join(homedir(), '.claude')
   const foreignSvc = keychain.getMacOsKeychainStorageServiceName(keychain.CREDENTIALS_SERVICE_SUFFIX)
   check(mercurySvc !== foreignSvc, 'sovereign and foreign keychain service names differ', `${mercurySvc} vs ${foreignSvc}`)
-  check(/-[0-9a-f]{8}$/.test(mercurySvc), 'sovereign home is HASH-suffixed (never the un-suffixed foreign entry)', mercurySvc)
-  check(!/-[0-9a-f]{8}$/.test(foreignSvc), 'the foreign ~/.claude stays the un-suffixed default entry', foreignSvc)
+  check(/-[0-9a-f]{8}$/.test(mercurySvc), 'sovereign home is HASH-suffixed', mercurySvc)
+  check(/-[0-9a-f]{8}$/.test(foreignSvc), 'the foreign-named home is hashed too — never an un-suffixed entry', foreignSvc)
 }
 
 section('§5 SESSION HOME PINNED — an override moves the auth home, NOT the session home')

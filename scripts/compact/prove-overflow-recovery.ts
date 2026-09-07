@@ -374,7 +374,7 @@ section('R5 the switches — MERCURY_AUTO_COMPACT · MERCURY_COMPACT · the flag
   const b = await run({ seed: seedPlain(), script: [[ping(), overflowError()]] })
   delete process.env.MERCURY_COMPACT
   const bText = textOf(errorYields(b.yields)[0])
-  check('compaction off: the refusal names MERCURY_COMPACT', b.terminal.reason === 'prompt_too_long' && bText.includes('compaction is disabled (MERCURY_COMPACT)'), bText)
+  check('compaction off: the refusal names MERCURY_COMPACT', b.terminal.reason === 'prompt_too_long' && bText.includes('compaction is disabled (MERCURY_COMPACT=0)'), bText)
 
   process.env.MERCURY_OVERFLOW_RECOVERY = '0'
   const c = await run({ seed: seedPlain(), script: [[ping(), overflowError()]] })

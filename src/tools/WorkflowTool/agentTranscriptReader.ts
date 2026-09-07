@@ -180,6 +180,7 @@ export async function readAgentTranscript(
     apiTurns: 0,
   }
   const seenUsageIds = new Set<string>()
+  const seenToolUseIds = new Set<string>()
   let end: AgentTranscriptEnd = OPEN_END
 
   for (const e of entries) {
@@ -253,13 +254,18 @@ export async function readAgentTranscript(
       const block = b as Record<string, unknown>
       if (block.type === 'tool_use') {
         opensCall = true
+        const id = typeof block.id === 'string' ? block.id : undefined
+        if (id !== undefined) {
+          if (seenToolUseIds.has(id)) continue
+          seenToolUseIds.add(id)
+        }
         const call: AgentToolCallView = {
           name: String(block.name ?? '?'),
           inputSummary: summarizeToolInput(block.input),
           timestamp: typeof e.timestamp === 'string' ? e.timestamp : undefined,
         }
         toolCallsAll.push(call)
-        if (typeof block.id === 'string') pendingResults.set(block.id, call)
+        if (id !== undefined) pendingResults.set(id, call)
       } else if (block.type === 'thinking') {
         const t = String(block.thinking ?? '')
         if (t.length > 0) reasoningAll.push(clip(t, REASONING_EACH_CAP_CHARS))

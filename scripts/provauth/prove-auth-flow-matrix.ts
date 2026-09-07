@@ -273,7 +273,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
   check(
     'the /logins catalogue carries the eight sign-in families (anthropic as claudeai+console)',
     rows.join('|') ===
-      ['claudeai', 'openai', 'console', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek'].join('|'),
+      ['openai', 'claudeai', 'console', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek'].join('|'),
     rows.join('|'),
   )
   check(
@@ -1467,12 +1467,12 @@ section('§9 the evidence pair end-to-end + the dead-door sweep')
   const REPO = join(import.meta.dir, '..', '..')
   const src = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
-  const http = src('src/utils/http.ts')
-  const refreshAt = http.indexOf('await handleOAuth401Error(tokens.accessToken)')
-  const retryAt = http.indexOf('return await request()', refreshAt)
+  const retry = src('src/services/api/withRetry.ts')
+  const gateAt = retry.indexOf('previousStatus === 401 || isRevokedTokenError(previousError)')
+  const refreshAt = retry.indexOf('await handleOAuth401Error(failedAccessToken)', gateAt)
   check(
     'the 401/revoked-403 ladder refreshes FIRST and retries — the wall only past a dead refresh',
-    refreshAt !== -1 && retryAt !== -1 && http.includes('isRevokedSignInText(error.response.data)'),
+    gateAt !== -1 && refreshAt !== -1 && retry.includes('isRevokedSignInText(errorMessage(error))'),
   )
   const errors = src('src/services/api/errors.ts')
   const wallAt = errors.indexOf('const wall = classifyCredentialWall(status, message)')

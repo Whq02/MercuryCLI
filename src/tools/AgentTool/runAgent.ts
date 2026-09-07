@@ -24,6 +24,7 @@ import {
 import type { InstructionProfile } from '../../services/instructions/contracts.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import { killShellTasksForAgent } from '../../tasks/LocalShellTask/killShellTasks.js'
+import { endEngineSessionFor } from '../../utils/shell/engineSession.js'
 import { disposeBrowserOwner } from '../../services/browser/browserSession.js'
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import type { Message } from '../../types/message.js'
@@ -1038,6 +1039,7 @@ export async function* runAgent(
         toolUseContext.getAppState,
         rootSetAppState,
       )
+      await endEngineSessionFor(agentId)
       await disposeBrowserOwner(processOwnerForLane(agentId))
     }
   }

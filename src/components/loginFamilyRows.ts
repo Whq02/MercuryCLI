@@ -17,10 +17,10 @@ export interface LoginFamilyRow {
 
 export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginFamilyRow[] {
   return [
-    { label: 'Claude subscription account', value: 'claudeai' },
     ...(engineLegs
       ? [{ label: 'OpenAI — ChatGPT subscription or API key', value: 'openai' as const }]
       : []),
+    { label: 'Claude subscription account', value: 'claudeai' },
     { label: 'Usage-based billing — Anthropic Console sign-in or API key', value: 'console' },
     ...(engineLegs
       ? [

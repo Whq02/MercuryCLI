@@ -245,6 +245,13 @@ export const SettingsSchema = lazySchema(() => {
       .describe(
         'Patience with a quiet model: normal (a 90 s stream-idle budget where keep-alives feed the watchdog, 15 min on the OpenAI road, a 15 min non-streamed fallback ceiling, a 20 min retry budget), patient (every wait doubled), or the custom numbers; MERCURY_STREAM_IDLE_TIMEOUT_MS, MERCURY_API_TIMEOUT_MS and MERCURY_RECOVERY_BUDGET_MINUTES outrank it',
       ),
+    shellEngineSessions: z
+      .number()
+      .int()
+      .min(1)
+      .max(64)
+      .optional()
+      .describe("The ceiling on live shell-engine sessions Mercury keeps at once: the main conversation's own plus that many minus one for sub-agents (default 8). A sub-agent past the ceiling waits for a free session, never sharing another owner's; a ceiling of 1 leaves no session for sub-agents"),
     instructionProfile: z.enum(['auto', 'native']).optional(),
     channelsEnabled: z.boolean().optional(),
     apollo: z

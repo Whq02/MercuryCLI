@@ -125,8 +125,5 @@
    "/repo/src/deep"
   ]
  },
- "getCompactionReminderAttachment/first-turn": {
-  "«throws»": "A.getCompactionReminderAttachment is not a function. (In 'A.getCompactionReminderAttachment([])', 'A.getCompactionReminderAttachment' is undefined)"
- },
  "getContextEfficiencyAttachment/fold-dead": []
 }

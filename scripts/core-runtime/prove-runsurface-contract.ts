@@ -1138,10 +1138,10 @@ section('P5 getCanUseToolFn — stdio routes to StructuredIO; forceDecision pass
       return marker
     },
   }
-  const viaStdio = getCanUseToolFn('stdio', fakeIO as never, () => [])
+  const viaStdio = getCanUseToolFn('stdio', undefined, fakeIO as never, () => [])
   check("'stdio' routes to structuredIO.createCanUseTool", viaStdio === (marker as never) && createCalls === 1)
 
-  const noPrompt = getCanUseToolFn(undefined, fakeIO as never, () => [])
+  const noPrompt = getCanUseToolFn(undefined, undefined, fakeIO as never, () => [])
   const forced = {
     behavior: 'deny',
     message: 'forced',

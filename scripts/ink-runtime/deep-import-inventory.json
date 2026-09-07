@@ -115,6 +115,12 @@
         "hooks/use-viewport-floor",
         "viewportFloor"
       ]
+    },
+    "frame-cadence": {
+      "why": "the runtime's frame interval, read by the cockpit's motion governor so the idle tickers pace themselves to the paint cadence it measures against (prove-motion-governor); a read of one constant, no decision body",
+      "modules": [
+        "constants"
+      ]
     }
   }
 }
