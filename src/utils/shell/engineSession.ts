@@ -91,9 +91,21 @@ type LiveSession = {
   stderrBuf: Buffer
 }
 
-let session: LiveSession | null = null
-let queue: Promise<unknown> = Promise.resolve()
-let pendingResetNote: string | null = null
+type Lane = {
+  session: LiveSession | null
+  queue: Promise<unknown>
+  pendingResetNote: string | null
+}
+const MAIN_OWNER = 'main conversation'
+const lanes = new Map<string, Lane>()
+function laneFor(owner: string): Lane {
+  let lane = lanes.get(owner)
+  if (lane === undefined) {
+    lane = { session: null, queue: Promise.resolve(), pendingResetNote: null }
+    lanes.set(owner, lane)
+  }
+  return lane
+}
 let snapshotPromise: Promise<string | undefined> | null = null
 
 export function loopScript(): string {
@@ -266,9 +278,11 @@ export type EngineExecOptions = {
   sandbox?: EngineSandboxPolicy
   onCwd?: (cwd: string) => void
   onProgress?: (recentLines: string, allLines: string, lineCount: number, byteCount: number, isIncomplete: boolean) => void
+  owner?: string
 }
 
 export function runEngineCommand(binaryPath: string, command: string, options: EngineExecOptions): ShellCommand {
+  const lane = laneFor(options.owner ?? MAIN_OWNER)
   const taskId = generateTaskId('local_bash')
   const taskOutput = new TaskOutput(taskId, options.onProgress ?? null, false)
 
@@ -286,7 +300,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
     resolveResult(execResult)
   }
 
-  queue = queue.then(() => execute()).catch(error => {
+  lane.queue = lane.queue.then(() => execute()).catch(error => {
     logForDebugging(`engine command failed unexpectedly: ${errorMessage(error)}`)
     settle({ stdout: '', stderr: `shell engine error: ${errorMessage(error)}`, code: 1, interrupted: false })
   })
@@ -297,13 +311,13 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       return
     }
     if (settled) return
-    if (session !== null && session.exited) {
-      session = null
-      pendingResetNote ??=
+    if (lane.session !== null && lane.session.exited) {
+      lane.session = null
+      lane.pendingResetNote ??=
         'the shell engine session ended between commands and was restarted; variables, functions and shell options set earlier in this session were lost (the working directory is preserved).'
     }
-    let inheritedNote = pendingResetNote
-    pendingResetNote = null
+    let inheritedNote = lane.pendingResetNote
+    lane.pendingResetNote = null
     const withInherited = (stderr: string, interrupted: boolean): string =>
       inheritedNote !== null && !interrupted ? (stderr ? `${inheritedNote} ${stderr}` : inheritedNote) : stderr
 
@@ -314,16 +328,16 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
     }
 
     const sandbox: EngineSandboxPolicy = options.sandbox ?? { enabled: false }
-    if (session !== null && !session.exited && session.sandboxed !== sandbox.enabled) {
-      await killSession(session)
-      session = null
+    if (lane.session !== null && !lane.session.exited && lane.session.sandboxed !== sandbox.enabled) {
+      await killSession(lane.session)
+      lane.session = null
       const policyNote = `the shell engine session was restarted because this command runs ${sandbox.enabled ? 'inside' : 'outside'} the sandbox and the previous session ran ${sandbox.enabled ? 'outside' : 'inside'} it (the sandbox policy is the call's); variables, functions and shell options set earlier in this session were lost (the working directory is preserved).`
       inheritedNote = inheritedNote === null ? policyNote : `${inheritedNote} ${policyNote}`
     }
 
     let live: LiveSession
     try {
-      live = await ensureSession(binaryPath, sandbox)
+      live = await ensureSession(lane, binaryPath, sandbox)
     } catch (error) {
       settle({ stdout: '', stderr: withInherited(`shell engine failed to start: ${errorMessage(error)}`, false), code: 1, interrupted: false, preSpawnError: errorMessage(error) })
       return
@@ -401,8 +415,8 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       live.reader = () => tryComplete()
       live.onExit = code => {
         flushUpTo(live.buffer.length)
-        session = null
-        pendingResetNote =
+        lane.session = null
+        lane.pendingResetNote =
           'the shell session was reset after that command ended it; variables, functions and shell options set earlier in this session were lost (the working directory is preserved).'
         void done({ stderr: '', code: code ?? 1, interrupted: false })
       }
@@ -411,8 +425,8 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
         status = 'killed'
         flushUpTo(live.buffer.length)
         void killSession(live)
-        session = null
-        pendingResetNote =
+        lane.session = null
+        lane.pendingResetNote =
           'the shell engine session was reset after the command hit its timeout; earlier variables, functions and options were lost (the working directory is preserved).'
         void done({ stderr: `Command timed out after ${Math.round(options.timeout / 1000)}s.`, code: 143, interrupted: false })
       }, options.timeout)
@@ -421,8 +435,8 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
         status = 'killed'
         flushUpTo(live.buffer.length)
         void killSession(live)
-        session = null
-        pendingResetNote =
+        lane.session = null
+        lane.pendingResetNote =
           'the shell engine session was reset after the command was interrupted; earlier variables, functions and options were lost (the working directory is preserved).'
         void done({ stderr: '', code: 137, interrupted: true })
       }
@@ -442,10 +456,10 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
   const kill = (): void => {
     if (settled) return
     status = 'killed'
-    if (session) {
-      void killSession(session)
-      session = null
-      pendingResetNote =
+    if (lane.session) {
+      void killSession(lane.session)
+      lane.session = null
+      lane.pendingResetNote =
         'the shell engine session was reset after the command was stopped; earlier variables, functions and options were lost (the working directory is preserved).'
     }
     settle({ stdout: '', stderr: '', code: 137, interrupted: true })
@@ -465,10 +479,10 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
   }
 }
 
-async function ensureSession(binaryPath: string, sandbox: EngineSandboxPolicy): Promise<LiveSession> {
-  if (session !== null && !session.exited) return session
-  session = await spawnSession(binaryPath, sandbox)
-  return session
+async function ensureSession(lane: Lane, binaryPath: string, sandbox: EngineSandboxPolicy): Promise<LiveSession> {
+  if (lane.session !== null && !lane.session.exited) return lane.session
+  lane.session = await spawnSession(binaryPath, sandbox)
+  return lane.session
 }
 
 async function killSession(live: LiveSession): Promise<void> {
@@ -529,11 +543,18 @@ function parseCheck(binaryPath: string, command: string): Promise<{ ok: boolean;
   })
 }
 
-export async function endEngineSession(): Promise<void> {
-  const live = session
-  session = null
-  pendingResetNote = null
+export async function endEngineSessionFor(owner: string): Promise<void> {
+  const lane = lanes.get(owner)
+  if (lane === undefined) return
+  lanes.delete(owner)
+  const live = lane.session
+  lane.session = null
+  lane.pendingResetNote = null
   if (live !== null && !live.exited) await killSession(live)
+}
+
+export async function endEngineSession(): Promise<void> {
+  await Promise.all([...lanes.keys()].map(owner => endEngineSessionFor(owner)))
 }
 
 let cleanupRegistered = false
@@ -543,15 +564,15 @@ function registerEngineCleanup(): void {
   registerCleanup(endEngineSession)
 }
 
-export function engineChildForTest(): ChildProcess | null {
-  return session?.child ?? null
+export function engineChildForTest(owner: string = MAIN_OWNER): ChildProcess | null {
+  return lanes.get(owner)?.session?.child ?? null
 }
 
 export function resetEngineSessionForTest(): void {
-  if (session) void killSession(session)
-  session = null
-  queue = Promise.resolve()
-  pendingResetNote = null
+  for (const lane of lanes.values()) {
+    if (lane.session) void killSession(lane.session)
+  }
+  lanes.clear()
   snapshotPromise = null
   packResolution = null
 }

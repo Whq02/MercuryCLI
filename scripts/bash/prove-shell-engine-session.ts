@@ -31,6 +31,23 @@ const sameDir = (a: string, b: string): boolean => {
   }
 }
 const lastLine = (text: string): string => text.trim().split(/\r?\n/).pop() ?? ''
+const alive = (pid: number): boolean => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+const diedWithin = async (pid: number, ms: number): Promise<boolean> => {
+  const deadline = Date.now() + ms
+  while (Date.now() < deadline) {
+    if (!alive(pid)) return true
+    await new Promise(resolve => setTimeout(resolve, 50))
+  }
+  return !alive(pid)
+}
+const pidOf = (result: Result): number => Number(/pid=(\d+)/.exec(result.stdout)?.[1] ?? -1)
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -51,11 +68,12 @@ console.log(`shell engine: brush ${resolution.version} (${resolution.platform}) 
 
 type Result = { stdout: string; stderr: string; code: number; interrupted: boolean }
 
-async function run(command: string, timeoutMs = 30_000): Promise<Result> {
+async function run(command: string, timeoutMs = 30_000, owner?: string): Promise<Result> {
   const controller = new AbortController()
   const cmd = runEngineCommand(binaryPath, command, {
     timeout: timeoutMs,
     signal: controller.signal,
+    ...(owner !== undefined ? { owner } : {}),
     onCwd: (cwd: string) => {
       try {
         state.setCwdState(cwd)
@@ -157,22 +175,6 @@ section('§6 the session ends on request: the switch road and the exit cleanup e
   resetEngineSessionForTest()
   const { endEngineSession } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
   const { runCleanupFunctions } = await import(join(ROOT, 'src/utils/cleanupRegistry.ts'))
-  const alive = (pid: number): boolean => {
-    try {
-      process.kill(pid, 0)
-      return true
-    } catch {
-      return false
-    }
-  }
-  const diedWithin = async (pid: number, ms: number): Promise<boolean> => {
-    const deadline = Date.now() + ms
-    while (Date.now() < deadline) {
-      if (!alive(pid)) return true
-      await new Promise(resolve => setTimeout(resolve, 50))
-    }
-    return !alive(pid)
-  }
   const first = await run('echo "pid=$$"')
   const firstPid = Number(/pid=(\d+)/.exec(first.stdout)?.[1] ?? -1)
   check('the session answers with its own pid', firstPid > 1 && alive(firstPid), JSON.stringify(first.stdout.slice(0, 40)))
@@ -183,6 +185,48 @@ section('§6 the session ends on request: the switch road and the exit cleanup e
   check('the next command spawns a fresh session with no note owed', second.code === 0 && secondPid > 1 && secondPid !== firstPid && second.stderr === '', `pid ${secondPid} stderr ${JSON.stringify(second.stderr)}`)
   await runCleanupFunctions()
   check('the exit cleanup registry ends the session too (registered at the first spawn)', secondPid > 1 && (await diedWithin(secondPid, 2_500)), `pid ${secondPid} still alive`)
+}
+
+section('§10 two owners: a shell each — side by side, isolated, reset and ended apart')
+{
+  resetEngineSessionForTest()
+  const { endEngineSession, endEngineSessionFor, engineChildForTest } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
+  const order: string[] = []
+  const a = run('sleep 2; echo A', 30_000, 'owner-a').then(r => {
+    order.push('a')
+    return r
+  })
+  const b = run('echo B', 30_000, 'owner-b').then(r => {
+    order.push('b')
+    return r
+  })
+  const [ra, rb] = await Promise.all([a, b])
+  check("two owners run at the same time: the second owner's short command settles first", order[0] === 'b' && ra.stdout.includes('A') && rb.stdout.includes('B'), `order ${order.join(',')}`)
+  const pidA = pidOf(await run('echo "pid=$$"', 30_000, 'owner-a'))
+  const pidB = pidOf(await run('echo "pid=$$"', 30_000, 'owner-b'))
+  check('each owner has its own engine process', pidA > 1 && pidB > 1 && pidA !== pidB && alive(pidA) && alive(pidB), `pids ${pidA}/${pidB}`)
+  await run('LANE_VAR=a-only; lane_fn() { echo fn-a; }', 30_000, 'owner-a')
+  const seenByB = await run('echo "[${LANE_VAR:-none}]"; lane_fn 2>/dev/null || echo fn-missing', 30_000, 'owner-b')
+  check("an owner's variable and function are not seen by another owner", seenByB.stdout.includes('[none]') && seenByB.stdout.includes('fn-missing'), JSON.stringify(seenByB.stdout))
+  const seenByA = await run('echo "[$LANE_VAR]"; lane_fn', 30_000, 'owner-a')
+  check('…and stay visible to their owner', seenByA.stdout.includes('[a-only]') && seenByA.stdout.includes('fn-a'), JSON.stringify(seenByA.stdout))
+  await run('KEEP_B=kept', 30_000, 'owner-b')
+  const hung = await run('sleep 30', 700, 'owner-a')
+  check("owner A's hung command is killed with the timeout code", hung.code === 143, `code=${hung.code}`)
+  const afterB = await run('echo "[${KEEP_B:-gone}]"', 30_000, 'owner-b')
+  check("owner B's state survives owner A's reset, and B's result carries no note", afterB.stdout.includes('[kept]') && afterB.stderr === '', JSON.stringify(afterB))
+  const afterA = await run('echo "[${LANE_VAR:-gone}]"', 30_000, 'owner-a')
+  check("owner A's next result carries the reset note and finds its state gone", afterA.stdout.includes('[gone]') && afterA.stderr.includes('reset'), JSON.stringify(afterA))
+  const childA = engineChildForTest('owner-a')
+  const childB = engineChildForTest('owner-b')
+  const freshA = childA?.pid ?? -1
+  await endEngineSessionFor('owner-a')
+  check("ending owner A's session ends A's process and not B's", freshA > 1 && (await diedWithin(freshA, 2_500)) && childB !== null && childB.pid === pidB && alive(pidB), `A ${freshA} B ${pidB}`)
+  const backA = await run('echo "pid=$$"', 30_000, 'owner-a')
+  check('a later command from owner A spawns fresh with no note owed', backA.code === 0 && pidOf(backA) > 1 && pidOf(backA) !== freshA && backA.stderr === '', JSON.stringify(backA))
+  const lastA = pidOf(backA)
+  await endEngineSession()
+  check("the switch road ends every owner's session (both processes)", (await diedWithin(lastA, 2_500)) && (await diedWithin(pidB, 2_500)), `A ${lastA} alive=${alive(lastA)} B ${pidB} alive=${alive(pidB)}`)
 }
 
 section('§7 an engine that ends during its start refuses the command at once, with the reason')

@@ -327,6 +327,7 @@ async function* runBash(
     shouldUseSandbox: useSandbox,
     shouldAutoBackground,
     backgroundIntent: input.run_in_background === true && !BACKGROUND_TASKS_DISABLED,
+    owner: agentId,
     onProgress: (recent, all, lines, bytes, incomplete) => {
       latest = { recent, all, lines, bytes: incomplete ? bytes : 0, incomplete }
       progressResolve?.()

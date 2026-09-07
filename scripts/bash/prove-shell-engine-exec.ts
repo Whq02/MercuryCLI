@@ -354,6 +354,28 @@ section('§13 the live progress view: first lines, a silent command, a stray fra
   await gated('a stray frame byte in the output does not stall the live view', gate => `printf '\\001'; echo line1; ${wait(gate)}; echo done`, all => all.includes('line1'))
 }
 
+section('§14 two owners through the seam: a process each on the system shell, a session each on the engine')
+{
+  const order: string[] = []
+  const a = run('sleep 2; echo A', { owner: 'owner-a' }).then(r => {
+    order.push('a')
+    return r
+  })
+  const b = run('echo B', { owner: 'owner-b' }).then(r => {
+    order.push('b')
+    return r
+  })
+  const [ra, rb] = await Promise.all([a, b])
+  check("two owners run at the same time: the second owner's short command settles first", order[0] === 'b' && ra.out.trim() === 'A' && rb.out.trim() === 'B', `order ${order.join(',')}`)
+  await run('OWNER_VAR=a-only; :', { owner: 'owner-a' })
+  await row("an owner's variable is not seen by another owner", 'echo "[${OWNER_VAR:-none}]"', { code: 0, out: '[none]' }, { owner: 'owner-b' })
+  await row('…and stays visible to its owner on the engine (the system shell resets it, its own contract)', 'echo "[${OWNER_VAR:-none}]"', { system: { code: 0, out: '[none]' }, brush: { code: 0, out: '[a-only]' } }, { owner: 'owner-a' })
+  await run('KEEP_B=kept; :', { owner: 'owner-b' })
+  await row("owner A's hung command is killed by its own timeout", 'sleep 3', { code: 143, stderrMatch: /timed out/ }, { timeout: 400, owner: 'owner-a' })
+  await row("owner B's shell is untouched by owner A's reset (its state kept on the engine; the system shell never held it) and its result carries no note", 'echo "[${KEEP_B:-gone}]"', { system: { code: 0, out: '[gone]', stderrMatch: /^$/ }, brush: { code: 0, out: '[kept]', stderrMatch: /^$/ } }, { owner: 'owner-b' })
+  await row("owner A's next result carries the reset note on the engine (the system shell owes none)", 'echo "[${OWNER_VAR:-gone}]"', { system: { code: 0, out: '[gone]', stderrMatch: /^$/ }, brush: { code: 0, out: '[gone]', stderrMatch: /reset/ } }, { owner: 'owner-a' })
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 
 console.log('\n============================================================')

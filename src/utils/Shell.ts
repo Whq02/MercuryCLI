@@ -156,6 +156,7 @@ export type ExecOptions = {
   shouldAutoBackground?: boolean
   backgroundIntent?: boolean
   onStdout?: (chunk: string) => void
+  owner?: string
 }
 
 function openTaskOutputFile(path: string): number {
@@ -189,6 +190,7 @@ export async function exec(
         signal: abortSignal,
         sandbox: useSandbox ? { enabled: true, tmpDir: sandboxTmpDir } : { enabled: false },
         onProgress: options.onProgress,
+        owner: options.owner,
         onCwd: reported => {
           if (options.preventCwdChanges) return
           try {
