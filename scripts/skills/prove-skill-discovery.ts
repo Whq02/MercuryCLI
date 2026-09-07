@@ -35,16 +35,10 @@ function skill(dir: string, name: string): void {
   mkdirSync(join(dir, name), { recursive: true })
   writeFileSync(join(dir, name, 'SKILL.md'), `---\nname: ${name}\ndescription: proof skill ${name}\n---\n${BODY}\n`)
 }
-function legacyCommand(dir: string, name: string): void {
-  mkdirSync(dir, { recursive: true })
-  writeFileSync(join(dir, `${name}.md`), `---\ndescription: proof command ${name}\n---\n${name}\n`)
-}
 skill(join(project, '.mercury', 'skills'), 'project-real')
 skill(join(project, OTHER_HOME, 'skills'), 'project-other')
 skill(join(configHome, 'skills'), 'user-real')
 skill(join(home, OTHER_HOME, 'skills'), 'user-other')
-legacyCommand(join(project, '.mercury', 'commands'), 'real-cmd')
-legacyCommand(join(project, OTHER_HOME, 'commands'), 'other-cmd')
 skill(join(project, 'sub', '.mercury', 'skills'), 'dyn-real')
 skill(join(project, 'sub', OTHER_HOME, 'skills'), 'dyn-other')
 
@@ -61,8 +55,8 @@ console.log('============================================================')
 console.log(" skill discovery — Mercury's homes alone; Mercury's tokens alone")
 console.log('============================================================')
 
-const MERCURY_NAMES = ['project-real', 'user-real', 'real-cmd']
-const OTHER_NAMES = ['project-other', 'user-other', 'other-cmd']
+const MERCURY_NAMES = ['project-real', 'user-real']
+const OTHER_NAMES = ['project-other', 'user-other']
 const carriesMercuryOnly = (names: Set<string>): boolean =>
   MERCURY_NAMES.every(n => names.has(n)) && OTHER_NAMES.every(n => !names.has(n))
 const expandsMercuryOnly = (text: string, dir: string, sessionId: string): boolean =>
@@ -79,7 +73,7 @@ const walksMercuryOnly = (dirs: string[]): boolean =>
 console.log("[1] the catalogue carries Mercury's homes and never the other product's folder")
 const commands = await loader.getSkillDirCommands(project)
 const names = new Set(commands.map(c => c.name))
-check('the Mercury twins load: project, user, legacy command', MERCURY_NAMES.every(n => names.has(n)), [...names].join(', '))
+check('the Mercury twins load: project, user', MERCURY_NAMES.every(n => names.has(n)), [...names].join(', '))
 for (const n of OTHER_NAMES) check(`the other product's folder is never read: ${n} absent`, !names.has(n))
 check('the homes predicate holds on the real catalogue', carriesMercuryOnly(names), [...names].join(', '))
 const watch = loader.getProjectSkillsWatchPaths('skills', project)
@@ -117,13 +111,12 @@ check(
 console.log('[3] poison controls — each predicate fails on the compat it forbids')
 check("a catalogue carrying the other folder's project skill FAILS the homes predicate", !carriesMercuryOnly(new Set([...names, 'project-other'])))
 check("a catalogue carrying the other folder's user skill FAILS the homes predicate", !carriesMercuryOnly(new Set([...names, 'user-other'])))
-check("a catalogue carrying the other folder's legacy command FAILS the homes predicate", !carriesMercuryOnly(new Set([...names, 'other-cmd'])))
 check("a render that expanded the other product's skill-dir token FAILS the token predicate", !expandsMercuryOnly(rendered.replaceAll(OTHER_DIR_TOKEN, realDir), realDir, sessionId))
 check("a render that expanded the other product's session token FAILS the token predicate", !expandsMercuryOnly(rendered.replaceAll(OTHER_SESSION_TOKEN, sessionId), realDir, sessionId))
 check('a walk that discovered the other folder FAILS the walk predicate', !walksMercuryOnly([...walked, join(project, 'sub', OTHER_HOME, 'skills')]))
 check(
   'twin control: every absent skill has a same-shaped Mercury twin that loaded',
-  names.has('project-real') && names.has('user-real') && names.has('real-cmd') && dynamic.has('dyn-real'),
+  names.has('project-real') && names.has('user-real') && dynamic.has('dyn-real'),
 )
 
 rmSync(scratch, { recursive: true, force: true })

@@ -291,7 +291,7 @@ function isProductConfigPath(expandedPath: string): boolean {
   const cwd = getOriginalCwd()
   const folded = normalizeCaseForComparison(expandedPath)
   for (const home of PROJECT_CONFIG_DIR_NAMES) {
-    for (const sub of ['commands', 'agents', 'skills']) {
+    for (const sub of ['agents', 'skills']) {
       const base = normalizeCaseForComparison(joinWithSep(joinWithSep(cwd, home), sub))
       if (pathHasSegmentContainment(folded, base)) return true
     }
