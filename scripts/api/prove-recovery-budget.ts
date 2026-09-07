@@ -211,6 +211,20 @@ section('S6 — the words name the answer and the wait')
   process.env.MERCURY_RECOVERY_BUDGET_MINUTES = '0.1'
   check('the knob: 0.1 ⇒ six seconds', budget.recoveryBudgetMs() === 6_000)
   delete process.env.MERCURY_RECOVERY_BUDGET_MINUTES
+  process.env.MERCURY_RECOVERY_BUDGET_MINUTES = '1.5'
+  check('the knob: 1.5 ⇒ ninety seconds', budget.recoveryBudgetMs() === 90_000)
+  delete process.env.MERCURY_RECOVERY_BUDGET_MINUTES
+  const fractional = budget.makeRecoveryBudget(90_000)
+  check('a fractional budget spells two words', budget.recoveryBudgetWords(fractional) === '1m 30s retry budget', budget.recoveryBudgetWords(fractional))
+  const quiet = budget.honourRecoveryWait(fractional, factsOf(notice({ retryInMs: 0, recoveryTimeoutMs: 300_000, message: 'Premature close' })), 0)
+  budget.settleRecoveryWait(fractional, quiet.reservation, 60_000)
+  budget.honourRecoveryWait(fractional, factsOf(notice({ retryInMs: 40_000, status: 503 })), 60_000)
+  const fractionalLine = budget.recoveryBudgetSpentLine(fractional)
+  check('the mixed spent line carries the two-word budget', fractionalLine.startsWith('the 1m 30s retry budget is spent waiting on the provider — 2 waits in a row (1 stream recovery, 1 provider fault; the last: provider error (HTTP 503))'), fractionalLine)
+  check('…and the predicate recognises it: the workflow rescue never retries this settle', budget.isRecoveryBudgetSpentLine(fractionalLine))
+  const fractionalRefusals = budget.makeRecoveryBudget(90_000)
+  budget.honourRecoveryWait(fractionalRefusals, factsOf(notice({ retryInMs: 90_000, status: 429 })))
+  check('the refused shape with a two-word budget is recognised too', budget.isRecoveryBudgetSpentLine(budget.recoveryBudgetSpentLine(fractionalRefusals)))
 }
 
 section("S8 — the cut's signal: the typed stop carries the words and the moment the allowance is back")

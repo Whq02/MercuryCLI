@@ -224,7 +224,7 @@ export function recoveryBudgetSpentFactsOf(error: unknown): { words: string; res
 }
 
 export function isRecoveryBudgetSpentLine(text: string): boolean {
-  return text.includes('retry budget is spent') && /^(the provider refused \d+ times? in a row \(|the \S+ retry budget is spent waiting on the provider)/.test(text)
+  return text.includes('retry budget is spent') && /^(the provider refused \d+ times? in a row \(|the \S+( \S+)? retry budget is spent waiting on the provider)/.test(text)
 }
 
 export function recoveryNoticeFacts(message: unknown): RecoveryNoticeFacts | null {
