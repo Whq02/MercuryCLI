@@ -26,7 +26,7 @@ import {
   warmLocalTranscriber,
   type TranscriberResolution,
 } from './transcribe.js'
-import { mbWords, whisperDownloadDoor } from './whisperModels.js'
+import { mbWords, whisperDownloadDoor, whisperModelByName } from './whisperModels.js'
 
 export type VoicePhase = 'idle' | 'recording' | 'transcribing'
 
@@ -292,7 +292,6 @@ function onDeviceCostWords(transcriber: TranscriberResolution): string | null {
 }
 
 export function onDeviceMemoryWords(model: string): string {
-  const { whisperModelByName } = require('./whisperModels.js') as typeof import('./whisperModels.js')
   const row = whisperModelByName(model)
   const bytes = row?.bytes ?? 59_721_011
   const mb = Math.round((bytes / 1_000_000) * 1.35 / 5) * 5
