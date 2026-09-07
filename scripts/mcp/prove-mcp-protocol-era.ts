@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -162,6 +162,22 @@ await (async () => {
     eraVerdictCachePath() === join(getMercuryHome(), 'mcp-era-cache.json'),
     eraVerdictCachePath(),
   )
+  const secretKey = 'srv-c:{"type":"stdio","command":"x","env":{"TOKEN":"sekrit-value-never-on-disk"}}'
+  await recordEraVerdict(secretKey, 'legacy', t0)
+  const text = readFileSync(eraVerdictCachePath(), 'utf8')
+  check(
+    'the file carries a digest of the key, never the configuration',
+    !text.includes('sekrit') && !text.includes('srv-c') && Object.keys(JSON.parse(text) as object).every(k => /^[0-9a-f]{64}$/.test(k)),
+    text.slice(0, 200),
+  )
+  check('…and the verdict reads back under the key', (await readEraVerdict(secretKey, t0 + 1))?.kind === 'legacy')
+  resetEraVerdictMemo()
+  check('…from a fresh read of the file too', (await readEraVerdict(secretKey, t0 + 1))?.kind === 'legacy')
+  writeFileSync(eraVerdictCachePath(), JSON.stringify({ 'old:{"env":{"TOKEN":"sekrit-old"}}': { era: 'legacy', at: t0 } }))
+  resetEraVerdictMemo()
+  await recordEraVerdict('srv-d', 'legacy', t0)
+  check('a key written in clear by an earlier file is dropped at the next write', !readFileSync(eraVerdictCachePath(), 'utf8').includes('sekrit-old'))
+  check('…while the digest keys stay', (await readEraVerdict('srv-d', t0 + 1))?.kind === 'legacy')
 })()
 
 section('(5) the doctor row reading')
