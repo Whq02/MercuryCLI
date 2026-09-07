@@ -2704,27 +2704,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'version-locks',
           label: 'Version locks',
-          run: async () => {
-            const { cleanupStaleLocks, getAllLockInfo, isPidBasedLockingEnabled } = await import(
-              './nativeInstaller/pidLock.js'
-            )
-            if (!isPidBasedLockingEnabled()) {
-              return { status: 'off', evidence: 'pid-based version locking disabled' }
-            }
-            const { existsSync } = await import('node:fs')
-            const { join } = await import('node:path')
-            const { getXDGStateHome } = await import('./xdg.js')
-            const nativeLocksDir = join(getXDGStateHome(), 'mercury', 'locks')
-            const legacyLocksDir = join(getXDGStateHome(), 'claude', 'locks')
-            const locksDir =
-              existsSync(nativeLocksDir) || !existsSync(legacyLocksDir) ? nativeLocksDir : legacyLocksDir
-            const cleaned = cleanupStaleLocks(locksDir)
-            const locks = getAllLockInfo(locksDir)
-            return {
-              status: 'ok',
-              evidence: `${locks.length} live lock(s)${cleaned > 0 ? ` · ${cleaned} stale cleaned` : ''} (${locksDir})`,
-            }
-          },
+          run: () => ({ status: 'off', evidence: 'pid-based version locking disabled' }),
         },
         {
           id: 'crash-reports',

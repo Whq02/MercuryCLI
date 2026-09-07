@@ -678,7 +678,6 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     'src/services/providers/primaryBackend.ts',
     'src/services/rateLimitMocking.ts',
     'src/utils/effort.ts',
-    'src/utils/nativeInstaller/pidLock.ts',
   ].sort()
   const modelNameFound = grep(/includes\('(?:opus|sonnet|haiku|claude)/)
   check(
