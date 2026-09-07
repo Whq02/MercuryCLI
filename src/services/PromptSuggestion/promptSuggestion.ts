@@ -1,4 +1,3 @@
-import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
   createCacheSafeParams,
@@ -8,11 +7,7 @@ import {
 } from '../../utils/forkedAgent.js'
 import { logError } from '../../utils/log.js'
 import { createUserMessage } from '../../utils/messages.js'
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
-import { isTeammate } from '../../utils/teammate.js'
-import { getInitialSettings } from '../../utils/settings/settings.js'
 import type { REPLHookContext } from '../../utils/hooks/postSamplingHooks.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/featureGates.js'
 import { currentLimits } from '../claudeAiLimits.js'
 import type { AppState } from '../../state/AppState.js'
 import { isSpeculationEnabled, startSpeculation } from './speculation.js'
@@ -21,16 +16,6 @@ import { isSpeculationEnabled, startSpeculation } from './speculation.js'
 export type PromptVariant = 'user_intent' | 'stated_intent'
 
 const ACTIVE_VARIANT: PromptVariant = 'user_intent'
-
-
-export function shouldEnablePromptSuggestion(): boolean {
-  if (getFeatureValue_CACHED_MAY_BE_STALE<boolean>('mercury_chomp_inflection', false) !== true) {
-    return false
-  }
-  if (getIsNonInteractiveSession()) return false
-  if (isAgentSwarmsEnabled() && isTeammate()) return false
-  return getInitialSettings()?.promptSuggestionEnabled !== false
-}
 
 
 type SuppressReason =

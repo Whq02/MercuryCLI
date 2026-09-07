@@ -1844,7 +1844,7 @@ async function interactiveLaunch(args: {
     agentDefinitions: { activeAgents: args.activeAgents, allAgents: args.allAgents },
     ...(initialTeamContext ? { teamContext: initialTeamContext } : {}),
     replBridgeEnabled: getRemoteControlAtStartup() || assistantBridgeSeed(),
-    promptSuggestionEnabled: (await import('./services/PromptSuggestion/promptSuggestion.js')).shouldEnablePromptSuggestion(),
+    promptSuggestionEnabled: false,
     ...(inputPrompt
       ? {
           initialMessage: {
