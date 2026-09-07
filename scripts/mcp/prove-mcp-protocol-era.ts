@@ -1,10 +1,12 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const HOME = mkdtempSync(join(tmpdir(), 'mcp-era-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.MERCURY_MCP_TIMEOUT_MS = '4000'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { z } from 'zod/v4'
@@ -262,6 +264,72 @@ section("(7) production's client shape, structurally")
       client.includes("error.code === SdkErrorCode.EraNegotiationFailed") && client.includes('/closed during the server\\/discover probe/.test(error.message)'),
   )
 }
+
+const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+enableConfigs()
+const bootstrap = await import('../../src/bootstrap/state.js')
+bootstrap.setIsInteractive(false)
+const mcp = await import('../../src/services/mcp/client.js')
+const FIXTURE = join(ROOT, 'scripts', 'mcp', '_fixture-stdio-server.mjs')
+const spawnLog = join(HOME, 'spawns.log')
+const modeFile = join(HOME, 'mode.txt')
+const setMode = (mode: string): void => writeFileSync(modeFile, mode)
+const spawns = (): number => (existsSync(spawnLog) ? readFileSync(spawnLog, 'utf8').split('\n').filter(l => l !== '').length : 0)
+const scoped = {
+  type: 'stdio',
+  command: process.execPath.includes('bun') ? 'node' : process.execPath,
+  args: [FIXTURE],
+  env: { MCP_FIXTURE_SPAWN_LOG: spawnLog, MCP_FIXTURE_MODE_FILE: modeFile },
+  scope: 'local',
+} as never
+const NAME = 'era-older'
+const key = mcp.getServerCacheKey(NAME, scoped)
+const settled = (): Promise<void> => clearEraVerdict('era-proof-no-such-server')
+const connect = async (): Promise<{ type: string; era: string | undefined; error?: string }> => {
+  const { client } = await mcp.reconnectMcpServerImpl(NAME, scoped)
+  return {
+    type: client.type,
+    era: client.type === 'connected' ? client.client.getProtocolEra() : undefined,
+    ...(client.type === 'failed' ? { error: client.error } : {}),
+  }
+}
+
+section('(8) an older stdio server that exits on the revision probe, through production\'s connect')
+await (async () => {
+  setMode('exit-before-init')
+  let c = await connect()
+  await settled()
+  check('the server that exits on the probe connects anyway, on the legacy era', c.type === 'connected' && c.era === 'legacy', JSON.stringify(c))
+  check('two spawns: the probed process and the re-spawn under the same kill owner', spawns() === 2, String(spawns()))
+  check('the verdict is remembered as legacy under the configuration', (await readEraVerdict(key))?.kind === 'legacy')
+  c = await connect()
+  await settled()
+  check('the next connect rides the verdict: no probe, one spawn, connected at legacy', c.type === 'connected' && c.era === 'legacy' && spawns() === 3, `${JSON.stringify(c)} · ${spawns()} spawns`)
+  setMode('method-not-found')
+  await recordEraVerdict(key, 'legacy', Date.now() - ERA_VERDICT_TTL_MS - 1)
+  resetEraVerdictMemo()
+  c = await connect()
+  await settled()
+  check('an expired verdict probes again; a server that refuses the probe in-band connects on one spawn, at legacy', c.type === 'connected' && c.era === 'legacy' && spawns() === 4, `${JSON.stringify(c)} · ${spawns()} spawns`)
+  check('…and the verdict is remembered afresh', (await readEraVerdict(key))?.kind === 'legacy')
+  await mcp.clearServerCache(NAME, scoped)
+})()
+
+section('(10) a failed connect under a remembered verdict forgets it, by execution')
+await (async () => {
+  await recordEraVerdict(key, 'legacy')
+  setMode('crash-at-start')
+  const c = await connect()
+  await settled()
+  check('a server that dies at start fails the connect', c.type === 'failed', JSON.stringify(c))
+  resetEraVerdictMemo()
+  check('…and the remembered verdict is forgotten', (await readEraVerdict(key)) === undefined)
+  setMode('method-not-found')
+  const again = await connect()
+  await settled()
+  check('the next connect probes afresh and lands on legacy through the in-band refusal', again.type === 'connected' && again.era === 'legacy', JSON.stringify(again))
+  await mcp.clearServerCache(NAME, scoped)
+})()
 
 console.log('\n============================================================')
 if (failures === 0) console.log(' ✅ ALL MCP PROTOCOL ERA CHECKS PASS')
