@@ -1,6 +1,7 @@
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { isEnvDefinedFalsy, isEnvTruthy } from '../../utils/envUtils.js'
+import { isEnvTruthy } from '../../utils/envUtils.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   createCompactBoundaryMessage,
   createUserMessage,
@@ -13,10 +14,6 @@ import { processSessionStartHooks } from '../../utils/sessionStart.js'
 import { getTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { tokenCountFromLastAPIResponse } from '../../utils/tokens.js'
 import { extractDiscoveredToolNames } from '../../utils/toolSearch.js'
-import {
-  checkFeatureGate_CACHED_MAY_BE_STALE,
-  getDynamicConfig_CACHED_MAY_BE_STALE,
-} from '../analytics/featureGates.js'
 import { isSessionMemoryEmpty, truncateSessionMemoryForCompact } from '../SessionMemory/prompts.js'
 import {
   getLastSummarizedMessageId,
@@ -48,7 +45,6 @@ export const DEFAULT_SM_COMPACT_CONFIG: SessionMemoryCompactConfig = {
 }
 
 let config: SessionMemoryCompactConfig = { ...DEFAULT_SM_COMPACT_CONFIG }
-let configInitialized = false
 
 export function setSessionMemoryCompactConfig(partial: Partial<SessionMemoryCompactConfig>): void {
   config = { ...config, ...partial }
@@ -60,32 +56,10 @@ export function getSessionMemoryCompactConfig(): SessionMemoryCompactConfig {
 
 export function resetSessionMemoryCompactConfig(): void {
   config = { ...DEFAULT_SM_COMPACT_CONFIG }
-  configInitialized = false
-}
-
-async function initializeConfig(): Promise<void> {
-  if (configInitialized) return
-  configInitialized = true
-  const remote = getDynamicConfig_CACHED_MAY_BE_STALE<Partial<SessionMemoryCompactConfig>>(
-    'mercury_sm_compact_config',
-    {},
-  )
-  const adopted: Partial<SessionMemoryCompactConfig> = {}
-  for (const key of ['minTokensToPreserve', 'minTextBlockMessages', 'maxTokensToPreserve'] as const) {
-    const value = remote?.[key]
-    if (typeof value === 'number' && value > 0) adopted[key] = value
-  }
-  setSessionMemoryCompactConfig(adopted)
 }
 
 export function shouldUseSessionMemoryCompaction(): boolean {
-  const pin = process.env.MERCURY_SM_COMPACT
-  if (isEnvTruthy(pin)) return true
-  if (isEnvDefinedFalsy(pin)) return false
-  return (
-    checkFeatureGate_CACHED_MAY_BE_STALE('mercury_session_memory') &&
-    checkFeatureGate_CACHED_MAY_BE_STALE('mercury_sm_compact')
-  )
+  return isEnvTruthy(flagEnv('MERCURY_SM_COMPACT'))
 }
 
 
@@ -217,7 +191,6 @@ export async function trySessionMemoryCompaction(
       lastSummarizedIndex = messages.length - 1
     }
 
-    await initializeConfig()
     await waitForSessionMemoryExtraction()
 
     const keepIndex = calculateMessagesToKeepIndex(messages, lastSummarizedIndex)
