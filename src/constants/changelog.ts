@@ -2,7 +2,7 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
-- Added a "Patience with a quiet model" setting in /config (normal, patient, custom): how long Mercury waits on a silent model, how long a slow retry may take, and how much recovery time a run gets, set together, with the environment pins as overrides
+- Added a "Patience with a quiet model" setting in /config (normal, patient, custom): how long Mercury waits on a silent model, how long a slow retry may take, and how much recovery time a run gets, set together, with the environment variables as overrides
 - Fixed a sub-agent failing on a short provider throttle: a brief "try again in a few seconds" is waited out and the agent finishes; only a limit hours away stops it, and then its work is kept and resumable and the parent is told which it was
 - Changed a paused agent to say so: its row reads paused, why, and when it resumes, with the ways out; a sub-agent that hits a usage limit pauses and resumes at the reset instead of ending
 - Changed the parent to hear from each sub-agent the moment it finishes or fails, and a wait on several agents to return at the first failure instead of the last finish
