@@ -70,7 +70,7 @@ check("the cockpit model's summary says the same and can carry the provider's de
 
 section('the cost of the mode is visible in the transcript')
 const receipt = src('utils', 'cockpit', 'turnReceipt.ts')
-check('the turn receipt counts Agent launches and folds the settled results\' tokens and list price', /const DELEGATE_TOOLS = new Set\(\['Agent', 'Task'\]\)/.test(receipt) && /delegatedTokens/.test(receipt) && /delegatedCostUSD/.test(receipt) && /export function delegatedSpendLine/.test(receipt))
+check('the turn receipt counts Agent launches and folds the settled results\' tokens and list price', /const DELEGATE_TOOLS = new Set\(\['Agent'\]\)/.test(receipt) && /delegatedTokens/.test(receipt) && /delegatedCostUSD/.test(receipt) && /export function delegatedSpendLine/.test(receipt))
 check('the receipt row prints the delegated line', /delegatedSpendLine\(c\)/.test(src('components', 'messages', 'TurnReceiptRow.tsx')))
 check("the Agent tool's result carries the ledger's list price", /costUSD: ledger\.costUSD/.test(src('tools', 'AgentTool', 'agentToolUtils.ts')))
 
