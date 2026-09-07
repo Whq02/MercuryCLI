@@ -82,7 +82,8 @@ import { recordOpenaiUsageLimit } from './openaiLimitState.js'
 import { resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { streamOpenaiResponses } from './openaiClient.js'
-import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMs, typedStreamEndOf } from '../streamIdleBudget.js'
+import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
+import { providerWaitIsWindow, stampProviderWait } from '../../api/recoveryBudget.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import {
   buildOpenaiResponsesRequest,
@@ -597,11 +598,21 @@ export async function* openaiCallModel(
       effortAdjusted = receiptOf(profile, true)
       request = buildRequest(profile.wireEffort)
     }
+    const askedMs = outcome.fault.retryAfterMs
     const retryable =
-      reissueAtServedWord || (outcome.retryEligible && outcome.fault.retryable && attempt < OPENAI_MAX_ATTEMPTS)
+      !providerWaitIsWindow(askedMs) &&
+      (reissueAtServedWord || (outcome.retryEligible && outcome.fault.retryable && attempt < OPENAI_MAX_ATTEMPTS))
     if (retryable) {
-      const delayMs = openaiRetryDelayMs(attempt)
-      yield createSystemAPIErrorMessage(new Error(outcome.fault.message), delayMs, attempt, OPENAI_MAX_ATTEMPTS - 1)
+      const delayMs = Math.max(openaiRetryDelayMs(attempt), askedMs ?? 0)
+      yield createSystemAPIErrorMessage(
+        Object.assign(new Error(outcome.fault.message), {
+          ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
+          ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
+        }),
+        delayMs,
+        attempt,
+        OPENAI_MAX_ATTEMPTS - 1,
+      )
       await new Promise(resolve => {
         const t = setTimeout(resolve, delayMs)
         ;(t as any).unref?.()
@@ -630,10 +641,13 @@ export async function* openaiCallModel(
           return ''
         }
       })()
-      yield apiErrorMessage(
-        `${API_ERROR_MESSAGE_PREFIX}: the ${auth.account.label} usage window is reached (${outcome.fault.code}) — ${outcome.fault.message}. GPT work on this source pauses until it resets; Mercury never reroutes across providers silently, and never changes the account source without your word.${slotAppendix || ' Options: retry later · pick another model via /model · switch the OpenAI source explicitly (/router source).'}${laneRemedy}`,
-        openaiFaultToTypedError(outcome.fault),
-        `${outcome.fault.code}${outcome.fault.resetsAtMs !== undefined ? ` resets_at=${new Date(outcome.fault.resetsAtMs).toISOString()}` : ''}`,
+      yield stampProviderWait(
+        apiErrorMessage(
+          `${API_ERROR_MESSAGE_PREFIX}: the ${auth.account.label} usage window is reached (${outcome.fault.code}) — ${outcome.fault.message}. GPT work on this source pauses until it resets; Mercury never reroutes across providers silently, and never changes the account source without your word.${slotAppendix || ' Options: retry later · pick another model via /model · switch the OpenAI source explicitly (/router source).'}${laneRemedy}`,
+          openaiFaultToTypedError(outcome.fault),
+          `${outcome.fault.code}${outcome.fault.resetsAtMs !== undefined ? ` resets_at=${new Date(outcome.fault.resetsAtMs).toISOString()}` : ''}`,
+        ),
+        outcome.fault.retryAfterMs,
       )
       return
     }
@@ -851,6 +865,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
       headers: auth.headers,
       request,
       signal,
+      idleTimeoutMs: streamIdleTimeoutMsForRoute('openai'),
       firstByte: {
         cold: coldPrefixOf(ctx.messages, modelId),
         promptTokens: estimateRequestTokens(request),
@@ -975,7 +990,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
           fault,
           provider: 'OpenAI',
           tailStands: blocks.open === null && minted.at(-1)?.message.content[0]?.type === 'text',
-          silentMs: streamIdleTimeoutMs(),
+          silentMs: streamIdleTimeoutMsForRoute('openai'),
         })
       : null
 

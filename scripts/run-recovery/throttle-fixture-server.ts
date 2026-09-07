@@ -204,6 +204,36 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       tick()
       return
     }
+    if (arm === 'held-alive') {
+      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
+      res.write(messageStart(model))
+      res.write(`event: content_block_start\n${sse({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } })}`)
+      record({ kind: 'held-alive', route, arm, nth })
+      const pinger = setInterval(() => {
+        if (dropped || res.writableEnded) {
+          clearInterval(pinger)
+          return
+        }
+        res.write(`event: ping\n${sse({ type: 'ping' })}`)
+      }, 500)
+      res.on('close', () => clearInterval(pinger))
+      return
+    }
+    if (arm === 'window') {
+      record({ kind: 'answered', route, arm, status: 429, retryAfter: 10800, nth })
+      refusal(res, 429, { 'retry-after': '10800' }, RATE_LIMITED)
+      return
+    }
+    if (arm === 'hung') {
+      if (!streaming) {
+        record({ kind: 'held-json', route, arm, nth })
+        return
+      }
+      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
+      res.flushHeaders()
+      record({ kind: 'held', route, arm, nth })
+      return
+    }
     if (arm === 'quiet' || arm === 'drop') {
       if (toolResult) {
         if (nth === 1 && streaming) {

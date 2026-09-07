@@ -4,10 +4,11 @@ import { workRowRuns, type WorkCountsV1 } from './workCounts.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import { formatSessionCost } from '../../utils/spendSpelling.js'
 import { agentWaitWords, type AgentWaitV1 } from '../../tasks/LocalAgentTask/agentWait.js'
+import { decodeAgentPause, pauseLineWords, pauseStatusWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 
 export type CrewAgentKind = 'agent' | 'named'
 
-export type CrewAgentState = 'running' | 'landed' | 'stopped' | 'failed'
+export type CrewAgentState = 'running' | 'paused' | 'landed' | 'stopped' | 'failed'
 
 export interface CrewAgentTokens {
   total: number
@@ -39,6 +40,7 @@ export interface CrewAgentFacts {
   error: string | null
   stopReason: string | null
   phase: AgentWaitV1 | null
+  paused: AgentPauseV1 | null
   pendingAsks: number
   sessionId: string | null
 }
@@ -61,8 +63,9 @@ function tokensOf(row: WorkRowV1): CrewAgentTokens | null {
   return total === null ? null : { total, context, input: null, output: null }
 }
 
-export function crewStateOf(row: Pick<WorkRowV1, 'status'>): CrewAgentState {
+export function crewStateOf(row: Pick<WorkRowV1, 'status' | 'paused'>): CrewAgentState {
   if (workRowRuns(row as WorkRowV1)) return 'running'
+  if (decodeAgentPause(row.paused) !== null) return 'paused'
   switch (row.status) {
     case 'failed':
       return 'failed'
@@ -101,6 +104,7 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
     error: row.error ?? null,
     stopReason: typeof row.stopReason === 'string' && row.stopReason !== '' ? row.stopReason : null,
     phase: row.phase ?? null,
+    paused: decodeAgentPause(row.paused),
     pendingAsks: row.pendingAsks ?? 0,
     sessionId,
   }
@@ -182,7 +186,17 @@ export const CREW_ASK_WAIT_WORDS = 'waiting for your answer'
 export function crewStatusWords(facts: CrewAgentFacts, nowMs: number): string {
   if (facts.running && facts.pendingAsks > 0) return CREW_ASK_WAIT_WORDS
   if (facts.running && facts.wait !== null) return splitWaitSentence(facts.wait).gate
+  if (!facts.running && facts.paused !== null) return pauseStatusWords(facts.paused, nowMs)
   return crewPhaseWords(facts, nowMs) ?? crewStateLabel(facts)
+}
+
+export function crewPauseLine(facts: CrewAgentFacts, nowMs: number): string | null {
+  if (facts.running || facts.paused === null) return null
+  return pauseLineWords(facts.paused, nowMs)
+}
+
+export function crewPaused(agents: readonly CrewAgentFacts[]): CrewAgentFacts[] {
+  return agents.filter(a => a.state === 'paused')
 }
 
 export function crewToolUsesLabel(facts: CrewAgentFacts): string | null {
@@ -239,8 +253,9 @@ export function crewElapsedLabel(facts: CrewAgentFacts, nowMs: number): string {
 export function crewCountLabel(agents: readonly CrewAgentFacts[]): string {
   if (agents.length === 0) return CREW_EMPTY_LINE
   const running = crewRunning(agents).length
+  const paused = crewPaused(agents).length
   const n = agents.length
-  return `${running} running · ${n} sub-agent${n === 1 ? '' : 's'}`
+  return `${running} running · ${paused > 0 ? `${paused} paused · ` : ''}${n} sub-agent${n === 1 ? '' : 's'}`
 }
 
 export function crewUsageLine(agents: readonly CrewAgentFacts[]): string | null {

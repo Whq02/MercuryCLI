@@ -996,8 +996,12 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
         if (row.outputFilePath) bits.push(`output: ${row.outputFilePath}`)
         return `- ${bits.join(' · ')}`
       })
+      const states = new Map<string, number>()
+      for (const row of attachment.rows) states.set(row.status, (states.get(row.status) ?? 0) + 1)
+      const countLine = `${attachment.rows.length} agent${attachment.rows.length === 1 ? '' : 's'}: ${[...states.entries()].map(([status, n]) => `${n} ${status}`).join(' · ')}`
       const text = [
         'Agents in flight at the context turnover — every agent this session is running or owes a result from, one line each (kind "name" [id]: status · what it was asked · what is owed · how to reach it · output file):',
+        countLine,
         lines.join('\n'),
         `A running agent is never re-spawned — its completion reaches you as a task notification on its own. A result that is owed is collected from that notification or from the output file, never re-derived. ${SEND_MESSAGE_TOOL_NAME} reaches a sub-agent by the id or name shown; ${TASK_OUTPUT_TOOL_NAME} reads a task's output; ${TASK_STOP_TOOL_NAME} stops one.`,
       ].join('\n')

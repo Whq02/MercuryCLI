@@ -28,9 +28,11 @@ export function restartStopSummary(description: string): string {
   return `Agent "${description}" was stopped — the session's runner restarted before it finished, so nothing it started will be delivered; relaunch it if the result is still wanted`
 }
 
-export type BackgroundHandoverReason = 'turn-interrupted' | 'backgrounded' | 'agent-type'
+export type BackgroundHandoverReason = 'turn-interrupted' | 'backgrounded' | 'agent-type' | 'sibling-ended'
 
-export function foregroundNotKeptLine(reason: BackgroundHandoverReason): string {
+export type SiblingEndFacts = { taskId: string; description: string; status: 'failed' | 'stopped'; error?: string }
+
+export function foregroundNotKeptLine(reason: BackgroundHandoverReason, sibling?: SiblingEndFacts): string {
   switch (reason) {
     case 'turn-interrupted':
       return 'The foreground request was not kept: the turn it ran in was interrupted, so the agent was handed to the background to finish on its own.'
@@ -38,6 +40,8 @@ export function foregroundNotKeptLine(reason: BackgroundHandoverReason): string 
       return 'The foreground request was not kept: the agent was moved to the background (ctrl+b, or it ran past the foreground threshold).'
     case 'agent-type':
       return 'The foreground request was not kept: this agent type always runs in the background.'
+    case 'sibling-ended':
+      return `The foreground request was not kept: a wait on a group returns the moment any member fails or stops — agent "${sibling?.description ?? 'a sibling'}"${sibling ? ` [${sibling.taskId}]` : ''} ${sibling?.status ?? 'ended'}${sibling?.error ? ` (${sibling.error})` : ''}; read its result now, and this agent runs on in the background (its own notice follows).`
   }
 }
 

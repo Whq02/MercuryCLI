@@ -22,6 +22,7 @@ import type { ThinkingConfig } from '../../utils/thinking.js'
 import { checkFeatureGate_CACHED_MAY_BE_STALE } from '../analytics/featureGates.js'
 import { isMockRateLimitError } from '../rateLimitMocking.js'
 import { REPEATED_529_ERROR_MESSAGE } from './errors.js'
+import { isSpentUsageWindowAnswer, providerAskedWaitMs, providerWaitIsWindow } from './recoveryBudget.js'
 import { errorHeaders, headerValue, retryAfterHeaderMs, retryAfterOf } from './retryAfter.js'
 import { APIConnectionError, APIError, APIUserAbortError } from './sdkErrors.js'
 import { deepestErrorDetail, isStaleSocketCode } from './transportEvidence.js'
@@ -127,6 +128,7 @@ function isRevokedTokenError(error: unknown): boolean {
 export function isRetryableError(error: unknown): boolean {
   if (isMockRateLimitError(error)) return false
   const status = statusOf(error)
+  if (providerWaitIsWindow(providerAskedWaitMs(error))) return false
   if (errorMessage(error).includes(OVERLOADED_TYPE_MARKER)) return true
   if (parseMaxTokensContextOverflowError(error) !== undefined) return true
   const shouldRetry = headerValue(errorHeaders(error), 'x-should-retry')
@@ -136,7 +138,8 @@ export function isRetryableError(error: unknown): boolean {
   if (status === 408 || status === 409) return true
   if (status !== undefined && status >= 500) return true
   if (status === 429) {
-    return !isClaudeAISubscriber() || isEnterpriseSubscriber()
+    if (isClaudeAISubscriber() && !isEnterpriseSubscriber() && isSpentUsageWindowAnswer(error)) return false
+    return true
   }
   if (status === 401) {
     const helperFailed = apiKeyHelperFailedLast()
