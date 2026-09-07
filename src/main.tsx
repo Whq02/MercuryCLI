@@ -569,7 +569,7 @@ async function run(): Promise<void> {
     .option('--fallback-model <model>', 'Fallback model when the primary is overloaded')
     .addOption(new Option('--workload <tag>', 'Workload tag').hideHelp())
     .option('--settings <file-or-json>', 'Extra settings (path or inline JSON)')
-    .option('--add-dir <directories...>', 'Additional working directories')
+    .option('--add-dir <directories...>', "Additional working directories: each joins the session's scope for reads, writes and the shell's directory (a sibling worktree the session works in); /add-dir declares one in the session")
     .option('--ide', 'Auto-connect to the IDE')
     .option('--session-id <uuid>', 'Use a specific session id')
     .option('-n, --name <name>', 'Session title')
