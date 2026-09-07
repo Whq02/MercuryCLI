@@ -1,6 +1,6 @@
 
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
-import { NO_SIGN_IN_ROW, NO_USABLE_ROW, keylessReason, type LaneRowVerdict } from '../../utils/model/computedDefault.js'
+import { NO_SIGN_IN_ROW, NO_USABLE_ROW, keylessReason, resetComputedDefaultMemo, type LaneRowVerdict } from '../../utils/model/computedDefault.js'
 import { canonicalCoordinatorModelId } from './coordinatorModels.js'
 
 export type WorkerModelRefusal =
@@ -300,7 +300,21 @@ export type WorkerModelValidation =
       action?: string
     }
 
+async function admissionNamesOpenai(idOrKey: string): Promise<boolean> {
+  if (idOrKey === 'openai') return true
+  const { declaredRouteOf } = await import('../providers/routeLaw.js')
+  return declaredRouteOf(idOrKey) === 'openai'
+}
+
+async function readOpenaiCatalogueIfPending(): Promise<boolean> {
+  const { readOpenaiCatalogueIfPending: read } = await import('../providers/openai/openaiCatalogue.js')
+  return read()
+}
+
 export async function validateWorkerModelChoice(idOrKey: string | undefined, arm: WorkerDispatchArm): Promise<WorkerModelValidation> {
+  if (idOrKey !== undefined && (await admissionNamesOpenai(idOrKey)) && (await readOpenaiCatalogueIfPending())) {
+    resetComputedDefaultMemo()
+  }
   if (idOrKey !== undefined && SEAT_FAMILY_WORDS.has(idOrKey) && familySeatSetting(idOrKey) === undefined) {
     if (idOrKey === 'local') {
       return { ok: false, reason: 'unreachable:local', detail: 'no local server is discovered on this box', action: loginsActionFor(idOrKey) }
