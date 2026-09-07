@@ -54,12 +54,19 @@ interface Outcome {
   fileSize: number | undefined
 }
 
-async function run(command: string, opts: { timeout?: number; abortAfterMs?: number } = {}): Promise<Outcome> {
+interface RunOptions {
+  timeout?: number
+  abortAfterMs?: number
+  owner?: string
+}
+
+async function run(command: string, opts: RunOptions = {}): Promise<Outcome> {
   const controller = new AbortController()
   const started = Date.now()
   const handle = await exec(command, controller.signal, 'bash', {
     timeout: opts.timeout ?? 20_000,
     shouldAutoBackground: false,
+    ...(opts.owner !== undefined ? { owner: opts.owner } : {}),
   })
   if (opts.abortAfterMs !== undefined) setTimeout(() => controller.abort('stop'), opts.abortAfterMs)
   const result = await handle.result
@@ -91,7 +98,7 @@ async function row(
   label: string,
   command: string,
   expect: Expect | PerEngine,
-  opts: { timeout?: number; abortAfterMs?: number } = {},
+  opts: RunOptions = {},
 ): Promise<Outcome> {
   const want = perEngine(expect) ? expect[engine] : expect
   const got = await run(command, opts)
@@ -310,6 +317,41 @@ section('§12 a background-intent call takes its own shell; the session is untou
   const bg = await handle.result
   check('a background-intent call is answered by the system shell in its own process — never the shared engine session, whose state it cannot see', bg.stdout.trim() === 'system [none]', JSON.stringify(bg.stdout.slice(0, 80)))
   await row('the next foreground call: the session state stands on the engine, resets on the system shell', 'echo "[${BG_MARK:-none}]"', { system: { code: 0, out: '[none]' }, brush: { code: 0, out: '[kept]' } })
+}
+
+section('§13 the live progress view: first lines, a silent command, a stray frame byte')
+{
+  const { TaskOutput } = await import('../../src/utils/task/TaskOutput.ts')
+  const gated = async (label: string, command: (gate: string) => string, seen: (all: string) => boolean): Promise<void> => {
+    const gate = join(mkdtempSync(join(tmpdir(), 'progress-gate-')), 'open')
+    let sawIt = false
+    let resolveSeen!: () => void
+    const seenOnce = new Promise<void>(resolve => {
+      resolveSeen = resolve
+    })
+    const controller = new AbortController()
+    const handle = await exec(command(gate), controller.signal, 'bash', {
+      timeout: 20_000,
+      shouldAutoBackground: false,
+      onProgress: (_recent, all) => {
+        if (!sawIt && seen(all)) {
+          sawIt = true
+          resolveSeen()
+        }
+      },
+    })
+    TaskOutput.startPolling(handle.taskOutput.taskId)
+    await Promise.race([seenOnce, new Promise<void>(resolve => setTimeout(resolve, 8_000))])
+    writeFileSync(gate, '')
+    const result = await handle.result
+    TaskOutput.stopPolling(handle.taskOutput.taskId)
+    handle.cleanup()
+    check(label, sawIt && result.code === 0, `seen=${sawIt} code=${result.code}`)
+  }
+  const wait = (gate: string): string => `while [ ! -f "${gate}" ]; do sleep 0.05; done`
+  await gated('a command that writes one line at a time reaches the live view before it ends', gate => `echo line1; echo line2; ${wait(gate)}; echo line3`, all => all.includes('line1'))
+  await gated('a silent command still wakes the live view (the one-second tick)', gate => `${wait(gate)}; echo done`, () => true)
+  await gated('a stray frame byte in the output does not stall the live view', gate => `printf '\\001'; echo line1; ${wait(gate)}; echo done`, all => all.includes('line1'))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

@@ -346,7 +346,9 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       const start = live.buffer.indexOf(marker)
       if (start === -1) {
         const lastSoh = live.buffer.lastIndexOf(SOH.charCodeAt(0))
-        flushUpTo(lastSoh === -1 ? live.buffer.length : lastSoh)
+        const tail = lastSoh === -1 ? null : live.buffer.subarray(lastSoh)
+        const couldBeMarker = tail !== null && tail.length < marker.length && marker.subarray(0, tail.length).equals(tail)
+        flushUpTo(couldBeMarker ? lastSoh : live.buffer.length)
         return null
       }
       const end = live.buffer.indexOf(etx, start + marker.length)
