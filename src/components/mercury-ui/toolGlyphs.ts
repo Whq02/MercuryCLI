@@ -76,7 +76,6 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   LaunchFleet: 'agent',
   SendMessage: 'agent',
   SendUserMessage: 'agent',
-  Task: 'agent',
   TeamBrief: 'agent',
   TeamCreate: 'agent',
   TeamDelete: 'agent',

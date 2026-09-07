@@ -77,7 +77,8 @@ export function ValueGlow({
   ms?: number
 }): React.ReactNode {
   const reducedMotion = useSettingsMaybe()?.prefersReducedMotion ?? false
-  const enabled = !reducedMotion && useIdleMotion('glyphs') !== 'off'
+  const motion = useIdleMotion('glyphs')
+  const enabled = !reducedMotion && motion !== 'off'
   const prevRef = React.useRef(value)
   const [glowing, setGlowing] = React.useState(false)
   React.useEffect(() => {
@@ -146,7 +147,8 @@ export function TwinkleSpark({
 
 export function useSettleFlash(settled: boolean): boolean {
   const reducedMotion = useSettingsMaybe()?.prefersReducedMotion ?? false
-  const enabled = !reducedMotion && useIdleMotion('glyphs') !== 'off'
+  const motion = useIdleMotion('glyphs')
+  const enabled = !reducedMotion && motion !== 'off'
   const prevRef = React.useRef(settled)
   const [flash, setFlash] = React.useState(false)
   React.useEffect(() => {
