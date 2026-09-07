@@ -49,7 +49,6 @@ import { sleep } from '../../utils/sleep.js'
 import { COMPACT_MAX_OUTPUT_TOKENS } from '../../utils/context.js'
 import { getModelMaxOutputTokens, servesPerMessageEffort, notePerMessageEffortRefused, refusesPerMessageEffortRow } from '../../utils/model/capabilities.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
-import { checkFeatureGate_CACHED_MAY_BE_STALE } from '../analytics/featureGates.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE, getPromptTooLongTokenGap } from '../api/errors.js'
 import { type OverflowSignal, overflowGapTokens, overflowSignalOf } from '../api/overflowSignal.js'
 import { routedCallModel } from '../providers/callModelRouter.js'
@@ -740,7 +739,7 @@ async function streamingFallbackAttempts(
   context: ToolUseContext,
   bound: FoldBound,
 ): Promise<AssistantMessage> {
-  let attempts = checkFeatureGate_CACHED_MAY_BE_STALE('mercury_compact_streaming_retry') ? 2 : 1
+  let attempts = 1
   const model = context.options.mainLoopModel
   let streamingStarted = false
   let rowRefusalRetried = false

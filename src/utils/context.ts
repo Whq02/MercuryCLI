@@ -10,7 +10,6 @@ export {
 
 export const COMPACT_MAX_OUTPUT_TOKENS = 20_000
 
-export const CAPPED_DEFAULT_MAX_TOKENS = 8_000
 export const ESCALATED_MAX_TOKENS = 64_000
 
 type ContextUsage = {

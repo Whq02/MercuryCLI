@@ -37,7 +37,6 @@ import type { QuerySource } from 'src/constants/querySource.js'
 import type { Notification } from 'src/context/notifications.js'
 import { applyThinkingBinding } from './thinkingBinding.js'
 import { addToTotalSessionCost } from 'src/cost-tracker.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/featureGates.js'
 import type { AgentId } from 'src/types/ids.js'
 import type { NativeWebSearchRequest } from 'src/services/search/nativeSearchRequest.js'
 import { getAgentContext } from 'src/utils/agentContext.js'
@@ -118,7 +117,6 @@ import {
   modelSupportsTemperature,
 } from '../../../utils/betas.js'
 import {
-  CAPPED_DEFAULT_MAX_TOKENS,
   getModelMaxOutputTokens,
 } from '../../../utils/context.js'
 import { isTurnOwningQuerySource, resolveAppliedEffort } from '../../../utils/effort.js'
@@ -1571,10 +1569,6 @@ async function* queryModel(
 
       const disableFallback =
         isEnvTruthy(process.env.MERCURY_DISABLE_NONSTREAMING_FALLBACK) ||
-        getFeatureValue_CACHED_MAY_BE_STALE(
-          'mercury_disable_streaming_to_non_streaming_fallback',
-          false,
-        ) ||
         (streamIdleAborted && streamedToolUse)
 
       if (disableFallback) {
@@ -1941,21 +1935,13 @@ export function adjustParamsForNonStreaming<
   }
 }
 
-function isMaxTokensCapEnabled(): boolean {
-  return getFeatureValue_CACHED_MAY_BE_STALE('mercury_otk_slot_v1', false)
-}
-
 export function getMaxOutputTokensForModel(model: string): number {
   const maxOutputTokens = getModelMaxOutputTokens(model)
-
-  const defaultTokens = isMaxTokensCapEnabled()
-    ? Math.min(maxOutputTokens.default, CAPPED_DEFAULT_MAX_TOKENS)
-    : maxOutputTokens.default
 
   const result = validateBoundedIntEnvVar(
     'MERCURY_MAX_OUTPUT_TOKENS',
     process.env.MERCURY_MAX_OUTPUT_TOKENS,
-    defaultTokens,
+    maxOutputTokens.default,
     maxOutputTokens.upperLimit,
   )
   return result.effective
