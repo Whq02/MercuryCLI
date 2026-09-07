@@ -2,6 +2,7 @@
 # gate-class: cpu
 # gate-watch: tsconfig.json
 set -uo pipefail
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 cd "$(dirname "$0")/../.." || exit 1
 
 TSC="node_modules/.bin/tsc"

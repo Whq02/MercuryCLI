@@ -12,6 +12,7 @@ import {
 } from '../utils/spawnLedger.js'
 import { WORKER_PARENT_PID_ENV } from './workerParentWatch.js'
 import { flagEnv, flagPair, flagSpellings, stampFlagOnEnv } from '../substrate/flagRegistry.js'
+import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import { decodePermissionModeSpelling } from '../types/permissions.js'
 import { LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS } from '../utils/workerRole.js'
 
@@ -242,6 +243,13 @@ export function buildStreamJsonInvocation(
     stripCrewRolePair(env)
   }
   stampFlagOnEnv(env, spec.role, '1')
+  stampSpawnReceipt(env, [
+    ...Object.keys(spec.extraEnv ?? {}),
+    'MERCURY_MODEL',
+    'MERCURY_EFFORT_LEVEL',
+    ...flagSpellings('MERCURY_TEAMMATES'),
+    ...flagSpellings(spec.role),
+  ])
   return { node, script, argv, env }
 }
 
@@ -259,6 +267,7 @@ export function spawnStreamJsonChild(
   }
   stampFlagOnEnv(env, WORKER_PARENT_PID_ENV, String(process.pid))
   stampFlagOnEnv(env, SPAWNED_BY_ENV, spawnedByStamp(`daemon-${spec.role.toLowerCase()}`, spec.agentId))
+  stampSpawnReceipt(env, [WORKER_PARENT_PID_ENV, SPAWNED_BY_ENV])
   recordSpawn({
     kind: 'long-lived',
     id: spec.agentId,
@@ -299,6 +308,7 @@ export function runTaskHeadless(
       const oneShotEnv = cloneEnvWithoutRoles()
       stampFlagOnEnv(oneShotEnv, WORKER_PARENT_PID_ENV, String(process.pid))
       stampFlagOnEnv(oneShotEnv, SPAWNED_BY_ENV, spawnedByStamp('daemon-fire', spec.id))
+      stampSpawnReceipt(oneShotEnv, [WORKER_PARENT_PID_ENV, SPAWNED_BY_ENV])
       const cwdGate = assertSpawnCwd(dir)
       if (!cwdGate.ok) {
         recordSpawn({ kind: 'headless-refused', id: spec.id, cwd: dir, reason: cwdGate.reason })

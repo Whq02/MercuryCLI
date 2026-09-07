@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs'
 import { constants as osConstants } from 'node:os'
 import { join } from 'node:path'
 import { runningBundlePayloadDir } from '../services/privateChannel/vendoredRuntime.js'
+import { setFlagEnv } from './flagRegistry.js'
 
 export const SPLASH_EXIT = {
   HANDOFF_HELD: 0,
@@ -125,7 +126,7 @@ export function runDirectSplash(opts: { home: string | null }): DirectSplashRun 
   const asset = resolveSplashAsset({ bundleDir: runningBundlePayloadDir(), home: opts.home })
   if (asset === null) return { verdict: 'skipped', reason: 'asset-absent' }
   if (!process.env.MERCURY_LAUNCH_ID) {
-    process.env.MERCURY_LAUNCH_ID = `direct-${process.pid}-${Date.now()}`
+    setFlagEnv('MERCURY_LAUNCH_ID', `direct-${process.pid}-${Date.now()}`)
   }
   const outlive = (): void => {}
   process.on('SIGINT', outlive)

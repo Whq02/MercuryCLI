@@ -6,6 +6,7 @@
 # gate-watch: src/utils/gracefulShutdown* src/utils/proxy* src/utils/mtls* src/utils/lockfile* src/utils/caCerts*
 # gate-watch: src/entrypoints/cli* src/entrypoints/init*
 set -uo pipefail
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$here/../.." && pwd)"
 cd "$root" || exit 1

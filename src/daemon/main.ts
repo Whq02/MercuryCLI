@@ -14,6 +14,7 @@ import { DaemonBreaker } from '../utils/daemonBreaker.js'
 import { logForDebugging } from '../utils/debug.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
+import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import { isCrewDaemon } from './daemonFeatureGates.js'
 import { runTaskHeadless, buildHeadlessPrompt, getRunTimeoutMs, scrubSupervisorRoleEnv } from './headlessRun.js'
 import { CREW_TEAM, makeCrewSpawnHandler } from './crewSpawn.js'
@@ -1228,6 +1229,7 @@ const RECONCILE_TICK_MS = 60_000
 function spawnSuccessorDaemon(): number | undefined {
   try {
     const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair('MERCURY_DAEMON_SUCCESSOR_OF', String(process.pid)) }
+    stampSpawnReceipt(env, ['MERCURY_DAEMON_SUCCESSOR_OF'])
     if (hasStoredOAuthToken()) {
       const stripped: string[] = []
       for (const k of STORED_TOKEN_SCRUB_VARS) {

@@ -5,6 +5,7 @@
 # gate-watch: src/utils/config/projectConfig.ts src/ink/session/windowsHostSetup.ts
 # gate-watch: src/utils/router/providerDiscovery.ts src/services/switchboard/capacityCheck.ts
 set -u
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 
 cd "$(dirname "$0")/../.." || exit 1

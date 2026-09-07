@@ -18,7 +18,9 @@
 # gate-watch: src/utils/sandbox/sandbox-adapter* src/substrate/flagRegistry* scripts/bash/shell-engine-parity*
 # gate-watch: src/utils/shell/windowsShellRoad.ts src/utils/windowsPaths.ts src/utils/shell/shellToolUtils.ts
 # gate-watch: .github/workflows/shell-windows-probe.yml .github/workflows/private-release.yml
+# gate-watch: src/utils/Shell.ts src/substrate/envStamps.ts src/tools/shared/sessionEnvNotice.ts src/tools/PowerShellTool/PowerShellTool.tsx
 set -u
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -43,6 +45,7 @@ __t=$SECONDS; "$bun" run "$here/prove-shell-snapshot-path.ts" || fail=1; prover_
 __t=$SECONDS; "$bun" run "$here/prove-teardown-ends-the-tree.ts" || fail=1; prover_mark "$here/prove-teardown-ends-the-tree.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-shell-cwd-record.ts" || fail=1; prover_mark "$here/prove-shell-cwd-record.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-bash-tool-seams.ts" || fail=1; prover_mark "$here/prove-bash-tool-seams.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-shell-session-env.ts" || fail=1; prover_mark "$here/prove-shell-session-env.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-shell-engine-pack.ts" || fail=1; prover_mark "$here/prove-shell-engine-pack.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-shell-engine-session.ts" || fail=1; prover_mark "$here/prove-shell-engine-session.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-shell-engine-exec.ts" || fail=1; prover_mark "$here/prove-shell-engine-exec.ts" "$__t"

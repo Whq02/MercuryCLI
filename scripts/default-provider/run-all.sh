@@ -3,6 +3,7 @@
 # gate-watch: src/utils/model/defaultProviderRung* src/commands/defaultprovider/**
 # gate-watch: src/utils/model/model* src/components/ConsoleOAuthFlow* src/utils/config/schema*
 set -u
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 overall=0

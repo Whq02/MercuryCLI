@@ -2,6 +2,7 @@
 # gate-class: pure
 # gate-watch: src/tools/LaunchFleetTool/prompt*
 set -u
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 here="$(cd "$(dirname "$0")" && pwd)"
 src="$here/../../src/tools/LaunchFleetTool/prompt.ts"
 fail=0

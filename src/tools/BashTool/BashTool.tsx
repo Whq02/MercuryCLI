@@ -27,6 +27,7 @@ import { formatDuration } from '../../utils/format.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { recordBashAudit } from '../../utils/spawnLedger.js'
 import { trackGitOperations } from '../../tools/shared/gitOperationTracking.js'
+import { scrubbedSessionEnvNotice } from '../../tools/shared/sessionEnvNotice.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
 import {
   detectFileEncoding,
@@ -115,6 +116,9 @@ function buildModelSchema() {
     dangerouslyDisableSandbox: semanticBoolean(z.boolean().optional()).describe(
       'An explicit, dangerous override that runs the command without sandboxing.',
     ),
+    inherit_session_env: semanticBoolean(z.boolean().optional()).describe(
+      "Set to true to hand the command the session's own MERCURY_* stamps (the values Mercury wrote on this process). By default they are scrubbed and the result names them; a proof or a build must not see them.",
+    ),
   })
 }
 
@@ -142,6 +146,7 @@ export type Out = {
   persistedOutputSize?: number
   structuredContent?: ToolResultBlockParam['content']
   rawOutputPath?: string
+  scrubbedSessionEnv?: readonly string[]
 }
 
 
@@ -327,6 +332,7 @@ async function* runBash(
     shouldUseSandbox: useSandbox,
     shouldAutoBackground,
     backgroundIntent: input.run_in_background === true && !BACKGROUND_TASKS_DISABLED,
+    inheritSessionEnv: input.inherit_session_env === true,
     owner: agentId,
     onProgress: (recent, all, lines, bytes, incomplete) => {
       latest = { recent, all, lines, bytes: incomplete ? bytes : 0, incomplete }
@@ -611,6 +617,9 @@ async function* runBash(
       noOutputExpected,
       dangerouslyDisableSandbox: input.dangerouslyDisableSandbox,
       ...(persistedOutputPath ? { persistedOutputPath, persistedOutputSize } : {}),
+      ...(shellCommand.scrubbedSessionEnv && shellCommand.scrubbedSessionEnv.length > 0
+        ? { scrubbedSessionEnv: shellCommand.scrubbedSessionEnv }
+        : {}),
     }
   }
 }
@@ -648,7 +657,8 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
     errorText += `${sep}<error>The command was aborted before completion.</error>`
   }
   const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output) : ''
-  const content = [stdout, errorText, backgroundNotice].filter(part => part !== '').join('\n')
+  const scrubNotice = scrubbedSessionEnvNotice(output.scrubbedSessionEnv)
+  const content = [stdout, errorText, backgroundNotice, scrubNotice].filter(part => part !== '').join('\n')
   return { tool_use_id: toolUseID, type: 'tool_result', content, is_error: output.interrupted }
 }
 

@@ -2,6 +2,7 @@
 # gate-class: pure
 # gate-watch: src/utils/cache/cacheClock* src/utils/cache/cacheClockCore* src/utils/modelCost*
 set -u
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 
 here="$(cd "$(dirname "$0")" && pwd)"

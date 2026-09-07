@@ -4,6 +4,7 @@
 # gate-watch: src/services/privateChannel/** scripts/release/** scripts/updater/**
 # gate-watch: .github/workflows/private-release.yml
 set -uo pipefail
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd "$here/../.." && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"

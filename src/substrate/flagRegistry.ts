@@ -400,6 +400,7 @@ export const FLAG_REGISTRY: readonly FlagSpec[] = [
   { env: 'MERCURY_EXTENSION_DATA', kind: 'value', summary: "EMITTED child-env vocabulary (not a Mercury input): the extension's persistent data folder (<extensions root>/data/<id>) handed to hooks and servers; ${MERCURY_EXTENSION_DATA} is the ONE template form", off: 'n/a — written to children, never read by Mercury', consumer: 'src/utils/hooks/execution.ts' },
   { env: 'MERCURY_EXTENSION_OPTION_', kind: 'value', summary: "EMITTED child-env family (not a Mercury input): each operator-configured option of an extension reaches its hooks and servers as this prefix + <KEY>; ${option.KEY} is the template form in command lines (a sensitive option renders a placeholder in prose the model reads)", off: 'n/a — written to children, never read by Mercury', consumer: 'src/extensions/options.ts' },
   { env: 'MERCURY_ENTRYPOINT', kind: 'value', selfStamped: true, summary: "how this process was launched (cli/headless/mcp/local-agent/...): the ONE entrypoint identity spelling — stamped at init on Mercury's own writes and inherited by children (Mercury's own value vocabulary alone)", off: 'derived at boot from argv/interactivity when no launcher set it', consumer: 'src/main.tsx' },
+  { env: 'MERCURY_SPAWNED_ENV', kind: 'value', selfStamped: true, summary: "the spawner's receipt: a JSON object naming every MERCURY_* variable a Mercury process stamped on a child Mercury's environment (the daemon's worker stamps — the model, the effort word, the seats, the session home and kit, the role marker, the parent pid and the provenance stamp — and the owned daemon's owner pid and pipe), with the values it wrote. Merged, never replaced, so a grandchild carries its whole ancestry. The ONE attribution carrier for the spawner's stamps: the tool shell scrubs the named variables from a command's environment (sessionEnvStamps), and a present value is never an operator override", off: 'unset ⇒ nothing in this environment was stamped by a spawning Mercury', consumer: 'src/substrate/envStamps.ts', retirement: 'permanent (the spawn attribution carrier)' },
   { env: 'MERCURY_HOST_VERSION', kind: 'value', summary: 'hosting application version included in provider and MCP user-agent strings', off: 'unset ⇒ no hosting-application version suffix', consumer: 'src/utils/http.ts' },
   { env: 'MERCURY_HOST_CLIENT_APP', kind: 'value', summary: 'the hosting application\'s identity, stamped into the child env by the host that spawns Mercury: rides the user-agent metric tails (client-app/<app>) and the x-client-app API header', off: 'unset ⇒ no client-app segment and no x-client-app header', consumer: 'src/services/api/client.ts' },
   { env: 'MERCURY_HOST_MCP_NO_PREFIX', kind: 'opt-in', tier: 'behavioral', summary: 'host switch: MCP tools from host-served servers face the model under their UNPREFIXED names instead of the qualified mcp__server__tool form; permission rules keep matching the qualified name so builtin-targeting rules never match the replacements', off: 'unset ⇒ qualified mcp__server__tool model-facing names', consumer: 'src/services/mcp/client.ts' },
@@ -565,16 +566,24 @@ export function flagEnabled(env: string): boolean {
   }
 }
 
+const selfWritten = new Map<string, string>()
+
 export function setFlagEnv(env: string, value: string): void {
   const spec = byEnv.get(env)
   if (!spec) throw new Error(`setFlagEnv: unregistered flag ${env} — add it to FLAG_REGISTRY`)
   process.env[spec.env] = value
+  selfWritten.set(spec.env, value)
 }
 
 export function deleteFlagEnv(env: string): void {
   const spec = byEnv.get(env)
   if (!spec) throw new Error(`deleteFlagEnv: unregistered flag ${env} — add it to FLAG_REGISTRY`)
   delete process.env[spec.env]
+  selfWritten.delete(spec.env)
+}
+
+export function selfWrittenFlagEnv(): ReadonlyMap<string, string> {
+  return selfWritten
 }
 
 export function flagSpellings(env: string): string[] {

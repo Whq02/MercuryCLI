@@ -3,6 +3,7 @@
 # gate-watch: src/services/providers/limitWarning* src/hooks/notifs/useRateLimitWarningNotification*
 # gate-watch: src/services/rateLimitMessages* src/services/providers/providerUsage*
 set -u
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 overall=0
