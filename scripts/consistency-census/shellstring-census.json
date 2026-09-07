@@ -20,7 +20,7 @@
     },
     {
       "file": "src/utils/Shell.ts",
-      "line": 274,
+      "line": 272,
       "mechanism": "hardcoded-tmp",
       "excerpt": "process.env.MERCURY_TMPDIR || '/tmp',",
       "cls": "platform-owner",
@@ -60,7 +60,7 @@
     },
     {
       "file": "scripts/accounts/prove-auth-scope-isolation.ts",
-      "line": 200,
+      "line": 199,
       "mechanism": "execSync-string",
       "excerpt": "const hits = execSync(",
       "cls": "intentional-shell",
@@ -132,11 +132,35 @@
     },
     {
       "file": "scripts/bash/prove-bash-tool-seams.ts",
-      "line": 317,
+      "line": 398,
       "mechanism": "hardcoded-tmp",
       "excerpt": "const away = realpathSync(mkdtempSync('/tmp/bash-tool-seams-away-'))",
       "cls": "platform-owner",
       "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
+    },
+    {
+      "file": "scripts/bash/prove-shell-engine-drive.ts",
+      "line": 246,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "cls": "test-fixture",
+      "why": "shell parsing is the subject under test"
+    },
+    {
+      "file": "scripts/bash/prove-shell-engine-exec.ts",
+      "line": 373,
+      "mechanism": "exec-string",
+      "excerpt": "const handle = await exec('echo \"${BRUSH_VERSION:-system} [${BG_MARK:-none}]\"', controller.signal, 'bash', { timeout: 20_000, shouldAutoBack",
+      "cls": "test-fixture",
+      "why": "shell parsing is the subject under test"
+    },
+    {
+      "file": "scripts/bash/prove-shell-engine-sandbox.ts",
+      "line": 87,
+      "mechanism": "hardcoded-tmp",
+      "excerpt": "const OUTSIDE = realpathSync(mkdtempSync('/tmp/shell-engine-sandbox-outside-'))",
+      "cls": "test-fixture",
+      "why": "shell parsing is the subject under test"
     },
     {
       "file": "scripts/behaviour-laws/prove-behaviour-laws-contract.ts",
@@ -148,7 +172,7 @@
     },
     {
       "file": "scripts/build-identity/prove-config-home.ts",
-      "line": 157,
+      "line": 158,
       "mechanism": "execSync-string",
       "excerpt": "const trackedFiles = execSync(`git ls-files -z -- ${SWEEP_SCOPES.join(' ')}`, { cwd: ROOT })",
       "cls": "intentional-shell",
@@ -420,7 +444,7 @@
     },
     {
       "file": "scripts/diffws/prove-diff-workspace.ts",
-      "line": 256,
+      "line": 255,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -492,7 +516,7 @@
     },
     {
       "file": "scripts/formal-models/prove-flag-interactions.ts",
-      "line": 159,
+      "line": 167,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "MERCURY_EVAL_PYTHON: ['', '/usr/bin/python3'],",
       "cls": "platform-owner",
@@ -548,7 +572,7 @@
     },
     {
       "file": "scripts/golden-journeys/journeyLib.ts",
-      "line": 465,
+      "line": 464,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -812,7 +836,7 @@
     },
     {
       "file": "scripts/journey/prove-agent-bash-live.ts",
-      "line": 494,
+      "line": 516,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -860,7 +884,7 @@
     },
     {
       "file": "scripts/journey/prove-delivery-mid-tool.ts",
-      "line": 86,
+      "line": 87,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -884,7 +908,7 @@
     },
     {
       "file": "scripts/journey/prove-interrupt-after-switch.ts",
-      "line": 207,
+      "line": 205,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -924,7 +948,7 @@
     },
     {
       "file": "scripts/journey/prove-switch-agents-live.ts",
-      "line": 312,
+      "line": 318,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -932,7 +956,7 @@
     },
     {
       "file": "scripts/journey/prove-switch-cold-ingest.ts",
-      "line": 186,
+      "line": 184,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -1004,7 +1028,7 @@
     },
     {
       "file": "scripts/mcp/prove-mcp-failure-surfaces.ts",
-      "line": 87,
+      "line": 89,
       "mechanism": "execSync-string",
       "excerpt": "const files = execSync(\"git ls-files 'src/**/*.ts' 'src/**/*.tsx'\", { cwd: ROOT, encoding: 'utf8' }).split('\\n').filter(Boolean)",
       "cls": "intentional-shell",
@@ -1228,7 +1252,7 @@
     },
     {
       "file": "scripts/prompt/prove-agent-roster.ts",
-      "line": 119,
+      "line": 116,
       "mechanism": "execSync-string",
       "excerpt": "const grep = execSync(`grep -rn \"areExplorePlanAgentsEnabled\" ${join(ROOT, 'src')} || true`, { encoding: 'utf8' }).trim()",
       "cls": "intentional-shell",
@@ -1300,7 +1324,7 @@
     },
     {
       "file": "scripts/release/package.mjs",
-      "line": 296,
+      "line": 308,
       "mechanism": "execSync-string",
       "excerpt": "execSync('bash scripts/vscode/build-vsix.sh', { cwd: ROOT, stdio: 'pipe' })",
       "cls": "intentional-shell",
@@ -1308,7 +1332,7 @@
     },
     {
       "file": "scripts/release/package.mjs",
-      "line": 546,
+      "line": 558,
       "mechanism": "execSync-string",
       "excerpt": "? execSync(['\"' + launched + '\"', ...args].join(' '), {",
       "cls": "intentional-shell",
@@ -1316,7 +1340,7 @@
     },
     {
       "file": "scripts/release/package.mjs",
-      "line": 676,
+      "line": 688,
       "mechanism": "execSync-string",
       "excerpt": "? execSync(['\"' + shim + '\"', '--version'].join(' '), { encoding: 'utf8', env: smokeEnv, timeout: 120_000 })",
       "cls": "intentional-shell",
@@ -2099,6 +2123,14 @@
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
     {
+      "file": "scripts/ui/prove-background-notice-fold.ts",
+      "line": 181,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'vshot.py'), cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
+    },
+    {
       "file": "scripts/ui/prove-bash-flicker.ts",
       "line": 52,
       "mechanism": "hardcoded-tmp",
@@ -2124,7 +2156,7 @@
     },
     {
       "file": "scripts/ui/prove-cockpit-scroll-rail.ts",
-      "line": 63,
+      "line": 77,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2164,7 +2196,7 @@
     },
     {
       "file": "scripts/ui/prove-crew-seats-drive.ts",
-      "line": 308,
+      "line": 313,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2191,6 +2223,14 @@
       "line": 121,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
+    },
+    {
+      "file": "scripts/ui/prove-field-findings-jumpchord.ts",
+      "line": 100,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
@@ -2476,7 +2516,7 @@
     },
     {
       "file": "scripts/ui/render-critter-select.ts",
-      "line": 107,
+      "line": 106,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2524,7 +2564,7 @@
     },
     {
       "file": "scripts/ui/render-footer-suggestions.tsx",
-      "line": 88,
+      "line": 87,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "return execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -2604,7 +2644,7 @@
     },
     {
       "file": "scripts/ui/render-mercuryframe.ts",
-      "line": 122,
+      "line": 121,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2612,7 +2652,7 @@
     },
     {
       "file": "scripts/ui/render-model-picker-tail.ts",
-      "line": 81,
+      "line": 80,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2636,7 +2676,7 @@
     },
     {
       "file": "scripts/ui/render-permission-modes.ts",
-      "line": 102,
+      "line": 101,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2820,7 +2860,7 @@
     },
     {
       "file": "scripts/updater/prove-install-path.ts",
-      "line": 186,
+      "line": 187,
       "mechanism": "shell-dash-c",
       "excerpt": "const once = spawnSync('sh', ['-c', `${guard}\\nprintf '%s' \"$PATH\"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin' } }).st",
       "cls": "intentional-shell",
@@ -2828,7 +2868,7 @@
     },
     {
       "file": "scripts/updater/prove-install-path.ts",
-      "line": 187,
+      "line": 188,
       "mechanism": "shell-dash-c",
       "excerpt": "const twice = spawnSync('sh', ['-c', `${guard}\\n${guard}\\nprintf '%s' \"$PATH\"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/b",
       "cls": "intentional-shell",
@@ -2836,7 +2876,7 @@
     },
     {
       "file": "scripts/updater/prove-install-path.ts",
-      "line": 191,
+      "line": 192,
       "mechanism": "shell-dash-c",
       "excerpt": "? spawnSync('zsh', ['-c', `${guard}\\n${guard}\\nprintf '%s' \"$PATH\"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin' } }).st",
       "cls": "intentional-shell",
@@ -2844,7 +2884,7 @@
     },
     {
       "file": "scripts/updater/prove-install-path.ts",
-      "line": 424,
+      "line": 434,
       "mechanism": "shell-dash-c",
       "excerpt": "const nodeBin = spawnSync('sh', ['-c', 'command -v node'], { encoding: 'utf8' }).stdout.trim()",
       "cls": "intentional-shell",
@@ -2940,7 +2980,7 @@
     },
     {
       "file": "scripts/visual-contract/prove-hyperlink-coverage.ts",
-      "line": 158,
+      "line": 157,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
       "cls": "platform-owner",
