@@ -30,6 +30,7 @@ The knobs that matter:
 - Function tools are FLAT — name at the top level — unlike the chat-completions nested function:{} spelling.
 - Message content items are typed: input_text, output_text (assistant history), input_image (data or URL, with a detail level).
 - A tool call is a `function_call` item ({ call_id, name, arguments — a JSON-encoded string }); the answer is a `function_call_output` item carrying the same call_id.
+- An assistant `message` item may carry `phase`: `commentary` (a working note ahead of a tool call) or `final_answer`. Send it back unchanged on every assistant message you replay — the reference says dropping it can degrade performance.
 - reasoning.effort sets thinking depth; reasoning.summary asks for streamable summaries.
 - text.verbosity tunes answer length where the model supports it.
 
