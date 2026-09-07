@@ -254,14 +254,13 @@ export function compatTerminalFaultText(
 
 function toBridgeMessages(
   messages: Message[],
-  querySource: Options['querySource'],
 ): MessageParam[] {
   const out: MessageParam[] = []
   for (const m of messages) {
     if (m.type === 'user') {
-      out.push(userMessageToMessageParam(m, false, false, querySource))
+      out.push(userMessageToMessageParam(m, false, false))
     } else if (m.type === 'assistant') {
-      out.push(assistantMessageToMessageParam(m, false, false, querySource))
+      out.push(assistantMessageToMessageParam(m, false, false))
     }
   }
   return out
@@ -370,7 +369,7 @@ export async function* compatChatCallModel(
   }
   const request: CompatChatRequest = {
     model: wireModel,
-    messages: mapMessagesToZai(systemText, toBridgeMessages(healWalkableForWire(wireMessages), options.querySource), {
+    messages: mapMessagesToZai(systemText, toBridgeMessages(healWalkableForWire(wireMessages)), {
       keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel) ?? false,
     }),
     ...(apiTools.length > 0

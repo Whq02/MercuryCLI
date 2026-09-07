@@ -1,5 +1,4 @@
 
-import type { QuerySource } from 'src/constants/querySource.js'
 import {
   type AssistantMessage,
   type UserMessage,
@@ -29,7 +28,6 @@ function canonicalWireBlock(block: WireBlock): WireBlock {
 function contentWithCacheMarker(
   content: UserMessage['message']['content'] | AssistantMessage['message']['content'],
   enablePromptCaching: boolean,
-  querySource: QuerySource | undefined,
   eligible: (blockType: string) => boolean,
 ): WireContent {
   if (typeof content === 'string') {
@@ -38,7 +36,7 @@ function contentWithCacheMarker(
         type: 'text',
         text: content,
         ...(enablePromptCaching && {
-          cache_control: getCacheControl({ querySource }),
+          cache_control: getCacheControl(),
         }),
       },
     ]
@@ -47,7 +45,7 @@ function contentWithCacheMarker(
   return content.map((block, i) => ({
     ...canonicalWireBlock(block as WireBlock),
     ...(i === lastIndex && enablePromptCaching && eligible(block.type)
-      ? { cache_control: getCacheControl({ querySource }) }
+      ? { cache_control: getCacheControl() }
       : {}),
   })) as WireContent
 }
@@ -56,7 +54,6 @@ export function userMessageToMessageParam(
   message: UserMessage,
   addCache = false,
   enablePromptCaching: boolean,
-  querySource?: QuerySource,
 ): MessageParam {
   if (addCache) {
     return {
@@ -64,7 +61,6 @@ export function userMessageToMessageParam(
       content: contentWithCacheMarker(
         message.message.content,
         enablePromptCaching,
-        querySource,
         () => true,
       ),
     }
@@ -81,7 +77,6 @@ export function assistantMessageToMessageParam(
   message: AssistantMessage,
   addCache = false,
   enablePromptCaching: boolean,
-  querySource?: QuerySource,
 ): MessageParam {
   if (addCache) {
     return {
@@ -89,7 +84,6 @@ export function assistantMessageToMessageParam(
       content: contentWithCacheMarker(
         message.message.content,
         enablePromptCaching,
-        querySource,
         blockType =>
           blockType !== 'thinking' && blockType !== 'redacted_thinking',
       ),

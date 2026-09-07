@@ -36,7 +36,6 @@ export type CacheSafeParams = {
   systemContext: { [k: string]: string }
   toolUseContext: ToolUseContext
   forkContextMessages: Message[]
-  parentQuerySource?: QuerySource
 }
 
 export type SubagentContextOverrides = {
@@ -103,7 +102,6 @@ export function createCacheSafeParams(hookContext: REPLHookContext): CacheSafePa
     systemContext: hookContext.systemContext,
     toolUseContext: hookContext.toolUseContext,
     forkContextMessages: hookContext.messages,
-    ...(hookContext.querySource !== undefined ? { parentQuerySource: hookContext.querySource } : {}),
   }
 }
 
@@ -321,7 +319,6 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
       maxTurns,
       skipCacheWrite,
       effortMessage,
-      cacheTtlSource: cacheSafeParams.parentQuerySource,
     })) {
       if (item.type === 'stream_event') {
         fold = foldForkUsageEvent(fold, item.event as { type?: string; usage?: unknown; message?: { usage?: unknown } })

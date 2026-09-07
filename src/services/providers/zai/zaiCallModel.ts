@@ -122,14 +122,13 @@ function overflowOf(fault: Pick<ZaiFault, 'code' | 'message'> & { status?: numbe
 
 function toBridgeMessages(
   messages: Message[],
-  querySource: Options['querySource'],
 ): MessageParam[] {
   const out: MessageParam[] = []
   for (const m of messages) {
     if (m.type === 'user') {
-      out.push(userMessageToMessageParam(m, false, false, querySource))
+      out.push(userMessageToMessageParam(m, false, false))
     } else if (m.type === 'assistant') {
-      out.push(assistantMessageToMessageParam(m, false, false, querySource))
+      out.push(assistantMessageToMessageParam(m, false, false))
     }
   }
   return out
@@ -241,7 +240,7 @@ export async function* zaiCallModel(
   const request = buildZaiChatRequest({
     model: modelId,
     system: systemText,
-    messages: toBridgeMessages(healWalkableForWire(wireMessages), options.querySource),
+    messages: toBridgeMessages(healWalkableForWire(wireMessages)),
     tools: apiTools,
     maxTokens: Math.min(
       options.maxOutputTokensOverride ?? ZAI_MAX_OUTPUT_TOKENS,
