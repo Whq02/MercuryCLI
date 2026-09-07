@@ -4,7 +4,6 @@ import { closeSync, openSync, readSync } from 'node:fs'
 import { z } from 'zod/v4'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { anchorPatchEnabled } from '../../services/changeTransaction/anchorPatch.js'
 import { staleEditRecoveryEnabled } from '../../services/changeTransaction/stalePatchRecovery.js'
 import { changeTransactionEnabled } from '../../services/changeTransaction/contracts.js'
@@ -907,28 +906,22 @@ export const FileReadTool = buildTool({
       }
     }
 
-    const dedupKillswitch = getFeatureValue_CACHED_MAY_BE_STALE(
-      'mercury_read_dedup_killswitch',
-      false,
-    )
-    if (!dedupKillswitch) {
-      const entry = context.readFileState.get(fullFilePath)
-      if (
-        entry &&
-        entry.offset !== undefined &&
-        !entry.isPartialView &&
-        entry.offset === (input.offset ?? 0) &&
-        entry.limit === input.limit
-      ) {
-        try {
-          const stats = await stat(fullFilePath)
-          if (Math.floor(stats.mtimeMs) === entry.timestamp) {
-            return {
-              data: { type: 'file_unchanged', file: { filePath: fullFilePath } } satisfies Output,
-            }
+    const entry = context.readFileState.get(fullFilePath)
+    if (
+      entry &&
+      entry.offset !== undefined &&
+      !entry.isPartialView &&
+      entry.offset === (input.offset ?? 0) &&
+      entry.limit === input.limit
+    ) {
+      try {
+        const stats = await stat(fullFilePath)
+        if (Math.floor(stats.mtimeMs) === entry.timestamp) {
+          return {
+            data: { type: 'file_unchanged', file: { filePath: fullFilePath } } satisfies Output,
           }
-        } catch {
         }
+      } catch {
       }
     }
 
