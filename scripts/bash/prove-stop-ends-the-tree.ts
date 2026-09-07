@@ -47,10 +47,11 @@ writeFileSync(
   MIDDLE,
   [
     "const { spawn } = require('node:child_process')",
-    "const { writeFileSync } = require('node:fs')",
+    "const { writeFileSync, renameSync } = require('node:fs')",
     "const kid = spawn('sleep', ['600'], { detached: true, stdio: 'ignore' })",
     'kid.unref()',
-    "writeFileSync(process.env.TREE_PIDS_FILE, process.pid + ':' + kid.pid)",
+    "writeFileSync(process.env.TREE_PIDS_FILE + '.part', process.pid + ':' + kid.pid)",
+    "renameSync(process.env.TREE_PIDS_FILE + '.part', process.env.TREE_PIDS_FILE)",
     'setInterval(() => {}, 1000)',
     '',
   ].join('\n'),
@@ -64,8 +65,18 @@ async function spawnEscapeeTree(tag: string): Promise<Tree> {
     stdio: 'ignore',
     env: { ...process.env, TREE_PIDS_FILE: pidsFile },
   })
-  for (let i = 0; i < 200 && !existsSync(pidsFile); i++) await sleep(25)
-  const [middle, grandchild] = readFileSync(pidsFile, 'utf8').split(':').map(Number)
+  const whole = /^\d+:\d+$/
+  let record = ''
+  for (let i = 0; i < 200 && !whole.test(record); i++) {
+    await sleep(25)
+    try {
+      record = readFileSync(pidsFile, 'utf8').trim()
+    } catch {
+      record = ''
+    }
+  }
+  check(`${tag}: the tree's pid record arrived whole`, whole.test(record), JSON.stringify(record))
+  const [middle, grandchild] = record.split(':').map(Number)
   return { root: child.pid!, middle: middle!, grandchild: grandchild!, child }
 }
 

@@ -25,6 +25,7 @@ export type SetAppState = (updater: (prevState: AppState) => AppState) => void
 export type TaskHandle = {
   taskId: string
   cleanup?: () => void
+  accepted?: boolean
 }
 
 export type TaskContext = {

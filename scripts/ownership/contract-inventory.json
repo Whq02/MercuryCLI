@@ -804,6 +804,7 @@
   "respectGitignore",
   "sandbox",
   "shellEngine",
+  "shellEngineSessions",
   "showClearContextOnStrategyAccept",
   "showThinkingSummaries",
   "skipSovereignConsentPrompt",
