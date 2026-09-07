@@ -1,9 +1,13 @@
-import { statSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { resolveEffectiveSettingsSnapshot } from '../substrate/startupMenu.js'
 import { minutesKnobToMs } from '../utils/deadline.js'
 import { logForDebugging } from '../utils/debug.js'
+import { getMercuryHome } from '../utils/envUtils.js'
+import { MERCURY_PROJECT_DIR, resolveProjectConfigPath } from '../utils/projectConfig.js'
 import { validateWorkerModelChoice } from '../services/concourse/workerModels.js'
 import { resolveOpenaiAccount } from '../services/providers/openai/openaiAccounts.js'
 import { getCachedOpenaiCatalogue } from '../services/providers/openai/openaiCatalogue.js'
@@ -123,8 +127,27 @@ function mintWarmShort(dir: string | undefined, roster: WarmRosterPort): string 
   return null
 }
 
-function currentSnapshotId(): string {
-  return resolveEffectiveSettingsSnapshot({ sessionId: 'warm-unclaimed' }).snapshotId
+function settingsFilesDigest(workspaceId: string): string {
+  const hash = createHash('sha256')
+  const paths = [
+    join(getMercuryHome(), 'settings.json'),
+    resolveProjectConfigPath(workspaceId, 'settings.json') ?? join(workspaceId, MERCURY_PROJECT_DIR, 'settings.json'),
+    resolveProjectConfigPath(workspaceId, 'settings.local.json') ?? join(workspaceId, MERCURY_PROJECT_DIR, 'settings.local.json'),
+  ]
+  for (const path of paths) {
+    let bytes = ''
+    try {
+      bytes = readFileSync(path, 'utf8')
+    } catch {
+      bytes = ''
+    }
+    hash.update(path).update('\0').update(bytes).update('\0')
+  }
+  return hash.digest('hex').slice(0, 16)
+}
+
+function currentSnapshotId(workspaceId: string): string {
+  return `${resolveEffectiveSettingsSnapshot({ sessionId: 'warm-unclaimed' }).snapshotId}+${settingsFilesDigest(workspaceId)}`
 }
 
 function sameKit(a: SessionKitV1, b: SessionKitV1): boolean {
@@ -269,7 +292,7 @@ async function ensureWarmRunnerFlight(
   }
   const short = mintWarmShort(deps.dir, roster)
   if (short === null) return { state: 'refused', detail: 'no free worker slot' }
-  const snapshotId = currentSnapshotId()
+  const snapshotId = currentSnapshotId(workspaceId)
   const spec = buildConcourseWorkerSpec({
     runnerId: short,
     workspaceId,
@@ -323,7 +346,7 @@ export async function claimWarmRunner(
     pool.delete(args.workspaceId)
     return { claimed: false, reason: 'the warm runner died' }
   }
-  if (currentSnapshotId() !== entry.snapshotId) {
+  if (currentSnapshotId(args.workspaceId) !== entry.snapshotId) {
     retireWarmRunner(args.workspaceId, 'settings-drift', deps)
     return { claimed: false, reason: 'effective settings changed since the warm boot' }
   }

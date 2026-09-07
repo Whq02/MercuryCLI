@@ -19,7 +19,7 @@ function pinSeatCeiling(recommendedSeats: number): void {
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats } }))
 }
 pinSeatCeiling(8)
-const { makeConcourseAdmitHandler, readSessionWorkers, buildConcourseWorkerSpec } = await import(
+const { makeConcourseAdmitHandler, readSessionWorkers, buildConcourseWorkerSpec, canonicalWorkspaceId } = await import(
   '../../src/daemon/concourseSupervisor.ts'
 )
 const warm = await import('../../src/daemon/warmRunner.ts')
@@ -91,6 +91,8 @@ const wsB = mkdtempSync(join(tmpdir(), 'warm-ws-b-'))
 const wsC = mkdtempSync(join(tmpdir(), 'warm-ws-c-'))
 const wsD = mkdtempSync(join(tmpdir(), 'warm-ws-d-'))
 const wsE = mkdtempSync(join(tmpdir(), 'warm-ws-e-'))
+const wsF = mkdtempSync(join(tmpdir(), 'warm-ws-f-'))
+const wsG = mkdtempSync(join(tmpdir(), 'warm-ws-g-'))
 
 const roster = new FakeRoster()
 const warmDeps = { roster: () => roster, dir: recordsDir }
@@ -218,6 +220,20 @@ console.log('\n── W10: settings drift ──')
     check('W10 the stale runner retired', warm.warmRunnerCount() === 0)
     delete process.env[row.env]
   }
+}
+
+console.log('\n── W10b: settings-file drift ──')
+{
+  const ensured = await warm.ensureWarmRunner({ workspaceDir: wsF }, warmDeps)
+  check('W10b a runner warms before the save', ensured.state === 'warmed', ensured.detail ?? '')
+  writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), `${JSON.stringify({ patience: { recoveryBudgetMinutes: 0.5 } }, null, 2)}\n`)
+  const before = roster.registered.length
+  const admitted = await admit({ workspaceDir: wsF })
+  check('W10b the claim declines and the session spawns cold on the saved file', admitted.ok === true && roster.registered.length === before + 1)
+  check('W10b the stale runner retired', warm.warmRunnerCount() === 0)
+  const again = await warm.ensureWarmRunner({ workspaceDir: wsG }, warmDeps)
+  check('W10b a runner warmed after the save carries it (the next claim would land)', again.state === 'warmed', again.detail ?? '')
+  warm.retireWarmRunner(canonicalWorkspaceId(wsG), 'proof teardown', warmDeps)
 }
 
 console.log('\n── W-off: the pool gates ──')
