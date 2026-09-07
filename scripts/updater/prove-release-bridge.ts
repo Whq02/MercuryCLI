@@ -185,8 +185,11 @@ try {
   }
 
   const ghLog = join(scratch, 'gh.log')
+  const prevRuntime = join(versionsDir, prevVersion, ...(IS_WIN ? ['vendor', 'node', 'node.exe'] : ['vendor', 'node', 'bin', 'node']))
+  const prevNode = existsSync(prevRuntime) ? prevRuntime : 'node'
+  console.log(`  · previous reader's runtime: ${prevNode === 'node' ? 'the PATH node (no vendored runtime in the previous archive)' : prevRuntime}`)
   const runOld = (args: string[]) =>
-    spawnSync('node', [join(versionsDir, prevVersion, prevBundle!), ...args], {
+    spawnSync(prevNode, [join(versionsDir, prevVersion, prevBundle!), ...args], {
       encoding: 'utf8',
       timeout: 600_000,
       env: pathFrontedEnv(binDir, {
