@@ -2,6 +2,8 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.4
+- Fixed on-device voice loading its speed-optimised pack on a CPU that cannot run it, which could end Mercury on the doctor's voice row or the first take; the check now runs once in a helper, and the doctor and /speak say what it found. The first use of voice on Windows no longer stalls while it checks
+- Fixed the MCP connection memory keeping a server's full configuration on disk; it now keeps a fingerprint only
 - Added a Motion setting (auto, full, reduced, off) in /config and in a new Boot Menu "Performance" section; auto keeps the normal look and, only while painting falls behind, slows the idle animations — the mascot holds still — saying "reduced" in the status line until the screen keeps up again
 - Fixed the idle cockpit keeping a core busy on a slow machine: the clock and the idle animation now follow the measured cost of painting instead of ticking at full rate
 - Changed the usage meters to read only when shown and after a retry, never on a timer: a meter you have not looked at for two minutes reads "stale · last read N min ago" until it is shown again or a reply refreshes it; the model picker loads its catalogue when it opens

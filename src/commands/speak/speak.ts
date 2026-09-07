@@ -7,7 +7,10 @@ const seconds = (ms: number): string => `${Math.max(1, Math.round(ms / 1000))}s`
 
 async function download(rawName: string): Promise<string> {
   const local = localTranscriberRead()
-  if (local.state === 'absent' && (local.reason === 'pack' || local.reason === 'cpu' || (local.reason === 'pin' && !local.note.startsWith('MERCURY_WHISPER_MODEL')))) {
+  if (local.state === 'absent' && local.reason === 'cpu') {
+    return `on-device transcriber: ${local.note} — nothing to download while the on-device transcriber cannot run here`
+  }
+  if (local.state === 'absent' && (local.reason === 'pack' || (local.reason === 'pin' && !local.note.startsWith('MERCURY_WHISPER_MODEL')))) {
     return `on-device transcriber: ${local.note} — the model download waits for the pack`
   }
   let row = null

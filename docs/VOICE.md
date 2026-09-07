@@ -79,7 +79,11 @@ A finished take goes to the first transcriber that can serve, in this order:
    path of a ggml file. Release archives carry the pack for their platform
    when the packaging host could build it. The x86-64 pack is compiled for
    CPUs with AVX2, FMA and F16C (every desktop CPU since 2013); a machine
-   below that floor is told so and served by a cloud family.
+   below that floor is told so and served by a cloud family (on Windows,
+   and wherever the operating system reports no instruction set, the pack
+   is loaded once in a helper process first, so a CPU below the floor is
+   told so instead of crashing; a floor that cannot be read holds the
+   on-device road back, and the doctor says why).
 2. **A signed-in family with a speech-to-text endpoint**, in the order of
    the sign-in ledger (the same order that picks the default model):
    - **OpenAI**, through an API key: the transcription endpoint, with the
