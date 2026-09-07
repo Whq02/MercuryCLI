@@ -78,8 +78,9 @@ section('§1 sentinel framing · exit codes · stderr folded into stdout')
   check('command-not-found reports 127', notfound.code === 127, `code=${notfound.code}`)
 
   const ordered = await run('echo out1; echo err1 >&2; echo out2')
+  const allThree = ordered.stdout.includes('out1') && ordered.stdout.includes('err1') && ordered.stdout.includes('out2')
   check('stderr is folded into stdout in order (exec 2>&1)',
-    ordered.stdout.indexOf('out1') < ordered.stdout.indexOf('err1') && ordered.stdout.indexOf('err1') < ordered.stdout.indexOf('out2'),
+    allThree && ordered.stdout.indexOf('out1') < ordered.stdout.indexOf('err1') && ordered.stdout.indexOf('err1') < ordered.stdout.indexOf('out2'),
     JSON.stringify(ordered.stdout))
 }
 
