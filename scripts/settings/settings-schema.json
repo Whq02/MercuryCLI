@@ -162,9 +162,6 @@
         "type": "string"
       }
     },
-    "advisorModel": {
-      "type": "string"
-    },
     "effortLevel": {
       "type": "string",
       "enum": [
