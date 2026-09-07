@@ -488,7 +488,6 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
   const { ANTHROPIC_MODEL_GROUP, isProviderActionRow } = await import('../../src/utils/model/modelOptions.js')
   const { isHaikuTier } = await import('../../src/utils/model/modelFloor.js')
   const fixture: import('../../src/utils/model/modelOptions.ts').ModelOption[] = [
-    { value: null, label: 'Default', description: 'Default (Fable 5)' },
     { value: '__mercury_anthropic_connect__', label: 'Claude — sign in', description: '↵ runs /logins anthropic' },
     { value: 'fable', label: 'Fable', description: '' },
     { value: 'claude-opus-4-8[1m]', label: 'Opus 4.8 (1M)', description: '' },
@@ -503,12 +502,9 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
   ]
   const rows = getAgentModelPickerRows(fixture)
   t.check('inherit leads — the agent grammar\'s own default row', rows[0]?.kind === 'inherit' && rows[0]?.value === 'inherit')
-  const expected = fixture.filter(
-    (opt): opt is typeof opt & { value: string } =>
-      opt.value !== null && !isHaikuTier(opt.value),
-  )
+  const expected = fixture.filter(opt => !isHaikuTier(opt.value))
   t.check(
-    'TOTALITY: picker rows ≡ catalogue minus EXACTLY {null · haiku-tier}, order preserved',
+    'picker rows contain every eligible catalogue row in order',
     JSON.stringify(rows.slice(1).map(r => r.value)) === JSON.stringify(expected.map(o => o.value)),
     rows.map(r => r.value).join(' · '),
   )

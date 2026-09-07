@@ -26,11 +26,6 @@ import {
 import { LOCAL_MODEL_GROUP, getLocalModelOptions } from '../../services/providers/local/localCatalogue.js'
 import { has1mContext, modelSupports1M } from './capabilities.js'
 import {
-  computedDefault,
-  describeComputedDefaultRow,
-  keylessReason,
-} from './computedDefault.js'
-import {
   getBestModel,
   getDefaultSonnetModel,
   getCanonicalName,
@@ -49,7 +44,7 @@ import { isClaudeAISubscriber, isMaxSubscriber, isTeamPremiumSubscriber } from '
 import { isFableAvailable } from './model.js'
 
 export type ModelOption = {
-  value: string | null
+  value: string
   label: string
   description: string
   descriptionForModel?: string
@@ -93,19 +88,6 @@ export function withContext1m(value: string): string {
 
 export function stripContext1m(value: string): string {
   return value.replace(ANY_1M_RE, '')
-}
-
-
-const DEFAULT_LABEL = 'Recommended'
-
-function defaultRow(): ModelOption {
-  const { providerDisplayName } =
-    require('../../services/providers/routeLaw.js') as typeof import('../../services/providers/routeLaw.js')
-  return {
-    value: null,
-    label: DEFAULT_LABEL,
-    description: describeComputedDefaultRow(computedDefault(), providerDisplayName),
-  }
 }
 
 
@@ -174,7 +156,7 @@ function largeModelShapeRows(): ModelOption[] {
 }
 
 function premiumSubscriberTierRows(): ModelOption[] {
-  const rows: ModelOption[] = [defaultRow()]
+  const rows: ModelOption[] = []
   rows.push(getFableOption())
   rows.push(...previousGenerationFableRows())
   if (isFableAvailable()) {
@@ -192,7 +174,7 @@ function premiumSubscriberTierRows(): ModelOption[] {
 }
 
 function standardShapeTierRows(): ModelOption[] {
-  const rows: ModelOption[] = [defaultRow()]
+  const rows: ModelOption[] = []
   rows.push(getFableOption())
   rows.push(...previousGenerationFableRows())
   const suffixedMid = suffixedMidRow()
@@ -213,7 +195,7 @@ function baseTierRows(): ModelOption[] {
 function collectStringValues(options: ModelOption[]): Set<string> {
   const values = new Set<string>()
   for (const option of options) {
-    if (typeof option.value === 'string') values.add(option.value)
+    values.add(option.value)
   }
   return values
 }
@@ -234,7 +216,6 @@ export function resolvesToExistingOption(options: ModelOption[], candidate: stri
   const candidateResolved = resolveWithSuffix(candidate)
   for (const option of options) {
     const value = option.value
-    if (typeof value !== 'string') continue
     if (isSentinelValue(value)) continue
     if (value === candidate) continue
     if (resolveWithSuffix(value) === candidateResolved) return true
@@ -246,7 +227,7 @@ function dedupOneModelOneRow(options: ModelOption[]): ModelOption[] {
   const collected = collectStringValues(options)
   return options.filter(option => {
     const value = option.value
-    if (typeof value !== 'string' || isSentinelValue(value)) return true
+    if (isSentinelValue(value)) return true
     const bare = stripContext1m(value)
     const resolved = parseUserSpecifiedModel(bare)
     if (resolved === bare) return true
@@ -255,7 +236,7 @@ function dedupOneModelOneRow(options: ModelOption[]): ModelOption[] {
 }
 
 function pushIfAbsent(options: ModelOption[], row: ModelOption): void {
-  if (row.value !== null && options.some(existing => existing.value === row.value)) return
+  if (options.some(existing => existing.value === row.value)) return
   options.push(row)
 }
 
@@ -296,7 +277,6 @@ export function isProviderActionRow(value: string): boolean {
 export function applyModelAllowlist(options: ModelOption[]): ModelOption[] {
   if (getSettings_DEPRECATED().availableModels === undefined) return options
   return options.filter(opt => {
-    if (opt.value === null) return true
     if (isProviderActionRow(opt.value)) return true
     return isModelAllowed(opt.value)
   })
@@ -624,15 +604,10 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
 
   if (!(reads.anthropicCredentialed ?? liveAnthropicCredentialed)()) {
     const reason = anthropicNotSignedInReason()
-    const decision = computedDefault()
     options = options.map(opt =>
-      opt.group === undefined && opt.value === null
-        ? decision.source === 'keyless'
-          ? { ...opt, unavailable: keylessReason(decision) }
-          : opt
-        : opt.group === undefined && typeof opt.value === 'string' && !isSentinelValue(opt.value)
-          ? { ...opt, unavailable: reason }
-          : opt,
+      opt.group === undefined && !isSentinelValue(opt.value)
+        ? { ...opt, unavailable: reason }
+        : opt,
     )
     options.unshift({
       value: ANTHROPIC_CONNECT_OPTION_VALUE,
@@ -645,8 +620,8 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
 
   const SECTION_ORDER: readonly string[] = [
     OPENAI_MODEL_GROUP,
-    OPENROUTER_MODEL_GROUP,
     ANTHROPIC_MODEL_GROUP,
+    OPENROUTER_MODEL_GROUP,
     GEMINI_MODEL_GROUP,
     HUGGINGFACE_MODEL_GROUP,
     ZAI_MODEL_GROUP,
@@ -668,13 +643,8 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
   return options
 }
 
-export function getDefaultOptionForUser(): ModelOption {
-  return defaultRow()
-}
 
-
-export function focusedOptionSupports1m(value: string | null): boolean {
-  if (value === null) return false
+export function focusedOptionSupports1m(value: string): boolean {
   if (isCarrierShapedId(value)) return false
 
   const resolved = parseUserSpecifiedModel(stripContext1m(value))

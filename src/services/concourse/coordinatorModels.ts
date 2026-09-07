@@ -107,7 +107,7 @@ export async function composeCoordinatorModelRegistry(
   }
 
   for (const o of getModelOptions({ anthropicCredentialed: () => credentialed('anthropic') })) {
-    const v = typeof o.value === 'string' ? o.value : null
+    const v = o.value
     if (!v || v.startsWith('__')) continue
     const modelId = await canonicalCoordinatorModelId(v)
     if (seen.has(modelId)) continue

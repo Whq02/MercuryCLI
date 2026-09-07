@@ -12,7 +12,7 @@ import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { focusedOptionSupports1m, isProviderActionRow, stripContext1m, withContext1m } from '../utils/model/modelOptions.js'
 import { has1mContext } from '../utils/context.js'
-import { getDefaultMainLoopModel, parseUserSpecifiedModel } from '../utils/model/model.js'
+import { parseUserSpecifiedModel } from '../utils/model/model.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
 import { markTransitionEnd } from '../utils/observability/frictionStopwatch.js'
 import { getContextWindowForModel } from '../utils/context.js'
@@ -103,17 +103,17 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const focusedModel = i < models.length ? models[i] : undefined
   const hasEffort = !!(efforts && efforts.length)
   const ei = hasEffort ? Math.max(0, efforts!.indexOf(effort ?? '')) : 0
-  const probe = (m?: ModelChoice): string | null => m ? (m.id === 'default' ? getDefaultMainLoopModel() : m.id) : null
-  const ctxStateOf = (p: string | null): boolean => {
-    if (p !== null && parseGptModelId(p)) {
+  const ctxStateOf = (p: string | undefined): boolean => {
+    if (p === undefined) return false
+    if (parseGptModelId(p)) {
       return !(hasGptServedWindowSuffix(current) && stripGptServedWindowSuffix(current) === p)
     }
-    return has1mContext(p ?? '') || focusedOptionSupports1m(p)
+    return has1mContext(p) || focusedOptionSupports1m(p)
   }
-  const focusedSupports1m = focusedOptionSupports1m(probe(focusedModel))
-  const [context1m, setContext1m] = useState(ctxStateOf(probe(models[startI])))
+  const focusedSupports1m = focusedModel !== undefined && focusedOptionSupports1m(focusedModel.id)
+  const [context1m, setContext1m] = useState(ctxStateOf(models[startI]?.id))
   const focusedGptWindow = ((): { served: number; ceiling?: number; observed?: string } | null => {
-    const p = probe(focusedModel)
+    const p = focusedModel?.id
     if (!p || !parseGptModelId(p)) return null
     const live = liveGptContextWindow(p)
     const pin = gptDisplayPin(p)
@@ -129,7 +129,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const focusedGptToggle = focusedGptWindow?.ceiling !== undefined
   const [ctxNotice, setCtxNotice] = useState<string | null>(null)
   const focusedNative1m = ((): boolean => {
-    const p = probe(focusedModel)
+    const p = focusedModel?.id
     if (!p || focusedSupports1m || focusedGptWindow) return false
     try {
       return getContextWindowForModel(parseUserSpecifiedModel(stripContext1m(p)) as never) >= 1_000_000
@@ -140,7 +140,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const selectRow = (n: number): void => {
     setI(n)
     setCtxNotice(null)
-    if (n < models.length) setContext1m(ctxStateOf(probe(models[n])))
+    if (n < models.length) setContext1m(ctxStateOf(models[n]?.id))
   }
   const openDoor = (group: string): void => {
     const rows = composeCatalogueRows(listed, group, '', expandRowsRef.current?.(group) ?? [])
@@ -175,7 +175,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       if (m.gatedReason) setCtxNotice(`${m.gatedReason} — not selectable`)
       return
     }
-    const p = probe(m)
+    const p = m.id
     if (p && focusedOptionSupports1m(p)) {
       const base = stripContext1m(p)
       onSelect(context1m === has1mContext(p) ? m.id : (context1m ? withContext1m(base) : base))
@@ -215,7 +215,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     else if (rowAxis === 'last') { event.stopImmediatePropagation(); selectRow(totalRows - 1) }
     else if (effortAxis === 'moveLeft' && hasEffort) { event.stopImmediatePropagation(); onEffort?.(efforts![(ei - 1 + efforts!.length) % efforts!.length]) }
     else if (effortAxis === 'moveRight' && hasEffort) { event.stopImmediatePropagation(); onEffort?.(efforts![(ei + 1) % efforts!.length]) }
-    else if (input === 'c' && !key.ctrl && !key.meta && focusedOptionSupports1m(probe(focusedModel))) {
+    else if (input === 'c' && !key.ctrl && !key.meta && focusedSupports1m) {
       if (!pastOpenEvent()) return
       event.stopImmediatePropagation()
       setContext1m(v => !v)

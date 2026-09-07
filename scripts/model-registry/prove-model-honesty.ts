@@ -63,7 +63,6 @@ const {
   keyConnectValue,
   GPT_CONNECT_OPTION_VALUE,
 } = await import('../../src/utils/model/modelOptions.ts')
-const { NO_SIGN_IN_REASON } = await import('../../src/utils/model/computedDefault.ts')
 const { composeSubModelRegistry } = await import('../../src/utils/model/subModelSlots.ts')
 const { composeCoordinatorModelRegistry } = await import('../../src/services/concourse/coordinatorModels.ts')
 const { composeWorkerModelRegistry } = await import('../../src/services/concourse/workerModels.ts')
@@ -105,9 +104,9 @@ function setOpenai(present: boolean): void {
 }
 
 const anthropicRows = (options: ModelOption[]): ModelOption[] =>
-  options.filter(o => o.group === undefined && !(typeof o.value === 'string' && isProviderActionRow(o.value)))
+  options.filter(o => o.group === undefined && !(isProviderActionRow(o.value)))
 const gptModelRows = (options: ModelOption[]): ModelOption[] =>
-  options.filter(o => o.group === OPENAI_MODEL_GROUP && typeof o.value === 'string' && !isProviderActionRow(o.value))
+  options.filter(o => o.group === OPENAI_MODEL_GROUP && !isProviderActionRow(o.value))
 const gptActionRow = (options: ModelOption[]): ModelOption | undefined =>
   options.find(o => o.value === GPT_CONNECT_OPTION_VALUE)
 
@@ -123,8 +122,7 @@ section('§1 the Anthropic group carries the same law as every other family')
   check('absent ⇒ the sign-in action starts the Anthropic section', gated.find(o => o.group === undefined)?.value === ANTHROPIC_CONNECT_OPTION_VALUE)
   check('the sentinel is an ACTION (isProviderActionRow), never a model', isProviderActionRow(ANTHROPIC_CONNECT_OPTION_VALUE))
   const rows = anthropicRows(gated)
-  check('absent ⇒ the whole Anthropic lineup visible-but-unavailable with the one reason', rows.length >= 3 && rows.filter(o => o.value !== null).every(o => o.unavailable === reason), JSON.stringify(rows.map(o => [o.value, o.unavailable])))
-  check('absent, no other sign-in ⇒ the Default row is gated with the neutral no-sign-in words', rows.find(o => o.value === null)?.unavailable === NO_SIGN_IN_REASON, String(rows.find(o => o.value === null)?.unavailable))
+  check('absent ⇒ the whole Anthropic lineup visible-but-unavailable with the one reason', rows.length >= 3 && rows.every(o => o.unavailable === reason), JSON.stringify(rows.map(o => [o.value, o.unavailable])))
   check('absent ⇒ the Fable row is gated like every other row (no favoured row)', rows.find(o => typeof o.value === 'string' && /fable/i.test(o.value))?.unavailable === reason)
   const free = getModelOptions({ anthropicCredentialed: () => true })
   check('credentialed ⇒ no action row', !free.some(o => o.value === ANTHROPIC_CONNECT_OPTION_VALUE))
@@ -139,20 +137,21 @@ section('§2 the four account states — the rows each family paints on /model')
       setOpenai(openai)
       const tag = `anthropic ${anthropic ? 'in' : 'out'} · openai ${openai ? 'in' : 'out'}`
       const options = getModelOptions({ anthropicCredentialed: () => anthropic })
+      check(`[${tag}] every option names a model or an action, never a recommended default`, options.every(o => typeof o.value === 'string' && o.value !== 'default' && o.label !== 'Recommended'), JSON.stringify(options.filter(o => o.value === null || o.label === 'Recommended')))
       const groups = options.map(o => o.group ?? ANTHROPIC_MODEL_GROUP).filter((group, i, all) => i === 0 || group !== all[i - 1])
       const expectedGroups = [
-        OPENAI_MODEL_GROUP, 'Mercury — OpenRouter models', ANTHROPIC_MODEL_GROUP,
+        OPENAI_MODEL_GROUP, ANTHROPIC_MODEL_GROUP, 'Mercury — OpenRouter models',
         'Mercury — Gemini models', 'Mercury — Hugging Face models', 'Mercury — Z.AI models',
         'Mercury — Moonshot models', 'Mercury — DeepSeek models', 'Mercury — custom endpoint', 'Mercury — local models',
       ]
-      check(`[${tag}] the first sections are OpenAI, OpenRouter, Anthropic`, JSON.stringify(groups.slice(0, 3)) === JSON.stringify(expectedGroups.slice(0, 3)), JSON.stringify(groups))
+      check(`[${tag}] the first sections are OpenAI, Anthropic, OpenRouter`, JSON.stringify(groups.slice(0, 3)) === JSON.stringify(expectedGroups.slice(0, 3)), JSON.stringify(groups))
       check(`[${tag}] every provider section is contiguous and retains its order`, new Set(groups).size === groups.length && JSON.stringify(groups) === JSON.stringify(expectedGroups.filter(group => groups.includes(group))), JSON.stringify(groups))
       const anth = anthropicRows(options)
       check(
-        `[${tag}] Anthropic rows ${anthropic ? 'selectable' : 'gated — not signed in — /logins anthropic; the Recommended row: the neutral no-sign-in words'}`,
+        `[${tag}] Anthropic rows ${anthropic ? 'selectable' : 'unavailable — not signed in — /logins anthropic'}`,
         anthropic
           ? anth.every(o => o.unavailable === undefined)
-          : anth.every(o => (o.value === null ? o.unavailable === NO_SIGN_IN_REASON : o.unavailable === anthropicNotSignedInReason())),
+          : anth.every(o => o.unavailable === anthropicNotSignedInReason()),
         JSON.stringify(anth.map(o => [o.value, o.unavailable])),
       )
       check(`[${tag}] the Anthropic sign-in row ${anthropic ? 'absent' : 'present'}`, options.some(o => o.value === ANTHROPIC_CONNECT_OPTION_VALUE) === !anthropic)
@@ -257,7 +256,7 @@ section('§5 the REAL owner, no injection — the scrubbed home gates; a credent
 {
   check('the scrubbed home holds no Anthropic credential (the owner)', anthropicCredentialPresence().credentialed === false)
   const gated = getModelOptions()
-  check('the real read gates every Anthropic row (the Recommended row with the neutral no-sign-in words — no usable sign-in anywhere in this home)', anthropicRows(gated).every(o => (o.value === null ? o.unavailable === NO_SIGN_IN_REASON : o.unavailable === anthropicNotSignedInReason())) && gated.find(o => o.group === undefined)?.value === ANTHROPIC_CONNECT_OPTION_VALUE)
+  check('without a credential, every Anthropic model is unavailable and sign-in is offered first', anthropicRows(gated).every(o => o.unavailable === anthropicNotSignedInReason()) && gated.find(o => o.group === undefined)?.value === ANTHROPIC_CONNECT_OPTION_VALUE)
   const registry = await composeCoordinatorModelRegistry()
   check("the coordinator picker reads the same home 'not-signed-in — /logins anthropic'", registry.entries.filter(e => e.source === 'anthropic').every(e => e.availability === 'not-signed-in' && e.detail === '/logins anthropic'))
   const subs = composeSubModelRegistry()
@@ -267,6 +266,7 @@ section('§5 the REAL owner, no injection — the scrubbed home gates; a credent
   clearOAuthTokenCache()
   check('a file-backed subscription credential reads present through the owner', anthropicCredentialPresence().credentialed === true && anthropicCredentialPresence().credentialLabel === 'Claude subscription (max)', JSON.stringify(anthropicCredentialPresence()))
   const free = getModelOptions()
+  check('premium accounts also list only models and actions', free.every(o => typeof o.value === 'string' && o.value !== 'default' && o.label !== 'Recommended'))
   check('…and the very next read frees every Anthropic row, the action row gone', anthropicRows(free).every(o => o.unavailable === undefined) && !free.some(o => o.value === ANTHROPIC_CONNECT_OPTION_VALUE), JSON.stringify(anthropicRows(free).filter(o => o.unavailable).map(o => o.value)))
   const freed = await composeCoordinatorModelRegistry()
   check("…the coordinator picker reads 'ready' on the same read", freed.entries.filter(e => e.source === 'anthropic').every(e => e.availability === 'ready'), JSON.stringify(freed.entries.filter(e => e.source === 'anthropic').map(e => [e.modelId, e.availability])))
@@ -305,11 +305,7 @@ section('§7 the neutral catalog grammar — one description rule, vendor-blind,
   const violations = (options: ModelOption[]): string[] => {
     const out: string[] = []
     for (const o of options) {
-      if (typeof o.value === 'string' && isProviderActionRow(o.value)) continue
-      if (o.value === null) {
-        if (!/^Default \(.+\)$/.test(o.description)) out.push(`null:${o.description}`)
-        continue
-      }
+      if (isProviderActionRow(o.value)) continue
       if (o.description !== '') out.push(`${o.value}:${o.description}`)
     }
     return out
