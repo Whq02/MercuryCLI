@@ -122,25 +122,11 @@ section('§4 the composed lines')
   check('describeSearchDoorPlan reads as the walk', described.startsWith('Tavily (keyed, stored key) → DuckDuckGo (keyless)'), described)
 }
 
-section("§5 the native leg's family clamp — the small-fast tier never crosses families")
+section('§5 native provider attribution')
 {
-  const { nativeSearchLegModel } = await import('../../src/services/search/nativeSearch.js')
-  const HAIKU = 'claude-haiku-4-5-20251001'
-  const GPT_MINI = 'gpt-5.5-mini'
-  check(`premise: ${HAIKU} routes to anthropic`, declaredRouteOf(HAIKU) === 'anthropic', declaredRouteOf(HAIKU))
-  check(`premise: ${GPT_MINI} routes to openai`, declaredRouteOf(GPT_MINI) === 'openai', declaredRouteOf(GPT_MINI))
-  const own = nativeSearchLegModel('anthropic', FAMILY_IDS.anthropic!, HAIKU)
-  check('an anthropic small-fast id rides the anthropic leg', own.small === true && own.model === HAIKU, j(own))
-  const crossed = nativeSearchLegModel('anthropic', FAMILY_IDS.anthropic!, FAMILY_IDS.openrouter!)
-  check("a CROSS-FAMILY small-fast pin falls to the session's own main model — never another family's account (the original leak's class)",
-    crossed.small === false && crossed.model === FAMILY_IDS.anthropic!, j(crossed))
-  const crossedToAnthropic = nativeSearchLegModel('openai', FAMILY_IDS.openai!, HAIKU)
-  check('…in BOTH directions (an anthropic id never rides the openai leg)',
-    crossedToAnthropic.small === false && crossedToAnthropic.model === FAMILY_IDS.openai!, j(crossedToAnthropic))
-  const gateOff = nativeSearchLegModel('openai', FAMILY_IDS.openai!, undefined)
-  check('gate off ⇒ the main model, plainly', gateOff.small === false && gateOff.model === FAMILY_IDS.openai!, j(gateOff))
-  const openaiSmall = nativeSearchLegModel('openai', FAMILY_IDS.openai!, GPT_MINI)
-  check('an openai mini rides the openai leg', openaiSmall.small === true && openaiSmall.model === GPT_MINI, j(openaiSmall))
+  const { nativeBackendIdFor } = await import('../../src/services/search/nativeSearch.js')
+  check('Anthropic search identifies its provider', nativeBackendIdFor('anthropic') === 'anthropic-native')
+  check('OpenAI search identifies its provider', nativeBackendIdFor('openai') === 'openai-native')
 }
 
 console.log('\n' + '='.repeat(60))

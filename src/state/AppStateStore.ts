@@ -330,7 +330,7 @@ export function getDefaultAppState(): AppState {
     speculationSessionTimeSavedMs: 0,
 
     promptSuggestion: { text: null, promptId: null, shownAt: 0, acceptedAt: 0 },
-    promptSuggestionEnabled: computePromptSuggestionEnabled(),
+    promptSuggestionEnabled: false,
 
     pendingWorkerRequest: null,
 
@@ -351,18 +351,6 @@ function computeAssistantMode(): boolean {
       isAssistantModeActive?: () => boolean
     }
     return owner.isAssistantModeActive?.() ?? false
-  } catch {
-    return false
-  }
-}
-
-function computePromptSuggestionEnabled(): boolean {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const suggestion = require('../services/PromptSuggestion/promptSuggestion.js') as {
-      shouldEnablePromptSuggestion?: () => boolean
-    }
-    return suggestion.shouldEnablePromptSuggestion?.() ?? false
   } catch {
     return false
   }
