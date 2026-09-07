@@ -120,7 +120,7 @@ export function agentPulse(a: AgentPulseInput, nowMs: number): AgentPulse {
   if (a.state === 'start') return a.waitWords !== undefined && a.waitWords !== '' ? { kind: 'queued', words: a.waitWords } : { kind: 'queued' }
   if (a.state !== 'progress') return { kind: 'settled' }
   if (a.waiting === 'seat') return { kind: 'seat', words: a.waitWords ?? 'waiting for a seat' }
-  if (a.waiting === 'usage-window') return { kind: 'usage-window', words: a.waitWords ?? 'waiting for the usage window' }
+  if (a.waiting === 'usage-window') return { kind: 'usage-window', words: a.waitWords ?? 'paused — waiting for the usage window' }
   const toolLine = a.lastToolName
     ? `${a.lastToolName}(${a.lastToolSummary ?? ''})`
     : undefined

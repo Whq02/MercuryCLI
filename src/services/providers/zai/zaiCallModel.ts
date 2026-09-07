@@ -17,6 +17,8 @@ import type {
 } from '../../../types/message.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
 import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
+import { providerWaitIsWindow, stampProviderWait } from '../../api/recoveryBudget.js'
+import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
 import { EMPTY_USAGE } from '../../api/emptyUsage.js'
@@ -292,11 +294,22 @@ export async function* zaiCallModel(
       return
     }
     if (outcome.kind === 'cancelled') return
+    const askedMs = outcome.fault.retryAfterMs
     const retryable =
-      outcome.retryEligible && outcome.fault.retryable && attempt < ZAI_MAX_ATTEMPTS
+      !providerWaitIsWindow(askedMs) && outcome.retryEligible && outcome.fault.retryable && attempt < ZAI_MAX_ATTEMPTS
     if (retryable) {
+      const delayMs = Math.max(ZAI_RETRY_BACKOFF_MS * attempt, askedMs ?? 0)
+      yield createSystemAPIErrorMessage(
+        Object.assign(new Error(outcome.fault.message), {
+          ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
+          ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
+        }),
+        delayMs,
+        attempt,
+        ZAI_MAX_ATTEMPTS - 1,
+      )
       await new Promise(resolve => {
-        const t = setTimeout(resolve, ZAI_RETRY_BACKOFF_MS * attempt)
+        const t = setTimeout(resolve, delayMs)
         ;(t as any).unref?.()
       })
       if (signal.aborted) return
@@ -309,11 +322,14 @@ export async function* zaiCallModel(
         remedy: ZAI_FAULT_PROFILE.billingRemedy,
       })
     }
-    yield apiErrorMessage(
-      compatTerminalFaultText(ZAI_FAULT_PROFILE, outcome.fault, typed),
-      typed,
-      outcome.fault.code,
-      overflowOf(outcome.fault),
+    yield stampProviderWait(
+      apiErrorMessage(
+        compatTerminalFaultText(ZAI_FAULT_PROFILE, outcome.fault, typed),
+        typed,
+        outcome.fault.code,
+        overflowOf(outcome.fault),
+      ),
+      outcome.fault.retryAfterMs,
     )
     return
   }

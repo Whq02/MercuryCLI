@@ -981,6 +981,70 @@ if (!existsSync(DIST)) {
       check('§9 no drop notice in the transcript', !transcriptNotices(arena, SID).some(t => t.includes('dropped')), j(transcriptNotices(arena, SID)))
       await fixture.close()
     }
+
+    section("§10 a three-agent dispatch — the sent tool_use blocks are byte-identical on every later request of the main, whatever the launches resolved")
+    for (const background of [true, false]) {
+      const FABLE = 'claude-opus-5'
+      const SEAT_ALIAS = 'sonnet'
+      const SEAT = 'claude-sonnet-5'
+      const tag = background ? 'background' : 'foreground'
+      const seatCall = (n: number): { name: string; input: Record<string, unknown> } => ({
+        name: 'Agent',
+        input: { description: `prefix-wave-${n}`, prompt: `prefix-wave: report one line and stop (${n})`, subagent_type: 'mercury-general', run_in_background: background, model: SEAT_ALIAS },
+      })
+      const turns: ScriptedTurn[] = [
+        { kind: 'paced_tool_use', preDeltas: ['Dispatching the first wave of three agents.'], gapMs: 0, tools: [seatCall(1), seatCall(2), seatCall(3)], whenModel: 'opus' },
+        { kind: 'text', text: 'S10-DISPATCHED', thinking: 's10 dispatched', model: FABLE, whenModel: 'opus' },
+        { kind: 'text', text: 'S10-NOTED-1', thinking: 's10 noted one', model: FABLE, whenModel: 'opus' },
+        { kind: 'text', text: 'S10-NOTED-2', thinking: 's10 noted two', model: FABLE, whenModel: 'opus' },
+        { kind: 'text', text: 'S10-NOTED-3', thinking: 's10 noted three', model: FABLE, whenModel: 'opus' },
+        { kind: 'text', text: 'S10-NOTED-4', thinking: 's10 noted four', model: FABLE, whenModel: 'opus' },
+        { kind: 'text', text: 'S10-NOTED-5', thinking: 's10 noted five', model: FABLE, whenModel: 'opus' },
+        { kind: 'text', text: 'S10-NOTED-6', thinking: 's10 noted six', model: FABLE, whenModel: 'opus' },
+        { kind: 'text', text: 'S10-SEAT-DONE', thinking: 'seat done', model: SEAT, whenModel: 'sonnet' },
+        { kind: 'text', text: 'S10-SEAT-DONE', thinking: 'seat done', model: SEAT, whenModel: 'sonnet' },
+        { kind: 'text', text: 'S10-SEAT-DONE', thinking: 'seat done', model: SEAT, whenModel: 'sonnet' },
+      ]
+      const fixture = await startFixtureApi(turns, { bindingCheck: true })
+      const arena = makeArena(fixture, { MERCURY_THINKING_BINDING: 'error' })
+      const SID = background ? 'c0ffee00-0000-4000-8000-00000000c10a' : 'c0ffee00-0000-4000-8000-00000000c10b'
+      const debugFile = join(arena.home, `s10-${tag}.debug.log`)
+      const r = await runStreaming(
+        arena,
+        ['-p', '--input-format', 'stream-json', '--model', FABLE, '--dangerously-bypass-permissions', '--output-format', 'stream-json', '--session-id', SID, '--debug-file', debugFile],
+        [{ prompt: 'dispatch three agents and carry on' }, { prompt: 'and now say noted' }],
+      )
+      check(`§10 ${tag}: the process exits 0`, r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
+      check(`§10 ${tag}: the main answered after the dispatch`, r.stdout.includes('S10-DISPATCHED'), r.stdout.slice(0, 300))
+      const debugText = (() => { try { return readFileSync(debugFile, 'utf8') } catch { return '' } })()
+      const reqs = fixture.messageRequests()
+      const modelOf = (q: { body: unknown }): string => String((q.body as Body).model ?? '')
+      const mainReqs = reqs.filter(q => modelOf(q).includes('opus'))
+      const seatReqs = reqs.filter(q => modelOf(q).includes('sonnet'))
+      console.log(`    §10 ${tag} wire order: ${reqs.map((q, i) => `${i + 1}:${modelOf(q).includes('sonnet') ? 'seat' : 'main'}`).join(' ')}`)
+      check(`§10 ${tag}: three seat requests and at least three from the main (the dispatch, the answer after the launches, the notices)`, seatReqs.length === 3 && mainReqs.length >= 3, `main ${mainReqs.length}; seat ${seatReqs.length}`)
+      const dispatchRowOf = (q: { body: unknown }): { index: number; row: unknown } | null => {
+        const messages = ((q.body as Body).messages ?? []) as Array<{ role?: string; content?: unknown }>
+        for (let i = 0; i < messages.length; i++) {
+          const m = messages[i]!
+          if (m.role !== 'assistant' || !Array.isArray(m.content)) continue
+          const tools = m.content.filter(b => (b as { type?: string }).type === 'tool_use' && (b as { name?: string }).name === 'Agent')
+          if (tools.length === 3) return { index: i, row: m }
+        }
+        return null
+      }
+      const dispatchRows = mainReqs.slice(1).map(dispatchRowOf)
+      check(`§10 ${tag}: every main request after the dispatch carries the dispatch row (three Agent tool_use blocks)`, dispatchRows.length >= 2 && dispatchRows.every(d => d !== null), j(dispatchRows.map(d => d?.index ?? null)))
+      const bytesOf = (row: unknown): string => j(withoutCacheControl(row))
+      const first = dispatchRows[0] !== null ? bytesOf(dispatchRows[0]!.row) : ''
+      const moved = dispatchRows.map((d, i) => (d === null ? `#${i + 2}: absent` : bytesOf(d.row) === first ? null : `#${i + 2}: ${firstDiff(first, bytesOf(d.row))}`)).filter((x): x is string => x !== null)
+      check(`§10 ${tag}: the dispatch row is byte-identical on every later request — the launches resolved nothing INTO the sent blocks`, moved.length === 0, moved.join(' | '))
+      const inputsOf = (row: unknown): string[] => ((row as { content?: Array<{ type?: string; input?: unknown }> }).content ?? []).filter(b => b.type === 'tool_use').map(b => j(b.input))
+      check(`§10 ${tag}: each tool_use input keeps the exact keys the model sent (no resolved type, model or effort added; no key reordered)`, dispatchRows.every(d => d !== null && inputsOf(d.row).every(input => input === j(seatCall(1).input).replace('prefix-wave-1', input.includes('prefix-wave-2') ? 'prefix-wave-2' : input.includes('prefix-wave-3') ? 'prefix-wave-3' : 'prefix-wave-1').replace('(1)', input.includes('(2)') ? '(2)' : input.includes('(3)') ? '(3)' : '(1)'))), j(dispatchRows[0] !== null ? inputsOf(dispatchRows[0]!.row) : []))
+      census(`§10 ${tag} the main`, mainReqs, true)
+      check(`§10 ${tag}: the API-faithful fixture REFUSED nothing under the error behaviour and no drop notice rode`, fixture.refusals.length === 0 && !debugText.includes('thinking_dropped') && !r.stdout.includes('thinking_dropped') && !debugText.includes('names a rewrite of sent history'), j(fixture.refusals) + ' ' + (debugText.includes('names a rewrite') ? 'ledger named a rewrite' : ''))
+      await fixture.close()
+    }
   }
 }
 

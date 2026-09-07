@@ -950,13 +950,14 @@ export const AgentTool = buildTool({
 
     if (status === 'failed') {
       const partialBlocks = data.content ?? []
+      const paused = typeof data.error === 'string' && data.error.startsWith('paused — ')
       const blocks: Array<{ type: 'text'; text: string }> =
         partialBlocks.length > 0
           ? [...partialBlocks]
           : [
               {
                 type: 'text' as const,
-                text: 'The subagent failed before returning any output.',
+                text: paused ? 'The subagent paused before returning any output.' : 'The subagent failed before returning any output.',
               },
             ]
       const failedTrailer = [

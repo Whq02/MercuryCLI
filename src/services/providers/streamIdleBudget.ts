@@ -178,6 +178,19 @@ export class StreamIdleTimeoutError extends Error {
   }
 }
 
+export function streamIdleFaultWords(idleMs: number): string {
+  const budget = idleMs >= 1000 ? idleSeconds(idleMs) : `${idleMs} ms`
+  return `no bytes for ${budget} — the stream went quiet (no keep-alive arrived) and the watchdog cut it`
+}
+
+const idleSeconds = (ms: number): string => {
+  const s = Math.max(0, Math.round(ms / 1000))
+  if (s < 60) return `${s} s`
+  const m = Math.floor(s / 60)
+  const rest = s % 60
+  return rest === 0 ? `${m}m` : `${m}m ${rest}s`
+}
+
 export interface StreamIdleWatchdog {
   noteActivity(): void
   stop(): void

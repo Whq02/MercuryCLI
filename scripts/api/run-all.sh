@@ -3,6 +3,7 @@ __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-anthro
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-openai.ts" || fail=1; prover_mark "scripts/api/prove-patience-road-openai.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-openaicompat.ts" || fail=1; prover_mark "scripts/api/prove-patience-road-openaicompat.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-zai.ts" || fail=1; prover_mark "scripts/api/prove-patience-road-zai.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-window-retry.ts" || fail=1; prover_mark "scripts/api/prove-window-retry.ts" "$__t"
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/providers/anthropic/** src/services/api/client* src/services/api/transportEvidence*

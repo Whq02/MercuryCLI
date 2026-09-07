@@ -17,6 +17,7 @@ import {
   firstByteTimeoutLine,
   streamIdleTimeoutMs,
   StreamIdleTimeoutError,
+  streamIdleFaultWords,
   type RequestWaitV1,
   type StreamIdleWatchdog,
 } from '../streamIdleBudget.js'
@@ -157,7 +158,7 @@ export async function* streamOpenaiResponses(
           fault: cancelled
             ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled mid-stream', retryable: false }
             : isIdle
-              ? { kind: 'timeout', code: 'idle-timeout', message: `no bytes for ${idleMs}ms`, retryable: true }
+              ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
               : {
                   kind: 'transport-error',
                   code: 'read-failed',
