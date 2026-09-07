@@ -37,7 +37,6 @@ import { hasEmbeddedSearchTools } from '../embeddedTools.js'
 import { formatFileSize, formatNumber } from '../format.js'
 import { logMCPDebug } from '../log.js'
 import {
-  getPewterLedgerVariant,
   getPlanModeV2AgentCount,
   getPlanModeV2ExploreAgentCount,
   isPlanModeInterviewPhaseEnabled,
@@ -75,7 +74,6 @@ function getPlanModeInstructions(attachment: {
   return getPlanModeV2Instructions(attachment)
 }
 
-
 export const PLAN_PHASE4_CONTROL = `### Phase 4: Final Plan
 Goal: finish the plan file (still the only file you may edit).
 - Open with a **Context** section: the problem or need behind the change, what prompted it, and the outcome it should produce
@@ -84,48 +82,6 @@ Goal: finish the plan file (still the only file you may edit).
 - Name the critical files the work will touch
 - Point at the existing functions and utilities you found worth reusing, each with its file path
 - Close with a verification section: how to prove the change works end to end (run the code, drive MCP tools, run the tests)`
-
-const PLAN_PHASE4_TRIM = `### Phase 4: Final Plan
-Goal: finish the plan file (still the only file you may edit).
-- **Context** in one line: what changes and why
-- Present one recommended approach — alternatives stay out
-- List the files the work will touch
-- Point at the existing functions and utilities worth reusing, with file paths
-- Close with **Verification**: the one command that proves the change works (no numbered test procedures)`
-
-const PLAN_PHASE4_CUT = `### Phase 4: Final Plan
-Goal: finish the plan file (still the only file you may edit).
-- No Context or Background section — the user just told you what they want
-- One line per file: which file, what changes in it
-- Point at the existing functions and utilities worth reusing, with file paths
-- Close with **Verification**: the one command that proves the change works
-- Most good plans fit in 40 lines; prose past that is padding`
-
-const PLAN_PHASE4_CAP = `### Phase 4: Final Plan
-Goal: finish the plan file (still the only file you may edit).
-- No Context, Background, or Overview section — the user just told you what they want
-- Never restate the request; never write prose paragraphs
-- One bullet per file: which file, what changes in it
-- Point at existing functions to reuse, as file:line
-- Close with the one verification command
-- **Hard limit: 40 lines.** Over it, cut prose — never file paths.`
-
-function getPlanPhase4Section(): string {
-  const variant = getPewterLedgerVariant()
-  switch (variant) {
-    case 'trim':
-      return PLAN_PHASE4_TRIM
-    case 'cut':
-      return PLAN_PHASE4_CUT
-    case 'cap':
-      return PLAN_PHASE4_CAP
-    case null:
-      return PLAN_PHASE4_CONTROL
-    default:
-      variant satisfies never
-      return PLAN_PHASE4_CONTROL
-  }
-}
 
 function getPlanModeV2Instructions(attachment: {
   isSubAgent?: boolean
@@ -203,7 +159,7 @@ Goal: check the Phase 2 output against what the user actually asked for.
 2. Confirm the plan serves the original request
 3. Put any open questions to the user through ${ASK_USER_QUESTION_TOOL_NAME}
 
-${getPlanPhase4Section()}
+${PLAN_PHASE4_CONTROL}
 
 ### Phase 5: Call ${ExitPlanModeV2Tool.name}
 When the questions are asked and the plan file satisfies you, end your turn by calling ${ExitPlanModeV2Tool.name} — that is how the user learns planning is done.
