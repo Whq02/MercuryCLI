@@ -13,12 +13,6 @@ import { setHasExitedPlanMode, setNeedsAutoModeExitAttachment } from '../../boot
 import { isAutopilotEnabled } from '../autopilot/autopilotGates.js'
 import { logForDebugging } from '../debug.js'
 import { holdModeTransition, recordModeTransition, type ModeTransitionRoad } from './modeTransitions.js'
-import {
-  checkFeatureGate_CACHED_MAY_BE_STALE,
-  checkSecurityRestrictionGate,
-  getDynamicConfig_BLOCKS_ON_INIT,
-  getDynamicConfig_CACHED_MAY_BE_STALE,
-} from '../../services/analytics/featureGates.js'
 import { getMainLoopModel } from '../model/model.js'
 import { modelSupportsAutoMode } from '../betas.js'
 import {
@@ -386,21 +380,8 @@ export function validateModeEntry(mode: PermissionMode, context: ToolPermissionC
 }
 
 
-type AutoModeConfig = {
-  enabled?: 'enabled' | 'disabled' | 'opt-in'
-  forceExternalPermissions?: boolean
-}
-
-const AUTO_MODE_CONFIG_KEY = 'mercury_auto_mode_config'
-
-const AUTO_MODE_ENABLED_DEFAULT: AutoModeEnabledState = 'disabled'
-
 const autoModeStateModule =
   (require('./autoModeState.js') as typeof import('./autoModeState.js') | null) ?? null
-
-function getCachedAutoModeConfigIfPresent(): AutoModeConfig | undefined {
-  return getDynamicConfig_CACHED_MAY_BE_STALE<AutoModeConfig | undefined>(AUTO_MODE_CONFIG_KEY, undefined)
-}
 
 function isAutoModeDisabledBySettings(): boolean {
   const settings = getSettings_DEPRECATED() as { permissions?: { disableFlowMode?: boolean } }
@@ -409,7 +390,6 @@ function isAutoModeDisabledBySettings(): boolean {
 
 export function isAutoModeGateEnabled(): boolean {
   if (isAutoModeCircuitBroken()) return false
-  if (getAutoModeEnabledStateIfCached() === 'disabled') return false
   if (isAutoModeDisabledBySettings()) return false
   return true
 }
@@ -419,7 +399,6 @@ export type AutoModeUnavailableReason = 'settings' | 'circuit-breaker' | 'model'
 export function getAutoModeUnavailableReason(): AutoModeUnavailableReason | null {
   if (isAutoModeDisabledBySettings()) return 'settings'
   if (isAutoModeCircuitBroken()) return 'circuit-breaker'
-  if (getAutoModeEnabledStateIfCached() === 'disabled') return 'circuit-breaker'
   return null
 }
 
@@ -434,21 +413,6 @@ export function getAutoModeUnavailableNotification(reason: AutoModeUnavailableRe
   }
 }
 
-export type AutoModeEnabledState = 'enabled' | 'disabled' | 'opt-in'
-
-export function getAutoModeEnabledState(): AutoModeEnabledState {
-  const cached = getCachedAutoModeConfigIfPresent()
-  const value = cached?.enabled
-  return value === 'enabled' || value === 'opt-in' ? value : AUTO_MODE_ENABLED_DEFAULT
-}
-
-export function getAutoModeEnabledStateIfCached(): AutoModeEnabledState | undefined {
-  const cached = getCachedAutoModeConfigIfPresent()
-  if (!cached) return undefined
-  const value = cached.enabled
-  return value === 'enabled' || value === 'opt-in' ? value : 'disabled'
-}
-
 export function hasAutoModeOptInAnySource(): boolean {
   return getAutoModeFlagCli() || hasAutoModeOptIn()
 }
@@ -461,15 +425,14 @@ export type AutoModeGateCheckResult = {
 export async function verifyAutoModeGateAccess(
   currentContext: ToolPermissionContext,
 ): Promise<AutoModeGateCheckResult> {
-  const config = await getDynamicConfig_BLOCKS_ON_INIT<AutoModeConfig | undefined>(AUTO_MODE_CONFIG_KEY, undefined)
   const disabledBySettings = isAutoModeDisabledBySettings()
-  const circuitBroken = config?.enabled === 'disabled' || disabledBySettings
+  const circuitBroken = disabledBySettings
   autoModeStateModule?.setAutoModeCircuitBroken(circuitBroken)
 
   const modelSupported = modelSupportsAutoMode(getMainLoopModel())
   const optedIn = hasAutoModeOptInAnySource()
   const carouselAvailable =
-    !circuitBroken && !disabledBySettings && modelSupported && (config?.enabled === 'enabled' || optedIn)
+    !disabledBySettings && modelSupported && optedIn
 
   logForDebugging(
     `auto mode gate: circuitBroken=${circuitBroken} settingsDisabled=${disabledBySettings} modelSupported=${modelSupported} optedIn=${optedIn} → carousel=${carouselAvailable}`,
@@ -478,18 +441,14 @@ export async function verifyAutoModeGateAccess(
   const wasAuto = currentContext.mode === 'flow'
   const wasPlanWithAuto = currentContext.mode === 'strategy' && isAutoModeActive()
 
-  const explicitAvailable = !circuitBroken && !disabledBySettings && modelSupported
+  const explicitAvailable = !disabledBySettings && modelSupported
   if (explicitAvailable) {
     return {
       updateContext: context => setAutoAvailability(context, carouselAvailable),
     }
   }
 
-  const reason: AutoModeUnavailableReason = disabledBySettings
-    ? 'settings'
-    : circuitBroken
-      ? 'circuit-breaker'
-      : 'model'
+  const reason: AutoModeUnavailableReason = disabledBySettings ? 'settings' : 'model'
   logForDebugging(`auto mode unavailable: ${reason}`)
 
   const notification =
@@ -524,8 +483,6 @@ function kickOutOfAuto(context: ToolPermissionContext, available: boolean): Tool
 }
 
 
-const BYPASS_DISABLE_GATE = 'mercury_disable_bypass_permissions_mode'
-
 function isBypassDisabledBySettingsOrPolicy(): boolean {
   const settings = getSettings_DEPRECATED() as { permissions?: { disableSovereignMode?: boolean } }
   return settings.permissions?.disableSovereignMode === true
@@ -544,23 +501,6 @@ export function createDisabledBypassPermissionsContext(
     next = { ...(next as object), mode: 'default' } as ToolPermissionContext
   }
   return { ...(next as object), isBypassPermissionsModeAvailable: false } as ToolPermissionContext
-}
-
-export async function checkAndDisableBypassPermissions(context: ToolPermissionContext): Promise<void> {
-  if (!(context as { isBypassPermissionsModeAvailable?: boolean }).isBypassPermissionsModeAvailable) return
-  if (await checkSecurityRestrictionGate(BYPASS_DISABLE_GATE)) {
-    logForDebugging('bypass permissions disabled by org policy; shutting down')
-    try {
-      const { gracefulShutdown } = await import('../gracefulShutdown.js')
-      await gracefulShutdown(1, 'bypass_permissions_disabled')
-    } catch {
-      process.exit(1)
-    }
-  }
-}
-
-export async function shouldDisableBypassPermissions(): Promise<boolean> {
-  return checkSecurityRestrictionGate(BYPASS_DISABLE_GATE)
 }
 
 
@@ -609,13 +549,7 @@ export function initialPermissionModeFromCLI({
   const settingsMode = settingsDefaultMode()
   if (settingsMode) candidates.push(settingsMode)
 
-  const gateDisablesSovereign = checkFeatureGate_CACHED_MAY_BE_STALE(
-    'mercury_disable_bypass_permissions_mode',
-  )
-  const settingDisablesSovereign = isBypassDisabledBySettingsOrPolicy()
-  const sovereignDisabled =
-    gateDisablesSovereign || settingDisablesSovereign
-  const orgPolicyNotice = 'Sovereign Mode has been disabled by your organization.'
+  const sovereignDisabled = isBypassDisabledBySettingsOrPolicy()
   const settingsNotice = 'Sovereign Mode has been disabled by your settings.'
 
   let notification: string | undefined
@@ -623,7 +557,7 @@ export function initialPermissionModeFromCLI({
   for (const candidate of candidates) {
     if (candidate === 'sovereign') {
       if (sovereignDisabled) {
-        notification = gateDisablesSovereign ? orgPolicyNotice : settingsNotice
+        notification = settingsNotice
         continue
       }
       if (!dangerouslySkipPermissions) {
@@ -638,7 +572,7 @@ export function initialPermissionModeFromCLI({
         continue
       }
       if (sovereignDisabled) {
-        notification = gateDisablesSovereign ? orgPolicyNotice : settingsNotice
+        notification = settingsNotice
         continue
       }
       if (!dangerouslySkipPermissions) {
