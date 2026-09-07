@@ -90,9 +90,6 @@ src/keybindings/loadUserBindings.ts :: cachedCwd :: keyed-by-truth
 src/memdir/paths.ts :: getAutoMemPath :: static-for-process
 src/projectOnboardingState.ts :: projectOnboardingHint :: invalidator=applyHarnessGround
 src/projectOnboardingState.ts :: shouldShowProjectOnboarding :: invalidator=applyHarnessGround
-src/services/analytics/featureGates.ts :: initializeFeatureGates :: static-for-process
-src/services/analytics/metadata.ts :: buildEnvContext :: static-for-process
-src/services/analytics/metadata.ts :: getBaseVersion :: static-for-process
 src/services/aseprite/asepriteApp.ts :: versionCache :: ttl-bounded
 src/services/claudeAiLimits.ts :: ownerCache :: ttl-bounded
 src/services/concourse/concourseSnapshot.ts :: olderFactCache :: keyed-by-truth

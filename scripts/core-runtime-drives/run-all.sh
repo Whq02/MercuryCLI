@@ -4,7 +4,6 @@
 # gate-watch: src/cli/print* src/components/App* src/constants/betas* src/constants/oauth*
 # gate-watch: src/entrypoints/agentSdkTypes* src/ink/** src/input-core/command-queue*
 # gate-watch: src/input-core/pending-input* src/query/** src/replLauncher* src/screens/REPL*
-# gate-watch: src/services/analytics/featureGates*
 # gate-watch: src/services/providers/anthropic/** src/services/api/errors* src/services/api/withRetry*
 # gate-watch: src/services/compact/autoCompact* src/services/tokenEstimation*
 # gate-watch: src/state/AppStateStore* src/substrate/startupMenu* src/tools/AgentTool/constants*

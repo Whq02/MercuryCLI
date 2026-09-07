@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -11,16 +11,6 @@ import {
   readPromptProvenance,
   __resetPromptProvenanceForTest,
 } from '../../src/utils/cockpit/promptProvenance.js'
-import {
-  getFeatureValue_CACHED_MAY_BE_STALE,
-  getDynamicConfig_CACHED_MAY_BE_STALE,
-  checkFeatureGate_CACHED_MAY_BE_STALE,
-  checkSecurityRestrictionGate,
-  initializeFeatureGates,
-  onFeatureGatesRefresh,
-  refreshFeatureGatesAfterAuthChange,
-  setupPeriodicFeatureGateRefresh,
-} from '../../src/services/analytics/featureGates.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -33,8 +23,7 @@ function section(t: string): void {
 const SRC = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
 console.log('============================================================')
-console.log(' composer floors — composer contract · gate table ·')
-console.log(' analytics floor')
+console.log(' composer contract and configuration absence')
 console.log('============================================================')
 
 section('(1) composer — group order, null filtering, reconcile-last')
@@ -140,31 +129,10 @@ section('(2) provenance shape-parity — the recorder cannot drift')
     prompts.includes('composeSystemPrompt({') && !prompts.includes('recordPromptComposition({'))
 }
 
-section('(3) the owned gate table — resolution ladder + honest no-ops')
-await (async () => {
-  process.env.USER_TYPE = 'ant'
-  process.env.CLAUDE_INTERNAL_FC_OVERRIDES = '{"mercury_pinned": "from-env"}'
-  check('env override wins (ant eval-harness path)', getFeatureValue_CACHED_MAY_BE_STALE('mercury_pinned', 'dflt') === 'dflt')
-  delete process.env.CLAUDE_INTERNAL_FC_OVERRIDES
-  delete process.env.USER_TYPE
-  check('inline default wins when nothing pins', getFeatureValue_CACHED_MAY_BE_STALE('mercury_nonexistent', 'dflt') === 'dflt')
-  check('dynamic config default likewise', JSON.stringify(getDynamicConfig_CACHED_MAY_BE_STALE('mercury_cfg', { a: 1 })) === '{"a":1}')
-  check('boolean gates default false', checkFeatureGate_CACHED_MAY_BE_STALE('mercury_gate') === false)
-  check('security gate fail-closed false', (await checkSecurityRestrictionGate('sec_gate')) === false)
+section('(3) feature configuration is absent')
+check('feature-configuration module is absent', !existsSync(join(process.cwd(), 'src/services/analytics/featureGates.ts')))
 
-  check('initializeFeatureGates resolves null instantly', (await initializeFeatureGates()) === null)
-  let fired = 0
-  const unsub = onFeatureGatesRefresh(() => {
-    fired++
-  })
-  refreshFeatureGatesAfterAuthChange()
-  setupPeriodicFeatureGateRefresh()
-  await new Promise(r => setTimeout(r, 20))
-  check('lifecycle no-ops never fire the refresh signal', fired === 0)
-  unsub()
-})()
-
-section('(4) analytics floor — the estate is structurally ABSENT (SM-J-P5)')
+section('(4) telemetry transports are absent')
 await (async () => {
   const { existsSync } = await import('node:fs')
   const { join } = await import('node:path')
@@ -177,8 +145,6 @@ await (async () => {
   ]) {
     check(`deleted: ${p}`, !existsSync(join(root, p)))
   }
-  const gbSrc = SRC('src/services/analytics/featureGates.ts')
-  check('the owned gate table has no @growthbook SDK import', !gbSrc.includes("from '@growthbook/growthbook'"))
   const pkg = SRC('package.json')
   check('@growthbook/growthbook dropped from package.json', !pkg.includes('"@growthbook/growthbook"'))
 })()
