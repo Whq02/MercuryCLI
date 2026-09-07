@@ -24,6 +24,7 @@ import {
   registerAgentForeground,
   registerAgentName,
   settleAgentForeground,
+  takeSiblingEnd,
   unregisterAgentForeground,
   updateAgentProgress,
   updateProgressFromMessage,
@@ -466,6 +467,7 @@ export async function runForegroundAgentExecution(
           if (isLocalAgentTask(task) && task.isBackgrounded) {
             backgrounded = true
             const backgroundedTaskId = foregroundTask.taskId
+            const sibling = takeSiblingEnd(backgroundedTaskId)
             void runWithAgentContext(syncAgentContext, () =>
               continueDetached(backgroundedTaskId, nextPromise),
             )
@@ -485,7 +487,8 @@ export async function runForegroundAgentExecution(
                 canReadOutputFile,
                 ...(modelNote ? { modelNote } : {}),
                 ...(name !== undefined ? { agentName: name } : {}),
-                backgroundReason: handedByTurnAbort ? 'turn-interrupted' : 'backgrounded',
+                backgroundReason: handedByTurnAbort ? 'turn-interrupted' : sibling !== null ? 'sibling-ended' : 'backgrounded',
+                ...(sibling !== null && !handedByTurnAbort ? { siblingEnd: sibling } : {}),
               },
             }
           }

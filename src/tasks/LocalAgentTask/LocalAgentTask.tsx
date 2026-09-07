@@ -400,6 +400,38 @@ function resolveBackgroundSignal(taskId: string): void {
   }
 }
 
+export type AgentSiblingEnd = { taskId: string; description: string; status: 'failed' | 'stopped'; error?: string }
+
+const siblingEnds = new Map<string, AgentSiblingEnd>()
+
+export function releaseForegroundSiblings(end: AgentSiblingEnd, setAppState: SetAppState): string[] {
+  const released: string[] = []
+  for (const taskId of [...backgroundSignalResolvers.keys()]) {
+    if (taskId === end.taskId) continue
+    let running = false
+    updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+      if (task.status !== 'running' || task.isBackgrounded) return task
+      running = true
+      return { ...task, isBackgrounded: true }
+    })
+    if (!running) continue
+    siblingEnds.set(taskId, end)
+    resolveBackgroundSignal(taskId)
+    released.push(taskId)
+  }
+  return released
+}
+
+export function takeSiblingEnd(taskId: string): AgentSiblingEnd | null {
+  const end = siblingEnds.get(taskId) ?? null
+  siblingEnds.delete(taskId)
+  return end
+}
+
+export function resetSiblingEnds(): void {
+  siblingEnds.clear()
+}
+
 export function registerAsyncAgent(args: {
   agentId: string
   description: string
@@ -535,17 +567,24 @@ export function settleAgentForeground(
   why?: { error: string; stopReason?: string },
 ): void {
   let settled = false
+  let description = ''
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
     if (task.isBackgrounded) return task
     if (task.status !== 'running') return progress !== undefined ? { ...task, progress } : task
     settled = true
+    description = task.description
     return terminalPatch(task, status === 'stopped' ? 'killed' : status, {
       ...(progress !== undefined ? { progress } : {}),
       ...(why !== undefined ? { error: why.error, ...(why.stopReason !== undefined ? { stopReason: why.stopReason } : {}) } : {}),
     })
   })
   backgroundSignalResolvers.delete(taskId)
-  if (settled) void evictTaskOutput(taskId)
+  if (settled) {
+    void evictTaskOutput(taskId)
+    if (status !== 'completed') {
+      releaseForegroundSiblings({ taskId, description, status, ...(why !== undefined ? { error: why.error } : {}) }, setAppState)
+    }
+  }
 }
 
 
@@ -624,7 +663,10 @@ export function failAgentTask(
     return terminalPatch(task, 'failed', { error })
   })
   if (!successorHolds) void evictTaskOutput(taskId)
-  if (settled !== undefined) emitSettleFrame(settled, 'failed')
+  if (settled !== undefined) {
+    emitSettleFrame(settled, 'failed')
+    releaseForegroundSiblings({ taskId, description: settled.description, status: 'failed', error }, setAppState)
+  }
 }
 
 export function killAsyncAgent(
@@ -634,14 +676,19 @@ export function killAsyncAgent(
   registration?: AbortController,
 ): void {
   let killed = false
+  let description = ''
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
     if (task.status !== 'running') return task
     if (heldByAnotherRegistration(task, registration)) return task
     killed = true
+    description = task.description
     task.abortController?.abort()
     return terminalPatch(task, 'killed', stopReason !== undefined ? { stopReason } : {})
   })
-  if (killed) void evictTaskOutput(taskId)
+  if (killed) {
+    void evictTaskOutput(taskId)
+    releaseForegroundSiblings({ taskId, description, status: 'stopped', ...(stopReason !== undefined ? { error: stopReason } : {}) }, setAppState)
+  }
 }
 
 export function killAllRunningAgentTasks(
