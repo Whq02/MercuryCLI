@@ -302,6 +302,35 @@ export function transformJsCell(source: string): TransformedCell {
       /\b(?:return|typeof|instanceof|in|of|new|await|yield|case|else|do)$/.test(prev)
     )
   let capturesResult = false
+  const syncTail = (): string =>
+    names.length > 0
+      ? `\n;(() => { ${[...new Set(names)].filter(n => /^[A-Za-z_$][\w$]*$/.test(n)).map(n => `try { globalThis.${n} = ${n}; } catch {}`).join(' ')} })();`
+      : ''
+  const endsCleanly = (segment: string): boolean =>
+    !(
+      /[=+\-*/%&|^<>?:,.([{]$/.test(segment) ||
+      /=>$/.test(segment) ||
+      /\b(?:return|typeof|instanceof|in|of|new|await|yield|case|else|do)$/.test(segment)
+    )
+  const controlHead = /^(?:if|else|for|while|do|switch|try|catch|finally|with|case|default|return|throw|break|continue|yield)\b/
+  const nextContinues = (i: number): boolean => {
+    for (let j = i + 1; j < segments.length; j++) {
+      const following = segments[j]!.text.trim()
+      if (following === '') continue
+      return /^(?:[.?\[(+\-*/%&|^<>=,:]|\|\||&&|instanceof\b|in\b)/.test(following)
+    }
+    return false
+  }
+  const afterOpenHead = (i: number): boolean => {
+    for (let j = i - 1; j >= 0; j--) {
+      const previous = segments[j]!.text.trim()
+      if (previous === '') continue
+      return controlHead.test(previous) && !/[};]$/.test(previous)
+    }
+    return false
+  }
+  const tailAfter = (i: number, segment: string): string =>
+    segment !== '' && endsCleanly(segment) && !controlHead.test(segment) && !nextContinues(i) && !afterOpenHead(i) ? syncTail() : ''
   for (let i = 0; i < segments.length; i++) {
     let text = segments[i]!.text
     const trimmed = text.trim()
@@ -316,26 +345,26 @@ export function transformJsCell(source: string): TransformedCell {
     if (/^import\b/.test(effective)) {
       const rewritten = rewriteImport(effective)
       if (rewritten) {
-        out.push(leading + rewritten.code)
         names.push(...rewritten.names)
+        out.push(leading + rewritten.code + syncTail())
         continue
       }
     }
     if (DECL_KEYWORD.test(effective)) {
       names.push(...declarationNames(effective))
-      out.push(text)
+      out.push(text + tailAfter(i, effective))
       continue
     }
     const funcMatch = FUNC_DECL.exec(effective)
     if (funcMatch?.[1]) {
       names.push(funcMatch[1])
-      out.push(text)
+      out.push(text + tailAfter(i, effective))
       continue
     }
     const classMatch = CLASS_DECL.exec(effective)
     if (classMatch?.[1]) {
       names.push(classMatch[1])
-      out.push(text)
+      out.push(text + tailAfter(i, effective))
       continue
     }
     if (i === lastCodeIndex && prevEndsCleanly && isCapturableExpression(effective)) {
@@ -344,7 +373,7 @@ export function transformJsCell(source: string): TransformedCell {
       capturesResult = true
       continue
     }
-    out.push(text)
+    out.push(text + tailAfter(i, effective))
   }
   const unique = [...new Set(names)].filter(n => /^[A-Za-z_$][\w$]*$/.test(n))
   const exportTail =

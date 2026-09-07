@@ -84,9 +84,23 @@ def _bridge(kind, payload):
     return wait.get("value")
 
 
+def _attempt(name, tool_input):
+    # The error as a value: {"ok": True, "value": ...} or {"ok": False,
+    # "error": ...}, so a batch of calls finishes and reports each outcome.
+    try:
+        return {"ok": True, "value": _bridge("tool", {"name": name, "input": tool_input or {}})}
+    except KeyboardInterrupt:
+        raise
+    except BaseException as e:
+        return {"ok": False, "error": str(e)[:2000]}
+
+
 class _ToolProxy:
     def __call__(self, name, tool_input=None):
         return _bridge("tool", {"name": name, "input": tool_input or {}})
+
+    def attempt(self, name, tool_input=None, **kwargs):
+        return _attempt(name, tool_input if tool_input is not None else kwargs)
 
     def __getattr__(self, name):
         if name.startswith("_"):
@@ -233,6 +247,7 @@ def _run_cell(cell_id, code):
     _emit({"t": "started", "id": cell_id})
     status = "ok"
     cancelled = False
+    names_before = set(_NS.keys())
     if hasattr(signal, "SIGINT"):
         signal.signal(signal.SIGINT, _interrupt_handler)
     try:
@@ -264,9 +279,13 @@ def _run_cell(cell_id, code):
         })
     except BaseException as e:
         status = "error"
+        # The names this cell bound before the error: the namespace keeps
+        # them, and the next cell can rely on exactly these.
+        survived = sorted(k for k in _NS.keys() if k not in names_before and not k.startswith("_"))
         _emit({
             "t": "error", "id": cell_id, "name": type(e).__name__,
             "value": str(e)[:2000], "traceback": traceback.format_exc()[:8000],
+            "survived": survived,
         })
     finally:
         if hasattr(signal, "SIGINT"):
