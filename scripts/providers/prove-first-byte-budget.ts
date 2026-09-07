@@ -77,7 +77,7 @@ section('B4 · the wire shape')
 section('B5 · the wiring (structural)')
 {
   const core = src('src/services/providers/anthropic/streamCore.ts')
-  check('the streaming request\'s timeout IS the first-byte budget', /timeout: wait\.budgetMs,/.test(core) && /budgetMs: firstByteBudgetMs\(\{ cold, promptTokens \}\)/.test(core))
+  check('the streaming request\'s timeout IS the first-byte budget', /timeout: wait\.budgetMs,/.test(core) && /budgetMs: firstByteBudgetMs\(\{ cold, promptTokens, idleMs: streamIdleTimeoutMsForRoute\('anthropic'\) \}\)/.test(core))
   check('the budget\'s expiry becomes the typed line on the retry ladder (never the operator\'s own abort)', /if \(!signal\.aborted && isFirstByteTimeout\(sent\)\)[\s\S]{0,300}throw new APIConnectionTimeoutError\(\{ message: firstByteTimeoutLine\(wait\) \}\)/.test(core))
   check('the wait is spoken before the request and cleared at the first byte', /options\.onWait\?\.\(wait\)/.test(core) && /result = await dispatch\(\)[\s\S]{0,700}options\.onWait\?\.\(null\)/.test(core))
   check('every retry notice speaks a reissue on its way (attempt, cause, delay) beside the row it paints', /kind: 'retry',\s*\n\s*attempt: notice\.retryAttempt,\s*\n\s*of: notice\.maxRetries,/.test(core) && /options\.onWait\?\.\(retryWait\)/.test(core))
