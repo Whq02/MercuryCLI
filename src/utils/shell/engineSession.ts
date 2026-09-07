@@ -30,6 +30,26 @@ const ENGINE_FLAGS = ['--norc', '--noprofile', '--no-config', '--disable-color']
 
 const PARSE_GUARD_TIMEOUT_MS = 5_000
 
+export const ENGINE_SESSION_CEILING_DEFAULT = 8
+
+function pinnedEngineSessionCeiling(): number | null {
+  const text = process.env.MERCURY_SHELL_ENGINE_SESSIONS
+  if (text === undefined || !/^\d+$/.test(text.trim())) return null
+  const value = Number(text.trim())
+  return Number.isSafeInteger(value) && value >= 1 ? value : null
+}
+
+export function resolveEngineSessionCeiling(setting?: number): number {
+  const pinned = pinnedEngineSessionCeiling()
+  if (pinned !== null) return pinned
+  if (setting !== undefined && Number.isSafeInteger(setting) && setting >= 1) return setting
+  return ENGINE_SESSION_CEILING_DEFAULT
+}
+
+export function engineSessionCeilingPinned(): boolean {
+  return pinnedEngineSessionCeiling() !== null
+}
+
 export type ShellEngineResolution =
   | { engine: 'brush'; binaryPath: string; version: string; platform: string; source: 'vendored' | 'workspace' }
   | { engine: 'system'; requested: 'system' | 'brush'; reason: string }
@@ -91,9 +111,99 @@ type LiveSession = {
   stderrBuf: Buffer
 }
 
-let session: LiveSession | null = null
-let queue: Promise<unknown> = Promise.resolve()
-let pendingResetNote: string | null = null
+type OwnerSession = {
+  owner: string
+  live: LiveSession | null
+  queue: Promise<unknown>
+  pendingResetNote: string | null
+  reserved: boolean
+}
+const MAIN_OWNER = 'main conversation'
+const sessions = new Map<string, OwnerSession>()
+function sessionFor(owner: string): OwnerSession {
+  let owned = sessions.get(owner)
+  if (owned === undefined) {
+    owned = { owner, live: null, queue: Promise.resolve(), pendingResetNote: null, reserved: false }
+    sessions.set(owner, owned)
+  }
+  return owned
+}
+
+function liveAgentSessions(): number {
+  let count = 0
+  for (const owned of sessions.values()) {
+    if (owned.owner === MAIN_OWNER) continue
+    if (owned.reserved || (owned.live !== null && !owned.live.exited)) count++
+  }
+  return count
+}
+
+const waitingOwners = new Set<string>()
+let releaseWakes: Array<() => void> = []
+function nextRelease(): Promise<void> {
+  return new Promise(resolve => releaseWakes.push(resolve))
+}
+function announceRelease(): void {
+  const wakes = releaseWakes
+  releaseWakes = []
+  for (const wake of wakes) wake()
+}
+
+const CEILING_WORDS = 'the shellEngineSessions setting, or the MERCURY_SHELL_ENGINE_SESSIONS pin'
+
+async function admitAgentSession(
+  owned: OwnerSession,
+  ceiling: number,
+  taskOutput: TaskOutput,
+  options: EngineExecOptions,
+): Promise<'admitted' | 'aborted' | { refused: string }> {
+  const share = ceiling - 1
+  if (share <= 0) {
+    return {
+      refused: `no shell engine session is free for a sub-agent: the ceiling is ${ceiling} (${CEILING_WORDS}), the main conversation's own session; raise the ceiling, or run this call with run_in_background (its own system shell)`,
+    }
+  }
+  if (liveAgentSessions() < share) {
+    owned.reserved = true
+    return 'admitted'
+  }
+  const rowNote = (): string =>
+    `waiting for a free shell engine session: ${liveAgentSessions()} of ${share} sub-agent sessions are in use (the ceiling is ${ceiling}; a session frees when an agent ends)`
+  waitingOwners.add(owned.owner)
+  taskOutput.setLiveNotice(rowNote())
+  taskOutput.emitLiveView()
+  let onAbort: (() => void) | undefined
+  const aborted = new Promise<'aborted'>(resolve => {
+    onAbort = () => resolve('aborted')
+    options.signal.addEventListener('abort', onAbort, { once: true })
+  })
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timedOut = new Promise<'timed out'>(resolve => {
+    timer = setTimeout(() => resolve('timed out'), options.timeout)
+  })
+  try {
+    for (;;) {
+      const woke = await Promise.race([nextRelease().then(() => 'released' as const), aborted, timedOut])
+      if (woke === 'aborted') return 'aborted'
+      if (woke === 'timed out') {
+        return {
+          refused: `no shell engine session was free within ${Math.round(options.timeout / 1000)}s: ${liveAgentSessions()} of ${share} sub-agent sessions stayed in use (the ceiling is ${ceiling}, ${CEILING_WORDS}); the command did not run`,
+        }
+      }
+      if (liveAgentSessions() < share) {
+        owned.reserved = true
+        return 'admitted'
+      }
+      taskOutput.setLiveNotice(rowNote())
+      taskOutput.emitLiveView()
+    }
+  } finally {
+    waitingOwners.delete(owned.owner)
+    taskOutput.setLiveNotice(null)
+    if (timer !== undefined) clearTimeout(timer)
+    if (onAbort !== undefined) options.signal.removeEventListener('abort', onAbort)
+  }
+}
 let snapshotPromise: Promise<string | undefined> | null = null
 
 export function loopScript(): string {
@@ -186,13 +296,18 @@ async function spawnSession(binaryPath: string, sandbox: EngineSandboxPolicy): P
   live.child.stderr?.on('data', (chunk: Buffer) => {
     live.stderrBuf = live.stderrBuf.length === 0 ? Buffer.from(chunk) : Buffer.concat([live.stderrBuf, chunk])
   })
+  live.child.stdin?.on('error', error => {
+    logForDebugging(`engine stdin closed: ${errorMessage(error)}`)
+  })
   live.child.once('exit', code => {
     live.exited = true
     live.onExit?.(code)
+    announceRelease()
   })
   live.child.once('error', () => {
     live.exited = true
     live.onExit?.(1)
+    announceRelease()
   })
 
   live.child.stdin?.write(nonce + '\n')
@@ -208,6 +323,7 @@ async function spawnSession(binaryPath: string, sandbox: EngineSandboxPolicy): P
     live.child.stdin?.write(encodeFrame(seeds.join('\n')))
     await drainOneFrame(live)
   }
+  if (live.exited) throw new Error('the shell engine ended during its start')
 
   return live
 }
@@ -262,9 +378,12 @@ export type EngineExecOptions = {
   sandbox?: EngineSandboxPolicy
   onCwd?: (cwd: string) => void
   onProgress?: (recentLines: string, allLines: string, lineCount: number, byteCount: number, isIncomplete: boolean) => void
+  owner?: string
+  sessionCeiling?: number
 }
 
 export function runEngineCommand(binaryPath: string, command: string, options: EngineExecOptions): ShellCommand {
+  const owned = sessionFor(options.owner ?? MAIN_OWNER)
   const taskId = generateTaskId('local_bash')
   const taskOutput = new TaskOutput(taskId, options.onProgress ?? null, false)
 
@@ -282,21 +401,27 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
     resolveResult(execResult)
   }
 
-  queue = queue.then(() => execute()).catch(error => {
+  owned.queue = owned.queue.then(() => execute()).catch(error => {
     logForDebugging(`engine command failed unexpectedly: ${errorMessage(error)}`)
     settle({ stdout: '', stderr: `shell engine error: ${errorMessage(error)}`, code: 1, interrupted: false })
   })
 
   async function execute(): Promise<void> {
-    let inheritedNote = pendingResetNote
-    pendingResetNote = null
+    if (options.signal.aborted) {
+      settle({ stdout: '', stderr: 'Command was aborted before execution', code: 145, interrupted: true })
+      return
+    }
+    if (settled) return
+    if (owned.live !== null && owned.live.exited) {
+      owned.live = null
+      owned.pendingResetNote ??=
+        'the shell engine session ended between commands and was restarted; variables, functions and shell options set earlier in this session were lost (the working directory is preserved).'
+    }
+    let inheritedNote = owned.pendingResetNote
+    owned.pendingResetNote = null
     const withInherited = (stderr: string, interrupted: boolean): string =>
       inheritedNote !== null && !interrupted ? (stderr ? `${inheritedNote} ${stderr}` : inheritedNote) : stderr
 
-    if (options.signal.aborted) {
-      settle({ stdout: '', stderr: withInherited('Command was aborted before execution', true), code: 145, interrupted: true })
-      return
-    }
     const parse = await parseCheck(binaryPath, command)
     if (!parse.ok) {
       settle({ stdout: '', stderr: withInherited(parse.message, false), code: 2, interrupted: false })
@@ -304,16 +429,29 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
     }
 
     const sandbox: EngineSandboxPolicy = options.sandbox ?? { enabled: false }
-    if (session !== null && !session.exited && session.sandboxed !== sandbox.enabled) {
-      await killSession(session)
-      session = null
+    if (owned.live !== null && !owned.live.exited && owned.live.sandboxed !== sandbox.enabled) {
+      await killSession(owned.live)
+      owned.live = null
       const policyNote = `the shell engine session was restarted because this command runs ${sandbox.enabled ? 'inside' : 'outside'} the sandbox and the previous session ran ${sandbox.enabled ? 'outside' : 'inside'} it (the sandbox policy is the call's); variables, functions and shell options set earlier in this session were lost (the working directory is preserved).`
       inheritedNote = inheritedNote === null ? policyNote : `${inheritedNote} ${policyNote}`
     }
 
+    if (owned.owner !== MAIN_OWNER && (owned.live === null || owned.live.exited)) {
+      const ceiling = options.sessionCeiling ?? resolveEngineSessionCeiling()
+      const admission = await admitAgentSession(owned, ceiling, taskOutput, options)
+      if (admission === 'aborted') {
+        settle({ stdout: '', stderr: 'Command was aborted before execution', code: 145, interrupted: true })
+        return
+      }
+      if (admission !== 'admitted') {
+        settle({ stdout: '', stderr: withInherited(admission.refused, false), code: 1, interrupted: false, preSpawnError: admission.refused })
+        return
+      }
+    }
+
     let live: LiveSession
     try {
-      live = await ensureSession(binaryPath, sandbox)
+      live = await ensureSession(owned, binaryPath, sandbox)
     } catch (error) {
       settle({ stdout: '', stderr: withInherited(`shell engine failed to start: ${errorMessage(error)}`, false), code: 1, interrupted: false, preSpawnError: errorMessage(error) })
       return
@@ -336,7 +474,9 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       const start = live.buffer.indexOf(marker)
       if (start === -1) {
         const lastSoh = live.buffer.lastIndexOf(SOH.charCodeAt(0))
-        flushUpTo(lastSoh === -1 ? live.buffer.length : lastSoh)
+        const tail = lastSoh === -1 ? null : live.buffer.subarray(lastSoh)
+        const couldBeMarker = tail !== null && tail.length < marker.length && marker.subarray(0, tail.length).equals(tail)
+        flushUpTo(couldBeMarker ? lastSoh : live.buffer.length)
         return null
       }
       const end = live.buffer.indexOf(etx, start + marker.length)
@@ -389,8 +529,8 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       live.reader = () => tryComplete()
       live.onExit = code => {
         flushUpTo(live.buffer.length)
-        session = null
-        pendingResetNote =
+        owned.live = null
+        owned.pendingResetNote =
           'the shell session was reset after that command ended it; variables, functions and shell options set earlier in this session were lost (the working directory is preserved).'
         void done({ stderr: '', code: code ?? 1, interrupted: false })
       }
@@ -399,8 +539,8 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
         status = 'killed'
         flushUpTo(live.buffer.length)
         void killSession(live)
-        session = null
-        pendingResetNote =
+        owned.live = null
+        owned.pendingResetNote =
           'the shell engine session was reset after the command hit its timeout; earlier variables, functions and options were lost (the working directory is preserved).'
         void done({ stderr: `Command timed out after ${Math.round(options.timeout / 1000)}s.`, code: 143, interrupted: false })
       }, options.timeout)
@@ -409,8 +549,8 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
         status = 'killed'
         flushUpTo(live.buffer.length)
         void killSession(live)
-        session = null
-        pendingResetNote =
+        owned.live = null
+        owned.pendingResetNote =
           'the shell engine session was reset after the command was interrupted; earlier variables, functions and options were lost (the working directory is preserved).'
         void done({ stderr: '', code: 137, interrupted: true })
       }
@@ -430,9 +570,11 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
   const kill = (): void => {
     if (settled) return
     status = 'killed'
-    if (session) {
-      void killSession(session)
-      session = null
+    if (owned.live) {
+      void killSession(owned.live)
+      owned.live = null
+      owned.pendingResetNote =
+        'the shell engine session was reset after the command was stopped; earlier variables, functions and options were lost (the working directory is preserved).'
     }
     settle({ stdout: '', stderr: '', code: 137, interrupted: true })
   }
@@ -451,10 +593,20 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
   }
 }
 
-async function ensureSession(binaryPath: string, sandbox: EngineSandboxPolicy): Promise<LiveSession> {
-  if (session !== null && !session.exited) return session
-  session = await spawnSession(binaryPath, sandbox)
-  return session
+async function ensureSession(owned: OwnerSession, binaryPath: string, sandbox: EngineSandboxPolicy): Promise<LiveSession> {
+  if (owned.live !== null && !owned.live.exited) {
+    owned.reserved = false
+    return owned.live
+  }
+  try {
+    owned.live = await spawnSession(binaryPath, sandbox)
+  } catch (error) {
+    owned.reserved = false
+    announceRelease()
+    throw error
+  }
+  owned.reserved = false
+  return owned.live
 }
 
 async function killSession(live: LiveSession): Promise<void> {
@@ -515,11 +667,20 @@ function parseCheck(binaryPath: string, command: string): Promise<{ ok: boolean;
   })
 }
 
-export async function endEngineSession(): Promise<void> {
-  const live = session
-  session = null
-  pendingResetNote = null
+export async function endEngineSessionFor(owner: string): Promise<void> {
+  const owned = sessions.get(owner)
+  if (owned === undefined) return
+  sessions.delete(owner)
+  const live = owned.live
+  owned.live = null
+  owned.pendingResetNote = null
+  owned.reserved = false
+  announceRelease()
   if (live !== null && !live.exited) await killSession(live)
+}
+
+export async function endEngineSession(): Promise<void> {
+  await Promise.all([...sessions.keys()].map(owner => endEngineSessionFor(owner)))
 }
 
 let cleanupRegistered = false
@@ -529,11 +690,20 @@ function registerEngineCleanup(): void {
   registerCleanup(endEngineSession)
 }
 
+export function engineChildForTest(owner: string = MAIN_OWNER): ChildProcess | null {
+  return sessions.get(owner)?.live?.child ?? null
+}
+
+export function engineWaitingOwnersForTest(): string[] {
+  return [...waitingOwners]
+}
+
 export function resetEngineSessionForTest(): void {
-  if (session) void killSession(session)
-  session = null
-  queue = Promise.resolve()
-  pendingResetNote = null
+  for (const owned of sessions.values()) {
+    if (owned.live) void killSession(owned.live)
+  }
+  sessions.clear()
+  announceRelease()
   snapshotPromise = null
   packResolution = null
 }
