@@ -63,8 +63,8 @@ check("§2 the newest section carries no word from the authoring side", hits.len
 const beta4 = sectionOf(changelog, '1.0.0-beta.4').bullets.join('\n')
 check('§3 beta.4: the speech model is fetched behind /speak download and nothing downloads on first use', beta4.includes('/speak download') && !beta4.includes('first use downloads'))
 check("§3 beta.4: the shell engine's two Windows limits are named", beta4.includes('cmd /c npm') && beta4.includes('relative path after a cd'))
-check("§3 beta.4: the option spellings are the tree's", beta4.includes('--allowed-tools') && beta4.includes('--dangerously-bypass-permissions') && !beta4.includes('--allowedTools'))
-check('§3 beta.4: the environment spelling is named', beta4.includes('MERCURY_MODEL') && beta4.includes('ANTHROPIC_MODEL'))
+check("§3 beta.4: no retired option spelling is named", !beta4.includes('--allowedTools') && !beta4.includes('--disallowedTools') && !beta4.includes('skip-permissions'))
+check('§3 beta.4: no retired environment name is named', !beta4.includes('ANTHROPIC_MODEL') && !beta4.includes('API_TIMEOUT_MS') && !beta4.includes('MERCURY_SIMPLE'))
 
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {
