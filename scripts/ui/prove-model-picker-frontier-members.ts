@@ -84,6 +84,9 @@ if (driver.kind !== 'posix-pty') {
   writeFileSync(join(home, '.credentials.json'), FIXTURE_CREDS)
   const grid = join(SCRATCH, 'frontier-members-120x40.json')
   const cfgPath = join(SCRATCH, 'vshot.json')
+  const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
+  const anthropicIndex = getModelOptions({ anthropicCredentialed: () => true }).findIndex(row => row.group === undefined)
+  if (anthropicIndex < 0) throw new Error('The Anthropic section is absent from the catalogue')
   writeFileSync(
     cfgPath,
     JSON.stringify({
@@ -92,7 +95,8 @@ if (driver.kind !== 'posix-pty') {
         { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true, awaitSettleTicks: 2 },
         { afterPrevTicks: 4, data: '\r' },
-        { afterPrevTicks: 6, data: '\u001b[A'.repeat(16) },
+        { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitSettleTicks: 3, data: '\u001b[H' },
+        ...Array.from({ length: anthropicIndex }, () => ({ afterPrevTicks: 1, data: '\u001b[B' })),
         { requireAwait: true, awaitText: 'Fable 5.1', awaitStableTicks: 3, mark: 'picker', data: '' },
         { afterPrevTicks: 2, data: '\x1b' },
         { afterPrevTicks: 4, data: '/model fable51', awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2 },
