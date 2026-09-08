@@ -28,7 +28,7 @@ if (process.env.SEARCH_RENDER_CHILD) {
   const h = React.createElement
   const mock = [
     { file: 'src/components/MercuryFrame.tsx', line: 60, text: '  // Mercury statusbar' },
-    { file: 'CLAUDE.md', line: 3, text: 'This is Mercury — a standalone agent' },
+    { file: 'MERCURY.md', line: 3, text: 'This is Mercury — a terminal harness' },
     { file: 'src/query.ts', line: 12, text: 'const mercury = true' },
   ]
   const loadMatches = async () => mock
@@ -82,7 +82,7 @@ if (process.env.SEARCH_RENDER_CHILD) {
     const { grid, cells } = capture(cols)
     const bold = (c: string) => cells.some(cell => cell.c === c && cell.bold)
     check(`@${cols}: the "search" command-center header renders`, /search/.test(grid))
-    check(`@${cols}: file:line locations render`, /MercuryFrame\.tsx:60|CLAUDE\.md:3|query\.ts:12/.test(grid))
+    check(`@${cols}: file:line locations render`, /MercuryFrame\.tsx:60|MERCURY\.md:3|query\.ts:12/.test(grid))
     check(`@${cols}: the honest footer advertises "insert @file#L"`, /insert @file#L/.test(grid))
     check(`@${cols}: matched substring "Mercury"/"mercury" is BOLD (cell.bold)`, bold('M') || bold('m') || bold('e'))
     check(`@${cols}: NO emoji in the grid`, !EMOJI.test(grid))
