@@ -170,6 +170,17 @@ execFileSync('git', ['init', '-q'], { cwd: bare })
 writeFileSync(join(bare, 'x.txt'), 'x')
 execFileSync('git', ['add', 'x.txt'], { cwd: bare })
 check('a repository with no map owes nothing', generatedAssetsRefusal('git commit -F m', bare) === null)
+for (const command of [
+  `GIT_DIR="${repo}/.git" GIT_WORK_TREE="${repo}" git commit -F m`,
+  `GIT_INDEX_FILE="${repo}/.git/index" git commit -F m`,
+  `export GIT_DIR="${repo}/.git"; git commit -F m`,
+  `GIT_WORK_TREE="${repo}"; git commit -F m`,
+]) {
+  let reason = ''
+  try { reason = generatedAssetsRefusal(command, bare) ?? '' } catch (error) { reason = String(error) }
+  check('Git selection assignments cannot borrow another repository map', reason.includes('Git selection environment'), reason)
+}
+check('message-only and authorship assignments leave genuinely mapless commits alone', generatedAssetsRefusal('GIT_AUTHOR_NAME=writer MSG=msg.txt git commit -F "$MSG"', bare) === null)
 for (const command of ['git commit -F "$MSG"', 'git commit -F $MSG', 'git commit -m "$(cat msg.txt)"', 'MSG=msg.txt git commit -F "$MSG"', 'GIT=git; $GIT commit -F m']) {
   try {
     check('message expansion does not activate an absent map', generatedAssetsRefusal(command, bare) === null, command)
