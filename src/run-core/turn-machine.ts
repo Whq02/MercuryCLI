@@ -988,7 +988,8 @@ export async function* runEventCore(
       consecutiveRapidRefills,
       rapidRefillBreakerTripped,
       measuredRawTokenCount,
-      refusal: forcedFoldRefusal,
+      refusal: compactionRefusal,
+      paused: compactionPaused,
     } = await deps.autocompact(
       foldSplit.head,
       toolUseContext,
@@ -1026,7 +1027,7 @@ export async function* runEventCore(
         message: createAssistantAPIErrorMessage({
           content: overflowRefusalText(forcedFold, 'fold-failed', {
             nonInteractive: toolUseContext.options.isNonInteractiveSession === true,
-            ...(forcedFoldRefusal !== undefined ? { detail: forcedFoldRefusal } : {}),
+            ...(compactionRefusal !== undefined ? { detail: compactionRefusal } : {}),
           }),
           error: 'invalid_request',
           ...(forcedFold.detail !== undefined ? { errorDetails: forcedFold.detail } : {}),
@@ -1037,6 +1038,10 @@ export async function* runEventCore(
         forcedFold.source === 'estimate' ? { reason: 'blocking_limit' } : { reason: 'prompt_too_long' }
       yield emit({ kind: 'run_terminal', terminal })
       return terminal
+    }
+
+    if (forcedFold === undefined && compactionPaused === true && compactionRefusal !== undefined) {
+      yield emit({ kind: 'notice', message: createSystemMessage(compactionRefusal, 'warning') })
     }
 
     if (compactionResult) {
@@ -1152,6 +1157,7 @@ export async function* runEventCore(
             fold: foldAvailability({
               tracking,
               headFold: headFoldFailed ? 'failed' : 'did-not-land',
+              ...(headFoldFailed && compactionRefusal !== undefined ? { headFoldDetail: compactionRefusal } : {}),
               hasHistory: splitCarriedOperatorTail(messagesForQuery).hasHistory,
             }),
           })

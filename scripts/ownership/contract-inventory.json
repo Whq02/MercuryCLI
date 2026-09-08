@@ -512,6 +512,7 @@
   },
   "compaction": {
    "src/services/compact/compact.ts": [
+    "CompactionRefusedForHistoryError",
     "ERROR_MESSAGE_FOLD_TIMEOUT",
     "ERROR_MESSAGE_INCOMPLETE_RESPONSE",
     "ERROR_MESSAGE_NOT_ENOUGH_MESSAGES",
@@ -528,6 +529,7 @@
     "annotateBoundaryWithPreservedSegment",
     "buildPostCompactMessages",
     "compactConversation",
+    "compactionRefusedForHistoryText",
     "createAsyncAgentAttachmentsIfNeeded",
     "createCompactCanUseTool",
     "createPlanAttachmentIfNeeded",
@@ -539,6 +541,7 @@
     "foldEffortMessageFor",
     "foldFamilyOf",
     "isCompactCapsuleMessage",
+    "malformedHistoryRefusalOf",
     "mergeHookInstructions",
     "partialCompactConversation",
     "restorePreservedReads",
