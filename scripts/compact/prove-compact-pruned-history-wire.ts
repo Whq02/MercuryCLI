@@ -88,14 +88,14 @@ for (let i = 0; i <= ROUNDS + 1; i++) {
 const allowAll = async (_tool: unknown, input: Record<string, unknown>) =>
   ({ behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'rig' } }) as never
 
-function makeCtx(): Record<string, unknown> {
+function makeCtx(model: string = MODEL): Record<string, unknown> {
   let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }
   return {
     abortController: new AbortController(),
     options: {
       commands: [],
       tools: [FileReadTool],
-      mainLoopModel: MODEL,
+      mainLoopModel: model,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},
@@ -166,6 +166,31 @@ async function compactOnce(ctx: Record<string, unknown>, messages: unknown[]): P
     delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
   }
   return { result, wire: fixture.captured.slice(before), threw }
+}
+
+function textHistory(rounds: number, model: string): unknown[] {
+  const out: unknown[] = []
+  for (let i = 0; i < rounds; i++) {
+    out.push(createUserMessage({ content: `ask ${i}: adjust module ${i} ${'and keep the notes tidy '.repeat(12)}` }))
+    out.push({
+      type: 'assistant',
+      uuid: `00000000-0000-4000-a000-0000000000${String(10 + i)}`,
+      timestamp: new Date().toISOString(),
+      requestId: `req_${i}`,
+      message: {
+        id: `msg_${i}`,
+        type: 'message',
+        role: 'assistant',
+        model,
+        content: [{ type: 'text', text: `reply ${i}: module ${i} adjusted ${'and its checks pass '.repeat(12)}` }],
+        stop_reason: 'end_turn',
+        stop_sequence: null,
+        usage: { input_tokens: 900 + i, output_tokens: 60, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+      },
+    })
+  }
+  out.push(createUserMessage({ content: SECOND_ASK }))
+  return out
 }
 
 const transcriptAfter = (seed: unknown[], run: Drive): unknown[] => [
@@ -511,6 +536,32 @@ section('N1 only a pairing complaint is the malformed-history class — a parame
   const positive = await compactOnce(ctxN, historyN)
   check('the pairing complaint itself: one summary request, the breaker at once, the pause', positive.threw === undefined && positive.wire.length === 1 && positive.result.consecutiveFailures === 3 && positive.result.paused === true, `threw=${positive.threw ?? 'no'} requests=${positive.wire.length} result=${JSON.stringify({ consecutiveFailures: positive.result.consecutiveFailures, paused: positive.result.paused })}`)
   check("…its line names the class and the provider's call id", typeof positive.result.refusal === 'string' && /malformed history/i.test(positive.result.refusal as string) && (positive.result.refusal as string).includes('call_tlxFSxc72b7dbbq5yBsOGC7a'), String(positive.result.refusal ?? ''))
+}
+
+section('C4 the cache-sharing path (the Anthropic wire): a pairing refusal is classified before any hand-over — one summary request, the breaker at once, the call id carried out')
+{
+  const ANTHROPIC_MODEL = 'claude-opus-4-8'
+  const ANTHROPIC_PAIRING_REFUSAL = {
+    type: 'error',
+    error: {
+      type: 'invalid_request_error',
+      message: 'messages.1: `tool_use` ids were found without `tool_result` blocks immediately after: call_bad. Each `tool_use` block must have a corresponding `tool_result` block in the next message.',
+    },
+  }
+  const ctxF = makeCtx(ANTHROPIC_MODEL)
+  const historyF = textHistory(5, ANTHROPIC_MODEL)
+  fixture.script([{ error: { status: 400, body: ANTHROPIC_PAIRING_REFUSAL } }, { error: { status: 400, body: ANTHROPIC_PAIRING_REFUSAL } }, { text: 'never reached' }])
+  const r = await compactOnce(ctxF, historyF)
+  check('exactly one summary request reached the Anthropic wire (no hand-over to the direct call)', r.threw === undefined && r.wire.length === 1 && r.wire[0]!.dialect === 'anthropic', `threw=${r.threw ?? 'no'} requests=${JSON.stringify(r.wire.map(w => w.dialect))}`)
+  check('the breaker applied at once and the pause is the run\'s', r.result.consecutiveFailures === 3 && r.result.paused === true && typeof r.result.refusal === 'string' && (r.result.refusal as string).includes('paused for the rest of this run'), JSON.stringify({ consecutiveFailures: r.result.consecutiveFailures, paused: r.result.paused }))
+  check("the line names the class and carries the provider's own words, the call id included", typeof r.result.refusal === 'string' && /malformed history/i.test(r.result.refusal as string) && (r.result.refusal as string).includes('call_bad') && (r.result.refusal as string).includes('without `tool_result` blocks'), String(r.result.refusal ?? ''))
+
+  section('C5 the cache-sharing path keeps its hand-over for every other refusal: a parameter refusal goes to the direct call, counts one failure, pauses nothing')
+  const ANTHROPIC_PARAMETER_REFUSAL = { type: 'error', error: { type: 'invalid_request_error', message: "Unknown parameter: 'parallel_tool_calls'." } }
+  fixture.script([{ error: { status: 400, body: ANTHROPIC_PARAMETER_REFUSAL } }, { error: { status: 400, body: ANTHROPIC_PARAMETER_REFUSAL } }, { text: 'never reached' }])
+  const h = await compactOnce(ctxF, historyF)
+  check('two requests: the cache-sharing call, then the direct call it handed over to', h.threw === undefined && h.wire.length === 2 && h.wire.every(w => w.dialect === 'anthropic'), `threw=${h.threw ?? 'no'} requests=${JSON.stringify(h.wire.map(w => w.dialect))}`)
+  check('one failure counted, no pause, the reason carried', h.result.consecutiveFailures === 1 && h.result.paused === undefined && typeof h.result.refusal === 'string' && (h.result.refusal as string).includes("Unknown parameter: 'parallel_tool_calls'") && !/malformed history/i.test(h.result.refusal as string), JSON.stringify({ consecutiveFailures: h.result.consecutiveFailures, paused: h.result.paused, refusal: String(h.result.refusal ?? '').slice(0, 120) }))
 }
 
 await fixture.close()
