@@ -90,6 +90,7 @@ complete -c mercury -n "not __fish_seen_subcommand_from acp agents auth daemon d
 complete -c mercury -n "not __fish_seen_subcommand_from acp agents auth daemon doctor editor extensions health install mcp show themis update upgrade" -l "output-format"
 complete -c mercury -n "not __fish_seen_subcommand_from acp agents auth daemon doctor editor extensions health install mcp show themis update upgrade" -l "permission-mode"
 complete -c mercury -n "not __fish_seen_subcommand_from acp agents auth daemon doctor editor extensions health install mcp show themis update upgrade" -l "print"
+complete -c mercury -n "not __fish_seen_subcommand_from acp agents auth daemon doctor editor extensions health install mcp show themis update upgrade" -l "project-root"
 complete -c mercury -n "not __fish_seen_subcommand_from acp agents auth daemon doctor editor extensions health install mcp show themis update upgrade" -l "replay-user-messages"
 complete -c mercury -n "not __fish_seen_subcommand_from acp agents auth daemon doctor editor extensions health install mcp show themis update upgrade" -l "resume"
 complete -c mercury -n "not __fish_seen_subcommand_from acp agents auth daemon doctor editor extensions health install mcp show themis update upgrade" -l "session-id"

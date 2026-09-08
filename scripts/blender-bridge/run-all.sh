@@ -17,7 +17,7 @@ echo "############################################################"
 if [ -f "$here/regen-bridge.mjs" ]; then
   echo
   echo ">>> regen-bridge --check"
-  node "$here/regen-bridge.mjs" --check || { __rc=$?; fail=1; }
+  __t=$SECONDS; __rc=0; node "$here/regen-bridge.mjs" --check || { __rc=$?; fail=1; }; prover_mark "$here/regen-bridge.mjs" "$__t" "$__rc"
 fi
 
 shopt -s nullglob

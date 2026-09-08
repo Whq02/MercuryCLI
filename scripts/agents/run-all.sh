@@ -3,6 +3,7 @@
 # gate-watch: src/Tool* src/bootstrap/state* src/services/compact/compact*
 # gate-watch: src/tools/AgentTool/AgentTool* src/tools/AgentTool/built-in/generalPurposeAgent*
 # gate-watch: src/tools/AgentTool/builtInAgents* src/tools/TeamCreateTool/TeamCreateTool*
+# gate-watch: src/tools/AgentTool/reviewerPolicy.ts src/tools/AgentTool/runAgent.ts src/tools/AgentTool/built-in/mercuryReviewerAgent.ts
 # gate-watch: src/tools/TeamCreateTool/prompt* src/utils/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

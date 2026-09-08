@@ -91,6 +91,7 @@ import type { ContentReplacementState } from '../../utils/toolResultStorage.js'
 import { buildSubagentMercurySections } from '../../constants/subagentDoctrine.js'
 import type { AgentDefinition, AgentMcpServerSpec } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
+import { canonicalReviewerReceipt, restrictReviewerTools, reviewerRefusal } from './reviewerPolicy.js'
 import {
   composeAgentAppState,
   resolveAgentPromptPosture,
@@ -150,6 +151,7 @@ export type RunAgentParams = {
   contentReplacementState?: ContentReplacementState
   useExactTools?: boolean
   worktreePath?: string
+  reviewReceipt?: string
   description?: string
   seatHolder?: string
   transcriptSubdir?: string
@@ -492,6 +494,7 @@ export async function* runAgent(
     contentReplacementState,
     useExactTools,
     worktreePath,
+    reviewReceipt: requestedReviewReceipt,
     description,
     seatHolder,
     transcriptSubdir,
@@ -503,6 +506,12 @@ export async function* runAgent(
     onResolvedIdentity,
     structuredOutputSpec,
   } = params
+
+  const reviewReceipt = agentDefinition.agentType === 'mercury-reviewer'
+    ? requestedReviewReceipt && worktreePath
+      ? canonicalReviewerReceipt(requestedReviewReceipt, worktreePath)
+      : (() => { throw new Error('mercury-reviewer requires a frozen worktree and an explicit review_receipt') })()
+    : undefined
 
   const permissionModeForModel = (agentDefinition.permissionMode ??
     toolUseContext.getAppState?.().toolPermissionContext.mode) as never
@@ -570,6 +579,10 @@ export async function* runAgent(
   let askHeartbeat: ReturnType<typeof setInterval> | null = null
   const canUseToolAskLively: typeof canUseTool = canUseTool
     ? (async (...args: Parameters<NonNullable<typeof canUseTool>>) => {
+        if (reviewReceipt !== undefined) {
+          const refusal = reviewerRefusal(args[0], args[1], reviewReceipt)
+          if (refusal !== null) return { behavior: 'deny', message: refusal }
+        }
         pendingAsks++
         onPendingAsks?.(pendingAsks)
         watchdog.touch()
@@ -778,6 +791,8 @@ export async function* runAgent(
       }
     }
 
+    if (reviewReceipt !== undefined) tools = restrictReviewerTools(tools, reviewReceipt)
+
     const enabledToolNames = new Set(tools.map(tool => tool.name))
     const systemPrompt: string[] =
       override?.systemPrompt ??
@@ -787,6 +802,7 @@ export async function* runAgent(
         resolvedAgentModel,
         enabledToolNames,
       ))
+    if (reviewReceipt !== undefined) systemPrompt.push(`Your declared review receipt is ${reviewReceipt}. Only its Review section is writable. Commands not classified as read-only are refused; ask the caller to run those checks and provide their results.`)
     if (structuredOutputSpec !== undefined) {
       systemPrompt.push(
         `When the task is COMPLETE, deliver the final answer by calling the ${STRUCTURED_OUTPUT_TOOL_NAME} tool with data matching its schema${
