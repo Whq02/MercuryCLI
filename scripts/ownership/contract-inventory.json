@@ -529,6 +529,7 @@
     "annotateBoundaryWithPreservedSegment",
     "buildPostCompactMessages",
     "compactConversation",
+    "compactionPausedForHistoryText",
     "compactionRefusedForHistoryText",
     "createAsyncAgentAttachmentsIfNeeded",
     "createCompactCanUseTool",
