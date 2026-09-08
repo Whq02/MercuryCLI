@@ -35,13 +35,16 @@ interface ToolRecord {
   deferred: boolean
   description: string
   schema: string
+  definition: string
   bound: boolean
 }
 
 interface MessageRecord {
   role: string
   digest: string
-  blocks: Array<{ kind: string; digest: string }>
+  fields: string
+  blocks: Array<{ kind: string; digest: string; index: number }>
+  thinking: Array<{ digest: string; index: number }>
 }
 
 interface PrefixRecord {
@@ -62,7 +65,7 @@ export function withoutCacheControl(value: unknown): unknown {
     const out: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
       if (k === 'cache_control') continue
-      out[k] = withoutCacheControl(v)
+      out[k] = k === 'input' || k === 'input_schema' ? v : withoutCacheControl(v)
     }
     return out
   }
@@ -74,10 +77,10 @@ const isThinkingBlock = (block: unknown): boolean => {
   return type === 'thinking' || type === 'redacted_thinking'
 }
 
-function systemBlocksOf(system: unknown): Array<{ text: string }> {
-  if (typeof system === 'string') return [{ text: system }]
+function systemBlocksOf(system: unknown): Array<{ text: string; value: unknown }> {
+  if (typeof system === 'string') return [{ text: system, value: system }]
   if (!Array.isArray(system)) return []
-  return system.map(block => ({ text: String((block as { text?: unknown } | null)?.text ?? '') }))
+  return system.map(block => ({ text: String((block as { text?: unknown } | null)?.text ?? ''), value: withoutCacheControl(block) }))
 }
 
 function sectionsOf(text: string): Array<{ heading: string; at: number }> {
@@ -131,7 +134,7 @@ function blockKind(block: unknown): string {
 function recordOf(key: string, parts: WirePrefixParts): PrefixRecord {
   const referenced = referencedToolNames(parts.messages)
   const system = systemBlocksOf(parts.system).map(block => ({
-    digest: sha(block.text),
+    digest: sha(j(block.value)),
     text: block.text,
     sections: sectionsOf(block.text),
   }))
@@ -144,18 +147,23 @@ function recordOf(key: string, parts: WirePrefixParts): PrefixRecord {
       deferred,
       description: sha(String(t.description ?? '')),
       schema: sha(j(t.input_schema ?? null)),
+      definition: sha(j(t)),
       bound: !deferred || referenced.has(name),
     }
   })
   const messages = parts.messages.map(message => {
     const m = withoutCacheControl(message) as { role?: unknown; content?: unknown }
-    const content = Array.isArray(m.content) ? m.content.filter(block => !isThinkingBlock(block) && !isDeadThinkingPlaceholder(block)) : m.content
-    const blocks = Array.isArray(content)
-      ? content.map(block => ({ kind: blockKind(block), digest: sha(j(block)) }))
-      : [{ kind: typeof content === 'string' ? 'text' : 'content', digest: sha(j(content)) }]
-    return { role: String(m.role ?? '?'), digest: sha(j({ role: m.role, content })), blocks }
+    const indexed = Array.isArray(m.content) ? m.content.map((block, index) => ({ block, index })) : null
+    const visible = indexed?.filter(({ block }) => !isThinkingBlock(block) && !isDeadThinkingPlaceholder(block))
+    const content = visible ? visible.map(({ block }) => block) : m.content
+    const blocks = visible
+      ? visible.map(({ block, index }) => ({ kind: blockKind(block), digest: sha(j(block)), index }))
+      : [{ kind: typeof content === 'string' ? 'text' : 'content', digest: sha(j(content)), index: 0 }]
+    const thinking = (indexed ?? []).filter(({ block }) => isThinkingBlock(block)).map(({ block, index }) => ({ digest: sha(j(block)), index }))
+    const fields = sha(j(Object.fromEntries(Object.entries(m).filter(([name]) => name !== 'content'))))
+    return { role: String(m.role ?? '?'), digest: sha(j({ ...m, content })), fields, blocks, thinking }
   })
-  const whole = sha(j({ system: system.map(s => s.digest), tools: tools.map(t => `${t.name}|${t.deferred}|${t.description}|${t.schema}`), messages: messages.map(m => m.digest) }))
+  const whole = sha(j({ system: system.map(s => s.digest), tools: tools.map(t => t.definition), messages: messages.map(m => [m.digest, m.thinking]) }))
   return { key, whole, system, tools, messages, wireMessageIds: [] }
 }
 
@@ -188,6 +196,7 @@ function compareRecords(previous: PrefixRecord, current: PrefixRecord, lastThink
     if (was === undefined) return { part: `the system prompt (block ${b} added)`, path: `system[${b}] (added)`, after: excerpt(now!.text, 0) }
     if (now === undefined) return { part: `the system prompt (block ${b} removed)`, path: `system[${b}] (removed)`, before: excerpt(was.text, 0) }
     if (was.digest === now.digest) continue
+    if (was.text === now.text) return { part: `the system prompt (block ${b} fields)`, path: `system[${b}]` }
     const at = firstDiffAt(was.text, now.text)
     const section = [...was.sections].reverse().find(s => s.at <= at) ?? [...now.sections].reverse().find(s => s.at <= at)
     const name = section === undefined ? `the system prompt (block ${b})` : `the system prompt's ${section.heading} section`
@@ -214,26 +223,55 @@ function compareRecords(previous: PrefixRecord, current: PrefixRecord, lastThink
     if (was.deferred !== now.deferred) return { part: `the tool ${was.name}'s deferral mark`, path: `tools[${i}].defer_loading` }
     if (was.description !== now.description) return { part: `the tool ${was.name}'s description`, path: `tools[${i}].description` }
     if (was.schema !== now.schema) return { part: `the tool ${was.name}'s input schema`, path: `tools[${i}].input_schema` }
+    if (was.definition !== now.definition) return { part: `the tool ${was.name}'s definition`, path: `tools[${i}]` }
   }
-  const range = Math.min(lastThinkingIndex, previous.messages.length)
+  const range = Math.min(lastThinkingIndex + 1, previous.messages.length)
   for (let k = 0; k < range; k++) {
     const was = previous.messages[k]!
     const now = current.messages[k]
     if (now === undefined) return { part: `${ordinal(k)} (the history shrank)`, path: `messages.length (${previous.messages.length} → ${current.messages.length})` }
     if (was.digest === now.digest) continue
     if (was.role !== now.role) return { part: `${ordinal(k)}'s role (${was.role} → ${now.role})`, path: `messages[${k}].role` }
+    if (was.fields !== now.fields) return { part: `${ordinal(k)}'s ${was.role} row fields`, path: `messages[${k}]` }
+    const beforeBlock = k === lastThinkingIndex ? now.thinking.at(-1)!.index : Infinity
     const n = Math.max(was.blocks.length, now.blocks.length)
     for (let i = 0; i < n; i++) {
       const wb = was.blocks[i]
       const nb = now.blocks[i]
-      if (wb === undefined) return { part: `${ordinal(k)}'s ${was.role} row: ${nb!.kind} block ${i} added`, path: `messages[${k}].content[${i}] (added)` }
-      if (nb === undefined) return { part: `${ordinal(k)}'s ${was.role} row: ${wb.kind} block ${i} removed`, path: `messages[${k}].content[${i}] (removed)` }
+      const index = nb?.index ?? wb!.index
+      if (index >= beforeBlock) continue
+      if (wb === undefined) return { part: `${ordinal(k)}'s ${was.role} row: ${nb!.kind} block ${i} added`, path: `messages[${k}].content[${index}] (added)` }
+      if (nb === undefined) return { part: `${ordinal(k)}'s ${was.role} row: ${wb.kind} block ${i} removed`, path: `messages[${k}].content[${index}] (removed)` }
       if (wb.digest !== nb.digest) {
         const kind = wb.kind === nb.kind ? wb.kind : `${wb.kind} → ${nb.kind}`
-        return { part: `${ordinal(k)}'s ${was.role} row: ${kind} block ${i}`, path: `messages[${k}].content[${i}]` }
+        return { part: `${ordinal(k)}'s ${was.role} row: ${kind} block ${i}`, path: `messages[${k}].content[${index}]` }
       }
     }
-    return { part: `${ordinal(k)}'s ${was.role} row`, path: `messages[${k}]` }
+  }
+  const priorThinking = previous.messages.flatMap((message, messageIndex) =>
+    message.thinking.map(block => ({ ...block, messageIndex })))
+  const sentThinking = current.messages.flatMap((message, messageIndex) =>
+    message.thinking.map(block => ({ ...block, messageIndex })))
+  const priorPositions = new Map(priorThinking.map((block, index) => [block.digest, index]))
+  let preceding: number | undefined
+  for (const block of sentThinking) {
+    const position = priorPositions.get(block.digest)
+    if (position === undefined) {
+      const original = previous.messages[block.messageIndex]?.thinking.find(item => item.index === block.index)
+      if (original !== undefined && original.digest !== block.digest) {
+        return { part: `${ordinal(block.messageIndex)}'s reasoning content changed`, path: `messages[${block.messageIndex}].content[${block.index}]` }
+      }
+      if (preceding !== undefined && preceding < priorThinking.length - 1) {
+        const missing = priorThinking[preceding + 1]!
+        return { part: `${ordinal(missing.messageIndex)}'s reasoning was removed before later reasoning`, path: `messages[${missing.messageIndex}].content[${missing.index}]` }
+      }
+      continue
+    }
+    if (preceding !== undefined && position !== preceding + 1) {
+      const missing = priorThinking[Math.min(preceding + 1, position)]!
+      return { part: `${ordinal(missing.messageIndex)}'s reasoning continuity changed`, path: `messages[${missing.messageIndex}].content[${missing.index}]` }
+    }
+    preceding = position
   }
   return null
 }

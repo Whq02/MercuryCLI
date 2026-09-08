@@ -75,7 +75,7 @@ export function withoutCacheControl(value: unknown): unknown {
     const out: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
       if (k === 'cache_control') continue
-      out[k] = withoutCacheControl(v)
+      out[k] = k === 'input' || k === 'input_schema' ? v : withoutCacheControl(v)
     }
     return out
   }

@@ -832,15 +832,11 @@ async function* queryModel(
     const rowAt = effortRow === null ? -1 : (wireMessages as ReadonlyArray<unknown>).indexOf(effortRow)
     const sourceIds = messagesForAPI.map(m => (m.type === 'assistant' ? m.message.id : null))
     const wireMessageIds = rowAt === -1 ? sourceIds : [...sourceIds.slice(0, rowAt), null, ...sourceIds.slice(rowAt)]
-    judgeAndRecordPrefix(rosterOwnerKey, prefixKey, wireParts, wireMessageIds, {
-      replaceRecord: isTurnOwningQuerySource(options.querySource),
-    })
-
     if (effortRow !== null && !betasParams.includes(MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER)) {
       betasParams.push(MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER)
     }
 
-    return {
+    const params = {
       model: normalizeModelStringForAPI(options.model),
       messages: wireMessages as ReturnType<typeof addCacheBreakpoints>,
       system: wireParts.system as typeof system,
@@ -862,6 +858,14 @@ async function* queryModel(
         output_config: outputConfig,
       }),
     }
+    judgeAndRecordPrefix(rosterOwnerKey, prefixKey, {
+      system: params.system,
+      tools: params.tools,
+      messages: params.messages,
+    }, params.messages === wireMessages ? wireMessageIds : params.messages.map(() => null), {
+      replaceRecord: isTurnOwningQuerySource(options.querySource),
+    })
+    return params
   }
 
   {
