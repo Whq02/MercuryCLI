@@ -5,6 +5,7 @@
 # gate-watch: .github/workflows/private-release.yml
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+. "$(dirname "$0")/../lib/proof-runner.sh"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd "$here/../.." && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
@@ -18,14 +19,14 @@ for proof in "$here"/prove-*.ts; do
   [ -e "$proof" ] || continue
   echo
   echo "── $(basename "$proof") ──"
-  (cd "$repo" && "$bun" run "$proof") || fail=1
+  (cd "$repo" && run_proof "$proof" "$bun" run "$proof") || fail=1
 done
 
 for repro in "$here"/repro-*.ts; do
   [ -e "$repro" ] || continue
   echo
   echo "── $(basename "$repro") ──"
-  (cd "$repo" && "$bun" run "$repro") || fail=1
+  (cd "$repo" && run_proof "$repro" "$bun" run "$repro") || fail=1
 done
 
 echo

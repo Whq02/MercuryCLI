@@ -11,7 +11,7 @@
 # gate-watch: src/components/concourse/ConcourseRoute.tsx src/ink/session/capabilities.ts src/ink/root/screen-session.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
+prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 
 cd "$(dirname "$0")/../.." || exit 1
 
@@ -21,13 +21,13 @@ failures=0
 run() {
   local name="$1"; shift
   echo "── $name"
-  local __t=$SECONDS last
+  local __t=$SECONDS __rc=0 last
   for last; do :; done
-  if ! "$@"; then
+  if ! { "$@"; __rc=$?; [ "$__rc" -eq 0 ]; }; then
     echo "❌ $name FAILED"
     failures=$((failures + 1))
   fi
-  prover_mark "$last" "$__t"
+  prover_mark "$last" "$__t" "$__rc"
 }
 
 run "nav-semantics" "$BUN" run scripts/navigation/prove-nav-semantics.ts
