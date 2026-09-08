@@ -19,7 +19,7 @@ if (!existsSync(VSHOT) || !existsSync(BIN)) {
   process.exit(1)
 }
 
-const CONFIG_HOME = (process.env.MERCURY_CONFIG_DIR ?? join(process.env.HOME!, '.claude')).normalize('NFC')
+const CONFIG_HOME = (process.env.MERCURY_CONFIG_DIR ?? join(process.env.HOME!, '.mercury')).normalize('NFC')
 const PROJECTS = join(CONFIG_HOME, 'projects', sanitizePath(RUNTIME_CWD))
 const SID = '00000000-aaaa-bbbb-cccc-0000000000f9'
 let u = 0
