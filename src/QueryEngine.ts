@@ -29,6 +29,7 @@ import { getGlobalConfig } from './utils/config.js'
 import { isBareMode, isEnvTruthy } from './utils/envUtils.js'
 import type { FileStateCache } from './utils/fileStateCache.js'
 import { cloneFileStateCache } from './utils/fileStateCache.js'
+import { reconstructContentReplacementState, type ContentReplacementState } from './utils/toolResultStorage.js'
 import { fileHistoryEnabled, fileHistoryMakeSnapshot } from './utils/fileHistory.js'
 import { headlessProfilerCheckpoint } from './utils/headlessProfiler.js'
 import { engageCommitGate } from './utils/hooks/commitGate.js'
@@ -85,6 +86,7 @@ export type QueryEngineConfig = {
   getAppState: GetAppState
   setAppState: SetAppState
   readFileState: FileStateCache
+  contentReplacementState?: ContentReplacementState
   initialMessages?: Message[]
   customSystemPrompt?: string
   appendSystemPrompt?: string
@@ -131,6 +133,7 @@ export class QueryEngine {
   readonly #config: QueryEngineConfig
   private readonly mutableMessages: Message[]
   readonly #readFileState: FileStateCache
+  readonly #contentReplacementState: ContentReplacementState
   readonly #abortController: AbortController
   #userSpecifiedModel: string | undefined
   readonly #loadedNestedMemoryPaths = new Set<string>()
@@ -149,6 +152,10 @@ export class QueryEngine {
     this.#config = config
     this.mutableMessages = [...(config.initialMessages ?? [])]
     this.#readFileState = config.readFileState
+    this.#contentReplacementState = config.contentReplacementState ?? {
+      ...reconstructContentReplacementState(this.mutableMessages, []),
+      budgetChars: Infinity,
+    }
     this.#abortController = config.abortController ?? new AbortController()
     this.#userSpecifiedModel = config.userSpecifiedModel
   }
@@ -308,6 +315,7 @@ export class QueryEngine {
       },
       abortController: this.#abortController,
       readFileState: this.#readFileState,
+      contentReplacementState: this.#contentReplacementState,
       getAppState: config.getAppState,
       setAppState: config.setAppState,
       messages,

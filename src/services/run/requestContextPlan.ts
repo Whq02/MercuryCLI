@@ -41,7 +41,7 @@ export interface RequestContextPlanInput {
   owner: OwnerKey
   querySource: QuerySource
   contentReplacementState: ContentReplacementState | undefined
-  persistReplacements?: (records: ToolResultReplacementRecord[]) => void
+  persistReplacements?: (records: ToolResultReplacementRecord[]) => void | Promise<void>
   skipToolNames: ReadonlySet<string>
   microcompact?: typeof microcompactMessages
   readFileState?: Pick<import('../../utils/fileStateCache.js').FileStateCache, 'delete'>
@@ -226,7 +226,7 @@ export async function buildRequestContextPlan(
             input.contentReplacementState.replacements.set(toolUseId, replacement)
             records.push({ kind: 'tool-result', toolUseId, replacement })
           }
-          if (records.length > 0) input.persistReplacements?.(records)
+          if (records.length > 0) await input.persistReplacements?.(records)
         } else {
           unknownFields.push('contentReplacementState absent — cleared results hold for this request only')
         }

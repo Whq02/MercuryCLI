@@ -182,6 +182,42 @@ async function main(): Promise<void> {
     }
   }
 
+  section('5. Uncapped output still replays replacements and waits for persistence')
+  {
+    const { createContentReplacementState, cloneContentReplacementState, enforceToolResultBudget, reconstructForSubagentResume } =
+      await import('../../src/utils/toolResultStorage.js')
+    const messages = toolTurn(0, 1000) as any[]
+    messages[1].message.content[0].content = 'unchanged output '.repeat(20_000)
+    const state = { ...createContentReplacementState(), budgetChars: Infinity }
+    const first = await enforceToolResultBudget(messages, state)
+    check('uncapped output has no new aggregate replacement', first.messages === messages && first.replacements.length === 0)
+    state.replacements.set('tu-0', '[stale tool result recorded earlier]')
+    const replayed = await enforceToolResultBudget(messages, state)
+    check('an uncapped caller still reapplies recorded content', (replayed.messages[1] as any).message.content[0].content === state.replacements.get('tu-0'))
+    check('inspection preserves the output policy', cloneContentReplacementState(state).budgetChars === Infinity)
+    check('resumed agents preserve the inherited output policy', reconstructForSubagentResume(state, messages, [])?.budgetChars === Infinity)
+    let release!: () => void
+    const persisted = new Promise<void>(resolve => { release = resolve })
+    let started!: () => void
+    const persistenceStarted = new Promise<void>(resolve => { started = resolve })
+    let settled = false
+    const pending = planMod.buildRequestContextPlan({
+      messages: Array.from({ length: 8 }, (_, i) => toolTurn(i, 1000)).flat() as never,
+      owner,
+      querySource: 'sdk',
+      contentReplacementState: { ...createContentReplacementState(), budgetChars: Infinity },
+      persistReplacements: () => { started(); return persisted },
+      skipToolNames: skip,
+      pressurePrune: true,
+    }, 'apply').then(result => { settled = true; return result })
+    await persistenceStarted
+    await new Promise<void>(resolve => setImmediate(resolve))
+    check('the applied projection cannot finish before its records persist', !settled)
+    release()
+    const applied = await pending
+    check('the persisted projection then finishes with three clearings', settled && applied.reductions.pressurePruned?.cleared === 3)
+  }
+
   console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)
   process.exit(failures === 0 ? 0 : 1)
 }

@@ -31,6 +31,8 @@ import { refusalEnvelope } from './refusalEnvelope.js'
 import { errorMessage } from '../../utils/errors.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
+import type { ContentReplacementRecord } from '../../utils/toolResultStorage.js'
+import { recordContentReplacement } from '../../utils/sessionStorage.js'
 
 export function emitLoadError(
   message: string,
@@ -55,6 +57,7 @@ export function removeInterruptedMessage(
 
 type LoadInitialMessagesResult = {
   messages: Message[]
+  contentReplacements?: ContentReplacementRecord[]
   turnInterruptionState?: TurnInterruptionState
   agentSetting?: string
 }
@@ -99,8 +102,12 @@ export async function loadInitialMessages(
             : result,
         )
 
+        if (options.forkSession && persistSession && result.contentReplacements?.length) {
+          await recordContentReplacement(result.contentReplacements)
+        }
         return {
           messages: result.messages,
+          contentReplacements: result.contentReplacements,
           turnInterruptionState: result.turnInterruptionState,
           agentSetting: result.agentSetting,
         }
@@ -187,8 +194,12 @@ export async function loadInitialMessages(
           : result,
       )
 
+      if (options.forkSession && persistSession && result.contentReplacements?.length) {
+        await recordContentReplacement(result.contentReplacements)
+      }
       return {
         messages: result.messages,
+        contentReplacements: result.contentReplacements,
         turnInterruptionState: result.turnInterruptionState,
         agentSetting: result.agentSetting,
       }
