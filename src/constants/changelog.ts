@@ -6,6 +6,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed the sign-in list in the Logins screen, /login and the first run to start on the most recent sign-in's row when one is recorded and on the first row otherwise
 - Changed /model to list only real models, with its sections as OpenAI, Anthropic, OpenRouter, then the other families; a session that has picked no model keeps the automatic default
 - Removed three environment variables that had no effect: MERCURY_IDLE_THRESHOLD_MINUTES, MERCURY_IDLE_TOKEN_THRESHOLD and MERCURY_AGENT_ID
+- Fixed a GPT reply whose stream closed after a tool call but before its end: the call is no longer kept in the reply's replay record without its tool use, the model is asked to continue instead, and a saved conversation that already carries such a record replays without it, so the provider no longer refuses every later request with "No tool output found for function call"
 
 ## 1.0.0-beta.4
 - Added an optional built-in shell engine (the /config row "Shell engine" set to brush, or MERCURY_SHELL_ENGINE=brush): one persistent shell for the conversation and one per sub-agent, the same shell on every platform, and Windows no longer needs Git for Windows
