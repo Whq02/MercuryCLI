@@ -57,6 +57,7 @@ const { tokenCountWithEstimation } = await import('../../src/utils/tokens.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const { MC_DIGEST_PREFIX, MC_CLEARED_PLACEHOLDER } = await import('../../src/services/compact/microCompactDigest.ts')
 const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
+const { autoCompactIfNeeded } = await import('../../src/services/compact/autoCompact.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
 const textOf = (m: unknown): string => {
@@ -146,6 +147,24 @@ async function drive(ctx: Record<string, unknown>, messages: unknown[]): Promise
   }
   await new Promise(resolve => setTimeout(resolve, 5))
   return { yields, terminal, threw, wire: fixture.captured.slice(before) }
+}
+
+const cacheSafeFor = (ctx: Record<string, unknown>, messages: unknown[]) =>
+  ({ systemPrompt: ['fixture system prompt'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: messages }) as never
+async function compactOnce(ctx: Record<string, unknown>, messages: unknown[]): Promise<{ result: Record<string, unknown>; wire: ReturnType<typeof fixture.captured.slice>; threw: string | undefined }> {
+  const before = fixture.captured.length
+  ctx.abortController = new AbortController()
+  process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = '1'
+  let result: Record<string, unknown> = {}
+  let threw: string | undefined
+  try {
+    result = (await autoCompactIfNeeded(messages as never, ctx as never, cacheSafeFor(ctx, messages), 'sdk', undefined, 0, undefined)) as unknown as Record<string, unknown>
+  } catch (error) {
+    threw = error instanceof Error ? error.message : String(error)
+  } finally {
+    delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
+  }
+  return { result, wire: fixture.captured.slice(before), threw }
 }
 
 const transcriptAfter = (seed: unknown[], run: Drive): unknown[] => [
@@ -427,6 +446,35 @@ section('C1 a summariser refused for a malformed history — one attempt, a type
   check('the turn ends on one typed refusal that says automatic compaction is paused', errs.length === 1 && errs[0]!.startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE) && /paused for this session/.test(errs[0]!), JSON.stringify(errs))
   check('the prune rung still answered the estimate (the notice speaks)', notices.some(t => t.startsWith('context overflowed (estimated ') && /pruned \d+ superseded tool results/.test(t)), JSON.stringify(notices))
   check("terminal blocking_limit", r.terminal.reason === 'blocking_limit', JSON.stringify(r.terminal))
+}
+
+section('N1 only a pairing complaint is the malformed-history class — a parameter, schema or capability refusal counts one failure and pauses nothing')
+{
+  const ctxN = makeCtx()
+  fixture.script([
+    ...historyScript('n'),
+    { text: 'all nine notes files are read.', reasoning: reasoning(ROUNDS) },
+  ])
+  const seedN = [createUserMessage({ content: FIRST_ASK })]
+  const a = await drive(ctxN, seedN)
+  const historyN = [...transcriptAfter(seedN, a), createUserMessage({ content: SECOND_ASK })]
+  const refusal = (message: string, extra: Record<string, unknown> = {}) => ({ error: { status: 400, body: { error: { message, type: 'invalid_request_error', param: 'input', code: null, ...extra } } } })
+  const negatives: Array<{ name: string; body: ReturnType<typeof refusal> }> = [
+    { name: "an unknown parameter that merely names tool_calls (Unknown parameter: 'parallel_tool_calls')", body: refusal("Unknown parameter: 'parallel_tool_calls'.", { param: 'parallel_tool_calls', code: 'unknown_parameter' }) },
+    { name: "an unsupported parameter (Unsupported parameter: 'parallel_tool_calls')", body: refusal("Unsupported parameter: 'parallel_tool_calls'.", { param: 'parallel_tool_calls', code: 'unsupported_parameter' }) },
+    { name: 'a schema error that names a property called tool_result', body: refusal("Invalid schema for function 'Read': In context=('properties', 'tool_result'), schema must have a 'type' key.", { param: 'tools[0].parameters', code: 'invalid_function_parameters' }) },
+    { name: 'a capability refusal (This model does not support function calls)', body: refusal('This model does not support function calls.', { param: 'tools' }) },
+  ]
+  for (const negative of negatives) {
+    fixture.script([negative.body, { text: 'never reached' }])
+    const r = await compactOnce(ctxN, historyN)
+    check(`${negative.name}: one summary request, one failure counted, no pause`, r.threw === undefined && r.wire.length === 1 && r.result.wasCompacted === false && r.result.consecutiveFailures === 1 && r.result.paused === undefined, `threw=${r.threw ?? 'no'} requests=${r.wire.length} result=${JSON.stringify({ consecutiveFailures: r.result.consecutiveFailures, paused: r.result.paused, refusal: String(r.result.refusal ?? '').slice(0, 120) })}`)
+    check(`${negative.name}: the reason still rides the refusal, unclassified`, typeof r.result.refusal === 'string' && (r.result.refusal as string).includes(negative.body.error.body.error.message) && !/malformed history/i.test(r.result.refusal as string), String(r.result.refusal ?? ''))
+  }
+  fixture.script([refusal('No tool output found for function call call_tlxFSxc72b7dbbq5yBsOGC7a.'), { text: 'never reached' }])
+  const positive = await compactOnce(ctxN, historyN)
+  check('the pairing complaint itself: one summary request, the breaker at once, the pause', positive.threw === undefined && positive.wire.length === 1 && positive.result.consecutiveFailures === 3 && positive.result.paused === true, `threw=${positive.threw ?? 'no'} requests=${positive.wire.length} result=${JSON.stringify({ consecutiveFailures: positive.result.consecutiveFailures, paused: positive.result.paused })}`)
+  check("…its line names the class and the provider's call id", typeof positive.result.refusal === 'string' && /malformed history/i.test(positive.result.refusal as string) && (positive.result.refusal as string).includes('call_tlxFSxc72b7dbbq5yBsOGC7a'), String(positive.result.refusal ?? ''))
 }
 
 await fixture.close()

@@ -135,13 +135,42 @@ function isOverflowAnswer(row: AssistantMessage): boolean {
   return overflowSignalOf(row) !== null || (getAssistantMessageText(row) ?? '').startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE)
 }
 
-export function malformedHistoryRefusalOf(row: AssistantMessage): string | null {
-  if (row.isApiErrorMessage !== true || row.error !== 'invalid_request') return null
-  if (overflowSignalOf(row) !== null) return null
-  const words = getAssistantMessageText(row) ?? ''
-  if (!/function[ _]call|tool[ _](?:output|result|use)|tool_calls?/i.test(words)) return null
+const PAIRING_COMPLAINTS: readonly RegExp[] = [
+  /\bno tool output found for function call\b/i,
+  /\bno tool call found for function call output\b/i,
+  /\btool_use\b[^.]{0,80}\bwithout\b[^.]{0,80}\btool_result\b/i,
+  /\btool_result\b[^.]{0,80}\bwithout\b[^.]{0,80}\btool_use\b/i,
+  /\bunexpected\b[^.]{0,40}\btool_use_id\b/i,
+  /\btool_use\b[^.]{0,40}\bids? must be unique\b/i,
+  /\btool_call_ids?\b[^.]{0,120}\b(?:did not have|without)\b[^.]{0,80}\bresponse/i,
+  /\brole 'tool'\b[^.]{0,80}\bmust be a response to\b/i,
+  /\bduplicate\b[^.]{0,60}\b(?:call_id|call id|function call id|tool_call_id)\b/i,
+]
+
+function providerWordsOf(row: AssistantMessage): string {
+  const text = getAssistantMessageText(row) ?? ''
   const prefix = `${API_ERROR_MESSAGE_PREFIX}: `
-  return words.startsWith(prefix) ? words.slice(prefix.length) : words
+  const words = text.startsWith(prefix) ? text.slice(prefix.length) : text
+  const body = words.indexOf('{')
+  if (body >= 0) {
+    try {
+      const parsed = JSON.parse(words.slice(body)) as { error?: { message?: unknown }; message?: unknown }
+      const message = parsed.error?.message ?? parsed.message
+      if (typeof message === 'string' && message.trim() !== '') return message
+    } catch {
+    }
+  }
+  return words
+}
+
+export function malformedHistoryRefusalOf(row: AssistantMessage): string | null {
+  if (row.isApiErrorMessage !== true) return null
+  if (overflowSignalOf(row) !== null) return null
+  const text = getAssistantMessageText(row) ?? ''
+  if (row.error !== 'invalid_request' && !/\binvalid_request_error\b/.test(text)) return null
+  const words = providerWordsOf(row)
+  if (!PAIRING_COMPLAINTS.some(complaint => complaint.test(words))) return null
+  return words
 }
 
 export function compactionRefusedForHistoryText(providerWords: string, opts: { nonInteractive: boolean }): string {
