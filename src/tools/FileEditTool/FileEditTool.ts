@@ -200,13 +200,29 @@ function editMode(input: FileEditInput): EditMode {
   return 'exact'
 }
 
-function linesOfFirstMatch(content: string, oldString: string): { start: number; end: number } | null {
+function linesOfMatches(content: string, oldString: string, replaceAll: boolean): { start: number; end: number }[] | null {
   const actual = findActualString(content, oldString)
-  if (actual === null) return null
-  const at = content.indexOf(actual)
-  const start = content.slice(0, at).split('\n').length
-  const end = start + actual.split('\n').length - 1
-  return { start, end }
+  if (actual === null || actual.length === 0) return null
+  const ranges: { start: number; end: number }[] = []
+  const height = actual.split('\n').length - 1
+  let from = 0
+  let line = 1
+  for (let at = content.indexOf(actual); at !== -1; at = content.indexOf(actual, from)) {
+    line += content.slice(from, at).split('\n').length - 1
+    ranges.push({ start: line, end: line + height })
+    if (!replaceAll) break
+    line += height
+    from = at + actual.length
+  }
+  return ranges
+}
+
+function readCoversRanges(entry: FileState, ranges: { start: number; end: number }[] | null): boolean {
+  if (entry.isPartialView) return false
+  if (isFullReadEntry(entry)) return true
+  const start = Math.max(1, entry.offset ?? 1)
+  const count = Math.min(entry.limit ?? MAX_LINES_TO_READ, entry.content.split('\n').length)
+  return ranges !== null && ranges.every(range => range.start >= start && range.end < start + count)
 }
 
 function readKnowledgeRefusal(
@@ -215,17 +231,17 @@ function readKnowledgeRefusal(
   displayPath: string,
   currentContent: string,
   expectedAnchor: string | undefined,
-  touched: { start: number; end: number } | null,
+  touched: { start: number; end: number }[] | null,
   includeRead = true,
 ): string | null {
   const entry = context.readFileState.get(expandedPath)
-  if (includeRead && entry !== undefined && !entry.isPartialView) return null
+  if (includeRead && entry !== undefined && readCoversRanges(entry, touched)) return null
   if (expectedAnchor !== undefined && expectedAnchor.startsWith('fa:') && checkAnchor(expectedAnchor, currentContent, displayPath).ok) return null
   if (touched !== null) {
     try {
       const generation = fileGeneration(expandedPath)
       if (generation !== null) {
-        const seen = checkSeenLines(ownerFromToolUseContext(context), expandedPath, generation, [{ index: 1, start: touched.start, end: touched.end, replace: '' }], displayPath)
+        const seen = checkSeenLines(ownerFromToolUseContext(context), expandedPath, generation, touched.map((range, index) => ({ index: index + 1, start: range.start, end: range.end, replace: '' })), displayPath)
         if (seen.ok) return null
       }
     } catch {
@@ -510,11 +526,11 @@ export const FileEditTool = buildTool({
 
     const touched =
       mode === 'exact'
-        ? linesOfFirstMatch(currentContent, oldString)
+        ? linesOfMatches(currentContent, oldString, input.replace_all === true)
         : mode === 'section'
           ? (() => {
               const found = findSection(currentContent, input.section ?? '')
-              return found.ok ? { start: found.start, end: found.end } : null
+              return found.ok ? [{ start: found.start, end: found.end }] : null
             })()
           : null
     const knowledge =
@@ -694,17 +710,17 @@ export const FileEditTool = buildTool({
 
     if (fileExists && mode !== 'append') {
       const touched = mode === 'exact'
-        ? linesOfFirstMatch(freshContent, input.old_string ?? '')
+        ? linesOfMatches(freshContent, input.old_string ?? '', input.replace_all === true)
         : mode === 'section'
           ? (() => {
               const found = findSection(freshContent, input.section ?? '')
-              return found.ok ? { start: found.start, end: found.end } : null
+              return found.ok ? [{ start: found.start, end: found.end }] : null
             })()
           : null
       const knowledge = readKnowledgeRefusal(context, expandedPath, input.file_path, freshContent, input.expected_anchor, touched, false)
       if (knowledge !== null) {
         const entry = context.readFileState.get(expandedPath)
-        const intact = entry !== undefined && !entry.isPartialView && (
+        const intact = entry !== undefined && readCoversRanges(entry, touched) && (
           getFileModificationTime(expandedPath) <= entry.timestamp ||
           (isFullReadEntry(entry) && entry.content === freshContent)
         )

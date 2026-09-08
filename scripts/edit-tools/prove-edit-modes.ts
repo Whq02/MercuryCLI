@@ -204,6 +204,24 @@ section('K. read knowledge keyed to content')
     const changed = await edit({ file_path: searched, old_string: 'const b = 2', new_string: 'const b = 21' }, ctx)
     check('K10 current Grep evidence works with or without an obsolete Read', changed.ok && readFileSync(searched, 'utf8').includes('const b = 21'), changed.ok ? '' : changed.error)
   }
+  const repeated = join(fixtures, 'repeated.ts')
+  const repeatedBody = 'needle\nnot shown\nneedle\n'
+  writeFileSync(repeated, repeatedBody)
+  const repeatContext = makeContext()
+  await GrepTool.call({ path: repeated, pattern: 'needle', output_mode: 'content', head_limit: 1 }, repeatContext as never)
+  const repeatInput = { file_path: repeated, old_string: 'needle', new_string: 'changed', replace_all: true }
+  const refused = await edit(repeatInput, repeatContext)
+  check('K13 paged sight of the first match cannot authorize replace-all', !refused.ok && readFileSync(repeated, 'utf8') === repeatedBody)
+  let executionRefused = false
+  try { await (FileEditTool as { call: Function }).call(repeatInput, repeatContext) } catch { executionRefused = true }
+  check('K14 execution independently checks every replacement range', executionRefused && readFileSync(repeated, 'utf8') === repeatedBody)
+  const windowOnly = makeContext()
+  primeRead(windowOnly, repeated, { offset: 1, limit: 1 })
+  const windowAll = await edit(repeatInput, windowOnly)
+  check('K15 a one-match Read window cannot authorize replace-all', !windowAll.ok && readFileSync(repeated, 'utf8') === repeatedBody)
+  await GrepTool.call({ path: repeated, pattern: 'needle', output_mode: 'content' }, repeatContext as never)
+  const allSeen = await edit(repeatInput, repeatContext)
+  check('K16 sight of every match authorizes replace-all without unrelated lines', allSeen.ok && readFileSync(repeated, 'utf8') === 'changed\nnot shown\nchanged\n', allSeen.ok ? '' : allSeen.error)
   const oldRead = makeContext()
   oldRead.readFileState.set(windowed, { content: 'old bytes', timestamp: 0 })
   const currentAnchor = await edit({ file_path: windowed, old_string: 'const b = 22', new_string: 'const b = 23', expected_anchor: mintFileAnchor(readFileSync(windowed, 'utf8')) }, oldRead)
