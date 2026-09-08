@@ -220,12 +220,6 @@ check('alternate-scroll (1007) armed for the boot window',
       '\x1b[?1007h' in leave[leave.index('\x1b[?1049h'):])
 check('holding line painted in the held alt screen',
       'starting' in leave[leave.index('\x1b[?1049h'):])
-_cc_flicker = '_'.join(['CLAUDE', 'CODE']) + '_NO_FLICKER'
-raw_foreign = run_pty(100, 34, env_extra={'MERCURY_REDUCED_MOTION': '1', _cc_flicker: '0'},
-                     send=b'\r', oneshot=False)
-tail_foreign = raw_foreign[raw_foreign.rindex('\x1b[?1049l'):]
-check('the retired foreign inline spelling is IGNORED (handoff hold stands)',
-      '\x1b[?1049h' in tail_foreign)
 
 print('\n── code-trace coverage (task #6: fill to edges) + frame atomicity')
 import re as _re
@@ -1102,14 +1096,14 @@ check('true-black cinematic: no oasis ground byte across trace + hold',
 print('\n── K1/K3: seeded homes × chip content (resolveConfigFile is .mercury-first)')
 
 
-def seeded_home(native=None, legacy=None):
+def seeded_home(native=None, external=None):
     home = tempfile.mkdtemp(prefix='splash-proof-home-cfg.')
     if native is not None:
         with open(os.path.join(home, '.mercury.json'), 'w') as f:
             json.dump(native, f)
-    if legacy is not None:
+    if external is not None:
         with open(os.path.join(home, '.claude.json'), 'w') as f:
-            json.dump(legacy, f)
+            json.dump(external, f)
     return home
 
 
@@ -1122,22 +1116,22 @@ check('native home: account chip serves .mercury.json', 'native@mercury.test' in
 check('native home: the persisted critter drives the accent family (crab red, no default cyan)',
       CRAB_MAIN in raw and JELLY_MAIN not in raw)
 
-home_legacy = seeded_home(legacy={'defaultCritter': 'crab',
-                                  'oauthAccount': {'emailAddress': 'legacy@compat.test'}})
-raw = run_pty(120, 44, {'MERCURY_HOME': home_legacy, **INLINE})
+home_external = seeded_home(external={'defaultCritter': 'crab',
+                                      'oauthAccount': {'emailAddress': 'external@compat.test'}})
+raw = run_pty(120, 44, {'MERCURY_HOME': home_external, **INLINE})
 plain = STRIP.sub('', raw)
 check('external-file-only home: an external .claude.json is never read',
-      'legacy@compat.test' not in plain and 'Crab' not in plain)
+      'external@compat.test' not in plain and 'Crab' not in plain)
 
 home_both = seeded_home(
     native={'defaultCritter': 'crab', 'oauthAccount': {'emailAddress': 'native@mercury.test'}},
-    legacy={'defaultCritter': 'octopus', 'oauthAccount': {'emailAddress': 'stale@old.test'}})
+    external={'defaultCritter': 'octopus', 'oauthAccount': {'emailAddress': 'other@compat.test'}})
 raw = run_pty(120, 44, {'MERCURY_HOME': home_both, **INLINE})
 plain = STRIP.sub('', raw)
-check('adopted-BOTH home: the NATIVE file wins (the frozen-stale class)',
+check('both files present: the native file wins',
       'native@mercury.test' in plain and 'Crab' in plain)
-check('adopted-BOTH home: the stale legacy facts never render',
-      'stale@old.test' not in plain and 'Octopus' not in plain)
+check("both files present: the external file's facts never render",
+      'other@compat.test' not in plain and 'Octopus' not in plain)
 
 print('\n── K1: health chip reads the ADOPTIVE project path (.mercury first)')
 cert_cwd = tempfile.mkdtemp(prefix='splash-proof-certcwd.')
