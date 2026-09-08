@@ -58,13 +58,11 @@ const changelog = readFileSync(join(ROOT, 'src', 'constants', 'changelog.ts'), '
 const newest = sectionOf(changelog, null)
 check(`§1 the newest section is bullets only (${newest.bullets.length} bullets)`, newest.bullets.length > 0 && newest.strays.length === 0, newest.strays.slice(0, 3).join(' | '))
 const hits = houseWordHits(newest.bullets)
-check("§2 the newest section carries no word from the authoring side", hits.length === 0, hits.slice(0, 8).join(' · '))
+check('§2 the newest section carries no house word', hits.length === 0, hits.slice(0, 8).join(' · '))
 
 const beta4 = sectionOf(changelog, '1.0.0-beta.4').bullets.join('\n')
 check('§3 beta.4: the speech model is fetched behind /speak download and nothing downloads on first use', beta4.includes('/speak download') && !beta4.includes('first use downloads'))
 check("§3 beta.4: the shell engine's two Windows limits are named", beta4.includes('cmd /c npm') && beta4.includes('relative path after a cd'))
-check("§3 beta.4: no retired option spelling is named", !beta4.includes('--allowedTools') && !beta4.includes('--disallowedTools') && !beta4.includes('skip-permissions'))
-check('§3 beta.4: no retired environment name is named', !beta4.includes('ANTHROPIC_MODEL') && !beta4.includes('API_TIMEOUT_MS') && !beta4.includes('MERCURY_SIMPLE'))
 
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {

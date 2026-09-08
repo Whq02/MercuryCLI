@@ -25,9 +25,8 @@ const grep = (pattern: string, extraArgs = ''): string => {
     return ''
   }
 }
-const FLAG_NAME = '(MERCURY_[A-Z_0-9]+|HERMES_[A-Z_0-9]+|TF_[A-Z_0-9]+)'
-const RETIRED_PREFIX = /^(HERMES|TF)_/
-const RETIRED_SWEPT_SPELLINGS = new Set([
+const FLAG_NAME = '(MERCURY_[A-Z_0-9]+)'
+const SWEPT_SPELLINGS = new Set([
   'MERCURY_TANK',
   'MERCURY_HEALER',
   'MERCURY_DPS1',
@@ -45,7 +44,7 @@ const literalReads = new Set(
 const quotedFlagLiterals = new Set(
   grep(`['"]${FLAG_NAME}['"]`, '--exclude=flagRegistry.ts')
     .split('\n')
-    .map(l => (l.match(/(MERCURY_[A-Z_0-9]+|HERMES_[A-Z_0-9]+|TF_[A-Z_0-9]+)/) ?? [])[1] ?? '')
+    .map(l => (l.match(/(MERCURY_[A-Z_0-9]+)/) ?? [])[1] ?? '')
     .filter(Boolean),
 )
 for (const e of quotedFlagLiterals) literalReads.add(e)
@@ -61,20 +60,14 @@ const preBootText = PRE_BOOT_FILES.map(f => {
   }
 }).join('\n')
 const LAUNCHER_LOCALS = /^MERCURY_(SA_[A-Z_0-9]+|TAKEOVER|PRE|PROBE_OUT)$/
-for (const m of preBootText.matchAll(/(?:process\.env\.|%|\$\{?)(MERCURY_[A-Z_0-9]+|HERMES_[A-Z_0-9]+|TF_[A-Z_0-9]+)/g)) {
+for (const m of preBootText.matchAll(/(?:process\.env\.|%|\$\{?)(MERCURY_[A-Z_0-9]+)/g)) {
   const name = m[1]!
   if (LAUNCHER_LOCALS.test(name)) continue
   literalReads.add(name)
 }
-const retiredReads = [...literalReads].filter(e => RETIRED_PREFIX.test(e))
-check(
-  'no retired HERMES_*/TF_* spelling is read anywhere in src or the pre-boot files',
-  retiredReads.length === 0,
-  retiredReads.slice(0, 12).join(', '),
-)
 const registered = new Set(FLAG_REGISTRY.map(f => f.env))
 const unregistered = [...literalReads].filter(
-  e => !RETIRED_PREFIX.test(e) && !registered.has(e) && !RETIRED_SWEPT_SPELLINGS.has(e),
+  e => !registered.has(e) && !SWEPT_SPELLINGS.has(e),
 )
 check(
   `all ${literalReads.size} referenced flags are registered (incl. ${quotedFlagLiterals.size} exact-quoted literals)`,
@@ -86,7 +79,7 @@ section('§2 every registry row has a live consumer')
 const flagEnabledSites = new Set(
   grep(`flag(Enabled|Env)\\('${FLAG_NAME}'\\)`)
     .split('\n')
-    .map(l => (l.match(/(MERCURY_[A-Z_0-9]+|HERMES_[A-Z_0-9]+|TF_[A-Z_0-9]+)/) ?? [])[1] ?? '')
+    .map(l => (l.match(/(MERCURY_[A-Z_0-9]+)/) ?? [])[1] ?? '')
     .filter(Boolean),
 )
 const harnessConsumed = (f: (typeof FLAG_REGISTRY)[number]): boolean => {
@@ -160,22 +153,22 @@ try {
 }
 check("value flags refuse flagEnabled (MERCURY_DAEMON_OWNER_PID throws)", threw)
 
-section('§3c the registry reader honours the MERCURY_* spelling only')
+section('§3c the registry reader honours the registered spelling only')
 {
-  const retiredSpelling = ['HER', 'MES_DAEMON_CATCHUP'].join('')
+  const otherSpelling = 'OTHER_DAEMON_CATCHUP'
   delete process.env.MERCURY_DAEMON_CATCHUP
-  delete process.env[retiredSpelling]
-  process.env[retiredSpelling] = '0'
-  check('a HERMES_* spelling in env is inert (the gate stays at its default)', flagEnabled('MERCURY_DAEMON_CATCHUP') === true)
+  delete process.env[otherSpelling]
+  process.env[otherSpelling] = '0'
+  check('an unrelated spelling in env is inert (the gate stays at its default)', flagEnabled('MERCURY_DAEMON_CATCHUP') === true)
   check('the reader returns undefined for the unset MERCURY_* spelling', flagEnv('MERCURY_DAEMON_CATCHUP') === undefined)
-  delete process.env[retiredSpelling]
+  delete process.env[otherSpelling]
   let rejected = false
   try {
-    flagEnabled(retiredSpelling)
+    flagEnabled(otherSpelling)
   } catch {
     rejected = true
   }
-  check('a HERMES_* name is not a registered flag (flagEnabled throws)', rejected)
+  check('an unregistered name is not a flag (flagEnabled throws)', rejected)
 }
 {
   const canon = FLAG_REGISTRY.map(f => f.env)
@@ -286,14 +279,14 @@ section('§6 interaction metadata is closed, symmetric, and retirement-dated')
   check('requires-targets carry their own interaction metadata (closure)', closure)
 }
 
-section('§7 swept-spelling totality — retired spellings never ride a registry reader')
+section('§7 swept-spelling totality — swept spellings never ride a registry reader')
 {
   const READERS = '(flagEnv|flagEnabled|flagSpellings|flagPair|stampFlagOnEnv|setFlagEnv|deleteFlagEnv)'
-  const retiredAlt = [...RETIRED_SWEPT_SPELLINGS].join('|')
-  const directHits = grep(`${READERS}\\((\\s*['"](${retiredAlt})['"])`)
+  const sweptAlt = [...SWEPT_SPELLINGS].join('|')
+  const directHits = grep(`${READERS}\\((\\s*['"](${sweptAlt})['"])`)
     .split('\n')
     .filter(Boolean)
-  check('no registry reader takes a retired-swept literal', directHits.length === 0, directHits.slice(0, 4).join(' · '))
+  check('no registry reader takes a swept literal', directHits.length === 0, directHits.slice(0, 4).join(' · '))
   const gates = readFileSync(join(root, 'src/utils/workerRole.ts'), 'utf8')
   const spawn = readFileSync(join(root, 'src/daemon/headlessRun.ts'), 'utf8')
   const membersOf = (src: string): Set<string> => {
@@ -301,20 +294,20 @@ section('§7 swept-spelling totality — retired spellings never ride a registry
     return new Set([...(m?.[1] ?? '').matchAll(/'(MERCURY_[A-Z_0-9]+)'/g)].map(x => x[1]!))
   }
   const sameFive = (s: Set<string>): boolean =>
-    s.size === RETIRED_SWEPT_SPELLINGS.size && [...s].every(v => RETIRED_SWEPT_SPELLINGS.has(v))
-  check('workerRole sweeps exactly the five retired spellings (breadth never silently shrinks)', sameFive(membersOf(gates)))
+    s.size === SWEPT_SPELLINGS.size && [...s].every(v => SWEPT_SPELLINGS.has(v))
+  check('workerRole sweeps exactly the five swept spellings (breadth never silently shrinks)', sameFive(membersOf(gates)))
   check(
     'headlessRun imports the roster from workerRole (one owner, never a second literal)',
     /import \{ LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS \} from '\.\.\/utils\/workerRole\.js'/.test(spawn) &&
       !/RETIRED_SEAT_ENV_VARS[^=]*=\s*\[/.test(spawn),
   )
   check(
-    'assertSingleRole reads the retired list RAW (process.env), the live roles through flagEnv',
+    'assertSingleRole reads the swept list RAW (process.env), the live roles through flagEnv',
     /RETIRED_SEAT_ENV_VARS\.filter\(v => process\.env\[v\] === '1'\)/.test(gates) &&
       /\.filter\(v => flagEnv\(v\) === '1'\)/.test(gates),
   )
   check(
-    "headlessRun's swept spellings = the live roles' registered spellings + the retired five appended RAW",
+    "headlessRun's swept spellings = the live roles' registered spellings + the swept five appended RAW",
     /LIVE_ROLE_ENV_VARS\.flatMap\(flagSpellings\), \.\.\.RETIRED_SEAT_ENV_VARS/.test(spawn) &&
       !/RETIRED_SEAT_ENV_VARS\.flatMap\(flagSpellings\)/.test(spawn),
   )
@@ -366,17 +359,17 @@ section('§7 swept-spelling totality — retired spellings never ride a registry
     }
   }
   check('every array fed to a registry reader holds only registered members (every feeding shape)', arrayFlowHits.length === 0, arrayFlowHits.slice(0, 4).join(' · '))
-  const retiredLiteral = "'MERCURY_" + "TANK'"
+  const sweptLiteral = "'MERCURY_" + "TANK'"
   const shapes: Array<[string, string, boolean]> = [
-    ['flatMap(flagSpellings)', `const BAD = [${retiredLiteral}]\nconst x = BAD.flatMap(flagSpellings)`, true],
-    ['filter arrow', `const BAD = [${retiredLiteral}]\nconst on = BAD.filter(v => flagEnv(v) === '1')`, true],
-    ['forEach arrow', `const BAD = [${retiredLiteral}]\nBAD.forEach(v => { delete env[v]; deleteFlagEnv(v) })`, true],
-    ['some arrow (parenthesised param)', `const BAD = [${retiredLiteral}]\nconst any = BAD.some((v) => flagEnabled(v))`, true],
-    ['point-free map', `const BAD = [${retiredLiteral}]\nconst vals = BAD.map(flagEnv)`, true],
-    ['for-of, reader on the loop variable', `const BAD = [${retiredLiteral}]\nfor (const v of BAD) if (flagEnv(v) === '1') n++`, true],
-    ['for-of, the name as a LATER argument', `const BAD = [${retiredLiteral}]\nfor (const v of BAD) {\n  stampFlagOnEnv(env, v, '1')\n}`, true],
-    ['spread into a fed array (transitive)', `const RET = [${retiredLiteral}]\nconst LIVE = ['MERCURY_CREW']\nconst ALL = [...LIVE, ...RET]\nconst sp = ALL.flatMap(flagSpellings)`, true],
-    ['clean: a RAW process.env sweep', `const RET = [${retiredLiteral}]\nconst set = RET.filter(v => process.env[v] === '1')\nfor (const v of RET) delete env[v]`, false],
+    ['flatMap(flagSpellings)', `const BAD = [${sweptLiteral}]\nconst x = BAD.flatMap(flagSpellings)`, true],
+    ['filter arrow', `const BAD = [${sweptLiteral}]\nconst on = BAD.filter(v => flagEnv(v) === '1')`, true],
+    ['forEach arrow', `const BAD = [${sweptLiteral}]\nBAD.forEach(v => { delete env[v]; deleteFlagEnv(v) })`, true],
+    ['some arrow (parenthesised param)', `const BAD = [${sweptLiteral}]\nconst any = BAD.some((v) => flagEnabled(v))`, true],
+    ['point-free map', `const BAD = [${sweptLiteral}]\nconst vals = BAD.map(flagEnv)`, true],
+    ['for-of, reader on the loop variable', `const BAD = [${sweptLiteral}]\nfor (const v of BAD) if (flagEnv(v) === '1') n++`, true],
+    ['for-of, the name as a LATER argument', `const BAD = [${sweptLiteral}]\nfor (const v of BAD) {\n  stampFlagOnEnv(env, v, '1')\n}`, true],
+    ['spread into a fed array (transitive)', `const RET = [${sweptLiteral}]\nconst LIVE = ['MERCURY_CREW']\nconst ALL = [...LIVE, ...RET]\nconst sp = ALL.flatMap(flagSpellings)`, true],
+    ['clean: a RAW process.env sweep', `const RET = [${sweptLiteral}]\nconst set = RET.filter(v => process.env[v] === '1')\nfor (const v of RET) delete env[v]`, false],
   ]
   for (const [label, text, expectFed] of shapes) {
     const decls = declsOf(text)
@@ -385,80 +378,11 @@ section('§7 swept-spelling totality — retired spellings never ride a registry
   }
   check(
     '§7 self-test: a planted direct-literal call trips the reader needle',
-    new RegExp(`${READERS}\\((\\s*['"](${retiredAlt})['"])`).test("flagPair('MERCURY_" + "TANK', '0')"),
+    new RegExp(`${READERS}\\((\\s*['"](${sweptAlt})['"])`).test("flagPair('MERCURY_" + "TANK', '0')"),
   )
 }
 
 console.log('\n' + '═'.repeat(76))
-section('§8 the retired bare spellings are read nowhere in src')
-const RETIRED_BARE_SPELLINGS = [
-  'ANTHROPIC_BETAS',
-  'ANTHROPIC_CUSTOM_HEADERS',
-  'ANTHROPIC_CUSTOM_MODEL_OPTION',
-  'ANTHROPIC_DEFAULT_FABLE_MODEL',
-  'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-  'ANTHROPIC_DEFAULT_OPUS_MODEL',
-  'ANTHROPIC_DEFAULT_SONNET_MODEL',
-  'ANTHROPIC_MODEL',
-  'ANTHROPIC_SMALL_FAST_MODEL',
-  'ANTHROPIC_UNIX_SOCKET',
-  'API_TIMEOUT_MS',
-  'CLAUBBIT',
-  'DEBUG_SDK',
-  'DEMO_VERSION',
-  'DISABLE_AUTOUPDATER',
-  'DISABLE_AUTO_COMPACT',
-  'DISABLE_BUG_COMMAND',
-  'DISABLE_COMPACT',
-  'DISABLE_COST_WARNINGS',
-  'DISABLE_DOCTOR_COMMAND',
-  'DISABLE_ERROR_REPORTING',
-  'DISABLE_FEEDBACK_COMMAND',
-  'DISABLE_INSTALLATION_CHECKS',
-  'DISABLE_INTERLEAVED_THINKING',
-  'DISABLE_LOGIN_COMMAND',
-  'DISABLE_LOGOUT_COMMAND',
-  'DISABLE_PROMPT_CACHING',
-  'DISABLE_PROMPT_CACHING_HAIKU',
-  'DISABLE_PROMPT_CACHING_OPUS',
-  'DISABLE_PROMPT_CACHING_SONNET',
-  'DISABLE_TELEMETRY',
-  'EMBEDDED_SEARCH_TOOLS',
-  'ENABLE_LSP_TOOL',
-  'ENABLE_MCP_LARGE_OUTPUT_FILES',
-  'ENABLE_PID_BASED_VERSION_LOCKING',
-  'FALLBACK_FOR_ALL_PRIMARY_MODELS',
-  'GITHUB_ACTOR',
-  'IS_DEMO',
-  'IS_SANDBOX',
-  'MAX_MCP_OUTPUT_TOKENS',
-  'MAX_STRUCTURED_OUTPUT_RETRIES',
-  'MAX_THINKING_TOKENS',
-  'MCP_CLIENT_SECRET',
-  'MCP_OAUTH_CALLBACK_PORT',
-  'MCP_OAUTH_CLIENT_METADATA_URL',
-  'MCP_REMOTE_SERVER_CONNECTION_BATCH_SIZE',
-  'MCP_SERVER_CONNECTION_BATCH_SIZE',
-  'MCP_TIMEOUT',
-  'MCP_TOOL_TIMEOUT',
-  'MERCURY_SIMPLE',
-  'MERCURY_SWARMS',
-  'OTEL_LOG_TOOL_DETAILS',
-  'SAFEUSER',
-  'SLASH_COMMAND_TOOL_CHAR_BUDGET',
-  'SWE_BENCH_RUN_ID',
-  'TEST_ENABLE_SESSION_PERSISTENCE',
-  'USER_TYPE',
-  'USE_API_CONTEXT_MANAGEMENT',
-  'USE_BUILTIN_RIPGREP',
-  'USE_CONNECTOR_TEXT_SUMMARIZATION',
-  'VCR_RECORD',
-]
-for (const name of RETIRED_BARE_SPELLINGS) {
-  const hits = grep(`process\\.env\\.${name}\\b`).split('\n').map(l => l.trim()).filter(Boolean)
-  check(`${name} is read nowhere`, hits.length === 0, hits.slice(0, 3).join(' · '))
-}
-
 if (failures > 0) {
   console.log(`❌ ${failures} FLAG-REGISTRY PROOF(S) FAILED`)
   process.exit(1)

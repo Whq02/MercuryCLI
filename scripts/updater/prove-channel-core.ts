@@ -33,7 +33,7 @@ const createHashHex = (text: string): string => createHash('sha256').update(text
 console.log('── §1 tag grammar ──')
 check('v1.2.0-beta.1 parses', JSON.stringify(parsePrivateTag('v1.2.0-beta.1')) === JSON.stringify({ major: 1, minor: 2, patch: 0, label: 'beta', counter: 1 }))
 check('v10.20.30-beta.42 parses', parsePrivateTag('v10.20.30-beta.42')?.counter === 42)
-for (const bad of ['v1.2.0', '1.2.0-beta.1', 'v1.2.0-beta-rc.1', 'v1.2.0-beta.0', 'v1.2.0-beta.01', 'v1.2-beta.1', 'archive/edgar-bugaudit', 'bench-corpus-v1', 'v1.2.0-beta.1.5', 'V1.2.0-beta.1', 'v1.2.0-beta.1 ']) {
+for (const bad of ['v1.2.0', '1.2.0-beta.1', 'v1.2.0-beta-rc.1', 'v1.2.0-beta.0', 'v1.2.0-beta.01', 'v1.2-beta.1', 'archive/bug-audit', 'bench-corpus-v1', 'v1.2.0-beta.1.5', 'V1.2.0-beta.1', 'v1.2.0-beta.1 ']) {
   check(`rejects tag ${JSON.stringify(bad)}`, parsePrivateTag(bad) === null)
 }
 check('version form 1.2.0-beta.1 parses', parsePrivateVersion('1.2.0-beta.1') !== null)
@@ -117,7 +117,7 @@ console.log('── §4b the bridge gate\'s previous reader (clean channel ⇒ f
   check('an empty channel is a FIRST release (nothing to bridge from)', prevOf([]).state === 'first-release')
   check('only the candidate\'s own tag (the paired-trigger rerun) is still a first release', prevOf([{ tagName: 'v1.0.0-beta.4', isDraft: false }]).state === 'first-release')
   check('drafts do not count as shipped readers', prevOf([{ tagName: 'v1.0.0-beta.2', isDraft: true }]).state === 'first-release')
-  check('unrelated tags are ignored by name (selectRelease parity)', prevOf([{ tagName: 'bench-corpus-v1', isDraft: false }, { tagName: 'archive/edgar-bugaudit', isDraft: false }]).state === 'first-release')
+  check('unrelated tags are ignored by name (selectRelease parity)', prevOf([{ tagName: 'bench-corpus-v1', isDraft: false }, { tagName: 'archive/bug-audit', isDraft: false }]).state === 'first-release')
   const mixed = prevOf([
     { tagName: 'bench-corpus-v1', isDraft: false },
     { tagName: 'v1.0.0-beta.1', isDraft: false },
@@ -209,9 +209,9 @@ const SCHEMA2 = { schema: 2, name: 'mercury', version: '9.9.0-beta.2', bundle: '
 }
 
 console.log('── §7 repository slug derivation ──')
-check('https URL', repoSlugFromUrl('https://github.com/Whq02/PreRelease') === 'Whq02/PreRelease')
-check('.git suffix stripped', repoSlugFromUrl('https://github.com/Whq02/PreRelease.git') === 'Whq02/PreRelease')
-check('trailing slash tolerated', repoSlugFromUrl('https://github.com/Whq02/PreRelease/') === 'Whq02/PreRelease')
+check('https URL', repoSlugFromUrl('https://github.com/example/mercury') === 'example/mercury')
+check('.git suffix stripped', repoSlugFromUrl('https://github.com/example/mercury.git') === 'example/mercury')
+check('trailing slash tolerated', repoSlugFromUrl('https://github.com/example/mercury/') === 'example/mercury')
 check('non-github refused', repoSlugFromUrl('https://gitlab.com/a/b') === null)
 
 console.log('── §8 the release-record projection (one projector, both roads) ──')
