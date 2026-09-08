@@ -344,7 +344,7 @@ export async function runExclusiveOnFileSync<T>(file: string, section: () => Pro
   let release: (() => void) | undefined
   try {
     let lastContention: unknown
-    for (let attempt = 0; attempt < 7; attempt++) {
+    for (let attempt = 0; attempt < 12; attempt++) {
       try {
         release = lockfile.lockSync(file, {
           lockfilePath: `${file}.lock`,
@@ -361,7 +361,7 @@ export async function runExclusiveOnFileSync<T>(file: string, section: () => Pro
           break
         }
         lastContention = err
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 15 * 2 ** attempt)
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.min(1000, 15 * 2 ** attempt))
       }
     }
     if (lastContention !== undefined) throw lastContention
@@ -460,13 +460,13 @@ export function saveConfigWithLock<A extends object>(
       })
     release = (() => {
       let lastContention: unknown
-      for (let attempt = 0; attempt < 7; attempt++) {
+      for (let attempt = 0; attempt < 12; attempt++) {
         try {
           return takeLock()
         } catch (err) {
           if ((err as NodeJS.ErrnoException | null)?.code !== 'ELOCKED') throw err
           lastContention = err
-          const backoffMs = 15 * 2 ** attempt
+          const backoffMs = Math.min(1000, 15 * 2 ** attempt)
           Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, backoffMs)
         }
       }
