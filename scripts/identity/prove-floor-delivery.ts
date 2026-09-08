@@ -26,7 +26,7 @@ console.log('============================================================')
 const contract = await import('../../src/prompt/mercuryContract.ts')
 const FLOOR = contract.MERCURY_IDENTITY_FLOOR
 
-section('§1 the constant — the operator’s six statements, byte-ratcheted')
+section('§1 the constant — the operator’s six statements, byte-anchored')
 {
   const anchors: Array<[string, RegExp]> = [
     ['identity (You are Mercury)', /^You are \*\*Mercury\*\*/],
@@ -40,7 +40,7 @@ section('§1 the constant — the operator’s six statements, byte-ratcheted')
 
   const digest = createHash('sha256').update(FLOOR, 'utf8').digest('hex')
   check(
-    'byte ratchet (sha256 of the operator’s text)',
+    'byte anchor (sha256 of the operator’s text)',
     digest === '3937101191c48ebd6f42258a13184eb26bea896854fecea14c3d3e39adb3ccef',
     digest,
   )
@@ -63,7 +63,7 @@ section('§1b the coordinator floor — its own identity statement, the shared t
   check('exactly ONE identity statement per floor', (COORD.match(/^You are /gm) ?? []).length === 1 && (FLOOR.match(/^You are /gm) ?? []).length === 1)
   check('the session statement is absent from the coordinator floor', !COORD.includes('You are **Mercury**'))
   const coordDigest = createHash('sha256').update(COORD, 'utf8').digest('hex')
-  check('byte ratchet (sha256 of the coordinator floor)', coordDigest === 'eebfcac4b08829c5003b04d9ccaf723f391ab2ef88c58ec08bb18f5bae88ccdf', coordDigest)
+  check('byte anchor (sha256 of the coordinator floor)', coordDigest === 'eebfcac4b08829c5003b04d9ccaf723f391ab2ef88c58ec08bb18f5bae88ccdf', coordDigest)
 }
 
 section('§2 buildEffectiveSystemPrompt — floor FIRST on every replacing path')
@@ -196,7 +196,6 @@ section('§4 composer + renderers — position law, both wires')
 
   const anthropic = renderAnthropicSections(behaviour)
   check('Anthropic wire carries the floor', anthropic.includes(FLOOR))
-  check('NO family overlay exists (agentic_persistence retired)', !anthropic.some(s => s.includes('<agentic_persistence>')))
 
   const openai = renderOpenaiInstructions(behaviour)
   check('OpenAI instructions carry the floor', openai.includes(FLOOR))

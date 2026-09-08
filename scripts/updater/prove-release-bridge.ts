@@ -81,7 +81,8 @@ const extractArchive = (archive: string, dest: string): void => {
 }
 
 try {
-  const slug = process.env.MERCURY_BRIDGE_SLUG ?? repoSlugFromUrl(PKG.repository?.url ?? '') ?? 'Whq02/PreRelease'
+  const slug = process.env.MERCURY_BRIDGE_SLUG ?? repoSlugFromUrl(PKG.repository?.url ?? '')
+  if (!slug) die('no release repository: set MERCURY_BRIDGE_SLUG or a GitHub repository.url in package.json')
   let previousPath = process.env.MERCURY_BRIDGE_PREVIOUS ?? ''
   let previousTag = process.env.MERCURY_BRIDGE_PREVIOUS_TAG ?? ''
   if (!previousPath) {

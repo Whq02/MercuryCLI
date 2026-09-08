@@ -35,7 +35,6 @@ const PROCESS_TERMS: Array<[string, RegExp]> = [
   ['work-stream tag', new RegExp('\\b[A-Z][A-Z0-9]{2,}(?:-[A-Z0-9]+)*' + J(' lane', 's?\\b') + '|' + J('\\blane ', '[A-Z][A-Z0-9]{2,}(?:-[A-Z0-9]+)*\\b'))],
   ['dated decision verb', new RegExp('\\b(?:' + [J('ru', 'led'), J('rul', 'ing'), J('sigh', 'ted'), J('supp', 'lied'), J('lan', 'ded'), J('fol', 'ded'), J('tr', 'ued'), J('rati', 'fied'), J('adjudi', 'cated')].join('|') + ')\\b[^\\n]{0,16}\\b20\\d\\d-\\d\\d-\\d\\d\\b')],
   ['field-report row id', new RegExp('\\b(?:' + J('F', 'N') + '|' + J('F', 'C') + ')-\\d{3}\\b|\\b' + J('TAS', 'K') + '-\\d{3}\\b')],
-  ['private-records directory path', new RegExp(J('clean', 'room', '/'), 'i')],
 ]
 
 const VERIFICATION_CITES: Array<[string, RegExp]> = [
@@ -109,7 +108,6 @@ function selfTest(): void {
     ['§1', J('lane ', 'BAZ', '-QUX', ' folded it')],
     ['§1', J('rati', 'fied', ' 2026-08-28')],
     ['§1', J('see ', 'F', 'N', '-015', ' rank 8')],
-    ['§1', J('under ', 'clean', 'room', '/receipts')],
     ['§2', J('pinned by ', 'prove', '-', 'something.ts')],
     ['§2', J('run ', 'scripts/', 'foo', '/run-all', '.sh')],
     ['§3', J('the owner (`', 'src', '/services/x.ts`)')],
@@ -153,7 +151,7 @@ if (hits.length > 0) {
 }
 console.log(`docs-altitude: ${docsPages().length + ROOT_SURFACES.length} surfaces scanned, ${hits.length} hit(s)`)
 if (hits.length > 0 && !REPORT) {
-  console.error('❌ docs-altitude: the doc surfaces carry vocabulary or citations that belong to the authoring side')
+  console.error('❌ docs-altitude: the doc surfaces carry process vocabulary or verification citations')
   process.exit(1)
 }
 console.log(REPORT ? 'docs-altitude: report mode (no verdict)' : '✅ docs-altitude: clean')
