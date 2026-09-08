@@ -302,35 +302,6 @@ export function transformJsCell(source: string): TransformedCell {
       /\b(?:return|typeof|instanceof|in|of|new|await|yield|case|else|do)$/.test(prev)
     )
   let capturesResult = false
-  const syncTail = (): string =>
-    names.length > 0
-      ? `\n;(() => { ${[...new Set(names)].filter(n => /^[A-Za-z_$][\w$]*$/.test(n)).map(n => `try { globalThis.${n} = ${n}; } catch {}`).join(' ')} })();`
-      : ''
-  const endsCleanly = (segment: string): boolean =>
-    !(
-      /[=+\-*/%&|^<>?:,.([{]$/.test(segment) ||
-      /=>$/.test(segment) ||
-      /\b(?:return|typeof|instanceof|in|of|new|await|yield|case|else|do)$/.test(segment)
-    )
-  const controlHead = /^(?:if|else|for|while|do|switch|try|catch|finally|with|case|default|return|throw|break|continue|yield)\b/
-  const nextContinues = (i: number): boolean => {
-    for (let j = i + 1; j < segments.length; j++) {
-      const following = segments[j]!.text.trim()
-      if (following === '') continue
-      return /^(?:[.?\[(+\-*/%&|^<>=,:]|\|\||&&|instanceof\b|in\b)/.test(following)
-    }
-    return false
-  }
-  const afterOpenHead = (i: number): boolean => {
-    for (let j = i - 1; j >= 0; j--) {
-      const previous = segments[j]!.text.trim()
-      if (previous === '') continue
-      return controlHead.test(previous) && !/[};]$/.test(previous)
-    }
-    return false
-  }
-  const tailAfter = (i: number, segment: string): string =>
-    segment !== '' && endsCleanly(segment) && !controlHead.test(segment) && !nextContinues(i) && !afterOpenHead(i) ? syncTail() : ''
   for (let i = 0; i < segments.length; i++) {
     let text = segments[i]!.text
     const trimmed = text.trim()
@@ -346,42 +317,40 @@ export function transformJsCell(source: string): TransformedCell {
       const rewritten = rewriteImport(effective)
       if (rewritten) {
         names.push(...rewritten.names)
-        out.push(leading + rewritten.code + syncTail())
+        out.push(leading + rewritten.code + '\n')
         continue
       }
     }
     if (DECL_KEYWORD.test(effective)) {
       names.push(...declarationNames(effective))
-      out.push(text + tailAfter(i, effective))
+      out.push(text)
       continue
     }
     const funcMatch = FUNC_DECL.exec(effective)
     if (funcMatch?.[1]) {
       names.push(funcMatch[1])
-      out.push(text + tailAfter(i, effective))
+      out.push(text)
       continue
     }
     const classMatch = CLASS_DECL.exec(effective)
     if (classMatch?.[1]) {
       names.push(classMatch[1])
-      out.push(text + tailAfter(i, effective))
+      out.push(text)
       continue
     }
-    if (i === lastCodeIndex && prevEndsCleanly && isCapturableExpression(effective)) {
+    if (i === lastCodeIndex && prevEndsCleanly && !(effective.startsWith('`') && prevCodeIndex >= 0 && !prev.endsWith(';')) && isCapturableExpression(effective)) {
       const expr = effective.replace(/;+\s*$/, '')
       out.push(`${leading}globalThis.__mercuryResult = (${expr});`)
       capturesResult = true
       continue
     }
-    out.push(text + tailAfter(i, effective))
+    out.push(text)
   }
   const unique = [...new Set(names)].filter(n => /^[A-Za-z_$][\w$]*$/.test(n))
-  const exportTail =
-    unique.length > 0
-      ? `\n;(() => { ${unique.map(n => `try { globalThis.${n} = ${n}; } catch {}`).join(' ')} })();`
-      : ''
+  const persist = unique.map(n => `try { globalThis.${n} = ${n}; globalThis.__mercuryPersistedNames.push(${JSON.stringify(n)}); } catch {}`).join(' ')
+  const save = `__mercuryPersist${Math.abs(hashCode(source))}`
   return {
-    code: out.join('') + exportTail,
+    code: `let ${save};\ntry {\n${save} = () => { globalThis.__mercuryPersistedNames = []; ${persist} };\n${out.join('')}\n} finally { ${save}(); }`,
     persistedNames: unique,
     capturesResult,
   }

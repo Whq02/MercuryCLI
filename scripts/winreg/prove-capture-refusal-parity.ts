@@ -27,7 +27,7 @@ const cfgPath = join(scratch, 'never-written.json')
 const capture = spawnSync(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { encoding: 'utf8', env: absentEnv })
 const err = capture.stderr ?? ''
 check(`the POSIX engine exits ${CAPTURE_PREFLIGHT_MISSING_EXIT}`, capture.status === CAPTURE_PREFLIGHT_MISSING_EXIT, `rc=${capture.status}`)
-check('…with the remedy (the PYTHONPATH line and the pip line)', err.includes('run it as: PYTHONPATH=') && err.includes('-m pip install --user pyte'), err.slice(0, 200))
+check('…with an applicable install remedy whether or not an account copy exists', err.includes('-m pip install --user pyte'), err.slice(0, 200))
 check('…and no traceback, no mention of the configuration it never read', !err.includes('Traceback') && !err.includes(cfgPath))
 const posixText = readFileSync(captureEngineEntry(driver, ROOT), 'utf8')
 const winText = readFileSync(join(ROOT, 'scripts', 'winreg', 'vshot-win.py'), 'utf8')
@@ -53,7 +53,7 @@ const render = spawnSync(
   { encoding: 'utf8', cwd: ROOT, env: { ...absentEnv, MERCURY_CONFIG_DIR: renderHome }, timeout: 60_000 },
 )
 const stagedProjects = existsSync(join(renderHome, 'projects')) ? readdirSync(join(renderHome, 'projects')) : []
-check('render-tui exits 2 naming the missing engine and the remedy', render.status === 2 && (render.stderr ?? '').includes('no capture engine') && (render.stderr ?? '').includes('PYTHONPATH='), `rc=${render.status} ${(render.stderr ?? '').slice(0, 200)}`)
+check('render-tui exits 2 naming the missing engine and the remedy', render.status === 2 && (render.stderr ?? '').includes('no capture engine') && (render.stderr ?? '').includes('pip install --user pyte'), `rc=${render.status} ${(render.stderr ?? '').slice(0, 200)}`)
 check('…before any scenario is staged or a frame written', stagedProjects.length === 0 && !existsSync(join(scratch, 'never.json')) && !existsSync(join(scratch, 'never.png')), `projects=${stagedProjects.join(',')}`)
 
 rmSync(scratch, { recursive: true, force: true })

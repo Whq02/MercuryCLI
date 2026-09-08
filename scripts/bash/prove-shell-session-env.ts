@@ -91,6 +91,14 @@ const nothing = scrubSessionEnvStamps(untouched)
 check('with nothing to scrub the same object comes back and the list is empty', nothing.env === untouched && nothing.scrubbed.length === 0)
 check('a malformed receipt attributes nothing (the safe side)', sessionEnvStamps({ MERCURY_SPAWNED_ENV: '{not json', MERCURY_SEATS: '2' }).join(',') === 'MERCURY_SPAWNED_ENV')
 check('every self-stamped row is a value row', FLAG_REGISTRY.filter(f => f.selfStamped === true).every(f => f.kind === 'value'))
+for (const [name, consumer] of [
+  ['MERCURY_SUITE_ENV', 'scripts/lib/suite-env.sh'],
+  ['MERCURY_PROOF_POISON_SCRUB', 'scripts/bash/prove-shell-session-env.ts'],
+  ['MERCURY_PROOF_POISON_GUARD', 'scripts/gate/prove-suite-env-guard.sh'],
+  ['MERCURY_SLICE_ROOT', 'scripts/verify/impact.ts'],
+  ['MERCURY_SUITE_TIMEOUT', 'scripts/verify/impact.ts'],
+  ['MERCURY_SUITE_CEILING', 'scripts/verify/impact.ts'],
+]) check(`script environment reader ${name} has its actual consumer registered`, getFlagSpec(name!)?.consumer === consumer && readFileSync(join(ROOT, consumer!), 'utf8').includes(name!))
 
 section('§2 the exec seam: scrubbed by default, named on the handle, inherited on request')
 const { exec, setCwd } = await import('../../src/utils/Shell.ts')
@@ -153,6 +161,31 @@ check('the engine session spawns scrubbed and reports the names on the handle', 
 const shell = readFileSync(join(ROOT, 'src/utils/Shell.ts'), 'utf8')
 check('an inheriting call takes the classic per-command shell (the engine session cannot change per call)', /options\.inheritSessionEnv !== true\) \{\s*\n\s*const engine = resolveShellEngine/.test(shell))
 
+const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+let appState = getDefaultAppState()
+const toolContext = {
+  options: { mainLoopModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {} },
+  readFileState: new Map(),
+  getAppState: () => appState,
+  setAppState: (update: (state: typeof appState) => typeof appState) => { appState = update(appState) },
+  abortController: new AbortController(),
+  toolUseId: 'scrub-command',
+} as never
+let failureText = ''
+try { await BashTool.call({ command: 'exit 7' }, toolContext) } catch (error) { failureText = String((error as { stderr?: string }).stderr ?? error) }
+check('a failed real Bash tool call preserves the scrub notice and exit', failureText.includes('MERCURY_ENTRYPOINT') && failureText.includes('7'), failureText)
+const background = await BashTool.call({ command: 'sleep 2', run_in_background: true }, toolContext)
+check('a real background launch carries the scrubbed names', background.data.backgroundTaskId !== undefined && background.data.scrubbedSessionEnv?.includes('MERCURY_ENTRYPOINT') === true, JSON.stringify(background.data))
+const running = appState.tasks[background.data.backgroundTaskId ?? ''] as unknown as { shellCommand?: { result: Promise<unknown> } }
+await running?.shellCommand?.result
+const interruptedController = new AbortController()
+let interruptedText = ''
+let interruptionSent = false
+try {
+  const result = await BashTool.call({ command: 'while :; do printf "ready\\n"; sleep 0.2; done' }, { ...toolContext, abortController: interruptedController } as never, undefined, undefined, () => { interruptionSent = true; interruptedController.abort('proof-cancel') })
+  interruptedText = JSON.stringify(BashTool.mapToolResultToToolResultBlockParam(result.data, 'interrupted'))
+} catch (error) { interruptedText = String((error as { stderr?: string }).stderr ?? error) }
+check('an interrupted real Bash call preserves scrub attribution', interruptionSent && interruptedText.includes('MERCURY_ENTRYPOINT'), interruptedText)
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

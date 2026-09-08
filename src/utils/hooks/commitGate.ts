@@ -14,12 +14,13 @@ import {
 import { addFunctionHook, removeFunctionHook } from './sessionHooks.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
-import { isAbsolute, join, resolve } from 'node:path'
-import { findGitRoot } from '../git.js'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { basename, join, resolve } from 'node:path'
 import { subprocessEnv } from '../subprocessEnv.js'
 import {
   GENERATED_ASSETS_MAP,
+  commandWords,
+  checkChained,
   describeOwedAssets,
   generatedAssetsOwed,
   parseGeneratedAssetsMap,
@@ -201,8 +202,26 @@ export function registerCommitGate(
 }
 
 
+function assetCommandSegments(command: string): ReturnType<typeof splitShellControlOps> {
+  const segments: ReturnType<typeof splitShellControlOps> = []
+  const tokens = /\\[\s\S]|"(?:[^"\\]|\\[\s\S])*"|'[^']*'|\d*>&\d+|&>>?|&&|\|\||[;\n&|]/g
+  let start = 0
+  let opBefore: ReturnType<typeof splitShellControlOps>[number]['opBefore'] = 'start'
+  for (const match of command.matchAll(tokens)) {
+    const token = match[0]
+    if (!['&&', '||', ';', '\n', '&', '|'].includes(token)) continue
+    const text = command.slice(start, match.index).trim()
+    if (text) segments.push({ text, opBefore })
+    opBefore = token === '&&' ? '&&' : token === '|' ? 'pipe' : token === '||' ? 'or' : 'break'
+    start = match.index! + token.length
+  }
+  const text = command.slice(start).trim()
+  if (text) segments.push({ text, opBefore })
+  return segments
+}
+
 export function chainedSegmentsBeforeCommit(command: string): string[] {
-  const segments = splitShellControlOps(command)
+  const segments = assetCommandSegments(command)
   const commitIdx = segments.findIndex(s => isGitCommit(s.text))
   if (commitIdx <= 0 || segments[commitIdx]!.opBefore !== '&&') return []
   const out: string[] = []
@@ -217,25 +236,67 @@ export function chainedSegmentsBeforeCommit(command: string): string[] {
 }
 
 export function commitRepositoryRoot(commitSegment: string, cwd: string): string | null {
-  const m = /\bgit\s+(?:(?:-c\s+\S+|--git-dir(?:=\S+|\s+\S+)|--work-tree(?:=\S+|\s+\S+))\s+)*-C\s+(?:"([^"]+)"|'([^']+)'|(\S+))/.exec(commitSegment)
-  const dir = m ? (m[1] ?? m[2] ?? m[3] ?? '') : ''
-  const start = dir === '' ? cwd : isAbsolute(dir) ? dir : resolve(cwd, dir)
-  return findGitRoot(start)
+  const { prefix } = commitArguments(commitSegment)
+  try { return gitLines(cwd, [...prefix, 'rev-parse', '--show-toplevel'])[0] ?? null } catch { return null }
 }
 
 function gitLines(root: string, args: string[]): string[] {
-  return execFileSync('git', args, { cwd: root, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true })
-    .split('\n')
-    .map(l => l.trim())
-    .filter(Boolean)
+  const paths = args.includes('--name-only') || args.includes('ls-files')
+  const split = args.indexOf('--')
+  const at = split < 0 ? args.length : split
+  const argv = paths ? [...args.slice(0, at), '-z', ...args.slice(at)] : args
+  const output = execFileSync('git', argv, { cwd: root, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true })
+  return paths ? output.split(String.fromCharCode(0)).filter(Boolean) : output.split('\n').map(line => line.trim()).filter(Boolean)
 }
 
-export function commitPathsOf(root: string, commitSegment: string): string[] {
-  const paths = new Set(gitLines(root, ['diff', '--cached', '--name-only']))
-  const bare = stripQuotedShellArgs(commitSegment)
-  if (/(?:^|\s)(?:--all|-[a-zA-Z]*a[a-zA-Z]*)(?=\s|$)/.test(bare)) {
-    for (const p of gitLines(root, ['diff', '--name-only'])) paths.add(p)
+function commitArguments(segment: string): { prefix: string[]; args: string[] } {
+  const words = commandWords(segment)
+  if (!words || !/(?:^|[\\/])git(?:\.exe)?$/.test(words[0] ?? '')) throw new Error('Use a direct, literal git commit invocation so its candidate can be checked')
+  let at = 1
+  while (words[at] !== 'commit') {
+    const word = words[at++]
+    if (word === undefined) throw new Error('No git commit invocation was found')
+    if (['-C', '-c', '--git-dir', '--work-tree', '--namespace'].includes(word)) at++
+    else if (!/^--(?:git-dir|work-tree|namespace)=/.test(word)) throw new Error(`Unsupported git prefix ${word}; apply it before committing`)
   }
+  return { prefix: words.slice(1, at), args: words.slice(at + 1) }
+}
+
+function commitSelection(segment: string): { all: boolean; include: boolean; paths: string[] } {
+  const { args } = commitArguments(segment)
+  let all = false, include = false, operands = false
+  const paths: string[] = []
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]!
+    if (arg === '--') { operands = true; continue }
+    if (operands || !arg.startsWith('-')) { paths.push(arg); continue }
+    if (arg === '--all') all = true
+    if (arg === '--include') include = true
+    if (arg.startsWith('--pathspec-from-file')) throw new Error('Stage pathspec-file selections separately before committing')
+    if (/^--(?:message|file|reuse-message|reedit-message|template|author|date|cleanup)$/.test(arg)) i++
+    else if (!arg.startsWith('--')) {
+      for (let j = 1; j < arg.length; j++) {
+        const flag = arg[j]!
+        if (flag === 'a') all = true
+        if (flag === 'i') include = true
+        if ('mFCct'.includes(flag)) { if (j === arg.length - 1) i++; break }
+        if ('SuU'.includes(flag)) break
+      }
+    }
+  }
+  return { all, include, paths }
+}
+
+export function commitPathsOf(root: string, commitSegment: string, cwd = root): string[] {
+  const { prefix } = commitArguments(commitSegment)
+  const selection = commitSelection(commitSegment)
+  const git = (args: string[]): string[] => gitLines(cwd, [...prefix, ...args])
+  if (selection.paths.length > 0) {
+    const selected = [...git(['diff', '--cached', '--name-only', '--', ...selection.paths]), ...git(['diff', '--name-only', '--', ...selection.paths])]
+    return [...new Set(selection.include ? [...git(['diff', '--cached', '--name-only']), ...selected] : selected)].sort()
+  }
+  const paths = new Set(git(['diff', '--cached', '--name-only']))
+  if (selection.all) for (const p of git(['diff', '--name-only'])) paths.add(p)
   return [...paths].sort()
 }
 
@@ -246,22 +307,57 @@ export function loadGeneratedAssetsMap(root: string): { rows: GeneratedAssetRow[
 }
 
 export function generatedAssetsRefusal(command: string, cwd: string): string | null {
-  const segments = splitShellControlOps(command)
-  const commitSeg = segments.find(s => isGitCommit(s.text))
-  if (commitSeg === undefined) return null
-  const root = commitRepositoryRoot(commitSeg.text, cwd)
+  const segments = assetCommandSegments(command)
+  const commitIndex = segments.findIndex(s => isGitCommit(s.text))
+  if (commitIndex < 0) return null
+  const commitSeg = segments[commitIndex]!
+  let directory = cwd
+  const candidateChanges: string[] = []
+  const checkDirectories = new Map<string, string>()
+  for (let index = 0; index < commitIndex; index++) {
+    const segment = segments[index]!
+    const words = commandWords(segment.text)
+    if (words?.[0] === 'cd') {
+      if (words.length !== 2 || segments[index + 1]?.opBefore !== '&&' || !['start', '&&'].includes(segment.opBefore)) throw new Error('Run directory changes separately or chain literal cd commands with && before committing')
+      directory = resolve(directory, words[1]!)
+      continue
+    }
+    checkDirectories.set(segment.text.trim(), directory)
+    const head = basename(words?.[0] ?? '').replace(/\.exe$/i, '')
+    let gitVerb = 1
+    if (head === 'git' && words) {
+      while (words[gitVerb]?.startsWith('-')) {
+        if (['-C', '-c', '--git-dir', '--work-tree'].includes(words[gitVerb]!)) gitVerb += 2
+        else if (/^--(?:git-dir|work-tree)=/.test(words[gitVerb]!)) gitVerb++
+        else break
+      }
+    }
+    const readOnlyGit = head === 'git' && /^(?:status|diff|log|show|rev-parse|ls-files)$/.test(words?.[gitVerb] ?? '')
+    const inert = ['echo', 'printf', 'true', 'false', 'pwd', ':', 'test', '[', 'ls', 'cat', 'head', 'tail', 'grep', 'rg'].includes(head)
+    const shellOptions = head === 'set' && words?.every((word, at) => at === 0 || /^-[a-z]+$/.test(word) || word === 'pipefail')
+    if (!words || !(isVerifySegment(segment.text) || readOnlyGit || inert || shellOptions)) candidateChanges.push(segment.text)
+  }
+  const root = commitRepositoryRoot(commitSeg.text, directory)
   if (root === null) return null
   const map = loadGeneratedAssetsMap(root)
   if (map === null) return null
   if (map.errors.length > 0) return `The generated-asset map (${GENERATED_ASSETS_MAP}) does not parse: ${map.errors.join('; ')} — fix the map before committing.`
-  const commitPaths = commitPathsOf(root, commitSeg.text)
+  if (candidateChanges.some(segment => !map.rows.some(row => row.check !== null && checkChained(row.check, [segment]))) || segments.slice(commitIndex + 1).some(s => isGitCommit(s.text))) return 'Generated-asset checks require a stable commit candidate. Run staging or file-changing commands separately, then check and commit the resulting index.'
+  const commitPaths = commitPathsOf(root, commitSeg.text, directory)
   if (commitPaths.length === 0) return null
+  const { prefix } = commitArguments(commitSeg.text)
+  const selection = commitSelection(commitSeg.text)
+  const workingPaths = new Set(selection.all || selection.paths.length > 0
+    ? gitLines(directory, [...prefix, 'ls-files', '--full-name', ...(selection.all ? [] : ['--', ...selection.paths])])
+    : [])
   const staged = new Map<string, string | null>()
   const contentOf = (path: string): string | null => {
     if (staged.has(path)) return staged.get(path)!
     let text: string | null
     try {
-      text = execFileSync('git', ['show', `:${path}`], { cwd: root, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 })
+      text = workingPaths.has(path)
+        ? readFileSync(join(root, path), 'utf8')
+        : execFileSync('git', [...prefix, 'show', `:${path}`], { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 })
     } catch {
       try {
         text = readFileSync(join(root, path), 'utf8')
@@ -280,7 +376,11 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
       return null
     }
   }
-  const owed = generatedAssetsOwed({ rows: map.rows, commitPaths, contentOf, readFile, chainedVerifies: chainedSegmentsBeforeCommit(command) })
+  const previousContentOf = (path: string): string | null => {
+    try { return execFileSync('git', [...prefix, 'show', `HEAD:${path}`], { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 }) } catch { return null }
+  }
+  const chainedVerifies = chainedSegmentsBeforeCommit(command).filter(segment => realpathSync(checkDirectories.get(segment) ?? directory) === realpathSync(root))
+  const owed = generatedAssetsOwed({ rows: map.rows, commitPaths, contentOf, previousContentOf, readFile, chainedVerifies })
   return owed.length === 0 ? null : describeOwedAssets(owed)
 }
 

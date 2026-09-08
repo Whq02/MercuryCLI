@@ -21,13 +21,15 @@ const run = (owner: string, language: 'py' | 'js', code: string) =>
 const AsyncFunction = (async () => {}).constructor as new (code: string) => () => Promise<unknown>
 
 try {
-  section('§T the transform commits bindings as they land')
+  section('§T the transform preserves bindings on normal and exceptional exit')
   const t1 = transformJsCell('let n = 1\nif (n > 0)\n  n = 5\nelse\n  n = 6\nn = n + 1\nn')
   check('T1 no tail stands between a brace-less if body and its else', !/n = 5\s*\n\s*;\(\(\) =>/.test(t1.code) && !/else\s*\n\s*;\(\(\) =>/.test(t1.code), t1.code)
   const t2 = transformJsCell('const y = [1, 2, 3]\n  .map(v => v * 2)\n  .filter(v => v > 2)\nconst z = 1\n')
-  check('T2 a leading-dot chain is never split by a tail', /\.filter\(v => v > 2\)\s*\n\s*;\(\(\) =>/.test(t2.code) && !/\[1, 2, 3\]\s*\n\s*;/.test(t2.code), t2.code)
+  check('T2 a leading-dot chain is never split by persistence code', t2.code.includes('const y = [1, 2, 3]\n  .map(v => v * 2)\n  .filter(v => v > 2)\n'), t2.code)
   const t3 = transformJsCell('var root, hb, logs\nroot = 1\nthrow new Error("boom")\nlogs = 2\n')
-  check('T3 a declaration commits before the throw', t3.code.includes('globalThis.root = root') && t3.code.includes('throw new Error') && t3.code.indexOf('globalThis.root = root') < t3.code.indexOf('throw new Error'))
+  try { await new AsyncFunction(t3.code).call(globalThis) } catch {}
+  check('T3 an initialized declaration is preserved on the throwing path', (globalThis as Record<string, unknown>).root === 1)
+  for (const name of ['root', 'hb', 'logs']) delete (globalThis as Record<string, unknown>)[name]
   for (const src of ['let n = 1\nif (n > 0)\n  n = 5\nelse\n  n = 6\nn = n + 1\nn', 'let k = 1\nfor (const a of [1, 2])\n  k += a\nk', 'const t = {\n  a: 1,\n}\nt.a', 'const y = [1, 2, 3]\n  .map(v => v * 2)\n  .filter(v => v > 2)\ny']) {
     let ok = true
     try {
@@ -49,6 +51,17 @@ try {
   check('S3 …and the name declared after the throw as never bound', survivedNote !== undefined && /never bound.*never/.test(survivedNote), survivedNote ?? '')
   const s2 = await run('owner-S', 'js', 'JSON.stringify([root, made, typeof logs, typeof never])')
   check('S4 the next cell reads the survivors', s2.status === 'ok' && s2.resultRepr === "'[1,2,\"undefined\",\"undefined\"]'", s2.resultRepr ?? JSON.stringify(s2.error))
+  await run('owner-control', 'js', 'let value = 1\nif (true) value = 2\nfor (const x of [3, 4]) value += x\nthrow new Error("stop")')
+  const control = await run('owner-control', 'js', 'value')
+  check('S5 control-flow assignments survive an exceptional exit at their final value', control.resultRepr === '9', control.resultRepr ?? JSON.stringify(control.error))
+  const partial = await run('owner-partial', 'js', 'const first = 1, second = (() => { throw new Error("stop") })()')
+  const partialNext = await run('owner-partial', 'js', 'JSON.stringify([first, typeof second])')
+  check('S6 initialized declarators survive a later initializer failure', partial.status === 'error' && partialNext.resultRepr === "'[1,\"undefined\"]'", JSON.stringify(partialNext))
+  await run('owner-collision', 'js', 'const collision = 9')
+  const collision = await run('owner-collision', 'js', 'const collision = (() => { throw new Error("stop") })()')
+  check('S7 an old global does not count as an initialized binding of this cell', collision.annotations.some(note => note.startsWith('no top-level binding') && note.includes('collision')), JSON.stringify(collision.annotations))
+  const tagged = await run('owner-tagged', 'js', 'const tag = (strings) => strings[0].toUpperCase();\nconst tagged = tag\n`hello`\ntagged')
+  check('S8 tagged-template continuation preserves JavaScript semantics', tagged.resultRepr === "'HELLO'", tagged.resultRepr ?? JSON.stringify(tagged.error))
   const p1 = await run('owner-S', 'py', 'kept = 1\nalso = [1, 2]\nraise ValueError("boom")\nlost = 3\n')
   check('P1 the Python cell failed', p1.status === 'error' && p1.error?.name === 'ValueError', JSON.stringify(p1.error))
   const pyNote = p1.annotations.find(a => a.startsWith('bindings this failed cell made'))

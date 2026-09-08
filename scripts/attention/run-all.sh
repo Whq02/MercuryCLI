@@ -30,8 +30,10 @@ for journey in "$here"/journey-*.ts; do
   [ -e "$journey" ] || continue
   echo
   echo "── $(basename "$journey") (machine-gated) ──"
+  __t=$SECONDS
   (cd "$repo" && "$bun" run "$journey")
   got=$?; __rc=$got
+  prover_mark "$journey" "$__t" "$__rc"
   if [ "$got" = "3" ]; then
     echo "⏭  $(basename "$journey") SKIP — machine gate honoured"
   elif [ "$got" != "0" ]; then

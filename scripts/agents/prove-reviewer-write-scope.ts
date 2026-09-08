@@ -43,6 +43,14 @@ try {
   await edit.call({ file_path: report, section: '## Review', new_string: '## Review\n\n- Checked.\n' }, context())
   check('the real Edit tool updates the Review section', readFileSync(report, 'utf8').includes('- Checked.'))
   check('the report sections outside Review stay unchanged', readFileSync(report, 'utf8').startsWith('# Report\n\n## Scope\nuntouched\n\n') && readFileSync(report, 'utf8').endsWith('## Checks\nkept\n'))
+  for (const ending of ['  ## Checks\nKEEP-ME\n', '   ## Checks\nKEEP-ME\n', 'Checks\n------\nKEEP-ME\n', 'Long section\nheading\n------\nKEEP-ME\n']) {
+    writeFileSync(report, '# Report\n\n## Review\npending\n```md\n## Example\n```\n\n' + ending)
+    await edit.call({ file_path: report, section: '## Review', new_string: '## Review\nchecked\n' }, context())
+    check('section replacement preserves indented and setext neighboring sections', readFileSync(report, 'utf8') === '# Report\n\n## Review\nchecked\n' + ending)
+  }
+  writeFileSync(report, original)
+  await edit.call({ file_path: report, section: '## Review', append: '```md\n## Example\n```\n' }, context())
+  check('a fenced heading example stays inside Review', readFileSync(report, 'utf8').endsWith('## Checks\nkept\n'))
   const before = readFileSync(report, 'utf8')
   for (const input of [
     { file_path: other, append: 'changed' },
@@ -51,6 +59,9 @@ try {
     { file_path: report, section: '## Review', new_string: '## Review\nchecked\n## Scope\nchanged\n' },
     { file_path: report, section: '## Review', append: '  ## Scope\nchanged\n' },
     { file_path: report, append: '## Review\nsecond copy\n' },
+    { file_path: report, section: '## Review', append: 'Unowned section\n===\n' },
+    { file_path: report, section: '## Review', append: '```md\nunterminated example' },
+    { file_path: report, section: '## Review', new_string: '## Review\n## Section boundary\n```md\nunterminated' },
   ]) {
     await assert.rejects(() => edit.call(input, context()), /review|Review/)
     assert.equal(readFileSync(report, 'utf8'), before)

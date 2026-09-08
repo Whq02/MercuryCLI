@@ -174,6 +174,7 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
   if (mode === 'count') args.push('-c')
   if ((input['-n'] ?? true) && mode === 'content') args.push('-n')
   if (mode === 'content') {
+    args.push('--with-filename')
     if (input.context !== undefined) {
       args.push('-C', String(input.context))
     } else if (input['-C'] !== undefined) {

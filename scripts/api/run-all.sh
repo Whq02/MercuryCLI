@@ -1,9 +1,3 @@
-__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-numbers.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-numbers.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-anthropic.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-road-anthropic.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-openai.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-road-openai.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-openaicompat.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-road-openaicompat.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-zai.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-road-zai.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-window-retry.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-window-retry.ts" "$__t" "$__rc"
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/providers/anthropic/** src/services/api/client* src/services/api/transportEvidence*
@@ -16,6 +10,7 @@ prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/script
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fail=0
 echo "── api-client proofs ──"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-window-retry.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-window-retry.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-api-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-api-parity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transport-truth.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-transport-truth.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-node-transport-lane.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-node-transport-lane.ts" "$__t" "$__rc"

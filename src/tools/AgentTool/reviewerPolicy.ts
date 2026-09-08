@@ -3,6 +3,7 @@ import { extname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
 import type { Tool, Tools } from '../../Tool.js'
 import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
+import { sectionHeadings } from '../FileEditTool/sectionEdit.js'
 
 export function canonicalReviewerReceipt(path: string, worktree: string): string {
   if (!isAbsolute(path)) throw new Error('review_receipt must be an absolute path')
@@ -14,8 +15,10 @@ export function canonicalReviewerReceipt(path: string, worktree: string): string
 }
 
 function reviewSection(text: string, append: boolean): boolean {
-  const headings = text.split('\n').filter(line => /^ {0,3}#{1,2}(?:\s|$)/.test(line))
-  return append ? headings.length === 0 : headings.length === 1 && headings[0]?.trim() === '## Review' && text.trimStart().startsWith('## Review\n')
+  const headings = sectionHeadings(`${text}\n\n## Section boundary\n`).filter(row => row.level <= 2)
+  const boundary = headings.pop()
+  if (boundary?.heading !== '## Section boundary' || boundary.line !== text.split('\n').length + 2) return false
+  return append ? headings.length === 0 : headings.length === 1 && headings[0]?.heading === '## Review' && text.trimStart().startsWith('## Review\n')
 }
 
 export function reviewerRefusal(tool: Tool, input: Record<string, unknown>, receipt: string): string | null {
@@ -36,7 +39,7 @@ export function reviewerRefusal(tool: Tool, input: Record<string, unknown>, rece
   }
   if (input.section === undefined && typeof input.append === 'string' && reviewSection(input.append, false)) {
     const current = readFileSync(receipt, 'utf8')
-    if (!/^## Review\s*$/m.test(current)) return null
+    if (!sectionHeadings(current).some(row => row.heading === '## Review')) return null
   }
   return 'The reviewer may only replace or append the Review section.'
 }

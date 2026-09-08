@@ -31,6 +31,7 @@ kill_tree() {
 }
 
 t0=$SECONDS
+run_checked_suite() {
 suite_class=$(sed -n 's/^# gate-class:[[:space:]]*//p' "$runner" 2>/dev/null | head -1 | tr -d '[:space:]')
 case "$(uname -s)" in (MINGW* | MSYS* | CYGWIN*) posix_host=0 ;; (*) posix_host=1 ;; esac
 if [ "$suite_class" = "pty" ] && [ "$posix_host" = 1 ] && [ -f "$repo_root/scripts/ui/vshot.py" ]; then
@@ -39,15 +40,14 @@ if [ "$suite_class" = "pty" ] && [ "$posix_host" = 1 ] && [ -f "$repo_root/scrip
     {
       echo "capture preflight refused the suite before its first boot (interpreter $capture_python):"
       echo "$preflight_out"
-    } >"$out"
-    echo 0 >"$outdir/$dom.secs"
-    echo 0 >"$outdir/$dom.cpu"
-    echo 78 >"$outdir/$dom.rc.tmp" && mv -f "$outdir/$dom.rc.tmp" "$outdir/$dom.rc"
-    exit 78
+    }
+    return 78
   fi
 fi
+exec bash "$runner"
+}
 rm -f "$outdir/$dom.hang"
-bash "$runner" >"$out" 2>&1 &
+run_checked_suite >"$out" 2>&1 &
 pid=$!
 ( sleep "$secs"; kill -0 "$pid" 2>/dev/null && { printf '\n__SUITE_TIMEOUT after %ss (tree-killed%s)__\n' "$secs" "${note:+; $note}" >>"$out"; echo "$secs" >"$outdir/$dom.hang"; kill_tree "$pid"; } ) 2>/dev/null &
 watcher=$!

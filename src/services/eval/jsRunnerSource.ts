@@ -210,6 +210,7 @@ async function runCell(id, code, names) {
   cancelController = new AbortController()
   const signal = cancelController.signal
   try {
+    globalThis.__mercuryPersistedNames = []
     const fn = new AsyncFunction(code)
     await Promise.race([
       fn.call(globalThis),
@@ -228,10 +229,9 @@ async function runCell(id, code, names) {
       emit({ t: 'error', id, name: 'Interrupt', value: 'cell interrupted', traceback: '' })
     } else {
       status = 'error'
-      // The cell's own top-level names that reached the kernel before the
-      // throw (the transform commits each declaration as it lands): the
-      // next cell can rely on exactly these.
-      const survived = (Array.isArray(names) ? names : []).filter(n => Object.prototype.hasOwnProperty.call(globalThis, n))
+      // Only bindings initialized by this cell count; an older global with
+      // the same name does not prove that this declaration initialized.
+      const survived = (Array.isArray(names) ? names : []).filter(n => globalThis.__mercuryPersistedNames.includes(n))
       emit({
         t: 'error',
         id,

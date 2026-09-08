@@ -53,8 +53,12 @@ try {
   writeFileSync(nodeStub, fixture)
   chmodSync(nodeStub, 0o755)
   writeFileSync(stub, fixture)
+  const copiedRunners = new Map<string, string>()
   for (const [name, count, files] of [
     ['smoke', 7, []],
+    ['api', 25, []],
+    ['attention', 2, ['prove-fixture.ts', 'journey-fixture.ts']],
+    ['session-graph', 2, ['run-journeys.ts', 'run-sensitivity.ts']],
     ['golden-journeys', 9, []],
     ['node-runtime', 11, ['qualify-artifact.sh']],
     ['splash', 8, []],
@@ -66,15 +70,20 @@ try {
     const dir = join(estate, 'scripts', name)
     mkdirSync(dir)
     const runner = join(dir, 'run-all.sh')
+    copiedRunners.set(name, runner)
     writeFileSync(runner, readFileSync(join(root, 'scripts', name, 'run-all.sh')))
     for (const file of files) writeFileSync(join(dir, file), fixture)
     for (const code of [0, 29]) {
-      const result = spawnSync('bash', [runner], { cwd: estate, env: { ...env(code), TMPDIR: scratch }, encoding: 'utf8', timeout: 10000 })
+      const result = spawnSync('bash', [runner], { cwd: estate, env: { ...env(code), TMPDIR: scratch, CONSTELLATION_CLOSE_ARC: '1' }, encoding: 'utf8', timeout: 10000 })
       const rows = marks(result.stdout)
       check(`${name}: every individual command records code ${code}`, rows.length === count && rows.every(row => row.code === code))
       check(`${name}: individual checks retain the suite result for code ${code}`, result.status === (code === 0 ? 0 : 1))
     }
   }
+  const refusedApi = spawnSync('bash', [copiedRunners.get('api')!], { cwd: estate, env: { ...env(0), MERCURY_MODEL: 'foreign-fixture' }, encoding: 'utf8', timeout: 10000 })
+  check('the API runner refuses foreign environment before any command executes', refusedApi.status === 78 && marks(refusedApi.stdout).length === 0 && !refusedApi.stdout.includes('diagnostic wording'))
+  const attentionSkip = spawnSync('bash', [copiedRunners.get('attention')!], { cwd: estate, env: { ...env(3), TMPDIR: scratch }, encoding: 'utf8', timeout: 10000 })
+  check('machine-gated journeys still record their actual skip code', marks(attentionSkip.stdout).some(row => row.path.endsWith('/journey-fixture.ts') && row.code === 3) && attentionSkip.stdout.includes('SKIP'))
   const spinnerDir = join(estate, 'scripts/pulse/spinner')
   mkdirSync(spinnerDir, { recursive: true })
   const spinnerRunner = join(spinnerDir, 'run-all.sh')

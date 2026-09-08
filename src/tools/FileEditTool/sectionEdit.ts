@@ -3,7 +3,38 @@ export type SectionPlan =
   | { ok: true; updated: string; start: number; end: number; sectionText: string }
   | { ok: false; message: string }
 
-const HEADING = /^(#{1,6})\s+\S/
+const HEADING = /^ {0,3}(#{1,6})(?:[\t ]+|$)/
+
+export function sectionHeadings(content: string): { line: number; level: number; heading: string }[] {
+  const rows = content.split('\n')
+  const headings: { line: number; level: number; heading: string }[] = []
+  let fence: { char: string; length: number } | null = null
+  let paragraphStart: number | null = null
+  rows.forEach((text, index) => {
+    const marker = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(text)
+    if (fence !== null) {
+      if (marker && marker[1]![0] === fence.char && marker[1]!.length >= fence.length && marker[2]!.trim() === '') fence = null
+      paragraphStart = null
+      return
+    }
+    if (marker && (marker[1]![0] !== '`' || !marker[2]!.includes('`'))) {
+      fence = { char: marker[1]![0]!, length: marker[1]!.length }
+      paragraphStart = null
+      return
+    }
+    const atx = HEADING.exec(text)
+    if (atx) {
+      headings.push({ line: index + 1, level: atx[1]!.length, heading: text.trim().replace(/[\t ]+#+[\t ]*$/, '') })
+      paragraphStart = null
+      return
+    }
+    const setext = /^ {0,3}(=+|-+)[\t ]*$/.exec(text)
+    if (setext && paragraphStart !== null) headings.push({ line: paragraphStart, level: setext[1]![0] === '=' ? 1 : 2, heading: rows.slice(paragraphStart - 1, index).join('\n').trim() })
+    if (text.trim() === '' || setext || /^(?: {4}|\t)/.test(text)) paragraphStart = null
+    else paragraphStart ??= index + 1
+  })
+  return headings
+}
 
 export function planAppend(content: string, text: string): string {
   if (content === '') return text
@@ -11,17 +42,15 @@ export function planAppend(content: string, text: string): string {
 }
 
 export function findSection(content: string, heading: string): { ok: true; start: number; end: number } | { ok: false; message: string } {
-  const wanted = heading.replace(/\s+$/, '')
+  const wanted = heading.trim().replace(/[\t ]+#+[\t ]*$/, '')
   const level = HEADING.exec(wanted)
   if (!level) {
     return { ok: false, message: `section must be a Markdown heading line (\"## Name\", up to six #), got: ${JSON.stringify(heading)}` }
   }
   const lines = content.split('\n')
   if (content.endsWith('\n')) lines.pop()
-  const hits: number[] = []
-  lines.forEach((line, index) => {
-    if (line.replace(/\s+$/, '') === wanted) hits.push(index + 1)
-  })
+  const headings = sectionHeadings(content)
+  const hits = headings.filter(row => row.heading === wanted).map(row => row.line)
   if (hits.length === 0) {
     return { ok: false, message: `section heading not found in the file: ${JSON.stringify(wanted)}` }
   }
@@ -30,14 +59,7 @@ export function findSection(content: string, heading: string): { ok: true; start
   }
   const start = hits[0]!
   const depth = level[1]!.length
-  let end = lines.length
-  for (let i = start; i < lines.length; i++) {
-    const m = HEADING.exec(lines[i]!)
-    if (m && m[1]!.length <= depth) {
-      end = i
-      break
-    }
-  }
+  const end = (headings.find(row => row.line > start && row.level <= depth)?.line ?? lines.length + 1) - 1
   return { ok: true, start, end }
 }
 

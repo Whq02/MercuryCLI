@@ -35,7 +35,7 @@ if [ "${CONSTELLATION_CLOSE_ARC:-0}" = "1" ]; then
   for runner in "$here"/run-journeys.ts "$here"/run-sensitivity.ts; do
     echo
     echo "── $(basename "$runner") (close-arc lane) ──"
-    (cd "$repo" && "$bun" run "$runner") || { __rc=$?; fail=1; }
+    __t=$SECONDS; __rc=0; (cd "$repo" && "$bun" run "$runner") || { __rc=$?; fail=1; }; prover_mark "$runner" "$__t" "$__rc"
   done
 fi
 
