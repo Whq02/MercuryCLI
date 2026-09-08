@@ -62,4 +62,15 @@ else
   sed 's/^/      /' "$work/last.out"; fail=1
 fi
 
+mkdir -p "$work/bin"
+printf '#!/bin/sh\nexit 73\n' >"$work/bin/mktemp"
+chmod +x "$work/bin/mktemp"
+rcE=$(PATH="$work/bin:$PATH" run_tc '')
+if [ "$rcE" != "0" ] && grep -q 'cannot create temporary' "$work/last.out"; then
+  printf '  PASS temporary-file refusal stays nonzero (rc=%s)\n' "$rcE"
+else
+  printf '  FAIL temporary-file refusal reported rc=%s\n' "$rcE"
+  fail=1
+fi
+
 exit "$fail"

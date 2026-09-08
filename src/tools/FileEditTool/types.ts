@@ -13,6 +13,10 @@ const NEW_STRING_DESCRIPTION = 'The text to replace it with (must be different f
 const REPLACE_ALL_DESCRIPTION = 'Replace all occurences of old_string (default false)'
 const EXPECTED_ANCHOR_DESCRIPTION =
   'The staleness anchor from your most recent Read of this file — carry the parenthesised "(anchor: …)" value across exactly'
+const APPEND_DESCRIPTION =
+  'Text to add at the end of the file, on its own line (a newline is placed before it when the file does not end with one; the file is created when absent). No line numbers, no prior read needed — no existing byte changes. With `section`, the text lands at the end of that section instead. Mutually exclusive with old_string/new_string/hunks.'
+const SECTION_DESCRIPTION =
+  'A Markdown heading line, exactly as it stands in the file ("## Checks"), naming the section to edit: the heading through the line before the next heading of the same or a higher level. With new_string the whole section (heading included) becomes new_string; with append the text is added inside the section. The heading must occur once. Mutually exclusive with old_string/hunks.'
 
 const hunksDescription = (): string =>
   lineAnchorsEnabled()
@@ -46,6 +50,8 @@ const widestSchemaFactory = () =>
     ),
     expected_anchor: z.string().optional().describe(EXPECTED_ANCHOR_DESCRIPTION),
     hunks: z.array(hunkEntrySchema()).optional().describe(hunksDescription()),
+    append: z.string().optional().describe(APPEND_DESCRIPTION),
+    section: z.string().optional().describe(SECTION_DESCRIPTION),
   })
 
 const stockSchemaFactory = () =>

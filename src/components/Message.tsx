@@ -365,6 +365,7 @@ function MessageInner({
         type: message.type,
         timestamp: (display as { timestamp?: string } | null)?.timestamp,
         ...((display as { queued?: true } | null)?.queued === true ? { queued: true as const } : {}),
+        ...((display as { heldFor?: 'compaction' } | null)?.heldFor === 'compaction' ? { heldFor: 'compaction' as const } : {}),
       }}
     >
       {body}

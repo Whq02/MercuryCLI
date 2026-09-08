@@ -12,9 +12,10 @@ import { ENVELOPE_DOCTRINE } from '../services/agentResults/contracts.js'
 import { VERIFICATION_AGENT } from '../tools/AgentTool/built-in/verificationAgent.js'
 import { MERCURY_SCOUT_AGENT } from '../tools/AgentTool/built-in/mercuryScoutAgent.js'
 import { MERCURY_ARCHITECT_AGENT } from '../tools/AgentTool/built-in/mercuryArchitectAgent.js'
+import { MERCURY_REVIEWER_AGENT } from '../tools/AgentTool/built-in/mercuryReviewerAgent.js'
 
 const FIXED_OUTPUT_AGENT_TYPES = new Set<string>(
-  [VERIFICATION_AGENT, MERCURY_SCOUT_AGENT, MERCURY_ARCHITECT_AGENT]
+  [VERIFICATION_AGENT, MERCURY_SCOUT_AGENT, MERCURY_ARCHITECT_AGENT, MERCURY_REVIEWER_AGENT]
     .filter(d => d.fixedOutputContract)
     .map(d => d.agentType)
     .concat('workflow-subagent'),

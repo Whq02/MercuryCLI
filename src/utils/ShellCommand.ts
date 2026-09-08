@@ -39,6 +39,7 @@ export type ShellCommand = {
   onTimeout?: (callback: OnTimeoutCallback) => void
   taskOutput: TaskOutput
   treeKillReceipt?: Promise<ProcessTreeKillReceipt>
+  scrubbedSessionEnv?: readonly string[]
 }
 
 type StreamWrapper = { cleanup: () => void }

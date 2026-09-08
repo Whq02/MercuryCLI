@@ -1052,12 +1052,17 @@ function writeWorkflowFixtures(opts?: {
     ownerPid: process.pid,
     agentCount: 2,
     totalTokens: 29_700,
+    usage: {
+      inputTokens: 7_500, outputTokens: 4_700, cacheReadTokens: 89_000, cacheCreationTokens: 4_200,
+      apiTurns: 20, unsettledTurns: 1, agentsReporting: 2, agentsUnreported: 0,
+    },
     totalToolCalls: 19,
     agents: [
       {
         agentId: WF_FIXTURE_AGENT_ID, index: 0, label: 'design', state: 'done',
         phaseIndex: 1, phaseTitle: 'design', model: 'claude-opus-4-8', effort: 'high',
         tokens: 12_400, toolCalls: 9, durationMs: 45_000, attempt: 1,
+        usage: { inputTokens: 3_400, outputTokens: 2_100, cacheReadTokens: 38_000, cacheCreationTokens: 1_900, apiTurns: 9, unsettledTurns: 0 },
         startedAt: now - 115_000, queuedAt: now - 120_000,
         promptPreview: 'Design the /substrate gate panel — schema, honest planned/gated states.',
         lastToolName: 'Read', lastToolSummary: 'src/components/SubstratePanel.tsx',
@@ -1067,6 +1072,7 @@ function writeWorkflowFixtures(opts?: {
         agentId: 'fxagentB', index: 1, label: 'build', state: 'done',
         phaseIndex: 2, phaseTitle: 'build', model: 'claude-opus-4-8',
         tokens: 17_300, toolCalls: 10, durationMs: 60_000, attempt: 1,
+        usage: { inputTokens: 4_100, outputTokens: 2_600, cacheReadTokens: 51_000, cacheCreationTokens: 2_300, apiTurns: 11, unsettledTurns: 1 },
         startedAt: now - 110_000, queuedAt: now - 120_000,
         promptPreview: 'Build the panel per the shipped contract.',
         resultPreview: 'Panel built and render-verified at 80/120.',

@@ -114,3 +114,7 @@ export function buildWorktreeNotice(
 ): string {
   return `You inherited context from a parent working in a different directory (${parentCwd}). You are operating in an isolated worktree of the same repository at ${worktreeCwd}. Translate paths from the inherited context to the worktree root. Files may be stale — re-read a file before editing it. Your changes do not affect the parent.`
 }
+
+export function buildFrozenWorktreeNotice(worktreeCwd: string, commit: string): string {
+  return `Your working directory is ${worktreeCwd}: a worktree of the repository detached at commit ${commit}. It is frozen — no later commit or edit elsewhere moves it — so every file you read and every proof you run there stands on exactly that commit. Nothing you write there reaches any branch.`
+}

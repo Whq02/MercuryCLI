@@ -10,7 +10,8 @@ import { hasStoredOAuthToken } from '../utils/auth.js'
 import { subscribeSignInEpoch } from '../utils/accounts/signInLedger.js'
 import { STORED_TOKEN_SCRUB_VARS } from '../utils/subprocessEnv.js'
 import { OWNER_FD_ENV, OWNER_PID_ENV } from './ownerWatch.js'
-import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
+import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
+import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import type { Socket } from 'node:net'
 
 const OWNER_PIPE_STDIO_INDEX = 3
@@ -254,6 +255,7 @@ export function spawnOwnedDaemon(
     }
     const ownerPipe = process.platform !== 'win32'
     if (ownerPipe) Object.assign(env, flagPair(OWNER_FD_ENV, String(OWNER_PIPE_STDIO_INDEX)))
+    stampSpawnReceipt(env, [...flagSpellings(OWNER_PID_ENV), ...flagSpellings(OWNER_FD_ENV)])
     const child = spawn(process.execPath, [script, 'daemon', 'run', projectDir], {
       cwd: projectDir,
       detached: true,

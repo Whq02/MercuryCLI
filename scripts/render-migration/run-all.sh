@@ -1,7 +1,8 @@
 #!/bin/bash
 # gate-class: pty
 set -uo pipefail
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 
 cd "$(dirname "$0")/../.." || exit 1
 
@@ -10,11 +11,11 @@ fail=0
 
 run() {
   echo "── $*"
-  local __t=$SECONDS
-  if ! "$BUN" run "$@"; then
+  local __t=$SECONDS __rc=0
+  if ! { "$BUN" run "$@"; __rc=$?; [ "$__rc" -eq 0 ]; }; then
     fail=1
   fi
-  prover_mark "$1" "$__t"
+  prover_mark "$1" "$__t" "$__rc"
 }
 
 echo "── bun run build.ts (the stale-dist guard: one build, every pty prover below runs against it)"

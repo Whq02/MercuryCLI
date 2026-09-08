@@ -22,6 +22,7 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { STATE_STYLE } from '../mercury-ui/theme.js'
 import { agentSnapshotState } from './WorkflowDetailDialog.js'
 import { agentPulse, agentPulseWord } from '../../tools/WorkflowTool/livePulse.js'
+import { usageSpeaks, workflowSpendWords, workflowUsageSpend } from '../../tools/WorkflowTool/workflowUsage.js'
 import { agentRuntime } from './RunDetailPane.js'
 import { useNowTick } from '../mercury-ui/components.js'
 import { useAgentTranscriptView } from './useAgentTranscriptView.js'
@@ -178,8 +179,10 @@ export function AgentInspectorPane({
   const totalCalls = summary.toolCalls
   const headMeta: string[] = []
   if (model) headMeta.push(summary.effort ? `${model} @${summary.effort}` : model)
-  if (typeof summary.tokens === 'number' && summary.tokens > 0)
-    headMeta.push(`${GLYPH.tokens} ${formatTokens(summary.tokens)}`)
+  if (summary.usage && usageSpeaks(summary.usage))
+    headMeta.push(`${GLYPH.tokens} ${workflowSpendWords(summary.usage, formatTokens)}`)
+  else if (typeof summary.tokens === 'number' && summary.tokens > 0)
+    headMeta.push(`${GLYPH.tokens} ${formatTokens(summary.tokens)} context`)
   if (
     typeof attemptCalls === 'number' &&
     typeof totalCalls === 'number' &&
@@ -214,8 +217,14 @@ export function AgentInspectorPane({
   expandArmedRef.current = anyClipped || expanded
 
   const usageBits: string[] = []
-  if (view?.usage) {
-    if (view.usage.contextTokens > 0) usageBits.push(`${GLYPH.tokens} ${formatTokens(view.usage.contextTokens)} context`)
+  const recorded = summary.usage && usageSpeaks(summary.usage) ? summary.usage : undefined
+  if (view?.usage && view.usage.contextTokens > 0) usageBits.push(`${GLYPH.tokens} ${formatTokens(view.usage.contextTokens)} context`)
+  if (recorded) {
+    usageBits.push(
+      `${formatTokens(workflowUsageSpend(recorded))} spent (${formatTokens(workflowUsageSpend(recorded) - recorded.outputTokens)} in / ${formatTokens(recorded.outputTokens)} out)`,
+    )
+    usageBits.push(`${recorded.apiTurns} api ${plural(recorded.apiTurns, 'turn')}${recorded.unsettledTurns > 0 ? ` · ${recorded.unsettledTurns} unmeasured` : ''}`)
+  } else if (view?.usage) {
     usageBits.push(
       `${formatTokens(view.usage.inputTokens + view.usage.outputTokens)} spent (${formatTokens(view.usage.inputTokens)} in / ${formatTokens(view.usage.outputTokens)} out)`,
     )

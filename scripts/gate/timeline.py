@@ -6,7 +6,7 @@ import re
 import sys
 
 SCHEMA = 1
-PROVER_LINE = re.compile(r'^\s*──\s+(\S+)\s+(\d+)s\s*$')
+PROVER_LINE = re.compile(r'^\s*──\s+(\S+)\s+(\d+)s(?:\s+rc=(\d+))?\s*$')
 KILL_MARK = '__SUITE_TIMEOUT'
 
 
@@ -149,7 +149,7 @@ def main(outdir: str, wall_s: int) -> int:
                 for line in fh:
                     m = PROVER_LINE.match(line)
                     if m:
-                        provers.append(dict(suite=r['suite'], attempt=r['attempt'], prover=m.group(1).rsplit('/', 1)[-1], secs=int(m.group(2))))
+                        provers.append(dict(suite=r['suite'], attempt=r['attempt'], prover=m.group(1).rsplit('/', 1)[-1], secs=int(m.group(2)), **({'exitCode': int(m.group(3))} if m.group(3) is not None else {})))
                     elif KILL_MARK in line:
                         killed = True
         except OSError:

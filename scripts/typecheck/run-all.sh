@@ -2,6 +2,7 @@
 # gate-class: cpu
 # gate-watch: tsconfig.json
 set -uo pipefail
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 cd "$(dirname "$0")/../.." || exit 1
 
 TSC="node_modules/.bin/tsc"
@@ -19,7 +20,9 @@ WARM=0
 [ -f "$CFG" ]  || { echo "❌ typecheck — $CFG missing"; exit 1; }
 [ -f "$BASE" ] || { echo "❌ typecheck — $BASE missing (regen: scripts/typecheck/regen-baseline.sh)"; exit 1; }
 
-raw=$(mktemp); cur=$(mktemp); trap 'rm -f "$raw" "$cur"' EXIT
+raw=$(mktemp) || { printf 'typecheck: cannot create temporary diagnostic file\n' >&2; exit 1; }
+cur=$(mktemp) || { rm -f "$raw"; printf 'typecheck: cannot create temporary fingerprint file\n' >&2; exit 1; }
+trap 'rm -f "$raw" "$cur"' EXIT
 if [ "$WARM" -eq 1 ]; then
   mkdir -p "$(dirname "$BUILDINFO")"
   "$TSC" --noEmit -p "$CFG" --incremental --tsBuildInfoFile "$BUILDINFO" > "$raw" 2>&1

@@ -21,6 +21,14 @@ import {
   registerTask,
   updateTaskState,
 } from '../../utils/task/framework.js'
+import {
+  rollupWorkflowUsage,
+  workflowUsageSpend,
+  type WorkflowRunUsage,
+  type WorkflowUsageRollup,
+} from '../../tools/WorkflowTool/workflowUsage.js'
+
+export type { WorkflowRunUsage, WorkflowUsageRollup }
 
 const PROGRESS_LOG_TRIM = 500
 
@@ -40,6 +48,7 @@ export type WorkflowProgressEvent =
       phaseIndex?: number
       phaseTitle?: string
       tokens?: number
+      usage?: WorkflowUsageRollup
       toolCalls?: number
       durationMs?: number
       error?: string
@@ -76,6 +85,7 @@ export type LocalWorkflowTaskState = Omit<TaskStateBase, 'status'> & {
   progressVersion: number
   agentCount: number
   totalTokens: number
+  usage?: WorkflowRunUsage
   totalToolCalls: number
   logs: string[]
   result?: unknown
@@ -229,12 +239,15 @@ export function updateWorkflowProgressBatch(
     const agentIndices = new Set<number>()
     let tokenSum = 0
     let toolCallSum = 0
+    const agentRows: Array<{ usage?: unknown }> = []
     for (const row of survivors) {
       if (row.type !== 'workflow_agent') continue
       agentIndices.add(row.index)
+      agentRows.push(row)
       if (row.tokens) tokenSum += row.tokens
       if (row.toolCalls) toolCallSum += row.toolCalls
     }
+    const usage = rollupWorkflowUsage(agentRows)
 
     return {
       ...task,
@@ -242,6 +255,7 @@ export function updateWorkflowProgressBatch(
       progressVersion: task.progressVersion + events.length,
       agentCount: agentIndices.size,
       totalTokens: tokenSum,
+      ...(usage !== undefined ? { usage } : {}),
       totalToolCalls: toolCallSum,
     }
   })
@@ -431,6 +445,7 @@ export type WorkflowNotificationArgs = {
   error?: string
   agentCount: number
   totalTokens: number
+  usage?: WorkflowRunUsage
   totalToolCalls: number
   durationMs: number
   setAppState: SetAppState
@@ -542,7 +557,10 @@ export function enqueueWorkflowNotification(args: WorkflowNotificationArgs): voi
     agentsSection = `\n<agents>\ntranscripts: ${escapeXml(args.transcriptDir)}\n${rows.join('\n')}${overflow}\n</agents>`
   }
 
-  const usageSection = `\n<usage><agent_count>${args.agentCount}</agent_count><subagent_tokens>${args.totalTokens}</subagent_tokens><tool_uses>${args.totalToolCalls}</tool_uses><duration_ms>${args.durationMs}</duration_ms></usage>`
+  const spendSection = args.usage
+    ? `<subagent_spend tokens="${workflowUsageSpend(args.usage)}" input="${args.usage.inputTokens}" cache_read="${args.usage.cacheReadTokens}" cache_creation="${args.usage.cacheCreationTokens}" output="${args.usage.outputTokens}" api_turns="${args.usage.apiTurns}" unsettled_turns="${args.usage.unsettledTurns}" agents_reporting="${args.usage.agentsReporting}" agents_unreported="${args.usage.agentsUnreported}"/>`
+    : ''
+  const usageSection = `\n<usage><agent_count>${args.agentCount}</agent_count><subagent_tokens>${args.totalTokens}</subagent_tokens>${spendSection}<tool_uses>${args.totalToolCalls}</tool_uses><duration_ms>${args.durationMs}</duration_ms></usage>`
 
   const toolUseIdLine = args.toolUseId
     ? `\n<${TOOL_USE_ID_TAG}>${args.toolUseId}</${TOOL_USE_ID_TAG}>`

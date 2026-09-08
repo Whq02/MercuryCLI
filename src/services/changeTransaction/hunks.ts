@@ -33,9 +33,17 @@ export interface HunkSpan {
   replace: string
 }
 
+export type HunkOutcome = { index: number; lines: string; ok: true } | { index: number; lines: string; ok: false; message: string }
+
 export type HunkPlan =
   | { ok: true; spans: HunkSpan[]; totalLines: number }
-  | { ok: false; message: string }
+  | { ok: false; message: string; outcomes: HunkOutcome[] }
+
+export function formatHunkOutcomes(outcomes: readonly HunkOutcome[]): string {
+  return outcomes
+    .map(o => `hunk ${o.index} (${o.lines}): ${o.ok ? 'ok' : o.message.replace(new RegExp(`^hunk ${o.index}: `), '')}`)
+    .join(' · ')
+}
 
 function parseHunkRange(lines: string): { start: number; end: number } | null {
   const m = /^(\d+)(?:-(\d+))?$/.exec(lines.trim())
@@ -58,7 +66,7 @@ export function planHunks(
   expectedAnchor?: string,
 ): HunkPlan {
   if (hunks.length === 0) {
-    return { ok: false, message: 'hunks is empty — provide at least one hunk or use old_string/new_string' }
+    return { ok: false, message: 'hunks is empty — provide at least one hunk or use old_string/new_string', outcomes: [] }
   }
   const anchorsOn = lineAnchorsEnabled()
   let domainLines: string[] | null = null
@@ -69,6 +77,12 @@ export function planHunks(
       ? { start: parsedAnchor.startLine, end: parsedAnchor.startLine + parsedAnchor.lineCount - 1 }
       : null
   const spans: HunkSpan[] = []
+  const outcomes: HunkOutcome[] = []
+  const failures: string[] = []
+  const refuse = (index: number, lines: string, message: string): void => {
+    outcomes.push({ index, lines, ok: false, message })
+    failures.push(message)
+  }
   for (let i = 0; i < hunks.length; i++) {
     const h = hunks[i]!
     let range: { start: number; end: number } | null = null
@@ -76,7 +90,8 @@ export function planHunks(
     const hashed = anchorsOn ? parseHashedLinesSpelling(h.lines) : null
     if (hashed !== null) {
       if (!hashed.ok) {
-        return { ok: false, message: `hunk ${i + 1}: ${hashed.message}` }
+        refuse(i + 1, h.lines, `hunk ${i + 1}: ${hashed.message}`)
+        continue
       }
       range = { start: hashed.start.line, end: hashed.end.line }
       refs = hashed.start.line === hashed.end.line ? [hashed.start] : [hashed.start, hashed.end]
@@ -84,51 +99,72 @@ export function planHunks(
       range = parseHunkRange(h.lines)
     }
     if (!range) {
-      return { ok: false, message: `hunk ${i + 1}: lines '${h.lines}' does not parse — use "N" or "N-M" (1-based, inclusive)` }
+      refuse(i + 1, h.lines, `hunk ${i + 1}: lines '${h.lines}' does not parse — use "N" or "N-M" (1-based, inclusive)`)
+      continue
     }
     if (range.start < 1) {
-      return { ok: false, message: `hunk ${i + 1}: lines are 1-based — '${h.lines}' starts below 1` }
+      refuse(i + 1, h.lines, `hunk ${i + 1}: lines are 1-based — '${h.lines}' starts below 1`)
+      continue
     }
     if (range.end < range.start) {
-      return { ok: false, message: `hunk ${i + 1}: range '${h.lines}' ends before it starts` }
+      refuse(i + 1, h.lines, `hunk ${i + 1}: range '${h.lines}' ends before it starts`)
+      continue
     }
     if (h.insert && range.end !== range.start) {
-      return { ok: false, message: `hunk ${i + 1}: insert takes a single anchor line, not a range ('${h.lines}')` }
+      refuse(i + 1, h.lines, `hunk ${i + 1}: insert takes a single anchor line, not a range ('${h.lines}')`)
+      continue
     }
     if (h.insert && h.replace === '') {
-      return { ok: false, message: `hunk ${i + 1}: insert with an empty body does nothing — drop the hunk` }
+      refuse(i + 1, h.lines, `hunk ${i + 1}: insert with an empty body does nothing — drop the hunk`)
+      continue
     }
+    let drifted = false
     if (refs) {
       if (domainLines === null) domainLines = anchorDomainLines(content)
       for (const ref of refs) {
         const verdict = verifyLineRef(domainLines, ref)
         if (!verdict.ok) {
-          return {
-            ok: false,
-            message: formatStaleLineAnchorRefusal({
+          refuse(
+            i + 1,
+            h.lines,
+            formatStaleLineAnchorRefusal({
               hunkIndex: i + 1,
               spelling: h.lines,
               failure: verdict,
               domainLines,
             }),
-          }
+          )
+          drifted = true
+          break
         }
       }
     }
+    if (drifted) continue
     if (range.end > totalLines) {
-      return { ok: false, message: `hunk ${i + 1}: lines '${h.lines}' out of bounds — the file has ${totalLines} line(s)` }
+      refuse(i + 1, h.lines, `hunk ${i + 1}: lines '${h.lines}' out of bounds — the file has ${totalLines} line(s)`)
+      continue
     }
     if (window && (range.start < window.start || range.end > window.end)) {
-      return { ok: false, message: `hunk ${i + 1}: lines '${h.lines}' fall outside the read window L${window.start}-L${window.end} the range anchor covers — re-read the wider range first` }
+      refuse(i + 1, h.lines, `hunk ${i + 1}: lines '${h.lines}' fall outside the read window L${window.start}-L${window.end} the range anchor covers — re-read the wider range first`)
+      continue
     }
+    outcomes.push({ index: i + 1, lines: h.lines, ok: true })
     spans.push({ index: i + 1, start: range.start, end: range.end, insert: h.insert, replace: h.replace })
+  }
+  if (failures.length > 0) {
+    return { ok: false, message: failures[0]!, outcomes }
   }
   const sorted = [...spans].sort((a, b) => a.start - b.start || a.end - b.end)
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1]!
     const cur = sorted[i]!
     if (cur.start <= prev.end) {
-      return { ok: false, message: `hunk ${prev.index} and hunk ${cur.index} overlap (lines ${prev.start}-${prev.end} vs ${cur.start}-${cur.end}) — hunks must be disjoint` }
+      const message = `hunk ${prev.index} and hunk ${cur.index} overlap (lines ${prev.start}-${prev.end} vs ${cur.start}-${cur.end}) — hunks must be disjoint`
+      return {
+        ok: false,
+        message,
+        outcomes: outcomes.map(o => (o.index === prev.index || o.index === cur.index ? { index: o.index, lines: o.lines, ok: false as const, message } : o)),
+      }
     }
   }
   return { ok: true, spans: sorted, totalLines }

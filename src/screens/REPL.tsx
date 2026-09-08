@@ -121,6 +121,7 @@ import { setClipboardWithReceipt } from '../ink/termio/osc.js';
 import { useTerminalNotification } from '../ink/useTerminalNotification.js';
 import * as pendingInput from '../input-core/pending-input.js';
 import { rekeyCommandQueueToSession } from '../input-core/command-queue.js';
+import { HELD_FOR_COMPACTION_LINE } from '../components/messages/TranscriptNameplate.js';
 import { KeybindingSetup } from '../keybindings/KeybindingProviderSetup.js';
 import { useKeybinding } from '../keybindings/useKeybinding.js';
 import { getShortcutDisplay } from '../keybindings/shortcutFormat.js';
@@ -1174,6 +1175,14 @@ export function REPL({
         addNotification({
           key: 'session-command-queued',
           text: `/${getCommandName(seatCommand)} queued — runs when the current turn ends (esc interrupts the turn)`,
+          priority: 'immediate',
+          timeoutMs: RECEIPT_TIMEOUT_MS,
+        });
+      }
+      if (getFocusedSeatLive().phase === 'compacting') {
+        addNotification({
+          key: 'held-for-compaction',
+          text: HELD_FOR_COMPACTION_LINE,
           priority: 'immediate',
           timeoutMs: RECEIPT_TIMEOUT_MS,
         });

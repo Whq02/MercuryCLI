@@ -164,7 +164,7 @@ import { executeElicitationHooks, executeElicitationResultHooks, executeNotifica
 import { processSetupHooks, takeInitialUserMessage, type processSessionStartHooks } from '../utils/sessionStart.js'
 import { createIdleTimeoutManager } from '../utils/idleTimeout.js'
 import { armInactivityDeadline, DeadlineExceededError, minutesKnobToMs } from '../utils/deadline.js'
-import { flagEnv } from '../substrate/flagRegistry.js'
+import { flagEnv, setFlagEnv } from '../substrate/flagRegistry.js'
 
 const DEFAULT_HEADLESS_IDLE_MINUTES = 20
 import { getInMemoryErrors, logError } from '../utils/log.js'
@@ -1740,7 +1740,7 @@ export async function runHeadless(
               logError(error)
             }
             if (!resumed || resumed.messages.length === 0) {
-              if (claimedHome !== null) process.env.MERCURY_SESSION_HOME = claimedHome
+              if (claimedHome !== null) setFlagEnv('MERCURY_SESSION_HOME', claimedHome)
               respondError(requestId, `claim refused — no conversation found for session ${sid}`)
               return
             }
@@ -1756,10 +1756,10 @@ export async function runHeadless(
           if (claimedModel !== undefined) {
             activeModel = parseUserSpecifiedModel(claimedModel)
             setMainLoopModelOverride(claimedModel)
-            process.env.MERCURY_MODEL = claimedModel
+            setFlagEnv('MERCURY_MODEL', claimedModel)
           }
           if (claimedEffort !== undefined) {
-            process.env.MERCURY_EFFORT_LEVEL = claimedEffort
+            setFlagEnv('MERCURY_EFFORT_LEVEL', claimedEffort)
             setAppState(previous => ({ ...previous, effortValue: claimedEffort }))
           }
           if (claimedContext !== undefined) {
@@ -1779,7 +1779,7 @@ export async function runHeadless(
             respondError(requestId, `effort refused ('${requestedEffort}' is not on the shared ladder)`)
             return
           }
-          process.env.MERCURY_EFFORT_LEVEL = requestedEffort
+          setFlagEnv('MERCURY_EFFORT_LEVEL', requestedEffort)
           setAppState(previous => ({ ...previous, effortValue: requestedEffort }))
           respondSuccess(requestId, { effort: requestedEffort })
           return

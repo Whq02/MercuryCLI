@@ -727,6 +727,7 @@ const WorkflowToolDef = {
         ownerPid: process.pid,
         agentCount: live?.agentCount ?? 0,
         totalTokens: live?.totalTokens ?? 0,
+        ...(live?.usage !== undefined ? { usage: live.usage } : {}),
         totalToolCalls: live?.totalToolCalls ?? 0,
         error: final?.error ?? live?.error,
         logsTail: logsTail(live?.logs ?? []),
@@ -856,6 +857,7 @@ const WorkflowToolDef = {
           | LocalWorkflowTaskState
           | undefined
         const totalTokens = live?.totalTokens ?? 0
+        const usage = live?.usage
         const totalToolCalls = live?.totalToolCalls ?? 0
         const pausedLive = live?.status === 'paused'
 
@@ -868,6 +870,7 @@ const WorkflowToolDef = {
               status: 'killed',
               agentCount: live?.agentCount ?? 0,
               totalTokens,
+              usage,
               totalToolCalls,
               durationMs: Date.now() - task.startTime,
               setAppState,
@@ -917,6 +920,7 @@ const WorkflowToolDef = {
             failures: result.failures,
             agentCount: result.agentCount,
             totalTokens,
+            usage,
             totalToolCalls,
             durationMs: result.durationMs,
             setAppState,
@@ -955,6 +959,7 @@ const WorkflowToolDef = {
             summary: workflowRunLabel(meta),
             agentCount: live?.agentCount ?? 0,
             totalTokens: live?.totalTokens ?? 0,
+            usage: live?.usage,
             totalToolCalls: live?.totalToolCalls ?? 0,
             durationMs: Date.now() - task.startTime,
             setAppState,

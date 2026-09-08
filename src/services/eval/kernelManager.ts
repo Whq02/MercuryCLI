@@ -420,10 +420,12 @@ export class EvalKernelManager {
     const displays: EvalDisplay[] = []
     let displaysDropped = 0
     let resultRepr: string | undefined
-    let cellError: { name: string; value: string; traceback: string } | undefined
+    let cellError: { name: string; value: string; traceback: string; survived?: string[] } | undefined
+    const nested: { seq: number; name: string; ok: boolean; error?: string }[] = []
 
     const cellId = `cell-${entry.kernel.executionCount + 1}-${Date.now().toString(36)}`
-    const code = input.language === 'js' ? transformJsCell(input.code).code : input.code
+    const transformed = input.language === 'js' ? transformJsCell(input.code) : null
+    const code = transformed !== null ? transformed.code : input.code
 
     let interruptRequested: 'budget' | 'wall' | 'abort' | null = null
     let escalated = false
@@ -464,8 +466,18 @@ export class EvalKernelManager {
       onBridge: frame => {
         const startedAt = Date.now()
         budget.bridgeBegin()
+        const seq = nested.length + 1
+        const called = nestedCallName(frame)
+        if (called !== null) nested.push({ seq, name: called, ok: true })
         void serveBridge(frame, budget)
           .then(result => {
+            if (called !== null) {
+              const row = nested.find(r => r.seq === seq)
+              if (row !== undefined) {
+                row.ok = result.ok
+                if (!result.ok) row.error = String(result.error ?? 'failed').slice(0, 160)
+              }
+            }
             entry.kernel.answerBridge(frame.bridgeId, result.ok, result.value, result.error)
           })
           .catch(error => {
@@ -476,7 +488,7 @@ export class EvalKernelManager {
             budget.bridgeEnd()
           })
       },
-    })
+    }, transformed !== null ? transformed.persistedNames : undefined)
 
     runtime.start()
     wall.start()
@@ -549,6 +561,13 @@ export class EvalKernelManager {
         annotations.push('the kernel survived: variables are intact; pass reset:true if you want a clean runtime')
       }
     }
+    if (status === 'error') {
+      annotations.push(...stateAfterFailure(input.language, transformed?.persistedNames ?? [], cellError))
+    }
+    if (status === 'error' || nested.some(r => !r.ok)) {
+      const line = nestedCallsLine(nested)
+      if (line !== null) annotations.push(line)
+    }
     return this.composeOutcome(status, stdout, stderr, displays, displaysDropped, resultRepr, cellError, annotations, runtimeMs, bridgeMs, entry, cellId)
   }
 
@@ -589,6 +608,38 @@ export class EvalKernelManager {
       executionCount: entry.kernel.executionCount,
     }
   }
+}
+
+export function nestedCallName(frame: { kind: string; payload?: unknown }): string | null {
+  if (frame.kind === 'tool') {
+    const name = (frame.payload as { name?: unknown } | undefined)?.name
+    return typeof name === 'string' && name !== '' ? name : 'tool'
+  }
+  if (frame.kind === 'agent' || frame.kind === 'completion') return frame.kind
+  return null
+}
+
+export function nestedCallsLine(rows: readonly { seq: number; name: string; ok: boolean; error?: string }[]): string | null {
+  if (rows.length === 0) return null
+  const shown = rows.slice(0, 20).map(r => `${r.seq} ${r.name} ${r.ok ? 'ok' : `failed (${r.error ?? 'failed'})`}`)
+  const more = rows.length > 20 ? ` · +${rows.length - 20} more` : ''
+  const failed = rows.filter(r => !r.ok).length
+  return `nested calls (${rows.length}, ${failed} failed): ${shown.join(' · ')}${more}`
+}
+
+export function stateAfterFailure(
+  language: string,
+  declared: readonly string[],
+  error: { survived?: string[] } | undefined,
+): string[] {
+  const survived = error?.survived
+  if (survived === undefined) return []
+  const lost = declared.filter(n => !survived.includes(n))
+  if (language === 'js') {
+    const kept = survived.length > 0 ? `bindings that survived this failed cell: ${survived.join(', ')}` : 'no top-level binding of this cell survived'
+    return [lost.length > 0 ? `${kept}; never bound (declared after the throw or uninitialised): ${lost.join(', ')}` : kept]
+  }
+  return [survived.length > 0 ? `bindings this failed cell made before the error (the kernel keeps them): ${survived.join(', ')}` : 'this failed cell bound no new name before the error']
 }
 
 function formatIdleNote(ms: number): string {

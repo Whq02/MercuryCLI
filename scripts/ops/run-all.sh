@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 set -uo pipefail
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 here="$(cd "$(dirname "$0")" && pwd)"
 fails=0
 say() { printf '%s\n' "$*"; }
