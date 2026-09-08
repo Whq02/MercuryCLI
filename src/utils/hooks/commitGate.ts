@@ -236,6 +236,11 @@ export function chainedSegmentsBeforeCommit(command: string): string[] {
 }
 
 export function commitRepositoryRoot(commitSegment: string, cwd: string): string | null {
+  const prefix = commitRepositoryArguments(commitSegment)
+  try { return gitLines(cwd, [...prefix, 'rev-parse', '--show-toplevel'])[0] ?? null } catch { return null }
+}
+
+function commitRepositoryArguments(commitSegment: string): string[] {
   const header: string[] = []
   let optionValue = false
   for (const match of commitSegment.matchAll(/(?:[^\s'"\\]+|\\[\s\S]|"(?:[^"\\]|\\[\s\S])*"|'[^']*')+/g)) {
@@ -246,7 +251,7 @@ export function commitRepositoryRoot(commitSegment: string, cwd: string): string
   }
   const words = header.length === 1 && /^\$/.test(header[0]!) ? ['git'] : commandWords(header.join(' '))
   if (!words || !/(?:^|[\\/])git(?:\.exe)?$/.test(words[0] ?? '')) throw new Error('Cannot locate the generated-asset map through a variable or substitution in the Git executable or repository options. Select the directory separately and use literal Git repository options.')
-  try { return gitLines(cwd, [...words.slice(1), 'rev-parse', '--show-toplevel'])[0] ?? null } catch { return null }
+  return words.slice(1)
 }
 
 function gitLines(root: string, args: string[]): string[] {
@@ -349,8 +354,24 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
   }
   const root = commitRepositoryRoot(commitSeg.text, directory)
   if (root === null) return null
-  const map = loadGeneratedAssetsMap(root)
-  if (map === null) return null
+  const repositoryArgs = commitRepositoryArguments(commitSeg.text)
+  const readGitMap = (revision: string): string => execFileSync('git', [...repositoryArgs, 'show', `${revision}:${GENERATED_ASSETS_MAP}`], { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000 })
+  const indexedMap = gitLines(directory, [...repositoryArgs, 'ls-files', '--full-name', '--', GENERATED_ASSETS_MAP]).includes(GENERATED_ASSETS_MAP) ? readGitMap('') : null
+  let previousMap: string | null = null
+  try { previousMap = readGitMap('HEAD') } catch {  }
+  const workingMap = existsSync(join(root, GENERATED_ASSETS_MAP)) ? readFileSync(join(root, GENERATED_ASSETS_MAP), 'utf8') : null
+  if (workingMap === null && indexedMap === null && previousMap === null) return null
+  if (workingMap !== null) {
+    const parsed = parseGeneratedAssetsMap(workingMap)
+    if (parsed.errors.length > 0) return `The generated-asset map (${GENERATED_ASSETS_MAP}) does not parse: ${parsed.errors.join('; ')} — fix the map before committing.`
+  }
+  if (indexedMap !== null && workingMap !== indexedMap) return `Generated-asset map differs from the index (${GENERATED_ASSETS_MAP}). Stage or undo its changes separately before committing.`
+  const mapSelection = commitSelection(commitSeg.text)
+  const limited = mapSelection.paths.length > 0 && !mapSelection.include
+  const mapSelected = limited && commitPathsOf(root, commitSeg.text, directory).includes(GENERATED_ASSETS_MAP)
+  const candidateMap = limited && !mapSelected ? previousMap : indexedMap ?? workingMap
+  if (candidateMap === null) return null
+  const map = parseGeneratedAssetsMap(candidateMap)
   if (map.errors.length > 0) return `The generated-asset map (${GENERATED_ASSETS_MAP}) does not parse: ${map.errors.join('; ')} — fix the map before committing.`
   if (map.rows.length === 0) return null
   if (directoryRefusal !== null) return directoryRefusal
