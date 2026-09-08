@@ -24,7 +24,7 @@ jobs:
   build:
     name: "phase-0 · dist"
     if: ${{ vars.GATE_DISABLE != '1' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.GATE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 25
     outputs:
       darwin_suites: ${{ steps.plan.outputs.darwin_suites }}
@@ -92,7 +92,7 @@ jobs:
   shard:
     name: "suites · shard ${{ matrix.shard }}"
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.GATE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
