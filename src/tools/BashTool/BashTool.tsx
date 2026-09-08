@@ -420,7 +420,7 @@ async function* runBash(
       shellCommand.cleanup()
       return await postProcess(result)
     }
-    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: handle.taskId }
+    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: handle.taskId, scrubbedSessionEnv: shellCommand.scrubbedSessionEnv }
   }
 
   const completed = shellCommand.result.then(() => 'done' as const)
@@ -443,6 +443,7 @@ async function* runBash(
       stderr: '',
       interrupted: false,
       backgroundTaskId: backgroundId,
+      scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
       assistantAutoBackgrounded,
       timeoutAutoBackgroundedAfterMs,
     }
@@ -488,6 +489,7 @@ async function* runBash(
           stderr: '',
           interrupted: false,
           backgroundTaskId: backgroundId,
+          scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
           assistantAutoBackgrounded,
           timeoutAutoBackgroundedAfterMs,
         }
@@ -499,6 +501,7 @@ async function* runBash(
           stderr: '',
           interrupted: false,
           backgroundTaskId: foregroundTaskId,
+          scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
           backgroundedByUser: true,
         }
       }
@@ -570,7 +573,7 @@ async function* runBash(
       throw new ShellError('', result.preSpawnError, result.code, result.interrupted)
     }
     if (interpretation.isError && !interruptedByUser) {
-      throw new ShellError('', out, result.code, result.interrupted)
+      throw new ShellError('', [out, scrubbedSessionEnvNotice(shellCommand.scrubbedSessionEnv)].filter(Boolean).join('\n'), result.code, result.interrupted)
     }
 
     let persistedOutputPath: string | undefined

@@ -1488,6 +1488,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           log(
             `[${label}] subagent stopped without calling ${STRUCTURED_OUTPUT_TOOL_NAME} — corrective re-prompt ${nudges}/${MAX_STRUCTURED_OUTPUT_NUDGES} (same conversation)`,
           )
+          foldIn(report)
           report = await attempt(
             `${label} (structured-output re-prompt ${nudges})`,
             1 + nudges,

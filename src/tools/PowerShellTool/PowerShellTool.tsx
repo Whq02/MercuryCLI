@@ -247,7 +247,7 @@ async function* runPowerShell(
       shellCommand.cleanup()
       return await postProcess(result)
     }
-    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: handle.taskId }
+    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: handle.taskId, scrubbedSessionEnv }
   }
 
   const completed = shellCommand.result.then(() => 'done' as const)
@@ -264,7 +264,7 @@ async function* runPowerShell(
     return await postProcess(result)
   }
   if (backgroundId !== undefined) {
-    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: backgroundId, assistantAutoBackgrounded, timeoutAutoBackgroundedAfterMs }
+    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: backgroundId, assistantAutoBackgrounded, timeoutAutoBackgroundedAfterMs, scrubbedSessionEnv }
   }
 
   TaskOutput.startPolling(shellCommand.taskOutput.taskId)
@@ -298,11 +298,11 @@ async function* runPowerShell(
         return {
           stdout: interruptBackgroundingStarted ? fullOutput : '',
           stderr: '', interrupted: false, backgroundTaskId: backgroundId,
-          assistantAutoBackgrounded, timeoutAutoBackgroundedAfterMs,
+          assistantAutoBackgrounded, timeoutAutoBackgroundedAfterMs, scrubbedSessionEnv,
         }
       }
       if (foregroundTaskId !== null && shellCommand.status === 'backgrounded') {
-        return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: foregroundTaskId, backgroundedByUser: true }
+        return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: foregroundTaskId, backgroundedByUser: true, scrubbedSessionEnv }
       }
 
       const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000)
@@ -354,7 +354,7 @@ async function* runPowerShell(
       return {
         stdout: result.stdout, stderr: [stderr].filter(Boolean).join('\n'), interrupted: false,
         backgroundTaskId: result.backgroundTaskId, backgroundedByUser: result.backgroundedByUser,
-        assistantAutoBackgrounded: result.assistantAutoBackgrounded, gitOperation,
+        assistantAutoBackgrounded: result.assistantAutoBackgrounded, gitOperation, scrubbedSessionEnv,
       }
     }
 
@@ -369,7 +369,7 @@ async function* runPowerShell(
     }
     if (interpretation.isError && !interruptedByUser) {
       const annotated = SandboxManager.annotateStderrWithSandboxFailures(input.command, out)
-      throw new ShellError(out, annotated, result.code, result.interrupted)
+      throw new ShellError(out, [annotated, scrubbedSessionEnvNotice(scrubbedSessionEnv)].filter(Boolean).join('\n'), result.code, result.interrupted)
     }
 
     let persistedOutputPath: string | undefined

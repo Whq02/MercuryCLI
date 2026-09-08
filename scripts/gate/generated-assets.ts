@@ -124,7 +124,11 @@ const readFile = (path: string): string | null => {
     return null
   }
 }
-const owed = generatedAssetsOwed({ rows: map.rows, commitPaths: paths, contentOf, readFile, chainedVerifies: [] })
+const previousRef = args[0] && !args[0].startsWith('--') ? args[0].split('..')[0]! : 'HEAD'
+const previousContentOf = (path: string): string | null => {
+  try { return execFileSync('git', ['show', `${previousRef}:${path}`], { cwd: ROOT, encoding: 'utf8', stdio: 'pipe' }) } catch { return null }
+}
+const owed = generatedAssetsOwed({ rows: map.rows, commitPaths: paths, contentOf, previousContentOf, readFile, chainedVerifies: [] })
 for (const o of owed) {
   console.log([o.row.assets.join(' '), o.row.generator, o.row.check ?? '-', [...new Set(o.touched.map(t => t.path))].join(' ')].join('\t'))
 }

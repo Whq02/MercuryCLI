@@ -174,6 +174,20 @@ try {
   clearInterval(cutTimer)
   const agentFrames = frames.filter((f: any) => f?.type === 'workflow_agent')
   emit({ ev: 'cut', last: agentFrames.at(-1) ?? null, result: cutResult })
+  const nudgeFrames: any[] = []
+  let nudgeAttempt = 0
+  const nudgeHooks: any = makeWorkflowHooks({
+    toolUseContext: ctx,
+    canUseTool: async () => ({ behavior: 'allow' }),
+    emitProgress: (frame: any) => nudgeFrames.push(frame.data),
+    spawnSubagentStream: async function* () {
+      nudgeAttempt++
+      yield { type: 'assistant', message: { id: 'response-' + nudgeAttempt, content: [{ type: 'text', text: 'finished' }], stop_reason: 'end_turn', usage: { input_tokens: nudgeAttempt === 1 ? 9000 : 80, output_tokens: nudgeAttempt === 1 ? 200 : 20, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }
+      if (nudgeAttempt === 2) yield { type: 'attachment', attachment: { type: 'structured_output', data: { ok: true } } }
+    },
+  })
+  const nudgeResult = await nudgeHooks.agent('Return the structured result', { schema: { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'] } })
+  emit({ ev: 'nudge', attempts: nudgeAttempt, result: nudgeResult, usage: nudgeFrames.filter((frame: any) => frame.type === 'workflow_agent').at(-1)?.usage })
   process.exit(0)
 } catch (e) {
   emit({ ev: 'threw', message: (e as Error).message, stack: String((e as Error).stack).slice(0, 600) })
@@ -257,6 +271,9 @@ check('…and the rollup over such an agent carries the unmeasured turn', (() =>
   const r = rollupWorkflowUsage([{ usage: cutUsage }])
   return r !== undefined && r.unsettledTurns === 1 && r.agentsReporting === 1
 })())
+
+const nudge = lines.find(line => line.ev === 'nudge') as { attempts?: number; usage?: { inputTokens: number; outputTokens: number; apiTurns: number } } | undefined
+check('structured-output corrections retain all earlier spend exactly once', nudge?.attempts === 2 && nudge.usage?.inputTokens === 9080 && nudge.usage.outputTokens === 220 && nudge.usage.apiTurns === 2, JSON.stringify(nudge))
 
 section('§4 the notification spells the spend beside the context sum')
 const usageLine = settled?.usageLine ?? ''

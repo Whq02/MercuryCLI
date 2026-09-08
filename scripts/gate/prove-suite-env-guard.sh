@@ -26,9 +26,10 @@ runner="$scratch/scripts/synth/run-all.sh"
 clean() { env -i PATH="$PATH" HOME="$scratch/home" "$@"; }
 
 echo "── the synthetic runner"
-out="$(clean MERCURY_SEATS=2 MERCURY_GODOT_TOOLS=1 bash "$runner" 2>&1)"; rc=$?
+out="$(clean MERCURY_SEATS=2 MERCURY_GODOT_TOOLS=1 MERCURY_OAUTH_TOKEN=fixture-do-not-disclose bash "$runner" 2>&1)"; rc=$?
 check "a foreign value refuses the runner with exit 78" "$([ "$rc" = 78 ] && echo 0 || echo 1)" "rc=$rc"
-check "…naming every foreign variable with its value" "$(case "$out" in *"MERCURY_GODOT_TOOLS=1"*"MERCURY_SEATS=2"*) echo 0;; *) echo 1;; esac)" "$out"
+check "…naming every foreign variable without its value" "$(case "$out" in *"MERCURY_GODOT_TOOLS"*"MERCURY_OAUTH_TOKEN"*"MERCURY_SEATS"*) echo 0;; *) echo 1;; esac)" "$out"
+check "…never disclosing credential values" "$(case "$out" in *fixture-do-not-disclose*) echo 1;; *) echo 0;; esac)"
 check "…before any proof ran" "$(case "$out" in *"SYNTH RAN"*) echo 1;; *) echo 0;; esac)"
 check "…and the line says how to run deliberately" "$(case "$out" in *"MERCURY_SUITE_ENV=any"*) echo 0;; *) echo 1;; esac)"
 
@@ -47,7 +48,7 @@ check "an environment with no MERCURY_* at all runs" "$([ "$rc" = 0 ] && echo 0 
 echo "── a real runner"
 out="$(clean MERCURY_SEATS=2 bash "$root/scripts/substrate/run-all.sh" 2>&1)"; rc=$?
 check "scripts/substrate/run-all.sh refuses MERCURY_SEATS=2 at once (exit 78)" "$([ "$rc" = 78 ] && echo 0 || echo 1)" "rc=$rc"
-check "…naming it" "$(case "$out" in *"MERCURY_SEATS=2"*) echo 0;; *) echo 1;; esac)" "$out"
+check "…naming it" "$(case "$out" in *"MERCURY_SEATS"*) echo 0;; *) echo 1;; esac)" "$out"
 
 echo "── the census"
 missing=""

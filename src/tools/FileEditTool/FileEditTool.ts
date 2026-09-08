@@ -216,9 +216,10 @@ function readKnowledgeRefusal(
   currentContent: string,
   expectedAnchor: string | undefined,
   touched: { start: number; end: number } | null,
+  includeRead = true,
 ): string | null {
   const entry = context.readFileState.get(expandedPath)
-  if (entry !== undefined && !entry.isPartialView) return null
+  if (includeRead && entry !== undefined && !entry.isPartialView) return null
   if (expectedAnchor !== undefined && expectedAnchor.startsWith('fa:') && checkAnchor(expectedAnchor, currentContent, displayPath).ok) return null
   if (touched !== null) {
     try {
@@ -532,8 +533,10 @@ export const FileEditTool = buildTool({
 
     const entry = context.readFileState.get(expandedPath)
     if (
+      mode !== 'append' &&
       entry !== undefined &&
       !entry.isPartialView &&
+      readKnowledgeRefusal(context, expandedPath, input.file_path, currentContent, input.expected_anchor, touched, false) !== null &&
       (await staleAtValidation(entry, expandedPath, currentContent, context.abortController.signal))
     ) {
       return {
@@ -690,26 +693,22 @@ export const FileEditTool = buildTool({
     }
 
     if (fileExists && mode !== 'append') {
-      const entry = context.readFileState.get(expandedPath)
-      if (entry !== undefined && !entry.isPartialView) {
-        const intact =
+      const touched = mode === 'exact'
+        ? linesOfFirstMatch(freshContent, input.old_string ?? '')
+        : mode === 'section'
+          ? (() => {
+              const found = findSection(freshContent, input.section ?? '')
+              return found.ok ? { start: found.start, end: found.end } : null
+            })()
+          : null
+      const knowledge = readKnowledgeRefusal(context, expandedPath, input.file_path, freshContent, input.expected_anchor, touched, false)
+      if (knowledge !== null) {
+        const entry = context.readFileState.get(expandedPath)
+        const intact = entry !== undefined && !entry.isPartialView && (
           getFileModificationTime(expandedPath) <= entry.timestamp ||
           (isFullReadEntry(entry) && entry.content === freshContent)
-        if (!intact) {
-          throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
-        }
-      } else {
-        const touched =
-          mode === 'exact'
-            ? linesOfFirstMatch(freshContent, input.old_string ?? '')
-            : mode === 'section'
-              ? (() => {
-                  const found = findSection(freshContent, input.section ?? '')
-                  return found.ok ? { start: found.start, end: found.end } : null
-                })()
-              : null
-        const knowledge = readKnowledgeRefusal(context, expandedPath, input.file_path, freshContent, input.expected_anchor, touched)
-        if (knowledge !== null) throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
+        )
+        if (!intact) throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
       }
     }
 

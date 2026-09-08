@@ -96,7 +96,7 @@ const RULES: Array<{ test: (f: string, mechanism: string) => boolean; cls: strin
   {
     test: (f, m) => m === 'hardcoded-interpreter' && f.startsWith('scripts/'),
     cls: 'platform-owner',
-    why: 'POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead.',
+    why: 'POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform.',
   },
   {
     test: (f, m) => m === 'hardcoded-tmp' && f.startsWith('scripts/'),

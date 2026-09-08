@@ -62,7 +62,7 @@ check('every asset is a tracked file (or a glob over tracked files)', untrackedA
 check('every generator and check names a script that exists', deadScripts.length === 0, deadScripts.join(', '))
 check('every files-of source exists', deadSources.length === 0, deadSources.join(', '))
 const settingsRow = map.rows.find(r => r.assets.includes('scripts/settings/settings-schema.json'))
-check("the review's case is a row: settings types → the schema snapshot, with its generator and check", settingsRow !== undefined && settingsRow.sources.includes('src/utils/settings/**') && settingsRow.generator.includes('gen-settings-schema') && (settingsRow.check ?? '').includes('prove-settings-schema'))
+check('settings types map to the schema snapshot with its generator and check', settingsRow !== undefined && settingsRow.sources.includes('src/utils/settings/**') && settingsRow.generator.includes('gen-settings-schema') && (settingsRow.check ?? '').includes('prove-settings-schema'))
 const inkRow = map.rows.find(r => r.assets.includes('scripts/ink-runtime/facade-inventory.json'))
 check('the facade inventory is a row', inkRow !== undefined && inkRow.sources.includes('src/ink.ts'))
 check('repoPathsIn reads the paths a census names', repoPathsIn('{"sites":[{"file":"src/a/b.ts","line":3},{"file":"scripts/x/y.sh"}]}').join(',') === 'src/a/b.ts,scripts/x/y.sh')
@@ -97,13 +97,26 @@ check('a chained check must carry its own flags', verdict(['src/lib/spawn.ts'], 
 check('a files-of source claims the files the census names', verdict(['src/lib/spawn.ts'])[0]?.row.assets[0] === 'gen/census.json')
 check('a re: source claims a changed file by its content', verdict(['src/other/x.ts'])[0]?.row.assets[0] === 'gen/imports.json')
 check('an untouched row owes nothing', verdict(['src/plain.ts']).length === 0)
-check('one of several assets in the commit counts', verdict(['src/two/t.ts', 'b.out']).length === 0 && verdict(['src/two/t.ts']).length === 1)
+check('every sibling output must be accounted for', verdict(['src/two/t.ts', 'b.out']).length === 1 && verdict(['src/two/t.ts', 'a.out', 'b.out']).length === 0)
 check('a row without a check owes the asset itself', describeOwedAssets(verdict(['src/two/t.ts'])).includes('no separate check'))
 check('the refusal names the asset, the touched path, the generator and the check', (() => {
   const text = describeOwedAssets(verdict(['src/settings/types.ts']))
   return text.includes('gen/schema.json') && text.includes('src/settings/types.ts') && text.includes('bun gen.ts') && text.includes('bun scripts/check-schema.ts')
 })())
 check('checkChained matches the script path, not a bare word', checkChained('bun scripts/x/prove-y.ts', ['bun scripts/x/prove-y.ts']) && !checkChained('bun scripts/x/prove-y.ts', ['bun scripts/x/prove-z.ts']))
+
+for (const text of ['printf scripts/x/prove-y.ts --strict', 'echo bun scripts/x/prove-y.ts --strict', 'bun scripts/x/prove-y.ts --strictly', 'printf ignored # bun scripts/x/prove-y.ts --strict']) {
+  check('printed, commented and prefix-only checker text cannot discharge an obligation', !checkChained('bun scripts/x/prove-y.ts --strict', [text]))
+}
+check('the actual invocation accepts an equivalent bun run spelling', checkChained('bun scripts/check-schema.ts', ['bun run "scripts/check-schema.ts"']))
+check('a removed content match still owes its generated output', generatedAssetsOwed({ rows, commitPaths: ['src/plain.ts'], contentOf: () => '', previousContentOf: () => "import { x } from '../ink/frame.js'", readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes('gen/imports.json')))
+for (const [path, asset] of [
+  ['src/new-component.tsx', 'scripts/consistency-census/lockup-census.json'],
+  ['scripts/new/prove-spawn.ts', 'scripts/consistency-census/shellstring-census.json'],
+  ['src/components/Message.tsx', 'scripts/ink-runtime/deep-import-inventory.json'],
+  ['scripts/consistency-census/gen-lockup-census.ts', 'scripts/consistency-census/lockup-census.json'],
+]) check('the real map covers new inputs, deleted imports and generator changes', generatedAssetsOwed({ rows: map.rows, commitPaths: [path!], contentOf: () => '', readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes(asset!)))
+check('one completion output cannot stand for all three', generatedAssetsOwed({ rows: map.rows, commitPaths: ['src/main.tsx', 'assets/completions/mercury.bash'], contentOf: () => '', readFile: () => null, chainedVerifies: [] }).some(row => row.row.assets.includes('assets/completions/_mercury')))
 
 section('§3 a real repository, through the gate reader')
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'generated-assets-')))
@@ -119,6 +132,9 @@ writeFileSync(join(repo, 'gen/schema.json'), '{}\n')
 g('add', '-A')
 g('commit', '-q', '-m', 'seed')
 writeFileSync(join(repo, 'src/settings/types.ts'), 'export type A = 2\n')
+check('same-command staging cannot outrun the checked index', (generatedAssetsRefusal('git add src/settings/types.ts && bun run typecheck && git commit -F m', repo) ?? '').includes('stable commit candidate'))
+check('path-limited commits include unstaged tracked changes', commitPathsOf(repo, 'git commit --only src/settings/types.ts -F m').includes('src/settings/types.ts') && generatedAssetsRefusal('git commit --only src/settings/types.ts -F m', repo) !== null)
+check('an explicit cwd change uses the selected repository', generatedAssetsRefusal(`cd "${repo}" && git commit --only src/settings/types.ts -F m`, scratch) !== null)
 g('add', 'src/settings/types.ts')
 check('the index carries the source', commitPathsOf(repo, 'git commit -F m').join(',') === 'src/settings/types.ts')
 const refusal = generatedAssetsRefusal('git commit -F m', repo)
@@ -131,9 +147,11 @@ check('chainedSegmentsBeforeCommit walks the unbroken run only', chainedSegments
 writeFileSync(join(repo, 'gen/schema.json'), '{"v":2}\n')
 check('the regenerated asset in the working tree alone is not in the commit', generatedAssetsRefusal('git commit -F m', repo) !== null)
 check('…but a -a commit carries it', generatedAssetsRefusal('git commit -a -F m', repo) === null)
+check('an attached commit message is not an all-files option', generatedAssetsRefusal('git commit -mdata', repo) !== null)
+check('a short option cluster still recognizes all-files before its message', generatedAssetsRefusal('git commit -amdata', repo) === null)
 g('add', 'gen/schema.json')
 check('the asset staged beside its source settles it', generatedAssetsRefusal('git commit -F m', repo) === null)
-g('reset', '-q', 'gen/schema.json')
+g('restore', '--staged', 'gen/schema.json')
 check('a `git -C <dir> commit` from another directory reads that repository', commitRepositoryRoot(`git -C ${repo} commit -F m`, scratch) === repo && generatedAssetsRefusal(`git -C ${repo} commit -F m`, scratch) !== null)
 const bare = join(scratch, 'nomap')
 mkdirSync(bare)
