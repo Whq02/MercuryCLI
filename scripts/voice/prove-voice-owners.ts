@@ -488,7 +488,10 @@ section('§6 the doctor row and the commands')
   delete process.env.MERCURY_VOICE_BACKEND
   process.env.MERCURY_VOICE_PACK_DIR = EMPTY_PACK
   resetComputedDefaultMemo()
+  const machinePath = process.env.PATH
+  process.env.PATH = EMPTY_BIN
   let r = await row()
+  process.env.PATH = machinePath
   check('the Voice input row sits in INTERFACE', r.section === 'INTERFACE', r.section)
   check('keyless, no backend ⇒ info naming both: none + the receipts, /speak off', r.status === 'info' && r.evidence.includes('backend: none') && r.evidence.includes(capture.NO_BACKEND_RECEIPT.slice(0, 22)) && r.evidence.includes('transcriber: none — nothing transcribes yet') && r.evidence.includes(transcribe.NO_TRANSCRIBER_DOORS) && r.evidence.includes('/speak off'), `${r.status}: ${r.evidence}`)
   check('the detail carries the permission words and the privacy line', r.detail.includes('microphone permission') && r.detail.includes('audio leaves the box only'), r.detail)
