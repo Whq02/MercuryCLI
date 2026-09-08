@@ -555,6 +555,14 @@
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
+      "file": "scripts/gate/prove-capture-preflight.ts",
+      "line": 78,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const otherInterpreters = ['/opt/homebrew/bin/python3', '/usr/local/bin/python3', '/usr/bin/python3.12', '/usr/bin/python3.13']",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
       "file": "scripts/gate/prove-hermetic-shard.ts",
       "line": 336,
       "mechanism": "hardcoded-interpreter",
@@ -572,7 +580,7 @@
     },
     {
       "file": "scripts/gate/prove-suite-class-census.ts",
-      "line": 334,
+      "line": 357,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "w('scripts/lib/arena.ts', \"import { spawn } from 'node:child_process'\\nexport type Row = { a: number }\\nexport const run = (r: string) => sp",
       "cls": "platform-owner",
@@ -580,7 +588,7 @@
     },
     {
       "file": "scripts/gate/prove-suite-class-census.ts",
-      "line": 335,
+      "line": 358,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "w('scripts/lib/tui.ts', \"import { spawnSync } from 'node:child_process'\\nconst ENGINE = join(ROOT, 'scripts/ui/engine.py')\\nspawnSync('/usr/",
       "cls": "platform-owner",
@@ -588,7 +596,7 @@
     },
     {
       "file": "scripts/gate/prove-suite-class-census.ts",
-      "line": 351,
+      "line": 374,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "w('scripts/gated/render-x.ts', \"import { spawnSync } from 'node:child_process'\\nspawnSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', '",
       "cls": "platform-owner",
@@ -596,9 +604,17 @@
     },
     {
       "file": "scripts/gate/prove-suite-class-census.ts",
-      "line": 357,
+      "line": 380,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "w('scripts/named-list/prove-g.ts', \"import { spawnSync } from 'node:child_process'\\nconst ENGINE = join(REPO, 'scripts/ui/engine.py')\\nspawn",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
+      "file": "scripts/gate/prove-suite-class-census.ts",
+      "line": 385,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "w('scripts/lib/resolver.ts', \"export type Driver = { kind: 'posix'; python: string; engine: 'scripts/ui/engine.py' }\\nexport const ENTRY = {",
       "cls": "platform-owner",
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },

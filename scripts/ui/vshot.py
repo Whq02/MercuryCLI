@@ -1,6 +1,102 @@
 #!/usr/bin/env python3
 import json, os, re, sys, select, pty, fcntl, termios, struct, time
-import pyte
+
+EMULATOR_MISSING_EXIT = 78
+
+
+def _real_home():
+    try:
+        import pwd
+        return pwd.getpwuid(os.getuid()).pw_dir
+    except Exception:
+        return None
+
+
+def _user_sites(home, ver):
+    return [
+        os.path.join(home, "Library", "Python", ver, "lib", "python", "site-packages"),
+        os.path.join(home, ".local", "lib", "python" + ver, "site-packages"),
+    ]
+
+
+def _import_emulator_from(candidate):
+    if not os.path.isdir(os.path.join(candidate, "pyte")):
+        return None
+    sys.path.insert(0, candidate)
+    try:
+        import pyte as _pyte
+        return _pyte
+    except ImportError:
+        sys.path.remove(candidate)
+        return None
+
+
+def _copies_under_account(tried):
+    import glob
+    home = _real_home()
+    found = [d for d in tried if os.path.isdir(os.path.join(d, "pyte"))]
+    if home:
+        patterns = (
+            os.path.join(home, "Library", "Python", "*", "lib", "python", "site-packages"),
+            os.path.join(home, ".local", "lib", "python3*", "site-packages"),
+        )
+        for pat in patterns:
+            for d in sorted(glob.glob(pat)):
+                if d not in found and os.path.isdir(os.path.join(d, "pyte")):
+                    found.append(d)
+    return found
+
+
+def _resolve_emulator():
+    pin = os.environ.get("MERCURY_VSHOT_EMULATOR", "").strip()
+    forced_absent = pin == "none"
+    ver = "%d.%d" % sys.version_info[:2]
+    home = _real_home()
+    tried = []
+    if pin and not forced_absent:
+        tried.append(pin)
+    if home:
+        tried.extend(_user_sites(home, ver))
+    tried.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "vendor"))
+    if not forced_absent:
+        if pin:
+            found = _import_emulator_from(pin)
+            if found is not None:
+                return found, None
+        try:
+            import pyte as _pyte
+            return _pyte, None
+        except ImportError:
+            pass
+        for c in tried:
+            if c == pin:
+                continue
+            found = _import_emulator_from(c)
+            if found is not None:
+                return found, None
+    lines = ["vshot: the terminal emulator (pyte) is not importable by %s; looked in: %s." % (sys.executable, ", ".join(tried))]
+    copies = _copies_under_account(tried)
+    if copies:
+        lines.append("  a copy is at %s: run it as: PYTHONPATH=%s %s scripts/ui/vshot.py <cfg>" % (copies[0], copies[0], sys.executable))
+        lines.append("  or install it: %s -m pip install --user pyte" % sys.executable)
+    else:
+        lines.append("  no copy under this account's user sites; install it: %s -m pip install --user pyte" % sys.executable)
+        lines.append("  or point MERCURY_VSHOT_EMULATOR at a directory that holds it")
+    return None, "\n".join(lines)
+
+
+pyte, _emulator_remedy = _resolve_emulator()
+
+if len(sys.argv) > 1 and sys.argv[1] == "--preflight":
+    if pyte is None:
+        sys.stderr.write(_emulator_remedy + "\n")
+        sys.exit(EMULATOR_MISSING_EXIT)
+    sys.stdout.write("ok %s %s\n" % (sys.executable, os.path.dirname(os.path.abspath(pyte.__file__))))
+    sys.exit(0)
+
+if pyte is None:
+    sys.stderr.write(_emulator_remedy + "\n")
+    sys.exit(EMULATOR_MISSING_EXIT)
 
 _KITTY_SEQ = re.compile(rb"\x1b\[[<>=][0-9;]*u")
 _KITTY_TAIL = re.compile(rb"(?:\x1b|\x1b\[|\x1b\[[<>=][0-9;]*)$")
