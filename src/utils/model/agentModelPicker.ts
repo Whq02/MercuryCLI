@@ -30,7 +30,6 @@ export function getAgentModelPickerRows(
     },
   ]
   for (const opt of catalogue) {
-    if (opt.value === null) continue
     if (isHaikuTier(opt.value)) continue
     const group = opt.group ?? ANTHROPIC_MODEL_GROUP
     if (isProviderActionRow(opt.value)) {

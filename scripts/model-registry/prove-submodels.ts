@@ -38,7 +38,6 @@ function section(t: string): void {
 }
 
 const options = () => [
-  { value: null, label: 'Recommended', description: 'Default (Fable 5)' },
   { value: 'fable', label: 'Fable 5', description: '' },
   { value: 'claude-fable-5', label: 'Fable 5', description: '' },
   { value: 'opus', label: 'Opus 4.8', description: '' },
@@ -70,7 +69,7 @@ section('1 · derivation — rows and families from the registry, nothing re-spe
 {
   const registry = composeSubModelRegistry(reads)
   const ids = registry.entries.map(entry => entry.modelId)
-  check('the Default row never becomes an entry', !ids.includes('default'))
+  check('every model entry has a concrete identifier', registry.entries.filter(entry => entry.kind === 'model').every(entry => entry.modelId.length > 0 && entry.modelId !== 'default'))
   check('mode sentinels excluded', !ids.some(id => id.startsWith('__')))
   check(
     'connect ACTION rows excluded from the model walk',

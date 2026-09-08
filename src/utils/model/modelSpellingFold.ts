@@ -12,7 +12,7 @@ export function foldModelSpelling(value: string): string {
 function foldableRows(catalogue: ModelOption[]): Array<{ value: string; label: string }> {
   const rows: Array<{ value: string; label: string }> = []
   for (const opt of catalogue) {
-    if (typeof opt.value !== 'string' || opt.value.length === 0) continue
+    if (opt.value.length === 0) continue
     if (opt.value.startsWith('__')) continue
     if (isProviderActionRow(opt.value)) continue
     rows.push({ value: opt.value, label: opt.label })

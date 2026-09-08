@@ -133,7 +133,12 @@ if (driver.kind !== 'posix-pty') {
 } else {
   const PENDING_HOLD_MS = Math.min(vshotBudgetMs(10_000), 12_000)
   const FIXTURE_ROWS = (readFileSync(FIXTURE, 'utf8').match(/^\s+\{ id: '/gm) ?? []).length
-  const OPENROUTER_ACTION_ROW_STEPS = 2
+  const { enableConfigs } = await import('../../src/utils/config.ts')
+  enableConfigs()
+  const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
+  const { OPENROUTER_MODEL_GROUP } = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
+  const openrouterIndex = getModelOptions().findIndex(row => row.group === OPENROUTER_MODEL_GROUP)
+  if (openrouterIndex < 0) throw new Error('OpenRouter is absent from the catalogue')
   const PICKER_REGION = [0, 0, 64, 40]
   const fixture = spawn(process.execPath, ['run', FIXTURE, String(PENDING_HOLD_MS)], { stdio: ['ignore', 'pipe', 'pipe'] })
   let port = 0
@@ -164,7 +169,8 @@ if (driver.kind !== 'posix-pty') {
           { atTick: 40, awaitText: '↑↓ choose', minTick: 3, requireAwait: true, awaitSettleTicks: 2, data: '\r' },
           { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true, awaitSettleTicks: 2 },
           { afterPrevTicks: 3, data: '\r' },
-          { requireAwait: true, awaitText: '│ │ Opus 5 ', awaitSettleTicks: 2, data: '\u001b[B'.repeat(OPENROUTER_ACTION_ROW_STEPS) },
+          { requireAwait: true, awaitText: '│ │ Opus 5 ', awaitSettleTicks: 2, data: '\u001b[H' },
+          ...Array.from({ length: openrouterIndex }, () => ({ afterPrevTicks: 1, data: '\u001b[B' })),
           { requireAwait: true, awaitText: '│ │ OpenRouter — connecting…', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'pending', data: '' },
           { requireAwait: true, awaitText: 'Anthropic: Claude Opus 5', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'landed', data: '' },
           { afterPrevTicks: 3, data: '\u001b' },

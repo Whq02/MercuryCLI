@@ -141,7 +141,7 @@ section('C7 the model chip beside it: the decision\'s own row word, healed when 
   const keyless = { setting: 'claude-fable-5-1', why: 'no provider is signed in yet — /logins signs one in, and its newest usable row becomes the default' }
   const gated = (why: string) => ({ usable: false as const, why })
   const nothing = computed.evaluateComputedDefault({ credentials: [], registryOrder: ['anthropic', 'openai'], laneRow: () => gated('unreached'), keyless })
-  check('no credential anywhere ⇒ the row is "no sign-in yet" and the Default row is the logins door', nothing.row === computed.NO_SIGN_IN_ROW && computed.describeComputedDefaultRow(nothing) === `Default (${computed.NO_SIGN_IN_REASON})` && computed.keylessReason(nothing) === computed.NO_SIGN_IN_REASON, JSON.stringify(nothing.row))
+  check('without credentials, the default description explains how to sign in', nothing.row === computed.NO_SIGN_IN_ROW && computed.describeComputedDefaultRow(nothing) === `Default (${computed.NO_SIGN_IN_REASON})` && computed.keylessReason(nothing) === computed.NO_SIGN_IN_REASON, JSON.stringify(nothing.row))
   const composing = computed.evaluateComputedDefault({
     credentials: [{ family: 'openai', at: 1_756_000_000_000, kind: 'subscription' }],
     registryOrder: ['anthropic', 'openai'],
@@ -149,7 +149,7 @@ section('C7 the model chip beside it: the decision\'s own row word, healed when 
     keyless,
   })
   check('a sign-in whose catalogue is composing ⇒ keyless with the "no usable row yet" row (the sign-in is not denied)', composing.source === 'keyless' && composing.provider === null && composing.row === computed.NO_USABLE_ROW && composing.considered.length === 1, JSON.stringify({ row: composing.row, why: composing.why }))
-  check("…the Default row and the picker's gate carry each sign-in's own gate, then the logins door (never the no-sign-in words)", computed.keylessReason(composing) === composing.why && composing.why.includes('live catalogue not fetched yet') && composing.why.endsWith('/logins signs another provider in') && computed.describeComputedDefaultRow(composing) === `Default (${composing.why})`, computed.describeComputedDefaultRow(composing))
+  check('the default description explains why signed-in providers have no usable model', computed.keylessReason(composing) === composing.why && composing.why.includes('live catalogue not fetched yet') && composing.why.endsWith('/logins signs another provider in') && computed.describeComputedDefaultRow(composing) === `Default (${composing.why})`, computed.describeComputedDefaultRow(composing))
   check('…/model\'s label and the terse line lead with the row word', computed.describeComputedDefaultLabel(composing).startsWith(`${computed.NO_USABLE_ROW} (default — `) && computed.describeComputedDefault(composing) === `${computed.NO_USABLE_ROW} · ${composing.why}`, computed.describeComputedDefaultLabel(composing))
   computed.resetComputedDefaultMemo()
   const first = computed.computedDefault()
@@ -164,7 +164,7 @@ section('C7 the model chip beside it: the decision\'s own row word, healed when 
   check('the memo keys on the catalogue epoch (structural)', resolver.includes('memo.catalogue === catalogue') && resolver.includes("import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'"))
   const picker = readFileSync(join(ROOT, 'src/utils/model/modelOptions.ts'), 'utf8')
   const standing = readFileSync(join(ROOT, 'src/commands/defaultprovider/defaultprovider.tsx'), 'utf8')
-  check("the picker's Default-row gate and /defaultprovider's standing line read the same keyless words (structural)", picker.includes('unavailable: keylessReason(decision)') && standing.includes('? decision.row') && !standing.includes('NO_SIGN_IN_ROW'))
+  check('/defaultprovider reads the computed status without a synthetic picker option', !picker.includes('keylessReason') && !picker.includes('defaultRow') && standing.includes('? decision.row') && !standing.includes('NO_SIGN_IN_ROW'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

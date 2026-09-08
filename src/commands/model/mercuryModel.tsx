@@ -8,7 +8,7 @@ import type { LocalJSXCommandCall } from '../../types/command.js'
 import type { Message } from '../../types/message.js'
 import { getContextWindowForModel } from '../../utils/context.js'
 import { contextFillView } from '../../utils/contextFill.js'
-import { getMainLoopModel, parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
+import { getDefaultMainLoopModel, getMainLoopModel, parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
 import { crossProviderNote, providerFamilyOfSetting, settleModelSelection } from '../../utils/model/modelTransition.js'
 import { focusedSessionModelFacts, getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import {
@@ -74,13 +74,13 @@ function fmtCtx(windowSize: number): string {
 }
 
 
-function resolveCurrentRowId(models: ModelChoice[], served: string, setting: string | null | undefined): string {
+function resolveCurrentRowId(models: ModelChoice[], served: string): string {
   if (models.some(m => m.id === served)) return served
   const target = stripContext1m(served)
-  const rows = models.filter(m => !m.gated && (m.id !== 'default' || setting === null))
+  const rows = models.filter(m => !m.gated && !m.action)
   const resolvedOf = (id: string): string | null => {
     try {
-      return id === 'default' ? getMainLoopModel() : parseUserSpecifiedModel(id)
+      return parseUserSpecifiedModel(id)
     } catch {
       return null
     }
@@ -188,7 +188,7 @@ function MercuryModelWrapper({
     let ctx = ''
     let ctxBase = ''
     let ctx1m = ''
-    if (opt.value !== null && isProviderActionRow(opt.value)) {
+    if (isProviderActionRow(opt.value)) {
       const group = opt.group ?? ANTHROPIC_MODEL_GROUP
       return {
         id: opt.value,
@@ -200,9 +200,9 @@ function MercuryModelWrapper({
         ...(opt.catalogueDoor ? { expand: { group, family: opt.catalogueDoor.family, total: opt.catalogueDoor.total } } : {}),
       }
     }
-    if (opt.statedContextWindow !== undefined || (typeof opt.value === 'string' && qualifiedIdSpaceOf(opt.value)?.qualifiedPrefix !== undefined)) {
+    if (opt.statedContextWindow !== undefined || qualifiedIdSpaceOf(opt.value)?.qualifiedPrefix !== undefined) {
       return {
-        id: opt.value as string,
+        id: opt.value,
         name: opt.label,
         tag: opt.description,
         ctx: opt.statedContextWindow !== undefined ? fmtCtx(opt.statedContextWindow) : '',
@@ -211,7 +211,7 @@ function MercuryModelWrapper({
       }
     }
     try {
-      const v = (opt.value ?? getMainLoopModel()) as string
+      const v = opt.value
       const shown =
         focusedOptionSupports1m(v) && !has1mContext(v)
           ? withContext1m(v)
@@ -225,7 +225,7 @@ function MercuryModelWrapper({
         ctxBase = fmtCtx(getContextWindowForModel(pairBase as never, betas))
         ctx1m = fmtCtx(getContextWindowForModel(withContext1m(pairBase) as never, betas))
       }
-      if (typeof opt.value === 'string' && parseGptModelId(opt.value) && liveGptContextCeiling(opt.value) !== undefined) {
+      if (parseGptModelId(opt.value) && liveGptContextCeiling(opt.value) !== undefined) {
         ctxBase = fmtCtx(getContextWindowForModel(withGptServedWindowSuffix(opt.value) as never, betas))
         ctx1m = fmtCtx(getContextWindowForModel(opt.value as never, betas))
       }
@@ -235,7 +235,7 @@ function MercuryModelWrapper({
       ctx1m = ''
     }
     return {
-      id: opt.value ?? 'default',
+      id: opt.value,
       name: opt.label,
       tag: opt.description,
       ctx,
@@ -249,24 +249,21 @@ function MercuryModelWrapper({
   const expandRows = (group: string): ModelChoice[] =>
     applyModelAllowlist(CATALOGUE_DOORS[group]?.() ?? []).map(choiceOf)
   const labelOf = (id: string): string =>
-    options.find(o => (o.value ?? 'default') === id)?.label ??
+    options.find(o => o.value === id)?.label ??
     Object.values(CATALOGUE_DOORS)
       .flatMap(rows => rows())
       .find(o => o.value === id)?.label ??
     id
-  const current =
-    focusedSeat !== null
-      ? focusedSeat.effective
-      : (mainLoopModelForSession ?? mainLoopModel ?? 'default')
-  const currentRowId = resolveCurrentRowId(models, current, focusedSeat === null ? undefined : focusedSeat.setting)
+  const current = focusedSeat?.effective ?? mainLoopModelForSession ?? mainLoopModel ?? getMainLoopModel()
+  const currentRowId = resolveCurrentRowId(models, current)
   const pendingSwitch = useAppState(s => s.pendingModelSwitch)
   const pendingNext =
     focusedSeat !== null
       ? focusedSeat.pendingSwitch
-        ? (focusedSeat.pendingSwitch.setting ?? 'default')
+        ? resolveCurrentRowId(models, parseUserSpecifiedModel(focusedSeat.pendingSwitch.setting ?? getDefaultMainLoopModel()))
         : undefined
       : pendingSwitch
-        ? (pendingSwitch.setting ?? 'default')
+        ? resolveCurrentRowId(models, parseUserSpecifiedModel(pendingSwitch.setting ?? getDefaultMainLoopModel()))
         : undefined
 
   let ctxPct: number | null = null
@@ -279,7 +276,7 @@ function MercuryModelWrapper({
 
   const [notice, setNotice] = React.useState<string | undefined>(undefined)
   const [transitionConfirm, setTransitionConfirm] = React.useState<{
-    value: string | null
+    value: string
     id: string
     plan: TransitionPlan
     refreshed: boolean
@@ -370,7 +367,7 @@ function MercuryModelWrapper({
   }
   function handleSelect(id: string): void {
     if (isCatalogueDoorRow(id)) return
-    const value = id === 'default' ? null : id
+    const value = id
     if (id === ANTHROPIC_CONNECT_OPTION_VALUE) {
       onDone('Claude sign-in — running /logins (the picker re-opens when it settles)', {
         nextInput: '/logins anthropic --return=/model',
@@ -535,7 +532,7 @@ function MercuryModelWrapper({
     applySelection(value, id)
   }
 
-  function applySelection(value: string | null, id: string): void {
+  function applySelection(value: string, id: string): void {
     const focused = getFocusedSessionConnector()
     if (focused.carrier === 'daemon') {
       const label = labelOf(id)
@@ -597,7 +594,7 @@ function MercuryModelWrapper({
         plan={held.plan}
         targetUsability={usabilityForRoute(held.plan.targetRoute)}
         fromLabel={renderModelName(servedModel)}
-        toLabel={held.value === null ? 'Default' : renderModelName(held.value)}
+        toLabel={renderModelName(held.value)}
         refreshed={held.refreshed}
         onConfirm={() => {
           const verdict = reconfirmTransitionPlan(held.plan, messages)
