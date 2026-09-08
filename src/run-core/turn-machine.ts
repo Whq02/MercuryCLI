@@ -162,7 +162,7 @@ import {
   takeRepetitionStop,
 } from '../services/tools/identicalFailureGuard.js'
 import { emitCompactionTrace } from '../utils/observability/invocationTrace.js'
-import { recordContentReplacement } from '../utils/sessionStorage.js'
+import { flushSessionStorage, recordContentReplacement } from '../utils/sessionStorage.js'
 import { handleStopHooks } from '../query/stopHooks.js'
 import { buildRequestContextPlan, reconcileAppliedPlanUsage } from '../services/run/requestContextPlan.js'
 import { calibrationKeyFor } from '../services/run/contextCalibration.js'
@@ -909,6 +909,7 @@ export async function* runEventCore(
       })
     }
     const persistReplacements =
+      querySource === 'sdk' ||
       querySource.startsWith('agent:') ||
       querySource.startsWith('repl_main_thread')
     const requestPlan = await buildRequestContextPlan(
@@ -918,11 +919,10 @@ export async function* runEventCore(
         querySource,
         contentReplacementState: toolUseContext.contentReplacementState,
         persistReplacements: persistReplacements
-          ? records =>
-              void recordContentReplacement(
-                records,
-                toolUseContext.agentId,
-              ).catch(logError)
+          ? async records => {
+              await recordContentReplacement(records, toolUseContext.agentId)
+              await flushSessionStorage()
+            }
           : undefined,
         skipToolNames: new Set(
           toolUseContext.options.tools

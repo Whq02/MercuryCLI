@@ -489,6 +489,66 @@ if (!existsSync(DIST)) {
     }
     const common = ['--model', 'claude-opus-4-8', '--allowed-tools', 'Read', '--output-format', 'stream-json']
 
+    section('§11 cleared tool results survive later turns, resume and fork')
+    {
+      const model = 'claude-fable-5-1'
+      const turns: ScriptedTurn[] = [
+        ...Array.from({ length: 8 }, (_, i) => ({ kind: 'tool_use' as const, name: 'Read', input: {}, thinking: 'Read file ' + i, model })),
+        { kind: 'text', text: 'PRUNE-READY', thinking: 'All files read.', model },
+        { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'prompt is too long: 202000 tokens > 200000 maximum' },
+        { kind: 'text', text: 'PRUNE-APPLIED', thinking: 'Reasoning after clearing.', model },
+        { kind: 'text', text: 'PRUNE-NEXT', thinking: 'The following query.', model },
+        { kind: 'text', text: 'PRUNE-RESUMED', thinking: 'The restored conversation.', model },
+        { kind: 'text', text: 'PRUNE-FORKED', thinking: 'The new conversation.', model },
+        { kind: 'text', text: 'PRUNE-FORK-RESUMED', thinking: 'The new conversation resumes.', model },
+        { kind: 'text', text: 'PRUNE-CONTINUED', thinking: 'Continue the latest conversation.', model },
+      ]
+      const fixture = await startFixtureApi(turns, { bindingCheck: true })
+      try {
+        const arena = makeArena(fixture)
+        const files = Array.from({ length: 8 }, (_, i) => join(arena.cwd, 'notes-' + i + '.txt'))
+        for (const [i, file] of files.entries()) {
+          writeFileSync(file, 'Value ' + i + '\n' + 'A fixed reference row retains its original contents across requests.\n'.repeat(75))
+          ;(turns[i] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: file }
+        }
+        const sid = 'c0ffee00-0000-4000-8000-00000000c108'
+        const args = ['--model', model, '--allowed-tools', 'Read', '--output-format', 'stream-json']
+        const live = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...args, '--session-id', sid], [
+          { prompt: 'Read each file in order: ' + files.join(', ') },
+          { prompt: 'Continue without tools.' },
+          { prompt: 'Continue once more without tools.' },
+        ])
+        check('§11 the live conversation settles all three turns', live.exit === 0 && ['PRUNE-READY', 'PRUNE-APPLIED', 'PRUNE-NEXT'].every(text => live.stdout.includes(text)), live.stderr.slice(-300))
+        const resumed = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...args, '--resume', sid], [{ prompt: 'Continue without tools.' }])
+        check('§11 a new process resumes the cleared conversation', resumed.exit === 0 && resumed.stdout.includes('PRUNE-RESUMED'), resumed.stderr.slice(-300))
+        const forked = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...args, '--resume', sid, '--fork-session'], [{ prompt: 'Fork and continue without tools.' }])
+        const envelopes = forked.stdout.split('\n').filter(line => line.startsWith('{')).flatMap(line => {
+          try { return [JSON.parse(line)] } catch { return [] }
+        })
+        const forkId = envelopes.find(row => row.type === 'result')?.session_id
+        check('§11 the fork keeps its own persistent identity', forked.exit === 0 && typeof forkId === 'string' && forkId !== sid && forked.stdout.includes('PRUNE-FORKED'), forked.stderr.slice(-300))
+        if (typeof forkId === 'string' && forkId !== sid) {
+          const again = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...args, '--resume', forkId], [{ prompt: 'Resume the fork without tools.' }])
+          check('§11 the fork persists inherited replacements for its next resume', again.exit === 0 && again.stdout.includes('PRUNE-FORK-RESUMED'), again.stderr.slice(-300))
+          const continued = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...args, '--continue'], [{ prompt: 'Continue without tools.' }])
+          check('§11 continue restores the same replacement state', continued.exit === 0 && continued.stdout.includes('PRUNE-CONTINUED'), continued.stderr.slice(-300))
+        }
+        const requests = fixture.messageRequests()
+        check('§11 all expected model requests occurred', requests.length === 16, String(requests.length))
+        const cleared = requests.slice(10)
+        check('§11 the clearing and all subsequent requests retain three placeholders', cleared.length === 6 && cleared.every(request => {
+          const body = request.body as Body
+          return ((body.messages ?? []) as Array<{ content?: Block[] }>).flatMap(message => Array.isArray(message.content) ? message.content : [])
+            .filter(block => block.type === 'tool_result' && typeof block.content === 'string' && block.content.startsWith('[stale tool result')).length === 3
+        }))
+        check('§11 the binding checker drops no reasoning on any request', requests.every(request => bindingDropsFor(request.body).length === 0), requests.map(request => bindingDropsFor(request.body).length).join(','))
+        census('§11 after clearing', cleared, true)
+      } finally {
+        await fixture.close()
+      }
+    }
+
+
     section('§2 the wire, one process — three turns, a file rewritten on disk between them')
     {
       const turns: ScriptedTurn[] = [

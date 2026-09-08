@@ -51,6 +51,7 @@ export type ContentReplacementRecord = ToolResultReplacementRecord
 export type ContentReplacementState = {
   seenIds: Set<string>
   replacements: Map<string, string>
+  budgetChars?: number
 }
 
 export function getPersistenceThreshold(declaredMaxResultSizeChars: number): number {
@@ -230,7 +231,7 @@ export function createContentReplacementState(): ContentReplacementState {
 }
 
 export function cloneContentReplacementState(source: ContentReplacementState): ContentReplacementState {
-  return { seenIds: new Set(source.seenIds), replacements: new Map(source.replacements) }
+  return { ...source, seenIds: new Set(source.seenIds), replacements: new Map(source.replacements) }
 }
 
 type BudgetCandidate = {
@@ -260,7 +261,7 @@ export async function enforceToolResultBudget(
   state: ContentReplacementState,
   skipToolNames: ReadonlySet<string> = new Set(),
 ): Promise<{ messages: Message[]; replacements: ToolResultReplacementRecord[] }> {
-  const limit = MAX_TOOL_RESULTS_PER_MESSAGE_CHARS
+  const limit = state.budgetChars ?? MAX_TOOL_RESULTS_PER_MESSAGE_CHARS
 
   const groups: BudgetCandidate[][] = []
   let currentGroup: BudgetCandidate[] = []
@@ -456,5 +457,8 @@ export function reconstructForSubagentResume(
   sidechainRecords: ContentReplacementRecord[],
 ): ContentReplacementState | undefined {
   if (!parentState) return undefined
-  return reconstructContentReplacementState(resumedMessages, sidechainRecords, parentState.replacements)
+  return {
+    ...reconstructContentReplacementState(resumedMessages, sidechainRecords, parentState.replacements),
+    budgetChars: parentState.budgetChars,
+  }
 }

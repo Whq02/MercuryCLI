@@ -34,6 +34,7 @@ import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { SessionId } from '../types/ids.js'
 import { loadConversationForResume } from '../utils/conversationRecovery.js'
+import { reconstructContentReplacementState } from '../utils/toolResultStorage.js'
 import { resetSessionFilePointer, restoreSessionMetadata } from '../utils/sessionStorage.js'
 import { peekProject } from '../utils/sessionStorage/writer.js'
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
@@ -505,6 +506,10 @@ export async function runHeadless(
     sessionStartHooksPromise: options.sessionStartHooksPromise,
   })
   const messages: Message[] = loaded.messages
+  let contentReplacementState = {
+    ...reconstructContentReplacementState(messages, loaded.contentReplacements ?? []),
+    budgetChars: Infinity,
+  }
 
   const isConcourseWorker = flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
   let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
@@ -1157,6 +1162,7 @@ export async function runHeadless(
           fallbackModel: options.fallbackModel,
           jsonSchema: initializeJsonSchema ?? options.jsonSchema,
           mutableMessages: messages,
+          contentReplacementState,
           getReadFileCache,
           setReadFileCache,
           customSystemPrompt: options.systemPrompt,
@@ -1749,6 +1755,10 @@ export async function runHeadless(
             restoreSessionStateFromLog(resumed, setAppState)
             restoreSessionMetadata(resumed)
             messages.splice(0, messages.length, ...resumed.messages)
+            contentReplacementState = {
+              ...reconstructContentReplacementState(messages, resumed.contentReplacements ?? []),
+              budgetChars: Infinity,
+            }
           } else {
             switchSession(sid as SessionId, claimedHome)
           }
