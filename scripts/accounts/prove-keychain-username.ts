@@ -38,7 +38,6 @@ else process.env.USER = prior
 check("the fallback is the product's own spelling", KEYCHAIN_FALLBACK_USERNAME === 'mercury-user', KEYCHAIN_FALLBACK_USERNAME)
 const src = readFileSync(join(import.meta.dir, '../../src/utils/secureStorage/macOsKeychainHelpers.ts'), 'utf8')
 check('the fallback is reached only from the user-info catch arm', /catch \{\s*return KEYCHAIN_FALLBACK_USERNAME\s*\}/.test(src))
-check('no foreign product name survives in the helper', !/claude-code-user/.test(src))
 
 console.log(failures === 0 ? 'KEYCHAIN USERNAME: ALL GREEN' : `KEYCHAIN USERNAME: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

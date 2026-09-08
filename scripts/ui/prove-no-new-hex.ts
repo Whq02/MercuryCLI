@@ -115,7 +115,7 @@ section('self-test: the matcher catches a quoted literal but not an issue ref')
 check("matches a quoted color literal '#DE4A35'", HEX.test("color = '#DE4A35'"))
 check('matches a double-quoted literal "#1B1916"', HEX.test('bg = "#1B1916"'))
 check('does NOT match a bare issue ref #3543050', !HEX.test('// HackerOne #3543050'))
-check('does NOT match anthropic#287008', !HEX.test('// anthropics/anthropic#287008'))
+check('does NOT match an issue reference', !HEX.test('// example/example#287008'))
 check('comment lines are skipped', isComment('  // const TERRA = \'#DE4A35\''))
 
 console.log('\n' + '═'.repeat(76))

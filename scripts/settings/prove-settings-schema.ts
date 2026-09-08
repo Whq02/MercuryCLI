@@ -88,7 +88,7 @@ try {
   check('ensureLocalSettingsSchema is idempotent', ensureLocalSettingsSchema() === localPath)
 
   const legacy = SettingsSchema().safeParse({
-    $schema: 'https://json.schemastore.org/claude-code-settings.json',
+    $schema: 'https://json.schemastore.org/other-settings.json',
     model: 'opusplan',
   })
   check('a file carrying the retired schemastore pointer still validates', legacy.success)

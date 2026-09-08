@@ -1126,7 +1126,7 @@ home_legacy = seeded_home(legacy={'defaultCritter': 'crab',
                                   'oauthAccount': {'emailAddress': 'legacy@compat.test'}})
 raw = run_pty(120, 44, {'MERCURY_HOME': home_legacy, **INLINE})
 plain = STRIP.sub('', raw)
-check('external-file-only home: the retired .claude.json is NEVER read',
+check('external-file-only home: an external .claude.json is never read',
       'legacy@compat.test' not in plain and 'Crab' not in plain)
 
 home_both = seeded_home(
