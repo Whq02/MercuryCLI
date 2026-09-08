@@ -312,7 +312,7 @@ let historyA: unknown[]
 section('R1 a history persisted with such a record heals on read — the wire replays no call the content does not carry')
 {
   const ctxR = makeCtx()
-  const persistedTurnId = 'openai_persisted_before_the_law'
+  const persistedTurnId = 'openai_persisted_unminted_call'
   const persisted: unknown[] = [
     createUserMessage({ content: 'earlier ask: read the notes' }),
     {
