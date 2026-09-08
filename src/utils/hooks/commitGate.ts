@@ -17,6 +17,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import { subprocessEnv } from '../subprocessEnv.js'
+import picomatch from 'picomatch'
 import {
   GENERATED_ASSETS_MAP,
   commandWords,
@@ -356,7 +357,7 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
   if (root === null) return null
   const repositoryArgs = commitRepositoryArguments(commitSeg.text)
   const readGitMap = (revision: string): string => execFileSync('git', [...repositoryArgs, 'show', `${revision}:${GENERATED_ASSETS_MAP}`], { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000 })
-  const indexedMap = gitLines(directory, [...repositoryArgs, 'ls-files', '--full-name', '--', GENERATED_ASSETS_MAP]).includes(GENERATED_ASSETS_MAP) ? readGitMap('') : null
+  const indexedMap = gitLines(directory, [...repositoryArgs, 'ls-files', '--full-name', '--', `:(top,literal)${GENERATED_ASSETS_MAP}`]).includes(GENERATED_ASSETS_MAP) ? readGitMap('') : null
   let previousMap: string | null = null
   try { previousMap = readGitMap('HEAD') } catch {  }
   const workingMap = existsSync(join(root, GENERATED_ASSETS_MAP)) ? readFileSync(join(root, GENERATED_ASSETS_MAP), 'utf8') : null
@@ -413,6 +414,20 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
     try { return execFileSync('git', [...prefix, 'show', `HEAD:${path}`], { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 }) } catch { return null }
   }
   const chainedVerifies = chainedSegmentsBeforeCommit(command).filter(segment => realpathSync(checkDirectories.get(segment) ?? directory) === realpathSync(root))
+  const unchecked = generatedAssetsOwed({ rows: map.rows, commitPaths, contentOf, previousContentOf, readFile, chainedVerifies: [] })
+  if (unchecked.some(({ row }) => row.check !== null && checkChained(row.check, chainedVerifies))) {
+    const differing = [...new Set([
+      ...gitLines(directory, [...prefix, 'diff', '--name-only']).filter(path => !workingPaths.has(path)),
+      ...gitLines(directory, [...prefix, 'ls-files', '--others', '--exclude-standard', '--full-name']),
+    ])]
+    const changedInputs = generatedAssetsOwed({ rows: unchecked.map(({ row }) => row), commitPaths: differing, contentOf: readFile, previousContentOf: contentOf, readFile, chainedVerifies: [] })
+    for (const { row } of unchecked) {
+      if (row.check === null || !checkChained(row.check, chainedVerifies)) continue
+      const inputPaths = [...row.assets, ...row.sources.filter(source => source.startsWith('files-of:')).map(source => source.slice('files-of:'.length)), ...(commandWords(row.check) ?? []).filter(word => /\.(?:ts|tsx|js|mjs|py|sh)$/.test(word))]
+      const changed = changedInputs.find(item => item.row === row)?.touched[0]?.path ?? differing.find(path => inputPaths.some(pattern => picomatch.isMatch(path, pattern, { dot: true })))
+      if (changed !== undefined) return `Generated-asset checker input differs from the commit candidate: ${changed}. Stage or undo relevant working changes before checking and committing.`
+    }
+  }
   const owed = generatedAssetsOwed({ rows: map.rows, commitPaths, contentOf, previousContentOf, readFile, chainedVerifies })
   return owed.length === 0 ? null : describeOwedAssets(owed)
 }
