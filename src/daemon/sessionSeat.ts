@@ -17,7 +17,7 @@ import { decodeRequestWait, requestWaitFromWire, type RequestWaitV1 } from '../s
 import { decodeFoldStatus, foldStatusFromWire, type FoldStatusV1 } from '../services/compact/foldStatus.js'
 import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
-import { readSessionWorkers, reviveConcourseWorker, updateConcourseWorkers, workerPidAlive, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
+import { markConcourseWorkerActivity, readSessionWorkers, reviveConcourseWorker, updateConcourseWorkers, workerPidAlive, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
 import type { PermissionMode } from '../types/permissions.js'
 import type { TextPhase } from '../types/wire.js'
@@ -356,6 +356,16 @@ function seatBusy(short: string, roster: SeatRosterPort): boolean {
   return seatTurnOpen(roster.list().find(j => j.short === short))
 }
 
+function publishActivity(short: string, roster: SeatRosterPort | undefined, dir?: string, lastTurnAt?: number): void {
+  const seat = seatOf(short)
+  markConcourseWorkerActivity(short, {
+    turnActive: roster !== undefined ? seatBusy(short, roster) : seat.lastBusy,
+    work: seat.lastAnswer?.work,
+    waitingOnAgents: seat.waitingOnAgents,
+    ...(lastTurnAt !== undefined ? { lastTurnAt } : {}),
+  }, dir)
+}
+
 function seatTurnStartedAt(short: string, roster: SeatRosterPort): number | undefined {
   return roster.list().find(j => j.short === short)?.turnStartedAt
 }
@@ -428,6 +438,7 @@ export function publishSeatFacts(short: string, dir?: string, roster?: SeatRoste
   }
   seat.lastBusy = facts.busy
   try {
+    publishActivity(short, roster, dir)
     publishSessionFacts(facts, dir)
   } catch (e) {
     logForDebugging(`[daemon] session facts publish failed for ${short}: ${e}`)
@@ -692,6 +703,7 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
           seat.waitingOnAgents = count
           seat.fold = fold
           publishTailNow(seat, dir)
+          publishActivity(short, roster, dir)
         }
         return
       }
@@ -721,6 +733,7 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       if (seat.sessionId === null) seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
       noteSeatEvent(seat, dir)
       onSeatAssistantFrame(seat, line, dir)
+      publishActivity(short, roster, dir, Date.now())
       requestSessionFacts(short, roster)
       return
     }
@@ -739,6 +752,7 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       seat.blockSinceMs = null
       setSeatTail(seat, null, dir)
       clearSeatProgress(seat, dir)
+      markConcourseWorkerActivity(short, { turnActive: false, work: seat.lastAnswer?.work, lastTurnAt: Date.now() }, dir)
     }
   }
 }
