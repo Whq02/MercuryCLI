@@ -17,6 +17,8 @@ import { foldLegacyWorkerModelKey, validateWorkerModelChoice } from '../services
 import { describeSignInRead, refreshSignInReads } from './signInView.js'
 import { describeSeatReading, resolveSeatCeiling } from '../services/switchboard/capacityCheck.js'
 import { retireSeatProjections } from '../services/engine-connector/seatProjections.js'
+import { workRowRuns } from '../services/engine-connector/workCounts.js'
+import type { WorkRowV1 } from '../services/engine-connector/types.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
 import { HEADLESS_PERMISSION_MODES, getHeadlessPermissionMode, type HeadlessPermissionMode, type SeatPermissionMode } from './headlessRun.js'
 import { decodePermissionModeSpelling, type PermissionMode } from '../types/permissions.js'
@@ -127,6 +129,12 @@ export interface ConcourseWorkerRecordV1 {
   procStart?: string
   lastDeliveryAt?: number
   lastTurnSettledAt?: number
+  activity?: {
+    state: 'working' | 'waiting' | 'idle'
+    subagents: number
+    description: string
+    lastTurnAt: number | null
+  }
   bornBlankAt?: number
   settingsSnapshot?: import('../substrate/startupMenu.js').SessionEffectiveSettingsSnapshotV1
   branchName?: string
@@ -162,6 +170,43 @@ export interface ConcourseWorkerRecordV1 {
   kit?: import('./sessionKit.js').SessionKitV1
   schedules?: import('./saturn.js').SaturnScheduleV1[]
   heldFires?: import('./saturn.js').HeldFireV1[]
+}
+
+export function sessionActivityOf(
+  turnActive: boolean,
+  work: readonly WorkRowV1[] | undefined,
+  waitingOnAgents: number,
+  lastTurnAt: number | null,
+): NonNullable<ConcourseWorkerRecordV1['activity']> {
+  const running = (work ?? []).filter(workRowRuns)
+  const subagents = running.reduce((count, row) => count + (
+    row.kind === 'agent' || row.kind === 'teammate' ? 1 :
+      row.kind === 'workflow' ? row.pulse?.running ?? 0 : 0
+  ), 0)
+  const count = work === undefined ? waitingOnAgents : subagents
+  const waiting = count > 0 && (!turnActive || waitingOnAgents > 0)
+  const state = waiting ? 'waiting' : turnActive || running.length > 0 ? 'working' : 'idle'
+  return {
+    state,
+    subagents: count,
+    description: waiting ? `waiting on ${count} sub-agent${count === 1 ? '' : 's'}` : state,
+    lastTurnAt,
+  }
+}
+
+export function markConcourseWorkerActivity(
+  runnerId: string,
+  input: { turnActive: boolean; work?: readonly WorkRowV1[]; waitingOnAgents?: number; lastTurnAt?: number },
+  dir?: string,
+): void {
+  const current = readSessionWorkers(dir)[runnerId]
+  if (!current || current.endedAt !== undefined) return
+  const activity = sessionActivityOf(input.turnActive, input.work, input.waitingOnAgents ?? 0, input.lastTurnAt ?? current.activity?.lastTurnAt ?? null)
+  if (JSON.stringify(current.activity) === JSON.stringify(activity)) return
+  updateConcourseWorkers(workers => {
+    const rec = workers[runnerId]
+    if (rec && rec.endedAt === undefined) rec.activity = activity
+  }, dir)
 }
 
 export function isNewbornRecord(rec: Pick<ConcourseWorkerRecordV1, 'bornBlankAt' | 'lastDeliveryAt'>): boolean {
@@ -267,6 +312,7 @@ export function markConcourseWorkerDelivery(runnerId: string, dir?: string): voi
       const rec = workers[runnerId]
       if (rec && rec.endedAt === undefined) {
         rec.lastDeliveryAt = Date.now()
+        rec.activity = { state: 'working', subagents: rec.activity?.subagents ?? 0, description: 'working', lastTurnAt: rec.activity?.lastTurnAt ?? null }
         delete rec.crash
         if (rec.contract !== undefined && rec.contract.status === 'acknowledged') {
           rec.contract.status = 'active'
@@ -281,7 +327,11 @@ export function markConcourseWorkerTurnSettled(runnerId: string, dir?: string): 
   try {
     updateConcourseWorkers(workers => {
       const rec = workers[runnerId]
-      if (rec && rec.endedAt === undefined) rec.lastTurnSettledAt = Date.now()
+      if (rec && rec.endedAt === undefined) {
+        rec.lastTurnSettledAt = Date.now()
+        const count = rec.activity?.subagents ?? 0
+        rec.activity = sessionActivityOf(false, undefined, count, rec.lastTurnSettledAt)
+      }
     }, dir)
   } catch {
   }
@@ -381,6 +431,12 @@ function stampConcourseDelta(dir?: string): void {
 }
 
 function publishConcourseWorkers(workers: Record<string, ConcourseWorkerRecordV1>, dir?: string): void {
+  for (const rec of Object.values(workers)) {
+    if (rec.activity === undefined) rec.activity = sessionActivityOf(turnInFlightOf(rec), undefined, 0, rec.lastTurnSettledAt ?? null)
+    if (rec.endedAt !== undefined || rec.stoppedAt !== undefined || rec.parkedAt !== undefined || (rec.crash !== undefined && !rec.crash.respawning)) {
+      rec.activity = sessionActivityOf(false, [], 0, rec.activity.lastTurnAt)
+    }
+  }
   durableAtomicPublishSync(
     concourseWorkersPath(dir),
     `${JSON.stringify({ version: 1, workers } satisfies ConcourseWorkerFileV1, null, 1)}\n`,

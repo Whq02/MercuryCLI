@@ -18,6 +18,7 @@ __t=$SECONDS; "$bun" run "$here/prove-daemon-signin-live.ts" || fail=1; prover_m
 __t=$SECONDS; "$bun" run "$here/prove-dispatch-death-settles.ts" || fail=1; prover_mark "$here/prove-dispatch-death-settles.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-daemon-env-scrub.ts" || fail=1; prover_mark "$here/prove-daemon-env-scrub.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-seat-work-poll.ts" || fail=1; prover_mark "$here/prove-seat-work-poll.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-session-activity.ts" || fail=1; prover_mark "$here/prove-session-activity.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-drained-turn-edge.ts" || fail=1; prover_mark "$here/prove-drained-turn-edge.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-reconfigure-respawn.ts" || fail=1; prover_mark "$here/prove-reconfigure-respawn.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-headless-permission-mode.ts" || fail=1; prover_mark "$here/prove-headless-permission-mode.ts" "$__t"
