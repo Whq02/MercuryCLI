@@ -14,6 +14,7 @@ import { getCanonicalName, getPublicModelDisplayName } from '../../../utils/mode
 import { isFirstPartyAnthropicBaseUrl } from '../../../utils/model/providers.js'
 import { SPAWN_SWITCH_LABEL } from '../../switchboard/spawnSwitches.js'
 import { consumeLawfulPrefixChange } from '../lawfulPrefixChange.js'
+import { PUBLIC_HOME_SLUG } from '../../privateChannel/channelCore.js'
 import { DEAD_THINKING_PLACEHOLDER } from './deadThinkingPlaceholder.js'
 import type { RequestContextPlan } from '../../run/requestContextPlan.js'
 
@@ -362,7 +363,7 @@ function describePathClass(path: string | null): string {
 
 function issuesUrl(): string {
   const packaged = typeof MACRO !== 'undefined' && typeof MACRO.PACKAGE_URL === 'string' ? MACRO.PACKAGE_URL : ''
-  const base = packaged.length > 0 ? packaged : 'https://github.com/Whq02/PreRelease'
+  const base = packaged.length > 0 ? packaged : `https://github.com/${PUBLIC_HOME_SLUG}`
   return `${base.replace(/\/$/, '')}/issues`
 }
 
