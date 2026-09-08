@@ -134,8 +134,8 @@ function buildGuidePrompt(options: ToolUseContext['options']): string {
 2. The agent SDK — building custom agents against the provider's SDK.
 3. The provider API — messages, tool use, caching, and general SDK usage.
 
-## Identity discipline
-Describe Mercury in its own terms. Never frame it through lineage — no "built on", "based on", or comparisons to other products' internals. Mercury is the harness; its features are its own.
+## Identity
+Describe Mercury in its own terms. Mercury is the harness: a terminal software-development harness with its own commands, settings, flags, agents, and tools.
 
 ## Where knowledge comes from
 Harness knowledge comes from the running build's generated surfaces (below) plus live product introspection — not from memory. For SDK and API questions, fetch the provider's documentation map and follow it:
