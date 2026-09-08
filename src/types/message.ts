@@ -230,6 +230,7 @@ export type SystemThinkingDeadMessage = {
 export type BoundPrefixToolMark = {
   name: string
   deferred: boolean
+  definition?: string
 }
 
 export type BoundPrefixSection = {

@@ -69,7 +69,7 @@ function withoutCacheControl(value: unknown): unknown {
     const out: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
       if (k === 'cache_control') continue
-      out[k] = withoutCacheControl(v)
+      out[k] = k === 'input' || k === 'input_schema' ? v : withoutCacheControl(v)
     }
     return out
   }
@@ -327,6 +327,93 @@ section('§1c the resume restore (pure) — the first exchange record, then a NE
   else process.env.MERCURY_TOOL_SEARCH = savedSearch
 }
 
+section('serialized tool definitions remain fixed across refresh and reconstruction')
+{
+  const { planToolPayload, clearToolRosterLatches, clearToolRosterRestore } = await import('../../src/services/providers/toolEconomy.ts')
+  const { toolToAPISchema } = await import('../../src/utils/api.ts')
+  const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
+  const { boundPrefixRecordToEmit, restoreBoundPrefixFromMessages, resetBoundPrefixEmitted } = await import('../../src/services/providers/anthropic/boundPrefixRecord.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
+  const { gateToolCall } = await import('../../src/services/providers/toolCallGate.ts')
+  const { z } = await import('zod/v4')
+  const model = 'claude-fable-5-1'
+  const key = 'schema-conversation'
+  const messages = [user('Use the available tools.')]
+  const tool = (name: string, field: string, description: string, deferred = false) => ({
+    name,
+    inputSchema: z.object({ [field]: z.string() }),
+    inputJSONSchema: { type: 'object', properties: { [field]: { type: 'string' } }, required: [field] },
+    prompt: async () => description,
+    isEnabled: () => true,
+    isReadOnly: () => true,
+    isConcurrencySafe: () => true,
+    shouldDefer: deferred,
+  })
+  const firstTool = tool('ReadFixture', 'before', 'First description')
+  const changedTool = tool('ReadFixture', 'after', 'Changed description')
+  const deferredTool = tool('DeferredFixture', 'query', 'Deferred description', true)
+  const pool = [firstTool, ToolSearchTool, deferredTool]
+  const plan = (tools: unknown[], conversation = key) => planToolPayload({
+    model,
+    tools: tools as never,
+    messages: messages as never,
+    getToolPermissionContext: async () => getEmptyToolPermissionContext(),
+    agents: [],
+    latchKey: conversation,
+  })
+  const schemas = (value: Awaited<ReturnType<typeof planToolPayload>>) => Promise.all(value.roster.map(t => toolToAPISchema(t, {
+    model,
+    tools: value.roster,
+    getToolPermissionContext: async () => getEmptyToolPermissionContext(),
+    agents: [],
+    deferLoading: value.deferredNames.has(t.name),
+    conversationKey: value.conversationKey,
+  })))
+  const freshProcess = () => { clearToolRosterLatches(); clearToolRosterRestore(); clearToolSchemaCache(); resetBoundPrefixEmitted() }
+  const saved = process.env.MERCURY_TOOL_SEARCH
+  process.env.MERCURY_TOOL_SEARCH = 'on'
+  freshProcess()
+  const first = await schemas(await plan(pool))
+  const record = await boundPrefixRecordToEmit(key, messages as never, model)
+  check('the persisted record contains each complete serialized definition', record?.attachment.type === 'bound_prefix' && record.attachment.roster.every(mark => typeof mark.definition === 'string'))
+  const persisted = JSON.parse(j(record))
+  clearToolSchemaCache()
+  const livePool = [changedTool, ToolSearchTool, deferredTool]
+  const second = await schemas(await plan(livePool))
+  check('refetched same-name tools and credential memo clearing leave request definitions unchanged', j(first) === j(second))
+  const accepted = gateToolCall(livePool as never, { id: 'new-input', name: changedTool.name, argumentsRaw: '{"after":"value"}', malformed: false })
+  check('the execution registry still uses the current tool implementation', accepted.ok)
+  check('unchanged definitions do not append another saved-prefix record', await boundPrefixRecordToEmit(key, messages as never, model) === null)
+  freshProcess()
+  restoreBoundPrefixFromMessages([persisted])
+  const restoredPlan = await plan([ToolSearchTool, deferredTool])
+  const restored = await schemas(restoredPlan)
+  check('a new process with a missing live tool restores its full wire definition', j(restored) === j(first) && restoredPlan.restoredMissingTools.length === 0)
+  const unavailable = gateToolCall([ToolSearchTool, deferredTool] as never, { id: 'missing', name: firstTool.name, argumentsRaw: '{"before":"value"}', malformed: false })
+  check('a restored wire definition does not create an executable tool', !unavailable.ok && unavailable.refusal.code === 'unknown-tool')
+  check('the same durable record is not duplicated after reconstruction', await boundPrefixRecordToEmit(key, [...messages, persisted] as never, model) === null)
+  freshProcess()
+  restoreBoundPrefixFromMessages([persisted])
+  check('a fork restores definitions under its new conversation identity', j(await schemas(await plan(livePool, 'forked-conversation'))) === j(first))
+  const late = tool('LateFixture', 'lookup', 'Late description', true)
+  await schemas(await plan([...livePool, late], 'forked-conversation'))
+  const expanded = await boundPrefixRecordToEmit('forked-conversation', [...messages, persisted] as never, model)
+  check('a newly appended deferred definition updates the durable record', expanded?.attachment.type === 'bound_prefix' && expanded.attachment.roster.some(mark => mark.name === late.name && typeof mark.definition === 'string'))
+  freshProcess()
+  restoreBoundPrefixFromMessages([persisted, JSON.parse(j(expanded))])
+  const expandedRestore = await schemas(await plan(livePool, 'forked-conversation'))
+  check('reconstruction uses the newest recorded definition set', expandedRestore.some(t => t.name === late.name) && j(expandedRestore.slice(0, first.length)) === j(first))
+  freshProcess()
+  const corrupt = JSON.parse(j(persisted))
+  corrupt.attachment.roster[0].definition = 'not-json'
+  restoreBoundPrefixFromMessages([corrupt])
+  check('malformed saved definition data falls back to the live tool without throwing', j(await schemas(await plan(livePool))).includes('Changed description'))
+  freshProcess()
+  if (saved === undefined) delete process.env.MERCURY_TOOL_SEARCH
+  else process.env.MERCURY_TOOL_SEARCH = saved
+}
+
 if (!existsSync(DIST)) {
   check('dist/mercury.mjs present (build first; the pooled gate prebuilds it)', false, DIST)
 } else {
@@ -488,6 +575,31 @@ if (!existsSync(DIST)) {
       return notices
     }
     const common = ['--model', 'claude-opus-4-8', '--allowed-tools', 'Read', '--output-format', 'stream-json']
+
+    section('mixed streaming and one-shot entry modes keep saved tool definitions')
+    {
+      const model = 'claude-fable-5-1'
+      const fixture = await startFixtureApi([
+        { kind: 'text', text: 'MIXED-FIRST', thinking: 'First request.', model },
+        { kind: 'text', text: 'MIXED-RESUMED', thinking: 'Resumed request.', model },
+        { kind: 'text', text: 'MIXED-RETURNED', thinking: 'Streaming again.', model },
+      ], { bindingCheck: true })
+      try {
+        const arena = makeArena(fixture)
+        const sid = 'c0ffee00-0000-4000-8000-00000000c112'
+        const args = ['--model', model, '--allowed-tools', 'Read', '--output-format', 'stream-json']
+        const first = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...args, '--session-id', sid], [{ prompt: 'Begin without tools.' }])
+        const resumed = await run(arena, ['-p', 'Continue without tools.', ...args, '--resume', sid])
+        const returned = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...args, '--resume', sid], [{ prompt: 'Continue once more without tools.' }])
+        check('all three entry-mode transitions settle successfully', first.exit === 0 && first.stdout.includes('MIXED-FIRST') && resumed.exit === 0 && resumed.stdout.includes('MIXED-RESUMED') && returned.exit === 0 && returned.stdout.includes('MIXED-RETURNED'), [first.stderr, resumed.stderr, returned.stderr].join('\n').slice(-600))
+        const requests = fixture.messageRequests()
+        check('every transition makes its expected request', requests.length === 3, String(requests.length))
+        check('entry-mode changes drop no preserved reasoning', requests.every(request => bindingDropsFor(request.body).length === 0), requests.map(request => bindingDropsFor(request.body).length).join(','))
+        census('mixed entry modes', requests, true)
+      } finally {
+        await fixture.close()
+      }
+    }
 
     section('§11 cleared tool results survive later turns, resume and fork')
     {

@@ -274,6 +274,7 @@ async function buildApiShapedTools(
   tools: Tools,
   options: Options,
   model: string,
+  conversationKey?: string,
 ): Promise<ApiShapedTool[]> {
   const schemas = await Promise.all(
     tools.map(tool =>
@@ -283,6 +284,7 @@ async function buildApiShapedTools(
         agents: options.agents,
         allowedAgentTypes: options.allowedAgentTypes,
         model,
+        conversationKey,
       }),
     ),
   )
@@ -459,7 +461,7 @@ export async function* openaiCallModel(
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
   })
-  const apiTools = await buildApiShapedTools(plan.roster, options, modelId)
+  const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey)
   const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages), plan)
   const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   let profile: GptReasoningProfile = candidate
