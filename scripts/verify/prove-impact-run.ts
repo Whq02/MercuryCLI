@@ -97,6 +97,21 @@ rmSync(join(repo, 'src/c'), { recursive: true, force: true })
 const cleanRun = spawnSync(bun, [join(ROOT, 'scripts/verify/impact.ts'), '--dirty'], { cwd: repo, env: repoEnv, encoding: 'utf8' })
 check('--dirty on a clean tree exits 2 (never reads as nothing to run)', cleanRun.status === 2)
 
+section('§3b renames include removed inputs and preserve path bytes')
+writeFileSync(join(repo, 'scripts/a/run-all.sh'), '#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/a/**\nexit 17\n')
+g('add', 'scripts/a/run-all.sh')
+g('commit', '-q', '-m', 'fixture status')
+mkdirSync(join(repo, 'src', 'b'))
+const renamed = 'src/b/renamed \tfile\n.ts'
+g('mv', 'src/a/x.ts', renamed)
+for (const mode of ['--staged', '--dirty', 'HEAD^..HEAD']) {
+  if (mode === 'HEAD^..HEAD') g('commit', '-q', '-m', 'move input')
+  const result = spawnSync(bun, [join(ROOT, 'scripts/verify/impact.ts'), mode, '--json', '--run'], { cwd: repo, env: repoEnv, encoding: 'utf8' })
+  const data = JSON.parse(result.stdout)
+  check('each diff mode runs both rename owners and retains the failing source result', result.status === 1 && data.results?.some((row: { suite: string; rc: number }) => row.suite === 'a' && row.rc === 17) && data.results?.some((row: { suite: string; rc: number }) => row.suite === 'b' && row.rc === 0), result.stdout + result.stderr)
+  check('rename endpoint bytes survive spaces, tabs and newlines', data.perPath['src/a/x.ts']?.includes('a') && data.perPath[renamed]?.includes('b'), result.stdout)
+}
+
 section('§4 the real estate names the suites a change owes')
 const real = spawnSync(bun, [join(ROOT, 'scripts/verify/impact.ts'), '--paths', 'src/utils/settings/types.ts', 'src/ink/launcherAltHold.ts'], { cwd: ROOT, env: { ...process.env, MERCURY_GATE_PREBUILT: '1' }, encoding: 'utf8' })
 const named = new Set(real.stdout.trim().split('\n'))

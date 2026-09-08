@@ -20,9 +20,8 @@ function usage(): never {
 }
 
 function git(...gitArgs: string[]): string[] {
-  return execFileSync('git', gitArgs, { cwd: ROOT, encoding: 'utf8' })
-    .split('\n')
-    .map(l => l.trim())
+  return execFileSync('git', [gitArgs[0]!, '-z', ...(gitArgs[0] === 'diff' ? ['--no-renames', '--no-relative'] : []), ...gitArgs.slice(1)], { cwd: ROOT, encoding: 'utf8' })
+    .split('\0')
     .filter(Boolean)
 }
 
