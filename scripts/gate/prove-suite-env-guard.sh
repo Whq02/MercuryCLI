@@ -17,11 +17,12 @@ fi
 cat >"$scratch/scripts/synth/run-all.sh" <<'EOF'
 #!/usr/bin/env bash
 # gate-class: pure
+# suite-env: MERCURY_SYNTH_KNOB
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 echo "SYNTH RAN"
 EOF
-printf '# reads MERCURY_SYNTH_KNOB on purpose\n' >"$scratch/scripts/synth/prove-knob.sh"
+printf '# MERCURY_SYNTH_KNOB MERCURY_SEATS MERCURY_GODOT_TOOLS\n' >"$scratch/scripts/synth/prove-knob.sh"
 runner="$scratch/scripts/synth/run-all.sh"
 clean() { env -i PATH="$PATH" HOME="$scratch/home" "$@"; }
 
@@ -37,7 +38,27 @@ out="$(clean MERCURY_CONFIG_DIR="$scratch/home" MERCURY_HOME="$scratch/home" MER
 check "the pool's own environment line runs the suite" "$([ "$rc" = 0 ] && case "$out" in *"SYNTH RAN"*) echo 0;; *) echo 1;; esac || echo 1)" "rc=$rc $out"
 
 out="$(clean MERCURY_SYNTH_KNOB=1 bash "$runner" 2>&1)"; rc=$?
-check "a seam the suite's own files name is the suite's (not foreign)" "$([ "$rc" = 0 ] && echo 0 || echo 1)" "rc=$rc $out"
+check "an explicitly declared input runs the suite" "$([ "$rc" = 0 ] && echo 0 || echo 1)" "rc=$rc $out"
+
+out="$(clean MERCURY_SEATS=2 MERCURY_GODOT_TOOLS=1 bash "$runner" 2>&1)"; rc=$?
+check "a proof merely naming stamps does not exempt them" "$([ "$rc" = 78 ] && echo 0 || echo 1)" "rc=$rc $out"
+check "both mentioned stamps are named in the refusal" "$(case "$out" in *MERCURY_GODOT_TOOLS*MERCURY_SEATS*) echo 0;; *) echo 1;; esac)" "$out"
+out="$(clean MERCURY_SYNTH_KNOB_EXTRA=1 bash "$runner" 2>&1)"; rc=$?
+check "a declaration matches a complete name, not a prefix" "$([ "$rc" = 78 ] && echo 0 || echo 1)" "rc=$rc $out"
+
+for suite in bash gate substrate headless staleness core-runtime; do
+  out="$(clean MERCURY_SEATS=2 MERCURY_GODOT_TOOLS=1 bash -c '. "$1"; suite_env_guard "$2"' _ "$root/scripts/lib/suite-env.sh" "$root/scripts/$suite/run-all.sh" 2>&1)"; rc=$?
+  check "$suite refuses stamps mentioned in its proofs" "$([ "$rc" = 78 ] && echo 0 || echo 1)" "rc=$rc $out"
+done
+
+printf '# suite-env: MERCURY_BODY_ONLY\n' >>"$runner"
+out="$(clean MERCURY_BODY_ONLY=1 bash "$runner" 2>&1)"; rc=$?
+check "a declaration after executable code cannot authorize an input" "$([ "$rc" = 78 ] && echo 0 || echo 1)" "rc=$rc $out"
+printf '#!/usr/bin/env bash\n# suite-env: MERCURY_*\n' >"$scratch/scripts/synth/invalid.sh"
+out="$(clean bash -c '. "$1"; suite_env_guard "$2"' _ "$root/scripts/lib/suite-env.sh" "$scratch/scripts/synth/invalid.sh" 2>&1)"; rc=$?
+check "wildcard declarations refuse rather than widening inheritance" "$([ "$rc" = 78 ] && echo 0 || echo 1)" "rc=$rc $out"
+out="$(clean MERCURY_SHELL_ENGINE=system bash -c '. "$1"; suite_env_guard "$2"' _ "$root/scripts/lib/suite-env.sh" "$root/scripts/bash/run-all.sh" 2>&1)"; rc=$?
+check "the Bash runner explicitly admits its engine selection" "$([ "$rc" = 0 ] && echo 0 || echo 1)" "rc=$rc $out"
 
 out="$(clean MERCURY_SEATS=2 MERCURY_SUITE_ENV=any bash "$runner" 2>&1)"; rc=$?
 check "MERCURY_SUITE_ENV=any runs the suite deliberately under a foreign value" "$([ "$rc" = 0 ] && echo 0 || echo 1)" "rc=$rc $out"
