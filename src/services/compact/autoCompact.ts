@@ -25,6 +25,7 @@ import {
 } from './compactionPolicy.js'
 import {
   compactConversation,
+  compactionPausedForHistoryText,
   CompactionRefusedForHistoryError,
   type CompactionResult,
   ERROR_MESSAGE_USER_ABORT,
@@ -410,10 +411,15 @@ export async function autoCompactIfNeeded(
     const reason = err instanceof Error ? err.message : String(err)
     if (err instanceof CompactionRefusedForHistoryError) {
       logForDebugging(
-        `autoCompact: the summary request was refused for a malformed history — automatic compaction is paused for this session: ${err.providerWords.slice(0, 160)}`,
+        `autoCompact: the summary request was refused for a malformed history — automatic compaction is paused for the rest of this run: ${err.providerWords.slice(0, 160)}`,
         { level: 'warn' },
       )
-      return { wasCompacted: false, consecutiveFailures: MAX_CONSECUTIVE_FAILURES, refusal: reason, paused: true }
+      return {
+        wasCompacted: false,
+        consecutiveFailures: MAX_CONSECUTIVE_FAILURES,
+        refusal: compactionPausedForHistoryText(err.providerWords, { nonInteractive: err.nonInteractive }),
+        paused: true,
+      }
     }
     const nextFailures = failures + 1
     if (nextFailures >= MAX_CONSECUTIVE_FAILURES) {

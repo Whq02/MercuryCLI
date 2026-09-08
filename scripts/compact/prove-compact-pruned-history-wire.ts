@@ -58,6 +58,7 @@ const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool
 const { MC_DIGEST_PREFIX, MC_CLEARED_PLACEHOLDER } = await import('../../src/services/compact/microCompactDigest.ts')
 const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
 const { autoCompactIfNeeded } = await import('../../src/services/compact/autoCompact.ts')
+const { call: compactCommand } = await import('../../src/commands/compact/compact.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
 const textOf = (m: unknown): string => {
@@ -442,10 +443,45 @@ section('C1 a summariser refused for a malformed history — one attempt, a type
   check('a typed line names the class', line !== undefined, JSON.stringify(notices))
   check("…the provider's own reason", line !== undefined && line.includes('No tool output found for function call call_tlxFSxc72b7dbbq5yBsOGC7a'), line ?? '')
   check('…and the remedies: /compact after the heal, /clear, a larger-window model', line !== undefined && line.includes('/compact') && line.includes('/clear') && line.includes('/model'), line ?? '')
+  check('…and the pause it applies is the run\'s, never the session\'s (the failure count starts fresh at every query entry)', line !== undefined && line.includes('paused for the rest of this run') && !/for this session/.test(line), line ?? '')
   const errs = errorTexts(r.yields)
-  check('the turn ends on one typed refusal that says automatic compaction is paused', errs.length === 1 && errs[0]!.startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE) && /paused for this session/.test(errs[0]!), JSON.stringify(errs))
+  check('the turn ends on one typed refusal that names the breaker', errs.length === 1 && errs[0]!.startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE) && /compaction has failed repeatedly/.test(errs[0]!), JSON.stringify(errs))
   check('the prune rung still answered the estimate (the notice speaks)', notices.some(t => t.startsWith('context overflowed (estimated ') && /pruned \d+ superseded tool results/.test(t)), JSON.stringify(notices))
   check("terminal blocking_limit", r.terminal.reason === 'blocking_limit', JSON.stringify(r.terminal))
+
+  section('C2 a manual /compact after that pause still makes its request, and reports the reason and the remedies without claiming a pause')
+  {
+    fixture.script([{ error: { status: 400, body: MALFORMED_HISTORY_REFUSAL } }, { text: 'never reached' }])
+    const before = fixture.captured.length
+    ctxD.abortController = new AbortController()
+    ctxD.messages = seed
+    let threw: string | undefined
+    try {
+      await compactCommand('summarize these notes', { ...ctxD, setMessages: () => {}, onChangeAPIKey: () => {} } as never)
+    } catch (error) {
+      threw = error instanceof Error ? error.message : String(error)
+    }
+    const wire = fixture.captured.slice(before)
+    check('the manual compaction made exactly one summary request', wire.length === 1 && isSummariserRequest(wire[0]!.body), `${wire.length} requests`)
+    check('it failed with the class, the provider\'s call id and the remedies', threw !== undefined && /malformed history/i.test(threw) && threw.includes('call_tlxFSxc72b7dbbq5yBsOGC7a') && threw.includes('/compact') && threw.includes('/clear') && threw.includes('/model'), threw ?? 'no error')
+    check('…and claims no pause: a manual retry stays available', threw !== undefined && !/paused/i.test(threw), threw ?? 'no error')
+  }
+
+  section('C3 a subsequent query on the same history makes one fresh attempt — the pause was the run\'s — and says so in the run\'s own scope')
+  {
+    process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = String(count - 800)
+    fixture.script([
+      { error: { status: 400, body: MALFORMED_HISTORY_REFUSAL } },
+      { error: { status: 400, body: MALFORMED_HISTORY_REFUSAL } },
+      { text: 'never reached' },
+    ])
+    const again = await drive(ctxD, seed)
+    delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
+    const summaries = again.wire.filter(w => isSummariserRequest(w.body))
+    check('the subsequent query made exactly one summary request (one attempt per run, never a loop within it)', again.threw === undefined && summaries.length === 1 && again.wire.length === 1, `threw=${again.threw ?? 'no'} requests=${again.wire.length}`)
+    const lineAgain = noticeTexts(again.yields).find(t => /malformed history/i.test(t))
+    check('its line names the run, not the session', lineAgain !== undefined && lineAgain.includes('paused for the rest of this run') && !/for this session/.test(lineAgain), lineAgain ?? JSON.stringify(noticeTexts(again.yields)))
+  }
 }
 
 section('N1 only a pairing complaint is the malformed-history class — a parameter, schema or capability refusal counts one failure and pauses nothing')

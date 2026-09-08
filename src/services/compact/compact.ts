@@ -175,17 +175,23 @@ export function malformedHistoryRefusalOf(row: AssistantMessage): string | null 
 
 export function compactionRefusedForHistoryText(providerWords: string, opts: { nonInteractive: boolean }): string {
   const remedy = opts.nonInteractive
-    ? 'Automatic compaction is paused for this run: start a fresh run, or pass --model with a larger window.'
-    : 'Automatic compaction is paused for this session: /compact tries again after the history heals, /clear starts fresh, or /model picks a model with a larger window.'
+    ? 'Start a fresh run, or pass --model with a larger window.'
+    : '/compact tries again after the history heals, /clear starts fresh, or /model picks a model with a larger window.'
   return `Compaction was refused for a malformed history — ${providerWords} ${remedy}`
+}
+
+export function compactionPausedForHistoryText(providerWords: string, opts: { nonInteractive: boolean }): string {
+  return `${compactionRefusedForHistoryText(providerWords, opts)} Automatic compaction is paused for the rest of this run.`
 }
 
 export class CompactionRefusedForHistoryError extends Error {
   readonly providerWords: string
+  readonly nonInteractive: boolean
   constructor(providerWords: string, opts: { nonInteractive: boolean }) {
     super(compactionRefusedForHistoryText(providerWords, opts))
     this.name = 'CompactionRefusedForHistoryError'
     this.providerWords = providerWords
+    this.nonInteractive = opts.nonInteractive
   }
 }
 const FOLD_DEADLINE_MS = 10 * 60 * 1000
