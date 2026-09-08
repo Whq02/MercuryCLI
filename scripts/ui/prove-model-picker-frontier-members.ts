@@ -96,7 +96,7 @@ if (driver.kind !== 'posix-pty') {
         { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true, awaitSettleTicks: 2 },
         { afterPrevTicks: 4, data: '\r' },
         { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitSettleTicks: 3, data: '\u001b[H' },
-        ...Array.from({ length: anthropicIndex }, () => ({ afterPrevTicks: 1, data: '\u001b[B' })),
+        ...Array.from({ length: Math.max(0, anthropicIndex - 1) }, () => ({ afterPrevTicks: 1, data: '\u001b[B' })),
         { requireAwait: true, awaitText: 'Fable 5.1', awaitStableTicks: 3, mark: 'picker', data: '' },
         { afterPrevTicks: 2, data: '\x1b' },
         { afterPrevTicks: 4, data: '/model fable51', awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2 },

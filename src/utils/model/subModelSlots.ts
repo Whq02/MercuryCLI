@@ -175,7 +175,7 @@ export function composeSubModelRegistry(reads: SubModelRegistryReads = {}): SubM
     (() => getModelOptions({ anthropicCredentialed: () => credentialed('anthropic') }))
   )()
   for (const option of options) {
-    const value = typeof option.value === 'string' ? option.value : null
+    const value = option.value
     if (!value || value.startsWith('__')) continue
     if (isProviderActionRow(value)) continue
     const modelId = canonicalSubModelId(value)

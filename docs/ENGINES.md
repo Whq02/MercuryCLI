@@ -134,8 +134,8 @@ door records when a family's credential landed (the sign-in ledger,
 `.sign-ins.json` beside the credential stores; a token refresh never records),
 and a fresh, unpinned session starts on that provider's newest model the
 credential can use — a gated row is never chosen, a provider with no usable
-row falls through to the next most recent sign-in, and `/model`, the
-Recommended row and the doctor's Default model row say which and why.
+row falls through to the next most recent sign-in. The `/model` readout
+and the doctor's Default model row say which and why.
 `/defaultprovider` makes a provider the most recent sign-in by the operator's
 word (an entry in the same ledger). Credentials that landed before the ledger
 existed, env-pinned keys included, order after every recorded sign-in — the

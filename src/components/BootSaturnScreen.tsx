@@ -470,7 +470,7 @@ function liveModelOptions(): string[] {
       ...new Set(
         getModelOptions()
           .map(o => o.value)
-          .filter((v): v is string => typeof v === 'string' && v.length > 0 && !v.startsWith(KEY_CONNECT_PREFIX)),
+          .filter(v => v.length > 0 && !v.startsWith(KEY_CONNECT_PREFIX)),
       ),
     ];
   } catch {

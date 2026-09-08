@@ -337,12 +337,9 @@ type ModelCatalogueEntry = {
 function buildModelCatalogue(): ModelCatalogueEntry[] {
   const options = getModelOptions()
   return options.map(option => {
-    const resolved =
-      option.value === null
-        ? getMainLoopModel()
-        : (parseUserSpecifiedModel(option.value) ?? option.value)
+    const resolved = parseUserSpecifiedModel(option.value) ?? option.value
     const entry: ModelCatalogueEntry = {
-      value: option.value === null ? 'default' : option.value,
+      value: option.value,
       display_name: option.label,
       description: option.description,
     }
