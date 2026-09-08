@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execFileSync, spawnSync } from 'node:child_process'
-import { chmodSync, cpSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -53,6 +53,26 @@ check('both rows land, c red with its exit code', /^b\t0\t\d+$/m.test(two.stdout
 check('the reading counts the red', two.stderr.includes('2 suite(s), 1 red'))
 check('a listing (no --run) prints the suites, not rows', impact(['--paths', 'src/b/y.ts']).stdout.trim() === 'b')
 
+section('§2b unclassified execution refuses before any suite starts')
+mkdirSync(join(estate, 'scripts', 'identity'))
+const ran = join(estate, 'unexpected-run')
+writeFileSync(join(estate, 'scripts', 'identity', 'run-all.sh'), `#!/usr/bin/env bash\n# gate-class: pure\nprintf ran > '${ran}'\n`)
+for (const args of [
+  ['--paths', 'unwatched/file.txt', '--run'],
+  ['--paths', 'src/a/x.ts', 'unwatched/file.txt', '--run'],
+  ['--paths', 'unwatched/file.txt', '--run', '--json'],
+]) {
+  const unclassified = impact(args)
+  check('unclassified execution exits nonzero with the missing path and remedy', unclassified.code === 1 && unclassified.stderr.includes('unwatched/file.txt') && /declare|watch|full/i.test(unclassified.stderr), unclassified.stdout + unclassified.stderr)
+  check('even a whole-tree suite does not run for an incomplete selection', !existsSync(ran))
+}
+rmSync(join(estate, 'scripts', 'identity'), { recursive: true, force: true })
+const jsonRun = impact(['--paths', 'src/a/x.ts', '--run', '--json'])
+const jsonResult = JSON.parse(jsonRun.stdout)
+check('--run with --json executes the selection and returns actual exits', jsonRun.code === 0 && jsonResult.results?.length === 1 && jsonResult.results[0].suite === 'a' && jsonResult.results[0].rc === 0, jsonRun.stdout)
+const jsonRed = impact(['--paths', 'src/c/z.ts', '--run', '--json'])
+check('--json cannot turn a red execution into a listing success', jsonRed.code === 1 && JSON.parse(jsonRed.stdout).results?.[0]?.rc === 3, jsonRed.stdout)
+
 section('§3 --staged and --dirty on a scratch repository')
 const repo = join(estate, 'repo')
 mkdirSync(join(repo, 'scripts', 'gate'), { recursive: true })
@@ -82,6 +102,11 @@ const real = spawnSync(bun, [join(ROOT, 'scripts/verify/impact.ts'), '--paths', 
 const named = new Set(real.stdout.trim().split('\n'))
 check('a settings type change owes the settings suite', named.has('settings'))
 check('a terminal runtime change owes the ink-runtime suite', named.has('ink-runtime'))
+const sharedPaths = ['scripts/lib/proof-runner.sh', 'scripts/lib/new-helper.ts', 'assets/completions/mercury.bash', 'assets/completions/_mercury', 'assets/completions/mercury.fish']
+const watched = spawnSync(bun, [join(ROOT, 'scripts/verify/impact.ts'), '--paths', ...sharedPaths, '--json'], { cwd: ROOT, env: { ...process.env, MERCURY_SLICE_ROOT: ROOT }, encoding: 'utf8' })
+const classified = JSON.parse(watched.stdout)
+check('shared helper and completion paths are classified', watched.status === 0 && classified.unclassified.length === 0, watched.stdout)
+for (const path of sharedPaths) check('the actual owning suite watches the path, not only the whole-tree default', classified.perPath[path].includes(path.startsWith('scripts/lib/') ? 'gate' : 'project-services'), `${path}: ${classified.perPath[path]}`)
 
 rmSync(estate, { recursive: true, force: true })
 console.log('\n' + '─'.repeat(76))

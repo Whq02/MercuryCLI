@@ -63,23 +63,18 @@ const sel = selectImpact(manifest, paths)
 const always = ALWAYS.filter(s => existsSync(join(ROOT, 'scripts', s, 'run-all.sh')))
 const suites = [...new Set([...sel.suites, ...always])].sort()
 
-if (json) {
-  console.log(
-    JSON.stringify(
-      {
-        suites: suites.map(s => ({
-          suite: s,
-          class: manifest.classes[s] ?? 'undeclared',
-          reason: sel.suites.has(s) ? 'gate-watch' : 'whole-tree ratchet',
-        })),
-        ignored: sel.ignored,
-        unclassified: sel.unclassified,
-        perPath: sel.perPath,
-      },
-      null,
-      2,
-    ),
-  )
+const report = {
+  suites: suites.map(s => ({
+    suite: s,
+    class: manifest.classes[s] ?? 'undeclared',
+    reason: sel.suites.has(s) ? 'gate-watch' : 'whole-tree ratchet',
+  })),
+  ignored: sel.ignored,
+  unclassified: sel.unclassified,
+  perPath: sel.perPath,
+}
+if (json && !run) {
+  console.log(JSON.stringify(report, null, 2))
   process.exit(0)
 }
 
@@ -92,6 +87,11 @@ if (sel.ignored.length > 0) console.error(`ignored (${sel.ignored.length}): ${se
 if (sel.unclassified.length > 0) {
   console.error(`UNCLASSIFIED (${sel.unclassified.length}) — no suite watches these paths:`)
   for (const p of sel.unclassified) console.error(`  ${p}`)
+  if (run) {
+    console.error('impact --run: refused before execution. Declare gate-watch coverage for these paths, or run the full gate separately.')
+    if (json) console.log(JSON.stringify({ ...report, results: [], refused: true }, null, 2))
+    process.exit(1)
+  }
 }
 if (explain) {
   for (const [p, claimants] of Object.entries(sel.perPath)) console.error(`  ${p} → ${claimants.join(', ')}`)
@@ -104,7 +104,7 @@ if (run) {
   const out = mkdtempSync(join(tmpdir(), 'impact-run-'))
   const budget = process.env.MERCURY_SUITE_TIMEOUT ?? process.env.MERCURY_SUITE_CEILING ?? '900'
   let red = 0
-  const rows: string[] = []
+  const results: { suite: string; rc: number; secs: string }[] = []
   for (const suite of suites) {
     const runner = join('scripts', suite, 'run-all.sh')
     const res = spawnSync('bash', ['scripts/gate/run-suite.sh', runner, budget, out, 'impact --run'], { cwd: ROOT, stdio: 'ignore', env: process.env })
@@ -116,10 +116,10 @@ if (run) {
     } catch {
     }
     if (rc !== 0) red++
-    const row = `${suite}\t${rc}\t${secs}`
-    rows.push(row)
-    console.log(row)
+    results.push({ suite, rc, secs })
+    if (!json) console.log(`${suite}\t${rc}\t${secs}`)
   }
+  if (json) console.log(JSON.stringify({ ...report, results, output: out }, null, 2))
   console.error(`impact --run: ${suites.length} suite(s), ${red} red; output under ${out}`)
   process.exit(red === 0 ? 0 : 1)
 }
