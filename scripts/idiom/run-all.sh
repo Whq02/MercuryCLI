@@ -4,18 +4,18 @@
 # gate-watch: src/utils/envUtils* src/services/tools/toolExecution*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
+prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 
 cd "$(dirname "$0")/../.." || exit 1
 
 failed=0
 run() {
   echo "── idiom: $1"
-  local __t=$SECONDS
-  if ! bun "scripts/idiom/$2" ; then
+  local __t=$SECONDS __rc=0
+  if ! { bun "scripts/idiom/$2" ; __rc=$?; [ "$__rc" -eq 0 ]; }; then
     failed=1
   fi
-  prover_mark "scripts/idiom/$2" "$__t"
+  prover_mark "scripts/idiom/$2" "$__t" "$__rc"
 }
 
 run "census-zero hygiene (C14/C18/C19/C21)" prove-idiom-hygiene.ts

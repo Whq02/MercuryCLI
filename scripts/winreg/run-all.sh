@@ -4,6 +4,7 @@
 # gate-watch: scripts/lib/captureDriver.ts scripts/switchboard/prove-session-unification.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+. "$(dirname "$0")/../lib/proof-runner.sh"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
@@ -18,7 +19,7 @@ for proof in "$here"/prove-*.ts; do
   case "$name" in _*) continue ;; esac
   echo ""
   echo "── $name"
-  if ! "$bun" run "$proof"; then
+  if ! run_proof "$proof" "$bun" run "$proof"; then
     fail=1
   fi
 done

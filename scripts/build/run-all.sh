@@ -7,6 +7,7 @@
 # gate-watch: src/entrypoints/cli* src/entrypoints/init*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+. "$(dirname "$0")/../lib/proof-runner.sh"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$here/../.." && pwd)"
 cd "$root" || exit 1
@@ -22,17 +23,17 @@ if [[ -f "$dist" ]]; then ok "dist/mercury.mjs present"; else
   echo "❌ build-integrity proofs FAILED"; exit 1
 fi
 
-"${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-win32-seam-ratchet.ts" || fail=1
+run_proof "$root/scripts/build/prove-win32-seam-ratchet.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-win32-seam-ratchet.ts" || fail=1
 
-"${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-isolated-artifact.ts" || fail=1
+run_proof "$root/scripts/build/prove-isolated-artifact.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-isolated-artifact.ts" || fail=1
 
-"${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-boot-crash-surface.ts" || fail=1
+run_proof "$root/scripts/build/prove-boot-crash-surface.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-boot-crash-surface.ts" || fail=1
 
-"${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-build-search-gate.ts" || fail=1
+run_proof "$root/scripts/build/prove-build-search-gate.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-build-search-gate.ts" || fail=1
 
-"${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-vendor-tar-dialect.ts" || fail=1
+run_proof "$root/scripts/build/prove-vendor-tar-dialect.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-vendor-tar-dialect.ts" || fail=1
 
-"${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-image-processor-pack.ts" || fail=1
+run_proof "$root/scripts/build/prove-image-processor-pack.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-image-processor-pack.ts" || fail=1
 
 hits=$(grep -oE "(^|[^A-Za-z0-9_])feature\((['\"])" "$dist" | wc -l | tr -d ' ')
 if [[ "$hits" == "0" ]]; then ok "no surviving feature('…') macro call in dist"; else

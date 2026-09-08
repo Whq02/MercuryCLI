@@ -5,7 +5,7 @@
 # gate-watch: src/utils/swarm/teammatePromptAddendum*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
+prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$here/../.." && pwd)"
@@ -16,8 +16,8 @@ echo "############################################################"
 echo "# Subagent/agent doctrine — proof harness"
 echo "############################################################"
 
-__t=$SECONDS; "$bun" run "$here/prove-subagent-doctrine.ts" || fail=1; prover_mark "$here/prove-subagent-doctrine.ts" "$__t"
-__t=$SECONDS; "$bun" run "$here/prove-teammate-addendum.ts" || fail=1; prover_mark "$here/prove-teammate-addendum.ts" "$__t"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-subagent-doctrine.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-subagent-doctrine.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-teammate-addendum.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-teammate-addendum.ts" "$__t" "$__rc"
 
 echo ""
 echo "── dist-grep: the doctrine ships in the built product (string literals) ──"

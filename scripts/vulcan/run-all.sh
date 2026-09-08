@@ -5,7 +5,7 @@
 # gate-watch: src/utils/vulcan/optable.generated* src/utils/vulcan/vulcanGates*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
+prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 
 here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
@@ -16,21 +16,21 @@ echo "############################################################"
 
 echo
 echo ">>> regen-optable --check"
-node "$here/regen-optable.mjs" --check || fail=1
+node "$here/regen-optable.mjs" --check || { __rc=$?; fail=1; }
 
 echo
 echo ">>> regen-addon --check"
-node "$here/regen-addon.mjs" --check || fail=1
+node "$here/regen-addon.mjs" --check || { __rc=$?; fail=1; }
 
 shopt -s nullglob
 for proof in "$here"/prove-*.ts; do
   echo
   echo ">>> $(basename "$proof")"
-  __t=$SECONDS; "$bun" run "$proof" || fail=1; prover_mark "$proof" "$__t"
+  __t=$SECONDS; __rc=0; "$bun" run "$proof" || { __rc=$?; fail=1; }; prover_mark "$proof" "$__t" "$__rc"
 done
 echo
 echo ">>> prove-addon-compiles.sh"
-__t=$SECONDS; bash "$here/prove-addon-compiles.sh" || fail=1; prover_mark "$here/prove-addon-compiles.sh" "$__t"
+__t=$SECONDS; __rc=0; bash "$here/prove-addon-compiles.sh" || { __rc=$?; fail=1; }; prover_mark "$here/prove-addon-compiles.sh" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL VULCAN PROOFS PASS"; else echo "# ❌ SOME VULCAN PROOFS FAILED"; fi
 echo "############################################################"
