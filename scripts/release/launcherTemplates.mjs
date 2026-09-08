@@ -173,8 +173,8 @@ if [ "$MERCURY_TAKEOVER" = "1" ] && [ -t 0 ] && [ -t 1 ] \\
     "$node_bin" "$dir/splash.mjs"
     MERCURY_SA_EXIT=$?
     # THE EXIT-CODE HANDOVER: this launcher parses NOTHING the splash
-    # writes — the 1.5.4 cmd reader died parsing the receipt file, so the
-    # class is closed in all three launchers at once. Numeric branches only:
+    # writes — a launcher that reads the receipt file can die parsing it, so
+    # all three launchers read the exit code alone. Numeric branches only:
     #   0 handoff+HELD · 20 handoff+RESTORED · 130 cancel · else abnormal.
     # Action/dir ride splash-action.json to the RUNTIME consumer, armed by
     # MERCURY_SPLASH_HANDOFF=1 (one-shot, consumed at cli entry).
@@ -194,8 +194,8 @@ if [ "$MERCURY_TAKEOVER" = "1" ] && [ -t 0 ] && [ -t 1 ] \\
       "$node_bin" -e 'process.stdout.write("\\x1b[?2026l\\x1b[0m\\x1b[?1007l\\x1b[?1049l\\x1b[?25h\\x1b]111\\x07")' 2>/dev/null || true
     fi
     # hand over inside the held alternate buffer (the boot black-beat fix) —
-    # exit 0 IS the settled held receipt (3.6.2/: the splash exits 20
-    # when it restored the screen instead). The app's root alt-screen mount
+    # exit 0 IS the settled held receipt (the splash exits 20 when it
+    # restored the screen instead). The app's root alt-screen mount
     # consumes and deletes the marker.
     if [ "$MERCURY_SA_EXIT" = "0" ] && [ "\${MERCURY_FULLSCREEN:-}" != "0" ]; then
       MERCURY_ALT_HELD=1
@@ -331,7 +331,7 @@ set "MERCURY_LAUNCH_ID=cmd-%RANDOM%%RANDOM%-%TIME::=%"\r
 "%NODEBIN%" "%DIR%splash.mjs"\r
 set "MERCURY_SA_EXIT=%errorlevel%"\r
 rem THE EXIT-CODE HANDOVER: this block parses NOTHING\r
-rem the splash writes. 1.5.4 read splash-action.txt here with set /p —\r
+rem the splash writes. A set /p read of a plain-text receipt here fails —\r
 rem against the LF-only receipt the first read swallowed the WHOLE file\r
 rem into a multi-line %%MERCURY_SA_ACT%%, whose first \`if "%%...%%"\`\r
 rem expansion was a malformed command: cmd ABORTED THE BATCH, node never\r
@@ -386,9 +386,9 @@ export function ps1Launcher(p) {
 $dir = $PSScriptRoot
 # PS-01: launcher-owned environment keys are a REVERSIBLE
 # transaction. Invoked from an interactive PowerShell session this script
-# runs in the CALLER'S runspace — 1.5.4 left its markers behind, so a later
-# splash-skipping run inherited a stale held-screen claim and unrelated node
-# runs inherited Mercury's compile-cache location. Snapshot here, restore in
+# runs in the CALLER'S runspace — markers left behind would make a later
+# splash-skipping run inherit a stale held-screen claim and unrelated node
+# runs inherit Mercury's compile-cache location. Snapshot here, restore in
 # the finally below on EVERY outcome (ready, cancel, refusal, child error).
 # Console encodings stay deliberately unrestored (the
 # rule: the runtime seam restores only what IT changes).
@@ -477,8 +477,8 @@ if ($takeover -and $interactive -and (Test-Path $splashPath) -and ($noBanner -ne
   & $nodeBin $splashPath
   $saExit = $LASTEXITCODE
   # THE EXIT-CODE HANDOVER: this launcher parses NOTHING
-  # the splash writes — 1.5.4's cmd reader aborted its whole batch parsing
-  # the receipt file, so the class is closed in all three launchers at once.
+  # the splash writes — a cmd reader of the receipt file can abort its whole
+  # batch parsing it, so all three launchers read the exit code alone.
   # Numeric branches only; action/dir ride splash-action.json to the RUNTIME
   # consumer (armed by MERCURY_SPLASH_HANDOFF=1).
   #   0 handoff+HELD (alt-held marker) - 20 handoff+RESTORED (no marker) -
@@ -626,8 +626,7 @@ This archive is self-contained: no Node install, no npm install, no source
 checkout, no Bun. The \`vendor\` directory (the Node runtime, ripgrep, the
 language packs) must stay beside \`mercury.mjs\`.
 
-Third-party notices + origin facts: \`NOTICES.md\` in this folder. Mercury is
-a standalone, source-built product.
+Third-party notices: \`NOTICES.md\` in this folder.
 `
 }
 
