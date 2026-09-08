@@ -120,7 +120,7 @@ check('one completion output cannot stand for all three', generatedAssetsOwed({ 
 
 section('§3 a real repository, through the gate reader')
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'generated-assets-')))
-const repo = join(scratch, 'repo')
+const repo = join(scratch, 'repo with spaces')
 mkdirSync(join(repo, 'scripts', 'gate'), { recursive: true })
 mkdirSync(join(repo, 'src', 'settings'), { recursive: true })
 mkdirSync(join(repo, 'gen'), { recursive: true })
@@ -152,13 +152,29 @@ check('a short option cluster still recognizes all-files before its message', ge
 g('add', 'gen/schema.json')
 check('the asset staged beside its source settles it', generatedAssetsRefusal('git commit -F m', repo) === null)
 g('restore', '--staged', 'gen/schema.json')
-check('a `git -C <dir> commit` from another directory reads that repository', commitRepositoryRoot(`git -C ${repo} commit -F m`, scratch) === repo && generatedAssetsRefusal(`git -C ${repo} commit -F m`, scratch) !== null)
+check('a `git -C <dir> commit` from another directory reads that repository', commitRepositoryRoot(`git -C "${repo}" commit -F m`, scratch) === repo && generatedAssetsRefusal(`git -C "${repo}" commit -F m`, scratch) !== null)
 const bare = join(scratch, 'nomap')
 mkdirSync(bare)
 execFileSync('git', ['init', '-q'], { cwd: bare })
 writeFileSync(join(bare, 'x.txt'), 'x')
 execFileSync('git', ['add', 'x.txt'], { cwd: bare })
 check('a repository with no map owes nothing', generatedAssetsRefusal('git commit -F m', bare) === null)
+for (const command of ['git commit -F "$MSG"', 'git commit -F $MSG', 'git commit -m "$(cat msg.txt)"', 'MSG=msg.txt git commit -F "$MSG"', 'GIT=git; $GIT commit -F m']) {
+  try {
+    check('message expansion does not activate an absent map', generatedAssetsRefusal(command, bare) === null, command)
+  } catch (error) {
+    check('message expansion does not activate an absent map', false, `${command}: ${error}`)
+  }
+}
+for (const command of [`git -C "${bare}" commit -F "$MSG"`, `cd "${bare}" && git commit -m "$(cat msg.txt)"`]) {
+  try { check('map discovery follows the literal target before reading message arguments', generatedAssetsRefusal(command, repo) === null, command) }
+  catch (error) { check('map discovery follows the literal target before reading message arguments', false, `${command}: ${error}`) }
+}
+for (const command of ['git commit -F "$MSG"', 'git commit -m "$(cat msg.txt)"']) {
+  let reason = ''
+  try { reason = generatedAssetsRefusal(command, repo) ?? '' } catch (error) { reason = String(error) }
+  check('a mapped nonliteral commit names its actual ambiguity and remedy', /variable|substitution/.test(reason) && /literal/.test(reason) && !reason.includes('once git answers'), reason)
+}
 check('a directory outside any repository owes nothing', generatedAssetsRefusal('git commit -F m', tmpdir()) === null)
 writeFileSync(join(repo, 'scripts/gate/generated-assets.tsv'), 'broken row\n')
 check('a map that does not parse refuses, naming the map', (generatedAssetsRefusal('git commit -F m', repo) ?? '').includes('does not parse'))

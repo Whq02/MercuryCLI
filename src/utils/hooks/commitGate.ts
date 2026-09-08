@@ -32,7 +32,7 @@ export const COMMIT_GATE_ID = 'commit-gate'
 
 
 function isGitCommit(segment: string): boolean {
-  return /\bgit(?:\s+(?:-C\s+\S+|-c\s+\S+|--git-dir(?:=\S+|\s+\S+)|--work-tree(?:=\S+|\s+\S+)))*\s+commit\b(?!-)/i.test(
+  return /\bgit(?:\s+(?:(?:-C|-c|--git-dir|--work-tree)\s+(?:"(?:[^"\\]|\\.)*"|'[^']*'|\S+)|--(?:git-dir|work-tree)=(?:"(?:[^"\\]|\\.)*"|'[^']*'|\S+)))*\s+commit\b(?!-)/i.test(
     segment,
   )
 }
@@ -139,7 +139,7 @@ function generatedAssetsVerdict(command: string): true | string {
     const refusal = generatedAssetsRefusal(command, getCwd())
     return refusal === null ? true : refusal
   } catch (error) {
-    return `Commit gate: the generated-asset rule could not read the commit (${error instanceof Error ? error.message : String(error)}) — commit again once git answers.`
+    return `Commit gate: generated-asset verification refused: ${error instanceof Error ? error.message : String(error)}`
   }
 }
 
@@ -236,8 +236,17 @@ export function chainedSegmentsBeforeCommit(command: string): string[] {
 }
 
 export function commitRepositoryRoot(commitSegment: string, cwd: string): string | null {
-  const { prefix } = commitArguments(commitSegment)
-  try { return gitLines(cwd, [...prefix, 'rev-parse', '--show-toplevel'])[0] ?? null } catch { return null }
+  const header: string[] = []
+  let optionValue = false
+  for (const match of commitSegment.matchAll(/(?:[^\s'"\\]+|\\[\s\S]|"(?:[^"\\]|\\[\s\S])*"|'[^']*')+/g)) {
+    if (match[0] === 'commit' && !optionValue) break
+    if (header.length === 0 && /^[A-Za-z_][A-Za-z0-9_]*=/.test(match[0])) continue
+    header.push(match[0])
+    optionValue = !optionValue && ['-C', '-c', '--git-dir', '--work-tree', '--namespace'].includes(match[0])
+  }
+  const words = header.length === 1 && /^\$/.test(header[0]!) ? ['git'] : commandWords(header.join(' '))
+  if (!words || !/(?:^|[\\/])git(?:\.exe)?$/.test(words[0] ?? '')) throw new Error('Cannot locate the generated-asset map through a variable or substitution in the Git executable or repository options. Select the directory separately and use literal Git repository options.')
+  try { return gitLines(cwd, [...words.slice(1), 'rev-parse', '--show-toplevel'])[0] ?? null } catch { return null }
 }
 
 function gitLines(root: string, args: string[]): string[] {
@@ -251,7 +260,7 @@ function gitLines(root: string, args: string[]): string[] {
 
 function commitArguments(segment: string): { prefix: string[]; args: string[] } {
   const words = commandWords(segment)
-  if (!words || !/(?:^|[\\/])git(?:\.exe)?$/.test(words[0] ?? '')) throw new Error('Use a direct, literal git commit invocation so its candidate can be checked')
+  if (!words || !/(?:^|[\\/])git(?:\.exe)?$/.test(words[0] ?? '')) throw new Error('A shell variable, substitution or nonliteral commit invocation prevents checking the generated-asset candidate. Resolve it separately, then use a direct git commit with literal arguments.')
   let at = 1
   while (words[at] !== 'commit') {
     const word = words[at++]
@@ -312,14 +321,15 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
   if (commitIndex < 0) return null
   const commitSeg = segments[commitIndex]!
   let directory = cwd
+  let directoryRefusal: string | null = null
   const candidateChanges: string[] = []
   const checkDirectories = new Map<string, string>()
   for (let index = 0; index < commitIndex; index++) {
     const segment = segments[index]!
     const words = commandWords(segment.text)
     if (words?.[0] === 'cd') {
-      if (words.length !== 2 || segments[index + 1]?.opBefore !== '&&' || !['start', '&&'].includes(segment.opBefore)) throw new Error('Run directory changes separately or chain literal cd commands with && before committing')
-      directory = resolve(directory, words[1]!)
+      if (words.length !== 2 || segments[index + 1]?.opBefore !== '&&' || !['start', '&&'].includes(segment.opBefore)) directoryRefusal = 'Generated-asset checks require an unambiguous directory. Run directory changes separately or chain literal cd commands with && before committing.'
+      if (words.length === 2) directory = resolve(directory, words[1]!)
       continue
     }
     checkDirectories.set(segment.text.trim(), directory)
@@ -342,6 +352,8 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
   const map = loadGeneratedAssetsMap(root)
   if (map === null) return null
   if (map.errors.length > 0) return `The generated-asset map (${GENERATED_ASSETS_MAP}) does not parse: ${map.errors.join('; ')} — fix the map before committing.`
+  if (map.rows.length === 0) return null
+  if (directoryRefusal !== null) return directoryRefusal
   if (candidateChanges.some(segment => !map.rows.some(row => row.check !== null && checkChained(row.check, [segment]))) || segments.slice(commitIndex + 1).some(s => isGitCommit(s.text))) return 'Generated-asset checks require a stable commit candidate. Run staging or file-changing commands separately, then check and commit the resulting index.'
   const commitPaths = commitPathsOf(root, commitSeg.text, directory)
   if (commitPaths.length === 0) return null
