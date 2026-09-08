@@ -15,6 +15,7 @@ import { isFirstPartyAnthropicBaseUrl } from '../../../utils/model/providers.js'
 import { SPAWN_SWITCH_LABEL } from '../../switchboard/spawnSwitches.js'
 import { consumeLawfulPrefixChange } from '../lawfulPrefixChange.js'
 import { DEAD_THINKING_PLACEHOLDER } from './deadThinkingPlaceholder.js'
+import type { RequestContextPlan } from '../../run/requestContextPlan.js'
 
 export type PrefixMismatchBehavior = 'drop_block' | 'error'
 
@@ -164,7 +165,7 @@ export function prefixMarkOf(
   messages: readonly Message[],
   model: string,
   live?: LiveOperatorSettings,
-  context?: { thinkingClearActive?: boolean; contextEditActive?: boolean },
+  context?: { thinkingClearActive?: boolean; requestPlan?: RequestContextPlan },
 ): PrefixMark {
   let firstRow: string | null = null
   let compactBoundary: string | null = null
@@ -199,7 +200,8 @@ export function prefixMarkOf(
     model,
     settings: spellOperatorSettings(live),
     thinkingClearActive: context?.thinkingClearActive === true,
-    contextEditActive: context?.contextEditActive === true,
+    contextEditActive: context?.requestPlan?.mode === 'apply' &&
+      (context.requestPlan.reductions.timeBasedCleared > 0 || (context.requestPlan.reductions.pressurePruned?.cleared ?? 0) > 0),
   }
 }
 
