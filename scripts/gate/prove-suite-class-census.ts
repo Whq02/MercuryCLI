@@ -14,7 +14,11 @@ const extOf = (p: string): Ext | null => (EXT_RE.exec(p)?.[1] as Ext | undefined
 
 const PY_PTY = /\b(?:pty\.fork|pty\.openpty|os\.openpty|os\.forkpty|pty\.spawn)\s*\(/
 const NODE_PTY = /(?:from\s*|require\s*\(\s*|import\s*\(\s*)['"]node-pty['"]/
-const SPAWN = /\b(?:spawn|spawnSync|execFile|execFileSync|exec|execSync|subprocess\.(?:run|Popen|call|check_output)|Bun\.spawn(?:Sync)?)\b|(?:^|[\s"'(])python3?\b/
+const SPAWN_CALL = /\b(?:spawn|spawnSync|execFile|execFileSync|exec|execSync|subprocess\.(?:run|Popen|call|check_output)|Bun\.spawn(?:Sync)?)\b/
+const SHELL_PYTHON = /(?:^|[\s"'(])python3?\b/
+const spawnShape = (line: string, ext: Ext | null): boolean => SPAWN_CALL.test(line) || (ext === 'sh' && SHELL_PYTHON.test(line))
+const PREFLIGHT = '--preflight'
+const SHELL_FILE_TEST = /(?:\[\[?|\btest)\s+(?:!\s+)?-[a-zA-Z]\s+(?:"[^"]*"|'[^']*'|\S+)(?:\s+\]\]?)?/g
 const READ = /\b(?:readFileSync|readFile|existsSync|statSync|readdirSync|Bun\.file)\s*\(/
 const ASSIGN = /^\s*(?:export\s+)?(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*(?::[^=]+)?=[^=]|^\s*[A-Za-z_$][\w$.]*\s*=[^=]/
 const ENGINE_RESOLVER = /\b(?:captureEngineEntry|CAPTURE_ENGINE_ENTRY)\b/
@@ -57,8 +61,8 @@ interface LineCtx {
 
 const IMPORT_LINE = /^\s*import\s|^\s*export\s+(?:\*|\{)[^;]*\bfrom\b|^\s*(?:const|let|var)\s*\{[^}]*\}\s*=\s*(?:await\s+)?(?:import|require)\b/
 
-function contextOf(lines: string[]): { ctx: LineCtx[]; fileSpawns: boolean } {
-  const startsSpawn = (l: string): boolean => SPAWN.test(l) && !IMPORT_LINE.test(l)
+function contextOf(lines: string[], ext: Ext | null): { ctx: LineCtx[]; fileSpawns: boolean } {
+  const startsSpawn = (l: string): boolean => spawnShape(l, ext) && !IMPORT_LINE.test(l)
   const fileSpawns = lines.some(startsSpawn)
   let window = 0
   const ctx = lines.map(l => {
@@ -114,7 +118,9 @@ function shellTargets(root: string, file: string): Set<string> {
         if (isFile(p)) out.add(p)
       }
     }
+    if (raw.includes(PREFLIGHT)) continue
     const line = raw
+      .replace(SHELL_FILE_TEST, ' ')
       .replace(/"\$\(dirname "\$0"\)"/g, dir)
       .replace(/"?\$\{?(?:here|HERE|DIR|dir|SUITE_DIR)\}?"?(?=\/)/g, dir)
       .replace(/"?\$\{?(?:root|ROOT|REPO|repo|repo_root|REPO_ROOT)\}?"?(?=\/)/g, root)
@@ -152,6 +158,7 @@ function edgesOf(root: string, file: string, lines: string[], ctx: LineCtx[]): S
     if (c.read) return
     if (!TYPE_IMPORT.test(line)) for (const m of line.matchAll(/(?:from|import|require)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g)) add(join(dir, m[1]!))
     if (!c.spawn) return
+    if (line.includes(PREFLIGHT)) return
     for (const m of line.matchAll(/['"`](scripts\/[A-Za-z0-9_./-]+\.(?:ts|tsx|mjs|js|py|sh))['"`]/g)) add(join(root, m[1]!))
     for (const m of line.matchAll(/\b(?:join|resolve)\(\s*([A-Za-z_.]+)\s*((?:,\s*['"][^'"]+['"])+)\s*\)/g)) {
       const anchor = m[1]!
@@ -163,7 +170,7 @@ function edgesOf(root: string, file: string, lines: string[], ctx: LineCtx[]): S
   return out
 }
 
-function evidenceOf(lines: string[], ctx: LineCtx[], fileSpawns: boolean, engines: string[]): string[] {
+function evidenceOf(lines: string[], ctx: LineCtx[], fileSpawns: boolean, engines: string[], ext: Ext | null): string[] {
   const ev: string[] = []
   const pyHit = lines.find(l => PY_PTY.test(l))
   if (pyHit) ev.push(`opens a pty: ${pyHit.trim().slice(0, 72)}`)
@@ -172,13 +179,15 @@ function evidenceOf(lines: string[], ctx: LineCtx[], fileSpawns: boolean, engine
   for (let i = 0; i < lines.length; i++) {
     const c = ctx[i]!
     if (c.read || !c.spawn) continue
+    if (lines[i]!.includes(PREFLIGHT)) continue
     const eng = engines.find(n => lines[i]!.includes(n))
     if (eng) {
       ev.push(`spawns ${eng}`)
       break
     }
   }
-  if (!ev.some(e => e.startsWith('spawns')) && lines.some(l => ENGINE_RESOLVER.test(l))) ev.push('spawns the resolved capture engine')
+  const resolvedDrive = lines.some((l, i) => ctx[i]!.spawn && !ctx[i]!.read && ENGINE_RESOLVER.test(l) && !l.includes(PREFLIGHT) && !IMPORT_LINE.test(l))
+  if (!ev.some(e => e.startsWith('spawns')) && resolvedDrive) ev.push('spawns the resolved capture engine')
   return ev
 }
 
@@ -220,7 +229,7 @@ export function census(root: string): { engines: string[]; suites: SuiteCensus[]
     let a = cache.get(p)
     if (!a) {
       const lines = codeLines(p)
-      a = { lines, ...contextOf(lines) }
+      a = { lines, ...contextOf(lines, extOf(p)) }
       cache.set(p, a)
     }
     return a
@@ -232,7 +241,7 @@ export function census(root: string): { engines: string[]; suites: SuiteCensus[]
     if (visiting.has(f) || f === SELF) return null
     visiting.add(f)
     const a = analysed(f)
-    const ev = evidenceOf(a.lines, a.ctx, a.fileSpawns, engines)
+    const ev = evidenceOf(a.lines, a.ctx, a.fileSpawns, engines, extOf(f))
     let res: { chain: string[]; evidence: string } | null = null
     if (ev.length > 0) res = { chain: [relative(root, f)], evidence: ev[0]! }
     else {
@@ -302,17 +311,28 @@ function selfTest(): boolean {
   w('scripts/named-list/prove-g.ts', "import { spawnSync } from 'node:child_process'\nconst ENGINE = join(REPO, 'scripts/ui/engine.py')\nspawnSync('/usr/bin/python3', [ENGINE])\n")
   w('scripts/multi-line/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\n${bun} run "$here/prove-j.ts"\n`)
   w('scripts/multi-line/prove-j.ts', "import { spawnSync } from 'node:child_process'\nconst res = spawnSync(\n  BUN,\n  ['run', 'scripts/lib/tui.ts', '--cols', '80'],\n)\n")
+  w('scripts/lib/resolver.ts', "export type Driver = { kind: 'posix'; python: string; engine: 'scripts/ui/engine.py' }\nexport const ENTRY = { posix: 'scripts/ui/engine.py' } as const\nexport function captureEngineEntry(d: Driver, root: string): string { return join(root, ENTRY[d.kind]) }\nexport function resolveDriver(): Driver { const python = findOnPath('python3') ?? '/usr/bin/python3'; return { kind: 'posix', python, engine: 'scripts/ui/engine.py' } }\n")
+  w('scripts/names-only/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\n${bun} run "$here/prove-l.ts"\n`)
+  w('scripts/names-only/prove-l.ts', "import { resolveDriver } from '../lib/resolver.ts'\nexport const l = resolveDriver().python\n")
+  w('scripts/preflight-only/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n/usr/bin/python3 "$root/scripts/ui/engine.py" --preflight || exit 78\n${bun} run "$here/prove-k.ts"\n`)
+  w('scripts/preflight-only/prove-k.ts', "import { spawnSync } from 'node:child_process'\nimport { captureEngineEntry, resolveDriver } from '../lib/resolver.ts'\nconst d = resolveDriver()\nconst res = spawnSync(d.python, [captureEngineEntry(d, ROOT), '--preflight'], { encoding: 'utf8' })\nexport const k = res.status\n")
+  w('scripts/file-test/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n[ -f "$root/scripts/ui/engine.py" ] || exit 1\nif test -x "$root/scripts/ui/engine.py"; then echo present; fi\n${bun} run "$here/prove-n.ts"\n`)
+  w('scripts/file-test/prove-n.ts', 'export const n = 1\n')
+  w('scripts/resolved-drive/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\n${bun} run "$here/prove-m.ts"\n`)
+  w('scripts/resolved-drive/prove-m.ts', "import { spawnSync } from 'node:child_process'\nimport { captureEngineEntry, resolveDriver } from '../lib/resolver.ts'\nconst d = resolveDriver()\nspawnSync(d.python, [captureEngineEntry(d, ROOT), '--preflight'], { encoding: 'utf8' })\nspawnSync(d.python, [captureEngineEntry(d, ROOT), cfgPath], { encoding: 'utf8' })\n")
   const c = census(root)
   rmSync(root, { recursive: true, force: true })
   const drives = [...new Set(c.suites.filter(s => s.chain.length > 0).map(s => s.suite))].sort()
-  const want = ['multi-line', 'named-list', 'py-direct', 'via-import-2']
+  const want = ['multi-line', 'named-list', 'py-direct', 'resolved-drive', 'via-import-2']
   const okEngines = c.engines.join(',') === 'engine.py,prove-e.py'
   const okDrives = drives.join(',') === want.join(',')
   const parentDropsMember = c.suites.find(s => s.suite === 'via-import')?.files === 1
   const chainOk = c.suites.find(s => s.suite === 'via-import-2')?.chain.join(' → ') === 'scripts/via-import/prove-a.ts → scripts/lib/arena.ts'
-  const ok = okEngines && okDrives && parentDropsMember === true && chainOk
+  const resolvedEvidence = c.suites.find(s => s.suite === 'resolved-drive')?.evidence
+  const resolvedOk = resolvedEvidence === 'spawns the resolved capture engine'
+  const ok = okEngines && okDrives && parentDropsMember === true && chainOk && resolvedOk
   console.log(
-    `  [${ok ? 'PASS' : 'FAIL'}] §3 self-test: engines derived (${c.engines.join(',')}) · drives = {${drives.join(', ')}} (want {${want.join(', ')}}) · the complement runner drops the member (${String(parentDropsMember)}) · the member's chain runs through the helper (${String(chainOk)})`,
+    `  [${ok ? 'PASS' : 'FAIL'}] §3 self-test: engines derived (${c.engines.join(',')}) · drives = {${drives.join(', ')}} (want {${want.join(', ')}}) · the complement runner drops the member (${String(parentDropsMember)}) · the member's chain runs through the helper (${String(chainOk)}) · the resolver spawned for real reads as a drive (${resolvedEvidence ?? 'no evidence'})`,
   )
   return ok
 }
