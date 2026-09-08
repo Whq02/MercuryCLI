@@ -71,6 +71,16 @@ out="$(clean MERCURY_SEATS=2 bash "$root/scripts/substrate/run-all.sh" 2>&1)"; r
 check "scripts/substrate/run-all.sh refuses MERCURY_SEATS=2 at once (exit 78)" "$([ "$rc" = 78 ] && echo 0 || echo 1)" "rc=$rc"
 check "…naming it" "$(case "$out" in *"MERCURY_SEATS"*) echo 0;; *) echo 1;; esac)" "$out"
 
+echo "── routed proof inputs"
+routed="$root/scripts/switchboard-4-drives"
+check "the routed runner owns the reactivation proof" "$(grep -qxF 'prove-reactivate-drive.ts' "$routed/members.txt" && echo 0 || echo 1)"
+for input in MERCURY_REACTIVATE_CAPTURE_DIR MERCURY_REACTIVATE_DRIVE_MODEL MERCURY_REACTIVATE_KEEP; do
+  out="$(clean "$input=$scratch" bash -c '. "$1"; suite_env_guard "$2"' _ "$root/scripts/lib/suite-env.sh" "$routed/run-all.sh" 2>&1)"; rc=$?
+  check "the executing runner admits $input" "$([ "$rc" = 0 ] && echo 0 || echo 1)" "rc=$rc $out"
+done
+out="$(clean MERCURY_REACTIVATE_KEEP=1 MERCURY_SEATS=2 MERCURY_GODOT_TOOLS=1 bash -c '. "$1"; suite_env_guard "$2"' _ "$root/scripts/lib/suite-env.sh" "$routed/run-all.sh" 2>&1)"; rc=$?
+check "routed declarations do not admit session stamps" "$([ "$rc" = 78 ] && echo 0 || echo 1)" "rc=$rc $out"
+
 echo "── the census"
 missing=""
 for r in "$root"/scripts/*/run-all.sh; do
