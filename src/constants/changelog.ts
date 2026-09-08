@@ -2,10 +2,16 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.5
-- Removed the internal feature-gate table; every setting it used to answer is now plain code with the same behaviour
-- Changed the sign-in list in the Logins screen, /login and the first run to start on the most recent sign-in's row when one is recorded and on the first row otherwise
-- Changed /model to list only real models, with its sections as OpenAI, Anthropic, OpenRouter, then the other families; a session that has picked no model keeps the automatic default
+- Removed an internal configuration table that no longer did anything; nothing you can see changes
+- Changed the sign-in list to open on the right row
+- Changed /model to list real models only, in the order OpenAI, Anthropic, OpenRouter, then the rest
 - Removed three environment variables that had no effect: MERCURY_IDLE_THRESHOLD_MINUTES, MERCURY_IDLE_TOKEN_THRESHOLD and MERCURY_AGENT_ID
+- Changed commands run from a session to see your own environment, not Mercury's internal stamps; the proof suites refuse to start under such stamps
+- Added append and section modes to the Edit tool, and Eval cells that keep their state and report every nested call when something fails
+- Added a write scope for sibling worktrees through --add-dir, a reviewer agent that works on a frozen copy of a commit, and a held state for a message sent during a compaction
+- Improved the checks Mercury runs on itself: a map of generated files, per-proof exit codes, a preflight for terminal captures, cost accounting for agent fleets and a readable session state
+- Fixed a GPT reply cut off after a tool call breaking every later request of the session, and automatic compaction retrying a summary the provider had refused; the refusal is now reported once with the way out
+- Changed the line shown when sub-agents are still running to say how to stop one
 
 ## 1.0.0-beta.4
 - Added an optional built-in shell engine (the /config row "Shell engine" set to brush, or MERCURY_SHELL_ENGINE=brush): one persistent shell for the conversation and one per sub-agent, the same shell on every platform, and Windows no longer needs Git for Windows
