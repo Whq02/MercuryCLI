@@ -210,11 +210,13 @@ export async function buildRequestContextPlan(
       )
       view = result.messages
       if (result.deadMarks !== undefined && result.deadMarks.length > 0) deadThinkingMarks = result.deadMarks
-      if (input.pressurePrune === true && result.pruned !== undefined && result.pruned.cleared > 0) {
-        pressurePruned = { cleared: result.pruned.cleared, tokensSaved: result.pruned.tokensSaved }
-        reasons.push(
-          `pressure prune (context overflow) cleared ${result.pruned.cleared} superseded tool result(s) (~${result.pruned.tokensSaved} tokens)`,
-        )
+      if (result.pruned !== undefined && result.pruned.cleared > 0) {
+        if (input.pressurePrune === true) {
+          pressurePruned = { cleared: result.pruned.cleared, tokensSaved: result.pruned.tokensSaved }
+          reasons.push(
+            `pressure prune (context overflow) cleared ${result.pruned.cleared} superseded tool result(s) (~${result.pruned.tokensSaved} tokens)`,
+          )
+        }
         if (input.contentReplacementState) {
           const placeholderById = placeholdersOf(view, new Set(result.pruned.clearedIds))
           const records: ToolResultReplacementRecord[] = []
@@ -226,7 +228,7 @@ export async function buildRequestContextPlan(
           }
           if (records.length > 0) input.persistReplacements?.(records)
         } else {
-          unknownFields.push('contentReplacementState absent — the pressure prune holds for this request only')
+          unknownFields.push('contentReplacementState absent — cleared results hold for this request only')
         }
       }
     } else if (projected) {

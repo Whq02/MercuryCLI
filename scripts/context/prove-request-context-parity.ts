@@ -133,6 +133,55 @@ async function main(): Promise<void> {
     }
   }
 
+  section('4. Cleared results stay identical on later queries and reconstruction')
+  {
+    const { createContentReplacementState, reconstructContentReplacementState } =
+      await import('../../src/utils/toolResultStorage.js')
+    for (const pressure of [false, true]) {
+      const label = pressure ? 'pressure' : 'time'
+      const messages = Array.from({ length: 8 }, (_, i) => toolTurn(i, pressure ? 1000 : 90 * 60_000)).flat()
+      const original = JSON.stringify(messages)
+      const state = createContentReplacementState()
+      const records: import('../../src/utils/toolResultStorage.js').ToolResultReplacementRecord[] = []
+      const input = {
+        messages: messages as never,
+        owner,
+        querySource: 'repl_main_thread' as const,
+        contentReplacementState: state,
+        persistReplacements: (rows: typeof records) => { records.push(...rows) },
+        skipToolNames: skip,
+        ...(pressure ? { pressurePrune: true as const } : {}),
+      }
+      const pruned = await planMod.buildRequestContextPlan(input, 'apply')
+      check(label + ': exactly three replacements recorded', records.length === 3 && state.replacements.size === 3)
+      check(label + ': each stored byte matches the applied result', records.every(record =>
+        pruned.messages.some(message => message.type === 'user' && Array.isArray(message.message.content) &&
+          message.message.content.some(block => block.type === 'tool_result' &&
+            block.tool_use_id === record.toolUseId && block.content === record.replacement))))
+      check(label + ': pressure accounting remains conditional', Boolean(pruned.reductions.pressurePruned) === pressure)
+      const fresh: AnyMessage = {
+        type: 'assistant', uuid: 'fresh-' + label, timestamp: new Date().toISOString(),
+        message: { role: 'assistant', id: 'reply-' + label, content: [
+          { type: 'thinking', thinking: 'New reasoning after clearing.', signature: 'test-signature' },
+          { type: 'text', text: 'Ready.' },
+        ] },
+      }
+      const nextMessages = [...messages, fresh]
+      const expected = planMod.digestOfMessages([...pruned.messages, fresh] as never)
+      const nextInput = { ...input, messages: nextMessages as never, pressurePrune: undefined }
+      const inspected = await planMod.buildRequestContextPlan(nextInput, 'inspect')
+      const next = await planMod.buildRequestContextPlan(nextInput, 'apply')
+      check(label + ': next query preserves the projected prefix', next.digest === expected)
+      check(label + ': inspection and application agree after clearing', inspected.digest === next.digest)
+      check(label + ': the new reasoning survives', next.messages.includes(fresh as never))
+      check(label + ': later query does not persist duplicate records', records.length === 3)
+      const rebuilt = reconstructContentReplacementState(nextMessages as never, records)
+      const resumed = await planMod.buildRequestContextPlan({ ...nextInput, contentReplacementState: rebuilt }, 'apply')
+      check(label + ': reconstruction preserves every replacement byte', resumed.digest === expected)
+      check(label + ': transcript input was not mutated', JSON.stringify(messages) === original)
+    }
+  }
+
   console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)
   process.exit(failures === 0 ? 0 : 1)
 }
