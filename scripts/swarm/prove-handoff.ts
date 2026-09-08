@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const TMP = mkdtempSync(join(tmpdir(), 'hermes-swarm-handoff-'))
+const TMP = mkdtempSync(join(tmpdir(), 'mercury-swarm-handoff-'))
 process.env.MERCURY_CONFIG_DIR = TMP
 
 const {

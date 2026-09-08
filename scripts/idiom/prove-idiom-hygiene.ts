@@ -56,8 +56,6 @@ check(
 
 const coordProver = readFileSync(join(ROOT, 'scripts/substrate/prove-coordination-server.ts'), 'utf8')
 check('C19: coordination-server prover pins the MERCURY_* primary spelling', coordProver.includes("process.env.MERCURY_COORDINATION_MCP = '1'"))
-const RETIRED_MCP_ENV = ['MERCURY_TEMP', 'EST_MCP'].join('')
-check('C19: earlier probes retired from the prover', !coordProver.includes(RETIRED_MCP_ENV) && !coordProver.includes('-hermes-proof'))
 
 console.log(failures === 0 ? '\n ✅ HYGIENE GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

@@ -129,7 +129,6 @@ for (const c of COLS) {
     expect(`@${c}: the 7d window rides at full width (cols >= 100 gate + room to escape truncation)`, has7d(scr))
   }
 
-  expect(`@${c}: no stale fable-hermes chip in the statusbar (single owner = fableBand)`, !/fable-hermes/.test(scr))
 
   if (c >= 70) {
     expect(`@${c}: the session tab-strip renders (this session, cols >= 70)`, /this session/.test(full))
@@ -153,7 +152,7 @@ try {
 console.log('\nHTML written to /tmp/hframe-{64,70,80,90,100,120}.html')
 console.log(
   failures === 0
-    ? '\n✅ HERMESFRAME SHED RENDER-VERIFY PASS'
+    ? '\n✅ MERCURYFRAME SHED RENDER-VERIFY PASS'
     : `\n❌ ${failures} RENDER CHECK(S) FAILED`,
 )
 process.exit(failures === 0 ? 0 : 1)

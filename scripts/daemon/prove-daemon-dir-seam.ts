@@ -12,7 +12,7 @@ function section(t: string): void {
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
-const OVERRIDE = join('/tmp', 'hermes-seam-proof', 'daemon-home')
+const OVERRIDE = join('/tmp', 'mercury-seam-proof', 'daemon-home')
 
 section('1. MERCURY_DAEMON_DIR redirects every daemon-home path (live env read)')
 

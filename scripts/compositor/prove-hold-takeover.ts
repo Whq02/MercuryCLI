@@ -29,7 +29,7 @@ function check(name: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
 }
 
-function holdScript(cols: number, rows: number, hermesArgs: string): string {
+function holdScript(cols: number, rows: number, mercuryArgs: string): string {
   return `#!/bin/bash
 printf '\\033[?1049h\\033[?1007h\\033[?25l\\033[2J'
 y=0
@@ -43,7 +43,7 @@ printf '\\033[%d;%dH\\033[48;2;19;44;48m\\033[38;2;221;68;68m (>_) \\033[38;2;23
 printf '\\033[%d;%dH\\033[48;2;19;44;48m\\033[2m\\033[38;2;122;138;134mstarting…  (stuck? type: reset)\\033[0m' "$((cy + 2))" "$((${cols} / 2 - 20))"
 printf '\\033[H\\033[38;2;9;22;26m\\033[48;2;9;22;26m\\033[?25l'
 export MERCURY_ALT_HELD=1
-exec node ${JSON.stringify(BIN)} ${hermesArgs}
+exec node ${JSON.stringify(BIN)} ${mercuryArgs}
 `
 }
 

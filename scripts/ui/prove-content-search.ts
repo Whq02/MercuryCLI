@@ -16,7 +16,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const read = (...p: string[]) => readFileSync(join(root, ...p), 'utf-8')
 
 console.log('============================================================')
-console.log(' Hermes content search (ctrl+x g)')
+console.log(' Mercury content search (ctrl+x g)')
 console.log('============================================================')
 
 section('1. keybinding: action + FLAG-GATED ctrl+x g binding')

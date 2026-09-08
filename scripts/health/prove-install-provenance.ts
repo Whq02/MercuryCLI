@@ -147,10 +147,7 @@ section('§2 GUIDANCE (IP-07/08/09)')
 section('§3 WIRING (IP-01/10/12/16)')
 {
   const owner = src('src/services/privateChannel/installProvenance.ts')
-  check(
-    'the resolver never searches for the obsolete hermes launcher (IP-12)',
-    !owner.includes("which(") && !owner.includes("'hermes'") && !owner.includes('"hermes"'),
-  )
+  check('the resolver runs no PATH search (IP-12)', !owner.includes("which("))
   check(
     'resolution is bounded — no spawns in the owner (IP-16)',
     !/(?<![.\w])(spawn|spawnSync|execFile|exec)\(/.test(owner),
@@ -160,7 +157,6 @@ section('§3 WIRING (IP-01/10/12/16)')
     'getCurrentInstallationType delegates to the ONE snapshot (IP-01)',
     diag.includes('resolveInstallProvenance') && !diag.includes("return 'source-build'"),
   )
-  check('the hermes-launcher search died with the placeholder (IP-12)', !diag.includes("which('hermes')"))
   check(
     "/health carries the install-provenance row consuming the same snapshot (IP-10)",
     src('src/utils/healthReport.ts').includes("id: 'install-provenance'"),

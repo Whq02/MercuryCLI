@@ -253,7 +253,7 @@ async function main(): Promise<void> {
 
   try {
     if (typeof (globalThis as { MACRO?: unknown }).MACRO === 'undefined') {
-      ;(globalThis as { MACRO?: { VERSION: string } }).MACRO = { VERSION: 'bench-hermes' }
+      ;(globalThis as { MACRO?: { VERSION: string } }).MACRO = { VERSION: 'bench' }
     }
     const { writeEvolutionRow, defaultEvolutionLedgerDir } = await import('../../src/utils/evolution/evolutionLedger.ts')
     const res = await writeEvolutionRow(defaultEvolutionLedgerDir(repoRoot), {

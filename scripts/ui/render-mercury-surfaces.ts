@@ -25,7 +25,7 @@ if (build.status !== 0) {
 }
 
 function shoot(cmd: string, cols: number): string {
-  const out = `/tmp/hermes-surface-${cmd.replace(/\//g, '')}-${cols}.html`
+  const out = `/tmp/mercury-surface-${cmd.replace(/\//g, '')}-${cols}.html`
   const cfg = {
     argv: ['node', BIN],
     sends: [{ atTick: 30, data: cmd }, { atTick: 38, data: '\r' }],
@@ -78,6 +78,6 @@ const fsSrc = readFileSync(join(REPO, 'src', 'commands', 'fullscreen', 'fullscre
 expect('fullscreen passes onSend to MercuryFleetChat', /onSend=\{handleSend\}/.test(fsSrc))
 expect('handleSend delivers via writeToMailbox (the SendMessage transport)', /writeToMailbox\(/.test(fsSrc))
 
-console.log('\nHTML written to /tmp/hermes-surface-{model,fullscreen}-{80,120}.html')
-console.log(failures === 0 ? '\n✅ HERMES-SURFACES RENDER-VERIFY PASS' : `\n❌ ${failures} CHECK(S) FAILED`)
+console.log('\nHTML written to /tmp/mercury-surface-{model,fullscreen}-{80,120}.html')
+console.log(failures === 0 ? '\n✅ MERCURY-SURFACES RENDER-VERIFY PASS' : `\n❌ ${failures} CHECK(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

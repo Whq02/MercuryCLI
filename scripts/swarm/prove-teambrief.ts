@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const TMP = mkdtempSync(join(tmpdir(), 'hermes-teambrief-'))
+const TMP = mkdtempSync(join(tmpdir(), 'mercury-teambrief-'))
 process.env.MERCURY_CONFIG_DIR = TMP
 
 const { TeamBriefTool } = await import('../../src/tools/TeamBriefTool/TeamBriefTool.js')

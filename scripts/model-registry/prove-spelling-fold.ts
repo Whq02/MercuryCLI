@@ -22,6 +22,7 @@ const { foldModelSpelling, resolveCatalogueSpelling, catalogueSpellingExamples }
 )
 const { parseUserSpecifiedModel, parseUserSpecifiedModelRaw } = await import('../../src/utils/model/model.ts')
 import type { ModelOption } from '../../src/utils/model/modelOptions.ts'
+const { GPT_CONNECT_OPTION_VALUE } = await import('../../src/utils/model/modelOptions.ts')
 
 console.log('§1 the fold over an injected provider-equal catalogue')
 const cat: ModelOption[] = [
@@ -30,7 +31,7 @@ const cat: ModelOption[] = [
   { value: 'claude-opus-4-6', label: 'Opus 4.6', description: 'dots meet hyphens' },
   { value: 'gpt-5', label: 'GPT-5', description: '', group: 'GPT' },
   { value: 'glm-4.7', label: 'GLM-4.7', description: '', group: 'Z.AI' },
-  { value: '__hermes_gpt_connect__', label: 'Connect GPT', description: 'a door, not a model', group: 'GPT' },
+  { value: GPT_CONNECT_OPTION_VALUE, label: 'Connect GPT', description: 'a door, not a model', group: 'GPT' },
   { value: '__router_mode__', label: 'Router', description: 'a mode, not a model', group: 'Modes' },
 ]
 const sonnetTarget = parseUserSpecifiedModelRaw('sonnet')

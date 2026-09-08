@@ -10,7 +10,7 @@ const ok = (cond: boolean, label: string) => {
   if (!cond) failures++
 }
 
-const tmp = mkdtempSync(join(tmpdir(), 'hermes-filestore-'))
+const tmp = mkdtempSync(join(tmpdir(), 'mercury-filestore-'))
 process.env.MERCURY_CONFIG_DIR = tmp
 const CHILD = join(import.meta.dir, 'helpers', 'fsStoreChild.ts')
 const BUN = process.execPath

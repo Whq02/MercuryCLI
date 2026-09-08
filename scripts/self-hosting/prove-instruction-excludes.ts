@@ -75,7 +75,7 @@ function drive(
   writeFileSync(join(home, 'settings.json'), JSON.stringify(settings))
   const env: Record<string, string | undefined> = {}
   for (const [k, v] of Object.entries(process.env)) {
-    if (/^(MERCURY_|HERMES_|TF_|CLAUDE_)/.test(k)) continue
+    if (/^(MERCURY_|CLAUDE_)/.test(k)) continue
     env[k] = v
   }
   env.MERCURY_CONFIG_DIR = home

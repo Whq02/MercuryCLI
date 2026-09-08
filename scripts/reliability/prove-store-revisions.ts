@@ -17,7 +17,7 @@ const ok = (cond: boolean, label: string) => {
   if (!cond) failures++
 }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
-const tmp = mkdtempSync(join(tmpdir(), 'hermes-storerev-'))
+const tmp = mkdtempSync(join(tmpdir(), 'mercury-storerev-'))
 const home = join(tmp, 'home')
 mkdirSync(home, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home

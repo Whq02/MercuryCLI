@@ -732,7 +732,7 @@
     },
     {
       "file": "scripts/identity/prove-tree-hygiene.ts",
-      "line": 23,
+      "line": 22,
       "mechanism": "execSync-string",
       "excerpt": "const tracked = execSync('git ls-files -z', { cwd: ROOT }).toString('utf8').split('\\0').filter(Boolean)",
       "cls": "intentional-shell",
@@ -740,7 +740,7 @@
     },
     {
       "file": "scripts/identity/prove-vocabulary.ts",
-      "line": 172,
+      "line": 138,
       "mechanism": "execSync-string",
       "excerpt": "const tracked = execSync('git ls-files -z', { cwd: ROOT })",
       "cls": "intentional-shell",
@@ -1220,7 +1220,7 @@
     },
     {
       "file": "scripts/permissions/prove-auto-mode.ts",
-      "line": 237,
+      "line": 228,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",

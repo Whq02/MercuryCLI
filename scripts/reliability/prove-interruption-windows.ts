@@ -22,7 +22,7 @@ const BUN = process.execPath
 const HELPERS = join(import.meta.dir, 'helpers')
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
-const tmp = mkdtempSync(join(tmpdir(), 'hermes-relia-'))
+const tmp = mkdtempSync(join(tmpdir(), 'mercury-relia-'))
 const home = join(tmp, 'home')
 const teams = join(tmp, 'teams')
 const daemon = join(tmp, 'daemon')

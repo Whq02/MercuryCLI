@@ -281,10 +281,10 @@ const TOOL_USE_BASH_PENDING = {
   input: { command: 'sleep 999', description: 'Long-running fixture command' },
 }
 const TOOL_RESULT_READ = {
-  content: [{ type: 'tool_result', tool_use_id: 'toolu_read1', content: [{ type: 'text', text: '{\n  "name": "hermes"\n}' }] }],
+  content: [{ type: 'tool_result', tool_use_id: 'toolu_read1', content: [{ type: 'text', text: '{\n  "name": "orchard"\n}' }] }],
   toolUseResult: {
     type: 'text',
-    file: { filePath: RUNTIME_CWD + '/package.json', content: '{\n  "name": "hermes"\n}', numLines: 3, startLine: 1, totalLines: 3 },
+    file: { filePath: RUNTIME_CWD + '/package.json', content: '{\n  "name": "orchard"\n}', numLines: 3, startLine: 1, totalLines: 3 },
   },
 }
 const AGENT_REPORT_LINE = 'REPORT-LINE the manifest pins bun 1.2 and the build is green.'
@@ -1309,15 +1309,15 @@ function scenarioInner(name: string, cols: number, rows: number) {
   process.env.MERCURY_LIVE_CLOCK = process.env.MERCURY_LIVE_CLOCK ?? '0'
   process.env.MERCURY_DECK_COMPANION = process.env.MERCURY_DECK_COMPANION ?? '0'
   process.env.MERCURY_CC_COMPAT_INSTRUCTIONS = process.env.MERCURY_CC_COMPAT_INSTRUCTIONS ?? 'off'
-  process.env.MERCURY_DOCTOR_STATE_DIR = join(tmpdir(), `hermes-render-doctor-${process.pid}`)
-  process.env.MERCURY_DAEMON_DIR = join(tmpdir(), `hermes-render-daemon-${process.pid}`)
-  process.env.MERCURY_TEAMS_DIR = join(tmpdir(), `hermes-render-teams-${process.pid}`)
-  process.env.MERCURY_CREW_DIR = join(tmpdir(), `hermes-render-crew-${process.pid}`)
-  process.env.MERCURY_TABULA_DIR = join(tmpdir(), `hermes-render-tabula-${process.pid}`)
+  process.env.MERCURY_DOCTOR_STATE_DIR = join(tmpdir(), `mercury-render-doctor-${process.pid}`)
+  process.env.MERCURY_DAEMON_DIR = join(tmpdir(), `mercury-render-daemon-${process.pid}`)
+  process.env.MERCURY_TEAMS_DIR = join(tmpdir(), `mercury-render-teams-${process.pid}`)
+  process.env.MERCURY_CREW_DIR = join(tmpdir(), `mercury-render-crew-${process.pid}`)
+  process.env.MERCURY_TABULA_DIR = join(tmpdir(), `mercury-render-tabula-${process.pid}`)
   process.env.MERCURY_TABULA_MINERVA = '0'
   process.env.MERCURY_TURN_RECEIPT = '0'
   process.env.MERCURY_VERIFY_EVIDENCE = process.env.MERCURY_VERIFY_EVIDENCE ?? '0'
-  process.env.MERCURY_HOME = join(tmpdir(), `hermes-render-home-${process.pid}`)
+  process.env.MERCURY_HOME = join(tmpdir(), `mercury-render-home-${process.pid}`)
   process.env.MERCURY_CONFIG_DIR = process.env.MERCURY_CONFIG_DIR ?? CONFIG_HOME
   if (name === 'resume-2turn' || name === 'frame' || name === 'cockpit-wide' || name === 'cockpit-content') {
     writeSyntheticSession(name === 'cockpit-wide' ? 'long' : name === 'cockpit-content' ? 'content' : 'short')
@@ -1660,7 +1660,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
   if (name === 'trim-chip-armed' || name === 'trim-chip-calm' || name === 'init-signpost') {
     const scratch =
       process.env.MERCURY_RENDER_INSTRESTATE_DIR ||
-      join(tmpdir(), `hermes-render-instrestate-${process.pid}`)
+      join(tmpdir(), `mercury-render-instrestate-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
     const project = join(scratch, 'project')
     mkdirSync(project, { recursive: true })
@@ -1694,7 +1694,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return { argv: ['node', BIN], sends: [{ atTick: 30, data: '\r' }], total: 55, cols, rows }
   }
   if (name === 'concourse') {
-    const scratch = join(tmpdir(), `hermes-render-concourse-${process.pid}`)
+    const scratch = join(tmpdir(), `mercury-render-concourse-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
     seedFirstRun(scratch, [RUNTIME_CWD])
     applyRenderTheme(scratch)
@@ -1720,7 +1720,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'surface-chord-retired' || name === 'surface-chord-retired-back') {
-    const scratch = join(tmpdir(), `hermes-render-surface-chord-${process.pid}`)
+    const scratch = join(tmpdir(), `mercury-render-surface-chord-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
     seedFirstRun(scratch, [RUNTIME_CWD])
     applyRenderTheme(scratch)
@@ -1736,7 +1736,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
           sessionId: 'sess-retired-empty',
           title: 'scratch session',
           state: 'stopped',
-          projectLabel: 'hermes',
+          projectLabel: 'orchard',
           ownerLabel: 'Mercury',
           ageLabel: '41m',
           seats: null,
@@ -1768,7 +1768,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'concourse-burst-arrows' || name === 'concourse-burst-arrows-discrete' || name === 'concourse-burst-type' || name === 'concourse-tab-probe') {
-    const scratch = join(tmpdir(), `hermes-render-${name}-${process.pid}`)
+    const scratch = join(tmpdir(), `mercury-render-${name}-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
     seedFirstRun(scratch, [RUNTIME_CWD])
     applyRenderTheme(scratch)
@@ -1810,7 +1810,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'coordinator-truth') {
-    const scratch = join(tmpdir(), `hermes-render-coordinator-truth-${process.pid}`)
+    const scratch = join(tmpdir(), `mercury-render-coordinator-truth-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
     seedFirstRun(scratch, [RUNTIME_CWD])
     applyRenderTheme(scratch)
@@ -1880,7 +1880,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'concourse-picker') {
-    const scratch = join(tmpdir(), `hermes-render-concourse-picker-${process.pid}`)
+    const scratch = join(tmpdir(), `mercury-render-concourse-picker-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
     seedFirstRun(scratch, [RUNTIME_CWD])
     {
@@ -1931,7 +1931,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'concourse-picker-operator' || name === 'concourse-picker-operator-pick') {
-    const scratch = join(tmpdir(), `hermes-render-concourse-picker-operator-${process.pid}`)
+    const scratch = join(tmpdir(), `mercury-render-concourse-picker-operator-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
     seedFirstRun(scratch, [RUNTIME_CWD])
     applyRenderTheme(scratch)
@@ -2024,7 +2024,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'concourse-coordinator-conversation') {
-    const scratch = join(tmpdir(), `hermes-render-concourse-coordinator-conversation-${process.pid}`)
+    const scratch = join(tmpdir(), `mercury-render-concourse-coordinator-conversation-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
     seedFirstRun(scratch, [RUNTIME_CWD])
     applyRenderTheme(scratch)
@@ -2123,7 +2123,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'concourse-hostile') {
-    const scratch = join(tmpdir(), `hermes-render-concourse-hostile-${process.pid}`)
+    const scratch = join(tmpdir(), `mercury-render-concourse-hostile-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
     seedFirstRun(scratch, [RUNTIME_CWD])
     const fixture = referenceFixtureSnapshot() as {
@@ -2146,7 +2146,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return { argv: ['node', BIN], sends: [], total: 60, cols, rows }
   }
   if (name === 'boot-settings') {
-    const scratch = join(tmpdir(), `hermes-render-bootmenu-${process.pid}`)
+    const scratch = join(tmpdir(), `mercury-render-bootmenu-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
     seedFirstRun(scratch, [RUNTIME_CWD])
     const bootEnv = join(scratch, 'boot-env.json')
@@ -2166,7 +2166,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'boot-face') {
-    const scratch = join(tmpdir(), `hermes-render-bootface-${process.pid}`)
+    const scratch = join(tmpdir(), `mercury-render-bootface-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
     seedFirstRun(scratch, [RUNTIME_CWD])
     process.env.MERCURY_CONFIG_DIR = scratch
@@ -2182,7 +2182,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'boot-kit-menu') {
-    const scratch = join(tmpdir(), `hermes-render-bootkit-${process.pid}`)
+    const scratch = join(tmpdir(), `mercury-render-bootkit-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
     seedFirstRun(scratch, [RUNTIME_CWD])
     process.env.MERCURY_CONFIG_DIR = scratch
@@ -3766,7 +3766,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name.startsWith('concourse-r0-')) {
-    const scratch = process.env.MERCURY_RENDER_SCRATCH || join(tmpdir(), `hermes-render-${name}-${process.pid}`)
+    const scratch = process.env.MERCURY_RENDER_SCRATCH || join(tmpdir(), `mercury-render-${name}-${process.pid}`)
     const emptyFixture = (): Record<string, unknown> => ({
       schema: 1,
       revision: 1,
@@ -4068,7 +4068,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
 }
 
 export function routerFixtureDir(): string {
-  return join(tmpdir(), `hermes-router-fixture-${process.pid}`)
+  return join(tmpdir(), `mercury-router-fixture-${process.pid}`)
 }
 
 function writeRouterFixtures(): void {
@@ -4305,7 +4305,7 @@ export function cleanupScenario(name: string): void {
     process.env.MERCURY_DECK_COMPANION = '0'
   }
   try {
-    rmSync(join(tmpdir(), `hermes-render-tabula-${process.pid}`), { recursive: true, force: true })
+    rmSync(join(tmpdir(), `mercury-render-tabula-${process.pid}`), { recursive: true, force: true })
   } catch {
   }
   if (name === 'critter-home') {

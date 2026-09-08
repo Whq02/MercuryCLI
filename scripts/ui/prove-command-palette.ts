@@ -17,7 +17,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const read = (...p: string[]) => readFileSync(join(root, ...p), 'utf-8')
 
 console.log('============================================================')
-console.log(' Hermes Command Palette — fuzzy launcher (ctrl+x p)')
+console.log(' Mercury Command Palette — fuzzy launcher (ctrl+x p)')
 console.log('============================================================')
 
 section('1. fuzzy ranking ranks (pure fuzzySearch — the palette engine)')

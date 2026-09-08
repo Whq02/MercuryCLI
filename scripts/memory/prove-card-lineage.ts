@@ -27,7 +27,7 @@ console.log('============================================================')
 delete process.env.MERCURY_EXPERIENCE_CARDS
 delete process.env.MERCURY_CARD_SUPERSEDE
 
-const memoryDir = mkdtempSync(join(tmpdir(), 'hermes-card-lineage-'))
+const memoryDir = mkdtempSync(join(tmpdir(), 'mercury-card-lineage-'))
 const NAME = 'lineage-proof-card'
 const FILENAME = `${NAME}.md`
 

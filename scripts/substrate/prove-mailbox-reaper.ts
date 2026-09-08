@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const tmp = mkdtempSync(join(tmpdir(), 'hermes-reaper-'))
+const tmp = mkdtempSync(join(tmpdir(), 'mercury-reaper-'))
 process.env.MERCURY_CONFIG_DIR = tmp
 
 const {

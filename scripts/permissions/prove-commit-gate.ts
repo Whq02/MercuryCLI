@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 ;(globalThis as any).MACRO = {
-  VERSION: '2.1.0-hermes',
+  VERSION: '2.1.0',
   ISSUES_EXPLAINER: 'x',
   PACKAGE_URL: 'x',
   README_URL: 'x',
@@ -97,7 +97,7 @@ section('the installed gate DENIES a non-green commit and ALLOWS a green-gated o
     check('bare `git commit -m "wip"` is DENIED (callback → false)', (await allowed('git commit -m "wip"')) === false)
     check('`git commit --no-verify` is DENIED', (await allowed('git commit --no-verify -m "skip"')) === false)
     check('a green-gated `bun run build.ts && git commit` is ALLOWED', (await allowed('bun run build.ts && git commit -m "done"')) === true)
-    check('Hermes canonical `bash scripts/run-all-suites.sh && git commit` is ALLOWED', (await allowed('bash scripts/run-all-suites.sh && git commit -m "x"')) === true)
+    check('the canonical `bash scripts/run-all-suites.sh && git commit` is ALLOWED', (await allowed('bash scripts/run-all-suites.sh && git commit -m "x"')) === true)
     check('a non-commit Bash command passes straight through', (await allowed('ls -la')) === true)
     const allowedPS = async (cmd: string) => await gate.callback([], undefined, prePS(cmd))
     check('PowerShell-tool bare `git commit` is DENIED (HB-0130)', (await allowedPS('git commit -m "wip"')) === false)
