@@ -11,6 +11,7 @@ import type {
   WorkflowPhase,
   WorkflowProgressEvent,
 } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
+import { readWorkflowUsage, type WorkflowRunUsage, type WorkflowUsageRollup } from './workflowUsage.js'
 
 export const RUN_MANIFEST_FILENAME = 'run.json'
 
@@ -37,6 +38,7 @@ export type WorkflowRunAgentSummary = {
   agentType?: string
   effort?: string
   tokens?: number
+  usage?: WorkflowUsageRollup
   toolCalls?: number
   durationMs?: number
   startedAt?: number
@@ -80,6 +82,7 @@ export type WorkflowRunManifest = {
   ownerPid: number
   agentCount: number
   totalTokens: number
+  usage?: WorkflowRunUsage
   totalToolCalls: number
   error?: string
   logsTail?: string[]
@@ -107,6 +110,7 @@ export function buildAgentSummaries(
       agentType: str(ev['agentType']),
       effort: str(ev['effort']),
       tokens: ev.tokens,
+      ...(readWorkflowUsage(ev['usage']) !== undefined ? { usage: readWorkflowUsage(ev['usage']) } : {}),
       toolCalls: ev.toolCalls,
       durationMs: ev.durationMs,
       startedAt: num(ev['startedAt']),

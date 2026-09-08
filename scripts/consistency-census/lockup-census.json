@@ -220,7 +220,7 @@
     },
     {
       "file": "src/components/tasks/AgentInspectorPane.tsx",
-      "line": 166,
+      "line": 167,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "session-identity",
@@ -228,7 +228,7 @@
     },
     {
       "file": "src/components/tasks/AgentInspectorPane.tsx",
-      "line": 168,
+      "line": 169,
       "kind": "wordmark",
       "excerpt": "<Wordmark />",
       "role": "session-identity",
@@ -236,7 +236,7 @@
     },
     {
       "file": "src/components/tasks/AgentInspectorPane.tsx",
-      "line": 297,
+      "line": 310,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "session-identity",
@@ -244,7 +244,7 @@
     },
     {
       "file": "src/components/tasks/AgentInspectorPane.tsx",
-      "line": 299,
+      "line": 312,
       "kind": "wordmark",
       "excerpt": "<Wordmark />",
       "role": "session-identity",
@@ -252,7 +252,7 @@
     },
     {
       "file": "src/components/tasks/RunDetailPane.tsx",
-      "line": 819,
+      "line": 840,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "session-identity",
@@ -260,7 +260,7 @@
     },
     {
       "file": "src/components/tasks/RunDetailPane.tsx",
-      "line": 821,
+      "line": 842,
       "kind": "wordmark",
       "excerpt": "<Wordmark />",
       "role": "session-identity",
