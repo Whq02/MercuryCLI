@@ -241,7 +241,19 @@ export function commitRepositoryRoot(commitSegment: string, cwd: string): string
   try { return gitLines(cwd, [...prefix, 'rev-parse', '--show-toplevel'])[0] ?? null } catch { return null }
 }
 
+function rejectGitSelectionEnvironment(segment: string): void {
+  for (const match of segment.matchAll(/(?:[^\s'"\\]+|\\[\s\S]|"(?:[^"\\]|\\[\s\S])*"|'[^']*')+/g)) {
+    if (match[0] === 'export' || match[0] === 'env') continue
+    const assignment = /^([A-Za-z_][A-Za-z0-9_]*)=/.exec(match[0])
+    if (!assignment) break
+    if (/^GIT_(?:DIR|WORK_TREE|INDEX_FILE|COMMON_DIR|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|NAMESPACE|CONFIG.*|CEILING_DIRECTORIES|DISCOVERY_ACROSS_FILESYSTEM)$/.test(assignment[1]!)) {
+      throw new Error(`Git selection environment ${assignment[1]} is not supported in a checked commit command. Use literal Git repository options and the existing index instead.`)
+    }
+  }
+}
+
 function commitRepositoryArguments(commitSegment: string): string[] {
+  rejectGitSelectionEnvironment(commitSegment)
   const header: string[] = []
   let optionValue = false
   for (const match of commitSegment.matchAll(/(?:[^\s'"\\]+|\\[\s\S]|"(?:[^"\\]|\\[\s\S])*"|'[^']*')+/g)) {
@@ -326,6 +338,7 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
   const commitIndex = segments.findIndex(s => isGitCommit(s.text))
   if (commitIndex < 0) return null
   const commitSeg = segments[commitIndex]!
+  for (const segment of segments.slice(0, commitIndex + 1)) rejectGitSelectionEnvironment(segment.text)
   let directory = cwd
   let directoryRefusal: string | null = null
   const candidateChanges: string[] = []
