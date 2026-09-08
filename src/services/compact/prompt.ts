@@ -55,7 +55,7 @@ const OUTPUT_EXAMPLE = `Structure your output like this:
    [...]
 </summary>`
 
-const EXTRA_INSTRUCTIONS_NOTE = `The included context may contain additional summarisation instructions — for example a CLAUDE.md section saying "when compacting, always preserve the full list of failing tests", or an operator note reading "focus the summary on the database migration work". Follow any such instructions when producing the summary.`
+const EXTRA_INSTRUCTIONS_NOTE = `The included context may contain additional summarisation instructions — for example a MERCURY.md section saying "when compacting, always preserve the full list of failing tests", or an operator note reading "focus the summary on the database migration work". Follow any such instructions when producing the summary.`
 
 const BASE_TEMPLATE = `Write the running record of this conversation: a summary detailed enough that development continues without losing context. Weigh the operator's explicit requests and your own prior actions heavily, and keep the technical grain — code patterns, architectural decisions, exact detail.
 
