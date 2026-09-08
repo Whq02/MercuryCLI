@@ -2,16 +2,18 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 
 export type Dialect = 'anthropic' | 'responses' | 'chat'
 export type ScriptedCall = { id: string; name: string; args: string }
+export type ScriptedReasoning = { summary: string; encrypted: string }
 export type Turn =
-  | { text: string; usage?: { input: number; output: number }; finishReason?: string }
-  | { calls: ScriptedCall[] }
+  | { text: string; usage?: { input: number; output: number }; finishReason?: string; reasoning?: ScriptedReasoning }
+  | { calls: ScriptedCall[]; usage?: { input: number; output: number }; reasoning?: ScriptedReasoning }
   | { error: { status: number; body: unknown } }
+  | { cut: { reasoning?: ScriptedReasoning; text?: string; calls?: ScriptedCall[] } }
 export type Captured = { dialect: Dialect; path: string; body: Record<string, unknown> }
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 const evt = (name: string, obj: unknown): string => `event: ${name}\n${sse(obj)}`
 
-function anthropicSse(turn: Exclude<Turn, { error: unknown }>, ordinal: number): string {
+function anthropicSse(turn: Exclude<Turn, { error: unknown } | { cut: unknown }>, ordinal: number): string {
   const usage = {
     input_tokens: 'usage' in turn && turn.usage ? turn.usage.input : 8,
     cache_creation_input_tokens: 0,
@@ -38,8 +40,50 @@ function anthropicSse(turn: Exclude<Turn, { error: unknown }>, ordinal: number):
   return out.join('')
 }
 
-function responsesSse(turn: Exclude<Turn, { error: unknown }>, ordinal: number): string {
+export function responsesInputRefusal(body: Record<string, unknown>): string | null {
+  const input = Array.isArray(body.input) ? (body.input as Array<Record<string, unknown>>) : []
+  const seen = new Set<string>()
+  for (let index = 0; index < input.length; index++) {
+    const item = input[index]!
+    if (item.type !== 'function_call' || typeof item.call_id !== 'string') continue
+    if (seen.has(item.call_id)) return `Duplicate function call id ${item.call_id}.`
+    seen.add(item.call_id)
+    const answered = input.slice(index + 1).some(later => later.type === 'function_call_output' && later.call_id === item.call_id)
+    if (!answered) return `No tool output found for function call ${item.call_id}.`
+  }
+  return null
+}
+
+function responsesCutSse(turn: Extract<Turn, { cut: unknown }>, ordinal: number): string {
   const out: string[] = [sse({ type: 'response.created', response: { id: `resp_${ordinal}` } })]
+  if (turn.cut.reasoning !== undefined) {
+    const itemId = `rs_${ordinal}`
+    out.push(sse({ type: 'response.output_item.added', item: { type: 'reasoning', id: itemId, summary: [] } }))
+    out.push(sse({ type: 'response.reasoning_summary_text.delta', item_id: itemId, delta: turn.cut.reasoning.summary }))
+    out.push(sse({ type: 'response.output_item.done', item: { type: 'reasoning', id: itemId, summary: [{ type: 'summary_text', text: turn.cut.reasoning.summary }], encrypted_content: turn.cut.reasoning.encrypted } }))
+  }
+  if (turn.cut.text !== undefined) {
+    out.push(sse({ type: 'response.output_item.added', item: { type: 'message', id: `msg_${ordinal}`, role: 'assistant', content: [] } }))
+    out.push(sse({ type: 'response.output_text.delta', delta: turn.cut.text }))
+    out.push(sse({ type: 'response.output_item.done', item: { type: 'message', id: `msg_${ordinal}`, role: 'assistant', content: [{ type: 'output_text', text: turn.cut.text }] } }))
+  }
+  ;(turn.cut.calls ?? []).forEach((call, index) => {
+    const itemId = `fc_${ordinal}_${index}`
+    out.push(sse({ type: 'response.output_item.added', item: { type: 'function_call', id: itemId, call_id: call.id, name: call.name, arguments: '' } }))
+    out.push(sse({ type: 'response.function_call_arguments.delta', item_id: itemId, delta: call.args }))
+    out.push(sse({ type: 'response.output_item.done', item: { type: 'function_call', id: itemId, call_id: call.id, name: call.name, arguments: call.args } }))
+  })
+  return out.join('')
+}
+
+function responsesSse(turn: Exclude<Turn, { error: unknown } | { cut: unknown }>, ordinal: number): string {
+  const out: string[] = [sse({ type: 'response.created', response: { id: `resp_${ordinal}` } })]
+  if (turn.reasoning !== undefined) {
+    const itemId = `rs_${ordinal}`
+    out.push(sse({ type: 'response.output_item.added', item: { type: 'reasoning', id: itemId, summary: [] } }))
+    out.push(sse({ type: 'response.reasoning_summary_text.delta', item_id: itemId, delta: turn.reasoning.summary }))
+    out.push(sse({ type: 'response.output_item.done', item: { type: 'reasoning', id: itemId, summary: [{ type: 'summary_text', text: turn.reasoning.summary }], encrypted_content: turn.reasoning.encrypted } }))
+  }
   if ('calls' in turn) {
     turn.calls.forEach((call, index) => {
       const itemId = `fc_${ordinal}_${index}`
@@ -57,7 +101,7 @@ function responsesSse(turn: Exclude<Turn, { error: unknown }>, ordinal: number):
   return out.join('')
 }
 
-function chatSse(turn: Exclude<Turn, { error: unknown }>): string {
+function chatSse(turn: Exclude<Turn, { error: unknown } | { cut: unknown }>): string {
   const out: string[] = []
   const input = 'usage' in turn && turn.usage ? turn.usage.input : 8
   const output = 'usage' in turn && turn.usage ? turn.usage.output : 3
@@ -94,6 +138,8 @@ const OPENAI_MODELS_BODY = {
 export interface OverflowFixture {
   base: string
   captured: Captured[]
+  inputRule: boolean
+  refusals: Array<{ request: number; message: string }>
   script(turns: Turn[]): void
   env: Record<string, string>
   close(): Promise<void>
@@ -101,6 +147,8 @@ export interface OverflowFixture {
 
 export async function startOverflowFixture(): Promise<OverflowFixture> {
   const captured: Captured[] = []
+  const refusals: OverflowFixture['refusals'] = []
+  const control = { inputRule: false }
   let turns: Turn[] = [{ text: 'idle' }]
   let ordinal = 0
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
@@ -132,11 +180,30 @@ export async function startOverflowFixture(): Promise<OverflowFixture> {
             : undefined
       if (req.method === 'POST' && dialect !== undefined) {
         captured.push({ dialect, path, body })
+        if (control.inputRule && dialect === 'responses') {
+          const refusal = responsesInputRefusal(body)
+          if (refusal !== null) {
+            refusals.push({ request: captured.length, message: refusal })
+            res.writeHead(400, { 'content-type': 'application/json' })
+            res.end(JSON.stringify({ error: { message: refusal, type: 'invalid_request_error', param: 'input', code: null } }))
+            return
+          }
+        }
         const turn = turns[ordinal] ?? { text: 'script exhausted' }
         const n = ordinal++
         if ('error' in turn) {
           res.writeHead(turn.error.status, { 'content-type': 'application/json' })
           res.end(JSON.stringify(turn.error.body))
+          return
+        }
+        if ('cut' in turn) {
+          if (dialect !== 'responses') {
+            res.writeHead(500, { 'content-type': 'application/json' })
+            res.end(JSON.stringify({ error: { message: 'a cut stream is scripted for the Responses dialect only' } }))
+            return
+          }
+          res.writeHead(200, { 'content-type': 'text/event-stream' })
+          res.end(responsesCutSse(turn, n))
           return
         }
         res.writeHead(200, { 'content-type': 'text/event-stream' })
@@ -182,6 +249,13 @@ export async function startOverflowFixture(): Promise<OverflowFixture> {
   return {
     base,
     captured,
+    get inputRule(): boolean {
+      return control.inputRule
+    },
+    set inputRule(value: boolean) {
+      control.inputRule = value
+    },
+    refusals,
     env,
     script(next: Turn[]): void {
       turns = next

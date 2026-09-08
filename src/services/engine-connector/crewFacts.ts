@@ -219,7 +219,7 @@ export function crewStillRunningLine(
   const agents = typeof running === 'number' ? running : running.agents + running.teammates
   const workflows = typeof running === 'number' ? 0 : running.workflows
   const parts: string[] = []
-  if (agents > 0) parts.push(`${agents} sub-agent${agents === 1 ? '' : 's'} still running — open the crew view (/teammates) to stop one`)
+  if (agents > 0) parts.push(`${agents} sub-agent${agents === 1 ? '' : 's'} still running — open the crew view (/teammates) and press x twice on its row to stop one`)
   if (workflows > 0) parts.push(`${workflows} workflow run${workflows === 1 ? '' : 's'} still running — see /workflows`)
   return parts.length === 0 ? null : parts.join(' · ')
 }

@@ -81,7 +81,7 @@ section('§K1a the controller law — an agent task owns a fresh controller')
     d: { type: 'local_agent', status: 'running', agentType: 'main-session' },
     e: { type: 'local_bash', status: 'running' },
   }) === 2)
-  check('the interrupted turn\'s receipt names the count and the crew view', crewStillRunningLine(2) === '2 sub-agents still running — open the crew view (/teammates) to stop one' && crewStillRunningLine(1)?.startsWith('1 sub-agent still') === true && crewStillRunningLine(0) === null)
+  check('the interrupted turn\'s receipt names the count and the crew view', crewStillRunningLine(2) === '2 sub-agents still running — open the crew view (/teammates) and press x twice on its row to stop one' && crewStillRunningLine(1)?.startsWith('1 sub-agent still') === true && crewStillRunningLine(0) === null)
   const repl = src('src/screens/REPL.tsx')
   const cancel = src('src/hooks/useCancelRequest.ts')
   check('the one esc owner paints the receipt (the REPL\'s own cancel rides it) and the wait word carries no esc-stops-them clause', cancel.includes('crewStillRunningLine(running)') && cancel.includes('addDisplayRow(createSystemMessage(line') && repl.includes('interruptFocusedTurn()') && !repl.includes('esc stops them'))

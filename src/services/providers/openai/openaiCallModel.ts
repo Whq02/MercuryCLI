@@ -89,7 +89,9 @@ import {
   buildOpenaiResponsesRequest,
   decodeOpenaiTurnRecord,
   type BridgeMessage,
+  type OpenaiTurnRecord,
 } from './responsesBridge.js'
+import { logForDebugging } from '../../../utils/debug.js'
 import type {
   OpenaiCompletedToolCall,
   OpenaiFault,
@@ -186,6 +188,22 @@ function overflowOf(fault: { status?: number; code: string; message: string }): 
   return classifyOverflowFault({ family: 'openai', status: fault.status, code: fault.code, message: fault.message })
 }
 
+function recordAgreesWithContent(record: OpenaiTurnRecord, content: MessageParam['content']): boolean {
+  const minted = new Set<string>()
+  if (Array.isArray(content)) {
+    for (const block of content) {
+      if ((block as { type?: string }).type === 'tool_use') minted.add(String((block as { id?: unknown }).id))
+    }
+  }
+  const recorded = new Set<string>()
+  for (const item of record.items) {
+    if (item.type === 'function_call') recorded.add(item.call_id)
+  }
+  if (minted.size !== recorded.size) return false
+  for (const id of recorded) if (!minted.has(id)) return false
+  return true
+}
+
 export function toBridgeMessages(
   messages: Message[],
   targetModelId: string,
@@ -210,7 +228,14 @@ export function toBridgeMessages(
       const decoded = decodeOpenaiTurnRecord(m.apexProviderTurn)
       const servedModel = typeof m.message.model === 'string' ? m.message.model : ''
       const sameModel = servedModel.trim().toLowerCase() === target
-      const record = decoded && sameModel ? decoded : undefined
+      const agrees = decoded !== undefined && recordAgreesWithContent(decoded, param.content)
+      const record = decoded && sameModel && agrees ? decoded : undefined
+      if (decoded && sameModel && !agrees) {
+        logForDebugging(
+          `[openai] a turn record disagrees with its content on the function calls — the turn replays from its content (${typeof m.message.id === 'string' ? m.message.id : m.uuid})`,
+          { level: 'warn' },
+        )
+      }
       if (decoded && !sameModel) {
         foreignRecordsDropped += 1
         foreignRecordModels.add(servedModel.trim() === '' ? 'an unnamed model' : servedModel.trim())
@@ -988,7 +1013,10 @@ export async function* streamOneOpenaiAttempt(ctx: {
       ? typedStreamEndOf({
           fault,
           provider: 'OpenAI',
-          tailStands: blocks.open === null && minted.at(-1)?.message.content[0]?.type === 'text',
+          tailStands:
+            blocks.open === null &&
+            minted.at(-1)?.message.content[0]?.type === 'text' &&
+            !settledOnFault.some(item => item.type === 'function_call'),
           silentMs: streamIdleTimeoutMsForRoute('openai'),
         })
       : null
@@ -1105,7 +1133,12 @@ export async function* streamOneOpenaiAttempt(ctx: {
     lastMessage.message.stop_reason = stopReason as AssistantMessage['message']['stop_reason']
     if (typedEnd !== null) lastMessage.streamEnd = typedEnd
     if (ctx.effortAdjusted !== undefined) lastMessage.effortAdjusted = ctx.effortAdjusted
-    const replayItems = replayableItems(finish?.orderedItems ?? (typedEnd !== null ? settledOnFault : []), refused)
+    const mintedCallIds = new Set(accepted.map(({ call }) => call.callId))
+    const settledItems = finish?.orderedItems ?? (typedEnd !== null ? settledOnFault : [])
+    const replayItems = replayableItems(
+      settledItems.filter(item => item.type !== 'function_call' || mintedCallIds.has(item.call_id)),
+      refused,
+    )
     if (replayItems.length > 0) {
       lastMessage.apexProviderTurn = {
         provider: 'openai',
