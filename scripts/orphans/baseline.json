@@ -36,7 +36,7 @@
   {
    "file": "src/utils/deepLink/parseDeepLink.ts",
    "class": "proof-or-fixture-only",
-   "reason": "The mercury:// ONE-scheme grammar owner. Its deliberate consumer is scripts/substrate/prove-identity-constants.ts (substrate suite), which live-imports it to pin that the mercury scheme parses and the legacy claude-cli scheme is REFUSED \u2014 the fork-identity law. The OS handler machinery is deliberately not built in this tree (deepLink/registerProtocol.ts's own note)."
+   "reason": "The mercury:// ONE-scheme grammar owner. Its deliberate consumer is scripts/substrate/prove-identity-constants.ts (substrate suite), which live-imports it to pin that the mercury scheme parses and every other scheme is refused. The OS handler machinery is deliberately not built in this tree (deepLink/registerProtocol.ts's own note)."
   },
   {
    "file": "src/utils/terminalPanel.ts",
