@@ -87,11 +87,11 @@ echo
 echo "── verify ─────────────────────────────────────────────────"
 fail=0
 check() { if [ "$2" -eq 0 ]; then echo "  [PASS] $1"; else echo "  [FAIL] $1"; fail=1; fi }
-themis_dir=""; for h in .mercury .claude; do [ -d "$target/$h/themis" ] && themis_dir="$target/$h/themis" && break; done; test -n "$themis_dir" ; check "THEMIS audit rows written" $?
+themis_dir="$target/.mercury/themis"; test -d "$themis_dir" ; check "THEMIS audit rows written" $?
 git -C "$target" log --oneline | grep -q "daedalus(" ; check "per-file daedalus(<owner>) commits landed" $?
 ls "$target"/*.js >/dev/null 2>&1 || ls "$target"/src/*.js >/dev/null 2>&1 ; check "generated sources exist" $?
 git -C "$target" branch --list 'daedalus/*' | grep -q daedalus ; check "lane branches preserved" $?
 echo
 echo "target repo: $target  (inspect, then rm -rf $scratch)"
-echo "audit chain: ${themis_dir:-$target/.mercury/themis}/"
+echo "audit chain: $themis_dir/"
 [ "$fail" -eq 0 ] && echo "✅ daedalus live repogen: ALL CHECKS PASS" || { echo "❌ daedalus live repogen: FAILURES"; exit 1; }
