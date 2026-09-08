@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs'
+import { randomUUID, type UUID } from 'node:crypto'
 import { join } from 'node:path'
 
 import { z } from 'zod/v4'
@@ -28,6 +29,7 @@ export type TeammateMessage = {
   summary?: string
   id?: string
   seq?: number
+  delivery?: { id: string; sessionId: string }
 }
 
 function isValidMessage(candidate: unknown): candidate is TeammateMessage {
@@ -57,7 +59,14 @@ const mailboxStore = defineStore<TeammateMessage[], [string, (string | undefined
   schemaVersion: 1,
   decode: raw => {
     if (!Array.isArray(raw)) return null
-    return raw.filter(isValidMessage)
+    return raw.filter(isValidMessage).map(message => {
+      const delivery = message.delivery
+      if (delivery === undefined) return message
+      const uuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i
+      if (delivery !== null && typeof delivery.id === 'string' && typeof delivery.sessionId === 'string' && uuid.test(delivery.id) && uuid.test(delivery.sessionId)) return message
+      const { delivery: invalid, ...content } = message
+      return content
+    })
   },
   empty: () => [],
   onReadFailure: 'empty',
@@ -124,6 +133,52 @@ export async function readUnreadMessages(agentName: string, teamName?: string): 
   return unread
 }
 
+export interface MailboxDelivery {
+  id: string
+  sessionId: string
+  recovered: boolean
+  messages: TeammateMessage[]
+}
+
+export async function prepareMailboxDelivery(
+  agentName: string,
+  teamName: string,
+  sessionId: string,
+): Promise<MailboxDelivery | null> {
+  const store = getMailboxStore(agentName, teamName)
+  if (!(await store.read()).some(message => !message.read)) return null
+  return store.update<MailboxDelivery | null>(current => {
+    const unread = current.filter(message => !message.read)
+    if (unread.length === 0) return { next: current, result: null }
+    const pending = unread.find(message => message.delivery !== undefined)?.delivery
+    if (pending !== undefined) {
+      return { next: current, result: { ...pending, recovered: true, messages: unread.filter(message => message.delivery?.id === pending.id) } }
+    }
+    const delivery = { id: randomUUID(), sessionId }
+    const next = current.map(message => message.read ? message : { ...message, delivery })
+    return { next, result: { ...delivery, recovered: false, messages: next.filter(message => !message.read) } }
+  })
+}
+
+export async function wasMailboxDeliveryHandled(delivery: MailboxDelivery, messages: readonly Message[]): Promise<boolean> {
+  if (!delivery.recovered) return false
+  const { isSessionCleared } = await import('./sessionStorage/clearedSessions.js')
+  if (isSessionCleared(delivery.sessionId)) return true
+  const carriesId = (message: Message): boolean => message.uuid === delivery.id ||
+    (message.type === 'user' && message.batchUuids?.includes(delivery.id) === true)
+  if (messages.some(carriesId)) return true
+  const { loadSessionFile } = await import('./sessionStorage/loading.js')
+  const stored = await loadSessionFile(delivery.sessionId as UUID)
+  return [...stored.messages.values()].some(carriesId)
+}
+
+export async function acknowledgeMailboxDelivery(agentName: string, teamName: string, id: string): Promise<void> {
+  await getMailboxStore(agentName, teamName).mutate(current => {
+    if (!current.some(message => !message.read && message.delivery?.id === id)) return current
+    return current.map(message => !message.read && message.delivery?.id === id ? { ...message, read: true } : message)
+  })
+}
+
 export async function markMessagesAsRead(agentName: string, teamName?: string): Promise<void> {
   try {
     await getMailboxStore(agentName, teamName).mutate(current => {
@@ -155,22 +210,17 @@ export async function markSpecificMessageAsRead(
   teamName: string | undefined,
   msg: { from: string; text: string; timestamp: string; id?: string },
 ): Promise<void> {
-  try {
-    await getMailboxStore(agentName, teamName).mutate(current => {
-      const index = current.findIndex(candidate => {
-        if (candidate.read) return false
-        if (candidate.id !== undefined && msg.id !== undefined) return candidate.id === msg.id
-        return (
-          candidate.from === msg.from && candidate.text === msg.text && candidate.timestamp === msg.timestamp
-        )
-      })
-      if (index === -1) return current
-      return current.map((candidate, i) => (i === index ? { ...candidate, read: true } : candidate))
+  await getMailboxStore(agentName, teamName).mutate(current => {
+    const index = current.findIndex(candidate => {
+      if (candidate.read) return false
+      if (candidate.id !== undefined && msg.id !== undefined) return candidate.id === msg.id
+      return (
+        candidate.from === msg.from && candidate.text === msg.text && candidate.timestamp === msg.timestamp
+      )
     })
-  } catch (error) {
-    logForDebugging(`mailbox: mark-specific-read failed for ${agentName}: ${String(error)}`)
-    logError(error)
-  }
+    if (index === -1) return current
+    return current.map((candidate, i) => (i === index ? { ...candidate, read: true } : candidate))
+  })
 }
 
 export async function markMessagesAsReadByPredicate(
