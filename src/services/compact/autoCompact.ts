@@ -25,6 +25,8 @@ import {
 } from './compactionPolicy.js'
 import {
   compactConversation,
+  compactionPausedForHistoryText,
+  CompactionRefusedForHistoryError,
   type CompactionResult,
   ERROR_MESSAGE_USER_ABORT,
   type RecompactionInfo,
@@ -261,6 +263,7 @@ export async function autoCompactIfNeeded(
   rapidRefillBreakerTripped?: boolean
   measuredRawTokenCount?: number | null
   refusal?: string
+  paused?: true
 }> {
   const notCompacted = { wasCompacted: false as const, consecutiveFailures: tracking?.consecutiveFailures }
   const forced = overflowSignal !== undefined
@@ -405,6 +408,19 @@ export async function autoCompactIfNeeded(
       return forced ? { ...notCompacted, refusal: ERROR_MESSAGE_USER_ABORT } : notCompacted
     }
     logError(err)
+    const reason = err instanceof Error ? err.message : String(err)
+    if (err instanceof CompactionRefusedForHistoryError) {
+      logForDebugging(
+        `autoCompact: the summary request was refused for a malformed history — automatic compaction is paused for the rest of this run: ${err.providerWords.slice(0, 160)}`,
+        { level: 'warn' },
+      )
+      return {
+        wasCompacted: false,
+        consecutiveFailures: MAX_CONSECUTIVE_FAILURES,
+        refusal: compactionPausedForHistoryText(err.providerWords, { nonInteractive: err.nonInteractive }),
+        paused: true,
+      }
+    }
     const nextFailures = failures + 1
     if (nextFailures >= MAX_CONSECUTIVE_FAILURES) {
       logForDebugging(
@@ -415,7 +431,7 @@ export async function autoCompactIfNeeded(
     return {
       wasCompacted: false,
       consecutiveFailures: nextFailures,
-      ...(forced ? { refusal: err instanceof Error ? err.message : String(err) } : {}),
+      refusal: reason,
     }
   }
 }
