@@ -4,6 +4,7 @@
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import ts from 'typescript'
 
 const scratch = mkdtempSync(join(tmpdir(), 'model-honesty-'))
 const home = join(scratch, 'home')
@@ -62,6 +63,8 @@ const {
   keyLaneGroupRows,
   keyConnectValue,
   GPT_CONNECT_OPTION_VALUE,
+  isCatalogueDoorRow,
+  resolvesToExistingOption,
 } = await import('../../src/utils/model/modelOptions.ts')
 const { composeSubModelRegistry } = await import('../../src/utils/model/subModelSlots.ts')
 const { composeCoordinatorModelRegistry } = await import('../../src/services/concourse/coordinatorModels.ts')
@@ -69,7 +72,7 @@ const { composeWorkerModelRegistry } = await import('../../src/services/concours
 const { anthropicCredentialPresence, providerFamilyPresences } = await import('../../src/services/providers/providerUsage.ts')
 const { primeOpenaiDiscovery } = await import('../../src/utils/router/providerDiscovery.ts')
 const { clearOAuthTokenCache } = await import('../../src/utils/auth.ts')
-const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
+const { getMainLoopModel, getPublicModelDisplayName, parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
 type ModelOption = import('../../src/utils/model/modelOptions.ts').ModelOption
 type Presence = import('../../src/services/providers/providerUsage.ts').ProviderFamilyPresence
 
@@ -332,6 +335,47 @@ section('§7 the neutral catalog grammar — one description rule, vendor-blind,
     const bad = violations(rows)
     check(`key lane (${keyPresent ? 'credentialed' : 'absent'}): model rows empty; the window rides the typed field`, bad.length === 0 && rows.filter(r => !(typeof r.value === 'string' && isProviderActionRow(r.value))).every(r => r.statedContextWindow === 1_000_000), bad.join(' | '))
   }
+}
+
+section('§8 inline focus follows the actual model, including aliases')
+{
+  const path = join(import.meta.dir, '../../src/components/ModelPicker.tsx')
+  const source = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  const component = source.statements.find((node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === 'ModelPicker')
+  const statements = ['options', 'focusDefault'].map(name => {
+    const statement = component?.body?.statements.find(node => ts.isVariableStatement(node) && node.declarationList.declarations.some(declaration => ts.isIdentifier(declaration.name) && declaration.name.text === name))
+    if (!statement) throw new Error(`Inline picker declaration missing: ${name}`)
+    return statement.getText(source)
+  }).join('\n')
+  const evaluate = new Function('initial', 'getModelOptions', 'useMemo', 'isCatalogueDoorRow', 'resolvesToExistingOption', 'getPublicModelDisplayName', ts.transpileModule(`${statements}\nreturn { options, focusDefault }`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText)
+  const focus = (initial: string, options: ModelOption[]) => evaluate(initial, () => options, (read: () => unknown) => read(), isCatalogueDoorRow, resolvesToExistingOption, getPublicModelDisplayName) as { options: ModelOption[]; focusDefault: string }
+  const credentials = JSON.parse(ANTHROPIC_FIXTURE_CREDS)
+  credentials.claudeAiOauth.rateLimitTier = 'default_claude_max_20x'
+  writeFileSync(join(home, '.credentials.json'), JSON.stringify(credentials))
+  clearOAuthTokenCache()
+  const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.ts')
+  resetComputedDefaultMemo()
+  const initial = getMainLoopModel()
+  check('the unpicked fixture resolves to the Fable model', initial === parseUserSpecifiedModel('fable'), initial)
+  const selected = focus(initial, getModelOptions())
+  check('an unpicked model represented by an alias focuses that row, not sign-in', selected.focusDefault === 'fable' && selected.options.filter(option => resolvesToExistingOption([option], initial)).length === 1, JSON.stringify({ initial, focus: selected.focusDefault }))
+  const rows: ModelOption[] = [
+    { value: GPT_CONNECT_OPTION_VALUE, label: 'GPT — sign in', description: '' },
+    { value: 'fable', label: 'Fable', description: '' },
+    { value: 'fable[1m]', label: 'Fable 1M', description: '' },
+    { value: 'gpt-6-astra', label: 'GPT-6 Astra', description: '' },
+  ]
+  check('a literal-valued model keeps exact focus', focus('gpt-6-astra', rows).focusDefault === 'gpt-6-astra')
+  check('an exact alias stays selected', focus('fable', rows).focusDefault === 'fable')
+  check('an extended-context resolved id selects the matching alias variant', focus(`${parseUserSpecifiedModel('fable')}[1m]`, rows).focusDefault === 'fable[1m]')
+  const explicit = { value: initial, label: 'Explicit model', description: '' }
+  check('an explicit row outranks another spelling of the same model', focus(initial, [...rows, explicit]).focusDefault === initial)
+  const custom = focus('custom-example-model', rows)
+  check('an off-catalogue model is appended and focused', custom.focusDefault === 'custom-example-model' && custom.options.length === rows.length + 1)
+  check('a matching action is not treated as a model alias', focus(GPT_CONNECT_OPTION_VALUE, rows).focusDefault === GPT_CONNECT_OPTION_VALUE)
+  rmSync(join(home, '.credentials.json'), { force: true })
+  clearOAuthTokenCache()
+  resetComputedDefaultMemo()
 }
 
 rmSync(scratch, { recursive: true, force: true })

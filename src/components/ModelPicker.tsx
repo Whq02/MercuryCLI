@@ -75,9 +75,10 @@ export function ModelPicker({
     return catalogue
   }, [initial])
 
-  const focusDefault = options.some(option => option.value === initial)
-    ? initial
-    : options[0]!.value
+  const focusDefault =
+    options.find(option => option.value === initial)?.value ??
+    options.find(option => resolvesToExistingOption([option], initial))?.value ??
+    options[0]!.value
 
   const [focusedValue, setFocusedValue] = useState(focusDefault)
 
