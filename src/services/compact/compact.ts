@@ -134,6 +134,31 @@ function learnsPerMessageEffortRefusal(row: AssistantMessage | undefined, model:
 function isOverflowAnswer(row: AssistantMessage): boolean {
   return overflowSignalOf(row) !== null || (getAssistantMessageText(row) ?? '').startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE)
 }
+
+export function malformedHistoryRefusalOf(row: AssistantMessage): string | null {
+  if (row.isApiErrorMessage !== true || row.error !== 'invalid_request') return null
+  if (overflowSignalOf(row) !== null) return null
+  const words = getAssistantMessageText(row) ?? ''
+  if (!/function[ _]call|tool[ _](?:output|result|use)|tool_calls?/i.test(words)) return null
+  const prefix = `${API_ERROR_MESSAGE_PREFIX}: `
+  return words.startsWith(prefix) ? words.slice(prefix.length) : words
+}
+
+export function compactionRefusedForHistoryText(providerWords: string, opts: { nonInteractive: boolean }): string {
+  const remedy = opts.nonInteractive
+    ? 'Automatic compaction is paused for this run: start a fresh run, or pass --model with a larger window.'
+    : 'Automatic compaction is paused for this session: /compact tries again after the history heals, /clear starts fresh, or /model picks a model with a larger window.'
+  return `Compaction was refused for a malformed history — ${providerWords} ${remedy}`
+}
+
+export class CompactionRefusedForHistoryError extends Error {
+  readonly providerWords: string
+  constructor(providerWords: string, opts: { nonInteractive: boolean }) {
+    super(compactionRefusedForHistoryText(providerWords, opts))
+    this.name = 'CompactionRefusedForHistoryError'
+    this.providerWords = providerWords
+  }
+}
 const FOLD_DEADLINE_MS = 10 * 60 * 1000
 const FOLD_STALL_MS = 120_000
 
@@ -835,7 +860,15 @@ async function streamingFallbackAttempts(
         attempts += 1
         continue
       }
-      if (!isOverflowAnswer(captured)) throw new Error(getAssistantMessageText(captured) ?? ERROR_MESSAGE_INCOMPLETE_RESPONSE)
+      if (!isOverflowAnswer(captured)) {
+        const malformed = malformedHistoryRefusalOf(captured)
+        if (malformed !== null) {
+          throw new CompactionRefusedForHistoryError(malformed, {
+            nonInteractive: context.options.isNonInteractiveSession === true,
+          })
+        }
+        throw new Error(getAssistantMessageText(captured) ?? ERROR_MESSAGE_INCOMPLETE_RESPONSE)
+      }
     }
     if (captured !== undefined) return captured
     if (attempt < attempts) {

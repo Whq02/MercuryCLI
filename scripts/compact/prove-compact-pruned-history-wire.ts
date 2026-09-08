@@ -53,8 +53,10 @@ const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
+const { tokenCountWithEstimation } = await import('../../src/utils/tokens.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const { MC_DIGEST_PREFIX, MC_CLEARED_PLACEHOLDER } = await import('../../src/services/compact/microCompactDigest.ts')
+const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }
 const textOf = (m: unknown): string => {
@@ -225,6 +227,14 @@ const OVERFLOW_SMALL_GAP = {
     code: 'context_length_exceeded',
   },
 }
+const MALFORMED_HISTORY_REFUSAL = {
+  error: {
+    message: 'No tool output found for function call call_tlxFSxc72b7dbbq5yBsOGC7a.',
+    type: 'invalid_request_error',
+    param: 'input',
+    code: null,
+  },
+}
 const FIRST_ASK = 'read every notes file and tell me what the station keeps'
 const SECOND_ASK = 'now read the last notes file too and tell me what to keep'
 const CUT_TEXT = 'Let me read the last notes file before I answer.'
@@ -382,6 +392,41 @@ section('P3 with the provider\'s own input rule armed, the whole run goes throug
   check('the history run and the compaction run both completed', a.threw === undefined && a.terminal.reason === 'completed' && r.threw === undefined && r.terminal.reason === 'completed', `history=${JSON.stringify(a.terminal)} compaction=${JSON.stringify(r.terminal)} errors=${JSON.stringify([...errorTexts(a.yields), ...errorTexts(r.yields)])}`)
   check('the provider\'s input rule refused nothing on the whole run', fixture.refusals.length === 0, JSON.stringify(fixture.refusals))
   check('the compaction landed and the reply settled last', boundaryOf(r.yields) !== undefined && lastAssistantText(r.yields) === 'the recovered answer under the rule', lastAssistantText(r.yields))
+}
+
+section('C1 a summariser refused for a malformed history — one attempt, a typed line, automatic compaction paused at once')
+{
+  const ctxD = makeCtx()
+  fixture.script([
+    ...historyScript('d'),
+    { text: 'all nine notes files are read.', reasoning: reasoning(ROUNDS), usage: { input: 200_000, output: 20 } },
+  ])
+  const seedD = [createUserMessage({ content: FIRST_ASK })]
+  const a = await drive(ctxD, seedD)
+  const historyD = transcriptAfter(seedD, a)
+  const seed = [...historyD, createUserMessage({ content: SECOND_ASK })]
+  const count = tokenCountWithEstimation(seed as never, MODEL)
+  process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = String(count - 800)
+  fixture.script([
+    { error: { status: 400, body: MALFORMED_HISTORY_REFUSAL } },
+    { error: { status: 400, body: MALFORMED_HISTORY_REFUSAL } },
+    { text: 'never reached' },
+  ])
+  const r = await drive(ctxD, seed)
+  delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
+  const summariserRequests = r.wire.filter(w => isSummariserRequest(w.body))
+  check('the run never threw', r.threw === undefined, `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)}`)
+  check('exactly ONE summary request reached the wire — the refusal is not retried as a size problem', summariserRequests.length === 1, `${summariserRequests.length} of ${r.wire.length} requests were summary requests`)
+  check('no other request reached the wire (the model is never called on a request known not to fit)', r.wire.length === 1, String(r.wire.length))
+  const notices = noticeTexts(r.yields)
+  const line = notices.find(t => /malformed history/i.test(t))
+  check('a typed line names the class', line !== undefined, JSON.stringify(notices))
+  check("…the provider's own reason", line !== undefined && line.includes('No tool output found for function call call_tlxFSxc72b7dbbq5yBsOGC7a'), line ?? '')
+  check('…and the remedies: /compact after the heal, /clear, a larger-window model', line !== undefined && line.includes('/compact') && line.includes('/clear') && line.includes('/model'), line ?? '')
+  const errs = errorTexts(r.yields)
+  check('the turn ends on one typed refusal that says automatic compaction is paused', errs.length === 1 && errs[0]!.startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE) && /paused for this session/.test(errs[0]!), JSON.stringify(errs))
+  check('the prune rung still answered the estimate (the notice speaks)', notices.some(t => t.startsWith('context overflowed (estimated ') && /pruned \d+ superseded tool results/.test(t)), JSON.stringify(notices))
+  check("terminal blocking_limit", r.terminal.reason === 'blocking_limit', JSON.stringify(r.terminal))
 }
 
 await fixture.close()
