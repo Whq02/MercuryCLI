@@ -580,7 +580,7 @@ export async function* runAgent(
   const canUseToolAskLively: typeof canUseTool = canUseTool
     ? (async (...args: Parameters<NonNullable<typeof canUseTool>>) => {
         if (reviewReceipt !== undefined) {
-          const refusal = reviewerRefusal(args[0], args[1], reviewReceipt)
+          const refusal = reviewerRefusal(args[0], args[1], reviewReceipt, worktreePath!)
           if (refusal !== null) return { behavior: 'deny', message: refusal }
         }
         pendingAsks++
@@ -791,7 +791,7 @@ export async function* runAgent(
       }
     }
 
-    if (reviewReceipt !== undefined) tools = restrictReviewerTools(tools, reviewReceipt)
+    if (reviewReceipt !== undefined) tools = restrictReviewerTools(tools, reviewReceipt, worktreePath!)
 
     const enabledToolNames = new Set(tools.map(tool => tool.name))
     const systemPrompt: string[] =
@@ -802,7 +802,7 @@ export async function* runAgent(
         resolvedAgentModel,
         enabledToolNames,
       ))
-    if (reviewReceipt !== undefined) systemPrompt.push(`Your declared review receipt is ${reviewReceipt}. Only its Review section is writable. Commands not classified as read-only are refused; ask the caller to run those checks and provide their results.`)
+    if (reviewReceipt !== undefined) systemPrompt.push(`Your declared review receipt is ${reviewReceipt}. Only its Review section is editable. Run bun verification under scripts, bash suite runners, or bun run typecheck in the frozen worktree; a with-box-lock.sh wrapper with a literal temporary BASE is accepted. Verification commands have a fresh temporary home and filesystem confinement: sources and the report are read-only, temporary results are writable. Ordinary permission checks still apply; unavailable confinement refuses without running.`)
     if (structuredOutputSpec !== undefined) {
       systemPrompt.push(
         `When the task is COMPLETE, deliver the final answer by calling the ${STRUCTURED_OUTPUT_TOOL_NAME} tool with data matching its schema${
