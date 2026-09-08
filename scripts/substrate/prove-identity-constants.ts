@@ -67,7 +67,7 @@ check('P4 honest receipt: /bug never claims "submitted"', !feedback.includes('bu
   check('ruling 2: mercury:// parses', viaNew.query === 'hello')
   let otherSchemeRefused = false
   try {
-    parseDeepLink('claude-cli://open?q=hello')
+    parseDeepLink('otherscheme://open?q=hello')
   } catch {
     otherSchemeRefused = true
   }
