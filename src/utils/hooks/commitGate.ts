@@ -369,7 +369,7 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
   const root = commitRepositoryRoot(commitSeg.text, directory)
   if (root === null) return null
   const repositoryArgs = commitRepositoryArguments(commitSeg.text)
-  const readGitMap = (revision: string): string => execFileSync('git', [...repositoryArgs, 'show', `${revision}:${GENERATED_ASSETS_MAP}`], { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000 })
+  const readGitMap = (revision: string): string => execFileSync('git', [...repositoryArgs, 'show', `${revision}:${GENERATED_ASSETS_MAP}`], { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true })
   const indexedMap = gitLines(directory, [...repositoryArgs, 'ls-files', '--full-name', '--', `:(top,literal)${GENERATED_ASSETS_MAP}`]).includes(GENERATED_ASSETS_MAP) ? readGitMap('') : null
   let previousMap: string | null = null
   try { previousMap = readGitMap('HEAD') } catch {  }
