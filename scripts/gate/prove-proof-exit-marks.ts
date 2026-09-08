@@ -3,7 +3,7 @@ import { strict as assert } from 'node:assert'
 import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join, relative, resolve, sep } from 'node:path'
 
 const root = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'proof-exits-'))
@@ -75,8 +75,13 @@ try {
       check(`${name}: individual checks retain the suite result for code ${code}`, result.status === (code === 0 ? 0 : 1))
     }
   }
-  const spinner = spawnSync('bash', [join(root, 'scripts/pulse/spinner/run-all.sh')], { cwd: root, env: { ...env(7), UI_RENDER: '1' }, encoding: 'utf8', timeout: 10000 })
-  check('the nested spinner runner names its real renderer and records its result', spinner.status === 1 && marks(spinner.stdout).length === 4 && marks(spinner.stdout).some(row => row.path === 'scripts/pulse/spinner/render-pulse-byline.tsx' && row.code === 7))
+  const spinnerDir = join(estate, 'scripts/pulse/spinner')
+  mkdirSync(spinnerDir, { recursive: true })
+  const spinnerRunner = join(spinnerDir, 'run-all.sh')
+  writeFileSync(spinnerRunner, readFileSync(join(root, 'scripts/pulse/spinner/run-all.sh')))
+  const spinner = spawnSync('bash', [spinnerRunner], { cwd: estate, env: { ...env(7), UI_RENDER: '1' }, encoding: 'utf8', timeout: 10000 })
+  const rendererPath = relative(estate, join(spinnerDir, 'render-pulse-byline.tsx')).split(sep).join('/')
+  check('the nested spinner runner names its real renderer and records its result', spinner.status === 1 && marks(spinner.stdout).length === 4 && marks(spinner.stdout).some(row => row.path === rendererPath && row.code === 7))
   const helper = join(root, 'scripts/lib/proof-runner.sh')
   for (const code of [0, 3, 19, 143]) {
     const result = spawnSync('bash', ['-c', '. "$1"; run_proof "scripts/example/prove-silent.ts" bash -c "exit $2"', 'test', helper, String(code)], { encoding: 'utf8' })
