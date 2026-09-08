@@ -43,6 +43,22 @@ try {
   check('T5 …with the expected values', g.n === 6 && g.k === 4 && JSON.stringify(g.y) === '[4,6]')
   for (const n of ['n', 'k', 't', 'y']) delete g[n]
 
+  for (const prefix of ['"use strict";\n', "// leading comment\n'custom'; /* gap */ 'use strict'\n", '"use strict" /* gap */;\n', '0; "use strict";\n', '"use strict" + "";\n', '"use strict"\n.toString();\n', '"use\\x20strict";\n']) {
+    const source = `${prefix}__strictFixtureImplicit = 41;`
+    let originalThrows = false
+    let transformedThrows = false
+    delete g.__strictFixtureImplicit
+    try { await new AsyncFunction(source)() } catch (error) { originalThrows = error instanceof ReferenceError }
+    delete g.__strictFixtureImplicit
+    try { await new AsyncFunction(transformJsCell(source).code)() } catch (error) { transformedThrows = error instanceof ReferenceError }
+    delete g.__strictFixtureImplicit
+    check('T6 directive prologues retain native strict-mode behavior', transformedThrows === originalThrows, JSON.stringify({ prefix, originalThrows, transformedThrows }))
+  }
+  const strict = await run('owner-strict', 'js', '"use strict";\nconst strictKept = 7;\n__strictKernelImplicit = 41;')
+  check('T7 a strict kernel cell rejects an implicit global', strict.status === 'error' && strict.error?.name === 'ReferenceError', JSON.stringify(strict))
+  const afterStrict = await run('owner-strict', 'js', 'JSON.stringify([strictKept, typeof __strictKernelImplicit])')
+  check('T8 strict failure still preserves initialized bindings only', afterStrict.resultRepr === "'[7,\"undefined\"]'", JSON.stringify(afterStrict))
+
   section('§S a failed cell names what survived')
   const s1 = await run('owner-S', 'js', 'var root, hb, logs\nroot = 1\nconst made = 2\nthrow new Error("boom")\nconst never = 3\n')
   check('S1 the JS cell failed', s1.status === 'error' && s1.error?.value === 'boom', JSON.stringify(s1.error))
