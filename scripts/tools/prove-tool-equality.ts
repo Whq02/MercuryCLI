@@ -103,9 +103,6 @@ const BRAND_ALLOWLIST: ReadonlyArray<{ tool: string; pattern: RegExp; reason: st
 ]
 function brandHits(toolName: string, text: string): string[] {
   let stripped = text
-    .replace(/\.claude\b/g, '.compat-home')
-    .replace(/\bCLAUDE_[A-Z_]+/g, 'FLAG')
-    .replace(/\bclaude_code\b/gi, 'flag')
   for (const allow of BRAND_ALLOWLIST) {
     if (allow.tool === toolName) stripped = stripped.replace(allow.pattern, '[allowed]')
   }

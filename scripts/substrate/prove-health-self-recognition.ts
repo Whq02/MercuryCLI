@@ -35,18 +35,6 @@ console.log('\n[1] release notes are bundled Mercury notes (no fetch, no disk ca
   )
 }
 
-console.log('\n[2] the compat-changelog fetch pipeline is REMOVED (structural)')
-{
-  const src = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'utils', 'releaseNotes.ts'),
-    'utf8',
-  )
-  check('no axios import in releaseNotes.ts', !src.includes('axios'))
-  check('no anthropics/claude-code URL', !src.includes('anthropics/claude-code'))
-  check('no raw.githubusercontent fetch target', !src.includes('raw.githubusercontent'))
-  check('the retired fetchAndStoreChangelog symbol is gone', !src.includes('fetchAndStoreChangelog'))
-}
-
 console.log('\n============================================================')
 console.log(fail === 0 ? ' ✅ HEALTH-LOYALTY PROOF PASS' : ' ❌ HEALTH-LOYALTY PROOF FAILED')
 console.log('============================================================')

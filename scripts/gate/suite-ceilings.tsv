@@ -11,11 +11,9 @@
 # grants sized from run 2's measured walls plus that stretch. journey was
 # tree-killed at 1500 s with every prover completing honestly and one still
 # to run (~2000 s whole); diffws at 900 s with prove-cockpit-pointer alone at
-# 671 s. The multiplayer row is gone with the multiplayer suite itself (the
-# estate retired; a ceiling for a suite that does not exist is dead weight).
 # scroll earned its row after a hosted gate run (killed at the 900 default): the
 # quiet-box wall at MERCURY_VSHOT_BUDGET_SCALE=3 measured 904 s with
-# the engine truly scaling (the wave-5 knob forward), so the hosted 2-core
+# the engine truly scaling, so the hosted 2-core
 # run needs the diffws-class slack over that envelope.
 scroll	1500
 diffws	1500

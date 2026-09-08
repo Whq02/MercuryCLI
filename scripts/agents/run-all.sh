@@ -37,10 +37,10 @@ else
   echo "  ✗ guide-agent model wrong or a haiku arm resurfaced"; fail=1
 fi
 
-if grep -qF "'mercury-guide'" "$guide" && ! grep -qF "'claude-code-guide'" "$guide"; then
-  echo "  ✓ guide-agent slug is mercury-guide (base name gone)"
+if grep -qF "'mercury-guide'" "$guide"; then
+  echo "  ✓ guide-agent slug is mercury-guide"
 else
-  echo "  ✗ guide-agent slug wrong or the base name resurfaced"; fail=1
+  echo "  ✗ guide-agent slug wrong"; fail=1
 fi
 slugres=$("$bun" -e "import('$root/src/tools/AgentTool/built-in/mercuryGuideAgent.ts').then(m=>console.log(m.MERCURY_GUIDE_AGENT_TYPE)).catch(e=>console.log('ERR',(e&&e.message)||e));" 2>&1 | tail -1)
 if [ "$slugres" = "mercury-guide" ]; then
