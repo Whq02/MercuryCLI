@@ -121,8 +121,8 @@ section('§1 the classifier')
   ]
   const m = prefixMarkOf(rows as never, 'claude-fable-5-1', { permissionMode: 'default', responseProfile: 'balanced' })
   check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, the model and the settings', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', rosterTransition: null, rosterChange: null, model: 'claude-fable-5-1', settings: 'mode=default;profile=balanced', thinkingClearActive: false, contextEditActive: false }), j(m))
-  const ctxMark = prefixMarkOf(rows as never, 'claude-fable-5-1', { permissionMode: 'default' }, { thinkingClearActive: true, contextEditActive: true })
-  check('prefixMarkOf carries the context-edit signals when the caller passes them', ctxMark.thinkingClearActive === true && ctxMark.contextEditActive === true, j(ctxMark))
+  const ctxMark = prefixMarkOf(rows as never, 'claude-fable-5-1', { permissionMode: 'default' }, { thinkingClearActive: true })
+  check('a thinking-clear signal alone does not claim a tool-result clearing', ctxMark.thinkingClearActive === true && ctxMark.contextEditActive === false, j(ctxMark))
   const bare = prefixMarkOf([] as never, 'claude-fable-5-1')
   check('an empty history marks nulls; an unreadable mode spells ?', bare.firstRow === null && bare.compactBoundary === null && bare.modelTransition === null && bare.settings.startsWith('mode=?;profile='), bare.settings)
 
@@ -168,15 +168,40 @@ section('§1 the classifier')
 section('§1b Mercury\'s own context edits are named, not read as a rewrite')
 {
   const { preservedThinkingHealth } = binding
+  const { buildRequestContextPlan } = await import('../../src/services/run/requestContextPlan.js')
+  const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.js')
+  const savedTimePrune = process.env.MERCURY_TIME_BASED_MC
+  process.env.MERCURY_TIME_BASED_MC = '1'
+  const history = [user('Read the files.'), ...Array.from({ length: 8 }, (_, i) => [
+    assistant([THINK('Read ' + i), { type: 'tool_use', id: 'read-' + i, name: 'Read', input: {} }]),
+    user([{ type: 'tool_result', tool_use_id: 'read-' + i, content: ('Result ' + i + ' stays available. ').repeat(200) }]),
+  ]).flat()]
+  const input = {
+    messages: history as never,
+    owner: 'notice-context' as never,
+    querySource: 'repl_main_thread' as const,
+    contentReplacementState: createContentReplacementState(),
+    skipToolNames: new Set<string>(),
+  }
+  const planned = await buildRequestContextPlan(input, 'apply')
+  const prunedMark = prefixMarkOf(planned.messages, 'claude-fable-5-1', undefined, { requestPlan: planned })
+  check('the real time-triggered plan applies three clearings', planned.reductions.timeBasedCleared === 3)
   resetThinkingDropStates()
-  classifyThinkingDrops('pruned', [], mark({ contextEditActive: true }))
-  const pruned = classifyThinkingDrops('pruned', [DROP('messages.102.content.0')], mark({ contextEditActive: true }))
-  check('a drop while a cleared tool result rides is lawful context-edited (not first/recurrent)', pruned.kind === 'lawful' && pruned.lawful === 'context-edited' && pruned.consecutive === 1, j(pruned))
-  const prunedWords = describeThinkingDrops([DROP('messages.102.content.0')], pruned) ?? ''
-  check('the words name the prune, say expected once, and never accuse Mercury of a rewrite', prunedWords.includes('pruned superseded tool results') && prunedWords.includes('expected once') && !prunedWords.includes('Mercury rewrote') && !prunedWords.includes('doctor'), prunedWords)
-  const pruned2 = classifyThinkingDrops('pruned', [DROP('messages.102.content.0'), DROP('messages.104.content.0')], mark({ contextEditActive: true }))
-  check('the next context-edit drop stays lawful, paints no second row, and never becomes a growing recurrent run', pruned2.kind === 'lawful' && pruned2.lawful === 'context-edited' && pruned2.paint === false && pruned2.consecutive === 1, j(pruned2))
-  check('…and its words are null (painted once already)', describeThinkingDrops([DROP('messages.102.content.0')], pruned2) === null)
+  const pruned = classifyThinkingDrops('pruned', [DROP('messages.17.content.0')], prunedMark)
+  check('only the response to the applied clearing receives its cause', pruned.kind === 'lawful' && pruned.lawful === 'context-edited', j(pruned))
+  const prunedWords = describeThinkingDrops([DROP('messages.17.content.0')], pruned) ?? ''
+  check('the cause names the prune without accusing an unexplained rewrite', prunedWords.includes('pruned superseded tool results') && prunedWords.includes('expected once') && !prunedWords.includes('doctor'), prunedWords)
+  const fresh = assistant([THINK('New reasoning over the cleared request.'), TEXT('Ready.')])
+  fresh.timestamp = new Date().toISOString()
+  const later = await buildRequestContextPlan({ ...input, messages: [...history, fresh, user('Continue.')] as never }, 'apply')
+  check('the later plan retains replacements without another clearing', later.reductions.timeBasedCleared === 0 && j(later.messages).includes('[stale tool result'))
+  const laterMark = prefixMarkOf(later.messages, 'claude-fable-5-1', undefined, { requestPlan: later })
+  const laterDrop = classifyThinkingDrops('pruned', [DROP('messages.19.content.0')], laterMark)
+  check('a later unexplained drop is not masked by an earlier prune', laterDrop.kind === 'first' && laterDrop.lawful === null && laterMark.contextEditActive === false, j(laterDrop))
+  const inspected = await buildRequestContextPlan({ ...input, contentReplacementState: createContentReplacementState() }, 'inspect')
+  check('inspection never declares that it applied a context edit', prefixMarkOf(inspected.messages, 'claude-fable-5-1', undefined, { requestPlan: inspected }).contextEditActive === false)
+  if (savedTimePrune === undefined) delete process.env.MERCURY_TIME_BASED_MC
+  else process.env.MERCURY_TIME_BASED_MC = savedTimePrune
 
   resetThinkingDropStates()
   classifyThinkingDrops('both', [], mark({ contextEditActive: true }))

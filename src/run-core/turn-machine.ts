@@ -10,7 +10,6 @@ import {
 } from '../services/compact/autoCompact.js'
 import { buildPostCompactMessages } from '../services/compact/compact.js'
 import { projectTimeBasedMicrocompact } from '../services/compact/microCompact.js'
-import { isClearedOrDigested } from '../services/compact/microCompactDigest.js'
 import { getThinkingClearLatched } from '../bootstrap/state.js'
 import {
   classifyThinkingDrops,
@@ -164,7 +163,7 @@ import {
 import { emitCompactionTrace } from '../utils/observability/invocationTrace.js'
 import { flushSessionStorage, recordContentReplacement } from '../utils/sessionStorage.js'
 import { handleStopHooks } from '../query/stopHooks.js'
-import { buildRequestContextPlan, reconcileAppliedPlanUsage } from '../services/run/requestContextPlan.js'
+import { buildRequestContextPlan, reconcileAppliedPlanUsage, type RequestContextPlan } from '../services/run/requestContextPlan.js'
 import { calibrationKeyFor } from '../services/run/contextCalibration.js'
 import { harnessContextPolicyRequest } from '../services/mission/harnessApplication.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
@@ -194,19 +193,6 @@ import { refreshGovernorCeilings } from '../services/capacity/composeCeilings.js
 import { count } from '../utils/array.js'
 
 const MAX_OUTPUT_TOKENS_RECOVERY_LIMIT = 3
-
-function historyCarriesClearedToolResult(messages: readonly Message[]): boolean {
-  for (const message of messages) {
-    if (message.type !== 'user') continue
-    const content = (message as { message?: { content?: unknown } }).message?.content
-    if (!Array.isArray(content)) continue
-    for (const block of content) {
-      const b = block as { type?: string; content?: never }
-      if (b.type === 'tool_result' && isClearedOrDigested(b.content)) return true
-    }
-  }
-  return false
-}
 
 type EventMint = ReturnType<typeof createEventMint>
 
@@ -262,6 +248,7 @@ type RunCtx = {
 type IterationState = {
   turnId: string
   ordinal: number
+  requestPlan: RequestContextPlan
   messagesForQuery: Message[]
   toolUseContext: ToolUseContext
   queryTracking: { chainId: string; depth: number }
@@ -629,7 +616,7 @@ async function* streamModel(
                   { permissionMode: toolUseContext.getAppState().toolPermissionContext.mode },
                   {
                     thinkingClearActive: getThinkingClearLatched() === true,
-                    contextEditActive: historyCarriesClearedToolResult(iter.messagesForQuery),
+                    requestPlan: iter.requestPlan,
                   },
                 ),
                 { byteMoved: rewrite !== null },
@@ -1213,6 +1200,7 @@ export async function* runEventCore(
     const iter: IterationState = {
       turnId,
       ordinal,
+      requestPlan,
       messagesForQuery,
       toolUseContext,
       queryTracking,
