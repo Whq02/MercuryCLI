@@ -11,7 +11,8 @@
 # gate-watch: src/utils/messages/lookups.ts
 # gate-watch: src/services/api/errors.ts
 set -uo pipefail
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 cd "$(dirname "$0")/../.." || exit 1
@@ -19,6 +20,6 @@ cd "$(dirname "$0")/../.." || exit 1
 fail=0
 for f in scripts/run-continuity/prove-*.ts; do
   echo "── $f"
-  __t=$SECONDS; "$BUN" run "$f" || fail=1; prover_mark "$f" "$__t"
+  __t=$SECONDS; __rc=0; "$BUN" run "$f" || { __rc=$?; fail=1; }; prover_mark "$f" "$__t" "$__rc"
 done
 exit $fail

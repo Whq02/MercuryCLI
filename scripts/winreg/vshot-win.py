@@ -15,12 +15,26 @@ try:
 except Exception:
     pass
 
-import pyte
+EMULATOR_MISSING_EXIT = 78
+try:
+    import pyte
+except ImportError:
+    sys.stderr.write(
+        "vshot-win: the terminal emulator (pyte) is not importable by %s; install it: %s -m pip install --user pyte\n"
+        % (sys.executable, sys.executable))
+    sys.exit(EMULATOR_MISSING_EXIT)
 
 try:
     from winpty import PTY
 except ImportError:
-    sys.exit("vshot-win requires pywinpty (pip install pywinpty) — Windows only")
+    sys.stderr.write(
+        "vshot-win: the console backend (pywinpty) is not importable by %s; install it: %s -m pip install --user pywinpty (Windows only)\n"
+        % (sys.executable, sys.executable))
+    sys.exit(EMULATOR_MISSING_EXIT)
+
+if len(sys.argv) > 1 and sys.argv[1] == "--preflight":
+    sys.stdout.write("ok %s %s\n" % (sys.executable, os.path.dirname(os.path.abspath(pyte.__file__))))
+    sys.exit(0)
 
 _KITTY_SEQ = re.compile(rb"\x1b\[[<>=][0-9;]*u")
 _KITTY_TAIL = re.compile(rb"(?:\x1b|\x1b\[|\x1b\[[<>=][0-9;]*)$")

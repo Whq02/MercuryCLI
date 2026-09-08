@@ -5,7 +5,8 @@
 # gate-watch: src/daemon/protocol.ts src/daemon/sessionSeat.ts src/daemon/controlServer.ts src/daemon/controlSocket.ts
 # gate-watch: src/components/MessageSelector.tsx src/services/engine-connector/**
 set -u
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 
 here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
@@ -13,11 +14,11 @@ fail=0
 echo "############################################################"
 echo "# Mercury /rewind — proof harness"
 echo "############################################################"
-__t=$SECONDS; "$bun" run "$here/prove-rewind-capture.ts" || fail=1; prover_mark "$here/prove-rewind-capture.ts" "$__t"
-__t=$SECONDS; "$bun" run "$here/prove-rewind-wire.ts" || fail=1; prover_mark "$here/prove-rewind-wire.ts" "$__t"
-__t=$SECONDS; "$bun" run "$here/prove-rewind-restore.ts" || fail=1; prover_mark "$here/prove-rewind-restore.ts" "$__t"
-__t=$SECONDS; "$bun" run "$here/prove-rewind-cockpit.ts" || fail=1; prover_mark "$here/prove-rewind-cockpit.ts" "$__t"
-__t=$SECONDS; "$bun" run "$here/prove-checkpoint-sweep-economy.ts" || fail=1; prover_mark "$here/prove-checkpoint-sweep-economy.ts" "$__t"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-capture.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rewind-capture.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-wire.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rewind-wire.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-restore.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rewind-restore.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-cockpit.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rewind-cockpit.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-checkpoint-sweep-economy.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-checkpoint-sweep-economy.ts" "$__t" "$__rc"
 
 echo
 if [ "$fail" -eq 0 ]; then

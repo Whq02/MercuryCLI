@@ -118,6 +118,7 @@ interface SeatSend {
   text: string
   sentAtMs: number
   state: 'pending' | 'delivered' | 'queued' | 'taken'
+  heldFor?: 'compaction'
   mode: 'prompt' | 'bash'
   source?: { text: string; mode: 'prompt' | 'bash'; pastedContents: Record<number, PastedContent> }
   withdrawing?: true
@@ -498,7 +499,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.tailStore.setPhase(null)
     this.tailAtMs = -1
     this.liveTurnChars = 0
-    this.liveStateWord = null
+    this.clearLiveStateWord()
     clearEphemeralProgress()
     this.publishedProgressSeqs.clear()
     this.progressAtMs = -1
@@ -565,11 +566,24 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return this.liveTurnChars
   }
 
+  private clearLiveStateWord(): void {
+    if (this.liveStateWord === null) return
+    const wasCompacting = this.liveStateWord === 'compacting'
+    this.liveStateWord = null
+    if (wasCompacting) {
+      for (const s of this.sends) if (s.state === 'queued') this.dressSend(s.clientMessageId, 'queued')
+    }
+  }
+
   private setLiveStateWord(word: 'compacting' | 'waiting-on-agents' | null, agentsWaiting = 0): void {
     const count = word === 'waiting-on-agents' ? agentsWaiting : 0
     if (this.liveStateWord === word && this.liveAgentsWaiting === count) return
+    const wasCompacting = this.liveStateWord === 'compacting'
     this.liveStateWord = word
     this.liveAgentsWaiting = count
+    if (wasCompacting !== (word === 'compacting')) {
+      for (const s of this.sends) if (s.state === 'queued') this.dressSend(s.clientMessageId, 'queued')
+    }
     this.recomputeLive()
   }
 
@@ -867,7 +881,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     if (!inFlight && this.tailStore.read() !== null) this.tailStore.reset(null)
     if (!inFlight) this.liveTurnChars = 0
-    if (!inFlight) this.liveStateWord = null
+    if (!inFlight) this.clearLiveStateWord()
     if (!inFlight && this.liveFoldStatus !== null && this.liveFoldStatus.exit === undefined) {
       const gone = this.liveFoldStatus
       this.liveFoldStatus = null
@@ -930,17 +944,30 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private dressSend(clientMessageId: string, state: SeatSend['state']): void {
-    this.sends = this.sends.map(s => (s.clientMessageId === clientMessageId ? { ...s, state } : s))
-    const row = this.echoRows.get(clientMessageId) as (Message & { queued?: true }) | undefined
+    const heldFor = state === 'queued' && this.liveStateWord === 'compacting' ? ('compaction' as const) : undefined
+    this.sends = this.sends.map(s => {
+      if (s.clientMessageId !== clientMessageId) return s
+      const next: SeatSend = { ...s, state }
+      if (heldFor !== undefined) next.heldFor = heldFor
+      else delete next.heldFor
+      return next
+    })
+    const row = this.echoRows.get(clientMessageId) as (Message & { queued?: true; heldFor?: 'compaction' }) | undefined
     if (row === undefined) return
     const queued = state === 'queued'
-    if (queued === (row.queued === true)) return
-    const next: Message & { queued?: true } = queued
+    if (queued === (row.queued === true) && heldFor === row.heldFor) return
+    const next: Message & { queued?: true; heldFor?: 'compaction' } = queued
       ? { ...row, queued: true }
       : { ...row, timestamp: new Date().toISOString() }
     if (!queued) delete next.queued
+    if (heldFor !== undefined) next.heldFor = heldFor
+    else delete next.heldFor
     this.echoRows.set(clientMessageId, next)
     this.paint()
+  }
+
+  heldForCompaction(): string[] {
+    return this.sends.filter(s => s.heldFor === 'compaction').map(s => s.clientMessageId)
   }
 
   private reconcileSends(): boolean {
@@ -1356,8 +1383,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         this.echoRows.delete(clientMessageId)
         this.paint()
       } else {
-        this.dressSend(clientMessageId, this.factsBusy ? 'queued' : 'delivered')
-        connectorTrace({ ev: 'send', sid: this.record.sessionId, state: this.factsBusy ? 'queued' : 'delivered' })
+        const queuedNow = this.factsBusy || this.liveStateWord === 'compacting'
+        this.dressSend(clientMessageId, queuedNow ? 'queued' : 'delivered')
+        connectorTrace({ ev: 'send', sid: this.record.sessionId, state: queuedNow ? 'queued' : 'delivered' })
       }
       this.retainedSend = state === 'held' || state === 'failed' ? { text: expanded, id: clientMessageId } : null
       emitAll(this.liveListeners, 'live')

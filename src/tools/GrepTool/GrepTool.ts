@@ -4,6 +4,7 @@ import { z } from 'zod/v4'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { anchorPatchEnabled } from '../../services/changeTransaction/anchorPatch.js'
+import { staleEditRecoveryEnabled } from '../../services/changeTransaction/stalePatchRecovery.js'
 import { fileGeneration, recordSeenLines } from '../../services/changeTransaction/seenLines.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { discoveryPoolWidth, mapWithConcurrency } from '../../utils/concurrency.js'
@@ -173,6 +174,7 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
   if (mode === 'count') args.push('-c')
   if ((input['-n'] ?? true) && mode === 'content') args.push('-n')
   if (mode === 'content') {
+    args.push('--with-filename')
     if (input.context !== undefined) {
       args.push('-C', String(input.context))
     } else if (input['-C'] !== undefined) {
@@ -274,7 +276,7 @@ export const GrepTool = buildTool({
 
     if (mode === 'content') {
       const { slice, appliedLimit, appliedOffset } = paginate(lines, input.head_limit, offset)
-      if (anchorPatchEnabled() && (input['-n'] ?? true)) {
+      if ((anchorPatchEnabled() || staleEditRecoveryEnabled()) && (input['-n'] ?? true)) {
         try {
           const owner = ownerFromToolUseContext(context)
           const generations = new Map<string, string | null>()

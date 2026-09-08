@@ -7,7 +7,8 @@
 # gate-watch: src/utils/permissions/flowBlockReview* src/utils/permissions/decision/wrapper*
 # gate-watch: src/utils/messages/rejectionText* src/components/permissions/PermissionRuleExplanation* src/constants/prompts*
 set -u
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 
 here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
@@ -17,7 +18,7 @@ echo "# Permission ladder / auto-mode — proof suite"
 echo "############################################################"
 for f in "$here"/prove-*.ts; do
   [ -e "$f" ] || continue
-  __t=$SECONDS; "$bun" run "$f" || fail=1; prover_mark "$f" "$__t"
+  __t=$SECONDS; __rc=0; "$bun" run "$f" || { __rc=$?; fail=1; }; prover_mark "$f" "$__t" "$__rc"
 done
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL PERMISSION PROOFS PASS"; else echo "# ❌ SOME PERMISSION PROOFS FAILED"; fi

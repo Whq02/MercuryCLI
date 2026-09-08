@@ -26,6 +26,7 @@ const errorFrame = z.object({
   name: z.string(),
   value: z.string(),
   traceback: z.string(),
+  survived: z.array(z.string()).optional(),
 })
 const doneFrame = z.object({
   t: z.literal('done'),
@@ -60,7 +61,7 @@ export type BridgeKind = BridgeRequestFrame['kind']
 
 export type HostFrame =
   | { t: 'hello'; token: string; cwd: string }
-  | { t: 'exec'; id: string; code: string; seq: number }
+  | { t: 'exec'; id: string; code: string; seq: number; names?: string[] }
   | { t: 'bridge_result'; bridgeId: string; ok: boolean; value?: unknown; error?: string }
   | { t: 'bye' }
 

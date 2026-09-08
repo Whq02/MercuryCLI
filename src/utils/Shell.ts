@@ -23,6 +23,7 @@ import { createPowerShellProvider } from './shell/powershellProvider.js'
 import type { ShellProvider, ShellType } from './shell/shellProvider.js'
 import { wrapSpawn, createAbortedCommand, createFailedCommand, type ShellCommand } from './ShellCommand.js'
 import { subprocessEnv } from './subprocessEnv.js'
+import { scrubSessionEnvStamps } from '../substrate/envStamps.js'
 import { getTaskOutputDir } from './task/diskOutput.js'
 import { TaskOutput } from './task/TaskOutput.js'
 import { which } from './which.js'
@@ -157,6 +158,7 @@ export type ExecOptions = {
   backgroundIntent?: boolean
   onStdout?: (chunk: string) => void
   owner?: string
+  inheritSessionEnv?: boolean
 }
 
 function openTaskOutputFile(path: string): number {
@@ -181,7 +183,7 @@ export async function exec(
   )
   const useSandbox = options.shouldUseSandbox === true
 
-  if (shellType === 'bash' && options.onStdout === undefined && options.backgroundIntent !== true) {
+  if (shellType === 'bash' && options.onStdout === undefined && options.backgroundIntent !== true && options.inheritSessionEnv !== true) {
     const engine = resolveShellEngine(getInitialSettings().shellEngine)
     if (engine.engine === 'brush') {
       if (abortSignal.aborted) return createAbortedCommand()
@@ -270,8 +272,12 @@ export async function exec(
   const taskOutput = new TaskOutput(taskId, options.onProgress ?? null, !pipeMode)
   await getFsImplementation().mkdir(getTaskOutputDir())
 
+  const base = options.inheritSessionEnv === true
+    ? { env: subprocessEnv(), scrubbed: [] as string[] }
+    : scrubSessionEnvStamps(subprocessEnv())
+
   const childEnv: NodeJS.ProcessEnv = {
-    ...subprocessEnv(),
+    ...base.env,
     SHELL: shellType === 'bash' ? provider.shellPath : undefined,
     GIT_EDITOR: 'true',
     MERCURY: '1',
@@ -309,6 +315,7 @@ export async function exec(
       taskOutput,
       options.shouldAutoBackground ?? false,
     )
+    shellCommand.scrubbedSessionEnv = base.scrubbed
 
     if (outputFd !== undefined) {
       await new Promise<void>(resolveTick => setImmediate(resolveTick))

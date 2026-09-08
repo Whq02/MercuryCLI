@@ -59,6 +59,12 @@ import {
   STRUCTURED_OUTPUT_TOOL_NAME,
 } from './structuredOutputTool.js'
 import { formatQuietAge } from './livePulse.js'
+import {
+  addWorkflowUsage,
+  EMPTY_WORKFLOW_USAGE,
+  foldResponseUsage,
+  type WorkflowUsageRollup,
+} from './workflowUsage.js'
 export { STRUCTURED_OUTPUT_TOOL_NAME }
 
 const AGENT_LIFETIME_CAP = 1000
@@ -791,7 +797,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       ? `${prompt}\n\n---\nYou are running in an isolated git worktree at ${worktree.worktreePath} (a separate working copy of the repo). Changes you make here do NOT affect the main working directory or other agents. Work normally — the worktree will be cleaned up automatically if you made no changes, or preserved for review if you did.`
       : prompt
 
-    const carryover = { tokens: 0, toolCalls: 0, durationMs: 0 }
+    const carryover: CallFrameStatics['carryover'] = { tokens: 0, toolCalls: 0, durationMs: 0, usage: EMPTY_WORKFLOW_USAGE }
     const recovery: RecoveryBudget = makeRecoveryBudget()
     const statics: CallFrameStatics = {
       index,
@@ -812,6 +818,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       carryover.tokens += r.tokens
       carryover.toolCalls += r.toolCalls
       carryover.durationMs += r.durationMs
+      carryover.usage = addWorkflowUsage(carryover.usage, r.usage)
     }
 
     const runAttempt = async (
@@ -836,11 +843,25 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       const attemptPromptPreview = previewOf(effectivePrompt)
       let lastToolName: string | undefined
       let lastToolSummary: string | undefined
+      const responses = new Map<string, { message: { stop_reason?: string | null; usage?: Parameters<typeof foldResponseUsage>[1]['usage'] } }>()
+      let requestInFlight = false
+      const attemptUsage = (attemptEnded: boolean): WorkflowUsageRollup => {
+        let folded: WorkflowUsageRollup = EMPTY_WORKFLOW_USAGE
+        const ended = attemptEnded ? responses.size : responses.size - 1
+        let i = 0
+        for (const r of responses.values()) {
+          if (i++ >= ended) break
+          folded = foldResponseUsage(folded, r.message)
+        }
+        if (attemptEnded && requestInFlight) folded = { ...folded, unsettledTurns: folded.unsettledTurns + 1 }
+        return folded
+      }
       const tileId = `workflow_agent_${statics.index}_${agentId}`
       const emitFrame = (
         state: 'start' | 'progress' | 'done' | 'error' | 'skipped',
         extra?: Record<string, unknown>,
       ): void => {
+        const attemptEnded = state === 'done' || state === 'error' || state === 'skipped'
         emit({
           type: 'progress',
           toolUseID: tileId,
@@ -864,6 +885,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             lastToolSummary,
             promptPreview: attemptPromptPreview,
             lastProgressAt: Date.now(),
+            usage: addWorkflowUsage(statics.carryover.usage, attemptUsage(attemptEnded)),
             ...extra,
           },
         })
@@ -981,8 +1003,10 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           }
           return
         }
-        if (m?.type === 'stream_request_start') awaitingFirstToken = true
-        else if (m !== undefined) awaitingFirstToken = false
+        if (m?.type === 'stream_request_start') {
+          awaitingFirstToken = true
+          requestInFlight = true
+        } else if (m !== undefined) awaitingFirstToken = false
         const now = Date.now()
         if (parked) {
           if (m?.type === 'progress') return
@@ -1014,11 +1038,20 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         : undefined
 
       const carry = statics.carryover
-      const settledTotals = (elapsed: number): Record<string, unknown> => ({
-        tokens: carry.tokens + tokens,
-        toolCalls: carry.toolCalls + toolCalls,
-        durationMs: carry.durationMs + elapsed,
-      })
+      const contextNow = (): number => {
+        const u = lastAssistant?.message.usage
+        if (lastAssistant?.isApiErrorMessage || !u) return tokens
+        const settled = getTokenCountFromUsage(u as unknown as Parameters<typeof getTokenCountFromUsage>[0])
+        return settled > tokens ? settled : tokens
+      }
+      const settledTotals = (elapsed: number): Record<string, unknown> => {
+        tokens = contextNow()
+        return {
+          tokens: carry.tokens + tokens,
+          toolCalls: carry.toolCalls + toolCalls,
+          durationMs: carry.durationMs + elapsed,
+        }
+      }
       const deliveredSettle = (elapsed: number): AttemptReport => {
         emitFrame('done', {
           ...settledTotals(elapsed),
@@ -1029,6 +1062,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           text: '',
           tokens,
           toolCalls,
+          usage: attemptUsage(true),
           stallCut: false,
           skipped: false,
           durationMs: elapsed,
@@ -1044,6 +1078,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           apiError: message,
           tokens,
           toolCalls,
+          usage: attemptUsage(true),
           stallCut: false,
           skipped: false,
           durationMs: elapsed,
@@ -1080,6 +1115,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           text,
           tokens,
           toolCalls,
+          usage: attemptUsage(true),
           stallCut: false,
           skipped: false,
           durationMs: elapsed,
@@ -1143,6 +1179,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
 
           sawAssistant = true
           awaitingFirstToken = false
+          requestInFlight = false
           conversation.push(ev)
           const a = ev as Extract<SubagentStreamEvent, { type: 'assistant' }>
           lastAssistant = a
@@ -1152,10 +1189,14 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
               terminal400 = errText || 'invalid request (deterministic 400)'
               abortWithCut(childAbort, 'terminal-400')
             }
-          } else if (a.message.usage) {
-            tokens = getTokenCountFromUsage(
-              a.message.usage as unknown as Parameters<typeof getTokenCountFromUsage>[0],
-            )
+          } else {
+            const responseKey = typeof a.message.id === 'string' ? a.message.id : `#${responses.size}`
+            responses.set(responseKey, a)
+            if (a.message.usage) {
+              tokens = getTokenCountFromUsage(
+                a.message.usage as unknown as Parameters<typeof getTokenCountFromUsage>[0],
+              )
+            }
           }
           let toolUsesHere = 0
           for (const block of a.message.content) {
@@ -1213,6 +1254,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             text: '',
             tokens,
             toolCalls,
+            usage: attemptUsage(true),
             stallCut: true,
             stallKind: cutReason,
             skipped: false,
@@ -1233,6 +1275,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             text: '',
             tokens,
             toolCalls,
+            usage: attemptUsage(true),
             stallCut: false,
             skipped: true,
             durationMs: elapsed,
@@ -1292,6 +1335,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           apiError,
           tokens,
           toolCalls,
+          usage: attemptUsage(true),
           stallCut: false,
           skipped: false,
           durationMs: elapsed,
@@ -1310,6 +1354,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         text: finalText,
         tokens,
         toolCalls,
+        usage: attemptUsage(true),
         stallCut: false,
         skipped: false,
         durationMs: elapsed,
@@ -1443,6 +1488,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           log(
             `[${label}] subagent stopped without calling ${STRUCTURED_OUTPUT_TOOL_NAME} — corrective re-prompt ${nudges}/${MAX_STRUCTURED_OUTPUT_NUDGES} (same conversation)`,
           )
+          foldIn(report)
           report = await attempt(
             `${label} (structured-output re-prompt ${nudges})`,
             1 + nudges,
@@ -1652,6 +1698,7 @@ interface AttemptReport {
   apiError?: string
   tokens: number
   toolCalls: number
+  usage: WorkflowUsageRollup
   durationMs: number
   stallCut: boolean
   stallKind?: 'stalled' | 'user-retry'
@@ -1673,7 +1720,7 @@ interface CallFrameStatics {
   effort: string | undefined
   queuedAt: number
   hasStructuredTool: boolean
-  carryover: { tokens: number; toolCalls: number; durationMs: number }
+  carryover: { tokens: number; toolCalls: number; durationMs: number; usage: WorkflowUsageRollup }
 }
 
 function toolInputGlance(input: unknown): string | undefined {

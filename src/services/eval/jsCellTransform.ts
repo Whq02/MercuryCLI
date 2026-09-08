@@ -280,6 +280,25 @@ function isCapturableExpression(segment: string): boolean {
   }
 }
 
+function directivePrologue(source: string): string {
+  const trivia = /^(?:\s+|\/\/[^\r\n]*(?:\r?\n|$)|\/\*[\s\S]*?\*\/)*/
+  let offset = 0
+  let end = 0
+  while (offset < source.length) {
+    offset += trivia.exec(source.slice(offset))![0].length
+    const literal = /^(?:"(?:[^"\\\r\n]|\\[\s\S])*"|'(?:[^'\\\r\n]|\\[\s\S])*')/.exec(source.slice(offset))
+    if (literal === null) break
+    const literalEnd = offset + literal[0].length
+    const gap = trivia.exec(source.slice(literalEnd))![0]
+    const rest = source.slice(literalEnd + gap.length)
+    if (rest.startsWith(';')) offset = literalEnd + gap.length + 1
+    else if (rest === '' || /[\r\n\u2028\u2029]/.test(gap) && (/^(?:\+\+|--)/.test(rest) || !/^(?:[.(\[`+\-*/%<>=?&|^,]|!=|in\b|instanceof\b)/.test(rest))) offset = literalEnd
+    else break
+    end = offset
+  }
+  return source.slice(0, end)
+}
+
 export function transformJsCell(source: string): TransformedCell {
   const segments = splitTopLevelSegments(source)
   const names: string[] = []
@@ -316,8 +335,8 @@ export function transformJsCell(source: string): TransformedCell {
     if (/^import\b/.test(effective)) {
       const rewritten = rewriteImport(effective)
       if (rewritten) {
-        out.push(leading + rewritten.code)
         names.push(...rewritten.names)
+        out.push(leading + rewritten.code + '\n')
         continue
       }
     }
@@ -338,7 +357,7 @@ export function transformJsCell(source: string): TransformedCell {
       out.push(text)
       continue
     }
-    if (i === lastCodeIndex && prevEndsCleanly && isCapturableExpression(effective)) {
+    if (i === lastCodeIndex && prevEndsCleanly && !(effective.startsWith('`') && prevCodeIndex >= 0 && !prev.endsWith(';')) && isCapturableExpression(effective)) {
       const expr = effective.replace(/;+\s*$/, '')
       out.push(`${leading}globalThis.__mercuryResult = (${expr});`)
       capturesResult = true
@@ -347,12 +366,10 @@ export function transformJsCell(source: string): TransformedCell {
     out.push(text)
   }
   const unique = [...new Set(names)].filter(n => /^[A-Za-z_$][\w$]*$/.test(n))
-  const exportTail =
-    unique.length > 0
-      ? `\n;(() => { ${unique.map(n => `try { globalThis.${n} = ${n}; } catch {}`).join(' ')} })();`
-      : ''
+  const persist = unique.map(n => `try { globalThis.${n} = ${n}; globalThis.__mercuryPersistedNames.push(${JSON.stringify(n)}); } catch {}`).join(' ')
+  const save = `__mercuryPersist${Math.abs(hashCode(source))}`
   return {
-    code: out.join('') + exportTail,
+    code: `${directivePrologue(source)}\nlet ${save};\ntry {\n${save} = () => { globalThis.__mercuryPersistedNames = []; ${persist} };\n${out.join('')}\n} finally { ${save}(); }`,
     persistedNames: unique,
     capturesResult,
   }

@@ -7,6 +7,7 @@ import { evaluateCapture } from './renderOracle.ts'
 import { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS, viewportFloorLine } from '../../src/ink/viewportFloor.ts'
 import { gridToPng } from './gridToPng.ts'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { describeCapturePreflight, preflightCaptureDriver } from '../lib/capturePreflight.ts'
 
 const driver = resolveCaptureDriver()
 const PYTE_PATH = (() => {
@@ -26,6 +27,13 @@ if (driver.kind !== 'posix-pty') {
       `On this host the driver is '${driver.kind}' — use the ConPTY lane (scripts/winreg) or the hosted windows-ui workflow.`,
   )
   process.exit(2)
+}
+{
+  const preflight = preflightCaptureDriver(driver, join(import.meta.dir, '..', '..'))
+  if (!preflight.ok) {
+    console.error(`render-tui: no capture engine — ${describeCapturePreflight(preflight)}`)
+    process.exit(2)
+  }
 }
 
 function arg(flag: string, def: string): string {

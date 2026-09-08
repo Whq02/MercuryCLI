@@ -7,6 +7,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getPlatform } from '../../utils/platform.js'
 import { exec } from '../../utils/Shell.js'
+import { scrubbedSessionEnvNotice } from '../shared/sessionEnvNotice.js'
 import type { ExecResult } from '../../utils/ShellCommand.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
@@ -96,6 +97,7 @@ function buildModelSchema() {
     description: z.string().optional().describe('A short description of what the command does, in active voice.'),
     run_in_background: semanticBoolean(z.boolean().optional()).describe('Set to true to run the command in the background and read its output later.'),
     dangerouslyDisableSandbox: semanticBoolean(z.boolean().optional()).describe('An explicit, dangerous override that runs the command without sandboxing.'),
+    inherit_session_env: semanticBoolean(z.boolean().optional()).describe("Set to true to hand the command the session's own MERCURY_* stamps (the values Mercury wrote on this process). By default they are scrubbed and the result names them; a proof or a build must not see them."),
   })
 }
 const modelInputSchema = lazySchema(buildModelSchema)
@@ -116,6 +118,7 @@ export type Out = {
   persistedOutputPath?: string
   persistedOutputSize?: number
   gitOperation?: unknown
+  scrubbedSessionEnv?: readonly string[]
 }
 
 
@@ -156,6 +159,7 @@ async function* runPowerShell(
 
   let progressResolve: (() => void) | null = null
   let latest = { recent: '', all: '', lines: 0, bytes: 0, incomplete: false }
+  let scrubbedSessionEnv: readonly string[] = []
 
   const powershellPath = await getCachedPowerShellPath()
   if (powershellPath === null) {
@@ -175,11 +179,13 @@ async function* runPowerShell(
       preventCwdChanges: !isMainThread,
       shouldUseSandbox: useSandbox,
       shouldAutoBackground,
+      inheritSessionEnv: input.inherit_session_env === true,
       onProgress: (recent, all, lines, bytes, incomplete) => {
         latest = { recent, all, lines, bytes: incomplete ? bytes : 0, incomplete }
         progressResolve?.()
       },
     })
+    scrubbedSessionEnv = shellCommand.scrubbedSessionEnv ?? []
   } catch (spawnError) {
     const message = errorMessage(spawnError)
     return await postProcess({
@@ -241,7 +247,7 @@ async function* runPowerShell(
       shellCommand.cleanup()
       return await postProcess(result)
     }
-    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: handle.taskId }
+    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: handle.taskId, scrubbedSessionEnv }
   }
 
   const completed = shellCommand.result.then(() => 'done' as const)
@@ -258,7 +264,7 @@ async function* runPowerShell(
     return await postProcess(result)
   }
   if (backgroundId !== undefined) {
-    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: backgroundId, assistantAutoBackgrounded, timeoutAutoBackgroundedAfterMs }
+    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: backgroundId, assistantAutoBackgrounded, timeoutAutoBackgroundedAfterMs, scrubbedSessionEnv }
   }
 
   TaskOutput.startPolling(shellCommand.taskOutput.taskId)
@@ -292,11 +298,11 @@ async function* runPowerShell(
         return {
           stdout: interruptBackgroundingStarted ? fullOutput : '',
           stderr: '', interrupted: false, backgroundTaskId: backgroundId,
-          assistantAutoBackgrounded, timeoutAutoBackgroundedAfterMs,
+          assistantAutoBackgrounded, timeoutAutoBackgroundedAfterMs, scrubbedSessionEnv,
         }
       }
       if (foregroundTaskId !== null && shellCommand.status === 'backgrounded') {
-        return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: foregroundTaskId, backgroundedByUser: true }
+        return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: foregroundTaskId, backgroundedByUser: true, scrubbedSessionEnv }
       }
 
       const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000)
@@ -348,7 +354,7 @@ async function* runPowerShell(
       return {
         stdout: result.stdout, stderr: [stderr].filter(Boolean).join('\n'), interrupted: false,
         backgroundTaskId: result.backgroundTaskId, backgroundedByUser: result.backgroundedByUser,
-        assistantAutoBackgrounded: result.assistantAutoBackgrounded, gitOperation,
+        assistantAutoBackgrounded: result.assistantAutoBackgrounded, gitOperation, scrubbedSessionEnv,
       }
     }
 
@@ -363,7 +369,7 @@ async function* runPowerShell(
     }
     if (interpretation.isError && !interruptedByUser) {
       const annotated = SandboxManager.annotateStderrWithSandboxFailures(input.command, out)
-      throw new ShellError(out, annotated, result.code, result.interrupted)
+      throw new ShellError(out, [annotated, scrubbedSessionEnvNotice(scrubbedSessionEnv)].filter(Boolean).join('\n'), result.code, result.interrupted)
     }
 
     let persistedOutputPath: string | undefined
@@ -394,6 +400,7 @@ async function* runPowerShell(
       stdout: formatOutput(out, { preExcerpted: result.outputFilePath !== undefined }).truncatedContent, stderr, interrupted: result.interrupted, isImage,
       returnCodeInterpretation: interpretation.message, gitOperation,
       ...(persistedOutputPath ? { persistedOutputPath, persistedOutputSize } : {}),
+      ...(scrubbedSessionEnv.length > 0 ? { scrubbedSessionEnv } : {}),
     }
   }
 }
@@ -415,7 +422,8 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
   let errorText = output.stderr.trimEnd()
   if (output.interrupted) errorText += `\n<error>The command was cut short before it finished.</error>`
   const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output) : ''
-  const content = [stdout, errorText, backgroundNotice].filter(p => p !== '').join('\n')
+  const scrubNotice = scrubbedSessionEnvNotice(output.scrubbedSessionEnv)
+  const content = [stdout, errorText, backgroundNotice, scrubNotice].filter(p => p !== '').join('\n')
   return { tool_use_id: toolUseID, type: 'tool_result', content, is_error: output.interrupted }
 }
 

@@ -54,7 +54,7 @@ import {
 } from './services/mcp/coordinationServer.js'
 import { clearBootAttempts } from './substrate/bootBeacon.js'
 import { addBootNote, collectLauncherNotes } from './substrate/bootNotes.js'
-import { flagEnv } from './substrate/flagRegistry.js'
+import { flagEnv, setFlagEnv } from './substrate/flagRegistry.js'
 import { recordInvocation } from './substrate/invocationRecord.js'
 import { recordLaunchMilestone } from './substrate/launchMilestones.js'
 import { markExplicitBootJourney, retractExplicitBootJourney } from './substrate/splashHandover.js'
@@ -568,8 +568,11 @@ async function run(): Promise<void> {
     .option('--betas <betas...>', 'Provider beta headers')
     .option('--fallback-model <model>', 'Fallback model when the primary is overloaded')
     .addOption(new Option('--workload <tag>', 'Workload tag').hideHelp())
+    .option('--project-root <directory>', 'Start in this project; place this option before all other arguments', () => {
+      throw new Error('--project-root must appear before all other arguments')
+    })
     .option('--settings <file-or-json>', 'Extra settings (path or inline JSON)')
-    .option('--add-dir <directories...>', 'Additional working directories')
+    .option('--add-dir <directories...>', "Additional working directories: each joins the session's scope for reads, writes and the shell's directory (a sibling worktree the session works in); /add-dir declares one in the session")
     .option('--ide', 'Auto-connect to the IDE')
     .option('--session-id <uuid>', 'Use a specific session id')
     .option('-n, --name <name>', 'Session title')
@@ -1090,7 +1093,7 @@ async function showAction(
         )
         process.exit(1)
       }
-      process.env.MERCURY_IMAGE_PROTOCOL = options.protocol
+      setFlagEnv('MERCURY_IMAGE_PROTOCOL', options.protocol)
     }
     {
       const { readSync: readBytes, openSync: openFd, closeSync: closeFd } = await import('node:fs')
@@ -1240,7 +1243,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
 
   if (opts.bare) {
-    process.env.MERCURY_BARE = '1'
+    setFlagEnv('MERCURY_BARE', '1')
   }
   let inputPrompt = inputPromptArg
   if (typedString(opts.prefill)) {
@@ -1332,6 +1335,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       process.stderr.write(`${refusal} (from settings.agent — running without it)\n`)
       logForDebugging(refusal)
     } else {
+      if (mainThreadAgentDefinition.agentType === 'mercury-reviewer') failCli('mercury-reviewer requires an isolated Agent dispatch with worktree_at and review_receipt')
       setMainThreadAgentType(requestedAgent)
       void import('./utils/sessionStorage.js')
         .then(storage => storage.saveAgentSetting(requestedAgent))

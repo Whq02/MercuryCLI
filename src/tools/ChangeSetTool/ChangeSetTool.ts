@@ -71,7 +71,7 @@ import {
 } from '../../utils/fileHistory.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { expandPath } from '../../utils/path.js'
-import { checkWritePermissionForTool, pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
+import { checkWritePermissionForTool, describeWriteScope, pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
 import {
   renderToolResultMessage,
@@ -651,7 +651,7 @@ async function runApply(
       op: 'apply',
       result:
         `Apply refused — ${lines.length} file(s) not writable:\n${lines.join('\n')}\n` +
-        'Nothing was written (a denied path refuses the WHOLE set). Add the directory with /add-dir or adjust permission rules, then re-apply.',
+        `Nothing was written (a denied path refuses the WHOLE set). ${outOfScope.length > 0 ? `${describeWriteScope(permCtx)} ` : ''}Add the directory with /add-dir or adjust permission rules, then re-apply.`,
       outcome: 'failed',
       planId: plan.id,
       effectOperation: 'file.changeSet',

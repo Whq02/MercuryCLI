@@ -62,12 +62,31 @@ function bridge(kind, payload) {
   })
 }
 
+// tool.attempt.Name(input) / tool.attempt('Name', input): the error as a
+// value — { ok: true, value } or { ok: false, error } — so a batch of calls
+// finishes and reports each outcome instead of failing whole at the first.
+function attemptCall(name, input) {
+  return bridge('tool', { name, input: input || {} }).then(
+    value => ({ ok: true, value }),
+    error => ({ ok: false, error: String(error && error.message !== undefined ? error.message : error) }),
+  )
+}
+const attempt = new Proxy(function () {}, {
+  apply(_target, _thisArg, args) {
+    return attemptCall(String(args[0]), args[1])
+  },
+  get(_target, name) {
+    if (typeof name !== 'string' || name.startsWith('_') || name === 'then') return undefined
+    return (input) => attemptCall(name, input)
+  },
+})
 const tool = new Proxy(function () {}, {
   apply(_target, _thisArg, args) {
     return bridge('tool', { name: String(args[0]), input: args[1] || {} })
   },
   get(_target, name) {
     if (typeof name !== 'string' || name.startsWith('_') || name === 'then') return undefined
+    if (name === 'attempt') return attempt
     return (input) => bridge('tool', { name, input: input || {} })
   },
 })
@@ -182,7 +201,7 @@ Object.assign(globalThis, {
 
 const AsyncFunction = (async () => {}).constructor
 
-async function runCell(id, code) {
+async function runCell(id, code, names) {
   currentCell = id
   execCount += 1
   emit({ t: 'started', id })
@@ -191,6 +210,7 @@ async function runCell(id, code) {
   cancelController = new AbortController()
   const signal = cancelController.signal
   try {
+    globalThis.__mercuryPersistedNames = []
     const fn = new AsyncFunction(code)
     await Promise.race([
       fn.call(globalThis),
@@ -209,12 +229,16 @@ async function runCell(id, code) {
       emit({ t: 'error', id, name: 'Interrupt', value: 'cell interrupted', traceback: '' })
     } else {
       status = 'error'
+      // Only bindings initialized by this cell count; an older global with
+      // the same name does not prove that this declaration initialized.
+      const survived = (Array.isArray(names) ? names : []).filter(n => globalThis.__mercuryPersistedNames.includes(n))
       emit({
         t: 'error',
         id,
         name: (error && error.constructor && error.constructor.name) || 'Error',
         value: String((error && error.message) !== undefined ? error.message : error).slice(0, 2000),
         traceback: String((error && error.stack) || '').slice(0, 8000),
+        survived,
       })
     }
   } finally {
@@ -271,7 +295,7 @@ async function pump() {
       globalThis.env = Object.freeze(Object.assign({}, process.env))
       emit({ t: 'ready' })
     } else if (msg.t === 'exec') {
-      await runCell(String(msg.id), String(msg.code))
+      await runCell(String(msg.id), String(msg.code), msg.names)
     } else if (msg.t === 'bye') {
       process.exit(0)
     }

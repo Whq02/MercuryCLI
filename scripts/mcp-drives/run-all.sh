@@ -3,7 +3,8 @@
 # gate-watch: src/bootstrap/state* src/services/mcp/** src/state/AppState* src/utils/Shell*
 # gate-watch: src/utils/config/** src/utils/mcp/elicitationValidation*
 set -u
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 
 cd "$(dirname "$0")/../.." || exit 1
 bun="${BUN:-$HOME/.bun/bin/bun}"
@@ -23,13 +24,13 @@ while IFS= read -r name; do
     continue
   fi
   echo "── mcp-drives: $name"
-  __t=$SECONDS
+  __t=$SECONDS; __rc=0
   case "$name" in
-    (*.py) /usr/bin/python3 "$f" || failed=1 ;;
-    (*.sh) bash "$f" || failed=1 ;;
-    (*) "$bun" "$f" || failed=1 ;;
+    (*.py) /usr/bin/python3 "$f" || { __rc=$?; failed=1; } ;;
+    (*.sh) bash "$f" || { __rc=$?; failed=1; } ;;
+    (*) "$bun" "$f" || { __rc=$?; failed=1; } ;;
   esac
-  prover_mark "$f" "$__t"
+  prover_mark "$f" "$__t" "$__rc"
 done < "$here/members.txt"
 
 exit "$failed"

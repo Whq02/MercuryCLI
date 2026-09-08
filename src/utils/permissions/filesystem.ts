@@ -95,6 +95,11 @@ export function allWorkingDirectories(context: ToolPermissionContext): Set<strin
   return dirs
 }
 
+export function describeWriteScope(context: ToolPermissionContext): string {
+  const dirs = [...allWorkingDirectories(context)]
+  return `The session's write scope is ${dirs.map(d => `${d}${d === getOriginalCwd() ? ' (the launch directory)' : ''}`).join(', ')}; a directory joins it with /add-dir <dir> in the session or --add-dir <dir> at launch.`
+}
+
 export function pathInWorkingPath(path: string, workingPath: string): boolean {
   const rel = relativePath(normalizeForWorkingDirCompare(workingPath), normalizeForWorkingDirCompare(path))
   if (rel === '') return true

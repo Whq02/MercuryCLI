@@ -21,7 +21,20 @@ async function main(): Promise<void> {
     return
   }
 
-  if (args.length === 0 && process.stdout.isTTY) {
+  const hasProjectRoot = args[0] === '--project-root' || args[0]?.startsWith('--project-root=')
+  if (hasProjectRoot) {
+    try {
+      const { applyProjectRoot } = await import('./projectRoot.js')
+      applyProjectRoot(process.argv)
+      args.splice(0, args.length, ...process.argv.slice(2))
+    } catch (error) {
+      console.error(`Project root: ${error instanceof Error ? error.message : String(error)}`)
+      process.exitCode = 1
+      return
+    }
+  }
+
+  if (args.length === 0 && process.stdout.isTTY && !hasProjectRoot) {
     if (
       process.platform === 'win32' &&
       process.env.MERCURY_WIN32_UTF8 !== '0' &&
