@@ -165,7 +165,7 @@ section('§4 the entry seam — the direct road runs before the receipt consumer
   check('the cli entry calls the direct-splash owner', direct !== -1)
   check('…after the zero-import --version fast path', versionFast !== -1 && versionFast < direct)
   check('…before the splash-handover consumer (the consumer then runs unchanged)', consumer !== -1 && direct < consumer)
-  check('…gated on the bare line and a TTY stdout before any import', /if \(args\.length === 0 && process\.stdout\.isTTY\) \{\s*\n[\s\S]{0,900}?runDirectSplash\(/.test(cli))
+  check('the direct splash requires a bare interactive launch without a declared project root', /if \(args\.length === 0 && process\.stdout\.isTTY && !hasProjectRoot\) \{\s*\n[\s\S]{0,900}?runDirectSplash\(/.test(cli))
   check('…and a cancelled enter screen stands the boot down (exit 0)', /splash\.verdict === 'cancel'[\s\S]{0,400}?\n\s*return\n/.test(cli))
   const altHold = cli.indexOf("import('../ink/launcherAltHold.js')")
   check('the alt-hold consumer is imported only after the direct road (its marker is read at module evaluation)', altHold === -1 || altHold > direct)

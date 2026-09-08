@@ -580,7 +580,7 @@
     },
     {
       "file": "scripts/gate/prove-proof-exit-marks.ts",
-      "line": 48,
+      "line": 82,
       "mechanism": "shell-dash-c",
       "excerpt": "const result = spawnSync('bash', ['-c', '. \"$1\"; run_proof \"scripts/example/prove-silent.ts\" bash -c \"exit $2\"', 'test', helper, String(code",
       "cls": "intentional-shell",

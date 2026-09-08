@@ -12,8 +12,8 @@ echo "############################################################"
 if [ ! -f "$here/../../dist/mercury.mjs" ]; then
   echo "# ⚠ dist/mercury.mjs absent — skipping (build first to exercise this gate)"
 else
-  bun=run_proof "$bun" "${BUN:-$HOME/.bun/bin/bun}"
-  "$bun" run "$here/prove-cli-verb-honesty.ts" || fail=1
+  bun="${BUN:-$HOME/.bun/bin/bun}"
+  run_proof "$here/prove-cli-verb-honesty.ts" "$bun" run "$here/prove-cli-verb-honesty.ts" || fail=1
   run_proof "$here/prove-mcp-verbs-truthful.ts" "$bun" run "$here/prove-mcp-verbs-truthful.ts" || fail=1
   run_proof "$here/prove-show-and-polyglot-honest.ts" "$bun" run "$here/prove-show-and-polyglot-honest.ts" || fail=1
   run_proof "$here/prove-headless-resume-honest.ts" "$bun" run "$here/prove-headless-resume-honest.ts" || fail=1

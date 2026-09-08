@@ -14,11 +14,11 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-current-work.ts" || { __rc=$?; fai
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-delivery-artifact.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-delivery-artifact.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-brief.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-brief.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-parity.ts" "$__t" "$__rc"
-"$bun" run "$here/journey-j1.ts" || { __rc=$?; fail=1; }
-"$bun" run "$here/journey-j2.ts" || { __rc=$?; fail=1; }
-"$bun" run "$here/journey-j3.ts" || { __rc=$?; fail=1; }
-"$bun" run "$here/journey-j4.ts" || { __rc=$?; fail=1; }
-"$bun" run "$here/journey-j5.ts" || { __rc=$?; fail=1; }
+__t=$SECONDS; __rc=0; "$bun" run "$here/journey-j1.ts" || { __rc=$?; fail=1; }; prover_mark "$here/journey-j1.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/journey-j2.ts" || { __rc=$?; fail=1; }; prover_mark "$here/journey-j2.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/journey-j3.ts" || { __rc=$?; fail=1; }; prover_mark "$here/journey-j3.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/journey-j4.ts" || { __rc=$?; fail=1; }; prover_mark "$here/journey-j4.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/journey-j5.ts" || { __rc=$?; fail=1; }; prover_mark "$here/journey-j5.ts" "$__t" "$__rc"
 for j in J1 J2 J3 J4 J5; do
   r="${TMPDIR:-/tmp}/momentum-report-${j}.json"
   if [ ! -s "$r" ]; then

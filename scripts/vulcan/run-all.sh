@@ -16,11 +16,11 @@ echo "############################################################"
 
 echo
 echo ">>> regen-optable --check"
-node "$here/regen-optable.mjs" --check || { __rc=$?; fail=1; }
+__t=$SECONDS; __rc=0; node "$here/regen-optable.mjs" --check || { __rc=$?; fail=1; }; prover_mark "$here/regen-optable.mjs" "$__t" "$__rc"
 
 echo
 echo ">>> regen-addon --check"
-node "$here/regen-addon.mjs" --check || { __rc=$?; fail=1; }
+__t=$SECONDS; __rc=0; node "$here/regen-addon.mjs" --check || { __rc=$?; fail=1; }; prover_mark "$here/regen-addon.mjs" "$__t" "$__rc"
 
 shopt -s nullglob
 for proof in "$here"/prove-*.ts; do

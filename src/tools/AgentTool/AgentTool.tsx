@@ -134,6 +134,7 @@ export type AgentToolInput = {
   mode?: string
   isolation?: 'worktree'
   worktree_at?: string
+  review_receipt?: string
   output_schema?: Record<string, unknown>
   schema_mode?: 'permissive' | 'strict'
   cwd?: string
@@ -210,6 +211,7 @@ export const inputSchema = lazySchema(() => {
       .describe(
         "With isolation 'worktree': pin the worktree to this commit, detached — the agent reads a frozen tree no later commit or edit can move (a reviewer reads exactly the reviewed commit). The spelling must resolve to a commit in the repository.",
       ),
+    review_receipt: z.string().optional().describe('Required for mercury-reviewer: the existing Markdown report whose Review section may be edited.'),
     output_schema: z
       .record(z.string(), z.unknown())
       .optional()
@@ -468,6 +470,7 @@ export const AgentTool = buildTool({
 
     if (teamName && input.name) {
       const requestedType = decodeAgentType(input.subagent_type)
+      if (requestedType === 'mercury-reviewer') throw new Error('mercury-reviewer must run as an isolated sub-agent, not a teammate')
       const definitions = options.agentDefinitions?.activeAgents ?? []
       const teammateDefinition = definitions.find(
         agent => agent.agentType === requestedType,
@@ -631,6 +634,10 @@ export const AgentTool = buildTool({
           plan.shouldRunAsync,
         )
 
+    if (agentDef.agentType === 'mercury-reviewer' && (!input.review_receipt || !input.worktree_at || plan.isolation !== 'worktree' || input.cwd !== undefined)) {
+      throw new Error('mercury-reviewer requires review_receipt and worktree_at with worktree isolation, without a cwd override.')
+    }
+
     if (plan.isolation === 'worktree') {
       const capability = preflightWorktreeCapability()
       if (!capability.available) {
@@ -780,6 +787,7 @@ export const AgentTool = buildTool({
           }
         : {}),
       ...(worktreeInfo ? { worktreePath: worktreeInfo.worktreePath } : {}),
+      ...(agentDef.agentType === 'mercury-reviewer' ? { reviewReceipt: input.review_receipt } : {}),
       description: input.description,
       onWait: line => setAgentWaitLine(earlyAgentId, line, rootSetAppState),
       onPendingAsks: count => setAgentPendingAsks(earlyAgentId, count, rootSetAppState),

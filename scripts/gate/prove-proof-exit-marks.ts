@@ -43,6 +43,40 @@ try {
   }
   const channels = spawnSync('bash', [join(root, 'scripts/channels/run-all.sh')], { cwd: root, env: env(23), encoding: 'utf8', timeout: 10000 })
   check('a failed first command in a chained condition keeps its original code', marks(channels.stdout).length === 3 && marks(channels.stdout).every(row => row.code === 23))
+  const estate = join(scratch, 'estate')
+  mkdirSync(join(estate, 'scripts/lib'), { recursive: true })
+  mkdirSync(join(estate, 'dist'))
+  writeFileSync(join(estate, 'dist/mercury.mjs'), '')
+  for (const file of ['suite-env.sh', 'proof-runner.sh']) writeFileSync(join(estate, 'scripts/lib', file), readFileSync(join(root, 'scripts/lib', file)))
+  const fixture = '#!/bin/sh\nfor arg in "$@"; do\n  case "$arg" in */journey-j[1-5].ts) n="${arg##*/journey-j}"; n="${n%.ts}"; printf "{}\\n" > "$TMPDIR/momentum-report-J$n.json";; esac\ndone\nprintf "FAIL  diagnostic wording is not the result\\n"\nexit "$PROOF_FIXTURE_RC"\n'
+  const nodeStub = join(scratch, 'node')
+  writeFileSync(nodeStub, fixture)
+  chmodSync(nodeStub, 0o755)
+  writeFileSync(stub, fixture)
+  for (const [name, count, files] of [
+    ['smoke', 7, []],
+    ['golden-journeys', 9, []],
+    ['node-runtime', 11, ['qualify-artifact.sh']],
+    ['splash', 8, []],
+    ['vulcan', 4, ['prove-fixture.ts', 'prove-addon-compiles.sh']],
+    ['blender-bridge', 2, ['prove-fixture.ts', 'regen-bridge.mjs']],
+    ['unity-bridge', 2, ['prove-fixture.ts', 'regen-bridge.mjs']],
+    ['project-services', 4, ['prove-fixture.ts']],
+  ] as const) {
+    const dir = join(estate, 'scripts', name)
+    mkdirSync(dir)
+    const runner = join(dir, 'run-all.sh')
+    writeFileSync(runner, readFileSync(join(root, 'scripts', name, 'run-all.sh')))
+    for (const file of files) writeFileSync(join(dir, file), fixture)
+    for (const code of [0, 29]) {
+      const result = spawnSync('bash', [runner], { cwd: estate, env: { ...env(code), TMPDIR: scratch }, encoding: 'utf8', timeout: 10000 })
+      const rows = marks(result.stdout)
+      check(`${name}: every individual command records code ${code}`, rows.length === count && rows.every(row => row.code === code))
+      check(`${name}: individual checks retain the suite result for code ${code}`, result.status === (code === 0 ? 0 : 1))
+    }
+  }
+  const spinner = spawnSync('bash', [join(root, 'scripts/pulse/spinner/run-all.sh')], { cwd: root, env: { ...env(7), UI_RENDER: '1' }, encoding: 'utf8', timeout: 10000 })
+  check('the nested spinner runner names its real renderer and records its result', spinner.status === 1 && marks(spinner.stdout).length === 4 && marks(spinner.stdout).some(row => row.path === 'scripts/pulse/spinner/render-pulse-byline.tsx' && row.code === 7))
   const helper = join(root, 'scripts/lib/proof-runner.sh')
   for (const code of [0, 3, 19, 143]) {
     const result = spawnSync('bash', ['-c', '. "$1"; run_proof "scripts/example/prove-silent.ts" bash -c "exit $2"', 'test', helper, String(code)], { encoding: 'utf8' })

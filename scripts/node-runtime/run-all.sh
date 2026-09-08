@@ -24,7 +24,7 @@ done
 if [[ -f "$root/dist/mercury.mjs" ]]; then
   echo ""
   echo "▶ qualify-artifact (expect-supported, ambient node)"
-  bash "$here/qualify-artifact.sh" "$root/dist/mercury.mjs" expect-supported || { __rc=$?; fail=1; }
+  __t=$SECONDS; __rc=0; bash "$here/qualify-artifact.sh" "$root/dist/mercury.mjs" expect-supported || { __rc=$?; fail=1; }; prover_mark "$here/qualify-artifact.sh" "$__t" "$__rc"
 else
   echo "  [SKIP] dist/mercury.mjs absent — the pooled gate prebuilds it"
 fi

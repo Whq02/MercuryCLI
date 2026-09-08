@@ -9,6 +9,6 @@ run_proof scripts/pulse/spinner/prove-stall-honesty.ts "$BUN" run scripts/pulse/
 run_proof scripts/pulse/spinner/prove-display-dwell.ts "$BUN" run scripts/pulse/spinner/prove-display-dwell.ts || fail=1
 run_proof scripts/pulse/spinner/prove-byline-priority.ts "$BUN" run scripts/pulse/spinner/prove-byline-priority.ts || fail=1
 if [[ "${UI_RENDER:-}" == "1" ]]; then
-  run_proof scripts/pulse/spinner/render-pulse-byline.ts "$BUN" run scripts/pulse/spinner/render-pulse-byline.tsx || fail=1
+  run_proof scripts/pulse/spinner/render-pulse-byline.tsx "$BUN" run scripts/pulse/spinner/render-pulse-byline.tsx || fail=1
 fi
 exit "$fail"
