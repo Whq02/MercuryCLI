@@ -159,6 +159,17 @@ try {
   }
   check('the claimed session settled its turn', await untilAsync(() => settled(claimed.sessionId), 60_000))
   check('the cold session settled its turn', await untilAsync(() => settled(cold.sessionId), 60_000))
+  const rows = (sid: string): number => {
+    const path = transcriptOf(sid)
+    return path === null ? -1 : readFileSync(path, 'utf8').split('\n').filter(Boolean).length
+  }
+  let seen: [number, number] = [-2, -3]
+  check('both transcripts are complete and equal in length', await untilAsync(() => {
+    const now: [number, number] = [rows(claimed.sessionId), rows(cold.sessionId)]
+    const stable = now[0] > 0 && now[0] === now[1] && now[0] === seen[0] && now[1] === seen[1]
+    seen = now
+    return stable
+  }, 20_000), `claimed ${seen[0]} rows, cold ${seen[1]} rows`)
 
   const tClaimed = normalize(readFileSync(transcriptOf(claimed.sessionId) ?? '/nonexistent', 'utf8'))
   const tCold = normalize(readFileSync(transcriptOf(cold.sessionId) ?? '/nonexistent', 'utf8'))
