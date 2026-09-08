@@ -5,6 +5,7 @@ import type { Attachment } from '../../../utils/attachments/types.js'
 import { createAttachmentMessage } from '../../../utils/attachments/orchestrator.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { armToolRosterRestore, conversationRosterKey, toolRosterLatchFor } from '../toolEconomy.js'
+import { getConversationToolSchemas } from '../../../utils/toolSchemaCache.js'
 
 export interface BoundPrefixRecordData {
   boundKey: string
@@ -41,7 +42,8 @@ export async function buildBoundPrefixRecordData(
   const boundKey = conversationRosterKey(rosterOwnerKey, messages, model)
   const latch = toolRosterLatchFor(rosterOwnerKey, messages, model)
   if (latch === undefined) return null
-  const roster: BoundPrefixToolMark[] = latch.names.map(name => ({ name, deferred: latch.deferred.has(name) }))
+  const definitions = getConversationToolSchemas(boundKey)
+  const roster: BoundPrefixToolMark[] = latch.names.map(name => ({ name, deferred: latch.deferred.has(name), ...(definitions.has(name) ? { definition: definitions.get(name)! } : {}) }))
   const sections: BoundPrefixSection[] = []
   for (const [name, entry] of getSystemPromptSectionCache()) {
     sections.push({ name, key: entry.key, value: entry.value })
@@ -50,7 +52,7 @@ export async function buildBoundPrefixRecordData(
   return { boundKey, rosterEnabled: latch.enabled, roster, sections, systemContext }
 }
 
-const emittedKeys = new Set<string>()
+const emittedKeys = new Map<string, string>()
 
 export function resetBoundPrefixEmitted(): void {
   emittedKeys.clear()
@@ -63,9 +65,11 @@ export async function boundPrefixRecordToEmit(
 ): Promise<AttachmentMessage | null> {
   const data = await buildBoundPrefixRecordData(rosterOwnerKey, messages, model)
   if (data === null) return null
-  if (emittedKeys.has(data.boundKey)) return null
-  emittedKeys.add(data.boundKey)
-  if (boundPrefixRecordExists(messages, data.boundKey)) return null
+  const signature = JSON.stringify(data)
+  if (emittedKeys.get(data.boundKey) === signature) return null
+  emittedKeys.set(data.boundKey, signature)
+  const recorded = [...messages].reverse().map(boundPrefixAttachmentOf).find(record => record?.boundKey === data.boundKey)
+  if (recorded != null && JSON.stringify({ boundKey: recorded.boundKey, rosterEnabled: recorded.rosterEnabled, roster: recorded.roster, sections: recorded.sections, systemContext: recorded.systemContext }) === signature) return null
   return createAttachmentMessage({
     type: 'bound_prefix',
     boundKey: data.boundKey,
@@ -94,7 +98,17 @@ export function restoreBoundPrefixFromMessages(messages: readonly Message[]): st
   const roster = Array.isArray(record.roster) ? (record.roster as BoundPrefixToolMark[]) : []
   const marks = roster
     .filter(mark => typeof mark?.name === 'string')
-    .map(mark => ({ name: mark.name, deferred: mark.deferred === true }))
+    .map(mark => {
+      if (typeof mark.definition === 'string') {
+        try {
+          const definition = JSON.parse(mark.definition) as { name?: unknown; input_schema?: unknown } | null
+          if (definition !== null && definition.name === mark.name && typeof definition.input_schema === 'object' && definition.input_schema !== null) {
+            return { name: mark.name, deferred: mark.deferred === true, definition: mark.definition }
+          }
+        } catch {}
+      }
+      return { name: mark.name, deferred: mark.deferred === true }
+    })
   armToolRosterRestore({ key: boundKey, enabled: record.rosterEnabled === true, marks })
 
   const systemContext = record.systemContext

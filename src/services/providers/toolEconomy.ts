@@ -3,6 +3,7 @@ import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { formatDeferredToolLine, isDeferredTool, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { clearConversationToolSchemas, getConversationToolSchemas } from '../../utils/toolSchemaCache.js'
 import { createUserMessage } from '../../utils/messages.js'
 import {
   extractDiscoveredToolNames,
@@ -33,6 +34,7 @@ interface RosterLatch {
 const rosterLatches = new Map<string, RosterLatch>()
 
 export function clearToolRosterLatches(owner?: string): void {
+  clearConversationToolSchemas(owner)
   if (owner === undefined) {
     rosterLatches.clear()
     return
@@ -46,7 +48,7 @@ export function clearToolRosterLatches(owner?: string): void {
 export interface RosterRestore {
   key: string
   enabled: boolean
-  marks: Array<{ name: string; deferred: boolean }>
+  marks: Array<{ name: string; deferred: boolean; definition?: string }>
 }
 let armedRosterRestore: RosterRestore | null = null
 
@@ -69,7 +71,8 @@ function seedRosterLatchFromRestore(latchKey: string, restore: RosterRestore, to
   const deferred = new Set<string>()
   const missingBound: string[] = []
   for (const mark of restore.marks) {
-    const tool = byName.get(mark.name)
+    if (mark.definition !== undefined) getConversationToolSchemas(latchKey).set(mark.name, mark.definition)
+    const tool = byName.get(mark.name) ?? (mark.definition !== undefined ? { name: mark.name } as Tool : undefined)
     if (tool === undefined) {
       if (!mark.deferred) missingBound.push(mark.name)
       continue
@@ -111,6 +114,7 @@ export function toolRosterLatchFor(
 
 export interface ToolPayloadPlan {
   enabled: boolean
+  conversationKey?: string
   wireForm: DeferralWireForm
   wireWhy: DeferralWireVerdict['why']
   roster: Tools
@@ -219,6 +223,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
 
   return {
     enabled,
+    ...(latchKey !== null ? { conversationKey: latchKey } : {}),
     wireForm: wire.form,
     wireWhy: wire.why,
     roster,

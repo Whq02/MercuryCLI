@@ -564,11 +564,12 @@ async function* queryModel(
     filteredTools.map(tool =>
       toolToAPISchema(tool, {
         getToolPermissionContext: options.getToolPermissionContext,
-        tools,
+        tools: filteredTools,
         agents: options.agents,
         allowedAgentTypes: options.allowedAgentTypes,
         model: options.model,
         deferLoading: willDefer(tool),
+        conversationKey: plan.conversationKey,
       }),
     ),
   )

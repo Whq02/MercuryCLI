@@ -33,7 +33,7 @@ import { getPlan, getPlanFilePath } from './plans.js'
 import { getPlatform } from './platform.js'
 import { countFilesRoundedRg } from './ripgrep.js'
 import { jsonStringify } from './slowOperations.js'
-import { getToolSchemaCache } from './toolSchemaCache.js'
+import { getConversationToolSchemas, getToolSchemaCache } from './toolSchemaCache.js'
 import { windowsPathToPosixPath } from './windowsPaths.js'
 import type { Tool, Tools, ToolPermissionContext } from '../Tool.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
@@ -206,13 +206,20 @@ export async function toolToAPISchema(
     model?: string
     deferLoading?: boolean
     cacheControl?: unknown
+    conversationKey?: string
   },
 ): Promise<ApiToolUnion> {
+  const snapshots = options.conversationKey === undefined ? undefined : getConversationToolSchemas(options.conversationKey)
+  const previous = snapshots?.get(tool.name)
+  if (previous !== undefined) {
+    return { ...JSON.parse(previous), ...(options.cacheControl !== undefined ? { cache_control: options.cacheControl } : {}) } as ApiToolUnion
+  }
   const cache = getToolSchemaCache()
   const promptModel = options.model ?? getMainLoopModel()
   const caps = resolveModelCapabilities(promptModel)
   const fingerprint = `${declaredRouteOf(promptModel) ?? 'unrecognised'}:${caps.media.pdf ? 'p' : ''}${caps.media.images ? 'i' : ''}:${deferralWireFormFor(promptModel).form}`
-  const key = `${toolCacheKey(tool)}@${fingerprint}`
+  const pool = options.tools.map(item => item.name).sort().join(',')
+  const key = `${toolCacheKey(tool)}@${fingerprint}|${pool}`
   let base = cache.get(key)
   if (base === undefined) {
     const description = await tool.prompt({
@@ -236,7 +243,7 @@ export async function toolToAPISchema(
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const schema: Record<string, any> = {
+  let schema: Record<string, any> = {
     name: base.name,
     description: base.description,
     input_schema: base.input_schema,
@@ -258,7 +265,7 @@ export async function toolToAPISchema(
     const extraKeys = Object.keys(schema).filter(k => !allowed.has(k))
     if (extraKeys.length > 0) {
       logStrippedFieldsOnce(extraKeys)
-      return {
+      schema = {
         name: schema.name,
         description: schema.description,
         input_schema: schema.input_schema,
@@ -269,6 +276,11 @@ export async function toolToAPISchema(
           schema.defer_loading && { defer_loading: true }),
       } as unknown as ApiToolUnion
     }
+  }
+  if (snapshots !== undefined) {
+    const { cache_control, ...definition } = schema
+    if (!snapshots.has(tool.name)) snapshots.set(tool.name, JSON.stringify(definition))
+    return { ...JSON.parse(snapshots.get(tool.name)!), ...(options.cacheControl !== undefined ? { cache_control: options.cacheControl } : {}) } as ApiToolUnion
   }
   return schema as unknown as ApiToolUnion
 }
