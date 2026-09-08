@@ -147,30 +147,43 @@ const PAIRING_COMPLAINTS: readonly RegExp[] = [
   /\bduplicate\b[^.]{0,60}\b(?:call_id|call id|function call id|tool_call_id)\b/i,
 ]
 
-function providerWordsOf(row: AssistantMessage): string {
+function providerSentencesOf(row: AssistantMessage): Array<{ words: string; status?: number }> {
+  const out: Array<{ words: string; status?: number }> = []
+  if (typeof row.errorDetails === 'string' && row.errorDetails.trim() !== '') out.push({ words: row.errorDetails })
   const text = getAssistantMessageText(row) ?? ''
   const prefix = `${API_ERROR_MESSAGE_PREFIX}: `
-  const words = text.startsWith(prefix) ? text.slice(prefix.length) : text
+  let words = text.startsWith(prefix) ? text.slice(prefix.length) : text
+  let status: number | undefined
+  const spelled = /^(\d{3})\s+/.exec(words)
+  if (spelled) {
+    status = Number(spelled[1])
+    words = words.slice(spelled[0].length)
+  }
   const body = words.indexOf('{')
   if (body >= 0) {
     try {
       const parsed = JSON.parse(words.slice(body)) as { error?: { message?: unknown }; message?: unknown }
       const message = parsed.error?.message ?? parsed.message
-      if (typeof message === 'string' && message.trim() !== '') return message
+      if (typeof message === 'string' && message.trim() !== '') words = message
     } catch {
     }
   }
-  return words
+  out.push(status !== undefined ? { words, status } : { words })
+  return out
 }
 
 export function malformedHistoryRefusalOf(row: AssistantMessage): string | null {
   if (row.isApiErrorMessage !== true) return null
   if (overflowSignalOf(row) !== null) return null
   const text = getAssistantMessageText(row) ?? ''
-  if (row.error !== 'invalid_request' && !/\binvalid_request_error\b/.test(text)) return null
-  const words = providerWordsOf(row)
-  if (!PAIRING_COMPLAINTS.some(complaint => complaint.test(words))) return null
-  return words
+  const sentences = providerSentencesOf(row)
+  const invalidRequest =
+    row.error === 'invalid_request' ||
+    /\binvalid_request_error\b/.test(text) ||
+    sentences.some(sentence => sentence.status === 400)
+  if (!invalidRequest) return null
+  const complaint = sentences.find(sentence => PAIRING_COMPLAINTS.some(pattern => pattern.test(sentence.words)))
+  return complaint === undefined ? null : complaint.words
 }
 
 export function compactionRefusedForHistoryText(providerWords: string, opts: { nonInteractive: boolean }): string {
@@ -732,6 +745,15 @@ async function summarizeViaCacheSharingFork(
       recordFoldRoad(model, 'fork', startedAt, 'overflow')
       return last
     }
+    if (last !== undefined) {
+      const malformed = malformedHistoryRefusalOf(last)
+      if (malformed !== null) {
+        recordFoldRoad(model, 'fork', startedAt, 'refused', malformed.slice(0, 160))
+        throw new CompactionRefusedForHistoryError(malformed, {
+          nonInteractive: context.options.isNonInteractiveSession === true,
+        })
+      }
+    }
     if (last !== undefined) learnsPerMessageEffortRefusal(last, model)
     logForDebugging(`compact: fork path produced no usable summary: ${JSON.stringify(result.messages).slice(0, 500)}`, {
       level: 'warn',
@@ -739,6 +761,7 @@ async function summarizeViaCacheSharingFork(
     recordFoldRoad(model, 'fork', startedAt, 'handover', 'no usable summary')
     return null
   } catch (err) {
+    if (err instanceof CompactionRefusedForHistoryError) throw err
     const elapsedMs = Date.now() - startedAt
     if (bound.hitDeadline()) {
       logForDebugging(`compact: fork lane hit its fold bound after ${elapsedMs} ms — handing over to the direct call`, { level: 'warn' })

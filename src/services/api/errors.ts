@@ -581,6 +581,7 @@ function composeAssistantMessageFromError(
     return createAssistantAPIErrorMessage({
       content: nonInteractive ? base : `${base} Run /rewind to recover from an earlier point.`,
       error: 'invalid_request',
+      errorDetails: message,
     })
   }
 
