@@ -24,7 +24,7 @@ function gitGrep(args: string[]): string {
   ok('no src/ module references glassbird', hits.trim() === '', hits.trim().slice(0, 200))
 }
 {
-  const hits = gitGrep(['-i', 'HERMES_GLASSBIRD', '--', 'src/substrate/flagRegistry.ts'])
+  const hits = gitGrep(['-i', 'GLASSBIRD', '--', 'src/substrate/flagRegistry.ts'])
   ok('no glassbird flag in the runtime registry (overlay seam is scripts-side only)', hits.trim() === '')
 }
 {

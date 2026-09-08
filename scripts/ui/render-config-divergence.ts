@@ -15,7 +15,7 @@ const t = (name: string, ok: boolean, detail = '') => {
   if (!ok) fail = 1
 }
 
-const tmp = mkdtempSync(join(tmpdir(), 'hermes-cfg-'))
+const tmp = mkdtempSync(join(tmpdir(), 'mercury-cfg-'))
 seedFirstRun(tmp, [REPO])
 
 const png = join(tmp, 'divergent-80.png')

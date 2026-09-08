@@ -32,7 +32,7 @@
                                                                        │ ENVIRONMENT                                │
                                                                        │ Mercury    fable                           │
                                                                        │ Theme      Crab                            │
-                                                                       │ Dir        hermes                          │
+                                                                       │ Dir        orchard                         │
                                                                        ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
    │ ● System ready  │  2 agents active — a create lands in every session, running ones included                    │

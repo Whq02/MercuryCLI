@@ -75,7 +75,7 @@ section('cardPromoteGate — structural accept criterion (pure)')
 
   const noApplies = cardPromoteGate(md({ scope: 'regime-specific' }), [])
   check('(c) regime-specific w/o Applies-when ⇒ refused', noApplies.ok === false && /Applies when/.test((noApplies as { reason: string }).reason))
-  const withApplies = cardPromoteGate(md({ scope: 'regime-specific', appliesWhen: 'inside the hermes-orchard fork' }), [])
+  const withApplies = cardPromoteGate(md({ scope: 'regime-specific', appliesWhen: 'inside the orchard project' }), [])
   check('(c) regime-specific WITH Applies-when ⇒ PASS', withApplies.ok === true)
 
   const cand = md({ scope: 'general', problemClass: 'dup-class', lesson: 'the exact same transferable lesson body, verbatim and identical.' })
@@ -102,7 +102,7 @@ section('promoteCardMarkdown — surgical candidate→approved flip')
 
 section('promoteExperienceCard — end-to-end, gate ON')
 {
-  const dir = mkdtempSync(join(tmpdir(), 'hermes-promote-'))
+  const dir = mkdtempSync(join(tmpdir(), 'mercury-promote-'))
   const candPath = join(dir, 'live-demo.md')
   writeFileSync(candPath, md({ name: 'live-demo', scope: 'general', problemClass: 'live-class', lesson: 'a clean, fresh, transferable lesson ready for promotion in this proof.' }))
   writeFileSync(join(dir, 'MEMORY.md'), '# Memory index\n\n- [Live demo](live-demo.md) — experience-card (candidate): a clean lesson\n')
@@ -127,7 +127,7 @@ section('promoteExperienceCard — end-to-end, gate ON')
 section('OFF (MERCURY_CARD_PROMOTE_GATE=0) — bare flip, gate never consulted')
 {
   process.env.MERCURY_CARD_PROMOTE_GATE = '0'
-  const dir = mkdtempSync(join(tmpdir(), 'hermes-promote-off-'))
+  const dir = mkdtempSync(join(tmpdir(), 'mercury-promote-off-'))
   writeFileSync(join(dir, 'off.md'), md({ name: 'off', scope: 'regime-specific' }))
   const off = await promoteExperienceCard(dir, 'off')
   check('OFF ⇒ a would-be-refused card still flips (bare promote)', off.ok === true)
@@ -138,7 +138,7 @@ section('OFF (MERCURY_CARD_PROMOTE_GATE=0) — bare flip, gate never consulted')
 section('writeExperienceCard — distill-time dedup (refuse near-duplicate cards)')
 {
   delete process.env.MERCURY_CARD_DEDUP
-  const dir = mkdtempSync(join(tmpdir(), 'hermes-dedup-'))
+  const dir = mkdtempSync(join(tmpdir(), 'mercury-dedup-'))
   const lessonA = 'a specific transferable lesson about wiring a gated substrate live with an opt-out.'
   const card = (name: string, problemClass: string, lesson: string): BuildCardInput => ({
     name, title: `T ${name}`, summary: `s ${name}`, problemClass, lesson,
@@ -161,7 +161,7 @@ section('writeExperienceCard — distill-time dedup (refuse near-duplicate cards
   check('same-name rewrite ⇒ not blocked as duplicate (supersede path)', rewrite.ok === true)
 
   process.env.MERCURY_CARD_DEDUP = '0'
-  const offDir = mkdtempSync(join(tmpdir(), 'hermes-dedup-off-'))
+  const offDir = mkdtempSync(join(tmpdir(), 'mercury-dedup-off-'))
   await writeExperienceCard(offDir, card('od-1', 'c', lessonA))
   const offDup = await writeExperienceCard(offDir, card('od-2', 'c', lessonA))
   check('OFF ⇒ duplicate is allowed (byte-identical to before)', offDup.ok === true)

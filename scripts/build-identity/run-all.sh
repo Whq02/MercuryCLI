@@ -10,7 +10,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 echo "############################################################"
-echo "# fork seam / build-identity — proof harness"
+echo "# build-identity — proof harness"
 echo "############################################################"
 shopt -s nullglob
 for proof in "$here"/prove-*.ts; do
@@ -19,6 +19,6 @@ for proof in "$here"/prove-*.ts; do
   __t=$SECONDS; __rc=0; "$bun" run "$proof" || { __rc=$?; fail=1; }; prover_mark "$proof" "$__t" "$__rc"
 done
 echo "############################################################"
-if [ "$fail" = "0" ]; then echo "# ✅ ALL FORK-SEAM PROOFS PASS"; else echo "# ❌ SOME FORK-SEAM PROOFS FAILED"; fi
+if [ "$fail" = "0" ]; then echo "# ✅ ALL BUILD-IDENTITY PROOFS PASS"; else echo "# ❌ SOME BUILD-IDENTITY PROOFS FAILED"; fi
 echo "############################################################"
 exit "$fail"

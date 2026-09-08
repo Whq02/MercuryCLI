@@ -14,7 +14,7 @@ function section(t: string): void {
 }
 const sleep = (ms: number): Promise<void> => new Promise(res => setTimeout(res, ms))
 
-const home = mkdtempSync(join(tmpdir(), 'hermes-hs-'))
+const home = mkdtempSync(join(tmpdir(), 'mercury-hs-'))
 process.env.MERCURY_CONFIG_DIR = join(home, 'config')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '9.9.9' }

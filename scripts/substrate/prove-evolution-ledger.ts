@@ -35,7 +35,7 @@ console.log('============================================================')
 console.log(' evolution ledger — proof')
 console.log('============================================================')
 
-const base = mkdtempSync(join(tmpdir(), "hermes-evolution-"))
+const base = mkdtempSync(join(tmpdir(), "mercury-evolution-"))
 const LEDGER_DIR = join(base, "evolution")
 const PROGRAM = 'proof:patch-loop'
 

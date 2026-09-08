@@ -22,7 +22,7 @@ const ok = (cond: boolean, label: string) => {
   console.log(`${cond ? '  ✅' : '  ❌'} ${label}`)
   if (!cond) failures++
 }
-const tmp = mkdtempSync(join(tmpdir(), 'hermes-journal-'))
+const tmp = mkdtempSync(join(tmpdir(), 'mercury-journal-'))
 const BUN = process.execPath
 const CHILD = join(import.meta.dir, 'helpers', 'journalKillChild.ts')
 

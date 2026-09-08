@@ -16,7 +16,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const read = (...p: string[]) => readFileSync(join(root, ...p), 'utf-8')
 
 console.log('============================================================')
-console.log(' Hermes file quick-open (ctrl+x f)')
+console.log(' Mercury file quick-open (ctrl+x f)')
 console.log('============================================================')
 
 section('1. keybinding: action + FLAG-GATED ctrl+x f binding')

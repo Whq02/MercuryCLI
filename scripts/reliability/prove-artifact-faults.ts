@@ -39,7 +39,7 @@ if (!existsSync(DIST)) {
   process.exit(1)
 }
 
-const tmp = mkdtempSync(join(tmpdir(), 'hermes-artifact-faults-'))
+const tmp = mkdtempSync(join(tmpdir(), 'mercury-artifact-faults-'))
 const home = join(tmp, 'home')
 const teams = join(tmp, 'teams')
 const daemon = join(tmp, 'daemon')

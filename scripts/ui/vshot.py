@@ -134,7 +134,7 @@ def _acquire_capture_slot():
             return None
         import tempfile
         slot_dir = os.path.join(
-            tempfile.gettempdir(), f"hermes-vshot-slots-{os.getuid()}"
+            tempfile.gettempdir(), f"mercury-vshot-slots-{os.getuid()}"
         )
         os.makedirs(slot_dir, exist_ok=True)
         deadline = time.monotonic() + 300

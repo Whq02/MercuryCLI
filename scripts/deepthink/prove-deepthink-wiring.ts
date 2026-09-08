@@ -61,7 +61,6 @@ for (const dead of [
   'getDeepthinkFloorLevel',
   'turnEffortFloors',
   'MERCURY_DEEPTHINK_MAX',
-  'HERMES_DEEPTHINK_MAX',
 ]) {
   check(`src carries no ${dead}`, !allSrc.includes(dead))
 }

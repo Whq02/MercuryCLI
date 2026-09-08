@@ -24,7 +24,7 @@ console.log('§1 every scratch-home scenario in the harness owns its daemon dir'
   })
   check('the harness has scratch-home scenarios to pin', sites > 0)
   check('no scratch-home scenario inherits the shared pid-keyed daemon dir', bare.length === 0, `bare at lines ${bare.join(', ')}`)
-  check('the shared default stays keyed to the prover for captures on the shared home', lines.some(l => l.includes("process.env.MERCURY_DAEMON_DIR = join(tmpdir(), `hermes-render-daemon-${process.pid}`)")))
+  check('the shared default stays keyed to the prover for captures on the shared home', lines.some(l => l.includes("process.env.MERCURY_DAEMON_DIR = join(tmpdir(), `mercury-render-daemon-${process.pid}`)")))
 }
 
 console.log('§2 a prover on two or more homes carries a daemon dir in each spawn env')

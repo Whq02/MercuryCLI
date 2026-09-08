@@ -33,7 +33,7 @@ t('boot-error screen rejected despite painted>=40', !err.ok && err.reason.includ
 
 const noChrome = evaluateCapture(grid([
   'the quick brown fox jumps over the lazy dog and keeps on running far away',
-  'another line of plain output text that is definitely not the hermes chrome',
+  'another line of plain output text that is definitely not the mercury chrome',
 ]))
 t('chrome-less capture rejected', !noChrome.ok && noChrome.reason.includes('chrome'), noChrome.reason)
 
@@ -46,7 +46,7 @@ const good = evaluateCapture(grid([
 ]))
 t('healthy capture accepted', good.ok, good.reason)
 
-const tmp = mkdtempSync(join(tmpdir(), 'hermes-oracle-'))
+const tmp = mkdtempSync(join(tmpdir(), 'mercury-oracle-'))
 const res = spawnSync(process.execPath, ['-e',
   `const { scenario } = await import('${join(import.meta.dir, 'renderScenarios.ts')}'); const cfg = scenario('resume-2turn', 80, 44); console.log(cfg.argv[cfg.argv.indexOf('--resume') + 1])`,
 ], { encoding: 'utf-8', timeout: 20000, env: { ...process.env, MERCURY_CONFIG_DIR: tmp, MERCURY_DAEMON_DIR: join(tmp, 'daemon') } })

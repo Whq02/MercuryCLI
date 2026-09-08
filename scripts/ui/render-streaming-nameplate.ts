@@ -69,7 +69,7 @@ for (const [cols, rows] of [[80, 30], [120, 30]] as const) {
 
 console.log('\n  ── post-finalize @ 100 ──')
 {
-  const grid = drive("Reply with exactly: hello there from hermes", 100, 30, 85, 'final')
+  const grid = drive("Reply with exactly: hello there from mercury", 100, 30, 85, 'final')
   const settled = grid.split('\n').find(l => /\d\d:\d\d:\d\d\s*\[Mercury\]/.test(l)) ?? ''
   console.log(`  finalized line: ${settled.trim().slice(0, 70) || '(none)'}`)
   check('finalize: settled line reads HH:MM:SS [Mercury] (clock faded in)',

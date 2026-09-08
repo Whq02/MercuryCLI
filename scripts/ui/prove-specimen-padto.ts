@@ -15,7 +15,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const read = (f: string): string => readFileSync(join(root, 'src', 'components', f), 'utf-8')
 
 console.log('============================================================')
-console.log(' Hermes* specimens: padEnd → padTo width discipline (HB-0231)')
+console.log(' Mercury* specimens: padEnd → padTo width discipline (HB-0231)')
 console.log('============================================================')
 
 section('source: the 9-file family uses padTo (import + call); MercuryDiff excluded')
