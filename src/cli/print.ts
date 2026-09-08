@@ -1243,7 +1243,7 @@ export async function runHeadless(
     const teamState = getAppState()
     const { isTeamLead } = await import('../utils/teammate.js')
     if (teamState.teamContext && isTeamLead(teamState.teamContext) && !isTeammate()) {
-      const { readUnreadMessages, markMessagesAsRead, isShutdownApproved, resolveShutdownApprovedVictim } =
+      const { prepareMailboxDelivery, acknowledgeMailboxDelivery, wasMailboxDeliveryHandled, formatTeammateMessages, isShutdownApproved, resolveShutdownApprovedVictim } =
         await import('../utils/teammateMailbox.js')
       const { removeTeammateFromTeamFile } = await import('../utils/swarm/teamHelpers.js')
       const { TEAM_LEAD_NAME } = await import('../utils/swarm/constants.js')
@@ -1257,11 +1257,23 @@ export async function runHeadless(
           task => task.type === 'in_process_teammate',
         )
         const listed = Boolean(Object.keys(current.teamContext?.teammates ?? {}).length)
-        if (!inProcessActive && !listed) break
         const teamName = current.teamContext?.teamName ?? ''
-        const unread = await readUnreadMessages(TEAM_LEAD_NAME, teamName)
-        if (unread.length > 0) {
-          await markMessagesAsRead(TEAM_LEAD_NAME, teamName)
+        let delivery: Awaited<ReturnType<typeof prepareMailboxDelivery>>
+        try {
+          delivery = await prepareMailboxDelivery(TEAM_LEAD_NAME, teamName, getSessionId())
+          if (delivery !== null && await wasMailboxDeliveryHandled(delivery, messages)) {
+            await (await import('../utils/sessionStorage.js')).flushSessionStorage()
+            await acknowledgeMailboxDelivery(TEAM_LEAD_NAME, teamName, delivery.id)
+            continue
+          }
+        } catch (error) {
+          logForDebugging(`mailbox: delivery awaits durable state: ${errorMessage(error)}`)
+          await new Promise(resolve => setTimeout(resolve, TEAM_POLL_INTERVAL_MS))
+          continue
+        }
+        if (delivery !== null) {
+          if (getCommandQueue().some(command => command.uuid === delivery.id)) return 'reenter'
+          const unread = delivery.messages
           for (const message of unread) {
             const approval = isShutdownApproved(message.text)
             if (!approval) continue
@@ -1286,15 +1298,11 @@ export async function runHeadless(
               }
             })
           }
-          const formatted = unread
-            .map(
-              message =>
-                `<teammate-message teammate_id="${message.from}"${message.color ? ` color="${message.color}"` : ''}>${message.text}</teammate-message>`,
-            )
-            .join('\n')
-          enqueue({ value: formatted, mode: 'prompt', uuid: randomUUID() })
+          const formatted = formatTeammateMessages(unread)
+          enqueue({ value: formatted, mode: 'prompt', uuid: delivery.id as UUID })
           return 'reenter'
         }
+        if (!inProcessActive && !listed) break
         if (inputClosed) {
           injectTeamShutdownPrompt()
           return 'reenter'
