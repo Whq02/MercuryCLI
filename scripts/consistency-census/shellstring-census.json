@@ -548,7 +548,7 @@
     },
     {
       "file": "scripts/gate/generated-assets.ts",
-      "line": 97,
+      "line": 96,
       "mechanism": "shell-dash-c",
       "excerpt": "const res = spawnSync('bash', ['-c', row.check], { cwd: ROOT, stdio: 'inherit', env: process.env })",
       "cls": "intentional-shell",

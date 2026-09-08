@@ -271,7 +271,7 @@ function gitLines(root: string, args: string[]): string[] {
   const paths = args.includes('--name-only') || args.includes('ls-files')
   const split = args.indexOf('--')
   const at = split < 0 ? args.length : split
-  const argv = paths ? [...args.slice(0, at), '-z', ...args.slice(at)] : args
+  const argv = paths ? [...args.slice(0, at), '-z', ...(args.includes('--name-only') ? ['--no-renames', '--no-relative'] : []), ...args.slice(at)] : args
   const output = execFileSync('git', argv, { cwd: root, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true })
   return paths ? output.split(String.fromCharCode(0)).filter(Boolean) : output.split('\n').map(line => line.trim()).filter(Boolean)
 }

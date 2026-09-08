@@ -23,9 +23,8 @@ function usage(): never {
 }
 
 const gitLines = (gitArgs: string[]): string[] =>
-  execFileSync('git', gitArgs, { cwd: ROOT, encoding: 'utf8' })
-    .split('\n')
-    .map(l => l.trim())
+  execFileSync('git', [gitArgs[0]!, '-z', ...(gitArgs[0] === 'diff' ? ['--no-renames', '--no-relative'] : []), ...gitArgs.slice(1)], { cwd: ROOT, encoding: 'utf8' })
+    .split('\0')
     .filter(Boolean)
 
 let paths: string[]
@@ -47,11 +46,7 @@ if (args[0] === '--paths') {
 } else {
   const range = args[0]
   if (!range || range.startsWith('-')) usage()
-  const out = execFileSync('git', ['diff', '--name-only', range], { cwd: ROOT, encoding: 'utf8' })
-  paths = out
-    .split('\n')
-    .map(l => l.trim())
-    .filter(Boolean)
+  paths = gitLines(['diff', '--name-only', range])
   if (paths.length === 0) {
     console.error(`impact: the range ${range} names no changed paths`)
     process.exit(2)
