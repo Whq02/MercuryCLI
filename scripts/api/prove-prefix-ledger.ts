@@ -225,6 +225,132 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   check('R2 the next main request compares clean against the ORIGINAL record — no false "system prompt (block N added)" rewrite', nextMain.mismatch === null, j(nextMain.mismatch))
 }
 
+section('§1b complete bound fields and reasoning continuity')
+{
+  const first = { system: SYSTEM, tools: TOOLS, messages: [user(TEXT('first')), assistant(THINK('a'), TEXT('answer')), user(TEXT('next'))] }
+  const compare = (before: typeof first, after: typeof first) => {
+    resetPrefixLedger()
+    judgeAndRecordPrefix('complete-fields', KEY, before)
+    return judgeAndRecordPrefix('complete-fields', KEY, after)
+  }
+  const systemField = compare(first, { ...first, system: [{ ...SYSTEM[0], type: 'changed' }, SYSTEM[1]] })
+  check('system block fields beyond text remain bound', systemField.mismatch?.path === 'system[0]', j(systemField.mismatch))
+  const toolField = compare(first, { ...first, tools: [{ ...TOOLS[0], eager_input_streaming: true }, ...TOOLS.slice(1)] })
+  check('additional tool definition fields remain bound', toolField.mismatch?.part === "the tool Read's definition", j(toolField.mismatch))
+
+  const { comparePrefix } = await import('./wire-prefix-replay.js')
+  const { prefixHashOf } = await import('../lib/fixtureApi.js')
+  const schemaFirst = { ...first, tools: [tool('Read', { input_schema: { type: 'object', properties: { cache_control: { type: 'string' } } } }), ...TOOLS.slice(1)] }
+  const schemaNext = { ...schemaFirst, tools: [tool('Read', { input_schema: { type: 'object', properties: { cache_control: { type: 'number' } } } }), ...TOOLS.slice(1)] }
+  check('a schema property named cache_control is not a cache annotation', compare(schemaFirst, schemaNext).mismatch?.path === 'tools[0].input_schema')
+  check('the wire comparator also retains schema properties named cache_control', !comparePrefix(schemaFirst, schemaNext).held)
+  check('the fixture binding retains those schema bytes independently', prefixHashOf(schemaFirst, schemaFirst.messages) !== prefixHashOf(schemaNext, schemaNext.messages))
+  const inputFirst = { ...first, messages: [first.messages[0], assistant({ type: 'tool_use', id: 'cache-arg', name: 'Read', input: { cache_control: 'first' } }), user({ type: 'tool_result', tool_use_id: 'cache-arg', content: 'ok' }), assistant(THINK('after input'), TEXT('done')), user(TEXT('next'))] }
+  const inputNext = { ...inputFirst, messages: [inputFirst.messages[0], assistant({ type: 'tool_use', id: 'cache-arg', name: 'Read', input: { cache_control: 'second' } }), ...inputFirst.messages.slice(2)] }
+  check('a tool argument named cache_control is bound content', compare(inputFirst, inputNext).mismatch?.path === 'messages[1].content[0]')
+  check('the comparator and fixture retain that argument too', !comparePrefix(inputFirst, inputNext).held && prefixHashOf(inputFirst, inputFirst.messages) !== prefixHashOf(inputNext, inputNext.messages))
+
+  const effort = { ...first, messages: [first.messages[0], { role: 'system', content: [], output_config: { effort: 'low' } }, ...first.messages.slice(1)] }
+  const movedEffort = compare(effort, { ...effort, messages: [effort.messages[0], { role: 'system', content: [], output_config: { effort: 'high' } }, ...effort.messages.slice(2)] })
+  check('per-message effort remains part of the bound message', movedEffort.mismatch?.path === 'messages[1]', j(movedEffort.mismatch))
+  const interleaved = { ...first, messages: [first.messages[0], assistant(TEXT('before'), THINK('same-row'), TEXT('after')), first.messages[2]] }
+  check('content before reasoning in the same message is checked', compare(interleaved, { ...interleaved, messages: [first.messages[0], assistant(TEXT('edited before'), THINK('same-row'), TEXT('after')), first.messages[2]] }).mismatch?.path === 'messages[1].content[0]')
+  check('content after the last reasoning block is not bound', compare(interleaved, { ...interleaved, messages: [first.messages[0], assistant(TEXT('before'), THINK('same-row'), TEXT('edited after')), first.messages[2]] }).mismatch === null)
+  const chain = { ...first, messages: [first.messages[0], assistant(THINK('a'), TEXT('one')), user(TEXT('two')), assistant(THINK('b'), TEXT('two')), user(TEXT('three')), assistant(THINK('c'), TEXT('three')), user(TEXT('four'))] }
+  const oldest = { ...chain, messages: [chain.messages[0], assistant(TEXT('one')), ...chain.messages.slice(2)] }
+  check('removing the oldest reasoning keeps a continuous suffix', compare(chain, oldest).mismatch === null)
+  const middle = { ...chain, messages: [...chain.messages.slice(0, 3), assistant(TEXT('two')), ...chain.messages.slice(4)] }
+  check('removing middle reasoning names the broken link', compare(chain, middle).mismatch?.path === 'messages[3].content[0]')
+  const tail = { ...chain, messages: [...chain.messages.slice(0, 5), assistant(TEXT('three')), chain.messages[6]] }
+  check('removing reasoning after every retained block invalidates none of them', compare(chain, tail).mismatch === null)
+  const tailWithNew = { ...tail, messages: [...tail.messages, assistant(THINK('d'), TEXT('four')), user(TEXT('five'))] }
+  check('removing the predecessor of new reasoning is detected', compare(chain, tailWithNew).mismatch?.path === 'messages[5].content[0]')
+  const modified = { ...chain, messages: [chain.messages[0], assistant(THINK('tampered'), TEXT('one')), ...chain.messages.slice(2)] }
+  check('modified reasoning is not mistaken for an oldest-first removal', compare(chain, modified).mismatch?.path === 'messages[1].content[0]')
+  const reordered = { ...chain, messages: [chain.messages[0], assistant(THINK('b'), TEXT('one')), chain.messages[2], assistant(THINK('a'), TEXT('two')), ...chain.messages.slice(4)] }
+  check('reordered reasoning breaks continuity', compare(chain, reordered).mismatch !== null)
+
+  const { buildRequestContextPlan } = await import('../../src/services/run/requestContextPlan.js')
+  const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.js')
+  const { normalizeMessagesForAPI } = await import('../../src/utils/messages/apiView.js')
+  const saved = process.env.MERCURY_TIME_BASED_MC
+  process.env.MERCURY_TIME_BASED_MC = '1'
+  const history = Array.from({ length: 8 }, (_, i) => [
+    { type: 'assistant', uuid: 'thinking-' + i, timestamp: new Date(Date.now() - 7_200_000).toISOString(), message: { id: 'thinking-' + i, role: 'assistant', model: 'claude-fable-5-1', content: [THINK('before-' + i), { type: 'tool_use', id: 'read-' + i, name: 'Read', input: {} }] } },
+    { type: 'user', uuid: 'result-' + i, timestamp: new Date().toISOString(), message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'read-' + i, content: 'Unchanged reference material. '.repeat(200) }] } },
+  ]).flat()
+  for (const persistent of [false, true]) {
+    const state = persistent ? createContentReplacementState() : undefined
+    const input = { messages: history as never, owner: ('plan-' + persistent) as never, querySource: 'repl_main_thread' as const, contentReplacementState: state, skipToolNames: new Set<string>() }
+    const pruned = await buildRequestContextPlan(input, 'apply')
+    const fresh = { type: 'assistant', uuid: 'fresh', timestamp: new Date().toISOString(), message: { id: 'fresh', role: 'assistant', model: 'claude-fable-5-1', content: [THINK('fresh'), TEXT('ready')] } }
+    const next = await buildRequestContextPlan({ ...input, messages: [...history, fresh] as never }, 'apply')
+    const dead = new Map<string, Set<number>>()
+    for (const mark of pruned.reductions.deadThinkingMarks ?? []) {
+      const indices = dead.get(mark.messageId) ?? new Set<number>()
+      indices.add(mark.blockIndex)
+      dead.set(mark.messageId, indices)
+    }
+    const wire = (messages: unknown[]) => binding.stripDeadThinking(normalizeMessagesForAPI(messages as never), dead).map(message => message.message)
+    const before = { ...first, messages: wire([...pruned.messages, fresh]) }
+    const after = { ...first, messages: wire(next.messages) }
+    const result = compare(before as never, after as never)
+    check(persistent ? 'consecutive real persistent projections hold' : 'a nonpersistent projection names the restored tool result', persistent ? result.mismatch === null : (result.mismatch?.part.includes('tool_result') ?? false), j(result.mismatch))
+  }
+  if (saved === undefined) delete process.env.MERCURY_TIME_BASED_MC
+  else process.env.MERCURY_TIME_BASED_MC = saved
+}
+
+section('§1c the observer sees final transport overlays')
+{
+  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  enableConfigs()
+  const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.js')
+  const { createUserMessage } = await import('../../src/utils/messages.js')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+  const savedNodeEnv = process.env.NODE_ENV
+  const savedExtra = process.env.MERCURY_EXTRA_BODY
+  const savedBase = process.env.ANTHROPIC_BASE_URL
+  const savedBinding = process.env.MERCURY_THINKING_BINDING
+  delete process.env.NODE_ENV
+  process.env.MERCURY_THINKING_BINDING = 'drop_block'
+  const fixture = await startFixtureApi([
+    { kind: 'text', text: 'First.', thinking: 'First reasoning.', model: 'claude-fable-5-1' },
+    { kind: 'text', text: 'Second.', thinking: 'Second reasoning.', model: 'claude-fable-5-1' },
+  ], { bindingCheck: true })
+  try {
+    process.env.ANTHROPIC_BASE_URL = fixture.url
+    resetPrefixLedger()
+    const history = [createUserMessage({ content: 'First question.' })]
+    const controller = new AbortController()
+    for (const text of ['Final system A.', 'Final system B.']) {
+      process.env.MERCURY_EXTRA_BODY = JSON.stringify({ system: [{ type: 'text', text }] })
+      const replies: any[] = []
+      for await (const message of queryModelWithStreaming({
+        messages: history as never,
+        systemPrompt: ['This part is replaced by the explicit body override.'] as never,
+        thinkingConfig: { type: 'adaptive' }, tools: [], signal: controller.signal,
+        options: { model: 'claude-fable-5-1', querySource: 'sdk', ownerKey: 'final-body', agents: [],
+          isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(),
+        } as never,
+      })) {
+        if (message.type === 'assistant') replies.push(message)
+      }
+      history.push(...replies, createUserMessage({ content: 'Next question.' }))
+    }
+    const requests = fixture.messageRequests()
+    check('the fixture receives both explicit system overrides', requests.length === 2 && j(requests[0].body.system).includes('Final system A.') && j(requests[1].body.system).includes('Final system B.'))
+    check('the observation names the system that actually changed on the wire', pendingPrefixVerdict('final-body')?.mismatch?.path.startsWith('system[0]') === true, j(pendingPrefixVerdict('final-body')))
+    check('the binding checker independently sees the same overwritten prefix', requests.length === 2 && bindingDropsFor(requests[1].body).length > 0)
+  } finally {
+    await fixture.close()
+    if (savedNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = savedNodeEnv
+    if (savedExtra === undefined) delete process.env.MERCURY_EXTRA_BODY; else process.env.MERCURY_EXTRA_BODY = savedExtra
+    if (savedBase === undefined) delete process.env.ANTHROPIC_BASE_URL; else process.env.ANTHROPIC_BASE_URL = savedBase
+    if (savedBinding === undefined) delete process.env.MERCURY_THINKING_BINDING; else process.env.MERCURY_THINKING_BINDING = savedBinding
+  }
+}
+
 section('§2 the words and the doctor — the receipts carry the named part')
 {
   const { classifyThinkingDrops, describeThinkingDrops, describePrefixRewrite, recordThinkingDropLedger, recordPrefixRewriteLedger, readThinkingDropLedger, preservedThinkingHealth, resetThinkingDropStates } = binding
