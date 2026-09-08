@@ -37,6 +37,7 @@ import { EmptyState, StateBadge, useNowTick } from '../mercury-ui/components.js'
 import { displayWidth, GLYPH, truncateToWidth } from '../mercury-ui/glyphs.js'
 import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { agentPulse, agentPulseWord } from '../../tools/WorkflowTool/livePulse.js'
+import { usageSpeaks, workflowSpendWords, workflowUsageSpend } from '../../tools/WorkflowTool/workflowUsage.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { decodeNavKey } from '../mercury-ui/navSemantics.js'
@@ -191,8 +192,9 @@ function AgentLane({
   const meta: string[] = []
   const model = shortModel(agent.model)
   if (model) meta.push(agent.effort ? `${model} @${agent.effort}` : model)
-  if (typeof agent.tokens === 'number' && agent.tokens > 0)
-    meta.push(`${GLYPH.tokens} ${formatTokens(agent.tokens)} spent`)
+  if (agent.usage && usageSpeaks(agent.usage)) meta.push(`${GLYPH.tokens} ${workflowSpendWords(agent.usage, formatTokens)}`)
+  else if (typeof agent.tokens === 'number' && agent.tokens > 0)
+    meta.push(`${GLYPH.tokens} ${formatTokens(agent.tokens)} context`)
   if (typeof agent.toolCalls === 'number' && agent.toolCalls > 0)
     meta.push(`${agent.toolCalls} ${plural(agent.toolCalls, 'tool')}`)
   const runtime = agentRuntime(agent, now)
@@ -327,14 +329,22 @@ function DossierCard({
   const model = shortModel(agent.model) ?? shortModel(view?.model)
 
   const metaBits: string[] = []
-  if (typeof agent.tokens === 'number' && agent.tokens > 0)
-    metaBits.push(`${GLYPH.tokens} ${formatTokens(agent.tokens)} spent`)
+  if (agent.usage && usageSpeaks(agent.usage)) {
+    const u = agent.usage
+    metaBits.push(
+      `${GLYPH.tokens} ${workflowSpendWords(u, formatTokens)} (${formatTokens(workflowUsageSpend(u) - u.outputTokens)} in / ${formatTokens(u.outputTokens)} out)`,
+    )
+  } else if (typeof agent.tokens === 'number' && agent.tokens > 0) {
+    metaBits.push(`${GLYPH.tokens} ${formatTokens(agent.tokens)} context`)
+  }
   if (toolsBit) metaBits.push(toolsBit)
   if (view?.usage) {
     if (view.usage.contextTokens > 0) metaBits.push(`${formatTokens(view.usage.contextTokens)} context`)
-    metaBits.push(
-      `${formatTokens(view.usage.inputTokens + view.usage.outputTokens)} spent (${formatTokens(view.usage.inputTokens)} in / ${formatTokens(view.usage.outputTokens)} out)`,
-    )
+    if (!agent.usage) {
+      metaBits.push(
+        `${formatTokens(view.usage.inputTokens + view.usage.outputTokens)} spent (${formatTokens(view.usage.inputTokens)} in / ${formatTokens(view.usage.outputTokens)} out)`,
+      )
+    }
   }
   if (read.meta?.agentType) metaBits.push(read.meta.agentType)
   if (read.meta?.worktreePath) metaBits.push('worktree')
@@ -514,6 +524,7 @@ export function RunDetailPane({
 
   const agentCount = isLive ? task.agentCount : (manifest?.agentCount ?? agentSummaries.length)
   const totalTokens = isLive ? task.totalTokens : (manifest?.totalTokens ?? 0)
+  const runUsage = isLive ? task.usage : manifest?.usage
   const totalToolCalls = isLive ? task.totalToolCalls : (manifest?.totalToolCalls ?? 0)
   const model = isLive ? shortModel(task.defaultModel) : undefined
   const runError = isLive ? task.error : manifest?.error
@@ -521,7 +532,11 @@ export function RunDetailPane({
   const metrics: string[] = []
   metrics.push(`${GLYPH.mission} ${settledCount(groups)}/${groups.length}`)
   metrics.push(`${agentCount} ${plural(agentCount, 'agent')}`)
-  if (totalTokens > 0) metrics.push(`${GLYPH.tokens} ${formatTokens(totalTokens)} spent`)
+  if (runUsage && (usageSpeaks(runUsage) || runUsage.agentsUnreported > 0)) {
+    const unreported =
+      runUsage.agentsUnreported > 0 ? ` · ${runUsage.agentsUnreported} ${plural(runUsage.agentsUnreported, 'agent')} unmeasured` : ''
+    metrics.push(`${GLYPH.tokens} ${workflowSpendWords(runUsage, formatTokens)}${unreported}`)
+  } else if (totalTokens > 0) metrics.push(`${GLYPH.tokens} ${formatTokens(totalTokens)} context`)
   if (totalToolCalls > 0) metrics.push(`${totalToolCalls} ${plural(totalToolCalls, 'tool')}`)
   if (model) metrics.push(model)
 
