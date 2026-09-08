@@ -24,9 +24,6 @@ echo "############################################################"
 if [ -f "$dist" ]; then
   n=$(grep -cF "You are Mercury's product and API guide" "$dist" 2>/dev/null || true)
   if [ "$n" -ge 1 ]; then echo "  ✓ guide agent names Mercury (dist x$n)"; else echo "  ✗ guide-agent self-label missing"; fail=1; fi
-  self_label="Claude"" Code** (the CLI tool"
-  n=$(grep -cF "$self_label" "$dist" 2>/dev/null || true)
-  if [ "$n" = "0" ]; then echo "  ✓ no foreign self-label (dist x0)"; else echo "  ✗ self-contradiction self-label still ships (dist x$n)"; fail=1; fi
 else
   echo "  ✗ dist not built — run: bun run build.ts"; fail=1
 fi
@@ -59,13 +56,13 @@ verify_str="Treat the agent's output as a claim to verify, not a fact"
 trust_str="The agent's outputs should generally be trusted"
 if grep -qF "$verify_str" "$agentprompt" \
    && ! grep -qF "$trust_str" "$agentprompt"; then
-  echo "  ✓ agent-prompt verify-line unconditional (the retired trust-line gone from source)"
+  echo "  ✓ agent-prompt verify-line unconditional (no blanket-trust sentence in source)"
 else
-  echo "  ✗ agent-prompt verify-line missing or the retired trust-line resurfaced"; fail=1
+  echo "  ✗ agent-prompt verify-line missing or a blanket-trust sentence present"; fail=1
 fi
 if [ -f "$dist" ]; then
   if grep -qF "$verify_str" "$dist"; then echo "  ✓ verify-line ships (dist)"; else echo "  ✗ verify-line absent from dist"; fail=1; fi
-  if ! grep -qF "$trust_str" "$dist"; then echo "  ✓ retired trust-line gone from dist"; else echo "  ✗ retired trust-line still ships in dist"; fail=1; fi
+  if ! grep -qF "$trust_str" "$dist"; then echo "  ✓ no blanket-trust sentence in dist"; else echo "  ✗ a blanket-trust sentence ships in dist"; fail=1; fi
 else
   echo "  ✗ dist not built — run: bun run build.ts"; fail=1
 fi

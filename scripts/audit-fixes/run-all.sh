@@ -24,7 +24,7 @@ if grep -qE 'let forcedReadEngaged = false' "$root/src/utils/hooks/forcedReadHoo
 
 not_has() { if grep -qF "$2" "$1"; then echo "  ✗ $3 (found in $1)"; fail=1; else echo "  ✓ $3"; fi; }
 
-not_has src/utils/model/agent.ts 'RegionPrefix' 'agent.ts carries no region-prefix machinery (gateway estate retired)'
+not_has src/utils/model/agent.ts 'RegionPrefix' 'agent.ts carries no region-prefix machinery'
 has src/utils/effort.ts 'String(v).trim().toLowerCase()' 'parseEffortValue trims whitespace'
 res=$("$bun" -e "import('$root/src/utils/effort.js').then(m=>console.log(m.parseEffortValue('  high ')==='high'?'OK':'BAD')).catch(e=>console.log('LOADERR'));" 2>&1 | tail -1)
 [ "$res" = "OK" ] && ok "parseEffortValue('  high ') === 'high' (behavioral)" || { [ "$res" = "LOADERR" ] && ok "effort behavioral skipped (unloadable)" || no "effort trim behavioral: $res"; }
@@ -38,7 +38,7 @@ has src/daemon/ownedDaemon.ts 'renameWithWin32RetrySync(logPath, `${logPath}.1`)
 has src/utils/cockpit/critterVariant.ts 'assigned.size > 256' 'critter variant map FIFO-capped'
 has src/utils/cockpit/daemonSnapshot.ts "daemonControlRpc({ op: 'ping' }" 'daemonSnapshot folds a TTL-cached authoritative ping'
 has src/utils/cockpit/daemonSnapshot.ts 'control socket unresponsive' 'wedged-supervisor downgrade (pid alive ≠ live)'
-lacks src/services/coordination/coordinationService.ts 'party:' 'the party facet stays retired from the coordination brief'
+lacks src/services/coordination/coordinationService.ts 'party:' 'the coordination brief carries no party facet'
 has src/components/mercury-ui/screens/TeammateChatsView.tsx 'const browseVerbs' 'teammates footer tracks selected-row affordances (r/k)'
 has src/components/tasks/RunDetailPane.tsx "agents.length > 0 ? '↵ inspect' : undefined" 'run-detail ↵ hint conditional on rows'
 if grep -rqF 'ctrl+t+c' "$root/src/components" "$root/src/commands"; then no 'dead ctrl+t+c chord still advertised somewhere'; else ok 'dead ctrl+t+c chord fully removed'; fi
