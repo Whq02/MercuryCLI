@@ -189,6 +189,28 @@ section('§2 a pipe keeps the special parameters and ANSI-C quoting')
   check('…while a parameter-free pipeline is still rearranged onto its first stage', /^'ls < \/dev\/null \| head -1'$/.test(rearrangePipeCommand('ls | head -1')), rearrangePipeCommand('ls | head -1'))
 }
 
+section('§2b a piped command keeps its quoted glob words')
+{
+  const { rearrangePipeCommand } = await import('../../src/utils/bash/bashPipeCommand.ts')
+  const copyForm = rearrangePipeCommand(`cp "/t/a b&c/"*.m4a "/t/out/" && find "/t/out" -name '*.m4a' | wc -l`)
+  check('a quoted path holding a space and an ampersand before a glob keeps the model\'s bytes', copyForm.includes('"/t/a b&c/"*.m4a') && copyForm.endsWith("' < /dev/null") && !copyForm.includes('< /dev/null |'), copyForm)
+  const listForm = rearrangePipeCommand('ls "/tmp/a b/"*.txt | head -1')
+  check('…and a quoted directory before a glob is never re-emitted bare', listForm.includes('"/tmp/a b/"*.txt') && listForm.endsWith("' < /dev/null"), listForm)
+  const bareGlob = rearrangePipeCommand('ls /tmp/a/*.txt | head -1')
+  check('…and a bare glob word takes the same whole-command form', bareGlob === `'ls /tmp/a/*.txt | head -1' < /dev/null`, bareGlob)
+  const globDir = join(SCRATCH, 'a b&c')
+  const globOut = join(SCRATCH, 'glob-out')
+  mkdirSync(globDir, { recursive: true })
+  mkdirSync(globOut, { recursive: true })
+  writeFileSync(join(globDir, 'x.m4a'), 'x')
+  const copied = await plain(`cp "${globDir}/"*.m4a "${globOut}/" && echo 'copied:' && find "${globOut}" -name '*.m4a' | wc -l | tr -d ' '`)
+  check('the real shell copies the file through the product seam', copied.code === 0 && trimmed(copied) === 'copied:\n1' && existsSync(join(globOut, 'x.m4a')), `code ${copied.code} ${JSON.stringify(copied.out.slice(0, 120))} ${JSON.stringify(copied.stderr.slice(0, 120))}`)
+  const listed = await plain(`ls "${globDir}/"*.m4a | head -1`)
+  check('…and lists it through a pipe', listed.code === 0 && trimmed(listed) === join(globDir, 'x.m4a'), `code ${listed.code} ${JSON.stringify(listed.out.slice(0, 120))}`)
+  const noMatch = await plain(`ls "${globDir}/"*.none 2>&1 | head -1`)
+  check('…and a glob with no match still reaches the command as its own text', noMatch.out.includes('a b&c/*.none'), JSON.stringify(noMatch.out.slice(0, 160)))
+}
+
 section('§3 a here-string feeds stdin')
 {
   const { hasStdinRedirect, shouldAddStdinRedirect } = await import('../../src/utils/bash/shellQuoting.ts')

@@ -132,7 +132,7 @@
     },
     {
       "file": "scripts/bash/prove-bash-tool-seams.ts",
-      "line": 398,
+      "line": 420,
       "mechanism": "hardcoded-tmp",
       "excerpt": "const away = realpathSync(mkdtempSync('/tmp/bash-tool-seams-away-'))",
       "cls": "platform-owner",
