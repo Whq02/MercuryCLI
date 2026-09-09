@@ -71,6 +71,7 @@ function workflowRow(task: LocalWorkflowTaskState): WorkRowV1 {
     ...(task.pendingPermissions !== undefined && task.pendingPermissions.size > 0
       ? { pendingAsks: task.pendingPermissions.size }
       : {}),
+    ...(task.pausedBy !== undefined ? { pausedBy: task.pausedBy } : {}),
   }
 }
 

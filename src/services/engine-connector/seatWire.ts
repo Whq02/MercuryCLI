@@ -77,6 +77,7 @@ const WORK_ROW: KeyTable = {
   workflowRunId: 'workflow_run_id',
   agentCount: 'agent_count',
   pendingAsks: 'pending_asks',
+  pausedBy: 'paused_by',
   agentType: 'agent_type',
   stopReason: 'stop_reason',
 }

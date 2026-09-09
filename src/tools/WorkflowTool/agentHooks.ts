@@ -53,6 +53,7 @@ import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
 import { getMarketingNameForModel } from '../../utils/model/model.js'
 import { subscribeMainLoopModelOverride } from '../../bootstrap/state.js'
 import { agentWaitWords } from '../../tasks/LocalAgentTask/agentWait.js'
+import type { WorkflowControlJournalRow, WorkflowExecutionPause } from './runControl.js'
 
 import {
   getSchemaBoundStructuredOutputTool,
@@ -302,7 +303,7 @@ export class LocalFileJournal {
     }
     return indexJournal(entries)
   }
-  append(entry: JournalEntry): Promise<void> {
+  append(entry: JournalEntry | WorkflowControlJournalRow): Promise<void> {
     const row = this.epoch !== undefined ? { ...entry, epoch: this.epoch } : entry
     const write = this.pending.then(async () => {
       if (!this.dirEnsured) {
@@ -337,6 +338,7 @@ export interface SpawnSubagentArgs {
   description?: string
   seatHolder?: string
   onQueryProgress?: (message?: unknown) => void
+  beforeQueryStep?: () => Promise<void> | undefined
   onWait?: (words: string | null) => void
   onResolvedIdentity?: (identity: { model: string; effort?: string }) => void
   continuationMessages?: unknown[]
@@ -406,6 +408,7 @@ async function* adapterSpawnStream(
       abortController: (args.toolUseContext as { abortController?: AbortController }).abortController,
     } as RunAgentOpts['override'],
     onQueryProgress: args.onQueryProgress,
+    beforeQueryStep: args.beforeQueryStep,
     onWait: args.onWait,
     onResolvedIdentity: args.onResolvedIdentity,
   })
@@ -829,6 +832,8 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       modelOverride?: string,
     ): Promise<AttemptReport> => {
       const agentId = createAgentId()
+      const pauseSeam = (ctx as { workflowPause?: WorkflowExecutionPause }).workflowPause
+      const releasePauseHold = pauseSeam?.register(agentId)
       onAttemptStarted(agentId)
       if (modelOverride !== undefined) statics.model = modelOverride
 
@@ -1157,6 +1162,18 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           description: attemptPromptPreview,
           seatHolder: attemptLabel,
           continuationMessages: continuation,
+          beforeQueryStep: () =>
+            pauseSeam?.wait(agentId, childAbort.signal, by => {
+              if (by !== undefined) {
+                clearStallTimer()
+                clearHeartbeat()
+                clearBudgetCut()
+                emitFrame('progress', { waiting: 'operator', pausedBy: by, waitWords: `paused by ${by} — p resumes it` })
+              } else {
+                emitFrame('progress', { waiting: undefined, pausedBy: undefined, waitWords: undefined })
+                armStallTimer()
+              }
+            }),
           onQueryProgress,
           onWait: words => emitFrame('progress', words === null ? {} : { waiting: 'seat', waitWords: words }),
           onResolvedIdentity: identity => {
@@ -1264,6 +1281,23 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             transcript: conversation,
           }
         }
+        if (cutReason === 'user-kill') {
+          const killWords = 'killed by the operator'
+          emitFrame('error', { error: killWords, endedBy: 'operator', ...settledTotals(elapsed) })
+          return {
+            structured: undefined,
+            text: '',
+            apiError: killWords,
+            tokens,
+            toolCalls,
+            usage: attemptUsage(true),
+            stallCut: false,
+            skipped: false,
+            durationMs: elapsed,
+            schemaCallCount,
+            lastSchemaCallInput,
+          }
+        }
         if (cutReason === 'user-skip') {
           emitFrame('skipped', {
             error: 'skipped by user',
@@ -1296,6 +1330,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         clearBudgetCut()
         settleRecoveryWait(recovery, standingWait)
         parentSignal?.removeEventListener('abort', onParentAbort)
+        releasePauseHold?.()
         onAgentController?.(agentId, null)
       }
 

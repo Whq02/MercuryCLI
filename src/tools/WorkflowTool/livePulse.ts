@@ -89,7 +89,7 @@ export function workflowPulseFacts(
 
 export type AgentPulseInput = {
   state: 'start' | 'progress' | 'done' | 'error' | 'stopped' | 'skipped'
-  waiting?: 'prefill' | 'provider-backoff' | 'usage-window' | 'seat'
+  waiting?: 'prefill' | 'provider-backoff' | 'usage-window' | 'seat' | 'operator'
   waitWords?: string
   retryInMs?: number
   recoveryTimeoutMs?: number
@@ -113,6 +113,7 @@ export type AgentPulse =
     }
   | { kind: 'working'; toolLine?: string }
   | { kind: 'usage-window'; words: string }
+  | { kind: 'operator-pause'; words: string }
   | { kind: 'quiet'; toolLine?: string; quietMs: number }
   | { kind: 'settled' }
 
@@ -121,6 +122,7 @@ export function agentPulse(a: AgentPulseInput, nowMs: number): AgentPulse {
   if (a.state !== 'progress') return { kind: 'settled' }
   if (a.waiting === 'seat') return { kind: 'seat', words: a.waitWords ?? 'waiting for a seat' }
   if (a.waiting === 'usage-window') return { kind: 'usage-window', words: a.waitWords ?? 'paused — waiting for the usage window' }
+  if (a.waiting === 'operator') return { kind: 'operator-pause', words: a.waitWords ?? 'paused by the operator' }
   const toolLine = a.lastToolName
     ? `${a.lastToolName}(${a.lastToolSummary ?? ''})`
     : undefined
@@ -167,6 +169,7 @@ export function agentPulseWord(p: AgentPulse): string {
     case 'working':
       return p.toolLine ?? 'thinking'
     case 'usage-window':
+    case 'operator-pause':
       return p.words
     case 'quiet':
       return `quiet ${formatQuietAge(p.quietMs)}${p.toolLine ? ` · last: ${p.toolLine}` : ''}`

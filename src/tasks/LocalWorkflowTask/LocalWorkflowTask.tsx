@@ -81,6 +81,8 @@ export type LocalWorkflowTaskState = Omit<TaskStateBase, 'status'> & {
   phases?: WorkflowPhase[]
   defaultModel?: string
   workflowRunId: string
+  runDir?: string
+  pausedBy?: string
   workflowProgress: WorkflowProgressEvent[]
   progressVersion: number
   agentCount: number
@@ -154,6 +156,7 @@ export function registerWorkflowTask(opts: {
   phases?: WorkflowPhase[]
   defaultModel?: string
   workflowRunId: string
+  runDir?: string
   setAppState: SetAppState
   toolUseId?: string
 }): LocalWorkflowTaskState {
@@ -177,6 +180,7 @@ export function registerWorkflowTask(opts: {
     phases: opts.phases,
     defaultModel: opts.defaultModel,
     workflowRunId: opts.workflowRunId,
+    runDir: opts.runDir,
     workflowProgress: [],
     progressVersion: 0,
     agentCount: 0,
@@ -383,7 +387,7 @@ export function killWorkflowTask(
 function signalOneAgent(
   taskId: string,
   agentId: string,
-  reason: 'user-skip' | 'user-retry',
+  reason: 'user-skip' | 'user-retry' | 'user-kill',
   setAppState: SetAppState,
 ): WorkflowActionReceipt {
   let receipt: WorkflowActionReceipt = 'run-settled'
@@ -415,6 +419,26 @@ export function retryWorkflowAgent(
   setAppState: SetAppState,
 ): WorkflowActionReceipt {
   return signalOneAgent(taskId, agentId, 'user-retry', setAppState)
+}
+
+export function killWorkflowAgent(
+  taskId: string,
+  agentId: string,
+  setAppState: SetAppState,
+): WorkflowActionReceipt {
+  return signalOneAgent(taskId, agentId, 'user-kill', setAppState)
+}
+
+export function markWorkflowPaused(
+  taskId: string,
+  pausedBy: string | undefined,
+  setAppState: SetAppState,
+): void {
+  updateTaskState<LocalWorkflowTaskState>(taskId, setAppState, task => {
+    if (task.status !== 'running') return task
+    if (task.pausedBy === pausedBy) return task
+    return { ...task, pausedBy }
+  })
 }
 
 export function buildResumePrompt(task: {

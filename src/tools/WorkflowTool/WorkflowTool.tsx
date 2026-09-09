@@ -19,8 +19,13 @@ import {
   completeWorkflowTask,
   enqueueWorkflowNotification,
   failWorkflowTask,
+  killWorkflowAgent,
+  killWorkflowTask,
+  markWorkflowPaused,
   registerWorkflowTask,
+  retryWorkflowAgent,
   settleInFlightAgentRows,
+  skipWorkflowAgent,
   updateWorkflowProgressBatch,
   type LocalWorkflowTaskState,
   type WorkflowNotificationArgs,
@@ -62,6 +67,13 @@ import {
   type ParsedWorkflow,
 } from './compiler.js'
 import { LocalFileJournal, makeWorkflowHooks } from './agentHooks.js'
+import {
+  WORKFLOW_CONTROL_VERSION,
+  WorkflowExecutionPause,
+  serveWorkflowControl,
+  type WorkflowControlOutcome,
+} from './runControl.js'
+import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import {
   deriveWorkflowTerminalStatus,
   runWorkflowScript,
@@ -622,6 +634,9 @@ const WorkflowToolDef = {
     }
 
     let claim!: Awaited<ReturnType<typeof claimRun>>
+    let journal!: LocalFileJournal
+    let closeControl: (() => void) | undefined
+    const executionPause = new WorkflowExecutionPause()
 
     const transcriptDirsSeen = new Set<string>(priorManifest?.transcriptDirs ?? [])
 
@@ -653,6 +668,7 @@ const WorkflowToolDef = {
       phases: meta.phases as WorkflowPhase[] | undefined,
       defaultModel: context.options.mainLoopModel,
       workflowRunId: runId,
+      runDir,
       args: input.args,
       setAppState,
       toolUseId: context.toolUseId,
@@ -660,6 +676,7 @@ const WorkflowToolDef = {
 
     const runCtx: WorkflowToolContext = {
       ...context,
+      workflowPause: executionPause,
       abortController: task.abortController ?? context.abortController,
       canUseTool: makeWorkflowCanUseTool({
         taskId,
@@ -693,6 +710,7 @@ const WorkflowToolDef = {
     const writeManifest = (final?: {
       status: WorkflowRunManifest['status']
       error?: string
+      endedBy?: string
     }): Promise<boolean> => {
       if (manifestChain.finalized()) return Promise.resolve(true)
       lastManifestWrite = Date.now()
@@ -725,6 +743,9 @@ const WorkflowToolDef = {
         owner: { instanceId: claim.instanceId, epoch: claim.epoch },
         transcriptDirs: [...transcriptDirsSeen],
         ownerPid: process.pid,
+        controlVersion: WORKFLOW_CONTROL_VERSION,
+        ...(live?.pausedBy !== undefined ? { pausedBy: live.pausedBy } : {}),
+        ...(final?.endedBy !== undefined ? { endedBy: final.endedBy } : {}),
         agentCount: live?.agentCount ?? 0,
         totalTokens: live?.totalTokens ?? 0,
         ...(live?.usage !== undefined ? { usage: live.usage } : {}),
@@ -754,13 +775,89 @@ const WorkflowToolDef = {
       })
     }
 
+    const stopWords = (by: string): string => `stopped by ${by}`
+    let stoppedBy: string | undefined
+    const applyControl = async (request: Parameters<Parameters<typeof serveWorkflowControl>[0]['apply']>[0]): Promise<WorkflowControlOutcome> => {
+      const live = context.getAppState().tasks?.[taskId] as LocalWorkflowTaskState | undefined
+      if (live === undefined || live.status !== 'running') return { outcome: 'refused', reason: 'already settled — nothing to control' }
+      const agentId = request.agentId ?? ''
+      switch (request.action) {
+        case 'stop': {
+          stoppedBy = request.by
+          const receipt = killWorkflowTask(taskId, setAppState)
+          return receipt === 'applied'
+            ? { outcome: 'applied', detail: `${stopWords(request.by)} — every live agent ends; transcripts, journal and records stay` }
+            : { outcome: 'refused', reason: 'already settled — nothing to stop' }
+        }
+        case 'pause':
+        case 'resume':
+        case 'pause-agent':
+        case 'resume-agent': {
+          const paused = request.action === 'pause' || request.action === 'pause-agent'
+          const result = executionPause.change(paused, request.by, request.agentId)
+          if (result.outcome === 'applied') {
+            markWorkflowPaused(taskId, executionPause.pausedBy(), setAppState)
+            await writeManifest()
+          }
+          return result
+        }
+        case 'kill-agent': {
+          const receipt = killWorkflowAgent(taskId, agentId, setAppState)
+          return receipt === 'applied'
+            ? { outcome: 'applied', detail: `killed by ${request.by} — the agent ends; the script sees an agent failure` }
+            : { outcome: 'refused', reason: 'the agent already settled — nothing to kill' }
+        }
+        case 'skip-agent': {
+          const receipt = skipWorkflowAgent(taskId, agentId, setAppState)
+          return receipt === 'applied'
+            ? { outcome: 'applied', detail: `skipped by ${request.by} — its agent() call resolves null` }
+            : { outcome: 'refused', reason: 'the agent already settled — nothing to skip' }
+        }
+        case 'retry-agent': {
+          const receipt = retryWorkflowAgent(taskId, agentId, setAppState)
+          return receipt === 'applied'
+            ? { outcome: 'applied', detail: `retry by ${request.by} — a fresh attempt starts now` }
+            : { outcome: 'refused', reason: 'the agent already settled — nothing to retry' }
+        }
+        case 'message-agent': {
+          const controller = live.agentControllers?.get(agentId)
+          if (controller === undefined || controller.signal.aborted) return { outcome: 'refused', reason: 'the agent is not in flight — nothing to message' }
+          enqueuePendingNotification({
+            value: request.message ?? '',
+            mode: 'task-notification',
+            priority: 'next',
+            agentId,
+            isMeta: true,
+          })
+          return { outcome: 'applied', detail: `message queued for the agent by ${request.by} — it reads it at its next step` }
+        }
+      }
+    }
+
     try {
       claim = await claimRun(runDir)
+      journal = new LocalFileJournal(runDir, {
+        onDegraded: reason =>
+          updateWorkflowProgressBatch(
+            taskId,
+            [{ type: 'workflow_log', message: `journal degraded — cached replay may be incomplete: ${reason}` }],
+            setAppState,
+          ),
+        epoch: claim.epoch,
+      })
+      closeControl = await serveWorkflowControl({
+        runDir,
+        claim,
+        journal,
+        apply: applyControl,
+        onError: e => logError(`workflow control for ${runId}: ${e instanceof Error ? e.message : String(e)}`),
+      })
       await persistLaunchState(runDir, script, input.args)
       if (!(await writeManifest())) {
         throw new Error(`initial run.json write failed under ${runDir}`)
       }
     } catch (e) {
+      closeControl?.()
       const msg = e instanceof Error ? e.message : String(e)
       setAppState(prev => {
         const tasks = { ...prev.tasks }
@@ -827,18 +924,7 @@ const WorkflowToolDef = {
             args: input.args,
             seedPhaseTitles: meta.phases?.map(p => p.title),
             tokenBudget,
-            journal: new LocalFileJournal(runDir, {
-              onDegraded: reason =>
-                onProgress({
-                  type: 'progress',
-                  toolUseID: 'workflow_journal_degraded',
-                  data: {
-                    type: 'workflow_log',
-                    message: `journal degraded — cached replay may be incomplete: ${reason}`,
-                  },
-                } as ProgressFrame),
-              epoch: claim.epoch,
-            }),
+            journal,
             getCwd,
             resolveWorkflow: resolveWorkflowName,
             getAllWorkflows: listWorkflows,
@@ -862,7 +948,10 @@ const WorkflowToolDef = {
         const pausedLive = live?.status === 'paused'
 
         if (task.abortController?.signal.aborted) {
-          await writeManifest({ status: pausedLive ? 'paused' : 'killed' })
+          await writeManifest({
+            status: pausedLive ? 'paused' : 'killed',
+            ...(stoppedBy !== undefined && !pausedLive ? { endedBy: stoppedBy } : {}),
+          })
           if (!pausedLive) {
             enqueueWorkflowNotification({
               taskId,
@@ -971,6 +1060,7 @@ const WorkflowToolDef = {
           },
         )
       } finally {
+        closeControl?.()
         clearInterval(manifestHeartbeat)
         if (trailingManifestWrite !== null) clearTimeout(trailingManifestWrite)
       }

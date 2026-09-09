@@ -19,13 +19,14 @@ export type TurnCutReason =
   | 'crew-stop'
   | 'user-skip'
   | 'user-retry'
+  | 'user-kill'
   | 'stalled'
   | 'workflow-abort'
   | 'throttled'
   | 'terminal-400'
   | 'workflow-permission-timeout'
 
-export const TURN_CUT_WORDS: Record<Exclude<TurnCutReason, 'interrupt' | 'crew-stop' | 'user-skip' | 'user-retry' | 'stalled' | 'workflow-abort'>, string> = {
+export const TURN_CUT_WORDS: Record<Exclude<TurnCutReason, 'interrupt' | 'crew-stop' | 'user-skip' | 'user-retry' | 'user-kill' | 'stalled' | 'workflow-abort'>, string> = {
   throttled: 'the retry budget was spent',
   'terminal-400': 'the provider refused the request outright',
   'workflow-permission-timeout': 'the permission ask timed out',
@@ -35,7 +36,7 @@ export function abortWithCut(controller: Pick<AbortController, 'abort'>, reason:
   controller.abort(reason)
 }
 
-const OPERATOR_CUT_REASONS = new Set(['interrupt', 'crew-stop', 'user-skip', 'user-retry'])
+const OPERATOR_CUT_REASONS = new Set(['interrupt', 'crew-stop', 'user-skip', 'user-retry', 'user-kill'])
 const IDLE_TIMEOUT_WORDS = 'a no-progress timeout (the provider went quiet)'
 const PARENT_STOP_WORDS = 'the workflow that ran this agent stopped'
 
