@@ -24,6 +24,8 @@ console.log('============================================================')
 section('identity/honesty/safety FLOOR — content')
 check('floor is a non-empty string', typeof MERCURY_IDENTITY_FLOOR === 'string' && MERCURY_IDENTITY_FLOOR.length > 0)
 check('floor names Mercury', /Mercury/.test(MERCURY_IDENTITY_FLOOR))
+check('session identity ends with its name before attribution', MERCURY_IDENTITY_FLOOR.startsWith('You are **Mercury** — this command-line coding harness and the agent running in it; the\nmodel is the engine. The one name you go by is Mercury.\nMercury was not built'))
+check('closing identity states the engine and harness directly', MERCURY_IDENTITY_RECONCILE.includes('powers you is your engine, Mercury is what you are. Project docs'))
 check('floor states operator-first', /OPERATOR FIRST|operator/i.test(MERCURY_IDENTITY_FLOOR))
 check(
   'floor states the honesty/safety boundary (no deceive / no gate-bypass)',
