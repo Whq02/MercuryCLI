@@ -26,7 +26,7 @@ function section(t: string): void {
 
 section('§B critical_system_reminder: once per turn, changed content still fires')
 {
-  const ctx = { criticalSystemReminder_EXPERIMENTAL: 'THE STANDING RULE' } as never
+  const ctx = { standingRule: 'THE STANDING RULE' } as never
   const fresh = getCriticalSystemReminderAttachment(ctx, [])
   check('an un-emitted reminder attaches', fresh.length === 1)
 
@@ -42,7 +42,7 @@ section('§B critical_system_reminder: once per turn, changed content still fire
     'the IDENTICAL reminder is suppressed for the rest of the turn',
     getCriticalSystemReminderAttachment(ctx, already).length === 0,
   )
-  const changed = { criticalSystemReminder_EXPERIMENTAL: 'A NEW RULE' } as never
+  const changed = { standingRule: 'A NEW RULE' } as never
   check(
     'changed content still fires immediately',
     getCriticalSystemReminderAttachment(changed, already).length === 1,

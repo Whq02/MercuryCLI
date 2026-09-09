@@ -86,6 +86,6 @@ export const VERIFICATION_AGENT: BuiltInAgentDefinition = {
   color: 'red',
   background: true,
   fixedOutputContract: true,
-  criticalSystemReminder_EXPERIMENTAL: VERIFICATION_REMINDER,
+  standingRule: VERIFICATION_REMINDER,
   getSystemPrompt: () => VERIFICATION_PROMPT,
 }

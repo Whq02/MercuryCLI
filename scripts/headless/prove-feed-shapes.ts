@@ -124,7 +124,7 @@ section('F2 — every declared key is snake_case outside the riding contracts')
     'updatedPermissions', 'systemMessage', 'suppressOutput', 'stopReason', 'permissionDecision',
     'permissionDecisionReason', 'initialUserMessage', 'asyncTimeout',
     'toolName', 'ruleContent',
-    'disallowedTools', 'criticalSystemReminder_EXPERIMENTAL', 'initialPrompt', 'maxTurns', 'permissionMode', 'mcpServers',
+    'disallowedTools', 'standingRule', 'criticalSystemReminder_EXPERIMENTAL', 'initialPrompt', 'maxTurns', 'permissionMode', 'mcpServers',
     'budgetTokens', 'multiSelect',
   ])
   const camel = [...new Set([...coreKeys, ...controlKeys].filter(key => !SNAKE.test(key)))].sort()
