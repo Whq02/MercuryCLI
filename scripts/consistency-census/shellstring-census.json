@@ -187,14 +187,6 @@
       "why": "shell parsing is the subject under test"
     },
     {
-      "file": "scripts/behaviour-laws/prove-behaviour-laws-contract.ts",
-      "line": 54,
-      "mechanism": "execSync-string",
-      "excerpt": "hits = execSync(",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
       "file": "scripts/build-identity/prove-config-home.ts",
       "line": 158,
       "mechanism": "execSync-string",
