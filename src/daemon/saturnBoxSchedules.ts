@@ -34,7 +34,7 @@ export function boxScheduleProblem(raw: unknown): string | null {
   if (typeof row.id !== 'string' || !SATURN_ID_PATTERN.test(row.id)) return 'id must be eight hex characters'
   const sub = validateSaturnSubmission({ when: row.when, action: row.action, ...(row.modelKey !== undefined ? { modelKey: row.modelKey } : {}), ...(row.note !== undefined ? { note: row.note } : {}) })
   if (!sub.ok) return sub.reason
-  if (sub.submission.action.kind !== 'birth') return "the box tier takes 'birth' schedules only (fork iii's ruling)"
+  if (sub.submission.action.kind !== 'birth') return "the box tier takes 'birth' schedules only"
   const account = row.account as Record<string, unknown> | undefined
   if (typeof account !== 'object' || account === null) return 'the account is first-class — every box row carries one (family + source)'
   if (

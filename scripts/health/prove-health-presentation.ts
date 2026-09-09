@@ -238,6 +238,10 @@ section('§7 · RICH convergence + LEGACY RETIREMENT (HL-10/19/22/23/25/32/33)')
     check(`the absorbed panel lives as the '${id}' certificate row (HL-32 absorption)`, report.includes(`id: '${id}'`))
   }
   check(
+    "the agents row names an agent file's retired standing-rule spelling once, with the rename as the fix",
+    /still spell the standing rule as \$\{STANDING_RULE_RETIRED_KEY\}/.test(report) && /fix: `Rename \$\{STANDING_RULE_RETIRED_KEY\} to \$\{STANDING_RULE_KEY\}/.test(report),
+  )
+  check(
     "the false 'Source build — git pull' guidance died with the legacy screen",
     !certView.includes('git pull && bun run build.ts') &&
       !handler.includes('git pull && bun run build.ts'),

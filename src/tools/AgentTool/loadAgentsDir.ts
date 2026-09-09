@@ -69,7 +69,7 @@ export type BaseAgentDefinition = {
   maxTurns?: number
   filename?: string
   baseDir?: string
-  criticalSystemReminder_EXPERIMENTAL?: string
+  standingRule?: string
   requiredMcpServers?: string[]
   background?: boolean
   initialPrompt?: string
@@ -355,6 +355,9 @@ export function parseAgentFromMarkdown(
     const hooks = validateHooks(frontmatter['hooks'], filePath)
     if (hooks) definition.hooks = hooks
 
+    const standingRule = readStandingRule(frontmatter)
+    if (standingRule !== undefined) definition.standingRule = standingRule
+
     return definition
   } catch (error) {
     logForDebugging(
@@ -378,6 +381,17 @@ function rebuildRawDocument(
       `${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}`,
   )
   return `---\n${lines.join('\n')}\n---\n${content}`
+}
+
+export const STANDING_RULE_KEY = 'standingRule'
+export const STANDING_RULE_RETIRED_KEY = 'criticalSystemReminder_EXPERIMENTAL'
+
+export function readStandingRule(record: Record<string, unknown>): string | undefined {
+  const current = record[STANDING_RULE_KEY]
+  if (typeof current === 'string' && current.trim()) return current
+  const retired = record[STANDING_RULE_RETIRED_KEY]
+  if (typeof retired === 'string' && retired.trim()) return retired
+  return undefined
 }
 
 
@@ -407,6 +421,8 @@ const jsonAgentSchema = z.object({
   maxTurns: z.number().int().positive().optional(),
   skills: z.array(z.string()).optional(),
   initialPrompt: z.string().optional(),
+  standingRule: z.string().optional(),
+  criticalSystemReminder_EXPERIMENTAL: z.string().optional(),
   memory: z.enum(['user', 'project', 'local']).optional(),
   background: z.boolean().optional(),
   isolation: z.literal('worktree').optional(),
@@ -453,6 +469,8 @@ export function parseAgentFromJson(
     result.skills = fields.skills
   if (fields.initialPrompt !== undefined)
     result.initialPrompt = fields.initialPrompt
+  const standingRule = readStandingRule(fields)
+  if (standingRule !== undefined) result.standingRule = standingRule
   if (memory !== undefined) result.memory = memory
   if (fields.background !== undefined) result.background = fields.background
   if (fields.isolation !== undefined) result.isolation = fields.isolation

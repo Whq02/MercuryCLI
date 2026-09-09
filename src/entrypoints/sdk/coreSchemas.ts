@@ -817,10 +817,14 @@ export const AgentDefinitionSchema = lazySchema(() =>
       .describe(
         "A model alias or id any configured provider serves; leaving it out — or writing 'inherit' — keeps the main conversation's model",
       ),
+    standingRule: z
+      .string()
+      .optional()
+      .describe('A standing rule attached to the agent context at every turn'),
     criticalSystemReminder_EXPERIMENTAL: z
       .string()
       .optional()
-      .describe('Experimental: a reminder line re-injected into the prompt at every user turn'),
+      .describe('The former spelling of standingRule; read as standingRule when that key is absent'),
     skills: z
       .array(z.string())
       .optional()
