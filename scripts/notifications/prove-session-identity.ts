@@ -16,9 +16,7 @@ const crewDir = join(SCRATCH, 'crew')
 const draftDir = join(SCRATCH, 'draft')
 for (const d of [home, daemonDir, work, ws, crewDir, draftDir]) mkdirSync(d, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = daemonDir
-process.env.MERCURY_DAEMON_DIR = daemonDir
 process.env.MERCURY_CONFIG_DIR = home
-delete process.env.MERCURY_HOME
 delete process.env.MERCURY_HOME
 
 const DIST = join(process.cwd(), 'dist', 'mercury.mjs')
