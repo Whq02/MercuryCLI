@@ -598,6 +598,27 @@ section('§6 the doctor row and the commands')
   delete process.env.MERCURY_OPENAI_API_BASE
 }
 
+console.log('\n[10] the stream error record: a device that went away is one notice, an underrun a debug count')
+{
+  const clean = session.streamErrorNotice({ transient: 0, lastTransient: null, fatal: null })
+  check('a clean stream raises no notice', clean === null, JSON.stringify(clean))
+  const transient = session.streamErrorNotice({ transient: 3, lastTransient: 'A buffer underrun or overrun occurred.', fatal: null })
+  check('an underrun or overrun is transient: a debug line carrying the count and the last text, never an operator notice', transient !== null && transient.kind === 'transient' && transient.debug === 'voice capture: 3 transient stream errors (A buffer underrun or overrun occurred.)', JSON.stringify(transient))
+  const one = session.streamErrorNotice({ transient: 1, lastTransient: null, fatal: null })
+  check('the count reads singular for one', one !== null && one.kind === 'transient' && one.debug.startsWith('voice capture: 1 transient stream error ('), JSON.stringify(one))
+  const fatal = session.streamErrorNotice({ transient: 2, lastTransient: 'A buffer underrun or overrun occurred.', fatal: 'The requested device is no longer available.' })
+  check('a device that went away is ONE real notice naming the failure, and it outranks the transient count', fatal !== null && fatal.kind === 'fatal' && fatal.text === 'the input stream failed during the take — The requested device is no longer available.', JSON.stringify(fatal))
+  check('the status line has nothing to say before any take', session.lastTakeStreamWords(null) === null)
+  check('the status line names a clean last take', session.lastTakeStreamWords({ transient: 0, lastTransient: null, fatal: null }) === 'last take: the input stream stayed clean')
+  check('the status line names the transient count and that the capture kept going', session.lastTakeStreamWords({ transient: 2, lastTransient: 'x', fatal: null }) === 'last take: 2 transient stream errors, the capture kept going')
+  check('the status line names the fatal failure', session.lastTakeStreamWords({ transient: 0, lastTransient: null, fatal: 'gone' }) === 'last take: the input stream failed during the take — gone')
+  const sessionSource = readFileSync(join(ROOT, 'src', 'services', 'voice', 'voiceSession.ts'), 'utf8')
+  check('the stop path records the take\'s stream errors, logs a transient count for debugging and receipts a fatal one', sessionSource.includes('lastStreamErrors = result.streamErrors') && sessionSource.includes("if (streamNotice?.kind === 'transient') logForDebugging(streamNotice.debug)") && sessionSource.includes("if (streamNotice?.kind === 'fatal') {\n      receipt(`${streamNotice.text} — ${microphonePermissionHint()}`, 'error')"))
+  const captureSource = readFileSync(join(ROOT, 'src', 'services', 'voice', 'capture.ts'), 'utf8')
+  check('the vendored capture reads the addon\'s error record after the take closes (lastCaptureErrors) and while it runs (captureErrors)', captureSource.includes('done ? load.addon.lastCaptureErrors(handle) : load.addon.captureErrors(handle)'))
+  check('a fixture take carries the empty record', (await (await capture.startCapture({ backend: { state: 'ok', kind: 'fixture', detail: 'fixture', pinned: true } })).stop()).streamErrors.transient === 0)
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 if (failures > 0) {
   console.log(`\nprove-voice-owners: RED (${failures})`)

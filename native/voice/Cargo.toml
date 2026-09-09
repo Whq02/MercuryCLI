@@ -1,6 +1,6 @@
 [package]
 name = "mercury_voice"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Mercury's native addon, as a Node-API module: voice capture (input devices and 16 kHz mono capture over the platform audio layer) and the terminal hand-back (the controlling terminal's foreground process group, read and reclaimed)"
 publish = false
