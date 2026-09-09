@@ -376,8 +376,13 @@ export class WorkflowExecutionPause {
       if (entry === undefined) return { outcome: 'refused', reason: 'the agent is not in flight — nothing to pause or resume' }
       if (paused && entry.by !== undefined) return { outcome: 'refused', reason: `already paused by ${entry.by}` }
       if (!paused && entry.by === undefined && this.runPausedBy === undefined) return { outcome: 'refused', reason: 'the agent is not paused — nothing to resume' }
+      if (!paused && this.runPausedBy !== undefined) {
+        for (const [otherId, other] of this.agents) {
+          if (otherId !== agentId && other.by === undefined) other.by = this.runPausedBy
+        }
+        this.runPausedBy = undefined
+      }
       entry.by = paused ? by : undefined
-      if (!paused) this.runPausedBy = undefined
       for (const listener of entry.listeners) listener()
     } else {
       if (paused && this.runPausedBy !== undefined) return { outcome: 'refused', reason: `already paused by ${this.runPausedBy}` }
