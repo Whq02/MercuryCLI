@@ -22,7 +22,7 @@ const wt = await import('../../src/utils/worktree.ts')
     'R  new.ts', 'old.ts',
     '?? notes.md',
     '?? .mercury/cache-clock/sessions/x.json',
-    '?? .claude/cache-clock/sessions/y.json',
+    '?? .othertool/cache-clock/sessions/y.json',
   ].join('\0') + '\0'
   const c = wt.classifyPorcelainRecords(z)
   check('§A tracked: modify + rename both sides', c.tracked.length === 3)
