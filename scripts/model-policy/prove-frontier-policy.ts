@@ -99,7 +99,7 @@ console.log('\n§3 launch matrix')
   for (const [label, patch, code] of rows) {
     const d = evaluateFrontierDecision({ ...base(), ...patch })
     check(
-      `row 5: ${label} → EXACT legacy Opus default (${code})`,
+      `row 5: ${label} → the exact Opus fallback default (${code})`,
       d.source === 'fallback' && d.setting === 'claude-opus-4-8[1m]' && d.code === code,
       `got ${d.source}/${d.setting}/${d.code}`,
     )

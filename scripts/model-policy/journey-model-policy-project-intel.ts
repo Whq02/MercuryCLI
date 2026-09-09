@@ -22,7 +22,6 @@ function childEnv(): Record<string, string> {
     if (/^CLAUDE/i.test(key)) continue
     if (/^ANTHROPIC/i.test(key)) continue
     if (/^MERCURY_/i.test(key)) continue
-    if (/^TF_/.test(key)) continue
     env[key] = value
   }
   return env
