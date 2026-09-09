@@ -212,6 +212,16 @@ function isPrintMode(): boolean {
   return process.argv.includes('-p') || process.argv.includes('--print')
 }
 
+let printModeSignalsOwned = false
+
+export function markPrintModeSignalsOwned(): void {
+  printModeSignalsOwned = true
+}
+
+function printModeOwnsSignals(): boolean {
+  return isPrintMode() && printModeSignalsOwned
+}
+
 function isDaemonSubcommand(): boolean {
   return process.argv[2] === 'daemon'
 }
@@ -230,12 +240,12 @@ export const setupGracefulShutdown = (): void => {
 
   if (!isDaemonSubcommand()) {
     process.on('SIGINT', () => {
-      if (isPrintMode()) return
+      if (printModeOwnsSignals()) return
       logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGINT' })
       gracefulShutdownSync(130)
     })
     process.on('SIGTERM', () => {
-      if (isPrintMode()) return
+      if (printModeOwnsSignals()) return
       logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGTERM' })
       gracefulShutdownSync(143)
     })
