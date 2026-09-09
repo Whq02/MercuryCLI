@@ -167,6 +167,7 @@ export interface ConcourseWorkerRecordV1 {
   parkReason?: string
   parkRequestedAt?: number
   parkRequestedBy?: string
+  parkRequestedReason?: string
   parkIntent?: { token: string; by: string; at: number; pid: number }
   parkRefused?: { reason: string; at: number; by: string }
   contract?: import('./sessionContract.js').SessionContractV1
@@ -317,6 +318,7 @@ export function markConcourseWorkerDelivery(runnerId: string, dir?: string): voi
         rec.lastDeliveryAt = Date.now()
         rec.activity = { state: 'working', subagents: rec.activity?.subagents ?? 0, description: 'working', lastTurnAt: rec.activity?.lastTurnAt ?? null }
         delete rec.crash
+        delete rec.parkRefused
         if (rec.contract !== undefined && rec.contract.status === 'acknowledged') {
           rec.contract.status = 'active'
         }
@@ -1356,6 +1358,18 @@ export function reconcileConcourseWorkers(
           continue
         }
       }
+      if (rec.parkIntent !== undefined) {
+        const intent = rec.parkIntent
+        const intentRunnerLive = rosterLiveShorts.has(rec.runnerId) || workerPidAlive(rec)
+        if (!intentRunnerLive || rec.pid !== intent.pid) {
+          delete rec.parkIntent
+          if (!intentRunnerLive) {
+            stampParked(rec, intent.by)
+            receipt.parked.push(rec.runnerId)
+            continue
+          }
+        }
+      }
       if (rec.attachedAt !== undefined || rec.stoppedAt !== undefined) {
         receipt.live.push(rec.runnerId)
         continue
@@ -1787,6 +1801,7 @@ export async function reactivateConcourseSession(
         if (!w) return
         delete w.parkRequestedAt
         delete w.parkRequestedBy
+        delete w.parkRequestedReason
       }, deps.dir)
     }
     return {
@@ -2018,10 +2033,12 @@ export function completeRequestedStop(runnerId: string, dir?: string): boolean {
 function stampParked(rec: ConcourseWorkerRecordV1, by: string, reason?: string): void {
   rec.parkedAt = Date.now()
   rec.parkedBy = by
+  delete rec.parkRefused
   if (reason !== undefined) rec.parkReason = reason
   else delete rec.parkReason
   delete rec.parkRequestedAt
   delete rec.parkRequestedBy
+  delete rec.parkRequestedReason
   delete rec.stoppedAt
   delete rec.stoppedBy
   delete rec.retired
@@ -2044,6 +2061,7 @@ function clearParkedFields(rec: ConcourseWorkerRecordV1): void {
   delete rec.parkReason
   delete rec.parkRequestedAt
   delete rec.parkRequestedBy
+  delete rec.parkRequestedReason
 }
 
 export const PARK_DRAIN_CUT_REASON = 'parked — turn cut at the drain ceiling'
@@ -2075,6 +2093,7 @@ export function parkConcourseSession(
       if (rec.parkRequestedAt === undefined) {
         rec.parkRequestedAt = Date.now()
         rec.parkRequestedBy = by
+        if (opts?.reason !== undefined) rec.parkRequestedReason = opts.reason
       }
       out = { outcome: 'draining', runnerId: rec.runnerId }
       return
@@ -2198,6 +2217,27 @@ export async function retireConcourseSession(
   }
 }
 
+export async function completeFencedRetirement(runnerId: string, dir?: string): Promise<boolean> {
+  const fence = retirementFences.get(runnerId)
+  if (fence !== undefined) {
+    if (!fence.fenced) return false
+    const result = await fence.reconcileExit()
+    if (!fence.fenced && retirementFences.get(runnerId) === fence) retirementFences.delete(runnerId)
+    return result.outcome === 'parked'
+  }
+  let completed = false
+  updateConcourseWorkers(workers => {
+    const w = workers[runnerId]
+    if (!w || w.endedAt !== undefined || w.parkedAt !== undefined || w.parkIntent === undefined) return
+    if (workerPidAlive(w)) return
+    const intent = w.parkIntent
+    delete w.parkIntent
+    stampParked(w, intent.by)
+    completed = true
+  }, dir)
+  return completed
+}
+
 export function completeRequestedPark(
   runnerId: string,
   roster: { kill(short: string): boolean } | undefined,
@@ -2212,10 +2252,23 @@ export function completeRequestedPark(
     const alive = workerPidAlive(rec)
     if (alive && turnInFlightOf(rec)) return
     if (alive && !(roster !== undefined && roster.kill(rec.runnerId))) return
-    stampParked(rec, rec.parkRequestedBy ?? 'daemon')
+    stampParked(rec, rec.parkRequestedBy ?? 'daemon', rec.parkRequestedReason)
     completed = true
   }, dir)
   return completed
+}
+
+export async function retireRequestedPark(
+  runnerId: string,
+  roster: Parameters<typeof retireConcourseSession>[2],
+  dir?: string,
+): Promise<ConcourseRetireOutcome | null> {
+  const standing = readSessionWorkers(dir)[runnerId]
+  if (!standing || standing.endedAt !== undefined || standing.parkedAt !== undefined || standing.parkRequestedAt === undefined) return null
+  if (turnInFlightOf(standing) && workerPidAlive(standing)) return null
+  const by = standing.parkRequestedBy ?? 'daemon'
+  const reason = standing.parkRequestedReason
+  return retireConcourseSession(standing.sessionId, by, roster, dir, reason !== undefined ? { reason } : undefined)
 }
 
 export function pendingParkRequests(dir?: string): string[] {

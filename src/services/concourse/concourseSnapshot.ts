@@ -62,6 +62,35 @@ export function concourseRecordState(
                   : 'starting'
 }
 
+export function concourseNowLabel(
+  rec: Parameters<typeof concourseRecordState>[0] & Pick<ConcourseWorkerRecordV1, 'sessionId' | 'workspaceId' | 'spawnedAt' | 'parkReason' | 'parkIntent' | 'parkRefused' | 'retired'>,
+  liveness: { needsYou: boolean; alive: boolean },
+  nowMs: number,
+): string | null {
+  const state = concourseRecordState(rec, liveness)
+  const alive = liveness.alive
+  return state === 'parked'
+    ? rec.parkReason !== undefined
+      ? sanitizeLabel(rec.parkReason)
+      : `parked · ${ageLabelOf(nowMs, rec.parkedAt ?? rec.spawnedAt)}`
+    : rec.crash !== undefined && state === 'needs-you'
+      ? sanitizeLabel(rec.crash.reason)
+      : state === 'needs-you' && !alive && rec.pid !== undefined
+        ?
+          'its process is gone'
+        : (state === 'working' || state === 'ready-to-review') && rec.parkIntent !== undefined
+          ? `parking — ${sanitizeLabel(rec.parkIntent.by)}`
+          : (state === 'working' || state === 'ready-to-review') && rec.parkRefused !== undefined
+            ? `park refused — ${sanitizeLabel(rec.parkRefused.reason)}`
+            : state === 'working' || state === 'ready-to-review' || state === 'needs-you'
+              ? tailActivityLabel(rec)
+              : state === 'attached'
+                ? 'with you'
+                : state === 'stopped' && rec.retired !== undefined
+                  ? retiredNowLabel(rec.retired)
+                  : null
+}
+
 function entryShapeOf(entry: unknown): { type?: unknown; message?: { content?: unknown }; timestamp?: unknown } | null {
   if (!entry || typeof entry !== 'object') return null
   const env = entry as { schemaVersion?: unknown; payload?: unknown }
@@ -983,23 +1012,7 @@ export async function buildConcourseSnapshot(
     const state = concourseRecordState(rec, { needsYou: needsYouSessions.has(rec.sessionId), alive })
     const projectName = basename(rec.workspaceId) || rec.workspaceId
     workspaceOfRow.set(rec.sessionId, rec.workspaceId)
-    const nowLabel =
-      state === 'parked'
-        ? rec.parkReason !== undefined
-          ? sanitizeLabel(rec.parkReason)
-          : `parked · ${ageLabelOf(nowMs, rec.parkedAt ?? rec.spawnedAt)}`
-        : rec.crash !== undefined && state === 'needs-you'
-          ? sanitizeLabel(rec.crash.reason)
-          : state === 'needs-you' && !alive && rec.pid !== undefined
-            ?
-              'its process is gone'
-            : state === 'working' || state === 'ready-to-review' || state === 'needs-you'
-              ? tailActivityLabel(rec)
-            : state === 'attached'
-              ? 'with you'
-              : state === 'stopped' && rec.retired !== undefined
-                ? retiredNowLabel(rec.retired)
-                : null
+    const nowLabel = concourseNowLabel(rec, { alive, needsYou: needsYouSessions.has(rec.sessionId) }, nowMs)
     return {
       sessionId: rec.sessionId,
       title: sanitizeLabel(sessionTitleOf(rec, () => headBriefLabel(rec, 48))),
