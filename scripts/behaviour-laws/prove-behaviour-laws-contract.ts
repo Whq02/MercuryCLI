@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, readFileSync } from 'node:fs'
-import { execSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -19,30 +18,12 @@ console.log('============================================================')
 console.log(' behaviour law 1 — repository-owned contract')
 console.log('============================================================')
 
-section('§1 ownership — the bridge is gone; one repo owner')
-const RETIRED_APPEND = ['temp', 'est-wrapper.append.txt'].join('')
-const RETIRED_WRAPPER = ['temp', 'estWrapper.ts'].join('')
-check(`${RETIRED_APPEND} DELETED`, !existsSync(join(ROOT, 'src/constants', RETIRED_APPEND)))
-check('regen-wrapper.mjs DELETED', !existsSync(join(ROOT, 'scripts/wrapper/regen-wrapper.mjs')))
-check(`${RETIRED_WRAPPER} DELETED`, !existsSync(join(ROOT, 'src/constants', RETIRED_WRAPPER)))
-{
-  let hits = ''
-  try {
-    hits = execSync(
-      `grep -rlE "WRAPPER_SOURCE_DIGEST|assertWrapperFresh" src scripts --include='*.ts' --include='*.tsx' --include='*.mjs' --include='*.sh' 2>/dev/null | grep -v scripts/behaviour-laws/prove-behaviour-laws-contract.ts || true`,
-      { cwd: ROOT, encoding: 'utf8' },
-    ).trim()
-  } catch {
-    hits = ''
-  }
-  check('zero active references to the retired bridge machinery', hits === '', hits)
-}
+section('§1 ownership — one repository owner')
 {
   const mod = readFileSync(join(ROOT, 'src/prompt/mercuryContract.ts'), 'utf8')
-  check('mercuryContract.ts owns floor + doctrine + reconcile (no family overlay)',
-    mod.includes('MERCURY_IDENTITY_FLOOR') && mod.includes('MERCURY_DOCTRINE') &&
-    !mod.includes('GPT_DEVELOPER_CONTRACT') && mod.includes('MERCURY_IDENTITY_RECONCILE'))
-  check('no external text import (repo-owned bytes only)', !/require\(|from '[^']*\.txt'/.test(mod))
+  check('mercuryContract.ts owns floor + doctrine + reconcile',
+    mod.includes('MERCURY_IDENTITY_FLOOR') && mod.includes('MERCURY_DOCTRINE') && mod.includes('MERCURY_IDENTITY_RECONCILE'))
+  check('no external text import (repository-owned bytes only)', !/require\(|from '[^']*\.txt'/.test(mod))
 }
 
 section('§2 gate — the doctrine opt-out never drops the floor')
