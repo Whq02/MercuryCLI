@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, realpathSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -129,6 +129,9 @@ section("§4 every revive road boots the record's posture and consent; the react
         pid: 4_000_001,
         ...patch,
       } as ConcourseWorkerRecordV1
+      const transcript = supervisor.concourseTranscriptPath(workers[short]!)
+      mkdirSync(join(transcript, '..'), { recursive: true })
+      writeFileSync(transcript, `${JSON.stringify({ type: 'user', uuid: `${sid}-u1`, message: { role: 'user', content: 'seeded turn' } })}\n`)
     }, dir)
   }
   const lastSpec = (): StreamJsonChildSpec | undefined => roster.registered.at(-1)?.spec
