@@ -82,7 +82,7 @@ section('2 · describe() — present, honest, secret-free, catalogue-verified')
 
   check("anthropic transport 'anthropic-messages'", anth.transport === 'anthropic-messages')
   check(
-    "openai transport 'openai-responses' (native — codex-app-server retired)",
+    "openai transport 'openai-responses' (native)",
     oai.transport === 'openai-responses',
   )
   check("zai transport 'zai-chat-completions'", zai.transport === 'zai-chat-completions')
@@ -259,7 +259,7 @@ section('4 · snapshot — additive surface; uncredentialed never resolves an en
   )
   for (const p of snap.providers) {
     check(
-      `${p.id}: legacy fields intact + transport + description present`,
+      `${p.id}: availability + transport + description present`,
       typeof p.available === 'boolean' &&
         typeof p.transport === 'string' &&
         p.description !== undefined &&

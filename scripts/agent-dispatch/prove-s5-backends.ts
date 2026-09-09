@@ -462,7 +462,7 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
   check('zai: engine backend recorded', zaiPlan.engineBackend === 'zai')
   check('zai: no specialist tool denials on the plan (spawn surfaces kept)', !('engineToolDenials' in zaiPlan))
   check(
-    'no sandbox concept survives on the plan (the codex role→sandbox law retired with the runtime)',
+    'no sandbox or role field rides the plan',
     !('engineSandbox' in zaiPlan) && !('engineRole' in zaiPlan),
   )
   check(
@@ -477,7 +477,7 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
   {
     const launchPlanModule = await import('../../src/utils/swarm/agentLaunchPlan.js')
     check(
-      'the specialist-denial export is retired (provider parity)',
+      'the launch-plan module exports no specialist-denial table (provider parity)',
       !('ENGINE_SPECIALIST_TOOL_DENIALS' in launchPlanModule),
     )
   }

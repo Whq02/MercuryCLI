@@ -26,7 +26,7 @@ section('§A the kernel fold — durable, merging, additive')
     rootMessageId: null,
     at: 1,
   })
-  check('legacy shape: modelState absent on the empty snapshot', s0.modelState === undefined)
+  check('the empty snapshot carries no modelState', s0.modelState === undefined)
 
   const queued = reduceRunEvent(s0, {
     type: 'model-transition',

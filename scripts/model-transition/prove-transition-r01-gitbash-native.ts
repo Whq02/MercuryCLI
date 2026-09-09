@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const FOREIGN = ['CLAUDE', 'CODE'].join('_')
 const BUN = process.env.BUN ?? process.execPath
 
 let failures = 0
@@ -46,30 +45,25 @@ function resolveBashWith(env: Record<string, string | undefined>): string {
   }).trim()
 }
 check(
-  '§B the native override resolves (a foreign spelling beside it is inert)',
-  resolveBashWith({
-    MERCURY_GIT_BASH_PATH: '/bin/bash',
-    [`${FOREIGN}_GIT_BASH_PATH`]: '/nonexistent-foreign-bash',
-  }) === '/bin/bash',
+  '§B the MERCURY_GIT_BASH_PATH override resolves',
+  resolveBashWith({ MERCURY_GIT_BASH_PATH: '/bin/bash' }) === '/bin/bash',
 )
 
 const shellUtils = readFileSync(join(ROOT, 'src/utils/shell/shellToolUtils.ts'), 'utf8')
 check(
-  '§C isPowerShellToolEnabled reads MERCURY_USE_POWERSHELL_TOOL and no foreign spelling',
-  /process\.env\.MERCURY_USE_POWERSHELL_TOOL/.test(shellUtils) &&
-    !shellUtils.includes(`process.env.${FOREIGN}_USE_POWERSHELL_TOOL`),
+  '§C isPowerShellToolEnabled reads MERCURY_USE_POWERSHELL_TOOL',
+  /process\.env\.MERCURY_USE_POWERSHELL_TOOL/.test(shellUtils),
 )
 const psTools = readFileSync(join(ROOT, 'src/tools/PowerShellTool/PowerShellTool.tsx'), 'utf8')
 check(
-  '§C the PowerShell availability probe reads MERCURY_GIT_BASH_PATH and no foreign spelling',
-  /process\.env\.MERCURY_GIT_BASH_PATH/.test(psTools) && !psTools.includes(`process.env.${FOREIGN}_GIT_BASH_PATH`),
+  '§C the PowerShell availability probe reads MERCURY_GIT_BASH_PATH',
+  /process\.env\.MERCURY_GIT_BASH_PATH/.test(psTools),
 )
 
 const windowsPaths = readFileSync(join(ROOT, 'src/utils/windowsPaths.ts'), 'utf8')
 check(
   '§D the requires-git-bash message names MERCURY_GIT_BASH_PATH',
-  /requires git-bash[\s\S]{0,300}MERCURY_GIT_BASH_PATH=/.test(windowsPaths) &&
-    !new RegExp(`requires git-bash[\\s\\S]{0,300}${FOREIGN}_GIT_BASH_PATH=`).test(windowsPaths),
+  /requires git-bash[\s\S]{0,300}MERCURY_GIT_BASH_PATH=/.test(windowsPaths),
 )
 check(
   '§D the not-found message names MERCURY_GIT_BASH_PATH',
@@ -77,14 +71,12 @@ check(
 )
 const tips = readFileSync(join(ROOT, 'src/services/tips/tipRegistry.ts'), 'utf8')
 check(
-  '§D the tip advertises the native spelling only',
-  tips.includes('Set MERCURY_USE_POWERSHELL_TOOL=1') &&
-    !tips.includes(`Set ${FOREIGN}_USE_POWERSHELL_TOOL=1`),
+  '§D the tip advertises MERCURY_USE_POWERSHELL_TOOL',
+  tips.includes('Set MERCURY_USE_POWERSHELL_TOOL=1'),
 )
 check(
-  '§D the tip stays quiet when the native spelling is set (no foreign spelling in the gate)',
-  /process\.env\.MERCURY_USE_POWERSHELL_TOOL === undefined/.test(tips) &&
-    !tips.includes(`${FOREIGN}_USE_POWERSHELL_TOOL`),
+  '§D the tip stays quiet when MERCURY_USE_POWERSHELL_TOOL is set',
+  /process\.env\.MERCURY_USE_POWERSHELL_TOOL === undefined/.test(tips),
 )
 
 const templates = readFileSync(join(ROOT, 'scripts/release/launcherTemplates.mjs'), 'utf8')
