@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { freemem, totalmem } from 'node:os'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { availableCores } from '../../utils/availableCores.js'
@@ -98,6 +99,49 @@ let held: { seats: number; sample: SeatReadingSample | null } | null = null
 let lastSampledAt = 0
 let fixture: { seats: number; sample: SeatReadingSample | null } | null = null
 let sampler: (() => { cores: number; availableBytes: number; read: MemoryRead }) | null = null
+
+let pendingSample: Promise<void> | null = null
+
+async function sampleAvailableMemoryAsync(): Promise<MemorySample> {
+  const totalBytes = totalmem()
+  const fallback: MemorySample = { availableBytes: freemem(), totalBytes, read: 'free' }
+  try {
+    if (process.platform === 'darwin') {
+      const result = await execFileNoThrow('vm_stat', [], { timeout: 2000, useCwd: false })
+      const available = result.code === 0 ? availableFromVmStat(result.stdout) : null
+      return available === null ? fallback : { availableBytes: available, totalBytes, read: 'vm_stat' }
+    }
+    if (process.platform === 'linux') {
+      const controller = new AbortController()
+      const deadline = setTimeout(() => controller.abort(), 2000)
+      try {
+        const available = availableFromMeminfo(await readFile('/proc/meminfo', { encoding: 'utf8', signal: controller.signal }))
+        return available === null ? fallback : { availableBytes: available, totalBytes, read: 'meminfo' }
+      } finally {
+        clearTimeout(deadline)
+      }
+    }
+    if (process.platform === 'win32') {
+      const available = availableFromCounter(freemem())
+      return available === null ? fallback : { availableBytes: available, totalBytes, read: 'counter' }
+    }
+  } catch {}
+  return fallback
+}
+
+export async function seatCeilingFactsAsync(): Promise<SeatCeilingFacts> {
+  if (fixture === null && stampedSeats() === null && (held === null || Date.now() - lastSampledAt >= SAMPLE_TTL_MS)) {
+    pendingSample ??= (async () => {
+      const memory = sampler === null ? await sampleAvailableMemoryAsync() : sampler()
+      const sample: SeatReadingSample = { cores: 'cores' in memory ? memory.cores : availableCores(), availableBytes: memory.availableBytes, read: memory.read, sampledAt: Date.now() }
+      lastSampledAt = sample.sampledAt
+      const seats = machineSeatReading(sample.cores, sample.availableBytes)
+      if (held === null || seats >= held.seats) held = { seats, sample }
+    })().finally(() => { pendingSample = null })
+    await pendingSample
+  }
+  return seatCeilingFacts()
+}
 
 function freshSample(): SeatReadingSample {
   if (sampler !== null) return { ...sampler(), sampledAt: Date.now() }
@@ -289,6 +333,7 @@ export interface SeatCeilingFacts {
   lever: string
   reading: number
   readingSentence: string
+  sample: SeatReadingSample | null
   consented: number | null
 }
 
@@ -317,6 +362,7 @@ export function seatCeilingFacts(): SeatCeilingFacts {
     lever: seatCeilingLever(),
     reading,
     readingSentence: machineReadingSentence(reading),
+    sample: stampedSeats() !== null ? null : heldMachineSeatFacts().sample,
     consented,
   }
 }
@@ -349,7 +395,7 @@ export function seatCostWarning(facts: SeatCeilingFacts = seatCeilingFacts()): s
 
 export function seatCeilingDetailLines(facts: SeatCeilingFacts = seatCeilingFacts()): string[] {
   const stamped = stampedSeats() !== null
-  const sample = stamped ? null : heldMachineSeatFacts().sample
+  const sample = facts.sample
   const gb = sample === null ? null : sample.availableBytes / GB
   const lines = [
     `reading: ${facts.reading} seat${facts.reading === 1 ? '' : 's'} (${stamped ? "the daemon's, at spawn" : 'this machine'})`,
