@@ -21,7 +21,7 @@ section('(1) decideSplashReceipt — the validation matrix (no shape may cost a 
 {
   const d = (raw: string | null) => decideSplashReceipt(raw, NOW, dirExists)
   check('absent file ⇒ no-file, nothing applied', d(null).reason === 'no-file' && d(null).apply === null)
-  check('the 1.5.4 murder bytes ("\\n\\nheld\\n") ⇒ malformed, nothing applied', d('\n\nheld\n').reason === 'malformed')
+  check('a bare plain-text receipt ("\\n\\nheld\\n") ⇒ malformed, nothing applied', d('\n\nheld\n').reason === 'malformed')
   check('non-JSON garbage ⇒ malformed', d('set /p is not a parser').reason === 'malformed')
   check('multi-line JSON-ish garbage ⇒ malformed', d('{"version":\n\n').reason === 'malformed')
   check('wrong version ⇒ malformed', d(fresh({}).replace('"version":1', '"version":2')).reason === 'malformed')

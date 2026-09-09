@@ -21,7 +21,7 @@ console.log('============================================================')
 console.log(' Boot crash surface — a module the artifact cannot load fails LOUD')
 console.log('============================================================')
 
-section('§1 — the handle-require shape is gone; the entry and the handlers fail loud')
+section('§1 — no handle-require shape: the entry and the handlers fail loud')
 {
   const proxy = src('utils', 'proxy.ts')
   const mtls = src('utils', 'mtls.ts')

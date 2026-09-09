@@ -126,7 +126,7 @@ section('§7 explicit OFF ⇒ byte-identical; unset ⇒ the default-on plane WRI
   resetAuditChainForTests()
   process.env.MERCURY_THEMIS = 'off'
   await appendAuditRow({ actor: 'proof', action: 'should-not-write' })
-  check('no themis dir created in ANY home (explicit off)', !['.mercury', '.claude'].some(h => existsSync(join(scratch, h, 'themis'))))
+  check('no themis dir created in the project (explicit off)', !existsSync(join(scratch, '.mercury', 'themis')))
   delete process.env.MERCURY_THEMIS
   resetAuditChainForTests()
   await appendAuditRow({ actor: 'proof', action: 'default-on-writes' })

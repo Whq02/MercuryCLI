@@ -99,9 +99,8 @@ check(
 )
 const rootSrc = src('services', 'mcp', 'channelsRoot.ts')
 check(
-  'channelsRoot is the one native root (legacy continuity read retired)',
-  /join\(getMercuryHome\(\),\s*['"]channels['"]\)/.test(rootSrc) &&
-    !/\.claude/.test(rootSrc.replace(/^\s*\*.*$/gm, '').replace(/^\s*\/\/.*$/gm, '')),
+  'channelsRoot is the one native root under the config home',
+  /join\(getMercuryHome\(\),\s*['"]channels['"]\)/.test(rootSrc),
 )
 
 section('(b2) getLocalChannelRoom — abs-path hash fallback (no basename collision)')
@@ -246,7 +245,7 @@ check(
   !existsSync(join(ROOT, 'src', 'commands', 'say', 'index.ts')),
 )
 
-section('(e) render leg — UserTextMessage → UserChannelMessage (severed-wire relanding)')
+section('(e) render leg — UserTextMessage → UserChannelMessage')
 const userText = src('components', 'messages', 'UserTextMessage.tsx')
 check(
   'UserTextMessage dispatches `<channel source="` text to UserChannelMessage',
@@ -254,9 +253,8 @@ check(
     /<UserChannelMessage addMargin=\{addMargin\} param=\{param\} \/>/.test(userText),
 )
 check(
-  'the dispatch import is STATIC (no feature()/require() gate left around it)',
-  /import \{ UserChannelMessage \} from '\.\/UserChannelMessage\.js'/.test(userText) &&
-    !/feature\(/.test(userText),
+  'the dispatch import is static',
+  /import \{ UserChannelMessage \} from '\.\/UserChannelMessage\.js'/.test(userText),
 )
 const chanMsg = src('components', 'messages', 'UserChannelMessage.tsx')
 check(

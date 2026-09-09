@@ -48,12 +48,12 @@ async function run(
 ): Promise<RunResult> {
   const home = mkdtempSync(join(tmpdir(), 'variadic-home-'))
   const cwd = mkdtempSync(join(tmpdir(), 'variadic-cwd-'))
-  mkdirSync(join(home, '.claude'), { recursive: true })
+  mkdirSync(join(home, '.mercury'), { recursive: true })
   const env = {
     HOME: home,
     PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
     TERM: 'dumb',
-    MERCURY_CONFIG_DIR: join(home, '.claude'),
+    MERCURY_CONFIG_DIR: join(home, '.mercury'),
     ANTHROPIC_BASE_URL: fixture.url,
     ANTHROPIC_API_KEY: 'fixture-key-000',
     MERCURY_DAEMON_DIR: join(home, 'daemon'),

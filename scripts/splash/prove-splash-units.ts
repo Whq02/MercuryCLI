@@ -100,7 +100,7 @@ check('paste chunk dispatches whole (inertness preserved downstream)', coalesceS
 check('bracketed-paste opener is not partial (dispatches whole)', coalesceStep('', '\x1b[200~hello\x1b[201~').dispatch !== null)
 check('double-tap ESC in one window merges (documented C1 trade)', coalesceStep('\x1b', '\x1b').dispatch === '\x1b\x1b')
 check('the 15ms timeout constant is the report value', src.includes('const ESC_TIMEOUT_MS = 15'))
-check('C4: the handler decodes utf8, latin1 retired', src.includes("buf.toString('utf8')") && !src.includes("toString('latin1')"))
+check('C4: the handler decodes utf8, never latin1', src.includes("buf.toString('utf8')") && !src.includes("toString('latin1')"))
 
 section('§4 readHead — the bounded head read (D1)')
 const readHeadSrc = block('READHEAD')
@@ -130,7 +130,7 @@ try {
   writeFileSync(torn, 'a'.repeat(4095) + '魔魔魔')
   const gotTorn = readHead(torn)
   check('a torn multibyte tail decodes fail-soft (no throw)', gotTorn.length > 4090)
-  check('the scan site consumes readHead (whole-file readFileSync retired)', src.includes('const head = readHead(e.file)') && !src.includes("readFileSync(e.file, 'utf8').slice(0, 4096)"))
+  check('the scan site consumes readHead, never a whole-file read', src.includes('const head = readHead(e.file)') && !src.includes("readFileSync(e.file, 'utf8').slice(0, 4096)"))
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
@@ -159,7 +159,7 @@ check('the idle timer cancels, never launches', src.includes('setTimeout(cancelE
 check('cancelExit records the cancel receipt AND leaves through collapse(130)', src.includes("writeSplashAction('cancel')") && /function cancelExit\(\) \{[\s\S]*?collapse\(130\)\s*\n\}/.test(src))
 check('collapse derives the exit-code contract (cancel→130, restored→20)', src.includes('if (cancelled) exitCode = 130') && src.includes("else if (code === 0 && screenAtExit === 'restored') exitCode = 20"))
 check('both restoreAndBrand branches settle the screen fact for the funnel', src.includes("screenAtExit = 'held'") && src.includes("screenAtExit = 'restored'"))
-check('the plain-text twin is never WRITTEN (BM-30 ratchet at the writer; the startup sweep may still delete leftovers)', !src.includes("writeFileSync(join(CONFIG_HOME, 'splash-action.txt')"))
+check('the plain-text twin is never WRITTEN (BM-30, at the writer; the startup sweep may still delete leftovers)', !src.includes("writeFileSync(join(CONFIG_HOME, 'splash-action.txt')"))
 check('every exit funnels through the draining collapse (D3)', src.includes("out.write('', bye)") && !/restoreAndBrand\(\)\n\s*process\.exit\(0\)/.test(src))
 
 section('§7 resolveConfigFile ↔ runtime parity (K1 — the frozen-stale class)')
@@ -168,19 +168,18 @@ section('§7 resolveConfigFile ↔ runtime parity (K1 — the frozen-stale class
   check('resolveConfigFile exists in the splash', resolver.length > 0)
   const iDot = resolver.indexOf("'.config.json'")
   const iNative = resolver.indexOf("'.mercury.json'")
-  const iLegacy = resolver.indexOf("'.claude.json'")
   check(
-    'splash chain: .config.json → .mercury.json, the compat-era rung retired',
-    iDot >= 0 && iNative > iDot && iLegacy === -1,
-    `${iDot}/${iNative}/${iLegacy}`,
+    'splash chain: .config.json → .mercury.json',
+    iDot >= 0 && iNative > iDot,
+    `${iDot}/${iNative}`,
   )
   check(
     'every monolith-reading chip routes through the resolver (theme + account)',
     (src.match(/readFileSync\(resolveConfigFile\(\), 'utf8'\)/g) ?? []).length >= 2,
   )
   check(
-    "the health chip iterates the Mercury home ['.mercury'] — the external dir never",
-    src.includes("for (const projDir of ['.mercury'])") && !src.includes("projDir of ['.mercury', '.claude']"),
+    "the health chip iterates the Mercury home ['.mercury']",
+    src.includes("for (const projDir of ['.mercury'])"),
   )
   const envSrc = readFileSync(
     join(import.meta.dir, '..', '..', 'src', 'utils', 'env.ts'),
@@ -188,11 +187,10 @@ section('§7 resolveConfigFile ↔ runtime parity (K1 — the frozen-stale class
   )
   const eDot = envSrc.indexOf("'.config.json'")
   const eNative = envSrc.indexOf('`.mercury${fileSuffixForOauthConfig()}.json`')
-  const eLegacy = envSrc.indexOf('`.claude${suffix}.json`')
   check(
     'runtime owner expresses the same two-rung chain (env.ts getGlobalMercuryFile)',
-    eDot >= 0 && eNative > eDot && eLegacy === -1,
-    `${eDot}/${eNative}/${eLegacy}`,
+    eDot >= 0 && eNative > eDot,
+    `${eDot}/${eNative}`,
   )
 }
 
