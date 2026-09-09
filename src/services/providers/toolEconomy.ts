@@ -11,7 +11,7 @@ import {
   isToolReferenceBlock,
   isToolSearchEnabled,
 } from '../../utils/toolSearch.js'
-import { deferralWireFormFor, type DeferralWireForm, type DeferralWireVerdict } from './deferralWire.js'
+import { deferralWireFormFor, supportsToolDeferral, type DeferralWireForm, type DeferralWireVerdict } from './deferralWire.js'
 
 export interface ToolPayloadPlanInput {
   model: string
@@ -165,7 +165,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
       input.source,
       wire.form,
     )
-    if (enabled && wire.form !== 'block') enabled = false
+    if (enabled && !supportsToolDeferral(model, wire.form)) enabled = false
   }
 
   const defers = (t: Tool): boolean => isDeferredTool(t) || input.alsoDefer?.(t) === true
@@ -217,7 +217,17 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   }
 
   const admittedNames = enabled ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
-  const roster: Tool[] = ordered.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME) || enabled)
+  let roster: Tool[] = ordered.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME) || enabled)
+  if (enabled && wire.form === 'text') {
+    const available = new Map(roster.map(tool => [tool.name, tool]))
+    roster = [
+      ...roster.filter(tool => !deferredNames.has(tool.name)),
+      ...[...admittedNames].flatMap(name => {
+        const tool = available.get(name)
+        return tool !== undefined && deferredNames.has(name) ? [tool] : []
+      }),
+    ]
+  }
 
   const announcement = enabled && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(ordered, deferredNames) : null
 

@@ -1105,6 +1105,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
       ])
     }
     case 'deferred_tools_delta': {
+      if (attachment.body !== undefined) return wrapMessagesInSystemReminder([createUserMessage({ content: attachment.body, isMeta: true })])
       const parts: string[] = []
       if (attachment.addedLines.length > 0) {
         parts.push(

@@ -125,6 +125,7 @@ section('§2 NO PER-REQUEST ANNOUNCEMENT — every route, and the real first-par
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const plan = await planFor(model, fresh())
     if (plan.wireForm === 'block') check(`${route}: deferral is on and every deferrable tool rides the roster MARKED`, plan.enabled === true && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n) && plan.deferredNames.has(n)))
+    else if (route === 'openai') check('openai: only initial definitions and discovery are sent', plan.enabled && DEFERRED_NAMES.every(name => !plan.roster.some(t => t.name === name)))
     else check(`${route}: a wire that cannot defer lists every tool in full, unmarked (deferral off)`, plan.enabled === false && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n)) && plan.deferredNames.size === 0)
     check(`${route}: the plan carries NO per-request announcement`, plan.announcement === null)
     check(`${route}: the Anthropic-wire spelling prepends nothing`, announcementMessage(plan) === null)
@@ -212,10 +213,22 @@ const oracle = deferredToolsAnnouncement(POOL, new Set(DEFERRED_NAMES))
 const oracleLines = oracle === null ? [] : oracle.split('\n').slice(1, -1)
 let rowBytes = 0
 {
+  const historical = { type: 'deferred_tools_delta' as const, addedNames: ['LegacyFixture'], addedLines: ['LegacyFixture'], removedNames: [] }
+  const first = renderedContent(historical)
+  check('older recorded announcements keep their original wording', first.includes('deferred tools are now available via ToolSearch'))
+  const current = deltaRow(POOL, ROUTE_MODELS.openai!, fresh())
+  check('new announcements persist their exact body without promising an absent tool', current?.type === 'deferred_tools_delta' && typeof current.body === 'string' && !current.body.includes('via ToolSearch') && renderedContent(JSON.parse(JSON.stringify(current))) === renderedContent(current))
+  check('rendering a new announcement does not change old recorded content', renderedContent(historical) === first)
+}
+{
   const renderedRows = new Set<string>()
   check('the prepend oracle (the retired per-request shape) spells the sorted names inside the tag pair', oracle !== null && oracle.startsWith('<available-deferred-tools>\n') && oracle.endsWith('\n</available-deferred-tools>') && oracleLines.join(',') === [...DEFERRED_NAMES].sort().join(','))
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const row = deltaRow(POOL, model, fresh())
+    if (!(await planFor(model, fresh())).enabled) {
+      check(`${route}: unsupported discovery produces no announcement`, row === null)
+      continue
+    }
     check(`${route}: a fresh transcript's delta row names the whole deferred pool, sorted`, row !== null && row.type === 'deferred_tools_delta' && row.addedNames.join(',') === [...DEFERRED_NAMES].sort().join(',') && row.removedNames.length === 0)
     check(`${route}: its lines are the oracle's inner lines byte-for-byte (names only, no schema bytes)`, row !== null && row.type === 'deferred_tools_delta' && row.addedLines.join('\n') === oracleLines.join('\n') && !row.addedLines.join('\n').includes('{'))
     const content = row ? renderedContent(row) : ''

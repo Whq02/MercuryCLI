@@ -667,6 +667,70 @@ section('3b · reconstruction classes + the cross-model replay guard')
 }
 
 restoreWire()
+section('native tool discovery preserves encrypted reasoning and earlier request items')
+{
+  const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.js')
+  const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.js')
+  const { createUserMessage } = await import('../../src/utils/messages.js')
+  const savedSearch = process.env.MERCURY_TOOL_SEARCH
+  const savedDefer = process.env.MERCURY_TOOL_DEFER
+  process.env.MERCURY_TOOL_SEARCH = 'on'
+  process.env.MERCURY_TOOL_DEFER = '1'
+  process.env.OPENAI_API_KEY = 'sk-apex-proof-fake'
+  __resetOpenaiCatalogueForTest()
+  clearToolRosterLatches()
+  patchWire()
+  try {
+    const params = callParams('gpt-5.6-sol')
+    params.tools = [ToolSearchTool, { ...(echoTool as Record<string, unknown>), shouldDefer: true }] as never
+    params.options = { ...params.options, ownerKey: 'native-discovery' }
+    params.messages = [createUserMessage({ content: 'Find EchoTool, then echo four.' })]
+    const encrypted = { type: 'reasoning', id: 'rs_search', summary: [], encrypted_content: 'SEARCH_ENCRYPTED_CONTENT' }
+    makeResponses = () => sseResponse([
+      sse({ type: 'response.created', response: { id: 'resp_search' } }),
+      sse({ type: 'response.output_item.done', item: encrypted }),
+      sse({ type: 'response.output_item.done', item: { type: 'function_call', id: 'fc_search', call_id: 'call_search', name: 'ToolSearch', arguments: '{"query":"select:EchoTool"}' } }),
+      sse({ type: 'response.completed', response: { id: 'resp_search', usage: { input_tokens: 10, output_tokens: 5 } } }),
+    ])
+    const firstReplies: AssistantMessage[] = []
+    for await (const item of openaiCallModel(params)) if (item.type === 'assistant') firstReplies.push(item)
+    const first = JSON.parse(JSON.stringify(lastResponsesBody))
+    const discovered = await ToolSearchTool.call({ query: 'select:EchoTool' }, {
+      options: { tools: params.tools },
+      getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), mcp: { clients: [] } }),
+    } as never) as { data: { matches: string[]; query: string; total_deferred_tools: number } }
+    check('the actual discovery tool resolves the omitted function', discovered.data.matches.join(',') === 'EchoTool')
+    params.messages.push(...firstReplies, createUserMessage({ content: [ToolSearchTool.mapToolResultToToolResultBlockParam(discovered.data as never, 'call_search')] as never }))
+    makeResponses = () => sseResponse(HAPPY_STREAM)
+    const secondReplies: AssistantMessage[] = []
+    for await (const item of openaiCallModel(params)) if (item.type === 'assistant') secondReplies.push(item)
+    const second = JSON.parse(JSON.stringify(lastResponsesBody))
+    params.messages.push(...secondReplies, createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'call_1', content: 'four' }] }))
+    makeResponses = () => sseResponse([
+      sse({ type: 'response.created', response: { id: 'resp_done' } }),
+      sse({ type: 'response.output_text.delta', delta: 'Done.' }),
+      sse({ type: 'response.output_item.done', item: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Done.' }] } }),
+      sse({ type: 'response.completed', response: { id: 'resp_done', usage: { input_tokens: 10, output_tokens: 5 } } }),
+    ])
+    for await (const item of openaiCallModel(params)) void item
+    const third = lastResponsesBody as Record<string, any>
+    check('the first request omits the deferred schema and includes discovery', first.tools.map((t: any) => t.name).join(',') === 'ToolSearch')
+    check('admission appends the exact function once and never removes discovery', second.tools.map((t: any) => t.name).join(',') === 'ToolSearch,EchoTool' && JSON.stringify(second.tools) === JSON.stringify(third.tools))
+    check('earlier definitions remain byte-identical after admission', JSON.stringify(second.tools[0]) === JSON.stringify(first.tools[0]))
+    check('encrypted reasoning replays unchanged beside its discovery call and output', JSON.stringify(second.input.find((item: any) => item.id === 'rs_search')) === JSON.stringify(encrypted) && second.input.some((item: any) => item.type === 'function_call_output' && item.call_id === 'call_search' && item.output.includes('EchoTool')))
+    check('subsequent requests preserve every earlier replay item in place', JSON.stringify(third.input.slice(0, second.input.length)) === JSON.stringify(second.input))
+    check('the admitted function call passes the actual transport validation', secondReplies.some(reply => reply.message.content.some(block => block.type === 'tool_use' && block.name === 'EchoTool')))
+    check('the schema cache key changes once for admission, then stays stable', first.prompt_cache_key !== second.prompt_cache_key && second.prompt_cache_key === third.prompt_cache_key)
+  } finally {
+    restoreWire()
+    clearToolRosterLatches()
+    if (savedSearch === undefined) delete process.env.MERCURY_TOOL_SEARCH
+    else process.env.MERCURY_TOOL_SEARCH = savedSearch
+    if (savedDefer === undefined) delete process.env.MERCURY_TOOL_DEFER
+    else process.env.MERCURY_TOOL_DEFER = savedDefer
+  }
+}
+
 for (const [key, value] of Object.entries(savedEnv)) {
   if (value === undefined) delete process.env[key]
   else process.env[key] = value

@@ -2,7 +2,7 @@
 import type { Message } from 'src/types/message.js'
 import type { Tools } from '../../Tool.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
-import { deferralWireFormFor } from '../../services/providers/deferralWire.js'
+import { deferralWireFormFor, supportsToolDeferral } from '../../services/providers/deferralWire.js'
 import {
   getMcpInstructionsDelta,
   isMcpInstructionsDeltaEnabled,
@@ -24,12 +24,18 @@ export function getDeferredToolsDeltaAttachment(
   scanContext?: DeferredToolsDeltaScanContext,
 ): Attachment[] {
   if (!isDeferredToolsDeltaEnabled()) return []
-  if (!isToolSearchEnabledOptimistic()) return []
+  if (!isToolSearchEnabledOptimistic() || !supportsToolDeferral(model)) return []
   if (deferralWireFormFor(model).form === 'block' && !modelSupportsToolReference(model)) return []
   if (!isToolSearchToolAvailable(tools)) return []
   const delta = getDeferredToolsDelta(tools, messages ?? [], scanContext)
   if (!delta) return []
-  return [{ type: 'deferred_tools_delta', ...delta }]
+  const body = [
+    ...(delta.addedLines.length > 0 ? [`The following tools are available in this session:
+${delta.addedLines.join(String.fromCharCode(10))}`] : []),
+    ...(delta.removedNames.length > 0 ? [`The following tools are no longer available in this session:
+${delta.removedNames.join(String.fromCharCode(10))}`] : []),
+  ].join(String.fromCharCode(10, 10))
+  return [{ type: 'deferred_tools_delta', ...delta, body }]
 }
 
 export function getMcpInstructionsDeltaAttachment(
