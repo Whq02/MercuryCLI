@@ -65,7 +65,7 @@ export const TaskStopTool = buildTool({
   get outputSchema(): OutputSchema {
     return outputSchema()
   },
-  isConcurrencySafe: () => true,
+  isConcurrencySafe: () => false,
   userFacingName: () => 'Stop Task',
   toAutoClassifierInput(input: Input): string {
     return taskIdOf(input) ?? ''

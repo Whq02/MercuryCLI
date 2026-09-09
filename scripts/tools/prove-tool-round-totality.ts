@@ -47,6 +47,8 @@ const MEGA = 'x'.repeat(1_000_000)
 
 const baseTools = getAllBaseTools()
 t('the registry resolved a real catalogue', baseTools.length > 20, `${baseTools.length} tools`)
+const planExit = baseTools.find(tool => tool.name === 'ExitStrategyMode')
+t('plan approval changes state and is never concurrent', planExit !== undefined && !planExit.isReadOnly({} as never) && !planExit.isConcurrencySafe({} as never))
 
 function makeCtx(tools: readonly unknown[]): { ctx: Record<string, unknown>; abort: AbortController } {
   let appState: Record<string, unknown> = {

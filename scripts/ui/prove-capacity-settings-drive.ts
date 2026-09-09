@@ -18,7 +18,8 @@ if (driver.kind !== 'posix-pty') {
   console.log('The settings journey requires the POSIX capture driver; the capacity policy checks cover every platform.')
   process.exit(0)
 }
-const node = join(root, 'dist', 'vendor', 'node', 'bin', 'node')
+const vendoredNode = join(root, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
+const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'node'
 const fixture = await startFixtureApi([])
 const widths = process.argv.length > 2 ? process.argv.slice(2).map(Number) : [80, 120]
 if (widths.some(width => width !== 80 && width !== 120)) throw new Error('Expected terminal widths of 80 or 120 columns')

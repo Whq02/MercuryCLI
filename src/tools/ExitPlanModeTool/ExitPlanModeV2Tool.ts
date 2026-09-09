@@ -86,7 +86,7 @@ export const ExitPlanModeV2Tool = buildTool({
     return EXIT_PLAN_MODE_V2_TOOL_PROMPT
   },
   isConcurrencySafe(): boolean {
-    return true
+    return false
   },
   isReadOnly(): boolean {
     return false
