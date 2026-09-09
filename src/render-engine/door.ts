@@ -87,6 +87,14 @@ export class WriteDoor {
     this.events.onIdle?.()
   }
 
+  dispose(): void {
+    if (this.retryTimer !== null) this.clock.clearTimeout(this.retryTimer)
+    this.retryTimer = null
+    this.closed = true
+    this.queue = []
+    this.owed = 0
+  }
+
   flushSync(budgetMs: number = TEARDOWN_BUDGET_MS): boolean {
     const start = this.clock.now()
     while (this.queue.length > 0 && !this.closed) {

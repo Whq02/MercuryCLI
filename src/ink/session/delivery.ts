@@ -117,8 +117,9 @@ export function writeDiffToTerminal(
   const out = terminal.stdout as Writable & { isTTY?: boolean; fd?: number }
   const useFd = out.isTTY === true && typeof out.fd === 'number'
   let delivered = true
-  const door = terminalDoor()
+  const door = terminalDoor(out)
   if (door !== null && useFd) {
+    lastWriteSpins = 0
     door.enqueue({ kind: 'frame', bytes: buffer })
   } else if (useFd) {
     delivered = writeAllSync(out.fd!, Buffer.from(buffer, 'utf8'), syscalls)
@@ -135,6 +136,7 @@ export function writeDiffToTerminal(
           len: buffer.length,
           path: useFd ? `fd${out.fd}` : 'stream',
           delivered,
+          ...(door !== null ? { queuedBytes: door.owedBytes() } : {}),
           ...(useFd
             ? { spins: lastWriteSpins, waitMs: Math.round(lastWriteSpins * SPIN_QUANTUM_MS) }
             : {}),
