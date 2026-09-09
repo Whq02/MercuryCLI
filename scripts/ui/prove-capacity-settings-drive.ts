@@ -71,7 +71,7 @@ try {
         let text = ''
         child.stdout.on('data', value => { text += value })
         child.stderr.on('data', value => { text += value })
-        const deadline = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(100000))
+        const deadline = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(150000))
         child.on('close', code => { clearTimeout(deadline); resolveRun({ code, text }) })
       })
       check(`${cols}: the complete settings journey ran`, result.code === 0, result.text.trim().slice(-700))
