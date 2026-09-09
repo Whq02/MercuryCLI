@@ -827,6 +827,7 @@ const WorkflowToolDef = {
             mode: 'task-notification',
             priority: 'next',
             agentId,
+            origin: { kind: 'coordinator' },
             isMeta: true,
           })
           return { outcome: 'applied', detail: `message queued for the agent by ${request.by} — it reads it at its next step` }
