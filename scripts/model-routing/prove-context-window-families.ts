@@ -20,7 +20,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 for (const key of [
   'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'OPENAI_API_KEY', 'HF_TOKEN',
-  'MERCURY_MODEL', 'MERCURY_DISABLE_1M_CONTEXT', 'CLAUDE_EFFORT', 'MERCURY_LOCAL_PROBE_TARGETS',
+  'MERCURY_MODEL', 'MERCURY_DISABLE_1M_CONTEXT', 'MERCURY_LOCAL_PROBE_TARGETS',
   'MERCURY_AUTH_SCOPE_DIR',
 ]) {
   delete process.env[key]

@@ -2,6 +2,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { agenticVerdict } from './smokeVerdicts.ts'
 
 const { openaiCallModel } = await import(
   '../../../src/services/providers/openai/openaiCallModel.js'
@@ -49,8 +50,11 @@ const transcript: AnyMessage[] = [
 ]
 
 let reasoningReplayed = 0
+let reasoningRecordedBeforeLastRequest = 0
+let finalText: string | null = null
 let turns = 0
 for (; turns < 8; turns++) {
+  reasoningRecordedBeforeLastRequest = reasoningReplayed
   const minted: AnyMessage[] = []
   const params = {
     messages: transcript as never,
@@ -101,10 +105,7 @@ for (; turns < 8; turns++) {
       .map(b => String(b.text))
       .join(' ')
     console.log(`final answer: ${text.slice(0, 200)}`)
-    if (!text.includes('676.57')) {
-      console.error('SMOKE FAILED: wrong final answer (expected 676.571…)')
-      process.exit(1)
-    }
+    finalText = text
     break
   }
   reasoningReplayed += reasoningCount
@@ -119,9 +120,21 @@ for (; turns < 8; turns++) {
   }
 }
 
-console.log(`\nreasoning items recorded for replay across the loop: ${reasoningReplayed}`)
-if (reasoningReplayed === 0) {
-  console.error('SMOKE INCOMPLETE: no reasoning items were emitted — encrypted replay unproven')
+const replayedInLastRequest = transcript
+  .filter(m => (m as { type?: string }).type === 'assistant')
+  .flatMap(m => ((m as { apexProviderTurn?: { items?: Array<{ type?: string }> } }).apexProviderTurn?.items ?? []))
+  .filter(i => i.type === 'reasoning').length
+console.log(`\nreasoning items recorded before the final request: ${reasoningRecordedBeforeLastRequest} · carried into it: ${replayedInLastRequest}`)
+const verdict = agenticVerdict({
+  finalText,
+  turnsUsed: turns + 1,
+  maxTurns: 8,
+  reasoningRecordedBeforeLastRequest,
+  reasoningReplayedInLastRequest: replayedInLastRequest,
+  expected: '676.57',
+})
+if (!verdict.ok) {
+  console.error(`SMOKE FAILED: ${verdict.reason}`)
   process.exit(1)
 }
 console.log('AGENTIC LIVE SMOKE GREEN — encrypted reasoning replayed in position on the real wire')
