@@ -150,16 +150,35 @@ rmSync(resolve(OUT, '.build-tree'), { force: true });
 {
   const bundlePath = resolve(OUT, 'mercury.mjs');
   const raw = readFileSync(bundlePath, 'utf8');
+  const NEUTRAL_VENDOR = '/mercury/vendor/';
   const rootsToErase = [ROOT, realpathSync(ROOT)].filter((r, i, a) => a.indexOf(r) === i);
+  const modulesDir = resolve(ROOT, 'node_modules');
+  const vendorDirsToErase = [...rootsToErase.map((root) => `${root}/node_modules`), existsSync(modulesDir) ? realpathSync(modulesDir) : modulesDir]
+    .filter((dir, i, a) => a.indexOf(dir) === i);
+  const spellingsOf = (prefix: string): string[] => {
+    if (process.platform !== 'win32') return [prefix];
+    const forward = prefix.replace(/\\/g, '/');
+    const backward = prefix.replace(/\//g, '\\');
+    const escaped = backward.replace(/\\/g, '\\\\');
+    const driveCases = (p: string): string[] => (/^[A-Za-z]:/.test(p) ? [p[0]!.toUpperCase() + p.slice(1), p[0]!.toLowerCase() + p.slice(1)] : [p]);
+    return [forward, backward, escaped].flatMap(driveCases).filter((p, i, a) => a.indexOf(p) === i);
+  };
   let neutral = raw;
-  for (const root of rootsToErase) {
-    neutral = neutral.split(`${root}/node_modules/`).join('/mercury/vendor/');
+  for (const dir of vendorDirsToErase) {
+    for (const spelling of spellingsOf(`${dir}/`)) neutral = neutral.split(spelling).join(NEUTRAL_VENDOR);
   }
   for (const root of rootsToErase) {
     if (neutral.includes(root)) {
       const at = neutral.indexOf(root);
       throw new Error(
         `build root leaked into dist/mercury.mjs beyond the vendored-module __filename seam: …${neutral.slice(Math.max(0, at - 80), at + root.length + 40)}…`,
+      );
+    }
+  }
+  for (const seam of neutral.matchAll(/__(filename|dirname)\s*=\s*"((?:[^"\\]|\\.)*)"/g)) {
+    if (!seam[2]!.startsWith(NEUTRAL_VENDOR)) {
+      throw new Error(
+        `a bundled CommonJS module keeps its build-host path in dist/mercury.mjs: __${seam[1]}="${seam[2]}" — the vendored-module seam erases ${vendorDirsToErase.map((dir) => `${dir}/`).join(', ')}; add the prefix this literal carries to the erased set`,
       );
     }
   }
