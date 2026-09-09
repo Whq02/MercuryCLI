@@ -772,18 +772,15 @@
  "normalizeMessages/boundaries": [
   {
    "compactMetadata": {
-    "preTokens": "«u1»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t1»",
+   "logicalParentUuid": "«u1»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u2»"
   },
@@ -1103,13 +1100,11 @@
  ],
  "normalizeMessages/system": [
   {
-   "content": {
-    "content": "plain system note",
-    "level": "info"
-   },
+   "content": "plain system note",
    "isMeta": false,
+   "level": "info",
    "subtype": "informational",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u1»"
   },
@@ -1123,7 +1118,7 @@
     ],
     "role": "user"
    },
-   "timestamp": "«t1»",
+   "timestamp": "«t2»",
    "type": "user",
    "uuid": "«u2»"
   }
@@ -1757,18 +1752,15 @@
   },
   {
    "compactMetadata": {
-    "preTokens": "«u29»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t8»",
+   "logicalParentUuid": "«u29»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t8»",
    "type": "system",
    "uuid": "«u30»"
   },
@@ -3869,18 +3861,15 @@
  "reorderMessagesInUI/boundaries": [
   {
    "compactMetadata": {
-    "preTokens": "«u1»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t1»",
+   "logicalParentUuid": "«u1»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u2»"
   },
@@ -4200,13 +4189,11 @@
  ],
  "reorderMessagesInUI/system": [
   {
-   "content": {
-    "content": "plain system note",
-    "level": "info"
-   },
+   "content": "plain system note",
    "isMeta": false,
+   "level": "info",
    "subtype": "informational",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u1»"
   },
@@ -4220,7 +4207,7 @@
     ],
     "role": "user"
    },
-   "timestamp": "«t1»",
+   "timestamp": "«t2»",
    "type": "user",
    "uuid": "«u2»"
   }
@@ -4854,18 +4841,15 @@
   },
   {
    "compactMetadata": {
-    "preTokens": "«u29»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t8»",
+   "logicalParentUuid": "«u29»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t8»",
    "type": "system",
    "uuid": "«u30»"
   },
@@ -5630,18 +5614,15 @@
  "reorderAttachmentsForAPI/boundaries": [
   {
    "compactMetadata": {
-    "preTokens": "«u1»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t1»",
+   "logicalParentUuid": "«u1»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u2»"
   },
@@ -5921,13 +5902,11 @@
  ],
  "reorderAttachmentsForAPI/system": [
   {
-   "content": {
-    "content": "plain system note",
-    "level": "info"
-   },
+   "content": "plain system note",
    "isMeta": false,
+   "level": "info",
    "subtype": "informational",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u1»"
   },
@@ -5936,7 +5915,7 @@
     "content": "after system",
     "role": "user"
    },
-   "timestamp": "«t1»",
+   "timestamp": "«t2»",
    "type": "user",
    "uuid": "«u2»"
   }
@@ -6473,18 +6452,15 @@
   },
   {
    "compactMetadata": {
-    "preTokens": "«u26»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t8»",
+   "logicalParentUuid": "«u26»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t8»",
    "type": "system",
    "uuid": "«u27»"
   },
@@ -7195,18 +7171,15 @@
  "filterUnresolvedToolUses/boundaries": [
   {
    "compactMetadata": {
-    "preTokens": "«u1»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t1»",
+   "logicalParentUuid": "«u1»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u2»"
   },
@@ -7486,13 +7459,11 @@
  ],
  "filterUnresolvedToolUses/system": [
   {
-   "content": {
-    "content": "plain system note",
-    "level": "info"
-   },
+   "content": "plain system note",
    "isMeta": false,
+   "level": "info",
    "subtype": "informational",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u1»"
   },
@@ -7501,7 +7472,7 @@
     "content": "after system",
     "role": "user"
    },
-   "timestamp": "«t1»",
+   "timestamp": "«t2»",
    "type": "user",
    "uuid": "«u2»"
   }
@@ -8038,18 +8009,15 @@
   },
   {
    "compactMetadata": {
-    "preTokens": "«u26»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t8»",
+   "logicalParentUuid": "«u26»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t8»",
    "type": "system",
    "uuid": "«u27»"
   },
@@ -8764,18 +8732,15 @@
  "filterWhitespaceOnlyAssistantMessages/boundaries": [
   {
    "compactMetadata": {
-    "preTokens": "«u1»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t1»",
+   "logicalParentUuid": "«u1»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u2»"
   },
@@ -9055,13 +9020,11 @@
  ],
  "filterWhitespaceOnlyAssistantMessages/system": [
   {
-   "content": {
-    "content": "plain system note",
-    "level": "info"
-   },
+   "content": "plain system note",
    "isMeta": false,
+   "level": "info",
    "subtype": "informational",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u1»"
   },
@@ -9070,7 +9033,7 @@
     "content": "after system",
     "role": "user"
    },
-   "timestamp": "«t1»",
+   "timestamp": "«t2»",
    "type": "user",
    "uuid": "«u2»"
   }
@@ -9554,18 +9517,15 @@
   },
   {
    "compactMetadata": {
-    "preTokens": "«u23»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t7»",
+   "logicalParentUuid": "«u23»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t7»",
    "type": "system",
    "uuid": "«u24»"
   },
@@ -10279,18 +10239,15 @@
  "filterOrphanedThinkingOnlyMessages/boundaries": [
   {
    "compactMetadata": {
-    "preTokens": "«u1»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t1»",
+   "logicalParentUuid": "«u1»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u2»"
   },
@@ -10570,13 +10527,11 @@
  ],
  "filterOrphanedThinkingOnlyMessages/system": [
   {
-   "content": {
-    "content": "plain system note",
-    "level": "info"
-   },
+   "content": "plain system note",
    "isMeta": false,
+   "level": "info",
    "subtype": "informational",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u1»"
   },
@@ -10585,7 +10540,7 @@
     "content": "after system",
     "role": "user"
    },
-   "timestamp": "«t1»",
+   "timestamp": "«t2»",
    "type": "user",
    "uuid": "«u2»"
   }
@@ -11081,18 +11036,15 @@
   },
   {
    "compactMetadata": {
-    "preTokens": "«u24»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t8»",
+   "logicalParentUuid": "«u24»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t8»",
    "type": "system",
    "uuid": "«u25»"
   },
@@ -11836,18 +11788,15 @@
  "stripSignatureBlocks/boundaries": [
   {
    "compactMetadata": {
-    "preTokens": "«u1»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t1»",
+   "logicalParentUuid": "«u1»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u2»"
   },
@@ -12127,13 +12076,11 @@
  ],
  "stripSignatureBlocks/system": [
   {
-   "content": {
-    "content": "plain system note",
-    "level": "info"
-   },
+   "content": "plain system note",
    "isMeta": false,
+   "level": "info",
    "subtype": "informational",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u1»"
   },
@@ -12142,7 +12089,7 @@
     "content": "after system",
     "role": "user"
    },
-   "timestamp": "«t1»",
+   "timestamp": "«t2»",
    "type": "user",
    "uuid": "«u2»"
   }
@@ -12668,18 +12615,15 @@
   },
   {
    "compactMetadata": {
-    "preTokens": "«u26»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t8»",
+   "logicalParentUuid": "«u26»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t8»",
    "type": "system",
    "uuid": "«u27»"
   },
@@ -13434,18 +13378,15 @@
  "stripAdvisorBlocks/boundaries": [
   {
    "compactMetadata": {
-    "preTokens": "«u1»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t1»",
+   "logicalParentUuid": "«u1»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u2»"
   },
@@ -13725,13 +13666,11 @@
  ],
  "stripAdvisorBlocks/system": [
   {
-   "content": {
-    "content": "plain system note",
-    "level": "info"
-   },
+   "content": "plain system note",
    "isMeta": false,
+   "level": "info",
    "subtype": "informational",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u1»"
   },
@@ -13740,7 +13679,7 @@
     "content": "after system",
     "role": "user"
    },
-   "timestamp": "«t1»",
+   "timestamp": "«t2»",
    "type": "user",
    "uuid": "«u2»"
   }
@@ -14277,18 +14216,15 @@
   },
   {
    "compactMetadata": {
-    "preTokens": "«u26»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t8»",
+   "logicalParentUuid": "«u26»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t8»",
    "type": "system",
    "uuid": "«u27»"
   },
@@ -15043,18 +14979,15 @@
  "stripUnsignedThinkingBlocks/boundaries": [
   {
    "compactMetadata": {
-    "preTokens": "«u1»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t1»",
+   "logicalParentUuid": "«u1»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u2»"
   },
@@ -15334,13 +15267,11 @@
  ],
  "stripUnsignedThinkingBlocks/system": [
   {
-   "content": {
-    "content": "plain system note",
-    "level": "info"
-   },
+   "content": "plain system note",
    "isMeta": false,
+   "level": "info",
    "subtype": "informational",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u1»"
   },
@@ -15349,7 +15280,7 @@
     "content": "after system",
     "role": "user"
    },
-   "timestamp": "«t1»",
+   "timestamp": "«t2»",
    "type": "user",
    "uuid": "«u2»"
   }
@@ -15886,18 +15817,15 @@
   },
   {
    "compactMetadata": {
-    "preTokens": "«u26»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t8»",
+   "logicalParentUuid": "«u26»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t8»",
    "type": "system",
    "uuid": "«u27»"
   },
@@ -22863,18 +22791,15 @@
  "getMessagesAfterCompactBoundary/boundaries": [
   {
    "compactMetadata": {
-    "preTokens": "«u1»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t1»",
+   "logicalParentUuid": "«u1»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u2»"
   },
@@ -23154,13 +23079,11 @@
  ],
  "getMessagesAfterCompactBoundary/system": [
   {
-   "content": {
-    "content": "plain system note",
-    "level": "info"
-   },
+   "content": "plain system note",
    "isMeta": false,
+   "level": "info",
    "subtype": "informational",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u1»"
   },
@@ -23169,7 +23092,7 @@
     "content": "after system",
     "role": "user"
    },
-   "timestamp": "«t1»",
+   "timestamp": "«t2»",
    "type": "user",
    "uuid": "«u2»"
   }
@@ -23177,18 +23100,15 @@
  "getMessagesAfterCompactBoundary/composite": [
   {
    "compactMetadata": {
-    "preTokens": "«u1»",
-    "trigger": {
-     "preCompactTokenCount": 120000,
-     "trigger": "auto"
-    }
+    "preTokens": 120000,
+    "trigger": "auto"
    },
    "content": "Conversation compacted",
    "isMeta": false,
    "level": "info",
-   "logicalParentUuid": "«t1»",
+   "logicalParentUuid": "«u1»",
    "subtype": "compact_boundary",
-   "timestamp": "«ts»",
+   "timestamp": "«t1»",
    "type": "system",
    "uuid": "«u2»"
   },
