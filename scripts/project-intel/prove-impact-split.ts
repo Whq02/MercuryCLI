@@ -102,6 +102,12 @@ async function main(): Promise<void> {
   section('(3) point-of-use steering — advertised iff ON, byte-identical OFF')
   delete process.env.MERCURY_LSP
   delete process.env.MERCURY_STRUCTURE
+  const lspManager = await import('../../src/services/lsp/manager.js')
+  const beforeMount = steering.searchSteeringLine()
+  check('LSP steering is absent while no server is mounted', beforeMount !== null && !beforeMount.includes('LSP'), beforeMount ?? 'null')
+  lspManager.initializeLspServerManager()
+  await lspManager.waitForInitialization()
+  check('the LSP tool is mounted for the steering leg', lspManager.isLspToolMounted(), JSON.stringify(lspManager.getInitializationStatus()))
   const onLine = steering.searchSteeringLine()
   check('search steering present when owners on', typeof onLine === 'string' && onLine.includes('LSP tool') && onLine.includes('Structure'), onLine ?? 'null')
   process.env.MERCURY_LSP = '0'

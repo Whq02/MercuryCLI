@@ -14,8 +14,6 @@ import { GREP_TOOL_NAME } from '../GrepTool/prompt.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
 import { FILE_WRITE_TOOL_NAME } from '../FileWriteTool/prompt.js'
 import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
-import { AGENT_TOOL_NAME } from '../AgentTool/constants.js'
-import { TASK_CREATE_TOOL_NAME } from '../TaskCreateTool/constants.js'
 
 
 export function getDefaultTimeoutMs(): number {
@@ -27,8 +25,9 @@ export function getMaxTimeoutMs(): number {
 }
 
 
-export function getSimplePrompt(): string {
+export function getSimplePrompt(offered: ReadonlySet<string> | null = null): string {
   const embedded = hasEmbeddedSearchTools()
+  const offers = (name: string): boolean => offered === null || offered.has(name)
   const sections: string[] = []
 
   sections.push('Runs a shell command in the session bash and hands back its combined output (stdout and stderr interleaved).')
@@ -78,7 +77,7 @@ export function getSimplePrompt(): string {
     "When a dedicated tool exists, it's the stronger path: purpose-built calls render better for the operator and are simpler to review and permission.",
   )
 
-  sections.push(buildInstructions(embedded))
+  sections.push(buildInstructions(embedded, offers))
 
   sections.push(buildSandboxSection())
 
@@ -92,7 +91,7 @@ function minutes(ms: number): number {
   return Math.round(ms / 60000)
 }
 
-function buildInstructions(embedded: boolean): string {
+function buildInstructions(embedded: boolean, offers: (name: string) => boolean): string {
   const maxMs = getMaxBashTimeoutMs()
   const defaultMs = getDefaultBashTimeoutMs()
   const bullets: string[] = [
@@ -113,9 +112,11 @@ function buildInstructions(embedded: boolean): string {
   bullets.push(
     'Avoid unnecessary sleeps: never sleep between commands that are ready to run; use `run_in_background` for long-running work rather than sleeping; diagnose a failing command instead of re-running it in a sleep-and-retry loop; do not poll a task started with `run_in_background`, since completion is notified; if an external process must be polled, use a status command (for example `gh run view <run-id>`) rather than sleeping first; and if a sleep is truly unavoidable, keep it to roughly 1-5 seconds so the user is not blocked.',
   )
-  bullets.push(
-    'To drive a web page — click, type, wait for an element, read rendered text or console errors, screenshot — use the `Browser` tool (when deferred, load it with ToolSearch `select:Browser`). Never hand-roll a headless-Chrome harness or install a browser driver (`npm i puppeteer`, `npx playwright install`) for a one-off check; the driver is bundled and already resolved.',
-  )
+  if (offers('Browser')) {
+    bullets.push(
+      `To drive a web page — click, type, wait for an element, read rendered text or console errors, screenshot — use the \`Browser\` tool${offers('ToolSearch') ? ' (when deferred, load it with ToolSearch `select:Browser`)' : ''}. Never hand-roll a headless-Chrome harness or install a browser driver (\`npm i puppeteer\`, \`npx playwright install\`) for a one-off check; the driver is bundled and already resolved.`,
+    )
+  }
   if (embedded) {
     bullets.push(
       "The embedded `find` implementation's `-regex` uses leftmost-first alternation (unlike GNU find's leftmost-longest), so list the longest alternative first: prefer `'.*\\.tsx?'` written as `.tsx|.ts`, not `.ts|.tsx`.",
@@ -199,7 +200,7 @@ function buildGitSection(): string {
     `Commit workflow: (1) in parallel, run \`git status\` (never with \`-uall\`, which can exhaust memory on large repos), a diff of staged and unstaged changes, and a log to learn the repository's message style, each through the ${BASH_TOOL_NAME} tool; (2) read every staged change and compose the message, choosing the verb correctly (add = wholly new, update = an enhancement, fix = a bug fix), avoiding likely-secret files (\`.env\`, \`credentials.json\`) and warning if the user asks for them, keeping the message to one or two sentences focused on WHY; (3) in parallel, stage the relevant untracked files and create the commit${attribution.commit ? ' with the attribution trailer appended' : ''}, then run \`git status\` sequentially after the commit to verify; (4) on a pre-commit hook failure, fix the problem and create a NEW commit.`,
   )
   lines.push(
-    `Never run additional exploration commands beyond the git ones; never use the ${TASK_CREATE_TOOL_NAME} or ${AGENT_TOOL_NAME} tools here; do not push unless asked; never use git's interactive \`-i\` flag (rebase/add), since interactive input is unsupported; do not pass \`--no-edit\` to \`git rebase\`; nothing staged means no commit at all (never an empty one); the commit message always travels in a quoted heredoc.`,
+    `Never run additional exploration commands beyond the git ones; never create tasks or launch agents from here; do not push unless asked; never use git's interactive \`-i\` flag (rebase/add), since interactive input is unsupported; do not pass \`--no-edit\` to \`git rebase\`; nothing staged means no commit at all (never an empty one); the commit message always travels in a quoted heredoc.`,
   )
   if (attribution.commit) {
     lines.push('Worked example (heredoc form with the attribution trailer):\n```\ngit commit -m "$(cat <<\'EOF\'\nfix: correct the off-by-one in the parser\n\n' + attribution.commit + '\nEOF\n)"\n```')
@@ -215,7 +216,7 @@ function buildGitSection(): string {
     'Worked example (PR body):\n```\ngh pr create --title "Fix the parser off-by-one" --body "$(cat <<\'EOF\'\n## Summary\n- corrects the boundary in the token walk\n- adds a regression test\n\n## Test plan\n- [ ] unit tests pass\n- [ ] manual check on the sample corpus' + (attribution.pr ? '\n\n' + attribution.pr : '') + '\nEOF\n)"\n```',
   )
   lines.push(
-    `The ${TASK_CREATE_TOOL_NAME} and ${AGENT_TOOL_NAME} tools stay out of this flow; finish by handing the user the PR URL to open.`,
+    `Task items and agent launches stay out of this flow; finish by handing the user the PR URL to open.`,
   )
   lines.push(
     'Other common operations: view PR comments through `gh api repos/<owner>/<repo>/pulls/<number>/comments`.',

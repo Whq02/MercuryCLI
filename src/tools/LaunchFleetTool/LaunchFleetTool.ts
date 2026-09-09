@@ -76,8 +76,8 @@ export const LaunchFleetTool = buildTool({
   async description() {
     return DESCRIPTION
   },
-  async prompt() {
-    return getPrompt()
+  async prompt({ tools }) {
+    return getPrompt(new Set(tools.map(tool => tool.name)))
   },
   get inputSchema(): InputSchema {
     return inputSchema()

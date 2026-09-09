@@ -34,11 +34,35 @@ function rosterSection(agents: AgentDefinition[]): string {
     .join('\n')
 }
 
-export function getPrompt(agents: AgentDefinition[] = []): string {
+export function getPrompt(agents: AgentDefinition[] = [], offered: ReadonlySet<string> = new Set(['TaskCreate', 'TaskUpdate', 'TaskList'])): string {
+  const tasks = offered.has('TaskCreate') && offered.has('TaskUpdate') && offered.has('TaskList')
+  const steps = tasks
+    ? [
+        '1. **TeamCreate** (this tool) — creates the team, its charter, and its task list',
+        '2. **TaskCreate** one task per work lane; wire dependencies with `addBlockedBy`',
+        '3. **Spawn teammates** by launching each with `team_name` and `name` (+ the role\'s `subagent_type`)',
+        '4. **Assign work** with TaskUpdate `owner` — or let teammates claim unowned, unblocked tasks themselves',
+        '5. **Teammates deliver handoffs** (outcome · owned surface · evidence · decisions · blockers · next) and mark tasks completed',
+        '6. **You synthesize** — fold conclusions and evidence into the deliverable, linking changed files and proof results',
+        '7. **Shutdown** — SendMessage `{type: "shutdown_request"}` to each teammate, then TeamDelete',
+      ]
+    : [
+        '1. **TeamCreate** (this tool) — creates the team, its charter, and its task list',
+        '2. **Spawn teammates** by launching each with `team_name` and `name` (+ the role\'s `subagent_type`); name each one\'s owned surface and deliverable in its launch prompt',
+        '3. **Teammates deliver handoffs** (outcome · owned surface · evidence · decisions · blockers · next)',
+        '4. **You synthesize** — fold conclusions and evidence into the deliverable, linking changed files and proof results',
+        '5. **Shutdown** — SendMessage `{type: "shutdown_request"}` to each teammate, then TeamDelete',
+      ]
+  const board = tasks
+    ? '- Use the STRUCTURED state you already have: TaskList is the shared board, and the roster arrives with your team context. Do not re-read team/task files each turn.'
+    : '- Use the STRUCTURED state you already have: TeamBrief is the shared board, and the roster arrives with your team context. Do not re-read team/task files each turn.'
+  const ownership = tasks
+    ? '\n- Task ownership: TaskUpdate lets any agent take or hand it over; with several open, take them in ID order.'
+    : ''
   return `
 # TeamCreate
 
-Create a CHARTERED Mercury team: a named group of agents with a shared objective, explicit success criteria, a synthesis owner, and a shared task list (Team = TaskList = 1:1).
+Create a CHARTERED Mercury team: a named group of agents with a shared objective, explicit success criteria, a synthesis owner, and a shared task list (one per team).
 
 ## When to use a team — and when not to
 
@@ -74,23 +98,16 @@ Custom roles defined in \`${MERCURY_PROJECT_DIR}/agents/\` can ship with their o
 
 ## Team workflow
 
-1. **TeamCreate** (this tool) — creates the team, its charter, and its task list
-2. **TaskCreate** one task per work lane; wire dependencies with \`addBlockedBy\`
-3. **Spawn teammates** via the Agent tool with \`team_name\` and \`name\` (+ the role's \`subagent_type\`)
-4. **Assign work** with TaskUpdate \`owner\` — or let teammates claim unowned, unblocked tasks themselves
-5. **Teammates deliver handoffs** (outcome · owned surface · evidence · decisions · blockers · next) and mark tasks completed
-6. **You synthesize** — fold conclusions and evidence into the deliverable, linking changed files and proof results
-7. **Shutdown** — SendMessage \`{type: "shutdown_request"}\` to each teammate, then TeamDelete
+${steps.join('\n')}
 
 ## Communication and state (keep the transcript calm)
 
 - Messages from teammates are delivered to you AUTOMATICALLY as conversation turns — never poll an inbox and never ask teammates to re-send.
 - Teammates go idle between turns; idle means WAITING (ready for more work), not stuck or done. Wake one by sending it a message. Don't comment on idleness unless it actually blocks you.
 - Peer-DM summaries ride idle notifications for visibility — informational, no response needed.
-- Use the STRUCTURED state you already have: TaskList is the shared board, and the roster arrives with your team context. Do not re-read team/task files each turn. (Only pane-backed teammates without tool access fall back to reading \`${displayConfigHome()}/teams/{team-name}/config.json\`.)
+${board} (Only pane-backed teammates without tool access fall back to reading \`${displayConfigHome()}/teams/{team-name}/config.json\`.)
 - Refer to teammates by NAME (for SendMessage \`to\` and task \`owner\`); agent ids are for reference only.
-- Communicate in plain text — no JSON status blobs; idle notifications travel from the system, never from you.
-- Task ownership: TaskUpdate lets any agent take or hand it over; with several open, take them in ID order.
+- Communicate in plain text — no JSON status blobs; idle notifications travel from the system, never from you.${ownership}
 
 `.trim()
 }
