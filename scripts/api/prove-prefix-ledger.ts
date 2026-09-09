@@ -38,7 +38,7 @@ guard.unref?.()
 
 const ledger = await import('../../src/services/providers/anthropic/prefixLedger.ts')
 const binding = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
-const { judgeAndRecordPrefix, takePrefixVerdict, pendingPrefixVerdict, resetPrefixLedger, prefixRecordFor, applyInducedPrefixEdit, resolveInducedPrefixEdit, inducedEditApplies, boundTools, lastThinkingMessageIndex, describePrefixMismatch } = ledger
+const { judgeAndRecordPrefix, takePrefixVerdict, pendingPrefixVerdict, resetPrefixLedger, prefixRecordFor, applyInducedPrefixEdit, resolveInducedPrefixEdit, inducedEditApplies, boundTools, lastThinkingMessageIndex, describePrefixMismatch, recordDroppedThinking } = ledger
 
 type Block = Record<string, unknown>
 const THINK = (text: string): Block => ({ type: 'thinking', thinking: text, signature: `sig-${text}` })
@@ -269,6 +269,26 @@ section('§1b complete bound fields and reasoning continuity')
   check('modified reasoning is not mistaken for an oldest-first removal', compare(chain, modified).mismatch?.path === 'messages[1].content[0]')
   const reordered = { ...chain, messages: [chain.messages[0], assistant(THINK('b'), TEXT('one')), chain.messages[2], assistant(THINK('a'), TEXT('two')), ...chain.messages.slice(4)] }
   check('reordered reasoning breaks continuity', compare(chain, reordered).mismatch !== null)
+  const compareAfterDrops = (before: typeof first, paths: string[], after: typeof first) => {
+    resetPrefixLedger()
+    judgeAndRecordPrefix('complete-fields', KEY, before)
+    const marked = recordDroppedThinking('complete-fields', paths.map(path => ({ type: 'thinking_dropped', path, reason: 'prefix_binding_mismatch' })))
+    return { marked, mismatch: judgeAndRecordPrefix('complete-fields', KEY, after).mismatch }
+  }
+  const lastDropped = compareAfterDrops(chain, ['messages.5.content.0'], tailWithNew)
+  check('a predecessor the API dropped is not a rewrite', lastDropped.marked === 1 && lastDropped.mismatch === null, j(lastDropped))
+  const middleWithNew = { ...middle, messages: [...middle.messages, assistant(THINK('d'), TEXT('four')), user(TEXT('five'))] }
+  const middleDropped = compareAfterDrops(chain, ['messages.3.content.0'], middleWithNew)
+  check('a middle block the API dropped leaves the remaining chain continuous', middleDropped.marked === 1 && middleDropped.mismatch === null, j(middleDropped))
+  const bothGone = { ...tailWithNew, messages: [...tailWithNew.messages.slice(0, 3), assistant(TEXT('two')), ...tailWithNew.messages.slice(4)] }
+  check('a drop report excuses only the block it names', compareAfterDrops(chain, ['messages.5.content.0'], bothGone).mismatch?.path === 'messages[3].content[0]')
+  const unnamed = compareAfterDrops(chain, ['messages.5.content.1', 'messages.0.content.0', 'messages.9.content.0'], tailWithNew)
+  check('a drop path that names no reasoning block marks nothing', unnamed.marked === 0 && unnamed.mismatch?.path === 'messages[5].content[0]', j(unnamed))
+  check('a drop report for an owner without a record marks nothing', recordDroppedThinking('nobody', [{ type: 'thinking_dropped', path: 'messages.1.content.0', reason: 'prefix_binding_mismatch' }]) === 0)
+  resetPrefixLedger()
+  judgeAndRecordPrefix('complete-fields', KEY, chain)
+  const twice = [{ type: 'thinking_dropped', path: 'messages.5.content.0', reason: 'prefix_binding_mismatch' }]
+  check('a repeated drop report marks a block once', recordDroppedThinking('complete-fields', twice) === 1 && recordDroppedThinking('complete-fields', twice) === 0)
 
   const { buildRequestContextPlan } = await import('../../src/services/run/requestContextPlan.js')
   const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.js')
@@ -346,6 +366,71 @@ section('§1c the observer sees final transport overlays')
     await fixture.close()
     if (savedNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = savedNodeEnv
     if (savedExtra === undefined) delete process.env.MERCURY_EXTRA_BODY; else process.env.MERCURY_EXTRA_BODY = savedExtra
+    if (savedBase === undefined) delete process.env.ANTHROPIC_BASE_URL; else process.env.ANTHROPIC_BASE_URL = savedBase
+    if (savedBinding === undefined) delete process.env.MERCURY_THINKING_BINDING; else process.env.MERCURY_THINKING_BINDING = savedBinding
+  }
+}
+
+section('§1d a block the API dropped is off the chain — the dead strip on the next request is no rewrite')
+{
+  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  enableConfigs()
+  const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.js')
+  const { createUserMessage } = await import('../../src/utils/messages.js')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+  const savedNodeEnv = process.env.NODE_ENV
+  const savedBase = process.env.ANTHROPIC_BASE_URL
+  const savedBinding = process.env.MERCURY_THINKING_BINDING
+  delete process.env.NODE_ENV
+  process.env.MERCURY_THINKING_BINDING = 'drop_block'
+  const model = 'claude-fable-5-1'
+  const fixture = await startFixtureApi([
+    { kind: 'text', text: 'One.', thinking: 'reasoning one', model },
+    { kind: 'text', text: 'Two.', thinking: 'reasoning two', model },
+    { kind: 'text', text: 'Three.', thinking: 'reasoning three', model },
+    { kind: 'text', text: 'Four.', thinking: 'reasoning four', model },
+  ], { bindingCheck: true })
+  try {
+    process.env.ANTHROPIC_BASE_URL = fixture.url
+    resetPrefixLedger()
+    binding.resetThinkingDropStates()
+    const owner = 'dead-strip'
+    const history: any[] = [createUserMessage({ content: 'Question one.' })]
+    const controller = new AbortController()
+    const verdicts: Array<ReturnType<typeof takePrefixVerdict>> = []
+    const ask = async (): Promise<any[]> => {
+      const replies: any[] = []
+      for await (const message of queryModelWithStreaming({
+        messages: history as never,
+        systemPrompt: ['You are Mercury.'] as never,
+        thinkingConfig: { type: 'adaptive' }, tools: [], signal: controller.signal,
+        options: { model, querySource: 'sdk', ownerKey: owner, agents: [], isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext() } as never,
+      })) {
+        if (message.type === 'assistant') replies.push(message)
+      }
+      verdicts.push(takePrefixVerdict(owner))
+      return replies
+    }
+    history.push(...await ask(), createUserMessage({ content: 'Question two.' }))
+    history.push(...await ask(), createUserMessage({ content: 'Question three.' }))
+    const second = history.find(m => m.type === 'user' && m.message?.content === 'Question two.')
+    second.message.content = 'Question two, edited so only the reasoning minted after it is unbound.'
+    const third = await ask()
+    const drops3 = bindingDropsFor(fixture.messageRequests()[2]!.body) as Array<{ type?: string; path?: string }>
+    check('the edited row unbinds exactly the later block (reasoning one survives)', drops3.length === 1 && drops3[0]!.path === 'messages.3.content.0', j(drops3))
+    check('the ledger names the edited user row (a true rewrite)', verdicts[2]?.mismatch?.path.startsWith('messages[2]') === true, j(verdicts[2]?.mismatch))
+    check('the report marks the dropped block on the record, as the turn machine does', recordDroppedThinking(owner, drops3) === 1)
+    const dead = binding.deadMarksFromDrops(drops3 as never, verdicts[2]?.wireMessageIds ?? [], new Map())
+    history.push(...third, binding.createDeadThinkingAttachment(dead), createUserMessage({ content: 'Question four.' }))
+    const fourth = await ask()
+    const req4 = fixture.messageRequests()[3]!.body as { messages?: Array<{ content?: unknown }> }
+    const thinkingSent = (req4.messages ?? []).flatMap(m => Array.isArray(m.content) ? (m.content as Block[]) : []).filter(b => b.type === 'thinking').map(b => b.thinking)
+    check('the next request carries the surviving and the new reasoning, never the dead block', j(thinkingSent) === j(['reasoning one', 'reasoning three']), j(thinkingSent))
+    check('the API stand-in drops nothing from it', bindingDropsFor(req4).length === 0 && fourth.length > 0)
+    check('the ledger names no rewrite: nothing the API holds was rewritten', verdicts[3]?.mismatch === null, j(verdicts[3]?.mismatch))
+  } finally {
+    await fixture.close()
+    if (savedNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = savedNodeEnv
     if (savedBase === undefined) delete process.env.ANTHROPIC_BASE_URL; else process.env.ANTHROPIC_BASE_URL = savedBase
     if (savedBinding === undefined) delete process.env.MERCURY_THINKING_BINDING; else process.env.MERCURY_THINKING_BINDING = savedBinding
   }
@@ -669,6 +754,33 @@ if (!existsSync(DIST)) {
       check('[switch] the dead marks persist as a dead_thinking attachment across the resume', rowsText.includes('"attachmentType":"dead_thinking"'), rowsText.split('\n').filter(l => l.includes('dead_thinking')).join(' | ').slice(0, 200))
       const notices = transcriptNotices(arena, SID)
       check('[switch] exactly one drop notice paints — never a repeating "again" run', notices.filter(n => n.includes('the API dropped')).length === 1 && !notices.some(n => n.includes('dropped') && n.includes('again')), j(notices))
+      await fixture.close()
+    }
+
+    {
+      const drop = [{ type: 'thinking_dropped', path: 'messages.3.content.0', reason: 'prefix_binding_mismatch' }]
+      const fixture = await startFixtureApi([
+        { kind: 'text', text: 'AD-T1', thinking: 'ad one', model: 'claude-fable-5-1' },
+        { kind: 'text', text: 'AD-T2', thinking: 'ad two', model: 'claude-fable-5-1' },
+        { kind: 'text', text: 'AD-T3', thinking: 'ad three', model: 'claude-fable-5-1', inputTransformations: drop },
+        { kind: 'text', text: 'AD-T4', thinking: 'ad four', model: 'claude-fable-5-1' },
+      ], { bindingCheck: true })
+      const arena = makeArena(fixture)
+      const SID = 'c0ffee00-0000-4000-8000-00000000d010'
+      const debugFile = join(arena.home, 'after-drop.debug.log')
+      const r = await runStreaming(arena, [...common, '--session-id', SID, '--debug-file', debugFile], [{ prompt: 'after-drop turn 1' }, { prompt: 'after-drop turn 2' }, { prompt: 'after-drop turn 3' }, { prompt: 'after-drop turn 4' }])
+      check('[after drop] the four-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
+      const reqs = fixture.messageRequests().map(q => q.body as Body)
+      const rowThree = reqs[2]?.messages?.[3] as { role?: string; content?: Block[] } | undefined
+      check("[after drop] the reported path names real reasoning on the third request (the second reply's block)", reqs.length === 4 && rowThree?.role === 'assistant' && rowThree.content?.[0]?.type === 'thinking' && rowThree.content[0].thinking === 'ad two', j(rowThree).slice(0, 200))
+      const thinkingOf = (b: Body | undefined): unknown[] => ((b?.messages ?? []) as Array<{ content?: unknown }>).flatMap(m => Array.isArray(m.content) ? (m.content as Block[]).filter(x => x.type === 'thinking').map(x => x.thinking) : [])
+      check('[after drop] the fourth request carries the surviving and the new reasoning, never the dead block', j(thinkingOf(reqs[3])) === j(['ad one', 'ad three']), j(thinkingOf(reqs[3])))
+      check('[after drop] the fixture drops nothing from the fourth request (the chain it holds is intact)', reqs.length === 4 && (bindingDropsFor(reqs[3]!) as unknown[]).length === 0)
+      const notices = transcriptNotices(arena, SID)
+      check('[after drop] one drop notice paints for the report, and no "Mercury rewrote already-sent history" row follows it', notices.length === 1 && notices[0]!.includes('the API dropped') && !notices.some(n => n.includes('rewrote already-sent history')), j(notices))
+      check('[after drop] the ledger names no rewrite before the fourth request', !debugText(debugFile).includes('the prefix ledger names a rewrite'), debugText(debugFile).split('\n').filter(l => l.includes('prefix ledger')).join(' | ').slice(0, 300))
+      const row = existsSync(ledgerFile(arena)) ? (JSON.parse(readFileSync(ledgerFile(arena), 'utf8')) as { last?: { kind?: string } }) : null
+      check("[after drop] the doctor ledger keeps the drop's own row, never a rewrite row over it", typeof row?.last?.kind === 'string' && row.last.kind !== 'rewrite', j(row))
       await fixture.close()
     }
 
