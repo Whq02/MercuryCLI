@@ -148,12 +148,19 @@ export class RetirementFence {
   }
 
   async reconcileExit(): Promise<RetirementResult> {
+    if (this.pending !== null) return this.pending
     if (this.phase !== 'committing' || this.token === null) return this.demand()
-    try {
-      return await this.finish(this.token)
-    } catch (error) {
-      return { outcome: 'refused', reason: String(error), fenced: true }
-    }
+    const token = this.token
+    const pending = (async (): Promise<RetirementResult> => {
+      try {
+        return await this.finish(token)
+      } catch (error) {
+        return { outcome: 'refused', reason: String(error), fenced: true }
+      }
+    })()
+    this.pending = pending
+    void pending.finally(() => { if (this.pending === pending) this.pending = null })
+    return pending
   }
 
   private async run(token: string): Promise<RetirementResult> {
