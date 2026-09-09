@@ -34,7 +34,7 @@ check('every writer but Edit leaves its roster, and so does the agent spawn', ['
 const prompt = MERCURY_REVIEWER_AGENT.getSystemPrompt({ toolUseContext: { options: {} as never } })
 check("the prompt opens with the reviewer's identity clause", prompt.startsWith("You are Mercury's reviewer: a second pass over one committed change, on frozen inputs."))
 check('the prompt names the one write and the closing line', prompt.includes('section: "## Review"') && prompt.includes('REVIEW: CLEAN') && prompt.includes('REVIEW: FINDINGS <count>'))
-check('the reminder holds the frozen worktree and the one write every turn', (MERCURY_REVIEWER_AGENT.criticalSystemReminder_EXPERIMENTAL ?? '').includes('detached at the reviewed commit') && (MERCURY_REVIEWER_AGENT.criticalSystemReminder_EXPERIMENTAL ?? '').includes('ONE permitted write'))
+check('the reminder holds the frozen worktree and the one write every turn', (MERCURY_REVIEWER_AGENT.standingRule ?? '').includes('detached at the reviewed commit') && (MERCURY_REVIEWER_AGENT.standingRule ?? '').includes('ONE permitted write'))
 check('the delegation cue names worktree_at, the receipt section and the closing line', MERCURY_REVIEWER_AGENT.whenToUse.includes('worktree_at') && MERCURY_REVIEWER_AGENT.whenToUse.includes('"## Review"') && MERCURY_REVIEWER_AGENT.whenToUse.includes('REVIEW: CLEAN'))
 const bare = JSON.stringify(buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-reviewer' } } as never))
 check('the doctrine treats it as a fixed-output agent (derived from its own flag)', !bare.includes('experience cards'), bare.slice(0, 200))

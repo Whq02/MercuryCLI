@@ -288,7 +288,7 @@ export type ToolUseContext = {
   setConversationId?: (id: any) => void
   toolUseId?: string
   userModifiedInput?: boolean
-  criticalSystemReminder_EXPERIMENTAL?: string
+  standingRule?: string
 }
 
 type SetToolAppState = (updater: (prevState: AppState) => AppState) => void

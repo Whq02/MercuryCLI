@@ -1788,9 +1788,26 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               user === null ? 'user dir absent' : `user ${user} .md file(s)`,
               project === null ? 'project dir absent' : `project ${project} .md file(s)`,
             ]
+            const { readFileSync } = await import('node:fs')
+            const { STANDING_RULE_KEY, STANDING_RULE_RETIRED_KEY } = await import('../tools/AgentTool/loadAgentsDir.js')
+            const retiredKeyLine = new RegExp(`^${STANDING_RULE_RETIRED_KEY}\\s*:`, 'm')
+            const retired: string[] = []
+            for (const dir of [userDir, projectDir]) {
+              try {
+                if (!dir || !existsSync(dir)) continue
+                for (const f of readdirSync(dir)) {
+                  if (!f.endsWith('.md')) continue
+                  if (retiredKeyLine.test(readFileSync(join(dir, f), 'utf8'))) retired.push(join(dir, f))
+                }
+              } catch {}
+            }
+            const evidence = `${parts.join(' · ')} — files on disk; a nameless .md is a reference document, so the loaded roster (mercury agents) can be smaller`
+            if (retired.length === 0) return { status: 'info', evidence }
             return {
               status: 'info',
-              evidence: `${parts.join(' · ')} — files on disk; a nameless .md is a reference document, so the loaded roster (mercury agents) can be smaller`,
+              evidence: `${evidence} · ${retired.length} file(s) still spell the standing rule as ${STANDING_RULE_RETIRED_KEY} (read as ${STANDING_RULE_KEY} this release)`,
+              detail: retired.join('\n'),
+              fix: `Rename ${STANDING_RULE_RETIRED_KEY} to ${STANDING_RULE_KEY} in the listed agent files`,
             }
           },
         },
