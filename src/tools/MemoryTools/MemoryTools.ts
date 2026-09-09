@@ -80,7 +80,7 @@ export const RetainTool = buildTool({
     return memoryVerbsEnabled()
   },
   isConcurrencySafe() {
-    return true
+    return false
   },
   isReadOnly() {
     return false
@@ -364,7 +364,7 @@ export const CorrectTool = buildTool({
     return memoryVerbsEnabled()
   },
   isConcurrencySafe() {
-    return true
+    return false
   },
   isReadOnly() {
     return false

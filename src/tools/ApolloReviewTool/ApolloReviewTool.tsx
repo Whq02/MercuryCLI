@@ -93,7 +93,7 @@ export const ApolloReviewTool = buildTool({
     return APOLLO_REVIEW_TOOL_PROMPT
   },
   isConcurrencySafe(): boolean {
-    return true
+    return false
   },
   isReadOnly(): boolean {
     return false
