@@ -228,6 +228,7 @@ section('main and sub-agent instructions match the available interaction model')
     check('batching leads the main tool instructions and preserves dependency ordering', toolsBlock.trim().startsWith('# Using your tools\n\n - Default to batching:') && toolsBlock.includes('Call dependent tools sequentially'))
     const child = (await enhanceSystemPromptWithEnvDetails(['Sub-agent instructions.'], 'claude-fable-5-1')).join('\n\n')
     check('sub-agents receive the same batching and dependency instruction', child.includes('Default to batching:') && child.includes('Call dependent tools sequentially'))
+    check('sub-agent provider guidance retains bundled-skill precedence', child.includes('bundled Mercury skills supersede same-named external or legacy skills') && child.includes('provider-apis supersedes claude-api'))
     resetRuntimePostureForTest()
     delete process.env.MERCURY_ENTRYPOINT
     clearSystemPromptSections()
