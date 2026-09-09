@@ -2,7 +2,7 @@
 # gate-class: pure
 # gate-watch: src/Tool* src/services/compact/** src/services/lsp/manager* src/services/run/**
 # gate-watch: src/utils/config/** src/utils/messages/** src/utils/cockpit/contextUsageLive*
-# gate-watch: src/utils/cockpit/ctxForecast*
+# gate-watch: src/utils/cockpit/ctxForecast* src/utils/swarm/inProcessRunner.ts src/utils/toolResultStorage.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
