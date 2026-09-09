@@ -47,6 +47,7 @@ function kindsLine(): string {
 }
 
 export const InspectTool = buildTool({
+  shouldDefer: true,
   name: INSPECT_TOOL_NAME,
   searchHint:
     'inspect Mercury work-graph objects by mercury:// ref (runs, receipts, tasks, teams, workflows, artifacts, agents, health)',

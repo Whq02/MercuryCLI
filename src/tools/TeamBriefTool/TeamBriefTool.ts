@@ -96,6 +96,7 @@ type OutputSchema = ReturnType<typeof outputSchema>
 export type Output = z.infer<OutputSchema>
 
 export const TeamBriefTool = buildTool({
+  shouldDefer: true,
   name: TEAM_BRIEF_TOOL_NAME,
   searchHint:
     'consolidated team brief — open tasks, unread messages, roster, file leases',
