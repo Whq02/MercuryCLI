@@ -116,7 +116,7 @@ console.log('§4 — attention comes from TYPED events only')
 console.log('§5 — the main REPL is managed session #1 (ruling 26)')
 {
   const bridge = src('src/utils/liveCountBridge.ts')
-  check('the live-count self term records ruling 26 (managed session #1)', bridge.includes('ruling 26') && bridge.includes('managed session #1'))
+  check('the live-count self term counts the REPL itself as one session (managed session #1)', /const n = 1 \+ countLiveConcourseWorkers\(\)/.test(bridge) && /return \{ liveSessions: 1, sessionCount: 1 \}/.test(bridge))
   check('…and the worker term reads SUPERVISOR truth', bridge.includes('countLiveConcourseWorkers') || bridge.includes('concourseSupervisor'))
   const turnMachine = src('src/run-core/turn-machine.ts')
   check("the main REPL's own turns hold counted FOREGROUND permits (the backstop)", turnMachine.includes("'foreground'") && turnMachine.includes('acquireModelPermit'))
