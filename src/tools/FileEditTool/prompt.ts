@@ -2,18 +2,18 @@ import { isCompactLinePrefixEnabled } from '../../utils/file.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
 
 
-function steeringBullet(): string {
+function steeringBullet(offered: ReadonlySet<string> | null): string {
   try {
     const { editSteeringLine } =
       require('../../services/projectIntel/steering.js') as typeof import('../../services/projectIntel/steering.js')
-    const line = editSteeringLine()
+    const line = editSteeringLine(offered)
     return line ? `\n- ${line}` : ''
   } catch {
     return ''
   }
 }
 
-export function getEditToolDescription(): string {
+export function getEditToolDescription(offered: ReadonlySet<string> | null = null): string {
   const prefixShape = isCompactLinePrefixEnabled()
     ? 'line number + tab'
     : 'spaces + line number + →'
@@ -26,5 +26,5 @@ Usage:
 - Keep emoji out of file content unless the user has specifically asked for them.
 - A non-unique \`old_string\` makes the edit fail outright: nothing changes until the match is unambiguous. Disambiguate by widening \`old_string\` with more of the surrounding lines, or pass \`replace_all\` to rewrite every occurrence at once.
 - \`replace_all\` swaps every occurrence of \`old_string\` in one call — the right tool for bulk substitutions, such as renaming an identifier throughout the file.
-- \`append\` adds text at the end of the file on its own line with no line arithmetic and no prior read (no existing byte changes); \`section\` names a Markdown heading line and, with \`new_string\`, replaces that whole section, or, with \`append\`, adds text inside it. A file's read knowledge is keyed to its content: a Read of the lines the edit touches, a content-mode Grep that displayed them, or \`expected_anchor\` from a full Read all count.${steeringBullet()}`
+- \`append\` adds text at the end of the file on its own line with no line arithmetic and no prior read (no existing byte changes); \`section\` names a Markdown heading line and, with \`new_string\`, replaces that whole section, or, with \`append\`, adds text inside it. A file's read knowledge is keyed to its content: a Read of the lines the edit touches, a content-mode Grep that displayed them, or \`expected_anchor\` from a full Read all count.${steeringBullet(offered)}`
 }

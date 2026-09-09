@@ -30,8 +30,10 @@ import {
 import { forEachQueryMatch } from '../../services/structure/query.js'
 import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
+import { LSP_TOOL_NAME } from '../LSPTool/prompt.js'
 
-function lspMounted(): boolean {
+function lspMounted(offered: ReadonlySet<string> | null): boolean {
+  if (offered !== null && !offered.has(LSP_TOOL_NAME)) return false
   try {
     const { isLspToolMounted } = require('../../services/lsp/manager.js') as typeof import('../../services/lsp/manager.js')
     return isLspToolMounted()
@@ -554,9 +556,10 @@ export const StructureTool = buildTool({
   async description() {
     return 'Structural source queries and previewed multi-file codemods over JS/TS/JSX/TSX'
   },
-  async prompt() {
+  async prompt(options) {
     const polyglot = structurePolyglotEnabled()
-    return `Bounded structural source-code queries and previewed, stale-safe codemods${polyglot ? ' — JS/TS/JSX/TSX select queries plus POLYGLOT metavariable patterns' : ' over JS/TS/JSX/TSX'} (the syntax owner — for TRUE symbol rename, file moves, or server fixes prefer ${lspMounted() ? 'the LSP tool, ' : ''}the semantic owner).
+    const offered = options?.tools === undefined ? null : new Set(options.tools.map(tool => tool.name))
+    return `Bounded structural source-code queries and previewed, stale-safe codemods${polyglot ? ' — JS/TS/JSX/TSX select queries plus POLYGLOT metavariable patterns' : ' over JS/TS/JSX/TSX'} (the syntax owner — for TRUE symbol rename, file moves, or server fixes prefer ${lspMounted(offered) ? 'the LSP tool, ' : ''}the semantic owner).
 
 1. op:"query" (select, filters…) — deterministic bounded AST query. Selects: ${STRUCTURE_SELECTS.join(' · ')}. Filters: name (glob), callee ('fs.*'), module, value, within ('class:Name'), files (globs), limit. Returns stable match ids (sm-…) + mercury://structure/query/<id>.${
       polyglot
