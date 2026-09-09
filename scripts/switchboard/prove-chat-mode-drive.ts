@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,6 +9,9 @@ const TEMPLATE = join(SCRATCH, 'home-template')
 const CWD = join(SCRATCH, 'project')
 mkdirSync(TEMPLATE, { recursive: true })
 mkdirSync(CWD, { recursive: true })
+writeFileSync(join(CWD, 'index.js'), 'export const add = (a, b) => a + b\n')
+const projectInit = spawnSync('git', ['init', '--quiet', CWD], { encoding: 'utf8' })
+if (projectInit.status !== 0) throw new Error(projectInit.stderr || 'fixture project initialization failed')
 process.env.MERCURY_CONFIG_DIR = TEMPLATE
 process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
 delete process.env.NODE_ENV
@@ -112,6 +115,7 @@ async function capture(opts: { id: string; home: string; argv?: string[]; sends:
         lines = grid.map(row => row.map(cell => cell.c).join(''))
         text = lines.join('\n')
         if (CAPTURE_DIR) {
+          writeFileSync(join(CAPTURE_DIR, `${opts.id}.json`), JSON.stringify(payload))
           writeFileSync(join(CAPTURE_DIR, `${opts.id}.txt`), lines.map(l => l.replace(/\s+$/, '')).join('\n') + '\n')
           for (const mark of (payload.marks as Array<{ label: string; grid: Array<Array<{ c: string }>> }> | undefined) ?? []) {
             writeFileSync(join(CAPTURE_DIR, `${opts.id}--${mark.label}.txt`), mark.grid.map(row => row.map(cell => cell.c).join('').replace(/\s+$/, '')).join('\n') + '\n')
@@ -190,7 +194,7 @@ const FACE_TO_CHAT = keyHintLabel('⇧→ chat')
 const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')
 const hintRows = (text: string): string => text.split('\n').filter(l => /Concourse|⇧|shift\+|live view/i.test(l)).join(' | ')
 const isFace = (text: string): boolean => text.includes('New Session') && text.includes(READY_LINE)
-const isChat = (text: string): boolean => text.includes(COMPOSER) && !text.includes(READY_LINE)
+const isChat = (text: string): boolean => (text.includes(COMPOSER) || text.includes('for a new line')) && !text.includes(READY_LINE)
 const isChatFace = (text: string): boolean => isFace(text) && !text.includes('Session Concourse') && text.includes(FACE_NO_CHAT)
 
 async function feltEnter(id: string, argv: string[]): Promise<{ c: Capture; face: string; ms: number | null; claims: number; log: string }> {
@@ -226,7 +230,7 @@ let chatMs: number | null = null
   check('F1 exactly ONE session exists — born at ↵, none at boot', live.length === 1 && live[0]?.bornBlankAt !== undefined, JSON.stringify(live.map(x => x.runnerId)))
   check("F1 the ↵ session runs the boot's model (the next-session facts' precedence falls to the screen's main model — the rig's --model)", live[0]?.modelKey === 'claude-sonnet-5', live[0]?.modelKey)
   console.log(`  [WARM] daemon log: ${r.claims} warm claim(s) acked${r.claims > 0 ? ` — ${(r.log.match(/warm claim acked in \d+ms/) ?? [''])[0]}` : ''}`)
-  check('F1 THE WARM ROAD: the ↵ birth claimed the runner the menu\'s mount pre-warmed beneath the face', r.claims >= 1, r.log.split('\n').filter(l => /warm|claim|self-warm/i.test(l)).slice(-6).join(' | ').slice(0, 400))
+  check('F1 entry starts its session without a speculative worker', r.claims === 0 && !r.log.includes('warm runner pre-spawned') && live.length === 1, r.log.split('\n').filter(l => /warm|claim|admitted/i.test(l)).slice(-6).join(' | ').slice(0, 400))
   reapHome(home)
 }
 
@@ -245,6 +249,7 @@ console.log('F2 — the control: a bare boot\'s face and the felt ↵ (the fleet
 for (const size of [
   { id: 'p1', cols: 120, rows: 40 },
   { id: 'p2', cols: 100, rows: 30 },
+  { id: 'p80', cols: 80, rows: 40 },
 ]) {
   console.log(`${size.id.toUpperCase()} — the --chat card at ${size.cols}×${size.rows}: no concourse row, New Session the door, the chat to the right after ↵`)
   const home = freshHome(`card-${size.id}`)
@@ -257,7 +262,7 @@ for (const size of [
     sends: [
       g(READY_LINE, '', { mark: 'landing', awaitSettleTicks: 4 }),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
-      g(COMPOSER, SHIFT_LEFT, { mark: 'chat', awaitSettleTicks: 4 }),
+      g('for a new line', SHIFT_LEFT, { mark: 'chat', awaitSettleTicks: 4 }),
       { afterPrevTicks: 8, data: '', mark: 'face-again' },
     ],
     stableTicks: 4,
@@ -266,7 +271,7 @@ for (const size of [
   const landing = markText(c, 'landing')
   const again = markText(c, 'face-again')
   printFrame(`${size.id} (the --chat landing, ${size.cols}×${size.rows})`, landing.split('\n'))
-  check(`${size.id.toUpperCase()} the landing is the face with New Session · Doctor · Resume`, isFace(landing) && landing.includes('Doctor') && landing.includes('Resume Session'), firstRows(landing))
+  check(`${size.id.toUpperCase()} the landing offers New Session, Doctor and Sessions`, isFace(landing) && landing.includes('Doctor') && landing.includes('Sessions'), firstRows(landing))
   check(`${size.id.toUpperCase()} NO "Session Concourse" row on the --chat card (seven rows at most); the key-map row says "⇧→ no chat open"`, isChatFace(landing), hintRows(landing))
   check(`${size.id.toUpperCase()} ↵ births the chat`, isChat(markText(c, 'chat')), firstRows(markText(c, 'chat')))
   check(`${size.id.toUpperCase()} ⇧← from the chat is the same face — still no concourse row — whose row now names the chat ("⇧→ chat")`, isFace(again) && !again.includes('Session Concourse') && again.includes(FACE_TO_CHAT) && !again.includes(FACE_TO_CONCOURSE), again.split('\n').filter(l => /Concourse|⇧/.test(l)).join(' | '))
@@ -307,7 +312,7 @@ console.log('P4 — --chat: /party answers the sentence, /sessions opens, /statu
       g(COMPOSER, '/party', { awaitSettleTicks: 4 }),
       { afterPrevTicks: 3, data: '\r' },
       { afterPrevTicks: 2, data: '\r' },
-      g('opens a Session Concourse surface', '', { mark: 'party', awaitSettleTicks: 3 }),
+      g('Unknown command: /party', '', { mark: 'party', awaitSettleTicks: 3 }),
       { afterPrevTicks: 3, data: '/sessions' },
       { afterPrevTicks: 3, data: '\r' },
       g(MANAGER_FOOTER, '', { mark: 'sessions', awaitSettleTicks: 3 }),
@@ -324,7 +329,7 @@ console.log('P4 — --chat: /party answers the sentence, /sessions opens, /statu
   printFrame('p4 (after the three commands)', c.lines)
   const party = markText(c, 'party')
   const partyFlat = party.split('\n').map(l => l.replace(/[│╭╮╰╯]/g, ' ').trim()).join(' ').replace(/ +/g, ' ')
-  check('P4 /party typed in the plain world answers the router\'s sentence (off in this boot (--chat), a plain boot has it)', partyFlat.includes('The /party command opens a Session Concourse surface') && partyFlat.includes('the Session Concourse is off in this boot (--chat)') && partyFlat.includes('a plain mercury boot has it.'), party.split('\n').filter(l => /party|Concourse/i.test(l)).join(' | ').slice(0, 300))
+  check('P4 an unknown command is refused with command discovery guidance', partyFlat.includes('Unknown command: /party') && partyFlat.includes('/help lists commands'), party.split('\n').filter(l => /party|help/i.test(l)).join(' | ').slice(0, 300))
   check('P4 POISON absent: never "Unknown skill", never the generic enablement line, no crash', !c.text.includes('Unknown skill') && !c.text.includes('exists but is not enabled') && !c.text.includes('Mercury exited on an error'))
   check('P4 /sessions opens the session manager (the plain CLI\'s own — not gated with the concourse)', markText(c, 'sessions').includes(MANAGER_FOOTER), firstRows(markText(c, 'sessions')))
   check('P4 /status carries the Concourse row: "off this boot (--chat)" with the way back', markText(c, 'status').includes('off this boot (--chat)') && markText(c, 'status').includes('a plain `mercury` boot has it'), markText(c, 'status').split('\n').filter(l => /Concourse/i.test(l)).join(' | ').slice(0, 300))

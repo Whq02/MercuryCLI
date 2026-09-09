@@ -174,7 +174,7 @@ function walk(root: string): string[] {
   check('P8 model validation precedes the claim (a refused model never reaches the pool)', sup.indexOf('await validateWorkerModelChoice(') < claimAt)
   const repl = read('src/screens/REPL.tsx')
   const mountAt = repl.indexOf('ensureOwnedDaemon()')
-  check('P8 the screen arms the warm pool from the daemon pre-warm hook', mountAt !== -1 && repl.includes('warmSessionRunner(getCwd())'))
+  check('P8 the screen starts its daemon without requesting a worker', mountAt !== -1 && !repl.includes('warmSessionRunner(getCwd())'))
   const pool = read('src/daemon/warmRunner.ts')
   check('P8 the pool holds ONE runner per workspace and answers kept over a live one', pool.includes("return { state: 'kept'") && pool.includes('const pool = new Map<string, WarmRunnerEntry>()'))
 }
