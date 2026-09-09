@@ -119,6 +119,14 @@ export function workshopGeneration(owner: OwnerKey, language: WorkshopLanguage):
   return store.peek(owner)?.runtimes.get(language)?.generation ?? 1
 }
 
+export function liveWorkshopRuntimeCount(): number {
+  let n = 0
+  for (const owner of store.owners()) {
+    for (const rt of store.peek(owner)?.runtimes.values() ?? []) if (rt.worker !== null) n++
+  }
+  return n
+}
+
 export function _workshopWorkerCountForTesting(): number {
   let n = 0
   void n

@@ -262,6 +262,10 @@ export class StructuredIO {
     return [...this.#pendingCanUseTool.values()]
   }
 
+  pendingControlRequestCount(): number {
+    return this.#pending.size
+  }
+
   async #handleControlResponse(
     message: SDKControlResponse & { uuid?: string },
   ): Promise<boolean> {
