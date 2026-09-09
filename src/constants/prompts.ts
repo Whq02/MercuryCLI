@@ -112,7 +112,7 @@ export async function computeEnvInfo(
       ? `\nAdditional working directories: ${additionalWorkingDirectories.join(', ')}`
       : ''
   const cutoff = knowledgeCutoffSentence(modelId)
-  const currency = `\n\n${getModelCurrencySection()}`
+  const currency = `\n\n${MODEL_CURRENCY_NOTE} ${PROVIDER_SKILL_PRECEDENCE}`
   return `The environment this session runs in:
 <env>
 Working directory: ${cwd}${extraDirs}

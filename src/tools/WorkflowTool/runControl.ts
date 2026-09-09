@@ -4,6 +4,7 @@ import { mkdir, readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
+import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import { readRunClaim, readRunManifest, type RunClaim } from './runManifest.js'
 
 export const WORKFLOW_CONTROL_DIRNAME = 'control'
@@ -213,7 +214,7 @@ export async function requestWorkflowControl(
     settle(answer.result)
   }
   try {
-    watcher = watch(dir, () => void readAnswer())
+    watcher = watch(resolveWatchRoot(dir), () => void readAnswer())
     watcher.on('error', () => void readAnswer())
     await durableAtomicPublish(requestPath(runDir, id), wire)
     timer = setTimeout(
@@ -345,7 +346,7 @@ export async function serveWorkflowControl(opts: {
     }
   }
 
-  const watcher = watch(dir, () => void drain())
+  const watcher = watch(resolveWatchRoot(dir), () => void drain())
   watcher.on('error', opts.onError)
   const sweep = setInterval(() => void drain(), 1_000)
   sweep.unref?.()
@@ -376,8 +377,13 @@ export class WorkflowExecutionPause {
       if (entry === undefined) return { outcome: 'refused', reason: 'the agent is not in flight — nothing to pause or resume' }
       if (paused && entry.by !== undefined) return { outcome: 'refused', reason: `already paused by ${entry.by}` }
       if (!paused && entry.by === undefined && this.runPausedBy === undefined) return { outcome: 'refused', reason: 'the agent is not paused — nothing to resume' }
+      if (!paused && this.runPausedBy !== undefined) {
+        for (const [otherId, other] of this.agents) {
+          if (otherId !== agentId && other.by === undefined) other.by = this.runPausedBy
+        }
+        this.runPausedBy = undefined
+      }
       entry.by = paused ? by : undefined
-      if (!paused) this.runPausedBy = undefined
       for (const listener of entry.listeners) listener()
     } else {
       if (paused && this.runPausedBy !== undefined) return { outcome: 'refused', reason: `already paused by ${this.runPausedBy}` }

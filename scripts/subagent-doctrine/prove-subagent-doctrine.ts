@@ -102,9 +102,9 @@ section('(e2) API-currency: doctrine line for ALL agents + env-block currency no
   check('the line names the supersession (claude-api → provider-apis)', join(buildSubagentMercurySections({ agentDefinition: GP })).includes('claude-api'))
   const pr = read('../../src/constants/prompts.ts')
   const envFn = pr.slice(pr.indexOf('export async function computeEnvInfo'), pr.indexOf('export async function computeSimpleEnvInfo'))
-  check('computeEnvInfo interpolates the shared currency and skill section', envFn.includes('${getModelCurrencySection()}'))
+  check('computeEnvInfo interpolates MODEL_CURRENCY_NOTE', envFn.includes('${MODEL_CURRENCY_NOTE}'))
   check('…for EVERY family (no route gate on the currency rule)', !envFn.includes('isAnthropicRoutedModelId'))
-  check('the model_currency section combines the shared currency and skill constants', pr.includes('function getModelCurrencySection(): string {\n  return `${MODEL_CURRENCY_NOTE} ${PROVIDER_SKILL_PRECEDENCE}`\n}'))
+  check('the model_currency section shares the same const (no drift-prone twin literal)', pr.includes('function getModelCurrencySection(): string {\n  return `${MODEL_CURRENCY_NOTE} ${PROVIDER_SKILL_PRECEDENCE}`\n}'))
   check('MODEL_CURRENCY_NOTE is the neutral rule — no vendor model list hardcoded', /MODEL_CURRENCY_NOTE = `Model currency:/.test(pr) && !/MODEL_CURRENCY_NOTE = `[^`]*claude-/.test(pr))
 }
 
