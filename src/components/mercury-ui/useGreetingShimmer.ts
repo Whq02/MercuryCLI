@@ -9,7 +9,7 @@ import {
   shimmerPhaseOf,
   type ShimmerPhase,
 } from '../../utils/cockpit/greetingShimmer.js'
-import { useIdleMotion } from '../../hooks/useIdleMotion.js'
+import { useIdleMotion, useRestMotionPause } from '../../hooks/useIdleMotion.js'
 
 
 export function useGreetingShimmer(
@@ -20,7 +20,9 @@ export function useGreetingShimmer(
   const reducedMotion =
     (useSettingsMaybe()?.prefersReducedMotion ?? false) ||
     isEnvTruthy(process.env.MERCURY_REDUCED_MOTION)
-  const enabled = !reducedMotion && useIdleMotion('glyphs') !== 'off' && stops.length > 1 && spanCells > 1
+  const motion = useIdleMotion('glyphs')
+  const resting = useRestMotionPause()
+  const enabled = !reducedMotion && motion !== 'off' && !resting && stops.length > 1 && spanCells > 1
 
   const [settled, setSettled] = React.useState(false)
   const startRef = React.useRef<number | null>(null)

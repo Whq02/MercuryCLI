@@ -3,10 +3,11 @@ import { spawn, spawnSync } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
-const BIN = join(REPO, 'dist', 'mercury.mjs')
+const BIN = resolve(process.env.MEASURE_DIST ?? join(REPO, 'dist', 'mercury.mjs'))
+const NODE = join(dirname(BIN), 'vendor', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')
 const VSHOT = join(REPO, 'scripts', 'ui', 'vshot.py')
 if (!existsSync(BIN)) {
   console.error('✗ dist/mercury.mjs missing — run `bun run build.ts` first')
@@ -30,12 +31,17 @@ const VARIANTS: Record<string, Variant> = {
   'interpreted-wide': { nodeFlags: INTERPRETED_FLAGS, cols: 300, rows: 90 },
   padded: { nodeFlags: [], cols: 120, rows: 40, env: { MERCURY_FRAME_COST_PAD_MS: '100' } },
 }
-type Setting = 'full' | 'auto'
-const SETTINGS = (process.env.MEASURE_SETTINGS ?? 'full,auto').split(',').filter((s): s is Setting => s === 'full' || s === 'auto')
-const wanted = process.argv.slice(2).length > 0 ? process.argv.slice(2) : Object.keys(VARIANTS)
+type Setting = 'full' | 'auto' | 'reduced' | 'off'
+const SETTINGS = (process.env.MEASURE_SETTINGS ?? 'full,auto').split(',') as Setting[]
+if (SETTINGS.some(value => !['auto', 'full', 'reduced', 'off'].includes(value))) throw new Error('Unknown Motion setting')
+if (!Number.isFinite(WINDOW_MS) || WINDOW_MS <= 0) throw new Error('MEASURE_WINDOW_S must be a positive number')
+const blurred = process.argv.includes('--blur')
+const variants = process.argv.slice(2).filter(value => value !== '--blur')
+const wanted = variants.length > 0 ? variants : Object.keys(VARIANTS)
+if (wanted.some(value => VARIANTS[value] === undefined)) throw new Error('Unknown measurement variant')
 
 function acceptedNodeFlags(flags: string[]): string[] {
-  return flags.filter(flag => spawnSync('node', [flag, '--version'], { stdio: 'ignore' }).status === 0)
+  return flags.filter(flag => spawnSync(NODE, [flag, '--version'], { stdio: 'ignore' }).status === 0)
 }
 
 async function startFixture(port: number): Promise<{ base: string; close(): Promise<void> }> {
@@ -51,7 +57,7 @@ async function startFixture(port: number): Promise<{ base: string; close(): Prom
     server.once('error', reject)
     server.listen(port, '127.0.0.1', () => resolve())
   })
-  return { base: `http://127.0.0.1:${port}`, close: () => new Promise<void>(resolve => server.close(() => resolve())) }
+  return { base: `http://127.0.0.1:${(server.address() as { port: number }).port}`, close: () => new Promise<void>(resolve => server.close(() => resolve())) }
 }
 
 function seedWorld(setting: Setting): { home: string; cwd: string } {
@@ -70,6 +76,9 @@ function seedWorld(setting: Setting): { home: string; cwd: string } {
 
 function baseEnv(home: string, fixtureBase: string): Record<string, string> {
   return {
+    HOME: home,
+    PATH: `${dirname(NODE)}:/usr/bin:/bin:/usr/sbin:/sbin`,
+    TERM: 'xterm-256color',
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_TEAMS_DIR: join(home, 'teams'),
@@ -85,18 +94,19 @@ function baseEnv(home: string, fixtureBase: string): Record<string, string> {
   }
 }
 
-function cpuSecondsOf(pid: number): number | null {
-  const out = spawnSync('ps', ['-p', String(pid), '-o', 'time='], { encoding: 'utf8' })
+function cpuSampleOf(pid: number): { cpu: number; pcpu: number } | null {
+  const out = spawnSync('ps', ['-p', String(pid), '-o', '%cpu=', '-o', 'time='], { encoding: 'utf8' })
   if (out.status !== 0) return null
-  const text = out.stdout.trim()
-  if (text === '') return null
-  const parts = text.split(':').map(Number)
-  if (parts.some(n => !Number.isFinite(n))) return null
-  return parts.reduce((acc, n) => acc * 60 + n, 0)
+  const fields = out.stdout.trim().split(/\s+/)
+  if (fields.length !== 2) return null
+  const pcpu = Number(fields[0])
+  const parts = fields[1]!.split(':').map(Number)
+  if (!Number.isFinite(pcpu) || parts.some(n => !Number.isFinite(n))) return null
+  return { cpu: parts.reduce((acc, n) => acc * 60 + n, 0), pcpu }
 }
 
 type Receipt = { atTick: number; ts: number }
-type Sample = { ts: number; cpu: number }
+type Sample = { ts: number; cpu: number; pcpu: number }
 async function capture(
   cfg: Record<string, unknown>,
   env: Record<string, string>,
@@ -111,7 +121,7 @@ async function capture(
   const samples: Sample[] = []
   let pid: number | null = null
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(driver.python, [VSHOT, cfgPath], { env: { ...process.env, ...env }, stdio: ['ignore', 'ignore', 'pipe'] })
+    const child = spawn(driver.python, [VSHOT, cfgPath], { env, stdio: ['ignore', 'ignore', 'pipe'] })
     const deadline = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(budgetMs))
     const meter = setInterval(() => {
       if (pid === null && existsSync(pidPath)) {
@@ -119,15 +129,16 @@ async function capture(
         if (Number.isFinite(n) && n > 0) pid = n
       }
       if (pid === null) return
-      const cpu = cpuSecondsOf(pid)
-      if (cpu !== null) samples.push({ ts: Date.now(), cpu })
+      const sample = cpuSampleOf(pid)
+      if (sample !== null) samples.push({ ts: Date.now(), ...sample })
     }, 1000)
     child.stderr?.on('data', c => stderr.push(String(c)))
-    child.on('error', reject)
-    child.on('close', () => {
+    child.on('error', error => { clearTimeout(deadline); clearInterval(meter); reject(error) })
+    child.on('close', code => {
       clearTimeout(deadline)
       clearInterval(meter)
-      resolve()
+      if (code === 0) resolve()
+      else reject(new Error(`Capture exited ${code}: ${stderr.join('').slice(-700)}`))
     })
   })
   if (!existsSync(outPath)) throw new Error(`vshot wrote no grid: ${stderr.join('').slice(0, 600)}`)
@@ -151,10 +162,11 @@ function sampleNear(samples: Sample[], ts: number): Sample | null {
 const outDir = process.env.MEASURE_OUT_DIR ?? mkdtempSync(join(tmpdir(), 'idle-cpu-tee-'))
 mkdirSync(outDir, { recursive: true })
 console.log('============================================================')
-console.log(` idle cpu — the built bundle, ${WINDOW_MS / 1000} idle seconds per boot, the default look; Motion full (the control) then auto`)
+console.log(` idle cpu — ${BIN}, ${WINDOW_MS / 1000} idle seconds per boot, ${blurred ? 'unfocused' : 'focused'}; Motion ${SETTINGS.join(', ')}`)
 console.log('============================================================')
-const fixture = await startFixture(Number(process.env.MEASURE_PORT ?? 25233))
-const results: Array<{ variant: string; setting: Setting; flags: string[]; cols: number; rows: number; cpuSeconds: number | null; corePct: number | null; writes: number; bytes: number; word: boolean; endReason: string }> = []
+const fixture = await startFixture(Number(process.env.MEASURE_PORT ?? 0))
+let measurementFailures = 0
+const results: Array<{ variant: string; setting: Setting; flags: string[]; cols: number; rows: number; cpuSeconds: number | null; corePct: number | null; writes: number; bytes: number; word: boolean; endReason: string; blurred: boolean; sampleCount: number; psMeanPct: number | null; psP95Pct: number | null }> = []
 const boots: Array<{ variant: string; spec: Variant; setting: Setting }> = []
 for (const variant of wanted) {
   const spec = VARIANTS[variant]
@@ -180,13 +192,14 @@ for (const { variant, spec, setting } of boots) {
   try {
     cap = await capture(
       {
-        argv: ['/bin/sh', '-c', 'echo $$ > "$0" && exec node "$@"', pidPath, ...flags, BIN],
+        argv: ['/bin/sh', '-c', 'echo $$ > "$0" && exec "$@"', pidPath, NODE, ...flags, BIN],
         cwd,
         cols: COLS,
         rows: ROWS,
         sends: [
-          { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitSettleTicks: 6 },
-          { data: '', afterPrevTicks: settleTicks, mark: 'settled' },
+          { data: '\r', awaitText: 'New Session', requireAwait: true, atTick: 100, awaitSettleTicks: 6 },
+          { data: '', awaitText: 'type a prompt, or / for commands', requireAwait: true, atTick: 150 },
+          { data: blurred ? '\u001b[O' : '', afterPrevTicks: settleTicks, mark: 'settled' },
         ],
         total,
       },
@@ -195,11 +208,18 @@ for (const { variant, spec, setting } of boots) {
       pidPath,
     )
   } catch (error) {
-    console.log(`  ✗ ${variant} · ${setting}: the capture failed — ${String(error).slice(0, 300)}`)
+    measurementFailures++
+    console.error(`${variant} / ${setting}: capture failed: ${String(error).slice(0, 300)}`)
+  } finally {
+    spawnSync(NODE, [BIN, 'daemon', 'stop'], { env: baseEnv(home, fixture.base), timeout: 10000, stdio: 'pipe' })
   }
   if (cap !== null) {
-    const start = (cap.receipts[1]?.ts ?? 0) + WINDOW_SKIP_MS
+    const start = (cap.receipts[2]?.ts ?? 0) + WINDOW_SKIP_MS
     const end = start + WINDOW_MS
+    const windowSamples = cap.samples.filter(sample => sample.ts >= start && sample.ts < end)
+    const pcpu = windowSamples.map(sample => sample.pcpu).sort((a, b) => a - b)
+    const psMeanPct = pcpu.length > 0 ? pcpu.reduce((sum, value) => sum + value, 0) / pcpu.length : null
+    const psP95Pct = pcpu[Math.round(0.95 * (pcpu.length - 1))] ?? null
     const a = sampleNear(cap.samples, start)
     const b = sampleNear(cap.samples, end)
     const cpuSeconds = a !== null && b !== null ? Math.max(0, b.cpu - a.cpu) : null
@@ -221,9 +241,12 @@ for (const { variant, spec, setting } of boots) {
         bytes += row.len ?? 0
       }
     }
-    const chatOpen = cap.text.includes('✶ SESSION')
+    const chatOpen = /SESSION|this session/i.test(cap.text)
+    if (!chatOpen || a === null || b === null || pcpu.length === 0) measurementFailures++
     const word = /\breduced\b/.test(cap.text)
-    results.push({ variant, setting, flags, cols: COLS, rows: ROWS, cpuSeconds, corePct, writes, bytes, word, endReason: cap.endReason })
+    results.push({ variant, setting, flags, cols: COLS, rows: ROWS, cpuSeconds, corePct, writes, bytes, word, endReason: cap.endReason, blurred, sampleCount: pcpu.length, psMeanPct, psP95Pct })
+    writeFileSync(join(outDir, `samples-${variant}-${setting}.json`), JSON.stringify({ binary: BIN, node: NODE, start, end, blurred, samples: cap.samples }))
+    console.log(`  ps CPU: mean ${psMeanPct?.toFixed(2) ?? '?'}% / p95 ${psP95Pct?.toFixed(2) ?? '?'}% / ${pcpu.length} samples`)
     console.log(`\n── ${variant} · Motion ${setting} ──`)
     console.log(`  ${COLS}×${ROWS} · node flags: ${flags.length > 0 ? flags.join(' ') : '(none)'}${spec.env ? ` · env ${Object.entries(spec.env).map(([k, v]) => `${k}=${v}`).join(' ')}` : ''} · screen pid: ${cap.pid ?? '?'} · samples: ${cap.samples.length}`)
     console.log(`  window: ${new Date(start).toISOString()} → +${WINDOW_MS / 1000}s · capture ended: ${cap.endReason} · cockpit header on screen: ${chatOpen ? 'yes' : 'NO'}`)
@@ -234,6 +257,8 @@ for (const { variant, spec, setting } of boots) {
   rmSync(cwd, { recursive: true, force: true })
 }
 await fixture.close()
+writeFileSync(join(outDir, 'summary.json'), JSON.stringify(results, null, 2))
+process.exitCode = measurementFailures > 0 ? 1 : 0
 console.log(`\n── summary (per ${WINDOW_MS / 1000} idle seconds) ──`)
 for (const r of results) {
   console.log(`  ${r.variant.padEnd(17)} ${r.setting.padEnd(5)} ${`${r.cols}×${r.rows}`.padEnd(7)} cpu=${r.cpuSeconds === null ? '?' : `${r.cpuSeconds.toFixed(2)}s`} core=${r.corePct === null ? '?' : `${r.corePct.toFixed(1)}%`} writes=${r.writes} bytes=${r.bytes} reduced-word=${r.word ? 'yes' : 'no'} flags=${r.flags.join(' ') || '(none)'}`)
