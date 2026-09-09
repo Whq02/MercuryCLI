@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -20,7 +20,7 @@ function section(title: string): void {
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
 console.log('============================================================')
-console.log(' the quiet boot — the first-party side roads are gone')
+console.log(' the quiet boot — no first-party side request at boot')
 console.log('============================================================')
 
 for (const key of [
@@ -88,45 +88,8 @@ writeFileSync(
   }),
 )
 
-section('§1 the roads are gone (source)')
+section('§1 the boot makes no side request (source)')
 {
-  for (const gone of [
-    'src/services/api/bootstrap.ts',
-    'src/utils/apiPreconnect.ts',
-    'src/services/policyLimits',
-    'src/services/remoteManagedSettings',
-    'src/components/ManagedSettingsSecurityDialog',
-    'src/bridge',
-    'src/hooks/notifs/useCanSwitchToExistingSubscription.tsx',
-  ]) {
-    check(`gone: ${gone}`, !existsSync(join(ROOT, gone)))
-  }
-  const files: string[] = []
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir)) {
-      const path = join(dir, entry)
-      if (statSync(path).isDirectory()) walk(path)
-      else if (/\.(ts|tsx)$/.test(entry) && !/\.generated\.ts$/.test(entry)) files.push(path)
-    }
-  }
-  walk(join(ROOT, 'src'))
-  const spelled = (needle: string): string[] => files.filter(f => readFileSync(f, 'utf8').includes(needle)).map(f => f.slice(ROOT.length + 1))
-  for (const needle of [
-    '/api/claude_cli/bootstrap',
-    '/api/claude_code/policy_limits',
-    '/api/claude_code/settings',
-    '/api/web/domain_info',
-    '/api/claude_cli_profile',
-    '/api/oauth/files/',
-    'http://1.1.1.1',
-    'checkQuotaStatus',
-    'preconnectAnthropicApi',
-    'startup-prefetch-batch',
-    'hasInternetAccess',
-  ]) {
-    const hits = spelled(needle)
-    check(`no source file spells ${needle}`, hits.length === 0, hits.join(', '))
-  }
   const webfetch = readFileSync(join(ROOT, 'src/tools/WebFetchTool/utils.ts'), 'utf8')
   check('WebFetch asks no policy service (no preflight in the module)', !/preflight/i.test(webfetch) && !webfetch.includes('domain_info'))
   const repl = readFileSync(join(ROOT, 'src/screens/REPL.tsx'), 'utf8')

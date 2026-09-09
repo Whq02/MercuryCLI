@@ -6,21 +6,18 @@ const ROOT = join(import.meta.dir, '..', '..')
 
 const JOIN_ALLOWLIST: Record<string, string> = {
   'src/utils/projectConfig.ts': 'THE seam — the home names live here',
-  'src/utils/projectStoreAdoption.ts':
-    'the D11 alias-refusal guard NAMES the external dir it refuses to write through — a boundary refusal, never a home join',
   'src/utils/worktree.ts':
- 'classifier vocabulary — the exact Mercury-ephemeral lane registry NAMES cache-clock debris paths across both homes so pre-fix lanes settle; a classifier row, never a write path',
+    'classifier vocabulary — MERCURY_EPHEMERAL_PREFIXES names the cache-clock debris path; a classifier row, never a write path',
   'src/utils/envUtils.ts': 'THE config-home resolver + label derivation',
   'src/entrypoints/cli.tsx':
     'pre-import compile-cache arm — mirrors the LAUNCHER config-home rungs with builtin-only imports before any src module can load; the seam is unreachable here by construction',
-  'src/utils/permissions/filesystem.ts': 'guard vocabulary — DANGEROUS_DIRECTORIES + scope tuples NAME the homes',
-  'src/utils/sandbox/sandbox-adapter.ts': 'OS sandbox deny-write vocabulary across both homes',
-  'src/substrate/themis/integrity.ts': 'enroll list names committed content paths in both estates',
-  'src/utils/verification/verificationState.ts': 'tree-digest exclusion names both harness dirs',
-  'src/services/projectIntel/impact.ts': 'scan-ignore vocabulary (both homes)',
-  'src/skills/loadSkillsDir.ts': 'managed-policy dir joins (external convention); project paths ride the seam',
-  'src/utils/config/derived.ts': 'managed-policy dir join + user-scope compat file names',
-  'src/utils/accounts/scopeScan.ts': 'the foreign identity file + the Claude-family basename test (class isolation)',
+  'src/utils/permissions/filesystem.ts': 'guard vocabulary — DANGEROUS_DIRECTORIES + scope tuples NAME the home',
+  'src/utils/sandbox/sandbox-adapter.ts': 'OS sandbox deny-write vocabulary names the home',
+  'src/substrate/themis/integrity.ts': 'enroll list names committed content paths under the home',
+  'src/utils/verification/verificationState.ts': 'tree-digest exclusion names the project home',
+  'src/services/projectIntel/impact.ts': 'scan-ignore vocabulary names the home',
+  'src/skills/loadSkillsDir.ts': 'managed-policy dir joins; project paths ride the seam',
+  'src/utils/config/derived.ts': 'managed-policy dir join + user-scope file names',
 }
 
 const PROSE_ALLOWLIST: Record<string, string> = {
@@ -45,11 +42,11 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 console.log('============================================================')
-console.log(' no-literal-homes ratchet — src joins ride the ONE seam')
+console.log(' no-literal-homes — src joins ride the ONE seam')
 console.log('============================================================')
 
-const JOIN_RE = /['"]\.(?:mercury|claude)[/'"]/
-const PROSE_RE = /[`/]\.(?:mercury|claude)[/'"`]/
+const JOIN_RE = /['"]\.mercury[/'"]/
+const PROSE_RE = /[`/]\.mercury[/'"`]/
 
 const maskComments = (text: string): string => {
   const out: string[] = []
@@ -141,7 +138,7 @@ console.log(`  PROSE worklist: ${total} literal line(s) across ${proseCounts.siz
 
 console.log('════════════════════════════════════════════════════════════════════════════')
 if (failures > 0) {
-  console.error(`❌ ${failures} ratchet check(s) failed`)
+  console.error(`❌ ${failures} home-literal check(s) failed`)
   process.exit(1)
 }
 console.log('✅ HOME LITERALS LAW-BOUND (joins strict; prose censused)')

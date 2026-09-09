@@ -123,14 +123,6 @@ console.log('the ONE terminal-ground lifecycle owner')
     { MERCURY_ALT_HELD: '1', MERCURY_TRUECOLOR: '0' },
   ) as string[]
   check('C5b truecolor-off handoff writes nothing at exit', r.length === 0, JSON.stringify(r))
-  const r2 = inProc(
-    `
-    mod.exitOasisBg(w)
-    const result = out
-  `,
-    { MERCURY_ALT_HELD: '1', MERCURY_TRUECOLOR: '0' },
-  ) as string[]
-  check('C5b legacy truecolor-off spelling suppresses identically', r2.length === 0, JSON.stringify(r2))
   const r3 = inProc(
     `
     mod.exitOasisBg(w)

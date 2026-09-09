@@ -17,12 +17,12 @@ function section(t: string): void {
 process.chdir(mkdtempSync(join(tmpdir(), 'cache-clock-proof-')))
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'cache-clock-proof-home-'))
 for (const k of [
-  'MERCURY_CACHE_CLOCK', 'MERCURY_CACHE_CLOCK',
-  'MERCURY_CACHE_TTL', 'MERCURY_CACHE_TTL',
-  'MERCURY_TANK', 'MERCURY_TANK',
-  'MERCURY_HEALER', 'MERCURY_HEALER',
-  'MERCURY_CREW_AGENT', 'MERCURY_CREW_AGENT',
-  'MERCURY_DAEMON_PERMISSION_MODE', 'MERCURY_DAEMON_PERMISSION_MODE',
+  'MERCURY_CACHE_CLOCK',
+  'MERCURY_CACHE_TTL',
+  'MERCURY_TANK',
+  'MERCURY_HEALER',
+  'MERCURY_CREW_AGENT',
+  'MERCURY_DAEMON_PERMISSION_MODE',
 ]) {
   delete process.env[k]
 }
@@ -352,15 +352,15 @@ section('§3b STORE KEYING — a worktree lane meters to its ORIGIN project (L24
 
 section('§4 SEAMS — structural wiring')
 {
-const claude = readFileSync(join(repoRoot, 'src/services/providers/anthropic/index.ts'), 'utf8') + readdirSync(join(repoRoot, 'src/services/providers/anthropic')).filter(f => f.endsWith('.ts')).map(f => readFileSync(join(repoRoot, 'src/services/providers/anthropic', f), 'utf8')).join('\n')
-  const decisionIdx = claude.indexOf('cacheClockTtlDecision({')
-  const allowlistIdx = claude.indexOf("'mercury_prompt_cache_1h_config'")
-  check('claude.ts consults the clock', decisionIdx > 0)
+const anthropicRuntime = readFileSync(join(repoRoot, 'src/services/providers/anthropic/index.ts'), 'utf8') + readdirSync(join(repoRoot, 'src/services/providers/anthropic')).filter(f => f.endsWith('.ts')).map(f => readFileSync(join(repoRoot, 'src/services/providers/anthropic', f), 'utf8')).join('\n')
+  const decisionIdx = anthropicRuntime.indexOf('cacheClockTtlDecision({')
+  const allowlistIdx = anthropicRuntime.indexOf("'mercury_prompt_cache_1h_config'")
+  check('the anthropic runtime consults the clock', decisionIdx > 0)
   check(
     'the clock verdict is the whole decision (no remote allowlist path remains)',
     decisionIdx > 0 && allowlistIdx === -1,
   )
-  check('claude.ts taps the meter (cacheClockObserve)', claude.includes('cacheClockObserve({'))
+  check('the anthropic runtime taps the meter (cacheClockObserve)', anthropicRuntime.includes('cacheClockObserve({'))
 
   const shellSrc = readFileSync(join(repoRoot, 'src/utils/cache/cacheClock.ts'), 'utf8')
   check(

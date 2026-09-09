@@ -46,7 +46,7 @@ console.log('\n§3/§9.13 one decision, no re-derivation (source census)')
       between(model, 'export function renderDefaultModelLabel', '\n}').includes('computedDefault()'),
   )
   check(
-    "the stale 'everything Opus' product law is GONE from model.ts",
+    'model.ts states no fixed Opus default',
     !model.includes("'everything Opus'") && !model.includes('must default to Opus'),
   )
   const policy = src('src/utils/model/frontierPolicy.ts')
@@ -91,7 +91,7 @@ console.log('\n§4 picker: pin row + fallback row + dedup law')
     /if \(isFableAvailable\(\)\) \{\s*rows\.push\(getOpusFrontierFallbackOption\(\)\)/.test(options),
   )
   check(
-    'no synthesized frontier literal rides after the allowlist (the retired 9b special case)',
+    'no synthesized frontier literal rides after the allowlist',
     !options.includes("value: 'claude-fable-5'"),
   )
   const rows: ModelOption[] = [
@@ -121,7 +121,7 @@ console.log('\n§6 role-boundary repairs (recon findings)')
 {
   const teammate = src('src/utils/swarm/teammateModel.ts')
   check(
-    'teammate fallback follows the foreground default (the Opus-4.6 accidental universal is gone)',
+    'teammate fallback follows the foreground default, never a fixed Opus row',
     teammate.includes('getDefaultMainLoopModel()') && !teammate.includes('CLAUDE_OPUS_4_6_CONFIG'),
   )
   const caps = src('src/utils/model/capabilities.ts')
@@ -131,7 +131,7 @@ console.log('\n§6 role-boundary repairs (recon findings)')
   )
   const autopilot = src('src/utils/autopilot/autopilotGates.ts')
   check(
-    'the autopilot default allowlist includes the frontier tier (stale economics rationale gone)',
+    'the autopilot default allowlist includes the frontier tier with no metering rationale',
     autopilot.includes("['opus', 'sonnet', 'fable', 'fable51']") && !autopilot.includes('usage-credit-metered'),
   )
 }
