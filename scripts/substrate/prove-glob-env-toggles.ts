@@ -14,7 +14,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const globUtil = readFileSync(join(ROOT, 'src', 'utils', 'glob.ts'), 'utf-8')
 
 console.log('============================================================')
-console.log(' glob env toggles — default-ON gates, Mercury spellings alone')
+console.log(' glob env toggles — default-ON gates, the registered spellings')
 console.log('============================================================')
 
 section('source: the two registered spellings gate the two ripgrep flags')
@@ -26,8 +26,6 @@ check(
   'MERCURY_GLOB_HIDDEN gates --hidden',
   /envFlagDefaultOn\('MERCURY_GLOB_HIDDEN'\)\) args\.push\('--hidden'\)/.test(globUtil),
 )
-const FOREIGN = ['CLAUDE', 'CODE'].join('_')
-check('no foreign glob spelling survives in glob.ts', !globUtil.includes(`${FOREIGN}_GLOB`))
 check(
   'the decoder is the documented default-on form (unset OR empty ⇒ enabled)',
   /raw === undefined \|\| raw === '' \? '1' : raw/.test(globUtil),

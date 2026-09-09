@@ -19,18 +19,11 @@ function setStamp(on: boolean): void {
 }
 const ENVS = [
   'MERCURY_RELEVANT_RECALL',
-  'MERCURY_RELEVANT_RECALL',
-  'MERCURY_MCP_UNTRUSTED_HARDENING',
   'MERCURY_MCP_UNTRUSTED_HARDENING',
   'MERCURY_CLASSIFIER_FAIL_CLOSED',
-  'MERCURY_CLASSIFIER_FAIL_CLOSED',
-  'MERCURY_COMMIT_GATE',
   'MERCURY_COMMIT_GATE',
   'MERCURY_DAEMON_BREAKER_TIMEOUT_OK',
-  'MERCURY_DAEMON_BREAKER_TIMEOUT_OK',
   'MERCURY_COMPACT_KEEP_TAIL',
-  'MERCURY_COMPACT_KEEP_TAIL',
-  'MERCURY_AWAY_SUMMARY',
   'MERCURY_AWAY_SUMMARY',
 ]
 function clearEnv(): void {
@@ -68,12 +61,12 @@ section('gating: bare stamp ⇒ SAME catalog + live setters (stamp-independence)
   delete process.env.MERCURY_SUBSTRATE
   const list = ft.listFeatureToggles()
   const DEFAULT_ON = new Set(['compact-keep-tail', 'away-summary'])
-  check('fork: exactly 7 toggles', list.length === 7, `got ${list.length}`)
+  check('stamped build: exactly 7 toggles', list.length === 7, `got ${list.length}`)
   const keys = list.map(t => t.key).sort()
-  check('fork: expected keys', JSON.stringify(keys) === JSON.stringify(['away-summary', 'classifier-fail-closed', 'commit-gate', 'compact-keep-tail', 'daemon-breaker-timeout', 'mcp-hardening', 'relevant-recall']))
-  check('fork: the 5 DEFAULT-OFF features are off on a clean env', list.filter(t => !DEFAULT_ON.has(t.key)).every(t => t.on === false))
-  check('fork: both DEFAULT-ON capabilities are ON on a clean env', list.filter(t => DEFAULT_ON.has(t.key)).every(t => t.on === true) && list.filter(t => DEFAULT_ON.has(t.key)).length === 2)
-  check('fork: each carries a scope note', list.every(t => typeof t.scope === 'string' && t.scope.length > 0))
+  check('stamped build: expected keys', JSON.stringify(keys) === JSON.stringify(['away-summary', 'classifier-fail-closed', 'commit-gate', 'compact-keep-tail', 'daemon-breaker-timeout', 'mcp-hardening', 'relevant-recall']))
+  check('stamped build: the 5 DEFAULT-OFF features are off on a clean env', list.filter(t => !DEFAULT_ON.has(t.key)).every(t => t.on === false))
+  check('stamped build: both DEFAULT-ON capabilities are ON on a clean env', list.filter(t => DEFAULT_ON.has(t.key)).every(t => t.on === true) && list.filter(t => DEFAULT_ON.has(t.key)).length === 2)
+  check('stamped build: each carries a scope note', list.every(t => typeof t.scope === 'string' && t.scope.length > 0))
 }
 
 section('set/read/toggle: env === \'1\' on, deleted off; toggle flips; unknown no-op')

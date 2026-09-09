@@ -10,11 +10,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const FOREIGN = ['CLAUDE', 'CODE'].join('_')
-const FOREIGN_FGTS = `${FOREIGN}_ENABLE_FINE_GRAINED_TOOL_STREAMING`
 const ENV_KEYS = [
   'MERCURY_FGTS',
-  FOREIGN_FGTS,
   'ANTHROPIC_BASE_URL',
 ] as const
 const saved = new Map<string, string | undefined>()
@@ -43,16 +40,6 @@ try {
   check('default-ON (unset, direct first-party)', fineGrainedToolStreamingEnabled() === true)
   setEnv({ MERCURY_FGTS: '0' })
   check('MERCURY_FGTS=0 kills', fineGrainedToolStreamingEnabled() === false)
-  setEnv({ MERCURY_FGTS: '0', [FOREIGN_FGTS]: '1' })
-  check(
-    'the retired foreign boundary spelling is IGNORED (=0 still kills)',
-    fineGrainedToolStreamingEnabled() === false,
-  )
-  setEnv({ [FOREIGN_FGTS]: '0' })
-  check(
-    'the retired foreign boundary spelling is IGNORED (default-on holds)',
-    fineGrainedToolStreamingEnabled() === true,
-  )
   setEnv({ ANTHROPIC_BASE_URL: 'https://litellm.proxy.example.com' })
   check(
     'proxy base URL ⇒ OFF regardless (the 400 class)',

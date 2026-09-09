@@ -25,7 +25,6 @@ for (const p of liveScripts) {
   const hermetic =
     body.includes('MERCURY_HOME') ||
     body.includes('MERCURY_CONFIG_DIR') ||
-    body.includes('MERCURY_HOME') ||
     body.includes('renderScenarios')
   check(`hermetic home: ${p.slice(SCRIPTS.length + 1)}`, hermetic,
     hermetic ? '' : 'pins neither a config home nor scenario() — it would write the REAL operator home')
