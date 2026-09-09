@@ -12,8 +12,6 @@ for (const k of [
   'MERCURY_BARE',
   'MERCURY_EFFORT_LEVEL',
   'MERCURY_RELEVANT_RECALL',
-  'CLAUDE_TEAM_NAME',
-  'CLAUDE_AGENT_NAME',
   'NODE_ENV',
 ]) {
   delete process.env[k]
