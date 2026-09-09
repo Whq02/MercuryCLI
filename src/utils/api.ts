@@ -33,7 +33,8 @@ import { getPlan, getPlanFilePath } from './plans.js'
 import { getPlatform } from './platform.js'
 import { countFilesRoundedRg } from './ripgrep.js'
 import { jsonStringify } from './slowOperations.js'
-import { getConversationToolSchemas, getToolSchemaCache } from './toolSchemaCache.js'
+import { getConversationToolSchemas, getToolSchemaCache, requestedToolSchemaChange, settleToolSchemaChange } from './toolSchemaCache.js'
+import { declareLawfulPrefixChange } from '../services/providers/lawfulPrefixChange.js'
 import { windowsPathToPosixPath } from './windowsPaths.js'
 import type { Tool, Tools, ToolPermissionContext } from '../Tool.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
@@ -211,7 +212,8 @@ export async function toolToAPISchema(
 ): Promise<ApiToolUnion> {
   const snapshots = options.conversationKey === undefined ? undefined : getConversationToolSchemas(options.conversationKey)
   const previous = snapshots?.get(tool.name)
-  if (previous !== undefined) {
+  const requested = options.conversationKey === undefined ? undefined : requestedToolSchemaChange(options.conversationKey, tool)
+  if (previous !== undefined && requested === undefined) {
     return { ...JSON.parse(previous), ...(options.cacheControl !== undefined ? { cache_control: options.cacheControl } : {}) } as ApiToolUnion
   }
   const cache = getToolSchemaCache()
@@ -220,7 +222,7 @@ export async function toolToAPISchema(
   const fingerprint = `${declaredRouteOf(promptModel) ?? 'unrecognised'}:${caps.media.pdf ? 'p' : ''}${caps.media.images ? 'i' : ''}:${deferralWireFormFor(promptModel).form}`
   const pool = options.tools.map(item => item.name).sort().join(',')
   const key = `${toolCacheKey(tool)}@${fingerprint}|${pool}`
-  let base = cache.get(key)
+  let base = requested === undefined ? cache.get(key) : undefined
   if (base === undefined) {
     const description = await tool.prompt({
       getToolPermissionContext: options.getToolPermissionContext,
@@ -279,7 +281,11 @@ export async function toolToAPISchema(
   }
   if (snapshots !== undefined) {
     const { cache_control, ...definition } = schema
-    if (!snapshots.has(tool.name)) snapshots.set(tool.name, JSON.stringify(definition))
+    const serialized = JSON.stringify(definition)
+    if (requested !== undefined && settleToolSchemaChange(options.conversationKey!, requested)) {
+      snapshots.set(tool.name, serialized)
+      if (serialized !== requested.previous) declareLawfulPrefixChange(requested.scope, requested.reason)
+    } else if (!snapshots.has(tool.name)) snapshots.set(tool.name, serialized)
     return { ...JSON.parse(snapshots.get(tool.name)!), ...(options.cacheControl !== undefined ? { cache_control: options.cacheControl } : {}) } as ApiToolUnion
   }
   return schema as unknown as ApiToolUnion
