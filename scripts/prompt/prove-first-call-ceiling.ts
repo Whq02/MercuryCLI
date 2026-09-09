@@ -7,15 +7,16 @@ import { dirname, join, resolve } from 'node:path'
 
 const root = resolve(import.meta.dir, '..', '..')
 const dist = join(root, 'dist', 'mercury.mjs')
-const node = join(root, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
+const vendoredNode = join(root, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
+const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'node'
 const rare = ['Service', 'Inspect', 'AstEdit', 'AstSearch', 'Sleep', 'TeamBrief', 'Checkpoint', 'ArtifactsList', 'Rewind']
 let failures = 0
 function check(label: string, condition: boolean, detail = ''): void {
   if (!condition) failures++
   console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${detail ? ': ' + detail : ''}`)
 }
-check('the built product and its runtime are present', existsSync(dist) && existsSync(node))
-if (!existsSync(dist) || !existsSync(node)) process.exit(1)
+check('the built product is present', existsSync(dist))
+if (!existsSync(dist)) process.exit(1)
 const captured: Array<{ route: string; body: Record<string, any> }> = []
 const sse = (value: unknown): string => `data: ${JSON.stringify(value)}\n\n`
 const usage = { input_tokens: 8, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }

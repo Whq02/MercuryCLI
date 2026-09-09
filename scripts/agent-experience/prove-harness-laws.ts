@@ -127,7 +127,11 @@ for (const table of tables) {
   const f = table.header.family
   const rows = table.rows.filter(r => !r.skipped)
   check(`${f}: no run timed out or died without a result envelope`, rows.every(r => !r.timedOut && r.resultSubtype !== 'no-result' && r.resultSubtype !== 'timeout'), rows.filter(r => r.timedOut || r.resultSubtype === 'no-result').map(r => `${r.task}:${r.resultSubtype}`).join(', '))
-  check(`${f}: the first request carried a system prompt (> 2000 chars) and a tool roster (≥ 15 tools)`, (table.header.promptChars ?? 0) > 2000 && (table.header.toolCount ?? 0) >= 15, `prompt ${table.header.promptChars} · tools ${table.header.toolCount}`)
+  const daily = ['Agent', 'Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep', 'Skill', 'Workshop', 'Eval', 'PushNotification', 'ToolSearch']
+  const rosterPresent = f === 'openai'
+    ? table.header.toolCount === daily.length && daily.every(name => table.header.toolNames.includes(name))
+    : (table.header.toolCount ?? 0) >= 15
+  check(`${f}: the first request carries its complete tool set and a system prompt (> 2000 chars)`, (table.header.promptChars ?? 0) > 2000 && rosterPresent, `prompt ${table.header.promptChars} · tools ${table.header.toolCount}`)
   const two = table.rows.find(r => r.task === 'two-seats')
   check(`${f}: the two-seats round replayed whole — one assistant message, two Agent calls, both answered`, two?.success === true, two?.oracle)
   const resumed = table.rows.find(r => r.task === 'resume-b')

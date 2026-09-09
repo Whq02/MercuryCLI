@@ -85,8 +85,9 @@ section("§2 the exit seam: the first deferral armed ONE 'exit' listener that pu
 section("§3 the built artifact: a -p run's note is on disk after the process exits")
 {
   const DIST = join(ROOT, 'dist', 'mercury.mjs')
-  const nodeBin = join(ROOT, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
-  if (!existsSync(DIST) || !existsSync(nodeBin)) {
+  const vendoredNode = join(ROOT, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
+  const nodeBin = existsSync(vendoredNode) ? vendoredNode : Bun.which('node')
+  if (!existsSync(DIST) || !nodeBin) {
     check('dist/mercury.mjs and a node binary exist (build first — this leg drives the artifact)', false, `dist=${existsSync(DIST)} node=${String(nodeBin)}`)
   } else {
     const { startFixtureApi } = await import('../lib/fixtureApi.ts')

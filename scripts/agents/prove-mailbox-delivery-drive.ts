@@ -10,7 +10,8 @@ import { seedFirstRun, FIXTURE_API_KEY } from '../lib/firstRunSeed.ts'
 const root = resolve(import.meta.dir, '../..')
 const dist = join(root, 'dist/mercury.mjs')
 if (!existsSync(dist)) throw new Error('Build the product before running this check')
-const node = join(root, 'dist/vendor/node/bin/node')
+const vendoredNode = join(root, 'dist/vendor/node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
+const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'node'
 const world = mkdtempSync(join(tmpdir(), 'mail-delivery-drive-'))
 const config = join(world, 'config')
 const project = join(world, 'project')

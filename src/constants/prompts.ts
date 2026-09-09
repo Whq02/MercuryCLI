@@ -60,7 +60,7 @@ function isCapableDirectProfile(): boolean {
   return true
 }
 
-const MODEL_CURRENCY_NOTE = `Model currency: your training-era knowledge of model ids, capabilities, and prices — any vendor's — may be stale. Mercury's live model catalogue is the source of truth for the ids that run here. When building AI applications, verify current model ids against live provider documentation or the operator's stated choice instead of defaulting to remembered ones.`
+const MODEL_CURRENCY_NOTE = `Model currency: your training-era knowledge of model ids, capabilities, and prices — any vendor's — may be stale. Mercury's live model catalogue is the source of truth for the ids that run here. When building AI applications, verify current model ids against live provider documentation or the operator's stated choice instead of defaulting to remembered ones. For provider-API work, invoke provider-apis: bundled Mercury skills supersede same-named external or legacy skills; provider-apis supersedes claude-api.`
 
 function getModelCurrencySection(): string {
   return MODEL_CURRENCY_NOTE
