@@ -262,6 +262,22 @@ function contentHasToolReference(
 }
 
 
+export function withToolReferenceTurnBoundary(message: UserMessage): UserMessage {
+  const content = message.message.content
+  if (
+    !Array.isArray(content) ||
+    content.some(block => block.type === 'text' && block.text.startsWith(TOOL_REFERENCE_TURN_BOUNDARY)) ||
+    !contentHasToolReference(content)
+  ) return message
+  return {
+    ...message,
+    message: {
+      ...message.message,
+      content: [...content, { type: 'text', text: TOOL_REFERENCE_TURN_BOUNDARY }],
+    },
+  }
+}
+
 export function normalizeMessagesForAPI(
   messages: Message[],
   tools: Tools = [],
@@ -323,29 +339,7 @@ export function normalizeMessagesForAPI(
             }
           }
 
-          {
-            const contentAfterStrip = normalizedMessage.message.content
-            if (
-              Array.isArray(contentAfterStrip) &&
-              !contentAfterStrip.some(
-                b =>
-                  b.type === 'text' &&
-                  b.text.startsWith(TOOL_REFERENCE_TURN_BOUNDARY),
-              ) &&
-              contentHasToolReference(contentAfterStrip)
-            ) {
-              normalizedMessage = {
-                ...normalizedMessage,
-                message: {
-                  ...normalizedMessage.message,
-                  content: [
-                    ...contentAfterStrip,
-                    { type: 'text', text: TOOL_REFERENCE_TURN_BOUNDARY },
-                  ],
-                },
-              }
-            }
-          }
+          normalizedMessage = withToolReferenceTurnBoundary(normalizedMessage)
 
           const lastMessage = last(result)
           if (lastMessage?.type === 'user') {
