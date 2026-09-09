@@ -216,6 +216,51 @@ console.log('L2c the retirement handshake — prepare, commit, observed exit, th
   check('a runner with no control channel is refused, never killed', noChannel.outcome === 'refused' && /no live control channel/.test(noChannel.reason) && killed.length === 0 && rec('concourse-w9')?.parkedAt === undefined, JSON.stringify(noChannel))
 }
 
+console.log('L2d the memory guard — a session over the limit parks with a memory reason, never a kill of active work')
+{
+  const rss = await import('../../src/daemon/rssWatchdog.ts')
+  const parks: Array<{ sessionId: string; reason: string; afterTurn: boolean }> = []
+  killed.length = 0
+  const guardRoster = {
+    list: () => [
+      { short: 'concourse-w1', pid: 1001, turnActive: false },
+      { short: 'concourse-w2', pid: 1002, turnActive: true },
+      { short: 'crew-a', pid: 1003, turnActive: true },
+      { short: 'concourse-w3', pid: 1004, turnActive: false },
+      { short: 'concourse-w4', pid: 1005, outcome: 'killed' },
+    ],
+    kill: (short: string): boolean => (killed.push(short), true),
+  }
+  let releaseParks: () => void = () => {}
+  const parksReleased = new Promise<void>(resolve => { releaseParks = resolve })
+  const seats = {
+    sessionOf: (short: string): string | undefined => (short.startsWith('concourse-') ? `sid-${short}` : undefined),
+    park: async (sessionId: string, reason: string, afterTurn: boolean) => {
+      parks.push({ sessionId, reason, afterTurn })
+      await parksReleased
+      return { outcome: afterTurn ? 'draining' : 'parked' }
+    },
+  }
+  const reader = async (): Promise<Map<number, number>> => new Map([[1001, 2_000_000], [1002, 2_000_000], [1003, 2_000_000], [1004, 500_000], [1005, 2_000_000]])
+  const parking = new Set<string>()
+  const breaches = await rss.runRssSweep(guardRoster, seats, 1024, reader, parking)
+  await new Promise(r => setTimeout(r, 10))
+  check('three live children breach; the one under the limit and the settled one do not', breaches.map(b => b.short).sort().join(',') === 'concourse-w1,concourse-w2,crew-a', JSON.stringify(breaches))
+  check('the idle session PARKS at once with the memory reason on its row', parks.some(p => p.sessionId === 'sid-concourse-w1' && !p.afterTurn && /over the memory limit \(1953MB > 1024MB\)/.test(p.reason)), JSON.stringify(parks))
+  check('the session mid-turn is asked to park AFTER its turn — active work is never killed for memory', parks.some(p => p.sessionId === 'sid-concourse-w2' && p.afterTurn) && !killed.includes('concourse-w2'), JSON.stringify({ parks, killed }))
+  check('the sessionless child keeps the kill', killed.join(',') === 'crew-a', killed.join(','))
+  check('nothing else was killed', killed.length === 1)
+  const again = await rss.runRssSweep(guardRoster, seats, 1024, reader, parking)
+  check('a park still in flight is not asked twice by the next sweep', again.length === 3 && parks.length === 2, JSON.stringify({ parks: parks.length, parking: [...parking] }))
+  releaseParks()
+  await new Promise(r => setTimeout(r, 20))
+  check('once the parks settle the guard forgets them (the next sweep may ask again)', parking.size === 0, JSON.stringify([...parking]))
+  const src = (await import('node:fs')).readFileSync(new URL('../../src/daemon/main.ts', import.meta.url), 'utf8')
+  check("the daemon arms the guard with the seats port: an idle breach retires through the quiesce handshake as 'daemon: memory', a mid-turn one rides the draining park", src.includes("retireConcourseSession(sessionId, 'daemon: memory', roster, undefined, { reason })") && src.includes("parkConcourseSession(sessionId, 'daemon: memory', roster ?? undefined, undefined, { reason, afterTurn: true })"))
+  const registry = (await import('node:fs')).readFileSync(new URL('../../src/substrate/flagRegistry.ts', import.meta.url), 'utf8')
+  check('the registry row says the default and how to turn the guard off', registry.includes("off: 'unset ⇒ 1536 MB; 0 disables the guard'"))
+}
+
 console.log('L2b park-all — the quit path over the estate')
 {
   seed([
