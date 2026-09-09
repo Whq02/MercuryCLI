@@ -70,11 +70,22 @@ section('interactive posture (the default)')
 
 section('headless posture (the daemon-child / -p truth)')
 {
+  const { setAskChannel } = await import('../../src/bootstrap/state.ts')
   resetRuntimePostureForTest()
+  setAskChannel('none')
   markSessionNonInteractive('implement')
   const text = getRuntimePostureSection() ?? ''
   check('headless semantics stated', /NON-INTERACTIVE/.test(text))
   check('deny-is-policy instruction present', /DENIED automatically/.test(text) && /Do not retry/.test(text))
+  check('without a channel the posture says no question can reach the operator', /no permission channel/.test(text) && /no question can reach the operator/.test(text))
+  resetRuntimePostureForTest()
+  setAskChannel('sdk')
+  markSessionNonInteractive('implement')
+  const channelled = getRuntimePostureSection() ?? ''
+  check('with a permission channel the posture says asks reach the connected client', /with a permission channel/.test(channelled) && /answers allow or deny/.test(channelled) && !/DENIED automatically/.test(channelled))
+  setAskChannel('operator')
+  resetRuntimePostureForTest()
+  markSessionNonInteractive('implement')
   check('boot permission mode surfaced', /Permission mode for this run: implement/.test(text))
   const line = getRuntimePostureDoctrineLine() ?? ''
   check('doctrine line carries HEADLESS deny semantics', /HEADLESS/.test(line))

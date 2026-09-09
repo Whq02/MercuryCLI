@@ -395,6 +395,20 @@ export function getIsInteractive(): boolean {
   return posture.isInteractive
 }
 
+export type AskChannel = 'operator' | 'sdk' | 'none'
+
+export function setAskChannel(channel: AskChannel): void {
+  posture.askChannel = channel
+}
+
+export function getAskChannel(): AskChannel {
+  return posture.askChannel
+}
+
+export function canAnswerAsks(): boolean {
+  return posture.askChannel !== 'none'
+}
+
 export function setIsInteractive(value: boolean): void {
   posture.isInteractive = value
 }
