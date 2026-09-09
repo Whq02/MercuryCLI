@@ -39,7 +39,7 @@ export interface ConcourseRowV1 {
   scheduleNextFireMs?: number
   workspaceDir?: string
   worktreeBranch?: string
-  waitReason?: 'seat' | 'repo-held' | 'session-paused' | 'no-repository' | 'git-unavailable' | 'unborn-head' | 'unblocked'
+  waitReason?: 'seat' | 'repo-held' | 'session-paused' | 'session-retiring' | 'no-repository' | 'git-unavailable' | 'unborn-head' | 'unblocked'
   waitDetail?: string
   transcriptPath?: string
   foreignProject?: string
@@ -56,6 +56,8 @@ export function concourseWaitCopy(reason?: string, byTitle?: string): string {
       return 'unblocked — replay starts it'
     case 'session-paused':
       return 'held — the target is paused'
+    case 'session-retiring':
+      return 'held — the target is parking'
     case 'no-repository':
     case 'unborn-head':
       return 'needs git — say yes to the offer'
