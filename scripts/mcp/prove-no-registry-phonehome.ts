@@ -38,6 +38,7 @@ const shimDir = join(scratch, 'bin')
 const shimLog = join(scratch, 'shim.log')
 const netlog = join(scratch, 'net.log')
 const preload = join(scratch, 'tripwire.cjs')
+const ownedPids = join(scratch, 'owned-pids.log')
 mkdirSync(cwd, { recursive: true })
 mkdirSync(shimDir, { recursive: true })
 for (const exe of ['git', 'ssh']) {
@@ -56,6 +57,7 @@ const fs = require('node:fs')
 const net = require('node:net')
 const LOG = process.env.PROOF_NETLOG
 const log = line => { try { fs.appendFileSync(LOG, line + '\\n') } catch {} }
+try { fs.appendFileSync(process.env.PROOF_OWNED_PIDS, process.pid + '\\n') } catch {}
 function describe(a0, a1) {
   try {
     const opts = (a1 && typeof a1 === 'object') ? a1 : (a0 && typeof a0 === 'object' && !(a0 instanceof URL) ? a0 : null)
@@ -107,6 +109,7 @@ const childEnv = (home: string): NodeJS.ProcessEnv => ({
   PATH: `${shimDir}:${process.env.PATH ?? ''}`,
   SHIM_LOG: shimLog,
   PROOF_NETLOG: netlog,
+  PROOF_OWNED_PIDS: ownedPids,
   NODE_OPTIONS: `--require ${preload}`,
   MERCURY_CONFIG_DIR: home,
   MERCURY_HOME: join(scratch, 'proof-home'),
@@ -126,9 +129,32 @@ const childEnv = (home: string): NodeJS.ProcessEnv => ({
 const PROMPT = 'Reply with the single word pong.'
 type Boot = { code: number; signal: string | null; stdout: string; stderr: string; lines: string[]; leftovers: string }
 
+function sweepOwned(): string {
+  const roster = existsSync(ownedPids) ? readFileSync(ownedPids, 'utf8').split('\n').filter(line => line !== '') : []
+  const alive: string[] = []
+  for (const row of new Set(roster)) {
+    const pid = Number.parseInt(row, 10)
+    if (!Number.isFinite(pid) || pid <= 0 || pid === process.pid) continue
+    let command = ''
+    try {
+      command = execFileSync('ps', ['-o', 'command=', '-p', String(pid)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+    } catch {
+      continue
+    }
+    if (command === '') continue
+    alive.push(`${pid} ${command}`)
+    try {
+      process.kill(pid, 'SIGTERM')
+    } catch {
+    }
+  }
+  return alive.join('\n')
+}
+
 function boot(dist: string, home: string): Boot {
   rmSync(netlog, { force: true })
   rmSync(shimLog, { force: true })
+  rmSync(ownedPids, { force: true })
   let code = 0
   let signal: string | null = null
   let stdout = ''
@@ -148,21 +174,7 @@ function boot(dist: string, home: string): Boot {
     stdout = failed.stdout ?? ''
     stderr = failed.stderr ?? ''
   }
-  let leftovers = ''
-  try {
-    leftovers = execFileSync('pgrep', ['-lf', scratch], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
-  } catch {
-    leftovers = ''
-  }
-  for (const row of leftovers.split('\n')) {
-    const pid = Number.parseInt(row, 10)
-    if (Number.isFinite(pid) && pid > 0) {
-      try {
-        process.kill(pid, 'SIGTERM')
-      } catch {
-      }
-    }
-  }
+  const leftovers = sweepOwned()
   return { code, signal, stdout, stderr, lines: netLines(), leftovers }
 }
 
@@ -194,6 +206,36 @@ if (!existsSync(DIST)) {
   rmSync(scratch, { recursive: true, force: true })
   console.log('\n ⚠ NOT RUN (no dist)')
   process.exit(1)
+}
+
+console.log('[0] the sweep reaps only the children it owns')
+{
+  const { spawn } = await import('node:child_process')
+  const bystander = spawn('sh', ['-c', 'unrelated="$1"; sleep 30', 'sh', scratch], { stdio: 'ignore' })
+  let bystanderEnded: string | null = null
+  bystander.once('exit', (_code, signal) => { bystanderEnded = signal ?? 'exit' })
+  const owned = spawn('node', ['-e', 'setTimeout(() => {}, 30000)'], { stdio: 'ignore', env: childEnv(join(scratch, 'home-sweep')) })
+  const alive = (pid: number): boolean => {
+    try {
+      process.kill(pid, 0)
+      return true
+    } catch {
+      return false
+    }
+  }
+  const started = Date.now()
+  while (!(existsSync(ownedPids) && readFileSync(ownedPids, 'utf8').includes(`${owned.pid}\n`)) && Date.now() - started < 10_000) {
+    execFileSync('sleep', ['0.05'])
+  }
+  check('an owned child registers itself through the tripwire preload', existsSync(ownedPids) && readFileSync(ownedPids, 'utf8').includes(`${owned.pid}\n`))
+  const ownedExit = new Promise<string | null>(resolve => owned.once('exit', (_code, signal) => resolve(signal)))
+  const swept = sweepOwned()
+  const signal = await Promise.race([ownedExit, new Promise<string | null>(resolve => setTimeout(() => resolve('still running'), 5_000))])
+  check('the sweep reports and ends the owned child', swept.includes(String(owned.pid)) && signal === 'SIGTERM', `${swept} · ${String(signal)}`)
+  await new Promise(resolve => setTimeout(resolve, 300))
+  check('an unrelated process whose command names the scratch path is left alone', bystanderEnded === null && alive(bystander.pid) && !swept.includes(String(bystander.pid)), `${swept} · ${String(bystanderEnded)}`)
+  bystander.kill('SIGTERM')
+  rmSync(ownedPids, { force: true })
 }
 
 console.log('[1] controls: the tripwire is SEEN firing on every layer it guards')
