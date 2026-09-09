@@ -98,7 +98,7 @@ export async function runMaintenanceLadder(
         }
         const runner = runners.handoff
         if (runner === undefined) {
-          advance('handoff', 'handoff: method not built in this lane (spec 07-C2 pending) — a drop-in runner slots here')
+          advance('handoff', 'handoff: no handoff runner is configured')
           break
         }
         const result = await runner(input)

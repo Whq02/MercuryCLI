@@ -6,7 +6,7 @@ const command = {
   type: 'local-jsx',
   name: 'cards',
   description: 'Browse + promote experience-card memory (candidate → approved)',
-  isEnabled: () => experienceCardsEnabled() && true,
+  isEnabled: () => experienceCardsEnabled(),
   isHidden: false,
   load: () => import('./cards.js'),
 } satisfies Command

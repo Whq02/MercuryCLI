@@ -77,7 +77,7 @@ function adoptRetiredExcludesSpelling(parsed: unknown, filePath: string): Valida
       file: filePath,
       path: 'claudeMdExcludes',
       message:
-        "'claudeMdExcludes' was renamed 'instructionExcludes' — the legacy value was adopted for this run; rename the key so the setting stops depending on the adoption",
+        "'claudeMdExcludes' is read as 'instructionExcludes' for this run; the setting stops depending on that reading once the key is renamed 'instructionExcludes'",
       suggestion: "rename the key to 'instructionExcludes'",
     },
   ]
