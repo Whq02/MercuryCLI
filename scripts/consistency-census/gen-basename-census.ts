@@ -70,11 +70,6 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
     why: 'instruction discovery: .mercury native · .claude compat input (MERCURY.md law)',
   },
   {
-    test: f => f === 'src/substrate/ccCompat.ts',
-    cls: 'compat-boundary',
-    why: 'the compat master — the compat facets are its subject',
-  },
-  {
     test: (f, _n, excerpt) => f === 'src/services/concourse/coordinatorTools.ts' && excerpt.includes('MARKS'),
     cls: 'compat-boundary',
     why: 'the ground law’s folder memory: guide files (MERCURY.md native, CLAUDE.md compat input) probed as worked-here-before markers; the home DIR names ride PROJECT_CONFIG_DIR_NAMES',
@@ -97,7 +92,7 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
   {
     test: (_f, _n, excerpt) => /homedir\(\)/.test(excerpt),
     cls: 'compat-boundary',
-    why: 'adopted-home IDENTITY checks against the external ~/.claude (doctor · keychain scoping · legacy channel roots) — deliberate compat identity, never a store join',
+    why: "identity checks against another tool's external ~/.claude home (doctor · keychain scoping) — a deliberate interop identity, never a store join",
   },
   {
     test: (_f, _n, excerpt) => excerpt.includes("'.mercury'") && excerpt.includes("'.claude'"),
@@ -112,7 +107,7 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
       f === 'src/daemon/saturnAccount.ts' ||
       f === 'src/components/mercury-ui/parity/AccountView.tsx',
     cls: 'compat-boundary',
-    why: "the account estate reads a scope's identity from the scope's own config file and adopts a snapshot left under the retired basename once (Saturn's account facts read the same scope identity)",
+    why: "the account estate reads a scope's identity from the scope's own config file and adopts an identity snapshot left in an external .claude.json file once (Saturn's account facts read the same scope identity)",
   },
   {
     test: f => f === 'src/entrypoints/cli.tsx',
@@ -150,11 +145,6 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
     test: f => f === 'src/utils/markdownConfigLoader.ts' || f === 'src/skills/loadSkillsDir.ts' || f === 'src/utils/config/derived.ts',
     cls: 'compat-boundary',
     why: 'native-first/compat-second pairing at the markdown/skills/rules discovery surfaces (MERCURY.md law: .mercury native · .claude compat input)',
-  },
-  {
-    test: f => f === 'src/services/mcp/channelsRoot.ts',
-    cls: 'compat-boundary',
-    why: 'legacy channel root honored in place beside the native root',
   },
   {
     test: (f, needle) => needle === 'MERCURY.md' && f.startsWith('src/services/projectIntel/'),
