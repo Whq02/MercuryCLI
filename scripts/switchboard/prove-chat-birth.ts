@@ -26,7 +26,7 @@ writeFileSync(
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
-const { makeConcourseAdmitHandler, readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+const { makeConcourseAdmitHandler, readSessionWorkers, concourseTranscriptPath } = await import('../../src/daemon/concourseSupervisor.ts')
 const { ensureWorkerWorktree, workerWorktreeRoot } = await import('../../src/daemon/concourseWorktrees.ts')
 const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.ts')
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
@@ -207,6 +207,9 @@ console.log('\n── A5: an old exclusive record reactivates as shared ──')
     parkedAt: Date.now() - 1_800_000,
   } as ConcourseWorkerRecordV1
   writeFileSync(join(recordsDir, 'concourse-workers.json'), `${JSON.stringify({ version: 1, workers }, null, 1)}\n`)
+  const oldTranscript = concourseTranscriptPath(workers['concourse-w9']!)
+  mkdirSync(join(oldTranscript, '..'), { recursive: true })
+  writeFileSync(oldTranscript, `${JSON.stringify({ type: 'user', uuid: `${oldId}-u1`, message: { role: 'user', content: 'seeded turn' } })}\n`)
   const reactivated = await admit({ workspaceDir: ws5, isolation: 'shared', resumeSessionId: oldId, modelKey })
   check('A5 the reactivate admits beside the live shared sibling', reactivated.ok, reactivated.ok ? '' : reactivated.error)
   const rec = Object.values(readSessionWorkers(recordsDir)).find(r => r.sessionId === oldId && r.endedAt === undefined)

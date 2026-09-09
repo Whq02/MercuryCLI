@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -125,7 +125,7 @@ console.log('W — the menu store by EXPLICIT workspace (poison: the process-cwd
 
 
 console.log('A — the additive law: absent ≠ empty; the admission stamps the CARRIED kit')
-const { makeConcourseAdmitHandler, readSessionWorkers, updateConcourseWorkers, reactivateConcourseSession, buildConcourseWorkerSpec } = await import(
+const { makeConcourseAdmitHandler, readSessionWorkers, updateConcourseWorkers, reactivateConcourseSession, buildConcourseWorkerSpec, concourseTranscriptPath } = await import(
   '../../src/daemon/concourseSupervisor.ts'
 )
 const sessionKit = await import('../../src/daemon/sessionKit.ts')
@@ -162,6 +162,9 @@ function seedRecord(runnerId: string, sessionId: string, extra: Partial<WorkerRe
       title: 'the kit session',
       ...extra,
     } as WorkerRecord
+    const transcript = concourseTranscriptPath(workers[runnerId]!)
+    mkdirSync(join(transcript, '..'), { recursive: true })
+    writeFileSync(transcript, `${JSON.stringify({ type: 'user', uuid: `${sessionId}-u1`, message: { role: 'user', content: 'seeded turn' } })}\n`)
   }, DAEMON)
 }
 const recOf = (runnerId: string): WorkerRecord | undefined => readSessionWorkers(DAEMON)[runnerId]

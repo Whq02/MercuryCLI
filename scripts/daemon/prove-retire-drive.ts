@@ -199,6 +199,40 @@ try {
   check('R5 the second message never reached the model while the session parked', !hits.some(h => h.body.includes('retire-probe-second')), `hits ${hits.length}`)
   const again = (await daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId: sid, by: 'operator:retire-drive' } as never)) as { ok?: boolean; outcome?: string; detail?: string }
   check('R6 a second park on the parked record is a noop', again.ok === true && again.outcome === 'noop', JSON.stringify(again))
+
+  const birthsBefore = ledger().filter(r => r.event === undefined && r.kind === 'long-lived' && r.id === runnerRowId).length
+  const replay = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'retire-3', prompt: 'retire-probe-second: answer again', workspaceDir: work, targetSessionId: sid } as never, { timeoutMs: 30_000 })) as { ok?: boolean; sessionId?: string; runnerId?: string; error?: string; state?: string }
+  check('R7 a replay into the parked session is accepted (the park is not a stop)', replay.ok === true && replay.sessionId === sid, JSON.stringify(replay))
+  const revived = await untilAsync(() => { const r = recOf(sid); return r !== undefined && r.parkedAt === undefined && pidAlive(r.pid) }, 20_000)
+  const back = recOf(sid)
+  check('R7 the SAME record revived in place: same runner id, a new live pid, the park stamps gone', revived && back?.runnerId === before?.runnerId && back?.pid !== pidBefore && back?.parkedAt === undefined && back?.parkIntent === undefined && back?.endedAt === undefined, JSON.stringify(back))
+  check('R7 the revival was one respawn of the retired runner around --resume (a second birth row for the same id)', ledger().filter(r => r.event === undefined && r.kind === 'long-lived' && r.id === runnerRowId).length === birthsBefore + 1, JSON.stringify(ledger().filter(r => r.id === runnerRowId)))
+  check('R7 the replayed message reached the model and the answer landed in the SAME transcript after the first', await untilAsync(() => transcriptOf(sid).includes('retire-probe: second answer'), 60_000), transcriptOf(sid).slice(-300))
+  const secondHit = hits.find(h => h.body.includes('retire-probe-second'))
+  check('R7 the revived runner carried the parked chat back: its request held the first turn, not an empty context', secondHit !== undefined && secondHit.body.includes('retire-probe-first') && secondHit.body.includes('retire-probe: first answer'), secondHit?.body.slice(0, 300))
+  check('R7 the transcript grew and kept its earlier bytes', transcriptOf(sid).length > transcriptBytesBefore && transcriptOf(sid).indexOf('retire-probe: first answer') < transcriptOf(sid).indexOf('retire-probe: second answer'))
+
+  const lost = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'retire-4', prompt: 'retire-probe-third: a session whose transcript will be lost', workspaceDir: work, title: 'Lost probe', model: 'claude-sonnet-5', effort: 'high' } as never)) as { ok?: boolean; sessionId?: string }
+  const lostSid = lost.sessionId ?? ''
+  check('R8 a second session dispatched and settled', lost.ok === true && await untilAsync(() => transcriptOf(lostSid).includes('retire-probe: first answer') && readFacts(lostSid)?.busy === false, 60_000), JSON.stringify(lost))
+  const lostPark = (await daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId: lostSid, by: 'operator:retire-drive' } as never, { timeoutMs: 30_000 })) as { ok?: boolean; outcome?: string }
+  check('R8 it parked through the same handshake', lostPark.ok === true && lostPark.outcome === 'applied' && recOf(lostSid)?.parkedAt !== undefined, JSON.stringify(lostPark))
+  rmSync(join(paths.getProjectDir(work), `${lostSid}.jsonl`), { force: true })
+  const lostRunnerRow = `${recOf(lostSid)?.runnerId ?? '?'}@concourse`
+  const lostBirths = () => ledger().filter(r => r.event === undefined && r.kind === 'long-lived' && r.id === lostRunnerRow).length
+  const lostBirthsBefore = lostBirths()
+  const lostPidBefore = recOf(lostSid)?.pid
+  const lostReplay = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'retire-5', prompt: 'retire-probe-lost: must not run', workspaceDir: work, targetSessionId: lostSid } as never, { timeoutMs: 30_000 })) as { ok?: boolean; error?: string; state?: string; moves?: Array<{ verb: string; label: string }> }
+  const lostRec = recOf(lostSid)
+  check('R8 a replay into the session whose transcript is gone is REFUSED, naming the loss and never a revive-and-deliver promise', lostReplay.ok === false && lostReplay.state === 'failed' && /could not be revived: its transcript is gone/.test(lostReplay.error ?? '') && lostReplay.moves?.[0]?.verb !== 'revive', JSON.stringify(lostReplay))
+  check('R8 nothing was respawned for it: no new birth row, no live pid, no crash fact', lostBirths() === lostBirthsBefore && lostRec !== undefined && lostRec.pid === lostPidBefore && !pidAlive(lostRec.pid) && (lostRec as { crash?: unknown }).crash === undefined, JSON.stringify({ births: lostBirths(), before: lostBirthsBefore, rec: lostRec }))
+  check('R8 the row stays PARKED with the loss as its one-line reason (the board reads it where the age would be)', lostRec?.parkedAt !== undefined && /transcript is gone/.test((lostRec as { parkReason?: string }).parkReason ?? ''), JSON.stringify(lostRec))
+  check('R8 the lost message never reached the model', !hits.some(h => h.body.includes('retire-probe-lost')), `hits ${hits.length}`)
+  const lostAgain = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'retire-6', prompt: 'retire-probe-lost: must not run', workspaceDir: work, targetSessionId: lostSid } as never, { timeoutMs: 30_000 })) as { ok?: boolean; error?: string; state?: string }
+  check('R8 a second replay is refused the same way and still spawns nothing', lostAgain.ok === false && /transcript is gone/.test(lostAgain.error ?? '') && lostBirths() === lostBirthsBefore, JSON.stringify({ lostAgain, births: lostBirths() }))
+  const lostResume = (await daemonControlRpc({ op: 'sessionControl', action: 'resume', sessionId: lostSid, by: 'operator:retire-drive' } as never, { timeoutMs: 30_000 })) as { ok?: boolean; outcome?: string; detail?: string }
+  check('R8 the operator resume verb is refused with the same reason', lostResume.outcome === 'refused' && /transcript is gone/.test(lostResume.detail ?? ''), JSON.stringify(lostResume))
+  check('R8 the healthy session beside it is untouched by the refusal', recOf(sid)?.parkedAt === undefined && pidAlive(recOf(sid)?.pid), JSON.stringify(recOf(sid)))
   if (failures > 0 || KEEP) console.log(`  daemon log tail: ${readFileSync(logPath, 'utf8').slice(-1500)}`)
 } catch (err) {
   failures++
