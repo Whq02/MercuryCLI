@@ -62,20 +62,17 @@ check('same (seed, disambiguator) across time ⇒ same slug', slugA === deriveSl
 check('different disambiguator ⇒ different slug', deriveSlug('x', 'aaa') !== deriveSlug('x', 'bbb'))
 
 section('/remember preview + leading <problemClass>: override (work-item 2)')
-const over = buildRememberInput('fork-gating: gate isEnabled on experienceCardsEnabled so OFF folds byte-identical.', '2026-06-19T00:00:00.000Z')
-check('leading kebab `<class>:` overrides operator-note', over.problemClass === 'fork-gating')
-check('the class prefix is stripped from the body + title', !over.lesson.startsWith('fork-gating:') && !over.title.startsWith('fork-gating:'))
+const over = buildRememberInput('card-gating: gate isEnabled on experienceCardsEnabled so OFF folds byte-identical.', '2026-06-19T00:00:00.000Z')
+check('leading kebab `<class>:` overrides operator-note', over.problemClass === 'card-gating')
+check('the class prefix is stripped from the body + title', !over.lesson.startsWith('card-gating:') && !over.title.startsWith('card-gating:'))
 const prose = buildRememberInput('Note: always verify the gate folds OFF to byte-identical before shipping.', '2026-06-19T00:00:00.000Z')
 check('capitalized `Note:` is NOT mis-parsed as a class (prose-safe)', prose.problemClass === 'operator-note' && prose.lesson.startsWith('Note:'))
 check('command result echoes the derived title + problemClass', /Banked "\$\{title\}" \[\$\{problemClass\}\]/.test(src('commands', 'remember', 'remember.ts')))
 
-section('command descriptor: fork + non-ant gated (mutual exclusion with the ant `remember` skill)')
+section('command descriptor: gated on experience cards')
 check('type:local, name:remember', remember.type === 'local' && remember.name === 'remember')
-check('isEnabled() TRUE on fork + non-ant', remember.isEnabled?.() === true)
-check(
-  'isEnabled() FALSE for ant (the ant skill owns the name there)',
-  !/process\.env\.USER_TYPE/.test(src('commands', 'remember', 'index.ts')),
-)
+check('isEnabled() TRUE with experience cards on', remember.isEnabled?.() === true)
+check('isEnabled() reads experienceCardsEnabled()', /isEnabled: \(\) => experienceCardsEnabled\(\)/.test(src('commands', 'remember', 'index.ts')))
 const cmds = src('commands.ts')
 check('registered in commands.ts (import + array)', /import remember from '\.\/commands\/remember\/index\.js'/.test(cmds) && /\n\s*remember,/.test(cmds))
 
