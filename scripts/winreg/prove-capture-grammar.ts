@@ -20,7 +20,7 @@ const RESIZE_KEYS = ['"atTick"', '"atMs"', '"afterMark"', '"afterMs"', '"afterPr
 const SEND_KEYS = [
   '"atTick"', '"afterPrevTicks"', '"awaitText"', '"awaitRaw"',
   '"minTick"', '"awaitSettleTicks"', '"awaitStableTicks"', '"data"', '"mark"',
-  '"requireAwait"', '"awaitStableRegion"', '"targetText"', '"targetDx"',
+  '"requireAwait"', '"awaitStableRegion"', '"targetText"', '"targetDx"', '"awaitRedraws"',
   '"signal"',
 ]
 const PAYLOAD_KEYS = [
