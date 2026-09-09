@@ -2,6 +2,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, parse } from 'node:path'
+import { waitForRow } from './lib/waitForRow.ts'
 
 process.chdir(join(import.meta.dir, '..', '..'))
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'home-repo-refused-')))
@@ -96,10 +97,13 @@ console.log('\nR2 mintGitInitAsk — no ask for a refused folder; the allowed as
   check('no sidecar row names a refused folder', !Object.values(sidecarRows).some(f => [HOME_FX, DESKTOP, BULK].includes(f)), JSON.stringify(sidecarRows))
   const allowed = asks.mintGitInitAsk(PROJ)
   check('the plain project folder still gets its ask', 'requestId' in allowed && allowed.requestId.startsWith('git-init:'), JSON.stringify(allowed))
-  await new Promise(r => setTimeout(r, 300))
-  const rows = await listObligations({ scope: 'switchboard' })
+  const askWait = await waitForRow(async () => {
+    const snapshot = await listObligations({ scope: 'switchboard' })
+    return snapshot.some(o => 'requestId' in allowed && o.ref === `permission:${allowed.requestId}`) ? snapshot : undefined
+  })
+  const rows = askWait.row ?? (await listObligations({ scope: 'switchboard' }))
   const askRow = rows.find(o => 'requestId' in allowed && o.ref === `permission:${allowed.requestId}`)
-  check('the ask row landed', askRow !== undefined)
+  check('the ask row landed', askRow !== undefined, `polls ${askWait.polls} waited ${askWait.waitedMs}ms exhausted ${askWait.exhausted}`)
   check('the ask text carries the absolute path', askRow?.question.includes(PROJ) === true, askRow?.question)
   check('the ask text carries the entry count', askRow?.question.includes('(3 entries)') === true, askRow?.question)
   check('no obligation row was written for a refused folder', !rows.some(o => o.ref.startsWith('permission:git-init:') && (o.question.includes(HOME_FX + ' ') || o.question.includes(DESKTOP + ' ') || o.question.includes(BULK + ' '))))
@@ -162,10 +166,9 @@ console.log('\nR6 mintGitRefusedReceipt — the rail receipt bound to the queued
 {
   const refusal = boundary.gitInitRefusal(HOME_FX)
   asks.mintGitRefusedReceipt('cm-refused-1', HOME_FX, refusal as NonNullable<typeof refusal>)
-  await new Promise(r => setTimeout(r, 300))
-  const rows = await listObligations({ scope: 'switchboard' })
-  const receipt = rows.find(o => o.ref === 'git-refused:cm-refused-1')
-  check('the receipt row exists, bound to dispatch:<id>', receipt !== undefined && receipt.sessionId === 'dispatch:cm-refused-1' && receipt.status === 'open', JSON.stringify(receipt))
+  const receiptWait = await waitForRow(async () => (await listObligations({ scope: 'switchboard' })).find(o => o.ref === 'git-refused:cm-refused-1'))
+  const receipt = receiptWait.row
+  check('the receipt row exists, bound to dispatch:<id>', receipt !== undefined && receipt.sessionId === 'dispatch:cm-refused-1' && receipt.status === 'open', `${JSON.stringify(receipt)} polls ${receiptWait.polls} waited ${receiptWait.waitedMs}ms exhausted ${receiptWait.exhausted}`)
   check('… naming the folder, the reason and kept without git', receipt?.question.includes(HOME_FX) === true && receipt?.question.includes('this is your home folder') === true && receipt?.question.includes('kept without git') === true, receipt?.question)
 }
 
