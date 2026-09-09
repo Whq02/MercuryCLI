@@ -93,10 +93,10 @@ try {
   mkdirSync(join(h, 'parcel-old'), { recursive: true })
   writeFileSync(join(h, 'parcel-old', 'junk.txt'), 'x\n')
   await age(h)
-  const legacy = join(repo, '.claude', 'worktrees', 'parcel-abcdefabcdef')
-  mkdirSync(legacy, { recursive: true })
-  writeFileSync(join(legacy, 'junk.txt'), 'x\n')
-  await age(join(repo, '.claude', 'worktrees', 'parcel-abcdefabcdef'))
+  const external = join(repo, '.other-tool', 'worktrees', 'parcel-abcdefabcdef')
+  mkdirSync(external, { recursive: true })
+  writeFileSync(join(external, 'junk.txt'), 'x\n')
+  await age(external)
 
   const removed: number = await runWithCwdOverride(repo, () =>
     cleanupStaleAgentWorktrees(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)),
@@ -113,8 +113,8 @@ try {
   check('F original live lane kept', existsSync(w))
   check('G user-named worktree kept', existsSync(g))
   check('H adoption debris reaped', !existsSync(h))
-  check('I legacy .claude content untouched', existsSync(join(legacy, 'junk.txt')))
-  check('I nothing adopted into the canonical home', !existsSync(join(wtHome, 'parcel-abcdefabcdef')))
+  check('I content outside the canonical home untouched', existsSync(join(external, 'junk.txt')))
+  check('I nothing copied into the canonical home', !existsSync(join(wtHome, 'parcel-abcdefabcdef')))
   check('sweep count == 4 (A + E + F-copy + H)', removed === 4, `removed=${removed}`)
 } catch (err) {
   failures++
