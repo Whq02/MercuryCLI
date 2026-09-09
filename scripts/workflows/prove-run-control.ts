@@ -186,6 +186,37 @@ section('(2) the pause seam: parks between model calls, resumes in place, aborts
   release()
 }
 
+section('(2b) combined controls: resuming one agent under a whole-run pause leaves the other parked and named')
+{
+  const pause = new WorkflowExecutionPause()
+  const releaseA = pause.register('agent-a')
+  const releaseB = pause.register('agent-b')
+  const abort = new AbortController()
+  const statesA: Array<string | undefined> = []
+  const statesB: Array<string | undefined> = []
+  check('the run pauses both', pause.change(true, 'operator').outcome === 'applied' && pause.pausedBy('agent-a') === 'operator' && pause.pausedBy('agent-b') === 'operator')
+  const wa = pause.wait('agent-a', abort.signal, by => statesA.push(by))
+  const wb = pause.wait('agent-b', abort.signal, by => statesB.push(by))
+  let aDone = false
+  let bDone = false
+  void wa?.then(() => (aDone = true))
+  void wb?.then(() => (bDone = true))
+  await wait(30)
+  check('both park under the run pause', !aDone && !bDone && statesA[0] === 'operator' && statesB[0] === 'operator')
+  const r1 = pause.change(false, 'session xyz', 'agent-a')
+  await wait(30)
+  check('resume-agent under a run pause is applied and frees that agent only', r1.outcome === 'applied' && aDone && !bDone, JSON.stringify({ r1, aDone, bDone }))
+  check('the other agent keeps the pause and its holder\'s name', pause.pausedBy('agent-b') === 'operator' && statesB.at(-1) === 'operator')
+  check('the run-level pause word clears (not every agent is paused)', !pause.runPaused() && pause.pausedBy() === undefined && pause.pausedBy('agent-a') === undefined)
+  check('a fresh agent joining now is not paused', (() => { const rel = pause.register('agent-c'); const free = pause.wait('agent-c', abort.signal, () => {}) === undefined; rel(); return free })())
+  check('resuming the run with only one agent paused is still a resume', pause.change(false, 'operator').outcome === 'applied')
+  await wait(30)
+  check('that resume frees the remaining agent', bDone && pause.pausedBy('agent-b') === undefined && statesB.at(-1) === undefined)
+  check('nothing is left to resume', pause.change(false, 'operator').outcome === 'refused')
+  releaseA()
+  releaseB()
+}
+
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 function sleepTurn(seconds: number): string {
   const id = `msg_ctrl_${Date.now() % 1e6}_${Math.floor(Math.random() * 1e4)}`
