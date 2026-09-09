@@ -86,9 +86,9 @@ function dapReachableSafe(): boolean {
 export function computeHarnessMapLines(): string[] {
   const lines: Array<string | null> = [
     `- Discovery: /help lists commands; /capabilities is the live capability matrix for THIS build${healthCertEnabled() ? '; /health runs the evidence-backed health certificate' : ''}.`,
-    '- Provider-API reference: the bundled provider-apis skill holds the current model ids, request shapes, streaming, tool-call, and caching law for every provider API Mercury speaks (Anthropic Messages, OpenAI Responses, OpenAI-compatible chat-completions) — invoke it instead of answering from training memory; bundled Mercury skills supersede same-named external/legacy skills (claude-api is superseded).',
+    '- Provider-API reference: invoke the bundled provider-apis skill for request shapes, streaming, tool calls and caching. Model currency is covered by the model-currency instruction.',
     isAutoMemoryEnabled() || experienceCardsEnabled()
-      ? '- Persistent memory: auto-memory (your memory directory) persists across sessions; /cards reviews experience cards. Save durable lessons there, not in ad-hoc files.'
+      ? '- Experience cards: /cards reviews the durable lessons in memory.'
       : null,
     isTabulaEnabled()
       ? '- Project notepad (TABULA): /note <text> captures a note for this project; /tabula opens the board. Notes survive /clear — prefer them for cross-session reminders.'
@@ -97,7 +97,7 @@ export function computeHarnessMapLines(): string[] {
       ? '- Deterministic multi-agent orchestration: the Workflow tool; /workflows is its board → run → inspector.'
       : null,
     isSaturnSchedulingEnabled()
-      ? '- Scheduled/recurring runs (SATURN): the CronCreate · CronList · CronDelete tools; /saturn is the board (a births one by hand).'
+      ? '- Scheduled/recurring runs (SATURN): the CronCreate · CronList · CronDelete tools; /saturn is the board; its `a` key creates a scheduled run.'
       : null,
     (isLspToolCatalogEnabled() && lspConnectedSafe()) || (isDapToolCatalogEnabled() && dapReachableSafe())
       ? `- Code intelligence is native: ${[isLspToolCatalogEnabled() && lspConnectedSafe() ? 'the LSP tool (diagnostics, rename, code actions, pathRename file moves, fixDiagnostic)' : null, isDapToolCatalogEnabled() && dapReachableSafe() ? 'the Debug tool (a real DAP debugger: breakpoints, stepping, evaluate)' : null].filter(Boolean).join(' and ')} — prefer them over grep-and-rerun for symbol and runtime-state work.`

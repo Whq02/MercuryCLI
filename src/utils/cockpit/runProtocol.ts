@@ -13,18 +13,19 @@ const IDE_RESULT_GUIDANCE = 'An LSP/Debug operation that reports failed or indet
 export interface RunProtocolRoster {
   lspMounted: boolean
   dapMounted: boolean
+  taskToolsMounted?: boolean
 }
 
 const memo = new Map<string, string>()
 
 export function getRunProtocolSection(roster: RunProtocolRoster): string | null {
   const interactive = !isSessionMarkedNonInteractive()
-  const key = `${roster.lspMounted ? 1 : 0}${roster.dapMounted ? 1 : 0}${interactive ? 1 : 0}`
+  const key = `${roster.lspMounted ? 1 : 0}${roster.dapMounted ? 1 : 0}${interactive ? 1 : 0}${roster.taskToolsMounted ? 1 : 0}`
   const cached = memo.get(key)
   if (cached !== undefined) return cached
 
   const bullets = [
-    "- For multi-deliverable work, create/update task items as you go; they ARE the run's deliverable list. Act on the next unblocked item instead of narrating future action.",
+    ...(roster.taskToolsMounted ? ["- For multi-deliverable work, create/update task items as you go; they ARE the run's deliverable list. Act on the next unblocked item instead of narrating future action."] : []),
     '- Tool effects and verification evidence are ground truth. A returned string that reports a failure is a failure; a mutation counts only when it actually landed. After code changes, run the smallest real verification that covers the changed behavior — a run cannot complete with a post-mutation evidence gap.',
     '- Finish every requested in-scope deliverable before declaring completion. If only the operator can resolve something, declare ONE precise blocker by ending your message with the two lines "BLOCKED ON OPERATOR: <what you need>" then "RESUME WHEN: <what unblocks you>" — that records it, stops the loop cleanly, and the operator\'s answer resumes the run. Never loop on a blocker in prose.',
     '- On resume, a reconciled run capsule tells you what is already done, what was interrupted mid-flight, and the next concrete action. Inspect an interrupted operation\'s real state before retrying; never repeat completed work.',
