@@ -126,15 +126,15 @@ section('S1/S2 — line framing across blocks · prepend ordering · trailing li
   check('the final unterminated line still processes', users().some(x => x.includes('trailing no newline')), j(users()))
 }
 
-section('S3 — an undeclared stdin type is dropped; an environment frame changes nothing')
+section('S3 — an undeclared stdin type is dropped; a frame carrying environment variables changes nothing')
 {
   const h = makeHarness()
   delete process.env.SIO_LAW_PROBE
-  h.push({ type: 'keep_alive' })
-  h.push({ type: 'update_environment_variables', variables: { SIO_LAW_PROBE: 'applied' } })
+  h.push({ type: 'undeclared_probe' })
+  h.push({ type: 'environment_probe', variables: { SIO_LAW_PROBE: 'applied' } })
   h.push({ type: 'user', message: { role: 'user', content: 'after the undeclared frames' }, parent_tool_use_id: null, session_id: '' })
   await h.settle()
-  check('an undeclared type never reaches the consumer', !h.received.some(m => m.type === 'keep_alive' || m.type === 'update_environment_variables'))
+  check('an undeclared type never reaches the consumer', !h.received.some(m => m.type === 'undeclared_probe' || m.type === 'environment_probe'))
   check('a frame carrying environment variables leaves process.env untouched', process.env.SIO_LAW_PROBE === undefined)
   check('the stream keeps flowing past the dropped frames', h.received.some(m => m.type === 'user'))
   delete process.env.SIO_LAW_PROBE
