@@ -237,7 +237,7 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
       /if \(facts\.effortValue !== undefined && next\.effortValue !== facts\.effortValue\) \{\s*next = \{ \.\.\.next, effortValue: facts\.effortValue \}/.test(posture),
     scoped.slice(0, 80),
   )
-  check('…and never the dead effort key the base wrote', !/\beffort: effortValue/.test(scoped) && !/\{ effort\?: unknown \}/.test(scoped) && !/\beffort: facts\.effortValue/.test(posture) && /^\s*effortValue: EffortValue \| undefined/m.test(posture))
+  check('…and never an effort key', !/\beffort: effortValue/.test(scoped) && !/\{ effort\?: unknown \}/.test(scoped) && !/\beffort: facts\.effortValue/.test(posture) && /^\s*effortValue: EffortValue \| undefined/m.test(posture))
   check('the identity readout rides the same ladder', /const resolvedEffort = resolveAgentEffort\(\{/.test(runAgent))
   const turnMachine = readFileSync('src/run-core/turn-machine.ts', 'utf-8')
   check('dispatch reads appState.effortValue (the key the scoped state now carries)', /iter\.appState\.effortValue/.test(turnMachine))

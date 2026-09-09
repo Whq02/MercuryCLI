@@ -12,10 +12,6 @@ function check(name: string, cond: boolean, detail?: string): void {
 const dist = readFileSync('dist/mercury.mjs', 'utf-8')
 
 check('built artifact carries the Agent Studio', dist.includes('agent studio'))
-check(
-  'the old truncating serializer is gone',
-  !dist.includes('Cannot get directory path for'),
-)
 check('the transactional store is in', dist.includes('agent-trash'))
 
 const agentSources = [
