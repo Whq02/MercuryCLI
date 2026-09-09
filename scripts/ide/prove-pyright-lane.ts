@@ -169,7 +169,7 @@ section('(6) registry rows')
   const registry = readFileSync(join(ROOT, 'src', 'substrate', 'flagRegistry.ts'), 'utf8')
   check('MERCURY_LSP_PYTHON registered', registry.includes("env: 'MERCURY_LSP_PYTHON'"))
   check('MERCURY_PYRIGHT_VENDOR_DIR registered', registry.includes("env: 'MERCURY_PYRIGHT_VENDOR_DIR'"))
-  check('the lane flag is a registered row', registry.includes('MERCURY_LSP_PYTHON'))
+  check('the Python language-server flag is a registered row', registry.includes('MERCURY_LSP_PYTHON'))
 }
 
 console.log('\n============================================================')

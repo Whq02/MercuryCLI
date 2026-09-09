@@ -39,7 +39,7 @@ export function getPrompt(agents: AgentDefinition[] = [], offered: ReadonlySet<s
   const steps = tasks
     ? [
         '1. **TeamCreate** (this tool) — creates the team, its charter, and its task list',
-        '2. **TaskCreate** one task per work lane; wire dependencies with `addBlockedBy`',
+        '2. **TaskCreate** one task per piece of work; wire dependencies with `addBlockedBy`',
         '3. **Spawn teammates** by launching each with `team_name` and `name` (+ the role\'s `subagent_type`)',
         '4. **Assign work** with TaskUpdate `owner` — or let teammates claim unowned, unblocked tasks themselves',
         '5. **Teammates deliver handoffs** (outcome · owned surface · evidence · decisions · blockers · next) and mark tasks completed',
