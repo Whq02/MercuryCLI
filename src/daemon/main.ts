@@ -35,11 +35,15 @@ import {
   detachRespawnConcourseSession,
   focusConcourseSession,
   grantConcourseWorkflows,
+  isNewbornRecord,
   PARK_DRAIN_CUT_REASON,
   parkAllConcourseSessions,
   parkConcourseSession,
   pendingParkRequests,
+  retireConcourseSession,
   revokeConcourseWorkflows,
+  turnInFlightOf,
+  workerPidAlive,
 } from './concourseSupervisor.js'
 import { answerPermissionAsk, onWorkerControlRequest } from './permissionAsks.js'
 import {
@@ -579,6 +583,12 @@ async function daemonRun(args: string[]): Promise<void> {
           )
           if (!rec) return settle({ outcome: 'refused' as const, detail: 'unknown-session: no live worker record owns this session' })
           if (action === 'park') {
+            if (roster && rec.pid !== undefined && !isNewbornRecord(rec) && !turnInFlightOf(rec) && workerPidAlive(rec) && rec.attachedAt === undefined) {
+              const retired = await retireConcourseSession(sessionId, by, roster)
+              return retired.outcome === 'parked'
+                ? { outcome: 'applied' as const, detail: `parked ${retired.runnerId}` }
+                : { outcome: 'refused' as const, detail: `${retired.runnerId ?? rec.runnerId}: ${retired.reason}` }
+            }
             const out = parkConcourseSession(sessionId, by, roster ?? undefined)
             return out.outcome === 'refused'
               ? { outcome: 'refused' as const, detail: out.detail ?? out.reason }

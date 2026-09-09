@@ -164,6 +164,9 @@ export const SDKControlStopTaskRequestSchema = lazySchema(() =>
 export const SDKControlResumeTaskRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('resume_task'), task_id: z.string(), note: z.string().optional() }),
 )
+export const SDKControlQuiesceRequestSchema = lazySchema(() =>
+  z.object({ subtype: z.literal('quiesce'), action: z.enum(['prepare', 'commit', 'cancel']), token: z.string() }),
+)
 export const SDKControlApplyFlagSettingsRequestSchema = lazySchema(() =>
   z.object({
     subtype: z.literal('apply_flag_settings'),
@@ -262,6 +265,7 @@ export const SDKControlRequestInnerSchema = lazySchema(() =>
     SDKControlScheduleRosterRequestSchema(),
     SDKControlStopTaskRequestSchema(),
     SDKControlResumeTaskRequestSchema(),
+    SDKControlQuiesceRequestSchema(),
     SDKControlApplyFlagSettingsRequestSchema(),
     SDKControlGetSettingsRequestSchema(),
     SDKControlElicitationRequestSchema(),

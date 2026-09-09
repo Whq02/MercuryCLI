@@ -205,6 +205,14 @@ export class TaskRoster {
     return { alive, present: true, ready: h.entry.state === 'running' }
   }
 
+  expectExit(short: string, expected: boolean): boolean {
+    const h = this.handles.get(short)
+    if (!h || !h.longLived || h.entry.outcome) return false
+    h.longLived.intentionalStop = expected
+    if (expected && h.longLived.respawnTimer) clearTimeout(h.longLived.respawnTimer)
+    return true
+  }
+
   async reply(short: string, text: string): Promise<boolean> {
     const h = this.handles.get(short)
     if (!h || h.entry.outcome || h.entry.state === 'retiring') return false
