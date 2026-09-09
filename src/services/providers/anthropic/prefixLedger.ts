@@ -54,6 +54,7 @@ interface PrefixRecord {
   tools: ToolRecord[]
   messages: MessageRecord[]
   wireMessageIds: Array<string | null>
+  dropped: Set<string>
 }
 
 const j = (v: unknown): string => JSON.stringify(v)
@@ -164,7 +165,7 @@ function recordOf(key: string, parts: WirePrefixParts): PrefixRecord {
     return { role: String(m.role ?? '?'), digest: sha(j({ ...m, content })), fields, blocks, thinking }
   })
   const whole = sha(j({ system: system.map(s => s.digest), tools: tools.map(t => t.definition), messages: messages.map(m => [m.digest, m.thinking]) }))
-  return { key, whole, system, tools, messages, wireMessageIds: [] }
+  return { key, whole, system, tools, messages, wireMessageIds: [], dropped: new Set<string>() }
 }
 
 export function lastThinkingMessageIndex(messages: readonly unknown[]): number {
@@ -249,7 +250,7 @@ function compareRecords(previous: PrefixRecord, current: PrefixRecord, lastThink
     }
   }
   const priorThinking = previous.messages.flatMap((message, messageIndex) =>
-    message.thinking.map(block => ({ ...block, messageIndex })))
+    message.thinking.filter(block => !previous.dropped.has(`${messageIndex}:${block.index}`)).map(block => ({ ...block, messageIndex })))
   const sentThinking = current.messages.flatMap((message, messageIndex) =>
     message.thinking.map(block => ({ ...block, messageIndex })))
   const priorPositions = new Map(priorThinking.map((block, index) => [block.digest, index]))
@@ -302,7 +303,7 @@ export function judgeAndRecordPrefix(
   current.wireMessageIds = [...wireMessageIds]
   const previous = records.get(owner)
   if (previous !== undefined && previous.key === key && previous.whole === current.whole) {
-    if (replace) records.set(owner, current)
+    if (replace) records.set(owner, { ...current, dropped: previous.dropped })
     return verdicts.get(owner) ?? { mismatch: null, lastThinkingIndex: lastThinkingMessageIndex(parts.messages), compared: true, key, wireMessageIds: current.wireMessageIds }
   }
   const lastThinkingIndex = lastThinkingMessageIndex(parts.messages)
@@ -320,6 +321,25 @@ export function judgeAndRecordPrefix(
     verdicts.set(owner, verdict)
   }
   return verdict
+}
+
+export function recordDroppedThinking(owner: string, drops: ReadonlyArray<{ type?: string; path?: string }>): number {
+  const record = records.get(owner)
+  if (record === undefined) return 0
+  let marked = 0
+  for (const drop of drops) {
+    if (drop.type !== 'thinking_dropped') continue
+    const match = /^messages\.(\d+)\.content\.(\d+)$/.exec(drop.path ?? '')
+    if (match === null) continue
+    const messageIndex = Number(match[1])
+    const index = Number(match[2])
+    if (!(record.messages[messageIndex]?.thinking.some(block => block.index === index) ?? false)) continue
+    const mark = `${messageIndex}:${index}`
+    if (record.dropped.has(mark)) continue
+    record.dropped.add(mark)
+    marked++
+  }
+  return marked
 }
 
 export function takePrefixVerdict(owner: string): PrefixVerdict | null {
