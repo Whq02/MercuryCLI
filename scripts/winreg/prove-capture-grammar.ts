@@ -39,7 +39,7 @@ t.section('every vshot.py grammar token is handled by vshot-win.py')
   }
 }
 
-t.section('the shared capture laws crossed the port')
+t.section('the shared capture laws hold in both engines')
 {
   t.check('wall-clock tick constant (0.2s)', win.includes('TICK_S = 0.2'), 'ticks are seconds/0.2')
   t.check('kitty CSI-u strip', win.includes('_KITTY_SEQ'), 'pyte literalizes kitty sequences otherwise')

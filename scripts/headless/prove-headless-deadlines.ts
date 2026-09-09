@@ -107,12 +107,12 @@ type DistRun = {
 
 function hermeticEnv(baseUrl: string, extra: Record<string, string>): Record<string, string> {
   const home = mkdtempSync(join(tmpdir(), 'hd-home-'))
-  mkdirSync(join(home, '.claude'), { recursive: true })
+  mkdirSync(join(home, '.mercury'), { recursive: true })
   return {
     HOME: home,
     PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
     TERM: 'dumb',
-    MERCURY_CONFIG_DIR: join(home, '.claude'),
+    MERCURY_CONFIG_DIR: join(home, '.mercury'),
     ANTHROPIC_BASE_URL: baseUrl,
     ANTHROPIC_API_KEY: 'fixture-key-000',
     MERCURY_DAEMON_DIR: join(home, 'daemon'),

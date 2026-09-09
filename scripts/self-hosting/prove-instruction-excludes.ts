@@ -146,13 +146,13 @@ console.log('instruction excludes — the setting, the symlink law, the immuniti
 
 {
   const r = drive({ claudeMdExcludes: [join(rulesDir, 'linked-file.md')] })
-  check(!r.paths.includes(spelling.linkedFileTarget), 'the retired claudeMdExcludes key is ADOPTED: its pattern excludes exactly as the current key would')
-  check(r.paths.includes(spelling.real) && r.paths.includes(spelling.root), 'a settings file carrying only the retired key still parses (composition ran; the unmatched rules compose)')
-  const rename = r.warnings.find(w => w.path.includes('claudeMdExcludes'))
-  check(rename !== undefined && rename.message.includes("renamed 'instructionExcludes'"), 'the rename is NAMED as a settings warning (the adoption is never silent)')
+  check(!r.paths.includes(spelling.linkedFileTarget), 'the claudeMdExcludes alias key is ACCEPTED: its pattern excludes exactly as instructionExcludes would')
+  check(r.paths.includes(spelling.real) && r.paths.includes(spelling.root), 'a settings file carrying only the alias key still parses (composition ran; the unmatched rules compose)')
+  const aliasWarning = r.warnings.find(w => w.path.includes('claudeMdExcludes'))
+  check(aliasWarning !== undefined && aliasWarning.message.includes('instructionExcludes'), 'the acceptance is NAMED as a settings warning that names instructionExcludes (never silent)')
   const both = drive({ claudeMdExcludes: ['**/*.md'], instructionExcludes: [join(rulesDir, 'secret-skip.md')] })
-  check(!both.paths.includes(spelling.secret) && both.paths.includes(spelling.real) && both.paths.includes(spelling.root), 'when both keys are present the current key wins (the legacy value never overrides it)')
-  check(!drive({ instructionExcludes: [join(rulesDir, 'secret-skip.md')] }).warnings.some(w => w.path.includes('claudeMdExcludes')), 'the current key alone raises no rename warning')
+  check(!both.paths.includes(spelling.secret) && both.paths.includes(spelling.real) && both.paths.includes(spelling.root), 'when both keys are present instructionExcludes wins (the alias value never overrides it)')
+  check(!drive({ instructionExcludes: [join(rulesDir, 'secret-skip.md')] }).warnings.some(w => w.path.includes('claudeMdExcludes')), 'instructionExcludes alone raises no alias warning')
 }
 
 {
@@ -160,7 +160,7 @@ console.log('instruction excludes — the setting, the symlink law, the immuniti
   const good = SettingsSchema().safeParse({ instructionExcludes: ['**/x.md'] })
   check(good.success === true && Array.isArray((good as { data?: Record<string, unknown> }).data?.instructionExcludes), 'schema: instructionExcludes is a typed key')
   const old = SettingsSchema().safeParse({ claudeMdExcludes: ['**/x.md'] })
-  check(old.success === true && (old as { data?: Record<string, unknown> }).data?.instructionExcludes === undefined, 'schema: the retired spelling neither fails the parse nor aliases')
+  check(old.success === true && (old as { data?: Record<string, unknown> }).data?.instructionExcludes === undefined, 'schema: the alias key neither fails the parse nor lands as instructionExcludes')
 
   const { matchesInstructionExcludes } = await import(join(repo, 'src/services/instructions/discovery.ts'))
   const home = homedir()

@@ -14,7 +14,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 console.log('============================================================')
-console.log(' mercury-only boot — zero Claude material, real dist')
+console.log(' hermetic boot — a fresh home, the real dist')
 console.log('============================================================')
 
 if (!existsSync(DIST)) {
@@ -82,4 +82,4 @@ if (failures > 0) {
   console.error(`❌ ${failures} mercury-only-boot check(s) failed`)
   process.exit(1)
 }
-console.log('✅ MERCURY-ONLY BOOT — ZERO CLAUDE MATERIAL REQUIRED')
+console.log('✅ HERMETIC BOOT — THE NATIVE HOME ALONE')

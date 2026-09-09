@@ -71,12 +71,12 @@ async function driveProtocol(): Promise<void> {
   ])
   const home = mkdtempSync(join(tmpdir(), 'headless-home-'))
   const cwd = mkdtempSync(join(tmpdir(), 'headless-cwd-'))
-  mkdirSync(join(home, '.claude'), { recursive: true })
+  mkdirSync(join(home, '.mercury'), { recursive: true })
   const env = {
     HOME: home,
     PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
     TERM: 'dumb',
-    MERCURY_CONFIG_DIR: join(home, '.claude'),
+    MERCURY_CONFIG_DIR: join(home, '.mercury'),
     ANTHROPIC_BASE_URL: fixture.url,
     ANTHROPIC_API_KEY: 'fixture-key-000',
     MERCURY_DAEMON_DIR: join(home, 'daemon'),

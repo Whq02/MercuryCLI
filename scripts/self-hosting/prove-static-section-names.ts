@@ -22,13 +22,13 @@ enableConfigs()
 
 console.log('the static head sections carry their own names')
 
-section('§1 the ratchet: one name per static section')
+section('§1 one name per static section')
 {
   const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
   const literal = prompts.slice(prompts.indexOf('const staticSections: Array<string | null> = ['), prompts.indexOf('].map(section => (section === \'\' ? null : section))'))
   const entries = literal.split('\n').filter(line => /^\s+\w+Section\(/.test(line)).length
   check('the composer supplies eight static sections (the fixture reads the real list)', entries === 8, String(entries))
-  check('THE NAME TABLE HAS ONE ENTRY PER SECTION (the base had seven for eight)', STATIC_SECTION_NAMES.length === entries, `${STATIC_SECTION_NAMES.length} vs ${entries}`)
+  check('THE NAME TABLE HAS ONE ENTRY PER SECTION', STATIC_SECTION_NAMES.length === entries, `${STATIC_SECTION_NAMES.length} vs ${entries}`)
   check('the instruction-estate section has its own name at its own index', STATIC_SECTION_NAMES[4] === 'instruction-estate' && STATIC_SECTION_NAMES[5] === 'using-tools' && STATIC_SECTION_NAMES[6] === 'tone-style' && STATIC_SECTION_NAMES[7] === 'output-efficiency', STATIC_SECTION_NAMES.join(','))
 }
 

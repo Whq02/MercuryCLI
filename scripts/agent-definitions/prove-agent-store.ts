@@ -81,17 +81,17 @@ const freshDoc = (name: string, description = 'Use when testing.') =>
 }
 
 {
-  console.log('P2: legacy .claude project writes canonical')
-  const project = join(scratch, 'legacy-project')
+  console.log('P2: a project with an external agents directory still writes canonical')
+  const project = join(scratch, 'external-project')
   mkdirSync(join(project, '.git'), { recursive: true })
   mkdirSync(join(project, '.claude', 'agents'), { recursive: true })
   const receipt = await saveAgentDocument(
-    { kind: 'new', scope: 'project', cwd: project, slug: 'legacy-one' },
-    freshDoc('legacy-one'),
+    { kind: 'new', scope: 'project', cwd: project, slug: 'external-one' },
+    freshDoc('external-one'),
   )
   check(
-    'a NEW agent lands in .mercury/agents (the old home is import-only)',
-    receipt.path === join(project, '.mercury', 'agents', 'legacy-one.md'),
+    'a NEW agent lands in .mercury/agents (the external directory is import-only)',
+    receipt.path === join(project, '.mercury', 'agents', 'external-one.md'),
     receipt.path,
   )
 }
