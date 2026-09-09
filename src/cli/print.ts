@@ -157,7 +157,7 @@ import { saveCacheSafeParams, getLastCacheSafeParams } from '../utils/forkedAgen
 import { SandboxManager } from '../utils/sandbox/sandbox-adapter.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
-import { gracefulShutdown, gracefulShutdownSync, isShuttingDown } from '../utils/gracefulShutdown.js'
+import { gracefulShutdown, gracefulShutdownSync, isShuttingDown, markPrintModeSignalsOwned } from '../utils/gracefulShutdown.js'
 import {
   headlessProfilerCheckpoint,
   headlessProfilerStartTurn,
@@ -1502,6 +1502,7 @@ export async function runHeadless(
     inFlightAbort?.abort()
     void gracefulShutdown(143)
   })
+  markPrintModeSignalsOwned()
   const { registerCleanup } = await import('../utils/cleanupRegistry.js')
   registerCleanup(async () => {
     logForDiagnosticsNoPII('info', 'headless_sigterm_state', {
