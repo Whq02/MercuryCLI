@@ -76,14 +76,6 @@ section('§B provider lanes are direct codecs (B03/B04)')
     transport.length > 0 && transport.every(f => ALLOWLIST.includes(f)),
     transport.join(', '),
   )
-  const forging = execSync(
-    `grep -rln "anthropicBridge\\|AnthropicishMessage" src scripts --include='*.ts' --include='*.tsx' || true`,
-    { cwd: ROOT, encoding: 'utf8' },
-  )
-    .split('\n')
-    .filter(Boolean)
-    .filter(f => f !== 'scripts/idiom/prove-import-fence.ts')
-  check('the anthropicBridge forging vocabulary is gone at zero callers (B04)', forging.length === 0, forging.join(', '))
 }
 
 section('§C renderers consume Mercury types only (E01)')

@@ -5,7 +5,6 @@ import { join } from 'node:path'
 
 const HOME = mkdtempSync(join(tmpdir(), 'idiom-vnext-'))
 process.env.MERCURY_CONFIG_DIR = HOME
-delete process.env.MERCURY_TRANSCRIPT_VNEXT
 
 await import('../../src/tasks.js')
 const {
@@ -148,10 +147,10 @@ section('§D C09 — settlement lineage rides ONE atomic line')
   check('the fold is last-wins (settled state visible)', JSON.stringify(finalEntries.at(-1)).includes('resp_lineage'))
 }
 
-section('§E — the retired-format refusal; torn record tails recover')
+section('§E — the non-record format refusal; torn record tails recover')
 {
   resetProjectForTesting()
-  const fileE = join(HOME, 'retired-e.jsonl')
+  const fileE = join(HOME, 'refused-e.jsonl')
   const alienLine = JSON.stringify({ type: 'user', uuid: '00000000-0000-4000-8000-00000000e001', timestamp: new Date().toISOString(), sessionId: 'alien', message: { role: 'user', content: 'old chat' } })
   writeFileSync(fileE, alienLine + '\n')
   const refusedRead = decodeTranscriptBuffer<Record<string, unknown>>(readFileSync(fileE))
@@ -195,18 +194,18 @@ section('§E — the retired-format refusal; torn record tails recover')
   check('the post-tear append recovers ordinals from the last COMPLETE record', appended.length > 0 && appended.every(l => Number(l.updateOrdinal) > maxComplete), appended.map(l => String(l.updateOrdinal)).join(','))
 }
 
-section('§F — the format is unconditional: no env spelling switches it')
+section('§F — the format is unconditional: the format owner reads no environment')
 {
   resetProjectForTesting()
-  process.env.MERCURY_TRANSCRIPT_VNEXT = '0'
+  const vnextSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'sessionStorage', 'vnext.ts'), 'utf8')
+  check('the format owner reads no env and no flag', !vnextSrc.includes('process.env') && !vnextSrc.includes('flagEnv(') && !vnextSrc.includes('flagEnabled('))
   const fileF = join(HOME, 'unconditional-f.jsonl')
   setSessionFileForTesting(fileF)
   const m = createUserMessage({ content: 'one format' })
   await recordTranscript([m] as never)
   await getProject().flush()
   const linesF = parsedLines(fileF)
-  check('a new file writes header + record lines regardless of env', linesF.length > 1 && linesF.every(isRecord))
-  delete process.env.MERCURY_TRANSCRIPT_VNEXT
+  check('a new file writes header + record lines', linesF.length > 1 && linesF.every(isRecord))
 }
 
 console.log(failures === 0 ? '\n ✅ TRANSCRIPT VNEXT PROVEN' : `\n ❌ ${failures} FAILED`)
