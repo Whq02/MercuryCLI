@@ -149,6 +149,73 @@ console.log('L2 the park verb')
   check('a stop on a parked record is a noop (never a second state over parked)', stopped.outcome === 'noop' && rec('concourse-w1')?.stoppedAt === undefined && rec('concourse-w1')?.parkedAt !== undefined, JSON.stringify({ stopped, stoppedAt: rec('concourse-w1')?.stoppedAt, parkedAt: rec('concourse-w1')?.parkedAt }))
 }
 
+console.log('L2c the retirement handshake — prepare, commit, observed exit, then parked')
+{
+  const seat = await import('../../src/daemon/sessionSeat.ts')
+  seed([
+    { runnerId: 'concourse-w8', sessionId: sid('8'), pid: process.pid, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5 },
+    { runnerId: 'concourse-w9', sessionId: sid('9'), pid: process.pid, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5 },
+  ])
+  const frames: Array<{ short: string; request: { action: string; token: string } }> = []
+  let alive = true
+  let intentSeenAtCommit: unknown
+  let fencedAtCommit = false
+  const answer = (requestId: string, token: string, phase: string): void => {
+    setTimeout(() => seat.settleSeatControlAnswer(JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: requestId, response: { token, phase } } })), 5)
+  }
+  const runnerRoster = {
+    kill: (short: string): boolean => (killed.push(short), true),
+    has: (short: string) => ({ alive: short === 'concourse-w8' ? alive : true, present: true }),
+    control: (short: string, frame: string): boolean => {
+      const parsed = JSON.parse(frame) as { request_id: string; request: { action: string; token: string } }
+      frames.push({ short, request: parsed.request })
+      if (parsed.request.action === 'prepare') answer(parsed.request_id, parsed.request.token, 'prepared')
+      if (parsed.request.action === 'commit') {
+        intentSeenAtCommit = rec(short)?.parkIntent
+        fencedAtCommit = sup.retirementFenced(short)
+        answer(parsed.request_id, parsed.request.token, 'committed')
+        setTimeout(() => { alive = false; sup.updateConcourseWorkers(workers => { const w = workers[short]; if (w) w.pid = DEAD_PID }, dir) }, 20)
+      }
+      if (parsed.request.action === 'cancel') answer(parsed.request_id, parsed.request.token, 'cancelled')
+      return true
+    },
+  }
+  killed.length = 0
+  const retired = await sup.retireConcourseSession(sid('8'), 'operator:test', runnerRoster, dir, { exitWaitMs: 2_000 })
+  const w8 = rec('concourse-w8')
+  check('an idle live runner retires through prepare then commit on ONE token, never a kill', retired.outcome === 'parked' && frames.map(f => f.request.action).join(',') === 'prepare,commit' && frames[0]!.request.token === frames[1]!.request.token && killed.length === 0, JSON.stringify({ retired, frames, killed }))
+  check('the durable park intent is on the record before the commit is sent, naming the token and who asked', intentSeenAtCommit !== undefined && (intentSeenAtCommit as { token: string; by: string }).token === frames[1]!.request.token && (intentSeenAtCommit as { by: string }).by === 'operator:test', JSON.stringify(intentSeenAtCommit))
+  check('the dispatch fence stands while the commit is out', fencedAtCommit)
+  check('parked lands only after the exit was observed; the intent is cleared and the fence lifted', w8?.parkedAt !== undefined && w8.parkedBy === 'operator:test' && w8.parkIntent === undefined && w8.endedAt === undefined && !sup.retirementFenced('concourse-w8'), JSON.stringify(w8))
+  const again = await sup.retireConcourseSession(sid('8'), 'operator:test', runnerRoster, dir, { exitWaitMs: 200 })
+  check('a second retire on the parked record is refused by state', again.outcome === 'refused' && /already parked/.test(again.reason), JSON.stringify(again))
+
+  frames.length = 0
+  const busyRoster = {
+    ...runnerRoster,
+    has: () => ({ alive: true, present: true }),
+    control: (short: string, frame: string): boolean => {
+      const parsed = JSON.parse(frame) as { request_id: string; request: { action: string; token: string } }
+      frames.push({ short, request: parsed.request })
+      if (parsed.request.action === 'prepare') {
+        sup.updateConcourseWorkers(workers => { const w = workers[short]; if (w) w.lastDeliveryAt = Date.now() }, dir)
+        answer(parsed.request_id, parsed.request.token, 'prepared')
+      }
+      if (parsed.request.action === 'cancel') answer(parsed.request_id, parsed.request.token, 'cancelled')
+      if (parsed.request.action === 'commit') answer(parsed.request_id, parsed.request.token, 'committed')
+      return true
+    },
+  }
+  const refusedBusy = await sup.retireConcourseSession(sid('9'), 'operator:test', busyRoster, dir, { exitWaitMs: 200 })
+  const w9 = rec('concourse-w9')
+  check('a delivery landing between prepare and commit cancels the retirement: no commit, no kill, no parkedAt', refusedBusy.outcome === 'refused' && /turn is in flight/.test(refusedBusy.reason) && frames.map(f => f.request.action).join(',') === 'prepare,cancel' && killed.length === 0 && w9?.parkedAt === undefined && w9?.parkIntent === undefined, JSON.stringify({ refusedBusy, frames }))
+  check('the refusal is on the record for the board (parkRefused), and the fence is down', w9?.parkRefused?.reason !== undefined && /turn is in flight/.test(w9.parkRefused.reason) && !sup.retirementFenced('concourse-w9'), JSON.stringify(w9?.parkRefused))
+  sup.updateConcourseWorkers(workers => { const w = workers['concourse-w9']; if (w) { w.lastDeliveryAt = now - T; w.lastTurnSettledAt = now - T + 5 } }, dir)
+  const silentRoster = { ...runnerRoster, has: () => ({ alive: true, present: true }), control: (): boolean => false }
+  const noChannel = await sup.retireConcourseSession(sid('9'), 'operator:test', silentRoster, dir, { exitWaitMs: 200 })
+  check('a runner with no control channel is refused, never killed', noChannel.outcome === 'refused' && /no live control channel/.test(noChannel.reason) && killed.length === 0 && rec('concourse-w9')?.parkedAt === undefined, JSON.stringify(noChannel))
+}
+
 console.log('L2b park-all — the quit path over the estate')
 {
   seed([

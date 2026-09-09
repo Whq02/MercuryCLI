@@ -37,7 +37,8 @@ import type { SessionId } from '../types/ids.js'
 import { loadConversationForResume } from '../utils/conversationRecovery.js'
 import { reconstructContentReplacementState } from '../utils/toolResultStorage.js'
 import { resetSessionFilePointer, restoreSessionMetadata } from '../utils/sessionStorage.js'
-import { peekProject } from '../utils/sessionStorage/writer.js'
+import { flushSessionStorage, peekProject } from '../utils/sessionStorage/writer.js'
+import { RunnerQuiescence } from '../daemon/runnerQuiescence.js'
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
 import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
 import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
@@ -1335,6 +1336,20 @@ export async function runHeadless(
 
   const idleTimeout = createIdleTimeoutManager(() => !driver.isRunning())
 
+  const quiescence = new RunnerQuiescence({
+    refusal: () => {
+      if (driver.isRunning()) return 'a turn is running'
+      if (getCommandQueue().some(isMainThreadCommand)) return 'a prompt is queued'
+      const busy = getRunningTasks(getAppState()).filter(task => task.type !== 'in_process_teammate')
+      if (busy.length > 0) return `${busy.length} background task(s) still running`
+      return null
+    },
+    flush: () => flushSessionStorage(),
+  })
+  subscribeToCommandQueue(() => {
+    if (getCommandQueue().length > 0) quiescence.invalidate()
+  })
+
   let lastMessage: StdoutMessage | null = null
   const EXCLUDED_LAST = new Set([
     'control_response',
@@ -2476,6 +2491,16 @@ export async function runHeadless(
             }
           } catch (error) {
             respondError(requestId, errorMessage(error))
+          }
+          return
+        }
+        case 'quiesce': {
+          const answer = await quiescence.request({ subtype: 'quiesce', action: request.action, token: request.token })
+          if (answer.ok) respondSuccess(requestId, { token: answer.token, phase: answer.phase })
+          else respondError(requestId, answer.reason)
+          if (answer.ok && answer.phase === 'committed') {
+            inputClosed = true
+            setTimeout(() => gracefulShutdownSync(0, 'other'), 50)
           }
           return
         }
