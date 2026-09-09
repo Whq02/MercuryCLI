@@ -145,14 +145,14 @@
       "needle": ".claude",
       "excerpt": "return base === '.claude' || base.startsWith('.claude-')",
       "cls": "compat-boundary",
-      "why": "the account estate reads a scope's identity from the scope's own config file and adopts a snapshot left under the retired basename once (Saturn's account facts read the same scope identity)"
+      "why": "the account estate reads a scope's identity from the scope's own config file and adopts an identity snapshot left in an external .claude.json file once (Saturn's account facts read the same scope identity)"
     },
     {
       "file": "src/utils/accounts/scopeScan.ts",
       "needle": ".claude.json",
       "excerpt": "const retired = readScopeIdentity(join(dir, '.claude.json'))",
       "cls": "compat-boundary",
-      "why": "the account estate reads a scope's identity from the scope's own config file and adopts a snapshot left under the retired basename once (Saturn's account facts read the same scope identity)"
+      "why": "the account estate reads a scope's identity from the scope's own config file and adopts an identity snapshot left in an external .claude.json file once (Saturn's account facts read the same scope identity)"
     },
     {
       "file": "src/utils/cockpit/repoSurfaceMap.ts",

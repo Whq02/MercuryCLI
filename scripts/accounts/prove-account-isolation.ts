@@ -40,13 +40,13 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_CONFIG_DIR
 ;(envUtils.getMercuryHome as unknown as { cache: { clear?: () => void } }).cache.clear?.()
 const resolvedDefaultHome = envUtils.getMercuryHome()
-const svcForkEnvless = svcFor(undefined)
-const svcForkExplicit = svcFor(resolvedDefaultHome)
-check(svcForkEnvless === svcForkExplicit,
-  `fork: env-less and explicit MERCURY_CONFIG_DIR=${resolvedDefaultHome} (the resolver's own answer) share ONE service (${svcForkEnvless.slice(-10)}) — no re-login between launcher and env-less runs`)
-check(/-[0-9a-f]{8}$/.test(svcForkEnvless), 'a non-default home is suffix-keyed (credential identity split impossible)')
-const svcForkStock = svcFor(join(homedir(), '.claude'))
-check(/-[0-9a-f]{8}$/.test(svcForkStock), 'a run pinned to a foreign-named home is hashed like any other (one law, no bare entry)')
+const svcBuiltEnvless = svcFor(undefined)
+const svcBuiltExplicit = svcFor(resolvedDefaultHome)
+check(svcBuiltEnvless === svcBuiltExplicit,
+  `built product: env-less and explicit MERCURY_CONFIG_DIR=${resolvedDefaultHome} (the resolver's own answer) share ONE service (${svcBuiltEnvless.slice(-10)}) — no re-login between launcher and env-less runs`)
+check(/-[0-9a-f]{8}$/.test(svcBuiltEnvless), 'a non-default home is suffix-keyed (credential identity split impossible)')
+const svcBuiltForeignHome = svcFor(join(homedir(), '.claude'))
+check(/-[0-9a-f]{8}$/.test(svcBuiltForeignHome), 'a run pinned to a foreign-named home is hashed like any other (one law, no bare entry)')
 
 if (prevEnv === undefined) delete process.env.MERCURY_CONFIG_DIR
 else process.env.MERCURY_CONFIG_DIR = prevEnv

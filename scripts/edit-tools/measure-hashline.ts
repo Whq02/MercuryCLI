@@ -161,7 +161,7 @@ for (const rel of CORPUS) {
 
 const pct = (a: number, b: number): string => (b === 0 ? 'n/a' : `${(((b - a) / b) * 100).toFixed(1)}%`)
 
-console.log('hashline honest measure — same edits, two spellings (OUR numbers)')
+console.log('hashline measure — the same edits in two spellings')
 console.log(`corpus: ${fileCount} repo files · ${editCount} edits (3 replaces + 1 insert + 1 range each)`)
 console.log('')
 console.log('EDIT-CALL OUTPUT (what the model emits):')

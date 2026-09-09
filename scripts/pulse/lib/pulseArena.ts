@@ -141,7 +141,7 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
   const fixture = await startFixtureApi(
     scripted,
   )
-  const configDir = join(home, '.claude')
+  const configDir = join(home, '.mercury')
   mkdirSync(configDir, { recursive: true })
   writeFileSync(
     join(configDir, '.config.json'),

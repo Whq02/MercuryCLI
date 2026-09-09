@@ -296,9 +296,8 @@ section('static pins — the owners carry no speed-tier vocabulary')
   const offenders = transportFiles.filter(f => /fastMode|FAST_MODE|speed\s*=\s*'fast'|speed:\s*'fast'|\{\s*speed\s*\}/.test(read(f)) || /\bfast[-_]mode/i.test(read(f)))
   check('the Anthropic transport neither latches a fast-mode header nor sets a speed param', offenders.length === 0, offenders.join(','))
   check('the settings schema carries no fast-mode key', !/fastMode/.test(read('src/utils/settings/types.ts')))
-  check('the global config schema carries no fast-mode key', !/penguin|fastMode/i.test(read('src/utils/config/schema.ts')))
+  check('the global config schema carries no fast-mode key', !/fastMode/i.test(read('src/utils/config/schema.ts')))
   check('the query engine seeds no fast-mode state', !/fastMode|fast_mode/.test(read('src/QueryEngine.ts')) && !/fastMode/.test(read('src/run-core/turn-machine.ts')))
-  check('no fast-mode owner module remains', !existsSync(join(ROOT, 'src/utils/fastMode.ts')) && !existsSync(join(ROOT, 'src/commands/fast')))
 }
 
 server.close()

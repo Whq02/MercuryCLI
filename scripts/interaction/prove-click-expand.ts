@@ -85,7 +85,7 @@ check(
     src('src/tools/TaskOutputTool/TaskOutputTool.tsx').includes('isResultTruncated('),
 )
 check(
-  'fork Glob renderer honors verbose (file list branch)',
+  'the Glob renderer honors verbose (file list branch)',
   src('src/tools/GlobTool/UI.tsx').includes('opts.verbose && filenames.length > 0'),
 )
 check(

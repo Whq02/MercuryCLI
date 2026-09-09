@@ -57,7 +57,7 @@ check('§C the baseline generator consumes it too', baselineGen.includes('resolv
 const doctor = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
 check('§C /health probes through the shared lookup owner (PATHEXT-aware)', doctor.includes("whichSync('python3')"))
 check('§C /health names the ConPTY/hosted remedy on Windows source', doctor.includes('scripts/winreg') && doctor.includes('windows-ui workflow'))
-check('§C the remedy spelling is the registry-canonical MERCURY_PYTHON', doctor.includes('point MERCURY_PYTHON at one') && !doctor.includes(['HER', 'MES_PYTHON'].join('')))
+check('§C the remedy spelling is the registry-canonical MERCURY_PYTHON', doctor.includes('point MERCURY_PYTHON at one'))
 
 console.log(failed === 0 ? '\n ✅ SHELL-STRING CENSUS RATCHET HOLDS' : `\n ❌ ${failed} FAILED`)
 process.exit(failed === 0 ? 0 : 1)

@@ -8,7 +8,7 @@ const SLACK = Math.max(1, Number(process.env.MERCURY_BENCH_SLACK) || 1)
 const SAMPLES = [
   'realm  orchard-src  ⌥main · clean',
   'MCP policy gate          MERCURY_MCP_MAX_RISK=low|medium',
-  '● Capability manifest   always-on (fork) · ToolSearch',
+  '● Capability manifest   always-on · ToolSearch',
   'café 日本語 ▖▟▆▙▗ ●○◐◆◉ résumé',
   'a'.repeat(120),
 ]

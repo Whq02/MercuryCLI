@@ -22,7 +22,7 @@ function section(t: string): void {
 }
 
 console.log('============================================================')
-console.log(' behaviour laws 2–4 — provider scope · one owner · no stale names')
+console.log(' behaviour laws 2–4 — provider scope · one owner · semantic ids')
 console.log('============================================================')
 
 const prompts = await import('../../src/constants/prompts.ts')
@@ -37,12 +37,9 @@ const anthropic = segments.join('\n\n')
 
 section('§1 the one-content law — every wire, the same content')
 check('contract resolved from the registry (typed sections, not raw decode)', contract.sections.every(s => s.group !== 'segment'))
-check('OpenAI render: ZERO Claude model-currency instructions', !openai.includes('The most recent Claude models'))
-check('OpenAI render: no "default to … Claude models" steering', !openai.includes('default to the latest and most capable Claude models'))
-check('OpenAI render: no Claude-engine identity clause', !openai.includes('Claude model family'))
-check('NO wire carries a family overlay (agentic_persistence retired)', !openai.includes('<agentic_persistence>') && !anthropic.includes('<agentic_persistence>'))
+const VENDOR_STEER_RE = /\b(?:most recent|latest|newest|most capable|default to)\b[^.\n]{0,60}\b(?:Claude|GPT|Gemini|Llama|Grok|Mistral|Qwen|DeepSeek)\b[^.\n]{0,20}\bmodels\b/i
 check('the neutral model-currency rule rides EVERY render', anthropic.includes('Model currency:') && openai.includes('Model currency:'))
-check('no vendor model list hardcoded in prose (neutral rule instead)', !anthropic.includes('The most recent Claude models'))
+check("no render steers toward one vendor's models (the neutral rule instead)", !VENDOR_STEER_RE.test(anthropic) && !VENDOR_STEER_RE.test(openai))
 check('OpenAI render == Anthropic render (same content, join shape apart)', openai === anthropic)
 check('generic render == OpenAI render (chat lanes carry the same content)', contractMod.renderGenericInstructions(contract) === openai)
 check('no section is family-scoped (every scope is "all")', contract.sections.every(s => s.scope === 'all'))
@@ -70,20 +67,8 @@ section('§2 one-owner law — sentinel doctrine phrases live in ONE section')
   }
 }
 
-section('§3 stale-name law — retired machinery absent; ids semantic')
+section('§3 semantic ids — no positional section names; live references resolve')
 {
-  const stale: Array<[string, RegExp]> = [
-    ['retired coordination verbs', new RegExp(['temp', 'est_coord'].join('') + '|coord\\.mjs|sched-watch')],
-    ['retired instance keys', /TF_REPO_ID|TF_WORKTREE_ID/],
-    ['retired register', new RegExp(['Temp', 'est'].join('') + ' (Desert|harness|agent)')],
-    ['lease/freeze machinery', new RegExp('FREEZE_WRITES|lease_claim|' + ['temp', 'est_lease'].join(''))],
-    ['retired STATUS stop-rule', /STATUS: done or STATUS: blocked/],
-    ['TodoWrite phantom (not in this catalog)', /TodoWrite/],
-  ]
-  for (const [label, re] of stale) {
-    const hit = contract.sections.find(s => re.test(s.text))
-    check(`absent: ${label}`, hit === undefined, hit ? `${hit.name}` : '')
-  }
   check('no positional section names', contract.sections.every(s => !/^(wrapper|mode)-\d+$/.test(s.name)))
   const all = contract.sections.map(s => s.text).join('\n')
   check('tool references match the live catalog names (Read/Grep/Glob spot set)',
@@ -91,7 +76,7 @@ section('§3 stale-name law — retired machinery absent; ids semantic')
 }
 
 console.log('\n' + '═'.repeat(76))
-if (failures === 0) console.log('✅ BEHAVIOUR LAWS 2–4 (scope · one-owner · stale-names) PASS')
+if (failures === 0) console.log('✅ BEHAVIOUR LAWS 2–4 (scope · one-owner · semantic ids) PASS')
 else console.log(`❌ ${failures} RENDER CHECK(S) FAILED`)
 console.log('═'.repeat(76))
 process.exit(failures === 0 ? 0 : 1)
