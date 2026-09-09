@@ -85,7 +85,7 @@ async function drive(): Promise<void> {
   const fixture: FixtureApi = await startFixtureApi([{ kind: 'text', text: 'B-TURN-AFTER-SHELL.' }])
   const home = mkdtempSync(join(tmpdir(), 'bash-line-home-'))
   const cwd = mkdtempSync(join(tmpdir(), 'bash-line-cwd-'))
-  const configDir = join(home, '.claude')
+  const configDir = join(home, '.mercury')
   mkdirSync(configDir, { recursive: true })
   const env = {
     HOME: home,
@@ -181,7 +181,7 @@ async function drive(): Promise<void> {
     result1?.subtype === 'success' && result1?.is_error !== true,
     j({ subtype: result1?.subtype, is_error: result1?.is_error, stderr: stderr.slice(0, 200) }),
   )
-  check('the runner is still running after the bash line (the old gate shut it down)', !exitedEarly && child.exitCode === null)
+  check('the runner is still running after the bash line', !exitedEarly && child.exitCode === null)
   const initFrame = envelopes.find(e => e.type === 'system' && e.subtype === 'init') as (Envelope & { session_id?: string }) | undefined
   const sessionId = String(initFrame?.session_id ?? result1?.session_id ?? '')
   check('the turn carries a session id (system:init / result)', sessionId.length > 0)
@@ -230,7 +230,7 @@ async function drive(): Promise<void> {
   )
   check('the model never saw the shell lines (exactly one model call in the whole drive)', fixture.messageRequests().length === 1, String(fixture.messageRequests().length))
   check(
-    'no error_during_execution envelope anywhere (the old refusal shape)',
+    'no error_during_execution envelope anywhere',
     !envelopes.some(e => e.type === 'result' && e.subtype === 'error_during_execution'),
   )
   child.stdin.end()

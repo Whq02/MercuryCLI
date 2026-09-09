@@ -18,7 +18,7 @@ const section = (t: string): void => {
 }
 
 console.log('============================================================')
-console.log(' sovereign namespace — fresh-native, one spelling, ratchet')
+console.log(' sovereign namespace — fresh-native, one spelling')
 console.log('============================================================')
 
 section('(1) canonical-write (adoptiveProjectPath)')
@@ -59,10 +59,10 @@ section('(2) one-spelling reader (real flagEnv over a mutated env)')
   }
 }
 
-section('(3) the one-spelling ratchet over src/')
+section('(3) the one-spelling rule over src/')
 {
   const registrySrc = readFileSync(join(ROOT, 'src', 'substrate', 'flagRegistry.ts'), 'utf8')
-  check('the registry declares no alias spelling', !/\blegacy\??:/.test(registrySrc))
+  check('the registry declares one spelling per row (no alias field)', !/\blegacy\??:/.test(registrySrc))
 }
 
 section('(4) boot-env writer coverage (source law: stamp through the registry helpers)')

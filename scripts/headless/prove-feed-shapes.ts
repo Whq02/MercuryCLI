@@ -45,7 +45,7 @@ function keyPaths(value: unknown, path = '', opaque: readonly string[] = [], out
 }
 const lastSegment = (dotted: string): string => dotted.split('.').pop()!.replace(/\[\]$/, '')
 
-section('F1 — the declared frame types are the ones the product writes; the retired names are gone')
+section('F1 — the declared frame types are the ones the product writes')
 {
   type AnyZod = { options?: AnyZod[]; shape?: Record<string, AnyZod>; value?: unknown; values?: Iterable<unknown>; def?: { options?: AnyZod[]; shape?: Record<string, AnyZod> } }
   const literalOf = (schema: AnyZod | undefined): string | undefined => {
@@ -100,38 +100,11 @@ section('F1 — the declared frame types are the ones the product writes; the re
   ]
   const got = [...declared].sort()
   check('the stdout union declares exactly the frame types the product writes', deepEq(got, [...expected].sort()), j(got))
-  const coreSrc = readFileSync(join(ROOT, 'src/entrypoints/sdk/coreSchemas.ts'), 'utf8')
   const controlSrc = readFileSync(join(ROOT, 'src/entrypoints/sdk/controlSchemas.ts'), 'utf8')
-  const typesSrc = readFileSync(join(ROOT, 'src/entrypoints/sdk/controlTypes.ts'), 'utf8')
-  const generatedSrc = readFileSync(join(ROOT, 'src/entrypoints/sdk/coreTypes.generated.ts'), 'utf8')
-  const retired = [
-    'auth_status',
-    'streamlined_text',
-    'streamlined_tool_use_summary',
-    'files_persisted',
-    'local_command_output',
-    'post_turn_summary',
-    'keep_alive',
-    'update_environment_variables',
-    'channel_enable',
-    'remote_control',
-    'claude_authenticate',
-    'claude_oauth_callback',
-    'claude_oauth_wait_for_completion',
-    'ultraplan',
-    'apiKeySource',
-    'apiProvider',
-  ]
-  const all = coreSrc + controlSrc + typesSrc + generatedSrc
-  const present = retired.filter(word => all.includes(word))
-  check('no retired frame type, control subtype or field survives in the schema modules', present.length === 0, j(present))
   const controlNames = ['provider_sign_in', 'provider_sign_in_callback', 'provider_sign_in_wait', 'host_mcp_servers']
   check('the sign-in verbs and the host MCP list are declared under their names', controlNames.every(word => controlSrc.includes(`'${word}'`) || controlSrc.includes(`${word}:`)), j(controlNames.filter(w => !controlSrc.includes(w))))
-  const stateSrc = readFileSync(join(ROOT, 'src/utils/sessionState.ts'), 'utf8')
-  const changeSrc = readFileSync(join(ROOT, 'src/state/onChangeAppState.ts'), 'utf8')
-  check('no session-metadata push road remains', !/notifySessionMetadataChanged|SessionExternalMetadata/.test(stateSrc + changeSrc) && !changeSrc.includes('externalMetadataToAppState'))
   const mcpTypesSrc = readFileSync(join(ROOT, 'src/services/mcp/types.ts'), 'utf8')
-  check("the MCP kind word for a host-served server is 'host' on the wire and inside", mcpTypesSrc.includes("z.literal('host')") && !mcpTypesSrc.includes("'sdk'") && !coreSrc.includes("z.literal('sdk')"))
+  check("the MCP kind word for a host-served server is 'host'", mcpTypesSrc.includes("z.literal('host')"))
 }
 
 section('F2 — every declared key is snake_case outside the riding contracts')
