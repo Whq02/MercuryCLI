@@ -1,5 +1,14 @@
 
 import { isSessionMarkedNonInteractive } from './runtimePosture.js'
+import { getSystemPromptSectionCache } from '../../bootstrap/state.js'
+import type { Tools } from '../../Tool.js'
+import type { Message } from '../../types/message.js'
+import { LSP_TOOL_NAME } from '../../tools/LSPTool/prompt.js'
+import { DEBUG_TOOL_NAME } from '../../tools/DebugTool/prompt.js'
+
+const LSP_GUIDANCE = 'prefer LSP for symbol discovery, references, structured rename, and offered code actions; use direct file edits for small local changes where that is clearer. After a code mutation, get current diagnostics when a language server covers the file, then run the smallest real proof that covers the changed behavior.'
+const DEBUG_GUIDANCE = 'Use the Debug tool (DAP) when a runtime-state question cannot be resolved from static evidence.'
+const IDE_RESULT_GUIDANCE = 'An LSP/Debug operation that reports failed or indeterminate is exactly that — never treat an unavailable IDE tool as success; fall back honestly and keep the run state current.'
 
 export interface RunProtocolRoster {
   lspMounted: boolean
@@ -27,19 +36,19 @@ export function getRunProtocolSection(roster: RunProtocolRoster): string | null 
   const ideSentences: string[] = []
   if (roster.lspMounted) {
     ideSentences.push(
-      'prefer LSP for symbol discovery, references, structured rename, and offered code actions; use direct file edits for small local changes where that is clearer. After a code mutation, get current diagnostics when a language server covers the file, then run the smallest real proof that covers the changed behavior.',
+      LSP_GUIDANCE,
     )
   }
   if (roster.dapMounted) {
     ideSentences.push(
-      'Use the Debug tool (DAP) when a runtime-state question cannot be resolved from static evidence.',
+      DEBUG_GUIDANCE,
     )
   }
   const evidenceLine =
     'Current evidence is what completes a run, not a prescribed number of tool calls.'
   const idePara =
     ideSentences.length > 0
-      ? `IDE loop: ${ideSentences.join(' ')} An LSP/Debug operation that reports failed or indeterminate is exactly that — never treat an unavailable IDE lane as success; fall back honestly and keep the run state current. ${evidenceLine}`
+      ? `IDE loop: ${ideSentences.join(' ')} ${IDE_RESULT_GUIDANCE} ${evidenceLine}`
       : evidenceLine
 
   const section = `# Autonomous runs
@@ -55,4 +64,29 @@ ${idePara}`
 
 export function _resetRunProtocolForTesting(): void {
   memo.clear()
+}
+
+export function getRunProtocolDelta(tools: Tools, messages: readonly Message[]): { tools: string[]; body: string } | null {
+  const initial = getSystemPromptSectionCache().get('run_protocol')?.value
+  if (typeof initial !== 'string') return null
+  const initialTools = [
+    ...(initial.includes(LSP_GUIDANCE) ? [LSP_TOOL_NAME] : []),
+    ...(initial.includes(DEBUG_GUIDANCE) ? [DEBUG_TOOL_NAME] : []),
+  ]
+  let previous = initialTools
+  for (const message of messages) {
+    if (message.type === 'system' && message.subtype === 'compact_boundary') previous = initialTools
+    if (message.type === 'attachment' && message.attachment.type === 'run_protocol_delta') previous = message.attachment.tools
+  }
+  const names = new Set(tools.map(tool => tool.name))
+  const current = [LSP_TOOL_NAME, DEBUG_TOOL_NAME].filter(name => names.has(name))
+  const added = current.filter(name => !previous.includes(name))
+  const removed = previous.filter(name => !current.includes(name))
+  if (added.length === 0 && removed.length === 0) return null
+  const body = [
+    ...added.map(name => name === LSP_TOOL_NAME ? LSP_GUIDANCE : DEBUG_GUIDANCE),
+    ...(added.length > 0 ? [IDE_RESULT_GUIDANCE] : []),
+    ...(removed.length > 0 ? [`These tools are no longer available: ${removed.join(', ')}. Their earlier tool-specific guidance no longer applies.`] : []),
+  ].join(' ')
+  return { tools: current, body }
 }

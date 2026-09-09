@@ -150,6 +150,64 @@ await (async () => {
 })()
 
 console.log('\n============================================================')
+
+section('conversation guidance stays fixed while capabilities change')
+{
+  const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
+  const { getRunProtocolDelta } = await import('../../src/utils/cockpit/runProtocol.ts')
+  const { clearSystemPromptSections, resolveSystemPromptSections, systemPromptSection, keyedSystemPromptSection } = await import('../../src/constants/systemPromptSections.ts')
+  const { getSystemPromptSectionCache, setSystemPromptSectionCacheEntry, setOriginalCwd, getOriginalCwd, setCwdState } = await import('../../src/bootstrap/state.ts')
+  const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
+  const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+  const { isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
+  const cwd = process.cwd()
+  const originalCwd = getOriginalCwd()
+  const scratch = mkdtempSync(join(tmpdir(), 'prompt-capabilities-'))
+  const oldEntry = process.env.MERCURY_ENTRYPOINT
+  process.env.MERCURY_ENTRYPOINT = 'headless'
+  process.chdir(scratch)
+  setOriginalCwd(scratch)
+  setCwdState(scratch)
+  const tools = [{ name: 'Read' }] as never
+  const withLsp = [{ name: 'Read' }, { name: 'LSP' }] as never
+  const withBoth = [{ name: 'Read' }, { name: 'LSP' }, { name: 'Debug' }] as never
+  try {
+    clearSystemPromptSections()
+    const first = await getSystemPrompt(tools, 'claude-fable-5-1')
+    const lsp = await getSystemPrompt(withLsp, 'claude-fable-5-1')
+    const both = await getSystemPrompt(withBoth, 'claude-fable-5-1')
+    check('LSP and Debug mounts leave every system segment byte-identical', JSON.stringify(first) === JSON.stringify(lsp) && JSON.stringify(first) === JSON.stringify(both))
+    const delta = getRunProtocolDelta(withLsp, [])
+    check('the LSP guidance is appended instead of replacing the system segment', delta?.tools.join(',') === 'LSP' && delta.body.includes('symbol discovery') && !delta.body.includes('Use the Debug tool'))
+    const row = createAttachmentMessage({ type: 'run_protocol_delta', ...delta! })
+    check('guidance is a persisted model-visible row without a UI transcript slot', normalizeAttachmentForAPI(row.attachment).length === 1 && isNullRenderingAttachment(row))
+    check('a collection that never appends the row does not consume the change', JSON.stringify(getRunProtocolDelta(withLsp, [])) === JSON.stringify(delta))
+    check('recording the row prevents duplicate guidance', getRunProtocolDelta(withLsp, [row]) === null)
+    const debug = getRunProtocolDelta(withBoth, [row])
+    check('the next capability adds only its missing guidance', debug?.body.includes('Use the Debug tool') === true && !debug.body.includes('symbol discovery'))
+    const rows = [row, createAttachmentMessage({ type: 'run_protocol_delta', ...debug! })]
+    check('reconstructed rows retain the announcement state', getRunProtocolDelta(withBoth, JSON.parse(JSON.stringify(rows))) === null)
+    const gone = getRunProtocolDelta(tools, rows)
+    check('removed capabilities get an appended correction without changing old rows', gone?.tools.length === 0 && gone.body.includes('no longer available: LSP, Debug'))
+    clearSystemPromptSections()
+    await getSystemPrompt(withBoth, 'claude-fable-5-1')
+    check('a fresh conversation puts its current capabilities in the system once', getSystemPromptSectionCache().get('run_protocol')?.value?.includes('Use the Debug tool') === true && getRunProtocolDelta(withBoth, []) === null)
+    check('a compaction boundary resets old capability records to the new system section', getRunProtocolDelta(withBoth, [...rows, createAttachmentMessage({ type: 'run_protocol_delta', ...gone! }), { type: 'system', subtype: 'compact_boundary' } as never]) === null)
+    setSystemPromptSectionCacheEntry('restored-guidance', 'recorded bytes', 'old-key')
+    const restored = await resolveSystemPromptSections([systemPromptSection('restored-guidance', () => 'replacement bytes')])
+    check('an unkeyed section preserves an older recorded keyed value', restored[0] === 'recorded bytes')
+    const keyed = await resolveSystemPromptSections([keyedSystemPromptSection('restored-guidance', () => 'new-key', () => 'new keyed bytes')])
+    check('sections with real dependencies still refresh when their key changes', keyed[0] === 'new keyed bytes')
+  } finally {
+    clearSystemPromptSections()
+    process.chdir(cwd)
+    setOriginalCwd(originalCwd)
+    setCwdState(cwd)
+    if (oldEntry === undefined) delete process.env.MERCURY_ENTRYPOINT
+    else process.env.MERCURY_ENTRYPOINT = oldEntry
+  }
+}
+
 if (failures === 0) console.log(' ✅ ALL COMPOSER CHECKS PASS')
 else console.log(` ❌ ${failures} CHECK(S) FAILED`)
 console.log('============================================================')
