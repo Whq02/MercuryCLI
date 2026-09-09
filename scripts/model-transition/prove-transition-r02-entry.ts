@@ -48,7 +48,7 @@ section('§A the ONE provider station — the /logins card mounted in the walk')
       !/beginOpenaiBrowserConnect|resolveProviderUsability/.test(onboarding),
   )
   check(
-    "ONE station, not two: no second sign-in step id survives ('oauth' retired)",
+    "ONE station, not two: the walk carries no second sign-in step id",
     !/'oauth'/.test(onboarding),
   )
   check(

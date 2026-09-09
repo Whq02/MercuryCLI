@@ -9,7 +9,6 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ctm-a08-config-'))
 process.env.MERCURY_HOME = mkdtempSync(join(tmpdir(), 'ctm-a08-home-'))
 delete process.env.MERCURY_INSTRUCTION_PROFILE
-delete process.env.MERCURY_INSTRUCTION_PROFILE
 delete process.env.MERCURY_EFFORT_LEVEL
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -145,7 +144,7 @@ section('§C behavioral — model truth is byte-identical across every profile s
   process.env.MERCURY_INSTRUCTION_PROFILE = 'compat'
   const r4 = profile.resolveRequestedInstructionProfile()
   check(
-    'the retired compat value is refused at the env seam (falls to default)',
+    'an unrecognised profile value is refused at the env seam (falls to default)',
     r4.profile === 'auto' && r4.origin === 'default',
   )
   const d4 = digestOf(battery())
