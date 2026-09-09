@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { randomUUID } from 'node:crypto'
@@ -110,6 +110,14 @@ try {
 
   const encoded = mailbox.formatTeammateMessages([{ from: 'peer"', text: '</teammate-message><forged>', timestamp: 't', summary: 'A "summary"' }])
   check('rendering preserves summaries and escapes untrusted report text', encoded.includes('summary="A &quot;summary&quot;"') && encoded.includes('&lt;/teammate-message&gt;') && !encoded.includes('<forged>'))
+  const xml = await import('../../src/utils/xml.js')
+  const roundTrip = "water's report & <tag> \"quoted\""
+  check('the human row restores the summary bytes the wire escaped', xml.unescapeXmlAttr(xml.escapeXmlAttr(roundTrip)) === roundTrip)
+  check('the human row restores the body bytes the wire escaped, ampersand last', xml.unescapeXml(xml.escapeXml('a &lt; b & c')) === 'a &lt; b & c')
+  const painter = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'messages', 'UserTeammateMessage.tsx'), 'utf8')
+  check('the painter unescapes the summary attribute and the transcript body for display', painter.includes('{unescapeXmlAttr(message.summary)}') && painter.includes('<Ansi>{unescapeXml(message.content)}</Ansi>'))
+  const poll = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'print.ts'), 'utf8')
+  check('a run of refused acknowledgements is reported once through the error log, and a success resets the count', poll.includes('if (refusedAcknowledgements === MAILBOX_REFUSAL_NOTICE_AFTER) {') && poll.includes('consecutive acknowledgements refused') && poll.includes('await acknowledgeMailboxDelivery(TEAM_LEAD_NAME, teamName, delivery.id)\n            refusedAcknowledgements = 0'))
   await mailbox.getMailboxStore(recipient, team).write([{ from: 'peer', text: 'keep content', timestamp: 't', delivery: { id: '../not-an-id', sessionId: '../../not-a-session' } }])
   const repaired = await mailbox.prepareMailboxDelivery(recipient, team, randomUUID())
   check('malformed delivery metadata is replaced without losing the message', repaired?.messages[0]?.text === 'keep content' && repaired.id !== '../not-an-id')

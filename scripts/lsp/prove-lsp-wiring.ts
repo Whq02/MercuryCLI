@@ -31,7 +31,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   const order = s.indexOf('mercurySources.env, allServers, mercurySources.builtin')
   check('config.ts: first-wins merge order env > extensions > builtin', order !== -1)
   check(
-    'config.ts: fork sources fail-open to {} on error',
+    'config.ts: server sources fail-open to {} on error',
     s.includes('Error loading Mercury LSP server sources'),
   )
 }
@@ -98,7 +98,7 @@ function check(name: string, ok: boolean, detail?: string): void {
     s.includes('checkWritePermissionForTool(') && s.includes('isMercuryApplyOp(input)'),
   )
   check(
-    'LSPTool: fork ops dispatch to mercuryOps before the base method mapping',
+    'LSPTool: the Mercury operations dispatch to mercuryOps before the base method mapping',
     s.indexOf('runMercuryLspOp({') !== -1 &&
       s.indexOf('runMercuryLspOp({') < s.indexOf('getMethodAndParams(input, documentPath)'),
   )
@@ -131,7 +131,7 @@ function check(name: string, ok: boolean, detail?: string): void {
 {
   const s = read('src/substrate/flagRegistry.ts')
   check(
-    'the flag registry carries MERCURY_LSP + MERCURY_LSP_SERVERS (with legacy aliases)',
+    'the flag registry carries MERCURY_LSP + MERCURY_LSP_SERVERS',
     s.includes('MERCURY_LSP') && s.includes('MERCURY_LSP_SERVERS'),
   )
 }
