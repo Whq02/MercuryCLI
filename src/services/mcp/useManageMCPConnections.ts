@@ -1,6 +1,8 @@
 import * as React from 'react'
 
 import { getSessionId } from '../../bootstrap/state.js'
+import { processMainOwner } from '../run/resolveOwner.js'
+import { requestDeliberateToolChange } from '../providers/lawfulPrefixChange.js'
 import { useAppState, useSetAppState } from '../../state/AppState.js'
 import type { AppState } from '../../state/AppState.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -236,6 +238,9 @@ export function useManageMCPConnections(
   React.useEffect(() => {
     const unsubscribe = registry.subscribe((event: McpRegistryEvent) => {
       if (event.cause === 'stale-drop' || event.cause === 'shutdown') return
+      if (event.cause === 'reconnect-manual' && event.connection.type === 'connected' && event.tools !== undefined) {
+        requestDeliberateToolChange(String(processMainOwner()), event.tools, `the MCP server ${event.name} was manually reconnected`)
+      }
       if (
         event.connection.type === 'connected' &&
         event.tools !== undefined &&

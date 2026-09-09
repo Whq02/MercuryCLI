@@ -40,7 +40,7 @@ import { peekProject } from '../utils/sessionStorage/writer.js'
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
 import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
 import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
-import { declareLawfulPrefixChangeForEveryOwner } from '../services/providers/lawfulPrefixChange.js'
+import { declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
 import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
 import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
@@ -861,7 +861,7 @@ export async function runHeadless(
     ).filter(tool => tool.mcpInfo?.effectiveMaxPermission !== 'blocked')
     const pool: Tool[] = [
       ...getTools(state.toolPermissionContext),
-      ...sessionTools.filter(tool => !baseToolNames.has(tool.name)),
+      ...sessionTools.filter(tool => !baseToolNames.has(tool.name) && !tool.isMcp),
       ...mcpPartition,
     ]
     const seen = new Set<string>()
@@ -1562,12 +1562,16 @@ export async function runHeadless(
   const applyReconnectedClient = async (
     serverName: string,
     client: MCPServerConnection,
+    refreshDefinitions = false,
   ): Promise<void> => {
     const [tools, commandsForServer, resources] = await Promise.all([
       fetchToolsForClient(client),
       fetchCommandsForClient(client),
       fetchResourcesForClient(client),
     ])
+    if (refreshDefinitions && client.type === 'connected') {
+      requestDeliberateToolChange(String(processMainOwner()), tools, `the MCP server ${serverName} was manually reconnected`)
+    }
     const prefix = getMcpPrefix(serverName)
     setAppState(previous => ({
       ...previous,
@@ -2064,7 +2068,7 @@ export async function runHeadless(
           elicitationRegistered.delete(serverName)
           await clearServerCache(serverName, config).catch(() => {})
           const client = await connectToServer(serverName, config)
-          await applyReconnectedClient(serverName, client)
+          await applyReconnectedClient(serverName, client, true)
           if (client.type === 'connected') {
             registerPerTurnHandlers([client])
             respondSuccess(requestId)

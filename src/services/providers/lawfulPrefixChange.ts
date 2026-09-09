@@ -1,4 +1,6 @@
 import { logForDebugging } from '../../utils/debug.js'
+import { requestToolSchemaChange } from '../../utils/toolSchemaCache.js'
+import type { Tools } from '../../Tool.js'
 
 const pending = new Map<string, string>()
 const PROCESS_WIDE = '*'
@@ -39,4 +41,8 @@ export function pendingLawfulPrefixChange(owner: string): string | null {
 export function resetLawfulPrefixChanges(): void {
   pending.clear()
   processWideConsumedBy.clear()
+}
+
+export function requestDeliberateToolChange(scope: string, tools: Tools, reason: string): void {
+  requestToolSchemaChange(scope, tools, reason)
 }

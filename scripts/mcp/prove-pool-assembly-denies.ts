@@ -44,6 +44,7 @@ section('§2 THE -p ASSEMBLY')
   const seamAt = print.indexOf('const assembleTools')
   const seam = print.slice(seamAt, seamAt + 1400)
   check('the -p per-turn assembly exists', seamAt !== -1)
+  check('startup extras cannot shadow the current filtered MCP collection', /sessionTools\.filter\(tool => !baseToolNames\.has\(tool\.name\) && !tool\.isMcp\)/.test(seam))
   check(
     'the MCP partitions ride filterToolsByDenyRules (FC-026, call-shaped)',
     /filterToolsByDenyRules\(/.test(seam),
