@@ -106,7 +106,7 @@ section('W1–W5 — the hermetic walk (trusted workspace)')
 section('W6 — the enterprise + extensions-lock branches (structural)')
 {
   const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'mcp', 'config.ts'), 'utf-8')
-  check('the enterprise exclusive-control branch exists', src.includes('if (doesEnterpriseMcpConfigExist()) {') && src.includes('exclusive control over all MCP servers'))
+  check('the enterprise branch filters the managed servers by policy and returns them alone, before any other scope is read', /if \(doesEnterpriseMcpConfigExist\(\)\) \{\s*\n\s*const enterprise = getEnterpriseMcpConfigs\(\)\s*\n\s*const \{ allowed \} = filterMcpServersByPolicy\(enterprise\.servers\)\s*\n\s*return \{ servers: allowed, errors: \[\] \}\s*\n\s*\}/.test(src))
   check('the extensions-lock branch drops user/project/local (keeps extensions)', src.includes("const mcpLocked = isRestrictedToExtensionsOnly('mcp')"))
   check('the merge order is extension < user < project < local (later spreads win)', /\{\s*\n\s*\.\.\.dedupedExtensions,\s*\n\s*\.\.\.user\.servers,\s*\n\s*\.\.\.approvedProject,\s*\n\s*\.\.\.local\.servers,\s*\n\s*\}/.test(src))
 }
