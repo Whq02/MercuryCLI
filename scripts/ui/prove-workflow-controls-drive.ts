@@ -350,6 +350,7 @@ async function viewLeg(cols: number, rows: number, port: number): Promise<void> 
   check(`${tag}: the settled run view reads killed · stopped by session …, its rows kept`, /killed/.test(flat(settled)) && /stopped by session/.test(flat(settled)) && rowOf(settled, 'alpha') !== undefined && rowOf(settled, 'beta') !== undefined, flat(settled).slice(-500))
   const stopRefused = marks['run-stop-refused'] ?? ''
   check(`${tag}: X on the settled run says already settled — nothing to stop`, /already settled — nothing to stop/.test(flat(stopRefused)), flat(stopRefused).slice(-300))
+  check(`${tag}: the stopped agent's card never claims it is still working`, /stopped before it answered/.test(flat(stopRefused)) && !/out still working/.test(flat(stopRefused)), flat(stopRefused).slice(-500))
   const dirs = runDirsUnder(home)
   check(`${tag}: one run dir with run.json, journal, claim and the control records`, dirs.length === 1 && existsSync(join(dirs[0]!, 'journal.jsonl')) && existsSync(join(dirs[0]!, 'claim.json')) && existsSync(join(dirs[0]!, 'control')), dirs.join(','))
   if (dirs.length === 1) {
