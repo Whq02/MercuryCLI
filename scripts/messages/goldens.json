@@ -21227,22 +21227,105 @@
     "«map»": []
    },
    "resolvedToolUseIDs": {
-    "«set»": []
+    "«set»": [
+     "toolu_0001",
+     "toolu_0002"
+    ]
    },
    "siblingToolUseIDs": {
     "«map»": []
    },
    "toolResultByToolUseID": {
-    "«map»": []
+    "«map»": [
+     [
+      "toolu_0001",
+      {
+       "message": {
+        "content": [
+         {
+          "content": [
+           {
+            "text": "contents of a",
+            "type": "text"
+           }
+          ],
+          "is_error": false,
+          "tool_use_id": "toolu_0001",
+          "type": "tool_result"
+         }
+        ],
+        "role": "user"
+       },
+       "timestamp": "«t1»",
+       "toolUseResult": {
+        "ok": true
+       },
+       "type": "user",
+       "uuid": "«u1»"
+      }
+     ],
+     [
+      "toolu_0002",
+      {
+       "message": {
+        "content": [
+         {
+          "content": [
+           {
+            "text": "contents of b",
+            "type": "text"
+           }
+          ],
+          "is_error": false,
+          "tool_use_id": "toolu_0002",
+          "type": "tool_result"
+         }
+        ],
+        "role": "user"
+       },
+       "timestamp": "«t2»",
+       "toolUseResult": {
+        "ok": true
+       },
+       "type": "user",
+       "uuid": "«u2»"
+      }
+     ]
+    ]
    },
    "toolUseByToolUseID": {
-    "«map»": []
+    "«map»": [
+     [
+      "toolu_0001",
+      {
+       "id": "toolu_0001",
+       "input": {
+        "file_path": "/a.ts"
+       },
+       "name": "Read",
+       "type": "tool_use"
+      }
+     ],
+     [
+      "toolu_0002",
+      {
+       "id": "toolu_0002",
+       "input": {
+        "file_path": "/b.ts"
+       },
+       "name": "Read",
+       "type": "tool_use"
+      }
+     ]
+    ]
    }
   }
  },
  "buildSubagentLookups/interrupted": {
   "inProgressToolUseIDs": {
-   "«set»": []
+   "«set»": [
+    "toolu_0003"
+   ]
   },
   "lookups": {
    "deniedToolUseIDs": {
@@ -21274,7 +21357,19 @@
     "«map»": []
    },
    "toolUseByToolUseID": {
-    "«map»": []
+    "«map»": [
+     [
+      "toolu_0003",
+      {
+       "id": "toolu_0003",
+       "input": {
+        "command": "sleep 999"
+       },
+       "name": "Bash",
+       "type": "tool_use"
+      }
+     ]
+    ]
    }
   }
  },
@@ -21303,16 +21398,58 @@
     "«map»": []
    },
    "resolvedToolUseIDs": {
-    "«set»": []
+    "«set»": [
+     "toolu_0004"
+    ]
    },
    "siblingToolUseIDs": {
     "«map»": []
    },
    "toolResultByToolUseID": {
-    "«map»": []
+    "«map»": [
+     [
+      "toolu_0004",
+      {
+       "message": {
+        "content": [
+         {
+          "content": [
+           {
+            "text": "done",
+            "type": "text"
+           }
+          ],
+          "is_error": false,
+          "tool_use_id": "toolu_0004",
+          "type": "tool_result"
+         }
+        ],
+        "role": "user"
+       },
+       "timestamp": "«t1»",
+       "toolUseResult": {
+        "ok": true
+       },
+       "type": "user",
+       "uuid": "«u1»"
+      }
+     ]
+    ]
    },
    "toolUseByToolUseID": {
-    "«map»": []
+    "«map»": [
+     [
+      "toolu_0004",
+      {
+       "id": "toolu_0004",
+       "input": {
+        "command": "ls"
+       },
+       "name": "Bash",
+       "type": "tool_use"
+      }
+     ]
+    ]
    }
   }
  },
@@ -21607,16 +21744,136 @@
     "«map»": []
    },
    "resolvedToolUseIDs": {
-    "«set»": []
+    "«set»": [
+     "toolu_0001",
+     "toolu_0002",
+     "toolu_0004"
+    ]
    },
    "siblingToolUseIDs": {
     "«map»": []
    },
    "toolResultByToolUseID": {
-    "«map»": []
+    "«map»": [
+     [
+      "toolu_0001",
+      {
+       "message": {
+        "content": [
+         {
+          "content": [
+           {
+            "text": "contents of a",
+            "type": "text"
+           }
+          ],
+          "is_error": false,
+          "tool_use_id": "toolu_0001",
+          "type": "tool_result"
+         }
+        ],
+        "role": "user"
+       },
+       "timestamp": "«t1»",
+       "toolUseResult": {
+        "ok": true
+       },
+       "type": "user",
+       "uuid": "«u1»"
+      }
+     ],
+     [
+      "toolu_0002",
+      {
+       "message": {
+        "content": [
+         {
+          "content": [
+           {
+            "text": "contents of b",
+            "type": "text"
+           }
+          ],
+          "is_error": false,
+          "tool_use_id": "toolu_0002",
+          "type": "tool_result"
+         }
+        ],
+        "role": "user"
+       },
+       "timestamp": "«t2»",
+       "toolUseResult": {
+        "ok": true
+       },
+       "type": "user",
+       "uuid": "«u2»"
+      }
+     ],
+     [
+      "toolu_0004",
+      {
+       "message": {
+        "content": [
+         {
+          "content": [
+           {
+            "text": "done",
+            "type": "text"
+           }
+          ],
+          "is_error": false,
+          "tool_use_id": "toolu_0004",
+          "type": "tool_result"
+         }
+        ],
+        "role": "user"
+       },
+       "timestamp": "«t3»",
+       "toolUseResult": {
+        "ok": true
+       },
+       "type": "user",
+       "uuid": "«u3»"
+      }
+     ]
+    ]
    },
    "toolUseByToolUseID": {
-    "«map»": []
+    "«map»": [
+     [
+      "toolu_0001",
+      {
+       "id": "toolu_0001",
+       "input": {
+        "file_path": "/a.ts"
+       },
+       "name": "Read",
+       "type": "tool_use"
+      }
+     ],
+     [
+      "toolu_0002",
+      {
+       "id": "toolu_0002",
+       "input": {
+        "file_path": "/b.ts"
+       },
+       "name": "Read",
+       "type": "tool_use"
+      }
+     ],
+     [
+      "toolu_0004",
+      {
+       "id": "toolu_0004",
+       "input": {
+        "command": "ls"
+       },
+       "name": "Bash",
+       "type": "tool_use"
+      }
+     ]
+    ]
    }
   }
  },
@@ -22104,7 +22361,8 @@
  },
  "getToolUseIDs/toolTurn": {
   "«set»": [
-   "toolu_0001"
+   "toolu_0001",
+   "toolu_0002"
   ]
  },
  "getToolUseIDs/interrupted": {
@@ -22141,33 +22399,106 @@
  "getToolUseIDs/composite": {
   "«set»": [
    "toolu_0001",
+   "toolu_0002",
    "toolu_0004"
   ]
  },
- "countToolCalls/basic": 0,
- "countToolCalls/toolTurn": 0,
- "countToolCalls/interrupted": 0,
- "countToolCalls/attachments": 0,
- "countToolCalls/thinking": 0,
- "countToolCalls/whitespace": 0,
- "countToolCalls/boundaries": 0,
- "countToolCalls/virtual": 0,
- "countToolCalls/multiBlock": 0,
- "countToolCalls/synthetic": 0,
- "countToolCalls/system": 0,
- "countToolCalls/composite": 0,
- "hasSuccessfulToolCall/basic": false,
- "hasSuccessfulToolCall/toolTurn": false,
- "hasSuccessfulToolCall/interrupted": false,
- "hasSuccessfulToolCall/attachments": false,
- "hasSuccessfulToolCall/thinking": false,
- "hasSuccessfulToolCall/whitespace": false,
- "hasSuccessfulToolCall/boundaries": false,
- "hasSuccessfulToolCall/virtual": false,
- "hasSuccessfulToolCall/multiBlock": false,
- "hasSuccessfulToolCall/synthetic": false,
- "hasSuccessfulToolCall/system": false,
- "hasSuccessfulToolCall/composite": false,
+ "countToolCalls/basic": {
+  "Bash": 0,
+  "Read": 0
+ },
+ "countToolCalls/toolTurn": {
+  "Bash": 0,
+  "Read": 1
+ },
+ "countToolCalls/interrupted": {
+  "Bash": 1,
+  "Read": 0
+ },
+ "countToolCalls/attachments": {
+  "Bash": 1,
+  "Read": 0
+ },
+ "countToolCalls/thinking": {
+  "Bash": 0,
+  "Read": 0
+ },
+ "countToolCalls/whitespace": {
+  "Bash": 0,
+  "Read": 0
+ },
+ "countToolCalls/boundaries": {
+  "Bash": 0,
+  "Read": 0
+ },
+ "countToolCalls/virtual": {
+  "Bash": 0,
+  "Read": 0
+ },
+ "countToolCalls/multiBlock": {
+  "Bash": 0,
+  "Read": 0
+ },
+ "countToolCalls/synthetic": {
+  "Bash": 0,
+  "Read": 0
+ },
+ "countToolCalls/system": {
+  "Bash": 0,
+  "Read": 0
+ },
+ "countToolCalls/composite": {
+  "Bash": 1,
+  "Read": 1
+ },
+ "hasSuccessfulToolCall/basic": {
+  "Bash": false,
+  "Read": false
+ },
+ "hasSuccessfulToolCall/toolTurn": {
+  "Bash": false,
+  "Read": true
+ },
+ "hasSuccessfulToolCall/interrupted": {
+  "Bash": false,
+  "Read": false
+ },
+ "hasSuccessfulToolCall/attachments": {
+  "Bash": true,
+  "Read": false
+ },
+ "hasSuccessfulToolCall/thinking": {
+  "Bash": false,
+  "Read": false
+ },
+ "hasSuccessfulToolCall/whitespace": {
+  "Bash": false,
+  "Read": false
+ },
+ "hasSuccessfulToolCall/boundaries": {
+  "Bash": false,
+  "Read": false
+ },
+ "hasSuccessfulToolCall/virtual": {
+  "Bash": false,
+  "Read": false
+ },
+ "hasSuccessfulToolCall/multiBlock": {
+  "Bash": false,
+  "Read": false
+ },
+ "hasSuccessfulToolCall/synthetic": {
+  "Bash": false,
+  "Read": false
+ },
+ "hasSuccessfulToolCall/system": {
+  "Bash": false,
+  "Read": false
+ },
+ "hasSuccessfulToolCall/composite": {
+  "Bash": true,
+  "Read": true
+ },
  "findLastCompactBoundaryIndex/basic": -1,
  "findLastCompactBoundaryIndex/toolTurn": -1,
  "findLastCompactBoundaryIndex/interrupted": -1,
@@ -24012,32 +24343,32 @@
   "«u26»"
  ],
  "deriveShortMessageId/composite-map": [
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN",
-  "NaN"
+  "1fmss8",
+  "1fmtg7",
+  "1fmu46",
+  "1fmus5",
+  "1fmvg4",
+  "1fmw43",
+  "1fmws2",
+  "1fmxg1",
+  "1fmy40",
+  "1fmys0",
+  "1fmzfz",
+  "1fn03y",
+  "1fn0rx",
+  "1fn1fw",
+  "1fn23v",
+  "1fn2ru",
+  "1fn3ft",
+  "1fn43s",
+  "1fn4rr",
+  "1fn5fq",
+  "1fn63p",
+  "1fn6ro",
+  "1fn7fn",
+  "1fn83m",
+  "1fn8rl",
+  "1fn9fk"
  ],
  "getAssistantMessageText/composite-map": [
   null,
@@ -24724,7 +25055,13 @@
   }
  ],
  "createProgressMessage/basic": {
+  "data": {
+   "output": "x",
+   "type": "bash_progress"
+  },
+  "parentToolUseID": "toolu_0008",
   "timestamp": "«ts»",
+  "toolUseID": "toolu_0009",
   "type": "progress",
   "uuid": "«u1»"
  },
@@ -24735,11 +25072,9 @@
   "type": "tool_result"
  },
  "createSystemMessage/basic": {
-  "content": {
-   "content": "note",
-   "level": "info"
-  },
+  "content": "note",
   "isMeta": false,
+  "level": "info",
   "subtype": "informational",
   "timestamp": "«ts»",
   "type": "system",
@@ -24777,9 +25112,7 @@
   "uuid": "«u1»"
  },
  "createScheduledTaskFireMessage/basic": {
-  "content": {
-   "name": "daily"
-  },
+  "content": "daily",
   "isMeta": false,
   "subtype": "scheduled_task_fire",
   "timestamp": "«ts»",
@@ -24787,7 +25120,23 @@
   "uuid": "«u1»"
  },
  "createStopHookSummaryMessage/basic": {
-  "hookCount": "summary",
+  "hasOutput": true,
+  "hookCount": 2,
+  "hookErrors": [
+   "test exited 1"
+  ],
+  "hookInfos": [
+   {
+    "command": "lint",
+    "durationMs": 120
+   },
+   {
+    "command": "test",
+    "durationMs": 900
+   }
+  ],
+  "level": "info",
+  "preventedContinuation": false,
   "subtype": "stop_hook_summary",
   "timestamp": "«ts»",
   "type": "system",
@@ -24829,11 +25178,9 @@
   "timestamp": "«ts»",
   "type": "system",
   "uuid": "«u1»",
-  "writtenPaths": {
-   "writtenPaths": [
-    "/m.md"
-   ]
-  }
+  "writtenPaths": [
+   "/m.md"
+  ]
  },
  "createAgentsKilledMessage/basic": {
   "isMeta": false,
@@ -24844,8 +25191,12 @@
  },
  "createApiMetricsMessage/basic": {
   "isMeta": false,
+  "otps": 41.5,
   "subtype": "api_metrics",
   "timestamp": "«ts»",
+  "toolCount": 3,
+  "ttftMs": 320,
+  "turnDurationMs": 2200,
   "type": "system",
   "uuid": "«u1»"
  },
@@ -24860,16 +25211,13 @@
  },
  "createCompactBoundaryMessage/basic": {
   "compactMetadata": {
-   "preTokens": "«u1»",
-   "trigger": {
-    "preCompactTokenCount": 1000,
-    "trigger": "manual"
-   }
+   "preTokens": 1000,
+   "trigger": "manual"
   },
   "content": "Conversation compacted",
   "isMeta": false,
   "level": "info",
-  "logicalParentUuid": "«t1»",
+  "logicalParentUuid": "«u1»",
   "subtype": "compact_boundary",
   "timestamp": "«ts»",
   "type": "system",
@@ -24909,8 +25257,11 @@
   "uuid": "«u1»"
  },
  "createToolUseSummaryMessage/basic": {
-  "precedingToolUseIds": "summary",
-  "summary": "toolu_0001",
+  "precedingToolUseIds": [
+   "toolu_0001",
+   "toolu_0002"
+  ],
+  "summary": "summary",
   "timestamp": "«ts»",
   "type": "tool_use_summary",
   "uuid": "«u1»"
