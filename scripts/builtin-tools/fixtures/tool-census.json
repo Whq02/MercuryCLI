@@ -67,7 +67,7 @@
       "category": "read",
       "risk": "low",
       "cancellation": "block",
-      "deferred": false,
+      "deferred": true,
       "operations": null,
       "units": [
         "resource-inspection"
@@ -167,7 +167,7 @@
       "category": "read",
       "risk": "low",
       "cancellation": "block",
-      "deferred": false,
+      "deferred": true,
       "operations": null,
       "units": [
         "structural-mutation",
@@ -213,7 +213,7 @@
       "category": "read",
       "risk": "low",
       "cancellation": "block",
-      "deferred": false,
+      "deferred": true,
       "operations": null,
       "units": [
         "source-reading",
@@ -409,7 +409,7 @@
       "category": "read",
       "risk": "low",
       "cancellation": "block",
-      "deferred": false,
+      "deferred": true,
       "operations": null,
       "units": [
         "task-coordination"
@@ -952,7 +952,7 @@
       "category": "read",
       "risk": "low",
       "cancellation": "block",
-      "deferred": false,
+      "deferred": true,
       "operations": null,
       "units": [
         "resource-inspection"
@@ -1503,7 +1503,7 @@
       "category": "read",
       "risk": "low",
       "cancellation": "block",
-      "deferred": false,
+      "deferred": true,
       "operations": null,
       "units": [
         "task-coordination"
@@ -1633,7 +1633,7 @@
       "category": "read",
       "risk": "low",
       "cancellation": "block",
-      "deferred": false,
+      "deferred": true,
       "operations": [
         "start",
         "list",
@@ -1729,7 +1729,7 @@
       "category": "read",
       "risk": "low",
       "cancellation": "block",
-      "deferred": false,
+      "deferred": true,
       "operations": null,
       "units": [
         "scheduling"
@@ -1988,7 +1988,7 @@
       "category": "coord",
       "risk": "low",
       "cancellation": "block",
-      "deferred": false,
+      "deferred": true,
       "operations": null,
       "units": [
         "task-coordination"

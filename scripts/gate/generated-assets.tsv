@@ -26,3 +26,4 @@ THIRD_PARTY_NOTICES.md	bun scripts/distribution/generate-third-party-notices.ts	
 src/services/blender/bridgeFiles.generated.ts	node scripts/blender-bridge/regen-bridge.mjs	node scripts/blender-bridge/regen-bridge.mjs --check	assets/blender/bridge/**
 src/services/unity/bridgeFiles.generated.ts	node scripts/unity-bridge/regen-bridge.mjs	node scripts/unity-bridge/regen-bridge.mjs --check	assets/unity/bridge/**
 src/services/vulcan/addonFiles.generated.ts	node scripts/vulcan/regen-addon.mjs	node scripts/vulcan/regen-addon.mjs --check	assets/vulcan/addon/**
+scripts/builtin-tools/fixtures/tool-census.json scripts/builtin-tools/fixtures/tool-census.md	bun scripts/builtin-tools/census-gen.ts	bun scripts/builtin-tools/prove-builtin-tools-census.ts	src/Tool.ts src/tools.ts src/tools/** src/utils/capability/** scripts/builtin-tools/census-gen.ts
