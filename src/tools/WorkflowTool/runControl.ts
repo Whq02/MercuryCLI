@@ -4,6 +4,7 @@ import { mkdir, readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
+import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import { readRunClaim, readRunManifest, type RunClaim } from './runManifest.js'
 
 export const WORKFLOW_CONTROL_DIRNAME = 'control'
@@ -213,7 +214,7 @@ export async function requestWorkflowControl(
     settle(answer.result)
   }
   try {
-    watcher = watch(dir, () => void readAnswer())
+    watcher = watch(resolveWatchRoot(dir), () => void readAnswer())
     watcher.on('error', () => void readAnswer())
     await durableAtomicPublish(requestPath(runDir, id), wire)
     timer = setTimeout(
@@ -345,7 +346,7 @@ export async function serveWorkflowControl(opts: {
     }
   }
 
-  const watcher = watch(dir, () => void drain())
+  const watcher = watch(resolveWatchRoot(dir), () => void drain())
   watcher.on('error', opts.onError)
   const sweep = setInterval(() => void drain(), 1_000)
   sweep.unref?.()
