@@ -179,7 +179,7 @@ try {
   )
   const lines = singleText.split('\n')
   const pointerRow = lines.find(l => l.includes('❯'))
-  const tickRow = lines.find(l => l.includes('✔'))
+  const tickRow = lines.find(l => l.includes('✓'))
   check('single: the pointer paints on the highlighted row (B)', pointerRow !== undefined && pointerRow.includes('In-memory'), pointerRow ?? '(no pointer)')
   check('single: the tick paints on the selected row (E, with its text)', tickRow !== undefined && tickRow.includes('orchard'), tickRow ?? '(no tick)')
   check('single: they are different rows', pointerRow !== undefined && tickRow !== undefined && pointerRow !== tickRow)

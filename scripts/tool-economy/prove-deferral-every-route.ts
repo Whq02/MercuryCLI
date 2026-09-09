@@ -322,18 +322,18 @@ section('§6 THE OFF ARM — MERCURY_TOOL_DEFER=0 reproduces the inlined catalog
 
 section('§7 THE LANE CENSUS — every tools term is built from the plan')
 {
-  const lanes = [
+  const files = [
     'src/services/providers/openai/openaiCallModel.ts',
     'src/services/providers/zai/zaiCallModel.ts',
     'src/services/providers/openaicompat/compatChatCallModel.ts',
   ]
-  for (const lane of lanes) {
-    const src = readFileSync(join(ROOT, lane), 'utf8')
-    check(`${lane}: consumes the plan owner`, /planToolPayload\(\{/.test(src) && /from '\.\.\/toolEconomy\.js'/.test(src))
-    check(`${lane}: builds its tools term from plan.roster`, /buildApiShapedTools\(plan\.roster,/.test(src))
-    check(`${lane}: never hands the raw pool to its schema builder`, !/buildApiShapedTools\(tools,/.test(src))
-    check(`${lane}: renders admission records as text and folds the announcement`, new RegExp('renderAdmissionRecordsAsText\\(' + (lane.includes('/openai/') ? 'projectedMessages' : 'messages') + '\\)').test(src) && /foldAnnouncementIntoFirstUserTurn\(/.test(src))
-    check(`${lane}: the gate carries the admission predicate`, /deferredUnadmitted: plan\.isDeferredUnadmitted/.test(src) && /\{ deferredUnadmitted: ctx\.deferredUnadmitted \}/.test(src))
+  for (const file of files) {
+    const src = readFileSync(join(ROOT, file), 'utf8')
+    check(`${file}: consumes the plan owner`, /planToolPayload\(\{/.test(src) && /from '\.\.\/toolEconomy\.js'/.test(src))
+    check(`${file}: builds its tools term from plan.roster`, /buildApiShapedTools\(plan\.roster,/.test(src))
+    check(`${file}: never hands the raw pool to its schema builder`, !/buildApiShapedTools\(tools,/.test(src))
+    check(`${file}: renders admission records as text and folds the announcement`, new RegExp('renderAdmissionRecordsAsText\\(' + (file.includes('/openai/') ? 'projectedMessages' : 'messages') + '\\)').test(src) && /foldAnnouncementIntoFirstUserTurn\(/.test(src))
+    check(`${file}: the gate carries the admission predicate`, /deferredUnadmitted: plan\.isDeferredUnadmitted/.test(src) && /\{ deferredUnadmitted: ctx\.deferredUnadmitted \}/.test(src))
   }
   const core = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
   check('streamCore: consumes the plan owner', /planToolPayload\(\{/.test(core) && /const filteredTools: Tools = plan\.roster/.test(core))
