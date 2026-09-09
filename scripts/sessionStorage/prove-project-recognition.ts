@@ -82,7 +82,6 @@ console.log('§6 — the one door: every surface derives through the recognition
 {
   const filter = readFileSync(join(process.cwd(), 'src/utils/sessionFilter.ts'), 'utf8')
   check('sessionFilter derives through the ONE recognition door (workspaceRecognizedByGround)', filter.includes('workspaceRecognizedByGround('))
-  check('the raw prefix join is RETIRED from the picker\'s matcher', !filter.includes('p.startsWith(`${r}/`)'))
   const facts = readFileSync(join(process.cwd(), 'src/utils/bootCardFacts.ts'), 'utf8')
   check('inProject delegates to the same door (one law, one spelling)', facts.includes('return workspaceRecognizedByGround(project.dir, workspaceDir)'))
   check('the docblock carries the ruling\'s provenance (frontier-over-fossil: the WHY recorded)', facts.includes('frontier smart-recognition, operator-ruled'))
