@@ -346,7 +346,8 @@ section('§7 the never-auto-background list matches the command word')
 
 section('§1b the sandbox law — the artifact under node')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
-const nodeBin = Bun.which('node')
+const vendoredNode = join(ROOT, 'dist', 'vendor', 'node', 'bin', 'node')
+const nodeBin = existsSync(vendoredNode) ? vendoredNode : Bun.which('node')
 if (!existsSync(DIST) || !nodeBin) {
   console.log(`  [SKIP] ${existsSync(DIST) ? 'no node binary on PATH' : 'dist/mercury.mjs absent — build first (the gate prebuilds)'}`)
 } else {
@@ -354,6 +355,11 @@ if (!existsSync(DIST) || !nodeBin) {
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-cwd-')))
   const away = realpathSync(mkdtempSync('/tmp/bash-tool-seams-away-'))
   mkdirSync(join(cwd, 'sub'))
+  const globDir = join(cwd, 'a b&c')
+  const globOut = join(cwd, 'glob-out')
+  mkdirSync(globDir)
+  mkdirSync(globOut)
+  writeFileSync(join(globDir, 'x.m4a'), 'recorded-audio')
   const configDir = join(home, '.mercury')
   seedFirstRun(configDir, [cwd])
   writeFileSync(join(configDir, 'settings.json'), JSON.stringify(SANDBOX_SETTINGS, null, 2))
@@ -364,6 +370,9 @@ if (!existsSync(DIST) || !nodeBin) {
     { kind: 'tool_use', name: 'Bash', input: { command: `echo out > "${away}/out.txt"`, description: 'write outside' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: 'sleep 30', timeout: 3000, description: 'a command past its timeout' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: 't=$(mktemp) && echo "$t" && rm -f "$t" && echo "TMPDIR=$TMPDIR"', description: 'a temp file under the sandbox' }, whenModel: MODEL },
+    { kind: 'tool_use', name: 'Bash', input: { command: `cp "${globDir}/"*.m4a "${globOut}/" && echo 'copied:' && find "${globOut}" -name '*.m4a' | wc -l | tr -d ' '`, description: 'copy a quoted audio glob through a pipe' }, whenModel: MODEL },
+    { kind: 'tool_use', name: 'Bash', input: { command: `ls "${globDir}/"*.m4a | head -1`, description: 'list a quoted audio glob through a pipe' }, whenModel: MODEL },
+    { kind: 'tool_use', name: 'Bash', input: { command: `ls "${globDir}/"*.none 2>&1 | head -1`, description: 'retain an unmatched quoted glob in the error text' }, whenModel: MODEL },
     { kind: 'text', text: 'sandbox-probe: done', whenModel: MODEL },
     { kind: 'text', text: 'sandbox-probe: done', whenModel: MODEL },
   ]
@@ -413,7 +422,7 @@ if (!existsSync(DIST) || !nodeBin) {
       for (const block of message.content as Array<{ type?: string; content?: unknown; is_error?: boolean }>) {
         if (block.type !== 'tool_result') continue
         const text = typeof block.content === 'string' ? block.content : Array.isArray(block.content) ? (block.content as Array<{ text?: string }>).map(b => b.text ?? '').join('') : ''
-        if (results.length < 5 && !results.some(r => r.text === text && r.isError === (block.is_error === true))) results.push({ text, isError: block.is_error === true })
+        if (results.length < 8 && !results.some(r => r.text === text && r.isError === (block.is_error === true))) results.push({ text, isError: block.is_error === true })
       }
     }
   }
@@ -425,9 +434,12 @@ if (!existsSync(DIST) || !nodeBin) {
     const result = blocks.find(b => b.type === 'tool_result')
     if (result) note(`request ${index + 1} carried a tool result${result.is_error ? ' (error)' : ''}: ${JSON.stringify(typeof result.content === 'string' ? result.content.slice(0, 120) : JSON.stringify(result.content).slice(0, 120))}`)
   }
-  check('the artifact ran the five calls and closed the turn', outcome.exit === 0 && /sandbox-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
-  check('the artifact showed the model five tool results', results.length === 5, results.map(r => `${r.isError ? 'ERR' : 'ok'}:${JSON.stringify(r.text.slice(0, 60))}`).join(' '))
-  const [first, second, third, fourth, fifth] = results
+  check('the artifact ran the eight calls and closed the turn', outcome.exit === 0 && /sandbox-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
+  check('the artifact showed the model eight tool results', results.length === 8, results.map(r => `${r.isError ? 'ERR' : 'ok'}:${JSON.stringify(r.text.slice(0, 60))}`).join(' '))
+  const [first, second, third, fourth, fifth, copied, listed, noMatch] = results
+  check('artifact: a quoted space-and-ampersand audio glob copies through a pipeline', copied !== undefined && !copied.isError && copied.text.split('\n').slice(0, 2).join('\n') === 'copied:\n1' && existsSync(join(globOut, 'x.m4a')) && readFileSync(join(globOut, 'x.m4a'), 'utf8') === 'recorded-audio', JSON.stringify(copied))
+  check('artifact: a quoted audio glob lists through a pipeline', listed !== undefined && !listed.isError && listed.text.split('\n')[0] === join(globDir, 'x.m4a'), JSON.stringify(listed))
+  check('artifact: an unmatched quoted glob retains its complete directory in the error text', noMatch !== undefined && noMatch.text.includes('a b&c/*.none'), JSON.stringify(noMatch))
   const fifthPath = fifth?.text.trim().split('\n')[0] ?? ''
   check("artifact: the model's timeout is honoured — the sleep is stopped at three seconds with the note", fourth !== undefined && /Command timed out after 3s/.test(fourth.text) && outcome.ms < 20_000, `${outcome.ms}ms ${JSON.stringify(fourth?.text.slice(0, 160))}`)
   check('artifact: …on the kill path — an error result, never moved to the background', fourth !== undefined && fourth.isError && !/moved to the background/.test(fourth.text), JSON.stringify(fourth?.text.slice(0, 160)))
