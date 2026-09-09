@@ -149,7 +149,7 @@ t.section('§5 — bake contract integrity')
   )
 }
 
-t.section('§6 — the flat-ground pair-law (round 7: the vignette sampler is retired)')
+t.section('§6 — the flat-ground pair-law (no vignette sampler)')
 {
   {
     const rgbN = rgb(NIGHT)
@@ -197,7 +197,7 @@ t.section('§6 — the flat-ground pair-law (round 7: the vignette sampler is re
   {
     const driver = readFileSync(DRIVER_PATH, 'utf8')
     t.check(
-      'no vignette machinery survives in the pair (declaration census — prose mentions of the retirement are fine)',
+      'no vignette machinery in the pair (declaration census)',
       !src.includes('function vignetteToneAt') &&
         !src.includes('function vignetteCellTone') &&
         !src.includes('const GRAD_BAND =') &&
@@ -257,7 +257,7 @@ t.section('§7 — GLOW: accent families + the mirrored greeting law')
     `${core.DEFAULT_CRITTER} vs ${cd.DEFAULT_CRITTER_KEY}`,
   )
   t.check(
-    "accentFamilyKeyOf normalises like sessionAccent's poolKeyOr (retired spellings → the successor; keys with none → the default)",
+    "accentFamilyKeyOf normalises like sessionAccent's poolKeyOr (superseded creature spellings → the successor; keys with none → the default)",
     core.accentFamilyKeyOf('mantis') === 'clam' &&
       core.accentFamilyKeyOf('mantis shrimp') === 'clam' &&
       core.accentFamilyKeyOf('dragon') === cd.DEFAULT_CRITTER_KEY &&

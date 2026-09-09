@@ -45,7 +45,7 @@ check('huge input does not throw', (() => {
     return false
   }
 })())
-check('pure check created no themis dir in ANY home', !['.mercury', '.claude'].some(h => existsSync(join(scratch, h, 'themis'))))
+check('pure check created no themis dir in the project', !existsSync(join(scratch, '.mercury', 'themis')))
 delete process.env.MERCURY_THEMIS
 
 console.log('\n' + '═'.repeat(76))

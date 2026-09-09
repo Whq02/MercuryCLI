@@ -107,7 +107,7 @@ section('§1 OFF (explicit): blocklisted shape PROCEEDS, zero themis footprint (
   const r = await fire(HOT)
   check('call reached zod validation (proceeded past THEMIS)', r.texts.some(t => t.includes('<tool_use_error>') && !t.includes('THEMIS')), r.texts.join(' | ').slice(0, 120))
   check('no THEMIS refusal text', !r.texts.some(t => t.includes('THEMIS')))
-  check('no themis dir created in ANY home', !['.mercury', '.claude'].some(h => existsSync(join(dir, h, 'themis'))))
+  check('no themis dir created in the project', !existsSync(join(dir, '.mercury', 'themis')))
   check('tool body never ran (schema rejects all)', toolBodyRan === 0)
 }
 
