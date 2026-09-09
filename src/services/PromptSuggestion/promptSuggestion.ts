@@ -220,7 +220,7 @@ type FilterReason =
   | 'multiple_sentences'
   | 'has_formatting'
   | 'evaluative'
-  | 'claude_voice'
+  | 'assistant_voice'
   | 'empty'
 
 function filterReasonFor(suggestion: string): FilterReason | undefined {
@@ -252,7 +252,7 @@ function filterReasonFor(suggestion: string): FilterReason | undefined {
   if (/[.!?]\s+[A-Z]/.test(trimmed)) return 'multiple_sentences'
   if (trimmed.includes('\n') || trimmed.includes('*')) return 'has_formatting'
   if (EVALUATIVE_TOKENS.some(token => lowered.includes(token))) return 'evaluative'
-  if (ASSISTANT_VOICE_OPENERS.some(opener => lowered.startsWith(opener))) return 'claude_voice'
+  if (ASSISTANT_VOICE_OPENERS.some(opener => lowered.startsWith(opener))) return 'assistant_voice'
   return undefined
 }
 
