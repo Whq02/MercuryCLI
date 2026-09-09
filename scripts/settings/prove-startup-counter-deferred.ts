@@ -17,7 +17,7 @@ const ROOT = join(HERE, '..', '..')
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
 const SRC = join(ROOT, 'src')
 
-function runIn(body: string): Record<string, unknown> {
+function runIn(body: string, setup = ''): Record<string, unknown> {
   const home = mkdtempSync(join(tmpdir(), 'startup-counter-deferred-'))
   const src = `
     process.env.MERCURY_CONFIG_DIR = ${JSON.stringify(home)}
@@ -25,6 +25,7 @@ function runIn(body: string): Record<string, unknown> {
     delete process.env.NODE_ENV
     delete process.env.CI
     const fs = await import('node:fs')
+    ${setup}
     const env = await import(${JSON.stringify(join(SRC, 'utils/env.ts'))})
     const g = await import(${JSON.stringify(join(SRC, 'utils/config/globalConfig.ts'))})
     g.enableConfigs()
@@ -123,6 +124,78 @@ section('D4 two deferred updates stack — both apply once, one write')
   check('one flush publishes both in one write (5, light)', r.diskCount === 5 && r.diskTheme === 'light' && r.writes === 2, `count=${String(r.diskCount)} theme=${String(r.diskTheme)} writes=${String(r.writes)}`)
 }
 
+section('pending global changes survive a project-config save')
+for (const fallback of [false, true]) for (const changed of [false, true]) {
+  const r = runIn(`
+    const p = await import(${JSON.stringify(join(SRC, 'utils/config/projectConfig.ts'))})
+    const workspace = process.env.MERCURY_CONFIG_DIR
+    g.saveGlobalConfig(c => ({ ...c, numStartups: 4 }))
+    g.saveGlobalConfigDeferred(bump)
+    p.saveProjectConfigForWorkspace(workspace, c => ${changed} ? { ...c, hasCompletedProjectOnboarding: true } : c)
+    out.diskCount = readDisk()?.numStartups
+    out.cacheCount = g.getGlobalConfig().numStartups
+    out.project = p.getProjectConfigForWorkspace(workspace).hasCompletedProjectOnboarding
+    out.projectExists = Boolean(readDisk()?.projects?.[p.projectConfigKeyForWorkspace(workspace)])
+    out.pending = g.hasPendingDeferredGlobalConfigSaves()
+    out.writes = g.getGlobalConfigWriteCount()
+    g.flushDeferredGlobalConfigSaves()
+    out.afterFlush = readDisk()?.numStartups
+    out.writesAfterFlush = g.getGlobalConfigWriteCount()
+    out.fallbacks = g.getConfigLocklessFallbackCount()
+  `, fallback ? `
+    const { mock } = await import('bun:test')
+    mock.module(${JSON.stringify(join(SRC, 'utils/lockfile.ts'))}, () => ({ lockSync() { throw Object.assign(new Error('fixture lock unavailable'), { code: 'ENOTSUP' }) } }))
+  ` : '')
+  const label = `${fallback ? 'fallback' : 'locked'} / ${changed ? 'changed project' : 'unchanged project'}`
+  check(`${label}: the project write carries the pending global update`, r.diskCount === 5 && r.cacheCount === 5 && (r.project === true) === changed && r.projectExists === changed, JSON.stringify(r))
+  check(`${label}: the project publish clears pending changes without applying them twice`, r.pending === false && r.writes === 2 && r.writesAfterFlush === 2 && r.afterFlush === 5, JSON.stringify(r))
+  check(`${label}: the intended publication path was exercised`, fallback ? Number(r.fallbacks) >= 2 : r.fallbacks === 0, JSON.stringify(r))
+}
+
+section('another process refresh preserves the pending cached view')
+{
+  const r = runIn(`
+    const io = await import(${JSON.stringify(join(SRC, 'utils/fsOperations.ts'))})
+    g.getGlobalConfig()
+    g.saveGlobalConfig(c => ({ ...c, numStartups: 4 }))
+    g.saveGlobalConfigDeferred(bump)
+    const external = { ...readDisk(), theme: 'light' }
+    fs.writeFileSync(file, JSON.stringify(external))
+    const implementation = io.getFsImplementation()
+    io.setFsImplementation({ ...implementation, readFile: async () => JSON.stringify(external) })
+    refreshConfig({ mtimeMs: Date.now() + 1000 })
+    await Promise.resolve()
+    out.cacheCount = g.getGlobalConfig().numStartups
+    out.theme = g.getGlobalConfig().theme
+    out.pending = g.hasPendingDeferredGlobalConfigSaves()
+    out.writes = g.getGlobalConfigWriteCount()
+    io.setOriginalFsImplementation()
+    g.flushDeferredGlobalConfigSaves()
+    out.diskCount = readDisk()?.numStartups
+    out.diskTheme = readDisk()?.theme
+    out.writesAfterFlush = g.getGlobalConfigWriteCount()
+  `, `
+    const { mock } = await import('bun:test')
+    let refreshConfig
+    mock.module('fs', () => ({ ...fs, watchFile: (_file, _options, callback) => { refreshConfig = callback }, unwatchFile: () => {} }))
+  `)
+  check('a fresh disk view includes the pending update for cache readers', r.theme === 'light' && r.cacheCount === 5 && r.pending === true && r.writes === 1, JSON.stringify(r))
+  check('the later flush applies it once to the external write', r.diskCount === 5 && r.diskTheme === 'light' && r.writesAfterFlush === 2, JSON.stringify(r))
+}
+
+section('deferred flush preserves project-history cleanup')
+{
+  const r = runIn(`
+    fs.writeFileSync(file, JSON.stringify({ numStartups: 4, projects: { fixture: { history: ['old result'] } } }))
+    g.saveGlobalConfigDeferred(bump)
+    out.cacheHistory = g.getGlobalConfig().projects.fixture.history ?? null
+    g.flushDeferredGlobalConfigSaves()
+    out.diskHistory = readDisk()?.projects.fixture.history ?? null
+    out.diskCount = readDisk()?.numStartups
+  `)
+  check('history remains outside both the deferred cache and the published config', r.cacheHistory === null && r.diskHistory === null && r.diskCount === 5, JSON.stringify(r))
+}
+
 section('D5 wiring — the boot band and the background node')
 {
   const main = readFileSync(join(SRC, 'main.tsx'), 'utf8')
@@ -139,7 +212,7 @@ section('D5 wiring — the boot band and the background node')
   const barrel = readFileSync(join(SRC, 'utils/config.ts'), 'utf8')
   check('the config barrel exports the deferred door and its flush', barrel.includes('saveGlobalConfigDeferred,') && barrel.includes('flushDeferredGlobalConfigSaves,'))
   const store = readFileSync(join(SRC, 'utils/config/globalConfig.ts'), 'utf8')
-  check('both save branches fold the pending updates before applying the caller\'s updater', (store.match(/updater\(foldPendingUpdaters\((?:current|currentConfig)\)\)/g) ?? []).length === 2)
+  check('both save branches fold the pending updates before applying the caller\'s updater', store.includes('mergeFn(file === getGlobalMercuryFile()') && store.includes('foldPendingUpdaters(currentConfig as GlobalConfig)') && store.includes('updater(foldPendingUpdaters(currentConfig))'))
   check('a landed write clears the pending list on both branches', (store.match(/pendingDeferredUpdaters = \[\]/g) ?? []).length === 2)
 }
 

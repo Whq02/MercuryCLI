@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/bootstrap/state*
-# gate-watch: src/utils/settings/**
+# gate-watch: src/utils/settings/** src/utils/config/** src/utils/config.ts
 # gate-watch: src/migrations/**
 # gate-watch: src/components/Settings/** src/services/providers/providerUsage* src/commands/usage/**
 # gate-watch: src/services/providers/accountSlots* src/components/mercury-ui/parity/AccountView*
