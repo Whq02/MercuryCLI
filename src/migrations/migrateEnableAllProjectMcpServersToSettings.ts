@@ -1,4 +1,4 @@
-import { getCurrentProjectConfig, saveCurrentProjectConfig } from '../utils/config/projectConfig.js'
+import { getCurrentProjectConfig, saveCurrentProjectConfigDeferred } from '../utils/config/projectConfig.js'
 import { getSettingsForSource, updateSettingsForSource } from '../utils/settings/settings.js'
 import { logError } from '../utils/log.js'
 import { settingsWriteLanded } from './settingsWriteLanded.js'
@@ -40,7 +40,7 @@ export function migrateEnableAllProjectMcpServersToSettings(): boolean {
       }
     }
 
-    saveCurrentProjectConfig(current => {
+    saveCurrentProjectConfigDeferred(current => {
       const next = { ...current }
       delete next.enableAllProjectMcpServers
       delete next.enabledMcpjsonServers

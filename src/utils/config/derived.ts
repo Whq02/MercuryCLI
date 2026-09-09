@@ -9,7 +9,7 @@ import {
 import type { MemoryType } from '../memory/types.js'
 import { getManagedFilePath } from '../settings/managedPath.js'
 
-import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from './globalConfig.js'
+import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfigDeferred } from './globalConfig.js'
 
 export function getRemoteControlAtStartup(): boolean {
   const explicit = getGlobalConfig().remoteControlAtStartup
@@ -54,7 +54,7 @@ export function recordFirstStartTime(): void {
   const config = getGlobalConfig()
   if (!config.firstStartTime) {
     const firstStartTime = new Date().toISOString()
-    saveGlobalConfig(current => ({
+    saveGlobalConfigDeferred(current => ({
       ...current,
       firstStartTime: current.firstStartTime ?? firstStartTime,
     }))

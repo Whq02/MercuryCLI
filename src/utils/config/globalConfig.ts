@@ -49,7 +49,7 @@ function armDeferredExitFlush(): void {
   deferredExitFlushArmed = true
   process.once('exit', () => {
     try {
-      flushDeferredGlobalConfigSaves()
+      if (hasPendingDeferredGlobalConfigSaves()) saveGlobalConfig(current => current)
     } catch {
     }
   })
@@ -79,9 +79,21 @@ export function saveGlobalConfigDeferred(
   })
 }
 
-export function flushDeferredGlobalConfigSaves(): void {
-  if (pendingDeferredUpdaters.length === 0) return
-  saveGlobalConfig(current => current)
+export async function flushDeferredGlobalConfigSaves(): Promise<void> {
+  for (let attempt = 0; attempt < 12; attempt++) {
+    if (pendingDeferredUpdaters.length === 0) return
+    try {
+      saveConfigWithLock(getGlobalMercuryFile(), createDefaultGlobalConfig, current => current, false)
+      return
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException | null)?.code !== 'ELOCKED') {
+        logError(error)
+        return
+      }
+      await new Promise<void>(resolve => setTimeout(resolve, Math.min(1000, 15 * 2 ** attempt)))
+    }
+  }
+  if (pendingDeferredUpdaters.length > 0) noteConfigContentionRefusal('flushDeferredGlobalConfigSaves')
 }
 
 export function hasPendingDeferredGlobalConfigSaves(): boolean {
@@ -437,6 +449,7 @@ export function saveConfigWithLock<A extends object>(
   file: string,
   createDefault: () => A,
   mergeFn: (current: A) => A,
+  waitForLock = true,
 ): boolean {
   const defaultConfig = createDefault()
   const dir = dirname(file)
@@ -464,7 +477,7 @@ export function saveConfigWithLock<A extends object>(
         try {
           return takeLock()
         } catch (err) {
-          if ((err as NodeJS.ErrnoException | null)?.code !== 'ELOCKED') throw err
+          if (!waitForLock || (err as NodeJS.ErrnoException | null)?.code !== 'ELOCKED') throw err
           lastContention = err
           const backoffMs = Math.min(1000, 15 * 2 ** attempt)
           Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, backoffMs)

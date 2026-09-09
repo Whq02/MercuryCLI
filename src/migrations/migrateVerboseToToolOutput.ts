@@ -1,9 +1,9 @@
-import { saveGlobalConfig } from '../utils/config.js'
+import { saveGlobalConfigDeferred } from '../utils/config.js'
 
 const RETIRED_KEY = 'verbose'
 
 export function migrateVerboseToToolOutput(): void {
-  saveGlobalConfig(current => {
+  saveGlobalConfigDeferred(current => {
     const record = current as Record<string, unknown>
     if (!(RETIRED_KEY in record)) return current
     const next: Record<string, unknown> = {

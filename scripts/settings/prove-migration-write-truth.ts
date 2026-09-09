@@ -85,6 +85,7 @@ console.log('L2 A.1 auto-update opt-out and A.2 dangerous-mode acceptance — a 
     delete process.env.MERCURY_AUTOUPDATE
     out.v1 = a1.migrateAutoUpdatesToSettings()
     out.v2 = a2.migrateBypassPermissionsAcceptedToSettings()
+    await g.flushDeferredGlobalConfigSaves()
     const cfg = JSON.parse(raw(configFile))
     out.autoUpdates = cfg.autoUpdates
     out.accepted = cfg.bypassPermissionsModeAccepted
@@ -111,6 +112,7 @@ console.log('L4 controls — with healthy files every migration relocates, strip
     fs.writeFileSync(userSettingsPath, '{}\\n')
     out.v1 = a1.migrateAutoUpdatesToSettings()
     out.v3 = a3.migrateEnableAllProjectMcpServersToSettings()
+    await g.flushDeferredGlobalConfigSaves()
     const cfg = JSON.parse(raw(configFile))
     out.autoUpdates = cfg.autoUpdates ?? null
     out.projectEnabled = p.getCurrentProjectConfig().enabledMcpjsonServers ?? null

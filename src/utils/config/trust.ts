@@ -7,7 +7,7 @@ import { normalizePathForConfigKey } from '../path.js'
 
 import { DEFAULT_PROJECT_CONFIG } from './schema.js'
 import { getGlobalConfig, saveGlobalConfig } from './globalConfig.js'
-import { getProjectPathForConfig, saveCurrentProjectConfig } from './projectConfig.js'
+import { getProjectPathForConfig, saveCurrentProjectConfigDeferred } from './projectConfig.js'
 
 let _trustAccepted = false
 
@@ -129,7 +129,7 @@ export function recordPermissionPosture(input: {
           trustDialogAccepted: checkHasTrustDialogAccepted(),
           recordedAtMs: Date.now(),
         }
-    saveCurrentProjectConfig(current => {
+    saveCurrentProjectConfigDeferred(current => {
       const prev = current.permissionPosture
       if (
         prev &&

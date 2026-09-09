@@ -75,7 +75,7 @@ import {
 import { launchInvalidSettingsDialog, launchResumeChooser } from './dialogLaunchers.js'
 import { hasFirstPartyCredential, validateForceLoginOrg } from './utils/auth.js'
 import { startBackgroundHousekeeping } from './utils/backgroundHousekeeping.js'
-import { getGlobalConfig, saveGlobalConfig, saveGlobalConfigDeferred, flushDeferredGlobalConfigSaves, binaryName, getRemoteControlAtStartup, getCurrentProjectConfig } from './utils/config.js'
+import { getGlobalConfig, saveGlobalConfigDeferred, flushDeferredGlobalConfigSaves, binaryName, getRemoteControlAtStartup, getCurrentProjectConfig } from './utils/config.js'
 import { registerSession, updateSessionName } from './utils/concurrentSessions.js'
 import { lastCrashReportPath } from './utils/crashReport.js'
 import { logForDebugging } from './utils/debug.js'
@@ -202,7 +202,7 @@ function runMigrationsIfNeeded(): void {
       )
     }
     if (!incomplete && getGlobalConfig().migrationVersion !== MIGRATION_VERSION) {
-      saveGlobalConfig(current =>
+      saveGlobalConfigDeferred(current =>
         current.migrationVersion !== MIGRATION_VERSION
           ? { ...current, migrationVersion: MIGRATION_VERSION }
           : current,
@@ -1868,8 +1868,8 @@ async function interactiveLaunch(args: {
   saveGlobalConfigDeferred(current => ({ ...current, numStartups: (current.numStartups ?? 0) + 1 }))
   clearBootAttempts()
   armProvisionalSessionReconcile()
-  registerBackgroundNode('startup-records', () => {
-    flushDeferredGlobalConfigSaves()
+  registerBackgroundNode('startup-records', async () => {
+    await flushDeferredGlobalConfigSaves()
     try {
       recordInvocation()
     } catch {

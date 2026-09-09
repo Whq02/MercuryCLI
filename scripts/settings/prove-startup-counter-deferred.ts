@@ -36,7 +36,7 @@ function runIn(body: string, setup = ''): Record<string, unknown> {
     ${body}
     process.stdout.write(JSON.stringify(out))
   `
-  const res = spawnSync(BUN, ['-e', src], { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '' } })
+  const res = spawnSync(BUN, ['-e', src], { cwd: home, encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '' } })
   if (res.status !== 0) throw new Error(`scenario failed: ${res.stderr.slice(-800)}`)
   const line = res.stdout.trim().split('\n').pop() ?? '{}'
   return JSON.parse(line) as Record<string, unknown>
@@ -52,12 +52,12 @@ section('D1 a deferred save: cache now, zero writes; the flush publishes once')
     out.diskAfterDeferred = readDisk()?.numStartups
     out.writesAfterDeferred = g.getGlobalConfigWriteCount()
     out.pendingAfterDeferred = g.hasPendingDeferredGlobalConfigSaves()
-    g.flushDeferredGlobalConfigSaves()
+    await g.flushDeferredGlobalConfigSaves()
     out.cacheAfterFlush = g.getGlobalConfig().numStartups
     out.diskAfterFlush = readDisk()?.numStartups
     out.writesAfterFlush = g.getGlobalConfigWriteCount()
     out.pendingAfterFlush = g.hasPendingDeferredGlobalConfigSaves()
-    g.flushDeferredGlobalConfigSaves()
+    await g.flushDeferredGlobalConfigSaves()
     out.writesAfterSecondFlush = g.getGlobalConfigWriteCount()
   `)
   check('the seed landed with one write', r.writesSeeded === 1, `writes=${String(r.writesSeeded)}`)
@@ -83,7 +83,7 @@ section('D2 a save in between folds the pending update into its own write')
     out.cacheCount = g.getGlobalConfig().numStartups
     out.writes = g.getGlobalConfigWriteCount()
     out.pending = g.hasPendingDeferredGlobalConfigSaves()
-    g.flushDeferredGlobalConfigSaves()
+    await g.flushDeferredGlobalConfigSaves()
     out.writesAfterFlush = g.getGlobalConfigWriteCount()
     out.diskCountAfterFlush = readDisk()?.numStartups
   `)
@@ -99,7 +99,7 @@ section('D3 the same-reference law: a no-change updater schedules nothing')
     g.saveGlobalConfig(c => ({ ...c, numStartups: 4 }))
     g.saveGlobalConfigDeferred(c => c)
     out.pending = g.hasPendingDeferredGlobalConfigSaves()
-    g.flushDeferredGlobalConfigSaves()
+    await g.flushDeferredGlobalConfigSaves()
     out.writes = g.getGlobalConfigWriteCount()
     out.disk = readDisk()?.numStartups
   `)
@@ -114,7 +114,7 @@ section('D4 two deferred updates stack — both apply once, one write')
     g.saveGlobalConfigDeferred(c => ({ ...c, theme: 'light' }))
     out.cacheCount = g.getGlobalConfig().numStartups
     out.cacheTheme = g.getGlobalConfig().theme
-    g.flushDeferredGlobalConfigSaves()
+    await g.flushDeferredGlobalConfigSaves()
     const disk = readDisk()
     out.diskCount = disk?.numStartups
     out.diskTheme = disk?.theme
@@ -138,7 +138,7 @@ for (const fallback of [false, true]) for (const changed of [false, true]) {
     out.projectExists = Boolean(readDisk()?.projects?.[p.projectConfigKeyForWorkspace(workspace)])
     out.pending = g.hasPendingDeferredGlobalConfigSaves()
     out.writes = g.getGlobalConfigWriteCount()
-    g.flushDeferredGlobalConfigSaves()
+    await g.flushDeferredGlobalConfigSaves()
     out.afterFlush = readDisk()?.numStartups
     out.writesAfterFlush = g.getGlobalConfigWriteCount()
     out.fallbacks = g.getConfigLocklessFallbackCount()
@@ -170,7 +170,7 @@ section('another process refresh preserves the pending cached view')
     out.pending = g.hasPendingDeferredGlobalConfigSaves()
     out.writes = g.getGlobalConfigWriteCount()
     io.setOriginalFsImplementation()
-    g.flushDeferredGlobalConfigSaves()
+    await g.flushDeferredGlobalConfigSaves()
     out.diskCount = readDisk()?.numStartups
     out.diskTheme = readDisk()?.theme
     out.writesAfterFlush = g.getGlobalConfigWriteCount()
@@ -189,11 +189,124 @@ section('deferred flush preserves project-history cleanup')
     fs.writeFileSync(file, JSON.stringify({ numStartups: 4, projects: { fixture: { history: ['old result'] } } }))
     g.saveGlobalConfigDeferred(bump)
     out.cacheHistory = g.getGlobalConfig().projects.fixture.history ?? null
-    g.flushDeferredGlobalConfigSaves()
+    await g.flushDeferredGlobalConfigSaves()
     out.diskHistory = readDisk()?.projects.fixture.history ?? null
     out.diskCount = readDisk()?.numStartups
   `)
   check('history remains outside both the deferred cache and the published config', r.cacheHistory === null && r.diskHistory === null && r.diskCount === 5, JSON.stringify(r))
+}
+
+section('startup metadata remains usable while another process holds the config lock')
+{
+  const r = runIn(`
+    const lock = await import(${JSON.stringify(join(SRC, 'utils/lockfile.ts'))})
+    const derived = await import(${JSON.stringify(join(SRC, 'utils/config/derived.ts'))})
+    const trust = await import(${JSON.stringify(join(SRC, 'utils/config/trust.ts'))})
+    const project = await import(${JSON.stringify(join(SRC, 'utils/config/projectConfig.ts'))})
+    const bridge = await import(${JSON.stringify(join(SRC, 'migrations/migrateReplBridgeEnabledToRemoteControlAtStartup.ts'))})
+    const verbose = await import(${JSON.stringify(join(SRC, 'migrations/migrateVerboseToToolOutput.ts'))})
+    const updates = await import(${JSON.stringify(join(SRC, 'migrations/migrateAutoUpdatesToSettings.ts'))})
+    g.saveGlobalConfig(c => ({ ...c, numStartups: 4, replBridgeEnabled: true, verbose: true, autoUpdates: false }))
+    const release = lock.lockSync(file, { realpath: false })
+    const wait = Atomics.wait
+    let waits = 0
+    let released = false
+    let timer
+    Atomics.wait = () => { waits++; throw Object.assign(new Error('unexpected synchronous lock wait'), { code: 'ELOCKED' }) }
+    try {
+      derived.recordFirstStartTime()
+      bridge.migrateReplBridgeEnabledToRemoteControlAtStartup()
+      verbose.migrateVerboseToToolOutput()
+      out.migration = updates.migrateAutoUpdatesToSettings()
+      trust.recordPermissionPosture({ bypassArmed: true, envArmed: true, flagArmed: false, dialogSuppressed: true })
+      out.posture = project.getCurrentProjectConfig().permissionPosture?.mode
+      out.trusted = trust.checkHasTrustDialogAccepted()
+      out.cached = {
+        started: typeof g.getGlobalConfig().firstStartTime === 'string',
+        remote: g.getGlobalConfig().remoteControlAtStartup,
+        output: g.getGlobalConfig().toolOutput,
+        oldUpdates: 'autoUpdates' in g.getGlobalConfig(),
+      }
+      out.writesBefore = g.getGlobalConfigWriteCount()
+      timer = setTimeout(() => { release(); released = true }, 25)
+      const flushing = g.flushDeferredGlobalConfigSaves()
+      out.pendingWhileLocked = g.hasPendingDeferredGlobalConfigSaves()
+      await flushing
+      out.released = released
+      out.waits = waits
+      out.writesAfter = g.getGlobalConfigWriteCount()
+      out.disk = readDisk()
+      out.diskPosture = out.disk.projects?.[project.getProjectPathForConfig()]?.permissionPosture?.mode
+      out.pendingAfter = g.hasPendingDeferredGlobalConfigSaves()
+    } finally {
+      clearTimeout(timer)
+      if (!released) release()
+      Atomics.wait = wait
+    }
+  `)
+  const cache = r.cached as { started: boolean; remote: boolean; output: string; oldUpdates: boolean }
+  const disk = r.disk as Record<string, unknown>
+  check('startup readers see first-start and migrated settings without a write', cache.started && cache.remote === true && cache.output === 'full' && !cache.oldUpdates && r.migration === true && r.writesBefore === 1, JSON.stringify(r))
+  check('the diagnostic posture is cached and persisted without granting trust', r.posture === 'bypass' && r.diskPosture === 'bypass' && r.trusted === false, JSON.stringify(r))
+  check('contention yields to the lock-release callback and never uses Atomics.wait', r.pendingWhileLocked === true && r.released === true && r.waits === 0, JSON.stringify(r))
+  check('one later publish carries all startup metadata and clears the queue', r.writesAfter === 2 && r.pendingAfter === false && typeof disk.firstStartTime === 'string' && disk.remoteControlAtStartup === true && disk.toolOutput === 'full' && !('verbose' in disk) && !('replBridgeEnabled' in disk) && !('autoUpdates' in disk), JSON.stringify(r))
+}
+
+section('exhausted background retries preserve pending data for a later save')
+{
+  const r = runIn(`
+    const lock = await import(${JSON.stringify(join(SRC, 'utils/lockfile.ts'))})
+    g.saveGlobalConfig(c => ({ ...c, numStartups: 4 }))
+    g.saveGlobalConfigDeferred(bump)
+    const release = lock.lockSync(file, { realpath: false })
+    const schedule = globalThis.setTimeout
+    let callbacks = 0
+    globalThis.setTimeout = (callback, delay, ...args) => schedule(() => { callbacks++; callback(...args) }, 0)
+    try {
+      await g.flushDeferredGlobalConfigSaves()
+      out.refusals = g.getConfigContentionRefusalCount()
+      out.callbacks = callbacks
+      out.pending = g.hasPendingDeferredGlobalConfigSaves()
+      out.cache = g.getGlobalConfig().numStartups
+      out.disk = readDisk()?.numStartups
+      out.writes = g.getGlobalConfigWriteCount()
+    } finally {
+      globalThis.setTimeout = schedule
+      release()
+    }
+    fs.writeFileSync(file, JSON.stringify({ ...readDisk(), theme: 'light' }))
+    await Promise.all([g.flushDeferredGlobalConfigSaves(), g.flushDeferredGlobalConfigSaves()])
+    out.after = readDisk()
+    out.pendingAfter = g.hasPendingDeferredGlobalConfigSaves()
+    out.writesAfter = g.getGlobalConfigWriteCount()
+  `)
+  const after = r.after as Record<string, unknown>
+  check('exhaustion records a refusal without publishing or discarding the update', r.refusals === 1 && Number(r.callbacks) > 0 && r.pending === true && r.cache === 5 && r.disk === 4 && r.writes === 1, JSON.stringify(r))
+  check('later flushes publish once and retain an intervening external change', after.numStartups === 5 && after.theme === 'light' && r.pendingAfter === false && r.writesAfter === 2, JSON.stringify(r))
+}
+
+section('process exit publishes startup metadata without the background task')
+{
+  const r = runIn(`
+    const derived = await import(${JSON.stringify(join(SRC, 'utils/config/derived.ts'))})
+    const trust = await import(${JSON.stringify(join(SRC, 'utils/config/trust.ts'))})
+    const project = await import(${JSON.stringify(join(SRC, 'utils/config/projectConfig.ts'))})
+    g.saveGlobalConfig(c => ({ ...c, numStartups: 4 }))
+    derived.recordFirstStartTime()
+    trust.recordPermissionPosture({ bypassArmed: false, envArmed: false, flagArmed: false, dialogSuppressed: false })
+    out.before = readDisk()?.firstStartTime ?? null
+    out.pendingBefore = g.hasPendingDeferredGlobalConfigSaves()
+    process.once('exit', () => {
+      const disk = readDisk()
+      out.started = disk?.firstStartTime
+      out.posture = disk?.projects?.[project.getProjectPathForConfig()]?.permissionPosture?.mode
+      out.trusted = trust.checkHasTrustDialogAccepted()
+      out.pendingAfter = g.hasPendingDeferredGlobalConfigSaves()
+      process.stdout.write(JSON.stringify(out))
+    })
+    process.exit(0)
+  `)
+  check('exit synchronously publishes the first-start and diagnostic records without granting trust', r.before === null && r.pendingBefore === true && typeof r.started === 'string' && r.posture === 'standard' && r.trusted === false && r.pendingAfter === false, JSON.stringify(r))
 }
 
 section('D5 wiring — the boot band and the background node')
@@ -201,10 +314,10 @@ section('D5 wiring — the boot band and the background node')
   const main = readFileSync(join(SRC, 'main.tsx'), 'utf8')
   check('the boot band spells the deferred save with the increment', /saveGlobalConfigDeferred\(current => \(\{ \.\.\.current, numStartups: \(current\.numStartups \?\? 0\) \+ 1 \}\)\)/.test(main))
   check('no synchronous numStartups save remains in main.tsx', !/saveGlobalConfig\(current => \(\{ \.\.\.current, numStartups/.test(main))
-  const bandAt = main.indexOf('saveGlobalConfigDeferred(current =>')
+  const bandAt = main.indexOf('saveGlobalConfigDeferred(current => ({ ...current, numStartups:')
   const band = bandAt >= 0 ? main.slice(bandAt, bandAt + 1800) : ''
   check('the beacon clear stays synchronous right beside the increment (a quit before the node ran is never a failed attempt)', /saveGlobalConfigDeferred\(current =>[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*clearBootAttempts\(\)/.test(band))
-  check("the background node 'startup-records' flushes the counter and records the invocation", /registerBackgroundNode\('startup-records', \(\) => \{\n\s*flushDeferredGlobalConfigSaves\(\)\n\s*try \{\n(?:\s*\/\/[^\n]*\n)*\s*recordInvocation\(\)\n/.test(band))
+  check("the background node 'startup-records' awaits the flush before recording the invocation", band.includes("registerBackgroundNode('startup-records', async () => {") && band.includes('await flushDeferredGlobalConfigSaves()') && band.indexOf('await flushDeferredGlobalConfigSaves()') < band.indexOf('recordInvocation()'))
   check('the invocation record has exactly one interactive call site, inside the node', (main.match(/recordInvocation\(\)/g) ?? []).length === 1)
   const nodeAt = main.indexOf("registerBackgroundNode('startup-records'")
   const armAt = main.indexOf('armBackgroundDiscovery();')
