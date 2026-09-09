@@ -231,8 +231,13 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   t('junk ⇒ no cap', agentFanoutCap() === null)
   delete process.env.MERCURY_AGENT_FANOUT_CAP
 
-  const { parsePsRss, decideRssBreaches, childRssLimitMb } = await import('../../src/daemon/rssWatchdog.ts')
-  t('rss limit unset ⇒ watchdog off', childRssLimitMb() === null)
+  const { parsePsRss, decideRssBreaches, childRssLimitMb, DEFAULT_CHILD_RSS_LIMIT_MB } = await import('../../src/daemon/rssWatchdog.ts')
+  t('rss limit unset ⇒ the default guard (1536 MB)', childRssLimitMb() === DEFAULT_CHILD_RSS_LIMIT_MB && DEFAULT_CHILD_RSS_LIMIT_MB === 1536)
+  process.env.MERCURY_CHILD_RSS_LIMIT_MB = '0'
+  t('rss limit 0 ⇒ guard off', childRssLimitMb() === null)
+  process.env.MERCURY_CHILD_RSS_LIMIT_MB = '700'
+  t("rss limit set ⇒ the operator's integer", childRssLimitMb() === 700)
+  delete process.env.MERCURY_CHILD_RSS_LIMIT_MB
   const rss = parsePsRss('  101 512000\n  202 2048000\n garbage line\n')
   t('ps output parses to pid→KiB', rss.get(101) === 512_000 && rss.get(202) === 2_048_000 && rss.size === 2)
   const breaches = decideRssBreaches(
@@ -246,6 +251,17 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
     1024,
   )
   t('only the live child over the limit breaches (settled and unknown pids never do)', breaches.length === 1 && breaches[0]!.short === 'w2' && breaches[0]!.rssMb === 2000, JSON.stringify(breaches))
+  t('a breaching child with no session keeps the kill', breaches[0]!.verb === 'kill')
+  const verbs = decideRssBreaches(
+    [
+      { short: 'idle', pid: 202, settled: false, sessionId: 's-idle', turnOpen: false },
+      { short: 'busy', pid: 202, settled: false, sessionId: 's-busy', turnOpen: true },
+      { short: 'crew', pid: 202, settled: false, turnOpen: true },
+    ],
+    rss,
+    1024,
+  ).map(b => `${b.short}:${b.verb}`)
+  t('an idle session over the limit PARKS, a session mid-turn parks AFTER its turn (never a kill), a sessionless child is killed', verbs.join(',') === 'idle:park,busy:park-after-turn,crew:kill', verbs.join(','))
 }
 
 {

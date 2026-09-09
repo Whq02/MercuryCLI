@@ -364,7 +364,20 @@ async function daemonRun(args: string[]): Promise<void> {
         },
       })
       resetSeatProjections(dir)
-      armChildRssWatchdog(roster)
+      armChildRssWatchdog(roster, {
+        sessionOf: short => {
+          const rec = readSessionWorkers()[short]
+          return rec !== undefined && rec.endedAt === undefined && rec.parkedAt === undefined ? rec.sessionId : undefined
+        },
+        park: async (sessionId, reason, afterTurn) => {
+          if (!afterTurn && roster) {
+            const retired = await retireConcourseSession(sessionId, 'daemon: memory', roster, undefined, { reason })
+            return retired.outcome === 'parked' ? { outcome: 'parked' } : { outcome: 'refused', detail: retired.reason }
+          }
+          const out = parkConcourseSession(sessionId, 'daemon: memory', roster ?? undefined, undefined, { reason, afterTurn: true })
+          return out.outcome === 'refused' ? { outcome: 'refused', detail: out.detail ?? out.reason } : { outcome: out.outcome, ...(out.outcome === 'noop' ? { detail: out.reason } : {}) }
+        },
+      })
       const controlKey = await mintControlKey()
       const warmDeps = {
         roster: () => roster ?? undefined,
