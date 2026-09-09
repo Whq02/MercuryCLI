@@ -1379,9 +1379,7 @@ export function REPL({
     recordBootInteractive();
     setTimeout(() => {
       void import('../services/switchboard/ensureDaemon.js')
-        .then(async m => {
-          if (await m.ensureOwnedDaemon()) await m.warmSessionRunner(getCwd());
-        })
+        .then(m => m.ensureOwnedDaemon())
         .catch(() => {});
     }, 0);
     setTimeout(() => {
