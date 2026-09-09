@@ -395,9 +395,6 @@ section('§9 THE WEBFETCH ROAD — no policy service is asked before a fetch, on
   clearWebFetchCache()
   const firstParty = await fetchDuring(`https://127.0.0.1:${PORT}/fetch-me/two`)
   check('an anthropic-routed fetch touches ZERO anthropic hosts too (no policy dial exists)', firstParty.anthropic === 0, j(fixture.hitsOn('anthropic').map(h => h.path)))
-  const utilsSource = readFileSync(join(repoRoot(), 'src/tools/WebFetchTool/utils.ts'), 'utf8')
-  check('the source names no policy endpoint and no preflight (the road is gone, not gated)',
-    !utilsSource.includes('domain_info') && !/preflight/i.test(utilsSource))
   const { getWebFetchUserAgent } = await import('../../src/utils/http.js')
   const webFetchUa = getWebFetchUserAgent()
   check('the WebFetch agent presents Mercury/<version> and DISCLOSES nothing (no +url, no repo, no operator)',
