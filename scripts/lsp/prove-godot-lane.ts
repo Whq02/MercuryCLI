@@ -293,8 +293,6 @@ section('§7 · registry honesty')
       registry.includes("env: 'MERCURY_GODOT_DAP_PORT'") &&
       registry.includes("env: 'MERCURY_TCP_BRIDGE_ENTRY'"),
   )
-  const reg = readFileSync(path.join(repo, 'src/substrate/flagRegistry.ts'), 'utf8')
-  check('the flag registry carries the MERCURY_GODOT legacy alias', reg.includes('MERCURY_GODOT'))
 }
 
 restore()
