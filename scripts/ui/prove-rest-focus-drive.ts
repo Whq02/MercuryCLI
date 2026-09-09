@@ -16,7 +16,8 @@ if (driver.kind !== 'posix-pty') {
   console.log('The raw terminal-byte motion journey requires the POSIX capture driver; deterministic motion checks cover all platforms.')
   process.exit(0)
 }
-const node = join(root, 'dist', 'vendor', 'node', 'bin', 'node')
+const vendoredNode = join(root, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
+const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'node'
 const settings = process.argv.length > 2 ? process.argv.slice(2) : ['auto', 'reduced', 'full', 'off']
 if (settings.some(value => !['auto', 'reduced', 'full', 'off'].includes(value))) throw new Error('Expected a Motion setting: auto, reduced, full or off')
 let failures = 0
