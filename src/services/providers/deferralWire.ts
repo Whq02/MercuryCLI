@@ -79,3 +79,9 @@ export function toolReferenceWireAccepted(reads: DeferralWireReads = {}): boolea
 export function gatewayProbeAllowedByFlag(): boolean {
   return flagEnv('MERCURY_TOOL_DEFER_PROBE') === '1'
 }
+
+export function supportsToolDeferral(model: string, form: DeferralWireForm = deferralWireFormFor(model).form): boolean {
+  if (form === 'block') return true
+  const result = classifyModelRoute(model)
+  return result.kind === 'route' && result.route === 'openai'
+}

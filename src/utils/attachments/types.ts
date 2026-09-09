@@ -458,6 +458,7 @@ export type Attachment =
     }
   | {
       type: 'deferred_tools_delta'
+      body?: string
       addedNames: string[]
       addedLines: string[]
       removedNames: string[]
