@@ -68,22 +68,29 @@ export function preserveQuoteStyle(
   actualOldString: string,
   newString: string,
 ): string {
-  const hasCurlyDoubles =
-    actualOldString.includes(LEFT_DOUBLE_CURLY_QUOTE) ||
-    actualOldString.includes(RIGHT_DOUBLE_CURLY_QUOTE)
-  const hasCurlySingles =
-    actualOldString.includes(LEFT_SINGLE_CURLY_QUOTE) ||
-    actualOldString.includes(RIGHT_SINGLE_CURLY_QUOTE)
-  if (!hasCurlyDoubles && !hasCurlySingles) return newString
-
-  let result = ''
-  for (let i = 0; i < newString.length; i++) {
+  if (actualOldString.length !== oldString.length) return newString
+  const limit = Math.min(oldString.length, newString.length)
+  let head = 0
+  while (head < limit && oldString[head] === newString[head]) head++
+  let tail = 0
+  while (tail < limit - head && oldString[oldString.length - 1 - tail] === newString[newString.length - 1 - tail]) tail++
+  const lineStart = head === 0 ? 0 : actualOldString.lastIndexOf('\n', head - 1) + 1
+  const lineEnd = actualOldString.indexOf('\n', actualOldString.length - tail)
+  const replaced = actualOldString.slice(lineStart, lineEnd === -1 ? actualOldString.length : lineEnd)
+  const styled =
+    replaced.includes(LEFT_DOUBLE_CURLY_QUOTE) ||
+    replaced.includes(RIGHT_DOUBLE_CURLY_QUOTE) ||
+    replaced.includes(LEFT_SINGLE_CURLY_QUOTE) ||
+    replaced.includes(RIGHT_SINGLE_CURLY_QUOTE)
+  const end = newString.length - tail
+  let result = actualOldString.slice(0, head)
+  for (let i = head; i < end; i++) {
     const char = newString[i] as string
-    if (char === '"' && hasCurlyDoubles) {
+    if (char === '"' && styled) {
       result += isOpeningPosition(newString, i) ? LEFT_DOUBLE_CURLY_QUOTE : RIGHT_DOUBLE_CURLY_QUOTE
       continue
     }
-    if (char === "'" && hasCurlySingles) {
+    if (char === "'" && styled) {
       if (isContraction(newString, i)) {
         result += RIGHT_SINGLE_CURLY_QUOTE
       } else {
@@ -95,7 +102,7 @@ export function preserveQuoteStyle(
     }
     result += char
   }
-  return result
+  return result + actualOldString.slice(actualOldString.length - tail)
 }
 
 
