@@ -1623,9 +1623,13 @@ export type ConcourseReviveOutcome =
   | { outcome: 'noop'; reason: 'already-live' }
   | {
       outcome: 'refused'
-      reason: 'unknown-session' | 'attached' | 'stopped' | 'respawn-failed' | 'runtime-ceiling'
+      reason: 'unknown-session' | 'attached' | 'stopped' | 'respawn-failed' | 'runtime-ceiling' | 'transcript-lost'
       detail?: string
     }
+
+export function concourseTranscriptPath(rec: Pick<ConcourseWorkerRecordV1, 'sessionId' | 'workspaceId'>): string {
+  return join(getProjectDir(rec.workspaceId), `${rec.sessionId}.jsonl`)
+}
 
 export function reviveConcourseWorker(
   sessionId: string,
@@ -1650,7 +1654,6 @@ export function reviveConcourseWorker(
   },
   dir?: string,
 ): ConcourseReviveOutcome {
-  void by
   const rec = Object.values(readSessionWorkers(dir)).find(
     r => r.sessionId === sessionId && r.endedAt === undefined,
   )
@@ -1666,6 +1669,16 @@ export function reviveConcourseWorker(
   if (workerPidAlive(rec)) return { outcome: 'noop', reason: 'already-live' }
   if (!roster)
     return { outcome: 'refused', reason: 'respawn-failed', detail: 'daemon roster not ready' }
+  if (!existsSync(concourseTranscriptPath(rec))) {
+    const detail = 'its transcript is gone — nothing to resume it around; start a new session'
+    updateConcourseWorkers(workers => {
+      const w = workers[rec.runnerId]
+      if (!w || w.endedAt !== undefined) return
+      if (w.parkedAt === undefined) stampParked(w, by, detail)
+      else w.parkReason = detail
+    }, dir)
+    return { outcome: 'refused', reason: 'transcript-lost', detail }
+  }
   const ceiling = effectiveSeatCeiling()
   if (countLiveConcourseWorkers(dir) >= ceiling) {
     return { outcome: 'refused', reason: 'runtime-ceiling', detail: `cannot resume yet — ${describeSeatReading(ceiling)}` }
@@ -1882,7 +1895,9 @@ export async function reactivateConcourseSession(
     deps.dir,
   )
   if (revived.outcome === 'refused') {
-    return refuseReactivate(rec, 'spawn-failed', `parked — ${revived.detail ?? revived.reason} · ↵ again retries`, deps.dir)
+    return revived.reason === 'transcript-lost'
+      ? refuseReactivate(rec, 'spawn-failed', `parked — ${revived.detail}`, deps.dir)
+      : refuseReactivate(rec, 'spawn-failed', `parked — ${revived.detail ?? revived.reason} · ↵ again retries`, deps.dir)
   }
   if (revived.outcome === 'applied') {
     updateConcourseWorkers(workers => {
