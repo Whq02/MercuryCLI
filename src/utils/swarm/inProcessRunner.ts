@@ -615,7 +615,7 @@ export async function runInProcessTeammate(
 
     let contentReplacementState =
       toolUseContext.contentReplacementState !== undefined
-        ? createContentReplacementState()
+        ? { ...createContentReplacementState(), budgetChars: toolUseContext.contentReplacementState.budgetChars }
         : undefined
 
     const accumulated: Message[] = []
@@ -657,7 +657,7 @@ export async function runInProcessTeammate(
         accumulated.push(...compacted)
         resetMicrocompactState()
         if (contentReplacementState !== undefined) {
-          contentReplacementState = createContentReplacementState()
+          contentReplacementState = { ...createContentReplacementState(), budgetChars: contentReplacementState.budgetChars }
         }
         updateTeammateTask(taskId, setAppState, task => ({
           ...task,

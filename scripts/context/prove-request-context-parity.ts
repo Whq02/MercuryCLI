@@ -196,6 +196,31 @@ async function main(): Promise<void> {
     check('an uncapped caller still reapplies recorded content', (replayed.messages[1] as any).message.content[0].content === state.replacements.get('tu-0'))
     check('inspection preserves the output policy', cloneContentReplacementState(state).budgetChars === Infinity)
     check('resumed agents preserve the inherited output policy', reconstructForSubagentResume(state, messages, [])?.budgetChars === Infinity)
+    const ts = await import('typescript')
+    const { readFileSync } = await import('node:fs')
+    const source = ts.createSourceFile('inProcessRunner.ts', readFileSync(new URL('../../src/utils/swarm/inProcessRunner.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true)
+    let initial: import('typescript').Expression | undefined
+    let resetState: import('typescript').Expression | undefined
+    const visit = (node: import('typescript').Node): void => {
+      if (ts.isVariableDeclaration(node) && node.name.getText(source) === 'contentReplacementState') initial = node.initializer
+      if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken && node.left.getText(source) === 'contentReplacementState') resetState = node.right
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+    if (!initial || !resetState) throw new Error('The teammate initialization and compaction state expressions must exist')
+    const make = (expression: import('typescript').Expression, parent: ReturnType<typeof createContentReplacementState> | undefined, current?: ReturnType<typeof createContentReplacementState>) =>
+      new Function('createContentReplacementState', 'toolUseContext', 'contentReplacementState', `return (${expression.getText(source)})`)(createContentReplacementState, { contentReplacementState: parent }, current)
+    check('teammates leave a disabled replacement policy disabled', make(initial, undefined) === undefined)
+    for (const budgetChars of [Infinity, 4096]) {
+      const parent = { ...createContentReplacementState(), budgetChars }
+      const child = make(initial, parent)
+      check(`teammate initialization preserves budget ${budgetChars}`, child.budgetChars === budgetChars)
+      child.seenIds.add('old-call')
+      child.replacements.set('old-call', 'old-content')
+      const compacted = make(resetState, parent, child)
+      check(`teammate compaction preserves budget ${budgetChars} and clears old ids`, compacted.budgetChars === budgetChars && compacted.seenIds.size === 0 && compacted.replacements.size === 0)
+    }
+
     let release!: () => void
     const persisted = new Promise<void>(resolve => { release = resolve })
     let started!: () => void
