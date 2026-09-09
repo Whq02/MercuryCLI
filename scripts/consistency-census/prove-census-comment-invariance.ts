@@ -150,6 +150,9 @@ function writeTree(to: string, files: Map<string, string>): void {
     ['a comment inside a string stays', "const s = 'a/*n*/b'\n"],
     ['a comment between a name and a bracket', 'call/*n*/(1)\n'],
     ['a multi-line comment keeps its line count', 'const z = 1 +/* one\n two */+ 2\n'],
+    ['two consecutive comments between a keyword and a name', 'const/*a*//*b*/x = 1\n'],
+    ['a numeric literal and a member access', 'const x = 1/*note*/.toString()\n'],
+    ['three comments with spaces between them', 'x = a/*c*/ /*d*/ /*e*/b\n'],
   ]
   for (const [label, src] of separating) {
     const out = codeOnlyText('planted.ts', src)
