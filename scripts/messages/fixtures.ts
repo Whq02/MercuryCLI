@@ -84,11 +84,7 @@ export const CORPUS: Record<string, Message[]> = {
   whitespace: [user('say nothing'), assistant('   \n\t  '), assistant('real reply')],
 
   boundaries: [
-    M.createCompactBoundaryMessage(
-      { preCompactTokenCount: 120_000, trigger: 'auto' } as never,
-      uuid(20),
-      ts(20),
-    ) as never,
+    { ...M.createCompactBoundaryMessage('auto', 120_000, uuid(19)), uuid: uuid(20), timestamp: ts(20) } as never,
     user('after compact'),
     assistant('resumed after boundary.'),
   ],
@@ -115,7 +111,7 @@ export const CORPUS: Record<string, Message[]> = {
   ],
 
   system: [
-    M.createSystemMessage({ content: 'plain system note', level: 'info' } as never) as never,
+    { ...M.createSystemMessage('plain system note', 'info'), uuid: uuid(30), timestamp: ts(30) } as never,
     user('after system'),
   ],
 };

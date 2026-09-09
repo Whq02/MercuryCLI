@@ -493,6 +493,20 @@ if (unaccounted.length) {
   failures++;
 }
 
+{
+  const boundary = CORPUS.boundaries![0] as unknown as { subtype?: string; compactMetadata?: { trigger?: unknown; preTokens?: unknown }; logicalParentUuid?: unknown; uuid?: string; timestamp?: string };
+  const shape = (label: string, ok: boolean, detail: string): void => {
+    console.log(`  [${ok ? 'PASS' : 'FAIL'}] fixture shape: ${label}${ok ? '' : ' — ' + detail}`);
+    if (!ok) failures++;
+  };
+  shape('the compact boundary carries a string trigger and a numeric token count', boundary.subtype === 'compact_boundary' && boundary.compactMetadata?.trigger === 'auto' && boundary.compactMetadata?.preTokens === 120_000, JSON.stringify(boundary.compactMetadata));
+  shape('the compact boundary names its last pre-compact message by uuid', boundary.logicalParentUuid === '00000000-0000-4000-8000-000000000019', String(boundary.logicalParentUuid));
+  shape('the compact boundary keeps its pinned identity', boundary.uuid === '00000000-0000-4000-8000-000000000020' && boundary.timestamp === '2026-01-01T00:00:20.000Z', `${boundary.uuid} ${boundary.timestamp}`);
+  const system = CORPUS.system![0] as unknown as { subtype?: string; content?: unknown; level?: unknown; uuid?: string };
+  shape('the informational system message carries string content and a level', system.subtype === 'informational' && system.content === 'plain system note' && system.level === 'info', JSON.stringify({ content: system.content, level: system.level }));
+  shape('the informational system message keeps its pinned identity', system.uuid === '00000000-0000-4000-8000-000000000030', String(system.uuid));
+}
+
 if (RECORD) {
   writeFileSync(GOLDEN_PATH, JSON.stringify(results, null, 1) + '\n');
   console.log(
