@@ -207,7 +207,7 @@ export class TaskRoster {
 
   async reply(short: string, text: string): Promise<boolean> {
     const h = this.handles.get(short)
-    if (!h || h.entry.outcome) return false
+    if (!h || h.entry.outcome || h.entry.state === 'retiring') return false
     if (h.longLived && h.child?.stdin?.writable) {
       try {
         h.child.stdin.write(normalizeStreamJsonFrame(text))
@@ -229,7 +229,7 @@ export class TaskRoster {
 
   control(short: string, frame: string): boolean {
     const h = this.handles.get(short)
-    if (!h || h.entry.outcome) return false
+    if (!h || h.entry.outcome || h.entry.state === 'retiring') return false
     if (h.longLived && h.child?.stdin?.writable) {
       try {
         h.child.stdin.write(normalizeStreamJsonFrame(frame))
@@ -559,6 +559,9 @@ export class TaskRoster {
       return undefined
     }
     const child = spawned.child
+    child.stdin?.on('error', error => {
+      logForDebugging(`[daemon] ${short}: input stream closed: ${error}`)
+    })
     h.child = child
     h.entry.pid = child.pid
     if (short.startsWith('concourse-w') && typeof child.pid === 'number') {
