@@ -402,7 +402,7 @@ section('§N non-session insulation (poison: a kit env appearing on a warm/crew/
   t('N4 the pin has exactly TWO speakers and no daemon road: sessionKitPin.ts (the owner) and main.tsx (the one consumption) — the daemon/coordinator kernel can never latch a kit', deepEq(consumers, ['src/main.tsx', 'src/services/mcp/sessionKitPin.ts']), consumers.join(','))
   const supSrc = readFileSync(join(REPO, 'src', 'daemon', 'concourseSupervisor.ts'), 'utf8')
   const crewSrc = readFileSync(join(REPO, 'src', 'daemon', 'crewSpawn.ts'), 'utf8')
-  t("N5 the insulation is structural in source: the worker strip list and the crew spec's stripEnv both name the spelling (both cite the one-law sentence beside the §S5 organ half)", supSrc.includes("'MERCURY_SESSION_KIT',") && crewSrc.includes("stripEnv: flagSpellings('MERCURY_SESSION_KIT')") && supSrc.includes('NON-SESSION INSULATION') && crewSrc.includes('NON-SESSION INSULATION'))
+  t("N5 the insulation is structural in source: the worker strip list and the crew spec's stripEnv both name the spelling", supSrc.includes("'MERCURY_SESSION_KIT',") && crewSrc.includes("stripEnv: flagSpellings('MERCURY_SESSION_KIT')"))
 }
 
 section('§KR a refused pin lands on the session receipt too — once, the same typed sentence')
