@@ -75,7 +75,7 @@ check('flag ON + bypass NOT available: bypass → default (availability can neve
 delete process.env.MERCURY_AUTOPILOT
 check('flag OFF: bypass → default (default cycle — byte-identical)', getNextPermissionMode(ctx('sovereign', true) as never) === 'default')
 
-section('§3 schema + config — fork member, bypass family, TRUE external posture')
+section('§3 schema + config — mode member, bypass family, TRUE external posture')
 process.env.MERCURY_AUTOPILOT = '1'
 check("'autopilot' ∈ INTERNAL_PERMISSION_MODES", (INTERNAL_PERMISSION_MODES as readonly string[]).includes('autopilot'))
 check('permissionModeFromString round-trips', permissionModeFromString('autopilot') === 'autopilot')

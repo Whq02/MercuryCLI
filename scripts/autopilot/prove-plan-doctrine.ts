@@ -52,7 +52,7 @@ check('verification per surface (renders + exit code)', exitP.includes('80+120')
 check('off-dist callout expectation', exitP.includes('off-distribution core'))
 check('green→commit→push directive named', exitP.includes('green→commit→push'))
 
-section('§3 the autopilot appendix — mode-scoped, fork+flag-gated')
+section('§3 the autopilot appendix — mode-scoped, flag-gated')
 check('flag off ⇒ [] (any mode)', getAutopilotModeSections('autopilot' as never).length === 0)
 process.env.MERCURY_AUTOPILOT = '1'
 check("mode undefined (headless/service callers) ⇒ []", getAutopilotModeSections(undefined).length === 0)
