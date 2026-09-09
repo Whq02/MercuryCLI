@@ -27,8 +27,8 @@ try {
   mkdirSync(join(home, '.claude'), { recursive: true })
   mkdirSync(join(home, '.claude-account-b'), { recursive: true })
   writeFileSync(join(home, '.claude', '.mercury.json'), id('uuid-user-a', 'user-a@example.com'))
-  writeFileSync(join(home, '.claude.json'), id('uuid-raverner', 'raverner.gaming@gmail.com'))
-  writeFileSync(join(home, '.claude-account-b', '.mercury.json'), id('uuid-raverner', 'raverner.gaming@gmail.com'))
+  writeFileSync(join(home, '.claude.json'), id('uuid-user-b', 'user-b@example.com'))
+  writeFileSync(join(home, '.claude-account-b', '.mercury.json'), id('uuid-user-b', 'user-b@example.com'))
   const stored = { storedLogin: () => true }
   const absent = { storedLogin: () => false }
 
