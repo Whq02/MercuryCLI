@@ -52,7 +52,7 @@ export type SubagentContextOverrides = {
   messages?: Message[]
   agentId?: AgentId
   agentType?: string
-  criticalSystemReminder_EXPERIMENTAL?: string
+  standingRule?: string
   requireCanUseTool?: boolean
 }
 
@@ -239,7 +239,7 @@ export function createSubagentContext(parentContext: ToolUseContext, overrides: 
       depth: (parentContext.queryTracking?.depth ?? -1) + 1,
     },
     fileReadingLimits: parentContext.fileReadingLimits,
-    criticalSystemReminder_EXPERIMENTAL: overrides.criticalSystemReminder_EXPERIMENTAL,
+    standingRule: overrides.standingRule,
     requireCanUseTool: overrides.requireCanUseTool,
   }
 }

@@ -16,7 +16,7 @@ export function getCriticalSystemReminderAttachment(
   toolUseContext: ToolUseContext,
   messages: readonly unknown[] = [],
 ): Attachment[] {
-  const reminder = toolUseContext.criticalSystemReminder_EXPERIMENTAL
+  const reminder = toolUseContext.standingRule
   if (!reminder) {
     return []
   }

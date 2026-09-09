@@ -12,6 +12,7 @@ import {
   resolveDefaultedAdmission,
   readSessionWorkers,
   recordCollisionEvidence,
+  retirementFenced,
   type ConcourseAdmitRequest,
   type ConcourseAdmitResult,
   type ConcourseMoveV1,
@@ -69,6 +70,7 @@ export type ConcourseHoldReason =
   | 'repo-held'
   | 'session-paused'
   | 'session-with-you'
+  | 'session-retiring'
   | 'no-repository'
   | 'git-unavailable'
   | 'unborn-head'
@@ -80,6 +82,7 @@ export function normalizeHoldReason(raw: string | undefined): ConcourseHoldReaso
   if (
     raw === 'session-paused' ||
     raw === 'session-with-you' ||
+    raw === 'session-retiring' ||
     raw === 'no-repository' ||
     raw === 'git-unavailable' ||
     raw === 'unborn-head'
@@ -541,6 +544,23 @@ export function makeConcourseDispatchHandler(
         heldReason: 'session-paused',
         error: `paused by ${targetRec.pausedBy ?? 'operator'} — resume the session and this message delivers on its own`,
         moves: [{ verb: 'retry', label: 'resume the session — the message delivers on its own' }],
+      }
+    }
+    if (targetRec && (targetRec.parkIntent !== undefined || retirementFenced(targetRec.runnerId))) {
+      rec.heldReason = 'session-retiring'
+      rec.sessionId = target
+      rec.workerId = targetRec.runnerId
+      publishDispatches(dispatches, deps.dir)
+      return {
+        ok: false,
+        clientMessageId: rec.clientMessageId,
+        state: rec.state,
+        stateRevision: rec.stateRevision,
+        runnerId: targetRec.runnerId,
+        sessionId: target,
+        heldReason: 'session-retiring',
+        error: 'the session is parking — once its runner has left, a replay revives it and delivers into the same chat',
+        moves: [{ verb: 'retry', label: 'it delivers once the park has landed' }],
       }
     }
     if (

@@ -851,11 +851,8 @@ export async function* runAgent(
         ...(isFork ? { querySource } : {}),
       },
       readFileState,
-      ...(agentDefinition.criticalSystemReminder_EXPERIMENTAL
-        ? {
-            criticalSystemReminder_EXPERIMENTAL:
-              agentDefinition.criticalSystemReminder_EXPERIMENTAL,
-          }
+      ...(agentDefinition.standingRule
+        ? { standingRule: agentDefinition.standingRule }
         : {}),
       ...(contentReplacementState ? { contentReplacementState } : {}),
     })
