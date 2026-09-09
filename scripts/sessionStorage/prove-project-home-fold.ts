@@ -3,6 +3,7 @@
 import { mkdtempSync, mkdirSync, rmSync, symlinkSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 const CONFIG_SCRATCH = mkdtempSync(join(tmpdir(), 'homefold-home-'))
 process.env.MERCURY_CONFIG_DIR = CONFIG_SCRATCH
@@ -60,8 +61,10 @@ try {
   }
 
   check('§6 the transcript-home derivation stores a `.mercury`-grounded birth PARENT-side (MERCURY_SESSION_HOME\'s value)', getProjectDir(configHome) === getProjectDir(root) && getProjectDir(configHome).includes(sanitizePath(root).slice(0, 20)))
-  const supervisor = readFileSync(join(ROOT, 'src/daemon/concourseSupervisor.ts'), 'utf8')
-  check('§6 SOURCE SEAM: the spawn pins MERCURY_SESSION_HOME via getProjectDir(args.workspaceId) and names the config-home fold beside it', supervisor.includes('MERCURY_SESSION_HOME: getProjectDir(args.workspaceId)') && supervisor.includes('config-home fold'))
+  const supervisor = codeOnlyText('src/daemon/concourseSupervisor.ts', readFileSync(join(ROOT, 'src/daemon/concourseSupervisor.ts'), 'utf8'))
+  const daemonPaths = codeOnlyText('src/utils/sessionStorage/paths.ts', readFileSync(join(ROOT, 'src/utils/sessionStorage/paths.ts'), 'utf8'))
+  check('§6 SOURCE SEAM: the spawn sets MERCURY_SESSION_HOME via getProjectDir(args.workspaceId)', supervisor.includes('MERCURY_SESSION_HOME: getProjectDir(args.workspaceId)') && supervisor.includes("import { getProjectDir } from '../utils/sessionStorage/paths.js'"))
+  check('§6 SOURCE SEAM: that getProjectDir IS the folding derivation proved above (paths delegates to the portable resolver)', daemonPaths.includes("import { getProjectDir as resolveProjectDirWithAdoption } from '../sessionStoragePortable.js'") && daemonPaths.includes('return resolveProjectDirWithAdoption(projectDir)'))
 } finally {
   rmSync(scratch, { recursive: true, force: true })
   rmSync(CONFIG_SCRATCH, { recursive: true, force: true })

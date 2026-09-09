@@ -1,13 +1,17 @@
 #!/usr/bin/env bun
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { codeOnlyLines } from '../lib/codeText.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
+const argValue = (name: string): string | undefined => {
+  const at = process.argv.indexOf(name)
+  return at >= 0 ? process.argv[at + 1] : undefined
+}
+const ROOT = argValue('--root') ?? join(import.meta.dir, '..', '..')
 const SRC = join(ROOT, 'src')
 
 interface Site {
   file: string
-  line: number
   kind: 'crab' | 'wordmark' | 'session-mark' | 'accent-mercury-text'
   excerpt: string
 }
@@ -23,10 +27,10 @@ const walk = (dir: string): void => {
     }
     if (!name.endsWith('.tsx')) continue
     const rel = relative(ROOT, full)
-    const lines = readFileSync(full, 'utf8').split('\n')
-    lines.forEach((text, i) => {
+    const lines = codeOnlyLines(rel, readFileSync(full, 'utf8'))
+    for (const text of lines) {
       const push = (kind: Site['kind']): void => {
-        sites.push({ file: rel, line: i + 1, kind, excerpt: text.trim().slice(0, 160) })
+        sites.push({ file: rel, kind, excerpt: text.trim().slice(0, 160) })
       }
       if (/<Crab\b/.test(text)) push('crab')
       if (/<Wordmark\b/.test(text)) push('wordmark')
@@ -34,7 +38,7 @@ const walk = (dir: string): void => {
       if (/color=\{[A-Z_]+\}[^<]*>\s*Mercury\b/.test(text) || /Mercury<\/Text>/.test(text) && /color=/.test(text)) {
         push('accent-mercury-text')
       }
-    })
+    }
   }
 }
 walk(SRC)
@@ -144,8 +148,8 @@ const out = {
   note: 'GENERATED — regenerate, never hand-edit. The UN-24 ratchet prover fails on UNCLASSIFIED rows.',
   sites: census,
 }
-const outPath = join(ROOT, 'scripts', 'consistency-census', 'lockup-census.json')
+const outPath = argValue('--out') ?? join(ROOT, 'scripts', 'consistency-census', 'lockup-census.json')
 writeFileSync(outPath, JSON.stringify(out, null, 2) + '\n')
 const unclassified = census.filter(s => s.role === 'UNCLASSIFIED')
 console.log(`lockup census: ${census.length} site(s) across ${new Set(census.map(s => s.file)).size} file(s); ${unclassified.length} unclassified`)
-for (const u of unclassified) console.log(`  UNCLASSIFIED ${u.file}:${u.line} (${u.kind}) ${u.excerpt}`)
+for (const u of unclassified) console.log(`  UNCLASSIFIED ${u.file} (${u.kind}) ${u.excerpt}`)

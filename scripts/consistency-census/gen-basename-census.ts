@@ -1,8 +1,13 @@
 #!/usr/bin/env bun
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { codeOnlyLines } from '../lib/codeText.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
+const argValue = (name: string): string | undefined => {
+  const at = process.argv.indexOf(name)
+  return at >= 0 ? process.argv[at + 1] : undefined
+}
+const ROOT = argValue('--root') ?? join(import.meta.dir, '..', '..')
 
 const BASENAMES = [
   "'.claude'",
@@ -19,7 +24,6 @@ const BASENAMES = [
 
 interface Hit {
   file: string
-  line: number
   needle: string
   excerpt: string
 }
@@ -36,16 +40,15 @@ const walk = (dir: string): void => {
     }
     if (!/\.(ts|tsx)$/.test(name)) continue
     const rel = relative(ROOT, full)
-    const lines = readFileSync(full, 'utf8').split('\n')
-    lines.forEach((text, i) => {
+    const lines = codeOnlyLines(rel, readFileSync(full, 'utf8'))
+    for (const text of lines) {
       const trimmed = text.trim()
-      if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) return
       for (const needle of BASENAMES) {
         if (text.includes(needle)) {
-          hits.push({ file: rel, line: i + 1, needle: needle.replace(/['"]/g, ''), excerpt: trimmed.slice(0, 140) })
+          hits.push({ file: rel, needle: needle.replace(/['"]/g, ''), excerpt: trimmed.slice(0, 140) })
         }
       }
-    })
+    }
   }
 }
 walk(join(ROOT, 'src'))
@@ -193,10 +196,9 @@ const out = {
   generatedBy: 'scripts/consistency-census/gen-basename-census.ts',
   needles: BASENAMES.map(n => n.replace(/['"]/g, '')).filter((v, i, a) => a.indexOf(v) === i),
   counts,
-  sites: classified.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line),
+  sites: classified.sort((a, b) => a.file.localeCompare(b.file)),
 }
-const outArg = process.argv.indexOf('--out')
-const outPath = outArg >= 0 && process.argv[outArg + 1] ? process.argv[outArg + 1]! : join(ROOT, 'scripts/consistency-census/basename-census.json')
+const outPath = argValue('--out') ?? join(ROOT, 'scripts/consistency-census/basename-census.json')
 writeFileSync(outPath, JSON.stringify(out, null, 2) + '\n')
 console.log(
   `basename census: ${classified.length} site(s) across ${new Set(classified.map(c => c.file)).size} file(s); ` +
