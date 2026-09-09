@@ -296,7 +296,7 @@ section('completion notification — <agents> trace index source pins')
   check('rows are XML-escaped + row-capped', /AGENT_INDEX_MAX_ROWS = 24/.test(local) && /escapeXml\(bits\.join/.test(local))
   const tool = readFileSync('src/tools/WorkflowTool/WorkflowTool.tsx', 'utf-8')
   check('call site passes agents only when the gate is live', /agents: evolutionLedgerEnabled\(\)\s*\n?\s*\? buildAgentSummaries\(live\?\.workflowProgress \?\? \[\]\)\s*\n?\s*: undefined/.test(tool))
-  check('HB-0104 part B: tokenBudget is actually passed now', /tokenBudget,\s*\n(?:\s*\/\/[^\n]*\n)*\s*journal: new LocalFileJournal/.test(tool))
+  check('HB-0104 part B: tokenBudget is actually passed now', /tokenBudget,\s*\n(?:\s*\/\/[^\n]*\n)*\s*journal,/.test(tool) && /journal = new LocalFileJournal\(runDir,/.test(tool))
 }
 
 console.log('\n' + '='.repeat(60))
