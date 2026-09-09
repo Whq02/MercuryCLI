@@ -332,7 +332,7 @@ section('§7 THE LANE CENSUS — every tools term is built from the plan')
     check(`${lane}: consumes the plan owner`, /planToolPayload\(\{/.test(src) && /from '\.\.\/toolEconomy\.js'/.test(src))
     check(`${lane}: builds its tools term from plan.roster`, /buildApiShapedTools\(plan\.roster,/.test(src))
     check(`${lane}: never hands the raw pool to its schema builder`, !/buildApiShapedTools\(tools,/.test(src))
-    check(`${lane}: renders admission records as text and folds the announcement`, /renderAdmissionRecordsAsText\(messages\)/.test(src) && /foldAnnouncementIntoFirstUserTurn\(/.test(src))
+    check(`${lane}: renders admission records as text and folds the announcement`, new RegExp('renderAdmissionRecordsAsText\\(' + (lane.includes('/openai/') ? 'projectedMessages' : 'messages') + '\\)').test(src) && /foldAnnouncementIntoFirstUserTurn\(/.test(src))
     check(`${lane}: the gate carries the admission predicate`, /deferredUnadmitted: plan\.isDeferredUnadmitted/.test(src) && /\{ deferredUnadmitted: ctx\.deferredUnadmitted \}/.test(src))
   }
   const core = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')

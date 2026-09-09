@@ -34,6 +34,7 @@ import {
   userMessageToMessageParam,
 } from '../anthropic/messageParams.js'
 import { toolToAPISchema } from '../../../utils/api.js'
+import { withToolReferenceTurnBoundary } from '../../../utils/messages/apiView.js'
 import {
   createAssistantAPIErrorMessage,
   createSystemAPIErrorMessage,
@@ -462,7 +463,8 @@ export async function* openaiCallModel(
     source: 'query',
   })
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey)
-  const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages), plan)
+  const projectedMessages = messages.map(message => message.type === 'user' ? withToolReferenceTurnBoundary(message) : message)
+  const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(projectedMessages), plan)
   const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   let profile: GptReasoningProfile = candidate
     ? resolveGptReasoningProfile(requestedEffort, candidate.live)
