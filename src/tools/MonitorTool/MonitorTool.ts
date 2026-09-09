@@ -89,7 +89,7 @@ export const MonitorTool = buildTool({
     return true
   },
   isConcurrencySafe() {
-    return true
+    return false
   },
   getActivityDescription(input) {
     return input?.description ? `Monitoring: ${input.description}` : 'Monitoring'
