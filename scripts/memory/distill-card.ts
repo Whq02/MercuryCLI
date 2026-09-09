@@ -153,7 +153,7 @@ const notWhen = arg(argv, '--not-when')
 const createdAt = arg(argv, '--created-at') ?? new Date().toISOString()
 
 console.log(
-  `distill-card: in-session live cards are ${experienceCardsEnabled() ? 'ENABLED' : 'disabled (fork+MERCURY_EXPERIENCE_CARDS off)'}; this CLI is the explicit operator/green trigger and runs regardless.`,
+  `distill-card: in-session live cards are ${experienceCardsEnabled() ? 'ENABLED' : 'disabled (MERCURY_EXPERIENCE_CARDS=0)'}; this CLI is the explicit operator/green trigger and runs regardless.`,
 )
 
 const result = await writeExperienceCard(
