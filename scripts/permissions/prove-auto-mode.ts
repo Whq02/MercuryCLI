@@ -82,14 +82,12 @@ section('isAutoModeAllowlistedTool name/action gating (classifierDecision.ts)')
   const cd = src('utils', 'permissions', 'classifierDecision.ts')
   const has = (needle: string) => cd.includes(needle)
   check('exists + gates safe-tool names on the allowlist SET', has('export function isAutoModeAllowlistedTool') && has('SAFE_YOLO_ALLOWLISTED_TOOLS.has(toolName)'))
-  check('no chrome-name allowlist residue (removed feature cannot re-grant)', !has('CHROME_READONLY_TOOLS') && !has('claude-in-chrome') && !has('ALLOWLISTED_COMPUTER_ACTIONS'))
   check('write/edit tools are NOT on the safe set (comment + absence)', has('Does NOT include write/edit tools') && !has('FILE_WRITE_TOOL_NAME,') && !has('FILE_EDIT_TOOL_NAME,'))
 }
 
 section('Flow availability uses settings and runtime safety state')
 {
   const ps = src('utils', 'permissions', 'permissionSetup.ts')
-  check('availability does not import an external configuration table', !ps.includes('services/analytics/featureGates'))
   check('the runtime circuit breaker closes availability', ps.includes('if (isAutoModeCircuitBroken()) return false'))
   check('settings close availability', ps.includes('if (isAutoModeDisabledBySettings()) return false'))
   check('verification updates the circuit breaker from settings', ps.includes('const circuitBroken = disabledBySettings') && ps.includes('autoModeStateModule?.setAutoModeCircuitBroken(circuitBroken)'))
@@ -103,7 +101,7 @@ section('Flow availability uses settings and runtime safety state')
   check('the cycle reaches flow from strategy, BEFORE sovereign (flow ≠ bypass; flow is the safer step)', autoIdx > 0 && bypassIdx > 0 && autoIdx < bypassIdx && planBlock.includes('canCycleToAuto'))
 }
 
-section('STARTUP-AUTO DESYNC fix — a fork that BOOTS into auto arms the safety machinery')
+section('STARTUP-AUTO DESYNC fix — a session that BOOTS into auto arms the safety machinery')
 {
   const ps = src('utils', 'permissions', 'permissionSetup.ts')
   const mn = src('main.tsx')

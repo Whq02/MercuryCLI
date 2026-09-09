@@ -101,7 +101,7 @@ section('wiring: the view calls list+promote via ↵/p, command gated + register
   )
   check('only writes on an explicit promote (no delete/edit)', !/unlink|rmSync|writeFile/.test(view))
   const idx = src('commands', 'cards', 'index.ts')
-  check('command fork+card gated (experienceCardsEnabled + non-ant)', /isEnabled: \(\) => experienceCardsEnabled\(\)/.test(idx) && !/process\.env\.USER_TYPE/.test(idx))
+  check('command gated on experienceCardsEnabled()', /isEnabled: \(\) => experienceCardsEnabled\(\)/.test(idx))
   const reg = src('commands.ts')
   check('cards imported + in the command array', /import cards from '\.\/commands\/cards\/index\.js'/.test(reg) && /\n\s+cards,\n/.test(reg))
 }

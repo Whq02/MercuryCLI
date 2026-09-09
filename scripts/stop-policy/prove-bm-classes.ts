@@ -3,7 +3,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { readFileSync } from 'node:fs'
@@ -160,13 +160,11 @@ async function main(): Promise<void> {
       v.demandedReadBackPaths(cwd, vOwner).size === 1,
     )
     v.observeCompletedToolCall('Bash', { command: 'python -m pytest -q' }, true, cwd, vOwner)
-    const insideMercury = join(cwd, '.mercury', 'verify')
-    const insideClaude = join(cwd, '.claude', 'verify')
-    const wroteInside = existsSync(insideMercury) || existsSync(insideClaude)
+    const bornInside = readdirSync(cwd)
     check(
       'BM-03: runtime verification evidence lands OUTSIDE the checkout by default',
-      !wroteInside,
-      wroteInside ? `wrote ${existsSync(insideMercury) ? insideMercury : insideClaude}` : 'checkout clean',
+      bornInside.length === 0,
+      bornInside.length > 0 ? `wrote ${bornInside.join(', ')} into the checkout` : 'checkout clean',
     )
     check(
       'BM-03: the config-home project-keyed store carries it instead',
