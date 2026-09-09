@@ -342,10 +342,10 @@ section('§7 THE LANE CENSUS — every tools term is built from the plan')
   check('streamCore: the announcement is the plan\'s message', /announcementMessage\(plan\)/.test(core) && !/<available-deferred-tools>\\n\$\{deferredToolList\}/.test(core))
   const router = readFileSync(join(ROOT, 'src/services/providers/callModelRouter.ts'), 'utf8')
   const compatLanes = ['moonshot', 'deepseek', 'openrouter', 'gemini', 'huggingface', 'local']
-  for (const lane of compatLanes) {
-    const file = join(ROOT, `src/services/providers/${lane}/${lane}CallModel.ts`)
+  for (const route of compatLanes) {
+    const file = join(ROOT, `src/services/providers/${route}/${route}CallModel.ts`)
     const src = readFileSync(file, 'utf8')
-    check(`${lane}: rides the shared compat chat runtime (a plan consumer)`, /compatChatCallModel\(/.test(src) || /from '\.\.\/openaicompat\/compatChatCallModel\.js'/.test(src))
+    check(`${route}: rides the shared compat chat runtime (a plan consumer)`, /compatChatCallModel\(/.test(src) || /from '\.\.\/openaicompat\/compatChatCallModel\.js'/.test(src))
   }
   const compat = readFileSync(join(ROOT, 'src/services/providers/openaicompat/compatCallModel.ts'), 'utf8')
   check('openai-compat: rides the shared compat chat runtime', /compatChatCallModel\(/.test(compat))
