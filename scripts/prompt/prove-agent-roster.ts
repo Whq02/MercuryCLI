@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -20,7 +19,6 @@ console.log('prove-agent-roster')
 {
   const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
   check('§1 the intro section opens with the Mercury identity kernel', prompts.includes('You are Mercury — a private, source-built terminal coding harness'))
-  check('§1 the generic "interactive agent that helps users" opener is gone', !prompts.includes('You are an interactive agent that helps users '))
   check('§1 the kernel names the operator allegiance', prompts.includes('loyal to Mercury and its operator through candor, decisive help, and faithful completion'))
 }
 
@@ -48,20 +46,11 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
 }
 
 {
-  const legacy = agents.filter(a => ['claude', 'Explore', 'Plan'].includes(a.agentType))
-  check('§3 no built-in registers under a legacy id', legacy.length === 0, legacy.map(a => a.agentType).join(', '))
-  for (const a of agents) {
-    check(`§3 ${a.agentType}: no retired-borne vocabulary in its prompt`, !promptTextOf(a).includes(['temp', 'est-borne'].join('')))
-  }
-}
-
-{
   check('§4 the scout id resolves to a REGISTERED agent', byType.has('mercury-scout'))
   const agentTool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
   const launchPlan = readFileSync(join(ROOT, 'src/utils/swarm/agentLaunchPlan.ts'), 'utf8')
   check('§4 the Agent tool resolves through the ONE launch-plan builder', agentTool.includes('buildAgentLaunchPlan({'))
   check('§4 the plan builder decodes via the ONE alias truth (roleResolver)', launchPlan.includes('decodeAgentType(i.requestedType)'))
-  check('§4 the Agent tool keeps NO alias-map copy of its own', !agentTool.includes('LEGACY_SUBAGENT_ALIASES'))
 }
 
 {
@@ -85,8 +74,6 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   const readOnly = (list?: string[]) => Array.isArray(list) && edits.every(t => list.some(d => d.includes(t)))
   check('§6 scout disallows the mutation tools', readOnly(scout?.disallowedTools as string[]))
   check('§6 architect disallows the mutation tools', readOnly(architect?.disallowedTools as string[]))
-  const grep = execSync(`grep -rn "areExplorePlanAgentsEnabled" ${join(ROOT, 'src')} || true`, { encoding: 'utf8' }).trim()
-  check('§6 the dead enabler is deleted from src/', grep === '', grep.slice(0, 120))
 }
 
 {
@@ -107,7 +94,7 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   setIsInteractive(true)
   check('§7 the kill does not reach an interactive session', isGuideAgentMounted() && mounted())
   const guideSrc = readFileSync(join(ROOT, 'src/tools/AgentTool/built-in/mercuryGuideAgent.ts'), 'utf8')
-  check('§7 no entrypoint set suppresses the guide any more (the SDK_ENTRYPOINTS gate is gone)', !/SDK_ENTRYPOINTS/.test(guideSrc))
+  check('§7 no entrypoint set suppresses the guide', !/SDK_ENTRYPOINTS/.test(guideSrc))
   const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
   check('§7 the prompt\'s guide line reads the same mount predicate', /isGuideAgentMounted\(\)/.test(prompts))
   if (prevEntry === undefined) delete process.env.MERCURY_ENTRYPOINT

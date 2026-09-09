@@ -93,7 +93,7 @@ function statSyncSafe(p: string): boolean {
   }
 }
 
-section('§B the ratchet — no unadjudicated family-pinned hire in src')
+section('§B no unadjudicated family-pinned hire in src')
 {
   const strays = hires.filter(h => allowFor(h.rel) === undefined && !debtFor(h.rel))
   check(

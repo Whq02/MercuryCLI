@@ -14,7 +14,7 @@ function section(t: string): void {
 }
 
 console.log('============================================================')
-console.log(' Cache Clock benchmark — reproducibility + ratchet proof')
+console.log(' Cache Clock benchmark — reproducibility proof')
 console.log('============================================================')
 
 section('(1) committed artifacts exist and bind to each other')
@@ -56,7 +56,7 @@ check(
     verdict.variants?.escalateOnly?.regressedSessions === escalateOnly.regressedSessions,
 )
 
-section('(3) the ratchet: green, strictly better, honestly reported')
+section('(3) the verdict: green, strictly better, honestly reported')
 check('verdict is green', verdict.green === true)
 check(
   'clock strictly beats the flat all-5m baseline on the corpus',
