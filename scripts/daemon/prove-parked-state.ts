@@ -343,7 +343,7 @@ console.log('L2d the memory guard — a session over the limit parks with a memo
   const retired = await sup.retireRequestedPark('concourse-w14', handshakeRoster, dir)
   const w14 = rec('concourse-w14')
   check("at the idle edge the memory park rides the SAME handshake: prepare, commit, observed exit, then parked by 'daemon: memory' with the memory reason on the row; the kill was never used", retired?.outcome === 'parked' && frames.join(',') === 'prepare,commit' && killed.length === 0 && w14?.parkedAt !== undefined && w14.parkedBy === 'daemon: memory' && w14.parkReason === 'over the memory limit (1953MB > 1024MB)' && w14.parkRequestedAt === undefined && w14.parkIntent === undefined, JSON.stringify({ retired, frames, w14 }))
-  check("the daemon's idle edge routes a memory-requested park through retireRequestedPark, and every other requested park through completeRequestedPark", src.includes("requested?.parkRequestedBy === 'daemon: memory'") && src.includes('retireRequestedPark(short, seats)') && src.includes('else if (completeRequestedPark(short, roster))'))
+  check("the daemon's idle edge routes a memory-requested park through retireRequestedPark, and every other requested park through completeRequestedPark", /if \(requested\?\.parkRequestedBy === 'daemon: memory' && requested\.parkedAt === undefined\) \{\s*const seats = roster\s*void retireRequestedPark\(short, seats\)/.test(src) && src.includes('else if (completeRequestedPark(short, roster))'))
 }
 
 console.log('L2b park-all — the quit path over the estate')
