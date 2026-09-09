@@ -110,6 +110,8 @@ if (load.state === 'ok') {
   try {
     const handle = await capture.startCapture({ backend: resolved })
     await sleep(1000)
+    const running = handle.streamErrors()
+    check('the running take answers its stream error record through the handle (the addon read of a live capture)', typeof running.transient === 'number' && running.fatal === null, JSON.stringify(running))
     const take = await handle.stop()
     const read = wav.readWav(take.wav)
     check('the take is a WAV of the capture shape (16 kHz · mono · 16-bit)', read.ok && wav.isVoiceWavShape(read.header), read.ok ? JSON.stringify(read.header) : read.reason)

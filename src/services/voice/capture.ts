@@ -131,6 +131,7 @@ export interface CaptureHandle {
   stop(): Promise<CaptureResult>
   cancel(): void
   readonly settled: boolean
+  streamErrors(): CaptureStreamErrors
 }
 
 export interface StartCaptureOptions {
@@ -370,6 +371,7 @@ export async function startCapture(opts: StartCaptureOptions = {}): Promise<Capt
       clearTimeout(bound)
       raw.cancel()
     },
+    streamErrors: () => raw.streamErrors?.() ?? NO_STREAM_ERRORS,
   }
   return handle
 }
