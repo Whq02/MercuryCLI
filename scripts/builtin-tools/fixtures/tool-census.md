@@ -10,7 +10,7 @@ Census version 1 — 71 built-in production tools · 170 operations · 71 with a
 
 ## Summary
 
-- support (at generation time): 44 available · 15 conditional · 0 degraded · 12 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- support (at generation time): 45 available · 14 conditional · 0 degraded · 12 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
 - class: 20 observation · 22 mutation · 10 execution · 19 coordination · 0 unclassified
 - integrations: 10 declare transactions · 12 declare executions · 32 declare mercury:// outputs · 36 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · planning · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
@@ -22,15 +22,15 @@ Census version 1 — 71 built-in production tools · 170 operations · 71 with a
 |---|---|---|---|---|---|---|---|---|---|
 | Agent | coordination | task-coordination | — | block | no | — | agent (external-projection) | mercury://agent | scripts/tools/prove-tool-contracts.ts |
 | ApolloReview | coordination | operator-io | — | block | yes | — | — | — | NAMED GAP |
-| ArtifactsList | observation | resource-inspection | — | block | no | — | — | mercury://artifact | NAMED GAP |
+| ArtifactsList | observation | resource-inspection | — | block | yes | — | — | mercury://artifact | NAMED GAP |
 | Aseprite | mutation | pixel-art | 5 | block | yes | — | — | — | scripts/aseprite/run-all.sh |
 | AskUserQuestion | coordination | operator-io | — | block | yes | — | — | — | NAMED GAP |
-| AstEdit | mutation | structural-mutation, text-mutation | — | block | no | file +receipts | — | mercury://file, mercury://receipt | scripts/ast-tools/run-all.sh |
-| AstSearch | observation | source-reading, code-intelligence | — | block | no | — | — | — | scripts/ast-tools/run-all.sh |
+| AstEdit | mutation | structural-mutation, text-mutation | — | block | yes | file +receipts | — | mercury://file, mercury://receipt | scripts/ast-tools/run-all.sh |
+| AstSearch | observation | source-reading, code-intelligence | — | block | yes | — | — | — | scripts/ast-tools/run-all.sh |
 | Bash | execution | process-execution | — | block | no | — | background-job (external-projection) | mercury://task | scripts/tools/prove-stream-watchdog.ts |
 | Browser | execution | browser-drive | 18 | cancel | yes | — | browser-session (child-execution) | — | scripts/browser/prove-browser-drive.ts |
 | ChangeSet | mutation | text-mutation | 4 | block | yes | file +receipts | — | mercury://file, mercury://receipt | scripts/changesets/run-all.sh |
-| Checkpoint | mutation | task-coordination | — | block | no | — | — | — | scripts/run-recovery/run-all.sh |
+| Checkpoint | mutation | task-coordination | — | block | yes | — | — | — | scripts/run-recovery/run-all.sh |
 | Correct | mutation | memory | 3 | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |
 | CronCreate | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | CronDelete | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
@@ -46,7 +46,7 @@ Census version 1 — 71 built-in production tools · 170 operations · 71 with a
 | Glob | observation | source-reading | — | block | no | — | — | — | NAMED GAP |
 | Godot | mutation | game-engine | — | block | yes | — | — | — | scripts/vulcan/run-all.sh |
 | Grep | observation | source-reading | — | block | no | — | — | — | NAMED GAP |
-| Inspect | observation | resource-inspection | — | block | no | — | — | mercury://file, mercury://run, mercury://receipt, mercury://task, mercury://execution, mercury://transaction, mercury://evidence | scripts/project-services/prove-resource-plane.ts |
+| Inspect | observation | resource-inspection | — | block | yes | — | — | mercury://file, mercury://run, mercury://receipt, mercury://task, mercury://execution, mercury://transaction, mercury://evidence | scripts/project-services/prove-resource-plane.ts |
 | Journey | execution | application-verification, service-management | 3 | cancel | yes | — | journey (full-execution-owner) | mercury://journey, mercury://service, mercury://execution, mercury://evidence | scripts/builtin-tools/prove-journeys.ts |
 | Launch | execution | process-execution, debugging | 7 | block | yes | — | debug-adapter (external-projection) | — | scripts/ide/prove-launch-profiles.ts |
 | LaunchFleet | coordination | task-coordination | — | block | yes | — | — | mercury://team | NAMED GAP |
@@ -64,15 +64,15 @@ Census version 1 — 71 built-in production tools · 170 operations · 71 with a
 | Reflect | observation | memory | — | block | yes | — | — | — | scripts/memory/prove-reflect-grounding.ts |
 | RememberLesson | mutation | memory | — | block | yes | — | — | — | NAMED GAP |
 | Retain | mutation | memory | — | block | yes | — | — | — | scripts/memory/prove-retain-honesty.ts |
-| Rewind | mutation | task-coordination | — | block | no | — | — | — | scripts/run-recovery/run-all.sh |
+| Rewind | mutation | task-coordination | — | block | yes | — | — | — | scripts/run-recovery/run-all.sh |
 | ScheduleWakeup | coordination | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | SendMessage | coordination | task-coordination | — | block | yes | — | — | mercury://team | scripts/crew/run-all.sh |
 | SendUserFile | coordination | operator-io | — | block | no | — | — | — | NAMED GAP |
 | SendUserMessage | coordination | operator-io | — | block | no | — | — | — | NAMED GAP |
-| Service | execution | service-management | 8 | block | no | — | service (full-execution-owner) | mercury://service, mercury://execution | scripts/project-services/prove-services.ts |
+| Service | execution | service-management | 8 | block | yes | — | service (full-execution-owner) | mercury://service, mercury://execution | scripts/project-services/prove-services.ts |
 | SetTier | coordination | task-coordination | — | block | no | — | — | — | scripts/autopilot/run-all.sh |
 | Skill | coordination | capability-discovery | — | block | no | — | — | — | NAMED GAP |
-| Sleep | observation | scheduling | — | block | no | — | — | — | scripts/tools/prove-sleep-tool.ts |
+| Sleep | observation | scheduling | — | block | yes | — | — | — | scripts/tools/prove-sleep-tool.ts |
 | Structure | mutation | structural-mutation, code-intelligence | 4 | block | yes | structure.apply +receipts | — | mercury://structure, mercury://receipt | scripts/builtin-tools/prove-structure-transform.ts |
 | TaskCreate | mutation | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
 | TaskGet | observation | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
@@ -80,7 +80,7 @@ Census version 1 — 71 built-in production tools · 170 operations · 71 with a
 | TaskOutput | observation | task-coordination | — | block | yes | — | — | mercury://task, mercury://agent | NAMED GAP |
 | TaskStop | coordination | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
 | TaskUpdate | mutation | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
-| TeamBrief | coordination | task-coordination | — | block | no | — | — | mercury://team | NAMED GAP |
+| TeamBrief | coordination | task-coordination | — | block | yes | — | — | mercury://team | NAMED GAP |
 | TeamCreate | coordination | task-coordination | — | block | yes | — | — | mercury://team | NAMED GAP |
 | TeamDelete | coordination | task-coordination | — | block | yes | — | — | mercury://team | NAMED GAP |
 | Test | execution | application-verification | 5 | block | yes | — | background-job (external-projection) | mercury://test | scripts/ide/prove-python-tests.ts |
