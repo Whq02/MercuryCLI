@@ -6,7 +6,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'anchor-patch-parse-'))
-process.env.CLAUDE_CODE_SIMPLE = '1'
 
 const { parseAnchorPatch, ANCHOR_PATCH_BOUNDS } = await import(
   '../../src/services/changeTransaction/anchorPatch.ts'
