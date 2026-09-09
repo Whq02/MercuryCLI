@@ -170,6 +170,7 @@ function dryRunText(scope: AstScope, plan: AstRewritePlan): string {
 }
 
 export const AstEditTool = buildTool({
+  shouldDefer: true,
   name: AST_EDIT_TOOL_NAME,
   strict: true,
   maxResultSizeChars: 60_000,

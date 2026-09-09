@@ -62,6 +62,7 @@ export type Output = z.infer<OutputSchema>
 const DEFAULT_LIST_LIMIT = 25
 
 export const ArtifactsListTool = buildTool({
+  shouldDefer: true,
   name: ARTIFACTS_LIST_TOOL_NAME,
   searchHint:
     'list durable artifacts (outputs persisted by prior daemon/fleet runs) and retrieve one by id',

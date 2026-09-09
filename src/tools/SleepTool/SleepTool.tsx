@@ -73,6 +73,7 @@ type OutputSchema = ReturnType<typeof outputSchema>
 export type Output = z.infer<OutputSchema>
 
 export const SleepTool = buildTool({
+  shouldDefer: true,
   name: SLEEP_TOOL_NAME,
   searchHint: 'wait / pause / rest for a duration without a shell',
   maxResultSizeChars: 10_000,

@@ -229,6 +229,7 @@ async function runOp(input: Input, sessionId: string): Promise<Output> {
 const MUTATING_OPS = new Set<Input['op']>(['start', 'stop', 'restart', 'input'])
 
 export const ServiceTool = buildTool({
+  shouldDefer: true,
   name: SERVICE_TOOL_NAME,
   searchHint:
     'named project services: start/observe/wait/logs/stop long-lived processes (web servers, watch builds, local APIs)',

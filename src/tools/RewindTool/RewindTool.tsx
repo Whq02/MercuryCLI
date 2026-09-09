@@ -29,6 +29,7 @@ type OutputSchema = ReturnType<typeof outputSchema>
 export type Output = z.infer<OutputSchema>
 
 export const RewindTool = buildTool({
+  shouldDefer: true,
   name: REWIND_TOOL_NAME,
   searchHint: 'rewind context to the checkpoint, carry a report back',
   maxResultSizeChars: 10_000,

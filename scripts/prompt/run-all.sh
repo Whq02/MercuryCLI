@@ -4,7 +4,7 @@
 # gate-watch: src/utils/effort*
 # gate-watch: src/utils/profile/appearanceSnapshot* src/utils/profile/mercuryProfile*
 # gate-watch: src/utils/cockpit/promptProvenance* src/utils/cockpit/runProtocol*
-# gate-watch: src/constants/prompts.ts src/constants/systemPromptSections.ts
+# gate-watch: src/constants/prompts.ts src/constants/systemPromptSections.ts src/tools/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
