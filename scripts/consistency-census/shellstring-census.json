@@ -1220,7 +1220,7 @@
     },
     {
       "file": "scripts/permissions/prove-auto-mode.ts",
-      "line": 228,
+      "line": 226,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
