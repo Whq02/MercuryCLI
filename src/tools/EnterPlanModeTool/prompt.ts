@@ -19,7 +19,7 @@ const BASE_PROMPT = `Reach for this tool only under genuine ambiguity: the right
 - Research or exploration — delegate that instead.
 - The user's phrasing signals "let's just start".
 
-Tie-breaker: prefer starting work and using AskUserQuestion for the specific decisions that surface, over a full planning phase.
+Tie-breaker: prefer starting work and asking the operator about the specific decisions that surface, over a full planning phase.
 
 ## What happens in strategy mode
 The session stops writing and only reads: explore the codebase, weigh approaches, and write the plan. Exiting goes through the plan-approval tool.

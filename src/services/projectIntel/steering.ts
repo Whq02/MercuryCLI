@@ -5,7 +5,9 @@ function lspOn(): boolean {
   try {
     const { mercuryLspEnabled } =
       require('../lsp/mercuryLsp.js') as typeof import('../lsp/mercuryLsp.js')
-    return mercuryLspEnabled()
+    const { isLspToolMounted } =
+      require('../lsp/manager.js') as typeof import('../lsp/manager.js')
+    return mercuryLspEnabled() && isLspToolMounted()
   } catch {
     return false
   }

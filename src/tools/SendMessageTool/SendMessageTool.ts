@@ -1050,8 +1050,8 @@ export const SendMessageTool = buildTool({
   async description() {
     return DESCRIPTION
   },
-  async prompt() {
-    return getPrompt()
+  async prompt({ tools }) {
+    return getPrompt(new Set(tools.map(tool => tool.name)))
   },
   async checkPermissions(input: Input) {
     return { behavior: 'allow' as const, updatedInput: input }

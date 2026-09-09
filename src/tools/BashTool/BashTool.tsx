@@ -700,8 +700,8 @@ export const BashTool = buildTool({
   async description(input: BashToolInput): Promise<string> {
     return input?.description ?? 'Run a shell command'
   },
-  async prompt(): Promise<string> {
-    return getSimplePrompt()
+  async prompt({ tools }): Promise<string> {
+    return getSimplePrompt(new Set(tools.map(tool => tool.name)))
   },
   userFacingName,
   isConcurrencySafe(input: BashToolInput): boolean {

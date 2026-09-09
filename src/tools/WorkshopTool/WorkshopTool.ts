@@ -96,7 +96,7 @@ Each cell: { language: "js"|"ts"|"py", code, title?, timeoutMs?, reset? }. ts ne
 
 The bridge (inside cells):
 · await mercury.tool(name, input) — run any normal tool through the standard permission path (nested Workshop calls are refused)
-· await mercury.agent(input) — delegate to the Agent tool (same input shape); the result includes the structured envelope
+· await mercury.agent(input) — delegate to a sub-agent (the same input shape as a direct launch); the result includes the structured envelope
 · await mercury.inspect(ref) — read a mercury:// resource
 · mercury.display(value) — structured display (text/markdown/json/table/ref detected by shape)
 · mercury.parallel(thunks) / mercury.pipeline(items, ...stages) — in-cell composition helpers
