@@ -50,7 +50,7 @@ t.section('§3 — one selective plan-entry doctrine')
   t.check('plan entry keys on genuine ambiguity', planPrompt.includes('genuine ambiguity'))
   t.check(
     'specific questions beat a full planning phase',
-    planPrompt.includes(`prefer starting work and using AskUserQuestion`),
+    planPrompt.includes(`prefer starting work and asking the operator about the specific decisions`),
   )
   t.check('the aggressive "prefer planning" marker is gone', !planPrompt.includes('Prefer using EnterPlanMode'))
   t.check('the multi-file-count trigger is gone', !planPrompt.includes('more than 2-3 files'))

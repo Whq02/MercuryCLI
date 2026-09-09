@@ -1,4 +1,5 @@
 
+import { canAnswerAsks, getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { isAutopilotEnabled } from '../../utils/autopilot/autopilotGates.js'
 
 export const ENTER_PLAN_MODE_TOOL_NAME = 'EnterStrategyMode'
@@ -38,8 +39,13 @@ const MERCURY_DOCTRINE = `## Mercury doctrine (this harness)
 const AUTOPILOT_APPENDIX = `
 - Under the autopilot family, plan entry raises reasoning effort to the planning tier; after approval, mechanical execution may downshift via SetTier.`
 
+const HEADLESS_APPENDIX = `
+
+In this headless session no operator can approve a plan, so entering strategy mode is refused: write the plan in your reply and carry it out under the session's permissions.`
+
 export function getEnterPlanModeToolPrompt(): string {
+  const unanswerable = getIsNonInteractiveSession() && !canAnswerAsks()
   return `${BASE_PROMPT}
 
-${MERCURY_DOCTRINE}${isAutopilotEnabled() ? AUTOPILOT_APPENDIX : ''}`
+${MERCURY_DOCTRINE}${isAutopilotEnabled() ? AUTOPILOT_APPENDIX : ''}${unanswerable ? HEADLESS_APPENDIX : ''}`
 }
