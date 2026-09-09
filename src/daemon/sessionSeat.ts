@@ -36,6 +36,7 @@ import { applyConcourseScheduleOp, saturnFactsOf, SATURN_EDIT_BURST_CAP } from '
 import { deriveScheduleAccountForModel, readLiveAccountFacts, scheduleAccountVerdict } from './saturnAccount.js'
 import { applyConcourseKitOp } from './sessionKitOp.js'
 import { onWorkerControlCancel } from './permissionAsks.js'
+import type { QuiescenceAnswer, QuiescenceRequest } from './runnerQuiescence.js'
 import type { SessionRewindMode, SessionRewindOutcomeV1 } from './protocol.js'
 
 export interface SeatRosterPort {
@@ -1000,6 +1001,52 @@ function settleAgentVerbAnswer(frame: { type?: string; response?: { subtype?: st
   return true
 }
 
+export const QUIESCE_ANSWER_DEADLINE_MS = 10_000
+
+export function quiesceSessionRunner(
+  runnerId: string,
+  request: QuiescenceRequest,
+  roster: Pick<SeatRosterPort, 'control'>,
+  opts?: { deadlineMs?: number },
+): Promise<QuiescenceAnswer> {
+  const requestId = `${SEAT_AGENT_REQUEST_PREFIX}quiesce-${request.action}-${runnerId}-${Date.now().toString(36)}-${(++agentVerbSeq).toString(36)}`
+  const deadlineMs = opts?.deadlineMs ?? QUIESCE_ANSWER_DEADLINE_MS
+  return new Promise<QuiescenceAnswer>(resolve => {
+    const timer = setTimeout(() => {
+      if (!agentVerbWaiters.delete(requestId)) return
+      resolve({ ok: false, token: request.token, reason: `the session's runner did not answer the quiesce ${request.action} within ${Math.round(deadlineMs / 1000)}s` })
+    }, deadlineMs)
+    timer.unref?.()
+    agentVerbWaiters.set(requestId, {
+      short: runnerId,
+      settle: outcome => {
+        clearTimeout(timer)
+        agentVerbWaiters.delete(requestId)
+        if (outcome.outcome !== 'applied') {
+          resolve({ ok: false, token: request.token, reason: outcome.detail ?? 'the runner refused the quiesce' })
+          return
+        }
+        let payload: { token?: unknown; phase?: unknown } = {}
+        try {
+          payload = outcome.detail !== undefined ? (JSON.parse(outcome.detail) as { token?: unknown; phase?: unknown }) : {}
+        } catch {}
+        const phase = payload.phase
+        if (payload.token !== request.token || (phase !== 'prepared' && phase !== 'committed' && phase !== 'cancelled')) {
+          resolve({ ok: false, token: request.token, reason: 'the runner answered with another token or phase' })
+          return
+        }
+        resolve({ ok: true, token: request.token, phase })
+      },
+    })
+    const delivered = roster.control(runnerId, JSON.stringify({ type: 'control_request', request_id: requestId, request }))
+    if (!delivered) {
+      clearTimeout(timer)
+      agentVerbWaiters.delete(requestId)
+      resolve({ ok: false, token: request.token, reason: 'the session has no live control channel' })
+    }
+  })
+}
+
 function rejectAgentVerbWaiters(short: string, detail: string): void {
   for (const [requestId, waiter] of agentVerbWaiters) {
     if (waiter.short !== short) continue
@@ -1010,6 +1057,14 @@ function rejectAgentVerbWaiters(short: string, detail: string): void {
 
 export function _pendingAgentVerbWaitersForTesting(): number {
   return agentVerbWaiters.size
+}
+
+export function settleSeatControlAnswer(line: string): boolean {
+  try {
+    return settleAgentVerbAnswer(JSON.parse(line) as Parameters<typeof settleAgentVerbAnswer>[0])
+  } catch {
+    return false
+  }
 }
 
 

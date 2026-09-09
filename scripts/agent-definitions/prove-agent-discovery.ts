@@ -58,6 +58,19 @@ writeFileSync(
 writeFileSync(join(sub, '.mercury', 'agents', 'zz-twin.md'), agentFile('foundry-twin', 'zz-copy'))
 writeFileSync(join(sub, '.mercury', 'agents', 'aa-twin.md'), agentFile('foundry-twin', 'aa-copy'))
 
+writeFileSync(
+  join(sub, '.mercury', 'agents', 'ruled.md'),
+  '---\nname: foundry-ruled\ndescription: "carries the rule"\nstandingRule: "Verify before you claim."\n---\n\nYou verify.\n',
+)
+writeFileSync(
+  join(sub, '.mercury', 'agents', 'ruled-old.md'),
+  '---\nname: foundry-ruled-old\ndescription: "carries the old spelling"\ncriticalSystemReminder_EXPERIMENTAL: "Verify before you claim."\n---\n\nYou verify.\n',
+)
+writeFileSync(
+  join(sub, '.mercury', 'agents', 'ruled-both.md'),
+  '---\nname: foundry-ruled-both\ndescription: "carries both"\nstandingRule: "The current word."\ncriticalSystemReminder_EXPERIMENTAL: "The old word."\n---\n\nYou verify.\n',
+)
+
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 clearAgentDefinitionsCache()
@@ -129,6 +142,24 @@ console.log('D5: cross-scope precedence unchanged (project > user)')
     winner?.whenToUse === 'project-copy',
     `winner description: ${winner?.whenToUse}`,
   )
+}
+
+console.log('D9: the standing rule loads under its name and under the retired spelling')
+{
+  const rule = (name: string): string | undefined => (active.get(name) as { standingRule?: string } | undefined)?.standingRule
+  check('standingRule is read from the agent file', rule('foundry-ruled') === 'Verify before you claim.', String(rule('foundry-ruled')))
+  check('a file still spelling criticalSystemReminder_EXPERIMENTAL is read as standingRule this release', rule('foundry-ruled-old') === 'Verify before you claim.', String(rule('foundry-ruled-old')))
+  check('when both keys are present the current spelling wins', rule('foundry-ruled-both') === 'The current word.', String(rule('foundry-ruled-both')))
+  const loaded = active.get('foundry-ruled-old') as Record<string, unknown> | undefined
+  check('the definition carries no retired key of its own', loaded !== undefined && !('criticalSystemReminder_EXPERIMENTAL' in loaded))
+  const { parseAgentsFromJson } = await import('../../src/tools/AgentTool/loadAgentsDir.js')
+  const viaJson = parseAgentsFromJson({
+    'json-new': { description: 'd', prompt: 'p', standingRule: 'new key' },
+    'json-old': { description: 'd', prompt: 'p', criticalSystemReminder_EXPERIMENTAL: 'old key' },
+  })
+  const jsonRule = (name: string): string | undefined => (viaJson.find(a => a.agentType === name) as { standingRule?: string } | undefined)?.standingRule
+  check('the SDK/CLI JSON route reads standingRule', jsonRule('json-new') === 'new key', String(jsonRule('json-new')))
+  check('the SDK/CLI JSON route still accepts the retired spelling', jsonRule('json-old') === 'old key', String(jsonRule('json-old')))
 }
 
 console.log('D6: filename vs declared name')

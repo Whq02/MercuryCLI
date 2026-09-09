@@ -46,6 +46,6 @@ export const MERCURY_REVIEWER_AGENT: BuiltInAgentDefinition = {
   background: true,
   isolation: 'worktree',
   fixedOutputContract: true,
-  criticalSystemReminder_EXPERIMENTAL: REVIEWER_REMINDER,
+  standingRule: REVIEWER_REMINDER,
   getSystemPrompt: () => REVIEWER_PROMPT,
 }

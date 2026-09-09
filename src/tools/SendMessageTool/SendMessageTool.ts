@@ -8,6 +8,11 @@ import { asAgentId, toAgentId } from '../../types/ids.js'
 import { agentStatusWord } from '../../services/resources/adapters/agentStatusWord.js'
 import { getAgentTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { readAgentTranscript, transcriptEndWords } from '../WorkflowTool/agentTranscriptReader.js'
+import { requestWorkflowControl, workflowControlBy } from '../WorkflowTool/runControl.js'
+import { listWorkflowRunsDetailed, runLiveness } from '../WorkflowTool/runManifest.js'
+import { getSessionId } from '../../bootstrap/state.js'
+import { getCwd } from '../../utils/cwd.js'
+import { pidAlive } from '../../utils/pidAlive.js'
 import { daemonControlRpc } from '../../daemon/controlSocket.js'
 import { findTeammateTaskByAgentId } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
 import { isLocalAgentTask, queuePendingMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
@@ -515,7 +520,14 @@ async function routeToLocalAgent(
 
   const owningWorkflow = workflowOwningAgent(context.getAppState().tasks, String(agentId))
   if (owningWorkflow !== undefined) {
-    return { success: false, message: workflowOwnedAgentWords(owningWorkflow, String(agentId)) }
+    if (owningWorkflow.runDir === undefined) {
+      return { success: false, message: workflowOwnedAgentWords(owningWorkflow, String(agentId)) }
+    }
+    return messageWorkflowWorker(owningWorkflow.runDir, owningWorkflow.workflowName ?? owningWorkflow.description, owningWorkflow.workflowRunId, String(agentId), content)
+  }
+  const elsewhere = await workflowRunningAgentElsewhere(String(agentId))
+  if (elsewhere !== undefined) {
+    return messageWorkflowWorker(elsewhere.runDir, elsewhere.workflowName ?? elsewhere.runId, elsewhere.runId, String(agentId), content)
   }
 
   const transcriptPath = agentTranscriptPathOf(String(agentId))
@@ -559,6 +571,48 @@ async function routeToLocalAgent(
         `Agent ${rawTo} is not running (${endedOnDisk}) and could not be resumed: ${errorMessage(error)}`,
     }
   }
+}
+
+async function messageWorkflowWorker(
+  runDir: string,
+  workflowName: string,
+  runId: string,
+  agentId: string,
+  content: string,
+): Promise<MessageOutput> {
+  const result = await requestWorkflowControl(runDir, {
+    action: 'message-agent',
+    by: workflowControlBy(getSessionId(), process.pid),
+    agentId,
+    message: content,
+  })
+  const where = `worker ${agentId} of workflow "${workflowName}" (${runId})`
+  if (result.outcome === 'applied') {
+    return { success: true, message: `Message queued for ${where}: ${result.detail}. The run's journal carries the request and its answer.` }
+  }
+  if (result.outcome === 'pending') {
+    return { success: true, message: `Message left for ${where}: ${result.reason}.` }
+  }
+  return { success: false, message: `Message to ${where} refused: ${result.reason}. Inspect mercury://workflow/${runId}?child=${agentId} for its state.` }
+}
+
+async function workflowRunningAgentElsewhere(
+  agentId: string,
+): Promise<{ runDir: string; runId: string; workflowName?: string } | undefined> {
+  let listing: Awaited<ReturnType<typeof listWorkflowRunsDetailed>>
+  try {
+    listing = await listWorkflowRunsDetailed(getCwd())
+  } catch {
+    return undefined
+  }
+  const now = Date.now()
+  for (const run of listing.rows) {
+    if (run.status !== 'running' || run.controlVersion === undefined) continue
+    if (runLiveness(run, run.mtimeMs, now, pidAlive) !== 'live') continue
+    const inFlight = run.agents.some(a => a.agentId === agentId && (a.state === 'start' || a.state === 'progress'))
+    if (inFlight) return { runDir: run.runDir, runId: run.runId, workflowName: run.workflowName }
+  }
+  return undefined
 }
 
 function agentTranscriptPathOf(agentId: string): string | null {

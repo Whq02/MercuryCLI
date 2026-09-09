@@ -47,6 +47,7 @@ import { useStableSelection } from '../mercury-ui/useStableSelection.js'
 import { STATE_STYLE, type SnapshotState } from '../mercury-ui/theme.js'
 import { agentSnapshotState, statusTone } from './WorkflowDetailDialog.js'
 import { useAgentTranscriptView } from './useAgentTranscriptView.js'
+import { chatOnlyBoot } from '../../context/surfaceRoute.js'
 
 
 export type PhaseBucket<A> = PhaseBucketOf<A>
@@ -148,9 +149,9 @@ export function controlRefusal(
   wedged: boolean,
 ): string {
   const verb = verbWord(key)
-  if (orphaned) return `the run is stale (its owner is gone) — nothing to ${verb}; R on the board resumes it from disk`
+  if (orphaned) return `the run is stale (its owner is gone) — nothing to ${verb}${chatOnlyBoot() ? '' : '; R on the board resumes it from disk'}`
   if (wedged) return `the run's owner is alive but silent — nothing to ${verb} until it speaks`
-  if (status === 'paused') return `the run is paused on disk — nothing to ${verb}; R on the board resumes it`
+  if (status === 'paused') return `the run is paused on disk — nothing to ${verb}${chatOnlyBoot() ? '' : '; R on the board resumes it'}`
   if (status === 'running' || status === 'pending') return `the run has no control channel yet — nothing to ${verb}`
   return `the run already settled — nothing to ${verb}`
 }
