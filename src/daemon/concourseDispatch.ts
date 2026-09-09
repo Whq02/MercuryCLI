@@ -563,6 +563,7 @@ export function makeConcourseDispatchHandler(
         moves: [{ verb: 'retry', label: 'it delivers once the park has landed' }],
       }
     }
+    let reviveRefusal: string | undefined
     if (
       targetRec &&
       (targetRec.pid === undefined || !isProcessAlive(targetRec.pid)) &&
@@ -576,13 +577,15 @@ export function makeConcourseDispatchHandler(
           w => w.sessionId === target && w.endedAt === undefined,
         )
         if (refreshed) targetRec = refreshed
-      }
+      } else reviveRefusal = rev.error
     }
     if (!targetRec || targetRec.pid === undefined || !isProcessAlive(targetRec.pid)) {
       const stopped = targetRec?.stoppedAt !== undefined
       const why = stopped
         ? 'stopped — the session was stopped on purpose; resume it to bring it back'
-        : 'the session has no live runner — a replay revives it and delivers into the same chat'
+        : reviveRefusal !== undefined
+          ? `the session could not be revived: ${reviveRefusal}`
+          : 'the session has no live runner — a replay revives it and delivers into the same chat'
       delete rec.heldReason
       delete rec.heldOp
       advance(rec, 'failed', { reason: why })
@@ -596,7 +599,9 @@ export function makeConcourseDispatchHandler(
         moves: [
           stopped
             ? { verb: 'revive', label: 'resume the session — it comes back around its untouched chat' }
-            : { verb: 'revive', label: '↵ replays — it revives the runner and delivers' },
+            : reviveRefusal !== undefined
+              ? { verb: 'queue', label: 'start a new session — this one cannot come back' }
+              : { verb: 'revive', label: '↵ replays — it revives the runner and delivers' },
         ],
       }
     }
