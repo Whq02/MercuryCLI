@@ -264,6 +264,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
 {
   const EXPECTED_VALUE_EXPORTS = [
     'addInvokedSkill', 'addToToolDuration',
+    'canAnswerAsks', 'getAskChannel', 'setAskChannel',
     'addToTotalCostState', 'addToTotalDurationState', 'addToTotalLinesChanged',
     'addToTurnClassifierDuration', 'addToTurnHookDuration', 'clearBetaHeaderLatches',
     'clearInvokedSkills', 'clearInvokedSkillsForAgent', 'clearRegisteredHooks',
