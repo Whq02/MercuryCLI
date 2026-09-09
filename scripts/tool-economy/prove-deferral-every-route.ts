@@ -327,13 +327,13 @@ section('§7 THE LANE CENSUS — every tools term is built from the plan')
     'src/services/providers/zai/zaiCallModel.ts',
     'src/services/providers/openaicompat/compatChatCallModel.ts',
   ]
-  for (const lane of lanes) {
-    const src = readFileSync(join(ROOT, lane), 'utf8')
-    check(`${lane}: consumes the plan owner`, /planToolPayload\(\{/.test(src) && /from '\.\.\/toolEconomy\.js'/.test(src))
-    check(`${lane}: builds its tools term from plan.roster`, /buildApiShapedTools\(plan\.roster,/.test(src))
-    check(`${lane}: never hands the raw pool to its schema builder`, !/buildApiShapedTools\(tools,/.test(src))
-    check(`${lane}: renders admission records as text and folds the announcement`, new RegExp('renderAdmissionRecordsAsText\\(' + (lane.includes('/openai/') ? 'projectedMessages' : 'messages') + '\\)').test(src) && /foldAnnouncementIntoFirstUserTurn\(/.test(src))
-    check(`${lane}: the gate carries the admission predicate`, /deferredUnadmitted: plan\.isDeferredUnadmitted/.test(src) && /\{ deferredUnadmitted: ctx\.deferredUnadmitted \}/.test(src))
+  for (const route of lanes) {
+    const src = readFileSync(join(ROOT, route), 'utf8')
+    check(`${route}: consumes the plan owner`, /planToolPayload\(\{/.test(src) && /from '\.\.\/toolEconomy\.js'/.test(src))
+    check(`${route}: builds its tools term from plan.roster`, /buildApiShapedTools\(plan\.roster,/.test(src))
+    check(`${route}: never hands the raw pool to its schema builder`, !/buildApiShapedTools\(tools,/.test(src))
+    check(`${route}: renders admission records as text and folds the announcement`, new RegExp('renderAdmissionRecordsAsText\\(' + (route.includes('/openai/') ? 'projectedMessages' : 'messages') + '\\)').test(src) && /foldAnnouncementIntoFirstUserTurn\(/.test(src))
+    check(`${route}: the gate carries the admission predicate`, /deferredUnadmitted: plan\.isDeferredUnadmitted/.test(src) && /\{ deferredUnadmitted: ctx\.deferredUnadmitted \}/.test(src))
   }
   const core = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
   check('streamCore: consumes the plan owner', /planToolPayload\(\{/.test(core) && /const filteredTools: Tools = plan\.roster/.test(core))
@@ -342,10 +342,10 @@ section('§7 THE LANE CENSUS — every tools term is built from the plan')
   check('streamCore: the announcement is the plan\'s message', /announcementMessage\(plan\)/.test(core) && !/<available-deferred-tools>\\n\$\{deferredToolList\}/.test(core))
   const router = readFileSync(join(ROOT, 'src/services/providers/callModelRouter.ts'), 'utf8')
   const compatLanes = ['moonshot', 'deepseek', 'openrouter', 'gemini', 'huggingface', 'local']
-  for (const lane of compatLanes) {
-    const file = join(ROOT, `src/services/providers/${lane}/${lane}CallModel.ts`)
+  for (const route of compatLanes) {
+    const file = join(ROOT, `src/services/providers/${route}/${route}CallModel.ts`)
     const src = readFileSync(file, 'utf8')
-    check(`${lane}: rides the shared compat chat runtime (a plan consumer)`, /compatChatCallModel\(/.test(src) || /from '\.\.\/openaicompat\/compatChatCallModel\.js'/.test(src))
+    check(`${route}: rides the shared compat chat runtime (a plan consumer)`, /compatChatCallModel\(/.test(src) || /from '\.\.\/openaicompat\/compatChatCallModel\.js'/.test(src))
   }
   const compat = readFileSync(join(ROOT, 'src/services/providers/openaicompat/compatCallModel.ts'), 'utf8')
   check('openai-compat: rides the shared compat chat runtime', /compatChatCallModel\(/.test(compat))
