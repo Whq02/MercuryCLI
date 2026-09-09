@@ -390,6 +390,16 @@ export function workerPidAlive(rec: { pid?: number; procStart?: string }): boole
   return true
 }
 
+export function markConcourseWorkerCapacityRefused(runnerId: string, reason: string, dir?: string): void {
+  updateConcourseWorkers(workers => {
+    const rec = workers[runnerId]
+    if (!rec || rec.endedAt !== undefined || rec.stoppedAt !== undefined || rec.attachedAt !== undefined) return
+    stampParked(rec, 'daemon: capacity', reason)
+    delete rec.pid
+    delete rec.procStart
+  }, dir)
+}
+
 export function markConcourseWorkerRespawn(runnerId: string, pid: number, dir?: string): void {
   try {
     updateConcourseWorkers(workers => {
@@ -894,10 +904,6 @@ export function makeConcourseAdmitHandler(
           }
         }, deps.dir)
         deps.onSpawned?.(runnerId, claimed.spec, claimed.pid)
-        if (deps.ensureWarm !== undefined) {
-          const rewarm = setTimeout(() => deps.ensureWarm!(workspaceId, kit, req.bypassConsent === true), 0)
-          rewarm.unref?.()
-        }
         return {
           ok: true,
           ...(retainedNote !== undefined ? { note: retainedNote } : {}),
@@ -913,10 +919,6 @@ export function makeConcourseAdmitHandler(
         }
       }
       logForDebugging(`[daemon] warm claim declined (${claimed.reason}) — spawning cold`)
-      if (deps.ensureWarm !== undefined) {
-        const rewarm = setTimeout(() => deps.ensureWarm!(workspaceId, kit, req.bypassConsent === true), 0)
-        rewarm.unref?.()
-      }
     }
 
     const used = new Set(
@@ -1618,7 +1620,7 @@ export type ConcourseReviveOutcome =
   | { outcome: 'noop'; reason: 'already-live' }
   | {
       outcome: 'refused'
-      reason: 'unknown-session' | 'attached' | 'stopped' | 'respawn-failed'
+      reason: 'unknown-session' | 'attached' | 'stopped' | 'respawn-failed' | 'runtime-ceiling'
       detail?: string
     }
 
@@ -1661,6 +1663,10 @@ export function reviveConcourseWorker(
   if (workerPidAlive(rec)) return { outcome: 'noop', reason: 'already-live' }
   if (!roster)
     return { outcome: 'refused', reason: 'respawn-failed', detail: 'daemon roster not ready' }
+  const ceiling = effectiveSeatCeiling()
+  if (countLiveConcourseWorkers(dir) >= ceiling) {
+    return { outcome: 'refused', reason: 'runtime-ceiling', detail: `cannot resume yet — ${describeSeatReading(ceiling)}` }
+  }
   const reviveKit = opts?.kitOverride ?? rec.kit
   const reviveModel = opts?.modelOverride ?? rec.modelKey
   const revivePosture = opts?.permissionMode ?? rec.permissionMode
@@ -1679,11 +1685,7 @@ export function reviveConcourseWorker(
     resume: true,
     cwd: rec.worktreePath ?? rec.workspaceId,
   })
-  let reg = roster.registerLongLived(rec.runnerId, spec)
-  if (!reg.ok && roster.has(rec.runnerId).present) {
-    roster.kill(rec.runnerId)
-    reg = roster.registerLongLived(rec.runnerId, spec)
-  }
+  const reg = roster.registerLongLived(rec.runnerId, spec)
   if (!reg.ok)
     return {
       outcome: 'refused',
@@ -1831,10 +1833,6 @@ export async function reactivateConcourseSession(
         workers[short] = next
       }, deps.dir)
       deps.onSpawned?.(short, claimed.spec, claimed.pid)
-      if (deps.ensureWarm !== undefined) {
-        const rewarm = setTimeout(() => deps.ensureWarm!(rec.workspaceId, kit, args.bypassConsent === true), 0)
-        rewarm.unref?.()
-      }
       return {
         ok: true,
         runnerId: short,
@@ -1849,10 +1847,6 @@ export async function reactivateConcourseSession(
       }
     }
     logForDebugging(`[daemon] warm claim declined for the reactivate of ${rec.sessionId} (${claimed.reason}) — respawning cold`)
-    if (deps.ensureWarm !== undefined) {
-      const rewarm = setTimeout(() => deps.ensureWarm!(rec.workspaceId, kit, args.bypassConsent === true), 0)
-      rewarm.unref?.()
-    }
   }
   const keylessDrift = (args.keyless === true) !== (rec.keyless === true)
   if (args.modelKey !== rec.modelKey || effort !== rec.effort || isolationDrift || keylessDrift) {
