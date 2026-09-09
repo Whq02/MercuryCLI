@@ -73,7 +73,7 @@ import type { ExternalInstructionInclude } from '../../services/instructions/eng
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { clearCliTeammateModeOverride } from '../../utils/swarm/backends/teammateModeSnapshot.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
-import { SEAT_DOORS, seatCeilingFacts, seatCeilingValueWords, seatCostWarning, setOperatorSeats } from '../../services/switchboard/capacityCheck.js'
+import { SEAT_DOORS, seatCeilingFactsAsync, seatCeilingValueWords, seatCostWarning, setOperatorSeats, type SeatCeilingFacts } from '../../services/switchboard/capacityCheck.js'
 import { MOTION_DOORS, MOTION_SETTINGS, motionDetailLines, motionValueWords, noteMotionSettingChanged, readMotionSetting, setMotionSetting } from '../../utils/cockpit/motionSetting.js'
 import { subagentDefaultsOf } from '../../utils/agentDefaults.js'
 import { agentFanoutCap } from '../../constants/subagentDoctrine.js'
@@ -409,18 +409,25 @@ export function Config({
       recordToggle('concourse', `set the session concourse to ${next ? 'on' : 'off (live view only)'}`)
     },
   })
-  const seatFacts = seatCeilingFacts()
-  const seatWarning = seatCostWarning(seatFacts)
+  const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null)
+  useEffect(() => {
+    let active = true
+    void seatCeilingFactsAsync().then(facts => { if (active) setSeatFacts(facts) })
+    return () => { active = false }
+  }, [version])
+  const seatWarning = seatFacts === null ? null : seatCostWarning(seatFacts)
   items.push({
     id: 'seats',
     label: 'Seats',
     searchText: 'seats seat ceiling capacity concurrency sessions sub-agents workflow agents in flight',
     kind: 'enum',
-    value: <Text>{seatCeilingValueWords(seatFacts)}</Text>,
-    warning: seatWarning !== null ? seatWarning : `a seat is one model call in flight; ${seatFacts.readingSentence} · ←/→ move the ceiling by one · doors: ${SEAT_DOORS}`,
+    value: <Text>{seatFacts === null ? 'reading capacity…' : seatCeilingValueWords(seatFacts)}</Text>,
+    warning: seatFacts === null ? 'reading capacity…' : seatWarning !== null ? seatWarning : `a seat is one model call in flight; ${seatFacts.readingSentence} · ←/→ move the ceiling by one · doors: ${SEAT_DOORS}`,
     change: direction => {
+      if (seatFacts === null) return
       const next = direction > 0 ? seatFacts.seats + 1 : Math.max(1, seatFacts.seats - 1)
       const after = setOperatorSeats(next)
+      setSeatFacts(after)
       recordSet('seats', `set the seat ceiling to ${after.seats}`)
       bump()
     },

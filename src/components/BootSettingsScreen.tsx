@@ -24,7 +24,8 @@ import { flagSpellings } from '../substrate/flagRegistry.js';
 import {
   SEATS_MENU_ROW,
   seatCeilingDetailLines,
-  seatCeilingFacts,
+  seatCeilingFactsAsync,
+  type SeatCeilingFacts,
   seatCeilingValueWords,
   seatCostWarning,
   seatSourceWords,
@@ -131,7 +132,12 @@ export function BootSettingsScreen({
     [snapshot],
   );
   const [seatsTick, setSeatsTick] = useState(0);
-  const seatFacts = useMemo(() => seatCeilingFacts(), [seatsTick, saveTick]);
+  const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null);
+  useEffect(() => {
+    let active = true;
+    void seatCeilingFactsAsync().then(facts => { if (active) setSeatFacts(facts); });
+    return () => { active = false; };
+  }, [seatsTick, saveTick]);
   const [motionTick, setMotionTick] = useState(0);
   const motionSetting = useMemo(() => readMotionSetting(), [motionTick, saveTick]);
   const menuRows = useMemo<readonly MenuRow[]>(() => [...STARTUP_MENU, SEATS_MENU_ROW as MenuRow, MOTION_MENU_ROW as MenuRow], []);
@@ -146,6 +152,7 @@ export function BootSettingsScreen({
   };
   const commitSeats = (next: number | null): string => {
     const facts = setOperatorSeats(next);
+    setSeatFacts(facts);
     setSeatsTick(n => n + 1);
     const warning = seatCostWarning(facts);
     const words =
@@ -268,7 +275,7 @@ export function BootSettingsScreen({
   };
 
   const cycleRow = (row: MenuRow, direction: 1 | -1): string => {
-    if (isSeatsRow(row)) return commitSeats(direction > 0 ? seatFacts.seats + 1 : Math.max(1, seatFacts.seats - 1));
+    if (isSeatsRow(row)) return seatFacts === null ? 'capacity reading is pending — try again shortly' : commitSeats(direction > 0 ? seatFacts.seats + 1 : Math.max(1, seatFacts.seats - 1));
     if (isMotionRow(row)) {
       const at = MOTION_SETTINGS.indexOf(motionSetting);
       return commitMotion(MOTION_SETTINGS[((at < 0 ? 0 : at) + direction + MOTION_SETTINGS.length) % MOTION_SETTINGS.length]!);
@@ -364,11 +371,11 @@ export function BootSettingsScreen({
           label: row.label,
           group: row.group,
           summary: row.summary,
-          valueLabel: seatCeilingValueWords(seatFacts),
-          valueIsDefault: seatFacts.source !== 'operator',
+          valueLabel: seatFacts === null ? 'reading capacity…' : seatCeilingValueWords(seatFacts),
+          valueIsDefault: seatFacts?.source !== 'operator',
           pinnedVal: null,
           detail: row.detail ?? null,
-          detailExtra: seatCeilingDetailLines(seatFacts),
+          detailExtra: seatFacts === null ? ['reading capacity…'] : seatCeilingDetailLines(seatFacts),
         };
       }
       if (isMotionRow(row)) {
