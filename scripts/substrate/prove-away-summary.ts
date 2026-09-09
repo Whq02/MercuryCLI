@@ -40,11 +40,11 @@ console.log('============================================================')
 console.log(' away/resume recap — what happened while you were gone')
 console.log('============================================================')
 
-section('(a) gate — default-ON for fork (substrate), =0 opt-out wins')
+section('(a) gate — default-ON (substrate), =0 opt-out wins')
 {
   delete process.env.MERCURY_AWAY_SUMMARY
   delete process.env.MERCURY_SUBSTRATE
-  check('fork default (substrate on) ⇒ enabled', isAwaySummaryEnabled() === true)
+  check('default (substrate on) ⇒ enabled', isAwaySummaryEnabled() === true)
   process.env.MERCURY_AWAY_SUMMARY = '0'
   check('MERCURY_AWAY_SUMMARY=0 ⇒ disabled', isAwaySummaryEnabled() === false)
   process.env.MERCURY_AWAY_SUMMARY = 'false'

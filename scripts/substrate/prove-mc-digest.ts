@@ -38,7 +38,7 @@ console.log('============================================================')
 section('(a) default-ON (graduated); =0 ⇒ the byte-exact placeholder')
 {
   delete process.env.MERCURY_MC_DIGEST
-  check('flag ON by default (fork, env unset — the graduation)', isMicroCompactDigestEnabled() === true)
+  check('flag ON by default (stamped build, env unset — the graduation)', isMicroCompactDigestEnabled() === true)
   process.env.MERCURY_MC_DIGEST = '0'
   check('flag =0 ⇒ disabled (opt-out preserved)', isMicroCompactDigestEnabled() === false)
   check('OFF ⇒ placeholder for clean text', digestClearedToolResult('ls: a.ts b.ts') === MC_CLEARED_PLACEHOLDER)

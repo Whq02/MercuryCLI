@@ -105,7 +105,7 @@ section('per-server max-risk — MERCURY_MCP_MAX_RISK=default + server:risk over
   check('unset ⇒ permissive default high for any server', getMaxExposedRiskForServer('x') === 'high')
 }
 
-section('untrusted-server HARDENING — DEFAULT-OFF fork opt-in (MERCURY_MCP_UNTRUSTED_HARDENING=1)')
+section('untrusted-server HARDENING — DEFAULT-OFF opt-in (MERCURY_MCP_UNTRUSTED_HARDENING=1)')
 {
   const MACRO_KEY = 'MACRO' as const
   const setStamp = (on: boolean): void => {
@@ -117,17 +117,17 @@ section('untrusted-server HARDENING — DEFAULT-OFF fork opt-in (MERCURY_MCP_UNT
 
   setStamp(true)
   delete process.env.MERCURY_MCP_UNTRUSTED_HARDENING
-  check('fork + env unset ⇒ hardening OFF', isUntrustedMcpHardeningOn() === false)
+  check('stamped build + env unset ⇒ hardening OFF', isUntrustedMcpHardeningOn() === false)
   check('OFF ⇒ describe names the off state (honest, not empty)', describeUntrustedMcpHardening() === 'untrusted-hardening off')
   check('OFF ⇒ high-risk untrusted tool ALLOWED (byte-identical to bare gate)',
     mcpToolAllowed('rando', 'wipe', { destructiveHint: true }) === true)
   process.env.MERCURY_MCP_UNTRUSTED_HARDENING = 'true'
-  check('fork + env="true" ⇒ OFF (only exact "1" opts in)', isUntrustedMcpHardeningOn() === false)
+  check('stamped build + env="true" ⇒ OFF (only exact "1" opts in)', isUntrustedMcpHardeningOn() === false)
   process.env.MERCURY_MCP_UNTRUSTED_HARDENING = '0'
-  check('fork + env="0" ⇒ OFF', isUntrustedMcpHardeningOn() === false)
+  check('stamped build + env="0" ⇒ OFF', isUntrustedMcpHardeningOn() === false)
 
   process.env.MERCURY_MCP_UNTRUSTED_HARDENING = '1'
-  check('fork + env="1" ⇒ hardening ON', isUntrustedMcpHardeningOn() === true)
+  check('stamped build + env="1" ⇒ hardening ON', isUntrustedMcpHardeningOn() === true)
   check('ON ⇒ describe names the third-party gate', describeUntrustedMcpHardening().includes('untrusted'))
   check('ON ⇒ high-risk untrusted tool DENIED (the real effect)',
     mcpToolAllowed('rando', 'wipe', { destructiveHint: true }) === false)

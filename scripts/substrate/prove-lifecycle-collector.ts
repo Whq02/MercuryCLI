@@ -20,7 +20,6 @@ delete process.env.MERCURY_CREW_DIR
 delete process.env.MERCURY_CHANNEL_ROOM
 delete process.env.MERCURY_DAEMON_DIR
 delete process.env.MERCURY_DELIVERY_ARTIFACT
-delete process.env.MERCURY_DELIVERY_ARTIFACT
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const lifecycle = await import('../../src/substrate/stateLifecycle.ts')

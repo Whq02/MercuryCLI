@@ -39,11 +39,11 @@ check(`isAnalyticsDisabled() === true under a bare stamp (got ${bareStampAnalyti
 
 console.log('\n[2b] binaryName() — the binary-name long-tail primitive')
 setStamp(true)
-check(`fork: binaryName() === 'mercury' (got '${binaryName()}')`, binaryName() === 'mercury')
+check(`stamped build: binaryName() === 'mercury' (got '${binaryName()}')`, binaryName() === 'mercury')
 setStamp(false)
 check(`bare stamp: binaryName() === 'mercury' too (stamp-independence)`, binaryName() === 'mercury')
 
-console.log('\n[3] the compat env gate still composes (no regression)')
+console.log('\n[3] the env gate still composes (no regression)')
 setStamp(false)
 process.env.MERCURY_TELEMETRY = '0'
 check('MERCURY_TELEMETRY=0 ⇒ isAnalyticsDisabled() === true (env gate intact)', isAnalyticsDisabled() === true)

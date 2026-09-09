@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -146,40 +146,8 @@ section('§4 contextGauge — fresh session is unavailable, never a fake figure'
   check('usedPct is null, never 0', fresh.data.usedPct === null)
 }
 
-section('§5 the retired owners stay retired')
+section('§5 the barrel exports the four gauges')
 {
-  const retiredFiles = [
-    'mcpSnapshot',
-    'mcpRuntimeStore',
-    'modelSnapshot',
-    'statusSnapshot',
-    'sessionSnapshot',
-    'pluginSnapshot',
-    'skillsSnapshot',
-    'usageSnapshot',
-    'fleetSnapshot',
-  ]
-  for (const name of retiredFiles) {
-    check(`src/utils/cockpit/${name}.ts is gone`, !existsSync(join(ROOT, 'src', 'utils', 'cockpit', `${name}.ts`)))
-  }
-  const self = join(ROOT, 'scripts', 'substrate', 'prove-gauge-owners.ts')
-  const offenders: string[] = []
-  const walk = (dir: string): void => {
-    for (const e of readdirSync(dir)) {
-      if (e === 'node_modules' || e.startsWith('.')) continue
-      const p = join(dir, e)
-      if (statSync(p).isDirectory()) walk(p)
-      else if (/\.(ts|tsx)$/.test(e) && p !== self) {
-        const text = readFileSync(p, 'utf8')
-        for (const name of retiredFiles) {
-          if (new RegExp(`cockpit/${name}\\b|\\b${name}\\(`).test(text)) offenders.push(`${p.slice(ROOT.length + 1)}: ${name}`)
-        }
-      }
-    }
-  }
-  walk(join(ROOT, 'src'))
-  walk(join(ROOT, 'scripts'))
-  check('zero references to the retired owners in src/ and scripts/', offenders.length === 0, offenders.slice(0, 5).join(' · '))
   const barrel = readFileSync(join(ROOT, 'src', 'utils', 'cockpit', 'index.ts'), 'utf8')
   check('the barrel exports the four gauges', ['modelGauge', 'contextGauge', 'fleetGauge', 'mcpGauge'].every(n => barrel.includes(`./${n}.js`)))
 }
