@@ -1,5 +1,5 @@
 import { platform, release, type as osType, version as osVersion } from 'node:os'
-import { getOriginalCwd } from '../bootstrap/state.js'
+import { canAnswerAsks, getOriginalCwd } from '../bootstrap/state.js'
 import { composeSystemPrompt } from '../prompt/composer.js'
 import type { NamedSection } from '../prompt/mercuryContract.js'
 import {
@@ -347,9 +347,10 @@ function sessionGuidanceSection(
   hasSkills: boolean,
   forkSubagentsEnabled: boolean,
   nonInteractive: boolean,
+  askable: boolean = !nonInteractive,
 ): string | null {
   const items: Array<string | string[]> = []
-  if (!nonInteractive && toolNames.has(ASK_USER_QUESTION_TOOL_NAME)) {
+  if (askable && toolNames.has(ASK_USER_QUESTION_TOOL_NAME)) {
     items.push(
       `When a tool denial is not understood, use ${ASK_USER_QUESTION_TOOL_NAME} to ask rather than guessing.`,
     )
@@ -453,10 +454,11 @@ export async function getSystemPrompt(
   const forkSubagentsEnabled = toolNames.has(AGENT_TOOL_NAME) && isForkSubagentEnabled()
   const hasSkills = toolNames.has(SKILL_TOOL_NAME)
   const nonInteractive = process.env.MERCURY_ENTRYPOINT === 'headless'
+  const askable = !nonInteractive || canAnswerAsks()
 
   const dynamicSpecs = [
     systemPromptSection('session_guidance', () =>
-      sessionGuidanceSection(toolNames, hasSkills, forkSubagentsEnabled, nonInteractive),
+      sessionGuidanceSection(toolNames, hasSkills, forkSubagentsEnabled, nonInteractive, askable),
     ),
     systemPromptSection('memory', () => loadMemoryPrompt()),
     keyedSystemPromptSection(

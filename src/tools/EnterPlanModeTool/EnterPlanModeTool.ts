@@ -2,7 +2,9 @@
 import { z } from 'zod'
 import { enqueueNotification } from '../../context/notifications.js'
 import { buildTool } from '../../Tool.js'
+import { canAnswerAsks, getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { getAgentContext } from '../../utils/agentContext.js'
+import { isTeammate } from '../../utils/teammate.js'
 import { EFFORT_LEVELS, isEffortLevel, type EffortLevel } from '../../utils/effort.js'
 import { recordModeTransition } from '../../utils/permissions/modeTransitions.js'
 import { prepareContextForPlanMode } from '../../utils/permissions/permissionSetup.js'
@@ -51,6 +53,16 @@ export const EnterPlanModeTool = buildTool({
   },
   userFacingName(): string {
     return ''
+  },
+  async validateInput() {
+    if (!isTeammate() && getIsNonInteractiveSession() && !canAnswerAsks()) {
+      return {
+        result: false as const,
+        message: 'This session runs headless with no permission channel, so no operator could approve a plan and strategy mode could never be left — not entered. Write the plan in your reply and carry it out under the session\'s permissions; a client that connects a permission channel can approve plans.',
+        errorCode: 1,
+      }
+    }
+    return { result: true as const }
   },
   async call(_input: Record<string, never>, context) {
     if (getAgentContext() !== undefined || context.agentId) {

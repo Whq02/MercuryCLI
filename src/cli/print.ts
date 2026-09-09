@@ -28,6 +28,7 @@ import {
   getProjectRoot,
   getAddedDirectories,
   isSessionPersistenceDisabled,
+  setAskChannel,
   switchSession,
 } from '../bootstrap/state.js'
 import { existsSync } from 'node:fs'
@@ -383,6 +384,7 @@ export async function runHeadless(
   agents: AgentDefinition[],
   options: HeadlessOptions,
 ): Promise<void> {
+  setAskChannel(options.permissionChannel !== undefined || options.permissionPromptToolName !== undefined ? 'sdk' : 'none')
   markSessionNonInteractive(getAppState().toolPermissionContext?.mode)
   const shellRoadNotice = windowsShellRoadNotice()
   if (shellRoadNotice !== null) process.stderr.write(`${shellRoadNotice}\n`)
