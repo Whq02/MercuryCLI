@@ -64,6 +64,7 @@ function requiresFallback(original: string, joined: string): {
   if (hasMalformedTokens(joined, parseResult.tokens)) return { fallback: true }
 
   const tokens = parseResult.tokens
+  if (tokens.some(t => operatorText(t) === 'glob')) return { fallback: true }
   const firstPipe = tokens.findIndex(t => operatorText(t) === '|')
   if (firstPipe <= 0) return { fallback: true }
 
@@ -101,11 +102,6 @@ function rebuildTokens(tokens: ParseEntry[]): string {
     }
 
     const op = operatorText(entry)
-    if (op === 'glob') {
-      out.push((entry as { pattern: string }).pattern)
-      sawCommandWord = true
-      continue
-    }
     if (op !== null) {
       if (op === '&&' || op === '||' || op === ';') {
         assignmentsAllowed = true
