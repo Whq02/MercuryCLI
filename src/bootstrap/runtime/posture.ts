@@ -10,6 +10,7 @@ function isPostureEnvTruthy(v: string | undefined): boolean {
 export class PostureOwner {
   isInteractive = false
   headlessOneShot = false
+  askChannel: 'operator' | 'sdk' | 'none' = 'operator'
   assistantSessionActive = false
   strictToolResultPairing = false
   sdkAgentProgressSummariesEnabled = false
