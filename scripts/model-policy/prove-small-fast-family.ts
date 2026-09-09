@@ -74,11 +74,11 @@ async function main(): Promise<void> {
     check('openai session → the recorded mini tier', /-(mini|nano)$/.test(gpt), gpt)
     process.env.MERCURY_SMALL_FAST_MODEL = 'claude-pin-test'
     check(
-      'the ANTHROPIC_ pin does NOT leak onto an openai session',
+      'the MERCURY_SMALL_FAST_MODEL pin does NOT leak onto an openai session',
       smallFastModelFor('gpt-5.6-sol') !== 'claude-pin-test',
     )
     check(
-      'the ANTHROPIC_ pin does apply on an anthropic session',
+      'the MERCURY_SMALL_FAST_MODEL pin does apply on an anthropic session',
       smallFastModelFor('claude-opus-5') === 'claude-pin-test',
     )
     delete process.env.MERCURY_SMALL_FAST_MODEL

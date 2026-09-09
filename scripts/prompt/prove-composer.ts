@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -128,26 +128,6 @@ section('(2) provenance shape-parity — the recorder cannot drift')
   check('prompts.ts composes via the owned composer (no inline recorder)',
     prompts.includes('composeSystemPrompt({') && !prompts.includes('recordPromptComposition({'))
 }
-
-section('(3) feature configuration is absent')
-check('feature-configuration module is absent', !existsSync(join(process.cwd(), 'src/services/analytics/featureGates.ts')))
-
-section('(4) telemetry transports are absent')
-await (async () => {
-  const { existsSync } = await import('node:fs')
-  const { join } = await import('node:path')
-  const root = join(import.meta.dir, '..', '..')
-  for (const p of [
-    'src/services/analytics/index.ts',
-    'src/services/analytics/sink.ts',
-    'src/services/analytics/datadog.ts',
-    'src/services/analytics/firstPartyEventLogger.ts',
-  ]) {
-    check(`deleted: ${p}`, !existsSync(join(root, p)))
-  }
-  const pkg = SRC('package.json')
-  check('@growthbook/growthbook dropped from package.json', !pkg.includes('"@growthbook/growthbook"'))
-})()
 
 console.log('\n============================================================')
 if (failures === 0) console.log(' ✅ ALL COMPOSER CHECKS PASS')

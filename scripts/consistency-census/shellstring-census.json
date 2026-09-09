@@ -1315,14 +1315,6 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
-      "file": "scripts/prompt/prove-agent-roster.ts",
-      "line": 116,
-      "mechanism": "execSync-string",
-      "excerpt": "const grep = execSync(`grep -rn \"areExplorePlanAgentsEnabled\" ${join(ROOT, 'src')} || true`, { encoding: 'utf8' }).trim()",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
       "file": "scripts/prompt-input/prove-prompt-input-async-note.ts",
       "line": 50,
       "mechanism": "hardcoded-interpreter",

@@ -20,8 +20,8 @@ const shellResolve = (root: string, name: string): string =>
 const scratch = mkdtempSync(join(tmpdir(), 'shell-home-agree-'))
 const shapes: Array<[string, string[]]> = [
   ['fresh (no homes)', []],
-  ['.claude only', ['.claude/gate']],
-  ['.mercury present', ['.mercury/gate', '.claude/gate']],
+  ['an unrelated dir only', ['.other-tool/gate']],
+  ['.mercury present', ['.mercury/gate', '.other-tool/gate']],
 ]
 
 console.log('============================================================')
