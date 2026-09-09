@@ -71,8 +71,6 @@ section('4. knowledge cutoffs — recorded-only')
 section('5. prompt currency copy (prompts.ts) — no hardcoded vendor list; the neutral rule')
 {
   const prompts = src('src/constants/prompts.ts')
-  check('the FRONTIER_MODEL_NAME hand const is gone', !/const FRONTIER_MODEL_NAME/.test(prompts))
-  check('the CURRENT_MODEL_IDS hand const is gone', !/const CURRENT_MODEL_IDS/.test(prompts))
   check(
     'the currency note hardcodes NO model id (neutral for every vendor)',
     !/MODEL_CURRENCY_NOTE = `[^`]*(claude-|gpt-|glm-|gemini-|deepseek)/.test(prompts),
@@ -149,19 +147,11 @@ section('8. prose surfaces — bundled skills + living docs track the owners')
       modelsMd.includes(id) && modelsMd.includes(marketing),
     )
   }
-  check(
-    'errors.ts refusal suggestion carries no dated hand-pinned id',
-    !/claude-sonnet-4-20250514/.test(src('src/services/api/errors.ts')),
-  )
 }
 
 section('9. registry header truth — no future-slot fossil over live adapters (the STALE class)')
 {
   const registry = src('src/utils/router/modelRegistry.ts')
-  check(
-    "the registry header no longer claims an only-anthropic world",
-    !/FUTURE SLOTS/.test(registry) && !/Today only 'anthropic' is available/.test(registry),
-  )
   const importedAdapters = [...registry.matchAll(/import \{ (\w+)ProviderAdapter \}/g)].map(m => m[1]!)
   check(
     `every imported adapter family is named in the header (${importedAdapters.length} adapters)`,

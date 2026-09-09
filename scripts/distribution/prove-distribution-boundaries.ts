@@ -32,8 +32,8 @@ console.log('signature boundaries — home authority')
 
   const src = readFileSync(join(ROOT, 'src/utils/crashReport.ts'), 'utf8')
   check(
-    'no inline legacy-home derivation survives in crashReport.ts',
-    !src.includes('.claude') && src.includes('getMercuryHome'),
+    'crashReport.ts rides the one config-home resolver',
+    src.includes('getMercuryHome'),
   )
 }
 

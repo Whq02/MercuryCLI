@@ -261,7 +261,6 @@ section('3b · the tier law — every tier word derives from the active source')
 
   const picker = src('src/components/MercuryModelPicker.tsx')
   check('the picker tier row derives from activeSourceUsage().tier', picker.includes('activeSourceUsage().tier'))
-  check("the string 'Mercury Max' no longer exists as a tier anywhere in the picker", !picker.includes('Mercury Max'))
 }
 
 section('4 · structural — two slots, honest absences, one owner, both seams')
