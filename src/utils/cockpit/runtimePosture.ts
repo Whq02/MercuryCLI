@@ -50,8 +50,8 @@ export function getRuntimePostureSection(): string | null {
   )
   lines.push(
     killList.length > 0
-      ? `- Capability kills armed at boot: ${killList.join(', ')} (MERCURY_KILL — absolute; no mode, including bypass, overrides a kill). Live state: /substrate.`
-      : '- Capability kills armed at boot: none. (Kills can be armed mid-session via /kill; live state: /substrate.)',
+      ? `- Capability kills armed at boot: ${killList.join(', ')} (MERCURY_KILL — absolute; no mode, including bypass, overrides a kill).${nonInteractive ? '' : ' Live state: /substrate.'}`
+      : `- Capability kills armed at boot: none.${nonInteractive ? '' : ' (Kills can be armed mid-session via /kill; live state: /substrate.)'}`,
   )
 
   lines.push(
@@ -67,7 +67,7 @@ export function getRuntimePostureSection(): string | null {
   )
 
   lines.push(
-    `- Agent-model floor: any subagent/workflow/seat spawn that resolves to the Haiku tier is upgraded to ${NEVER_HAIKU_FALLBACK} (fork invariant; the spawn result carries a note when this fires).`,
+    `- Agent-model floor: an agent selected at the Haiku tier runs on ${NEVER_HAIKU_FALLBACK} instead; the launch result reports that adjustment.`,
   )
 
   memo = lines.join('\n')

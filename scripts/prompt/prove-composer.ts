@@ -208,6 +208,55 @@ section('conversation guidance stays fixed while capabilities change')
   }
 }
 
+
+section('main and sub-agent instructions match the available interaction model')
+{
+  const { getSystemPrompt, enhanceSystemPromptWithEnvDetails } = await import('../../src/constants/prompts.ts')
+  const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
+  const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
+  const { getOriginalCwd, setOriginalCwd, setCwdState } = await import('../../src/bootstrap/state.ts')
+  const cwd = process.cwd()
+  const originalCwd = getOriginalCwd()
+  const scratch = mkdtempSync(join(tmpdir(), 'prompt-interaction-'))
+  const savedEntry = process.env.MERCURY_ENTRYPOINT
+  const savedMacro = (globalThis as Record<string, any>).MACRO
+  ;(globalThis as Record<string, any>).MACRO = { ...savedMacro, ISSUES_EXPLAINER: 'report the issue with /feedback' }
+  process.chdir(scratch)
+  setOriginalCwd(scratch)
+  setCwdState(scratch)
+  const tools = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Agent', 'AskUserQuestion'].map(name => ({ name })) as never
+  try {
+    resetRuntimePostureForTest()
+    markSessionNonInteractive('default')
+    process.env.MERCURY_ENTRYPOINT = 'headless'
+    clearSystemPromptSections()
+    const headless = (await getSystemPrompt(tools, 'claude-fable-5-1')).join('\n\n')
+    check('headless guidance names neither an unavailable question prompt nor interactive-only commands', !headless.includes('When a tool denial is not understood, use AskUserQuestion') && !headless.includes('/kill') && !headless.includes('/substrate'))
+    check('task-item guidance is absent when task tools are not provided', !headless.includes('create/update task items'))
+    check('the scout reference names the actual builtin type', !headless.includes('the Explore agent') && headless.includes('mercury-scout'))
+    check('the feedback instruction contains no doubled verb', headless.includes('report the issue with /feedback.') && !headless.includes('use report the issue'))
+    const toolsBlock = headless.slice(headless.indexOf('# Using your tools')).split('# Tone and style')[0]!
+    check('batching leads the main tool instructions and preserves dependency ordering', toolsBlock.trim().startsWith('# Using your tools\n\n - Default to batching:') && toolsBlock.includes('Call dependent tools sequentially'))
+    const child = (await enhanceSystemPromptWithEnvDetails(['Sub-agent instructions.'], 'claude-fable-5-1')).join('\n\n')
+    check('sub-agents receive the same batching and dependency instruction', child.includes('Default to batching:') && child.includes('Call dependent tools sequentially'))
+    resetRuntimePostureForTest()
+    delete process.env.MERCURY_ENTRYPOINT
+    clearSystemPromptSections()
+    const interactive = (await getSystemPrompt([...tools, { name: 'TaskCreate' }] as never, 'claude-fable-5-1')).join('\n\n')
+    check('interactive guidance retains supported questions and commands', interactive.includes('When a tool denial is not understood, use AskUserQuestion') && interactive.includes('/kill') && interactive.includes('/substrate'))
+    check('task-item guidance remains when the task tools are provided', interactive.includes('create/update task items'))
+  } finally {
+    resetRuntimePostureForTest()
+    clearSystemPromptSections()
+    process.chdir(cwd)
+    setOriginalCwd(originalCwd)
+    setCwdState(cwd)
+    ;(globalThis as Record<string, any>).MACRO = savedMacro
+    if (savedEntry === undefined) delete process.env.MERCURY_ENTRYPOINT
+    else process.env.MERCURY_ENTRYPOINT = savedEntry
+  }
+}
+
 if (failures === 0) console.log(' ✅ ALL COMPOSER CHECKS PASS')
 else console.log(` ❌ ${failures} CHECK(S) FAILED`)
 console.log('============================================================')

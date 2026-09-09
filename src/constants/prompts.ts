@@ -218,7 +218,7 @@ function doingTasksSection(): string {
   items.push('How to get help:')
   items.push([
     'Use /help for help with the product.',
-    `To report an issue, use ${typeof MACRO !== 'undefined' && MACRO.ISSUES_EXPLAINER ? MACRO.ISSUES_EXPLAINER : 'the feedback channel'}.`,
+    `${typeof MACRO !== 'undefined' && MACRO.ISSUES_EXPLAINER ? MACRO.ISSUES_EXPLAINER : 'Report issues through the feedback channel'}.`,
   ])
   return `# Doing tasks
 
@@ -270,6 +270,8 @@ function instructionEstateSection(toolNames: ReadonlySet<string>): string {
 ${prependBullets(items).join('\n')}`
 }
 
+const BATCHING_INSTRUCTION = 'Default to batching: when the next step needs several independent reads, searches or checks, issue them in one response so they can run concurrently. Call dependent tools sequentially; wait for each prerequisite before starting the next call.'
+
 function usingToolsSection(toolNames: ReadonlySet<string>, replMode: boolean): string | '' {
   const taskToolName = toolNames.has(TASK_CREATE_TOOL_NAME) ? TASK_CREATE_TOOL_NAME : null
   const workBreakdown = taskToolName
@@ -294,14 +296,12 @@ ${prependBullets([workBreakdown]).join('\n')}`
     )
   }
   const items: Array<string | string[]> = [
+    BATCHING_INSTRUCTION,
     'Never use the shell tool where a dedicated tool exists — the dedicated tools let the user review your work, and this is critical:',
     perTool,
     `Reserve ${BASH_TOOL_NAME} for system commands and terminal operations that genuinely need a shell. When in doubt, default to the dedicated tool.`,
   ]
   if (workBreakdown) items.push(workBreakdown)
-  items.push(
-    'You can call multiple tools in one response. Make independent calls in parallel to maximize efficiency; call dependent tools sequentially — when one operation must finish before another can start, wait for it.',
-  )
   return `# Using your tools
 
 ${prependBullets(items).join('\n')}`
@@ -349,7 +349,7 @@ function sessionGuidanceSection(
   nonInteractive: boolean,
 ): string | null {
   const items: Array<string | string[]> = []
-  if (toolNames.has(ASK_USER_QUESTION_TOOL_NAME)) {
+  if (!nonInteractive && toolNames.has(ASK_USER_QUESTION_TOOL_NAME)) {
     items.push(
       `When a tool denial is not understood, use ${ASK_USER_QUESTION_TOOL_NAME} to ask rather than guessing.`,
     )
@@ -376,7 +376,7 @@ function sessionGuidanceSection(
         : `the ${GLOB_TOOL_NAME} and ${GREP_TOOL_NAME} tools`
       items.push(
         `For simple directed lookups of a specific file, class, or function, use ${searchPhrase} directly.`,
-        `For broad exploration and deep research, use the ${AGENT_TOOL_NAME} tool with the Explore agent — it is slower, so reserve it for when a directed search with ${searchPhrase} proves insufficient or the task clearly needs more than a couple of queries.`,
+        `For broad exploration and deep research, use the ${AGENT_TOOL_NAME} tool with the mercury-scout agent — it is slower, so reserve it for when a directed search with ${searchPhrase} proves insufficient or the task clearly needs more than a couple of queries.`,
       )
     }
     if (isGuideAgentMounted()) {
@@ -408,6 +408,7 @@ export async function enhanceSystemPromptWithEnvDetails(
   const notes = [
     'Notes:',
     ...prependBullets([
+      BATCHING_INSTRUCTION,
       `The ${BASH_TOOL_NAME} tool's working directory does NOT survive between calls in an agent thread — every path you pass must be absolute.`,
       'In your final response, name the file paths that matter, always absolute. Quote code only where the literal characters carry the point — a defect you located, a signature the caller asked to see — never as a retelling of code you simply read.',
       'Do not use emoji.',
@@ -485,6 +486,7 @@ export async function getSystemPrompt(
         getRunProtocolSection({
           lspMounted: toolNames.has(LSP_TOOL_NAME),
           dapMounted: toolNames.has(DEBUG_TOOL_NAME),
+          taskToolsMounted: toolNames.has(TASK_CREATE_TOOL_NAME),
         }),
     ),
   ]
