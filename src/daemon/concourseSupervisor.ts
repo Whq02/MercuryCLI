@@ -28,6 +28,7 @@ import { getProjectDir } from '../utils/sessionStorage/paths.js'
 import { scanTranscriptLinesBackward } from '../utils/sessionStorage/transcriptReader.js'
 import { splitAppendSystemPrompt } from '../services/switchboard/runnerArgv.js'
 import { writeSessionCloseReceipts } from '../services/switchboard/sessionReceipts.js'
+import { RetirementFence } from './runnerQuiescence.js'
 import { deriveSessionKitForPreset, deriveSessionKitForWorkspace, kitStampOf, noteRecordlessResumeKit, restampSessionKit, type KitStampSource, type SessionKitV1 } from './sessionKit.js'
 
 
@@ -166,6 +167,8 @@ export interface ConcourseWorkerRecordV1 {
   parkReason?: string
   parkRequestedAt?: number
   parkRequestedBy?: string
+  parkIntent?: { token: string; by: string; at: number; pid: number }
+  parkRefused?: { reason: string; at: number; by: string }
   contract?: import('./sessionContract.js').SessionContractV1
   kit?: import('./sessionKit.js').SessionKitV1
   schedules?: import('./saturn.js').SaturnScheduleV1[]
@@ -2082,6 +2085,102 @@ export function parkConcourseSession(
   }, dir)
   if (releaseNewborn !== undefined) settleConcourseWorker(releaseNewborn, dir)
   return out
+}
+
+export const RETIREMENT_EXIT_WAIT_MS = 10_000
+
+export type ConcourseRetireOutcome =
+  | { outcome: 'parked'; runnerId: string }
+  | { outcome: 'refused'; runnerId?: string; reason: string; fenced: boolean }
+
+const retirementFences = new Map<string, RetirementFence>()
+
+export function retirementFenced(runnerId: string): boolean {
+  return retirementFences.get(runnerId)?.fenced === true
+}
+
+export function retirementRefusal(rec: Pick<ConcourseWorkerRecordV1, 'lastDeliveryAt' | 'lastTurnSettledAt' | 'pid' | 'procStart' | 'parkedAt' | 'endedAt' | 'stoppedAt' | 'attachedAt' | 'bornBlankAt'>): string | null {
+  if (rec.endedAt !== undefined) return 'the session already ended'
+  if (rec.parkedAt !== undefined) return 'the session is already parked'
+  if (rec.stoppedAt !== undefined) return 'the session is stopped'
+  if (rec.attachedAt !== undefined) return 'a terminal is attached to the session'
+  if (turnInFlightOf(rec)) return 'a turn is in flight'
+  if (!workerPidAlive(rec)) return 'the runner is not alive'
+  return null
+}
+
+export async function retireConcourseSession(
+  sessionId: string,
+  by: string,
+  roster: { kill(short: string): boolean; control(short: string, frame: string): boolean; has(short: string): { alive: boolean; present: boolean }; expectExit?(short: string, expected: boolean): boolean },
+  dir?: string,
+  opts?: { reason?: string; exitWaitMs?: number },
+): Promise<ConcourseRetireOutcome> {
+  const rec = Object.values(readSessionWorkers(dir)).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+  if (!rec) return { outcome: 'refused', reason: 'unknown-session', fenced: false }
+  const runnerId = rec.runnerId
+  const standing = retirementFences.get(runnerId)
+  if (standing !== undefined) {
+    const result = await standing.demand()
+    return result.outcome === 'parked' ? { outcome: 'parked', runnerId } : { outcome: 'refused', runnerId, reason: result.reason, fenced: result.fenced }
+  }
+  const { quiesceSessionRunner } = await import('./sessionSeat.js')
+  const current = (): ConcourseWorkerRecordV1 | undefined => readSessionWorkers(dir)[runnerId]
+  const fence = new RetirementFence({
+    request: request => quiesceSessionRunner(runnerId, request, roster),
+    refusal: () => {
+      const now = current()
+      return now === undefined ? 'the record vanished' : retirementRefusal(now)
+    },
+    persistIntent: token => {
+      const now = current()
+      updateConcourseWorkers(workers => {
+        const w = workers[runnerId]
+        if (!w) throw new Error('the record vanished before the intent landed')
+        w.parkIntent = { token, by, at: Date.now(), pid: now?.pid ?? 0 }
+        delete w.parkRefused
+      }, dir)
+    },
+    clearIntent: token => {
+      updateConcourseWorkers(workers => {
+        const w = workers[runnerId]
+        if (w?.parkIntent?.token === token) delete w.parkIntent
+      }, dir)
+    },
+    expectExit: expected => {
+      roster.expectExit?.(runnerId, expected)
+    },
+    observeExit: async () => {
+      const deadline = Date.now() + (opts?.exitWaitMs ?? RETIREMENT_EXIT_WAIT_MS)
+      while (Date.now() < deadline) {
+        const seat = roster.has(runnerId)
+        const now = current()
+        if (!seat.alive && !(now !== undefined && workerPidAlive(now))) return true
+        await new Promise(resolve => setTimeout(resolve, 50))
+      }
+      return false
+    },
+    persistParked: token => {
+      updateConcourseWorkers(workers => {
+        const w = workers[runnerId]
+        if (!w || w.parkIntent?.token !== token) throw new Error('the park intent changed under the retirement')
+        delete w.parkIntent
+        stampParked(w, by, opts?.reason)
+      }, dir)
+    },
+  })
+  retirementFences.set(runnerId, fence)
+  try {
+    const result = await fence.retire(randomUUID().replace(/-/g, ''))
+    if (result.outcome === 'parked') return { outcome: 'parked', runnerId }
+    updateConcourseWorkers(workers => {
+      const w = workers[runnerId]
+      if (w && w.parkedAt === undefined) w.parkRefused = { reason: result.reason, at: Date.now(), by }
+    }, dir)
+    return { outcome: 'refused', runnerId, reason: result.reason, fenced: result.fenced }
+  } finally {
+    if (retirementFences.get(runnerId) === fence && !fence.fenced) retirementFences.delete(runnerId)
+  }
 }
 
 export function completeRequestedPark(

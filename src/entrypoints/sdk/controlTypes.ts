@@ -158,6 +158,12 @@ export type SDKControlResumeTaskRequest = {
   note?: string
 }
 
+export type SDKControlQuiesceRequest = {
+  subtype: 'quiesce'
+  action: 'prepare' | 'commit' | 'cancel'
+  token: string
+}
+
 export type SDKControlApplyFlagSettingsRequest = {
   subtype: 'apply_flag_settings'
   settings: Record<string, unknown>
@@ -277,6 +283,7 @@ export type SDKControlRequestInner =
   | SDKControlScheduleRosterRequest
   | SDKControlStopTaskRequest
   | SDKControlResumeTaskRequest
+  | SDKControlQuiesceRequest
   | SDKControlApplyFlagSettingsRequest
   | SDKControlGetSettingsRequest
   | SDKControlElicitationRequest
