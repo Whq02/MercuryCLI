@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const TMP = mkdtempSync(join(tmpdir(), 'hermes-roster-lock-'))
+const TMP = mkdtempSync(join(tmpdir(), 'mercury-roster-lock-'))
 process.env.MERCURY_CONFIG_DIR = TMP
 
 const {

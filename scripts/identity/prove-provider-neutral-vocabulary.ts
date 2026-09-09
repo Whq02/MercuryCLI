@@ -88,7 +88,7 @@ const check = (name: string, cond: boolean, detail = ''): void => {
 }
 
 console.log('============================================================')
-console.log(' provider-neutral vocabulary ratchet — no family is the unmarked case')
+console.log(' provider-neutral vocabulary — no family is the unmarked case')
 console.log('============================================================')
 
 {
@@ -113,7 +113,7 @@ console.log('============================================================')
   const roster = new Set(['fixture/roster.ts'])
   const vBad = scan([{ path: 'fixture/bad.ts', content: bad }], roster)
   check('self-test: the two-family ternary trips', vBad.some(v => v.law === 'two-family ternary'), vBad.map(v => v.law).join(','))
-  check('self-test: every retired sentence shape trips', SHAPES.every(([label]) => vBad.some(v => v.law === `shape: ${label}`)), vBad.map(v => v.law).join(','))
+  check('self-test: every unmarked-vendor sentence shape trips', SHAPES.every(([label]) => vBad.some(v => v.law === `shape: ${label}`)), vBad.map(v => v.law).join(','))
   const vRosterBad = scan([{ path: 'fixture/roster.ts', content: rosterBad }], roster)
   check('self-test: an unreasoned vendor name on a roster surface trips', vRosterBad.length === 1 && vRosterBad[0]!.law.startsWith('roster'), JSON.stringify(vRosterBad))
   const vRosterGood = scan([{ path: 'fixture/roster.ts', content: rosterGood }], roster)
@@ -144,14 +144,14 @@ if (REPORT) {
   process.exit(0)
 }
 check(
-  `src carries no two-family ternary, no retired vendor sentence shape, and no unreasoned vendor name on a swept surface (${tracked.length} files · ${ROSTER.length} roster surfaces)`,
+  `src carries no two-family ternary, no unmarked-vendor sentence shape, and no unreasoned vendor name on a swept surface (${tracked.length} files · ${ROSTER.length} roster surfaces)`,
   violations.length === 0,
   violations.slice(0, 12).map(v => `${v.path}:${v.line} [${v.law}] ${v.text}`).join(' · '),
 )
 
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {
-  console.log(`❌ provider-neutral vocabulary ratchet: ${failures} FAILED`)
+  console.log(`❌ provider-neutral vocabulary: ${failures} FAILED`)
   process.exit(1)
 }
-console.log('✅ provider-neutral vocabulary ratchet: clean')
+console.log('✅ provider-neutral vocabulary: clean')

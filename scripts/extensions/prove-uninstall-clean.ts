@@ -193,7 +193,7 @@ console.log('[5] a seeded settings file returns to its prior bytes — never del
 console.log('[6] a $schema-only settings file leaves the disk with the husk')
 {
   rmSync(join(home, 'settings.json'), { force: true })
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ $schema: 'https://json.schemastore.org/claude-code-settings.json' }, null, 2))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ $schema: 'https://json.schemastore.org/other-settings.json' }, null, 2))
   const again = await install.installFromSource('fixture-source', 'kitchen-sink')
   check('install lands beside the pointer', again.ok)
   check('approve lands beside the pointer', install.approve('kitchen-sink@fixture-source').ok)

@@ -177,7 +177,7 @@ const vsixSrc = join(ROOT, 'dist', 'mercury-vscode.vsix')
 if (!existsSync(vsixSrc)) fail('dist/mercury-vscode.vsix missing after the build')
 cpSync(vsixSrc, join(pkgDir, 'mercury-vscode.vsix'))
 
-const FORBIDDEN = ['node_modules', '.git', 'src', 'scripts', 'tests', '.claude']
+const FORBIDDEN = ['node_modules', '.git', 'src', 'scripts', 'tests', '.mercury']
 for (const f of FORBIDDEN) if (existsSync(join(pkgDir, f))) fail(`dev residue in package: ${f}`)
 
 {

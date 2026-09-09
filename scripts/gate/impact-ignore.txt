@@ -2,7 +2,10 @@
 # impact manifest. A changed path matching one of these globs
 # selects no suite and does NOT escalate to the full gate: no runtime suite
 # tests it, so escalation would prove nothing more than a slice. A declared
-# the rows stay so a path the watch globs miss still never escalates.
+# gate-watch outranks a row here — the identity suite watches the doc and
+# workflow estates because tree hygiene reads every tracked text file, so
+# those changes run it — and the rows stay so a path the watch globs miss
+# still never escalates.
 # Everything else unmatched stays FAIL-CLOSED (unclassified ⇒ FULL gate).
 # Validated by scripts/verify/prove-impact-manifest.ts (dead glob ⇒ RED).
 docs/**

@@ -13,7 +13,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-hermes-proof' }
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-proof' }
 process.chdir(mkdtempSync(join(tmpdir(), 'cache-clock-proof-')))
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'cache-clock-proof-home-'))
 for (const k of [

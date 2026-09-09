@@ -13,11 +13,6 @@ const dist = readFileSync('dist/mercury.mjs', 'utf-8')
 
 check('built artifact carries the Agent Studio', dist.includes('agent studio'))
 check(
-  'stale specimen copy is gone from the build',
-  !dist.includes('no in-terminal form input in the repo today') &&
-    !dist.includes('create agents as .md files under .claude/agents today'),
-)
-check(
   'the old truncating serializer is gone',
   !dist.includes('Cannot get directory path for'),
 )

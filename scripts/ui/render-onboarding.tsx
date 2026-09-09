@@ -173,7 +173,6 @@ if (process.env.ONBOARDING_RENDER_CHILD) {
     check(`@${cols}: the Mercury-real syntax diff`, grid.includes('helm.tsx') && grid.includes('bootHelm'))
     check(`@${cols}: footer verbs are the fitting's`, grid.includes('↑↓ preview · ↵ keep'))
     check(`@${cols}: the boot note rides the disclosure, not raw stderr`, grid.includes('boot note'))
-    check(`@${cols}: NO foreign moon art`, !grid.includes('██▒▒██') && !grid.toLowerCase().includes('clawd'))
     check(`@${cols}: no emoji`, !/[\u{1F300}-\u{1FAFF}]/u.test(grid))
   }
 

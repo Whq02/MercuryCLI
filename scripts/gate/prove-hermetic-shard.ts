@@ -13,7 +13,6 @@ const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const BOX_HOST = '127.0.0.1'
 const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost', '0.0.0.0', '::'])
 const FAMILY_BASE = /^MERCURY_[A-Z0-9]+_(?:[A-Z]+_)*BASE$/
-const NOT_A_FAMILY = new Set(['MERCURY_DESCRIPTOR_STOCK_BASE'])
 const UPDATE_SEAM = 'MERCURY_UPDATE_API_BASE_URL'
 const SLOTS = ['MERCURY_COMPAT_BASE_URL', 'MERCURY_LOCAL_BASE_URL']
 const OAUTH_SEAM = 'MERCURY_CUSTOM_OAUTH_URL'
@@ -206,7 +205,7 @@ const box = dump.ANTHROPIC_BASE_URL ?? ''
 const boxPort = portOf(box)
 check('the runner exports ONE loopback address, http://127.0.0.1:<port>', /^http:\/\/127\.0\.0\.1:\d+$/.test(box), box || '(unset)')
 check('an inherited gateway base is overridden, never honoured', box !== INHERITED_GATEWAY)
-const families = FLAG_REGISTRY.map(r => r.env).filter(e => FAMILY_BASE.test(e) && !NOT_A_FAMILY.has(e))
+const families = FLAG_REGISTRY.filter(r => FAMILY_BASE.test(r.env) && !r.consumer.startsWith('scripts/')).map(r => r.env)
 const unpinned = families.filter(k => dump[k] !== box)
 check(
   `every provider-family base the registry lists rides the box (${families.length} registry rows + the SDK's own)`,

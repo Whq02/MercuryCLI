@@ -1,7 +1,7 @@
 {
   "name": "mercury",
   "version": "1.0.0-beta.5",
-  "description": "Mercury — a private, standalone software-development harness (source-built terminal agent), built with bun",
+  "description": "Mercury — a software-development harness for the terminal, built from source with bun",
   "repository": {
     "type": "git",
     "url": "https://github.com/Whq02/MercuryCLI.git"

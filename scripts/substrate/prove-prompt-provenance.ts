@@ -33,7 +33,7 @@ recordPromptComposition({ contract: tiny, composedSegments: renderAnthropicSecti
 assert(readPromptProvenance() !== null, 'provenance state recorded under a bare stamp')
 
 console.log('[2] typed contract attribution is exact')
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-hermes' }
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-proof' }
 __resetPromptProvenanceForTest()
 
 const contract = buildBehaviourContract({

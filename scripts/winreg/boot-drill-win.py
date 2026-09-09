@@ -75,9 +75,7 @@ def child_env(home, extra=None):
     env = dict(os.environ)
     env["MERCURY_CONFIG_DIR"] = home
     env["MERCURY_HOME"] = home
-    env["MERCURY_HOME"] = home
-    for k in ("MERCURY_SPLASH", "MERCURY_SPLASH", "MERCURY_NO_BANNER", "MERCURY_NO_BANNER",
-              "MERCURY_SPLASH_HANDOFF", "MERCURY_SPLASH_HANDOFF", "MERCURY_ALT_HELD",
+    for k in ("MERCURY_SPLASH", "MERCURY_NO_BANNER", "MERCURY_SPLASH_HANDOFF",
               "MERCURY_ALT_HELD", "WT_SESSION", "TERM_PROGRAM"):
         env.pop(k, None)
     env["WT_SESSION"] = "b1c2d3e4-boot-drill-simulated"
@@ -238,7 +236,7 @@ try:
     leg("boot: the splash handed off UNPROMPTED (boot-attempt stamped)", state == "ok", state, polls=d.polls)
     if state == "ok":
         state, _ = d.wait_for("runtime-process", lambda: len(mercury_node_pids()) > 0, ceiling_s=240)
-        leg("boot: the RUNTIME PROCESS exists (node … mercury.mjs) — the 1.5.4 kill left none", state == "ok", state, polls=d.polls)
+        leg("boot: the RUNTIME PROCESS exists (node … mercury.mjs) — a batch abort would leave none", state == "ok", state, polls=d.polls)
 
         state, _ = d.wait_for("takeover", lambda: "stuck? type: reset" not in d.text(), ceiling_s=240, settle_ticks=2)
         leg("boot: the held frame was TAKEN OVER (the stuck-hint hold frame is gone)", state == "ok", state, polls=d.polls)

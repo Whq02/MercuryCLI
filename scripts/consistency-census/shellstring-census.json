@@ -556,7 +556,7 @@
     },
     {
       "file": "scripts/gate/prove-hermetic-shard.ts",
-      "line": 336,
+      "line": 335,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const ownBox = spawn('/usr/bin/python3', [join(ROOT, 'scripts', 'gate', 'dead-letter.py'), join(boxDir, 'port')], { stdio: 'ignore' })",
       "cls": "platform-owner",
@@ -564,7 +564,7 @@
     },
     {
       "file": "scripts/gate/prove-hermetic-shard.ts",
-      "line": 362,
+      "line": 361,
       "mechanism": "shell-dash-c",
       "excerpt": "spawnSync('bash', ['-c', turnScript({ cwd, ...refreshRoad })], { cwd: ROOT, env, encoding: 'utf8', timeout: 120_000, killSignal: 'SIGKILL' }",
       "cls": "intentional-shell",
@@ -724,9 +724,25 @@
     },
     {
       "file": "scripts/identity/prove-provider-neutral-vocabulary.ts",
-      "line": 169,
+      "line": 170,
       "mechanism": "execSync-string",
       "excerpt": "const tracked = execSync('git ls-files -z -- src', { cwd: ROOT })",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/identity/prove-tree-hygiene.ts",
+      "line": 22,
+      "mechanism": "execSync-string",
+      "excerpt": "const tracked = execSync('git ls-files -z', { cwd: ROOT }).toString('utf8').split('\\0').filter(Boolean)",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/identity/prove-vocabulary.ts",
+      "line": 138,
+      "mechanism": "execSync-string",
+      "excerpt": "const tracked = execSync('git ls-files -z', { cwd: ROOT })",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
@@ -1204,7 +1220,7 @@
     },
     {
       "file": "scripts/permissions/prove-auto-mode.ts",
-      "line": 237,
+      "line": 228,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
@@ -1828,7 +1844,7 @@
     },
     {
       "file": "scripts/substrate/prove-flag-registry.ts",
-      "line": 33,
+      "line": 32,
       "mechanism": "execSync-string",
       "excerpt": "return execSync(`grep -rEoh ${extraArgs} ${JSON.stringify(pattern)} src`, {",
       "cls": "intentional-shell",
@@ -1836,7 +1852,7 @@
     },
     {
       "file": "scripts/substrate/prove-flag-registry.ts",
-      "line": 302,
+      "line": 292,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -rq ${JSON.stringify(compat)} src --include='*.ts' --include='*.tsx'`, { cwd: root, stdio: 'pipe' })",
       "cls": "intentional-shell",
@@ -1844,7 +1860,7 @@
     },
     {
       "file": "scripts/substrate/prove-flag-registry.ts",
-      "line": 454,
+      "line": 439,
       "mechanism": "execSync-string",
       "excerpt": "const files = execSync('git ls-files -z src', { cwd: root, maxBuffer: 64 * 1024 * 1024 })",
       "cls": "intentional-shell",

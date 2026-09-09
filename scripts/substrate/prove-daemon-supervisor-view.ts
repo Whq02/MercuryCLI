@@ -183,7 +183,7 @@ section('the /daemon command is stamp-gated (byte-identical OFF)')
 
 section('getMercuryDaemonStatus never throws on a missing socket (supervisor:null, workers:[])')
 {
-  const cfgDir = mkdtempSync(join(tmpdir(), 'hermes-daemon-view-'))
+  const cfgDir = mkdtempSync(join(tmpdir(), 'mercury-daemon-view-'))
   process.env.MERCURY_CONFIG_DIR = cfgDir
   const { getMercuryDaemonStatus } = await import('../../src/daemon/status.js')
   let threw = false

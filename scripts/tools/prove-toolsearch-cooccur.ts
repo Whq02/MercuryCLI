@@ -33,7 +33,7 @@ const fixtures = [alpha, beta, gamma] as never[]
 
 console.log('[1] OFF ⇒ byte-identical, zero io')
 delete process.env.MERCURY_TOOLSEARCH_COOCCUR
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-hermes' }
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-proof' }
 prior.__resetCooccurForTest()
 assert(prior.toolSearchCooccurEnabled() === false, 'gate needs the env opt-in even under the stamp')
 prior.recordToolDiscovery(['mcp__srv__alpha_zip'])

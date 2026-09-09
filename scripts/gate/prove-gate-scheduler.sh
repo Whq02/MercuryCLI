@@ -620,10 +620,10 @@ if [ -n "$gate_bun" ] && [ "$gate_bun" = "$drv_bun" ] && [ "$(grep -c 'node-vers
 else
   echo "  ✗ toolchain: gate '$gate_bun' vs drives '$drv_bun'; drives node-version-file uses: $(grep -c 'node-version-file: .node-version' "$drives_yml")"; fail=1
 fi
-if grep -q '\.claude/gate' "$repo/scripts/run-all-suites.sh"; then
-  echo "  ✗ store: the engine still names the retired .claude/gate verdict path"; fail=1
+if grep -qF 'project_store_dir "$PWD" gate)/verdict.json' "$repo/scripts/run-all-suites.sh"; then
+  echo "  ✓ store: the engine reads its verdict through the project store"
 else
-  echo "  ✓ store: the engine reads its duration rows from the project store only"
+  echo "  ✗ store: the engine does not read its verdict through the project store"; fail=1
 fi
 
 exit "$fail"

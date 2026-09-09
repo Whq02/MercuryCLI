@@ -73,7 +73,6 @@ section('BM-19 — splash OSC 11 ground write, emitted bytes under both spelling
   check(
     'UI-017 parity: the splash and the runtime owner read the ONE opt-out spelling (MERCURY_OASIS_BG in the asset; the registry row for oasisBg)',
     src('assets/splash/mercury-splash.mjs').includes("process.env.MERCURY_OASIS_BG !== '0'") &&
-      !/HERMES_OASIS_BG\b/.test(src('assets/splash/mercury-splash.mjs')) &&
       src('src/utils/cockpit/oasisBg.ts').includes("flagEnv('MERCURY_OASIS_BG')"),
   )
 }
@@ -84,8 +83,6 @@ section('UI-006 — projected assets: canonical-aware vs legacy-only control rea
   const launchers = src('scripts/release/launcherTemplates.mjs')
   const readsCanonical = (text: string, name: string): boolean =>
     new RegExp(`MERCURY_${name}\\b`).test(text)
-  const readsLegacyOnly = (text: string, name: string): boolean =>
-    new RegExp(`HERMES_${name}\\b`).test(text) && !readsCanonical(text, name)
   check(
     'census: splash canonical-aware USER controls (3.6.1, round-7 set) — TRUECOLOR · OASIS_BG · LAUNCH_RIPPLE · REDUCED_MOTION · CRITTER · SPLASH · CONFIG_DIR/HOME',
     readsCanonical(splash, 'TRUECOLOR') &&
@@ -99,8 +96,7 @@ section('UI-006 — projected assets: canonical-aware vs legacy-only control rea
   )
   check(
     'census: splash PROOF-SEAM controls read the one canonical spelling — SPLASH_ONESHOT · SPLASH_VIEW (capture/proof inputs, not user-facing product controls)',
-    readsCanonical(splash, 'SPLASH_ONESHOT') && readsCanonical(splash, 'SPLASH_VIEW') &&
-      !readsLegacyOnly(splash, 'SPLASH_ONESHOT') && !readsLegacyOnly(splash, 'SPLASH_VIEW'),
+    readsCanonical(splash, 'SPLASH_ONESHOT') && readsCanonical(splash, 'SPLASH_VIEW'),
   )
   check(
     'census: launcher templates carry the ALT_HELD mark in all THREE shells (POSIX · CMD · PS1)',

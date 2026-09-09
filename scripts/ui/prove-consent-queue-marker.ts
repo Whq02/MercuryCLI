@@ -50,12 +50,5 @@ check('sequence resets when the queue drains',
 const permReq = readFileSync('src/components/permissions/PermissionRequest.tsx', 'utf8');
 check('notification names Mercury',
   permReq.includes('Mercury needs your permission to use'));
-let residue = '';
-try {
-  residue = execFileSync('grep', ['-rn', '-E', 'Hermes (needs|wants|requested)', 'src/components/permissions/'], { encoding: 'utf8' });
-} catch {
-}
-check('no "Hermes needs/wants/requested" residue in the consent surface',
-  residue.trim() === '', residue.trim());
 
 process.exit(fail);

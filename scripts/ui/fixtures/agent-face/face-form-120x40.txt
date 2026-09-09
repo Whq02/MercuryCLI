@@ -32,7 +32,7 @@
                                                                        │ ENVIRONMENT                                │
                                                                        │ Mercury    fable                           │
                                                                        │ Theme      Crab                            │
-                                                                       │ Dir        hermes                          │
+                                                                       │ Dir        orchard                         │
                                                                        ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
    │ ● System ready  │  the agent form — ↵ edits a row · s saves                                                    │

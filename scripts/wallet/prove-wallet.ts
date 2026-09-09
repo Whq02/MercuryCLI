@@ -101,7 +101,7 @@ const { walletEntries, activeWalletEntry } = await import('../../src/services/wa
   console.log('\n— §7 the not-logged-in gate (item A) —')
   const { notLoggedInGateDecision } = await import('../../src/services/wallet/wallet.js')
   const openaiEntry = { id: 'openai:oauth:x', provider: 'openai', kind: 'subscription-oauth', label: 'ChatGPT plus subscription', custodian: 'openai-accounts' } as const
-  const anthropicEntry = { id: 'anthropic:oauth:hermes', provider: 'anthropic', kind: 'subscription-oauth', label: 'Claude account', custodian: 'anthropic-slots' } as const
+  const anthropicEntry = { id: 'anthropic:oauth:main', provider: 'anthropic', kind: 'subscription-oauth', label: 'Claude account', custodian: 'anthropic-slots' } as const
   check('empty wallet ⇒ the full refusal', notLoggedInGateDecision([], 'anthropic').state === 'not-logged-in')
   const repro = notLoggedInGateDecision([openaiEntry], 'anthropic')
   check("the operator's repro (OpenAI-only + Anthropic model) ⇒ provider-specific steering, NEVER the red refusal", repro.state === 'provider-missing' && repro.missingProvider === 'Anthropic')

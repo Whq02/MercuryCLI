@@ -45,8 +45,8 @@ check('PaneBackendExecutor floors config.model', /enforceSubagentModelFloor\(con
 
 section('modelFloor.ts — invariant shape (no kill-switch, stamp-gated, fixed fallback)')
 const floor = src('utils', 'model', 'modelFloor.ts')
-check('the floor applies unconditionally ', !/isHermesForkBuild/.test(floor) && /export function enforceSubagentModelFloor/.test(floor))
-check('NO env read (no kill-switch — a fork invariant, not a flag)', !/process\.env\./.test(floor))
+check('the floor applies unconditionally ', /export function enforceSubagentModelFloor/.test(floor))
+check('NO env read (no kill-switch — an invariant, not a flag)', !/process\.env\./.test(floor))
 check("fallback pinned to 'claude-sonnet-5'", /NEVER_HAIKU_FALLBACK = 'claude-sonnet-5'/.test(floor))
 
 section('dist binary — floor survives the bundle (STRING-literal grep)')

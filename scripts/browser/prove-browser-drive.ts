@@ -232,9 +232,9 @@ console.log('§3b act auto-wait + actionability')
 
 console.log('§4 type')
 {
-  const typed = await run({ op: 'type', selector: '#field', text: 'hermes drive' })
+  const typed = await run({ op: 'type', selector: '#field', text: 'orchard text' })
   const value = await page().$eval('#field', el => (el as HTMLInputElement).value)
-  check('type lands in the input', typed.outcome === 'succeeded' && value === 'hermes drive', `${typed.result} · value=${value}`)
+  check('type lands in the input', typed.outcome === 'succeeded' && value === 'orchard text', `${typed.result} · value=${value}`)
   check('the result carries honest provenance (chars + target + url)', typed.result.includes('12 chars') && typed.result.includes('input#field') && typed.result.includes(A), typed.result)
   await run({ op: 'type', selector: '#field', text: 'fresh', clear: true })
   const cleared = await page().$eval('#field', el => (el as HTMLInputElement).value)

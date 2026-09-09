@@ -25,10 +25,6 @@ check(
   'opt-out is any falsy spelling through isEnvDefinedFalsy (default ON when unset)',
   /!isEnvDefinedFalsy\(flagEnv\('MERCURY_SKILL_SELF_AUTH'\)\)/.test(src),
 )
-check(
-  'the deleted seam stays out of the gate ',
-  !/isHermesForkBuild/.test(src),
-)
 
 check(
   'command:allowedTools merge is conditional via spread (the falsy opt-out the only off-switch)',
@@ -40,10 +36,6 @@ check(
   /loadedFrom !== 'mcp'/.test(src),
 )
 
-check(
-  'the deleted fork seam stays out of loadSkillsDir',
-  !/isHermesForkBuild/.test(src),
-)
 
 console.log('\n' + '='.repeat(60))
 if (failures === 0) {

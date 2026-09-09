@@ -27,7 +27,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const cfgDir = mkdtempSync(join(tmpdir(), 'hermes-daemon-snap-'))
+const cfgDir = mkdtempSync(join(tmpdir(), 'mercury-daemon-snap-'))
 process.env.MERCURY_CONFIG_DIR = cfgDir
 const recPath = supervisorStatePath()
 mkdirSync(join(recPath, '..'), { recursive: true })
