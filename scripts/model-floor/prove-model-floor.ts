@@ -63,7 +63,7 @@ check("MERCURY_SMALL_FAST_MODEL value is haiku-tier ('cheap-utility-x')", mf.isH
 delete process.env.MERCURY_SMALL_FAST_MODEL
 check('unpinned: the opaque spellings are nobody-tier again', mf.isHaikuTier('fastcheap-gw-v1') === false && mf.isHaikuTier('cheap-utility-x') === false)
 
-section('enforceSubagentModelFloor — fork ON: haiku ⇒ claude-sonnet-5, else byte-identical')
+section('enforceSubagentModelFloor — stamped build: haiku ⇒ claude-sonnet-5, else byte-identical')
 setStamp(true)
 for (const s of HAIKU_SPELLINGS) {
   check(`floor('${s}') ⇒ '${mf.NEVER_HAIKU_FALLBACK}'`, mf.enforceSubagentModelFloor(s, 'proof') === mf.NEVER_HAIKU_FALLBACK)
@@ -92,7 +92,7 @@ check('fallback captured', last.fallback === mf.NEVER_HAIKU_FALLBACK)
 for (let i = 0; i < 30; i++) mf.enforceSubagentModelFloor('haiku', `proof:cap${i}`)
 check('ring bounded at 20', mf.recentFloorEvents().length <= 20)
 
-section('getAgentModel — the resolution paths, floored end-to-end (fork ON)')
+section('getAgentModel — the resolution paths, floored end-to-end (stamped build)')
 setStamp(true)
 check("agent-def 'haiku' ⇒ sonnet-5", ag.getAgentModel('haiku', 'claude-opus-4-8') === mf.NEVER_HAIKU_FALLBACK)
 check("tool-specified 'haiku' ⇒ sonnet-5", ag.getAgentModel(undefined, 'claude-opus-4-8', 'haiku') === mf.NEVER_HAIKU_FALLBACK)
@@ -105,7 +105,7 @@ setStamp(false)
 const bareStampResolved = ag.getAgentModel('haiku', 'claude-opus-4-8')
 check("bare-stamp agent-def 'haiku' ⇒ sonnet-5 (never Haiku, any stamp)", bareStampResolved === mf.NEVER_HAIKU_FALLBACK, bareStampResolved)
 
-section('buildStreamJsonInvocation — daemon spawn seam floored (fork ON)')
+section('buildStreamJsonInvocation — daemon spawn seam floored (stamped build)')
 setStamp(true)
 const spec = {
   model: 'claude-haiku-4-5-20251001',

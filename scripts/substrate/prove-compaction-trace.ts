@@ -32,7 +32,7 @@ console.log('============================================================')
 console.log(' compaction-event trace lane — proof')
 console.log('============================================================')
 
-section('gating: fork + invocation-trace on, with MERCURY_COMPACTION_TRACE=0 opt-out')
+section('gating: stamped build + invocation-trace on, with MERCURY_COMPACTION_TRACE=0 opt-out')
 {
   check('MERCURY_TRACE=1 ⇒ enabled', isCompactionTraceEnabled() === true)
   process.env.MERCURY_COMPACTION_TRACE = '0'

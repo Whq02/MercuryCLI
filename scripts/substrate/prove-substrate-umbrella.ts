@@ -53,11 +53,11 @@ check('isInvocationTraceEnabled() TRUE under a bare stamp', isInvocationTraceEna
   check('substrate catalog: deck pane on under a bare stamp', g.deck === true)
 }
 
-section('PROOF 1 — fork DEFAULT (no env) ⇒ umbrella ON, all 3 safe gates ON')
+section('PROOF 1 — stamped build DEFAULT (no env) ⇒ umbrella ON, all 3 safe gates ON')
 setStamp(true)
 clearEnv()
-check('isMercurySubstrateProfileOn() TRUE on fork by default (no MERCURY_SUBSTRATE)', isMercurySubstrateProfileOn() === true)
-check('isInvocationTraceEnabled() TRUE on fork by default', isInvocationTraceEnabled() === true)
+check('isMercurySubstrateProfileOn() TRUE on a stamped build by default (no MERCURY_SUBSTRATE)', isMercurySubstrateProfileOn() === true)
+check('isInvocationTraceEnabled() TRUE on a stamped build by default', isInvocationTraceEnabled() === true)
 {
   const g = gates()
   check('substrate catalog: substrateOn true', g.umbrella === true)
@@ -107,7 +107,7 @@ clearEnv()
 check('bare stamp ⇒ the coordination server STILL on (stamp-independence)', gates().mcp === true)
 setStamp(true)
 clearEnv()
-check('fork default ⇒ the coordination server LIVE (coordination verbs ready for mid-session teams)', gates().mcp === true)
+check('stamped build default ⇒ the coordination server LIVE (coordination verbs ready for mid-session teams)', gates().mcp === true)
 process.env.MERCURY_SUBSTRATE = '0'
 check('the coordination server stays on under MERCURY_SUBSTRATE=0 (NOT part of the umbrella)', gates().mcp === true)
 clearEnv()

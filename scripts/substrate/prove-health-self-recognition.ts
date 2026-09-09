@@ -36,6 +36,6 @@ console.log('\n[1] release notes are bundled Mercury notes (no fetch, no disk ca
 }
 
 console.log('\n============================================================')
-console.log(fail === 0 ? ' ✅ HEALTH-LOYALTY PROOF PASS' : ' ❌ HEALTH-LOYALTY PROOF FAILED')
+console.log(fail === 0 ? ' ✅ HEALTH SELF-RECOGNITION PROOF PASS' : ' ❌ HEALTH SELF-RECOGNITION PROOF FAILED')
 console.log('============================================================')
 process.exit(fail)

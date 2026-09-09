@@ -67,12 +67,12 @@ console.log('============================================================')
 console.log(' verbatim recent-tail preservation for autocompact')
 console.log('============================================================')
 
-section('(a) gate — default-ON for fork (substrate), MERCURY_COMPACT_KEEP_TAIL=0 opt-out')
+section('(a) gate — default-ON (substrate), MERCURY_COMPACT_KEEP_TAIL=0 opt-out')
 {
   delete process.env.MERCURY_COMPACT_KEEP_TAIL
   delete process.env.MERCURY_CTX_COMPACTION
   delete process.env.MERCURY_SUBSTRATE
-  check('fork default (substrate on) ⇒ enabled', isMercuryCompactKeepTailEnabled() === true)
+  check('default (substrate on) ⇒ enabled', isMercuryCompactKeepTailEnabled() === true)
 
   process.env.MERCURY_COMPACT_KEEP_TAIL = '0'
   check('MERCURY_COMPACT_KEEP_TAIL=0 ⇒ disabled (opt-out wins)', isMercuryCompactKeepTailEnabled() === false)

@@ -104,7 +104,7 @@ section('round-trip — append, read back, malformed lines skipped')
     lineage: 'baseline-pack',
     score: { dev: 7, holdout: 6, unit: 'scenarios' },
     delta: 1,
-    evidenceRefs: ['.claude/evolution/traces/iter1.jsonl', 'scripts/run-all-suites.sh: exit 0'],
+    evidenceRefs: ['.mercury/evolution/traces/iter1.jsonl', 'scripts/run-all-suites.sh: exit 0'],
   })
   check('improved row written', r2.ok)
   await appendFile(getEvolutionLedgerPath(LEDGER_DIR, PROGRAM), '{not json\n', 'utf-8')
@@ -272,7 +272,7 @@ section('DSL prompt — the ledger section rides the gate (the ledger addendum)'
   const { WORKFLOW_TOOL_PROMPT } = await import('../../src/tools/WorkflowTool/workflowPrompt.js')
   const on = getWorkflowToolPrompt()
   check('gate ON ⇒ prompt documents the ledger global', on.includes('## The ledger global (evolution rows)') && on.startsWith(WORKFLOW_TOOL_PROMPT))
-  check('fork ⇒ prompt carries the operator doctrine addendum (model rule + verify stage)', on.includes('## Mercury workflow authorship doctrine'))
+  check('stamped build ⇒ prompt carries the operator doctrine addendum (model rule + verify stage)', on.includes('## Mercury workflow authorship doctrine'))
   process.env.MERCURY_EVOLUTION_LEDGER = '0'
   const off = getWorkflowToolPrompt()
   delete process.env.MERCURY_EVOLUTION_LEDGER
@@ -284,7 +284,7 @@ section('DSL prompt — the ledger section rides the gate (the ledger addendum)'
     ;(globalThis as Record<string, unknown>).MACRO = savedMacro
     check('no MACRO ⇒ SAME prompt either way (stamp-independence)', bareStamped === getWorkflowToolPrompt())
   }
-  check('the upstream constant itself carries no fork section', !WORKFLOW_TOOL_PROMPT.includes('The ledger global') && !WORKFLOW_TOOL_PROMPT.includes('Mercury doctrine'))
+  check('the base prompt constant carries neither addendum', !WORKFLOW_TOOL_PROMPT.includes('The ledger global') && !WORKFLOW_TOOL_PROMPT.includes('Mercury doctrine'))
 }
 
 section('completion notification — <agents> trace index source pins')

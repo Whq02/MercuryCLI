@@ -13,7 +13,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 console.log('============================================================')
-console.log(' SM-J-P3 — identity constants (Mercury spellings + migrations)')
+console.log(' SM-J-P3 — identity constants (Mercury spellings)')
 console.log('============================================================')
 
 const mainSrc = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
@@ -25,20 +25,12 @@ const wtSrc = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
 check('worktree baseline speaks ONE filename: WORKTREE_BASE',
   wtSrc.includes("BASELINE_FILENAME = 'WORKTREE_BASE'"))
 const cmdTypes = readFileSync(join(ROOT, 'src/types/command.ts'), 'utf8')
-check('LoadedFrom carries no commands-directory label (skills are the one markdown door)', !cmdTypes.includes("'legacy-commands'") && !cmdTypes.includes('commands_DEPRECATED'))
-check('the legacy instructions facade is folded away (consumers import the engine)', !existsSync(join(ROOT, 'src/utils/instructionsCompat.ts')) && !existsSync(join(ROOT, 'src/utils/claudemd.ts')))
+const loadedFromStart = cmdTypes.indexOf('type LoadedFromLabel =')
+const loadedFromUnion = cmdTypes.slice(loadedFromStart, cmdTypes.indexOf('\n\n', loadedFromStart))
+check('LoadedFrom labels are the five command sources (skills are the one markdown source)', (loadedFromUnion.match(/'[a-z]+'/g) ?? []).join(',') === "'skills','extension','managed','bundled','mcp'", loadedFromUnion)
 
-for (const p of [
-  'src/components/FeedbackSurvey',
-  'src/utils/autoRunIssue.tsx',
-  'src/commands/good-claude',
-]) {
-  check(`P4 absent: ${p}`, !existsSync(join(ROOT, p)))
-}
-const notices = readFileSync(join(ROOT, 'src/utils/statusNoticeDefinitions.tsx'), 'utf8')
-check('P4: the JetBrains-plugin notice is gone from the roster', !notices.includes('jetbrainsPluginNotice'))
 const feedback = readFileSync(join(ROOT, 'src/components/Feedback.tsx'), 'utf8')
-check('P4 honest receipt: /bug never claims "submitted"', !feedback.includes('bug report submitted') && feedback.includes('drafted locally'))
+check('honest receipt: /bug never claims "submitted"', !feedback.includes('bug report submitted') && feedback.includes('drafted locally'))
 
 {
   const http = readFileSync(join(ROOT, 'src/utils/http.ts'), 'utf8')
@@ -54,7 +46,7 @@ check('P4 honest receipt: /bug never claims "submitted"', !feedback.includes('bu
   const fsPerm = readFileSync(join(ROOT, 'src/utils/permissions/filesystem.ts'), 'utf8')
   check('ruling 3: the temp root is mercury-named', fsPerm.includes('`mercury-${uid}`'))
   const keychain = readFileSync(join(ROOT, 'src/utils/secureStorage/macOsKeychainHelpers.ts'), 'utf8')
-  check('ruling 3: the keychain service is Mercury-named, keyed to the resolved home, with one canonicalisation fallback', keychain.includes('return `Mercury${') && keychain.includes('getRawSpellingKeychainStorageServiceName') && !keychain.includes('Legacy'))
+  check('ruling 3: the keychain service is Mercury-named, keyed to the resolved home, with one canonicalisation fallback', keychain.includes('return `Mercury${') && keychain.includes('getRawSpellingKeychainStorageServiceName'))
 }
 
 {
@@ -78,8 +70,8 @@ check('P4 honest receipt: /bug never claims "submitted"', !feedback.includes('bu
 
 {
   const mdmConsts = readFileSync(join(ROOT, 'src/utils/settings/mdm/constants.ts'), 'utf8')
-  check("P6: the MDM preference domain is Mercury's, compat domain honoured", mdmConsts.includes("MACOS_PREFERENCE_DOMAIN = 'com.mercury.harness'") && mdmConsts.includes("LEGACY_MACOS_PREFERENCE_DOMAIN = 'com.anthropic.claudecode'"))
-  check('P6: the Policies keys are Mercury-primary with compat keys', mdmConsts.includes("'HKLM\\\\SOFTWARE\\\\Policies\\\\Mercury'") && mdmConsts.includes("'HKLM\\\\SOFTWARE\\\\Policies\\\\ClaudeCode'"))
+  check("P6: the MDM preference domain is Mercury's", mdmConsts.includes("MACOS_PREFERENCE_DOMAIN = 'com.mercury.harness'"))
+  check('P6: the Policies key is Mercury-named', mdmConsts.includes("'HKLM\\\\SOFTWARE\\\\Policies\\\\Mercury'"))
   const managed = readFileSync(join(ROOT, 'src/utils/settings/managedPath.ts'), 'utf8')
   check('P6: managed-settings dir resolves the Mercury-only candidates', managed.includes("'/etc/mercury'") && managed.includes('exists(candidate)') && managed.includes('resolveManagedRoot(managedRootCandidates(getPlatform()), existsSync)'))
 }

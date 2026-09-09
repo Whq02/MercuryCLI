@@ -42,9 +42,9 @@ console.log('============================================================')
 
 const VALID = new Set(['live', 'off', 'unavailable'])
 
-for (const fork of [true, false]) {
-  setStamp(fork)
-  console.log(`\n[${fork ? 'fork' : 'bare-stamp'}] each bridge returns a labelled state, no throw`)
+for (const stamped of [true, false]) {
+  setStamp(stamped)
+  console.log(`\n[${stamped ? 'stamped' : 'bare-stamp'}] each bridge returns a labelled state, no throw`)
   for (const [file, exportName] of BRIDGES) {
     const mod = await import(BASE + file + '.js')
     const fn = mod[exportName]
@@ -67,6 +67,6 @@ for (const fork of [true, false]) {
 }
 
 console.log('\n============================================================')
-console.log(fail === 0 ? ` ✅ SNAPSHOT CONTRACT HOLDS (${BRIDGES.length} bridges, both fork states)` : ' ❌ SNAPSHOT CONTRACT VIOLATED')
+console.log(fail === 0 ? ` ✅ SNAPSHOT CONTRACT HOLDS (${BRIDGES.length} bridges, both stamp states)` : ' ❌ SNAPSHOT CONTRACT VIOLATED')
 console.log('============================================================')
 process.exit(fail)

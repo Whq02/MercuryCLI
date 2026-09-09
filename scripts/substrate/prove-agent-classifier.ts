@@ -32,9 +32,9 @@ process.env.MERCURY_AGENT_CLASSIFIER = '1'
 check('bare stamp, =1 ⇒ on (explicit enable works anywhere)', agentStateClassifierEnabled() === true)
 setStamp(true)
 delete process.env.MERCURY_AGENT_CLASSIFIER
-check('fork, unset ⇒ LIVE by default', agentStateClassifierEnabled() === true)
+check('stamped build, unset ⇒ LIVE by default', agentStateClassifierEnabled() === true)
 process.env.MERCURY_AGENT_CLASSIFIER = '0'
-check('fork, =0 ⇒ off (explicit opt-out)', agentStateClassifierEnabled() === false)
+check('stamped build, =0 ⇒ off (explicit opt-out)', agentStateClassifierEnabled() === false)
 delete process.env.MERCURY_AGENT_CLASSIFIER
 
 section('Heuristic — zero-token classification raises needs-attention')
