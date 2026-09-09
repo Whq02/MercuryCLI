@@ -272,6 +272,7 @@ export type { McpSetServersResult } from './headless/controlHandlers.js'
 
 const SUGGESTION_CLOSE_WAIT_MS = 5_000
 const TEAM_POLL_INTERVAL_MS = 500
+const MAILBOX_REFUSAL_NOTICE_AFTER = 20
 const CONCOURSE_INTERRUPT_PREFIX = 'concourse-interrupt-'
 const INTERRUPT_DEDUPE_CAP = 200
 const RECEIVED_UUID_CAP = 10_000
@@ -1250,6 +1251,7 @@ export async function runHeadless(
         await import('../utils/teammateMailbox.js')
       const { removeTeammateFromTeamFile } = await import('../utils/swarm/teamHelpers.js')
       const { TEAM_LEAD_NAME } = await import('../utils/swarm/constants.js')
+      let refusedAcknowledgements = 0
       for (;;) {
         {
           const next = peek()
@@ -1267,10 +1269,15 @@ export async function runHeadless(
           if (delivery !== null && await wasMailboxDeliveryHandled(delivery, messages)) {
             await (await import('../utils/sessionStorage.js')).flushSessionStorage()
             await acknowledgeMailboxDelivery(TEAM_LEAD_NAME, teamName, delivery.id)
+            refusedAcknowledgements = 0
             continue
           }
         } catch (error) {
+          refusedAcknowledgements += 1
           logForDebugging(`mailbox: delivery awaits durable state: ${errorMessage(error)}`)
+          if (refusedAcknowledgements === MAILBOX_REFUSAL_NOTICE_AFTER) {
+            logError(new Error(`mailbox: ${refusedAcknowledgements} consecutive acknowledgements refused — later teammate reports wait until the team state can be written (${errorMessage(error)})`))
+          }
           await new Promise(resolve => setTimeout(resolve, TEAM_POLL_INTERVAL_MS))
           continue
         }

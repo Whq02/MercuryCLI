@@ -10,6 +10,7 @@ import {
   isShutdownApproved,
 } from '../../utils/teammateMailbox.js'
 import { parseBusEnvelope } from '../../utils/swarm/busEnvelopes.js'
+import { unescapeXml, unescapeXmlAttr } from '../../utils/xml.js'
 import { tryRenderPlanApprovalMessage } from './PlanApprovalMessage.js'
 import { tryRenderShutdownMessage } from './ShutdownMessage.js'
 import { tryRenderTaskAssignmentMessage } from './TaskAssignmentMessage.js'
@@ -112,11 +113,11 @@ export function TeammateMessageContent({
         <Text color={toInkColor(message.color)}>
           {figures.pointer} @{senderName}
         </Text>
-        {message.summary ? <Text> {message.summary}</Text> : null}
+        {message.summary ? <Text> {unescapeXmlAttr(message.summary)}</Text> : null}
       </Text>
       {isTranscriptMode && message.content ? (
         <Box paddingLeft={2}>
-          <Ansi>{message.content}</Ansi>
+          <Ansi>{unescapeXml(message.content)}</Ansi>
         </Box>
       ) : null}
     </Box>
