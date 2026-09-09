@@ -190,6 +190,7 @@ export type WorkRowV1 = {
   agentCount?: number
   pulse?: WorkflowPulseV1
   pendingAsks?: number
+  pausedBy?: string
   agentType?: string
   team?: string
   stopReason?: string

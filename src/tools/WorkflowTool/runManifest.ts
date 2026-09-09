@@ -44,8 +44,10 @@ export type WorkflowRunAgentSummary = {
   startedAt?: number
   queuedAt?: number
   attempt?: number
-  waiting?: 'prefill' | 'provider-backoff' | 'usage-window' | 'seat'
+  waiting?: 'prefill' | 'provider-backoff' | 'usage-window' | 'seat' | 'operator'
   waitWords?: string
+  pausedBy?: string
+  endedBy?: string
   retryInMs?: number
   recoveryTimeoutMs?: number
   retryAttempt?: number
@@ -80,6 +82,9 @@ export type WorkflowRunManifest = {
   owner?: { instanceId: string; epoch: number }
   transcriptDirs?: string[]
   ownerPid: number
+  controlVersion?: number
+  pausedBy?: string
+  endedBy?: string
   agentCount: number
   totalTokens: number
   usage?: WorkflowRunUsage
@@ -117,10 +122,12 @@ export function buildAgentSummaries(
       queuedAt: num(ev['queuedAt']),
       attempt: num(ev['attempt']),
       waiting:
-        ev['waiting'] === 'prefill' || ev['waiting'] === 'provider-backoff' || ev['waiting'] === 'usage-window' || ev['waiting'] === 'seat'
+        ev['waiting'] === 'prefill' || ev['waiting'] === 'provider-backoff' || ev['waiting'] === 'usage-window' || ev['waiting'] === 'seat' || ev['waiting'] === 'operator'
           ? ev['waiting']
           : undefined,
       waitWords: str(ev['waitWords']),
+      pausedBy: str(ev['pausedBy']),
+      endedBy: str(ev['endedBy']),
       retryInMs: num(ev['retryInMs']),
       recoveryTimeoutMs: num(ev['recoveryTimeoutMs']),
       retryAttempt: num(ev['retryAttempt']),

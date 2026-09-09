@@ -252,7 +252,7 @@
     },
     {
       "file": "src/components/tasks/RunDetailPane.tsx",
-      "line": 840,
+      "line": 933,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "session-identity",
@@ -260,7 +260,7 @@
     },
     {
       "file": "src/components/tasks/RunDetailPane.tsx",
-      "line": 842,
+      "line": 935,
       "kind": "wordmark",
       "excerpt": "<Wordmark />",
       "role": "session-identity",

@@ -100,26 +100,40 @@ section('§B the panes read the receipt (note wiring pins)')
     join(import.meta.dir, '..', '..', 'src', 'components', 'tasks', 'RunDetailPane.tsx'),
     'utf8',
   )
-  check('run view: all four actions bind their receipt',
-    (run.match(/const receipt = (skip|retry|pause|kill)Workflow(Agent|Task)\(/g) ?? []).length === 4,
-    String((run.match(/const receipt = /g) ?? []).length))
-  check("run view: every note forks on receipt === 'applied'",
-    (run.match(/receipt === 'applied'/g) ?? []).length >= 4)
-  check('run view: the settled arm says nothing-to-act, never success',
-    run.includes('the run already settled — nothing to pause') &&
-      run.includes('the run already settled — nothing to stop') &&
-      run.includes('already settled — nothing to skip') &&
-      run.includes('already settled — nothing to retry'))
+  check('run view: every key acts through the one control request and its note reads the typed result',
+    run.includes('void requestWorkflowControl(runDir, {') &&
+      run.includes('setNote(resultWords(action, label, result))') &&
+      run.includes("if (result.outcome === 'applied') return result.detail") &&
+      run.includes("if (result.outcome === 'refused') return result.reason"))
+  check('run view: a key that cannot act says why in one line, never success',
+    run.includes('setNote(controlRefusal(input, status, orphaned, wedged))') &&
+      run.includes('already settled — nothing to ${verb}') &&
+      run.includes('already settled — nothing to ${verbWord(input)}'))
+  check('run view: the pending word is spoken before the answer lands',
+    run.includes('setNote(pendingWords(action, label))'))
   const board = readFileSync(
     join(import.meta.dir, '..', '..', 'src', 'components', 'tasks', 'WorkflowsBoard.tsx'),
     'utf8',
   )
-  check('board: stop + pause bind and fork on the receipt',
-    (board.match(/const receipt = (kill|pause)WorkflowTask\(/g) ?? []).length === 2 &&
-      (board.match(/receipt === 'applied'/g) ?? []).length >= 2)
-  check('board: the settled arms say nothing-to-act',
-    board.includes('already settled — nothing to stop') &&
-      board.includes('already settled — nothing to pause'))
+  check('board: stop, pause and resume act through the one control request and fork on the typed result',
+    (board.match(/run: \(r: RunRow\) => control\(r, '(stop|pause|resume)'\)/g) ?? []).length === 3 &&
+      board.includes("result.outcome === 'applied' ? `${r.facts.name}: ${result.detail}` : `${r.facts.name}: ${result.reason}`"))
+  const control = readFileSync(
+    join(import.meta.dir, '..', '..', 'src', 'tools', 'WorkflowTool', 'runControl.ts'),
+    'utf8',
+  )
+  check('the channel answers the settled arm by name, never success',
+    control.includes('already ${manifest.status === \'paused\' ? \'paused on disk\' : \'settled\'} — nothing to ${verbOf(input.action)}'))
+  const tool = readFileSync(
+    join(import.meta.dir, '..', '..', 'src', 'tools', 'WorkflowTool', 'WorkflowTool.tsx'),
+    'utf8',
+  )
+  check('the owner forks every action on the store receipt',
+    (tool.match(/receipt === 'applied'/g) ?? []).length >= 4 &&
+      tool.includes("'already settled — nothing to stop'") &&
+      tool.includes("'the agent already settled — nothing to kill'") &&
+      tool.includes("'the agent already settled — nothing to skip'") &&
+      tool.includes("'the agent already settled — nothing to retry'"))
 }
 
 rmSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true, force: true })
