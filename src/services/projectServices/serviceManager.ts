@@ -101,6 +101,12 @@ function childKey(cwd: string, name: string): string {
   return `${path.resolve(cwd)}::${name}`
 }
 
+export function liveServiceChildren(): Array<{ key: string; pid: number | undefined }> {
+  return [...liveChildren.entries()]
+    .filter(([, child]) => child.exitCode === null && child.signalCode === null)
+    .map(([key, child]) => ({ key, pid: child.pid }))
+}
+
 registerCleanup(async () => {
   const children = [...liveChildren.values()]
   liveChildren.clear()

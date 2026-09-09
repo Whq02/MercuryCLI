@@ -1462,6 +1462,12 @@ export function listDapSessions(owner: OwnerKey): Array<{ id: string; session: D
     .map(([key, session]) => ({ id: key.slice(prefix.length), session }))
 }
 
+export function liveDapSessionCount(): number {
+  let n = 0
+  for (const session of sessions.values()) if (session.alive) n++
+  return n
+}
+
 export function _dapSessionCountForTesting(): number {
   return sessions.size
 }

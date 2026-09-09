@@ -384,7 +384,11 @@ function DossierCard({
         ? 'done — output not captured'
         : agent.state === 'start'
           ? 'not started'
-          : 'still working')
+          : agent.state === 'stopped'
+            ? 'stopped before it answered'
+            : agent.state === 'skipped'
+              ? 'skipped — its agent() call resolved null'
+              : 'still working')
 
   const contentWidth = Math.max(16, width - 8)
   const inEst = estWrappedLines(inText ?? undefined, contentWidth, inCeil + 1)
