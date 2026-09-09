@@ -179,7 +179,7 @@ async function drive(tag: string, turns: ScriptedTurn[], sends: Send[], readyTex
   const world = mkdtempSync(join(realpathSync(tmpdir()), `mercury-question-card-${tag}-`))
   const home = join(world, 'home')
   const cwd = join(world, 'project')
-  const configDir = join(home, '.claude')
+  const configDir = join(home, '.mercury')
   mkdirSync(configDir, { recursive: true })
   mkdirSync(cwd, { recursive: true })
   writeFileSync(
@@ -544,7 +544,7 @@ if (wants('D')) {
   check('D: the drive completed', d.status === 0, `status=${d.status} end=${d.endReason}`)
   const card = markOr(d, 'd-card')
   check('D: the card was up with its Esc affordance stated', card.some(r => r.includes('Esc to cancel')))
-  const denied = d.final.some(r => r.includes('want to proceed'))
+  const denied = d.final.some(r => r.includes('declined this tool call'))
   check('D: after Esc the card is gone and the denial is on the transcript', !d.final.some(r => r.includes('Esc to cancel')) && denied)
   if (!denied) dumpFrame('d-final', d.final)
   check('D: the session continued (the model replied to the denial)', d.final.some(r => r.includes('stopping here as asked')))
