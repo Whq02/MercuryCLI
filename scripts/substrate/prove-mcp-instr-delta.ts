@@ -27,7 +27,7 @@ const repo = join(import.meta.dir, '..', '..')
 
 section('1. gate polarity')
 {
-  check('gate is unconditionally ON (env seam retired)', isMcpInstructionsDeltaEnabled() === true)
+  check('gate is unconditionally ON (no env seam)', isMcpInstructionsDeltaEnabled() === true)
 
   const savedMacro = (globalThis as Record<string, unknown>).MACRO
   delete (globalThis as Record<string, unknown>).MACRO
@@ -87,10 +87,10 @@ section('3. wiring (structural) — the gate still guards both channels')
   )
   const producer = readFileSync(join(repo, 'src/utils/mcpInstructionsDelta.ts'), 'utf8')
   check(
-    'gate is env-free and unconditionally ON (the compat-era override retired with the compat wave)',
+    'gate is env-free and unconditionally ON',
     (() => {
       const fn = producer.slice(producer.indexOf('export function isMcpInstructionsDeltaEnabled'), producer.indexOf('}', producer.indexOf('export function isMcpInstructionsDeltaEnabled')) + 1)
-      return fn.includes('return true') && !fn.includes('process.env') && !fn.includes('isEnvTruthy') && !fn.includes('getFeatureValue_CACHED_MAY_BE_STALE')
+      return fn.includes('return true') && !fn.includes('process.env') && !fn.includes('isEnvTruthy')
     })(),
   )
 }

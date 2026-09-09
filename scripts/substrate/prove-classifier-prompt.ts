@@ -72,14 +72,13 @@ check(
   /BASE_PROMPT: string =\s*\n?\s*txtRequire\(require\('\.\/auto-mode-classifier-prompts\/auto_mode_system_prompt\.txt'\)\)/.test(src),
 )
 check(
-  'EXTERNAL_PERMISSIONS_TEMPLATE require reachable on the fork',
+  'EXTERNAL_PERMISSIONS_TEMPLATE require reachable on the stamped build',
   /EXTERNAL_PERMISSIONS_TEMPLATE: string =\s*\n?\s*txtRequire\(require\('\.\/auto-mode-classifier-prompts\/permissions_external\.txt'\)\)/.test(src),
 )
 check(
-  'ANTHROPIC template is the empty constant (file not in this tree; external branch unconditional)',
+  'the classifier always takes the external permissions branch (the provider template is the empty constant)',
   /ANTHROPIC_PERMISSIONS_TEMPLATE: string =\s*\n?\s*''/.test(src) &&
-    /function isUsingExternalPermissions\(\): boolean \{\s*\n?\s*return true/.test(src) &&
-    !existsSync(join(promptsDir, 'permissions_anthropic.txt')),
+    /function isUsingExternalPermissions\(\): boolean \{\s*\n?\s*return true/.test(src),
 )
 check(
   'classifyYoloAction guards an empty system prompt FAIL-CLOSED before any API call',

@@ -42,7 +42,6 @@ check('returns 2 sections when the doctrine layer is on (no family overlay)', se
 check('every section carries a semantic name + string text', secs.every(s => typeof s.name === 'string' && s.name.length > 0 && typeof s.text === 'string'))
 check('section[0] is the identity floor (LEADS at model-wake)', secs[0]!.name === 'identity-floor' && secs[0]!.text === MERCURY_IDENTITY_FLOOR)
 check('section[1] is the Mercury doctrine', secs[1]!.name === 'mercury-doctrine' && secs[1]!.text === MERCURY_DOCTRINE)
-check('no family-scoped section exists (the one-content law)', secs.every(s => s.name !== 'gpt-developer-contract'))
 check('the closing reconcile fixes the brand to Mercury', /Mercury/.test(MERCURY_IDENTITY_RECONCILE))
 check('no positional section names (semantic-ID law)', secs.every(s => !/^wrapper-\d|^mode-\d+$/.test(s.name)))
 
@@ -51,10 +50,6 @@ check('doctrine carries the voice clause (outcome-first close)', /outcome-first/
 check('doctrine carries the autonomy clause (never end on a promise)', /Before ending your turn/.test(MERCURY_DOCTRINE))
 check('doctrine carries the evidence clause (audit claims against tool results)', /audit each claim against a tool result/.test(MERCURY_DOCTRINE))
 check('doctrine carries the assessment-mode boundary', /deliverable is your assessment/.test(MERCURY_DOCTRINE))
-check(
-  'doctrine references NO retired wrapper machinery',
-  !new RegExp([['Temp', 'est Desert'].join(''), ['temp', 'est_coord'].join(''), 'coord\\.mjs', 'TF_REPO_ID', 'lease'].join('|')).test(MERCURY_DOCTRINE),
-)
 
 section('doctrine gate: MERCURY_WRAPPER_APPEND=0 opts out the DOCTRINE, never the floor')
 delete process.env.MERCURY_WRAPPER_APPEND

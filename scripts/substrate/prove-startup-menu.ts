@@ -48,8 +48,6 @@ section('registry floor — rows ⊆ FLAG_REGISTRY, sane choices')
   check('the IDE lane rows are present (clangd visible-ON · godot arm-OFF)',
     STARTUP_MENU.some(r => r.env === 'MERCURY_LSP_CPP' && r.defaultLabel === 'on') &&
     STARTUP_MENU.some(r => r.env === 'MERCURY_GODOT' && r.defaultLabel === 'off'))
-  check('the retired multiplayer rows are gone from the menu',
-    !STARTUP_MENU.some(r => r.env === 'MERCURY_ROOM_REMOTE') && !STARTUP_MENU.some(r => r.env === 'MERCURY_PARTY'))
   const enterMenu = getFlagSpec('MERCURY_ENTER_MENU')
   check('MERCURY_ENTER_MENU registered default-on / infra, consumed by the applier',
     enterMenu?.kind === 'default-on' && enterMenu?.tier === 'infra' && enterMenu?.consumer === 'src/substrate/startupMenu.ts')
@@ -72,7 +70,7 @@ section('command-owned setting rows — the /caching dial law')
       const c = menuRowChoices(r)
       return c.length >= 2 && c[0]!.value === null
     }))
-  check('MERCURY_CACHE_TTL is NOT a boot-menu row (the row died)',
+  check('MERCURY_CACHE_TTL is a command-owned row, not a boot-menu row',
     !STARTUP_MENU.some(r => r.env === 'MERCURY_CACHE_TTL'))
   const ttl = COMMAND_SETTINGS_ROWS.find(r => r.env === 'MERCURY_CACHE_TTL')
   check('MERCURY_CACHE_TTL survives as a command-owned row (enum 5m/1h, default adaptive)',

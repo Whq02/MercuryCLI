@@ -38,7 +38,7 @@ console.log('============================================================')
 
 section('gate — default-ON, =0 byte-identical absence')
 {
-  check('fork ⇒ enabled', runtimePostureEnabled() === true)
+  check('default ⇒ enabled', runtimePostureEnabled() === true)
   process.env.MERCURY_RUNTIME_POSTURE = '0'
   resetRuntimePostureForTest()
   check('=0 ⇒ disabled', runtimePostureEnabled() === false)

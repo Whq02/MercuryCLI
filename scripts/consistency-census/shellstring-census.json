@@ -663,13 +663,6 @@
     {
       "file": "scripts/idiom/prove-import-fence.ts",
       "mechanism": "execSync-string",
-      "excerpt": "const forging = execSync(",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/idiom/prove-import-fence.ts",
-      "mechanism": "execSync-string",
       "excerpt": "const hits = execSync(",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"

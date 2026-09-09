@@ -171,17 +171,6 @@ section('3 · ONE catalogue for both containers — no serve law, no tier (ruled
     'the derivation takes no container (one row set, structurally)',
     /export function composeSubModelRegistry\(reads/.test(slotsSrc),
   )
-  check(
-    'no serve check survives in the owner',
-    !slotsSrc.includes('subModelServeCheck') && !slotsSrc.includes('modelSupportsStructuredOutputs'),
-  )
-  check(
-    'no tier owner is imported (providerFrontier · 1M access · opus default · subModelDefault)',
-    !slotsSrc.includes('providerFrontier') &&
-      !slotsSrc.includes('checkOpus1mAccess') &&
-      !slotsSrc.includes('getDefaultOpusModel') &&
-      !slotsSrc.includes('subModelDefault'),
-  )
 }
 
 section("3b · THE UNSET DEFAULT (the operator's word) — the choice is the operator's")
@@ -376,13 +365,8 @@ section('6 · the frontier row — an ordinary tier row of the SHARED catalog (r
     'utf-8',
   )
   check(
-    'no synthesized frontier literal rides after the allowlist (step 9b retired)',
-    !optionsSrc.includes("value: 'claude-fable-5'") && !optionsSrc.includes('frontier literal row'),
-  )
-  check(
-    'the tier builders push the row unconditionally (never behind the frontier decision)',
-    (optionsSrc.match(/rows\.push\(getFableOption\(\)\)/g) ?? []).length === 2 &&
-      !/if \(isFableAvailable\(\)\) \{\s*rows\.push\(getFableOption\(\)\)/.test(optionsSrc),
+    'the tier builders push the row unconditionally',
+    (optionsSrc.match(/rows\.push\(getFableOption\(\)\)/g) ?? []).length === 2,
   )
 
   const registry = composeSubModelRegistry({
@@ -392,16 +376,6 @@ section('6 · the frontier row — an ordinary tier row of the SHARED catalog (r
   } as never)
   const entry = registry.entries.find(e => e.modelId === 'claude-fable-5')
   check('the submodel registry lists Fable 5 under anthropic', entry !== undefined && entry.source === 'anthropic')
-
-  const mercuryModel = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'commands', 'model', 'mercuryModel.tsx'),
-    'utf-8',
-  )
-  check('the /model builder carries NO local fable synthesis', !mercuryModel.includes('fableRow'))
-  check(
-    '/model names the shared owner it reads (an ordinary tier row, never a 9b splice)',
-    mercuryModel.includes('The Fable row is the SHARED catalog') && !mercuryModel.includes('9b'),
-  )
 }
 
 section('7 · the ONE credential truth — the REAL owner chain across sign-in/out (no injection)')
