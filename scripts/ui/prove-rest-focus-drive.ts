@@ -25,6 +25,21 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ': ' + detail : ''}`)
 }
+function countWrites(frames: ReadonlyArray<{ tick: number; cells: number }>, ticks: Record<string, number>, from: string, to: string, grace: number): number {
+  const start = ticks[from] + grace
+  const end = ticks[to]
+  let count = 0
+  for (const frame of frames) {
+    if (frame.tick <= start || frame.tick >= end || frame.cells === 0) continue
+    count++
+  }
+  return count
+}
+function countAnimationFrames(cellFrames: ReadonlyArray<{ tick: number; cells: number }>, ticks: Record<string, number>, from: string, to: string, grace: number): number {
+  const start = ticks[from] + grace
+  const end = ticks[to]
+  return cellFrames.filter(frame => frame.tick > start && frame.tick < end && frame.cells >= 1 && frame.cells <= 60).length
+}
 for (const moving of [true, false]) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'redraw-observation-')))
   const output = join(home, 'capture.json')
@@ -84,6 +99,10 @@ try {
       sends: [
         { awaitText: 'New Session', requireAwait: true, awaitSettleTicks: 4, atTick: 100, data: '\r' },
         { awaitText: 'type a prompt, or / for commands', requireAwait: true, atTick: 150, data: '', mark: 'ready' },
+        { afterPrevTicks: 4, data: 'z', mark: 'awake' },
+        { afterPrevTicks: 8, ...(setting === 'off' ? {} : { awaitRedraws: 2 }), data: '\u001b[O', mark: 'awake-blur' },
+        { afterPrevTicks: 35, data: '\u001b[I', mark: 'awake-focus' },
+        { afterPrevTicks: 6, ...(setting === 'off' ? {} : { awaitRedraws: 3 }), data: '\u0015', mark: 'awake-clear' },
         { afterPrevTicks: 40, data: '', mark: 'quiet' },
         { afterPrevTicks: setting === 'full' ? 2 : 15, ...(setting === 'full' ? { awaitRedraws: 4 } : {}), data: '\u001b[O', mark: 'blur' },
         { afterPrevTicks: setting === 'full' ? 2 : 25, ...(setting === 'full' ? { awaitRedraws: 4 } : {}), data: '\u001b[I', mark: 'focus' },
@@ -95,7 +114,7 @@ try {
     const env = {
       HOME: home, PATH: `${dirname(node)}:/usr/bin:/bin:/usr/sbin:/sbin`, TERM: 'xterm-256color',
       MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_TEAMS_DIR: join(home, 'teams'),
-      MERCURY_VSHOT_BUDGET_SCALE: String(vshotBudgetScale()),
+      MERCURY_VSHOT_BUDGET_SCALE: String(vshotBudgetScale()), MERCURY_DECK_COMPANION: '0',
       MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: key, ANTHROPIC_BASE_URL: fixture.url, VSHOT_TEE: tee,
     }
     try {
@@ -113,7 +132,7 @@ try {
       if (!existsSync(output) || !existsSync(tee)) continue
       const capture = JSON.parse(readFileSync(output, 'utf8'))
       const marks = new Map<string, any>((capture.marks ?? []).map((mark: any) => [mark.label, mark]))
-      const complete = ['ready', 'quiet', 'blur', 'focus', 'typed', 'clear', 'exit'].every(name => marks.has(name))
+      const complete = ['ready', 'awake', 'awake-blur', 'awake-focus', 'awake-clear', 'quiet', 'blur', 'focus', 'typed', 'clear', 'exit'].every(name => marks.has(name))
       check(`${cols} ${setting}: every required transition was captured`, complete)
       if (!complete) continue
       const raw = readFileSync(tee)
@@ -125,22 +144,23 @@ try {
         frames.push({ tick, data: raw.subarray(offset + 8, offset + 8 + size) })
         offset += 8 + size
       }
-      const ticks = Object.fromEntries([...marks].map(([name, mark]) => [name, Number(mark.atTick)]))
-      const writes = (from: string, to: string, grace = 2) => {
-        const start = Number(ticks[from]) + grace
-        const end = Number(ticks[to])
-        let count = 0
-        for (const frame of frames) {
-          if (frame.tick <= start || frame.tick >= end) continue
-          count++
-        }
-        return count
-      }
+      const ticks: Record<string, number> = Object.fromEntries([...marks].map(([name, mark]) => [name, Number(mark.atTick)]))
+      const replay = spawnSync(driver.python, [join(root, 'scripts', 'ui', 'tee-frames.py'), tee, String(cols), '40'], { encoding: 'utf8', env: { ...process.env, HOME: process.env.HOME ?? home } })
+      check(`${cols} ${setting}: the terminal capture replays through the emulator`, replay.status === 0, (replay.stderr ?? '').slice(-300))
+      if (replay.status !== 0) continue
+      const cellFrames: Array<{ tick: number; bytes: number; cells: number }> = JSON.parse(replay.stdout)
+      const writes = (from: string, to: string, grace = 2) => countWrites(cellFrames, ticks, from, to, grace)
       check(`${cols} ${setting}: empty and reversed observation intervals count no writes`, writes('blur', 'blur') === 0 && writes('focus', 'blur') === 0)
-      const observation = { ticks, frameTicks: frames.map(frame => frame.tick), quiet: writes('quiet', 'blur'), blurred: writes('blur', 'focus'), refocused: writes('focus', 'typed', 0) }
+      const animationFrames = (from: string, to: string, grace = 2) => countAnimationFrames(cellFrames, ticks, from, to, grace)
+      const observation = { ticks, frameTicks: frames.map(frame => frame.tick), quiet: writes('quiet', 'blur'), blurred: writes('blur', 'focus'), refocused: writes('focus', 'typed', 0), awakeBlurred: animationFrames('awake-blur', 'awake-focus', 8), awakeRefocused: animationFrames('awake-focus', 'awake-clear', 0), cellFrames }
       writeFileSync(join(home, 'observed-counts.json'), JSON.stringify(observation))
       writeFileSync(join(home, 'observed.tee'), raw)
-      console.log(`observed ${cols} ${setting}: ${JSON.stringify({ ticks, quiet: observation.quiet, blurred: observation.blurred, refocused: observation.refocused })}`)
+      console.log(`observed ${cols} ${setting}: ${JSON.stringify({ ticks, quiet: observation.quiet, blurred: observation.blurred, refocused: observation.refocused, awakeBlurred: observation.awakeBlurred, awakeRefocused: observation.awakeRefocused })}`)
+      check(`${cols} ${setting}: the awake blur is sent before the quiet rest engages`, Number(ticks['awake-blur']) - Number(ticks['awake']) < 40, String(Number(ticks['awake-blur']) - Number(ticks['awake'])))
+      if (setting === 'full') check(`${cols} ${setting}: full motion keeps animating through a blur while awake`, observation.awakeBlurred >= 3, String(observation.awakeBlurred))
+      else if (setting === 'off') check(`${cols} ${setting}: off motion stays still through a blur while awake`, observation.awakeBlurred === 0, String(observation.awakeBlurred))
+      else check(`${cols} ${setting}: a blur while awake stops the animation frames`, observation.awakeBlurred === 0, String(observation.awakeBlurred))
+      if (setting !== 'off') check(`${cols} ${setting}: focus regained while awake resumes the animation`, observation.awakeRefocused >= 3, String(observation.awakeRefocused))
       if (setting === 'full') {
         check(`${cols} ${setting}: full motion continues through quiet`, writes('quiet', 'blur') >= 3, String(writes('quiet', 'blur')))
         check(`${cols} ${setting}: full motion continues through blur`, writes('blur', 'focus') >= 3, String(writes('blur', 'focus')))

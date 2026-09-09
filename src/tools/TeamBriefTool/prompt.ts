@@ -3,7 +3,7 @@ import { TEAM_BRIEF_TOOL_NAME } from './constants.js'
 export const DESCRIPTION =
   'Get a consolidated brief of the current team: open tasks, unread messages, roster, and file leases'
 
-export const TEAM_BRIEF_TOOL_PROMPT = `Returns a single consolidated snapshot of the current team's coordination state, so you don't have to call TaskList, read your mailbox, the roster, and the lease store separately.
+export const TEAM_BRIEF_TOOL_PROMPT = `Returns a single consolidated snapshot of the current team's coordination state, so you don't have to read the task board, your mailbox, the roster, and the lease store separately.
 
 The brief includes, for the team this session belongs to:
 - Open tasks (everything not completed) with id, status, owner, and blockers.

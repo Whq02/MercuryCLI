@@ -198,8 +198,8 @@ export const TeamCreateTool = buildTool({
   async description(): Promise<string> {
     return 'Create a team for coordinating multiple agents.'
   },
-  async prompt({ agents }): Promise<string> {
-    return getPrompt(agents)
+  async prompt({ agents, tools }): Promise<string> {
+    return getPrompt(agents, new Set(tools.map(tool => tool.name)))
   },
   async validateInput(input: Input) {
     if (!input.team_name || input.team_name.trim().length === 0) {

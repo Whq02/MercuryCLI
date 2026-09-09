@@ -30,6 +30,15 @@ import {
 import { forEachQueryMatch } from '../../services/structure/query.js'
 import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
+
+function lspMounted(): boolean {
+  try {
+    const { isLspToolMounted } = require('../../services/lsp/manager.js') as typeof import('../../services/lsp/manager.js')
+    return isLspToolMounted()
+  } catch {
+    return false
+  }
+}
 import {
   renderToolResultMessage,
   renderToolUseErrorMessage,
@@ -547,7 +556,7 @@ export const StructureTool = buildTool({
   },
   async prompt() {
     const polyglot = structurePolyglotEnabled()
-    return `Bounded structural source-code queries and previewed, stale-safe codemods${polyglot ? ' — JS/TS/JSX/TSX select queries plus POLYGLOT metavariable patterns' : ' over JS/TS/JSX/TSX'} (the syntax owner — for TRUE symbol rename, file moves, or server fixes prefer the LSP tool, the semantic owner).
+    return `Bounded structural source-code queries and previewed, stale-safe codemods${polyglot ? ' — JS/TS/JSX/TSX select queries plus POLYGLOT metavariable patterns' : ' over JS/TS/JSX/TSX'} (the syntax owner — for TRUE symbol rename, file moves, or server fixes prefer ${lspMounted() ? 'the LSP tool, ' : ''}the semantic owner).
 
 1. op:"query" (select, filters…) — deterministic bounded AST query. Selects: ${STRUCTURE_SELECTS.join(' · ')}. Filters: name (glob), callee ('fs.*'), module, value, within ('class:Name'), files (globs), limit. Returns stable match ids (sm-…) + mercury://structure/query/<id>.${
       polyglot

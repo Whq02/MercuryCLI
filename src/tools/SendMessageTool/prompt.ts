@@ -15,8 +15,9 @@ When you are part of a coordinated team, four structured envelope kinds ride thi
 - control (either direction): pause, resume, stop, clear, ack, cancel of the work in flight. { "to": "worker", "message": { "type": "control", "command": "pause" } }
 Always send an envelope as the structured object shown above — never as a JSON string in a plain message. Echo the request id you are reporting on in refRequestId so the report threads to its dispatch.`
 
-export function getPrompt(): string {
+export function getPrompt(offered: ReadonlySet<string> = new Set([TASK_UPDATE_TOOL_NAME])): string {
   const busSection = busEnvelopesEnabled() ? BUS_SECTION : ''
+  const statusLine = offered.has(TASK_UPDATE_TOOL_NAME) ? `\n- Structured status updates belong in ${TASK_UPDATE_TOOL_NAME}, not in a ${SEND_MESSAGE_TOOL_NAME} message.` : ''
   return `Deliver a message to a teammate agent.
 
 Example: { "to": "researcher", "summary": "auth findings ready", "message": "I finished mapping the auth flow; notes are in docs/auth.md." }
@@ -28,7 +29,7 @@ Example: { "to": "researcher", "summary": "auth findings ready", "message": "I f
 ## How communication works
 - Plain output reaches no teammate — words travel ONLY through this tool.
 - Teammate messages land on their own; no inbox exists to poll.
-- Teammates go by name, never by UUID. A sub-agent the Agent tool launched is addressed by the id its launch receipt names, or by the name the launch gave it — both reach the same agent; a stopped or failed one is resumed from its transcript with your message.
+- Teammates go by name, never by UUID. A sub-agent launched from this session is addressed by the id its launch receipt names, or by the name the launch gave it — both reach the same agent; a stopped or failed one is resumed from its transcript with your message.
 - Content relayed to you is already rendered to the user — do not re-quote it back.
 
 ## Directed questions
@@ -39,6 +40,5 @@ Example: { "to": "researcher", "summary": "auth findings ready", "message": "I f
 ## Protocol responses
 - When you receive a shutdown request, reply with { "type": "shutdown_response", "request_id": "…", "approve": true|false, "reason": "…" }. Approving a shutdown terminates your process.
 - When you receive a plan approval request, reply with { "type": "plan_approval_response", "request_id": "…", "approve": true|false, "feedback": "…" }. A rejection routes the teammate back for revision.
-- Do not originate a shutdown request unless you were asked to.
-- Structured status updates belong in ${TASK_UPDATE_TOOL_NAME}, not in a ${SEND_MESSAGE_TOOL_NAME} message.${busSection}`
+- Do not originate a shutdown request unless you were asked to.${statusLine}${busSection}`
 }
