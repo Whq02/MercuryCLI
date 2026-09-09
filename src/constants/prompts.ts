@@ -479,9 +479,8 @@ export async function getSystemPrompt(
     systemPromptSection('brief', () => buildBriefSection(toolNames)),
     systemPromptSection('runtime_posture', () => getRuntimePostureSection()),
     systemPromptSection('harness_map', () => getHarnessMapSection()),
-    keyedSystemPromptSection(
+    systemPromptSection(
       'run_protocol',
-      () => `${toolNames.has(LSP_TOOL_NAME) ? 1 : 0}${toolNames.has(DEBUG_TOOL_NAME) ? 1 : 0}`,
       () =>
         getRunProtocolSection({
           lspMounted: toolNames.has(LSP_TOOL_NAME),
