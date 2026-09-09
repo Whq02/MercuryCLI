@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
@@ -32,6 +32,9 @@ function seed(): void {
         lastLiveAt: 1,
         ...(n < 3 ? { pid: process.pid } : { parkedAt: 2, parkedBy: 'fixture', parkReason: 'parked for the check' }),
       }
+      const transcript = sup.concourseTranscriptPath(records[`concourse-w${n}`]!)
+      mkdirSync(join(transcript, '..'), { recursive: true })
+      writeFileSync(transcript, `${JSON.stringify({ type: 'user', uuid: `w${n}-u1`, message: { role: 'user', content: 'seeded turn' } })}\n`)
     }
   }, dir)
 }

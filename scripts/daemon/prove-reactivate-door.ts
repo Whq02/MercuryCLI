@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -113,6 +113,9 @@ const now = Date.now()
 const sid = (tail: string): string => `00000000-eeee-4000-8000-${tail.padStart(12, '0')}`
 
 function seedRecord(rec: Partial<ConcourseWorkerRecordV1> & { runnerId: string; sessionId: string; workspaceId: string }): void {
+  const transcript = sup.concourseTranscriptPath(rec)
+  mkdirSync(join(transcript, '..'), { recursive: true })
+  writeFileSync(transcript, `${JSON.stringify({ type: 'user', uuid: `${rec.sessionId}-u1`, sessionId: rec.sessionId, message: { role: 'user', content: 'seeded turn' } })}\n`)
   sup.updateConcourseWorkers(workers => {
     workers[rec.runnerId] = {
       schema: 1,
@@ -212,6 +215,14 @@ console.log('\n── R4: refusals leave the row PARKED with the daemon\'s sente
   check('R4 the cold road\'s spawn refusal is typed', !res.ok && res.code === 'spawn-failed' && /scripted spawn refusal/.test(res.error), JSON.stringify(res))
   check('R4 the crashed row is now PARKED with the reason on it — never a ghost, never a crash', after?.parkedAt !== undefined && after.crash === undefined && after.endedAt === undefined && typeof after.parkReason === 'string' && /scripted spawn refusal/.test(after.parkReason), JSON.stringify(after))
   check('R4 the reason line is the row\'s cell', snapshot.concourseRecordState(after!, { needsYou: false, alive: false }) === 'parked')
+  const lostSid = sid('d2')
+  seedRecord({ runnerId: 'concourse-w8', sessionId: lostSid, workspaceId: wsId, pid: DEAD_PID, parkedAt: now - T, parkedBy: 'operator:test', title: 'the lost chat' })
+  rmSync(sup.concourseTranscriptPath({ sessionId: lostSid, workspaceId: wsId }), { force: true })
+  const registeredBeforeLost = roster.registered.length
+  const lost = await admit({ workspaceDir: wsD, resumeSessionId: lostSid })
+  const lostAfter = recordsOf(lostSid)[0]
+  check('R4 a parked row whose transcript is gone is refused BEFORE any spawn (nothing to resume it around)', !lost.ok && /transcript is gone/.test(lost.error) && roster.registered.length === registeredBeforeLost, JSON.stringify(lost))
+  check('R4 …and stays parked with the loss as its reason, never a ghost, never live', lostAfter?.parkedAt !== undefined && lostAfter.pid === DEAD_PID && /transcript is gone/.test(lostAfter.parkReason ?? '') && snapshot.concourseRecordState(lostAfter, { needsYou: false, alive: false }) === 'parked', JSON.stringify(lostAfter))
   const holderSid = sid('e1')
   const parkedSid = sid('e2')
   const wsIdE = sup.canonicalWorkspaceId(wsE)
