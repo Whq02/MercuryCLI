@@ -55,10 +55,10 @@ function armDeferredExitFlush(): void {
   })
 }
 
-function foldPendingUpdaters(current: GlobalConfig): GlobalConfig {
+export function foldPendingUpdaters(current: GlobalConfig): GlobalConfig {
   let folded = current
   for (const pending of pendingDeferredUpdaters) folded = pending(folded)
-  return folded
+  return pendingDeferredUpdaters.length === 0 ? current : { ...folded, projects: removeProjectHistory(folded.projects) }
 }
 
 export function saveGlobalConfigDeferred(
@@ -106,7 +106,7 @@ export function saveGlobalConfig(
       getGlobalMercuryFile(),
       createDefaultGlobalConfig,
       current => {
-        const config = updater(foldPendingUpdaters(current))
+        const config = updater(current)
         if (config === current) {
           return current
         }
@@ -119,7 +119,6 @@ export function saveGlobalConfig(
     )
     if (didWrite && written) {
       writeThroughGlobalConfigCache(written)
-      pendingDeferredUpdaters = []
     }
   } catch (error) {
     if (error instanceof ConfigReadError) {
@@ -167,7 +166,6 @@ export function saveGlobalConfig(
     }
     saveConfig(getGlobalMercuryFile(), written, DEFAULT_GLOBAL_CONFIG)
     writeThroughGlobalConfigCache(written)
-    pendingDeferredUpdaters = []
   }
 }
 
@@ -258,10 +256,10 @@ function startGlobalConfigFreshnessWatcher(): void {
           const parsed = safeParseJSON(stripBOM(content))
           if (parsed === null || typeof parsed !== 'object') return
           globalConfigCache = {
-            config: migrateConfigFields({
+            config: foldPendingUpdaters(migrateConfigFields({
               ...createDefaultGlobalConfig(),
               ...(parsed as Partial<GlobalConfig>),
-            }),
+            })),
             mtime: curr.mtimeMs,
           }
         })
@@ -337,6 +335,8 @@ export function saveConfig<A extends object>(
   )
   if (file === getGlobalMercuryFile()) {
     globalConfigWriteCount++
+    writeThroughGlobalConfigCache(config as GlobalConfig)
+    pendingDeferredUpdaters = []
   }
 }
 
@@ -488,7 +488,9 @@ export function saveConfigWithLock<A extends object>(
       return false
     }
 
-    const mergedConfig = mergeFn(currentConfig)
+    const mergedConfig = mergeFn(file === getGlobalMercuryFile()
+      ? foldPendingUpdaters(currentConfig as GlobalConfig) as A
+      : currentConfig)
 
     if (mergedConfig === currentConfig) {
       return false
@@ -510,6 +512,8 @@ export function saveConfigWithLock<A extends object>(
     )
     if (file === getGlobalMercuryFile()) {
       globalConfigWriteCount++
+      writeThroughGlobalConfigCache(mergedConfig as GlobalConfig)
+      pendingDeferredUpdaters = []
     }
     return true
   } finally {

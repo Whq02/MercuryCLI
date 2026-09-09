@@ -19,6 +19,8 @@ import {
 import {
   getConfig,
   getGlobalConfig,
+  foldPendingUpdaters,
+  hasPendingDeferredGlobalConfigSaves,
   saveConfig,
   saveConfigWithLock,
   wouldLoseAuthState,
@@ -161,13 +163,14 @@ function writeProjectSlice(
       )
       return
     }
+    config = foldPendingUpdaters(config)
     const currentProjectConfig =
       config.projects?.[absolutePath] ?? DEFAULT_PROJECT_CONFIG
     const newProjectConfig = updater(currentProjectConfig)
-    if (newProjectConfig === currentProjectConfig) {
+    if (newProjectConfig === currentProjectConfig && !hasPendingDeferredGlobalConfigSaves()) {
       return
     }
-    written = {
+    written = newProjectConfig === currentProjectConfig ? config : {
       ...config,
       projects: {
         ...config.projects,
