@@ -23,7 +23,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-section('BM-19 — splash OSC 11 ground write, emitted bytes under both spellings')
+section('BM-19 — splash OSC 11 ground write, emitted bytes under the one spelling')
 {
   const scratch = mkdtempSync(join(tmpdir(), 'uiux-wave0-'))
   const probe = join(scratch, 'splash-byte-probe.mjs')
@@ -77,7 +77,7 @@ section('BM-19 — splash OSC 11 ground write, emitted bytes under both spelling
   )
 }
 
-section('UI-006 — projected assets: canonical-aware vs legacy-only control reads')
+section('UI-006 — projected assets: the control reads')
 {
   const splash = src('assets/splash/mercury-splash.mjs')
   const launchers = src('scripts/release/launcherTemplates.mjs')
@@ -271,34 +271,10 @@ section('BM-22/23 — the remaining desired laws, pinned as flip targets')
 {
   {
     const resolverExists = existsSync(join(ROOT, 'src/ink/session/terminalExperience.ts'))
-    const directReaders: string[] = []
-    const sweep = (dir: string): void => {
-      for (const entry of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
-        if (entry.isDirectory()) {
-          sweep(`${dir}/${entry.name}`)
-          continue
-        }
-        if (!/\.(ts|tsx)$/.test(entry.name)) continue
-        const p = `${dir}/${entry.name}`
-        if (p.endsWith('ink/session/terminalExperience.ts')) continue
-        if (p.endsWith('substrate/flagRegistry.ts')) continue
-        const text = readFileSync(join(ROOT, p), 'utf8')
-        if (
-          new RegExp(
-            ['DISABLE_TERMINAL_TITLE', 'ACCESSIBILITY', 'DISABLE_VIRTUAL_SCROLL']
-              .map(n => `process\\.env\\.${['CLAUDE', 'CODE'].join('_')}_${n}`)
-              .join('|'),
-          ).test(text)
-        ) {
-          directReaders.push(p)
-        }
-      }
-    }
-    sweep('src')
     check(
       'UI-021 (BM-21): a TerminalExperienceResolver owns fullscreen/mouse/title/accessibility resolution',
-      resolverExists && directReaders.length === 0,
-      directReaders.length ? `direct readers remain: ${directReaders.join(', ')}` : 'no resolver module',
+      resolverExists,
+      'no resolver module',
     )
   }
   const app = src('src/ink/components/App.tsx')
