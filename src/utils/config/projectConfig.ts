@@ -22,6 +22,7 @@ import {
   foldPendingUpdaters,
   hasPendingDeferredGlobalConfigSaves,
   saveConfig,
+  saveGlobalConfigDeferred,
   saveConfigWithLock,
   wouldLoseAuthState,
   writeThroughGlobalConfigCache,
@@ -180,6 +181,21 @@ function writeProjectSlice(
     saveConfig(getGlobalMercuryFile(), written, DEFAULT_GLOBAL_CONFIG)
     writeThroughGlobalConfigCache(written)
   }
+}
+
+export function saveCurrentProjectConfigDeferred(
+  updater: (currentConfig: ProjectConfig) => ProjectConfig,
+): void {
+  if (process.env.NODE_ENV === 'test') {
+    saveTestProjectSlice(updater)
+    return
+  }
+  const key = getProjectPathForConfig()
+  saveGlobalConfigDeferred(config => {
+    const current = config.projects?.[key] ?? DEFAULT_PROJECT_CONFIG
+    const next = updater(current)
+    return next === current ? config : { ...config, projects: { ...config.projects, [key]: next } }
+  })
 }
 
 export function saveCurrentProjectConfig(

@@ -45,7 +45,7 @@ section('§1 the note is a deferred merge: zero durable writes, the cache now, o
   const cached = ledger.getHeadlessActivity()
   check('the cache carries it at once (print = 1, last kind print)', cached.print === 1 && cached.lastKind === 'print', j(cached))
   check('the disk does not yet', activityOnDisk() === undefined, j(activityOnDisk()))
-  config.flushDeferredGlobalConfigSaves()
+  await config.flushDeferredGlobalConfigSaves()
   check('the flush publishes it in ONE write', config.getGlobalConfigWriteCount() === writes0 + 1, `writes=${config.getGlobalConfigWriteCount() - writes0}`)
   check('…and the disk carries it', activityOnDisk()?.print === 1, j(activityOnDisk()))
   check('nothing stays pending after the flush', !config.hasPendingDeferredGlobalConfigSaves())
@@ -85,8 +85,8 @@ section("§2 the exit seam: the first deferral armed ONE 'exit' listener that pu
 section("§3 the built artifact: a -p run's note is on disk after the process exits")
 {
   const DIST = join(ROOT, 'dist', 'mercury.mjs')
-  const nodeBin = Bun.which('node')
-  if (!existsSync(DIST) || !nodeBin) {
+  const nodeBin = join(ROOT, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
+  if (!existsSync(DIST) || !existsSync(nodeBin)) {
     check('dist/mercury.mjs and a node binary exist (build first — this leg drives the artifact)', false, `dist=${existsSync(DIST)} node=${String(nodeBin)}`)
   } else {
     const { startFixtureApi } = await import('../lib/fixtureApi.ts')
@@ -115,6 +115,8 @@ section("§3 the built artifact: a -p run's note is on disk after the process ex
       PATH: process.env.PATH ?? '/usr/bin:/bin',
       TERM: 'dumb',
       MERCURY_CONFIG_DIR: configDir,
+      MERCURY_CREDENTIAL_STORE: 'file',
+      BROWSER: '/usr/bin/true',
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_TEAMS_DIR: join(home, 'teams'),
       ANTHROPIC_BASE_URL: api.url,
@@ -159,7 +161,7 @@ section('§4 source pins')
   check('…and never the synchronous saver', !/\bsaveGlobalConfig\(/.test(ledgerSrc) && !/import \{[^}]*\bsaveGlobalConfig\b[^}]*\}/.test(ledgerSrc))
   const cfgSrc = readFileSync(join(ROOT, 'src/utils/config/globalConfig.ts'), 'utf8')
   check('the deferred writer arms the exit flush at the deferral', /pendingDeferredUpdaters\.push\(updater\)\s*\n\s*armDeferredExitFlush\(\)/.test(cfgSrc))
-  check("…as a once-listener on the process 'exit' event that flushes", /process\.once\('exit', \(\) => \{\s*\n\s*try \{\s*\n\s*flushDeferredGlobalConfigSaves\(\)/.test(cfgSrc))
+  check("the exit listener publishes pending changes synchronously", cfgSrc.includes("process.once('exit', () => {") && cfgSrc.includes('if (hasPendingDeferredGlobalConfigSaves()) saveGlobalConfig(current => current)'))
   check('…armed exactly once per process', /if \(deferredExitFlushArmed\) return\s*\n\s*deferredExitFlushArmed = true/.test(cfgSrc))
   const printSrc = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
   check('the headless entry still stamps its activity at entry', /noteHeadlessActivity\(\s*\n?\s*options\.outputFormat === 'stream-json' && streamingInput \? 'sdk' : 'print',?\s*\n?\s*\)/.test(printSrc))

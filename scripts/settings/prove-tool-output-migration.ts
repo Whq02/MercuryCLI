@@ -58,6 +58,7 @@ console.log('L1 verbose: true — the config reads toolOutput full and the key i
 {
   const r = runIn({ verbose: true, numStartups: 3 }, `
     m.migrateVerboseToToolOutput()
+    await g.flushDeferredGlobalConfigSaves()
     const file = parsed()
     out.toolOutput = g.getGlobalConfig().toolOutput
     out.fileToolOutput = file.toolOutput
@@ -74,6 +75,7 @@ console.log('L2 verbose: false — the config reads toolOutput compact and the k
 {
   const r = runIn({ verbose: false }, `
     m.migrateVerboseToToolOutput()
+    await g.flushDeferredGlobalConfigSaves()
     const file = parsed()
     out.toolOutput = g.getGlobalConfig().toolOutput
     out.fileHasKey = 'verbose' in file
@@ -86,6 +88,7 @@ console.log('L3 a fresh config — the default is compact and the migration writ
 {
   const r = runIn(null, `
     m.migrateVerboseToToolOutput()
+    await g.flushDeferredGlobalConfigSaves()
     out.toolOutput = g.getGlobalConfig().toolOutput
     out.fileExists = raw() !== null
   `)
@@ -97,8 +100,10 @@ console.log('L4 idempotent — a second run leaves the file byte-for-byte unchan
 {
   const r = runIn({ verbose: true }, `
     m.migrateVerboseToToolOutput()
+    await g.flushDeferredGlobalConfigSaves()
     const first = raw()
     m.migrateVerboseToToolOutput()
+    await g.flushDeferredGlobalConfigSaves()
     out.same = raw() === first
     out.toolOutput = g.getGlobalConfig().toolOutput
   `)
@@ -111,6 +116,7 @@ console.log("L5 a config already on toolOutput 'full' with no verbose key is lef
   const r = runIn({ toolOutput: 'full' }, `
     const before = raw()
     m.migrateVerboseToToolOutput()
+    await g.flushDeferredGlobalConfigSaves()
     out.same = raw() === before
     out.toolOutput = g.getGlobalConfig().toolOutput
   `)

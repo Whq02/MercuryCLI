@@ -1,4 +1,4 @@
-import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
+import { getGlobalConfig, saveGlobalConfigDeferred } from '../utils/config.js'
 import {
   hasSkipSovereignConsentPrompt,
   updateSettingsForSource,
@@ -20,7 +20,7 @@ export function migrateBypassPermissionsAcceptedToSettings(): boolean {
       if (!settingsWriteLanded('A.2 sovereign-mode acceptance', verdict)) return false
     }
 
-    saveGlobalConfig(current => {
+    saveGlobalConfigDeferred(current => {
       if (!('bypassPermissionsModeAccepted' in current)) return current
       const next = { ...current } as typeof current & RetiredAcceptanceKey
       delete next.bypassPermissionsModeAccepted

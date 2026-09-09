@@ -1,4 +1,4 @@
-import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
+import { getGlobalConfig, saveGlobalConfigDeferred } from '../utils/config.js'
 import { logError } from '../utils/log.js'
 
 type RetiredAutoUpdateKeys = {
@@ -10,7 +10,7 @@ export function migrateAutoUpdatesToSettings(): boolean {
   try {
     const config = getGlobalConfig() as ReturnType<typeof getGlobalConfig> & RetiredAutoUpdateKeys
     if (config.autoUpdates === undefined && config.autoUpdatesProtectedForNative === undefined) return true
-    saveGlobalConfig(current => {
+    saveGlobalConfigDeferred(current => {
       const next = { ...current } as typeof current & RetiredAutoUpdateKeys
       delete next.autoUpdates
       delete next.autoUpdatesProtectedForNative
