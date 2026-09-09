@@ -118,6 +118,14 @@ export function planHunks(
       refuse(i + 1, h.lines, `hunk ${i + 1}: insert with an empty body does nothing — drop the hunk`)
       continue
     }
+    if (content.endsWith('\n') && range.end === totalLines + 1) {
+      if (range.start > totalLines) {
+        refuse(i + 1, h.lines, `hunk ${i + 1}: line ${range.end} is the empty tail after the final newline, not a line — the file has ${totalLines} line(s); to add at the end, insert after line ${totalLines}`)
+        continue
+      }
+      range = { start: range.start, end: totalLines }
+      if (refs !== null && refs.length === 2) refs = [refs[0]!]
+    }
     let drifted = false
     if (refs) {
       if (domainLines === null) domainLines = anchorDomainLines(content)
