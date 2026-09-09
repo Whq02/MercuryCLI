@@ -14,6 +14,7 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
 }
 
 import { checker } from '../engine-durability/harness.ts'
+import { waitForRow } from './lib/waitForRow.ts'
 
 const t = checker()
 
@@ -456,8 +457,11 @@ t.section('§7 — IP-5 lane wiring: deltas stream a PARTIAL entry; the final re
           opId: 'coord-launch-fixed',
         })
         runtime?.onDelta?.('Launching one session on orchard — almost done.')
-        await new Promise(r => setTimeout(r, 200))
-        const midTurn = (await conv.readCoordinatorConversation()).find(e => e.id === 'co:w3-hook-msg')
+        const landed = await waitForRow(async () => {
+          const entry = (await conv.readCoordinatorConversation()).find(e => e.id === 'co:w3-hook-msg')
+          return entry !== undefined && entry.text.startsWith('Launching') && (entry.receipts?.length ?? 0) >= 1 ? entry : undefined
+        })
+        const midTurn = landed.row
         if (midTurn !== undefined) partialDuringTurn = { text: midTurn.text, receipts: midTurn.receipts?.length ?? 0 }
         return { decisions: [], reply: finalReply }
       },

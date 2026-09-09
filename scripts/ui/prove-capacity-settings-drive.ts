@@ -52,7 +52,7 @@ try {
       { awaitText: 'Seats set to 9', requireAwait: true, awaitSettleTicks: 4, data: '/config\r' },
       { awaitText: 'Auto-compact', requireAwait: true, awaitSettleTicks: 4, data: 'Seats' },
       { awaitText: '9 · set by you', requireAwait: true, awaitSettleTicks: 4, data: '\r', mark: 'config-reading' },
-      { afterPrevTicks: 3, data: '\u001b[C' },
+      { awaitText: '9 · set by you', requireAwait: true, awaitStableTicks: 3, data: '\u001b[C' },
       { awaitText: '10 · set by you', requireAwait: true, awaitSettleTicks: 4, data: '\r', mark: 'config-raised' },
       { awaitText: 'type a prompt, or / for commands', requireAwait: true, awaitSettleTicks: 4, data: '/seats\r' },
       { awaitText: 'Seats: 10', requireAwait: true, awaitSettleTicks: 4, data: '', mark: 'confirmed' },

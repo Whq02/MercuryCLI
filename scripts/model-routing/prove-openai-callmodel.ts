@@ -18,7 +18,7 @@ console.log('============================================================')
 console.log(' native GPT runtime proof (fake Responses wire)')
 console.log('============================================================')
 
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join as joinPath } from 'node:path'
 const savedEnv: Record<string, string | undefined> = {}
@@ -671,7 +671,7 @@ section('native tool discovery preserves encrypted reasoning and earlier request
 {
   const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.js')
   const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.js')
-  const { createUserMessage } = await import('../../src/utils/messages.js')
+  const { createUserMessage, normalizeMessagesForAPI } = await import('../../src/utils/messages.js')
   const savedSearch = process.env.MERCURY_TOOL_SEARCH
   const savedDefer = process.env.MERCURY_TOOL_DEFER
   process.env.MERCURY_TOOL_SEARCH = 'on'
@@ -700,12 +700,16 @@ section('native tool discovery preserves encrypted reasoning and earlier request
       getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), mcp: { clients: [] } }),
     } as never) as { data: { matches: string[]; query: string; total_deferred_tools: number } }
     check('the actual discovery tool resolves the omitted function', discovered.data.matches.join(',') === 'EchoTool')
-    params.messages.push(...firstReplies, createUserMessage({ content: [ToolSearchTool.mapToolResultToToolResultBlockParam(discovered.data as never, 'call_search')] as never }))
+    const discoveryResult = createUserMessage({ content: [ToolSearchTool.mapToolResultToToolResultBlockParam(discovered.data as never, 'call_search')] as never })
+    const persistedMessages = [...params.messages, ...firstReplies, discoveryResult]
+    params.messages.push(...firstReplies, ...normalizeMessagesForAPI([discoveryResult], params.tools))
     makeResponses = () => sseResponse(HAPPY_STREAM)
     const secondReplies: AssistantMessage[] = []
     for await (const item of openaiCallModel(params)) if (item.type === 'assistant') secondReplies.push(item)
     const second = JSON.parse(JSON.stringify(lastResponsesBody))
-    params.messages.push(...secondReplies, createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'call_1', content: 'four' }] }))
+    const echoResult = createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'call_1', content: 'four' }] })
+    params.messages.push(...secondReplies, echoResult)
+    persistedMessages.push(...secondReplies, echoResult)
     makeResponses = () => sseResponse([
       sse({ type: 'response.created', response: { id: 'resp_done' } }),
       sse({ type: 'response.output_text.delta', delta: 'Done.' }),
@@ -721,6 +725,18 @@ section('native tool discovery preserves encrypted reasoning and earlier request
     check('subsequent requests preserve every earlier replay item in place', JSON.stringify(third.input.slice(0, second.input.length)) === JSON.stringify(second.input))
     check('the admitted function call passes the actual transport validation', secondReplies.some(reply => reply.message.content.some(block => block.type === 'tool_use' && block.name === 'EchoTool')))
     check('the schema cache key changes once for admission, then stays stable', first.prompt_cache_key !== second.prompt_cache_key && second.prompt_cache_key === third.prompt_cache_key)
+    const persistedPath = joinPath(process.env.MERCURY_CONFIG_DIR!, 'admission-history.jsonl')
+    writeFileSync(persistedPath, persistedMessages.map(message => JSON.stringify(message)).join('\n') + '\n')
+    check('persisted discovery history carries no injected boundary text', !readFileSync(persistedPath, 'utf8').includes('Tool loaded.'))
+    const resumed = readFileSync(persistedPath, 'utf8').trim().split('\n').map(row => JSON.parse(row)) as Message[]
+    clearToolRosterLatches()
+    params.messages = [...resumed, createUserMessage({ content: 'Continue after resuming.' })]
+    for await (const item of openaiCallModel(params)) void item
+    const resumedBody = lastResponsesBody as Record<string, any>
+    check('a resumed request preserves every live input item byte-for-byte', JSON.stringify(resumedBody.input.slice(0, third.input.length)) === JSON.stringify(third.input))
+    check('resume restores admitted definitions without changing their bytes', JSON.stringify(resumedBody.tools) === JSON.stringify(third.tools))
+    const boundaryCount = (input: any[]) => input.filter(item => item.type === 'message').flatMap(item => item.content ?? []).filter(block => block.type === 'input_text' && block.text === 'Tool loaded.').length
+    check('live and resumed requests each carry exactly one admission boundary', boundaryCount(second.input) === 1 && boundaryCount(third.input) === 1 && boundaryCount(resumedBody.input) === 1)
   } finally {
     restoreWire()
     clearToolRosterLatches()
