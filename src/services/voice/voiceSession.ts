@@ -12,6 +12,7 @@ import {
   type CaptureBackendResolution,
   type CaptureHandle,
 } from './capture.js'
+import type { CaptureStreamErrors } from './voicePack.js'
 import {
   ON_DEVICE_NAME,
   TRANSCRIBER_PIN_ENV,
@@ -57,6 +58,29 @@ const listeners = new Set<() => void>()
 let snapshot: VoiceSnapshot = { enabled: false, phase: 'idle', startedAt: null, backend: null, receipt: null }
 let receiptSeq = 0
 let active: CaptureHandle | null = null
+let lastStreamErrors: CaptureStreamErrors | null = null
+
+export type StreamErrorNotice = { kind: 'fatal'; text: string } | { kind: 'transient'; debug: string } | null
+
+export function streamErrorNotice(errors: CaptureStreamErrors): StreamErrorNotice {
+  if (errors.fatal !== null) return { kind: 'fatal', text: `the input stream failed during the take — ${errors.fatal}` }
+  if (errors.transient > 0) {
+    return { kind: 'transient', debug: `voice capture: ${errors.transient} transient stream error${errors.transient === 1 ? '' : 's'} (${errors.lastTransient ?? 'buffer underrun or overrun'})` }
+  }
+  return null
+}
+
+export function lastTakeStreamErrors(): CaptureStreamErrors | null {
+  return lastStreamErrors
+}
+
+export function lastTakeStreamWords(errors: CaptureStreamErrors | null = lastStreamErrors): string | null {
+  if (errors === null) return null
+  const notice = streamErrorNotice(errors)
+  if (notice === null) return 'last take: the input stream stayed clean'
+  if (notice.kind === 'fatal') return `last take: ${notice.text}`
+  return `last take: ${errors.transient} transient stream error${errors.transient === 1 ? '' : 's'}, the capture kept going`
+}
 
 export function voiceInputEnabled(): boolean {
   try {
@@ -143,6 +167,13 @@ async function finishCapture(reason: 'key' | 'bound', env: NodeJS.ProcessEnv): P
       result = await handle.stop()
     } catch (error) {
       receipt(error instanceof Error ? error.message : String(error), 'error')
+      return
+    }
+    lastStreamErrors = result.streamErrors
+    const streamNotice = streamErrorNotice(result.streamErrors)
+    if (streamNotice?.kind === 'transient') logForDebugging(streamNotice.debug)
+    if (streamNotice?.kind === 'fatal') {
+      receipt(`${streamNotice.text} — ${microphonePermissionHint()}`, 'error')
       return
     }
     if (result.silent) {
@@ -313,6 +344,7 @@ export function describeVoiceStatus(env: NodeJS.ProcessEnv = process.env): strin
     ...(onDevice !== null ? [onDevice] : []),
     ...(door !== null ? [door] : []),
     `backend: ${backendWords(resolveCaptureBackend(env))}`,
+    ...(lastTakeStreamWords() !== null ? [lastTakeStreamWords() as string] : []),
   ].join('\n')
 }
 
@@ -386,5 +418,6 @@ export function resetVoiceForTest(): void {
   }
   active = null
   receiptSeq = 0
+  lastStreamErrors = null
   snapshot = { enabled: voiceInputEnabled(), phase: 'idle', startedAt: null, backend: null, receipt: null }
 }
