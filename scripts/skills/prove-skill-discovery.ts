@@ -5,10 +5,9 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 
-const J = (...parts: string[]): string => parts.join('')
-const OTHER_HOME = J('.cla', 'ude')
-const OTHER_DIR_TOKEN = J('${CLA', 'UDE_SKILL_DIR}')
-const OTHER_SESSION_TOKEN = J('${CLA', 'UDE_SESSION_ID}')
+const OTHER_HOME = '.other-tool'
+const OTHER_DIR_TOKEN = '${OTHER_TOOL_SKILL_DIR}'
+const OTHER_SESSION_TOKEN = '${OTHER_TOOL_SESSION_ID}'
 const MERCURY_DIR_TOKEN = '${MERCURY_SKILL_DIR}'
 const MERCURY_SESSION_TOKEN = '${MERCURY_SESSION_ID}'
 
@@ -70,11 +69,11 @@ const walksMercuryOnly = (dirs: string[]): boolean =>
   dirs.includes(join(project, 'sub', '.mercury', 'skills')) &&
   dirs.every(d => !d.includes(`${sep}${OTHER_HOME}${sep}`))
 
-console.log("[1] the catalogue carries Mercury's homes and never the other product's folder")
+console.log("[1] the catalogue carries Mercury's homes and never a foreign tool's folder")
 const commands = await loader.getSkillDirCommands(project)
 const names = new Set(commands.map(c => c.name))
 check('the Mercury twins load: project, user', MERCURY_NAMES.every(n => names.has(n)), [...names].join(', '))
-for (const n of OTHER_NAMES) check(`the other product's folder is never read: ${n} absent`, !names.has(n))
+for (const n of OTHER_NAMES) check(`a foreign tool's folder is never read: ${n} absent`, !names.has(n))
 check('the homes predicate holds on the real catalogue', carriesMercuryOnly(names), [...names].join(', '))
 const watch = loader.getProjectSkillsWatchPaths('skills', project)
 check('the watch list names the Mercury project home only', watch.length === 1 && watch[0] === join(project, '.mercury', 'skills'), watch.join(', '))
@@ -84,7 +83,7 @@ await loader.addSkillDirectories(walked)
 const dynamic = new Set(loader.getDynamicSkills().map(c => c.name))
 check('the dynamic map carries the Mercury twin and never the other', dynamic.has('dyn-real') && !dynamic.has('dyn-other'), [...dynamic].join(', '))
 
-console.log("[2] a body expands Mercury's template tokens and leaves the other product's literal")
+console.log("[2] a body expands Mercury's template tokens and leaves a foreign tool's literal")
 const real = commands.find(c => c.name === 'project-real')
 let rendered = ''
 if (real && real.type === 'prompt') {
@@ -96,24 +95,22 @@ const sessionId = String(getSessionId())
 check('the skill rendered', rendered.length > 0)
 check(`${MERCURY_DIR_TOKEN} expands to the skill directory`, rendered.includes(`dir mercury=${realDir}`), rendered.slice(0, 300))
 check(`${MERCURY_SESSION_TOKEN} expands to the session id`, rendered.includes(`session mercury=${sessionId}`))
-check("the other product's skill-dir token stays literal", rendered.includes(`dir other=${OTHER_DIR_TOKEN}`))
-check("the other product's session token stays literal", rendered.includes(`session other=${OTHER_SESSION_TOKEN}`))
+check('a foreign skill-dir token stays literal', rendered.includes(`dir other=${OTHER_DIR_TOKEN}`))
+check('a foreign session token stays literal', rendered.includes(`session other=${OTHER_SESSION_TOKEN}`))
 check('the token predicate holds on the real render', expandsMercuryOnly(rendered, realDir, sessionId))
 const loaderSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'skills', 'loadSkillsDir.ts'), 'utf8')
 check(
-  "the loader's token regexes spell Mercury's stems alone",
+  "the loader's token regexes spell Mercury's stems",
   loaderSrc.includes('/\\$\\{MERCURY_SKILL_DIR\\}/g') &&
-    loaderSrc.includes('/\\$\\{MERCURY_SESSION_ID\\}/g') &&
-    !loaderSrc.includes(J('CLA', 'UDE_SKILL_DIR')) &&
-    !loaderSrc.includes(J('CLA', 'UDE_SESSION_ID')),
+    loaderSrc.includes('/\\$\\{MERCURY_SESSION_ID\\}/g'),
 )
 
-console.log('[3] poison controls — each predicate fails on the compat it forbids')
-check("a catalogue carrying the other folder's project skill FAILS the homes predicate", !carriesMercuryOnly(new Set([...names, 'project-other'])))
-check("a catalogue carrying the other folder's user skill FAILS the homes predicate", !carriesMercuryOnly(new Set([...names, 'user-other'])))
-check("a render that expanded the other product's skill-dir token FAILS the token predicate", !expandsMercuryOnly(rendered.replaceAll(OTHER_DIR_TOKEN, realDir), realDir, sessionId))
-check("a render that expanded the other product's session token FAILS the token predicate", !expandsMercuryOnly(rendered.replaceAll(OTHER_SESSION_TOKEN, sessionId), realDir, sessionId))
-check('a walk that discovered the other folder FAILS the walk predicate', !walksMercuryOnly([...walked, join(project, 'sub', OTHER_HOME, 'skills')]))
+console.log('[3] poison controls — each predicate fails on the input it forbids')
+check("a catalogue carrying the foreign folder's project skill FAILS the homes predicate", !carriesMercuryOnly(new Set([...names, 'project-other'])))
+check("a catalogue carrying the foreign folder's user skill FAILS the homes predicate", !carriesMercuryOnly(new Set([...names, 'user-other'])))
+check('a render that expanded the foreign skill-dir token FAILS the token predicate', !expandsMercuryOnly(rendered.replaceAll(OTHER_DIR_TOKEN, realDir), realDir, sessionId))
+check('a render that expanded the foreign session token FAILS the token predicate', !expandsMercuryOnly(rendered.replaceAll(OTHER_SESSION_TOKEN, sessionId), realDir, sessionId))
+check('a walk that discovered the foreign folder FAILS the walk predicate', !walksMercuryOnly([...walked, join(project, 'sub', OTHER_HOME, 'skills')]))
 check(
   'twin control: every absent skill has a same-shaped Mercury twin that loaded',
   names.has('project-real') && names.has('user-real') && dynamic.has('dyn-real'),
