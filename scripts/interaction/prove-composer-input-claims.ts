@@ -152,7 +152,7 @@ console.log('\n── §2 wiring pinned in source ──────────
   const helpMenu = read('src/components/PromptInput/PromptInputHelpMenu.tsx')
   const measurer = read('src/ink/measure-element.ts')
   check(
-    'the fork owns the screen-row measurement beside its column twin',
+    'measure-element owns the screen-row measurement beside its column twin',
     measurer.includes('export function elementScreenTop(node: DOMElement): number') &&
       measurer.includes('export function elementScreenLeft(node: DOMElement): number'),
   )
