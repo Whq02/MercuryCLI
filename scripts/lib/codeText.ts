@@ -46,6 +46,7 @@ const JOINABLE = /[+\-*/<>=&|?.]/
 function separates(before: string, after: string): boolean {
   if (before === '' || after === '') return false
   if (WORD.test(before) && WORD.test(after)) return true
+  if (/[0-9]/.test(before) && after === '.') return true
   return JOINABLE.test(before) && JOINABLE.test(after)
 }
 
@@ -54,9 +55,9 @@ export function codeOnlyText(path: string, text: string): string {
   let cursor = 0
   for (const range of commentRanges(path, text)) {
     if (range.pos < cursor) continue
+    out += text.slice(cursor, range.pos)
     const blank = text.slice(range.pos, range.end).replace(/[^\n]/g, '')
-    const gap = blank === '' && separates(text.charAt(range.pos - 1), text.charAt(range.end)) ? ' ' : blank
-    out += text.slice(cursor, range.pos) + gap
+    out += blank === '' && separates(out.charAt(out.length - 1), text.charAt(range.end)) ? ' ' : blank
     cursor = range.end
   }
   return out + text.slice(cursor)
