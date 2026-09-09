@@ -4,7 +4,6 @@
   "sites": [
     {
       "file": "src/memdir/promoteRungate.ts",
-      "line": 62,
       "mechanism": "shell-dash-c",
       "excerpt": "const res = spawnSync('bash', ['-c', command], {",
       "cls": "intentional-shell",
@@ -12,7 +11,6 @@
     },
     {
       "file": "src/services/dap/debugpyResolver.ts",
-      "line": 183,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "if (process.platform === 'darwin') out.push('/usr/bin/python3')",
       "cls": "platform-owner",
@@ -20,7 +18,6 @@
     },
     {
       "file": "src/utils/Shell.ts",
-      "line": 286,
       "mechanism": "hardcoded-tmp",
       "excerpt": "process.env.MERCURY_TMPDIR || '/tmp',",
       "cls": "platform-owner",
@@ -28,7 +25,6 @@
     },
     {
       "file": "src/utils/bootCardFacts.ts",
-      "line": 119,
       "mechanism": "hardcoded-tmp",
       "excerpt": "n.startsWith('/tmp/') ||",
       "cls": "platform-owner",
@@ -36,7 +32,6 @@
     },
     {
       "file": "src/utils/execFileNoThrowPortable.ts",
-      "line": 51,
       "mechanism": "execSync-string",
       "excerpt": "const stdout = execSync(command, {",
       "cls": "intentional-shell",
@@ -44,7 +39,6 @@
     },
     {
       "file": "scripts/accounts/prove-account-slots.ts",
-      "line": 171,
       "mechanism": "execSync-string",
       "excerpt": "const hits = execSync(",
       "cls": "intentional-shell",
@@ -52,7 +46,6 @@
     },
     {
       "file": "scripts/accounts/prove-auth-scope-isolation.ts",
-      "line": 50,
       "mechanism": "execSync-string",
       "excerpt": "out = execSync(`grep -rnF ${JSON.stringify(symbolCall)} src --include='*.ts'`, {",
       "cls": "intentional-shell",
@@ -60,7 +53,6 @@
     },
     {
       "file": "scripts/accounts/prove-auth-scope-isolation.ts",
-      "line": 199,
       "mechanism": "execSync-string",
       "excerpt": "const hits = execSync(",
       "cls": "intentional-shell",
@@ -68,7 +60,6 @@
     },
     {
       "file": "scripts/api/prove-client-contract-door.ts",
-      "line": 127,
       "mechanism": "execSync-string",
       "excerpt": "const tracked = execSync('git ls-files -z -- src', { cwd: ROOT }).toString('utf8').split('\\0').filter(Boolean)",
       "cls": "intentional-shell",
@@ -76,7 +67,6 @@
     },
     {
       "file": "scripts/apollo/render-apollo-faces.ts",
-      "line": 113,
       "mechanism": "hardcoded-tmp",
       "excerpt": "writeFileSync(`/tmp/apollo-poll-${cols}.txt`, poll)",
       "cls": "platform-owner",
@@ -84,7 +74,6 @@
     },
     {
       "file": "scripts/apollo/render-apollo-faces.ts",
-      "line": 114,
       "mechanism": "hardcoded-tmp",
       "excerpt": "writeFileSync(`/tmp/apollo-review-clean-${cols}.txt`, clean)",
       "cls": "platform-owner",
@@ -92,7 +81,6 @@
     },
     {
       "file": "scripts/apollo/render-apollo-faces.ts",
-      "line": 115,
       "mechanism": "hardcoded-tmp",
       "excerpt": "writeFileSync(`/tmp/apollo-review-blocked-${cols}.txt`, blocked)",
       "cls": "platform-owner",
@@ -100,7 +88,6 @@
     },
     {
       "file": "scripts/attention/prove-attach-return.ts",
-      "line": 47,
       "mechanism": "execSync-string",
       "excerpt": "const consumers = execSync(\"grep -rl 'captureReturnState(' src --include='*.ts' --include='*.tsx' || true\", { encoding: 'utf8' })",
       "cls": "intentional-shell",
@@ -108,7 +95,6 @@
     },
     {
       "file": "scripts/bash/prove-bash-permissions.ts",
-      "line": 123,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
@@ -116,7 +102,6 @@
     },
     {
       "file": "scripts/bash/prove-bash-tool-seams.ts",
-      "line": 85,
       "mechanism": "hardcoded-tmp",
       "excerpt": "const tempRoot = posix.join(process.env.MERCURY_TMPDIR || '/tmp', getMercuryTempDirName())",
       "cls": "platform-owner",
@@ -124,7 +109,6 @@
     },
     {
       "file": "scripts/bash/prove-bash-tool-seams.ts",
-      "line": 95,
       "mechanism": "hardcoded-tmp",
       "excerpt": "const OUTSIDE = realpathSync(mkdtempSync('/tmp/bash-tool-seams-outside-'))",
       "cls": "platform-owner",
@@ -132,7 +116,6 @@
     },
     {
       "file": "scripts/bash/prove-bash-tool-seams.ts",
-      "line": 398,
       "mechanism": "hardcoded-tmp",
       "excerpt": "const away = realpathSync(mkdtempSync('/tmp/bash-tool-seams-away-'))",
       "cls": "platform-owner",
@@ -140,7 +123,6 @@
     },
     {
       "file": "scripts/bash/prove-shell-engine-drive.ts",
-      "line": 246,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "test-fixture",
@@ -148,7 +130,6 @@
     },
     {
       "file": "scripts/bash/prove-shell-engine-exec.ts",
-      "line": 395,
       "mechanism": "exec-string",
       "excerpt": "const handle = await exec('echo \"${BRUSH_VERSION:-system} [${BG_MARK:-none}]\"', controller.signal, 'bash', { timeout: 20_000, shouldAutoBack",
       "cls": "test-fixture",
@@ -156,7 +137,6 @@
     },
     {
       "file": "scripts/bash/prove-shell-engine-exec.ts",
-      "line": 476,
       "mechanism": "exec-string",
       "excerpt": "const handle = await exec(`: > \"${gate}\"; echo started; sleep 1; echo ended`, turn.signal, 'bash', { timeout: 20_000, shouldAutoBackground: ",
       "cls": "test-fixture",
@@ -164,7 +144,6 @@
     },
     {
       "file": "scripts/bash/prove-shell-engine-exec.ts",
-      "line": 505,
       "mechanism": "exec-string",
       "excerpt": "const finished = await exec('echo finished', new AbortController().signal, 'bash', { timeout: 20_000, shouldAutoBackground: false })",
       "cls": "test-fixture",
@@ -172,7 +151,6 @@
     },
     {
       "file": "scripts/bash/prove-shell-engine-sandbox.ts",
-      "line": 87,
       "mechanism": "hardcoded-tmp",
       "excerpt": "const OUTSIDE = realpathSync(mkdtempSync('/tmp/shell-engine-sandbox-outside-'))",
       "cls": "test-fixture",
@@ -180,7 +158,6 @@
     },
     {
       "file": "scripts/bash/prove-shell-session-env.ts",
-      "line": 155,
       "mechanism": "exec-string",
       "excerpt": "const handle = await exec(`env > ${JSON.stringify(out)}`, new AbortController().signal, 'bash', {",
       "cls": "test-fixture",
@@ -188,7 +165,6 @@
     },
     {
       "file": "scripts/behaviour-laws/prove-behaviour-laws-contract.ts",
-      "line": 54,
       "mechanism": "execSync-string",
       "excerpt": "hits = execSync(",
       "cls": "intentional-shell",
@@ -196,7 +172,6 @@
     },
     {
       "file": "scripts/build-identity/prove-config-home.ts",
-      "line": 158,
       "mechanism": "execSync-string",
       "excerpt": "const trackedFiles = execSync(`git ls-files -z -- ${SWEEP_SCOPES.join(' ')}`, { cwd: ROOT })",
       "cls": "intentional-shell",
@@ -204,7 +179,6 @@
     },
     {
       "file": "scripts/build-identity/prove-jsx-shadow.ts",
-      "line": 48,
       "mechanism": "execSync-string",
       "excerpt": "const files = execSync(`git -C '${REPO}' ls-files 'src/**/*.tsx'`, { encoding: 'utf8' })",
       "cls": "intentional-shell",
@@ -212,7 +186,6 @@
     },
     {
       "file": "scripts/builtin-tools/render-builtin-tools-cards.tsx",
-      "line": 130,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "return execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -220,7 +193,6 @@
     },
     {
       "file": "scripts/capabilities/prove-readiness.ts",
-      "line": 155,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git read-tree HEAD', { cwd: REPO, env, stdio: 'pipe' })",
       "cls": "intentional-shell",
@@ -228,7 +200,6 @@
     },
     {
       "file": "scripts/capabilities/prove-readiness.ts",
-      "line": 156,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git add -A', { cwd: REPO, env, stdio: 'pipe' })",
       "cls": "intentional-shell",
@@ -236,7 +207,6 @@
     },
     {
       "file": "scripts/capabilities/prove-readiness.ts",
-      "line": 157,
       "mechanism": "execSync-string",
       "excerpt": "const tree = execSync('git write-tree', { cwd: REPO, env, stdio: 'pipe' }).toString().trim()",
       "cls": "intentional-shell",
@@ -244,7 +214,6 @@
     },
     {
       "file": "scripts/changesets/prove-changeset-card.ts",
-      "line": 38,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -252,7 +221,6 @@
     },
     {
       "file": "scripts/cockpit-interaction/prove-adaptive-density.ts",
-      "line": 233,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
       "cls": "platform-owner",
@@ -260,7 +228,6 @@
     },
     {
       "file": "scripts/cockpit-interaction/prove-adaptive-density.ts",
-      "line": 388,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
       "cls": "platform-owner",
@@ -268,7 +235,6 @@
     },
     {
       "file": "scripts/cockpit-interaction/prove-critter-mark.ts",
-      "line": 158,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
       "cls": "platform-owner",
@@ -276,7 +242,6 @@
     },
     {
       "file": "scripts/cockpit-interaction/prove-frame-trace.ts",
-      "line": 147,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
       "cls": "platform-owner",
@@ -284,7 +249,6 @@
     },
     {
       "file": "scripts/cockpit-interaction/prove-input-atlas.ts",
-      "line": 419,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
       "cls": "platform-owner",
@@ -292,7 +256,6 @@
     },
     {
       "file": "scripts/cockpit-interaction/prove-input-fidelity.ts",
-      "line": 76,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
       "cls": "platform-owner",
@@ -300,7 +263,6 @@
     },
     {
       "file": "scripts/cockpit-interaction/prove-keybinding-ga.ts",
-      "line": 143,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
       "cls": "platform-owner",
@@ -308,7 +270,6 @@
     },
     {
       "file": "scripts/cockpit-interaction/prove-keybinding-ga.ts",
-      "line": 249,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r2 = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath2], {",
       "cls": "platform-owner",
@@ -316,7 +277,6 @@
     },
     {
       "file": "scripts/cockpit-interaction/prove-printable-unbinding.ts",
-      "line": 218,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
       "cls": "platform-owner",
@@ -324,7 +284,6 @@
     },
     {
       "file": "scripts/cockpit-interaction/prove-profile-card.ts",
-      "line": 70,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -332,7 +291,6 @@
     },
     {
       "file": "scripts/cockpit-interaction/prove-scroll-anchor.ts",
-      "line": 82,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
       "cls": "platform-owner",
@@ -340,7 +298,6 @@
     },
     {
       "file": "scripts/cockpit-interaction/prove-spectral-depth.ts",
-      "line": 245,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfg], {",
       "cls": "platform-owner",
@@ -348,7 +305,6 @@
     },
     {
       "file": "scripts/cockpit-interaction/prove-tool-projection.ts",
-      "line": 433,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfg], {",
       "cls": "platform-owner",
@@ -356,7 +312,6 @@
     },
     {
       "file": "scripts/command-catalogue/capture-model-flash.ts",
-      "line": 141,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [path.join(repo, 'scripts/ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -364,7 +319,6 @@
     },
     {
       "file": "scripts/command-catalogue/prove-beta-journey-matrix.ts",
-      "line": 238,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [path.join(repo, 'scripts/ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -372,7 +326,6 @@
     },
     {
       "file": "scripts/compact/prove-preserved-reads-reregistered.ts",
-      "line": 32,
       "mechanism": "hardcoded-tmp",
       "excerpt": "process.env.MERCURY_CONFIG_DIR = join(process.env.TMPDIR ?? '/tmp', `preserved-reads-${process.pid}`)",
       "cls": "platform-owner",
@@ -380,7 +333,6 @@
     },
     {
       "file": "scripts/compositor/prove-hold-takeover.ts",
-      "line": 149,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { env, timeout: vshotBudgetMs(120_000), stdio: 'pipe' })",
       "cls": "platform-owner",
@@ -388,7 +340,6 @@
     },
     {
       "file": "scripts/compositor/prove-resize-ghost.ts",
-      "line": 138,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { env, timeout: vshotBudgetMs(180_000), stdio: 'pipe' })",
       "cls": "platform-owner",
@@ -396,7 +347,6 @@
     },
     {
       "file": "scripts/core-runtime/prove-bootenv-attribution.ts",
-      "line": 312,
       "mechanism": "execSync-string",
       "excerpt": "const files = execSync('git ls-files -z src', { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 })",
       "cls": "intentional-shell",
@@ -404,7 +354,6 @@
     },
     {
       "file": "scripts/crew/render-crew-board.ts",
-      "line": 100,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -412,7 +361,6 @@
     },
     {
       "file": "scripts/critters/prove-berth-hero.ts",
-      "line": 157,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '..', 'ui', 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -420,7 +368,6 @@
     },
     {
       "file": "scripts/critters/prove-critter-gaze-live.ts",
-      "line": 46,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '..', 'ui', 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -428,7 +375,6 @@
     },
     {
       "file": "scripts/critters/prove-critter-sleep.ts",
-      "line": 801,
       "mechanism": "execSync-string",
       "excerpt": "viewCalls = execSync(",
       "cls": "intentional-shell",
@@ -436,7 +382,6 @@
     },
     {
       "file": "scripts/critters/prove-ghost-wipe-live.ts",
-      "line": 83,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts/ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -444,7 +389,6 @@
     },
     {
       "file": "scripts/critters/prove-ghost-wipe-live.ts",
-      "line": 133,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const replay = spawnSync('/usr/bin/python3', [join(REPO, 'scripts/ui/critter-touched-rows.py'), tee, String(COLS), String(ROWS), '--cells'],",
       "cls": "platform-owner",
@@ -452,7 +396,6 @@
     },
     {
       "file": "scripts/default-provider/prove-defaultprovider-restart-drive.ts",
-      "line": 57,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -460,7 +403,6 @@
     },
     {
       "file": "scripts/diffws/prove-cockpit-pointer.ts",
-      "line": 56,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -468,7 +410,6 @@
     },
     {
       "file": "scripts/diffws/prove-diff-workspace.ts",
-      "line": 255,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -476,7 +417,6 @@
     },
     {
       "file": "scripts/distribution/prove-distribution-boundaries.ts",
-      "line": 35,
       "mechanism": "hardcoded-tmp",
       "excerpt": "crashReportDir().startsWith('/tmp/sig-proof-home'),",
       "cls": "platform-owner",
@@ -484,7 +424,6 @@
     },
     {
       "file": "scripts/distribution/prove-distribution-boundaries.ts",
-      "line": 41,
       "mechanism": "hardcoded-tmp",
       "excerpt": "crashReportDir().startsWith('/tmp/sig-proof-explicit'),",
       "cls": "platform-owner",
@@ -492,7 +431,6 @@
     },
     {
       "file": "scripts/engine-connector/prove-busy-stall-drive.ts",
-      "line": 182,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q && git -c user.email=busy@proof.invalid -c user.name=busy commit -q --allow-empty -m seed', {",
       "cls": "intentional-shell",
@@ -500,7 +438,6 @@
     },
     {
       "file": "scripts/engine-connector/prove-esc-latch-turn-drive.ts",
-      "line": 238,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -508,7 +445,6 @@
     },
     {
       "file": "scripts/engine-connector/prove-recall-send-drive.ts",
-      "line": 248,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -516,7 +452,6 @@
     },
     {
       "file": "scripts/eval/prove-env-filter.ts",
-      "line": 31,
       "mechanism": "execSync-string",
       "excerpt": "hits = execSync(`grep -rlF ${JSON.stringify(name)} src --include='*.ts' --include='*.tsx' || true`, {",
       "cls": "intentional-shell",
@@ -524,7 +459,6 @@
     },
     {
       "file": "scripts/eval/prove-kernel-cancel.ts",
-      "line": 77,
       "mechanism": "execSync-string",
       "excerpt": "const pids = execSync(`pgrep -P ${process.pid} || true`, { encoding: 'utf8' })",
       "cls": "intentional-shell",
@@ -532,7 +466,6 @@
     },
     {
       "file": "scripts/extensions/prove-env-vocabulary.ts",
-      "line": 138,
       "mechanism": "execSync-string",
       "excerpt": "const hits = execSync(",
       "cls": "intentional-shell",
@@ -540,7 +473,6 @@
     },
     {
       "file": "scripts/formal-models/prove-flag-interactions.ts",
-      "line": 167,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "MERCURY_EVAL_PYTHON: ['', '/usr/bin/python3'],",
       "cls": "platform-owner",
@@ -548,7 +480,6 @@
     },
     {
       "file": "scripts/gate/generated-assets.ts",
-      "line": 96,
       "mechanism": "shell-dash-c",
       "excerpt": "const res = spawnSync('bash', ['-c', row.check], { cwd: ROOT, stdio: 'inherit', env: process.env })",
       "cls": "intentional-shell",
@@ -556,7 +487,6 @@
     },
     {
       "file": "scripts/gate/prove-hermetic-shard.ts",
-      "line": 336,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const ownBox = spawn('/usr/bin/python3', [join(ROOT, 'scripts', 'gate', 'dead-letter.py'), join(boxDir, 'port')], { stdio: 'ignore' })",
       "cls": "platform-owner",
@@ -564,7 +494,6 @@
     },
     {
       "file": "scripts/gate/prove-hermetic-shard.ts",
-      "line": 362,
       "mechanism": "shell-dash-c",
       "excerpt": "spawnSync('bash', ['-c', turnScript({ cwd, ...refreshRoad })], { cwd: ROOT, env, encoding: 'utf8', timeout: 120_000, killSignal: 'SIGKILL' }",
       "cls": "intentional-shell",
@@ -572,7 +501,6 @@
     },
     {
       "file": "scripts/gate/prove-proof-exit-marks.ts",
-      "line": 96,
       "mechanism": "shell-dash-c",
       "excerpt": "const result = spawnSync('bash', ['-c', '. \"$1\"; run_proof \"scripts/example/prove-silent.ts\" bash -c \"exit $2\"', 'test', helper, String(code",
       "cls": "intentional-shell",
@@ -580,7 +508,6 @@
     },
     {
       "file": "scripts/gate/prove-suite-class-census.ts",
-      "line": 357,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "w('scripts/lib/arena.ts', \"import { spawn } from 'node:child_process'\\nexport type Row = { a: number }\\nexport const run = (r: string) => sp",
       "cls": "platform-owner",
@@ -588,7 +515,6 @@
     },
     {
       "file": "scripts/gate/prove-suite-class-census.ts",
-      "line": 358,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "w('scripts/lib/tui.ts', \"import { spawnSync } from 'node:child_process'\\nconst ENGINE = join(ROOT, 'scripts/ui/engine.py')\\nspawnSync('/usr/",
       "cls": "platform-owner",
@@ -596,7 +522,6 @@
     },
     {
       "file": "scripts/gate/prove-suite-class-census.ts",
-      "line": 374,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "w('scripts/gated/render-x.ts', \"import { spawnSync } from 'node:child_process'\\nspawnSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', '",
       "cls": "platform-owner",
@@ -604,7 +529,6 @@
     },
     {
       "file": "scripts/gate/prove-suite-class-census.ts",
-      "line": 380,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "w('scripts/named-list/prove-g.ts', \"import { spawnSync } from 'node:child_process'\\nconst ENGINE = join(REPO, 'scripts/ui/engine.py')\\nspawn",
       "cls": "platform-owner",
@@ -612,7 +536,6 @@
     },
     {
       "file": "scripts/gate/prove-suite-class-census.ts",
-      "line": 385,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "w('scripts/lib/resolver.ts', \"export type Driver = { kind: 'posix'; python: string; engine: 'scripts/ui/engine.py' }\\nexport const ENTRY = {",
       "cls": "platform-owner",
@@ -620,7 +543,6 @@
     },
     {
       "file": "scripts/golden-journeys/journeyLib.ts",
-      "line": 464,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -628,7 +550,6 @@
     },
     {
       "file": "scripts/helm-console/live-console-e2e.ts",
-      "line": 31,
       "mechanism": "hardcoded-tmp",
       "excerpt": "writeFileSync('/tmp/vshot-live-console.json', JSON.stringify({ ...cfg, out: gridPath }))",
       "cls": "platform-owner",
@@ -636,7 +557,6 @@
     },
     {
       "file": "scripts/helm-console/live-console-e2e.ts",
-      "line": 33,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -644,7 +564,6 @@
     },
     {
       "file": "scripts/hooks/prove-hooks-parity.ts",
-      "line": 32,
       "mechanism": "hardcoded-tmp",
       "excerpt": "mkdirSync('/tmp/mercury-parity-home', { recursive: true })",
       "cls": "platform-owner",
@@ -652,7 +571,6 @@
     },
     {
       "file": "scripts/hooks/prove-hooks-parity.ts",
-      "line": 33,
       "mechanism": "hardcoded-tmp",
       "excerpt": "mkdirSync('/tmp/mercury-parity-cwd', { recursive: true })",
       "cls": "platform-owner",
@@ -660,7 +578,6 @@
     },
     {
       "file": "scripts/ide/prove-closed-loop.ts",
-      "line": 32,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const SYS_PY = '/usr/bin/python3'",
       "cls": "platform-owner",
@@ -668,7 +585,6 @@
     },
     {
       "file": "scripts/ide/prove-fixture-python.ts",
-      "line": 31,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const SYS_PY = '/usr/bin/python3'",
       "cls": "platform-owner",
@@ -676,7 +592,6 @@
     },
     {
       "file": "scripts/ide/prove-ide-status.ts",
-      "line": 28,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const SYS_PY = '/usr/bin/python3'",
       "cls": "platform-owner",
@@ -684,7 +599,6 @@
     },
     {
       "file": "scripts/ide/prove-launch-profiles.ts",
-      "line": 33,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const SYS_PY = '/usr/bin/python3'",
       "cls": "platform-owner",
@@ -692,7 +606,6 @@
     },
     {
       "file": "scripts/ide/prove-pyright-lane.ts",
-      "line": 114,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "process.env.MERCURY_PYTHON = '/usr/bin/python3'",
       "cls": "platform-owner",
@@ -700,7 +613,6 @@
     },
     {
       "file": "scripts/ide/prove-pyright-lane.ts",
-      "line": 118,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "check('python section answers the SHARED selected interpreter', python?.pythonPath === '/usr/bin/python3', JSON.stringify(python))",
       "cls": "platform-owner",
@@ -708,7 +620,6 @@
     },
     {
       "file": "scripts/ide/prove-python-project.ts",
-      "line": 34,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const SYS_PY = '/usr/bin/python3'",
       "cls": "platform-owner",
@@ -716,7 +627,6 @@
     },
     {
       "file": "scripts/ide/prove-python-tests.ts",
-      "line": 32,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const SYS_PY = '/usr/bin/python3'",
       "cls": "platform-owner",
@@ -724,7 +634,6 @@
     },
     {
       "file": "scripts/identity/prove-provider-neutral-vocabulary.ts",
-      "line": 169,
       "mechanism": "execSync-string",
       "excerpt": "const tracked = execSync('git ls-files -z -- src', { cwd: ROOT })",
       "cls": "intentional-shell",
@@ -732,7 +641,6 @@
     },
     {
       "file": "scripts/idiom/prove-import-fence.ts",
-      "line": 39,
       "mechanism": "execSync-string",
       "excerpt": "const raw = execSync(",
       "cls": "intentional-shell",
@@ -740,7 +648,6 @@
     },
     {
       "file": "scripts/idiom/prove-import-fence.ts",
-      "line": 90,
       "mechanism": "execSync-string",
       "excerpt": "const hits = execSync(",
       "cls": "intentional-shell",
@@ -748,7 +655,6 @@
     },
     {
       "file": "scripts/idiom/prove-import-fence.ts",
-      "line": 104,
       "mechanism": "execSync-string",
       "excerpt": "const forging = execSync(",
       "cls": "intentional-shell",
@@ -756,7 +662,6 @@
     },
     {
       "file": "scripts/idiom/prove-import-fence.ts",
-      "line": 116,
       "mechanism": "execSync-string",
       "excerpt": "const hits = execSync(",
       "cls": "intentional-shell",
@@ -764,7 +669,6 @@
     },
     {
       "file": "scripts/idiom/prove-import-fence.ts",
-      "line": 153,
       "mechanism": "execSync-string",
       "excerpt": "const sdkHits = execSync(",
       "cls": "intentional-shell",
@@ -772,7 +676,6 @@
     },
     {
       "file": "scripts/interaction/prove-click-expand.ts",
-      "line": 97,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -780,7 +683,6 @@
     },
     {
       "file": "scripts/interaction/prove-click-expand.ts",
-      "line": 260,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -788,7 +690,6 @@
     },
     {
       "file": "scripts/interaction/prove-click-expand.ts",
-      "line": 359,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -796,7 +697,6 @@
     },
     {
       "file": "scripts/interaction/prove-composer-editing.ts",
-      "line": 132,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -804,7 +704,6 @@
     },
     {
       "file": "scripts/interaction/prove-composer-input-claims.ts",
-      "line": 225,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -812,7 +711,6 @@
     },
     {
       "file": "scripts/interaction/prove-exit-copy-journeys.ts",
-      "line": 88,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -820,7 +718,6 @@
     },
     {
       "file": "scripts/interaction/prove-interactive-row.ts",
-      "line": 216,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -828,7 +725,6 @@
     },
     {
       "file": "scripts/interaction/prove-keyless-ci-boot.ts",
-      "line": 105,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
       "cls": "platform-owner",
@@ -836,7 +732,6 @@
     },
     {
       "file": "scripts/interaction/prove-manager-filter.ts",
-      "line": 166,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -844,7 +739,6 @@
     },
     {
       "file": "scripts/interaction/prove-question-card-journeys.ts",
-      "line": 54,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const PYTHON_USER_SITE = spawnSync('/usr/bin/python3', ['-c', 'import site; print(site.getusersitepackages())'], {",
       "cls": "platform-owner",
@@ -852,7 +746,6 @@
     },
     {
       "file": "scripts/interaction/prove-question-card-journeys.ts",
-      "line": 288,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })",
       "cls": "platform-owner",
@@ -860,7 +753,6 @@
     },
     {
       "file": "scripts/interaction/prove-rewind-escape-journeys.ts",
-      "line": 155,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -868,7 +760,6 @@
     },
     {
       "file": "scripts/interaction/prove-rewind-escape-journeys.ts",
-      "line": 185,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -876,7 +767,6 @@
     },
     {
       "file": "scripts/interaction/prove-selection-delete.ts",
-      "line": 136,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -884,7 +774,6 @@
     },
     {
       "file": "scripts/journey/prove-agent-bash-live.ts",
-      "line": 516,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -892,7 +781,6 @@
     },
     {
       "file": "scripts/journey/prove-apollo-consent-journey.ts",
-      "line": 227,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -900,7 +788,6 @@
     },
     {
       "file": "scripts/journey/prove-cap-offer-list-live.ts",
-      "line": 253,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf-8', timeout: vshotBudgetMs(240_000), cwd: world.cwd, env })",
       "cls": "platform-owner",
@@ -908,7 +795,6 @@
     },
     {
       "file": "scripts/journey/prove-cap-offer-live.ts",
-      "line": 246,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -916,7 +802,6 @@
     },
     {
       "file": "scripts/journey/prove-concourse-roundtrip-transcript.ts",
-      "line": 172,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -924,7 +809,6 @@
     },
     {
       "file": "scripts/journey/prove-concourse-roundtrip-transcript.ts",
-      "line": 215,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const census = spawnSync('/usr/bin/python3', ['-c', CENSUS], { encoding: 'utf-8', timeout: vshotBudgetMs(120_000) })",
       "cls": "platform-owner",
@@ -932,7 +816,6 @@
     },
     {
       "file": "scripts/journey/prove-delivery-mid-tool.ts",
-      "line": 87,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -940,7 +823,6 @@
     },
     {
       "file": "scripts/journey/prove-final-journey.ts",
-      "line": 284,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -948,7 +830,6 @@
     },
     {
       "file": "scripts/journey/prove-flow-neverstop-live.ts",
-      "line": 178,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -956,7 +837,6 @@
     },
     {
       "file": "scripts/journey/prove-interrupt-after-switch.ts",
-      "line": 205,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -964,7 +844,6 @@
     },
     {
       "file": "scripts/journey/prove-mission-continue-live.ts",
-      "line": 179,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -972,7 +851,6 @@
     },
     {
       "file": "scripts/journey/prove-noping-stream-completes.ts",
-      "line": 152,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -980,7 +858,6 @@
     },
     {
       "file": "scripts/journey/prove-steer-echo-single.ts",
-      "line": 166,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -988,7 +865,6 @@
     },
     {
       "file": "scripts/journey/prove-steer-echo-single.ts",
-      "line": 228,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const census = spawnSync('/usr/bin/python3', ['-c', CENSUS], { encoding: 'utf-8', timeout: vshotBudgetMs(120_000) })",
       "cls": "platform-owner",
@@ -996,7 +872,6 @@
     },
     {
       "file": "scripts/journey/prove-switch-agents-live.ts",
-      "line": 318,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -1004,7 +879,6 @@
     },
     {
       "file": "scripts/journey/prove-switch-cold-ingest.ts",
-      "line": 184,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -1012,7 +886,6 @@
     },
     {
       "file": "scripts/journey/prove-switch-pickup-live.ts",
-      "line": 196,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -1020,7 +893,6 @@
     },
     {
       "file": "scripts/lib/captureDriver.ts",
-      "line": 128,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const python = pin !== '' ? pin : '/usr/bin/python3'",
       "cls": "platform-owner",
@@ -1028,7 +900,6 @@
     },
     {
       "file": "scripts/longrun-invariants/prove-avs-field.ts",
-      "line": 153,
       "mechanism": "execSync-string",
       "excerpt": "execSync(cmd, {",
       "cls": "intentional-shell",
@@ -1036,7 +907,6 @@
     },
     {
       "file": "scripts/longrun-invariants/prove-execution-origin.ts",
-      "line": 253,
       "mechanism": "execSync-string",
       "excerpt": "const out = execSync(`find ${JSON.stringify(root)} -maxdepth 6 -name ${JSON.stringify(needle)} -type d`, {",
       "cls": "intentional-shell",
@@ -1044,7 +914,6 @@
     },
     {
       "file": "scripts/longrun-invariants/prove-hotpath-cadence.ts",
-      "line": 135,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q && git config user.email t@t && git config user.name t', { cwd: ws })",
       "cls": "intentional-shell",
@@ -1052,7 +921,6 @@
     },
     {
       "file": "scripts/longrun-invariants/prove-hotpath-cadence.ts",
-      "line": 137,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git add -A && git commit -qm init', { cwd: ws })",
       "cls": "intentional-shell",
@@ -1060,7 +928,6 @@
     },
     {
       "file": "scripts/longrun-invariants/prove-progress-projection.ts",
-      "line": 117,
       "mechanism": "execSync-string",
       "excerpt": "return execSync(",
       "cls": "intentional-shell",
@@ -1068,7 +935,6 @@
     },
     {
       "file": "scripts/longrun-invariants/prove-progress-projection.ts",
-      "line": 161,
       "mechanism": "execSync-string",
       "excerpt": "return execSync(",
       "cls": "intentional-shell",
@@ -1076,7 +942,6 @@
     },
     {
       "file": "scripts/mcp/prove-mcp-failure-surfaces.ts",
-      "line": 89,
       "mechanism": "execSync-string",
       "excerpt": "const files = execSync(\"git ls-files 'src/**/*.ts' 'src/**/*.tsx'\", { cwd: ROOT, encoding: 'utf8' }).split('\\n').filter(Boolean)",
       "cls": "intentional-shell",
@@ -1084,7 +949,6 @@
     },
     {
       "file": "scripts/mcp/prove-mcp-live-connect.ts",
-      "line": 114,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -1092,7 +956,6 @@
     },
     {
       "file": "scripts/memory/prove-card-evidence-harvest.ts",
-      "line": 50,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q && git -c user.email=p@p -c user.name=p commit -q --allow-empty -m seed', { cwd: repo })",
       "cls": "intentional-shell",
@@ -1100,7 +963,6 @@
     },
     {
       "file": "scripts/memory/prove-card-evidence-harvest.ts",
-      "line": 53,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git add . && git -c user.email=p@p -c user.name=p commit -q -m \"add alpha+beta\"', { cwd: repo })",
       "cls": "intentional-shell",
@@ -1108,7 +970,6 @@
     },
     {
       "file": "scripts/memory/prove-card-evidence-harvest.ts",
-      "line": 54,
       "mechanism": "execSync-string",
       "excerpt": "const sha = execSync('git rev-parse --short HEAD', { cwd: repo, encoding: 'utf8' }).trim()",
       "cls": "intentional-shell",
@@ -1116,7 +977,6 @@
     },
     {
       "file": "scripts/mission-runner/corpus/repos/lanternkit.ts",
-      "line": 169,
       "mechanism": "hardcoded-tmp",
       "excerpt": "'test/paths.test.mjs': \"// Kit-home path discipline (src/paths.js mission seam).\\nimport test from 'node:test'\\nimport assert from 'node:ass",
       "cls": "platform-owner",
@@ -1124,7 +984,6 @@
     },
     {
       "file": "scripts/mission-runner/live/runner.ts",
-      "line": 613,
       "mechanism": "shell-dash-c",
       "excerpt": "const result = spawnSync('bash', ['-c', agentCmd], {",
       "cls": "intentional-shell",
@@ -1132,7 +991,6 @@
     },
     {
       "file": "scripts/model-transition/prove-transition-d-activity.ts",
-      "line": 163,
       "mechanism": "execSync-string",
       "excerpt": "const defs = execSync(\"grep -rl 'ACTIVITY_CLASSES = \\\\[' src --include='*.ts' --include='*.tsx'\", { encoding: 'utf8' }).trim().split('\\n')",
       "cls": "intentional-shell",
@@ -1140,7 +998,6 @@
     },
     {
       "file": "scripts/model-transition/prove-transition-e-reconnect.ts",
-      "line": 210,
       "mechanism": "execSync-string",
       "excerpt": "const unreadNormalizers = execSync(",
       "cls": "intentional-shell",
@@ -1148,7 +1005,6 @@
     },
     {
       "file": "scripts/motion/prove-splash-choreography.ts",
-      "line": 40,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const PY = '/usr/bin/python3'",
       "cls": "platform-owner",
@@ -1156,7 +1012,6 @@
     },
     {
       "file": "scripts/navigation/arena.ts",
-      "line": 161,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1164,7 +1019,6 @@
     },
     {
       "file": "scripts/navigation/arena.ts",
-      "line": 296,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1172,7 +1026,6 @@
     },
     {
       "file": "scripts/navigation/prove-size-matrix.ts",
-      "line": 120,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "execFileSync('/usr/bin/python3', [join(root, 'scripts/ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -1180,7 +1033,6 @@
     },
     {
       "file": "scripts/node-runtime/prove-direct-splash.ts",
-      "line": 236,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const PY = '/usr/bin/python3'",
       "cls": "platform-owner",
@@ -1188,7 +1040,6 @@
     },
     {
       "file": "scripts/notifications/baseline-capture.ts",
-      "line": 46,
       "mechanism": "execSync-string",
       "excerpt": "const SRC_TREE = execSync('git rev-parse HEAD:src', { encoding: 'utf8' }).trim()",
       "cls": "intentional-shell",
@@ -1196,7 +1047,6 @@
     },
     {
       "file": "scripts/notifications/baseline-capture.ts",
-      "line": 47,
       "mechanism": "execSync-string",
       "excerpt": "const DIRTY = execSync('git status --porcelain', { encoding: 'utf8' }).trim().length > 0",
       "cls": "intentional-shell",
@@ -1204,7 +1054,6 @@
     },
     {
       "file": "scripts/permissions/prove-auto-mode.ts",
-      "line": 237,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
@@ -1212,7 +1061,6 @@
     },
     {
       "file": "scripts/permissions/prove-classifier-fail-closed.ts",
-      "line": 141,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
@@ -1220,7 +1068,6 @@
     },
     {
       "file": "scripts/permissions/prove-commit-gate.ts",
-      "line": 195,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
@@ -1228,7 +1075,6 @@
     },
     {
       "file": "scripts/permissions/prove-flow-block-asks.ts",
-      "line": 452,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
@@ -1236,7 +1082,6 @@
     },
     {
       "file": "scripts/permissions/prove-push-notification-honest.ts",
-      "line": 141,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
@@ -1244,7 +1089,6 @@
     },
     {
       "file": "scripts/pings/journey-calm-idle.ts",
-      "line": 47,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const py = spawnSync('/usr/bin/python3', ['-c', 'import pyte'], { encoding: 'utf8' })",
       "cls": "platform-owner",
@@ -1252,7 +1096,6 @@
     },
     {
       "file": "scripts/pings/journey-calm-idle.ts",
-      "line": 279,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(200000), env })",
       "cls": "platform-owner",
@@ -1260,7 +1103,6 @@
     },
     {
       "file": "scripts/pings/journey-sheet-captures.ts",
-      "line": 50,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const py = spawnSync('/usr/bin/python3', ['-c', 'import pyte'], { encoding: 'utf8' })",
       "cls": "platform-owner",
@@ -1268,7 +1110,6 @@
     },
     {
       "file": "scripts/pings/journey-sheet-captures.ts",
-      "line": 174,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(180000), env })",
       "cls": "platform-owner",
@@ -1276,7 +1117,6 @@
     },
     {
       "file": "scripts/primitives-kernel/render-primitives-kernel-cards.tsx",
-      "line": 102,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "return execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -1284,7 +1124,6 @@
     },
     {
       "file": "scripts/project-intel/prove-fixture-materialize.ts",
-      "line": 23,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const SYS_PY = '/usr/bin/python3'",
       "cls": "platform-owner",
@@ -1292,7 +1131,6 @@
     },
     {
       "file": "scripts/project-services/render-project-services-cards.tsx",
-      "line": 134,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "return execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -1300,7 +1138,6 @@
     },
     {
       "file": "scripts/prompt/prove-agent-roster.ts",
-      "line": 116,
       "mechanism": "execSync-string",
       "excerpt": "const grep = execSync(`grep -rn \"areExplorePlanAgentsEnabled\" ${join(ROOT, 'src')} || true`, { encoding: 'utf8' }).trim()",
       "cls": "intentional-shell",
@@ -1308,7 +1145,6 @@
     },
     {
       "file": "scripts/prompt-input/prove-prompt-input-async-note.ts",
-      "line": 50,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -1316,7 +1152,6 @@
     },
     {
       "file": "scripts/prompt-input/prove-prompt-input-change-view.ts",
-      "line": 40,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -1324,7 +1159,6 @@
     },
     {
       "file": "scripts/prompt-input/prove-prompt-input-chip-atomicity.ts",
-      "line": 50,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -1332,7 +1166,6 @@
     },
     {
       "file": "scripts/prompt-input/prove-prompt-input-paste-prune.ts",
-      "line": 44,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -1340,7 +1173,6 @@
     },
     {
       "file": "scripts/prompt-input/prove-prompt-input-switch-fence.ts",
-      "line": 78,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -1348,7 +1180,6 @@
     },
     {
       "file": "scripts/prompts-panel/prove-panel-captures.ts",
-      "line": 215,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf-8', timeout: vshotBudgetMs(120000), env })",
       "cls": "platform-owner",
@@ -1356,7 +1187,6 @@
     },
     {
       "file": "scripts/pulse/lib/pulseArena.ts",
-      "line": 233,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1364,7 +1194,6 @@
     },
     {
       "file": "scripts/pulse/spinner/render-pulse-byline.tsx",
-      "line": 132,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const grid = execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -1372,7 +1201,6 @@
     },
     {
       "file": "scripts/release/package.mjs",
-      "line": 308,
       "mechanism": "execSync-string",
       "excerpt": "execSync('bash scripts/vscode/build-vsix.sh', { cwd: ROOT, stdio: 'pipe' })",
       "cls": "intentional-shell",
@@ -1380,7 +1208,6 @@
     },
     {
       "file": "scripts/release/package.mjs",
-      "line": 558,
       "mechanism": "execSync-string",
       "excerpt": "? execSync(['\"' + launched + '\"', ...args].join(' '), {",
       "cls": "intentional-shell",
@@ -1388,7 +1215,6 @@
     },
     {
       "file": "scripts/release/package.mjs",
-      "line": 688,
       "mechanism": "execSync-string",
       "excerpt": "? execSync(['\"' + shim + '\"', '--version'].join(' '), { encoding: 'utf8', env: smokeEnv, timeout: 120_000 })",
       "cls": "intentional-shell",
@@ -1396,7 +1222,6 @@
     },
     {
       "file": "scripts/reliability/prove-sync-spawn-bounds.ts",
-      "line": 45,
       "mechanism": "execSync-string",
       "excerpt": "const files = execSync(`grep -rln --include='*.ts' --include='*.tsx' -e 'spawnSync(' -e 'execFileSync(' -e 'execSync(' src`, {",
       "cls": "intentional-shell",
@@ -1404,7 +1229,6 @@
     },
     {
       "file": "scripts/render-continuity/prove-agent-resume-visibility.ts",
-      "line": 119,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1412,7 +1236,6 @@
     },
     {
       "file": "scripts/render-continuity/prove-agent-resume-visibility.ts",
-      "line": 236,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1420,7 +1243,6 @@
     },
     {
       "file": "scripts/render-continuity/prove-command-intent-routing.ts",
-      "line": 222,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1428,7 +1250,6 @@
     },
     {
       "file": "scripts/render-continuity/prove-row-boundary-census.ts",
-      "line": 31,
       "mechanism": "execSync-string",
       "excerpt": "const hits = execSync(`grep -rln '<MessageRow' src/components src/screens src/tools 2>/dev/null || true`, {",
       "cls": "intentional-shell",
@@ -1436,7 +1257,6 @@
     },
     {
       "file": "scripts/render-continuity/prove-selection-region.ts",
-      "line": 227,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1444,7 +1264,6 @@
     },
     {
       "file": "scripts/render-continuity/prove-stream-row-continuity.ts",
-      "line": 198,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1452,7 +1271,6 @@
     },
     {
       "file": "scripts/render-continuity/prove-surface-crash-capture.ts",
-      "line": 96,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(180_000), env })",
       "cls": "platform-owner",
@@ -1460,7 +1278,6 @@
     },
     {
       "file": "scripts/render-continuity/prove-user-row-single-paint.ts",
-      "line": 242,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1468,7 +1285,6 @@
     },
     {
       "file": "scripts/render-continuity/prove-user-row-single-paint.ts",
-      "line": 308,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1476,7 +1292,6 @@
     },
     {
       "file": "scripts/render-continuity/prove-user-row-single-paint.ts",
-      "line": 381,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1484,7 +1299,6 @@
     },
     {
       "file": "scripts/render-continuity/prove-view-target-parity.ts",
-      "line": 209,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1492,7 +1306,6 @@
     },
     {
       "file": "scripts/render-continuity/prove-view-target-parity.ts",
-      "line": 426,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1500,7 +1313,6 @@
     },
     {
       "file": "scripts/render-continuity/repro-pr03-pr06.ts",
-      "line": 76,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1508,7 +1320,6 @@
     },
     {
       "file": "scripts/render-continuity/repro-pr04-discover.ts",
-      "line": 51,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1516,7 +1327,6 @@
     },
     {
       "file": "scripts/render-continuity/repro-pr04.ts",
-      "line": 96,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1524,7 +1334,6 @@
     },
     {
       "file": "scripts/render-continuity/repro-pr07.ts",
-      "line": 92,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1532,7 +1341,6 @@
     },
     {
       "file": "scripts/render-continuity/repro-pr08.ts",
-      "line": 245,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1540,7 +1348,6 @@
     },
     {
       "file": "scripts/render-continuity/repro-pr09.ts",
-      "line": 206,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1548,7 +1355,6 @@
     },
     {
       "file": "scripts/render-engine/prove-door-law.ts",
-      "line": 123,
       "mechanism": "execSync-string",
       "excerpt": "return execSync(`grep -rln ${JSON.stringify(pattern)} src/render-engine`, {",
       "cls": "intentional-shell",
@@ -1556,7 +1362,6 @@
     },
     {
       "file": "scripts/render-engine/prove-flag-dormant.ts",
-      "line": 59,
       "mechanism": "execSync-string",
       "excerpt": "referers = execSync(",
       "cls": "intentional-shell",
@@ -1564,7 +1369,6 @@
     },
     {
       "file": "scripts/render-engine/prove-flag-dormant.ts",
-      "line": 74,
       "mechanism": "execSync-string",
       "excerpt": "const body = execSync(`cat ${JSON.stringify(file)}`, { encoding: 'utf8', cwd: root, maxBuffer: 16 * 1024 * 1024 })",
       "cls": "intentional-shell",
@@ -1572,7 +1376,6 @@
     },
     {
       "file": "scripts/render-engine/prove-junk-smoke.ts",
-      "line": 28,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1580,7 +1383,6 @@
     },
     {
       "file": "scripts/render-migration/measure-numbers.ts",
-      "line": 37,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const PY = '/usr/bin/python3'",
       "cls": "platform-owner",
@@ -1588,7 +1390,6 @@
     },
     {
       "file": "scripts/render-migration/prove-engine-cockpit-smoke.ts",
-      "line": 117,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
       "cls": "platform-owner",
@@ -1596,7 +1397,6 @@
     },
     {
       "file": "scripts/render-migration/prove-look-parity.ts",
-      "line": 188,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, vshotCfg], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
       "cls": "platform-owner",
@@ -1604,7 +1404,6 @@
     },
     {
       "file": "scripts/repetition-guard/render-hammer-breaker.ts",
-      "line": 81,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -1612,7 +1411,6 @@
     },
     {
       "file": "scripts/repetition-guard/render-nochange-cards.ts",
-      "line": 42,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -1620,7 +1418,6 @@
     },
     {
       "file": "scripts/scroll/prove-scroll-reflow.ts",
-      "line": 208,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts/ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -1628,7 +1425,6 @@
     },
     {
       "file": "scripts/scroll/prove-scroll-travel.ts",
-      "line": 283,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts/ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -1636,7 +1432,6 @@
     },
     {
       "file": "scripts/self-hosting/prove-effective-size.ts",
-      "line": 104,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q', { cwd: armFix })",
       "cls": "intentional-shell",
@@ -1644,7 +1439,6 @@
     },
     {
       "file": "scripts/self-hosting/prove-effective-size.ts",
-      "line": 119,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q', { cwd: calmFix })",
       "cls": "intentional-shell",
@@ -1652,7 +1446,6 @@
     },
     {
       "file": "scripts/self-hosting/prove-effective-size.ts",
-      "line": 130,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q', { cwd: rulesFix })",
       "cls": "intentional-shell",
@@ -1660,7 +1453,6 @@
     },
     {
       "file": "scripts/self-hosting/prove-instruction-capture.ts",
-      "line": 55,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q', { cwd: dir })",
       "cls": "intentional-shell",
@@ -1668,7 +1460,6 @@
     },
     {
       "file": "scripts/self-hosting/prove-instruction-capture.ts",
-      "line": 132,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q', { cwd: virgin })",
       "cls": "intentional-shell",
@@ -1676,7 +1467,6 @@
     },
     {
       "file": "scripts/self-hosting/prove-instruction-capture.ts",
-      "line": 144,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q', { cwd: subst })",
       "cls": "intentional-shell",
@@ -1684,7 +1474,6 @@
     },
     {
       "file": "scripts/self-hosting/prove-instruction-capture.ts",
-      "line": 162,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q', { cwd: cyc })",
       "cls": "intentional-shell",
@@ -1692,7 +1481,6 @@
     },
     {
       "file": "scripts/sessionStorage/prove-sessionstorage-parity.ts",
-      "line": 28,
       "mechanism": "hardcoded-tmp",
       "excerpt": "mkdirSync('/tmp/mercury-parity-home', { recursive: true })",
       "cls": "platform-owner",
@@ -1700,7 +1488,6 @@
     },
     {
       "file": "scripts/sessionStorage/prove-sessionstorage-parity.ts",
-      "line": 29,
       "mechanism": "hardcoded-tmp",
       "excerpt": "mkdirSync('/tmp/mercury-parity-cwd', { recursive: true })",
       "cls": "platform-owner",
@@ -1708,7 +1495,6 @@
     },
     {
       "file": "scripts/skills/prove-skill-tool-failure-reason.ts",
-      "line": 30,
       "mechanism": "hardcoded-tmp",
       "excerpt": "process.env.MERCURY_CONFIG_DIR = join(process.env.TMPDIR ?? '/tmp', `skill-failure-${process.pid}`)",
       "cls": "platform-owner",
@@ -1716,7 +1502,6 @@
     },
     {
       "file": "scripts/streaming/artifactArena.ts",
-      "line": 229,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1724,7 +1509,6 @@
     },
     {
       "file": "scripts/streaming/artifactArena.ts",
-      "line": 412,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1732,7 +1516,6 @@
     },
     {
       "file": "scripts/streaming/bench-stream-fluidity.ts",
-      "line": 109,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1740,7 +1523,6 @@
     },
     {
       "file": "scripts/streaming/prove-artifact-fluidity.ts",
-      "line": 78,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(HERE, 'screengrab.py'), run.paths.drive, '120', '44', '-1'], { encoding: 'utf8', timeout: 60",
       "cls": "platform-owner",
@@ -1748,7 +1530,6 @@
     },
     {
       "file": "scripts/streaming/prove-artifact-fluidity.ts",
-      "line": 95,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(HERE, 'screengrab.py'), run.paths.drive, '120', '40', '-1'], { encoding: 'utf8', timeout: 60",
       "cls": "platform-owner",
@@ -1756,7 +1537,6 @@
     },
     {
       "file": "scripts/streaming/prove-empty-tool-input-render.ts",
-      "line": 109,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1764,7 +1544,6 @@
     },
     {
       "file": "scripts/streaming/prove-empty-tool-input-render.ts",
-      "line": 125,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1772,7 +1551,6 @@
     },
     {
       "file": "scripts/streaming/prove-lifecycle-cards.ts",
-      "line": 58,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1780,7 +1558,6 @@
     },
     {
       "file": "scripts/streaming/prove-lifecycle-stopping.ts",
-      "line": 93,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1788,7 +1565,6 @@
     },
     {
       "file": "scripts/streaming/prove-polish-sweep.ts",
-      "line": 54,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1796,7 +1572,6 @@
     },
     {
       "file": "scripts/streaming/prove-settle-ghost-drive.ts",
-      "line": 187,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -1804,7 +1579,6 @@
     },
     {
       "file": "scripts/streaming/prove-stream-faults.ts",
-      "line": 39,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1812,7 +1586,6 @@
     },
     {
       "file": "scripts/streaming/prove-turn-end-queue.ts",
-      "line": 272,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -1820,7 +1593,6 @@
     },
     {
       "file": "scripts/streaming/prove-viewport-continuity.ts",
-      "line": 65,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1828,7 +1600,6 @@
     },
     {
       "file": "scripts/substrate/prove-flag-registry.ts",
-      "line": 33,
       "mechanism": "execSync-string",
       "excerpt": "return execSync(`grep -rEoh ${extraArgs} ${JSON.stringify(pattern)} src`, {",
       "cls": "intentional-shell",
@@ -1836,7 +1607,6 @@
     },
     {
       "file": "scripts/substrate/prove-flag-registry.ts",
-      "line": 302,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -rq ${JSON.stringify(compat)} src --include='*.ts' --include='*.tsx'`, { cwd: root, stdio: 'pipe' })",
       "cls": "intentional-shell",
@@ -1844,7 +1614,6 @@
     },
     {
       "file": "scripts/substrate/prove-flag-registry.ts",
-      "line": 454,
       "mechanism": "execSync-string",
       "excerpt": "const files = execSync('git ls-files -z src', { cwd: root, maxBuffer: 64 * 1024 * 1024 })",
       "cls": "intentional-shell",
@@ -1852,7 +1621,6 @@
     },
     {
       "file": "scripts/switchboard/prove-board-controls-look.ts",
-      "line": 157,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -1860,7 +1628,6 @@
     },
     {
       "file": "scripts/switchboard/prove-broadcast-look.ts",
-      "line": 135,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
       "cls": "platform-owner",
@@ -1868,7 +1635,6 @@
     },
     {
       "file": "scripts/switchboard/prove-close-chord.ts",
-      "line": 361,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1876,7 +1642,6 @@
     },
     {
       "file": "scripts/switchboard/prove-close-chord.ts",
-      "line": 456,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', ...times.map(String), '-",
       "cls": "platform-owner",
@@ -1884,7 +1649,6 @@
     },
     {
       "file": "scripts/switchboard/prove-concourse-flow-captures.ts",
-      "line": 120,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
       "cls": "platform-owner",
@@ -1892,7 +1656,6 @@
     },
     {
       "file": "scripts/switchboard/prove-contract-offer-drive.ts",
-      "line": 103,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1900,7 +1663,6 @@
     },
     {
       "file": "scripts/switchboard/prove-contract-offer-drive.ts",
-      "line": 161,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1908,7 +1670,6 @@
     },
     {
       "file": "scripts/switchboard/prove-coordinator-strip-plain.ts",
-      "line": 130,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -1916,7 +1677,6 @@
     },
     {
       "file": "scripts/switchboard/prove-crash-visible-drive.ts",
-      "line": 174,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q && git -c user.email=crashvis@proof.invalid -c user.name=crashvis commit -q --allow-empty -m seed', {",
       "cls": "intentional-shell",
@@ -1924,7 +1684,6 @@
     },
     {
       "file": "scripts/switchboard/prove-esc-led-sends.ts",
-      "line": 101,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(60_000), env: { ...process.env, ESC_T",
       "cls": "platform-owner",
@@ -1932,7 +1691,6 @@
     },
     {
       "file": "scripts/switchboard/prove-manager-self-managed-drive.ts",
-      "line": 116,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(300_000), env })",
       "cls": "platform-owner",
@@ -1940,7 +1698,6 @@
     },
     {
       "file": "scripts/switchboard/prove-model-verb-turn-open.ts",
-      "line": 30,
       "mechanism": "hardcoded-tmp",
       "excerpt": "process.env.MERCURY_CONFIG_DIR = join(process.env.TMPDIR ?? '/tmp', `model-verb-turn-open-${process.pid}`)",
       "cls": "platform-owner",
@@ -1948,7 +1705,6 @@
     },
     {
       "file": "scripts/switchboard/prove-plain-world-command-honesty.ts",
-      "line": 74,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1956,7 +1712,6 @@
     },
     {
       "file": "scripts/switchboard/prove-plain-world-command-honesty.ts",
-      "line": 140,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1964,7 +1719,6 @@
     },
     {
       "file": "scripts/switchboard/prove-reap-focus-drive.ts",
-      "line": 145,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
       "cls": "platform-owner",
@@ -1972,7 +1726,6 @@
     },
     {
       "file": "scripts/switchboard/prove-seat-ceiling.ts",
-      "line": 40,
       "mechanism": "execSync-string",
       "excerpt": "const hits = execSync(",
       "cls": "intentional-shell",
@@ -1980,7 +1733,6 @@
     },
     {
       "file": "scripts/switchboard/prove-split-view-look.ts",
-      "line": 112,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
       "cls": "platform-owner",
@@ -1988,7 +1740,6 @@
     },
     {
       "file": "scripts/switchboard/prove-split-view-look.ts",
-      "line": 155,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
       "cls": "platform-owner",
@@ -1996,7 +1747,6 @@
     },
     {
       "file": "scripts/switchboard/prove-unknown-command-honesty.ts",
-      "line": 102,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -2004,7 +1754,6 @@
     },
     {
       "file": "scripts/switchboard/prove-unknown-command-honesty.ts",
-      "line": 158,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '110', '32', String(submitAt + 1200),",
       "cls": "platform-owner",
@@ -2012,7 +1761,6 @@
     },
     {
       "file": "scripts/tabula/live-chat-e2e.ts",
-      "line": 61,
       "mechanism": "hardcoded-tmp",
       "excerpt": "writeFileSync('/tmp/vshot-live-minerva.json', JSON.stringify(cfg))",
       "cls": "platform-owner",
@@ -2020,7 +1768,6 @@
     },
     {
       "file": "scripts/tabula/live-chat-e2e.ts",
-      "line": 63,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -2028,7 +1775,6 @@
     },
     {
       "file": "scripts/tabula/live-repl-e2e.ts",
-      "line": 60,
       "mechanism": "hardcoded-tmp",
       "excerpt": "writeFileSync('/tmp/vshot-live-repl.json', JSON.stringify(cfg))",
       "cls": "platform-owner",
@@ -2036,7 +1782,6 @@
     },
     {
       "file": "scripts/tabula/live-repl-e2e.ts",
-      "line": 62,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -2044,7 +1789,6 @@
     },
     {
       "file": "scripts/tabula/prove-minerva-flow.ts",
-      "line": 132,
       "mechanism": "execSync-string",
       "excerpt": "hits = execSync(\"grep -rn 'm to box' src docs 2>/dev/null || true\", { cwd: ROOT, encoding: 'utf8' }).trim()",
       "cls": "intentional-shell",
@@ -2052,7 +1796,6 @@
     },
     {
       "file": "scripts/terminal-boundary/prove-terminal-restoration.ts",
-      "line": 67,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -2060,7 +1803,6 @@
     },
     {
       "file": "scripts/tools/prove-parity2-sandbox-bump.ts",
-      "line": 86,
       "mechanism": "execSync-string",
       "excerpt": "const out = execSync(wrapped, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000 })",
       "cls": "intentional-shell",
@@ -2068,7 +1810,6 @@
     },
     {
       "file": "scripts/tools/prove-parity2-tier1w.ts",
-      "line": 38,
       "mechanism": "exec-string",
       "excerpt": "const handle = await exec('cat', new AbortController().signal, 'bash', { timeout: 6_000 })",
       "cls": "test-fixture",
@@ -2076,7 +1817,6 @@
     },
     {
       "file": "scripts/tools/prove-parity2-tier1w.ts",
-      "line": 44,
       "mechanism": "exec-string",
       "excerpt": "const ok = await exec('echo still-fine', new AbortController().signal, 'bash', { timeout: 6_000 })",
       "cls": "test-fixture",
@@ -2084,7 +1824,6 @@
     },
     {
       "file": "scripts/transcript-rows/prove-clear-empties-transcript.ts",
-      "line": 68,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2092,7 +1831,6 @@
     },
     {
       "file": "scripts/transcript-rows/prove-clear-empties-transcript.ts",
-      "line": 194,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], { env, stdio: ['ignore', 'ignore', 'pipe'] })",
       "cls": "platform-owner",
@@ -2100,7 +1838,6 @@
     },
     {
       "file": "scripts/ui/capture-model-picker-appearances.ts",
-      "line": 59,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2108,7 +1845,6 @@
     },
     {
       "file": "scripts/ui/generate-visual-baseline.ts",
-      "line": 237,
       "mechanism": "execSync-string",
       "excerpt": "branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: REPO, encoding: 'utf8' }).trim() || 'HEAD'",
       "cls": "intentional-shell",
@@ -2116,7 +1852,6 @@
     },
     {
       "file": "scripts/ui/generate-visual-baseline.ts",
-      "line": 247,
       "mechanism": "execSync-string",
       "excerpt": "const sourceSha = execSync('git rev-parse HEAD:src', { cwd: REPO, encoding: 'utf8' }).trim()",
       "cls": "intentional-shell",
@@ -2124,7 +1859,6 @@
     },
     {
       "file": "scripts/ui/jobcontrolHost.ts",
-      "line": 87,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'jobcontrol-host.py'), cfgPath, reportPath], {",
       "cls": "platform-owner",
@@ -2132,7 +1866,6 @@
     },
     {
       "file": "scripts/ui/jobcontrolReclaimDriver.ts",
-      "line": 55,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const thief = spawn('/usr/bin/python3', [thiefPath], { stdio: 'ignore' })",
       "cls": "platform-owner",
@@ -2140,7 +1873,6 @@
     },
     {
       "file": "scripts/ui/measure-drag-latency.ts",
-      "line": 266,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -2148,7 +1880,6 @@
     },
     {
       "file": "scripts/ui/probe-authority-helm.ts",
-      "line": 18,
       "mechanism": "hardcoded-tmp",
       "excerpt": "writeFileSync(`/tmp/probe-cfg-${run}.json`, JSON.stringify(cfg))",
       "cls": "platform-owner",
@@ -2156,7 +1887,6 @@
     },
     {
       "file": "scripts/ui/probe-authority-helm.ts",
-      "line": 19,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, `/tmp/probe-cfg-${run}.json`], {",
       "cls": "platform-owner",
@@ -2164,7 +1894,6 @@
     },
     {
       "file": "scripts/ui/prove-agent-dispatch-engines-journey.ts",
-      "line": 58,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "execFileSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2172,7 +1901,6 @@
     },
     {
       "file": "scripts/ui/prove-background-notice-fold.ts",
-      "line": 181,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2180,7 +1908,6 @@
     },
     {
       "file": "scripts/ui/prove-bash-flicker.ts",
-      "line": 52,
       "mechanism": "hardcoded-tmp",
       "excerpt": "writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: `/tmp/bash-flicker-grid-${process.pid}.json` }))",
       "cls": "platform-owner",
@@ -2188,7 +1915,6 @@
     },
     {
       "file": "scripts/ui/prove-bash-flicker.ts",
-      "line": 53,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2196,7 +1922,6 @@
     },
     {
       "file": "scripts/ui/prove-capture-home-owns-daemon.ts",
-      "line": 54,
       "mechanism": "execSync-string",
       "excerpt": "const files = execSync(\"git ls-files 'scripts/**/*.ts'\", { cwd: ROOT, encoding: 'utf8' }).split('\\n').filter(Boolean)",
       "cls": "intentional-shell",
@@ -2204,7 +1929,6 @@
     },
     {
       "file": "scripts/ui/prove-cockpit-scroll-rail.ts",
-      "line": 77,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2212,7 +1936,6 @@
     },
     {
       "file": "scripts/ui/prove-command-palette.ts",
-      "line": 108,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -c ${JSON.stringify(s)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
@@ -2220,7 +1943,6 @@
     },
     {
       "file": "scripts/ui/prove-concourse-arrow-focus.ts",
-      "line": 265,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
       "cls": "platform-owner",
@@ -2228,7 +1950,6 @@
     },
     {
       "file": "scripts/ui/prove-content-search.ts",
-      "line": 70,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -c ${JSON.stringify(s)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
@@ -2236,7 +1957,6 @@
     },
     {
       "file": "scripts/ui/prove-crew-live-drive.ts",
-      "line": 319,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2244,7 +1964,6 @@
     },
     {
       "file": "scripts/ui/prove-crew-seats-drive.ts",
-      "line": 313,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2252,7 +1971,6 @@
     },
     {
       "file": "scripts/ui/prove-critter-resize.ts",
-      "line": 94,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2260,7 +1978,6 @@
     },
     {
       "file": "scripts/ui/prove-ctrl-o-stable.ts",
-      "line": 85,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(HERE, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2268,7 +1985,6 @@
     },
     {
       "file": "scripts/ui/prove-denied-glyph-split.ts",
-      "line": 121,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2276,7 +1992,6 @@
     },
     {
       "file": "scripts/ui/prove-field-findings-jumpchord.ts",
-      "line": 100,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2284,7 +1999,6 @@
     },
     {
       "file": "scripts/ui/prove-file-open.ts",
-      "line": 78,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -c ${JSON.stringify(s)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
@@ -2292,7 +2006,6 @@
     },
     {
       "file": "scripts/ui/prove-gpt6-astra-crew-drive.ts",
-      "line": 395,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2300,7 +2013,6 @@
     },
     {
       "file": "scripts/ui/prove-helm-header-overflow.ts",
-      "line": 48,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2308,7 +2020,6 @@
     },
     {
       "file": "scripts/ui/prove-help-overlay-rows.ts",
-      "line": 38,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2316,7 +2027,6 @@
     },
     {
       "file": "scripts/ui/prove-hover-e2e.ts",
-      "line": 94,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2324,7 +2034,6 @@
     },
     {
       "file": "scripts/ui/prove-keys-escape.ts",
-      "line": 34,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2332,7 +2041,6 @@
     },
     {
       "file": "scripts/ui/prove-latency-receipts.ts",
-      "line": 71,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2340,7 +2048,6 @@
     },
     {
       "file": "scripts/ui/prove-launchripple-deletion.ts",
-      "line": 39,
       "mechanism": "execSync-string",
       "excerpt": "const launchTrueCallers = execSync(`grep -rn \"setLaunchRipple(true)\" \"${join(root, 'src')}\" || true`, {",
       "cls": "intentional-shell",
@@ -2348,7 +2055,6 @@
     },
     {
       "file": "scripts/ui/prove-launchripple-deletion.ts",
-      "line": 52,
       "mechanism": "execSync-string",
       "excerpt": "const dangling = execSync(",
       "cls": "intentional-shell",
@@ -2356,7 +2062,6 @@
     },
     {
       "file": "scripts/ui/prove-launchripple-deletion.ts",
-      "line": 73,
       "mechanism": "execSync-string",
       "excerpt": "const rippleRefs = execSync(`grep -rn \"${RIPPLE}\" \"${join(root, 'src')}\" || true`, {",
       "cls": "intentional-shell",
@@ -2364,7 +2069,6 @@
     },
     {
       "file": "scripts/ui/prove-message-actions.ts",
-      "line": 68,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -c ${JSON.stringify(s)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
@@ -2372,7 +2076,6 @@
     },
     {
       "file": "scripts/ui/prove-mode-discipline.ts",
-      "line": 41,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2380,7 +2083,6 @@
     },
     {
       "file": "scripts/ui/prove-mode-discipline.ts",
-      "line": 100,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res2 = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfg2Path], {",
       "cls": "platform-owner",
@@ -2388,7 +2090,6 @@
     },
     {
       "file": "scripts/ui/prove-rail-click-after-resize.ts",
-      "line": 164,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts/ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2396,7 +2097,6 @@
     },
     {
       "file": "scripts/ui/prove-redraw-repair.ts",
-      "line": 35,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "execFileSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2404,7 +2104,6 @@
     },
     {
       "file": "scripts/ui/prove-row-fills-its-pane.ts",
-      "line": 316,
       "mechanism": "execSync-string",
       "excerpt": "const hits = execSync(`grep -rlE '<(MessageRow|Messages)\\\\b' src/components src/screens src/utils src/tools src/commands 2>/dev/null || true",
       "cls": "intentional-shell",
@@ -2412,7 +2111,6 @@
     },
     {
       "file": "scripts/ui/prove-s32-acceptance.ts",
-      "line": 751,
       "mechanism": "execSync-string",
       "excerpt": "const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim()",
       "cls": "intentional-shell",
@@ -2420,7 +2118,6 @@
     },
     {
       "file": "scripts/ui/prove-s32-acceptance.ts",
-      "line": 777,
       "mechanism": "execSync-string",
       "excerpt": "const dirsFromSub = JSON.parse(execSync(`${process.execPath} run ${probe}`, { cwd: parent, encoding: 'utf8' }).trim()) as string[]",
       "cls": "intentional-shell",
@@ -2428,7 +2125,6 @@
     },
     {
       "file": "scripts/ui/prove-s32-acceptance.ts",
-      "line": 787,
       "mechanism": "execSync-string",
       "excerpt": "const dirsSibling = JSON.parse(execSync(`${process.execPath} run ${probeSib}`, { cwd: parent, encoding: 'utf8' }).trim()) as string[]",
       "cls": "intentional-shell",
@@ -2436,7 +2132,6 @@
     },
     {
       "file": "scripts/ui/prove-s32-acceptance.ts",
-      "line": 829,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`rm -rf ${join(wtBare, '.mercury')}`)",
       "cls": "intentional-shell",
@@ -2444,7 +2139,6 @@
     },
     {
       "file": "scripts/ui/prove-s32-acceptance.ts",
-      "line": 916,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`rm -rf ${dir}`)",
       "cls": "intentional-shell",
@@ -2452,7 +2146,6 @@
     },
     {
       "file": "scripts/ui/prove-select-scroll-drive.ts",
-      "line": 90,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -2460,7 +2153,6 @@
     },
     {
       "file": "scripts/ui/prove-sessiontab-switch.ts",
-      "line": 69,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2468,7 +2160,6 @@
     },
     {
       "file": "scripts/ui/prove-sup2-hardening.ts",
-      "line": 289,
       "mechanism": "execSync-string",
       "excerpt": "check('poison gone: no execSync command strings remain', !vs.includes('execSync('))",
       "cls": "intentional-shell",
@@ -2476,7 +2167,6 @@
     },
     {
       "file": "scripts/ui/prove-visual-manifest.ts",
-      "line": 49,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`git cat-file -e ${manifest.sourceSha}^{tree}`, {",
       "cls": "intentional-shell",
@@ -2484,7 +2174,6 @@
     },
     {
       "file": "scripts/ui/prove-vshot-ready.ts",
-      "line": 60,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2492,7 +2181,6 @@
     },
     {
       "file": "scripts/ui/prove-workflow-inline.ts",
-      "line": 49,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2500,7 +2188,6 @@
     },
     {
       "file": "scripts/ui/prove-workflows-board.ts",
-      "line": 45,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2508,7 +2195,6 @@
     },
     {
       "file": "scripts/ui/render-autopilot-band.ts",
-      "line": 40,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2516,7 +2202,6 @@
     },
     {
       "file": "scripts/ui/render-away-recap.ts",
-      "line": 95,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "return execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -2524,7 +2209,6 @@
     },
     {
       "file": "scripts/ui/render-caching-journey.ts",
-      "line": 178,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], { env, cwd, stdio: ['ignore', 'pipe', 'pipe'] })",
       "cls": "platform-owner",
@@ -2532,7 +2216,6 @@
     },
     {
       "file": "scripts/ui/render-command-palette.tsx",
-      "line": 97,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const grid = execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -2540,7 +2223,6 @@
     },
     {
       "file": "scripts/ui/render-config-divergence.ts",
-      "line": 48,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const v = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), join(tmp, 'vshot.json')], {",
       "cls": "platform-owner",
@@ -2548,7 +2230,6 @@
     },
     {
       "file": "scripts/ui/render-consent-card.tsx",
-      "line": 131,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "return execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -2556,7 +2237,6 @@
     },
     {
       "file": "scripts/ui/render-content-search.tsx",
-      "line": 81,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const grid = execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -2564,7 +2244,6 @@
     },
     {
       "file": "scripts/ui/render-critter-select.ts",
-      "line": 106,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2572,7 +2251,6 @@
     },
     {
       "file": "scripts/ui/render-diff-width.ts",
-      "line": 119,
       "mechanism": "hardcoded-tmp",
       "excerpt": "writeFileSync('/tmp/hb0200-edit-target.txt', 'alpha\\nbeta\\ngamma\\ndelta\\n')",
       "cls": "platform-owner",
@@ -2580,7 +2258,6 @@
     },
     {
       "file": "scripts/ui/render-diff-width.ts",
-      "line": 168,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const grid = execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -2588,7 +2265,6 @@
     },
     {
       "file": "scripts/ui/render-file-open.tsx",
-      "line": 83,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "return execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -2596,7 +2272,6 @@
     },
     {
       "file": "scripts/ui/render-firstrun-kimi-leg.ts",
-      "line": 189,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], { env, cwd, stdio: ['ignore', 'pipe', 'pipe'] })",
       "cls": "platform-owner",
@@ -2604,7 +2279,6 @@
     },
     {
       "file": "scripts/ui/render-firstrun-skip.ts",
-      "line": 131,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "execFileSync('/usr/bin/python3', [VSHOT, cfg], { encoding: 'utf-8', timeout: vshotBudgetMs(110000), env, cwd })",
       "cls": "platform-owner",
@@ -2612,7 +2286,6 @@
     },
     {
       "file": "scripts/ui/render-footer-suggestions.tsx",
-      "line": 87,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "return execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -2620,7 +2293,6 @@
     },
     {
       "file": "scripts/ui/render-health-viewport.tsx",
-      "line": 77,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "return execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -2628,7 +2300,6 @@
     },
     {
       "file": "scripts/ui/render-helm-home.ts",
-      "line": 50,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf-8', timeout: vshotBudgetMs(30000), env })",
       "cls": "platform-owner",
@@ -2636,7 +2307,6 @@
     },
     {
       "file": "scripts/ui/render-helm-runs.ts",
-      "line": 49,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2644,7 +2314,6 @@
     },
     {
       "file": "scripts/ui/render-idle-lane-stability.ts",
-      "line": 42,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2652,7 +2321,6 @@
     },
     {
       "file": "scripts/ui/render-inline-history.ts",
-      "line": 50,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2660,7 +2328,6 @@
     },
     {
       "file": "scripts/ui/render-inline-history.ts",
-      "line": 64,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const rep = spawnSync('/usr/bin/python3', [REPLAY, tee, '120', '44', '30'], {",
       "cls": "platform-owner",
@@ -2668,7 +2335,6 @@
     },
     {
       "file": "scripts/ui/render-live-motion.ts",
-      "line": 82,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -2676,7 +2342,6 @@
     },
     {
       "file": "scripts/ui/render-mcp-notif-a11y.tsx",
-      "line": 87,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "return execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -2684,7 +2349,6 @@
     },
     {
       "file": "scripts/ui/render-mercury-surfaces.ts",
-      "line": 72,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2692,7 +2356,6 @@
     },
     {
       "file": "scripts/ui/render-mercuryframe.ts",
-      "line": 121,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2700,7 +2363,6 @@
     },
     {
       "file": "scripts/ui/render-model-picker-tail.ts",
-      "line": 80,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2708,7 +2370,6 @@
     },
     {
       "file": "scripts/ui/render-model-switch.ts",
-      "line": 44,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf-8', timeout: vshotBudgetMs(30000), env })",
       "cls": "platform-owner",
@@ -2716,7 +2377,6 @@
     },
     {
       "file": "scripts/ui/render-onboarding.tsx",
-      "line": 139,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "return execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -2724,7 +2384,6 @@
     },
     {
       "file": "scripts/ui/render-permission-modes.ts",
-      "line": 101,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2732,7 +2391,6 @@
     },
     {
       "file": "scripts/ui/render-scroll-depth.ts",
-      "line": 60,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2740,7 +2398,6 @@
     },
     {
       "file": "scripts/ui/render-scroll-session-lock.ts",
-      "line": 65,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2748,7 +2405,6 @@
     },
     {
       "file": "scripts/ui/render-selection-band.tsx",
-      "line": 84,
       "mechanism": "hardcoded-tmp",
       "excerpt": "writeFileSync('/tmp/band-cfg.json', JSON.stringify(cfg))",
       "cls": "platform-owner",
@@ -2756,7 +2412,6 @@
     },
     {
       "file": "scripts/ui/render-selection-band.tsx",
-      "line": 85,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "execFileSync('/usr/bin/python3', [VSHOT, '/tmp/band-cfg.json'], {",
       "cls": "platform-owner",
@@ -2764,7 +2419,6 @@
     },
     {
       "file": "scripts/ui/render-spinner-hud.ts",
-      "line": 80,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "return execFileSync('/usr/bin/python3', [VSHOT, cfg], { encoding: 'utf-8', timeout: vshotBudgetMs(120000), env: { ...process.env, MERCURY_CO",
       "cls": "platform-owner",
@@ -2772,7 +2426,6 @@
     },
     {
       "file": "scripts/ui/render-spinner-wif.tsx",
-      "line": 168,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "return execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -2780,7 +2433,6 @@
     },
     {
       "file": "scripts/ui/render-spinner-wif.tsx",
-      "line": 208,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "return execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
       "cls": "platform-owner",
@@ -2788,7 +2440,6 @@
     },
     {
       "file": "scripts/ui/render-streaming-nameplate.ts",
-      "line": 75,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "return execFileSync('/usr/bin/python3', [VSHOT, cfg], { encoding: 'utf-8', timeout: vshotBudgetMs(90000), env: { ...process.env, MERCURY_CON",
       "cls": "platform-owner",
@@ -2796,7 +2447,6 @@
     },
     {
       "file": "scripts/ui/render-submodels-signin-journey.ts",
-      "line": 232,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], { env, cwd, stdio: ['ignore', 'pipe', 'pipe'] })",
       "cls": "platform-owner",
@@ -2804,7 +2454,6 @@
     },
     {
       "file": "scripts/ui/render-surface-claim.ts",
-      "line": 90,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2812,7 +2461,6 @@
     },
     {
       "file": "scripts/ui/render-tabula.ts",
-      "line": 79,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf-8', timeout: vshotBudgetMs(60000), env })",
       "cls": "platform-owner",
@@ -2820,7 +2468,6 @@
     },
     {
       "file": "scripts/ui/render-thinking-row.ts",
-      "line": 52,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const grid = execFileSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2828,7 +2475,6 @@
     },
     {
       "file": "scripts/ui/render-turn-restyle.ts",
-      "line": 67,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const grid = execFileSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2836,7 +2482,6 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 1537,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git read-tree HEAD', { cwd: REPO, env, stdio: 'pipe' })",
       "cls": "intentional-shell",
@@ -2844,7 +2489,6 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 1538,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git add -A', { cwd: REPO, env, stdio: 'pipe' })",
       "cls": "intentional-shell",
@@ -2852,7 +2496,6 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 1539,
       "mechanism": "execSync-string",
       "excerpt": "now = execSync('git write-tree', { cwd: REPO, env, stdio: 'pipe' }).toString().trim()",
       "cls": "intentional-shell",
@@ -2860,7 +2503,6 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 1558,
       "mechanism": "execSync-string",
       "excerpt": "changed = execSync(`git diff-tree -r --name-only ${declared} ${now}`, { cwd: REPO, stdio: 'pipe' })",
       "cls": "intentional-shell",
@@ -2868,7 +2510,6 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 2167,
       "mechanism": "execSync-string",
       "excerpt": "execSync(",
       "cls": "intentional-shell",
@@ -2876,7 +2517,6 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 2335,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q', { cwd: project })",
       "cls": "intentional-shell",
@@ -2884,7 +2524,6 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 2364,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git add -A && git -c user.email=fix@x -c user.name=fix commit -qm seed', { cwd: project })",
       "cls": "intentional-shell",
@@ -2892,7 +2531,6 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 3845,
       "mechanism": "execSync-string",
       "excerpt": "execSync(",
       "cls": "intentional-shell",
@@ -2900,7 +2538,6 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 4994,
       "mechanism": "execSync-string",
       "excerpt": "execSync(",
       "cls": "intentional-shell",
@@ -2908,7 +2545,6 @@
     },
     {
       "file": "scripts/updater/prove-install-path.ts",
-      "line": 187,
       "mechanism": "shell-dash-c",
       "excerpt": "const once = spawnSync('sh', ['-c', `${guard}\\nprintf '%s' \"$PATH\"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin' } }).st",
       "cls": "intentional-shell",
@@ -2916,7 +2552,6 @@
     },
     {
       "file": "scripts/updater/prove-install-path.ts",
-      "line": 188,
       "mechanism": "shell-dash-c",
       "excerpt": "const twice = spawnSync('sh', ['-c', `${guard}\\n${guard}\\nprintf '%s' \"$PATH\"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/b",
       "cls": "intentional-shell",
@@ -2924,7 +2559,6 @@
     },
     {
       "file": "scripts/updater/prove-install-path.ts",
-      "line": 192,
       "mechanism": "shell-dash-c",
       "excerpt": "? spawnSync('zsh', ['-c', `${guard}\\n${guard}\\nprintf '%s' \"$PATH\"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin' } }).st",
       "cls": "intentional-shell",
@@ -2932,7 +2566,6 @@
     },
     {
       "file": "scripts/updater/prove-install-path.ts",
-      "line": 434,
       "mechanism": "shell-dash-c",
       "excerpt": "const nodeBin = spawnSync('sh', ['-c', 'command -v node'], { encoding: 'utf8' }).stdout.trim()",
       "cls": "intentional-shell",
@@ -2940,7 +2573,6 @@
     },
     {
       "file": "scripts/usage-warning/prove-usage-pools-captures.ts",
-      "line": 77,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -2948,7 +2580,6 @@
     },
     {
       "file": "scripts/usage-warning/prove-warning-strip-captures.ts",
-      "line": 93,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -2956,7 +2587,6 @@
     },
     {
       "file": "scripts/verify/prove-impact-manifest.ts",
-      "line": 33,
       "mechanism": "execSync-string",
       "excerpt": "const tracked = execSync('git ls-files', { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })",
       "cls": "intentional-shell",
@@ -2964,7 +2594,6 @@
     },
     {
       "file": "scripts/verify/prove-impact-manifest.ts",
-      "line": 67,
       "mechanism": "execSync-string",
       "excerpt": "for (const runner of execSync(\"git ls-files 'scripts/*/run-all.sh'\", { cwd: ROOT, encoding: 'utf8' })",
       "cls": "intentional-shell",
@@ -2972,7 +2601,6 @@
     },
     {
       "file": "scripts/verify/prove-impact-manifest.ts",
-      "line": 127,
       "mechanism": "execSync-string",
       "excerpt": "const out = execSync(`${process.env.BUN ?? process.env.HOME + '/.bun/bin/bun'} run scripts/verify/fast.ts --plan`, {",
       "cls": "intentional-shell",
@@ -2980,7 +2608,6 @@
     },
     {
       "file": "scripts/verify/prove-project-gates.ts",
-      "line": 55,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q && git add -A && git -c user.email=t@t -c user.name=t commit -qm init --allow-empty', { cwd: dir, stdio: 'pipe' })",
       "cls": "intentional-shell",
@@ -2988,7 +2615,6 @@
     },
     {
       "file": "scripts/verify/prove-slice-e2e.ts",
-      "line": 46,
       "mechanism": "execSync-string",
       "excerpt": "execSync(cmd, { cwd: scratch, encoding: 'utf8', env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1' } })",
       "cls": "intentional-shell",
@@ -2996,7 +2622,6 @@
     },
     {
       "file": "scripts/verify/prove-slice-e2e.ts",
-      "line": 82,
       "mechanism": "execSync-string",
       "excerpt": "return execSync(`ls ${join(scratch, 'markers')}`, { encoding: 'utf8' }).split('\\n').filter(Boolean).sort()",
       "cls": "intentional-shell",
@@ -3004,7 +2629,6 @@
     },
     {
       "file": "scripts/verify/prove-verification-state.ts",
-      "line": 216,
       "mechanism": "execSync-string",
       "excerpt": "const git = (cmd: string) => execSync(cmd, { cwd: repo, stdio: 'pipe', env: { ...process.env, GIT_AUTHOR_NAME: 'p', GIT_AUTHOR_EMAIL: 'p@x',",
       "cls": "intentional-shell",
@@ -3012,7 +2636,6 @@
     },
     {
       "file": "scripts/visual-contract/baseline-capture.ts",
-      "line": 85,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -3020,7 +2643,6 @@
     },
     {
       "file": "scripts/visual-contract/prove-degradation-order.ts",
-      "line": 177,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
       "cls": "platform-owner",
@@ -3028,7 +2650,6 @@
     },
     {
       "file": "scripts/visual-contract/prove-hyperlink-coverage.ts",
-      "line": 157,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
       "cls": "platform-owner",
@@ -3036,7 +2657,6 @@
     },
     {
       "file": "scripts/visual-contract/prove-paste-safety.ts",
-      "line": 65,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
       "cls": "platform-owner",
@@ -3044,7 +2664,6 @@
     },
     {
       "file": "scripts/visual-contract/prove-splash-budget.ts",
-      "line": 97,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -3052,7 +2671,6 @@
     },
     {
       "file": "scripts/winreg/prove-capture-grammar.ts",
-      "line": 105,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['-c', `import ast; ast.parse(open('${f}').read())`], { encoding: 'utf8' })",
       "cls": "platform-owner",

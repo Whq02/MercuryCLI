@@ -19,7 +19,27 @@ execFileSync(process.execPath, [join(ROOT, 'scripts/consistency-census/gen-locku
 const after = readFileSync(censusPath, 'utf8')
 if (before !== after) writeFileSync(censusPath, before)
 check('§A regeneration reproduces the LOCKUP census byte-for-byte', before === after)
-const census = JSON.parse(after) as { sites: Array<{ role: string; file: string }> }
+type Site = { role: string; file: string; kind: string; excerpt: string }
+const census = JSON.parse(after) as { sites: Site[] }
+if (before !== after) {
+  const rows = (sites: Site[]): Map<string, { site: Site; count: number }> => {
+    const out = new Map<string, { site: Site; count: number }>()
+    for (const site of sites) {
+      const key = JSON.stringify(site)
+      const row = out.get(key) ?? { site, count: 0 }
+      row.count++
+      out.set(key, row)
+    }
+    return out
+  }
+  const committed = rows((JSON.parse(before) as { sites: Site[] }).sites)
+  const regenerated = rows(census.sites)
+  const surplus = (a: Map<string, { site: Site; count: number }>, b: Map<string, { site: Site; count: number }>): Site[] =>
+    [...a].filter(([k, row]) => (b.get(k)?.count ?? 0) < row.count).map(([, row]) => row.site)
+  for (const s of surplus(committed, regenerated).slice(0, 20)) console.log(`    committed but not in the tree: ${s.file} (${s.kind}) ${s.excerpt}`)
+  for (const s of surplus(regenerated, committed).slice(0, 20)) console.log(`    in the tree but not committed: ${s.file} (${s.kind}) ${s.excerpt}`)
+  console.log('    regenerate with scripts/consistency-census/gen-lockup-census.ts')
+}
 check('§A zero unclassified production sites', census.sites.every(s => s.role !== 'UNCLASSIFIED'), String(census.sites.filter(s => s.role === 'UNCLASSIFIED').length))
 
 const picker = readFileSync(join(ROOT, 'src/components/MercuryModelPicker.tsx'), 'utf8')
