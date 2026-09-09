@@ -76,7 +76,7 @@ section('degenerate channels → fail-honest (no false claim)')
   check('no channel: localSent === false', data.localSent === false, JSON.stringify(data))
   check("no channel: disabledReason === 'no_transport'", data.disabledReason === 'no_transport')
 
-  check('pushSent is always false (no fork mobile transport)', data.pushSent === false)
+  check('pushSent is always false (no mobile transport)', data.pushSent === false)
 }
 
 section('source: the method is plumbed end-to-end (notifier → context → REPL → tool)')

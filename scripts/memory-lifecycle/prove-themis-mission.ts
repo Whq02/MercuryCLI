@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -44,7 +44,8 @@ section('§1 explicit off ⇒ no mission behavior, no files (unset = default-on)
   const dir = fixture()
   const r = startMission({ title: 'x' }, dir)
   check('start refused at off with a truthful reason', !r.ok && /MERCURY_THEMIS/.test((r as { reason: string }).reason))
-  check('no store dir created in ANY home', !['.mercury', '.claude'].some(h => existsSync(join(dir, h, 'themis', 'missions'))))
+  const born = readdirSync(dir).sort()
+  check('no store dir created (the fixture carries only its own two entries)', born.join(',') === '.git,src', born.join(','))
   check('activeMission null (zero fs)', activeMission(dir) === null)
   delete process.env.MERCURY_THEMIS
   const r2 = startMission({ title: 'x' }, dir)

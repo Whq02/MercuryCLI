@@ -57,7 +57,7 @@ check(
 )
 const briefSrc = readFileSync('src/tools/BriefTool/BriefTool.ts', 'utf8')
 check(
-  'activation reads the EXPLICIT session marker, never the fork default',
+  'activation reads the EXPLICIT session marker, never the family default',
   briefSrc.includes('isAssistantSessionActive()') &&
     !/return \(isAssistantFamilyAvailable\(\) \|\| getUserMsgOptIn\(\)\) && isBriefEntitled\(\)/.test(briefSrc),
 )

@@ -59,18 +59,18 @@ function injectedSet(): string {
 
 section('GATE — DEFAULT-OFF / opt-in resolution (stamped build)')
 delete process.env.MERCURY_RELEVANT_RECALL
-check('fork + env unset ⇒ gate OFF', relevantMemoryRecallEnabled() === false)
+check('stamped build + env unset ⇒ gate OFF', relevantMemoryRecallEnabled() === false)
 process.env.MERCURY_RELEVANT_RECALL = '1'
-check('fork + env=1 ⇒ gate ON', relevantMemoryRecallEnabled() === true)
+check('stamped build + env=1 ⇒ gate ON', relevantMemoryRecallEnabled() === true)
 process.env.MERCURY_RELEVANT_RECALL = '0'
-check('fork + env=0 ⇒ gate OFF', relevantMemoryRecallEnabled() === false)
+check('stamped build + env=0 ⇒ gate OFF', relevantMemoryRecallEnabled() === false)
 process.env.MERCURY_RELEVANT_RECALL = 'true'
 check(
-  'fork + env=true ⇒ gate OFF (only the exact "1" opts in)',
+  'stamped build + env=true ⇒ gate OFF (only the exact "1" opts in)',
   relevantMemoryRecallEnabled() === false,
 )
 process.env.MERCURY_RELEVANT_RECALL = 'yes'
-check('fork + env=yes ⇒ gate OFF', relevantMemoryRecallEnabled() === false)
+check('stamped build + env=yes ⇒ gate OFF', relevantMemoryRecallEnabled() === false)
 
 section('GATE — stamp-independent (a bare stamp cannot strip the opt-in)')
 setStamp(false)

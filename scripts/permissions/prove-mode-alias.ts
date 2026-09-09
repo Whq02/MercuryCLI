@@ -105,7 +105,7 @@ try {
   const st = await import('../../src/utils/settings/types.js')
   const schema = st.PermissionsSchema()
   const oldFile = schema.safeParse({ defaultMode: 'bypassPermissions' })
-  check("defaultMode 'bypassPermissions' (old file / .claude compat) parses to 'sovereign'", oldFile.success && (oldFile.data as { defaultMode?: string }).defaultMode === 'sovereign')
+  check("defaultMode 'bypassPermissions' (an older settings file) parses to 'sovereign'", oldFile.success && (oldFile.data as { defaultMode?: string }).defaultMode === 'sovereign')
   const flowFile = schema.safeParse({ defaultMode: 'auto' })
   check("defaultMode 'auto' parses to 'flow' (flow IS user-addressable in settings)", flowFile.success && (flowFile.data as { defaultMode?: string }).defaultMode === 'flow')
   const newFile = schema.safeParse({ defaultMode: 'implement' })
@@ -172,15 +172,15 @@ section('§10 conversation recovery: persisted per-message modes adopt the new i
   check('the adopt arm rewrites to the decoded id (not undefined)', /permissionMode: decoded/.test(rec))
 }
 
-section('§11 a retired mode id (no alias row) degrades to the default with ONE notice, never a crash')
+section('§11 an unknown mode id (no alias row) degrades to the default with ONE notice, never a crash')
 {
-  const retiredMode = 'scri' + 'be'
-  check('the alias table carries no row for it', !(retiredMode in (vocab.RETIRED_PERMISSION_MODE_SPELLINGS as Record<string, string>)))
-  check('decode passes it through untouched', vocab.decodePermissionModeSpelling(retiredMode) === retiredMode)
-  check('it is in no vocabulary list', !([...vocab.PERMISSION_MODES, ...vocab.INTERNAL_PERMISSION_MODES] as readonly string[]).includes(retiredMode))
-  check("fromString → 'default'", pm.permissionModeFromString(retiredMode) === 'default')
-  check('the mode schema REJECTS it (safeParse, no throw)', pm.permissionModeSchema().safeParse(retiredMode).success === false)
-  check('the external schema REJECTS it too (safeParse, no throw)', pm.externalPermissionModeSchema().safeParse(retiredMode).success === false)
+  const unknownMode = 'no-such-mode'
+  check('the alias table carries no row for it', !(unknownMode in (vocab.RETIRED_PERMISSION_MODE_SPELLINGS as Record<string, string>)))
+  check('decode passes it through untouched', vocab.decodePermissionModeSpelling(unknownMode) === unknownMode)
+  check('it is in no vocabulary list', !([...vocab.PERMISSION_MODES, ...vocab.INTERNAL_PERMISSION_MODES] as readonly string[]).includes(unknownMode))
+  check("fromString → 'default'", pm.permissionModeFromString(unknownMode) === 'default')
+  check('the mode schema REJECTS it (safeParse, no throw)', pm.permissionModeSchema().safeParse(unknownMode).success === false)
+  check('the external schema REJECTS it too (safeParse, no throw)', pm.externalPermissionModeSchema().safeParse(unknownMode).success === false)
   const rec = srcText('utils', 'conversationRecovery.ts')
   check('an unknown persisted mode is CLEARED (the session resumes in its default mode)', /return \{ \.\.\.message, permissionMode: undefined \} as Message/.test(rec))
   check(
@@ -189,7 +189,7 @@ section('§11 a retired mode id (no alias row) degrades to the default with ONE 
   )
   check('…once per spelling (a latch, never a row per message)', /noticedPermissionModes\.has\(mode\)/.test(rec) && /noticedPermissionModes\.add\(mode\)/.test(rec))
   const tips = srcText('utils', 'settings', 'validationTips.ts')
-  check('the defaultMode validation tip names no retired mode', !tips.includes(`"${retiredMode}"`))
+  check('the defaultMode validation tip names the live modes', vocab.EXTERNAL_PERMISSION_MODES.every(mode => tips.includes(mode)))
 }
 
 console.log('\n' + '═'.repeat(76))
