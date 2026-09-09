@@ -25,7 +25,7 @@ guard.unref?.()
 
 delete process.env.NODE_ENV
 delete process.env.CI
-delete process.env.CLAUDE_EFFORT
+delete process.env.MERCURY_EFFORT_LEVEL
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'switch-hop-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }

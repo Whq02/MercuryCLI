@@ -35,8 +35,7 @@ for (const key of [
   'MERCURY_OPENROUTER_AUTH_BASE',
   'MERCURY_GEMINI_API_BASE',
   'MERCURY_COMPAT_BASE_URL',
-  'CLAUDE_EFFORT',
-  'MERCURY_EFFORT',
+  'MERCURY_EFFORT_LEVEL',
 ]) {
   delete process.env[key]
 }
