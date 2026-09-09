@@ -182,10 +182,10 @@ section('source: WorkflowTool.tsx wiring (bun-unloadable — text pins)')
   check('a flush inside the throttle schedules the trailing write for the throttle\'s end', /trailingManifestWrite = setTimeout\(/.test(src) && /RUN_MANIFEST_WRITE_THROTTLE_MS - sinceLast/.test(src))
   check('the trailing write is cleared with the heartbeat', /clearInterval\(manifestHeartbeat\)\s*\n\s*if \(trailingManifestWrite !== null\) clearTimeout\(trailingManifestWrite\)/.test(src))
   check('heartbeat interval while running', /setInterval\(\s*\(\) => writeManifest\(\),\s*RUN_MANIFEST_HEARTBEAT_MS,?\s*\)/.test(src))
-  check('heartbeat cleared in finally', /finally \{\s*(?:closeControl\?\.\(\)\s*)?clearInterval\(manifestHeartbeat\)/.test(src))
+  check('heartbeat cleared in finally', /finally \{(?:\s*closeControl\?\.\(\))?\s*clearInterval\(manifestHeartbeat\)/.test(src))
   check(
     "abort path finalizes 'paused' vs 'killed' by the LIVE status",
-    /writeManifest\(\{\s*status: pausedLive \? 'paused' : 'killed',/.test(src),
+    /await writeManifest\(\{\s*status: pausedLive \? 'paused' : 'killed',/.test(src),
   )
   check(
     "a kill records who ended it; a pause records nobody",

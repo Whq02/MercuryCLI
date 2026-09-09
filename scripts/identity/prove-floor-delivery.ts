@@ -41,7 +41,7 @@ section('§1 the constant — the operator’s six statements, byte-anchored')
   const digest = createHash('sha256').update(FLOOR, 'utf8').digest('hex')
   check(
     'byte anchor (sha256 of the operator’s text)',
-    digest === '3937101191c48ebd6f42258a13184eb26bea896854fecea14c3d3e39adb3ccef',
+    digest === '495ea19d14068bccac849226bb0b135ba3e1b94a5a460b0a7de93f37174b7fdd',
     digest,
   )
   check('provider-neutral (no engine family named)', !/\b(Claude|Anthropic|GPT|OpenAI|Gemini|Llama|DeepSeek|Kimi)\b/i.test(FLOOR))
@@ -58,7 +58,7 @@ section('§1b the coordinator floor — its own identity statement, the shared t
     IDENT === `You are the Mercury coordinator — Mercury's own coordinating seat in this session. The one name you go by is still Mercury; "coordinator" is your role, never a second name.`,
   )
   const attributionAt = FLOOR.indexOf('\n' + contract.MERCURY_ATTRIBUTION)
-  check('the attribution line sits directly behind the session identity statement', attributionAt !== -1 && FLOOR.slice(0, attributionAt).endsWith('to other products.'))
+  check('the attribution line sits directly behind the session identity statement', attributionAt !== -1 && FLOOR.slice(0, attributionAt).endsWith('The one name you go by is Mercury.'))
   check('the tail behind the identity statement is the SAME text on both seats', COORD.slice(IDENT.length) === FLOOR.slice(attributionAt))
   check('exactly ONE identity statement per floor', (COORD.match(/^You are /gm) ?? []).length === 1 && (FLOOR.match(/^You are /gm) ?? []).length === 1)
   check('the session statement is absent from the coordinator floor', !COORD.includes('You are **Mercury**'))
