@@ -22,7 +22,7 @@ const bare = { type: 'prompt', name: 'x', description: 'd' } as never
 
 check('bare skill (no allowedTools) is safe', skillHasOnlySafeProperties(bare))
 check(
-  'FORK: pure read-only grant is SAFE (the fix)',
+  'a pure read-only grant is SAFE',
   skillHasOnlySafeProperties({
     ...(bare as object),
     allowedTools: ['Read', 'Grep', 'Glob'],
