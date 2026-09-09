@@ -74,12 +74,17 @@ export function lastTakeStreamErrors(): CaptureStreamErrors | null {
   return lastStreamErrors
 }
 
-export function lastTakeStreamWords(errors: CaptureStreamErrors | null = lastStreamErrors): string | null {
+export function lastTakeStreamWords(errors: CaptureStreamErrors | null = lastStreamErrors, take: 'last take' | 'this take' = 'last take'): string | null {
   if (errors === null) return null
   const notice = streamErrorNotice(errors)
-  if (notice === null) return 'last take: the input stream stayed clean'
-  if (notice.kind === 'fatal') return `last take: ${notice.text}`
-  return `last take: ${errors.transient} transient stream error${errors.transient === 1 ? '' : 's'}, the capture kept going`
+  if (notice === null) return `${take}: the input stream ${take === 'this take' ? 'is' : 'stayed'} clean`
+  if (notice.kind === 'fatal') return `${take}: ${notice.text}`
+  return `${take}: ${errors.transient} transient stream error${errors.transient === 1 ? '' : 's'}, the capture ${take === 'this take' ? 'keeps' : 'kept'} going`
+}
+
+export function currentTakeStreamWords(): string | null {
+  if (active !== null && !active.settled) return lastTakeStreamWords(active.streamErrors(), 'this take')
+  return lastTakeStreamWords()
 }
 
 export function voiceInputEnabled(): boolean {
@@ -344,7 +349,7 @@ export function describeVoiceStatus(env: NodeJS.ProcessEnv = process.env): strin
     ...(onDevice !== null ? [onDevice] : []),
     ...(door !== null ? [door] : []),
     `backend: ${backendWords(resolveCaptureBackend(env))}`,
-    ...(lastTakeStreamWords() !== null ? [lastTakeStreamWords() as string] : []),
+    ...(currentTakeStreamWords() !== null ? [currentTakeStreamWords() as string] : []),
   ].join('\n')
 }
 
