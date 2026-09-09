@@ -6,8 +6,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'seen-lines-home-'))
-process.env.CLAUDE_CODE_SIMPLE = '1'
-process.env.CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING = '1'
 process.env.MERCURY_ANCHOR_PATCH = '1'
 process.env.MERCURY_CHANGESET_DIR = mkdtempSync(join(tmpdir(), 'seen-lines-cs-'))
 
