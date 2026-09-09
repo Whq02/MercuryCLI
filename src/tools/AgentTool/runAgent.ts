@@ -7,6 +7,7 @@ import {
   enhanceSystemPromptWithEnvDetails,
 } from '../../constants/prompts.js'
 import { query, type QueryParams } from '../../query.js'
+import type { LegacyQueryYield } from '../../run-core/project-legacy.js'
 import { randomUUID } from 'node:crypto'
 import { connectToServer, fetchToolsForClient } from '../../services/mcp/client.js'
 import {
@@ -158,6 +159,7 @@ export type RunAgentParams = {
   effortOverride?: string
   instructionProfileOverride?: string
   onQueryProgress?: (message: Message) => void
+  beforeQueryStep?: () => Promise<void> | undefined
   onWait?: (words: string | null) => void
   onPendingAsks?: (count: number) => void
   onResolvedIdentity?: (identity: { model: string; effort?: string }) => void
@@ -501,6 +503,7 @@ export async function* runAgent(
     effortOverride,
     instructionProfileOverride,
     onQueryProgress,
+    beforeQueryStep,
     onWait,
     onPendingAsks,
     onResolvedIdentity,
@@ -924,7 +927,38 @@ export async function* runAgent(
       ...(effectiveMaxTurns !== undefined ? { maxTurns: effectiveMaxTurns } : {}),
     }
 
-    for await (const message of query(queryParams)) {
+    const pausableQuery = async function* (): AsyncGenerator<LegacyQueryYield, void> {
+      const stream = query(queryParams)
+      let atRequestBoundary = true
+      try {
+        for (;;) {
+          if (atRequestBoundary && beforeQueryStep !== undefined) {
+            const parked = beforeQueryStep()
+            if (parked !== undefined) {
+              const beat = setInterval(() => watchdog.touch(), Math.max(1_000, Math.min(30_000, Math.floor(idleLimitMs / 4))))
+              beat.unref?.()
+              try {
+                await parked
+              } finally {
+                clearInterval(beat)
+                watchdog.touch()
+              }
+            }
+          }
+          const next = await stream.next()
+          if (next.done) return
+          const message = next.value
+          const kind = (message as { type?: string }).type
+          if (kind === 'assistant' || kind === 'stream_event') atRequestBoundary = false
+          else if (kind === 'user') atRequestBoundary = true
+          yield message
+        }
+      } finally {
+        await stream.return(undefined as never).catch(() => {})
+      }
+    }
+
+    for await (const message of pausableQuery()) {
       eventsSeen++
       watchdog.touch()
       const declaredWaitMs = declaredRecoveryWaitMs(message)

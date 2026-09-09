@@ -7,15 +7,17 @@ import { AlternateScreen } from '../../ink/components/AlternateScreen.js'
 import { Box, Text, useInput } from '../../ink.js'
 import { useElapsedTime } from '../../hooks/useElapsedTime.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import { useSetAppState } from '../../state/AppState.js'
 import {
-  killWorkflowTask,
-  pauseWorkflowTask,
-  retryWorkflowAgent,
-  skipWorkflowAgent,
   type LocalWorkflowTaskState,
   type WorkflowPhase,
 } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
+import {
+  requestWorkflowControl,
+  workflowControlBy,
+  type WorkflowControlAction,
+  type WorkflowControlResult,
+} from '../../tools/WorkflowTool/runControl.js'
+import { getSessionId } from '../../bootstrap/state.js'
 import {
   buildAgentSummaries,
   groupAgentsByPhase,
@@ -26,7 +28,6 @@ import {
 } from '../../tools/WorkflowTool/runManifest.js'
 import { saveWorkflowToProject } from '../../tools/WorkflowTool/registry.js'
 import { getCwd } from '../../utils/cwd.js'
-import { chatOnlyBoot } from '../../context/surfaceRoute.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import { getWorkflowTranscriptDir } from '../../utils/sessionStorage.js'
 import { plural } from '../../utils/stringUtils.js'
@@ -109,6 +110,78 @@ function laneStateWord(state: WorkflowRunAgentSummary['state']): string {
     default:
       return 'starting'
   }
+}
+
+type ControlKey = 's' | 'r' | 'x' | 'p' | 'X' | 'P' | WorkflowControlAction
+
+export function verbWord(key: ControlKey): string {
+  switch (key) {
+    case 's':
+    case 'skip-agent':
+      return 'skip'
+    case 'r':
+    case 'retry-agent':
+      return 'retry'
+    case 'x':
+    case 'kill-agent':
+      return 'kill'
+    case 'X':
+    case 'stop':
+      return 'stop'
+    case 'p':
+    case 'P':
+    case 'pause':
+    case 'pause-agent':
+      return 'pause'
+    case 'resume':
+    case 'resume-agent':
+      return 'resume'
+    case 'message-agent':
+      return 'message'
+  }
+}
+
+export function controlRefusal(
+  key: ControlKey,
+  status: string,
+  orphaned: boolean,
+  wedged: boolean,
+): string {
+  const verb = verbWord(key)
+  if (orphaned) return `the run is stale (its owner is gone) — nothing to ${verb}; R on the board resumes it from disk`
+  if (wedged) return `the run's owner is alive but silent — nothing to ${verb} until it speaks`
+  if (status === 'paused') return `the run is paused on disk — nothing to ${verb}; R on the board resumes it`
+  if (status === 'running' || status === 'pending') return `the run has no control channel yet — nothing to ${verb}`
+  return `the run already settled — nothing to ${verb}`
+}
+
+function pendingWords(action: WorkflowControlAction, label: string): string {
+  switch (action) {
+    case 'stop':
+      return 'stopping the run — every live agent ends the same way'
+    case 'pause':
+      return 'pausing the run — the agents park before their next model call'
+    case 'resume':
+      return 'resuming the run'
+    case 'kill-agent':
+      return `killing ${label} — the agent ends`
+    case 'pause-agent':
+      return `pausing ${label} — it parks before its next model call`
+    case 'resume-agent':
+      return `resuming ${label}`
+    case 'skip-agent':
+      return `skipping ${label} — its agent() call resolves null`
+    case 'retry-agent':
+      return `retrying ${label} — a fresh attempt starts now`
+    case 'message-agent':
+      return `messaging ${label}`
+  }
+}
+
+function resultWords(action: WorkflowControlAction, label: string, result: WorkflowControlResult): string {
+  if (result.outcome === 'applied') return result.detail
+  if (result.outcome === 'refused') return result.reason
+  return `${verbWord(action)} of ${label}: ${result.reason}`
 }
 
 
@@ -217,9 +290,9 @@ function AgentLane({
           {agent.label}
         </Text>
         {meta.length > 0 ? <Text color={FAINT}>{` · ${meta.join(' · ')}`}</Text> : null}
-        {live ? <Text color={SECOND}>{` · ${live}`}</Text> : null}
+        {live ? <Text color={pulse.kind === 'operator-pause' ? AMBER : SECOND}>{` · ${live}`}</Text> : null}
         {agent.state === 'error' && agent.error ? (
-          <Text color={CRIMSON}>{` · ${agent.error}`}</Text>
+          <Text color={agent.endedBy === 'operator' ? AMBER : CRIMSON}>{` · ${agent.error}`}</Text>
         ) : null}
         {
 }
@@ -278,7 +351,7 @@ function DossierCard({
     : undefined
   const pulse = agentPulse(agent, now)
   const pulseOverride =
-    pulse.kind === 'backoff' || pulse.kind === 'first-token' || pulse.kind === 'quiet'
+    pulse.kind === 'backoff' || pulse.kind === 'first-token' || pulse.kind === 'quiet' || pulse.kind === 'operator-pause' || pulse.kind === 'usage-window'
       ? agentPulseWord(pulse)
       : undefined
   const nowText =
@@ -447,10 +520,10 @@ export function RunDetailPane({
   const { columns, rows } = useTerminalSize()
   const accent = useSessionAccent().accent
   const tokens = useMercuryTokens()
-  const setAppState = useSetAppState()
   const pastBuffer = useOpenEventGate()
   const [note, setNote] = useState<string | null>(null)
   const savingRef = useRef(false)
+  const actingRef = useRef(false)
 
   const isLive = !!task
   const status = isLive ? task.status : (manifest?.status ?? 'running')
@@ -484,6 +557,7 @@ export function RunDetailPane({
             ? 'gated'
             : 'off'
   const headerWord = orphaned ? 'stale' : wedged ? 'wedged?' : tone.word
+  const runEndedBy = isLive ? undefined : manifest?.endedBy
 
   const plannedPhases = isLive ? task.phases : manifest?.phases
   const phaseEvents = isLive
@@ -517,10 +591,14 @@ export function RunDetailPane({
   const transcriptDir = manifest?.transcriptDir ?? getWorkflowTranscriptDir(runId)
   const fallbackDirs = manifest?.transcriptDirs
   const version = isLive ? task.progressVersion : manifest?.mtimeMs
+  const runDir = isLive ? task.runDir : manifest?.runDir
+  const controllable = isRunning && runDir !== undefined
+  const runPausedBy = isLive ? task.pausedBy : manifest?.pausedBy
   const selectedInFlight =
-    isLive &&
+    controllable &&
     !!selected?.agentId &&
     (selected.state === 'start' || selected.state === 'progress')
+  const selectedPausedBy = selected?.pausedBy ?? runPausedBy
 
   const agentCount = isLive ? task.agentCount : (manifest?.agentCount ?? agentSummaries.length)
   const totalTokens = isLive ? task.totalTokens : (manifest?.totalTokens ?? 0)
@@ -539,6 +617,28 @@ export function RunDetailPane({
   } else if (totalTokens > 0) metrics.push(`${GLYPH.tokens} ${formatTokens(totalTokens)} context`)
   if (totalToolCalls > 0) metrics.push(`${totalToolCalls} ${plural(totalToolCalls, 'tool')}`)
   if (model) metrics.push(model)
+
+  const act = (action: WorkflowControlAction): void => {
+    if (runDir === undefined || actingRef.current) return
+    const agentId = selected?.agentId
+    const label = selected?.label ?? 'the agent'
+    actingRef.current = true
+    setNote(pendingWords(action, label))
+    void requestWorkflowControl(runDir, {
+      action,
+      by: workflowControlBy(getSessionId(), process.pid),
+      ...(action.endsWith('-agent') && agentId !== undefined ? { agentId } : {}),
+    }).then(
+      result => {
+        actingRef.current = false
+        setNote(resultWords(action, label, result))
+      },
+      (e: unknown) => {
+        actingRef.current = false
+        setNote(`${verbWord(action)} failed — ${e instanceof Error ? e.message : String(e)}`)
+      },
+    )
+  }
 
   const doSave = (): void => {
     if (!scriptPath || savingRef.current) return
@@ -576,44 +676,36 @@ export function RunDetailPane({
       onOpenAgent(selected.index)
       return
     }
-    if (input === 's' && selectedInFlight && task && selected?.agentId) {
-      const receipt = skipWorkflowAgent(task.id, selected.agentId, setAppState)
-      setNote(
-        receipt === 'applied'
-          ? `skipping ${selected.label} — its agent() call resolves null`
-          : receipt === 'not-in-flight'
-            ? `${selected.label} already settled — nothing to skip`
-            : 'the run already settled — nothing to skip',
-      )
-      return
-    }
-    if (input === 'r' && selectedInFlight && task && selected?.agentId) {
-      const receipt = retryWorkflowAgent(task.id, selected.agentId, setAppState)
-      setNote(
-        receipt === 'applied'
-          ? `retrying ${selected.label} — a fresh attempt starts now`
-          : receipt === 'not-in-flight'
-            ? `${selected.label} already settled — nothing to retry`
-            : 'the run already settled — nothing to retry',
-      )
-      return
-    }
-    if (input === 'p' && isLive && task.status === 'running') {
-      const receipt = pauseWorkflowTask(task.id, setAppState)
-      setNote(
-        receipt === 'applied'
-          ? `paused — finished agents stay cached${chatOnlyBoot() ? '' : '; R on the board resumes it'}`
-          : 'the run already settled — nothing to pause',
-      )
-      return
-    }
-    if (input === 'x' && isLive && task.status === 'running') {
-      const receipt = killWorkflowTask(task.id, setAppState)
-      setNote(
-        receipt === 'applied'
-          ? 'stopping — the row settles when the tree is down'
-          : 'the run already settled — nothing to stop',
-      )
+    if (input === 's' || input === 'r' || input === 'x' || input === 'p' || input === 'X' || input === 'P') {
+      if (!controllable) {
+        setNote(controlRefusal(input, status, orphaned, wedged))
+        return
+      }
+      if ((input === 's' || input === 'r' || input === 'x' || input === 'p') && !selectedInFlight) {
+        setNote(
+          selected === undefined
+            ? `no agent selected — ${input === 'x' ? 'X stops the run' : input === 'p' ? 'P pauses the run' : 'nothing to act on'}`
+            : `${selected.label} already settled — nothing to ${verbWord(input)}`,
+        )
+        return
+      }
+      const action: WorkflowControlAction =
+        input === 's'
+          ? 'skip-agent'
+          : input === 'r'
+            ? 'retry-agent'
+            : input === 'x'
+              ? 'kill-agent'
+              : input === 'p'
+                ? selectedPausedBy !== undefined
+                  ? 'resume-agent'
+                  : 'pause-agent'
+                : input === 'X'
+                  ? 'stop'
+                  : runPausedBy !== undefined
+                    ? 'resume'
+                    : 'pause'
+      act(action)
       return
     }
     if (input === 'S' && scriptPath) {
@@ -679,16 +771,17 @@ export function RunDetailPane({
     Math.max(0, spare - (outCeil - outBase) - (inCeil - inBase)),
   )
 
-  const hints = [
-    agents.length > 0 ? '↑↓ agent' : undefined,
-    agents.length > 0 ? '↵ inspect' : undefined,
-    selectedInFlight ? 's skip · r retry' : undefined,
-    isLive && task?.status === 'running' ? 'p pause · x stop' : undefined,
+  const controlHints = [
+    selectedInFlight ? `x kill · ${selectedPausedBy !== undefined ? 'p resume' : 'p pause'} · s skip · r retry` : undefined,
+    controllable ? `X stop · ${runPausedBy !== undefined ? 'P resume' : 'P pause'} run` : undefined,
     scriptPath ? 'S save' : undefined,
-    'esc back',
+    'esc',
   ]
     .filter(Boolean)
     .join(' · ')
+  const navHints = agents.length > 0 ? '↑↓ agent · ↵ inspect · ' : ''
+  const hints =
+    displayWidth(navHints + controlHints) <= Math.max(10, columns - 4) ? navHints + controlHints : controlHints
 
   return (
     <AlternateScreen>
@@ -714,6 +807,8 @@ export function RunDetailPane({
         <Box height={1} overflow="hidden" flexShrink={0}>
           <Text wrap="truncate-end">
             <StateBadge state={headerState} label={headerWord} />
+            {isRunning && runPausedBy !== undefined ? <Text color={AMBER}>{` · paused by ${runPausedBy}`}</Text> : null}
+            {status === 'killed' && runEndedBy !== undefined ? <Text color={AMBER}>{` · stopped by ${runEndedBy}`}</Text> : null}
             <Text color={FAINT}>{` · ${elapsed} · ${metrics.join(' · ')}`}</Text>
           </Text>
         </Box>

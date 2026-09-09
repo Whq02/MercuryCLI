@@ -6,14 +6,18 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { DeepImmutable } from 'src/types/utils.js'
 import { Box, Text } from '../../ink.js'
-import { useAppState, useSetAppState } from '../../state/AppState.js'
+import { useAppState } from '../../state/AppState.js'
 import {
   buildResumePrompt,
   isLocalWorkflowTask,
-  killWorkflowTask,
-  pauseWorkflowTask,
   type LocalWorkflowTaskState,
 } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
+import {
+  requestWorkflowControl,
+  workflowControlBy,
+  type WorkflowControlAction,
+} from '../../tools/WorkflowTool/runControl.js'
+import { getSessionId } from '../../bootstrap/state.js'
 import {
   diskResumability,
   isRunOrphaned,
@@ -152,6 +156,8 @@ type RunFacts = {
   args?: unknown
   script?: string
   runDir?: string
+  pausedBy?: string
+  endedBy?: string
   owner?: { pid: number; word: string }
   pendingAsks?: number
 }
@@ -192,6 +198,8 @@ function factsForTask(t: DeepImmutable<LocalWorkflowTaskState>): RunFacts {
     scriptPath: t.scriptPath,
     args: t.args,
     script: t.script,
+    runDir: t.runDir,
+    pausedBy: t.pausedBy,
   }
 }
 
@@ -240,6 +248,8 @@ function factsForWorkRow(
     error: w.error,
     scriptPath: manifest?.scriptPath,
     runDir: manifest?.runDir,
+    pausedBy: w.pausedBy ?? manifest?.pausedBy,
+    endedBy: manifest?.endedBy,
     pendingAsks: w.pendingAsks,
   }
 }
@@ -270,6 +280,8 @@ function factsForManifest(m: WorkflowRunManifest & { mtimeMs: number }): RunFact
     scriptPath: m.scriptPath,
     args: m.args,
     runDir: m.runDir,
+    pausedBy: m.pausedBy,
+    endedBy: m.endedBy,
   }
 }
 
@@ -377,6 +389,8 @@ function RunInfoPane({ row, now }: { row: RunRow; now: number }): React.ReactNod
       ) : null}
       <Text>
         <StateBadge state={f.state} label={f.word} />
+        {f.pausedBy !== undefined && (f.word === 'run' || f.word === 'wait') ? <Text color={tokens.warning}> · paused by {f.pausedBy}</Text> : null}
+        {f.endedBy !== undefined && f.word === 'killed' ? <Text color={tokens.textMuted}> · stopped by {f.endedBy}</Text> : null}
         <Text color={tokens.textMuted}> · {runtime}</Text>
       </Text>
       {f.error ? (
@@ -454,7 +468,6 @@ type ViewState =
 export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.ReactNode {
   const tokens = useMercuryTokens()
   const tasks = useAppState(s => s.tasks)
-  const setAppState = useSetAppState()
   const roster = useFocusedWorkRoster()
   const cwd = useFocusedWorkspaceCwd()
   const [pastRuns, setPastRuns] = useState<Array<WorkflowRunManifest & { mtimeMs: number }>>([])
@@ -489,8 +502,8 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
       derivedAt,
       pidAlive,
     )
-    const otherPids = otherSessionRunnerPids(focusedSessionIdOrNull())
-    const externalKept = external.filter(m => !otherPids.has(m.ownerPid))
+    const focusedId = focusedSessionIdOrNull()
+    const otherPids = otherSessionRunnerPids(focusedId)
     const rosterRow = (w: WorkRowV1, section: RunSection): RunRow => {
       const manifest = w.workflowRunId !== undefined ? diskByRunId.get(w.workflowRunId) : undefined
       return {
@@ -520,7 +533,7 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
       })),
       ...rosterRecent.map(w => rosterRow(w, 'recent')),
     ]
-    const externalRows: RunRow[] = externalKept.map(m => ({
+    const externalRows: RunRow[] = external.map(m => ({
       runId: m.runId,
       section: 'external',
       manifest: m,
@@ -531,7 +544,12 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
         clockEnd: m.liveness === 'wedged' ? m.mtimeMs : undefined,
         owner: {
           pid: m.ownerPid,
-          word: m.liveness === 'wedged' ? 'alive · silent' : 'elsewhere',
+          word:
+            m.liveness === 'wedged'
+              ? 'alive · silent'
+              : otherPids.has(m.ownerPid) && m.sessionId !== undefined && m.sessionId !== focusedId
+                ? `session ${m.sessionId.slice(0, 8)}`
+                : 'elsewhere',
         },
       },
     }))
@@ -585,12 +603,14 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
   }
   const queuedResumes = useRef<Set<string>>(new Set())
   const lastActivatedKey = useRef<string | undefined>(undefined)
+  const actingRuns = useRef<Set<string>>(new Set())
 
   const onBoard = view.view === 'board'
   const watchingHostedRun =
     view.view !== 'board' &&
     view.taskId === undefined &&
-    roster.rows.some(w => w.kind === 'workflow' && w.workflowRunId === view.runId && workRowRuns(w))
+    (roster.rows.some(w => w.kind === 'workflow' && w.workflowRunId === view.runId && workRowRuns(w)) ||
+      pastRuns.some(m => m.runId === view.runId && m.status === 'running'))
   useEffect(() => {
     if (!onBoard && !watchingHostedRun) return
     const loader = createPastRunsLoader({
@@ -782,6 +802,36 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
     }
   }
 
+  const controllable = (r: RunRow): boolean =>
+    r.facts.runDir !== undefined &&
+    ((r.section === 'active' && r.facts.word !== 'stale') || (r.section === 'external' && r.facts.word === 'run'))
+  const control = (r: RunRow, action: WorkflowControlAction): void => {
+    const runDir = r.facts.runDir
+    if (runDir === undefined) return
+    if (actingRuns.current.has(r.runId)) {
+      setActionNote(`${r.runId}: a request is still in flight`)
+      return
+    }
+    actingRuns.current.add(r.runId)
+    setActionNote(
+      action === 'stop'
+        ? `stopping ${r.facts.name} — every live agent ends the same way`
+        : action === 'pause'
+          ? `pausing ${r.facts.name} — its agents park before their next model call`
+          : `resuming ${r.facts.name}`,
+    )
+    void requestWorkflowControl(runDir, { action, by: workflowControlBy(getSessionId(), process.pid) }).then(
+      result => {
+        actingRuns.current.delete(r.runId)
+        setActionNote(result.outcome === 'applied' ? `${r.facts.name}: ${result.detail}` : `${r.facts.name}: ${result.reason}`)
+      },
+      (e: unknown) => {
+        actingRuns.current.delete(r.runId)
+        setActionNote(`${r.facts.name}: ${action} failed — ${e instanceof Error ? e.message : String(e)}`)
+      },
+    )
+  }
+
   const rowActions = [
     {
       key: 'D',
@@ -802,32 +852,22 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
     {
       key: 'x',
       label: 'stop',
-      when: (r: RunRow) => r.section === 'active' && !!r.taskId,
-      run: (r: RunRow) => {
-        if (r.taskId) {
-          const receipt = killWorkflowTask(r.taskId, setAppState)
-          setActionNote(
-            receipt === 'applied'
-              ? `stopping ${r.runId} — the row settles when the tree is down`
-              : `${r.runId} already settled — nothing to stop`,
-          )
-        }
-      },
+      when: controllable,
+      run: (r: RunRow) => control(r, 'stop'),
     },
     {
       key: 'p',
       label: 'pause',
-      when: (r: RunRow) => r.section === 'active' && !!r.taskId,
-      run: (r: RunRow) => {
-        if (r.taskId) {
-          const receipt = pauseWorkflowTask(r.taskId, setAppState)
-          setActionNote(
-            receipt === 'applied'
-              ? `paused ${r.runId} — R on its Recent row dispatches the resume`
-              : `${r.runId} already settled — nothing to pause`,
-          )
-        }
-      },
+      hint: 'p pause',
+      when: (r: RunRow) => controllable(r) && r.facts.pausedBy === undefined,
+      run: (r: RunRow) => control(r, 'pause'),
+    },
+    {
+      key: 'p',
+      label: 'resume',
+      hint: 'p resume',
+      when: (r: RunRow) => controllable(r) && r.facts.pausedBy !== undefined,
+      run: (r: RunRow) => control(r, 'resume'),
     },
     {
       key: 'S',
@@ -942,29 +982,38 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
       }}
       initialRowKey={lastActivatedKey.current}
       rowActions={rowActions}
-      footerHints={actionNote ?? undefined}
       composerSlot={{
         active: dispatchOpen,
+        rows: (actionNote !== null ? 1 : 0) + (dispatchOpen || dispatchDraft !== '' ? 2 : 0),
         node:
-          dispatchOpen || dispatchDraft !== '' ? (
+          dispatchOpen || dispatchDraft !== '' || actionNote !== null ? (
             <Box flexDirection="column" flexShrink={0}>
-              <Text wrap="truncate-end">
-                <Text color={tokens.accent} bold>
-                  dispatch
+              {actionNote !== null ? (
+                <Text color={tokens.warning} wrap="truncate-end">
+                  {actionNote}
                 </Text>
-                <Text color={tokens.textMuted}>
-                  {' '}
-                  {GLYPH.cursor} this session · session model · {cwd}
-                </Text>
-              </Text>
-              <Text wrap="truncate-end">
-                <Text color={tokens.textSecondary}>{GLYPH.prompt} </Text>
-                <Text>{dispatchDraft}</Text>
-                {dispatchOpen ? <Text color={tokens.accent}>{GLYPH.caretBlock}</Text> : null}
-                <Text color={tokens.textMuted}>
-                  {dispatchOpen ? '   ↵ dispatch · esc keep draft' : '   D resumes the draft'}
-                </Text>
-              </Text>
+              ) : null}
+              {dispatchOpen || dispatchDraft !== '' ? (
+                <>
+                  <Text wrap="truncate-end">
+                    <Text color={tokens.accent} bold>
+                      dispatch
+                    </Text>
+                    <Text color={tokens.textMuted}>
+                      {' '}
+                      {GLYPH.cursor} this session · session model · {cwd}
+                    </Text>
+                  </Text>
+                  <Text wrap="truncate-end">
+                    <Text color={tokens.textSecondary}>{GLYPH.prompt} </Text>
+                    <Text>{dispatchDraft}</Text>
+                    {dispatchOpen ? <Text color={tokens.accent}>{GLYPH.caretBlock}</Text> : null}
+                    <Text color={tokens.textMuted}>
+                      {dispatchOpen ? '   ↵ dispatch · esc keep draft' : '   D resumes the draft'}
+                    </Text>
+                  </Text>
+                </>
+              ) : null}
             </Box>
           ) : null,
         onInput: handleDispatchInput,
