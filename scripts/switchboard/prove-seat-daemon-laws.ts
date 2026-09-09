@@ -304,7 +304,7 @@ try {
       const p = transcript2()
       return p !== null && readFileSync(p, 'utf8').includes('first words into the warm runner')
     }, 30_000))
-    check('W the pool re-warms behind the claim (a second pre-spawn in the log)', await untilAsync(() => daemonLog().split('\n').filter(l => l.includes('warm runner pre-spawned') && l.includes(work2)).length >= 2, 15_000))
+    check('W the completed claim creates no speculative replacement', daemonLog().split('\n').filter(l => l.includes('warm runner pre-spawned') && l.includes(work2)).length === 1)
   }
 } finally {
   try {

@@ -894,10 +894,6 @@ export function makeConcourseAdmitHandler(
           }
         }, deps.dir)
         deps.onSpawned?.(runnerId, claimed.spec, claimed.pid)
-        if (deps.ensureWarm !== undefined) {
-          const rewarm = setTimeout(() => deps.ensureWarm!(workspaceId, kit, req.bypassConsent === true), 0)
-          rewarm.unref?.()
-        }
         return {
           ok: true,
           ...(retainedNote !== undefined ? { note: retainedNote } : {}),
@@ -913,10 +909,6 @@ export function makeConcourseAdmitHandler(
         }
       }
       logForDebugging(`[daemon] warm claim declined (${claimed.reason}) — spawning cold`)
-      if (deps.ensureWarm !== undefined) {
-        const rewarm = setTimeout(() => deps.ensureWarm!(workspaceId, kit, req.bypassConsent === true), 0)
-        rewarm.unref?.()
-      }
     }
 
     const used = new Set(
@@ -1831,10 +1823,6 @@ export async function reactivateConcourseSession(
         workers[short] = next
       }, deps.dir)
       deps.onSpawned?.(short, claimed.spec, claimed.pid)
-      if (deps.ensureWarm !== undefined) {
-        const rewarm = setTimeout(() => deps.ensureWarm!(rec.workspaceId, kit, args.bypassConsent === true), 0)
-        rewarm.unref?.()
-      }
       return {
         ok: true,
         runnerId: short,
@@ -1849,10 +1837,6 @@ export async function reactivateConcourseSession(
       }
     }
     logForDebugging(`[daemon] warm claim declined for the reactivate of ${rec.sessionId} (${claimed.reason}) — respawning cold`)
-    if (deps.ensureWarm !== undefined) {
-      const rewarm = setTimeout(() => deps.ensureWarm!(rec.workspaceId, kit, args.bypassConsent === true), 0)
-      rewarm.unref?.()
-    }
   }
   const keylessDrift = (args.keyless === true) !== (rec.keyless === true)
   if (args.modelKey !== rec.modelKey || effort !== rec.effort || isolationDrift || keylessDrift) {
