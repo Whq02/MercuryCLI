@@ -3,7 +3,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { gridToPng } from './gridToPng.ts'
 
@@ -24,6 +24,47 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ': ' + detail : ''}`)
 }
+for (const moving of [true, false]) {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'redraw-observation-')))
+  const output = join(home, 'capture.json')
+  const config = join(home, 'config.json')
+  const script = String.raw`
+    process.stdout.write('\x1b[31mX')
+    setTimeout(() => {
+      let count = 0
+      const timer = setInterval(() => {
+        count++
+        process.stdout.write('\r\x1b[' + (${moving} ? 31 + count % 6 : 31) + 'mX')
+        if (count === 12) clearInterval(timer)
+      }, 300)
+    }, 1200)
+    setTimeout(() => {}, 10000)
+  `
+  writeFileSync(config, JSON.stringify({
+    argv: [node, '-e', script], cwd: home, cols: 20, rows: 5, out: output, total: 35,
+    sends: [
+      { awaitText: 'X', requireAwait: true, data: '', mark: 'initial' },
+      { awaitRedraws: 3, afterPrevTicks: 1, requireAwait: true, data: '', mark: 'changed' },
+    ],
+    readyText: moving ? 'X' : undefined,
+  }))
+  const result = await new Promise<{ code: number | null; text: string }>(resolveRun => {
+    const child = spawn(driver.python, [captureEngineEntry(driver, root), config], {
+      env: { HOME: home, PATH: `${dirname(node)}:/usr/bin:/bin`, TERM: 'xterm-256color', MERCURY_VSHOT_BUDGET_SCALE: String(vshotBudgetScale()) },
+    })
+    let text = ''
+    child.stdout.on('data', value => { text += value })
+    child.stderr.on('data', value => { text += value })
+    const timeout = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(15000))
+    child.on('close', code => { clearTimeout(timeout); resolveRun({ code, text }) })
+  })
+  check(moving ? 'delayed color-only redraws satisfy the observed gate' : 'repeated identical writes never satisfy the observed gate', result.code === (moving ? 0 : 4), result.text.trim().slice(-300))
+  if (existsSync(output)) {
+    const marks = JSON.parse(readFileSync(output, 'utf8')).marks ?? []
+    const observed = marks.find((mark: any) => mark.label === 'changed')
+    check(moving ? 'the redraw mark follows actual delayed changes' : 'the unchanged fixture has no redraw mark', moving ? observed?.atMs >= 1800 : observed === undefined)
+  } else check('the redraw fixture retains its capture', false)
+}
 const fixture = await startFixtureApi([{ kind: 'text', text: 'Ready.', model: 'claude-fable-5-1' }])
 try {
   for (const setting of settings) for (const cols of [80, 120]) {
@@ -36,15 +77,16 @@ try {
     const key = 'motion-journey-fixture-key'
     writeFileSync(join(cwd, 'README.md'), '# Motion fixture\n')
     writeFileSync(join(home, '.mercury.json'), JSON.stringify({ theme: 'dark', motion: setting, hasCompletedOnboarding: true, lastOnboardingVersion: '99.0.0', numStartups: 10, projects: { [cwd]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } }, customApiKeyResponses: { approved: [key.slice(-20)], rejected: [] }, switchboardCapacity: { askedAt: 0, allowed: true, recommendedSeats: 5 } }))
+    check(`${cols} ${setting}: the fixture stores the requested Motion setting`, JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')).motion === setting)
     writeFileSync(config, JSON.stringify({
       argv: [node, dist, '--model', 'claude-fable-5-1'], cwd, cols, rows: 40, out: output, total: 240,
       sends: [
         { awaitText: 'New Session', requireAwait: true, awaitSettleTicks: 4, atTick: 100, data: '\r' },
         { awaitText: 'type a prompt, or / for commands', requireAwait: true, atTick: 150, data: '', mark: 'ready' },
         { afterPrevTicks: 40, data: '', mark: 'quiet' },
-        { afterPrevTicks: 15, data: '\u001b[O', mark: 'blur' },
-        { afterPrevTicks: 25, data: '\u001b[I', mark: 'focus' },
-        { afterPrevTicks: 10, data: 'a', mark: 'typed' },
+        { afterPrevTicks: setting === 'full' ? 2 : 15, ...(setting === 'full' ? { awaitRedraws: 4 } : {}), data: '\u001b[O', mark: 'blur' },
+        { afterPrevTicks: setting === 'full' ? 2 : 25, ...(setting === 'full' ? { awaitRedraws: 4 } : {}), data: '\u001b[I', mark: 'focus' },
+        { afterPrevTicks: setting === 'off' ? 10 : 1, ...(setting !== 'off' ? { awaitRedraws: 4 } : {}), data: 'a', mark: 'typed' },
         { afterPrevTicks: 3, data: '\u0015', mark: 'clear' },
         { afterPrevTicks: 3, signal: 'SIGTERM', data: '', mark: 'exit' },
       ],
@@ -52,6 +94,7 @@ try {
     const env = {
       HOME: home, PATH: `${dirname(node)}:/usr/bin:/bin:/usr/sbin:/sbin`, TERM: 'xterm-256color',
       MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_TEAMS_DIR: join(home, 'teams'),
+      MERCURY_VSHOT_BUDGET_SCALE: String(vshotBudgetScale()),
       MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: key, ANTHROPIC_BASE_URL: fixture.url, VSHOT_TEE: tee,
     }
     try {
@@ -64,6 +107,7 @@ try {
         child.on('close', code => { clearTimeout(timeout); resolveRun({ code, text }) })
       })
       check(`${cols} ${setting}: the complete terminal journey ran`, result.code === 0, result.text.trim().slice(-700))
+      check(`${cols} ${setting}: the requested Motion setting survives the journey`, JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')).motion === setting)
       check(`${cols} ${setting}: terminal capture artifacts exist`, existsSync(output) && existsSync(tee))
       if (!existsSync(output) || !existsSync(tee)) continue
       const capture = JSON.parse(readFileSync(output, 'utf8'))

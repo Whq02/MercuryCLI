@@ -136,6 +136,9 @@ send_await_seen_tick = None
 send_stable_run = 0
 send_stable_text = None
 send_stable_eval_tick = -1
+send_redraw_count = 0
+send_redraw_snapshot = None
+send_redraw_tick = -1
 raw_seen = bytearray()
 TICK_S = 0.2
 _RELATIVE_KEYS = ("atMs", "afterMark", "afterPrevMs")
@@ -318,6 +321,16 @@ while True:
                 due = settled and tick >= send_await_seen_tick + int(
                     nxt.get("awaitSettleTicks", 0)
                 )
+        redraws = int(nxt.get("awaitRedraws", 0))
+        if redraws:
+            after = (prev_send_tick or 0) + int(nxt.get("afterPrevTicks", 0))
+            if tick >= after and tick > send_redraw_tick:
+                snapshot = tuple(screen.buffer[y][x] for y in range(rows) for x in range(cols))
+                if send_redraw_snapshot is not None and snapshot != send_redraw_snapshot:
+                    send_redraw_count += 1
+                send_redraw_snapshot = snapshot
+                send_redraw_tick = tick
+            due = send_redraw_count >= redraws
         send_payload = None
         if due:
             if nxt.get("signal"):
@@ -352,6 +365,9 @@ while True:
             send_stable_run = 0
             send_stable_text = None
             send_stable_eval_tick = -1
+            send_redraw_count = 0
+            send_redraw_snapshot = None
+            send_redraw_tick = -1
             sent += 1
     if (ready_texts or stable_need) and sent >= len(sends) and resized >= len(resizes):
         text = grid_text()
