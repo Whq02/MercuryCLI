@@ -34,6 +34,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-newborn-grace.ts" || { __rc=$?; fa
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-kit-birth.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-kit-birth.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-runner-quiescence.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-runner-quiescence.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-retire-drive.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-retire-drive.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-capability-census.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-capability-census.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-parked-state.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-parked-state.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-reactivate-door.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-reactivate-door.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-close-all.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-close-all.ts" "$__t" "$__rc"

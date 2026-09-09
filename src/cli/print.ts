@@ -39,6 +39,7 @@ import { reconstructContentReplacementState } from '../utils/toolResultStorage.j
 import { resetSessionFilePointer, restoreSessionMetadata } from '../utils/sessionStorage.js'
 import { flushSessionStorage, peekProject } from '../utils/sessionStorage/writer.js'
 import { RunnerQuiescence } from '../daemon/runnerQuiescence.js'
+import { capabilityHoldWords, runnerCapabilityHolds } from '../daemon/runnerCapabilityCensus.js'
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
 import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
 import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
@@ -1342,7 +1343,7 @@ export async function runHeadless(
       if (getCommandQueue().some(isMainThreadCommand)) return 'a prompt is queued'
       const busy = getRunningTasks(getAppState()).filter(task => task.type !== 'in_process_teammate')
       if (busy.length > 0) return `${busy.length} background task(s) still running`
-      return null
+      return capabilityHoldWords(runnerCapabilityHolds(io))
     },
     flush: () => flushSessionStorage(),
   })
