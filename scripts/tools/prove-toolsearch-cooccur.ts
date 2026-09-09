@@ -50,7 +50,7 @@ assert(!offOrder.includes('mcp__srv__gamma_mail'), 'OFF: zero-match tool absent'
 console.log('[2] ON ⇒ chain boost breaks the tie on the real scorer')
 process.env.MERCURY_TOOLSEARCH_COOCCUR = '1'
 prior.__resetCooccurForTest()
-assert(prior.toolSearchCooccurEnabled() === true, 'gate on with env + fork')
+assert(prior.toolSearchCooccurEnabled() === true, 'gate on with the env opt-in under the stamp')
 prior.recordToolDiscovery(['mcp__srv__partner_search'])
 prior.recordToolDiscovery(['mcp__srv__beta_tar'])
 prior.recordToolDiscovery(['mcp__srv__beta_tar'])
