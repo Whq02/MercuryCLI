@@ -26,7 +26,7 @@ const MODEL_A = 'claude-opus-5'
 const MODEL_B = 'claude-sonnet-5'
 
 const lineOf = (blocks: string[]): string =>
-  blocks.join('\n\n').match(/You are powered by[^\n]*/)?.[0] ?? '(no identity line)'
+  blocks.join('\n\n').match(/Mercury is what you are; the model you run through Mercury is[^\n]*/)?.[0] ?? '(no identity line)'
 
 let failed = 0
 function check(label: string, cond: boolean, detail = ''): void {

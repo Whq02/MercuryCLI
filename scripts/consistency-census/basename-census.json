@@ -16,7 +16,7 @@
   "sites": [
     {
       "file": "src/entrypoints/cli.tsx",
-      "line": 322,
+      "line": 335,
       "needle": ".mercury",
       "excerpt": "return join(home, '.mercury')",
       "cls": "owner-internal",
@@ -164,7 +164,7 @@
       "needle": ".claude",
       "excerpt": "return base === '.claude' || base.startsWith('.claude-')",
       "cls": "compat-boundary",
-      "why": "the account estate reads a scope's identity from the scope's own config file and adopts a snapshot left under the retired basename once (Saturn's account facts read the same scope identity)"
+      "why": "the account estate reads a scope's identity from the scope's own config file and adopts an identity snapshot left in an external .claude.json file once (Saturn's account facts read the same scope identity)"
     },
     {
       "file": "src/utils/accounts/scopeScan.ts",
@@ -172,7 +172,7 @@
       "needle": ".claude.json",
       "excerpt": "const retired = readScopeIdentity(join(dir, '.claude.json'))",
       "cls": "compat-boundary",
-      "why": "the account estate reads a scope's identity from the scope's own config file and adopts a snapshot left under the retired basename once (Saturn's account facts read the same scope identity)"
+      "why": "the account estate reads a scope's identity from the scope's own config file and adopts an identity snapshot left in an external .claude.json file once (Saturn's account facts read the same scope identity)"
     },
     {
       "file": "src/utils/cockpit/repoSurfaceMap.ts",
@@ -240,7 +240,7 @@
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
-      "line": 51,
+      "line": 50,
       "needle": ".claude.json",
       "excerpt": "'.claude.json',",
       "cls": "compat-boundary",
@@ -248,7 +248,7 @@
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
-      "line": 52,
+      "line": 51,
       "needle": ".mercury.json",
       "excerpt": "'.mercury.json',",
       "cls": "compat-boundary",
@@ -256,7 +256,7 @@
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
-      "line": 60,
+      "line": 59,
       "needle": ".claude",
       "excerpt": "'.claude',",
       "cls": "compat-boundary",
@@ -264,7 +264,7 @@
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
-      "line": 61,
+      "line": 60,
       "needle": ".mercury",
       "excerpt": "'.mercury',",
       "cls": "compat-boundary",
@@ -272,7 +272,7 @@
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
-      "line": 468,
+      "line": 455,
       "needle": ".mercury",
       "excerpt": "{ dir: joinWithSep(joinWithSep(cwd, '.mercury'), 'skills'), prefix: '/.mercury/skills/' },",
       "cls": "compat-boundary",
