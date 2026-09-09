@@ -12,5 +12,6 @@ fail=0
 echo "── context-assembly proofs ──"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-attachments-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-attachments-parity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-image-road.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-image-road.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-run-protocol-wiring.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-run-protocol-wiring.ts" "$__t" "$__rc"
 if [[ "$fail" == "0" ]]; then echo "✅ ATTACHMENTS SUITE GREEN"; exit 0; else
   echo "❌ ATTACHMENTS SUITE RED"; exit 1; fi
