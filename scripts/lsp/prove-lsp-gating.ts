@@ -54,7 +54,7 @@ try {
   {
     const sources = getMercuryLspServerSources()
     check(
-      "'0' ⇒ zero fork server sources",
+      "'0' ⇒ zero server sources",
       Object.keys(sources.env).length === 0 && Object.keys(sources.builtin).length === 0,
     )
   }
