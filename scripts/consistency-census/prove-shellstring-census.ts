@@ -19,18 +19,30 @@ execFileSync(process.execPath, [join(ROOT, 'scripts/consistency-census/gen-shell
 const after = readFileSync(censusPath, 'utf8')
 if (before !== after) writeFileSync(censusPath, before)
 check('§A regeneration reproduces the SHELL-STRING census byte-for-byte', before === after)
-type Site = { cls: string; file: string; line: number; mechanism: string }
+type Site = { cls: string; file: string; mechanism: string; excerpt: string }
 const census = JSON.parse(after) as { sites: Site[] }
 if (before !== after) {
-  const rows = (sites: Site[]): Map<string, Site> => new Map(sites.map(s => [JSON.stringify(s), s]))
+  const rows = (sites: Site[]): Map<string, { site: Site; count: number }> => {
+    const out = new Map<string, { site: Site; count: number }>()
+    for (const site of sites) {
+      const key = JSON.stringify(site)
+      const row = out.get(key) ?? { site, count: 0 }
+      row.count++
+      out.set(key, row)
+    }
+    return out
+  }
   const committed = rows((JSON.parse(before) as { sites: Site[] }).sites)
   const regenerated = rows(census.sites)
-  const name = (s: Site): string => `${s.file}:${s.line} (${s.mechanism})`
-  const stale = [...committed].filter(([k]) => !regenerated.has(k)).map(([, s]) => s)
-  const unrecorded = [...regenerated].filter(([k]) => !committed.has(k)).map(([, s]) => s)
+  const name = (s: Site): string => `${s.file} (${s.mechanism}) ${s.excerpt}`
+  const surplus = (a: Map<string, { site: Site; count: number }>, b: Map<string, { site: Site; count: number }>): Site[] =>
+    [...a].filter(([k, row]) => (b.get(k)?.count ?? 0) < row.count).map(([, row]) => row.site)
+  const stale = surplus(committed, regenerated)
+  const unrecorded = surplus(regenerated, committed)
   for (const s of stale.slice(0, 20)) console.log(`    committed but not in the tree: ${name(s)}`)
   for (const s of unrecorded.slice(0, 20)) console.log(`    in the tree but not committed: ${name(s)}`)
-  console.log(`    ${stale.length} stale row(s), ${unrecorded.length} unrecorded row(s) — regenerate with scripts/consistency-census/gen-shellstring-census.ts`)
+  const order = stale.length === 0 && unrecorded.length === 0 ? ' (the same rows in a different order or shape)' : ''
+  console.log(`    ${stale.length} stale row(s), ${unrecorded.length} unrecorded row(s)${order} — regenerate with scripts/consistency-census/gen-shellstring-census.ts`)
 }
 check(
   '§B zero unclassified sites',

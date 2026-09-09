@@ -1,12 +1,16 @@
 #!/usr/bin/env bun
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { codeOnlyLines } from '../lib/codeText.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
+const argValue = (name: string): string | undefined => {
+  const at = process.argv.indexOf(name)
+  return at >= 0 ? process.argv[at + 1] : undefined
+}
+const ROOT = argValue('--root') ?? join(import.meta.dir, '..', '..')
 
 interface Hit {
   file: string
-  line: number
   mechanism: 'execSync-string' | 'exec-string' | 'shell-dash-c' | 'hardcoded-interpreter' | 'hardcoded-tmp'
   excerpt: string
 }
@@ -24,11 +28,11 @@ const walk = (dir: string): void => {
     }
     if (!/\.(ts|tsx|mjs)$/.test(name)) continue
     const rel = relative(ROOT, full)
-    if (rel.startsWith('scripts/consistency-census/gen-')) continue
-    const lines = readFileSync(full, 'utf8').split('\n')
-    lines.forEach((text, i) => {
+    if (rel.startsWith('scripts/consistency-census/gen-') || rel === 'scripts/consistency-census/prove-census-comment-invariance.ts') continue
+    const lines = codeOnlyLines(rel, readFileSync(full, 'utf8'))
+    for (const text of lines) {
       const push = (mechanism: Hit['mechanism']): void => {
-        hits.push({ file: rel, line: i + 1, mechanism, excerpt: text.trim().slice(0, 140) })
+        hits.push({ file: rel, mechanism, excerpt: text.trim().slice(0, 140) })
       }
       if (/(?<![.\w])execSync\(/.test(text)) push('execSync-string')
       else if (/(?<![.\w])exec\((`|')/.test(text)) push('exec-string')
@@ -42,7 +46,7 @@ const walk = (dir: string): void => {
       ) {
         push('hardcoded-tmp')
       }
-    })
+    }
   }
 }
 for (const d of SCAN_DIRS) walk(join(ROOT, d))
@@ -130,7 +134,7 @@ const census = hits.map(h => {
   return { ...h, cls: rule?.cls ?? 'UNCLASSIFIED', why: rule?.why ?? 'no rule — the UN-44 ratchet fails on this' }
 })
 
-const outPath = join(ROOT, 'scripts', 'consistency-census', 'shellstring-census.json')
+const outPath = argValue('--out') ?? join(ROOT, 'scripts', 'consistency-census', 'shellstring-census.json')
 writeFileSync(
   outPath,
   JSON.stringify(
@@ -145,4 +149,4 @@ writeFileSync(
 )
 const un = census.filter(c => c.cls === 'UNCLASSIFIED')
 console.log(`shell-string census: ${census.length} site(s); ${un.length} unclassified`)
-for (const u of un.slice(0, 40)) console.log(`  UNCLASSIFIED ${u.file}:${u.line} (${u.mechanism}) ${u.excerpt}`)
+for (const u of un.slice(0, 40)) console.log(`  UNCLASSIFIED ${u.file} (${u.mechanism}) ${u.excerpt}`)

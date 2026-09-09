@@ -19,7 +19,7 @@ execFileSync(process.execPath, [join(ROOT, 'scripts/consistency-census/gen-basen
   stdio: 'pipe',
 })
 const after = readFileSync(scratch, 'utf8')
-type Site = { file: string; line: number; needle: string; cls: string; why?: string; excerpt?: string }
+type Site = { file: string; needle: string; cls: string; why?: string; excerpt?: string }
 type Census = { counts: Record<string, number>; needles: string[]; sites: Site[] }
 const committedCensus = JSON.parse(committed) as Census
 const census = JSON.parse(after) as Census
@@ -29,13 +29,10 @@ const regeneratedKeys = census.sites.map(siteKey).sort()
 const missing = committedKeys.filter(k => !regeneratedKeys.includes(k))
 const added = regeneratedKeys.filter(k => !committedKeys.includes(k))
 check(
-  '§A regeneration reproduces the committed BASENAME census sites (line numbers excluded)',
-  missing.length === 0 && added.length === 0 && JSON.stringify(committedCensus.needles) === JSON.stringify(census.needles),
-  `${missing.length} committed site(s) gone, ${added.length} new site(s): ${[...missing, ...added].map(k => k.split('\u0000').slice(0, 3).join(' · ')).join(' | ').slice(0, 400)}`,
+  '§A regeneration reproduces the committed BASENAME census byte-for-byte',
+  committed === after,
+  `${missing.length} committed site(s) gone, ${added.length} new site(s): ${[...missing, ...added].map(k => k.split('\u0000').slice(0, 3).join(' · ')).join(' | ').slice(0, 400)}${missing.length === 0 && added.length === 0 ? ' (the same rows in a different order or shape)' : ''} — regenerate with scripts/consistency-census/gen-basename-census.ts`,
 )
-if (committed !== after) {
-  console.log('     (line numbers drifted — refresh the tracked file with: bun scripts/consistency-census/gen-basename-census.ts)')
-}
 check(
   '§B zero FORBIDDEN rows (the project-.claude-join ban is mechanical)',
   (census.counts['FORBIDDEN'] ?? 0) === 0,
