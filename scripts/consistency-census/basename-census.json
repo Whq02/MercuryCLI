@@ -16,7 +16,6 @@
   "sites": [
     {
       "file": "src/entrypoints/cli.tsx",
-      "line": 335,
       "needle": ".mercury",
       "excerpt": "return join(home, '.mercury')",
       "cls": "owner-internal",
@@ -24,7 +23,6 @@
     },
     {
       "file": "src/projectOnboardingState.ts",
-      "line": 52,
       "needle": "MERCURY.md",
       "excerpt": "isComplete: getFsImplementation().existsSync(join(getCwd(), 'MERCURY.md')),",
       "cls": "compat-boundary",
@@ -32,7 +30,6 @@
     },
     {
       "file": "src/services/concourse/coordinatorTools.ts",
-      "line": 246,
       "needle": "CLAUDE.md",
       "excerpt": "const MARKS = ['MERCURY.md', 'CLAUDE.md', ...PROJECT_CONFIG_DIR_NAMES]",
       "cls": "compat-boundary",
@@ -40,7 +37,6 @@
     },
     {
       "file": "src/services/concourse/coordinatorTools.ts",
-      "line": 246,
       "needle": "MERCURY.md",
       "excerpt": "const MARKS = ['MERCURY.md', 'CLAUDE.md', ...PROJECT_CONFIG_DIR_NAMES]",
       "cls": "compat-boundary",
@@ -48,7 +44,6 @@
     },
     {
       "file": "src/services/instructions/adapters/mercuryNative.ts",
-      "line": 61,
       "needle": "MERCURY.md",
       "excerpt": "join(dir, 'MERCURY.md'),",
       "cls": "compat-boundary",
@@ -56,7 +51,6 @@
     },
     {
       "file": "src/services/instructions/adapters/mercuryNative.ts",
-      "line": 62,
       "needle": "MERCURY.md",
       "excerpt": "...projectConfigDirs(dir).map(home => join(home, 'MERCURY.md')),",
       "cls": "compat-boundary",
@@ -64,7 +58,6 @@
     },
     {
       "file": "src/services/instructions/adapters/mercuryNative.ts",
-      "line": 97,
       "needle": "MERCURY.md",
       "excerpt": "instructionFileNames: ['MERCURY.md', 'MERCURY.local.md'],",
       "cls": "compat-boundary",
@@ -72,7 +65,6 @@
     },
     {
       "file": "src/services/instructions/effectiveSize.ts",
-      "line": 33,
       "needle": "MERCURY.md",
       "excerpt": "const ENTRY_BASENAMES = new Set(['MERCURY.md', 'MERCURY.local.md'])",
       "cls": "compat-boundary",
@@ -80,7 +72,6 @@
     },
     {
       "file": "src/services/instructions/projectInstructionWriter.ts",
-      "line": 75,
       "needle": "MERCURY.md",
       "excerpt": "return { path: join(root, 'MERCURY.md'), exists: false }",
       "cls": "compat-boundary",
@@ -88,7 +79,6 @@
     },
     {
       "file": "src/services/projectIntel/capsule.ts",
-      "line": 314,
       "needle": "MERCURY.md",
       "excerpt": "if (snapshot.instructions.mercuryMd) add('MERCURY.md', 'instruction', 5, `repository instructions`)",
       "cls": "owner-internal",
@@ -96,7 +86,6 @@
     },
     {
       "file": "src/services/projectIntel/impact.ts",
-      "line": 29,
       "needle": ".claude",
       "excerpt": "'__pycache__', '.cache', 'coverage', '.claude', '.mercury',",
       "cls": "compat-boundary",
@@ -104,7 +93,6 @@
     },
     {
       "file": "src/services/projectIntel/impact.ts",
-      "line": 29,
       "needle": ".mercury",
       "excerpt": "'__pycache__', '.cache', 'coverage', '.claude', '.mercury',",
       "cls": "compat-boundary",
@@ -112,7 +100,6 @@
     },
     {
       "file": "src/services/projectIntel/snapshot.ts",
-      "line": 111,
       "needle": "MERCURY.md",
       "excerpt": "mercuryMd: exists(join(workspace, 'MERCURY.md')),",
       "cls": "owner-internal",
@@ -120,7 +107,6 @@
     },
     {
       "file": "src/services/projectIntel/snapshot.ts",
-      "line": 113,
       "needle": "CLAUDE.md",
       "excerpt": "otherHarnessInstructions: ['CLAUDE.md'].filter(name => exists(join(workspace, name))),",
       "cls": "compat-boundary",
@@ -128,7 +114,6 @@
     },
     {
       "file": "src/skills/loadSkillsDir.ts",
-      "line": 160,
       "needle": ".mercury",
       "excerpt": "return join(getManagedFilePath(), '.mercury', dir)",
       "cls": "baked-mirror",
@@ -136,7 +121,6 @@
     },
     {
       "file": "src/skills/loadSkillsDir.ts",
-      "line": 163,
       "needle": ".mercury",
       "excerpt": "return join(process.cwd(), '.mercury', dir)",
       "cls": "compat-boundary",
@@ -144,7 +128,6 @@
     },
     {
       "file": "src/substrate/themis/boot.ts",
-      "line": 40,
       "needle": "MERCURY.md",
       "excerpt": "'MERCURY.md',",
       "cls": "owner-internal",
@@ -152,7 +135,6 @@
     },
     {
       "file": "src/substrate/themis/integrity.ts",
-      "line": 52,
       "needle": "MERCURY.md",
       "excerpt": "'MERCURY.md',",
       "cls": "owner-internal",
@@ -160,7 +142,6 @@
     },
     {
       "file": "src/utils/accounts/scopeScan.ts",
-      "line": 47,
       "needle": ".claude",
       "excerpt": "return base === '.claude' || base.startsWith('.claude-')",
       "cls": "compat-boundary",
@@ -168,7 +149,6 @@
     },
     {
       "file": "src/utils/accounts/scopeScan.ts",
-      "line": 103,
       "needle": ".claude.json",
       "excerpt": "const retired = readScopeIdentity(join(dir, '.claude.json'))",
       "cls": "compat-boundary",
@@ -176,7 +156,6 @@
     },
     {
       "file": "src/utils/cockpit/repoSurfaceMap.ts",
-      "line": 95,
       "needle": "CLAUDE.md",
       "excerpt": "const DOC_FILES = ['README.md', 'README.rst', 'README.txt', 'README', 'CONTRIBUTING.md', 'ARCHITECTURE.md', 'CLAUDE.md', 'AGENTS.md']",
       "cls": "compat-boundary",
@@ -184,7 +163,6 @@
     },
     {
       "file": "src/utils/cockpit/repoSurfaceMap.ts",
-      "line": 224,
       "needle": "CLAUDE.md",
       "excerpt": "for (const name of ['MERCURY.md', 'AGENTS.md', 'CLAUDE.md']) {",
       "cls": "compat-boundary",
@@ -192,7 +170,6 @@
     },
     {
       "file": "src/utils/cockpit/repoSurfaceMap.ts",
-      "line": 224,
       "needle": "MERCURY.md",
       "excerpt": "for (const name of ['MERCURY.md', 'AGENTS.md', 'CLAUDE.md']) {",
       "cls": "owner-internal",
@@ -200,7 +177,6 @@
     },
     {
       "file": "src/utils/config/derived.ts",
-      "line": 142,
       "needle": "MERCURY.md",
       "excerpt": "return join(getMercuryHome(), 'MERCURY.md')",
       "cls": "owner-internal",
@@ -208,7 +184,6 @@
     },
     {
       "file": "src/utils/config/derived.ts",
-      "line": 146,
       "needle": "MERCURY.md",
       "excerpt": "return join(cwd, 'MERCURY.md')",
       "cls": "compat-boundary",
@@ -216,7 +191,6 @@
     },
     {
       "file": "src/utils/config/derived.ts",
-      "line": 148,
       "needle": "MERCURY.md",
       "excerpt": "return join(getManagedFilePath(), 'MERCURY.md')",
       "cls": "baked-mirror",
@@ -224,7 +198,6 @@
     },
     {
       "file": "src/utils/config/derived.ts",
-      "line": 160,
       "needle": ".mercury",
       "excerpt": "return join(getManagedFilePath(), '.mercury', 'rules')",
       "cls": "baked-mirror",
@@ -232,7 +205,6 @@
     },
     {
       "file": "src/utils/envUtils.ts",
-      "line": 30,
       "needle": ".mercury",
       "excerpt": "process.env.MERCURY_CONFIG_DIR || flagEnv('MERCURY_HOME') || join(homedir(), '.mercury')",
       "cls": "owner-internal",
@@ -240,7 +212,6 @@
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
-      "line": 50,
       "needle": ".claude.json",
       "excerpt": "'.claude.json',",
       "cls": "compat-boundary",
@@ -248,7 +219,6 @@
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
-      "line": 51,
       "needle": ".mercury.json",
       "excerpt": "'.mercury.json',",
       "cls": "compat-boundary",
@@ -256,7 +226,6 @@
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
-      "line": 59,
       "needle": ".claude",
       "excerpt": "'.claude',",
       "cls": "compat-boundary",
@@ -264,7 +233,6 @@
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
-      "line": 60,
       "needle": ".mercury",
       "excerpt": "'.mercury',",
       "cls": "compat-boundary",
@@ -272,7 +240,6 @@
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
-      "line": 455,
       "needle": ".mercury",
       "excerpt": "{ dir: joinWithSep(joinWithSep(cwd, '.mercury'), 'skills'), prefix: '/.mercury/skills/' },",
       "cls": "compat-boundary",
@@ -280,7 +247,6 @@
     },
     {
       "file": "src/utils/projectConfig.ts",
-      "line": 26,
       "needle": ".mercury",
       "excerpt": "export const MERCURY_PROJECT_DIR = '.mercury'",
       "cls": "owner-internal",
@@ -288,7 +254,6 @@
     },
     {
       "file": "src/utils/projectStoreAdoption.ts",
-      "line": 52,
       "needle": ".claude",
       "excerpt": "const source = join(root, '.claude')",
       "cls": "compat-boundary",
@@ -296,7 +261,6 @@
     },
     {
       "file": "src/utils/sandbox/sandbox-adapter.ts",
-      "line": 59,
       "needle": ".claude",
       "excerpt": "const CONFIG_HOMES = ['.mercury', '.claude']",
       "cls": "compat-boundary",
@@ -304,7 +268,6 @@
     },
     {
       "file": "src/utils/sandbox/sandbox-adapter.ts",
-      "line": 59,
       "needle": ".mercury",
       "excerpt": "const CONFIG_HOMES = ['.mercury', '.claude']",
       "cls": "compat-boundary",
@@ -312,7 +275,6 @@
     },
     {
       "file": "src/utils/verification/verificationState.ts",
-      "line": 212,
       "needle": ".claude",
       "excerpt": "const HARNESS_DIRS = ['.claude', '.mercury'] as const",
       "cls": "compat-boundary",
@@ -320,7 +282,6 @@
     },
     {
       "file": "src/utils/verification/verificationState.ts",
-      "line": 212,
       "needle": ".mercury",
       "excerpt": "const HARNESS_DIRS = ['.claude', '.mercury'] as const",
       "cls": "compat-boundary",

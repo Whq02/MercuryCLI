@@ -17,8 +17,8 @@ scripts/ownership/contract-inventory.json	bun scripts/ownership/prove-contract-i
 scripts/ink-runtime/facade-inventory.json	bun scripts/ink-runtime/prove-facade-inventory.ts --record	bun scripts/ink-runtime/prove-facade-inventory.ts	src/ink.ts
 scripts/ink-runtime/deep-import-inventory.json	bun scripts/ink-runtime/prove-deep-import-policy.ts --record	bun scripts/ink-runtime/prove-deep-import-policy.ts	src/**/*.{ts,tsx} scripts/**/*.{ts,tsx}
 scripts/consistency-census/shellstring-census.json	bun scripts/consistency-census/gen-shellstring-census.ts	bun scripts/consistency-census/prove-shellstring-census.ts	src/**/*.{ts,tsx,mjs} scripts/**/*.{ts,tsx,mjs}
-scripts/consistency-census/lockup-census.json	bun scripts/consistency-census/gen-lockup-census.ts	bun scripts/consistency-census/prove-lockup-census.ts	src/**/*.tsx scripts/consistency-census/gen-lockup-census.ts
-scripts/consistency-census/basename-census.json	bun scripts/consistency-census/gen-basename-census.ts	bun scripts/consistency-census/prove-basename-census.ts	src/**/*.{ts,tsx,mjs} scripts/consistency-census/gen-basename-census.ts
+scripts/consistency-census/lockup-census.json	bun scripts/consistency-census/gen-lockup-census.ts	bun scripts/consistency-census/prove-lockup-census.ts	src/**/*.tsx scripts/consistency-census/gen-lockup-census.ts scripts/lib/codeText.ts
+scripts/consistency-census/basename-census.json	bun scripts/consistency-census/gen-basename-census.ts	bun scripts/consistency-census/prove-basename-census.ts	src/**/*.{ts,tsx,mjs} scripts/consistency-census/gen-basename-census.ts scripts/lib/codeText.ts
 assets/completions/mercury.bash assets/completions/_mercury assets/completions/mercury.fish	bun run build.ts && bun scripts/project-services/gen-completions.ts	bun scripts/project-services/gen-completions.ts --check	src/main.tsx src/commands/mcp/addCommand.ts
 docs/EXTENSIONS.md mercury-skills/extension-maker/references/CONTRACT.md	bun scripts/extensions/gen-contract.ts	bun scripts/extensions/prove-contract-in-sync.ts	src/extensions/manifest.ts src/extensions/catalogue.ts
 src/skills/bundled/**	bun scripts/skills/gen-bundled.ts	-	mercury-skills/**

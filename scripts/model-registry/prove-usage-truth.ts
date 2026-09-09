@@ -13,6 +13,7 @@ import {
   type ActiveUsageReads,
 } from '../../src/services/providers/providerUsage.js'
 import type { WalletEntry } from '../../src/services/wallet/wallet.js'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -309,10 +310,21 @@ section('4 · structural — two slots, honest absences, one owner, both seams')
     (client.match(/recordOpenaiRateHeaders\(response\.headers\)/g) ?? []).length === 2,
   )
 
-  const facade = src('src/services/providers/providerUsage.ts')
+  const facade = codeOnlyText('src/services/providers/providerUsage.ts', src('src/services/providers/providerUsage.ts'))
+  const dispatch = codeOnlyText('src/services/providers/slotSwitch.ts', src('src/services/providers/slotSwitch.ts'))
   check(
-    'facade: the one-owner law is written at the derivation (dispatch reads the same stores)',
-    facade.includes('ONE derivation, TWO renderers') && facade.includes('can never disagree'),
+    'facade: the anthropic windows read the SAME claudeAiLimits store the dispatch-side wall check reads (currentLimits.status)',
+    facade.includes("from '../claudeAiLimits.js'") &&
+      facade.includes('status: currentLimits.status, raw: getRawUtilization()') &&
+      dispatch.includes("require('../claudeAiLimits.js')") &&
+      dispatch.includes("currentLimits.status === 'rejected'"),
+  )
+  check(
+    'facade: the openai bands read the SAME openaiLimitState module the dispatch-side pause reads (openaiLimitWindow)',
+    facade.includes("from './openai/openaiLimitState.js'") &&
+      facade.includes("window: openaiLimitWindow(activeEntry?.kind === 'api-key' ? 'api-key' : 'chatgpt-subscription')") &&
+      dispatch.includes("require('./openai/openaiLimitState.js')") &&
+      dispatch.includes('return openaiLimitWindow(kind)'),
   )
 }
 
