@@ -44,7 +44,7 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
   const mcpPolicyHint = describeMcpPolicy()
 
   const trustedRaw = (flagEnv('MERCURY_MCP_TRUSTED_SERVERS') ?? '').trim()
-  const trustedHint = trustedRaw ? `always-on (fork) · trusted: ${trustedRaw}` : 'always-on (fork)'
+  const trustedHint = trustedRaw ? `always-on · trusted: ${trustedRaw}` : 'always-on'
   const agentCapPosture = flagEnv('MERCURY_AGENT_CAP')
   const agentCapRejects = agentCapPosture ? getAgentCapParseRejects() : []
 
@@ -54,7 +54,7 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
       { name: 'Capability kill-switch', on: killOn, hint: killOn ? `active: ${activeKills.join(', ')}` : 'MERCURY_KILL=Tool' },
       { name: 'MCP policy gate', on: mcpPolicyOn, hint: mcpPolicyOn ? mcpPolicyHint : 'MERCURY_MCP_MAX_RISK=low|medium' },
       { name: 'MCP trust cards', on: true, hint: trustedHint },
-      { name: 'Capability manifest', on: true, hint: 'always-on (fork) · ToolSearch' },
+      { name: 'Capability manifest', on: true, hint: 'always-on · ToolSearch' },
       {
         name: 'Agent-cap posture',
         on: !!agentCapPosture,
@@ -155,10 +155,10 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
   const ui: SubstrateSection = {
     title: 'UI',
     rows: [
-      { name: 'MercuryFrame statusbar', on: true, hint: 'always-on (fork)' },
+      { name: 'MercuryFrame statusbar', on: true, hint: 'always-on' },
       chatOnlyBoot()
-        ? { name: '/trace', on: true, hint: 'always-on (fork) · /deck and /fleet are off in this boot — the concourse is off' }
-        : { name: '/deck · /trace · /fleet', on: true, hint: 'always-on (fork)' },
+        ? { name: '/trace', on: true, hint: 'always-on · /deck and /fleet are off in this boot — the concourse is off' }
+        : { name: '/deck · /trace · /fleet', on: true, hint: 'always-on' },
       { name: 'Persistent deck pane', on: deckPaneOn, hint: deckPaneOn ? 'live · fullscreen (opt out MERCURY_SUBSTRATE=0)' : 'MERCURY_DECK_PANE=1 · fullscreen' },
       {
         name: 'Warm terminal background',
