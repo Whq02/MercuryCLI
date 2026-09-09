@@ -2,6 +2,7 @@
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'project-recognition-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -83,9 +84,11 @@ console.log('§6 — the one door: every surface derives through the recognition
   const filter = readFileSync(join(process.cwd(), 'src/utils/sessionFilter.ts'), 'utf8')
   check('sessionFilter derives through the ONE recognition door (workspaceRecognizedByGround)', filter.includes('workspaceRecognizedByGround('))
   check('the raw prefix join is RETIRED from the picker\'s matcher', !filter.includes('p.startsWith(`${r}/`)'))
-  const facts = readFileSync(join(process.cwd(), 'src/utils/bootCardFacts.ts'), 'utf8')
+  const facts = codeOnlyText('src/utils/bootCardFacts.ts', readFileSync(join(process.cwd(), 'src/utils/bootCardFacts.ts'), 'utf8'))
   check('inProject delegates to the same door (one law, one spelling)', facts.includes('return workspaceRecognizedByGround(project.dir, workspaceDir)'))
-  check('the docblock carries the ruling\'s provenance (frontier-over-fossil: the WHY recorded)', facts.includes('frontier smart-recognition, operator-ruled'))
+  check('the predicate is the exported function both surfaces import (not a private copy)', facts.includes('export function workspaceRecognizedByGround(groundDir: string, workspaceDir: string): boolean') && filter.includes("from './bootCardFacts.js'"))
+  const configHome = join(P, '.mercury')
+  check('a config-home spelling resolves to its parent on BOTH surfaces (the exact-key arm)', inProject(pid, configHome) && isProjectSession(log(configHome), P))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
