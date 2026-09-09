@@ -316,7 +316,7 @@ export function buildCompass1k(cwd: string, chapters: number = CHAPTERS_DEFAULT)
     `All ${CHAPTERS} chapters staged; the fixture bottom is live. ${TAIL_SENTINEL}`,
   )
 
-  const bytes = lines.reduce((a, l) => a + JSON.stringify(l).length + 1, 0)
+  const bytes = lines.reduce((a, l) => a + Buffer.byteLength(JSON.stringify(l), 'utf8') + 1, 0)
   return { lines, stats: { lines: lines.length, bytes, chapters: CHAPTERS, byKind } }
 }
 

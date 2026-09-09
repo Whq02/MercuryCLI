@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { crossSectionAtEdge } from '../../src/components/mercury-ui/useNavigablePanes.js'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 let failures = 0
@@ -63,7 +64,22 @@ check(
   '↵ no-ops on an empty section (no ghost detail flip)',
   /activateCurrent = \(\): void => \{[\s\S]{0,400}?\(keyedCount \?\? rowCount\) === 0\) return/.test(panes),
 )
-check('crossing is absent from the DETAIL branch (list-only, deliberate)', !/crossSectionAtEdge/.test(panes.slice(panes.indexOf("if (level === 'detail')"), panes.indexOf('// LIST level'))))
+const panesCode = codeOnlyText('useNavigablePanes.ts', panes)
+const detailBranches: string[] = []
+const detailHead = /if \(level === 'detail'\) \{/g
+for (let m = detailHead.exec(panesCode); m; m = detailHead.exec(panesCode)) {
+  let depth = 0
+  for (let i = m.index + m[0].length - 1; i < panesCode.length; i++) {
+    if (panesCode[i] === '{') depth++
+    else if (panesCode[i] === '}' && --depth === 0) {
+      detailBranches.push(panesCode.slice(m.index, i + 1))
+      break
+    }
+  }
+}
+const navDetail = detailBranches.filter(b => /'movePrevious'/.test(b) && /'moveNext'/.test(b))
+check('the navigation DETAIL branch exists (↑↓ move the row in place)', navDetail.length === 1 && /setSel\(/.test(navDetail[0]!), `${detailBranches.length} detail branch(es), ${navDetail.length} navigating`)
+check('crossing is absent from every DETAIL branch (list-only, deliberate)', detailBranches.length >= 2 && detailBranches.every(b => !/crossSectionAtEdge/.test(b)), detailBranches.map(b => b.length).join(','))
 
 console.log('')
 if (failures > 0) {

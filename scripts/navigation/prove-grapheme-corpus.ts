@@ -58,5 +58,19 @@ for (const cols of [60, 80, 120]) {
 
 console.log('\n  [PASS] UI-129: corpus measured against the live owner — pins recorded, no unmeasured logic change')
 
+console.log('\n' + '─'.repeat(76))
+console.log('the 1k fixture reports its serialized JSONL size in UTF-8 bytes')
+console.log('─'.repeat(76))
+{
+  const { buildCompass1k } = await import('./fixture1k.ts')
+  const { lines, stats } = buildCompass1k('/tmp/compass-bytes-proof')
+  const serialized = lines.map(l => JSON.stringify(l)).join('\n') + '\n'
+  const utf8 = Buffer.byteLength(serialized, 'utf8')
+  const units = serialized.length
+  check(`stats.bytes equals the serialized JSONL byte length (${utf8})`, stats.bytes === utf8, `stats.bytes=${stats.bytes} utf8=${utf8}`)
+  check('the fixture carries multi-byte text, so code units undercount the bytes', units < utf8, `units=${units} utf8=${utf8}`)
+  check('stats.lines counts every serialized record', stats.lines === lines.length && stats.lines === serialized.split('\n').length - 1)
+}
+
 console.log(`\n${failures === 0 ? 'ALL GRAPHEME-CORPUS PROOFS PASS' : failures + ' PROOF(S) FAILED'}`)
 process.exit(failures === 0 ? 0 : 1)
