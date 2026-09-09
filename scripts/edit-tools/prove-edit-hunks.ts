@@ -129,6 +129,19 @@ section('P. pure plan + apply math')
     return !p.ok && p.message.includes('5 line(s)')
   })())
   check('P13 unparseable form refused', !planHunks(content, [{ lines: '2..3', replace: 'x' }]).ok)
+  check('P13a the empty tail the Read tool numbers after the final newline is accepted as the file\'s end', (() => {
+    const p = planHunks(content, [{ lines: '1-6', replace: 'ALL' }])
+    return p.ok && p.spans[0]!.end === 5 && applyHunks(content, p) === 'ALL\n'
+  })())
+  check('P13b a hunk on the empty tail alone is refused naming the tail', (() => {
+    const p = planHunks(content, [{ lines: '6', replace: 'x' }])
+    return !p.ok && p.message.includes('empty tail') && p.message.includes('insert after line 5')
+  })())
+  check('P13c without a final newline one past the end stays out of bounds', (() => {
+    const p = planHunks('a\nb', [{ lines: '1-3', replace: 'x' }])
+    return !p.ok && p.message.includes('2 line(s)')
+  })())
+  check('P13d two past the end stays out of bounds', !planHunks(content, [{ lines: '1-7', replace: 'x' }]).ok)
   check('P14 insert with range refused', !planHunks(content, [{ lines: '2-3', replace: 'x', insert: 'after' }]).ok)
   check('P15 ra window enforced', (() => {
     const ra = mintRangeAnchor('l2\nl3', 2, 2)
