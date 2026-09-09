@@ -655,6 +655,9 @@ process.stdin.on('end', () => process.exit(0))
         check('only the actual schema change drops a bound reasoning block', requests.length === 4 && bindingDropsFor(requests[2]!.body).length > 0 && bindingDropsFor(requests[3]!.body).length === 0)
         const notices = transcriptNotices(arena, sid)
         check('the product attributes that drop to the manual reconnect once', notices.filter(text => text.includes('manually reconnected')).length === 1, j(notices))
+        check('no rewrite notice follows the deliberate reconnect', !notices.some(text => text.includes('rewrote already-sent history')), j(notices))
+        const doctorRow = existsSync(join(arena.home, '.claude', 'preserved-thinking.json')) ? (JSON.parse(readFileSync(join(arena.home, '.claude', 'preserved-thinking.json'), 'utf8')) as { last?: { kind?: string } }) : null
+        check("the doctor row keeps the reconnect's own kind", typeof doctorRow?.last?.kind === 'string' && doctorRow.last.kind !== 'rewrite', j(doctorRow))
       } finally {
         await fixture.close()
       }
