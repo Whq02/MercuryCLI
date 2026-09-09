@@ -27,7 +27,6 @@ enableConfigs()
 
 {
   delete process.env.MERCURY_LSP_SIDECAR_ENTRY
-  delete process.env.MERCURY_LSP_SIDECAR_ENTRY
   const { probeBuiltinTsServer } = await import(
     '../../src/services/lsp/builtinServers.js'
   )
