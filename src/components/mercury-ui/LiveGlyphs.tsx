@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Text, useAnimationValue } from '../../ink.js'
-import { useIdleMotion } from '../../hooks/useIdleMotion.js'
+import { useIdleMotion, useRestMotionPause } from '../../hooks/useIdleMotion.js'
 import { useSettingsMaybe } from '../../hooks/useSettings.js'
 import { useTypingPause } from '../../hooks/useTypingPause.js'
 import { lerpHex } from '../../utils/theme.js'
@@ -117,8 +117,9 @@ export function ReadyBreath({
 }): React.ReactNode {
   const reducedMotion = useSettingsMaybe()?.prefersReducedMotion ?? false
   const typing = useTypingPause()
+  const resting = useRestMotionPause()
   const tick = glyphTickMs(useIdleMotion('glyphs'), READY_TICK_MS)
-  const animate = active && !reducedMotion && !typing && tick !== null
+  const animate = active && !reducedMotion && !typing && !resting && tick !== null
   const [, bucket] = useAnimationValue(animate ? tick : null, readyBucket)
   const color = animate ? lerpHex(deep, to, bucket / READY_BUCKETS) : to
   return (
@@ -138,8 +139,9 @@ export function TwinkleSpark({
   const reducedMotion = useSettingsMaybe()?.prefersReducedMotion ?? false
   const { accentSoft } = useMercuryTokens()
   const typing = useTypingPause()
+  const resting = useRestMotionPause()
   const tick = glyphTickMs(useIdleMotion('glyphs'), TWINKLE_TICK_MS)
-  const animate = active && !reducedMotion && !typing && tick !== null
+  const animate = active && !reducedMotion && !typing && !resting && tick !== null
   const [, bright] = useAnimationValue(animate ? tick : null, twinkleBright)
   const glint = animate && bright
   return <Text color={glint ? accentSoft : color}>{glint ? GLYPH.sparkBright : GLYPH.spark}</Text>

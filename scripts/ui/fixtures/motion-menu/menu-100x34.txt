@@ -29,5 +29,5 @@
   ❯ Motion                             auto · full
 
 
-  how much idle motion the cockpit runs — auto follows the machine (full until painting falls beh…
+  how much idle motion the cockpit runs — auto reduces after five quiet seconds or sustained slow…
   ↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts · esc back
