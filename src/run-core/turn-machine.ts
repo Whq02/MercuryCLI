@@ -26,7 +26,7 @@ import {
   recordThinkingDropLedger,
   takeRewriteNoticeOnce,
 } from '../services/providers/anthropic/thinkingBinding.js'
-import { takePrefixVerdict } from '../services/providers/anthropic/prefixLedger.js'
+import { recordDroppedThinking, takePrefixVerdict } from '../services/providers/anthropic/prefixLedger.js'
 import { boundPrefixRecordToEmit } from '../services/providers/anthropic/boundPrefixRecord.js'
 import { logForDebugging } from '../utils/debug.js'
 
@@ -606,6 +606,7 @@ async function* streamModel(
               rememberClassifiedResponse(message.message.id)
               const drops = inputTransformationsOf(message.message)
               const prefixVerdict = takePrefixVerdict(String(rosterOwnerFromToolUseContext(toolUseContext)))
+              if (drops.length > 0) recordDroppedThinking(String(rosterOwnerFromToolUseContext(toolUseContext)), drops)
               const rewrite = prefixVerdict?.mismatch ?? null
               const outcome = classifyThinkingDrops(
                 String(ownerFromToolUseContext(toolUseContext)),
