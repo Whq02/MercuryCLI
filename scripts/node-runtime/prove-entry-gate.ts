@@ -76,7 +76,7 @@ if (!existsSync(dist)) {
   const env = {
     ...process.env,
     HOME: home,
-    MERCURY_CONFIG_DIR: join(home, '.claude'),
+    MERCURY_CONFIG_DIR: join(home, '.mercury'),
     CI: 'true',
     TERM: 'dumb',
     ANTHROPIC_API_KEY: 'proof-key-uplift-not-a-real-key',
