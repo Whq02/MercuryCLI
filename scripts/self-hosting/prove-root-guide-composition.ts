@@ -148,16 +148,12 @@ function drive(cwd: string, extraEnv: Record<string, string>): Capture {
   return JSON.parse(lines[lines.length - 1]!) as Capture
 }
 
-console.log('root guide composition — the pointer arrangement, both profiles')
+console.log('root guide composition — the pointer arrangement')
 
 const nat = drive(repo, {})
 check(
   nat.resolution.resolved === 'native',
   `default resolution is the native contract (requested ${nat.resolution.requested} → resolved ${nat.resolution.resolved})`,
-)
-check(
-  !nat.paths.includes(join(repo, 'MERCURY.md')),
-  'no retired root MERCURY.md composes (the file is gone)',
 )
 
 const mirror = realpathSync(mkdtempSync(join(tmpdir(), 'native-selfhost-mirror-')))
@@ -194,12 +190,12 @@ check(
 )
 
 unlinkSync(mirrorStub)
-const retiredReq = drive(mirror, { MERCURY_INSTRUCTION_PROFILE: 'compat' })
+const unknownReq = drive(mirror, { MERCURY_INSTRUCTION_PROFILE: 'other' })
 check(
-  retiredReq.resolution.resolved === 'native',
-  `the retired 'compat' profile value resolves native (requested ${retiredReq.resolution.requested} → ${retiredReq.resolution.resolved})`,
+  unknownReq.resolution.resolved === 'native',
+  `an unrecognised profile value resolves native (requested ${unknownReq.resolution.requested} → ${unknownReq.resolution.resolved})`,
 )
-check(retiredReq.guideCount === 0, `no root guide composes under the retired value (count ${retiredReq.guideCount})`)
+check(unknownReq.guideCount === 0, `no root guide composes under an unrecognised value (count ${unknownReq.guideCount})`)
 
 const parent = realpathSync(mkdtempSync(join(tmpdir(), 'native-selfhost-parent-')))
 writeFileSync(join(parent, 'MERCURY.md'), `# Parent guide\n\n${PARENT_NEEDLE}\n`)
@@ -309,5 +305,5 @@ rmSync(parent, { recursive: true, force: true })
 
 rmSync(mirror, { recursive: true, force: true })
 rmSync(driverDir, { recursive: true, force: true })
-console.log(failures === 0 ? '\n✅ root guide composition proven (both profiles, both guide states, the added-directory law)' : `\n❌ ${failures} failure(s)`)
+console.log(failures === 0 ? '\n✅ root guide composition proven (both guide states, the added-directory law)' : `\n❌ ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -41,7 +41,7 @@ section('§1 no approval: the outside guide is dropped and the diagnostic says s
   const composed = entries.map(e => e.content).join('\n')
   check('the nested file itself composes (the fixture is meaningful)', composed.includes('NESTED-MARKER'), composed.slice(0, 120))
   check('the outside guide is NOT composed without approval', !composed.includes('OUTSIDE-GUIDE-MARKER'))
-  check('THE DROP IS RECORDED: an external-import-blocked diagnostic names the guide (the base recorded nothing)', diagnostics.some(d => d.kind === 'external-import-blocked' && (d.path ?? '').endsWith('team-guide.md')), JSON.stringify(diagnostics))
+  check('THE DROP IS RECORDED: an external-import-blocked diagnostic names the guide', diagnostics.some(d => d.kind === 'external-import-blocked' && (d.path ?? '').endsWith('team-guide.md')), JSON.stringify(diagnostics))
 }
 
 section('§2 approved: the outside guide composes through the nested road')
@@ -50,7 +50,7 @@ section('§2 approved: the outside guide composes through the nested road')
   const diagnostics: Diagnostic[] = []
   const entries = await engine.getInstructionFilesForNestedDirectory(nested, join(nested, 'index.ts'), new Set(), diagnostics as never)
   const composed = entries.map(e => e.content).join('\n')
-  check('THE APPROVED EXTERNAL IMPORT COMPOSES from a nested file (the base never could)', composed.includes('OUTSIDE-GUIDE-MARKER'), composed.slice(0, 200))
+  check('THE APPROVED EXTERNAL IMPORT COMPOSES from a nested file', composed.includes('OUTSIDE-GUIDE-MARKER'), composed.slice(0, 200))
   check('…and no blocked-import diagnostic is minted for it', !diagnostics.some(d => d.kind === 'external-import-blocked'), JSON.stringify(diagnostics))
 }
 

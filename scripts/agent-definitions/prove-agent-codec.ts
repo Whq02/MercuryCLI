@@ -23,7 +23,7 @@ disallowedTools: Bash
 skills: alpha, beta
 model: opus[1m]
 effort: xhigh
-permissionMode: acceptEdits # deliberately the RETIRED spelling — decode must alias it to 'implement'
+permissionMode: acceptEdits
 maxTurns: 12
 memory: project
 background: true
@@ -60,7 +60,7 @@ Second paragraph.
   check('skills', JSON.stringify(f.skills) === '["alpha","beta"]')
   check('model', f.model === 'opus[1m]')
   check('effort', f.effort === 'xhigh')
-  check('permissionMode', f.permissionMode === 'implement')
+  check('permissionMode (acceptEdits is an accepted alias of implement)', f.permissionMode === 'implement')
   check('maxTurns', f.maxTurns === 12)
   check('memory', f.memory === 'project')
   check('background', f.background === true)
