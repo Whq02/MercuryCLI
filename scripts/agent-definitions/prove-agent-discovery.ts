@@ -158,8 +158,8 @@ console.log('D9: the standing rule loads under its name and under the retired sp
     'json-old': { description: 'd', prompt: 'p', criticalSystemReminder_EXPERIMENTAL: 'old key' },
   })
   const jsonRule = (name: string): string | undefined => (viaJson.find(a => a.agentType === name) as { standingRule?: string } | undefined)?.standingRule
-  check('the SDK/CLI JSON lane reads standingRule', jsonRule('json-new') === 'new key', String(jsonRule('json-new')))
-  check('the SDK/CLI JSON lane still accepts the retired spelling', jsonRule('json-old') === 'old key', String(jsonRule('json-old')))
+  check('the SDK/CLI JSON route reads standingRule', jsonRule('json-new') === 'new key', String(jsonRule('json-new')))
+  check('the SDK/CLI JSON route still accepts the retired spelling', jsonRule('json-old') === 'old key', String(jsonRule('json-old')))
 }
 
 console.log('D6: filename vs declared name')
