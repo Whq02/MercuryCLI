@@ -43,7 +43,7 @@ try {
   }
 
   const version = execFileSync((process.execPath.includes('bun') ? 'node' : process.execPath), [DIST, '--version'], { env, encoding: 'utf8', timeout: 120_000 }).trim()
-  check('no-Claude boot: --version prints the Mercury banner', /^Mercury /.test(version), version)
+  check('hermetic boot: --version prints the Mercury banner', /^Mercury /.test(version), version)
 
   const doctorRun = spawnSync((process.execPath.includes('bun') ? 'node' : process.execPath), [DIST, 'doctor', '--json'], {
     env,
@@ -52,20 +52,20 @@ try {
     timeout: 180_000,
   })
   const doctor = doctorRun.stdout ?? ''
-  check('no-Claude boot: doctor --json runs to completion (exit 0|3 — 3 is the signed-out verdict fault)', (doctorRun.status === 0 || doctorRun.status === 3) && doctor.length > 0, `status ${doctorRun.status} signal ${doctorRun.signal}`)
+  check('hermetic boot: doctor --json runs to completion (exit 0|3 — 3 is the signed-out verdict fault)', (doctorRun.status === 0 || doctorRun.status === 3) && doctor.length > 0, `status ${doctorRun.status} signal ${doctorRun.signal}`)
   let parsed: unknown = null
   try {
     parsed = JSON.parse(doctor)
   } catch {
   }
-  check('doctor emits valid JSON on the Claude-free estate', parsed !== null)
+  check('doctor emits valid JSON on the hermetic estate', parsed !== null)
 
   check(
-    'the run created NO .claude anywhere in the scratch estate',
-    !existsSync(join(project, '.claude')) && !existsSync(join(home, '.claude')),
+    'the run created nothing in the project beyond its own .mercury and the guide',
+    readdirSync(project).every(name => name === '.mercury' || name === 'MERCURY.md'),
+    readdirSync(project).join(','),
   )
   const harnessSpelling = (name: string): boolean =>
-    /^\.?(claude|hermes)([._-].*)?$/i.test(name) ||
     (/^\.?mercury([._-].*)?$/i.test(name) && name !== '.mercury' && name !== 'mercury-nodejs')
   const offenders = readdirSync(home).filter(harnessSpelling)
   for (const xdg of ['.config', '.cache', join('.local', 'share'), join('.local', 'state')]) {

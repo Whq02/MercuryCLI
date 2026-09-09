@@ -19,7 +19,7 @@ const ok = (cond: boolean, label: string) => {
   if (!cond) failures++
 }
 
-const tmp = mkdtempSync(join(tmpdir(), 'hermes-orch-'))
+const tmp = mkdtempSync(join(tmpdir(), 'mercury-orch-'))
 const home = join(tmp, 'home')
 const teams = join(tmp, 'teams')
 const daemon = join(tmp, 'daemon')

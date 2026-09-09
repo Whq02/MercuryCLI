@@ -15,7 +15,7 @@ import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'hermes-lease-'))
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'mercury-lease-'))
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

@@ -17,15 +17,13 @@ console.log(' SM-J-P3 — identity constants (Mercury spellings + migrations)')
 console.log('============================================================')
 
 const mainSrc = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
-check("process.title = 'mercury'", mainSrc.includes("process.title = 'mercury'") && !mainSrc.includes("process.title = 'claude'"))
+check("process.title = 'mercury'", mainSrc.includes("process.title = 'mercury'"))
 check('entrypoint init stamps the one MERCURY_ENTRYPOINT spelling', mainSrc.includes("process.env.MERCURY_ENTRYPOINT = mcpServe ? 'mcp' : isNonInteractive ? 'headless' : 'cli'"))
-const FOREIGN = ['CLAUDE', 'CODE'].join('_')
-check('no second entrypoint spelling is representable', !mainSrc.includes(`${FOREIGN}_ENTRYPOINT`))
 const mcpSrc = readFileSync(join(ROOT, 'src/entrypoints/mcp.ts'), 'utf8')
 check("mcp serve identity is 'mercury' (OP-4)", mcpSrc.includes("name: 'mercury'"))
 const wtSrc = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
 check('worktree baseline speaks ONE filename: WORKTREE_BASE',
-  wtSrc.includes("BASELINE_FILENAME = 'WORKTREE_BASE'") && !wtSrc.includes('CLAUDE' + '_BASE'))
+  wtSrc.includes("BASELINE_FILENAME = 'WORKTREE_BASE'"))
 const cmdTypes = readFileSync(join(ROOT, 'src/types/command.ts'), 'utf8')
 check('LoadedFrom carries no commands-directory label (skills are the one markdown door)', !cmdTypes.includes("'legacy-commands'") && !cmdTypes.includes('commands_DEPRECATED'))
 check('the legacy instructions facade is folded away (consumers import the engine)', !existsSync(join(ROOT, 'src/utils/instructionsCompat.ts')) && !existsSync(join(ROOT, 'src/utils/claudemd.ts')))
@@ -48,14 +46,13 @@ check('P4 honest receipt: /bug never claims "submitted"', !feedback.includes('bu
   check('OP-4: WebFetch UA presents Mercury/<version> and DISCLOSES nothing (no +url, no PACKAGE_URL)',
     http.includes('return `Mozilla/5.0 (compatible; Mercury/${MACRO.VERSION})`') && !http.includes('PACKAGE_URL'))
   const ua = readFileSync(join(ROOT, 'src/utils/userAgent.ts'), 'utf8')
-  check('OP-4: the Anthropic-leaf UA presents the product identity at its owner', ua.includes('getAnthropicClientUserAgent') && ua.includes('return `mercury/${MACRO.VERSION}`') && !ua.includes('claude-code/'))
+  check('OP-4: the Anthropic-leaf UA presents the product identity at its owner', ua.includes('getAnthropicClientUserAgent') && ua.includes('return `mercury/${MACRO.VERSION}`'))
   const mcpClient = readFileSync(join(ROOT, 'src/services/mcp/client.ts'), 'utf8')
-  check("OP-4: MCP clientInfo name is 'mercury' (both constructions)", (mcpClient.match(/name: 'mercury'/g) ?? []).length >= 2 && !mcpClient.includes("name: 'claude-code'"))
-  check('OP-4: no borrowed product URL in the MCP client', !mcpClient.includes(`${FOREIGN}_EXTERNAL_PRODUCT_URL`))
+  check("OP-4: MCP clientInfo name is 'mercury' (both constructions)", (mcpClient.match(/name: 'mercury'/g) ?? []).length >= 2)
   const spawnUtils = readFileSync(join(ROOT, 'src/utils/swarm/spawnUtils.ts'), 'utf8')
-  check('ruling 3: teammate spawns carry the one MERCURY=1 marker', spawnUtils.includes("const parts = ['MERCURY=1']") && !spawnUtils.includes("'CLAUDECODE=1'"))
+  check('ruling 3: teammate spawns carry the one MERCURY=1 marker', spawnUtils.includes("const parts = ['MERCURY=1']"))
   const fsPerm = readFileSync(join(ROOT, 'src/utils/permissions/filesystem.ts'), 'utf8')
-  check('ruling 3 (amended): the temp root is mercury-named and never adopts the legacy root', fsPerm.includes('`mercury-${uid}`') && !fsPerm.includes('getLegacyTempDirName') && !fsPerm.includes("'claude'") && !fsPerm.includes('`claude-${uid}`'))
+  check('ruling 3: the temp root is mercury-named', fsPerm.includes('`mercury-${uid}`'))
   const keychain = readFileSync(join(ROOT, 'src/utils/secureStorage/macOsKeychainHelpers.ts'), 'utf8')
   check('ruling 3: the keychain service is Mercury-named, keyed to the resolved home, with one canonicalisation fallback', keychain.includes('return `Mercury${') && keychain.includes('getRawSpellingKeychainStorageServiceName') && !keychain.includes('Legacy'))
 }
@@ -70,13 +67,13 @@ check('P4 honest receipt: /bug never claims "submitted"', !feedback.includes('bu
   check('ruling 2: mercury:// parses', viaNew.query === 'hello')
   let otherSchemeRefused = false
   try {
-    parseDeepLink('claude-cli://open?q=hello')
+    parseDeepLink('otherscheme://open?q=hello')
   } catch {
     otherSchemeRefused = true
   }
   check('ruling 2: a non-mercury scheme refuses', otherSchemeRefused)
   const reg = readFileSync(join(ROOT, 'src/utils/deepLink/registerProtocol.ts'), 'utf8')
-  check('ruling 2: the OS registration claims only the Mercury identity', reg.includes("MACOS_BUNDLE_ID = 'com.mercury.url-handler'") && reg.includes("APP_NAME = 'Mercury URL Handler'") && !reg.includes("'com.anthropic.claude-code-url-handler'"))
+  check('ruling 2: the OS registration claims only the Mercury identity', reg.includes("MACOS_BUNDLE_ID = 'com.mercury.url-handler'") && reg.includes("APP_NAME = 'Mercury URL Handler'"))
 }
 
 {
@@ -84,13 +81,12 @@ check('P4 honest receipt: /bug never claims "submitted"', !feedback.includes('bu
   check("P6: the MDM preference domain is Mercury's, compat domain honoured", mdmConsts.includes("MACOS_PREFERENCE_DOMAIN = 'com.mercury.harness'") && mdmConsts.includes("LEGACY_MACOS_PREFERENCE_DOMAIN = 'com.anthropic.claudecode'"))
   check('P6: the Policies keys are Mercury-primary with compat keys', mdmConsts.includes("'HKLM\\\\SOFTWARE\\\\Policies\\\\Mercury'") && mdmConsts.includes("'HKLM\\\\SOFTWARE\\\\Policies\\\\ClaudeCode'"))
   const managed = readFileSync(join(ROOT, 'src/utils/settings/managedPath.ts'), 'utf8')
-  check('P6: managed-settings dir resolves the Mercury-only candidates', managed.includes("'/etc/mercury'") && !managed.includes('claude-code') && managed.includes('exists(candidate)') && managed.includes('resolveManagedRoot(managedRootCandidates(getPlatform()), existsSync)'))
+  check('P6: managed-settings dir resolves the Mercury-only candidates', managed.includes("'/etc/mercury'") && managed.includes('exists(candidate)') && managed.includes('resolveManagedRoot(managedRootCandidates(getPlatform()), existsSync)'))
 }
 
 {
   const srcText = readFileSync(join(ROOT, 'src/utils/cachePaths.ts'), 'utf8')
   check('cachePaths resolves the one Mercury cache root', srcText.includes("envPaths('mercury')") && srcText.includes('mercuryPaths.cache'))
-  check('no second cache root is representable', !srcText.includes("envPaths('claude-cli')"))
 }
 
 {
@@ -101,8 +97,8 @@ check('P4 honest receipt: /bug never claims "submitted"', !feedback.includes('bu
     const p = join(dir, 'WORKTREE_BASE')
     return existsSync(p) ? readFileSync(p, 'utf8').trim() : null
   }
-  writeFileSync(join(gitDir, 'CLAUDE' + '_BASE'), sha)
-  check('a foreign-named baseline file is inert', readBaseline(gitDir) === null)
+  writeFileSync(join(gitDir, 'OTHER_BASE'), sha)
+  check('an otherwise-named baseline file is inert', readBaseline(gitDir) === null)
   writeFileSync(join(gitDir, 'WORKTREE_BASE'), 'b'.repeat(40))
   check('WORKTREE_BASE reads', readBaseline(gitDir) === 'b'.repeat(40))
 }

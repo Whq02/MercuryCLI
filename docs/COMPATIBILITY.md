@@ -3,14 +3,12 @@
 Mercury's configuration is native and singular: `MERCURY_*` environment
 flags registered in the in-code registry (`src/substrate/flagRegistry.ts`;
 rendered on demand to an untracked path), `MERCURY.md` instruction files, and
-the `.mercury` config homes. No foreign product's environment spelling is
-honored anywhere — every runtime env read is a registered `MERCURY_*` name
-(the registry proof re-extracts the reads from source and fails on any
-unregistered spelling). The interop surfaces that DO remain are wire
-identifiers external services require, enumerated below with their owners;
-the identity suite (`scripts/identity/`) pins each one and bounds the total.
+the `.mercury` config homes. Every runtime env read is a registered
+`MERCURY_*` name (the registry proof re-extracts the reads from source and
+fails on any unregistered spelling). The interop surfaces are wire
+identifiers external services require, enumerated below with their owners.
 
-## Wire identifiers (kept because a server or an external artifact requires them)
+## Wire identifiers (a server or an external artifact requires them)
 
 - The coding-product API beta token `claude-code-20250219`
   (`src/constants/betas.ts`, exported as `CODING_20250219_BETA_HEADER`) — the
@@ -52,8 +50,7 @@ the identity suite (`scripts/identity/`) pins each one and bounds the total.
 - Foreign-artifact detection: the GitHub Actions context (`src/utils/env.ts`),
   the harness-state classifier behind `/health`
   (`src/utils/knownAgentClis.ts` — Mercury's own fingerprint decides what is
-  foreign; the signature table only names a recognized writer) — reading the
-  external world by its real names, never wearing them.
+  foreign; the signature table only names a recognized writer).
 - Defensive scrubs: `src/utils/subprocessEnv.ts` and
   `src/daemon/ownedDaemon.ts` strip foreign session/credential env a nested
   boot may inherit (another tool's token never reaches Mercury's children).
@@ -95,8 +92,7 @@ its own manifest ([EXTENSIONS.md](EXTENSIONS.md)).
 
 Mercury consults no vendor registry of "official" MCP servers: every MCP
 server is the operator's own configuration, no boot makes a request on its
-behalf, and no server is tagged by anyone's registry (the identity gate's
-dist invariants hold the vendor registry path at zero).
+behalf, and no server is tagged by anyone's registry.
 
 ## claude.ai account connectors
 
@@ -118,8 +114,6 @@ tree and under each added directory, `~/.mercury/skills`, the managed policy
 tree, and approved extensions (`src/skills/loadSkillsDir.ts`,
 `src/extensions/load/commands.ts`). A skill body's template tokens expand in
 Mercury's spelling alone, `${MERCURY_SKILL_DIR}` and `${MERCURY_SESSION_ID}`.
-Another product's skills folder is never read and its template spelling stays
-literal in the body.
 
 ## Credentials on macOS
 

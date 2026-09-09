@@ -92,7 +92,7 @@ if (built.ok) {
   check('approved defaults to false', meta?.approved === false)
   check('index line matches "- [Title](file.md) — …" format', /^- \[.+\]\(recon-before-fanout\.md\) — experience-card \(candidate\):/.test(built.indexLine))
 
-  const dir = mkdtempSync(join(tmpdir(), 'hermes-ec-'))
+  const dir = mkdtempSync(join(tmpdir(), 'mercury-ec-'))
   const w1 = await writeExperienceCard(dir, {
     name: 'recon-before-fanout',
     title: 'Scout the seam inline before fanning out',
@@ -172,7 +172,7 @@ check('flag non-"1": green + empty sourceRefs fires again (byte-identical)', sho
 delete process.env.MERCURY_CARD_TRACE_GROUND
 setStamp(false)
 
-const dir2 = mkdtempSync(join(tmpdir(), 'hermes-ec2-'))
+const dir2 = mkdtempSync(join(tmpdir(), 'mercury-ec2-'))
 const skipped = await writeExperienceCard(dir2, {
   name: 'should-not-write',
   title: 'nope', summary: 'nope', problemClass: 'x',
@@ -345,7 +345,7 @@ section('PROOF 3c — C10: a truncated card whose metadata.type marker + secret 
 
 section('PROOF 4 — MEMORY.md index is concurrency-safe (no dropped pointers)')
 {
-  const dirC = mkdtempSync(join(tmpdir(), 'hermes-ec-race-'))
+  const dirC = mkdtempSync(join(tmpdir(), 'mercury-ec-race-'))
   const N = 8
   const writes = Array.from({ length: N }, (_, i) =>
     writeExperienceCard(dirC, {

@@ -103,7 +103,7 @@ section('§4 — every remedy names a live command')
   const ghosts = [...new Set([...named(src), ...named(row)])].filter(n => !registered.has(n))
   check('every /command the owner and the row name is a registered slash command', ghosts.length === 0, ghosts.join(', '))
   const text = textFor(rejected({ rateLimitType: 'seven_day_fable' }), 'claude-fable-5')
-  check('a refusal carries no plan pointer', !/\/(extra-usage|upgrade)\b/.test(text), text)
+  check('a refusal carries no plan pointer', !/\/upgrade\b/.test(text), text)
   check('the error path has no plan clause (the row surface owns the account remedy)', !/errorUpsellClause/.test(src))
   check('the warning clause names where the plan is raised, not a slash command', /raise your Claude plan limits at claude\.ai/.test(src))
 

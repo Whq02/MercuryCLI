@@ -438,7 +438,7 @@ if (mode === 'handoff') {
     const r = spawnSync('sh', [chainLauncher], { encoding: 'utf8', env: chainEnv(), timeout: 30_000 })
     const j = lastJson(r.stdout)
     check('pipes: splash skipped (non-TTY)', !splashRan())
-    check('pipes: hermes booted bare, no handover', j !== null && j.args.length === 0 && j.alt === '' && j.handoff === '', r.stdout.slice(0, 120))
+    check('pipes: mercury booted bare, no handover', j !== null && j.args.length === 0 && j.alt === '' && j.handoff === '', r.stdout.slice(0, 120))
   }
 
   const ptyProbe = runPty(['--version'], chainEnv())

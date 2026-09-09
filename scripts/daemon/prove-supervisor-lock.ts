@@ -12,7 +12,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const home = mkdtempSync(join(tmpdir(), 'hermes-suplock-'))
+const home = mkdtempSync(join(tmpdir(), 'mercury-suplock-'))
 process.env.MERCURY_CONFIG_DIR = home
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 

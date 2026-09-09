@@ -801,7 +801,7 @@ async function modeFold() {
   if (kind === 'log') {
     const dir = argv[2]
     if (argv[3] === 'snap') {
-      throw new Error('the snapshot fold arm retired with the room log it borrowed (the multiplayer retirement) — run the plain log fold')
+      throw new Error('the snapshot fold arm is not available — run the plain log fold')
     }
     const log = join(dir, 'events.jsonl')
     for (let i = 0; i < reps; i++) {

@@ -212,8 +212,8 @@ function clearEffortEnv(): void {
   const pickerSrc = readFileSync(join(ROOT, 'src/components/ModelPicker.tsx'), 'utf8')
   check('ModelPicker cycles through cycleSelectableEffort (the global full-axis cycle is dead)', pickerSrc.includes('cycleSelectableEffort(') && !pickerSrc.includes('function cycleEffortLevel('))
   check('ModelPicker row claims the owner label (no local max→high clamp)', pickerSrc.includes('resolveEffortTruth(') && !pickerSrc.includes('effort === "max" && !focusedSupportsMax'))
-  const hermesModelSrc = readFileSync(join(ROOT, 'src/commands/model/mercuryModel.tsx'), 'utf8')
-  check('/model efforts row derives from selectableEffortLevels', hermesModelSrc.includes('selectableEffortLevels(liveModel)'))
+  const modelSrc = readFileSync(join(ROOT, 'src/commands/model/mercuryModel.tsx'), 'utf8')
+  check('/model efforts row derives from selectableEffortLevels', modelSrc.includes('selectableEffortLevels(liveModel)'))
 }
 
 {

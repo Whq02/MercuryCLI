@@ -166,7 +166,7 @@ function buildFixture(): void {
 }
 
 type Cell = { c: string }
-const SCRATCH = (name: string) => join(tmpdir(), `hermes-journey-${name}-${process.pid}`)
+const SCRATCH = (name: string) => join(tmpdir(), `mercury-journey-${name}-${process.pid}`)
 
 const READY = '❯'
 const READY_TICK = 5

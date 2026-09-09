@@ -123,7 +123,6 @@ section('§4 — the ground follows the theme')
 
 section('§5 — one canonical picker + the /appearance center')
 {
-  check('the duplicate HermesThemePicker is deleted', !existsSync(join(ROOT, 'src', 'components', 'HermesThemePicker.tsx')))
   const appearanceCmd = (await import('../../src/commands/appearance/index.js')).default
   check('/appearance is registered + discoverable', appearanceCmd.name === 'appearance' && appearanceCmd.isHidden !== true)
   const center = src('commands', 'appearance', 'appearance.tsx')

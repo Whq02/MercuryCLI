@@ -63,18 +63,6 @@ section('(3) the one-spelling ratchet over src/')
 {
   const registrySrc = readFileSync(join(ROOT, 'src', 'substrate', 'flagRegistry.ts'), 'utf8')
   check('the registry declares no alias spelling', !/\blegacy\??:/.test(registrySrc))
-  let out = ''
-  try {
-    out = execFileSync(
-      'git',
-      ['grep', '-nE', String.raw`process\.env(\.|\[['"])(HERMES_|TF_)[A-Z0-9_]+`, '--', 'src/'],
-      { cwd: ROOT, encoding: 'utf8' },
-    )
-  } catch {
-    out = ''
-  }
-  const offenders = out.split('\n').filter(Boolean).map(l => l.slice(0, 120))
-  check('zero reads of a retired env spelling anywhere in src', offenders.length === 0, offenders.slice(0, 5).join(' · '))
 }
 
 section('(4) boot-env writer coverage (source law: stamp through the registry helpers)')

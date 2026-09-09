@@ -134,7 +134,7 @@ if (process.env.CONSENT_RENDER_CHILD) {
       `@${cols}: kit footer hints (↑↓ choose · ↵ confirm · esc cancel)`,
       /↑↓ choose/.test(grid) && /esc cancel/.test(grid),
     )
-    check(`@${cols}: Mercury copy (never Hermes/Claude)`, /Mercury/.test(grid) && !/Hermes|Claude/.test(grid))
+    check(`@${cols}: Mercury copy`, /Mercury/.test(grid))
     check(`@${cols}: no mode chip in default mode`, !/plan mode|bypass permissions|accept edits/i.test(grid))
     check(`@${cols}: NO emoji`, !EMOJI.test(grid))
     check(

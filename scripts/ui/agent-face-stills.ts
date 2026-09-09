@@ -151,7 +151,7 @@ async function captureFaceFrames(): Promise<Record<string, string>> {
   } as import('../../src/tools/AgentTool/loadAgentsDir.js').AgentDefinitionsResult
   const built = buildStudioRows(result, { tab: 'all', filter: 'all', query: '' })
   const counts = { active: 2, disabled: 1, issues: 0 }
-  const environment = { model: 'fable', critter: 'Crab', critterHue: '#DD4444', dirBase: 'hermes', dirTail: '' }
+  const environment = { model: 'fable', critter: 'Crab', critterHue: '#DD4444', dirBase: 'orchard', dirTail: '' }
   const libraryM = {
     title: 'agents',
     summaryTitle: 'AGENTS',

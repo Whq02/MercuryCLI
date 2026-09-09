@@ -160,7 +160,7 @@ const distPath = join(ROOT, 'dist', 'mercury.mjs')
 if (!existsSync(distPath)) {
   console.log('  [SKIP] dist/mercury.mjs absent — run `bun run build.ts` for the retired-door leg')
 } else {
-  const home = mkdtempSync(join(tmpdir(), 'hermes-chan-'))
+  const home = mkdtempSync(join(tmpdir(), 'mercury-chan-'))
   try {
     const {
       MERCURY_CONFIG_DIR: _mc,

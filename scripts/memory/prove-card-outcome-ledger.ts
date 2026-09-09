@@ -63,7 +63,7 @@ function cardInput(over: Partial<BuildCardInput>): BuildCardInput {
 }
 
 section('1. Accepted distill → one "accepted" row, mechanism "distill"')
-const dir1 = mkdtempSync(join(tmpdir(), 'hermes-outcome-ledger-'))
+const dir1 = mkdtempSync(join(tmpdir(), 'mercury-outcome-ledger-'))
 const ledgerDir1 = join(dir1, 'evolution')
 let w1path = ''
 {
@@ -156,7 +156,7 @@ section('4. Promote → one "accepted" row, mechanism "promote", subject = probl
 section('5. MERCURY_EVOLUTION_LEDGER=0 → card still writes, but no evolution/ dir at all')
 {
   process.env.MERCURY_EVOLUTION_LEDGER = '0'
-  const dir2 = mkdtempSync(join(tmpdir(), 'hermes-outcome-ledger-off-'))
+  const dir2 = mkdtempSync(join(tmpdir(), 'mercury-outcome-ledger-off-'))
   const w5 = await writeExperienceCard(
     dir2,
     cardInput({ name: 'outcome-off', problemClass: 'outcome-ledger-class-off' }),

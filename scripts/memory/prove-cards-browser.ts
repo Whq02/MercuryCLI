@@ -45,7 +45,7 @@ The transferable lesson body for ${name}.
 `
 }
 
-const dir = mkdtempSync(join(tmpdir(), 'hermes-cards-'))
+const dir = mkdtempSync(join(tmpdir(), 'mercury-cards-'))
 writeFileSync(join(dir, 'zebra-candidate.md'), card('zebra-candidate', 'A candidate lesson', 'testing-z', false))
 writeFileSync(join(dir, 'alpha-approved.md'), card('alpha-approved', 'An approved lesson', 'testing-a', true))
 writeFileSync(join(dir, 'old.superseded.1718.md'), card('old', 'superseded copy', 'testing-z', false))

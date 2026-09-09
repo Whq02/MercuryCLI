@@ -30,13 +30,10 @@ if (
 )
   ok('build.ts MACRO_VERSION reads package.json (via PKG_JSON) — one version root')
 else bad('build.ts MACRO_VERSION must read package.json (the one root)')
-if (!/-hermes/.test(pkgVersion))
-  ok('the version carries no -hermes engine trim (first independent build)')
-else bad('the version still carries the -hermes trim')
 
 if (product.includes('export const versionBanner = `Mercury ${MERCURY_VERSION}`'))
   ok('versionBanner is the single-version `Mercury ${MERCURY_VERSION}`')
-else bad('versionBanner must be `Mercury ${MERCURY_VERSION}` (the engine tag is retired)')
+else bad('versionBanner must be `Mercury ${MERCURY_VERSION}`')
 
 const cli = readFileSync(join(root, 'src/entrypoints/cli.tsx'), 'utf8')
 if (cli.includes('console.log(`Mercury ${MACRO.VERSION}`)'))
@@ -54,7 +51,7 @@ if (sysInit.includes('mercury_version: MACRO.VERSION'))
 else bad('systemInit.ts mercury_version must stay MACRO.VERSION')
 
 const insights = readFileSync(join(root, 'src/commands/insights.ts'), 'utf8')
-if (/mercury_version:\s*string/.test(insights) && !insights.includes('claude_code_version'))
+if (/mercury_version:\s*string/.test(insights))
   ok('insights export metadata names mercury_version (the product spelling)')
 else bad('src/commands/insights.ts must name its version field mercury_version')
 

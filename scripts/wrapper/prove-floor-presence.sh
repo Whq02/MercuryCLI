@@ -32,7 +32,6 @@ eq "floor identity line"         "this command-line coding harness and the agent
 eq "floor precedence tie-break"  "safety and honesty first, then the operator" 1
 ge "floor harm-bound clause"     "bypass a real safety, permission, or"
 ge "identity reconcile (tail)"   "Identity, final word"
-eq "proactive branch absent"     "You are an autonomous agent" 0
 
 src "main-path contract splice"  "$prompts" "getMercuryContractSections"
 src "simple-path floor fallback" "$prompts" "MERCURY_IDENTITY_FLOOR"

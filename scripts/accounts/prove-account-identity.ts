@@ -107,7 +107,7 @@ try {
   scopeIdentityFile(adoptDir, { storedLogin: () => true })
   const adopted = JSON.parse(readFileSync(target, 'utf8')) as { oauthAccount?: { accountUuid?: string; emailAddress?: string } }
   check('a stored login ⇒ the identity is adopted into the scope config file', adopted.oauthAccount?.accountUuid === 'adopt-uuid' && adopted.oauthAccount?.emailAddress === 'adopt@x', JSON.stringify(adopted))
-  check('the retired file is left as it is', readFileSync(join(adoptDir, '.claude.json'), 'utf8') === retiredBytes)
+  check('the external file is left as it is', readFileSync(join(adoptDir, '.claude.json'), 'utf8') === retiredBytes)
   const before = readFileSync(target, 'utf8')
   _resetIdentityAdoptionForTesting()
   scopeIdentityFile(adoptDir, { storedLogin: () => true })

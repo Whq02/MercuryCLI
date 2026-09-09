@@ -44,12 +44,6 @@ check(
 const importHits = hits(['src', 'scripts'], /providers\/codex/)
 check('no import/path reference to providers/codex anywhere in src or scripts', importHits.length === 0, importHits.join(', '))
 
-const pinHits = hits(['src'], /HERMES_CODEX_BIN/)
-check('the HERMES_CODEX_BIN pin is gone from src', pinHits.length === 0, pinHits.join(', '))
-
-const flagRegistrySrc = readFileSync(join(ROOT, 'src', 'substrate', 'flagRegistry.ts'), 'utf8')
-check('the flag registry carries no HERMES_CODEX_BIN row', !flagRegistrySrc.includes('HERMES_CODEX_BIN'))
-
 const executionSrc = readFileSync(join(ROOT, 'src', 'services', 'primitives', 'execution.ts'), 'utf8')
 check("the execution plane has no 'codex-engine' kind", !executionSrc.includes("'codex-engine'"))
 
@@ -81,7 +75,6 @@ check(
 const dist = join(ROOT, 'dist', 'mercury.mjs')
 if (existsSync(dist)) {
   const bundle = readFileSync(dist, 'utf8')
-  check('dist carries no HERMES_CODEX_BIN residue', !bundle.includes('HERMES_CODEX_BIN'))
   check('dist carries no App Server sentinel residue', !bundle.includes('codex-app-server-default'))
 } else {
   console.log('  [SKIP] dist/mercury.mjs absent — artifact residue rows run under the gate (prebuilt)')

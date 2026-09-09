@@ -15,7 +15,7 @@ function section(t: string): void {
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const dir = mkdtempSync(join(tmpdir(), 'hermes-compaction-trace-'))
+const dir = mkdtempSync(join(tmpdir(), 'mercury-compaction-trace-'))
 process.env.MERCURY_CONFIG_DIR = dir
 process.env.MERCURY_TRACE = '1'
 delete process.env.MERCURY_COMPACTION_TRACE
@@ -81,7 +81,7 @@ section('emitCompactionTrace → shared sidecar → traceSnapshot compaction lan
 
 section('OFF (MERCURY_COMPACTION_TRACE=0) ⇒ no emit')
 {
-  const offDir = mkdtempSync(join(tmpdir(), 'hermes-compaction-off-'))
+  const offDir = mkdtempSync(join(tmpdir(), 'mercury-compaction-off-'))
   process.env.MERCURY_CONFIG_DIR = offDir
   process.env.MERCURY_COMPACTION_TRACE = '0'
   emitCompactionTrace('auto-compact', { tokensFreed: 999 })

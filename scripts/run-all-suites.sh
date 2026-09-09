@@ -179,7 +179,7 @@ dist_stamp() { [ -n "$DIST_MANIFEST" ] && { stat -f %m "$DIST_MANIFEST" 2>/dev/n
 DIST_STAMP0=$(dist_stamp)
 DIST_MUTATED=0
 
-outdir=$(mktemp -d "${TMPDIR:-/tmp}/hermes-gate.XXXXXX")
+outdir=$(mktemp -d "${TMPDIR:-/tmp}/mercury-gate.XXXXXX")
 mkdir -p "$outdir/retry1" "$outdir/retry2"
 EVENTS="$outdir/events.log"
 : >"$EVENTS"

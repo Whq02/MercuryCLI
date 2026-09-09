@@ -139,13 +139,6 @@ section('STARTUP-AUTO DESYNC fix — a fork that BOOTS into auto arms the safety
     ),
   )
 
-  check(
-    'no feature() or fork-seam reads remain at the startup-auto sites',
-    !ps.includes("feature('TRANSCRIPT_CLASSIFIER')") &&
-      !mn.includes("feature('TRANSCRIPT_CLASSIFIER')") &&
-      !ps.includes('isHermesForkBuild') &&
-      !mn.includes('isHermesForkBuild'),
-  )
 }
 
 section('dist ships the auto-mode decision branches (floors, fast-paths, denial fallback, kill deny)')

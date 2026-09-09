@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -u
+root="$(git rev-parse --show-toplevel)"
+cd "$root" || exit 2
+exec node "$root/scripts/lib/commentBytes.mjs" --staged

@@ -11,7 +11,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const saved = {
   brief: process.env.MERCURY_BRIEF,
-  hermesBrief: process.env.MERCURY_BRIEF,
+  mercuryBrief: process.env.MERCURY_BRIEF,
 }
 delete process.env.MERCURY_BRIEF
 delete process.env.MERCURY_BRIEF
@@ -64,8 +64,8 @@ check(
 
 if (saved.brief === undefined) delete process.env.MERCURY_BRIEF
 else process.env.MERCURY_BRIEF = saved.brief
-if (saved.hermesBrief === undefined) delete process.env.MERCURY_BRIEF
-else process.env.MERCURY_BRIEF = saved.hermesBrief
+if (saved.mercuryBrief === undefined) delete process.env.MERCURY_BRIEF
+else process.env.MERCURY_BRIEF = saved.mercuryBrief
 
 console.log(failures === 0 ? 'BRIEF AWAY-SCOPE: ALL GREEN' : `BRIEF AWAY-SCOPE: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mount-smoke.py — launch the built fork TUI in a PTY and assert it MOUNTS without a
+"""mount-smoke.py — launch the built TUI in a PTY and assert it MOUNTS without a
 runtime crash. This is the gate that would have caught the `n is not defined` regression
 (REPL.tsx away-summary effect referenced an undefined var): it crashed every interactive
 mount, but every other gate missed it — REPL.tsx is outside the strict typecheck floor,
@@ -108,7 +108,7 @@ def run_once(timeout=9.0):
         print("  [FAIL] no mount signal within the window — the REPL did not draw (silent failure?)")
         print(f"         last 200 chars (normalized): …{norm[-200:]}")
         return False
-    print(f"  [PASS] fork REPL mounted cleanly, no crash (matched {mounted.group(0)!r})")
+    print(f"  [PASS] the REPL mounted cleanly, no crash (matched {mounted.group(0)!r})")
     return True
 
 def _hard_timeout(signum, frame):
@@ -121,7 +121,7 @@ def main():
     signal.signal(signal.SIGALRM, _hard_timeout)
     signal.alarm(45)
     print("============================================================")
-    print(" interactive mount smoke — the fork REPL draws without crashing")
+    print(" interactive mount smoke — the REPL draws without crashing")
     print("============================================================")
     ok = run_once()
     if not ok:

@@ -30,17 +30,17 @@ console.log('============================================================')
 
 section('1. isProjectSession semantics')
 {
-  const root = '/Users/op/dev/hermes'
-  check('exact root ⇒ in', isProjectSession(log('/Users/op/dev/hermes'), root))
-  check('nested cwd ⇒ in', isProjectSession(log('/Users/op/dev/hermes/src/utils'), root))
+  const root = '/Users/op/dev/orchard'
+  check('exact root ⇒ in', isProjectSession(log('/Users/op/dev/orchard'), root))
+  check('nested cwd ⇒ in', isProjectSession(log('/Users/op/dev/orchard/src/utils'), root))
   check('sibling repo ⇒ out', !isProjectSession(log('/Users/op/dev/other'), root))
   check(
-    'prefix-collision repo ⇒ out (hermes-orchard is not hermes)',
-    !isProjectSession(log('/Users/op/dev/hermes-orchard'), root),
+    'prefix-collision repo ⇒ out (orchard-src is not orchard)',
+    !isProjectSession(log('/Users/op/dev/orchard-src'), root),
   )
-  check('trailing slash on cwd ⇒ in', isProjectSession(log('/Users/op/dev/hermes/'), root))
-  check('trailing slash on root ⇒ in', isProjectSession(log('/Users/op/dev/hermes'), root + '/'))
-  check('win32 separators ⇒ in', isProjectSession(log('C:\\dev\\hermes\\src'), 'C:\\dev\\hermes'))
+  check('trailing slash on cwd ⇒ in', isProjectSession(log('/Users/op/dev/orchard/'), root))
+  check('trailing slash on root ⇒ in', isProjectSession(log('/Users/op/dev/orchard'), root + '/'))
+  check('win32 separators ⇒ in', isProjectSession(log('C:\\dev\\orchard\\src'), 'C:\\dev\\orchard'))
   check('UNKNOWN cwd ⇒ kept (never hide real work)', isProjectSession(log(undefined), root))
   check('empty root ⇒ kept (no scope to enforce)', isProjectSession(log('/anywhere'), ''))
 }

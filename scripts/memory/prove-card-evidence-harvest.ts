@@ -26,7 +26,7 @@ console.log('============================================================')
 console.log(' card evidence harvest — proof')
 console.log('============================================================')
 
-const repo = mkdtempSync(join(tmpdir(), 'hermes-harvest-'))
+const repo = mkdtempSync(join(tmpdir(), 'mercury-harvest-'))
 execSync('git init -q && git -c user.email=p@p -c user.name=p commit -q --allow-empty -m seed', { cwd: repo })
 writeFileSync(join(repo, 'alpha.ts'), 'export const a = 1\n')
 writeFileSync(join(repo, 'beta.ts'), 'export const b = 2\n')

@@ -22,7 +22,7 @@ const ok = (cond: boolean, label: string) => {
   console.log(`${cond ? '  ✅' : '  ❌'} ${label}`)
   if (!cond) failures++
 }
-const tmp = mkdtempSync(join(tmpdir(), 'hermes-durpub-'))
+const tmp = mkdtempSync(join(tmpdir(), 'mercury-durpub-'))
 const BUN = process.execPath
 const tempsIn = (dir: string): string[] => readdirSync(dir).filter(isDurableTempName)
 

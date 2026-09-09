@@ -141,9 +141,9 @@
     "toolResultSpill": "src/utils/toolResultStorage.ts (large tool results)",
     "transcripts": "src/utils/sessionStorage.ts (project JSONL transcripts)",
     "workflowRuns": "src/tools/WorkflowTool (run manifests + journal.jsonl)",
-    "verifyEvidence": "src/utils/verification/verificationState.ts (.claude/verify/)",
-    "doctorCert": ".claude/doctor/last-cert.json (utils/healthReport.ts)",
-    "gateVerdict": ".claude/gate/verdict.json (scripts/run-all-suites.sh)"
+    "verifyEvidence": "src/utils/verification/verificationState.ts (.mercury/verify/)",
+    "doctorCert": ".mercury/doctor/last-cert.json (utils/healthReport.ts)",
+    "gateVerdict": ".mercury/gate/verdict.json (scripts/run-all-suites.sh)"
   },
   "sessionBranching": {
     "command": "/branch (aliases: /fork)",

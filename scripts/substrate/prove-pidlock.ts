@@ -15,7 +15,7 @@ const ok = (cond: boolean, label: string, detail = '') => {
   if (!cond) failures++
 }
 
-const tmp = mkdtempSync(join(tmpdir(), 'hermes-pidlock-'))
+const tmp = mkdtempSync(join(tmpdir(), 'mercury-pidlock-'))
 const L = (name: string) => join(tmp, name)
 
 {

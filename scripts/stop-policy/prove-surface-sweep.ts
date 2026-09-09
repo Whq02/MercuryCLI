@@ -106,24 +106,6 @@ section('§3 3.3 · SC-1..5 class censuses')
 
   console.log('  [CENSUS] SC-2: the known class members (splash escape, daemon-reconcile) were closed earlier; no generic grep exists — all-clear note stands with those fixes as the class record')
   console.log('  [CENSUS] SC-3: ledger-flush deaths made visible; residual bare catch{} population stands as the bounded census (746 at 1.5.2) — burn-down feeds Stage 5')
-  let sc4 = 0
-  const walk4 = (dir: string): void => {
-    for (const name of readdirSync(dir)) {
-      const full = join(dir, name)
-      const st = statSync(full)
-      if (st.isDirectory()) {
-        if (name === 'node_modules' || name === 'dist') continue
-        walk4(full)
-        continue
-      }
-      if (!/\.(ts|tsx)$/.test(name)) continue
-      const text = readFileSync(full, 'utf8')
-      const m = text.match(/'hermes-[a-z-]+\.(json|jsonl|lock)'/g)
-      if (m) sc4 += m.length
-    }
-  }
-  walk4(join(ROOT, 'src'))
-  check(`SC-4 census: ${sc4} quoted legacy hermes-* basename literal(s) — the K8 (Stage 5) enforcement feed`, sc4 >= 0)
   console.log('  [CENSUS] SC-5: win32-inert signal registrations adjudicated INTENTIONAL at (SIGCONT resume · SIGPIPE EPIPE contracts; the only self-stop route (SIGTSTP into the stop owner) is win32-gated) — all-clear')
 }
 

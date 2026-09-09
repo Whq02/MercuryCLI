@@ -84,7 +84,7 @@ function boot(env: Record<string, string>): DriverReport | null {
     env: {
       ...Object.fromEntries(
         Object.entries(process.env).filter(
-          ([k]) => !/^(MERCURY_|CLAUDE_|ANTHROPIC_|HERMES_)/.test(k),
+          ([k]) => !/^(MERCURY_|CLAUDE_|ANTHROPIC_)/.test(k),
         ),
       ),
       MERCURY_CONFIG_DIR: HOME,

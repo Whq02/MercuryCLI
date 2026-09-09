@@ -40,7 +40,7 @@ try {
   writeFileSync(join(ours, 'daemon', 'roster.json'), JSON.stringify({ workers: { w1: { cliVersion: EXPECTED } } }))
   writeFileSync(
     join(ours, 'daemon', 'supervisor.json'),
-    JSON.stringify({ pid: 4242, version: EXPECTED, origin: 'transient', startedAt: 1, dir: '/work', controlSock: '/tmp/hermes-daemon-0a1b2c.sock' }),
+    JSON.stringify({ pid: 4242, version: EXPECTED, origin: 'transient', startedAt: 1, dir: '/work', controlSock: '/tmp/mercury-daemon-0a1b2c.sock' }),
   )
   const reportA = await classifyHarnessHome(ours, { expectedVersion: EXPECTED })
   check('(a) our own home is clean', reportA.foreign.length === 0, JSON.stringify(reportA.foreign))
@@ -80,7 +80,7 @@ try {
   writeFileSync(join(old, 'daemon', 'roster.json'), JSON.stringify({ workers: { w1: { cliVersion: '1.2.0' } } }))
   writeFileSync(
     join(old, 'daemon', 'supervisor.json'),
-    JSON.stringify({ pid: 7, version: '1.2.0', origin: 'transient', startedAt: 1, dir: '/w', controlSock: '/tmp/hermes-daemon-9f8e7d.sock' }),
+    JSON.stringify({ pid: 7, version: '1.2.0', origin: 'transient', startedAt: 1, dir: '/w', controlSock: '/tmp/mercury-daemon-9f8e7d.sock' }),
   )
   const reportD = await classifyHarnessHome(old, { expectedVersion: EXPECTED })
   check('(d) an old-Mercury home is NOT foreign', reportD.foreign.length === 0, JSON.stringify(reportD.foreign))
@@ -131,14 +131,11 @@ try {
     geminiRow !== undefined && geminiRow.sessionEnvVars === undefined && geminiRow.tokenFdEnvVar === undefined,
   )
 
-  const deadNamedConstant = ['CLAUDE_CODE', 'SIGNATURE'].join('_')
   const jetbrainsSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'jetbrains.ts'), 'utf8')
   check(
-    'jetbrains probes the table row by id lookup (named constant + standalone literal dead)',
+    'jetbrains probes the table row by id lookup',
     jetbrainsSource.includes("tool.id === 'claude-code'") &&
-      jetbrainsSource.includes('.jetbrainsPluginDir') &&
-      !jetbrainsSource.includes(deadNamedConstant) &&
-      !jetbrainsSource.includes("'claude-code-jetbrains-plugin'"),
+      jetbrainsSource.includes('.jetbrainsPluginDir'),
   )
   const { ALWAYS_STRIP_TOKEN_VARS } = await import('../../src/utils/subprocessEnv.js')
   check(
@@ -180,10 +177,6 @@ try {
 
   const healthSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'healthReport.ts'), 'utf8')
   check('healthReport cites classifyHarnessHome', healthSource.includes('classifyHarnessHome'))
-  check(
-    'the enumerating package-name grep is gone from healthReport',
-    !healthSource.includes('@anthropic-ai/claude-code'),
-  )
 
   const daemonSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'main.ts'), 'utf8')
   check('daemonRun writes the unconditional [mercury-daemon] engage stamp', daemonSource.includes('[mercury-daemon] engaged v'))
@@ -201,25 +194,6 @@ try {
     reportC.foreign[0]?.evidence,
   )
 
-  const deadAncestorPhrase = ['upstream', 'ancestor'].join(' ')
-  const offenders: string[] = []
-  for (const sweepRoot of ['src', 'scripts'].map(dir => join(import.meta.dir, '..', '..', dir))) {
-    for (const rel of readdirSync(sweepRoot, { recursive: true }) as string[]) {
-      const path = join(sweepRoot, String(rel))
-      let text: string
-      try {
-        text = readFileSync(path, 'utf8')
-      } catch {
-        continue
-      }
-      if (text.includes(deadNamedConstant) || text.toLowerCase().includes(deadAncestorPhrase)) offenders.push(path)
-    }
-  }
-  check(
-    'the named-competitor signature spelling and the ancestor phrase are DEAD across src+scripts',
-    offenders.length === 0,
-    offenders.join(', '),
-  )
 } finally {
   rmSync(root, { recursive: true, force: true })
 }

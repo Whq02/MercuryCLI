@@ -115,7 +115,7 @@ async function main(): Promise<void> {
       ops.includes('awaitDiagnosticStabilization'),
     )
     check(
-      'every hermes op return carries a typed effect',
+      'every op return carries a typed effect',
       (ops.match(/effect: \{/g) ?? []).length >= 20,
     )
     const registry = readFileSync(

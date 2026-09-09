@@ -80,7 +80,7 @@ export function benchChildEnv(
   return env
 }
 export function scrubbedEnvKey(k: string): boolean {
-  if (/^(MERCURY_|HERMES_|TF_|CLAUDE_)/.test(k)) return true
+  if (/^(MERCURY_|CLAUDE_)/.test(k)) return true
   if (k === 'MERCURY_MODEL' || k === 'MERCURY_CONFIG_DIR') return true
   return false
 }

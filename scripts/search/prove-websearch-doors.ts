@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 
 const accountName = (() => { try { return userInfo().username } catch { return '' } })()
 const OPERATOR_NEEDLE = new RegExp(
-  ['github', 'hermes', 'tempest', ...(accountName ? [accountName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')] : [])].join('|'),
+  ['github', ...(accountName ? [accountName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')] : [])].join('|'),
   'i',
 )
 
