@@ -17,7 +17,7 @@ console.log('lane identity legibility ──')
   check('goal wins', laneDisplayName({ goal: 'fix the parser', worktreePath: '/a/b/parcel-1' }) === 'fix the parser')
   check(
     'worktree basename is the fallback',
-    laneDisplayName({ worktreePath: '/repo/.claude/worktrees/parcel-081861b96315' }) === 'parcel-081861b96315',
+    laneDisplayName({ worktreePath: '/repo/.mercury/worktrees/parcel-081861b96315' }) === 'parcel-081861b96315',
   )
   check('trailing slash is tolerated', laneDisplayName({ worktreePath: '/x/y/lane-7/' }) === 'lane-7')
   check('laneId is the last resort', laneDisplayName({ laneId: 'zone:slice-9' }) === 'zone:slice-9')
@@ -37,7 +37,7 @@ console.log('lane identity legibility ──')
     partySeats: [],
     collab: { zoneLanes: [{ sliceId: 'sl1', worktreePath: '/w/zones/zone-a', title: 'zone work', phase: 'ready' }] },
     contextLanes: [{ id: 'cl1', status: 'active', goal: 'side quest', handoffPromoted: false }],
-    gitWorktreeLanes: [{ path: '/w/.claude/worktrees/parcel-decafbad', branch: 'wt-b', head: 'abc' }],
+    gitWorktreeLanes: [{ path: '/w/.mercury/worktrees/parcel-decafbad', branch: 'wt-b', head: 'abc' }],
     laneRuns: new Map(),
   } as never
   const rows = (deriveLaneRows as (i: never) => Array<{ laneId: string; displayName: string }>)(inputs)
@@ -50,7 +50,7 @@ console.log('lane identity legibility ──')
   )
   check(
     'git worktree lane shows its basename',
-    byId.get('wt:/w/.claude/worktrees/parcel-decafbad') === 'parcel-decafbad',
+    byId.get('wt:/w/.mercury/worktrees/parcel-decafbad') === 'parcel-decafbad',
   )
 }
 

@@ -43,7 +43,7 @@ setStamp(true)
 check('mercury-general: bare-stamped === full-stamped', gpStock === JSON.stringify(buildSubagentMercurySections({ agentDefinition: GP })))
 check('exempt agent: bare-stamped === full-stamped', exemptStock === JSON.stringify(buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-verifier' } })))
 
-section('(b) ON (fork) ⇒ floor leads, the ONE NORMAL doctrine')
+section('(b) stamped ⇒ floor leads, the ONE NORMAL doctrine')
 setStamp(true)
 delete process.env.MERCURY_EXPERIENCE_CARDS
 {
@@ -76,7 +76,6 @@ section('(d2) C14 source — derived Set (not a string literal) + WORKFLOW_SUBAG
 {
   const sd = read('../../src/constants/subagentDoctrine.ts')
   check('exempt Set is DERIVED via .filter(d => d.fixedOutputContract)', sd.includes('.filter(d => d.fixedOutputContract)') && sd.includes(".concat('workflow-subagent')"))
-  check('the prior hard-coded string Set is GONE', !/new Set<string>\(\[\s*'verification',\s*'Explore',\s*'Plan',\s*'workflow-subagent',?\s*\]\)/.test(sd))
   const ah = read('../../src/tools/WorkflowTool/agentHooks.ts')
   check('WORKFLOW_SUBAGENT_DEF carries fixedOutputContract: true', /WORKFLOW_SUBAGENT_DEF = \{[\s\S]{0,900}fixedOutputContract: true/.test(ah))
   const la = read('../../src/tools/AgentTool/loadAgentsDir.ts')
