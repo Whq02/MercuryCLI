@@ -687,7 +687,10 @@ export class TaskRoster {
         ledgerExit('killed')
         if (short.startsWith('concourse-w')) {
           void import('./concourseSupervisor.js')
-            .then(sup => sup.completeRequestedStop(short))
+            .then(async sup => {
+              sup.completeRequestedStop(short)
+              await sup.completeFencedRetirement(short)
+            })
             .catch(() => {})
         }
         return
