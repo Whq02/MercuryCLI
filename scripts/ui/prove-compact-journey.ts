@@ -4,7 +4,7 @@ import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs
 import { join } from 'node:path'
 import { z } from 'zod'
 import {
-  check, childEnv, DIST, endLeg, FACE_READY, finish, joined, netlines, nonLoopback,
+  check, childEnv, DIST, drive, endLeg, FACE_READY, finish, joined, netlines, nonLoopback,
   printFrame, productNode, requireCaptureDriver, ROOT, scratch, startLeg,
 } from '../computer/computerDriveKit.ts'
 import { captureEngineEntry, vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -142,4 +142,28 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
   }
 }
 check('resize and both fixed twins complete with the same nonempty semantic requests', results.length === 3 && results.every(result => result.complete && JSON.stringify(result.requests) === JSON.stringify(expectedRequests)), JSON.stringify(results))
+for (const answer of ['accept', 'interrupt'] as const) {
+  const resultFile = join(scratch, `consent-${answer}.txt`)
+  const leg = await startLeg(`detail-consent-${answer}`, [
+    { kind: 'paced_tool_use', preDeltas: Array.from({ length: 24 }, (_, i) => `compact-consent-window-${i}\n`), gapMs: 300, tools: [{ name: 'Bash', input: { command: `printf compact-consent-done > ${JSON.stringify(resultFile)}`, description: 'Write the approved fixture marker' } }] },
+    { kind: 'text', text: 'compact-consent-finished' },
+  ], null)
+  try {
+    const result = await drive(driver, leg, { cols: 80, rows: 24 }, [
+      { requireAwait: true, awaitText: FACE_READY, awaitSettleTicks: 2, data: '\r' },
+      { requireAwait: true, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: 'request the fixture write\r' },
+      { requireAwait: true, awaitText: 'compact-consent-window-1', data: '\u0014\r' },
+      { requireAwait: true, awaitText: 'Session statistics', data: '', mark: 'detail' },
+      { requireAwait: true, awaitText: '1. Yes', awaitSettleTicks: 2, data: answer === 'accept' ? '\r' : '\u0003', mark: 'card' },
+      { requireAwait: true, awaitText: answer === 'accept' ? 'compact-consent-finished' : 'Interrupted', awaitSettleTicks: 2, data: 'after-consent', mark: 'settled' },
+      { requireAwait: true, awaitText: 'after-consent', targetText: 'after-consent', awaitSettleTicks: 2, data: '', mark: 'composer' },
+    ], 180, { MERCURY_COMPUTER_USE: undefined })
+    for (const mark of ['detail', 'card', 'settled', 'composer']) printFrame(`detail-consent-${answer} ${mark}`, result.marks[mark] ?? [])
+    check(`${answer}: detail is displaced by the real consent card and every key lands`, result.status === 0 && joined(result.marks.detail ?? []).includes('Session statistics') && joined(result.marks.card ?? []).includes('1. Yes'), result.stderr)
+    check(`${answer}: closing consent never reopens detail`, !joined(result.marks.composer ?? []).includes('Session statistics') && joined(result.marks.composer ?? []).includes('after-consent'))
+    check(`${answer}: only approved writes execute`, existsSync(resultFile) === (answer === 'accept'))
+    check(`${answer}: draft never reaches the provider`, leg.fixture.requests.every(request => !request.raw.includes('after-consent')))
+    check(`${answer}: consent drive stays on loopback`, nonLoopback(netlines(leg.netlog)).length === 0)
+  } finally { await endLeg(leg) }
+}
 finish('compact-journey')
