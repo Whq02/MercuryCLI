@@ -211,7 +211,9 @@ try {
   check('R7 the replayed message reached the model and the answer landed in the SAME transcript after the first', await untilAsync(() => transcriptOf(sid).includes('retire-probe: second answer'), 60_000), transcriptOf(sid).slice(-300))
   const secondHit = hits.find(h => h.body.includes('retire-probe-second'))
   check('R7 the revived runner carried the parked chat back: its request held the first turn, not an empty context', secondHit !== undefined && secondHit.body.includes('retire-probe-first') && secondHit.body.includes('retire-probe: first answer'), secondHit?.body.slice(0, 300))
-  check('R7 the transcript grew and its pre-park bytes are its exact prefix (the revived runner appended, never rewrote)', transcriptOf(sid).length > transcriptBytesBefore && transcriptOf(sid).startsWith(transcriptBefore) && transcriptOf(sid).slice(transcriptBytesBefore).includes('retire-probe: second answer'), `before ${transcriptBytesBefore} bytes, after ${transcriptOf(sid).length}, prefix intact ${transcriptOf(sid).startsWith(transcriptBefore)}`)
+  const transcriptAfter = transcriptOf(sid)
+  const appendedTail = transcriptAfter.startsWith(transcriptBefore) ? transcriptAfter.slice(transcriptBytesBefore) : ''
+  check('R7 the transcript grew and its pre-park bytes are its exact prefix (the revived runner appended, never rewrote)', transcriptAfter.length > transcriptBytesBefore && transcriptAfter.startsWith(transcriptBefore) && appendedTail.includes('retire-probe: second answer'), `before ${transcriptBytesBefore} bytes, after ${transcriptAfter.length}, prefix intact ${transcriptAfter.startsWith(transcriptBefore)}`)
 
   const lost = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'retire-4', prompt: 'retire-probe-third: a session whose transcript will be lost', workspaceDir: work, title: 'Lost probe', model: 'claude-sonnet-5', effort: 'high' } as never)) as { ok?: boolean; sessionId?: string }
   const lostSid = lost.sessionId ?? ''
