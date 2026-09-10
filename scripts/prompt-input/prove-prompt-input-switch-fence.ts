@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -42,10 +42,11 @@ const composerOf = (rows: string[]): string => {
   return idx.length ? rows[idx[idx.length - 1]]! : ''
 }
 
-function capture(tag: string, sends: unknown[], total: number): { rows: string[]; receipts: unknown } {
+function capture(tag: string, sends: unknown[], total: number): { rows: string[]; receipts: unknown; fires: string } {
   writeSyntheticSession('short', SID)
   writeSyntheticSession('errors', SID_ERRORED)
   writeSyntheticSession('tools', SID_C)
+  writeFileSync(hookLog, '')
   const out = join(home, `${tag}.json`)
   const cfgPath = join(home, `${tag}-cfg.json`)
   writeFileSync(cfgPath, JSON.stringify({ argv: cfg.argv, cwd: cfg.cwd, sends, total, cols: 120, rows: 40, out }))
@@ -56,7 +57,7 @@ function capture(tag: string, sends: unknown[], total: number): { rows: string[]
   })
   if (res.status !== 0) throw new Error(`vshot ${tag} failed: ${res.stderr?.slice(-500)}`)
   const g = JSON.parse(readFileSync(out, 'utf8')) as Grid
-  return { rows: rowsOf(g), receipts: g.sendReceipts }
+  return { rows: rowsOf(g), receipts: g.sendReceipts, fires: readFileSync(hookLog, 'utf8') }
 }
 
 const paneHas = (rows: string[], s: string): boolean => rows.some(r => r.slice(24).includes(s))
@@ -73,6 +74,8 @@ try {
   ], 135)
   t('V0 serial switches land on the last target (C)', paneHas(v0.rows, ON_C) && !paneHas(v0.rows, ON_B),
     `receipts=${JSON.stringify(v0.receipts)}`)
+  t('V0 ground truth: this capture alone fired both resume stages (B and C hooks)',
+    v0.fires.includes(SID_ERRORED) && v0.fires.includes(SID_C), JSON.stringify(v0.fires))
 
   const v1 = capture('v1', [
     { atTick: 40, data: `/sessiontab ${SID_ERRORED}`, minTick: 10, awaitRaw: '\u001b[?2004h' },
@@ -82,9 +85,15 @@ try {
   ], 135)
   t('V1 rapid switches: the LAST-CHOSEN session (C) owns the commit', paneHas(v1.rows, ON_C) && !paneHas(v1.rows, ON_B),
     `receipts=${JSON.stringify(v1.receipts)}`)
-  const fires = existsSync(hookLog) ? readFileSync(hookLog, 'utf8') : ''
-  t('V1 ground truth: both resume stages actually ran (B and C hooks fired)',
-    fires.includes(SID_ERRORED) && fires.includes(SID_C))
+  t('V1 ground truth: this capture alone fired both resume stages (B and C hooks)',
+    v1.fires.includes(SID_ERRORED) && v1.fires.includes(SID_C), JSON.stringify(v1.fires))
+
+  const v1c = capture('v1-control', [
+    { atTick: 40, data: `/sessiontab ${SID_ERRORED}`, minTick: 10, awaitRaw: '\u001b[?2004h' },
+    { atTick: 44, data: '\r', afterPrevTicks: 3 },
+  ], 135)
+  t('V1 control: a B-only capture fires B and never C (earlier captures cannot lend their markers)',
+    v1c.fires.includes(SID_ERRORED) && !v1c.fires.includes(SID_C), JSON.stringify(v1c.fires))
 
   const v3 = capture('v3', [
     { atTick: 40, data: `/sessiontab ${SID_ERRORED}`, minTick: 10, awaitRaw: '\u001b[?2004h' },
