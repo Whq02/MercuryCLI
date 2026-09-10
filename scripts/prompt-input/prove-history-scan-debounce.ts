@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -87,9 +88,20 @@ section('D3 · source pins — Enter immediate, flush-on-cycle, disarm on every 
     'the non-empty keystroke path arms ONE debounced scan at the named cadence, reading the query at fire time',
     /disarmHistoryScanTimer\(scanDebounceRef\.current\)\s*\n\s*scanDebounceRef\.current = armHistoryScanTimer\(\(\) => \{\s*\n\s*scanDebounceRef\.current = null\s*\n\s*scan\(queryRef\.current, false\)\s*\n\s*\}, HISTORY_SCAN_DEBOUNCE_MS\)/.test(setQueryBlock),
   )
-  const branchStart = setQueryBlock.indexOf("if (query === '') {")
-  const branchEnd = setQueryBlock.indexOf('// One-frame coalescing')
-  const emptyBranch = branchStart !== -1 && branchEnd > branchStart ? setQueryBlock.slice(branchStart, branchEnd) : ''
+  const setQueryCode = codeOnlyText('useHistorySearch.ts', setQueryBlock)
+  const branchStart = setQueryCode.indexOf("if (query === '') {")
+  let branchEnd = -1
+  if (branchStart !== -1) {
+    let depth = 0
+    for (let i = setQueryCode.indexOf('{', branchStart); i < setQueryCode.length; i++) {
+      if (setQueryCode[i] === '{') depth++
+      else if (setQueryCode[i] === '}' && --depth === 0) {
+        branchEnd = i + 1
+        break
+      }
+    }
+  }
+  const emptyBranch = branchStart !== -1 && branchEnd > branchStart ? setQueryCode.slice(branchStart, branchEnd) : ''
   check(
     'the empty-query restore is IMMEDIATE (disarms, then restores in the same call — no arm inside the branch)',
     emptyBranch !== '' &&
