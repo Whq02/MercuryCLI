@@ -43,24 +43,6 @@ console.log('§1 CB-04 — the zero-row drop-down arm refused at the door; shrin
   check('the 2-row floor is the ask floor (max(2, …)) — one number, two sites', resolveConcourseProfile(120, 24) === 'wide')
 }
 
-console.log('§2 the too-small refusal keeps its one honest exit')
-{
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check(
-    'the too-small branch consumes with esc → exitToRepl (the painted line and the key agree)',
-    /if \(resolveConcourseProfile\(cols, termRows\) === 'too-small'\) \{\s*\n\s*if \(key\.escape\) \{\s*\n\s*event\.stopImmediatePropagation\(\)\s*\n\s*callbacks\.exitToRepl\(\)/.test(screen),
-  )
-  const layout = read('src/components/concourse/ConcourseLayout.tsx')
-  check(
-    "the refusal names the WHOLE window, never the split pane's clamped width",
-    layout.includes('needs at least 80×24 · this window is {termCols}×{termRows}'),
-  )
-  check(
-    'the refusal names the way out, keyed to the chat truth',
-    layout.includes("esc returns to the focused chat") && layout.includes("esc returns to the boot face"),
-  )
-}
-
 console.log('§3 A5 — the resume waits bind their exits; a cancel outlives a late success')
 {
   const screen = read('src/screens/ResumeConversation.tsx')

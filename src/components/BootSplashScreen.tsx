@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { basename } from 'node:path';
+import figures from 'figures';
 import { getCwd } from '../utils/cwd.js';
 import { Box } from '../ink.js';
 import { adoptGroundFamily, createSplashCore, assembleCardRows, CARD_LABEL_W, WORD_W } from '../../assets/splash/splash-core.mjs';
@@ -453,7 +454,7 @@ export function BootSplashScreen(): React.ReactNode {
       const keyRows = rows > 2 && keyMapHint !== '' ? 1 : 0;
       const count = Math.min(composedRows.length, Math.max(0, rows - keyRows - 1));
       const start = Math.max(0, Math.min(Math.max(0, selectedIndex) - count + 1, composedRows.length - count));
-      const placed = composedRows.slice(start, start + count).map((row, i) => truncateToWidth(`${start + i === selectedIndex ? '❯' : ' '} ${row.label}${row.ctx !== '' ? ` · ${row.ctx}` : ''}`, columns));
+      const placed = composedRows.slice(start, start + count).map((row, i) => truncateToWidth(`${start + i === selectedIndex ? figures.pointer : ' '} ${row.label}${row.ctx !== '' ? ` · ${row.ctx}` : ''}`, columns));
       const actionAt = new Map<number, number>(placed.map((_, i) => [i, start + i]));
       const selected = composedRows[Math.max(0, selectedIndex)];
       const verb = selected && ['menu', 'kit', 'agents', 'doctor', 'saturn', 'logins'].includes(selected.key) ? 'open' : 'start';
