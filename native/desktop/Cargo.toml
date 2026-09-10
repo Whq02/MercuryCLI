@@ -1,0 +1,46 @@
+[package]
+name = "mercury_desktop"
+version = "0.1.0"
+edition = "2021"
+description = "Mercury's desktop driver, as a Node-API module: the screen captured to PNG, the displays, the frontmost application, the cursor, and the mouse and keyboard driven through the platform's own input layer, with the permission preflight beside them"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "3", default-features = false, features = ["napi6"] }
+napi-derive = "3"
+png = "0.17"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"
+objc2 = "0.6"
+objc2-foundation = "0.3"
+objc2-core-foundation = "0.3"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_HiDpi",
+  "Win32_System_Console",
+  "Win32_System_Threading",
+  "Win32_System_StationsAndDesktops",
+  "Win32_System_RemoteDesktop",
+  "Win32_Security",
+] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+x11rb = { version = "0.13", features = ["randr", "xtest"] }
+
+[build-dependencies]
+napi-build = "2"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+strip = "symbols"
