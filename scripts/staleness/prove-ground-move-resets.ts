@@ -2,6 +2,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { codeOnlyText } from '../lib/codeText.ts'
 import { spawnSync } from 'node:child_process'
 
 const scratchHome = mkdtempSync(join(tmpdir(), 'stale-ground-home-'))
@@ -165,12 +166,20 @@ await detector.initialize()
 }
 
 {
-  const setupSrc = readFileSync(join(repoRoot, 'src/setup.ts'), 'utf8')
-  check('S10 the worktree boot calls applyHarnessGround (the one seam)', setupSrc.includes('applyHarnessGround('))
-  const worktreeBlock = setupSrc.slice(setupSrc.indexOf('worktreeSession.worktreePath'))
+  const setupSrc = codeOnlyText('setup.ts', readFileSync(join(repoRoot, 'src/setup.ts'), 'utf8'))
+  const transitionAt = setupSrc.indexOf('activeCwd = worktreeSession.worktreePath')
+  const transitionEnd = transitionAt === -1 ? -1 : setupSrc.indexOf('captureHooksConfigSnapshot()', transitionAt)
+  const transition = transitionAt === -1 || transitionEnd === -1 ? '' : setupSrc.slice(transitionAt, transitionEnd)
+  check('S10 the worktree TRANSITION is located (activeCwd assignment through the hooks snapshot), past the tmux argument that spells the same path', transition.length > 0 && transitionAt > setupSrc.indexOf('worktreeSession.worktreePath') && !transition.includes('createTmuxSessionForWorktree'), `${transitionAt}..${transitionEnd}`)
+  check(
+    'S10 the worktree boot calls applyHarnessGround (the one seam) — setCwd(activeCwd) → await applyHarnessGround(getCwd()) → saveWorktreeState, in that order, inside the transition',
+    /activeCwd = worktreeSession\.worktreePath\s*setCwd\(activeCwd\)[\s\S]*?await applyHarnessGround\(getCwd\(\)\)\s*saveWorktreeState\(worktreeSession\)/.test(transition),
+    transition.replace(/\s+/g, ' ').slice(0, 240),
+  )
+  check('S10 the seam is invoked exactly once in setup.ts, and that invocation is the transition’s', (setupSrc.match(/await applyHarnessGround\(/g) ?? []).length === 1 && transition.includes('await applyHarnessGround(getCwd())'))
   check(
     'S10 the hand-rolled trio is GONE from the worktree block (no second owner)',
-    !worktreeBlock.slice(0, 1200).includes('setOriginalCwd(') && !worktreeBlock.slice(0, 1200).includes('setProjectRoot('),
+    !transition.includes('setOriginalCwd(') && !transition.includes('setProjectRoot('),
   )
   await ground.applyHarnessGround(worktreeWReal)
   check('S10 the OS cwd lands on the worktree (chdir is part of the move)', realpathSync(process.cwd()).normalize('NFC') === worktreeWReal)
