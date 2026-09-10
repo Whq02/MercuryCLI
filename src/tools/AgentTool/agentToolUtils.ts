@@ -992,10 +992,6 @@ export async function runAsyncAgentLifecycle(args: {
         '../../bootstrap/state.js'
       )
       clearInvokedSkillsForAgent(agentIdForCleanup as never)
-      const { clearDumpState } = await import(
-        '../../services/api/dumpPrompts.js'
-      )
-      clearDumpState(agentIdForCleanup)
     } catch (error) {
       logForDebugging(
         `agent lifecycle: final cleanup failed: ${errorMessage(error)}`,

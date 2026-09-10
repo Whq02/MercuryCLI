@@ -4,7 +4,6 @@ import {
   getSdkAgentProgressSummariesEnabled,
 } from '../../bootstrap/state.js'
 import { startAgentSummarization } from '../../services/AgentSummary/agentSummary.js'
-import { clearDumpState } from '../../services/api/dumpPrompts.js'
 import {
   AGENT_WINDOW_RESUME_NOTE,
   agentStopReasonOf,
@@ -404,7 +403,6 @@ export async function runForegroundAgentExecution(
       stopForegroundSummarization?.()
       try {
         clearInvokedSkillsForAgent(syncAgentId)
-        clearDumpState(syncAgentId)
       } catch (error) {
         logForDebugging(
           `foreground agent: backgrounded cleanup failed: ${errorMessage(error)}`,
@@ -624,7 +622,6 @@ export async function runForegroundAgentExecution(
       }
     }
     clearInvokedSkillsForAgent(syncAgentId)
-    if (!backgrounded) clearDumpState(syncAgentId)
     if (!backgrounded) worktreeFields = await cleanupWorktreeIfNeeded()
   }
 
