@@ -36,6 +36,7 @@ import {
   pruneDesktopShots,
   screenOf,
   screenshotPath,
+  setDrivingApp,
   setScreen,
   type DesktopJudgedApp,
 } from '../../services/desktop/desktopSession.js'
@@ -807,6 +808,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
           outcome = 'failed'
           return finish()
         }
+        setDrivingApp(live.name)
         let act: ActWords
         try {
           act = await performAct(driver, input, plan, signal)
