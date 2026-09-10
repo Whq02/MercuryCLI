@@ -251,6 +251,18 @@ function removeProjectHistory(
 
 const CONFIG_FRESHNESS_POLL_MS = 1000
 let freshnessWatcherStarted = false
+const cacheListeners = new Set<() => void>()
+
+function notifyGlobalConfigCache(): void {
+  for (const listener of cacheListeners) listener()
+}
+
+export function subscribeGlobalConfigCache(listener: () => void): () => void {
+  cacheListeners.add(listener)
+  return () => {
+    cacheListeners.delete(listener)
+  }
+}
 
 function startGlobalConfigFreshnessWatcher(): void {
   if (freshnessWatcherStarted || process.env.NODE_ENV === 'test') return
@@ -274,6 +286,7 @@ function startGlobalConfigFreshnessWatcher(): void {
             })),
             mtime: curr.mtimeMs,
           }
+          notifyGlobalConfigCache()
         })
         .catch(() => {})
     },

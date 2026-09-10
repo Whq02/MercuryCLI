@@ -6,11 +6,13 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import { enqueueNotification } from '../../context/notifications.js'
 import { Box, Text, useInput } from '../../ink.js'
 import { useAppState, useSetAppState, type AppState } from '../../state/AppState.js'
+import { getGlobalConfigCacheStamp, subscribeGlobalConfigCache } from '../../utils/config/globalConfig.js'
 import {
   EDITOR_MODES,
   NOTIFICATION_CHANNELS,
@@ -410,11 +412,12 @@ export function Config({
     },
   })
   const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null)
+  const configStamp = useSyncExternalStore(subscribeGlobalConfigCache, getGlobalConfigCacheStamp, getGlobalConfigCacheStamp)
   useEffect(() => {
     let active = true
     void seatCeilingFactsAsync().then(facts => { if (active) setSeatFacts(facts) })
     return () => { active = false }
-  }, [version])
+  }, [version, configStamp])
   const seatWarning = seatFacts === null ? null : seatCostWarning(seatFacts)
   items.push({
     id: 'seats',
