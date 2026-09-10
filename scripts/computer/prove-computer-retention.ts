@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { toolResultTurn, toolUseTurn } from './computerToolKit.ts'
 
+delete process.env.NODE_ENV
 const retention = await import('../../src/services/desktop/screenshotRetention.ts')
 const session = await import('../../src/services/desktop/desktopSession.ts')
 const { stripImagesFromMessages } = await import('../../src/services/compact/compact.ts')
@@ -103,7 +104,7 @@ section('§3 the wire call sites (structural)')
   const zai = sourceText('src/services/providers/zai/zaiCallModel.ts')
   check('the direct GLM runtime retires older screenshots too', zai.includes('retireOlderScreenshots('))
   const chain = sourceText('src/utils/sessionStorage/chain.ts')
-  check('the session file chain projects every record it cleans for the file', chain.includes('.map(projectForTranscript)'))
+  check('the session file chain projects every record it cleans for the file, with the transcript beside it', chain.includes('projectForTranscript(message, transcript)'))
 }
 
 section('§4 the screenshot a coordinate act refers to must still be visible')

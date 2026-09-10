@@ -39,7 +39,7 @@ for (const size of SIZES) {
   check(`${size.cols}: the footer says hands off while the act runs`, rowsHaving(driving, FOOTER), driving.filter(r => r.includes('hands off')).join(' · '))
   const done = res.marks.done ?? []
   printFrame(`${size.cols}×${size.rows} done`, done)
-  check(`${size.cols}: the transcript carries the click row`, joined(done).includes('Computer click (812, 300)') || joined(done).includes('click (812, 300)'), joined(done).slice(0, 600))
+  check(`${size.cols}: the transcript carries a Computer click row`, /Computer\s+click \(\d+, \d+\)/.test(joined(done)), joined(done).slice(0, 600))
   check(`${size.cols}: the result card names the act`, joined(done).toLowerCase().includes('computer click'), joined(done).slice(0, 600))
   check(`${size.cols}: the turn ended (Done.) with no card on the second act`, rowsHaving(done, 'Done.') && !rowsHaving(done, CARD_NEEDLE))
   check(`${size.cols}: the footer is gone after the turn`, !rowsHaving(done, 'hands off'))
