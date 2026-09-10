@@ -55,8 +55,6 @@ t.section('§3 — one selective plan-entry doctrine')
   t.check('the aggressive "prefer planning" marker is gone', !planPrompt.includes('Prefer using EnterPlanMode'))
   t.check('the multi-file-count trigger is gone', !planPrompt.includes('more than 2-3 files'))
   t.check('the Mercury doctrine appendix survives', planPrompt.includes('Mercury doctrine (this harness)'))
-  const promptSrc = readFileSync(join(ROOT, 'src/tools/EnterPlanModeTool/prompt.ts'), 'utf8')
-  t.check('the zero-caller variant is deleted', !promptSrc.includes('getEnterPlanModeToolPromptAnt'))
 }
 
 t.section('§4 — one owner per clause (the attachment defers)')

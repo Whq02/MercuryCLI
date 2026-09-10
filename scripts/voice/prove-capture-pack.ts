@@ -86,6 +86,13 @@ const notices = existsSync(join(PACK_DIR, 'NOTICES.json')) ? (JSON.parse(readFil
 check('NOTICES.json inventories every crate with its licence', notices !== null && (notices.crates ?? []).length === (manifest?.crates.length ?? -1) && (notices.crates ?? []).some(c => c.name === 'cpal' && /MIT|Apache/.test(c.license)), JSON.stringify(notices?.crates?.slice(0, 3)))
 check('a stale pack (other sources) reads as a mismatch, never ok', pack.checkVoicePackDir(PACK_DIR, { platform: 'fixture-os-fixture-arch' }).state === 'mismatch')
 
+console.log('\n[2b] the stream error callback writes nothing to stderr')
+const libSource = readFileSync(join(ROOT, ...pack.VOICE_NATIVE_PATH.split('/'), 'src', 'lib.rs'), 'utf8')
+const errorCallback = /\.build_input_stream\([\s\S]*?\)\s*\.map_err/.exec(libSource)?.[0] ?? ''
+check('the addon source hands stream errors to a recorder, never to a print', errorCallback !== '' && /record_stream_error\(/.test(errorCallback) && !/eprintln!|println!|stderr/.test(errorCallback), errorCallback.slice(0, 300))
+check('the recorder counts transient errors and keeps the last fatal one', /fn record_stream_error/.test(libSource) && /ErrorKind::Xrun/.test(libSource) && /transient\s*=\s*\w+\.transient\.saturating_add\(1\)/.test(libSource) && /fatal\s*=\s*Some\(/.test(libSource))
+check('the error surface is part of the ONE export list', (['captureErrors', 'lastCaptureErrors'] as const).every(fn => (pack.VOICE_ADDON_EXPORTS as readonly string[]).includes(fn)))
+
 console.log('\n[3] the addon loads and answers')
 const load = pack.loadVoiceAddon()
 check('the pack owner resolves the checkout pack and loads the addon', load.state === 'ok' && load.source === 'workspace', load.state === 'ok' ? load.dir : load.note)
@@ -103,11 +110,14 @@ if (load.state === 'ok') {
   try {
     const handle = await capture.startCapture({ backend: resolved })
     await sleep(1000)
+    const running = handle.streamErrors()
+    check('the running take answers its stream error record through the handle (the addon read of a live capture)', typeof running.transient === 'number' && running.fatal === null, JSON.stringify(running))
     const take = await handle.stop()
     const read = wav.readWav(take.wav)
     check('the take is a WAV of the capture shape (16 kHz · mono · 16-bit)', read.ok && wav.isVoiceWavShape(read.header), read.ok ? JSON.stringify(read.header) : read.reason)
     check('the take carries about a second of samples (the device rate resampled)', take.durationMs >= 500 && take.durationMs <= 2500, `${take.durationMs}ms`)
-    console.log(`  · ${take.durationMs}ms on ${fallback ?? 'the default input'}, ${take.silent ? 'silent' : 'not silent'} (content is never pinned)`)
+    check('the take carries its stream error record (a count, the last transient, a fatal or null) and a transient error never ends the take', typeof take.streamErrors.transient === 'number' && (take.streamErrors.lastTransient === null || typeof take.streamErrors.lastTransient === 'string') && take.streamErrors.fatal === null, JSON.stringify(take.streamErrors))
+    console.log(`  · ${take.durationMs}ms on ${fallback ?? 'the default input'}, ${take.silent ? 'silent' : 'not silent'} (content is never pinned), stream errors ${JSON.stringify(take.streamErrors)}`)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     warn(`no take on this host: ${message}`)
@@ -117,7 +127,7 @@ if (load.state === 'ok') {
   console.log('\n[5] the addon loads on the vendored Node and a PATH Node alike (Node-API is ABI-stable)')
   const loader = [
     'const a = require(process.argv[1])',
-    "const fns = ['packVersion', 'listInputDevices', 'defaultInputDevice', 'startCapture', 'stopCapture', 'cancelCapture']",
+    "const fns = ['packVersion', 'listInputDevices', 'defaultInputDevice', 'startCapture', 'captureErrors', 'stopCapture', 'cancelCapture', 'lastCaptureErrors']",
     "const missing = fns.filter(f => typeof a[f] !== 'function')",
     "if (missing.length > 0) { console.log('MISSING ' + missing.join(',')); process.exit(3) }",
     "console.log('LOADED ' + process.version + ' pack ' + a.packVersion() + ' devices=' + a.listInputDevices().length)",

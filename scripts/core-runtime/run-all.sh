@@ -10,6 +10,7 @@
 # gate-watch: src/tools/BriefTool/prompt* src/tools/SyntheticOutputTool/SyntheticOutputTool*
 # gate-watch: src/types/ids* src/types/textInputTypes* src/utils/**
 # gate-watch: src/commands/caching/**
+# gate-watch: src/render-engine/door.ts src/render-engine/cockpit/terminalOut.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 cd "$(dirname "$0")/../.." || exit 1
@@ -103,6 +104,8 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-fork-usage-fold.ts |
 echo "── core-runtime: the metering S3 rows (FN-018 ranks 16-23)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-metering-s3-truth.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-metering-s3-truth.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-resize-hold-cursor.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-resize-hold-cursor.ts "$__t" "$__rc"
+
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-terminal-backpressure.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-terminal-backpressure.ts "$__t" "$__rc"
 
 if [ "$fail" = "0" ]; then echo "core-runtime suite: green"; else echo "core-runtime suite: RED"; fi
 exit "$fail"

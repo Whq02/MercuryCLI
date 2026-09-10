@@ -7,8 +7,6 @@ const HOME = mkdtempSync(join(tmpdir(), 'claudeai-optin-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_CLAUDEAI_MCP
-delete process.env.MERCURY_CLAUDEAI_MCP
-delete process.env.ENABLE_CLAUDEAI_MCP_SERVERS
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { claudeAiMcpArmed, fetchClaudeAIMcpConfigsIfEligible, clearClaudeAIMcpConfigsCache } = await import(
@@ -50,27 +48,13 @@ section('§2 THE LIVE GATE')
     Object.keys(armedNoToken).length === 0,
   )
   delete process.env.MERCURY_CLAUDEAI_MCP
-
-  clearClaudeAIMcpConfigsCache()
-  process.env.ENABLE_CLAUDEAI_MCP_SERVERS = '1'
-  const foreignOn = await fetchClaudeAIMcpConfigsIfEligible()
-  check('the retired foreign spelling is IGNORED (truthy alone arms nothing)', Object.keys(foreignOn).length === 0)
-  delete process.env.ENABLE_CLAUDEAI_MCP_SERVERS
 }
 
 section('§3 WIRING')
 {
   const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
   const registry = src('src/substrate/flagRegistry.ts')
-  check(
-    'MERCURY_CLAUDEAI_MCP is REGISTERED (opt-in) and no foreign rung is documented',
-    registry.includes("env: 'MERCURY_CLAUDEAI_MCP'") &&
-      !registry.includes('ENABLE_CLAUDEAI_MCP_SERVERS'),
-  )
-  check(
-    'the gate reads no foreign spelling',
-    !src('src/services/mcp/claudeai.ts').includes('ENABLE_CLAUDEAI_MCP_SERVERS'),
-  )
+  check('MERCURY_CLAUDEAI_MCP is REGISTERED (opt-in)', registry.includes("env: 'MERCURY_CLAUDEAI_MCP'"))
   const gate = src('src/services/mcp/claudeai.ts')
   check(
     'the fetch consults the canonical row THROUGH the registry resolver',

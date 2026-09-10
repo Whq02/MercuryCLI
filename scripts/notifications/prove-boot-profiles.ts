@@ -16,7 +16,6 @@ writeFileSync(
   JSON.stringify({ claudeAiOauth: { accessToken: 'sk-ant-oat01-fixture', refreshToken: 'sk-ant-ort01-fixture', expiresAt: Date.now() + 3600_000, scopes: ['user:inference'], subscriptionType: 'max' } }),
 )
 process.env.MERCURY_DAEMON_DIR = join(root, 'daemon')
-process.env.MERCURY_DAEMON_DIR = join(root, 'daemon')
 const menu = await import('../../src/substrate/startupMenu.js')
 const profilePath = join(root, 'boot-env.json')
 

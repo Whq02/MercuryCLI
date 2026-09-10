@@ -144,17 +144,17 @@ add('isUnsignedThinkingBlock', 'non-thinking', () =>
 perFixture('buildMessageLookups', m => M.buildMessageLookups(M.normalizeMessages(m) as never, m));
 perFixture('buildSubagentLookups', m =>
   M.buildSubagentLookups(
-    (M.normalizeMessages(m) as { type: string }[]).filter(
-      x => x.type === 'user' || x.type === 'assistant',
-    ) as never,
+    (M.normalizeMessages(m) as { type: string }[])
+      .filter(x => x.type === 'user' || x.type === 'assistant')
+      .map(message => ({ message })) as never,
   ),
 );
 perFixture('getLastAssistantMessage', m => M.getLastAssistantMessage(m));
 perFixture('hasToolCallsInLastAssistantTurn', m => M.hasToolCallsInLastAssistantTurn(m));
 perFixture('getToolResultIDs', m => M.getToolResultIDs(m));
-perFixture('getToolUseIDs', m => M.getToolUseIDs(m));
-perFixture('countToolCalls', m => M.countToolCalls(m));
-perFixture('hasSuccessfulToolCall', m => M.hasSuccessfulToolCall(m));
+perFixture('getToolUseIDs', m => M.getToolUseIDs(M.normalizeMessages(m) as never));
+perFixture('countToolCalls', m => ({ Read: M.countToolCalls(m, 'Read'), Bash: M.countToolCalls(m, 'Bash') }));
+perFixture('hasSuccessfulToolCall', m => ({ Read: M.hasSuccessfulToolCall(m, 'Read'), Bash: M.hasSuccessfulToolCall(m, 'Bash') }));
 perFixture('findLastCompactBoundaryIndex', m => M.findLastCompactBoundaryIndex(m));
 perFixture('getMessagesAfterCompactBoundary', m => M.getMessagesAfterCompactBoundary(m));
 perFixture('hasUnresolvedHooks', m =>
@@ -196,7 +196,7 @@ perMessage('getToolUseID', m => M.getToolUseID(m));
 perMessage('deriveUUID', (_m, i) =>
   M.deriveUUID('00000000-0000-4000-8000-000000000099' as never, i),
 );
-perMessage('deriveShortMessageId', (_m, i) => M.deriveShortMessageId(`stable-input-${i}`));
+perMessage('deriveShortMessageId', (_m, i) => M.deriveShortMessageId(`${(0x1a2b3c00 + i * 0x1111).toString(16).padStart(8, '0')}-0000-4000-8000-000000000000`));
 perMessage('getAssistantMessageText', m => snapSafe(() => M.getAssistantMessageText(m)));
 perMessage('getUserMessageText', m => snapSafe(() => M.getUserMessageText(m)));
 add('stripToolReferenceBlocksFromUserMessage', 'toolTurn-user', () =>
@@ -384,18 +384,18 @@ add('createModelSwitchBreadcrumbs', 'basic', () =>
 );
 add('createProgressMessage', 'basic', () =>
   snapSafe(() =>
-    M.createProgressMessage(
-      { type: 'bash_progress', output: 'x' } as never,
-      'toolu_0009' as never,
-      'toolu_0009' as never,
-    ),
+    M.createProgressMessage({
+      toolUseID: 'toolu_0009',
+      parentToolUseID: 'toolu_0008',
+      data: { type: 'bash_progress', output: 'x' } as never,
+    }),
   ),
 );
 add('createToolResultStopMessage', 'basic', () =>
   snapSafe(() => M.createToolResultStopMessage('toolu_0009' as never)),
 );
 add('createSystemMessage', 'basic', () =>
-  snapSafe(() => M.createSystemMessage({ content: 'note', level: 'info' } as never)),
+  snapSafe(() => M.createSystemMessage('note', 'info')),
 );
 add('createPermissionRetryMessage', 'basic', () =>
   M.createPermissionRetryMessage(['npm test', 'git status']),
@@ -407,10 +407,10 @@ add('createSeatReceiptMessage', 'timeout-warning', () =>
   M.createSeatReceiptMessage('▲ reslot pending — worker → claude-fable-5 not observed applied after 10m', 'warning'),
 );
 add('createScheduledTaskFireMessage', 'basic', () =>
-  snapSafe(() => M.createScheduledTaskFireMessage({ name: 'daily' } as never)),
+  snapSafe(() => M.createScheduledTaskFireMessage('daily')),
 );
 add('createStopHookSummaryMessage', 'basic', () =>
-  snapSafe(() => M.createStopHookSummaryMessage('summary' as never)),
+  snapSafe(() => M.createStopHookSummaryMessage(2, [{ command: 'lint', durationMs: 120 }, { command: 'test', durationMs: 900 }], ['test exited 1'], false, undefined, true, 'info')),
 );
 add('createTurnDurationMessage', 'basic', () =>
   snapSafe(() => M.createTurnDurationMessage(1234 as never)),
@@ -432,24 +432,20 @@ add('createModelTransitionMessage', 'basic', () =>
   ),
 );
 add('createMemorySavedMessage', 'basic', () =>
-  snapSafe(() => M.createMemorySavedMessage({ writtenPaths: ['/m.md'] } as never)),
+  snapSafe(() => M.createMemorySavedMessage(['/m.md'])),
 );
 add('createAgentsKilledMessage', 'basic', () =>
-  snapSafe(() => M.createAgentsKilledMessage(['agent-1'] as never)),
+  snapSafe(() => M.createAgentsKilledMessage()),
 );
 add('createApiMetricsMessage', 'basic', () =>
-  snapSafe(() => M.createApiMetricsMessage({ durationMs: 10 } as never)),
+  snapSafe(() => M.createApiMetricsMessage({ ttftMs: 320, otps: 41.5, turnDurationMs: 2200, toolCount: 3 })),
 );
 add('createCommandInputMessage', 'basic', () =>
   snapSafe(() => M.createCommandInputMessage('/foo' as never, 'args' as never)),
 );
 add('createCompactBoundaryMessage', 'basic', () =>
   snapSafe(() =>
-    M.createCompactBoundaryMessage(
-      { preCompactTokenCount: 1000, trigger: 'manual' } as never,
-      '00000000-0000-4000-8000-000000000021' as never,
-      '2026-01-01T00:00:21.000Z' as never,
-    ),
+    M.createCompactBoundaryMessage('manual', 1000, '00000000-0000-4000-8000-000000000021' as never),
   ),
 );
 add('createMicrocompactBoundaryMessage', 'basic', () =>
@@ -465,7 +461,7 @@ add('createSystemAPIErrorMessage', 'basic', () =>
   snapSafe(() => M.createSystemAPIErrorMessage('api down' as never)),
 );
 add('createToolUseSummaryMessage', 'basic', () =>
-  snapSafe(() => M.createToolUseSummaryMessage('toolu_0001' as never, 'summary' as never)),
+  snapSafe(() => M.createToolUseSummaryMessage('summary', ['toolu_0001', 'toolu_0002'])),
 );
 
 const SKIPPED: Record<string, string> = {
@@ -491,6 +487,46 @@ if (unaccounted.length) {
   console.log(`  [FAIL] ${unaccounted.length} export(s) neither covered nor skip-listed:`);
   for (const k of unaccounted) console.log(`      - ${k}`);
   failures++;
+}
+
+{
+  const boundary = CORPUS.boundaries![0] as unknown as { subtype?: string; compactMetadata?: { trigger?: unknown; preTokens?: unknown }; logicalParentUuid?: unknown; uuid?: string; timestamp?: string };
+  const shape = (label: string, ok: boolean, detail: string): void => {
+    console.log(`  [${ok ? 'PASS' : 'FAIL'}] fixture shape: ${label}${ok ? '' : ' — ' + detail}`);
+    if (!ok) failures++;
+  };
+  shape('the compact boundary carries a string trigger and a numeric token count', boundary.subtype === 'compact_boundary' && boundary.compactMetadata?.trigger === 'auto' && boundary.compactMetadata?.preTokens === 120_000, JSON.stringify(boundary.compactMetadata));
+  shape('the compact boundary names its last pre-compact message by uuid', boundary.logicalParentUuid === '00000000-0000-4000-8000-000000000019', String(boundary.logicalParentUuid));
+  shape('the compact boundary keeps its pinned identity', boundary.uuid === '00000000-0000-4000-8000-000000000020' && boundary.timestamp === '2026-01-01T00:00:20.000Z', `${boundary.uuid} ${boundary.timestamp}`);
+  const system = CORPUS.system![0] as unknown as { subtype?: string; content?: unknown; level?: unknown; uuid?: string };
+  shape('the informational system message carries string content and a level', system.subtype === 'informational' && system.content === 'plain system note' && system.level === 'info', JSON.stringify({ content: system.content, level: system.level }));
+  shape('the informational system message keeps its pinned identity', system.uuid === '00000000-0000-4000-8000-000000000030', String(system.uuid));
+
+  const turn = clone(CORPUS.toolTurn!) as never[];
+  const normalizedTurn = M.normalizeMessages(turn) as never[];
+  const subagent = M.buildSubagentLookups(
+    (normalizedTurn as { type: string }[]).filter(x => x.type === 'user' || x.type === 'assistant').map(message => ({ message })) as never,
+  ) as { toolUseIdToSubagentId?: Map<string, string> | Record<string, unknown> };
+  shape('the subagent lookups are built over wrapped rows and answer a map, not an empty object', subagent !== null && typeof subagent === 'object' && Object.keys(subagent).length > 0, JSON.stringify(Object.keys(subagent)));
+  const ids = M.getToolUseIDs(normalizedTurn as never);
+  shape('every tool use of the normalized two-block turn is counted', ids.size === 2 && ids.has('toolu_0001') && ids.has('toolu_0002'), [...ids].join(','));
+  shape('countToolCalls counts the assistant messages calling the named tool: one Read message, no Bash message', M.countToolCalls(turn as never, 'Read') === 1 && M.countToolCalls(turn as never, 'Bash') === 0, `${M.countToolCalls(turn as never, 'Read')} ${M.countToolCalls(turn as never, 'Bash')}`);
+  shape('hasSuccessfulToolCall answers true for the tool that succeeded and false for one never called', M.hasSuccessfulToolCall(turn as never, 'Read') === true && M.hasSuccessfulToolCall(turn as never, 'Bash') === false);
+  const short = M.deriveShortMessageId('1a2b3c00-0000-4000-8000-000000000000');
+  shape('deriveShortMessageId parses a real uuid to a base36 id, never NaN', /^[0-9a-z]{1,6}$/.test(short) && short !== 'nan', short);
+  const progress = M.createProgressMessage({ toolUseID: 'toolu_0009', parentToolUseID: 'toolu_0008', data: { type: 'bash_progress', output: 'x' } as never }) as { toolUseID?: string; parentToolUseID?: string; data?: { type?: string } };
+  shape('a progress message carries its tool use, parent and data', progress.toolUseID === 'toolu_0009' && progress.parentToolUseID === 'toolu_0008' && progress.data?.type === 'bash_progress', JSON.stringify(progress));
+  const fire = M.createScheduledTaskFireMessage('daily') as { content?: unknown };
+  shape('a scheduled-task fire message carries string content', fire.content === 'daily', JSON.stringify(fire.content));
+  const hooks = M.createStopHookSummaryMessage(2, [{ command: 'lint' }], ['test exited 1'], false, undefined, true, 'info') as { hookCount?: unknown; hookErrors?: unknown; level?: unknown };
+  shape('a stop-hook summary carries a numeric count, its errors and a level', hooks.hookCount === 2 && Array.isArray(hooks.hookErrors) && hooks.level === 'info', JSON.stringify({ hookCount: hooks.hookCount, level: hooks.level }));
+  const saved = M.createMemorySavedMessage(['/m.md']) as { writtenPaths?: unknown };
+  shape('a memory-saved message carries the path list itself', Array.isArray(saved.writtenPaths) && (saved.writtenPaths as string[])[0] === '/m.md', JSON.stringify(saved.writtenPaths));
+  const metrics = M.createApiMetricsMessage({ ttftMs: 320, otps: 41.5 }) as { metrics?: { ttftMs?: unknown; otps?: unknown } } & Record<string, unknown>;
+  const metricsRow = metrics.metrics ?? metrics;
+  shape('an api-metrics message keeps its time-to-first-token and throughput', (metricsRow as { ttftMs?: unknown }).ttftMs === 320 && (metricsRow as { otps?: unknown }).otps === 41.5, JSON.stringify(metrics));
+  const summaryRow = M.createToolUseSummaryMessage('summary', ['toolu_0001']) as { summary?: unknown; precedingToolUseIds?: unknown };
+  shape('a tool-use summary carries the summary text and the preceding ids', summaryRow.summary === 'summary' && Array.isArray(summaryRow.precedingToolUseIds), JSON.stringify(summaryRow));
 }
 
 if (RECORD) {

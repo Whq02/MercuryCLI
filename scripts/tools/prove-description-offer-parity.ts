@@ -22,8 +22,10 @@ const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setCwdState(scratch)
 const { getTools } = await import('../../src/tools.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { filterToolsForAgent } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+const { filterToolsForAgent, resolveAgentTools } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+const lspManager = await import('../../src/services/lsp/manager.ts')
 const { toolToAPISchema } = await import('../../src/utils/api.ts')
+const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
 const { ENTER_PLAN_MODE_TOOL_NAME } = await import('../../src/tools/EnterPlanModeTool/constants.ts')
 const { EXIT_PLAN_MODE_V2_TOOL_NAME } = await import('../../src/tools/ExitPlanModeTool/constants.ts')
 type Tool = import('../../src/Tool.ts').Tool
@@ -90,6 +92,8 @@ interface Kind {
   label: string
   interactive: boolean
   tasksEnv?: string
+  mountLsp?: boolean
+  disallowedTools?: string[]
   agent?: { isBuiltIn: boolean; isAsync: boolean }
 }
 const kinds: Kind[] = [
@@ -100,17 +104,27 @@ const kinds: Kind[] = [
   { label: 'sub-agent of a headless session', interactive: false, agent: { isBuiltIn: true, isAsync: false } },
   { label: 'background sub-agent of a headless session', interactive: false, agent: { isBuiltIn: true, isAsync: true } },
   { label: 'custom sub-agent of a headless session', interactive: false, agent: { isBuiltIn: false, isAsync: false } },
+  { label: 'interactive with mounted LSP', interactive: true, mountLsp: true },
+  { label: 'restricted custom sub-agent with globally mounted LSP', interactive: false, mountLsp: true, disallowedTools: ['LSP'], agent: { isBuiltIn: false, isAsync: false } },
 ]
 
 const permissionContext = getEmptyToolPermissionContext()
 const rendered = new Map<string, Map<string, string>>()
 for (const kind of kinds) {
+  clearToolSchemaCache()
   bootstrap.setIsInteractive(kind.interactive)
   if (kind.tasksEnv === undefined) delete process.env.MERCURY_TASKS
   else process.env.MERCURY_TASKS = kind.tasksEnv
+  if (kind.mountLsp) {
+    lspManager.initializeLspServerManager()
+    await lspManager.waitForInitialization()
+    check(`${kind.label}: LSP is globally mounted`, lspManager.isLspToolMounted())
+  }
   let pool: Tool[] = getTools(permissionContext) as Tool[]
   if (kind.agent !== undefined) pool = filterToolsForAgent({ tools: pool, isBuiltIn: kind.agent.isBuiltIn, isAsync: kind.agent.isAsync }) as Tool[]
+  if (kind.disallowedTools) pool = resolveAgentTools({ source: 'projectSettings', tools: ['*'], disallowedTools: kind.disallowedTools }, pool).resolvedTools as Tool[]
   const offered = new Set(pool.map(tool => tool.name))
+  if (kind.mountLsp) check(`${kind.label}: the actual pool honors its LSP restriction`, offered.has('LSP') === !kind.disallowedTools?.includes('LSP'))
   check(`${kind.label}: a pool was built`, pool.length >= 10, String(pool.length))
   const descriptions = new Map<string, string>()
   const pairs: string[] = []
@@ -128,6 +142,10 @@ for (const kind of kinds) {
     }
   }
   rendered.set(kind.label, descriptions)
+  if (kind.mountLsp) {
+    const steered = ['Grep', 'Edit', 'Structure'].filter(name => /\bLSP\b/.test(descriptions.get(name) ?? ''))
+    check(`${kind.label}: the semantic steering names LSP exactly when the pool offers it`, offered.has('LSP') ? steered.length === 3 : steered.length === 0, steered.join(','))
+  }
   check(`${kind.label}: no offered description names a tool the session does not offer (${offered.size} offered)`, pairs.length === 0, pairs.join('; '))
   check(`${kind.label}: a planning entry is never offered without its exit`, !offered.has(ENTER_PLAN_MODE_TOOL_NAME) || offered.has(EXIT_PLAN_MODE_V2_TOOL_NAME), [...offered].filter(n => n.includes('Strategy')).join(','))
 }

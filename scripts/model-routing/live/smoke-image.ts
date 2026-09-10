@@ -2,6 +2,7 @@
 
 import { randomUUID } from 'node:crypto'
 import sharp from 'sharp'
+import { imageVerdict } from './smokeVerdicts.ts'
 
 const { openaiCallModel } = await import(
   '../../../src/services/providers/openai/openaiCallModel.js'
@@ -57,8 +58,9 @@ const text = minted
   .map(b => String(b.text))
   .join(' ')
 console.log(`answer: ${text.slice(0, 200)}`)
-if (!/red/i.test(text)) {
-  console.error('IMAGE SMOKE FAILED: the model did not read the red image')
+const verdict = imageVerdict(text)
+if (!verdict.ok) {
+  console.error(`IMAGE SMOKE FAILED: ${verdict.reason}`)
   process.exit(1)
 }
 console.log('LIVE IMAGE SMOKE GREEN — input_image read on the real wire')

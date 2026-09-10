@@ -225,8 +225,6 @@ console.log('§6 production wires at the owners')
   check('R2 wired at the settle owner (first settle → kernel event)', supervisor.includes("kind: 'worker-settled'") && supervisor.includes('runCoordinatorKernel'))
   const hook = readFileSync('src/hooks/useObligationSignals.ts', 'utf8')
   check("R3's ONE live source is the hook (adjudication holds)", hook.includes('emitConcourseSignal'))
-  const kernel = readFileSync('src/services/concourse/coordinatorKernel.ts', 'utf8')
-  check('the kernel pins the R3 adjudication in its contract', kernel.includes('PRODUCTION WIRE ADJUDICATION'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

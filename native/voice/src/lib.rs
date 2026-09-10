@@ -14,18 +14,68 @@ pub mod tty;
 
 const TARGET_RATE: u32 = 16_000;
 
+#[derive(Default, Clone)]
+struct StreamErrors {
+    transient: u32,
+    last_transient: Option<String>,
+    fatal: Option<String>,
+}
+
+#[napi(object)]
+pub struct CaptureErrors {
+    pub transient: u32,
+    pub last_transient: Option<String>,
+    pub fatal: Option<String>,
+}
+
+impl From<StreamErrors> for CaptureErrors {
+    fn from(errors: StreamErrors) -> Self {
+        CaptureErrors {
+            transient: errors.transient,
+            last_transient: errors.last_transient,
+            fatal: errors.fatal,
+        }
+    }
+}
+
 struct Take {
     stop: Sender<()>,
     samples: Arc<Mutex<Vec<f32>>>,
+    errors: Arc<Mutex<StreamErrors>>,
     rate: u32,
     thread: JoinHandle<()>,
 }
 
 static TAKES: OnceLock<Mutex<HashMap<u32, Take>>> = OnceLock::new();
+static CLOSED_ERRORS: OnceLock<Mutex<HashMap<u32, StreamErrors>>> = OnceLock::new();
 static NEXT_HANDLE: AtomicU32 = AtomicU32::new(1);
 
 fn takes() -> &'static Mutex<HashMap<u32, Take>> {
     TAKES.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn closed_errors() -> &'static Mutex<HashMap<u32, StreamErrors>> {
+    CLOSED_ERRORS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn record_stream_error(errors: &Arc<Mutex<StreamErrors>>, error: &cpal::Error) {
+    let mut guard = match errors.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    if error.kind() == cpal::ErrorKind::Xrun {
+        guard.transient = guard.transient.saturating_add(1);
+        guard.last_transient = Some(error.to_string());
+    } else {
+        guard.fatal = Some(error.to_string());
+    }
+}
+
+fn snapshot_errors(errors: &Arc<Mutex<StreamErrors>>) -> StreamErrors {
+    match errors.lock() {
+        Ok(guard) => guard.clone(),
+        Err(poisoned) => poisoned.into_inner().clone(),
+    }
 }
 
 #[napi]
@@ -79,6 +129,7 @@ fn build_stream<T>(
     device: &cpal::Device,
     config: &cpal::StreamConfig,
     sink: Arc<Mutex<Vec<f32>>>,
+    errors: Arc<Mutex<StreamErrors>>,
     channels: usize,
 ) -> std::result::Result<cpal::Stream, String>
 where
@@ -89,7 +140,7 @@ where
         .build_input_stream(
             config.clone(),
             move |data: &[T], _: &cpal::InputCallbackInfo| push_samples(&sink, data, channels),
-            |error| eprintln!("mercury_voice: input stream error: {error}"),
+            move |error| record_stream_error(&errors, &error),
             None,
         )
         .map_err(|error| error.to_string())
@@ -110,15 +161,17 @@ pub fn start_capture() -> Result<u32> {
     let config: cpal::StreamConfig = supported.into();
     let samples: Arc<Mutex<Vec<f32>>> = Arc::new(Mutex::new(Vec::new()));
     let sink = samples.clone();
+    let errors: Arc<Mutex<StreamErrors>> = Arc::new(Mutex::new(StreamErrors::default()));
+    let error_sink = errors.clone();
     let (stop_tx, stop_rx) = mpsc::channel::<()>();
     let (ready_tx, ready_rx) = mpsc::channel::<std::result::Result<(), String>>();
     let thread = std::thread::spawn(move || {
         let built = match sample_format {
-            cpal::SampleFormat::F32 => build_stream::<f32>(&device, &config, sink, channels),
-            cpal::SampleFormat::I16 => build_stream::<i16>(&device, &config, sink, channels),
-            cpal::SampleFormat::U16 => build_stream::<u16>(&device, &config, sink, channels),
-            cpal::SampleFormat::I32 => build_stream::<i32>(&device, &config, sink, channels),
-            cpal::SampleFormat::U8 => build_stream::<u8>(&device, &config, sink, channels),
+            cpal::SampleFormat::F32 => build_stream::<f32>(&device, &config, sink, error_sink, channels),
+            cpal::SampleFormat::I16 => build_stream::<i16>(&device, &config, sink, error_sink, channels),
+            cpal::SampleFormat::U16 => build_stream::<u16>(&device, &config, sink, error_sink, channels),
+            cpal::SampleFormat::I32 => build_stream::<i32>(&device, &config, sink, error_sink, channels),
+            cpal::SampleFormat::U8 => build_stream::<u8>(&device, &config, sink, error_sink, channels),
             other => Err(format!("unsupported input sample format {other:?}")),
         };
         let stream = match built {
@@ -159,11 +212,47 @@ pub fn start_capture() -> Result<u32> {
         Take {
             stop: stop_tx,
             samples,
+            errors,
             rate,
             thread,
         },
     );
     Ok(handle)
+}
+
+#[napi]
+pub fn capture_errors(handle: u32) -> Result<CaptureErrors> {
+    let map = match takes().lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let take = map
+        .get(&handle)
+        .ok_or_else(|| Error::from_reason(format!("no capture with handle {handle}")))?;
+    Ok(snapshot_errors(&take.errors).into())
+}
+
+#[napi]
+pub fn last_capture_errors(handle: u32) -> Option<CaptureErrors> {
+    let map = match closed_errors().lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    map.get(&handle).cloned().map(Into::into)
+}
+
+fn remember_closed_errors(handle: u32, errors: &Arc<Mutex<StreamErrors>>) {
+    let mut map = match closed_errors().lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    if map.len() >= 64 {
+        let oldest = map.keys().min().copied();
+        if let Some(key) = oldest {
+            map.remove(&key);
+        }
+    }
+    map.insert(handle, snapshot_errors(errors));
 }
 
 fn close_take(handle: u32) -> Result<Take> {
@@ -208,9 +297,14 @@ fn resample_to_i16(mono: &[f32], from: u32, to: u32) -> Vec<i16> {
 pub fn stop_capture(handle: u32) -> Result<Buffer> {
     let take = close_take(handle)?;
     let Take {
-        samples, rate, thread, ..
+        samples,
+        errors,
+        rate,
+        thread,
+        ..
     } = take;
     let _ = thread.join();
+    remember_closed_errors(handle, &errors);
     let mono = match samples.lock() {
         Ok(guard) => guard.clone(),
         Err(poisoned) => poisoned.into_inner().clone(),
@@ -227,5 +321,6 @@ pub fn stop_capture(handle: u32) -> Result<Buffer> {
 pub fn cancel_capture(handle: u32) -> Result<()> {
     let take = close_take(handle)?;
     let _ = take.thread.join();
+    remember_closed_errors(handle, &take.errors);
     Ok(())
 }

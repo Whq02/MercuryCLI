@@ -1,7 +1,11 @@
 
 import { projectIntelEnabled } from './contracts.js'
+import { LSP_TOOL_NAME } from '../../tools/LSPTool/prompt.js'
 
-function lspOn(): boolean {
+export type OfferedTools = ReadonlySet<string> | null
+
+function lspOn(offered: OfferedTools): boolean {
+  if (offered !== null && !offered.has(LSP_TOOL_NAME)) return false
   try {
     const { mercuryLspEnabled } =
       require('../lsp/mercuryLsp.js') as typeof import('../lsp/mercuryLsp.js')
@@ -33,10 +37,10 @@ function refsOn(): boolean {
   }
 }
 
-export function searchSteeringLine(): string | null {
+export function searchSteeringLine(offered: OfferedTools = null): string | null {
   if (!projectIntelEnabled()) return null
   const parts: string[] = []
-  if (lspOn()) {
+  if (lspOn(offered)) {
     parts.push(
       'for a SYMBOL question (definition, references, callers, implementations) the LSP tool answers directly (goToDefinition · findReferences · incomingCalls) instead of text matching',
     )
@@ -53,10 +57,10 @@ export function readSteeringLine(): string | null {
   return ' Orientation shortcut: before opening files one by one to learn a repo, Inspect mercury://project/current (topology · changes · checks · a task-scoped working set via ?child=context&q=<task>).'
 }
 
-export function editSteeringLine(): string | null {
+export function editSteeringLine(offered: OfferedTools = null): string | null {
   if (!projectIntelEnabled()) return null
   const parts: string[] = []
-  if (lspOn()) parts.push('cross-file renames belong to the LSP rename operation')
+  if (lspOn(offered)) parts.push('cross-file renames belong to the LSP rename operation')
   if (structureOn())
     parts.push('repetitive structural JS/TS changes belong to the Structure tool (preview-first, stale-safe)')
   if (parts.length === 0) return null
