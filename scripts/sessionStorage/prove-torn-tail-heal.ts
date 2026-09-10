@@ -69,8 +69,36 @@ section('§3 FRESH FILE')
   resetTranscriptFormatCacheForTesting()
   appendEntryToFile(file, { type: 'user', uuid: 'cccccccc-0000-0000-0000-000000000001', message: 'hello' })
   const raw = readFileSync(file, 'utf8')
+  const isHeader = (line: string): boolean => {
+    try {
+      const rec = JSON.parse(line) as { schemaVersion?: unknown; creationOrdinal?: unknown; payload?: { kind?: unknown; metaKind?: unknown; fields?: { fileVersion?: unknown; format?: unknown } } }
+      return (
+        rec.schemaVersion === 1 &&
+        rec.creationOrdinal === '1' &&
+        rec.payload?.kind === 'session-meta' &&
+        rec.payload.metaKind === 'mercury-transcript-header' &&
+        rec.payload.fields?.fileVersion === 1 &&
+        rec.payload.fields.format === 'mercury-records'
+      )
+    } catch {
+      return false
+    }
+  }
+  const lines = raw.split('\n').filter(l => l.length > 0)
   check('the header still lands first on a fresh file', raw.startsWith('{'), JSON.stringify(raw.slice(0, 40)))
+  check(
+    'the FIRST record is the transcript header (session-meta · mercury-transcript-header · fileVersion 1 · mercury-records · ordinal 1)',
+    lines.length === 2 && isHeader(lines[0]!),
+    lines[0]?.slice(0, 160) ?? '(no line)',
+  )
+  check('the header appears exactly once, and the appended entry is NOT a header', lines.filter(isHeader).length === 1 && !isHeader(lines[1]!), String(lines.filter(isHeader).length))
   check('and the file does not open with a stray newline', !raw.startsWith('\n'))
+  const swapped = [lines[1]!, lines[0]!].join('\n') + '\n'
+  const swappedLines = swapped.split('\n').filter(l => l.length > 0)
+  check('control: the same two records reordered are still all valid JSON…', swappedLines.every(l => { try { JSON.parse(l); return true } catch { return false } }))
+  check('…but the reordered file FAILS the header-first identity (raw startsWith would not tell)', swapped.startsWith('{') && !isHeader(swappedLines[0]!))
+  const headerless = lines[1]! + '\n'
+  check('control: a valid-JSON file that omits the header FAILS the identity', headerless.startsWith('{') && !isHeader(headerless.split('\n')[0]!))
 }
 
 rmSync(HOME, { recursive: true, force: true })
