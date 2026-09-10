@@ -25,7 +25,14 @@ const COMPOSER_NOMINAL_MS = 4000
 
 export interface TeeWrite {
   ts: number
+  len?: number
   content?: string
+  queuedBytes?: number
+}
+
+export interface PtyRead {
+  ts: number
+  text: string
 }
 
 export interface SendRecord {
@@ -72,6 +79,7 @@ export interface ArenaRun {
   fixture: FixtureApi
   teeLines: TeeWrite[]
   sendLog: SendRecord[]
+  ptyReads: PtyRead[]
   outcome: ArenaOutcome
   probe: ProbeDump | null
   driverOut: string
@@ -236,6 +244,9 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
   const sendLog: SendRecord[] = driveRows.filter(
     (r): r is SendRecord => r.sent !== undefined && (r as { after?: string }).after !== FACE_READY_NEEDLE,
   )
+  const ptyReads: PtyRead[] = driveRows
+    .filter((r): r is { ts: number; b64: string } => typeof (r as { ts?: unknown }).ts === 'number' && typeof (r as { b64?: unknown }).b64 === 'string')
+    .map(r => ({ ts: r.ts, text: Buffer.from(r.b64, 'base64').toString('utf8') }))
   const anchorShiftMs = driveRows.find(r => typeof r.anchor === 'number')?.shiftMs ?? 0
   let probe: ProbeDump | null = null
   if (opts.probe && existsSync(probeTee)) {
@@ -258,6 +269,7 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
     fixture,
     teeLines,
     sendLog,
+    ptyReads,
     outcome,
     probe,
     driverOut,
@@ -316,6 +328,27 @@ const ESC_RE = /\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?<=>]*[A-Za-z@`~]|\
 
 export function visibleText(s: string): string {
   return s.replace(ESC_RE, '').replace(/[\s─-╿]+/g, '')
+}
+
+export function firstPtyVisibility(reads: readonly PtyRead[], needle: string, notBefore: number): PtyRead | undefined {
+  let carry = ''
+  for (const r of reads) {
+    const window = (carry + r.text).slice(-4096)
+    if (r.ts >= notBefore && visibleText(window).includes(needle)) return r
+    carry = window
+  }
+  return undefined
+}
+
+export function observedEmissionWindow(emits: readonly { at: number }[]): { start: number; end: number } | null {
+  if (emits.length === 0) return null
+  let start = emits[0]!.at
+  let end = emits[0]!.at
+  for (const e of emits) {
+    if (e.at < start) start = e.at
+    if (e.at > end) end = e.at
+  }
+  return { start, end }
 }
 
 export function pct(xs: number[], p: number): number {
