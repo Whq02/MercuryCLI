@@ -29,8 +29,9 @@ const { useLayoutChrome } = await import('../../src/context/layoutChromeContext.
 const { useTerminalSize, useRealTerminalSize } = await import('../../src/hooks/useTerminalSize.ts')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
 const { initializeSurfaceRoute, ROOT_REPL_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
+saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 const pending = await import('../../src/input-core/pending-input.ts')
 const { default: instances } = await import('../../src/ink/instances.ts')
 const h = React.createElement
@@ -130,10 +131,11 @@ for (const editorMode of ['emacs', 'vim'] as const) {
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(Harness)))
   try {
     await until(`${editorMode}: real editor mounted and raw input armed`, () => insertRef.current !== null && stdin.isRaw && scrollRef.current !== null && ink.lastFrameText().length > 0)
-    check(`${editorMode}: full-height composer paints its placeholder`, ink.lastFrameText().includes('Type a prompt'))
+    await until(`${editorMode}: full-height composer paints its placeholder`, () => ink.lastFrameText().includes('Type a prompt'))
+    console.log(`${editorMode} initial frame\n${ink.lastFrameText()}`)
     const handle = scrollRef.current
     insertRef.current!.setInputWithCursor('alpha beta', 5)
-    await until(`${editorMode}: the held draft is painted`, () => ink.lastFrameText().includes('alpha beta'))
+    await until(`${editorMode}: the held draft is painted in the editor`, () => ink.lastFrameText().includes('❯ alpha beta'))
     for (const [columns, rows] of [[80, 24], [120, 24], [60, 16], [40, 10], [1, 1], [1, 40], [200, 1], [2, 2], [99, 26], [100, 26], [120, 40], [80, 24]]) {
       stdout.columns = columns!
       stdout.rows = rows!
@@ -146,7 +148,7 @@ for (const editorMode of ['emacs', 'vim'] as const) {
     stdin.push('\u0014\r')
     await until(`${editorMode}: same-chunk focus and Enter open detail without submitting`, () => control?.read() === 'detail' && ink.lastFrameText().includes('Session statistics'))
     check(`${editorMode}: detail did not submit the draft`, sent.length === 0 && pending.text() === 'alpha beta')
-    stdin.push('\u001bZ')
+    stdin.push('\u001b[27uZ')
     await until(`${editorMode}: first text after detail close lands once at the retained cursor`, () => pending.text() === 'alphaZ beta')
     stdin.push('\u0014xy')
     await until(`${editorMode}: summary type-to-edit handles all atoms in the same chunk`, () => pending.text() === 'alphaZxy beta')
