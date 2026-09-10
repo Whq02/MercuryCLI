@@ -203,7 +203,8 @@ function computerToolRecord(): ReadinessRecord {
     }
   }
   const facts = resolution.driver.describe()
-  const permissions = lastDesktopPermissions()
+  const now = resolution.driver.permissionsNow?.()
+  const permissions = now !== undefined && now.ok ? now.value : lastDesktopPermissions()
   const denied =
     permissions === null
       ? null
