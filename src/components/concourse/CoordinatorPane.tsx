@@ -278,7 +278,8 @@ export function CoordinatorPane({
   }, [])
 
   useInput((_input, key, event) => {
-    if (modalUp || settingsOpen || paneRows === 0) return
+    if (modalUp || settingsOpen) return
+    if (paneRows === 0) return
     if (key.wheelUp || key.wheelDown) {
       const kp = event.keypress as { x?: number; y?: number }
       const inside =

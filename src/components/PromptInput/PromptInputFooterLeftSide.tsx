@@ -142,7 +142,9 @@ export function PromptInputFooterLeftSide({
   }
 
   if (compact) {
-    return <Box height={1} overflow="hidden">{searchField ?? <Text dimColor wrap="truncate-end">{compactSummaryFocused ? '↵ details · esc back' : vimInsert ? `-- INSERT -- · ${tasksChord} activity` : isLoading ? `${cancelChord} interrupts · ${tasksChord} activity` : `? for shortcuts · ${tasksChord} activity`}</Text>}</Box>
+    const idle = columns >= 50 ? `? for shortcuts · ${paletteChord} for commands + files` : '? for shortcuts'
+    const activityHint = columns >= 64 || columns < 50 ? ` · ${tasksChord} activity` : ''
+    return <Box height={1} overflow="hidden">{searchField ?? <Text dimColor wrap="truncate-end">{compactSummaryFocused ? '↵ details · esc back' : vimInsert ? `-- INSERT -- · ${tasksChord} activity` : isLoading ? `${cancelChord} interrupts · ${tasksChord} activity` : idle + activityHint}</Text>}</Box>
   }
 
   const taskList = Object.values(tasks)

@@ -41,7 +41,9 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
     { atTick: 999, awaitText: 'draft-alpha bravo', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '\u0015stream the compact journey\r', mark: 'typed' },
     { atTick: 999, awaitText: 'compact-stream-003', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'streaming' },
     { afterPrevTicks: 5, data: 'queued while streaming\r' },
-    { afterPrevTicks: 3, data: '\u001b', mark: 'queued' },
+    { afterPrevTicks: 3, data: '', mark: 'queued' },
+    ...(variant === 'resize' ? [{ afterPrevTicks: 4, data: '', mark: 'streaming-small' }] : []),
+    { afterPrevTicks: 2, data: '\u001b' },
     { atTick: 999, awaitText: 'Interrupted', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'interrupted' },
     { atTick: 999, awaitText: 'Queued words delivered.', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: 'keep-this-draft' },
     ...(full ? [
@@ -62,7 +64,7 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
   const resizes = variant !== 'resize' ? [] : [
     { afterMark: 'wide', afterMs: 300, cols: 80, rows: 24 },
     { afterMark: 'streaming', afterMs: 300, cols: 60, rows: 16 },
-    { afterMark: 'detail', afterMs: 300, cols: 40, rows: 10 },
+    { afterMark: 'queued', afterMs: 300, cols: 40, rows: 10 },
     { afterMark: 'closed', afterMs: 300, cols: 1, rows: 1 },
     { afterMark: 'tiny', afterMs: 400, cols: 80, rows: 24 },
     { afterMark: 'scrolled', afterMs: 300, cols: 120, rows: 40 },
@@ -95,17 +97,20 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
     check(`${tag}: the final grid matches its declared geometry`, payload.grid.length === payload.rows && payload.grid.every(row => row.length === payload.cols))
     const marks = new Map((payload.marks ?? []).map(mark => [mark.label, mark]))
     const rowsAt = (label: string): string[] => (marks.get(label)?.grid ?? []).map(row => row.map(c => c.c).join('').trimEnd())
-    const labels = ['boot', 'typed', 'streaming', 'queued', 'interrupted', ...(full ? ['toggled'] : ['detail', 'small-detail']), 'closed', 'tiny', 'compact-restored', 'scrolled', 'full-restored']
+    const labels = ['boot', 'typed', 'streaming', 'queued', ...(variant === 'resize' ? ['streaming-small'] : []), 'interrupted', ...(full ? ['toggled'] : ['detail', 'small-detail']), 'closed', 'tiny', 'compact-restored', 'scrolled', 'full-restored']
     check(`${tag}: every required mark exists`, labels.every(label => marks.has(label)), `missing: ${labels.filter(label => !marks.has(label)).join(', ')}`)
     for (const label of labels) printFrame(`${tag} ${label}`, rowsAt(label))
     check(`${tag}: draft survives the first reflow`, joined(rowsAt('typed')).includes('draft-alpha bravo'))
     check(`${tag}: real streamed text arrived`, joined(rowsAt('streaming')).includes('compact-stream-003') && leg.fixture.pacedEmits.length > 0)
     check(`${tag}: interrupt cut the stream before completion`, leg.fixture.pacedEmits.length > 0 && leg.fixture.pacedEmits.length < 240 && joined(rowsAt('interrupted')).includes('Interrupted'))
     if (!full) {
-      const stream = rowsAt('streaming')
-      const activity = stream.findIndex(row => row.includes('writing') && row.includes('tokens'))
-      const models = stream.map((row, i) => row.includes('Opus 5') ? i : -1).filter(i => i >= 0)
-      check(`${tag}: one activity row appears above the single model row`, activity >= 0 && models.length === 1 && activity < models[0]!)
+      for (const label of ['streaming', 'queued', ...(variant === 'resize' ? ['streaming-small'] : [])]) {
+        const stream = rowsAt(label)
+        const activity = stream.findIndex(row => row.includes('writing') && row.includes('tokens'))
+        const models = stream.map((row, i) => row.includes('Opus 5') ? i : -1).filter(i => i >= 0)
+        check(`${tag} ${label}: one activity row appears above the single model row`, activity >= 0 && models.length === 1 && activity < models[0]!)
+      }
+      check(`${tag}: queued text is painted while the stream runs`, joined(rowsAt('queued')).includes('queued while streaming'))
       check(`${tag}: detail actually opened`, joined(rowsAt('detail')).includes('Session statistics'))
       check(`${tag}: Escape closes detail with the nonempty draft intact`, joined(rowsAt('closed')).includes('keep-this-draft') && !joined(rowsAt('closed')).includes('Session statistics'))
       const compactFrame = rowsAt('compact-restored')
@@ -117,7 +122,8 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
     check(`${tag}: the final editing key is retained`, joined(rowsAt('compact-restored')).includes('keep-this-draftz'))
     if (variant === 'resize') check('the one-cell stage uses the actual physical geometry', marks.get('tiny')?.grid.length === 1 && marks.get('tiny')?.grid[0]?.length === 1)
     if (variant !== 'compact') check(`${tag}: the final full frame uses the full composition`, rowsAt('full-restored').length === 40 && joined(rowsAt('full-restored')).includes('SESSIONS'))
-    check(`${tag}: page up preserves the draft while moving transcript content`, joined(rowsAt('scrolled')).includes('keep-this-draftz') && joined(rowsAt('scrolled')) !== joined(rowsAt('compact-restored')))
+    const transcriptAt = (label: string) => rowsAt(label).filter(row => /compact-stream-\d+/.test(row)).join('\n')
+    check(`${tag}: page up preserves the draft while moving transcript content`, joined(rowsAt('scrolled')).includes('keep-this-draftz') && transcriptAt('scrolled') !== '' && transcriptAt('scrolled') !== transcriptAt('compact-restored'))
     const main = leg.fixture.requests.filter(request => (request.body as { model?: string }).model?.includes('opus'))
     const requests: string[][] = []
     for (const request of main) {

@@ -19,7 +19,7 @@ for (const [cols, rows] of sizes) {
     const result = await drive(driver, leg, { cols: cols!, rows: rows! }, [
       { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
       { atTick: 100, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: 'compact-draft' },
-      { atTick: 999, awaitText: 'compact-draft', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'typed' },
+      { atTick: 999, awaitText: cols! >= 60 ? 'agents here' : 'A:', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'typed' },
     ], 135, { MERCURY_COMPUTER_USE: undefined })
     const frame = result.marks.typed ?? []
     printFrame(`${cols}x${rows} Boot`, result.marks.boot ?? [])
@@ -30,7 +30,7 @@ for (const [cols, rows] of sizes) {
     check(`${cols}x${rows}: no size refusal replaced the chat`, !/resize to continue|terminal too small|needs 80 columns/.test(joined(frame)))
     const modelRows = frame.map((line, index) => line.includes('Opus 5') ? index : -1).filter(index => index >= 0)
     check(`${cols}x${rows}: the model appears on one chrome row`, modelRows.length === 1, JSON.stringify(modelRows))
-    const summaryRows = frame.map((line, index) => /\d+ sessions? on|S:\d+/.test(line) ? index : -1).filter(index => index >= 0)
+    const summaryRows = frame.map((line, index) => /^(?:\d+ sessions? on · \d+ monitors? here · \d+ agents? here|S:\d+ · M:\d+ · A:\d+)$/.test(line.trim()) ? index : -1).filter(index => index >= 0)
     check(`${cols}x${rows}: exactly one scoped summary`, summaryRows.length === 1, JSON.stringify(summaryRows))
     check(`${cols}x${rows}: summary never invents a question-mark count`, summaryRows.length === 1 && !frame[summaryRows[0]!]!.includes('?'))
     const editor = frame.findIndex(line => line.includes('compact-draft'))
