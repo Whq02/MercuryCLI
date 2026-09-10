@@ -479,6 +479,10 @@ function interruptedText(action: string): string {
   return `${action} interrupted by the operator — the act in flight ended, held keys and buttons were released, nothing further was done`
 }
 
+function interruptedAfterActText(action: string): string {
+  return `${action} interrupted by the operator after the act — no screenshot was taken; held keys and buttons were released, nothing further was done`
+}
+
 function applicationWords(app: DesktopApplication): string {
   return `${app.name}${app.title ? ` — ${app.title}` : ''}`
 }
@@ -794,10 +798,12 @@ Take a screenshot after acts that change the screen, act on what the latest one 
         let act: ActWords
         try {
           act = await performAct(driver, input, plan, signal)
-        } finally {
+        } catch (err) {
           await driver.releaseAll()
+          throw err
         }
         if (!act.ok) {
+          await driver.releaseAll()
           result = act.aborted ? interruptedText(input.action) : act.text
           outcome = 'failed'
           return finish()
@@ -810,16 +816,20 @@ Take a screenshot after acts that change the screen, act on what the latest one 
         }
         await sleep(clamp(input.settleMs ?? SETTLE_DEFAULT_MS, 0, SETTLE_CAP_MS), signal)
         if (signal.aborted) {
-          result = `${input.action} interrupted by the operator after the act — no screenshot was taken; held keys and buttons were released, nothing further was done`
+          await driver.releaseAll()
+          result = interruptedAfterActText(input.action)
           outcome = 'failed'
           return finish()
         }
         const shot = await takeShot(undefined, undefined)
         if (!shot.ok) {
-          result = shot.aborted
-            ? `${input.action} interrupted by the operator after the act — no screenshot was taken; held keys and buttons were released, nothing further was done`
-            : `${act.words} · ${shot.text}`
-          if (shot.aborted) outcome = 'failed'
+          if (shot.aborted) {
+            await driver.releaseAll()
+            result = interruptedAfterActText(input.action)
+            outcome = 'failed'
+            return finish()
+          }
+          result = `${act.words} · ${shot.text}`
           return finish()
         }
         adoptShot(shot)

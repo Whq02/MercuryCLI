@@ -378,7 +378,7 @@ export function imagesSupportedForLiveModel(live: Pick<OpenaiLiveModel, 'inputMo
 
 const OPENAI_SOURCE_KINDS: readonly OpenaiAccountSourceKind[] = ['chatgpt-subscription', 'api-key']
 
-export function imagesSupportedForModel(model: string): boolean {
+function imagesSupportedForModelId(model: string): boolean {
   const preferred = readPreferredOpenaiSource()
   const kinds = preferred ? [preferred, ...OPENAI_SOURCE_KINDS.filter(kind => kind !== preferred)] : OPENAI_SOURCE_KINDS
   for (const kind of kinds) {
@@ -386,6 +386,13 @@ export function imagesSupportedForModel(model: string): boolean {
     if (evaluated.ok) return imagesSupportedForLiveModel(evaluated.candidate.live)
   }
   return true
+}
+
+export type ImagesSupportedSubject = string | { live: Pick<OpenaiLiveModel, 'inputModalities'> } | undefined
+
+export function imagesSupportedForModel(subject: ImagesSupportedSubject): boolean {
+  if (typeof subject === 'string') return imagesSupportedForModelId(subject)
+  return imagesSupportedForLiveModel(subject?.live)
 }
 
 type QualificationOutcome =
@@ -554,7 +561,7 @@ export async function* openaiCallModel(
     tools: apiTools,
     ...(wireEffort ? { reasoningEffort: wireEffort } : {}),
     promptCacheKey,
-    imagesSupported: imagesSupportedForLiveModel(candidate?.live),
+    imagesSupported: imagesSupportedForModel(candidate),
     ...(options.outputFormat ? { outputFormat: options.outputFormat } : {}),
     ...(options.nativeWebSearch ? { nativeWebSearch: options.nativeWebSearch } : {}),
   })
