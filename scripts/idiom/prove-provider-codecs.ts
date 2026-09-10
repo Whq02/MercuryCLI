@@ -108,11 +108,13 @@ section('§B B06 — provider switch: explicit decisions, canonical history unmu
   check('openai: unsupported image degrades to a VISIBLE marker', openaiJson.includes('[image]'))
   check('openai: unknown block type degrades to its type marker', openaiJson.includes('[server_tool_use]'))
 
-  const zai = mapMessagesToZai('sys', history)
+  const zai = mapMessagesToZai('sys', history, { imagesSupported: false })
   const zaiJson = JSON.stringify(zai)
   check('zai: thinking NEVER round-trips', !zaiJson.includes('private chain'))
   check('zai: tool_result → role:tool under the call id', zaiJson.includes('"tool_call_id":"toolu_1"'))
-  check('zai: unknown block types degrade to type markers', zaiJson.includes('[image]') && zaiJson.includes('[server_tool_use]'))
+  check('zai: unknown block types degrade to type markers (the image too when the model takes none)', zaiJson.includes('[image]') && zaiJson.includes('[server_tool_use]'))
+  const zaiCarried = JSON.stringify(mapMessagesToZai('sys', history))
+  check('zai: an image rides as an image_url part when the model takes images, the unknown block still a marker', zaiCarried.includes('"image_url"') && zaiCarried.includes('[server_tool_use]'))
 
   check('canonical history object survives both mappings unmutated (deep-frozen)', true)
 }
