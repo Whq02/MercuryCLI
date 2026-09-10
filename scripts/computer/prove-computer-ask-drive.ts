@@ -32,7 +32,7 @@ for (const size of SIZES) {
   check(`${size.cols}: the card title names the Computer tool`, rowsHaving(card, 'Computer'))
   check(`${size.cols}: the body names the act in TextEdit as the first act in this application`, joined(card).includes('in TextEdit') && joined(card).includes(CARD_NEEDLE) && joined(card).includes('click (812, 300)'), joined(card).slice(0, 400))
   check(`${size.cols}: the options row is ON the frame`, optionsRow(card), card.filter(r => /\d\./.test(r)).join(' · '))
-  check(`${size.cols}: the second option names TextEdit and this project`, card.some(r => r.includes('2.') && r.includes('TextEdit')) && joined(card).includes('in this project'), card.filter(r => r.includes('2.')).join(' · '))
+  check(`${size.cols}: the second option names TextEdit and this project`, card.some(r => r.includes("2. Yes, and don't ask again for TextEdit in this project")), card.filter(r => r.includes('2.')).join(' · '))
   check(`${size.cols}: three options`, card.some(r => /3\. No/.test(r)))
   const driving = res.marks.driving ?? []
   printFrame(`${size.cols}×${size.rows} driving`, driving)
