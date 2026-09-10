@@ -2,6 +2,7 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.6
+- Changed \`mercury update\` to refuse a release that is not signed by the Mercury release key; \`--allow-unsigned\` is the one explicit exception
 - Added computer use behind MERCURY_COMPUTER_USE: the model takes screenshots and drives the mouse and keyboard on every provider route that carries images; the first act in each application asks by name, esc stops it, one session drives at a time, and screenshots never enter the saved conversation
 
 ## 1.0.0-beta.5

@@ -110,10 +110,18 @@ half is compiled into every build as its trust roster. The private key is held b
 operator alone: it never enters the repository, and it reaches the hosted
 release workflow only as a repository secret for the packaging step.
 
-Signing is evidence on a boot — nothing refuses to run on its verdict — and
-a gate on an update: `mercury update` refuses a tampered payload before it
-is staged, so the active installation is never changed by bytes that do not
-verify.
+Signing is advisory at boot and in `/health` and the doctor: those checks
+report the verdict without blocking a boot. It is a gate on an update or
+install: `mercury update` and `mercury install` require a `signed` payload
+under the Mercury release key in the compiled-in trust roster before staging
+or activating the new payload. Every other verdict refuses at `verify`, names
+the verdict and recovery, records it locally, and leaves the active installation
+untouched. `--allow-unsigned` is the one explicit exception on either command:
+it accepts `unsigned` only, never an unknown key, a malformed signature or
+tampered bytes, and records the exception in both the result and receipt.
+The trust roster is compiled into the verifier, not read from the environment.
+For an unexpected refusal, check that roster and the official release, then
+report it through the repository's Security tab.
 The verdicts are:
 
 - **signed** — a valid signature under the release key; the bytes are what
@@ -124,12 +132,16 @@ The verdicts are:
   the launcher says it on a bare interactive boot (a plain `mercury`, no verb
   or flag) once per install — a marker beside the version pointer of the
   managed layout records that it was said; an archive run in place says it
-  at every bare boot — and `mercury doctor` says it every time.
+  at every bare boot — and `mercury doctor` says it every time. Update and
+  install refuse it unless `--allow-unsigned` is explicitly passed.
 - **unrecognized-key** — a valid signature under a key that is not in this
-  build's roster; unattested.
+  build's roster; update and install refuse it, including with `--allow-unsigned`.
+- **malformed** — the signing block cannot be decoded; update and install
+  refuse it, including with `--allow-unsigned`.
 - **tampered** — the bytes differ from what was signed, or the signature does
-  not verify; an update refuses it before staging — download the release
-  again, and if it repeats report it through the repository's Security tab.
+  not verify; update and install refuse it before staging, including with
+  `--allow-unsigned` — download the release again, and if it repeats report
+  it through the repository's Security tab.
 
 How to check:
 
