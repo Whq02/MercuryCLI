@@ -1,5 +1,7 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { DesktopDriver, DesktopPermissions } from './driver.js'
+import { fakeDesktopDriverFromEnvironment } from './fakeDesktopDriver.js'
+import { resolveNativeDesktopDriver } from './nativeDriver.js'
 
 export const DESKTOP_DRIVER_CHOICES = ['native', 'fake', 'none'] as const
 export type DesktopDriverChoice = (typeof DESKTOP_DRIVER_CHOICES)[number]
@@ -21,20 +23,16 @@ export function desktopDriverChoice(): DesktopDriverChoice | { unknown: string }
 
 let resolved: DesktopDriverResolution | null = null
 
-function resolveFakeDesktopDriver(): DesktopDriverResolution {
-  return {
-    state: 'unavailable',
-    note: 'the fake desktop driver is not part of this build (MERCURY_DESKTOP_DRIVER=fake)',
-    remedy: null,
-  }
+function resolveFakeDriver(): DesktopDriverResolution {
+  const fake = fakeDesktopDriverFromEnvironment()
+  if (fake.state === 'ok') return { state: 'ok', driver: fake.driver, source: 'fake' }
+  return { state: 'unavailable', note: fake.note, remedy: null }
 }
 
 function resolveNativeDriver(): DesktopDriverResolution {
-  return {
-    state: 'unavailable',
-    note: 'no desktop driver on this build — the native driver pack is not part of it',
-    remedy: null,
-  }
+  const native = resolveNativeDesktopDriver()
+  if (native.state === 'ok') return { state: 'ok', driver: native.driver, source: native.driver.describe().source }
+  return { state: 'unavailable', note: native.note, remedy: native.remedy }
 }
 
 export function resolveDesktopDriver(): DesktopDriverResolution {
@@ -51,7 +49,7 @@ export function resolveDesktopDriver(): DesktopDriverResolution {
     choice === 'none'
       ? { state: 'unavailable' as const, note: DESKTOP_DRIVER_OFF_NOTE, remedy: null }
       : choice === 'fake'
-        ? resolveFakeDesktopDriver()
+        ? resolveFakeDriver()
         : resolveNativeDriver()
   if (answer.state === 'ok') resolved = answer
   return answer
