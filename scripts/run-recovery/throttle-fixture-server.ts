@@ -149,7 +149,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(jsonReply(model, blocks))
       }
-      record({ kind: 'answered', route, arm, status: 200, streaming, nth })
+      record({ kind: 'answered', route, arm, status: 200, streaming, toolResult, nth })
     }
 
     if (route === 'parent') {
