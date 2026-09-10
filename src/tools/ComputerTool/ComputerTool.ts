@@ -679,6 +679,9 @@ Take a screenshot after acts that change the screen, act on what the latest one 
   isReadOnly(input: Input) {
     return READ_ACTIONS.has(input?.action)
   },
+  requiresUserInteraction() {
+    return true
+  },
   interruptBehavior() {
     return 'cancel' as const
   },
@@ -728,7 +731,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
       return denied(`Computer is denied for ${content} by a permission rule`, `${content} carries a deny rule`)
     }
     noteCheckedActApp(owner, input.action, { identity: app.identity, name: app.name })
-    if (ruled === 'allow' || appApproved(owner, app.identity)) {
+    if (ruled === 'allow' || (ruled === null && appApproved(owner, app.identity))) {
       return { behavior: 'allow' as const, updatedInput: input }
     }
     return {
