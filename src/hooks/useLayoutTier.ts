@@ -1,6 +1,5 @@
 
 import { isDeckPaneEnabled, isFullscreenEnvEnabled, isHelmHomeEnabled } from '../utils/fullscreen.js'
-import { VIEWPORT_FLOOR_EXIT_BAND, VIEWPORT_FLOOR_ROWS } from '../ink/viewportFloor.js'
 import { HELM_HOME_MIN_COLS } from '../utils/helmGeometry.js'
 import { useTerminalSize } from './useTerminalSize.js'
 
@@ -11,7 +10,7 @@ export const LAYOUT_BREAKPOINTS = {
   cockpitMin: HELM_HOME_MIN_COLS,
   deckTwoColMin: 110,
   fleetSideBySideMin: 118,
-  deckMinRows: VIEWPORT_FLOOR_ROWS,
+  deckMinRows: 22,
   cockpitMinRows: 26,
 } as const
 
@@ -34,7 +33,7 @@ export function computeChromeMode(
   return isDeckPaneEnabled() ? 'deck-strip' : 'inline'
 }
 
-const COCKPIT_EXIT_HYST_COLS = VIEWPORT_FLOOR_EXIT_BAND
+const COCKPIT_EXIT_HYST_COLS = 3
 let cockpitLatched = false
 
 export function resetChromeModeLatchForTests(): void {

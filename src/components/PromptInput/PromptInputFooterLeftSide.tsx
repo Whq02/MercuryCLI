@@ -26,6 +26,7 @@ import { TeamStatus } from '../teams/TeamStatus.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { BackgroundTaskStatus } from '../tasks/BackgroundTaskStatus.js'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
+import { CompactFooterNoticeContext } from '../../context/layoutChromeContext.js'
 import { isManageableTask, shouldHideTasksFooter } from '../tasks/taskStatusUtils.js'
 import { BASH_MODE_CHARACTER } from './inputModes.js'
 import { ExitChordNotice } from './ExitChordNotice.js'
@@ -45,6 +46,8 @@ export function PromptInputFooterLeftSide({
   hintsEnabled = true,
   teammateFooterIndex,
   onOpenTasksDialog,
+  compact = false,
+  compactSummaryFocused = false,
 }: {
   exitPending: boolean
   exitKeyName: string | null
@@ -56,6 +59,8 @@ export function PromptInputFooterLeftSide({
   hintsEnabled?: boolean
   teammateFooterIndex?: number
   onOpenTasksDialog?: () => void
+  compact?: boolean
+  compactSummaryFocused?: boolean
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const { columns } = useTerminalSize()
@@ -85,7 +90,7 @@ export function PromptInputFooterLeftSide({
   )
   const prStatus = usePrStatus(
     isLoading,
-    getGlobalConfig().prStatusFooterEnabled !== false,
+    !compact && getGlobalConfig().prStatusFooterEnabled !== false,
   )
   const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
   const desktop = useSyncExternalStore(subscribeDesktop, desktopSnapshot, desktopSnapshot)
@@ -95,6 +100,12 @@ export function PromptInputFooterLeftSide({
     return () => armDesktopClaimPoll(false)
   }, [isLoading])
   const driving = desktop.phase === 'driving' ? desktop : desktopFile.phase === 'driving' ? desktopFile : null
+  const reportNotice = useContext(CompactFooterNoticeContext)
+  const criticalNotice = exitPending || isPasting || voice.phase === 'recording' || voice.phase === 'transcribing' || (driving !== null && isLoading)
+  useEffect(() => {
+    reportNotice?.(criticalNotice)
+    return () => reportNotice?.(false)
+  }, [reportNotice, criticalNotice])
 
   if (exitPending) {
     return <ExitChordNotice keyName={exitKeyName} />
@@ -128,6 +139,10 @@ export function PromptInputFooterLeftSide({
         </Text>
       </Box>
     )
+  }
+
+  if (compact) {
+    return <Box height={1} overflow="hidden">{searchField ?? <Text dimColor wrap="truncate-end">{compactSummaryFocused ? '↵ details · esc back' : vimInsert ? `-- INSERT -- · ${tasksChord} activity` : isLoading ? `${cancelChord} interrupts · ${tasksChord} activity` : `? for shortcuts · ${tasksChord} activity`}</Text>}</Box>
   }
 
   const taskList = Object.values(tasks)

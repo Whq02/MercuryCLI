@@ -6,9 +6,8 @@ import { useAppStateStore, useSetAppState, type AppState } from '../state/AppSta
 import { isInProcessTeammateTask } from '../tasks/InProcessTeammateTask/types.js'
 import { cycleSurface, enterConcourse } from '../context/surfaceRoute.js'
 import { invokeConcourseCloseChord } from '../services/concourse/closeChordSlot.js'
-import { chromeModeLive } from './useLayoutTier.js'
-import { useTerminalSize } from './useTerminalSize.js'
-import { isFullscreenActive } from '../utils/fullscreen.js'
+import { useLayoutChrome } from '../context/layoutChromeContext.js'
+import type { CompactWorkControls } from '../components/tasks/CompactWorkSummary.js'
 import instances from '../ink/instances.js'
 import type { Screen } from '../screens/REPL.js'
 
@@ -22,6 +21,7 @@ export function GlobalKeybindingHandlers({
   onExitTranscript,
   virtualScrollActive = false,
   searchBarOpen = false,
+  compactWork,
 }: {
   screen: Screen
   setScreen: (screen: Screen) => void
@@ -32,16 +32,16 @@ export function GlobalKeybindingHandlers({
   onExitTranscript?: () => void
   virtualScrollActive?: boolean
   searchBarOpen?: boolean
+  compactWork?: CompactWorkControls
 }): null {
   const setAppState = useSetAppState()
   const store = useAppStateStore()
   const { addNotification } = useNotifications()
-  const { columns, rows } = useTerminalSize()
+  const { chrome, fullscreen, isCompact } = useLayoutChrome()
   void messageCount
   void showAllInTranscript
 
-  const cockpit =
-    isFullscreenActive() && chromeModeLive(columns, rows) === 'cockpit'
+  const cockpit = fullscreen && chrome === 'cockpit'
 
   const reportRefusal = (reason: string): void => {
     addNotification({
@@ -56,6 +56,10 @@ export function GlobalKeybindingHandlers({
   useKeybindings(
     {
       'app:toggleTasks': () => {
+        if (isCompact) {
+          compactWork?.toggleSummary()
+          return
+        }
         setAppState(prev => {
           const teammatesPresent = Object.values(prev.tasks).some(
             task => isInProcessTeammateTask(task) && task.status === 'running',

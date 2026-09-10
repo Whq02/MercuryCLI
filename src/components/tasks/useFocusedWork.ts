@@ -1,4 +1,4 @@
-import { useMemo, useSyncExternalStore } from 'react'
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import {
   getFocusedSessionConnector,
   hasFocusedSession,
@@ -7,7 +7,10 @@ import {
 import { runnerRecordAlive, workRowRuns } from '../../services/engine-connector/workCounts.js'
 import { readSessionWorkers } from '../../daemon/concourseSupervisor.js'
 import type { MissionRowV1, WorkRosterV1, WorkRowV1 } from '../../services/engine-connector/types.js'
-import { useAppState, type AppState } from '../../state/AppState.js'
+import { useAppState, useAppStateStore, type AppState } from '../../state/AppState.js'
+import { getTelemetry, subscribeTelemetry, type SessionGlanceSnapshot } from '../../state/telemetryBus.js'
+import { stringWidth } from '../../ink/stringWidth.js'
+import type { EngineCarrierKind } from '../../services/engine-connector/types.js'
 import { projectWorkRoster } from '../../utils/task/workRoster.js'
 import { pidAlive } from '../../utils/pidAlive.js'
 
@@ -79,4 +82,102 @@ export function otherSessionRunnerPids(focusedSessionId: string | null): Set<num
 
 export function focusedSessionIdOrNull(): string | null {
   return hasFocusedSession() ? getFocusedSessionConnector().sessionId() : null
+}
+export type CompactWorkCounts = Readonly<{
+  sessionsOn: number | null
+  agentsHere: number | null
+  monitorsHere: number | null
+}>
+
+export function compactWorkCounts(input: {
+  sessions: SessionGlanceSnapshot
+  focusedSessionId: string | null
+  carrier: EngineCarrierKind
+  roster: WorkRosterV1
+  tasks?: AppState['tasks']
+}): CompactWorkCounts {
+  const activeSessions = input.sessions.state === 'known'
+    ? new Set(input.sessions.rows.filter(row => row.live && !row.paused && !row.parked && !row.stopped).map(row => row.sessionId))
+    : null
+  if (input.focusedSessionId !== null && input.carrier === 'in-process') activeSessions?.add(input.focusedSessionId)
+  const sessionsOn = activeSessions?.size ?? null
+  if (input.focusedSessionId === null) return { sessionsOn, agentsHere: 0, monitorsHere: 0 }
+  if (input.carrier === 'daemon' && activeSessions !== null && !activeSessions.has(input.focusedSessionId)) return { sessionsOn, agentsHere: 0, monitorsHere: 0 }
+  if (input.carrier === 'daemon' && (activeSessions === null || input.roster.reported === false)) return { sessionsOn, agentsHere: null, monitorsHere: null }
+  const rows = focusedWorkRows(input.carrier === 'in-process' ? input.tasks : undefined, input.roster)
+  const byId = new Map<string, WorkRowV1>()
+  for (const row of rows) if (!byId.has(row.id)) byId.set(row.id, row)
+  const agents = new Set<string>()
+  const monitors = new Set<string>()
+  const topAgents = new Map<string, WorkRowV1>()
+  for (const row of byId.values()) {
+    if (row.kind === 'agent' || row.kind === 'teammate') topAgents.set(row.agentId ?? row.id, row)
+    if (row.kind === 'monitor' && workRowRuns(row)) monitors.add(row.id)
+  }
+  for (const [id, row] of topAgents) {
+    if (workRowRuns(row) && row.paused === undefined && row.pausedBy === undefined) agents.add(id)
+  }
+  let agentsKnown = true
+  for (const row of byId.values()) {
+    if (row.kind !== 'workflow') continue
+    const parentRuns = workRowRuns(row) && row.pausedBy === undefined
+    if (parentRuns && row.phases === undefined && (row.agentCount ?? 0) > 0) agentsKnown = false
+    for (const phase of row.phases ?? []) {
+      for (const child of phase.agents) {
+        const key = child.agentId ?? `${row.workflowRunId ?? row.id}:${child.index}`
+        if (!parentRuns) {
+          if (child.agentId !== undefined) agents.delete(key)
+          continue
+        }
+        if (child.state !== 'start' && child.state !== 'progress') continue
+        if (child.waiting === undefined || child.pausedBy === undefined) {
+          agentsKnown = false
+          continue
+        }
+        if (child.pausedBy !== null || child.waiting === 'operator' || child.waiting === 'usage-window') {
+          if (child.agentId !== undefined) agents.delete(key)
+          continue
+        }
+        if (child.agentId !== undefined && topAgents.has(child.agentId)) continue
+        agents.add(key)
+      }
+    }
+  }
+  return { sessionsOn, agentsHere: agentsKnown ? agents.size : null, monitorsHere: monitors.size }
+}
+
+export function compactWorkSummaryText(counts: CompactWorkCounts, columns: number): string {
+  const n = (value: number | null): string => value === null ? '?' : String(value)
+  const plural = (value: number | null, noun: string): string => `${n(value)} ${noun}${value === 1 ? '' : 's'}`
+  const full = `${plural(counts.sessionsOn, 'session')} on · ${plural(counts.monitorsHere, 'monitor')} here · ${plural(counts.agentsHere, 'agent')} here`
+  if (stringWidth(full) <= columns) return full
+  const fields = [`S:${n(counts.sessionsOn)}`, `M:${n(counts.monitorsHere)}`, `A:${n(counts.agentsHere)}`]
+  while (fields.length > 0) {
+    const text = fields.join(' · ') + (fields.length < 3 ? ' …' : '')
+    if (stringWidth(text) <= columns) return text
+    fields.pop()
+  }
+  return columns > 0 ? '…' : ''
+}
+
+export function useCompactWorkCounts(): CompactWorkCounts {
+  const store = useAppStateStore()
+  const subscribe = useCallback((listener: () => void) => {
+    const work = subscribeFocusedWork(listener)
+    const telemetry = subscribeTelemetry(listener)
+    const local = store.subscribe(listener)
+    return () => { work(); telemetry(); local() }
+  }, [store])
+  const snapshot = useCallback(() => {
+    const connector = getFocusedSessionConnector()
+    return JSON.stringify(compactWorkCounts({
+      sessions: getTelemetry().sessions,
+      focusedSessionId: hasFocusedSession() ? connector.sessionId() : null,
+      carrier: connector.carrier,
+      roster: connector.workRoster(),
+      tasks: store.getState().tasks,
+    }))
+  }, [store])
+  const value = useSyncExternalStore(subscribe, snapshot, snapshot)
+  return useMemo(() => JSON.parse(value) as CompactWorkCounts, [value])
 }

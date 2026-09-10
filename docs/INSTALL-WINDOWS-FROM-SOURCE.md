@@ -56,10 +56,9 @@ profile (Windows Terminal lists it in its new-tab menu once installed — the
 Start-menu "PowerShell 7" entry opens a standalone console, which works but
 meets the terminal-check card first). Run the check again.
 
-Give the window at least **80 columns and 22 rows** — below that every
-screen is the resize card and the Session Concourse says so (the boot menu
-itself fits from 64×13) — and 100 or more columns so the wide layouts have
-room. Maximised is fine.
+There is no minimum terminal size. Small windows use a compact layout and
+prioritize the input; enlarging the window restores the hidden detail. The
+full cockpit starts at 100 columns and 26 rows. Maximised is fine.
 
 One more thing: the console must use the UTF-8 code page, or the interface's
 box-drawing renders as garbage (`ΓöÇ`-style on code page 437; accented-letter
@@ -400,7 +399,7 @@ Common cases:
 | `'bun' is not recognized` | terminal opened before bun was installed | close the terminal, open a new one |
 | `The engine "node" is incompatible` or a Node version error | wrong Node major | step 3 — must be 24.x |
 | `dist\manifest.json` lists names under `degraded` | a vendor fetch was skipped or failed — the build itself still succeeds and prints `BUILD OK` | re-run the fetch it names (step 7), then build again |
-| the interface says the window is too small | fewer than 80 columns or 22 rows | widen or maximise the window |
+| compact controls or clipped detail | the window has little space | enlarge it to show more; the input and exit keys remain available |
 | an immediate exit that mentions `--print` | stdout is not a terminal (piped or redirected), which Mercury reads as a headless run | run from an interactive Windows Terminal window, or pass a prompt for a headless run |
 | a "Bash tool absent" notice, or the `doctor` **Bash tool shell** row warns | Git for Windows (`bash.exe`) is missing, or not where Mercury looks | step 2, or set `MERCURY_GIT_BASH_PATH` to your `bash.exe`, or turn the shell engine on (step 2 says how) |
 | Mercury stops at start naming `MERCURY_GIT_BASH_PATH` | that variable points at a file that does not exist | fix or remove the variable |

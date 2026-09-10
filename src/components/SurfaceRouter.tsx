@@ -29,7 +29,6 @@ import { KeybindingSetup } from '../keybindings/KeybindingProviderSetup.js';
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { estateGroundBg } from '../utils/mercuryTokens.js';
 import { LiveTerminalSizeContext, TerminalSizeContext } from '../ink/components/TerminalSizeContext.js';
-import { useViewportFloor } from '../ink/hooks/use-viewport-floor.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { BootSplashScreen } from './BootSplashScreen.js';
 import { MercuryFrame } from './MercuryFrame.js';
@@ -83,13 +82,12 @@ export function SurfaceRouter({ children }: { children: React.ReactNode }): Reac
   const liveSizeCtx = useContext(LiveTerminalSizeContext);
   const baseSizeCtx = useContext(TerminalSizeContext);
   const liveSize = liveSizeCtx ?? baseSizeCtx;
-  const surface = useViewportFloor(liveSize, true);
   return (
     <>
       {
 }
       <MotionParkContext.Provider value={entry !== undefined}>
-        <TerminalSizeContext.Provider value={surface.surfaceSize}>{children}</TerminalSizeContext.Provider>
+        <TerminalSizeContext.Provider value={liveSize}>{children}</TerminalSizeContext.Provider>
       </MotionParkContext.Provider>
       {entry ? (
         <RouteSurfaceHost key={surfaceRouteId(route)} kind={route.kind} frame={entry.frame}>
@@ -131,7 +129,7 @@ function RouteSurfaceHost({
   const [exitChordArmed, setExitChordArmed] = useState(false);
   const hostLiveSize = useContext(LiveTerminalSizeContext);
   const hostBaseSize = useContext(TerminalSizeContext);
-  const floor = useViewportFloor(hostLiveSize ?? hostBaseSize, true);
+  const hostSize = hostLiveSize ?? hostBaseSize;
   return (
     <Box
       ref={elevatedRef}
@@ -143,10 +141,9 @@ function RouteSurfaceHost({
       flexDirection="column"
       overflow="hidden"
       opaque={true}
-      display={floor.fits ? 'flex' : 'none'}
       {...(ground !== undefined ? { backgroundColor: ground } : {})}
     >
-      <TerminalSizeContext.Provider value={floor.surfaceSize}>
+      <TerminalSizeContext.Provider value={hostSize}>
         <SurfaceOverlayClaim kind={kind} />
         <SurfaceExitChord onPendingChange={setExitChordArmed} />
         <Box flexDirection="column" flexGrow={1} overflow="hidden">

@@ -5,6 +5,7 @@ import { useRegisterOverlay } from '../../context/overlayContext.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 import { boardSelectionClassOf, browseKeysFor, closeChordHintOf, closeChordReceiptOf, closeChordRungOf, CONCOURSE_HELP_KEY, helpKeyFiresFor, regionKeysFor } from './controlManifest.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
+import { useLayoutChrome } from '../../context/layoutChromeContext.js';
 import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js';
 import { boardModalOwner, gitOfferOwnsTheKeys, mayArmBoardModal, type BoardModalFactsV1 } from './boardModalOwner.js';
 import { claimConcourseCloseChord } from '../../services/concourse/closeChordSlot.js';
@@ -56,7 +57,6 @@ import { keyHintLabel } from '../mercury-ui/keyHintLabel.js';
 import { ConcourseComposer } from './ConcourseStrips.js';
 import {
   ConcourseLayout,
-  resolveConcourseProfile,
   ROW_PEEK_DESIRED_ROWS,
   switchboardGeometry,
   type ConcourseRegion,
@@ -171,6 +171,7 @@ export function ConcourseScreen({
   reducedStage?: boolean
 }): React.ReactNode {
   const { columns: termCols, rows: termRows } = useTerminalSize()
+  const { isCompact } = useLayoutChrome()
   const coordinatorOn = snapshot.coordinator.mode === 'agent-assisted'
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion)
   const keyMapHint = stripKeyMapHint()
@@ -635,7 +636,6 @@ export function ConcourseScreen({
     callbacks.daemonOfferArmed?.() === true ||
     helpOpenRef.current ||
     filtering ||
-    resolveConcourseProfile(cols, termRows) === 'too-small' ||
     boardModalOwner({
       capacityAsk: capacityAskRef.current,
       trustAsk: trustAskRef.current !== null,
@@ -1142,8 +1142,9 @@ export function ConcourseScreen({
         liveDraftDesired,
         focusTall,
         rowPeekOpen ? ROW_PEEK_DESIRED_ROWS : olderRows > 0 ? olderRows : chipRows,
+        region,
       ),
-    [cols, termRows, snapshot.needsYou.length, sessionRows.length, boardGroupCount, liveDraftDesired, focusTall, rowPeekOpen, olderRows, chipRows],
+    [cols, termRows, snapshot.needsYou.length, sessionRows.length, boardGroupCount, liveDraftDesired, focusTall, rowPeekOpen, olderRows, chipRows, region],
   )
 
   const regionsInOrder = useMemo<ConcourseRegion[]>(() => {
@@ -1230,13 +1231,6 @@ export function ConcourseScreen({
       if (key.escape || input === '?' || key.return) {
         helpOpenRef.current = false
         setHelpOpen(false)
-      }
-      return
-    }
-    if (resolveConcourseProfile(cols, termRows) === 'too-small') {
-      if (key.escape) {
-        event.stopImmediatePropagation()
-        callbacks.exitToRepl()
       }
       return
     }
@@ -1731,7 +1725,7 @@ export function ConcourseScreen({
     if (!anySessions) {
       return (
         <Box flexDirection="column" flexGrow={1} justifyContent="center" alignItems="center" overflow="hidden">
-          {rows >= 8 && width >= 20 ? (
+          {!isCompact && rows >= 8 && width >= 20 ? (
             <AnimatedCritterArt def={residentDef} hero specimen />
           ) : null}
           <Text color={t.textMuted}>no sessions running</Text>
@@ -2045,6 +2039,7 @@ export function ConcourseScreen({
           </Box>
         ) : (
           <CoordinatorPane
+            minimal={geo.constrained}
             callbacks={callbacks}
             mode={snapshot.coordinator.mode}
             {...(snapshot.coordinator.fallbackReason !== undefined
@@ -2135,8 +2130,9 @@ export function ConcourseScreen({
             composerNode={
               geo.profile === 'stacked' && focusTall !== 'coordinator' ? undefined : (
                 <ConcourseComposer
-                  width={Math.max(24, width - 4)}
-                  bandRows={Math.max(1, Math.min(coordBandDesired, rows - 8))}
+                  minimal={geo.constrained}
+                  width={geo.constrained ? Math.max(0, width) : Math.max(24, width - 4)}
+                  bandRows={geo.constrained ? Math.max(0, Math.min(coordBandDesired, rows)) : Math.max(1, Math.min(coordBandDesired, rows - 8))}
                   focused={region === 'coordinator' && !(managerAskArmed !== null || managerPlanArmed !== null || managerPlanBusy)}
                   draft={draft}
                   pending={pending}
@@ -2166,6 +2162,7 @@ export function ConcourseScreen({
           const paint = liveComposerPaintOf(g, liveNote)
           return (
           <ConcourseComposer
+            minimal={geo.constrained}
             width={width}
             bandRows={bandRows}
             focused={region === 'live'}

@@ -84,16 +84,17 @@ export function crewClockOf(rows: readonly WorkRowV1[], nowMs: number): CrewCloc
   }
 }
 
-export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClockV1 | null = null): string {
+export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClockV1 | null = null, compact = false): string {
   if (s.hardStopping) return 'stopping — the runner is cut if the turn is still open in a second'
   if (s.interrupting) return 'interrupting — the request is torn down'
   if (live.inFlight) {
     if (s.wait !== null) {
       const waited = s.quietMs !== null && s.quietMs >= 10_000 ? ` · ${statusDuration(s.quietMs)} so far` : ''
       const late = s.wait.kind === 'first-byte' && s.quietMs !== null && s.quietMs > s.wait.budgetMs ? ' — the budget is up; the lane reissues or aborts now' : ''
-      return `${requestWaitLine(s.wait)}${waited}${late}`
+      return `${requestWaitLine(s.wait, compact)}${waited}${late}`
     }
     if (live.phase === 'waiting') {
+      if (compact) return 'waiting on background work'
       return (live.waitingOn !== undefined ? workWaitingWords(live.waitingOn) : null) ?? crewWaitingWords(live.agentsWaiting) ?? 'waiting on agents'
     }
     if (s.stuck && s.quietMs !== null && s.watchdogMs !== null) {

@@ -9,7 +9,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS } from '../../src/ink/viewportFloor.ts'
+const COMPACT_CONTROL_COLS = 80
+const COMPACT_CONTROL_ROWS = 22
 
 const t = checker()
 const scratch = mkdtempSync(join(tmpdir(), 'contour-degrade-'))
@@ -32,9 +33,9 @@ function renderScenario(name: string, cols: number, rows: number): string[] {
   return gridLines(join(scratch, `${name}-${cols}x${rows}.json`))
 }
 
-t.section(`§1 — the modal family closes inside the floor viewport (${VIEWPORT_FLOOR_COLS}×${VIEWPORT_FLOOR_ROWS}, the full tier)`)
+t.section(`§1 — the modal family closes inside the floor viewport (${COMPACT_CONTROL_COLS}×${COMPACT_CONTROL_ROWS}, the full tier)`)
 {
-  const lines = renderScenario('model-picker-home', VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS)
+  const lines = renderScenario('model-picker-home', COMPACT_CONTROL_COLS, COMPACT_CONTROL_ROWS)
   const all = lines.join('\n')
   const closes = lines.some(l => l.trimStart().startsWith('╰'))
   if (!closes) lines.forEach((l, i) => console.log(`      grid[${String(i).padStart(2, '0')}] ${JSON.stringify(l)}`))
@@ -45,9 +46,9 @@ t.section(`§1 — the modal family closes inside the floor viewport (${VIEWPORT
   t.check('the banner STAYS: the floor holds the full tier (decoration sheds only under it)', all.includes('CHOOSE A MODEL'), lines.find(l => l.includes('CHOOSE A MODEL')) ?? '(no banner row)')
 }
 
-t.section(`§2 — the inline REPL keeps its input line at the floor (${VIEWPORT_FLOOR_COLS}×${VIEWPORT_FLOOR_ROWS}, the frame whole)`)
+t.section(`§2 — the inline REPL keeps its input line at the floor (${COMPACT_CONTROL_COLS}×${COMPACT_CONTROL_ROWS}, the frame whole)`)
 {
-  const lines = renderScenario('thinking-row', VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS)
+  const lines = renderScenario('thinking-row', COMPACT_CONTROL_COLS, COMPACT_CONTROL_ROWS)
   const inputAt = lines.findIndex(l => l.trim().startsWith('❯') || l.includes('│❯'))
   t.check('a ❯ input line renders', inputAt >= 0, lines[inputAt] ?? '(no input line)')
   t.check(
@@ -140,7 +141,7 @@ t.section('§4 — the resize cycle leaves no residue (splash, real SIGWINCH)')
   const direct = run('direct')
   const cycled = run('cycled', [
     { atTick: 10, cols: 80, rows: 24 },
-    { atTick: 20, cols: VIEWPORT_FLOOR_COLS, rows: VIEWPORT_FLOOR_ROWS },
+    { atTick: 20, cols: COMPACT_CONTROL_COLS, rows: COMPACT_CONTROL_ROWS },
     { atTick: 30, cols: 150, rows: 45 },
     { atTick: 40, cols: 120, rows: 40 },
   ])

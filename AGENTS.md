@@ -19,9 +19,12 @@ On Windows, use Windows Terminal or PowerShell 7.
 bun run setup                      # once; bun install + the vendored packs
 bun run build.ts                   # writes dist/mercury.mjs + dist/manifest.json
 node dist/mercury.mjs --version
-node dist/mercury.mjs              # the cockpit needs a real TTY, 100+ columns
+node dist/mercury.mjs
 node dist/mercury.mjs doctor --json
 ```
+
+The cockpit needs a real TTY, with no minimum terminal size. The full layout
+starts at 100 columns and 26 rows; smaller windows use the compact layout.
 
 `setup` fetches the vendored packs (pyright · debugpy · js-debug · grammars ·
 this machine's Node runtime · brush, the optional shell engine) and, with cargo

@@ -1,5 +1,6 @@
 
 import { stringWidth } from '../../ink/stringWidth.js'
+import { COMPOSER_BORDER_SHED_ROWS } from './replFloor.js'
 
 export { paneWindow, scrolledWindow, fitGroupedWindow, fitMeasuredWindow, type PaneWindow } from './paneWindow.js'
 
@@ -109,4 +110,64 @@ export function shedToFit<T extends { text: string; priority: number }>(
 
 export function cockpitBottomSlotReserve(termRows: number): number {
   return Math.ceil(termRows / 2) + 12
+}
+export type CompactFrameBudget = Readonly<{
+  columns: number
+  availableRows: number
+  summaryRows: number
+  modelRows: number
+  activityRows: number
+  footerRows: number
+  noticeRows: number
+  transcriptMinRows: number
+  composerBorderRows: number
+  composerBorderColumns: number
+  inputPrefixColumns: number
+  inputColumns: number
+  editorPoolRows: number
+  bottomMaxRows: number
+}>
+
+export function compactFrameBudget(
+  columns: number,
+  availableRows: number,
+  activityRequested: boolean,
+  noticeRequested = false,
+): CompactFrameBudget {
+  const width = Math.max(0, Math.floor(columns))
+  const rows = Math.max(0, Math.floor(availableRows))
+  let left = Math.max(0, rows - 1)
+  const noticeRows = noticeRequested && left > 0 ? 1 : 0
+  left -= noticeRows
+  const summaryRows = left > 0 ? 1 : 0
+  left -= summaryRows
+  const modelRows = left > 0 ? 1 : 0
+  left -= modelRows
+  const activityRows = activityRequested && left > 0 ? 1 : 0
+  left -= activityRows
+  const footerRows = Math.min(2 - noticeRows, left)
+  left -= footerRows
+  const transcriptMinRows = left > 0 ? 1 : 0
+  left -= transcriptMinRows
+  const composerBorderRows = rows >= COMPOSER_BORDER_SHED_ROWS && width >= 3 && left >= 2 ? 2 : 0
+  left -= composerBorderRows
+  const composerBorderColumns = composerBorderRows
+  const interior = Math.max(0, width - composerBorderColumns)
+  const inputPrefixColumns = Math.min(2, Math.max(0, interior - 1))
+  return {
+    columns: width,
+    availableRows: rows,
+    summaryRows,
+    modelRows,
+    activityRows,
+    footerRows,
+    noticeRows,
+    transcriptMinRows,
+    composerBorderRows,
+    composerBorderColumns,
+    inputPrefixColumns,
+    inputColumns: Math.max(0, interior - inputPrefixColumns),
+    editorPoolRows: rows > 0 ? 1 + left : 0,
+    bottomMaxRows: rows - transcriptMinRows,
+  }
 }

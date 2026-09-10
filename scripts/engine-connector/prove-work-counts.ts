@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { runnerRecordAlive, workChipLine, workCounts, workRowRuns, workWaitingWords } from '../../src/services/engine-connector/workCounts.ts'
 import { rosterRowsOf } from '../../src/components/tasks/BackgroundTasksDialog.tsx'
 import { projectWorkRoster } from '../../src/utils/task/workRoster.ts'
+import { compactWorkCounts, compactWorkSummaryText } from '../../src/components/tasks/useFocusedWork.ts'
 import type { WorkRowV1 } from '../../src/services/engine-connector/types.ts'
 
 let failures = 0
@@ -140,6 +141,44 @@ console.log('\nC7 the held turn\'s wait words name the KINDS over the same count
   const views = readFileSync('src/components/tasks/useFocusedWork.ts', 'utf8')
   check("C6 the work views' presence rides the runner-liveness law", views.includes('runnerRecordAlive(rec, pidAlive)'))
   check('C6 …and trusts endedAt alone nowhere', !views.includes('rec.sessionId === sessionId && rec.endedAt === undefined'))
+}
+
+console.log('C8 compact counts use current identities and honest availability')
+{
+  const active = { sessionId: 'focused', live: true, paused: false, parked: false, stopped: false }
+  const sessions = { state: 'known' as const, rows: [active, active, { ...active, sessionId: 'paused', paused: true }, { ...active, sessionId: 'parked', parked: true }, { ...active, sessionId: 'dead', live: false }] }
+  const tasks = {
+    monitor: { id: 'monitor', type: 'local_bash', kind: 'monitor', command: 'fixture-monitor', status: 'running', startTime: t0 },
+    shell: { id: 'shell', type: 'local_bash', command: 'fixture-shell', status: 'running', startTime: t0 },
+    agent: { id: 'task-agent', agentId: 'child-one', type: 'local_agent', agentType: 'mercury-general', description: 'same name', status: 'running', startTime: t0 },
+    paused: { id: 'paused-agent', agentId: 'paused-agent', type: 'local_agent', agentType: 'mercury-general', description: 'same name', status: 'running', startTime: t0, paused: { why: 'usage-window', words: 'paused' } },
+    workflow: { id: 'workflow', type: 'local_workflow', status: 'running', startTime: t0, workflowRunId: 'run', agentCount: 20, totalTokens: 0, workflowProgress: [
+      { type: 'workflow_agent', index: 0, label: 'same name', state: 'progress', agentId: 'child-one' },
+      { type: 'workflow_agent', index: 1, label: 'same name', state: 'progress', agentId: 'child-two' },
+      { type: 'workflow_agent', index: 2, label: 'pause', state: 'progress', agentId: 'child-three', waiting: 'operator', pausedBy: 'operator' },
+      { type: 'workflow_agent', index: 3, label: 'done', state: 'done', agentId: 'child-four' },
+    ] },
+  } as never
+  const rows = projectWorkRoster(tasks)
+  const roster = { rows, mission: [], reported: true }
+  const input = { sessions, focusedSessionId: 'focused', carrier: 'daemon' as const, roster, tasks }
+  const counts = compactWorkCounts(input)
+  check('C8 session records are deduplicated and dead/paused/parked sessions excluded', counts.sessionsOn === 1, JSON.stringify(counts))
+  check('C8 the actual monitor subtype counts but an ordinary shell does not', counts.monitorsHere === 1 && rows.find(r => r.id === 'monitor')?.kind === 'monitor' && workCounts(rows).shells === 2)
+  check('C8 two current workflow children count once each, not lifetime twenty or a duplicate top-level alias', counts.agentsHere === 2, JSON.stringify(counts))
+  const children = rows.find(r => r.kind === 'workflow')?.phases?.flatMap(p => p.agents) ?? []
+  check('C8 the projection preserves identity and explicit pause/wait absence', children.some(c => c.agentId === 'child-one' && c.waiting === null && c.pausedBy === null) && children.some(c => c.agentId === 'child-three' && c.waiting === 'operator'))
+  check('C8 a hosted chat does not inherit the screen process task store', compactWorkCounts({ ...input, roster: { rows: [], mission: [], reported: true } }).agentsHere === 0)
+  check('C8 an unreported live roster is unknown, not zero', compactWorkCounts({ ...input, roster: { rows: [], mission: [], reported: false } }).agentsHere === null)
+  check('C8 unavailable session data stays unknown', compactWorkCounts({ ...input, sessions: { state: 'unavailable' } }).sessionsOn === null)
+  check('C8 known dormant work is history, not active work', compactWorkCounts({ ...input, sessions: { state: 'known', rows: [] } }).agentsHere === 0)
+  check('C8 an in-process focused session counts once without a daemon row', compactWorkCounts({ ...input, carrier: 'in-process', sessions: { state: 'known', rows: [] } }).sessionsOn === 1)
+  const legacyRows: WorkRowV1[] = [{ id: 'old', kind: 'workflow', name: 'old', status: 'running', startTime: t0, phases: [{ title: 'old', planned: false, agents: [{ index: 0, label: 'old', state: 'progress' }] }] }]
+  check('C8 an old child projection without pause truth is unknown', compactWorkCounts({ ...input, roster: { ...roster, rows: legacyRows } }).agentsHere === null)
+  const full = compactWorkSummaryText(counts, 120)
+  check('C8 full words retain scope and count truth', full === '1 session on · 1 monitor here · 2 agents here', full)
+  check('C8 no partial integer can turn twelve into one', !compactWorkSummaryText({ sessionsOn: 12, agentsHere: 12, monitorsHere: 12 }, 3).includes('1'))
+  check('C8 unknown is printed as a question mark', compactWorkSummaryText({ sessionsOn: null, agentsHere: null, monitorsHere: null }, 120).includes('? sessions'))
 }
 
 console.log(failures === 0 ? '\nprove-work-counts: ALL LAWS HOLD' : `\nprove-work-counts: ${failures} FAILURE(S)`)
