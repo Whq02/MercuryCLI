@@ -87,8 +87,8 @@ console.log('§2 the screen — the board-browse arm no longer names the coordin
   const pane = read('src/components/concourse/CoordinatorPane.tsx')
   check(
     'the pane owns its ↑↓ only while focused (the zero-state example walk consumes them before the screen)',
-    ordered(pane, 'if (!focused) return', 'if (entries !== null && entries.length === 0 && (key.upArrow || key.downArrow)) {') &&
-      ordered(pane, 'if (entries !== null && entries.length === 0 && (key.upArrow || key.downArrow)) {', 'event.stopImmediatePropagation()\n      const n = COORDINATOR_EXAMPLE_PROMPTS.length'),
+    ordered(pane, 'if (!focused) return', 'if (!minimal && entries !== null && entries.length === 0 && (key.upArrow || key.downArrow)) {') &&
+      ordered(pane, 'if (!minimal && entries !== null && entries.length === 0 && (key.upArrow || key.downArrow)) {', 'event.stopImmediatePropagation()\n      const n = COORDINATOR_EXAMPLE_PROMPTS.length'),
   )
 }
 
