@@ -36,7 +36,7 @@ for (const size of SIZES) {
   check(`${size.cols}: no type or key row followed`, !text.includes('Computer type') && !text.includes('Computer key') && !text.includes('Done.'), text.slice(0, 600))
   const typed = res.marks.typed ?? []
   printFrame(`${size.cols}×${size.rows} typed`, typed)
-  check(`${size.cols}: the composer took a typed character afterwards`, typed.some(r => /[❯>]\s*z\b/.test(r)) || typed.some(r => r.trim() === 'z' || r.includes(' z')), typed.filter(r => r.includes('❯')).join(' · '))
+  check(`${size.cols}: the composer took a typed character afterwards`, typed.some(r => /[❯›>]\s?z(\s|$)/.test(r)), typed.filter(r => /[❯›>]/.test(r)).join(' · '))
   const log = actLog(leg.log).map(a => `${a.act}:${a.outcome}`)
   check(`${size.cols}: the log ends with the aborted click then releaseAll, and no typeText`, log.slice(-2).join(',') === 'click:aborted,releaseAll:done' && !log.some(l => l.startsWith('typeText')), log.join(','))
   check(`${size.cols}: nothing left loopback`, nonLoopback(netlines(leg.netlog)).length === 0)

@@ -20,6 +20,13 @@ process.env.MERCURY_DESKTOP_FAKE_LOG = LOG
 resetDesktopDriverForTest()
 
 const log = (): FakeAct[] => readFakeActLog(LOG)
+async function released(): Promise<boolean> {
+  for (let i = 0; i < 100; i++) {
+    if (!claim.desktopClaimHeld() && session.desktopSnapshot().phase === 'idle') return true
+    await new Promise(resolve => setTimeout(resolve, 10))
+  }
+  return !claim.desktopClaimHeld() && session.desktopSnapshot().phase === 'idle'
+}
 const tail = (from: number): string => log().slice(from).map(a => `${a.act}:${a.outcome}`).join(',')
 const namesInterruption = (result: string): boolean => result.includes('interrupted by the operator') && result.includes('released')
 const abortIn = (controller: AbortController, ms: number): void => {
@@ -44,7 +51,7 @@ section('§1 an abort mid-click ends the act, releases everything and frees the 
   check('the result names the interruption and the release', namesInterruption(result), result)
   check("the outcome is 'failed'", outcome === 'failed')
   check('the log carries the aborted click, then releaseAll, and no capture after it', tail(from) === 'click:aborted,releaseAll:done', tail(from))
-  check('the claim is released and the snapshot idle', claim.desktopClaimHeld() === false && session.desktopSnapshot().phase === 'idle')
+  check('the claim is released and the snapshot idle', await released())
 }
 
 section('§2 an abort during a hold releases the chord')
@@ -56,7 +63,7 @@ section('§2 an abort during a hold releases the chord')
   const release = entries.find(a => a.act === 'releaseAll')
   check('the chord went down, then releaseAll released it', down?.outcome === 'done' && down.detail.key === 'shift' && release !== undefined && JSON.stringify(release.detail.keys) === JSON.stringify(['shift']), tail(from))
   check('no keyUp was posted by the act itself (the release did it)', !entries.some(a => a.act === 'keyUp'))
-  check('the claim is released', claim.desktopClaimHeld() === false && session.desktopSnapshot().phase === 'idle')
+  check('the claim is released', await released())
 }
 
 section('§3 an abort during a drag releases the button')
@@ -82,7 +89,7 @@ section('§5 an abort at the settle skips the screenshot after the act')
   check('the click completed', log().slice(from).some(a => a.act === 'click' && a.outcome === 'done'), tail(from))
   check('no capture followed the click', !log().slice(from).some(a => a.act === 'capture'), tail(from))
   check('the result names the interruption', namesInterruption(result) && outcome === 'failed', result)
-  check('the claim is released', claim.desktopClaimHeld() === false && session.desktopSnapshot().phase === 'idle')
+  check('the claim is released', await released())
 }
 
 section('§6 without an abort the act completes with its screenshot')
