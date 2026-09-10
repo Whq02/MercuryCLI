@@ -11,6 +11,7 @@ export function CockpitBottomStatus({
 }): React.ReactNode {
   const cockpit = useContext(CockpitActiveContext)
   const budget = useContext(CompactFrameBudgetContext)
-  if (cockpit || budget?.activityRows === 0) return null
+  if (cockpit) return null
+  if (budget?.activityRows === 0) return null
   return children
 }
