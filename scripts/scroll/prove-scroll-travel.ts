@@ -98,6 +98,7 @@ function analyze(cell: Cell, payload: {
   tickGaps: number[]
   endDrift: number | null
   delivered: number
+  unmeasured: string[]
   viewport: number
 } {
   const parityKey = (turn: number): string => (cell.mix ? String(turn % 2) : 'all')
@@ -167,8 +168,10 @@ function analyze(cell: Cell, payload: {
   let prevP: number | null = null
   let prevTick: number | null = null
   const travelMarks = (payload.marks ?? []).filter(m => m.label !== 'bottom' && m.label !== 'settled')
+  const unmeasured: string[] = []
   for (const m of travelMarks) {
     const P = positionOf(m.grid)
+    if (P === null) unmeasured.push(m.label)
     if (P !== null && prevP !== null) deltas.push(P - prevP)
     if (prevTick !== null) tickGaps.push(m.atTick - prevTick)
     if (P !== null) prevP = P
@@ -177,7 +180,7 @@ function analyze(cell: Cell, payload: {
   const settledMark = (payload.marks ?? []).find(m => m.label === 'settled')
   const endP = positionOf(settledMark !== undefined ? settledMark.grid : payload.grid)
   const endDrift = endP !== null && prevP !== null ? endP - prevP : null
-  return { deltas, tickGaps, endDrift, delivered: travelMarks.length, viewport }
+  return { deltas, tickGaps, endDrift, delivered: travelMarks.length, viewport, unmeasured }
 }
 
 function runCell(cell: Cell): void {
@@ -238,6 +241,8 @@ function runCell(cell: Cell): void {
   check(`${cell.tag}: all sends delivered`, !undelivered && a.delivered === cell.presses + 1,
     `delivered ${a.delivered}/${cell.presses + 1}${undelivered ? ' (vshot reported stuck sends)' : ''}`)
   check(`${cell.tag}: the transcript region measured from the frames is a real pane (≥ 6 rows)`, a.viewport >= 6, `region ${a.viewport}`)
+  check(`${cell.tag}: every paging observation has a usable position (no unmeasured mark)`, a.unmeasured.length === 0, `unmeasured: ${a.unmeasured.join(',') || '(none)'}`)
+  check(`${cell.tag}: exactly one measured delta per press`, a.deltas.length === cell.presses, `${a.deltas.length} deltas for ${cell.presses} presses`)
   check(`${cell.tag}: every press reached the scroller (requests = presses)`, reqs.length === cell.presses, `${reqs.length} requests for ${cell.presses} presses`)
   const pressFrames = (payload.marks ?? []).filter((m: { label: string }) => /^p\d+$/.test(m.label)).map((m: { grid: Grid }) => m.grid)
   for (let i = 0; i < a.deltas.length; i++) {
@@ -276,6 +281,21 @@ function runCell(cell: Cell): void {
 mkdirSync(SCRATCH, { recursive: true })
 const cells = FULL ? [...STANDING, ...FULL_EXTRA] : STANDING
 for (const cell of cells) runCell(cell)
+
+{
+  const cell = STANDING[0]!
+  const captured = JSON.parse(readFileSync(join(SCRATCH, `${cell.tag}.json`), 'utf-8')) as { grid: Grid; endReason: string; marks?: Array<{ label: string; atTick: number; grid: Grid }> }
+  const marks = captured.marks ?? []
+  const victim = marks.findIndex(m => /^p0[1-9]$/.test(m.label))
+  const blank = (g: Grid): Grid => g.map(row => row.map(c => ({ ...c, c: ' ' })))
+  const incomplete = { ...captured, marks: marks.map((m, i) => (i === victim ? { ...m, grid: blank(m.grid) } : m)) }
+  const whole = analyze(cell, captured)
+  const partial = analyze(cell, incomplete)
+  console.log(`\n── scroll-travel control: one paging mark (${marks[victim]?.label ?? '?'}) with its signature blanked, re-analysed from the ${cell.tag} capture`)
+  check('control: the whole capture measures every paging observation and one delta per press', whole.unmeasured.length === 0 && whole.deltas.length === cell.presses, `unmeasured=${whole.unmeasured.length} deltas=${whole.deltas.length}`)
+  check('control: the blanked mark is reported as unmeasured (the old analysis skipped it silently)', partial.unmeasured.length === 1 && partial.unmeasured[0] === marks[victim]?.label, `unmeasured=${partial.unmeasured.join(',')}`)
+  check('control: the blanked capture yields FEWER deltas than presses, so the per-press laws would have gone unjudged', partial.deltas.length === cell.presses - 1, `${partial.deltas.length} deltas for ${cell.presses} presses`)
+}
 
 if (failures > 0) {
   console.log(`\nscroll-travel: RED (${failures}/${checks} checks failed) — captures kept at ${SCRATCH}`)
