@@ -10,9 +10,9 @@ const { desktopSnapshot } = await import('../../src/services/desktop/desktopSess
 const DEAD_PID = 2147483000
 const path = claim.desktopClaimPath()
 
-async function settled(predicate: () => boolean, attempts = 100): Promise<boolean> {
+async function settled(predicate: () => Promise<boolean>, attempts = 100): Promise<boolean> {
   for (let i = 0; i < attempts; i++) {
-    if (predicate()) return true
+    if (await predicate()) return true
     await new Promise(resolve => setTimeout(resolve, 10))
   }
   return predicate()
@@ -72,8 +72,8 @@ section('§5 the abort listener releases')
   const taken = await claim.claimDesktop(controller.signal)
   check('held under the signal', taken.held === true && claim.desktopClaimHeld() === true)
   controller.abort()
-  const released = await settled(() => claim.desktopClaimHeld() === false)
-  check('the abort releases the claim', released && (await claim.probeDesktopLock()) === null && desktopSnapshot().phase === 'idle')
+  const released = await settled(async () => claim.desktopClaimHeld() === false && (await claim.probeDesktopLock()) === null && desktopSnapshot().phase === 'idle')
+  check('the abort releases the claim: nothing held, the record gone, the snapshot idle', released)
 }
 
 section('§6 the idle timer re-arms per act and its body releases')
