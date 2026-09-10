@@ -213,16 +213,6 @@ type AppStateMutableHalf = {
     currentUrl?: string
     stickyPanelVisible?: boolean
   }
-  computerUseSession?: {
-    appAllowlist?: string[]
-    grantedApps?: string[]
-    grants?: Record<string, boolean>
-    lastScreenshotDimensions?: { width: number; height: number }
-    appsHiddenDuringTurn?: string[]
-    targetedDisplay?: number
-    displayPinnedByModel?: boolean
-    displayResolvedForAppSetFingerprint?: string
-  }
   replToolVmContext?: {
     vmContext: unknown
     registeredTools: Record<string, unknown>

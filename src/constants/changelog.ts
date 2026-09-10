@@ -1,6 +1,9 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.6
+- Added computer use behind MERCURY_COMPUTER_USE: the model takes screenshots and drives the mouse and keyboard on every provider route that carries images; the first act in each application asks by name, esc stops it, one session drives at a time, and screenshots never enter the saved conversation
+
 ## 1.0.0-beta.5
 - Removed an internal configuration table that no longer did anything; nothing you can see changes
 - Changed the sign-in list to open on the right row

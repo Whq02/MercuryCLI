@@ -105,6 +105,8 @@ import type {
 import type { RefusedToolCall } from '../../../types/message.js'
 import { gateToolCalls, toolCallRefusalNote } from '../toolCallGate.js'
 import { foldAnnouncementIntoFirstUserTurn, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
+import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
+import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
 
 
 let openaiLiveProof: { at: number; model: string } | null = null
@@ -497,7 +499,12 @@ export async function* openaiCallModel(
     settlementNotes.push(qualification.note)
   }
 
-  const bridge = toBridgeMessages(healWalkableForWire(wireMessages), modelId)
+  const retiredScreenshots = retireOlderScreenshots(wireMessages)
+  const wireMessagesForBridge =
+    retiredScreenshots.firstEdited === -1
+      ? retiredScreenshots.messages
+      : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
+  const bridge = toBridgeMessages(healWalkableForWire(wireMessagesForBridge), modelId)
   const threadKey = `${getSessionId()}:${options.agentId ?? 'main'}`
   if (bridge.reconstructedGptTurns > 0 && !reconstructionNoted.has(threadKey)) {
     reconstructionNoted.add(threadKey)

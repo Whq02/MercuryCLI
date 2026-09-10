@@ -56,6 +56,10 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
   to dictate, the capture backends, the on-device transcriber and its
   one-time model download, the cloud sign-ins, and the privacy line (on
   this machine nothing leaves it; to a cloud family only after you stop).
+- [COMPUTER-USE.md](COMPUTER-USE.md): computer use — the Computer tool that
+  sees the screen and drives the mouse and keyboard, the switch that turns
+  it on, the asks per application and the allowlist, the stop key, what is
+  kept, and the install on each platform.
 
 ### Loading, extending and delegating
 
