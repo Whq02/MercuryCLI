@@ -162,6 +162,7 @@ export interface ConcourseWorkerRecordV1 {
   workflowsGrantedAt?: number
   focusedAt?: number
   focusedBy?: string
+  terminalApplication?: { identity: string; name: string } | null
   parkedAt?: number
   parkedBy?: string
   parkReason?: string
@@ -2387,7 +2388,7 @@ export function stampedTerminalPid(by: string | undefined): number | undefined {
   return pid === undefined ? undefined : Number(pid)
 }
 
-export function focusConcourseSession(sessionId: string, by: string, dir?: string): ConcourseFocusOutcome {
+export function focusConcourseSession(sessionId: string, by: string, dir?: string, terminalApplication?: { identity: string; name: string } | null): ConcourseFocusOutcome {
   let out: ConcourseFocusOutcome = { outcome: 'refused', reason: 'unknown-session' }
   updateConcourseWorkers(workers => {
     const rec = Object.values(workers).find(r => r.sessionId === sessionId && r.endedAt === undefined)
@@ -2397,12 +2398,15 @@ export function focusConcourseSession(sessionId: string, by: string, dir?: strin
       if (other === rec || other.endedAt !== undefined || other.focusedBy !== by) continue
       delete other.focusedAt
       delete other.focusedBy
+      delete other.terminalApplication
       cleared.push(other.runnerId)
     }
-    if (rec.focusedAt !== undefined && rec.focusedBy === by && cleared.length === 0) {
+    const terminalChanged = terminalApplication !== undefined && (rec.terminalApplication?.identity !== terminalApplication?.identity || rec.terminalApplication?.name !== terminalApplication?.name)
+    if (rec.focusedAt !== undefined && rec.focusedBy === by && cleared.length === 0 && !terminalChanged) {
       out = { outcome: 'noop', reason: 'already-focused' }
       return
     }
+    if (rec.focusedBy !== by || terminalApplication !== undefined) rec.terminalApplication = terminalApplication ?? null
     rec.focusedAt = Date.now()
     rec.focusedBy = by
     out = { outcome: 'applied', runnerId: rec.runnerId, cleared }
@@ -2421,6 +2425,7 @@ export function blurConcourseSession(sessionId: string, by: string, dir?: string
     }
     delete rec.focusedAt
     delete rec.focusedBy
+    delete rec.terminalApplication
     out = { outcome: 'applied', runnerId: rec.runnerId, cleared: [rec.runnerId] }
   }, dir)
   return out

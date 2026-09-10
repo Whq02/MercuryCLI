@@ -56,7 +56,6 @@ export function computerToolUseIdsBefore(transcript: readonly Message[], index: 
         if (block.type === 'tool_use' && block.name === COMPUTER_TOOL_NAME) ids.add(block.id)
       }
     }
-    break
   }
   return ids
 }
@@ -76,8 +75,8 @@ function rebuildUser<M extends Message>(message: M, blocks: ContentBlockParam[])
 export function projectForTranscript<M extends Message>(message: M, transcript: readonly Message[] | null = null): M {
   const blocks = userBlocks(message)
   if (blocks === null) return message
-  const index = transcript === null ? -1 : transcript.indexOf(message)
-  const paired = transcript !== null && index >= 0 ? computerToolUseIdsBefore(transcript, index) : null
+  const needsPairing = transcript !== null && blocks.some(block => block.type === 'tool_result' && Array.isArray(block.content) && block.content.some(part => part.type === 'image') && screenshotPathForToolUse(block.tool_use_id) === null)
+  const paired = needsPairing ? computerToolUseIdsBefore(transcript, transcript.length) : null
   let touched = false
   const projected = blocks.map(block => {
     if (!isScreenshotResult(block, paired)) return block

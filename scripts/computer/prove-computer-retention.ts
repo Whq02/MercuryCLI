@@ -104,7 +104,7 @@ section('§3 the wire call sites (structural)')
   const zai = sourceText('src/services/providers/zai/zaiCallModel.ts')
   check('the direct GLM runtime retires older screenshots too', zai.includes('retireOlderScreenshots('))
   const chain = sourceText('src/utils/sessionStorage/chain.ts')
-  check('the session file chain projects every record it cleans for the file, with the transcript beside it', chain.includes('projectForTranscript(message, transcript)'))
+  check('the session file chain projects every record it cleans for the file, with the transcript beside it', chain.includes('projectForTranscript(message, allMessages)'))
 }
 
 section('§4 the screenshot a coordinate act refers to must still be visible')
@@ -137,7 +137,9 @@ section('§6 a real session file: the writer records the stub, never the bytes')
   const pair = [toolUseTurn(id, 'Computer', { action: 'screenshot' }), toolResultTurn(screenshotResult(id, pathOf(9)))]
   let recorded: string | null = null
   try {
-    await writer.recordTranscript(pair)
+    await writer.recordTranscript([pair[0]!], undefined, undefined, [pair[0]!])
+    session.resetDesktopSessionForTest()
+    await writer.recordTranscript([pair[1]!], undefined, undefined, pair)
     await writer.flushSessionStorage()
   } catch (error) {
     recorded = String(error)
@@ -164,7 +166,11 @@ section('§7 the projection pairs an unregistered result with the Computer tool_
   const browserTranscript: Message[] = [toolUseTurn(browserId, 'Browser', { action: 'screenshot' }), browserResult]
   check('paired with another tool the image stays', retention.projectForTranscript(browserResult, browserTranscript) === browserResult)
   const ids = retention.computerToolUseIdsBefore(transcript, 2)
-  check('the pairing reads only the assistant message directly before the result', ids.size === 1 && ids.has(id), JSON.stringify([...ids]))
+  check('the pairing finds the Computer tool use before the result', ids.size === 1 && ids.has(id), JSON.stringify([...ids]))
+  const clonedResult = { ...result, message: { ...result.message } } as Message
+  const interleaved: Message[] = [transcript[1]!, toolUseTurn('toolu_other', 'Read', { file_path: '/fixture' }), result]
+  check('a transformed result pairs by its call id across intervening assistant rows', !hasImage(retention.projectForTranscript(clonedResult, interleaved)))
+  check('the caller keeps its unmodified image-bearing result', hasImage(clonedResult))
 }
 
 finish('prove-computer-retention')

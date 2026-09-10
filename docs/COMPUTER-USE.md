@@ -82,7 +82,11 @@ by `+` with a named key (Enter, Escape, Tab, Space, Backspace, Delete, Home,
 End, PageUp, PageDown, the arrows, F1 to F12) or one character. The model
 never types into the terminal running Mercury: with that terminal in front,
 typed text and held keys are refused, a key chord is allowed only to switch
-applications, and a click must land outside the terminal's window.
+applications, and a click must land outside the terminal's window. A worker
+uses the terminal identity supplied by the attached cockpit, not the daemon
+that spawned it. If that identity cannot be read, typing, holding keys and
+ordinary key chords refuse rather than guessing; the application-switch
+chord remains available.
 
 ## Models and routes
 
@@ -102,9 +106,12 @@ exits.
 
 ## Not in this release
 
-Sub-agents, teammates, headless runs and clients of the MCP serve surface
-never carry the Computer tool; the main session of an interactive
-conversation drives, and nothing else does.
+Sub-agents, teammates and clients of the MCP serve surface never carry the
+Computer tool. A bare headless run without an approval channel cannot
+drive. The interactive cockpit runs its turn in a background worker whose
+approval channel sends the consent card back to the cockpit. A non-interactive
+caller needs that approval channel, and keystrokes still refuse when the
+terminal running the session cannot be identified.
 
 ## The driver
 
@@ -117,8 +124,9 @@ It is built rather than fetched: a machine without a Rust toolchain builds
 and runs Mercury without it, the build says so, and the Computer tool
 answers "no desktop driver on this install" until the pack is built. Release
 archives carry the driver for their platform when the packaging host could
-build it. Nothing else is installed on your machine, and no screenshot is
-written to disk unless you ask for one.
+build it. Nothing else is installed on your machine. Every screenshot,
+including the default capture after an act, is kept under `desktop-shots`
+with the retention limit described above.
 
 ## What each platform needs
 

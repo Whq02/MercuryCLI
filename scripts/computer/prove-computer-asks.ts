@@ -186,6 +186,17 @@ section('§7 the terminal running this session: keystrokes never land in it')
   session.forgetDesktopOwner(owner)
 }
 
+section('§8 unknown terminal identity refuses keystrokes instead of guessing')
+{
+  const { context, owner } = await fresh('terminal-unknown', { ownTerminal: null })
+  for (const input of [{ action: 'type', text: 'hello' }, { action: 'hold', key: 'shift', durationMs: 100 }, { action: 'key', key: 'Enter' }]) {
+    const verdict = await permission(input, context)
+    check(`${input.action}: unknown terminal identity refuses before approval`, verdict.behavior === 'deny' && (verdict.message ?? '').includes('could not be identified'), JSON.stringify(verdict))
+  }
+  check('unknown-terminal refusals post no keyboard input', !fakeDriver().acts.some(act => act.act === 'keyTap' || act.act === 'keyDown' || act.act === 'typeText'))
+  session.forgetDesktopOwner(owner)
+}
+
 section('§8 the relayed ask keeps the application name and its rule identity distinct')
 {
   const { judgedAppFromAsk, computerAskAppLine, computerAppRuleContent } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
@@ -204,6 +215,10 @@ section('§8 the relayed ask keeps the application name and its rule identity di
   const foreign = judgedAppFromAsk('', [{ type: 'addRules', rules: [{ toolName: 'Browser', ruleContent: `app:${TEXTEDIT.identity}` }] }])
   check("another tool's suggestion supplies no Computer application grant", foreign === null, JSON.stringify(foreign))
   check('missing relay facts retain the unnamed application fallback', judgedAppFromAsk('', undefined) === null)
+  check('an empty application identity cannot produce a persistent grant', judgedAppFromAsk('', [{ type: 'addRules', rules: [{ toolName: 'Computer', ruleContent: 'app:' }] }]) === null)
+  const { renderToolUseMessage } = await import('../../src/tools/ComputerTool/UI.tsx')
+  const multiline = renderToolUseMessage({ action: 'type', text: 'first\nsecond\tthird' }, { verbose: false })
+  check('typed newlines and tabs are spelled on one display row', typeof multiline === 'string' && !/[\r\n\t]/.test(multiline) && multiline.includes('\\n') && multiline.includes('\\t'), String(multiline))
 }
 
 section('§9 first-application consent survives every bypass posture')

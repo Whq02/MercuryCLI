@@ -1,5 +1,5 @@
 import { appendFileSync, existsSync, statSync, watch, mkdirSync, type FSWatcher } from 'node:fs'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnv, flagEnabled } from '../../substrate/flagRegistry.js'
 import { armInactivityDeadline } from '../../utils/deadline.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import { basename, dirname, join } from 'node:path'
@@ -190,7 +190,14 @@ function seatVerb(action: 'focus' | 'blur', sessionId: string): void {
   seatChain = seatChain
     .then(async () => {
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-      const reply = (await daemonControlRpc({ op: 'sessionControl', action, sessionId, by: SEAT_BY } as never, { timeoutMs: RPC_TIMEOUT_MS })) as { ok?: boolean; error?: string }
+      let terminalApplication: { identity: string; name: string } | null | undefined
+      if (action === 'focus' && flagEnabled('MERCURY_COMPUTER_USE')) {
+        const { resolveDesktopDriver } = await import('../desktop/resolveDriver.js')
+        const driver = resolveDesktopDriver()
+        const terminal = driver.state === 'ok' ? await driver.driver.ownTerminalApplication() : null
+        terminalApplication = terminal?.ok && terminal.value !== null ? { identity: terminal.value.identity, name: terminal.value.name } : null
+      }
+      const reply = (await daemonControlRpc({ op: 'sessionControl', action, sessionId, by: SEAT_BY, ...(terminalApplication !== undefined ? { terminalApplication } : {}) } as never, { timeoutMs: RPC_TIMEOUT_MS })) as { ok?: boolean; error?: string }
       if (reply.ok !== true) logForDebugging(`[engine-connector] ${action} ${sessionId} not applied: ${reply.error ?? 'no reply'}`)
     })
     .catch(e => logForDebugging(`[engine-connector] ${action} ${sessionId} threw: ${e}`))

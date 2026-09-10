@@ -34,6 +34,7 @@ const sha256 = (text: string): string => createHash('sha256').update(text).diges
 interface StubAnswers {
   permissions?: Record<string, unknown>
   throws?: Record<string, string>
+  abort?: string[]
 }
 
 type Calls = Record<string, number>
@@ -45,7 +46,8 @@ function stubSource(answers: StubAnswers, exports: readonly string[]): string {
   const lines = [
     'const calls = (globalThis.__desktopStubCalls = globalThis.__desktopStubCalls || {})',
     `const throws = ${throws}`,
-    'const count = name => { calls[name] = (calls[name] || 0) + 1; if (throws[name]) throw new Error(throws[name]) }',
+    `const abortActs = ${JSON.stringify(answers.abort ?? [])}`,
+    'const count = name => { calls[name] = (calls[name] || 0) + 1; if (abortActs.includes(name)) queueMicrotask(() => globalThis.__desktopAbortController.abort()); if (throws[name]) throw new Error(throws[name]) }',
     'const answers = {',
     "  packVersion: () => { count('packVersion'); return '0.1.0' },",
     `  permissions: () => { count('permissions'); return ${permissions} },`,
@@ -215,7 +217,7 @@ console.log('\n[8] the driver validates before the call and classifies what the 
     const previousTerm = process.env.TERM_PROGRAM
     process.env.TERM_PROGRAM = 'iTerm.app'
     const own = await d.ownTerminalApplication()
-    check('the own terminal falls back to TERM_PROGRAM when the addon answers none', own.ok && own.value !== null && own.value.identity === 'com.googlecode.iterm2' && own.value.name === 'iTerm.app', JSON.stringify(own))
+    check('only a macOS terminal receives the bundle-identity fallback', own.ok && (process.platform === 'darwin' ? own.value?.identity === 'com.googlecode.iterm2' && own.value.name === 'iTerm.app' : own.value === null), JSON.stringify(own))
     process.env.TERM_PROGRAM = 'something-else'
     const unknown = await d.ownTerminalApplication()
     check('an unknown terminal program answers null, never a guess', unknown.ok && unknown.value === null, JSON.stringify(unknown))
@@ -288,6 +290,60 @@ console.log('\n[11] the doctor row')
   delete process.env.MERCURY_COMPUTER_USE
   const off = await rowOf()
   check('the switch off keeps the row at info', off !== null && off.status === 'info' && off.evidence.includes('computer use off'), JSON.stringify(off))
+}
+
+console.log('\n[12] an interrupted async native act never answers success')
+{
+  usePack(fixturePack({ answers: { abort: ['drag'] } }))
+  const controller = new AbortController()
+  ;(globalThis as Record<string, unknown>).__desktopAbortController = controller
+  const resolved = native.resolveNativeDesktopDriver()
+  if (resolved.state !== 'ok') check('the abort stub resolves', false, resolved.note)
+  else {
+    const result = await resolved.driver.drag({ x: 0, y: 0 }, { x: 10, y: 10 }, 'left', controller.signal)
+    check('an abort before the async reply stays an aborted result', !result.ok && result.error.kind === 'aborted', JSON.stringify(result))
+    check('the signal crossed to native cancel exactly once', (calls().cancel ?? 0) === 1, JSON.stringify(calls()))
+  }
+  delete (globalThis as Record<string, unknown>).__desktopAbortController
+}
+
+console.log('\n[13] a daemon worker reads the cockpit terminal, never the daemon ancestry')
+{
+  const { getSessionId } = await import('../../src/bootstrap/state.js')
+  const { concourseWorkersPath, focusConcourseSession, blurConcourseSession } = await import('../../src/daemon/concourseSupervisor.js')
+  const statePath = concourseWorkersPath()
+  mkdirSync(join(SCRATCH, 'daemon'), { recursive: true })
+  const sessionId = String(getSessionId())
+  writeFileSync(statePath, JSON.stringify({ version: 1, workers: { fixture: { runnerId: 'fixture', sessionId, pid: process.pid } } }))
+  const previousRole = process.env.MERCURY_CONCOURSE_WORKER
+  const previousTerm = process.env.TERM_PROGRAM
+  usePack(fixturePack())
+  process.env.MERCURY_CONCOURSE_WORKER = '1'
+  process.env.TERM_PROGRAM = 'Apple_Terminal'
+  try {
+    const resolved = native.resolveNativeDesktopDriver()
+    if (resolved.state !== 'ok') check('the worker stub pack resolves', false, resolved.note)
+    else {
+      const d = resolved.driver
+      const missing = await d.ownTerminalApplication()
+      check('no cockpit fact means unknown, not the daemon TERM_PROGRAM', missing.ok && missing.value === null)
+      focusConcourseSession(sessionId, `operator:${process.pid}`, undefined, { identity: 'com.example.CockpitTerminal', name: 'Cockpit terminal' })
+      const own = await d.ownTerminalApplication()
+      check('the worker reads the focused cockpit identity from the durable record', own.ok && own.value?.identity === 'com.example.CockpitTerminal' && own.value.name === 'Cockpit terminal', JSON.stringify(own))
+      check('the worker never consults its add-on ancestry for this identity', (calls().ownTerminalApplication ?? 0) === 0, JSON.stringify(calls()))
+      focusConcourseSession(sessionId, `operator:${process.pid}`, undefined, { identity: 'com.example.OtherTerminal', name: 'Other terminal' })
+      const changed = await d.ownTerminalApplication()
+      check('re-focusing in a different terminal refreshes the identity', changed.ok && changed.value?.identity === 'com.example.OtherTerminal')
+      blurConcourseSession(sessionId, `operator:${process.pid}`)
+      const blurred = await d.ownTerminalApplication()
+      check('a blurred session cannot reuse the former terminal identity', blurred.ok && blurred.value === null)
+    }
+  } finally {
+    if (previousRole === undefined) delete process.env.MERCURY_CONCOURSE_WORKER
+    else process.env.MERCURY_CONCOURSE_WORKER = previousRole
+    if (previousTerm === undefined) delete process.env.TERM_PROGRAM
+    else process.env.TERM_PROGRAM = previousTerm
+  }
 }
 
 process.stderr.write = realWrite

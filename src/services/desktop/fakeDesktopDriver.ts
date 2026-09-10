@@ -38,6 +38,7 @@ export interface FakeScene {
   frontmost: DesktopApplication
   cursor: DesktopPoint
   lines: string[]
+  noise?: boolean
   switches: FakeSceneSwitch[]
   holdMs: number
   ownTerminal: DesktopApplication | null
@@ -149,6 +150,7 @@ export function fakeSceneProblem(value: unknown): string | null {
   if (value.lines !== undefined) {
     if (!Array.isArray(value.lines) || !value.lines.every(isText)) return 'lines must be a list of strings'
   }
+  if (value.noise !== undefined && typeof value.noise !== 'boolean') return 'noise must be true or false'
   if (value.switches !== undefined) {
     if (!Array.isArray(value.switches)) return 'switches must be a list'
     for (let i = 0; i < value.switches.length; i++) {
@@ -207,6 +209,7 @@ function sceneFrom(value: Record<string, unknown>): FakeScene {
   if (isRecord(value.frontmost)) base.frontmost = applicationFrom(value.frontmost)
   if (isRecord(value.cursor)) base.cursor = { x: value.cursor.x as number, y: value.cursor.y as number }
   if (Array.isArray(value.lines)) base.lines = [...(value.lines as string[])]
+  if (typeof value.noise === 'boolean') base.noise = value.noise
   if (Array.isArray(value.switches)) {
     base.switches = (value.switches as Array<Record<string, unknown>>).map(s => ({ afterActs: s.afterActs as number, frontmost: applicationFrom(s.frontmost as Record<string, unknown>) }))
   }
@@ -338,10 +341,20 @@ function decodePng(png: Buffer): DecodedPng {
   return { width: size.width, height: size.height, pixels }
 }
 
-function composeCapture(text: string, width: number, height: number, scale: number): Buffer {
+function composeCapture(text: string, width: number, height: number, scale: number, noise = false): Buffer {
   const glyphs = decodePng(ansiToPng(text, { scale: Math.max(1, Math.round(scale)) }))
   const canvas = Buffer.alloc(width * height * 4)
   canvas.fill(CANVAS_BACKGROUND)
+  if (noise) {
+    let seed = 1
+    for (let at = 0; at < canvas.length; at += 4) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
+      canvas[at] = seed & 255
+      canvas[at + 1] = (seed >>> 8) & 255
+      canvas[at + 2] = (seed >>> 16) & 255
+      canvas[at + 3] = 255
+    }
+  }
   const rows = Math.min(glyphs.height, height)
   const rowBytes = Math.min(glyphs.width, width) * 4
   for (let y = 0; y < rows; y++) glyphs.pixels.copy(canvas, y * width * 4, y * glyphs.width * 4, y * glyphs.width * 4 + rowBytes)
@@ -413,7 +426,7 @@ export class FakeDesktopDriver implements DesktopDriver {
     const height = Math.round(record.height * record.scale)
     let png: Buffer
     try {
-      png = composeCapture([...this.scene.lines, `acts ${this.sceneActs} · captures ${this.captures}`].join('\n'), width, height, record.scale)
+      png = composeCapture([...this.scene.lines, `acts ${this.sceneActs} · captures ${this.captures}`].join('\n'), width, height, record.scale, this.scene.noise === true)
     } catch (error) {
       return refusal({ kind: 'defect', note: `the fake driver could not paint the capture: ${(error as Error).message}` })
     }
