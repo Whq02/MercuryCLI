@@ -2826,7 +2826,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       {!isCompact ? <MercurySupercodeKeywordHint value={input} /> : null}
       {!isCompact ? <PromptInputStashNotice hasStash={stash !== undefined} /> : null}
       {fullscreen ? (
-        <Box maxHeight={isCompact ? Math.floor(compactTransientRows / 2) : undefined} overflow="hidden" justifyContent="flex-end">
+        <Box maxHeight={isCompact ? Math.floor(compactTransientRows / 2) : undefined} overflow="hidden">
           <Notifications
             compact={isCompact}
             apiKeyStatus={apiKeyStatus}
