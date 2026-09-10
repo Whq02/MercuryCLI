@@ -42,7 +42,7 @@ import {
 import { claimDesktop, desktopClaimBusyNote } from '../../services/desktop/desktopClaim.js'
 import { screenshotVisibleInContext } from '../../services/desktop/screenshotRetention.js'
 import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
-import type { Message } from '../../types/message.js'
+import type { AssistantMessage, Message } from '../../types/message.js'
 import { KEY_CHORD_VOCABULARY, appSwitchChord, isAppSwitchChord, isKeyChordRefusal, parseKeyChord, type KeyChord } from './keyChord.js'
 import {
   isPixelOutside,
@@ -513,10 +513,21 @@ type Shot =
   | { ok: true; line: string; imagePath: string; inlinePath?: string; inlineMediaType?: string; screen: ScreenMap }
   | { ok: false; aborted: boolean; text: string }
 
+function toolUseIdOfParent(parent: AssistantMessage | undefined): string | null {
+  const content = (parent as { message?: { content?: unknown } } | undefined)?.message?.content
+  if (!Array.isArray(content)) return null
+  for (const block of [...content].reverse()) {
+    const typed = block as { type?: unknown; name?: unknown; id?: unknown }
+    if (typed.type === 'tool_use' && typed.name === COMPUTER_TOOL_NAME && typeof typed.id === 'string') return typed.id
+  }
+  return null
+}
+
 async function takeScreenshot(
   owner: OwnerKey,
   driver: DesktopDriver,
   context: ToolUseContext,
+  toolUseId: string,
   wanted: number | undefined,
   label: string | undefined,
   signal: AbortSignal,
@@ -566,7 +577,7 @@ async function takeScreenshot(
       inlinePath = undefined
     }
   }
-  const screen = screenMapOfCapture(context.toolUseId ?? '', capture, display, image)
+  const screen = screenMapOfCapture(toolUseId, capture, display, image)
   setScreen(owner, screen)
   noteScreenshot(owner, screen.toolUseId, file)
   const line = `screenshot: ${file} — display ${display.index} (${screenMapSizeWords(screen)}) · ${await factsLine(driver, screen)}`
@@ -730,10 +741,11 @@ Take a screenshot after acts that change the screen, act on what the latest one 
       suggestions: suggestionForExactCommand(COMPUTER_TOOL_NAME, content),
     }
   },
-  async call(input: Input, context: ToolUseContext) {
+  async call(input: Input, context: ToolUseContext, _canUseTool?: unknown, parentAssistantMessage?: AssistantMessage) {
     const startedAt = Date.now()
     const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
     const signal = context.abortController?.signal ?? new AbortController().signal
+    const toolUseId = context.toolUseId ?? toolUseIdOfParent(parentAssistantMessage) ?? ''
     let result: string
     let outcome: ToolEffectOutcome = 'no-change'
     let imagePath: string | undefined
@@ -750,7 +762,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     const permissions = await driver.permissions()
     if (permissions.ok) rememberDesktopPermissions(permissions.value)
     const takeShot = (wanted: number | undefined, label: string | undefined): Promise<Shot> =>
-      takeScreenshot(owner, driver, context, wanted, label, signal)
+      takeScreenshot(owner, driver, context, toolUseId, wanted, label, signal)
     const adoptShot = (shot: Extract<Shot, { ok: true }>): void => {
       imagePath = shot.imagePath
       inlinePath = shot.inlinePath
