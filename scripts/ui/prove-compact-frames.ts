@@ -19,7 +19,7 @@ for (const [cols, rows] of sizes) {
     const result = await drive(driver, leg, { cols: cols!, rows: rows! }, [
       { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
       { atTick: 100, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: 'compact-draft' },
-      { atTick: 999, awaitText: cols! >= 60 ? 'agents here' : 'A:', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'typed' },
+      { atTick: 999, awaitText: cols! >= 60 ? 'agents here' : 'A:', targetText: cols! >= 60 ? 'agents here' : 'A:', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'typed' },
     ], 135, { MERCURY_COMPUTER_USE: undefined })
     const frame = result.marks.typed ?? []
     printFrame(`${cols}x${rows} Boot`, result.marks.boot ?? [])
