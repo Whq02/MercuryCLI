@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -317,8 +318,16 @@ section('D5 wiring — the boot band and the background node')
   const bandAt = main.indexOf('saveGlobalConfigDeferred(current => ({ ...current, numStartups:')
   const band = bandAt >= 0 ? main.slice(bandAt, bandAt + 1800) : ''
   check('the beacon clear stays synchronous right beside the increment (a quit before the node ran is never a failed attempt)', /saveGlobalConfigDeferred\(current =>[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*clearBootAttempts\(\)/.test(band))
-  check("the background node 'startup-records' awaits the flush before recording the invocation", band.includes("registerBackgroundNode('startup-records', async () => {") && band.includes('await flushDeferredGlobalConfigSaves()') && band.indexOf('await flushDeferredGlobalConfigSaves()') < band.indexOf('recordInvocation()'))
-  check('the invocation record has exactly one interactive call site, inside the node', (main.match(/recordInvocation\(\)/g) ?? []).length === 1)
+  const mainCode = codeOnlyText('main.tsx', main)
+  const nodeOpen = mainCode.indexOf("registerBackgroundNode('startup-records', async () => {")
+  const nodeBody = nodeOpen >= 0 ? mainCode.slice(nodeOpen, blockEnd(mainCode, mainCode.indexOf('{', nodeOpen + "registerBackgroundNode('startup-records', async () => ".length))) : ''
+  check("the background node 'startup-records' is a bounded callback", nodeOpen >= 0 && nodeBody.length > 0 && nodeBody.endsWith('}'), nodeBody.replace(/\s+/g, ' ').slice(0, 160))
+  const flushAt = nodeBody.indexOf('await flushDeferredGlobalConfigSaves()')
+  const recordAt = nodeBody.indexOf('recordInvocation()')
+  check("the background node 'startup-records' awaits the flush before recording the invocation", flushAt >= 0 && recordAt > flushAt, `flush@${flushAt} record@${recordAt}`)
+  check('the invocation record has exactly one interactive call site, inside the node', (mainCode.match(/recordInvocation\(\)/g) ?? []).length === 1 && recordAt >= 0)
+  check('the invocation call is guarded by a try inside the node (a telemetry failure never fails the node)', /try \{\s*recordInvocation\(\)\s*\} catch \{/.test(nodeBody), nodeBody.replace(/\s+/g, ' '))
+  check('the flush is awaited at the callback top level, not inside that try', flushAt < nodeBody.indexOf('try {') && nodeBody.slice(0, flushAt).trim().endsWith('{'))
   const nodeAt = main.indexOf("registerBackgroundNode('startup-records'")
   const armAt = main.indexOf('armBackgroundDiscovery();')
   check('the node is registered before the background class arms', nodeAt > 0 && armAt > nodeAt, `${nodeAt},${armAt}`)
@@ -331,3 +340,16 @@ section('D5 wiring — the boot band and the background node')
 
 console.log(failures === 0 ? '\n✅ ALL STARTUP-COUNTER-DEFERRED PROOFS PASS' : `\n❌ ${failures} STARTUP-COUNTER-DEFERRED PROOF(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)
+
+function blockEnd(text: string, openBrace: number): number {
+  let depth = 0
+  for (let i = openBrace; i < text.length; i++) {
+    const ch = text[i]
+    if (ch === '{') depth++
+    else if (ch === '}') {
+      depth--
+      if (depth === 0) return i + 1
+    }
+  }
+  return -1
+}
