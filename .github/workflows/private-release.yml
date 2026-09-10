@@ -172,6 +172,9 @@ jobs:
       - name: Build the on-device transcriber pack
         continue-on-error: true
         run: bun run scripts/vendor/build-whisper.ts --target ${{ matrix.target }}
+      - name: Build the desktop driver pack
+        continue-on-error: true
+        run: bun run scripts/vendor/build-desktop.ts --target ${{ matrix.target }}
       - name: native build
         run: bun run build.ts --target ${{ matrix.target }}
       - name: signing key (the secret, or the unsigned decision)
