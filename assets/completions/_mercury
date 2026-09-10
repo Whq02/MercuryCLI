@@ -37,7 +37,7 @@ _mercury() {
       compadd -- '--deep' '--fix' '--help' '--json' '--only' '--yes'
       ;;
     install)
-      compadd -- '--dry-run' '--force' '--help' '--json' '--uninstall'
+      compadd -- '--allow-unsigned' '--dry-run' '--force' '--help' '--json' '--uninstall'
       ;;
     mcp)
       compadd -- '--help'
@@ -49,10 +49,10 @@ _mercury() {
       compadd -- '--help'
       ;;
     update)
-      compadd -- '--check' '--help' '--json' '--rollback' '--status'
+      compadd -- '--allow-unsigned' '--check' '--help' '--json' '--rollback' '--status'
       ;;
     upgrade)
-      compadd -- '--check' '--help' '--json' '--rollback' '--status'
+      compadd -- '--allow-unsigned' '--check' '--help' '--json' '--rollback' '--status'
       ;;
     *)
       compadd -- ${root_opts[@]}
