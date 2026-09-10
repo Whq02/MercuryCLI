@@ -15,7 +15,7 @@ const TURNS = [
 for (const size of SIZES) {
   section(`the flag unset at ${size.cols}×${size.rows}: the harness refuses the unknown tool`)
   const off = await startLeg(`off-${size.cols}`, TURNS, null)
-  const res = drive(driver, off, size, [...OPENING('take a screenshot'), { requireAwait: true, awaitText: 'Done.', awaitStableTicks: 3, mark: 'done', data: '' }], 160, { MERCURY_COMPUTER_USE: undefined })
+  const res = await drive(driver, off, size, [...OPENING('take a screenshot'), { requireAwait: true, awaitText: 'Done.', awaitStableTicks: 3, mark: 'done', data: '' }], 160, { MERCURY_COMPUTER_USE: undefined })
   await endLeg(off)
   const done = res.marks.done ?? []
   printFrame(`${size.cols}×${size.rows} flag unset`, done)
@@ -28,7 +28,7 @@ for (const size of SIZES) {
 
   section(`the driver switched off at ${size.cols}×${size.rows}: the tool refuses naming the switch`)
   const none = await startLeg(`none-${size.cols}`, TURNS, null)
-  const resNone = drive(driver, none, size, [...OPENING('take a screenshot'), { requireAwait: true, awaitText: 'Done.', awaitStableTicks: 3, mark: 'done', data: '' }], 160, { MERCURY_DESKTOP_DRIVER: 'none' })
+  const resNone = await drive(driver, none, size, [...OPENING('take a screenshot'), { requireAwait: true, awaitText: 'Done.', awaitStableTicks: 3, mark: 'done', data: '' }], 160, { MERCURY_DESKTOP_DRIVER: 'none' })
   await endLeg(none)
   const doneNone = resNone.marks.done ?? []
   printFrame(`${size.cols}×${size.rows} driver none`, doneNone)
