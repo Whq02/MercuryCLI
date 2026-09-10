@@ -845,7 +845,10 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
     const theme = getTheme(name)
     return roleKeys.every(k => typeof theme[k] === 'string' && theme[k] !== '')
   })
-  check('52. getTheme: every role for all six names + unrecognised', complete && roleKeys.length >= 60, `roles=${roleKeys.length}`)
+  const declaredRoles = (src('src/utils/theme.ts').match(/^export type Theme = \{\n([\s\S]*?)\n\}/m)?.[1] ?? '')
+    .split('\n')
+    .filter(line => /^  [A-Za-z0-9_]+: string$/.test(line)).length
+  check('52. getTheme: every role for all six names + unrecognised', complete && declaredRoles > 0 && roleKeys.length === declaredRoles, `roles=${roleKeys.length} declared=${declaredRoles}`)
 }
 
 {
