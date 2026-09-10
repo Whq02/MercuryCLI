@@ -254,28 +254,32 @@ export function desktopPostureRefusal(context: {
   return null
 }
 
-let imageRefusal: { model: string; error: string; at: number } | null = null
+const imageRefusals = new Map<string, { error: string; at: number }>()
+let mainLoopModelRead: string | null = null
 
 export function noteImageRefusal(model: string, error: string): void {
-  imageRefusal = { model, error, at: Date.now() }
+  imageRefusals.set(model, { error, at: Date.now() })
+}
+
+export function imageRefusalOf(model: string): string | null {
+  return imageRefusals.get(model)?.error ?? null
 }
 
 export function imageRefusedFor(model: string): string | null {
-  if (imageRefusal === null) return null
-  if (imageRefusal.model !== model) {
-    imageRefusal = null
-    return null
-  }
-  return imageRefusal.error
+  if (mainLoopModelRead !== null && mainLoopModelRead !== model) imageRefusals.clear()
+  mainLoopModelRead = model
+  return imageRefusalOf(model)
 }
 
 export function clearImageRefusal(): void {
-  imageRefusal = null
+  imageRefusals.clear()
+  mainLoopModelRead = null
 }
 
 export function resetDesktopSessionForTest(): void {
   ownerStates.clearAllForShutdown()
   screenshotRegistry.clear()
-  imageRefusal = null
+  imageRefusals.clear()
+  mainLoopModelRead = null
   snapshot = IDLE_SNAPSHOT
 }
