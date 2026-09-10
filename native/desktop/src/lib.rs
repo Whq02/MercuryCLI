@@ -349,11 +349,19 @@ pub fn click(x: f64, y: f64, button: String, count: u32) -> Result<()> {
     }
     imp::mouse_move(x, y).map_err(reason)?;
     for n in 1..=count {
-        if let Err(text) = imp::mouse_button(button, true, x, y, n) {
-            let _ = imp::mouse_button(button, false, x, y, n);
-            return Err(reason(text));
+        {
+            let mut held = held_state();
+            if !held.buttons.contains(&button) {
+                held.buttons.push(button);
+            }
         }
-        imp::mouse_button(button, false, x, y, n).map_err(reason)?;
+        let down = imp::mouse_button(button, true, x, y, n);
+        let up = imp::mouse_button(button, false, x, y, n);
+        if up.is_ok() {
+            held_state().buttons.retain(|held| *held != button);
+        }
+        down.map_err(reason)?;
+        up.map_err(reason)?;
     }
     Ok(())
 }
@@ -369,10 +377,16 @@ impl Task for DragTask {
     type JsValue = ();
 
     fn compute(&mut self) -> Result<()> {
+        if CANCEL.load(Ordering::SeqCst) {
+            return Err(reason(ABORTED.to_string()));
+        }
         let (from_x, from_y) = self.from;
         let (to_x, to_y) = self.to;
         let button = self.button;
         imp::mouse_move(from_x, from_y).map_err(reason)?;
+        if CANCEL.load(Ordering::SeqCst) {
+            return Err(reason(ABORTED.to_string()));
+        }
         {
             let mut held = held_state();
             if !held.buttons.contains(&button) {
@@ -398,7 +412,9 @@ impl Task for DragTask {
             Err(_) => imp::cursor().unwrap_or((from_x, from_y)),
         };
         let up = imp::mouse_button(button, false, at.0, at.1, 1);
-        held_state().buttons.retain(|held| *held != button);
+        if up.is_ok() {
+            held_state().buttons.retain(|held| *held != button);
+        }
         stepped.map(|_| ()).map_err(reason)?;
         up.map_err(reason)
     }
@@ -459,20 +475,40 @@ pub fn key_tap(key: String, modifiers: Vec<String>) -> Result<()> {
     let mut pressed: Vec<Modifier> = Vec::new();
     let mut outcome: std::result::Result<(), String> = Ok(());
     for modifier in &chord {
-        match imp::key(modifier.key(), true, false, &active) {
-            Ok(()) => pressed.push(*modifier),
-            Err(text) => {
-                outcome = Err(text);
-                break;
+        {
+            let mut held = held_state();
+            if held.keys.contains(&modifier.key()) {
+                continue;
             }
+            held.keys.push(modifier.key());
+        }
+        pressed.push(*modifier);
+        if let Err(text) = imp::key(modifier.key(), true, false, &active) {
+            outcome = Err(text);
+            break;
         }
     }
     if outcome.is_ok() {
-        outcome = imp::key(parsed.key, true, parsed.shifted, &active).and_then(|_| imp::key(parsed.key, false, parsed.shifted, &active));
+        let already_held = held_state().keys.contains(&parsed.key);
+        if !already_held {
+            held_state().keys.push(parsed.key);
+        }
+        outcome = imp::key(parsed.key, true, parsed.shifted, &active);
+        if !already_held {
+            let released = imp::key(parsed.key, false, parsed.shifted, &active_without(parsed.key.modifier()));
+            if released.is_ok() {
+                held_state().keys.retain(|held| *held != parsed.key);
+            }
+            if outcome.is_ok() {
+                outcome = released;
+            }
+        }
     }
     for modifier in pressed.iter().rev() {
-        let remaining: Vec<Modifier> = active.iter().copied().filter(|m| m != modifier).collect();
-        let released = imp::key(modifier.key(), false, false, &remaining);
+        let released = imp::key(modifier.key(), false, false, &active_without(Some(*modifier)));
+        if released.is_ok() {
+            held_state().keys.retain(|held| *held != modifier.key());
+        }
         if outcome.is_ok() {
             outcome = released;
         }

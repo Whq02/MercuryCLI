@@ -158,6 +158,7 @@ pub fn capture(display: &DisplayRecord) -> Result<(u32, u32, Vec<u8>), String> {
         let bitmap = CreateCompatibleBitmap(screen, width, height);
         let previous = SelectObject(memory, bitmap.into());
         let blit = BitBlt(memory, 0, 0, width, height, Some(screen), display.origin_x as i32, display.origin_y as i32, SRCCOPY | CAPTUREBLT);
+        SelectObject(memory, previous);
         let mut result: Result<(u32, u32, Vec<u8>), String> = Err(String::new());
         if let Err(error) = blit {
             result = Err(format!("BitBlt failed: {}", error.message()));
@@ -174,8 +175,8 @@ pub fn capture(display: &DisplayRecord) -> Result<(u32, u32, Vec<u8>), String> {
             };
             let mut bgra = vec![0u8; (width as usize) * (height as usize) * 4];
             let lines = GetDIBits(memory, bitmap, 0, height as u32, Some(bgra.as_mut_ptr() as *mut c_void), &mut info, DIB_RGB_COLORS);
-            if lines == 0 {
-                result = Err(last_error("GetDIBits"));
+            if lines != height {
+                result = Err(format!("GetDIBits copied {lines} of {height} rows: {}", last_error("GetDIBits")));
             } else {
                 for pixel in bgra.chunks_exact_mut(4) {
                     pixel.swap(0, 2);
@@ -184,7 +185,6 @@ pub fn capture(display: &DisplayRecord) -> Result<(u32, u32, Vec<u8>), String> {
                 result = Ok((width as u32, height as u32, bgra));
             }
         }
-        SelectObject(memory, previous);
         let _ = DeleteObject(bitmap.into());
         let _ = DeleteDC(memory);
         ReleaseDC(None, screen);
