@@ -157,7 +157,7 @@ try {
       writeFileSync(join(home, 'observed.tee'), raw)
       console.log(`observed ${cols} ${setting}: ${JSON.stringify({ ticks, quiet: observation.quiet, blurred: observation.blurred, refocused: observation.refocused, awakeBlurred: observation.awakeBlurred, awakeRefocused: observation.awakeRefocused })}`)
       check(`${cols} ${setting}: the awake blur is sent before the quiet rest engages`, Number(ticks['awake-blur']) - Number(ticks['awake']) < 40, String(Number(ticks['awake-blur']) - Number(ticks['awake'])))
-      if (setting === 'full') check(`${cols} ${setting}: full motion keeps animating through a blur while awake`, observation.awakeBlurred >= 3, String(observation.awakeBlurred))
+      if (setting === 'full') check(cols === 80 ? `${cols} ${setting}: the compact layout animates no critter, so a blur while awake leaves no animation frames` : `${cols} ${setting}: full motion keeps animating through a blur while awake`, cols === 80 ? observation.awakeBlurred === 0 : observation.awakeBlurred >= 3, String(observation.awakeBlurred))
       else if (setting === 'off') check(`${cols} ${setting}: off motion stays still through a blur while awake`, observation.awakeBlurred === 0, String(observation.awakeBlurred))
       else check(`${cols} ${setting}: a blur while awake stops the animation frames`, observation.awakeBlurred === 0, String(observation.awakeBlurred))
       if (setting !== 'off') check(`${cols} ${setting}: focus regained while awake resumes the animation`, observation.awakeRefocused >= 3, String(observation.awakeRefocused))
