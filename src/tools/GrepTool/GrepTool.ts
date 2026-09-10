@@ -235,8 +235,8 @@ export const GrepTool = buildTool({
   async description(): Promise<string> {
     return getDescription()
   },
-  async prompt(): Promise<string> {
-    return getDescription()
+  async prompt({ tools }): Promise<string> {
+    return getDescription(new Set(tools.map(tool => tool.name)))
   },
   async validateInput(input: Input) {
     if (input.path !== undefined) {

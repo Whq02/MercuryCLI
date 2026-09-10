@@ -206,13 +206,21 @@ export interface TerminalReclaimAnswer {
   reason?: string | null
 }
 
+export interface CaptureStreamErrors {
+  transient: number
+  lastTransient: string | null
+  fatal: string | null
+}
+
 export interface VoiceAddon {
   packVersion(): string
   listInputDevices(): string[]
   defaultInputDevice(): string | null
   startCapture(): number
+  captureErrors(handle: number): CaptureStreamErrors
   stopCapture(handle: number): Buffer
   cancelCapture(handle: number): void
+  lastCaptureErrors(handle: number): CaptureStreamErrors | null
   ttyForegroundGroup(fd: number): ProcessGroupAnswer
   ownProcessGroup(): ProcessGroupAnswer
   reclaimTerminal(fd: number): TerminalReclaimAnswer
@@ -223,8 +231,10 @@ export const VOICE_ADDON_EXPORTS = [
   'listInputDevices',
   'defaultInputDevice',
   'startCapture',
+  'captureErrors',
   'stopCapture',
   'cancelCapture',
+  'lastCaptureErrors',
   'ttyForegroundGroup',
   'ownProcessGroup',
   'reclaimTerminal',

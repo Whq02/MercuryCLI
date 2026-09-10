@@ -242,8 +242,6 @@ section('§6 · registry honesty')
     registry.includes("env: 'MERCURY_LSP_CPP'") &&
       registry.includes('scripts/lsp/prove-clangd-lane.ts'),
   )
-  const reg = readFileSync(path.join(repo, 'src/substrate/flagRegistry.ts'), 'utf8')
-  check('the flag registry carries the MERCURY_LSP_CPP legacy alias', reg.includes('MERCURY_LSP_CPP'))
 }
 
 restoreEnv()

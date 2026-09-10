@@ -88,7 +88,7 @@ export async function runCompassArena(opts: CompassArenaOpts): Promise<CompassRu
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'compass-arena-cwd-')))
 
   const fixture = await startFixtureApi(opts.turns ?? [])
-  const configDir = join(home, '.claude')
+  const configDir = join(home, '.mercury')
   mkdirSync(configDir, { recursive: true })
   writeFileSync(
     join(configDir, '.config.json'),

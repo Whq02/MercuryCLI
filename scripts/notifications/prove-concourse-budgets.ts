@@ -4,7 +4,7 @@
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -115,20 +115,23 @@ console.log('§3 dispatch receipts — reservation→working through the owner p
 
 console.log('§4 attach fold — snapshot+suffix over a 200-record transcript tail (< 100ms p95)')
 {
-  const wt = await import('../../src/services/concourse/workerTranscript.ts')
-  const fold = (wt as Record<string, unknown>)['foldWorkerTranscriptChunk'] ?? (wt as Record<string, unknown>)['default']
-  const lines = Array.from({ length: 200 }, (_, i) => JSON.stringify({ type: 'assistant', i, text: `record ${i}` })).join('\n') + '\n'
-  if (typeof fold === 'function') {
-    const samples = await measure(150, 10, () => (fold as (carry: string, chunk: string) => unknown)('', lines))
-    const d = dist(samples)
-    report['attachFold200Ms'] = d
-    gateLatency(`p95 ${d.p95.toFixed(2)}ms < 100ms`, d.p95 < 100, JSON.stringify(d))
-  } else {
-    const samples = await measure(150, 10, () => lines.split('\n').filter(Boolean).map(l => JSON.parse(l)))
-    const d = dist(samples)
-    report['attachFold200Ms'] = { ...d, note: 'parse-cost proxy (fold export not found by name)' }
-    gateLatency(`p95 ${d.p95.toFixed(2)}ms < 100ms (parse proxy)`, d.p95 < 100, JSON.stringify(d))
-  }
+  const { openWorkerTranscript, readAfterCursor } = await import('../../src/services/concourse/workerTranscript.ts')
+  check('the byte-cursor fold exports exist (openWorkerTranscript, readAfterCursor)', typeof openWorkerTranscript === 'function' && typeof readAfterCursor === 'function')
+  const transcript = join(scratch, 'attach-fold.jsonl')
+  const record = (i: number): string => JSON.stringify({ type: 'assistant', i, text: `record ${i}` }) + '\n'
+  writeFileSync(transcript, Array.from({ length: 200 }, (_, i) => record(i)).join(''))
+  const first = openWorkerTranscript(transcript)
+  check('the first-paint fold answers all 200 records at a clean cursor', first.records.length === 200 && first.malformed === 0 && first.cursor.carry === '' && !first.rewound, JSON.stringify({ n: first.records.length, malformed: first.malformed, offset: first.cursor.offset }))
+  let appended = 200
+  const samples = await measure(150, 10, () => {
+    const snapshot = openWorkerTranscript(transcript)
+    appendFileSync(transcript, record(appended++))
+    const suffix = readAfterCursor(snapshot.cursor)
+    if (snapshot.records.length < 200 || suffix.records.length !== 1 || suffix.rewound) throw new Error(`fold drifted: ${snapshot.records.length} + ${suffix.records.length}`)
+  })
+  const d = dist(samples)
+  report['attachFold200Ms'] = d
+  gateLatency(`p95 ${d.p95.toFixed(2)}ms < 100ms`, d.p95 < 100, JSON.stringify(d))
 }
 
 console.log('§5 context size — the five-worker snapshot stays snapshot-scale (< 32 KiB)')

@@ -9,9 +9,7 @@ if (!process.env.GLIDE_PRESENCE_INNER) {
   const home = mkdtempSync(join(tmpdir(), 'glide-presence-'))
   const {
     MERCURY_CONFIG_DIR: _mc,
-    MERCURY_CONFIG_DIR: _cc,
     MERCURY_HOME: _mh,
-    MERCURY_HOME: _hh,
     ...cleanEnv
   } = process.env
   try {

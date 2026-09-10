@@ -52,7 +52,7 @@ interface Arena {
 function makeArena(fixture: FixtureApi): Arena {
   const home = mkdtempSync(join(tmpdir(), 'ownership-home-'))
   const cwd = mkdtempSync(join(tmpdir(), 'ownership-cwd-'))
-  mkdirSync(join(home, '.claude'), { recursive: true })
+  mkdirSync(join(home, '.mercury'), { recursive: true })
   return {
     home,
     cwd,
@@ -60,7 +60,7 @@ function makeArena(fixture: FixtureApi): Arena {
       HOME: home,
       PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
       TERM: 'dumb',
-      MERCURY_CONFIG_DIR: join(home, '.claude'),
+      MERCURY_CONFIG_DIR: join(home, '.mercury'),
       ANTHROPIC_BASE_URL: fixture.url,
       ANTHROPIC_API_KEY: 'fixture-key-000',
       MERCURY_DAEMON_DIR: join(home, 'daemon'),

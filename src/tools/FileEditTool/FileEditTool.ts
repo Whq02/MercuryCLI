@@ -300,8 +300,8 @@ export const FileEditTool = buildTool({
   async description(): Promise<string> {
     return 'A tool for editing files'
   },
-  async prompt(): Promise<string> {
-    return getEditToolDescription()
+  async prompt({ tools }): Promise<string> {
+    return getEditToolDescription(new Set(tools.map(tool => tool.name)))
   },
   userFacingName,
   getToolUseSummary,

@@ -2,7 +2,7 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { loadVoiceAddon, resolveVoicePackDir, VOICE_ADDON_FILE, voiceCheckoutRoot } from './voicePack.js'
+import { type CaptureStreamErrors, loadVoiceAddon, resolveVoicePackDir, VOICE_ADDON_FILE, voiceCheckoutRoot } from './voicePack.js'
 import { encodeWav, pcmDurationMs, pcmIsSilent, pcmSamples, readWav, VOICE_SAMPLE_RATE } from './wav.js'
 
 export const CAPTURE_BOUND_MS = 5 * 60_000
@@ -120,7 +120,10 @@ export interface CaptureResult {
   silent: boolean
   autoStopped: boolean
   backend: CaptureBackendKind
+  streamErrors: CaptureStreamErrors
 }
+
+export const NO_STREAM_ERRORS: CaptureStreamErrors = { transient: 0, lastTransient: null, fatal: null }
 
 export interface CaptureHandle {
   readonly backend: CaptureBackendKind
@@ -128,6 +131,7 @@ export interface CaptureHandle {
   stop(): Promise<CaptureResult>
   cancel(): void
   readonly settled: boolean
+  streamErrors(): CaptureStreamErrors
 }
 
 export interface StartCaptureOptions {
@@ -141,6 +145,7 @@ export interface StartCaptureOptions {
 interface RawCapture {
   stop(): Promise<Buffer>
   cancel(): void
+  streamErrors?(): CaptureStreamErrors
 }
 
 export function microphonePermissionHint(platform: string = process.platform): string {
@@ -165,6 +170,15 @@ function startVendored(): RawCapture {
     throw new CaptureError('vendored', `the microphone could not be opened (${reason}) — ${microphonePermissionHint()}`)
   }
   let done = false
+  const readErrors = (): CaptureStreamErrors => {
+    try {
+      const errors = done ? load.addon.lastCaptureErrors(handle) : load.addon.captureErrors(handle)
+      if (errors === null || errors === undefined) return NO_STREAM_ERRORS
+      return { transient: errors.transient ?? 0, lastTransient: errors.lastTransient ?? null, fatal: errors.fatal ?? null }
+    } catch {
+      return NO_STREAM_ERRORS
+    }
+  }
   return {
     stop: async () => {
       if (done) return Buffer.alloc(0)
@@ -179,6 +193,7 @@ function startVendored(): RawCapture {
       } catch {
       }
     },
+    streamErrors: readErrors,
   }
 }
 
@@ -344,6 +359,7 @@ export async function startCapture(opts: StartCaptureOptions = {}): Promise<Capt
           silent: pcmIsSilent(pcmSamples(pcm)),
           autoStopped,
           backend: backend.kind,
+          streamErrors: raw.streamErrors?.() ?? NO_STREAM_ERRORS,
         }
       })()
       return result
@@ -355,6 +371,7 @@ export async function startCapture(opts: StartCaptureOptions = {}): Promise<Capt
       clearTimeout(bound)
       raw.cancel()
     },
+    streamErrors: () => raw.streamErrors?.() ?? NO_STREAM_ERRORS,
   }
   return handle
 }

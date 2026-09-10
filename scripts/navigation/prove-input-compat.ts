@@ -9,6 +9,13 @@ import {
 } from '../../src/ink/input/input-decoder.js'
 import { InputEvent, type Key } from '../../src/ink/events/input-event.js'
 import { stringWidth } from '../../src/ink/stringWidth.js'
+import { enterEditorBytes, extendedKeysReenable } from '../../src/ink/root/screen-session.js'
+import {
+  DISABLE_KITTY_KEYBOARD,
+  DISABLE_MODIFY_OTHER_KEYS,
+  ENABLE_KITTY_KEYBOARD,
+  ENABLE_MODIFY_OTHER_KEYS,
+} from '../../src/ink/termio/csi.js'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 let failures = 0
@@ -110,7 +117,6 @@ console.log('== reversible detection + IME prerequisites (source pins) ==')
 {
   const read = (p: string): string => readFileSync(join(root, p), 'utf8')
   const caps = read('src/ink/session/capabilities.ts')
-  const screenSession = read('src/ink/root/screen-session.ts')
   const baseText = read('src/components/BaseTextInput.tsx')
   const consoleSrc = read('src/commands/console/console.tsx')
   const tabula = read('src/components/tabula/MinervaRoom.tsx')
@@ -118,8 +124,18 @@ console.log('== reversible detection + IME prerequisites (source pins) ==')
   const fullscreen = read('src/components/FullscreenLayout.tsx')
 
   check('extended keys arm ONLY on the honor+parse allowlist (quiet fallback elsewhere)', caps.includes('EXTENDED_KEYS_TERMINALS') && caps.includes('supportsExtendedKeys'))
-  check('kitty stack hygiene: pop-before-push re-enable', screenSession.includes('pop-before-push'))
-  check('editor handoff DISABLES the protocols first', screenSession.includes('enterEditor disables kitty/modifyOtherKeys FIRST'))
+  const reenable = extendedKeysReenable(true)
+  const popAt = reenable.indexOf(DISABLE_KITTY_KEYBOARD)
+  const pushAt = reenable.indexOf(ENABLE_KITTY_KEYBOARD)
+  check('kitty stack hygiene: the re-enable pops before it pushes', popAt === 0 && pushAt === DISABLE_KITTY_KEYBOARD.length, JSON.stringify(reenable))
+  check('the re-enable keeps modifyOtherKeys after the kitty push', reenable.endsWith(ENABLE_MODIFY_OTHER_KEYS) && !reenable.includes(DISABLE_MODIFY_OTHER_KEYS), JSON.stringify(reenable))
+  check('a terminal off the allowlist gets NO re-enable bytes', extendedKeysReenable(false) === '')
+  for (const altActive of [false, true]) {
+    for (const mouseTracking of [false, true]) {
+      const bytes = enterEditorBytes({ altActive, mouseTracking })
+      check(`editor handoff DISABLES the protocols first (alt=${altActive} mouse=${mouseTracking})`, bytes.startsWith(DISABLE_KITTY_KEYBOARD + DISABLE_MODIFY_OTHER_KEYS) && !bytes.includes(ENABLE_KITTY_KEYBOARD) && !bytes.includes(ENABLE_MODIFY_OTHER_KEYS), JSON.stringify(bytes))
+    }
+  }
   check('the composer declares the hardware cursor (use-declared-cursor)', baseText.includes('use-declared-cursor') || baseText.includes('useDeclaredCursor'))
   check('the console editor rides the SAME machinery (TextInput)', consoleSrc.includes('<TextInput'))
   check('the tabula (Minerva room) editor rides the SAME machinery (TextInput)', tabula.includes('<TextInput'))

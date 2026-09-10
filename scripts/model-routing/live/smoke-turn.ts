@@ -12,6 +12,8 @@ const { openaiCallModel, openaiLiveProofState } = await import(
   '../../../src/services/providers/openai/openaiCallModel.js'
 )
 const { getEmptyToolPermissionContext } = await import('../../../src/Tool.ts')
+const { latchVerdict, turnAnswerVerdict } = await import('./smokeVerdicts.ts')
+const latchBefore = openaiLiveProofState()
 
 type AnyMessage = Record<string, unknown>
 
@@ -124,15 +126,17 @@ const t2Text = t2
   .filter(b => b.type === 'text')
   .map(b => String(b.text))
   .join(' ')
-if (!t2Text.includes('42')) {
-  console.error(`SMOKE FAILED: turn-2 answer does not carry the tool result (got: ${t2Text.slice(0, 200)})`)
+const answer = turnAnswerVerdict(t2Text, '42')
+if (!answer.ok) {
+  console.error(`SMOKE FAILED: turn-2 ${answer.reason}`)
   process.exit(1)
 }
 
 const proof = openaiLiveProofState()
 console.log(`\nlive-proof latch: ${proof ? `${proof.model} at ${new Date(proof.at).toISOString()}` : 'ABSENT'}`)
-if (!proof) {
-  console.error('SMOKE FAILED: the live-proof readiness latch did not flip')
+const latch = latchVerdict(latchBefore, proof, MODEL)
+if (!latch.ok) {
+  console.error(`SMOKE FAILED: ${latch.reason}`)
   process.exit(1)
 }
 console.log('\nAPEX LIVE SMOKE (tool round-trip + stateless replay) GREEN')

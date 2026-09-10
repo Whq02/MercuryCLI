@@ -21,7 +21,6 @@ for (const key of [
   'MERCURY_COMPAT_BASE_URL',
   'MERCURY_LOCAL_PROBE_TARGETS',
   'MERCURY_THINKING_BUDGET',
-  'CLAUDE_EFFORT',
   'MERCURY_EFFORT',
 ]) {
   delete process.env[key]

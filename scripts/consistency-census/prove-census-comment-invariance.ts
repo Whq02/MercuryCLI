@@ -142,6 +142,27 @@ function writeTree(to: string, files: Map<string, string>): void {
   }
 }
 
+{
+  const separating: Array<[string, string]> = [
+    ['a keyword and a name', 'const/*note*/x = 1\n'],
+    ['two operators', 'const y = a +/*note*/+ b\n'],
+    ['a name and a keyword operator', 'const w = x/*n*/instanceof/*n*/y\n'],
+    ['a comment inside a string stays', "const s = 'a/*n*/b'\n"],
+    ['a comment between a name and a bracket', 'call/*n*/(1)\n'],
+    ['a multi-line comment keeps its line count', 'const z = 1 +/* one\n two */+ 2\n'],
+    ['two consecutive comments between a keyword and a name', 'const/*a*//*b*/x = 1\n'],
+    ['a numeric literal and a member access', 'const x = 1/*note*/.toString()\n'],
+    ['three comments with spaces between them', 'x = a/*c*/ /*d*/ /*e*/b\n'],
+  ]
+  for (const [label, src] of separating) {
+    const out = codeOnlyText('planted.ts', src)
+    check(`token-separating comment, ${label}: the tokens keep their shape`, syntaxShape('planted.ts', src) === syntaxShape('planted.ts', out), JSON.stringify(out))
+    check(`token-separating comment, ${label}: the line count is unchanged`, out.split('\n').length === src.split('\n').length)
+  }
+  check('a comment beside a bracket adds no separator', codeOnlyText('planted.ts', 'call/*n*/(1)\n') === 'call(1)\n')
+  check('a comment at a line end adds no separator', codeOnlyText('planted.ts', 'const a = 1 // note\n') === 'const a = 1 \n')
+}
+
 const scratch = mkdtempSync(join(tmpdir(), 'census-comment-invariance-'))
 try {
   for (const c of CENSUSES) {
