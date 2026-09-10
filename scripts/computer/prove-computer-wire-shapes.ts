@@ -195,5 +195,20 @@ section('§e the refusal on a text-only route names the route\'s display name')
   }
 }
 
+section('§f the latch: a provider refusal of the image parks the model until another is asked for')
+{
+  const { noteImageRefusal, imageRefusedFor, clearImageRefusal } = await import('../../src/services/desktop/desktopSession.ts')
+  clearImageRefusal()
+  check('nothing is latched at the start', imageRefusedFor('glm-4.5') === null)
+  noteImageRefusal('glm-4.5', 'images are not supported by this model')
+  check('the latched model reads its words back', imageRefusedFor('glm-4.5') === 'images are not supported by this model')
+  const verdict = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext({ model: 'glm-4.5' }))
+  check('validateInput refuses the latched model naming the route, the words and /model', verdict.result === false && verdict.message.includes('refused the image') && verdict.message.includes(providerDisplayName('zai')) && verdict.message.includes('images are not supported by this model') && verdict.message.includes('/model'), JSON.stringify(verdict))
+  check('asking about another model clears the latch', imageRefusedFor('claude-opus-5') === null && imageRefusedFor('glm-4.5') === null)
+  const cleared = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext({ model: 'glm-4.5' }))
+  check('the model drives again once the latch is cleared', cleared.result === true, JSON.stringify(cleared))
+  clearImageRefusal()
+}
+
 server.close()
 finish('prove-computer-wire-shapes')
