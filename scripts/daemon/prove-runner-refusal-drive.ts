@@ -148,10 +148,12 @@ const turns: ScriptedTurn[] = [
   { kind: 'text', text: 'DEBUG-UP-DONE.' },
   { kind: 'tool_use', name: 'Debug', input: { op: 'disconnect' }, id: 'toolu_debug_disconnect' },
   { kind: 'text', text: 'DEBUG-DOWN-DONE.' },
-  { kind: 'tool_use', name: 'Eval', input: { language: 'py', code: "print('kernel-up')\n1 + 1", title: 'refusal probe' }, id: 'toolu_eval_probe' },
+  { kind: 'tool_use', name: 'Eval', input: { language: 'py', code: "print('kernel-up')\nheld = 2 * 21\nheld", title: 'refusal probe' }, id: 'toolu_eval_probe' },
   { kind: 'text', text: 'KERNEL-TURN-DONE.' },
-  { kind: 'tool_use', name: 'Eval', input: { language: 'py', code: 'held = 2 * 21\nheld', title: 'retained probe' }, id: 'toolu_eval_retained' },
+  { kind: 'tool_use', name: 'Eval', input: { language: 'py', code: 'held', title: 'retained probe' }, id: 'toolu_eval_retained' },
   { kind: 'text', text: 'RETAINED-TURN-DONE.' },
+  { kind: 'tool_use', name: 'Eval', input: { language: 'py', code: 'held', title: 'fresh probe', reset: true }, id: 'toolu_eval_fresh' },
+  { kind: 'text', text: 'FRESH-TURN-DONE.' },
 ]
 const fixture = await startFixtureApi(turns)
 const runner = await startRunner(fixture, home, cwd, ['--permission-channel', 'stdio'])
@@ -241,7 +243,20 @@ try {
   if (ask2?.request_id !== undefined) seenAsks.add(ask2.request_id)
   runner.send({ type: 'control_response', response: { subtype: 'success', request_id: ask2?.request_id, response: { behavior: 'allow', updated_input: (ask2?.request as { input?: unknown } | undefined)?.input ?? {} } } })
   const retained = (await runner.waitFor(e => e.type === 'result' && j(e).includes('RETAINED-TURN-DONE.'), 'retained turn result')) as (Envelope & { result?: string }) | undefined
-  check('the second cell ran on the retained kernel', retained?.subtype === 'success' && runner.envelopes.some(e => j(e).includes('"42"') || j(e).includes('42\\n') || j(e).includes('42"')), j({ s: retained?.subtype }))
+  const toolResultOf = (toolUseId: string): string => {
+    for (const e of runner.envelopes) {
+      if (e.type !== 'user') continue
+      const content = (e as { message?: { content?: unknown } }).message?.content
+      if (!Array.isArray(content)) continue
+      for (const block of content as Array<{ type?: string; tool_use_id?: string; content?: unknown }>) {
+        if (block.type !== 'tool_result' || block.tool_use_id !== toolUseId) continue
+        return typeof block.content === 'string' ? block.content : j(block.content)
+      }
+    }
+    return ''
+  }
+  const retainedResult = toolResultOf('toolu_eval_retained')
+  check("the second cell READ `held` without assigning it, and its own correlated tool_result carries 42: the kernel that ran the first cell is the one that ran the second", retained?.subtype === 'success' && /\b42\b/.test(retainedResult) && !/NameError|not defined/.test(retainedResult), retainedResult.slice(0, 300))
   const stillHeld = await runner.quiesce('prepare', TOKEN_4)
   check('prepare is still refused on the kernel after the second cell', !stillHeld.ok && /eval kernel/.test(stillHeld.reason ?? ''), j(stillHeld))
 
@@ -252,6 +267,14 @@ try {
   check('the kernel refusal is not stateful noise: it repeats while the kernel is alive', !again.ok && /eval kernel/.test(again.reason ?? ''), j(again))
   check('the runner never exited through any refused or cancelled request', runner.alive())
   check('the kernel has no release road but the idle reaper (15 minutes): the refusal stands for as long as the kernel does, which is the law the census states', (await runner.quiesce('prepare', 'retire-drive-token-0011')).ok === false)
+
+  section('§6b the controlled negative: a cell that RESETS the kernel reads `held` on a fresh one and gets NameError')
+  runner.send({ type: 'user', message: { role: 'user', content: 'refusal probe fresh' }, parent_tool_use_id: null })
+  await allowNext('fresh-kernel ask', seenAsks, 'FRESH-TURN-DONE.')
+  const fresh = (await runner.waitFor(e => e.type === 'result' && j(e).includes('FRESH-TURN-DONE.'), 'fresh turn result')) as (Envelope & { result?: string }) | undefined
+  const freshResult = toolResultOf('toolu_eval_fresh')
+  check("after reset the same read fails with NameError in ITS correlated tool_result: state lives in the kernel, not in the runner, so the earlier 42 was the retained kernel's", fresh?.subtype === 'success' && /NameError|not defined/.test(freshResult) && !/\b42\b/.test(freshResult), freshResult.slice(0, 300))
+  check('the replacement kernel is itself a hold (the census counts kernels, not history)', (await runner.quiesce('prepare', 'retire-drive-token-0012')).ok === false)
 } finally {
   runner.send({ type: 'control_request', request_id: 'req_end', request: { subtype: 'interrupt' } })
   const code = await Promise.race([
