@@ -62,6 +62,8 @@ import {
 } from '../../../utils/pulse/turnPhase.js'
 import { imagesSupportedForCompatModel } from '../openaicompat/compatChatCallModel.js'
 import { noteImageRefusal } from '../../desktop/desktopSession.js'
+import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
+import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
 import {
   buildZaiChatRequest,
   imageRefusalWords,
@@ -233,6 +235,11 @@ export async function* zaiCallModel(
   })
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey)
   const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages), plan)
+  const retiredScreenshots = retireOlderScreenshots(wireMessages)
+  const wireMessagesForBridge =
+    retiredScreenshots.firstEdited === -1
+      ? retiredScreenshots.messages
+      : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
   const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   const vocabulary = glmEffortsFor(modelId)
   const wireEffort =
@@ -245,7 +252,7 @@ export async function* zaiCallModel(
   const request = buildZaiChatRequest({
     model: modelId,
     system: systemText,
-    messages: toBridgeMessages(healWalkableForWire(wireMessages)),
+    messages: toBridgeMessages(healWalkableForWire(wireMessagesForBridge)),
     imagesSupported: imagesSupportedForCompatModel(modelId),
     tools: apiTools,
     maxTokens: Math.min(

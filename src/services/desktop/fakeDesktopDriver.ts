@@ -385,6 +385,10 @@ export class FakeDesktopDriver implements DesktopDriver {
     return answer({ ...this.scene.permissions })
   }
 
+  permissionsNow(): DesktopAnswer<DesktopPermissions> {
+    return answer({ ...this.scene.permissions })
+  }
+
   async requestPermissions(): Promise<DesktopAnswer<DesktopPermissions>> {
     return answer({ ...this.scene.permissions })
   }
@@ -497,7 +501,8 @@ export class FakeDesktopDriver implements DesktopDriver {
     this.cursorAt = { ...to }
     this.sceneActs += 1
     this.record('drag', 'done', { from: { ...from }, to: { ...to }, button })
-    return answer({ act: 'drag', at: { ...to }, completedAt: Date.now() })
+    const receipt: DesktopActReceipt = { act: 'drag', at: { ...to }, completedAt: Date.now() }
+    return answer(receipt)
   }
 
   async scroll(at: DesktopPoint, deltaX: number, deltaY: number, signal: AbortSignal): Promise<DesktopAnswer<DesktopActReceipt>> {
@@ -537,7 +542,10 @@ export class FakeDesktopDriver implements DesktopDriver {
 
   async typeText(text: string, options: DesktopTypeOptions, signal: AbortSignal): Promise<DesktopAnswer<DesktopActReceipt>> {
     if (!isText(text)) return refusal(inputError('the text to type must be a string'))
-    if (text === '') return answer({ act: 'type', at: null, completedAt: Date.now() })
+    if (text === '') {
+      const receipt: DesktopActReceipt = { act: 'type', at: null, completedAt: Date.now() }
+      return answer(receipt)
+    }
     const gapMs = options.gapMs ?? TYPE_GAP_DEFAULT_MS
     return this.act('typeText', { text, gapMs }, signal, () => ({ act: 'type', at: null, completedAt: Date.now() }))
   }

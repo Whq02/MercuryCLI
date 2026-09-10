@@ -8,6 +8,7 @@ const { resetDesktopDriverForTest } = await import('../../src/services/desktop/r
 const { setIsInteractive, getIsInteractive } = await import('../../src/bootstrap/state.ts')
 const teammate = await import('../../src/utils/teammate.ts')
 const agents = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/constants/tools.ts')
 
 resetDesktopDriverForTest()
 const names = (): string[] => getAllBaseTools().map(t => t.name)
@@ -56,8 +57,11 @@ section('§4 no agent ever carries the tool')
       check(`filterToolsForAgent drops Computer (isBuiltIn ${isBuiltIn}, isAsync ${isAsync})`, !kept.includes('Computer'), kept.join(','))
     }
   }
-  const disallowed = (agents as { ALL_AGENT_DISALLOWED_TOOLS?: Set<string> }).ALL_AGENT_DISALLOWED_TOOLS
-  check('the all-agents denial set names Computer', disallowed instanceof Set && disallowed.has('Computer'))
+  check('the all-agents denial set names Computer', ALL_AGENT_DISALLOWED_TOOLS.has('Computer'))
+  const runAgent = sourceText('src/tools/AgentTool/runAgent.ts')
+  check('runAgent filters the name out of every worker\'s pool (the workflow road never passes the agent filter)', runAgent.includes('COMPUTER_TOOL_NAME'))
+  const asAgent = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext({ agentId: 'agent-x' }))
+  check('a context carrying an agent id is refused with the sub-agent text', asAgent.result === false && asAgent.message === 'the Computer tool drives the operator\'s own screen; a sub-agent never carries it in this release — the main session does', JSON.stringify(asAgent))
 }
 
 section('§5 the MCP serve surface filters the tool in both handlers')
