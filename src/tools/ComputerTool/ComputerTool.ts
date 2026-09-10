@@ -736,7 +736,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
       message: `Computer ${input.action}${actDetail(input)} in ${app.name} (${app.identity}) — first act in this application this session (drives your mouse and keyboard)`,
       decisionReason: {
         type: 'safetyCheck' as const,
-        reason: `${app.name} is in front of the operator's screen; the first act there needs the operator's own consent`,
+        reason: `${app.name} (${app.identity}) is in front of the operator's screen; the first act there needs the operator's own consent`,
         classifierApprovable: false,
       },
       suggestions: suggestionForExactCommand(COMPUTER_TOOL_NAME, content),
