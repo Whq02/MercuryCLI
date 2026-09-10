@@ -11,6 +11,10 @@ import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixt
 export const ROOT = resolve(import.meta.dir, '..', '..')
 export const DIST = join(ROOT, 'dist', 'mercury.mjs')
 export const ADMITTED = ' · ready'
+const VENDORED_NODE = join(ROOT, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
+export function productNode(): string {
+  return existsSync(VENDORED_NODE) ? VENDORED_NODE : (Bun.which('node') ?? 'node')
+}
 export const FACE_READY = '↑↓ choose'
 export const SIZES: ReadonlyArray<{ cols: number; rows: number }> = [
   { cols: 80, rows: 24 },
@@ -190,7 +194,7 @@ export function drive(driver: AvailableCaptureDriver, leg: Leg, size: { cols: nu
   const tag = `${leg.tag}-${size.cols}x${size.rows}`
   const grid = join(scratch, `${tag}-grid.json`)
   const cfgPath = join(scratch, `${tag}-vshot.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', DIST, '--chat'], sends, total, cols: size.cols, rows: size.rows, out: grid, title: tag }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST, '--chat'], sends, total, cols: size.cols, rows: size.rows, out: grid, title: tag }))
   const res = spawnSync(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], {
     encoding: 'utf-8',
     env: childEnv(leg, extra),
