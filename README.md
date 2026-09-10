@@ -53,7 +53,12 @@ line the installer prints. `mercury --version` is the check.
 public release list and the archive anonymously — no account, no sign-in,
 no token — and verifies the archive against the release's `SHA256SUMS.txt`
 before anything activates; a signed-in GitHub CLI (`gh`) is asked only when
-that anonymous road is refused, and is never required.
+that anonymous request is refused, and is never required. Update and install
+also require a payload signed by the Mercury release key in the compiled-in
+trust roster before staging it. Every other signature verdict refuses without
+changing the active installation. The explicit `--allow-unsigned` flag accepts
+an unsigned payload only, never an unknown key, a malformed signing block or
+tampered bytes; the result and local receipt name that exception.
 
 From 1.0.0-beta.3 every release archive is signed with the Mercury release
 key at packaging, and the release is verified against that signature before

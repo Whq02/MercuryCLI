@@ -448,7 +448,7 @@ if (existsSync(join(smokeVersions, VERSION))) fail('smoke: install --dry-run wro
 ok('install --dry-run describes without changing')
 
 if (IS_WIN) writeFileSync(smokeUserPath, JSON.stringify({ kind: 'ExpandString', value: '%USERPROFILE%\\AppData\\Local\\Microsoft\\WindowsApps' }) + '\n')
-const installOut = run(['install'])
+const installOut = run(['install', ...(shippedSignatureState === 'unsigned' ? ['--allow-unsigned'] : [])])
 if (!existsSync(join(smokeVersions, VERSION, 'mercury.mjs'))) fail('smoke: install did not stage the version payload')
 if (!installOut.includes(`installed: ${VERSION}`)) fail(`smoke: install output unexpected: ${installOut.slice(0, 300)}`)
 const shim = IS_WIN ? join(smokeLocalAppData, 'Mercury', 'bin', 'mercury.cmd') : join(smokeHome, '.local', 'bin', 'mercury')
@@ -483,7 +483,7 @@ if (pathLine.includes('already runs from')) {
   ok(`PATH act: ${pathLine.slice('PATH: '.length)}`)
 }
 
-const repeatOut = run(['install'])
+const repeatOut = run(['install', ...(shippedSignatureState === 'unsigned' ? ['--allow-unsigned'] : [])])
 if (!repeatOut.includes('already present')) fail(`smoke: repeat install was not a truthful no-op: ${repeatOut.slice(0, 300)}`)
 const repeatPathLine = pathLineOf(repeatOut)
 if (!/is already on your PATH|already runs from/.test(repeatPathLine)) fail(`smoke: the repeat install did not leave PATH as it found it: ${repeatPathLine}`)
