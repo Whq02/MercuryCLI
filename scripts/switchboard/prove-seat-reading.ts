@@ -116,6 +116,38 @@ const COST = cap.SEAT_COST_BYTES[cap.SEAT_COST_KIND]
 }
 
 {
+  let answer = COST * 4
+  let taken = 0
+  cap._setMemorySamplerForTesting(() => {
+    taken++
+    return { cores: 8, availableBytes: answer, read: 'vm_stat' }
+  })
+  const primed = await cap.seatCeilingFactsAsync()
+  check('R3b the daemon primes the reading asynchronously before its roster exists (one sample, four seats)', primed.seats === 4 && taken === 1, `${primed.seats} · samples taken ${taken}`)
+  const release = cap.serveHeldReadingFromBackground()
+  answer = COST * 7
+  await wait(5_100)
+  const takenBefore = taken
+  const lapsed = cap.heldMachineSeatReading()
+  check('R3b an ask after the window lapses answers the HELD reading at once — no sample is taken on the asking thread', lapsed === 4 && taken === takenBefore, `${lapsed} · samples taken ${taken}`)
+  await wait(20)
+  const refreshed = cap.heldMachineSeatReading()
+  check('R3b the refresh ran behind the ask and the next ask reads the raised mark (seven)', refreshed === 7 && taken === takenBefore + 1, `${refreshed} · samples taken ${taken}`)
+  answer = COST * 2
+  await wait(5_100)
+  cap.heldMachineSeatReading()
+  await wait(20)
+  const stillHeld = cap.heldMachineSeatReading()
+  check('R3b the high-water law holds on the background road too (seven stands under less memory)', stillHeld === 7, String(stillHeld))
+  release()
+  answer = COST * 11
+  await wait(5_100)
+  const foreground = cap.heldMachineSeatReading()
+  check('R3b once the background service is released, a lapsed ask samples on the asking thread again (eleven)', foreground === 11, String(foreground))
+  cap._setMemorySamplerForTesting(null)
+}
+
+{
   const words = cap.seatReadingInputsWords({ cores: 8, availableBytes: 3.1 * GB, read: 'vm_stat', sampledAt: 0 })
   check('R4 the inputs sentence: cores, GB available, the cost a seat', words === `8 cores, 3.1 GB available, ${Math.round(COST / MB)} MB a seat`, words)
   const whole = cap.seatReadingInputsWords({ cores: 16, availableBytes: 24.6 * GB, read: 'meminfo', sampledAt: 0 })

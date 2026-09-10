@@ -129,6 +129,32 @@ t.section('§5 — the delivery valve + redirect')
 
   const dead = await rhandler({ clientMessageId: 'rd-3', prompt: 'to nobody', workspaceDir: '', targetSessionId: 'sess-dead' })
   t.check('a dead target refuses typed and settles failed', dead.ok === false && /no live runner|revives/.test(dead.error ?? '') && readConcourseDispatches(dir)['rd-3']!.state === 'failed')
+
+  const reviveAnswers: Array<{ ok: boolean; error?: string; reason?: 'transcript-lost' | 'runtime-ceiling' | 'respawn-failed' }> = []
+  const vhandler = makeConcourseDispatchHandler({
+    admit: async () => {
+      throw new Error('redirect must NEVER admit')
+    },
+    deliver: async (runnerId, frame) => {
+      sent.push({ runnerId, frame })
+      return true
+    },
+    revive: async () => reviveAnswers.shift() ?? { ok: false, error: 'no scripted answer' },
+    dir,
+  })
+  reviveAnswers.push({ ok: false, error: 'its transcript is gone — nothing to resume it around; start a new session', reason: 'transcript-lost' })
+  const lost = await vhandler({ clientMessageId: 'rd-4', prompt: 'to a lost one', workspaceDir: '', targetSessionId: 'sess-dead' })
+  t.check("a revive refused for a LOST transcript settles failed with the loss in its words and offers a NEW session (queue), never a revive", lost.ok === false && /could not be revived: its transcript is gone/.test(lost.error ?? '') && lost.moves?.[0]?.verb === 'queue' && /start a new session/.test(lost.moves[0].label) && readConcourseDispatches(dir)['rd-4']!.state === 'failed', JSON.stringify(lost))
+  reviveAnswers.push({ ok: false, error: 'cannot resume yet — the machine reads 4 seats and 4 are taken', reason: 'runtime-ceiling' })
+  const ceiling = await vhandler({ clientMessageId: 'rd-5', prompt: 'to a seatless one', workspaceDir: '', targetSessionId: 'sess-dead' })
+  t.check("a revive refused at the seat CEILING settles failed with the ceiling in its words and offers a RETRY (the refusal is temporary), never a new session", ceiling.ok === false && /could not be revived: cannot resume yet/.test(ceiling.error ?? '') && ceiling.moves?.[0]?.verb === 'retry' && /temporary/.test(ceiling.moves[0].label) && readConcourseDispatches(dir)['rd-5']!.state === 'failed', JSON.stringify(ceiling))
+  reviveAnswers.push({ ok: false, error: 'a live worker already holds this id', reason: 'respawn-failed' })
+  const spawn = await vhandler({ clientMessageId: 'rd-6', prompt: 'to a refused spawn', workspaceDir: '', targetSessionId: 'sess-dead' })
+  t.check('a revive whose SPAWN was refused offers a retry too (the roster may admit it next time)', spawn.ok === false && /could not be revived: a live worker already holds this id/.test(spawn.error ?? '') && spawn.moves?.[0]?.verb === 'retry', JSON.stringify(spawn))
+  reviveAnswers.push({ ok: false, error: 'unexplained' })
+  const bare = await vhandler({ clientMessageId: 'rd-7', prompt: 'to a bare refusal', workspaceDir: '', targetSessionId: 'sess-dead' })
+  t.check('a refusal with NO typed reason is treated as temporary (retry), never as permanent loss', bare.ok === false && bare.moves?.[0]?.verb === 'retry', JSON.stringify(bare))
+  t.check('none of the refused revives delivered anything', sent.length === 2)
 }
 
 t.finish('prove-concourse-dispatch')
