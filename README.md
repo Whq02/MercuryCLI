@@ -311,6 +311,11 @@ the result envelope alone. The verbs:
   English model is a one-time `/speak download`), or through the cloud
   family you choose; audio leaves only after you stop and only to a cloud
   family, and Mercury never speaks aloud ([docs/VOICE.md](docs/VOICE.md)).
+- **Computer use**: with `MERCURY_COMPUTER_USE=1`, the model sees your
+  screen and drives the mouse and keyboard in the application in front; the
+  first act in each application asks by name, esc stops it, one session
+  drives at a time, and screenshots never enter the saved conversation
+  ([docs/COMPUTER-USE.md](docs/COMPUTER-USE.md)).
 - **Durability**: atomic publication, journaled operations and a boot-time
   reconciliation pass ([docs/DURABILITY.md](docs/DURABILITY.md)).
 - **Web search for every model**: the provider's own live search beside

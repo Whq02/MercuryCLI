@@ -1,5 +1,6 @@
 import { AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
 import { ASK_USER_QUESTION_TOOL_NAME } from '../tools/AskUserQuestionTool/prompt.js'
+import { COMPUTER_TOOL_NAME } from '../services/desktop/toolName.js'
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import {
   EXIT_PLAN_MODE_TOOL_NAME,
@@ -43,6 +44,7 @@ export const ALL_AGENT_DISALLOWED_TOOLS: Set<string> = new Set([
   ASK_USER_QUESTION_TOOL_NAME,
   TASK_STOP_TOOL_NAME,
   WORKFLOW_TOOL_NAME,
+  COMPUTER_TOOL_NAME,
 ])
 
 export const CUSTOM_AGENT_DISALLOWED_TOOLS: Set<string> = ALL_AGENT_DISALLOWED_TOOLS

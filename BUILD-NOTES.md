@@ -198,6 +198,16 @@ against their checked-in lock files before a byte is consumed.
   `MERCURY_BUILD_NO_VENDOR_VOICE=1` forces the degraded arm. The release
   packager treats `voice-input` as the one publishable degradation: an
   archive whose packaging host could not build the pack still ships, honest.
+- **Desktop driver pack** (optional at build; BUILT, never fetched). The
+  voice pack's sibling for computer use: a Node-API addon over the
+  platform's screen and input layers, compiled from `native/desktop` by
+  `bun run scripts/vendor/build-desktop.ts` (the last link of
+  `bun run setup`) into `vendor/desktop/<platform>/` with the same manifest,
+  licence records and staleness rules, copied to `dist/vendor/desktop/<platform>/`
+  and recorded as the manifest's `desktopDriver`; absent ⇒ degraded
+  `desktop-driver` (the Computer tool refuses by name), a publishable
+  degradation for the release packager, and `MERCURY_BUILD_NO_VENDOR_DESKTOP=1`
+  forces that arm.
 - **debugpy** (optional). The Python debug adapter, an extracted wheel under
   `dist/vendor/debugpy/`. Truth is `vendor/debugpy.lock.json`
   (version · wheel · sha256 · adapter entry); the local cache is reproduced

@@ -64,7 +64,9 @@ import {
   notePulseStreamActivity,
   setPulsePhase,
 } from '../../../utils/pulse/turnPhase.js'
-import { mapMessagesToZai, mapToolsToZai, type ApiShapedTool } from '../zai/zaiCodec.js'
+import { imageRefusalWords, mapMessagesToZai, mapToolsToZai, type ApiShapedTool } from '../zai/zaiCodec.js'
+import { modelReceivesImageBlocks } from '../../../utils/model/capabilities.js'
+import { imageRefusedFor, noteImageRefusal } from '../../desktop/desktopSession.js'
 import {
   streamCompatChat,
   type CompatChatRequest,
@@ -77,6 +79,8 @@ import {
 import type { RefusedToolCall } from '../../../types/message.js'
 import { gateToolCalls, toolCallRefusalNote } from '../toolCallGate.js'
 import { foldAnnouncementIntoFirstUserTurn, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
+import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
+import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
 
 const COMPAT_MAX_ATTEMPTS = 2
 const COMPAT_RETRY_BACKOFF_MS = 400
@@ -89,6 +93,10 @@ export type CompatLaneId =
   | 'gemini'
   | 'huggingface'
   | 'local'
+
+export function imagesSupportedForCompatModel(model: string): boolean {
+  return modelReceivesImageBlocks(model) && imageRefusedFor(model) === null
+}
 
 export function compatDispatchModelId(model: string): string {
   return normalizeModelStringForAPI(model.trim())
@@ -369,10 +377,16 @@ export async function* compatChatCallModel(
       return
     }
   }
+  const retiredScreenshots = retireOlderScreenshots(wireMessages)
+  const wireMessagesForBridge =
+    retiredScreenshots.firstEdited === -1
+      ? retiredScreenshots.messages
+      : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
   const request: CompatChatRequest = {
     model: wireModel,
-    messages: mapMessagesToZai(systemText, toBridgeMessages(healWalkableForWire(wireMessages)), {
+    messages: mapMessagesToZai(systemText, toBridgeMessages(healWalkableForWire(wireMessagesForBridge)), {
       keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel) ?? false,
+      imagesSupported: imagesSupportedForCompatModel(modelId),
     }),
     ...(apiTools.length > 0
       ? {
@@ -499,6 +513,17 @@ export async function* compatChatCallModel(
         detail: outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code,
         remedy: profile.billingRemedy ?? 'top up the account at the provider, then retry; /model picks another model meanwhile.',
       })
+    }
+    const refusedImage = imageRefusalWords(request, outcome.fault)
+    if (refusedImage !== null) {
+      noteImageRefusal(modelId, refusedImage)
+      yield apiErrorMessage(
+        `${API_ERROR_MESSAGE_PREFIX}: the model on the ${profile.providerLabel} route refused the image: ${refusedImage} — the next request carries it as [image]; the Computer tool refuses on this model until /model picks one that receives images`,
+        typed,
+        outcome.fault.code,
+        overflowOf(profile.lane, outcome.fault),
+      )
+      return
     }
     yield stampProviderWait(
       apiErrorMessage(

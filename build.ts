@@ -684,6 +684,47 @@ let whisperMeta: { version: string; platform: string; addon: string; addonSha256
   }
 }
 
+const { DESKTOP_PACK_PATH: desktopRelPath, DESKTOP_NATIVE_PATH: desktopNativePath, checkDesktopPackDir, desktopPackDirFor, desktopSourceTreeDigest } = await import('./src/services/desktop/pack.ts');
+let desktopVendored = false;
+let desktopMeta: { version: string; platform: string; addon: string; addonSha256: string; crates: number } | null = null;
+{
+  const desktopDest = resolve(OUT, desktopRelPath);
+  rmSync(desktopDest, { recursive: true, force: true });
+  const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_DESKTOP === '1';
+  const packPlatform = voicePackPlatform(SHIP.platform, SHIP.arch);
+  const packDir = desktopPackDirFor(ROOT, packPlatform);
+  const nativeDir = resolve(ROOT, desktopNativePath);
+  if (!forceNo && statSync(resolve(packDir, '.vendor-manifest.json'), { throwIfNoEntry: false })?.isFile()) {
+    const check = checkDesktopPackDir(packDir, { digest: true, platform: packPlatform });
+    const sourcesNow = statSync(nativeDir, { throwIfNoEntry: false })?.isDirectory() ? desktopSourceTreeDigest(nativeDir) : null;
+    if (check.state === 'ok' && sourcesNow !== null && check.manifest.sourceTreeDigest === sourcesNow) {
+      const { cpSync } = await import('node:fs');
+      cpSync(packDir, resolve(desktopDest, packPlatform), { recursive: true });
+      desktopVendored = true;
+      desktopMeta = {
+        version: check.manifest.version,
+        platform: packPlatform,
+        addon: check.manifest.addon,
+        addonSha256: check.manifest.addonSha256,
+        crates: check.manifest.crates.length,
+      };
+      console.log(`VENDORED desktop driver pack ${check.manifest.version} ${packPlatform} (built from ${desktopNativePath}, ${check.manifest.crates.length} crate licences)\n  -> ${resolve(desktopDest, packPlatform)}`);
+    } else {
+      const why = check.state !== 'ok' ? check.note : sourcesNow === null ? `${desktopNativePath} is absent` : `the pack was built from other sources than ${desktopNativePath} now holds`;
+      console.error(
+        `BUILD FAILED: vendor/desktop/${packPlatform} pack is present but stale — ${why}.\n` +
+          '  remedy: bun run scripts/vendor/build-desktop.ts   (then rebuild)\n' +
+          '  (a missing pack degrades honestly instead — only a PRESENT-but-wrong pack fails the build)',
+      );
+      process.exit(1);
+    }
+  } else if (forceNo) {
+    console.warn('MERCURY_BUILD_NO_VENDOR_DESKTOP=1 — desktop driver pack NOT vendored (degraded: desktop-driver; proof seam).');
+  } else {
+    console.warn(`no desktop driver pack for ${packPlatform} — the artifact ships WITHOUT the desktop driver (degraded: desktop-driver; the Computer tool refuses by name). Prepare it: bun run scripts/vendor/build-desktop.ts${CROSS ? ` --target ${TARGET_ARG}` : ''} (needs cargo${CROSS ? ' and the rustup target it names' : ''})`);
+  }
+}
+
 const typescriptRelPath = 'vendor/typescript';
 let typescriptVendored = false;
 let typescriptVersion: string | null = null;
@@ -1060,6 +1101,22 @@ const manifest = {
         remedy:
           'build the voice capture pack (`bun run scripts/vendor/build-voice.ts`, needs cargo), then re-run `bun run build.ts` — the runtime falls back to sox/arecord/ffmpeg on PATH meanwhile, else /speak says no backend',
       },
+  desktopDriver: desktopVendored && desktopMeta
+    ? {
+        vendored: true,
+        path: `${desktopRelPath}/${desktopMeta.platform}`,
+        version: desktopMeta.version,
+        platform: desktopMeta.platform,
+        addon: desktopMeta.addon,
+        addonSha256: desktopMeta.addonSha256,
+        crateLicences: desktopMeta.crates,
+      }
+    : {
+        vendored: false,
+        path: desktopRelPath,
+        remedy:
+          'build the desktop driver pack (`bun run scripts/vendor/build-desktop.ts`, needs cargo), then re-run `bun run build.ts` — the Computer tool answers that no desktop driver is on this install meanwhile',
+      },
   shellEngine: brushVendored && brushMeta
     ? {
         vendored: true,
@@ -1158,6 +1215,7 @@ const manifest = {
     ...(nodeVendored ? [] : ['runtime']),
     ...(voiceVendored ? [] : ['voice-input']),
     ...(whisperVendored ? [] : ['on-device-transcriber']),
+    ...(desktopVendored ? [] : ['desktop-driver']),
     ...(imagePackVendored ? [] : ['image-processing']),
     ...(brushVendored ? [] : ['shell-engine']),
     ...(typescriptVendored ? [] : ['structural-intelligence']),

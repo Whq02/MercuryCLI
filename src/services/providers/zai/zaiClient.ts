@@ -27,9 +27,13 @@ export function zaiChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env, plan
 const TOTAL_TIMEOUT_MS = 50 * 60_000
 
 
+export type ZaiContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } }
+
 export interface ZaiMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
-  content: string | null
+  content: string | null | ZaiContentPart[]
   reasoning_content?: string
   tool_calls?: ZaiToolCall[]
   tool_call_id?: string
