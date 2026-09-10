@@ -173,7 +173,7 @@ console.log('\n[7] the driver refuses a capture before the addon can fail silent
     const move = await resolved.driver.mouseMove({ x: 1, y: 1 }, new AbortController().signal)
     check('an act rides the input grant, which this stub answers granted', move.ok && move.value.act === 'move' && (calls().mouseMove ?? 0) === 1, JSON.stringify(move))
     const facts = await native.describeDesktopDriver()
-    check('the doctor facts are not ready and carry the grant words as the fix', !facts.ready && facts.fix === native.desktopGrantWords() && facts.line.includes('screen: denied') && facts.detail.includes('driving now: unknown'), JSON.stringify(facts))
+    check('the doctor facts are not ready and carry the grant words as the fix', !facts.ready && facts.fix === native.desktopGrantWords() && facts.line.includes('screen: denied') && facts.detail.includes('driving now: none'), JSON.stringify(facts))
   }
 }
 

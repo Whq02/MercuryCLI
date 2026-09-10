@@ -203,6 +203,10 @@ class NativeDesktopDriver implements DesktopDriver {
   }
 
   async permissions(): Promise<DesktopAnswer<DesktopPermissions>> {
+    return this.permissionsNow()
+  }
+
+  permissionsNow(): DesktopAnswer<DesktopPermissions> {
     return this.closedRefusal<DesktopPermissions>() ?? this.readPermissions()
   }
 
@@ -450,18 +454,30 @@ function sourceWords(source: 'override' | 'vendored' | 'workspace'): string {
   return 'MERCURY_DESKTOP_PACK_DIR'
 }
 
-const DRIVING_UNKNOWN = 'driving now: unknown'
+async function drivingWords(): Promise<string> {
+  try {
+    const { claimAgeWords, probeDesktopLock } = await import('./desktopClaim.js')
+    const holder = await probeDesktopLock()
+    if (holder === null) return 'driving now: none'
+    const since = new Date(holder.acquiredAt)
+    const clock = `${String(since.getHours()).padStart(2, '0')}:${String(since.getMinutes()).padStart(2, '0')}`
+    return `driving now: pid ${holder.pid} since ${clock} (${claimAgeWords(Date.now() - holder.acquiredAt)})`
+  } catch (error) {
+    return `driving now: unknown — ${error instanceof Error ? error.message : String(error)}`
+  }
+}
 
 export async function describeDesktopDriver(): Promise<DesktopDoctorFacts> {
   const onWords = `computer use ${computerUseSwitchOn() ? 'on' : 'off'}`
   const buildFix = voiceCheckoutRoot() !== null ? `Build the desktop driver pack: ${DESKTOP_BUILD_COMMAND}, then rebuild.` : undefined
+  const driving = await drivingWords()
   const resolution = resolveDesktopPackDir()
   if (resolution.state === 'unavailable') {
     const absent = resolution.note.startsWith(DESKTOP_PACK_ABSENT_PREFIX)
     return {
       ready: false,
       line: `pack: ${absent ? desktopPackAbsentNote() : resolution.note} · ${onWords}`,
-      detail: [`pack: ${resolution.note}`, desktopGrantWords(), DRIVING_UNKNOWN].join('\n'),
+      detail: [`pack: ${resolution.note}`, desktopGrantWords(), driving].join('\n'),
       ...(buildFix ? { fix: buildFix } : {}),
     }
   }
@@ -471,7 +487,7 @@ export async function describeDesktopDriver(): Promise<DesktopDoctorFacts> {
     return {
       ready: false,
       line: `pack: ${packWords} · ${load.note} · ${onWords}`,
-      detail: [`pack: ${resolution.dir} (${sourceWords(resolution.source)})`, load.note, desktopGrantWords(), DRIVING_UNKNOWN].join('\n'),
+      detail: [`pack: ${resolution.dir} (${sourceWords(resolution.source)})`, load.note, desktopGrantWords(), driving].join('\n'),
       ...(buildFix ? { fix: buildFix } : {}),
     }
   }
@@ -490,7 +506,7 @@ export async function describeDesktopDriver(): Promise<DesktopDoctorFacts> {
   const permissionWords = p
     ? `screen capture ${p.screenCapture} · input ${p.input} · session ${p.session}${p.reason ? ` — ${p.reason}` : ''}`
     : `permissions: ${permissions.ok ? 'unknown' : permissions.error.note}`
-  const detail = [`pack: ${resolution.dir} (${sourceWords(resolution.source)})`, displayWords, frontmostWords, permissionWords, desktopGrantWords(), DRIVING_UNKNOWN].join('\n')
+  const detail = [`pack: ${resolution.dir} (${sourceWords(resolution.source)})`, displayWords, frontmostWords, permissionWords, desktopGrantWords(), driving].join('\n')
   const ready = p !== null && p.session === 'desktop' && granted(p.screenCapture) && granted(p.input) && computerUseSwitchOn()
   const denied = p !== null && (p.screenCapture === 'denied' || p.input === 'denied' || p.session !== 'desktop')
   return { ready, line, detail, ...(denied ? { fix: desktopGrantWords() } : {}) }
