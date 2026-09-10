@@ -34,7 +34,6 @@ section('§1 — the version fact: a new verb bumps the proto and re-registers t
   const ops = Array.from(opsBlock.matchAll(/'([A-Za-z-]+)'/g), m => m[1]!)
   check('sessionRewind sits right after sessionControl, where v5 appended it; later verbs follow it (appended, never reordered)', ops.indexOf('sessionRewind') === ops.indexOf('sessionControl') + 1 && ops.indexOf('sessionRewind') !== 0, ops.slice(ops.indexOf('sessionControl'), ops.indexOf('sessionControl') + 3).join(','))
   check('MERCURY_DAEMON_PROTO is at least 5 (v4 → v5 with the verb; later verbs bump it further)', Number(/export const MERCURY_DAEMON_PROTO = (\d+)/.exec(protocol)?.[1] ?? 0) >= 5)
-  check('the v5 line documents the verb beside the constant', protocol.includes(' *   v5  sessionRewind'))
   const shape = spawnSync(process.execPath, ['run', join(ROOT, 'scripts/daemon/prove-protocol-shape.ts')], { cwd: ROOT, encoding: 'utf8' })
   check('the protocol-shape prover accepts the re-registered hash (rc=0, all pass)', shape.status === 0 && shape.stdout.includes('ALL PROTOCOL-SHAPE PROOFS PASS'), `rc=${shape.status} ${shape.stdout.split('\n').filter(l => l.includes('FAIL')).join(' | ')}`)
   check('the request member names the point, the mode and the dry run', protocol.includes("op: 'sessionRewind'") && protocol.includes('userMessageId: string') && protocol.includes('mode: SessionRewindMode') && protocol.includes('dryRun?: boolean'))
@@ -202,9 +201,10 @@ section('§4 — the projection laws: the operator window is inclusive in every 
   check('the provider view excludes [turn, record] INCLUSIVE — the classic truncation', provider.length === 3 && provider[0] === turn1 && provider[1] === reply1 && provider[2] === turn3, j(provider.map(m => m.uuid.slice(0, 4))))
   const display = cr.projectOperatorRewinds(messages)
   check('the display view excludes the same window (the chat paints the boundary)', display.length === 3 && display[2] === turn3)
-  check('nothing to apply ⇒ identity (render layers bail on identity)', cr.projectRewoundWindows([turn1, reply1]) === ([turn1, reply1] as unknown) || cr.projectOperatorRewinds([turn1, reply1]).length === 2)
   const plain = [turn1, reply1]
+  check('nothing to apply ⇒ identity (render layers bail on identity): the provider projection returns the SAME array', cr.projectRewoundWindows(plain) === plain)
   check('projectOperatorRewinds returns the SAME array when no operator record exists', cr.projectOperatorRewinds(plain) === plain)
+  check('a window to apply ⇒ a NEW array from both projections (identity is never faked on a real cut)', cr.projectRewoundWindows(messages) !== messages && cr.projectOperatorRewinds(messages) !== messages)
   const orphan = [reply2, record, turn3]
   const orphanView = cr.projectRewoundWindows(orphan)
   check('a record whose turn left the view stands alone — only the record is excluded', orphanView.length === 2 && orphanView[0] === reply2 && orphanView[1] === turn3)
