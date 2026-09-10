@@ -55,14 +55,13 @@ t(
     /crewShed \? \[\] : crewShown\.map/.test(rail) &&
     /crewShed \? \[\] : \[rootNode, \.\.\.crewChildNodes\]/.test(rail),
 )
-t('chat builder gated', /shedSet\.has\('chat'\) \? \[\] : chatRows\.map/.test(rail))
+t('chat builder stays retired with the two-seat coordination mode (no chatRows, no chat section)', !rail.includes('chatRows') && !rail.includes("section('chat'") && !rail.includes("has('chat')"))
 t('recent builder gated', /if \(solo && !shedSet\.has\('recent'\)\)/.test(rail))
 t('tabula builder gated', /if \(isTabulaEnabled\(\) && !shedSet\.has\('tabula'\)\)/.test(rail))
 t('workbench builder gated', /if \(!shedSet\.has\('workbench'\)\)/.test(rail))
 t('party builder stays retired (no partyPeers, no party section)', !rail.includes('partyPeers') && !rail.includes("section('party'") && !rail.includes("has('party')"))
 t('next builder gated', /if \(solo && !shedSet\.has\('next'\)\)/.test(rail))
 
-t('solo chat renders on chatNodes', /\{chatNodes\.length > 0\n\s*\? section\('chat'/.test(rail))
 t('recent renders on soloNodes', /soloNodes\.length > 0 \? section\('recent'/.test(rail))
 t('next renders on hintNodes', /hintNodes\.length > 0 \? section\('next'/.test(rail))
 t('workbench renders on workbenchNodes, under the Minerva (tabula) card in BOTH branches', (rail.match(/workbenchNodes\.length > 0\n\s*\? section\('workbench'/g) ?? []).length === 2 && (() => {
