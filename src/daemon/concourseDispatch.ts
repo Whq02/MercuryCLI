@@ -17,6 +17,9 @@ import {
   type ConcourseAdmitResult,
   type ConcourseMoveV1,
 } from './concourseSupervisor.js'
+import type { ConcourseReviveOutcome } from './concourseSupervisor.js'
+
+type ConcourseReviveRefusal = Extract<ConcourseReviveOutcome, { outcome: 'refused' }>['reason']
 import { workspaceKindOf } from './concourseWorktrees.js'
 import { isolationAwarenessNote } from './isolationNote.js'
 
@@ -490,7 +493,7 @@ export type ConcourseDispatchResult = {
 export interface ConcourseDispatchDeps {
   admit: (req: ConcourseAdmitRequest) => Promise<ConcourseAdmitResult>
   deliver: (runnerId: string, prompt: string) => Promise<boolean>
-  revive?: (sessionId: string) => Promise<{ ok: boolean; error?: string }>
+  revive?: (sessionId: string) => Promise<{ ok: boolean; error?: string; reason?: ConcourseReviveRefusal }>
   dir?: string
 }
 
@@ -563,7 +566,7 @@ export function makeConcourseDispatchHandler(
         moves: [{ verb: 'retry', label: 'it delivers once the park has landed' }],
       }
     }
-    let reviveRefusal: string | undefined
+    let reviveRefusal: { error: string; permanent: boolean } | undefined
     if (
       targetRec &&
       (targetRec.pid === undefined || !isProcessAlive(targetRec.pid)) &&
@@ -577,14 +580,14 @@ export function makeConcourseDispatchHandler(
           w => w.sessionId === target && w.endedAt === undefined,
         )
         if (refreshed) targetRec = refreshed
-      } else reviveRefusal = rev.error
+      } else reviveRefusal = { error: rev.error ?? 'the revive was refused', permanent: rev.reason === 'transcript-lost' }
     }
     if (!targetRec || targetRec.pid === undefined || !isProcessAlive(targetRec.pid)) {
       const stopped = targetRec?.stoppedAt !== undefined
       const why = stopped
         ? 'stopped — the session was stopped on purpose; resume it to bring it back'
         : reviveRefusal !== undefined
-          ? `the session could not be revived: ${reviveRefusal}`
+          ? `the session could not be revived: ${reviveRefusal.error}`
           : 'the session has no live runner — a replay revives it and delivers into the same chat'
       delete rec.heldReason
       delete rec.heldOp
@@ -600,7 +603,9 @@ export function makeConcourseDispatchHandler(
           stopped
             ? { verb: 'revive', label: 'resume the session — it comes back around its untouched chat' }
             : reviveRefusal !== undefined
-              ? { verb: 'queue', label: 'start a new session — this one cannot come back' }
+              ? reviveRefusal.permanent
+                ? { verb: 'queue', label: 'start a new session — this one cannot come back' }
+                : { verb: 'retry', label: '↵ again retries — the refusal above is temporary; it revives and delivers once it clears' }
               : { verb: 'revive', label: '↵ replays — it revives the runner and delivers' },
         ],
       }

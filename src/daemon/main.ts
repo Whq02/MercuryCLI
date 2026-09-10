@@ -437,7 +437,7 @@ async function daemonRun(args: string[]): Promise<void> {
           const out = reviveConcourseWorker(sessionId, 'auto-revive', roster ?? undefined)
           return out.outcome === 'applied' || out.outcome === 'noop'
             ? { ok: true }
-            : { ok: false, error: out.detail ?? out.reason }
+            : { ok: false, error: out.detail ?? out.reason, reason: out.reason }
         },
       })
       const liveWorkers = (): { live: number; liveSessions: number } => {
