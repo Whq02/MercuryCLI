@@ -183,6 +183,7 @@ function supplementalTools(): Tool[] {
     () => require('../../tools/TaskListTool/TaskListTool.js').TaskListTool,
     () => require('../../tools/GodotTool/GodotTool.js').GodotTool,
     () => require('../../tools/AsepriteTool/AsepriteTool.js').AsepriteTool,
+    () => require('../../tools/ComputerTool/ComputerTool.js').ComputerTool,
     () => require('../../tools/SetTierTool/SetTierTool.js').SetTierTool,
     () => require('../../tools/ToolSearchTool/ToolSearchTool.js').ToolSearchTool,
     () => require('../../tools/MemoryTools/MemoryTools.js').RetainTool,
