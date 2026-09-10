@@ -101,7 +101,7 @@ export function mapMessagesToZai(
   opts?: { keepReasoningHistory?: boolean; imagesSupported?: boolean },
 ): ZaiMessage[] {
   const out: ZaiMessage[] = []
-  const imagesSupported = opts?.imagesSupported === true
+  const imagesSupported = opts?.imagesSupported !== false
   if (system && system.trim() !== '') out.push({ role: 'system', content: system })
   for (const message of messages) {
     if (typeof message.content === 'string') {
