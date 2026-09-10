@@ -144,6 +144,8 @@ if (load.state === 'ok') {
     if (shot.ok && first !== null) {
       check('the capture width is the display width in points times the scale', shot.value.width === Math.round(first.width * shot.value.scale) && shot.value.height === Math.round(first.height * shot.value.scale), `${shot.value.width}×${shot.value.height} @ ${shot.value.scale} of ${first.width}×${first.height}`)
       check('the scale is at least one', shot.value.scale >= 1)
+      check('the display record declares the scale the capture answers', first.scale === shot.value.scale && shot.value.width === Math.round(first.width * first.scale), `display ${first.width}×${first.height}@${first.scale} · capture ${shot.value.width}×${shot.value.height}@${shot.value.scale}`)
+      check('the doctor names the display with that scale', facts.detail.includes(`${first.width}×${first.height}@${shot.value.scale}`), facts.detail.split('\n')[1] ?? '')
       check('capturedAt is the driver\'s stamp at the answer', shot.value.capturedAt >= before && shot.value.capturedAt <= Date.now() + 1)
       console.log(`  · capture: ${shot.value.width}×${shot.value.height} px, ${shot.value.png.length} bytes, scale ${shot.value.scale}`)
     }
