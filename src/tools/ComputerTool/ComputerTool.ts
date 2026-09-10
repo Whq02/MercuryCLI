@@ -547,7 +547,7 @@ async function takeScreenshot(
   let image = { width: capture.width, height: capture.height }
   let inlinePath: string | undefined
   let inlineMediaType: string | undefined
-  if (modelReceivesImageBlocks(getMainLoopModel())) {
+  if (modelReceivesImageBlocks(context.options?.mainLoopModel ?? getMainLoopModel())) {
     try {
       const inlined = await readImageWithTokenBudget(file)
       const bytes = Buffer.from(inlined.file.base64, 'base64')
@@ -684,11 +684,6 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     }
     const table = tableRefusal(input)
     if (table !== null) return refuse(table)
-    if (POINT_ACTIONS.has(input.action)) {
-      const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
-      const plan = planOf(owner, context, input)
-      if (isPlanRefusal(plan)) return refuse(plan.refusal)
-    }
     return { result: true as const }
   },
   async checkPermissions(input: Input, context: ToolUseContext) {
