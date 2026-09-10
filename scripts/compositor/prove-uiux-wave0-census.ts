@@ -636,10 +636,28 @@ section('UI-003 — landed dependencies stand')
 
 section('UI-009 — every prover is enrolled in a permanent suite')
 {
+  const memberPaths = (runner: string, members: string): string[] => {
+    const code = runner.split('\n').filter(line => !line.trimStart().startsWith('#')).join('\n')
+    const parent = /scripts\/([A-Za-z0-9_-]+)\/\$name/.exec(code)?.[1]
+    if (!parent || !/done\s*<\s*"\$here\/members\.txt"/.test(code)) return []
+    return members.split('\n').slice(0, -1).filter(line => line !== '' && !line.startsWith('#')).map(name => `${parent}/${name}`)
+  }
+  const fixtureRunner = 'f="scripts/fixture/$name"\ndone < "$here/members.txt"'
+  check('UI-009: a consumed member list enrolls its parent proof', memberPaths(fixtureRunner, 'prove-fixture.ts\n').join() === 'fixture/prove-fixture.ts')
+  check('UI-009: an unterminated final row is not consumed by read', memberPaths(fixtureRunner, 'prove-fixture.ts').length === 0)
+  check('UI-009: an unconsumed list enrolls nothing', memberPaths('f="scripts/fixture/$name"', 'prove-fixture.ts\n').length === 0)
+  check('UI-009: a member belongs only to its actual parent', !memberPaths(fixtureRunner, 'prove-fixture.ts\n').includes('other/prove-fixture.ts'))
   const orphans: string[] = []
   const suiteDirs = readdirSync(join(ROOT, 'scripts'), { withFileTypes: true })
     .filter(d => d.isDirectory())
     .map(d => d.name)
+  const listed = new Set<string>()
+  for (const dir of suiteDirs) {
+    const runAll = join(ROOT, 'scripts', dir, 'run-all.sh')
+    const members = join(ROOT, 'scripts', dir, 'members.txt')
+    if (!existsSync(runAll) || !existsSync(members)) continue
+    for (const path of memberPaths(readFileSync(runAll, 'utf8'), readFileSync(members, 'utf8'))) listed.add(path)
+  }
   for (const dir of suiteDirs) {
     const runAll = join(ROOT, 'scripts', dir, 'run-all.sh')
     if (!existsSync(runAll)) continue
@@ -650,7 +668,7 @@ section('UI-009 — every prover is enrolled in a permanent suite')
       f => f.startsWith('prove-') && f.endsWith('.ts'),
     )
     for (const p of provers) {
-      if (!runner.includes(p) && !runner.includes(p.replace(/\.ts$/, ''))) {
+      if (!runner.includes(p) && !runner.includes(p.replace(/\.ts$/, '')) && !listed.has(`${dir}/${p}`)) {
         orphans.push(`${dir}/${p}`)
       }
     }
