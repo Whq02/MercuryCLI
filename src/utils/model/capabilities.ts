@@ -53,7 +53,12 @@ import {
   isDeepseekModelId,
 } from '../../services/providers/deepseek/deepseekPins.js'
 import { isHuggingfaceModelId } from '../../services/providers/huggingface/huggingfacePins.js'
-import { classifyModelRoute, declaredRouteOf } from '../../services/providers/routeLaw.js'
+import { classifyModelRoute, declaredRouteOf, qualifiedWireId } from '../../services/providers/routeLaw.js'
+import type { CallModelRoute } from '../../services/providers/idSpaces.js'
+import { openrouterListedModel } from '../../services/providers/openrouter/openrouterCatalogue.js'
+import { huggingfaceLiveModel } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
+import { localWireId } from '../../services/providers/local/localCatalogue.js'
+import { localModelRecord } from '../../services/providers/local/localDiscovery.js'
 import { isFirstPartyAnthropicBaseUrl } from './providers.js'
 import { getInitialSettings } from '../settings/settings.js'
 
@@ -1024,7 +1029,26 @@ export function modelReceivesImageBlocks(model: string): boolean {
   const verdict = classifyModelRoute(model)
   if (verdict.kind === 'unrecognised') return true
   if (verdict.kind === 'absence') return false
-  return verdict.route === 'anthropic' || verdict.route === 'openai'
+  return catalogueDeclaresImages(model, verdict.route)
+}
+
+function modalitiesAdmitImages(modalities: readonly string[] | undefined): boolean {
+  return modalities === undefined || modalities.includes('image')
+}
+
+function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean {
+  switch (route) {
+    case 'openrouter':
+      return modalitiesAdmitImages(openrouterListedModel(model)?.inputModalities)
+    case 'huggingface':
+      return modalitiesAdmitImages(huggingfaceLiveModel(qualifiedWireId(model))?.inputModalities)
+    case 'local': {
+      const declared = localModelRecord(localWireId(model))?.visionDeclared
+      return declared === undefined || declared
+    }
+    default:
+      return true
+  }
 }
 
 

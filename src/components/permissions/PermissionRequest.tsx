@@ -41,6 +41,8 @@ import { NotebookEditPermissionRequest } from './NotebookEditPermissionRequest/N
 import { SkillPermissionRequest } from './SkillPermissionRequest/SkillPermissionRequest.js'
 import { WebFetchPermissionRequest } from './WebFetchPermissionRequest/WebFetchPermissionRequest.js'
 import { BrowserPermissionRequest } from './BrowserPermissionRequest/BrowserPermissionRequest.js'
+import { ComputerPermissionRequest } from './ComputerPermissionRequest/ComputerPermissionRequest.js'
+import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
 import type { WorkerBadgeProps } from './WorkerBadge.js'
 
 import type { ToolUseContext } from '../../Tool.js'
@@ -136,6 +138,7 @@ export function PermissionRequest(props: PermissionRequestProps): React.ReactNod
   if (tool === PowerShellTool) return <PowerShellPermissionRequest key={key} {...props} />
   if (tool === WebFetchTool) return <WebFetchPermissionRequest key={key} {...props} />
   if (tool === BrowserTool) return <BrowserPermissionRequest key={key} {...props} />
+  if (tool.name === COMPUTER_TOOL_NAME) return <ComputerPermissionRequest key={key} {...props} />
   if (tool === NotebookEditTool) return <NotebookEditPermissionRequest key={key} {...props} />
   if (tool === ExitPlanModeV2Tool) return <ExitPlanModePermissionRequest key={key} {...props} />
   if (tool === EnterPlanModeTool) return <EnterPlanModePermissionRequest key={key} {...props} />

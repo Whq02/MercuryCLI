@@ -3,6 +3,7 @@ import type { UUID } from 'crypto'
 import { builtInCommandNames } from '../../commands.js'
 import { COMMAND_NAME_TAG } from '../../constants/xml.js'
 import { REPL_TOOL_NAME } from '../../tools/REPLTool/constants.js'
+import { projectForTranscript } from '../../services/desktop/screenshotRetention.js'
 import type {
   AttributionSnapshotMessage,
   FileHistorySnapshotMessage,
@@ -460,7 +461,7 @@ export function cleanMessagesForLogging(
   return transformMessagesForExternalTranscript(
     filtered,
     replIds ?? collectReplIds(allMessages),
-  )
+  ).map(projectForTranscript)
 }
 
 export type Transcript = (

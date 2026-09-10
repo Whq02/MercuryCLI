@@ -165,6 +165,15 @@ export const EXECUTION_DOMAIN_CENSUS: readonly ExecutionDomainCensusEntry[] = [
       'One puppeteer-core-driven browser child per OWNER; ephemeral, tool-scoped, reaped per owner (agent teardown / disposeOwner) and swept at exit — standing plane records would duplicate the Browser status surface without a consumer. Status/provenance ride the Browser tool + readiness rows.',
   },
   {
+    domain: 'desktop-session',
+    classification: 'child-execution',
+    kind: 'desktop-session',
+    adapter: 'src/services/desktop/desktopSession.ts (the per-owner grants, the screen map and the driving snapshot)',
+    owner: 'conversation OwnerKey — grants and the screen map are owner-keyed; the desktop claim is one per config home',
+    notes:
+      'An act runs in-process through the desktop driver and ends with the call; nothing outlives it but the held claim, released on abort, on idle and at exit — standing plane records would duplicate the readiness row and the footer without a consumer.',
+  },
+  {
     domain: 'debug-adapter',
     classification: 'external-projection',
     kind: 'debug-adapter',
