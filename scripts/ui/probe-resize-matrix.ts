@@ -8,7 +8,6 @@ import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY } from '../lib/firstRunSeed.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { composerCaret, inspect, needleRows, paintedRows, rowsOf, type Grid } from './frameChecks.ts'
-import { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS, viewportFloorLine } from '../../src/ink/viewportFloor.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -196,7 +195,6 @@ const roundTrip = (m: Move): boolean => {
   const last = m.steps[m.steps.length - 1]!
   return last.cols === m.start[0] && last.rows === m.start[1]
 }
-const underFloor = (s: Step): boolean => s.cols < VIEWPORT_FLOOR_COLS || s.rows < VIEWPORT_FLOOR_ROWS
 
 
 const sceneFilter = arg('--scenes', '').split(',').map(s => s.trim()).filter(Boolean)
@@ -485,7 +483,6 @@ function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag:
   const afterKey = { label: 'after-key', rows: rowsOf(afterKeyMark.grid), cols: afterKeyMark.cols, cursor: afterKeyMark.cursor }
   const readyRows = rowsOf(readyMark.grid)
   const readyDoubled = new Set(doubledRows(readyRows).keys())
-  const lastIsUnder = underFloor(last)
 
   if (!scene.live) {
     if (text(settledFrames[1]!.rows) !== text(settledFrames[2]!.rows)) {
@@ -498,7 +495,7 @@ function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag:
     }
   }
 
-  for (const f of lastIsUnder ? [] : settledFrames) {
+  for (const f of settledFrames) {
     for (const needle of scene.once) {
       const hits = needleRows(f.rows, needle)
       if (hits.length > 1) findings.push({ kind: 'doubled', detail: `${f.label}: "${needle}" on rows ${hits.join(',')}` })
@@ -558,16 +555,12 @@ function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag:
   }
 
   move.steps.forEach((s, i) => {
-    if (!underFloor(s)) return
     const small = ['a', 'b'].map(k => marks.get(`step${i}-${k}`)).filter((m): m is Mark => m !== undefined)
-    const isLast = i === move.steps.length - 1
-    const frames = isLast ? settled : small
+    const frames = i === move.steps.length - 1 ? settled : small
     for (const m of frames) {
-      const rows = rowsOf(m.grid)
-      const painted = paintedRows(rows)
-      const line = viewportFloorLine(s.cols, s.rows)
-      if (painted.length !== 1) findings.push({ kind: 'floor-line', detail: `${m.label} @${s.cols}x${s.rows}: ${painted.length} painted rows (rows ${painted.slice(0, 6).join(',')}) — one line expected` })
-      else if (rows[painted[0]!]!.trim() !== line) findings.push({ kind: 'floor-line', detail: `${m.label} @${s.cols}x${s.rows}: reads "${rows[painted[0]!]!.trim()}" — expected "${line}"` })
+      const frame = rowsOf(m.grid)
+      if (frame.some(line => /resize to continue|terminal too small/.test(line))) findings.push({ kind: 'size-refusal', detail: `${m.label} @${s.cols}x${s.rows}: a size refusal replaced the surface` })
+      if (scene.world === 'chat' && s.cols >= 3 && composerCaret(frame) === null) findings.push({ kind: 'cursor', detail: `${m.label} @${s.cols}x${s.rows}: no editor row after reflow` })
     }
   })
   if (roundTrip(move) && !scene.live) {

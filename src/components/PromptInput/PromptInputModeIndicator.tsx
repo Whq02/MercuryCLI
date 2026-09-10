@@ -23,21 +23,25 @@ export function PromptInputModeIndicator({
   inputEmpty,
   viewedAgentName,
   viewedAgentColor,
+  cells = 2,
 }: {
   mode: PromptInputMode
   isLoading: boolean
   inputEmpty: boolean
   viewedAgentName?: string
   viewedAgentColor?: string
+  cells?: number
 }): React.ReactNode {
   const accent = useSessionAccent()
+  if (cells === 0) return null
+  const space = cells > 1 ? ' ' : ''
 
   if (viewedAgentName !== undefined && viewedAgentName !== '') {
     const color = validatedThemeColor(viewedAgentColor) ?? 'suggestion'
     return (
       <Box flexShrink={0}>
         <Text color={color} dimColor={isLoading}>
-          {POINTER}{' '}
+          {POINTER}{space}
         </Text>
       </Box>
     )
@@ -47,7 +51,7 @@ export function PromptInputModeIndicator({
     return (
       <Box flexShrink={0}>
         <Text color="bashBorder" dimColor={isLoading}>
-          {BASH_MODE_CHARACTER}{' '}
+          {BASH_MODE_CHARACTER}{space}
         </Text>
       </Box>
     )
@@ -60,7 +64,7 @@ export function PromptInputModeIndicator({
     return (
       <Box flexShrink={0}>
         <Text color={envTeammateColor} dimColor={isLoading}>
-          {POINTER}{' '}
+          {POINTER}{space}
         </Text>
       </Box>
     )
@@ -75,7 +79,7 @@ export function PromptInputModeIndicator({
         active={breathing}
         dim={isLoading}
       >
-        {POINTER}{' '}
+        {POINTER}{space}
       </ReadyBreath>
     </Box>
   )

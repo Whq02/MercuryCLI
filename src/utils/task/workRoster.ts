@@ -42,7 +42,7 @@ export function workPhasesOf(task: LocalWorkflowTaskState): WorkPhaseV1[] {
   return groupAgentsByPhase(task.phases, phaseEvents, agents).map(g => ({
     title: g.title,
     planned: g.planned,
-    agents: g.agents.map(a => ({ index: a.index, label: clip(a.label, MAX_NAME), state: a.state })),
+    agents: g.agents.map(a => ({ index: a.index, label: clip(a.label, MAX_NAME), state: a.state, ...(a.agentId !== undefined ? { agentId: a.agentId } : {}), waiting: a.waiting ?? null, pausedBy: a.pausedBy ?? null })),
   }))
 }
 
@@ -155,6 +155,7 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
       if (task.agentType === 'main-session') continue
       rows.push({
         ...plainRow(task, 'agent', task.description || task.agentType),
+        agentId: task.agentId,
         ...(task.agentType !== undefined ? { agentType: task.agentType } : {}),
         ...agentCounters(task),
         ...(typeof task.wait === 'string' && task.wait !== '' ? { wait: task.wait } : {}),
@@ -172,11 +173,12 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
     } else if (isInProcessTeammateTask(task)) {
       rows.push({
         ...plainRow(task, 'teammate', task.identity.agentName),
+        agentId: task.identity.agentId,
         team: clip(task.identity.teamName, MAX_NAME),
         ...agentCounters(task),
       })
     } else if (isLocalShellTask(task)) {
-      rows.push(plainRow(task, 'shell', task.command))
+      rows.push(plainRow(task, task.kind === 'monitor' ? 'monitor' : 'shell', task.command))
     } else if (isDreamTask(task)) {
       rows.push(plainRow(task, 'dream', task.description))
     } else {

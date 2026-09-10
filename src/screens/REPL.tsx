@@ -39,7 +39,10 @@ import { ScrollKeybindingHandler } from '../components/ScrollKeybindingHandler.j
 import { BriefIdleStatus } from '../components/Spinner.js';
 import { MessageActionsBar } from '../components/messageActions.js';
 import { setMessageCursor, useMessageCursorActive } from '../components/messageCursorStore.js';
-import { FocusedSessionStatusRow } from '../components/SwitchboardTagBar.js';
+import { FocusedSessionStatusRow, statusLine } from '../components/SwitchboardTagBar.js';
+import { useLayoutChrome } from '../context/layoutChromeContext.js';
+import { useCompactWorkControls } from '../components/tasks/CompactWorkSummary.js';
+import { BackgroundTasksDialog } from '../components/tasks/BackgroundTasksDialog.js';
 import {
   useKickOffCheckAndDisableBypassPermissionsIfNeeded,
   useKickOffCheckAndDisableAutoModeIfNeeded,
@@ -587,6 +590,8 @@ export function REPL({
   const setAppState = useSetAppState();
   const { addNotification, removeNotification } = useNotifications();
   const { columns, rows } = useTerminalSize();
+  const { isCompact } = useLayoutChrome();
+  const { controls: compactWork, focus: compactFocus } = useCompactWorkControls();
   const terminal = useTerminalNotification();
   const tokens = useMercuryTokens();
   const [themeName] = useTheme();
@@ -1115,7 +1120,7 @@ export function REPL({
     const paints = toolJSX?.isLocalJSXCommand === true && node !== null && measureElement(node).height > 0;
     setDialogPaints(prev => (prev === paints ? prev : paints));
   });
-  const dialogOwnsKeys = toolJSX?.isLocalJSXCommand === true && dialogPaints;
+  const dialogOwnsKeys = (toolJSX?.isLocalJSXCommand === true && dialogPaints) || compactFocus === 'detail';
   const drainQueuedDialogCommand = useCallback((): void => {
     const next = queuedDialogCommandsRef.current.shift();
     if (next === undefined) return;
@@ -1744,6 +1749,7 @@ export function REPL({
     setFlipGeneration(g => g + 1);
   }, [captureScrollForFlip]);
   const globalKeybindingProps = {
+    compactWork,
     screen,
     setScreen,
     showAllInTranscript,
@@ -1998,12 +2004,14 @@ export function REPL({
     [messages, frozenTranscriptState],
   );
   const localJsx = Boolean(toolJSX?.jsx && toolJSX.isLocalJSXCommand);
-  const centredModalUp = localJsx && fullscreen;
+  const compactDetailUp = compactFocus === 'detail' && fullscreen && !replSurfaceCovered && focusedInputDialog === undefined && !localJsx;
+  const centredModalUp = (localJsx && fullscreen) || compactDetailUp;
   const displayedMessages = inVirtualTranscript ? transcriptMessages : liveOrDeferred;
 
   const unseen = useUnseenDivider(messages.length);
   const rekeyedSessionRef = useRef(focusedSessionId);
   useEffect(() => {
+    compactWork.set('composer');
     unseen.onRepin();
     repinToBottom();
     setConversationId(focusedSessionId);
@@ -2107,9 +2115,10 @@ export function REPL({
     !textActive || isBriefOnly || streamingSuppressed
   );
   const spinnerSuffix = stopHookSuffix(messages, isLoading);
+  const compactStatus = isCompact && hasSeatLive(focusedConnector) ? statusLine(seatLive, focusedConnector.status(), null, true) : '';
   const workingStatusStrip = <Box flexDirection="column">
-    {showSpinner ? (
-      <SpinnerWithVerb mode={viewStreamMode}
+    {showSpinner || (isCompact && spinnerSlotReserved) ? (
+      <SpinnerWithVerb compact={isCompact} compactWarning={compactStatus !== '' && compactStatus !== 'ready'} mode={viewStreamMode}
         loadingStartTimeRef={seatStartTimeRef}
         totalPausedMsRef={seatPausedMsRef}
         pauseStartTimeRef={seatPauseStartRef}
@@ -2117,7 +2126,7 @@ export function REPL({
         responseLengthRef={responseLengthRef}
         overrideColor={null}
         overrideShimmerColor={null}
-        overrideMessage={viewCompacting ? FOLD_ROW_HEAD : viewAgentWait}
+        overrideMessage={compactStatus !== '' && compactStatus !== 'ready' ? compactStatus : viewCompacting ? FOLD_ROW_HEAD : viewAgentWait}
         still={viewCompacting}
         spinnerSuffix={spinnerSuffix ?? null}
         verbose={verbose}
@@ -2128,14 +2137,14 @@ export function REPL({
         apiMetricsRef={apiMetricsRef}
       />
     ) : spinnerSlotReserved ? <StreamingHoldRow loadingStartTimeRef={seatStartTimeRef} totalPausedMsRef={seatPausedMsRef} pauseStartTimeRef={seatPauseStartRef} responseLengthRef={responseLengthRef} /> : null}
-    <MercuryTurnRollup
+    {!isCompact ? <MercuryTurnRollup
       messages={messages}
       tools={mergedTools}
       model={focusedEffectiveModel}
       isLoading={isLoading}
       streamingThinking={null}
       isThinking={viewStreamMode === 'thinking'}
-    />
+    /> : null}
   </Box>;
 
   const permissionOverlay =
@@ -2235,7 +2244,7 @@ export function REPL({
       {toolJSX.jsx}
     </Box>
   ) : null;
-  const centredModal: React.ReactNode = centredModalUp ? dialogSlot : null;
+  const centredModal: React.ReactNode = compactDetailUp ? <BackgroundTasksDialog entry="compact-summary" compactControls={compactWork} onDone={() => compactWork.set('composer')} toolUseContext={getToolUseContext(messages, [], new AbortController(), focusedEffectiveModel)} /> : centredModalUp ? dialogSlot : null;
   const bottomImmediateJsx: React.ReactNode = localJsx && !fullscreen && toolJSX!.isImmediate ? dialogSlot : null;
   const inlineToolJsx = toolJSX?.jsx && !centredModal && !bottomImmediateJsx ? dialogSlot : null;
 
@@ -2317,8 +2326,10 @@ export function REPL({
     })();
   }, [store]);
 
-  const promptInput = !disabled && !isExiting && !showExitFlow && !toolJSX?.shouldHidePromptInput && focusedInputDialog === undefined ? (
+  const promptInput = !disabled && !isExiting && !showExitFlow && !toolJSX?.shouldHidePromptInput && (focusedInputDialog === undefined || compactFocus === 'detail') ? (
     <PromptInput
+      compactWork={compactWork}
+      compactFocus={compactFocus}
       debug={debug}
       ideSelection={undefined}
       toolPermissionContext={toolPermissionContext}
@@ -2344,12 +2355,12 @@ export function REPL({
       helpOpen={helpOpen}
       setHelpOpen={setHelpOpen}
       hasSuppressedDialogs={dialogsHiddenWhileTyping}
-      isLocalJSXCommandActive={dialogOwnsKeys}
+      isLocalJSXCommandActive={(toolJSX?.isLocalJSXCommand === true && dialogPaints) || focusedInputDialog !== undefined}
       insertTextRef={insertTextRef}
     />
   ) : null;
 
-  const composerGroup = promptInput ? <Box flexDirection="column">{promptInput}</Box> : null;
+  const composerGroup = promptInput ? <Box flexDirection="column" display={focusedInputDialog === undefined ? "flex" : "none"}>{promptInput}</Box> : null;
   const composerSlot =
     messageCursorActive && !messageActionsDisabled ? <MessageActionsBar /> : composerGroup;
 
@@ -2468,7 +2479,7 @@ export function REPL({
     />
   );
 
-  const briefIdleLine = !showSpinner && !isLoading && isBriefOnly ? <BriefIdleStatus /> : null;
+  const briefIdleLine = !isCompact && !showSpinner && !isLoading && isBriefOnly ? <BriefIdleStatus /> : null;
   const transcriptBody = inVirtualTranscript ? (
     <Box flexDirection="column">
       {messagesList}
@@ -2490,6 +2501,7 @@ export function REPL({
   );
 
   const cancelRequestProps = {
+    compactWork,
     isInterviewFocused:
       focusedInputDialog === 'tool-permission' && toolUseConfirmQueue[0]?.tool.name === ASK_USER_QUESTION_TOOL_NAME,
     isMessageSelectorVisible: showMessageSelector || showBashesDialog !== false,
@@ -2565,11 +2577,13 @@ export function REPL({
             <Box flexDirection="column">
               {
 }
-              <MercuryFrame model={focusedEffectiveModel} />
-              <CockpitBottomStatus>{workingStatusStrip}</CockpitBottomStatus>
+              <Box flexDirection={isCompact ? "column-reverse" : "column"}>
+                <MercuryFrame model={focusedEffectiveModel} />
+                <CockpitBottomStatus>{workingStatusStrip}</CockpitBottomStatus>
+              </Box>
               {
 }
-              <FocusedSessionStatusRow />
+              {!isCompact ? <FocusedSessionStatusRow /> : null}
               {permissionStickyFooter}
               {bottomImmediateJsx}
               {focusedBottomDialog}

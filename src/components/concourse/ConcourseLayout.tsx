@@ -3,7 +3,6 @@ import { Box, Text, paletteCollapsed } from '../../ink.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { GLYPH, padStartTo, branchChip } from '../mercury-ui/glyphs.js'
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js'
-import { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS } from '../../ink/viewportFloor.js'
 import { truncateToWidth } from '../../utils/truncate.js'
 import { caretLens } from './lineDraft.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
@@ -22,12 +21,11 @@ import { NeedsYouRail, RAIL_MAX_ROWS } from './NeedsYouRail.js'
 import { ConcourseStatusRail } from './ConcourseStrips.js'
 
 
-export type ConcourseProfile = 'too-small' | 'stacked' | 'wide'
+export type ConcourseProfile = 'stacked' | 'wide'
 
 export const ROW_PEEK_DESIRED_ROWS = 8
 
 export function resolveConcourseProfile(cols: number, rows: number): ConcourseProfile {
-  if (cols < VIEWPORT_FLOOR_COLS || rows < VIEWPORT_FLOOR_ROWS) return 'too-small'
   if (cols >= 120 && rows >= 24) return 'wide'
   return 'stacked'
 }
@@ -35,6 +33,7 @@ export function resolveConcourseProfile(cols: number, rows: number): ConcoursePr
 export type ConcourseRegion = 'rail' | 'list' | 'live' | 'coordinator' | 'chat'
 
 export interface SwitchboardGeometry {
+  constrained?: boolean
   profile: ConcourseProfile
   interior: number
   headerRows: number
@@ -65,8 +64,32 @@ export function switchboardGeometry(
   liveDraftRows: number,
   tallOwner: 'mirror' | 'coordinator',
   expandedRows = 0,
+  focusedRegion: ConcourseRegion = 'list',
 ): SwitchboardGeometry {
   const profile = resolveConcourseProfile(cols, rows)
+  if (cols < 80 || rows < 22) {
+    const width = Math.max(0, Math.floor(cols))
+    const total = Math.max(0, Math.floor(rows))
+    const helpRows = total > 1 ? 1 : 0
+    const mainRows = total - helpRows
+    const empty: [number, number] = [0, -1]
+    const all: [number, number] = mainRows > 0 ? [1, mainRows] : empty
+    const liveComposerRows = focusedRegion === 'live' && liveDraftRows > 0 ? Math.min(mainRows, Math.max(1, Math.min(3, liveDraftRows))) : 0
+    const liveComposerBand: [number, number] = liveComposerRows > 0 ? [mainRows - liveComposerRows + 1, mainRows] : empty
+    return {
+      constrained: true, profile: 'stacked', interior: width,
+      headerRows: 0, railRows: focusedRegion === 'rail' ? mainRows : 0,
+      railWindowRows: focusedRegion === 'rail' ? Math.min(mainRows, needsYouCount) : 0,
+      railRuleRows: 0, mainBand: all, mainRows, liveComposerRows, liveComposerBand,
+      statusTop: total + 1, helpTop: helpRows > 0 ? total : total + 1,
+      coordCols: width > 0 ? [1, width] : empty, rightCols: width > 0 ? [1, width] : empty,
+      listBand: focusedRegion === 'list' || focusedRegion === 'chat' ? all : empty,
+      listContentRows: focusedRegion === 'list' || focusedRegion === 'chat' ? mainRows : 0,
+      coordBand: focusedRegion === 'coordinator' ? all : empty,
+      mirrorBand: focusedRegion === 'live' && mainRows > liveComposerRows ? [1, mainRows - liveComposerRows] : empty,
+      peekRows: 0,
+    }
+  }
   const interior = cols - 4
   const headerRows = 3
   const statusRows = 3
@@ -314,25 +337,13 @@ export function ConcourseLayout({
     liveDraftRows,
     focusTall,
     rowPeekOpen ? ROW_PEEK_DESIRED_ROWS : olderRows > 0 ? olderRows : rowChipRows,
+    region,
   )
   const tilesDegraded = useLiveTilesDegraded()
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion)
   const chat = chatPresent()
   const browseKeys = browseKeysFor({ chatPresent: chat, region })
 
-  if (geo.profile === 'too-small') {
-    return (
-      <Box flexDirection="column" width="100%" height={termRows} paddingX={1} justifyContent="center">
-        <Text color={t.warning} bold>
-          terminal too small for the Session Concourse
-        </Text>
-        {
-}
-        <Text color={t.textSecondary}>needs at least 80×24 · this window is {termCols}×{termRows}</Text>
-        <Text color={t.textMuted}>{chat ? 'esc returns to the focused chat' : 'esc returns to the boot face'}</Text>
-      </Box>
-    )
-  }
 
   const interior = geo.interior
   const wide = geo.profile === 'wide'
@@ -397,10 +408,18 @@ export function ConcourseLayout({
       width={wide ? rightWidth : undefined}
       height={listRows}
       overflow="hidden"
-      borderStyle={paletteCollapsed() && region === 'list' ? 'bold' : 'round'}
+      borderStyle={geo.constrained ? undefined : paletteCollapsed() && region === 'list' ? 'bold' : 'round'}
       borderColor={region === 'list' ? t.info : t.borderSubtle}
       flexShrink={0}
     >
+      {geo.constrained ? (
+        <Box flexDirection="column">
+          {filtering ? <Text wrap="truncate-end">{(() => { const lens = caretLens({ text: filterText, caret: filterCaret }, interior); return `${lens.before}${lens.at || ' '}${lens.after}` })()}</Text> : null}
+          {sessionRows.length === 0 ? <Text wrap="truncate-end">no sessions · n starts one</Text> : sessionRows.slice(win.start, win.end).map(r => (
+            <Box key={r.sessionId} height={1} onClick={() => wiring.selectSession(r.sessionId)}><Text bold={r.sessionId === boardSelectedId} color={r.sessionId === boardSelectedId ? t.info : t.textSecondary} wrap="truncate-end">{r.title}</Text></Box>
+          ))}
+        </Box>
+      ) : <>
       <Box flexShrink={0} paddingX={1} flexDirection="row" overflow="hidden">
         {
 }
@@ -652,6 +671,7 @@ export function ConcourseLayout({
         }
         return out
       })()}
+      </>}
     </Box>
   )
 
@@ -661,12 +681,12 @@ export function ConcourseLayout({
       width={wide ? rightWidth : undefined}
       height={mirrorRows}
       overflow="hidden"
-      borderStyle={paletteCollapsed() && region === 'live' ? 'bold' : 'round'}
+      borderStyle={geo.constrained ? undefined : paletteCollapsed() && region === 'live' ? 'bold' : 'round'}
       borderColor={region === 'live' ? t.info : t.borderSubtle}
-      paddingX={1}
+      paddingX={geo.constrained ? 0 : 1}
       flexShrink={0}
     >
-      {mirrorNode(Math.max(1, mirrorRows - 2), (wide ? rightWidth : interior) - 4)}
+      {mirrorNode(geo.constrained ? mirrorRows : Math.max(1, mirrorRows - 2), Math.max(0, (wide ? rightWidth : interior) - (geo.constrained ? 0 : 4)))}
     </Box>
   )
 
@@ -691,12 +711,12 @@ export function ConcourseLayout({
         overflow="hidden"
         flexShrink={0}
       >
-        {liveComposerNode(Math.max(1, geo.liveComposerRows - 3), wide ? rightWidth : interior)}
+        {liveComposerNode(geo.constrained ? geo.liveComposerRows : Math.max(1, geo.liveComposerRows - 3), wide ? rightWidth : interior)}
       </Box>
     ) : null
 
   const edgeRail = (
-    <Box width={2} flexShrink={0} flexDirection="column">
+    <Box width={geo.constrained ? 0 : 2} flexShrink={0} flexDirection="column">
       {Array.from({ length: termRows }, (_, i) => (
         <Box key={i} height={1} flexShrink={0} />
       ))}
@@ -707,7 +727,7 @@ export function ConcourseLayout({
     <Box flexDirection="row" width="100%" height={termRows}>
       {edgeRail}
       <Box flexDirection="column" flexGrow={1} height={termRows}>
-        <Box flexDirection="column" flexShrink={0}>
+        <Box flexDirection="column" flexShrink={0} height={geo.headerRows} overflow="hidden">
           <ConcourseHeader
             snapshot={snapshot}
             onBoot={() => wiring.openBootSettings()}
@@ -715,8 +735,8 @@ export function ConcourseLayout({
             columns={cols}
           />
         </Box>
-        <Box flexDirection="column" flexShrink={0}>
-          {snapshot.needsYou.length > 0 ? (
+        <Box flexDirection="column" flexShrink={0} height={geo.railRows} overflow="hidden">
+          {geo.constrained && region === 'rail' ? <Text color={t.warning} wrap="truncate-end">{snapshot.needsYou[railIndex]?.question ?? 'nothing needs you'}</Text> : snapshot.needsYou.length > 0 ? (
             <NeedsYouRail
               snapshot={snapshot}
               focused={region === 'rail'}
@@ -765,7 +785,7 @@ export function ConcourseLayout({
             )}
           </Box>
         )}
-        <Box flexDirection="column" flexShrink={0}>
+        <Box flexDirection="column" flexShrink={0} height={geo.constrained ? 0 : 3} overflow="hidden">
           <ConcourseStatusRail
             snapshot={snapshot}
             width={interior}
@@ -775,7 +795,7 @@ export function ConcourseLayout({
             {...(wiring.openGroundPicker !== undefined ? { onOpenGround: wiring.openGroundPicker } : {})}
           />
         </Box>
-        <Box height={1} flexShrink={0}>
+        <Box height={geo.helpTop <= termRows ? 1 : 0} flexShrink={0} overflow="hidden">
           {degraded ? (
             <InteractiveRow id="concourse:help:retry-refresh" directActivate hoverStyle="chrome-ink" {...(wiring.retrySnapshot ? { onActivate: () => wiring.retrySnapshot?.() } : {})}>
               {hover => (

@@ -23,6 +23,8 @@ import {
 } from '../utils/cockpit/index.js'
 import { subscribeThroughFocused, getFocusedSessionConnector, hasFocusedSession } from '../services/engine-connector/focusedConnector.js'
 import { subscribeExecutionEvents } from '../services/primitives/executionPlane.js'
+import { readSessionWorkersSnapshot, workerPidAlive } from '../daemon/concourseSupervisor.js'
+import { runnerRecordAlive } from '../services/engine-connector/workCounts.js'
 
 const subscribeFocusedRecords = subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))
 
@@ -38,7 +40,12 @@ export interface CrewGlanceMember {
   unread: number
 }
 
+export type SessionGlanceSnapshot =
+  | { state: 'unavailable' }
+  | { state: 'known'; rows: Array<{ sessionId: string; live: boolean; paused: boolean; parked: boolean; stopped: boolean }> }
+
 export interface TelemetrySnapshots {
+  sessions: SessionGlanceSnapshot
   git: GitRepoState | null
   tasks: readonly MissionRowV1[]
   fleet: { state: string; team?: string | null; conflicts: number; drifting: number }
@@ -51,6 +58,7 @@ export interface TelemetrySnapshots {
 }
 
 let snapshots: TelemetrySnapshots = {
+  sessions: { state: 'unavailable' },
   git: null,
   tasks: [],
   fleet: { state: 'off', conflicts: 0, drifting: 0 },
@@ -89,6 +97,11 @@ async function gitStateForRefresh(): Promise<GitRepoState | null> {
 async function refreshOnce(): Promise<void> {
   const next: Partial<TelemetrySnapshots> = {}
   next.crew = null
+  const sessions = readSessionWorkersSnapshot()
+  const sessionRows = sessions.state === 'known' ? Object.values(sessions.workers) : null
+  next.sessions = sessionRows !== null && sessionRows.every(rec => typeof rec.sessionId === 'string' && rec.sessionId !== '')
+    ? { state: 'known', rows: sessionRows.map(rec => ({ sessionId: rec.sessionId, live: runnerRecordAlive(rec, () => workerPidAlive(rec)), paused: rec.pausedAt !== undefined, parked: rec.parkedAt !== undefined, stopped: rec.stoppedAt !== undefined })) }
+    : { state: 'unavailable' }
   await Promise.all([
     gitStateForRefresh()
       .then(g => {

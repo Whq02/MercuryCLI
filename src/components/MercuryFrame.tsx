@@ -34,6 +34,9 @@ import '../services/crew/obligationsBridge.js'
 import '../services/workbench/attentionBridge.js'
 import { isDeckPaneActive } from '../utils/fullscreen.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
+import { CompactFrameBudgetContext, useLayoutChrome } from '../context/layoutChromeContext.js'
+import { stringWidth } from '../ink/stringWidth.js'
+import { shedToFit } from './mercury-ui/geometry.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
 import { activeSourceUsage, usageViewIsStale } from '../services/providers/providerUsage.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
@@ -121,6 +124,8 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   }, [cwd])
 
   const tier = useLayoutTier()
+  const { isCompact } = useLayoutChrome()
+  const compactBudget = useContext(CompactFrameBudgetContext)
   const cols = tier.columns
 
   const dir = cwd.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || cwd
@@ -228,8 +233,8 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const usageFacts = getFocusedSessionConnector().usage()
   const cost = usageFacts.totalCostUSD
   const unpricedTurns = usageFacts.unpricedTurns ?? 0
-  useProviderUsageOnShow(tier.showFrameQuota)
-  const usageNow = useNowTick(tier.showFrameQuota ? Math.min(30_000, usagePollTtlMs()) : null)
+  useProviderUsageOnShow(!isCompact && tier.showFrameQuota)
+  const usageNow = useNowTick(!isCompact && tier.showFrameQuota ? Math.min(30_000, usagePollTtlMs()) : null)
   const costNode =
     (cost > 0 || unpricedTurns > 0) && getFocusedSessionConnector().identity().consoleBilling ? (
       <Text>
@@ -375,7 +380,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     () => runningWorkflowRows(focusedWorkRows(allTasks, workRoster)),
     [allTasks, workRoster],
   )
-  const wfNow = useNowTick(wfLive.length > 0 ? 10_000 : null)
+  const wfNow = useNowTick(!isCompact && wfLive.length > 0 ? 10_000 : null)
   let wfNode: React.ReactNode = null
   if (wfLive.length > 0) {
     const pulses = wfLive.flatMap(w => (w.pulse ? [workflowPulseAt(w.pulse, wfNow)] : []))
@@ -465,6 +470,38 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
       </Text>
     </Box>
   )
+
+  if (isCompact) {
+    if ((compactBudget?.modelRows ?? 1) === 0) return null
+    const modeText = permMode === 'sovereign'
+      ? 'sovereign: auto-approved'
+      : permMode === 'autopilot'
+        ? 'autopilot: permissions bypassed'
+        : permMode === null
+          ? 'permissions unreported'
+          : isDefaultMode(permMode) ? '' : permissionModeTitle(permMode).toLowerCase()
+    const attentionText = attentionView.needsYou > 0 ? `${needsYouCount(attentionView.needsYou)} · ${needsJump}` : ''
+    const chosen = shedToFit([
+      ...(modeText ? [{ text: modeText, priority: 4 }] : []),
+      ...(attentionText ? [{ text: attentionText, priority: 3 }] : []),
+      { text: truncateToWidth(modelName || 'model unreported', cols), priority: 2 },
+      { text: `ctx ${contextPercentLabel(used, fill.fillSource)}`, priority: 1 },
+    ], cols)
+    const line = chosen.map(part => part.text).join(' · ')
+    const modelShown = chosen.some(part => part.priority === 2)
+    const modelAt = chosen.findIndex(part => part.priority === 2)
+    const prefix = modelAt >= 0 ? chosen.slice(0, modelAt + 1).map(part => part.text).join(' · ') : line
+    const suffix = modelAt >= 0 ? chosen.slice(modelAt + 1).map(part => part.text).join(' · ') : ''
+    return (
+      <Box height={1} flexShrink={0} overflow="hidden">
+        <Text wrap="truncate-end">
+          <Text color={modeText !== '' || attentionText !== '' ? tok.warning : tok.textSecondary}>{prefix}</Text>
+          {modelShown ? <EffortChip model={windowModel} plain maxWidth={Math.max(0, cols - stringWidth(line))} /> : null}
+          {suffix !== '' ? <Text color={tok.textMuted}> · {suffix}</Text> : null}
+        </Text>
+      </Box>
+    )
+  }
 
   return (
     <Box flexShrink={0} width="100%" flexDirection="column">

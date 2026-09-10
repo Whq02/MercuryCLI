@@ -19,7 +19,6 @@ for (const cols of [80, 100, 119, 120, 140, 200, 250]) {
         for (const groups of [1, 3, 4]) {
           for (const liveAsk of [0, 1, 2, 3]) {
             for (const tallOwner of ['mirror', 'coordinator'] as const) {
-              if (resolveConcourseProfile(cols, rows) === 'too-small') continue
               checks += 1
               const id = `${cols}x${rows} ny=${needsYou} s=${sessions} g=${groups} live=${liveAsk} tall=${tallOwner}`
               const geo = switchboardGeometry(cols, rows, needsYou, sessions, groups, liveAsk, tallOwner)
@@ -126,7 +125,6 @@ for (let lines = 1; lines <= 8; lines += 1) {
   for (const ask of [2, 4, 8]) {
     for (const cols of [80, 100, 120, 140, 200]) {
       for (const rows of [24, 30, 40]) {
-        if (resolveConcourseProfile(cols, rows) === 'too-small') continue
         checks += 1
         const g = switchboardGeometry(cols, rows, 1, 6, 2, 0, 'mirror', ask)
         if (g.peekRows < 0) fail(`grant ${cols}x${rows} ask=${ask}`, 'negative grant')

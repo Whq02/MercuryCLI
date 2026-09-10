@@ -295,9 +295,18 @@ export function concourseWorkersPath(dir: string = daemonDir()): string {
 }
 
 export function readSessionWorkers(dir?: string): Record<string, ConcourseWorkerRecordV1> {
+  const snapshot = readSessionWorkersSnapshot(dir)
+  return snapshot.state === 'known' ? snapshot.workers : {}
+}
+
+export type SessionWorkersSnapshot =
+  | { state: 'known'; workers: Record<string, ConcourseWorkerRecordV1> }
+  | { state: 'unavailable' }
+
+export function readSessionWorkersSnapshot(dir?: string): SessionWorkersSnapshot {
   try {
     const raw = JSON.parse(readFileSync(concourseWorkersPath(dir), 'utf8')) as ConcourseWorkerFileV1
-    if (!raw || raw.version !== 1 || typeof raw.workers !== 'object') return {}
+    if (!raw || raw.version !== 1 || typeof raw.workers !== 'object' || raw.workers === null || Array.isArray(raw.workers)) return { state: 'unavailable' }
     for (const rec of Object.values(raw.workers)) {
       const legacy = rec as ConcourseWorkerRecordV1 & { workerId?: string }
       if (legacy.runnerId === undefined && typeof legacy.workerId === 'string') {
@@ -305,9 +314,9 @@ export function readSessionWorkers(dir?: string): Record<string, ConcourseWorker
       }
       delete legacy.workerId
     }
-    return raw.workers
-  } catch {
-    return {}
+    return { state: 'known', workers: raw.workers }
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'ENOENT' ? { state: 'known', workers: {} } : { state: 'unavailable' }
   }
 }
 

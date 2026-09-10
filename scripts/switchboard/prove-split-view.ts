@@ -174,9 +174,9 @@ console.log('F — the rows law (the half-frame class)')
     !split.splitAvailableAt(130, R - 1) && split.splitAvailableAt(130, R),
   )
   check(
-    'F2 SPLIT_MIN_ROWS agrees with the profile floor by construction (the mirrored-constant pin)',
-    layout.resolveConcourseProfile(split.BOARD_PANE_MIN_COLS, split.SPLIT_MIN_ROWS) !== 'too-small' &&
-      layout.resolveConcourseProfile(split.BOARD_PANE_MIN_COLS, split.SPLIT_MIN_ROWS - 1) === 'too-small',
+    'F2 losing a split row still leaves a working stacked board',
+    layout.resolveConcourseProfile(split.BOARD_PANE_MIN_COLS, split.SPLIT_MIN_ROWS) === 'stacked' &&
+      layout.resolveConcourseProfile(split.BOARD_PANE_MIN_COLS, split.SPLIT_MIN_ROWS - 1) === 'stacked',
   )
   const short = split.splitToggleDecisionOf({ on: false, cols: 130, rows: R - 1, plainWorld: false })
   check(

@@ -98,7 +98,7 @@ try {
       argv: [node, dist, '--model', 'claude-fable-5-1'], cwd, cols, rows: 40, out: output, total: 240,
       sends: [
         { awaitText: 'New Session', requireAwait: true, awaitSettleTicks: 4, atTick: 100, data: '\r' },
-        { awaitText: 'type a prompt, or / for commands', requireAwait: true, atTick: 150, data: '', mark: 'ready' },
+        { awaitText: '? for shortcuts', requireAwait: true, atTick: 150, data: '', mark: 'ready' },
         { afterPrevTicks: 4, data: 'z', mark: 'awake' },
         { afterPrevTicks: 8, ...(setting === 'off' ? {} : { awaitRedraws: 2 }), data: '\u001b[O', mark: 'awake-blur' },
         { afterPrevTicks: 35, data: '\u001b[I', mark: 'awake-focus' },

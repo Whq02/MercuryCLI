@@ -12,6 +12,16 @@ import {
   exitTeammateView,
 } from '../../state/teammateViewHelpers.js'
 import { useTelemetry } from '../../state/telemetryBus.js'
+import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
+import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js'
+import type { CompactWorkControls } from './CompactWorkSummary.js'
+import { useCompactWorkCounts, compactWorkSummaryText } from './useFocusedWork.js'
+import { countOperatorTurns } from '../../utils/messages/operatorTurns.js'
+import { formatSessionCost } from '../../utils/spendSpelling.js'
+import { contextFillView, contextPercentLabel } from '../../utils/contextFill.js'
+import { renderModelName } from '../../utils/model/model.js'
+import { hasSeatLive } from '../../services/engine-connector/seatLive.js'
+import { statusLine } from '../SwitchboardTagBar.js'
 import {
   bootRecoveryStatusLine,
   getBootRecovery,
@@ -98,7 +108,7 @@ type BoardItem = {
 }
 
 function kindOf(task: TaskState): RowKind {
-  if (isLocalShellTask(task)) return 'shell'
+  if (isLocalShellTask(task)) return task.kind === 'monitor' ? 'monitor' : 'shell'
   if (isLocalAgentTask(task)) return 'agent'
   if (isInProcessTeammateTask(task)) return 'teammate'
   if (isLocalWorkflowTask(task)) return 'workflow'
@@ -249,16 +259,26 @@ export function BackgroundTasksDialog({
   onDone,
   toolUseContext,
   initialDetailTaskId,
+  entry = 'tasks',
+  compactControls,
 }: {
   onDone: () => void
   toolUseContext: LocalJSXCommandContext
   initialDetailTaskId?: string
+  entry?: 'tasks' | 'compact-summary'
+  compactControls?: CompactWorkControls
 }): React.ReactNode {
   void toolUseContext
   const tokens = useMercuryTokens()
   const { columns } = useTerminalSize()
   const now = useNowTick()
-  const tasks = useAppState((state: AppState) => state.tasks)
+  const allTasks = useAppState((state: AppState) => state.tasks)
+  const summaryEntry = entry === 'compact-summary'
+  const connector = getFocusedSessionConnector()
+  const tasks = summaryEntry && connector.carrier === 'daemon' ? {} : allTasks
+  const overlayToken = useRegisterOverlay('compact-work', summaryEntry, { ownsPageKeys: true })
+  const pastOpen = useOpenEventGate()
+  const ownsInputNow = (): boolean => !summaryEntry || (compactControls?.read() === 'detail' && overlayToken !== null && isTopOverlayNow(overlayToken))
   const roster = useFocusedWorkRoster()
   const presence = React.useMemo(() => focusedRunnerPresence(), [roster])
   const treeShowing = useAppState(
@@ -279,7 +299,7 @@ export function BackgroundTasksDialog({
     .filter(isManageableTask)
     .filter(task => {
       if (isLocalAgentTask(task) && task.id === viewingAgentTaskId) return false
-      if (isInProcessTeammateTask(task) && treeShowing) return false
+      if (isInProcessTeammateTask(task) && treeShowing && !summaryEntry) return false
       return true
     })
     .sort((a, b) => {
@@ -330,7 +350,7 @@ export function BackgroundTasksDialog({
   const doneMission = missionTasks.filter(task => task.status === 'completed')
   const ledgerOpenCount = inProgress.length + pendingMission.length
 
-  const selectedIdRef = useRef<string | null>(null)
+  const selectedIdRef = useRef<string | null>(compactControls?.detailState.selectedId ?? null)
   const [cursor, setCursor] = useState(0)
   const stableId = selectedIdRef.current
   let selectedIndex = flat.findIndex(i => i.id === stableId)
@@ -349,8 +369,9 @@ export function BackgroundTasksDialog({
 
   const skippedListRef = useRef(false)
   const [detailTaskId, setDetailTaskId] = useState<string | undefined>(() => {
+    if (compactControls?.detailState.detailTaskId !== undefined) return compactControls.detailState.detailTaskId
     if (initialDetailTaskId !== undefined) return initialDetailTaskId
-    if (flat.filter(item => item.kind !== 'leader').length === 1 && !leaderItem) {
+    if (!summaryEntry && flat.filter(item => item.kind !== 'leader').length === 1 && !leaderItem) {
       skippedListRef.current = true
       return flat[0]?.id
     }
@@ -363,6 +384,7 @@ export function BackgroundTasksDialog({
       ? roster.rows.find(w => w.id === detailTaskId)
       : undefined
   const inDetail = detailTaskId !== undefined
+  if (compactControls !== undefined) { compactControls.detailState.selectedId = selectedIdRef.current; compactControls.detailState.detailTaskId = detailTaskId }
 
   const returnToLeader = (): void => {
     exitTeammateView(setAppState)
@@ -419,6 +441,7 @@ export function BackgroundTasksDialog({
       return
     }
     if (task.status !== 'running') return
+    if (isLocalShellTask(task)) { void killTask(task.id, setAppState); return }
     switch (item.kind) {
       case 'shell':
         void killTask(task.id, setAppState)
@@ -446,15 +469,19 @@ export function BackgroundTasksDialog({
   useKeybindings(
     {
       'confirm:no': () => {
+        if (!ownsInputNow()) return false
         onDone()
       },
       'confirm:previous': () => {
+        if (!ownsInputNow()) return false
         moveSelection(-1)
       },
       'confirm:next': () => {
+        if (!ownsInputNow()) return false
         moveSelection(1)
       },
       'confirm:yes': () => {
+        if (!ownsInputNow() || (summaryEntry && !pastOpen())) return false
         if (selected !== undefined) openDetail(selected)
       },
     },
@@ -462,6 +489,7 @@ export function BackgroundTasksDialog({
   )
 
   const handleKeyDown = (e: KeyboardEvent): void => {
+    if (!ownsInputNow() || (summaryEntry && e.key !== 'left' && !pastOpen())) return
     if (e.key === 'left') {
       e.stopImmediatePropagation()
       onDone()
@@ -672,12 +700,13 @@ export function BackgroundTasksDialog({
 
   return (
     <CommandCenter
-      view="tasks"
+      view={summaryEntry ? "activity" : "tasks"}
       subtitle={subtitle}
       onClose={onDone}
       captureInput={false}
     >
       <Box flexDirection="column" tabIndex={-1}>
+        {summaryEntry ? <CompactSessionOverview /> : null}
         {missionTasks.length > 0 ? (
           <Box flexDirection="column">
             <SectionHeader marginTop={0} count={ledgerOpenCount}>
@@ -874,4 +903,39 @@ export function BackgroundTasksDialog({
       </Box>
     </CommandCenter>
   )
+}
+function CompactSessionOverview(): React.ReactNode {
+  const counts = useCompactWorkCounts()
+  const snapshot = useTelemetry(s => s.sessions)
+  const refreshedAt = useTelemetry(s => s.refreshedAt)
+  const git = useTelemetry(s => s.git)
+  const connector = getFocusedSessionConnector()
+  const records = connector.records()
+  const model = connector.modelFacts()
+  const usage = connector.usage()
+  const fill = contextFillView(records, model.effective)
+  const active = hasSeatLive(connector) ? statusLine(connector.live(), connector.status()) : connector.turnActive() ? 'working' : 'ready'
+  const rows: KVRow[] = [
+    { k: 'session', v: connector.sessionId() },
+    { k: 'project', v: connector.workspace().cwd },
+    { k: 'model', v: renderModelName(model.effective) },
+    { k: 'effort', v: model.effortSent ?? (model.effort ? `${model.effort} (asked)` : 'unreported') },
+    { k: 'permissions', v: connector.permissionMode() ?? 'unreported' },
+    { k: 'turns', v: String(countOperatorTurns(records)) },
+    { k: 'context', v: contextPercentLabel(fill.usedPct, fill.fillSource) },
+    { k: 'tokens in', v: formatTokens(usage.totalInputTokens) },
+    { k: 'tokens out', v: formatTokens(usage.totalOutputTokens) },
+    { k: 'files', v: `+${usage.totalLinesAdded} / -${usage.totalLinesRemoved} lines` },
+  ]
+  if (git !== null) rows.push({ k: 'repository', v: `${git.branchName} · ${git.isClean ? 'clean' : 'changed'} · ${git.unpushedCount} unpushed` })
+  if (connector.identity().consoleBilling) rows.push({ k: 'cost', v: formatSessionCost(usage.totalCostUSD, usage.unpricedTurns ?? 0) })
+  return <Box flexDirection="column">
+    <SectionHeader marginTop={0}>Session statistics</SectionHeader>
+    <KeyValueGrid rows={rows} keyWidth={12} />
+    <SectionHeader>Activity</SectionHeader>
+    <Text>{active}</Text>
+    <Text>{compactWorkSummaryText(counts, Number.POSITIVE_INFINITY)}</Text>
+    <Text dimColor>Sessions are live, unpaused conversations; agents and monitors belong to the focused chat.</Text>
+    <Text dimColor>{snapshot.state === 'known' ? `Session snapshot: ${snapshot.rows.length} retained records, ${refreshedAt ? new Date(refreshedAt).toLocaleTimeString() : 'not sampled'}` : 'Session snapshot unavailable'}</Text>
+  </Box>
 }

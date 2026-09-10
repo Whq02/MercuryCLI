@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { createContext, useContext } from 'react'
+import { CompactFrameBudgetContext } from './layoutChromeContext.js'
 
 export const CockpitActiveContext = createContext<boolean>(false)
 
@@ -9,6 +10,7 @@ export function CockpitBottomStatus({
   children: React.ReactNode
 }): React.ReactNode {
   const cockpit = useContext(CockpitActiveContext)
-  if (cockpit) return null
+  const budget = useContext(CompactFrameBudgetContext)
+  if (cockpit || budget?.activityRows === 0) return null
   return children
 }

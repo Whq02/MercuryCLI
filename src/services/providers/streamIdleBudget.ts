@@ -88,11 +88,12 @@ export type RequestWaitV1 =
 const seconds = (ms: number): string => `${Math.max(1, Math.round(ms / 1000))} s`
 const kTokens = (tokens: number): string => (tokens >= 1000 ? `${Math.round(tokens / 1000)}k-token` : `${tokens}-token`)
 
-export function requestWaitLine(wait: RequestWaitV1): string {
+export function requestWaitLine(wait: RequestWaitV1, compact = false): string {
   if (wait.kind === 'retry') {
     return `retrying — attempt ${wait.attempt} of ${wait.of} after ${wait.reason}${wait.delayMs > 0 ? ` · in ${seconds(wait.delayMs)}` : ''}`
   }
   const again = wait.attempt > 1 ? ` (attempt ${wait.attempt})` : ''
+  if (compact) return `${wait.cold ? 'ingesting prompt' : 'waiting'} — first byte within ${seconds(wait.budgetMs)}${again}`
   return wait.cold
     ? `ingesting a ${kTokens(wait.promptTokens)} prompt on ${wait.model} — first byte expected within ${seconds(wait.budgetMs)}${again}`
     : `waiting for the first byte from ${wait.model} — within ${seconds(wait.budgetMs)}${again}`

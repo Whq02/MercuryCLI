@@ -17,7 +17,8 @@ import { AlternateScreen } from '../ink/components/AlternateScreen.js'
 import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
 import instances from '../ink/instances.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
-import { chromeModeLive } from '../hooks/useLayoutTier.js'
+import { CompactFooterNoticeContext, CompactFrameBudgetContext, useLayoutChrome } from '../context/layoutChromeContext.js'
+import { compactFrameBudget } from './mercury-ui/geometry.js'
 import { railPlan } from '../utils/helmGeometry.js'
 import {
   setHelmFocus,
@@ -36,7 +37,6 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { estateGroundBg } from '../utils/mercuryTokens.js'
 import { setRecessTarget } from '../ink/recessLayer.js'
-import { DeckPane } from './DeckPane.js'
 import { useElevatedSurface } from './mercury-ui/useElevatedSurface.js'
 import { recessTargetFor } from '../utils/cockpit/recessBackdrop.js'
 import { HelmCenterHeader } from './HelmCenterHeader.js'
@@ -202,6 +202,7 @@ function PromptOverlayStrip(): React.ReactNode {
       onPick={data.onPick}
       onHover={data.onHover}
       maxColumnWidth={data.maxColumnWidth}
+      maxRows={data.maxRows}
     />
   )
 }
@@ -320,7 +321,9 @@ export function FullscreenLayout({
   }, [fullscreen])
 
   const terminalRows = rows
-  const chrome = chromeModeLive(columns, terminalRows)
+  const { chrome, isCompact } = useLayoutChrome()
+  const [compactFooterNotice, setCompactFooterNotice] = useState(false)
+  const compactBudget = useMemo(() => isCompact ? compactFrameBudget(columns, rows, statusBandActive, compactFooterNotice) : null, [isCompact, columns, rows, statusBandActive, compactFooterNotice])
   const cockpit = fullscreen && chrome === 'cockpit'
   const centerFrame = cockpit
   const plan = railPlan(columns)
@@ -418,7 +421,8 @@ export function FullscreenLayout({
       ? { firstUnseenUuid: '', count: newMessageCount }
       : undefined
 
-  const modalPeek = chrome === 'inline' ? 2 : 0
+  const modalPeek = isCompact ? 0 : chrome === 'inline' ? 2 : 0
+  const modalSeparatorRows = !isCompact || terminalRows > 1 ? 1 : 0
   const t = tokens
   const modalClaims = modalPeek === 0;
   const recessOn = modal != null && recessTargetFor(t) !== null;
@@ -426,7 +430,7 @@ export function FullscreenLayout({
 
   const stickyDescriptor =
     stickyPrompt !== null && stickyPrompt !== 'clicked' ? stickyPrompt : null
-  const stickyVisible = !hideSticky && stickyDescriptor !== null
+  const stickyVisible = !hideSticky && stickyDescriptor !== null && (!isCompact || (compactBudget?.transcriptMinRows ?? 0) > 0)
   const stickyTracked = stickyPrompt !== null
 
   const transcriptArea = (
@@ -451,11 +455,11 @@ export function FullscreenLayout({
         flexDirection="column"
         flexGrow={1}
         minHeight={0}
-        paddingTop={stickyTracked ? 0 : 1}
+        paddingTop={isCompact || stickyTracked ? 0 : 1}
       >
         {scrollable}
       </ScrollBox>
-      {!hidePill && dividerYRef && scrollRef ? (
+      {!hidePill && dividerYRef && scrollRef && (!isCompact || (compactBudget?.transcriptMinRows ?? 0) > 0) ? (
         <JumpPill
           divider={divider}
           scrollRef={scrollRef}
@@ -480,11 +484,11 @@ export function FullscreenLayout({
   const motionParked = modalUp && modalPeek === 0
   const modalPane = modalUp ? (
     <MotionParkContext.Provider value={false}>
-      <Box ref={recessOn ? elevatedRef : undefined} position="absolute" bottom={0} width="100%" height={blankClaims ? terminalRows : undefined} maxHeight={terminalRows - modalPeek} flexDirection="column" overflow="hidden" opaque={true}>
-        {blankClaims && <Box flexGrow={1} />}<Box flexShrink={0}><Text color="info">{"▔".repeat(Math.max(1, columns))}</Text></Box>
+      <Box ref={recessOn ? elevatedRef : undefined} position="absolute" bottom={0} width="100%" height={blankClaims ? terminalRows : undefined} maxHeight={Math.max(0, terminalRows - modalPeek)} flexDirection="column" overflow="hidden" opaque={true}>
+        {blankClaims && <Box flexGrow={1} />}{modalSeparatorRows > 0 ? <Box flexShrink={0}><Text color="info">{"▔".repeat(Math.max(1, columns))}</Text></Box> : null}
         <ModalContext.Provider
           value={{
-            rows: terminalRows - modalPeek - 1,
+            rows: Math.max(0, terminalRows - modalPeek - modalSeparatorRows),
             columns,
             scrollRef: modalScrollRef ?? null,
           }}
@@ -500,6 +504,8 @@ export function FullscreenLayout({
   return (
     <AlternateScreen>
       <PromptOverlayProvider>
+        <CompactFooterNoticeContext.Provider value={isCompact ? setCompactFooterNotice : null}>
+        <CompactFrameBudgetContext.Provider value={compactBudget}>
         <CockpitActiveContext.Provider value={cockpit}>
           {
 }
@@ -513,7 +519,6 @@ export function FullscreenLayout({
                 ? { backgroundColor: estateGroundBg(tokens) }
                 : {})}
             >
-              {fullscreen && chrome === 'deck-strip' ? <DeckPane /> : null}
               <Box flexDirection="row" flexGrow={1} minHeight={0} overflow="hidden">
                 {}
                 <Box ref={lanesBoxRef} flexDirection="column" overflow="hidden" flexShrink={0} width={cockpit && plan.lanes ? plan.lanesW : 0}>
@@ -590,6 +595,8 @@ export function FullscreenLayout({
             </Box>
           </MotionParkContext.Provider>
         </CockpitActiveContext.Provider>
+        </CompactFrameBudgetContext.Provider>
+        </CompactFooterNoticeContext.Provider>
       </PromptOverlayProvider>
     </AlternateScreen>
   )

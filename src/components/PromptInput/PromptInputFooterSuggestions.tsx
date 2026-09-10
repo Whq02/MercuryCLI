@@ -138,6 +138,7 @@ export function PromptInputFooterSuggestions({
   overlay = false,
   onPick,
   onHover,
+  maxRows,
 }: {
   suggestions: SuggestionItem[]
   selectedSuggestion?: number
@@ -145,19 +146,21 @@ export function PromptInputFooterSuggestions({
   overlay?: boolean
   onPick?: (index: number) => void
   onHover?: (index: number) => void
+  maxRows?: number
 }): React.ReactNode {
   const { columns, rows } = useTerminalSize()
   const storeSelection = useSelectedSuggestion()
   const selected = selectedSuggestion ?? storeSelection
 
-  if (suggestions.length === 0) return null
+  if (suggestions.length === 0 || maxRows === 0) return null
 
   const chrome = computeChromeMode(columns, rows)
   const reserve = chrome === 'deck-strip' ? 14 : 6
   let maxVisible = overlay
     ? OVERLAY_MAX_ITEMS
     : Math.min(6, Math.max(1, rows - reserve))
-  const overflowing = suggestions.length > maxVisible
+  if (maxRows !== undefined) maxVisible = Math.min(maxVisible, maxRows)
+  const overflowing = suggestions.length > maxVisible && maxVisible > 1
   if (overflowing) {
     maxVisible = Math.max(1, maxVisible - 1)
   }

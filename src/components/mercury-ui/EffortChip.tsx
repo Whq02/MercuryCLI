@@ -15,8 +15,9 @@ import {
 import { FAINT, SECOND } from '../mercuryPalette.js'
 import { effortLevelToSymbol } from '../EffortIndicator.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
+import { stringWidth } from '../../ink/stringWidth.js'
 
-export function EffortChip({ model }: { model: string }): React.ReactNode {
+export function EffortChip({ model, plain = false, maxWidth = Number.POSITIVE_INFINITY }: { model: string; plain?: boolean; maxWidth?: number }): React.ReactNode {
   const effortValue = useAppStateMaybeOutsideOfProvider(s => s.effortValue)
   const supercode = useAppStateMaybeOutsideOfProvider(s => s.supercode)
   const seatEffort = useFocusedServedEffort()
@@ -46,6 +47,10 @@ export function EffortChip({ model }: { model: string }): React.ReactNode {
         : seatResolution !== null
           ? seatResolution.label
           : getDisplayedEffortLabel(model, effortValue)
+  if (plain) {
+    const text = ` · effort ${label}`
+    return stringWidth(text) <= maxWidth ? <Text color={SECOND}>{text}</Text> : null
+  }
   return (
     <Text>
       <Text color={FAINT}> · </Text>

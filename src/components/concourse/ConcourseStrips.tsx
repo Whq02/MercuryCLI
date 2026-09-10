@@ -8,6 +8,7 @@ import { InteractiveRow } from '../mercury-ui/InteractiveRow.js';
 import { ReadyBreath } from '../mercury-ui/LiveGlyphs.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
+import { useLayoutChrome } from '../../context/layoutChromeContext.js';
 import { composerBorderRole, composerBorderStyle } from '../mercury-ui/replFloor.js';
 import { effectiveSeatCeiling } from '../../daemon/concourseSupervisor.js';
 import { needsYouCount } from '../../utils/needsYouCount.js';
@@ -28,6 +29,7 @@ export function ConcourseComposer({
   composerNote,
   modeBand,
   keysHint,
+  minimal = false,
 }: {
   width: number
   bandRows: number
@@ -41,6 +43,7 @@ export function ConcourseComposer({
   composerNote?: import('./contracts.js').ControlNoteState
   modeBand?: { symbol: string; label: string }
   keysHint?: string
+  minimal?: boolean
 }): React.ReactNode {
   const t = useMercuryTokens()
   const [theme] = useTheme()
@@ -54,8 +57,18 @@ export function ConcourseComposer({
   const style = composerBorderStyle(termRows)
 
   const lines = draftLines(draft)
-  const caretBudget = Math.max(16, width - 14)
+  const caretBudget = minimal ? Math.max(0, width) : Math.max(16, width - 14)
   const { windowStart, windowRows, hiddenAbove, hiddenBelow } = draftWindow(draft, bandRows)
+  if (minimal) {
+    const count = Math.max(0, Math.min(3, bandRows))
+    const start = Math.max(0, Math.min(lines.caretLine - Math.floor(count / 2), lines.lines.length - count))
+    return <Box flexDirection="column" width={Math.max(0, width)} height={count} overflow="hidden" onClick={onComposerClick ? e => onComposerClick(e.localRow, e.localCol) : undefined}>
+      {lines.lines.slice(start, start + count).map((line, i) => {
+        const lens = caretLens({ text: line, caret: lines.caretCol }, caretBudget)
+        return <Text key={start + i} wrap="truncate-end" color={t.accentSoft}>{focused && start + i === lines.caretLine ? <>{lens.before}<Text inverse={caretPhaseOn}>{lens.at || ' '}</Text>{lens.after}</> : line}</Text>
+      })}
+    </Box>
+  }
 
   return (
     <Box
@@ -227,10 +240,11 @@ export function ConcourseStatusRail({
 }): React.ReactNode {
   const t = useMercuryTokens();
   const mark = critterDefForKey('jellyfish').mark;
+  const { isCompact } = useLayoutChrome();
   const counts = snapshot.counts;
   const seatsCell = seatsCellText(seatDemandOf(snapshot), counts.live, effectiveSeatCeiling());
   const countsText = `${counts.live} live · ${needsYouCount(counts.needsYou)} · ${seatsCell.text} seats`;
-  const chipBudget = width - 4 - 8 - (countsText.length + 1) - (width >= 96 ? 12 : 0);
+  const chipBudget = width - 4 - (isCompact ? 0 : 8) - (countsText.length + 1) - (width >= 96 ? 12 : 0);
   const assistNotReady = snapshot.coordinator.assistModelAvailability !== undefined;
   const coordinatorRun =
     snapshot.coordinator.fallbackReason !== undefined
@@ -258,12 +272,12 @@ export function ConcourseStatusRail({
       height={3}
     >
       <Box flexShrink={1} overflow="hidden" flexDirection="row">
-        <Box flexShrink={0}>
+        {!isCompact ? <Box flexShrink={0}>
           <Text>
             <Text color={t.infoText}>{mark.pre + mark.core + mark.post}</Text>
             <Text color={t.textMuted}> {GLYPH.sep} </Text>
           </Text>
-        </Box>
+        </Box> : null}
         {
 }
         <InteractiveRow
