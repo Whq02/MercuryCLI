@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
-import { check, finish, section, sourceText } from './computerProofKit.ts'
+import { check, finish, scratchDir, section, sourceText } from './computerProofKit.ts'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { toolResultTurn, toolUseTurn } from './computerToolKit.ts'
 
 const retention = await import('../../src/services/desktop/screenshotRetention.ts')
@@ -122,6 +124,28 @@ section('§5 the registry keys by tool-use id across owners')
   session.noteScreenshot(other, 'toolu_owner_b', '/shots/b.png')
   check('each id answers its own path from any owner', session.screenshotPathForToolUse('toolu_owner_a') === '/shots/a.png' && session.screenshotPathForToolUse('toolu_owner_b') === '/shots/b.png')
   check('an unknown id answers null', session.screenshotPathForToolUse('toolu_unknown') === null)
+}
+
+section('§6 a real session file: the writer records the stub, never the bytes')
+{
+  const writer = await import('../../src/utils/sessionStorage/writer.ts')
+  const file = join(scratchDir('transcript'), 'session.jsonl')
+  writer.setSessionFileForTesting(file)
+  const id = 'toolu_file_shot'
+  session.noteScreenshot(owner, id, pathOf(9))
+  const pair = [toolUseTurn(id, 'Computer', { action: 'screenshot' }), toolResultTurn(screenshotResult(id, pathOf(9)))]
+  let recorded: string | null = null
+  try {
+    await writer.recordTranscript(pair)
+    await writer.flushSessionStorage()
+  } catch (error) {
+    recorded = String(error)
+  }
+  const text = existsSync(file) ? readFileSync(file, 'utf8') : ''
+  check('the writer wrote the session file', recorded === null && text.length > 0, recorded ?? `no file at ${file}`)
+  check('the file carries the stub naming the screenshot', text.includes(retention.screenshotStubText(pathOf(9))), text.slice(0, 300))
+  check('the file carries no image block and no image bytes', !text.includes('"type":"image"') && !text.includes(PNG_B64), text.slice(0, 300))
+  check('the file keeps the text line beside the stub', text.includes(`screenshot: ${pathOf(9)}`))
 }
 
 finish('prove-computer-retention')
