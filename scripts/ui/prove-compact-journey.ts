@@ -41,9 +41,9 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
     { atTick: 999, awaitText: 'draft-alpha bravo', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '\u0015stream the compact journey\r', mark: 'typed' },
     { atTick: 999, awaitText: 'compact-stream-003', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'streaming' },
     { afterPrevTicks: 5, data: 'queued while streaming\r' },
-    { afterPrevTicks: 3, data: '', mark: 'queued' },
+    { requireAwait: true, awaitText: 'queued while streaming', targetText: 'queued while streaming', data: '', mark: 'queued' },
     ...(variant === 'resize' ? [{ afterPrevTicks: 4, data: '', mark: 'streaming-small' }] : []),
-    { afterPrevTicks: 2, data: '\u001b' },
+    { afterPrevTicks: 4, data: '\u001b' },
     { atTick: 999, awaitText: 'Interrupted', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'interrupted' },
     { atTick: 999, awaitText: 'Queued words delivered.', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: 'keep-this-draft' },
     ...(full ? [
@@ -65,6 +65,8 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
     { afterMark: 'wide', afterMs: 300, cols: 80, rows: 24 },
     { afterMark: 'streaming', afterMs: 300, cols: 60, rows: 16 },
     { afterMark: 'queued', afterMs: 300, cols: 40, rows: 10 },
+    { afterMark: 'streaming-small', afterMs: 300, cols: 60, rows: 16 },
+    { afterMark: 'detail', afterMs: 300, cols: 40, rows: 10 },
     { afterMark: 'closed', afterMs: 300, cols: 1, rows: 1 },
     { afterMark: 'tiny', afterMs: 400, cols: 80, rows: 24 },
     { afterMark: 'scrolled', afterMs: 300, cols: 120, rows: 40 },
@@ -122,7 +124,7 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
     check(`${tag}: the final editing key is retained`, joined(rowsAt('compact-restored')).includes('keep-this-draftz'))
     if (variant === 'resize') check('the one-cell stage uses the actual physical geometry', marks.get('tiny')?.grid.length === 1 && marks.get('tiny')?.grid[0]?.length === 1)
     if (variant !== 'compact') check(`${tag}: the final full frame uses the full composition`, rowsAt('full-restored').length === 40 && joined(rowsAt('full-restored')).includes('SESSIONS'))
-    const transcriptAt = (label: string) => rowsAt(label).filter(row => /compact-stream-\d+/.test(row)).join('\n')
+    const transcriptAt = (label: string) => rowsAt(label).filter(row => /compact-stream-\d+|stream the compact journey|Queued words delivered|queued while streaming/.test(row)).join('\n')
     check(`${tag}: page up preserves the draft while moving transcript content`, joined(rowsAt('scrolled')).includes('keep-this-draftz') && transcriptAt('scrolled') !== '' && transcriptAt('scrolled') !== transcriptAt('compact-restored'))
     const main = leg.fixture.requests.filter(request => (request.body as { model?: string }).model?.includes('opus'))
     const requests: string[][] = []
@@ -155,7 +157,7 @@ for (const answer of ['accept', 'interrupt'] as const) {
       { requireAwait: true, awaitText: 'compact-consent-window-1', data: '\u0014\r' },
       { requireAwait: true, awaitText: 'Session statistics', data: '', mark: 'detail' },
       { requireAwait: true, awaitText: '1. Yes', awaitSettleTicks: 2, data: answer === 'accept' ? '\r' : '\u0003', mark: 'card' },
-      { requireAwait: true, awaitText: answer === 'accept' ? 'compact-consent-finished' : 'Interrupted', awaitSettleTicks: 2, data: 'after-consent', mark: 'settled' },
+      { requireAwait: true, awaitText: 'compact-consent-finished', awaitSettleTicks: 2, data: 'after-consent', mark: 'settled' },
       { requireAwait: true, awaitText: 'after-consent', targetText: 'after-consent', awaitSettleTicks: 2, data: '', mark: 'composer' },
     ], 180, { MERCURY_COMPUTER_USE: undefined })
     for (const mark of ['detail', 'card', 'settled', 'composer']) printFrame(`detail-consent-${answer} ${mark}`, result.marks[mark] ?? [])

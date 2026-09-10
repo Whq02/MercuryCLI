@@ -373,7 +373,7 @@ export function CoordinatorPane({
           )}
         </InteractiveRow>
       </Box>
-      <Box flexDirection="column" flexGrow={1} minHeight={0} overflow="hidden">
+      <Box flexDirection="column" flexGrow={minimal || (!settingsOpen && entries !== null && entries.length > 0) ? 1 : 0} flexShrink={minimal ? 1 : 0} minHeight={0} overflow="hidden">
       {settingsOpen ? (
         <>
           <Box height={1} flexShrink={0}>
