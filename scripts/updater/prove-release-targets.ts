@@ -80,6 +80,9 @@ section('§4 the build — --target, the target\'s packs, the manifest declarati
   const whisper = read('scripts/vendor/build-whisper.ts')
   check('build-whisper.ts keys the pack on the shipped pair through the voice pack owner\'s table and cross-compiles through the same rustup target, or skips loudly', whisper.includes('voicePackPlatform(SHIP.platform, SHIP.arch)') && whisper.includes('voiceCargoTriple(PLATFORM)') && whisper.includes("run('rustup', ['target', 'list', '--installed']") && whisper.includes('rustup target add ${TRIPLE}'))
   check('build.ts vendors the on-device transcriber pack of the SHIPPED pair through the same key', build.includes('whisperPackDirFor(ROOT, packPlatform)') && build.includes("['on-device-transcriber']"))
+  const desktop = read('scripts/vendor/build-desktop.ts')
+  check('build-desktop.ts keys the pack on the shipped pair through the voice pack owner\'s table and cross-compiles through the same rustup target, or skips loudly', desktop.includes('voicePackPlatform(SHIP.platform, SHIP.arch)') && desktop.includes('voiceCargoTriple(PLATFORM)') && desktop.includes("run('rustup', ['target', 'list', '--installed']") && desktop.includes('rustup target add ${TRIPLE}'))
+  check('build.ts vendors the desktop driver pack of the SHIPPED pair through the same key', build.includes('desktopPackDirFor(ROOT, packPlatform)') && build.includes("['desktop-driver']"))
 }
 
 section('§5 the built dist — the packs follow the declared target')
@@ -108,6 +111,8 @@ section('§5 the built dist — the packs follow the declared target')
       check('the shell engine record follows the target', shell.vendored !== true || shell.platform === brushPackPlatform(record.platform, record.arch), JSON.stringify(shell))
       const whisperRecord = manifest.onDeviceTranscriber as { vendored?: boolean; platform?: string } | undefined
       check('the on-device transcriber record follows the target', whisperRecord !== undefined && (whisperRecord.vendored !== true || whisperRecord.platform === voicePackPlatform(record.platform, record.arch)), JSON.stringify(whisperRecord))
+      const desktopRecord = manifest.desktopDriver as { vendored?: boolean; platform?: string } | undefined
+      check('the desktop driver record follows the target', desktopRecord !== undefined && (desktopRecord.vendored !== true || desktopRecord.platform === voicePackPlatform(record.platform, record.arch)), JSON.stringify(desktopRecord))
     }
   }
 }
@@ -163,6 +168,7 @@ section('§7 the release workflow — four arms, the Intel one cross-packaged an
   check('every arm builds, builds the voice pack, fetches its platform packages and its shell engine pack for ITS target', wf.includes('bun run build.ts --target ${{ matrix.target }}') && wf.includes('bun run scripts/vendor/build-voice.ts --target ${{ matrix.target }}') && wf.includes('bun run scripts/vendor/fetch-platform-packages.ts --target ${{ matrix.target }}') && wf.includes('bun run scripts/vendor/fetch-brush.ts --platform ${{ matrix.node_pack }}'))
   check('the shell engine fetch skips the Windows arm, whose pack is built on its own step', /if: runner\.os != 'Windows'\n\s+run: bun run scripts\/vendor\/fetch-brush\.ts --platform/.test(wf) && wf.includes('- name: Build the shell engine pack (Windows)'))
   check('every arm builds the on-device transcriber pack for ITS target, optional like the voice pack', wf.includes('bun run scripts/vendor/build-whisper.ts --target ${{ matrix.target }}') && /name: Build the on-device transcriber pack\n\s+continue-on-error: true/.test(wf))
+  check('every arm builds the desktop driver pack for ITS target, optional like the voice pack', wf.includes('bun run scripts/vendor/build-desktop.ts --target ${{ matrix.target }}') && /name: Build the desktop driver pack\n\s+continue-on-error: true/.test(wf))
   check('the rust toolchain step installs the arm\'s rustup targets', wf.includes("targets: ${{ matrix.rust_targets || '' }}"))
   check('a cross arm ensures Rosetta 2 before the packager\'s smoke', /if: matrix\.cross\n\s+run: \|\n\s+arch -x86_64 \/usr\/bin\/true 2>\/dev\/null \|\| sudo softwareupdate --install-rosetta --agree-to-license\n\s+arch -x86_64 \/usr\/bin\/true/.test(wf))
   check('the vendor cache key covers the platform-package fetch and bun.lock', wf.includes("'scripts/vendor/fetch-platform-packages.ts'") && wf.includes("'bun.lock'"))
