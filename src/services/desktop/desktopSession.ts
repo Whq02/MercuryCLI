@@ -1,6 +1,6 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
+import { canAnswerAsks, getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { isTeammate } from '../../utils/teammate.js'
@@ -187,10 +187,30 @@ export type DesktopPhase = 'idle' | 'driving'
 export interface DesktopSnapshot {
   phase: DesktopPhase
   app: string | null
+  identity: string | null
   startedAt: number | null
 }
 
-const IDLE_SNAPSHOT: DesktopSnapshot = { phase: 'idle', app: null, startedAt: null }
+export interface DesktopDrivingApp {
+  identity: string
+  name: string
+}
+
+export type DesktopDrivingAppInput = DesktopDrivingApp | string | null
+
+export function drivingAppOf(input: DesktopDrivingAppInput | undefined): DesktopDrivingApp | null {
+  if (input === null || input === undefined) return null
+  if (typeof input === 'string') return input === '' ? null : { identity: '', name: input }
+  return { identity: input.identity, name: input.name }
+}
+
+export function sameDrivingApp(a: DesktopDrivingApp | null, b: DesktopDrivingApp | null): boolean {
+  if (a === null || b === null) return a === b
+  return a.identity === b.identity && a.name === b.name
+}
+
+export const IDLE_DESKTOP_SNAPSHOT: DesktopSnapshot = { phase: 'idle', app: null, identity: null, startedAt: null }
+const IDLE_SNAPSHOT = IDLE_DESKTOP_SNAPSHOT
 const listeners = new Set<() => void>()
 let snapshot: DesktopSnapshot = IDLE_SNAPSHOT
 
@@ -222,14 +242,27 @@ export function drivingFooter(app: string | null): string {
   return `${DRIVING_FOOTER_PREFIX} ${app ?? 'the desktop'} · esc stops it`
 }
 
-export function publishDesktopDriving(app: string | null): void {
+export function publishDesktopDriving(app: DesktopDrivingAppInput = null): void {
   const driving = snapshot.phase === 'driving'
-  publish({ phase: 'driving', app: app ?? snapshot.app, startedAt: driving ? snapshot.startedAt : Date.now() })
+  const next = drivingAppOf(app)
+  publish({
+    phase: 'driving',
+    app: next === null ? snapshot.app : next.name,
+    identity: next === null ? snapshot.identity : next.identity,
+    startedAt: driving ? snapshot.startedAt : Date.now(),
+  })
 }
 
-export function setDrivingApp(app: string | null): void {
-  if (snapshot.phase !== 'driving' || snapshot.app === app) return
-  publish({ ...snapshot, app })
+export function drivingAppOfSnapshot(view: DesktopSnapshot): DesktopDrivingApp | null {
+  if (view.phase !== 'driving' || view.app === null) return null
+  return { identity: view.identity ?? '', name: view.app }
+}
+
+export function setDrivingApp(app: DesktopDrivingAppInput): void {
+  if (snapshot.phase !== 'driving') return
+  const next = drivingAppOf(app)
+  if (sameDrivingApp(next, drivingAppOfSnapshot(snapshot))) return
+  publish({ ...snapshot, app: next === null ? null : next.name, identity: next === null ? null : next.identity })
 }
 
 export function publishDesktopIdle(): void {
@@ -250,7 +283,7 @@ export function desktopPostureRefusal(context: {
 }): string | null {
   if (isTeammate()) return TEAMMATE_COMPUTER_REFUSAL
   if (typeof context.agentId === 'string' && context.agentId !== '') return AGENT_COMPUTER_REFUSAL
-  if (context.options?.isNonInteractiveSession === true || getIsNonInteractiveSession()) return HEADLESS_COMPUTER_REFUSAL
+  if ((context.options?.isNonInteractiveSession === true || getIsNonInteractiveSession()) && !canAnswerAsks()) return HEADLESS_COMPUTER_REFUSAL
   return null
 }
 
