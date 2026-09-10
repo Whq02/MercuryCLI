@@ -109,7 +109,7 @@ export function ComputerPermissionRequest({
           <Text>{useMessage}</Text>
         )}
         <Text>{computerAskAppLine(judged)}</Text>
-        <Text dimColor>{toolUseConfirm.description}</Text>
+        {toolUseConfirm.description.includes(COMPUTER_ASK_FIRST_ACT) ? null : <Text dimColor>{toolUseConfirm.description}</Text>}
         <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} toolType="tool" />
         <Text bold>{COMPUTER_ASK_QUESTION}</Text>
         <Select options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
