@@ -385,6 +385,10 @@ export class FakeDesktopDriver implements DesktopDriver {
     return answer({ ...this.scene.permissions })
   }
 
+  permissionsNow(): DesktopAnswer<DesktopPermissions> {
+    return answer({ ...this.scene.permissions })
+  }
+
   async requestPermissions(): Promise<DesktopAnswer<DesktopPermissions>> {
     return answer({ ...this.scene.permissions })
   }

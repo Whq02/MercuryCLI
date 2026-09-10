@@ -2,8 +2,11 @@ import './computerProofKit.ts'
 import { getEmptyToolPermissionContext, type ToolPermissionContext, type ToolUseContext } from '../../src/Tool.ts'
 import { createAssistantMessage, createUserMessage } from '../../src/utils/messages.ts'
 import { ownerFromToolUseContext } from '../../src/services/run/resolveOwner.ts'
+import { setIsInteractive } from '../../src/bootstrap/state.ts'
 import type { OwnerKey } from '../../src/services/run/ownerKey.ts'
 import type { Message } from '../../src/types/message.ts'
+
+setIsInteractive(true)
 
 export const PROOF_MODEL = 'claude-opus-5'
 export const COMPUTER_ACTIONS = ['screenshot', 'click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll', 'type', 'key', 'hold', 'wait', 'cursor', 'displays', 'frontmost'] as const
