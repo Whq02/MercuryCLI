@@ -15,6 +15,7 @@ type CGEventRef = *mut c_void;
 type CGEventSourceRef = *mut c_void;
 type CGImageRef = *mut c_void;
 type CGDataProviderRef = *mut c_void;
+type CGDisplayModeRef = *mut c_void;
 type CGDirectDisplayID = u32;
 
 #[link(name = "AppKit", kind = "framework")]
@@ -49,6 +50,9 @@ extern "C" {
     fn CGMainDisplayID() -> CGDirectDisplayID;
     fn CGDisplayBounds(display: CGDirectDisplayID) -> CGRect;
     fn CGDisplayPixelsWide(display: CGDirectDisplayID) -> usize;
+    fn CGDisplayCopyDisplayMode(display: CGDirectDisplayID) -> CGDisplayModeRef;
+    fn CGDisplayModeGetPixelWidth(mode: CGDisplayModeRef) -> usize;
+    fn CGDisplayModeRelease(mode: CGDisplayModeRef);
     fn CGDisplayCreateImage(display: CGDirectDisplayID) -> CGImageRef;
     fn CGImageGetWidth(image: CGImageRef) -> usize;
     fn CGImageGetHeight(image: CGImageRef) -> usize;
@@ -198,6 +202,20 @@ pub fn permissions(request: bool) -> PermissionsAnswer {
     }
 }
 
+unsafe fn display_pixels_wide(id: CGDirectDisplayID) -> usize {
+    let mode = CGDisplayCopyDisplayMode(id);
+    if mode.is_null() {
+        return CGDisplayPixelsWide(id);
+    }
+    let wide = CGDisplayModeGetPixelWidth(mode);
+    CGDisplayModeRelease(mode);
+    if wide == 0 {
+        CGDisplayPixelsWide(id)
+    } else {
+        wide
+    }
+}
+
 pub fn displays() -> Result<Vec<DisplayRecord>, String> {
     unsafe {
         let mut ids = [0u32; 16];
@@ -213,7 +231,7 @@ pub fn displays() -> Result<Vec<DisplayRecord>, String> {
         let mut out = Vec::with_capacity(count as usize);
         for &id in &ids[..count as usize] {
             let bounds = CGDisplayBounds(id);
-            let pixels_wide = CGDisplayPixelsWide(id) as f64;
+            let pixels_wide = display_pixels_wide(id) as f64;
             let scale = if bounds.size.width > 0.0 { pixels_wide / bounds.size.width } else { 1.0 };
             out.push(DisplayRecord {
                 index: 0,
