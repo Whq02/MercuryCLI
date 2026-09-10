@@ -17,7 +17,7 @@ for (const size of SIZES) {
     ],
     { holdMs: 1500 },
   )
-  const res = drive(driver, leg, size, [
+  const res = await drive(driver, leg, size, [
     ...OPENING('click and type'),
     { requireAwait: true, awaitText: 'first act', awaitStableTicks: 2, mark: 'card', data: '\r' },
     { requireAwait: true, awaitText: 'hands off', awaitStableTicks: 1, mark: 'driving', data: '\x1b' },

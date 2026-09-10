@@ -1,5 +1,5 @@
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { delimiter, join, resolve } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs, type AvailableCaptureDriver } from '../lib/captureDriver.ts'
@@ -191,17 +191,23 @@ export interface DriveResult {
   endReason: string
 }
 
-export function drive(driver: AvailableCaptureDriver, leg: Leg, size: { cols: number; rows: number }, sends: unknown[], total: number, extra: Record<string, string | undefined> = {}): DriveResult {
+export async function drive(driver: AvailableCaptureDriver, leg: Leg, size: { cols: number; rows: number }, sends: unknown[], total: number, extra: Record<string, string | undefined> = {}): Promise<DriveResult> {
   const tag = `${leg.tag}-${size.cols}x${size.rows}`
   const grid = join(scratch, `${tag}-grid.json`)
   const cfgPath = join(scratch, `${tag}-vshot.json`)
   writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST, '--chat'], sends, total, cols: size.cols, rows: size.rows, out: grid, title: tag }))
-  const res = spawnSync(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], {
-    encoding: 'utf-8',
-    env: childEnv(leg, extra),
-    cwd: ROOT,
-    timeout: vshotBudgetMs(total * 200 + 60_000),
+  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { env: childEnv(leg, extra), cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] })
+  let stderr = ''
+  child.stdout.on('data', chunk => { stderr += String(chunk) })
+  child.stderr.on('data', chunk => { stderr += String(chunk) })
+  const status = await new Promise<number | null>(resolve => {
+    const wall = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(total * 200 + 60_000))
+    child.on('exit', code => {
+      clearTimeout(wall)
+      resolve(code)
+    })
   })
+  const res = { status, stderr }
   const marks: Record<string, string[]> = {}
   let final: string[] = []
   let endReason = ''
