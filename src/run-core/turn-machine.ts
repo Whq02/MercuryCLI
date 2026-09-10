@@ -145,7 +145,6 @@ import {
 import { executePostSamplingHooks } from '../utils/hooks/postSamplingHooks.js'
 import { executeStopFailureHooks } from '../utils/hooks.js'
 import type { QuerySource } from '../constants/querySource.js'
-import { createDumpPromptsFetch } from '../services/api/dumpPrompts.js'
 import {
   getActivePulseTrace,
   isPulseMainSource,
@@ -256,7 +255,6 @@ type IterationState = {
   tracking: AutoCompactTrackingState | undefined
   fullSystemPrompt: SystemPrompt
   appState: ReturnType<ToolUseContext['getAppState']>
-  dumpPromptsFetch: ReturnType<typeof createDumpPromptsFetch> | undefined
   currentModel: string
   maxOutputTokensOverride: number | undefined
   assistantMessages: AssistantMessage[]
@@ -562,7 +560,6 @@ async function* streamModel(
               toolUseContext.options.agentDefinitions.allowedAgentTypes,
             hasAppendSystemPrompt: !!toolUseContext.options.appendSystemPrompt,
             maxOutputTokensOverride: iter.maxOutputTokensOverride,
-            fetchOverride: iter.dumpPromptsFetch,
             mcpTools: iter.appState.mcp.tools,
             hasPendingMcpServers: iter.appState.mcp.clients.some(
               c => c.type === 'pending',
@@ -1102,10 +1099,6 @@ export async function* runEventCore(
 
     if (pulseMain) pulseStageEnd('model_assembly')
 
-    const dumpPromptsFetch = config.gates.isAnt
-      ? createDumpPromptsFetch(toolUseContext.agentId ?? config.sessionId)
-      : undefined
-
     const justCompactedUnderLimit =
       compactionResult !== undefined &&
       (compactionResult.truePostCompactTokenCount === undefined ||
@@ -1209,7 +1202,6 @@ export async function* runEventCore(
       tracking,
       fullSystemPrompt,
       appState,
-      dumpPromptsFetch,
       currentModel,
       maxOutputTokensOverride,
       assistantMessages: [],

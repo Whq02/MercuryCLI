@@ -4,7 +4,6 @@ export type QueryConfig = {
   sessionId: string
   gates: {
     emitToolUseSummaries: boolean
-    isAnt: boolean
   }
 }
 
@@ -13,7 +12,6 @@ export function buildQueryConfig(): QueryConfig {
     sessionId: String(getSessionId()),
     gates: {
       emitToolUseSummaries: false,
-      isAnt: false,
     },
   }
 }
