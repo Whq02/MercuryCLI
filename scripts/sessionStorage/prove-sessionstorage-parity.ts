@@ -1,9 +1,15 @@
 
-import { mkdirSync } from 'node:fs'
-process.env.MERCURY_CONFIG_DIR = '/tmp/mercury-parity-home'
-mkdirSync('/tmp/mercury-parity-home', { recursive: true })
-mkdirSync('/tmp/mercury-parity-cwd', { recursive: true })
-process.chdir('/tmp/mercury-parity-cwd')
+import { mkdirSync, mkdtempSync, realpathSync as realpathAtBoot, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+const SHARED_HOME = '/tmp/mercury-parity-home'
+const SHARED_CWD = '/tmp/mercury-parity-cwd'
+const PRIVATE_ROOT = realpathAtBoot(mkdtempSync(`${realpathAtBoot(tmpdir())}/mercury-parity-${process.pid}-`))
+const PRIVATE_HOME = `${PRIVATE_ROOT}/home`
+const PRIVATE_CWD = `${PRIVATE_ROOT}/cwd`
+process.env.MERCURY_CONFIG_DIR = PRIVATE_HOME
+mkdirSync(PRIVATE_HOME, { recursive: true })
+mkdirSync(PRIVATE_CWD, { recursive: true })
+process.chdir(PRIVATE_CWD)
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -23,12 +29,12 @@ const add = (exportName: string, caseName: string, fn: () => unknown) => {
   cases[`${exportName}/${caseName}`] = fn
 }
 
-const atParityCwd = <T,>(fn: () => T): T => runWithCwdOverride('/tmp/mercury-parity-cwd', fn)
+const atParityCwd = <T,>(fn: () => T): T => runWithCwdOverride(PRIVATE_CWD, fn)
 const { realpathSync } = await import('node:fs')
 const { basename } = await import('node:path')
-const PARITY_CWD_SLUG = basename(S.getProjectDir(realpathSync('/tmp/mercury-parity-cwd')))
-const neutral = (p: string): string => p.replace(PARITY_CWD_SLUG, '«parity-cwd»')
-add('getProjectsDir', 'shape', () => S.getProjectsDir())
+const PARITY_CWD_SLUG = basename(S.getProjectDir(realpathSync(PRIVATE_CWD)))
+const neutral = (p: string): string => p.replace(PARITY_CWD_SLUG, '«parity-cwd»').split(PRIVATE_HOME).join(SHARED_HOME)
+add('getProjectsDir', 'shape', () => neutral(S.getProjectsDir()))
 add('getTranscriptPathForSession', 'shape', () =>
   neutral(atParityCwd(() => S.getTranscriptPathForSession('00000000-0000-4000-8000-00000000abcd'))),
 )
@@ -43,7 +49,7 @@ add('sessionIdExists', 'absent', () =>
 )
 add('getNodeEnv', 'value', () => S.getNodeEnv())
 add('getProjectDir', 'sanitized-shape', () =>
-  S.getProjectDir('/tmp/example repo/with.dots'),
+  neutral(S.getProjectDir('/tmp/example repo/with.dots')),
 )
 add('isCustomTitleEnabled', 'value', () => S.isCustomTitleEnabled())
 
@@ -174,7 +180,19 @@ const unaccounted = runtimeExports.filter(k => !covered.has(k) && !(k in SKIPPED
 const results: Record<string, unknown> = {}
 for (const [name, fn] of Object.entries(cases)) results[name] = snap(fn)
 
-const failures = recordOrVerify({
+let isolationFailures = 0
+const isolation = (label: string, ok: boolean, detail = ''): void => {
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] isolation: ${label}${ok || !detail ? '' : ' — ' + detail}`)
+  if (!ok) isolationFailures++
+}
+isolation('the run owns fresh private roots, never the shared /tmp names', PRIVATE_HOME !== SHARED_HOME && PRIVATE_CWD !== SHARED_CWD && PRIVATE_ROOT.includes(`mercury-parity-${process.pid}-`), PRIVATE_ROOT)
+isolation('the product resolved the config home to the private root', S.getProjectsDir().startsWith(PRIVATE_HOME), S.getProjectsDir())
+isolation('the boot cwd latched to the private cwd', realpathSync(process.cwd()) === realpathSync(PRIVATE_CWD), process.cwd())
+const presented = JSON.stringify(results)
+isolation('no private-root byte reaches the golden presentation (neutralized at the boundary only)', !presented.includes(PRIVATE_ROOT) && !presented.includes(PARITY_CWD_SLUG), presented.slice(0, 120))
+isolation('the presentation still carries the machine-neutral shared spellings', presented.includes(SHARED_HOME) && presented.includes('«parity-cwd»'))
+
+const failures = isolationFailures + recordOrVerify({
   goldenPath: GOLDEN_PATH,
   results,
   record: RECORD,
@@ -185,5 +203,7 @@ const failures = recordOrVerify({
   existsSync: existsSync as never,
 })
 
+process.chdir(PRIVATE_ROOT)
+rmSync(PRIVATE_ROOT, { recursive: true, force: true })
 console.log(failures === 0 ? '✅ SESSIONSTORAGE PARITY GREEN' : `❌ ${failures} SESSIONSTORAGE PARITY FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

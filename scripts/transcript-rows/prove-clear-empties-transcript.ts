@@ -38,7 +38,7 @@ function drive(tag: string, keyed: boolean): string[] | null {
       out,
     }),
   )
-  const env: Record<string, string | undefined> = { ...process.env, MERCURY_AWAY_SUMMARY: '0', MERCURY_CONFIG_DIR: home }
+  const env: Record<string, string | undefined> = { ...process.env, MERCURY_AWAY_SUMMARY: '0', MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: join(home, 'daemon') }
   if (keyed) env.ANTHROPIC_API_KEY = 'fixture-key-000'
   else delete env.ANTHROPIC_API_KEY
   const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {

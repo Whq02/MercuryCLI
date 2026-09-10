@@ -27,6 +27,9 @@ export async function runStreamScene(sceneName: string, outPath: string): Promis
   }
   const sentinelEmit: Record<string, number> = {}
   let firstDeltaAt = 0
+  let firstDeltaText = ''
+  let firstDeltaEmitAt = 0
+  let lastDeltaEmitAt = 0
 
   const sentinelsByDelta = new Map<number, string[]>()
   {
@@ -205,7 +208,13 @@ export async function runStreamScene(sceneName: string, outPath: string): Promis
       dispatched++
       if (d.text !== null) {
         counters.deltas++
-        for (const tok of sentinelsByDelta.get(i) ?? []) sentinelEmit[tok] = Date.now()
+        const emitAt = Date.now()
+        if (firstDeltaEmitAt === 0) {
+          firstDeltaEmitAt = emitAt
+          firstDeltaText = d.text
+        }
+        lastDeltaEmitAt = emitAt
+        for (const tok of sentinelsByDelta.get(i) ?? []) sentinelEmit[tok] = emitAt
         dispatch(
           streamEvent({
             type: 'content_block_delta',
@@ -244,6 +253,9 @@ export async function runStreamScene(sceneName: string, outPath: string): Promis
               sentinelEmit,
               fullTextTail: fixture.fullText.slice(-64),
               firstDeltaAt,
+              firstDeltaEmitAt,
+              firstDeltaText,
+              lastDeltaEmitAt,
             }),
           )
           if (debug) appendFileSync(debug, `scene ${sceneName} done\n`)

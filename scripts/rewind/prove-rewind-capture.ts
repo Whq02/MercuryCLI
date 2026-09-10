@@ -89,7 +89,7 @@ function findTranscript(root: string, sessionId: string): string | null {
 async function driveRunner(opts: { stamp: boolean; label: string }): Promise<void> {
   const home = mkdtempSync(join(tmpdir(), `rewind-capture-home-${opts.stamp ? 'seat' : 'plain'}-`))
   const cwd = mkdtempSync(join(tmpdir(), 'rewind-capture-cwd-'))
-  const configDir = join(home, '.claude')
+  const configDir = join(home, '.mercury')
   mkdirSync(configDir, { recursive: true })
   const target = join(cwd, 'note.txt')
   writeFileSync(target, 'ZERO\n')

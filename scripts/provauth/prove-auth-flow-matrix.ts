@@ -1487,7 +1487,7 @@ section('§9 the evidence pair end-to-end + the dead-door sweep')
   const errors = src('src/services/api/errors.ts')
   const wallAt = errors.indexOf('const wall = classifyCredentialWall(status, message)')
   const observedExpiredAt = errors.indexOf('status === 401 && isAnthropicOAuthSignInExpired()')
-  const genericAt = errors.indexOf('// 23. Generic 401/403')
+  const genericAt = errors.search(/\n  if \(status === 401 \|\| status === 403\) \{\n\s*logForDebugging\(`\[api\] \$\{status\} on/)
   check(
     'the presenter: the wall arm and the observed-expired arm both precede the generic 401/403 tail',
     wallAt !== -1 && observedExpiredAt !== -1 && genericAt !== -1 && wallAt < genericAt && observedExpiredAt < genericAt,

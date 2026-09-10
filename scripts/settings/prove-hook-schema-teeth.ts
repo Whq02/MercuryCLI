@@ -78,7 +78,11 @@ section('§4 CONTROLS')
     PreToolUse: [{ matcher: 'Bash|Read', hooks: [{ type: 'command', command: 'echo ok', timeout: 30 }] }],
   })
   check('a clean hooks block parses with zero errors', clean.errors.length === 0, JSON.stringify(clean.errors).slice(0, 100))
-  check('and byte-faithfully', clean.matchers.length === 1 && (clean.matchers[0]?.hooks as unknown[]).length === 1)
+  const cleanExpected = [{ matcher: 'Bash|Read', hooks: [{ type: 'command', command: 'echo ok', timeout: 30 }] }]
+  const stable = (v: unknown): string => JSON.stringify(v, (_k, val) => (val !== null && typeof val === 'object' && !Array.isArray(val) ? Object.fromEntries(Object.entries(val as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))) : val))
+  check('and byte-faithfully', stable(clean.matchers) === stable(cleanExpected), stable(clean.matchers))
+  const cleanHook = (clean.matchers[0]?.hooks as Array<Record<string, unknown>> | undefined)?.[0]
+  check('…the matcher, type, command and timeout all survive as given (no default filled in, no leaf pruned)', clean.matchers[0]?.matcher === 'Bash|Read' && cleanHook?.type === 'command' && cleanHook?.command === 'echo ok' && cleanHook?.timeout === 30 && Object.keys(cleanHook ?? {}).sort().join(',') === 'command,timeout,type', JSON.stringify(cleanHook))
   const noMatcher = parseHooks({ PreToolUse: [{ hooks: [{ type: 'command', command: 'echo everywhere' }] }] })
   check('a DELIBERATELY matcher-less entry stays legal (matcher is optional)', noMatcher.errors.length === 0 && noMatcher.matchers.length === 1)
 }

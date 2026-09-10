@@ -78,6 +78,7 @@ def main() -> None:
     deadline = t0 + a.seconds
     si = 0
     nbytes = nreads = 0
+    ended = "deadline"
     tail = b""
     raw_tail = b""
     try:
@@ -118,8 +119,10 @@ def main() -> None:
             try:
                 data = os.read(fd, 65536)
             except OSError:
+                ended = "read-error"
                 break
             if not data:
+                ended = "eof"
                 break
             nbytes += len(data)
             nreads += 1
@@ -161,6 +164,18 @@ def main() -> None:
             trace(f"ANCHOR-NEVER-PAINTED: {anchor['needle'].decode('utf-8', 'replace')!r} never appeared; "
                   f"{held_n} post-anchor send(s) held unfired — the world never arrived as authored")
         reaped = None
+        def drain(seconds):
+            until = time.time() + seconds
+            while time.time() < until:
+                r, _, _ = select.select([fd], [], [], 0.02)
+                if not r:
+                    return True
+                try:
+                    if not os.read(fd, 65536):
+                        return False
+                except OSError:
+                    return False
+            return True
         try:
             trace("SIGTERM")
             os.kill(pid, signal.SIGTERM)
@@ -170,7 +185,7 @@ def main() -> None:
                 if wpid == pid:
                     reaped = wstatus
                     break
-                time.sleep(0.02)
+                drain(0.02)
             if reaped is None:
                 trace("SIGKILL")
                 os.kill(pid, signal.SIGKILL)
@@ -183,7 +198,17 @@ def main() -> None:
         try:
             if reaped is None:
                 trace("waitpid…")
-                os.waitpid(pid, 0)
+                reap_deadline = time.time() + 10.0
+                while time.time() < reap_deadline:
+                    wpid, wstatus = os.waitpid(pid, os.WNOHANG)
+                    if wpid == pid:
+                        reaped = wstatus
+                        break
+                    drain(0.05)
+                if reaped is None:
+                    trace("waitpid: child still exiting after 10s; releasing the pty master")
+                    os.close(fd)
+                    os.waitpid(pid, 0)
                 trace("waitpid done")
         except ChildProcessError:
             trace("waitpid: ChildProcessError")
@@ -200,7 +225,8 @@ def main() -> None:
                          % (len(unfired), len(sends) + len(afters), " · ".join(unfired)))
     print(json.dumps({"raw_bytes": nbytes, "raw_reads": nreads,
                       "sends": si + sum(1 for af in afters if af["fired"]),
-                      "unfired": unfired}))
+                      "unfired": unfired, "ended": ended,
+                      "elapsed_ms": int((time.time() - t0) * 1000)}))
 
 
 if __name__ == "__main__":

@@ -24,13 +24,19 @@ export function agenticVerdict(input: {
 }): AgenticVerdict {
   if (input.finalText === null) return { ok: false, reason: `no final answer: every one of ${input.maxTurns} turns requested tools` }
   if (errorLines([{ type: 'text', text: input.finalText }]).length > 0) return { ok: false, reason: `the final text is an API error, not an answer: ${input.finalText.slice(0, 120)}` }
-  if (!input.finalText.includes(input.expected)) return { ok: false, reason: `wrong final answer (expected ${input.expected})` }
+  if (!carriesNumber(input.finalText, input.expected)) return { ok: false, reason: `wrong final answer (expected ${input.expected})` }
   if (input.reasoningRecordedBeforeLastRequest === 0) return { ok: false, reason: 'no reasoning items were recorded before the final request, so replay is unproven' }
   if (input.reasoningReplayedInLastRequest === 0) return { ok: false, reason: 'the final request replayed no earlier reasoning item' }
   return { ok: true, turns: input.turnsUsed, reasoningReplayed: input.reasoningReplayedInLastRequest }
 }
 
 export type SimpleVerdict = { ok: true } | { ok: false; reason: string }
+
+export function carriesNumber(text: string, expected: string): boolean {
+  const escaped = expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const tail = expected.includes('.') ? '(?:\\d*)' : '(?!\\.?\\d)'
+  return new RegExp(`(?<![\\d.])${escaped}${tail}(?![\\d])`).test(text)
+}
 
 export function imageVerdict(text: string): SimpleVerdict {
   if (text.trim() === '') return { ok: false, reason: 'empty answer' }
@@ -43,7 +49,7 @@ export function imageVerdict(text: string): SimpleVerdict {
 export function turnAnswerVerdict(text: string, expected: string): SimpleVerdict {
   if (text.trim() === '') return { ok: false, reason: 'empty answer' }
   if (errorLines([{ type: 'text', text }]).length > 0) return { ok: false, reason: `API error text, not an answer: ${text.slice(0, 120)}` }
-  if (!new RegExp(`(^|[^\\d])${expected}([^\\d]|$)`).test(text)) return { ok: false, reason: `the answer does not carry ${expected} as a number: ${text.slice(0, 120)}` }
+  if (!carriesNumber(text, expected)) return { ok: false, reason: `the answer does not carry ${expected} as a number: ${text.slice(0, 120)}` }
   return { ok: true }
 }
 

@@ -214,7 +214,3 @@ export function logForDebugging(message: string, opts?: { level: DebugLogLevel }
   }
   getWriter().write(line)
 }
-
-export function logAntError(context: string, error: unknown): void {
-  return
-}

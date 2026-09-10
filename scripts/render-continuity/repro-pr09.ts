@@ -240,7 +240,7 @@ for (const spec of specs) {
   log(`  body rows (0-based): ${bodyRows.join(',')} · drag ${spec.origin.join(',')} -> ${spec.end.join(',')} (1-based SGR)`)
   log(`  overlay: ${overlay.length} new attr cells · rows ${overlayRows.join(',')} · x∈[${overlayMinX},${overlayMaxX}]`)
   log(`  overlay cells in the left rail (x<=24): ${railOverlap.length}`)
-  log(`  clipboard changed: ${copiedChanged} · bytes: ${copied.length}`)
+  log(`  clipboard changed: ${copiedChanged} · bytes: ${Buffer.byteLength(copied, 'utf8')} · code units: ${copied.length}`)
   log(`  rail border glyphs in copy: ${railGlyphInCopy} · rail lane text in copy: ${railTextInCopy}`)
   log(`  newlines in copy: ${newlines} (soft-wrapped source has none)`)
   log(`  copied word-segments: ${copiedWords.length ? `${copiedWords[0]}..${copiedWords[copiedWords.length - 1]} (${copiedWords.length})` : 'none'}`)

@@ -28,6 +28,16 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
+const braceBlock = (text: string, head: string): string => {
+  const at = text.indexOf(head)
+  if (at === -1) return ''
+  let depth = 0
+  for (let i = text.indexOf('{', at); i < text.length; i++) {
+    if (text[i] === '{') depth++
+    else if (text[i] === '}' && --depth === 0) return text.slice(at, i + 1)
+  }
+  return ''
+}
 
 const protocol = await import('../../src/daemon/protocol.ts')
 const socketMod = await import('../../src/daemon/controlSocket.ts')
@@ -162,7 +172,13 @@ section('§3 — the surfaces tell the truth')
   check('the branch forks the FOCUSED session\'s transcript with a caught failure (rank 68)', selector.includes("typeof focused.transcriptFile === 'function' ? focused.transcriptFile() : null") && selector.includes('setErrorText(`branch failed — ') && !selector.includes('getTranscriptPathForSession(String(getSessionId()))'))
   const repl = read('src/screens/REPL.tsx')
   check("the REPL's restore road calls the connector's rewind and paints the receipt", repl.includes('connector.rewind({ userMessageId: message.uuid, mode })') && repl.includes("key: 'rewind-receipt'"))
-  check('the composer takes the words back only after a LANDED conversation rewind', repl.includes("if (receipt.outcome === 'applied' && receipt.conversation !== undefined) {") && repl.indexOf('const resubmit = textForResubmit(message);', repl.indexOf('const onRestore = useCallback')) > repl.indexOf("receipt.conversation !== undefined", repl.indexOf('const onRestore = useCallback')))
+  const onRestoreAt = repl.indexOf('const onRestore = useCallback(')
+  const onRestoreBody = onRestoreAt === -1 ? '' : repl.slice(onRestoreAt, repl.indexOf('\n  );\n', onRestoreAt))
+  const landedGate = braceBlock(onRestoreBody, "if (receipt.outcome === 'applied' && receipt.conversation !== undefined) {")
+  check('the REPL onRestore callback, its landed-rewind gate and the resubmit all exist inside that one callback', onRestoreBody !== '' && landedGate !== '' && landedGate.includes('const resubmit = textForResubmit(message);'), j({ onRestoreAt, body: onRestoreBody.length, gate: landedGate.length }))
+  const resubmitAt = onRestoreBody.indexOf('const resubmit = textForResubmit(message);')
+  const rewindCallAt = onRestoreBody.indexOf('await connector.rewind(')
+  check('the composer takes the words back only after a LANDED conversation rewind', landedGate !== '' && resubmitAt >= 0 && rewindCallAt >= 0 && resubmitAt > rewindCallAt && landedGate.includes('setInputValue(resubmit.text)') && !onRestoreBody.slice(0, onRestoreBody.indexOf(landedGate)).includes('setInputValue('))
   check('a running turn is interrupted and given a bounded settle before the ask', repl.includes('connector.interrupt();') && repl.includes('REWIND_SETTLE_WAIT_MS'))
   check("the old 'not available for a managed session yet' refusal no longer fronts the rewind", !repl.includes("refuseSessionRewrite('rewinding the conversation')") && !repl.includes("refuseSessionRewrite('restoring files to a checkpoint')"))
   const config = read('src/components/Settings/Config.tsx')
@@ -173,7 +189,8 @@ section('§3 — the surfaces tell the truth')
 section('§4 — the display projection is wired into the paint')
 {
   const connector = read('src/services/engine-connector/daemonConnector.ts')
-  const paint = connector.slice(connector.indexOf('  private paint(): void {'), connector.indexOf('  // ── the /rewind facts + verb'))
+  const paint = braceBlock(connector, '  private paint(): void {')
+  check('the connector has exactly one paint method and it is the block under inspection', paint !== '' && connector.split('  private paint(): void {').length === 2, j({ paint: paint.length }))
   check('paint projects the operator windows out of the chat BY IDENTITY (display-row anchors stay true)', paint.includes('projectOperatorRewinds(this.rawRecords)') && paint.includes('dropped.has(record)'))
   check('a landed conversation rewind re-reads the transcript at once', connector.includes("if (receipt.outcome === 'applied' && receipt.conversation !== undefined && receipt.dryRun !== true) void this.tick()"))
 }

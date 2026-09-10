@@ -5,6 +5,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 const t = checker()
 
@@ -66,7 +67,7 @@ const cache = new Map<string, string>()
 const read = (rel: string): string => {
   if (!cache.has(rel)) {
     try {
-      cache.set(rel, readFileSync(join(ROOT, rel), 'utf8'))
+      cache.set(rel, codeOnlyText(rel, readFileSync(join(ROOT, rel), 'utf8')))
     } catch {
       cache.set(rel, '')
     }
@@ -74,8 +75,31 @@ const read = (rel: string): string => {
   return cache.get(rel)!
 }
 
-const definesSymbol = (rel: string, sym: string): boolean =>
-  new RegExp(`export (?:async )?(?:function|const) ${sym}\\b`).test(read(rel))
+const definesSymbolIn = (code: string, sym: string): boolean =>
+  new RegExp(`export (?:async )?(?:function|const) ${sym}\\b`).test(code)
+const definesSymbol = (rel: string, sym: string): boolean => definesSymbolIn(read(rel), sym)
+const referencesSymbolIn = (code: string, sym: string): boolean => new RegExp(`\\b${sym}\\b`).test(code)
+const functionExportsIn = (code: string): string[] =>
+  [...code.matchAll(/export (?:async )?function (\w+)/g)].map(m => m[1]!)
+
+t.section('§0 — the inventories read CODE, never comments')
+{
+  const consumerReal = "import { seatOfAgent } from './seatBridge.js'\nexport function route(id: string) { return seatOfAgent(id) }\n"
+  const consumerDestructure = "export async function boot() { const { rekeyOperatorRecords } = await import('./conversations.js'); rekeyOperatorRecords() }\n"
+  const consumerCommentOnly = "// seatOfAgent used to be called here\n/* and seatOfAgent is mentioned in this block */\nexport function route(id: string) { return id }\n"
+  const definerCommentOnly = "// export function seatOfAgent(id: string) {}\n/** export const seatOfAgent = 1 */\nexport function other() {}\n"
+  const definerReal = "export function seatOfAgent(id: string) { return id }\n"
+  const code = (text: string): string => codeOnlyText('fixture.ts', text)
+  t.check('a real import reference counts as consuming', referencesSymbolIn(code(consumerReal), 'seatOfAgent'))
+  t.check('a dynamic-import destructure counts as consuming', referencesSymbolIn(code(consumerDestructure), 'rekeyOperatorRecords'))
+  t.check('a symbol that survives ONLY in comments does NOT count as consuming', !referencesSymbolIn(code(consumerCommentOnly), 'seatOfAgent'))
+  t.check('a raw-text read WOULD have counted the comment-only mention (the fault this section guards)', referencesSymbolIn(consumerCommentOnly, 'seatOfAgent'))
+  t.check('a comment-only export declaration is NOT a definition', !definesSymbolIn(code(definerCommentOnly), 'seatOfAgent'))
+  t.check('a raw-text read WOULD have called the comment-only export a definition', definesSymbolIn(definerCommentOnly, 'seatOfAgent'))
+  t.check('a real export declaration is a definition', definesSymbolIn(code(definerReal), 'seatOfAgent'))
+  t.check('the crew-export walk ignores a comment-only function export', functionExportsIn(code(definerCommentOnly)).join(',') === 'other')
+  t.check('the raw crew-export walk WOULD have listed the comment-only export', functionExportsIn(definerCommentOnly).includes('seatOfAgent'))
+}
 
 t.section('§1 — every inventoried consumer still consumes')
 {
@@ -87,7 +111,7 @@ t.section('§1 — every inventoried consumer still consumes')
         broken++
         continue
       }
-      if (!new RegExp(`\\b${sym}\\b`).test(read(rel))) {
+      if (!referencesSymbolIn(read(rel), sym)) {
         t.check(`'${sym}' consumed by ${rel}`, false, 'the consumer no longer references it — a severed loop')
         broken++
       }
@@ -137,9 +161,7 @@ t.section('§2 — no NEW crew export ships without an inventory row')
       e.isDirectory() ? walk(join(dir, e.name)) : e.name.endsWith('.ts') ? [join(dir, e.name)] : [],
     )
   for (const file of walk(crewDir)) {
-    const src = readFileSync(file, 'utf8')
-    for (const m of src.matchAll(/export (?:async )?function (\w+)/g)) {
-      const name = m[1]!
+    for (const name of functionExportsIn(codeOnlyText(file, readFileSync(file, 'utf8')))) {
       if (!(name in INVENTORY) && !KNOWN_NON_PRODUCTION.has(name)) missing.push(name)
     }
   }

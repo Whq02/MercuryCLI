@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { agenticVerdict, imageVerdict, latchVerdict, turnAnswerVerdict } from './live/smokeVerdicts.ts'
+import { agenticVerdict, carriesNumber, imageVerdict, latchVerdict, turnAnswerVerdict } from './live/smokeVerdicts.ts'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -28,6 +28,15 @@ console.log('[1] the agentic verdict')
   check('three-digit fragments of a real answer are not mistaken for HTTP statuses', decimals.ok, reason(decimals))
   const status = agenticVerdict({ finalText: 'Request failed with status 503; partial: 676.571', turnsUsed: 3, maxTurns: 8, reasoningRecordedBeforeLastRequest: 2, reasoningReplayedInLastRequest: 2, expected: '676.57' })
   check('a status line without the API Error prefix is still red', !status.ok && /API error/.test(reason(status)), reason(status))
+  const agentic = (finalText: string) => agenticVerdict({ finalText, turnsUsed: 3, maxTurns: 8, reasoningRecordedBeforeLastRequest: 2, reasoningReplayedInLastRequest: 2, expected: '676.57' })
+  check('the exact answer 676.57 is green', agentic('The result is 676.57').ok)
+  check('the longer valid prefix 676.571428 is green', agentic('4736 / 7 = 676.571428').ok)
+  check('a larger number that CONTAINS the expected digits (2676.571) is red', !agentic('The result is 2676.571').ok, reason(agentic('The result is 2676.571')))
+  check('a number with extra leading digits (11676.57) is red', !agentic('The result is 11676.57').ok)
+  check('a shifted decimal (6765.7) is red', !agentic('The result is 6765.7').ok)
+  check('a truncated decimal (676.5) is red', !agentic('The result is 676.5').ok, reason(agentic('The result is 676.5')))
+  check('a rounded neighbour (676.6) is red', !agentic('The result is 676.6').ok)
+  check('a trailing-fraction lookalike (.676.57) is red', !agentic('value .676.57').ok)
 }
 
 console.log('[2] the image verdict')
@@ -51,6 +60,16 @@ console.log('[3] the turn verdict')
   const embedded = turnAnswerVerdict('The answer is 1742.', '42')
   check('42 inside another number is red', !embedded.ok && /as a number/.test(reason(embedded)), reason(embedded))
   check('an empty answer is red', !turnAnswerVerdict('', '42').ok)
+  check('"42" alone is green', turnAnswerVerdict('42', '42').ok)
+  check('"The answer is 42." is green (sentence punctuation is not a decimal)', turnAnswerVerdict('The answer is 42.', '42').ok)
+  check('"42," is green', turnAnswerVerdict('42, as computed', '42').ok)
+  const decimal = turnAnswerVerdict('The answer is 42.7', '42')
+  check('42.7 is NOT 42 (a decimal continuation is a different number)', !decimal.ok && /as a number/.test(reason(decimal)), reason(decimal))
+  check('42.0 is NOT accepted as the integer answer', !turnAnswerVerdict('42.0', '42').ok)
+  check('420 is red', !turnAnswerVerdict('The answer is 420', '42').ok)
+  check('4.2 is red', !turnAnswerVerdict('The answer is 4.2', '42').ok)
+  check('.42 is red', !turnAnswerVerdict('The answer is .42', '42').ok)
+  check('a later correct 42 after an earlier 420 is green', turnAnswerVerdict('not 420 but 42', '42').ok)
 }
 
 console.log('[4] the readiness latch verdict')
@@ -75,6 +94,9 @@ console.log('[5] the live scripts consult the verdicts, never a bare substring')
   check('smoke-image decides through imageVerdict, never /red/i alone', image.includes('imageVerdict(text)') && !image.includes('if (!/red/i.test(text))'))
   const turn = live('smoke-turn.ts')
   check('smoke-turn decides the answer through turnAnswerVerdict and the latch against its pre-run state', turn.includes("turnAnswerVerdict(t2Text, '42')") && turn.includes('latchVerdict(latchBefore, proof, MODEL)') && !turn.includes("if (!t2Text.includes('42'))"))
+  const verdicts = live('smokeVerdicts.ts')
+  check('both number verdicts share the boundary matcher, and neither falls back to includes(expected)', verdicts.split('carriesNumber(').length - 1 >= 3 && !verdicts.includes('finalText.includes(input.expected)'))
+  check('the matcher itself: exact and prefix-continuation match, containing and neighbouring numbers do not', carriesNumber('676.571428', '676.57') && carriesNumber('x 676.57 y', '676.57') && !carriesNumber('2676.571', '676.57') && !carriesNumber('676.5', '676.57') && carriesNumber('42.', '42') && !carriesNumber('42.7', '42') && !carriesNumber('142', '42'))
 }
 
 if (failures > 0) {

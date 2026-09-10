@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -53,7 +53,9 @@ try {
     const second = await drive(rulesDir)
     check('the first traversal lists the dir', afterFirst >= 1 && first.length === 1, `readdirs=${afterFirst} entries=${first.length}`)
     check('the repeat traversal pays ZERO further readdirs', count() === afterFirst, `readdirs=${count()}`)
-    check('the repeat composes the same entries', second.length === first.length)
+    const row = (e: unknown): { path?: string; type?: string; content?: string; contentDiffersFromDisk?: boolean } => e as never
+    check('the first traversal composed the fixture rule itself (path · type · content · disk parity)', realpathSync(String(row(first[0]).path)) === realpathSync(join(rulesDir, 'one.md')) && row(first[0]).type === 'Project' && row(first[0]).content === '# a rule\nplain body, no globs\n' && row(first[0]).contentDiffersFromDisk === false, JSON.stringify(first[0]))
+    check('the repeat composes the same entries', second.length === first.length && JSON.stringify(second) === JSON.stringify(first), JSON.stringify(second))
   }
 
   console.log('§2 the absent dir caches its negative answer')

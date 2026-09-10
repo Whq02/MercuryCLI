@@ -4,6 +4,8 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { readFileSync as rfBytes } from 'node:fs'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 const HOME = mkdtempSync(join(tmpdir(), 'settings-proof-home-'))
 const PROJ = mkdtempSync(join(tmpdir(), 'settings-proof-proj-'))
@@ -218,9 +220,23 @@ section('(5) updateSettingsForSource — merge writes, deletion, array replace')
   resetSettingsCache()
   const r2 = updateSettingsForSource('userSettings', { model: 'clobber' })
   check('invalid-JSON file refuses the write (error, not overwrite)', r2.error !== null && String(r2.error).includes('Invalid JSON'), String(r2.error))
+  check('…and the broken bytes are preserved on disk byte-for-byte (nothing clobbered, no backup swap)', rfBytes(userPath, 'utf8') === '{ broken', JSON.stringify(rfBytes(userPath, 'utf8')))
 
+  const flagFile = join(PROJ, 'flag-settings.json')
+  state.setFlagSettingsPath(flagFile)
+  resetSettingsCache()
+  const flagPathBefore = rfBytes(flagFile, 'utf8')
+  check('fixture: the flag source is ARMED on its file for the refusal test (a write has a real target to refuse)', getSettingsForSource('flagSettings')?.model === 'flag-model', j(getSettingsForSource('flagSettings')))
+  const policyBefore = j(getSettingsForSource('policySettings'))
   const r3 = updateSettingsForSource('policySettings' as never, { model: 'x' })
   check('policy/flag writes are refused silently (as-is)', r3.error === null)
+  check('…the policy source reads back unchanged after the refused write', j(getSettingsForSource('policySettings')) === policyBefore && getSettingsForSource('policySettings')?.model !== 'x', j(getSettingsForSource('policySettings')))
+  const r4 = updateSettingsForSource('flagSettings' as never, { model: 'x' })
+  resetSettingsCache()
+  check('the flag source is the SECOND read-only target: refused silently too', r4.error === null)
+  check('…and the flag file bytes are untouched, its read unchanged', rfBytes(flagFile, 'utf8') === flagPathBefore && getSettingsForSource('flagSettings')?.model === 'flag-model', rfBytes(flagFile, 'utf8'))
+  state.setFlagSettingsPath(undefined)
+  resetSettingsCache()
 }
 
 section('(6) cache behavior — clone isolation, session single-load, reset')
@@ -307,8 +323,15 @@ console.log('\n============================================================')
   check('FC-146: absent stays absent (nothing locks by default)', lockOf(undefined) === undefined)
   const { readFileSync: rfHealth } = await import('node:fs')
   const { join: joinHealth } = await import('node:path')
-  const healthSrc = rfHealth(joinHealth(import.meta.dir, '..', '..', 'src', 'utils', 'healthReport.ts'), 'utf8')
-  check('FC-146: doctor names the armed lock (call-shaped)', healthSrc.includes('managed extension-only lock'))
+  const healthPath = joinHealth(import.meta.dir, '..', '..', 'src', 'utils', 'healthReport.ts')
+  const healthSrc = codeOnlyText(healthPath, rfHealth(healthPath, 'utf8'))
+  const lockRead = healthSrc.indexOf("getSettingsForSource('policySettings')?.strictExtensionOnlyCustomization")
+  check('FC-146: doctor reads the lock from the policy source (code, not comment)', lockRead >= 0)
+  const lockBlock = lockRead >= 0 ? healthSrc.slice(lockRead, healthSrc.indexOf('getSettingsWithAllErrors', lockRead)) : ''
+  check('FC-146: doctor names the armed lock (call-shaped)', /if \(lock === true\) lockLine = ' · managed extension-only lock: ALL surfaces'/.test(lockBlock) && /Array\.isArray\(lock\) && lock\.length > 0\) lockLine = ` · managed extension-only lock: \$\{lock\.join\(', '\)\}`/.test(lockBlock), lockBlock.replace(/\s+/g, ' ').slice(0, 200))
+  check('FC-146: …and the lock line reaches the evidence string', /evidence: `\$\{sourcesLine\}\$\{lockLine\}/.test(lockBlock), lockBlock.replace(/\s+/g, ' ').slice(-160))
+  const lookalike = "// managed extension-only lock: ALL surfaces\n/* lockLine = ' · managed extension-only lock: x' */\nlet lockLine = ''\n"
+  check('FC-146: a comment-only mention of the lock line does NOT satisfy the code read', !codeOnlyText('lookalike.ts', lookalike).includes('managed extension-only lock') && lookalike.includes('managed extension-only lock'))
 }
 
 if (failures === 0) {

@@ -209,14 +209,48 @@ t.section('§4 — the folio action seam')
   })
   t.check('scope-decision → scope-decided with the fold echoed', scopeReceipt.kind === 'scope-decided')
 
+  const statusBefore = store.readReviewArtifactState(artifactId)!.statuses[1] ?? 'draft'
+  t.check('the fixture artifact starts in draft', statusBefore === 'draft', statusBefore)
   const mark = await actions.applyFolioAction({
     intentId: 'fi-status-1',
     kind: 'mark-reviewed',
     artifactId,
     version: 1,
   })
-  t.check('mark-reviewed applies (transition draft→…→reviewed prerequisite)', mark.kind === 'refused' || mark.kind === 'applied')
-  store.setReviewArtifactStatus({ id: artifactId, version: 1, status: 'ready-for-review' })
+  t.check(
+    'mark-reviewed on a DRAFT is refused with the illegal-transition reason',
+    mark.kind === 'refused' && /illegal status transition draft → reviewed/.test(mark.reason),
+    JSON.stringify(mark).slice(0, 140),
+  )
+  t.check(
+    'the refused intent left the status unchanged (still draft)',
+    (store.readReviewArtifactState(artifactId)!.statuses[1] ?? 'draft') === 'draft',
+  )
+  const ready = store.setReviewArtifactStatus({ id: artifactId, version: 1, status: 'ready-for-review' })
+  t.check('draft → ready-for-review is the one legal step out of draft', ready.ok === true)
+  const replayedMark = await actions.applyFolioAction({
+    intentId: 'fi-status-1',
+    kind: 'mark-reviewed',
+    artifactId,
+    version: 1,
+  })
+  t.check(
+    'replaying the REFUSED intent id returns its refusal, not a late application',
+    replayedMark === mark && store.readReviewArtifactState(artifactId)!.statuses[1] === 'ready-for-review',
+  )
+  const markReady = await actions.applyFolioAction({
+    intentId: 'fi-status-2',
+    kind: 'mark-reviewed',
+    artifactId,
+    version: 1,
+  })
+  t.check(
+    'a fresh mark-reviewed intent on the READY artifact really applies reviewed',
+    markReady.kind === 'applied' &&
+      markReady.status === 'reviewed' &&
+      store.readReviewArtifactState(artifactId)!.statuses[1] === 'reviewed',
+    JSON.stringify(markReady).slice(0, 140),
+  )
   const revise = await actions.applyFolioAction({
     intentId: 'fi-revise-1',
     kind: 'request-revision',

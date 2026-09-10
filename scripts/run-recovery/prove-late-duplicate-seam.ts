@@ -83,20 +83,28 @@ section('§2 execution plane — duplicate settle inert; stale generation refuse
   }
   const afterDup = plane.getExecution(owner, 'exec-1')
   check(`duplicate settle is ${dupOutcome} — the record stays succeeded`, afterDup?.state === 'succeeded', `state=${afterDup?.state}`)
-  const rec = plane.getExecution(owner, 'exec-1')
-  const gen = (rec as { generation?: number })?.generation
-  if (typeof gen === 'number' && gen > 0) {
-    let staleRefused = false
-    try {
-      plane.transitionExecution(owner, 'exec-1', 'running', { expectedGeneration: gen - 1 } as never)
-    } catch {
-      staleRefused = true
-    }
-    const afterStale = plane.getExecution(owner, 'exec-1')
-    check('a stale-generation transition cannot mutate the newer record', staleRefused || afterStale?.state === 'succeeded', `state=${afterStale?.state}`)
-  } else {
-    check('generation surface present on the record (fence observable)', true)
+  plane.registerExecution({
+    owner,
+    id: 'exec-2',
+    kind: 'model-turn',
+    label: 's29 fence',
+    lifecycle: 'owner',
+    initialState: 'queued',
+  })
+  const rec = plane.getExecution(owner, 'exec-2')
+  const gen = rec?.generation
+  check('the generation surface is present on the record (fence observable)', typeof gen === 'number', `generation=${String(gen)}`)
+  let staleError: unknown = null
+  try {
+    plane.transitionExecution(owner, 'exec-2', 'starting', { generation: (gen ?? 0) - 1 })
+  } catch (e) {
+    staleError = e
   }
+  const afterStale = plane.getExecution(owner, 'exec-2')
+  check('a stale-generation transition is refused by the typed generation error and mutates nothing', staleError instanceof plane.ExecutionGenerationError && afterStale?.state === 'queued', `error=${staleError instanceof Error ? staleError.constructor.name : String(staleError)} state=${afterStale?.state}`)
+  const current = plane.transitionExecution(owner, 'exec-2', 'starting', { generation: gen })
+  check('the same transition with the CURRENT generation lands (the fence refuses staleness, not motion)', current?.state === 'starting' && plane.getExecution(owner, 'exec-2')?.state === 'starting', `state=${plane.getExecution(owner, 'exec-2')?.state}`)
+  plane.settleExecution(owner, 'exec-2', 'succeeded', { outcome: { reason: 'done' } })
 }
 
 section('§3 turn phase — a stale-generation write never repaints the newer turn')
