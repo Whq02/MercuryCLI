@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[2]
 SPLASH = REPO / 'assets' / 'splash' / 'splash-core.mjs'
 
 args = [a for a in sys.argv[1:] if a != '--rebake']
-src = Path(args[0]).expanduser() if args else (REPO / 'assets' / 'splash' / 'reference' / 'hermes-head.png')
+src = Path(args[0]).expanduser() if args else (REPO / 'assets' / 'splash' / 'reference' / 'head-reference.png')
 bmp = Path(tempfile.mkstemp(suffix='.bmp')[1])
 subprocess.run(['sips', '-s', 'format', 'bmp', str(src), '--out', str(bmp)],
                check=True, capture_output=True)
