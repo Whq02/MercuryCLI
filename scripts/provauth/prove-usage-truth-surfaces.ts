@@ -5,6 +5,7 @@ process.env.NODE_ENV = 'test'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -359,10 +360,14 @@ section('§4 signed-out honesty in the meter renderers (source pins)')
   const rail = readFileSync(join(ROOT, 'src/components/HelmTelemetryRail.tsx'), 'utf8')
   const deck = readFileSync(join(ROOT, 'src/components/Deck.tsx'), 'utf8')
   check('rail: renders the owner why-not for a none source', rail.includes('usage.whyNot'))
+  const railCode = codeOnlyText('HelmTelemetryRail.tsx', rail)
+  const noneBranchAt = railCode.indexOf("usageEmpty && usage.sourceKind === 'none'")
+  const whyNotHintAt = railCode.indexOf('<EmptyHint key="usage:whynot"')
+  const fillsHintAt = railCode.search(/<EmptyHint key="usage:none" text=\{`\$\{NO_USAGE_READ_WORDS\} · fills after first reply`\}/)
+  check('rail: the none branch, its why-not hint and the fills-after hint are all rendered code', noneBranchAt !== -1 && whyNotHintAt !== -1 && fillsHintAt !== -1, JSON.stringify({ noneBranchAt, whyNotHintAt, fillsHintAt }))
   check(
-    "rail: the none branch is adjudicated BEFORE the fills-after hint",
-    rail.indexOf("usage.sourceKind === 'none'") !== -1 &&
-      rail.indexOf("usage.sourceKind === 'none'") < rail.indexOf('fills after first reply'),
+    'rail: the none branch is adjudicated BEFORE the fills-after hint',
+    noneBranchAt !== -1 && whyNotHintAt !== -1 && fillsHintAt !== -1 && noneBranchAt < whyNotHintAt && whyNotHintAt < fillsHintAt,
   )
   check('deck: renders the owner why-not for a none source', deck.includes('usage.whyNot'))
   check('deck: no hardcoded not-logged-in line survives', !deck.includes('not logged in — /logins connects'))
