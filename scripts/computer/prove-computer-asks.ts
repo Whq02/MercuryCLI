@@ -2,7 +2,7 @@
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, finish, scratchDir, section } from './computerProofKit.ts'
-import { allowEverything, COMPUTER_READS, ownerOf, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
+import { allowEverything, COMPUTER_READS, ownerOf, pixelOfPointOn, pointOfPixelOn, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
 
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
 const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
@@ -44,14 +44,14 @@ async function refusalOf(input: Record<string, unknown>, context: ToolUseContext
   return out.outcome === 'failed' ? out.result : null
 }
 
-async function fresh(name: string, scene: Record<string, unknown> | null, options: Parameters<typeof toolContext>[0] = {}): Promise<{ context: ToolUseContext; owner: ReturnType<typeof ownerOf> }> {
+async function fresh(name: string, scene: Record<string, unknown> | null, options: Parameters<typeof toolContext>[0] = {}): Promise<{ context: ToolUseContext; owner: ReturnType<typeof ownerOf>; screen: Record<string, unknown> }> {
   useScene(name, scene)
   const base = toolContext(options)
   const owner = ownerOf(base)
   session.forgetDesktopOwner(owner)
   const shot = await withScreenshot(ComputerTool as never, base, `toolu_${name}_shot`)
   check(`${name}: the opening screenshot succeeds`, shot.outcome === 'succeeded', shot.result)
-  return { context: shot.context, owner }
+  return { context: shot.context, owner, screen: shot.screen }
 }
 
 section('§1 reads never ask')
@@ -66,7 +66,8 @@ section('§1 reads never ask')
 
 section('§2 the first act asks by the application\'s name, the second rides the grant')
 {
-  const { context, owner } = await fresh('default', null)
+  const { context, owner, screen } = await fresh('default', null)
+  const expected = pointOfPixelOn(screen, 812, 300)
   const first = await permission({ action: 'click', x: 812, y: 300 }, context)
   check('the first click asks', first.behavior === 'ask', JSON.stringify(first))
   check('the message names the act, the point and the application, and says it is the first act', (first.message ?? '').includes('Computer click (812, 300)') && (first.message ?? '').includes('first act in this application'), first.message)
@@ -76,7 +77,9 @@ section('§2 the first act asks by the application\'s name, the second rides the
   check('the judged application is on the carry for the card', session.peekCheckedActApp(owner)?.app.identity === TEXTEDIT.identity && session.peekCheckedActApp(owner)?.action === 'click')
   check('no grant yet', session.appApproved(owner, TEXTEDIT.identity) === false && session.approvedAppList(owner).length === 0)
   const acted = resultOf(await ComputerTool.call({ action: 'click', x: 812, y: 300, capture: false } as never, context, allowEverything, toolUseTurn('toolu_asks_click', 'Computer', { action: 'click', x: 812, y: 300, capture: false })))
-  check('the click runs on the fake and names its point in both spaces', acted.outcome === 'succeeded' && acted.result.includes('click (812, 300)') && acted.result.includes('(406, 150) pt'), acted.result)
+  check('the click runs on the fake and names its point in both spaces', acted.outcome === 'succeeded' && acted.result.includes('click (812, 300)') && acted.result.includes(`(${expected.x}, ${expected.y}) pt`), `${acted.result} · expected (${expected.x}, ${expected.y}) pt from ${JSON.stringify(screen)}`)
+  const clicked = fakeDriver().acts.find(a => a.act === 'click')
+  check('the driver received the mapped point', JSON.stringify(clicked?.detail.at) === JSON.stringify(expected), JSON.stringify(clicked))
   check('the act granted the application for the session', session.appApproved(owner, TEXTEDIT.identity) === true && session.approvedAppList(owner).includes(TEXTEDIT.identity), session.approvedAppList(owner).join(','))
   check('the carry was consumed by the act', session.consumeCheckedActApp(owner, 'click') === null)
   const second = await permission({ action: 'key', key: 'Enter' }, context)
@@ -157,8 +160,10 @@ section('§6 the ask names the shape of the act, never the text')
 
 section('§7 the terminal running this session: keystrokes never land in it')
 {
-  const { context, owner } = await fresh('terminal-front', { frontmost: TERMINAL })
+  const { context, owner, screen } = await fresh('terminal-front', { frontmost: TERMINAL })
   session.approveApp(owner, { identity: TERMINAL.identity, name: TERMINAL.name })
+  const insidePixel = pixelOfPointOn(screen, 50, 750)
+  const outsidePixel = pixelOfPointOn(screen, 50, 50)
   const typed = await refusalOf({ action: 'type', text: 'hello', capture: false }, context)
   check('type refuses naming the terminal running this session', typed !== null && typed.includes('terminal running this session'), typed ?? 'allowed')
   const held = await refusalOf({ action: 'hold', key: 'shift', durationMs: 100, capture: false }, context)
@@ -169,9 +174,9 @@ section('§7 the terminal running this session: keystrokes never land in it')
   const switched = await refusalOf({ action: 'key', key: switchChord, capture: false }, context)
   check(`the application switch chord ${switchChord} is allowed`, switched === null, switched ?? '')
   check('…and reached the driver as a key tap', fakeDriver().acts.some(a => a.act === 'keyTap' && a.detail.key === 'tab'), JSON.stringify(fakeDriver().acts.map(a => a.act)))
-  const inside = await refusalOf({ action: 'click', x: 100, y: 1500, capture: false }, context)
-  check('a click inside the terminal\'s window refuses naming the window', inside !== null && inside.includes('(100, 1500) is inside the window of the terminal running this session'), inside ?? 'allowed')
-  const outside = await refusalOf({ action: 'click', x: 100, y: 100, capture: false }, context)
+  const inside = await refusalOf({ action: 'click', x: insidePixel.x, y: insidePixel.y, capture: false }, context)
+  check('a click inside the terminal\'s window refuses naming the window', inside !== null && inside.includes(`(${insidePixel.x}, ${insidePixel.y}) is inside the window of the terminal running this session`), inside ?? 'allowed')
+  const outside = await refusalOf({ action: 'click', x: outsidePixel.x, y: outsidePixel.y, capture: false }, context)
   check('a click outside its window is allowed', outside === null, outside ?? '')
   check('no keystroke reached the driver', !fakeDriver().acts.some(a => a.act === 'typeText' || a.act === 'keyDown'), JSON.stringify(fakeDriver().acts.map(a => a.act)))
   session.forgetDesktopOwner(owner)
