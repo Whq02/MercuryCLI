@@ -102,8 +102,11 @@ export function compactWorkCounts(input: {
   if (input.focusedSessionId !== null && input.carrier === 'in-process') activeSessions?.add(input.focusedSessionId)
   const sessionsOn = activeSessions?.size ?? null
   if (input.focusedSessionId === null) return { sessionsOn, agentsHere: 0, monitorsHere: 0 }
-  if (input.carrier === 'daemon' && activeSessions !== null && !activeSessions.has(input.focusedSessionId)) return { sessionsOn, agentsHere: 0, monitorsHere: 0 }
-  if (input.carrier === 'daemon' && (activeSessions === null || input.roster.reported === false)) return { sessionsOn, agentsHere: null, monitorsHere: null }
+  if (input.carrier === 'daemon') {
+    const focused = input.sessions.state === 'known' ? input.sessions.rows.find(row => row.sessionId === input.focusedSessionId) : undefined
+    if (focused !== undefined && activeSessions !== null && !activeSessions.has(input.focusedSessionId)) return { sessionsOn, agentsHere: 0, monitorsHere: 0 }
+    if (focused === undefined || input.roster.reported === false) return { sessionsOn, agentsHere: null, monitorsHere: null }
+  }
   const rows = focusedWorkRows(input.carrier === 'in-process' ? input.tasks : undefined, input.roster)
   const byId = new Map<string, WorkRowV1>()
   for (const row of rows) if (!byId.has(row.id)) byId.set(row.id, row)
@@ -147,13 +150,20 @@ export function compactWorkCounts(input: {
 }
 
 export function compactWorkSummaryText(counts: CompactWorkCounts, columns: number): string {
-  const n = (value: number | null): string => value === null ? '?' : String(value)
-  const plural = (value: number | null, noun: string): string => `${n(value)} ${noun}${value === 1 ? '' : 's'}`
-  const full = `${plural(counts.sessionsOn, 'session')} on · ${plural(counts.monitorsHere, 'monitor')} here · ${plural(counts.agentsHere, 'agent')} here`
+  const parts = [
+    { value: counts.sessionsOn, noun: 'session', scope: 'on', short: 'S' },
+    { value: counts.monitorsHere, noun: 'monitor', scope: 'here', short: 'M' },
+    { value: counts.agentsHere, noun: 'agent', scope: 'here', short: 'A' },
+  ]
+  const available = parts.filter(part => part.value !== null)
+  const unavailable = available.length !== parts.length
+  const words = available.map(part => `${part.value} ${part.noun}${part.value === 1 ? '' : 's'} ${part.scope}`)
+  if (unavailable) words.push('counts unavailable')
+  const full = words.join(' · ')
   if (stringWidth(full) <= columns) return full
-  const fields = [`S:${n(counts.sessionsOn)}`, `M:${n(counts.monitorsHere)}`, `A:${n(counts.agentsHere)}`]
+  const fields = available.map(part => `${part.short}:${part.value}`)
   while (fields.length > 0) {
-    const text = fields.join(' · ') + (fields.length < 3 ? ' …' : '')
+    const text = fields.join(' · ') + (unavailable || fields.length < parts.length ? ' …' : '')
     if (stringWidth(text) <= columns) return text
     fields.pop()
   }
