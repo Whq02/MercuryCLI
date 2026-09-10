@@ -20,7 +20,7 @@ for (const size of SIZES) {
   const res = drive(driver, leg, size, [
     ...OPENING('click and type'),
     { requireAwait: true, awaitText: 'first act', awaitStableTicks: 2, mark: 'card', data: '\r' },
-    { requireAwait: true, awaitText: 'hands off', awaitStableTicks: 1, mark: 'driving', data: '' },
+    { requireAwait: true, awaitText: 'hands off', awaitStableTicks: 1, mark: 'driving', data: '\x1b' },
     { requireAwait: true, awaitText: 'interrupted', awaitStableTicks: 3, mark: 'interrupted', data: 'z' },
     { afterPrevTicks: 4, mark: 'typed', data: '' },
   ], 240)
