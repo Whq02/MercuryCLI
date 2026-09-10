@@ -310,6 +310,43 @@ console.log('L2d the memory guard — a session over the limit parks with a memo
   releaseParks()
   await new Promise(r => setTimeout(r, 20))
   check('once the parks settle the guard forgets them (the next sweep may ask again)', parking.size === 0, JSON.stringify([...parking]))
+
+  const unhandled: unknown[] = []
+  const onUnhandled = (reason: unknown): void => { unhandled.push(reason) }
+  process.on('unhandledRejection', onUnhandled)
+  const rejectingSeats = {
+    sessionOf: (short: string): string | undefined => (short.startsWith('concourse-') ? `sid-${short}` : undefined),
+    park: async (): Promise<{ outcome: string }> => { throw new Error('durable publication failed: EIO') },
+  }
+  const throwingSeats = {
+    sessionOf: rejectingSeats.sessionOf,
+    park: (): Promise<{ outcome: string }> => { throw new Error('the park port threw before it returned a promise') },
+  }
+  const { spawnLedgerPath } = await import('../../src/utils/spawnLedger.ts')
+  const ledgerRows = (): Array<{ event?: string; id?: string; outcome?: string; reason?: string }> => {
+    try { return readFileSync(spawnLedgerPath(), 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)) } catch { return [] }
+  }
+  killed.length = 0
+  const rejectParking = new Set<string>()
+  const rowsBeforeReject = ledgerRows().length
+  const rejectedBreaches = await rss.runRssSweep(guardRoster, rejectingSeats, 1024, reader, rejectParking)
+  await new Promise(r => setTimeout(r, 30))
+  const rejectRows = ledgerRows().slice(rowsBeforeReject)
+  const failedRows = rejectRows.filter(r => r.event === 'reap' && r.outcome === 'rss-limit-park-failed')
+  check('a park port that REJECTS settles inside the sweep: no unhandled rejection escapes', unhandled.length === 0, JSON.stringify(unhandled.map(String)))
+  check('the failure is reported truthfully on the ledger as a failed park naming the error, never as parked', rejectedBreaches.some(b => b.short === 'concourse-w1') && failedRows.some(r => r.id === 'concourse-w1' && /the park threw: durable publication failed: EIO/.test(r.reason ?? '')) && !rejectRows.some(r => r.outcome === 'rss-limit-parked' || r.outcome === 'rss-limit-draining'), JSON.stringify(rejectRows))
+  check('the runner is left intact: nothing was killed on a failed park (only the idle sessionless child keeps its kill)', killed.join(',') === 'crew-b', killed.join(','))
+  check('the parking set is cleaned so the next sweep can ask again', rejectParking.size === 0, JSON.stringify([...rejectParking]))
+  killed.length = 0
+  const throwParking = new Set<string>()
+  await rss.runRssSweep(guardRoster, throwingSeats, 1024, reader, throwParking)
+  await new Promise(r => setTimeout(r, 30))
+  check('a park port that THROWS synchronously is settled the same way (no escape, nothing killed, the set cleaned)', unhandled.length === 0 && killed.join(',') === 'crew-b' && throwParking.size === 0 && ledgerRows().filter(r => r.event === 'reap' && r.outcome === 'rss-limit-park-failed' && /threw before it returned/.test(r.reason ?? '')).length >= 2, JSON.stringify({ unhandled: unhandled.length, killed, throwParking: [...throwParking] }))
+  const readerFails = async (): Promise<Map<number, number>> => { throw new Error('ps exploded') }
+  const noRead = await rss.runRssSweep(guardRoster, seats, 1024, readerFails, new Set())
+  await new Promise(r => setTimeout(r, 10))
+  check('a failed RSS read answers an empty sweep: nothing parked, nothing killed, nothing escapes', noRead.length === 0 && unhandled.length === 0 && killed.join(',') === 'crew-b', JSON.stringify({ noRead, unhandled: unhandled.length, killed }))
+  process.off('unhandledRejection', onUnhandled)
   const src = (await import('node:fs')).readFileSync(new URL('../../src/daemon/main.ts', import.meta.url), 'utf8')
   check("the daemon arms the guard with the seats port: an idle breach retires through the quiesce handshake as 'daemon: memory', a mid-turn one rides the draining park", src.includes("retireConcourseSession(sessionId, 'daemon: memory', roster, undefined, { reason })") && src.includes("parkConcourseSession(sessionId, 'daemon: memory', roster ?? undefined, undefined, { reason, afterTurn: true })"))
   const registry = (await import('node:fs')).readFileSync(new URL('../../src/substrate/flagRegistry.ts', import.meta.url), 'utf8')

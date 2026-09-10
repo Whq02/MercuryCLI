@@ -128,18 +128,30 @@ export function runRssSweep(
       // eslint-disable-next-line no-console
       console.error(`[daemon] worker ${breach.short} (pid ${breach.pid}) crossed the operator's memory limit: ${words} — parking its session${afterTurn ? ' after its turn' : ''}; ↵ on the row resumes it`)
       parking.add(breach.short)
-      void seats
-        .park(sessionId, memoryParkReason(breach.rssMb, limitMb), afterTurn)
-        .then(result => {
-          recordSpawnExit({ kind: 'long-lived', event: 'reap', id: breach.short, pid: breach.pid, outcome: result.outcome === 'parked' || result.outcome === 'applied' ? 'rss-limit-parked' : result.outcome === 'draining' ? 'rss-limit-draining' : 'rss-limit-refused', reason: `rss ${breach.rssMb}MB > limit ${limitMb}MB${result.detail !== undefined ? ` · ${result.detail}` : ''}` })
-          if (result.outcome === 'refused') {
+      void Promise.resolve()
+        .then(() => seats.park(sessionId, memoryParkReason(breach.rssMb, limitMb), afterTurn))
+        .then(
+          result => {
+            recordSpawnExit({ kind: 'long-lived', event: 'reap', id: breach.short, pid: breach.pid, outcome: result.outcome === 'parked' || result.outcome === 'applied' ? 'rss-limit-parked' : result.outcome === 'draining' ? 'rss-limit-draining' : 'rss-limit-refused', reason: `rss ${breach.rssMb}MB > limit ${limitMb}MB${result.detail !== undefined ? ` · ${result.detail}` : ''}` })
+            if (result.outcome === 'refused') {
+              // eslint-disable-next-line no-console
+              console.error(`[daemon] worker ${breach.short} over the memory limit could not be parked: ${result.detail ?? result.outcome} — left running; the next sweep asks again`)
+            }
+          },
+          (error: unknown) => {
+            const detail = error instanceof Error ? error.message : String(error)
+            recordSpawnExit({ kind: 'long-lived', event: 'reap', id: breach.short, pid: breach.pid, outcome: 'rss-limit-park-failed', reason: `rss ${breach.rssMb}MB > limit ${limitMb}MB · the park threw: ${detail}` })
             // eslint-disable-next-line no-console
-            console.error(`[daemon] worker ${breach.short} over the memory limit could not be parked: ${result.detail ?? result.outcome} — left running; the next sweep asks again`)
-          }
-        })
+            console.error(`[daemon] worker ${breach.short} over the memory limit: the park itself failed (${detail}) — left running, nothing killed; the next sweep asks again`)
+          },
+        )
         .finally(() => parking.delete(breach.short))
     }
     return breaches
+  }, (error: unknown) => {
+    // eslint-disable-next-line no-console
+    console.error(`[daemon] the memory sweep could not read the children's RSS: ${error instanceof Error ? error.message : String(error)} — nothing parked or killed this sweep`)
+    return []
   })
 }
 
