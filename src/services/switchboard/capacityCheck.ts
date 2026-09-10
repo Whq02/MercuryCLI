@@ -129,18 +129,30 @@ async function sampleAvailableMemoryAsync(): Promise<MemorySample> {
   return fallback
 }
 
+function refreshHeldReadingAsync(): Promise<void> {
+  pendingSample ??= (async () => {
+    await Promise.resolve()
+    const memory = sampler === null ? await sampleAvailableMemoryAsync() : sampler()
+    const sample: SeatReadingSample = { cores: 'cores' in memory ? memory.cores : availableCores(), availableBytes: memory.availableBytes, read: memory.read, sampledAt: Date.now() }
+    lastSampledAt = sample.sampledAt
+    const seats = machineSeatReading(sample.cores, sample.availableBytes)
+    if (held === null || seats >= held.seats) held = { seats, sample }
+  })().finally(() => { pendingSample = null })
+  return pendingSample
+}
+
 export async function seatCeilingFactsAsync(): Promise<SeatCeilingFacts> {
   if (fixture === null && stampedSeats() === null && (held === null || Date.now() - lastSampledAt >= SAMPLE_TTL_MS)) {
-    pendingSample ??= (async () => {
-      const memory = sampler === null ? await sampleAvailableMemoryAsync() : sampler()
-      const sample: SeatReadingSample = { cores: 'cores' in memory ? memory.cores : availableCores(), availableBytes: memory.availableBytes, read: memory.read, sampledAt: Date.now() }
-      lastSampledAt = sample.sampledAt
-      const seats = machineSeatReading(sample.cores, sample.availableBytes)
-      if (held === null || seats >= held.seats) held = { seats, sample }
-    })().finally(() => { pendingSample = null })
-    await pendingSample
+    await refreshHeldReadingAsync()
   }
   return seatCeilingFacts()
+}
+
+let heldReadingServedFromBackground = false
+
+export function serveHeldReadingFromBackground(): () => void {
+  heldReadingServedFromBackground = true
+  return () => { heldReadingServedFromBackground = false }
 }
 
 function freshSample(): SeatReadingSample {
@@ -157,6 +169,11 @@ export function heldMachineSeatFacts(): { seats: number; sample: SeatReadingSamp
   if (fixture !== null) return fixture
   const now = Date.now()
   if (held === null || now - lastSampledAt >= SAMPLE_TTL_MS) {
+    if (heldReadingServedFromBackground && held !== null) {
+      const standing = held
+      void refreshHeldReadingAsync().catch(() => {})
+      return standing
+    }
     const sample = freshSample()
     lastSampledAt = now
     const seats = machineSeatReading(sample.cores, sample.availableBytes)

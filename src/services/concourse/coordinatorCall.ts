@@ -18,6 +18,15 @@ export const COORDINATOR_TURN_MAX_TOOL_CALLS = 8
 export const COORDINATOR_TURN_MAX_OUTPUT_TOKENS = 8192
 export const COORDINATOR_TURN_WALL_MS = 120_000
 
+export function coordinatorDeadlineExpired(signal: AbortSignal): boolean {
+  return signal.aborted && (signal.reason as { name?: string } | undefined)?.name === 'TimeoutError'
+}
+
+export function coordinatorDeadlineWords(signal: AbortSignal, budgetMs: number, what: string, err: unknown): string {
+  if (coordinatorDeadlineExpired(signal)) return `${what} hit its ${Math.round(budgetMs / 1000)} s budget before the provider finished`
+  return err instanceof Error ? err.message : String(err)
+}
+
 const MIN_ROUND_OUTPUT_TOKENS = 256
 
 const joinParts = (parts: readonly string[]): string => parts.filter(p => p.length > 0).join('\n\n')
@@ -277,8 +286,11 @@ export async function liveCoordinatorCallModel(
   } catch (err) {
     if (err instanceof CoordinatorOverflowError) throw err
     const soFar = joinParts([...finalParts, roundDelta])
-    if (!sawWork && soFar.length === 0) throw err
-    const why = err instanceof Error ? err.message : String(err)
+    if (!sawWork && soFar.length === 0) {
+      if (coordinatorDeadlineExpired(signal)) throw new Error(coordinatorDeadlineWords(signal, COORDINATOR_TURN_WALL_MS, 'the coordinator turn', err))
+      throw err
+    }
+    const why = coordinatorDeadlineWords(signal, COORDINATOR_TURN_WALL_MS, 'the coordinator turn', err)
     const apology = `${soFar}${soFar.length > 0 ? '\n\n' : ''}Something broke mid-turn (${why}) — the receipt rows here are what actually happened; nothing else was changed.`
     return {
       decisions: [],

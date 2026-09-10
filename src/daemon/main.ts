@@ -48,6 +48,7 @@ import {
   workerPidAlive,
 } from './concourseSupervisor.js'
 import { answerPermissionAsk, onWorkerControlRequest } from './permissionAsks.js'
+import { seatCeilingFactsAsync, serveHeldReadingFromBackground } from '../services/switchboard/capacityCheck.js'
 import {
   onSeatIdle,
   controlSessionAgent,
@@ -298,6 +299,7 @@ async function daemonRun(args: string[]): Promise<void> {
   let requestShutdown: (signal: string) => void = () => {}
   let supervisorLock: SupervisorLock | null = null
   let teardownComplete = false
+  let releaseHeldReading: () => void = () => {}
 
   if (controlEnabled) {
     supervisorLock = await acquireSupervisorLock()
@@ -324,6 +326,8 @@ async function daemonRun(args: string[]): Promise<void> {
       if (!teardownComplete) supervisorExitTeardownSync('exit-before-teardown', code)
     })
     try {
+      await seatCeilingFactsAsync()
+      releaseHeldReading = serveHeldReadingFromBackground()
       roster = new TaskRoster({
         dir,
         breaker,
@@ -437,7 +441,7 @@ async function daemonRun(args: string[]): Promise<void> {
           const out = reviveConcourseWorker(sessionId, 'auto-revive', roster ?? undefined)
           return out.outcome === 'applied' || out.outcome === 'noop'
             ? { ok: true }
-            : { ok: false, error: out.detail ?? out.reason }
+            : { ok: false, error: out.detail ?? out.reason, reason: out.reason }
         },
       })
       const liveWorkers = (): { live: number; liveSessions: number } => {
@@ -1161,6 +1165,7 @@ async function daemonRun(args: string[]): Promise<void> {
           reason: `shutdown:${signal}`,
         })
         teardownComplete = true
+        releaseHeldReading()
         if (restartAfterTeardown) spawnSuccessorDaemon()
         await supervisorLock?.release().catch(() => {})
         supervisorLock = null
