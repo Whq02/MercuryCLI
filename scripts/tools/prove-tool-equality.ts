@@ -168,7 +168,14 @@ const readOnGlm1 = await toolToAPISchema(readTool, schemaOptions(EXEMPLARS.zai!)
 const readOnClaude = await toolToAPISchema(readTool, schemaOptions(EXEMPLARS.anthropic!))
 const readOnGlm2 = await toolToAPISchema(readTool, schemaOptions(EXEMPLARS.zai!))
 check('a foreign-lane render does not poison the anthropic render', (readOnClaude as { description: string }).description.includes(VISUAL_CLAIM))
-check('the foreign-lane render carries the placeholder truth', (readOnGlm1 as { description: string }).description.includes(PLACEHOLDER_CLAIM))
+const glmCaps = resolveModelCapabilities(EXEMPLARS.zai!)
+const glmText = (readOnGlm1 as { description: string }).description
+check(
+  `the foreign render carries its own media truth (images=${glmCaps.media.images}, pdf=${glmCaps.media.pdf})`,
+  (glmCaps.media.images ? glmText.includes(VISUAL_CLAIM) && !glmText.includes(PLACEHOLDER_CLAIM) : glmText.includes(PLACEHOLDER_CLAIM) && !glmText.includes(VISUAL_CLAIM)) &&
+    glmCaps.media.pdf === glmText.includes(PDF_CLAIM),
+)
+check('the two postures render different bytes', glmText !== (readOnClaude as { description: string }).description)
 check('same-posture renders are byte-stable (memo hit)', (readOnGlm1 as { description: string }).description === (readOnGlm2 as { description: string }).description)
 
 section('§5 the roster serializes onto every foreign codec')
