@@ -87,7 +87,6 @@ export const ACT_ACTIONS: ReadonlySet<string> = new Set([
   'hold',
 ])
 export const POINT_ACTIONS: ReadonlySet<string> = new Set(['click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll'])
-const CLICK_ACTIONS: ReadonlySet<string> = new Set(['click', 'doubleClick', 'rightClick'])
 const READ_ACTIONS: ReadonlySet<string> = new Set(['screenshot', 'wait', 'cursor', 'displays', 'frontmost'])
 const FACT_ACTIONS: ReadonlySet<string> = new Set(['cursor', 'displays', 'frontmost'])
 
