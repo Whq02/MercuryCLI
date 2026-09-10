@@ -34,8 +34,8 @@ const fnStart = layout.indexOf('export function FullscreenLayout')
 const fnBody = layout.slice(fnStart)
 check('FullscreenLayout is DE-MEMOIZED (no `const $ = _c(` decl)', !/const \$ = _c\(/.test(fnBody))
 check('FullscreenLayout body has no $[<n>] cache slot reads', !/\$\[\d/.test(fnBody))
-check('FullscreenLayout size-gates the cockpit via chromeModeLive(columns, rows) — the hysteresis-latched entry',
-  /chromeModeLive\(columns, terminalRows\)/.test(fnBody) && /chrome === 'cockpit'/.test(fnBody))
+check('FullscreenLayout reads the shared physical-geometry decision for the cockpit',
+  /useLayoutChrome\(\)/.test(fnBody) && /chrome === 'cockpit'/.test(fnBody))
 check('FullscreenLayout mounts rails off railPlan (center-first shed)',
   /railPlan\(columns\)/.test(fnBody) && /plan\.telemetry/.test(fnBody))
 check('FullscreenLayout composes both rails inline (HelmHome absorbed)',
