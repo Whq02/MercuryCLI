@@ -203,6 +203,10 @@ class NativeDesktopDriver implements DesktopDriver {
   }
 
   async permissions(): Promise<DesktopAnswer<DesktopPermissions>> {
+    return this.permissionsNow()
+  }
+
+  permissionsNow(): DesktopAnswer<DesktopPermissions> {
     return this.closedRefusal<DesktopPermissions>() ?? this.readPermissions()
   }
 
