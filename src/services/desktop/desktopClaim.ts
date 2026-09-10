@@ -53,7 +53,7 @@ export type DesktopClaimVerdict =
   | { held: true }
   | { held: false; holder: PidLockHolder | null; aborted?: true }
 
-export interface DesktopClaimRecord {
+export type DesktopClaimRecord = {
   app: DesktopDrivingApp | null
   since: number
 }
