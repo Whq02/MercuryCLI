@@ -56,7 +56,7 @@ for (const [cols, rows] of SIZES) {
 
   const hasPrompt = rowsText.some(l => l.includes('❯') || l.includes('for shortcuts'))
   check('the composer chrome is present at every tested size', hasPrompt)
-  check('no size-refusal replaces the live frame', !rowsText.some(l => /resize to continue|terminal too small/.test(l)))
+  check('no size-refusal replaces the live frame', !rowsText.some(l => /resize to continue|terminal too small|too small for|needs \d+(?: columns|[×x]\d+)/.test(l)))
 }
 
 console.log('\n== transient resize: 120×40 → 50×15 → 120×40 (one journey) ==')
