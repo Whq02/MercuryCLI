@@ -6,8 +6,9 @@ import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { readImageWithTokenBudget } from '../FileReadTool/FileReadTool.js'
 import { imageDimensionsFromHeader } from '../FileReadTool/imageProcessorJs.js'
+import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import { modelReceivesImageBlocks } from '../../utils/model/capabilities.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getMainLoopModel, normalizeModelStringForAPI } from '../../utils/model/model.js'
 import { sleep } from '../../utils/sleep.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
@@ -40,7 +41,7 @@ import {
   setScreen,
   type DesktopJudgedApp,
 } from '../../services/desktop/desktopSession.js'
-import { claimDesktop, desktopClaimBusyNote } from '../../services/desktop/desktopClaim.js'
+import { claimDesktop, desktopClaimBusyNote, renewDesktopClaim } from '../../services/desktop/desktopClaim.js'
 import { screenshotVisibleInContext } from '../../services/desktop/screenshotRetention.js'
 import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
@@ -318,8 +319,12 @@ async function ownTerminalRefusal(
   plan: ActPlan,
 ): Promise<string | null> {
   const own = await driver.ownTerminalApplication()
-  if (!own.ok || own.value === null || own.value.identity !== front.identity) return null
   const action = input.action
+  if (!own.ok || own.value === null) {
+    if (action === 'type' || action === 'hold' || (action === 'key' && !(plan.chord !== null && isAppSwitchChord(plan.chord)))) return `${action} refused: the terminal running this session could not be identified — keep the cockpit attached in a supported terminal before sending keystrokes`
+    return null
+  }
+  if (own.value.identity !== front.identity) return null
   if (action === 'type' || action === 'hold') {
     return `${action} refused: the application in front is the terminal running this session — a keystroke there would land in this conversation; switch to the target application first`
   }
@@ -563,19 +568,24 @@ async function takeScreenshot(
   let image = { width: capture.width, height: capture.height }
   let inlinePath: string | undefined
   let inlineMediaType: string | undefined
-  if (modelReceivesImageBlocks(context.options?.mainLoopModel ?? getMainLoopModel())) {
+  const model = context.options?.mainLoopModel ?? getMainLoopModel()
+  if (modelReceivesImageBlocks(model)) {
     try {
       const inlined = await readImageWithTokenBudget(file)
-      const bytes = Buffer.from(inlined.file.base64, 'base64')
+      const budgeted = Buffer.from(inlined.file.base64, 'base64')
+      const resized = await maybeResizeAndDownsampleImageBuffer(budgeted, budgeted.length, inlined.file.type.split('/')[1] ?? 'png', { role: 'tool-result', model })
+      const bytes = resized.buffer
       const header = imageDimensionsFromHeader(bytes)
-      if (header !== null && (header.width !== image.width || header.height !== image.height || inlined.file.type !== 'image/png')) {
+      if (header === null) throw new Error('the inline screenshot has no readable dimensions')
+      if (signal.aborted) return { ok: false, aborted: true, text: '' }
+      image = { width: header.width, height: header.height }
+      if (!bytes.equals(capture.png)) {
         inlinePath = `${file}.inline`
         writeFileSync(inlinePath, bytes)
-        inlineMediaType = inlined.file.type
-        image = { width: header.width, height: header.height }
+        inlineMediaType = `image/${resized.mediaType}`
       }
-    } catch {
-      inlinePath = undefined
+    } catch (error) {
+      return { ok: false, aborted: signal.aborted, text: `screenshot could not be prepared for the model: ${error instanceof Error ? error.message : String(error)}` }
     }
   }
   const screen = screenMapOfCapture(toolUseId, capture, display, image)
@@ -610,7 +620,7 @@ export async function routeRefusal(model: string): Promise<string | null> {
     const { imagesSupportedForModel } = await import('../../services/providers/openai/openaiCallModel.js')
     if (!imagesSupportedForModel(model)) return textOnlyRefusal(model, route)
   }
-  const refused = imageRefusedFor(model)
+  const refused = imageRefusedFor(normalizeModelStringForAPI(model))
   if (refused !== null) return imageRefusalText(model, route, refused)
   return null
 }
@@ -756,6 +766,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     let inlinePath: string | undefined
     let inlineMediaType: string | undefined
     let screen: ScreenMap | undefined
+    let claimedForAct = false
     const resolution = resolveDesktopDriver()
     if (resolution.state === 'unavailable') {
       result = `no desktop driver: ${resolution.note}${resolution.remedy ? ` — ${resolution.remedy}` : ''}`
@@ -811,6 +822,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
           outcome = 'failed'
           return finish()
         }
+        claimedForAct = true
         setDrivingApp(live)
         let act: ActWords
         try {
@@ -946,6 +958,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     return finish()
 
     function finish() {
+      if (claimedForAct && !signal.aborted) renewDesktopClaim()
       const output: Output = {
         action: input.action,
         result: result!,

@@ -1,4 +1,4 @@
-import { flagEnabled } from '../../substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { voiceCheckoutRoot } from '../voice/voicePack.js'
 import {
@@ -212,6 +212,10 @@ class NativeDesktopDriver implements DesktopDriver {
     } catch (error) {
       return fail(classifyThrown(error))
     }
+    if (signal.aborted) {
+      await this.releaseAll()
+      return desktopAbortedAnswer()
+    }
     return { ok: true, value: { act: kind, at, completedAt: Date.now() } }
   }
 
@@ -303,6 +307,16 @@ class NativeDesktopDriver implements DesktopDriver {
   async ownTerminalApplication(): Promise<DesktopAnswer<DesktopApplication | null>> {
     const closed = this.closedRefusal<DesktopApplication | null>()
     if (closed !== null) return closed
+    if (flagEnv('MERCURY_CONCOURSE_WORKER') === '1') {
+      const { getSessionId } = await import('../../bootstrap/state.js')
+      const { readSessionWorkers, stampedTerminalPid } = await import('../../daemon/concourseSupervisor.js')
+      const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
+      const record = Object.values(readSessionWorkers()).find(row => row.sessionId === String(getSessionId()) && row.endedAt === undefined)
+      const pid = stampedTerminalPid(record?.focusedBy)
+      const terminal = record?.terminalApplication
+      if (record?.focusedAt === undefined || pid === undefined || pid <= 1 || !isProcessAlive(pid) || terminal == null || typeof terminal.identity !== 'string' || terminal.identity === '' || typeof terminal.name !== 'string' || terminal.name === '') return { ok: true, value: null }
+      return { ok: true, value: { identity: terminal.identity, name: terminal.name, pid: null, title: null, bounds: null } }
+    }
     try {
       const raw = this.addon.ownTerminalApplication()
       if (typeof raw.identity === 'string' && raw.identity !== '') return { ok: true, value: application(raw, raw.identity) }
@@ -310,7 +324,7 @@ class NativeDesktopDriver implements DesktopDriver {
       return fail(classifyThrown(error))
     }
     const program = (process.env.TERM_PROGRAM ?? '').trim()
-    const identity = Object.hasOwn(TERMINAL_IDENTITIES, program) ? TERMINAL_IDENTITIES[program] : undefined
+    const identity = process.platform === 'darwin' && Object.hasOwn(TERMINAL_IDENTITIES, program) ? TERMINAL_IDENTITIES[program] : undefined
     if (identity === undefined) return { ok: true, value: null }
     return { ok: true, value: { identity, name: program, pid: null, title: null, bounds: null } }
   }

@@ -1,12 +1,14 @@
 import { mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { getSessionId } from '../../bootstrap/state.js'
+import { conversationIdHere, subscribeFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
 import { daemonDir } from '../../daemon/controlSocket.js'
 import {
   acquirePidLock,
   noteLockRelease,
   probePidLock,
   releasePidLock,
+  restampPidLock,
   type PidLockHolder,
 } from '../../substrate/pidLock.js'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
@@ -62,9 +64,10 @@ let held = false
 let recordApp: DesktopDrivingApp | null = null
 let claimedSince: number | null = null
 let idleTimer: ReturnType<typeof setTimeout> | null = null
-let claiming: Promise<DesktopClaimVerdict> | null = null
-let releasing: Promise<void> | null = null
-let restamping: Promise<boolean> | null = null
+let mutation: Promise<void> = Promise.resolve()
+let releaseEpoch = 0
+let pendingClaims = 0
+let actInFlight = false
 const armedSignals = new WeakSet<AbortSignal>()
 
 function clearIdleTimer(): void {
@@ -90,6 +93,26 @@ function recordOf(app: DesktopDrivingApp | null, since: number): DesktopClaimRec
   return { app, since }
 }
 
+function serializeClaim<T>(operation: () => Promise<T>): Promise<T> {
+  const result = mutation.then(operation, operation)
+  mutation = result.then(() => undefined, () => undefined)
+  return result
+}
+
+async function releaseOwnedClaim(): Promise<void> {
+  clearIdleTimer()
+  held = false
+  actInFlight = false
+  recordApp = null
+  claimedSince = null
+  publishDesktopIdle()
+  try {
+    noteLockRelease(`desktop claim ${desktopClaimPath()}`, await releasePidLock(desktopClaimPath(), desktopClaimOwner()))
+  } catch (error) {
+    logForDebugging(`desktop claim: release failed — ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
 async function acquire(app: DesktopDrivingApp | null): Promise<DesktopClaimVerdict> {
   await mkdir(daemonDir(), { recursive: true }).catch(() => undefined)
   const since = Date.now()
@@ -106,60 +129,48 @@ async function acquire(app: DesktopDrivingApp | null): Promise<DesktopClaimVerdi
 
 async function restamp(app: DesktopDrivingApp | null): Promise<boolean> {
   if (!held) return false
-  if (restamping !== null) {
-    await restamping
-    if (!held) return false
-  }
   if (sameDrivingApp(app, recordApp)) return true
-  restamping = (async () => {
-    const path = desktopClaimPath()
-    const since = claimedSince ?? Date.now()
-    noteLockRelease(`desktop claim ${path} (restamp)`, await releasePidLock(path, desktopClaimOwner()))
-    const result = await acquirePidLock(path, desktopClaimOwner(), { liveness: 'assume-dead', extra: recordOf(app, since) })
-    if (!result.held) {
-      held = false
-      recordApp = null
-      claimedSince = null
-      clearIdleTimer()
-      publishDesktopIdle()
-      logForDebugging(`desktop claim: lost to pid ${result.by?.pid ?? 'unknown'} while recording ${app?.name ?? 'no application'}`)
-      return false
-    }
-    recordApp = app
-    claimedSince = since
-    return true
-  })().finally(() => {
-    restamping = null
-  })
-  return restamping
+  const since = claimedSince ?? Date.now()
+  if (!(await restampPidLock(desktopClaimPath(), desktopClaimOwner(), recordOf(app, since)))) {
+    await releaseOwnedClaim()
+    return false
+  }
+  recordApp = app
+  claimedSince = since
+  return true
 }
 
 export async function claimDesktop(signal: AbortSignal, app: DesktopDrivingAppInput = null): Promise<DesktopClaimVerdict> {
   if (signal.aborted) return { held: false, holder: null, aborted: true }
-  if (releasing !== null) await releasing
-  const driving = drivingAppOf(app)
-  if (!held) {
-    if (claiming === null) {
-      claiming = acquire(driving).finally(() => {
-        claiming = null
-      })
-    }
-    const verdict = await claiming
-    if (!verdict.held) return verdict
-  } else if (driving !== null && !(await restamp(driving))) {
-    return { held: false, holder: await probeDesktopLock() }
+  clearIdleTimer()
+  const epoch = releaseEpoch
+  pendingClaims++
+  try {
+    return await serializeClaim(async (): Promise<DesktopClaimVerdict> => {
+      if (signal.aborted || epoch !== releaseEpoch) return { held: false, holder: null, aborted: true }
+      const driving = drivingAppOf(app)
+      if (!held) {
+        const verdict = await acquire(driving)
+        if (!verdict.held) return verdict
+      } else if (driving !== null && !(await restamp(driving))) {
+        return { held: false, holder: await probeDesktopLock() }
+      }
+      if (signal.aborted || epoch !== releaseEpoch) {
+        await releaseOwnedClaim()
+        return { held: false, holder: null, aborted: true }
+      }
+      armAbortRelease(signal)
+      actInFlight = true
+      publishDesktopDriving(driving)
+      return { held: true }
+    })
+  } finally {
+    pendingClaims--
   }
-  if (signal.aborted) {
-    await releaseDesktopClaim()
-    return { held: false, holder: null, aborted: true }
-  }
-  armAbortRelease(signal)
-  publishDesktopDriving(driving)
-  renewDesktopClaim()
-  return { held: true }
 }
 
 export function renewDesktopClaim(): void {
+  actInFlight = false
   if (!held) return
   clearIdleTimer()
   idleTimer = setTimeout(() => {
@@ -177,31 +188,13 @@ export function desktopClaimRecord(): DesktopClaimRecord | null {
 }
 
 export async function releaseDesktopClaim(): Promise<void> {
+  releaseEpoch++
   clearIdleTimer()
-  if (releasing !== null) return releasing
-  if (!held) {
-    publishDesktopIdle()
-    return
-  }
-  held = false
-  recordApp = null
-  claimedSince = null
-  publishDesktopIdle()
-  releasing = releasePidLock(desktopClaimPath(), desktopClaimOwner())
-    .then(receipt => {
-      noteLockRelease(`desktop claim ${desktopClaimPath()}`, receipt)
-    })
-    .catch(error => {
-      logForDebugging(`desktop claim: release failed — ${error instanceof Error ? error.message : String(error)}`)
-    })
-    .finally(() => {
-      releasing = null
-    })
-  return releasing
+  return serializeClaim(releaseOwnedClaim)
 }
 
 export async function releaseDesktopClaimForIdle(): Promise<void> {
-  if (!held) return
+  if (!held || pendingClaims > 0 || actInFlight) return
   logForDebugging(`desktop claim: no act for ${DESKTOP_CLAIM_IDLE_RELEASE_MS / 1000}s — released for other sessions`)
   await releaseDesktopClaim()
 }
@@ -233,9 +226,13 @@ export async function readDesktopClaimRecord(): Promise<DesktopClaimRecord | nul
 }
 
 export async function readDesktopClaimFile(): Promise<DesktopSnapshot> {
-  const holder = await probePidLock(desktopClaimPath(), { liveness: 'assume-dead' })
-  if (holder === null) return IDLE_DESKTOP_SNAPSHOT
-  const record = await readDesktopClaimRecord()
+  const holder = await probePidLock(desktopClaimPath(), { liveness: 'assume-dead', cachedLiveness: true })
+  if (holder === null || holder.owner !== `${conversationIdHere()}:${holder.pid}`) return IDLE_DESKTOP_SNAPSHOT
+  const raw = await readFile(desktopClaimPath(), 'utf8').catch(() => null)
+  if (raw === null) return IDLE_DESKTOP_SNAPSHOT
+  const identity = safeParseJSON(raw, false) as { owner?: unknown; pid?: unknown } | null
+  if (identity?.owner !== holder.owner || identity?.pid !== holder.pid) return IDLE_DESKTOP_SNAPSHOT
+  const record = recordFromText(raw)
   return {
     phase: 'driving',
     app: record?.app?.name ?? null,
@@ -248,6 +245,7 @@ let fileView: DesktopSnapshot = IDLE_DESKTOP_SNAPSHOT
 const fileListeners = new Set<() => void>()
 let poll: ReturnType<typeof setInterval> | null = null
 let reading = false
+let pollGeneration = 0
 
 function sameSnapshot(a: DesktopSnapshot, b: DesktopSnapshot): boolean {
   return a.phase === b.phase && a.app === b.app && a.identity === b.identity && a.startedAt === b.startedAt
@@ -268,8 +266,10 @@ function publishFileView(next: DesktopSnapshot): void {
 async function readFileView(): Promise<void> {
   if (reading) return
   reading = true
+  const generation = pollGeneration
   try {
-    publishFileView(await readDesktopClaimFile())
+    const view = await readDesktopClaimFile()
+    if (generation === pollGeneration && poll !== null) publishFileView(view)
   } catch (error) {
     logForDebugging(`desktop claim: the file view read failed — ${error instanceof Error ? error.message : String(error)}`)
   } finally {
@@ -298,6 +298,7 @@ export function armDesktopClaimPoll(active: boolean): void {
     void readFileView()
     return
   }
+  pollGeneration++
   if (poll !== null) {
     clearInterval(poll)
     poll = null
@@ -308,6 +309,12 @@ export function armDesktopClaimPoll(active: boolean): void {
 export function desktopClaimPollArmed(): boolean {
   return poll !== null
 }
+
+subscribeFocusedSessionConnector(() => {
+  pollGeneration++
+  publishFileView(IDLE_DESKTOP_SNAPSHOT)
+  if (poll !== null) void readFileView()
+})
 
 export function claimAgeWords(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) return 'a moment'
@@ -333,7 +340,7 @@ subscribeDesktop(() => {
   if (!held) return
   const view = desktopSnapshot()
   if (view.phase !== 'driving') return
-  void restamp(drivingAppOfSnapshot(view))
+  void serializeClaim(() => restamp(drivingAppOfSnapshot(view)))
 })
 
 registerCleanup(async () => {

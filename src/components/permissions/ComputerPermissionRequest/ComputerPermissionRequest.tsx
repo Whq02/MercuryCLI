@@ -39,7 +39,7 @@ export function judgedAppFromAsk(message: string, suggestions: ReadonlyArray<Ask
   let identity: string | null = null
   for (const suggestion of suggestions ?? []) {
     for (const rule of suggestion.rules ?? []) {
-      if (rule.toolName === COMPUTER_TOOL_NAME && typeof rule.ruleContent === 'string' && rule.ruleContent.startsWith('app:')) identity = rule.ruleContent.slice('app:'.length)
+      if (rule.toolName === COMPUTER_TOOL_NAME && typeof rule.ruleContent === 'string' && rule.ruleContent.startsWith('app:') && rule.ruleContent.length > 'app:'.length) identity = rule.ruleContent.slice('app:'.length)
     }
   }
   const spelled = /^(.+?) \((\S+)\) is in front of the operator's screen;/.exec(reason) ?? / in (.+?) \((\S+)\) — /.exec(message)

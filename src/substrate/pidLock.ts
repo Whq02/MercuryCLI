@@ -210,6 +210,26 @@ export async function acquirePidLock(
   return { held: false }
 }
 
+export async function restampPidLock(path: string, owner: string, extra: Record<string, unknown>): Promise<boolean> {
+  const original = await readRawRecord(path)
+  const holder = original === null ? null : parseHolder(original)
+  if (holder === null || holder.owner !== owner || holder.pid !== process.pid) return false
+  const parsed = safeParseJSON(original!, false) as Record<string, unknown>
+  const payload = jsonStringify({ ...parsed, ...extra, ...holder, procStart: holder.procStart })
+  const temp = `${path}.restamp-${process.pid}-${randomUUID().slice(0, 8)}`
+  try {
+    await writeFile(temp, payload, { mode: 0o600 })
+    if ((await readRawRecord(path)) !== original) return false
+    await renameWithWin32Retry(temp, path)
+    return (await readRawRecord(path)) === payload
+  } catch (error) {
+    logForDebugging(`[pidLock] record update failed at ${path}: ${error}`)
+    return false
+  } finally {
+    await unlink(temp).catch(() => {})
+  }
+}
+
 export class PidLockBusyError extends Error {
   constructor(
     public readonly lockPath: string,
@@ -393,11 +413,11 @@ export async function releasePidLock(
 
 export async function probePidLock(
   path: string,
-  opts: { liveness: LivenessPolarity; reclaimStale?: boolean },
+  opts: { liveness: LivenessPolarity; reclaimStale?: boolean; cachedLiveness?: boolean },
 ): Promise<PidLockHolder | null> {
   const holder = await readHolder(path)
   if (!holder) return null
-  if (holderAlive(holder, opts.liveness, await liveTokenFor(holder))) return holder
+  if (holderAlive(holder, opts.liveness, opts.cachedLiveness ? undefined : await liveTokenFor(holder))) return holder
   if (opts.reclaimStale) {
     const judged = await readRawRecord(path)
     if (judged === null) return null

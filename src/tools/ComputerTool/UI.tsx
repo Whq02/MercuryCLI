@@ -33,7 +33,7 @@ export function renderToolUseMessage(input: Partial<Input>, _opts: { verbose: bo
       parts.push(`(${input.x}, ${input.y}) by ${input.dx ?? 0}, ${input.dy ?? 0}${modifiers}`)
       break
     case 'type':
-      if (typeof input.text === 'string') parts.push(`"${clip(input.text, 30)}" (${input.text.length} chars)`)
+      if (typeof input.text === 'string') parts.push(`"${clip(JSON.stringify(input.text).slice(1, -1), 30)}" (${input.text.length} chars)`)
       break
     case 'key':
       parts.push(input.key ?? '')

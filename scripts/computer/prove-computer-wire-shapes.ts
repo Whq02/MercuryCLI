@@ -179,7 +179,7 @@ section('§d the route matrix of modelReceivesImageBlocks')
   ]
   for (const [route, model, expected] of matrix) {
     const answer = modelReceivesImageBlocks(model)
-    if (expected === null) check(`${route} (${model}) answers a boolean the catalogue decides`, typeof answer === 'boolean', String(answer))
+    if (expected === null) check(`${route} (${model}) with no declared modality stays permissive`, answer === true, String(answer))
     else check(`${route} (${model}) answers ${expected}`, answer === expected, String(answer))
   }
   check('an unrecognised id answers true, absence false', modelReceivesImageBlocks('stranger-1') === true && modelReceivesImageBlocks('') === false)
@@ -205,10 +205,54 @@ section('§f the latch: a provider refusal of the image parks the model until an
   check('the latched model reads its words back', imageRefusedFor('glm-4.5') === 'images are not supported by this model')
   const verdict = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext({ model: 'glm-4.5' }))
   check('validateInput refuses the latched model naming the route, the words and /model', verdict.result === false && verdict.message.includes('refused the image') && verdict.message.includes(providerDisplayName('zai')) && verdict.message.includes('images are not supported by this model') && verdict.message.includes('/model'), JSON.stringify(verdict))
+  const decorated = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext({ model: 'glm-4.5[1m]' }))
+  check('context-window decoration cannot evade the same model refusal', decorated.result === false && decorated.message.includes('refused the image'), JSON.stringify(decorated))
   check('asking about another model clears the latch', imageRefusedFor('claude-opus-5') === null && imageRefusedFor('glm-4.5') === null)
   const cleared = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext({ model: 'glm-4.5' }))
   check('the model drives again once the latch is cleared', cleared.result === true, JSON.stringify(cleared))
   clearImageRefusal()
+}
+
+section('§g declared catalogue modalities decide the refusal, not a boolean-shaped placeholder')
+{
+  const openrouter = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
+  const huggingface = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.ts')
+  const local = await import('../../src/services/providers/local/localDiscovery.ts')
+  const keys = ['OPENROUTER_API_KEY', 'HF_TOKEN', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC'] as const
+  const saved = keys.map(key => [key, process.env[key]] as const)
+  process.env.OPENROUTER_API_KEY = 'fixture-openrouter-catalogue'
+  process.env.HF_TOKEN = 'hf_fixture_catalogue'
+  delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
+  const rows = [
+    { id: 'fixture/text-only', architecture: { input_modalities: ['text'] } },
+    { id: 'fixture/vision', architecture: { input_modalities: ['text', 'image'] } },
+  ]
+  const fetchCatalogue = (async () => new Response(JSON.stringify({ data: rows }), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch
+  try {
+    openrouter.__resetOpenrouterCatalogueForTest()
+    huggingface.__resetHuggingfaceCatalogueForTest()
+    const router = await openrouter.refreshOpenrouterCatalogue('env', { force: true, fetchImpl: fetchCatalogue })
+    const hf = await huggingface.refreshHuggingfaceCatalogue({ force: true, fetchImpl: fetchCatalogue })
+    check('the two provider catalogues contain the stated text and image fixtures', router?.models.length === 2 && hf?.models.length === 2, JSON.stringify({ router: router?.lastError, hf: hf?.lastError }))
+    await local.refreshLocalDiscovery()
+    local.__resetLocalDiscoveryForTest()
+    const discovered = await local.refreshLocalDiscovery({ force: true, env: { ...process.env, MERCURY_LOCAL_PROBE_TARGETS: `lmstudio=${base}`, MERCURY_LOCAL_BASE_URL: undefined }, fetchImpl: (async () => new Response(JSON.stringify({ models: [{ type: 'llm', key: 'fixture-text-only', capabilities: { vision: false, trained_for_tool_use: true } }, { type: 'llm', key: 'fixture-vision', capabilities: { vision: true, trained_for_tool_use: true } }] }), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch })
+    check('local discovery loaded both declared capability records', discovered.servers.some(server => server.models.length === 2), JSON.stringify(discovered))
+    for (const [text, vision] of [['openrouter/fixture/text-only', 'openrouter/fixture/vision'], ['huggingface/fixture/text-only', 'huggingface/fixture/vision'], ['local/fixture-text-only', 'local/fixture-vision']]) {
+      check(`${text}: declared text-only means images false`, modelReceivesImageBlocks(text!) === false)
+      check(`${vision}: declared image support means images true`, modelReceivesImageBlocks(vision!) === true)
+      const refused = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext({ model: text }))
+      check(`${text}: Computer refuses by model and route with a remedy`, refused.result === false && refused.message.includes(text!) && refused.message.includes('route receives text only') && refused.message.includes('/model'), JSON.stringify(refused))
+    }
+  } finally {
+    for (const [key, value] of saved) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+    openrouter.__resetOpenrouterCatalogueForTest()
+    huggingface.__resetHuggingfaceCatalogueForTest()
+    local.__resetLocalDiscoveryForTest()
+  }
 }
 
 server.close()

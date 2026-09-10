@@ -14,8 +14,8 @@ export function pointOfPixel(map: ScreenMap, x: number, y: number): DesktopPoint
     Number.isFinite(x) && Number.isFinite(y) && x >= 0 && y >= 0 && x < map.imageWidth && y < map.imageHeight
   if (!inside) return { outside: true, imageWidth: map.imageWidth, imageHeight: map.imageHeight }
   return {
-    x: Math.round(map.originX + (x * map.pointWidth) / map.imageWidth),
-    y: Math.round(map.originY + (y * map.pointHeight) / map.imageHeight),
+    x: Math.min(map.originX + map.pointWidth - 1, Math.round(map.originX + (x * map.pointWidth) / map.imageWidth)),
+    y: Math.min(map.originY + map.pointHeight - 1, Math.round(map.originY + (y * map.pointHeight) / map.imageHeight)),
   }
 }
 
