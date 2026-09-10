@@ -7,6 +7,7 @@ import { setCwd } from '../utils/Shell.js'
 import { logError } from '../utils/log.js'
 import { hasPermissionsToUseTool } from '../utils/permissions/permissions.js'
 import { isToolKilled } from '../utils/permissions/capabilityGate.js'
+import { COMPUTER_TOOL_NAME } from '../services/desktop/toolName.js'
 import { createFileStateCacheWithSizeLimit } from '../utils/fileStateCache.js'
 import { randomUUID } from 'node:crypto'
 import { zodToJsonSchema } from '../utils/zodToJsonSchema.js'
@@ -51,7 +52,7 @@ export async function startMCPServer(
   server.setRequestHandler('tools/list', async () => {
     const permissionContext = await buildServePermissionContext()
     const pool = getTools(permissionContext)
-    const surviving = pool.filter(tool => !isToolKilled(tool))
+    const surviving = pool.filter(tool => !isToolKilled(tool) && tool.name !== COMPUTER_TOOL_NAME)
     const tools = await Promise.all(
       surviving.map(async tool => {
         const description = await tool.prompt({
@@ -84,7 +85,7 @@ export async function startMCPServer(
   server.setRequestHandler('tools/call', async request => {
     const permissionContext = await buildServePermissionContext()
     const pool = getTools(permissionContext)
-    const tool = pool.find(candidate => candidate.name === request.params.name)
+    const tool = pool.find(candidate => candidate.name === request.params.name && candidate.name !== COMPUTER_TOOL_NAME)
     if (!tool) throw new Error(`Tool ${request.params.name} not found`)
 
     const abortController = new AbortController()
