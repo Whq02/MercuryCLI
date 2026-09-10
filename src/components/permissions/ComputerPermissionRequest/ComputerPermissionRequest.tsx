@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useMemo } from 'react'
 import { Box, Text } from '../../../ink.js'
 import { Select } from '../../CustomSelect/select.js'
-import { peekCheckedActApp, type DesktopJudgedApp } from '../../../services/desktop/desktopSession.js'
+import { COMPUTER_TOOL_NAME, peekCheckedActApp, type DesktopJudgedApp } from '../../../services/desktop/desktopSession.js'
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
 import { shouldShowAlwaysAllowOptions } from '../../../utils/permissions/permissionsLoader.js'
 import { getGlobalConfig } from '../../../utils/config.js'
@@ -35,15 +35,15 @@ export function computerAppRuleContent(app: DesktopJudgedApp | null): string | n
 
 type AskSuggestion = { type?: string; rules?: Array<{ toolName?: string; ruleContent?: string }> }
 
-export function judgedAppFromAsk(message: string, suggestions: ReadonlyArray<AskSuggestion> | undefined): DesktopJudgedApp | null {
+export function judgedAppFromAsk(message: string, suggestions: ReadonlyArray<AskSuggestion> | undefined, reason = ''): DesktopJudgedApp | null {
   let identity: string | null = null
   for (const suggestion of suggestions ?? []) {
     for (const rule of suggestion.rules ?? []) {
-      if (typeof rule.ruleContent === 'string' && rule.ruleContent.startsWith('app:')) identity = rule.ruleContent.slice('app:'.length)
+      if (rule.toolName === COMPUTER_TOOL_NAME && typeof rule.ruleContent === 'string' && rule.ruleContent.startsWith('app:')) identity = rule.ruleContent.slice('app:'.length)
     }
   }
-  const spelled = / in (.+?) \((\S+)\) — /.exec(message)
-  if (spelled !== null) return { identity: identity ?? spelled[2]!, name: spelled[1]! }
+  const spelled = /^(.+?) \((\S+)\) is in front of the operator's screen;/.exec(reason) ?? / in (.+?) \((\S+)\) — /.exec(message)
+  if (spelled !== null && (identity === null || identity === spelled[2])) return { identity: spelled[2]!, name: spelled[1]! }
   return identity === null ? null : { identity, name: identity }
 }
 
@@ -57,8 +57,8 @@ export function ComputerPermissionRequest({
   const judged = useMemo(() => {
     const carried = peekCheckedActApp(ownerFromToolUseContext(toolUseConfirm.toolUseContext))?.app ?? null
     if (carried !== null) return carried
-    const ask = toolUseConfirm.permissionResult as { message?: string; suggestions?: AskSuggestion[] }
-    return judgedAppFromAsk(ask.message ?? '', ask.suggestions)
+    const ask = toolUseConfirm.permissionResult as { message?: string; suggestions?: AskSuggestion[]; decisionReason?: { message?: string; reason?: string } }
+    return judgedAppFromAsk(ask.message ?? '', ask.suggestions, ask.decisionReason?.message ?? ask.decisionReason?.reason)
   }, [toolUseConfirm.toolUseContext, toolUseConfirm.permissionResult])
   const ruleContent = computerAppRuleContent(judged)
 
