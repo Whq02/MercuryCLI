@@ -2667,6 +2667,15 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'iface-computer-use',
+          label: 'Computer use',
+          run: async () => {
+            const { describeDesktopDriver } = await import('../services/desktop/nativeDriver.js')
+            const facts = await describeDesktopDriver()
+            return { status: facts.ready ? ('ok' as const) : ('info' as const), evidence: facts.line, detail: facts.detail, ...(facts.fix ? { fix: facts.fix } : {}) }
+          },
+        },
+        {
           id: 'iface-image-processor',
           label: 'Image processor',
           run: async () => {

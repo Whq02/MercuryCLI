@@ -12,6 +12,7 @@ import { unityBridgeToolCatalogEnabled } from './utils/unity/bridgeGates.js'
 import { blenderBridgeToolCatalogEnabled } from './utils/blender/bridgeGates.js'
 import { asepriteToolCatalogEnabled } from './utils/aseprite/gates.js'
 import { BrowserTool, browserToolEnabled } from './tools/BrowserTool/BrowserTool.js'
+import { ComputerTool, computerToolEnabled } from './tools/ComputerTool/ComputerTool.js'
 import { ContractTool, contractToolHosted } from './tools/ContractTool/ContractTool.js'
 import { changeSetEnabled } from './services/changeTransaction/changeSetContracts.js'
 import { isDapToolCatalogEnabled } from './services/dap/dapClient.js'
@@ -210,6 +211,7 @@ export function getAllBaseTools(): Tools {
     ...(gitGraphEnabled() ? [GitTool] : []),
     ...(journeysEnabled() ? [JourneyTool] : []),
     ...(browserToolEnabled() ? [BrowserTool] : []),
+    ...(computerToolEnabled() ? [ComputerTool] : []),
     ...(vulcanToolCatalogEnabled() ? [GodotTool] : []),
     ...(unityBridgeToolCatalogEnabled() ? [UnityTool] : []),
     ...(blenderBridgeToolCatalogEnabled() ? [BlenderTool] : []),

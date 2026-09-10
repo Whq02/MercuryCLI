@@ -343,9 +343,9 @@ section('10 · the cloud-needed census on a local main (named degrades, never si
         { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } },
       ],
     } as never,
-  ])
+  ], { imagesSupported: false })
   const userRow = rows.find(r => r.role === 'user')
-  check('an image block rides as the loud [image] placeholder (never dropped silently)', typeof userRow?.content === 'string' && userRow.content.includes('[image]') && !userRow.content.includes('AAAA'), String(userRow?.content))
+  check('an image block rides as the loud [image] placeholder when the model takes no images (never dropped silently)', typeof userRow?.content === 'string' && userRow.content.includes('[image]') && !userRow.content.includes('AAAA'), String(userRow?.content))
   const toolRows = mapMessagesToZai(undefined, [
     {
       role: 'user',
@@ -353,9 +353,9 @@ section('10 · the cloud-needed census on a local main (named degrades, never si
         { type: 'tool_result', tool_use_id: 'tu_1', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'BBBB' } }] },
       ],
     } as never,
-  ])
+  ], { imagesSupported: false })
   const toolRow = toolRows.find(r => r.role === 'tool')
-  check('an image tool result degrades loudly too ([image] in the tool row)', typeof toolRow?.content === 'string' && toolRow.content.includes('[image]'), String(toolRow?.content))
+  check('an image tool result degrades loudly too when the model takes no images ([image] in the tool row)', typeof toolRow?.content === 'string' && toolRow.content.includes('[image]'), String(toolRow?.content))
 }
 
 section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 prompts to the served window with no signal)')

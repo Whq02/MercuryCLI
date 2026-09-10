@@ -177,6 +177,11 @@ lines.push(
   )
 }
 {
+  lines.push(
+    `- **desktop driver pack** (\`dist/vendor/desktop/<platform>/mercury_desktop.node\`) — Mercury's own Node-API addon, built from the repository's native/desktop sources with cargo (never fetched). It drives the platform's own screen and input layers and statically links the Rust crates it depends on, chiefly png (MIT OR Apache-2.0, https://github.com/image-rs/image-png), napi-rs (MIT, https://github.com/napi-rs/napi-rs), the objc2 family on macOS (MIT, https://github.com/madsmtm/objc2), the windows crate on Windows (MIT OR Apache-2.0, https://github.com/microsoft/windows-rs) and x11rb on Linux (MIT OR Apache-2.0, https://github.com/psychon/x11rb); the full per-platform crate inventory ships beside the addon as \`NOTICES.json\`, with every linked crate's licence text under \`licenses/<crate>-<version>/\`.`,
+  )
+}
+{
   const sharpMeta = pkgMeta('sharp')
   lines.push(
     `- **image-processor pack** (\`dist/vendor/image-processor/<platform>/node_modules/@img/\`) — sharp's prebuilt binding (@img/sharp-<platform> ${sharpMeta.version}, ${sharpMeta.license}, https://github.com/lovell/sharp) and the libvips library it links (@img/sharp-libvips-<platform>, LGPL-3.0-or-later, https://github.com/lovell/sharp-libvips — its bundled dependencies and their licences are inventoried upstream at https://github.com/lovell/sharp-libvips/blob/main/THIRD-PARTY-NOTICES.md; on Windows the binding package carries the libraries itself). Redistributed unmodified from the pinned dependency; each package's LICENSE, README and versions.json ship inside the pack.`,
