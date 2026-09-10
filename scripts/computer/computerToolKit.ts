@@ -74,6 +74,27 @@ export interface ScreenshotInContext {
   result: string
   outcome: string
   messages: Message[]
+  screen: Record<string, unknown>
+}
+
+export function pixelOfPointOn(screen: Record<string, unknown>, x: number, y: number): { x: number; y: number } {
+  const imageWidth = Number(screen.imageWidth)
+  const imageHeight = Number(screen.imageHeight)
+  const pointWidth = Number(screen.pointWidth)
+  const pointHeight = Number(screen.pointHeight)
+  const originX = Number(screen.originX)
+  const originY = Number(screen.originY)
+  return { x: Math.round(((x - originX) * imageWidth) / pointWidth), y: Math.round(((y - originY) * imageHeight) / pointHeight) }
+}
+
+export function pointOfPixelOn(screen: Record<string, unknown>, x: number, y: number): { x: number; y: number } {
+  const imageWidth = Number(screen.imageWidth)
+  const imageHeight = Number(screen.imageHeight)
+  const pointWidth = Number(screen.pointWidth)
+  const pointHeight = Number(screen.pointHeight)
+  const originX = Number(screen.originX)
+  const originY = Number(screen.originY)
+  return { x: Math.round(originX + (x * pointWidth) / imageWidth), y: Math.round(originY + (y * pointHeight) / imageHeight) }
 }
 
 export async function withScreenshot(
@@ -89,7 +110,7 @@ export async function withScreenshot(
   const block = tool.mapToolResultToToolResultBlockParam(answer.data as never, recorded)
   const messages = [...base.messages, parent, toolResultTurn(block)]
   const context = { ...base, messages } as ToolUseContext
-  return { context, toolUseId: recorded, result: out.result, outcome: out.outcome, messages }
+  return { context, toolUseId: recorded, result: out.result, outcome: out.outcome, messages, screen: out.screen ?? {} }
 }
 
 export function resultOf(answer: unknown): { result: string; outcome: string; imagePath?: string; inlinePath?: string; screen?: Record<string, unknown> } {
