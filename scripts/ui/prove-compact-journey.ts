@@ -19,7 +19,7 @@ const artifactSchema = z.object({
 })
 const requestSchema = z.object({ messages: z.array(z.object({ role: z.string(), content: z.union([z.string(), z.array(z.object({ type: z.string(), text: z.string().optional() }))]) })) })
 const driver = requireCaptureDriver('compact-journey')
-const expectedRequests = [['stream the compact journey'], ['stream the compact journey', 'queued while streaming']]
+const expectedRequests = [['stream the compact journey'], ['stream the compact journey', '[Request interrupted by user]\n', 'queued while streaming']]
 const results: Array<{ complete: boolean; requests: string[][] }> = []
 console.log(`compact journey artifacts: ${scratch}`)
 for (const variant of ['resize', 'compact', 'full'] as const) {

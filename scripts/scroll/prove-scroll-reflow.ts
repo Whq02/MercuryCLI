@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
-import { mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
@@ -10,7 +11,7 @@ import { paneSigs, regionOf, stepBounds, type Grid, type Sig } from './paneRuler
 
 const ROOT = join(import.meta.dir, '../..')
 const FULL = process.env.PROVE_SCROLL_FULL === '1'
-const SCRATCH = `/tmp/mercury-scroll-reflow-${process.pid}`
+const SCRATCH = mkdtempSync(join(tmpdir(), 'mercury-scroll-reflow-'))
 
 let failures = 0
 let checks = 0
@@ -161,10 +162,11 @@ function runCell(cell: Cell): void {
       MERCURY_LIVE_GLYPHS: '0',
     },
   })
+  writeFileSync(join(SCRATCH, `${cell.tag}.engine.log`), `${res.stdout ?? ''}${res.stderr ?? ''}`)
   check(`${cell.tag}: vshot exit 0`, res.status === 0, `status ${res.status}`)
   if (res.status !== 0) {
-    console.log(res.stdout?.slice(-1500) ?? '')
-    console.error(res.stderr?.slice(-1500) ?? '')
+    console.log(res.stdout ?? '')
+    console.error(res.stderr ?? '')
     return
   }
   const payload = JSON.parse(readFileSync(out, 'utf-8')) as {
