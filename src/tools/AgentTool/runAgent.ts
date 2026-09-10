@@ -772,7 +772,7 @@ export async function* runAgent(
     mcp.tools = agentMcp.tools
     mcp.cleanup = agentMcp.cleanup
 
-    let tools = availableTools.filter(tool => tool.name !== COMPUTER_TOOL_NAME)
+    let tools: Tools = availableTools.filter(tool => tool.name !== COMPUTER_TOOL_NAME)
     if (mcp.tools.length > 0) {
       const merged = [...tools]
       for (const mcpTool of mcp.tools) {
