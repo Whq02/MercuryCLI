@@ -33,6 +33,20 @@ export function computerAppRuleContent(app: DesktopJudgedApp | null): string | n
   return app === null ? null : `app:${app.identity}`
 }
 
+type AskSuggestion = { type?: string; rules?: Array<{ toolName?: string; ruleContent?: string }> }
+
+export function judgedAppFromAsk(message: string, suggestions: ReadonlyArray<AskSuggestion> | undefined): DesktopJudgedApp | null {
+  let identity: string | null = null
+  for (const suggestion of suggestions ?? []) {
+    for (const rule of suggestion.rules ?? []) {
+      if (typeof rule.ruleContent === 'string' && rule.ruleContent.startsWith('app:')) identity = rule.ruleContent.slice('app:'.length)
+    }
+  }
+  const spelled = / in (.+?) \((\S+)\) — /.exec(message)
+  if (spelled !== null) return { identity: identity ?? spelled[2]!, name: spelled[1]! }
+  return identity === null ? null : { identity, name: identity }
+}
+
 export function ComputerPermissionRequest({
   toolUseConfirm,
   onDone,
@@ -41,8 +55,10 @@ export function ComputerPermissionRequest({
   workerBadge,
 }: PermissionRequestProps): React.ReactNode {
   const judged = useMemo(
-    () => peekCheckedActApp(ownerFromToolUseContext(toolUseConfirm.toolUseContext))?.app ?? null,
-    [toolUseConfirm.toolUseContext],
+    () =>
+      peekCheckedActApp(ownerFromToolUseContext(toolUseConfirm.toolUseContext))?.app ??
+      judgedAppFromAsk(toolUseConfirm.permissionResult.message ?? '', (toolUseConfirm.permissionResult as { suggestions?: AskSuggestion[] }).suggestions),
+    [toolUseConfirm.toolUseContext, toolUseConfirm.permissionResult],
   )
   const ruleContent = computerAppRuleContent(judged)
 
@@ -109,7 +125,6 @@ export function ComputerPermissionRequest({
           <Text>{useMessage}</Text>
         )}
         <Text>{computerAskAppLine(judged)}</Text>
-        {toolUseConfirm.description.includes(COMPUTER_ASK_FIRST_ACT) ? null : <Text dimColor>{toolUseConfirm.description}</Text>}
         <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} toolType="tool" />
         <Text bold>{COMPUTER_ASK_QUESTION}</Text>
         <Select options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
