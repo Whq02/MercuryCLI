@@ -60,6 +60,30 @@ section('(1) snapshot shape, immutability, and stability')
     threw = true
   }
   check('snapshot is deep-frozen (mutation throws or is inert)', threw || snap.settings.model === 'from-user')
+  const attempt = (fn: () => void): boolean => {
+    try {
+      fn()
+    } catch {
+      return true
+    }
+    return false
+  }
+  const env = snap.settings.env as Record<string, string>
+  const envThrew = attempt(() => { env.A = 'MUTATED' })
+  check('nested object (env.A) is frozen too — deep, not shallow', Object.isFrozen(env) && (envThrew || env.A === 'user'), j(env))
+  const envAddThrew = attempt(() => { env.NEW = 'x' })
+  check('nested object refuses a NEW key as well', envAddThrew || !('NEW' in env))
+  const allow = (snap.settings.permissions as { allow: string[] }).allow
+  const pushThrew = attempt(() => { allow.push('Write(y)') })
+  const idxThrew = attempt(() => { allow[0] = 'MUTATED' })
+  check('nested array (permissions.allow) is frozen — push and index write both refused', Object.isFrozen(allow) && (pushThrew || allow.length === 1) && (idxThrew || allow[0] === 'Read(x)'), j(allow))
+  const prov = snap.provenance as Record<string, Record<string, unknown>>
+  const provThrew = attempt(() => { prov['model']!.winner = 'MUTATED' })
+  check('provenance rows are frozen (the recursion reaches them)', Object.isFrozen(prov) && Object.isFrozen(prov['model']) && (provThrew || prov['model']!.winner === 'userSettings'))
+  const shallow = Object.freeze({ model: 'top', env: { A: 'inner' }, permissions: { allow: ['Read(x)'] } })
+  ;(shallow.env as Record<string, string>).A = 'MUTATED'
+  ;(shallow.permissions.allow as string[]).push('Write(y)')
+  check('negative: a SHALLOW freeze leaves env and allow mutable — the rows above would red on it', !Object.isFrozen(shallow.env) && shallow.env.A === 'MUTATED' && shallow.permissions.allow.length === 2)
   const again = getSettingsSnapshot()
   check('same underlying state → the SAME snapshot object (cached)', again === snap)
 }
