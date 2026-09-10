@@ -1,7 +1,9 @@
 
-import React, { useContext, useSyncExternalStore } from 'react'
+import React, { useContext, useEffect, useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
 import { RECORDING_FOOTER, subscribeVoice, TRANSCRIBING_FOOTER, voiceSnapshot } from '../../services/voice/voiceSession.js'
+import { desktopSnapshot, drivingFooter, subscribeDesktop } from '../../services/desktop/desktopSession.js'
+import { armDesktopClaimPoll, desktopClaimFileSnapshot, subscribeDesktopClaimFile } from '../../services/desktop/desktopClaim.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useAppState, useSetAppState, type AppState } from '../../state/AppState.js'
 import { usePrStatus } from '../../hooks/usePrStatus.js'
@@ -86,6 +88,13 @@ export function PromptInputFooterLeftSide({
     getGlobalConfig().prStatusFooterEnabled !== false,
   )
   const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
+  const desktop = useSyncExternalStore(subscribeDesktop, desktopSnapshot, desktopSnapshot)
+  const desktopFile = useSyncExternalStore(subscribeDesktopClaimFile, desktopClaimFileSnapshot, desktopClaimFileSnapshot)
+  useEffect(() => {
+    armDesktopClaimPoll(isLoading)
+    return () => armDesktopClaimPoll(false)
+  }, [isLoading])
+  const driving = desktop.phase === 'driving' ? desktop : desktopFile.phase === 'driving' ? desktopFile : null
 
   if (exitPending) {
     return <ExitChordNotice keyName={exitKeyName} />
@@ -107,6 +116,16 @@ export function PromptInputFooterLeftSide({
     return (
       <Box height={isFullscreenActive() ? 1 : undefined} overflow="hidden">
         <Text dimColor wrap="truncate-end">{TRANSCRIBING_FOOTER}</Text>
+      </Box>
+    )
+  }
+  if (driving !== null && isLoading) {
+    return (
+      <Box height={isFullscreenActive() ? 1 : undefined} overflow="hidden">
+        <Text wrap="truncate-end">
+          <Text color={tokens.warning}>●</Text>
+          <Text dimColor> {drivingFooter(driving.app)}</Text>
+        </Text>
       </Box>
     )
   }

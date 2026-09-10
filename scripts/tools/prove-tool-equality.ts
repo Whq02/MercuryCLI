@@ -168,7 +168,14 @@ const readOnGlm1 = await toolToAPISchema(readTool, schemaOptions(EXEMPLARS.zai!)
 const readOnClaude = await toolToAPISchema(readTool, schemaOptions(EXEMPLARS.anthropic!))
 const readOnGlm2 = await toolToAPISchema(readTool, schemaOptions(EXEMPLARS.zai!))
 check('a foreign-lane render does not poison the anthropic render', (readOnClaude as { description: string }).description.includes(VISUAL_CLAIM))
-check('the foreign-lane render carries the placeholder truth', (readOnGlm1 as { description: string }).description.includes(PLACEHOLDER_CLAIM))
+const glmCaps = resolveModelCapabilities(EXEMPLARS.zai!)
+const glmText = (readOnGlm1 as { description: string }).description
+check(
+  `the foreign render carries its own media truth (images=${glmCaps.media.images}, pdf=${glmCaps.media.pdf})`,
+  (glmCaps.media.images ? glmText.includes(VISUAL_CLAIM) && !glmText.includes(PLACEHOLDER_CLAIM) : glmText.includes(PLACEHOLDER_CLAIM) && !glmText.includes(VISUAL_CLAIM)) &&
+    glmCaps.media.pdf === glmText.includes(PDF_CLAIM),
+)
+check('the two postures render different bytes', glmText !== (readOnClaude as { description: string }).description)
 check('same-posture renders are byte-stable (memo hit)', (readOnGlm1 as { description: string }).description === (readOnGlm2 as { description: string }).description)
 
 section('§5 the roster serializes onto every foreign codec')
@@ -236,9 +243,16 @@ const imageResult = {
     },
   ],
 }
-const zaiImage = mapMessagesToZai(undefined, [imageResult as never])
+const zaiImage = mapMessagesToZai(undefined, [imageResult as never], { imagesSupported: false })
 const toolRow = zaiImage.find(m => m.role === 'tool')
-check('an image tool result degrades to the named placeholder', toolRow?.content === '[image]', JSON.stringify(toolRow?.content))
+check('an image tool result degrades to the named placeholder when the model takes no images', toolRow?.content === '[image]', JSON.stringify(toolRow?.content))
+const zaiImageCarried = mapMessagesToZai(undefined, [imageResult as never])
+const carriedUser = zaiImageCarried.find(m => m.role === 'user')
+check(
+  'an image tool result rides as an image_url part of the user row that follows the tool row when the model takes images',
+  Array.isArray(carriedUser?.content) && carriedUser.content.some(p => p.type === 'image_url'),
+  JSON.stringify(carriedUser?.content).slice(0, 120),
+)
 check('…never to an empty string', (toolRow?.content ?? '').length > 0)
 
 const mixedResult = {
@@ -269,9 +283,9 @@ const userImage = {
     { type: 'image' as const, source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } },
   ],
 }
-const zaiUserImage = mapMessagesToZai(undefined, [userImage as never])
+const zaiUserImage = mapMessagesToZai(undefined, [userImage as never], { imagesSupported: false })
 check(
-  'a pasted user image degrades to the same named placeholder',
+  'a pasted user image degrades to the same named placeholder when the model takes no images',
   zaiUserImage.some(m => m.role === 'user' && typeof m.content === 'string' && m.content.includes('[image]')),
 )
 

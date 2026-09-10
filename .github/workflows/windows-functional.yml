@@ -120,6 +120,14 @@ jobs:
       - name: Build dist (journey payload)
         run: bun run build.ts
 
+      - name: Desktop driver pack on the runner's desktop session
+        run: |
+          bun run scripts/vendor/build-desktop.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $env:MERCURY_SUITE_DESKTOP_LIVE = 'acts'
+          bash scripts/desktop/run-all.sh
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
       - name: Update journey under git-bash PATH order (the mingw64 shadow)
         shell: bash
         run: bun run scripts/updater/prove-update-journey.ts

@@ -105,6 +105,7 @@ console.log('A every relayed result crosses the control socket whole')
       { verb: 'isolate', label: 'carve a worktree' },
     ],
   }
+  const controlRequests: Array<Record<string, unknown>> = []
   const deps = {
     roster: {
       has: () => ({ present: true, alive: true, ready: true }),
@@ -120,7 +121,7 @@ console.log('A every relayed result crosses the control socket whole')
     onShutdown: () => ({ reaped: 0, workers: [] }),
     concourseAdmit: async () => admitOk,
     concourseDispatch: async (req: { clientMessageId: string }) => (req.clientMessageId === 'cm-held' ? dispatchRefused : dispatchOk),
-    concourseControl: () => ({ outcome: 'applied' as const, detail: 'focused' }),
+    concourseControl: (req: Record<string, unknown>) => { controlRequests.push(req); return { outcome: 'applied' as const, detail: 'focused' } },
     concourseWarm: async () => ({ state: 'refused' as const, detail: 'no free slot' }),
     concourseRelease: () => ({ settled: true, killed: false }),
     crewSpawn: async () => ({ ok: true, pid: 77 }),
@@ -151,6 +152,16 @@ console.log('A every relayed result crosses the control socket whole')
 
     const control = await rawRequest(path, { ...base, op: 'sessionControl', action: 'focus', sessionId: 's-1', by: 't' })
     crosses('control', control, { ok: true, op: 'sessionControl', outcome: 'applied', detail: 'focused' })
+    const terminalApplication = { identity: 'com.example.CockpitTerminal', name: 'Cockpit terminal' }
+    const focused = await rawRequest(path, { ...base, op: 'sessionControl', action: 'focus', sessionId: 's-1', by: 'operator:1234', terminalApplication })
+    check('the authenticated focus carries the exact cockpit terminal identity', focused.ok === true && JSON.stringify(controlRequests.at(-1)?.terminalApplication) === JSON.stringify(terminalApplication))
+    const count = controlRequests.length
+    const malformed = await rawRequest(path, { ...base, op: 'sessionControl', action: 'focus', sessionId: 's-1', by: 'operator:1234', terminalApplication: { identity: '', name: 'wrong' } })
+    check('an empty terminal identity is refused before the handler', malformed.ok === false && controlRequests.length === count)
+    const wrongVerb = await rawRequest(path, { ...base, op: 'sessionControl', action: 'blur', sessionId: 's-1', by: 'operator:1234', terminalApplication })
+    check('a terminal identity cannot ride another control verb', wrongVerb.ok === false && controlRequests.length === count)
+    const unauthenticated = await rawRequest(path, { ...base, auth: 'wrong', op: 'sessionControl', action: 'focus', sessionId: 's-1', by: 'operator:1234', terminalApplication })
+    check('the terminal identity does not bypass control authentication', unauthenticated.ok === false && controlRequests.length === count)
 
     const warm = await rawRequest(path, { ...base, op: 'concourseWarm', workspaceDir: '/ws' })
     crosses('warm', warm, { ok: true, op: 'concourseWarm', state: 'refused', detail: 'no free slot' })

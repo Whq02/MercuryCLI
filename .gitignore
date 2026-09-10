@@ -33,6 +33,8 @@ native/voice/target/
 vendor/whisper/
 vendor/whisper-models/
 native/whisper/target/
+vendor/desktop/
+native/desktop/target/
 # A cross build's target platform packages (the search binary and the image
 # processor of another platform than the host's), reproduced from bun.lock's
 # pins by scripts/vendor/fetch-platform-packages.ts; never tracked.
