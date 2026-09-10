@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { toolResultTurn, toolUseTurn } from './computerToolKit.ts'
 
+delete process.env.NODE_ENV
 const retention = await import('../../src/services/desktop/screenshotRetention.ts')
 const session = await import('../../src/services/desktop/desktopSession.ts')
 const { stripImagesFromMessages } = await import('../../src/services/compact/compact.ts')
@@ -103,7 +104,7 @@ section('§3 the wire call sites (structural)')
   const zai = sourceText('src/services/providers/zai/zaiCallModel.ts')
   check('the direct GLM runtime retires older screenshots too', zai.includes('retireOlderScreenshots('))
   const chain = sourceText('src/utils/sessionStorage/chain.ts')
-  check('the session file chain projects every record it cleans for the file', chain.includes('.map(projectForTranscript)'))
+  check('the session file chain projects every record it cleans for the file, with the transcript beside it', chain.includes('projectForTranscript(message, transcript)'))
 }
 
 section('§4 the screenshot a coordinate act refers to must still be visible')
@@ -132,7 +133,7 @@ section('§6 a real session file: the writer records the stub, never the bytes')
   const file = join(scratchDir('transcript'), 'session.jsonl')
   writer.setSessionFileForTesting(file)
   const id = 'toolu_file_shot'
-  session.noteScreenshot(owner, id, pathOf(9))
+  session.resetDesktopSessionForTest()
   const pair = [toolUseTurn(id, 'Computer', { action: 'screenshot' }), toolResultTurn(screenshotResult(id, pathOf(9)))]
   let recorded: string | null = null
   try {
@@ -146,6 +147,24 @@ section('§6 a real session file: the writer records the stub, never the bytes')
   check('the file carries the stub naming the screenshot', text.includes(retention.screenshotStubText(pathOf(9))), text.slice(0, 300))
   check('the file carries no image block and no image bytes', !text.includes('"type":"image"') && !text.includes(PNG_B64), text.slice(0, 300))
   check('the file keeps the text line beside the stub', text.includes(`screenshot: ${pathOf(9)}`))
+}
+
+section('§7 the projection pairs an unregistered result with the Computer tool_use before it and reads the path from the result line')
+{
+  session.resetDesktopSessionForTest()
+  const id = 'toolu_paired_shot'
+  const result = toolResultTurn(screenshotResult(id, pathOf(11)))
+  const transcript: Message[] = [createUserMessage({ content: 'drive the editor' }) as Message, toolUseTurn(id, 'Computer', { action: 'screenshot' }), result]
+  const projected = retention.projectForTranscript(result, transcript)
+  const blocks = resultBlocks(projected)
+  check('paired with a Computer tool_use, the image becomes the stub naming the path from the result line', projected !== result && blocks.length === 2 && blocks[1]?.type === 'text' && String(blocks[1]?.text) === retention.screenshotStubText(pathOf(11)), JSON.stringify(blocks))
+  check('without a transcript an unregistered result passes by reference', retention.projectForTranscript(result) === result)
+  const browserId = 'toolu_paired_browser'
+  const browserResult = toolResultTurn(screenshotResult(browserId, '/shots/browser-shots/2.png'))
+  const browserTranscript: Message[] = [toolUseTurn(browserId, 'Browser', { action: 'screenshot' }), browserResult]
+  check('paired with another tool the image stays', retention.projectForTranscript(browserResult, browserTranscript) === browserResult)
+  const ids = retention.computerToolUseIdsBefore(transcript, 2)
+  check('the pairing reads only the assistant message directly before the result', ids.size === 1 && ids.has(id), JSON.stringify([...ids]))
 }
 
 finish('prove-computer-retention')
