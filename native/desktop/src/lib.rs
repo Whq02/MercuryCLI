@@ -155,7 +155,7 @@ fn grant_ok(grant: &str) -> bool {
     grant == "granted" || grant == "not-required"
 }
 
-fn desktop_session(permissions: &PermissionsAnswer) -> Result<(), String> {
+fn desktop_session(permissions: &PermissionsAnswer) -> std::result::Result<(), String> {
     if permissions.session == "desktop" {
         return Ok(());
     }
@@ -172,7 +172,7 @@ fn grant_refusal(what: &str, grant: &str, permissions: &PermissionsAnswer) -> St
     }
 }
 
-fn screen_preflight() -> Result<(), String> {
+fn screen_preflight() -> std::result::Result<(), String> {
     let permissions = imp::permissions(false);
     desktop_session(&permissions)?;
     if !grant_ok(&permissions.screen_capture) {
@@ -181,7 +181,7 @@ fn screen_preflight() -> Result<(), String> {
     Ok(())
 }
 
-fn input_preflight() -> Result<(), String> {
+fn input_preflight() -> std::result::Result<(), String> {
     let permissions = imp::permissions(false);
     desktop_session(&permissions)?;
     if !grant_ok(&permissions.input) {
@@ -208,7 +208,7 @@ fn ordered(mut list: Vec<DisplayRecord>) -> Vec<DisplayRecord> {
     list
 }
 
-fn display_list() -> Result<Vec<DisplayRecord>, String> {
+fn display_list() -> std::result::Result<Vec<DisplayRecord>, String> {
     imp::displays().map(ordered)
 }
 
