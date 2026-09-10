@@ -136,7 +136,8 @@ fn property_bytes(conn: &RustConnection, window: Window, property: u32, kind: u3
 
 fn property_u32(conn: &RustConnection, window: Window, property: u32, kind: u32) -> Option<u32> {
     let reply = conn.get_property(false, window, property, kind, 0, 1).ok()?.reply().ok()?;
-    reply.value32()?.next()
+    let value = reply.value32()?.next();
+    value
 }
 
 fn active_window(conn: &RustConnection, root: Window) -> Option<Window> {
