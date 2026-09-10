@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { getProcessStartToken } from '../../src/daemon/ownerWatch.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = process.env.MERCURY_PROOF_DIST ?? join(ROOT, 'dist', 'mercury.mjs')
@@ -57,7 +58,10 @@ const fs = require('node:fs')
 const net = require('node:net')
 const LOG = process.env.PROOF_NETLOG
 const log = line => { try { fs.appendFileSync(LOG, line + '\\n') } catch {} }
-try { fs.appendFileSync(process.env.PROOF_OWNED_PIDS, process.pid + '\\n') } catch {}
+try {
+  const lstart = require('node:child_process').execFileSync('ps', ['-o', 'lstart=', '-p', String(process.pid)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  fs.appendFileSync(process.env.PROOF_OWNED_PIDS, process.pid + '\\t' + lstart + '\\n')
+} catch {}
 function describe(a0, a1) {
   try {
     const opts = (a1 && typeof a1 === 'object') ? a1 : (a0 && typeof a0 === 'object' && !(a0 instanceof URL) ? a0 : null)
@@ -127,28 +131,29 @@ const childEnv = (home: string): NodeJS.ProcessEnv => ({
 })
 
 const PROMPT = 'Reply with the single word pong.'
-type Boot = { code: number; signal: string | null; stdout: string; stderr: string; lines: string[]; leftovers: string }
+type Boot = { code: number; signal: string | null; stdout: string; stderr: string; lines: string[]; leftovers: string; refused: string }
 
-function sweepOwned(): string {
+function sweepOwned(): { swept: string; refused: string } {
   const roster = existsSync(ownedPids) ? readFileSync(ownedPids, 'utf8').split('\n').filter(line => line !== '') : []
   const alive: string[] = []
+  const refused: string[] = []
   for (const row of new Set(roster)) {
-    const pid = Number.parseInt(row, 10)
+    const [pidText, recordedStart] = row.split('\t')
+    const pid = Number.parseInt(pidText ?? '', 10)
     if (!Number.isFinite(pid) || pid <= 0 || pid === process.pid) continue
-    let command = ''
-    try {
-      command = execFileSync('ps', ['-o', 'command=', '-p', String(pid)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
-    } catch {
+    const liveStart = getProcessStartToken(pid)
+    if (liveStart === null || liveStart === '') continue
+    if (recordedStart === undefined || recordedStart === '' || liveStart !== recordedStart) {
+      refused.push(`${pid} recorded=${recordedStart ?? '(none)'} live=${liveStart}`)
       continue
     }
-    if (command === '') continue
-    alive.push(`${pid} ${command}`)
+    alive.push(`${pid} ${liveStart}`)
     try {
       process.kill(pid, 'SIGTERM')
     } catch {
     }
   }
-  return alive.join('\n')
+  return { swept: alive.join('\n'), refused: refused.join('\n') }
 }
 
 function boot(dist: string, home: string): Boot {
@@ -174,8 +179,8 @@ function boot(dist: string, home: string): Boot {
     stdout = failed.stdout ?? ''
     stderr = failed.stderr ?? ''
   }
-  const leftovers = sweepOwned()
-  return { code, signal, stdout, stderr, lines: netLines(), leftovers }
+  const { swept: leftovers, refused } = sweepOwned()
+  return { code, signal, stdout, stderr, lines: netLines(), leftovers, refused }
 }
 
 function census(label: string, lines: string[]): void {
@@ -211,9 +216,9 @@ if (!existsSync(DIST)) {
 console.log('[0] the sweep reaps only the children it owns')
 {
   const { spawn } = await import('node:child_process')
-  const bystander = spawn('sh', ['-c', 'unrelated="$1"; sleep 30', 'sh', scratch], { stdio: 'ignore' })
+  const bystander = spawn('sh', ['-c', 'unrelated="$1"; sleep 30', 'sh', scratch], { stdio: 'ignore', detached: true })
   let bystanderEnded: string | null = null
-  bystander.once('exit', (_code, signal) => { bystanderEnded = signal ?? 'exit' })
+  const bystanderExit = new Promise<void>(resolve => bystander.once('exit', (_code, signal) => { bystanderEnded = signal ?? 'exit'; resolve() }))
   const owned = spawn('node', ['-e', 'setTimeout(() => {}, 30000)'], { stdio: 'ignore', env: childEnv(join(scratch, 'home-sweep')) })
   const alive = (pid: number): boolean => {
     try {
@@ -223,18 +228,36 @@ console.log('[0] the sweep reaps only the children it owns')
       return false
     }
   }
+  const rosterHas = (pid: number): boolean => existsSync(ownedPids) && readFileSync(ownedPids, 'utf8').split('\n').some(row => row.startsWith(`${pid}\t`))
   const started = Date.now()
-  while (!(existsSync(ownedPids) && readFileSync(ownedPids, 'utf8').includes(`${owned.pid}\n`)) && Date.now() - started < 10_000) {
+  while (!rosterHas(owned.pid ?? -1) && Date.now() - started < 10_000) {
     execFileSync('sleep', ['0.05'])
   }
-  check('an owned child registers itself through the tripwire preload', existsSync(ownedPids) && readFileSync(ownedPids, 'utf8').includes(`${owned.pid}\n`))
+  const ownedRow = existsSync(ownedPids) ? readFileSync(ownedPids, 'utf8').split('\n').find(row => row.startsWith(`${owned.pid}\t`)) ?? '' : ''
+  check('an owned child registers itself with its pid AND its start token', ownedRow !== '' && ownedRow.split('\t')[1] === getProcessStartToken(owned.pid ?? -1), ownedRow)
+  writeFileSync(ownedPids, `${bystander.pid}\tThu Jan  1 00:00:00 1970\n${bystander.pid}\n${ownedRow}\n`, { flag: 'w' })
   const ownedExit = new Promise<string | null>(resolve => owned.once('exit', (_code, signal) => resolve(signal)))
-  const swept = sweepOwned()
+  const { swept, refused } = sweepOwned()
   const signal = await Promise.race([ownedExit, new Promise<string | null>(resolve => setTimeout(() => resolve('still running'), 5_000))])
-  check('the sweep reports and ends the owned child', swept.includes(String(owned.pid)) && signal === 'SIGTERM', `${swept} · ${String(signal)}`)
+  check('the sweep reports and ends the owned child whose identity matches', swept.includes(String(owned.pid)) && signal === 'SIGTERM', `${swept} · ${String(signal)}`)
+  check('a stale record naming a LIVE pid with a different start token is refused, not signalled (pid reuse)', refused.includes(`${bystander.pid} recorded=Thu Jan  1 00:00:00 1970 live=`) && !swept.includes(String(bystander.pid)), refused)
+  check('a record with no start token is refused as uncertain identity', refused.includes(`${bystander.pid} recorded=(none)`), refused)
   await new Promise(resolve => setTimeout(resolve, 300))
-  check('an unrelated process whose command names the scratch path is left alone', bystanderEnded === null && alive(bystander.pid) && !swept.includes(String(bystander.pid)), `${swept} · ${String(bystanderEnded)}`)
-  bystander.kill('SIGTERM')
+  check('the unrelated process named by the stale records is still running untouched', bystanderEnded === null && alive(bystander.pid ?? -1), String(bystanderEnded))
+  try {
+    process.kill(-(bystander.pid ?? 0), 'SIGTERM')
+  } catch {
+    bystander.kill('SIGTERM')
+  }
+  await Promise.race([bystanderExit, new Promise<void>(resolve => setTimeout(resolve, 5_000))])
+  const treeLeft = (() => {
+    try {
+      return execFileSync('pgrep', ['-g', String(bystander.pid)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+    } catch {
+      return ''
+    }
+  })()
+  check('the bystander and its whole process group are observed exited after the control', bystanderEnded !== null && treeLeft === '', `${String(bystanderEnded)} · group=${treeLeft}`)
   rmSync(ownedPids, { force: true })
 }
 
@@ -285,6 +308,7 @@ console.log('[2] an EMPTY config home, booted headless: no registry request')
   check('empty home: zero requests to the vendor API host', vendorHostHits(result.lines).length === 0, vendorHostHits(result.lines).join(' · '))
   check('empty home: no ssh and no git network verb spawned', networkSpawns() === '', networkSpawns())
   check('empty home: nothing left running', result.leftovers === '', result.leftovers)
+  check('empty home: no owned record was refused for uncertain identity', result.refused === '', result.refused)
 }
 
 console.log('[3] a SEEDED home (onboarded, trusted cwd, approved env key): the boot passes the prefetch stage, no registry request')
@@ -304,6 +328,7 @@ console.log('[3] a SEEDED home (onboarded, trusted cwd, approved env key): the b
   check('seeded home: zero requests to the vendor API host', vendorHostHits(result.lines).length === 0, vendorHostHits(result.lines).join(' · '))
   check('seeded home: no ssh and no git network verb spawned', networkSpawns() === '', networkSpawns())
   check('seeded home: nothing left running', result.leftovers === '', result.leftovers)
+  check('seeded home: no owned record was refused for uncertain identity', result.refused === '', result.refused)
 }
 
 console.log('[4] a home with MCP servers CONFIGURED (http · sse · stdio at user scope): the configured servers are the only MCP connects')
@@ -336,6 +361,7 @@ console.log('[4] a home with MCP servers CONFIGURED (http · sse · stdio at use
   check('MCP home: zero requests to the vendor API host', vendorHostHits(result.lines).length === 0, vendorHostHits(result.lines).join(' · '))
   check('MCP home: no ssh and no git network verb spawned', networkSpawns() === '', networkSpawns())
   check('MCP home: nothing left running', result.leftovers === '', result.leftovers)
+  check('MCP home: no owned record was refused for uncertain identity', result.refused === '', result.refused)
 }
 
 console.log('[5] the built binary spells neither the registry host+path nor its versioned path')
