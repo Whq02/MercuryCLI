@@ -202,8 +202,19 @@ rmSync(ROOT, { recursive: true, force: true })
   const projectFiles = mercuryNativeConvention.projectDirFiles(dir)
   const localFiles = (mercuryNativeConvention as { localDirFiles?: (d: string) => string[] }).localDirFiles?.(dir) ?? []
   check(
+    'FC-101: the project roster is the NON-EMPTY canonical pair (root MERCURY.md and .mercury/MERCURY.md)',
+    JSON.stringify(projectFiles) === JSON.stringify(['/proj/MERCURY.md', '/proj/.mercury/MERCURY.md']),
+    JSON.stringify(projectFiles),
+  )
+  check(
+    'FC-101: the local roster is the NON-EMPTY canonical pair beside it',
+    JSON.stringify(localFiles) === JSON.stringify(['/proj/MERCURY.local.md', '/proj/.mercury/MERCURY.local.md']),
+    JSON.stringify(localFiles),
+  )
+  check(
     'FC-101: every home that offers MERCURY.md offers MERCURY.local.md',
-    localFiles.length === projectFiles.length &&
+    projectFiles.length > 0 &&
+      localFiles.length === projectFiles.length &&
       projectFiles.every(p => localFiles.includes(p.replace(/MERCURY\.md$/, 'MERCURY.local.md'))),
     JSON.stringify({ projectFiles, localFiles }),
   )
