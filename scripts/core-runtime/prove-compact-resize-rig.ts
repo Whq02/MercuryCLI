@@ -29,7 +29,8 @@ const { useLayoutChrome } = await import('../../src/context/layoutChromeContext.
 const { useTerminalSize, useRealTerminalSize } = await import('../../src/hooks/useTerminalSize.ts')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
 const { initializeSurfaceRoute, ROOT_REPL_ROUTE } = await import('../../src/context/surfaceRoute.ts')
-const { saveGlobalConfig } = await import('../../src/utils/config.ts')
+const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
+enableConfigs()
 const pending = await import('../../src/input-core/pending-input.ts')
 const { default: instances } = await import('../../src/ink/instances.ts')
 const h = React.createElement
