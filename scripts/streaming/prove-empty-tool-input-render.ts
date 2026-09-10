@@ -15,6 +15,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { driverOutcome } from './artifactArena.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(HERE, '..', '..')
@@ -32,7 +33,7 @@ const check = (name: string, ok: boolean, detail = ''): void => {
 
 const home = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'empty-tool-home-'))
 const cwd = realpathSync(mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'empty-tool-cwd-')))
-const configDir = join(home, '.claude')
+const configDir = join(home, '.mercury')
 mkdirSync(configDir, { recursive: true })
 writeFileSync(
   join(configDir, '.config.json'),
@@ -70,7 +71,8 @@ writeFileSync(join(projectDir, `${SID}.jsonl`), encodeSeedTranscript(rows, SID))
 
 const drive = join(home, 'drive.jsonl')
 const nodeBin = process.env.NODE_BIN ?? spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
-spawnSync(
+const driveStartedAt = Date.now()
+const driven = spawnSync(
   '/usr/bin/python3',
   [join(HERE, 'ptydrive.py'), '--cols', '120', '--rows', '40', '--seconds', '8', '--out', drive, '--', nodeBin, DIST, '--resume', SID],
   {
@@ -82,6 +84,13 @@ spawnSync(
     },
   },
 )
+const outcome = driverOutcome({
+  exitCode: driven.status,
+  signal: driven.signal,
+  killedByWall: driven.error !== undefined && /ETIMEDOUT|timeout/i.test(String((driven.error as NodeJS.ErrnoException).code ?? driven.error.message)),
+  elapsedMs: Date.now() - driveStartedAt,
+  driverOut: `${driven.stdout ?? ''}${driven.stderr ?? ''}`,
+})
 const grab = spawnSync(
   '/usr/bin/python3',
   [join(HERE, 'screengrab.py'), drive, '120', '40', '-1'],
@@ -99,6 +108,7 @@ const reports = existsSync(crashes) ? readdirSync(crashes) : []
 const appRoot = reports.filter(name => name.includes('app-root'))
 
 console.log(`── empty-tool-input --resume render (${DIST.includes('/dist/') ? 'repo dist' : DIST}) ──`)
+check('the capture ran to its authored deadline (the resumed harness stayed up; no early exit, driver crash or wall kill behind the screen)', outcome.complete && outcome.report?.ended === 'deadline', outcome.reason ?? JSON.stringify(outcome.report))
 check('no RENDER ERROR frame', !/RENDER ERROR|hit a render error|had to close|Restart Mercury/.test(screen),
   screen.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 3).join(' / '))
 check('no app-root crash report under the config home', appRoot.length === 0,
