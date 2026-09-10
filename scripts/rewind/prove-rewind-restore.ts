@@ -75,7 +75,7 @@ function findTranscript(root: string, sessionId: string): string | null {
 
 const home = mkdtempSync(join(tmpdir(), 'rewind-restore-home-'))
 const cwd = mkdtempSync(join(tmpdir(), 'rewind-restore-cwd-'))
-const configDir = join(home, '.claude')
+const configDir = join(home, '.mercury')
 mkdirSync(configDir, { recursive: true })
 const alpha = join(cwd, 'alpha.txt')
 const beta = join(cwd, 'beta.txt')
