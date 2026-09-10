@@ -100,6 +100,46 @@ t.section('§3 — the inbox fold materializes rows per RETAINED conversation, n
     rows.length === convsTen.length,
     `${rows.length} rows / ${convsTen.length} conversations`,
   )
+
+  const capDir = join(scratch, 'over-cap')
+  mkdirSync(capDir, { recursive: true })
+  const mintedIds: string[] = []
+  for (let i = 0; i < 305; i++) {
+    const c = await conversations.mintConversation({
+      kind: 'work',
+      title: `over-cap thread ${String(i).padStart(3, '0')}`,
+      participants: [{ kind: 'agent', agentId: fxTen.agentIds[0]! as never }],
+      adoptId: `cv-cap-${String(i).padStart(4, '0')}` as never,
+      dir: capDir,
+    })
+    mintedIds.push(c.conversationId as string)
+    if (i < 5) {
+      await conversations.appendConversationEvent(c.conversationId, { kind: 'question', label: `open ask ${i}`, requiresResolution: true }, { dir: capDir })
+    }
+  }
+  const retained = await conversations.listConversations({ dir: capDir })
+  const retainedIds = new Set(retained.map(c => c.conversationId as string))
+  const evicted = mintedIds.filter(id => !retainedIds.has(id))
+  t.check('over-cap store: 305 minted threads retain exactly the 300-thread cap', retained.length === 300, String(retained.length))
+  t.check('over-cap store: exactly five threads were evicted', evicted.length === 5, evicted.join(','))
+  t.check(
+    'over-cap store: the evicted five are the OLDEST settled threads (5..9), never the five oldest that still owe an answer (0..4) and never the newest',
+    evicted.join(',') === [5, 6, 7, 8, 9].map(i => `cv-cap-${String(i).padStart(4, '0')}`).join(',') && [0, 1, 2, 3, 4, 304].every(i => retainedIds.has(`cv-cap-${String(i).padStart(4, '0')}`)),
+    evicted.join(','),
+  )
+  const ringId = mintedIds[304]!
+  for (let i = 0; i < 130; i++) {
+    await conversations.appendConversationEvent(ringId as never, { kind: i < 3 ? 'question' : 'note', label: `ring ${i}`, ...(i < 3 ? { requiresResolution: true } : {}) } as never, { dir: capDir })
+  }
+  const ring = (await conversations.listConversations({ dir: capDir })).find(c => (c.conversationId as string) === ringId)!
+  const ringLabels = ring.events.map(e => e.label)
+  t.check('over-cap ring: 130 appended events retain exactly the 100-event cap', ring.events.length === 100, String(ring.events.length))
+  t.check(
+    'over-cap ring: the three unresolved asks survive and the thirty evicted events are the oldest settled ones (ring 3..32)',
+    ['ring 0', 'ring 1', 'ring 2', 'ring 129'].every(l => ringLabels.includes(l)) && ['ring 3', 'ring 32'].every(l => !ringLabels.includes(l)) && ringLabels.includes('ring 33'),
+    ringLabels.slice(0, 6).join(','),
+  )
+  t.check('over-cap ring: seq never rewinds across eviction (the newest event carries the 130th seq or later)', Math.max(...ring.events.map(e => e.seq)) >= 129, String(Math.max(...ring.events.map(e => e.seq))))
 }
 
 t.section('§4 — reconnect work scales with the DELTA, not the history')
@@ -108,21 +148,27 @@ t.section('§4 — reconnect work scales with the DELTA, not the history')
   const before = new Map(feedTen.rows)
   const delta = fxTen.activityStream.slice(0, 50).map((input, i) => ({
     ...input,
-    event: { ...input.event, sourceEventId: `delta-${i}`, payload: replaceToolId(input.event.payload, i) },
+    event: { ...input.event, sourceEventId: `delta-${i}`, payload: replaceToolId(input.event.payload, Math.floor(i / 2)) },
   }))
+  const deltaIds = new Set(delta.map(input => activity.classifyActivity(input).activityId))
+  t.check('the delta is 25 paired tool ids (each start shares its id with the terminal that follows it)', deltaIds.size === 25, `${deltaIds.size} distinct activity ids`)
   let after = feedTen
   for (const input of delta) {
     after = activity.foldActivity(after, activity.classifyActivity(input))
   }
   let changed = 0
+  const added: string[] = []
   for (const [id, row] of after.rows) {
     if (before.get(id) !== row) changed++
+    if (!before.has(id)) added.push(id)
   }
   t.check(
     'folding a 50-event delta changes ≤ 50 rows regardless of retained history',
     changed <= 50,
     `${changed} rows changed`,
   )
+  t.check('the 25 new pairs add exactly 25 new rows, one per pair (start and terminal collapse into ONE row)', added.length === 25 && added.every(id => deltaIds.has(id)), `${added.length} added`)
+  t.check('every new row folded its terminal (no pair left running after its result was folded)', added.every(id => after.rows.get(id)?.phase !== 'running'), added.slice(0, 3).map(id => `${id}:${after.rows.get(id)?.phase}`).join(','))
   t.check('the window bound survives the delta', after.order.length <= activity.ACTIVITY_FEED_CAP)
   const replayBefore = after.rows.size
   const replayOrder = after.order
