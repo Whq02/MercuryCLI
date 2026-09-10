@@ -19,7 +19,7 @@ for (const size of SIZES) {
     ],
     { holdMs: 1500 },
   )
-  const res = drive(driver, leg, size, [
+  const res = await drive(driver, leg, size, [
     ...OPENING('click the document'),
     { requireAwait: true, awaitText: 'first act', awaitStableTicks: 2, mark: 'card', data: '\r' },
     { requireAwait: true, awaitText: 'hands off', awaitStableTicks: 1, mark: 'driving', data: '' },
@@ -48,7 +48,7 @@ for (const size of SIZES) {
   const files = sessionFiles(join(leg.home, 'projects'))
   const persisted = files.map(f => readFileSync(f, 'utf8')).join('\n')
   check(`${size.cols}: a session file was written`, files.length > 0)
-  check(`${size.cols}: the session file keeps the stub, never the image bytes`, persisted.includes('not kept') && !persisted.includes('"type":"image"') && !/[A-Za-z0-9+/]{400}/.test(persisted), `${files.length} files`)
+  check(`${size.cols}: the session file keeps the stub, never the image bytes`, persisted.includes('not kept in the conversation file') && !persisted.includes('"type":"image"') && !/[A-Za-z0-9+/]{400}/.test(persisted), `${files.length} files`)
   const stray = nonLoopback(netlines(leg.netlog))
   check(`${size.cols}: nothing left loopback`, stray.length === 0, stray.join(' · '))
   check(`${size.cols}: the fixture served the scripted turns`, leg.fixture.messageRequests().length >= 4, `${leg.fixture.messageRequests().length} requests`)
