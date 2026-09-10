@@ -27,7 +27,7 @@ export function parsePsRss(output: string): Map<number, number> {
   return rssByPid
 }
 
-export type RssBreachVerb = 'park' | 'park-after-turn' | 'kill'
+export type RssBreachVerb = 'park' | 'park-after-turn' | 'kill' | 'defer'
 
 export interface RssBreach {
   short: string
@@ -56,7 +56,7 @@ export function decideRssBreaches(
     if (rssKb === undefined) continue
     const rssMb = rssKb / 1024
     if (rssMb <= limitMb) continue
-    const verb: RssBreachVerb = child.sessionId === undefined ? 'kill' : child.turnOpen === true ? 'park-after-turn' : 'park'
+    const verb: RssBreachVerb = child.sessionId === undefined ? (child.turnOpen === true ? 'defer' : 'kill') : child.turnOpen === true ? 'park-after-turn' : 'park'
     breaches.push({ short: child.short, pid: child.pid, rssMb: Math.round(rssMb), verb })
   }
   return breaches
@@ -110,6 +110,11 @@ export function runRssSweep(
     for (const breach of breaches) {
       if (parking.has(breach.short)) continue
       const words = `${breach.rssMb}MB > ${limitMb}MB (MERCURY_CHILD_RSS_LIMIT_MB)`
+      if (breach.verb === 'defer') {
+        // eslint-disable-next-line no-console
+        console.error(`[daemon] worker ${breach.short} (pid ${breach.pid}) crossed the operator's memory limit: ${words} — its turn is open, so it is left to finish; the next sweep reads it again`)
+        continue
+      }
       if (breach.verb === 'kill' || seats === undefined) {
         // eslint-disable-next-line no-console
         console.error(`[daemon] worker ${breach.short} (pid ${breach.pid}) crossed the operator's memory limit: ${words} — stopping it; a durable session resumes by re-admission`)

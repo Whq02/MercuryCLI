@@ -214,6 +214,59 @@ console.log('L2c the retirement handshake — prepare, commit, observed exit, th
   const silentRoster = { ...runnerRoster, has: () => ({ alive: true, present: true }), control: (): boolean => false }
   const noChannel = await sup.retireConcourseSession(sid('9'), 'operator:test', silentRoster, dir, { exitWaitMs: 200 })
   check('a runner with no control channel is refused, never killed', noChannel.outcome === 'refused' && /no live control channel/.test(noChannel.reason) && killed.length === 0 && rec('concourse-w9')?.parkedAt === undefined, JSON.stringify(noChannel))
+  const w9Refused = rec('concourse-w9')
+  check("the board's NOW cell paints the refusal on the live row: 'park refused — <reason>'", w9Refused !== undefined && /park refused — the session has no live control channel/.test(snapshot.concourseNowLabel(w9Refused, { alive: true, needsYou: false }, Date.now()) ?? ''), snapshot.concourseNowLabel(w9Refused!, { alive: true, needsYou: false }, Date.now()) ?? 'null')
+  sup.markConcourseWorkerDelivery('concourse-w9', dir)
+  check('the next delivery clears the refusal (the row goes back to its activity)', rec('concourse-w9')?.parkRefused === undefined)
+}
+
+console.log('L2c2 a commit whose exit arrives late — the roster exit hook completes the fenced retirement')
+{
+  const seat = await import('../../src/daemon/sessionSeat.ts')
+  seed([{ runnerId: 'concourse-w10', sessionId: sid('10'), pid: process.pid, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5 }])
+  let alive = true
+  const answer = (requestId: string, token: string, phase: string): void => {
+    setTimeout(() => seat.settleSeatControlAnswer(JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: requestId, response: { token, phase } } })), 5)
+  }
+  const lateRoster = {
+    kill: (short: string): boolean => (killed.push(short), true),
+    has: () => ({ alive, present: true }),
+    control: (_short: string, frame: string): boolean => {
+      const parsed = JSON.parse(frame) as { request_id: string; request: { action: string; token: string } }
+      answer(parsed.request_id, parsed.request.token, parsed.request.action === 'prepare' ? 'prepared' : parsed.request.action === 'commit' ? 'committed' : 'cancelled')
+      return true
+    },
+  }
+  killed.length = 0
+  const late = await sup.retireConcourseSession(sid('10'), 'operator:test', lateRoster, dir, { exitWaitMs: 150 })
+  const w10 = rec('concourse-w10')
+  check('the exit not observed inside the wait: refused typed, still FENCED, the intent still on the record, no kill', late.outcome === 'refused' && late.fenced && /awaits observed process exit/.test(late.reason) && sup.retirementFenced('concourse-w10') && w10?.parkIntent !== undefined && w10.parkedAt === undefined && killed.length === 0, JSON.stringify({ late, intent: w10?.parkIntent }))
+  const w10Fenced = rec('concourse-w10')
+  check("the fenced row's NOW cell says it is parking, naming who asked", w10Fenced !== undefined && /parking — operator:test/.test(snapshot.concourseNowLabel(w10Fenced, { alive: true, needsYou: false }, Date.now()) ?? ''), snapshot.concourseNowLabel(w10Fenced!, { alive: true, needsYou: false }, Date.now()) ?? 'null')
+  const demanded = await sup.retireConcourseSession(sid('10'), 'operator:test', lateRoster, dir, { exitWaitMs: 150 })
+  check('a second retire while fenced answers the fence (no second handshake)', demanded.outcome === 'refused' && demanded.fenced, JSON.stringify(demanded))
+  alive = false
+  sup.updateConcourseWorkers(workers => { const w = workers['concourse-w10']; if (w) w.pid = DEAD_PID }, dir)
+  const completed = await sup.completeFencedRetirement('concourse-w10', dir)
+  const w10After = rec('concourse-w10')
+  check("the roster's exit hook road (completeFencedRetirement) finishes the SAME transaction: parked by the intent's owner, the intent cleared, the fence lifted", completed && w10After?.parkedAt !== undefined && w10After.parkedBy === 'operator:test' && w10After.parkIntent === undefined && !sup.retirementFenced('concourse-w10'), JSON.stringify(w10After))
+  check('the roster calls it from the intentional-stop exit arm', read('src/daemon/roster.ts').includes('await sup.completeFencedRetirement(short)'))
+}
+
+console.log('L2c3 a daemon restart with a park intent standing — the reconcile settles it by the intent\'s pid')
+{
+  seed([
+    { runnerId: 'concourse-w11', sessionId: sid('11'), pid: DEAD_PID, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5, parkIntent: { token: 'tok-restart-dead', by: 'operator:restart', at: now - 1000, pid: DEAD_PID } },
+    { runnerId: 'concourse-w12', sessionId: sid('12'), pid: process.pid, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5, parkIntent: { token: 'tok-restart-replaced', by: 'operator:restart', at: now - 1000, pid: DEAD_PID } },
+    { runnerId: 'concourse-w13', sessionId: sid('13'), pid: process.pid, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5, parkIntent: { token: 'tok-restart-live', by: 'operator:restart', at: now - 1000, pid: process.pid } },
+  ])
+  const receipt = sup.reconcileConcourseWorkers(new Set(['concourse-w12', 'concourse-w13']), dir)
+  const w11 = rec('concourse-w11')
+  const w12 = rec('concourse-w12')
+  const w13 = rec('concourse-w13')
+  check('an intent whose runner is gone converges to PARKED by the intent owner (the commit landed; only the stamp was lost)', receipt.parked.includes('concourse-w11') && w11?.parkedAt !== undefined && w11.parkedBy === 'operator:restart' && w11.parkIntent === undefined && w11.crash === undefined, JSON.stringify(w11))
+  check("an intent whose pid is NOT the live runner's pid is dropped (a replaced process never inherits an old token) and the row stays live", w12?.parkIntent === undefined && w12?.parkedAt === undefined && receipt.live.includes('concourse-w12'), JSON.stringify(w12))
+  check('an intent whose runner is alive under the same pid stands (the fence is theirs to finish)', w13?.parkIntent?.token === 'tok-restart-live' && w13.parkedAt === undefined, JSON.stringify(w13))
 }
 
 console.log('L2d the memory guard — a session over the limit parks with a memory reason, never a kill of active work')
@@ -228,6 +281,7 @@ console.log('L2d the memory guard — a session over the limit parks with a memo
       { short: 'crew-a', pid: 1003, turnActive: true },
       { short: 'concourse-w3', pid: 1004, turnActive: false },
       { short: 'concourse-w4', pid: 1005, outcome: 'killed' },
+      { short: 'crew-b', pid: 1006, turnActive: false },
     ],
     kill: (short: string): boolean => (killed.push(short), true),
   }
@@ -241,17 +295,18 @@ console.log('L2d the memory guard — a session over the limit parks with a memo
       return { outcome: afterTurn ? 'draining' : 'parked' }
     },
   }
-  const reader = async (): Promise<Map<number, number>> => new Map([[1001, 2_000_000], [1002, 2_000_000], [1003, 2_000_000], [1004, 500_000], [1005, 2_000_000]])
+  const reader = async (): Promise<Map<number, number>> => new Map([[1001, 2_000_000], [1002, 2_000_000], [1003, 2_000_000], [1004, 500_000], [1005, 2_000_000], [1006, 2_000_000]])
   const parking = new Set<string>()
   const breaches = await rss.runRssSweep(guardRoster, seats, 1024, reader, parking)
   await new Promise(r => setTimeout(r, 10))
-  check('three live children breach; the one under the limit and the settled one do not', breaches.map(b => b.short).sort().join(',') === 'concourse-w1,concourse-w2,crew-a', JSON.stringify(breaches))
+  check('four live children breach; the one under the limit and the settled one do not', breaches.map(b => b.short).sort().join(',') === 'concourse-w1,concourse-w2,crew-a,crew-b', JSON.stringify(breaches))
   check('the idle session PARKS at once with the memory reason on its row', parks.some(p => p.sessionId === 'sid-concourse-w1' && !p.afterTurn && /over the memory limit \(1953MB > 1024MB\)/.test(p.reason)), JSON.stringify(parks))
   check('the session mid-turn is asked to park AFTER its turn — active work is never killed for memory', parks.some(p => p.sessionId === 'sid-concourse-w2' && p.afterTurn) && !killed.includes('concourse-w2'), JSON.stringify({ parks, killed }))
-  check('the sessionless child keeps the kill', killed.join(',') === 'crew-a', killed.join(','))
+  check("a sessionless child MID-TURN (a crew teammate, a headless fire) is DEFERRED, never killed for memory while it works", breaches.find(b => b.short === 'crew-a')?.verb === 'defer' && !killed.includes('crew-a'), JSON.stringify({ breaches, killed }))
+  check('a sessionless child with no turn open keeps the kill (nothing to park it around)', breaches.find(b => b.short === 'crew-b')?.verb === 'kill' && killed.join(',') === 'crew-b', killed.join(','))
   check('nothing else was killed', killed.length === 1)
   const again = await rss.runRssSweep(guardRoster, seats, 1024, reader, parking)
-  check('a park still in flight is not asked twice by the next sweep', again.length === 3 && parks.length === 2, JSON.stringify({ parks: parks.length, parking: [...parking] }))
+  check('a park still in flight is not asked twice by the next sweep; the deferred child is read again', again.length === 4 && parks.length === 2 && again.find(b => b.short === 'crew-a')?.verb === 'defer', JSON.stringify({ parks: parks.length, parking: [...parking] }))
   releaseParks()
   await new Promise(r => setTimeout(r, 20))
   check('once the parks settle the guard forgets them (the next sweep may ask again)', parking.size === 0, JSON.stringify([...parking]))
@@ -259,6 +314,36 @@ console.log('L2d the memory guard — a session over the limit parks with a memo
   check("the daemon arms the guard with the seats port: an idle breach retires through the quiesce handshake as 'daemon: memory', a mid-turn one rides the draining park", src.includes("retireConcourseSession(sessionId, 'daemon: memory', roster, undefined, { reason })") && src.includes("parkConcourseSession(sessionId, 'daemon: memory', roster ?? undefined, undefined, { reason, afterTurn: true })"))
   const registry = (await import('node:fs')).readFileSync(new URL('../../src/substrate/flagRegistry.ts', import.meta.url), 'utf8')
   check('the registry row says the default and how to turn the guard off', registry.includes("off: 'unset ⇒ 1536 MB; 0 disables the guard'"))
+
+  const seat = await import('../../src/daemon/sessionSeat.ts')
+  seed([{ runnerId: 'concourse-w14', sessionId: sid('14'), pid: process.pid, lastDeliveryAt: now - 1_000, lastTurnSettledAt: now - T }])
+  killed.length = 0
+  const requested = sup.parkConcourseSession(sid('14'), 'daemon: memory', roster, dir, { reason: 'over the memory limit (1953MB > 1024MB)', afterTurn: true })
+  const w14Requested = rec('concourse-w14')
+  check("a memory park on a session MID-TURN is a draining request carrying its reason, never a kill", requested.outcome === 'draining' && w14Requested?.parkRequestedBy === 'daemon: memory' && w14Requested.parkRequestedReason === 'over the memory limit (1953MB > 1024MB)' && killed.length === 0, JSON.stringify({ requested, w14Requested, killed }))
+  const frames: string[] = []
+  let alive = true
+  const answer = (requestId: string, token: string, phase: string): void => {
+    setTimeout(() => seat.settleSeatControlAnswer(JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: requestId, response: { token, phase } } })), 5)
+  }
+  const handshakeRoster = {
+    kill: (short: string): boolean => (killed.push(short), true),
+    has: () => ({ alive, present: true }),
+    control: (_short: string, frame: string): boolean => {
+      const parsed = JSON.parse(frame) as { request_id: string; request: { action: string; token: string } }
+      frames.push(parsed.request.action)
+      answer(parsed.request_id, parsed.request.token, parsed.request.action === 'prepare' ? 'prepared' : parsed.request.action === 'commit' ? 'committed' : 'cancelled')
+      if (parsed.request.action === 'commit') setTimeout(() => { alive = false; sup.updateConcourseWorkers(workers => { const w = workers['concourse-w14']; if (w) w.pid = DEAD_PID }, dir) }, 20)
+      return true
+    },
+  }
+  const stillBusy = await sup.retireRequestedPark('concourse-w14', handshakeRoster, dir)
+  check('the turn still in flight: the requested park does not enter the handshake yet (null, no frames, no kill)', stillBusy === null && frames.length === 0 && killed.length === 0, JSON.stringify({ stillBusy, frames, killed }))
+  sup.updateConcourseWorkers(workers => { const w = workers['concourse-w14']; if (w) w.lastTurnSettledAt = Date.now() }, dir)
+  const retired = await sup.retireRequestedPark('concourse-w14', handshakeRoster, dir)
+  const w14 = rec('concourse-w14')
+  check("at the idle edge the memory park rides the SAME handshake: prepare, commit, observed exit, then parked by 'daemon: memory' with the memory reason on the row; the kill was never used", retired?.outcome === 'parked' && frames.join(',') === 'prepare,commit' && killed.length === 0 && w14?.parkedAt !== undefined && w14.parkedBy === 'daemon: memory' && w14.parkReason === 'over the memory limit (1953MB > 1024MB)' && w14.parkRequestedAt === undefined && w14.parkIntent === undefined, JSON.stringify({ retired, frames, w14 }))
+  check("the daemon's idle edge routes a memory-requested park through retireRequestedPark, and every other requested park through completeRequestedPark", /if \(requested\?\.parkRequestedBy === 'daemon: memory' && requested\.parkedAt === undefined\) \{\s*const seats = roster\s*void retireRequestedPark\(short, seats\)/.test(src) && src.includes('else if (completeRequestedPark(short, roster))'))
 }
 
 console.log('L2b park-all — the quit path over the estate')
@@ -403,7 +488,7 @@ console.log('L7 the wire and the seams')
   check('the daemon handler: park-all before the record lookup (no session named), park after it and before the seat verbs', parkAllAt !== -1 && parkAllAt < lookupAt && lookupAt < parkAt && parkAt < seatVerbsAt)
   check('park-all rides parkAllConcourseSessions with the live-terminal exception; park rides parkConcourseSession', main.slice(parkAllAt, lookupAt).includes('exceptFocusedByLiveTerminal: true') && main.slice(parkAt, seatVerbsAt).includes('parkConcourseSession(sessionId, by, roster ?? undefined)'))
   const idleAt = main.indexOf('onIdle: short => {')
-  check("the roster's idle edge completes a requested park (a mid-turn close finishes its turn, then parks)", main.slice(idleAt, idleAt + 800).includes('completeRequestedPark(short, roster)'))
+  check("the roster's idle edge completes a requested park (a mid-turn close finishes its turn, then parks)", main.slice(idleAt, idleAt + 2_000).includes('completeRequestedPark(short, roster)'))
   const supervisor = read('src/daemon/concourseSupervisor.ts')
   check("admission's live-worker derivation excludes parked records", supervisor.includes('r.endedAt === undefined && r.parkedAt === undefined && (liveShorts.has(r.runnerId) || r.attachedAt !== undefined)'))
   check("the pool's seat count excludes them the same way", read('src/daemon/warmRunner.ts').includes('r.endedAt === undefined && r.parkedAt === undefined && (liveShorts.has(r.runnerId) || r.attachedAt !== undefined)'))
