@@ -1,0 +1,281 @@
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { getMercuryHome } from '../../utils/envUtils.js'
+import { isTeammate } from '../../utils/teammate.js'
+import type { OwnerKey } from '../run/ownerKey.js'
+import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
+import { OwnerScopedStore } from '../run/ownerScopedStore.js'
+import { COMPUTER_TOOL_NAME } from './toolName.js'
+
+export { COMPUTER_TOOL_NAME }
+
+export interface ScreenMap {
+  toolUseId: string
+  display: number
+  displayId: string
+  originX: number
+  originY: number
+  pointWidth: number
+  pointHeight: number
+  imageWidth: number
+  imageHeight: number
+  capturedAt: number
+}
+
+export interface DesktopJudgedApp {
+  identity: string
+  name: string
+}
+
+export interface DesktopCheckedAct {
+  action: string
+  app: DesktopJudgedApp
+}
+
+interface OwnerDesktopState {
+  approvedApps: Map<string, string>
+  checkedActApp: DesktopCheckedAct | null
+  screen: ScreenMap | null
+}
+
+const ownerStates = new OwnerScopedStore<OwnerDesktopState>({
+  name: 'desktop-sessions',
+  create: () => ({ approvedApps: new Map(), checkedActApp: null, screen: null }),
+  dispose: state => {
+    state.approvedApps.clear()
+    state.checkedActApp = null
+    state.screen = null
+  },
+  retain: state => state.checkedActApp !== null,
+})
+registerOwnerScopedStore(ownerStates)
+
+export function appApproved(owner: OwnerKey, identity: string): boolean {
+  return ownerStates.peek(owner)?.approvedApps.has(identity) ?? false
+}
+
+export function approveApp(owner: OwnerKey, app: DesktopJudgedApp): void {
+  ownerStates.get(owner).approvedApps.set(app.identity, app.name)
+}
+
+export function approvedAppList(owner: OwnerKey): string[] {
+  return [...(ownerStates.peek(owner)?.approvedApps.keys() ?? [])]
+}
+
+export function approvedApps(owner: OwnerKey): DesktopJudgedApp[] {
+  const state = ownerStates.peek(owner)
+  if (!state) return []
+  return [...state.approvedApps].map(([identity, name]) => ({ identity, name }))
+}
+
+export function noteCheckedActApp(owner: OwnerKey, action: string, app: DesktopJudgedApp): void {
+  ownerStates.get(owner).checkedActApp = { action, app: { identity: app.identity, name: app.name } }
+}
+
+export function consumeCheckedActApp(owner: OwnerKey, action: string): DesktopJudgedApp | null {
+  const state = ownerStates.peek(owner)
+  if (!state) return null
+  const held = state.checkedActApp
+  state.checkedActApp = null
+  return held !== null && held.action === action ? held.app : null
+}
+
+export function peekCheckedActApp(owner: OwnerKey): DesktopCheckedAct | null {
+  return ownerStates.peek(owner)?.checkedActApp ?? null
+}
+
+export function screenOf(owner: OwnerKey): ScreenMap | null {
+  return ownerStates.peek(owner)?.screen ?? null
+}
+
+export function setScreen(owner: OwnerKey, map: ScreenMap): void {
+  ownerStates.get(owner).screen = map
+}
+
+export function clearScreen(owner: OwnerKey): void {
+  const state = ownerStates.peek(owner)
+  if (state) state.screen = null
+}
+
+export const SCREENSHOT_REGISTRY_CAP = 2000
+
+const screenshotRegistry = new Map<string, { path: string; owner: OwnerKey | null }>()
+
+export function noteScreenshot(owner: OwnerKey | null, toolUseId: string, filePath: string): void {
+  screenshotRegistry.delete(toolUseId)
+  screenshotRegistry.set(toolUseId, { path: filePath, owner })
+  while (screenshotRegistry.size > SCREENSHOT_REGISTRY_CAP) {
+    const oldest = screenshotRegistry.keys().next().value
+    if (oldest === undefined) break
+    screenshotRegistry.delete(oldest)
+  }
+}
+
+export function screenshotPathForToolUse(toolUseId: string): string | null {
+  return screenshotRegistry.get(toolUseId)?.path ?? null
+}
+
+export function registeredScreenshotCount(): number {
+  return screenshotRegistry.size
+}
+
+export function forgetDesktopOwner(owner: OwnerKey): void {
+  ownerStates.dispose(owner)
+  for (const [toolUseId, entry] of [...screenshotRegistry]) {
+    if (entry.owner === owner) screenshotRegistry.delete(toolUseId)
+  }
+}
+
+export const DESKTOP_SHOTS_DIR = 'desktop-shots'
+export const DESKTOP_SHOTS_KEEP = 200
+
+export function desktopShotsDir(): string {
+  return path.join(getMercuryHome(), DESKTOP_SHOTS_DIR)
+}
+
+function unlinkQuietly(file: string): boolean {
+  try {
+    fs.unlinkSync(file)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function shotStem(name: string): string {
+  return name.endsWith('.inline') ? name.slice(0, -'.inline'.length) : name
+}
+
+export function pruneDesktopShots(dir: string, keep: number = DESKTOP_SHOTS_KEEP): number {
+  let names: string[]
+  try {
+    names = fs.readdirSync(dir)
+  } catch {
+    return 0
+  }
+  const byStem = new Map<string, string[]>()
+  for (const name of names) {
+    const stem = shotStem(name)
+    const siblings = byStem.get(stem)
+    if (siblings) siblings.push(name)
+    else byStem.set(stem, [name])
+  }
+  const ordered = [...byStem.keys()].sort()
+  const excess = ordered.length - Math.max(0, keep)
+  if (excess <= 0) return 0
+  let removed = 0
+  for (const stem of ordered.slice(0, excess)) {
+    for (const name of byStem.get(stem) ?? []) {
+      if (unlinkQuietly(path.join(dir, name))) removed += 1
+    }
+  }
+  return removed
+}
+
+export function screenshotPath(label: string): string {
+  const dir = desktopShotsDir()
+  fs.mkdirSync(dir, { recursive: true })
+  pruneDesktopShots(dir, DESKTOP_SHOTS_KEEP - 1)
+  const safe = label.replace(/[^a-zA-Z0-9_-]+/g, '-').slice(0, 40) || 'shot'
+  return path.join(dir, `${Date.now()}-${safe}.png`)
+}
+
+export type DesktopPhase = 'idle' | 'driving'
+
+export interface DesktopSnapshot {
+  phase: DesktopPhase
+  app: string | null
+  startedAt: number | null
+}
+
+const IDLE_SNAPSHOT: DesktopSnapshot = { phase: 'idle', app: null, startedAt: null }
+const listeners = new Set<() => void>()
+let snapshot: DesktopSnapshot = IDLE_SNAPSHOT
+
+function publish(next: DesktopSnapshot): void {
+  snapshot = next
+  for (const listener of [...listeners]) {
+    try {
+      listener()
+    } catch (error) {
+      logForDebugging(`desktop: a snapshot listener failed — ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+}
+
+export function subscribeDesktop(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
+
+export function desktopSnapshot(): DesktopSnapshot {
+  return snapshot
+}
+
+export const DRIVING_FOOTER_PREFIX = 'hands off — Mercury is driving'
+
+export function drivingFooter(app: string | null): string {
+  return `${DRIVING_FOOTER_PREFIX} ${app ?? 'the desktop'} · esc stops it`
+}
+
+export function publishDesktopDriving(app: string | null): void {
+  const driving = snapshot.phase === 'driving'
+  publish({ phase: 'driving', app: app ?? snapshot.app, startedAt: driving ? snapshot.startedAt : Date.now() })
+}
+
+export function setDrivingApp(app: string | null): void {
+  if (snapshot.phase !== 'driving' || snapshot.app === app) return
+  publish({ ...snapshot, app })
+}
+
+export function publishDesktopIdle(): void {
+  if (snapshot.phase === 'idle') return
+  publish(IDLE_SNAPSHOT)
+}
+
+export const TEAMMATE_COMPUTER_REFUSAL =
+  "the Computer tool drives the operator's own screen; a teammate never drives it in this release — the main session does"
+export const AGENT_COMPUTER_REFUSAL =
+  "the Computer tool drives the operator's own screen; a sub-agent never carries it in this release — the main session does"
+export const HEADLESS_COMPUTER_REFUSAL =
+  'the Computer tool drives the screen of an interactive session; this headless run has no operator at the screen'
+
+export function desktopPostureRefusal(context: {
+  agentId?: string
+  options?: { isNonInteractiveSession?: boolean }
+}): string | null {
+  if (isTeammate()) return TEAMMATE_COMPUTER_REFUSAL
+  if (typeof context.agentId === 'string' && context.agentId !== '') return AGENT_COMPUTER_REFUSAL
+  if (context.options?.isNonInteractiveSession === true || getIsNonInteractiveSession()) return HEADLESS_COMPUTER_REFUSAL
+  return null
+}
+
+let imageRefusal: { model: string; error: string; at: number } | null = null
+
+export function noteImageRefusal(model: string, error: string): void {
+  imageRefusal = { model, error, at: Date.now() }
+}
+
+export function imageRefusedFor(model: string): string | null {
+  if (imageRefusal === null) return null
+  if (imageRefusal.model !== model) {
+    imageRefusal = null
+    return null
+  }
+  return imageRefusal.error
+}
+
+export function clearImageRefusal(): void {
+  imageRefusal = null
+}
+
+export function resetDesktopSessionForTest(): void {
+  ownerStates.clearAllForShutdown()
+  screenshotRegistry.clear()
+  imageRefusal = null
+  snapshot = IDLE_SNAPSHOT
+}

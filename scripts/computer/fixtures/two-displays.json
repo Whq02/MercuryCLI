@@ -1,0 +1,12 @@
+{
+  "displays": [
+    { "index": 0, "id": "fixture-1", "originX": 0, "originY": 0, "width": 1440, "height": 900, "scale": 2, "primary": true },
+    { "index": 1, "id": "fixture-2", "originX": -1920, "originY": 0, "width": 1920, "height": 1080, "scale": 1, "primary": false }
+  ],
+  "frontmost": { "identity": "editor", "name": "editor", "pid": 5100, "title": "notes.txt", "bounds": { "x": -1800, "y": 80, "width": 1200, "height": 800 } },
+  "cursor": { "x": -960, "y": 540 },
+  "lines": ["notes.txt — editor", "A display to the left of the primary.", "Its origin is negative."],
+  "switches": [],
+  "holdMs": 0,
+  "ownTerminal": { "identity": "xterm", "name": "xterm", "pid": 5000, "title": "mercury", "bounds": { "x": 0, "y": 0, "width": 1440, "height": 900 } }
+}

@@ -60,8 +60,11 @@ import {
   notePulseStreamActivity,
   setPulsePhase,
 } from '../../../utils/pulse/turnPhase.js'
+import { imagesSupportedForCompatModel } from '../openaicompat/compatChatCallModel.js'
+import { noteImageRefusal } from '../../desktop/desktopSession.js'
 import {
   buildZaiChatRequest,
+  imageRefusalWords,
   type ApiShapedTool,
 } from './zaiCodec.js'
 import {
@@ -243,6 +246,7 @@ export async function* zaiCallModel(
     model: modelId,
     system: systemText,
     messages: toBridgeMessages(healWalkableForWire(wireMessages)),
+    imagesSupported: imagesSupportedForCompatModel(modelId),
     tools: apiTools,
     maxTokens: Math.min(
       options.maxOutputTokensOverride ?? ZAI_MAX_OUTPUT_TOKENS,
@@ -322,6 +326,17 @@ export async function* zaiCallModel(
         detail: outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code,
         remedy: ZAI_FAULT_PROFILE.billingRemedy,
       })
+    }
+    const refusedImage = imageRefusalWords(request, outcome.fault)
+    if (refusedImage !== null) {
+      noteImageRefusal(modelId, refusedImage)
+      yield apiErrorMessage(
+        `${API_ERROR_MESSAGE_PREFIX}: the model on the ${ZAI_FAULT_PROFILE.providerLabel} route refused the image: ${refusedImage} — the next request carries it as [image]; the Computer tool refuses on this model until /model picks one that receives images`,
+        typed,
+        outcome.fault.code,
+        overflowOf(outcome.fault),
+      )
+      return
     }
     yield stampProviderWait(
       apiErrorMessage(
