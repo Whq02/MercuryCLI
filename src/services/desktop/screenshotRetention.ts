@@ -73,10 +73,9 @@ function rebuildUser<M extends Message>(message: M, blocks: ContentBlockParam[])
   return { ...carrier, message: { ...carrier.message, content: blocks } } as M
 }
 
-export function projectForTranscript<M extends Message>(message: M, transcript: readonly Message[] | null = null): M {
+export function projectForTranscript<M extends Message>(message: M, index = -1, transcript: readonly Message[] | null = null): M {
   const blocks = userBlocks(message)
   if (blocks === null) return message
-  const index = transcript === null ? -1 : transcript.indexOf(message)
   const paired = transcript !== null && index >= 0 ? computerToolUseIdsBefore(transcript, index) : null
   let touched = false
   const projected = blocks.map(block => {

@@ -461,7 +461,7 @@ export function cleanMessagesForLogging(
   return transformMessagesForExternalTranscript(
     filtered,
     replIds ?? collectReplIds(allMessages),
-  ).map((message, _index, transcript) => projectForTranscript(message, transcript))
+  ).map(projectForTranscript)
 }
 
 export type Transcript = (
