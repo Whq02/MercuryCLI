@@ -199,11 +199,24 @@ export type UpdateOutcome =
       shim: ShimOutcome
       road: ChannelRoadName
       signature: SignatureVerdict['state']
+      unsignedOverride: boolean
       receiptPath?: string
     }
   | { state: 'no-update'; check: CheckOutcome }
-  | { state: 'refused'; stage: UpdateStage; reason: string; remedy: string; retryable?: boolean; road?: ChannelRoadName; receiptPath?: string }
+  | { state: 'refused'; stage: UpdateStage; reason: string; remedy: string; retryable?: boolean; road?: ChannelRoadName; signature?: SignatureVerdict['state']; unsignedOverride?: boolean; receiptPath?: string }
   | { state: 'restored'; stage: UpdateStage; reason: string; activeVersion: string; road?: ChannelRoadName; receiptPath?: string }
+
+export function signatureRefusal(verdict: SignatureVerdict, allowUnsigned: boolean): Extract<UpdateOutcome, { state: 'refused' }> | null {
+  if (verdict.state === 'signed' || (verdict.state === 'unsigned' && allowUnsigned)) return null
+  return {
+    state: 'refused',
+    stage: 'verify',
+    signature: verdict.state,
+    unsignedOverride: false,
+    reason: `signature verdict ${verdict.state}: ${describeSignatureVerdict(verdict)}`,
+    remedy: `${NOTHING_ACTIVATED_WORDS}; require the Mercury release key in this build's compiled-in trusted roster (src/services/privateChannel/signingTrust.ts); download the official release again, and report an unexpected verdict through the repository's Security tab`,
+  }
+}
 
 const sha256File = (path: string): string => createHash('sha256').update(readFileSync(path)).digest('hex')
 
@@ -246,10 +259,10 @@ function extractArchive(archivePath: string, destDir: string, isWindows: boolean
   }
 }
 
-function writeUpdateReceipt(roots: LayoutRoots, startedAt: string, outcome: UpdateOutcome): string | null {
+function writeUpdateReceipt(roots: LayoutRoots, startedAt: string, outcome: UpdateOutcome | InstallVerbOutcome, operation: 'update' | 'install', allowUnsigned: boolean): string | null {
   try {
     mkdirSync(roots.versionsDir, { recursive: true })
-    const path = join(roots.versionsDir, 'last-update.json')
+    const path = join(roots.versionsDir, `last-${operation}.json`)
     writeFileSync(
       path,
       JSON.stringify(
@@ -259,10 +272,14 @@ function writeUpdateReceipt(roots: LayoutRoots, startedAt: string, outcome: Upda
           startedAt,
           finishedAt: new Date().toISOString(),
           outcome: outcome.state,
-          stage: 'stage' in outcome ? outcome.stage : outcome.state === 'updated' ? 'complete' : undefined,
+          operation,
+          allowUnsigned,
+          stage: 'stage' in outcome ? outcome.stage : outcome.state === 'updated' || outcome.state === 'installed' ? 'complete' : undefined,
           ...('road' in outcome && outcome.road !== undefined ? { road: outcome.road } : {}),
-          ...(outcome.state === 'updated' ? { from: outcome.from, to: outcome.to, signature: outcome.signature } : {}),
-          ...(outcome.state === 'refused' ? { reason: outcome.reason, retryable: outcome.retryable ?? false } : {}),
+          ...('signature' in outcome && outcome.signature !== undefined ? { signature: outcome.signature, unsignedOverride: outcome.unsignedOverride === true } : {}),
+          ...(outcome.state === 'updated' ? { from: outcome.from, to: outcome.to } : {}),
+          ...(outcome.state === 'installed' ? { version: outcome.version, activated: outcome.activated } : {}),
+          ...(outcome.state === 'refused' ? { reason: outcome.reason, retryable: 'retryable' in outcome && outcome.retryable === true } : {}),
           ...(outcome.state === 'restored' ? { reason: outcome.reason, activeVersion: outcome.activeVersion } : {}),
         },
         null,
@@ -275,18 +292,19 @@ function writeUpdateReceipt(roots: LayoutRoots, startedAt: string, outcome: Upda
   }
 }
 
-export async function performUpdate(roots: LayoutRoots, progress: Progress): Promise<UpdateOutcome> {
+export async function performUpdate(roots: LayoutRoots, progress: Progress, opts: { allowUnsigned?: boolean } = {}): Promise<UpdateOutcome> {
   const startedAt = new Date().toISOString()
-  const outcome = await performUpdateTransaction(roots, progress)
+  const allowUnsigned = opts.allowUnsigned === true
+  const outcome = await performUpdateTransaction(roots, progress, allowUnsigned)
   if (outcome.state === 'no-update') return outcome
-  const receiptPath = writeUpdateReceipt(roots, startedAt, outcome)
+  const receiptPath = writeUpdateReceipt(roots, startedAt, outcome, 'update', allowUnsigned)
   return receiptPath ? { ...outcome, receiptPath } : outcome
 }
 
-async function performUpdateTransaction(roots: LayoutRoots, progress: Progress): Promise<UpdateOutcome> {
+async function performUpdateTransaction(roots: LayoutRoots, progress: Progress, allowUnsigned: boolean): Promise<UpdateOutcome> {
   const check = await checkForUpdate(roots, progress)
   if (check.state !== 'update-available') return { state: 'no-update', check }
-  const outcome = await acquireAndActivate(roots, progress, check)
+  const outcome = await acquireAndActivate(roots, progress, check, allowUnsigned)
   return outcome.state === 'refused' || outcome.state === 'restored' ? { ...outcome, road: check.road } : outcome
 }
 
@@ -294,6 +312,7 @@ async function acquireAndActivate(
   roots: LayoutRoots,
   progress: Progress,
   check: Extract<CheckOutcome, { state: 'update-available' }>,
+  allowUnsigned: boolean,
 ): Promise<UpdateOutcome> {
   const lock = acquireUpdateLock(roots)
   if (lock.state === 'held') {
@@ -304,7 +323,6 @@ async function acquireAndActivate(
       remedy: 'wait for it to finish; if it crashed, remove <versions>/.update.lock and retry',
     }
   }
-  sweepUpdaterResidue(roots)
   const staging = join(roots.versionsDir, `.download-${process.pid}`)
   try {
     rmSync(staging, { recursive: true, force: true })
@@ -391,15 +409,12 @@ async function acquireAndActivate(
     }
     const provenance = verifyPayloadDir(payloadDir, { depth: 'deep' })
     progress('verifying', `signature: ${describeSignatureVerdict(provenance.verdict)}`)
-    if (provenance.verdict.state === 'tampered') {
-      return {
-        state: 'refused',
-        stage: 'verify',
-        reason: `the payload's signing block does not verify: ${provenance.verdict.note}`,
-        remedy: `${NOTHING_ACTIVATED_WORDS}; download the release again, and if it repeats report it through the repository's Security tab`,
-      }
-    }
+    const refusal = signatureRefusal(provenance.verdict, allowUnsigned)
+    if (refusal) return refusal
+    const unsignedOverride = provenance.verdict.state === 'unsigned' && allowUnsigned
+    if (unsignedOverride) progress('verifying', 'unsigned payload accepted by explicit --allow-unsigned')
 
+    sweepUpdaterResidue(roots)
     progress('staging')
     const staged = smokeVersion(payloadDir, check.version, payload.bundle)
     if (staged.state !== 'ok') {
@@ -451,6 +466,7 @@ async function acquireAndActivate(
       shim,
       road: check.road,
       signature: provenance.verdict.state,
+      unsignedOverride,
     }
   } finally {
     try {
@@ -519,8 +535,11 @@ export type InstallVerbOutcome =
       shim: ReturnType<typeof writeShim>
       binDirOnPath: boolean
       path: PathEntryOutcome
+      signature: SignatureVerdict['state']
+      unsignedOverride: boolean
+      receiptPath?: string
     }
-  | { state: 'refused'; reason: string; remedy: string }
+  | { state: 'refused'; stage?: UpdateStage; reason: string; remedy: string; signature?: SignatureVerdict['state']; unsignedOverride?: boolean; receiptPath?: string }
   | { state: 'dry-run'; version: string | null; wouldInstallTo: string; shimPath: string; runtime: string; note: string; path: PathEntryOutcome }
 
 const pathEntryIo = () => realPathEntryIo({ powershell: resolveWindowsShell })
@@ -542,7 +561,14 @@ export function describeInstall(roots: LayoutRoots): InstallVerbOutcome {
   }
 }
 
-export async function performInstall(roots: LayoutRoots, progress: Progress, opts: { force?: boolean } = {}): Promise<InstallVerbOutcome> {
+export async function performInstall(roots: LayoutRoots, progress: Progress, opts: { force?: boolean; allowUnsigned?: boolean } = {}): Promise<InstallVerbOutcome> {
+  const startedAt = new Date().toISOString()
+  const outcome = await performInstallTransaction(roots, progress, opts)
+  const receiptPath = writeUpdateReceipt(roots, startedAt, outcome, 'install', opts.allowUnsigned === true)
+  return receiptPath ? { ...outcome, receiptPath } : outcome
+}
+
+async function performInstallTransaction(roots: LayoutRoots, progress: Progress, opts: { force?: boolean; allowUnsigned?: boolean }): Promise<Exclude<InstallVerbOutcome, { state: 'dry-run' }>> {
   const payloadDir = runningPayloadDir()
   const payload = validatePayloadDir(payloadDir)
   if (payload.state !== 'ok') {
@@ -560,8 +586,15 @@ export async function performInstall(roots: LayoutRoots, progress: Progress, opt
       remedy: 'wait for it to finish; if it crashed, remove <versions>/.update.lock and retry',
     }
   }
-  sweepUpdaterResidue(roots)
   try {
+    const provenance = verifyPayloadDir(payloadDir, { depth: 'deep' })
+    progress('verifying', `signature: ${describeSignatureVerdict(provenance.verdict)}`)
+    const allowUnsigned = opts.allowUnsigned === true
+    const refusal = signatureRefusal(provenance.verdict, allowUnsigned)
+    if (refusal) return refusal
+    const unsignedOverride = provenance.verdict.state === 'unsigned' && allowUnsigned
+    if (unsignedOverride) progress('verifying', 'unsigned payload accepted by explicit --allow-unsigned')
+    sweepUpdaterResidue(roots)
     const installed = installPayload(roots, payloadDir, payload.version, () => progress('staging', payload.version))
     if (installed.state === 'failed') {
       return { state: 'refused', reason: installed.note, remedy: 'free disk space and rerun `mercury install`' }
@@ -598,6 +631,8 @@ export async function performInstall(roots: LayoutRoots, progress: Progress, opt
       shim,
       binDirOnPath,
       path,
+      signature: provenance.verdict.state,
+      unsignedOverride,
     }
   } finally {
     releaseUpdateLock(roots)

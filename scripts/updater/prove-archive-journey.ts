@@ -147,14 +147,14 @@ console.log('── 1 · install --dry-run describes without changing ──')
 
 console.log('── 2 · install lands the payload, the pointer and the stable command ──')
 {
-  const r = run(launcher, ['install'])
+  const r = run(launcher, ['install', ...(ASSET === SIGNED_ASSET ? [] : ['--allow-unsigned'])])
   check('install exits 0 and reports the version + active pointer', r.code === 0 && r.stdout.includes(`installed: ${VERSION} → ${join(versionsDir, VERSION)}`) && r.stdout.includes(`active version: ${VERSION}`), r.all.slice(0, 400))
   check('the stable command exists and carries the managed marker', existsSync(shim) && readFileSync(shim, 'utf8').includes('mercury-managed-shim'))
   check('current.txt names the archive version, no previous yet', pointer('current') === VERSION && pointer('previous') === null)
   check('the payload is complete under versions/<v> (bundle · manifest · vendor/ripgrep · launcher · splash pair · verifier)',
     ['mercury.mjs', 'manifest.json', 'vendor/ripgrep', 'mercury', 'splash.mjs', 'splash-core.mjs', 'verify-artifact.mjs'].every(m => existsSync(join(versionsDir, VERSION, m))))
   check('the first install narrates its acts on stderr: staging, activating, complete', /^staging: /m.test(r.stderr) && /^activating: /m.test(r.stderr) && /^complete: /m.test(r.stderr), r.stderr.slice(0, 300))
-  const again = run(launcher, ['install'])
+  const again = run(launcher, ['install', ...(ASSET === SIGNED_ASSET ? [] : ['--allow-unsigned'])])
   check('a second install is a truthful no-op', again.code === 0 && again.stdout.includes('already present — no bytes changed'), again.all.slice(0, 300))
   check(
     '…and narrates nothing it did not do: no staging or activating line; complete says already present',
@@ -182,7 +182,7 @@ console.log('── 4 · update --check / --status against the channel ──')
 
 console.log('── 5 · update activates the newer release, keeps the previous ──')
 {
-  const r = run(shim, ['update'])
+  const r = run(shim, ['update', '--allow-unsigned'])
   check('update exits 0 and reports from → to with the previous kept', r.code === 0 && r.stdout.includes(`updated: ${VERSION} → ${NEXT}`) && r.stdout.includes('previous version kept'), r.all.slice(0, 500))
   check('pointers: current = newer, previous = archive version', pointer('current') === NEXT && pointer('previous') === VERSION)
   check('both payloads stay installed', existsSync(join(versionsDir, VERSION, 'mercury.mjs')) && existsSync(join(versionsDir, NEXT, 'mercury.mjs')))
@@ -206,7 +206,7 @@ console.log('── 6 · rollback returns to the archive version, forward again,
   check('pointer back on the archive version; the newer payload stays for diagnosis', pointer('current') === VERSION && existsSync(join(versionsDir, NEXT, 'mercury.mjs')))
   const v = run(shim, ['--version'])
   check('the stable command runs the archive version again', v.code === 0 && v.stdout.trim() === `Mercury ${VERSION}`, v.all.slice(0, 200))
-  const fwd = run(shim, ['update'])
+  const fwd = run(shim, ['update', '--allow-unsigned'])
   check('update forward again re-activates the newer release (already-installed payload, no re-download needed)', fwd.code === 0 && fwd.stdout.includes(`updated: ${VERSION} → ${NEXT}`), fwd.all.slice(0, 300))
   const back = run(launcher, ['update', '--rollback'])
   check('second rollback returns to the archive version', back.code === 0 && pointer('current') === VERSION, back.all.slice(0, 300))

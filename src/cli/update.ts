@@ -16,6 +16,7 @@ export interface UpdateCliOptions {
   check?: boolean
   status?: boolean
   rollback?: boolean
+  allowUnsigned?: boolean
   json?: boolean
 }
 
@@ -114,8 +115,10 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
     }
   }
 
-  reconcileManagedShims(roots)
-  const result = await performUpdate(roots, progress)
+  const result = await performUpdate(roots, progress, { allowUnsigned: options.allowUnsigned })
+  if (result.state === 'updated' || (result.state === 'no-update' && result.check.state === 'current')) {
+    reconcileManagedShims(roots)
+  }
   try {
     const { runLifecycleVerbOpportunity } = await import('../utils/backgroundHousekeeping.js')
     await runLifecycleVerbOpportunity('update')
@@ -136,7 +139,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
             ? `\n  stable command refreshed: ${result.shim.path}`
             : ''
       return cliOk(
-        `updated: ${result.from} → ${result.to} (${describeChannelRoad(result.road)})\n  signature: ${result.signature}\n  previous version kept${result.previousKept ? '' : ' (none was installed)'} — \`mercury update --rollback\` returns to it${shimLine}`,
+        `updated: ${result.from} → ${result.to} (${describeChannelRoad(result.road)})\n  signature: ${result.signature}${result.unsignedOverride ? ' (accepted by explicit --allow-unsigned)' : ''}\n  previous version kept${result.previousKept ? '' : ' (none was installed)'} — \`mercury update --rollback\` returns to it${shimLine}`,
       )
     }
     case 'no-update':

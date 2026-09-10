@@ -59,9 +59,9 @@ const makeFixtures = (name: string, specs: ReleaseFixtureSpec[]): string => mint
 
 function runCli(
   args: string[],
-  opts: { fixtures: string; env?: Record<string, string> } ,
+  opts: { fixtures: string; env?: Record<string, string>; dist?: string } ,
 ): { code: number; stdout: string; stderr: string } {
-  const res = spawnSync('node', [DIST, ...args], {
+  const res = spawnSync('node', [opts.dist ?? DIST, ...args], {
     encoding: 'utf8',
     timeout: 180_000,
     env: {
@@ -127,7 +127,7 @@ seedInstalled(V_OLD)
   check('check reports the newer release', r.code === 0 && r.stdout.includes(`update available: v${V_NEW}`) && r.stdout.includes(V_OLD))
 }
 {
-  const r = runCli(['update'], { fixtures: happyFixtures, env: { GH_TOKEN: 'ghp_FAKELEAKSECRET0000' } })
+  const r = runCli(['update', '--allow-unsigned'], { fixtures: happyFixtures, env: { GH_TOKEN: 'ghp_FAKELEAKSECRET0000' } })
   check('update exits 0', r.code === 0, r.stdout + r.stderr)
   check('update reports from → to', r.stdout.includes(`updated: ${V_OLD} → ${V_NEW}`))
   check('pointer switched', currentPointer() === V_NEW)
@@ -140,7 +140,7 @@ seedInstalled(V_OLD)
   check('output never carries token material', !all.includes('FAKELEAKSECRET'))
 }
 {
-  const r = runCli(['update'], { fixtures: happyFixtures })
+  const r = runCli(['update', '--allow-unsigned'], { fixtures: happyFixtures })
   check('second update reports current (exit 0)', r.code === 0 && r.stdout.includes('Mercury is current'))
 }
 {
@@ -150,7 +150,7 @@ seedInstalled(V_OLD)
   check('newer version retained for diagnosis', existsSync(join(versionsDir, V_NEW, 'mercury.mjs')))
 }
 {
-  const r = runCli(['update'], { fixtures: happyFixtures })
+  const r = runCli(['update', '--allow-unsigned'], { fixtures: happyFixtures })
   check('forward again re-activates the newer version', r.code === 0 && currentPointer() === V_NEW)
   check('user state survives the whole journey', existsSync(stateMarker))
 }
@@ -194,31 +194,89 @@ const refusalCases: Array<{ name: string; spec: ReleaseFixtureSpec; needle: stri
 for (const c of refusalCases) {
   seedInstalled(V_OLD)
   const f = makeFixtures(`refusal-${c.name.replace(/[^a-z0-9]+/gi, '-')}`, [{ version: V_OLD }, c.spec])
-  const r = runCli(['update'], { fixtures: f, env: c.env })
+  const r = runCli(['update', '--allow-unsigned'], { fixtures: f, env: c.env })
   const all = r.stdout + r.stderr
   check(`${c.name}: exit 1 + named`, r.code === 1 && all.includes(c.needle), all.slice(0, 200))
   check(`${c.name}: active install untouched`, currentPointer() === V_OLD && !existsSync(join(versionsDir, V_NEW)))
   check(`${c.name}: staging cleaned`, !existsSync(join(versionsDir)) || !readFileSync(join(versionsDir, 'current.txt'), 'utf8').includes('.download'))
 }
 
-console.log('── §3b tampered provenance ⇒ refused at verify, nothing staged; unsigned still activates ──')
+console.log('── §3b signatures refuse before staging; unsigned needs its explicit exception ──')
 {
-  seedInstalled(V_OLD)
-  const f = makeFixtures('tampered', [{ version: V_OLD }, { version: V_NEW, payload: { tampered: true } }])
-  const r = runCli(['update'], { fixtures: f })
-  const all = r.stdout + r.stderr
-  check('a signing block that does not verify refuses at verify, naming the signed sha256 mismatch', r.code === 1 && all.includes('refused at verify') && all.includes('differ from the signed sha256'), all.slice(0, 300))
-  check('nothing was staged: the active install untouched, no new version directory', currentPointer() === V_OLD && !existsSync(join(versionsDir, V_NEW)))
-  const unsigned = makeFixtures('unsigned-activates', [{ version: V_OLD }, { version: V_NEW }])
-  const ok = runCli(['update'], { fixtures: unsigned })
-  check('an unsigned release still activates and its verdict is said (the ruled tolerance)', ok.code === 0 && currentPointer() === V_NEW && (ok.stdout + ok.stderr).includes('unsigned'), (ok.stdout + ok.stderr).slice(0, 300))
+  const { verifyPayloadDir } = await import('../../src/services/privateChannel/artifactVerify.js')
+  for (const verdict of ['unsigned', 'unrecognized-key', 'malformed', 'tampered'] as const) {
+    const payload = verdict === 'tampered' ? { tampered: true } : verdict === 'unsigned' ? {} : { signing: verdict }
+    const f = makeFixtures(`signature-${verdict}`, [{ version: V_OLD }, { version: V_NEW, payload }])
+    const stagedPayload = join(f, 'stage', `v${V_NEW}`, 'mercury')
+    check(`${verdict}: real payload verifier returns the fixture verdict`, verifyPayloadDir(stagedPayload, { depth: 'deep' }).verdict.state === verdict)
+    if (verdict === 'unrecognized-key') {
+      const manifest = JSON.parse(readFileSync(join(stagedPayload, 'manifest.json'), 'utf8'))
+      const key = { keyId: manifest.signing.keyId, publicKeySpkiB64: manifest.signing.publicKeySpkiB64, label: 'ephemeral fixture' }
+      const trusted = verifyPayloadDir(stagedPayload, { depth: 'deep', roster: [key] }).verdict
+      const { signatureRefusal } = await import('../../src/services/privateChannel/updateService.js')
+      check('the unknown-key fixture is valid under its ephemeral roster, not a corrupt signature', trusted.state === 'signed')
+      check('a signed payload passes the actual update/install policy without any exception', signatureRefusal(trusted, false) === null && signatureRefusal(trusted, true) === null)
+    }
+    for (const allowUnsigned of [false, true]) {
+      seedInstalled(V_OLD)
+      writeFileSync(join(versionsDir, 'previous.txt'), '8.8.0-beta.1\n')
+      const oldBundle = readFileSync(join(versionsDir, V_OLD, 'mercury.mjs'))
+      const oldShim = existsSync(stableShim) ? readFileSync(stableShim) : null
+      const r = runCli(['update', ...(allowUnsigned ? ['--allow-unsigned'] : [])], { fixtures: f })
+      const all = r.stdout + r.stderr
+      const receipt = JSON.parse(readFileSync(join(versionsDir, 'last-update.json'), 'utf8'))
+      const accepted = verdict === 'unsigned' && allowUnsigned
+      const label = `${verdict}, exception ${allowUnsigned}`
+      if (accepted) {
+        check(`${label}: activates and names the explicit exception on the result`, r.code === 0 && currentPointer() === V_NEW && r.stdout.includes('signature: unsigned (accepted by explicit --allow-unsigned)'), all)
+        check(`${label}: receipt records verdict and exception`, receipt.schema === 1 && receipt.outcome === 'updated' && receipt.stage === 'complete' && receipt.signature === 'unsigned' && receipt.allowUnsigned === true && receipt.unsignedOverride === true)
+      } else {
+        check(`${label}: refuses at verify with verdict, roster and Security remedy`, r.code === 1 && all.includes(`refused at verify: signature verdict ${verdict}`) && all.includes('compiled-in trusted roster') && all.includes('Security tab'), all)
+        check(`${label}: active payload and both pointers are unchanged`, currentPointer() === V_OLD && previousPointer() === '8.8.0-beta.1' && readFileSync(join(versionsDir, V_OLD, 'mercury.mjs')).equals(oldBundle))
+        check(`${label}: no staging or activation happened`, !existsSync(join(versionsDir, V_NEW)) && !/^(staging|activating|complete)(:|$)/m.test(r.stderr) && !readdirSync(versionsDir).some(name => name.startsWith('.download-')))
+        check(`${label}: active launcher is untouched`, oldShim === null ? !existsSync(stableShim) : existsSync(stableShim) && readFileSync(stableShim).equals(oldShim))
+        check(`${label}: receipt records refused verdict without claiming an exception`, receipt.schema === 1 && receipt.outcome === 'refused' && receipt.stage === 'verify' && receipt.signature === verdict && receipt.allowUnsigned === allowUnsigned && receipt.unsignedOverride === false && receipt.reason.includes(verdict))
+      }
+      check(`${label}: user state is preserved`, readFileSync(stateMarker, 'utf8') === '{"survives":true}\n')
+    }
+  }
+}
+
+console.log('── §3c install uses the same signature gate and exception ──')
+{
+  const installVersion = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version as string
+  for (const verdict of ['unsigned', 'unrecognized-key', 'malformed', 'tampered'] as const) {
+    const dir = join(scratch, `install-${verdict}`)
+    makePayload(dir, installVersion, { bundlePath: DIST, ...(verdict === 'tampered' ? { tampered: true } : verdict === 'unsigned' ? {} : { signing: verdict }) })
+    for (const allowUnsigned of [false, true]) {
+      seedInstalled(V_OLD)
+      writeFileSync(join(versionsDir, 'previous.txt'), '8.8.0-beta.1\n')
+      const oldBundle = readFileSync(join(versionsDir, V_OLD, 'mercury.mjs'))
+      const oldShim = existsSync(stableShim) ? readFileSync(stableShim) : null
+      const r = runCli(['install', ...(allowUnsigned ? ['--allow-unsigned'] : [])], { fixtures: happyFixtures, dist: join(dir, 'mercury.mjs') })
+      const all = r.stdout + r.stderr
+      const receiptPath = join(versionsDir, 'last-install.json')
+      const receipt = existsSync(receiptPath) ? JSON.parse(readFileSync(receiptPath, 'utf8')) : {}
+      const label = `install ${verdict}, exception ${allowUnsigned}`
+      if (verdict === 'unsigned' && allowUnsigned) {
+        check(`${label}: activates and names the explicit exception`, r.code === 0 && currentPointer() === installVersion && r.stdout.includes('signature: unsigned (accepted by explicit --allow-unsigned)'), all)
+        check(`${label}: receipt records verdict and exception`, receipt.schema === 1 && receipt.operation === 'install' && receipt.outcome === 'installed' && receipt.signature === 'unsigned' && receipt.allowUnsigned === true && receipt.unsignedOverride === true)
+      } else {
+        check(`${label}: refuses at verify with the named verdict and recovery`, r.code === 1 && all.includes(`refused at verify: signature verdict ${verdict}`) && all.includes('compiled-in trusted roster') && all.includes('Security tab'), all)
+        check(`${label}: active payload and pointers are unchanged`, currentPointer() === V_OLD && previousPointer() === '8.8.0-beta.1' && readFileSync(join(versionsDir, V_OLD, 'mercury.mjs')).equals(oldBundle))
+        check(`${label}: no version was staged or activated`, !existsSync(join(versionsDir, installVersion)) && !/^(staging|activating|complete)(:|$)/m.test(r.stderr))
+        check(`${label}: active launcher is untouched`, oldShim === null ? !existsSync(stableShim) : existsSync(stableShim) && readFileSync(stableShim).equals(oldShim))
+        check(`${label}: refusal receipt is exact`, receipt.schema === 1 && receipt.operation === 'install' && receipt.outcome === 'refused' && receipt.stage === 'verify' && receipt.signature === verdict && receipt.allowUnsigned === allowUnsigned && receipt.unsignedOverride === false)
+      }
+    }
+  }
 }
 
 console.log('── §4 post-switch smoke failure ⇒ automatic restore ──')
 {
   seedInstalled(V_OLD)
   const f = makeFixtures('post-switch-fail', [{ version: V_OLD }, { version: V_NEW, payload: { postSwitchFail: true } }])
-  const r = runCli(['update'], { fixtures: f })
+  const r = runCli(['update', '--allow-unsigned'], { fixtures: f })
   const all = r.stdout + r.stderr
   check('post-switch failure exits 1 + says restored', r.code === 1 && all.includes('previous version was restored'), all.slice(0, 300))
   check('pointer automatically restored', currentPointer() === V_OLD)
@@ -243,7 +301,7 @@ console.log('── §5 access unavailable · concurrent lock · rollback refusa
   seedInstalled(V_OLD)
   mkdirSync(join(versionsDir, '.update.lock'), { recursive: true })
   writeFileSync(join(versionsDir, '.update.lock', 'pid'), String(process.pid))
-  const r = runCli(['update'], { fixtures: happyFixtures })
+  const r = runCli(['update', '--allow-unsigned'], { fixtures: happyFixtures })
   const all = r.stdout + r.stderr
   check('concurrent update refused (live lock)', r.code === 1 && all.includes('already running'))
   check('lock survives the refusal', existsSync(join(versionsDir, '.update.lock')))
@@ -268,9 +326,9 @@ console.log('── §7 accepted payload shapes — every accepted manifest shap
 {
   seedInstalled(V_OLD)
   const f = makeFixtures('schema2-single', [{ version: V_OLD }, { version: V_NEW, payload: { shape: 'schema2-single' } }])
-  const r = runCli(['update'], { fixtures: f })
+  const r = runCli(['update', '--allow-unsigned'], { fixtures: f })
   check('the schema-2 declared-bundle shape updates', r.code === 0 && currentPointer() === V_NEW, (r.stdout + r.stderr).slice(0, 300))
-  const rerun = runCli(['update'], { fixtures: f })
+  const rerun = runCli(['update', '--allow-unsigned'], { fixtures: f })
   check('rerun after the schema-2 update is an honest current (whole-payload identity)', rerun.code === 0 && rerun.stdout.includes('Mercury is current'))
 }
 
@@ -278,30 +336,30 @@ console.log('── §8 interruption matrix — recovery without hand-cleaning (
 {
   seedInstalled(V_OLD)
   const f = makeFixtures('interrupt-promote', [{ version: V_OLD }, { version: V_NEW }])
-  const r = runCli(['update'], { fixtures: f, env: { MERCURY_UPDATE_FAULT: 'promote-rename' } })
+  const r = runCli(['update', '--allow-unsigned'], { fixtures: f, env: { MERCURY_UPDATE_FAULT: 'promote-rename' } })
   const all = r.stdout + r.stderr
   check('injected promote failure refuses at staging', r.code === 1 && all.includes('refused at staging'), all.slice(0, 300))
   check('promote failure: active pointer untouched, no new version dir', currentPointer() === V_OLD && !existsSync(join(versionsDir, V_NEW)))
   check('promote failure names retry as appropriate', all.includes('retry is appropriate'))
-  const r2 = runCli(['update'], { fixtures: f })
+  const r2 = runCli(['update', '--allow-unsigned'], { fixtures: f })
   check('ordinary rerun after the interruption succeeds (no hand-cleaning)', r2.code === 0 && currentPointer() === V_NEW, (r2.stdout + r2.stderr).slice(0, 300))
   check('user state survives the interrupted-then-recovered journey', existsSync(stateMarker))
 }
 {
   seedInstalled(V_OLD)
   const f = makeFixtures('interrupt-pointer', [{ version: V_OLD }, { version: V_NEW }])
-  const r = runCli(['update'], { fixtures: f, env: { MERCURY_UPDATE_FAULT: 'pointer-write-current' } })
+  const r = runCli(['update', '--allow-unsigned'], { fixtures: f, env: { MERCURY_UPDATE_FAULT: 'pointer-write-current' } })
   const all = r.stdout + r.stderr
   check('injected pointer-write failure refuses at pointer', r.code === 1 && all.includes('refused at pointer'), all.slice(0, 300))
   check('current pointer UNCHANGED through the pointer-stage failure', currentPointer() === V_OLD)
-  const r2 = runCli(['update'], { fixtures: f })
+  const r2 = runCli(['update', '--allow-unsigned'], { fixtures: f })
   check('rerun after the pointer failure completes', r2.code === 0 && currentPointer() === V_NEW)
 }
 if (!IS_WIN) {
   seedInstalled(V_OLD)
   const f = makeFixtures('unreadable-pointer', [{ version: V_OLD }, { version: V_NEW }])
   chmodSync(join(versionsDir, 'current.txt'), 0o000)
-  const r = runCli(['update'], { fixtures: f })
+  const r = runCli(['update', '--allow-unsigned'], { fixtures: f })
   const all = r.stdout + r.stderr
   check('unreadable pointer: update refuses by name, changes nothing', r.code === 1 && all.includes('pointer is unreadable'), all.slice(0, 300))
   chmodSync(join(versionsDir, 'current.txt'), 0o644)
@@ -318,13 +376,13 @@ console.log('── §9 the update receipt — stage + outcome recorded beside t
 {
   seedInstalled(V_OLD)
   const f = makeFixtures('receipt', [{ version: V_OLD }, { version: V_NEW }])
-  const fail = runCli(['update'], { fixtures: f, env: { MERCURY_UPDATE_FAULT: 'promote-rename' } })
+  const fail = runCli(['update', '--allow-unsigned'], { fixtures: f, env: { MERCURY_UPDATE_FAULT: 'promote-rename' } })
   const receiptPath = join(versionsDir, 'last-update.json')
   check('a refused transaction writes the receipt', existsSync(receiptPath))
   const refusedReceipt = JSON.parse(readFileSync(receiptPath, 'utf8')) as { outcome?: string; stage?: string; txn?: string }
   check('the receipt records outcome + stage + txn', refusedReceipt.outcome === 'refused' && refusedReceipt.stage === 'staging' && !!refusedReceipt.txn)
   check('the refusal PRINTS the receipt path', (fail.stdout + fail.stderr).includes('receipt:'))
-  const ok = runCli(['update'], { fixtures: f })
+  const ok = runCli(['update', '--allow-unsigned'], { fixtures: f })
   const okReceipt = JSON.parse(readFileSync(receiptPath, 'utf8')) as { outcome?: string; stage?: string; from?: string; to?: string }
   check('the completed update overwrites the receipt (complete, from → to)', ok.code === 0 && okReceipt.outcome === 'updated' && okReceipt.stage === 'complete' && okReceipt.from === V_OLD && okReceipt.to === V_NEW)
   check('the receipt never appears in the version census', !runCli(['update', '--status'], { fixtures: f }).stdout.includes('last-update'))

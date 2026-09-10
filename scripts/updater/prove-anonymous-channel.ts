@@ -124,13 +124,13 @@ console.log('── §1 no gh: check → update → status → rollback → forw
   const cjson = parseJson(cj.stdout)
   check('--check --json carries the road and the record\'s own download URL', cj.code === 0 && cjson?.state === 'update-available' && cjson?.road === 'anonymous' && typeof cjson?.assetUrl === 'string' && (cjson.assetUrl as string).startsWith(server.url), cj.stdout.slice(0, 300))
 
-  const u = runCli(['update'], { base: server.url, gh: 'absent', env: { GH_TOKEN: 'ghp_FAKELEAKSECRET0000' } })
+  const u = runCli(['update', '--allow-unsigned'], { base: server.url, gh: 'absent', env: { GH_TOKEN: 'ghp_FAKELEAKSECRET0000' } })
   check('update exits 0 and reports from → to over the anonymous road', u.code === 0 && u.stdout.includes(`updated: ${V_OLD} → ${V_NEW} (read anonymously`), u.all.slice(0, 400))
-  check('the signature verdict is SAID at activation (unsigned fixture) on the result and the progress', u.stdout.includes('signature: unsigned') && u.stderr.includes('signature: unsigned —'), u.all.slice(0, 400))
+  check('the signature verdict is SAID at activation (unsigned fixture) on the result and the progress', u.stdout.includes('signature: unsigned (accepted by explicit --allow-unsigned)') && u.stderr.includes('signature: unsigned —'), u.all.slice(0, 400))
   check('pointer switched, previous retained', pointer('current') === V_NEW && pointer('previous') === V_OLD && existsSync(join(versionsDir, V_OLD, 'mercury.mjs')))
   check('the full payload landed (the enter-screen pair rides the update)', existsSync(join(versionsDir, V_NEW, 'splash.mjs')) && existsSync(join(versionsDir, V_NEW, 'splash-core.mjs')))
   const receipt = readReceipt()
-  check('the receipt records the road and the verdict', receipt.outcome === 'updated' && receipt.road === 'anonymous' && receipt.signature === 'unsigned' && receipt.from === V_OLD && receipt.to === V_NEW, JSON.stringify(receipt))
+  check('the receipt records the road and the verdict', receipt.outcome === 'updated' && receipt.road === 'anonymous' && receipt.signature === 'unsigned' && receipt.allowUnsigned === true && receipt.unsignedOverride === true && receipt.from === V_OLD && receipt.to === V_NEW, JSON.stringify(receipt))
   check('output never carries token material', !u.all.includes('FAKELEAKSECRET'))
   check('user state survives the update', existsSync(stateMarker))
 
@@ -149,14 +149,14 @@ console.log('── §1 no gh: check → update → status → rollback → forw
   const access = (sjson?.access ?? {}) as Record<string, unknown>
   check('--status --json carries access.road', sj.code === 0 && access.state === 'ok' && access.road === 'anonymous', sj.stdout.slice(0, 300))
 
-  const again = runCli(['update'], { base: server.url, gh: 'absent' })
+  const again = runCli(['update', '--allow-unsigned'], { base: server.url, gh: 'absent' })
   check('a second update is an honest current, naming the road', again.code === 0 && again.stdout.includes('Mercury is current') && again.stdout.includes('read anonymously'), again.all.slice(0, 300))
 
   const before = readLog(log).length
   const r = runCli(['update', '--rollback'], { base: server.url, gh: 'absent' })
   check('rollback exits 0 and restores the previous version', r.code === 0 && r.stdout.includes(`rolled back: ${V_NEW} → ${V_OLD}`) && pointer('current') === V_OLD, r.all.slice(0, 300))
   check('rollback touches the channel not at all', readLog(log).length === before)
-  const fwd = runCli(['update'], { base: server.url, gh: 'absent' })
+  const fwd = runCli(['update', '--allow-unsigned'], { base: server.url, gh: 'absent' })
   check('forward again re-activates the newer version', fwd.code === 0 && pointer('current') === V_NEW, fwd.all.slice(0, 300))
   check('user state survives the whole journey', existsSync(stateMarker))
   await server.close()
@@ -167,7 +167,7 @@ console.log('── §2 refusals over the anonymous road: corrupted archive · i
   const corrupted = makeFixtures('corrupted', [{ version: V_OLD }, { version: V_NEW, sums: 'mismatch' }])
   const server = await spawnFixtureReleaseServer({ fixtures: corrupted })
   seedInstalled(V_OLD)
-  const r = runCli(['update'], { base: server.url, gh: 'absent' })
+  const r = runCli(['update', '--allow-unsigned'], { base: server.url, gh: 'absent' })
   check('a corrupted archive is refused by its checksum with the words', r.code === 1 && r.all.includes('refused at checksum') && r.all.includes('SHA-256 mismatch'), r.all.slice(0, 300))
   check('the active installation is untouched', pointer('current') === V_OLD && !existsSync(join(versionsDir, V_NEW)))
   check('the refusal receipt names the road', readReceipt().outcome === 'refused' && readReceipt().road === 'anonymous', JSON.stringify(readReceipt()))
@@ -176,7 +176,7 @@ console.log('── §2 refusals over the anonymous road: corrupted archive · i
 {
   const server = await spawnFixtureReleaseServer({ fixtures: happyFixtures, skipSums: true })
   seedInstalled(V_OLD)
-  const r = runCli(['update'], { base: server.url, gh: 'absent' })
+  const r = runCli(['update', '--allow-unsigned'], { base: server.url, gh: 'absent' })
   check('an incomplete publish (no SHA256SUMS.txt) is refused at download, by name', r.code === 1 && r.all.includes('refused at download') && r.all.includes('SHA256SUMS.txt') && r.all.includes('HTTP 404'), r.all.slice(0, 300))
   check('nothing was activated', pointer('current') === V_OLD && !existsSync(join(versionsDir, V_NEW)))
   await server.close()
@@ -193,7 +193,7 @@ console.log('── §3 rate limited: the reset in minutes and the sign-in remed
   const cj = runCli(['update', '--check', '--json'], { base: server.url, gh: 'absent' })
   const access = ((parseJson(cj.stderr) ?? {}).access ?? {}) as Record<string, unknown>
   check('--json names the state and the minutes', cj.code === 1 && access.state === 'rate-limited' && access.resetMinutes === 25, cj.stderr.slice(0, 300))
-  const u = runCli(['update'], { base: server.url, gh: 'absent' })
+  const u = runCli(['update', '--allow-unsigned'], { base: server.url, gh: 'absent' })
   check('update says the same and changes nothing', u.code === 1 && u.all.includes('resets in 25 minutes') && pointer('current') === V_OLD, u.all.slice(0, 300))
   await server.close()
 }
@@ -229,7 +229,7 @@ console.log('── §6 gh installed but signed out: the anonymous road answers 
   seedInstalled(V_OLD)
   const c = runCli(['update', '--check'], { base: server.url, gh: 'signed-out', ghLog })
   check('--check answers over the anonymous road', c.code === 0 && c.stdout.includes(`update available: v${V_NEW}`) && c.stdout.includes('read anonymously'), c.all.slice(0, 300))
-  const u = runCli(['update'], { base: server.url, gh: 'signed-out', ghLog })
+  const u = runCli(['update', '--allow-unsigned'], { base: server.url, gh: 'signed-out', ghLog })
   check('update completes over the anonymous road', u.code === 0 && pointer('current') === V_NEW && readReceipt().road === 'anonymous', u.all.slice(0, 300))
   const ghCalls = readLog(ghLog)
   check('gh was asked only whether it is signed in', ghCalls.length > 0 && ghCalls.every(l => l === 'gh auth status'), ghCalls.join(' | '))
@@ -245,7 +245,7 @@ console.log('── §7 gh signed in: the gh road answers; the anonymous channel
   seedInstalled(V_OLD)
   const c = runCli(['update', '--check'], { base: server.url, gh: 'signed-in', ghFixtures: happyFixtures, ghLog })
   check('--check names the gh road', c.code === 0 && c.stdout.includes(`update available: v${V_NEW}`) && c.stdout.includes('read through your signed-in GitHub CLI'), c.all.slice(0, 300))
-  const u = runCli(['update'], { base: server.url, gh: 'signed-in', ghFixtures: happyFixtures, ghLog })
+  const u = runCli(['update', '--allow-unsigned'], { base: server.url, gh: 'signed-in', ghFixtures: happyFixtures, ghLog })
   check('update completes over the gh road with the same verdict said', u.code === 0 && u.stdout.includes('(read through your signed-in GitHub CLI)') && u.stdout.includes('signature: unsigned') && pointer('current') === V_NEW, u.all.slice(0, 400))
   check('the receipt names the gh road and the same verdict', readReceipt().road === 'gh' && readReceipt().signature === 'unsigned', JSON.stringify(readReceipt()))
   check('the anonymous channel received no request at all', readLog(log).length === 0, readLog(log).join(' | '))

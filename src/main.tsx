@@ -1005,6 +1005,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     .command('update')
     .alias('upgrade')
     .description('Update to the newest release (no GitHub sign-in needed)')
+    .option('--allow-unsigned', 'Explicitly allow an unsigned payload; invalid or untrusted signatures still refuse')
     .option('--check', 'Only check for updates')
     .option('--status', 'Show update status')
     .option('--rollback', 'Roll back to the previous version')
@@ -1016,6 +1017,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
   program
     .command('install')
     .description('Install this extracted release archive user-locally (managed launcher shims)')
+    .option('--allow-unsigned', 'Explicitly allow an unsigned payload; invalid or untrusted signatures still refuse')
     .option('--dry-run', 'Preview only')
     .option('--uninstall', 'Remove the shims')
     .option('--force', 'Overwrite unexpected files')

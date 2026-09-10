@@ -39,10 +39,12 @@ export type PayloadShape = 'release-layout' | 'schema2-single'
 
 export interface PayloadOpts {
   manifestVersion?: string
+  bundlePath?: string
   stagedFail?: boolean
   postSwitchFail?: boolean
   shape?: PayloadShape
   tampered?: boolean
+  signing?: 'unrecognized-key' | 'malformed'
 }
 
 export function makePayload(dir: string, version: string, opts: PayloadOpts = {}): void {
@@ -55,7 +57,7 @@ export function makePayload(dir: string, version: string, opts: PayloadOpts = {}
 const m = JSON.parse(readFileSync(new URL('./manifest.json', import.meta.url), 'utf8'))
 ${opts.postSwitchFail ? `const dir = decodeURIComponent(new URL('.', import.meta.url).pathname)\nif (/[\\/\\\\]${version.replace(/\./g, '\\.')}[\\/\\\\]$/.test(dir)) process.exit(1)\n` : ''}console.log('Mercury ' + m.version)
 `
-  writeFileSync(join(dir, 'mercury.mjs'), body)
+  writeFileSync(join(dir, 'mercury.mjs'), opts.bundlePath ? readFileSync(opts.bundlePath) : body)
   writeFileSync(join(dir, 'splash.mjs'), `// fixture splash ${version}\n`)
   writeFileSync(join(dir, 'splash-core.mjs'), `// fixture splash core ${version}\n`)
   if (IS_WIN) {
@@ -82,7 +84,7 @@ ${opts.postSwitchFail ? `const dir = decodeURIComponent(new URL('.', import.meta
   if (shape === 'release-layout') {
     const layout = releaseLayoutSection(dir, HOST_TARGET, FLOOR) as { payloadDigest: string }
     manifest.releaseLayout = layout
-    if (opts.tampered) {
+    if (opts.tampered || opts.signing === 'unrecognized-key') {
       const pair = generateKeyPairSync('ed25519')
       const statement: SigningStatementV1 = {
         schema: 1,
@@ -92,12 +94,13 @@ ${opts.postSwitchFail ? `const dir = decodeURIComponent(new URL('.', import.meta
         target: HOST_TARGET,
         packagedAt: '2026-08-22T00:00:00.000Z',
         buildTree: null,
-        primarySha256: createHash('sha256').update('not the bundle').digest('hex'),
+        primarySha256: createHash('sha256').update(opts.tampered ? Buffer.from('not the bundle') : readFileSync(join(dir, 'mercury.mjs'))).digest('hex'),
         payloadDigest: layout.payloadDigest,
         licenseId: null,
       }
       manifest.signing = signStatement(statement, pair.privateKey.export({ format: 'pem', type: 'pkcs8' }).toString())
     }
+    if (opts.signing === 'malformed') manifest.signing = { schema: 99 }
     writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n')
   }
   if (!IS_WIN) {

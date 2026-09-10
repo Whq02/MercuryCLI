@@ -9,6 +9,7 @@ export interface InstallCliOptions {
   dryRun?: boolean
   uninstall?: boolean
   force?: boolean
+  allowUnsigned?: boolean
   json?: boolean
 }
 
@@ -75,13 +76,15 @@ export async function installVerb(options: InstallCliOptions = {}): Promise<neve
   }
 
   const progress: Progress = options.json ? () => {} : progressToStderr
-  const result = await performInstall(roots, progress, { force: options.force })
+  const result = await performInstall(roots, progress, { force: options.force, allowUnsigned: options.allowUnsigned })
   if (options.json) return result.state === 'installed' ? emitJson({ mode: 'install', ...result }) : failJson({ mode: 'install', ...result })
   if (result.state === 'dry-run') return cliError('install produced an unexpected dry-run result')
   if (result.state === 'installed') {
     const lines = [
       `installed: ${result.version} → ${result.versionDir}${result.changed ? '' : ' (already present — no bytes changed)'}`,
       `active version: ${result.version} (pointer: ${roots.versionsDir})`,
+      `signature: ${result.signature}${result.unsignedOverride ? ' (accepted by explicit --allow-unsigned)' : ''}`,
+      ...(result.receiptPath ? [`receipt: ${result.receiptPath}`] : []),
     ]
     switch (result.shim.state) {
       case 'written':
@@ -99,5 +102,5 @@ export async function installVerb(options: InstallCliOptions = {}): Promise<neve
     lines.push('next: `mercury update --check` keeps this install current (no GitHub sign-in needed)')
     return cliOk(lines.join('\n'))
   }
-  return cliError(`install refused: ${result.reason}\n  ${result.remedy}`)
+  return cliError(`install refused${result.stage ? ` at ${result.stage}` : ''}: ${result.reason}\n  ${result.remedy}${result.receiptPath ? `\n  receipt: ${result.receiptPath}` : ''}`)
 }
