@@ -206,6 +206,7 @@ import {
   updateUsage,
 } from './cacheAndUsage.js'
 import { getPreviousRequestIdFromMessages, stripExcessMediaItems } from './media.js'
+import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
 import {
   coldPrefixOf,
   estimateRequestTokens,
@@ -624,6 +625,11 @@ async function* queryModel(
     messagesForAPI,
     API_MAX_MEDIA_PER_REQUEST,
   )
+  const retiredScreenshots = retireOlderScreenshots(messagesForAPI)
+  messagesForAPI =
+    retiredScreenshots.firstEdited === -1
+      ? retiredScreenshots.messages
+      : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
 
   messagesForAPI = stripDeadThinking(messagesForAPI, deadThinkingMarks(messages))
   if (thinkingConfig.type === 'disabled') messagesForAPI = stripThinkingFromIndex(messagesForAPI, 0)

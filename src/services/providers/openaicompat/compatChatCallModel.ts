@@ -77,6 +77,8 @@ import {
 import type { RefusedToolCall } from '../../../types/message.js'
 import { gateToolCalls, toolCallRefusalNote } from '../toolCallGate.js'
 import { foldAnnouncementIntoFirstUserTurn, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
+import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
+import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
 
 const COMPAT_MAX_ATTEMPTS = 2
 const COMPAT_RETRY_BACKOFF_MS = 400
@@ -369,9 +371,14 @@ export async function* compatChatCallModel(
       return
     }
   }
+  const retiredScreenshots = retireOlderScreenshots(wireMessages)
+  const wireMessagesForBridge =
+    retiredScreenshots.firstEdited === -1
+      ? retiredScreenshots.messages
+      : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
   const request: CompatChatRequest = {
     model: wireModel,
-    messages: mapMessagesToZai(systemText, toBridgeMessages(healWalkableForWire(wireMessages)), {
+    messages: mapMessagesToZai(systemText, toBridgeMessages(healWalkableForWire(wireMessagesForBridge)), {
       keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel) ?? false,
     }),
     ...(apiTools.length > 0
