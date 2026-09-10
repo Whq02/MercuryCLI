@@ -1,6 +1,7 @@
 import type { Message } from '../../types/message.js'
 import type { ContentBlockParam, ToolResultBlockParam } from '../../types/wire.js'
 import { screenshotPathForToolUse } from './desktopSession.js'
+import { COMPUTER_TOOL_NAME } from './toolName.js'
 
 export const SCREENSHOT_KEEP_RECENT = 3
 export const SCREENSHOT_WIRE_HIGH_WATER = 12
@@ -21,11 +22,43 @@ function userBlocks(message: Message): ContentBlockParam[] | null {
   return Array.isArray(content) ? content : null
 }
 
-function isScreenshotResult(block: ContentBlockParam): block is ToolResultBlockParam & { content: ResultBlock[] } {
+function isScreenshotResult(
+  block: ContentBlockParam,
+  paired: ReadonlySet<string> | null = null,
+): block is ToolResultBlockParam & { content: ResultBlock[] } {
   if (block.type !== 'tool_result') return false
   if (!Array.isArray(block.content)) return false
-  if (screenshotPathForToolUse(block.tool_use_id) === null) return false
+  if (screenshotPathForToolUse(block.tool_use_id) === null && !(paired?.has(block.tool_use_id) ?? false)) return false
   return block.content.some(nested => nested.type === 'image')
+}
+
+const SCREENSHOT_LINE = /screenshot: (.+?) — display \d/
+
+function screenshotPathOf(block: ToolResultBlockParam & { content: ResultBlock[] }): string {
+  const registered = screenshotPathForToolUse(block.tool_use_id)
+  if (registered !== null) return registered
+  for (const nested of block.content) {
+    if (nested.type !== 'text') continue
+    const match = SCREENSHOT_LINE.exec(nested.text)
+    if (match?.[1]) return match[1]
+  }
+  return ''
+}
+
+export function computerToolUseIdsBefore(transcript: readonly Message[], index: number): ReadonlySet<string> {
+  const ids = new Set<string>()
+  for (let at = index - 1; at >= 0; at--) {
+    const earlier = transcript[at]
+    if (earlier === undefined || earlier.type !== 'assistant') continue
+    const content = earlier.message.content
+    if (Array.isArray(content)) {
+      for (const block of content) {
+        if (block.type === 'tool_use' && block.name === COMPUTER_TOOL_NAME) ids.add(block.id)
+      }
+    }
+    break
+  }
+  return ids
 }
 
 function withImagesReplaced(block: ToolResultBlockParam & { content: ResultBlock[] }, text: string): ToolResultBlockParam {
@@ -40,14 +73,16 @@ function rebuildUser<M extends Message>(message: M, blocks: ContentBlockParam[])
   return { ...carrier, message: { ...carrier.message, content: blocks } } as M
 }
 
-export function projectForTranscript<M extends Message>(message: M): M {
+export function projectForTranscript<M extends Message>(message: M, transcript: readonly Message[] | null = null): M {
   const blocks = userBlocks(message)
   if (blocks === null) return message
+  const index = transcript === null ? -1 : transcript.indexOf(message)
+  const paired = transcript !== null && index >= 0 ? computerToolUseIdsBefore(transcript, index) : null
   let touched = false
   const projected = blocks.map(block => {
-    if (!isScreenshotResult(block)) return block
+    if (!isScreenshotResult(block, paired)) return block
     touched = true
-    return withImagesReplaced(block, screenshotStubText(screenshotPathForToolUse(block.tool_use_id) ?? ''))
+    return withImagesReplaced(block, screenshotStubText(screenshotPathOf(block)))
   })
   return touched ? rebuildUser(message, projected) : message
 }
