@@ -5,6 +5,7 @@ import { check, finish, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, COMPUTER_READS, ownerOf, pixelOfPointOn, pointOfPixelOn, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
 
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
+const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
 const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
 const session = await import('../../src/services/desktop/desktopSession.ts')
 const { suggestionForExactCommand } = await import('../../src/utils/permissions/shellRuleMatching.ts')
@@ -203,6 +204,30 @@ section('§8 the relayed ask keeps the application name and its rule identity di
   const foreign = judgedAppFromAsk('', [{ type: 'addRules', rules: [{ toolName: 'Browser', ruleContent: `app:${TEXTEDIT.identity}` }] }])
   check("another tool's suggestion supplies no Computer application grant", foreign === null, JSON.stringify(foreign))
   check('missing relay facts retain the unnamed application fallback', judgedAppFromAsk('', undefined) === null)
+}
+
+section('§9 first-application consent survives every bypass posture')
+for (const mode of ['default', 'sovereign', 'autopilot', 'strategy'] as const) {
+  const { context, owner } = await fresh(`posture-${mode}`, null)
+  const permissionContext = context.getAppState().toolPermissionContext
+  permissionContext.mode = mode
+  permissionContext.isBypassPermissionsModeAvailable = true
+  const first = await decideToolPermission(ComputerTool, { action: 'click', x: 812, y: 300 }, context)
+  check(`${mode}: the full decision chain keeps the first act as a mandatory ask`, first.decision.behavior === 'ask' && first.trace.decidedBy === 'userInteractionAsk', JSON.stringify(first.decision))
+  for (const action of COMPUTER_READS) {
+    const read = await decideToolPermission(ComputerTool, { action }, context)
+    check(`${mode}: ${action} remains allowed`, read.decision.behavior === 'allow', JSON.stringify(read.decision))
+  }
+  session.approveApp(owner, TEXTEDIT)
+  const granted = await decideToolPermission(ComputerTool, { action: 'click', x: 812, y: 300 }, context)
+  check(`${mode}: the later act still rides the approved application grant`, granted.decision.behavior === 'allow', JSON.stringify(granted.decision))
+  permissionContext.alwaysAskRules = { localSettings: [`Computer(app:${TEXTEDIT.identity})`] }
+  const explicitAsk = await decideToolPermission(ComputerTool, { action: 'click', x: 812, y: 300 }, context)
+  check(`${mode}: an explicit application ask outranks the session grant`, explicitAsk.decision.behavior === 'ask', JSON.stringify(explicitAsk.decision))
+  permissionContext.alwaysDenyRules = { localSettings: [`Computer(app:${TEXTEDIT.identity})`] }
+  const explicitDeny = await decideToolPermission(ComputerTool, { action: 'click', x: 812, y: 300 }, context)
+  check(`${mode}: the deny rule still outranks every grant and ask`, explicitDeny.decision.behavior === 'deny', JSON.stringify(explicitDeny.decision))
+  session.forgetDesktopOwner(owner)
 }
 
 useScene('default', null)
