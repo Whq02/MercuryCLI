@@ -802,13 +802,13 @@ Take a screenshot after acts that change the screen, act on what the latest one 
           outcome = 'failed'
           return finish()
         }
-        const claim = await claimDesktop(signal, live.name)
+        const claim = await claimDesktop(signal, live)
         if (!claim.held) {
           result = claim.aborted === true ? interruptedText(input.action) : `computer refused: ${desktopClaimBusyNote(claim.holder)}`
           outcome = 'failed'
           return finish()
         }
-        setDrivingApp(live.name)
+        setDrivingApp(live)
         let act: ActWords
         try {
           act = await performAct(driver, input, plan, signal)

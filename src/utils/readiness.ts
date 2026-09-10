@@ -4,6 +4,7 @@ import { realEnvPin } from '../substrate/startupMenu.js'
 import { driverNodeGate, resolveBrowser } from '../services/browser/browserResolver.js'
 import { lastDesktopPermissions, resolveDesktopDriver } from '../services/desktop/resolveDriver.js'
 import { desktopGrantWords } from '../services/desktop/nativeDriver.js'
+import { desktopClaimFileSnapshot } from '../services/desktop/desktopClaim.js'
 import { desktopSnapshot } from '../services/desktop/desktopSession.js'
 import {
   mercuryDapEnabled,
@@ -223,7 +224,8 @@ function computerToolRecord(): ReadinessRecord {
       latencyMs: Date.now() - t0,
     }
   }
-  const driving = desktopSnapshot()
+  const own = desktopSnapshot()
+  const driving = own.phase === 'driving' ? own : desktopClaimFileSnapshot()
   if (driving.phase === 'driving') {
     return {
       ...base,
