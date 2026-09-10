@@ -430,6 +430,73 @@
       }
     },
     {
+      "name": "Computer",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "cancel",
+      "deferred": true,
+      "operations": [
+        "screenshot",
+        "click",
+        "doubleClick",
+        "rightClick",
+        "move",
+        "drag",
+        "scroll",
+        "type",
+        "key",
+        "hold",
+        "wait",
+        "cursor",
+        "displays",
+        "frontmost"
+      ],
+      "units": [
+        "desktop-drive"
+      ],
+      "proof": "scripts/computer/prove-computer-asks.ts",
+      "declared": {
+        "intents": [
+          "see the screen and drive the mouse and keyboard",
+          "take a screenshot of the desktop",
+          "click, type, scroll or press keys in the application in front",
+          "find out which application is in front"
+        ],
+        "units": [
+          "desktop-drive"
+        ],
+        "class": "execution",
+        "operations": [
+          "screenshot",
+          "click",
+          "doubleClick",
+          "rightClick",
+          "move",
+          "drag",
+          "scroll",
+          "type",
+          "key",
+          "hold",
+          "wait",
+          "cursor",
+          "displays",
+          "frontmost"
+        ],
+        "execution": {
+          "kind": "desktop-session",
+          "representation": "child-execution"
+        },
+        "evidence": [
+          "artifact"
+        ],
+        "resources": [],
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "gate": "MERCURY_COMPUTER_USE",
+        "proof": "scripts/computer/prove-computer-asks.ts"
+      }
+    },
+    {
       "name": "Correct",
       "category": "other",
       "risk": "medium",

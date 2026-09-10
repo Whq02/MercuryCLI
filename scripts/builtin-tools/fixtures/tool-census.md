@@ -6,14 +6,14 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 71 built-in production tools · 170 operations · 71 with a declared capability contract.
+Census version 1 — 72 built-in production tools · 184 operations · 72 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 45 available · 14 conditional · 0 degraded · 12 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 20 observation · 22 mutation · 10 execution · 19 coordination · 0 unclassified
-- integrations: 10 declare transactions · 12 declare executions · 32 declare mercury:// outputs · 36 name a focused proof
-- capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · planning · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
+- support (at generation time): 45 available · 14 conditional · 0 degraded · 13 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 20 observation · 22 mutation · 11 execution · 19 coordination · 0 unclassified
+- integrations: 10 declare transactions · 13 declare executions · 32 declare mercury:// outputs · 37 name a focused proof
+- capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · planning · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
 - every tool is unit-classified
 
 ## Per-tool census
@@ -31,6 +31,7 @@ Census version 1 — 71 built-in production tools · 170 operations · 71 with a
 | Browser | execution | browser-drive | 18 | cancel | yes | — | browser-session (child-execution) | — | scripts/browser/prove-browser-drive.ts |
 | ChangeSet | mutation | text-mutation | 4 | block | yes | file +receipts | — | mercury://file, mercury://receipt | scripts/changesets/run-all.sh |
 | Checkpoint | mutation | task-coordination | — | block | yes | — | — | — | scripts/run-recovery/run-all.sh |
+| Computer | execution | desktop-drive | 14 | cancel | yes | — | desktop-session (child-execution) | — | scripts/computer/prove-computer-asks.ts |
 | Correct | mutation | memory | 3 | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |
 | CronCreate | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | CronDelete | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
