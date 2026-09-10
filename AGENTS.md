@@ -26,7 +26,8 @@ node dist/mercury.mjs doctor --json
 `setup` fetches the vendored packs (pyright · debugpy · js-debug · grammars ·
 this machine's Node runtime · brush, the optional shell engine) and, with cargo
 present, builds the voice capture addon and, with cmake beside it, the
-on-device transcriber; a skipped pack is named by the doctor.
+on-device transcriber; with cargo it also builds the desktop driver addon
+that computer use runs through, and a skipped pack is named by the doctor.
 
 The first run walks theme and sign-in. Every interactive boot with no explicit
 journey lands on the Boot face — the ten-row card: New Session,
