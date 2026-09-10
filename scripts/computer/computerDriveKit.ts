@@ -79,7 +79,8 @@ const log = line => { try { fs.appendFileSync(LOG, line + '\\n') } catch {} }
 const isLocal = host => host === '127.0.0.1' || host === '::1' || host === 'localhost' || host === undefined || host === ''
 const origConnect = net.Socket.prototype.connect
 net.Socket.prototype.connect = function (...args) {
-  const opts = typeof args[0] === 'object' && args[0] !== null ? args[0] : { port: args[0], host: args[1] }
+  const head = Array.isArray(args[0]) ? args[0][0] : args[0]
+  const opts = typeof head === 'object' && head !== null ? head : { port: head, host: args[1] }
   if (opts.path) return origConnect.apply(this, args)
   const host = opts.host || 'localhost'
   if (isLocal(host)) { log('tcp-local ' + host + ':' + opts.port); return origConnect.apply(this, args) }
