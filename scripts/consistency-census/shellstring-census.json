@@ -1473,20 +1473,6 @@
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
-      "file": "scripts/sessionStorage/prove-sessionstorage-parity.ts",
-      "mechanism": "hardcoded-tmp",
-      "excerpt": "mkdirSync('/tmp/mercury-parity-home', { recursive: true })",
-      "cls": "platform-owner",
-      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
-    },
-    {
-      "file": "scripts/sessionStorage/prove-sessionstorage-parity.ts",
-      "mechanism": "hardcoded-tmp",
-      "excerpt": "mkdirSync('/tmp/mercury-parity-cwd', { recursive: true })",
-      "cls": "platform-owner",
-      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
-    },
-    {
       "file": "scripts/skills/prove-skill-tool-failure-reason.ts",
       "mechanism": "hardcoded-tmp",
       "excerpt": "process.env.MERCURY_CONFIG_DIR = join(process.env.TMPDIR ?? '/tmp', `skill-failure-${process.pid}`)",
