@@ -49,10 +49,30 @@ export interface ProbeDump {
 
 const FACE_READY_NEEDLE = '↑↓ choose'
 
+export interface ArenaOutcome {
+  exitCode: number | null
+  signal: NodeJS.Signals | null
+  killedByWall: boolean
+  report: DriverReport | null
+  elapsedMs: number
+  complete: boolean
+  reason: string | null
+}
+
+export interface DriverReport {
+  raw_bytes: number
+  raw_reads: number
+  sends: number
+  unfired: string[]
+  ended: 'deadline' | 'eof' | 'read-error'
+  elapsed_ms: number
+}
+
 export interface ArenaRun {
   fixture: FixtureApi
   teeLines: TeeWrite[]
   sendLog: SendRecord[]
+  outcome: ArenaOutcome
   probe: ProbeDump | null
   driverOut: string
   anchorShiftMs: number
@@ -176,9 +196,21 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
   let driverOut = ''
   child.stdout.on('data', d => (driverOut += d))
   child.stderr.on('data', d => (driverOut += d))
-  const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(opts.seconds * 1000) + 22_000)
-  await new Promise<void>(resolve => child.on('exit', () => resolve()))
+  const spawnedAt = Date.now()
+  let killedByWall = false
+  const killer = setTimeout(() => {
+    killedByWall = true
+    child.kill('SIGKILL')
+  }, vshotBudgetMs(opts.seconds * 1000) + 22_000)
+  const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(resolve =>
+    child.on('exit', (code, signal) => resolve({ code, signal })),
+  )
+  await new Promise<void>(resolve => child.on('close', () => resolve()))
+  const { code: exitCode, signal } = await exited
   clearTimeout(killer)
+  const elapsedMs = Date.now() - spawnedAt
+  const outcome = driverOutcome({ exitCode, signal, killedByWall, elapsedMs, driverOut })
+  if (!outcome.complete) console.error(`[arena] capture incomplete — ${outcome.reason}`)
 
   await fixture.close()
 
@@ -226,11 +258,56 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
     fixture,
     teeLines,
     sendLog,
+    outcome,
     probe,
     driverOut,
     anchorShiftMs,
     paths: { home, cwd, drive, tee },
     cleanup,
+  }
+}
+
+export function driverOutcome(input: {
+  exitCode: number | null
+  signal: NodeJS.Signals | null
+  killedByWall: boolean
+  elapsedMs: number
+  driverOut: string
+}): ArenaOutcome {
+  let report: DriverReport | null = null
+  const lines = input.driverOut.split('\n')
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i]!.trim()
+    if (!line.startsWith('{')) continue
+    try {
+      const rec = JSON.parse(line) as Partial<DriverReport>
+      if (typeof rec.raw_bytes === 'number' && Array.isArray(rec.unfired)) {
+        report = {
+          raw_bytes: rec.raw_bytes,
+          raw_reads: typeof rec.raw_reads === 'number' ? rec.raw_reads : 0,
+          sends: typeof rec.sends === 'number' ? rec.sends : 0,
+          unfired: rec.unfired as string[],
+          ended: rec.ended === 'eof' || rec.ended === 'read-error' ? rec.ended : 'deadline',
+          elapsed_ms: typeof rec.elapsed_ms === 'number' ? rec.elapsed_ms : input.elapsedMs,
+        }
+        break
+      }
+    } catch {}
+  }
+  let reason: string | null = null
+  if (input.killedByWall) reason = `the arena's wall killed the driver after ${input.elapsedMs} ms (no closing report can be trusted)`
+  else if (input.signal !== null) reason = `the driver died by ${input.signal} after ${input.elapsedMs} ms`
+  else if (input.exitCode !== 0) reason = `the driver exited ${input.exitCode} after ${input.elapsedMs} ms: ${input.driverOut.trim().slice(-300)}`
+  else if (report === null) reason = `the driver exited 0 but wrote no closing report: ${input.driverOut.trim().slice(-300)}`
+  else if (report.ended !== 'deadline') reason = `the capture ended by ${report.ended} at ${report.elapsed_ms} ms, before the authored deadline (the child left the pty early)`
+  return {
+    exitCode: input.exitCode,
+    signal: input.signal,
+    killedByWall: input.killedByWall,
+    report,
+    elapsedMs: input.elapsedMs,
+    complete: reason === null,
+    reason,
   }
 }
 
