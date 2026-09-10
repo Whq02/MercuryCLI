@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -51,16 +51,16 @@ process.env.ANTHROPIC_API_KEY = FIXTURE_KEY
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 
 const fixtureLog = join(OUT, 'fixture.log')
+const fixtureLogFd = openSync(fixtureLog, 'w')
 const fixture = spawn('node', [join(RIG, 'fixture-server.mjs')], {
   env: { ...process.env, FIXTURE_PORT: String(FIXTURE_PORT), FIXTURE_TPS: '40', FIXTURE_TTFB_MS: '350', FIXTURE_REPEAT: String(REPEAT) },
-  stdio: ['ignore', 'ignore', 'pipe'],
+  stdio: ['ignore', 'ignore', fixtureLogFd],
 })
-let fixtureStderr = ''
-fixture.stderr.on('data', d => {
-  fixtureStderr += String(d)
-})
+closeSync(fixtureLogFd)
+const readFixtureLog = (): string => readFileSync(fixtureLog, 'utf8')
 await new Promise(r => setTimeout(r, 800))
-check('the fixture is listening', fixtureStderr.includes('listening'), fixtureStderr.slice(0, 200))
+check('the fixture is listening', readFixtureLog().includes('listening'), readFixtureLog().slice(0, 200))
+const postArrivals = (log: string): number[] => [...log.matchAll(/POST \/[^ ]*messages[^\n]*wall_ms=(\d+)/g)].map(m => Number(m[1]))
 
 const FIX = join(OUT, 'fixture-cwd')
 mkdirSync(FIX, { recursive: true })
@@ -70,6 +70,8 @@ type LegResult = {
   leg: string
   cap: string
   t0WallMs: number | null
+  recorder: { status: number | null; signal: string | null; error: string | null; recorded: boolean }
+  postsSeen: number
   analysis: string
   echo: { n: number; p50: number; p90: number; max: number } | null
   ttfgMs: number | null
@@ -133,8 +135,16 @@ function captureLeg(leg: 'off' | 'on'): LegResult {
   })
   const t0 = /ptyrec_t0_wall_ms=(\d+)/.exec(res.stderr ?? '')
   const t0WallMs = t0 ? Number(t0[1]) : null
+  const recorder = {
+    status: res.status,
+    signal: res.signal,
+    error: res.error ? String(res.error.message ?? res.error) : null,
+    recorded: /^recorded /m.test(res.stderr ?? ''),
+  }
+  const fixtureLogAfterLeg = readFixtureLog()
+  const postsSeen = postArrivals(fixtureLogAfterLeg).length
 
-  const frames = loadFrames(cap)
+  const frames = existsSync(cap) ? loadFrames(cap) : []
   const outs = frames.filter(f => f.dir === 0)
   const ins = frames.filter(f => f.dir === 1)
   const enterFrame = ins.find(f => f.data.includes('\r'))
@@ -163,7 +173,7 @@ function captureLeg(leg: 'off' | 'on'): LegResult {
   let sendStartMs: number | null = null
   if (t0WallMs !== null && enterFrame) {
     const enterWall = t0WallMs + enterFrame.t / 1e6
-    const posts = [...fixtureStderr.matchAll(/POST \/[^ ]*messages[^\n]*wall_ms=(\d+)/g)].map(m => Number(m[1]))
+    const posts = postArrivals(fixtureLogAfterLeg)
     const post = posts.filter(p => p >= enterWall - 50).sort((a, b) => a - b)[0]
     if (post !== undefined) sendStartMs = post - enterWall
   }
@@ -223,6 +233,8 @@ function captureLeg(leg: 'off' | 'on'): LegResult {
     leg,
     cap,
     t0WallMs,
+    recorder,
+    postsSeen,
     analysis: '',
     echo,
     ttfgMs,
@@ -256,7 +268,9 @@ for (const leg of LEGS) {
   section(`leg ${leg.toUpperCase()} — ${leg === 'on' ? 'MERCURY_RENDER_ENGINE=1 (+ASSERT)' : 'today’s painter'}`)
   const r = captureLeg(leg)
   results[leg] = r
+  check(`${leg}: the recorder ran to its own end (no spawn error, no signal, wrote its recorded line)`, r.recorder.error === null && r.recorder.signal === null && r.recorder.status === 0 && r.recorder.recorded, JSON.stringify(r.recorder))
   check(`${leg}: the capture produced frames`, existsSync(r.cap) && r.paints > 0, `paints=${r.paints}`)
+  check(`${leg}: the fixture observed the leg's request before the leg was analysed`, r.postsSeen >= 1, `posts=${r.postsSeen}`)
   note('keystroke echo', r.echo ? `n=${r.echo.n} p50=${r.echo.p50.toFixed(1)}ms p90=${r.echo.p90.toFixed(1)}ms max=${r.echo.max.toFixed(1)}ms` : 'not measurable')
   note('first glyph (Enter→first answer word)', r.ttfgMs === null ? 'not measurable' : `${r.ttfgMs.toFixed(0)}ms`)
   note('send start (Enter→POST arrival)', r.sendStartMs === null ? 'not measurable' : `${r.sendStartMs.toFixed(0)}ms`)
