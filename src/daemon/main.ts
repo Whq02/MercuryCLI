@@ -41,8 +41,10 @@ import {
   parkConcourseSession,
   pendingParkRequests,
   retireConcourseSession,
+  retireRequestedPark,
   revokeConcourseWorkflows,
   turnInFlightOf,
+  updateConcourseWorkers,
   workerPidAlive,
 } from './concourseSupervisor.js'
 import { answerPermissionAsk, onWorkerControlRequest } from './permissionAsks.js'
@@ -355,7 +357,26 @@ async function daemonRun(args: string[]): Promise<void> {
         onIdle: short => {
           idleNudges.get(short)?.()
           if (short.startsWith('concourse-w') && roster !== null) {
-            if (completeRequestedPark(short, roster)) {
+            const requested = readSessionWorkers()[short]
+            if (requested?.parkRequestedBy === 'daemon: memory' && requested.parkedAt === undefined) {
+              const seats = roster
+              void retireRequestedPark(short, seats).then(retired => {
+                if (retired === null) return
+                // eslint-disable-next-line no-console
+                console.error(retired.outcome === 'parked'
+                  ? `[daemon] ${short} finished its turn and parked (the memory guard asked while it worked)`
+                  : `[daemon] ${short} finished its turn but the memory guard's park was refused: ${retired.reason}`)
+                if (retired.outcome === 'refused') {
+                  updateConcourseWorkers(workers => {
+                    const w = workers[short]
+                    if (!w) return
+                    delete w.parkRequestedAt
+                    delete w.parkRequestedBy
+                    delete w.parkRequestedReason
+                  })
+                }
+              }).catch(() => {})
+            } else if (completeRequestedPark(short, roster)) {
               // eslint-disable-next-line no-console
               console.error(`[daemon] ${short} finished its turn and parked (a park was requested while it worked)`)
             }

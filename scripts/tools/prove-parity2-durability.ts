@@ -257,11 +257,12 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
       { short: 'idle', pid: 202, settled: false, sessionId: 's-idle', turnOpen: false },
       { short: 'busy', pid: 202, settled: false, sessionId: 's-busy', turnOpen: true },
       { short: 'crew', pid: 202, settled: false, turnOpen: true },
+      { short: 'crew-idle', pid: 202, settled: false, turnOpen: false },
     ],
     rss,
     1024,
   ).map(b => `${b.short}:${b.verb}`)
-  t('an idle session over the limit PARKS, a session mid-turn parks AFTER its turn (never a kill), a sessionless child is killed', verbs.join(',') === 'idle:park,busy:park-after-turn,crew:kill', verbs.join(','))
+  t('an idle session over the limit PARKS, a session mid-turn parks AFTER its turn (never a kill), a sessionless child mid-turn is DEFERRED, a sessionless child with no turn open is killed', verbs.join(',') === 'idle:park,busy:park-after-turn,crew:defer,crew-idle:kill', verbs.join(','))
 }
 
 {
