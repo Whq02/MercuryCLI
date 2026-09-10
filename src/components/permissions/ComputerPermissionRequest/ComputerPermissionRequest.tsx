@@ -54,12 +54,12 @@ export function ComputerPermissionRequest({
   verbose,
   workerBadge,
 }: PermissionRequestProps): React.ReactNode {
-  const judged = useMemo(
-    () =>
-      peekCheckedActApp(ownerFromToolUseContext(toolUseConfirm.toolUseContext))?.app ??
-      judgedAppFromAsk(toolUseConfirm.permissionResult.message ?? '', (toolUseConfirm.permissionResult as { suggestions?: AskSuggestion[] }).suggestions),
-    [toolUseConfirm.toolUseContext, toolUseConfirm.permissionResult],
-  )
+  const judged = useMemo(() => {
+    const carried = peekCheckedActApp(ownerFromToolUseContext(toolUseConfirm.toolUseContext))?.app ?? null
+    if (carried !== null) return carried
+    const ask = toolUseConfirm.permissionResult as { message?: string; suggestions?: AskSuggestion[] }
+    return judgedAppFromAsk(ask.message ?? '', ask.suggestions)
+  }, [toolUseConfirm.toolUseContext, toolUseConfirm.permissionResult])
   const ruleContent = computerAppRuleContent(judged)
 
   usePermissionRequestLogging(
