@@ -188,15 +188,19 @@ function patchLineCounts(patch: Array<{ lines: string[] }>): { added: number; re
   return { added, removed }
 }
 
+function hasText(value: string | undefined): value is string {
+  return value !== undefined && value.length > 0
+}
+
 function hunksInUse(input: FileEditInput): boolean {
-  return editHunksEnabled() && input.hunks !== undefined
+  return editHunksEnabled() && Array.isArray(input.hunks) && input.hunks.length > 0
 }
 
 type EditMode = 'exact' | 'hunks' | 'append' | 'section'
 function editMode(input: FileEditInput): EditMode {
   if (hunksInUse(input)) return 'hunks'
-  if (input.section !== undefined) return 'section'
-  if (input.append !== undefined) return 'append'
+  if (hasText(input.section)) return 'section'
+  if (hasText(input.append)) return 'append'
   return 'exact'
 }
 
@@ -236,7 +240,7 @@ function readKnowledgeRefusal(
 ): string | null {
   const entry = context.readFileState.get(expandedPath)
   if (includeRead && entry !== undefined && readCoversRanges(entry, touched)) return null
-  if (expectedAnchor !== undefined && expectedAnchor.startsWith('fa:') && checkAnchor(expectedAnchor, currentContent, displayPath).ok) return null
+  if (hasText(expectedAnchor) && expectedAnchor.startsWith('fa:') && checkAnchor(expectedAnchor, currentContent, displayPath).ok) return null
   if (touched !== null) {
     try {
       const generation = fileGeneration(expandedPath)
@@ -325,12 +329,17 @@ export const FileEditTool = buildTool({
     input.file_path = expandPath(input.file_path)
   },
   inputsEquivalent(a: FileEditInput, b: FileEditInput): boolean {
-    if (a.hunks !== undefined || b.hunks !== undefined) {
-      return (
-        a.file_path === b.file_path &&
-        a.expected_anchor === b.expected_anchor &&
-        JSON.stringify(a.hunks ?? null) === JSON.stringify(b.hunks ?? null)
-      )
+    const mode = editMode(a)
+    if (mode !== editMode(b)) return false
+    if ((hasText(a.expected_anchor) ? a.expected_anchor : undefined) !== (hasText(b.expected_anchor) ? b.expected_anchor : undefined)) return false
+    if (mode === 'hunks') {
+      return a.file_path === b.file_path && JSON.stringify(a.hunks) === JSON.stringify(b.hunks)
+    }
+    if (mode === 'append' || mode === 'section') {
+      return a.file_path === b.file_path &&
+        (hasText(a.section) ? a.section : undefined) === (hasText(b.section) ? b.section : undefined) &&
+        (hasText(a.append) ? a.append : undefined) === (hasText(b.append) ? b.append : undefined) &&
+        (hasText(a.append) ? undefined : a.new_string) === (hasText(b.append) ? undefined : b.new_string)
     }
     return areFileEditsInputsEquivalent(
       {
@@ -361,11 +370,12 @@ export const FileEditTool = buildTool({
 
     if (mode === 'append' || mode === 'section') {
       const clash =
-        input.old_string !== undefined ||
-        input.hunks !== undefined ||
-        (mode === 'append' && input.new_string !== undefined) ||
-        (mode === 'section' && input.append !== undefined && input.new_string !== undefined) ||
-        (mode === 'section' && input.append === undefined && input.new_string === undefined)
+        hasText(input.old_string) ||
+        (Array.isArray(input.hunks) && input.hunks.length > 0) ||
+        input.replace_all === true ||
+        (mode === 'append' && hasText(input.new_string)) ||
+        (mode === 'section' && hasText(input.append) && hasText(input.new_string)) ||
+        (mode === 'section' && !hasText(input.append) && input.new_string === undefined)
       if (clash) {
         return {
           result: false as const,
@@ -387,7 +397,7 @@ export const FileEditTool = buildTool({
     }
     if (
       usingHunks &&
-      (input.old_string !== undefined || input.new_string !== undefined || input.replace_all)
+      (hasText(input.old_string) || hasText(input.new_string) || hasText(input.section) || hasText(input.append) || input.replace_all)
     ) {
       return {
         result: false as const,
@@ -397,7 +407,7 @@ export const FileEditTool = buildTool({
         errorCode: 13,
       }
     }
-    if (usingHunks && !input.expected_anchor) {
+    if (usingHunks && !hasText(input.expected_anchor)) {
       const everyHunkAnchorQualified =
         lineAnchorsEnabled() &&
         (input.hunks ?? []).every(h => parseHashedLinesSpelling(h.lines) !== null)
@@ -427,7 +437,7 @@ export const FileEditTool = buildTool({
     const newString = input.new_string ?? ''
 
     const { old_string, new_string } = input
-    if (mode === 'exact' && old_string === new_string) {
+    if (mode === 'exact' && oldString !== '' && old_string === new_string) {
       return {
         result: false as const,
         behavior: 'ask' as const,
@@ -565,7 +575,7 @@ export const FileEditTool = buildTool({
 
     let recoveredHunks: EditHunkInput[] | undefined
     let recoveredAnchor: string | undefined
-    if (changeTransactionEnabled() && input.expected_anchor) {
+    if (changeTransactionEnabled() && hasText(input.expected_anchor)) {
       const check = checkAnchor(input.expected_anchor, currentContent, input.file_path)
       if (!check.ok) {
         const recovery =
@@ -621,7 +631,7 @@ export const FileEditTool = buildTool({
           : planSectionEdit(
               currentContent,
               input.section ?? '',
-              input.append !== undefined ? { append: input.append } : { replace: input.new_string ?? '' },
+              hasText(input.append) ? { append: input.append } : { replace: input.new_string ?? '' },
             )
       if (!planned.ok) {
         return { result: false as const, behavior: 'ask' as const, message: `${planned.message} Nothing was written.`, errorCode: 8 }
@@ -671,7 +681,7 @@ export const FileEditTool = buildTool({
     const expandedPath = expandPath(input.file_path)
     const usingHunks = hunksInUse(input)
     const mode = editMode(input)
-    const anchorChecked = changeTransactionEnabled() && input.expected_anchor !== undefined
+    const anchorChecked = changeTransactionEnabled() && hasText(input.expected_anchor)
 
     if (!isEnvTruthy(process.env.MERCURY_BARE)) {
       await discoverSkillsForPath(context, expandedPath)
@@ -731,7 +741,7 @@ export const FileEditTool = buildTool({
     let effectiveHunks = input.hunks as EditHunkInput[] | undefined
     let effectiveAnchor = input.expected_anchor
     let staleRecoveryNote: string | undefined
-    if (anchorChecked && input.expected_anchor) {
+    if (anchorChecked && hasText(input.expected_anchor)) {
       const check = checkAnchor(input.expected_anchor, freshContent, input.file_path)
       if (!check.ok) {
         const recovery =
@@ -793,14 +803,14 @@ export const FileEditTool = buildTool({
           : planSectionEdit(
               freshContent,
               input.section ?? '',
-              input.append !== undefined ? { append: input.append } : { replace: input.new_string ?? '' },
+              hasText(input.append) ? { append: input.append } : { replace: input.new_string ?? '' },
             )
       if (!planned.ok) {
         throw new Error(`${planned.message} Nothing was written.`)
       }
       updatedFile = planned.updated
       reportedOldString = planned.sectionText
-      reportedNewString = input.append ?? input.new_string ?? ''
+      reportedNewString = hasText(input.append) ? input.append : input.new_string ?? ''
       patch =
         updatedFile === freshContent
           ? []

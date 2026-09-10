@@ -244,6 +244,63 @@ section('N. the tool-input normaliser keeps every mode')
   check('N4 a content-mode search records the displayed lines by default (not only under the opt-in dialect)', grep.includes("(anchorPatchEnabled() || staleEditRecoveryEnabled()) && (input['-n'] ?? true)"))
 }
 
+section('R. empty optional fields do not select or conflict with an edit mode')
+{
+  const body = '# Fixture\n\n## Target\nold\n\n## Other\nstay\n'
+  const empty = { old_string: '', new_string: '', replace_all: false, expected_anchor: '', hunks: [], append: '', section: '' }
+  const cases: Array<{ name: string; input: Record<string, unknown>; expected: string; mode: string }> = [
+    { name: 'recorded section shape', input: { section: '## Target', new_string: '## Target\nnew\n' }, expected: '# Fixture\n\n## Target\nnew\n## Other\nstay\n', mode: 'section' },
+    { name: 'append', input: { append: 'added\n' }, expected: body + 'added\n', mode: 'append' },
+    { name: 'section append', input: { section: '## Target', append: 'added\n' }, expected: '# Fixture\n\n## Target\nold\nadded\n\n## Other\nstay\n', mode: 'section' },
+    { name: 'hunks', input: { hunks: [{ lines: '4', replace: 'new' }], expected_anchor: mintFileAnchor(body) }, expected: body.replace('old', 'new'), mode: 'hunks' },
+    { name: 'exact', input: { old_string: 'old', new_string: 'new' }, expected: body.replace('old', 'new'), mode: 'exact' },
+    { name: 'exact deletion', input: { old_string: 'old', new_string: '' }, expected: body.replace('old\n', ''), mode: 'exact' },
+    { name: 'section deletion', input: { section: '## Target', new_string: '' }, expected: '# Fixture\n\n## Other\nstay\n', mode: 'section' },
+    { name: 'hunk deletion', input: { hunks: [{ lines: '4', replace: '' }], expected_anchor: mintFileAnchor(body) }, expected: '# Fixture\n\n## Target\n\n## Other\nstay\n', mode: 'hunks' },
+    { name: 'whitespace append', input: { append: '  ' }, expected: body + '  ', mode: 'append' },
+  ]
+  for (const [index, row] of cases.entries()) {
+    const file = join(fixtures, `empty-fields-${index}.md`)
+    writeFileSync(file, body)
+    const context = makeContext()
+    primeRead(context, file)
+    const input = { file_path: file, ...empty, ...row.input }
+    const result = await edit(input, context)
+    check(`R ${row.name}: the real tool applies its intended mode`, result.ok && readFileSync(file, 'utf8') === row.expected, result.ok ? JSON.stringify(readFileSync(file, 'utf8')) : result.error)
+    check(`R ${row.name}: the effect names that mode`, result.ok && String(result.effect.evidence).includes(row.mode === 'hunks' ? 'anchored hunk' : row.mode), result.ok ? String(result.effect.evidence) : result.error)
+    if (result.ok && row.mode !== 'hunks') check(`R ${row.name}: an empty anchor is not reported as checked`, (result.effect.details as { anchorChecked?: boolean } | undefined)?.anchorChecked === false)
+    if (result.ok && row.mode === 'section' && row.input.new_string !== undefined) check(`R ${row.name}: the returned replacement is not the empty append placeholder`, result.data.newString === row.input.new_string)
+  }
+  const file = join(fixtures, 'empty-fields-refusals.md')
+  writeFileSync(file, body)
+  const context = makeContext()
+  primeRead(context, file)
+  const sectionOne = { file_path: file, ...empty, section: '## Target', new_string: 'one' }
+  const sectionTwo = { ...sectionOne, new_string: 'two' }
+  check('R empty mode fields compare like absent fields', FileEditTool.inputsEquivalent!(sectionOne as never, { file_path: file, section: '## Target', new_string: 'one' } as never) === true)
+  check('R empty hunks cannot make different section edits equivalent', FileEditTool.inputsEquivalent!(sectionOne as never, sectionTwo as never) === false)
+  const allEmpty = await FileEditTool.validateInput!({ file_path: file, ...empty } as never, context as never)
+  check('R all empty fields use the existing empty-old-string refusal', allEmpty.result === false && allEmpty.errorCode === 3, JSON.stringify(allEmpty))
+  for (const conflict of [
+    { section: '## Target', new_string: 'new', old_string: 'old' },
+    { section: '## Target', new_string: 'new', append: 'added' },
+    { append: 'added', new_string: 'new' },
+    { hunks: [{ lines: '4', replace: 'new' }], expected_anchor: mintFileAnchor(body), section: '## Target' },
+    { hunks: [{ lines: '4', replace: 'new' }], expected_anchor: mintFileAnchor(body), append: 'added' },
+    { hunks: [{ lines: '4', replace: 'new' }], expected_anchor: mintFileAnchor(body), old_string: 'old' },
+    { section: '## Target', new_string: 'new', replace_all: true },
+  ]) {
+    const refused = await edit({ file_path: file, ...empty, ...conflict }, context)
+    check('R meaningful mode conflicts still refuse without changing the file', !refused.ok && readFileSync(file, 'utf8') === body, refused.ok ? 'unexpected write' : refused.error)
+  }
+  const malformed = await edit({ file_path: file, ...empty, old_string: 'old', new_string: 'new', expected_anchor: 'not-an-anchor' }, context)
+  check('R a nonempty malformed anchor still refuses', !malformed.ok && readFileSync(file, 'utf8') === body)
+  const unread = await edit({ file_path: file, ...empty, section: '## Target', new_string: 'changed' }, makeContext())
+  check('R empty placeholders confer no read knowledge', !unread.ok && unread.error.includes('Read the file'))
+  const stale = await edit({ file_path: file, ...empty, old_string: 'old', new_string: 'new', expected_anchor: mintFileAnchor(body + 'drift') }, context)
+  check('R a nonempty stale anchor is still checked', !stale.ok && readFileSync(file, 'utf8') === body)
+}
+
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
