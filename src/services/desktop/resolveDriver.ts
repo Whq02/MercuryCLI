@@ -1,5 +1,5 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import type { DesktopDriver } from './driver.js'
+import type { DesktopDriver, DesktopPermissions } from './driver.js'
 
 export const DESKTOP_DRIVER_CHOICES = ['native', 'fake', 'none'] as const
 export type DesktopDriverChoice = (typeof DESKTOP_DRIVER_CHOICES)[number]
@@ -57,6 +57,17 @@ export function resolveDesktopDriver(): DesktopDriverResolution {
   return answer
 }
 
+let permissions: DesktopPermissions | null = null
+
+export function rememberDesktopPermissions(answer: DesktopPermissions): void {
+  permissions = answer
+}
+
+export function lastDesktopPermissions(): DesktopPermissions | null {
+  return permissions
+}
+
 export function resetDesktopDriverForTest(): void {
   resolved = null
+  permissions = null
 }
