@@ -64,8 +64,10 @@ import {
   resolveBehaviourContract,
 } from '../../../prompt/behaviourContract.js'
 import {
+  readPreferredOpenaiSource,
   resolveOpenaiAccount,
   resolveOpenaiRequestAuth,
+  type OpenaiAccountSourceKind,
   type OpenaiRequestAuth,
 } from './openaiAccounts.js'
 import {
@@ -82,7 +84,7 @@ import { describeWireEffortProbeWindow, noteWireEffortAccepted, recordLiveQualif
 import { recordOpenaiUsageLimit } from './openaiLimitState.js'
 import { resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
-import { streamOpenaiResponses } from './openaiClient.js'
+import { streamOpenaiResponses, type OpenaiLiveModel } from './openaiClient.js'
 import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, stampProviderWait } from '../../api/recoveryBudget.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
@@ -105,6 +107,8 @@ import type {
 import type { RefusedToolCall } from '../../../types/message.js'
 import { gateToolCalls, toolCallRefusalNote } from '../toolCallGate.js'
 import { foldAnnouncementIntoFirstUserTurn, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
+import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
+import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
 
 
 let openaiLiveProof: { at: number; model: string } | null = null
@@ -368,6 +372,29 @@ type AttemptOutcome =
   | { kind: 'cancelled' }
   | { kind: 'fault'; fault: OpenaiFault; retryEligible: boolean }
 
+export function imagesSupportedForLiveModel(live: Pick<OpenaiLiveModel, 'inputModalities'> | undefined): boolean {
+  return live?.inputModalities ? live.inputModalities.includes('image') : true
+}
+
+const OPENAI_SOURCE_KINDS: readonly OpenaiAccountSourceKind[] = ['chatgpt-subscription', 'api-key']
+
+function imagesSupportedForModelId(model: string): boolean {
+  const preferred = readPreferredOpenaiSource()
+  const kinds = preferred ? [preferred, ...OPENAI_SOURCE_KINDS.filter(kind => kind !== preferred)] : OPENAI_SOURCE_KINDS
+  for (const kind of kinds) {
+    const evaluated = evaluateGptCandidate(model, kind)
+    if (evaluated.ok) return imagesSupportedForLiveModel(evaluated.candidate.live)
+  }
+  return true
+}
+
+export type ImagesSupportedSubject = string | { live: Pick<OpenaiLiveModel, 'inputModalities'> } | undefined
+
+export function imagesSupportedForModel(subject: ImagesSupportedSubject): boolean {
+  if (typeof subject === 'string') return imagesSupportedForModelId(subject)
+  return imagesSupportedForLiveModel(subject?.live)
+}
+
 type QualificationOutcome =
   | { kind: 'ok'; modelId: string; candidate: GptCandidate }
   | { kind: 'degraded'; modelId: string; note: string }
@@ -497,7 +524,12 @@ export async function* openaiCallModel(
     settlementNotes.push(qualification.note)
   }
 
-  const bridge = toBridgeMessages(healWalkableForWire(wireMessages), modelId)
+  const retiredScreenshots = retireOlderScreenshots(wireMessages)
+  const wireMessagesForBridge =
+    retiredScreenshots.firstEdited === -1
+      ? retiredScreenshots.messages
+      : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
+  const bridge = toBridgeMessages(healWalkableForWire(wireMessagesForBridge), modelId)
   const threadKey = `${getSessionId()}:${options.agentId ?? 'main'}`
   if (bridge.reconstructedGptTurns > 0 && !reconstructionNoted.has(threadKey)) {
     reconstructionNoted.add(threadKey)
@@ -529,9 +561,7 @@ export async function* openaiCallModel(
     tools: apiTools,
     ...(wireEffort ? { reasoningEffort: wireEffort } : {}),
     promptCacheKey,
-    imagesSupported: candidate?.live.inputModalities
-      ? candidate.live.inputModalities.includes('image')
-      : true,
+    imagesSupported: imagesSupportedForModel(candidate),
     ...(options.outputFormat ? { outputFormat: options.outputFormat } : {}),
     ...(options.nativeWebSearch ? { nativeWebSearch: options.nativeWebSearch } : {}),
   })

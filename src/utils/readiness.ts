@@ -2,6 +2,10 @@
 import { FLAG_REGISTRY, flagEnabled, flagEnv, type FlagSpec } from '../substrate/flagRegistry.js'
 import { realEnvPin } from '../substrate/startupMenu.js'
 import { driverNodeGate, resolveBrowser } from '../services/browser/browserResolver.js'
+import { lastDesktopPermissions, resolveDesktopDriver } from '../services/desktop/resolveDriver.js'
+import { desktopGrantWords } from '../services/desktop/nativeDriver.js'
+import { desktopClaimFileSnapshot } from '../services/desktop/desktopClaim.js'
+import { desktopSnapshot } from '../services/desktop/desktopSession.js'
 import {
   mercuryDapEnabled,
   probeGdbDap,
@@ -139,6 +143,8 @@ function toolRecords(): ReadinessRecord[] {
     lastCheckedAt: Date.now(),
   })
 
+  records.push(computerToolRecord())
+
   const kills = listCapabilityKills()
   const pairs: string[] = []
   for (const [agentType, tools] of Object.entries(kills)) {
@@ -168,6 +174,72 @@ function toolRecords(): ReadinessRecord[] {
     })
   }
   return records
+}
+
+function drivingAgeWords(startedAt: number | null): string {
+  if (startedAt === null) return 'now'
+  const seconds = Math.max(0, Math.round((Date.now() - startedAt) / 1000))
+  return seconds < 90 ? `${seconds}s` : `${Math.round(seconds / 60)}m`
+}
+
+function computerToolRecord(): ReadinessRecord {
+  const base = {
+    id: 'tool:computer',
+    kind: 'tool' as const,
+    label: 'Computer tool',
+    source: 'desktop driver resolver',
+    lastCheckedAt: Date.now(),
+  }
+  if (!flagEnabled('MERCURY_COMPUTER_USE')) {
+    return { ...base, state: 'disabled', detail: 'MERCURY_COMPUTER_USE unset — Computer tool absent from the catalog' }
+  }
+  const t0 = Date.now()
+  const resolution = resolveDesktopDriver()
+  if (resolution.state === 'unavailable') {
+    return {
+      ...base,
+      state: 'unavailable',
+      detail: bounded(resolution.note, 180),
+      ...(resolution.remedy !== null ? { remedy: resolution.remedy } : {}),
+      latencyMs: Date.now() - t0,
+    }
+  }
+  const facts = resolution.driver.describe()
+  const now = resolution.driver.permissionsNow?.()
+  const permissions = now !== undefined && now.ok ? now.value : lastDesktopPermissions()
+  const denied =
+    permissions === null
+      ? null
+      : permissions.screenCapture === 'denied'
+        ? 'screen capture'
+        : permissions.input === 'denied'
+          ? 'input control'
+          : null
+  if (denied !== null) {
+    return {
+      ...base,
+      state: 'degraded',
+      detail: `driver ${resolution.source} resolved — ${denied} denied${permissions?.reason ? `: ${bounded(permissions.reason, 140)}` : ''}`,
+      remedy: desktopGrantWords(),
+      latencyMs: Date.now() - t0,
+    }
+  }
+  const own = desktopSnapshot()
+  const driving = own.phase === 'driving' ? own : desktopClaimFileSnapshot()
+  if (driving.phase === 'driving') {
+    return {
+      ...base,
+      state: 'ready',
+      detail: `driving ${driving.app ?? 'the desktop'} since ${drivingAgeWords(driving.startedAt)}`,
+      latencyMs: Date.now() - t0,
+    }
+  }
+  return {
+    ...base,
+    state: 'configured',
+    detail: `driver ${resolution.source} resolved (${facts.kind}) — no session driving`,
+    latencyMs: Date.now() - t0,
+  }
 }
 
 

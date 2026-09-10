@@ -214,6 +214,8 @@ aseprite	4
 browser	76
 rewind	30
 tool-economy	20
+computer	90
+desktop	120
 # The real-terminal drive halves of the split suites: an estimate from each
 # parent's measured wall (the drives carry most of it) until a run re-seeds.
 attention-drives	245
@@ -239,3 +241,4 @@ switchboard-4-drives	560
 switchboard-5-drives	490
 switchboard-6-drives	560
 transcript-rows-drives	350
+computer-drives	240

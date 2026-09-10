@@ -1,5 +1,6 @@
 
 import { getProjectRoot } from '../../bootstrap/state.js'
+import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
 import { getSkillToolCommands } from '../../commands.js'
 import type { Command, PromptCommand } from '../../types/command.js'
 import {
@@ -771,9 +772,9 @@ export async function* runAgent(
     mcp.tools = agentMcp.tools
     mcp.cleanup = agentMcp.cleanup
 
-    let tools = availableTools
+    let tools: Tools = availableTools.filter(tool => tool.name !== COMPUTER_TOOL_NAME)
     if (mcp.tools.length > 0) {
-      const merged = [...availableTools]
+      const merged = [...tools]
       for (const mcpTool of mcp.tools) {
         if (!merged.some(existing => existing.name === mcpTool.name)) {
           merged.push(mcpTool)

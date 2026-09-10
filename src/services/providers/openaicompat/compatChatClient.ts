@@ -1,4 +1,5 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
+import type { ZaiContentPart } from '../zai/zaiClient.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { SseDecoder } from '../sseDecoder.js'
 import { retryAfterHeaderMs } from '../../api/retryAfter.js'
@@ -18,7 +19,7 @@ const TOTAL_TIMEOUT_MS = 50 * 60_000
 
 export interface CompatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
-  content: string | null
+  content: string | null | ZaiContentPart[]
   tool_calls?: CompatToolCall[]
   tool_call_id?: string
 }

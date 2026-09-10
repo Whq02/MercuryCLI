@@ -182,6 +182,7 @@ export interface ControlServerDeps {
     kitEdit?: SessionKitEditV1
     scheduleEdit?: ScheduleOpRequestV1
     spawnSwitch?: { kind: 'subagents' | 'workflows'; on: boolean }
+    terminalApplication?: { identity: string; name: string } | null
     agentId?: string
     note?: string
     mintedAtMs?: number
@@ -958,6 +959,14 @@ async function routeControlRequest(
           scheduleEdit = { op, scheduleId }
         }
       }
+      let terminalApplication: { identity: string; name: string } | null | undefined
+      if (raw.terminalApplication !== undefined) {
+        if (action !== 'focus') return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication belongs to focus only' })
+        const candidate = raw.terminalApplication as { identity?: unknown; name?: unknown } | null
+        if (candidate === null) terminalApplication = null
+        else if (typeof candidate === 'object' && !Array.isArray(candidate) && typeof candidate.identity === 'string' && candidate.identity.length > 0 && candidate.identity.length <= 512 && typeof candidate.name === 'string' && candidate.name.length > 0 && candidate.name.length <= 512) terminalApplication = { identity: candidate.identity, name: candidate.name }
+        else return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication requires nonempty identity and name strings' })
+      }
       const r = await deps.concourseControl({
         action,
         sessionId,
@@ -978,6 +987,7 @@ async function routeControlRequest(
         ...(kitEdit !== undefined ? { kitEdit } : {}),
         ...(scheduleEdit !== undefined ? { scheduleEdit } : {}),
         ...(spawnSwitch !== undefined ? { spawnSwitch } : {}),
+        ...(terminalApplication !== undefined ? { terminalApplication } : {}),
         ...(typeof raw.clientOpId === 'string' && raw.clientOpId ? { clientOpId: raw.clientOpId.slice(0, 128) } : {}),
         ...(typeof raw.mintedAtMs === 'number' && Number.isFinite(raw.mintedAtMs) ? { mintedAtMs: raw.mintedAtMs } : {}),
         ...(typeof raw.clientMessageId === 'string' && raw.clientMessageId ? { clientMessageId: raw.clientMessageId.slice(0, 128) } : {}),
