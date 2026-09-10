@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import ts from 'typescript'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -13,9 +15,40 @@ type Site = { file: string; symbol: string; kind: 'memoize' | 'module-cache' }
 const NAME_FILTER = /(cache|memo(?!ry)|snapshot|lastknown)/i
 const CONST_NAME = /^[A-Z0-9_]+$/
 
+export function codeWithoutLiteralContents(file: string, text: string): string {
+  const code = codeOnlyText(file, text)
+  const source = ts.createSourceFile(file, code, ts.ScriptTarget.Latest, true, /\.(tsx|jsx)$/.test(file) ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
+  const blanks: Array<{ pos: number; end: number }> = []
+  const visit = (node: ts.Node): void => {
+    if (
+      node.kind === ts.SyntaxKind.StringLiteral ||
+      node.kind === ts.SyntaxKind.NoSubstitutionTemplateLiteral ||
+      node.kind === ts.SyntaxKind.TemplateHead ||
+      node.kind === ts.SyntaxKind.TemplateMiddle ||
+      node.kind === ts.SyntaxKind.TemplateTail ||
+      node.kind === ts.SyntaxKind.RegularExpressionLiteral
+    ) {
+      const start = node.getStart(source) + 1
+      const end = node.end - 1
+      if (end > start) blanks.push({ pos: start, end })
+      return
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  let out = ''
+  let cursor = 0
+  for (const b of blanks.sort((a, c) => a.pos - c.pos)) {
+    if (b.pos < cursor) continue
+    out += code.slice(cursor, b.pos) + code.slice(b.pos, b.end).replace(/[^\n]/g, ' ')
+    cursor = b.end
+  }
+  return out + code.slice(cursor)
+}
+
 export function extractSites(file: string, text: string): Site[] {
   const sites: Site[] = []
-  const lines = text.split('\n')
+  const lines = codeWithoutLiteralContents(file, text).split('\n')
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!
     if (/^\s*(\/\/|\*)/.test(line)) continue
@@ -363,11 +396,30 @@ check(
     '// let commentCache: string | null = null',
     "import memoize from 'lodash-es/memoize.js'",
     '  getPackagers: memoize(async (): Promise<string[]> => {',
+    '/* note',
+    'const blockCommentCache = new Map()',
+    '*/',
+    'const inlineOne = 1 /* let trailingCache: string | null = null */',
+    "const label = 'const stringCache = new Map()'",
+    'const tpl = `memoize(() => 1)`',
+    "const call = memoizeLookalike('memoize(', 2)",
+    'export const realAfterLookalikes = memoize((): number => 1)',
+    'let realTailCache: Map<string, number> | null = null',
   ].join('\n')
   const got = extractSites('fixture.ts', fixture)
   const names = got.map(s => s.symbol).sort().join(',')
   check('self-test: the four planted cache shapes are all found', names.includes('getThing') && names.includes('fooCache') && names.includes('barSnapshotCache') && names.includes('quxMemo') && names.includes('getPackagers'), names)
   check('self-test: the known false-positive shapes stay silent', !names.includes('memory') && !names.includes('IDLE_SNAPSHOT') && !names.includes('commentCache') && !names.includes('memoize'), names)
+  check('self-test: a cache declared inside a BLOCK comment is not a site', !names.includes('blockCommentCache'), names)
+  check('self-test: a cache in a trailing inline comment is not a site', !names.includes('trailingCache'), names)
+  check('self-test: a cache spelled inside a string literal is not a site', !names.includes('stringCache') && !names.includes('label'), names)
+  check('self-test: memoize( inside a template literal or a string argument is not a memo site', !names.includes('tpl') && !names.includes('call') && !got.some(s => s.symbol.startsWith('anonymous@')), got.map(s => s.symbol).join(','))
+  check('self-test: the real sites AFTER the lookalikes are still found (blanking preserves lines and code)', names.includes('realAfterLookalikes') && names.includes('realTailCache'), names)
+  const rawLines = fixture.split('\n')
+  const rawScan = rawLines.filter(l => !/^\s*(\/\/|\*)/.test(l) && /(cache|memo(?!ry))/i.test(l) && /^(?:export )?(?:let|const) /.test(l))
+  check('self-test: the raw line scan WOULD have counted the block-comment and string lookalikes (the fault this extractor now refuses)', rawScan.some(l => l.includes('blockCommentCache')) && rawScan.some(l => l.includes('stringCache')))
+  const anonymous = extractSites('anon.ts', "const wrapped = something(memoize(() => 1))\nconst plain = 'no memo here'\n")
+  check('self-test: a genuinely nested/property memoize call is STILL an anonymous site (no blanket suppression)', anonymous.some(s => s.symbol === 'wrapped') && anonymous.length === 1, anonymous.map(s => s.symbol).join(','))
 }
 
 const dispositions = [...rows.values()].reduce<Record<string, number>>((acc, d) => {
