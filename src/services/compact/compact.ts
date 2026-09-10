@@ -58,7 +58,6 @@ import { recordWireFoldRow, type WireFoldRow } from '../api/dumpPrompts.js'
 import { getRetryDelay } from '../api/withRetry.js'
 import { APIUserAbortError } from '../api/sdkErrors.js'
 import { isInstructionFilePath } from '../../services/instructions/engine.js'
-import { logPermissionContextForAnts } from '../internalLogging.js'
 import { releaseLspDocumentsForContext } from '../lsp/manager.js'
 import { advanceContextEpoch } from '../run/contextEpochs.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../run/resolveOwner.js'
@@ -1170,7 +1169,6 @@ export async function compactConversation(
     context.setStreamMode?.('requesting')
     context.setResponseLength?.(() => 0)
     context.onCompactProgress?.({ type: 'compact_start' })
-    void logPermissionContextForAnts(null, 'summary')
     const owner = ownerFromToolUseContext(context)
     const capsuleProbe = buildRunContinuationCapsule(owner)
     const promptText = getCompactPrompt(mergedInstructions, { runCapsulePresent: capsuleProbe !== null })
