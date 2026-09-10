@@ -1,9 +1,11 @@
 
+import { coordinatorDeadlineExpired, coordinatorDeadlineWords } from './coordinatorCall.js'
 import type { CoordinatorConversationEntryV1 } from './coordinatorConversation.js'
 import type { OverflowSignal } from '../api/overflowSignal.js'
 import { overflowWhoClause } from '../compact/overflowRecovery.js'
 
 export const COORDINATOR_COMPACT_KEEP = 8
+export const COORDINATOR_COMPACT_WALL_MS = 60_000
 export const COORDINATOR_SUMMARY_MAX_CHARS = 4000
 const FOLD_TRANSCRIPT_MAX_CHARS = 60_000
 const FOLD_ENTRY_CLIP = 600
@@ -89,12 +91,13 @@ export async function liveCoordinatorSummarizer(args: {
       import('../../utils/messages.js'),
       import('../../Tool.js'),
     ])
+  const signal = AbortSignal.timeout(COORDINATOR_COMPACT_WALL_MS)
   const stream = routedCallModel({
     messages: [createUserMessage({ content: `<conversation_to_fold>\n${args.transcript}\n</conversation_to_fold>` })],
     systemPrompt: asSystemPrompt([args.systemPrompt]),
     thinkingConfig: { type: 'disabled' },
     tools: [] as never,
-    signal: AbortSignal.timeout(60_000),
+    signal,
     options: {
       model: args.modelId,
       querySource: 'concourse_coordinator_compact',
@@ -110,22 +113,26 @@ export async function liveCoordinatorSummarizer(args: {
     } as never,
   })
   const texts: string[] = []
-  for await (const ev of stream) {
-    const e = ev as { type?: string; message?: { content?: unknown } }
-    if (e.type !== 'assistant' || e.message === undefined) continue
-    const content = e.message.content
-    if (typeof content === 'string') {
-      texts.push(content)
-    } else if (Array.isArray(content)) {
-      for (const b of content) {
-        if (b && (b as { type?: string }).type === 'text' && typeof (b as { text?: unknown }).text === 'string') {
-          texts.push((b as { text: string }).text)
+  try {
+    for await (const ev of stream) {
+      const e = ev as { type?: string; message?: { content?: unknown } }
+      if (e.type !== 'assistant' || e.message === undefined) continue
+      const content = e.message.content
+      if (typeof content === 'string') {
+        texts.push(content)
+      } else if (Array.isArray(content)) {
+        for (const b of content) {
+          if (b && (b as { type?: string }).type === 'text' && typeof (b as { text?: unknown }).text === 'string') {
+            texts.push((b as { text: string }).text)
+          }
         }
       }
     }
+  } catch (err) {
+    throw new Error(coordinatorDeadlineWords(signal, COORDINATOR_COMPACT_WALL_MS, 'the summary call', err))
   }
   const summary = texts.join('\n').trim()
-  if (summary.length === 0) throw new Error('the summarizer returned no text')
+  if (summary.length === 0) throw new Error(coordinatorDeadlineExpired(signal) ? coordinatorDeadlineWords(signal, COORDINATOR_COMPACT_WALL_MS, 'the summary call', undefined) : 'the summarizer returned no text')
   return summary
 }
 
