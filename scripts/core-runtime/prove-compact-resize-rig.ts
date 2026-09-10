@@ -40,7 +40,7 @@ let checks = 0
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 async function until(label: string, predicate: () => boolean): Promise<void> {
   let expired = false
@@ -82,7 +82,8 @@ for (const editorMode of ['emacs', 'vim'] as const) {
   pending.setMode('prompt')
   const stdout = new Output()
   const stdin = new Input()
-  const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false })
+  let frames = 0
+  const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false, onFrame: () => { frames++ } })
   instances.set(stdout as never, ink)
   const scrollRef = React.createRef<import('../../src/ink/components/ScrollBox.tsx').ScrollBoxHandle>()
   const insertRef = { current: null } as React.MutableRefObject<import('../../src/components/PromptInput/PromptInput.tsx').PromptInputProps['insertTextRef']['current']>
@@ -90,6 +91,7 @@ for (const editorMode of ['emacs', 'vim'] as const) {
   let control: ReturnType<typeof useCompactWorkControls>['controls'] | null = null
   let physical = { columns: 0, rows: 0 }
   let local = { columns: 0, rows: 0 }
+  let compact = false
   let transcriptMounts = 0
   function Transcript(): React.ReactNode {
     physical = useRealTerminalSize()
@@ -100,7 +102,7 @@ for (const editorMode of ['emacs', 'vim'] as const) {
   function Harness(): React.ReactNode {
     const { controls, focus } = useCompactWorkControls()
     control = controls
-    useLayoutChrome()
+    compact = useLayoutChrome().isCompact
     const [vimMode, setVimMode] = React.useState<'INSERT' | 'NORMAL'>('INSERT')
     const [searching, setSearching] = React.useState(false)
     const [help, setHelp] = React.useState(false)
@@ -128,33 +130,66 @@ for (const editorMode of ['emacs', 'vim'] as const) {
       }),
     )
   }
+  const resize = async (columns: number, rows: number): Promise<void> => {
+    stdout.columns = columns
+    stdout.rows = rows
+    stdout.emit('resize')
+    await until(`${editorMode}: live geometry settles at ${columns}x${rows}`, () => physical.columns === columns && physical.rows === rows)
+  }
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(Harness)))
   try {
     await until(`${editorMode}: real editor mounted and raw input armed`, () => insertRef.current !== null && stdin.isRaw && scrollRef.current !== null && ink.lastFrameText().length > 0)
     await until(`${editorMode}: full-height composer paints its placeholder`, () => ink.lastFrameText().includes('Type a prompt'))
     console.log(`${editorMode} initial frame\n${ink.lastFrameText()}`)
-    const handle = scrollRef.current
+    const handle = scrollRef.current!
     insertRef.current!.setInputWithCursor('alpha beta', 5)
     await until(`${editorMode}: the held draft is painted in the editor`, () => ink.lastFrameText().includes('❯ alpha beta'))
-    for (const [columns, rows] of [[80, 24], [120, 24], [60, 16], [40, 10], [1, 1], [1, 40], [200, 1], [2, 2], [99, 26], [100, 26], [120, 40], [80, 24]]) {
-      stdout.columns = columns!
-      stdout.rows = rows!
-      stdout.emit('resize')
-      await until(`${editorMode}: live geometry settles at ${columns}x${rows}`, () => physical.columns === columns && physical.rows === rows)
+    for (const [columns, rows, expectedCompact] of [[80, 24, true], [120, 24, true], [60, 16, true], [40, 10, true], [1, 1, true], [1, 40, true], [200, 1, true], [2, 2, true], [99, 26, true], [100, 26, false], [97, 26, false], [96, 26, true], [99, 26, true], [100, 26, false], [100, 25, true], [120, 40, false], [80, 24, true]] as const) {
+      await resize(columns, rows)
+      check(`${editorMode}: the renderer uses the settled latch at ${columns}x${rows}`, compact === expectedCompact)
       check(`${editorMode}: resize preserves the actual transcript handle`, scrollRef.current === handle && transcriptMounts === 1)
       check(`${editorMode}: draft and middle cursor survive ${columns}x${rows}`, pending.text() === 'alpha beta' && insertRef.current?.cursorOffset === 5)
-      check(`${editorMode}: local allocation is bounded by the physical terminal`, local.columns > 0 && local.columns <= columns! && local.rows >= 0 && local.rows <= rows!)
+      check(`${editorMode}: local allocation is bounded by the physical terminal`, local.columns > 0 && local.columns <= columns && local.rows >= 0 && local.rows <= rows)
     }
+    const beforeStorm = frames
+    for (let i = 0; i < 100; i++) { stdout.columns = i % 2 === 0 ? 99 : 120; stdout.rows = 24; stdout.emit('resize') }
+    await resize(83, 24)
+    check(`${editorMode}: a hundred resize events coalesce instead of repainting every event`, frames - beforeStorm <= 6, `${frames - beforeStorm} composed frames`)
+    check(`${editorMode}: the storm preserves mounted state and draft`, transcriptMounts === 1 && scrollRef.current === handle && pending.text() === 'alpha beta')
+    await resize(80, 24)
+    stdin.push('\u0014')
+    await until(`${editorMode}: visible summary can own focus`, () => control?.read() === 'summary')
+    await resize(1, 1)
+    check(`${editorMode}: removing the summary row returns focus to the editor`, control?.read() === 'composer')
+    stdin.push('\u0014')
+    check(`${editorMode}: an invisible summary cannot take keys`, control?.read() === 'composer' && pending.text() === 'alpha beta')
+    await resize(80, 24)
+    handle.scrollTo(40)
+    await until(`${editorMode}: transcript scrolls away before opening detail`, () => handle.getScrollTop() === 40 && !handle.isSticky())
     stdin.push('\u0014\r')
     await until(`${editorMode}: same-chunk focus and Enter open detail without submitting`, () => control?.read() === 'detail' && ink.lastFrameText().includes('Session statistics'))
-    check(`${editorMode}: detail did not submit the draft`, sent.length === 0 && pending.text() === 'alpha beta')
+    check(`${editorMode}: detail did not submit or repin`, sent.length === 0 && pending.text() === 'alpha beta' && !handle.isSticky())
+    await resize(1, 1)
+    check(`${editorMode}: detail retains semantic ownership without a body row`, control?.read() === 'detail')
     stdin.push('\u001b[27uZ')
-    await until(`${editorMode}: first text after detail close lands once at the retained cursor`, () => pending.text() === 'alphaZ beta')
+    await until(`${editorMode}: first text after tiny detail closes lands once at the retained cursor`, () => pending.text() === 'alphaZ beta')
+    await resize(80, 24)
     stdin.push('\u0014xy')
     await until(`${editorMode}: summary type-to-edit handles all atoms in the same chunk`, () => pending.text() === 'alphaZxy beta')
     stdin.push('\u0014\u001b[200~\r\nA\tB\u001b[201~')
     await until(`${editorMode}: the real paste path finishes`, () => pending.text().includes('Pasted text') || pending.text().includes('A    B'))
     check(`${editorMode}: paste never submitted`, sent.length === 0)
+    const pasted = pending.text()
+    stdin.push('\u001f')
+    await until(`${editorMode}: undo restores the pre-paste document`, () => pending.text() === 'alphaZxy beta')
+    stdin.push('\u0018\u0012')
+    await until(`${editorMode}: redo restores the exact paste document`, () => pending.text() === pasted)
+    stdin.push('\u0013')
+    await until(`${editorMode}: stash clears only the editor`, () => pending.text() === '' && pending.stashedPrompt()?.text === pasted)
+    await resize(1, 1)
+    await resize(80, 24)
+    stdin.push('\u0013')
+    await until(`${editorMode}: stash restores the exact document after resizing`, () => pending.text() === pasted && pending.stashedPrompt() === undefined)
     insertRef.current!.setInputWithCursor('send once', 9)
     await until(`${editorMode}: final draft is current`, () => ink.lastFrameText().includes('send once'))
     stdin.push('\r\r')
