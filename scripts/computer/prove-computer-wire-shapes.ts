@@ -96,8 +96,8 @@ section('§a the Anthropic tool_result block and the tools term')
       options: {
         getToolPermissionContext: async () => getEmptyToolPermissionContext(),
         model: 'claude-opus-5',
-        isNonInteractiveSession: false,
-        querySource: 'repl_main',
+        isNonInteractiveSession: true,
+        querySource: 'agent:builtin:test',
         agents: [],
         hasAppendSystemPrompt: false,
         mcpTools: [],
