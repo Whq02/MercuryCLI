@@ -65,6 +65,30 @@ export function toolResultTurn(block: unknown): Message {
 
 export const allowEverything = (async () => ({ behavior: 'allow' as const })) as never
 
+export interface ScreenshotInContext {
+  context: ToolUseContext
+  toolUseId: string
+  result: string
+  outcome: string
+  messages: Message[]
+}
+
+export async function withScreenshot(
+  tool: { call: (...args: never[]) => Promise<unknown>; mapToolResultToToolResultBlockParam: (output: never, id: string) => unknown },
+  base: ToolUseContext,
+  toolUseId: string,
+  input: Record<string, unknown> = { action: 'screenshot' },
+): Promise<ScreenshotInContext> {
+  const parent = toolUseTurn(toolUseId, 'Computer', input)
+  const answer = (await tool.call(input as never, base as never, allowEverything, parent as never)) as { data: Record<string, unknown> }
+  const out = resultOf(answer)
+  const recorded = typeof out.screen?.toolUseId === 'string' ? out.screen.toolUseId : toolUseId
+  const block = tool.mapToolResultToToolResultBlockParam(answer.data as never, recorded)
+  const messages = [...base.messages, parent, toolResultTurn(block)]
+  const context = { ...base, messages } as ToolUseContext
+  return { context, toolUseId: recorded, result: out.result, outcome: out.outcome, messages }
+}
+
 export function resultOf(answer: unknown): { result: string; outcome: string; imagePath?: string; inlinePath?: string; screen?: Record<string, unknown> } {
   const data = (answer as { data?: Record<string, unknown> }).data ?? {}
   return {
