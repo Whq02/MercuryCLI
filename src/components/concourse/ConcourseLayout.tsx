@@ -686,7 +686,9 @@ export function ConcourseLayout({
       paddingX={geo.constrained ? 0 : 1}
       flexShrink={0}
     >
-      {mirrorNode(geo.constrained ? mirrorRows : Math.max(1, mirrorRows - 2), Math.max(0, (wide ? rightWidth : interior) - (geo.constrained ? 0 : 4)))}
+      {geo.constrained
+        ? mirrorNode(mirrorRows, Math.max(0, wide ? rightWidth : interior))
+        : mirrorNode(Math.max(1, mirrorRows - 2), Math.max(0, (wide ? rightWidth : interior) - 4))}
     </Box>
   )
 

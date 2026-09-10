@@ -73,7 +73,7 @@ check(
 )
 check(
   'the modal context advertises the slot width it actually provides',
-  /rows: terminalRows - modalPeek - 1,\s*\n\s*columns,\s*\n\s*scrollRef: modalScrollRef \?\? null,/.test(src),
+  /rows: Math\.max\(0, terminalRows - modalPeek - modalSeparatorRows\),\s*\n\s*columns,\s*\n\s*scrollRef: modalScrollRef \?\? null,/.test(src),
 )
 const kitSrc = readFileSync(
   join(root, 'src', 'components', 'mercury-ui', 'components.tsx'),

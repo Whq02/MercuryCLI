@@ -71,6 +71,7 @@ let snapshots: TelemetrySnapshots = {
 }
 
 const listeners = new Set<() => void>()
+let sessionConsumers = 0
 let heartbeat: ReturnType<typeof setInterval> | null = null
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let unsubTranscript: (() => void) | null = null
@@ -97,11 +98,13 @@ async function gitStateForRefresh(): Promise<GitRepoState | null> {
 async function refreshOnce(): Promise<void> {
   const next: Partial<TelemetrySnapshots> = {}
   next.crew = null
-  const sessions = readSessionWorkersSnapshot()
-  const sessionRows = sessions.state === 'known' ? Object.values(sessions.workers) : null
-  next.sessions = sessionRows !== null && sessionRows.every(rec => typeof rec.sessionId === 'string' && rec.sessionId !== '')
-    ? { state: 'known', rows: sessionRows.map(rec => ({ sessionId: rec.sessionId, live: runnerRecordAlive(rec, () => workerPidAlive(rec)), paused: rec.pausedAt !== undefined, parked: rec.parkedAt !== undefined, stopped: rec.stoppedAt !== undefined })) }
-    : { state: 'unavailable' }
+  if (sessionConsumers > 0) {
+    const sessions = readSessionWorkersSnapshot()
+    const sessionRows = sessions.state === 'known' ? Object.values(sessions.workers) : null
+    next.sessions = sessionRows !== null && sessionRows.every(rec => typeof rec.sessionId === 'string' && rec.sessionId !== '')
+      ? { state: 'known', rows: sessionRows.map(rec => ({ sessionId: rec.sessionId, live: runnerRecordAlive(rec, () => workerPidAlive(rec)), paused: rec.pausedAt !== undefined, parked: rec.parkedAt !== undefined, stopped: rec.stoppedAt !== undefined })) }
+      : { state: 'unavailable' }
+  }
   await Promise.all([
     gitStateForRefresh()
       .then(g => {
@@ -230,10 +233,13 @@ export function getTelemetry(): TelemetrySnapshots {
   return snapshots
 }
 
-export function subscribeTelemetry(listener: () => void): () => void {
+export function subscribeTelemetry(listener: () => void, sessions = false): () => void {
+  if (sessions) sessionConsumers++
   listeners.add(listener)
   startEngine()
+  if (sessions && sessionConsumers === 1) pokeTelemetry()
   return () => {
+    if (sessions) sessionConsumers--
     listeners.delete(listener)
     if (listeners.size === 0) stopEngine()
   }

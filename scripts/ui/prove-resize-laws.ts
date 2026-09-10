@@ -289,7 +289,7 @@ console.log('§15 — live geometry and a bounded compact frame at every size')
   const app = read('src/ink/components/App.tsx')
   check('live and local root sizes begin at the same stable renderer object', app.includes('<LiveTerminalSizeContext.Provider value={this.terminalSize}>') && app.includes('<TerminalSizeContext.Provider value={this.terminalSize}>'))
   check('alternate-screen nesting remains tree-owned', alt.includes('const AltScreenDepthContext = createContext(0)') && alt.includes('const nested = depthAbove > 0') && alt.includes('<AltScreenDepthContext.Provider value={depthAbove + 1}>'))
-  check('compactness has one real-geometry owner', read('src/context/layoutChromeContext.tsx').includes('useRealTerminalSize()') && read('src/context/layoutChromeContext.tsx').includes('chromeModeLive(columns, rows)'))
+  check('compactness has one real-geometry owner', read('src/context/layoutChromeContext.tsx').includes('useRealTerminalSize()') && read('src/context/layoutChromeContext.tsx').includes('layoutChromeLive(columns, rows)'))
 }
 
 console.log('§16 — a resize storm paints its hold once, on entry')

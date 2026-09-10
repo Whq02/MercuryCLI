@@ -174,7 +174,7 @@ export function useCompactWorkCounts(): CompactWorkCounts {
   const store = useAppStateStore()
   const subscribe = useCallback((listener: () => void) => {
     const work = subscribeFocusedWork(listener)
-    const telemetry = subscribeTelemetry(listener)
+    const telemetry = subscribeTelemetry(listener, true)
     const local = store.subscribe(listener)
     return () => { work(); telemetry(); local() }
   }, [store])

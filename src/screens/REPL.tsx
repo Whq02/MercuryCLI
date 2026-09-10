@@ -1120,7 +1120,12 @@ export function REPL({
     const paints = toolJSX?.isLocalJSXCommand === true && node !== null && measureElement(node).height > 0;
     setDialogPaints(prev => (prev === paints ? prev : paints));
   });
-  const dialogOwnsKeys = (toolJSX?.isLocalJSXCommand === true && dialogPaints) || compactFocus === 'detail';
+  const localJsx = Boolean(toolJSX?.jsx && toolJSX.isLocalJSXCommand);
+  const compactDetailUp = compactFocus === 'detail' && fullscreen && !replSurfaceCovered && focusedInputDialog === undefined && !localJsx;
+  const dialogOwnsKeys = (toolJSX?.isLocalJSXCommand === true && dialogPaints) || compactDetailUp;
+  useLayoutEffect(() => {
+    if (compactWork.read() === 'detail' && !compactDetailUp) compactWork.set('composer');
+  }, [compactDetailUp, compactWork]);
   const drainQueuedDialogCommand = useCallback((): void => {
     const next = queuedDialogCommandsRef.current.shift();
     if (next === undefined) return;
@@ -2003,8 +2008,6 @@ export function REPL({
     () => (frozenTranscriptState ? messages.slice(0, frozenTranscriptState.messageCount) : messages),
     [messages, frozenTranscriptState],
   );
-  const localJsx = Boolean(toolJSX?.jsx && toolJSX.isLocalJSXCommand);
-  const compactDetailUp = compactFocus === 'detail' && fullscreen && !replSurfaceCovered && focusedInputDialog === undefined && !localJsx;
   const centredModalUp = (localJsx && fullscreen) || compactDetailUp;
   const displayedMessages = inVirtualTranscript ? transcriptMessages : liveOrDeferred;
 

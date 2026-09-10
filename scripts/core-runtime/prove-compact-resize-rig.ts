@@ -156,6 +156,11 @@ for (const editorMode of ['emacs', 'vim'] as const) {
     await resize(83, 24)
     check(`${editorMode}: a hundred resize events coalesce instead of repainting every event`, frames - beforeStorm <= 6, `${frames - beforeStorm} composed frames`)
     check(`${editorMode}: the storm preserves mounted state and draft`, transcriptMounts === 1 && scrollRef.current === handle && pending.text() === 'alpha beta')
+    await resize(120, 40)
+    const beforeBoundaryStorm = frames
+    for (const columns of [101, 99, 97, 96, 97, 100]) { stdout.columns = columns; stdout.rows = 26; stdout.emit('resize') }
+    await resize(120, 40)
+    check(`${editorMode}: a boundary-crossing resize burst preserves full composition and state`, frames - beforeBoundaryStorm <= 6 && !compact && transcriptMounts === 1 && scrollRef.current === handle && pending.text() === 'alpha beta')
     await resize(80, 24)
     stdin.push('\u0014')
     await until(`${editorMode}: visible summary can own focus`, () => control?.read() === 'summary')
@@ -191,6 +196,24 @@ for (const editorMode of ['emacs', 'vim'] as const) {
     await resize(80, 24)
     stdin.push('\u0013')
     await until(`${editorMode}: stash restores the exact document after resizing`, () => pending.text() === pasted && pending.stashedPrompt() === undefined)
+    insertRef.current!.setInputWithCursor('prepaint ', 9)
+    await until(`${editorMode}: the timed-paste baseline is painted`, () => ink.lastFrameText().includes('❯ prepaint'))
+    let undoScheduled = false
+    let prepaintObserved = false
+    const unlistenPaste = pending.subscribePendingInput(() => {
+      if (undoScheduled || pending.text() !== 'prepaint pasted') return
+      undoScheduled = true
+      setTimeout(() => {
+        prepaintObserved = !ink.lastFrameText().includes('prepaint pasted')
+        stdin.push('\u001f')
+      }, 0)
+    })
+    stdin.push('\u001b[200~pasted\u001b[201~')
+    await until(`${editorMode}: next-macrotask undo restores the pre-paste document`, () => undoScheduled && pending.text() === 'prepaint ')
+    unlistenPaste()
+    stdin.push('\u0018\u0012')
+    await until(`${editorMode}: next-macrotask redo restores the paste exactly`, () => pending.text() === 'prepaint pasted')
+    console.log(`${editorMode} next-macrotask paste history ${JSON.stringify({ prepaintObserved, text: pending.text() })}`)
     insertRef.current!.setInputWithCursor('send once', 9)
     await until(`${editorMode}: final draft is current`, () => ink.lastFrameText().includes('send once'))
     stdin.push('\r\r')

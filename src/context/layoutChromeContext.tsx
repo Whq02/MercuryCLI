@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo, useSyncExternalStore } from 'react'
-import { chromeModeLive, type ChromeMode } from '../hooks/useLayoutTier.js'
+import { layoutChromeLive, type ChromeMode } from '../hooks/useLayoutTier.js'
 import { useRealTerminalSize } from '../hooks/useTerminalSize.js'
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
@@ -22,14 +22,14 @@ export function LayoutChromeProvider({ children, fullscreen: fullscreenOverride 
   const { columns, rows } = useRealTerminalSize()
   useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
   const fullscreen = fullscreenOverride ?? isFullscreenEnvEnabled()
-  const chrome = fullscreen ? chromeModeLive(columns, rows) : 'inline'
+  const { chrome, isCompact } = fullscreen ? layoutChromeLive(columns, rows) : { chrome: 'inline' as const, isCompact: false }
   const value = useMemo<LayoutChromeState>(() => ({
     realColumns: columns,
     realRows: rows,
     fullscreen,
     chrome,
-    isCompact: fullscreen && chrome !== 'cockpit',
-  }), [columns, rows, fullscreen, chrome])
+    isCompact,
+  }), [columns, rows, fullscreen, chrome, isCompact])
   return <LayoutChromeContext.Provider value={value}>{children}</LayoutChromeContext.Provider>
 }
 

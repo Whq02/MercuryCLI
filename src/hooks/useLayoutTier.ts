@@ -44,21 +44,18 @@ export function chromeModeLive(
   realColumns: number,
   realRows?: number,
 ): ChromeMode {
-  const pure = computeChromeMode(realColumns, realRows)
-  if (pure === 'cockpit') {
-    cockpitLatched = true
-    return pure
-  }
-  if (!cockpitLatched) return pure
+  return layoutChromeLive(realColumns, realRows).chrome
+}
+
+export function layoutChromeLive(realColumns: number, realRows?: number): { chrome: ChromeMode; isCompact: boolean } {
+  const fullscreen = isFullscreenEnvEnabled()
   const rows = realRows ?? Number.POSITIVE_INFINITY
-  const withinBand =
-    isFullscreenEnvEnabled() &&
-    isHelmHomeEnabled() &&
-    rows >= LAYOUT_BREAKPOINTS.cockpitMinRows &&
-    realColumns >= LAYOUT_BREAKPOINTS.cockpitMin - COCKPIT_EXIT_HYST_COLS
-  if (withinBand) return 'cockpit'
-  cockpitLatched = false
-  return pure
+  cockpitLatched = fullscreen && rows >= LAYOUT_BREAKPOINTS.cockpitMinRows &&
+    realColumns >= LAYOUT_BREAKPOINTS.cockpitMin - (cockpitLatched ? COCKPIT_EXIT_HYST_COLS : 0)
+  return {
+    chrome: cockpitLatched && isHelmHomeEnabled() ? 'cockpit' : computeChromeMode(realColumns, realRows),
+    isCompact: fullscreen && !cockpitLatched,
+  }
 }
 
 export interface LayoutTier {

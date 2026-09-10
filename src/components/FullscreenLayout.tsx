@@ -39,6 +39,7 @@ import { estateGroundBg } from '../utils/mercuryTokens.js'
 import { setRecessTarget } from '../ink/recessLayer.js'
 import { useElevatedSurface } from './mercury-ui/useElevatedSurface.js'
 import { recessTargetFor } from '../utils/cockpit/recessBackdrop.js'
+import { DeckPane } from './DeckPane.js'
 import { HelmCenterHeader } from './HelmCenterHeader.js'
 import { HelmLanesRail } from './HelmLanesRail.js'
 import { HelmTelemetryRail } from './HelmTelemetryRail.js'
@@ -519,6 +520,7 @@ export function FullscreenLayout({
                 ? { backgroundColor: estateGroundBg(tokens) }
                 : {})}
             >
+              {fullscreen && !isCompact && chrome === 'deck-strip' ? <DeckPane /> : null}
               <Box flexDirection="row" flexGrow={1} minHeight={0} overflow="hidden">
                 {}
                 <Box ref={lanesBoxRef} flexDirection="column" overflow="hidden" flexShrink={0} width={cockpit && plan.lanes ? plan.lanesW : 0}>

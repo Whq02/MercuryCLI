@@ -2660,11 +2660,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       if (currentSurfaceRoute().kind !== 'repl') return 'yield' as const
       const focus = compactWork.read()
       if (anyModalOverlayActive() && !(focus === 'composer' && topOverlay()?.id === 'compact-work')) return 'yield' as const
+      if (keyboardOwnedByOverlay || isSearchingHistory || !helmOnPrompt) return 'yield' as const
       if (focus === 'detail') {
         if (key.escape) compactWork.set('composer')
         return 'consume' as const
       }
-      if (keyboardOwnedByOverlay || isSearchingHistory || !helmOnPrompt) return 'yield' as const
       if (pastePending) {
         const resolved = keybindings?.resolve(raw, key, ['Chat', 'Global'])
         return resolved?.type === 'match' && resolved.action === 'app:toggleTasks' ? 'consume' as const : 'edit-and-consume' as const
