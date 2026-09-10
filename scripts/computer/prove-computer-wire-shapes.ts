@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { check, finish, freshSignal, scratchDir, section } from './computerProofKit.ts'
 import { toolContext } from './computerToolKit.ts'
 
+delete process.env.NODE_ENV
 const scratch = scratchDir('wire-shapes')
 type Body = Record<string, unknown>
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
