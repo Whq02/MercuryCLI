@@ -34,7 +34,7 @@ extern "C" {
         key_callbacks: *const c_void,
         value_callbacks: *const c_void,
     ) -> CFTypeRef;
-    fn CFNumberGetValue(number: CFTypeRef, number_type: isize, value: *mut c_void) -> bool;
+    fn CFNumberGetValue(number: CFTypeRef, number_type: isize, value: *mut c_void) -> u8;
     fn CFStringCreateWithCString(allocator: CFTypeRef, cstr: *const c_char, encoding: u32) -> CFTypeRef;
     fn CFDataGetLength(data: CFTypeRef) -> isize;
     fn CFDataGetBytePtr(data: CFTypeRef) -> *const u8;
@@ -77,7 +77,7 @@ extern "C" {
 
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
-    fn AXIsProcessTrustedWithOptions(options: CFTypeRef) -> bool;
+    fn AXIsProcessTrustedWithOptions(options: CFTypeRef) -> u8;
     static kAXTrustedCheckOptionPrompt: CFTypeRef;
 }
 
@@ -141,7 +141,7 @@ unsafe fn cf_number_i64(value: CFTypeRef) -> Option<i64> {
         return None;
     }
     let mut out: i64 = 0;
-    if CFNumberGetValue(value, NUMBER_SINT64, &mut out as *mut i64 as *mut c_void) {
+    if CFNumberGetValue(value, NUMBER_SINT64, &mut out as *mut i64 as *mut c_void) != 0 {
         Some(out)
     } else {
         None
@@ -171,13 +171,13 @@ pub fn permissions(request: bool) -> PermissionsAnswer {
         let screen = if request { CGRequestScreenCaptureAccess() } else { CGPreflightScreenCaptureAccess() };
         let input = if request {
             let options = prompt_options();
-            let trusted = AXIsProcessTrustedWithOptions(options);
+            let trusted = AXIsProcessTrustedWithOptions(options) != 0;
             if !options.is_null() {
                 CFRelease(options);
             }
             trusted
         } else {
-            AXIsProcessTrustedWithOptions(ptr::null())
+            AXIsProcessTrustedWithOptions(ptr::null()) != 0
         };
         let mut reasons: Vec<&str> = Vec::new();
         if !has_session {
