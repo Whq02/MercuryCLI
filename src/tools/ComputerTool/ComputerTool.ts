@@ -760,6 +760,11 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     }
     try {
       if (ACT_ACTIONS.has(input.action)) {
+        if (signal.aborted) {
+          result = interruptedText(input.action)
+          outcome = 'failed'
+          return finish()
+        }
         const plan = planOf(owner, context, input)
         if (isPlanRefusal(plan)) {
           result = plan.refusal
