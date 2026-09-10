@@ -66,7 +66,7 @@ import {
 } from '../../../utils/pulse/turnPhase.js'
 import { imageRefusalWords, mapMessagesToZai, mapToolsToZai, type ApiShapedTool } from '../zai/zaiCodec.js'
 import { modelReceivesImageBlocks } from '../../../utils/model/capabilities.js'
-import { imageRefusedFor, noteImageRefusal } from '../../desktop/desktopSession.js'
+import { imageRefusalOf, noteImageRefusal } from '../../desktop/desktopSession.js'
 import {
   streamCompatChat,
   type CompatChatRequest,
@@ -95,7 +95,7 @@ export type CompatLaneId =
   | 'local'
 
 export function imagesSupportedForCompatModel(model: string): boolean {
-  return modelReceivesImageBlocks(model) && imageRefusedFor(model) === null
+  return modelReceivesImageBlocks(model) && imageRefusalOf(model) === null
 }
 
 export function compatDispatchModelId(model: string): string {
