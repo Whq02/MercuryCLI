@@ -502,38 +502,63 @@ if (unaccounted.length) {
   shape('the informational system message carries string content and a level', system.subtype === 'informational' && system.content === 'plain system note' && system.level === 'info', JSON.stringify({ content: system.content, level: system.level }));
   shape('the informational system message keeps its pinned identity', system.uuid === '00000000-0000-4000-8000-000000000030', String(system.uuid));
 
-  const turn = clone(CORPUS.toolTurn!) as never[];
-  const normalizedTurn = M.normalizeMessages(turn) as never[];
-  const subagent = M.buildSubagentLookups(
-    (normalizedTurn as { type: string }[]).filter(x => x.type === 'user' || x.type === 'assistant').map(message => ({ message })) as never,
-  ) as { toolUseIdToSubagentId?: Map<string, string> | Record<string, unknown> };
-  shape('the subagent lookups are built over wrapped rows and answer a map, not an empty object', subagent !== null && typeof subagent === 'object' && Object.keys(subagent).length > 0, JSON.stringify(Object.keys(subagent)));
-  const ids = M.getToolUseIDs(normalizedTurn as never);
-  shape('every tool use of the normalized two-block turn is counted', ids.size === 2 && ids.has('toolu_0001') && ids.has('toolu_0002'), [...ids].join(','));
-  shape('countToolCalls counts the assistant messages calling the named tool: one Read message, no Bash message', M.countToolCalls(turn as never, 'Read') === 1 && M.countToolCalls(turn as never, 'Bash') === 0, `${M.countToolCalls(turn as never, 'Read')} ${M.countToolCalls(turn as never, 'Bash')}`);
-  shape('hasSuccessfulToolCall answers true for the tool that succeeded and false for one never called', M.hasSuccessfulToolCall(turn as never, 'Read') === true && M.hasSuccessfulToolCall(turn as never, 'Bash') === false);
-  const short = M.deriveShortMessageId('1a2b3c00-0000-4000-8000-000000000000');
-  shape('deriveShortMessageId parses a real uuid to a base36 id, never NaN', /^[0-9a-z]{1,6}$/.test(short) && short !== 'nan', short);
-  const progress = M.createProgressMessage({ toolUseID: 'toolu_0009', parentToolUseID: 'toolu_0008', data: { type: 'bash_progress', output: 'x' } as never }) as { toolUseID?: string; parentToolUseID?: string; data?: { type?: string } };
-  shape('a progress message carries its tool use, parent and data', progress.toolUseID === 'toolu_0009' && progress.parentToolUseID === 'toolu_0008' && progress.data?.type === 'bash_progress', JSON.stringify(progress));
-  const fire = M.createScheduledTaskFireMessage('daily') as { content?: unknown };
-  shape('a scheduled-task fire message carries string content', fire.content === 'daily', JSON.stringify(fire.content));
-  const hooks = M.createStopHookSummaryMessage(2, [{ command: 'lint' }], ['test exited 1'], false, undefined, true, 'info') as { hookCount?: unknown; hookErrors?: unknown; level?: unknown };
-  shape('a stop-hook summary carries a numeric count, its errors and a level', hooks.hookCount === 2 && Array.isArray(hooks.hookErrors) && hooks.level === 'info', JSON.stringify({ hookCount: hooks.hookCount, level: hooks.level }));
-  const saved = M.createMemorySavedMessage(['/m.md']) as { writtenPaths?: unknown };
-  shape('a memory-saved message carries the path list itself', Array.isArray(saved.writtenPaths) && (saved.writtenPaths as string[])[0] === '/m.md', JSON.stringify(saved.writtenPaths));
-  const metrics = M.createApiMetricsMessage({ ttftMs: 320, otps: 41.5 }) as { metrics?: { ttftMs?: unknown; otps?: unknown } } & Record<string, unknown>;
-  const metricsRow = metrics.metrics ?? metrics;
-  shape('an api-metrics message keeps its time-to-first-token and throughput', (metricsRow as { ttftMs?: unknown }).ttftMs === 320 && (metricsRow as { otps?: unknown }).otps === 41.5, JSON.stringify(metrics));
-  const summaryRow = M.createToolUseSummaryMessage('summary', ['toolu_0001']) as { summary?: unknown; precedingToolUseIds?: unknown };
-  shape('a tool-use summary carries the summary text and the preceding ids', summaryRow.summary === 'summary' && Array.isArray(summaryRow.precedingToolUseIds), JSON.stringify(summaryRow));
+  type Norm = Record<string, unknown>;
+  const produced = (key: string): Norm => {
+    const v = results[key];
+    shape(`the generator case ${key} was produced by the recorded matrix`, v !== undefined && typeof v === 'object' && v !== null, String(v));
+    return (v ?? {}) as Norm;
+  };
+  const setOf = (v: unknown): string[] => ((v as { '\u00abset\u00bb'?: string[] })?.['\u00abset\u00bb'] ?? []);
+  const mapKeys = (v: unknown): string[] => ((v as { '\u00abmap\u00bb'?: [unknown, unknown][] })?.['\u00abmap\u00bb'] ?? []).map(e => String(e[0]));
+  const mapGet = (v: unknown, k: string): unknown => ((v as { '\u00abmap\u00bb'?: [unknown, unknown][] })?.['\u00abmap\u00bb'] ?? []).find(e => e[0] === k)?.[1];
+
+  const subagent = produced('buildSubagentLookups/toolTurn');
+  const subLookups = (subagent.lookups ?? {}) as Norm;
+  shape('the subagent lookups over the tool turn index BOTH tool uses by id (a wrong wrapping answers empty maps)', mapKeys(subLookups.toolUseByToolUseID).join(',') === 'toolu_0001,toolu_0002', String(JSON.stringify(subLookups.toolUseByToolUseID)).slice(0, 160));
+  const use1 = mapGet(subLookups.toolUseByToolUseID, 'toolu_0001') as Norm | undefined;
+  shape('…and the indexed tool use is the real Read block with its input', use1?.name === 'Read' && (use1?.input as Norm | undefined)?.file_path === '/a.ts', JSON.stringify(use1));
+  shape('…both results resolved, none in progress', setOf(subLookups.resolvedToolUseIDs).join(',') === 'toolu_0001,toolu_0002' && setOf(subagent.inProgressToolUseIDs).length === 0, `${setOf(subLookups.resolvedToolUseIDs)} / ${setOf(subagent.inProgressToolUseIDs)}`);
+  const result2 = mapGet(subLookups.toolResultByToolUseID, 'toolu_0002') as Norm | undefined;
+  shape('…and the result row for toolu_0002 is the user tool_result message', result2?.type === 'user' && JSON.stringify(result2?.message).includes('"tool_use_id":"toolu_0002"'), String(JSON.stringify(result2)).slice(0, 160));
+  const interrupted = produced('buildSubagentLookups/interrupted');
+  shape('the interrupted fixture leaves its Bash use in progress (toolu_0003 unresolved)', setOf(interrupted.inProgressToolUseIDs).join(',') === 'toolu_0003' && mapKeys((interrupted.lookups as Norm).toolUseByToolUseID).join(',') === 'toolu_0003', JSON.stringify(interrupted.inProgressToolUseIDs));
+  shape('every tool use of the normalized two-block turn is counted', setOf(results['getToolUseIDs/toolTurn']).join(',') === 'toolu_0001,toolu_0002', JSON.stringify(results['getToolUseIDs/toolTurn']));
+  shape('the composite turn counts all three tool uses', setOf(results['getToolUseIDs/composite']).join(',') === 'toolu_0001,toolu_0002,toolu_0004', JSON.stringify(results['getToolUseIDs/composite']));
+  const counts = produced('countToolCalls/toolTurn');
+  shape('countToolCalls counts the assistant messages calling the named tool: one Read message, no Bash message', counts.Read === 1 && counts.Bash === 0, JSON.stringify(counts));
+  const countsComposite = produced('countToolCalls/composite');
+  shape('…and the composite carries one of each', countsComposite.Read === 1 && countsComposite.Bash === 1, JSON.stringify(countsComposite));
+  const success = produced('hasSuccessfulToolCall/toolTurn');
+  shape('hasSuccessfulToolCall answers true for the tool that succeeded and false for one never called', success.Read === true && success.Bash === false, JSON.stringify(success));
+  const shortIds = results['deriveShortMessageId/composite-map'] as string[];
+  shape('deriveShortMessageId parses real uuids to distinct base36 ids, never NaN', Array.isArray(shortIds) && shortIds.length === 26 && shortIds[0] === '1fmss8' && shortIds.every(x => /^[0-9a-z]{1,6}$/.test(x)) && new Set(shortIds).size === shortIds.length, String(JSON.stringify(shortIds)).slice(0, 120));
+  const progress = produced('createProgressMessage/basic');
+  shape('a progress message carries its tool use, parent and data', progress.type === 'progress' && progress.toolUseID === 'toolu_0009' && progress.parentToolUseID === 'toolu_0008' && (progress.data as Norm | undefined)?.type === 'bash_progress' && (progress.data as Norm | undefined)?.output === 'x', JSON.stringify(progress));
+  const systemRow = produced('createSystemMessage/basic');
+  shape('the system message constructor answers an informational row with its content and level', systemRow.type === 'system' && systemRow.subtype === 'informational' && systemRow.content === 'note' && systemRow.level === 'info', JSON.stringify(systemRow));
+  const fire = produced('createScheduledTaskFireMessage/basic');
+  shape('a scheduled-task fire message carries string content under its subtype', fire.subtype === 'scheduled_task_fire' && fire.content === 'daily', JSON.stringify(fire));
+  const hooks = produced('createStopHookSummaryMessage/basic');
+  shape('a stop-hook summary carries a numeric count, both hook infos, its errors and a level', hooks.subtype === 'stop_hook_summary' && hooks.hookCount === 2 && Array.isArray(hooks.hookInfos) && (hooks.hookInfos as Norm[]).length === 2 && (hooks.hookInfos as Norm[])[1]?.command === 'test' && JSON.stringify(hooks.hookErrors) === '["test exited 1"]' && hooks.level === 'info' && hooks.preventedContinuation === false, String(JSON.stringify(hooks)).slice(0, 200));
+  const saved = produced('createMemorySavedMessage/basic');
+  shape('a memory-saved message carries the path list itself', saved.subtype === 'memory_saved' && JSON.stringify(saved.writtenPaths) === '["/m.md"]', JSON.stringify(saved.writtenPaths));
+  const metrics = produced('createApiMetricsMessage/basic');
+  shape('an api-metrics message keeps every metric it was given', metrics.subtype === 'api_metrics' && metrics.ttftMs === 320 && metrics.otps === 41.5 && metrics.turnDurationMs === 2200 && metrics.toolCount === 3, JSON.stringify(metrics));
+  const summaryRow = produced('createToolUseSummaryMessage/basic');
+  shape('a tool-use summary carries the summary text and BOTH preceding ids', summaryRow.type === 'tool_use_summary' && summaryRow.summary === 'summary' && JSON.stringify(summaryRow.precedingToolUseIds) === '["toolu_0001","toolu_0002"]', JSON.stringify(summaryRow));
+  const threw = Object.keys(results).filter(key => JSON.stringify(results[key]).includes('\u00abthrows\u00bb'));
+  shape('no generator case records a throw in place of a value (a wrong-argument call is refused, never enshrined)', threw.length === 0, threw.join(', '));
 }
 
 if (RECORD) {
-  writeFileSync(GOLDEN_PATH, JSON.stringify(results, null, 1) + '\n');
-  console.log(
-    `  [RECORDED] ${Object.keys(results).length} golden case(s) → scripts/messages/goldens.json (covered ${covered.size} exports, skipped ${Object.keys(SKIPPED).length})`,
-  );
+  if (failures > 0) {
+    console.log(`  [REFUSED] --record: ${failures} shape/coverage check(s) failed on the generated values — goldens.json left untouched`);
+  } else {
+    writeFileSync(GOLDEN_PATH, JSON.stringify(results, null, 1) + '\n');
+    console.log(
+      `  [RECORDED] ${Object.keys(results).length} golden case(s) → scripts/messages/goldens.json (covered ${covered.size} exports, skipped ${Object.keys(SKIPPED).length})`,
+    );
+  }
 } else {
   if (!existsSync(GOLDEN_PATH)) {
     console.log('  [FAIL] goldens.json missing — run with --record first');
