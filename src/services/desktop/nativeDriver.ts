@@ -146,6 +146,7 @@ function pngSigned(png: unknown): png is Uint8Array {
 
 class NativeDesktopDriver implements DesktopDriver {
   private closed = false
+  private grantsRequested = false
 
   constructor(
     private readonly addon: DesktopAddon,
@@ -166,6 +167,18 @@ class NativeDesktopDriver implements DesktopDriver {
     } catch (error) {
       return fail(classifyThrown(error))
     }
+  }
+
+  private refuseAndRequestGrants<T>(refusal: DesktopError): DesktopAnswer<T> {
+    if (refusal.kind === 'permission' && !this.grantsRequested) {
+      this.grantsRequested = true
+      try {
+        this.addon.requestPermissions()
+      } catch (error) {
+        logForDebugging(`desktop driver: the grant request threw: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+    return fail(refusal)
   }
 
   private async withCancel<T>(signal: AbortSignal, run: () => Promise<T>): Promise<T> {
@@ -191,7 +204,7 @@ class NativeDesktopDriver implements DesktopDriver {
     const permissions = this.readPermissions()
     if (!permissions.ok) return fail(permissions.error)
     const refusal = inputRefusal(permissions.value)
-    if (refusal !== null) return fail(refusal)
+    if (refusal !== null) return this.refuseAndRequestGrants(refusal)
     try {
       await this.withCancel(signal, async () => {
         await run()
@@ -247,7 +260,7 @@ class NativeDesktopDriver implements DesktopDriver {
     const permissions = this.readPermissions()
     if (!permissions.ok) return fail(permissions.error)
     const refusal = captureRefusal(permissions.value)
-    if (refusal !== null) return fail(refusal)
+    if (refusal !== null) return this.refuseAndRequestGrants(refusal)
     let raw: DesktopAddonCapture
     try {
       raw = await this.withCancel(signal, () => this.addon.capture(display))
