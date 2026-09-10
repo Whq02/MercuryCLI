@@ -3,6 +3,7 @@ import { FLAG_REGISTRY, flagEnabled, flagEnv, type FlagSpec } from '../substrate
 import { realEnvPin } from '../substrate/startupMenu.js'
 import { driverNodeGate, resolveBrowser } from '../services/browser/browserResolver.js'
 import { lastDesktopPermissions, resolveDesktopDriver } from '../services/desktop/resolveDriver.js'
+import { desktopGrantWords } from '../services/desktop/nativeDriver.js'
 import { desktopSnapshot } from '../services/desktop/desktopSession.js'
 import {
   mercuryDapEnabled,
@@ -218,6 +219,7 @@ function computerToolRecord(): ReadinessRecord {
       ...base,
       state: 'degraded',
       detail: `driver ${resolution.source} resolved — ${denied} denied${permissions?.reason ? `: ${bounded(permissions.reason, 140)}` : ''}`,
+      remedy: desktopGrantWords(),
       latencyMs: Date.now() - t0,
     }
   }
