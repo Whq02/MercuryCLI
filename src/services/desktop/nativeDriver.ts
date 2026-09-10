@@ -82,7 +82,8 @@ function classifyThrown(error: unknown): DesktopError {
   if (head.startsWith('aborted')) return { kind: 'aborted', note: 'the act was interrupted before it completed; every held key and button was released' }
   if (head.startsWith('no such')) return { kind: 'input', note }
   if (head.startsWith('no display')) return { kind: 'display', note }
-  if (head.startsWith('unsupported')) return { kind: 'session', note }
+  if (head.startsWith('unsupported') || head.startsWith('no desktop session')) return { kind: 'session', note, remedy: desktopGrantWords() }
+  if (head.startsWith('screen capture is not granted') || head.startsWith('input control is not granted')) return { kind: 'permission', note, remedy: desktopGrantWords() }
   return { kind: 'defect', note }
 }
 

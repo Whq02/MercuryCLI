@@ -11,10 +11,10 @@ pub fn encode_rgba(width: u32, height: u32, rgba: &[u8]) -> Result<Vec<u8>, Stri
     }
     let mut out: Vec<u8> = Vec::with_capacity(expected / 4);
     {
-        let mut encoder = png::Encoder::new(&mut out, width, height);
-        encoder.set_color(png::ColorType::Rgba);
-        encoder.set_depth(png::BitDepth::Eight);
-        encoder.set_compression(png::Compression::Fast);
+        let mut encoder = ::png::Encoder::new(&mut out, width, height);
+        encoder.set_color(::png::ColorType::Rgba);
+        encoder.set_depth(::png::BitDepth::Eight);
+        encoder.set_compression(::png::Compression::Fast);
         let mut writer = encoder.write_header().map_err(|error| error.to_string())?;
         writer.write_image_data(rgba).map_err(|error| error.to_string())?;
         writer.finish().map_err(|error| error.to_string())?;
