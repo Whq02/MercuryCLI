@@ -129,10 +129,11 @@ for (const editorMode of ['emacs', 'vim'] as const) {
   }
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(Harness)))
   try {
-    await until(`${editorMode}: real editor mounted and raw input armed`, () => insertRef.current !== null && stdin.isRaw && scrollRef.current !== null && ink.lastFrame().length > 0)
+    await until(`${editorMode}: real editor mounted and raw input armed`, () => insertRef.current !== null && stdin.isRaw && scrollRef.current !== null && ink.lastFrameText().length > 0)
+    check(`${editorMode}: full-height composer paints its placeholder`, ink.lastFrameText().includes('Type a prompt'))
     const handle = scrollRef.current
     insertRef.current!.setInputWithCursor('alpha beta', 5)
-    await until(`${editorMode}: the held draft is painted`, () => ink.lastFrame().includes('alpha beta'))
+    await until(`${editorMode}: the held draft is painted`, () => ink.lastFrameText().includes('alpha beta'))
     for (const [columns, rows] of [[80, 24], [120, 24], [60, 16], [40, 10], [1, 1], [1, 40], [200, 1], [2, 2], [99, 26], [100, 26], [120, 40], [80, 24]]) {
       stdout.columns = columns!
       stdout.rows = rows!
@@ -143,7 +144,7 @@ for (const editorMode of ['emacs', 'vim'] as const) {
       check(`${editorMode}: local allocation is bounded by the physical terminal`, local.columns > 0 && local.columns <= columns! && local.rows >= 0 && local.rows <= rows!)
     }
     stdin.push('\u0014\r')
-    await until(`${editorMode}: same-chunk focus and Enter open detail without submitting`, () => control?.read() === 'detail' && ink.lastFrame().includes('Session statistics'))
+    await until(`${editorMode}: same-chunk focus and Enter open detail without submitting`, () => control?.read() === 'detail' && ink.lastFrameText().includes('Session statistics'))
     check(`${editorMode}: detail did not submit the draft`, sent.length === 0 && pending.text() === 'alpha beta')
     stdin.push('\u001bZ')
     await until(`${editorMode}: first text after detail close lands once at the retained cursor`, () => pending.text() === 'alphaZ beta')
@@ -153,11 +154,12 @@ for (const editorMode of ['emacs', 'vim'] as const) {
     await until(`${editorMode}: the real paste path finishes`, () => pending.text().includes('Pasted text') || pending.text().includes('A    B'))
     check(`${editorMode}: paste never submitted`, sent.length === 0)
     insertRef.current!.setInputWithCursor('send once', 9)
-    await until(`${editorMode}: final draft is current`, () => ink.lastFrame().includes('send once'))
+    await until(`${editorMode}: final draft is current`, () => ink.lastFrameText().includes('send once'))
     stdin.push('\r\r')
     await until(`${editorMode}: ordinary composer Enter submits`, () => sent.length > 0)
     check(`${editorMode}: repeated Enter in one dispatch sends once`, sent.length === 1 && sent[0] === 'send once', JSON.stringify(sent))
   } finally {
+    console.log(`${editorMode} final frame\n${ink.lastFrameText()}`)
     ink.unmount()
     await ink.waitUntilExit()
     instances.delete(stdout as never)
