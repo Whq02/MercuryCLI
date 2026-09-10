@@ -1,17 +1,7 @@
 import type { DesktopCapture, DesktopDisplay, DesktopPoint } from '../../services/desktop/driver.js'
+import type { ScreenMap } from '../../services/desktop/desktopSession.js'
 
-export interface ScreenMap {
-  toolUseId: string
-  display: number
-  displayId: string
-  originX: number
-  originY: number
-  pointWidth: number
-  pointHeight: number
-  imageWidth: number
-  imageHeight: number
-  capturedAt: number
-}
+export type { ScreenMap }
 
 export type PixelOutside = { outside: true; imageWidth: number; imageHeight: number }
 
@@ -62,24 +52,4 @@ export function screenMapOfCapture(
 
 export function screenMapSizeWords(map: Pick<ScreenMap, 'imageWidth' | 'imageHeight' | 'pointWidth' | 'pointHeight'>): string {
   return `${map.imageWidth}×${map.imageHeight} px of ${map.pointWidth}×${map.pointHeight} pt`
-}
-
-export function screenshotVisibleInContext(messages: readonly unknown[], toolUseId: string): boolean {
-  for (const message of messages) {
-    if (typeof message !== 'object' || message === null) continue
-    const inner = (message as { message?: unknown }).message
-    const holder = typeof inner === 'object' && inner !== null ? inner : message
-    const content = (holder as { content?: unknown }).content
-    if (!Array.isArray(content)) continue
-    for (const block of content) {
-      if (typeof block !== 'object' || block === null) continue
-      const typed = block as { type?: unknown; tool_use_id?: unknown; content?: unknown }
-      if (typed.type !== 'tool_result' || typed.tool_use_id !== toolUseId) continue
-      return (
-        Array.isArray(typed.content) &&
-        typed.content.some(part => typeof part === 'object' && part !== null && (part as { type?: unknown }).type === 'image')
-      )
-    }
-  }
-  return false
 }

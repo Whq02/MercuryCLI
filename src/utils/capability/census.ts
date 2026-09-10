@@ -35,6 +35,7 @@ export const CAPABILITY_UNITS = [
   'game-engine',
   'browser-drive',
   'pixel-art',
+  'desktop-drive',
 ] as const
 export type CapabilityUnit = (typeof CAPABILITY_UNITS)[number]
 
