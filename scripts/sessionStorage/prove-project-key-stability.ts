@@ -2,7 +2,7 @@
 
 import { mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, join, resolve } from 'node:path'
+import { basename, dirname as dirnameOf, join, resolve } from 'node:path'
 
 const CONFIG_SCRATCH = mkdtempSync(join(tmpdir(), 'keystab-home-'))
 process.env.MERCURY_CONFIG_DIR = CONFIG_SCRATCH
@@ -51,14 +51,17 @@ try {
   check('§2 NO FREEZE: the dead-spelling answer is not frozen — once the folder exists the spelling resolves its TRUE canonical key', aliveKey === trueKey, `alive=${basename(aliveKey)} true=${basename(trueKey)}`)
   check('§2 the dead answer differed (the leg has teeth: dead raw-slug vs alive canonical)', deadKey !== aliveKey, basename(deadKey))
 
-  const aOrder1 = join(scratchReal, 'alias-one')
+  const aOrder1 = join(scratchReal, 'real-root', 'alias-one')
   mkdirSync(aOrder1)
-  const aliasOne = join(scratch, 'alias-one')
+  const aliasOne = join(scratchReal, 'alias-root', 'alias-one')
+  check('§3 the alias pair is a real pair: the two spellings DIFFER and canonicalize to ONE folder', aliasOne !== aOrder1 && realpathSync(aliasOne) === realpathSync(aOrder1), `${basename(dirnameOf(aliasOne))}/ vs ${basename(dirnameOf(aOrder1))}/`)
   check('§3 canonical-first order: the alias spelling joins the canonical resolution', getProjectDir(aOrder1) === getProjectDir(aliasOne), basename(getProjectDir(aliasOne)))
-  const aOrder2 = join(scratchReal, 'alias-two')
+  const aOrder2 = join(scratchReal, 'real-root', 'alias-two')
   mkdirSync(aOrder2)
-  const aliasTwo = join(scratch, 'alias-two')
+  const aliasTwo = join(scratchReal, 'alias-root', 'alias-two')
+  check('§3 the second pair differs in spelling too', aliasTwo !== aOrder2 && realpathSync(aliasTwo) === realpathSync(aOrder2))
   check('§3 alias-first order: the canonical spelling joins the alias resolution', getProjectDir(aliasTwo) === getProjectDir(aOrder2), basename(getProjectDir(aOrder2)))
+  check('§3 the shared resolution is the CANONICAL key (the alias never wins its own raw slug)', getProjectDir(aliasTwo) === join(projectsDir, projectSlug(realpathSync(aOrder2).normalize('NFC'))) || getProjectDir(aliasTwo) === join(projectsDir, sanitizePath(realpathSync(aOrder2).normalize('NFC'))), basename(getProjectDir(aliasTwo)))
 
   const pathsLayer = await import(join(ROOT, 'src/utils/sessionStorage/paths.ts'))
   const wAlias = join(scratchReal, 'alias-root', 'wrapper-late-project')

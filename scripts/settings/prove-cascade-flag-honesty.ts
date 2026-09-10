@@ -2,6 +2,7 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'cascade-honesty-home-')))
 const PROJ = realpathSync(mkdtempSync(join(tmpdir(), 'cascade-honesty-proj-')))
@@ -61,10 +62,20 @@ section('§2 FC-028 — both flag spellings read')
 
 section('§3 FC-029 — the full env applies under standing trust, headless too')
 {
-  const init = src('src/entrypoints/init.ts')
+  const init = codeOnlyText('src/entrypoints/init.ts', src('src/entrypoints/init.ts'))
+  const safeAt = init.indexOf('applySafeConfigEnvironmentVariables()')
+  const safeEnd = init.indexOf("profileCheckpoint('init_safe_env_applied')", safeAt)
+  check('the safe-env block is bounded by the safe pass and its own checkpoint', safeAt >= 0 && safeEnd > safeAt, `${safeAt}..${safeEnd}`)
+  const safeBlock = init.slice(safeAt, safeEnd)
   check(
-    'init applies the FULL merged env when trust already stands (call-shaped)',
-    /checkHasTrustDialogAccepted\(\)/.test(init) && /applyConfigEnvironmentVariables\(\)/.test(init),
+    'init applies the FULL merged env ONLY behind the standing-trust check, inside the safe-env block (the guarded call itself, not two names anywhere)',
+    /if\s*\(\s*checkHasTrustDialogAccepted\(\)\s*\)\s*applyConfigEnvironmentVariables\(\)/.test(safeBlock),
+    safeBlock.replace(/\s+/g, ' ').slice(0, 200),
+  )
+  check(
+    'the full-env call has no unguarded twin anywhere in init',
+    (init.match(/applyConfigEnvironmentVariables\(\)/g) ?? []).length === 1,
+    String((init.match(/applyConfigEnvironmentVariables\(\)/g) ?? []).length),
   )
   const managedEnv = src('src/utils/managedEnv.ts')
   check('the SAFE pre-trust pass itself is unchanged (untrusted stays safe-only)', /applySafeConfigEnvironmentVariables/.test(managedEnv))

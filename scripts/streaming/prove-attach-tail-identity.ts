@@ -2,6 +2,7 @@
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'tailid-home-'))
 
@@ -199,10 +200,14 @@ try {
   check('an unlabelled text block publishes no register (assign-or-null, never inherited)', tail()?.text === 'plain words' && (tail()?.phase ?? null) === null, JSON.stringify(tail()))
   onSeatLine(SHORT, frame({ type: 'result', subtype: 'success' }), roster as never, dir)
 
+  onSeatLine(SHORT, frame({ type: 'assistant', message: { id: 'msg_held', content: [{ type: 'text', text: 'Held settle text.', phase: 'final_answer' }] } }), roster as never, dir)
+  check('fixture: a NON-EMPTY settle-class tail is held immediately before the next message_start (no result frame in between)', tail()?.text === 'Held settle text.' && tail()?.messageId === 'msg_held', JSON.stringify(tail()))
   onSeatLine(SHORT, frame({ type: 'stream_event', event: { type: 'message_start', message: { id: 'msg_next', usage: {} } } }), roster as never, dir)
+  check('message_start on a held tail clears it under the NEW identity before any delta', tail()?.text === null && tail()?.messageId === 'msg_next', JSON.stringify(tail()))
   onSeatLine(SHORT, frame({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Fresh stream.' } } }), roster as never, dir)
   await published()
   check('message_start clears a held tail — the new stream never concatenates onto it', tail()?.text === 'Fresh stream.' && tail()?.messageId === 'msg_next', JSON.stringify(tail()))
+  check('…the held words are gone from the tail, not merely prefixed', !(tail()?.text ?? '').includes('Held settle text.'), JSON.stringify(tail()))
   onSeatLine(SHORT, frame({ type: 'result', subtype: 'success' }), roster as never, dir)
 
   onSeatLine(SHORT, frame({ type: 'stream_event', event: { type: 'message_start', message: { id: 'msg_dead', usage: {} } } }), roster as never, dir)
@@ -215,10 +220,35 @@ try {
 
 console.log('\n§4 the connector stages the id and detach drops the ghost')
 {
-  const src = readFileSync(join(import.meta.dir, '..', '..', 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
-  check('readTail stages the file’s id into the store before every feed', src.includes('setMessageId'), 'no setMessageId call in daemonConnector.ts')
-  check('readTail stages the file’s register beside the id', src.includes('setPhase'), 'no setPhase call in daemonConnector.ts')
-  check('detach drops the ghost with the tail (a moment, never a cache)', src.includes('dropSettled'), 'no dropSettled call in daemonConnector.ts')
+  const src = codeOnlyText('daemonConnector.ts', readFileSync(join(import.meta.dir, '..', '..', 'src/services/engine-connector/daemonConnector.ts'), 'utf8'))
+  const method = (name: string): string => {
+    const at = src.search(new RegExp(`\\n  (?:private |public )?${name}\\(\\): void \\{`))
+    if (at === -1) return ''
+    const open = src.indexOf('{', src.indexOf(`${name}(`, at))
+    let depth = 0
+    for (let i = open; i < src.length; i++) {
+      if (src[i] === '{') depth++
+      else if (src[i] === '}' && --depth === 0) return src.slice(at, i + 1)
+    }
+    return ''
+  }
+  const readTail = method('readTail')
+  const detach = method('detach')
+  check('readTail is a bounded method', readTail.length > 0, 'no readTail(): void method found')
+  const idAt = readTail.indexOf('this.tailStore.setMessageId(')
+  const phaseAt = readTail.indexOf('this.tailStore.setPhase(')
+  const feedAt = readTail.lastIndexOf('this.tailStore.update(() => text)')
+  check('readTail stages the file’s id into the store before every feed', idAt >= 0 && feedAt > idAt, `setMessageId@${idAt} update@${feedAt}`)
+  check('readTail stages the file’s register beside the id, before the feed', phaseAt > idAt && feedAt > phaseAt, `setPhase@${phaseAt}`)
+  check('…and reads them from the tail FILE (assign-or-null, never a cached value)', /setMessageId\(typeof tail\.messageId === 'string' && tail\.messageId !== '' \? tail\.messageId : null\)/.test(readTail) && /setPhase\(tail\.phase === 'commentary' \|\| tail\.phase === 'final_answer' \? tail\.phase : null\)/.test(readTail))
+  check('detach is a bounded method', detach.length > 0, 'no detach(): void method found')
+  const resetAt = detach.indexOf('this.tailStore.reset(null)')
+  const dropAt = detach.indexOf('this.tailStore.dropSettled()')
+  const idNullAt = detach.indexOf('this.tailStore.setMessageId(null)')
+  const phaseNullAt = detach.indexOf('this.tailStore.setPhase(null)')
+  check('detach drops the ghost with the tail (a moment, never a cache)', resetAt >= 0 && dropAt > resetAt, `reset@${resetAt} dropSettled@${dropAt}`)
+  check('…and zeroes the id and register in the SAME detach, after the drop', idNullAt > dropAt && phaseNullAt > idNullAt, `id@${idNullAt} phase@${phaseNullAt}`)
+  check('dropSettled is called nowhere else in the connector (detach is its one scope)', (src.match(/this\.tailStore\.dropSettled\(\)/g) ?? []).length === 1)
   try {
     const store = createStreamingTailStore(timers)
     const stage = (id: string | null) => (store as unknown as { setMessageId(id: string | null): void }).setMessageId(id)

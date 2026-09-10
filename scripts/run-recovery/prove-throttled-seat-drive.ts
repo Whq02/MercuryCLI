@@ -402,7 +402,11 @@ try {
       const cause = arm === 'quiet' ? 'the stream went quiet' : 'the stream dropped'
       const tag = arm === 'quiet' ? 'L4' : 'L5'
       const seatHits = wire().filter(c => c.kind === 'request' && c.arm === arm && c.route === 'seat')
-      check(`${tag} the wire saw the recovery: streamed tries, the non-streamed fallback, then the busy answer and the reply`, seatHits.some(c => c.streaming === false) && wire().some(c => c.kind === 'answered' && c.arm === arm && c.status === 429) && wire().some(c => c.kind === 'answered' && c.arm === arm && c.status === 200 && c.toolResult !== false && c.nth === 2), JSON.stringify(seatHits.map(c => [c.streaming, c.toolResult, c.nth])))
+      const seatAnswers = wire().filter(c => c.kind === 'answered' && c.arm === arm && c.route === 'seat')
+      const afterToolReply = seatAnswers.find(c => c.status === 200 && c.toolResult === true && c.nth === 2)
+      const afterToolRequest = seatHits.find(c => c.toolResult === true && c.nth === 2 && c.streaming === true)
+      check(`${tag} the wire saw the recovery: streamed tries, the non-streamed fallback, then the busy answer and the reply`, seatHits.some(c => c.streaming === false) && seatAnswers.some(c => c.status === 429) && afterToolReply !== undefined, JSON.stringify(seatHits.map(c => [c.streaming, c.toolResult, c.nth])))
+      check(`${tag} the seat's reply answered its own after-tool request (route seat, tool result carried, second try)`, afterToolRequest !== undefined && afterToolReply !== undefined && afterToolReply.streaming === true && afterToolReply.at >= afterToolRequest.at, JSON.stringify(seatAnswers.map(c => [c.status, c.toolResult, c.nth])))
       check(`${tag} the row names the recovery, never a refusal`, leg.waits.some(w => w.startsWith(`${cause} — `) && /up to (\d+ s|\d+m(?: \d+s)?)/.test(w)), leg.waits.join(' | '))
       check(`${tag} the busy answer after the tool call is waited out with the budget whole`, leg.waits.some(w => busy.test(w) && /waiting 1 s/.test(w) && /5 s of the 6s retry budget left$/.test(w)), leg.waits.join(' | '))
       check(`${tag} the seat is never cut and lands`, leg.cut === null && leg.landed, `cut=${leg.cut} landed=${leg.landed}`)

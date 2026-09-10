@@ -12,8 +12,6 @@ for (const k of [
   'MERCURY_BARE',
   'MERCURY_EFFORT_LEVEL',
   'MERCURY_RELEVANT_RECALL',
-  'CLAUDE_TEAM_NAME',
-  'CLAUDE_AGENT_NAME',
   'NODE_ENV',
 ]) {
   delete process.env[k]
@@ -104,14 +102,18 @@ let uuidN = 0
 const nextUuid = (): string =>
   `00000000-0000-4000-8000-${String(++uuidN).padStart(12, '0')}`
 
-async function runTurn(n: number, shape: TurnShape): Promise<void> {
+type TurnEvidence = { calls: number; toolRan: boolean; aborted: boolean; abortedDuringStream: boolean }
+async function runTurn(n: number, shape: TurnShape): Promise<TurnEvidence> {
   const abortController = new AbortController()
   let appState: Record<string, unknown> = {
     ...(getDefaultAppState() as unknown as Record<string, unknown>),
     effortValue: 'high',
   }
   let toolAborted = false
+  let toolRan = false
+  let abortedDuringStream = false
   const tool = makeTool(() => {
+    toolRan = true
     if (shape === 'abort-tools' && !toolAborted) {
       toolAborted = true
       abortController.abort()
@@ -151,12 +153,13 @@ async function runTurn(n: number, shape: TurnShape): Promise<void> {
   let call = 0
   async function* callModel(): AsyncGenerator<unknown> {
     call++
+    if (shape === 'abort-stream' && call === 1) {
+      yield createAssistantMessage({ content: `partial-${n}` })
+      abortController.abort()
+      abortedDuringStream = true
+      return
+    }
     if (shape === 'text' || (shape !== 'tool' && shape !== 'steer' && call > 1)) {
-      if (shape === 'abort-stream' && call === 1) {
-        yield createAssistantMessage({ content: `partial-${n}` })
-        abortController.abort()
-        return
-      }
       yield createAssistantMessage({ content: `reply-${n}-${call}` })
       return
     }
@@ -191,15 +194,29 @@ async function runTurn(n: number, shape: TurnShape): Promise<void> {
   })
   let r = await gen.next()
   while (!r.done) r = await gen.next()
+  return { calls: call, toolRan, aborted: abortController.signal.aborted, abortedDuringStream }
+}
+
+const shapeHolds = (shape: TurnShape, e: TurnEvidence): boolean => {
+  switch (shape) {
+    case 'text': return e.calls === 1 && !e.toolRan && !e.aborted
+    case 'tool': return e.calls === 2 && e.toolRan && !e.aborted
+    case 'abort-stream': return e.calls === 1 && !e.toolRan && e.aborted && e.abortedDuringStream
+    case 'abort-tools': return e.calls === 1 && e.toolRan && e.aborted && !e.abortedDuringStream
+    case 'steer': return e.calls >= 2 && e.toolRan && !e.aborted
+  }
 }
 
 const SHAPES: TurnShape[] = ['text', 'tool', 'abort-stream', 'abort-tools', 'steer']
 const owner = processMainOwner()
+const shapeRuns = new Map<TurnShape, number>()
 
 for (let n = 1; n <= 100; n++) {
   const shape = SHAPES[n % SHAPES.length]!
   pulse.beginPulseTurn({ querySource: 'repl_main_thread' } as never)
-  await runTurn(n, shape)
+  const evidence = await runTurn(n, shape)
+  if (shapeHolds(shape, evidence)) shapeRuns.set(shape, (shapeRuns.get(shape) ?? 0) + 1)
+  else check(`turn ${n}: the ${shape} shape executed as named`, false, JSON.stringify(evidence))
   const gen = pulse.getActivePulseTrace()?.generation
   if (gen !== undefined) {
     phase.setPulsePhase(gen, 'settling')
@@ -217,6 +234,9 @@ for (let n = 1; n <= 100; n++) {
 await new Promise(r => setTimeout(r, 400))
 
 console.log(`  drove 100 turns (${checks} mid-drive checks so far)`)
+for (const shape of SHAPES) {
+  check(`every ${shape} turn executed as named (20 of 100)`, shapeRuns.get(shape) === 20, `ran=${shapeRuns.get(shape) ?? 0}`)
+}
 
 {
   const all = plane.listExecutions(owner)

@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -139,10 +140,32 @@ console.log('L6 the setting is a global config key with a compact default')
 
 console.log('L7 the startup runner registers the migration')
 {
-  const main = readFileSync(join(SRC, 'main.tsx'), 'utf8')
+  const main = codeOnlyText('main.tsx', readFileSync(join(SRC, 'main.tsx'), 'utf8'))
   const runnerAt = main.indexOf('function runMigrationsIfNeeded(')
-  const body = runnerAt === -1 ? '' : main.slice(runnerAt, runnerAt + 3000)
+  const runnerEnd = runnerAt === -1 ? -1 : blockEnd(main, main.indexOf('{', main.indexOf(')', runnerAt)))
+  const body = runnerAt === -1 || runnerEnd === -1 ? '' : main.slice(runnerAt, runnerEnd)
+  check('runMigrationsIfNeeded is a bounded function body', body.length > 0 && body.endsWith('}') && !/\nfunction /.test(body), `${runnerAt}..${runnerEnd}`)
   check('runMigrationsIfNeeded calls migrateVerboseToToolOutput', body.includes('migrateVerboseToToolOutput()'))
+  const migrateAt = body.indexOf('migrateVerboseToToolOutput()')
+  const tryAt = body.indexOf('try {')
+  const catchAt = body.indexOf('} catch (error) {')
+  const versionGateAt = body.indexOf('config.migrationVersion === MIGRATION_VERSION')
+  check('…INSIDE its version-gated try (beside the other settings-relocating migrations), not after it', migrateAt >= 0 && tryAt >= 0 && catchAt >= 0 && versionGateAt >= 0 && migrateAt > tryAt && migrateAt < catchAt && migrateAt > versionGateAt)
+  check('the migration has exactly one call site in main.tsx, and it is that one', (main.match(/migrateVerboseToToolOutput\(\)/g) ?? []).length === 1)
+  check('the runner itself is invoked from the boot path', /\n\s*runMigrationsIfNeeded\(\)/.test(main))
+}
+
+function blockEnd(text: string, openBrace: number): number {
+  let depth = 0
+  for (let i = openBrace; i < text.length; i++) {
+    const ch = text[i]
+    if (ch === '{') depth++
+    else if (ch === '}') {
+      depth--
+      if (depth === 0) return i + 1
+    }
+  }
+  return -1
 }
 
 console.log('\n' + '═'.repeat(76))

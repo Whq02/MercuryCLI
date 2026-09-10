@@ -25,7 +25,14 @@ const COMPOSER_NOMINAL_MS = 4000
 
 export interface TeeWrite {
   ts: number
+  len?: number
   content?: string
+  queuedBytes?: number
+}
+
+export interface PtyRead {
+  ts: number
+  text: string
 }
 
 export interface SendRecord {
@@ -49,10 +56,31 @@ export interface ProbeDump {
 
 const FACE_READY_NEEDLE = '↑↓ choose'
 
+export interface ArenaOutcome {
+  exitCode: number | null
+  signal: NodeJS.Signals | null
+  killedByWall: boolean
+  report: DriverReport | null
+  elapsedMs: number
+  complete: boolean
+  reason: string | null
+}
+
+export interface DriverReport {
+  raw_bytes: number
+  raw_reads: number
+  sends: number
+  unfired: string[]
+  ended: 'deadline' | 'eof' | 'read-error'
+  elapsed_ms: number
+}
+
 export interface ArenaRun {
   fixture: FixtureApi
   teeLines: TeeWrite[]
   sendLog: SendRecord[]
+  ptyReads: PtyRead[]
+  outcome: ArenaOutcome
   probe: ProbeDump | null
   driverOut: string
   anchorShiftMs: number
@@ -176,9 +204,21 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
   let driverOut = ''
   child.stdout.on('data', d => (driverOut += d))
   child.stderr.on('data', d => (driverOut += d))
-  const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(opts.seconds * 1000) + 22_000)
-  await new Promise<void>(resolve => child.on('exit', () => resolve()))
+  const spawnedAt = Date.now()
+  let killedByWall = false
+  const killer = setTimeout(() => {
+    killedByWall = true
+    child.kill('SIGKILL')
+  }, vshotBudgetMs(opts.seconds * 1000) + 22_000)
+  const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(resolve =>
+    child.on('exit', (code, signal) => resolve({ code, signal })),
+  )
+  await new Promise<void>(resolve => child.on('close', () => resolve()))
+  const { code: exitCode, signal } = await exited
   clearTimeout(killer)
+  const elapsedMs = Date.now() - spawnedAt
+  const outcome = driverOutcome({ exitCode, signal, killedByWall, elapsedMs, driverOut })
+  if (!outcome.complete) console.error(`[arena] capture incomplete — ${outcome.reason}`)
 
   await fixture.close()
 
@@ -204,6 +244,9 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
   const sendLog: SendRecord[] = driveRows.filter(
     (r): r is SendRecord => r.sent !== undefined && (r as { after?: string }).after !== FACE_READY_NEEDLE,
   )
+  const ptyReads: PtyRead[] = driveRows
+    .filter((r): r is { ts: number; b64: string } => typeof (r as { ts?: unknown }).ts === 'number' && typeof (r as { b64?: unknown }).b64 === 'string')
+    .map(r => ({ ts: r.ts, text: Buffer.from(r.b64, 'base64').toString('utf8') }))
   const anchorShiftMs = driveRows.find(r => typeof r.anchor === 'number')?.shiftMs ?? 0
   let probe: ProbeDump | null = null
   if (opts.probe && existsSync(probeTee)) {
@@ -226,6 +269,8 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
     fixture,
     teeLines,
     sendLog,
+    ptyReads,
+    outcome,
     probe,
     driverOut,
     anchorShiftMs,
@@ -234,11 +279,76 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
   }
 }
 
+export function driverOutcome(input: {
+  exitCode: number | null
+  signal: NodeJS.Signals | null
+  killedByWall: boolean
+  elapsedMs: number
+  driverOut: string
+}): ArenaOutcome {
+  let report: DriverReport | null = null
+  const lines = input.driverOut.split('\n')
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i]!.trim()
+    if (!line.startsWith('{')) continue
+    try {
+      const rec = JSON.parse(line) as Partial<DriverReport>
+      if (typeof rec.raw_bytes === 'number' && Array.isArray(rec.unfired)) {
+        report = {
+          raw_bytes: rec.raw_bytes,
+          raw_reads: typeof rec.raw_reads === 'number' ? rec.raw_reads : 0,
+          sends: typeof rec.sends === 'number' ? rec.sends : 0,
+          unfired: rec.unfired as string[],
+          ended: rec.ended === 'eof' || rec.ended === 'read-error' ? rec.ended : 'deadline',
+          elapsed_ms: typeof rec.elapsed_ms === 'number' ? rec.elapsed_ms : input.elapsedMs,
+        }
+        break
+      }
+    } catch {}
+  }
+  let reason: string | null = null
+  if (input.killedByWall) reason = `the arena's wall killed the driver after ${input.elapsedMs} ms (no closing report can be trusted)`
+  else if (input.signal !== null) reason = `the driver died by ${input.signal} after ${input.elapsedMs} ms`
+  else if (input.exitCode !== 0) reason = `the driver exited ${input.exitCode} after ${input.elapsedMs} ms: ${input.driverOut.trim().slice(-300)}`
+  else if (report === null) reason = `the driver exited 0 but wrote no closing report: ${input.driverOut.trim().slice(-300)}`
+  else if (report.ended !== 'deadline') reason = `the capture ended by ${report.ended} at ${report.elapsed_ms} ms, before the authored deadline (the child left the pty early)`
+  return {
+    exitCode: input.exitCode,
+    signal: input.signal,
+    killedByWall: input.killedByWall,
+    report,
+    elapsedMs: input.elapsedMs,
+    complete: reason === null,
+    reason,
+  }
+}
+
 
 const ESC_RE = /\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?<=>]*[A-Za-z@`~]|\x1b[()][0-9A-Za-z]|\x1b[A-Za-z=><]/g
 
 export function visibleText(s: string): string {
   return s.replace(ESC_RE, '').replace(/[\s─-╿]+/g, '')
+}
+
+export function firstPtyVisibility(reads: readonly PtyRead[], needle: string, notBefore: number): PtyRead | undefined {
+  let carry = ''
+  for (const r of reads) {
+    const window = (carry + r.text).slice(-4096)
+    if (r.ts >= notBefore && visibleText(window).includes(needle)) return r
+    carry = window
+  }
+  return undefined
+}
+
+export function observedEmissionWindow(emits: readonly { at: number }[]): { start: number; end: number } | null {
+  if (emits.length === 0) return null
+  let start = emits[0]!.at
+  let end = emits[0]!.at
+  for (const e of emits) {
+    if (e.at < start) start = e.at
+    if (e.at > end) end = e.at
+  }
+  return { start, end }
 }
 
 export function pct(xs: number[], p: number): number {

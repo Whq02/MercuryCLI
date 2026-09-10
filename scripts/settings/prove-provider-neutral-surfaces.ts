@@ -178,6 +178,55 @@ section('(4) the /usage gate — UNGATED, proven OpenAI-only')
   )
 }
 
+section('(5) the gate under an ISOLATED credential world (fresh child, file store, no ambient keys)')
+{
+  const { spawnSync } = await import('node:child_process')
+  const CREDENTIAL_ENV = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_REFRESH_TOKEN', 'MERCURY_API_KEY_FILE_DESCRIPTOR', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR', 'MERCURY_API_UNIX_SOCKET', 'OPENAI_API_KEY', 'DEEPSEEK_API_KEY', 'ZAI_API_KEY', 'MOONSHOT_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'HF_TOKEN', 'MERCURY_COMPAT_API_KEY', 'MERCURY_LOCAL_API_KEY', 'MERCURY_HOME']
+  const isolatedWorld = (home: string): Record<string, unknown> => {
+    const env: Record<string, string> = {}
+    for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !CREDENTIAL_ENV.includes(k)) env[k] = v
+    env.MERCURY_CONFIG_DIR = home
+    env.MERCURY_CREDENTIAL_STORE = 'file'
+    env.HOME = home
+    const src = `
+      ;(globalThis).MACRO = { VERSION: '1.0.0' }
+      const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '../../src/utils/config.ts'))})
+      enableConfigs()
+      const { providerFamilyPresences, anyProviderCredentialed } = await import(${JSON.stringify(join(import.meta.dir, '../../src/services/providers/providerUsage.ts'))})
+      const { meetsAvailabilityRequirement } = await import(${JSON.stringify(join(import.meta.dir, '../../src/commands.ts'))})
+      const fams = providerFamilyPresences()
+      console.log(JSON.stringify({
+        credentialed: fams.filter(f => f.credentialed).map(f => f.id),
+        labels: Object.fromEntries(fams.filter(f => f.credentialed).map(f => [f.id, f.credentialLabel ?? null])),
+        any: anyProviderCredentialed(),
+        gate: meetsAvailabilityRequirement({ name: 'usage', description: '', availability: ['any-provider-credential'] }),
+      }))
+    `
+    const res = spawnSync(process.execPath, ['-e', src], { encoding: 'utf8', timeout: 120_000, env })
+    if (res.error) return { childFailed: `spawn error: ${res.error.message}` }
+    if (res.signal) return { childFailed: `killed by ${res.signal}` }
+    if (res.status !== 0) return { childFailed: `exit ${res.status}`, stderr: (res.stderr ?? '').slice(-600) }
+    const line = (res.stdout ?? '').trim().split('\n').filter(Boolean).pop() ?? '{}'
+    try {
+      return JSON.parse(line) as Record<string, unknown>
+    } catch {
+      return { parseError: line }
+    }
+  }
+  const emptyHome = mkdtempSync(join(tmpdir(), 'neutral-surfaces-empty-'))
+  const none = isolatedWorld(emptyHome)
+  check('isolated world, no credentials: the child ran', none.childFailed === undefined && none.parseError === undefined, JSON.stringify(none))
+  check('isolated world, no credentials: NO family is credentialed', Array.isArray(none.credentialed) && (none.credentialed as string[]).length === 0, JSON.stringify(none.credentialed))
+  check('isolated world, no credentials: anyProviderCredentialed() is false and the gate refuses', none.any === false && none.gate === false, JSON.stringify(none))
+  const openaiHome = mkdtempSync(join(tmpdir(), 'neutral-surfaces-openai-'))
+  writeFileSync(join(openaiHome, '.openai-auth.json'), JSON.stringify({ version: 1, tokens: { idToken: '', accessToken: 'fixture-access', refreshToken: 'fixture-refresh', accountId: 'acct_fixture', planType: 'plus' } }))
+  const only = isolatedWorld(openaiHome)
+  check('isolated world, fixture OpenAI only: the child ran', only.childFailed === undefined && only.parseError === undefined, JSON.stringify(only))
+  check('isolated world, fixture OpenAI only: EXACTLY the openai family is credentialed', JSON.stringify(only.credentialed) === '["openai"]', JSON.stringify(only.credentialed))
+  check('…with the provider label the adapter itself reports for the fixture', typeof (only.labels as Record<string, unknown> | undefined)?.openai === 'string' && ((only.labels as Record<string, string>).openai).length > 0, JSON.stringify(only.labels))
+  check('isolated world, fixture OpenAI only: the gate passes on that credential ALONE', only.any === true && only.gate === true, JSON.stringify(only))
+}
+
 console.log('\n' + '='.repeat(60))
 if (failures === 0) {
   console.log(' ✅ provider-neutral surfaces: all green')

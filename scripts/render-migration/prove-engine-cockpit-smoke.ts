@@ -41,17 +41,18 @@ mkdirSync(FIX, { recursive: true })
 writeFileSync(join(FIX, 'README.md'), '# engine cockpit smoke fixture\n')
 
 type Grid = Array<Array<{ c: string }>>
-function drive(leg: 'off' | 'on'): { ok: boolean; detail: string; final: string[]; raw: Buffer } {
-  const home = join(OUT, `home-${leg}`)
+type Drive = { ok: boolean; detail: string; final: string[]; raw: Buffer; endReason: string; endedAtTick: number; lastOutputTick: number }
+function drive(leg: 'off' | 'on', tag = leg, argv: string[] = ['node', BIN]): Drive {
+  const home = join(OUT, `home-${tag}`)
   process.env.ANTHROPIC_API_KEY = 'proof-key-scripted-stream'
   seedFirstRun(home, [FIX, realpathSync(FIX)])
-  const gridPath = join(OUT, `grid-${leg}.json`)
-  const teePath = join(OUT, `raw-${leg}.tee`)
-  const cfgPath = join(OUT, `vshot-${leg}.json`)
+  const gridPath = join(OUT, `grid-${tag}.json`)
+  const teePath = join(OUT, `raw-${tag}.tee`)
+  const cfgPath = join(OUT, `vshot-${tag}.json`)
   writeFileSync(
     cfgPath,
     JSON.stringify({
-      argv: ['node', BIN],
+      argv,
       cwd: FIX,
       cols: 120,
       rows: 40,
@@ -72,10 +73,10 @@ function drive(leg: 'off' | 'on'): { ok: boolean; detail: string; final: string[
     MERCURY_CRITTER_GAZE: '0',
     MERCURY_TABULA_MINERVA: '0',
     MERCURY_CONFIG_DIR: home,
-    MERCURY_DAEMON_DIR: join(OUT, `daemon-${leg}`),
-    MERCURY_TEAMS_DIR: join(OUT, `teams-${leg}`),
-    MERCURY_TABULA_DIR: join(OUT, `tabula-${leg}`),
-    MERCURY_HOME: join(OUT, `mhome-${leg}`),
+    MERCURY_DAEMON_DIR: join(OUT, `daemon-${tag}`),
+    MERCURY_TEAMS_DIR: join(OUT, `teams-${tag}`),
+    MERCURY_TABULA_DIR: join(OUT, `tabula-${tag}`),
+    MERCURY_HOME: join(OUT, `mhome-${tag}`),
     VSHOT_TEE: teePath,
     VISUAL: '',
     EDITOR: '',
@@ -88,8 +89,8 @@ function drive(leg: 'off' | 'on'): { ok: boolean; detail: string; final: string[
     env.MERCURY_ENGINE_ASSERT = '1'
   }
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })
-  if (res.status !== 0) return { ok: false, detail: (res.stderr ?? '').slice(-400), final: [], raw: Buffer.alloc(0) }
-  const payload = JSON.parse(readFileSync(gridPath, 'utf8')) as { grid: Grid; endReason?: string }
+  if (res.status !== 0) return { ok: false, detail: (res.stderr ?? '').slice(-400), final: [], raw: Buffer.alloc(0), endReason: 'vshot-failed', endedAtTick: -1, lastOutputTick: -1 }
+  const payload = JSON.parse(readFileSync(gridPath, 'utf8')) as { grid: Grid; endReason?: string; endedAtTick?: number; lastOutputTick?: number }
   const final = payload.grid.map(r => r.map(c => c.c).join(''))
   const tee = existsSync(teePath) ? readFileSync(teePath) : Buffer.alloc(0)
   const chunks: Buffer[] = []
@@ -100,7 +101,7 @@ function drive(leg: 'off' | 'on'): { ok: boolean; detail: string; final: string[
     chunks.push(tee.subarray(off, off + n))
     off += n
   }
-  return { ok: true, detail: payload.endReason ?? '', final, raw: Buffer.concat(chunks) }
+  return { ok: true, detail: payload.endReason ?? '', final, raw: Buffer.concat(chunks), endReason: payload.endReason ?? '', endedAtTick: payload.endedAtTick ?? -1, lastOutputTick: payload.lastOutputTick ?? -1 }
 }
 
 function tornSequences(raw: Buffer): number {
@@ -163,6 +164,7 @@ for (const leg of ['off', 'on'] as const) {
   check(`${leg}: the capture ran (${r.detail})`, r.ok, r.detail)
   if (!r.ok) continue
   const flat = r.final.join('\n')
+  check(`${leg}: C1 the cockpit outlived the scene — the capture ended on its budget, not on the child's EOF`, r.endReason === 'budget' && r.endedAtTick >= 200, JSON.stringify({ endReason: r.endReason, endedAtTick: r.endedAtTick, lastOutputTick: r.lastOutputTick }))
   check(`${leg}: C1 the cockpit is alive at the end — the composer is back`, r.final.some(l => l.includes('❯')), r.final.slice(-6).join('\n'))
   check(`${leg}: C1 both prompts landed in the transcript`, flat.includes('first smoke prompt') && flat.includes('second smoke prompt'), flat.slice(0, 600))
   const settledCount = countOnGrid(r.final, 'Scripted stream settled')
@@ -173,6 +175,31 @@ for (const leg of ['off', 'on'] as const) {
   check(`${leg}: C3 the raw byte stream has zero torn escape sequences (${r.raw.length} bytes)`, r.raw.length > 0 && torn === 0, `torn=${torn}`)
   if (leg === 'on') {
     check('on: C3 the alt-screen entry left through the door', r.raw.includes('\x1b[?1049h'))
+  }
+}
+
+section('control — a child that exits after its replies must not read as alive')
+{
+  const wrapper = join(OUT, 'exit-after-replies.mjs')
+  writeFileSync(wrapper, [
+    "import { spawn } from 'node:child_process'",
+    "import { existsSync, readFileSync } from 'node:fs'",
+    `const child = spawn('node', [${JSON.stringify(BIN)}], { stdio: 'inherit' })`,
+    'const tee = process.env.VSHOT_TEE',
+    'const started = Date.now()',
+    'setInterval(() => {',
+    "  const settled = tee && existsSync(tee) ? readFileSync(tee, 'latin1').split('settled').length - 1 : 0",
+    '  if (settled >= 2 || Date.now() - started > 37_000) { child.kill(\'SIGKILL\'); process.exit(0) }',
+    '}, 500)',
+    "child.on('exit', () => process.exit(0))",
+    '',
+  ].join('\n'))
+  const r = drive('off', 'control-eof', ['node', wrapper])
+  check('control: the capture itself ran', r.ok, r.detail)
+  if (r.ok) {
+    check('control: the wrapper ended the child after the replies (vshot saw EOF before its budget)', r.endReason === 'eof' && r.endedAtTick < 200, JSON.stringify({ endReason: r.endReason, endedAtTick: r.endedAtTick }))
+    check('control: the composer-only reading still calls the dead cockpit alive (the old C1)', r.final.some(l => l.includes('❯')), r.final.slice(-6).join('\n'))
+    check('control: the budget-end reading calls it dead (the new C1 goes red here)', !(r.endReason === 'budget' && r.endedAtTick >= 200), JSON.stringify({ endReason: r.endReason, endedAtTick: r.endedAtTick }))
   }
 }
 

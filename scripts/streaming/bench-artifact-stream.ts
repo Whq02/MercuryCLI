@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { writeFileSync } from 'node:fs'
-import { pct, runArtifactArena, visibleText } from './artifactArena.ts'
+import { firstPtyVisibility, observedEmissionWindow, pct, runArtifactArena, visibleText } from './artifactArena.ts'
 
 const WORDS = 'stream frame cadence settle anchor lattice glyph honest state viewport'.split(' ')
 const deltas: string[] = []
@@ -44,12 +44,23 @@ for (const e of run.fixture.pacedEmits) {
 
 const echo: number[] = []
 let echoMisses = 0
+const emission = observedEmissionWindow(run.fixture.pacedEmits)
+let echoOutsideStream = 0
+const echoPty: number[] = []
+let echoPtyMisses = 0
 for (const s of run.sendLog) {
   const g = Buffer.from(s.b64, 'base64').toString('utf8')
   if (!GLYPHS.includes(g)) continue
+  if (emission === null || s.sent < emission.start || s.sent > emission.end) {
+    echoOutsideStream++
+    continue
+  }
   const hit = vis.find(t => t.ts >= s.sent && t.v.includes(g))
   if (hit) echo.push(hit.ts - s.sent)
   else echoMisses++
+  const read = firstPtyVisibility(run.ptyReads, g, s.sent)
+  if (read) echoPty.push(read.ts - s.sent)
+  else echoPtyMisses++
 }
 
 const firstEmit = run.fixture.pacedEmits[0]
@@ -65,12 +76,17 @@ const result = {
   requests: run.fixture.requests.map(r => `${r.method} ${r.path}`),
   deltasEmitted: run.fixture.pacedEmits.length,
   sentinels: { n: lat.length, of: SENTINELS, misses, p50: pct(lat, 50), p95: pct(lat, 95), max: lat.length ? Math.max(...lat) : -1 },
-  echoDuringStream: { n: echo.length, misses: echoMisses, p50: pct(echo, 50), p95: pct(echo, 95), max: echo.length ? Math.max(...echo) : -1 },
+  echoDuringStream: { n: echo.length, misses: echoMisses, outsideStream: echoOutsideStream, p50: pct(echo, 50), p95: pct(echo, 95), max: echo.length ? Math.max(...echo) : -1, unit: 'send → tee enqueue (ms)' },
+  echoPtyReadDuringStream: { n: echoPty.length, misses: echoPtyMisses, p50: pct(echoPty, 50), p95: pct(echoPty, 95), max: echoPty.length ? Math.max(...echoPty) : -1, unit: 'send → driver pty read (ms)' },
+  emissionWindow: emission === null ? null : { start: emission.start, end: emission.end, ms: emission.end - emission.start },
   firstOutputMs: firstOut,
+  firstOutputUnit: 'first fixture delta emit → first tee enqueue whose visible text carries that delta (ms)',
+  capture: run.outcome,
   writes: run.teeLines.length,
 }
+if (!run.outcome.complete) console.error(`✗ capture incomplete — ${run.outcome.reason}`)
 console.log(
-  `artifact-stream  sentinel p50/p95/max ${result.sentinels.p50}/${result.sentinels.p95}/${result.sentinels.max}ms (n=${result.sentinels.n}/${result.sentinels.of}${misses ? ` MISS=${misses}` : ''}) · echo-during-stream p50/p95/max ${result.echoDuringStream.p50}/${result.echoDuringStream.p95}/${result.echoDuringStream.max}ms (n=${result.echoDuringStream.n}${echoMisses ? ` MISS=${echoMisses}` : ''}) · firstOut ${result.firstOutputMs}ms · deltas ${result.deltasEmitted} · writes ${result.writes} · requests ${result.requests.length}`,
+  `artifact-stream  sentinel p50/p95/max ${result.sentinels.p50}/${result.sentinels.p95}/${result.sentinels.max}ms (n=${result.sentinels.n}/${result.sentinels.of}${misses ? ` MISS=${misses}` : ''}) · echo-during-stream p50/p95/max ${result.echoDuringStream.p50}/${result.echoDuringStream.p95}/${result.echoDuringStream.max}ms (n=${result.echoDuringStream.n}${echoMisses ? ` MISS=${echoMisses}` : ''}${echoOutsideStream ? ` outside-stream=${echoOutsideStream}` : ''}; pty-read p50/p95 ${result.echoPtyReadDuringStream.p50}/${result.echoPtyReadDuringStream.p95}ms n=${result.echoPtyReadDuringStream.n}) · firstOut ${result.firstOutputMs}ms · deltas ${result.deltasEmitted} · writes ${result.writes} · requests ${result.requests.length}`,
 )
 
 const jsonAt = process.argv.indexOf('--json')

@@ -129,10 +129,12 @@ async function streamAnthropic(res) {
 
 const server = http.createServer(async (req, res) => {
   const t = new Date().toISOString();
-  let body = "";
-  req.on("data", (d) => (body += d));
+  const raw = [];
+  req.on("data", (d) => raw.push(d));
   req.on("end", async () => {
-    console.error(`[fixture ${t}] ${req.method} ${req.url} bytes=${body.length} wall_ms=${Date.now()}`);
+    const bodyBytes = Buffer.concat(raw);
+    const body = bodyBytes.toString("utf8");
+    console.error(`[fixture ${t}] ${req.method} ${req.url} bytes=${bodyBytes.length} wall_ms=${Date.now()}`);
     try {
       if (req.method === "GET" && req.url.includes("/models")) {
         res.writeHead(200, { "content-type": "application/json" });

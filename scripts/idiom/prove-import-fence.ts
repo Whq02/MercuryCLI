@@ -33,7 +33,6 @@ const ALLOWLIST = [
   'src/services/providers/anthropic/requestParams.ts',
   'src/services/providers/anthropic/streamCore.ts',
   'src/services/api/client.ts',
-  'src/services/api/dumpPrompts.ts',
   'src/services/api/errors.ts',
   'src/services/api/errorUtils.ts',
   'src/services/api/logging.ts',

@@ -32,7 +32,6 @@ import { isAgentSwarmsEnabled } from '../agentSwarmsEnabled.js'
 import { type Attachment, memoryHeader } from '../attachments.js'
 import { quote } from '../bash/shellQuote.js'
 import { getCurrentProjectConfig } from '../config.js'
-import { logAntError } from '../debug.js'
 import { hasEmbeddedSearchTools } from '../embeddedTools.js'
 import { formatFileSize, formatNumber } from '../format.js'
 import { logMCPDebug } from '../log.js'
@@ -1214,12 +1213,6 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
     return []
   }
 
-  logAntError(
-    'normalizeAttachmentForAPI',
-    new Error(
-      `Unknown attachment type: ${(attachment as { type: string }).type}`,
-    ),
-  )
   return []
 }
 

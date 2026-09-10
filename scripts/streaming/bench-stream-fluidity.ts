@@ -32,8 +32,11 @@ if (process.env.MEASURE_CHILD) {
     deltas: number
     sentinelMs: { p50: number; p95: number; max: number; n: number; misses: number }
     firstOutputMs: number
+    firstOutputUnit: string
+    bytesUnit: string
     finalTextComplete: boolean
-    echoMs?: { p50: number; p95: number; max: number; n: number; misses: number }
+    echoMs?: { p50: number; p95: number; max: number; n: number; misses: number; outsideStream: number }
+    echoPtyReadMs?: { p50: number; p95: number; max: number; n: number; misses: number }
   }
   const results: SceneResult[] = []
 
@@ -97,6 +100,9 @@ if (process.env.MEASURE_CHILD) {
       tailCommits: number
       deltas: number
       sentinelEmit: Record<string, number>
+      firstDeltaEmitAt: number
+      firstDeltaText: string
+      lastDeltaEmitAt: number
       fullTextTail: string
       firstDeltaAt: number
     }
@@ -113,12 +119,13 @@ if (process.env.MEASURE_CHILD) {
           })
           .filter((x): x is { ts: number; len: number; content?: string } => x !== null)
       : []
+    const utf8Bytes = (t: { len: number; content?: string }): number => (t.content !== undefined ? Buffer.byteLength(t.content, 'utf8') : t.len)
 
     const windowStart = child.firstDeltaAt
     const windowEnd = child.endedAt
     const windowMs = Math.max(1, windowEnd - windowStart)
     const inWindow = teeLines.filter(t => t.ts >= windowStart && t.ts <= windowEnd)
-    const bytes = inWindow.reduce((a, t) => a + t.len, 0)
+    const bytes = inWindow.reduce((a, t) => a + utf8Bytes(t), 0)
 
     const vis = teeLines.map(t => ({ ts: t.ts, v: t.content ? visible(t.content) : '' }))
     const lat: number[] = []
@@ -128,12 +135,15 @@ if (process.env.MEASURE_CHILD) {
       if (hit) lat.push(hit.ts - emitTs)
       else misses++
     }
-    const firstOut = teeLines.find(t => t.ts >= windowStart && (t.content?.length ?? t.len) > 0)
-    const firstOutputMs = firstOut ? firstOut.ts - windowStart : -1
+    const firstNeedle = visible(child.firstDeltaText ?? '')
+    const firstEmit = child.firstDeltaEmitAt || windowStart
+    const firstOut = firstNeedle.length > 0 ? vis.find(t => t.ts >= firstEmit && t.v.includes(firstNeedle)) : undefined
+    const firstOutputMs = firstOut ? firstOut.ts - firstEmit : -1
 
     const finalTextComplete = vis.some(t => t.v.includes(FIN))
 
     let echoMs: SceneResult['echoMs']
+    let echoPtyReadMs: SceneResult['echoPtyReadMs']
     if (isTyping && existsSync(drive)) {
       const sends = readFileSync(drive, 'utf8')
         .split('\n')
@@ -146,15 +156,49 @@ if (process.env.MEASURE_CHILD) {
           }
         })
         .filter((x): x is { sent: number; b64: string } => x?.sent !== undefined)
+      const reads = readFileSync(drive, 'utf8')
+        .split('\n')
+        .filter(Boolean)
+        .map(l => {
+          try {
+            return JSON.parse(l) as { ts?: number; b64?: string }
+          } catch {
+            return null
+          }
+        })
+        .filter((x): x is { ts: number; b64: string } => typeof x?.ts === 'number' && typeof x?.b64 === 'string')
+        .map(r => ({ ts: r.ts, text: Buffer.from(r.b64, 'base64').toString('utf8') }))
       const eLat: number[] = []
       let eMiss = 0
+      let eOutside = 0
+      const pLat: number[] = []
+      let pMiss = 0
+      const emitStart = child.firstDeltaEmitAt || windowStart
+      const emitEnd = child.lastDeltaEmitAt || windowEnd
       for (const s of sends) {
         const glyph = Buffer.from(s.b64, 'base64').toString('utf8')
+        if (s.sent < emitStart || s.sent > emitEnd) {
+          eOutside++
+          continue
+        }
         const hit = vis.find(t => t.ts >= s.sent && t.v.includes(glyph))
         if (hit) eLat.push(hit.ts - s.sent)
         else eMiss++
+        let carry = ''
+        let read: { ts: number } | undefined
+        for (const r of reads) {
+          const window = (carry + r.text).slice(-4096)
+          if (r.ts >= s.sent && visible(window).includes(glyph)) {
+            read = r
+            break
+          }
+          carry = window
+        }
+        if (read) pLat.push(read.ts - s.sent)
+        else pMiss++
       }
-      echoMs = { p50: pct(eLat, 50), p95: pct(eLat, 95), max: eLat.length ? Math.max(...eLat) : -1, n: eLat.length, misses: eMiss }
+      echoMs = { p50: pct(eLat, 50), p95: pct(eLat, 95), max: eLat.length ? Math.max(...eLat) : -1, n: eLat.length, misses: eMiss, outsideStream: eOutside }
+      echoPtyReadMs = { p50: pct(pLat, 50), p95: pct(pLat, 95), max: pLat.length ? Math.max(...pLat) : -1, n: pLat.length, misses: pMiss }
     }
 
     const r: SceneResult = {
@@ -168,13 +212,16 @@ if (process.env.MEASURE_CHILD) {
       deltas: child.deltas,
       sentinelMs: { p50: pct(lat, 50), p95: pct(lat, 95), max: lat.length ? Math.max(...lat) : -1, n: lat.length, misses },
       firstOutputMs,
+      firstOutputUnit: 'first delta emit → first tee enqueue whose visible text carries that delta (ms)',
+      bytesUnit: 'UTF-8 bytes of the full tee content per second (tee.len is UTF-16 units)',
       finalTextComplete,
       ...(echoMs ? { echoMs } : {}),
+      ...(echoPtyReadMs ? { echoPtyReadMs } : {}),
     }
     results.push(r)
     console.log(
       `${scene.padEnd(20)} writes/s ${String(r.writesPerSec).padStart(6)} · bytes/s ${String(r.bytesPerSec).padStart(7)} · rootCommits ${String(r.rootCommits).padStart(4)} · tailCommits ${String(r.tailCommits).padStart(4)} · sentinel p50/p95/max ${r.sentinelMs.p50}/${r.sentinelMs.p95}/${r.sentinelMs.max}ms (n=${r.sentinelMs.n}${r.sentinelMs.misses ? ` MISS=${r.sentinelMs.misses}` : ''}) · firstOut ${r.firstOutputMs}ms · complete=${r.finalTextComplete}` +
-        (echoMs ? ` · echo p50/p95/max ${echoMs.p50}/${echoMs.p95}/${echoMs.max}ms (n=${echoMs.n}${echoMs.misses ? ` MISS=${echoMs.misses}` : ''})` : ''),
+        (echoMs ? ` · echo p50/p95/max ${echoMs.p50}/${echoMs.p95}/${echoMs.max}ms (n=${echoMs.n}${echoMs.misses ? ` MISS=${echoMs.misses}` : ''}${echoMs.outsideStream ? ` outside-stream=${echoMs.outsideStream}` : ''}${echoPtyReadMs ? `; pty-read p50/p95 ${echoPtyReadMs.p50}/${echoPtyReadMs.p95}ms n=${echoPtyReadMs.n}` : ''})` : ''),
     )
     rmSync(dir, { recursive: true, force: true })
   }

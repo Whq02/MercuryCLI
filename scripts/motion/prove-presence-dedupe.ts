@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, statSync, utimesSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -30,7 +30,7 @@ if (!process.env.GLIDE_PRESENCE_INNER) {
   }
   process.exit(0)
 }
-const { getPresenceVersion, recordSelfPresence, subscribePresence, tailPresence } =
+const { getLivePresence, getPresenceVersion, recordSelfPresence, subscribePresence, tailPresence, STALE_MS } =
   await import('../../src/utils/cockpit/presenceLive.ts')
 const { channelsRoot } = await import('../../src/services/mcp/channelsRoot.ts')
 
@@ -57,25 +57,34 @@ check('a self-only room stays a no-change tail', getPresenceVersion() === 0 && n
 
 const dir = join(channelsRoot(), 'glide-dedupe-proof', 'presence')
 mkdirSync(dir, { recursive: true })
+const file = join(dir, 'friend.json')
 const peer = (ts: number, verb = 'editing'): void =>
-  writeFileSync(join(dir, 'friend.json'), JSON.stringify({ seat: 'friend', verb, branch: 'main', lastLine: '', ts }))
+  writeFileSync(file, JSON.stringify({ seat: 'friend', verb, branch: 'main', lastLine: '', ts }))
+const beat = (atMs: number): void => utimesSync(file, atMs / 1000, atMs / 1000)
 peer(Date.now())
 tailPresence()
 check('a new peer bumps + notifies once', getPresenceVersion() === 1 && notifies === 1, `v=${getPresenceVersion()} n=${notifies}`)
+check('…and the live set is exactly that peer', getLivePresence().map(s => s.seat).join(',') === 'friend', getLivePresence().map(s => s.seat).join(','))
 
 tailPresence()
 tailPresence()
 check('an unchanged peer never re-notifies', getPresenceVersion() === 1 && notifies === 1, `v=${getPresenceVersion()} n=${notifies}`)
 
-peer(Date.now() + 5)
+const firstBeat = Math.round(statSync(file).mtimeMs)
+beat(firstBeat + 3_000)
 tailPresence()
-check('a heartbeat ts refresh notifies', getPresenceVersion() === 2 && notifies === 2)
+check('a heartbeat (mtime touch, no rewrite) notifies', getPresenceVersion() === 2 && notifies === 2, `v=${getPresenceVersion()} n=${notifies}`)
+check('a touch within the same millisecond is NOT a heartbeat (the rounded mtime is the ts)', (() => { beat(firstBeat + 3_000); tailPresence(); return getPresenceVersion() === 2 && notifies === 2 })(), `v=${getPresenceVersion()} n=${notifies}`)
 
 peer(Date.now() - 60_000)
 tailPresence()
-check('a stale-dropped peer notifies the departure', getPresenceVersion() === 3 && notifies === 3)
+check('a fresh snapshot carrying an old JSON ts is still LIVE (liveness is the mtime)', getPresenceVersion() === 3 && notifies === 3, `v=${getPresenceVersion()} n=${notifies}`)
+
+beat(Date.now() - STALE_MS - 1_000)
 tailPresence()
-check('the emptied room settles back to no-change tails', getPresenceVersion() === 3 && notifies === 3)
+check('a stale-dropped peer notifies the departure', getPresenceVersion() === 4 && notifies === 4 && getLivePresence().length === 0, `v=${getPresenceVersion()} n=${notifies} live=${getLivePresence().length}`)
+tailPresence()
+check('the emptied room settles back to no-change tails', getPresenceVersion() === 4 && notifies === 4 && getLivePresence().length === 0, `v=${getPresenceVersion()} n=${notifies} live=${getLivePresence().length}`)
 
 console.log(failures === 0 ? '✅ presence-dedupe GREEN' : `❌ presence-dedupe RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

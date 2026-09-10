@@ -58,13 +58,23 @@ try {
     const a = join(scratch, 'mercury-site')
     const b = join(scratch, 'mercury_site')
     check(
-      'H-15: sanitize-collapsed siblings mint DISTINCT slugs (short content hash — injective by construction)',
+      'H-15: sanitize-collapsed siblings mint DISTINCT slugs (the short content hash separates THIS collision pair; 8 hex chars is not global injectivity)',
       sanitizePath(a) === sanitizePath(b) && projectSlug(a) !== projectSlug(b),
       `sanitized=${sanitizePath(a)} slugs=${projectSlug(a)} vs ${projectSlug(b)}`,
     )
     check(
-      'H-15: the hash is cross-runtime stable (node:crypto sha256, 8 hex chars — never Bun.hash)',
-      /^[0-9a-f]{8}$/.test(shortProjectHash(a)),
+      'H-15: the slug is the sanitized spelling, a hyphen, then the 8-hex hash of the SAME canonical string',
+      projectSlug(a) === `${sanitizePath(a)}-${shortProjectHash(a)}` && /^[0-9a-f]{8}$/.test(shortProjectHash(a)),
+      projectSlug(a),
+    )
+    check(
+      'H-15: the hash is a known sha256 prefix (reference value computed outside this runtime): sha256("/w/mercury-site")[0..8] = ff341ac9',
+      shortProjectHash('/w/mercury-site') === 'ff341ac9' && shortProjectHash('/w/mercury_site') !== 'ff341ac9',
+      `${shortProjectHash('/w/mercury-site')} / ${shortProjectHash('/w/mercury_site')}`,
+    )
+    check(
+      'H-15: the hash is deterministic across calls and sensitive to one byte',
+      shortProjectHash(a) === shortProjectHash(a) && shortProjectHash(a) !== shortProjectHash(`${a}x`),
     )
     const fresh = join(scratch, 'h15-fresh-project')
     check(
