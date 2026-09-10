@@ -155,6 +155,7 @@ const FACE_ACK = 'copied to clipboard'
 const CARD_HINT = 'press c to copy the URL'
 const CARD_ACK = 'Copied to clipboard'
 const ESC = '\x1b'
+const DOWN = '\x1b[B'
 async function typeAbc(m: Mounted): Promise<void> {
   m.push('a')
   await settle(60)
@@ -178,7 +179,9 @@ section('§1 the Boot face’s logins layer — one c, one copy, an empty draft'
     }),
   )
   const rosterUp = await waitFor(() => m.screen().includes(ROSTER_LEGEND) && m.screen().includes('Claude subscription account'), 4000)
-  check('the roster mounted with the Claude row first', rosterUp)
+  check('the roster mounted with the OpenAI row leading and the Claude row under it', rosterUp && m.screen().indexOf('OpenAI') < m.screen().indexOf('Claude subscription account'))
+  m.push(DOWN)
+  await settle(200)
   m.push('\r')
   const promptUp = await waitFor(() => m.screen().includes(FACE_HINT), 8000)
   check('↵ opened the Anthropic flow and the paste prompt came up', promptUp, promptUp ? '' : m.screen().split('\n').filter(l => l.includes('│')).slice(4, 12).map(l => l.trim()).join(' | '))
