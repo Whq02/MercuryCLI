@@ -115,7 +115,6 @@ src/services/instructions/discovery.ts :: excludeResolutionMemo :: invalidator=c
 src/services/instructions/discovery.ts :: rulesDirListingCaches :: ttl-bounded
 src/services/instructions/engine.ts :: cacheInvalidationListeners :: static-for-process
 src/services/instructions/engine.ts :: getInstructionFiles :: invalidator=clearInstructionFileCaches
-src/services/internalLogging.ts :: getContainerId :: static-for-process
 src/services/lsp/clangdLane.ts :: probeCache :: ttl-bounded
 src/services/lsp/pyrightLane.ts :: probeCache :: ttl-bounded
 src/services/lsp/ruffLane.ts :: versionCache :: ttl-bounded

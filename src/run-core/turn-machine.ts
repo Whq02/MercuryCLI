@@ -94,7 +94,6 @@ import {
   collectRefusedToolCalls,
   toolCallRefusalCorrection,
 } from '../services/providers/toolCallGate.js'
-import { logAntError } from '../utils/debug.js'
 import {
   createUserMessage,
   createUserInterruptionMessage,
@@ -764,7 +763,6 @@ async function* streamModel(
       }),
     })
 
-    logAntError('Query error', error)
     return { kind: 'terminal', terminal: { reason: 'model_error', error } }
   }
 

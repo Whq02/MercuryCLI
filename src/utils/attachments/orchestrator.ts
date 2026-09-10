@@ -18,7 +18,6 @@ import {
   setPulsePhase,
 } from '../pulse/index.js'
 import { isAgentSwarmsEnabled } from '../agentSwarmsEnabled.js'
-import { logAntError } from '../debug.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { logError } from '../log.js'
 import { getDiagnosticAttachments, getLSPDiagnosticAttachments } from './diagnostics.js'
@@ -414,7 +413,6 @@ export function makeMaybe(record: boolean, deadlineAt: number): MaybeFn {
       const duration = pulseNow() - startTime
       if (record) recordPulseProducer(label, duration, 'error', 0)
       logError(e)
-      logAntError(`Attachment error in ${label}`, e)
 
       return []
     }
