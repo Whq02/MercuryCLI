@@ -53,11 +53,15 @@ config.enableConfigs()
 const clock = Date.now
 let now = clock()
 Date.now = () => now
+const sampled = async (before: number): Promise<boolean> => {
+  for (let turns = 0; turns < 50 && samples === before; turns++) await new Promise<void>(resolve => setImmediate(resolve))
+  return samples === before + 1
+}
 const vmStat = (pages: number): string => `Mach Virtual Memory Statistics: (page size of 4096 bytes)\nPages free: ${pages}.\nPages inactive: 0.\n`
 try {
   const first = cap.seatCeilingFactsAsync()
   const second = cap.seatCeilingFactsAsync()
-  check('overlapping refreshes share one asynchronous sample', samples === 1 && syncCalls === 0)
+  check('overlapping refreshes share one asynchronous sample, taken off the asking path', samples === 0 && syncCalls === 0 && await sampled(0))
   let eventRan = false
   await new Promise<void>(resolve => setImmediate(() => { eventRan = true; resolve() }))
   check('other events run while capacity is unresolved', eventRan && release !== undefined)
@@ -67,12 +71,16 @@ try {
   now += 6000
   const detail = cap.seatCeilingDetailLines(a)
   check('formatting a captured reading never samples again', syncCalls === 0 && samples === 1 && detail.some(line => line.includes('GB available')))
+  const sampledBeforeLower = samples
   const lower = cap.seatCeilingFactsAsync()
+  check('a lapsed reading takes its sample off the asking path, one turn later', samples === sampledBeforeLower && await sampled(sampledBeforeLower))
   release?.({ code: 0, stdout: vmStat(98304), stderr: '' })
   const held = await lower
   check('a lower sample preserves the existing high-water reading and its inputs', held.seats === 4 && held.sample?.availableBytes === a.sample?.availableBytes)
   now += 6000
+  const sampledBeforeHigher = samples
   const higher = cap.seatCeilingFactsAsync()
+  check('the next lapsed reading samples off the asking path too', await sampled(sampledBeforeHigher))
   release?.({ code: 0, stdout: vmStat(589824), stderr: '' })
   check('a higher sample raises the existing reading', (await higher).seats === 6)
   cap.setOperatorSeats(9)
