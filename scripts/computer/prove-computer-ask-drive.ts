@@ -21,7 +21,7 @@ for (const size of SIZES) {
   )
   const res = drive(driver, leg, size, [
     ...OPENING('click the document'),
-    { requireAwait: true, awaitText: CARD_NEEDLE, awaitStableTicks: 2, mark: 'card', data: '\r' },
+    { requireAwait: true, awaitText: 'first act', awaitStableTicks: 2, mark: 'card', data: '\r' },
     { requireAwait: true, awaitText: 'hands off', awaitStableTicks: 1, mark: 'driving', data: '' },
     { requireAwait: true, awaitText: 'Done.', awaitStableTicks: 3, mark: 'done', data: '' },
   ], 240)
