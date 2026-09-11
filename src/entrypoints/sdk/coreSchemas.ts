@@ -1104,6 +1104,14 @@ export const SDKMissionUpdatedMessageSchema = lazySchema(() =>
     session_id: z.string(),
   }),
 )
+export const SDKSamplesUpdatedMessageSchema = lazySchema(() =>
+  z.object({
+    type: z.literal('system'),
+    subtype: z.literal('samples_updated'),
+    uuid: z.string(),
+    session_id: z.string(),
+  }),
+)
 export const SDKRequestWaitSchema = lazySchema(() =>
   z.union([
     z.object({
@@ -1323,6 +1331,7 @@ export const SDKMessageSchema = lazySchema(() =>
     SDKStatusMessageSchema(),
     SDKTurnStartedMessageSchema(),
     SDKMissionUpdatedMessageSchema(),
+    SDKSamplesUpdatedMessageSchema(),
     SDKAPIRetryMessageSchema(),
     SDKHookStartedMessageSchema(),
     SDKHookProgressMessageSchema(),

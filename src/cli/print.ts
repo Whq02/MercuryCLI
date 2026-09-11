@@ -112,7 +112,9 @@ import { isMcpCatalogueMember } from '../services/mcp/membership.js'
 import { applyProcessSessionKitEdit, completeProcessSessionKit, sessionKitOf, setProcessSessionKit } from '../services/mcp/sessionKitPin.js'
 import { kitDialCandidates, kitEditMcpDelta, dropMcpServerFromAppState } from '../services/mcp/kitDial.js'
 import { validateSessionKit } from '../daemon/sessionKit.js'
-import { MISSION_UPDATED_SUBTYPE, missionUpdatedFrame, TURN_STARTED_SUBTYPE, turnStartedFrame } from '../daemon/runnerFrames.js'
+import { MISSION_UPDATED_SUBTYPE, missionUpdatedFrame, SAMPLES_UPDATED_SUBTYPE, samplesUpdatedFrame, TURN_STARTED_SUBTYPE, turnStartedFrame } from '../daemon/runnerFrames.js'
+import { sampleRowsOf } from '../services/samples/facts.js'
+import { subscribeSampleChanges } from '../services/samples/store.js'
 import {
   latchSessionScheduleRoster,
   markScheduleSeatObserved,
@@ -439,6 +441,17 @@ export async function runHeadless(
         io.outbound.enqueue(missionUpdatedFrame(getSessionId(), randomUUID()))
       }, 50)
       missionTimer.unref?.()
+    })
+  }
+  {
+    let samplesTimer: NodeJS.Timeout | null = null
+    subscribeSampleChanges(() => {
+      if (samplesTimer !== null) return
+      samplesTimer = setTimeout(() => {
+        samplesTimer = null
+        io.outbound.enqueue(samplesUpdatedFrame(getSessionId(), randomUUID()))
+      }, 50)
+      samplesTimer.unref?.()
     })
   }
   if (options.outputFormat === 'stream-json') {
@@ -1369,6 +1382,7 @@ export async function runHeadless(
   const EXCLUDED_SYSTEM_SUBTYPES = new Set([
     TURN_STARTED_SUBTYPE,
     MISSION_UPDATED_SUBTYPE,
+    SAMPLES_UPDATED_SUBTYPE,
     'session_state_changed',
     'task_notification',
     'task_started',
@@ -1905,6 +1919,7 @@ export async function runHeadless(
               ...(task.blockedBy.length > 0 ? { blockedBy: task.blockedBy } : {}),
               ...(missionLedgerOf(task.metadata) !== undefined ? { ledger: missionLedgerOf(task.metadata) } : {}),
             })),
+            samples: await sampleRowsOf(getSessionId()),
             ...(sessionKitOf() !== undefined ? { kit: sessionKitOf() } : {}),
             ...((): Record<string, unknown> => {
               const edits = takePendingScheduleEdits()

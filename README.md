@@ -353,7 +353,7 @@ catalogue, grouped the way `/help` groups it:
 
 | Domain | Commands |
 | --- | --- |
-| current work | `/run` `/tasks` `/workbench` `/diff` `/mission` `/themis` `/supervisor` |
+| current work | `/run` `/tasks` `/workbench` `/diff` `/mission` `/samples` `/themis` `/supervisor` |
 | crew & delegation | `/agents` `/subagents` `/teammates` `/crew` `/team` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/seats` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
 | session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/cost` `/usage` `/insights` `/debrief` `/add-dir` `/realms` |
 | memory & goals | `/memory` `/cards` `/remember` `/tabula` `/note` `/minerva` `/console` `/orient` |

@@ -35,10 +35,16 @@ font.
 
 ## Opening a sample
 
-Each sample is a row under the composer with its own mark and the name the
-model gave it; Enter opens it in your browser. `/samples` lists the
-session's samples, newest first — `title · v<N> · state` — and Enter opens
-the one you pick.
+In the full layout a sample takes a berth in the SESSIONS bar beside this
+session — its mark, the name the model gave it and its version — and a
+click opens it in your browser. In the compact layout the line under the
+composer counts the session's samples (`· 1 sample`), and the detail view
+that line opens lists them; Enter on one opens it. `/samples` lists the
+session's samples, newest first — the name, `v<N>`, the state and when it
+last changed — and Enter opens the one you pick, esc returns. A new sample
+or a new version shows up on its own: the session's runner relays its
+samples with the rest of its facts. The page shows the sample's versions
+with a switcher; while the tab is open it refreshes as the model redraws.
 
 The page is served to this machine only, in the website's own language:
 a bar with the sample's name, its state and a version switcher (← and →
