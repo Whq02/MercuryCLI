@@ -242,6 +242,14 @@ section('§6 the seat verb — idle applies, busy parks, the idle edge drains, t
     patchSeatEffort: () => true,
   }
   const settled = (): Promise<void> => new Promise(r => setTimeout(r, 120))
+  const until = async (seen: () => boolean, budgetMs = 5_000): Promise<boolean> => {
+    const deadline = Date.now() + budgetMs
+    while (!seen()) {
+      if (Date.now() >= deadline) return false
+      await new Promise(r => setTimeout(r, 20))
+    }
+    return true
+  }
   const toggles = (): Array<{ subtype?: string; switch?: string; on?: boolean }> => frames.filter(f => f.subtype === 'spawn_switch')
   const rec = (): ReturnType<typeof sup.readSessionWorkers>[string] | undefined => sup.readSessionWorkers(recDir)[short]
 
@@ -260,8 +268,8 @@ section('§6 the seat verb — idle applies, busy parks, the idle edge drains, t
   check("busy: the toggle parks with the honest 'queued' line", queued.outcome === 'queued' && queued.detail === sw.spawnSwitchToggleReceipt('subagents', true, 'queued') && (queued.detail ?? '').includes('applies when this turn ends'), j(queued))
   check('…the record parks it and still reads off', rec()?.pendingSpawnSwitches?.length === 1 && rec()?.pendingSpawnSwitches?.[0]?.on === true && rec()?.spawnSwitches?.subagents === 'off')
   check('…no frame reached the child yet (a running spawn is never touched)', toggles().length === 1)
-  await settled()
-  check('…the facts say a toggle is parked', readSessionFacts(sid, recDir)?.pendingSpawnSwitches?.[0]?.on === true)
+  const parkedSeen = await until(() => readSessionFacts(sid, recDir)?.pendingSpawnSwitches?.[0]?.on === true)
+  check('…the facts say a toggle is parked', parkedSeen, j(readSessionFacts(sid, recDir)?.pendingSpawnSwitches))
   const parkedAgain = seat.setSessionSpawnSwitch(sid, { kind: 'subagents', on: true }, 'operator', roster, recDir)
   check('the parked state decides noop (asking again for the parked value)', parkedAgain.outcome === 'noop')
   busy = false
