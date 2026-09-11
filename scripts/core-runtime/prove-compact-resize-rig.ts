@@ -214,6 +214,25 @@ for (const editorMode of ['emacs', 'vim'] as const) {
     stdin.push('\u0018\u0012')
     await until(`${editorMode}: next-macrotask redo restores the paste exactly`, () => pending.text() === 'prepaint pasted')
     console.log(`${editorMode} next-macrotask paste history ${JSON.stringify({ prepaintObserved, text: pending.text() })}`)
+    insertRef.current!.setInputWithCursor('prepaint ', 9)
+    await until(`${editorMode}: the check-phase baseline is painted`, () => ink.lastFrameText().includes('❯ prepaint') && !ink.lastFrameText().includes('prepaint pasted'))
+    let checkPhaseObserved = false
+    let checkPhaseUndoPushed = false
+    const pollUndo = (): void => {
+      if (pending.text() === 'prepaint pasted') {
+        checkPhaseObserved = !ink.lastFrameText().includes('prepaint pasted')
+        checkPhaseUndoPushed = true
+        stdin.push('\u001f')
+        return
+      }
+      setImmediate(pollUndo)
+    }
+    setImmediate(pollUndo)
+    stdin.push('\u001b[200~pasted\u001b[201~')
+    await until(`${editorMode}: check-phase undo restores the pre-paste document`, () => checkPhaseUndoPushed && pending.text() === 'prepaint ')
+    stdin.push('\u0018\u0012')
+    await until(`${editorMode}: check-phase redo restores the paste exactly`, () => pending.text() === 'prepaint pasted')
+    console.log(`${editorMode} check-phase paste history ${JSON.stringify({ checkPhaseObserved, text: pending.text() })}`)
     insertRef.current!.setInputWithCursor('send once', 9)
     await until(`${editorMode}: final draft is current`, () => ink.lastFrameText().includes('send once'))
     stdin.push('\r\r')
