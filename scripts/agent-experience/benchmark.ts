@@ -39,6 +39,7 @@ export interface BenchmarkResult {
   tables: FamilyTable[]
   summaryPath: string
   fixtureHits: FixtureHit[]
+  browser: BrowserProbe
 }
 
 export function parseArgs(argv: string[]): BenchmarkOptions {
@@ -118,21 +119,58 @@ export function readOpenrouterKey(): { key: string | null; source: string } {
   }
 }
 
-export function browserAvailable(): { ok: boolean; note: string } {
-  const pin = process.env.MERCURY_BROWSER_PATH?.trim()
-  if (pin && existsSync(pin)) return { ok: true, note: `MERCURY_BROWSER_PATH ${pin}` }
-  const candidates = [
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/Applications/Chromium.app/Contents/MacOS/Chromium',
-    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-    '/usr/bin/google-chrome',
-    '/usr/bin/google-chrome-stable',
-    '/usr/bin/chromium',
-    '/usr/bin/chromium-browser',
-    '/usr/bin/microsoft-edge',
-  ]
-  for (const c of candidates) if (existsSync(c)) return { ok: true, note: c }
-  return { ok: false, note: 'no Chromium-family browser at the standard locations (MERCURY_BROWSER_PATH pins one)' }
+export const BROWSER_PROBE_MS = 15_000
+
+export interface BrowserProbe {
+  ok: boolean
+  note: string
+}
+
+export async function browserLaunches(nodeBin: string, out: string): Promise<BrowserProbe> {
+  const { resolveBrowser } = await import('../../src/services/browser/browserResolver.ts')
+  const resolution = resolveBrowser()
+  if (resolution.state === 'unavailable') return { ok: false, note: `no browser to launch — ${resolution.note}` }
+  const home = join(out, 'browser-probe', 'home')
+  mkdirSync(home, { recursive: true })
+  const args = ['--no-first-run', '--no-default-browser-check', '--disable-features=Translate', '--disable-dev-shm-usage']
+  if (process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0) args.push('--no-sandbox')
+  const startedAt = Date.now()
+  try {
+    const puppeteer = (await import('puppeteer-core')).default
+    const browser = await puppeteer.launch({
+      executablePath: resolution.executablePath,
+      headless: true,
+      env: baseEnv(home, nodeBin),
+      defaultViewport: { width: 1280, height: 800 },
+      downloadBehavior: { policy: 'deny' },
+      args,
+      timeout: BROWSER_PROBE_MS,
+    })
+    const version = await browser.version().catch(() => '')
+    await Promise.race([browser.close().catch(() => undefined), new Promise<void>(r => setTimeout(r, 5_000).unref())])
+    try {
+      browser.process()?.kill('SIGKILL')
+    } catch {}
+    return { ok: true, note: `${resolution.executablePath}${version ? ` (${version})` : ''} came up in ${Date.now() - startedAt} ms (${resolution.source})` }
+  } catch (e) {
+    const reason = String((e as { message?: unknown })?.message ?? e).split('\n')[0]!.trim().slice(0, 200)
+    return { ok: false, note: `${resolution.executablePath} (${resolution.source}) did not come up within ${BROWSER_PROBE_MS} ms — ${reason}` }
+  }
+}
+
+let browserTurn: Promise<void> = Promise.resolve()
+async function withBrowserTurn<T>(fn: () => Promise<T>): Promise<T> {
+  const previous = browserTurn
+  let release: () => void = () => undefined
+  browserTurn = new Promise<void>(r => {
+    release = r
+  })
+  await previous
+  try {
+    return await fn()
+  } finally {
+    release()
+  }
 }
 
 function treeSha(): string {
@@ -170,17 +208,17 @@ function baseEnv(home: string, nodeBin: string): Record<string, string> {
     MERCURY_CONFIG_DIR: join(home, '.mercury'),
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_TEAMS_DIR: join(home, 'teams'),
+    ...(process.env.MERCURY_BROWSER_PATH?.trim() ? { MERCURY_BROWSER_PATH: process.env.MERCURY_BROWSER_PATH.trim() } : {}),
   }
 }
 
-async function runFamily(plan: FamilyRunPlan, opts: BenchmarkOptions, fixture: BenchmarkFixture, tasks: TaskDef[], nodeBin: string, when: string, tree: string): Promise<FamilyTable> {
+async function runFamily(plan: FamilyRunPlan, opts: BenchmarkOptions, fixture: BenchmarkFixture, tasks: TaskDef[], nodeBin: string, when: string, tree: string, browser: BrowserProbe): Promise<FamilyTable> {
   const famDir = join(opts.out, plan.id)
   const home = join(famDir, 'home')
   mkdirSync(home, { recursive: true })
   const projectDirs = tasks.filter(t => !t.resumeOf).map(t => join(famDir, 'tasks', t.id, 'project'))
   seedFirstRun(join(home, '.mercury'), projectDirs)
   const env = { ...baseEnv(home, nodeBin), ...plan.env }
-  const browser = browserAvailable()
   const projects = new Map<string, ScratchProject>()
   const sessions = new Map<string, string>()
   const runs = new Map<string, RunRecord>()
@@ -213,20 +251,22 @@ async function runFamily(plan: FamilyRunPlan, opts: BenchmarkOptions, fixture: B
     const resume = task.resumeOf ? sessions.get(task.resumeOf) : undefined
     const hitsBefore = fixture ? fixture.hits.length : 0
     const startedAt = Date.now()
-    const run = await runHeadless({
-      dist: opts.dist,
-      nodeBin,
-      cwd: project.dir,
-      env,
-      model: plan.model,
-      prompt: task.prompt(ctx),
-      allowedTools: task.allowedTools,
-      maxTurns: task.maxTurns,
-      permissionMode: 'default',
-      sessionId,
-      resume,
-      timeoutMs: plan.timeoutMs,
-    })
+    const launch = () =>
+      runHeadless({
+        dist: opts.dist,
+        nodeBin,
+        cwd: project.dir,
+        env,
+        model: plan.model,
+        prompt: task.prompt(ctx),
+        allowedTools: task.allowedTools,
+        maxTurns: task.maxTurns,
+        permissionMode: 'default',
+        sessionId,
+        resume,
+        timeoutMs: plan.timeoutMs,
+      })
+    const run = task.needs === 'browser' ? await withBrowserTurn(launch) : await launch()
     runs.set(task.id, run)
     if (sessionId) sessions.set(task.id, run.sessionId || sessionId)
     const hits = fixture ? fixture.hits.slice(hitsBefore).filter(h => h.family === plan.id) : []
@@ -349,6 +389,8 @@ export async function runBenchmark(opts: BenchmarkOptions): Promise<BenchmarkRes
   const tasks = opts.tasks ? TASKS.filter(t => opts.tasks!.includes(t.id) || (t.resumeOf && opts.tasks!.includes(t.resumeOf)) || opts.tasks!.includes(t.id)) : TASKS
   const when = new Date().toISOString()
   const tree = treeSha()
+  const browser: BrowserProbe = tasks.some(t => t.needs === 'browser') ? await browserLaunches(nodeBin, opts.out) : { ok: true, note: 'no browser task in this run' }
+  if (!opts.quiet && tasks.some(t => t.needs === 'browser')) console.log(`browser: ${browser.ok ? browser.note : `unmeasured — ${browser.note}`}`)
   const plans: FamilyRunPlan[] = []
   const fixture = await startBenchmarkFixture({ port: opts.port })
   for (const id of opts.families) {
@@ -369,9 +411,9 @@ export async function runBenchmark(opts: BenchmarkOptions): Promise<BenchmarkRes
   const tables: FamilyTable[] = []
   try {
     if (opts.serial) {
-      for (const plan of plans) tables.push(await runFamily(plan, opts, fixture, tasks, nodeBin, when, tree))
+      for (const plan of plans) tables.push(await runFamily(plan, opts, fixture, tasks, nodeBin, when, tree, browser))
     } else {
-      const settled = await Promise.all(plans.map(plan => runFamily(plan, opts, fixture, tasks, nodeBin, when, tree)))
+      const settled = await Promise.all(plans.map(plan => runFamily(plan, opts, fixture, tasks, nodeBin, when, tree, browser)))
       tables.push(...settled)
     }
   } finally {
@@ -408,7 +450,7 @@ export async function runBenchmark(opts: BenchmarkOptions): Promise<BenchmarkRes
     }
     console.log(`\nsummary: ${summaryPath}`)
   }
-  return { out: opts.out, tables, summaryPath, fixtureHits: fixture?.hits ?? [] }
+  return { out: opts.out, tables, summaryPath, fixtureHits: fixture?.hits ?? [], browser }
 }
 
 if (import.meta.main) {
