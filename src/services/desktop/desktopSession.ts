@@ -32,6 +32,7 @@ export interface DesktopJudgedApp {
 export interface DesktopCheckedAct {
   action: string
   app: DesktopJudgedApp
+  viaGrant: boolean
 }
 
 interface OwnerDesktopState {
@@ -70,16 +71,20 @@ export function approvedApps(owner: OwnerKey): DesktopJudgedApp[] {
   return [...state.approvedApps].map(([identity, name]) => ({ identity, name }))
 }
 
-export function noteCheckedActApp(owner: OwnerKey, action: string, app: DesktopJudgedApp): void {
-  ownerStates.get(owner).checkedActApp = { action, app: { identity: app.identity, name: app.name } }
+export function noteCheckedActApp(owner: OwnerKey, action: string, app: DesktopJudgedApp, viaGrant = false): void {
+  ownerStates.get(owner).checkedActApp = { action, app: { identity: app.identity, name: app.name }, viaGrant }
 }
 
-export function consumeCheckedActApp(owner: OwnerKey, action: string): DesktopJudgedApp | null {
+export function consumeCheckedAct(owner: OwnerKey, action: string): DesktopCheckedAct | null {
   const state = ownerStates.peek(owner)
   if (!state) return null
   const held = state.checkedActApp
   state.checkedActApp = null
-  return held !== null && held.action === action ? held.app : null
+  return held !== null && held.action === action ? held : null
+}
+
+export function consumeCheckedActApp(owner: OwnerKey, action: string): DesktopJudgedApp | null {
+  return consumeCheckedAct(owner, action)?.app ?? null
 }
 
 export function peekCheckedActApp(owner: OwnerKey): DesktopCheckedAct | null {

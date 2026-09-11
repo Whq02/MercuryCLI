@@ -25,18 +25,28 @@ the fix beside it.
 ## The asks
 
 Screenshots and the other reads — the cursor, the displays, the application
-in front, a timed wait — never ask. The first act in each application — a
-click, a drag, a scroll, typed text, a key — asks by the application's name
-and identity, and the card names the act. Three answers:
+in front, a timed wait — never ask. With the access type at `asks` (the
+default), the first act in each application — a click, a drag, a scroll,
+typed text, a key — asks by the application's name and identity, the card
+names the act, and it asks how long you want to allow. Five answers, in
+this order:
 
 - **Yes** allows this act and every later act in this application for the
   rest of the session.
-- **Yes, and don't ask again for this application in this project** allows
-  it and writes the allowlist rule below into the project's local settings,
-  so the next session does not ask for this application either.
 - **No, and tell Mercury what to do differently** refuses the act and hands
   the composer back to you.
+- **Yes, for 1 hour — every application** allows every act in every
+  application for one hour from now.
+- **Yes, for 24 hours — every application** does the same for twenty-four
+  hours.
+- **Enable sovereign mode to avoid further permissions by default** turns
+  sovereign mode on for this session and saves it as the Boot Menu's access
+  type, so no later session asks either, until you change the row.
 
+A timed grant lives with the session: a resume inside its span keeps it, a
+new session never inherits it, and it is never written into your settings.
+When it runs out, the next first act asks again — nothing timed is
+permanent, and acts made under it leave no per-application grant behind.
 An act that lands in another application asks for that one before the next
 act there. An application that moved in front between the ask and the act
 is not driven: the act is refused and the model takes a new screenshot. No
@@ -55,9 +65,10 @@ sovereign mode — and so do the refusals that are the screen's, not yours:
 the terminal running Mercury is never typed into, and an application that
 moved in front between the check and the act is not driven. The row is
 saved where the Boot Menu keeps its other choices and reaches new
-sessions; `MERCURY_COMPUTER_ACCESS=sovereign` in the environment sets it
-for one session. `mercury doctor` and `/health` name the access type
-beside the switch.
+sessions, and the ask card's last answer saves the same value;
+`MERCURY_COMPUTER_ACCESS=sovereign` in the environment sets it for one
+session. `mercury doctor` and `/health` name the access type beside the
+switch.
 
 ## The allowlist
 
@@ -65,11 +76,11 @@ A grant that outlives the session is a permission rule in the
 `permissions.allow` list of your settings: `Computer(app:<identity>)`,
 where the identity is the one the application's row shows beside its name
 — a bundle identifier on macOS (`com.apple.Safari`), an executable name on
-Windows (`chrome.exe`), a window class on Linux (`firefox`). The second
-answer on the card writes the rule into `.mercury/settings.local.json` in
-the project. A rule in `permissions.deny` refuses that application before
-any ask. A rule written on one platform matches only that platform's
-identities.
+Windows (`chrome.exe`), a window class on Linux (`firefox`). You write the
+rule yourself; the card writes none. A rule in `permissions.deny` refuses
+that application before any ask, and a rule in `permissions.ask` asks for
+it even in sovereign mode. A rule written on one platform matches only that
+platform's identities.
 
 ## The stop key
 
