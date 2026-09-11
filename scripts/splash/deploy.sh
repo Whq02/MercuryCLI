@@ -27,37 +27,57 @@ if [ -f "$launcher" ] && [ -f "$block" ]; then
   python3 - "$launcher" "$block" <<'PY'
 import os, re, sys
 launcher, block = sys.argv[1], sys.argv[2]
-# R-3: ~/.local/bin/mercury is a SYMLINK and open(...,'w')
-# writes THROUGH it — the launcher-clobber shape. Resolve the real
-# target first and refuse to touch anything that is not a Mercury launcher
-# (marker block present, or the launcher's own resolver/args anchor).
+# the launcher path is usually a symlink: write to the real target only
 launcher = os.path.realpath(launcher)
 src = open(launcher).read()
 blk = open(block).read().rstrip('\n')
-START, END = '# MERCURY-SPLASH-ACTION-START', '# MERCURY-SPLASH-ACTION-END'
-is_mercury_launcher = (START in src) or ('mercury_resolve_home' in src) or re.search(r'(?m)^args=\(\)', src)
+BEGIN = re.compile(r'^: mercury-splash-action-begin$', re.M)
+END = re.compile(r'^: mercury-splash-action-end$', re.M)
+OLD_BEGIN = re.compile(r'^# MERCURY-SPLASH-ACTION-START.*$', re.M)
+OLD_END = re.compile(r'^# MERCURY-SPLASH-ACTION-END.*$', re.M)
+
+def marked_span(begin, end, text):
+    b, e = begin.search(text), end.search(text)
+    if b is None or e is None or e.start() < b.end():
+        return None
+    return b.start(), e.end()
+
+def shell_lines(text):
+    return [(i, l) for i, l in enumerate(text.split('\n'))
+            if l.strip() and not l.lstrip().startswith('#') and not BEGIN.match(l) and not END.match(l)]
+
+def bare_span(text):
+    # a marker-less body, or an unbroken run of them, is the span
+    want = [l for _, l in shell_lines(blk)]
+    have = shell_lines(text)
+    hits = [k for k in range(len(have) - len(want) + 1) if [l for _, l in have[k:k + len(want)]] == want]
+    if not hits or any(b - a != len(want) for a, b in zip(hits, hits[1:])):
+        return None
+    lines = text.split('\n')
+    first, last = have[hits[0]][0], have[hits[-1] + len(want) - 1][0]
+    start = sum(len(l) + 1 for l in lines[:first])
+    end = sum(len(l) + 1 for l in lines[:last + 1]) - 1
+    return start, end
+
+span, verb = marked_span(BEGIN, END, src), 'refreshed'
+if span is None:
+    span, verb = marked_span(OLD_BEGIN, OLD_END, src), 'migrated'
+if span is None:
+    span, verb = bare_span(src), 'migrated'
+is_mercury_launcher = span is not None or 'mercury_resolve_home' in src or re.search(r'^args=\(\)', src, re.M)
 if not is_mercury_launcher:
-    print(f'launcher action block: REFUSED — {launcher} does not look like a Mercury launcher (no markers, no resolver, no args anchor); nothing written')
+    print(f'launcher action block: REFUSED — {launcher} does not look like a Mercury launcher (no block, no resolver, no args anchor); nothing written')
     sys.exit(0)
-# GENERATION PAIRING GUARD: the exit-code block
-# only works on a launcher whose splash run line CAPTURES the exit code
-# (MERCURY_SA_EXIT=0 / || MERCURY_SA_EXIT=$? — OUTSIDE these markers).
-# Injecting it into an OLD-generation launcher (`node splash.mjs || true` +
-# its own unconditional ALT_HELD export) makes the block a permanent no-op:
-# cancel BOOTS the app with a false hold marker and every card action goes
-# dead. Refuse loudly instead of deploying a broken pair.
-outside = src
-if START in src and END in src:
-    outside = src[:src.index(START)] + src[src.index(END) + len(END):]
+# the pairing guard: the splash run line outside the block must capture
+# the exit code, or the block is a permanent no-op
+outside = src if span is None else src[:span[0]] + src[span[1]:]
 if 'MERCURY_SA_EXIT=0' not in outside:
     print(f'launcher action block: REFUSED — {launcher} is an OLD-generation launcher (its splash run line does not capture MERCURY_SA_EXIT). Run scripts/ops/deploy-launcher.sh FIRST, then re-run this deploy; the two ship as a pair.')
     sys.exit(1)
-if START in src and END in src:
-    s, e = src.index(START), src.index(END) + len(END)
-    new = src[:s] + blk + src[e:]
-    verb = 'refreshed'
+if span is not None:
+    new = src[:span[0]] + blk + src[span[1]:]
 else:
-    m = re.search(r'(?m)^args=\(\)', src)
+    m = re.search(r'^args=\(\)', src, re.M)
     if not m:
         print(f'launcher action block: anchor `args=()` not found in {launcher} — skipped')
         sys.exit(0)

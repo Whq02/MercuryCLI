@@ -96,20 +96,52 @@ section('§2 asset resolution — payload · home · source, a torn pair never a
 section('§3 THE EXIT-CODE TABLE — the launcher block executed vs the in-process table')
 {
   const block = readFileSync(BLOCK, 'utf8')
-  check('the block is the managed launcher action block', block.includes('# MERCURY-SPLASH-ACTION-START') && block.includes('# MERCURY-SPLASH-ACTION-END'))
+  const BEGIN = ': mercury-splash-action-begin'
+  const END = ': mercury-splash-action-end'
+  const linesOf = (text: string): string[] => text.trimEnd().split('\n')
+  const withoutComments = (text: string): string => linesOf(text).filter(line => !line.trimStart().startsWith('#')).join('\n')
+  const blockLines = linesOf(block)
+  check('the block opens with the begin marker and closes with the end marker', blockLines[0] === BEGIN && blockLines[blockLines.length - 1] === END, blockLines[0])
+  check('the markers are statements, not comments (the `:` no-op with one word)', /^: [a-z-]+$/.test(BEGIN) && /^: [a-z-]+$/.test(END))
+  check('each marker appears once in the block', blockLines.filter(l => l === BEGIN).length === 1 && blockLines.filter(l => l === END).length === 1)
+  const strippedBlock = withoutComments(block)
+  const strippedLines = linesOf(strippedBlock)
+  check('the comment-free block still opens and closes with the markers', strippedLines[0] === BEGIN && strippedLines[strippedLines.length - 1] === END)
+  check('the comment-free block is shell lines only, and not empty (nothing the block needs lives in a comment)', strippedLines.length > 2 && strippedLines.every(l => l.trim() !== '' && !l.trimStart().startsWith('#')))
+  check('the retired comment markers are gone from the block', !block.includes('# MERCURY-SPLASH-ACTION'))
+  const launcher = readFileSync(join(ROOT, 'scripts', 'ops', 'launcher-mercury.sh'), 'utf8')
+  const managedIn = (text: string): { begins: number; ends: number; span: string; next: string } => {
+    const lines = linesOf(text)
+    const begins = lines.flatMap((l, i) => (l === BEGIN ? [i] : []))
+    const ends = lines.flatMap((l, i) => (l === END ? [i] : []))
+    if (begins.length !== 1 || ends.length !== 1 || ends[0]! < begins[0]!) return { begins: begins.length, ends: ends.length, span: '', next: '' }
+    return { begins: 1, ends: 1, span: lines.slice(begins[0], ends[0]! + 1).join('\n'), next: lines.slice(ends[0]! + 1).find(l => l.trim() !== '') ?? '' }
+  }
+  const inLauncher = managedIn(launcher)
+  check('the launcher carries the block once, byte-for-byte, ahead of the args=() anchor', inLauncher.begins === 1 && inLauncher.ends === 1 && inLauncher.span === block.trimEnd() && inLauncher.next === 'args=()', `begin markers ${inLauncher.begins} · end markers ${inLauncher.ends} · next ${JSON.stringify(inLauncher.next)}`)
+  const inStripped = managedIn(withoutComments(launcher))
+  check('the comment-free launcher carries the comment-free block once, between the same markers, ahead of the anchor', inStripped.begins === 1 && inStripped.ends === 1 && inStripped.span === strippedBlock && inStripped.next === 'args=()')
+  check('the retired comment markers are gone from the launcher', !launcher.includes('# MERCURY-SPLASH-ACTION'))
+  const deploy = readFileSync(join(ROOT, 'scripts', 'splash', 'deploy.sh'), 'utf8')
+  check('the deploy script locates the block by the statement markers', deploy.includes(BEGIN.slice(2)) && deploy.includes(END.slice(2)))
   const arena = mkdtempSync(join(tmpdir(), 'direct-splash-block-'))
   const stub = join(arena, 'node-stub')
   writeFileSync(stub, '#!/bin/sh\nprintf \'%s\' "$2" > "$MERCURY_TEST_HEAL_OUT"\n')
   chmodSync(stub, 0o755)
-  const script = join(arena, 'run.sh')
-  writeFileSync(script, `. "${BLOCK}"\nprintf 'HANDOFF=%s\\nHELD=%s\\n' "\${MERCURY_SPLASH_HANDOFF:-}" "\${MERCURY_ALT_HELD:-}"\n`)
+  const strippedPath = join(arena, 'launcher-action-block.stripped.sh')
+  writeFileSync(strippedPath, `${strippedBlock}\n`)
+  type BlockForm = 'canonical' | 'stripped'
+  const scripts: Record<BlockForm, string> = { canonical: join(arena, 'run.sh'), stripped: join(arena, 'run-stripped.sh') }
+  const report = `printf 'HANDOFF=%s\\nHELD=%s\\n' "\${MERCURY_SPLASH_HANDOFF:-}" "\${MERCURY_ALT_HELD:-}"\n`
+  writeFileSync(scripts.canonical, `. "${BLOCK}"\n${report}`)
+  writeFileSync(scripts.stripped, `. "${strippedPath}"\n${report}`)
   const unescape = (js: string): string => js.replace(/\\x([0-9a-fA-F]{2})/g, (_, h: string) => String.fromCharCode(parseInt(h, 16)))
-  const runBlock = (code: number, fullscreen: string | undefined): { stoodDown: boolean; handoff: string; held: string; heal: string | null; status: number | null } => {
-    const healOut = join(arena, `heal-${code}-${fullscreen ?? 'unset'}.txt`)
+  const runBlock = (code: number, fullscreen: string | undefined, form: BlockForm = 'canonical'): { stoodDown: boolean; handoff: string; held: string; heal: string | null; status: number | null } => {
+    const healOut = join(arena, `heal-${form}-${code}-${fullscreen ?? 'unset'}.txt`)
     rmSync(healOut, { force: true })
     const env: NodeJS.ProcessEnv = { PATH: process.env.PATH, MERCURY_SA_EXIT: String(code), MERCURY_NODE_BIN: stub, MERCURY_TEST_HEAL_OUT: healOut }
     if (fullscreen !== undefined) env.MERCURY_FULLSCREEN = fullscreen
-    const r = spawnSync('sh', [script], { encoding: 'utf8', env, timeout: 15_000 })
+    const r = spawnSync('sh', [scripts[form]], { encoding: 'utf8', env, timeout: 15_000 })
     const out = r.stdout ?? ''
     const handoff = /HANDOFF=(.*)/.exec(out)?.[1] ?? ''
     const held = /HELD=(.*)/.exec(out)?.[1] ?? ''
@@ -127,10 +159,12 @@ section('§3 THE EXIT-CODE TABLE — the launcher block executed vs the in-proce
   for (const code of [0, 20, 130, 1, 7, 127, 255]) {
     for (const fullscreen of [undefined, '0', '1', 'false']) {
       const shell = runBlock(code, fullscreen)
+      const stripped = runBlock(code, fullscreen, 'stripped')
       const env: Record<string, string | undefined> = fullscreen === undefined ? {} : { MERCURY_FULLSCREEN: fullscreen }
       let wrote = ''
       const verdict = applySplashExit(code, env, b => (wrote += b))
       const label = `code ${code} · MERCURY_FULLSCREEN ${fullscreen ?? 'unset'}`
+      check(`${label}: the comment-free block agrees with the canonical block under sh`, stripped.stoodDown === shell.stoodDown && stripped.handoff === shell.handoff && stripped.held === shell.held && stripped.heal === shell.heal && stripped.status === shell.status, JSON.stringify({ canonical: shell, stripped }))
       check(`${label}: stand-down agrees`, (verdict === 'cancel') === shell.stoodDown, `table ${verdict} · block ${shell.stoodDown ? 'stood down' : 'booted'}`)
       if (verdict === 'cancel') {
         check(`${label}: a cancel touches no marker and heals nothing`, env.MERCURY_SPLASH_HANDOFF === undefined && env.MERCURY_ALT_HELD === undefined && wrote === '')
