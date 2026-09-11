@@ -30,6 +30,7 @@ export function ConcourseComposer({
   modeBand,
   keysHint,
   minimal = false,
+  foot = true,
 }: {
   width: number
   bandRows: number
@@ -44,6 +45,7 @@ export function ConcourseComposer({
   modeBand?: { symbol: string; label: string }
   keysHint?: string
   minimal?: boolean
+  foot?: boolean
 }): React.ReactNode {
   const t = useMercuryTokens()
   const [theme] = useTheme()
@@ -158,6 +160,7 @@ export function ConcourseComposer({
           <Text color={t.textMuted} wrap="truncate-end">{`  … +${hiddenBelow} more line${hiddenBelow === 1 ? '' : 's'}`}</Text>
         ) : null}
       </Box>
+      {foot ? (
       <Box height={1} overflow="hidden">
         {contextLine !== null && contextLine !== undefined ? (
           <Box flexGrow={1} overflow="hidden">
@@ -207,6 +210,7 @@ export function ConcourseComposer({
         {
 }
       </Box>
+      ) : null}
     </Box>
   );
 }

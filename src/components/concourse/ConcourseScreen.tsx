@@ -15,7 +15,7 @@ import { InteractiveRow } from '../mercury-ui/InteractiveRow.js';
 import { AnimatedCritterArt } from '../mercury-ui/AnimatedCritterArt.js';
 import { critterDefForKey } from '../../utils/cockpit/critterData.js';
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js';
-import type { ConcourseCallbacks, ConcourseRowV1, ConcourseSnapshotV1 } from './contracts.js';
+import type { ConcourseCallbacks, ConcourseRowV1, ConcourseSnapshotV1, ControlNoteState } from './contracts.js';
 import { controlNoteOf, stableSelectionFallback, concourseWaitCopy } from './contracts.js';
 import {
   backspaceAt,
@@ -76,6 +76,8 @@ import {
   toggleSplitView,
 } from './splitView.js';
 import { SplitChatPane } from './SplitChatPane.js';
+import { CompactConcourse, type CompactFootNote } from './CompactConcourse.js';
+import { compactConcourseGeometry, compactConcourseProfileOf, compactSteerable } from './compactBoard.js';
 import { CREW_ASK_WAIT_WORDS } from '../../services/engine-connector/crewFacts.js';
 import { hasFocusedSession, landingInFlight } from '../../services/engine-connector/focusedConnector.js';
 import { isPathTrusted, setPathTrusted } from '../../utils/config.js';
@@ -172,11 +174,13 @@ export function ConcourseScreen({
 }): React.ReactNode {
   const { columns: termCols, rows: termRows } = useTerminalSize()
   const { isCompact } = useLayoutChrome()
+  const compactProfile = isCompact ? compactConcourseProfileOf(termCols) : null
+  const compact = compactProfile !== null
   const coordinatorOn = snapshot.coordinator.mode === 'agent-assisted'
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion)
   const keyMapHint = stripKeyMapHint()
   useSyncExternalStore(subscribeSplitView, splitViewVersion, splitViewVersion)
-  const splitActive = !reducedStage && splitViewOn() && splitAvailableAt(termCols, termRows)
+  const splitActive = !reducedStage && !compact && splitViewOn() && splitAvailableAt(termCols, termRows)
   const splitGeo = splitActive ? splitGeometryAt(termCols, splitViewRatio()) : null
   const cols = splitGeo !== null ? splitGeo.boardCols : termCols
 
@@ -199,9 +203,11 @@ export function ConcourseScreen({
   }, [snapshot.groups, filter.text])
   const sessionRows: ConcourseRowV1[] = useMemo(() => boardGroups.flatMap(g => g.rows), [boardGroups])
 
-  const [region, setRegion] = useState<ConcourseRegion>(() =>
-    reducedStage ? 'list' : (migrateCapsuleRegion(presentationCapsule?.region) ?? 'coordinator'),
-  )
+  const [region, setRegion] = useState<ConcourseRegion>(() => {
+    const carried = migrateCapsuleRegion(presentationCapsule?.region)
+    if (compact) return carried === 'live' ? 'live' : 'list'
+    return reducedStage ? 'list' : (carried ?? 'coordinator')
+  })
   const [managerArmed, setManagerArmed] = useState<boolean>(() => presentationCapsule?.managerMode ?? false)
   const managerOn = managerArmed && !reducedStage
   const managerOnRef = useRef(managerOn)
@@ -746,6 +752,21 @@ export function ConcourseScreen({
   const rowControlRefused = (reason: string): void => {
     callbacks.noteControl?.(`board:row-control:${boardSelRef.current ?? 'none'}`, { state: 'refused', reason })
   }
+  const rowPauseToggle = (): void => {
+    const target = rowControlSel()
+    if (target.row !== undefined) {
+      if (target.row.state === 'paused') callbacks.resumeSession(target.row.sessionId)
+      else callbacks.pauseAfterTurn(target.row.sessionId)
+    } else rowControlRefused(target.reason ?? 'nothing to pause')
+  }
+  const rowStop = (): void => {
+    const target = rowControlSel()
+    if (target.row === undefined) {
+      rowControlRefused(target.reason ?? 'nothing to stop')
+      return
+    }
+    callbacks.stopSession?.(target.row.sessionId)
+  }
 
   const enterSession = (sessionId: string, opts: { pointer?: boolean } = {}): void => {
     if (sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)) {
@@ -792,6 +813,15 @@ export function ConcourseScreen({
     boardArmedRef.current = null
     setBoardArmed(null)
     callbacks.enterSession(sessionId)
+  }
+  const compactSteerOrEnter = (sel: ConcourseRowV1): void => {
+    if (compact && compactSteerable(sel, { reduced: reducedStage, olderPrefix: OLDER_CHATS_ROW_PREFIX })) {
+      boardArmedRef.current = sel.sessionId
+      setBoardArmed(sel.sessionId)
+      setRegion('live')
+      return
+    }
+    enterSession(sel.sessionId)
   }
 
   const gitOffer = useMemo<GitOfferV1 | undefined>(() => {
@@ -1146,19 +1176,33 @@ export function ConcourseScreen({
       ),
     [cols, termRows, snapshot.needsYou.length, sessionRows.length, boardGroupCount, liveDraftDesired, focusTall, rowPeekOpen, olderRows, chipRows, region],
   )
+  const compactGeo = useMemo(
+    () =>
+      compactProfile === null
+        ? null
+        : compactConcourseGeometry(termCols, termRows, {
+            sessionCount: sessionRows.length,
+            newSessionDoor: !reducedStage && callbacks.newSession !== undefined,
+            composerBand: reducedStage ? 0 : Math.max(1, liveDraftDesired),
+          }),
+    [compactProfile, termCols, termRows, sessionRows.length, reducedStage, callbacks.newSession, liveDraftDesired],
+  )
 
   const regionsInOrder = useMemo<ConcourseRegion[]>(() => {
-    const ring: ConcourseRegion[] = reducedStage ? ['list', 'live'] : ['coordinator', 'list', 'live']
-    if (snapshot.needsYou.length > 0) ring.push('rail')
+    const ring: ConcourseRegion[] = compact || reducedStage ? ['list', 'live'] : ['coordinator', 'list', 'live']
+    if (!compact && snapshot.needsYou.length > 0) ring.push('rail')
     if (splitActive) ring.push('chat')
     return ring
-  }, [snapshot.needsYou.length, reducedStage, splitActive])
+  }, [snapshot.needsYou.length, reducedStage, splitActive, compact])
   useEffect(() => {
     if (region === 'rail' && snapshot.needsYou.length === 0) setRegion(reducedStage ? 'list' : 'coordinator')
   }, [region, snapshot.needsYou.length, reducedStage])
   useEffect(() => {
     if (reducedStage && region === 'coordinator') setRegion('list')
   }, [region, reducedStage])
+  useEffect(() => {
+    if (compact && region !== 'list' && region !== 'live') setRegion('list')
+  }, [compact, region])
   useEffect(() => {
     if (!splitActive && region === 'chat') setRegion(reducedStage ? 'list' : 'live')
   }, [region, splitActive, reducedStage])
@@ -1302,12 +1346,19 @@ export function ConcourseScreen({
     }
     if (key.wheelUp || key.wheelDown) {
       const kp = event.keypress as { x?: number; y?: number }
+      const compactListPainted = compactProfile === 'split' || (compactProfile === 'single' && region === 'list' && !contractAskRef.current)
       const overList =
         kp.x !== undefined && kp.y !== undefined
-          ? kp.y >= geo.listBand[0] &&
-            kp.y <= geo.listBand[1] &&
-            kp.x >= (geo.profile === 'wide' ? geo.rightCols[0] : 3) &&
-            kp.x <= (geo.profile === 'wide' ? geo.rightCols[1] : 2 + geo.interior)
+          ? compactGeo !== null
+            ? compactListPainted &&
+              kp.x >= compactGeo.list.x0 + 1 &&
+              kp.x <= compactGeo.list.x1 + 1 &&
+              kp.y >= 2 &&
+              kp.y <= compactGeo.inner + 1
+            : kp.y >= geo.listBand[0] &&
+              kp.y <= geo.listBand[1] &&
+              kp.x >= (geo.profile === 'wide' ? geo.rightCols[0] : 3) &&
+              kp.x <= (geo.profile === 'wide' ? geo.rightCols[1] : 2 + geo.interior)
           : region === 'list'
       if (!overList) return
       event.stopImmediatePropagation()
@@ -1349,10 +1400,16 @@ export function ConcourseScreen({
         setBroadcastArmed(false)
         return
       }
+      if (compact && region === 'live') {
+        boardArmedRef.current = null
+        setBoardArmed(null)
+        setRegion('list')
+        return
+      }
       if (boardArmedRef.current !== null) {
         boardArmedRef.current = null
         setBoardArmed(null)
-        return
+        if (!compact) return
       }
       if (rowPeekOpenRef.current) {
         setRowPeekOpen(false)
@@ -1431,11 +1488,11 @@ export function ConcourseScreen({
           return
         }
         if (sessionRows.length === 0) {
-          if (!reducedStage) setRegion('coordinator')
+          if (!reducedStage && !compact) setRegion('coordinator')
           return
         }
         const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
-        if (sel) enterSession(sel.sessionId)
+        if (sel) compactSteerOrEnter(sel)
         return
       }
       if (key.rightArrow && !key.ctrl && !key.meta) {
@@ -1446,11 +1503,16 @@ export function ConcourseScreen({
           else unfoldOlderList(sel)
           return
         }
-        if (sel !== undefined && boardArmedRef.current === sel.sessionId) {
+        if (sel !== undefined && (compact || boardArmedRef.current === sel.sessionId)) {
           enterSession(sel.sessionId)
           return
         }
         setRowPeekOpen(v => !v)
+        return
+      }
+      if (compact && input === 'x' && !key.ctrl && !key.meta && pastGate()) {
+        event.stopImmediatePropagation()
+        rowStop()
         return
       }
       if (input === 'm' && !key.ctrl && !key.meta && pastGate()) {
@@ -1491,11 +1553,7 @@ export function ConcourseScreen({
       }
       if (input === 'p' && !key.ctrl && !key.meta && pastGate()) {
         event.stopImmediatePropagation()
-        const target = rowControlSel()
-        if (target.row !== undefined) {
-          if (target.row.state === 'paused') callbacks.resumeSession(target.row.sessionId)
-          else callbacks.pauseAfterTurn(target.row.sessionId)
-        } else rowControlRefused(target.reason ?? 'nothing to pause')
+        rowPauseToggle()
         return
       }
       if (input === 'r' && !key.ctrl && !key.meta && !reducedStage && callbacks.renameSession !== undefined && pastGate()) {
@@ -1513,6 +1571,7 @@ export function ConcourseScreen({
       }
       if (input === 's' && !key.ctrl && !key.meta && !reducedStage && pastGate()) {
         event.stopImmediatePropagation()
+        if (compact) return
         const out = toggleSplitView(termCols, termRows)
         if (!out.ok) setNote({ tone: 'muted', text: out.reason })
         else setNote(null)
@@ -1570,6 +1629,12 @@ export function ConcourseScreen({
       event.stopImmediatePropagation()
       helpOpenRef.current = true
       setHelpOpen(true)
+      return
+    }
+    if (compact && region === 'live' && !key.ctrl && !key.meta && (input === 'x' || input === 'p') && liveDraftRef.current.text.length === 0 && pastGate()) {
+      event.stopImmediatePropagation()
+      if (input === 'x') rowStop()
+      else rowPauseToggle()
       return
     }
     if (key.return && !key.shift) {
@@ -1667,7 +1732,7 @@ export function ConcourseScreen({
         else unfoldOlderList(sel)
         return
       }
-      if (sel !== undefined && boardArmedRef.current === sel.sessionId) {
+      if (sel !== undefined && (compact || boardArmedRef.current === sel.sessionId)) {
         enterSession(sel.sessionId)
         return
       }
@@ -1713,7 +1778,7 @@ export function ConcourseScreen({
     }),
     [residentAccent.key, residentAccent.accent, residentAccent.accentDeep],
   )
-  const mirrorSlot = (rows: number, width: number): React.ReactNode => {
+  const mirrorSlot = (rows: number, width: number, bare = false): React.ReactNode => {
     if (contractAsk) {
       return (
         <Box flexDirection="column" flexGrow={1} paddingX={1} overflow="hidden">
@@ -1787,8 +1852,13 @@ export function ConcourseScreen({
         title={sel.title}
         paneRows={rows}
         paneWidth={width}
-        {...(splitGeo !== null ? { wheelBand: [0, splitGeo.dividerCol - 1] as [number, number] } : {})}
+        {...(splitGeo !== null
+          ? { wheelBand: [0, splitGeo.dividerCol - 1] as [number, number] }
+          : compactGeo !== null
+            ? { wheelBand: [compactGeo.live.x0 + 1, compactGeo.live.x1 + 1] as [number, number] }
+            : {})}
         focused={region === 'live'}
+        bare={bare}
         onEnter={() => enterSession(sel.sessionId, { pointer: true })}
         state={sel.state}
         {...(sel.nowLabel !== undefined ? { nowLabel: sel.nowLabel } : {})}
@@ -1855,7 +1925,55 @@ export function ConcourseScreen({
     editLiveDraft(dd => ({ text: dd.text, caret: clampCaret(dd.text, caret) }))
   }
 
-  const boardTree = (
+  const liveComposerFace = (bandRows: number, width: number): React.ReactNode => {
+    const face = broadcastFaceOf(markedRows.length)
+    const g = liveComposerGate(sessionRows.find(r => r.sessionId === boardSel), region)
+    const paint = liveComposerPaintOf(g, liveNote)
+    return (
+      <ConcourseComposer
+        minimal={geo.constrained && !compact}
+        foot={!compact}
+        width={width}
+        bandRows={bandRows}
+        focused={region === 'live'}
+        draft={liveDraft}
+        pending={false}
+        note={compact ? null : face !== null ? liveNote : paint.note}
+        restHint={face !== null ? face.placeholder : paint.restHint}
+        contextLine={compact ? null : contextLine}
+        onComposerClick={onLiveComposerClick}
+        {...(!compact && controlNotes?.['strip:composer'] !== undefined
+          ? { composerNote: controlNotes['strip:composer'] }
+          : {})}
+        {...(liveKeysHint !== undefined ? { keysHint: liveKeysHint } : {})}
+      />
+    )
+  }
+  const compactNote = ((): CompactFootNote | null => {
+    if (!compact) return null
+    if (contextLine !== null) return contextLine
+    const noteOf = (state: ControlNoteState | undefined): CompactFootNote | null => {
+      if (state === undefined) return null
+      const n = controlNoteOf(state)
+      const what = n.reason ?? n.state
+      const next = n.next !== undefined ? ` · ${n.next}` : ''
+      if (n.state === 'applied') return { tone: 'success', text: `${GLYPH.ok} ${what}` }
+      if (n.state === 'pending') return { tone: 'info', text: what }
+      if (n.state === 'held') return { tone: 'warning', text: `${GLYPH.pending} ${what}${next}` }
+      return { tone: 'failure', text: `${GLYPH.fail} ${what}${next}` }
+    }
+    const face = broadcastFaceOf(markedRows.length)
+    const gateNote = liveComposerPaintOf(liveComposerGate(sessionRows.find(r => r.sessionId === boardSel), region), liveNote).note
+    return (
+      noteOf(controlNotes?.['strip:composer']) ??
+      noteOf(controlNotes?.['board:open']) ??
+      noteOf(rowControlNote) ??
+      (face !== null ? liveNote : gateNote) ??
+      note
+    )
+  })()
+
+  const fullTree = (
       <ConcourseLayout
         snapshot={snapshot}
         boardGroups={boardGroups}
@@ -2156,29 +2274,7 @@ export function ConcourseScreen({
           />
         )}
         mirrorNode={mirrorSlot}
-        liveComposerNode={(bandRows, width) => {
-          const face = broadcastFaceOf(markedRows.length)
-          const g = liveComposerGate(sessionRows.find(r => r.sessionId === boardSel), region)
-          const paint = liveComposerPaintOf(g, liveNote)
-          return (
-          <ConcourseComposer
-            minimal={geo.constrained}
-            width={width}
-            bandRows={bandRows}
-            focused={region === 'live'}
-            draft={liveDraft}
-            pending={false}
-            note={face !== null ? liveNote : paint.note}
-            restHint={face !== null ? face.placeholder : paint.restHint}
-            contextLine={contextLine}
-            onComposerClick={onLiveComposerClick}
-            {...(controlNotes?.['strip:composer'] !== undefined
-              ? { composerNote: controlNotes['strip:composer'] }
-              : {})}
-            {...(liveKeysHint !== undefined ? { keysHint: liveKeysHint } : {})}
-          />
-          )
-        }}
+        liveComposerNode={liveComposerFace}
         wiring={{
           selectSession: id => {
             setRegion('list')
@@ -2215,6 +2311,43 @@ export function ConcourseScreen({
         {...(splitGeo !== null ? { frameCols: splitGeo.boardCols, splitOn: true } : {})}
       />
   )
+  const boardTree =
+    compactProfile !== null ? (
+      <CompactConcourse
+        profile={compactProfile}
+        cols={termCols}
+        rows={termRows}
+        region={region === 'live' ? 'live' : 'list'}
+        sessionRows={sessionRows}
+        selectedId={boardSel}
+        filtering={filtering}
+        filterText={filter.text}
+        filterCaret={clampCaret(filter.text, filter.caret)}
+        reduced={reducedStage}
+        liveDraftRows={liveDraftDesired}
+        liveDraftHeld={liveDraft.text.trim().length > 0}
+        verbsFire={region !== 'live' || liveDraft.text.length === 0}
+        showLive={region === 'live' || contractAsk}
+        note={compactNote}
+        mirrorNode={(rows, width) => mirrorSlot(rows, width, true)}
+        {...(reducedStage ? {} : { liveComposerNode: liveComposerFace })}
+        wiring={{
+          selectSession: id => {
+            setRegion('list')
+            selectSession(id)
+          },
+          activateSession: id => {
+            const sel = sessionRows.find(r => r.sessionId === id)
+            if (sel !== undefined) compactSteerOrEnter(sel)
+          },
+          focusList: () => setRegion('list'),
+          focusLive: () => setRegion('live'),
+          ...(reducedStage || callbacks.newSession === undefined ? {} : { newSession: () => armContractAsk() }),
+        }}
+      />
+    ) : (
+      fullTree
+    )
   return (
     <>
       {splitGeo !== null ? (
