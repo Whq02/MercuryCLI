@@ -292,7 +292,12 @@ section('4 · structural — two slots, honest absences, one owner, both seams')
   )
 
   const rail = src('src/components/HelmTelemetryRail.tsx')
-  check('rail: consumes the SAME owner (activeSourceUsage)', rail.includes('activeSourceUsage()'))
+  check(
+    'rail: consumes the SAME owner (windowSourceUsages, which reads activeSourceUsage)',
+    /import \{[^}]*\bwindowSourceUsages\b[^}]*\} from '\.\.\/services\/providers\/providerUsage\.js'/.test(rail) &&
+      rail.includes('= windowSourceUsages({ model: sessionModel })') &&
+      src('src/services/providers/providerUsage.ts').includes('const primary = activeSourceUsage(opts)'),
+  )
   check('rail: the quiet source label line exists', rail.includes('usage:source') && rail.includes('{usage.label}'))
   check(
     'rail: the api-spend branch renders spend truth, never a bar',
