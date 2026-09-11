@@ -123,6 +123,7 @@ opts.quiet = process.env.MERCURY_AX_VERBOSE !== '1'
 const result = await runBenchmark(opts)
 const tables = result.tables
 check(`every mechanical family produced a table (${tables.map(t => t.header.family).join(', ')})`, MECHANICAL_FAMILIES.every(f => tables.some(t => t.header.family === f)))
+const skips = new Map<string, string[]>()
 for (const table of tables) {
   const f = table.header.family
   const rows = table.rows.filter(r => !r.skipped)
@@ -136,11 +137,16 @@ for (const table of tables) {
   check(`${f}: the two-seats round replayed whole — one assistant message, two Agent calls, both answered`, two?.success === true, two?.oracle)
   const resumed = table.rows.find(r => r.task === 'resume-b')
   check(`${f}: the resumed session carried the prior turn and recalled the codeword`, resumed?.success === true, resumed?.oracle)
-  const skipped = table.rows.filter(r => r.skipped)
-  for (const r of skipped) console.log(`  [SKIP] ${f}: ${r.task} — ${r.skipped} (not run; unmeasured)`)
+  for (const r of table.rows.filter(r => r.skipped)) {
+    const key = `${r.task} — ${r.skipped}`
+    skips.set(key, [...(skips.get(key) ?? []), f])
+  }
   const s = { pass: rows.filter(r => r.success === true).length, total: rows.length, wasted: rows.reduce((a, r) => a + r.wasted, 0), unexpected: rows.reduce((a, r) => a + r.unexpectedErrors, 0), asks: rows.reduce((a, r) => a + r.asks, 0), tokens: rows.reduce((a, r) => a + r.toolResultTokensEst, 0) }
   console.log(`  [INFO] ${f}: ${s.pass}/${s.total} pass · wasted ${s.wasted} (unexpected ${s.unexpected}) · asks ${s.asks} · result-tokens ≈${s.tokens} · prompt ${table.header.promptChars} chars · tools ${table.header.toolCount}`)
 }
+
+for (const [key, families] of skips) console.log(`  [SKIP] ${key} (not run on ${families.join(', ')})`)
+console.log(`  [INFO] browser probe: ${result.browser.note}`)
 
 section('§2b — the ratchet against baselines/mechanical (success never regresses; wasted and asks never grow)')
 const baselineDir = join(HERE, 'baselines', 'mechanical')
