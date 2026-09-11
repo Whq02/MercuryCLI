@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-env: MERCURY_SMOKE_LIVE
 # gate-watch: build.ts bun.lock package.json
 # gate-watch: scripts/vendor/**
 # gate-watch: src/tools/** src/utils/ripgrep*

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-env: MERCURY_PROOF_DIST
 # gate-watch: src/bootstrap/state* src/services/mcp/** src/state/AppState* src/utils/Shell*
 # gate-watch: src/utils/config/** src/utils/mcp/elicitationValidation*
 set -u

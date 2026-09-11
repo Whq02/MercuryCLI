@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
+# gate-env: MERCURY_SCROLL_REFLOW_STRICT
 # gate-watch: scripts/lib/seedTranscript.ts
 # gate-watch: src/hooks/useVirtualScroll* src/ink/components/ScrollBox*
 # gate-watch: src/components/ScrollKeybindingHandler* src/components/VirtualMessageList*

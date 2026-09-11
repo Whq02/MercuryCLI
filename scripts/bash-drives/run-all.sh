@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
+# gate-env: MERCURY_SHELL_ENGINE
 # gate-watch: src/utils/shell/** scripts/bash/prove-shell-engine-drive.ts build.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
