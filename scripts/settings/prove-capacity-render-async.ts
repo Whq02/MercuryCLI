@@ -120,19 +120,26 @@ try {
     check(`${name}: the real component's capacity statement exists`, index >= 0)
     if (index < 0) continue
     const statement = statements[index]!
-    const next = statements[index + 1]
-    const effect = next && ts.isExpressionStatement(next) && ts.isCallExpression(next.expression) && next.expression.expression.getText(source) === 'useEffect' ? next.getText(source) : ''
-    const body = ts.transpileModule(`${statement.getText(source)}\n${effect}\nreturn seatFacts`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText
+    const isEffectCall = (node: ts.Statement): boolean => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) && node.expression.expression.getText(source) === 'useEffect'
+    const effectIndex = statements.findIndex((node, i) => i > index && isEffectCall(node) && node.getText(source).includes('setSeatFacts'))
+    check(`${name}: the capacity refresh effect follows the capacity statement`, effectIndex > index)
+    if (effectIndex <= index) continue
+    const between = statements.slice(index + 1, effectIndex).map(node => node.getText(source)).join('\n')
+    const effect = statements[effectIndex]!.getText(source)
+    const body = ts.transpileModule(`${statement.getText(source)}\n${between}\n${effect}\nreturn seatFacts`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText
     const effects: Array<() => (() => void)> = []
     let reads = 0
     let asyncReads = 0
     let updates = 0
     let finish: ((facts: unknown) => void) | undefined
-    const render = new Function('useState', 'useMemo', 'useEffect', 'seatCeilingFacts', 'seatCeilingFactsAsync', 'version', 'seatsTick', 'saveTick', body)
+    const render = new Function('useState', 'useMemo', 'useEffect', 'useSyncExternalStore', 'subscribeGlobalConfigCache', 'getGlobalConfigCacheStamp', 'seatCeilingFacts', 'seatCeilingFactsAsync', 'version', 'seatsTick', 'saveTick', body)
     const value = render(
       (initial: unknown) => [typeof initial === 'function' ? initial() : initial, () => { updates++ }],
       (callback: () => unknown) => callback(),
       (callback: () => (() => void)) => { effects.push(callback) },
+      (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
+      () => () => {},
+      () => 0,
       () => { reads++; return a },
       () => { asyncReads++; return new Promise(resolve => { finish = resolve }) },
       0, 0, 0,
