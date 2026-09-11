@@ -1589,7 +1589,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   }, [helmVersion])
 
   const performUndo = useCallback((): void => {
-    const entry = buffer.undo({ text: input, cursorOffset, pastedContents })
+    const entry = buffer.undo({ text: pendingInput.text(), cursorOffset, pastedContents: pendingInput.pastedContents() })
     if (entry === undefined) return
     pendingInput.edit(entry.text)
     lastSelfWriteRef.current = entry.text
@@ -1598,7 +1598,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     addNotification({ key: 'edit-history', text: 'undid the last edit', priority: 'low', timeoutMs: 2000, fold: (_accumulated, incoming) => incoming })
   }, [buffer, input, cursorOffset, pastedContents, setCursorOffset, addNotification])
   const performRedo = useCallback((): void => {
-    const entry = buffer.redo({ text: input, cursorOffset, pastedContents })
+    const entry = buffer.redo({ text: pendingInput.text(), cursorOffset, pastedContents: pendingInput.pastedContents() })
     if (entry === undefined) return
     pendingInput.edit(entry.text)
     lastSelfWriteRef.current = entry.text
