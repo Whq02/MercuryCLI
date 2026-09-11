@@ -258,6 +258,7 @@ type IterationState = {
   maxOutputTokensOverride: number | undefined
   assistantMessages: AssistantMessage[]
   toolResults: (UserMessage | AttachmentMessage)[]
+  deadThinkingRecords: AttachmentMessage[]
   toolUseBlocks: ToolUseBlock[]
   needsFollowUp: boolean
   callOrdinal: number
@@ -638,7 +639,9 @@ async function* streamModel(
               const dead = deadMarksFromDrops(drops, prefixVerdict?.wireMessageIds ?? [], deadThinkingMarks(iter.messagesForQuery))
               if (dead.length > 0) {
                 logForDebugging(`preserved thinking: ${dead.length} dropped block(s) marked dead on the record (${dead.map(mark => `${mark.messageId}#${mark.blockIndex}`).join(', ')})`)
-                yield emit({ kind: 'attachment', message: createDeadThinkingAttachment(dead) })
+                const record = createDeadThinkingAttachment(dead)
+                yield emit({ kind: 'attachment', message: record })
+                iter.deadThinkingRecords.push(record)
               }
             }
             if (toolUseContext.agentId == null) {
@@ -932,10 +935,15 @@ export async function* runEventCore(
       'apply',
     )
     let messagesForQuery = requestPlan.messages
+    const deadThinkingRecords: AttachmentMessage[] = []
     {
       const known = deadThinkingMarks(messages)
       const fresh = (requestPlan.reductions.deadThinkingMarks ?? []).filter(mark => !known.get(mark.messageId)?.has(mark.blockIndex))
-      if (fresh.length > 0) yield emit({ kind: 'attachment', message: createDeadThinkingAttachment(fresh) })
+      if (fresh.length > 0) {
+        const record = createDeadThinkingAttachment(fresh)
+        yield emit({ kind: 'attachment', message: record })
+        deadThinkingRecords.push(record)
+      }
     }
     if (pendingOverflow?.rung === 'prune') {
       const pruned = requestPlan.reductions.pressurePruned
@@ -1205,6 +1213,7 @@ export async function* runEventCore(
       maxOutputTokensOverride,
       assistantMessages: [],
       toolResults: [],
+      deadThinkingRecords,
       toolUseBlocks: [],
       needsFollowUp: false,
       callOrdinal: 0,
@@ -1215,6 +1224,7 @@ export async function* runEventCore(
       yield emit({ kind: 'run_terminal', terminal: streamOutcome.terminal })
       return streamOutcome.terminal
     }
+    if (deadThinkingRecords.length > 0) messagesForQuery = [...messagesForQuery, ...deadThinkingRecords]
     const { assistantMessages, toolResults, toolUseBlocks } = iter
     const refusedToolCalls = collectRefusedToolCalls(assistantMessages)
 
