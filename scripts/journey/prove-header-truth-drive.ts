@@ -598,8 +598,9 @@ if (cap !== null) {
 
   console.log('\n— the silent stream —')
   const stuckRow = statusRow(m['stuck'])
-  check('the stuck words stand ("may be stuck")', /may be stuck/.test(stuckRow), flat(stuckRow))
-  check('the stuck words carry no phase word', !PHASE_WORDS.test(stuckRow), flat(stuckRow))
+  check('the row never accuses before the budget: no "may be stuck" at 11 s of a 16 s budget', !/may be stuck/.test(stuckRow), flat(stuckRow))
+  check('the silent row carries no phase word', !PHASE_WORDS.test(stuckRow), flat(stuckRow))
+  check('the silent stream ended through the watchdog’s own ladder: the fallback reply landed', /HDR-STUCK-DONE/.test(m['end'] ?? ''), rows(m['end']).filter(r => /HDR-STUCK/.test(r)).map(flat).join(' | ').slice(0, 200))
 }
 
 if (!KEEP) {

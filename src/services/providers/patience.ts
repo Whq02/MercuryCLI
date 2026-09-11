@@ -12,7 +12,7 @@ export interface PatienceNumbers {
 }
 
 export const PATIENCE_NORMAL: Readonly<PatienceNumbers> = Object.freeze({
-  streamIdleMs: 90_000,
+  streamIdleMs: 5 * 60_000,
   quietStreamIdleMs: 15 * 60_000,
   fallbackCeilingMs: 15 * 60_000,
   recoveryBudgetMinutes: 20,

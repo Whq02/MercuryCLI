@@ -32,11 +32,11 @@ console.log('============================================================')
 
 section('B1 · the budget arithmetic')
 {
-  check('warm prefix: the idle budget itself (90 s default)', budget.firstByteBudgetMs({ cold: false, promptTokens: 26_000 }) === 90_000 && budget.streamIdleTimeoutMs() === 90_000)
+  check('warm prefix: the idle budget itself (5 min default)', budget.firstByteBudgetMs({ cold: false, promptTokens: 26_000 }) === 300_000 && budget.streamIdleTimeoutMs() === 300_000)
   check('cold prefix, 26k tokens on a 60 s idle budget: 60 s + 31.2 s = 91.2 s', budget.firstByteBudgetMs({ cold: true, promptTokens: 26_000, idleMs: 60_000 }) === 91_200, String(budget.firstByteBudgetMs({ cold: true, promptTokens: 26_000, idleMs: 60_000 })))
   check('cold prefix never sits below the idle budget (a tiny prompt)', budget.firstByteBudgetMs({ cold: true, promptTokens: 10, idleMs: 60_000 }) === 60_012 && budget.firstByteBudgetMs({ cold: true, promptTokens: 0, idleMs: 60_000 }) === 60_000)
-  check('the ceiling: a 1M-token prompt caps at 300 s', budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 60_000 }) === 300_000)
-  check('the allowance and the ceiling are the owner\'s constants (1,200 ms per 1k · 300,000 ms)', budget.COLD_INGEST_MS_PER_1K_TOKENS === 1_200 && budget.FIRST_BYTE_BUDGET_CEILING_MS === 300_000)
+  check('the ceiling: a 1M-token prompt caps at twice the idle budget (120 s on a 60 s budget, 10 min on the 5 min default)', budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 60_000 }) === 120_000 && budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000 }) === 600_000, `${budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 60_000 })} · ${budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000 })}`)
+  check('the allowance and the ceiling are the owner\'s constants (1,200 ms per 1k · twice the idle budget)', budget.COLD_INGEST_MS_PER_1K_TOKENS === 1_200 && budget.FIRST_BYTE_BUDGET_CEILING_FACTOR === 2)
   check('the send-time estimate is the body\'s bytes, four to a token (never below one)', budget.estimateRequestTokens({ system: 'x'.repeat(4000) }) === Math.ceil(JSON.stringify({ system: 'x'.repeat(4000) }).length / 4) && budget.estimateRequestTokens(undefined) === 1)
 }
 

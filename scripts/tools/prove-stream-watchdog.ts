@@ -21,7 +21,7 @@ console.log('============================================================')
 
 section('source: the watchdog is ALWAYS armed — no enablement gate, no env spelling')
 check('the watchdog is the one owner\'s, created at stream start with no gate between', claude.includes('const streamIdleWatchdog = createStreamIdleWatchdog({') && claude.includes('timeoutMs: STREAM_IDLE_TIMEOUT_MS,'))
-check('the one owner serves BOTH thresholds (the fire at the budget, the warning at half) and the stream wires both', /const warningMs = streamIdleWarningMsOf\(timeoutMs\)/.test(budget) && /onWarning\?: \(silentMs: number\) => void/.test(budget) && /onFire\?: \(fire: StreamIdleFire\) => void/.test(budget) && /onWarning: \(\) => \{/.test(claude) && /onFire: \(\) => \{/.test(claude))
+check('the one owner serves BOTH thresholds (the fire at the budget, the warning at its own point — half, never before five minutes, never after the budget) and the stream wires both', /const warningMs = streamIdleWarningMsOf\(timeoutMs\)/.test(budget) && /onWarning\?: \(silentMs: number\) => void/.test(budget) && /onFire\?: \(fire: StreamIdleFire\) => void/.test(budget) && /onWarning: \(\) => \{/.test(claude) && /onFire: \(\) => \{/.test(claude))
 check('no watchdog enablement variable exists', !/streamWatchdogEnabled/.test(claude))
 check('no retired watchdog env spelling survives', !/STREAM_WATCHDOG/.test(claude))
 
