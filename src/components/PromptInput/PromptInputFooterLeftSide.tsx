@@ -35,6 +35,7 @@ import { CompactFooterNoticeContext } from '../../context/layoutChromeContext.js
 import { isManageableTask, shouldHideTasksFooter } from '../tasks/taskStatusUtils.js'
 import { BASH_MODE_CHARACTER } from './inputModes.js'
 import { ExitChordNotice } from './ExitChordNotice.js'
+import { noticeRowBlock, noticeRowText } from './Notifications.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 
@@ -97,6 +98,7 @@ export function PromptInputFooterLeftSide({
   const killConfirmShowing = useAppState(
     (state: AppState) => state.notifications.current?.key === 'kill-agents-confirm',
   )
+  const currentNotice = useAppState((state: AppState) => state.notifications.current)
   const prStatus = usePrStatus(
     isLoading,
     !compact && getGlobalConfig().prStatusFooterEnabled !== false,
@@ -277,6 +279,12 @@ export function PromptInputFooterLeftSide({
 
   const idleHintShows =
     parts.length === 0 && !showTasksPill && hintsEnabled && !showPrBadge
+  const noticeText = noticeRowText(currentNotice)
+  const noticeBlock = noticeText === null ? noticeRowBlock(currentNotice) : null
+  const noticeJoinsParts = !vimInsert && parts.length > 0 && noticeText !== null
+  if (noticeJoinsParts) parts.push(noticeText)
+  const rowHasContent =
+    searchField !== undefined || vimInsert || showTasksPill || teamsPresent || showPrBadge || idleHintShows || parts.length > 0
   const cluster = (
     <Box
       flexDirection="row"
@@ -347,7 +355,21 @@ export function PromptInputFooterLeftSide({
           </Text>
         </Box>
       ) : null}
-      {parts.length === 0 && !idleHintShows && !showTasksPill && !teamsPresent && !showPrBadge && !vimInsert && searchField === undefined ? (
+      {!noticeJoinsParts && noticeText !== null ? (
+        <Box flexShrink={1} minWidth={0}>
+          <Text dimColor wrap="truncate-end">
+            {rowHasContent ? <Text color={tokens.textMuted}> · </Text> : null}
+            {noticeText}
+          </Text>
+        </Box>
+      ) : null}
+      {noticeBlock !== null ? (
+        <Box flexShrink={1} minWidth={0} height={1} overflow="hidden">
+          {rowHasContent ? <Text color={tokens.textMuted}> · </Text> : null}
+          {noticeBlock}
+        </Box>
+      ) : null}
+      {parts.length === 0 && !idleHintShows && !showTasksPill && !teamsPresent && !showPrBadge && !vimInsert && searchField === undefined && noticeText === null && noticeBlock === null ? (
         <Text> </Text>
       ) : null}
     </Box>
