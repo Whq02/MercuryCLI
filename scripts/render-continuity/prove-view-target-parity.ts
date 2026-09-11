@@ -149,10 +149,11 @@ t.section('§2 journey: header + CREW root + mouse return')
       kind: 'paced',
       deltas: Array.from({ length: 24 }, (_, i) => `count ${i + 1}. `),
       gapMs: 900,
+      whenSaid: 'Count to three slowly.',
     },
-    { kind: 'text', text: 'Probe launched.' },
-    { kind: 'text', text: 'Settled.' },
-    { kind: 'text', text: 'Spare.' },
+    { kind: 'text', text: 'Probe launched.', whenBody: 'spawn the probe' },
+    { kind: 'text', text: 'Settled.', whenBody: 'spawn the probe' },
+    { kind: 'text', text: 'Spare.', whenBody: 'spawn the probe' },
   ]
 
   const run = await runPulseArena({
@@ -162,8 +163,8 @@ t.section('§2 journey: header + CREW root + mouse return')
       '6000:spawn the probe\\r',
       `10600:${sgrClick(10, CHILD_ROW)}`,
       `11300:${sgrClick(10, CHILD_ROW)}`,
-      `14600:${sgrClick(10, ROOT_ROW)}`,
-      `15300:${sgrClick(10, ROOT_ROW)}`,
+      `14600:${ESC}`,
+      `15300:${ESC}`,
     ],
     seconds: 20,
     cols: 120,
@@ -211,29 +212,26 @@ t.section('§2 journey: header + CREW root + mouse return')
 
     const iView = idxOf(
       iMain + 1,
-      f =>
-        has(f, 'viewing') &&
-        has(f, /Main ‹ @poise probe/) &&
-        has(f, /esc.*main/i) &&
-        f.rows.some(r => /Mercury.*‹ main/.test(r)),
+      f => has(f, /agent › poise probe/) && has(f, /esc back/),
     )
     t.check(
-      'the drill shows breadcrumb + esc hint + the accented root return affordance',
+      "the drill opens the agent's work card (the roster card — its stream and controls live with the session's runner) with its esc back hint",
       iMain >= 0 && iView > iMain,
       iView >= 0
-        ? frames[iView]!.rows.find(r => r.includes('Main ‹'))?.trim().slice(0, 70)
+        ? frames[iView]!.rows.find(r => r.includes('agent › poise probe'))?.trim().slice(0, 70)
         : 'no such frame after the main frame',
     )
 
     const iBack = idxOf(
       iView + 1,
       f =>
-        !has(f, /Main ‹/) &&
+        !has(f, /agent › poise probe/) &&
+        !has(f, /Mercury — tasks/) &&
         has(f, 'spawn the probe') &&
         f.rows.some(r => r.includes('poise pro') && r.includes('running')),
     )
     t.check(
-      'two-click on the root returns to main WITHOUT stopping the child',
+      "the card's esc steps back to the board and the board's esc closes it — main again WITHOUT stopping the child (return ≠ stop)",
       iView >= 0 && iBack > iView,
       iBack >= 0
         ? frames[iBack]!.rows.find(r => r.includes('poise pro'))?.trim().slice(0, 50)
@@ -336,11 +334,11 @@ t.section('§4 journey: completed agent stays reachable from the footer')
       },
       preText: 'Spawning the quick probe.',
     },
-    { kind: 'text', text: 'done.' },
-    { kind: 'text', text: 'Probe finished.' },
-    { kind: 'text', text: 'Noted.' },
-    { kind: 'text', text: 'Spare.' },
-    { kind: 'text', text: 'Spare 2.' },
+    { kind: 'text', text: 'done.', whenSaid: 'Reply with one word.' },
+    { kind: 'text', text: 'Probe finished.', whenBody: 'run the quick probe' },
+    { kind: 'text', text: 'Noted.', whenBody: 'run the quick probe' },
+    { kind: 'text', text: 'Spare.', whenBody: 'run the quick probe' },
+    { kind: 'text', text: 'Spare 2.', whenBody: 'run the quick probe' },
   ]
 
   const run = await runPulseArena({

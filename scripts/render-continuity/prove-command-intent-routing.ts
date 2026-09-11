@@ -126,12 +126,13 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
       kind: 'paced',
       deltas: Array.from({ length: 30 }, (_, i) => `count ${i + 1}. `),
       gapMs: 900,
+      whenSaid: 'Count to three slowly.',
     },
-    { kind: 'text', text: 'Probe launched.' },
-    { kind: 'text', text: 'Acknowledged.' },
-    { kind: 'text', text: 'Settled.' },
-    { kind: 'text', text: 'Complete.' },
-    { kind: 'text', text: 'Spare.' },
+    { kind: 'text', text: 'Probe launched.', whenBody: 'spawn the probe' },
+    { kind: 'text', text: 'Acknowledged.', whenBody: 'spawn the probe' },
+    { kind: 'text', text: 'Settled.', whenBody: 'spawn the probe' },
+    { kind: 'text', text: 'Complete.', whenBody: 'spawn the probe' },
+    { kind: 'text', text: 'Spare.', whenBody: 'spawn the probe' },
   ]
 
   const run = await runPulseArena({

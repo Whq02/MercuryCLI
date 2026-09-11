@@ -16,7 +16,7 @@ export type DensityPlan = {
   emphasis: DensityEmphasis
 }
 
-const CALM_ORDER = ['workbench', 'next', 'tabula', 'recent', 'chat', 'crew'] as const
+const CALM_ORDER = ['workbench', 'next', 'tabula', 'recent', 'crew'] as const
 
 const TABLE: Record<
   ActivityState,
@@ -25,19 +25,19 @@ const TABLE: Record<
   calm: { keep: [], shedOrder: CALM_ORDER, secondaryRows: 3, emphasis: 'identity' },
   active: {
     keep: ['next'],
-    shedOrder: ['workbench', 'recent', 'tabula', 'chat', 'crew'],
+    shedOrder: ['workbench', 'recent', 'tabula', 'crew'],
     secondaryRows: 1,
     emphasis: 'work',
   },
   waiting: {
     keep: [],
-    shedOrder: ['workbench', 'next', 'recent', 'tabula', 'chat', 'crew'],
+    shedOrder: ['workbench', 'next', 'recent', 'tabula', 'crew'],
     secondaryRows: 0,
     emphasis: 'decision',
   },
   review: {
     keep: [],
-    shedOrder: ['workbench', 'next', 'tabula', 'chat', 'crew', 'recent'],
+    shedOrder: ['workbench', 'next', 'tabula', 'crew', 'recent'],
     secondaryRows: 1,
     emphasis: 'review',
   },
