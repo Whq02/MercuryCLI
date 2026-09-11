@@ -96,7 +96,7 @@ const parityPins: Array<[string, string[], string]> = [
   ['tools/BashTool/modeValidation.ts', ['modeBypassesPermissions(toolPermissionContext.mode)'], 'bash mode-validation skip'],
   ['tools/PowerShellTool/modeValidation.ts', ['modeBypassesPermissions(toolPermissionContext.mode)'], 'the win32 twin'],
   ['tools/BashTool/bashPermissions.ts', ['modeBypassesPermissions(toolPermissionContext.mode)) return undefined', 'modeBypassesPermissions(toolPermissionContext.mode)) return false'], 'both classifier-spend guards'],
-  ['services/PromptSuggestion/speculation.ts', ['isSpeculationEnabled', 'deliberately NOT built'], 'speculative lane disabled-world surface'],
+  ['services/PromptSuggestion/speculation.ts', ["export function isSpeculationEnabled(): boolean {\n  logForDebugging('speculation enabled: false')\n  return false\n}", 'if (!isSpeculationEnabled()) return'], 'speculation folds to the disabled world (constant-false enablement)'],
   ['utils/swarm/spawnUtils.ts', ['modeBypassesPermissions(permissionMode)'], 'teammate spawn inheritance'],
   ['tools/shared/spawnMultiAgent.ts', ['modeBypassesPermissions(permissionMode)'], 'multi-agent spawn inheritance'],
   ['tools/AgentTool/agentPermissionPosture.ts', ['!modeBypassesPermissions(parentMode'], 'agent-mode override exclusion (the one posture owner)'],
