@@ -405,16 +405,6 @@ export function workerPidAlive(rec: { pid?: number; procStart?: string }): boole
   return true
 }
 
-export function markConcourseWorkerCapacityRefused(runnerId: string, reason: string, dir?: string): void {
-  updateConcourseWorkers(workers => {
-    const rec = workers[runnerId]
-    if (!rec || rec.endedAt !== undefined || rec.stoppedAt !== undefined || rec.attachedAt !== undefined) return
-    stampParked(rec, 'daemon: capacity', reason)
-    delete rec.pid
-    delete rec.procStart
-  }, dir)
-}
-
 export function markConcourseWorkerRespawn(runnerId: string, pid: number, dir?: string): void {
   try {
     updateConcourseWorkers(workers => {
@@ -1655,7 +1645,7 @@ export type ConcourseReviveOutcome =
   | { outcome: 'noop'; reason: 'already-live' }
   | {
       outcome: 'refused'
-      reason: 'unknown-session' | 'attached' | 'stopped' | 'respawn-failed' | 'runtime-ceiling' | 'transcript-lost'
+      reason: 'unknown-session' | 'attached' | 'stopped' | 'respawn-failed' | 'transcript-lost'
       detail?: string
     }
 
@@ -1710,10 +1700,6 @@ export function reviveConcourseWorker(
       else w.parkReason = detail
     }, dir)
     return { outcome: 'refused', reason: 'transcript-lost', detail }
-  }
-  const ceiling = effectiveSeatCeiling()
-  if (countLiveConcourseWorkers(dir) >= ceiling) {
-    return { outcome: 'refused', reason: 'runtime-ceiling', detail: `cannot resume yet — ${describeSeatReading(ceiling)}` }
   }
   const reviveKit = opts?.kitOverride ?? rec.kit
   const reviveModel = opts?.modelOverride ?? rec.modelKey
