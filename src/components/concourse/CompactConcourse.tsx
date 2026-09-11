@@ -163,6 +163,7 @@ export function CompactConcourse({
   verbsFire,
   showLive,
   note,
+  composerNote,
   mirrorNode,
   liveComposerNode,
   wiring,
@@ -182,6 +183,7 @@ export function CompactConcourse({
   verbsFire: boolean
   showLive: boolean
   note: CompactFootNote | null
+  composerNote: string | null
   mirrorNode: (rows: number, width: number) => React.ReactNode
   liveComposerNode?: (bandRows: number, width: number) => React.ReactNode
   wiring: CompactConcourseWiring
@@ -297,11 +299,20 @@ export function CompactConcourse({
     return out
   }
 
+  const composerNoteRows = composerNote !== null && geo.composerRows > 0 && geo.mirrorRows > 0 ? 1 : 0
+  const mirrorRows = geo.mirrorRows - composerNoteRows
   const liveBody = (): React.ReactNode => (
     <>
-      <Box height={geo.mirrorRows} flexShrink={0} overflow="hidden" paddingX={1}>
-        {geo.mirrorRows > 0 ? mirrorNode(geo.mirrorRows, Math.max(0, geo.live.inner - 2)) : null}
+      <Box height={mirrorRows} flexShrink={0} overflow="hidden" paddingX={1}>
+        {mirrorRows > 0 ? mirrorNode(mirrorRows, Math.max(0, geo.live.inner - 2)) : null}
       </Box>
+      {composerNoteRows > 0 ? (
+        <Box height={1} flexShrink={0} overflow="hidden" paddingX={1}>
+          <Text color={t.warning} dimColor wrap="truncate-end">
+            {composerNote}
+          </Text>
+        </Box>
+      ) : null}
       {geo.composerRows > 0 && liveComposerNode !== undefined ? (
         <Box height={geo.composerRows} flexShrink={0} overflow="hidden" paddingX={1}>
           {liveComposerNode(geo.composerBand, Math.max(0, geo.live.inner - 2))}
