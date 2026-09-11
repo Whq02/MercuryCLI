@@ -40,7 +40,7 @@ has src/utils/cockpit/daemonSnapshot.ts "daemonControlRpc({ op: 'ping' }" 'daemo
 has src/utils/cockpit/daemonSnapshot.ts 'control socket unresponsive' 'wedged-supervisor downgrade (pid alive ≠ live)'
 lacks src/services/coordination/coordinationService.ts 'party:' 'the coordination brief carries no party facet'
 has src/components/mercury-ui/screens/TeammateChatsView.tsx 'const browseVerbs' 'teammates footer tracks selected-row affordances (r/k)'
-has src/components/tasks/RunDetailPane.tsx "agents.length > 0 ? '↵ inspect' : undefined" 'run-detail ↵ hint conditional on rows'
+has src/components/tasks/RunDetailPane.tsx "agents.length > 0 ? '↑↓ agent · ↵ inspect · ' : ''" 'run-detail ↵ hint conditional on rows'
 if grep -rqF 'ctrl+t+c' "$root/src/components" "$root/src/commands"; then no 'dead ctrl+t+c chord still advertised somewhere'; else ok 'dead ctrl+t+c chord fully removed'; fi
 
 echo "############################################################"
