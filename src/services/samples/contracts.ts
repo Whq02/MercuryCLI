@@ -1,5 +1,4 @@
-import { flagEnv } from '../../substrate/flagRegistry.js'
-import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 
 export type SampleState = 'open' | 'approved' | 'changes-needed'
 
@@ -61,5 +60,5 @@ export function sampleStateWord(state: SampleState): string {
 }
 
 export function samplesEnabled(): boolean {
-  return !isEnvDefinedFalsy(flagEnv('MERCURY_SAMPLES'))
+  return flagEnabled('MERCURY_SAMPLES')
 }

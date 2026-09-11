@@ -8,7 +8,7 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'mercury-samples-store-'))
 process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 process.env.BROWSER = '/usr/bin/true'
-delete process.env.MERCURY_SAMPLES
+process.env.MERCURY_SAMPLES = '1'
 
 const store = await import('../../src/services/samples/store.ts')
 
