@@ -20,7 +20,8 @@ export function useGreetingShimmer(
   const reducedMotion =
     (useSettingsMaybe()?.prefersReducedMotion ?? false) ||
     isEnvTruthy(process.env.MERCURY_REDUCED_MOTION)
-  const enabled = !reducedMotion && useIdleMotion('glyphs') !== 'off' && stops.length > 1 && spanCells > 1
+  const glyphMotion = useIdleMotion('glyphs')
+  const enabled = !reducedMotion && glyphMotion !== 'off' && stops.length > 1 && spanCells > 1
 
   const [settled, setSettled] = React.useState(false)
   const startRef = React.useRef<number | null>(null)
