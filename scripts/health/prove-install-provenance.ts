@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -7,7 +7,10 @@ import { join } from 'node:path'
 
 const {
   classifyInstallProvenance,
+  foreignInstallerOf,
   gatherInstallProbeFacts,
+  homebrewKegOf,
+  npmPackageDirOf,
   provenanceGuidance,
   provenanceLine,
 } = await import('../../src/services/privateChannel/installProvenance.ts')
@@ -20,7 +23,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
 
-const SCRATCH = mkdtempSync(join(tmpdir(), 'install-provenance-'))
+const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'install-provenance-')))
 
 function makeManaged(root: string, version: string, opts?: { manifest?: boolean; current?: string | null }): string {
   const vdir = join(root, 'versions', version)
@@ -33,8 +36,8 @@ function makeManaged(root: string, version: string, opts?: { manifest?: boolean;
   return join(vdir, 'mercury.mjs')
 }
 
-const gather = (entry: string, versionsDir: string, platform: NodeJS.Platform = 'darwin') =>
-  classifyInstallProvenance(gatherInstallProbeFacts({ invokedPath: entry, versionsDir, platform }))
+const gather = (entry: string, versionsDir: string, platform: NodeJS.Platform = 'darwin', env: NodeJS.ProcessEnv = {}) =>
+  classifyInstallProvenance(gatherInstallProbeFacts({ invokedPath: entry, versionsDir, platform, env }))
 
 section('§1 THE FIXTURE BATTERY (IP-15)')
 {
@@ -122,6 +125,51 @@ section('§1 THE FIXTURE BATTERY (IP-15)')
     p9.kind === 'managed' && p9.disagreements.some(d => d.includes('direct versioned invocation')),
     `${p9.kind} ${p9.disagreements.join(';')}`,
   )
+
+  const keg = join(SCRATCH, 'brew', 'Cellar', 'mercury', '1.0.0-beta.4')
+  mkdirSync(join(keg, 'libexec'), { recursive: true })
+  writeFileSync(join(keg, 'libexec', 'mercury.mjs'), '// bundle\n')
+  writeFileSync(join(keg, 'libexec', 'manifest.json'), '{}\n')
+  writeFileSync(join(keg, 'libexec', 'mercury'), '#!/bin/sh\n')
+  const p10 = gather(join(keg, 'libexec', 'mercury.mjs'), join(rCo, 'versions'))
+  check(
+    'a bundle under Cellar/mercury/<version>/ resolves HOMEBREW, ahead of the extracted-release shape it also has',
+    p10.kind === 'homebrew' && p10.updateOwner === 'homebrew' && p10.activeRoot === join(keg, 'libexec'),
+    `${p10.kind} ${p10.activeRoot}`,
+  )
+  check(
+    'the Homebrew evidence names the keg, and the co-resident managed install stays reported separately (IP-17)',
+    p10.evidence.some(e => e.includes(keg)) && p10.managedCoResident?.current === '1.5.3-beta.1',
+    `${p10.evidence.join(';')} ${JSON.stringify(p10.managedCoResident)}`,
+  )
+  check('the keg detector answers the keg directory itself', homebrewKegOf(join(keg, 'libexec', 'mercury.mjs'), {}) === keg)
+  check('a path that only mentions the words is no keg', homebrewKegOf('/x/Cellar/mercury', {}) === null && homebrewKegOf('/x/Cellar/other/1.0/libexec/mercury.mjs', {}) === null)
+
+  const cellar = join(SCRATCH, 'brew-custom', 'kegs')
+  mkdirSync(join(cellar, 'mercury', '1.0.0-beta.4', 'libexec'), { recursive: true })
+  writeFileSync(join(cellar, 'mercury', '1.0.0-beta.4', 'libexec', 'mercury.mjs'), '// bundle\n')
+  const customEntry = join(cellar, 'mercury', '1.0.0-beta.4', 'libexec', 'mercury.mjs')
+  const p11 = gather(customEntry, join(SCRATCH, 'no-versions-5'), 'darwin', { HOMEBREW_CELLAR: cellar })
+  check('HOMEBREW_CELLAR names a cellar of another name', p11.kind === 'homebrew', p11.kind)
+  const p11b = gather(customEntry, join(SCRATCH, 'no-versions-5'), 'darwin', {})
+  check('without the variable the same path is not Homebrew', p11b.kind === 'unknown', p11b.kind)
+  const prefixed = join(SCRATCH, 'brew-prefix')
+  mkdirSync(join(prefixed, 'Cellar', 'mercury', '1.0.0-beta.4', 'libexec'), { recursive: true })
+  const prefixedEntry = join(prefixed, 'Cellar', 'mercury', '1.0.0-beta.4', 'libexec', 'mercury.mjs')
+  writeFileSync(prefixedEntry, '// bundle\n')
+  check('HOMEBREW_PREFIX names the prefix whose Cellar holds the keg', homebrewKegOf(prefixedEntry, { HOMEBREW_PREFIX: prefixed }) === join(prefixed, 'Cellar', 'mercury', '1.0.0-beta.4'))
+
+  const pkg = join(SCRATCH, 'npm', 'lib', 'node_modules', 'mercury-tech-cli')
+  mkdirSync(join(pkg, 'dist'), { recursive: true })
+  writeFileSync(join(pkg, 'dist', 'mercury.mjs'), '// bundle\n')
+  const p12 = gather(join(pkg, 'dist', 'mercury.mjs'), join(SCRATCH, 'no-versions-6'))
+  check('a bundle under node_modules/mercury-tech-cli/ resolves NPM', p12.kind === 'npm' && p12.updateOwner === 'npm', p12.kind)
+  check('the package detector answers the package directory', npmPackageDirOf(join(pkg, 'dist', 'mercury.mjs')) === pkg && npmPackageDirOf('/x/node_modules/other/mercury.mjs') === null)
+
+  const r13 = join(SCRATCH, 'Cellar', 'mercury', 'x')
+  const e13 = makeManaged(r13, '1.5.3-beta.1')
+  const p13 = gather(e13, join(r13, 'versions'))
+  check('an entry bound to the versions layout stays MANAGED whatever the path above it spells', p13.kind === 'managed', p13.kind)
 }
 
 section('§2 GUIDANCE (IP-07/08/09)')
@@ -142,6 +190,27 @@ section('§2 GUIDANCE (IP-07/08/09)')
     provenanceGuidance(unknown).includes('mercury install') && !provenanceGuidance(unknown).includes('git pull'),
   )
   check('the display line carries kind + version + root', provenanceLine(managed).includes('managed') && provenanceLine(managed).includes('1.5.4-test'))
+  const keg = join(SCRATCH, 'g-brew', 'Cellar', 'mercury', '1.0.0-beta.4', 'libexec')
+  mkdirSync(keg, { recursive: true })
+  writeFileSync(join(keg, 'mercury.mjs'), '//\n')
+  const brew = gather(join(keg, 'mercury.mjs'), join(SCRATCH, 'no-versions-7'))
+  const brewWords = provenanceGuidance(brew)
+  check(
+    'Homebrew guidance names brew upgrade and what `mercury update` manages',
+    brewWords.includes('update it with `brew upgrade Whq02/mercury/mercury`') && brewWords.includes('`mercury update` manages installs made by `mercury install` or the install script') && !brewWords.includes('git pull'),
+    brewWords,
+  )
+  const pkg = join(SCRATCH, 'g-npm', 'node_modules', 'mercury-tech-cli')
+  mkdirSync(pkg, { recursive: true })
+  writeFileSync(join(pkg, 'mercury.mjs'), '//\n')
+  const npm = gather(join(pkg, 'mercury.mjs'), join(SCRATCH, 'no-versions-8'))
+  const npmWords = provenanceGuidance(npm)
+  check('npm guidance names npm update and what `mercury update` manages', npmWords.includes('update it with `npm update -g mercury-tech-cli`') && npmWords.includes('`mercury update` manages installs made by'), npmWords)
+  check(
+    'the foreign-installer view names Homebrew and npm with their commands, and nothing for the shapes `mercury update` manages',
+    foreignInstallerOf(brew)?.name === 'Homebrew' && foreignInstallerOf(brew)?.updateCommand === 'brew upgrade Whq02/mercury/mercury' && foreignInstallerOf(npm)?.name === 'npm' && foreignInstallerOf(npm)?.updateCommand === 'npm update -g mercury-tech-cli' && foreignInstallerOf(managed) === null && foreignInstallerOf(dev) === null && foreignInstallerOf(unknown) === null,
+  )
+  check('the display line for a Homebrew install says homebrew and where it runs from', provenanceLine(brew).startsWith('homebrew 1.5.4-test') && provenanceLine(brew).includes(keg))
 }
 
 section('§3 WIRING (IP-01/10/12/16)')

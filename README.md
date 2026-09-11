@@ -48,17 +48,24 @@ guarded line in your shell's startup file; the user PATH on Windows), so a
 new terminal finds `mercury`; the terminal you installed from needs the
 line the installer prints. `mercury --version` is the check.
 
-`mercury update` keeps a release install current in place (`--check`,
-`--status`, `--rollback`; the previous version stays on disk). It reads the
-public release list and the archive anonymously — no account, no sign-in,
-no token — and verifies the archive against the release's `SHA256SUMS.txt`
-before anything activates; a signed-in GitHub CLI (`gh`) is asked only when
-that anonymous request is refused, and is never required. Update and install
-also require a payload signed by the Mercury release key in the compiled-in
-trust roster before staging it. Every other signature verdict refuses without
-changing the active installation. The explicit `--allow-unsigned` flag accepts
-an unsigned payload only, never an unknown key, a malformed signing block or
-tampered bytes; the result and local receipt name that exception.
+`mercury update` keeps an install made by the install one-liners or by
+`mercury install` current in place (`--check`, `--status`, `--rollback`; the
+previous version stays on disk). An install made by Homebrew is updated with
+`brew upgrade Whq02/mercury/mercury` and one made by npm with
+`npm update -g mercury-tech-cli`; `mercury update` run inside either says so
+and changes nothing. It reads the public release list and the archive
+anonymously — no account, no sign-in, no token — and verifies the archive
+against the release's `SHA256SUMS.txt` before anything activates; a signed-in
+GitHub CLI (`gh`) is asked only when that anonymous request is refused, and is
+never required. Update and install also require a payload signed by the
+Mercury release key in the compiled-in trust roster before staging it. Every
+other signature verdict refuses without changing the active installation. The
+explicit `--allow-unsigned` flag accepts an unsigned payload only, never an
+unknown key, a malformed signing block or tampered bytes; the result and local
+receipt name that exception. After an update, when the `mercury` your shell
+runs is not the updated command (another install ahead of it on PATH, or the
+folder not on PATH at all), the last lines say so and name the fix;
+`mercury doctor` reports the same.
 
 From 1.0.0-beta.3 every release archive is signed with the Mercury release
 key at packaging, and the release is verified against that signature before
