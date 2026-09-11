@@ -1182,7 +1182,7 @@ async function* queryModel(
       timeoutMs: STREAM_IDLE_TIMEOUT_MS,
       onWarning: () => {
         logForDebugging(
-          `stream silent for ${STREAM_IDLE_WARNING_MS / 1000}s — watchdog warning`,
+          `stream silent for ${patienceSeconds(STREAM_IDLE_WARNING_MS)} — watchdog warning`,
           { level: 'warn' },
         )
         logForDiagnosticsNoPII('warn', 'cli_streaming_idle_warning')
@@ -1191,7 +1191,7 @@ async function* queryModel(
         streamIdleAborted = true
         streamWatchdogFiredAt = performance.now()
         logForDebugging(
-          `stream silent for ${STREAM_IDLE_TIMEOUT_MS / 1000}s — watchdog aborting the stream`,
+          `stream silent for ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} — watchdog aborting the stream`,
           { level: 'error' },
         )
         logForDiagnosticsNoPII('error', 'cli_streaming_idle_timeout')
@@ -1601,13 +1601,13 @@ async function* queryModel(
         resetApiConnectionPool()
         logForDiagnosticsNoPII('info', 'cli_stream_preevent_streaming_retry')
         logForDebugging(
-          `watchdog: no stream events within ${STREAM_IDLE_TIMEOUT_MS / 1000}s of dispatch — reissuing the stream (pass 2)`,
+          `watchdog: no stream events within ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} of dispatch — reissuing the stream (pass 2)`,
           { level: 'warn' },
         )
         yield createSystemAPIErrorMessage(
           Object.assign(
             new Error(
-              `no stream events within ${STREAM_IDLE_TIMEOUT_MS / 1000}s of dispatch — the request was accepted and the wait is provider-side (a switched or uncached prompt can ingest slowly); reissuing the stream`,
+              `no stream events within ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} of dispatch — the request was accepted and the wait is provider-side (a switched or uncached prompt can ingest slowly); reissuing the stream`,
             ),
             { cause: streamingError },
           ),
@@ -1628,14 +1628,13 @@ async function* queryModel(
       if (options.onStreamingFallback) {
         options.onStreamingFallback()
       }
-      const fallbackCeilingSeconds = Math.round(getNonstreamingFallbackTimeoutMs() / 1000)
-      const fallbackWaitWords = `waiting up to ${fallbackCeilingSeconds}s for ONE non-streamed completion (no tokens stream while it runs; esc abandons it)`
+      const fallbackWaitWords = `waiting up to ${patienceSeconds(getNonstreamingFallbackTimeoutMs())} for ONE non-streamed completion (no tokens stream while it runs; esc abandons it)`
       const noticeError = streamIdleAborted
         ? Object.assign(
             new Error(
               sawFirstStreamEvent
-                ? `stream idle watchdog fired after ${STREAM_IDLE_TIMEOUT_MS / 1000}s of mid-stream silence (${streamEventCount} event(s) arrived, then the stream went quiet — the connection likely dropped) — ${fallbackWaitWords}`
-                : `stream idle watchdog fired after ${STREAM_IDLE_TIMEOUT_MS / 1000}s with no first event, TWICE (the request authenticates and is accepted, then nothing arrives — a dead connection, or a request the server parks) — ${fallbackWaitWords}; /model can switch families meanwhile`,
+                ? `stream idle watchdog fired after ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} of mid-stream silence (${streamEventCount} event(s) arrived, then the stream went quiet — the connection likely dropped) — ${fallbackWaitWords}`
+                : `stream idle watchdog fired after ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} with no first event, TWICE (the request authenticates and is accepted, then nothing arrives — a dead connection, or a request the server parks) — ${fallbackWaitWords}; /model can switch families meanwhile`,
             ),
             { cause: streamingError },
           )

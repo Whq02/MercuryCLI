@@ -689,7 +689,7 @@
       ]
     },
     "patience": {
-      "description": "Patience with a quiet model: normal (a 5 min stream-idle budget where keep-alives feed the watchdog, 15 min on the OpenAI road, a 15 min non-streamed fallback ceiling, a 20 min retry budget), patient (every wait doubled), or the custom numbers; MERCURY_STREAM_IDLE_TIMEOUT_MS, MERCURY_API_TIMEOUT_MS and MERCURY_RECOVERY_BUDGET_MINUTES outrank it",
+      "description": "Patience with a quiet model: normal (a 2 min stream-idle budget where keep-alives feed the watchdog, 15 min on the OpenAI road, a 15 min non-streamed fallback ceiling, a 20 min retry budget), patient (every wait doubled), or the custom numbers; MERCURY_STREAM_IDLE_TIMEOUT_MS, MERCURY_API_TIMEOUT_MS and MERCURY_RECOVERY_BUDGET_MINUTES outrank it",
       "anyOf": [
         {
           "type": "string",

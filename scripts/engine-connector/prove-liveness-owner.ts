@@ -81,12 +81,12 @@ section('§1 an old daemon (no stamp, no budget): the row states a duration and 
 
 section('§2 a long think with the runner speaking = alive: "thinking for 2m"')
 {
-  facts({ streamIdleTimeoutMs: 300_000 })
+  facts({ streamIdleTimeoutMs: 120_000 })
   tail({ lastEventAtMs: Date.now(), streamBlock: 'thinking', blockSinceMs: Date.now() - 125_000 })
   await settle()
   const s = c.status()
   check("the block in flight is the phase — 'thinking' with the block's own clock (~2m)", c.live().phase === 'thinking' && s.phaseMs !== null && s.phaseMs >= 125_000 && s.phaseMs < 140_000, show())
-  check('the stamp is fresh ⇒ quietMs small, the budget is the runner’s 5m', s.quietMs !== null && s.quietMs < 5_000 && s.watchdogMs === 300_000, show())
+  check('the stamp is fresh ⇒ quietMs small, the budget is the runner’s 2m', s.quietMs !== null && s.quietMs < 5_000 && s.watchdogMs === 120_000, show())
   check('alive: not stuck', s.stuck === false, show())
   check('the words: none — the transcript and the card narrate the think, the row does not', words() === '', words())
 }
@@ -101,8 +101,8 @@ section('§3 words flowing = "replying"')
 
 section('§4 no stream events past the watchdog’s warning point = stuck, naming what it saw — and nothing before it')
 {
-  const points = [streamIdleWarningMsOf(4_000), streamIdleWarningMsOf(300_000), streamIdleWarningMsOf(600_000), streamIdleWarningMsOf(900_000)]
-  check('the warning point is the one owner’s rule: half, never before five minutes, never after the budget (4s→4s · 5m→5m · 10m→5m · 15m→7m 30s)', points[0] === 4_000 && points[1] === 300_000 && points[2] === 300_000 && points[3] === 450_000, JSON.stringify(points))
+  const points = [streamIdleWarningMsOf(4_000), streamIdleWarningMsOf(120_000), streamIdleWarningMsOf(300_000), streamIdleWarningMsOf(600_000), streamIdleWarningMsOf(900_000)]
+  check('the warning point is the one owner’s rule: half, never before five minutes, never after the budget (4s→4s · 2m→2m · 5m→5m · 10m→5m · 15m→7m 30s)', points[0] === 4_000 && points[1] === 120_000 && points[2] === 300_000 && points[3] === 300_000 && points[4] === 450_000, JSON.stringify(points))
   facts({ streamIdleTimeoutMs: 4_000 })
   tail({ lastEventAtMs: Date.now() - 2_000 })
   await settle()
@@ -115,10 +115,10 @@ section('§4 no stream events past the watchdog’s warning point = stuck, namin
   check('5s of silence against a 4s budget ⇒ stuck (quietMs ≥ the warning point)', s.stuck === true && s.quietMs !== null && s.quietMs >= 5_000 && s.watchdogMs === 4_000, show())
   const spoken = words()
   check('the words name what it saw and the watchdog’s own number', /^no stream events for \d+s — the session may be stuck \(the watchdog aborts at 4s\)$/.test(spoken) && spoken.startsWith(`no stream events for ${statusDuration(Math.max(5_000, s.quietMs ?? 0))}`.slice(0, 21)), spoken)
-  facts({ streamIdleTimeoutMs: 300_000 })
+  facts({ streamIdleTimeoutMs: 120_000 })
   await settle()
   const m = c.status()
-  check('the same 5s under a 5m budget is not stuck (the number is the runner’s, never a local constant)', m.stuck === false && m.watchdogMs === 300_000, show())
+  check('the same 5s under a 2m budget is not stuck (the number is the runner’s, never a local constant)', m.stuck === false && m.watchdogMs === 120_000, show())
   check('…and the row states no main-agent clock either', words() === '', words())
 }
 
@@ -151,7 +151,7 @@ section('§5 a tool running under its deadline = alive, whatever the stream’s 
 section('§6 interrupting wins over every other sentence')
 {
   const live: SessionLiveV1 = { inFlight: true, phase: 'thinking', inProgressToolUseIDs: new Set(), turnStartedAtMs: Date.now() - 1000 }
-  const stuck: SeatStatusV1 = { title: 't', projectLabel: 'p', interrupting: true, hardStopping: false, quietMs: 305_000, watchdogMs: 300_000, phaseMs: 305_000, toolBudgetMs: null, stuck: true, wait: null }
+  const stuck: SeatStatusV1 = { title: 't', projectLabel: 'p', interrupting: true, hardStopping: false, quietMs: 125_000, watchdogMs: 120_000, phaseMs: 125_000, toolBudgetMs: null, stuck: true, wait: null }
   check('interrupting + stuck ⇒ the interrupting sentence', statusLine(live, stuck) === 'interrupting — the request is torn down', statusLine(live, stuck))
   check('the hard stop outranks the interrupting sentence', statusLine(live, { ...stuck, hardStopping: true }) === 'stopping — the runner is cut if the turn is still open in a second', statusLine(live, { ...stuck, hardStopping: true }))
   const idle: SessionLiveV1 = { ...live, inFlight: false, phase: 'idle' }
@@ -195,7 +195,7 @@ section('§8 the live channel ticks once a second only while a turn is in flight
   await sleep(1_300)
   offIdle()
   check('an idle chat ticks nothing (no emit in 1.3s with nothing moving)', idleEmits === 0, `${idleEmits} emit(s)`)
-  facts({ streamIdleTimeoutMs: 300_000, busy: true })
+  facts({ streamIdleTimeoutMs: 120_000, busy: true })
   tail({ lastEventAtMs: Date.now(), streamBlock: 'thinking', blockSinceMs: Date.now() })
   await settle()
   check('fixture: in flight again', c.live().inFlight === true, show())

@@ -43,38 +43,38 @@ const roadsRead = (roads: ReadonlyArray<string | null>): string => roads.map(roa
 section('P1 — the modes: normal, patient, custom; junk reads as normal')
 {
   const normal = patience.patienceOf(undefined)
-  check('unset ⇒ normal: 5 min idle, 15 min on the quiet road, a 15 min fallback ceiling, a 20 min retry budget', normal.mode === 'normal' && normal.numbers.streamIdleMs === 300_000 && normal.numbers.quietStreamIdleMs === 900_000 && normal.numbers.fallbackCeilingMs === 900_000 && normal.numbers.recoveryBudgetMinutes === 20, JSON.stringify(normal))
+  check('unset ⇒ normal: 2 min idle, 15 min on the quiet road, a 15 min fallback ceiling, a 20 min retry budget', normal.mode === 'normal' && normal.numbers.streamIdleMs === 120_000 && normal.numbers.quietStreamIdleMs === 900_000 && normal.numbers.fallbackCeilingMs === 900_000 && normal.numbers.recoveryBudgetMinutes === 20, JSON.stringify(normal))
   check('"normal" spells the same numbers', JSON.stringify(patience.patienceOf('normal')) === JSON.stringify(normal))
   const patient = patience.patienceOf('patient')
-  check('patient ⇒ every wait doubled', patient.mode === 'patient' && patient.numbers.streamIdleMs === 600_000 && patient.numbers.quietStreamIdleMs === 1_800_000 && patient.numbers.fallbackCeilingMs === 1_800_000 && patient.numbers.recoveryBudgetMinutes === 40, JSON.stringify(patient))
+  check('patient ⇒ every wait doubled', patient.mode === 'patient' && patient.numbers.streamIdleMs === 240_000 && patient.numbers.quietStreamIdleMs === 1_800_000 && patient.numbers.fallbackCeilingMs === 1_800_000 && patient.numbers.recoveryBudgetMinutes === 40, JSON.stringify(patient))
   const custom = patience.patienceOf({ streamIdleSeconds: 45, quietStreamIdleSeconds: 600, fallbackCeilingSeconds: 1200, recoveryBudgetMinutes: 3 })
   check('custom ⇒ the numbers, seconds and minutes as the file spells them', custom.mode === 'custom' && custom.numbers.streamIdleMs === 45_000 && custom.numbers.quietStreamIdleMs === 600_000 && custom.numbers.fallbackCeilingMs === 1_200_000 && custom.numbers.recoveryBudgetMinutes === 3, JSON.stringify(custom))
   const partial = patience.patienceOf({ recoveryBudgetMinutes: 0 })
-  check('a custom budget of 0 is the budget off; the missing numbers take normal\'s', partial.mode === 'custom' && partial.numbers.recoveryBudgetMinutes === 0 && partial.numbers.streamIdleMs === 300_000 && partial.numbers.quietStreamIdleMs === 900_000 && partial.numbers.fallbackCeilingMs === 900_000, JSON.stringify(partial))
+  check('a custom budget of 0 is the budget off; the missing numbers take normal\'s', partial.mode === 'custom' && partial.numbers.recoveryBudgetMinutes === 0 && partial.numbers.streamIdleMs === 120_000 && partial.numbers.quietStreamIdleMs === 900_000 && partial.numbers.fallbackCeilingMs === 900_000, JSON.stringify(partial))
   const malformed = patience.patienceOf({ streamIdleSeconds: 'soon', quietStreamIdleSeconds: -4, fallbackCeilingSeconds: Number.NaN, recoveryBudgetMinutes: -1 })
   check('malformed custom numbers take normal\'s, each on its own', malformed.mode === 'custom' && JSON.stringify(malformed.numbers) === JSON.stringify(normal.numbers), JSON.stringify(malformed))
-  check('a custom idle number under the watchdog\'s floor takes normal\'s', patience.patienceOf({ streamIdleSeconds: 0.2 }).numbers.streamIdleMs === 300_000)
+  check('a custom idle number under the watchdog\'s floor takes normal\'s', patience.patienceOf({ streamIdleSeconds: 0.2 }).numbers.streamIdleMs === 120_000)
   check('junk reads as normal', patience.patienceOf('eager').mode === 'normal' && patience.patienceOf(42).mode === 'normal' && patience.patienceOf([1]).mode === 'normal' && patience.patienceOf(null).mode === 'normal')
 }
 
 section('P2 — per road, through the real settings pipeline')
 {
-  check('unset: the fed roads read 5 min', everyRoad(FED_ROADS, 300_000), roadsRead(FED_ROADS))
+  check('unset: the fed roads read 2 min', everyRoad(FED_ROADS, 120_000), roadsRead(FED_ROADS))
   check('unset: the openai road reads the quiet number, 15 min', everyRoad(QUIET_ROADS, 900_000), roadsRead(QUIET_ROADS))
-  check('unset: a road with no number of its own reads the shared 5 min', everyRoad(OWN_ROADS, 300_000), roadsRead(OWN_ROADS))
-  check('the caller with no road reads the shared 5 min', idle.streamIdleTimeoutMs() === 300_000)
+  check('unset: a road with no number of its own reads the shared 2 min', everyRoad(OWN_ROADS, 120_000), roadsRead(OWN_ROADS))
+  check('the caller with no road reads the shared 2 min', idle.streamIdleTimeoutMs() === 120_000)
   setPatience('patient')
-  check('patient: the fed roads read 10 min', everyRoad(FED_ROADS, 600_000), roadsRead(FED_ROADS))
+  check('patient: the fed roads read 4 min', everyRoad(FED_ROADS, 240_000), roadsRead(FED_ROADS))
   check('patient: the openai road reads 30 min', everyRoad(QUIET_ROADS, 1_800_000), roadsRead(QUIET_ROADS))
-  check('patient: a road with no number of its own still reads the shared 5 min', everyRoad(OWN_ROADS, 300_000), roadsRead(OWN_ROADS))
-  check('patient: the caller with no road still reads the shared 5 min', idle.streamIdleTimeoutMs() === 300_000)
+  check('patient: a road with no number of its own still reads the shared 2 min', everyRoad(OWN_ROADS, 120_000), roadsRead(OWN_ROADS))
+  check('patient: the caller with no road still reads the shared 2 min', idle.streamIdleTimeoutMs() === 120_000)
   setPatience({ streamIdleSeconds: 45, quietStreamIdleSeconds: 600, fallbackCeilingSeconds: 1200, recoveryBudgetMinutes: 3 })
   check('custom: the fed roads read the custom idle number', everyRoad(FED_ROADS, 45_000), roadsRead(FED_ROADS))
   check('custom: the openai road reads the custom quiet number', everyRoad(QUIET_ROADS, 600_000), roadsRead(QUIET_ROADS))
-  check('custom: a road with no number of its own reads the shared 5 min', everyRoad(OWN_ROADS, 300_000), roadsRead(OWN_ROADS))
+  check('custom: a road with no number of its own reads the shared 2 min', everyRoad(OWN_ROADS, 120_000), roadsRead(OWN_ROADS))
   check('the current patience reads the file', patience.currentPatience().mode === 'custom' && patience.currentPatience().numbers.streamIdleMs === 45_000)
   setPatience(undefined)
-  check('the key removed: normal again', patience.currentPatience().mode === 'normal' && everyRoad(FED_ROADS, 300_000) && everyRoad(QUIET_ROADS, 900_000))
+  check('the key removed: normal again', patience.currentPatience().mode === 'normal' && everyRoad(FED_ROADS, 120_000) && everyRoad(QUIET_ROADS, 900_000))
 }
 
 section('P3 — the fallback ceiling and the retry budget follow the mode')
@@ -99,9 +99,9 @@ section('P4 — the env pins outrank the setting, every road alike')
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '2000'
   check('the idle pin: every road reads it, the quiet road and the roads with no number included', everyRoad([...FED_ROADS, ...QUIET_ROADS, ...OWN_ROADS], 2_000) && idle.streamIdleTimeoutMs() === 2_000, roadsRead([...FED_ROADS, ...QUIET_ROADS]))
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '500'
-  check('an idle pin under the floor falls through to the setting', everyRoad(FED_ROADS, 600_000) && everyRoad(QUIET_ROADS, 1_800_000), roadsRead([...FED_ROADS, ...QUIET_ROADS]))
+  check('an idle pin under the floor falls through to the setting', everyRoad(FED_ROADS, 240_000) && everyRoad(QUIET_ROADS, 1_800_000), roadsRead([...FED_ROADS, ...QUIET_ROADS]))
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = 'slow'
-  check('an idle pin that does not parse falls through to the setting', everyRoad(FED_ROADS, 600_000), roadsRead(FED_ROADS))
+  check('an idle pin that does not parse falls through to the setting', everyRoad(FED_ROADS, 240_000), roadsRead(FED_ROADS))
   delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
   process.env.MERCURY_API_TIMEOUT_MS = '8000'
   check('the request-budget pin is the fallback ceiling', patience.nonstreamingFallbackCeilingMs() === 8_000, String(patience.nonstreamingFallbackCeilingMs()))
@@ -122,11 +122,11 @@ section('P4 — the env pins outrank the setting, every road alike')
 
 section('P5 — the words, the custom form, the pins named, the schema')
 {
-  check('the normal row', patience.patienceWords(patience.PATIENCE_NORMAL) === 'idle 5m (OpenAI 15m) · fallback 15m · retry budget 20m', patience.patienceWords(patience.PATIENCE_NORMAL))
-  check('the patient row', patience.patienceWords(patience.PATIENCE_PATIENT) === 'idle 10m (OpenAI 30m) · fallback 30m · retry budget 40m', patience.patienceWords(patience.PATIENCE_PATIENT))
+  check('the normal row', patience.patienceWords(patience.PATIENCE_NORMAL) === 'idle 2m (OpenAI 15m) · fallback 15m · retry budget 20m', patience.patienceWords(patience.PATIENCE_NORMAL))
+  check('the patient row', patience.patienceWords(patience.PATIENCE_PATIENT) === 'idle 4m (OpenAI 30m) · fallback 30m · retry budget 40m', patience.patienceWords(patience.PATIENCE_PATIENT))
   const off = patience.patienceOf({ streamIdleSeconds: 45, recoveryBudgetMinutes: 0 }).numbers
   check('a custom row with the budget off says so', patience.patienceWords(off) === 'idle 45 s (OpenAI 15m) · fallback 15m · no retry budget', patience.patienceWords(off))
-  check('the custom form /config writes carries every number in the file\'s units', JSON.stringify(patience.customPatienceSetting(patience.PATIENCE_NORMAL)) === JSON.stringify({ streamIdleSeconds: 300, quietStreamIdleSeconds: 900, fallbackCeilingSeconds: 900, recoveryBudgetMinutes: 20 }), JSON.stringify(patience.customPatienceSetting(patience.PATIENCE_NORMAL)))
+  check('the custom form /config writes carries every number in the file\'s units', JSON.stringify(patience.customPatienceSetting(patience.PATIENCE_NORMAL)) === JSON.stringify({ streamIdleSeconds: 120, quietStreamIdleSeconds: 900, fallbackCeilingSeconds: 900, recoveryBudgetMinutes: 20 }), JSON.stringify(patience.customPatienceSetting(patience.PATIENCE_NORMAL)))
   check('…and reads back as the same numbers', JSON.stringify(patience.patienceOf(patience.customPatienceSetting(patience.PATIENCE_PATIENT)).numbers) === JSON.stringify(patience.PATIENCE_PATIENT))
   check('no pin set: none named', patience.patienceEnvPins().length === 0, JSON.stringify(patience.patienceEnvPins()))
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '2000'
