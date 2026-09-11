@@ -4,18 +4,21 @@ Computer use is the Computer tool: the model takes a screenshot of your
 screen, decides, then clicks, types, presses keys, scrolls or drags in the
 application in front, and sees a fresh screenshot after every act. Nothing
 runs without your consent: the first act in each application asks you by
-the application's name. It is off by default, and the rest of Mercury does
-not depend on it.
+the application's name. It is on by default on a machine that has the
+desktop driver, and the rest of Mercury does not depend on it.
 
-## Turning it on
+## Turning it off
 
-Set `MERCURY_COMPUTER_USE=1` in the environment before the session starts,
-or turn it on in the Boot Menu's environment rows. A session already
-running keeps the tool list it started with until the next compaction or
-`/clear`, so set the switch before you boot. Off is the default: without the
-switch the Computer tool is not in the catalog at all. `mercury doctor` and
-`/health` carry a `Computer use` row that names what is missing — the
-driver, a grant, the kind of session — with the fix beside it.
+Set `MERCURY_COMPUTER_USE=0` in the environment before the session starts.
+A session already running keeps the tool list it started with until the
+next compaction or `/clear`, so set the switch before you boot. With the
+switch off the Computer tool is not in the catalog at all and no desktop
+driver is touched. On a machine without the desktop driver the tool is
+absent from the catalog as well: the catalog decides when it is built,
+never when the model calls, so the model is never offered a tool that
+cannot work. `mercury doctor` and `/health` carry a `Computer use` row that
+names what is missing — the driver, a grant, the kind of session — with
+the fix beside it.
 
 ## The asks
 
@@ -121,10 +124,10 @@ SendInput on Windows, X11 with the XTEST extension on Linux), built from the
 repository's `native/desktop` sources with cargo by
 `bun run scripts/vendor/build-desktop.ts`, which `bun run setup` runs last.
 It is built rather than fetched: a machine without a Rust toolchain builds
-and runs Mercury without it, the build says so, and the Computer tool
-answers "no desktop driver on this install" until the pack is built. Release
-archives carry the driver for their platform when the packaging host could
-build it. Nothing else is installed on your machine. Every screenshot,
+and runs Mercury without it, the build says so, and the Computer tool stays
+out of the catalog until the pack is built — the doctor's row names the
+build command. Release archives carry the driver for their platform when
+the packaging host could build it. Nothing else is installed on your machine. Every screenshot,
 including the default capture after an act, is kept under `desktop-shots`
 with the retention limit described above.
 
@@ -164,9 +167,9 @@ session Mercury runs in, and whether computer use is on. The detail lists
 the displays with their sizes and scales, the frontmost application, the
 permission words for your platform, and which session is driving the
 desktop right now, if any — one session drives at a time. A missing grant
-is information with the fix beside it, never a fault: computer use is off
-by default and the rest of Mercury does not depend on it. The doctor never
-opens a system dialog; the first capture or act does.
+is information with the fix beside it, never a fault: the rest of Mercury
+does not depend on computer use. The doctor never opens a system dialog;
+the first capture or act does.
 
 A held mouse button or key is released when you interrupt, when the turn
 ends, and when Mercury exits. If Mercury is killed in the middle of a

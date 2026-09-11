@@ -191,7 +191,7 @@ function computerToolRecord(): ReadinessRecord {
     lastCheckedAt: Date.now(),
   }
   if (!flagEnabled('MERCURY_COMPUTER_USE')) {
-    return { ...base, state: 'disabled', detail: 'MERCURY_COMPUTER_USE unset — Computer tool absent from the catalog' }
+    return { ...base, state: 'disabled', detail: 'MERCURY_COMPUTER_USE=0 — Computer tool absent from the catalog; no desktop driver is touched' }
   }
   const t0 = Date.now()
   const resolution = resolveDesktopDriver()
@@ -199,7 +199,7 @@ function computerToolRecord(): ReadinessRecord {
     return {
       ...base,
       state: 'unavailable',
-      detail: bounded(resolution.note, 180),
+      detail: `${bounded(resolution.note, 180)} — Computer tool absent from the catalog`,
       ...(resolution.remedy !== null ? { remedy: resolution.remedy } : {}),
       latencyMs: Date.now() - t0,
     }

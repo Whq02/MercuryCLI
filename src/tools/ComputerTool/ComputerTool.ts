@@ -110,7 +110,8 @@ export const HOLD_CAP_MS = 5_000
 export const TYPE_TEXT_CAP = 4_000
 
 export function computerToolEnabled(): boolean {
-  return flagEnabled('MERCURY_COMPUTER_USE')
+  if (!flagEnabled('MERCURY_COMPUTER_USE')) return false
+  return resolveDesktopDriver().state === 'ok'
 }
 
 const inputSchema = lazySchema(() =>
@@ -699,8 +700,8 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     return `computer ${input.action}${actDetail(input)}`.trim()
   },
   async validateInput(input: Input, context: ToolUseContext) {
-    if (!computerToolEnabled()) {
-      return refuse('the Computer tool is off — set MERCURY_COMPUTER_USE=1 before the session starts')
+    if (!flagEnabled('MERCURY_COMPUTER_USE')) {
+      return refuse("the Computer tool is off — MERCURY_COMPUTER_USE=0 in this session's environment removes it; unset it before the session starts")
     }
     const posture = desktopPostureRefusal(context)
     if (posture !== null) return refuse(posture)

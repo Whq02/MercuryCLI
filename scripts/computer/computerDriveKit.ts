@@ -168,12 +168,11 @@ export function childEnv(leg: Leg, extra: Record<string, string | undefined> = {
     ANTHROPIC_BASE_URL: leg.fixture.url,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
     BROWSER: '/usr/bin/true',
-    MERCURY_COMPUTER_USE: '1',
     MERCURY_DESKTOP_DRIVER: 'fake',
     MERCURY_DESKTOP_FAKE_LOG: leg.log,
     ...(leg.scene === null ? {} : { MERCURY_DESKTOP_FAKE_SCENE: leg.scene }),
   }
-  for (const key of ['ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'ZAI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'MERCURY_DESKTOP_PACK_DIR', 'MERCURY_CONCOURSE', 'MERCURY_CONCOURSE_FIXTURE', 'NODE_ENV', 'CI']) {
+  for (const key of ['ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'ZAI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'MERCURY_DESKTOP_PACK_DIR', 'MERCURY_COMPUTER_USE', 'MERCURY_CONCOURSE', 'MERCURY_CONCOURSE_FIXTURE', 'NODE_ENV', 'CI']) {
     delete env[key]
   }
   for (const [key, value] of Object.entries(extra)) {

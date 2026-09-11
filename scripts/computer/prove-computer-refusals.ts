@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-import { check, finish, section, sourceText } from './computerProofKit.ts'
+import { check, finish, scratchDir, section, sourceText } from './computerProofKit.ts'
 import { toolContext } from './computerToolKit.ts'
 
 const { getAllBaseTools } = await import('../../src/tools.ts')
 const { ComputerTool, COMPUTER_TOOL_NAME } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
+const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
 const { setIsInteractive, getIsInteractive, setAskChannel, getAskChannel } = await import('../../src/bootstrap/state.ts')
 const teammate = await import('../../src/utils/teammate.ts')
 const agents = await import('../../src/tools/AgentTool/agentToolUtils.ts')
@@ -13,16 +13,37 @@ const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/constants/tools.t
 resetDesktopDriverForTest()
 const names = (): string[] => getAllBaseTools().map(t => t.name)
 
-section('§1 the catalogue: absent with the flag off, present after Browser with it on')
+section('§1 the catalogue: present by default with a driver, absent with =0, absent with no driver')
 {
   delete process.env.MERCURY_COMPUTER_USE
-  check('flag unset: Computer is absent from the base tools', !names().includes('Computer'), names().join(','))
-  process.env.MERCURY_COMPUTER_USE = '1'
+  process.env.MERCURY_DESKTOP_DRIVER = 'fake'
+  resetDesktopDriverForTest()
   const list = names()
   const at = list.indexOf('Computer')
-  check('flag set: Computer is present', at >= 0, list.join(','))
+  check('switch unset, fake driver pinned: Computer is present', at >= 0, list.join(','))
   check('…immediately after Browser', at > 0 && list[at - 1] === 'Browser', list.slice(Math.max(0, at - 2), at + 2).join(','))
   check('the constant spells the catalogue name', COMPUTER_TOOL_NAME === 'Computer' && ComputerTool.name === COMPUTER_TOOL_NAME)
+  const without = list.filter(name => name !== 'Computer').join(',')
+  process.env.MERCURY_COMPUTER_USE = '0'
+  resetDesktopDriverForTest()
+  const off = names().join(',')
+  check('=0: Computer is absent and the catalogue is otherwise the same list', !off.split(',').includes('Computer') && off === without, off)
+  process.env.MERCURY_DESKTOP_DRIVER = 'none'
+  check('=0 touched no driver: the resolver reads the environment afresh after the catalogue build', resolveDesktopDriver().state === 'unavailable')
+  delete process.env.MERCURY_COMPUTER_USE
+  resetDesktopDriverForTest()
+  const none = names().join(',')
+  check('switch unset, driver none: Computer is absent and the catalogue equals the =0 catalogue', none === off, none)
+  process.env.MERCURY_DESKTOP_DRIVER = 'native'
+  process.env.MERCURY_DESKTOP_PACK_DIR = scratchDir('no-pack')
+  resetDesktopDriverForTest()
+  const noPack = names().join(',')
+  check('switch unset, native driver with no pack where it is told to look: Computer is absent', noPack === off, noPack)
+  check('isEnabled() answers the same decision', ComputerTool.isEnabled() === false)
+  delete process.env.MERCURY_DESKTOP_PACK_DIR
+  process.env.MERCURY_DESKTOP_DRIVER = 'fake'
+  resetDesktopDriverForTest()
+  check('the fake driver pinned again: Computer returns and isEnabled() agrees', names().includes('Computer') && ComputerTool.isEnabled() === true)
 }
 
 section('§2 a headless run is refused by name; a seat that can answer asks is not')
