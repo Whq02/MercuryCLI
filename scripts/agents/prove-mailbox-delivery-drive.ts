@@ -87,8 +87,11 @@ const observe = setInterval(() => {
   if (messages === null) return
   if (!messages.some(message => !message.read && message.text === 'REPORT-WATER-2') || messages.filter(message => !message.read && message.from === 'water').length < 2) return
   const lock = inboxPath + '.lock'
-  if (existsSync(lock)) return
-  mkdirSync(lock)
+  try {
+    mkdirSync(lock)
+  } catch {
+    return
+  }
   lockHeld = true
   lockRefresh = setInterval(() => { const now = new Date(); if (existsSync(lock)) utimesSync(lock, now, now) }, 500)
   lockRelease = setTimeout(() => {

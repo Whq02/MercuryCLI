@@ -21,6 +21,7 @@
  "src/skills/bundledSkills.ts :: split-slash": 1,
  "src/substrate/durablePublish.ts :: kill-signal": 1,
  "src/tools/BashTool/utils.ts :: split-slash": 1,
+ "src/tools/ComputerTool/ComputerTool.ts :: split-slash": 1,
  "src/tools/FileReadTool/FileReadTool.ts :: split-slash": 1,
  "src/tools/PowerShellTool/gitSafety.ts :: split-slash": 1,
  "src/tools/WorkflowTool/bundled/code-review.ts :: split-slash": 1,
