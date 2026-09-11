@@ -559,7 +559,7 @@ function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag:
     const frames = i === move.steps.length - 1 ? settled : small
     for (const m of frames) {
       const frame = rowsOf(m.grid)
-      if (frame.some(line => /resize to continue|terminal too small/.test(line))) findings.push({ kind: 'size-refusal', detail: `${m.label} @${s.cols}x${s.rows}: a size refusal replaced the surface` })
+      if (frame.some(line => /resize to continue|terminal too small|too small for|needs \d+(?: columns|[×x]\d+)/.test(line))) findings.push({ kind: 'size-refusal', detail: `${m.label} @${s.cols}x${s.rows}: a size refusal replaced the surface` })
       if (scene.world === 'chat' && s.cols >= 3 && composerCaret(frame) === null) findings.push({ kind: 'cursor', detail: `${m.label} @${s.cols}x${s.rows}: no editor row after reflow` })
     }
   })

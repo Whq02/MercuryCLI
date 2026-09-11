@@ -27,7 +27,7 @@ for (const [cols, rows] of sizes) {
     check(`${cols}x${rows}: Boot paints its real ready hint`, joined(result.marks.boot ?? []).includes(FACE_READY))
     check(`${cols}x${rows}: all sends reached the actual editor`, result.status === 0 && frame.length > 0, result.stderr)
     check(`${cols}x${rows}: no old top-band telemetry remains`, !frame.some(line => line.includes('daemon') && line.includes('fleet') && line.includes('trace')))
-    check(`${cols}x${rows}: no size refusal replaced the chat`, !/resize to continue|terminal too small|needs 80 columns/.test(joined(frame)))
+    check(`${cols}x${rows}: no size refusal replaced the chat`, !/resize to continue|terminal too small|too small for|needs \d+(?: columns|[×x]\d+)/.test(joined(frame)))
     const modelRows = frame.map((line, index) => line.includes('Opus 5') ? index : -1).filter(index => index >= 0)
     check(`${cols}x${rows}: the model appears on one chrome row`, modelRows.length === 1, JSON.stringify(modelRows))
     const summaryRows = frame.map((line, index) => /^(?:\d+ sessions? on · \d+ monitors? here · \d+ agents? here|S:\d+ · M:\d+ · A:\d+)$/.test(line.trim()) ? index : -1).filter(index => index >= 0)
