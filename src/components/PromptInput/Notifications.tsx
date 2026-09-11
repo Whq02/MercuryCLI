@@ -16,7 +16,7 @@ import type { Message } from '../../types/message.js'
 import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
 import { useAppState, type AppState } from '../../state/AppState.js'
 import { useClaudeAiLimits } from '../../services/claudeAiLimitsHook.js'
-import { useNotifications } from '../../context/notifications.js'
+import { useNotifications, type Notification } from '../../context/notifications.js'
 import {
   registerHookEventHandler,
   type HookExecutionEvent,
@@ -45,6 +45,20 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { SandboxPromptFooterHint } from './SandboxPromptFooterHint.js'
 
 export const FOOTER_TEMPORARY_STATUS_TIMEOUT = 5000
+
+export function noticeRowText(current: Notification | null): React.ReactNode | null {
+  if (current === null) return null
+  if ('jsx' in current) {
+    return React.isValidElement(current.jsx) && current.jsx.type === Text ? current.jsx : null
+  }
+  const line = footerNoticeLine(current.text)
+  return current.color === undefined ? line : <Text color={current.color}>{line}</Text>
+}
+
+export function noticeRowBlock(current: Notification | null): React.ReactNode | null {
+  if (current === null || !('jsx' in current)) return null
+  return React.isValidElement(current.jsx) && current.jsx.type === Text ? null : current.jsx
+}
 
 const SLOW_HELPER_THRESHOLD_MS = 10_000
 
@@ -229,19 +243,6 @@ function NotificationsColumn({
       ) : null}
       <TokenWarning tokenUsage={tokenUsage} model={mainLoopModel ?? ''} />
       <SandboxPromptFooterHint />
-      {current !== null ? (
-        'jsx' in current ? (
-          <Box>{current.jsx}</Box>
-        ) : (
-          <Text
-            color={current.color}
-            dimColor={current.color === undefined}
-            wrap="truncate-end"
-          >
-            {footerNoticeLine(current.text)}
-          </Text>
-        )
-      ) : null}
     </Box>
   )
 }

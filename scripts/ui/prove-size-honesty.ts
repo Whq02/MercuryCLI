@@ -21,8 +21,9 @@ console.log('§1 C1 — the footer transient is one row by fold')
   check('a one-line notice is untouched', footerNoticeLine('plain notice') === 'plain notice')
   check('the fold never mints a newline', !footerNoticeLine('x\ny\nz').includes('\n'))
   const src = read('src/components/PromptInput/Notifications.tsx')
-  check('the transient paints THROUGH the fold', src.includes('{footerNoticeLine(current.text)}'))
-  check('the raw multi-line paint is gone', !src.includes('>\n            {current.text}\n          </Text>'))
+  check('the transient paints THROUGH the fold (its hint-row form)', src.includes('const line = footerNoticeLine(current.text)'))
+  check('the raw multi-line paint is gone', !src.includes('{current.text}'))
+  check('the column itself paints no transient row', !src.includes("'jsx' in current ? (") && !src.includes('{footerNoticeLine(current.text)}'))
 }
 
 console.log('§2 C2 — the footer right cell holds a budget and keeps its tail')
