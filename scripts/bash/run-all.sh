@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-env: MERCURY_PROOF_POISON_SCRUB MERCURY_SHELL_ENGINE MERCURY_TMPDIR
 # gate-watch: src/utils/permissions/shellRuleMatching* src/utils/shell/globPreamble*
 # gate-watch: src/utils/shell/readOnlyCommandValidation*
 # gate-watch: src/utils/ShellCommand.ts src/tasks/LocalShellTask/* src/tools/BashTool/BashTool.tsx

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-env: MERCURY_WORK_CHIP_SIZE
 # gate-watch: scripts/switchboard/**
 # gate-watch: src/services/concourse/** src/components/concourse/** src/daemon/concourseSupervisor.ts
 # gate-watch: src/daemon/concourseDispatch.ts src/daemon/permissionAsks.ts src/services/switchboard/attachedSession.ts

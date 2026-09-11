@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
+# gate-env: MERCURY_EXTUI_CAPTURE_DIR MERCURY_EXTUI_ONLY
 # gate-watch: src/extensions/** src/skills/loadSkillsDir* src/utils/hooks/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
