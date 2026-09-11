@@ -77,7 +77,7 @@ import {
 } from './splitView.js';
 import { SplitChatPane } from './SplitChatPane.js';
 import { CompactConcourse, type CompactFootNote } from './CompactConcourse.js';
-import { compactConcourseGeometry, compactConcourseProfileOf, compactSteerable } from './compactBoard.js';
+import { COMPACT_DOOR_NOTE, COMPACT_DOOR_NOTE_MS, COMPACT_DOOR_REST_HINT, compactConcourseGeometry, compactConcourseProfileOf, compactSteerable } from './compactBoard.js';
 import { CREW_ASK_WAIT_WORDS } from '../../services/engine-connector/crewFacts.js';
 import { hasFocusedSession, landingInFlight } from '../../services/engine-connector/focusedConnector.js';
 import { isPathTrusted, setPathTrusted } from '../../utils/config.js';
@@ -306,6 +306,39 @@ export function ConcourseScreen({
   const [boardArmed, setBoardArmed] = useState<string | null>(null)
   const boardArmedRef = useRef<string | null>(null)
   boardArmedRef.current = boardArmed
+  const [doorNote, setDoorNote] = useState(false)
+  const doorNoteRef = useRef(false)
+  doorNoteRef.current = doorNote
+  const doorNoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clearDoorNote = (): void => {
+    if (doorNoteTimerRef.current !== null) {
+      clearTimeout(doorNoteTimerRef.current)
+      doorNoteTimerRef.current = null
+    }
+    if (doorNoteRef.current) {
+      doorNoteRef.current = false
+      setDoorNote(false)
+    }
+  }
+  const showDoorNote = (): void => {
+    clearDoorNote()
+    doorNoteRef.current = true
+    setDoorNote(true)
+    const timer = setTimeout(() => {
+      doorNoteTimerRef.current = null
+      doorNoteRef.current = false
+      setDoorNote(false)
+    }, COMPACT_DOOR_NOTE_MS)
+    timer.unref?.()
+    doorNoteTimerRef.current = timer
+  }
+  useEffect(() => () => {
+    if (doorNoteTimerRef.current !== null) clearTimeout(doorNoteTimerRef.current)
+  }, [])
+  useEffect(() => {
+    if (doorNoteRef.current) clearDoorNote()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardSel, region])
   useEffect(() => {
     if (boardArmed !== null && boardSel !== boardArmed) setBoardArmed(null)
   }, [boardSel, boardArmed])
@@ -767,6 +800,7 @@ export function ConcourseScreen({
     }
     callbacks.stopSession?.(target.row.sessionId)
   }
+  const selectedIsDoor = (): boolean => sessionRows.find(r => r.sessionId === boardSelRef.current)?.door !== undefined
 
   const enterSession = (sessionId: string, opts: { pointer?: boolean } = {}): void => {
     if (sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)) {
@@ -1244,6 +1278,7 @@ export function ConcourseScreen({
   }
 
   useInput((input, key, event) => {
+    if (doorNoteRef.current) clearDoorNote()
     const modalOwner = boardModalOwner({
       capacityAsk: capacityAskRef.current,
       trustAsk: trustAskRef.current !== null,
@@ -1648,6 +1683,10 @@ export function ConcourseScreen({
       if (region !== 'live') return
       event.stopImmediatePropagation()
       if (!pastGate()) return
+      if (compact && selectedIsDoor()) {
+        showDoorNote()
+        return
+      }
       if (liveDraftRef.current.text.trim().length === 0) {
         const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
         if (sel) enterSession(sel.sessionId)
@@ -1672,6 +1711,7 @@ export function ConcourseScreen({
     const liveGateRefusal = (): string | null => {
       if (side.focus === 'coordinator') return null
       if (composeContextRef.current.kind !== 'chat') return null
+      if (compact && selectedIsDoor()) return null
       if (broadcastFaceOf(markedRowsOf().length) !== null) return null
       const g = liveComposerGate(sessionRows.find(r => r.sessionId === boardSelRef.current))
       return g.ok ? null : g.line
@@ -1925,9 +1965,12 @@ export function ConcourseScreen({
     editLiveDraft(dd => ({ text: dd.text, caret: clampCaret(dd.text, caret) }))
   }
 
+  const compactDoorSelected = compact && sessionRows.find(r => r.sessionId === boardSel)?.door !== undefined
   const liveComposerFace = (bandRows: number, width: number): React.ReactNode => {
     const face = broadcastFaceOf(markedRows.length)
-    const g = liveComposerGate(sessionRows.find(r => r.sessionId === boardSel), region)
+    const g = compactDoorSelected
+      ? { ok: true as const, placeholder: COMPACT_DOOR_REST_HINT }
+      : liveComposerGate(sessionRows.find(r => r.sessionId === boardSel), region)
     const paint = liveComposerPaintOf(g, liveNote)
     return (
       <ConcourseComposer
@@ -1968,7 +2011,7 @@ export function ConcourseScreen({
       noteOf(controlNotes?.['strip:composer']) ??
       noteOf(controlNotes?.['board:open']) ??
       noteOf(rowControlNote) ??
-      (face !== null ? liveNote : gateNote) ??
+      (face !== null ? liveNote : compactDoorSelected ? null : gateNote) ??
       note
     )
   })()
@@ -2329,6 +2372,7 @@ export function ConcourseScreen({
         verbsFire={region !== 'live' || liveDraft.text.length === 0}
         showLive={region === 'live' || contractAsk}
         note={compactNote}
+        composerNote={doorNote ? COMPACT_DOOR_NOTE : null}
         mirrorNode={(rows, width) => mirrorSlot(rows, width, true)}
         {...(reducedStage ? {} : { liveComposerNode: liveComposerFace })}
         wiring={{
