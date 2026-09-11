@@ -149,7 +149,7 @@ console.log('\n[4] a manifest whose digest disagrees with the addon')
 }
 
 console.log('\n[5] the absent note fits the install')
-check('a release install says the build shipped without it', pack.desktopPackAbsentNote(null) === 'absent — this build shipped without it')
+check('a release install says the build shipped without it and names the update', pack.desktopPackAbsentNote(null).startsWith('absent — this build shipped without it') && pack.desktopPackAbsentNote(null).includes('mercury update'))
 check('a checkout names the build command', pack.desktopPackAbsentNote('/x').includes('build-desktop.ts') && pack.desktopPackAbsentNote('/x').includes('cargo'))
 
 console.log('\n[6] a stub short of one export')
@@ -275,7 +275,7 @@ console.log('\n[11] the doctor row')
   }
   usePack(fixturePack({ answers: { permissions: { session: 'desktop', screenCapture: 'denied', input: 'denied', reason: 'fixture: both grants missing' } } }))
   const denied = await rowOf()
-  check('a denied grant is info with the fix beside it, in the INTERFACE section', denied !== null && denied.section === 'INTERFACE' && denied.status === 'info' && denied.fix === native.desktopGrantWords() && denied.evidence.includes('computer use off'), JSON.stringify(denied))
+  check('a denied grant is info with the fix beside it, in the INTERFACE section; the switch unset reads on', denied !== null && denied.section === 'INTERFACE' && denied.status === 'info' && denied.fix === native.desktopGrantWords() && denied.evidence.includes('computer use on'), JSON.stringify(denied))
   check('the doctor row opens no dialog: the grant request is never made for it', (calls().requestPermissions ?? 0) === 0, JSON.stringify(calls()))
   usePack(fixturePack())
   const registered = FLAG_REGISTRY.some(row => row.env === 'MERCURY_COMPUTER_USE')
@@ -287,9 +287,10 @@ console.log('\n[11] the doctor row')
     warn('the MERCURY_COMPUTER_USE row is not in this tree yet: the switch reads off, so the row stays info')
     check('granted and a desktop session without the switch read info with no fix', granted !== null && granted.status === 'info' && granted.evidence.includes('computer use off') && granted.fix === undefined, JSON.stringify(granted))
   }
-  delete process.env.MERCURY_COMPUTER_USE
+  process.env.MERCURY_COMPUTER_USE = '0'
   const off = await rowOf()
-  check('the switch off keeps the row at info', off !== null && off.status === 'info' && off.evidence.includes('computer use off'), JSON.stringify(off))
+  check('the switch =0 keeps the row at info', off !== null && off.status === 'info' && off.evidence.includes('computer use off'), JSON.stringify(off))
+  delete process.env.MERCURY_COMPUTER_USE
 }
 
 console.log('\n[12] an interrupted async native act never answers success')

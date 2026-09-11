@@ -74,7 +74,7 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
   writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST, '--chat'], cwd: ROOT, cols: variant === 'compact' ? 80 : 120, rows: variant === 'compact' ? 24 : 40, sends, resizes, total: 450, readyText: 'keep-this-draftz', readySettleTicks: 2, out }))
   writeFileSync(log, '')
   try {
-    const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_COMPUTER_USE: undefined }), stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none' }), stdio: ['ignore', 'pipe', 'pipe'] })
     child.stdout.on('data', chunk => appendFileSync(log, chunk))
     child.stderr.on('data', chunk => appendFileSync(log, chunk))
     const status = await new Promise<number | null>(resolve => {
@@ -162,7 +162,7 @@ for (const answer of ['accept', 'interrupt'] as const) {
       { requireAwait: true, awaitText: '1. Yes', awaitSettleTicks: 2, data: answer === 'accept' ? '\r' : '\u0003', mark: 'card' },
       { requireAwait: true, awaitText: 'compact-consent-finished', awaitSettleTicks: 2, data: 'after-consent', mark: 'settled' },
       { requireAwait: true, awaitText: 'after-consent', targetText: 'after-consent', awaitSettleTicks: 2, data: '', mark: 'composer' },
-    ], 180, { MERCURY_COMPUTER_USE: undefined })
+    ], 180, { MERCURY_DESKTOP_DRIVER: 'none' })
     for (const mark of ['detail', 'card', 'settled', 'composer']) printFrame(`detail-consent-${answer} ${mark}`, result.marks[mark] ?? [])
     check(`${answer}: detail is displaced by the real consent card and every key lands`, result.status === 0 && joined(result.marks.detail ?? []).includes('Session statistics') && joined(result.marks.card ?? []).includes('1. Yes'), result.stderr)
     check(`${answer}: closing consent never reopens detail`, !joined(result.marks.composer ?? []).includes('Session statistics') && joined(result.marks.composer ?? []).includes('after-consent'))

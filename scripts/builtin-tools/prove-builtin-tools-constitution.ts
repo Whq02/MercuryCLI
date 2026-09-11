@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+process.env.MERCURY_DESKTOP_DRIVER = 'none'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++

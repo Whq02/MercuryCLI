@@ -62,7 +62,7 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
   this machine nothing leaves it; to a cloud family only after you stop).
 - [COMPUTER-USE.md](COMPUTER-USE.md): computer use — the Computer tool that
   sees the screen and drives the mouse and keyboard, the switch that turns
-  it on, the asks per application and the allowlist, the stop key, what is
+  it off, the asks per application and the allowlist, the stop key, what is
   kept, and the install on each platform.
 
 ### Loading, extending and delegating

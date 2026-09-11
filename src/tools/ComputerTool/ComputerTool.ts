@@ -29,7 +29,7 @@ import {
   DESKTOP_SHOTS_KEEP,
   appApproved,
   approveApp,
-  consumeCheckedActApp,
+  consumeCheckedAct,
   desktopPostureRefusal,
   imageRefusedFor,
   noteCheckedActApp,
@@ -43,6 +43,9 @@ import {
 } from '../../services/desktop/desktopSession.js'
 import { claimDesktop, desktopClaimBusyNote, renewDesktopClaim } from '../../services/desktop/desktopClaim.js'
 import { screenshotVisibleInContext } from '../../services/desktop/screenshotRetention.js'
+import { computerAccess } from '../../services/desktop/computerAccess.js'
+import { readComputerGrant } from '../../services/desktop/computerGrant.js'
+import { getSessionId } from '../../bootstrap/state.js'
 import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { KEY_CHORD_VOCABULARY, appSwitchChord, isAppSwitchChord, isKeyChordRefusal, parseKeyChord, type KeyChord } from './keyChord.js'
@@ -110,7 +113,8 @@ export const HOLD_CAP_MS = 5_000
 export const TYPE_TEXT_CAP = 4_000
 
 export function computerToolEnabled(): boolean {
-  return flagEnabled('MERCURY_COMPUTER_USE')
+  if (!flagEnabled('MERCURY_COMPUTER_USE')) return false
+  return resolveDesktopDriver().state === 'ok'
 }
 
 const inputSchema = lazySchema(() =>
@@ -699,8 +703,8 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     return `computer ${input.action}${actDetail(input)}`.trim()
   },
   async validateInput(input: Input, context: ToolUseContext) {
-    if (!computerToolEnabled()) {
-      return refuse('the Computer tool is off — set MERCURY_COMPUTER_USE=1 before the session starts')
+    if (!flagEnabled('MERCURY_COMPUTER_USE')) {
+      return refuse("the Computer tool is off — MERCURY_COMPUTER_USE=0 in this session's environment removes it; unset it before the session starts")
     }
     const posture = desktopPostureRefusal(context)
     if (posture !== null) return refuse(posture)
@@ -742,6 +746,10 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     }
     noteCheckedActApp(owner, input.action, { identity: app.identity, name: app.name })
     if (ruled === 'allow' || (ruled === null && appApproved(owner, app.identity))) {
+      return { behavior: 'allow' as const, updatedInput: input }
+    }
+    if (ruled === null && (computerAccess() === 'sovereign' || readComputerGrant(String(getSessionId())) !== null)) {
+      noteCheckedActApp(owner, input.action, { identity: app.identity, name: app.name }, true)
       return { behavior: 'allow' as const, updatedInput: input }
     }
     return {
@@ -797,7 +805,9 @@ Take a screenshot after acts that change the screen, act on what the latest one 
           outcome = 'failed'
           return finish()
         }
-        const judged: DesktopJudgedApp | null = consumeCheckedActApp(owner, input.action)
+        const checked = consumeCheckedAct(owner, input.action)
+        const judged: DesktopJudgedApp | null = checked?.app ?? null
+        const viaGrant = checked?.viaGrant === true
         const front = await driver.frontmostApplication()
         if (!front.ok) {
           result = faultText(input.action, front.error)
@@ -837,7 +847,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
           outcome = 'failed'
           return finish()
         }
-        approveApp(owner, judged ?? live)
+        if (!viaGrant) approveApp(owner, judged ?? live)
         outcome = 'succeeded'
         if (input.capture === false) {
           result = `${act.words} · ${await factsLine(driver, screenOf(owner))}`

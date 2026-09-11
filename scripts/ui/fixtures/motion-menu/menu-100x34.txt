@@ -1,10 +1,10 @@
 
   (>_) MERCURY · boot menu
 
-  ↑ 4 more
-    C/C++ IDE lane (clangd)            default (on)
-    Skip permissions at boot           default (off)
-    Autopilot tier mode                default (off)
+  ↑ 7 more
+  computer use
+    Computer use                       default (on)
+    Access type                        default (asks)
   scale & spend
     Minerva note curator               default (off)
   memory & missions

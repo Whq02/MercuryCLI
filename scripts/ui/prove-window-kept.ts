@@ -13,7 +13,7 @@ const sizeList = (argOf('--sizes') ?? '80x21,111x35,120x40').split(',').map(s =>
 const stage = argOf('--stage') === 'chat' ? 'chat' : 'card'
 const poison = process.argv.includes('--poison')
 const HOME_READY = stage === 'chat' ? ADMITTED : FACE_READY
-const extraEnv: Record<string, string | undefined> = { MERCURY_COMPUTER_USE: undefined }
+const extraEnv: Record<string, string | undefined> = { MERCURY_DESKTOP_DRIVER: 'none' }
 for (const pair of process.argv.slice(2).filter(a => a.startsWith('--env=')).map(a => a.slice(6))) {
   const eq = pair.indexOf('=')
   extraEnv[pair.slice(0, eq)] = pair.slice(eq + 1) === '' ? undefined : pair.slice(eq + 1)

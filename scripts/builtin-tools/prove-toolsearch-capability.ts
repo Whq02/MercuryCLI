@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { existsSync } from 'node:fs'
 
 let fail = 0

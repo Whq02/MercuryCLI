@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, cleanup, finish, section, setup } from './lib.js'
