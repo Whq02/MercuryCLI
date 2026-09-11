@@ -86,8 +86,10 @@ try {
   check('no credential re-pointing arm survives on the board',
     !src.includes('slotScopeCredential') && !src.includes('writeSelectedAccount'))
   const slotsSrc = readFileSync(join(import.meta.dir, '../../src/services/providers/accountSlots.ts'), 'utf8')
+  const oauthArm = slotsSrc.slice(slotsSrc.indexOf("case 'anthropic-oauth': {"), slotsSrc.indexOf("case 'anthropic-managed-key':"))
   check('backspace signs out — the home dir is never deleted',
-    slotsSrc.includes('The home dir itself is') && !slotsSrc.includes('rm -rf') && src.includes('executeSlotRemoval('))
+    oauthArm.includes('signOutAnthropicSlot(removal.dir') && oauthArm.includes('forgetScopeIdentity(removal.dir)') &&
+      !slotsSrc.includes('rmSync(') && !slotsSrc.includes('rm -rf') && src.includes('executeSlotRemoval('))
   check('identity is live-verified (credential-derived, not snapshot-only); the board paints the seam\'s ONE row composer',
     src.includes('resolveLiveScopeIdentity') && src.includes('scopeSlotTail(state, id, slot)') && slotsSrc.includes('verified live'))
   check('the scope row carries no scope facts; the This-session grid does',

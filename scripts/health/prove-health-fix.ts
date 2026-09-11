@@ -157,7 +157,7 @@ section('(4) wiring — remedies attached, async spawns, panel f-flow, CLI flags
   check("panel wires f → consent → applyRemedy", panel.includes("input === 'f'") && panel.includes('applyRemedy(check)'))
   check('destructive renders the warning register', panel.includes('DESTRUCTIVE — this discards state'))
   const cli = SRC('src/cli/healthJson.ts')
-  check('headless runHealthFixCli exists with only/yes', cli.includes('runHealthFixCli') && cli.includes('--yes'))
+  check('headless runHealthFixCli exists with only/yes', cli.includes('export async function runHealthFixCli(opts: { only?: string; yes: boolean })'))
   const main = SRC('src/main.tsx')
   check('CLI carries --fix/--only/--yes on the health command', main.includes("option('--fix'") && main.includes("option('--only <id>'") && main.includes("option('--yes'"))
   const registry = SRC('src/substrate/flagRegistry.ts')
