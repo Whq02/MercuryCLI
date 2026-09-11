@@ -40,6 +40,7 @@
         "dom",
         "events/input-event",
         "events/keyboard-event",
+        "events/text-gesture",
         "frame",
         "geometry/selection",
         "render-to-screen"

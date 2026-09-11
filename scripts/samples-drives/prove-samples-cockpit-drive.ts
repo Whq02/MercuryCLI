@@ -110,7 +110,7 @@ async function drive(cols: number, rows: number): Promise<void> {
   writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), dist, '--chat'], cwd: ROOT, cols, rows, sends, resizes: [], total, out }))
   const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], {
     cwd: ROOT,
-    env: childEnv(leg, { MERCURY_COMPUTER_USE: undefined, BROWSER: shim, PROOF_BROWSER_LOG: browserLog }),
+    env: childEnv(leg, { MERCURY_COMPUTER_USE: undefined, MERCURY_SAMPLES: '1', BROWSER: shim, PROOF_BROWSER_LOG: browserLog }),
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   let output = ''

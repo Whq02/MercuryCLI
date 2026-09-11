@@ -33,7 +33,7 @@ for (const size of SIZES) {
   check(`${size.cols}: the body names the act in TextEdit as the first act in this application`, joined(card).includes('in TextEdit') && joined(card).includes(CARD_NEEDLE) && joined(card).includes('click (812, 300)'), joined(card).slice(0, 400))
   check(`${size.cols}: the options row is ON the frame`, optionsRow(card), card.filter(r => /\d\./.test(r)).join(' · '))
   check(`${size.cols}: the five choices in order — Yes, No, 1 hour, 24 hours, sovereign mode`, ['1. Yes', '2. No, and tell Mercury', '3. Yes, for 1 hour', '4. Yes, for 24 hours', '5. Enable sovereign mode'].every(needle => card.some(r => r.includes(needle))), card.filter(r => /\d\. /.test(r)).join(' · '))
-  check(`${size.cols}: the card asks how long`, joined(card).includes('and for how long?'), joined(card).slice(0, 400))
+  check(`${size.cols}: the card asks how long`, joined(card.map(r => r.replace(/[│╭╮╰╯─]/g, ' '))).includes('and for how long?'), joined(card).slice(0, 400))
   const driving = res.marks.driving ?? []
   printFrame(`${size.cols}×${size.rows} driving`, driving)
   check(`${size.cols}: the footer says hands off while the act runs`, rowsHaving(driving, FOOTER), driving.filter(r => r.includes('hands off')).join(' · '))

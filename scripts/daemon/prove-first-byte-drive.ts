@@ -200,7 +200,7 @@ try {
   const bDone = await untilAsync(() => readFacts(b)?.busy === false, bDeadline)
   check(`the turn ended and the seat went idle (within twice the budget + 30 s)`, bDone, JSON.stringify(readFacts(b) ?? null))
   const bRows = transcriptOf(b)
-  check("the typed row landed: 'no first byte from Opus 5 after N s (… ingesting uncached)'", /no first byte from Opus 5 after \d+ s \(a [\d.]+k-token prompt ingesting uncached\)/.test(bRows), bRows.slice(-600))
+  check("the typed row landed: 'no first byte from Opus 5 after N s (… ingesting uncached)' — seconds under a minute, minutes past it", /no first byte from Opus 5 after (?:\d+ s|\d+m(?: \d+s)?) \(a [\d.]+k-token prompt ingesting uncached\)/.test(bRows), bRows.slice(-600))
   const drops = wire().filter(c => c.kind === 'client-dropped' && c.arm === 'never')
   const holds = wire().filter(c => c.kind === 'held' && c.arm === 'never')
   check('the fixture saw each held request dropped at the budget (the reissue, then the abort)', holds.length === 2 && drops.length === 2, JSON.stringify({ holds: holds.length, drops: drops.length }))
