@@ -36,7 +36,7 @@ function makeManaged(root: string, version: string, opts?: { manifest?: boolean;
   return join(vdir, 'mercury.mjs')
 }
 
-const gather =(entry: string, versionsDir: string, platform: NodeJS.Platform = 'darwin', env: NodeJS.ProcessEnv = {}) =>
+const gather = (entry: string, versionsDir: string, platform: NodeJS.Platform = 'darwin', env: NodeJS.ProcessEnv = {}) =>
   classifyInstallProvenance(gatherInstallProbeFacts({ invokedPath: entry, versionsDir, platform, env }))
 
 section('§1 THE FIXTURE BATTERY (IP-15)')
