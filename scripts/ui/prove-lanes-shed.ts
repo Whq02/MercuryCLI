@@ -24,7 +24,7 @@ t(
   !density.includes("'party'"),
 )
 t(
-  'no ladder names the chat lane the rail lost with the two-seat coordination mode',
+  'no ladder names the retired chat section the rail lost with the two-seat coordination mode',
   !density.includes("'chat'"),
 )
 t(
