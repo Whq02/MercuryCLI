@@ -84,7 +84,7 @@ check(
 )
 check(
   "the watchdog-race branch settles a latched terminal400 as apiError (never 'stalled')",
-  /Watchdog race[\s\S]{0,600}if \(terminal400\) return apiErrorSettle\(elapsed, terminal400\)/.test(src),
+  /cutReason === 'stalled' \|\| cutReason === 'user-retry'\) \{(?:(?!emitFrame\()[\s\S]){0,900}if \(terminal400\) return apiErrorSettle\(elapsed, terminal400\)\s*emitFrame\('error'/.test(src),
 )
 
 section('(3) dist bundle carries the latch (rename/DCE guard)')

@@ -84,7 +84,7 @@ console.log('— the canonical order (a later boot, distinct pid, appended to th
   const main = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf8')
   const entryAt = main.indexOf("recordLaunchMilestone('runtime-entry',")
   const actionAt = main.indexOf('async function defaultAction')
-  const validationsAt = main.indexOf('── validations (each exits 1)')
+  const validationsAt = main.indexOf("failCli('--tmux requires --worktree')")
   check(
     "runtime-entry stamps at the ACTION'S ENTRY (before the validations, screens and setup)",
     entryAt !== -1 && actionAt !== -1 && validationsAt !== -1 && actionAt < entryAt && entryAt < validationsAt,

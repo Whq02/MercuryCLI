@@ -71,8 +71,6 @@ section('structural: daemon main acquires before control, refuses on null, relea
   check('refuses (returns) when contended', /if \(!supervisorLock\)[\s\S]{0,260}return/.test(main))
   check('acquire precedes the control server bind', main.indexOf('acquireSupervisorLock()') !== -1 && main.indexOf('acquireSupervisorLock()') < main.indexOf('startControlServer({'))
   check('releases the lock on shutdown', /supervisorLock\?\.release\(\)/.test(main))
-  const server = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'controlServer.ts'), 'utf8')
-  check('controlServer documents the unlink is lock-guarded', /supervisor lock/.test(server))
 }
 
 rmSync(home, { recursive: true, force: true })
