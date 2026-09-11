@@ -80,6 +80,7 @@ section('F1 — the declared frame types are the ones the product writes')
     'system/status',
     'system/turn_started',
     'system/mission_updated',
+    'system/samples_updated',
     'system/api_retry',
     'system/hook_started',
     'system/hook_progress',

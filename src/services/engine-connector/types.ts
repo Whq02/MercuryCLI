@@ -212,9 +212,20 @@ export type MissionRowV1 = {
   status: 'pending' | 'in_progress' | 'completed'
 }
 
+export type SampleRowV1 = {
+  id: string
+  title: string
+  version: number
+  state: 'open' | 'approved' | 'changes-needed'
+  updatedAt: string
+  glyph: string
+  url?: string
+}
+
 export type WorkRosterV1 = {
   rows: readonly WorkRowV1[]
   mission: readonly MissionRowV1[]
+  samples?: readonly SampleRowV1[]
   reported?: boolean
 }
 

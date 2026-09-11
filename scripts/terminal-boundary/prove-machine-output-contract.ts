@@ -340,7 +340,7 @@ section('L10 — the one spelling: every driven frame is a declared type with sn
     await control({ subtype: 'no_such_subtype_probe' })
   })
   const declaredTypes = new Set(['assistant', 'user', 'result', 'system', 'stream_event', 'tool_progress', 'tool_use_summary', 'rate_limit_event', 'prompt_suggestion', 'control_response', 'control_request', 'control_cancel_request'])
-  const declaredSystem = new Set(['init', 'compact_boundary', 'model_transition', 'status', 'turn_started', 'mission_updated', 'api_retry', 'hook_started', 'hook_progress', 'hook_response', 'task_notification', 'task_started', 'session_state_changed', 'task_progress', 'elicitation_complete'])
+  const declaredSystem = new Set(['init', 'compact_boundary', 'model_transition', 'status', 'turn_started', 'mission_updated', 'samples_updated', 'api_retry', 'hook_started', 'hook_progress', 'hook_response', 'task_notification', 'task_started', 'session_state_changed', 'task_progress', 'elicitation_complete'])
   const unparsed = run.frames.filter(f => 'unparsed' in f)
   check('every stdout line parses', unparsed.length === 0, JSON.stringify(unparsed[0] ?? '').slice(0, 120))
   const undeclared = run.frames.filter(f => !declaredTypes.has(String(f.type)) || (f.type === 'system' && !declaredSystem.has(String(f.subtype))))

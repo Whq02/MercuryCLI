@@ -107,6 +107,7 @@ export type SDKModelTransitionMessage = z.infer<ReturnType<S["SDKModelTransition
 export type SDKStatusMessage = z.infer<ReturnType<S["SDKStatusMessageSchema"]>>;
 export type SDKTurnStartedMessage = z.infer<ReturnType<S["SDKTurnStartedMessageSchema"]>>;
 export type SDKMissionUpdatedMessage = z.infer<ReturnType<S["SDKMissionUpdatedMessageSchema"]>>;
+export type SDKSamplesUpdatedMessage = z.infer<ReturnType<S["SDKSamplesUpdatedMessageSchema"]>>;
 export type SDKAPIRetryMessage = z.infer<ReturnType<S["SDKAPIRetryMessageSchema"]>>;
 export type SDKHookStartedMessage = z.infer<ReturnType<S["SDKHookStartedMessageSchema"]>>;
 export type SDKHookProgressMessage = z.infer<ReturnType<S["SDKHookProgressMessageSchema"]>>;

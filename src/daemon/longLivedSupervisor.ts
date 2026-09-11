@@ -173,8 +173,11 @@ export {
   MISSION_UPDATED_SUBTYPE,
   missionUpdatedFrame,
   isMissionUpdatedParsedFrame,
+  SAMPLES_UPDATED_SUBTYPE,
+  samplesUpdatedFrame,
+  isSamplesUpdatedParsedFrame,
 } from './runnerFrames.js'
-export type { TurnStartedFrame, MissionUpdatedFrame } from './runnerFrames.js'
+export type { TurnStartedFrame, MissionUpdatedFrame, SamplesUpdatedFrame } from './runnerFrames.js'
 
 export function errorTextOfResultFrame(line: string): string | undefined {
   return errorTextOfParsedResultFrame(parseStreamJsonFrame(line))
