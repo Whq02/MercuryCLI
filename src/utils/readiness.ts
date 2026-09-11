@@ -3,6 +3,7 @@ import { FLAG_REGISTRY, flagEnabled, flagEnv, type FlagSpec } from '../substrate
 import { realEnvPin } from '../substrate/startupMenu.js'
 import { driverNodeGate, resolveBrowser } from '../services/browser/browserResolver.js'
 import { lastDesktopPermissions, resolveDesktopDriver } from '../services/desktop/resolveDriver.js'
+import { computerAccessWords } from '../services/desktop/computerAccess.js'
 import { desktopGrantWords } from '../services/desktop/nativeDriver.js'
 import { desktopClaimFileSnapshot } from '../services/desktop/desktopClaim.js'
 import { desktopSnapshot } from '../services/desktop/desktopSession.js'
@@ -191,7 +192,7 @@ function computerToolRecord(): ReadinessRecord {
     lastCheckedAt: Date.now(),
   }
   if (!flagEnabled('MERCURY_COMPUTER_USE')) {
-    return { ...base, state: 'disabled', detail: 'MERCURY_COMPUTER_USE unset — Computer tool absent from the catalog' }
+    return { ...base, state: 'disabled', detail: 'MERCURY_COMPUTER_USE=0 — Computer tool absent from the catalog; no desktop driver is touched' }
   }
   const t0 = Date.now()
   const resolution = resolveDesktopDriver()
@@ -199,7 +200,7 @@ function computerToolRecord(): ReadinessRecord {
     return {
       ...base,
       state: 'unavailable',
-      detail: bounded(resolution.note, 180),
+      detail: `${bounded(resolution.note, 180)} — Computer tool absent from the catalog`,
       ...(resolution.remedy !== null ? { remedy: resolution.remedy } : {}),
       latencyMs: Date.now() - t0,
     }
@@ -237,7 +238,7 @@ function computerToolRecord(): ReadinessRecord {
   return {
     ...base,
     state: 'configured',
-    detail: `driver ${resolution.source} resolved (${facts.kind}) — no session driving`,
+    detail: `driver ${resolution.source} resolved (${facts.kind}) — no session driving · access ${computerAccessWords()}`,
     latencyMs: Date.now() - t0,
   }
 }

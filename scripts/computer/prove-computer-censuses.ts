@@ -38,11 +38,14 @@ section('§3 the flag rows')
 {
   const byEnv = new Map(FLAG_REGISTRY.map(f => [f.env, f]))
   const gate = byEnv.get('MERCURY_COMPUTER_USE')
-  check("MERCURY_COMPUTER_USE is an opt-in row on the security tier with the suite as evidence", gate?.kind === 'opt-in' && gate.tier === 'security' && gate.evidence === 'scripts/computer/run-all.sh', JSON.stringify(gate))
+  check("MERCURY_COMPUTER_USE is a default-on row on the security tier with the suite as evidence", gate?.kind === 'default-on' && gate.tier === 'security' && gate.evidence === 'scripts/computer/run-all.sh', JSON.stringify(gate))
+  check('its off words name =0, the catalog and the untouched driver', /=0/.test(gate?.off ?? '') && /catalog/.test(gate?.off ?? '') && /driver/.test(gate?.off ?? ''), gate?.off)
   check("MERCURY_DESKTOP_DRIVER is a value row consumed by the resolver", byEnv.get('MERCURY_DESKTOP_DRIVER')?.kind === 'value' && (byEnv.get('MERCURY_DESKTOP_DRIVER')?.consumer ?? '').includes('resolveDriver'))
   check("MERCURY_DESKTOP_FAKE_SCENE and MERCURY_DESKTOP_FAKE_LOG are value rows consumed by the fake driver", byEnv.get('MERCURY_DESKTOP_FAKE_SCENE')?.kind === 'value' && byEnv.get('MERCURY_DESKTOP_FAKE_LOG')?.kind === 'value' && byEnv.get('MERCURY_DESKTOP_FAKE_SCENE')?.consumer === 'src/services/desktop/fakeDesktopDriver.ts' && byEnv.get('MERCURY_DESKTOP_FAKE_LOG')?.consumer === 'src/services/desktop/fakeDesktopDriver.ts')
   check("MERCURY_DESKTOP_PACK_DIR is a value row consumed by the pack owner", byEnv.get('MERCURY_DESKTOP_PACK_DIR')?.kind === 'value' && (byEnv.get('MERCURY_DESKTOP_PACK_DIR')?.consumer ?? '').includes('desktop/pack'))
-  const interacting = ['MERCURY_COMPUTER_USE', 'MERCURY_DESKTOP_DRIVER', 'MERCURY_DESKTOP_FAKE_SCENE', 'MERCURY_DESKTOP_FAKE_LOG']
+  const access = byEnv.get('MERCURY_COMPUTER_ACCESS')
+  check("MERCURY_COMPUTER_ACCESS is a value row consumed by the access owner, paired with the switch, defaulting to asks", access?.kind === 'value' && (access.consumer ?? '').includes('computerAccess') && (access.interactsWith ?? []).includes('MERCURY_COMPUTER_USE') && (gate?.interactsWith ?? []).includes('MERCURY_COMPUTER_ACCESS') && /asks/.test(access.off ?? ''), JSON.stringify(access))
+  const interacting = ['MERCURY_COMPUTER_USE', 'MERCURY_COMPUTER_ACCESS', 'MERCURY_DESKTOP_DRIVER', 'MERCURY_DESKTOP_FAKE_SCENE', 'MERCURY_DESKTOP_FAKE_LOG']
   let symmetric = true
   for (const env of interacting) {
     for (const ref of byEnv.get(env)?.interactsWith ?? []) {

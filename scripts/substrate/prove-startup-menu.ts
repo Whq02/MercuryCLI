@@ -48,6 +48,13 @@ section('registry floor — rows ⊆ FLAG_REGISTRY, sane choices')
   check('the IDE lane rows are present (clangd visible-ON · godot arm-OFF)',
     STARTUP_MENU.some(r => r.env === 'MERCURY_LSP_CPP' && r.defaultLabel === 'on') &&
     STARTUP_MENU.some(r => r.env === 'MERCURY_GODOT' && r.defaultLabel === 'off'))
+  const computerAt = STARTUP_MENU.findIndex(r => r.env === 'MERCURY_COMPUTER_USE')
+  const accessAt = STARTUP_MENU.findIndex(r => r.env === 'MERCURY_COMPUTER_ACCESS')
+  check('the computer-use row is a toggle, on by default, off its one value',
+    computerAt >= 0 && STARTUP_MENU[computerAt]!.kind === 'toggle' && STARTUP_MENU[computerAt]!.defaultLabel === 'on' && STARTUP_MENU[computerAt]!.options.join(',') === '0')
+  check('the access-type row sits directly under it in the same group: asks by default, sovereign its one value',
+    accessAt === computerAt + 1 && STARTUP_MENU[accessAt]!.group === STARTUP_MENU[computerAt]!.group && STARTUP_MENU[accessAt]!.kind === 'enum' && STARTUP_MENU[accessAt]!.defaultLabel === 'asks' && STARTUP_MENU[accessAt]!.options.join(',') === 'sovereign')
+  check('both computer rows reach new sessions (no live class)', STARTUP_MENU[computerAt]!.applicationClass === undefined && STARTUP_MENU[accessAt]!.applicationClass === undefined)
   const enterMenu = getFlagSpec('MERCURY_ENTER_MENU')
   check('MERCURY_ENTER_MENU registered default-on / infra, consumed by the applier',
     enterMenu?.kind === 'default-on' && enterMenu?.tier === 'infra' && enterMenu?.consumer === 'src/substrate/startupMenu.ts')
@@ -119,6 +126,15 @@ section('applyBootMenuEnv — apply, refuse, yield, no-op')
   const r1 = applyBootMenuEnv(file, env1)
   check('valid file applies both keys', r1 !== null && r1.applied.length === 2 && env1.MERCURY_THEMIS === 'warn' && env1.MERCURY_MNEME === '1')
   check('nothing refused, nothing env-won', r1 !== null && r1.refused.length === 0 && r1.envWins.length === 0)
+
+  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_USE: '0', MERCURY_COMPUTER_ACCESS: 'sovereign' } })
+  const envComputer: NodeJS.ProcessEnv = {}
+  const rComputer = applyBootMenuEnv(file, envComputer)
+  check('the saved computer-use rows apply at boot (off, sovereign)', rComputer !== null && rComputer.applied.length === 2 && envComputer.MERCURY_COMPUTER_USE === '0' && envComputer.MERCURY_COMPUTER_ACCESS === 'sovereign')
+  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_USE: '1', MERCURY_COMPUTER_ACCESS: 'asks' } })
+  const envForeign: NodeJS.ProcessEnv = {}
+  const rForeign = applyBootMenuEnv(file, envForeign)
+  check('values outside the two rows\' choices are refused (on is the default, asks is the default)', rForeign !== null && rForeign.refused.length === 2 && Object.keys(envForeign).length === 0)
 
   write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { PATH: '/evil', NODE_OPTIONS: '--require /evil.js', MERCURY_THEMIS: 'warn' } })
   const env2: NodeJS.ProcessEnv = {}

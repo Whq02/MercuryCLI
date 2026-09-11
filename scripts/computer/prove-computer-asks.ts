@@ -199,7 +199,7 @@ section('§8 unknown terminal identity refuses keystrokes instead of guessing')
 
 section('§8 the relayed ask keeps the application name and its rule identity distinct')
 {
-  const { judgedAppFromAsk, computerAskAppLine, computerAppRuleContent } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
+  const { judgedAppFromAsk, computerAskAppLine } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
   const suggestions = suggestionForExactCommand('Computer', `app:${TEXTEDIT.identity}`)
   const direct = judgedAppFromAsk(`Computer click (812, 300) in ${TEXTEDIT.name} (${TEXTEDIT.identity}) — first act in this application this session`, suggestions)
   check('a local ask keeps its application name and identity', JSON.stringify(direct) === JSON.stringify(TEXTEDIT), JSON.stringify(direct))
@@ -207,7 +207,6 @@ section('§8 the relayed ask keeps the application name and its rule identity di
   const relayed = judgedAppFromAsk('', suggestions, reason)
   check('a relayed ask without a message reads the display name from its safety reason', JSON.stringify(relayed) === JSON.stringify(TEXTEDIT), JSON.stringify(relayed))
   check('the card names TextEdit once beside its identity, never uses the identity as the name', computerAskAppLine(relayed) === `in TextEdit (${TEXTEDIT.identity}) — first act in this application this session`, computerAskAppLine(relayed))
-  check('the project grant still keys on the application identity', computerAppRuleContent(relayed) === `app:${TEXTEDIT.identity}`, String(computerAppRuleContent(relayed)))
   const named = judgedAppFromAsk('', suggestions, `Document Editor (Preview) (${TEXTEDIT.identity}) is in front of the operator's screen; the first act there needs the operator's own consent`)
   check('spaces and parentheses in an application name survive the relay', named?.name === 'Document Editor (Preview)' && named.identity === TEXTEDIT.identity, JSON.stringify(named))
   const mismatch = judgedAppFromAsk('', suggestions, `${FINDER.name} (${FINDER.identity}) is in front of the operator's screen; the first act there needs the operator's own consent`)
@@ -243,6 +242,41 @@ for (const mode of ['default', 'sovereign', 'autopilot', 'strategy'] as const) {
   const explicitDeny = await decideToolPermission(ComputerTool, { action: 'click', x: 812, y: 300 }, context)
   check(`${mode}: the deny rule still outranks every grant and ask`, explicitDeny.decision.behavior === 'deny', JSON.stringify(explicitDeny.decision))
   session.forgetDesktopOwner(owner)
+}
+
+section('§10 sovereign access: nothing asks; rules in a settings file and the terminal refusal still hold')
+{
+  const { computerAccess } = await import('../../src/services/desktop/computerAccess.ts')
+  const { context, owner } = await fresh('sovereign', null)
+  check('the access type reads asks by default', computerAccess() === 'asks')
+  process.env.MERCURY_COMPUTER_ACCESS = 'sovereign'
+  check('the access type reads sovereign from the environment', computerAccess() === 'sovereign')
+  const first = await permission({ action: 'click', x: 812, y: 300 }, context)
+  check('the first act in an application is allowed without an ask', first.behavior === 'allow', JSON.stringify(first))
+  check('the check alone writes no session grant', session.appApproved(owner, TEXTEDIT.identity) === false)
+  check('the judged application still travels to the act (the moved-in-front refusal keeps its frame)', session.peekCheckedActApp(owner)?.app.identity === TEXTEDIT.identity)
+  for (const action of COMPUTER_READS) {
+    const read = await permission({ action }, context)
+    check(`${action} stays allowed`, read.behavior === 'allow', JSON.stringify(read))
+  }
+  const denied = toolContext({ deny: [`Computer(app:${TEXTEDIT.identity})`] })
+  session.forgetDesktopOwner(ownerOf(denied))
+  const denyVerdict = await permission({ action: 'key', key: 'Enter' }, denied)
+  check('a deny rule still refuses by name', denyVerdict.behavior === 'deny' && (denyVerdict.message ?? '').includes('by a permission rule'), JSON.stringify(denyVerdict))
+  const asked = toolContext({ ask: [`Computer(app:${TEXTEDIT.identity})`] })
+  session.forgetDesktopOwner(ownerOf(asked))
+  const askVerdict = await permission({ action: 'key', key: 'Enter' }, asked)
+  check('an explicit ask rule still asks', askVerdict.behavior === 'ask', JSON.stringify(askVerdict))
+  session.forgetDesktopOwner(owner)
+  const { context: terminalContext, owner: terminalOwner } = await fresh('sovereign-terminal', { frontmost: TERMINAL })
+  const typed = await permission({ action: 'type', text: 'hello' }, terminalContext)
+  check('typing into the terminal running this session is still refused', typed.behavior === 'deny' && (typed.message ?? '').includes('terminal running this session'), JSON.stringify(typed))
+  session.forgetDesktopOwner(terminalOwner)
+  delete process.env.MERCURY_COMPUTER_ACCESS
+  const { context: backContext, owner: backOwner } = await fresh('sovereign-back', null)
+  const back = await permission({ action: 'click', x: 812, y: 300 }, backContext)
+  check('with the access type back at asks the first act asks again', back.behavior === 'ask', JSON.stringify(back))
+  session.forgetDesktopOwner(backOwner)
 }
 
 useScene('default', null)

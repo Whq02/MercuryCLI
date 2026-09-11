@@ -4,39 +4,71 @@ Computer use is the Computer tool: the model takes a screenshot of your
 screen, decides, then clicks, types, presses keys, scrolls or drags in the
 application in front, and sees a fresh screenshot after every act. Nothing
 runs without your consent: the first act in each application asks you by
-the application's name. It is off by default, and the rest of Mercury does
-not depend on it.
+the application's name. It is on by default on a machine that has the
+desktop driver, and the rest of Mercury does not depend on it.
 
-## Turning it on
+## Turning it off
 
-Set `MERCURY_COMPUTER_USE=1` in the environment before the session starts,
-or turn it on in the Boot Menu's environment rows. A session already
-running keeps the tool list it started with until the next compaction or
-`/clear`, so set the switch before you boot. Off is the default: without the
-switch the Computer tool is not in the catalog at all. `mercury doctor` and
-`/health` carry a `Computer use` row that names what is missing — the
-driver, a grant, the kind of session — with the fix beside it.
+Turn the Boot Menu's `Computer use` row off — it is on by default, and the
+change reaches new sessions — or set `MERCURY_COMPUTER_USE=0` in the
+environment before the session starts. A session already running keeps the
+tool list it started with until the next compaction or `/clear`, so set
+the switch before you boot. With the
+switch off the Computer tool is not in the catalog at all and no desktop
+driver is touched. On a machine without the desktop driver the tool is
+absent from the catalog as well: the catalog decides when it is built,
+never when the model calls, so the model is never offered a tool that
+cannot work. `mercury doctor` and `/health` carry a `Computer use` row that
+names what is missing — the driver, a grant, the kind of session — with
+the fix beside it.
 
 ## The asks
 
 Screenshots and the other reads — the cursor, the displays, the application
-in front, a timed wait — never ask. The first act in each application — a
-click, a drag, a scroll, typed text, a key — asks by the application's name
-and identity, and the card names the act. Three answers:
+in front, a timed wait — never ask. With the access type at `asks` (the
+default), the first act in each application — a click, a drag, a scroll,
+typed text, a key — asks by the application's name and identity, the card
+names the act, and it asks how long you want to allow. Five answers, in
+this order:
 
 - **Yes** allows this act and every later act in this application for the
   rest of the session.
-- **Yes, and don't ask again for this application in this project** allows
-  it and writes the allowlist rule below into the project's local settings,
-  so the next session does not ask for this application either.
 - **No, and tell Mercury what to do differently** refuses the act and hands
   the composer back to you.
+- **Yes, for 1 hour — every application** allows every act in every
+  application for one hour from now.
+- **Yes, for 24 hours — every application** does the same for twenty-four
+  hours.
+- **Enable sovereign mode to avoid further permissions by default** turns
+  sovereign mode on for this session and saves it as the Boot Menu's access
+  type, so no later session asks either, until you change the row.
 
+A timed grant lives with the session: a resume inside its span keeps it, a
+new session never inherits it, and it is never written into your settings.
+When it runs out, the next first act asks again — nothing timed is
+permanent, and acts made under it leave no per-application grant behind.
 An act that lands in another application asks for that one before the next
 act there. An application that moved in front between the ask and the act
 is not driven: the act is refused and the model takes a new screenshot. No
 permission mode skips this ask and no classifier answers it: the screen,
 not you, chose the application, so the consent is yours alone.
+
+## The access type
+
+Under the Boot Menu's `Computer use` row sits `Access type`, with two
+values. `asks`, the default, is the card above: the first act in each
+application asks. `sovereign` is sovereign mode: full computer use granted
+by default, so no act asks in any application. Rules in a settings file
+hold either way — a `permissions.deny` rule refuses its application before
+any act, and a `permissions.ask` rule asks for its application even in
+sovereign mode — and so do the refusals that are the screen's, not yours:
+the terminal running Mercury is never typed into, and an application that
+moved in front between the check and the act is not driven. The row is
+saved where the Boot Menu keeps its other choices and reaches new
+sessions, and the ask card's last answer saves the same value;
+`MERCURY_COMPUTER_ACCESS=sovereign` in the environment sets it for one
+session. `mercury doctor` and `/health` name the access type beside the
+switch.
 
 ## The allowlist
 
@@ -44,11 +76,11 @@ A grant that outlives the session is a permission rule in the
 `permissions.allow` list of your settings: `Computer(app:<identity>)`,
 where the identity is the one the application's row shows beside its name
 — a bundle identifier on macOS (`com.apple.Safari`), an executable name on
-Windows (`chrome.exe`), a window class on Linux (`firefox`). The second
-answer on the card writes the rule into `.mercury/settings.local.json` in
-the project. A rule in `permissions.deny` refuses that application before
-any ask. A rule written on one platform matches only that platform's
-identities.
+Windows (`chrome.exe`), a window class on Linux (`firefox`). You write the
+rule yourself; the card writes none. A rule in `permissions.deny` refuses
+that application before any ask, and a rule in `permissions.ask` asks for
+it even in sovereign mode. A rule written on one platform matches only that
+platform's identities.
 
 ## The stop key
 
@@ -121,10 +153,10 @@ SendInput on Windows, X11 with the XTEST extension on Linux), built from the
 repository's `native/desktop` sources with cargo by
 `bun run scripts/vendor/build-desktop.ts`, which `bun run setup` runs last.
 It is built rather than fetched: a machine without a Rust toolchain builds
-and runs Mercury without it, the build says so, and the Computer tool
-answers "no desktop driver on this install" until the pack is built. Release
-archives carry the driver for their platform when the packaging host could
-build it. Nothing else is installed on your machine. Every screenshot,
+and runs Mercury without it, the build says so, and the Computer tool stays
+out of the catalog until the pack is built — the doctor's row names the
+build command. Release archives carry the driver for their platform when
+the packaging host could build it. Nothing else is installed on your machine. Every screenshot,
 including the default capture after an act, is kept under `desktop-shots`
 with the retention limit described above.
 
@@ -164,9 +196,9 @@ session Mercury runs in, and whether computer use is on. The detail lists
 the displays with their sizes and scales, the frontmost application, the
 permission words for your platform, and which session is driving the
 desktop right now, if any — one session drives at a time. A missing grant
-is information with the fix beside it, never a fault: computer use is off
-by default and the rest of Mercury does not depend on it. The doctor never
-opens a system dialog; the first capture or act does.
+is information with the fix beside it, never a fault: the rest of Mercury
+does not depend on computer use. The doctor never opens a system dialog;
+the first capture or act does.
 
 A held mouse button or key is released when you interrupt, when the turn
 ends, and when Mercury exits. If Mercury is killed in the middle of a
