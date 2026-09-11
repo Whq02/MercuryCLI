@@ -128,7 +128,7 @@ console.log('§2 — the first-party door: the SDK presenter paints the line, ne
 
   const src = read('src/services/api/errors.ts')
   const wallAt = src.indexOf('const wall = classifyCredentialWall(status, message)')
-  const genericAt = src.indexOf('// 23. Generic 401/403')
+  const genericAt = src.indexOf('logForDebugging(`[api] ${status} on ${model} — the wire said: ${message}`)')
   check('source: the wall branch sits BEFORE the observed-expired branch and the generic tail', wallAt > 0 && genericAt > wallAt && src.indexOf('isAnthropicOAuthSignInExpired()', wallAt) < genericAt)
   check('source: the payload goes to the debug log in both wall branches', src.slice(wallAt, genericAt).split('logForDebugging(').length - 1 >= 2)
   check('source: the presenter names no family by hand — routeOfModel + providerDisplayName speak', src.includes('credentialWallLine(routeOfModel(model)') && !src.includes("credentialWallLine('anthropic'"))

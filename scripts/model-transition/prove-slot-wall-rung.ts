@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -146,12 +147,13 @@ section('§E the card never fights the keyboard, and the memories outlive the co
 
 section('§G a dismissed slot offer leaves the ladder standing (FN-016 R19)')
 {
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const composerCode = codeOnlyText('PromptInput.tsx', readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8'))
   check('the mount is followed by its own return (the rung took the screen)',
-    /setOverlay\('slot-offer'\)\s*\n\s*\/\/ The rung TOOK the screen[\s\S]{0,80}?return/.test(composer))
-  check('the dismissed path falls through to the next rung', composer.includes('the ladder keeps its next\n            // rung'))
+    /setOverlay\('slot-offer'\)\s*\n\s*return\s*\n\s*\}/.test(composerCode))
+  check('the dismissed path falls through to the next rung (no return between the mount guard and the auto arm)',
+    /setOverlay\('slot-offer'\)\s*\n\s*return\s*\n\s*\}\s*\n\s*\} else if \(!offerAutoDone\(slotKey\)\)/.test(composerCode))
   check('the auto arm is the offer arm\'s ELSE (a dismissed offer never auto-switches)',
-    /\}\s*else if \(!offerAutoDone\(slotKey\)\)/.test(composer))
+    /\}\s*else if \(!offerAutoDone\(slotKey\)\)/.test(composerCode))
 }
 
 section('§F the offer card speaks only what the estate observed (FN-016 R18)')

@@ -73,13 +73,10 @@ section('§B reverse fence — profile resolution reads no model facet')
     modelImports.join(' · '),
   )
   check(
-    'contracts.ts states the law (never inferred from a model name)',
-    readFileSync(join(ROOT, 'src/services/instructions/contracts.ts'), 'utf8').includes(
-      'never\n *  inferred from a model name',
-    ) ||
-      readFileSync(join(ROOT, 'src/services/instructions/contracts.ts'), 'utf8').includes(
-        'never inferred from a model name',
-      ),
+    'contracts.ts keeps the origin union to the runtime seams (default · session · agent — no model-derived origin)',
+    /^export type InstructionProfileOrigin = 'default' \| 'session' \| 'agent'$/m.test(
+      readFileSync(join(ROOT, 'src/services/instructions/contracts.ts'), 'utf8'),
+    ),
   )
 }
 

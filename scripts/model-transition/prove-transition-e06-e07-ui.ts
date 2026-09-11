@@ -43,14 +43,23 @@ section('§B E06 — keyboard completeness + mouse polish')
 {
   const preview = read('src/components/TransitionPreviewCard.tsx')
   const cap = read('src/components/CapOfferCard.tsx')
-  check('both cards ride the confirm grammar (Esc = Dialog confirm:no)', preview.includes('confirm:no') && cap.includes('confirm:no'))
+  const dialog = read('src/components/design-system/Dialog.tsx')
+  check(
+    'both cards ride the confirm grammar (Esc = Dialog confirm:no → onCancel; each card hands Dialog its cancel)',
+    /useKeybinding\(\s*'confirm:no',\s*\(\) => \{\s*onCancel\(\)/.test(dialog) &&
+      /<Dialog[\s\S]{0,200}?onCancel=\{onCancel\}/.test(preview) &&
+      /<Dialog[\s\S]{0,200}?onCancel=\{onDismiss\}/.test(cap),
+  )
   const multi = read('src/components/CustomSelect/SelectMulti.tsx')
   check('the multi-select INPUT row (the 5th option) engages by CLICK through its own door (pointer activation)', /isInputOption\(option\)[\s\S]{0,800}onClick=\{[\s\S]{0,200}state\.activateInputValue\(optionValueOf\(option\), 'pointer'\)/.test(multi))
   check('…and its checkbox renders the REAL selection state (matching the text rows)', /isInputOption\(option\)[\s\S]{0,1800}\{checkbox\(isChecked\)\}/.test(multi) && multi.includes('const checkbox = (checked: boolean)'))
   const state = read('src/components/CustomSelect/use-multi-select-state.ts')
-  check('Enter/Space toggling covers input rows (keyboard side)', state.includes('Enter or space. Every submit path requires the submit callback') && state.includes('toggleValue(navigation.focusedValue)'))
+  check('Enter/Space toggling covers input rows (keyboard side)', state.includes('toggleValue(navigation.focusedValue)'))
   check('…and pointer activation with text puts the input row in the selection (never a toggle off)', state.includes('if (!selectedValuesRef.current.includes(value)) toggleValue(value)'))
-  check('the picker is select-then-activate (InteractiveRow routes activation)', read('src/components/MercuryModelPicker.tsx').includes('select-then-activate'))
+  check(
+    'the picker is select-then-activate (InteractiveRow routes activation: onSelect moves the cursor, onActivate commits)',
+    /<InteractiveRow[\s\S]{0,300}?onSelect=\{\(\) => selectRow\([\s\S]{0,120}?onActivate=\{commitCurrent\}/.test(read('src/components/MercuryModelPicker.tsx')),
+  )
   const selector = read('src/components/MessageSelector.tsx')
   check('the timeline keeps its full keyboard map', selector.includes("'messageSelector:up'") && selector.includes("'messageSelector:select'") && selector.includes("'messageSelector:close'"))
 }
