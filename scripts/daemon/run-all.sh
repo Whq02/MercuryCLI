@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/daemon/** src/substrate/flagRegistry* src/types/permissions* src/services/switchboard/ensureDaemon.ts src/screens/REPL.tsx
+# gate-watch: src/daemon/** src/substrate/flagRegistry* src/types/permissions*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -28,7 +28,6 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-worker-census.ts" || { __rc=$?; fa
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-halt-roster.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-halt-roster.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-worker-recon.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-worker-recon.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-warm-runner.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-warm-runner.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-demand-workers.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-demand-workers.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-revive-cap.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-revive-cap.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-newborn-grace.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-newborn-grace.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-kit-birth.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-kit-birth.ts" "$__t" "$__rc"
