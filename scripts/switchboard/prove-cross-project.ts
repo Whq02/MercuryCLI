@@ -488,7 +488,7 @@ console.log('§5 — THE CROSS-PROJECT PING, A DOOR: an ask or a finish in anoth
   const hook = read('src/hooks/useCrossProjectFinishPings.ts')
   check('the watch mounts in the visible process beside the ping engine and is gated by the strip\'s plain-world fact', hook.includes('startCrossProjectFinishWatch({ enabled: () => !chatOnlyBoot() })') && read('src/screens/REPL.tsx').includes('usePingEngine();\n  useCrossProjectFinishPings();'))
   const engineSrc = read('src/services/pings/pingEngine.ts')
-  check('PINGS\'s engine is untouched by this lane (its policy stays its own)', engineSrc.includes('export function createPingEngine(') && !engineSrc.includes('cross-project'))
+  check('PINGS\'s engine stays its own (the cross-project door never reaches into it)', engineSrc.includes('export function createPingEngine(') && !engineSrc.includes('cross-project'))
   const frame = read('src/components/MercuryFrame.tsx')
   const { needsYouCount } = await import('../../src/utils/needsYouCount.ts')
   check('the ⚑ badge counts the attention view\'s needs-you bucket — every open need, whatever its project', frame.includes('attentionView.needsYou > 0') && frame.includes('needsYouCount(attentionView.needsYou)') && needsYouCount(1) === '1 needs you' && needsYouCount(2) === '2 need you')
