@@ -18,7 +18,6 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a spurious input-stream error shown while recording voice
 - Fixed the doctor's bug-report link
 - Removed internal checks that no longer applied
-- Known: memory right after boot is higher than in beta.5 by about a hundred megabytes; the fix rides the rig release
 
 ## 1.0.0-beta.5
 - Removed an internal configuration table that no longer did anything; nothing you can see changes
