@@ -323,8 +323,8 @@ function driveEnv(home: string, fixtureBase: string, dialect: Dialect): Record<s
   }
 }
 
-const TOKENS_RE = /\b\d[\d.,]*k? tokens\b/
-const nonZeroTokens = (text: string): boolean => TOKENS_RE.test(text) && !/\b0 tokens\b/.test(text)
+const TOKENS_RE = /\b\d[\d.,]*k? (?:context|spent)\b/
+const nonZeroTokens = (text: string): boolean => TOKENS_RE.test(text) && !/\b0 (?:context|spent)\b/.test(text)
 const agentRow = (text: string, name: string, ...words: Array<string | RegExp>): boolean =>
   text.split('\n').some(line => line.includes(name) && words.every(w => (typeof w === 'string' ? line.includes(w) : w.test(line))))
 const rowTokens = (text: string, name: string): boolean =>
@@ -409,13 +409,13 @@ async function landLeg(dialect: Dialect): Promise<void> {
   )
   check(
     `${tag}: the CREW lane rows carry a token verb while they run`,
-    (flat(running).match(/◐ [a-z-…]+ · \d[\d.,]*k? tokens/g) ?? []).length >= 2,
+    (flat(running).match(/◐ [a-z-…]+ · \d[\d.,]*k? context/g) ?? []).length >= 2,
   )
-  check(`${tag}: the usage attribution line counts the crew`, /sub-agents \d[\d.,]*k? tokens/.test(flat(running)))
+  check(`${tag}: the usage attribution line counts the crew`, /sub-agents \d[\d.,]*k? spent/.test(flat(running)))
   const crewRunning = marks['crew-running'] ?? ''
   check(
-    `${tag}: the Crew view while running — both rows, the served model, running, tokens > 0, the count label`,
-    agentRow(crewRunning, SEAT_ONE, servedModel, /\brunning\b/) && agentRow(crewRunning, SEAT_TWO, servedModel, /\brunning\b/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('2 running · 2 sub-agents'),
+    `${tag}: the Crew view while running — both rows, the served model, the running glyph with the seat's live phase, tokens > 0, the count label`,
+    agentRow(crewRunning, SEAT_ONE, servedModel, /◐/, /Sleeping for \d+s|\brunning\b/) && agentRow(crewRunning, SEAT_TWO, servedModel, /◐/, /Sleeping for \d+s|\brunning\b/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('2 running · 2 sub-agents'),
   )
   const landed = marks['landed'] ?? ''
   check(`${tag}: the card landed both (its landed header) and no seat is still running`, landed.includes('agents finished') && !/\bstopped\b/.test(landed))
@@ -452,9 +452,11 @@ async function stopLeg(dialect: Dialect): Promise<void> {
         sends: [
           ...bootSends(ASK),
           { data: '\x1b', atTick: 999, awaitText: 'Running 2 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'running' },
-          { data: '/teammates', atTick: 110, awaitText: 'stopped', minTick: 2, awaitSettleTicks: 4, mark: 'stopped' },
+          { data: '/teammates', atTick: 999, awaitText: 'still running', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'interrupted' },
           { data: '\r', afterPrevTicks: 4 },
-          { data: '\x1b', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-stopped' },
+          { data: 'x', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-running' },
+          { data: 'x', afterPrevTicks: 3 },
+          { data: '\x1b', atTick: 999, awaitText: 'stopped', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'crew-stopped' },
         ],
         stableTicks: 6,
       },
@@ -469,10 +471,12 @@ async function stopLeg(dialect: Dialect): Promise<void> {
   check(`${tag}: every send became due`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
   const running = marks['running'] ?? ''
   check(`${tag}: both seats were running with tokens when the Esc fired`, rowTokens(running, SEAT_ONE) && rowTokens(running, SEAT_TWO))
-  const stopped = marks['stopped'] ?? ''
-  check(`${tag}: the card rows read stopped — never the runner's word`, (stopped.match(/\bstopped\b/g) ?? []).length >= 2 && !stopped.includes('killed'))
+  const interrupted = marks['interrupted'] ?? ''
+  check(`${tag}: the esc is the turn's alone — the receipt counts the crew still running and names the crew view door`, /2 sub-agents still running — open the crew view \(\/teammates\)/.test(flat(interrupted)) && !interrupted.includes('killed'))
+  const crewRunning = marks['crew-running'] ?? ''
+  check(`${tag}: the Crew view after the esc — both seats run on with their tokens kept`, agentRow(crewRunning, SEAT_ONE, /◐/) && agentRow(crewRunning, SEAT_TWO, /◐/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('2 running · 2 sub-agents'))
   const crewStopped = marks['crew-stopped'] ?? ''
-  check(`${tag}: the Crew view reads stopped for both agents, tokens kept`, agentRow(crewStopped, SEAT_ONE, /\bstopped\b/) && agentRow(crewStopped, SEAT_TWO, /\bstopped\b/) && !crewStopped.includes('killed') && rowTokens(crewStopped, SEAT_ONE) && rowTokens(crewStopped, SEAT_TWO) && crewStopped.includes('0 running · 2 sub-agents'))
+  check(`${tag}: x twice on the selected row stops that one seat through the runner — its row reads stopped, never killed, the other runs on`, agentRow(crewStopped, SEAT_TWO, /\bstopped\b/) && !crewStopped.includes('killed') && rowTokens(crewStopped, SEAT_TWO) && agentRow(crewStopped, SEAT_ONE, /◐/) && rowTokens(crewStopped, SEAT_ONE) && crewStopped.includes('1 running · 2 sub-agents'))
   check(`${tag}: no seat settled its turn (the Sleep was interrupted — no seat-ack on the wire)`, fixture.hits.every(h => h.route !== 'seat-ack'))
   const wantLane = dialect === 'anthropic' ? 'messages' : 'responses'
   check(`${tag}: every crew turn rode the family's own wire`, fixture.hits.filter(h => h.route !== 'side').every(h => h.lane === wantLane && (dialect === 'anthropic' || h.model === GPT_ID)), fixture.hits.map(h => `${h.route}:${h.lane}:${h.model}`).join(','))
