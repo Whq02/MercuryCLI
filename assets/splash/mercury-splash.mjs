@@ -19,7 +19,31 @@ const TRUECOLOR =
   process.env.MERCURY_TRUECOLOR !== '0'
 
 
+const COMPACT_HOST_COLS = 100
+const COMPACT_HOST_ROWS = 26
+const compactHost = (c, r) => CINEMATIC && !(c >= COMPACT_HOST_COLS && r >= COMPACT_HOST_ROWS)
+let lockupCompactHero = null
 function compose(cols, rows) {
+  if (compactHost(cols, rows)) {
+    const res = composeCompactFace(cols, rows, {
+      cardRows: cardRows(true),
+      cardSel,
+      hintSegments: [
+        { key: '↵ ', label: 'start', tone: 'ivory' },
+        { key: '↑↓', label: ' choose', tone: 'faint' },
+        { key: 'm', label: ' menu', tone: 'faint' },
+      ],
+      reserveKeyMap: true,
+      glowWord: glowWordPhase(),
+      glowRow: glowRowPhase(),
+    })
+    lockupCardShown = false
+    lockupWordRow = res.wordRow
+    lockupActionLines = res.actions.map(a => a.line)
+    lockupCompactHero = res.hero
+    return res.lines
+  }
+  lockupCompactHero = null
   const res = composeLockup(cols, rows, {
     cardRows: cardRows(),
     cardSel,
@@ -664,7 +688,7 @@ const core = createSplashCore({ nocolor: NOCOLOR, truecolor: TRUECOLOR, accent: 
 const {
   R, DIM,
   rgbFg, rgbBg, hexFg,
-  composeLockup, placeBlock,
+  composeLockup, composeCompactFace, placeBlock,
   composeStrip: coreComposeStrip,
   composeBootMenu: coreComposeBootMenu,
   mixc,
@@ -766,7 +790,7 @@ function stampBootAttempt() {
 let cardSel = 0
 let lockupCardShown = false
 
-function cardRows() {
+function cardRows(menuRows = menuAvailable) {
   return assembleCardRows({
     cwdBase: projectDisplayName(process.cwd()),
     continueTarget: cwdProject
@@ -774,7 +798,7 @@ function cardRows() {
       : recentLast
         ? { base: recentLast.base, ageMs: recentLast.ageMs, cross: true }
         : null,
-    menuAvailable,
+    menuAvailable: menuRows,
     concourse: process.env.MERCURY_SPLASH_CHAT === '1' ? null : { ctx: 'the multi-session board, once' },
   })
 }
@@ -987,7 +1011,9 @@ function composeCinematicHero(C, Rw) {
   const block = compose(C, Rw)
   const { placed: full, top } = placeBlock(block, Rw)
   let placed = full
-  if (lockupActionLines.length > 0) {
+  if (lockupCompactHero !== null) {
+    placed = lockupCompactHero
+  } else if (lockupActionLines.length > 0) {
     placed = full.slice(0, top + Math.min(...lockupActionLines) - 1)
   }
   placedBrandRow = lockupWordRow !== null ? top + lockupWordRow : null
@@ -1082,7 +1108,9 @@ function paintView() {
   const block = view === 'menu' ? composeMenu(snapCols) : compose(snapCols, snapRows)
   const { placed: placedFull, top } = placeBlock(block, snapRows)
   let placed = placedFull
-  if (CINEMATIC && view === 'lockup' && lockupActionLines.length > 0) {
+  if (CINEMATIC && view === 'lockup' && lockupCompactHero !== null) {
+    placed = lockupCompactHero
+  } else if (CINEMATIC && view === 'lockup' && lockupActionLines.length > 0) {
     placed = placedFull.slice(0, top + Math.min(...lockupActionLines) - 1)
   }
   placedBrandRow = view === 'lockup' && lockupWordRow !== null ? top + lockupWordRow : null
