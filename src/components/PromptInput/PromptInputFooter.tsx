@@ -57,7 +57,6 @@ export function PromptInputFooter({
   teammateFooterIndex,
   onOpenTasksDialog,
   compact = false,
-  compactSummaryFocused = false,
   maxRows,
   suggestionRows,
 }: {
@@ -86,7 +85,6 @@ export function PromptInputFooter({
   teammateFooterIndex?: number
   onOpenTasksDialog?: () => void
   compact?: boolean
-  compactSummaryFocused?: boolean
   maxRows?: number
   suggestionRows?: number
 }): React.ReactNode {
@@ -128,22 +126,25 @@ export function PromptInputFooter({
     return compact ? <Box maxHeight={maxRows} overflow="hidden"><PromptInputHelpMenu dimColor /></Box> : <PromptInputHelpMenu dimColor />
   }
 
+  const leftSide = (
+    <PromptInputFooterLeftSide
+      compact={compact}
+      exitPending={exitPending}
+      exitKeyName={exitKeyName}
+      isPasting={isPasting}
+      searchField={searchField}
+      vimInsert={vimInsert}
+      mode={mode}
+      isLoading={isLoading}
+      hintsEnabled={hintsEnabled}
+      teammateFooterIndex={teammateFooterIndex}
+      onOpenTasksDialog={onOpenTasksDialog}
+    />
+  )
+  if (compact) return <Box flexDirection="column" maxHeight={maxRows} overflow="hidden">{leftSide}</Box>
   const left = (
     <Box flexDirection="column" minWidth={0} flexShrink={1}>
-      <PromptInputFooterLeftSide
-        compact={compact}
-        compactSummaryFocused={compactSummaryFocused}
-        exitPending={exitPending}
-        exitKeyName={exitKeyName}
-        isPasting={isPasting}
-        searchField={searchField}
-        vimInsert={vimInsert}
-        mode={mode}
-        isLoading={isLoading}
-        hintsEnabled={hintsEnabled}
-        teammateFooterIndex={teammateFooterIndex}
-        onOpenTasksDialog={onOpenTasksDialog}
-      />
+      {leftSide}
       {!exitPending && !isPasting ? (
         <Text dimColor wrap="truncate-end">
           {getNewlineInstructions()}
@@ -174,7 +175,6 @@ export function PromptInputFooter({
     </Box>
   )
 
-  if (compact) return <Box flexDirection="column" maxHeight={maxRows} overflow="hidden">{left}</Box>
   if (narrow) {
     return (
       <Box flexDirection="column" alignItems="flex-start">
