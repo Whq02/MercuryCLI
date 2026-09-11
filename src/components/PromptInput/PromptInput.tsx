@@ -2283,6 +2283,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     submitCount,
     viewingAgentName: viewedAgentName,
     cockpitActive,
+    compact: isCompact,
   })
   const banner = useSwarmBanner()
   const borderStyle = isCompact ? compactBudget?.composerBorderRows === 2 ? 'round' : undefined : composerBorderStyle(rows)

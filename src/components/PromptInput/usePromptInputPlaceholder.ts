@@ -13,11 +13,13 @@ export function usePromptInputPlaceholder({
   submitCount,
   viewingAgentName,
   cockpitActive,
+  compact = false,
 }: {
   input: string
   submitCount: number
   viewingAgentName?: string
   cockpitActive?: boolean
+  compact?: boolean
 }): string | undefined {
   const onboardingHint =
     input === '' && submitCount === 0 && !viewingAgentName
@@ -38,6 +40,9 @@ export function usePromptInputPlaceholder({
     if (onboardingHint !== undefined) {
       return onboardingHint
     }
+    if (compact && submitCount < 2) {
+      return 'Type a prompt, or start a slash command'
+    }
     if (cockpitActive && submitCount < 2) {
       return 'Type a prompt, start a slash command, or Tab to focus the rails'
     }
@@ -45,5 +50,5 @@ export function usePromptInputPlaceholder({
       return getExampleCommandFromCache()
     }
     return undefined
-  }, [input, viewingAgentName, cockpitActive, submitCount, suggestionsEnabled, onboardingHint])
+  }, [input, viewingAgentName, cockpitActive, compact, submitCount, suggestionsEnabled, onboardingHint])
 }
