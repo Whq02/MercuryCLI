@@ -44,7 +44,9 @@ t.section('§1 — THE ROW, BOTH HOSTS, EVERY WORLD (one owner, no world check)'
   ]))
   t.check('the merged door stays LAST (proof-leg stability — the resume slot)', full[full.length - 1] === 'sessions' && chat[chat.length - 1] === 'sessions')
 
-  const asm = coreSrc.slice(coreSrc.indexOf('export function assembleCardRows'), coreSrc.indexOf('// ── PO-7: the ONE placement law'))
+  const asmAt = coreSrc.indexOf('export function assembleCardRows')
+  const asmEnd = coreSrc.indexOf('function placeBlock(block, rows) {', asmAt)
+  const asm = asmAt !== -1 && asmEnd > asmAt ? coreSrc.slice(asmAt, asmEnd) : ''
   const guardAt = asm.indexOf('if (facts.menuAvailable) {')
   const guardEnd = asm.indexOf('\n  }', guardAt)
   const guarded = guardAt >= 0 && guardEnd > guardAt ? asm.slice(guardAt, guardEnd) : ''
@@ -56,9 +58,11 @@ t.section('§1 — THE ROW, BOTH HOSTS, EVERY WORLD (one owner, no world check)'
   t.check('POISON absent: the guarded block reads no kit-record fact (the armed-wear display fact is the one lawful facts.kit* spelling)', kitReads.every(m => m === 'facts.kitArmedPreset'), kitReads.join(','))
   t.check('the row assembly has ONE owner — no second kit row on either host', !driverSrc.includes("key: 'kit'") && !faceSrc.includes("key: 'kit'") && (coreSrc.match(/key: 'kit'/g) ?? []).length === 1)
 
-  const driverCall = driverSrc.slice(driverSrc.indexOf('function cardRows() {'), driverSrc.indexOf('// ── the PROJECTS picker view'))
+  const driverCallAt = driverSrc.indexOf('function cardRows(')
+  const driverCallEnd = driverSrc.indexOf('function composeStrip(w) {', driverCallAt)
+  const driverCall = driverCallAt !== -1 && driverCallEnd > driverCallAt ? driverSrc.slice(driverCallAt, driverCallEnd) : ''
   const faceCall = faceSrc.slice(faceSrc.indexOf('assembleCardRows({'), faceSrc.indexOf('}) as BootRow[]'))
-  t.check("neither host passes a kit fact (the row is the core's, from the fit fact both already pass)", !/\bkit\b/.test(driverCall.replace(/\/\/[^\n]*/g, '')) && !/\bkit\b/.test(faceCall.replace(/\/\/[^\n]*/g, '')) && driverCall.includes('menuAvailable,') && faceCall.includes('menuAvailable,'))
+  t.check("neither host passes a kit fact (the row is the core's, from the fit fact both already pass)", !/\bkit\b/.test(driverCall.replace(/\/\/[^\n]*/g, '')) && !/\bkit\b/.test(faceCall.replace(/\/\/[^\n]*/g, '')) && /\bmenuAvailable: /.test(driverCall) && /\bmenuAvailable: /.test(faceCall))
   t.check("the runtime face activates the row (runRow case 'kit' opens the manager layer)", faceSrc.includes("case 'kit':") && faceSrc.includes('setKitOpen(true)'))
   t.check("the launcher activates the row with the `kit` receipt action", driverSrc.includes("else if (r2.key === 'kit') writeSplashAction('kit')"))
   const core = createSplashCore({ nocolor: false, truecolor: true })

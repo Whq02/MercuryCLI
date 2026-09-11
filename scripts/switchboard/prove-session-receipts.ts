@@ -190,7 +190,7 @@ console.log('D — a torn tail is carried unread, never parsed, never fatal')
   check('the floor derives over a torn transcript and DISCLOSES the unread line', walked !== null && walked.floor.unreadLines === 1, String(walked?.floor.unreadLines))
 }
 
-console.log('E — newest-first at the one view seam; the contract lane\'s append round-trips')
+console.log('E — newest-first at the one view seam; the contract estate\'s append round-trips')
 {
   const mirror = readSrc('src/components/concourse/SessionMirror.tsx')
   check('the viewer reverses the append-ordered file (newest-first) at its one read seam', mirror.includes('readSessionReceipts(getProjectDir(workspaceId), sessionId).slice().reverse()'))

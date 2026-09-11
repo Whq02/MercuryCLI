@@ -323,7 +323,7 @@ console.log('N — no world check anywhere in the kit path (the worlds are ident
     'src/services/mcp/membership.ts',
   ]
   const dirty = files.filter(f => /chatOnlyBoot|chatBoot\(|MERCURY_SPLASH_CHAT/.test(read(f)))
-  check('N1 none of this lane\'s files reads chatOnlyBoot / chatBoot / MERCURY_SPLASH_CHAT (poison: any world predicate in the kit path)', dirty.length === 0, dirty.join(','))
+  check('N1 none of the kit\'s files reads chatOnlyBoot / chatBoot / MERCURY_SPLASH_CHAT (poison: any world predicate in the kit path)', dirty.length === 0, dirty.join(','))
   const kitSites = read('src/daemon/concourseSupervisor.ts').split('\n').filter(l => /\bkit\b/.test(l) && !/^\s*(\/\/|\*|\/\*\*)/.test(l))
   check('O0 the supervisor writes the kit only through the two named seams (kitStampOf at the mints, restampSessionKit at the reactivate) — never a bare `.kit =`', !kitSites.some(l => /\.kit\s*=[^=]/.test(l)) && kitSites.filter(l => l.includes('kitStampOf(')).length === 2)
   const bareWrites = ['src/daemon', 'src/services/switchboard', 'src/services/mcp', 'src/components/concourse']

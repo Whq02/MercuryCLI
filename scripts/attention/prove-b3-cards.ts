@@ -5,6 +5,8 @@ import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+
 const t = checker()
 
 t.section('§1 — the counter law on the real streaming surface')
@@ -48,10 +50,14 @@ t.section('§1 — the counter law on the real streaming surface')
 t.section('§2 — identity + the state grammar')
 {
   const glyphs = readFileSync('src/components/mercury-ui/toolGlyphs.ts', 'utf8')
-  const projection = readFileSync('scripts/cockpit-interaction/prove-tool-projection.ts', 'utf8')
+  const { getAllBaseTools } = await import('../../src/tools.ts')
+  const { TOOL_FAMILY_BY_NAME } = await import('../../src/components/mercury-ui/toolGlyphs.ts')
+  const live = getAllBaseTools().map(tool => tool.name).filter(name => name !== 'TestingPermission')
+  const unclassified = live.filter(name => TOOL_FAMILY_BY_NAME[name] === undefined)
   t.check(
     'families bind to the REAL tool registry (no filename conventions, no quiet defaults)',
-    glyphs.includes('export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily>') && projection.includes('getAllBaseTools()') && projection.includes('TOOL_FAMILY_BY_NAME[name] === undefined'),
+    glyphs.includes('export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily>') && live.length > 40 && unclassified.length === 0,
+    unclassified.join(', ') || `${live.length} registered, every one authored`,
   )
   const grammar = readFileSync('src/components/mercury-ui/toolCardGrammar.ts', 'utf8')
   for (const state of ['queued', 'running', 'waiting', 'succeeded']) {
