@@ -54,7 +54,7 @@ t.section('§1 — the plan re-ranks; it never empties')
   const calm = densityPlan('calm', TALL)
   t.check(
     'calm keeps the established shed order behind the ruled workbench card (it yields first — nothing else moves; the party slot left with the seat retirement)',
-    calm.shedOrder.join(',') === 'workbench,next,tabula,recent,chat,crew',
+    calm.shedOrder.join(',') === 'workbench,next,tabula,recent,crew',
     calm.shedOrder.join(','),
   )
   t.check('calm affords the whole authored hint list', hintBudget(calm) >= 6, `${hintBudget(calm)}`)
@@ -86,7 +86,7 @@ t.section('§1 — the plan re-ranks; it never empties')
   t.check('review names its own emphasis', review.emphasis === 'review', review.emphasis)
   t.check(
     'and yields the ambient lanes while the review surface owns the screen',
-    review.shedOrder.includes('chat') && review.shedOrder.includes('crew'),
+    review.shedOrder.includes('tabula') && review.shedOrder.includes('crew'),
     review.shedOrder.join(','),
   )
 

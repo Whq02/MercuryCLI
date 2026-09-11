@@ -17,11 +17,15 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 t('shed plan exists and the rail walks it', /for \(const k of density\.shedOrder\)/.test(rail))
 t(
   'the pinned calm priority order lives at the density owner (workbench yields first — the ruled card adds itself without moving anything else; the party slot left with the seat retirement)',
-  /const CALM_ORDER = \['workbench', 'next', 'tabula', 'recent', 'chat', 'crew'\]/.test(density),
+  /const CALM_ORDER = \['workbench', 'next', 'tabula', 'recent', 'crew'\]/.test(density),
 )
 t(
   'no ladder revives the retired party slot',
   !density.includes("'party'"),
+)
+t(
+  'no ladder names the chat lane the rail lost with the two-seat coordination mode',
+  !density.includes("'chat'"),
 )
 t(
   'every mode sheds the workbench card first (geometry law: no shift elsewhere)',
