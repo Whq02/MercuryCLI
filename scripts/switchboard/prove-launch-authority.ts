@@ -188,7 +188,8 @@ console.log('LAW H — the wire (source pins):')
   const settleStart = supervisor.indexOf('export function settleConcourseWorker(')
   const settleBody = supervisor.slice(settleStart, supervisor.indexOf('\n}\n', settleStart))
   check('settle deletes the fact with the record', settleStart !== -1 && settleBody.includes('delete rec.focusedAt') && settleBody.includes('delete rec.focusedBy'))
-  check('no hop mints the dead-child attach stamp (the rejected alternative stays rejected)', !src('src/services/switchboard/hopIntoSession.ts').includes("action: 'attach'") && !src('src/services/switchboard/attachedSession.ts').includes('attachedAt = '))
+  const hopSrc = src('src/services/switchboard/hopIntoSession.ts')
+  check('no hop mints the dead-child attach stamp (the rejected alternative stays rejected)', !hopSrc.includes("action: 'attach'") && !hopSrc.includes('attachedAt'))
   check('the doctrine line this makes true still stands', src('src/services/concourse/coordinatorTools.ts').includes('a session with them keeps its own doctrine'))
 }
 

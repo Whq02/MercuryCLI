@@ -15,7 +15,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-console.log('A — the verb family is the LANDED one; this lane added no daemon verb')
+console.log('A — the verb family is the LANDED one; no new daemon verb was added')
 {
   const protocol = read('src/daemon/protocol.ts')
   const server = read('src/daemon/controlServer.ts')

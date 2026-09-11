@@ -1602,6 +1602,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
   if (name === 'transition-queued-journey' || name === 'transition-queued-settled') {
     writeSyntheticSession('gpt-record')
     return {
+      requiresEnv: { MERCURY_SCRIPTED_STREAM: 'slow-text' },
       argv: ['node', BIN, '--resume', SID],
       sends: [
         { atTick: 30, data: 'work through the release notes\r' },

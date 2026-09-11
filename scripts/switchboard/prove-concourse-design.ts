@@ -225,7 +225,8 @@ console.log('§5 — arm-then-enter: the first ↵ arms the row as the live comp
   const manifest = await import('../../src/components/concourse/controlManifest.ts')
   check('the arm is a DECLARED control and the list legend teaches ↵↵', manifest.CONCOURSE_CONTROLS.some(c => c.id === 'board:arm') && manifest.CONCOURSE_REGION_KEYS.list.some(k => k.keys === '↵↵' && k.label === 'enter session'))
   const enterAt = screen.indexOf('const enterSession = (sessionId: string, opts')
-  const enterBody = screen.slice(enterAt, screen.indexOf('// ── the git offer', enterAt))
+  const enterEnd = screen.indexOf('const gitOffer = useMemo<GitOfferV1 | undefined>(() => {', enterAt)
+  const enterBody = enterAt !== -1 && enterEnd > enterAt ? screen.slice(enterAt, enterEnd) : ''
   check('the arm stage sits AFTER the door/older/queued grammars (they keep one press) and skips pointer, the reduced stage and a parked row', ordered(enterBody, 'door !== undefined', "opts.pointer !== true && boardArmedRef.current !== sessionId") && enterBody.includes('!reducedStage && !parked && opts.pointer !== true') && enterBody.includes("?.state === 'parked'"))
   check('a second ↵ on the ARMED row enters (the arm clears at the door)', ordered(enterBody, 'setBoardArmed(sessionId)', 'boardArmedRef.current = null') && enterBody.includes('callbacks.enterSession(sessionId)'))
   check('→ on an ARMED row enters (both the list and the live panel arms)', screen.split('boardArmedRef.current === sel.sessionId').length - 1 >= 2)
