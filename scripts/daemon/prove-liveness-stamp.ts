@@ -174,7 +174,7 @@ console.log('\nL6 structural — no surface reads transcript growth as liveness'
   const connector = read('src/services/engine-connector/daemonConnector.ts')
   check('the connector carries no transcript-growth clock (lastGrewAtMs is gone)', !connector.includes('lastGrewAtMs'))
   check('the connector reads the seat’s stamp off the tail projection', connector.includes('tail.lastEventAtMs') && connector.includes('tail.streamBlock'))
-  check('the stuck verdict is measured against the watchdog’s own warning half (one owner, streamIdleBudget)', connector.includes('streamIdleWarningMsOf(watchdogMs)'))
+  check('the stuck verdict is measured against the watchdog’s own warning point (one owner, streamIdleBudget)', connector.includes('streamIdleWarningMsOf(watchdogMs)'))
   const contract = read('src/services/engine-connector/seatLive.ts')
   check('SeatStatusV1 carries no silenceMs (the proxy is gone from the contract)', !contract.includes('silenceMs'))
   check('SeatStatusV1 carries the owner’s facts and its verdict', ['quietMs', 'watchdogMs', 'phaseMs', 'toolBudgetMs', 'stuck'].every(f => contract.includes(f)))

@@ -320,11 +320,12 @@ section('T8 — the owner: the law table, the words, the watchdog')
   let guardError: unknown
   const guarded = wd.guard(pending).catch(e => (guardError = e))
   await new Promise(resolve => setTimeout(resolve, 260))
-  check('the watchdog warned at half the budget, once', warnings.length === 1 && warnings[0]! >= 200, JSON.stringify(warnings))
-  check('the budget still stands at half', wd.fired() === null)
+  check('a budget under the five-minute floor warns at its own cut, never before: no warning at 260 ms of a 400 ms budget', warnings.length === 0 && budget.streamIdleWarningMsOf(400) === 400, JSON.stringify(warnings))
+  check('the budget still stands at 260 ms', wd.fired() === null)
   await new Promise(resolve => setTimeout(resolve, 260))
   await guarded
   check('the watchdog fired at the budget with its facts', fired !== null && (fired as { silentMs: number; activity: number }).silentMs >= 400 && (fired as { activity: number }).activity === 2, JSON.stringify(fired))
+  check('the fire spoke alone — the warning point met the cut (half, never before five minutes, never after the budget: 15m → 7m 30s)', warnings.length === 0 && budget.streamIdleWarningMsOf(900_000) === 450_000 && budget.streamIdleWarningMsOf(300_000) === 300_000, JSON.stringify(warnings))
   check('the guard lost the pending read to the typed error', guardError instanceof budget.StreamIdleTimeoutError, String(guardError))
   const quiet = budget.createStreamIdleWatchdog({ timeoutMs: 200, onFire: () => check('a stopped watchdog never fires', false) })
   quiet.stop()
@@ -395,8 +396,9 @@ section('T9 — the first-byte budget on the three compat clients (a fetch that 
     check(`${road.name}: the wait was published first with the budget that fires`, first?.kind === 'first-byte' && first.budgetMs === 400 && typeof first.model === 'string', JSON.stringify(waits))
     check(`${road.name}: the wait was never cleared (the headers never came)`, !waits.includes(null), JSON.stringify(waits))
   }
-  const cold = budget.firstByteBudgetMs({ cold: true, promptTokens: 50_000, idleMs: 400 })
-  check('a cold prefix earns its ingest allowance under the same owner', cold === 400 + 50 * budget.COLD_INGEST_MS_PER_1K_TOKENS, String(cold))
+  const cold = budget.firstByteBudgetMs({ cold: true, promptTokens: 100, idleMs: 400 })
+  check('a cold prefix earns its ingest allowance under the same owner', cold === 400 + Math.round(0.1 * budget.COLD_INGEST_MS_PER_1K_TOKENS), String(cold))
+  check('…capped at twice the idle budget (a 50k prompt on a 400 ms budget waits 800 ms)', budget.firstByteBudgetMs({ cold: true, promptTokens: 50_000, idleMs: 400 }) === 800, String(budget.firstByteBudgetMs({ cold: true, promptTokens: 50_000, idleMs: 400 })))
 }
 
 section('T10 — the OpenAI road end to end: headers never answered')

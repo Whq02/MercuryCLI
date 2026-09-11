@@ -138,12 +138,17 @@ paints no clock while its main agent works. That is what makes esc read
 true: esc interrupts the main agent alone, so the card's glyph stops while
 the row's clock keeps counting for the crew that runs on. The row's
 warnings stay its own: a request wait names what the runner waits on and the budget that
-fires ("waiting for the first byte from Opus 5 — within 90 s"); a held turn
+fires ("waiting for the first byte from Opus 5 — within 300 s"); a held turn
 names what it waits on ("waiting on 1 workflow · 2 agents"); an interrupt
 says the request is torn down. The row says the session may be stuck only
 when the runner's stream has carried no event of any kind for longer than
-its own watchdog's warning point, and then it names what it saw: "no stream
-events for 3m — the session may be stuck (the watchdog aborts at 5m)". A
+its own watchdog's warning point — never sooner than five minutes of
+silence, and never later than the watchdog's own cut. On the routes whose
+keep-alives feed the watchdog the budget is five minutes (ten in patient
+mode), so the point is the cut itself and the row never accuses before it;
+on the OpenAI route, whose budget is fifteen minutes, the row names what it
+saw from seven and a half: "no stream events for 8m — the session may be
+stuck (the watchdog aborts at 15m)". A
 running tool is never called stuck. The chat pane's title row reads
 "SESSION" on the left and the session's name on the right — no clock: every
 row of the chat carries its own timestamp, and a clock that ticks is a

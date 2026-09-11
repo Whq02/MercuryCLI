@@ -1,6 +1,6 @@
 import { currentPatience } from './patience.js'
 
-export const STREAM_IDLE_DEFAULT_MS = 90_000
+export const STREAM_IDLE_DEFAULT_MS = 5 * 60_000
 
 const STREAM_IDLE_FLOOR_MS = 1_000
 
@@ -14,8 +14,10 @@ export function streamIdleTimeoutMs(): number {
   return pinnedStreamIdleTimeoutMs() ?? STREAM_IDLE_DEFAULT_MS
 }
 
+export const STREAM_IDLE_WARNING_FLOOR_MS = 5 * 60_000
+
 export function streamIdleWarningMsOf(timeoutMs: number): number {
-  return timeoutMs / 2
+  return Math.min(timeoutMs, Math.max(STREAM_IDLE_WARNING_FLOOR_MS, timeoutMs / 2))
 }
 
 export function streamIdleTimeoutMsForRoute(route: string | null): number {
@@ -35,14 +37,14 @@ export function streamIdleTimeoutMsForRoute(route: string | null): number {
 
 
 export const COLD_INGEST_MS_PER_1K_TOKENS = 1_200
-export const FIRST_BYTE_BUDGET_CEILING_MS = 300_000
+export const FIRST_BYTE_BUDGET_CEILING_FACTOR = 2
 
 export function firstByteBudgetMs(args: { cold: boolean; promptTokens: number; idleMs?: number }): number {
   const idle = args.idleMs ?? streamIdleTimeoutMs()
   if (!args.cold) return idle
   const tokens = Number.isFinite(args.promptTokens) && args.promptTokens > 0 ? args.promptTokens : 0
   const allowance = Math.round((tokens / 1000) * COLD_INGEST_MS_PER_1K_TOKENS)
-  return Math.min(FIRST_BYTE_BUDGET_CEILING_MS, Math.max(idle, idle + allowance))
+  return Math.min(idle * FIRST_BYTE_BUDGET_CEILING_FACTOR, Math.max(idle, idle + allowance))
 }
 
 export function estimateRequestTokens(body: unknown): number {

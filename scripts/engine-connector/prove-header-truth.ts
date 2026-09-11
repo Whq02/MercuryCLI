@@ -70,7 +70,7 @@ section('§2 the row\'s words per state, with and without a crew, at three width
   const live = (phase: SessionLiveV1['phase'], inFlight = true, agentsWaiting = 0): SessionLiveV1 =>
     ({ ...IDLE_LIVE, inFlight, phase, agentsWaiting, turnStartedAtMs: inFlight ? NOW - 5_000 : null }) as SessionLiveV1
   const status = (over: Partial<SeatStatusV1> = {}): SeatStatusV1 =>
-    ({ title: 'a chat', projectLabel: 'proj', interrupting: false, hardStopping: false, wait: null, quietMs: null, watchdogMs: 90_000, phaseMs: 28 * M, toolBudgetMs: 600_000, stuck: false, ...over }) as SeatStatusV1
+    ({ title: 'a chat', projectLabel: 'proj', interrupting: false, hardStopping: false, wait: null, quietMs: null, watchdogMs: 300_000, phaseMs: 28 * M, toolBudgetMs: 600_000, stuck: false, ...over }) as SeatStatusV1
   const crew = { active: true, line: 'agents thought for 28m' }
   const receipt = { active: false, line: 'agents thought for 28m' }
   const none = { active: false, line: null }
@@ -84,11 +84,11 @@ section('§2 the row\'s words per state, with and without a crew, at three width
   check('idle, no crew: "ready"', bar.statusLine(live('idle', false), status(), none) === 'ready')
   check('idle, the crew running on (esc left them): the crew\'s clock, never "ready"', bar.statusLine(live('idle', false), status(), crew) === 'agents thought for 28m')
   check('idle, the crew settled: the receipt stands', bar.statusLine(live('idle', false), status(), receipt) === 'agents thought for 28m')
-  const wait: SeatStatusV1['wait'] = { kind: 'first-byte', cold: false, promptTokens: 900, model: 'Opus 5', budgetMs: 90_000, sinceMs: NOW - 3_000, attempt: 1 }
-  check('the first-byte wait outranks the crew\'s clock', bar.statusLine(live('thinking'), status({ wait }), crew) === 'waiting for the first byte from Opus 5 — within 90 s')
+  const wait: SeatStatusV1['wait'] = { kind: 'first-byte', cold: false, promptTokens: 900, model: 'Opus 5', budgetMs: 300_000, sinceMs: NOW - 3_000, attempt: 1 }
+  check('the first-byte wait outranks the crew\'s clock', bar.statusLine(live('thinking'), status({ wait }), crew) === 'waiting for the first byte from Opus 5 — within 300 s')
   check('the wait on agents outranks the crew\'s clock (the runner\'s own count words)', bar.statusLine(live('waiting', true, 2), status(), crew) === 'waiting on 2 agents')
   check('the wait on agents by kind outranks the crew\'s clock', bar.statusLine({ ...live('waiting', true, 3), waitingOn: { workflows: 1, agents: 2, teammates: 0, shells: 0, asks: 0 } }, status(), crew) === 'waiting on 1 workflow · 2 agents')
-  check('the stuck verdict outranks the crew\'s clock', bar.statusLine(live('thinking'), status({ stuck: true, quietMs: 50_000 }), crew) === 'no stream events for 50s — the session may be stuck (the watchdog aborts at 1m)')
+  check('the stuck verdict outranks the crew\'s clock', bar.statusLine(live('thinking'), status({ stuck: true, quietMs: 300_000 }), crew) === 'no stream events for 5m — the session may be stuck (the watchdog aborts at 5m)')
   check('the interrupt outranks the crew\'s clock', bar.statusLine(live('thinking'), status({ interrupting: true }), crew) === 'interrupting — the request is torn down')
   check('the hard stop outranks everything', bar.statusLine(live('thinking'), status({ interrupting: true, hardStopping: true }), crew) === 'stopping — the runner is cut if the turn is still open in a second')
   const fixed = 2 + stringWidth('a chat') + stringWidth(' · proj') + 3 + 2 + stringWidth('esc interrupts · ⇧← back')
@@ -98,7 +98,7 @@ section('§2 the row\'s words per state, with and without a crew, at three width
     check(`${cols} columns: the crew's clock is left whole for the row's own end cut`, fitted === both, fitted)
     const waitLine = bar.statusLine(live('thinking'), status({ wait: { ...wait, cold: true, promptTokens: 26_000 } }), crew)
     const fittedWait = bar.fitStatusLine(waitLine, cols, fixed)
-    check(`${cols} columns: a wait line keeps its budget clause under the cut`, fittedWait.endsWith('within 90 s') && stringWidth(fittedWait) <= Math.max(12, cols - fixed), fittedWait)
+    check(`${cols} columns: a wait line keeps its budget clause under the cut`, fittedWait.endsWith('within 300 s') && stringWidth(fittedWait) <= Math.max(12, cols - fixed), fittedWait)
   }
 }
 
