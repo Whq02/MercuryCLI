@@ -1,7 +1,16 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
+import { compactSummaryHint } from '../mercury-ui/compactModeChip.js'
 import { compactWorkSummaryText, useCompactWorkCounts } from './useFocusedWork.js'
+import { stringWidth } from '../../ink/stringWidth.js'
+import { presentStripStops, stripKeyMapHintOf, subscribeSurfaceRoute } from '../../context/surfaceRoute.js'
+import { escRungHint, escRungOf, type EscRungV1 } from '../../input-core/interruptArity.js'
+import {
+  getFocusedSessionConnector,
+  subscribeThroughFocused,
+} from '../../services/engine-connector/focusedConnector.js'
+import { hasSeatLive } from '../../services/engine-connector/seatLive.js'
 
 export type CompactWorkFocus = 'composer' | 'summary' | 'detail'
 export type CompactWorkControls = {
@@ -32,22 +41,47 @@ export function useCompactWorkControls(): { controls: CompactWorkControls; focus
   return { controls, focus }
 }
 
+const subscribeFocusedSeat = subscribeThroughFocused((connector, listener) =>
+  hasSeatLive(connector) ? connector.subscribeLive(listener) : () => {},
+)
+function getFocusedEscRung(): EscRungV1 {
+  const connector = getFocusedSessionConnector()
+  if (!hasSeatLive(connector)) return 'idle'
+  const status = connector.status()
+  return escRungOf({ inFlight: connector.live().inFlight, interrupting: status.interrupting, hardStopping: status.hardStopping })
+}
+const getStripHint = (): string => stripKeyMapHintOf('repl', presentStripStops())
+const noHint = (): string => ''
+
 export function CompactWorkSummary({
   columns,
   focused,
+  vimInsert = false,
   onFocus,
 }: {
   columns: number
   focused: boolean
+  vimInsert?: boolean
   onFocus: () => void
 }): React.ReactNode {
   const counts = useCompactWorkCounts()
   const tokens = useMercuryTokens()
+  const rung = useSyncExternalStore(subscribeFocusedSeat, getFocusedEscRung, getFocusedEscRung)
+  const stripHint = useSyncExternalStore(subscribeSurfaceRoute, getStripHint, noHint)
+  const hint = compactSummaryHint({ focused, vimInsert, escHint: escRungHint(rung), stripHint })
+  const hintWidth = hint === '' ? 0 : stringWidth(hint) + 1
   return (
-    <Box height={1} flexShrink={0} overflow="hidden" onClick={onFocus}>
-      <Text wrap="truncate-end" bold={focused} color={focused ? tokens.textPrimary : tokens.textMuted} backgroundColor={focused ? tokens.selectionBand : undefined}>
-        {compactWorkSummaryText(counts, columns)}
-      </Text>
+    <Box height={1} flexShrink={0} overflow="hidden" flexDirection="row">
+      <Box flexGrow={1} minWidth={0} onClick={onFocus}>
+        <Text wrap="truncate-end" bold={focused} color={focused ? tokens.textPrimary : tokens.textMuted} backgroundColor={focused ? tokens.selectionBand : undefined}>
+          {compactWorkSummaryText(counts, Math.max(0, columns - hintWidth))}
+        </Text>
+      </Box>
+      {hint !== '' ? (
+        <Box flexShrink={0} marginLeft={1}>
+          <Text color={focused ? tokens.textSecondary : tokens.textMuted}>{hint}</Text>
+        </Box>
+      ) : null}
     </Box>
   )
 }
