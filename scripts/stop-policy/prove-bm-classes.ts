@@ -281,7 +281,7 @@ async function main(): Promise<void> {
     const fp = src('src/services/api/prefixFingerprint.ts')
     check(
       'E12: prefixFingerprint is pure/local (no usage/cache_read reads; estimate labeled, never a billing claim)',
-      fp.includes('never a billing claim') && !fp.includes('cache_read') && fp.includes("from 'node:crypto'"),
+      /^\s+estTokens: number$/m.test(fp) && !fp.includes('cache_read') && !fp.includes('usage') && fp.includes("from 'node:crypto'"),
     )
   }
 

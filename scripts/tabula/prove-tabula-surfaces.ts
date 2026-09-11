@@ -90,7 +90,7 @@ try {
   const hooksSrc = readFileSync(join(ROOT, 'src/utils/hooks/tabulaFireHooks.ts'), 'utf8')
   check('UserPromptSubmit observer registered', hooksSrc.includes(`'UserPromptSubmit'`) && hooksSrc.includes('tabulaOnPromptSubmit(prompt)'))
   check('Stop observer registered', hooksSrc.includes(`'Stop'`) && hooksSrc.includes('tabulaOnTurnStop()'))
-  check('both observers always pass (pure, never block)', (hooksSrc.match(/return true \/\/ pure observer/g) ?? []).length === 2)
+  check('both observers always pass (pure, never block)', (hooksSrc.match(/return true[^\n]*\n\s*\},\n\s*'tabula (?:fire|settle) observer \(non-blocking\)'/g) ?? []).length === 2)
   check('live gate re-read inside the callback', hooksSrc.includes('if (!isTabulaEnabled()) return true'))
   const runnerSrc = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
   const replSrc = readFileSync(join(ROOT, 'src/screens/REPL.tsx'), 'utf8')

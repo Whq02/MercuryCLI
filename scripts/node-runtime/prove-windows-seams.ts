@@ -199,7 +199,8 @@ section('(10) the starter keybindings.json passes the product\'s own validator')
 section('(11) the swallowed-prompt guard fires on the inferred print shape and knows every variadic option')
 {
   const main = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf8')
-  const guard = main.slice(main.indexOf('A print run with NO input anywhere'), main.indexOf('const variadicCandidates') + 900)
+  const candidatesAt = main.indexOf('const variadicCandidates')
+  const guard = main.slice(main.lastIndexOf('\n  if (', candidatesAt), candidatesAt + 900)
   check('the guard fires for -p OR a non-TTY stdout (the inferred print shape)', guard.includes('(printMode || !process.stdout.isTTY) &&'))
   check('the guard still spares resume/continue/from-pr and stream-json input', guard.includes('!opts.resume &&') && guard.includes('!opts.continue &&') && guard.includes("inputFormat !== 'stream-json' &&"))
   check('a retired option is no candidate', !guard.includes("['--file',") && !guard.includes("['--allowedTools',"))
@@ -409,8 +410,8 @@ section('(17) raw-spelling credential + principal continuity (the F-11 aftermath
 section("(18) the shell-mode '!' is consumed by exactly one owner (w2-f13-02 — the appended-bang class)")
 {
   const prompt = readFileSync(join(ROOT, 'src', 'components', 'PromptInput', 'PromptInput.tsx'), 'utf8')
-  const bashEntry = prompt.slice(prompt.indexOf('// Bash-mode entry.'), prompt.indexOf('// Typing side effects'))
-  const singleBang = bashEntry.slice(0, bashEntry.indexOf("setMode('bash')"))
+  const singleBangAt = prompt.indexOf('value.slice(1) === input')
+  const singleBang = prompt.slice(singleBangAt, prompt.indexOf("setMode('bash')", singleBangAt))
   check("the single-'!'-at-offset-0 branch writes the draft through pendingInput.edit before the mode flips", singleBang.includes('pendingInput.edit(input)'))
   check('…and marks the write as its own, so the reconciliation cannot re-import the retained !', singleBang.includes('lastSelfWriteRef.current = input'))
 }
