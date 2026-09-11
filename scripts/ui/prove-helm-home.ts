@@ -81,9 +81,14 @@ check('CREW sources from app-store tasks, not a fleetGauge() call',
 check('CREW rows keep .id (the drill-in key)', /id: t\.id/.test(lanes))
 check('drill-in REUSES the existing nav state (viewingAgentTaskId), not a reinvented swap',
   /viewingAgentTaskId/.test(lanes) && !/setAppState\(\{ viewingAgentTaskId/.test(lanes))
-check('S8: CREW sources panel agents (excludes main-session leak)', /\.filter\(isPanelAgentTask\)/.test(lanes))
+const workRosterSrc = read('src/utils/task/workRoster.ts')
+const crewFactsSrc = read('src/services/engine-connector/crewFacts.ts')
+check('S8: CREW sources the projected roster through the crew predicate (the projector leaves the main session out)',
+  /crewAgentsOf\(projectWorkRoster\(tasks\), sessionId\)/.test(lanes) &&
+    workRosterSrc.includes("if (task.agentType === 'main-session') continue") &&
+    /return row\.kind === 'agent' \|\| row\.kind === 'teammate'/.test(crewFactsSrc))
 check("CREW joins the focused session's hosted agents from the work roster (one owner; the counting law's predicate)",
-  /useFocusedWorkRoster\(\)/.test(lanes) && /roster\.rows/.test(lanes) && /workRowRuns\(r\)/.test(lanes) && /r\.kind === 'agent' \|\| r\.kind === 'teammate'/.test(lanes))
+  /useFocusedWorkRoster\(\)/.test(lanes) && /crewAgentsOf\(roster\.rows, sessionId\)/.test(lanes) && /\.filter\(f => f\.running\)/.test(lanes) && /running: workRowRuns\(row\)/.test(crewFactsSrc))
 check('a hosted CREW row opens its work card (/tasks <id>), never a local agent view',
   /c\.hosted\s*\?\s*\{ kind: 'command', command: `\/tasks \$\{c\.id\}`/.test(lanes))
 check('M4: CREW is capped (slice CREW_ROWS) with a +N more overflow',

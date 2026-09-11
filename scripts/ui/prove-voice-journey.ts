@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -49,6 +49,15 @@ function nodeDir(): string {
   }
   const which = spawnSync('which', ['node'], { encoding: 'utf8' })
   return dirname((which.stdout ?? '').trim() || '/usr/local/bin/node')
+}
+
+function nodeOnlyDir(): string {
+  if (process.platform === 'win32') return nodeDir()
+  const dir = join(scratch, 'node-only')
+  mkdirSync(dir, { recursive: true })
+  const link = join(dir, 'node')
+  if (!existsSync(link)) symlinkSync(join(nodeDir(), 'node'), link)
+  return dir
 }
 
 const preload = join(scratch, 'tripwire.cjs')
@@ -333,7 +342,7 @@ console.log('[C] no pack, no recorder — v answers the no-backend receipt')
       MERCURY_OPENAI_API_BASE: DEAD,
       MERCURY_VOICE_BACKEND: undefined,
       MERCURY_VOICE_PACK_DIR: EMPTY_PACK,
-      PATH: `${shimDir}${delimiter}${nodeDir()}`,
+      PATH: `${shimDir}${delimiter}${nodeOnlyDir()}`,
     },
   )
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)

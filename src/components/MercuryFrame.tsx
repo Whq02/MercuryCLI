@@ -325,7 +325,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     subscribeVerification,
     () => {
       if (!verifyEvidenceEnabled()) return null
-      const cwd = getFocusedSessionConnector().workspace().cwd
       const s = verificationSummary(cwd, { skipDigest: true })
       if (s.state === 'stale' || s.state === 'failed') return s.state
       return treeScanStatus(cwd).state === 'unmeasured' ? 'unmeasured' : null

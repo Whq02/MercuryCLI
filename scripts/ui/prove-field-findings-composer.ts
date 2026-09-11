@@ -24,7 +24,8 @@ console.log('§1 CI-01 — the composer reads the field the editor returns')
   const editor = read('src/utils/promptEditor.ts')
   check('EditorResult declares content, never text (the contract the composer now reads)', /export type EditorResult = \{\s*\n\s*content: string \| null\s*\n\s*error\?: string\s*\n\}/.test(editor) && !/\btext\?: string/.test(editor))
   check('editPromptInEditor returns the spread result with content', editor.includes('return { ...result, content }'))
-  check('the sibling caller reads .content (the shape the composer rejoins)', read('src/components/agents/studio/StudioEditor.tsx').includes('if (result.content !== null && result.content !== doc.raw) {'))
+  const studio = read('src/components/agents/studio/StudioEditor.tsx')
+  check('the sibling caller reads .content (the shape the composer rejoins)', studio.includes('if (result.content !== null) machine.loadRaw(result.content)') && studio.includes('if (result.content !== null && result.content !== doc.body) {') && !/\bresult\.text\b/.test(studio))
 }
 
 console.log('§2 CI-02 — the masked branch paints renderedValue (the owner already masked it)')

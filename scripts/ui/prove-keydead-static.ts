@@ -48,7 +48,7 @@ function hintStrings(text: string): Array<{ line: number; str: string }> {
     const line = lines[i]!
     const t = line.trimStart()
     if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) continue
-    for (const m of line.matchAll(/'([^'\\]{3,120})'/g)) {
+    for (const m of line.matchAll(/(?<!\\)'((?:[^'\\]|\\.){3,120})'/g)) {
       const s = m[1]!
       if (!s.includes(' · ')) continue
       if (!KEY_TOKEN_HINT.test(s) && !/(?:^|· )[a-z] [a-z]/.test(s)) continue
