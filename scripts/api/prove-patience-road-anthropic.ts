@@ -82,12 +82,12 @@ section('R2 — silence: two events, then nothing — the budget fires at its nu
 
 section('R3 — the number: the fed road lives under the fed budget; the pin outranks it')
 {
-  check('normal: 5 min', idle.streamIdleTimeoutMsForRoute('anthropic') === 300_000, String(idle.streamIdleTimeoutMsForRoute('anthropic')))
-  check('the first-byte budget on a warm prefix is the road\'s number', idle.firstByteBudgetMs({ cold: false, promptTokens: 50_000, idleMs: idle.streamIdleTimeoutMsForRoute('anthropic') }) === 300_000)
+  check('normal: 2 min', idle.streamIdleTimeoutMsForRoute('anthropic') === 120_000, String(idle.streamIdleTimeoutMsForRoute('anthropic')))
+  check('the first-byte budget on a warm prefix is the road\'s number', idle.firstByteBudgetMs({ cold: false, promptTokens: 50_000, idleMs: idle.streamIdleTimeoutMsForRoute('anthropic') }) === 120_000)
   const { error } = settings.updateSettingsForSource('userSettings', { patience: 'patient' } as never)
   settingsCache.resetSettingsCache()
-  check('patient: 10 min', error === null && idle.streamIdleTimeoutMsForRoute('anthropic') === 600_000, String(idle.streamIdleTimeoutMsForRoute('anthropic')))
-  check('patient: the first-byte budget on a warm prefix follows', idle.firstByteBudgetMs({ cold: false, promptTokens: 50_000, idleMs: idle.streamIdleTimeoutMsForRoute('anthropic') }) === 600_000)
+  check('patient: 4 min', error === null && idle.streamIdleTimeoutMsForRoute('anthropic') === 240_000, String(idle.streamIdleTimeoutMsForRoute('anthropic')))
+  check('patient: the first-byte budget on a warm prefix follows', idle.firstByteBudgetMs({ cold: false, promptTokens: 50_000, idleMs: idle.streamIdleTimeoutMsForRoute('anthropic') }) === 240_000)
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '2000'
   check('the env pin outranks the setting', idle.streamIdleTimeoutMsForRoute('anthropic') === 2_000)
   delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS

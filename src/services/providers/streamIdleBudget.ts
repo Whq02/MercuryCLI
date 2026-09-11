@@ -1,6 +1,6 @@
 import { currentPatience } from './patience.js'
 
-export const STREAM_IDLE_DEFAULT_MS = 5 * 60_000
+export const STREAM_IDLE_DEFAULT_MS = 2 * 60_000
 
 const STREAM_IDLE_FLOOR_MS = 1_000
 
@@ -37,6 +37,7 @@ export function streamIdleTimeoutMsForRoute(route: string | null): number {
 
 
 export const COLD_INGEST_MS_PER_1K_TOKENS = 1_200
+export const FIRST_BYTE_BUDGET_CEILING_MS = 300_000
 export const FIRST_BYTE_BUDGET_CEILING_FACTOR = 2
 
 export function firstByteBudgetMs(args: { cold: boolean; promptTokens: number; idleMs?: number }): number {
@@ -44,7 +45,8 @@ export function firstByteBudgetMs(args: { cold: boolean; promptTokens: number; i
   if (!args.cold) return idle
   const tokens = Number.isFinite(args.promptTokens) && args.promptTokens > 0 ? args.promptTokens : 0
   const allowance = Math.round((tokens / 1000) * COLD_INGEST_MS_PER_1K_TOKENS)
-  return Math.min(idle * FIRST_BYTE_BUDGET_CEILING_FACTOR, Math.max(idle, idle + allowance))
+  const ceiling = Math.max(FIRST_BYTE_BUDGET_CEILING_MS, idle * FIRST_BYTE_BUDGET_CEILING_FACTOR)
+  return Math.min(ceiling, Math.max(idle, idle + allowance))
 }
 
 export function estimateRequestTokens(body: unknown): number {
@@ -87,7 +89,10 @@ export type RequestWaitV1 =
       sinceMs: number
     }
 
-const seconds = (ms: number): string => `${Math.max(1, Math.round(ms / 1000))} s`
+const seconds = (ms: number): string => {
+  const s = Math.max(1, Math.round(ms / 1000))
+  return s < 60 ? `${s} s` : idleSeconds(ms)
+}
 const kTokens = (tokens: number): string => (tokens >= 1000 ? `${Math.round(tokens / 1000)}k-token` : `${tokens}-token`)
 
 export function requestWaitLine(wait: RequestWaitV1, compact = false): string {
