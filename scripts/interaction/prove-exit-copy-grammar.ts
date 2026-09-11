@@ -198,8 +198,10 @@ console.log('== 5 · one receipt · truthful footer ==')
   )
   const notif = read('src/components/PromptInput/Notifications.tsx')
   check(
-    'the receipt slot stays bottom-right (the notifications column is right-aligned, transient row LAST)',
-    notif.includes("alignItems={alignStart ? 'flex-start' : 'flex-end'}") && notif.includes('alignStart = false,'),
+    "the receipt rides the composer's hint row, never a row of its own (the column paints no transient; the footer paints notifications.current)",
+    !notif.includes('{footerNoticeLine(current.text)}') &&
+      footer.includes('const currentNotice = useAppState((state: AppState) => state.notifications.current)') &&
+      footer.includes('const noticeText = noticeRowText(currentNotice)'),
   )
 }
 
