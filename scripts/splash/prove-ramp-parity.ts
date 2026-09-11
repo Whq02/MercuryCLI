@@ -131,9 +131,10 @@ t.section('§4 — the splash hand palette equals mercuryPalette')
 t.section('§5 — bake contract integrity')
 {
   t.check(
-    'the RAMP-LAW markers are present with the never-hand-edit contract',
-    src.includes('MERCURY-RAMP-LAW-START') && src.includes('MERCURY-RAMP-LAW-END') && /RAMP-LAW-START[\s\S]{0,400}Do NOT hand-edit/.test(src),
-    'markers',
+    "the baked RAMP-LAW block is the bake's own shape (RAMP · RAMP_FIXTURE · CAPABILITY_TRUTH on consecutive lines) and its drift gate is enrolled",
+    /^const RAMP = \[[^\n]*\]\nconst RAMP_FIXTURE = \[[^\n]*\]\nconst CAPABILITY_TRUTH = \[[^\n]*\]$/m.test(src) &&
+      readFileSync(join(import.meta.dir, 'run-all.sh'), 'utf8').includes('bake-ramp.mjs" --check'),
+    'block shape + drift gate',
   )
   t.check(
     'the runtime samplers consume the baked stops (rampSample walks RAMP; the live sampleFace walks ACC.ramp, whose every family row is baked; no second stop table)',

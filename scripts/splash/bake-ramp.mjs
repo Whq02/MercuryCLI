@@ -5,10 +5,6 @@ import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const SPLASH = join(here, '..', '..', 'assets', 'splash', 'splash-core.mjs')
-const START = '// MERCURY-RAMP-LAW-START'
-const END = '// MERCURY-RAMP-LAW-END'
-const FAM_START = '// MERCURY-ACCENT-FAMILIES-START'
-const FAM_END = '// MERCURY-ACCENT-FAMILIES-END'
 
 const { TERRA, BELLY, IVORY, CLAW } = await import('../../src/components/mercuryPalette.ts')
 const { deriveAccentSoft, deriveFocalRamp } = await import('../../src/utils/mercuryTokens.ts')
@@ -89,9 +85,6 @@ if (!Object.hasOwn(FAMILIES, DEFAULT_KEY)) {
   throw new Error(`DEFAULT_CRITTER_KEY ${JSON.stringify(DEFAULT_KEY)} is not a baked family — extend the table`)
 }
 const famBlock = [
-  FAM_START + ' (baked by scripts/splash/bake-ramp.mjs — from',
-  '// critterData.ts hues + the deriveAccentSoft/deriveFocalRamp laws; do NOT',
-  '// hand-edit — rerun the bake; prove-ramp-parity.ts §7 goes red on drift.)',
   'const ACCENT_FAMILIES = {',
   ...Object.entries(FAMILIES).map(
     ([k, f]) =>
@@ -99,35 +92,26 @@ const famBlock = [
   ),
   '}',
   `const DEFAULT_CRITTER = ${JSON.stringify(DEFAULT_KEY)}`,
-  FAM_END,
 ].join('\n')
 
 const block = [
-  START + ' (baked by scripts/splash/bake-ramp.mjs — RAMP from',
-  '// deriveFocalRamp(TERRA, BELLY, IVORY) · RAMP_FIXTURE from focalRamp.ts',
-  "// rampSampleAt at the word's endpoint coordinate u=x/(W-1), W=53, deep =",
-  '// mixc(CLAW, face, 0.5) (the R2 law; [0] byte-equals the authored MIDRED) ·',
-  '// CAPABILITY_TRUTH from colorize.ts shouldHonorNoColor + the',
-  '// MERCURY_TRUECOLOR registry row. Do NOT hand-edit — rerun the bake;',
-  '// scripts/splash/prove-ramp-parity.ts + bake-ramp --check go red on drift.)',
   `const RAMP = ${JSON.stringify(RAMP)}`,
-  `const RAMP_FIXTURE = ${JSON.stringify(FIXTURE)} // [x, faceRGB..., deepRGB...]`,
-  `const CAPABILITY_TRUTH = ${JSON.stringify(TRUTH)} // [NO_COLOR, FORCE_COLOR, MERCURY_TRUECOLOR, TERM, mode]`,
-  END,
+  `const RAMP_FIXTURE = ${JSON.stringify(FIXTURE)}`,
+  `const CAPABILITY_TRUTH = ${JSON.stringify(TRUTH)}`,
 ].join('\n')
 
 const src = readFileSync(SPLASH, 'utf8')
-const re = new RegExp(`${START}[\\s\\S]*?${END}`)
-const famRe = new RegExp(`${FAM_START}[\\s\\S]*?${FAM_END}`)
+const re = /^const RAMP = [^\n]*\nconst RAMP_FIXTURE = [^\n]*\nconst CAPABILITY_TRUTH = [^\n]*$/m
+const famRe = /^const ACCENT_FAMILIES = \{\n[\s\S]*?^\}\nconst DEFAULT_CRITTER = [^\n]*$/m
 if (!re.test(src)) {
-  console.error(`bake-ramp: no ${START}..${END} block in the splash — add the markers first`)
+  console.error('bake-ramp: no RAMP · RAMP_FIXTURE · CAPABILITY_TRUTH declarations in the splash — add them first')
   process.exit(1)
 }
 if (!famRe.test(src)) {
-  console.error(`bake-ramp: no ${FAM_START}..${FAM_END} block in the splash — add the markers first`)
+  console.error('bake-ramp: no ACCENT_FAMILIES … DEFAULT_CRITTER declarations in the splash — add them first')
   process.exit(1)
 }
-const next = src.replace(re, block).replace(famRe, famBlock)
+const next = src.replace(re, () => block).replace(famRe, () => famBlock)
 if (process.argv.includes('--check')) {
   if (next === src) {
     console.log('bake-ramp --check: baked blocks match the canonical owners')
