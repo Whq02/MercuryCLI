@@ -129,8 +129,9 @@ console.log('R4: the host wiring (structural)')
   )
   const hookSrc = readFileSync(join(import.meta.dirname, '../../src/hooks/useAgentsChange.ts'), 'utf-8')
   check(
-    'the in-flight pinning law stands where it always lived (useAgentsChange docblock)',
-    hookSrc.includes('stays pinned to its start revision'),
+    'the cockpit reload replaces the roster with a fresh array (in-flight work keeps the objects it captured)',
+    hookSrc.includes('const allAgents = [...fresh.allAgents, ...flagAgents]') &&
+      hookSrc.includes('activeAgents: computeActiveAgents(allAgents)'),
   )
 }
 
