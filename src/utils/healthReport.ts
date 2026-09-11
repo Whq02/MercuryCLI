@@ -2703,6 +2703,20 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'iface-samples',
+          label: 'Samples',
+          run: async () => {
+            const { samplesEnabled } = await import('../services/samples/contracts.js')
+            const on = samplesEnabled()
+            return {
+              status: on ? ('ok' as const) : ('info' as const),
+              evidence: on
+                ? 'samples on — mercury.sample in Workshop cells keeps a page you asked to see; the listener starts on the first sample'
+                : "samples off (the default) — the Boot Menu's Samples row or MERCURY_SAMPLES=1 turns them on for new sessions",
+            }
+          },
+        },
+        {
           id: 'iface-image-processor',
           label: 'Image processor',
           run: async () => {

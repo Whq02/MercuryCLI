@@ -145,6 +145,20 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     },
   },
   {
+    env: 'MERCURY_SAMPLES',
+    label: 'Samples',
+    group: 'samples',
+    kind: 'toggle',
+    options: ['1'],
+    defaultLabel: 'off',
+    summary: 'a page the model draws when you ask to see something; your marks come back',
+    detail: {
+      controls: "Whether new sessions can keep samples. Off is the default: no sample can be made and nothing listens. On, the model draws a page in a Workshop cell only when you ask to see something — a design, a mockup, a report to look at — keeps it under the session, and opens it in your browser; you click a spot and write a comment, add a note, approve or ask for changes, and the marks come back into the session as one message. Every version is kept per session; the same name is the next version.",
+      on: ['the Workshop bridge gains mercury.sample, and the tool is told to use it only when you ask to see something', 'each sample is a row under the composer and in /samples; Enter opens it in your browser', 'a loopback listener serves the page while the session runs, and your marks come back as one message'],
+      off: ['no sample can be made: the bridge call, the listener, the rows and /samples are absent', 'identical to a build without samples'],
+    },
+  },
+  {
     env: 'MERCURY_TABULA_MINERVA',
     label: 'Minerva note curator',
     group: 'scale & spend',

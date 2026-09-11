@@ -55,6 +55,10 @@ section('registry floor — rows ⊆ FLAG_REGISTRY, sane choices')
   check('the access-type row sits directly under it in the same group: asks by default, sovereign its one value',
     accessAt === computerAt + 1 && STARTUP_MENU[accessAt]!.group === STARTUP_MENU[computerAt]!.group && STARTUP_MENU[accessAt]!.kind === 'enum' && STARTUP_MENU[accessAt]!.defaultLabel === 'asks' && STARTUP_MENU[accessAt]!.options.join(',') === 'sovereign')
   check('both computer rows reach new sessions (no live class)', STARTUP_MENU[computerAt]!.applicationClass === undefined && STARTUP_MENU[accessAt]!.applicationClass === undefined)
+  const samplesAt = STARTUP_MENU.findIndex(r => r.env === 'MERCURY_SAMPLES')
+  check('the samples row is a toggle, off by default, 1 its one value, in its own group directly after the computer-use group',
+    samplesAt === accessAt + 1 && STARTUP_MENU[samplesAt]!.kind === 'toggle' && STARTUP_MENU[samplesAt]!.defaultLabel === 'off' && STARTUP_MENU[samplesAt]!.options.join(',') === '1' && STARTUP_MENU[samplesAt]!.group === 'samples' && STARTUP_MENU[samplesAt]!.label === 'Samples' && STARTUP_MENU[samplesAt]!.applicationClass === undefined)
+  check('the samples row\'s foot line says what a sample is', /a page the model draws when you ask to see something/.test(STARTUP_MENU[samplesAt]?.summary ?? '') && /your marks/.test(STARTUP_MENU[samplesAt]?.summary ?? ''))
   const enterMenu = getFlagSpec('MERCURY_ENTER_MENU')
   check('MERCURY_ENTER_MENU registered default-on / infra, consumed by the applier',
     enterMenu?.kind === 'default-on' && enterMenu?.tier === 'infra' && enterMenu?.consumer === 'src/substrate/startupMenu.ts')
@@ -135,6 +139,15 @@ section('applyBootMenuEnv — apply, refuse, yield, no-op')
   const envForeign: NodeJS.ProcessEnv = {}
   const rForeign = applyBootMenuEnv(file, envForeign)
   check('values outside the two rows\' choices are refused (on is the default, asks is the default)', rForeign !== null && rForeign.refused.length === 2 && Object.keys(envForeign).length === 0)
+
+  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_SAMPLES: '1' } })
+  const envSamples: NodeJS.ProcessEnv = {}
+  const rSamples = applyBootMenuEnv(file, envSamples)
+  check('the saved samples row applies at boot (on)', rSamples !== null && rSamples.applied.length === 1 && envSamples.MERCURY_SAMPLES === '1')
+  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_SAMPLES: '0' } })
+  const envSamplesOff: NodeJS.ProcessEnv = {}
+  const rSamplesOff = applyBootMenuEnv(file, envSamplesOff)
+  check('a saved 0 for the samples row is refused (off is the default, unset)', rSamplesOff !== null && rSamplesOff.refused.length === 1 && Object.keys(envSamplesOff).length === 0)
 
   write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { PATH: '/evil', NODE_OPTIONS: '--require /evil.js', MERCURY_THEMIS: 'warn' } })
   const env2: NodeJS.ProcessEnv = {}

@@ -1,10 +1,10 @@
 
   (>_) MERCURY · boot menu
 
-  ↑ 7 more
-  computer use
-    Computer use                       default (on)
+  ↑ 9 more
     Access type                        default (asks)
+  samples
+    Samples                            default (off)
   scale & spend
     Minerva note curator               default (off)
   memory & missions
