@@ -139,7 +139,7 @@ export function isAssistantContinuationRow(
   messages: RenderableMessage[],
   index: number,
 ): boolean {
-  if (index <= 0) return false
+  if (index <= 0 || index >= messages.length) return false
   const current = messages[index]!
   const previous = messages[index - 1]!
 
@@ -427,14 +427,22 @@ function MessagesInner({
   }, [engineForLedger, collapsed])
 
   const anchorRef = useRef<SliceAnchor>(null)
-  const visible = useMemo(() => {
+  const { visible, liveReceipt } = useMemo(() => {
+    let rows: RenderableMessage[]
     if (renderRange) {
-      return collapsed.slice(renderRange[0], renderRange[1])
+      rows = collapsed.slice(renderRange[0], renderRange[1])
+    } else if (virtualised || disableRenderCap) {
+      rows = collapsed
+    } else {
+      const start = computeSliceStart(collapsed, anchorRef)
+      rows = start > 0 ? collapsed.slice(start) : collapsed
     }
-    if (virtualised || disableRenderCap) return collapsed
-    const start = computeSliceStart(collapsed, anchorRef)
-    return start > 0 ? collapsed.slice(start) : collapsed
-  }, [collapsed, virtualised, disableRenderCap, renderRange])
+    const last = rows[rows.length - 1]
+    if (isLoading && !renderRange && last !== undefined && last.type === 'turn_receipt') {
+      return { visible: rows.slice(0, -1), liveReceipt: last }
+    }
+    return { visible: rows, liveReceipt: null }
+  }, [collapsed, virtualised, disableRenderCap, renderRange, isLoading])
 
   const lastThinkingBlockId = useMemo(() => {
     if (!hidePastReasoning) return null
@@ -861,6 +869,7 @@ function MessagesInner({
       {
 }
       <FoldStatusRow rows={visible as unknown as readonly FoldLandingRowFacts[]} />
+      {liveReceipt !== null ? renderRow(liveReceipt, visible.length) : null}
     </>
   )
 
