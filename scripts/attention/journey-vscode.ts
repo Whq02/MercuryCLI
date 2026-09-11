@@ -21,13 +21,8 @@ const codeCli = CODE_CANDIDATES.find(p => {
 })
 
 if (codeCli === undefined) {
-  console.log('\n  [SKIP — LOUD] this machine has no VS Code:')
-  console.log('    · no `code` CLI on PATH and no Visual Studio Code.app at the standard roots')
-  console.log('    · RV-28\'s machine gate: exit 3 = the gate is HONOURED, not a failure')
-  console.log('    · the headless RV-28 substance rides prove-c2-vscode-bridge.ts + the')
-  console.log('      mosaic ACP conformance prover; the extension-host boot is the hosted')
-  console.log('      lane\'s job where a VS Code install exists')
-  process.exit(3)
+  console.log('\n  [SKIP] journey-vscode: this machine has no VS Code (no `code` CLI on PATH, no Visual Studio Code.app at the standard roots); the headless substance rides prove-c2-vscode-bridge.ts and the ACP conformance prover, and the extension-host journey needs an install')
+  process.exit(0)
 }
 
 const t = checker()
