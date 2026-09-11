@@ -7,7 +7,7 @@ import {
   STREAM_FAULT_RECOVERY_NUDGE,
   streamFaultAfterPartialText,
 } from '../../src/services/api/errors.ts'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { entryToRecord } from '../../src/fabric/entryCodec.ts'
 import { ordinalOf } from '../../src/fabric/ordinal.ts'
 import { saveBootDefaultsProfile } from '../../src/substrate/startupMenu.ts'
@@ -34,7 +34,7 @@ function applyRenderTheme(scratch: string): void {
 
 export const RUNTIME_CWD = (process.env.MERCURY_RENDER_CWD ?? REPO).normalize('NFC')
 export const CONFIG_HOME = resolveProofHome([RUNTIME_CWD])
-const PROJECTS = join(CONFIG_HOME, 'projects', sanitizePath(RUNTIME_CWD))
+const PROJECTS = getProjectDir(RUNTIME_CWD)
 export const SID = `00000000-aaaa-bbbb-cccc-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
 export const SID_ERRORED = `00000000-aaaa-bbbb-dddd-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
 
