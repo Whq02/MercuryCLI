@@ -60,7 +60,10 @@ const socket = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', '
 const server = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'controlServer.ts'), 'utf8')
 check('the RPC client stamps the negotiated proto (never a literal)', /outbound\.proto = protoToStamp\(\)/.test(socket) && !/proto: 1\b/.test(socket))
 check('the server answers hello with MERCURY_DAEMON_PROTO and MIN_PROTO', /op: 'hello',\s*proto: MERCURY_DAEMON_PROTO,\s*minProto: MIN_PROTO/.test(server))
-check('the server keeps hello outside the readiness and version gates', server.indexOf("if (op === 'hello')") !== -1 && server.indexOf("if (op === 'hello')") < server.indexOf('// --- readiness gate'))
+const helloAt = server.indexOf("if (op === 'hello')")
+const readinessGateAt = server.indexOf('if (!deps.isReady()) {')
+const versionGateAt = server.indexOf("code: 'EPROTO'")
+check('the server keeps hello outside the readiness and version gates', helloAt !== -1 && readinessGateAt !== -1 && versionGateAt !== -1 && helloAt < readinessGateAt && helloAt < versionGateAt)
 check('every keyed op the client stamps is routed by the server (a case of its own, or the alias table onto one)', (() => {
   const stamped = Array.from(/const AUTH_STAMPED_OPS[^]*?\]\)/.exec(socket)?.[0].matchAll(/'([A-Za-z-]+)'/g) ?? [], m => m[1]!)
   const aliases = new Map(
