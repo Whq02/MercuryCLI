@@ -149,14 +149,17 @@ section('8. prose surfaces — bundled skills + living docs track the owners')
   }
 }
 
-section('9. registry header truth — no future-slot fossil over live adapters (the STALE class)')
+section('9. registry table truth — every imported adapter is registered (no future-slot fossil)')
 {
   const registry = src('src/utils/router/modelRegistry.ts')
   const importedAdapters = [...registry.matchAll(/import \{ (\w+)ProviderAdapter \}/g)].map(m => m[1]!)
+  const tableStart = registry.indexOf('const PROVIDER_ADAPTERS')
+  const table = tableStart === -1 ? '' : registry.slice(tableStart, registry.indexOf('\n]', tableStart))
+  const unregistered = importedAdapters.filter(name => !table.includes(`${name}ProviderAdapter,`))
   check(
-    `every imported adapter family is named in the header (${importedAdapters.length} adapters)`,
-    importedAdapters.length >= 10 &&
-      importedAdapters.every(name => registry.slice(0, registry.indexOf('import ')).toLowerCase().includes(name.toLowerCase().replace('compat', 'openai-compat'))),
+    `every imported adapter family is registered in PROVIDER_ADAPTERS (${importedAdapters.length} adapters)`,
+    importedAdapters.length >= 10 && unregistered.length === 0,
+    unregistered.join(', '),
   )
 }
 

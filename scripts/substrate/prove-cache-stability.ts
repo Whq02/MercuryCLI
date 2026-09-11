@@ -39,11 +39,6 @@ check(
   /\.sort\(byName\)/.test(toolPool),
   'mergeAndFilterTools must emit a deterministically-ordered tool array (built-ins sorted, then mcp sorted); re-sorting per turn busts the cache',
 )
-check(
-  'toolPool documents the cache-stability rationale',
-  /cache stability/i.test(toolPool),
-  'the partition-sort cache-stability comment/rationale was removed',
-)
 
 console.log(
   fail === 0

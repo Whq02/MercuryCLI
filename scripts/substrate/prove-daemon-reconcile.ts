@@ -257,8 +257,8 @@ check(
 )
 check(
   'ownedDaemon keeps the bounded daemon.log rotation (G14: logs are records, never debris)',
-  src('src/daemon/ownedDaemon.ts').includes('5 * 1024 * 1024') &&
-    src('src/daemon/ownedDaemon.ts').includes('daemon.log.1'),
+  src('src/daemon/ownedDaemon.ts').includes('statSync(logPath).size > 5 * 1024 * 1024') &&
+    src('src/daemon/ownedDaemon.ts').includes('renameWithWin32RetrySync(logPath, `${logPath}.1`)'),
 )
 check(
   'reconcile removal set is exactly the record trio + scheduler lock — never logs (G14)',
