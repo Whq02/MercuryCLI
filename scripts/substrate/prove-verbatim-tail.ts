@@ -239,7 +239,10 @@ section('(g) wiring — compact.ts populates messagesToKeep + relink; REPL dedup
   check('compact.ts annotates the boundary with the summary anchor', compact.includes('annotateBoundaryWithPreservedSegment(') && compact.includes('summaryMessages.at(-1)!.uuid'))
   check('compact.ts returns messagesToKeep on the full path', /messagesToKeep,\s*\n\s*attachments: postCompactFileAttachments/.test(compact))
   check('compact.ts counts the tail in truePostCompactTokenCount', compact.includes('...(messagesToKeep ?? []),'))
-  check('compact.ts passes recentMessagesPreserved to the summary message', compact.includes('/* recentMessagesPreserved */ !!messagesToKeep'))
+  check(
+    'compact.ts passes the preserved-tail flag (!!messagesToKeep) into the summary message',
+    /getCompactUserSummaryMessage\(\s*summaryWithCapsule,\s*suppressFollowUpQuestions,\s*getTranscriptPath\(\),[\s\S]{0,80}?!!messagesToKeep,\s*\)/.test(compact),
+  )
 
   const repl = readFileSync(join(root, 'src/screens/REPL.tsx'), 'utf-8')
   check('the face holds no in-memory scrollback trim (the connector rebuilds the chain from the file)', !repl.includes('retainFullscreenScrollback('))
