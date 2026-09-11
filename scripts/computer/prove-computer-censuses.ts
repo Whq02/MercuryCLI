@@ -43,7 +43,9 @@ section('§3 the flag rows')
   check("MERCURY_DESKTOP_DRIVER is a value row consumed by the resolver", byEnv.get('MERCURY_DESKTOP_DRIVER')?.kind === 'value' && (byEnv.get('MERCURY_DESKTOP_DRIVER')?.consumer ?? '').includes('resolveDriver'))
   check("MERCURY_DESKTOP_FAKE_SCENE and MERCURY_DESKTOP_FAKE_LOG are value rows consumed by the fake driver", byEnv.get('MERCURY_DESKTOP_FAKE_SCENE')?.kind === 'value' && byEnv.get('MERCURY_DESKTOP_FAKE_LOG')?.kind === 'value' && byEnv.get('MERCURY_DESKTOP_FAKE_SCENE')?.consumer === 'src/services/desktop/fakeDesktopDriver.ts' && byEnv.get('MERCURY_DESKTOP_FAKE_LOG')?.consumer === 'src/services/desktop/fakeDesktopDriver.ts')
   check("MERCURY_DESKTOP_PACK_DIR is a value row consumed by the pack owner", byEnv.get('MERCURY_DESKTOP_PACK_DIR')?.kind === 'value' && (byEnv.get('MERCURY_DESKTOP_PACK_DIR')?.consumer ?? '').includes('desktop/pack'))
-  const interacting = ['MERCURY_COMPUTER_USE', 'MERCURY_DESKTOP_DRIVER', 'MERCURY_DESKTOP_FAKE_SCENE', 'MERCURY_DESKTOP_FAKE_LOG']
+  const access = byEnv.get('MERCURY_COMPUTER_ACCESS')
+  check("MERCURY_COMPUTER_ACCESS is a value row consumed by the access owner, paired with the switch, defaulting to asks", access?.kind === 'value' && (access.consumer ?? '').includes('computerAccess') && (access.interactsWith ?? []).includes('MERCURY_COMPUTER_USE') && (gate?.interactsWith ?? []).includes('MERCURY_COMPUTER_ACCESS') && /asks/.test(access.off ?? ''), JSON.stringify(access))
+  const interacting = ['MERCURY_COMPUTER_USE', 'MERCURY_COMPUTER_ACCESS', 'MERCURY_DESKTOP_DRIVER', 'MERCURY_DESKTOP_FAKE_SCENE', 'MERCURY_DESKTOP_FAKE_LOG']
   let symmetric = true
   for (const env of interacting) {
     for (const ref of byEnv.get(env)?.interactsWith ?? []) {

@@ -43,6 +43,7 @@ import {
 } from '../../services/desktop/desktopSession.js'
 import { claimDesktop, desktopClaimBusyNote, renewDesktopClaim } from '../../services/desktop/desktopClaim.js'
 import { screenshotVisibleInContext } from '../../services/desktop/screenshotRetention.js'
+import { computerAccess } from '../../services/desktop/computerAccess.js'
 import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { KEY_CHORD_VOCABULARY, appSwitchChord, isAppSwitchChord, isKeyChordRefusal, parseKeyChord, type KeyChord } from './keyChord.js'
@@ -742,7 +743,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
       return denied(`Computer is denied for ${content} by a permission rule`, `${content} carries a deny rule`)
     }
     noteCheckedActApp(owner, input.action, { identity: app.identity, name: app.name })
-    if (ruled === 'allow' || (ruled === null && appApproved(owner, app.identity))) {
+    if (ruled === 'allow' || (ruled === null && (appApproved(owner, app.identity) || computerAccess() === 'sovereign'))) {
       return { behavior: 'allow' as const, updatedInput: input }
     }
     return {
