@@ -7,6 +7,7 @@ import {
   verifySignatureBlock,
   type SignatureVerdict,
 } from './artifactSigning.js'
+import type { InstallProvenanceKind } from './installProvenance.js'
 import { trustedSigningKeys, type TrustedSigningKey } from './signingTrust.js'
 import { checkVendoredRuntime, readRuntimeRecord } from './vendoredRuntime.js'
 
@@ -116,7 +117,7 @@ export interface SignatureCheckRow {
 }
 
 export function artifactSignatureCheck(
-  provenance: { kind: 'managed' | 'extracted-release' | 'development' | 'unknown'; activeRoot: string },
+  provenance: { kind: InstallProvenanceKind; activeRoot: string },
   depth: VerifyDepth,
   roster?: TrustedSigningKey[],
 ): SignatureCheckRow {

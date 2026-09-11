@@ -5,9 +5,15 @@ import { resolveLayoutRoots } from './installLayout.js'
 
 export type InstallProvenanceKind =
   | 'managed'
+  | 'homebrew'
+  | 'npm'
   | 'extracted-release'
   | 'development'
   | 'unknown'
+
+export const HOMEBREW_UPGRADE_COMMAND = 'brew upgrade Whq02/mercury/mercury'
+export const NPM_UPDATE_COMMAND = 'npm update -g mercury-tech-cli'
+export const UPDATE_VERB_SCOPE_WORDS = '`mercury update` manages installs made by `mercury install` or the install script'
 
 export interface InstallProvenanceV1 {
   v: 1
@@ -16,7 +22,7 @@ export interface InstallProvenanceV1 {
   buildSha?: string
   activeRoot: string
   invokedPath: string
-  updateOwner: 'private-channel' | 'source-build' | 'release-archive' | 'none-known'
+  updateOwner: 'private-channel' | 'homebrew' | 'npm' | 'source-build' | 'release-archive' | 'none-known'
   evidence: string[]
   disagreements: string[]
   managedCoResident?: { root: string; current: string | null }
@@ -30,6 +36,8 @@ export interface InstallProbeFacts {
   currentPointer: string | null
   currentPointerState: 'ok' | 'missing' | 'unreadable'
   pointerTargetExists: boolean
+  homebrewKeg: string | null
+  npmPackageDir: string | null
   entryManifestPresent: boolean
   entryLaunchersPresent: boolean
   devMarkersPresent: boolean
@@ -89,6 +97,29 @@ export function classifyInstallProvenance(f: InstallProbeFacts): InstallProvenan
     }
   }
 
+  if (f.homebrewKeg !== null) {
+    return {
+      ...base,
+      kind: 'homebrew',
+      activeRoot: dirname(f.invokedPath),
+      updateOwner: 'homebrew',
+      evidence: [`entry runs inside the Homebrew keg ${f.homebrewKeg} — Homebrew owns this install`],
+      disagreements: [],
+      ...(f.managedCoResident ? { managedCoResident: f.managedCoResident } : {}),
+    }
+  }
+  if (f.npmPackageDir !== null) {
+    return {
+      ...base,
+      kind: 'npm',
+      activeRoot: dirname(f.invokedPath),
+      updateOwner: 'npm',
+      evidence: [`entry runs inside the npm package ${f.npmPackageDir} — npm owns this install`],
+      disagreements: [],
+      ...(f.managedCoResident ? { managedCoResident: f.managedCoResident } : {}),
+    }
+  }
+
   if (f.devMarkersPresent) {
     return {
       ...base,
@@ -145,6 +176,34 @@ function realpathSafe(p: string): string {
   }
 }
 
+const pathSegments = (p: string): string[] => resolve(p).split(/[/\\]/)
+
+export function homebrewKegOf(invokedPath: string, env: NodeJS.ProcessEnv = process.env, isWindows = false): string | null {
+  if (!invokedPath) return null
+  const parts = pathSegments(invokedPath)
+  for (let i = 0; i + 3 < parts.length; i++) {
+    if (parts[i] === 'Cellar' && parts[i + 1] === 'mercury' && parts[i + 2]) return parts.slice(0, i + 3).join(sep)
+  }
+  const cellars = [env.HOMEBREW_CELLAR, env.HOMEBREW_PREFIX ? join(env.HOMEBREW_PREFIX, 'Cellar') : undefined]
+  for (const cellar of cellars) {
+    if (!cellar) continue
+    const formulaRoot = join(cellar, 'mercury')
+    if (!containedIn(formulaRoot, invokedPath, isWindows)) continue
+    const below = resolve(invokedPath).slice(resolve(formulaRoot).length).split(/[/\\]/).filter(Boolean)
+    if (below.length >= 2 && below[0]) return join(formulaRoot, below[0])
+  }
+  return null
+}
+
+export function npmPackageDirOf(invokedPath: string): string | null {
+  if (!invokedPath) return null
+  const parts = pathSegments(invokedPath)
+  for (let i = parts.length - 2; i >= 1; i--) {
+    if (parts[i - 1] === 'node_modules' && parts[i] === 'mercury-tech-cli') return parts.slice(0, i + 1).join(sep)
+  }
+  return null
+}
+
 function readPointer(path: string): { value: string | null; state: 'ok' | 'missing' | 'unreadable' } {
   try {
     if (!existsSync(path)) return { value: null, state: 'missing' }
@@ -159,12 +218,16 @@ export function gatherInstallProbeFacts(overrides?: {
   invokedPath?: string
   platform?: NodeJS.Platform
   versionsDir?: string
+  env?: NodeJS.ProcessEnv
 }): InstallProbeFacts {
   const platform = overrides?.platform ?? process.platform
   const isWindows = platform === 'win32'
+  const env = overrides?.env ?? process.env
   const rawInvoked = overrides?.invokedPath ?? process.argv[1] ?? ''
   const invokedPath = rawInvoked ? realpathSafe(rawInvoked) : ''
   const entryDir = invokedPath ? dirname(invokedPath) : ''
+  const homebrewKeg = invokedPath ? homebrewKegOf(invokedPath, env, isWindows) : null
+  const npmPackageDir = invokedPath ? npmPackageDirOf(invokedPath) : null
 
   const version =
     typeof MACRO !== 'undefined' && typeof MACRO.VERSION === 'string' ? MACRO.VERSION : 'dev'
@@ -229,6 +292,8 @@ export function gatherInstallProbeFacts(overrides?: {
     currentPointer: pointer.value,
     currentPointerState: pointer.state,
     pointerTargetExists,
+    homebrewKeg,
+    npmPackageDir,
     entryManifestPresent,
     entryLaunchersPresent,
     devMarkersPresent,
@@ -267,12 +332,32 @@ export function provenanceGuidance(p: InstallProvenanceV1): string {
   switch (p.kind) {
     case 'managed':
       return 'update with `mercury update` (check: `mercury update --check`; rollback: `mercury update --rollback`)'
+    case 'homebrew':
+      return `update it with \`${HOMEBREW_UPGRADE_COMMAND}\`; ${UPDATE_VERB_SCOPE_WORDS}`
+    case 'npm':
+      return `update it with \`${NPM_UPDATE_COMMAND}\`; ${UPDATE_VERB_SCOPE_WORDS}`
     case 'development':
       return 'rebuild with `git pull && bun run build.ts`'
     case 'extracted-release':
       return 'update by extracting a newer release archive in place, or adopt the managed layout with `mercury install`'
     case 'unknown':
       return 'installation shape unrecognized — adopt the managed layout with `mercury install` for update support'
+  }
+}
+
+export interface ForeignInstaller {
+  name: 'Homebrew' | 'npm'
+  updateCommand: string
+}
+
+export function foreignInstallerOf(p: Pick<InstallProvenanceV1, 'kind'>): ForeignInstaller | null {
+  switch (p.kind) {
+    case 'homebrew':
+      return { name: 'Homebrew', updateCommand: HOMEBREW_UPGRADE_COMMAND }
+    case 'npm':
+      return { name: 'npm', updateCommand: NPM_UPDATE_COMMAND }
+    default:
+      return null
   }
 }
 
