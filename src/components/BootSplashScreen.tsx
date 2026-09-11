@@ -126,7 +126,6 @@ export function BootSplashScreen(): React.ReactNode {
   const chatBoot = stripFacts().chatBoot;
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const keyMapHint = stripKeyMapHint();
-  const menuAvailable = isCompact || (columns >= 64 && rows >= 13);
 
   const [birthReceipt, setBirthReceipt] = useState<string | null>(() => recentWarningReceipt()?.text ?? null);
   useEffect(
@@ -279,7 +278,7 @@ export function BootSplashScreen(): React.ReactNode {
             ?
               { base: facts.recentLast.base, ageMs: facts.recentLast.ageMs, cross: true, dim: true }
             : null,
-        menuAvailable,
+        menuAvailable: true,
         concourse: chatBoot
           ? null
           : {
@@ -293,7 +292,7 @@ export function BootSplashScreen(): React.ReactNode {
         ...(sessionsCtx !== null ? { sessionsCtx } : {}),
       }) as BootRow[],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [facts, menuAvailable, concourseLive, plainWhy, chatBoot, liveCount, armedPresetName, saturnCtx, agentsCtx, loginsCtx, sessionsCtx],
+    [facts, concourseLive, plainWhy, chatBoot, liveCount, armedPresetName, saturnCtx, agentsCtx, loginsCtx, sessionsCtx],
   );
 
   const runRow = (row: BootRow | null): AsyncListNote | null => {
@@ -383,9 +382,9 @@ export function BootSplashScreen(): React.ReactNode {
       {
         key: 'm',
         hint: 'menu',
-        run: () => (menuAvailable ? (setSettingsOpen(true), null) : 'the boot menu needs at least 64×13'),
+        run: () => (setSettingsOpen(true), null),
       },
-      { key: 's', hint: 'menu', run: () => (menuAvailable ? (setSettingsOpen(true), null) : 'the boot menu needs at least 64×13') },
+      { key: 's', hint: 'menu', run: (): null => (setSettingsOpen(true), null) },
       ...(chatBoot ? [] : [{ key: 'o', hint: 'concourse', run: (): null => (enterConcourse(), null) }]),
     ],
     unavailable: r => r.dim === true,
@@ -451,15 +450,26 @@ export function BootSplashScreen(): React.ReactNode {
   const selectedIndex = selCleared ? -1 : list.selectedIndex;
   const composition = useMemo(() => {
     if (isCompact) {
-      const keyRows = rows > 2 && keyMapHint !== '' ? 1 : 0;
-      const count = Math.min(composedRows.length, Math.max(0, rows - keyRows - 1));
-      const start = Math.max(0, Math.min(Math.max(0, selectedIndex) - count + 1, composedRows.length - count));
-      const placed = composedRows.slice(start, start + count).map((row, i) => truncateToWidth(`${start + i === selectedIndex ? figures.pointer : ' '} ${row.label}${row.ctx !== '' ? ` · ${row.ctx}` : ''}`, columns));
-      const actionAt = new Map<number, number>(placed.map((_, i) => [i, start + i]));
       const selected = composedRows[Math.max(0, selectedIndex)];
       const verb = selected && ['menu', 'kit', 'agents', 'doctor', 'saturn', 'logins'].includes(selected.key) ? 'open' : 'start';
-      if (rows > 0) placed.push(truncateToWidth(`↵ ${verb} · ↑↓ choose · m menu`, columns));
-      return { placed, actionAt, lastRowFree: keyRows > 0 };
+      const compact = core.composeCompactFace(columns, rows, {
+        cardRows: composedRows.map(r => ({ label: r.label, ctx: r.ctx, ...(r.dim ? { dim: true } : {}) })),
+        cardSel: selectedIndex,
+        hintSegments: [
+          { key: '↵ ', label: verb, tone: 'ivory' as const },
+          { key: '↑↓', label: ' choose', tone: 'faint' as const },
+          { key: 'm', label: ' menu', tone: 'faint' as const },
+        ],
+        keyMap: keyMapHint,
+        pointer: figures.pointer,
+        glowWord: wordGlow,
+        glowRow: rowGlow,
+      });
+      return {
+        placed: compact.lines,
+        actionAt: new Map<number, number>(compact.actions.map(a => [a.line, a.index])),
+        lastRowFree: false,
+      };
     }
     const faceRows = plainWhy !== null && keyMapHint !== '' ? Math.max(1, rows - 1) : rows;
     const composed = core.composeLockup(columns, faceRows, {
@@ -482,7 +492,7 @@ export function BootSplashScreen(): React.ReactNode {
               : 'start',
           tone: 'ivory' as const,
         },
-        ...(menuAvailable ? [{ key: 'm', label: ' menu', tone: 'faint' as const }] : []),
+        { key: 'm', label: ' menu', tone: 'faint' as const },
       ],
       tinyHint: '↵ start',
       stripLines: (w: number) => core.composeStrip(chips, w) as string[],
@@ -496,7 +506,7 @@ export function BootSplashScreen(): React.ReactNode {
       lastRowFree: faceRows !== rows || top + (composed.lines as string[]).length <= rows - 1,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [core, columns, rows, isCompact, plainWhy, keyMapHint, selectedIndex, composedRows, chips, menuAvailable, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
+  }, [core, columns, rows, isCompact, plainWhy, keyMapHint, selectedIndex, composedRows, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
 
 
   if (settingsOpen) {
