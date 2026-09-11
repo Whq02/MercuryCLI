@@ -3,7 +3,7 @@
   "generator": "scripts/ui/generate-visual-baseline.ts",
   "sourceSha": "e04b88220a3fd6bc28924893f453a7c9d83046c9",
   "buildDigest": "48f82bb51ca1a5ef8b2eec1e04303a66856e96b4",
-  "generatedAt": "2026-09-11T01:54:20.233Z",
+  "generatedAt": "2026-09-11T01:54:30.717Z",
   "descoped": [
     "mouse on/off: identical static grids — pointer semantics live in the interaction journeys (S4–S6)",
     "provider screens: covered by the agent-dispatch journey provers, not the static baseline",
@@ -569,8 +569,8 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--97x30--dark--truecolor--full.grid.json",
-      "gridDigest": "b1cce6b633cbfaf48cffb108a81cb79af1123ead741e2ad2dcfb4152f72dd87c",
-      "styleDigest": "42e4c93e0acef508a34414bfdfbd769cd4d6a8115331242e0cb81ad9850a03d8",
+      "gridDigest": "fb7eccc73d15d2e6530464e78cbae466469b9de595fdc63c780c53cdfffd265a",
+      "styleDigest": "2975948c052ccdfa73b6c5c928d68f3d038b2017dfaf8afefb9175237db81d50",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -583,7 +583,7 @@
         "row: · \\S+ · \\S+ +⇧← back",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-11T01:19:06.816Z"
+      "generatedAt": "2026-09-11T01:54:30.717Z"
     },
     {
       "id": "frame--99x30--dark--truecolor--full",
