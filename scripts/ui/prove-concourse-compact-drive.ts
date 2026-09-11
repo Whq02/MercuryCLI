@@ -59,6 +59,7 @@ console.log('§1 the pure geometry and legends of the compact concourse')
   check('a session row steers; doors, the older line, held launches and parked rows keep their one press', board.compactSteerable({ sessionId: 's1', state: 'working' }, { reduced: false, olderPrefix }) && !board.compactSteerable({ sessionId: 's1', state: 'working', door: {} }, { reduced: false, olderPrefix }) && !board.compactSteerable({ sessionId: 'older:/p', state: 'parked' }, { reduced: false, olderPrefix }) && !board.compactSteerable({ sessionId: 'dispatch:1', state: 'queued' }, { reduced: false, olderPrefix }) && !board.compactSteerable({ sessionId: 's2', state: 'parked' }, { reduced: false, olderPrefix }) && !board.compactSteerable({ sessionId: 's1', state: 'working' }, { reduced: true, olderPrefix }))
   const win = board.compactListWindow(6, 5, 4)
   check('a long list windows around the selection with one more-row', win.moreRow === 1 && win.end - win.start === 3 && win.start <= 5 && 5 < win.end && win.above + win.below === 3)
+  check('the door composer’s note and rest hint are the approved words', board.COMPACT_DOOR_NOTE === 'start a new chat to message here' && board.COMPACT_DOOR_REST_HINT === 'type a message' && board.COMPACT_DOOR_NOTE_MS >= 3000)
   const split = await import('../../src/components/concourse/splitView.ts')
   check('the s split never composes under the compact decision', !split.splitActiveOf({ on: true, cols: 130, rows: 24, plainWorld: false, compact: true }) && split.splitActiveOf({ on: true, cols: 130, rows: 24, plainWorld: false, compact: false }))
 }
@@ -111,8 +112,24 @@ seedFirstRun(scratch, [REPO])
   cfg['concourseCoordinator'] = { mode: 'agent-assisted', assistModel: 'claude-opus-5' }
   cfg['customApiKeyResponses'] = { approved: ['fixture-key-000'], rejected: [] }
   writeFileSync(cfgPath, JSON.stringify(cfg))
-  const fixture = referenceFixtureSnapshot() as { groups: Array<{ rows: Array<Record<string, unknown>> }>; needsYou: unknown[]; coordinator: unknown }
+  const fixture = referenceFixtureSnapshot() as { groups: Array<{ id: string; label: string; rows: Array<Record<string, unknown>> }>; needsYou: unknown[]; coordinator: unknown }
   for (const g of fixture.groups) for (const r of g.rows) r.workspaceDir = scratch
+  fixture.groups.push({
+    id: 'elsewhere',
+    label: 'OTHER PROJECTS',
+    rows: [
+      {
+        sessionId: 'door:orchard',
+        title: '1 running in orchard-src',
+        state: 'elsewhere',
+        projectLabel: 'orchard-src',
+        ownerLabel: null,
+        ageLabel: null,
+        seats: null,
+        door: { kind: 'switch-project', dir: join(scratch, 'orchard-src'), running: 1, needsYou: 0, finished: 0 },
+      },
+    ],
+  })
   fixture.needsYou = []
   fixture.coordinator = { mode: 'agent-assisted', assistModelLabel: 'Opus 5' }
   writeFileSync(join(scratch, 'concourse-fixture.json'), JSON.stringify(fixture))
@@ -210,22 +227,23 @@ console.log('§3a 80×21 — two frames, the key journey')
 {
   const status = capture('split', 80, 21, [
     face,
-    { atTick: 999, awaitText: 'sessions · 6', minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: DOWN, mark: 'board' },
+    { atTick: 999, awaitText: 'sessions · 7', minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: DOWN, mark: 'board' },
     { afterPrevTicks: 4, data: '\r', mark: 'down' },
     { afterPrevTicks: 4, data: 'steer words', mark: 'enter' },
     { afterPrevTicks: 5, data: '\t', mark: 'typed' },
     { afterPrevTicks: 4, data: ESC, mark: 'tab' },
     { afterPrevTicks: 4, data: SHIFT_RIGHT, mark: 'esc' },
-    { atTick: 999, awaitText: 'sessions · 6', minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: 'n', mark: 'back' },
+    { atTick: 999, awaitText: 'sessions · 7', minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: 'n', mark: 'back' },
     { afterPrevTicks: 6, data: '', mark: 'new' },
   ], 150)
   check('80×21: the drive ran every send', status === 0)
   const board = markOf('split', 'board')
   for (const label of ['board', 'down', 'enter', 'typed', 'tab', 'esc', 'new']) printFrame(`80×21 ${label}`, markOf('split', label))
-  check('80×21: the frame is 21 rows with the two frames side by side', board.length === 21 && board[0]?.startsWith('╭─sessions · 6 ────────────╮ ╭─') === true && board[20]?.startsWith('╰──────────────────────────╯ ╰') === true, board[0])
+  check('80×21: the frame is 21 rows with the two frames side by side', board.length === 21 && board[0]?.startsWith('╭─sessions · 7 ────────────╮ ╭─') === true && board[20]?.startsWith('╰──────────────────────────╯ ╰') === true, board[0])
   check('80×21: the right frame names the selected session, its state and its age in its top border', rightOf(board[0], 29).startsWith('╭─Audit billing receipts · ready · 12m ') && (board[0]?.length ?? 0) === 80 && board[0]?.endsWith('╮') === true, rightOf(board[0], 29))
   check('80×21: the list carries the selected row with ❯ and the state glyph, names truncated with the ellipsis', /^│ ❯ . Audit billing recei… │$/.test(leftOf(board[1], 28)) && /^│   . Fix OAuth callback   │$/.test(leftOf(board[2], 28)), `${leftOf(board[1], 28)} / ${leftOf(board[2], 28)}`)
-  check('80×21: the blank row then the new-session row follow the sessions', leftOf(board[7], 28) === '│                          │' && leftOf(board[8], 28) === '│   n  new session         │', `${leftOf(board[7], 28)} / ${leftOf(board[8], 28)}`)
+  check('80×21: the door row paints with the handoff glyph after the six sessions', /^│   ⇄ 1 running in orchar… │$/.test(leftOf(board[7], 28)), leftOf(board[7], 28))
+  check('80×21: the blank row then the new-session row follow the sessions', leftOf(board[8], 28) === '│                          │' && leftOf(board[9], 28) === '│   n  new session         │', `${leftOf(board[8], 28)} / ${leftOf(board[9], 28)}`)
   check('80×21: the list foot and the live foot carry the approved legends', leftOf(board[19], 28) === '│ ↑↓ pick · ↵ steer        │' && rightOf(board[19], 29) === '│ ⇥ list · x stop · p pause · esc board           │', `${leftOf(board[19], 28)} / ${rightOf(board[19], 29)}`)
   check('80×21: the mirror paints the session’s own rows', has(board.slice(1, 16).map(l => rightOf(l, 29)), 'Ready to help'), board.slice(1, 5).map(l => rightOf(l, 29)).join(' | '))
   check('80×21: the composer sits in its rounded frame above the foot', rightOf(board[16], 29).startsWith('│ ╭') && rightOf(board[17], 29).startsWith('│ │ ❯') && rightOf(board[18], 29).startsWith('│ ╰'), `${rightOf(board[16], 29)} / ${rightOf(board[17], 29)}`)
@@ -233,26 +251,56 @@ console.log('§3a 80×21 — two frames, the key journey')
   const down = markOf('split', 'down')
   check('80×21: ↓ moves the selection and the right frame follows at once', rightOf(down[0], 29).startsWith('╭─Fix OAuth callback · working · 07m ') && /^│ ❯ /.test(leftOf(down[2], 28)) && /^│   /.test(leftOf(down[1], 28)), rightOf(down[0], 29))
   const enter = markOf('split', 'enter')
-  check('80×21: ↵ on the list keeps the board and the frame titles (no enter, no route change)', enter.length === 21 && enter[0]?.startsWith('╭─sessions · 6 ') === true && rightOf(enter[0], 29).startsWith('╭─Fix OAuth callback'), enter[0])
+  check('80×21: ↵ on the list keeps the board and the frame titles (no enter, no route change)', enter.length === 21 && enter[0]?.startsWith('╭─sessions · 7 ') === true && rightOf(enter[0], 29).startsWith('╭─Fix OAuth callback'), enter[0])
   check('80×21: ↵ hands focus to the composer — the caret block stands in the composer row', rightOf(enter[17], 29).includes('▌') || rightOf(enter[17], 29).startsWith('│ │ ❯  '), rightOf(enter[17], 29))
   const typed = markOf('split', 'typed')
-  check('80×21: typed words land in the composer, never the list or a filter', rightOf(typed[17], 29).includes('steer words') && !has(typed.map(l => leftOf(l, 28)), 'steer words') && typed[0]?.startsWith('╭─sessions · 6 ') === true, rightOf(typed[17], 29))
+  check('80×21: typed words land in the composer, never the list or a filter', rightOf(typed[17], 29).includes('steer words') && !has(typed.map(l => leftOf(l, 28)), 'steer words') && typed[0]?.startsWith('╭─sessions · 7 ') === true, rightOf(typed[17], 29))
   check('80×21: with words held the right foot drops the letter verbs (they are letters now)', rightOf(typed[19], 29) === '│ ⇥ list · esc board                              │', rightOf(typed[19], 29))
   const tab = markOf('split', 'tab')
   check('80×21: ⇥ returns focus to the list — the letter verbs print again', rightOf(tab[19], 29) === '│ ⇥ list · x stop · p pause · esc board           │' && rightOf(tab[17], 29).includes('steer words'), rightOf(tab[19], 29))
   const esc = markOf('split', 'esc')
-  check('80×21: esc from the list returns to the boot face', has(esc, '↑↓ choose') && !has(esc, 'sessions · 6'), esc.slice(0, 3).join(' | '))
+  check('80×21: esc from the list returns to the boot face', has(esc, '↑↓ choose') && !has(esc, 'sessions · 7'), esc.slice(0, 3).join(' | '))
   const back = markOf('split', 'back')
-  check('80×21: ⇧→ brings the split back', back[0]?.startsWith('╭─sessions · 6 ') === true)
+  check('80×21: ⇧→ brings the split back', back[0]?.startsWith('╭─sessions · 7 ') === true)
   const fresh = markOf('split', 'new')
-  check('80×21: n opens the new-session door (the contract offer) in the live frame', has(fresh.map(l => rightOf(l, 29)), 'Start with a contract?') && fresh[0]?.startsWith('╭─sessions · 6 ') === true, fresh.slice(1, 4).map(l => rightOf(l, 29)).join(' | '))
+  check('80×21: n opens the new-session door (the contract offer) in the live frame', has(fresh.map(l => rightOf(l, 29)), 'Start with a contract?') && fresh[0]?.startsWith('╭─sessions · 7 ') === true, fresh.slice(1, 4).map(l => rightOf(l, 29)).join(' | '))
+}
+
+console.log('§3d 80×21 — a door row selected: the composer takes words, ↵ answers with the note above it')
+{
+  const status = capture('door', 80, 21, [
+    face,
+    { atTick: 999, awaitText: 'sessions · 7', minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: DOWN, mark: 'board' },
+    { afterPrevTicks: 1, data: DOWN },
+    { afterPrevTicks: 1, data: DOWN },
+    { afterPrevTicks: 1, data: DOWN },
+    { afterPrevTicks: 1, data: DOWN },
+    { afterPrevTicks: 1, data: DOWN },
+    { afterPrevTicks: 4, data: '\t', mark: 'door' },
+    { afterPrevTicks: 4, data: 'hello door', mark: 'focus' },
+    { afterPrevTicks: 5, data: '\r', mark: 'typed' },
+    { afterPrevTicks: 4, data: '!', mark: 'enter' },
+    { afterPrevTicks: 4, data: '', mark: 'again' },
+  ], 150)
+  check('80×21 door: the drive ran every send', status === 0)
+  for (const label of ['door', 'typed', 'enter', 'again']) printFrame(`80×21 door ${label}`, markOf('door', label))
+  const door = markOf('door', 'door')
+  check('80×21 door: six ↓ select the door row and the right frame names it as a door', /^│ ❯ ⇄ 1 running in orchar… │$/.test(leftOf(door[7], 28)) && rightOf(door[0], 29).startsWith('╭─1 running in orchard-src · a door ') && has(door.map(l => rightOf(l, 29)), '1 running in orchard-src — ↵ switches the bo'), `${leftOf(door[7], 28)} / ${rightOf(door[0], 29)}`)
+  const focus = markOf('door', 'focus')
+  check('80×21 door: ⇥ focuses the composer, whose rest hint invites typing', /❯ [▌ ]type a message/.test(rightOf(focus[17], 29)), rightOf(focus[17], 29))
+  const typed = markOf('door', 'typed')
+  check('80×21 door: the typed words land in the composer and the foot keeps its legend', rightOf(typed[17], 29).includes('hello door') && rightOf(typed[19], 29) === '│ ⇥ list · esc board                              │' && rightOf(typed[15], 29) === '│                                                 │', `${rightOf(typed[17], 29)} / ${rightOf(typed[19], 29)}`)
+  const enter = markOf('door', 'enter')
+  check('80×21 door: ↵ paints the note directly above the composer, sends nothing, keeps the words and the legend', rightOf(enter[15], 29) === '│ start a new chat to message here                │' && rightOf(enter[16], 29).startsWith('│ ╭') && rightOf(enter[17], 29).includes('hello door') && rightOf(enter[19], 29) === '│ ⇥ list · esc board                              │' && !has(enter, 'UNTRUSTED FOLDER') && enter[0]?.startsWith('╭─sessions · 7 ') === true, `${rightOf(enter[15], 29)} / ${rightOf(enter[17], 29)}`)
+  const again = markOf('door', 'again')
+  check('80×21 door: the next keystroke clears the note and lands', rightOf(again[15], 29) === '│                                                 │' && rightOf(again[17], 29).includes('hello door!'), `${rightOf(again[15], 29)} / ${rightOf(again[17], 29)}`)
 }
 
 console.log('§3b 80×14 — the same split with fewer mirror rows')
 {
   const status = capture('short', 80, 14, [
     face,
-    { atTick: 999, awaitText: 'sessions · 6', minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: DOWN, mark: 'board' },
+    { atTick: 999, awaitText: 'sessions · 7', minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: DOWN, mark: 'board' },
     { afterPrevTicks: 4, data: '\r', mark: 'down' },
     { afterPrevTicks: 4, data: 'hi there', mark: 'enter' },
     { afterPrevTicks: 5, data: '', mark: 'typed' },
@@ -260,7 +308,7 @@ console.log('§3b 80×14 — the same split with fewer mirror rows')
   check('80×14: the drive ran every send', status === 0)
   const board = markOf('short', 'board')
   for (const label of ['board', 'down', 'enter', 'typed']) printFrame(`80×14 ${label}`, markOf('short', label))
-  check('80×14: fourteen rows, two frames, the mirror shortened to eight rows', board.length === 14 && board[0]?.startsWith('╭─sessions · 6 ────────────╮ ╭─Audit billing receipts · ready · 12m ') === true && rightOf(board[9], 29).startsWith('│ ╭') && rightOf(board[10], 29).startsWith('│ │ ❯') && rightOf(board[11], 29).startsWith('│ ╰') && board[13]?.startsWith('╰──────────────────────────╯ ╰') === true, `${board[0]} / ${rightOf(board[9], 29)}`)
+  check('80×14: fourteen rows, two frames, the mirror shortened to eight rows', board.length === 14 && board[0]?.startsWith('╭─sessions · 7 ────────────╮ ╭─Audit billing receipts · ready · 12m ') === true && rightOf(board[9], 29).startsWith('│ ╭') && rightOf(board[10], 29).startsWith('│ │ ❯') && rightOf(board[11], 29).startsWith('│ ╰') && board[13]?.startsWith('╰──────────────────────────╯ ╰') === true, `${board[0]} / ${rightOf(board[9], 29)}`)
   check('80×14: the feet stand on the last inner row', leftOf(board[12], 28) === '│ ↑↓ pick · ↵ steer        │' && rightOf(board[12], 29) === '│ ⇥ list · x stop · p pause · esc board           │', `${leftOf(board[12], 28)} / ${rightOf(board[12], 29)}`)
   check('80×14: the mirror rows paint inside the frame', has(board.slice(1, 9).map(l => rightOf(l, 29)), 'Ready to help'))
   const down = markOf('short', 'down')
@@ -285,7 +333,8 @@ console.log('§3c 50×16 — under 60 columns the board stands alone; ↵ opens 
   check('50×16: rows carry glyph · name · state · age', /^│ ❯ . Audit billing receipts +ready +12m │$/.test(board[1] ?? '') && /^│   . Fix OAuth callback +working +07m │$/.test(board[2] ?? ''), `${board[1]} / ${board[2]}`)
   const inner50 = (text: string): string => `│${text.padEnd(48)}│`
   check('50×16: the foot shortened to the three keys that matter', board[14] === inner50(' ↵ open · n new · esc'), board[14])
-  check('50×16: the new-session row stands after the six rows', board[8] === inner50('   n  new session'), board[8])
+  check('50×16: the door row carries its glyph and the state word', /⇄ 1 running in orchard-src +a door +— │$/.test(board[7] ?? ''), board[7])
+  check('50×16: the new-session row stands after the seven rows', board[9] === inner50('   n  new session'), board[9])
   const down = markOf('single', 'down')
   check('50×16: ↓ moves the cursor', /^│ ❯ /.test(down[2] ?? '') && /^│   /.test(down[1] ?? ''))
   const opened = markOf('single', 'opened')
