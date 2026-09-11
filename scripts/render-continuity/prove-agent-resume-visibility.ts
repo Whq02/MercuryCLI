@@ -63,13 +63,13 @@ t.section('§2 guidance queued during a running turn drains into a real resume')
       },
       preText: 'Spawning the probe agent.',
     },
-    { kind: 'paced', deltas: Array.from({ length: 12 }, (_, i) => `count ${i + 1}. `), gapMs: 800, whenBody: 'Count to three slowly.' },
-    { kind: 'text', text: 'Probe launched.' },
+    { kind: 'paced', deltas: Array.from({ length: 12 }, (_, i) => `count ${i + 1}. `), gapMs: 800 },
+    { kind: 'text', text: 'Probe launched.', whenBody: 'spawn the probe' },
     { kind: 'text', text: 'Taking your steer into account.', whenBody: 'steer the count gently' },
-    { kind: 'text', text: 'Settled.' },
-    { kind: 'text', text: 'Complete.' },
-    { kind: 'text', text: 'Spare.' },
-    { kind: 'text', text: 'Spare2.' },
+    { kind: 'text', text: 'Settled.', whenBody: 'spawn the probe' },
+    { kind: 'text', text: 'Complete.', whenBody: 'spawn the probe' },
+    { kind: 'text', text: 'Spare.', whenBody: 'spawn the probe' },
+    { kind: 'text', text: 'Spare2.', whenBody: 'spawn the probe' },
   ]
 
   const run = await runPulseArena({
@@ -158,7 +158,6 @@ t.section('§3 per-target composer drafts across main/A/B switches')
     kind: 'paced',
     deltas: Array.from({ length: 26 }, (_, i) => `working segment ${i + 1}. `),
     gapMs: 900,
-    whenBody: 'Work quietly.',
   }
   const turns: ScriptedTurn[] = [
     {
@@ -172,10 +171,10 @@ t.section('§3 per-target composer drafts across main/A/B switches')
     },
     agentPaced,
     agentPaced,
-    { kind: 'text', text: 'Both launched.' },
-    { kind: 'text', text: 'Spare.' },
-    { kind: 'text', text: 'Spare2.' },
-    { kind: 'text', text: 'Spare3.' },
+    { kind: 'text', text: 'Both launched.', whenBody: 'spawn both probes' },
+    { kind: 'text', text: 'Spare.', whenBody: 'spawn both probes' },
+    { kind: 'text', text: 'Spare2.', whenBody: 'spawn both probes' },
+    { kind: 'text', text: 'Spare3.', whenBody: 'spawn both probes' },
   ]
 
   const run = await runPulseArena({
