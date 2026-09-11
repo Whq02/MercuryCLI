@@ -300,7 +300,7 @@ pin('kernel: asymmetric initial clamp (11)', 'components/CustomSelect/use-select
   'Math.min(options.length, Math.max(to, visible))',
 ])
 pin('kernel: deep-inequality reset + truthy mount seed (13, §8-7)', 'components/CustomSelect/use-select-navigation.ts', [
-  '!isEqual(previousOptionsRef.current, options)',
+  '!optionsEquivalent(previousOptionsRef.current, options)',
   'initialFocusValue: focusValue ? focusValue : initialFocusValue,',
 ])
 pin('kernel: validated focus fallback (14)', 'components/CustomSelect/use-select-navigation.ts', [

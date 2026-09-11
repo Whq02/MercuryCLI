@@ -3,6 +3,7 @@ import {
   existsSync,
   readFileSync,
   rmSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -95,7 +96,9 @@ try {
   unsub()
 
   section('(c) a stale peer (now - ts > STALE_MS) is dropped on the next tail')
-  writeBob(Date.now() - 999_999)
+  const staleAt = new Date(Date.now() - 999_999)
+  writeBob(staleAt.getTime())
+  utimesSync(bobPath, staleAt, staleAt)
   tailPresence()
   const liveStale = getLivePresence()
   check('a stale bob is dropped (live set now empty)', liveStale.length === 0, `len=${liveStale.length}`)

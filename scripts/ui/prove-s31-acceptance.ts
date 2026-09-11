@@ -438,14 +438,24 @@ check(
 
   const dialogIdx = repl.indexOf("if (seatCommand !== undefined && seatCommand.type === 'local-jsx') {")
   const dialogBlock = repl.slice(dialogIdx, repl.indexOf('const onSubmitRef = useRef(onSubmit);', dialogIdx))
+  const dialogMountAt = dialogBlock.indexOf('const slot = { name: dialogName, mounted: false };')
+  const dialogQueue = dialogBlock.slice(0, Math.max(0, dialogMountAt))
+  const dialogMount = dialogBlock.slice(Math.max(0, dialogMountAt))
   check(
     '24. the dialog-command branch mounts in place — no history entry, no session send',
-    dialogIdx !== -1 && !dialogBlock.includes('takeComposer()') && !dialogBlock.includes('addToHistory(') && !dialogBlock.includes('.sendWords('),
+    dialogIdx !== -1 && dialogMountAt !== -1 && !dialogMount.includes('takeComposer()') && !dialogMount.includes('addToHistory(') && !dialogMount.includes('.sendWords('),
+  )
+  check(
+    '24b. a dialog typed while one runs queues behind it — the composer taken once, never a session send',
+    dialogMountAt !== -1 && dialogQueue.includes('takeComposer()') && dialogQueue.includes('queuedDialogCommandsRef.current.push({ input, name: dialogName });') && !dialogQueue.includes('.sendWords('),
   )
 
   check(
     "25. cancel reaches the focused connector's interrupt door (no ask store on the screen)",
-    repl.includes('getFocusedSessionConnector().interrupt()') && !repl.includes('getInProcessAsks'),
+    repl.includes('interruptFocusedTurn();') &&
+      src('src/hooks/useCancelRequest.ts').includes('const focused = getFocusedSessionConnector()') &&
+      src('src/hooks/useCancelRequest.ts').includes('if (!focused.interrupt()) return false') &&
+      !repl.includes('getInProcessAsks'),
   )
 
   check(

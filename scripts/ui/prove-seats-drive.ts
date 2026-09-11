@@ -364,15 +364,19 @@ const laneOf = (frame: string | undefined, s: Station): string =>
   rowsWith(frame, `${labelOf(s)} · `).map(flat).join(' | ')
 
 type AgentSummary = { index: number; label: string; state: string; waiting?: string; waitWords?: string; startedAt?: number }
-function readRunManifest(cwd: string): AgentSummary[] | null {
-  const runs = join(cwd, '.mercury', 'workflows', 'runs')
-  if (!existsSync(runs)) return null
+function readRunManifest(home: string): AgentSummary[] | null {
+  const projects = join(home, 'projects')
+  if (!existsSync(projects)) return null
   let newest: { path: string; mtime: number } | null = null
-  for (const dir of readdirSync(runs)) {
-    const path = join(runs, dir, 'run.json')
-    if (!existsSync(path)) continue
-    const mtime = statSync(path).mtimeMs
-    if (newest === null || mtime > newest.mtime) newest = { path, mtime }
+  for (const project of readdirSync(projects)) {
+    const runs = join(projects, project, 'workflows', 'runs')
+    if (!existsSync(runs)) continue
+    for (const dir of readdirSync(runs)) {
+      const path = join(runs, dir, 'run.json')
+      if (!existsSync(path)) continue
+      const mtime = statSync(path).mtimeMs
+      if (newest === null || mtime > newest.mtime) newest = { path, mtime }
+    }
   }
   if (newest === null) return null
   try {
@@ -382,14 +386,14 @@ function readRunManifest(cwd: string): AgentSummary[] | null {
     return null
   }
 }
-function manifestAtBusyMoment(cwd: string, hits: Hit[], afterMs: number): Promise<{ agents: AgentSummary[] | null; atMs: number }> {
+function manifestAtBusyMoment(home: string, hits: Hit[], afterMs: number): Promise<{ agents: AgentSummary[] | null; atMs: number }> {
   return new Promise(resolve => {
     const poll = setInterval(() => {
       const first = hits.find(h => h.route === 'seat')
       if (first === undefined) return
       if (Date.now() - first.startMs < afterMs) return
       clearInterval(poll)
-      resolve({ agents: readRunManifest(cwd), atMs: Date.now() - first.startMs })
+      resolve({ agents: readRunManifest(home), atMs: Date.now() - first.startMs })
     }, 250)
     poll.unref?.()
   })
@@ -404,7 +408,7 @@ const fixture = await startFixture(Number(process.env.SEATS_DRIVE_PORT ?? 25183)
 const COLS = 160
 const ROWS = 44
 let cap: Capture | null = null
-const busyManifest = manifestAtBusyMoment(cwd, fixture.hits, 8_000)
+const busyManifest = manifestAtBusyMoment(home, fixture.hits, 8_000)
 try {
   cap = await capture(
     {
