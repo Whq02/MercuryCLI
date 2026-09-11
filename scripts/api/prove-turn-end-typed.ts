@@ -307,7 +307,7 @@ section('T8 — the owner: the law table, the words, the watchdog')
   check('no finish (chat completions) behind a standing tail ⇒ closed-after-last-item', law({ fault: { kind: 'truncated-stream', code: 'no-finish' }, provider: 'X', tailStands: true, silentMs: 0 })?.reason === 'closed-after-last-item')
   check('a tail that does not stand keeps its road', law({ fault: { kind: 'timeout', code: 'idle-timeout' }, provider: 'X', tailStands: false, silentMs: 1 }) === null)
   check('a transport fault keeps its road', law({ fault: { kind: 'transport-error', code: 'read-failed' }, provider: 'X', tailStands: true, silentMs: 1 }) === null)
-  check('the receipt says the silence and that the reply stands', budget.streamEndReceiptLine({ reason: 'silent-after-last-item', provider: 'OpenAI', silentMs: 90_000 }) === 'the OpenAI stream went silent 90 s after its last item; the reply stands')
+  check('the receipt says the silence (minutes at or above sixty seconds) and that the reply stands', budget.streamEndReceiptLine({ reason: 'silent-after-last-item', provider: 'OpenAI', silentMs: 90_000 }) === 'the OpenAI stream went silent 1m 30s after its last item; the reply stands' && budget.streamEndReceiptLine({ reason: 'silent-after-last-item', provider: 'OpenAI', silentMs: 40_000 }) === 'the OpenAI stream went silent 40 s after its last item; the reply stands', budget.streamEndReceiptLine({ reason: 'silent-after-last-item', provider: 'OpenAI', silentMs: 90_000 }))
   check('the receipt says the close and that the reply stands', budget.streamEndReceiptLine({ reason: 'closed-after-last-item', provider: 'Anthropic' }) === 'the Anthropic stream closed without its end event after its last item; the reply stands')
   check('one budget on every road', budget.streamIdleTimeoutMsForRoute('openai') === budget.streamIdleTimeoutMs() && budget.streamIdleTimeoutMsForRoute('anthropic') === budget.streamIdleTimeoutMs())
 
@@ -396,9 +396,9 @@ section('T9 — the first-byte budget on the three compat clients (a fetch that 
     check(`${road.name}: the wait was published first with the budget that fires`, first?.kind === 'first-byte' && first.budgetMs === 400 && typeof first.model === 'string', JSON.stringify(waits))
     check(`${road.name}: the wait was never cleared (the headers never came)`, !waits.includes(null), JSON.stringify(waits))
   }
-  const cold = budget.firstByteBudgetMs({ cold: true, promptTokens: 100, idleMs: 400 })
-  check('a cold prefix earns its ingest allowance under the same owner', cold === 400 + Math.round(0.1 * budget.COLD_INGEST_MS_PER_1K_TOKENS), String(cold))
-  check('…capped at twice the idle budget (a 50k prompt on a 400 ms budget waits 800 ms)', budget.firstByteBudgetMs({ cold: true, promptTokens: 50_000, idleMs: 400 }) === 800, String(budget.firstByteBudgetMs({ cold: true, promptTokens: 50_000, idleMs: 400 })))
+  const cold = budget.firstByteBudgetMs({ cold: true, promptTokens: 50_000, idleMs: 400 })
+  check('a cold prefix earns its ingest allowance under the same owner', cold === 400 + 50 * budget.COLD_INGEST_MS_PER_1K_TOKENS, String(cold))
+  check('…under a ceiling that never sits below 300 s (a 1M-token prompt on a 400 ms budget waits 300 s)', budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 400 }) === 300_000, String(budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 400 })))
 }
 
 section('T10 — the OpenAI road end to end: headers never answered')

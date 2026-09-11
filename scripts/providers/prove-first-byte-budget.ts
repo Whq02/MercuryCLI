@@ -32,11 +32,11 @@ console.log('============================================================')
 
 section('B1 · the budget arithmetic')
 {
-  check('warm prefix: the idle budget itself (5 min default)', budget.firstByteBudgetMs({ cold: false, promptTokens: 26_000 }) === 300_000 && budget.streamIdleTimeoutMs() === 300_000)
+  check('warm prefix: the idle budget itself (2 min default)', budget.firstByteBudgetMs({ cold: false, promptTokens: 26_000 }) === 120_000 && budget.streamIdleTimeoutMs() === 120_000)
   check('cold prefix, 26k tokens on a 60 s idle budget: 60 s + 31.2 s = 91.2 s', budget.firstByteBudgetMs({ cold: true, promptTokens: 26_000, idleMs: 60_000 }) === 91_200, String(budget.firstByteBudgetMs({ cold: true, promptTokens: 26_000, idleMs: 60_000 })))
   check('cold prefix never sits below the idle budget (a tiny prompt)', budget.firstByteBudgetMs({ cold: true, promptTokens: 10, idleMs: 60_000 }) === 60_012 && budget.firstByteBudgetMs({ cold: true, promptTokens: 0, idleMs: 60_000 }) === 60_000)
-  check('the ceiling: a 1M-token prompt caps at twice the idle budget (120 s on a 60 s budget, 10 min on the 5 min default)', budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 60_000 }) === 120_000 && budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000 }) === 600_000, `${budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 60_000 })} · ${budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000 })}`)
-  check('the allowance and the ceiling are the owner\'s constants (1,200 ms per 1k · twice the idle budget)', budget.COLD_INGEST_MS_PER_1K_TOKENS === 1_200 && budget.FIRST_BYTE_BUDGET_CEILING_FACTOR === 2)
+  check('the ceiling: a 1M-token prompt caps at twice the idle budget or 300 s, the larger (300 s on a 60 s budget and on the 2 min default; 30 min on the 15 min road)', budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 60_000 }) === 300_000 && budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000 }) === 300_000 && budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 900_000 }) === 1_800_000, `${budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 60_000 })} · ${budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000 })} · ${budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 900_000 })}`)
+  check('the allowance and the ceiling are the owner\'s constants (1,200 ms per 1k · 300,000 ms · twice the idle budget)', budget.COLD_INGEST_MS_PER_1K_TOKENS === 1_200 && budget.FIRST_BYTE_BUDGET_CEILING_MS === 300_000 && budget.FIRST_BYTE_BUDGET_CEILING_FACTOR === 2)
   check('the send-time estimate is the body\'s bytes, four to a token (never below one)', budget.estimateRequestTokens({ system: 'x'.repeat(4000) }) === Math.ceil(JSON.stringify({ system: 'x'.repeat(4000) }).length / 4) && budget.estimateRequestTokens(undefined) === 1)
 }
 
@@ -56,12 +56,13 @@ section('B2 · the cold predicate')
 section('B3 · the words')
 {
   const cold = { kind: 'first-byte' as const, cold: true, promptTokens: 26_000, model: 'Opus 5', budgetMs: 91_200, sinceMs: 0, attempt: 1 }
-  check('the cold wait names the prompt, the model and the budget', budget.requestWaitLine(cold) === 'ingesting a 26k-token prompt on Opus 5 — first byte expected within 91 s', budget.requestWaitLine(cold))
+  check('the cold wait names the prompt, the model and the budget — minutes at or above sixty seconds', budget.requestWaitLine(cold) === 'ingesting a 26k-token prompt on Opus 5 — first byte expected within 1m 31s', budget.requestWaitLine(cold))
   check('a reissued attempt says which attempt', budget.requestWaitLine({ ...cold, attempt: 2 }).endsWith('(attempt 2)'))
-  check('the warm wait names the model and the idle budget', budget.requestWaitLine({ ...cold, cold: false, promptTokens: 900, budgetMs: 60_000 }) === 'waiting for the first byte from Opus 5 — within 60 s', budget.requestWaitLine({ ...cold, cold: false, budgetMs: 60_000 }))
+  check('the warm wait names the model and the idle budget', budget.requestWaitLine({ ...cold, cold: false, promptTokens: 900, budgetMs: 60_000 }) === 'waiting for the first byte from Opus 5 — within 1m', budget.requestWaitLine({ ...cold, cold: false, budgetMs: 60_000 }))
+  check('a budget under a minute keeps its seconds', budget.requestWaitLine({ ...cold, cold: false, promptTokens: 900, budgetMs: 45_000 }) === 'waiting for the first byte from Opus 5 — within 45 s' && budget.requestWaitLine({ ...cold, budgetMs: 120_000 }) === 'ingesting a 26k-token prompt on Opus 5 — first byte expected within 2m', budget.requestWaitLine({ ...cold, budgetMs: 120_000 }))
   check('the retry wait names the attempt, the cause and the delay', budget.requestWaitLine({ kind: 'retry', attempt: 2, of: 10, reason: 'a 529', delayMs: 4_000, sinceMs: 0 }) === 'retrying — attempt 2 of 10 after a 529 · in 4 s')
-  check('the typed timeout line names the wait and its cause (cold)', budget.firstByteTimeoutLine(cold) === 'no first byte from Opus 5 after 91 s (a 26k-token prompt ingesting uncached)', budget.firstByteTimeoutLine(cold))
-  check('  and the warm cause', budget.firstByteTimeoutLine({ ...cold, cold: false, budgetMs: 60_000 }) === 'no first byte from Opus 5 after 60 s (the request was accepted and nothing arrived)')
+  check('the typed timeout line names the wait and its cause (cold)', budget.firstByteTimeoutLine(cold) === 'no first byte from Opus 5 after 1m 31s (a 26k-token prompt ingesting uncached)', budget.firstByteTimeoutLine(cold))
+  check('  and the warm cause', budget.firstByteTimeoutLine({ ...cold, cold: false, budgetMs: 60_000 }) === 'no first byte from Opus 5 after 1m (the request was accepted and nothing arrived)')
   check('the retry cause words: a status, a first-byte timeout, a connection error', budget.retryReasonWords(529) === 'a 529' && budget.retryReasonWords(null, 'no first byte from Opus 5 after 91 s (…)') === 'a first-byte timeout' && budget.retryReasonWords(undefined, 'socket hang up') === 'a connection error')
 }
 

@@ -30,7 +30,7 @@ if (!existsSync(DIST)) {
 const GPT_REPLY = 'sol answers from the fixture'
 const OPUS_REPLY = 'opus picked up cleanly'
 const SLOW_INGEST_ASK = 'ingest slowly please'
-const IDLE_MS = 4_000
+const IDLE_MS = 3_000
 const HOLD_MS = 5_000
 
 const RUN_HOME = path.join(realpathSync(tmpdir()), `mercury-coldingest-${process.pid}`)
@@ -181,9 +181,10 @@ section('L2 — THE WAIT IS SPOKEN while the Opus headers are held')
   const seen = markGrids.get('wait-seen') ?? ''
   const line = seen.split('\n').find(l => l.includes('ingesting a')) ?? ''
   check("the status row read the cold wait on its await, not its deadline", (receipts[5]?.atTick ?? 999) < 330, `tick ${receipts[5]?.atTick}`)
-  check("the words: 'ingesting a Nk-token prompt on Opus 5 — first byte expected within N s'", /ingesting a \d+k-token prompt on Opus 5 — first byte expected within \d+ s/.test(line), line || seen.split('\n').slice(-8).join('\n'))
-  const budget = Number(/within (\d+) s/.exec(line)?.[1] ?? 0) * 1000
-  check(`the named budget outlasts the 5 s hold and the 4 s idle budget (named ${budget} ms)`, budget > HOLD_MS && budget > IDLE_MS, line)
+  check("the words: 'ingesting a Nk-token prompt on Opus 5 — first byte expected within N s' (minutes at or above sixty: 'within 1m 15s')", /ingesting a \d+k-token prompt on Opus 5 — first byte expected within (?:\d+ s|\d+m(?: \d+s)?)\b/.test(line), line || seen.split('\n').slice(-8).join('\n'))
+  const named = /within (?:(\d+)m(?: (\d+)s)?|(\d+) s)/.exec(line)
+  const budget = named === null ? 0 : named[3] !== undefined ? Number(named[3]) * 1000 : (Number(named[1]) * 60 + Number(named[2] ?? 0)) * 1000
+  check(`the named budget outlasts the 5 s hold and the 3 s idle budget (named ${budget} ms)`, budget > HOLD_MS && budget > IDLE_MS, line)
 }
 
 section('L3 — THE TURN COMPLETES: the hold was waited out, nothing aborted')
