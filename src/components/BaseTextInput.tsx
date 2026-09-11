@@ -88,7 +88,7 @@ export function BaseTextInput({
     active: focused && cursorShown && terminalFocus,
   })
 
-  const { wrappedOnInput, isPasting } = usePasteHandler({
+  const { wrappedOnInput, isPasting, pendingNow } = usePasteHandler({
     onPaste: props.onPaste,
     onImagePaste: props.onImagePaste,
     onImageError: props.onImageError,
@@ -103,9 +103,17 @@ export function BaseTextInput({
     onIsPastingChange?.(isPasting)
   }, [isPasting, onIsPastingChange])
 
-  useInput((input, key, event) => wrappedOnInput(input, key, event), {
-    isActive: focused,
-  })
+  if (props.pastePendingRef) props.pastePendingRef.current = pendingNow
+  useInput((input, key, event) => {
+    const route = props.routeInput?.(input, key, event, pendingNow()) ?? (focused ? 'edit' : 'yield')
+    if (route === 'yield') return
+    if (route === 'consume') {
+      event.stopImmediatePropagation()
+      return
+    }
+    wrappedOnInput(input, key, event)
+    if (route === 'edit-and-consume') event.stopImmediatePropagation()
+  }, { isActive: focused || props.routeInput !== undefined })
 
   const hint = argumentHintText(props.value, props.argumentHint)
   const hintNode = hint ? <Text dimColor>{hint}</Text> : null
@@ -115,7 +123,7 @@ export function BaseTextInput({
       <Box ref={cursorRef}>
         {props.placeholderElement ??
           (!hidePlaceholderText && props.placeholder ? (
-            <Text dimColor>{props.placeholder}</Text>
+            <Text dimColor wrap={props.maxVisibleLines === 1 ? "truncate-end" : undefined}>{props.placeholder}</Text>
           ) : (
             <Text> </Text>
           ))}

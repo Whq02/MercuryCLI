@@ -149,6 +149,9 @@ export type WorkAgentV1 = {
   index: number
   label: string
   state: string
+  agentId?: string
+  waiting?: 'prefill' | 'provider-backoff' | 'usage-window' | 'seat' | 'operator' | null
+  pausedBy?: string | null
 }
 
 export type WorkPhaseV1 = {
@@ -167,6 +170,7 @@ export type WorkflowPulseV1 = {
 
 export type WorkRowV1 = {
   id: string
+  agentId?: string
   kind: 'workflow' | 'agent' | 'teammate' | 'shell' | 'monitor' | 'dream'
   name: string
   status: string

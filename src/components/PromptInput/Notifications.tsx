@@ -69,6 +69,7 @@ function NotificationsColumn({
   mcpClients,
   isInputWrapped = false,
   alignStart = false,
+  compact = false,
 }: {
   apiKeyStatus: VerificationStatus
   debug: boolean
@@ -78,6 +79,7 @@ function NotificationsColumn({
   mcpClients?: MCPServerConnection[]
   isInputWrapped?: boolean
   alignStart?: boolean
+  compact?: boolean
 }): React.ReactNode {
   void isInputWrapped
   const tokens = useMercuryTokens()
@@ -151,7 +153,7 @@ function NotificationsColumn({
   }, [notAuthenticated, mainLoopModel, signInEpoch, catalogueEpoch])
   const sessionBlocked = walletGate.state !== 'ok'
   const tokenUsage = tokenCountWithEstimation(messages)
-  const showTokenCount = verbose && !sessionBlocked
+  const showTokenCount = verbose && !sessionBlocked && !compact
 
   const editorConfigured = process.env.VISUAL ?? process.env.EDITOR
   const warningLevel = calculateTokenWarningState(tokenUsage, mainLoopModel ?? '').level
@@ -253,6 +255,7 @@ export function Notifications(props: {
   mcpClients?: MCPServerConnection[]
   isInputWrapped?: boolean
   alignStart?: boolean
+  compact?: boolean
 }): React.ReactNode {
   return (
     <RowErrorBoundary>

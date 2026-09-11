@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -174,6 +175,10 @@ import { getEffortNotificationText } from '../EffortIndicator.js'
 import { isDefaultMode } from '../../utils/permissions/PermissionMode.js'
 import { getEmptyToolPermissionContext } from '../../Tool.js'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
+import { CompactFrameBudgetContext, useLayoutChrome } from '../../context/layoutChromeContext.js'
+import { CompactWorkSummary, type CompactWorkControls, type CompactWorkFocus } from '../tasks/CompactWorkSummary.js'
+import { useOptionalKeybindingContext } from '../../keybindings/KeybindingContext.js'
+import { anyModalOverlayActive, topOverlay } from '../../context/overlayStack.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { abortSpeculation, handleSpeculationAccept } from '../../services/PromptSuggestion/speculation.js'
 import type { PromptInputHelpers } from '../../types/promptInputHelpers.js'
@@ -253,6 +258,8 @@ type OverlaySurface =
   | 'slot-offer'
 
 export type PromptInputProps = {
+  compactWork?: CompactWorkControls
+  compactFocus?: CompactWorkFocus
   debug: boolean
   ideSelection: IDESelection | undefined
   toolPermissionContext: AppState['toolPermissionContext']
@@ -325,6 +332,8 @@ const getFocusedComposerMainModel = (): string => getFocusedSessionConnector().m
 function PromptInputInner(props: PromptInputProps): React.ReactNode {
   fluxMark('render:composer')
   const {
+    compactWork,
+    compactFocus = 'composer',
     debug,
     ideSelection,
     toolPermissionContext,
@@ -361,6 +370,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const [themeName] = useTheme()
   const theme = getTheme(themeName)
   const { columns, rows } = useTerminalSize()
+  const { isCompact } = useLayoutChrome()
+  const compactBudget = useContext(CompactFrameBudgetContext)
+  const keybindings = useOptionalKeybindingContext()
+  const pastePendingRef = useRef<(() => boolean) | null>(null)
+  const summaryVisible = isCompact && (compactBudget?.summaryRows ?? 0) > 0
   const { addNotification, removeNotification } = useNotifications()
   const setAppState = useSetAppState()
   const appStateStore = useAppStateStore()
@@ -556,6 +570,19 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     showBashesDialog !== false ||
     isLocalJSXCommandActive ||
     hasSuppressedDialogs
+
+  const canFocusSummary = (): boolean => summaryVisible && currentSurfaceRoute().kind === 'repl' && !modalOverlayUp && !externalEditorActive && !isSearchingHistory && !helpOpen && !exitState.pending && !anyModalOverlayActive() && !(pastePendingRef.current?.() ?? false)
+  compactWork?.bindToggle(() => {
+    if (compactWork.read() === 'summary') { compactWork.set('composer'); return }
+    if (canFocusSummary()) compactWork.set('summary')
+  })
+  useEffect(() => () => compactWork?.bindToggle(null), [compactWork])
+  useLayoutEffect(() => {
+    if (isCompact && footerSelection !== null) setAppState(prev => ({ ...prev, footerSelection: null }))
+  }, [isCompact, footerSelection, setAppState])
+  useLayoutEffect(() => {
+    if (compactWork?.read() === 'summary' && !canFocusSummary()) compactWork.set('composer')
+  }, [summaryVisible, modalOverlayUp, externalEditorActive, isSearchingHistory, helpOpen, exitState.pending, compactWork])
 
   const [transitionConfirm, setTransitionConfirm] = useState<{
     value: string
@@ -1241,9 +1268,9 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const recallFitsOneRow = useCallback(
     (value: string): boolean => {
       if (value.includes('\n')) return false
-      return stringWidth(value) <= Math.max(1, columns - 3 - 1)
+      return stringWidth(value) <= Math.max(1, (isCompact ? compactBudget?.inputColumns ?? columns : columns - 3) - 1)
     },
-    [columns],
+    [columns, isCompact, compactBudget?.inputColumns],
   )
   const applyRecalledEntry = useCallback(
     (value: string, recalledMode: PromptInputMode, recalledPastes: Record<number, PastedContent>): void => {
@@ -1322,6 +1349,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       raw: string,
       options: { fromKeybinding?: boolean; isSlashPick?: boolean },
     ): Promise<void> => {
+      if (compactWork !== undefined && compactWork.read() !== 'composer') return
       const value = raw.replace(/\s+$/, '')
       const fresh = appStateStore.getState() as AppState
 
@@ -1561,7 +1589,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   }, [helmVersion])
 
   const performUndo = useCallback((): void => {
-    const entry = buffer.undo({ text: input, cursorOffset, pastedContents })
+    const entry = buffer.undo({ text: pendingInput.text(), cursorOffset, pastedContents: pendingInput.pastedContents() })
     if (entry === undefined) return
     pendingInput.edit(entry.text)
     lastSelfWriteRef.current = entry.text
@@ -1570,7 +1598,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     addNotification({ key: 'edit-history', text: 'undid the last edit', priority: 'low', timeoutMs: 2000, fold: (_accumulated, incoming) => incoming })
   }, [buffer, input, cursorOffset, pastedContents, setCursorOffset, addNotification])
   const performRedo = useCallback((): void => {
-    const entry = buffer.redo({ text: input, cursorOffset, pastedContents })
+    const entry = buffer.redo({ text: pendingInput.text(), cursorOffset, pastedContents: pendingInput.pastedContents() })
     if (entry === undefined) return
     pendingInput.edit(entry.text)
     lastSelfWriteRef.current = entry.text
@@ -1863,7 +1891,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       key: Key,
       event: { stopImmediatePropagation: () => void; seq?: number },
     ): void => {
-      if (modalOverlayUp) return
+      if (modalOverlayUp || compactWork?.read() === 'summary' || compactWork?.read() === 'detail') return
       if (currentSurfaceRoute().kind !== 'repl') return
       if (event.seq !== undefined && isPriorGenerationInput(event.seq)) return
 
@@ -2255,9 +2283,10 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     submitCount,
     viewingAgentName: viewedAgentName,
     cockpitActive,
+    compact: isCompact,
   })
   const banner = useSwarmBanner()
-  const borderStyle = composerBorderStyle(rows)
+  const borderStyle = isCompact ? compactBudget?.composerBorderRows === 2 ? 'round' : undefined : composerBorderStyle(rows)
   const nonDefaultModeColor = !isDefaultMode(toolPermissionContext.mode)
     ? ('permission' as keyof Theme)
     : undefined
@@ -2266,11 +2295,14 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       ? 'bashBorder'
       : (nonDefaultModeColor ?? composerBorderRole(input === ''))
 
-  const maxVisibleLines = fullscreen
-    ? Math.max(3, Math.floor(rows / 2) - 5)
-    : undefined
+  const compactPool = compactBudget?.editorPoolRows ?? rows
+  const compactTransientRows = isCompact ? Math.min(2, Math.max(0, compactPool - 1)) : 0
+  const compactSuggestionRows = isCompact && typeahead.suggestions.length > 0 ? Math.min(5, Math.max(0, compactPool - compactTransientRows - 1)) : 0
+  const maxVisibleLines = isCompact
+    ? Math.max(1, Math.min(Math.max(1, Math.floor(rows / 2) - 5), compactPool - compactTransientRows - compactSuggestionRows))
+    : fullscreen ? Math.max(3, Math.floor(rows / 2) - 5) : undefined
 
-  const textColumns = columns - 3
+  const textColumns = isCompact ? Math.max(1, compactBudget?.inputColumns ?? columns) : columns - 3
   const offsetAtCell = (localCol: number, localRow: number): number => {
     const cursor = Cursor.fromText(input, textColumns, cursorOffset)
     const viewportStart =
@@ -2611,10 +2643,10 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     showContentSearch ||
     showBashesDialog !== false ||
     isLocalJSXCommandActive
-  const inputFocused =
-    footerSelection === null && !isSearchingHistory && helmOnPrompt && !surfaceCovered && !keyboardOwnedByOverlay
+  const inputAvailable = footerSelection === null && !isSearchingHistory && helmOnPrompt && !surfaceCovered && !keyboardOwnedByOverlay
+  const inputFocused = inputAvailable && compactFocus === 'composer'
   const showCursor =
-    footerSelection === null && !isSearchingHistory && helmOnPrompt && !surfaceCovered && !keyboardOwnedByOverlay
+    footerSelection === null && !isSearchingHistory && helmOnPrompt && !surfaceCovered && !keyboardOwnedByOverlay && compactFocus === 'composer'
   const vimEnabled = isVimModeEnabled()
 
   const textInputProps = {
@@ -2623,7 +2655,40 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     onChange,
     cursorOffset,
     onChangeCursorOffset: setCursorOffset,
-    columns: columns - 3,
+    columns: textColumns,
+    pastePendingRef,
+    routeInput: compactWork === undefined ? undefined : (raw: string, key: Key, event: import('../../ink/events/input-event.js').InputEvent, pastePending: boolean) => {
+      if (currentSurfaceRoute().kind !== 'repl') return 'yield' as const
+      const focus = compactWork.read()
+      if (anyModalOverlayActive() && !(focus === 'composer' && topOverlay()?.id === 'compact-work')) return 'yield' as const
+      if (keyboardOwnedByOverlay || isSearchingHistory || !helmOnPrompt) return 'yield' as const
+      if (focus === 'detail') {
+        if (key.escape) compactWork.set('composer')
+        return 'consume' as const
+      }
+      if (pastePending) {
+        const resolved = keybindings?.resolve(raw, key, ['Chat', 'Global'])
+        return resolved?.type === 'match' && resolved.action === 'app:toggleTasks' ? 'consume' as const : 'edit-and-consume' as const
+      }
+      const resolved = keybindings?.resolve(raw, key, ['Footer', 'Chat', 'Global'])
+      if (isCompact && resolved?.type === 'match' && resolved.action === 'app:toggleTasks') {
+        compactWork.toggleSummary()
+        return 'consume' as const
+      }
+      if (focus !== 'summary') return inputAvailable ? 'edit' as const : 'yield' as const
+      if (!summaryVisible) { compactWork.set('composer'); return 'edit' as const }
+      if (key.isPasted || (raw !== '' && !key.ctrl && !key.meta && !key.escape && !key.return && !key.tab && !key.upArrow && !key.downArrow && !key.leftArrow && !key.rightArrow && !key.pageUp && !key.pageDown && !key.backspace && !key.delete)) {
+        compactWork.set('composer')
+        return 'edit-and-consume' as const
+      }
+      if (key.escape) { compactWork.set('composer'); return 'consume' as const }
+      if (key.return && !key.shift && !key.ctrl && !key.meta) { compactWork.set('detail'); return 'consume' as const }
+      if (key.pageUp || key.pageDown || key.wheelUp || key.wheelDown) return 'yield' as const
+      if (key.ctrl && (raw === 'c' || raw === 'd')) { compactWork.set('composer'); return 'edit' as const }
+      if (key.upArrow || key.downArrow || key.leftArrow || key.rightArrow || key.tab) { compactWork.set('composer'); return 'consume' as const }
+      void event
+      return 'consume' as const
+    },
     inputFilter: voiceInputFilter,
     onSubmit: (value: string) => {
       void submit(value, {})
@@ -2640,7 +2705,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       if (history.historyIndex === 0) {
         if (footerSelection === null && suggestionsMirrorRef.current.suggestions.length === 0) {
           const manageable = Object.values(appStateStore.getState().tasks).filter(isManageableTask)
-          if (manageable.length > 0) {
+          if (!isCompact && manageable.length > 0) {
             setAppState(prev => ({ ...prev, footerSelection: 'tasks' as const }))
             if (getGlobalConfig().hasSeenTasksHint !== true) {
               saveGlobalConfig(config => ({ ...config, hasSeenTasksHint: true }))
@@ -2678,8 +2743,9 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   }
 
   const inputBody = (
-    <Box flexDirection="row">
+    <Box flexDirection="row" maxHeight={isCompact ? maxVisibleLines : undefined} overflow={isCompact ? "hidden" : undefined}>
       <PromptInputModeIndicator
+        cells={isCompact ? compactBudget?.inputPrefixColumns : undefined}
         mode={mode}
         isLoading={isLoading}
         inputEmpty={input === ''}
@@ -2707,7 +2773,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
 
   const bannerLabel = banner !== null ? truncateToWidth(banner.text, Math.max(0, columns - 6)) : null
   const frame =
-    banner !== null && bannerLabel !== null ? (
+    !isCompact && banner !== null && bannerLabel !== null ? (
       <Box flexDirection="column">
         <Text color={banner.bgColor}>
           {'-'.repeat(Math.max(0, columns - stringWidth(bannerLabel) - 4))}
@@ -2743,6 +2809,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
 
   return (
     <Box flexDirection="column">
+      <Box flexDirection="column" maxHeight={isCompact ? Math.ceil(compactTransientRows / 2) : undefined} overflow="hidden">
       <IssueFlagBanner />
       {capLaneLine !== null ? (
         <Box paddingLeft={1}>
@@ -2750,16 +2817,19 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         </Box>
       ) : null}
       {hasSuppressedDialogs ? (
-        <Box marginTop={1} marginLeft={2}>
-          <Text dimColor>Waiting for permission…</Text>
+        <Box marginTop={isCompact ? 0 : 1} marginLeft={isCompact ? 0 : 2}>
+          <Text dimColor wrap="truncate-end">Waiting for permission…</Text>
         </Box>
       ) : null}
+      </Box>
+      {summaryVisible && compactWork !== undefined ? <CompactWorkSummary columns={columns} focused={compactFocus === 'summary'} onFocus={() => { if (canFocusSummary()) compactWork.set('summary') }} /> : null}
       {frame}
-      <MercurySupercodeKeywordHint value={input} />
-      <PromptInputStashNotice hasStash={stash !== undefined} />
+      {!isCompact ? <MercurySupercodeKeywordHint value={input} /> : null}
+      {!isCompact ? <PromptInputStashNotice hasStash={stash !== undefined} /> : null}
       {fullscreen ? (
-        <Box>
+        <Box maxHeight={isCompact ? Math.floor(compactTransientRows / 2) : undefined} overflow="hidden">
           <Notifications
+            compact={isCompact}
             apiKeyStatus={apiKeyStatus}
             debug={debug}
             verbose={verbose}
@@ -2772,6 +2842,10 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         </Box>
       ) : null}
       <PromptInputFooter
+        compact={isCompact}
+        compactSummaryFocused={compactFocus === 'summary'}
+        maxRows={isCompact ? (compactBudget?.footerRows ?? 0) + (compactBudget?.noticeRows ?? 0) : undefined}
+        suggestionRows={isCompact ? compactSuggestionRows : undefined}
         suggestions={typeahead.suggestions}
         selectedSuggestion={getSelectedSuggestion()}
         suggestionType={typeahead.suggestionType}

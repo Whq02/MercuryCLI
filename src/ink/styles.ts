@@ -314,13 +314,13 @@ function applyDimensions(node: LayoutNode, style: Styles): void {
   }
   if ('maxWidth' in style) {
     if (isPercent(style.maxWidth)) node.setMaxWidthPercent(percentValue(style.maxWidth))
-    else node.setMaxWidth(typeof style.maxWidth === 'number' ? style.maxWidth : 0)
+    else node.setMaxWidth(typeof style.maxWidth === 'number' ? style.maxWidth : Number.NaN)
   }
   if ('maxHeight' in style) {
     if (isPercent(style.maxHeight)) {
       node.setMaxHeightPercent(percentValue(style.maxHeight))
     } else {
-      node.setMaxHeight(typeof style.maxHeight === 'number' ? style.maxHeight : 0)
+      node.setMaxHeight(typeof style.maxHeight === 'number' ? style.maxHeight : Number.NaN)
     }
   }
 }

@@ -1,6 +1,5 @@
 
 import { isDeckPaneEnabled, isFullscreenEnvEnabled, isHelmHomeEnabled } from '../utils/fullscreen.js'
-import { VIEWPORT_FLOOR_EXIT_BAND, VIEWPORT_FLOOR_ROWS } from '../ink/viewportFloor.js'
 import { HELM_HOME_MIN_COLS } from '../utils/helmGeometry.js'
 import { useTerminalSize } from './useTerminalSize.js'
 
@@ -11,7 +10,7 @@ export const LAYOUT_BREAKPOINTS = {
   cockpitMin: HELM_HOME_MIN_COLS,
   deckTwoColMin: 110,
   fleetSideBySideMin: 118,
-  deckMinRows: VIEWPORT_FLOOR_ROWS,
+  deckMinRows: 22,
   cockpitMinRows: 26,
 } as const
 
@@ -34,7 +33,7 @@ export function computeChromeMode(
   return isDeckPaneEnabled() ? 'deck-strip' : 'inline'
 }
 
-const COCKPIT_EXIT_HYST_COLS = VIEWPORT_FLOOR_EXIT_BAND
+const COCKPIT_EXIT_HYST_COLS = 3
 let cockpitLatched = false
 
 export function resetChromeModeLatchForTests(): void {
@@ -45,21 +44,18 @@ export function chromeModeLive(
   realColumns: number,
   realRows?: number,
 ): ChromeMode {
-  const pure = computeChromeMode(realColumns, realRows)
-  if (pure === 'cockpit') {
-    cockpitLatched = true
-    return pure
-  }
-  if (!cockpitLatched) return pure
+  return layoutChromeLive(realColumns, realRows).chrome
+}
+
+export function layoutChromeLive(realColumns: number, realRows?: number): { chrome: ChromeMode; isCompact: boolean } {
+  const fullscreen = isFullscreenEnvEnabled()
   const rows = realRows ?? Number.POSITIVE_INFINITY
-  const withinBand =
-    isFullscreenEnvEnabled() &&
-    isHelmHomeEnabled() &&
-    rows >= LAYOUT_BREAKPOINTS.cockpitMinRows &&
-    realColumns >= LAYOUT_BREAKPOINTS.cockpitMin - COCKPIT_EXIT_HYST_COLS
-  if (withinBand) return 'cockpit'
-  cockpitLatched = false
-  return pure
+  cockpitLatched = fullscreen && rows >= LAYOUT_BREAKPOINTS.cockpitMinRows &&
+    realColumns >= LAYOUT_BREAKPOINTS.cockpitMin - (cockpitLatched ? COCKPIT_EXIT_HYST_COLS : 0)
+  return {
+    chrome: cockpitLatched && isHelmHomeEnabled() ? 'cockpit' : computeChromeMode(realColumns, realRows),
+    isCompact: fullscreen && !cockpitLatched,
+  }
 }
 
 export interface LayoutTier {

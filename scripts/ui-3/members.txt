@@ -17,3 +17,5 @@ prove-search-single-flight.ts
 prove-sessiontab-switch.ts
 prove-ui-clock.ts
 prove-width-oracle-sot.ts
+prove-compact-frames.ts
+prove-compact-journey.ts

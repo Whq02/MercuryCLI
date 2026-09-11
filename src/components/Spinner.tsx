@@ -18,6 +18,7 @@ import { isManageableTask } from './tasks/taskStatusUtils.js'
 import { activityManager } from '../utils/activityManager.js'
 import { getEffortSuffix } from '../utils/effort.js'
 import { formatDuration } from '../utils/format.js'
+import { truncateKeepingTail } from '../utils/truncate.js'
 import {
   getFocusedSessionConnector,
   subscribeThroughFocused,
@@ -27,7 +28,8 @@ import { getActivePulseTrace } from '../utils/pulse/turnTrace.js'
 import type { Theme } from '../utils/theme.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { plural } from '../utils/stringUtils.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH, truncateToWidth } from './mercury-ui/glyphs.js'
+import { packHints } from './mercury-ui/geometry.js'
 import { sampleSpinnerVerb } from '../constants/spinnerVerbs.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { WorkCapsuleContext } from './mercury-ui/WorkCapsule.js'
@@ -49,6 +51,8 @@ const getFocusedSpinnerModel = (): string => getFocusedSessionConnector().modelF
 type ThemeKey = keyof Theme
 
 export type SpinnerWithVerbProps = {
+  compact?: boolean
+  compactWarning?: boolean
   mode: SpinnerMode
   loadingStartTimeRef: React.RefObject<number>
   totalPausedMsRef: React.RefObject<number>
@@ -102,6 +106,8 @@ export function nextPendingTask<T extends { id: string; status: string; blockedB
 }
 
 export function SpinnerWithVerb({
+  compact = false,
+  compactWarning = false,
   mode,
   loadingStartTimeRef,
   totalPausedMsRef,
@@ -263,6 +269,14 @@ export function SpinnerWithVerb({
         {effectiveTip}
       </Text>
     ) : null
+
+  if (compact) {
+    if (compactWarning) return <Box height={1} width="100%" overflow="hidden"><Text color="warning" wrap="truncate-end">{truncateKeepingTail(message, Math.max(0, columns))}</Text></Box>
+    const phase = effectiveMode === 'thinking' ? 'thinking' : effectiveMode === 'responding' ? 'writing' : effectiveMode === 'tool-use' || effectiveMode === 'tool-input' ? 'working' : 'waiting'
+    const detail = packHints([formatDuration(elapsedMs), `↓ ~${Math.floor((responseLengthRef.current ?? 0) / 4).toLocaleString('en-US')} tokens`, phase], Math.max(0, columns - 5))
+    const head = truncateToWidth(message.replace(/\s+/g, ' '), Math.max(0, columns - stringWidth(detail) - (detail ? 5 : 2)))
+    return <Box height={1} width="100%" overflow="hidden"><Text wrap="truncate-end"><Text color={messageColor}>{GLYPH.spark} {head}</Text><Text dimColor>{detail ? `${head ? ' · ' : ''}${detail}` : ''}</Text></Text></Box>
+  }
 
   if (leaderIsIdle && hasRunningTeammates && !foregroundedTeammate) {
     const allIdle = runningTeammateCount === 0

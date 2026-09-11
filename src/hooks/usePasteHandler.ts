@@ -49,10 +49,17 @@ export function usePasteHandler({
   wrappedOnInput: (input: string, key: Key, event?: unknown) => void
   pasteState: { chunks: string[]; timeoutId: NodeJS.Timeout | null }
   isPasting: boolean
+  pendingNow: () => boolean
 } {
   const chunksRef = useRef<string[]>([])
   const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const [isPasting, setIsPasting] = useState(false)
+  const [isPasting, setIsPastingState] = useState(false)
+  const pastingRef = useRef(false)
+  const setIsPasting = (value: boolean): void => {
+    pastingRef.current = value
+    setIsPastingState(value)
+  }
+  const pendingNow = useCallback(() => pastingRef.current || timerRef.current !== null || clipboardTimerRef.current !== null, [])
   const mountedRef = useRef(true)
   const clipboardTimerRef = useRef<NodeJS.Timeout | null>(null)
   useEffect(
@@ -203,5 +210,6 @@ export function usePasteHandler({
     wrappedOnInput,
     pasteState: { chunks: chunksRef.current, timeoutId: timerRef.current },
     isPasting,
+    pendingNow,
   }
 }

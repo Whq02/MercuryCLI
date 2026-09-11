@@ -1,12 +1,11 @@
 
 import { chatOnlyBoot } from '../../context/surfaceRoute.js'
-import { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS } from '../../ink/viewportFloor.js'
 
-export const BOARD_PANE_MIN_COLS = VIEWPORT_FLOOR_COLS
+export const BOARD_PANE_MIN_COLS = 80
 
 export const CHAT_PANE_MIN_COLS = 40
 
-export const SPLIT_MIN_ROWS = VIEWPORT_FLOOR_ROWS
+export const SPLIT_MIN_ROWS = 22
 
 export const SPLIT_DIVIDER_COLS = 1
 
@@ -47,7 +46,7 @@ export function splitNeedsFrameLine(cols: number, rows: number): string {
     return `split needs ${splitMinCols()} columns and ${SPLIT_MIN_ROWS} rows — this frame is ${cols}×${rows}`
   }
   if (short) {
-    return `split needs ${SPLIT_MIN_ROWS} rows (the board pane's own floor) — this frame is ${cols}×${rows}`
+    return `split needs ${SPLIT_MIN_ROWS} rows for two panes — this frame is ${cols}×${rows}`
   }
   return `split needs ${splitMinCols()} columns (board ${BOARD_PANE_MIN_COLS} + chat ${CHAT_PANE_MIN_COLS} + the divider) — this frame is ${cols}`
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { basename } from 'node:path';
+import figures from 'figures';
 import { getCwd } from '../utils/cwd.js';
 import { Box } from '../ink.js';
 import { adoptGroundFamily, createSplashCore, assembleCardRows, CARD_LABEL_W, WORD_W } from '../../assets/splash/splash-core.mjs';
@@ -16,6 +17,8 @@ import {
 } from '../context/surfaceRoute.js';
 import { getProjectDir } from '../utils/sessionStoragePortable.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
+import { useLayoutChrome } from '../context/layoutChromeContext.js';
+import { truncateToWidth } from './mercury-ui/glyphs.js';
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js';
 import { getSessionId } from '../bootstrap/state.js';
@@ -101,6 +104,7 @@ async function flipFirstBirth(start: (bornSession: BornSessionFn) => ReturnType<
 export function BootSplashScreen(): React.ReactNode {
   const t = useMercuryTokens();
   const { columns, rows } = useTerminalSize();
+  const { isCompact } = useLayoutChrome();
   const permissionMode = useAppStateMaybeOutsideOfProvider(state => state.toolPermissionContext.mode);
   const permissionModeRef = useRef(permissionMode);
   permissionModeRef.current = permissionMode;
@@ -122,7 +126,7 @@ export function BootSplashScreen(): React.ReactNode {
   const chatBoot = stripFacts().chatBoot;
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const keyMapHint = stripKeyMapHint();
-  const menuAvailable = columns >= 64 && rows >= 13;
+  const menuAvailable = isCompact || (columns >= 64 && rows >= 13);
 
   const [birthReceipt, setBirthReceipt] = useState<string | null>(() => recentWarningReceipt()?.text ?? null);
   useEffect(
@@ -403,10 +407,10 @@ export function BootSplashScreen(): React.ReactNode {
     adoptGroundFamily(resolvedTheme === 'true-black' ? 'true-black' : 'dark');
     return createSplashCore({ nocolor: false, truecolor: true, accent: coreAccent });
   }, [coreAccent, resolvedTheme]);
-  const wordGlow = useGreetingShimmer(rampStops, WORD_W);
+  const wordGlow = useGreetingShimmer(rampStops, isCompact ? 0 : WORD_W);
   const rowGlow = useGreetingShimmer(
     rampStops,
-    CARD_LABEL_W,
+    isCompact ? 0 : CARD_LABEL_W,
     `card:${selCleared ? -1 : list.selectedIndex}`,
   );
   const mainModel = useMainLoopModel();
@@ -446,6 +450,17 @@ export function BootSplashScreen(): React.ReactNode {
 
   const selectedIndex = selCleared ? -1 : list.selectedIndex;
   const composition = useMemo(() => {
+    if (isCompact) {
+      const keyRows = rows > 2 && keyMapHint !== '' ? 1 : 0;
+      const count = Math.min(composedRows.length, Math.max(0, rows - keyRows - 1));
+      const start = Math.max(0, Math.min(Math.max(0, selectedIndex) - count + 1, composedRows.length - count));
+      const placed = composedRows.slice(start, start + count).map((row, i) => truncateToWidth(`${start + i === selectedIndex ? figures.pointer : ' '} ${row.label}${row.ctx !== '' ? ` · ${row.ctx}` : ''}`, columns));
+      const actionAt = new Map<number, number>(placed.map((_, i) => [i, start + i]));
+      const selected = composedRows[Math.max(0, selectedIndex)];
+      const verb = selected && ['menu', 'kit', 'agents', 'doctor', 'saturn', 'logins'].includes(selected.key) ? 'open' : 'start';
+      if (rows > 0) placed.push(truncateToWidth(`↵ ${verb} · ↑↓ choose · m menu`, columns));
+      return { placed, actionAt, lastRowFree: keyRows > 0 };
+    }
     const faceRows = plainWhy !== null && keyMapHint !== '' ? Math.max(1, rows - 1) : rows;
     const composed = core.composeLockup(columns, faceRows, {
       cardRows: composedRows.map(r => ({
@@ -481,7 +496,7 @@ export function BootSplashScreen(): React.ReactNode {
       lastRowFree: faceRows !== rows || top + (composed.lines as string[]).length <= rows - 1,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [core, columns, rows, plainWhy, keyMapHint, selectedIndex, composedRows, chips, menuAvailable, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
+  }, [core, columns, rows, isCompact, plainWhy, keyMapHint, selectedIndex, composedRows, chips, menuAvailable, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
 
 
   if (settingsOpen) {
@@ -574,14 +589,14 @@ export function BootSplashScreen(): React.ReactNode {
           const noteLine = '  ' + core.hexFg(core.FAINT, core.T256.faint) + (list.note ?? birthReceipt ?? '') + core.R;
           return (
             <Box key="boot-note" height={1} flexShrink={0}>
-              {renderSceneLine(noteLine)}
+              {renderSceneLine(isCompact ? truncateToWidth(noteLine, columns) : noteLine)}
             </Box>
           );
         }
         if (i === rows - 1 && composition.lastRowFree && keyMapHint !== '') {
           return (
             <Box key="boot-keymap" height={1} flexShrink={0}>
-              {renderSceneLine(KEY_MAP_ROW(core, keyMapHint))}
+              {renderSceneLine(isCompact ? truncateToWidth(KEY_MAP_ROW(core, keyMapHint), columns) : KEY_MAP_ROW(core, keyMapHint))}
             </Box>
           );
         }

@@ -24,7 +24,7 @@ const REPO = join(import.meta.dir, '..', '..')
 const RUN_HOME = join(tmpdir(), `mercury-vbl-${process.pid}`)
 
 const SIZES: Array<[number, number]> = [
-  [80, 24], [97, 30], [99, 30], [100, 30], [101, 30], [120, 40],
+  [60, 18], [80, 24], [97, 30], [99, 30], [100, 30], [101, 30], [120, 40],
   [149, 40], [150, 40], [151, 40], [160, 50],
 ]
 const CORE_AT_EVERY_SIZE = ['frame', 'resume-2turn']

@@ -56,6 +56,10 @@ export function PromptInputFooter({
   hintsEnabled = true,
   teammateFooterIndex,
   onOpenTasksDialog,
+  compact = false,
+  compactSummaryFocused = false,
+  maxRows,
+  suggestionRows,
 }: {
   suggestions: SuggestionItem[]
   selectedSuggestion: number
@@ -81,6 +85,10 @@ export function PromptInputFooter({
   hintsEnabled?: boolean
   teammateFooterIndex?: number
   onOpenTasksDialog?: () => void
+  compact?: boolean
+  compactSummaryFocused?: boolean
+  maxRows?: number
+  suggestionRows?: number
 }): React.ReactNode {
   const { columns } = useTerminalSize()
   useSyncExternalStore(subscribeExtendedKeysSupport, extendedKeysSupportedNow, extendedKeysSupportedNow)
@@ -98,6 +106,7 @@ export function PromptInputFooter({
           suggestions,
           onPick: onSuggestionPick,
           onHover: onSuggestionHover,
+          maxRows: suggestionRows,
         }
       : null,
   )
@@ -116,12 +125,14 @@ export function PromptInputFooter({
   }
 
   if (helpOpen) {
-    return <PromptInputHelpMenu dimColor />
+    return compact ? <Box maxHeight={maxRows} overflow="hidden"><PromptInputHelpMenu dimColor /></Box> : <PromptInputHelpMenu dimColor />
   }
 
   const left = (
     <Box flexDirection="column" minWidth={0} flexShrink={1}>
       <PromptInputFooterLeftSide
+        compact={compact}
+        compactSummaryFocused={compactSummaryFocused}
         exitPending={exitPending}
         exitKeyName={exitKeyName}
         isPasting={isPasting}
@@ -159,10 +170,11 @@ export function PromptInputFooter({
           alignStart={narrow}
         />
       ) : null}
-      <MercuryMissionIndicator />
+      {!compact ? <MercuryMissionIndicator /> : null}
     </Box>
   )
 
+  if (compact) return <Box flexDirection="column" maxHeight={maxRows} overflow="hidden">{left}</Box>
   if (narrow) {
     return (
       <Box flexDirection="column" alignItems="flex-start">

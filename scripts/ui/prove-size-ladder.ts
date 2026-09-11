@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
+import { codeOnlyText } from '../lib/codeText.ts'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
@@ -94,41 +95,40 @@ console.log('§2 the menu: warn iff below its floor; the exit named; fits by con
   check('every size: lines fit below the floor, nothing overwide, the exit named', sound)
 }
 
-console.log('§3 the refusal-frame roster: the concourse alone, way out live')
+console.log('§3 the concourse remains functional below the former floor')
 {
-  const offenders: string[] = []
-  const walk = (dir: string): void => {
-    for (const e of readdirSync(join(ROOT, dir))) {
-      const rel = `${dir}/${e}`
-      const st = statSync(join(ROOT, rel))
-      if (st.isDirectory()) walk(rel)
-      else if (/\.(ts|tsx)$/.test(e) && !/\.test\./.test(e)) {
-        const src = readFileSync(join(ROOT, rel), 'utf8')
-        if (/terminal too small|too small for/i.test(src)) offenders.push(rel)
+  const refusal = /terminal too small|too small for|resize to continue|needs \d+(?: columns|[×x]\d+)/i
+  const hits: string[] = []
+  const inspect = (directory: string): void => {
+    for (const entry of readdirSync(join(ROOT, directory), { withFileTypes: true })) {
+      const path = `${directory}/${entry.name}`
+      if (entry.isDirectory()) inspect(path)
+      else if (/\.tsx?$/.test(entry.name) && refusal.test(codeOnlyText(path, read(path)))) hits.push(path)
+    }
+  }
+  for (const directory of ['src/components', 'src/screens', 'src/ink']) inspect(directory)
+  check('every application host is free of terminal-size refusal text', hits.length === 0, hits.join(', '))
+  check('the refusal census detects both long and short refusal forms', ['terminal too small', 'too small for', 'resize to continue', 'needs 80 columns', 'needs 80×22 · resize'].every(text => refusal.test(text)))
+  const { resolveConcourseProfile, switchboardGeometry } = await import('../../src/components/concourse/ConcourseLayout.tsx')
+  for (const [cols, rows] of [[1, 1], [2, 2], [40, 10], [60, 16], [79, 22], [80, 21], [80, 24], [120, 24]]) {
+    check(`${cols}x${rows}: a real layout, never a refusal profile`, resolveConcourseProfile(cols!, rows!) === (cols! >= 120 && rows! >= 24 ? 'wide' : 'stacked'))
+    for (const region of ['coordinator', 'list', 'live', 'rail'] as const) {
+      const g = switchboardGeometry(cols!, rows!, 2, 4, 2, 1, region === 'coordinator' ? 'coordinator' : 'mirror', 0, region)
+      check(`${cols}x${rows} ${region}: nonnegative dimensions`, g.interior >= 0 && g.mainRows >= 0 && g.listContentRows >= 0 && g.liveComposerRows >= 0)
+      if (g.constrained) {
+        const band = region === 'coordinator' ? g.coordBand : region === 'list' ? g.listBand : region === 'live' ? g.liveComposerBand : [1, g.railRows]
+        check(`${cols}x${rows} ${region}: the focused region receives an in-bounds row`, band[0]! >= 1 && band[1]! >= band[0]! && band[1]! <= rows!)
       }
     }
   }
-  for (const tree of ['src/components', 'src/screens']) walk(tree)
-  const roster = new Set(['src/components/concourse/ConcourseLayout.tsx'])
-  check(
-    'every full-replacement refusal is on the registered roster',
-    offenders.every(o => roster.has(o)),
-    offenders.filter(o => !roster.has(o)).join(' · '),
-  )
   const layout = read('src/components/concourse/ConcourseLayout.tsx')
-  check('the registered refusal keeps its way out on the frame', layout.includes('esc returns to the focused chat') && layout.includes('esc returns to the boot face'))
-  const { resolveConcourseProfile } = await import('../../src/components/concourse/ConcourseLayout.tsx')
-  const { VIEWPORT_FLOOR_COLS: FC, VIEWPORT_FLOOR_ROWS: FR } = await import('../../src/ink/viewportFloor.ts')
-  check(
-    `its boundary is the viewport floor: refuses at ${FC - 1}×${FR} and ${FC}×${FR - 1}, stands at ${FC}×${FR}`,
-    resolveConcourseProfile(FC - 1, FR) === 'too-small' && resolveConcourseProfile(FC, FR - 1) === 'too-small' && resolveConcourseProfile(FC, FR) !== 'too-small',
-  )
+  check('no application-size refusal remains in the concourse', !layout.includes("return 'too-small'") && !layout.includes('terminal too small for'))
 }
 
 console.log('§4 split, chrome and overlay commitments hold at the ladder')
 {
   const split = await import('../../src/components/concourse/splitView.ts')
-  check(`split: 121×${split.SPLIT_MIN_ROWS} exactly (the rows floor is the viewport floor's)`, !split.splitAvailableAt(120, split.SPLIT_MIN_ROWS) && !split.splitAvailableAt(121, split.SPLIT_MIN_ROWS - 1) && split.splitAvailableAt(121, split.SPLIT_MIN_ROWS))
+  check(`split: 121×${split.SPLIT_MIN_ROWS} is the simultaneous two-pane budget`, !split.splitAvailableAt(120, split.SPLIT_MIN_ROWS) && !split.splitAvailableAt(121, split.SPLIT_MIN_ROWS - 1) && split.splitAvailableAt(121, split.SPLIT_MIN_ROWS))
   const { LAYOUT_BREAKPOINTS } = await import('../../src/hooks/useLayoutTier.ts')
   check(
     'chrome: the ratified numbers stand (cockpit 100×26 · deck 22 rows · the 64 frame floor)',
