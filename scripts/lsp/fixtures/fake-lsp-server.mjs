@@ -55,9 +55,10 @@ function onMessage(msg) {
       return
     }
     send({ jsonrpc: '2.0', id: msg.id, result: { capabilities: {} } })
-    if (mode === 'crash-after-init') {
-      setTimeout(() => process.exit(1), 500)
-    }
+    return
+  }
+  if (msg.method === 'initialized') {
+    if (mode === 'crash-after-init') setTimeout(() => process.exit(1), 500)
     return
   }
   if (msg.method === 'shutdown') {
