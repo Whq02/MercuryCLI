@@ -2,17 +2,17 @@
 
 Website: [mercury-cli.ai](https://mercury-cli.ai)
 
-Mercury is a terminal harness for software development. You open it in a
-repository, sign in to a model provider, and work with an agent that reads,
-edits, runs and verifies real code in that repository from a full-screen
-terminal interface. Every piece of work is a session: it keeps its own
-conversation, model, permissions and workspace, it keeps running while you
-look at another screen, and it comes back when you ask for it.
+Mercury is an agentic coding harness. It reads, edits, runs and verifies
+code in your repository, keeps several sessions working side by side while
+you look elsewhere, and lets you switch providers and models without leaving
+the chat. Bring an API key or a provider sign-in,
+open it in any repository, and work in plain language.
 
-It is for developers who live in a terminal and want the agent beside the
-code rather than in a browser tab: one chat for solo work, several sessions
-side by side on one board, sessions born on a schedule, and a headless mode
-for scripts and editors. You bring a provider sign-in or an API key.
+Use it as a full-screen terminal app, from your editor, headless in scripts,
+or on a schedule; a session keeps its conversation, model, permissions and
+workspace, and comes back when you ask for it.
+
+![One prompt launches two agents, each in its own worktree, and Mercury reports what each changed](docs/media/agents.gif)
 
 ## Install
 
