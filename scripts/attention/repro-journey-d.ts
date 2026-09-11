@@ -17,7 +17,7 @@ t.check(
 )
 t.check(
   'the 1-turn no-tools contract is STILL the engine law (must never regress)',
-  src.includes('cap at 1 turn') && src.includes('tools are blocked'),
+  src.includes('maxTurns: 1,') && src.includes("behavior: 'deny',") && src.includes('tools are blocked for this fork'),
 )
 
 t.section('Journey D — the side-branch surface is bound (RV-09)')

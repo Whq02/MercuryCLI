@@ -48,9 +48,10 @@ t.section('§1 — the counter law on the real streaming surface')
 t.section('§2 — identity + the state grammar')
 {
   const glyphs = readFileSync('src/components/mercury-ui/toolGlyphs.ts', 'utf8')
+  const projection = readFileSync('scripts/cockpit-interaction/prove-tool-projection.ts', 'utf8')
   t.check(
     'families bind to the REAL tool registry (no filename conventions, no quiet defaults)',
-    glyphs.includes('getAllBaseTools') && glyphs.includes('cannot quietly inherit a default'),
+    glyphs.includes('export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily>') && projection.includes('getAllBaseTools()') && projection.includes('TOOL_FAMILY_BY_NAME[name] === undefined'),
   )
   const grammar = readFileSync('src/components/mercury-ui/toolCardGrammar.ts', 'utf8')
   for (const state of ['queued', 'running', 'waiting', 'succeeded']) {

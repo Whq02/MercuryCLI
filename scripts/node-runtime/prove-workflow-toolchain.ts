@@ -17,6 +17,14 @@ const countPinned = (t: string, action: string, tag: string): number =>
   (t.match(new RegExp(`uses: ${action}@[0-9a-f]{40} # ${tag}\\b`, 'g')) ?? []).length
 const floatingRefs = (t: string): string[] =>
   (t.match(/uses: [\w.-]+\/[\w.-]+@v[\d.]+\s*$/gm) ?? []).map(m => m.trim())
+const jobBlock = (t: string, job: string): string => {
+  const jobs = t.slice(t.indexOf('\njobs:\n'))
+  const start = jobs.indexOf(`\n  ${job}:\n`)
+  if (start === -1) return ''
+  const next = jobs.slice(start + 1).search(/\n  [a-z][\w-]*:\n/)
+  return next === -1 ? jobs.slice(start) : jobs.slice(start, start + 1 + next)
+}
+const selectsNoNode = (block: string): boolean => block !== '' && !block.includes('actions/setup-node') && !block.includes('node-version')
 
 section('gate.yml — build, every shard, darwin')
 const gate = readFileSync(join(REPO, '.github/workflows/gate.yml'), 'utf8')
@@ -28,7 +36,7 @@ check('the refusal leg pins a REAL Node 22', gate.includes("node-version: '22'")
 check('every job class prints the selected node', count(gate, 'run: node --version') >= 3)
 check('qualification: supported + refusal legs both present', gate.includes('qualify-artifact.sh dist/mercury.mjs expect-supported') && gate.includes('qualify-artifact.sh dist/mercury.mjs expect-refusal'))
 check('no package-manager caching on setup-node (bun owns installs)', !/setup-node@[0-9a-f]{40} # v7\n(\s+with:\n(\s+.+\n)*?)?\s+cache:/.test(gate))
-check('verdict job records its deliberate no-node decision', gate.includes('verdict runs python-only aggregation'))
+check('the verdict job selects no Node (python-only aggregation)', selectsNoNode(jobBlock(gate, 'verdict')) && jobBlock(gate, 'verdict').includes('/usr/bin/python3 scripts/gate/ci-verdict.py'))
 check('dispatch-only trigger untouched', gate.includes('workflow_dispatch:') && !gate.includes('push:'))
 
 section('private-release.yml — verify + every packaging OS')
@@ -38,7 +46,7 @@ check('every third-party action is pinned to an immutable SHA', floatingRefs(rel
 check('all three select the calibration pin via node-version-file', count(rel, 'node-version-file: .node-version') === 3)
 check('verify + package print the selected node', count(rel, 'run: node --version') === 2)
 check('release notes say the archive carries its own Node 24 LTS runtime, the range read from package.json engines (no literal)', rel.includes('carries its own Node 24 LTS runtime') && rel.includes('["engines"]["node"]') && !/>=24\.\d+\.\d+ <25/.test(rel))
-check('publish job records its deliberate no-node decision', rel.includes('release runs sha256sum + gh only'))
+check('the publish job selects no Node (sha256sum + gh only)', selectsNoNode(jobBlock(rel, 'release')) && jobBlock(rel, 'release').includes('sha256sum mercury-') && jobBlock(rel, 'release').includes('gh release create'))
 check('no stale Node 20 claim anywhere in the workflow', !rel.includes('Node.js 20'))
 
 console.log('\n============================================================')
