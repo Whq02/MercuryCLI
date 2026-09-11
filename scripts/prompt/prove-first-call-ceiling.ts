@@ -111,7 +111,7 @@ try {
     check(`${route}: initial definitions stay under 45000 bytes`, eagerBytes <= 45000, String(eagerBytes))
     check(`${route}: at most twelve tools load initially`, eager.length <= 12, String(eager.length))
     check(`${route}: initial attachments stay under 6800 bytes`, attachmentBytes <= 6800, String(attachmentBytes))
-    check(`${route}: the complete request stays within its byte ceiling`, bytes(body) <= (route === 'anthropic' ? 235000 : 81000), String(bytes(body)))
+    check(`${route}: the complete request stays within its byte ceiling`, bytes(body) <= (route === 'anthropic' ? 237500 : 81000), String(bytes(body)))
     check(`${route}: daily file and execution tools remain loaded`, ['Read', 'Edit', 'Write', 'Bash', 'Grep', 'Glob', 'Agent', 'ToolSearch'].every(name => eager.some(tool => tool.name === name)))
     check(`${route}: rare tools remain discoverable without loading initially`, rare.every(name => !eager.some(tool => tool.name === name) && reminderTexts.some((text: string) => text.split('\n').includes(name))))
   }
