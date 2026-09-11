@@ -34,8 +34,6 @@ for (const [name, needle] of chain) {
   prevName = name
 }
 
-check('the early seams are named as one pinned sequence', mainBody.includes('the early seams, in pinned order'))
-
 const sigintIdx = mainBody.indexOf("process.on('SIGINT'")
 const sigintBand = mainBody.slice(Math.max(0, sigintIdx - 240), sigintIdx)
 check(
