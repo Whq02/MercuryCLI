@@ -99,6 +99,11 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_MNEME: ['', '1', '0'],
   MERCURY_SESSION_SUBAGENTS: ['', '0'],
   MERCURY_SESSION_WORKFLOWS: ['', '0'],
+  MERCURY_COMPUTER_USE: ['', '1', '0'],
+  MERCURY_DESKTOP_DRIVER: ['', 'fake'],
+  MERCURY_DESKTOP_FAKE_SCENE: ['', '/tmp/sweep-scene.json'],
+  MERCURY_DESKTOP_FAKE_LOG: ['', '/tmp/sweep-acts.jsonl'],
+  MERCURY_DESKTOP_PACK_DIR: ['', '/tmp/sweep-desktop-pack'],
 }
 
 const CLUSTERS: Record<string, string[]> = {
