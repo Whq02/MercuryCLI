@@ -23,6 +23,7 @@ import {
   shiftRect,
   shiftRows,
 } from './cell-grid.js'
+import { lineWidth } from './line-width-cache.js'
 import { stringWidth } from './stringWidth.js'
 import { widestLine } from './widest-line.js'
 
@@ -109,6 +110,7 @@ export default class ComposeBuffer {
   private screen: Screen
   private readonly operations: Operation[] = []
   private clusterCache: Map<string, ClusteredChar[]> = new Map()
+  private sliceCache: Map<string, string> = new Map()
 
   constructor(options: Options) {
     this.width = options.width
@@ -125,6 +127,7 @@ export default class ComposeBuffer {
     this.operations.length = 0
     resetScreen(screen, width, height)
     if (this.clusterCache.size > 16384) this.clusterCache.clear()
+    if (this.sliceCache.size > 16384) this.sliceCache.clear()
   }
 
   write(x: number, y: number, text: string, softWrap?: boolean[]): void {
@@ -287,13 +290,9 @@ export default class ComposeBuffer {
       if (clipH) {
         lines = lines.map(line => {
           const from = x < clip.x1! ? clip.x1! - x : 0
-          const w = stringWidth(line)
+          const w = lineWidth(line)
           const to = x + w > clip.x2! ? clip.x2! - x : w
-          let sliced = sliceAnsi(line, from, to)
-          if (stringWidth(sliced) > to - from) {
-            sliced = sliceAnsi(line, from, to - 1)
-          }
-          return sliced
+          return this.clipLine(line, from, to)
         })
         if (x < clip.x1!) x = clip.x1!
       }
@@ -324,6 +323,18 @@ export default class ComposeBuffer {
       }
     }
     return written
+  }
+
+  private clipLine(line: string, from: number, to: number): string {
+    const key = `${from} ${to} ${line}`
+    const hit = this.sliceCache.get(key)
+    if (hit !== undefined) return hit
+    let sliced = sliceAnsi(line, from, to)
+    if (lineWidth(sliced) > to - from) {
+      sliced = sliceAnsi(line, from, to - 1)
+    }
+    this.sliceCache.set(key, sliced)
+    return sliced
   }
 
   private writeLine(line: string, x: number, y: number): number {
