@@ -1,3 +1,4 @@
+: mercury-splash-action-begin
 if [ -n "${MERCURY_SA_EXIT:-}" ]; then
   if [ "$MERCURY_SA_EXIT" = "130" ]; then
     exit 0
@@ -12,3 +13,4 @@ if [ -n "${MERCURY_SA_EXIT:-}" ]; then
   fi
   unset MERCURY_SA_EXIT
 fi
+: mercury-splash-action-end

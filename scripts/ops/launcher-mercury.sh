@@ -128,6 +128,7 @@ if [ "$MERCURY_TAKEOVER" = "1" ] && [ "${MERCURY_NO_BANNER:-0}" != "1" ] && [ -t
   fi
 fi
 
+: mercury-splash-action-begin
 if [ -n "${MERCURY_SA_EXIT:-}" ]; then
   if [ "$MERCURY_SA_EXIT" = "130" ]; then
     exit 0
@@ -142,6 +143,7 @@ if [ -n "${MERCURY_SA_EXIT:-}" ]; then
   fi
   unset MERCURY_SA_EXIT
 fi
+: mercury-splash-action-end
 
 args=()
 [ -f "$MCP" ] && args+=(--mcp-config "$MCP" --strict-mcp-config)
