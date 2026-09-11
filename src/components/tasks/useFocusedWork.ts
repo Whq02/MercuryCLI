@@ -87,6 +87,7 @@ export type CompactWorkCounts = Readonly<{
   sessionsOn: number | null
   agentsHere: number | null
   monitorsHere: number | null
+  samples?: number
 }>
 
 export function compactWorkCounts(input: {
@@ -101,11 +102,12 @@ export function compactWorkCounts(input: {
     : null
   if (input.focusedSessionId !== null && input.carrier === 'in-process') activeSessions?.add(input.focusedSessionId)
   const sessionsOn = activeSessions?.size ?? null
-  if (input.focusedSessionId === null) return { sessionsOn, agentsHere: 0, monitorsHere: 0 }
+  const samples = input.roster.samples?.length ?? 0
+  if (input.focusedSessionId === null) return { sessionsOn, agentsHere: 0, monitorsHere: 0, samples: 0 }
   if (input.carrier === 'daemon') {
     const focused = input.sessions.state === 'known' ? input.sessions.rows.find(row => row.sessionId === input.focusedSessionId) : undefined
-    if (focused !== undefined && activeSessions !== null && !activeSessions.has(input.focusedSessionId)) return { sessionsOn, agentsHere: 0, monitorsHere: 0 }
-    if (focused === undefined || input.roster.reported === false) return { sessionsOn, agentsHere: null, monitorsHere: null }
+    if (focused !== undefined && activeSessions !== null && !activeSessions.has(input.focusedSessionId)) return { sessionsOn, agentsHere: 0, monitorsHere: 0, samples }
+    if (focused === undefined || input.roster.reported === false) return { sessionsOn, agentsHere: null, monitorsHere: null, samples }
   }
   const rows = focusedWorkRows(input.carrier === 'in-process' ? input.tasks : undefined, input.roster)
   const byId = new Map<string, WorkRowV1>()
@@ -146,7 +148,7 @@ export function compactWorkCounts(input: {
       }
     }
   }
-  return { sessionsOn, agentsHere: agentsKnown ? agents.size : null, monitorsHere: monitors.size }
+  return { sessionsOn, agentsHere: agentsKnown ? agents.size : null, monitorsHere: monitors.size, samples }
 }
 
 export function compactWorkSummaryText(counts: CompactWorkCounts, columns: number): string {
@@ -159,6 +161,8 @@ export function compactWorkSummaryText(counts: CompactWorkCounts, columns: numbe
   const unavailable = available.length !== parts.length
   const words = available.map(part => `${part.value} ${part.noun}${part.value === 1 ? '' : 's'} ${part.scope}`)
   if (unavailable) words.push('counts unavailable')
+  const samples = counts.samples ?? 0
+  if (samples > 0) words.push(`${samples} sample${samples === 1 ? '' : 's'}`)
   const full = words.join(' · ')
   if (stringWidth(full) <= columns) return full
   const fields = available.map(part => `${part.short}:${part.value}`)
