@@ -41,8 +41,6 @@ import {
   lastSeenDispatchId,
 } from './carryForward.js'
 import { writeToMailbox } from '../utils/teammateMailbox.js'
-import { describeSeatReading, resolveSeatCeiling } from '../services/switchboard/capacityCheck.js'
-import { markConcourseWorkerCapacityRefused } from './concourseSupervisor.js'
 
 export const AUTO_CLEAR_CONTEXT_PCT = 85
 import { currentVersion } from './controlSocket.js'
@@ -294,10 +292,6 @@ export class TaskRoster {
     if (existing && !existing.entry.outcome) {
       return { ok: false, error: 'a live worker already holds this id' }
     }
-    const ceiling = resolveSeatCeiling()
-    if (this.liveCount() >= ceiling) {
-      return { ok: false, error: `cannot start another worker — ${describeSeatReading(ceiling)}` }
-    }
     const ll: LongLivedSeat = {
       spec,
       cfg: { ...DEFAULT_LONG_LIVED_CONFIG, ...opts },
@@ -541,22 +535,6 @@ export class TaskRoster {
         reason: cwdGate.reason,
         role: ll.spec.role,
       })
-      return undefined
-    }
-    const ceiling = resolveSeatCeiling()
-    const others = [...this.handles.values()].filter(other => other !== h && !other.entry.outcome).length
-    if (others >= ceiling) {
-      const reason = `cannot resume yet — ${describeSeatReading(ceiling)}`
-      h.entry.state = 'settled'
-      h.entry.outcome = 'capacity'
-      logForDebugging(`[daemon] ${short}: ${reason}`)
-      if (short.startsWith('concourse-w')) {
-        try {
-          markConcourseWorkerCapacityRefused(short, reason)
-        } catch (error) {
-          logForDebugging(`[daemon] ${short}: capacity refusal could not be persisted: ${error}`)
-        }
-      }
       return undefined
     }
     let spawned: { child: ChildProcess }
