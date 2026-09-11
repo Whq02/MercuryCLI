@@ -54,11 +54,16 @@ console.log('§2 bash-timeout — the advertised max is enforced')
   check('the advertisement still names the same accessor the clamp reads', bash.includes('max ${getMaxTimeoutMs()}'))
 }
 
-console.log('§3 concourse too-small — the notice names the window, not the pane')
+console.log('§3 concourse on a small window — it composes, never refuses')
 {
   const layout = read('src/components/concourse/ConcourseLayout.tsx')
-  check('poison gone: the notice no longer prints the pane width', !layout.includes('this window is {cols}×{termRows}'))
-  check('the notice prints the terminal columns', layout.includes('this window is {termCols}×{termRows}'))
+  const screen = read('src/components/concourse/ConcourseScreen.tsx')
+  const compact = read('src/components/concourse/CompactConcourse.tsx')
+  const board = read('src/components/concourse/compactBoard.ts')
+  check('poison gone: no size refusal remains — no too-small profile, no viewport floor, no "this window is" notice', [layout, screen, compact].every(s => !s.includes("'too-small'") && !s.includes('VIEWPORT_FLOOR_COLS') && !s.includes('this window is') && !s.includes('terminal too small')))
+  check('the compact tier composes the compact concourse from the terminal columns (the only small-window arm)', screen.includes('const compactProfile = isCompact ? compactConcourseProfileOf(termCols) : null') && screen.includes('compactProfile !== null ? (\n      <CompactConcourse\n        profile={compactProfile}'))
+  check('two frames from 60 columns, one frame below it', board.includes('export const COMPACT_SPLIT_MIN_COLS = 60') && board.includes("return cols >= COMPACT_SPLIT_MIN_COLS ? 'split' : 'single'") && compact.includes("if (profile === 'single') {") && compact.includes('title={compactBoardTitle(sessionRows)}') && compact.includes('title={compactListTitle(sessionRows.length, filterText)}') && compact.includes('title={liveTitle}'))
+  check('under three rows or columns the list still paints, unframed', board.includes('const framed = height >= COMPACT_FRAME_MIN_ROWS && width >= COMPACT_FRAME_MIN_ROWS') && compact.includes('if (!geo.framed) {'))
   check('the geometry still rides the frame columns', layout.includes('const cols = frameCols ?? termCols'))
 }
 
