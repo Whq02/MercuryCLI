@@ -1660,11 +1660,12 @@ async function* queryModel(
           : undefined,
       )
 
+      const nonStreamContent = Array.isArray(result.content) ? result.content : []
       noteServedModel(
         result.model,
-        result.content.some(b => (b.type as string) === 'fallback') ? 'block' : 'start',
+        nonStreamContent.some(b => (b.type as string) === 'fallback') ? 'block' : 'start',
       )
-      const m = mintAssistantMessage(result, result.content)
+      const m = mintAssistantMessage(result, nonStreamContent)
       newMessages.push(m)
       fallbackMessage = m
       yield m
@@ -1722,11 +1723,12 @@ async function* queryModel(
           failedRequestId,
         )
 
+        const nonStreamContent = Array.isArray(result.content) ? result.content : []
         noteServedModel(
           result.model,
-          result.content.some(b => (b.type as string) === 'fallback') ? 'block' : 'start',
+          nonStreamContent.some(b => (b.type as string) === 'fallback') ? 'block' : 'start',
         )
-        const m = mintAssistantMessage(result, result.content)
+        const m = mintAssistantMessage(result, nonStreamContent)
         newMessages.push(m)
         fallbackMessage = m
         yield m
