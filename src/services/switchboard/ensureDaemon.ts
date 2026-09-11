@@ -122,6 +122,7 @@ export async function ensureOwnedDaemon(): Promise<boolean> {
         const { spawnOwnedDaemon } = await import('../../daemon/ownedDaemon.js')
         const pid = spawnOwnedDaemon(getCwd(), {
           label: 'switchboard',
+          ...(bootCarriesRunnerOptions() ? { extraEnv: { MERCURY_DAEMON_NO_SELF_WARM: '1' } } : {}),
         })
         if (pid === undefined) return false
         return await awaitUsable(hs)

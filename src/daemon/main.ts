@@ -1064,6 +1064,16 @@ async function daemonRun(args: string[]): Promise<void> {
           console.error(`[daemon] saturn tick: ${r.fired} fired, ${r.replayed} replayed, ${r.held} held, ${r.missed} missed`)
         },
       )
+      if (parseOwnerPid() !== null && flagEnv('MERCURY_DAEMON_NO_SELF_WARM') !== '1') {
+        void ensureWarmRunner({ workspaceDir: dir }, warmDeps)
+          .then(w => {
+            if (w.state === 'refused') {
+              // eslint-disable-next-line no-console
+              console.error(`[daemon] boot self-warm refused — ${w.detail ?? 'unspecified'} (the first dispatch spawns cold)`)
+            }
+          })
+          .catch(e => logForDebugging(`[daemon] boot self-warm failed (the first dispatch spawns cold): ${e}`))
+      }
       {
         const liveShorts = new Set(
           roster ? roster.list().filter(j => !j.outcome).map(j => j.short) : [],
