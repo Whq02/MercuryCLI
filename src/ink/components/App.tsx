@@ -3,7 +3,6 @@ import React, { PureComponent, type ReactNode } from 'react'
 import { LayoutChromeProvider } from '../../context/layoutChromeContext.js'
 import { signalInputLive } from '../../boot/launchGraph.js'
 import { updateLastInteractionTime } from '../../bootstrap/state.js'
-import { noteMotionInput } from '../../utils/cockpit/motionGovernor.js'
 import { persistCrashReport } from '../../utils/crashReport.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { stopCapturingEarlyInput } from '../../utils/earlyInput.js'
@@ -482,7 +481,6 @@ export default class App extends PureComponent<Props, State> {
     ) {
       updateLastInteractionTime()
     }
-    if (atoms.some(atom => atom.kind === 'mouse' || (atom.kind === 'key' && atom.sequence !== FOCUS_IN && atom.sequence !== FOCUS_OUT))) noteMotionInput()
 
     let chunkConsumed = false
 

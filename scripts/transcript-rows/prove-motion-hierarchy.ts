@@ -76,7 +76,7 @@ section('the GLOW greeting joins the lattice')
   )
   check(
     "the React owner honors the reduced-motion pair + the glyph part of the Motion choice (the live-glyphs gate's one owner)",
-    hook.includes('prefersReducedMotion') && hook.includes('MERCURY_REDUCED_MOTION') && hook.includes("const motion = useIdleMotion('glyphs')") && hook.includes("motion !== 'off'") && hook.includes("useRestMotionPause()") && hook.includes("!resting"),
+    hook.includes('prefersReducedMotion') && hook.includes('MERCURY_REDUCED_MOTION') && hook.includes("useIdleMotion('glyphs') !== 'off'"),
   )
 }
 

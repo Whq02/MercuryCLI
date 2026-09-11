@@ -3,8 +3,6 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { FRAME_INTERVAL_MS } from '../../ink/constants.js'
 import { critterIdleEnabled } from './critterIdle.js'
 import { liveGlyphsEnabled, REDUCED_TICK_MS } from './liveGlyphs.js'
-import { getTerminalFocused, subscribeTerminalFocus } from '../../ink/session/focus-store.js'
-import { companionTurnSignals, subscribeCompanionSignals } from './companionSignals.js'
 
 export const FRAME_BUDGET_MS = FRAME_INTERVAL_MS
 export const TRIP_RUN = 12
@@ -18,22 +16,6 @@ export type MotionPosture = 'auto' | 'full' | 'reduced' | 'off'
 export type IdleMotionLevel = 'full' | 'reduced' | 'off'
 export type IdleMotionPart = 'critter' | 'glyphs' | 'clock'
 export type GovernorLevel = 'full' | 'reduced'
-export type MotionRestState = 'awake' | 'quiet' | 'blurred'
-export const MOTION_QUIET_AFTER_MS = 5000
-
-export type MotionRestTimers = {
-  setTimeout(fn: () => void, ms: number): unknown
-  clearTimeout(timer: unknown): void
-}
-
-const REAL_REST_TIMERS: MotionRestTimers = {
-  setTimeout(fn, ms) {
-    const timer = setTimeout(fn, ms)
-    timer.unref?.()
-    return timer
-  },
-  clearTimeout: timer => clearTimeout(timer as ReturnType<typeof setTimeout>),
-}
 
 export interface LoopMeter {
   begin(): void
@@ -68,12 +50,6 @@ type GovernorState = {
   framesSeen: number
   meter: LoopMeter
   listeners: Set<() => void>
-  quiet: boolean
-  focused: boolean
-  busy: boolean
-  restTimer: unknown
-  restTimers: MotionRestTimers
-  stopRestObservation: (() => void) | null
 }
 
 const S: GovernorState = ((globalThis as Record<string, unknown>).__mercuryMotionGovernor ??= {
@@ -86,79 +62,7 @@ const S: GovernorState = ((globalThis as Record<string, unknown>).__mercuryMotio
   framesSeen: 0,
   meter: REAL_LOOP_METER,
   listeners: new Set(),
-  quiet: false,
-  focused: true,
-  busy: false,
-  restTimer: null,
-  restTimers: REAL_REST_TIMERS,
-  stopRestObservation: null,
 }) as GovernorState
-
-function turnIsActive(): boolean {
-  const signals = companionTurnSignals()
-  return signals.turnLive || signals.streaming || signals.awaitingPermission
-}
-
-function armRestTimer(): void {
-  if (S.restTimer !== null) S.restTimers.clearTimeout(S.restTimer)
-  S.restTimer = null
-  if (S.stopRestObservation === null || S.busy || !S.focused) return
-  S.restTimer = S.restTimers.setTimeout(() => {
-    S.restTimer = null
-    if (S.busy || !S.focused) return
-    S.quiet = true
-    notify()
-  }, MOTION_QUIET_AFTER_MS)
-}
-
-function observeRest(): void {
-  if (S.stopRestObservation !== null) return
-  S.focused = getTerminalFocused()
-  S.busy = turnIsActive()
-  S.quiet = false
-  const stopFocus = subscribeTerminalFocus(() => {
-    const focused = getTerminalFocused()
-    if (focused === S.focused) return
-    S.focused = focused
-    if (focused) S.quiet = false
-    armRestTimer()
-    notify()
-  })
-  const stopTurn = subscribeCompanionSignals(() => {
-    const busy = turnIsActive()
-    if (busy === S.busy) return
-    S.busy = busy
-    S.quiet = false
-    armRestTimer()
-    notify()
-  })
-  S.stopRestObservation = () => {
-    stopFocus()
-    stopTurn()
-    if (S.restTimer !== null) S.restTimers.clearTimeout(S.restTimer)
-    S.restTimer = null
-    S.stopRestObservation = null
-    S.quiet = false
-  }
-  armRestTimer()
-}
-
-export function noteMotionInput(): void {
-  const changed = S.quiet
-  S.quiet = false
-  armRestTimer()
-  if (changed) notify()
-}
-
-export function motionRestState(): MotionRestState {
-  if (S.busy) return 'awake'
-  if (!S.focused) return 'blurred'
-  return S.quiet ? 'quiet' : 'awake'
-}
-
-export function restMotionPaused(): boolean {
-  return S.posture !== 'full' && motionRestState() !== 'awake'
-}
 
 function notify(): void {
   for (const fn of S.listeners) fn()
@@ -166,10 +70,8 @@ function notify(): void {
 
 export function subscribeIdleMotion(fn: () => void): () => void {
   S.listeners.add(fn)
-  observeRest()
   return () => {
     S.listeners.delete(fn)
-    if (S.listeners.size === 0) S.stopRestObservation?.()
   }
 }
 
@@ -245,7 +147,7 @@ function postureLevel(): IdleMotionLevel {
   return S.posture === 'auto' ? S.level : S.posture
 }
 
-export function settledMotionLevel(part: IdleMotionPart): IdleMotionLevel {
+export function idleMotionLevel(part: IdleMotionPart): IdleMotionLevel {
   const base = postureLevel()
   const critter = critterIdleEnabled() ? base : 'off'
   const glyphs = liveGlyphsEnabled() ? base : 'off'
@@ -255,21 +157,11 @@ export function settledMotionLevel(part: IdleMotionPart): IdleMotionLevel {
 }
 
 export function idleMotionWord(): 'reduced' | null {
-  return settledMotionLevel('clock') === 'reduced' ? 'reduced' : null
-}
-
-export function idleMotionLevel(part: IdleMotionPart): IdleMotionLevel {
-  const level = settledMotionLevel(part)
-  if (level === 'off' || S.posture === 'full') return level
-  const rest = motionRestState()
-  if (rest === 'blurred') return 'off'
-  return rest === 'quiet' ? 'reduced' : level
+  return idleMotionLevel('clock') === 'reduced' ? 'reduced' : null
 }
 
 export function clockPeriodMs(baseMs: number): number {
-  const level = idleMotionLevel('clock')
-  if (S.posture !== 'off' && S.posture !== 'full' && motionRestState() === 'blurred') return 0
-  return level === 'reduced' ? Math.max(baseMs, S.reducedPeriodMs) : baseMs
+  return idleMotionLevel('clock') === 'reduced' ? Math.max(baseMs, S.reducedPeriodMs) : baseMs
 }
 
 export function motionGovernorFacts(): {
@@ -278,13 +170,11 @@ export function motionGovernorFacts(): {
   effective: IdleMotionLevel
   reducedPeriodMs: number
   framesSeen: number
-  rest: MotionRestState
 } {
   return {
     posture: S.posture,
     level: S.level,
-    effective: settledMotionLevel('clock'),
-    rest: motionRestState(),
+    effective: idleMotionLevel('clock'),
     reducedPeriodMs: S.reducedPeriodMs,
     framesSeen: S.framesSeen,
   }
@@ -317,16 +207,4 @@ export function __motionGovernorResetForTest(): void {
   S.underRun = 0
   S.reducedPeriodMs = REDUCED_FLOOR_MS
   S.framesSeen = 0
-  S.quiet = false
-  S.focused = getTerminalFocused()
-  S.busy = turnIsActive()
-  armRestTimer()
-}
-
-export function __setMotionRestTimersForTest(timers: MotionRestTimers | null): void {
-  if (S.restTimer !== null) S.restTimers.clearTimeout(S.restTimer)
-  S.restTimer = null
-  S.restTimers = timers ?? REAL_REST_TIMERS
-  S.quiet = false
-  armRestTimer()
 }

@@ -52,7 +52,7 @@ export function createClock(intervalMs: number, timers: ClockTimers = REAL_CLOCK
       timers.clearInterval(timer)
       timer = null
     }
-    if (keepAlive && period > 0) {
+    if (keepAlive) {
       if (startTime === null) startTime = timers.now()
       timer = timers.setInterval(tick, period)
     }

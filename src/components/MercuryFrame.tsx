@@ -28,7 +28,7 @@ import { FLAG_ICON } from '../constants/figures.js'
 import { chatOnlyBoot } from '../context/surfaceRoute.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import { needsYouJump } from './mercury-ui/needsYouJump.js'
-import { useSettledMotion } from '../hooks/useIdleMotion.js'
+import { useIdleMotion } from '../hooks/useIdleMotion.js'
 import { motionPosture } from '../utils/cockpit/motionGovernor.js'
 import '../services/crew/obligationsBridge.js'
 import '../services/workbench/attentionBridge.js'
@@ -171,7 +171,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
       </Text>
     ) : null
 
-  const motionLevel = useSettledMotion('clock')
+  const motionLevel = useIdleMotion('clock')
   const motionNode =
     motionLevel === 'reduced' ? (
       <Text>
