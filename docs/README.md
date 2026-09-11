@@ -131,7 +131,8 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
   tag — its state, the verdict it stands on, what shipped, its known gaps
   and the queue for the next one ([1.0.0-beta.6](releases/1.0.0-beta.6.md)
   is the published release; [1.0.0-beta.7](releases/1.0.0-beta.7.md) is
-  the queue). The notes themselves ride each release and `/release-notes`
+  in progress; [1.0.0-beta.8](releases/1.0.0-beta.8.md) is the queue). The
+  notes themselves ride each release and `/release-notes`
   prints the bundled history.
 - Generated sections are regenerated from their sources, never hand-edited
   ([CONTRIBUTING.md](../CONTRIBUTING.md), Conventions).
