@@ -42,7 +42,7 @@ section('§1 — no handle-require shape: the entry and the handlers fail loud')
   check('unhandledRejection routes module-load failures to the loud exit', /process\.on\('unhandledRejection', \(reason: unknown\) => \{[\s\S]{0,600}if \(isModuleLoadFailure\(reason\) && !isShuttingDown\(\)\) \{\s*failLoud\(reason, 'unhandled-rejection'\)/.test(shutdown))
   check('uncaughtException routes module-load failures to the loud exit', /process\.on\('uncaughtException', \(err: unknown\) => \{[\s\S]{0,400}if \(isModuleLoadFailure\(err\) && !isShuttingDown\(\)\) \{\s*failLoud\(err, 'uncaught-exception'\)/.test(shutdown))
   check('failLoud restores the terminal, prints the card and force-exits 1', /export function failLoud\([\s\S]*runTerminalRestoration\(\)[\s\S]*MERCURY COULD NOT START[\s\S]*forceExit\(1\)/.test(shutdown))
-  check('build.ts carries the runtime-require tripwire', build.includes('RUNTIME-REQUIRE TRIPWIRE') && build.includes('createRequire\\(\\s*import\\.meta\\.url\\s*\\)'))
+  check('build.ts carries the runtime-require tripwire', build.includes('BUILD FAILED: a package is required at RUNTIME through a createRequire(import.meta.url) handle') && build.includes('createRequire\\(\\s*import\\.meta\\.url\\s*\\)'))
 }
 
 function handleRequiredPackages(): string[] {

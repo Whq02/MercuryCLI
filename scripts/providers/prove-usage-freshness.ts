@@ -291,7 +291,7 @@ section('§3 one owner: the door routes through the reader · the freshest obser
   check('the tab colours by the door\'s typed wait, never a substring of the words', tab.includes("usageForProvider('anthropic').readerWait === true") && !tab.includes("includes('asked us to wait')"))
   check("the tab's own ask rides the owner's door as the operator (never the raw fetch, never a reader import)", tab.includes("refreshProviderUsage('anthropic', { reason: 'operator' })") && !tab.includes('fetchUtilization()') && !tab.includes('anthropicUsageState'))
   const frame = src('src/components/MercuryFrame.tsx')
-  check("the frame's quota chips are a shown meter (the on-show read), and no turn pokes the reader", frame.includes('useProviderUsageOnShow(tier.showFrameQuota)') && !frame.includes('pokeProviderUsage'))
+  check("the frame's quota chips are a shown meter (the on-show read), and no turn pokes the reader", frame.includes('useProviderUsageOnShow(!isCompact && tier.showFrameQuota)') && !frame.includes('pokeProviderUsage'))
   const boot = src('src/main.tsx')
   check('the interactive boot arms no usage clock, and nothing headless shows a meter', !boot.includes("'usage-poll'") && !boot.includes('armProviderUsagePoll') && !src('src/cli/print.ts').includes('watchProviderUsageWhileShown'))
   check('the owner keeps no timer', !usageDoor.includes('setInterval'))

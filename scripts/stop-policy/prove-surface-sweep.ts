@@ -43,6 +43,12 @@ section("§1 3.2 · the Stop-hook family census — zero unclassified pushers")
     'src/utils/hooks/tabulaFireHooks.ts': 'observer',
     'src/utils/swarm/teammateInit.ts': 'observer',
   }
+  const stopHookReturnsOnlyTrue = (text: string): boolean => {
+    const arm = text.slice(text.indexOf("'Stop'"))
+    const callback = arm.slice(0, arm.indexOf('\n    },'))
+    const returns = callback.match(/\breturn\b[^\n]*/g) ?? []
+    return returns.length > 0 && returns.every(r => /^return true\b/.test(r))
+  }
   const unclassified = registrants.filter(r => !(r in CLASSIFICATION))
   check(
     `every 'Stop' registrant is classified (${registrants.length} found)`,
@@ -58,7 +64,7 @@ section("§1 3.2 · the Stop-hook family census — zero unclassified pushers")
     } else if (cls === 'contract-gate') {
       check(`${file} enforces a caller output contract (client-led, not persistence)`, text.includes('SYNTHETIC_OUTPUT_TOOL_NAME'))
     } else {
-      check(`${file} is a pure observer (never blocks a stop as a pusher)`, /pure observers|fire and forget/i.test(text))
+      check(`${file} is a pure observer (never blocks a stop as a pusher)`, stopHookReturnsOnlyTrue(text))
     }
   }
 }

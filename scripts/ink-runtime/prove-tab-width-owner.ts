@@ -87,7 +87,7 @@ section('§4 one owner, structurally')
   const dom = readFileSync(join(ROOT, 'src/ink/dom.ts'), 'utf8')
   check("layout keeps measuring the expanded text (the owner's other consumer)", dom.includes('const text = expandTabs(raw)'))
   const buffer = readFileSync(join(ROOT, 'src/ink/compose-buffer.ts'), 'utf8')
-  check('the buffer arm is the named raw-ansi backstop, not the text lane', buffer.includes('RAW-ANSI BACKSTOP'))
+  check('the buffer arm is the raw-ansi backstop (an absolute-column stop), not the text lane', buffer.includes('if (cp === 0x09) {') && buffer.includes('const stop = 8 - (cx % 8)') && !buffer.includes('expandTabs'))
 }
 
 console.log(failures === 0 ? '\nprove-tab-width-owner: ALL LAWS HOLD' : `\nprove-tab-width-owner: ${failures} FAILURE(S)`)
