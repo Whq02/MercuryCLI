@@ -57,9 +57,9 @@ t.section(`§2 — the inline REPL keeps its input line at the floor (${COMPACT_
     `${(lines[inputAt - 1] ?? '').slice(0, 24)} / ${(lines[inputAt + 1] ?? '').slice(0, 24)}`,
   )
   t.check(
-    'the footer hint keeps both its parts (the one-part shed lives under 50 columns, under the floor)',
-    lines.some(l => l.includes('? for shortcuts') && l.includes('for commands + files')),
-    lines.find(l => l.includes('shortcuts')) ?? '(no hint)',
+    'the compact chat carries no shortcut hint rows (the sessions line closes the frame)',
+    !lines.some(l => l.includes('? for shortcuts') || l.includes('for commands + files')) && lines.some(l => /\d+ sessions? on · \d+ monitors? here · \d+ agents? here/.test(l)),
+    lines.find(l => l.includes('shortcuts') || /sessions? on/.test(l)) ?? '(no sessions line)',
   )
   const borderOnly = lines.some((l, i) => {
     const a = l.trim()
