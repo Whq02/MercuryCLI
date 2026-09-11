@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
+# gate-env: MERCURY_ARENA_DIST
 # gate-watch: scripts/lib/seedTranscript.ts
 # gate-watch: scripts/streaming/ptydrive.py scripts/streaming/screengrab.py
 # gate-watch: src/components/LiveStreamingTail* src/components/Markdown* src/ink/**

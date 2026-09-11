@@ -17,7 +17,7 @@ fi
 cat >"$scratch/scripts/synth/run-all.sh" <<'EOF'
 #!/usr/bin/env bash
 # gate-class: pure
-# suite-env: MERCURY_SYNTH_KNOB
+# gate-env: MERCURY_SYNTH_KNOB
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 echo "SYNTH RAN"
@@ -51,10 +51,10 @@ for suite in bash gate substrate headless staleness core-runtime; do
   check "$suite refuses stamps mentioned in its proofs" "$([ "$rc" = 78 ] && echo 0 || echo 1)" "rc=$rc $out"
 done
 
-printf '# suite-env: MERCURY_BODY_ONLY\n' >>"$runner"
+printf '# gate-env: MERCURY_BODY_ONLY\n' >>"$runner"
 out="$(clean MERCURY_BODY_ONLY=1 bash "$runner" 2>&1)"; rc=$?
 check "a declaration after executable code cannot authorize an input" "$([ "$rc" = 78 ] && echo 0 || echo 1)" "rc=$rc $out"
-printf '#!/usr/bin/env bash\n# suite-env: MERCURY_*\n' >"$scratch/scripts/synth/invalid.sh"
+printf '#!/usr/bin/env bash\n# gate-env: MERCURY_*\n' >"$scratch/scripts/synth/invalid.sh"
 out="$(clean bash -c '. "$1"; suite_env_guard "$2"' _ "$root/scripts/lib/suite-env.sh" "$scratch/scripts/synth/invalid.sh" 2>&1)"; rc=$?
 check "wildcard declarations refuse rather than widening inheritance" "$([ "$rc" = 78 ] && echo 0 || echo 1)" "rc=$rc $out"
 out="$(clean MERCURY_SHELL_ENGINE=system bash -c '. "$1"; suite_env_guard "$2"' _ "$root/scripts/lib/suite-env.sh" "$root/scripts/bash/run-all.sh" 2>&1)"; rc=$?

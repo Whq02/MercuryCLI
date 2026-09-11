@@ -27,9 +27,15 @@ const { getMarketingNameForModel, parseUserSpecifiedModel, renderModelSetting } 
 
 const SPLASH = join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs')
 
+const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const blockRange = (text, block) => {
+  const m = new RegExp(`^${escapeRe(block.head)}\\n[\\s\\S]*?^${escapeRe(block.close)}$`, 'm').exec(text)
+  return m === null ? null : { start: m.index, end: m.index + m[0].length }
+}
+
 function menuBlock() {
-  const START = '// MERCURY-MENU-START'
-  const END = '// MERCURY-MENU-END'
+  const head = 'const MENU = ['
+  const close = ']'
   const rows = STARTUP_MENU.map(row =>
     '  ' +
     JSON.stringify({
@@ -43,19 +49,12 @@ function menuBlock() {
     }) +
     ',',
   )
-  return {
-    START,
-    END,
-    text:
-      `${START} (baked by scripts/splash/bake-menu.mjs — from src/substrate/startupMenu.ts; do NOT hand-edit)\n` +
-      `const MENU = [\n${rows.join('\n')}\n]\n` +
-      END,
-  }
+  return { head, close, text: `${head}\n${rows.join('\n')}\n${close}` }
 }
 
 function modelNamesBlock() {
-  const START = '// MERCURY-MODEL-NAMES-START'
-  const END = '// MERCURY-MODEL-NAMES-END'
+  const head = 'const MODEL_NAMES = {'
+  const close = '}'
   const names = {}
   for (const cfg of Object.values(ALL_MODEL_CONFIGS)) {
     const name = getMarketingNameForModel(cfg.firstParty)
@@ -70,14 +69,7 @@ function modelNamesBlock() {
         : (getMarketingNameForModel(parseUserSpecifiedModel(bare)) ?? bare)
   }
   const rows = Object.entries(names).map(([id, l]) => `  ${JSON.stringify(id)}: ${JSON.stringify(l)},`)
-  return {
-    START,
-    END,
-    text:
-      `${START} (baked by scripts/splash/bake-menu.mjs — from src/utils/model owners; do NOT hand-edit)\n` +
-      `const MODEL_NAMES = {\n${rows.join('\n')}\n}\n` +
-      END,
-  }
+  return { head, close, text: `${head}\n${rows.join('\n')}\n${close}` }
 }
 
 let src = readFileSync(SPLASH, 'utf8')
@@ -85,17 +77,16 @@ let drift = false
 let changed = false
 
 for (const block of [menuBlock(), modelNamesBlock()]) {
-  const startIdx = src.indexOf(block.START)
-  const endIdx = src.indexOf(block.END)
-  if (startIdx === -1 || endIdx === -1 || endIdx < startIdx) {
-    console.error(`bake-menu: markers not found in ${SPLASH} — the splash must carry ${block.START} … ${block.END}`)
+  const range = blockRange(src, block)
+  if (range === null) {
+    console.error(`bake-menu: declaration not found in ${SPLASH} — the splash must carry ${block.head} … ${block.close}`)
     process.exit(2)
   }
-  const current = src.slice(startIdx, endIdx + block.END.length)
+  const current = src.slice(range.start, range.end)
   if (current === block.text) continue
   drift = true
   if (!process.argv.includes('--check')) {
-    src = src.slice(0, startIdx) + block.text + src.slice(endIdx + block.END.length)
+    src = src.slice(0, range.start) + block.text + src.slice(range.end)
     changed = true
   }
 }

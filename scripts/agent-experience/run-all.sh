@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-env: MERCURY_AX_KEEP MERCURY_AX_VERBOSE MERCURY_AX_DUMP_HITS
 # gate-watch: scripts/agent-experience/** src/constants/prompts* src/prompt/**
 # gate-watch: src/utils/systemPrompt* src/tools/AgentTool/built-in/** src/constants/subagentDoctrine*
 set -u

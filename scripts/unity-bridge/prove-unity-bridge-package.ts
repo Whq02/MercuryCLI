@@ -76,7 +76,10 @@ section('4. the load-bearing mechanics live in the source')
   check('DomainUnload stops the old domain’s listener (the rebind law)', server.includes('DomainUnload'))
   check('loopback only by construction', server.includes('IPAddress.Loopback') && !server.includes('IPAddress.Any'))
   check('the main-thread pump rides EditorApplication.update', server.includes('EditorApplication.update += Pump'))
-  check('accept-newest fires at HELLO time (probe-immune), with the unauthed receive deadline', server.includes('ACCEPT-NEWEST AT HELLO TIME') && server.includes('ReceiveTimeout = 10_000'))
+  check(
+    'accept-newest fires at HELLO time (probe-immune: the older authed client closes only after this client authed), with the unauthed receive deadline',
+    /client\.Authed = true;[\s\S]{0,400}?if \(_client != null && _client != client\)[\s\S]{0,120}?_client\.Tcp\.Close\(\)/.test(server) && server.includes('ReceiveTimeout = 10_000'),
+  )
   check('ping answered on the socket thread (busy ≠ dead)', /op == "ping"/.test(server))
   check('the frame cap matches the contract (8MiB)', server.includes('8 * 1024 * 1024'))
   check('play-state events ride playModeStateChanged', server.includes('playModeStateChanged'))
@@ -89,7 +92,7 @@ section('4. the load-bearing mechanics live in the source')
   check('test callbacks re-register after reloads (the doc’s own law)', tests.includes('Rearm') && tests.includes('RegisterCallbacks'))
   check('the pending run key survives reloads in SessionState', tests.includes('SessionState.GetString') && tests.includes('SessionState.SetString'))
   check('the results writer guarantees a <test-run> root', tests.includes('<test-run') && tests.includes('StartsWith("<test-run"'))
-  check('RunFinished ignores runs the bridge did not start', tests.includes('not ours'))
+  check('RunFinished ignores runs the bridge did not start (no pending path ⇒ return before any write)', /SessionState\.GetString\(RunKey, string\.Empty\);\s*if \(string\.IsNullOrEmpty\(path\)\) return;/.test(tests))
 
   const scenes = file('Editor/ScenesHandler.cs')
   check('scene_open refuses in play mode', scenes.includes('PLAY_MODE_ACTIVE'))

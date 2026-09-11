@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-env: MERCURY_PROVE_WEB_BUNDLE
 # gate-watch: src/services/structure/** src/tools/StructureTool/** build.ts
 # gate-watch: vendor/grammars.lock.json scripts/vendor/fetch-grammars.ts
 # gate-watch: src/services/lsp/webSidecar/** src/services/lsp/sidecarFraming.ts src/services/lsp/serverCatalogue.ts

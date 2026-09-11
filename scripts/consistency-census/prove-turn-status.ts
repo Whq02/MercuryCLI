@@ -25,7 +25,13 @@ check('§B the whole-turn timer is the single default time basis', row.includes(
 check('§C live thinking label defers to the byline narration', /wantsThinking =\s*\n?\s*thinkingText !== null && !\(phaseByline !== null && inThinking\)/.test(row))
 check('§C the live label keys off displayed-phase truth', row.includes("displayedPhase === 'thinking'"))
 
-check('§D the HUD order law is in-source (action · elapsed · burn · work-in-flight)', row.includes('action · elapsed · token/ctx burn · work-in-flight'))
+check(
+  '§D the HUD order law is in-source (action · elapsed · burn · work-in-flight: the segment pushes sit in that order)',
+  (() => {
+    const at = ['thinkingText', 'timerText', 'tokensText', 'ctxText', 'wifText'].map(name => row.indexOf(`fullSegmentTexts.push(${name})`))
+    return at.every((pos, i) => pos >= 0 && (i === 0 || pos > at[i - 1]!))
+  })(),
+)
 check('§D token readout persists from zero (no zero→non-zero shuffle)', row.includes('const tokensAfterMs = 0'))
 
 check('§E work colour resolves through theme tokens (AURORA adaptive ink)', row.includes('useMercuryTokens') || /Adaptive meta ink/.test(row))

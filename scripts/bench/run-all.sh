@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: exclusive
+# gate-env: MERCURY_BENCH_SLACK
 # gate-watch: src/ink/stringWidth* src/utils/truncate*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

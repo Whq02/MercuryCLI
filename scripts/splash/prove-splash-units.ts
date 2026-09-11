@@ -6,7 +6,8 @@ import { join, posix, win32 } from 'node:path'
 const SPLASH = join(import.meta.dir, '..', '..', 'assets', 'splash', 'mercury-splash.mjs')
 const CORE = join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs')
 const src = readFileSync(SPLASH, 'utf8')
-const pairSrc = src + '\n' + readFileSync(CORE, 'utf8')
+const coreSrc = readFileSync(CORE, 'utf8')
+const pairSrc = src + '\n' + coreSrc
 
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
@@ -15,18 +16,16 @@ const check = (name: string, cond: boolean, detail = ''): void => {
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 
-const block = (name: string): string => {
-  const m = pairSrc.match(new RegExp(`// SPLASH-${name}-START[\\s\\S]*?// SPLASH-${name}-END`))
-  if (!m) throw new Error(`SPLASH-${name} markers missing from the splash pair`)
+const cut = (text: string, head: RegExp, what: string): string => {
+  const m = text.match(head)
+  if (!m) throw new Error(`${what} is not in the splash pair`)
   return m[0]
 }
 
 section('§1 vis() — display columns, not UTF-16 code units (E1)')
-const visExports = new Function(`${block('VIS')}\n return { vis, cpWidth };`)() as {
-  vis: (s: string) => number
-  cpWidth: (cp: number) => number
-}
-const { vis, cpWidth } = visExports
+const core = await import('../../assets/splash/splash-core.mjs')
+const vis = core.vis as (s: string) => number
+const cpWidth = core.cpWidth as (cp: number) => number
 check('ASCII fast path', vis('New Session in repo') === 19)
 check('box drawing counts 1 per cell', vis('╭─│╰╯┤') === 6)
 check('SGR stripped', vis('\x1b[1;4m\x1b[38;2;1;2;3mhi\x1b[0m') === 2)
@@ -43,9 +42,13 @@ check('cpWidth: box drawing 1', cpWidth(0x2500) === 1)
 check('cpWidth: CJK ext B (astral) 2', cpWidth(0x20000) === 2)
 
 section('§2 clipVis — column-accurate clip (E1)')
-const clipVis = new Function(
-  `${block('VIS')}\n const R = '\\x1b[0m';\n ${block('CLIP')}\n return clipVis;`,
-)() as (s: string, w: number) => string
+const clipSrc = cut(coreSrc, /^function clipVis\(s, w\) \{[\s\S]*?\n\}/m, 'function clipVis')
+const clipVis = new Function('vis', 'cpWidth', 'MARK_RE', 'R', `${clipSrc}\n return clipVis;`)(
+  vis,
+  cpWidth,
+  core.MARK_RE,
+  '\x1b[0m',
+) as (s: string, w: number) => string
 check('short strings pass through', clipVis('abc', 10) === 'abc')
 {
   const clipped = clipVis('abcdefghij', 5)
@@ -66,7 +69,8 @@ check('short strings pass through', clipVis('abc', 10) === 'abc')
 }
 
 section('§3 the ESC coalescer (C1) — the state machine, deterministically')
-const co = new Function(`${block('COALESCE')}\n return { isPartialEscape, coalesceStep };`)() as {
+const coalesceSrc = `${cut(src, /^const isPartialEscape = [^\n]*$/m, 'isPartialEscape')}\n${cut(src, /^const coalesceStep = \(pending, chunk\) => \{[\s\S]*?\n\}/m, 'coalesceStep')}`
+const co = new Function(`${coalesceSrc}\n return { isPartialEscape, coalesceStep };`)() as {
   isPartialEscape: (s: string) => boolean
   coalesceStep: (pending: string, chunk: string) => { dispatch: string | null; pending: string }
 }
@@ -103,7 +107,7 @@ check('the 15ms timeout constant is the report value', src.includes('const ESC_T
 check('C4: the handler decodes utf8, never latin1', src.includes("buf.toString('utf8')") && !src.includes("toString('latin1')"))
 
 section('§4 readHead — the bounded head read (D1)')
-const readHeadSrc = block('READHEAD')
+const readHeadSrc = cut(src, /^function readHead\(file, n = 4096\) \{[\s\S]*?\n\}/m, 'function readHead')
 const scratch = mkdtempSync(join(tmpdir(), 'splash-units-'))
 try {
   const big = join(scratch, 'big.jsonl')
