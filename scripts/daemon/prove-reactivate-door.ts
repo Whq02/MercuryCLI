@@ -169,7 +169,7 @@ console.log('\n── R1: ↵ on a parked row rides the warm claim ──')
   check("R1 the ladder reads the record live now (never parked, never NEEDS YOU)", ['working', 'ready-to-review'].includes(snapshot.concourseRecordState(live!, { needsYou: false, alive: true })))
   check('R1 the respawn argv flipped to --resume <id> (a crash later continues the same chat)', roster.patched.some(p => p.short === warmShort && p.patch.respawnExtraArgv.join(' ').startsWith(`--resume ${parkedSid}`)))
   await new Promise(r => setTimeout(r, 20))
-  check('R1 re-admission requests no speculative replacement', rewarmed.length === 0)
+  check('R1 the pool re-warms the workspace behind the answer', rewarmed.includes(wsId))
   check('R1 the seat hook fired for the claimed short', spawned.some(s => s.runnerId === warmShort))
 }
 
