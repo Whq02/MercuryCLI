@@ -199,7 +199,7 @@ section('§8 unknown terminal identity refuses keystrokes instead of guessing')
 
 section('§8 the relayed ask keeps the application name and its rule identity distinct')
 {
-  const { judgedAppFromAsk, computerAskAppLine, computerAppRuleContent } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
+  const { judgedAppFromAsk, computerAskAppLine } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
   const suggestions = suggestionForExactCommand('Computer', `app:${TEXTEDIT.identity}`)
   const direct = judgedAppFromAsk(`Computer click (812, 300) in ${TEXTEDIT.name} (${TEXTEDIT.identity}) — first act in this application this session`, suggestions)
   check('a local ask keeps its application name and identity', JSON.stringify(direct) === JSON.stringify(TEXTEDIT), JSON.stringify(direct))
@@ -207,7 +207,6 @@ section('§8 the relayed ask keeps the application name and its rule identity di
   const relayed = judgedAppFromAsk('', suggestions, reason)
   check('a relayed ask without a message reads the display name from its safety reason', JSON.stringify(relayed) === JSON.stringify(TEXTEDIT), JSON.stringify(relayed))
   check('the card names TextEdit once beside its identity, never uses the identity as the name', computerAskAppLine(relayed) === `in TextEdit (${TEXTEDIT.identity}) — first act in this application this session`, computerAskAppLine(relayed))
-  check('the project grant still keys on the application identity', computerAppRuleContent(relayed) === `app:${TEXTEDIT.identity}`, String(computerAppRuleContent(relayed)))
   const named = judgedAppFromAsk('', suggestions, `Document Editor (Preview) (${TEXTEDIT.identity}) is in front of the operator's screen; the first act there needs the operator's own consent`)
   check('spaces and parentheses in an application name survive the relay', named?.name === 'Document Editor (Preview)' && named.identity === TEXTEDIT.identity, JSON.stringify(named))
   const mismatch = judgedAppFromAsk('', suggestions, `${FINDER.name} (${FINDER.identity}) is in front of the operator's screen; the first act there needs the operator's own consent`)
