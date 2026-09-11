@@ -118,9 +118,15 @@ jobs:
       - name: Install deps
         run: |
           ~/.bun/bin/bun install --frozen-lockfile
-          if [ "$RUNNER_OS" = "Linux" ]; then sudo apt-get update -q && sudo apt-get install -y -q ripgrep; else command -v rg > /dev/null || brew install -q ripgrep; fi
-          /usr/bin/python3 -m pip install --break-system-packages -q pyte pillow || pip3 install -q pyte pillow
-          /usr/bin/python3 -m pip install --break-system-packages -q ruff==0.15.22 pytest || pip3 install -q ruff==0.15.22 pytest
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update -q && sudo apt-get install -y -q ripgrep
+            /usr/bin/python3 -m pip install --break-system-packages -q pyte pillow
+            /usr/bin/python3 -m pip install --break-system-packages -q ruff==0.15.22 pytest
+          else
+            command -v rg > /dev/null || brew install -q ripgrep
+            /usr/bin/python3 -m pip install --user -q pyte pillow ruff==0.15.22 pytest
+            echo "$HOME/Library/Python/$(/usr/bin/python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')/bin" >> "$GITHUB_PATH"
+          fi
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: dist
