@@ -792,6 +792,33 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'command-on-path',
+          label: 'Command on PATH',
+          run: async () => {
+            const [{ resolveInstallProvenance }, { resolveLayoutRoots }, { commandOnPath, commandOnPathWarning }] = await Promise.all([
+              import('../services/privateChannel/installProvenance.js'),
+              import('../services/privateChannel/installLayout.js'),
+              import('../services/privateChannel/installPath.js'),
+            ])
+            const p = resolveInstallProvenance()
+            const roots = resolveLayoutRoots()
+            const found = commandOnPath(roots)
+            if (p.kind === 'managed') {
+              const warning = commandOnPathWarning(roots, found)
+              if (warning === null) {
+                return { status: 'ok', evidence: `the \`mercury\` your shell runs is the stable command ${found.state === 'stable' ? found.resolved : roots.shimPath}` }
+              }
+              return { status: 'warn', evidence: warning[0], fix: warning[1] }
+            }
+            if (found.state === 'absent') {
+              return { status: 'info', evidence: `no \`mercury\` is on your PATH; this Mercury runs from ${p.activeRoot}` }
+            }
+            const managedWords =
+              found.state === 'stable' ? ` — the stable command of the managed install${p.managedCoResident?.current ? ` (${p.managedCoResident.current})` : ''}` : ''
+            return { status: 'info', evidence: `the \`mercury\` your shell runs is ${found.resolved}${managedWords}; this Mercury runs from ${p.activeRoot}` }
+          },
+        },
+        {
           id: 'artifact-signature',
           label: 'Artifact signature',
           run: async () => {
