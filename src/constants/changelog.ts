@@ -2,8 +2,23 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.6
-- Changed \`mercury update\` to refuse a release that is not signed by the Mercury release key; \`--allow-unsigned\` is the one explicit exception
-- Added computer use behind MERCURY_COMPUTER_USE: the model takes screenshots and drives the mouse and keyboard on every provider route that carries images; the first act in each application asks by name, esc stops it, one session drives at a time, and screenshots never enter the saved conversation
+- Added computer use behind \`MERCURY_COMPUTER_USE\`: the model takes screenshots and drives the mouse and keyboard on every provider route that carries images; the first act in each application asks by name, Esc stops it, one session drives at a time, and screenshots never enter the saved conversation
+- Added stop, pause and kill controls to the workflows views, from any session and after a compaction or a clear
+- Changed the cockpit on a small or resized terminal to a compact layout: the session's critter and facts in a band at the top, the chat takes the space, one line under the composer for the sessions and agents, the Session Concourse as a split view, and no minimum window size
+- Changed rarely used tools to load on demand; a first request carries a third less definition text, and on the OpenAI route a third of its former bytes
+- Changed the child-memory guard to be on by default and to park a session instead of killing it
+- Changed the model's guidance to batch independent reads
+- Fixed preserved reasoning being dropped after an idle hour, a large prune, a resume, a credential refresh, a reconnect, or a mid-conversation tool mount
+- Fixed the streamed reply hiding for a moment when its reasoning lands before its words
+- Fixed a finished agent's report arriving more than once
+- Fixed a shell command with an ampersand and a glob ending with exit 127
+- Fixed planning without an interactive approval channel trapping a headless run; it is refused instead
+- Fixed tool descriptions directing a sub-agent to a tool it does not have
+- Fixed the Edit tool refusing an edit from a model that sends every field, empty ones included
+- Fixed a spurious input-stream error shown while recording voice
+- Fixed the doctor's bug-report link
+- Removed internal checks that no longer applied
+- Known: memory right after boot is higher than in beta.5 by about a hundred megabytes; the fix rides the rig release
 
 ## 1.0.0-beta.5
 - Removed an internal configuration table that no longer did anything; nothing you can see changes
