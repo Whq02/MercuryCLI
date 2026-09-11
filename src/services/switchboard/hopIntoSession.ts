@@ -159,7 +159,7 @@ async function focusResumedSessionLanding(
       const worn = peekWornPresetKit()
       const reply = (await daemonControlRpc(
         { op: 'sessionAdmit', workspaceDir, resumeSessionId: sessionId, isolation: 'shared', ...((): Record<string, string> => { const mode = opts?.permissionMode ?? bootBirthFacts().permissionMode ?? undefined; return mode !== undefined ? { permissionMode: mode } : {} })(), ...carriedConsentOf(bootBirthFacts()), ...(worn !== null ? { kit: worn.kit } : carriedKitOf(bootBirthFacts())) } as never,
-        { timeoutMs: 30_000 },
+        { timeoutMs: 60_000 },
       )) as Record<string, unknown>
       if (reply.ok !== true) return typeof reply.error === 'string' && reply.error !== '' ? reply.error : 'the daemon refused the resume'
       if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')

@@ -34,6 +34,12 @@ export function warmRunnerPoolEnabled(): boolean {
 }
 
 const CLAIM_ANSWER_DEADLINE_MS = 10_000
+export const WARM_BOOT_ALLOWANCE_MS = 45_000
+const CLAIM_LIVENESS_POLL_MS = 1_000
+
+export function claimAnswerDeadlineMs(spawnedAt: number, now: number): number {
+  return Math.max(CLAIM_ANSWER_DEADLINE_MS, WARM_BOOT_ALLOWANCE_MS - (now - spawnedAt))
+}
 
 export const WARM_CLAIM_REQUEST_PREFIX = 'mercury-warm-claim-'
 
@@ -384,20 +390,28 @@ export async function claimWarmRunner(
       ...(openaiCatalogue !== null ? { openai_catalogue: openaiCatalogueToWire(openaiCatalogue) } : {}),
     },
   })
+  const deadlineMs = args.answerDeadlineMs ?? claimAnswerDeadlineMs(entry.spawnedAt, Date.now())
+  let settleClaim: (outcome: { ok: boolean; error?: string }) => void = () => {}
   const answered = new Promise<{ ok: boolean; error?: string }>(resolve => {
-    const timer = setTimeout(() => {
-      claimWaiters.delete(requestId)
-      resolve({ ok: false, error: `no claim answer in ${(args.answerDeadlineMs ?? CLAIM_ANSWER_DEADLINE_MS) / 1000}s` })
-    }, args.answerDeadlineMs ?? CLAIM_ANSWER_DEADLINE_MS)
+    const timer = setTimeout(() => settleClaim({ ok: false, error: `no claim answer in ${deadlineMs / 1000}s` }), deadlineMs)
     timer.unref?.()
-    claimWaiters.set(requestId, outcome => {
+    const pulse = setInterval(() => {
+      const live = roster.has(entry.short)
+      if (!live.present || !live.alive || (entry.pid !== undefined && !isProcessAlive(entry.pid))) {
+        settleClaim({ ok: false, error: 'the warm runner died before it answered the claim' })
+      }
+    }, CLAIM_LIVENESS_POLL_MS)
+    pulse.unref?.()
+    settleClaim = outcome => {
       clearTimeout(timer)
+      clearInterval(pulse)
       claimWaiters.delete(requestId)
       resolve(outcome)
-    })
+    }
+    claimWaiters.set(requestId, settleClaim)
   })
   if (!roster.control(entry.short, frame)) {
-    claimWaiters.delete(requestId)
+    settleClaim({ ok: false, error: 'no control channel' })
     retireWarmRunner(args.workspaceId, 'no control channel', deps)
     return { claimed: false, reason: 'the warm runner has no live control channel' }
   }
