@@ -9,7 +9,7 @@ const argOf = (name: string): string | undefined => process.argv.slice(2).find(a
 const dist = argOf('--dist') ?? DIST
 const node = argOf('--node') ?? productNode()
 const buildLabel = argOf('--label') ?? 'this tree'
-const sizeList = (argOf('--sizes') ?? '80x21,120x40').split(',').map(s => { const [c, r] = s.split('x').map(Number); return { cols: c!, rows: r! } })
+const sizeList = (argOf('--sizes') ?? '80x21,111x35,120x40').split(',').map(s => { const [c, r] = s.split('x').map(Number); return { cols: c!, rows: r! } })
 const stage = argOf('--stage') === 'chat' ? 'chat' : 'card'
 const poison = process.argv.includes('--poison')
 const HOME_READY = stage === 'chat' ? ADMITTED : FACE_READY
@@ -35,7 +35,7 @@ type Frame = { tick: number; bytes: Buffer }
 type Mark = { label: string; atTick: number; cols: number; rows: number; grid: Array<Array<{ c: string }>> }
 type Stage = { cols: number; rows: number; untilTick: number }
 type Payload = { marks?: Mark[]; stages?: Stage[]; endReason?: string }
-type WipeCounts = { erase: number; scrollback: number; altEnter: number; altLeave: number; fullRewrites: number; sync: number; ground: number; groundReset: number; hide: number; show: number; bytes: number }
+type WipeCounts = { erase: number; scrollback: number; altEnter: number; altLeave: number; fullRewrites: number; tallestRow: number; sync: number; ground: number; groundReset: number; hide: number; show: number; bytes: number }
 
 function readTee(path: string): Frame[] {
   const tee = existsSync(path) ? readFileSync(path) : Buffer.alloc(0)
@@ -85,6 +85,13 @@ function fullRewritesIn(bytes: string, rows: number): number {
   return count
 }
 
+function tallestRowIn(bytes: string): number {
+  let tallest = 0
+  for (const m of bytes.matchAll(/\x1b\[(\d+)(?:;\d+)?H/g)) tallest = Math.max(tallest, Number(m[1]))
+  for (const m of bytes.matchAll(/\x1b\[(\d+)d/g)) tallest = Math.max(tallest, Number(m[1]))
+  return tallest
+}
+
 function wipeCounts(bytes: string, rows: number): WipeCounts {
   return {
     erase: countOf(bytes, ERASE_SCREEN),
@@ -92,6 +99,7 @@ function wipeCounts(bytes: string, rows: number): WipeCounts {
     altEnter: countOf(bytes, ALT_ENTER) + countOf(bytes, ALT47_ENTER),
     altLeave: countOf(bytes, ALT_LEAVE) + countOf(bytes, ALT47_LEAVE),
     fullRewrites: fullRewritesIn(bytes, rows),
+    tallestRow: tallestRowIn(bytes),
     sync: countOf(bytes, '\x1b[?2026h'),
     ground: countOf(bytes, '\x1b]11;'),
     groundReset: countOf(bytes, '\x1b]111'),
@@ -105,7 +113,7 @@ const bytesIn = (frames: Frame[], from: number, to: number): string =>
   Buffer.concat(frames.filter(f => f.tick >= from && f.tick < to).map(f => f.bytes)).toString('latin1')
 
 const isWiped = (c: WipeCounts): boolean => c.erase + c.scrollback + c.altEnter + c.altLeave > 0
-const describe = (c: WipeCounts): string => `2J=${c.erase} 3J=${c.scrollback} alt-enter=${c.altEnter} alt-leave=${c.altLeave} full-rewrites=${c.fullRewrites} sync=${c.sync} ground=${c.ground}/${c.groundReset} hide/show=${c.hide}/${c.show} bytes=${c.bytes}`
+const describe = (c: WipeCounts): string => `2J=${c.erase} 3J=${c.scrollback} alt-enter=${c.altEnter} alt-leave=${c.altLeave} full-rewrites=${c.fullRewrites} tallest-row=${c.tallestRow} sync=${c.sync} ground=${c.ground}/${c.groundReset} hide/show=${c.hide}/${c.show} bytes=${c.bytes}`
 
 type Journey = { size: { cols: number; rows: number }; resize: boolean }
 const journeys: Journey[] = sizeList.map(size => ({ size, resize: size.cols >= 120 && size.rows >= 40 }))
@@ -200,6 +208,7 @@ for (const journey of journeys) {
       const counts = wipeCounts(window.bytes, window.rows)
       table.push(`${buildLabel} · ${cols}x${rows} · ${window.event}: ${describe(counts)}`)
       const resizeWindow = window.event.startsWith('resize')
+      check(`${tag} ${window.event}: no frame addresses a row below the terminal's last row (${window.rows})`, counts.tallestRow <= window.rows, describe(counts))
       if (resizeWindow) {
         check(`${tag} ${window.event}: exactly one contained erase, no scrollback erase, no alternate-screen switch`, counts.erase === 1 && counts.scrollback === 0 && counts.altEnter === 0 && counts.altLeave === 0, describe(counts))
       } else {
