@@ -107,7 +107,7 @@ section('§5 wiring — runTools consults before execution (structural)')
   check('the refusal carries the armed streak\'s own nudge', (src.match(/identicalRetryRefusalMessage\(block\.id, parent\.uuid as string, armed\)/g) ?? []).length === 2)
   const machine = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
   const consult = machine.indexOf('takeRepetitionStop(toolUseContext.abortController)')
-  const drain = machine.indexOf('// ── the steering drain')
+  const drain = machine.indexOf('const queuedCommandsSnapshot = selectDrainableCommands(')
   check('the turn machine consults the stop verdict after the round, before the steering drain', consult !== -1 && drain !== -1 && consult < drain)
   check("…and ends the run typed ('repetition_breaker') with a warning notice", machine.includes("reason: 'repetition_breaker'") && machine.includes("createSystemMessage(cause, 'warning')"))
 }
