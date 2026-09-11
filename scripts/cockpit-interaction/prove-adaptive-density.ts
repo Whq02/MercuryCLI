@@ -307,8 +307,8 @@ t.section('§5 — REAL BINARY, LIVE ACTIVITY: the density pipe at rendered grid
         cols: 120, rows: TALL, total: 460,
         argv: ['node', BIN], out, cwd: process.cwd(),
         sends: [
-          { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-          { atTick: 90, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '', mark: 'calm' },
+          { atTick: 40, awaitText: '↑↓ choose', requireAwait: true, minTick: 3, awaitSettleTicks: 2, data: '\r' },
+          { atTick: 90, awaitText: '? for shortcuts', requireAwait: true, minTick: 5, awaitSettleTicks: 8, data: '', mark: 'calm' },
           { afterPrevTicks: 2, data: 'go\r' },
           { atTick: 200, awaitText: 'chunk-5', minTick: 2, awaitSettleTicks: 1, data: '', mark: 'active' },
           { atTick: 420, awaitText: 'Do you want to proceed?', minTick: 5, awaitSettleTicks: 2, data: '', mark: 'waiting' },
