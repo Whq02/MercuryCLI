@@ -1126,8 +1126,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readFacts(): void {
     const next = readSessionFacts(this.record.sessionId)
     if (next === null) {
-      if (this.facts !== null && ((this.facts.work?.length ?? 0) > 0 || (this.facts.mission?.length ?? 0) > 0) && !existsSync(sessionFactsPath(this.record.sessionId))) {
-        this.facts = { ...this.facts, work: [], mission: [] }
+      if (this.facts !== null && ((this.facts.work?.length ?? 0) > 0 || (this.facts.mission?.length ?? 0) > 0 || (this.facts.samples?.length ?? 0) > 0) && !existsSync(sessionFactsPath(this.record.sessionId))) {
+        this.facts = { ...this.facts, work: [], mission: [], samples: [] }
         this.refreshWork()
       }
       return
@@ -1181,10 +1181,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const reported = this.facts?.work !== undefined
     const rows = this.facts?.work ?? []
     const mission = this.facts?.mission ?? []
-    const stamp = JSON.stringify([reported, rows, mission])
+    const samples = this.facts?.samples ?? []
+    const stamp = JSON.stringify([reported, rows, mission, samples])
     if (stamp === this.workStamp) return
     this.workStamp = stamp
-    this.workSnapshot = reported ? { rows, mission } : { rows, mission, reported: false }
+    this.workSnapshot = reported ? { rows, mission, samples } : { rows, mission, samples, reported: false }
     emitAll(this.workListeners, 'work')
   }
 

@@ -55,7 +55,9 @@ import { CommandCenter, KeyValueGrid, SectionHeader, useNowTick, type KVRow } fr
 import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { computeSessionWindow } from '../mercury-ui/screens/SessionManagerView.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import type { WorkRowV1 } from '../../services/engine-connector/types.js'
+import type { SampleRowV1, WorkRowV1 } from '../../services/engine-connector/types.js'
+import { sampleStateWord } from '../../services/samples/contracts.js'
+import { openSampleUrl } from '../../services/samples/open.js'
 import {
   crewAgentFactsOf,
   crewCostLabel,
@@ -99,12 +101,27 @@ type RowKind =
   | 'agent'
   | 'workflow'
   | 'dream'
+  | 'sample'
 
 type BoardItem = {
   id: string
   kind: RowKind
   task?: TaskState
   work?: WorkRowV1
+  sample?: SampleRowV1
+}
+
+function SampleRowLine({ sample }: { sample: SampleRowV1 }): React.ReactNode {
+  const tokens = useMercuryTokens()
+  return (
+    <Text wrap="truncate-end">
+      <Text color={sample.state === 'approved' ? tokens.success : sample.state === 'changes-needed' ? tokens.warning : tokens.textMuted}>
+        {sample.glyph}
+      </Text>
+      <Text> {sample.title}</Text>
+      <Text color={tokens.textMuted}> · v{sample.version} · {sampleStateWord(sample.state)}</Text>
+    </Text>
+  )
 }
 
 function kindOf(task: TaskState): RowKind {
@@ -342,6 +359,7 @@ export function BackgroundTasksDialog({
     ...rosterOf('workflow'),
     ...dreamTasks.map((task): BoardItem => ({ id: task.id, kind: 'dream', task })),
     ...rosterOf('dream'),
+    ...(roster.samples ?? []).map((sample): BoardItem => ({ id: `sample:${sample.id}`, kind: 'sample', sample })),
   ]
   const indexById = new Map(flat.map((item, index) => [item.id, index]))
 
@@ -371,7 +389,7 @@ export function BackgroundTasksDialog({
   const [detailTaskId, setDetailTaskId] = useState<string | undefined>(() => {
     if (compactControls?.detailState.detailTaskId !== undefined) return compactControls.detailState.detailTaskId
     if (initialDetailTaskId !== undefined) return initialDetailTaskId
-    if (!summaryEntry && flat.filter(item => item.kind !== 'leader').length === 1 && !leaderItem) {
+    if (!summaryEntry && flat.length === 1 && !leaderItem && flat[0]?.kind !== 'sample') {
       skippedListRef.current = true
       return flat[0]?.id
     }
@@ -418,6 +436,10 @@ export function BackgroundTasksDialog({
   const openDetail = (item: BoardItem): void => {
     if (item.kind === 'leader') {
       returnToLeader()
+      return
+    }
+    if (item.kind === 'sample') {
+      if (item.sample?.url !== undefined) void openSampleUrl(item.sample.url)
       return
     }
     setDetailTaskId(item.id)
@@ -650,6 +672,21 @@ export function BackgroundTasksDialog({
 
   const rowFor = (item: BoardItem): React.ReactNode => {
     const isSelected = item.id === selectedIdRef.current
+    if (item.sample !== undefined) {
+      return (
+        <Box key={item.id} flexDirection="row">
+          <Text bold={isSelected} color={isSelected ? tokens.textPrimary : undefined}>
+            {isSelected ? `${figures.pointer} ` : '  '}
+          </Text>
+          <Box flexGrow={1} minWidth={0}>
+            <SampleRowLine sample={item.sample} />
+          </Box>
+          <Box flexShrink={0} marginLeft={1}>
+            <Text color={tokens.textMuted}>↵ opens in your browser</Text>
+          </Box>
+        </Box>
+      )
+    }
     return (
       <Box key={item.id} flexDirection="row">
         <Text bold={isSelected} color={isSelected ? tokens.textPrimary : undefined}>
@@ -689,6 +726,8 @@ export function BackgroundTasksDialog({
   const agentItems = flat.filter(item => item.kind === 'agent')
   const workflowItems = flat.filter(item => item.kind === 'workflow')
   const dreamItems = flat.filter(item => item.kind === 'dream')
+  const sampleItems = flat.filter(item => item.kind === 'sample')
+  const processItems = flat.filter(item => item.kind !== 'sample')
 
   const selectedTeammateRunning =
     selected?.kind === 'teammate' && selected.task?.status === 'running'
@@ -739,7 +778,7 @@ export function BackgroundTasksDialog({
           </Box>
         ) : null}
 
-        {flat.length === 0 ? (
+        {processItems.length === 0 ? (
           <Box flexDirection="column" marginTop={missionTasks.length > 0 ? 1 : 0}>
             {ledgerOpenCount === 0 && missionTasks.length === 0 ? (
               <Text dimColor>no mission tasks and no background runs</Text>
@@ -849,6 +888,12 @@ export function BackgroundTasksDialog({
             ) : null}
           </Box>
         )}
+        {sampleItems.length > 0 ? (
+          <Box flexDirection="column">
+            <SectionHeader count={sampleItems.length}>Samples</SectionHeader>
+            {sampleItems.filter(inWin).map(rowFor)}
+          </Box>
+        ) : null}
 
         <Box marginTop={1}>
           <Text dimColor>
@@ -856,7 +901,7 @@ export function BackgroundTasksDialog({
               <>
                 <KeyboardShortcutHint shortcut="↑/↓" action="select" />
                 {' · '}
-                <KeyboardShortcutHint shortcut="Enter" action="view" />
+                <KeyboardShortcutHint shortcut="Enter" action={selected?.kind === 'sample' ? 'open' : 'view'} />
                 {' · '}
               </>
             ) : null}

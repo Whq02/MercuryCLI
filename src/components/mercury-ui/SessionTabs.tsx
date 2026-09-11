@@ -29,6 +29,11 @@ import { FAINT, IVORY, SECOND } from '../mercuryPalette.js'
 import { useSessionAccent } from './sessionAccent.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 import { truncateToWidth } from './glyphs.js'
+import { useFocusedWorkRoster } from '../tasks/useFocusedWork.js'
+import { sampleStateWord } from '../../services/samples/contracts.js'
+import { openSampleUrl } from '../../services/samples/open.js'
+import type { SampleRowV1 } from '../../services/engine-connector/types.js'
+import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
 
 
 export function tabLabel(log: LogOption): string {
@@ -44,6 +49,10 @@ export function tabLabel(log: LogOption): string {
 
 const LABEL_W = 18
 const PREVIEW_W = 46
+
+function sampleTone(state: SampleRowV1['state'], tokens: MercuryThemeTokens): string {
+  return state === 'approved' ? tokens.success : state === 'changes-needed' ? tokens.warning : tokens.textMuted
+}
 
 const lastKnownTabs = new Map<string, LogOption[]>()
 
@@ -78,6 +87,7 @@ export function SessionTabs({
     isPromptEmpty,
     isPromptEmpty,
   )
+  const samples: readonly SampleRowV1[] = useFocusedWorkRoster().samples ?? []
 
   useEffect(() => {
     let alive = true
@@ -111,7 +121,7 @@ export function SessionTabs({
   const concourseLive = routeSurfaceRegistered('concourse') && isFullscreenEnvEnabled()
   const plainWorld = chatOnlyBoot()
   const tabList = others ?? []
-  const railVisible = !(tabList.length === 0 && !concourseLive) && cols >= 70
+  const railVisible = !(tabList.length === 0 && samples.length === 0 && !concourseLive) && cols >= 70
   const flipTo = (log: LogOption | undefined): void => {
     const id = log !== undefined ? getSessionIdFromLog(log) : undefined
     if (id !== undefined && id !== null) requestCommandDispatch(`/sessiontab ${id}`)
@@ -128,6 +138,10 @@ export function SessionTabs({
   const room = cols < 100 ? 1 : cols < 130 ? 2 : 3
   const shown = tabList.slice(0, room)
   const overflow = tabList.length - shown.length
+  const shownSamples = samples.slice(0, room)
+  const sampleOverflow = samples.length - shownSamples.length
+  const hoveredSample = shownSamples.find(sample => hoverOwner === `sessiontabs:sample:${sample.id}`)
+  const hoveredSampleMore = hoverOwner === 'sessiontabs:sample:more'
 
   const hoveredConcourse = hoverOwner === 'sessiontabs:row:concourse'
   const hoveredLog = hovered != null ? shown[hovered] : undefined
@@ -135,6 +149,10 @@ export function SessionTabs({
     ? plainWorld
       ? `   \u21b3 live view of your sessions \u2014 the concourse is off in this boot; ${concourseWayBack()} \u00b7 click to open`
       : '   \u21b3 Session Concourse \u2014 every session, one board \u00b7 click to open'
+    : hoveredSample !== undefined
+    ? `   ↳ ${truncateToWidth(hoveredSample.title, PREVIEW_W)} · v${hoveredSample.version} · ${sampleStateWord(hoveredSample.state)} · click to open`
+    : hoveredSampleMore
+    ? `   ↳ ${sampleOverflow} more · click for /samples`
     : hoveredLog
     ? `   ↳ ${truncateToWidth(tabLabel(hoveredLog), PREVIEW_W)} · ${formatRelativeTimeAgo(hoveredLog.modified, { style: 'short' })} · click to flip`
     : promptEmpty && tabList.length > 0
@@ -212,6 +230,55 @@ export function SessionTabs({
           <Text color={FAINT}>{'  │'}</Text>
         </Text>
       </Box>
+      {shownSamples.map(sample => {
+        const url = sample.url
+        return (
+          <React.Fragment key={sample.id}>
+            <Box flexShrink={0}>
+              <Text>{'  '}</Text>
+            </Box>
+            <InteractiveRow
+              id={`sessiontabs:sample:${sample.id}`}
+              directActivate
+              unavailable={url === undefined}
+              onActivate={url !== undefined ? () => { void openSampleUrl(url) } : undefined}
+              flexShrink={0}
+            >
+              {hover => (
+                <Box>
+                  <Text>
+                    <Text color={sampleTone(sample.state, tokens)}>{`${sample.glyph} `}</Text>
+                    <Text color={hover ? tokens.info : tokens.textSecondary}>
+                      {truncateToWidth(sample.title, LABEL_W)}
+                    </Text>
+                    <Text color={FAINT}>{` · v${sample.version}`}</Text>
+                  </Text>
+                </Box>
+              )}
+            </InteractiveRow>
+          </React.Fragment>
+        )
+      })}
+      {sampleOverflow > 0 ? (
+        <>
+          <Box flexShrink={0}>
+            <Text>{'  '}</Text>
+          </Box>
+          <InteractiveRow
+            id="sessiontabs:sample:more"
+            directActivate
+            onActivate={() => requestCommandDispatch('/samples')}
+            flexShrink={0}
+          >
+            {hover => <Text color={hover ? IVORY : FAINT}>{`+${sampleOverflow}`}</Text>}
+          </InteractiveRow>
+        </>
+      ) : null}
+      {shownSamples.length > 0 ? (
+        <Box flexShrink={0}>
+          <Text color={FAINT}>{'  │'}</Text>
+        </Box>
+      ) : null}
       {shown.map((log, i) => {
         const id = getSessionIdFromLog(log)
         const isHover = hovered === i

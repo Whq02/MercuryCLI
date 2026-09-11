@@ -98,6 +98,9 @@ const MISSION_ROW: KeyTable = {
   blockedBy: 'blocked_by',
   activeForm: 'active_form',
 }
+const SAMPLE_ROW: KeyTable = {
+  updatedAt: 'updated_at',
+}
 const KIT: KeyTable = {
   skillsOff: 'skills_off',
 }
@@ -201,6 +204,7 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
   const t = (table: KeyTable): KeyTable => (direction === 'to' ? table : flip(table))
   const workKey = 'work'
   const missionKey = 'mission'
+  const samplesKey = 'samples'
   const kitKey = 'kit'
   const editsKey = direction === 'to' ? 'pending_schedule_edits' : 'pendingScheduleEdits'
   const observedKey = direction === 'to' ? 'openai_observed' : 'openaiObserved'
@@ -210,6 +214,7 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
     out.workspace = row(out.workspace, t(WORKSPACE))
     if (workKey in out) out[workKey] = rows(out[workKey], t(WORK_ROW), workRowNested(t(WORK_PULSE), t(AGENT_WAIT), t(AGENT_PAUSE)))
     if (missionKey in out) out[missionKey] = rows(out[missionKey], t(MISSION_ROW))
+    if (samplesKey in out) out[samplesKey] = rows(out[samplesKey], t(SAMPLE_ROW))
     if (kitKey in out) out[kitKey] = row(out[kitKey], t(KIT), kitNested(t(KIT_DELTAS)))
     if (editsKey in out) out[editsKey] = rows(out[editsKey], t(SCHEDULE_EDIT), scheduleEditNested(t(SUBMISSION), t(WHEN), t(ACTION), t(BIRTH)))
   }

@@ -26,6 +26,29 @@ const sessionOfId = new Map<string, string>()
 
 let tmpSeq = 0
 let lastStampMs = 0
+let changeRevision = 0
+const changeListeners = new Set<() => void>()
+
+export function sampleChangeRevision(): number {
+  return changeRevision
+}
+
+export function subscribeSampleChanges(listener: () => void): () => void {
+  changeListeners.add(listener)
+  return () => {
+    changeListeners.delete(listener)
+  }
+}
+
+function noteSampleChange(): void {
+  changeRevision += 1
+  for (const listener of [...changeListeners]) {
+    try {
+      listener()
+    } catch {
+    }
+  }
+}
 
 export function samplesRoot(sessionId: string): string {
   return join(getMercuryHome(), 'sessions', assertSessionId(sessionId), 'samples')
@@ -163,6 +186,7 @@ export function sessionOfSample(id: string): string | null {
 
 export function setSampleListenerAddress(address: { port: number; token: string } | null): void {
   listenerAddress = address
+  noteSampleChange()
 }
 
 export function sampleUrl(id: string): string | null {
@@ -188,6 +212,7 @@ export function writeFallbackPage(sessionId: string, id: string): string | null 
   const page = renderSampleShell({ record, versions: record.versions, token: null, inline: true, versionHtml })
   const path = fallbackPagePath(sessionId, record)
   writeAtomic(path, page)
+  noteSampleChange()
   return path
 }
 
@@ -233,6 +258,7 @@ function newestFirst(a: SampleRecordV1, b: SampleRecordV1): number {
 function writeRecord(dir: string, record: SampleRecordV1): void {
   writeAtomic(join(dir, RECORD_FILE), JSON.stringify(record, null, 2) + '\n')
   sessionOfId.set(record.id, record.sessionId)
+  noteSampleChange()
 }
 
 function readRecord(dir: string, sessionId: string, id: string): SampleRecordV1 | null {

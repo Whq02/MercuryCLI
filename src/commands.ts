@@ -37,6 +37,7 @@ import manager from './commands/manager/index.js'
 import policy from './commands/policy/index.js'
 import browser from './commands/browser/index.js'
 import provenance from './commands/provenance/index.js'
+import samples from './commands/samples/index.js'
 import sessions from './commands/sessions/index.js'
 import sessiontab from './commands/sessiontab/index.js'
 import substrate from './commands/substrate/index.js'
@@ -224,6 +225,7 @@ const COMMANDS = memoize((): Command[] => [
   policy,
   browser,
   provenance,
+  samples,
   sessions,
   sessiontab,
   substrate,

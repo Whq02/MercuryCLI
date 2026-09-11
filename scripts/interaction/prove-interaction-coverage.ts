@@ -115,6 +115,7 @@ reg(
     'src/components/mercury-ui/parity/RealmsView.tsx',
     'src/components/mercury-ui/screens/SettingsStatusView.tsx',
     'src/components/mercury-ui/SessionTabs.tsx',
+    'src/components/samples/SamplesListView.tsx',
   ],
   'shared-list',
 )
