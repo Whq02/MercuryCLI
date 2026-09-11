@@ -24,6 +24,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-client-contr
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-binding.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-transcript-binding.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-credential-refusal-words.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-credential-refusal-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sent-prefix-frozen.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-sent-prefix-frozen.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-dead-thinking-in-turn.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-dead-thinking-in-turn.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-thinking-drop-notice.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-thinking-drop-notice.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-wire-dump.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-wire-dump.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-prefix-ledger.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-prefix-ledger.ts" "$__t" "$__rc"
