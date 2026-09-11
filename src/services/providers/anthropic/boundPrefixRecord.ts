@@ -65,19 +65,26 @@ export async function boundPrefixRecordToEmit(
 ): Promise<AttachmentMessage | null> {
   const data = await buildBoundPrefixRecordData(rosterOwnerKey, messages, model)
   if (data === null) return null
-  const signature = JSON.stringify(data)
+  const signature = rosterSignatureOf(data)
   if (emittedKeys.get(data.boundKey) === signature) return null
   emittedKeys.set(data.boundKey, signature)
-  const recorded = [...messages].reverse().map(boundPrefixAttachmentOf).find(record => record?.boundKey === data.boundKey)
-  if (recorded != null && JSON.stringify({ boundKey: recorded.boundKey, rosterEnabled: recorded.rosterEnabled, roster: recorded.roster, sections: recorded.sections, systemContext: recorded.systemContext }) === signature) return null
+  const recorded = [...messages].reverse().map(boundPrefixAttachmentOf).find(record => record?.boundKey === data.boundKey) ?? null
+  if (recorded !== null && rosterSignatureOf(recorded) === signature) return null
   return createAttachmentMessage({
     type: 'bound_prefix',
     boundKey: data.boundKey,
     rosterEnabled: data.rosterEnabled,
     roster: data.roster,
-    sections: data.sections,
-    systemContext: data.systemContext,
+    sections: recorded !== null && Array.isArray(recorded.sections) ? recorded.sections : data.sections,
+    systemContext:
+      recorded !== null && recorded.systemContext !== null && typeof recorded.systemContext === 'object' && !Array.isArray(recorded.systemContext)
+        ? recorded.systemContext
+        : data.systemContext,
   })
+}
+
+function rosterSignatureOf(record: Pick<BoundPrefixRecordData, 'boundKey' | 'rosterEnabled' | 'roster'>): string {
+  return JSON.stringify({ boundKey: record.boundKey, rosterEnabled: record.rosterEnabled, roster: record.roster })
 }
 
 export function restoreBoundPrefixFromMessages(messages: readonly Message[]): string | null {
