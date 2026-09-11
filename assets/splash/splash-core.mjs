@@ -1042,12 +1042,123 @@ function composeLockup(cols, rows, opts) {
   }
 }
 
+const COMPACT_FRAME_INNER = 62
+
+function compactScrollWindow(n, sel, slots) {
+  if (n <= slots) return { start: 0, count: n, above: 0, below: 0 }
+  const s = Math.max(0, Math.min(n - 1, sel))
+  if (slots <= 2) {
+    const count = Math.max(1, slots)
+    const start = Math.min(Math.max(0, s - count + 1), n - count)
+    return { start, count, above: 0, below: 0 }
+  }
+  let count = slots - 1
+  if (s < count) return { start: 0, count, above: 0, below: n - count }
+  if (s >= n - count) return { start: n - count, count, above: n - count, below: 0 }
+  count = slots - 2
+  const start = Math.min(Math.max(1, s - count + 1), n - count - 1)
+  return { start, count, above: start, below: n - start - count }
+}
+
+function composeCompactFace(cols, rows, opts) {
+  const faint = hexFg(FAINT, T256.faint)
+  const red = accentFg()
+  const ivory = hexFg(IVORY, T256.cream)
+  const bc = paint(DUNE)
+  const pointer = opts.pointer ?? '❯'
+  const cardRows = opts.cardRows
+  const n = cardRows.length
+  const sel = opts.cardSel
+  const keyMap = opts.keyMap ?? ''
+  const keyRows = rows > 2 && (keyMap !== '' || opts.reserveKeyMap === true) ? 1 : 0
+  const avail = Math.max(1, rows - keyRows)
+  const hintRows = avail >= 2 && opts.hintSegments.length > 0 ? 1 : 0
+  const word = rasterHard(WORD, wordToneGlow(opts.glowWord ?? null))
+  const rule = dividerLine(word.width - 2)
+  const textOf = (r, withCtx) => r.label + (withCtx && r.ctx !== '' ? ' · ' + r.ctx : '')
+  const widest = withCtx => Math.max(0, ...cardRows.map(r => 3 + vis(textOf(r, withCtx))))
+  const withCtx = widest(true) + 1 <= cols - 2
+  const inner = Math.min(cols - 2, Math.max(COMPACT_FRAME_INNER, widest(withCtx) + 1))
+  const frameByWidth = widest(withCtx) + 1 <= inner
+  const frame = frameByWidth && 2 + n + hintRows <= avail
+  const banner = cols >= word.width && 5 + (frame ? 2 : 0) + n + hintRows <= avail
+  const slots = frame ? n : Math.max(1, avail - hintRows)
+  const win = compactScrollWindow(n, sel, slots)
+  const paintRow = (r, i) => {
+    const selected = i === sel
+    const gutter = ' ' + (selected ? red + pointer + R : ' ') + ' '
+    const label = selected
+      ? BOLD + rampLabel(r.label, opts.glowRow ?? null) + R
+      : (r.dim ? faint : paint(MIDCREAM)) + r.label + R
+    const ctx = withCtx && r.ctx !== '' ? faint + ' · ' + r.ctx + R : ''
+    return gutter + label + ctx
+  }
+  const cut = (arrow, k) => '   ' + faint + arrow + ' ' + k + ' more' + R
+  const list = []
+  if (win.above > 0) list.push({ line: cut('↑', win.above), index: null })
+  for (let i = win.start; i < win.start + win.count; i++) list.push({ line: paintRow(cardRows[i], i), index: i })
+  if (win.below > 0) list.push({ line: cut('↓', win.below), index: null })
+  const hint = opts.hintSegments
+    .map(seg => red + seg.key + R + (seg.tone === 'ivory' ? ivory : faint) + seg.label + R)
+    .join(faint + ' · ' + R)
+  const centre = (line, width) => ' '.repeat(Math.max(0, Math.floor((cols - width) / 2))) + line
+  const block = []
+  const actions = []
+  let wordRow = null
+  if (banner) {
+    wordRow = block.length + Math.floor(word.lines.length / 2)
+    for (const l of word.lines) block.push(centre(l, word.width))
+    block.push(centre(rule, vis(rule)))
+    block.push('')
+  }
+  const cardAt = block.length
+  if (frame) {
+    const pad = ' '.repeat(Math.max(0, Math.floor((cols - inner - 2) / 2)))
+    block.push(pad + boxTop(inner, bc))
+    for (const entry of list) {
+      if (entry.index !== null) actions.push({ line: block.length, index: entry.index })
+      block.push(pad + boxRow(clipVis(entry.line, inner - 1), inner, bc))
+    }
+    if (hintRows) block.push(pad + boxRow(' ' + hint, inner, bc))
+    block.push(pad + boxBot(inner, bc))
+  } else {
+    const bare = list.map(entry => clipVis(entry.line, cols))
+    const bareHint = hintRows ? clipVis(hint, cols) : null
+    const width = Math.max(0, ...bare.map(vis), bareHint === null ? 0 : vis(bareHint))
+    const pad = ' '.repeat(Math.max(0, Math.floor((cols - width) / 2)))
+    list.forEach((entry, k) => {
+      if (entry.index !== null) actions.push({ line: block.length, index: entry.index })
+      block.push(pad + bare[k])
+    })
+    if (bareHint !== null) block.push(pad + bareHint)
+  }
+  const { placed, top } = placeBlock(block, avail)
+  const lines = placed.slice(0, rows)
+  while (lines.length < rows) lines.push('')
+  if (keyRows && keyMap !== '') {
+    const shown = vis(keyMap) + 2 <= cols ? keyMap : clipVis(keyMap, cols)
+    lines[rows - 1] = ' '.repeat(Math.max(0, cols - vis(shown) - 2)) + faint + shown + R
+  }
+  const ready = red + '▶_ ' + R + ivory + 'ready' + R + faint + '  ·  ' + R + red + '↵ ' + R + ivory + 'start' + R
+  const tiny = red + '(>_) ' + ivory + 'MERCURY' + R + '  ' + faint + '↵ start' + R
+  const heroLine = banner || vis(tiny) > cols ? ready : tiny
+  const hero = placed.slice(0, top + cardAt)
+  hero.push(centre(heroLine, vis(heroLine)))
+  return {
+    lines,
+    actions: actions.map(a => ({ line: a.line + top, index: a.index })),
+    hero,
+    wordRow: wordRow === null ? null : wordRow + top,
+    top,
+  }
+}
+
   return {
     R, BOLD, BOLD_UL, DIM,
     rgbFg, rgbBg, hexFg, fg256ish, paint, paintBg,
     rasterHard, dividerLine, wordTone, wordToneGlow, rampLabel, rampSample, sampleFace,
     boxTop, boxBot, boxSep, boxRow, clipVis,
-    composeHint, composeCard, composeStrip, composeProjects, composeLockup, placeBlock,
+    composeHint, composeCard, composeStrip, composeProjects, composeLockup, composeCompactFace, placeBlock,
     composeBootMenu, composeBootMenuWide, composeBootMenuClassic, panelLines,
     vis, cpWidth, MARK_RE, padVis, wrapWords, zipCols, mixc,
     T256, CREAM, RED, VOID, FAINT, IVORY, MIDCREAM, DEEPRED, MIDRED, DUNE, PX,
