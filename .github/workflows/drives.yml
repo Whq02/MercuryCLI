@@ -25,7 +25,7 @@ jobs:
   build:
     name: "phase-0 · dist"
     if: ${{ vars.DRIVES_DISABLE != '1' && (github.event_name != 'schedule' || vars.DRIVES_SCHEDULE == '1') }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.DRIVES_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 25
     outputs:
       darwin_suites: ${{ steps.plan.outputs.darwin_suites }}
@@ -85,7 +85,7 @@ jobs:
   shard:
     name: "drives · shard ${{ matrix.shard }}"
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.DRIVES_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 300
     strategy:
       fail-fast: false
@@ -198,7 +198,7 @@ jobs:
     name: "drives verdict"
     needs: [build, shard, darwin]
     if: ${{ always() && needs.build.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.DRIVES_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
