@@ -412,6 +412,7 @@ console.log('C — the renames: the idle knob speaks the session estate; the acc
   const sibling = read('scripts/daemon/prove-newborn-grace.ts')
   check('C1 grace: the sibling prover pins the session spelling and tolerates the legacy (its needles repointed)', sibling.includes(`env: '${GRACE}'`) && sibling.includes(`process.env.${GRACE} = '45'`) && sibling.includes(`process.env.${GRACE_LEGACY} = '30'`))
   const accent = read('src/components/mercury-ui/sessionAccent.ts')
+  check('C2 the chat-first phrasing is gone ("Session-only", "the critter session-theme", "the active session critter")', !accent.includes('Session-only') && !accent.includes('critter session-theme') && !accent.includes('The active session critter') && !accent.includes('the live session critter'))
   check('C2 the exported spellings stand (the sweep is named, not smuggled)', accent.includes('export function getSessionAccent(): Critter') && accent.includes('export function useSessionAccent(): Critter'))
   const { readdirSync, statSync } = await import('node:fs')
   const hits: string[] = []

@@ -170,7 +170,8 @@ console.log('§1 — SWITCHING NEVER TOUCHES A SESSION: a switch is a change of 
   check('the picker\'s switch path is the seed write + the ground apply and nothing else (no rpc, no hop, no release)', seedAt !== -1 && seedBody.includes('m.applyHarnessGround(') && !seedBody.includes('daemonControlRpc') && !seedBody.includes('hopIntoBoardSession') && !seedBody.includes('focusResumedSession') && !seedBody.includes('sessionRelease'))
   const face = read('src/components/BootSplashScreen.tsx')
   const openAt = face.indexOf('const openProject = (p: BootProjectFact): AsyncListNote => {')
-  const openBody = face.slice(openAt, face.indexOf('// ── the ORIGINAL rows', openAt))
+  const openEnd = face.indexOf('const composedRows: BootRow[] = useMemo(', openAt)
+  const openBody = openAt !== -1 && openEnd > openAt ? face.slice(openAt, openEnd) : ''
   check('Projects-↵\'s switch half is the same two verbs (seed + ground apply); its enter is the operator\'s own hop, never a lifecycle op', openBody.includes('writeConcourseSeedOverride({ projectDir: p.dir })') && openBody.includes('ground.applyHarnessGround(p.dir)') && !openBody.includes('daemonControlRpc') && !openBody.includes('sessionControl'))
   check('the route rebuilds the board on the ground beat (the switch re-scopes the view within a beat)', route.includes('const unsubProject = subscribeCurrentProject(rebuild)') && route.includes('unsubProject()'))
   const sup = read('src/daemon/concourseSupervisor.ts')
@@ -371,7 +372,8 @@ console.log('§4 — THE RUNNING-COUNT LINE, A DOOR: one line per other project 
   await resolveObligation(ask.obligationId, { kind: 'withdrawn', by: 'prover', scope: 'switchboard', dir: crewDir })
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   const enterAt = screen.indexOf('const enterSession = (sessionId: string, opts: { pointer?: boolean } = {}): void => {')
-  const enterBody = screen.slice(enterAt, screen.indexOf('// ── the git offer', enterAt))
+  const enterEnd = screen.indexOf('const gitOffer = useMemo<GitOfferV1 | undefined>(() => {', enterAt)
+  const enterBody = enterAt !== -1 && enterEnd > enterAt ? screen.slice(enterAt, enterEnd) : ''
   check('↵ on a door row rides pickGround — the REPO picker\'s own switch (the trust gate included); "+N more" opens the picker', enterBody.includes("if (door.kind === 'switch-project') pickGround(door.dir)") && enterBody.includes('else setGroundPickerOpen(true)') && enterBody.indexOf('const door = sessionRows.find') !== -1 && enterBody.indexOf('const door = sessionRows.find') < enterBody.indexOf('callbacks.enterSession(sessionId)'))
   check('the picker and the door share ONE apply (applyGround → setDraftSeed({ projectDir })); no second switcher exists in the screen', (screen.match(/callbacks\.setDraftSeed\(\{ projectDir: dir \}\)/g) ?? []).length === 1 && screen.includes('onPick={dir => pickGround(dir)}') && !screen.includes('applyHarnessGround'))
   check('x on a door row closes nothing and says so', screen.includes("if (sel.door !== undefined) {") && screen.includes('nothing to close here'))
@@ -543,7 +545,8 @@ console.log('§7 — THE ANNEX: Projects-↵ hops into a wordless live newborn t
   check('with no live worker the gate answers null (the birth arm stands, as before)', supervisor.sessionOwnedByLiveWorker(S_G0, recordsDir) === null)
   const face = read('src/components/BootSplashScreen.tsx')
   const openAt = face.indexOf('const openProject = (p: BootProjectFact): AsyncListNote => {')
-  const openBody = face.slice(openAt, face.indexOf('// ── the ORIGINAL rows', openAt))
+  const openEnd = face.indexOf('const composedRows: BootRow[] = useMemo(', openAt)
+  const openBody = openAt !== -1 && openEnd > openAt ? face.slice(openAt, openEnd) : ''
   check('Projects-↵: the resumable arm first, then the card-aware hop (firstSessionId owned by a live worker → hopIntoBoardSession), then the birth', openBody.indexOf('if (p.sessionId !== null) {') !== -1 && openBody.indexOf('if (p.sessionId !== null) {') < openBody.indexOf('sessionOwnedByLiveWorker(p.firstSessionId) !== null') && openBody.indexOf('sessionOwnedByLiveWorker(p.firstSessionId) !== null') !== -1 && openBody.indexOf('sessionOwnedByLiveWorker(p.firstSessionId) !== null') < openBody.indexOf('hop.hopIntoBoardSession(p.firstSessionId)') && openBody.indexOf('hop.hopIntoBoardSession(p.firstSessionId)') !== -1 && openBody.indexOf('hop.hopIntoBoardSession(p.firstSessionId)') < openBody.indexOf('bornSession({ workspaceDir: p.dir })'))
   check('the hop reads the daemon\'s oracle through a dynamic import (the concourse subsystem stays off the face\'s static boot graph)', openBody.includes("(await import('../daemon/concourseSupervisor.js')).sessionOwnedByLiveWorker(p.firstSessionId)") && !face.includes("from '../daemon/concourseSupervisor.js'"))
   const facts = read('src/utils/bootCardFacts.ts')

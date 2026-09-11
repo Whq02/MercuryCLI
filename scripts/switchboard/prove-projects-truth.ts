@@ -54,7 +54,8 @@ const read = (rel: string): string => readFileSync(rel, 'utf8')
 {
   const face = read('src/components/BootSplashScreen.tsx')
   const openAt = face.indexOf('const openProject = ')
-  const open = face.slice(openAt, face.indexOf('// ── the ORIGINAL rows', openAt))
+  const openEnd = face.indexOf('const composedRows: BootRow[] = useMemo(', openAt)
+  const open = openAt !== -1 && openEnd > openAt ? face.slice(openAt, openEnd) : ''
   check('T3 the pick rides the ONE resume door with the row transcript', open.includes('focusResumedSession(p.sessionId, p.transcriptPath'))
   check('T3 a history-less row births a session there (never a chat off the board)', open.includes('bornSession({ workspaceDir: p.dir') && !open.includes('focusNascentSession'))
   check('T3 the ground move gates on the trust ledger', open.includes('isPathTrusted(p.dir)'))
