@@ -121,15 +121,18 @@ console.log('prove-lsp-lifecycle-config — restartOnCrash + shutdownTimeout are
 {
   const inst = instance('crash-true', 'crash-after-init', { restartOnCrash: true })
   await inst.start()
-  await waitFor(() => inst.state === 'error', 4000)
+  const crashed = await waitFor(() => inst.state === 'error', 4000)
+  check('restartOnCrash:true — the scripted crash lands', crashed, `state=${inst.state}`)
   let recovered = false
+  let refusal = ''
   try {
     await inst.start()
-    recovered = inst.state === 'running'
-  } catch {
+    recovered = true
+  } catch (e) {
     recovered = false
+    refusal = (e as Error).message
   }
-  check('restartOnCrash:true — start() after a crash recovers', recovered, `state=${inst.state}`)
+  check('restartOnCrash:true — start() after a crash recovers', recovered, refusal || `state=${inst.state}`)
   await inst.stop().catch(() => {})
 }
 
