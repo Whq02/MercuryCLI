@@ -57,6 +57,9 @@ const mercury = {
       return v;
     })),
 };
+if (workerData.samples === true) {
+  mercury.sample = (spec) => rpc('sample', { spec });
+}
 
 const workshopConsole = {};
 for (const level of ['log', 'info', 'warn', 'error', 'debug', 'trace']) {
