@@ -119,8 +119,8 @@ console.log('W — the menu store by EXPLICIT workspace (poison: the process-cwd
   const schemaSrc = read('src/utils/config/schema.ts')
   check("W18 the schema carries both halves as opt-out deltas, and the `config set` allowlist (PROJECT_CONFIG_KEYS) does not grow — the menu is the store's door", schemaSrc.includes("skillStates?: Record<string, 'off' | 'invocable'>") && schemaSrc.includes("extensionStates?: Record<string, 'off'>") && !schemaSrc.slice(schemaSrc.indexOf('PROJECT_CONFIG_KEYS = [')).split('] as const')[0]!.includes('skillStates'))
   saveCurrentProjectConfig(current => current)
-  const storeLines = read('src/services/mcp/kitStore.ts').split('\n')
-  check('W19 vocabulary law: the store speaks PRESET for a saved snapshot; "pack" appears only where it is handed back to the extensions estate', storeLines.some(l => /PRESET/.test(l)) && storeLines.filter(l => /\bpacks?\b/i.test(l)).every(l => /extensions estate/.test(l)))
+  const storeCodeLines = read('src/services/mcp/kitStore.ts').split('\n').filter(l => !/^\s*(\/\/|\*|\/\*\*)/.test(l))
+  check('W19 vocabulary law: a saved snapshot is a PRESET (the preset store\'s own exported names) and no code line of the kit store speaks "pack"', /export const KIT_PRESET_CAP\b/.test(read('src/services/mcp/presetStore.ts')) && !storeCodeLines.some(l => /\bpacks?\b/i.test(l)))
 }
 
 

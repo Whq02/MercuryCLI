@@ -133,7 +133,7 @@ console.log('C — the card opens answered No; esc/n leave without the door; the
   const view = read('src/components/mercury-ui/screens/SessionManagerView.tsx')
   check('the card opens answered No (the frozen offer arms nothing)', view.includes("setPrune({ stage: 'card', offer, answer: 'no' })"))
   const branchStart = view.indexOf('if (prune !== null) {')
-  const branchEnd = view.indexOf('// Confirm gate', branchStart)
+  const branchEnd = view.indexOf('if (confirming !== null) {', branchStart)
   const pruneBranch = branchStart >= 0 && branchEnd > branchStart ? view.slice(branchStart, branchEnd) : ''
   check('esc / n answer No before any commit road (the cancel line leads the branch)', pruneBranch.includes("if (key.escape || input === 'n')") && pruneBranch.indexOf("if (key.escape || input === 'n')") < pruneBranch.indexOf('runPrune'))
   check('the ONE commit road is the highlighted Yes over a non-empty offer', pruneBranch.includes("if (prune.answer === 'yes' && prune.offer.candidates.length > 0) {") && pruneBranch.includes('void runPrune(prune.offer)'))

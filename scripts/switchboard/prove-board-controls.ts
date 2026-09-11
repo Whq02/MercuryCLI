@@ -145,7 +145,6 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
     screen.includes("controlNotes?.[`board:row-control:${peekSelRow?.sessionId ?? 'none'}`]") &&
       route.includes('noteControl(`board:row-control:${sessionId}`,') &&
       screen.includes('const receiptNode = (() => {') &&
-      screen.includes('it outranks the chip for its beat') &&
       screen.includes(
         "!rowPeekOpen && (chipLine !== null || rowControlNote !== undefined || boardArmed === peekSelRow?.sessionId || closeChordHint !== null) ? 1 : 0",
       ),
@@ -160,9 +159,14 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
     connector.includes('createModelTransitionMessage({') && connector.includes("boundary: 'turn-boundary'"),
   )
   const workerModels = read('src/services/concourse/workerModels.ts')
+  const economyAt = workerModels.indexOf('if (ECONOMY_FAMILY.test(modelId)) {')
+  const economyArm = economyAt === -1 ? '' : workerModels.slice(economyAt, workerModels.indexOf('return { session, crew: session }', economyAt))
   check(
     'B8 haiku rides the SESSION arm wherever its family is credentialed — the never-Haiku law binds the crew arm only',
-    workerModels.includes('holds for the AUTONOMOUS crew only') && workerModels.includes("refusal: 'worker-policy:frontier-only'"),
+    economyAt !== -1 &&
+      /return \{\s*session,\s*crew: \{/.test(economyArm) &&
+      economyArm.includes("refusal: 'worker-policy:frontier-only'") &&
+      !economyArm.includes('session: {'),
   )
 }
 
@@ -176,8 +180,7 @@ console.log('C — the L17 cut: a session ask routes INTO the chat; no board key
   )
   check(
     "C2 a needs-you permission row ROUTES into the chat — beginAnswer's permission branch opens the session, never a context",
-    screen.includes('// THE L17 CUT: a session\'s permission ask is never answered from the') &&
-      screen.indexOf("if (ref.startsWith('permission:git-init:')) {") !== -1 && screen.indexOf("if (ref.startsWith('permission:')) {") > screen.indexOf("if (ref.startsWith('permission:git-init:')) {") &&
+    screen.indexOf("if (ref.startsWith('permission:git-init:')) {") !== -1 && screen.indexOf("if (ref.startsWith('permission:')) {") > screen.indexOf("if (ref.startsWith('permission:git-init:')) {") &&
       /if \(ref\.startsWith\('permission:'\)\) \{[\s\S]{0,400}?openObligationOrDoor\(obligationId\)[\s\S]{0,40}?return/.test(screen),
   )
   const answerSites = screen.split('callbacks.answerPermission?.(').length - 1
@@ -194,8 +197,6 @@ console.log('C — the L17 cut: a session ask routes INTO the chat; no board key
       deriveGitOffer([{ obligationId: 'o2', sessionId: 'folder:/tmp/x', ref: 'permission:git-init:abc' }]) !== undefined,
   )
   check("C4 the answer-permission verb itself stands (chat-side plumbing)", read('src/daemon/protocol.ts').includes("'answer-permission'"))
-  const contracts = read('src/components/concourse/contracts.ts')
-  check('C4 the contract records the cut beside the door', contracts.includes('THE L17 CUT (board controls, item 2)'))
 }
 
 console.log('D — permission ids: stable from birth to answer, across repaint/re-subscribe')
@@ -295,7 +296,7 @@ console.log('E — the seat-overload ask: every time, never silent, never rememb
     screen.includes('if (needsSeatOverloadAsk(snapshot.counts.live, effectiveSeatCeiling()))') &&
       (() => {
         const at = screen.indexOf('const answerSeatAsk = ')
-        const body = screen.slice(at, screen.indexOf('// ── the ONE-TIME capacity ask', at))
+        const body = screen.slice(at, screen.indexOf('const [capacityAsk, setCapacityAsk] = useState(false)', at))
         return at > 0 && !body.includes('saveGlobalConfig') && !body.includes('recordCapacityDecision') && !body.includes('writeConcourse')
       })(),
   )

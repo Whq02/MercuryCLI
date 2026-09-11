@@ -108,9 +108,12 @@ console.log('D — focus routing')
 {
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   check('D1 the chat pane joins the Tab ring as its LAST stop exactly while split composes', screen.includes("if (splitActive) ring.push('chat')"))
+  const composerGateAt = screen.indexOf("if (region !== 'coordinator' && region !== 'live') {")
+  const chatInertAt = composerGateAt === -1 ? -1 : screen.lastIndexOf("if (region === 'chat') {", composerGateAt)
+  const chatInert = chatInertAt === -1 ? '' : screen.slice(chatInertAt, composerGateAt).replace(/\/\/[^\n]*/g, '').replace(/\s+/g, ' ').trim()
   check(
-    'D2 typing reaches only the focused pane: the chat region is inert to the composer grammar',
-    screen.includes("if (region === 'chat') {") && screen.includes('TYPING REACHES ONLY THE FOCUSED PANE'),
+    'D2 typing reaches only the focused pane: the chat region is inert to the composer grammar (it returns before the composer gate)',
+    chatInert === "if (region === 'chat') { return }",
   )
   check(
     'D3 ↵ in the chat pane discriminates: the full chat with a session, the one birth door with none (landing-guarded — SP-1)',
