@@ -26,7 +26,7 @@ check('gate runs BEFORE the --version fast-path', gateIdx !== -1 && fastPathIdx 
 check('gate refuses non-zero', cli.includes('console.error(nodeRefusalMessage(nodeDecision))') && /nodeRefusalMessage\(nodeDecision\)\);\s*\n\s*process\.exit\(1\)/.test(cli))
 const setupSrc = readFileSync(join(REPO, 'src/setup.ts'), 'utf8')
 check('setup() carries no duplicate Node floor', !setupSrc.includes('requires Node.js version 18') && !/parseInt\(nodeVersion\) < 18/.test(setupSrc))
-check('gate exempts Bun-hosted execution by name', cli.includes('if (!process.versions?.bun)') && cli.includes('node-compat shim'))
+check('gate exempts Bun-hosted execution by name', /if \(!process\.versions\?\.bun\) \{\s*\n\s*const nodeDecision = evaluateNodeRuntime\(process\.versions\?\.node\)/.test(cli))
 
 section('(2) the REAL bundle refuses unsupported runtimes on every route')
 const dist = join(REPO, 'dist', 'mercury.mjs')

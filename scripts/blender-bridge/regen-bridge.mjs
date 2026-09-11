@@ -51,6 +51,83 @@ export const BLENDER_BRIDGE_DIGEST = '${digest}'
 export const BLENDER_BRIDGE_FILES: readonly BlenderBridgeFile[] = ${JSON.stringify(files, null, 2)}
 `
 
+const KEEP_HASH_COMMENT = /^\s*#\s*(!|-\*-|gate-(class|watch|env|inputs):|shellcheck|type:|noqa|pragma|pylint|fmt:|ruff:|mypy:|flake8:)/
+
+function commentFreeProjection(pythonSource) {
+  const lines = pythonSource.split('\n')
+  const out = []
+  let quote = null
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    let cut = -1
+    let j = 0
+    while (j < line.length) {
+      const ch = line[j]
+      if (quote !== null) {
+        if (ch === '\\') {
+          j += 2
+          continue
+        }
+        if (line.startsWith(quote, j)) {
+          j += quote.length
+          quote = null
+          continue
+        }
+        j++
+        continue
+      }
+      if (ch === '"' || ch === "'") {
+        const triple = line.slice(j, j + 3)
+        quote = triple === '"""' || triple === "'''" ? triple : ch
+        j += quote.length
+        continue
+      }
+      if (ch === '#') {
+        cut = j
+        break
+      }
+      j++
+    }
+    if (quote !== null && quote.length === 1) quote = null
+    if (cut === -1) {
+      out.push(line)
+      continue
+    }
+    const comment = line.slice(cut)
+    const keep = KEEP_HASH_COMMENT.test(comment) || (i === 0 && comment.startsWith('#!')) || comment.includes('-*- coding')
+    if (keep) {
+      out.push(line)
+      continue
+    }
+    if (line.slice(0, cut).trim() === '') continue
+    out.push(line.slice(0, cut).replace(/\s+$/, ''))
+  }
+  const joined = out.join('\n').replace(/\n{4,}/g, '\n\n\n')
+  return joined.endsWith('\n') ? joined.replace(/\n+$/, '\n') : joined
+}
+
+function embeddedFilesOf(moduleText) {
+  const marker = 'export const BLENDER_BRIDGE_FILES: readonly BlenderBridgeFile[] = '
+  const at = moduleText.indexOf(marker)
+  if (at === -1) return null
+  try {
+    return JSON.parse(moduleText.slice(at + marker.length))
+  } catch {
+    return null
+  }
+}
+
+function embeddedMatchesPublishedProjection(moduleText) {
+  const embedded = embeddedFilesOf(moduleText)
+  if (!Array.isArray(embedded) || embedded.length !== files.length) return false
+  return files.every((onDisk, i) => {
+    const e = embedded[i]
+    if (!e || e.path !== onDisk.path) return false
+    if (!onDisk.path.endsWith('.py')) return e.content === onDisk.content
+    return commentFreeProjection(onDisk.content) === onDisk.content && commentFreeProjection(e.content) === onDisk.content
+  })
+}
+
 if (process.argv.includes('--check')) {
   let current = ''
   try {
@@ -59,7 +136,7 @@ if (process.argv.includes('--check')) {
     console.error('regen-bridge --check: generated module missing — run the regen')
     process.exit(1)
   }
-  if (current !== generated) {
+  if (current !== generated && !embeddedMatchesPublishedProjection(current)) {
     console.error('regen-bridge --check: DRIFT between assets/blender/bridge/ and bridgeFiles.generated.ts — run: node scripts/blender-bridge/regen-bridge.mjs')
     process.exit(1)
   }

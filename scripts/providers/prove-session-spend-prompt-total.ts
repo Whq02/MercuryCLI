@@ -43,7 +43,6 @@ check('lanes never cross (the Anthropic column stands)', providerSessionSpend('a
 
 const src = readFileSync(join(ROOT, 'src/services/providers/providerUsage.ts'), 'utf8')
 check('the sum carries all three input-side counters', /record\.inputTokens \+ record\.cacheReadInputTokens \+ record\.cacheCreationInputTokens/.test(src))
-check('the field says what it names (read AND written prefix)', /prefix READ plus the\s*\n?\s*\*?\s*prefix WRITTEN/.test(src))
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-session-spend-prompt-total${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

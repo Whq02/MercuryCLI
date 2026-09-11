@@ -16,7 +16,7 @@ t.check(
 )
 t.check(
   'the disappearing-row fallback is the clamped index (nearest neighbour)',
-  /clamped index/.test(panes),
+  panes.includes('let sel = Math.min(nav.sel, Math.max(0, sectionRows.length - 1))') && panes.includes('if (followed >= 0) sel = followed'),
 )
 {
   const contracts = readFileSync('src/services/attention/contracts.ts', 'utf8')
