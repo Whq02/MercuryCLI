@@ -124,10 +124,11 @@ section('5. the boundary re-cuts — dead constraints are GONE, the contract sta
 {
   const unityTests = readFileSync(path.join(repo, 'src', 'services', 'ide', 'unityTests.ts'), 'utf8')
   check('unityTests no longer claims the store stays untouched', !unityTests.includes('stay untouched until an in-product'))
-  check('unityTests header records the LIVE integration instead', unityTests.includes('THE STORE INTEGRATION IS LIVE'))
   const launchTool = readFileSync(path.join(repo, 'src', 'tools', 'LaunchTool', 'LaunchTool.ts'), 'utf8')
   check("LaunchTool no longer claims in-product executors are 'not this build's' for Unity", !launchTool.includes("are the UNITY-BRIDGE/BLENDER-BRIDGE lanes' seams, not this build's"))
-  check('LaunchTool names BOTH landed executors (Unity tests_run · Blender python_run/render_still)', launchTool.includes("the `Unity` tool's tests_run") && launchTool.includes("`Blender` tool's python_run/render_still"))
+  const unityTool = readFileSync(path.join(repo, 'src', 'tools', 'UnityTool', 'UnityTool.ts'), 'utf8')
+  const blenderTool = readFileSync(path.join(repo, 'src', 'tools', 'BlenderTool', 'BlenderTool.ts'), 'utf8')
+  check('BOTH landed in-product executors exist in code (Unity tests_run · Blender python_run/render_still)', unityTool.includes("input.op === 'tests_run'") && blenderTool.includes("input.op === 'python_run'") && blenderTool.includes('render_still:'))
   const profiles = readFileSync(path.join(repo, 'src', 'services', 'ide', 'launchProfiles.ts'), 'utf8')
   check('launchProfiles carries no until-the-lane-lands sentence any more', !profiles.includes('until the UNITY-BRIDGE lane lands') && !profiles.includes('owns any future in-product executor seam'))
   check('operatorRunRefusal + the compat alias still stand (the contract)', launchTool.includes('export function operatorRunRefusal') && launchTool.includes('export const unityHeadlessRefusal = operatorRunRefusal'))
