@@ -38,14 +38,26 @@ font.
 Each sample is a row under the composer with its own mark and the name the
 model gave it; Enter opens it in your browser. `/samples` lists the
 session's samples, newest first — `title · v<N> · state` — and Enter opens
-the one you pick. The page shows the sample's versions with a switcher;
-while the tab is open it refreshes as the model redraws.
+the one you pick.
+
+The page is served to this machine only, in the website's own language:
+a bar with the sample's name, its state and a version switcher (← and →
+move between versions), the page itself below in a frame that keeps it
+exactly as the model wrote it, and a foot for your note. Code shows the
+version's HTML read-only, Copy puts it on the clipboard, Download saves it
+as `<name>-v<N>.html`. While the tab is open the page refreshes on its own
+as the model redraws: the new version joins the switcher and, if you were
+on the newest, the frame moves to it. `?` shows the keys.
 
 ## Marks
 
-On the page you click a spot and write a comment, add a note for the whole
-page, and approve or ask for changes. "Send marks to Mercury" delivers
-them into the session as one message, as if you had typed it:
+Edit with Mercury (the `m` key) turns marks on. Click a spot on the page:
+a numbered pin lands there and a small box takes your comment — Enter
+keeps it, Esc removes the pin. Pins can be dragged, reopened and removed;
+each remembers the element under it (its tag, id, class and first words).
+The note at the foot is for the whole page; Approve and Changes needed
+are optional. "Send marks to Mercury" (the `s` key) delivers everything
+into the session as one message, as if you had typed it:
 
     Marks on Landing page v2: 2 pins · 1 note · changes needed
     - at button#buy "Buy now": make it larger

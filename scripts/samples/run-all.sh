@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pure
+# gate-class: cpu
 # gate-watch: src/services/samples/** src/services/workshop/** src/tools/WorkshopTool/** docs/SAMPLES.md
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
