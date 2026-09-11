@@ -174,6 +174,7 @@ src/services/providers/openrouter/openrouterCatalogue.ts :: catalogueCache :: tt
 src/services/providers/providerUsage.ts :: activeUsageCache :: ttl-bounded
 src/services/providers/providerUsage.ts :: otherUsagesCache :: ttl-bounded
 src/services/repoHost/repoHost.ts :: cache :: ttl-bounded
+src/services/samples/facts.ts :: cached :: keyed-by-truth
 src/services/saturn/sessionScheduleBridge.ts :: rosterCache :: subscription-fed
 src/services/schema/jsonSchemaEngine.ts :: compileCache :: keyed-by-truth
 src/services/search/searchPacing.ts :: cache :: ttl-bounded
