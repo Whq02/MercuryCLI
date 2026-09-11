@@ -35,15 +35,10 @@ function withoutHashComments(text) {
   return out
 }
 
-function embeddedContent(p) {
-  const text = readFileSync(p, 'utf8')
-  return p.endsWith('.gd') ? withoutHashComments(text) : text
-}
-
 let files
 try {
   files = walk(addonRoot)
-    .map(p => ({ path: relative(addonRoot, p).split('\\').join('/'), content: embeddedContent(p) }))
+    .map(p => ({ path: relative(addonRoot, p).split('\\').join('/'), content: readFileSync(p, 'utf8') }))
     .sort((a, b) => (a.path < b.path ? -1 : 1))
 } catch {
   console.error(`regen-addon: no addon sources at ${addonRoot}`)
@@ -68,6 +63,28 @@ export const VULCAN_ADDON_DIGEST = '${digest}'
 export const VULCAN_ADDON_FILES: readonly VulcanAddonFile[] = ${JSON.stringify(files, null, 2)}
 `
 
+function embeddedFilesOf(moduleText) {
+  const marker = 'export const VULCAN_ADDON_FILES: readonly VulcanAddonFile[] = '
+  const at = moduleText.indexOf(marker)
+  if (at === -1) return null
+  try {
+    return JSON.parse(moduleText.slice(at + marker.length))
+  } catch {
+    return null
+  }
+}
+
+function embeddedMatchesPublishedProjection(moduleText) {
+  const embedded = embeddedFilesOf(moduleText)
+  if (!Array.isArray(embedded) || embedded.length !== files.length) return false
+  return files.every((onDisk, i) => {
+    const e = embedded[i]
+    if (!e || e.path !== onDisk.path) return false
+    if (!(onDisk.path.endsWith('.gd'))) return e.content === onDisk.content
+    return withoutHashComments(onDisk.content) === onDisk.content && withoutHashComments(e.content) === onDisk.content
+  })
+}
+
 if (process.argv.includes('--check')) {
   let current = ''
   try {
@@ -76,7 +93,7 @@ if (process.argv.includes('--check')) {
     console.error('regen-addon --check: generated module missing — run the regen')
     process.exit(1)
   }
-  if (current !== generated) {
+  if (current !== generated && !embeddedMatchesPublishedProjection(current)) {
     console.error('regen-addon --check: DRIFT between assets/vulcan/addon/ and addonFiles.generated.ts — run: node scripts/vulcan/regen-addon.mjs')
     process.exit(1)
   }

@@ -31,7 +31,7 @@ try {
   files = walk(bridgeRoot)
     .map(p => {
       const path = relative(bridgeRoot, p).split('\\').join('/')
-      return { path, content: publishedSource(path, readFileSync(p, 'utf8')) }
+      return { path, content: readFileSync(p, 'utf8') }
     })
     .sort((a, b) => (a.path < b.path ? -1 : 1))
 } catch {
@@ -57,6 +57,28 @@ export const UNITY_BRIDGE_DIGEST = '${digest}'
 export const UNITY_BRIDGE_FILES: readonly UnityBridgeFile[] = ${JSON.stringify(files, null, 2)}
 `
 
+function embeddedFilesOf(moduleText) {
+  const marker = 'export const UNITY_BRIDGE_FILES: readonly UnityBridgeFile[] = '
+  const at = moduleText.indexOf(marker)
+  if (at === -1) return null
+  try {
+    return JSON.parse(moduleText.slice(at + marker.length))
+  } catch {
+    return null
+  }
+}
+
+function embeddedMatchesPublishedProjection(moduleText) {
+  const embedded = embeddedFilesOf(moduleText)
+  if (!Array.isArray(embedded) || embedded.length !== files.length) return false
+  return files.every((onDisk, i) => {
+    const e = embedded[i]
+    if (!e || e.path !== onDisk.path) return false
+    if (!(/\.cs$/.test(onDisk.path))) return e.content === onDisk.content
+    return publishedSource(onDisk.path, onDisk.content) === onDisk.content && publishedSource(e.path, e.content) === onDisk.content
+  })
+}
+
 if (process.argv.includes('--check')) {
   let current = ''
   try {
@@ -65,7 +87,7 @@ if (process.argv.includes('--check')) {
     console.error('regen-bridge --check: generated module missing — run the regen')
     process.exit(1)
   }
-  if (current !== generated) {
+  if (current !== generated && !embeddedMatchesPublishedProjection(current)) {
     console.error('regen-bridge --check: DRIFT between assets/unity/bridge/ and bridgeFiles.generated.ts — run: node scripts/unity-bridge/regen-bridge.mjs')
     process.exit(1)
   }
