@@ -17,7 +17,7 @@ const hasAdjacentStreamWriteExit = (src: string): boolean => {
   const lines = src.split('\n')
   return lines.some((l, i) => {
     if (!/process\.std(err|out)\.write\(/.test(l)) return false
-    return lines.slice(i + 1, i + 4).some(n => /process\.exit\(/.test(n) && !/=>\s*process\.exit\(/.test(n))
+    return lines.slice(i + 1, i + 4).some(n => /process\.exit\(/.test(n) && !/\.(on|once)\(\s*['"]SIG\w+['"]\s*,\s*\(\)\s*=>\s*process\.exit\(/.test(n))
   })
 }
 

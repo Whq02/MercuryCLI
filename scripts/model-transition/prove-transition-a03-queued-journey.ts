@@ -74,6 +74,7 @@ section('§C the choreography scaffolding')
     scenarios.includes("'transition-queued-journey'") && scenarios.includes("'transition-queued-settled'"),
   )
   check('the mid-turn picker send rides the choreography (CSI-u alt+p)', scenarios.includes('\\u001b[112;3u'))
+  check('the scripted-stream requirement is a field of the scenario', scenarios.includes("requiresEnv: { MERCURY_SCRIPTED_STREAM: 'slow-text' }"))
 }
 
 console.log(failures === 0 ? '\n ✅ SCRIPTED-STREAM SEAM READY (journey choreography scaffolded)' : `\n ❌ ${failures} FAILED`)

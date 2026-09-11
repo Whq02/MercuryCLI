@@ -109,7 +109,9 @@ console.log('§6 max-retries — the registry row and the refusal tell the truth
 console.log('§7 update finally — the sweep cannot replace the verdict')
 {
   const svc = read('src/services/privateChannel/updateService.ts')
-  const fin = svc.slice(svc.indexOf('previousKept: previous !== null'), svc.indexOf('// ── rollback'))
+  const finAt = svc.indexOf('previousKept: previous !== null')
+  const finEnd = svc.indexOf('export type RollbackOutcome =', finAt)
+  const fin = finAt !== -1 && finEnd > finAt ? svc.slice(finAt, finEnd) : ''
   check('the sweep is guarded inside the finally', fin.includes('try {') && fin.includes('rmSync(staging, { recursive: true, force: true })') && fin.includes('catch (sweepError)'))
   check('the lock release stands OUTSIDE the guarded sweep, still in the finally', fin.indexOf('releaseUpdateLock(roots)') > fin.indexOf('catch (sweepError)'))
   check('poison gone: no bare rmSync line remains between the verdict and the release', !fin.includes('    rmSync(staging, { recursive: true, force: true })\n    releaseUpdateLock'))
@@ -432,7 +434,9 @@ console.log('§26 plan card — the advertised chord resolves where the card lis
 console.log('§27 sync-output — the hatch gates emission, never the host verdict')
 {
   const caps = read('src/ink/session/capabilities.ts')
-  check('the capability sniff is hatch-free', caps.includes('function sniffSynchronizedOutput(): boolean') && !caps.slice(caps.indexOf('function sniffSynchronizedOutput'), caps.indexOf('// LIVE latch')).includes('isSyncOutputForcedOff'))
+  const sniffAt = caps.indexOf('function sniffSynchronizedOutput(): boolean')
+  const sniffEnd = caps.indexOf('let syncOutputSupported = sniffSynchronizedOutput()', sniffAt)
+  check('the capability sniff is hatch-free', sniffAt !== -1 && sniffEnd > sniffAt && !caps.slice(sniffAt, sniffEnd).includes('isSyncOutputForcedOff'))
   check('the latch seeds from the capability sniff', caps.includes('let syncOutputSupported = sniffSynchronizedOutput()'))
   check('emission still loses to the hatch at every read', /syncOutputSupportedNow\(\): boolean \{\s*\n\s*if \(isSyncOutputForcedOff\(\)\) return false/.test(caps))
   check('the capability read exists for the host verdict', caps.includes('export function syncOutputCapabilityNow(): boolean'))
@@ -503,7 +507,7 @@ console.log('§31 pidlock + daemon stop — the reuse guard reaches every platfo
 console.log('§32 wedged daemon — true bound, one ladder, honest refusal')
 {
   const ens = read('src/services/switchboard/ensureDaemon.ts')
-  check('poison gone: the ~10s claim is replaced by the two true bounds', !ens.includes('(bounded, ~10s)') && ens.includes('≈30s against a pipe that is BOUND but never'))
+  check('poison gone: the ~10s claim is replaced by the true bound (the 40-try ladder)', !ens.includes('(bounded, ~10s)') && ens.includes('async function awaitUsable(hs: Handshake, tries = 40): Promise<boolean> {'))
   check("the 'starting' ladder is single-flighted", ens.includes('waiting ??= awaitUsable(hs).finally(() => {'))
   check('the ladder arithmetic stands (40 × 500ms + 250ms)', ens.includes('tries = 40') && ens.includes('timeoutMs: 500') && ens.includes('setTimeout(res, 250)'))
   const born = read('src/services/switchboard/bornSession.ts')
@@ -610,7 +614,9 @@ console.log('§44 exit heals — ?2026l first; the splash cancel disarms ?1007')
   const gs = read('src/utils/gracefulShutdown.ts')
   check('the fallback closes the sync bracket before the alt exit', gs.indexOf('writeSync(1, FALLBACK_CLOSE_SYNC_UPDATE)') !== -1 && gs.indexOf('writeSync(1, FALLBACK_CLOSE_SYNC_UPDATE)') < gs.indexOf('writeSync(1, FALLBACK_EXIT_ALT_SCREEN)'))
   const splash = read('assets/splash/mercury-splash.mjs')
-  const cancel = splash.slice(splash.indexOf("if (OSC11_GROUND) out.write('\\x1b]111\\x07')\n    // ?1007l on the cancel exit"), splash.indexOf("screenAtExit = 'restored'"))
+  const cancelAt = splash.indexOf("if (OSC11_GROUND) out.write('\\x1b]111\\x07')")
+  const cancelEnd = splash.indexOf("screenAtExit = 'restored'", cancelAt)
+  const cancel = cancelAt !== -1 && cancelEnd > cancelAt ? splash.slice(cancelAt, cancelEnd) : ''
   check('the splash cancel disarms alternate scroll before leaving the alt buffer', cancel.includes("out.write('\\x1b[?1007l')") && cancel.includes("?1007l") && cancel.indexOf("?1007l") < cancel.indexOf("?1049l"))
   const tpl = read('scripts/release/launcherTemplates.mjs')
   const healSrc = tpl.split('\n').filter(l => l.includes('process.stdout.write(') && l.includes('?1049l'))
