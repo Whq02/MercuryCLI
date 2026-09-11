@@ -138,7 +138,7 @@ async function capture(tag: string, cols: number, rows: number, sends: unknown[]
   const cfgPath = join(scratch, `${tag}-config.json`)
   const log = join(scratch, `${tag}-engine.log`)
   writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), dist, '--chat', ...(opts.argv ?? [])], cwd: ROOT, cols, rows, sends, resizes: opts.resizes ?? [], total: opts.total ?? 200, out }))
-  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_COMPUTER_USE: undefined }), stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none' }), stdio: ['ignore', 'pipe', 'pipe'] })
   let output = ''
   child.stdout.on('data', chunk => { output += String(chunk) })
   child.stderr.on('data', chunk => { output += String(chunk) })

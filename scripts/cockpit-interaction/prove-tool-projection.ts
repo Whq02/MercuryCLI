@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 process.env.NODE_ENV = 'test'

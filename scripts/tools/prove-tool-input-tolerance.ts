@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { EventEmitter } from 'node:events'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'

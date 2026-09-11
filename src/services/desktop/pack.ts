@@ -124,7 +124,9 @@ export type DesktopPackResolution =
   | { state: 'unavailable'; note: string }
 
 export function desktopPackAbsentNote(checkoutRoot: string | null = voiceCheckoutRoot()): string {
-  return checkoutRoot !== null ? `absent on this checkout — ${DESKTOP_BUILD_COMMAND} builds it (cargo)` : 'absent — this build shipped without it'
+  return checkoutRoot !== null
+    ? `absent on this checkout — bun run setup builds it with cargo (${DESKTOP_BUILD_COMMAND} alone rebuilds it), then bun run build.ts`
+    : 'absent — this build shipped without it; a release archive carries the driver when its packaging host could build it, so mercury update to a release that does, or build from source'
 }
 
 export function resolveDesktopPackDir(): DesktopPackResolution {

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+process.env.MERCURY_DESKTOP_DRIVER = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'

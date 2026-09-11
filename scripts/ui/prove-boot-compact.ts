@@ -135,7 +135,7 @@ for (const [cols, rows] of sizes) {
       { atTick: 120, awaitText: CHAT_READY, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'chat' },
     ]
     writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), dist], cwd: tree, cols, rows, sends, resizes: [], readyText: CHAT_READY, readySettleTicks: 2, total: 220, out }))
-    const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: tree, env: childEnv(leg, { MERCURY_COMPUTER_USE: undefined, MERCURY_SPLASH: 'off' }), stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: tree, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none', MERCURY_SPLASH: 'off' }), stdio: ['ignore', 'pipe', 'pipe'] })
     let stderr = ''
     child.stdout.on('data', chunk => { stderr += String(chunk) })
     child.stderr.on('data', chunk => { stderr += String(chunk) })

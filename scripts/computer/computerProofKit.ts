@@ -11,11 +11,10 @@ export const TWO_DISPLAYS_SCENE = join(FIXTURES, 'two-displays.json')
 process.env.MERCURY_DAEMON_DIR = join(proofHome, 'daemon')
 process.env.BROWSER = '/usr/bin/true'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-process.env.MERCURY_COMPUTER_USE = '1'
 process.env.MERCURY_DESKTOP_DRIVER = 'fake'
 process.env.ANTHROPIC_API_KEY ??= 'proof-key-ci-gate-not-a-real-key'
 process.env.NODE_ENV = 'test'
-for (const key of ['MERCURY_DESKTOP_FAKE_SCENE', 'MERCURY_DESKTOP_FAKE_LOG', 'MERCURY_DESKTOP_PACK_DIR', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN']) delete process.env[key]
+for (const key of ['MERCURY_COMPUTER_USE', 'MERCURY_DESKTOP_FAKE_SCENE', 'MERCURY_DESKTOP_FAKE_LOG', 'MERCURY_DESKTOP_PACK_DIR', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN']) delete process.env[key]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(ROOT)
 mkdirSync(join(proofHome, 'daemon'), { recursive: true })

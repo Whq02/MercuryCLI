@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { parseArgs } from 'util'
 
 ;(globalThis as Record<string, unknown>).MACRO = (globalThis as Record<string, unknown>).MACRO ?? {

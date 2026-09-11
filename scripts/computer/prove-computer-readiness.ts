@@ -12,14 +12,14 @@ type ReadinessRecord = import('../../src/utils/readiness.ts').ReadinessRecord
 const scratch = scratchDir('readiness')
 const row = (opts?: { includeEnv?: boolean }): ReadinessRecord | undefined => collectReadiness(opts).records.find(r => r.id === 'tool:computer')
 
-section('§1 disabled when the flag is unset')
+section('§1 disabled when the switch is =0; the rest of the proof reads the default (unset)')
 {
-  delete process.env.MERCURY_COMPUTER_USE
+  process.env.MERCURY_COMPUTER_USE = '0'
   resetDesktopDriverForTest()
   const record = row()
   check('the row exists with kind tool and the resolver as its source', record !== undefined && record.kind === 'tool' && record.source === 'desktop driver resolver', JSON.stringify(record))
-  check('state disabled with the flag named', record?.state === 'disabled' && record.detail === 'MERCURY_COMPUTER_USE unset — Computer tool absent from the catalog', JSON.stringify(record))
-  process.env.MERCURY_COMPUTER_USE = '1'
+  check('state disabled naming =0 and the untouched driver', record?.state === 'disabled' && record.detail === 'MERCURY_COMPUTER_USE=0 — Computer tool absent from the catalog; no desktop driver is touched', JSON.stringify(record))
+  delete process.env.MERCURY_COMPUTER_USE
 }
 
 section('§2 configured with the fake driver and nothing driving')
@@ -38,7 +38,7 @@ section('§3 unavailable when the driver is switched off')
   process.env.MERCURY_DESKTOP_DRIVER = 'none'
   resetDesktopDriverForTest()
   const record = row()
-  check('state unavailable naming the switch', record?.state === 'unavailable' && record.detail.includes('MERCURY_DESKTOP_DRIVER=none'), JSON.stringify(record))
+  check('state unavailable naming the switch and the absent tool', record?.state === 'unavailable' && record.detail.includes('MERCURY_DESKTOP_DRIVER=none') && record.detail.endsWith('— Computer tool absent from the catalog'), JSON.stringify(record))
   process.env.MERCURY_DESKTOP_DRIVER = 'fake'
   resetDesktopDriverForTest()
 }
