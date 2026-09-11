@@ -136,6 +136,7 @@ permissions	20
 consistency-census	15
 realms	10
 smoke	20
+samples	20
 tree-ownership	5
 ink-runtime	8
 stop-policy	8

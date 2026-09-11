@@ -19,8 +19,11 @@ import {
   type WorkshopCellResult,
   type WorkshopDisplayItem,
   type WorkshopLanguage,
+  type WorkshopSampleItem,
 } from './contracts.js'
 import { WORKSHOP_WORKER_SOURCE } from './workerSource.js'
+import { handleSampleCall } from '../samples/bridge.js'
+import { samplesEnabled } from '../samples/contracts.js'
 import { registerExecutionDomain } from '../primitives/executionPlane.js'
 import {
   projectRuntimeBusy,
@@ -96,7 +99,7 @@ function runtimeFor(owner: OwnerKey, language: WorkshopLanguage): RuntimeState {
 function spawnWorker(cwd: string): Worker {
   return new Worker(WORKSHOP_WORKER_SOURCE, {
     eval: true,
-    workerData: { cwd },
+    workerData: { cwd, samples: samplesEnabled() },
     stderr: true,
     stdout: true,
   })
@@ -332,6 +335,7 @@ export async function runWorkshopCell(
 
     const outputLines: string[] = []
     const displays: WorkshopDisplayItem[] = []
+    const samples: WorkshopSampleItem[] = []
     let nestedCalls = 0
     let outstandingRpc = 0
 
@@ -365,6 +369,7 @@ export async function runWorkshopCell(
         valuePreview: extras.valuePreview ?? '',
         outputTail: outputLines.slice(-OUTPUT_TAIL_LINES),
         displays,
+        ...(samples.length > 0 ? { samples } : {}),
         ...(extras.error ? { error: extras.error } : {}),
         nestedCalls,
       })
@@ -439,10 +444,15 @@ export async function runWorkshopCell(
             const id = msg.id
             const kind = String(msg.kind)
             const payload = (msg.payload ?? {}) as Record<string, unknown>
-            const dispatch = async (): Promise<string> => {
+            const dispatch = async (): Promise<unknown> => {
               if (kind === 'inspect') return bridge.inspect(String(payload.ref))
               if (kind === 'tool') return bridge.tool(String(payload.name), payload.input)
               if (kind === 'agent') return bridge.agent(payload.input)
+              if (kind === 'sample' && samplesEnabled()) {
+                const item = await handleSampleCall(owner, payload.spec)
+                samples.push(item)
+                return item
+              }
               throw new Error(`unknown bridge call '${kind}'`)
             }
             void dispatch()

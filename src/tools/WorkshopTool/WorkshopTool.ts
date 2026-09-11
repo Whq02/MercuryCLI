@@ -2,6 +2,7 @@
 import { z } from 'zod/v4'
 import { buildTool, findToolByName, type ToolUseContext } from '../../Tool.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { samplesEnabled } from '../../services/samples/contracts.js'
 import {
   DEFAULT_CELL_TIMEOUT_MS,
   MAX_CELL_TIMEOUT_MS,
@@ -68,6 +69,9 @@ function renderCellText(cell: WorkshopCellResult): string {
   for (const d of cell.displays) {
     lines.push(`display[${d.kind}]: ${d.value.length > 2000 ? d.value.slice(0, 2000) + '…' : d.value}`)
   }
+  for (const s of cell.samples ?? []) {
+    lines.push(`sample: ${s.title} v${s.version} → ${s.url}${s.ask ? ` · asked: ${s.ask}` : ''}`)
+  }
   if (cell.outputTail.length > 0) {
     lines.push('output:', ...cell.outputTail.map(l => `  ${l}`))
   }
@@ -80,7 +84,7 @@ function renderCellText(cell: WorkshopCellResult): string {
 export const WorkshopTool = buildTool({
   name: WORKSHOP_TOOL_NAME,
   searchHint:
-    'persistent JS/TS code cells with retained state, tool/agent composition (mercury.tool, mercury.agent, mercury.inspect)',
+    'persistent JS/TS code cells with retained state, tool/agent composition (mercury.tool, mercury.agent, mercury.inspect), samples — a page the operator asked to see (mercury.sample)',
   maxResultSizeChars: 100_000,
   strict: true,
   isEnabled() {
@@ -90,6 +94,9 @@ export const WorkshopTool = buildTool({
     return 'Run persistent JavaScript/TypeScript analysis cells with retained state'
   },
   async prompt() {
+    const sampleLine = samplesEnabled()
+      ? `\n· await mercury.sample({ name, title?, html, ask? }) — keep a page as a sample: a versioned, re-openable page the operator opens in the browser and marks up; returns { id, version, url }. ONLY when the operator asked to see something (a page, a design, a mockup, a report to look at, "show me") — never unasked, never as a hedge, never to decorate an answer; pass the operator's words as ask. The same name publishes the next version; keep the page's data in the cell so a redraw is a small edit.`
+      : ''
     return `Run code cells on a persistent session-owned JS/TS runtime. State persists ACROSS cells and Workshop calls (top-level var/let/const/class/function; in cells using top-level await, simple "const x = …" bindings persist — complex patterns stay cell-local). Use Workshop for multi-step analysis, retained data transforms, and programmatic tool composition; keep single file reads/edits on the primitive tools.
 
 Each cell: { language: "js"|"ts"|"py", code, title?, timeoutMs?, reset? }. ts needs a workspace typescript package (Mercury does not bundle a compiler — an absent one refuses honestly). py needs python3 on PATH (absent ⇒ honest refusal; no packages are ever auto-installed; interactive stdin raises). require() resolves from the session cwd and re-reads changed local files on later cells (dynamic import() stays cached). One cell runs at a time per runtime; later cells queue. A JS/TS timeout or cancel TERMINATES the runtime — retained state is lost and reported, never silently; a py cancel INTERRUPTS first (KeyboardInterrupt — state retained) and kills only if the interrupt does not land within 2s. reset: true discards state explicitly.
@@ -98,7 +105,7 @@ The bridge (inside cells):
 · await mercury.tool(name, input) — run any normal tool through the standard permission path (nested Workshop calls are refused)
 · await mercury.agent(input) — delegate to a sub-agent (the same input shape as a direct launch); the result includes the structured envelope
 · await mercury.inspect(ref) — read a mercury:// resource
-· mercury.display(value) — structured display (text/markdown/json/table/ref detected by shape)
+· mercury.display(value) — structured display (text/markdown/json/table/ref detected by shape)${sampleLine}
 · mercury.parallel(thunks) / mercury.pipeline(items, ...stages) — in-cell composition helpers
 
 Output streams to a bounded tail; large output spills to an artifact ref. The last expression's value is the cell value.`
@@ -134,7 +141,7 @@ Output streams to a bounded tail; large output spills to an artifact ref. The la
   renderToolUseErrorMessage,
   renderToolResultMessage,
   extractSearchText({ cells, result }: Output) {
-    const parts = cells.flatMap(c => [c.title ?? '', ...(c.outputTail ?? [])])
+    const parts = cells.flatMap(c => [c.title ?? '', ...(c.outputTail ?? []), ...(c.samples ?? []).map(s => s.title)])
     if (result) parts.push(result)
     return parts.filter(Boolean).join('\n')
   },
