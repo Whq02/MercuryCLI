@@ -299,7 +299,7 @@ section('§7 swept-spelling totality — swept spellings never ride a registry r
   check(
     'headlessRun imports the roster from workerRole (one owner, never a second literal)',
     /import \{ LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS \} from '\.\.\/utils\/workerRole\.js'/.test(spawn) &&
-      !/RETIRED_SEAT_ENV_VARS[^=]*=\s*\[/.test(spawn),
+      !/RETIRED_SEAT_ENV_VARS[^=\n]*=\s*\[/.test(spawn),
   )
   check(
     'assertSingleRole reads the swept list RAW (process.env), the live roles through flagEnv',

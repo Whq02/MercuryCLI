@@ -287,7 +287,9 @@ section('mode-follow: workflow agents ride the MAIN session permission mode')
   )
   check(
     'a pending ask heartbeats the inactivity watchdog (ask ≠ silence)',
-    /A PENDING PERMISSION ASK IS NOT SILENCE/.test(runner) && /canUseToolAskLively/.test(runner),
+    runner.includes('const canUseToolAskLively: typeof canUseTool = canUseTool') &&
+      runner.includes('askHeartbeat = setInterval(() => watchdog.touch(), askHeartbeatMs)') &&
+      runner.includes('canUseTool: canUseToolAskLively,'),
   )
 }
 

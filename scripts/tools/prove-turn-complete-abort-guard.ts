@@ -42,7 +42,7 @@ check(
 )
 check(
   'the tools abort branch appends the tool-use interruption line (steer excepted)',
-  /\/\/ ── abort during tools[\s\S]{0,1600}?steer \? null : createUserInterruptionMessage\(\{ toolUse: true, reason: cutReason \}\)[\s\S]{0,1500}?const terminal: Terminal = \{ reason: 'aborted_tools' \}/.test(machine),
+  /signal\.aborted\) \{[\s\S]{0,700}?phase: 'tools',\s*steer,\s*message: steer \? null : createUserInterruptionMessage\(\{ toolUse: true, reason: cutReason \}\),[\s\S]{0,1500}?const terminal: Terminal = \{ reason: 'aborted_tools' \}/.test(machine),
 )
 check(
   'the streaming abort branch settles every announced tool_use synthetically first, in the typed cut\'s words',

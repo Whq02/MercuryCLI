@@ -120,7 +120,13 @@ section('§5 pool + wiring (structural)')
 const toolsSrc = src('tools.ts')
 check('registry spread flag-gated (live)', toolsSrc.includes('...(isAutopilotEnabled() ? [SetTierTool] : [])'))
 const poolSrc = src('utils', 'toolPool.ts')
-check('toolPool keeps SetTier in the pool in every mode (the tool refuses at call time)', poolSrc.includes('The autopilot tier control stays in the pool in every') && !poolSrc.includes("mode !== 'autopilot'"))
+check(
+  'toolPool keeps SetTier in the pool in every mode (the tool refuses at call time)',
+  poolSrc.includes('void mode') &&
+    poolSrc.includes('return ordered') &&
+    !/\bmode\b[^\n]*\.filter\(|\.filter\([^\n]*\bmode\b/.test(poolSrc) &&
+    !poolSrc.includes("mode !== 'autopilot'"),
+)
 const toolSrc = src('tools', 'SetTierTool', 'SetTierTool.ts')
 check('isEnabled = flag ∧ interactive ', toolSrc.includes('isAutopilotEnabled()') && toolSrc.includes('!getIsNonInteractiveSession()'))
 check('validateInput rejects subagents', toolSrc.includes('if (context.agentId)'))

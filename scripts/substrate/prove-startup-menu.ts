@@ -100,7 +100,9 @@ section('command-owned setting rows — the /caching dial law')
   const wBad = writeBootEnvChoice('MERCURY_CACHE_TTL', 'forever', wFile)
   check('the writer refuses a foreign dial value', wBad.ok === false)
   const splashCore = readFileSync(join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs'), 'utf-8')
-  const menuBlock = splashCore.slice(splashCore.indexOf('MERCURY-MENU-START'), splashCore.indexOf('MERCURY-MENU-END'))
+  const menuStart = splashCore.indexOf('const MENU = [')
+  const menuBlock = menuStart === -1 ? '' : splashCore.slice(menuStart, splashCore.indexOf('\n]', menuStart))
+  check('the baked splash menu carries the menu rows (the THEMIS row is present)', menuBlock.includes('"env":"MERCURY_THEMIS"'))
   check('the baked splash menu excludes the command row', menuBlock.length > 0 && !menuBlock.includes('MERCURY_CACHE_TTL'))
 }
 

@@ -82,7 +82,10 @@ section('isAutoModeAllowlistedTool name/action gating (classifierDecision.ts)')
   const cd = src('utils', 'permissions', 'classifierDecision.ts')
   const has = (needle: string) => cd.includes(needle)
   check('exists + gates safe-tool names on the allowlist SET', has('export function isAutoModeAllowlistedTool') && has('SAFE_YOLO_ALLOWLISTED_TOOLS.has(toolName)'))
-  check('write/edit tools are NOT on the safe set (comment + absence)', has('Does NOT include write/edit tools') && !has('FILE_WRITE_TOOL_NAME,') && !has('FILE_EDIT_TOOL_NAME,'))
+  const safeSetStart = cd.indexOf('const SAFE_YOLO_ALLOWLISTED_TOOLS: ReadonlySet<string> = new Set([')
+  const safeSet = safeSetStart === -1 ? '' : cd.slice(safeSetStart, cd.indexOf('])', safeSetStart))
+  check('the safe set carries the read-only tools (positive control)', safeSet.includes('FILE_READ_TOOL_NAME,') && safeSet.includes('GREP_TOOL_NAME,') && safeSet.includes('GLOB_TOOL_NAME,'))
+  check('write/edit tools are NOT on the safe set (absence, file-wide)', safeSet.length > 0 && !has('FILE_WRITE_TOOL_NAME,') && !has('FILE_EDIT_TOOL_NAME,'))
 }
 
 section('Flow availability uses settings and runtime safety state')
