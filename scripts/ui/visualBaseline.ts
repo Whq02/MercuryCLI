@@ -59,9 +59,9 @@ export const DEFAULT_MASKS = [
   '\\b\\d+[smhd] old\\b',
   '\\b\\d+ uncommitted \\(\\+\\d+/-\\d+\\) *',
   'health [▲●◌◐✕✓·◓] \\S+( · \\d+[smhd])? *',
-  'row:\\S+ ⌥\\S+',
+  'row:\\S+ ⌥ ?\\S+',
   'row:│ \\S+ │ ⤳',
-  '⌥\\S+ *',
+  '⌥ ?\\S+ *',
   'row: · \\S+ · \\S+ +⇧← back',
   'row:gate [✓◓✕·]',
 ]
