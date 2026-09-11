@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { readdirSync, readFileSync, statSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative, sep } from 'node:path'
+import { codeOnlyLines } from '../lib/codeText.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'leak-sweep-home-'))
 delete process.env.MERCURY_HOME
@@ -56,24 +57,126 @@ section('§A1a — the scrubbed base is BEHAVIOURAL law (subprocessEnv strips th
   delete process.env.OTEL_EXPORTER_OTLP_HEADERS
 }
 
-section('§A1b — the raw-env census (every child rides the scrubbed base, or wears the law comment)')
+interface RegisteredRawEnvSite {
+  file: string
+  code: string
+  count?: number
+  witness?: string
+  why: string
+}
+const RAW_ENV_SITES: readonly RegisteredRawEnvSite[] = [
+  {
+    file: 'src/services/structure/grammarFacility.ts',
+    code: 'env: process.env,',
+    witness: "const probe = spawnSync(process.execPath, ['-e', FRAGILE_PROBE_SOURCE, dir, wasmPath], {",
+    why: 'the disposable grammar probe is this node binary running a source that reads argv, exports nothing and spawns nothing; its verdict must match what this host would suffer, NODE_OPTIONS and V8 knobs included',
+  },
+  {
+    file: 'src/services/acp/childSession.ts',
+    code: '...process.env,',
+    witness: 'const node = opts.entry?.node ?? process.execPath',
+    why: 'the ACP child IS a Mercury session on this binary; its own subprocessEnv scrubs its children',
+  },
+  {
+    file: 'src/services/privateChannel/installPath.ts',
+    code: 'env: process.env,',
+    why: "the operator's own environment, read for the shell startup file and the user PATH; never a child's base",
+  },
+  {
+    file: 'src/substrate/directSplash.ts',
+    code: 'env: process.env,',
+    count: 2,
+    witness: 'const r = spawnSync(process.execPath, [asset.driver], {',
+    why: "the splash decision reads this process's env and spawns nothing; the enter-screen asset is this launch's own screen on this binary, reading the launch id and the config-home pins from the same env the boot will read",
+  },
+  {
+    file: 'src/utils/router/providerDiscovery.ts',
+    code: 'env: { ...process.env },',
+    why: 'an own-process read seam for provider discovery; nothing is spawned',
+  },
+  {
+    file: 'src/utils/worktree.ts',
+    code: 'const childEnv: NodeJS.ProcessEnv = { ...process.env }',
+    witness: 'const relaunchCommand = [process.execPath, ...relaunchArgs]',
+    why: 'tmux relaunches Mercury itself on this binary',
+  },
+  {
+    file: 'src/daemon/main.ts',
+    code: "const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair('MERCURY_DAEMON_SUCCESSOR_OF', String(process.pid)) }",
+    witness: 'for (const k of STORED_TOKEN_SCRUB_VARS) {',
+    why: 'the successor daemon IS Mercury; the gated scrub strips the stored-token vars before the spawn',
+  },
+  {
+    file: 'src/daemon/ownedDaemon.ts',
+    code: 'const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair(OWNER_PID_ENV, String(process.pid)) }',
+    witness: 'for (const k of STORED_TOKEN_SCRUB_VARS) {',
+    why: 'the owned daemon IS Mercury; the gated scrub strips the stored-token vars before the spawn',
+  },
+  {
+    file: 'src/daemon/headlessRun.ts',
+    code: 'const env: NodeJS.ProcessEnv = { ...process.env }',
+    witness: 'stripCrewRolePair(env)',
+    why: "a headless worker IS Mercury running on the session's own auth; the role sweeps curate the clone",
+  },
+  {
+    file: 'src/daemon/headlessRun.ts',
+    code: 'const inherited: NodeJS.ProcessEnv = { ...process.env }',
+    witness: 'for (const v of spec.stripEnv ?? []) {',
+    why: "the spawned child IS Mercury; the spec's strips curate launch and terminal identity, never its auth",
+  },
+]
+const ENV_LESS_SPAWNS: readonly RegisteredRawEnvSite[] = [
+  {
+    file: 'src/services/crew/adapters/ndjsonChild.ts',
+    code: 'const child: ChildProcess = spawn(cmd, args, {',
+    why: "the crew child is a foreign agent CLI on the operator's own account; its session env, the very spellings the scrub table strips, IS its auth",
+  },
+  {
+    file: 'src/utils/runtime/win32Console.ts',
+    code: 'const r = spawnSync(exe, arg === undefined ? [] : [arg], options)',
+    witness: 'env: { ...subprocessEnv() }',
+    why: 'the scrubbed env rides inside the options chcpSpawnShape builds',
+  },
+]
+const relPath = (file: string): string => relative(ROOT, file).split(sep).join('/')
+const siteKey = (file: string, code: string): string => `${file}\n${code}`
+function registeredSiteDrift(sites: readonly RegisteredRawEnvSite[], hits: Map<string, number>): string[] {
+  return sites
+    .filter(s => (hits.get(siteKey(s.file, s.code)) ?? 0) !== (s.count ?? 1))
+    .map(s => `${s.file} ${s.code} ×${hits.get(siteKey(s.file, s.code)) ?? 0} (registered ×${s.count ?? 1})`)
+}
+function missingWitnesses(sites: readonly RegisteredRawEnvSite[]): string[] {
+  return sites
+    .filter(s => s.witness !== undefined && !readFileSync(join(ROOT, s.file), 'utf-8').includes(s.witness))
+    .map(s => `${s.file}: ${s.witness}`)
+}
+
+section('§A1b — the raw-env census (every child rides the scrubbed base, or is a registered raw site with its reason and its code witness)')
 {
   const needle = /\.\.\.process\.env(?![.\w])|env:\s*process\.env(?![.\w])/
   const violations: string[] = []
+  const hits = new Map<string, number>()
   for (const file of srcFiles(join(ROOT, 'src'))) {
     if (file.endsWith(join('utils', 'subprocessEnv.ts'))) continue
-    const lines = readFileSync(file, 'utf-8').split('\n')
+    const body = readFileSync(file, 'utf-8')
+    if (!needle.test(body)) continue
+    const rel = relPath(file)
+    const lines = codeOnlyLines(rel, body)
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i] as string
-      const trimmed = line.trim()
-      if (trimmed.startsWith('//') || trimmed.startsWith('*')) continue
-      if (!needle.test(line)) continue
-      const context = lines.slice(Math.max(0, i - 3), i + 1).join('\n')
-      if (context.includes('child-env law:')) continue
-      violations.push(`${file.slice(ROOT.length + 1)}:${i + 1}`)
+      const code = (lines[i] as string).trim()
+      if (!needle.test(code)) continue
+      if (RAW_ENV_SITES.some(s => s.file === rel && s.code === code)) {
+        hits.set(siteKey(rel, code), (hits.get(siteKey(rel, code)) ?? 0) + 1)
+        continue
+      }
+      violations.push(`${rel}:${i + 1}`)
     }
   }
   check('A1b zero unlawful raw process.env child bases in src/', violations.length === 0, violations.join(' · '))
+  const drift = registeredSiteDrift(RAW_ENV_SITES, hits)
+  check('A1b every registered raw site stands exactly as often as registered (a vanished or a duplicated site reds)', drift.length === 0, drift.join(' · '))
+  const witnessless = missingWitnesses(RAW_ENV_SITES)
+  check("A1b every registered raw site's code witness stands in its file", witnessless.length === 0, witnessless.join(' · '))
 }
 
 section('§A2 — the execa wrapper cannot extend over the raw env (extendEnv trap)')
@@ -360,9 +463,10 @@ section('§A7 — the secret-prose guard is the DAEMON VALIDATOR\'s (one home; e
   check('A7 ScheduleWakeup consumes the one spelling', refusalSentence !== null && wakeRefusal.includes(refusalSentence))
 }
 
-section('§A8 — EVERY spawn passes an explicit env (the product law; an env-less spawn reds)')
+section('§A8 — EVERY spawn passes an explicit env (the product law; an env-less spawn reds unless it is a registered call with its reason)')
 {
   const offenders: string[] = []
+  const registeredHits = new Map<string, number>()
   for (const file of srcFiles(join(ROOT, 'src'))) {
     const body = readFileSync(file, 'utf-8')
     const importMatch = body.match(/import \{([^}]*)\} from 'node:child_process'/)
@@ -372,14 +476,13 @@ section('§A8 — EVERY spawn passes an explicit env (the product law; an env-le
       .map(n => n.trim().replace(/^type\s+.*/, '').replace(/\s+as\s+(\w+)/, '$1'))
       .filter(n => /^(spawn|spawnSync|execFile|execFileSync|exec|execSync|fork)$/.test(n))
     if (names.length === 0) continue
-    const lines = body.split('\n')
+    const rel = relPath(file)
+    const lines = codeOnlyLines(rel, body)
     const callRe = new RegExp(`(?<![.\\w])(${names.join('|')})\\(`)
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i] as string
-      const trimmed = line.trim()
-      if (trimmed.startsWith('//') || trimmed.startsWith('*')) continue
       if (!callRe.test(line)) continue
-      if (file.includes(join('skills', 'bundled'))) continue
+      if (rel.includes('skills/bundled/')) continue
       let depth = 0
       let end = i
       outer: for (let j = i; j < Math.min(lines.length, i + 60); j++) {
@@ -395,12 +498,19 @@ section('§A8 — EVERY spawn passes an explicit env (the product law; an env-le
       }
       const windowText = lines.slice(i, end + 1).join('\n')
       if (/\benv\b\s*[:,)\]}]|\benv:\s/.test(windowText)) continue
-      const above = lines.slice(Math.max(0, i - 3), i).join('\n')
-      if (above.includes('child-env law:')) continue
-      offenders.push(`${file.slice(ROOT.length + 1)}:${i + 1}`)
+      const code = line.trim()
+      if (ENV_LESS_SPAWNS.some(s => s.file === rel && s.code === code)) {
+        registeredHits.set(siteKey(rel, code), (registeredHits.get(siteKey(rel, code)) ?? 0) + 1)
+        continue
+      }
+      offenders.push(`${rel}:${i + 1}`)
     }
   }
   check('A8 zero env-less child_process calls in src/', offenders.length === 0, offenders.slice(0, 40).join(' · '))
+  const drift = registeredSiteDrift(ENV_LESS_SPAWNS, registeredHits)
+  check('A8 every registered env-less call stands exactly as often as registered (a vanished or a duplicated call reds)', drift.length === 0, drift.join(' · '))
+  const witnessless = missingWitnesses(ENV_LESS_SPAWNS)
+  check("A8 every registered env-less call's code witness stands in its file", witnessless.length === 0, witnessless.join(' · '))
 }
 
 section('§B — every arm is paired with its release (the class-B lifecycle census)')
