@@ -5,7 +5,9 @@ size, a report to read, a comparison, a small interactive page. The model
 makes one only when you ask to see something — "show me", "mock this up",
 "draw the page", "give me a report I can look at" — never on its own, never
 as a hedge, never to decorate an answer. Each sample is kept per session,
-versioned, and opens again whenever you like.
+versioned, and opens again whenever you like. Samples are off by default:
+the Boot Menu's `Samples` row or `MERCURY_SAMPLES=1` turns them on for new
+sessions ([the switch](#the-switch)).
 
 ## Where a sample comes from
 
@@ -66,6 +68,9 @@ the same message text on the clipboard for you to paste into the composer.
 
 ## The switch
 
-`MERCURY_SAMPLES` is on by default. `=0` removes `mercury.sample` from the
-Workshop bridge, the listener and `/samples`; the Workshop tool's prompt
-loses its line about samples, and nothing else changes.
+Samples are off by default. Turn the Boot Menu's `Samples` row on — the
+change reaches new sessions — or set `MERCURY_SAMPLES=1` in the environment
+before the session starts. Off, there is no `mercury.sample` in the Workshop
+bridge, no listener and no `/samples`; the Workshop tool's prompt has no
+line about samples, and nothing else changes. `mercury doctor` and
+`/health` carry a `Samples` row that says which way the switch stands.

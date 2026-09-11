@@ -48,7 +48,8 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
 - [SAMPLES.md](SAMPLES.md): samples — a page the model draws when you ask
   to see something, kept and versioned under the session, opened in your
   browser from its row or `/samples`, the marks you leave on it coming back
-  into the session, the page file when no port can be bound, and the switch.
+  into the session, the page file when no port can be bound, and the switch
+  that turns it on (off by default).
 - [DEBUGGER.md](DEBUGGER.md): the debugger over the Debug Adapter Protocol,
   launch and attach, the adapter table, child-session trees, and
   one-gesture test-debug.

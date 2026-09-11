@@ -8,7 +8,7 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'mercury-samples-message-'))
 process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 process.env.BROWSER = '/usr/bin/true'
-delete process.env.MERCURY_SAMPLES
+process.env.MERCURY_SAMPLES = '1'
 delete process.env.MERCURY_WORKSHOP
 
 const { formatMarksMessage, parseMarksBody, verdictWord } = await import('../../src/services/samples/marks.ts')
@@ -145,23 +145,25 @@ section('G the gate')
   const bridge = { inspect: async () => '', tool: async () => '', agent: async () => '' }
   const ownerOn = makeOwnerKey({ workspace: workDir, sessionId: 'gate-on', lane: 'main' } as never)
   const warm = await runWorkshopCell({ owner: ownerOn, cwd: workDir, cell: { language: 'js', code: 'typeof mercury.sample' }, bridge })
-  check('G1 with the gate unset the cell has mercury.sample', samplesEnabled() && warm.state === 'succeeded' && warm.valuePreview === "'function'", JSON.stringify(warm).slice(0, 200))
+  check('G1 with MERCURY_SAMPLES=1 the cell has mercury.sample', samplesEnabled() && warm.state === 'succeeded' && warm.valuePreview === "'function'", JSON.stringify(warm).slice(0, 200))
 
-  process.env.MERCURY_SAMPLES = '0'
-  check('G2 =0 reads as off', !samplesEnabled())
+  delete process.env.MERCURY_SAMPLES
+  check('G2 unset reads as off (the default)', !samplesEnabled())
   const ownerOff = makeOwnerKey({ workspace: workDir, sessionId: 'gate-off', lane: 'main' } as never)
   const off = await runWorkshopCell({ owner: ownerOff, cwd: workDir, cell: { language: 'js', code: 'typeof mercury.sample' }, bridge })
   check('G3 a runtime made while off has no mercury.sample', off.state === 'succeeded' && off.valuePreview === "'undefined'", JSON.stringify(off).slice(0, 200))
   const refused = await runWorkshopCell({ owner: ownerOn, cwd: workDir, cell: { language: 'js', code: "await mercury.sample({ name: 'late', html: '<p>late</p>' })" }, bridge })
   check('G4 a runtime made while on cannot keep a sample once it is off: the host refuses the call', refused.state === 'failed' && /unknown bridge call 'sample'/.test(refused.error ?? '') && refused.samples === undefined, JSON.stringify(refused).slice(0, 300))
   const promptOff = await (WorkshopTool as { prompt: () => Promise<string> }).prompt()
-  check('G5 the prompt loses its sample line', !promptOff.includes('mercury.sample'))
+  check('G5 the prompt has no sample line while off', !promptOff.includes('mercury.sample'))
+  process.env.MERCURY_SAMPLES = '0'
+  check('G6 =0 reads as off too', !samplesEnabled())
 
-  delete process.env.MERCURY_SAMPLES
+  process.env.MERCURY_SAMPLES = '1'
   const ownerBack = makeOwnerKey({ workspace: workDir, sessionId: 'gate-back', lane: 'main' } as never)
   const back = await runWorkshopCell({ owner: ownerBack, cwd: workDir, cell: { language: 'js', code: 'typeof mercury.sample' }, bridge })
   const promptBack = await (WorkshopTool as { prompt: () => Promise<string> }).prompt()
-  check('G6 unset again: a new runtime has the call and the prompt its line (a live read)', samplesEnabled() && back.valuePreview === "'function'" && promptBack.includes('mercury.sample'))
+  check('G7 =1 again: a new runtime has the call and the prompt its line (a live read)', samplesEnabled() && back.valuePreview === "'function'" && promptBack.includes('mercury.sample'))
   await disposeOwner(ownerOn)
   await disposeOwner(ownerOff)
   await disposeOwner(ownerBack)
