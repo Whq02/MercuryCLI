@@ -110,6 +110,35 @@ function sameFile(a: string, b: string, isWindows: boolean): boolean {
   return isWindows ? x.toLowerCase() === y.toLowerCase() : x === y
 }
 
+export type CommandOnPath =
+  | { state: 'stable'; resolved: string }
+  | { state: 'other'; resolved: string }
+  | { state: 'absent' }
+
+export function commandOnPath(roots: LayoutRoots, resolveCommand: (name: string) => string | null = whichSync): CommandOnPath {
+  const resolved = resolveCommand('mercury')
+  if (resolved === null) return { state: 'absent' }
+  const members = [roots.shimPath, ...(roots.shimSetPaths ?? [])]
+  return members.some(member => sameFile(member, resolved, roots.isWindows)) ? { state: 'stable', resolved } : { state: 'other', resolved }
+}
+
+export function commandOnPathWarning(
+  roots: LayoutRoots,
+  found: CommandOnPath,
+  stableWords = 'the stable command',
+  io: Pick<PathEntryIo, 'env' | 'home'> = { env: process.env, home: homedir() },
+): [fact: string, fix: string] | null {
+  if (found.state === 'stable') return null
+  const fact =
+    found.state === 'other'
+      ? `the \`mercury\` your shell runs is ${found.resolved}; ${stableWords} is ${roots.shimPath}`
+      : `no \`mercury\` is on your PATH; ${stableWords} is ${roots.shimPath}`
+  const fix = roots.isWindows
+    ? `put ${roots.binDir} ${found.state === 'other' ? 'ahead of it in' : 'on'} your user PATH (Settings › System › Advanced system settings › Environment Variables › User variables › Path)`
+    : `put ${roots.binDir} ${found.state === 'other' ? 'ahead of it ' : ''}on PATH — in this terminal: ${manualPathLine(roots, io)}`
+  return [fact, fix]
+}
+
 
 interface Decision {
   outcome: PathEntryOutcome

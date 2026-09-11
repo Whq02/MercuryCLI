@@ -1,4 +1,11 @@
 import { reconcileManagedShims, resolveLayoutRoots } from 'src/services/privateChannel/installLayout.js'
+import { commandOnPath, commandOnPathWarning } from 'src/services/privateChannel/installPath.js'
+import {
+  foreignInstallerOf,
+  resolveInstallProvenance,
+  UPDATE_VERB_SCOPE_WORDS,
+  type InstallProvenanceV1,
+} from 'src/services/privateChannel/installProvenance.js'
 import {
   channelStatus,
   checkForUpdate,
@@ -27,6 +34,21 @@ const progressToStderr: Progress = (state, detail) => {
 const emitJson = (value: unknown): never => cliOk(jsonStringify(value, null, 1) ?? '{}')
 const failJson = (value: unknown): never => cliError(jsonStringify(value, null, 1) ?? '{}')
 
+function provenanceStatusWords(p: InstallProvenanceV1): string {
+  const installer = foreignInstallerOf(p)
+  if (installer) return `installed by ${installer.name} at ${p.activeRoot} — update it with \`${installer.updateCommand}\`; ${UPDATE_VERB_SCOPE_WORDS}`
+  switch (p.kind) {
+    case 'managed':
+      return `installed by \`mercury install\` or the install script at ${p.activeRoot} — \`mercury update\` manages it`
+    case 'extracted-release':
+      return `a release archive run in place at ${p.activeRoot} — \`mercury update\` manages the install under the versions directory`
+    case 'development':
+      return `a source checkout at ${p.activeRoot} — rebuild it with \`git pull && bun run build.ts\``
+    default:
+      return `an unrecognized install shape at ${p.activeRoot || '(no entry path)'} — adopt the managed layout with \`mercury install\` for update support`
+  }
+}
+
 export async function update(options: UpdateCliOptions = {}): Promise<never> {
   const picked = [options.check, options.status, options.rollback].filter(Boolean).length
   if (picked > 1) {
@@ -34,6 +56,14 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
     process.exit(2)
   }
   const roots = resolveLayoutRoots()
+  const provenance = resolveInstallProvenance()
+  const installer = foreignInstallerOf(provenance)
+  const provenanceRecord = {
+    kind: provenance.kind,
+    activeRoot: provenance.activeRoot,
+    updateOwner: provenance.updateOwner,
+    updateCommand: installer?.updateCommand ?? null,
+  }
   const progress: Progress = options.json ? () => {} : progressToStderr
 
   const residue = readBootAttemptResidue()
@@ -45,7 +75,9 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
     const status = await channelStatus(roots)
     const pointerDamaged = status.installedPointer === 'unreadable'
     if (options.json) {
-      return pointerDamaged ? failJson({ mode: 'status', ...status }) : emitJson({ mode: 'status', ...status })
+      return pointerDamaged
+        ? failJson({ mode: 'status', ...status, provenance: provenanceRecord })
+        : emitJson({ mode: 'status', ...status, provenance: provenanceRecord })
     }
     const installedLine =
       status.installedPointer === 'ok'
@@ -57,6 +89,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
             : '(pointer file unreadable — fix permissions on <versions>/current.txt)'
     const lines = [
       `running version:   ${status.runningVersion}`,
+      `this Mercury:      ${provenanceStatusWords(provenance)}`,
       `installed version: ${installedLine}`,
       `previous version:  ${status.previousVersion ?? '(none)'}`,
       `versions present:  ${status.versionsPresent.join(', ') || '(none)'}`,
@@ -70,6 +103,12 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
   }
 
   if (options.rollback) {
+    if (installer) {
+      const reason = `this Mercury was installed by ${installer.name}; \`mercury update --rollback\` manages installs made by \`mercury install\` or the install script`
+      const remedy = `${installer.name} manages this install; \`${installer.updateCommand}\` updates it`
+      if (options.json) return failJson({ mode: 'rollback', state: 'refused', reason, remedy, provenance: provenanceRecord })
+      return cliError(`rollback refused: ${reason}\n  ${remedy}`)
+    }
     reconcileManagedShims(roots)
     const rolled = await performRollback(roots, progress)
     if (options.json) {
@@ -87,13 +126,19 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
     const check = await checkForUpdate(roots, progress)
     if (options.json) {
       const ok = check.state === 'update-available' || check.state === 'current' || check.state === 'no-releases'
-      return ok ? emitJson({ mode: 'check', ...check }) : failJson({ mode: 'check', ...check })
+      return ok
+        ? emitJson({ mode: 'check', ...check, provenance: provenanceRecord })
+        : failJson({ mode: 'check', ...check, provenance: provenanceRecord })
     }
     switch (check.state) {
-      case 'update-available':
+      case 'update-available': {
+        const next = installer
+          ? `this Mercury was installed by ${installer.name}; update it with \`${installer.updateCommand}\``
+          : 'run `mercury update` to install it'
         return cliOk(
-          `update available: ${check.tag} (installed: ${check.installed})\n  asset: ${check.assetName}\n  channel: ${check.channelRepo} (${describeChannelRoad(check.road)})\nrun \`mercury update\` to install it`,
+          `update available: ${check.tag} (installed: ${check.installed})\n  asset: ${check.assetName}\n  channel: ${check.channelRepo} (${describeChannelRoad(check.road)})\n${next}`,
         )
+      }
       case 'current':
         return cliOk(`Mercury is current: ${check.installed} (channel: ${check.channelRepo}, ${describeChannelRoad(check.road)})`)
       case 'no-releases':
@@ -115,10 +160,18 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
     }
   }
 
+  if (installer) {
+    const reason = `this Mercury was installed by ${installer.name}; update it with \`${installer.updateCommand}\``
+    if (options.json) {
+      return failJson({ mode: 'update', state: 'refused', stage: 'provenance', reason, remedy: UPDATE_VERB_SCOPE_WORDS, provenance: provenanceRecord })
+    }
+    return cliError(`update refused: ${reason}\n  ${UPDATE_VERB_SCOPE_WORDS}\nnothing was downloaded; the active installation was not changed`)
+  }
   const result = await performUpdate(roots, progress, { allowUnsigned: options.allowUnsigned })
   if (result.state === 'updated' || (result.state === 'no-update' && result.check.state === 'current')) {
     reconcileManagedShims(roots)
   }
+  const shellCommand = result.state === 'updated' ? commandOnPath(roots) : null
   try {
     const { runLifecycleVerbOpportunity } = await import('../utils/backgroundHousekeeping.js')
     await runLifecycleVerbOpportunity('update')
@@ -128,7 +181,8 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
     const ok =
       result.state === 'updated' ||
       (result.state === 'no-update' && (result.check.state === 'current' || result.check.state === 'no-releases'))
-    return ok ? emitJson({ mode: 'update', ...result }) : failJson({ mode: 'update', ...result })
+    const record = shellCommand ? { mode: 'update', ...result, commandOnPath: shellCommand } : { mode: 'update', ...result }
+    return ok ? emitJson(record) : failJson(record)
   }
   switch (result.state) {
     case 'updated': {
@@ -138,8 +192,10 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
           : result.shim.state === 'written'
             ? `\n  stable command refreshed: ${result.shim.path}`
             : ''
+      const shellLines = shellCommand ? commandOnPathWarning(roots, shellCommand, 'the updated one') : null
+      const shellWords = shellLines ? `\n  ${shellLines[0]}\n  ${shellLines[1]}` : ''
       return cliOk(
-        `updated: ${result.from} → ${result.to} (${describeChannelRoad(result.road)})\n  signature: ${result.signature}${result.unsignedOverride ? ' (accepted by explicit --allow-unsigned)' : ''}\n  previous version kept${result.previousKept ? '' : ' (none was installed)'} — \`mercury update --rollback\` returns to it${shimLine}`,
+        `updated: ${result.from} → ${result.to} (${describeChannelRoad(result.road)})\n  signature: ${result.signature}${result.unsignedOverride ? ' (accepted by explicit --allow-unsigned)' : ''}\n  previous version kept${result.previousKept ? '' : ' (none was installed)'} — \`mercury update --rollback\` returns to it${shimLine}${shellWords}`,
       )
     }
     case 'no-update':

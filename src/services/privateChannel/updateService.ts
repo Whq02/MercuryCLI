@@ -48,6 +48,7 @@ import {
 } from './installLayout.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { ensureBinDirOnPath, manualPathLine, planBinDirOnPath, realPathEntryIo, type PathEntryOutcome } from './installPath.js'
+import { foreignInstallerOf, resolveInstallProvenance } from './installProvenance.js'
 import { describeRunningRuntime, payloadRuntimeLine, runningBundlePayloadDir, runtimeLine, type RunningRuntime } from './vendoredRuntime.js'
 
 export function runningRuntime(): RunningRuntime {
@@ -74,6 +75,7 @@ export type ProgressLine =
 export type Progress = (state: ProgressLine, detail?: string) => void
 
 export function installedVersionTruth(roots: LayoutRoots): { version: string; source: 'pointer' | 'running' } {
+  if (foreignInstallerOf(resolveInstallProvenance()) !== null) return { version: MACRO.VERSION, source: 'running' }
   const pointer = readCurrentVersion(roots)
   if (pointer) return { version: pointer, source: 'pointer' }
   return { version: MACRO.VERSION, source: 'running' }
