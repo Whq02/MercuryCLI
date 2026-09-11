@@ -8,7 +8,7 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'mercury-samples-cockpit-'))
 process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 process.env.BROWSER = '/usr/bin/true'
-delete process.env.MERCURY_SAMPLES
+process.env.MERCURY_SAMPLES = '1'
 
 const REPO = join(import.meta.dir, '..', '..')
 const store = await import('../../src/services/samples/store.ts')
@@ -70,7 +70,7 @@ check('F2f a write refreshes the projection', after !== rows && after.length ===
 check('F2g another session projects its own rows (none)', (await sampleRowsOf('another-session')).length === 0)
 process.env.MERCURY_SAMPLES = '0'
 check('F2h MERCURY_SAMPLES=0 projects nothing', (await sampleRowsOf(sessionId)).length === 0)
-delete process.env.MERCURY_SAMPLES
+process.env.MERCURY_SAMPLES = '1'
 
 section('F3 the wire spells the rows snake_case and the seat reads them back')
 const answer = {
