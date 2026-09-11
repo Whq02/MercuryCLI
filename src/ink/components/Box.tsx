@@ -4,6 +4,7 @@ import type { DOMElement } from '../dom.js'
 import type { ClickEvent } from '../events/click-event.js'
 import type { FocusEvent } from '../events/focus-event.js'
 import type { KeyboardEvent } from '../events/keyboard-event.js'
+import type { TextGestureHandler } from '../events/text-gesture.js'
 import type { Styles } from '../styles.js'
 import { logForDebugging } from '../../utils/debug.js'
 
@@ -20,6 +21,7 @@ export type Props = Omit<Styles, 'textWrap'> & {
   readonly onKeyDownCapture?: (event: KeyboardEvent) => void
   readonly onMouseEnter?: () => void
   readonly onMouseLeave?: () => void
+  readonly onTextGesture?: TextGestureHandler
 }
 
 const SPACING_PROPS = [
@@ -69,6 +71,7 @@ const Box = forwardRef<DOMElement, PropsWithChildren<Props>>(
       onKeyDownCapture,
       onMouseEnter,
       onMouseLeave,
+      onTextGesture,
       ...style
     },
     ref,
@@ -100,6 +103,7 @@ const Box = forwardRef<DOMElement, PropsWithChildren<Props>>(
         onKeyDownCapture={onKeyDownCapture}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
+        onTextGesture={onTextGesture}
       >
         {children}
       </ink-box>

@@ -18,6 +18,7 @@ import {
   recordYank,
   resetKillAccumulation,
   resetYankState,
+  type SelectionPaint,
   updateYankLength,
   yankPop,
 } from '../utils/Cursor.js'
@@ -58,6 +59,7 @@ export type UseTextInputProps = {
   selectionRange?: () => { start: number; end: number } | null | undefined
   onBeforeRangeEdit?: () => void
   onSelectionConsumed?: () => void
+  selectionPaint?: SelectionPaint | null
   focus?: boolean
   highlightPastedText?: boolean
   themeText?: (text: string) => string
@@ -103,6 +105,7 @@ export function useTextInput({
   selectionRange,
   onBeforeRangeEdit,
   onSelectionConsumed,
+  selectionPaint,
 }: UseTextInputProps): TextInputState {
   const { addNotification, removeNotification } = useNotifications()
 
@@ -419,11 +422,15 @@ export function useTextInput({
           const bare = !key.shift && !key.ctrl && !key.meta
           if ((key.leftArrow || key.rightArrow) && bare) {
             setOffset(key.leftArrow ? r.start : r.end)
+            onSelectionConsumed?.()
             return
           }
           if (key.escape) {
             onSelectionConsumed?.()
             return
+          }
+          if (bare && (key.upArrow || key.downArrow || key.home || key.end || key.pageUp || key.pageDown)) {
+            onSelectionConsumed?.()
           }
           const printable =
             !key.ctrl &&
@@ -481,6 +488,7 @@ export function useTextInput({
     invert ?? (text => text),
     ghost,
     maxVisibleLines,
+    selectionPaint ?? undefined,
   )
   const position = renderCursor.getPosition()
   const localViewportStartRef = useRef<number | undefined>(undefined)

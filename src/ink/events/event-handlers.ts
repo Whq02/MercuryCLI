@@ -4,6 +4,7 @@ import type { FocusEvent } from './focus-event.js'
 import type { KeyboardEvent } from './keyboard-event.js'
 import type { PasteEvent } from './paste-event.js'
 import type { ResizeEvent } from './resize-event.js'
+import type { TextGestureHandler } from './text-gesture.js'
 
 export const HANDLER_FOR_EVENT: Record<
   string,
@@ -30,6 +31,7 @@ export type EventHandlerProps = {
   onClick?: (event: ClickEvent) => void
   onMouseEnter?: () => void
   onMouseLeave?: () => void
+  onTextGesture?: TextGestureHandler
 }
 
 export const EVENT_HANDLER_PROPS = new Set([
@@ -45,4 +47,5 @@ export const EVENT_HANDLER_PROPS = new Set([
   'onClick',
   'onMouseEnter',
   'onMouseLeave',
+  'onTextGesture',
 ])

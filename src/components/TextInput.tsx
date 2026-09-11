@@ -5,9 +5,11 @@ import { BaseTextInput } from './BaseTextInput.js'
 import { useTextInput } from '../hooks/useTextInput.js'
 import { useBlink } from '../hooks/useBlink.js'
 import { useClipboardImageHint } from '../hooks/useClipboardImageHint.js'
+import { colorize } from '../ink/colorize.js'
 import { useTerminalFocus } from '../ink/hooks/use-terminal-focus.js'
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js'
 import type { BaseTextInputProps } from '../types/textInputTypes.js'
+import { getTheme } from '../utils/theme.js'
 import { color } from './design-system/color.js'
 import { useTheme } from './design-system/ThemeProvider.js'
 
@@ -15,6 +17,7 @@ export type Props = BaseTextInputProps & {
   selectionRange?: () => { start: number; end: number } | null | undefined
   onSelectionConsumed?: () => void
   onBeforeRangeEdit?: () => void
+  selectionHighlight?: { start: number; end: number } | null
   viewportStartRef?: React.MutableRefObject<number | undefined>
 }
 
@@ -36,6 +39,18 @@ export default function TextInput(props: Props): React.ReactNode {
     !terminalFocused || accessibility || !caretPhaseOn
       ? (text: string): string => text
       : (text: string): string => chalk.inverse(text)
+  const highlight = props.selectionHighlight
+  const selectionPaint =
+    highlight && highlight.end > highlight.start
+      ? {
+          start: highlight.start,
+          end: highlight.end,
+          paint: (text: string): string => {
+            const toned = colorize(text, getTheme(themeName).selectionBg, 'background')
+            return toned === text ? chalk.inverse(text) : toned
+          },
+        }
+      : null
 
   const inputState = useTextInput({
     value: props.value,
@@ -67,6 +82,7 @@ export default function TextInput(props: Props): React.ReactNode {
     selectionRange: props.selectionRange,
     onBeforeRangeEdit: props.onBeforeRangeEdit,
     onSelectionConsumed: props.onSelectionConsumed,
+    selectionPaint,
     focus: props.focus,
     highlightPastedText: props.highlightPastedText,
     themeText: color('text', themeName),
