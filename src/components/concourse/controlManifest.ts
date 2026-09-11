@@ -53,6 +53,12 @@ export const CONCOURSE_CONTROLS: readonly ConcourseControlSpec[] = [
   { id: 'status:project-ground', action: 'concourse:ground-picker', region: 'status', modes: ['browse'], keys: ['ctrl+g'], pointer: 'activate', receipt: 'mode-transition' },
   { id: 'capacity-ask:allow', action: 'concourse:capacity-allow', region: 'coordinator', modes: ['confirmation'], keys: ['y'], pointer: 'activate', receipt: 'mode-transition' },
   { id: 'capacity-ask:decline', action: 'concourse:capacity-decline', region: 'coordinator', modes: ['confirmation'], keys: ['n', 'escape'], pointer: 'activate', receipt: 'mode-transition' },
+  { id: 'compact:row', action: 'concourse:select-session', region: 'list', modes: ['browse'], keys: ['up', 'down'], pointer: 'select-then-activate', receipt: 'selection' },
+  { id: 'compact:steer', action: 'concourse:focus-live', region: 'list', modes: ['browse'], keys: ['return'], pointer: 'activate', receipt: 'focus-move' },
+  { id: 'compact:list-title', action: 'concourse:focus-list', region: 'list', modes: ['browse'], keys: ['tab', 'escape'], pointer: 'activate', receipt: 'focus-move' },
+  { id: 'compact:live-title', action: 'concourse:focus-live', region: 'live', modes: ['browse'], keys: [], pointer: 'activate', receipt: 'focus-move' },
+  { id: 'compact:new-session', action: 'concourse:new-session', region: 'list', modes: ['browse'], keys: ['n'], pointer: 'activate', receipt: 'route-transition' },
+  { id: 'compact:stop', action: 'concourse:stop-session', region: 'list', modes: ['browse'], keys: ['x'], pointer: 'none', receipt: 'row-control' },
 ] as const
 
 export const CONCOURSE_BROWSE_KEYS = [

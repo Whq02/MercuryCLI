@@ -200,7 +200,7 @@ export function switchboardGeometry(
   }
 }
 
-const STATE_GLYPH: Record<string, { glyph: string; color: 'success' | 'warning' | 'failure' | 'info' | 'textMuted' | 'infoText' }> = {
+export const STATE_GLYPH: Record<string, { glyph: string; color: 'success' | 'warning' | 'failure' | 'info' | 'textMuted' | 'infoText' }> = {
   'ready-to-review': { glyph: GLYPH.ok, color: 'success' },
   working: { glyph: GLYPH.pending, color: 'info' },
   'needs-you': { glyph: GLYPH.mission, color: 'warning' },
@@ -218,7 +218,7 @@ const STATE_GLYPH: Record<string, { glyph: string; color: 'success' | 'warning' 
   elsewhere: { glyph: GLYPH.handoff, color: 'info' },
 }
 
-const STATE_WORD: Record<string, string> = {
+export const STATE_WORD: Record<string, string> = {
   'ready-to-review': 'ready',
   working: 'working',
   'needs-you': 'NEEDS YOU',

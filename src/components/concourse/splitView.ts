@@ -86,12 +86,12 @@ export function splitViewRatio(): SplitRatio {
   return ratio
 }
 
-export function splitActiveOf(facts: { on: boolean; cols: number; rows: number; plainWorld: boolean }): boolean {
-  return facts.on && !facts.plainWorld && splitAvailableAt(facts.cols, facts.rows)
+export function splitActiveOf(facts: { on: boolean; cols: number; rows: number; plainWorld: boolean; compact?: boolean }): boolean {
+  return facts.on && !facts.plainWorld && facts.compact !== true && splitAvailableAt(facts.cols, facts.rows)
 }
 
-export function splitActiveAt(cols: number, rows: number): boolean {
-  return splitActiveOf({ on, cols, rows, plainWorld: chatOnlyBoot() })
+export function splitActiveAt(cols: number, rows: number, compact = false): boolean {
+  return splitActiveOf({ on, cols, rows, plainWorld: chatOnlyBoot(), compact })
 }
 
 export type SplitToggleOutcome =
