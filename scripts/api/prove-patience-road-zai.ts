@@ -61,10 +61,10 @@ section('R2 — silence: the response opens, then nothing — cut at the budget 
 
 section('R3 — the number: the fed road lives under the fed budget; the pin outranks it')
 {
-  check('normal: 5 min', idle.streamIdleTimeoutMsForRoute('zai') === 300_000, String(idle.streamIdleTimeoutMsForRoute('zai')))
+  check('normal: 2 min', idle.streamIdleTimeoutMsForRoute('zai') === 120_000, String(idle.streamIdleTimeoutMsForRoute('zai')))
   const { error } = settings.updateSettingsForSource('userSettings', { patience: 'patient' } as never)
   settingsCache.resetSettingsCache()
-  check('patient: 10 min', error === null && idle.streamIdleTimeoutMsForRoute('zai') === 600_000, String(idle.streamIdleTimeoutMsForRoute('zai')))
+  check('patient: 4 min', error === null && idle.streamIdleTimeoutMsForRoute('zai') === 240_000, String(idle.streamIdleTimeoutMsForRoute('zai')))
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '2000'
   check('the env pin outranks the setting', idle.streamIdleTimeoutMsForRoute('zai') === 2_000)
   delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS

@@ -151,6 +151,14 @@ export function agentWaitElapsed(ms: number): string {
   return `${h}h ${m % 60}m`
 }
 
+function agentWaitBudget(ms: number): string {
+  const s = Math.max(1, Math.round(ms / 1000))
+  if (s < 60) return `${s} s`
+  const m = Math.floor(s / 60)
+  const rest = s % 60
+  return rest === 0 ? `${m}m` : `${m}m ${rest}s`
+}
+
 export function agentWaitWords(wait: AgentWaitV1 | null | undefined, nowMs: number | null): string | null {
   if (!wait) return null
   const counter = nowMs === null ? null : agentWaitElapsed(nowMs - wait.sinceMs)
@@ -158,11 +166,11 @@ export function agentWaitWords(wait: AgentWaitV1 | null | undefined, nowMs: numb
     case 'request-sent':
       return 'request sent'
     case 'first-byte':
-      return `waiting for the first byte${counter !== null ? ` · ${counter}` : ''}, within ${Math.max(1, Math.round((wait.budgetMs ?? 0) / 1000))} s`
+      return `waiting for the first byte${counter !== null ? ` · ${counter}` : ''}, within ${agentWaitBudget(wait.budgetMs ?? 0)}`
     case 'retry': {
-      const delay = Math.max(1, Math.round((wait.budgetMs ?? 0) / 1000))
+      const delay = agentWaitBudget(wait.budgetMs ?? 0)
       const ladder = wait.attempt !== undefined ? ` (retry ${wait.attempt}${wait.of !== undefined ? ` of ${wait.of}` : ''})` : ''
-      return `retrying in ${delay} s — ${wait.reason ?? 'a provider fault'}${ladder}`
+      return `retrying in ${delay} — ${wait.reason ?? 'a provider fault'}${ladder}`
     }
     case 'replying':
       return 'first byte in, no tokens yet'
