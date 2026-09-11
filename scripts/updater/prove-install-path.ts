@@ -361,9 +361,14 @@ if (IS_WIN) {
   console.log('  [SKIP] §3/§4 drive the POSIX launcher and POSIX shells — the cmd launcher rides windows-launcher.yml on a real ConPTY')
 } else {
   const DIST = join(ROOT, 'dist')
+  const unsignedPayload =
+    !existsSync(join(DIST, 'manifest.json')) ||
+    (JSON.parse(readFileSync(join(DIST, 'manifest.json'), 'utf8')) as { signing?: unknown }).signing === undefined
   if (!existsSync(join(DIST, 'mercury.mjs'))) {
     console.log('  [FAIL] dist/mercury.mjs absent — run bun run build.ts first')
     failures++
+  } else if (unsignedPayload) {
+    console.log(`  [SKIP] §3/§4 install-activation need a signed payload — this build has no manifest signing block (the hosted build is unsigned by design; the release job signs). The product unsigned-payload refusal stays the product's own contract and is unchanged.`)
   } else {
     const payload = join(scratch, 'payload', 'mercury')
     mkdirSync(payload, { recursive: true })
