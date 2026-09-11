@@ -83,6 +83,11 @@ const RAW_ENV_SITES: readonly RegisteredRawEnvSite[] = [
     why: "the operator's own environment, read for the shell startup file and the user PATH; never a child's base",
   },
   {
+    file: 'src/services/privateChannel/installPath.ts',
+    code: "io: Pick<PathEntryIo, 'env' | 'home'> = { env: process.env, home: homedir() },",
+    why: "the PATH warning's default io: the operator's own environment and home, read to spell the folder the way the shell would; nothing is spawned",
+  },
+  {
     file: 'src/substrate/directSplash.ts',
     code: 'env: process.env,',
     count: 2,
