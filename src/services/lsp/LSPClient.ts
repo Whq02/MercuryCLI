@@ -135,7 +135,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
       }
 
       processErrorListener = (err: Error) => {
-        if (stopping) return
+        if (stopping || child !== proc) return
         startFailed = true
         startError = err
         logForDebugging(`LSP server ${serverName} process error: ${err.message}`, { level: 'error' })
@@ -143,7 +143,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
       proc.on('error', processErrorListener)
 
       processExitListener = (code, signal) => {
-        if (stopping) return
+        if (stopping || child !== proc) return
         initialized = false
         startFailed = false
         startError = undefined
@@ -168,7 +168,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
       connection = conn
 
       conn.onError(([err]: [Error]) => {
-        if (stopping) return
+        if (stopping || connection !== conn) return
         logForDebugging(`LSP server ${serverName} connection error: ${err.message}`, { level: 'error' })
         if (!initialized) {
           startFailed = true
@@ -176,7 +176,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
         }
       })
       conn.onClose(() => {
-        if (stopping) return
+        if (stopping || connection !== conn) return
         if (initialized) {
           notifyCrash(new Error(`LSP server ${serverName} connection closed`))
         }
