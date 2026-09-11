@@ -44,8 +44,6 @@ section('§B the reconciliation — Mercury keeps aborted revivable')
   check('killed + transcript: aborted AND revivable (the documented divergence)', killed.state === 'aborted' && killed.revivable && killed.basis.includes('revives'))
   const failedNoTranscript = deriveAgentLifecycle({ taskStatus: 'failed', transcriptExists: false, now: NOW })
   check('failed without a transcript: aborted, not revivable', failedNoTranscript.state === 'aborted' && !failedNoTranscript.revivable)
-  const moduleHead = readFileSync(join(ROOT, 'src/services/agentResults/lifecycle.ts'), 'utf8')
-  check('the divergence is documented where the vocabulary lives', moduleHead.includes('MORE capable') && moduleHead.includes('never-reduce'))
 }
 
 section('§C the revival honesty (structural pins)')

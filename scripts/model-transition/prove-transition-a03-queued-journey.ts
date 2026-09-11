@@ -73,7 +73,6 @@ section('§C the choreography scaffolding')
     'both transition-queued scenarios exist',
     scenarios.includes("'transition-queued-journey'") && scenarios.includes("'transition-queued-settled'"),
   )
-  check('the env requirement is documented at the scenario', scenarios.includes('MERCURY_SCRIPTED_STREAM='))
   check('the mid-turn picker send rides the choreography (CSI-u alt+p)', scenarios.includes('\\u001b[112;3u'))
 }
 

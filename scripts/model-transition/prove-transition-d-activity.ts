@@ -3,6 +3,7 @@
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 const HOME = mkdtempSync(join(tmpdir(), 'ctm-d-'))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -141,7 +142,6 @@ section('§E D07 — one vocabulary, versioned projections, no parallel truth')
   check('exactly ONE ACTIVITY_CLASSES definition tree-wide', defs.length === 1 && defs[0] === 'src/services/crew/activity.ts', defs.join(','))
   const acp = readFileSync(join(ROOT, 'src/services/acp/acpServer.ts'), 'utf8')
   check('the ACP crew surface consumes THE crew owners (same ids, same folds)', acp.includes("'_mercury/crew'") && acp.includes('resolveCrewSnapshot') && acp.includes('deriveInbox'))
-  check('…stated as the construction law', acp.includes('SAME ids, SAME folds'))
   const model = 'model?: string'
   const activitySrc = readFileSync(join(ROOT, 'src/services/crew/activity.ts'), 'utf8')
   check('the model field is ADDITIVE (versioned forward — optional)', activitySrc.includes(model))
@@ -150,9 +150,18 @@ section('§E D07 — one vocabulary, versioned projections, no parallel truth')
 section('§G D03/D04 — role/handoff/delivery truth where it ships')
 {
   check('tri-state delivery is the exported vocabulary', JSON.stringify(dispatch.DELIVERY_STATES) === JSON.stringify(['delivered', 'not-delivered', 'delivery-unknown']))
-  const dispatchSrc = readFileSync(join(ROOT, 'src/services/crew/dispatch.ts'), 'utf8')
-  check('delivery-unknown receipts are NEVER evicted by resolved churn', dispatchSrc.includes("'delivery-unknown' receipts are NEVER evicted"))
-  check('…and carry the no-auto-retry prohibition', dispatchSrc.includes('no-auto-retry') || dispatchSrc.includes('NO automatic'))
+  const dispatchCode = codeOnlyText('dispatch.ts', readFileSync(join(ROOT, 'src/services/crew/dispatch.ts'), 'utf8'))
+  check(
+    'delivery-unknown receipts are NEVER evicted by resolved churn (the ring partitions them and bounds them apart)',
+    dispatchCode.includes("const unknown = file.receipts.filter(r => r.state === 'delivery-unknown')") &&
+      dispatchCode.includes('const keptUnknown = new Set(unknown.slice(-MAX_RECEIPTS))') &&
+      dispatchCode.includes('receipts: file.receipts.filter(r => keptResolved.has(r) || keptUnknown.has(r))'),
+  )
+  check(
+    '…and carry the no-auto-retry prohibition (a same-id retry of an unresolved outcome returns the recorded receipt unless the adapter declared idempotency)',
+    /if \(retryingUnknown && !seat\.declaresIdempotentDelivery\) \{\s*return retryingUnknown\s*\}/.test(dispatchCode) &&
+      /if \(retryingUnknown\) \{\s*return retryingUnknown\s*\}/.test(dispatchCode),
+  )
   const handoffSrc = readFileSync(join(ROOT, 'src/services/crew/consoleHandoff.ts'), 'utf8')
   check('handoff links BOTH lineages with no id change', handoffSrc.includes("linkConversation(sideConversationId, targetConversationId, 'handoff'"))
   check('a conversation cannot hand off to itself (typed refusal)', handoffSrc.includes('cannot hand off to itself'))

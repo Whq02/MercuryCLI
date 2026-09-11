@@ -181,9 +181,9 @@ section('(3) the sandbox boundary — source pins at the owners')
 
   const toolExec = read('src/services/tools/toolExecution.ts')
   const nonAllow = toolExec.indexOf("if (decision.behavior !== 'allow') {")
-  const executeStep = toolExec.indexOf('// 15. Adopt updated input')
+  const executeStep = toolExec.indexOf('const decisionUpdatedInput = (decision as { updatedInput?: AnyObject }).updatedInput')
   check(
-    'a denied tool call returns BEFORE the execution steps (step 14 precedes step 15)',
+    'a denied tool call returns BEFORE the execution steps (the non-allow return precedes the updated-input adoption)',
     nonAllow !== -1 && executeStep !== -1 && nonAllow < executeStep && toolExec.slice(nonAllow, executeStep).includes('return'),
   )
 
