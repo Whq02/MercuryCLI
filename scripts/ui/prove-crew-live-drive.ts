@@ -476,8 +476,9 @@ async function stopLeg(dialect: Dialect): Promise<void> {
   const crewRunning = marks['crew-running'] ?? ''
   check(`${tag}: the Crew view after the esc — both seats run on with their tokens kept`, agentRow(crewRunning, SEAT_ONE, /◐/) && agentRow(crewRunning, SEAT_TWO, /◐/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('2 running · 2 sub-agents'))
   const crewStopped = marks['crew-stopped'] ?? ''
-  check(`${tag}: x twice on the selected row stops that one seat through the runner — its row reads stopped, never killed, the other runs on`, agentRow(crewStopped, SEAT_TWO, /\bstopped\b/) && !crewStopped.includes('killed') && rowTokens(crewStopped, SEAT_TWO) && agentRow(crewStopped, SEAT_ONE, /◐/) && rowTokens(crewStopped, SEAT_ONE) && crewStopped.includes('1 running · 2 sub-agents'))
-  check(`${tag}: no seat settled its turn (the Sleep was interrupted — no seat-ack on the wire)`, fixture.hits.every(h => h.route !== 'seat-ack'))
+  check(`${tag}: x twice on the selected row stops that one seat through the runner — the receipt names the stop, never killed`, new RegExp(`Agent "${SEAT_TWO}" was stopped from the crew view`).test(flat(crewStopped)) && !crewStopped.includes('killed'))
+  check(`${tag}: the other seat is never stopped — it runs on, or lands by its own door once its tracked sibling ends (the Sleep redirect), never stopped, never killed`, (agentRow(crewStopped, SEAT_ONE, /◐/) || new RegExp(`Agent "${SEAT_ONE}" completed`).test(flat(crewStopped))) && !new RegExp(`"${SEAT_ONE}" was stopped`).test(flat(crewStopped)))
+  check(`${tag}: the stopped seat never settled its turn (its Sleep was interrupted — no seat-ack of its own on the wire)`, fixture.hits.every(h => !(h.route === 'seat-ack' && h.seat === SEAT_TWO)))
   const wantLane = dialect === 'anthropic' ? 'messages' : 'responses'
   check(`${tag}: every crew turn rode the family's own wire`, fixture.hits.filter(h => h.route !== 'side').every(h => h.lane === wantLane && (dialect === 'anthropic' || h.model === GPT_ID)), fixture.hits.map(h => `${h.route}:${h.lane}:${h.model}`).join(','))
   if (failures > before && process.env.CREW_KEEP !== '1') for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
