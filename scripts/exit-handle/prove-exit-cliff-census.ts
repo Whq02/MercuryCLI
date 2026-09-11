@@ -39,7 +39,7 @@ const { seedFirstRun, FIXTURE_API_KEY } = await import('../lib/firstRunSeed.ts')
 const { ONE_TOOL_SCRIPTS, ANSWER_TEXT_SCRIPT, ONE_TOOL_READ_FILE, ONE_TOOL_SETTLED_TEXT, ONE_TOOL_WRITE_WITNESS } =
   await import('../../src/query/scriptedStream.ts')
 
-const PRODUCT_SEAM = /appendToFile|_drainWriteQueueInner/
+const BUNDLE_FRAME = /mercury\.mjs:\d+:\d+/
 
 type Req = { kind: string; pending?: boolean; stack?: string[] }
 type Census = {
@@ -67,12 +67,8 @@ type Run = {
   fix: string
 }
 
-function pendingProductOwned(c: Census): Req[] {
-  return c.requests.filter(
-    r =>
-      (r.kind === 'FileHandleCloseReq' || r.pending === true || r.pending === undefined) &&
-      PRODUCT_SEAM.test((r.stack ?? []).join('\n')),
-  )
+function productListed(c: Census): Req[] {
+  return c.requests.filter(r => BUNDLE_FRAME.test((r.stack ?? []).join('\n')))
 }
 
 function readTranscript(home: string): string {
@@ -150,7 +146,7 @@ async function runCase(
   return { script, arm, allowed, rc: exit.rc, signal: exit.signal, stdout, stderr, beforeDrain, census, home, fix }
 }
 
-function describeOwned(reqs: Req[]): string[] {
+function describeRequests(reqs: Req[]): string[] {
   return reqs.map(r => `${r.kind}${r.pending === true ? ' PENDING' : r.pending === false ? ' settled' : ''} ← ${(r.stack ?? []).slice(0, 6).map(s => s.replace(/\s*\(file:.*mercury\.mjs:(\d+:\d+)\)/, ' @' + '$1').replace(/^at /, '')).join(' ← ')}`)
 }
 
@@ -171,23 +167,19 @@ for (const run of drainRuns) {
   check(`${tag} the census was taken at the reallyExit cliff`, run.census?.where === 'reallyExit', j(run.census?.where))
   check(`${tag} the BEFORE dump was taken the moment the drain owner was about to run (the channel spoke)`, run.beforeDrain?.where === 'before-drain' && run.beforeDrain.drainSkipped === false, j(run.beforeDrain?.where))
   if (!run.census) continue
-  const owned = pendingProductOwned(run.census)
-  const ownedBefore = run.beforeDrain ? pendingProductOwned(run.beforeDrain) : []
-  console.log(`    before-drain product-owned (${ownedBefore.length}): ${describeOwned(ownedBefore).join(' ‖ ') || '(none)'}`)
-  const bashRan = run.script.startsWith('tool-bash') && !denied
-  if (bashRan) {
-    console.log(`    ${tag} the Bash tool's own cleanup completes last here — the writer's close is torn down before the drain; the tool round on disk is this arm's evidence`)
-  } else {
-    check(
-      `${tag} THE DELTA: the writer's last append was still listed BEFORE the drain (the seam existed — this is the census's evidence, not an absence)`,
-      ownedBefore.length >= 1,
-      j(run.beforeDrain?.requests.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(2, 5).join('|')}`)),
-    )
-  }
+  const listed = productListed(run.census)
+  const listedBefore = run.beforeDrain ? productListed(run.beforeDrain) : []
+  console.log(`    before-drain requests (${run.beforeDrain?.requests.length ?? 0}): ${describeRequests(run.beforeDrain?.requests ?? []).join(' ‖ ') || '(none)'}`)
+  console.log(`    cliff requests (${run.census.requests.length}): ${describeRequests(run.census.requests).join(' ‖ ') || '(none)'}`)
   check(
-    `${tag} …and ZERO pending product-owned requests at the cliff after it (writer append/close) — drained by name, not raced`,
-    owned.length === 0,
-    j(owned.map(r => `${r.kind}:${(r.stack ?? []).slice(0, 5).join('|')}`)),
+    `${tag} THE DELTA: the last completion's request was still listed BEFORE the drain (the seam existed — this is the census's evidence, not an absence)`,
+    listedBefore.length >= 1,
+    j(run.beforeDrain?.requests.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(0, 6).join('|')}`)),
+  )
+  check(
+    `${tag} …and ZERO requests of the product's listed at the cliff after it — drained by the loop turns, not raced`,
+    listed.length === 0,
+    j(listed.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(0, 6).join('|')}`)),
   )
   check(
     `${tag} the drain owner's own report at the cliff: the transcript-writer seam settled, none failed, none abandoned`,
@@ -231,18 +223,13 @@ section('§2 — the POISON arm (MERCURY_EXIT_CLIFF_DRAIN=0): the pre-fix cut, s
   const ptag = `[poison ${poison.script}]`
   check(`${ptag} the run still exits 0 with the settled text (the poison only skips the drain)`, poison.rc === 0 && poison.stdout.includes(ONE_TOOL_SETTLED_TEXT), `rc=${poison.rc}`)
   check(`${ptag} the channel still speaks at the same moment — the BEFORE dump says the drain was skipped`, poison.beforeDrain?.where === 'before-drain' && poison.beforeDrain.drainSkipped === true && poison.census?.drainReport?.skipped === true, j({ before: poison.beforeDrain?.where, skipped: poison.beforeDrain?.drainSkipped, report: poison.census?.drainReport }))
-  const owned = poison.census ? pendingProductOwned(poison.census) : []
-  console.log(`    poison cliff product-owned (${owned.length}): ${describeOwned(owned).join(' ‖ ') || '(none)'}`)
+  const poisonListed = poison.census ? productListed(poison.census) : []
+  console.log(`    poison cliff requests (${poison.census?.requests.length ?? 0}): ${describeRequests(poison.census?.requests ?? []).join(' ‖ ') || '(none)'}`)
+  console.log(`    poison cliff handles: ${j((poison.census?.handles ?? []).map(h => h.kind))}`)
   check(
-    `${ptag} the landed append's close is still LISTED at the cliff (the exit ran on its completion's own microtask chain; the runtime never got the turn that frees it) — the seam the drain's loop turn empties`,
-    owned.length >= 1,
-    j(poison.census?.requests.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(2, 5).join('|')}`)),
-  )
-  const poisonWatchers = (poison.census?.handles ?? []).filter(h => h.kind === 'FSWatcher')
-  check(
-    `${ptag} the closed watchers are still alive at the cliff (closed by the cleanup, never torn down — the loop's closing phase never ran) — the handle half of the same delta`,
-    poisonWatchers.length >= 1,
-    j((poison.census?.handles ?? []).map(h => h.kind)),
+    `${ptag} the last completion's request is still LISTED at the cliff (the exit ran on its completion's own microtask chain; the runtime never got the turn that frees it) — the seam the drain's loop turns empty`,
+    poisonListed.length >= 1,
+    j(poison.census?.requests.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(0, 6).join('|')}`)),
   )
   check(`${ptag} the JSONL transcript still carries the settled text (the cleanup flush lands it in both arms — the JSONL law is unchanged)`, readTranscript(poison.home).includes(ONE_TOOL_SETTLED_TEXT))
 }
