@@ -28,6 +28,7 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-screen-contract.ts |
 
 echo "── core-runtime: compose contract (T3)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-compose-contract.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-compose-contract.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-compose-clip-memo.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-compose-clip-memo.ts "$__t" "$__rc"
 
 echo "── core-runtime: input contract (T4)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-input-contract.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-input-contract.ts "$__t" "$__rc"

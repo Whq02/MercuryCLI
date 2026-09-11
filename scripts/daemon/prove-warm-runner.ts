@@ -40,6 +40,7 @@ class FakeRoster {
   patched: Array<{ short: string; patch: { model: string; effort: string; respawnExtraArgv: readonly string[] } }> = []
   present = new Map<string, { alive: boolean; ready: boolean }>()
   answer: 'success' | 'error' | 'never' = 'success'
+  dieOnClaim = false
   has(short: string): { alive: boolean; present: boolean; ready: boolean } {
     const p = this.present.get(short)
     return p ? { present: true, alive: p.alive, ready: p.ready } : { present: false, alive: false, ready: false }
@@ -55,6 +56,9 @@ class FakeRoster {
   control(short: string, frame: string): boolean {
     this.controls.push({ short, frame })
     const parsed = JSON.parse(frame) as { request_id?: string; request?: { subtype?: string } }
+    if (this.dieOnClaim && parsed.request?.subtype === 'claim_session') {
+      setTimeout(() => this.present.set(short, { alive: false, ready: false }), 20)
+    }
     if (this.answer !== 'never' && parsed.request?.subtype === 'claim_session' && typeof parsed.request_id === 'string') {
       const requestId = parsed.request_id
       const subtype = this.answer
@@ -203,6 +207,29 @@ console.log('\n── W12: claim answer deadline ──')
   const admitted = await admit({ workspaceDir: wsC })
   check('W12 the admission still serves the session (cold) after the silent claim', admitted.ok === true && roster.registered.length === before + 1)
   check('W12 the silent runner was retired (never handed words)', roster.killed.length === 1 && warm.warmRunnerCount() === 0)
+  roster.answer = 'success'
+}
+
+console.log('\n── W16: a booting runner keeps its claim; a dying one releases it ──')
+{
+  const now = Date.now()
+  check('W16 a runner spawned this second is given the boot allowance', warm.claimAnswerDeadlineMs(now, now) === warm.WARM_BOOT_ALLOWANCE_MS)
+  check('W16 a runner older than the allowance keeps the plain answer deadline', warm.claimAnswerDeadlineMs(now - warm.WARM_BOOT_ALLOWANCE_MS - 1, now) === 10_000)
+  const { deriveSessionKitForWorkspace } = await import('../../src/daemon/sessionKit.ts')
+  const { realpathSync } = await import('node:fs')
+  const wsH = realpathSync(mkdtempSync(join(tmpdir(), 'warm-ws-h-')))
+  roster.answer = 'never'
+  roster.dieOnClaim = true
+  roster.killed.length = 0
+  const ensured = await warm.ensureWarmRunner({ workspaceDir: wsH }, warmDeps)
+  check('W16 a fresh runner warms', ensured.state === 'warmed', ensured.detail ?? '')
+  const outcome = await warm.claimWarmRunner(
+    { workspaceId: canonicalWorkspaceId(wsH), sessionId: '22222222-3333-4444-8555-666666666666', modelKey: 'claude-opus-5', effort: 'high', permissionMode: 'flow', kit: deriveSessionKitForWorkspace(canonicalWorkspaceId(wsH)), answerDeadlineMs: 4_000 },
+    warmDeps,
+  )
+  check('W16 the claim settles on the death, before its deadline', outcome.claimed === false && outcome.reason.includes('died'), JSON.stringify(outcome))
+  check('W16 the dead runner left the pool', warm.warmRunnerCount() === 0 && roster.killed.length === 1)
+  roster.dieOnClaim = false
   roster.answer = 'success'
 }
 

@@ -28,7 +28,7 @@ interface MilestoneFileV1 {
   rows: LaunchMilestoneRowV1[]
 }
 
-const MAX_ROWS = 48
+const MAX_ROWS = 400
 
 const bootLaunchId: string | undefined = (() => {
   for (const name of flagSpellings('MERCURY_LAUNCH_ID')) {
