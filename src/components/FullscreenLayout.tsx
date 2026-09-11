@@ -18,7 +18,8 @@ import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
 import instances from '../ink/instances.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { CompactFooterNoticeContext, CompactFrameBudgetContext, useLayoutChrome } from '../context/layoutChromeContext.js'
-import { compactFrameBudget } from './mercury-ui/geometry.js'
+import { compactBandRows, compactFrameBudget } from './mercury-ui/geometry.js'
+import { CompactIdentityBand } from './CompactIdentityBand.js'
 import { railPlan } from '../utils/helmGeometry.js'
 import {
   setHelmFocus,
@@ -324,7 +325,8 @@ export function FullscreenLayout({
   const terminalRows = rows
   const { chrome, isCompact } = useLayoutChrome()
   const [compactFooterNotice, setCompactFooterNotice] = useState(false)
-  const compactBudget = useMemo(() => isCompact ? compactFrameBudget(columns, rows, statusBandActive, compactFooterNotice) : null, [isCompact, columns, rows, statusBandActive, compactFooterNotice])
+  const bandRows = isCompact ? compactBandRows(columns, rows) : 0
+  const compactBudget = useMemo(() => isCompact ? compactFrameBudget(columns, rows - bandRows, statusBandActive, compactFooterNotice) : null, [isCompact, columns, rows, bandRows, statusBandActive, compactFooterNotice])
   const cockpit = fullscreen && chrome === 'cockpit'
   const centerFrame = cockpit
   const plan = railPlan(columns)
@@ -545,6 +547,7 @@ export function FullscreenLayout({
 }
                   {centerFrame ? <HelmCenterHeader width={sizeVal.columns} /> : null}
                   <TerminalSizeContext.Provider value={sizeVal}>
+                    {isCompact ? <CompactIdentityBand /> : null}
                     {centerFrame && statusBand ? (
                       <Box
                         flexDirection="row"

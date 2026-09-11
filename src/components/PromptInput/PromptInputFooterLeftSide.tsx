@@ -47,7 +47,6 @@ export function PromptInputFooterLeftSide({
   teammateFooterIndex,
   onOpenTasksDialog,
   compact = false,
-  compactSummaryFocused = false,
 }: {
   exitPending: boolean
   exitKeyName: string | null
@@ -60,7 +59,6 @@ export function PromptInputFooterLeftSide({
   teammateFooterIndex?: number
   onOpenTasksDialog?: () => void
   compact?: boolean
-  compactSummaryFocused?: boolean
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const { columns } = useTerminalSize()
@@ -101,7 +99,7 @@ export function PromptInputFooterLeftSide({
   }, [isLoading])
   const driving = desktop.phase === 'driving' ? desktop : desktopFile.phase === 'driving' ? desktopFile : null
   const reportNotice = useContext(CompactFooterNoticeContext)
-  const criticalNotice = exitPending || isPasting || voice.phase === 'recording' || voice.phase === 'transcribing' || (driving !== null && isLoading)
+  const criticalNotice = exitPending || isPasting || voice.phase === 'recording' || voice.phase === 'transcribing' || (driving !== null && isLoading) || (compact && searchField !== undefined)
   useEffect(() => {
     reportNotice?.(criticalNotice)
     return () => reportNotice?.(false)
@@ -142,9 +140,7 @@ export function PromptInputFooterLeftSide({
   }
 
   if (compact) {
-    const idle = columns >= 50 ? `? for shortcuts · ${paletteChord} for commands + files` : '? for shortcuts'
-    const activityHint = columns >= 64 || columns < 50 ? ` · ${tasksChord} activity` : ''
-    return <Box height={1} overflow="hidden">{searchField ?? <Text dimColor wrap="truncate-end">{compactSummaryFocused ? '↵ details · esc back' : vimInsert ? `-- INSERT -- · ${tasksChord} activity` : isLoading ? `${cancelChord} interrupts · ${tasksChord} activity` : idle + activityHint}</Text>}</Box>
+    return searchField !== undefined ? <Box height={1} overflow="hidden">{searchField}</Box> : null
   }
 
   const taskList = Object.values(tasks)

@@ -759,6 +759,11 @@ export const SQUARE_ART_LINES: number = CRITTERS.reduce(
   0,
 )
 
+export const SQUARE_DOCK_ART_LINES: number = CRITTERS.reduce(
+  (max, def) => Math.max(max, Math.ceil(def.squareDock.length / 2)),
+  0,
+)
+
 export type CritterForm = 'hero' | 'premium-compact' | 'mini' | 'none'
 
 export const PREMIUM_COMPACT_MIN_ROWS = 24
