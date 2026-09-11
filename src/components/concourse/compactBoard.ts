@@ -163,6 +163,10 @@ export function compactBoardTitle(rows: ReadonlyArray<{ state: string; door?: un
   return `Session Concourse · ${running} running · ${finished} finished`
 }
 
+export const COMPACT_DOOR_NOTE = 'start a new chat to message here'
+export const COMPACT_DOOR_REST_HINT = 'type a message'
+export const COMPACT_DOOR_NOTE_MS = 5000
+
 export const COMPACT_LIST_FOOT = '↑↓ pick · ↵ steer'
 export const COMPACT_LIST_FOOT_REDUCED = '↑↓ pick · ↵ enter'
 export const COMPACT_FILTER_TAIL = '↵ apply · esc clear'
