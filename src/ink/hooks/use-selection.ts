@@ -7,6 +7,7 @@ import type Ink from '../ink.js'
 export type SelectionApi = {
   copySelection: () => string
   copySelectionNoClear: () => string
+  copyText: (text: string) => void
   clearSelection: () => void
   hasSelection: () => boolean
   getState: () => SelectionState | null
@@ -24,6 +25,7 @@ function inertApi(): SelectionApi {
   return {
     copySelection: returnEmpty,
     copySelectionNoClear: returnEmpty,
+    copyText: noop,
     clearSelection: noop,
     hasSelection: returnFalse,
     getState: () => null,
@@ -37,6 +39,7 @@ function instanceApi(ink: Ink): SelectionApi {
   return {
     copySelection: () => ink.copySelection(),
     copySelectionNoClear: () => ink.copySelectionNoClear(),
+    copyText: text => ink.copyText(text),
     clearSelection: () => ink.clearTextSelection(),
     hasSelection: () => ink.hasTextSelection(),
     getState: () => ink.selection,

@@ -54,8 +54,8 @@ section('structural — the three seams')
       pi.includes('selectionApi.subscribe(() => {'),
   )
   check(
-    'consuming clears the screen selection (highlight never outlives the text)',
-    pi.includes('onSelectionConsumed={() => selectionApi.clearSelection()}'),
+    "consuming clears the composer's own selection and the screen selection (a highlight never outlives the text)",
+    /onSelectionConsumed=\{\(\) => \{\s*\n\s*clearOwnSelection\(\)\s*\n\s*selectionApi\.clearSelection\(\)\s*\n\s*\}\}/.test(pi),
   )
   check(
     'ONE input box carries the rect ref and wraps both editors',
@@ -67,8 +67,10 @@ section('structural — the three seams')
     !/VimTextInput[^>]*selectionRange/.test(pi),
   )
   check(
-    'PromptInput registers the adapter on the selection bridge',
-    pi.includes('registerInputSelectionConsumer(() => inputSelectionRangeRef.current())'),
+    "PromptInput registers the adapter on the selection bridge (the composer's own range first, the mapped screen selection behind it)",
+    pi.includes('registerInputSelectionOwner({') &&
+      pi.includes('range: () => inputSelectionRangeRef.current(),') &&
+      pi.includes('inputSelectionRangeRef.current = () => ownSelectionOf(pendingInput.text()) ?? mapSelectionToInputRange()'),
   )
   const skh = readFileSync('src/components/ScrollKeybindingHandler.tsx', 'utf8')
   check(

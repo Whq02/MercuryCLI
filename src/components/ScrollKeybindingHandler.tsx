@@ -14,7 +14,11 @@ import { topOverlay, topOverlayOwnsPageKeys } from '../context/overlayStack.js'
 import { useNotifications } from '../context/notifications.js'
 import { getClipboardPath, subscribeClipboardReceipts } from '../ink/termio/osc.js'
 import { logForDebugging } from '../utils/debug.js'
-import { peekInputSelectionRange } from '../utils/cockpit/inputSelectionBridge.js'
+import {
+  clearOwnInputSelection,
+  peekInputSelectionRange,
+  peekOwnInputSelection,
+} from '../utils/cockpit/inputSelectionBridge.js'
 import { isXtermJs } from '../ink/session/capabilities.js'
 import { appendFileSync } from 'node:fs'
 import { flagEnv } from '../substrate/flagRegistry.js'
@@ -306,13 +310,26 @@ export function ScrollKeybindingHandler({
   useCopyOnSelect(selection, isActive, raiseCopyToast)
   useSelectionBgColor(selection)
 
+  const copyOwnInputSelection = (): boolean => {
+    const own = peekOwnInputSelection()
+    if (own === null) return false
+    selection.copyText(own.text)
+    clearOwnInputSelection()
+    if (own.text) raiseCopyToast(own.text)
+    return true
+  }
+
   useInput(
     (input, key, event) => {
       if (!key.ctrl || key.shift || key.meta || key.super) return
       if (input !== 'c') return
-      if (!selection.hasSelection()) return
-      const text = selection.copySelection()
-      if (text) raiseCopyToast(text)
+      if (selection.hasSelection()) {
+        const text = selection.copySelection()
+        if (text) raiseCopyToast(text)
+        event.stopImmediatePropagation()
+        return
+      }
+      if (!copyOwnInputSelection()) return
       event.stopImmediatePropagation()
     },
     { isActive },
@@ -406,7 +423,9 @@ export function ScrollKeybindingHandler({
           if (selection.hasSelection()) {
             const text = selection.copySelection()
             if (text) raiseCopyToast(text)
+            return
           }
+          copyOwnInputSelection()
         },
     },
     { context: 'Scroll', isActive },
@@ -459,7 +478,7 @@ export function ScrollKeybindingHandler({
 
   useInput(
     (input_0, key_0) => {
-      if (!selection.hasSelection()) return
+      if (!selection.hasSelection() && peekOwnInputSelection() === null) return
       const printable =
         input_0.length > 0 && !key_0.ctrl && !key_0.meta && !key_0.escape
       const deleteShaped = key_0.backspace || key_0.delete || input_0.includes('\x7f');
@@ -469,6 +488,7 @@ export function ScrollKeybindingHandler({
       }
       if (shouldClearSelectionOnKey(key_0)) {
         selection.clearSelection()
+        clearOwnInputSelection()
       }
     },
     { isActive },

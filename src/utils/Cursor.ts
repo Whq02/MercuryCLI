@@ -246,6 +246,28 @@ export class MeasuredText {
     const clamped = Math.max(0, Math.min(line, lines.length - 1))
     return stringWidth(this.displayTextOf(lines[clamped]!))
   }
+
+  getLineEndOffset(line: number): number {
+    const lines = this.lines()
+    const clamped = Math.max(0, Math.min(line, lines.length - 1))
+    const row = lines[clamped]!
+    if (clamped === lines.length - 1) return row.startOffset + row.text.length
+    return row.startOffset + row.text.replace(/\s+$/, '').length
+  }
+}
+
+export type SelectionPaint = {
+  start: number
+  end: number
+  paint: (text: string) => string
+}
+
+function paintSelected(display: string, lineStart: number, selection: SelectionPaint | undefined): string {
+  if (!selection) return display
+  const from = Math.max(0, selection.start - lineStart)
+  const to = Math.min(display.length, selection.end - lineStart)
+  if (to <= from) return display
+  return display.slice(0, from) + selection.paint(display.slice(from, to)) + display.slice(to)
 }
 
 
@@ -808,6 +830,7 @@ export class Cursor {
     invert: (s: string) => string,
     ghostText?: { text: string; dim: (s: string) => string },
     maxVisibleLines?: number,
+    selection?: SelectionPaint,
   ): string {
     const doc = this.measuredText
     const lines = doc.getWrappedLines()
@@ -819,21 +842,23 @@ export class Cursor {
         : Math.min(lines.length, start + maxVisibleLines)
 
     const lastLineIdx = lines.length - 1
+    const painted = mask ? undefined : selection
     const out: string[] = []
     for (let i = start; i < end; i++) {
       const raw = lines[i]!
       let display = raw.isPrecededByNewline ? raw.text : raw.text.replace(/^\s+/, '')
+      const lineStart = raw.startOffset + raw.text.length - display.length
 
       if (mask) {
         display = this.maskLine(display, mask, i === lastLineIdx)
       }
 
       if (i !== caretLine) {
-        out.push(display.replace(/\s+$/, ''))
+        out.push(paintSelected(display.replace(/\s+$/, ''), lineStart, painted))
         continue
       }
       out.push(
-        this.renderCaretLine(display, caretColumn, cursorChar, invert, ghostText, i === lastLineIdx),
+        this.renderCaretLine(display, caretColumn, cursorChar, invert, ghostText, i === lastLineIdx, lineStart, painted),
       )
     }
     return out.join('\n')
@@ -858,6 +883,8 @@ export class Cursor {
     invert: (s: string) => string,
     ghostText: { text: string; dim: (s: string) => string } | undefined,
     isDocumentLastLine: boolean,
+    lineStart = 0,
+    selection?: SelectionPaint,
   ): string {
     const showGhost =
       ghostText !== undefined &&
@@ -882,19 +909,24 @@ export class Cursor {
     }
 
     const hidden = cursorChar === ''
+    const paintedBefore = paintSelected(before, lineStart, selection)
 
     if (showGhost) {
       const ghostFirst = firstGrapheme(ghostText.text)
       const ghostRest = ghostText.text.slice(ghostFirst.length)
       const cell = hidden ? ghostFirst : invert(ghostFirst)
-      return before + cell + (ghostRest ? ghostText.dim(ghostRest) : '')
+      return paintedBefore + cell + (ghostRest ? ghostText.dim(ghostRest) : '')
     }
 
     if (atCaret === '') {
-      return before + (hidden ? '' : invert(cursorChar))
+      return paintedBefore + (hidden ? '' : invert(cursorChar))
     }
-    const cell = hidden ? atCaret : invert(atCaret)
-    return before + cell + after.replace(/\s+$/, '')
+    const cell = hidden ? paintSelected(atCaret, lineStart + before.length, selection) : invert(atCaret)
+    return (
+      paintedBefore +
+      cell +
+      paintSelected(after.replace(/\s+$/, ''), lineStart + before.length + atCaret.length, selection)
+    )
   }
 }
 

@@ -109,6 +109,7 @@ type Props = {
   readonly handleMultiClick: (col: number, row: number, count: 2 | 3) => void
   readonly handleSelectionDrag: (col: number, row: number) => void
   readonly handleSelectionStart?: (col: number, row: number, pressHadAlt: boolean) => void
+  readonly handleSelectionRelease?: (col: number, row: number) => boolean
   readonly onStdinResume: () => void
   readonly setCursorDeclaration?: CursorDeclarationSetter
   readonly dispatchKeyboardEvent: (key: ParsedKey) => void
@@ -667,6 +668,7 @@ export function handleMouseEvent(app: App, atom: ParsedMouse): void {
     props.notifySelectionChange()
     return
   }
+  if (props.handleSelectionRelease?.(col, row)) return
 
   const bounds = selectionBounds(selection)
   const slop =

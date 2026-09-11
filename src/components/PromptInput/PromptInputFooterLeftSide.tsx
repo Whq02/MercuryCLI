@@ -18,6 +18,11 @@ import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { useSelection } from '../../ink.js'
 import { useHasSelection } from '../../ink/hooks/use-selection.js'
+import {
+  ownInputSelectionVersion,
+  peekOwnInputSelection,
+  subscribeOwnInputSelection,
+} from '../../utils/cockpit/inputSelectionBridge.js'
 import { env } from '../../utils/env.js'
 import { getPlatform } from '../../utils/platform.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
@@ -76,7 +81,13 @@ export function PromptInputFooterLeftSide({
   const permissionMode = useAppState(
     (state: AppState) => state.toolPermissionContext.mode,
   )
-  const hasSelection = useHasSelection()
+  const ownSelectionVersion = useSyncExternalStore(
+    subscribeOwnInputSelection,
+    ownInputSelectionVersion,
+    ownInputSelectionVersion,
+  )
+  void ownSelectionVersion
+  const hasSelection = useHasSelection() || peekOwnInputSelection() !== null
   const selection = useSelection()
   const cancelChord = useShortcutDisplay('chat:cancel', 'Chat', 'esc')
   const killChord = useShortcutDisplay('chat:killAgents', 'Chat', 'ctrl+x k')
