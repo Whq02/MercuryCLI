@@ -34,8 +34,8 @@ const fnStart = layout.indexOf('export function FullscreenLayout')
 const fnBody = layout.slice(fnStart)
 check('FullscreenLayout is DE-MEMOIZED (no `const $ = _c(` decl)', !/const \$ = _c\(/.test(fnBody))
 check('FullscreenLayout body has no $[<n>] cache slot reads', !/\$\[\d/.test(fnBody))
-check('FullscreenLayout size-gates the cockpit via chromeModeLive(columns, rows) — the hysteresis-latched entry',
-  /chromeModeLive\(columns, terminalRows\)/.test(fnBody) && /chrome === 'cockpit'/.test(fnBody))
+check('FullscreenLayout reads the shared physical-geometry decision for the cockpit',
+  /useLayoutChrome\(\)/.test(fnBody) && /chrome === 'cockpit'/.test(fnBody))
 check('FullscreenLayout mounts rails off railPlan (center-first shed)',
   /railPlan\(columns\)/.test(fnBody) && /plan\.telemetry/.test(fnBody))
 check('FullscreenLayout composes both rails inline (HelmHome absorbed)',
@@ -45,19 +45,19 @@ check('FullscreenLayout keeps the deck-strip path (byte-identical OFF/narrow)',
 check('M3: cockpit + deck toggle as siblings, providers always mounted (stable root)',
   /CockpitActiveContext\.Provider value=\{cockpit\}/.test(fnBody) &&
   /TerminalSizeContext\.Provider value=\{sizeVal\}/.test(fnBody) &&
-  /\{fullscreen && chrome === 'deck-strip' \? <DeckPane \/> : null\}/.test(fnBody))
+  /\{fullscreen && !isCompact && chrome === 'deck-strip' \? <DeckPane \/> : null\}/.test(fnBody))
 check('M3: no separate <HelmHome> root (absorbed → no root-type flip)', !/<HelmHome/.test(fnBody))
 check('P3-continuity: rails stay mounted under a modal (visual claim only)',
   /const cockpit = fullscreen && chrome === 'cockpit'\n/.test(fnBody) &&
   !/const cockpit = fullscreen && chrome === 'cockpit' && !modalUp/.test(fnBody))
 check('M2: modal spans the full terminal in every chrome',
   /"▔"\.repeat\(Math\.max\(1, columns\)\)/.test(fnBody) &&
-  /rows: terminalRows - modalPeek - 1,\s*columns,/.test(fnBody))
+  /rows: Math\.max\(0, terminalRows - modalPeek - modalSeparatorRows\),\s*columns,/.test(fnBody))
 check('P3-continuity: rail input parks while a modal is up',
   /const reachable = cockpit && !modalUp\s*setHelmTelemetryAvailable\(reachable && plan\.telemetry\)\s*if \(!reachable\) setHelmFocus\('prompt'\)/.test(fnBody))
 check('P3: surface claims full height (peek 0) in cockpit + deck-strip, default peek inline',
-  /const modalPeek = chrome === 'inline' \? 2 : 0/.test(fnBody) &&
-  /maxHeight=\{terminalRows - modalPeek\}/.test(fnBody))
+  /const modalPeek = isCompact \? 0 : chrome === 'inline' \? 2 : 0/.test(fnBody) &&
+  /maxHeight=\{Math\.max\(0, terminalRows - modalPeek\)\}/.test(fnBody))
 
 check('helmGeometry exports HELM_HOME_MIN_COLS = 100', /export const HELM_HOME_MIN_COLS\s*=\s*100/.test(geometry))
 check('helmGeometry exports helmCenterCols + HELM_RAIL_W (one source for the math)',

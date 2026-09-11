@@ -53,7 +53,7 @@ section('⤳N counts operator prompts')
 section('mechanism pins')
 {
   const shell = read('src/components/mercury-ui/components.tsx')
-  check('inside a modal the shell body is a ScrollBox capped at the slot rows minus its chrome', shell.includes('<ScrollBox ref={bodyRef} flexDirection="column" maxHeight={bodyCap}>') && shell.includes('slotRows - (5 + (specimen ? 1 : 0))'))
+  check('inside a modal the shell body is a ScrollBox capped at the slot rows minus its chrome', shell.includes('<ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap}>') && shell.includes('slotRows - (5 + (specimen ? 1 : 0))'))
   check('the body registers as the slot\'s scroll target', shell.includes('modalScrollRef.current = bodyRef.current'))
   check('PageUp/PageDown page an overflowing body', /key\.pageUp \|\| key\.pageDown/.test(shell) && shell.includes('body.scrollBy('))
   check('outside a modal the body renders unbounded (byte-identical inline)', /\{insideModal \? \([\s\S]{0,200}\) : \(\s*children\s*\)\}/.test(shell))

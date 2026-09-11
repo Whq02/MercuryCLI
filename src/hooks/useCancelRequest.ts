@@ -19,6 +19,7 @@ import type { Message } from '../types/message.js'
 import { createSystemMessage } from '../utils/messages/systemMessages.js'
 import * as pendingInput from '../input-core/pending-input.js'
 import type { Screen } from '../screens/REPL.js'
+import type { CompactWorkControls } from '../components/tasks/CompactWorkSummary.js'
 import type { VimMode } from '../types/textInputTypes.js'
 import {
   STATUS_TAG,
@@ -78,8 +79,10 @@ export function CancelRequestHandler({
   isInputDialogFocused = false,
   streamMode,
   focusedTurnActive,
+  compactWork,
 }: {
   focusedTurnActive?: boolean
+  compactWork?: CompactWorkControls
   isElicitationFocused?: boolean
   isInterviewFocused?: boolean
   onAgentsKilled?: () => void
@@ -131,6 +134,7 @@ export function CancelRequestHandler({
   useKeybinding(
     'chat:cancel',
     () => {
+      if (compactWork !== undefined && compactWork.read() !== 'composer') return false
       if (pendingInput.mode() !== 'prompt' && pendingInput.text() === '') {
         return false
       }
@@ -158,6 +162,8 @@ export function CancelRequestHandler({
   useKeybinding(
     'app:interrupt',
     () => {
+      if (compactWork?.read() === 'detail') return false
+      if (compactWork?.read() === 'summary') compactWork.set('composer')
       const viewingTeammateNow = store.getState().viewingAgentTaskId !== undefined
       if (viewingTeammateNow) {
         const killed = killRunningAgents(() => store.getState() as AppState, setAppState)

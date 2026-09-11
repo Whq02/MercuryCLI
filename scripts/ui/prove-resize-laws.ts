@@ -267,78 +267,29 @@ console.log('§14 CB-05 — the state-word column is reserved; title columns are
   check('the old inserting paint is gone', !layoutSrc.includes('<Text color={t[sg.color]}> {STATE_WORD[r.state] ?? r.state}</Text>'))
 }
 
-console.log('§15 — the viewport floor: one verdict, one line, one latch')
+console.log('§15 — live geometry and a bounded compact frame at every size')
 {
-  const { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_EXIT_BAND, viewportFloorLine, viewportFloorVerdict } = await import(
-    '../../src/ink/viewportFloor.ts'
-  )
+  const { compactFrameBudget } = await import('../../src/components/mercury-ui/geometry.ts')
   const { HELM_HOME_MIN_COLS } = await import('../../src/utils/helmGeometry.ts')
-  check('the floor is the plain world’s minimum (80 columns), under the cockpit entry width (100)', VIEWPORT_FLOOR_COLS === 80 && HELM_HOME_MIN_COLS === 100 && VIEWPORT_FLOOR_COLS < HELM_HOME_MIN_COLS)
-  check('a fresh window under the floor is under', !viewportFloorVerdict(79, 40, false).fits && !viewportFloorVerdict(60, 20, false).fits)
-  check('a fresh window at the floor fits, and the plain world between the floor and the cockpit fits', viewportFloorVerdict(80, 40, false).fits && viewportFloorVerdict(90, 24, false).fits && viewportFloorVerdict(99, 22, false).fits)
-  check('a painted surface survives the exit band', viewportFloorVerdict(80 - VIEWPORT_FLOOR_EXIT_BAND, 40, true).fits)
-  check('… and goes under one column below the band', !viewportFloorVerdict(80 - VIEWPORT_FLOOR_EXIT_BAND - 1, 40, true).fits)
-  check(
-    'the band is the cockpit chrome latch’s band (one number, two latches agree)',
-    read('src/hooks/useLayoutTier.ts').includes('const COCKPIT_EXIT_HYST_COLS = VIEWPORT_FLOOR_EXIT_BAND'),
-  )
-  const { VIEWPORT_FLOOR_ROWS } = await import('../../src/ink/viewportFloor.ts')
-  check('the row floor is the deck strip’s floor (22 rows, one number)', VIEWPORT_FLOOR_ROWS === 22 && read('src/hooks/useLayoutTier.ts').includes('deckMinRows: VIEWPORT_FLOOR_ROWS'))
-  check('a window under the row floor is under, at it fits (no band on rows)', !viewportFloorVerdict(120, 21, true).fits && viewportFloorVerdict(120, 22, true).fits && !viewportFloorVerdict(120, 21, false).fits)
-  const under = viewportFloorVerdict(60, 20, true)
-  check('the line names the minimum, this window and the way', !under.fits && under.line.includes('80 columns') && under.line.includes('22 rows') && under.line.includes('60×20') && /resize/.test(under.line))
-  const shortest = viewportFloorLine(20, 10)
-  check('the shortest form still names the minimum and the way', shortest.includes('80') && /resize/.test(shortest))
-  check(
-    'the line stays on ONE row at every width down to the shortest form',
-    [140, 99, 79, 60, 40].every(c => viewportFloorLine(c, 20).length <= Math.max(c - 2, shortest.length)),
-  )
-  const { resetViewportFloorForTests, viewportFloorLive } = await import('../../src/ink/viewportFloor.ts')
-  resetViewportFloorForTests()
-  check('the live verdict engages the latch at the floor', viewportFloorLive(120, 40).fits && viewportFloorLive(78, 40).fits)
-  check('… a second reading of the same frame answers the same (idempotent)', viewportFloorLive(78, 40).fits)
-  check('… releases one column under the band and stays under until the floor', !viewportFloorLive(76, 40).fits && !viewportFloorLive(79, 40).fits && viewportFloorLive(80, 40).fits)
-  resetViewportFloorForTests()
-  check('a fresh boot under the floor never engages', !viewportFloorLive(78, 40).fits && !viewportFloorLive(79, 40).fits)
-  resetViewportFloorForTests()
-  const hook = read('src/ink/hooks/use-viewport-floor.ts')
-  check(
-    'one hook carries a host’s reading: the live verdict, the frozen size while under',
-    hook.includes('viewportFloorLive(size.columns, size.rows)') &&
-      hook.includes('if (verdict.fits && size !== null) lastFitRef.current = size') &&
-      hook.includes('surfaceSize: verdict.fits ? size : lastFitRef.current'),
-  )
+  check('100 columns remains a full-layout breakpoint, not an application floor', HELM_HOME_MIN_COLS === 100)
+  for (const [columns, rows] of [[1, 1], [2, 2], [1, 40], [200, 1], [40, 10], [60, 16], [80, 24], [120, 24]]) {
+    for (const activity of [false, true]) {
+      for (const notice of [false, true]) {
+        const b = compactFrameBudget(columns!, rows!, activity, notice)
+        const sum = b.summaryRows + b.modelRows + b.activityRows + b.footerRows + b.noticeRows + b.composerBorderRows + b.editorPoolRows + b.transcriptMinRows
+        check(`${columns}x${rows} activity=${activity} notice=${notice}: grants tile the real rows`, sum === rows && Object.values(b).every(v => v >= 0))
+        check(`${columns}x${rows}: the editor owns a real cell`, b.inputColumns >= 1 && b.inputColumns + b.inputPrefixColumns + b.composerBorderColumns === columns && b.editorPoolRows >= 1)
+      }
+    }
+  }
   const alt = read('src/ink/components/AlternateScreen.tsx')
-  check('the alternate-screen host reads the floor at the OUTERMOST instance only, on the live size', alt.includes('const floor = useViewportFloor(live, !nested)') && alt.includes('const live = useContext(LiveTerminalSizeContext) ?? size'))
-  const ctx = read('src/ink/components/TerminalSizeContext.tsx')
-  const app = read('src/ink/components/App.tsx')
-  check('the app root provides the live size beside the surface size (one object, two contexts)', ctx.includes('export const LiveTerminalSizeContext') && app.includes('<LiveTerminalSizeContext.Provider value={this.terminalSize}>') && app.includes('<TerminalSizeContext.Provider value={this.terminalSize}>'))
-  check(
-    'nesting is the tree’s own depth context, provided to the children',
-    alt.includes('const AltScreenDepthContext = createContext(0)') &&
-      alt.includes('const depthAbove = useContext(AltScreenDepthContext)') &&
-      alt.includes('const nested = depthAbove > 0') &&
-      alt.includes('<AltScreenDepthContext.Provider value={depthAbove + 1}>') &&
-      !alt.includes('outermostRef'),
-  )
-  check(
-    'the surface stays mounted, out of layout under the floor, back in layout above it — the display named in both states',
-    alt.includes("display={floor.fits ? 'flex' : 'none'}") &&
-      alt.includes('<TerminalSizeContext.Provider value={floor.surfaceSize}>{children}</TerminalSizeContext.Provider>'),
-  )
-  check('the notice is one Text, painted only under the floor', alt.includes('{floor.line === null ? null : (') && alt.includes('{floor.line}'))
   const router = read('src/components/SurfaceRouter.tsx')
-  check(
-    'the route surface host reads the same floor on the live size and yields the frame under it',
-    router.includes('const floor = useViewportFloor(hostLiveSize ?? hostBaseSize, true)') &&
-      router.includes("display={floor.fits ? 'flex' : 'none'}") &&
-      router.includes('<TerminalSizeContext.Provider value={floor.surfaceSize}>'),
-  )
-  check(
-    'the router freezes the REPL subtree’s surface size under the floor (the REPL reads above its own host)',
-    router.includes('const surface = useViewportFloor(liveSize, true)') &&
-      router.includes('<TerminalSizeContext.Provider value={surface.surfaceSize}>{children}</TerminalSizeContext.Provider>'),
-  )
+  check('the alternate host does not freeze or refuse a small surface', !alt.includes('useViewportFloor') && !alt.includes('floor.fits') && alt.includes('<TerminalSizeContext.Provider value={size}>'))
+  check('the router provides the current size, not a last-fit snapshot', !router.includes('useViewportFloor') && router.includes('<TerminalSizeContext.Provider value={liveSize}>') && router.includes('<TerminalSizeContext.Provider value={hostSize}>'))
+  const app = read('src/ink/components/App.tsx')
+  check('live and local root sizes begin at the same stable renderer object', app.includes('<LiveTerminalSizeContext.Provider value={this.terminalSize}>') && app.includes('<TerminalSizeContext.Provider value={this.terminalSize}>'))
+  check('alternate-screen nesting remains tree-owned', alt.includes('const AltScreenDepthContext = createContext(0)') && alt.includes('const nested = depthAbove > 0') && alt.includes('<AltScreenDepthContext.Provider value={depthAbove + 1}>'))
+  check('compactness has one real-geometry owner', read('src/context/layoutChromeContext.tsx').includes('useRealTerminalSize()') && read('src/context/layoutChromeContext.tsx').includes('layoutChromeLive(columns, rows)'))
 }
 
 console.log('§16 — a resize storm paints its hold once, on entry')

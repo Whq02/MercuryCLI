@@ -98,7 +98,7 @@ try {
       argv: [node, dist, '--model', 'claude-fable-5-1'], cwd, cols, rows: 40, out: output, total: 240,
       sends: [
         { awaitText: 'New Session', requireAwait: true, awaitSettleTicks: 4, atTick: 100, data: '\r' },
-        { awaitText: 'type a prompt, or / for commands', requireAwait: true, atTick: 150, data: '', mark: 'ready' },
+        { awaitText: '? for shortcuts', requireAwait: true, atTick: 150, data: '', mark: 'ready' },
         { afterPrevTicks: 4, data: 'z', mark: 'awake' },
         { afterPrevTicks: 8, ...(setting === 'off' ? {} : { awaitRedraws: 2 }), data: '\u001b[O', mark: 'awake-blur' },
         { afterPrevTicks: 35, data: '\u001b[I', mark: 'awake-focus' },
@@ -157,7 +157,7 @@ try {
       writeFileSync(join(home, 'observed.tee'), raw)
       console.log(`observed ${cols} ${setting}: ${JSON.stringify({ ticks, quiet: observation.quiet, blurred: observation.blurred, refocused: observation.refocused, awakeBlurred: observation.awakeBlurred, awakeRefocused: observation.awakeRefocused })}`)
       check(`${cols} ${setting}: the awake blur is sent before the quiet rest engages`, Number(ticks['awake-blur']) - Number(ticks['awake']) < 40, String(Number(ticks['awake-blur']) - Number(ticks['awake'])))
-      if (setting === 'full') check(`${cols} ${setting}: full motion keeps animating through a blur while awake`, observation.awakeBlurred >= 3, String(observation.awakeBlurred))
+      if (setting === 'full') check(cols === 80 ? `${cols} ${setting}: the compact layout animates no critter, so a blur while awake leaves no animation frames` : `${cols} ${setting}: full motion keeps animating through a blur while awake`, cols === 80 ? observation.awakeBlurred === 0 : observation.awakeBlurred >= 3, String(observation.awakeBlurred))
       else if (setting === 'off') check(`${cols} ${setting}: off motion stays still through a blur while awake`, observation.awakeBlurred === 0, String(observation.awakeBlurred))
       else check(`${cols} ${setting}: a blur while awake stops the animation frames`, observation.awakeBlurred === 0, String(observation.awakeBlurred))
       if (setting !== 'off') check(`${cols} ${setting}: focus regained while awake resumes the animation`, observation.awakeRefocused >= 3, String(observation.awakeRefocused))

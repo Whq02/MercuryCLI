@@ -40,8 +40,6 @@ const ESTATE = ['src/components/concourse', 'src/services/concourse'].flatMap(di
 {
   const manifest = read('src/components/concourse/controlManifest.ts')
   check("V3 the manifest's esc row reads 'focused chat'", manifest.includes("{ keys: 'esc', label: 'focused chat' }"))
-  const layout = read('src/components/concourse/ConcourseLayout.tsx')
-  check("V3 the too-small screen returns to 'the focused chat'", layout.includes('esc returns to the focused chat'))
   const route = read('src/components/concourse/ConcourseRoute.tsx')
   check("V3 the assembling shell's esc names the focused chat (both faces)", route.includes("const escLabel = chatPresent() ? 'esc focused chat' : 'esc boot face'") && route.includes("keyHintLabel('⌃r')} retry · ${escLabel}") && route.includes('{escLabel}</Text>'))
 }

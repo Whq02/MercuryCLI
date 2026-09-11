@@ -196,6 +196,7 @@ export function CoordinatorPane({
   onFocus,
   collapsed = false,
   tailNote = null,
+  minimal = false,
 }: {
   callbacks: ConcourseCallbacks
   mode: 'off' | 'rules-only' | 'agent-assisted'
@@ -218,6 +219,7 @@ export function CoordinatorPane({
   onFocus?: () => void
   collapsed?: boolean
   tailNote?: { tone: 'muted' | 'warning'; text: string } | null
+  minimal?: boolean
 }): React.ReactNode {
   const t = useMercuryTokens()
   const [entries, setEntries] = useState<CoordinatorConversationEntryV1[] | null>(null)
@@ -277,6 +279,7 @@ export function CoordinatorPane({
 
   useInput((_input, key, event) => {
     if (modalUp || settingsOpen) return
+    if (paneRows === 0) return
     if (key.wheelUp || key.wheelDown) {
       const kp = event.keypress as { x?: number; y?: number }
       const inside =
@@ -296,7 +299,7 @@ export function CoordinatorPane({
       scrollRows(key.pageDown ? pageStepRows(viewport) : -pageStepRows(viewport))
       return
     }
-    if (entries !== null && entries.length === 0 && (key.upArrow || key.downArrow)) {
+    if (!minimal && entries !== null && entries.length === 0 && (key.upArrow || key.downArrow)) {
       event.stopImmediatePropagation()
       const n = COORDINATOR_EXAMPLE_PROMPTS.length
       const next = Math.min(n - 1, Math.max(0, exampleIdxRef.current + (key.downArrow ? 1 : -1)))
@@ -304,7 +307,7 @@ export function CoordinatorPane({
       setExampleIdx(next)
       return
     }
-    if (key.return && entries !== null && entries.length === 0 && !pending && !draftHeld) {
+    if (!minimal && key.return && entries !== null && entries.length === 0 && !pending && !draftHeld) {
       event.stopImmediatePropagation()
       onPickExample(COORDINATOR_EXAMPLE_PROMPTS[exampleIdxRef.current]!)
       return
@@ -320,7 +323,7 @@ export function CoordinatorPane({
     })
   }, [])
 
-  if (collapsed) {
+  if (collapsed && !minimal) {
     const last = entries !== null && entries.length > 0 ? entries[entries.length - 1] : undefined
     return (
       <Box flexDirection="column" flexShrink={0} overflow="hidden" paddingX={1}>
@@ -356,11 +359,11 @@ export function CoordinatorPane({
       flexDirection="column"
       flexGrow={1}
       overflow="hidden"
-      borderStyle={paletteCollapsed() && focused ? 'bold' : 'round'}
+      borderStyle={minimal ? undefined : paletteCollapsed() && focused ? 'bold' : 'round'}
       borderColor={focused ? t.info : t.borderSubtle}
-      paddingX={1}
+      paddingX={minimal ? 0 : 1}
     >
-      <Box height={1} flexShrink={0}>
+      <Box height={minimal ? 0 : 1} flexShrink={0} overflow="hidden">
         {}
         <InteractiveRow id="coordinator:focus-title" directActivate hoverStyle="chrome-ink" {...(onFocus !== undefined ? { onActivate: onFocus } : {})}>
           {hover => (
@@ -370,6 +373,7 @@ export function CoordinatorPane({
           )}
         </InteractiveRow>
       </Box>
+      <Box flexDirection="column" flexGrow={minimal || (!settingsOpen && entries !== null && entries.length > 0) ? 1 : 0} flexShrink={minimal ? 1 : 0} minHeight={0} overflow="hidden">
       {settingsOpen ? (
         <>
           <Box height={1} flexShrink={0}>
@@ -486,6 +490,7 @@ export function CoordinatorPane({
           </InteractiveRow>
         </Box>
       ) : null}
+      </Box>
       {composerNode !== undefined && !settingsOpen ? (
         <Box flexDirection="column" flexShrink={0}>{composerNode}</Box>
       ) : null}

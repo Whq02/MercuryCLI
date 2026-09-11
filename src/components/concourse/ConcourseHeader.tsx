@@ -1,6 +1,7 @@
 import React, { useSyncExternalStore } from 'react';
 import { Box, Text, useTheme } from '../../ink.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
+import { useLayoutChrome } from '../../context/layoutChromeContext.js';
 import { chatPresent, subscribeSurfaceRoute, surfaceRouteVersion } from '../../context/surfaceRoute.js';
 import { critterDefForKey, squareDockArtFor } from '../../utils/cockpit/critterData.js';
 import { resolveMercuryTokens } from '../../utils/mercuryTokens.js';
@@ -119,6 +120,7 @@ export function ConcourseHeader({
   const showBreadcrumb = columns >= 110;
   const showContextLabels = columns >= 92;
   const identity = useConcourseIdentity();
+  const { isCompact } = useLayoutChrome();
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const chat = chatPresent();
   const markDef = React.useMemo(
@@ -135,9 +137,9 @@ export function ConcourseHeader({
     <Box flexDirection="row" flexShrink={0} overflow="hidden">
       {
 }
-      <Box flexShrink={0} marginRight={1} flexDirection="column">
+      {!isCompact ? <Box flexShrink={0} marginRight={1} flexDirection="column">
         <CritterArt def={markDef} square {...(glow !== undefined ? { glowToward: glow } : {})} />
-      </Box>
+      </Box> : null}
       <Box flexDirection="column" flexGrow={1} overflow="hidden">
         <Box height={1} overflow="hidden">
           <Box flexShrink={1} overflow="hidden">

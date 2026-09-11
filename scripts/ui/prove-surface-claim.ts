@@ -33,13 +33,13 @@ check(
 )
 check(
   'blank claim carries height={blankClaims ? terminalRows : undefined} (claim, not cap)',
-  /height=\{blankClaims \? terminalRows : undefined\} maxHeight=\{terminalRows - modalPeek\}/.test(
+  /height=\{blankClaims \? terminalRows : undefined\} maxHeight=\{Math\.max\(0, terminalRows - modalPeek\)\}/.test(
     src,
   ),
 )
 check(
   'flexGrow spacer above the ▔ divider, gated on blankClaims',
-  /\{blankClaims && <Box flexGrow=\{1\} \/>\}<Box flexShrink=\{0\}><Text color="info">/.test(
+  /\{blankClaims && <Box flexGrow=\{1\} \/>\}\{modalSeparatorRows > 0 \? <Box flexShrink=\{0\}><Text color="info">/.test(
     src,
   ),
 )
@@ -73,7 +73,7 @@ check(
 )
 check(
   'the modal context advertises the slot width it actually provides',
-  /rows: terminalRows - modalPeek - 1,\s*\n\s*columns,\s*\n\s*scrollRef: modalScrollRef \?\? null,/.test(src),
+  /rows: Math\.max\(0, terminalRows - modalPeek - modalSeparatorRows\),\s*\n\s*columns,\s*\n\s*scrollRef: modalScrollRef \?\? null,/.test(src),
 )
 const kitSrc = readFileSync(
   join(root, 'src', 'components', 'mercury-ui', 'components.tsx'),

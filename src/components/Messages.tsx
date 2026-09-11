@@ -99,6 +99,7 @@ import {
 import { OffscreenFreeze } from './OffscreenFreeze.js'
 import { StatusNotices } from './StatusNotices.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
+import { useLayoutChrome } from '../context/layoutChromeContext.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
 
 const RENDER_CAP = 200
@@ -236,6 +237,7 @@ function MessagesInner({
   const isTranscriptMode = screen === 'transcript'
   const fullscreen = isFullscreenEnvEnabled()
   const inCockpit = React.useContext(CockpitActiveContext)
+  const { isCompact } = useLayoutChrome()
 
   const [virtualEffective] = useState(
     () => resolveTerminalExperience().virtualScroll.effective,
@@ -688,6 +690,7 @@ function MessagesInner({
 
   const header = useMemo(() => {
     if (suppressLogo || renderRange) return null
+    if (isCompact) return <React.Suspense fallback={null}><StatusNotices agentDefinitions={agentDefinitions} /></React.Suspense>
     return (
       <OffscreenFreeze>
         <Box flexDirection="column" width="100%">
@@ -726,7 +729,7 @@ function MessagesInner({
         </Box>
       </OffscreenFreeze>
     )
-  }, [agentDefinitions, hasRealConversation, inCockpit, columns, suppressLogo, renderRange])
+  }, [agentDefinitions, hasRealConversation, inCockpit, isCompact, columns, suppressLogo, renderRange])
 
   const transcriptChord = useShortcutDisplay(
     'transcript:toggleShowAll',

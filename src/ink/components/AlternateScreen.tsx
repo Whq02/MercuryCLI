@@ -5,10 +5,8 @@ import { DISABLE_ALTERNATE_SCROLL, DISABLE_MOUSE_TRACKING, ENABLE_ALTERNATE_SCRO
 import { noteModeAcquired, noteModeReleased } from '../root/terminalModeLedger.js';
 import { TerminalWriteContext } from '../useTerminalNotification.js';
 import { RESET_SCROLL_REGION } from '../termio/csi.js';
-import { useViewportFloor } from '../hooks/use-viewport-floor.js';
 import Box from './Box.js';
-import Text from './Text.js';
-import { LiveTerminalSizeContext, TerminalSizeContext } from './TerminalSizeContext.js';
+import { TerminalSizeContext } from './TerminalSizeContext.js';
 type Props = PropsWithChildren<{
   mouseTracking?: boolean;
 }>;
@@ -22,7 +20,6 @@ export function AlternateScreen({
   mouseTracking = true,
 }: Props): React.ReactNode {
   const size = useContext(TerminalSizeContext);
-  const live = useContext(LiveTerminalSizeContext) ?? size;
   const writeRaw = useContext(TerminalWriteContext);
   const inkFromContext = useContext(InkInstanceContext);
 
@@ -80,26 +77,16 @@ export function AlternateScreen({
   const nested = depthAbove > 0;
   const rows = size?.rows ?? 24;
 
-  const floor = useViewportFloor(live, !nested);
-
   return (
     <>
-      {floor.line === null ? null : (
-        <Box flexDirection="column" height={live?.rows ?? rows} width="100%" flexShrink={0} justifyContent="center" paddingX={1}>
-          <Text color="ansi:yellow" bold>
-            {floor.line}
-          </Text>
-        </Box>
-      )}
       <Box
         flexDirection="column"
         {...(nested ? { maxHeight: rows } : { height: rows })}
         width="100%"
         flexShrink={0}
-        display={floor.fits ? 'flex' : 'none'}
       >
         <AltScreenDepthContext.Provider value={depthAbove + 1}>
-          <TerminalSizeContext.Provider value={floor.surfaceSize}>{children}</TerminalSizeContext.Provider>
+          <TerminalSizeContext.Provider value={size}>{children}</TerminalSizeContext.Provider>
         </AltScreenDepthContext.Provider>
       </Box>
     </>

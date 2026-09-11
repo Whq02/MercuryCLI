@@ -21,6 +21,7 @@ import {
 } from '../utils/cockpit/index.js'
 import { HERO_ART_COLS, HERO_ART_LINES, SQUARE_ART_LINES, critterDefForKey, decideCritterForm, type CritterForm } from '../utils/cockpit/critterData.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
+import { useLayoutChrome } from '../context/layoutChromeContext.js'
 import { requestCommandDispatch } from '../utils/cockpit/helmFocus.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { BigWordmark, Sigil, Wordmark, wordmarkForm } from './mercury-ui/assets.js'
@@ -85,6 +86,11 @@ export function PinnedCritterBerth(): React.ReactNode {
 }
 
 export function MercuryHero(): React.ReactNode {
+  const { isCompact } = useLayoutChrome()
+  return isCompact ? null : <MercuryHeroBody />
+}
+
+function MercuryHeroBody(): React.ReactNode {
   const tok = useMercuryTokens()
   const sa = useSessionAccent()
   const { columns, rows } = useTerminalSize()
@@ -183,6 +189,11 @@ export function MercuryBrandRow(): React.ReactNode {
 }
 
 export function MercuryHome(): React.ReactNode {
+  const { isCompact } = useLayoutChrome()
+  return isCompact ? null : <MercuryHomeBody />
+}
+
+function MercuryHomeBody(): React.ReactNode {
   const tok = useMercuryTokens()
   const model = useDisplayedSessionModel().label
   const cwd = useCwdState()

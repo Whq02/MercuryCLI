@@ -13,6 +13,7 @@ export type PromptOverlayData = {
   onPick?: (index: number) => void
   onHover?: (index: number) => void
   maxColumnWidth?: number
+  maxRows?: number
 }
 
 type Setter<T> = (data: T | null) => void

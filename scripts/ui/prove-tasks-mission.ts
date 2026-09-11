@@ -61,7 +61,7 @@ console.log('\n── B. runs only, empty ledger (80 cols) ───────
   const { vshotBudgetMs: S } = await import('../lib/captureDriver.ts')
   const run = await runArtifactArena({
     turns: [],
-    sends: ['after:↵ sends:1200:!sleep 300', 'after:↵ sends:2400:\r'],
+    sends: ['after:agents here:1200:!sleep 300', 'after:agents here:2400:\r'],
     seconds: 16,
     cols: 80,
     rows: 40,

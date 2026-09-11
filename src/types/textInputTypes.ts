@@ -1,6 +1,7 @@
 import type * as React from 'react'
 import type { UUID } from 'crypto'
 import type { Key } from '../ink.js'
+import type { InputEvent } from '../ink/events/input-event.js'
 import type { AssistantMessage, MessageOrigin } from './message.js'
 import type { ContentBlockParam } from './wire.js'
 import type { PastedContent } from '../utils/config.js'
@@ -29,6 +30,8 @@ export type BaseTextInputProps = {
   placeholderElement?: React.ReactNode
   multiline?: boolean
   focus?: boolean
+  routeInput?: (input: string, key: Key, event: InputEvent, pastePending: boolean) => 'edit' | 'edit-and-consume' | 'consume' | 'yield'
+  pastePendingRef?: React.MutableRefObject<(() => boolean) | null>
   mask?: string
   showCursor?: boolean
   highlightPastedText?: boolean

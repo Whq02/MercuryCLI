@@ -16,6 +16,7 @@ import { useSessionAccent } from './sessionAccent.js'
 import { GLYPH, SPARK, displayWidth, padTo, truncateToWidth } from './glyphs.js'
 import { InteractiveRow } from './InteractiveRow.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
+import { useLayoutChrome } from '../../context/layoutChromeContext.js'
 import { useIsInsideModal, useModalOrTerminalSize, useModalScrollRef } from '../../context/modalContext.js'
 import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import { composeFooterHint, packFooter, type FooterCloseKeys } from './footerHint.js'
@@ -37,7 +38,9 @@ export function ProductLockup({
   const [theme] = useTheme()
   const ramp = accent === t.accent ? t.focalRamp : resolveMercuryTokens(theme, accent).focalRamp
   const title = `Mercury — ${view}`
-  const shimmer = useGreetingShimmer(ramp, displayWidth(title))
+  const { isCompact } = useLayoutChrome()
+  const shimmer = useGreetingShimmer(isCompact ? [t.accent] : ramp, displayWidth(title))
+  if (isCompact) return <Box height={1} overflow="hidden"><Text bold color={t.textPrimary} wrap="truncate-end">{title}{subtitle ? ` · ${subtitle}` : ''}</Text></Box>
   return (
     <Box>
       <Crab />
@@ -115,9 +118,12 @@ export function CommandCenter({
     Math.max(0, cols - 4),
   )
   const insideModal = useIsInsideModal()
+  const { isCompact } = useLayoutChrome()
   const termRows = useTerminalSize().rows
   const slotRows = useModalOrTerminalSize({ rows: termRows, columns: cols }).rows
-  const bodyCap = Math.max(1, slotRows - (5 + (specimen ? 1 : 0)))
+  const compactHeaderRows = slotRows > 1 ? 1 : 0
+  const compactFooterRows = slotRows > 2 ? 1 : 0
+  const bodyCap = isCompact ? Math.max(0, slotRows - compactHeaderRows - compactFooterRows) : Math.max(1, slotRows - (5 + (specimen ? 1 : 0)))
   const bodyRef = React.useRef<ScrollBoxHandle | null>(null)
   const modalScrollRef = useModalScrollRef()
   React.useLayoutEffect(() => {
@@ -152,6 +158,13 @@ export function CommandCenter({
       </Box>
     )
   }
+  if (isCompact) return (
+    <Box ref={elevated ? elevatedRef : undefined} flexDirection="column" maxHeight={slotRows} overflow="hidden">
+      {compactHeaderRows > 0 ? <ProductLockup view={view} subtitle={subtitle} /> : null}
+      <ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap} minHeight={0}>{children}</ScrollBox>
+      {compactFooterRows > 0 ? <Box height={1} flexShrink={0} onClick={closable ? onClose : undefined}><Text dimColor wrap="truncate-end">{footerText}</Text></Box> : null}
+    </Box>
+  )
   return (
     <Box ref={elevated ? elevatedRef : undefined} flexDirection="column" borderStyle="round" borderColor={t.borderStrong} paddingX={1}>
       <ProductLockup view={view} subtitle={subtitle} />
@@ -164,7 +177,7 @@ export function CommandCenter({
         </Box>
       ) : null}
       {insideModal ? (
-        <ScrollBox ref={bodyRef} flexDirection="column" maxHeight={bodyCap}>
+        <ScrollBox key="body" ref={bodyRef} flexDirection="column" maxHeight={bodyCap}>
           {children}
         </ScrollBox>
       ) : (
