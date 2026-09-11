@@ -46,6 +46,7 @@
     "src/tasks/taskOutcomeEnvelope.ts",
     "src/tools/LSPTool/mercuryOps.ts",
     "src/tools/ToolSearchTool/cooccurPrior.ts",
+    "src/tools/WorkflowTool/runControl.ts",
     "src/tools/WorkflowTool/runManifest.ts",
     "src/utils/accounts/accountIdentity.ts",
     "src/utils/accounts/signInLedger.ts",
