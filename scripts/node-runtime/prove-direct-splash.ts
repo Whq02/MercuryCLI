@@ -225,6 +225,7 @@ section('§3 THE EXIT-CODE TABLE — the launcher block executed vs the in-proce
   const reversed = `#!/usr/bin/env bash\n${captureLines}\n${END}\n${body}\n${BEGIN}\n${tail}`
   const withReversed = runDeploy(reversed)
   check('deploy: an end marker above the begin marker is refused untouched', withReversed.status === 1 && withReversed.after === reversed && withReversed.out.includes('REFUSED'), withReversed.out)
+  check('deploy: the deployed splash reads as current on every later run (no spurious previous-splash backup)', existsSync(join(deployHome, 'splash.mjs')) && !existsSync(join(deployHome, 'splash.mjs.crab-bak')))
   rmSync(arena, { recursive: true, force: true })
 }
 
