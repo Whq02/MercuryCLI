@@ -92,12 +92,18 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
   const manifest = JSON.parse(readFileSync(join(stage, 'dist', 'manifest.json'), 'utf8')) as Record<string, unknown>
   check('manifest: selfContained', manifest.selfContained === true)
   const hosted = resolveExecutionProfile(ROOT).kind === 'hosted-gate'
-  const allowedAbsences = new Set<unknown>(['voice-input', 'on-device-transcriber', ...(hosted ? ['runtime'] : [])])
+  const desktop = manifest.desktopDriver as { vendored?: boolean } | undefined
+  const allowedAbsences = new Set<unknown>([
+    'voice-input',
+    'on-device-transcriber',
+    ...(desktop?.vendored === false ? ['desktop-driver'] : []),
+    ...(hosted ? ['runtime'] : []),
+  ])
   const degraded = Array.isArray(manifest.degraded) ? (manifest.degraded as unknown[]) : null
   check(
     hosted
-      ? 'manifest: degraded[] EMPTY (or only the two built packs and, under the hosted profile, the runtime pack — the allowed absences)'
-      : 'manifest: degraded[] EMPTY (or only the two built packs — the voice capture and on-device transcriber packs, the allowed absences)',
+      ? 'manifest: degraded[] EMPTY (or only the built packs the build says it lacks and, under the hosted profile, the runtime pack — the allowed absences)'
+      : 'manifest: degraded[] EMPTY (or only the built packs the build says it lacks — the voice capture, on-device transcriber and desktop driver packs, the allowed absences)',
     degraded !== null && degraded.every(d => allowedAbsences.has(d)) && new Set(degraded).size === degraded.length,
     JSON.stringify(manifest.degraded),
   )

@@ -34,10 +34,8 @@ for journey in "$here"/journey-*.ts; do
   (cd "$repo" && "$bun" run "$journey")
   got=$?; __rc=$got
   prover_mark "$journey" "$__t" "$__rc"
-  if [ "$got" = "3" ]; then
-    echo "⏭  $(basename "$journey") SKIP — machine gate honoured"
-  elif [ "$got" != "0" ]; then
-    echo "❌ $(basename "$journey") exited $got (0 = pass, 3 = machine-gate SKIP)"
+  if [ "$got" != "0" ]; then
+    echo "❌ $(basename "$journey") exited $got"
     fail=1
   fi
 done
