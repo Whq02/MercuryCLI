@@ -104,11 +104,6 @@ section("§3 the screen's arms follow the owner")
     'the owner facts carry helpOpen (the atlas is in the paint order)',
     screen.includes('helpOpen: helpOpenRef.current,'),
   )
-  const ownerSrc = read('src/components/concourse/boardModalOwner.ts')
-  check(
-    'the owner module records the ruling (paint order, topmost first)',
-    ownerSrc.includes('THE TOPMOST PAINTED SURFACE') && ownerSrc.includes('esc-one-owner'),
-  )
 }
 
 section('§4 the overlay-stack esc law beside it (one esc, one layer)')

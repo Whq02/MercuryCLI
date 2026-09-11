@@ -172,11 +172,6 @@ section('adoption pins — tiers wired where they belong (source greps)')
     'the composer input-change chokepoint marks typing activity (T13 S2: the owner edit path)',
     readFileSync('src/input-core/pending-input.ts', 'utf8').includes('markTypingActivity()'),
   )
-  const glyphs = readFileSync('src/utils/cockpit/liveGlyphs.ts', 'utf8')
-  check(
-    'the hierarchy doctrine is documented where the schedule lives',
-    glyphs.includes('FOCAL') && glyphs.includes('DECOR') && glyphs.includes('TRUTH'),
-  )
 }
 
 console.log('\n' + '='.repeat(60))

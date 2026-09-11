@@ -32,7 +32,7 @@ console.log('============================================================')
 }
 
 {
-  check('the screen owns the in-place unfold (the L20 comment stands)', screen.includes('the older-chats DROP-DOWN'))
+  check('the screen owns the in-place unfold (the unfold handler lives on the screen)', screen.includes('const unfoldOlderList = (row: ConcourseRowV1): void => {'))
   check('…reads the census the line counted', screen.includes('olderChatsCensus('))
   check('…and folds on esc', screen.includes('esc folds'))
   check('the route reactivates a pick through the one resume door', route.includes('resumeOlderChat'))

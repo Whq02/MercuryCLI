@@ -44,6 +44,9 @@ const row = (over: Partial<Row>): Row =>
 const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 const screen = read('src/components/concourse/ConcourseScreen.tsx')
 const layout = read('src/components/concourse/ConcourseLayout.tsx')
+const ESC_EXIT = 'callbacks.exitToRepl()\n      return\n    }'
+const escLadderAt = screen.lastIndexOf('if (key.escape) {', screen.indexOf('if (olderListRef.current !== null) {'))
+const escLadder = escLadderAt === -1 ? '' : screen.slice(escLadderAt, screen.indexOf(ESC_EXIT, escLadderAt) + ESC_EXIT.length)
 
 console.log('§1 — marking (item 1): space toggles in the list region; screen state; esc + project switch clear')
 {
@@ -101,8 +104,8 @@ console.log('§1 — marking (item 1): space toggles in the list region; screen 
   )
   check(
     'esc clears all marks as its own layer (after the peek close, before exitToRepl)',
-    ordered(screen, '// Line 5: esc closes the row peek first', 'if (markedIdsRef.current.size > 0) {') &&
-      ordered(screen, 'if (markedIdsRef.current.size > 0) {', 'callbacks.exitToRepl()\n      return\n    }'),
+    ordered(escLadder, 'setRowPeekOpen(false)\n        return', 'if (markedIdsRef.current.size > 0) {') &&
+      ordered(escLadder, 'if (markedIdsRef.current.size > 0) {', ESC_EXIT),
   )
   const projClear = screen.slice(
     screen.indexOf('const markProjectRef = useRef(snapshot.context.projectLabel)'),
@@ -137,7 +140,7 @@ console.log('§2 — the fan (item 2): the counted placeholder; ↵ arms naming 
   check('the placeholder counts the marks (7 names 7)', broadcastFaceOf(7)?.placeholder === 'message 7 sessions · ↵↵ sends to all marked')
   check(
     'the rest hint speaks the face first, then the landed gate',
-    ordered(screen, 'const face = broadcastFaceOf(markedRows.length)', 'const g = liveComposerGate(sessionRows.find(r => r.sessionId === boardSel), region)'),
+    ordered(screen, 'const face = broadcastFaceOf(markedRows.length)', ': liveComposerGate(sessionRows.find(r => r.sessionId === boardSel), region)'),
   )
   check(
     'the type-through gate yields under the face (the fan types each verdict at the send instead)',
@@ -168,8 +171,8 @@ console.log('§2 — the fan (item 2): the counted placeholder; ↵ arms naming 
   )
   check(
     'esc cancels the armed fan as its own layer (after the older fold, before the enter-arm)',
-    ordered(screen, '// ITEM 7: esc folds the drop-down back to the line', 'THE BROADCAST ARM (item 2): esc cancels') &&
-      ordered(screen, 'THE BROADCAST ARM (item 2): esc cancels', '// ARM-THEN-ENTER (item 2): esc disarms'),
+    ordered(escLadder, 'setOlderList(null)\n        return', 'broadcastArmedRef.current = false\n        setBroadcastArmed(false)\n        return') &&
+      ordered(escLadder, 'broadcastArmedRef.current = false\n        setBroadcastArmed(false)\n        return', 'boardArmedRef.current = null\n        setBoardArmed(null)\n        if (!compact) return'),
   )
   check(
     'ONE door, N deliveries: exactly one delivery call site in the fan — the SAME steering door the single send uses',

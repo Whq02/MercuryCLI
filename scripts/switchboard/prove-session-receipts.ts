@@ -193,7 +193,7 @@ console.log('D — a torn tail is carried unread, never parsed, never fatal')
 console.log('E — newest-first at the one view seam; the contract lane\'s append round-trips')
 {
   const mirror = readSrc('src/components/concourse/SessionMirror.tsx')
-  check('the viewer reverses the append-ordered file (newest-first) at its one read seam', mirror.includes('.slice().reverse()') && mirror.includes('Newest-first: the file is append-ordered; the viewer reverses'))
+  check('the viewer reverses the append-ordered file (newest-first) at its one read seam', mirror.includes('readSessionReceipts(getProjectDir(workspaceId), sessionId).slice().reverse()'))
   check('the section derives its rows from the pane it was given (a third, cap 6, the 2-row minimum) and exists only over entries that exist', mirror.includes('Math.min(6, Math.floor(paneRows / 3))') && mirror.includes('if (entryCount === 0) return null'))
   check('the deep close row pre-clips to two width-true rows (the wrap can never push a third into the frame)', mirror.includes('truncateToWidth(text, Math.max(16, paneWidth * 2 - 2))'))
   check('every kind paints — floor, close, and the contract estate\'s close-against', mirror.includes("`floor: ${flat}`") && mirror.includes("`close (${e.by}): ${flat}`") && mirror.includes("`contract: ${flat}`"))
