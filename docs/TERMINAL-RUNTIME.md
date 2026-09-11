@@ -124,6 +124,18 @@ the channel, and the receipt records it. Verbs:
 stderr the progress; exit 0 includes "already current", 1 is operational
 failure, 2 is usage.
 
+The verb manages the versioned layout that `mercury install` and the install
+script create. Inside a Homebrew install (the keg under `Cellar/mercury/`) or
+an npm install (`node_modules/mercury-tech-cli`) the bare update and
+`--rollback` decline before the channel is read and name the command that
+updates that install (`brew upgrade Whq02/mercury/mercury`,
+`npm update -g mercury-tech-cli`); `--check` still reports the newest release
+against the version running, and `--status` names where this Mercury came
+from. After an update of a managed install, the last lines name the `mercury`
+the shell would run when it is not the stable command — another file ahead of
+it on PATH, or none at all — with the fix; the doctor's Command on PATH row
+says the same.
+
 The activation law:
 
 1. single-update lock;
