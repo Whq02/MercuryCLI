@@ -102,6 +102,31 @@ export interface SplashComposition {
   actionLines: number[]
 }
 
+export interface SplashCompactRow {
+  label: string
+  ctx: string
+  dim?: boolean
+}
+
+export interface SplashCompactOpts {
+  cardRows: SplashCompactRow[]
+  cardSel: number
+  hintSegments: SplashHintSegment[]
+  keyMap?: string
+  reserveKeyMap?: boolean
+  pointer?: string
+  glowWord?: GlowPhase | null
+  glowRow?: GlowPhase | null
+}
+
+export interface SplashCompactComposition {
+  lines: string[]
+  actions: Array<{ line: number; index: number }>
+  hero: string[]
+  wordRow: number | null
+  top: number
+}
+
 export interface SplashCore {
   R: string
   BOLD: string
@@ -147,6 +172,7 @@ export interface SplashCore {
   composeBootMenuClassic(cols: number, rowsAvail: number, m: BootMenuData): BootMenuComposition
   panelLines(title: string, contentLines: string[], w: number): string[]
   composeLockup(cols: number, rows: number, opts: SplashComposeOpts): SplashComposition
+  composeCompactFace(cols: number, rows: number, opts: SplashCompactOpts): SplashCompactComposition
   placeBlock(block: string[], rows: number): { placed: string[]; top: number }
   vis(s: string): number
   cpWidth(cp: number): number
