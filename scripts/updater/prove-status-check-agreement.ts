@@ -94,8 +94,8 @@ section('§3 THE CHECK ARM AGREES (call-shaped)')
   check(
     "--status's verdict forks on the same damage",
     src.includes("status.installedPointer === 'unreadable'") &&
-      src.includes('pointerDamaged ? cliError(lines') &&
-      src.includes('pointerDamaged ? failJson('),
+      /pointerDamaged\s*\?\s*cliError\(lines/.test(src) &&
+      /pointerDamaged\s*\?\s*failJson\(/.test(src),
   )
 }
 
