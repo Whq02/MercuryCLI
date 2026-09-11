@@ -4,7 +4,7 @@ import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs
 import { join } from 'node:path'
 import { z } from 'zod'
 import {
-  check, childEnv, DIST, drive, endLeg, FACE_READY, finish, joined, netlines, nonLoopback,
+  ADMITTED, check, childEnv, DIST, drive, endLeg, FACE_READY, finish, joined, netlines, nonLoopback,
   printFrame, productNode, requireCaptureDriver, ROOT, scratch, startLeg,
 } from '../computer/computerDriveKit.ts'
 import { captureEngineEntry, vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -35,7 +35,7 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
   const cfgPath = join(scratch, `${tag}-config.json`)
   const sends = [
     { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
-    { atTick: 100, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: 'draft-alpha' },
+    { atTick: 100, awaitText: ADMITTED, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: 'draft-alpha' },
     { atTick: 999, awaitText: 'draft-alpha', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'wide' },
     { afterPrevTicks: 6, data: ' bravo' },
     { atTick: 999, awaitText: 'draft-alpha bravo', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '\u0015stream the compact journey\r', mark: 'typed' },
@@ -110,14 +110,17 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
         const stream = rowsAt(label)
         const activity = stream.findIndex(row => row.includes('writing') && row.includes('tokens'))
         const models = stream.map((row, i) => row.includes('Opus 5') ? i : -1).filter(i => i >= 0)
-        check(`${tag} ${label}: one activity row appears above the single model row`, activity >= 0 && models.length === 1 && activity < models[0]!)
+        const composerTop = stream.findIndex(row => /^╭/.test(row) || /^❯ /.test(row))
+        const chipAt = composerTop > 0 && /Opus 5|sovereign|need you|permissions unreported/.test(stream[composerTop - 1]!) ? composerTop - 1 : -1
+        check(`${tag} ${label}: one activity row sits directly above the chip line, or above the composer when no chip line is up, and the model paints once`, activity >= 0 && models.length === 1 && activity === (chipAt >= 0 ? chipAt : composerTop) - 1, `activity=${activity} chip=${chipAt} composer=${composerTop} models=${JSON.stringify(models)}`)
       }
       check(`${tag}: queued text is painted while the stream runs`, joined(rowsAt('queued')).includes('queued while streaming'))
       check(`${tag}: detail actually opened`, joined(rowsAt('detail')).includes('Session statistics'))
       check(`${tag}: Escape closes detail with the nonempty draft intact`, joined(rowsAt('closed')).includes('keep-this-draft') && !joined(rowsAt('closed')).includes('Session statistics'))
       const compactFrame = rowsAt('compact-restored')
       check(`${tag}: compact summary is restored once`, compactFrame.filter(line => /sessions? on/.test(line)).length === 1)
-      check(`${tag}: compact has no old top band or miniature art`, compactFrame.length > 0 && !/▚▛▀▜▞|▖▟▆▙▗|▀▀▀▀▀▀▀▀▀/.test(joined(compactFrame)) && !compactFrame.some(line => line.includes('daemon') && line.includes('fleet')))
+      check(`${tag}: compact has no old top band and no miniature mark`, compactFrame.length > 0 && !/▚▛▀▜▞|▖▟▆▙▗|▝▜▆▛▘|▗▙█▟▖/.test(joined(compactFrame)) && !compactFrame.some(line => line.includes('daemon') && line.includes('fleet')))
+      check(`${tag}: the compact chat keeps its critter in the identity band`, compactFrame.slice(0, 3).some(line => /[▀▄]{3,}/.test(line)) && compactFrame[3] === '─'.repeat(80), compactFrame.slice(0, 4).join(' | '))
     } else {
       check(`${tag}: full task toggle never opens compact detail`, rowsAt('toggled').length === 40 && !joined(rowsAt('toggled')).includes('Session statistics') && joined(rowsAt('toggled')).includes('keep-this-draft'))
     }
@@ -153,7 +156,7 @@ for (const answer of ['accept', 'interrupt'] as const) {
   try {
     const result = await drive(driver, leg, { cols: 80, rows: 24 }, [
       { requireAwait: true, awaitText: FACE_READY, awaitSettleTicks: 2, data: '\r' },
-      { requireAwait: true, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: 'request the fixture write\r' },
+      { requireAwait: true, awaitText: ADMITTED, awaitSettleTicks: 2, data: 'request the fixture write\r' },
       { requireAwait: true, awaitText: 'compact-consent-window-1', data: '\u0014\r' },
       { requireAwait: true, awaitText: 'Session statistics', data: '', mark: 'detail' },
       { requireAwait: true, awaitText: '1. Yes', awaitSettleTicks: 2, data: answer === 'accept' ? '\r' : '\u0003', mark: 'card' },

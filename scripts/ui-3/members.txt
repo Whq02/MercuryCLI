@@ -20,3 +20,4 @@ prove-width-oracle-sot.ts
 prove-compact-frames.ts
 prove-compact-journey.ts
 prove-window-kept.ts
+prove-chat-compact.ts

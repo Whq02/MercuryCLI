@@ -10,7 +10,7 @@ import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixt
 
 export const ROOT = resolve(import.meta.dir, '..', '..')
 export const DIST = join(ROOT, 'dist', 'mercury.mjs')
-export const ADMITTED = '? for shortcuts'
+export const ADMITTED = 'Type a prompt'
 const VENDORED_NODE = join(ROOT, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
 export function productNode(): string {
   return existsSync(VENDORED_NODE) ? VENDORED_NODE : (Bun.which('node') ?? 'node')
