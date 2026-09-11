@@ -535,7 +535,7 @@ check('A1 the Crew view rows name the row for every seat', (Object.keys(SEATS) a
 check('A5 mid-crew, the held seat reads in flight — streaming (its reply stands, its end is still due)', /\b(streaming|running)\b/.test(rowOf(mid, SEATS.quick.name) ?? ''), flat(rowOf(mid, SEATS.quick.name) ?? ''))
 const waiting = marks['crew-wait'] ?? ''
 check('A5 mid-wait, the held seat has landed (the typed end freed it at the budget)', /\blanded\b/.test(rowOf(waiting, SEATS.quick.name) ?? ''), flat(rowOf(waiting, SEATS.quick.name) ?? ''))
-check('A4 mid-wait, the parked seat still waits and its row says so — "waiting for the first byte"', /waiting for the first byte|\brunning\b/.test(rowOf(waiting, SEATS.cold.name) ?? ''), flat(rowOf(waiting, SEATS.cold.name) ?? ''))
+check('A4 mid-wait, the parked seat still waits and its row says so — "waiting for the first byte" or the retry countdown "no first byte — waiting N s"', /waiting for the first byte|no first byte — waiting \d+ s\b|\brunning\b/.test(rowOf(waiting, SEATS.cold.name) ?? ''), flat(rowOf(waiting, SEATS.cold.name) ?? ''))
 const landed = marks['crew-landed'] ?? ''
 check('A4/A5 every seat landed with the row kept — the held seat and the parked seat included', (Object.keys(SEATS) as SeatArm[]).every(arm => /\blanded\b/.test(rowOf(landed, SEATS[arm].name) ?? '') && namesRow(rowOf(landed, SEATS[arm].name))), flat(landed).slice(0, 500))
 check('nothing read stuck', !/may be stuck/.test(landed) && !/may be stuck/.test(marks['landed'] ?? ''))
