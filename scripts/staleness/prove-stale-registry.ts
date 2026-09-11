@@ -225,6 +225,7 @@ src/utils/cockpit/harnessMap.ts :: memo :: static-for-process
 src/utils/cockpit/repoSurfaceMap.ts :: orientationDocMemo :: static-for-process
 src/utils/cockpit/runProtocol.ts :: memo :: keyed-by-truth
 src/utils/cockpit/runtimePosture.ts :: memo :: static-for-process
+src/utils/config/globalConfig.ts :: cacheListeners :: static-for-process
 src/utils/config/globalConfig.ts :: globalConfigCache :: subscription-fed
 src/utils/config/projectConfig.ts :: getProjectPathForConfig :: invalidator=applyHarnessGround
 src/utils/debug.ts :: getDebugFilePath :: static-for-process
