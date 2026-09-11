@@ -3,6 +3,7 @@ import { getUserAgent } from '../../../utils/http.js'
 import { SseDecoder } from '../sseDecoder.js'
 import { retryAfterHeaderMs } from '../../api/retryAfter.js'
 import {
+  createStreamActivityRelay,
   createStreamIdleWatchdog,
   firstByteBudgetMs,
   firstByteTimeoutLine,
@@ -153,6 +154,7 @@ export interface ZaiStreamOptions {
   signal?: AbortSignal
   fetchImpl?: typeof fetch
   idleTimeoutMs?: number
+  onStreamActivity?: (atMs: number) => void
   firstByte?: {
     cold: boolean
     promptTokens: number
@@ -315,6 +317,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
     const decoder = new SseDecoder()
     const watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs })
     idleWatchdog = watchdog
+    const relay = createStreamActivityRelay(atMs => options.onStreamActivity?.(atMs))
 
     readLoop: for (;;) {
       let chunk: ReadableStreamReadResult<Uint8Array>
@@ -343,6 +346,8 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
       const results = chunk.done
         ? decoder.flush()
         : decoder.push(Buffer.from(chunk.value!))
+      if (results.some(item => item.kind === 'event')) relay.noteEvent()
+      else relay.noteChunk()
       for (const item of results) {
         if (item.kind === 'fault') {
           yield {

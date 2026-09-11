@@ -153,6 +153,16 @@ console.log('\nL4 silence stands still, and the seat never counts its own probe 
   onSeatLine(SHORT, frame({ type: 'system', subtype: 'task_progress', task_id: 't1' }), roster as never, dir)
   await cadence()
   check('a background task frame is not the foreground turn speaking either', tail()?.lastEventAtMs === stamp, JSON.stringify({ stamp, now: tail()?.lastEventAtMs }))
+  onSeatLine(SHORT, frame({ type: 'system', subtype: 'status', status: 'compacting' }), roster as never, dir)
+  check("fixture: the fold's word stands", tail()?.stateWord === 'compacting', JSON.stringify(tail()))
+  const beforeAlive = tail()?.lastEventAtMs ?? 0
+  await sleep(30)
+  onSeatLine(SHORT, frame({ type: 'system', subtype: 'status', status: { stream_activity: Date.now() } }), roster as never, dir)
+  await cadence()
+  check("the relayed keep-alive ({ stream_activity }: the heartbeat the parser drops, sent as the runner's status frame) is the runner speaking — the stamp moved", (tail()?.lastEventAtMs ?? 0) > beforeAlive, JSON.stringify({ beforeAlive, after: tail()?.lastEventAtMs }))
+  check("…and it touches no other word: the fold's word still stands", tail()?.stateWord === 'compacting', JSON.stringify(tail()))
+  onSeatLine(SHORT, frame({ type: 'system', subtype: 'status', status: null }), roster as never, dir)
+  check("fixture: the fold's word cleared by its own null", tail()?.stateWord === undefined, JSON.stringify(tail()))
 }
 
 console.log('\nL5 the result keeps the stamp and clears the block; a respawn zeroes everything')
@@ -183,8 +193,12 @@ console.log('\nL6 structural — no surface reads transcript growth as liveness'
   check('the row’s copy is the one exported statusLine', bar.includes('export function statusLine') && bar.includes('const line = statusLine(live, status, crew)'))
   const seatSrc = read('src/daemon/sessionSeat.ts')
   check('the seat stamps every stream event before the arms (the runner speaking, whatever the event)', seatSrc.includes("if (frame.type !== 'stream_event' || !frame.event) return false") && seatSrc.indexOf('noteSeatEvent(seat, dir)') > 0)
+  check('the seat stamps the relayed keep-alive on its own key and returns before the state-word arm', seatSrc.includes("'stream_activity' in (frame.status as object)"))
   const watchdog = read('src/services/providers/anthropic/streamCore.ts')
   check('the watchdog reads its budget from the one owner (no second constant)', watchdog.includes("streamIdleTimeoutMsForRoute('anthropic')") && watchdog.includes('streamIdleWarningMsOf(STREAM_IDLE_TIMEOUT_MS)') && !watchdog.includes('parsed >= 1_000 ? parsed : 90_000'))
+  check("the stream core relays the transport's liveness beside the watchdog's note (a quiet chunk) and marks every parsed event", watchdog.includes('activityRelay.noteChunk()') && watchdog.includes('activityRelay.noteEvent()'))
+  const machine = read('src/run-core/turn-machine.ts')
+  check("the turn machine relays the stream's activity on the runner's status frame", machine.includes('onStreamActivity: atMs => toolUseContext.setSDKStatus?.({ streamActivity: atMs })'))
   const facts = read('src/cli/print.ts')
   check('the runner reports its own budget in the facts answer', facts.includes('streamIdleTimeoutMs: streamIdleTimeoutMsForRoute('))
 }

@@ -656,6 +656,7 @@ async function* streamOneCompatAttempt(ctx: {
     request,
     signal,
     idleTimeoutMs: streamIdleTimeoutMsForRoute(profile.lane),
+    ...(options.onStreamActivity ? { onStreamActivity: options.onStreamActivity } : {}),
     firstByte: {
       cold: coldPrefixOf(ctx.messages, modelId),
       promptTokens: estimateRequestTokens(request),

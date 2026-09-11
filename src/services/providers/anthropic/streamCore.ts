@@ -215,6 +215,7 @@ import {
   requestWaitLine,
   retryReasonWords,
   streamActivityFetchOptions,
+  createStreamActivityRelay,
   createStreamIdleWatchdog,
   streamEndReceiptLine,
   streamIdleTimeoutMsForRoute,
@@ -251,6 +252,7 @@ export type Options = {
   fallbackModel?: string
   onStreamingFallback?: () => void
   onWait?: (wait: RequestWaitV1 | null) => void
+  onStreamActivity?: (atMs: number) => void
   querySource: QuerySource
   agents: AgentDefinition[]
   allowedAgentTypes?: string[]
@@ -1196,7 +1198,11 @@ async function* queryModel(
         releaseStreamResources()
       },
     })
-    noteTransportActivity = () => streamIdleWatchdog.noteActivity()
+    const activityRelay = createStreamActivityRelay(atMs => options.onStreamActivity?.(atMs))
+    noteTransportActivity = () => {
+      streamIdleWatchdog.noteActivity()
+      activityRelay.noteChunk()
+    }
     function clearStreamIdleTimers(): void {
       noteTransportActivity = null
       streamIdleWatchdog.stop()
@@ -1245,6 +1251,7 @@ async function* queryModel(
 
       for await (const part of stream) {
         streamIdleWatchdog.noteActivity()
+        activityRelay.noteEvent()
         sawFirstStreamEvent = true
         streamEventCount++
         const now = Date.now()

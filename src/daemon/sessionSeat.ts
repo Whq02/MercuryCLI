@@ -686,6 +686,10 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
           }
           return
         }
+        if (frame.status !== null && typeof frame.status === 'object' && 'stream_activity' in (frame.status as object)) {
+          noteSeatEvent(seat, dir)
+          return
+        }
         const statusObject = frame.status !== null && typeof frame.status === 'object' ? (frame.status as { waiting_on_agents?: unknown; compacting?: unknown }) : null
         const waiting = statusObject?.waiting_on_agents
         const foldStamped = statusObject !== null && 'compacting' in statusObject

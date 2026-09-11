@@ -1151,6 +1151,7 @@ export const SDKStatusMessageSchema = lazySchema(() =>
         z.object({ waiting_on_agents: z.number().describe('Background agents still holding the turn open') }),
         z.object({ compacting: SDKFoldStatusSchema().nullable().describe("The fold's record, or null while it has none") }),
         z.object({ wait: SDKRequestWaitSchema().nullable().describe('The request wait, or null once the first byte landed') }),
+        z.object({ stream_activity: z.number().describe('Epoch milliseconds the stream last showed life with no event to show (a keep-alive the parser drops)') }),
       ])
       .describe('The session activity state, or null to clear it'),
     permission_mode: z

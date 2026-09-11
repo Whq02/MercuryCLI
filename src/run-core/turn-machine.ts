@@ -553,6 +553,7 @@ async function* streamModel(
               streamingFallbackOccured = true
             },
             onWait: wait => toolUseContext.setSDKStatus?.({ wait }),
+            onStreamActivity: atMs => toolUseContext.setSDKStatus?.({ streamActivity: atMs }),
             querySource: run.querySource,
             agents: toolUseContext.options.agentDefinitions.activeAgents,
             allowedAgentTypes:

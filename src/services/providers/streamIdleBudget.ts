@@ -337,3 +337,26 @@ export function observeStreamActivity(response: Response, note: StreamActivityNo
   }
   return observed
 }
+
+export const STREAM_ACTIVITY_RELAY_GAP_MS = 1_000
+
+export interface StreamActivityRelay {
+  noteEvent(): void
+  noteChunk(): void
+}
+
+export function createStreamActivityRelay(relay: (atMs: number) => void, gapMs: number = STREAM_ACTIVITY_RELAY_GAP_MS): StreamActivityRelay {
+  let lastEventAtMs = Date.now()
+  let lastRelayAtMs = 0
+  return {
+    noteEvent() {
+      lastEventAtMs = Date.now()
+    },
+    noteChunk() {
+      const now = Date.now()
+      if (now - lastEventAtMs < gapMs || now - lastRelayAtMs < gapMs) return
+      lastRelayAtMs = now
+      relay(now)
+    },
+  }
+}
