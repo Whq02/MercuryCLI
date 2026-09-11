@@ -14,12 +14,12 @@ const TURNS = [
 ]
 
 for (const size of SIZES) {
-  section(`the flag unset at ${size.cols}×${size.rows}: the harness refuses the unknown tool`)
+  section(`the flag off at ${size.cols}×${size.rows}: the harness refuses the unknown tool`)
   const off = await startLeg(`off-${size.cols}`, TURNS, null)
-  const res = await drive(driver, off, size, [...OPENING('take a screenshot'), { requireAwait: true, awaitText: 'Done.', awaitStableTicks: 3, mark: 'done', data: '' }], 160, { MERCURY_COMPUTER_USE: undefined })
+  const res = await drive(driver, off, size, [...OPENING('take a screenshot'), { requireAwait: true, awaitText: 'Done.', awaitStableTicks: 3, mark: 'done', data: '' }], 160, { MERCURY_COMPUTER_USE: '0' })
   await endLeg(off)
   const done = res.marks.done ?? []
-  printFrame(`${size.cols}×${size.rows} flag unset`, done)
+  printFrame(`${size.cols}×${size.rows} flag off`, done)
   check(`${size.cols}: the drive delivered`, res.status === 0, `vshot ${res.status} · ${res.endReason} · ${res.stderr.slice(-300)}`)
   const offWords = joined(done).includes('No such tool available') ? 'frame' : persistedText(off.home).includes('No such tool available') ? 'session file' : 'nowhere'
   check(`${size.cols}: the refusal names the tool as not available (read on the ${offWords})`, offWords !== 'nowhere' && (joined(done).includes('Computer') || persistedText(off.home).includes('Computer')), joined(done).slice(0, 500))
@@ -27,15 +27,15 @@ for (const size of SIZES) {
   check(`${size.cols}: the fake log was never created`, !existsSync(off.log))
   check(`${size.cols}: nothing left loopback`, nonLoopback(netlines(off.netlog)).length === 0)
 
-  section(`the driver switched off at ${size.cols}×${size.rows}: the tool refuses naming the switch`)
+  section(`the driver switched off at ${size.cols}×${size.rows}: the tool is not offered`)
   const none = await startLeg(`none-${size.cols}`, TURNS, null)
   const resNone = await drive(driver, none, size, [...OPENING('take a screenshot'), { requireAwait: true, awaitText: 'Done.', awaitStableTicks: 3, mark: 'done', data: '' }], 160, { MERCURY_DESKTOP_DRIVER: 'none' })
   await endLeg(none)
   const doneNone = resNone.marks.done ?? []
   printFrame(`${size.cols}×${size.rows} driver none`, doneNone)
   check(`${size.cols}: the drive delivered`, resNone.status === 0, `vshot ${resNone.status} · ${resNone.endReason} · ${resNone.stderr.slice(-300)}`)
-  const noneWords = joined(doneNone).includes('switched off for this run') ? 'frame' : persistedText(none.home).includes('switched off for this run') ? 'session file' : 'nowhere'
-  check(`${size.cols}: the refusal names the switch (read on the ${noneWords})`, noneWords !== 'nowhere' && (joined(doneNone).includes('MERCURY_DESKTOP_DRIVER=none') || persistedText(none.home).includes('MERCURY_DESKTOP_DRIVER=none')), joined(doneNone).slice(0, 500))
+  const noneWords = joined(doneNone).includes('No such tool available') ? 'frame' : persistedText(none.home).includes('No such tool available') ? 'session file' : 'nowhere'
+  check(`${size.cols}: the tool is not offered with the driver switched off — the refusal names it as not available (read on the ${noneWords})`, noneWords !== 'nowhere' && (joined(doneNone).includes('Computer') || persistedText(none.home).includes('Computer')), joined(doneNone).slice(0, 500))
   check(`${size.cols}: no card, no footer`, !rowsHaving(doneNone, CARD_NEEDLE) && !rowsHaving(doneNone, 'hands off'))
   check(`${size.cols}: the fake log was never created`, !existsSync(none.log))
   check(`${size.cols}: nothing left loopback`, nonLoopback(netlines(none.netlog)).length === 0)
