@@ -405,7 +405,7 @@ if (launched) {
   check('killing a settled agent is refused: already settled', killAgain.outcome === 'refused' && /already settled — nothing to kill/.test(killAgain.reason), JSON.stringify(killAgain))
   check('alpha is still alive after beta was killed (the run keeps its fan-out)', readManifest(runDir).agents.some(a => a.label === 'alpha' && (a.state === 'progress' || a.state === 'start')) && readManifest(runDir).status === 'running')
 
-  const stopRes = await requestWorkflowControl(runDir, { action: 'stop', by: 'second process' })
+  const stopRes = await requestWorkflowControl(runDir, { action: 'stop', by: 'second process' }, { answerMs: 30_000 })
   check('x on the list stops the run from the second process', stopRes.outcome === 'applied' && /stopped by second process/.test(stopRes.detail), JSON.stringify(stopRes))
   const settledSeen = await until(() => out.includes('"ev":"settled"'), 30_000)
   check('the launching process settled the run', settledSeen, out.slice(-300))
