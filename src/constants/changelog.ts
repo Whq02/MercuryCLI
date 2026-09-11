@@ -1,6 +1,17 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.7
+- Added Samples, off by default: ask the model to show you something and it opens a page in your browser; mark it up, and your marks come back into the chat; every version is kept; the Boot Menu's Samples row turns it on
+- Changed computer use to be on by default where the desktop driver is present; the ask offers one-hour and 24-hour grants and a sovereign mode that stops the asks; the Boot Menu turns it off
+- Changed the stream watchdog: the "may be stuck" notice waits five minutes, a silent Anthropic connection is redialled after two, OpenAI keeps fifteen, and waits of a minute or more are shown in minutes
+- Fixed the status row calling a stream stuck while the provider's heartbeats were still arriving
+- Fixed \`mercury update\` inside a Homebrew or npm install installing a second copy the shell never runs; it now names the command that updates that install, and the doctor says which \`mercury\` your shell runs
+- Fixed the composer's mouse: a click lands on the character under it, a drag selects the typed words and never the frame, and two clicks select everything
+- Fixed notices under the composer pushing it up; they now ride the hint line
+- Fixed frames at a large window costing about three times what they should: the renderer remembers the slices of clipped lines, with nothing on screen changed
+- Fixed a new chat on a busy machine booting its session runner twice
+
 ## 1.0.0-beta.6
 - Added computer use behind \`MERCURY_COMPUTER_USE\`: the model takes screenshots and drives the mouse and keyboard on every provider route that carries images; the first act in each application asks by name, Esc stops it, one session drives at a time, and screenshots never enter the saved conversation
 - Added stop, pause and kill controls to the workflows views, from any session and after a compaction or a clear
