@@ -72,6 +72,10 @@ const ROLE_BY_FILE: Record<string, { role: string; why: string }> = {
     role: 'product-identity-header',
     why: 'cockpit shell header — shared lockup grammar',
   },
+  'src/components/CompactIdentityBand.tsx': {
+    role: 'product-identity-header',
+    why: "the compact chat's identity band — the cockpit header's small-terminal form: the Wordmark primitive on one line beside the session critter",
+  },
   'src/components/MercuryFrame.tsx': {
     role: 'compact-status-inline',
     why: 'statusbar chrome — intentionally quiet; session mark carries identity',
