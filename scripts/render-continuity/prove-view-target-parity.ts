@@ -149,11 +149,10 @@ t.section('§2 journey: header + CREW root + mouse return')
       kind: 'paced',
       deltas: Array.from({ length: 24 }, (_, i) => `count ${i + 1}. `),
       gapMs: 900,
-      whenBody: 'Count to three slowly.',
     },
-    { kind: 'text', text: 'Probe launched.' },
-    { kind: 'text', text: 'Settled.' },
-    { kind: 'text', text: 'Spare.' },
+    { kind: 'text', text: 'Probe launched.', whenBody: 'spawn the probe' },
+    { kind: 'text', text: 'Settled.', whenBody: 'spawn the probe' },
+    { kind: 'text', text: 'Spare.', whenBody: 'spawn the probe' },
   ]
 
   const run = await runPulseArena({
@@ -337,11 +336,11 @@ t.section('§4 journey: completed agent stays reachable from the footer')
       },
       preText: 'Spawning the quick probe.',
     },
-    { kind: 'text', text: 'done.', whenBody: 'Reply with one word.' },
-    { kind: 'text', text: 'Probe finished.' },
-    { kind: 'text', text: 'Noted.' },
-    { kind: 'text', text: 'Spare.' },
-    { kind: 'text', text: 'Spare 2.' },
+    { kind: 'text', text: 'done.' },
+    { kind: 'text', text: 'Probe finished.', whenBody: 'run the quick probe' },
+    { kind: 'text', text: 'Noted.', whenBody: 'run the quick probe' },
+    { kind: 'text', text: 'Spare.', whenBody: 'run the quick probe' },
+    { kind: 'text', text: 'Spare 2.', whenBody: 'run the quick probe' },
   ]
 
   const run = await runPulseArena({
