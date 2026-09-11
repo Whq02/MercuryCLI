@@ -2822,8 +2822,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         </Box>
       ) : null}
       </Box>
-      {summaryVisible && compactWork !== undefined ? <CompactWorkSummary columns={columns} focused={compactFocus === 'summary'} onFocus={() => { if (canFocusSummary()) compactWork.set('summary') }} /> : null}
       {frame}
+      {summaryVisible && compactWork !== undefined ? <CompactWorkSummary columns={columns} focused={compactFocus === 'summary'} vimInsert={vimEnabled && vimMode === 'INSERT'} onFocus={() => { if (canFocusSummary()) compactWork.set('summary') }} /> : null}
       {!isCompact ? <MercurySupercodeKeywordHint value={input} /> : null}
       {!isCompact ? <PromptInputStashNotice hasStash={stash !== undefined} /> : null}
       {fullscreen ? (
@@ -2843,8 +2843,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       ) : null}
       <PromptInputFooter
         compact={isCompact}
-        compactSummaryFocused={compactFocus === 'summary'}
-        maxRows={isCompact ? (compactBudget?.footerRows ?? 0) + (compactBudget?.noticeRows ?? 0) : undefined}
+        maxRows={isCompact ? (helpOpen ? Math.max(2, (compactBudget?.editorPoolRows ?? 2) - 1) : compactBudget?.noticeRows ?? 0) : undefined}
         suggestionRows={isCompact ? compactSuggestionRows : undefined}
         suggestions={typeahead.suggestions}
         selectedSuggestion={getSelectedSuggestion()}

@@ -36,7 +36,8 @@ import { isDeckPaneActive } from '../utils/fullscreen.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { CompactFrameBudgetContext, useLayoutChrome } from '../context/layoutChromeContext.js'
 import { stringWidth } from '../ink/stringWidth.js'
-import { shedToFit } from './mercury-ui/geometry.js'
+import { compactBandForm, shedToFit } from './mercury-ui/geometry.js'
+import { compactModeChip } from './mercury-ui/compactModeChip.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
 import { activeSourceUsage, usageViewIsStale } from '../services/providers/providerUsage.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
@@ -472,31 +473,43 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
 
   if (isCompact) {
     if ((compactBudget?.modelRows ?? 1) === 0) return null
-    const modeText = permMode === 'sovereign'
-      ? 'sovereign: auto-approved'
-      : permMode === 'autopilot'
-        ? 'autopilot: permissions bypassed'
-        : permMode === null
-          ? 'permissions unreported'
-          : isDefaultMode(permMode) ? '' : permissionModeTitle(permMode).toLowerCase()
-    const attentionText = attentionView.needsYou > 0 ? `${needsYouCount(attentionView.needsYou)} · ${needsJump}` : ''
+    const chip = compactModeChip(permMode)
+    const attentionCount = attentionView.needsYou > 0 ? needsYouCount(attentionView.needsYou) : ''
+    const modelReturns = compactBandForm(cols, tier.rows) === 'none'
     const chosen = shedToFit([
-      ...(modeText ? [{ text: modeText, priority: 4 }] : []),
-      ...(attentionText ? [{ text: attentionText, priority: 3 }] : []),
-      { text: truncateToWidth(modelName || 'model unreported', cols), priority: 2 },
-      { text: `ctx ${contextPercentLabel(used, fill.fillSource)}`, priority: 1 },
+      ...(chip !== null ? [{ id: 'mode', text: chip.text, priority: 4 }] : []),
+      ...(attentionCount !== '' ? [{ id: 'attention', text: `${FLAG_ICON} ${attentionCount} · ${needsJump}`, priority: 3 }] : []),
+      ...(modelReturns ? [
+        { id: 'model', text: truncateToWidth(modelName || 'model unreported', cols), priority: 2 },
+        { id: 'ctx', text: `ctx ${contextPercentLabel(used, fill.fillSource)}`, priority: 1 },
+      ] : []),
     ], cols)
+    if (chosen.length === 0) return null
     const line = chosen.map(part => part.text).join(' · ')
-    const modelShown = chosen.some(part => part.priority === 2)
-    const modelAt = chosen.findIndex(part => part.priority === 2)
-    const prefix = modelAt >= 0 ? chosen.slice(0, modelAt + 1).map(part => part.text).join(' · ') : line
-    const suffix = modelAt >= 0 ? chosen.slice(modelAt + 1).map(part => part.text).join(' · ') : ''
+    const chipColor = chip === null ? tok.textSecondary : chip.tone === 'bypass' ? tok.failure : chip.tone === 'unreported' ? tok.warning : chip.modeColor
     return (
       <Box height={1} flexShrink={0} overflow="hidden">
         <Text wrap="truncate-end">
-          <Text color={modeText !== '' || attentionText !== '' ? tok.warning : tok.textSecondary}>{prefix}</Text>
-          {modelShown ? <EffortChip model={windowModel} plain maxWidth={Math.max(0, cols - stringWidth(line))} /> : null}
-          {suffix !== '' ? <Text color={tok.textMuted}> · {suffix}</Text> : null}
+          {chosen.map((part, index) => (
+            <React.Fragment key={part.id}>
+              {index > 0 ? <Text color={tok.textMuted}> · </Text> : null}
+              {part.id === 'mode' ? (
+                <Text color={chipColor}>{part.text}</Text>
+              ) : part.id === 'attention' ? (
+                <Text>
+                  <Text color={tok.warning}>{FLAG_ICON} {attentionCount}</Text>
+                  <Text color={tok.textMuted}> · {needsJump}</Text>
+                </Text>
+              ) : part.id === 'model' ? (
+                <Text>
+                  <Text color={tok.textSecondary}>{part.text}</Text>
+                  <EffortChip model={windowModel} plain maxWidth={Math.max(0, cols - stringWidth(line))} />
+                </Text>
+              ) : (
+                <Text color={tok.textMuted}>{part.text}</Text>
+              )}
+            </React.Fragment>
+          ))}
         </Text>
       </Box>
     )

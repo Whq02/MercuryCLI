@@ -1,6 +1,7 @@
 
 import { stringWidth } from '../../ink/stringWidth.js'
 import { COMPOSER_BORDER_SHED_ROWS } from './replFloor.js'
+import { CR_COLS, SQUARE_ART_LINES, SQUARE_DOCK_ART_LINES } from '../../utils/cockpit/critterData.js'
 
 export { paneWindow, scrolledWindow, fitGroupedWindow, fitMeasuredWindow, type PaneWindow } from './paneWindow.js'
 
@@ -111,6 +112,33 @@ export function shedToFit<T extends { text: string; priority: number }>(
 export function cockpitBottomSlotReserve(termRows: number): number {
   return Math.ceil(termRows / 2) + 12
 }
+export type CompactBandForm = 'square' | 'dock' | 'line' | 'none'
+
+export const COMPACT_BAND_SQUARE_MIN_ROWS = 26
+export const COMPACT_BAND_DOCK_MIN_ROWS = 20
+export const COMPACT_BAND_LINE_MIN_ROWS = 14
+export const COMPACT_BAND_CRITTER_MIN_COLUMNS = CR_COLS + 3 + 12
+
+export function compactBandForm(columns: number, rows: number): CompactBandForm {
+  if (rows < COMPACT_BAND_LINE_MIN_ROWS) return 'none'
+  if (rows < COMPACT_BAND_DOCK_MIN_ROWS || columns < COMPACT_BAND_CRITTER_MIN_COLUMNS) return 'line'
+  if (rows < COMPACT_BAND_SQUARE_MIN_ROWS) return 'dock'
+  return 'square'
+}
+
+export function compactBandRows(columns: number, rows: number): number {
+  switch (compactBandForm(columns, rows)) {
+    case 'square':
+      return SQUARE_ART_LINES + 1
+    case 'dock':
+      return SQUARE_DOCK_ART_LINES + 1
+    case 'line':
+      return 2
+    default:
+      return 0
+  }
+}
+
 export type CompactFrameBudget = Readonly<{
   columns: number
   availableRows: number
@@ -145,8 +173,7 @@ export function compactFrameBudget(
   left -= modelRows
   const activityRows = activityRequested && left > 0 ? 1 : 0
   left -= activityRows
-  const footerRows = Math.min(2 - noticeRows, left)
-  left -= footerRows
+  const footerRows = 0
   const transcriptMinRows = left > 0 ? 1 : 0
   left -= transcriptMinRows
   const composerBorderRows = rows >= COMPOSER_BORDER_SHED_ROWS && width >= 3 && left >= 2 ? 2 : 0
