@@ -33,3 +33,20 @@ export function missionUpdatedFrame(sessionId: string, uuid: string): MissionUpd
 export function isMissionUpdatedParsedFrame(frame: Record<string, unknown> | null): boolean {
   return frame !== null && frame.type === 'system' && frame.subtype === MISSION_UPDATED_SUBTYPE
 }
+
+export const SAMPLES_UPDATED_SUBTYPE = 'samples_updated'
+
+export type SamplesUpdatedFrame = {
+  type: 'system'
+  subtype: typeof SAMPLES_UPDATED_SUBTYPE
+  uuid: string
+  session_id: string
+}
+
+export function samplesUpdatedFrame(sessionId: string, uuid: string): SamplesUpdatedFrame {
+  return { type: 'system', subtype: SAMPLES_UPDATED_SUBTYPE, uuid, session_id: sessionId }
+}
+
+export function isSamplesUpdatedParsedFrame(frame: Record<string, unknown> | null): boolean {
+  return frame !== null && frame.type === 'system' && frame.subtype === SAMPLES_UPDATED_SUBTYPE
+}
