@@ -93,7 +93,7 @@ import {
   resizeReassertBytes,
 } from './root/screen-session.js'
 import { cockpitEngine, mountCockpitEngine, type CockpitEngine } from '../render-engine/cockpit/engineMount.js'
-import { bindTerminalDoor, flushDoorSync, terminalOwedBytes, termWrite, unbindTerminalDoor } from '../render-engine/cockpit/terminalOut.js'
+import { flushDoorSync, termWrite } from '../render-engine/cockpit/terminalOut.js'
 import { RESIZE_SETTLE_MS } from './constants.js'
 import { runTeardownSuite, type TeardownHost } from './root/teardown.js'
 import {
@@ -291,7 +291,6 @@ export default class Ink {
     autoBind(this)
     this.options = options
     this.isTTY = options.stdout.isTTY === true
-    bindTerminalDoor(options.stdout)
     if (options.patchConsole) this.restoreConsole = this.patchConsole()
 
     this.cachedColumns = options.stdout.columns || DEFAULT_COLUMNS
@@ -495,7 +494,7 @@ export default class Ink {
   }
 
   private paintResizeHold(columns: number, rows: number): void {
-    if (!this.altScreenActive || this.isPaused || !this.isTTY || terminalOwedBytes(this.options.stdout) > 0) return
+    if (!this.altScreenActive || this.isPaused || !this.isTTY) return
     const patches = this.writer.holdingClipPaint(this.frontFrame, columns, rows)
     if (patches.length === 0) return
     writeDiffToTerminal(
@@ -624,10 +623,6 @@ export default class Ink {
 
   onRender = (): void => {
     if (this.isUnmounted || this.isPaused) return
-    if (terminalOwedBytes(this.options.stdout) > 0) {
-      this.scheduler.requestDrain()
-      return
-    }
     try {
       this.renderFrame()
       this.renderFaultStreak = 0
@@ -1053,7 +1048,6 @@ export default class Ink {
     this.suspendStdin()
     this.editorHandoverDepth += 1;
     this.engine?.noteOverlay(true, true)
-    unbindTerminalDoor(this.options.stdout)
     termWrite(
       this.options.stdout,
       enterEditorBytes({ altActive: this.altScreenActive, mouseTracking: this.mouseTracking }),
@@ -1067,7 +1061,6 @@ export default class Ink {
       return;
     }
     this.editorHandoverDepth -= 1;
-    bindTerminalDoor(this.options.stdout)
     termWrite(
       this.options.stdout,
       exitEditorBytes({ altActive: this.altScreenActive, mouseTracking: this.mouseTracking }),
@@ -1138,7 +1131,7 @@ export default class Ink {
     if (!isStopSignal(signal)) return
     this.detachStopListeners()
     if (this.isTTY && !this.isUnmounted) {
-      unbindTerminalDoor(this.options.stdout)
+      flushDoorSync()
       const receipt = restoreTerminalForStop(signal, this.teardownHost(), this.options.stdin)
       this.rawModeOffForStop = receipt.rawModeOff
     }
@@ -1151,7 +1144,6 @@ export default class Ink {
 
   private resumeAfterContinue = (): void => {
     if (!this.isTTY || this.isUnmounted) return
-    bindTerminalDoor(this.options.stdout)
     if (this.rawModeOffForStop) {
       this.rawModeOffForStop = false
       try {
@@ -1741,7 +1733,6 @@ export default class Ink {
     this.clearResizeSettle()
     this.scheduler.cancel()
     this.engine?.detach()
-    unbindTerminalDoor(this.options.stdout)
     reconciler.updateContainerSync(null, this.container, null, null)
     reconciler.flushSyncWork()
     instances.delete(this.options.stdout)
