@@ -13,7 +13,7 @@ dst_core="$MERCURY_HOME/splash-core.mjs"
 node --check "$src"
 node --check "$core"
 mkdir -p "$MERCURY_HOME"
-if [ -f "$dst" ] && [ ! -f "$dst.crab-bak" ] && ! grep -q 'mercury-splash.mjs' "$dst"; then
+if [ -f "$dst" ] && [ ! -f "$dst.crab-bak" ] && ! grep -qF "from './splash-core.mjs'" "$dst"; then
   cp "$dst" "$dst.crab-bak"
   echo "backed up the previous splash → $dst.crab-bak"
 fi
