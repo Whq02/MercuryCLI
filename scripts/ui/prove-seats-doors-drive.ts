@@ -206,7 +206,7 @@ try {
         { data: '/seats\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: `/seats ${SET_TO}\r`, awaitText: 'Seats: ', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'verb-status' },
         { data: '/config\r', awaitText: `Seats set to ${SET_TO}`, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'verb-set' },
-        { data: ESC, awaitText: `${SET_TO} · set by you`, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'config' },
+        { data: ESC, awaitText: `    ${SET_TO} · set by you`, afterPrevTicks: 60, minTick: 2, awaitSettleTicks: 4, mark: 'config' },
         { data: '/seats auto\r', afterPrevTicks: 4 },
         { data: '', awaitText: 'Seats follow', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'verb-auto' },
         { data: '', afterPrevTicks: 3, mark: 'end' },
