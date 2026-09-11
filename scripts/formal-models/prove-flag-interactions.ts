@@ -100,6 +100,7 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_SESSION_SUBAGENTS: ['', '0'],
   MERCURY_SESSION_WORKFLOWS: ['', '0'],
   MERCURY_COMPUTER_USE: ['', '0'],
+  MERCURY_COMPUTER_ACCESS: ['', 'sovereign'],
   MERCURY_DESKTOP_DRIVER: ['', 'fake'],
   MERCURY_DESKTOP_FAKE_SCENE: ['', '/tmp/sweep-scene.json'],
   MERCURY_DESKTOP_FAKE_LOG: ['', '/tmp/sweep-acts.jsonl'],

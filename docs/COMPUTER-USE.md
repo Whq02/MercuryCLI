@@ -9,9 +9,11 @@ desktop driver, and the rest of Mercury does not depend on it.
 
 ## Turning it off
 
-Set `MERCURY_COMPUTER_USE=0` in the environment before the session starts.
-A session already running keeps the tool list it started with until the
-next compaction or `/clear`, so set the switch before you boot. With the
+Turn the Boot Menu's `Computer use` row off — it is on by default, and the
+change reaches new sessions — or set `MERCURY_COMPUTER_USE=0` in the
+environment before the session starts. A session already running keeps the
+tool list it started with until the next compaction or `/clear`, so set
+the switch before you boot. With the
 switch off the Computer tool is not in the catalog at all and no desktop
 driver is touched. On a machine without the desktop driver the tool is
 absent from the catalog as well: the catalog decides when it is built,
@@ -40,6 +42,22 @@ act there. An application that moved in front between the ask and the act
 is not driven: the act is refused and the model takes a new screenshot. No
 permission mode skips this ask and no classifier answers it: the screen,
 not you, chose the application, so the consent is yours alone.
+
+## The access type
+
+Under the Boot Menu's `Computer use` row sits `Access type`, with two
+values. `asks`, the default, is the card above: the first act in each
+application asks. `sovereign` is sovereign mode: full computer use granted
+by default, so no act asks in any application. Rules in a settings file
+hold either way — a `permissions.deny` rule refuses its application before
+any act, and a `permissions.ask` rule asks for its application even in
+sovereign mode — and so do the refusals that are the screen's, not yours:
+the terminal running Mercury is never typed into, and an application that
+moved in front between the check and the act is not driven. The row is
+saved where the Boot Menu keeps its other choices and reaches new
+sessions; `MERCURY_COMPUTER_ACCESS=sovereign` in the environment sets it
+for one session. `mercury doctor` and `/health` name the access type
+beside the switch.
 
 ## The allowlist
 
