@@ -1,6 +1,10 @@
 
 import { useEffect, useRef } from 'react'
 import type { SelectionApi } from '../ink/hooks/use-selection.js'
+import {
+  peekOwnInputSelection,
+  subscribeOwnInputSelectionSettled,
+} from '../utils/cockpit/inputSelectionBridge.js'
 import { isCopyOnSelectEnabled } from '../utils/config.js'
 import { isFullscreenActive } from '../utils/fullscreen.js'
 import { getTheme } from '../utils/theme.js'
@@ -31,6 +35,19 @@ export function useCopyOnSelect(
       copiedRef.current = true
       if (text.trim() === '') return
       onCopiedRef.current?.(text)
+    })
+  }, [selection, isActive])
+
+  useEffect(() => {
+    if (!isActive) return
+    if (!isFullscreenActive()) return
+    return subscribeOwnInputSelectionSettled(() => {
+      if (!isCopyOnSelectEnabled()) return
+      const own = peekOwnInputSelection()
+      if (own === null) return
+      selection.copyText(own.text)
+      if (own.text.trim() === '') return
+      onCopiedRef.current?.(own.text)
     })
   }, [selection, isActive])
 }

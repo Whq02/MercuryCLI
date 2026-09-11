@@ -15,7 +15,12 @@ import type { DOMElement } from '../../ink/dom.js'
 import { nodeCache, type CachedLayout } from '../../ink/node-cache.js'
 import { useSelection } from '../../ink/hooks/use-selection.js'
 import { Cursor } from '../../utils/Cursor.js'
-import { registerInputSelectionConsumer } from '../../utils/cockpit/inputSelectionBridge.js'
+import {
+  noteOwnInputSelectionChanged,
+  noteOwnInputSelectionSettled,
+  registerInputSelectionOwner,
+} from '../../utils/cockpit/inputSelectionBridge.js'
+import type { TextGesture } from '../../ink/events/text-gesture.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import type { Command } from '../../commands.js'
 import type { LocalJSXCommandContext } from '../../commands.js'
@@ -481,6 +486,27 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const inputBoxRef = useRef<DOMElement | null>(null)
   const selectionApi = useSelection()
   const selectionGestureRectRef = useRef<CachedLayout | null>(null)
+  const [, setOwnSelectionState] = useState<{ start: number; end: number; of: string } | null>(null)
+  const ownSelectionRef = useRef<{ start: number; end: number; of: string } | null>(null)
+  const gestureAnchorRef = useRef<{ start: number; end: number; col: number; row: number; moved: boolean } | null>(
+    null,
+  )
+  const ownSelectionOf = (text: string): { start: number; end: number } | null => {
+    const own = ownSelectionRef.current
+    if (own === null || own.of !== text || own.start >= own.end) return null
+    return { start: own.start, end: own.end }
+  }
+  const setOwnSelection = (next: { start: number; end: number; of: string } | null): void => {
+    const had = ownSelectionRef.current !== null
+    ownSelectionRef.current = next
+    setOwnSelectionState(next)
+    if (had || next !== null) noteOwnInputSelectionChanged()
+  }
+  const clearOwnSelection = (): void => {
+    gestureAnchorRef.current = null
+    if (ownSelectionRef.current === null) return
+    setOwnSelection(null)
+  }
   useEffect(
     () =>
       selectionApi.subscribe(() => {
@@ -489,6 +515,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           selectionGestureRectRef.current = null
           return
         }
+        clearOwnSelection()
         if (state.focus !== null && selectionGestureRectRef.current !== null) return
         const box = inputBoxRef.current
         selectionGestureRectRef.current = (box ? nodeCache.get(box) : undefined) ?? null
@@ -2303,15 +2330,17 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     : fullscreen ? Math.max(3, Math.floor(rows / 2) - 5) : undefined
 
   const textColumns = isCompact ? Math.max(1, compactBudget?.inputColumns ?? columns) : columns - 3
-  const offsetAtCell = (localCol: number, localRow: number): number => {
+  const cellSpanAt =(localCol: number, localRow: number): { start: number; end: number } => {
     const cursor = Cursor.fromText(input, textColumns, cursorOffset)
     const viewportStart =
       composerViewportStartRef.current ?? cursor.getViewportStartLine(maxVisibleLines)
-    return cursor.measuredText.getOffsetFromPosition({
-      line: localRow + viewportStart,
-      column: localCol,
-    })
+    const line = localRow + viewportStart
+    const doc = cursor.measuredText
+    const lineEnd = doc.getLineEndOffset(line)
+    const start = Math.min(doc.getOffsetFromPosition({ line, column: localCol }), lineEnd)
+    return { start, end: start < lineEnd ? doc.nextOffset(start) : start }
   }
+  const offsetAtCell = (localCol: number, localRow: number): number => cellSpanAt(localCol, localRow).start
   const mapSelectionToInputRange = (): { start: number; end: number } | null => {
     if (isSearchingHistory) return null
     const state = selectionApi.getState()
@@ -2356,11 +2385,25 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     if (start >= end) return null
     return { start, end }
   }
-  inputSelectionRangeRef.current = mapSelectionToInputRange
+  inputSelectionRangeRef.current =() => ownSelectionOf(pendingInput.text()) ?? mapSelectionToInputRange()
   useEffect(
-    () => registerInputSelectionConsumer(() => inputSelectionRangeRef.current()),
+    () =>
+      registerInputSelectionOwner({
+        range: () => inputSelectionRangeRef.current(),
+        own: () => {
+          const text = pendingInput.text()
+          const range = ownSelectionOf(text)
+          return range === null ? null : { ...range, text: text.slice(range.start, range.end) }
+        },
+        clear: clearOwnSelection,
+      }),
     [],
   )
+  const ownSelection = ownSelectionOf(input)
+  const ownSelected = ownSelection !== null
+  useEffect(() => {
+    noteOwnInputSelectionChanged()
+  }, [ownSelected])
   const pushAtomic = buffer.pushAtomic
   const insertTextAtCursor = (text: string): void => {
     insertAtCursor(text, { atomic: true })
@@ -2370,6 +2413,40 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     setCursorOffset(
       Math.max(0, Math.min(input.length, offsetAtCell(event.localCol, event.localRow))),
     )
+  }
+  const handleInputTextGesture =(gesture: TextGesture): boolean => {
+    if (isSearchingHistory || isVimModeEnabled() || input === '') return false
+    if (gesture.kind === 'press') {
+      if (gesture.clickCount >= 2) {
+        gestureAnchorRef.current = null
+        setOwnSelection({ start: 0, end: input.length, of: input })
+        setCursorOffset(input.length)
+        return true
+      }
+      const cell = cellSpanAt(gesture.localCol, gesture.localRow)
+      gestureAnchorRef.current = { ...cell, col: gesture.localCol, row: gesture.localRow, moved: false }
+      setOwnSelection(null)
+      setCursorOffset(cell.start)
+      return true
+    }
+    if (gesture.kind === 'drag') {
+      const anchor = gestureAnchorRef.current
+      if (anchor === null) return true
+      if (!anchor.moved) {
+        if (gesture.localCol === anchor.col && gesture.localRow === anchor.row) return true
+        anchor.moved = true
+      }
+      const cell = cellSpanAt(gesture.localCol, gesture.localRow)
+      const forward = cell.start >= anchor.start
+      const start = forward ? anchor.start : cell.start
+      const end = forward ? Math.max(cell.end, anchor.end) : anchor.end
+      setOwnSelection(start < end ? { start, end, of: input } : null)
+      setCursorOffset(forward ? end : start)
+      return true
+    }
+    gestureAnchorRef.current = null
+    if (ownSelectionOf(input) !== null) noteOwnInputSelectionSettled()
+    return true
   }
 
   const setOverlayDialog = useSetPromptOverlayDialog
@@ -2752,7 +2829,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         viewedAgentName={viewedAgentName}
         viewedAgentColor={viewedAgentColor}
       />
-      <Box flexGrow={1} minWidth={0} ref={inputBoxRef} onClick={handleInputBoxClick}>
+      <Box
+        flexGrow={1}
+        minWidth={0}
+        ref={inputBoxRef}
+        onClick={handleInputBoxClick}
+        onTextGesture={handleInputTextGesture}
+      >
         {vimEnabled ? (
           <VimTextInput
             {...textInputProps}
@@ -2763,7 +2846,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           <TextInput
             {...textInputProps}
             selectionRange={() => inputSelectionRangeRef.current()}
-            onSelectionConsumed={() => selectionApi.clearSelection()}
+            selectionHighlight={ownSelection}
+            onSelectionConsumed={() => {
+              clearOwnSelection()
+              selectionApi.clearSelection()
+            }}
             onBeforeRangeEdit={() => pushAtomic(input, cursorOffset, pastedContents)}
           />
         )}

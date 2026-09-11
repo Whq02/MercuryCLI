@@ -34,7 +34,9 @@ import App from './components/App.js'
 import type { CursorDeclaration } from './components/CursorDeclarationContext.js'
 import { InkInstanceContext } from './components/InkInstanceContext.js'
 import { createNode, findOwnerChainAtRow, markDirty, type DOMElement } from './dom.js'
+import type { EventHandlerProps } from './events/event-handlers.js'
 import { KeyboardEvent } from './events/keyboard-event.js'
+import type { TextGestureHandler } from './events/text-gesture.js'
 import { FocusManager } from './focus.js'
 import { emptyFrame, type FlickerRecord, type Frame, type FrameEvent, type Patch } from './frame.js'
 import { FrameWriter } from './frame-writer.js'
@@ -65,7 +67,7 @@ import type { ParsedKey } from './input/input-decoder.js'
 import instances from './instances.js'
 import { getCellLayoutCounters } from './layout/cellLayout.js'
 import { unionRect } from './layout/geometry.js'
-import { nodeCache } from './node-cache.js'
+import { nodeCache, type CachedLayout } from './node-cache.js'
 import { optimizePatches } from './patch-stream.js'
 import reconciler, {
   dispatcher,
@@ -265,6 +267,7 @@ export default class Ink {
   private zeroByteRenderStreak = 0
 
   readonly selection: SelectionState = createSelectionState()
+  private textGesture: { handler: TextGestureHandler; rect: CachedLayout } | null = null
   private readonly selectionListeners = new Set<() => void>()
   private glassOverlay: OverlayRecord | null = null
   private searchQuery = ''
@@ -1330,8 +1333,36 @@ export default class Ink {
     }
   }
 
+  private offerTextGesture(col: number, row: number, clickCount: 1 | 2 | 3): boolean {
+    this.textGesture = null
+    let node: DOMElement | undefined = hitTest(this.rootNode, col, row) ?? undefined
+    while (node) {
+      const handler = (node._eventHandlers as EventHandlerProps | undefined)?.onTextGesture
+      if (handler) {
+        const rect = nodeCache.get(node)
+        if (!rect) return false
+        const claimed =
+          handler({ kind: 'press', localCol: col - rect.x, localRow: row - rect.y, clickCount }) === true
+        if (claimed) this.textGesture = { handler, rect }
+        return claimed
+      }
+      node = node.parentNode
+    }
+    return false
+  }
+
+  private textGestureTookPress(): void {
+    if (this.selection.anchor === null) return
+    clearSelection(this.selection)
+    this.notifySelectionChange()
+  }
+
   handleSelectionStart(col: number, row: number, pressHadAlt = false): void {
     if (!this.altScreenActive) return
+    if (this.offerTextGesture(col, row, 1)) {
+      this.textGestureTookPress()
+      return
+    }
     startSelection(this.selection, col, row)
     this.selection.lastPressHadAlt = pressHadAlt
     this.applySelectionClipBand(col, row)
@@ -1340,6 +1371,10 @@ export default class Ink {
 
   handleMultiClick(col: number, row: number, count: 2 | 3): void {
     if (!this.altScreenActive) return
+    if (this.offerTextGesture(col, row, count)) {
+      this.textGestureTookPress()
+      return
+    }
     startSelection(this.selection, col, row)
     this.applySelectionClipBand(col, row)
     const screen = this.frontFrame.screen
@@ -1353,6 +1388,11 @@ export default class Ink {
 
   handleSelectionDrag(col: number, row: number): void {
     if (!this.altScreenActive) return
+    if (this.textGesture) {
+      const { handler, rect } = this.textGesture
+      handler({ kind: 'drag', localCol: col - rect.x, localRow: row - rect.y, clickCount: 1 })
+      return
+    }
     const s = this.selection
     const anchor = s.anchor
     const focus = s.focus
@@ -1363,6 +1403,14 @@ export default class Ink {
     }
     if (samePoint(s.anchor, anchor) && samePoint(s.focus, focus)) return
     this.notifySelectionChange()
+  }
+
+  handleSelectionRelease(col: number, row: number): boolean {
+    const gesture = this.textGesture
+    if (!gesture) return false
+    this.textGesture = null
+    gesture.handler({ kind: 'release', localCol: col - gesture.rect.x, localRow: row - gesture.rect.y, clickCount: 1 })
+    return true
   }
 
   moveSelectionFocus(move: FocusMove): void {
@@ -1424,6 +1472,15 @@ export default class Ink {
     clearSelection(this.selection)
     this.notifySelectionChange()
     return text
+  }
+
+  copyText(text: string): void {
+    if (!text) return
+    void setClipboard(text)
+      .then(sequence => {
+        if (sequence) termWrite(this.options.stdout, sequence, 'mode')
+      })
+      .catch(logError)
   }
 
   clearTextSelection(): void {
@@ -1688,6 +1745,7 @@ export default class Ink {
           handleMultiClick={this.handleMultiClick.bind(this)}
           handleSelectionDrag={this.handleSelectionDrag.bind(this)}
           handleSelectionStart={this.handleSelectionStart.bind(this)}
+          handleSelectionRelease={this.handleSelectionRelease.bind(this)}
           onStdinResume={this.onStdinResume}
           setCursorDeclaration={this.setCursorDeclaration}
           dispatchKeyboardEvent={this.dispatchKeyboardEvent.bind(this)}
