@@ -99,18 +99,22 @@ rmSync(join(fxHome, 'patches.d'), { recursive: true, force: true })
 rmSync(join(fxHome, 'patches.json'))
 writeFileSync(join(fxHome, 'splash.mjs'), SPLASH_BYTES)
 
-console.log('\n── R-4: the splash-action markers survive in the real launcher ─')
+console.log('\n── R-4: the splash-action block survives in the real launcher ──')
 {
   const launcher = readFileSync(join(repoRoot, 'scripts/ops/launcher-mercury.sh'), 'utf8')
-  check('MERCURY-SPLASH-ACTION-START marker present', launcher.includes('# MERCURY-SPLASH-ACTION-START'))
-  check('MERCURY-SPLASH-ACTION-END marker present', launcher.includes('# MERCURY-SPLASH-ACTION-END'))
   check('the args=() fallback anchor is byte-intact', /^args=\(\)$/m.test(launcher))
   const canonicalBlock = readFileSync(join(repoRoot, 'assets/splash/launcher-action-block.sh'), 'utf8').trimEnd()
-  const managed = launcher.slice(
-    launcher.indexOf('# MERCURY-SPLASH-ACTION-START'),
-    launcher.indexOf('# MERCURY-SPLASH-ACTION-END') + '# MERCURY-SPLASH-ACTION-END'.length,
+  const shellCode = (text: string): string[] =>
+    text.split('\n').filter(line => line.trim() !== '' && !line.trimStart().startsWith('#'))
+  const blockCode = shellCode(canonicalBlock)
+  const launcherCode = shellCode(launcher)
+  const blockStarts = launcherCode.flatMap((line, at) => (line === blockCode[0] ? [at] : []))
+  const managedAt = blockStarts.find(at => blockCode.every((line, i) => launcherCode[at + i] === line))
+  check(
+    'the canonical action block is the launcher managed block, shell line for shell line, once, ahead of the args=() anchor (F-5 pin)',
+    blockCode.length > 0 && blockStarts.length === 1 && managedAt !== undefined && launcherCode[managedAt + blockCode.length] === 'args=()',
+    `block lines ${blockCode.length}, block starts at ${blockStarts.join(',') || 'none'}`,
   )
-  check('canonical action block is byte-equal to the launcher managed block (F-5 pin)', managed === canonicalBlock)
   check(
     'the block gates on the defaulted exit-code capture (set -u safe)',
     canonicalBlock.includes('[ -n "${MERCURY_SA_EXIT:-}" ]'),

@@ -22,7 +22,7 @@ section('§1 THE BLOCKED BRANCH')
 section('§2 THE ENVELOPE')
 {
   const engine = src('src/QueryEngine.ts')
-  const envelope = engine.slice(engine.indexOf('A typed command refusal'), engine.indexOf('A typed command refusal') + 700)
+  const envelope = engine.match(/type: 'result',\s*subtype: 'success',\s*is_error: [^\n]*\n\s*num_turns: [^\n]*\n\s*result: inputResult\.resultText \?\? '',/)?.[0] ?? ''
   check(
     'is_error folds hookBlocked beside commandRefused',
     /is_error:\s*inputResult\.commandRefused === true \|\| inputResult\.hookBlocked === true/.test(envelope),

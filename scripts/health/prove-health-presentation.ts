@@ -185,9 +185,12 @@ section('§5 WIRING (HL-01/13/16/21/30)')
 section('§6 N-06 · THE RULED AUTO MAPPING + THE VISIBLE REMEDIES')
 {
   const contracts = src('src/services/instructions/contracts.ts')
+  const engine = src('src/services/instructions/engine.ts')
   check(
-    'the auto→native constant mapping is the DECLARED in-source contract — docs match code',
-    contracts.includes('ACCEPTED INPUT ONLY') && contracts.includes('resolves to `native`'),
+    'the auto→native mapping is the declared in-source contract: the profile union admits auto, the resolution records the mapping, the resolver maps it to native',
+    contracts.includes("export type InstructionProfile = 'auto' | 'native'") &&
+      contracts.includes("mapped?: 'auto-to-native'") &&
+      /if \(requested === 'auto'\) \{\s*return \{\s*requested,\s*requestedOrigin,\s*resolved: 'native',\s*mapped: 'auto-to-native',/.test(engine),
   )
   check(
     'the health instruction-profile row projects the same diagnostics (warn on findings)',

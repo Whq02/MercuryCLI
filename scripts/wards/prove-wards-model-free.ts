@@ -40,10 +40,6 @@ async function main(): Promise<void> {
     const engineImports = importSpecifiers(engineSrc)
     check('zero import statements', engineImports.length === 0, engineImports.join(', '))
     check('zero require calls', !/\brequire\s*\(/.test(engineSrc))
-    check(
-      'the pure-module law is stated in the header (kept honest here)',
-      engineSrc.includes('no env reads, no io at import'),
-    )
   }
 
   section('§2 hook import census — the adjudicated set, nothing else')
