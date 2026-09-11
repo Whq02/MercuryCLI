@@ -30,7 +30,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   ok.cleanup()
   const { readFileSync } = await import('node:fs')
   const shell = readFileSync('src/utils/Shell.ts', 'utf8')
-  t('the spawn seam closes the child\'s stdin for every lane (structural — the PowerShell arm is field-verified)', /const child = spawn\(spawnFile, spawnArgs, \{[\s\S]*?\}\)\s*\/\/[\s\S]*?child\.stdin\?\.end\(\)/.test(shell))
+  t('the spawn seam closes the child\'s stdin for both shells (structural — the PowerShell arm is field-verified)', /const child = spawn\(spawnFile, spawnArgs, \{[\s\S]*?\}\)[\s\S]{0,600}?try \{\s*child\.stdin\?\.end\(\)/.test(shell))
 }
 
 {
