@@ -109,6 +109,11 @@ const toolBlock = (index: number, id: string, name: string, input: Record<string
   `event: content_block_start\n${sse({ type: 'content_block_start', index, content_block: { type: 'tool_use', id, name, input: {} } })}` +
   `event: content_block_delta\n${sse({ type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: JSON.stringify(input) } })}` +
   `event: content_block_stop\n${sse({ type: 'content_block_stop', index })}`
+const thinkingBlock = (index: number, thinking: string): string =>
+  `event: content_block_start\n${sse({ type: 'content_block_start', index, content_block: { type: 'thinking', thinking: '' } })}` +
+  `event: content_block_delta\n${sse({ type: 'content_block_delta', index, delta: { type: 'thinking_delta', thinking } })}` +
+  `event: content_block_delta\n${sse({ type: 'content_block_delta', index, delta: { type: 'signature_delta', signature: 'fixture-signature' } })}` +
+  `event: content_block_stop\n${sse({ type: 'content_block_stop', index })}`
 const agentLaunch = (index: number, seat: Seat, background: boolean): string =>
   toolBlock(index, `toolu_hdr_agent_${++toolSeq}`, 'Agent', {
     description: SEATS[seat],
@@ -117,6 +122,52 @@ const agentLaunch = (index: number, seat: Seat, background: boolean): string =>
     run_in_background: background,
   })
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+type SseBlock = Record<string, unknown> & { _json?: string }
+function messageFromSse(sseText: string): Record<string, unknown> {
+  let message: Record<string, unknown> = {}
+  const blocks: SseBlock[] = []
+  for (const line of sseText.split('\n')) {
+    if (!line.startsWith('data: ')) continue
+    const ev = JSON.parse(line.slice(6)) as Record<string, unknown>
+    const index = typeof ev.index === 'number' ? ev.index : -1
+    switch (ev.type) {
+      case 'message_start':
+        message = { ...(ev.message as Record<string, unknown>) }
+        break
+      case 'content_block_start':
+        if (index >= 0) blocks[index] = { ...(ev.content_block as Record<string, unknown>) }
+        break
+      case 'content_block_delta': {
+        const block = index >= 0 ? blocks[index] : undefined
+        const delta = ev.delta as Record<string, unknown>
+        if (block === undefined) break
+        if (delta.type === 'text_delta') block.text = `${String(block.text ?? '')}${String(delta.text ?? '')}`
+        else if (delta.type === 'thinking_delta') block.thinking = `${String(block.thinking ?? '')}${String(delta.thinking ?? '')}`
+        else if (delta.type === 'signature_delta') block.signature = delta.signature
+        else if (delta.type === 'input_json_delta') block._json = `${block._json ?? ''}${String(delta.partial_json ?? '')}`
+        break
+      }
+      case 'content_block_stop': {
+        const block = index >= 0 ? blocks[index] : undefined
+        if (block !== undefined && block._json !== undefined) {
+          block.input = JSON.parse(block._json) as unknown
+          delete block._json
+        }
+        break
+      }
+      case 'message_delta': {
+        const delta = ev.delta as Record<string, unknown>
+        message.stop_reason = delta.stop_reason
+        message.stop_sequence = delta.stop_sequence
+        message.usage = { ...(message.usage as Record<string, unknown>), ...(ev.usage as Record<string, unknown>) }
+        break
+      }
+      default:
+        break
+    }
+  }
+  return { ...message, content: blocks.filter(block => block !== undefined) }
+}
 
 async function startFixture(port: number, cwd: string): Promise<{ base: string; hits: Hit[]; close(): Promise<void> }> {
   const hits: Hit[] = []
@@ -154,6 +205,16 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
         const ask = askOf(items)
         const stream = (): void => res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
         const live = (): boolean => !closed && !res.destroyed && !(req.socket?.destroyed ?? false)
+        const streaming = (body as { stream?: unknown } | null)?.stream === true
+        const reply = (sseText: string): void => {
+          if (streaming) {
+            stream()
+            res.end(sseText)
+            return
+          }
+          res.writeHead(200, { 'content-type': 'application/json' })
+          res.end(JSON.stringify(messageFromSse(sseText)))
+        }
         let route: string
         if (seat !== null) route = `seat:${seat}`
         else if (lastUserText.includes('task-notification')) route = 'note'
@@ -165,36 +226,35 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
         if (seat !== null) {
           const priorReads = readsOf(items)
           if (priorReads >= SEAT_READS[seat]) {
-            stream()
-            res.end(head(model) + textBlock(0, `SEAT-DONE-${seat}`) + tail('end_turn'))
+            reply(head(model) + textBlock(0, `SEAT-DONE-${seat}`) + tail('end_turn'))
             return
           }
           await sleep(SEAT_STEP_MS)
           if (!live()) return
-          stream()
-          res.end(head(model) + toolBlock(0, `toolu_hdr_read_${++toolSeq}`, 'Read', { file_path: join(cwd, noteFile(priorReads % NOTE_FILES)) }) + tail('tool_use'))
+          reply(head(model) + toolBlock(0, `toolu_hdr_read_${++toolSeq}`, 'Read', { file_path: join(cwd, noteFile(priorReads % NOTE_FILES)) }) + tail('tool_use'))
           return
         }
         switch (route) {
           case 'note':
-            stream()
-            res.end(head(model) + textBlock(0, 'HDR-NOTED') + tail('end_turn'))
+            reply(head(model) + textBlock(0, 'HDR-NOTED') + tail('end_turn'))
             return
           case 'launch':
-            stream()
-            res.end(head(model) + agentLaunch(0, 'one', true) + agentLaunch(1, 'two', true) + tail('tool_use'))
+            reply(head(model) + agentLaunch(0, 'one', true) + agentLaunch(1, 'two', true) + tail('tool_use'))
             return
           case 'launch2':
-            stream()
-            res.end(head(model) + agentLaunch(0, 'three', true) + agentLaunch(1, 'four', true) + tail('tool_use'))
+            reply(head(model) + agentLaunch(0, 'three', true) + agentLaunch(1, 'four', true) + tail('tool_use'))
             return
           case 'fore':
-            stream()
-            res.end(head(model) + agentLaunch(0, 'five', false) + tail('tool_use'))
+            reply(head(model) + agentLaunch(0, 'five', false) + tail('tool_use'))
             return
           case 'launched:launch':
           case 'launched:launch2': {
             const steps = route === 'launched:launch' ? THINK_LONG_STEPS : THINK_SHORT_STEPS
+            const launchedText = route === 'launched:launch' ? 'HDR-LAUNCHED' : 'HDR-LAUNCHED-2'
+            if (!streaming) {
+              reply(head(model) + thinkingBlock(0, 'weighing the launch ') + textBlock(1, launchedText) + tail('end_turn'))
+              return
+            }
             stream()
             res.write(head(model))
             res.write(`event: content_block_start\n${sse({ type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '' } })}`)
@@ -206,32 +266,31 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
             if (!live()) return
             res.write(`event: content_block_delta\n${sse({ type: 'content_block_delta', index: 0, delta: { type: 'signature_delta', signature: 'fixture-signature' } })}`)
             res.write(`event: content_block_stop\n${sse({ type: 'content_block_stop', index: 0 })}`)
-            res.end(textBlock(1, route === 'launched:launch' ? 'HDR-LAUNCHED' : 'HDR-LAUNCHED-2') + tail('end_turn'))
+            res.end(textBlock(1, launchedText) + tail('end_turn'))
             return
           }
           case 'launched:fore':
-            stream()
-            res.end(head(model) + textBlock(0, 'HDR-FORE-DONE') + tail('end_turn'))
+            reply(head(model) + textBlock(0, 'HDR-FORE-DONE') + tail('end_turn'))
             return
           case 'tool-done':
-            stream()
-            res.end(head(model) + textBlock(0, 'HDR-TOOL-DONE') + tail('end_turn'))
+            reply(head(model) + textBlock(0, 'HDR-TOOL-DONE') + tail('end_turn'))
             return
           case 'wait':
             await sleep(FIRST_BYTE_HOLD_MS)
             if (!live()) return
-            stream()
-            res.end(head(model) + textBlock(0, 'HDR-WAITED') + tail('end_turn'))
+            reply(head(model) + textBlock(0, 'HDR-WAITED') + tail('end_turn'))
             return
           case 'tool':
-            stream()
-            res.end(head(model) + toolBlock(0, `toolu_hdr_bash_${++toolSeq}`, 'Bash', { command: `sleep ${NAP_SECONDS}`, description: 'the eight second nap' }) + tail('tool_use'))
+            reply(head(model) + toolBlock(0, `toolu_hdr_bash_${++toolSeq}`, 'Bash', { command: `sleep ${NAP_SECONDS}`, description: 'the eight second nap' }) + tail('tool_use'))
             return
           case 'stuck': {
             stuckServed += 1
             if (stuckServed > 1) {
-              stream()
-              res.end(head(model) + textBlock(0, 'HDR-STUCK-DONE') + tail('end_turn'))
+              reply(head(model) + textBlock(0, 'HDR-STUCK-DONE') + tail('end_turn'))
+              return
+            }
+            if (!streaming) {
+              reply(head(model) + textBlock(0, 'HDR-') + textBlock(1, 'late') + tail('end_turn'))
               return
             }
             stream()
@@ -244,8 +303,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
             return
           }
           default:
-            stream()
-            res.end(head(model) + textBlock(0, 'side') + tail('end_turn'))
+            reply(head(model) + textBlock(0, 'side') + tail('end_turn'))
         }
       })().catch(() => {
         try {
