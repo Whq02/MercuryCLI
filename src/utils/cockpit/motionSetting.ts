@@ -2,7 +2,7 @@ import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from '../co
 import { critterIdleEnabled } from './critterIdle.js'
 import { liveGlyphsEnabled } from './liveGlyphs.js'
 import {
-  settledMotionLevel,
+  idleMotionLevel,
   motionGovernorFacts,
   motionPosture,
   REDUCED_FLOOR_MS,
@@ -53,7 +53,7 @@ export const MOTION_DOORS = 'the Motion row of /config, or the Motion row of the
 
 export function motionValueWords(setting: MotionSetting = readMotionSetting()): string {
   if (setting !== 'auto') return setting
-  return `auto · ${settledMotionLevel('clock')}`
+  return `auto · ${idleMotionLevel('clock')}`
 }
 
 export function motionReceiptWords(setting: MotionSetting): string {
@@ -82,7 +82,7 @@ export const MOTION_MENU_ROW = {
   defaultLabel: 'auto',
   applicationClass: 'live',
   summary:
-    'how much idle motion the cockpit runs — auto reduces after five quiet seconds or sustained slow painting and pauses while an inactive terminal is unfocused; full never reduces; reduced slows the clock and rests decoration when quiet; off stops idle motion',
+    'how much idle motion the cockpit runs — auto follows the machine (full until painting falls behind, then reduced); full never reduces; reduced slows the shared clock and stills the critter; off stops idle motion',
   detail: {
     controls: "The cockpit's idle motion — the mascot's blink and breath, the live glyphs, and the clock that paces them. Applies now.",
     on: [
@@ -91,7 +91,7 @@ export const MOTION_MENU_ROW = {
       'off — no idle motion: the mascot still, the glyphs static, the clock ticking only for work in flight',
     ],
     off: [
-      'auto: motion rests after five quiet seconds and pauses when an inactive terminal loses focus; input, focus or live work wakes it. Sustained slow painting also reduces the cadence until the frame cost recovers',
+      'auto: full motion until a run of frames costs more than the frame budget with the event loop busy, then reduced — the clock at a quarter-second floor, slower while a frame costs more than its interval — then full again after a longer run of cheap frames',
       'MERCURY_CRITTER_IDLE=0 and MERCURY_LIVE_GLYPHS=0 read as this choice with their part off',
     ],
   },
