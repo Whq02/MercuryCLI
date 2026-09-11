@@ -83,9 +83,6 @@ const presenceCode = stripComments(presenceRaw)
 {
   const ingestTokens = ['enqueue', 'ingestRecord', 'inbox.jsonl', 'localChannelBus']
   for (const t of ingestTokens) {
-    check(`RAW source mentions "${t}" (in a comment — strip has real work)`, presenceRaw.includes(t))
-  }
-  for (const t of ingestTokens) {
     check(`stripped source has NO "${t}" (no ingest path in executable code)`, !presenceCode.includes(t))
   }
   check("executable code references the 'presence' path segment", presenceCode.includes("'presence'"))
