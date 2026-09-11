@@ -157,8 +157,11 @@ if (!existsSync(baselineDir)) {
     for (const row of table.rows) {
       const b = base.rows.find(r => r.task === row.task)
       if (!b || b.skipped || row.skipped) continue
-      if (b.success === true) check(`${table.header.family}/${row.task}: still passes (baseline PASS)`, row.success === true, row.oracle)
-      check(`${table.header.family}/${row.task}: wasted ${row.wasted} ≤ baseline ${b.wasted}`, row.wasted <= b.wasted)
+      const errorTexts = row.errors.map(e => `${e.tool}${e.probe ? ' (probe)' : ''}: ${e.text.replace(/\s+/g, ' ').slice(0, 240)}`).join(' | ')
+      const stderrTail = row.stderrTail.trim().replace(/\s+/g, ' ').slice(-300)
+      const evidence = `${row.oracle}${errorTexts ? ` · errors: ${errorTexts}` : ''}${stderrTail ? ` · stderr: ${stderrTail}` : ''}`
+      if (b.success === true) check(`${table.header.family}/${row.task}: still passes (baseline PASS)`, row.success === true, evidence)
+      check(`${table.header.family}/${row.task}: wasted ${row.wasted} ≤ baseline ${b.wasted}`, row.wasted <= b.wasted, evidence)
       check(`${table.header.family}/${row.task}: asks ${row.asks} ≤ baseline ${b.asks}`, row.asks <= b.asks)
     }
     if (base.header.promptChars && table.header.promptChars) {
