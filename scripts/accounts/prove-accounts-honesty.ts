@@ -366,7 +366,12 @@ section('§6 the board wires the seam (structural)')
   check("no snapshot is dressed as the billing identity (the old '(snapshot)' fallback is gone)", !board.includes("`${acct.emailAddress} (snapshot)`"))
   check('the org fact is labelled a snapshot and rides only a verified Anthropic main loop', board.includes("mainLoop.basis === 'verified-live' && acct?.organizationName"))
   const seam = readFileSync(join(import.meta.dir, '../../src/services/providers/accountSlots.ts'), 'utf8')
-  check('the seam states the existence/validity split on the slot field', seam.includes('existence, never validity') && seam.includes('export function slotSigninState('))
+  check(
+    'the seam splits existence from validity: the slot field is a bare boolean, the sign-in answer is the typed basis slotSigninState returns',
+    seam.includes('signedIn: boolean') &&
+      seam.includes('export function slotSigninState(slot: AccountSlot, identities: SlotIdentities): SlotSigninState') &&
+      seam.includes("| { signedIn: true; basis: 'verified-live' | 'credential-present' }"),
+  )
 }
 
 rmSync(scratch, { recursive: true, force: true })

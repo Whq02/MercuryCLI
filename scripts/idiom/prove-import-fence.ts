@@ -113,8 +113,9 @@ section('§F the versioned SDK contract + the named compat projection (E03/E04)'
   )
   const mappers = readFileSync(join(ROOT, 'src/utils/messages/mappers.ts'), 'utf8')
   check(
-    'the Mercury stream yield is a NAMED projection (mappers.ts declares it)',
-    mappers.includes('THE MERCURY STREAM PROJECTION'),
+    'the Mercury stream yield is a NAMED projection (mappers.ts exports both directions)',
+    mappers.includes('export function toSDKMessages(messages: Message[]): SDKMessage[]') &&
+      mappers.includes('export function toInternalMessages(messages: readonly DeepImmutable<SDKMessage>[]): Message[]'),
   )
   const sdkHits = execSync(
     `grep -rln "from '@anthropic-ai/sdk" src/entrypoints/sdk --include='*.ts' || true`,

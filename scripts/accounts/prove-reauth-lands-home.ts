@@ -65,7 +65,9 @@ section('§3 nothing on the settle path can reject')
 section('§4 credential-change hygiene')
 {
   check('the anthropic arm strips signature blocks (replay-refusal law)', loginSrc.includes('stripSignatureBlocks(prev)'))
-  check('the engine arm keeps the transcript and bumps authVersion', loginSrc.includes('The engine legs') && loginSrc.includes("authVersion: (prev.authVersion ?? 0) + 1"))
+  const engineArmAt = loginSrc.indexOf('const completeOpenai = ')
+  const engineArm = engineArmAt === -1 ? '' : loginSrc.slice(engineArmAt, loginSrc.indexOf('return (', engineArmAt))
+  check('the engine arm keeps the transcript and bumps authVersion', engineArm.includes("authVersion: (prev.authVersion ?? 0) + 1") && engineArm.includes('onDone(result.receipt, chain)') && !engineArm.includes('stripSignatureBlocks'))
 }
 
 section('§5 every wall reconnect door lands focused; the /accounts reroute rides it')

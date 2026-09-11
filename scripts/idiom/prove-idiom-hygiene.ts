@@ -16,11 +16,14 @@ console.log('============================================================')
 
 const loading = readFileSync(join(ROOT, 'src/utils/sessionStorage/loading.ts'), 'utf8')
 const reader = readFileSync(join(ROOT, 'src/utils/sessionStorage/transcriptReader.ts'), 'utf8')
+const prunerAt = reader.indexOf('export function pruneRecordBranchesBeforeParse(')
+const pruner = prunerAt === -1 ? '' : reader.slice(prunerAt, reader.indexOf('\nexport ', prunerAt + 1))
 check(
   'C21: the canonical pruner keys on the record envelope and parses its links',
   loading.includes('pruneRecordBranchesBeforeParse') &&
     reader.includes('{"schemaVersion":1,"recordId":"') &&
-    reader.includes('LINK TRUTH COMES FROM THE PARSED LINE'),
+    pruner.includes('decodeTranscriptBuffer<Record<string, unknown>>(') &&
+    pruner.includes("const parent = typeof cur.parentUuid === 'string' && cur.parentUuid ? cur.parentUuid : null"),
 )
 
 const coordProver = readFileSync(join(ROOT, 'scripts/substrate/prove-coordination-server.ts'), 'utf8')
