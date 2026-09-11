@@ -115,6 +115,27 @@ console.log('\n── R-4: the splash-action block survives in the real launcher
     blockCode.length > 0 && blockStarts.length === 1 && managedAt !== undefined && launcherCode[managedAt + blockCode.length] === 'args=()',
     `block lines ${blockCode.length}, block starts at ${blockStarts.join(',') || 'none'}`,
   )
+  const BEGIN = ': mercury-splash-action-begin'
+  const END = ': mercury-splash-action-end'
+  const markerLines = (text: string): { begin: number[]; end: number[] } => {
+    const lines = text.split('\n')
+    return { begin: lines.flatMap((line, at) => (line === BEGIN ? [at] : [])), end: lines.flatMap((line, at) => (line === END ? [at] : [])) }
+  }
+  const onceInOrder = (m: { begin: number[]; end: number[] }): boolean => m.begin.length === 1 && m.end.length === 1 && m.begin[0]! < m.end[0]!
+  const blockMarkers = markerLines(canonicalBlock)
+  const launcherMarkers = markerLines(launcher)
+  check(
+    'the canonical block carries `: mercury-splash-action-begin` and `: mercury-splash-action-end` as whole lines, once each, in that order',
+    onceInOrder(blockMarkers),
+    `begin at ${blockMarkers.begin.join(',') || 'none'}, end at ${blockMarkers.end.join(',') || 'none'}`,
+  )
+  check(
+    'the launcher carries the same two markers as whole lines, once each, in that order',
+    onceInOrder(launcherMarkers),
+    `begin at ${launcherMarkers.begin.join(',') || 'none'}, end at ${launcherMarkers.end.join(',') || 'none'}`,
+  )
+  const deploy = readFileSync(join(repoRoot, 'scripts/splash/deploy.sh'), 'utf8')
+  check('the splash deploy locates the block by the same two marker strings', deploy.includes(BEGIN) && deploy.includes(END))
   check(
     'the block gates on the defaulted exit-code capture (set -u safe)',
     canonicalBlock.includes('[ -n "${MERCURY_SA_EXIT:-}" ]'),
