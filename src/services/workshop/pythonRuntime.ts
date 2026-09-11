@@ -19,9 +19,12 @@ import {
   type WorkshopCellInput,
   type WorkshopCellResult,
   type WorkshopDisplayItem,
+  type WorkshopSampleItem,
 } from './contracts.js'
 import type { WorkshopBridge } from './runtime.js'
 import { WORKSHOP_PYTHON_RUNNER_SOURCE } from './pythonRunnerSource.js'
+import { handleSampleCall } from '../samples/bridge.js'
+import { samplesEnabled } from '../samples/contracts.js'
 import { registerExecutionDomain } from '../primitives/executionPlane.js'
 import {
   projectRuntimeBusy,
@@ -332,6 +335,7 @@ export async function runPythonCell(
 
     const outputLines: string[] = []
     const displays: WorkshopDisplayItem[] = []
+    const samples: WorkshopSampleItem[] = []
     let nestedCalls = 0
     let outstandingRpc = 0
     const timeoutMs = Math.min(cell.timeoutMs ?? DEFAULT_CELL_TIMEOUT_MS, MAX_CELL_TIMEOUT_MS)
@@ -364,6 +368,7 @@ export async function runPythonCell(
         valuePreview: extras.valuePreview ?? '',
         outputTail: outputLines.slice(-OUTPUT_TAIL_LINES),
         displays,
+        ...(samples.length > 0 ? { samples } : {}),
         ...(extras.error ? { error: extras.error } : {}),
         nestedCalls,
         compiler: probe.version,
@@ -438,10 +443,15 @@ export async function runPythonCell(
             const id = msg.id
             const kind = String(msg.kind)
             const payload = (msg.payload ?? {}) as Record<string, unknown>
-            const dispatch = async (): Promise<string> => {
+            const dispatch = async (): Promise<unknown> => {
               if (kind === 'inspect') return bridge.inspect(String(payload.ref))
               if (kind === 'tool') return bridge.tool(String(payload.name), payload.input)
               if (kind === 'agent') return bridge.agent(payload.input)
+              if (kind === 'sample' && samplesEnabled()) {
+                const item = await handleSampleCall(owner, payload.spec)
+                samples.push(item)
+                return item
+              }
               throw new Error(`unknown bridge call '${kind}'`)
             }
             void dispatch()

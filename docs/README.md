@@ -45,6 +45,10 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
   grammar and the AstSearch / AstEdit tools over the packaged grammars.
 - [WORKSHOP.md](WORKSHOP.md): persistent code cells, JS/TS/Python state
   across calls, honest state-loss reporting, and the mercury.* bridge.
+- [SAMPLES.md](SAMPLES.md): samples — a page the model draws when you ask
+  to see something, kept and versioned under the session, opened in your
+  browser from its row or `/samples`, the marks you leave on it coming back
+  into the session, the page file when no port can be bound, and the switch.
 - [DEBUGGER.md](DEBUGGER.md): the debugger over the Debug Adapter Protocol,
   launch and attach, the adapter table, child-session trees, and
   one-gesture test-debug.

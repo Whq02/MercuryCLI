@@ -91,6 +91,8 @@ class _Mercury:
         return _rpc("agent", {"input": input})
     def inspect(self, ref):
         return _rpc("inspect", {"ref": ref})
+    def sample(self, spec):
+        return _rpc("sample", {"spec": spec})
     def display(self, value):
         kind = "json"
         if isinstance(value, str):

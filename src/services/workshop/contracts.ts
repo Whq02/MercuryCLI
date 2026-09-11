@@ -23,6 +23,14 @@ export interface WorkshopDisplayItem {
   value: string
 }
 
+export interface WorkshopSampleItem {
+  id: string
+  title: string
+  version: number
+  url: string
+  ask?: string
+}
+
 export interface WorkshopCellResult {
   cellId: string
   title?: string
@@ -34,6 +42,7 @@ export interface WorkshopCellResult {
   valuePreview: string
   outputTail: string[]
   displays: WorkshopDisplayItem[]
+  samples?: WorkshopSampleItem[]
   artifactRef?: string
   error?: string
   nestedCalls: number
