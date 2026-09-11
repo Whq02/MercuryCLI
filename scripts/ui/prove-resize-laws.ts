@@ -174,7 +174,7 @@ console.log('§8 D4 — the split partitions hover ids and the wheel at the divi
     'the screen hands each side its band from the ONE split geometry',
     screen.includes('wheelBand: [0, splitGeo.dividerCol - 1]') && screen.includes('wheelBand={[splitGeo.dividerCol + 1, termCols - 1]'),
   )
-  check('the un-split board keeps whole-width behavior (no band without splitGeo)', screen.includes('{...(splitGeo !== null ? { wheelBand: [0, splitGeo.dividerCol - 1] as [number, number] } : {})}'))
+  check('the un-split full board keeps whole-width behavior (no band without splitGeo); the compact frame hands the live frame its own columns, the frame partitioning the wheel as the divider does', screen.replace(/\s+/g, ' ').includes('{...(splitGeo !== null ? { wheelBand: [0, splitGeo.dividerCol - 1] as [number, number] } : compactGeo !== null ? { wheelBand: [compactGeo.live.x0 + 1, compactGeo.live.x1 + 1] as [number, number] } : {})}'))
 }
 
 console.log('§9 D5 — the collapse notice dies when the frame affords again')
