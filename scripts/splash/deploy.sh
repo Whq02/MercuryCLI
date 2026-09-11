@@ -36,11 +36,17 @@ END = re.compile(r'^: mercury-splash-action-end$', re.M)
 OLD_BEGIN = re.compile(r'^# MERCURY-SPLASH-ACTION-START.*$', re.M)
 OLD_END = re.compile(r'^# MERCURY-SPLASH-ACTION-END.*$', re.M)
 
+def refuse(why):
+    print(f'launcher action block: REFUSED — {launcher}: {why}; redeploy the launcher (scripts/ops/deploy-launcher.sh) and re-run this deploy; nothing written')
+    sys.exit(1)
+
 def marked_span(begin, end, text):
-    b, e = begin.search(text), end.search(text)
-    if b is None or e is None or e.start() < b.end():
+    bs, es = list(begin.finditer(text)), list(end.finditer(text))
+    if not bs and not es:
         return None
-    return b.start(), e.end()
+    if len(bs) != 1 or len(es) != 1 or es[0].start() < bs[0].end():
+        refuse(f'the block markers are not one ordered pair (begin x{len(bs)}, end x{len(es)})')
+    return bs[0].start(), es[0].end()
 
 def shell_lines(text):
     return [(i, l) for i, l in enumerate(text.split('\n'))
@@ -51,8 +57,10 @@ def bare_span(text):
     want = [l for _, l in shell_lines(blk)]
     have = shell_lines(text)
     hits = [k for k in range(len(have) - len(want) + 1) if [l for _, l in have[k:k + len(want)]] == want]
-    if not hits or any(b - a != len(want) for a, b in zip(hits, hits[1:])):
+    if not hits:
         return None
+    if any(b - a != len(want) for a, b in zip(hits, hits[1:])):
+        refuse('marker-less copies of the block are present but not as one unbroken run')
     lines = text.split('\n')
     first, last = have[hits[0]][0], have[hits[-1] + len(want) - 1][0]
     start = sum(len(l) + 1 for l in lines[:first])
@@ -71,6 +79,8 @@ if not is_mercury_launcher:
 # the pairing guard: the splash run line outside the block must capture
 # the exit code, or the block is a permanent no-op
 outside = src if span is None else src[:span[0]] + src[span[1]:]
+if 'unset MERCURY_SA_EXIT' in outside:
+    refuse('a splash-action body lies outside the managed span and would run first')
 if 'MERCURY_SA_EXIT=0' not in outside:
     print(f'launcher action block: REFUSED — {launcher} is an OLD-generation launcher (its splash run line does not capture MERCURY_SA_EXIT). Run scripts/ops/deploy-launcher.sh FIRST, then re-run this deploy; the two ship as a pair.')
     sys.exit(1)
