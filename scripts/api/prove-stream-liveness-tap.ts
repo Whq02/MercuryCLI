@@ -138,5 +138,27 @@ section('L5 — cancellation mid-heartbeats stays clean')
   check('the abort ended the iteration without a fire and without a throw', threw === '' && run !== null && run.fire === null && !run.terminal, `${threw} ${JSON.stringify(run)}`)
 }
 
+section('L6 — the relay: a heartbeat with no event forwarded for the gap reaches the seat, once per gap')
+{
+  const pause = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+  const relayed: number[] = []
+  const relay = idle.createStreamActivityRelay(atMs => relayed.push(atMs), 50)
+  relay.noteChunk()
+  check('a chunk right after the stream opened relays nothing (no gap yet)', relayed.length === 0, JSON.stringify(relayed))
+  await pause(70)
+  relay.noteChunk()
+  check('a chunk after the gap with no event forwarded relays once, stamped with its own clock', relayed.length === 1 && typeof relayed[0] === 'number' && relayed[0] > 0, JSON.stringify(relayed))
+  relay.noteChunk()
+  check('a second chunk inside the gap relays nothing more', relayed.length === 1, JSON.stringify(relayed))
+  await pause(70)
+  relay.noteEvent()
+  relay.noteChunk()
+  check('a chunk right after a forwarded event relays nothing (the event frame carried the liveness)', relayed.length === 1, JSON.stringify(relayed))
+  await pause(70)
+  relay.noteChunk()
+  check('…until the gap passes again in silence: one more', relayed.length === 2, JSON.stringify(relayed))
+  check("the product's gap is one second — the seat's own liveness cadence", idle.STREAM_ACTIVITY_RELAY_GAP_MS === 1_000)
+}
+
 console.log(failures === 0 ? '\nprove-stream-liveness-tap: all green' : `\nprove-stream-liveness-tap: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

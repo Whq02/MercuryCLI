@@ -12,6 +12,7 @@ import {
 import { recordOpenaiRateHeaders } from './openaiLimitState.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import {
+  createStreamActivityRelay,
   createStreamIdleWatchdog,
   firstByteBudgetMs,
   firstByteTimeoutLine,
@@ -32,6 +33,7 @@ export interface OpenaiStreamOptions {
   signal?: AbortSignal
   fetchImpl?: typeof fetch
   idleTimeoutMs?: number
+  onStreamActivity?: (atMs: number) => void
   firstByte?: {
     cold: boolean
     promptTokens: number
@@ -144,6 +146,7 @@ export async function* streamOpenaiResponses(
     const decoder = new SseDecoder()
     const watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs })
     idleWatchdog = watchdog
+    const relay = createStreamActivityRelay(atMs => options.onStreamActivity?.(atMs))
 
     readLoop: for (;;) {
       let chunk: ReadableStreamReadResult<Uint8Array>
@@ -171,6 +174,8 @@ export async function* streamOpenaiResponses(
         return
       }
       const results = chunk.done ? decoder.flush() : decoder.push(Buffer.from(chunk.value!))
+      if (results.some(item => item.kind === 'event')) relay.noteEvent()
+      else relay.noteChunk()
       for (const item of results) {
         if (item.kind === 'fault') {
           yield {

@@ -468,6 +468,7 @@ async function* streamOneZaiAttempt(ctx: {
     signal,
     baseUrl: requestUrl,
     idleTimeoutMs: streamIdleTimeoutMsForRoute('zai'),
+    ...(options.onStreamActivity ? { onStreamActivity: options.onStreamActivity } : {}),
     firstByte: {
       cold: coldPrefixOf(ctx.messages, modelId),
       promptTokens: estimateRequestTokens(request),

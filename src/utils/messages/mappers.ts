@@ -113,8 +113,9 @@ export function toSDKModelUsage(
 
 export function toSDKStatusPayload(status: unknown): unknown {
   if (status === null || typeof status !== 'object') return status
-  const record = status as { waitingOnAgents?: unknown; compacting?: unknown; wait?: unknown }
+  const record = status as { waitingOnAgents?: unknown; compacting?: unknown; wait?: unknown; streamActivity?: unknown }
   if ('waitingOnAgents' in record) return { waiting_on_agents: record.waitingOnAgents }
+  if ('streamActivity' in record) return { stream_activity: record.streamActivity }
   if ('compacting' in record) {
     return {
       compacting:

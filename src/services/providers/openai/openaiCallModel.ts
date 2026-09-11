@@ -924,6 +924,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
       request,
       signal,
       idleTimeoutMs: streamIdleTimeoutMsForRoute('openai'),
+      ...(options.onStreamActivity ? { onStreamActivity: options.onStreamActivity } : {}),
       firstByte: {
         cold: coldPrefixOf(ctx.messages, modelId),
         promptTokens: estimateRequestTokens(request),

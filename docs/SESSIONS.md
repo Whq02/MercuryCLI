@@ -141,7 +141,8 @@ warnings stay its own: a request wait names what the runner waits on and the bud
 fires ("waiting for the first byte from Opus 5 — within 300 s"); a held turn
 names what it waits on ("waiting on 1 workflow · 2 agents"); an interrupt
 says the request is torn down. The row says the session may be stuck only
-when the runner's stream has carried no event of any kind for longer than
+when the runner's stream has carried no event of any kind — the provider's
+heartbeats included — for longer than
 its own watchdog's warning point — never sooner than five minutes of
 silence, and never later than the watchdog's own cut. On the routes whose
 keep-alives feed the watchdog the budget is five minutes (ten in patient
