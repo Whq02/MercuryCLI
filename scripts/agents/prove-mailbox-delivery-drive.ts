@@ -73,9 +73,18 @@ let lockHeld = false
 let lockReleased = false
 let lockRefresh: ReturnType<typeof setInterval> | undefined
 let lockRelease: ReturnType<typeof setTimeout> | undefined
+const readInbox = (): Array<{ text: string; read?: boolean; from: string }> | null => {
+  if (!existsSync(inboxPath)) return null
+  try {
+    return JSON.parse(readFileSync(inboxPath, 'utf8')) as Array<{ text: string; read?: boolean; from: string }>
+  } catch {
+    return null
+  }
+}
 const observe = setInterval(() => {
-  if (lockHeld || !existsSync(inboxPath)) return
-  const messages = JSON.parse(readFileSync(inboxPath, 'utf8')) as Array<{ text: string; read?: boolean; from: string }>
+  if (lockHeld) return
+  const messages = readInbox()
+  if (messages === null) return
   if (!messages.some(message => !message.read && message.text === 'REPORT-WATER-2') || messages.filter(message => !message.read && message.from === 'water').length < 2) return
   const lock = inboxPath + '.lock'
   if (existsSync(lock)) return
@@ -93,7 +102,7 @@ try {
   await waitFor(() => stdout.includes('FIRST-REPORT-RECEIVED'), 'First report did not arrive')
   submit('RESUME-GROUP: resume water, then run a workflow while its report arrives.')
   await waitFor(() => stdout.includes('SECOND-REPORT-RECEIVED') && lockReleased, 'The resumed report did not settle across the held lock')
-  await waitFor(() => existsSync(inboxPath) && (JSON.parse(readFileSync(inboxPath, 'utf8')) as Array<{ read?: boolean }>).every(message => message.read), 'Acknowledgements did not settle')
+  await waitFor(() => { const messages = readInbox(); return messages !== null && messages.every(message => message.read) }, 'Acknowledgements did not settle')
   submit('Finish by checking whether any report arrived again.')
   await waitFor(() => stdout.includes('FINAL-'), 'Final check did not settle')
   const requests = fixture.messageRequests()

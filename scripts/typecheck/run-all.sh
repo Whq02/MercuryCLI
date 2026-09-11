@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-env: MERCURY_TYPECHECK_CFG MERCURY_TYPECHECK_BASELINE MERCURY_TYPECHECK_HARDZERO MERCURY_TYPECHECK_BUILDINFO MERCURY_TYPECHECK_WARM
 # gate-watch: tsconfig.json
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

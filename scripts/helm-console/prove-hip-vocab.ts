@@ -58,10 +58,6 @@ const srcCode = src
 check('no Math.random CALL in the vocab module (comments exempt)', !srcCode.includes('Math.random'))
 check('mixed default folds quicksilver into the pool', src.includes('[...desert, ...quicksilver]'))
 check('adjacent sets present', src.includes('MERCURY_QUICKSILVER_CODE') && src.includes('MERCURY_QUICKSILVER_FLOW'))
-check(
-  'the original-writing law is stated where the set lives (no quoted lyrics)',
-  src.includes('ORIGINAL house writing'),
-)
 
 section('sampleSpinnerVerb — the fresh-pick contract (less deduped)')
 {

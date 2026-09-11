@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-env: MERCURY_PROOF_POISON_GUARD MERCURY_PYTHON
 # gate-watch: scripts/run-all-suites.sh scripts/typecheck/fingerprint.sed
 # gate-watch: scripts/typecheck/prove-warm-replay.sh scripts/typecheck/run-all.sh
 # gate-watch: .github/workflows/gate.yml .github/workflows/drives.yml scripts/*/run-all.sh scripts/*/members.txt

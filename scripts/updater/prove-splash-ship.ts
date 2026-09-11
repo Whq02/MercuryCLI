@@ -46,7 +46,10 @@ section('(2) the canonical splash — parses, dependency-free, menu baked, self-
   const imports = splashSrc.split('\n').filter(l => /^import /.test(l))
   check('every driver import is a node: builtin or the sibling core (zero-dependency pair)', imports.length > 0 && imports.every(l => l.includes("from 'node:") || l.includes("from './splash-core.mjs'")), imports.filter(l => !l.includes("from 'node:") && !l.includes('./splash-core.mjs')).join(' | '))
   check('the compose core imports NOTHING (pure, side-effect-free)', !/^import /m.test(coreSrc) && !coreSrc.includes('require('))
-  check('the boot menu is baked into the core (MERCURY-MENU markers)', coreSrc.includes('MERCURY-MENU-START') && coreSrc.includes('MERCURY-MENU-END'))
+  check(
+    'the boot menu is baked into the core (the MENU and MODEL_NAMES declarations the bake writes, drift-gated by the suite)',
+    /^const MENU = \[$/m.test(coreSrc) && /^const MODEL_NAMES = \{$/m.test(coreSrc) && readFileSync(join(ROOT, 'scripts', 'splash', 'run-all.sh'), 'utf8').includes('bake-menu.mjs" --check'),
+  )
   check('the TTY/off/static self-guard exists (exit 0, silent)', splashSrc.includes("process.env.MERCURY_SPLASH === 'off' || process.env.MERCURY_SPLASH === 'static' || !out.isTTY) process.exit(0)"))
   check('boot-env handover targets <config-home>/boot-env.json', splashSrc.includes("join(CONFIG_HOME, 'boot-env.json')"))
   check('the launcher handover targets <config-home>/splash-action.json', splashSrc.includes("join(CONFIG_HOME, 'splash-action.json')"))

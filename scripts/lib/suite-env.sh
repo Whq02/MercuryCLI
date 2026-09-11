@@ -11,8 +11,8 @@ suite_env_guard() {
   dir="$(cd "$(dirname "$runner")" && pwd)"
   while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
-      '# suite-env:'*)
-        read -r -a inputs <<<"${line#\# suite-env:}"
+      '# gate-env:'*)
+        read -r -a inputs <<<"${line#\# gate-env:}"
         for name in "${inputs[@]}"; do
           if [[ ! "$name" =~ ^MERCURY_[A-Z0-9_]+$ ]]; then
             echo "suite environment: invalid declaration in $runner (exact MERCURY_* names required)" >&2

@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ctm-a06-config-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
@@ -27,7 +28,6 @@ section('§A the consumption fence — exactly four allowlisted touchers')
   const ALLOW = new Set([
     'src/types/message.ts',
     'src/services/providers/openai/openaiCallModel.ts',
-    'src/services/providers/openai/responsesBridge.ts',
     'src/services/providers/transitionPreview.ts',
     'src/utils/messages/pairing.ts',
   ])
@@ -37,10 +37,11 @@ section('§A the consumption fence — exactly four allowlisted touchers')
   })
     .split('\n')
     .filter(Boolean)
+    .filter(h => codeOnlyText(h, readFileSync(join(ROOT, h), 'utf8')).includes('apexProviderTurn'))
   const rogue = hits.filter(h => !ALLOW.has(h))
   const missing = [...ALLOW].filter(a => !hits.includes(a))
-  check('every toucher is allowlisted (no new consumer without this row)', rogue.length === 0, rogue.join(' · '))
-  check('the allowlist itself is live (all five present)', missing.length === 0, missing.join(' · '))
+  check('every code toucher is allowlisted (no new consumer without this row)', rogue.length === 0, rogue.join(' · '))
+  check('the allowlist itself is live (all four present)', missing.length === 0, missing.join(' · '))
   const writer = readFileSync(join(ROOT, 'src/utils/sessionStorage/writer.ts'), 'utf8')
   check(
     'the writer persists the settled WHOLE entry (receipt rides the atomic line)',
