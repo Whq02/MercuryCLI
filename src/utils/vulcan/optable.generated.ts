@@ -1,4 +1,3 @@
-
 export interface VulcanOp {
   name: string
   category: string
