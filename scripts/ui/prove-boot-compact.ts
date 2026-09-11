@@ -12,6 +12,7 @@ import { createSplashCore } from '../../assets/splash/splash-core.mjs'
 const REFUSAL = /needs \d+ rows|this window is|needs at least|terminal too small|too small for|resize to continue/i
 const CONCOURSE_HINT = '⇧→ concourse'
 const HINT_ROW = '↵ start · ↑↓ choose · m menu'
+const CHAT_READY = 'Type a prompt'
 const HINT_SEGMENTS = [
   { key: '↵ ', label: 'start', tone: 'ivory' as const },
   { key: '↑↓', label: ' choose', tone: 'faint' as const },
@@ -131,9 +132,9 @@ for (const [cols, rows] of sizes) {
     const cfgPath = join(scratch, `${tag}-vshot.json`)
     const sends = [
       { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
-      { atTick: 120, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'chat' },
+      { atTick: 120, awaitText: CHAT_READY, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'chat' },
     ]
-    writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), dist], cwd: tree, cols, rows, sends, resizes: [], readyText: '? for shortcuts', readySettleTicks: 2, total: 220, out }))
+    writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), dist], cwd: tree, cols, rows, sends, resizes: [], readyText: CHAT_READY, readySettleTicks: 2, total: 220, out }))
     const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: tree, env: childEnv(leg, { MERCURY_COMPUTER_USE: undefined, MERCURY_SPLASH: 'off' }), stdio: ['ignore', 'pipe', 'pipe'] })
     let stderr = ''
     child.stdout.on('data', chunk => { stderr += String(chunk) })
@@ -155,7 +156,7 @@ for (const [cols, rows] of sizes) {
     check(`${cols}x${rows}: no refusal words on the face`, boot.length > 0 && !REFUSAL.test(joined(boot)))
     const carets = boot.filter(l => l.includes('❯'))
     check(`${cols}x${rows}: one row carries the caret and it is New Session`, carets.length === 1 && carets[0]!.includes('New Session'), carets.join(' | '))
-    check(`${cols}x${rows}: ↵ started a session`, joined(chat).includes('? for shortcuts'))
+    check(`${cols}x${rows}: ↵ started a session`, joined(chat).includes(CHAT_READY))
     check(`${cols}x${rows}: the grid has the exact physical dimensions`, payload !== null && payload.grid.length === rows && payload.grid.every(line => line.length === cols))
     check(`${cols}x${rows}: the cursor stays in bounds`, payload?.cursor !== undefined && payload.cursor.x >= 0 && payload.cursor.x < cols && payload.cursor.y >= 0 && payload.cursor.y < rows)
     check(`${cols}x${rows}: the drive stayed on loopback`, nonLoopback(netlines(leg.netlog)).length === 0)

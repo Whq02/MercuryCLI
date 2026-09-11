@@ -117,7 +117,7 @@ t.section('§3 the narrow geometry SETTLED truth (a run that ends at 80×30, the
     violations === '',
     violations,
   )
-  t.check('the composer is at rest at 80×30', text.includes('? for shortcuts'))
+  t.check('the composer is at rest at 80×30 (the compact chat: the placeholder shows, no activity row)', text.includes('Type a prompt') && !/✶ (?:thinking|writing|working|waiting)/.test(text))
   const widest = Math.max(...fin.rows.map(r => r.trimEnd().length))
   t.check(`the narrow geometry took (widest row ${widest} ≤ 80)`, widest <= 80)
   if (EMIT) {

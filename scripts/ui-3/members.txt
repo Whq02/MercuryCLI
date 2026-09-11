@@ -19,3 +19,4 @@ prove-ui-clock.ts
 prove-width-oracle-sot.ts
 prove-compact-frames.ts
 prove-compact-journey.ts
+prove-chat-compact.ts
