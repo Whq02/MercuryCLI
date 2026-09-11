@@ -126,6 +126,7 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
       kind: 'paced',
       deltas: Array.from({ length: 30 }, (_, i) => `count ${i + 1}. `),
       gapMs: 900,
+      whenBody: 'Count to three slowly.',
     },
     { kind: 'text', text: 'Probe launched.' },
     { kind: 'text', text: 'Acknowledged.' },
