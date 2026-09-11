@@ -12,9 +12,9 @@ try {
   bindings = ''
 }
 t.check(
-  "the atlas carries a 'crew:' action family",
-  /crew:/.test(bindings),
-  'defaultBindings.ts registers no crew actions',
+  "the atlas carries a 'concourse:' action family",
+  /concourse:/.test(bindings),
+  'defaultBindings.ts registers no concourse actions',
 )
 
 t.section('CS-27 — disposition visibility is prover-pinned')
