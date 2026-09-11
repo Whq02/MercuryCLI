@@ -44,7 +44,6 @@ if (!IS_WIN) {
 const systemDirs = IS_WIN ? (process.env.PATH ?? '').split(';').filter(Boolean) : ['/usr/bin', '/bin']
 const pathOf = (...front: string[]): string => [...front, tools, ...systemDirs].join(IS_WIN ? ';' : ':')
 
-const SLUG = 'fixture-owner/fixture-repo'
 const FAKE_GH = join(ROOT, 'scripts', 'updater', 'fake-gh.mjs')
 const V_OLD = '9.9.0-beta.1'
 const V_NEW = '9.9.0-beta.2'
@@ -59,7 +58,6 @@ const env = (path: string, extra: Record<string, string> = {}): Record<string, s
   SHELL: '/bin/zsh',
   MERCURY_CONFIG_DIR: configHome,
   MERCURY_VERSIONS_DIR: versionsDir,
-  MERCURY_UPDATE_CHANNEL_REPO: SLUG,
   MERCURY_UPDATE_API_BASE_URL: server.url,
   MERCURY_GH_CMD: JSON.stringify(['node', FAKE_GH]),
   GH_SHIM_FIXTURES: fixtures,
