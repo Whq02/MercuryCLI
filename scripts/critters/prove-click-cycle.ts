@@ -68,9 +68,14 @@ console.log('\n§2 every mount hands its pointer seam the one owner')
     'the mini art is clickable through the one owner — BOTH mounts (sub-hero row + bare deck dock)',
     (mini.match(/onClick=\{cycleSessionCritter\}/g) ?? []).length === 2,
   )
+  const band = readFileSync(join(repo, 'src/components/CompactIdentityBand.tsx'), 'utf8')
+  check(
+    'the compact identity band is clickable through the one owner (onClick={cycleSessionCritter})',
+    (band.match(/onClick=\{cycleSessionCritter\}/g) ?? []).length === 1,
+  )
   check(
     'no mount re-implements the cycle inline (zero stray ALL_CRITTERS index math in the mounts)',
-    !home.includes('ALL_CRITTERS.findIndex') && !mini.includes('ALL_CRITTERS.findIndex'),
+    !home.includes('ALL_CRITTERS.findIndex') && !mini.includes('ALL_CRITTERS.findIndex') && !band.includes('ALL_CRITTERS.findIndex'),
   )
 }
 
