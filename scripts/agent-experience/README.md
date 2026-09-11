@@ -50,7 +50,7 @@ fixture received beside the run (`<out>/<family>/runs/<task>.hit-N.<kind>.json`)
 | use-skill | use the provider-apis skill; which endpoint does Responses post to | the skill loaded (non-error result); the answer names responses |
 | delegate-agent | a subagent reads the test file and reports coverage; relay it | the Agent result mentions median; the relay names mean and median |
 | ide-diagnostics | open src/stats.js in the language server, report diagnostics | an LSP call whose result is not failed/unavailable |
-| browser-page | open the fixture page, report its title, screenshot | a Browser result carries the title; the title is reported (skipped when no browser is installed) |
+| browser-page | open the fixture page, report its title, screenshot | a Browser result carries the title; the title is reported (skipped by name when no browser resolves or the resolved browser does not come up within the launch probe's budget) |
 | guide-question | ask the guide agent how to change the permission mode | mechanical: the guide seat ran with the command roster; live: a real surface named (shift+tab, /authority, --permission-mode) |
 | two-seats | two seats at once (count tests · list exports), merged | one assistant message with two Agent calls; both answered; both facts merged |
 | structural-rename | rename normalizeRecord to normaliseRecord structurally across the three source files (declaration, imports, uses) with AstSearch/AstEdit | no normalizeRecord left in src; normaliseRecord in all three files; only the three source files changed; README untouched; an AstEdit apply with a plan token happened; node --test still loads the modules (2 pass, the pre-existing 1 fail) |
