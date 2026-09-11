@@ -1,6 +1,6 @@
 {
   "name": "mercury",
-  "version": "1.0.0-beta.5",
+  "version": "1.0.0-beta.6",
   "description": "Mercury — a software-development harness for the terminal, built from source with bun",
   "repository": {
     "type": "git",
