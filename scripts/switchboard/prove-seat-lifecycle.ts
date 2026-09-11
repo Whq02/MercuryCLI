@@ -157,8 +157,8 @@ function walk(root: string): string[] {
 
 {
   const sup = read('src/daemon/concourseSupervisor.ts')
-  const claimAt = sup.indexOf('THE WARM CLAIM (claim-over-spawn)')
-  const claimBody = claimAt !== -1 ? sup.slice(claimAt, sup.indexOf('// Lowest free worker slot', claimAt)) : ''
+  const claimAt = sup.indexOf('deps.claimWarm !== undefined &&')
+  const claimBody = claimAt !== -1 ? sup.slice(claimAt, sup.indexOf('const used = new Set(', claimAt)) : ''
   check('P8 the claim seam exists inside admission', claimAt !== -1)
   check(
     'P8 the claim is consulted only for a fresh exclusive session with no runner argv',
