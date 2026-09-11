@@ -17,6 +17,13 @@
       "why": "CLI handler text output — flat by design"
     },
     {
+      "file": "src/components/CompactIdentityBand.tsx",
+      "kind": "wordmark",
+      "excerpt": "<Wordmark greeting={false} />",
+      "role": "product-identity-header",
+      "why": "the compact chat's identity band — the cockpit header's small-terminal form: the Wordmark primitive on one line beside the session critter"
+    },
+    {
       "file": "src/components/ContextVisualization.tsx",
       "kind": "wordmark",
       "excerpt": "<Wordmark />",

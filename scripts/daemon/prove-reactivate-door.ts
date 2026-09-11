@@ -274,12 +274,12 @@ console.log('\n── R7: the screen door reads the record and re-says the seat 
   const admitAt = supervisorSrc.indexOf('export function makeConcourseAdmitHandler(')
   const admitBody = supervisorSrc.slice(admitAt, supervisorSrc.indexOf('function mintWorktreeBranchName', admitAt))
   const reactivateAt = admitBody.indexOf('const reactivated = await reactivateConcourseSession(')
+  const answeredAt = admitBody.indexOf('return reactivated.ok && retainedNote !== undefined ? { ...reactivated, note: retainedNote } : reactivated', reactivateAt)
+  const warmClaimAt = admitBody.indexOf('deps.claimWarm !== undefined &&')
+  const coldMintAt = admitBody.indexOf('let runnerId: string | null = null')
   check(
     'R7 the daemon\'s resume arm converges on the STANDING record before any mint (the two-states poison closed at the door)',
-    reactivateAt !== -1 &&
-      reactivateAt < admitBody.indexOf('THE WARM CLAIM (claim-over-spawn)') &&
-      admitBody.indexOf('return reactivated.ok && retainedNote !== undefined ? { ...reactivated, note: retainedNote } : reactivated', reactivateAt) !== -1 &&
-      admitBody.indexOf('return reactivated.ok && retainedNote !== undefined ? { ...reactivated, note: retainedNote } : reactivated', reactivateAt) < admitBody.indexOf('THE WARM CLAIM (claim-over-spawn)'),
+    admitAt !== -1 && reactivateAt !== -1 && answeredAt !== -1 && warmClaimAt !== -1 && coldMintAt !== -1 && answeredAt < warmClaimAt && warmClaimAt < coldMintAt,
   )
 }
 
