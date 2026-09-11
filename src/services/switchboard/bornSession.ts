@@ -56,7 +56,7 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
         ...(worn !== null ? { kit: worn.kit } : carriedKitOf(facts)),
         ...(req.vacatingSessionId !== undefined ? { vacatingSessionId: req.vacatingSessionId } : {}),
       } as never,
-      { timeoutMs: 30_000 },
+      { timeoutMs: 60_000 },
     )) as Record<string, unknown>
   } catch (e) {
     return { ok: false, reason: `the daemon was unreachable — ${e instanceof Error ? e.message : String(e)}` }
