@@ -9,7 +9,11 @@ export type FixtureUsage = {
   cache_creation_input_tokens?: number
 }
 
-export type ScriptedTurn = ScriptedTurnBody & { whenModel?: string; whenBody?: string }
+export type ScriptedTurn = ScriptedTurnBody & { whenModel?: string; whenBody?: string; whenSaid?: string }
+
+export function saidBlock(words: string): string {
+  return JSON.stringify({ text: words }).slice(1, -1)
+}
 
 type ScriptedTurnBody =
   | {
@@ -528,10 +532,12 @@ export async function startFixtureApi(
           ? ((body as { model: string }).model)
           : ''
       const bodyText = JSON.stringify(body ?? null)
-      const gated = (candidate: ScriptedTurn): boolean => candidate.whenModel !== undefined || candidate.whenBody !== undefined
+      const gated = (candidate: ScriptedTurn): boolean =>
+        candidate.whenModel !== undefined || candidate.whenBody !== undefined || candidate.whenSaid !== undefined
       const admits = (candidate: ScriptedTurn): boolean =>
         (candidate.whenModel === undefined || requestedModel.includes(candidate.whenModel)) &&
-        (candidate.whenBody === undefined || bodyText.includes(candidate.whenBody))
+        (candidate.whenBody === undefined || bodyText.includes(candidate.whenBody)) &&
+        (candidate.whenSaid === undefined || bodyText.includes(saidBlock(candidate.whenSaid)))
       let pick = queue.findIndex(candidate => gated(candidate) && admits(candidate))
       if (pick === -1) {
         pick = queue.findIndex(candidate => !gated(candidate))

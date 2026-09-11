@@ -63,7 +63,7 @@ t.section('§2 guidance queued during a running turn drains into a real resume')
       },
       preText: 'Spawning the probe agent.',
     },
-    { kind: 'paced', deltas: Array.from({ length: 12 }, (_, i) => `count ${i + 1}. `), gapMs: 800 },
+    { kind: 'paced', deltas: Array.from({ length: 12 }, (_, i) => `count ${i + 1}. `), gapMs: 800, whenSaid: 'Count to three slowly.' },
     { kind: 'text', text: 'Probe launched.', whenBody: 'spawn the probe' },
     { kind: 'text', text: 'Taking your steer into account.', whenBody: 'steer the count gently' },
     { kind: 'text', text: 'Settled.', whenBody: 'spawn the probe' },
@@ -158,6 +158,7 @@ t.section('§3 per-target composer drafts across main/A/B switches')
     kind: 'paced',
     deltas: Array.from({ length: 26 }, (_, i) => `working segment ${i + 1}. `),
     gapMs: 900,
+    whenSaid: 'Work quietly.',
   }
   const turns: ScriptedTurn[] = [
     {
