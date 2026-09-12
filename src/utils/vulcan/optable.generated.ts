@@ -8,7 +8,7 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = 'c6e283e0d0110059fe6d2dcc98e0f29d40d875a22ed22a4fed22f08d2838dceb'
+export const VULCAN_OPTABLE_DIGEST = '372a5747a55ab89b3a5e898e164bde7ee4ccd765b843afd0d4b5caa2db73a539'
 
 export const VULCAN_STEP_WALL_MS_PER_FRAME = 50
 
@@ -2215,6 +2215,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
       "displayShared": "optional bool: run a native job beside the operator's editor",
       "keepTree": "optional bool: keep the frozen tree after the run",
       "wait": "optional bool (default true): wait for the record; false answers the job id at once",
+      "waitMs": "optional: how long to wait for the record, in milliseconds (default: the selected suites' timeouts plus the import's, times the jobs ahead, plus a minute)",
       "tailChars": "optional: log tail per failed suite in the answer (default 2000)",
       "label": "optional: a short label for engine_jobs"
     }
