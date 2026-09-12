@@ -9,7 +9,6 @@ import {
   isEmptyCellAt,
   type Screen,
   type StylePool,
-  charInCellAt,
   shiftRows,
   visibleCellAtIndex,
 } from './cell-grid.js'
@@ -183,13 +182,15 @@ function paintRows(
   alt: boolean,
 ): void {
   const { width, cells, charPool, hyperlinkPool } = frame.screen
-  let index = startY * width
+  const rowEnd = alt ? Math.min(endY, frame.viewport.height) : endY
+  const columnEnd = alt ? Math.min(width, frame.viewport.width) : width
   let lastStyleOnLine = -1
-  for (let y = startY; y < endY; y++) {
+  for (let y = startY; y < rowEnd; y++) {
     if (alt) cursor.moveTo(out, 0, y)
     else cursor.lineFeedTo(out, y)
     lastStyleOnLine = -1
-    for (let x = 0; x < width; x++, index++) {
+    let index = y * width
+    for (let x = 0; x < columnEnd; x++, index++) {
       const cell = visibleCellAtIndex(cells, charPool, hyperlinkPool, index, lastStyleOnLine)
       if (!cell) continue
       cursor.anchorTo(out, x, y)
@@ -205,14 +206,6 @@ function paintRows(
       cursor.y = y + 1
     }
   }
-}
-
-function readLine(screen: Screen, y: number): string {
-  let line = ''
-  for (let x = 0; x < screen.width; x++) {
-    line += charInCellAt(screen, x, y) ?? ' '
-  }
-  return line.trimEnd()
 }
 
 
@@ -241,13 +234,13 @@ function emitDirtyCells(
   minRow: number,
   rowLimit: number,
   alt: boolean,
-): { unreachableRow: number; droppedFrozen: number } {
-  let unreachableRow = -1
+): { droppedFrozen: number } {
   let droppedFrozen = 0
   bleedLedger.clear()
   const stride = next.screen.width
   diffEach(prev.screen, next.screen, (x, y, removed, added) => {
     if (y >= rowLimit) return
+    if (alt && x >= next.viewport.width) return
     if (
       added &&
       (added.width === CellWidth.SpacerTail || added.width === CellWidth.SpacerHead)
@@ -268,8 +261,7 @@ function emitDirtyCells(
         droppedFrozen++
         return
       }
-      unreachableRow = y
-      return true
+      return
     }
 
     if (removed && (!added || added.char !== removed.char)) {
@@ -289,7 +281,7 @@ function emitDirtyCells(
       cursor.wrote(1)
     }
   })
-  if (bleedLedger.size > 0 && unreachableRow < 0) {
+  if (bleedLedger.size > 0) {
     for (const packed of bleedLedger) {
       const y = Math.floor(packed / stride)
       const x = packed - y * stride
@@ -307,7 +299,7 @@ function emitDirtyCells(
       }
     }
   }
-  return { unreachableRow, droppedFrozen }
+  return { droppedFrozen }
 }
 
 export class FrameWriter {
@@ -345,7 +337,7 @@ export class FrameWriter {
     const pool = this.options.stylePool
 
     if (
-      next.viewport.height < prev.viewport.height ||
+      next.viewport.height !== prev.viewport.height ||
       (prev.viewport.width !== 0 && next.viewport.width !== prev.viewport.width)
     ) {
       return this.altFullRepaint(next, 'resize')
@@ -355,7 +347,7 @@ export class FrameWriter {
 
     if (next.scrollHint && decstbmSafe) {
       const { top, bottom, delta } = next.scrollHint
-      if (top >= 0 && bottom < prev.screen.height && bottom < next.screen.height) {
+      if (top >= 0 && bottom < prev.screen.height && bottom < next.screen.height && bottom < next.viewport.height) {
         shiftRows(prev.screen, top, bottom, delta)
         out.push({
           type: 'stdout',
@@ -371,33 +363,17 @@ export class FrameWriter {
     const cursor = new CursorModel(prev.cursor, next.viewport.width, true)
     const attrs = new AttributeCursor(pool)
 
-    const minRow = frozenRowBoundary(prev, next)
+    const prevHeight = Math.min(prev.screen.height, next.viewport.height)
+    const nextHeight = Math.min(next.screen.height, next.viewport.height)
 
-    if (Math.max(next.screen.height, 1) < Math.max(prev.screen.height, 1)) {
-      const linesToClear = Math.max(prev.screen.height, 1) - Math.max(next.screen.height, 1)
-      if (linesToClear > prev.viewport.height) {
-        return this.altFullRepaint(next, 'offscreen')
-      }
+    if (nextHeight < prevHeight) return this.altFullRepaint(next, 'offscreen')
+
+    const growthLimit = Math.min(prevHeight, nextHeight)
+    emitDirtyCells(out, cursor, attrs, prev, next, 0, growthLimit, true)
+
+    if (nextHeight > prevHeight) {
       attrs.resetAll(out)
-      out.push({ type: 'clear', count: linesToClear })
-      out.push({ type: 'cursorMove', x: 0, y: -1 })
-      cursor.x = 0
-      cursor.y = prev.cursor.y - linesToClear
-    }
-
-    const growthLimit = Math.min(prev.screen.height, next.screen.height)
-    const { unreachableRow } = emitDirtyCells(out, cursor, attrs, prev, next, minRow, growthLimit, true)
-    if (unreachableRow >= 0) {
-      return this.altFullRepaint(next, 'offscreen', {
-        triggerY: unreachableRow,
-        prevLine: readLine(prev.screen, unreachableRow),
-        nextLine: readLine(next.screen, unreachableRow),
-      })
-    }
-
-    if (next.screen.height > prev.screen.height) {
-      attrs.resetAll(out)
-      paintRows(out, cursor, attrs, next, prev.screen.height, next.screen.height, true)
+      paintRows(out, cursor, attrs, next, prevHeight, nextHeight, true)
     }
     attrs.resetAll(out)
     return out
@@ -406,9 +382,8 @@ export class FrameWriter {
   private altFullRepaint(
     next: Frame,
     reason: FlickerReason,
-    debug?: { triggerY: number; prevLine: string; nextLine: string },
   ): Diff {
-    const out: Diff = [{ type: 'clearTerminal', reason, debug }]
+    const out: Diff = [{ type: 'clearTerminal', reason }]
     const cursor = new CursorModel({ x: 0, y: 0 }, next.viewport.width, true)
     const attrs = new AttributeCursor(this.options.stylePool)
     paintRows(out, cursor, attrs, next, 0, next.screen.height, true)

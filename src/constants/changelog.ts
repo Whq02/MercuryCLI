@@ -2,6 +2,7 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.9
+- Fixed the cockpit losing the top of its rail and leaving fragments after a long notice, and not following the window's size on Windows
 - Fixed a woken session dropping its preserved thinking: the history is sent byte for byte after a revive, a computer-use screenshot is read back from its file instead of the note the session file keeps, and the prefix record lives beside the session so a fresh process names the part that moved
 - Moved the preserved-thinking record's write off the request path; the record is removed with its chat and swept when its transcript is gone or it is older than thirty days
 - Added a ledger of unread notices: an agent idle with a notice it never read is nudged after three minutes instead of stalling, and its crew row shows the unread count

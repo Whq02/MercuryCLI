@@ -245,11 +245,13 @@ export default class Ink {
   private readonly engine: CockpitEngine | null
   private readonly ledger = new FrameLedger()
   private lastAssignedWidth: number | null = null
+  private lastAssignedMaxHeight: number | null = null
   private layoutCounters = getCellLayoutCounters()
   private currentTree: ReactNode | null = null
 
   private isUnmounted = false
   private isPaused = false
+  private isRendering = false
   private lastRenderTime: number | null = null
   private restoreConsole: (() => void) | null = null
   private removeTtySubscriptions: (() => void) | null = null
@@ -421,7 +423,7 @@ export default class Ink {
         this.charPool,
         this.hyperlinkPool,
       ),
-      viewport: { width: this.cachedColumns, height: this.cachedRows + 1 },
+      viewport: { width: this.cachedColumns, height: this.cachedRows },
       cursor: { x: 0, y: 0, visible: true },
     })
     this.frontFrame = make()
@@ -474,6 +476,7 @@ export default class Ink {
   }
 
   private handleResize = (): void => {
+    if (this.isRendering) return
     const { columns, rows } = this.liveSize()
     if (this.engine !== null) {
       if (
@@ -511,6 +514,12 @@ export default class Ink {
   private applySettledResize = (): void => {
     this.resizeSettleTimer = null
     const { columns, rows } = this.liveSize()
+    this.applySize(columns, rows)
+    this.scheduler.releaseSettleHold(false)
+    if (this.currentTree !== null) this.render(this.currentTree)
+  }
+
+  private applySize(columns: number, rows: number): void {
     this.cachedColumns = columns
     this.cachedRows = rows
     this.parkPatch = this.buildParkPatch()
@@ -519,8 +528,6 @@ export default class Ink {
       this.resetFramesForAltScreen()
       this.needsEraseBeforePaint = true
     }
-    this.scheduler.releaseSettleHold(false)
-    if (this.currentTree !== null) this.render(this.currentTree)
   }
 
   private clearResizeSettle(): void {
@@ -544,6 +551,11 @@ export default class Ink {
     if (this.lastAssignedWidth !== this.cachedColumns) {
       layout.setWidth(this.cachedColumns)
       this.lastAssignedWidth = this.cachedColumns
+    }
+    const maxHeight = this.altScreenActive ? this.cachedRows : null
+    if (this.lastAssignedMaxHeight !== maxHeight) {
+      layout.setMaxHeight(maxHeight ?? Number.NaN)
+      this.lastAssignedMaxHeight = maxHeight
     }
     const started = performance.now()
     layout.calculateLayout(this.cachedColumns, undefined)
@@ -625,12 +637,27 @@ export default class Ink {
   private firstFrameStamped = false
 
   onRender = (): void => {
-    if (this.isUnmounted || this.isPaused) return
+    if (this.isUnmounted || this.isPaused || this.isRendering) return
+    if (this.resizeSettleTimer !== null || this.engine?.inResizeStorm()) return
+    this.isRendering = true
     try {
+      if (this.isTTY && process.platform === 'win32') refreshConsoleSize(this.options.stdout)
+      const { columns, rows } = this.liveSize()
+      if (columns !== this.cachedColumns || rows !== this.cachedRows) {
+        if (reconciler.isAlreadyRendering()) {
+          queueMicrotask(this.onRender)
+          return
+        }
+        this.applySize(columns, rows)
+        if (this.currentTree !== null) this.render(this.currentTree)
+        this.calculateLayout()
+      }
       this.renderFrame()
       this.renderFaultStreak = 0
     } catch (error) {
       this.recoverFromRenderFault(error)
+    } finally {
+      this.isRendering = false
     }
   }
 
