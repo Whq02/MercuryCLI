@@ -26,18 +26,37 @@ export function createNoticeRow(value: string, atMs: number): Message {
   } as unknown as Message
 }
 
-export function noticeRowLanded(row: Message, value: string): boolean {
-  if (row.type !== 'attachment') return false
-  const att = row.attachment as { type?: string; commandMode?: string; prompt?: unknown }
-  if (att.type !== 'queued_command' || att.commandMode !== 'task-notification') return false
-  const prompt = att.prompt
-  const text =
-    typeof prompt === 'string'
-      ? prompt
-      : Array.isArray(prompt)
-        ? prompt.map(block => ((block as { type?: string; text?: string }).type === 'text' ? ((block as { text?: string }).text ?? '') : '')).join('\n')
-        : ''
-  return text === value
+const TASK_ID_FRAME = /<task-id>([\s\S]*?)<\/task-id>/
+
+export function noticeTaskId(value: string): string | undefined {
+  const id = TASK_ID_FRAME.exec(value)?.[1]?.trim()
+  return id === undefined || id === '' ? undefined : id
+}
+
+const LANDING_GRACE_MS = 1000
+
+function textOfContent(content: unknown, joiner: string): string {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  return content.map(block => ((block as { type?: string; text?: string }).type === 'text' ? ((block as { text?: string }).text ?? '') : '')).join(joiner)
+}
+
+export function noticeRowLanded(row: Message, value: string, notBeforeMs?: number): boolean {
+  if (notBeforeMs !== undefined) {
+    const at = Date.parse((row as { timestamp?: string }).timestamp ?? '')
+    if (!Number.isNaN(at) && at + LANDING_GRACE_MS < notBeforeMs) return false
+  }
+  if (row.type === 'attachment') {
+    const att = row.attachment as { type?: string; commandMode?: string; prompt?: unknown }
+    if (att.type !== 'queued_command' || att.commandMode !== 'task-notification') return false
+    return textOfContent(att.prompt, '\n') === value
+  }
+  if (row.type !== 'user' || (row as { isMeta?: boolean }).isMeta === true) return false
+  const text = textOfContent((row as { message?: { content?: unknown } }).message?.content, '')
+  if (text === '') return false
+  const id = noticeTaskId(value)
+  if (id === undefined) return text === value
+  return text.includes(`<task-id>${id}</task-id>`) && text.includes(value)
 }
 
 export function queueOrderedSends<T extends { clientMessageId: string }>(sends: readonly T[], queue: readonly QueuedFactV1[]): T[] {
