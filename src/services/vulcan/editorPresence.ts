@@ -85,7 +85,7 @@ export async function probeVulcanEditorPresence(
   const presence = derivePresence(selected.ok ? selected.instance.port : 0, reachable, seen, projectRoot)
   if (!selected.ok && selected.error.code === 'INSTANCE_AMBIGUOUS') {
     const editors = listVulcanInstances(projectRoot).filter(row => PRESENCE_ROLES.includes(row.role))
-    presence.words = `${editors.length} editors answer for this project (${editors.map(e => `${e.id} ${e.role}`).join(', ')}) and none is chosen without its name`
+    presence.words = `${editors.length} editors (${editors.map(e => e.id).join(', ')}); name one`
     presence.ambiguous = editors
     return presence
   }
