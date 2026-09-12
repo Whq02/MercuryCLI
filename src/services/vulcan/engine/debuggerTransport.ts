@@ -213,7 +213,7 @@ export class GodotDebuggerTransport {
     this.server.on('error', e => this.fail(e))
   }
 
-  async listen(): Promise<void> {
+  async open(): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       this.server.once('error', reject)
       this.server.listen(0, '127.0.0.1', () => {

@@ -88,7 +88,7 @@ assert.throws(() => parseEngineMediaRequest('profile', { tour: inlineTour, sourc
 const spec = vulcanOp('engine_profile')
 check('profile source is registered on Mercury side', spec?.side === 'mercury' && typeof spec.args.source === 'string')
 const wrongVersion = new GodotDebuggerProfile(parsed)
-await wrongVersion.transport.listen()
+await wrongVersion.transport.open()
 const client = connect(wrongVersion.transport.port, '127.0.0.1')
 try {
   await once(client, 'connect')
