@@ -430,7 +430,7 @@ finds the agent gone — its run ended, it was stopped, no such agent in the
 session — retires the notice: the row reads `retired` and says why, and the
 line nothing would read leaves the queue. The deadline is
 `MERCURY_NOTICE_DEADLINE_MS`, a whole number of milliseconds at or above
-1000; unset, it is thirty seconds.
+1000; unset, it is three minutes.
 
 ## Where the pieces live
 
