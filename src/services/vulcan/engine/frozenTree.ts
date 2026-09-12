@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
+import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 
 const GODOT_STATE_DIR = '.godot'
 
@@ -90,7 +91,7 @@ export const runGit: GitRunner = (root, args, env) =>
         maxBuffer: 64 * 1024 * 1024,
         timeout: 120_000,
         encoding: 'utf8',
-        env: env ? { ...process.env, ...env } : process.env,
+        env: env ? { ...subprocessEnv(), ...env } : subprocessEnv(),
       },
       (error, stdout, stderr) => {
         let code = 0
