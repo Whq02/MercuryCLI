@@ -204,11 +204,11 @@ try {
   check('the validator gives a path-backed script its own path before the parse (a class_name script is not a duplicate of itself), guarded for engines without the method', /if not src_path\.is_empty\(\) and s\.has_method\("set_path_cache"\):\n\t\ts\.set_path_cache\(src_path\)\n\ts\.source_code = content\n\tvar parse_err := s\.reload\(false\)/.test(scriptCategory))
   const server = readFileSync(join(ROOT, 'assets/vulcan/addon/core/server.gd'), 'utf8')
   const editorCat = readFileSync(join(ROOT, 'assets/vulcan/addon/categories/editor.gd'), 'utf8')
-  check('the server carries a start stamp and editor_state reports it (the reload confirmation)', /started_ms = Time\.get_ticks_msec\(\)/.test(server) && editorCat.includes('"vulcan_server_started_ms"') && server.includes('"project_refresh_classes"'))
+  check('the server carries a start stamp and editor_state reports it (the reload confirmation)', /started_ms = Time\.get_ticks_msec\(\)/.test(server) && editorCat.includes('"vulcan_server_started_ms"') && /OpClassesScript\.mercury_side\(op\)/.test(server))
   const op = optable.vulcanOp('project_refresh_classes')
   check('project_refresh_classes: a frontier exec op, Mercury-side', op?.cls === 'exec' && op?.category === 'frontier' && /headless --import/.test(op?.summary ?? ''))
   const tool = readFileSync(join(ROOT, 'src/tools/GodotTool/GodotTool.ts'), 'utf8')
-  check('the tool answers it locally and rides the file-history road for installs', /LOCAL_OPS = new Set\(\[[^\]]*'project_refresh_classes'/.test(tool) && tool.includes('fileHistoryTrackEdit(context.updateFileHistoryState, file, parentMessage.uuid') && tool.includes('notifyVscodeFileUpdated(file, previous, next)'))
+  check('the tool answers it locally by the optable\'s side and rides the file-history road for installs', op?.side === 'mercury' && /if \(spec\.side === 'mercury'\) return runLocalOp/.test(tool) && !/LOCAL_OPS/.test(tool) && tool.includes('fileHistoryTrackEdit(context.updateFileHistoryState, file, parentMessage.uuid') && tool.includes('notifyVscodeFileUpdated(file, previous, next)'))
   check('the reload script defers the toggle so the answer leaves first', /call_deferred\("set_plugin_enabled", "mercury_vulcan", false\)/.test(installer.PLUGIN_RELOAD_SCRIPT) && /call_deferred\("set_plugin_enabled", "mercury_vulcan", true\)/.test(installer.PLUGIN_RELOAD_SCRIPT))
 } finally {
   rmSync(scratch, { recursive: true, force: true })

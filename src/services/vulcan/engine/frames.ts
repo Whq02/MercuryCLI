@@ -2,7 +2,7 @@ import { constants, closeSync, fstatSync, lstatSync, mkdirSync, mkdtempSync, ope
 import * as path from 'node:path'
 import { inflateSync } from 'node:zlib'
 import { decodePng, downscaleRgba, encodePng, type RgbaImage } from '../../../tools/FileReadTool/imageProcessorJs.js'
-import { engineRunPath, engineRunsDir } from './paths.js'
+import { engineFramesDirPrefix, engineRunPath, engineRunResultFile, engineRunsDir, ensureEngineEstate, isEngineJobId } from './paths.js'
 
 const MAX_FILE_BYTES = 32 * 1024 * 1024
 const MAX_PIXELS = 4 * 1024 * 1024
@@ -23,8 +23,8 @@ const CRC_TABLE = (() => {
 })()
 
 type Rectangle = { x: number; y: number; width: number; height: number }
-type Artifact = { path: string; width: number; height: number }
-type ContactSheet = Artifact & { frames: Array<Rectangle & { path: string; index: number }> }
+type WrittenImage = { path: string; width: number; height: number }
+type ContactSheet = WrittenImage & { frames: Array<Rectangle & { path: string; index: number }> }
 type Correlation = { lag: number; correlation: number | null }
 
 function text(value: unknown, name: string): string {
@@ -140,12 +140,12 @@ function thumbnail(image: RgbaImage, bound: number): RgbaImage {
   return downscaleRgba(image, Math.max(1, Math.floor(image.width * scale)), Math.max(1, Math.floor(image.height * scale)))
 }
 
-function writeImage(image: RgbaImage, file: string): Artifact {
+function writeImage(image: RgbaImage, file: string): WrittenImage {
   writeFileSync(file, encodePng(image), { flag: 'wx', mode: 0o600 })
   return { path: file, width: image.width, height: image.height }
 }
 
-function artifactDirectory(projectRoot: string): string {
+function newFramesDirectory(projectRoot: string): string {
   const root = realpathSync(projectRoot)
   const runs = engineRunsDir(root)
   if (!inside(root, runs)) throw new Error('Engine run estate must be inside the project')
@@ -160,16 +160,12 @@ function artifactDirectory(projectRoot: string): string {
     const stat = lstatSync(directory)
     if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error(`Engine run estate cannot use a linked or non-directory path: ${directory}`)
   }
-  try {
-    writeFileSync(path.join(path.dirname(runs), '.gdignore'), '', { flag: 'wx', mode: 0o600 })
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-  }
-  return mkdtempSync(path.join(runs, 'frames-'))
+  ensureEngineEstate(root)
+  return mkdtempSync(engineFramesDirPrefix(root))
 }
 
-function artifact<T>(projectRoot: string, write: (directory: string) => T): T {
-  const directory = artifactDirectory(projectRoot)
+function writeUnder<T>(projectRoot: string, write: (directory: string) => T): T {
+  const directory = newFramesDirectory(projectRoot)
   try {
     return write(directory)
   } catch (error) {
@@ -237,7 +233,7 @@ function diff(args: Record<string, unknown>, root: string): object {
     components.push({ x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1, pixels: write })
   }
   const small = thumbnail(mask, 320)
-  return artifact(root, directory => ({ action: 'diff', a, b, width, height, threshold, changedPixels, changedFraction: changedPixels / count, components, mask: writeImage(small, path.join(directory, 'mask.png')) }))
+  return writeUnder(root, directory => ({ action: 'diff', a, b, width, height, threshold, changedPixels, changedFraction: changedPixels / count, components, mask: writeImage(small, path.join(directory, 'mask.png')) }))
 }
 
 function correlations(values: Float64Array, width: number, height: number, maxLag: number, horizontal: boolean): Correlation[] {
@@ -333,7 +329,7 @@ function stats(args: Record<string, unknown>, root: string): object {
   }
   const autocorrelation = { rows: correlations(luminance, width, height, maxLag, true), columns: correlations(luminance, width, height, maxLag, false) }
   const small = thumbnail(image, 320)
-  return artifact(root, directory => ({ action: 'stats', frame, width, height, autocorrelation, anisotropy: { strength, orientationDegrees, tensor: { xx, xy, yy } }, highFrequencyEnergy, grid: { columns, rows, regions }, preview: writeImage(small, path.join(directory, 'preview.png')) }))
+  return writeUnder(root, directory => ({ action: 'stats', frame, width, height, autocorrelation, anisotropy: { strength, orientationDegrees, tensor: { xx, xy, yy } }, highFrequencyEnergy, grid: { columns, rows, regions }, preview: writeImage(small, path.join(directory, 'preview.png')) }))
 }
 
 function sheetImages(paths: string[]): { paths: string[]; images: RgbaImage[] } {
@@ -373,7 +369,7 @@ function writeSheet(input: { paths: string[]; images: RgbaImage[] }, outputFile:
 
 export function writeEngineContactSheet(paths: string[], outputFile: string): ContactSheet {
   const output = text(outputFile, 'outputFile')
-  if (!path.isAbsolute(output)) throw new Error('Contact sheet outputFile must be an absolute internal-owned path')
+  if (!path.isAbsolute(output)) throw new Error('Contact sheet outputFile must be an absolute path under the run directory')
   return writeSheet(sheetImages(paths), output)
 }
 
@@ -382,11 +378,11 @@ function contactSheet(args: Record<string, unknown>, root: string): object {
   let paths: string[]
   if (args.id !== undefined) {
     const id = text(args.id, 'id')
-    if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(id)) throw new Error('id must be a run identifier, not a path')
+    if (!isEngineJobId(id)) throw new Error('id must be a run identifier, not a path')
     const runs = realpathSync(engineRunsDir(root))
     const run = realpathSync(engineRunPath(root, id))
     if (!inside(runs, run)) throw new Error('Run path escapes the engine run estate')
-    const resultPath = realpathSync(path.join(run, 'result.json'))
+    const resultPath = realpathSync(engineRunResultFile(run))
     if (!inside(run, resultPath)) throw new Error('Run result escapes its run directory')
     const record: unknown = JSON.parse(boundedFile(resultPath, 4 * 1024 * 1024).toString('utf8'))
     if (!record || typeof record !== 'object' || Array.isArray(record) || !('frames' in record) || !Array.isArray(record.frames) || record.frames.length < 1 || record.frames.length > MAX_FRAMES) throw new Error(`Run result must list 1..${MAX_FRAMES} frames`)
@@ -401,7 +397,7 @@ function contactSheet(args: Record<string, unknown>, root: string): object {
     paths = args.frames.map((file: unknown) => framePath(file, root, 'frame path'))
   }
   const input = sheetImages(paths)
-  return artifact(root, directory => ({ action: 'contact-sheet', ...writeSheet(input, path.join(directory, 'contact-sheet.png')) }))
+  return writeUnder(root, directory => ({ action: 'contact-sheet', ...writeSheet(input, path.join(directory, 'contact-sheet.png')) }))
 }
 
 export function runEngineFrames(args: Record<string, unknown>, projectRoot: string): object {

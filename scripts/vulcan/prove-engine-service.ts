@@ -291,6 +291,11 @@ if (!receipt.resolved) {
     const held = await heldService.submit(request(['native_checks'], 'lane-gate', 'held', 'HEAD', { native: true }))
     const heldJob = await heldService.wait(held.id, 60_000)
     check('a native job never runs while the operator\'s editor holds the display unless asked', heldJob.state === 'failed' && /display is held by/.test(heldJob.error ?? '') && /displayShared:true/.test(heldJob.error ?? ''), heldJob.error ?? '')
+    const blindRoot = join(scratch, 'blind')
+    cpSync(P, blindRoot, { recursive: true })
+    const blind = new serviceMod.EngineJobService(blindRoot, { workers: 1, executable: godot, census: async () => { throw new Error('the process table could not be read') } })
+    await blind.submit(request(['nope'], 'lane-gate', 'blind'))
+    check('a census that cannot be read is named in the snapshot instead of passing for an empty sweep', /process table could not be read/.test(blind.jobs().sweepError ?? '') && blind.jobs().swept.length === 0, JSON.stringify({ swept: blind.jobs().swept, sweepError: blind.jobs().sweepError }))
 
     section('5g. the ops answer as data')
     const jobsText = await opsMod.runEngineOp('engine_jobs', {}, P)

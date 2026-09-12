@@ -8,7 +8,7 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = 'bf756d8220d644ebb1013f481d1281ae45e16754a6bdac0e21eff56c9fc92497'
+export const VULCAN_OPTABLE_DIGEST = '372a5747a55ab89b3a5e898e164bde7ee4ccd765b843afd0d4b5caa2db73a539'
 
 export const VULCAN_STEP_WALL_MS_PER_FRAME = 50
 
@@ -2215,6 +2215,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
       "displayShared": "optional bool: run a native job beside the operator's editor",
       "keepTree": "optional bool: keep the frozen tree after the run",
       "wait": "optional bool (default true): wait for the record; false answers the job id at once",
+      "waitMs": "optional: how long to wait for the record, in milliseconds (default: the selected suites' timeouts plus the import's, times the jobs ahead, plus a minute)",
       "tailChars": "optional: log tail per failed suite in the answer (default 2000)",
       "label": "optional: a short label for engine_jobs"
     }
@@ -2241,7 +2242,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "cls": "read",
     "lite": false,
     "side": "mercury",
-    "summary": "Mercury-side: the engine job queue and workers — the worker count and its source (MERCURY_GODOT_WORKERS or the cores), the queued and running jobs in priority order, the recent runs, the live engine processes, the orphans swept at start, and the manifest's suites",
+    "summary": "Mercury-side: the engine job queue and workers — the worker count and its source (MERCURY_GODOT_WORKERS or the cores), the queued and running jobs in priority order, the recent runs, the live engine processes, the orphans swept at start (or why that sweep could not run), and the manifest's suites",
     "args": {}
   },
   {
@@ -2298,9 +2299,10 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "cls": "exec",
     "lite": false,
     "side": "mercury",
-    "summary": "Mercury-side settled profile job: measured frame median/p95, engine process/physics/navigation monitors, GPU timings only when reported, and project-instrumented script/physics tables. A/B toggles share one boot. The quiet-machine guard refuses or flags contention; immutable commit baselines compare matching measurements side by side",
+    "summary": "Mercury-side settled profile job: Godot 4.6 debugger script/server timings and call counts, frame/physics/memory monitors, median/p95, beside unchanged project instrumentation and available viewport timings. Default engine source when connected, explicit project fallback when no game connects. A/B toggles share one boot. The quiet-machine guard refuses or flags contention; immutable commit baselines compare matching measurements side by side",
     "args": {
-      "tour": "registered tour name or {scene|script,steps}; root supplies mercury_media_sample instrumentation",
+      "tour": "registered tour name or {scene|script,steps}; project source needs mercury_media_sample; engine source does not",
+      "source": "optional: auto (default) | engine | project; engine reads the debugger over its own loopback port and fails when no game connects; project keeps the instrumented tables; auto takes the engine when it connects and otherwise falls back to project with a reason; an unsupported protocol refuses",
       "pair": "optional: {switch,a,b}; both values measured inside one boot",
       "settleFrames": "optional: settle frames before each phase, default 60",
       "sampleFrames": "optional: measured frames per phase, default 120",

@@ -199,6 +199,26 @@ export async function runningGodotProcesses(opts?: {
   }
 }
 
+export async function strictGodotCensus(): Promise<GodotProcess[]> {
+  let failure: string | null = null
+  const processes = await runningGodotProcesses({
+    runner: {
+      async exec(file, args) {
+        try {
+          const out = await execFileNoThrow(file, args, { useCwd: false, timeout: TABLE_TIMEOUT_MS })
+          if (out.code !== 0) failure = `${file} exited ${out.code}`
+          return { code: out.code, stdout: out.stdout }
+        } catch (e) {
+          failure = (e as Error).message
+          return { code: 1, stdout: '' }
+        }
+      },
+    },
+  })
+  if (failure !== null) throw new Error(`engine process census unavailable: ${failure}`)
+  return processes
+}
+
 export function sameProjectPath(a: string, b: string, platform: CensusPlatform = censusPlatform()): boolean {
   const norm = (p: string): string => {
     let s = p.replace(/\\/g, '/').replace(/\/+$/, '')

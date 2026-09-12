@@ -54,8 +54,16 @@ export function sameVulcanInstance(a: VulcanInstance, b: VulcanInstance): boolea
   return a.id === b.id && a.role === b.role && a.port === b.port && a.pid === b.pid && a.projectRoot === b.projectRoot && a.ownerPid === b.ownerPid
 }
 
-function instanceDir(root: string, id: string): string {
-  return path.join(root, '.godot', 'mercury-vulcan', id)
+export function vulcanInstancesDir(root: string): string {
+  return path.join(root, '.godot', 'mercury-vulcan')
+}
+
+export function vulcanInstanceDir(root: string, id: string): string {
+  return path.join(vulcanInstancesDir(root), id)
+}
+
+export function launchedVulcanInstance(launch: VulcanInstanceLaunch, pid: number): VulcanInstance {
+  return { version: 1, id: launch.id, role: launch.role, port: launch.port, pid, projectRoot: launch.projectRoot, ownerPid: launch.ownerPid }
 }
 
 function privateFile(file: string, maxBytes: number): string {
@@ -69,11 +77,11 @@ function privateFile(file: string, maxBytes: number): string {
 
 export function readVulcanInstanceToken(instance: VulcanInstance): string {
   if (!parseVulcanInstance(instance)) throw new Error('instance identity is invalid')
-  for (const relative of ['.godot', path.join('.godot', 'mercury-vulcan')]) {
-    const parent = lstatSync(path.join(instance.projectRoot, relative))
+  for (const parentDir of [path.join(instance.projectRoot, '.godot'), vulcanInstancesDir(instance.projectRoot)]) {
+    const parent = lstatSync(parentDir)
     if (!parent.isDirectory() || parent.isSymbolicLink()) throw new Error('instance directory cannot follow a symbolic link')
   }
-  const dir = instanceDir(instance.projectRoot, instance.id)
+  const dir = vulcanInstanceDir(instance.projectRoot, instance.id)
   const st = lstatSync(dir)
   if (!st.isDirectory() || st.isSymbolicLink() || (process.platform !== 'win32' && ((st.mode & 0o077) !== 0 || st.uid !== process.getuid?.()))) throw new Error('instance directory is not private')
   const token = privateFile(path.join(dir, 'token'), 256).trim()
@@ -84,11 +92,11 @@ export function readVulcanInstanceToken(instance: VulcanInstance): string {
 function discoverRoot(root: string): VulcanInstance[] {
   const out: VulcanInstance[] = []
   let names: string[]
-  try { names = readdirSync(path.join(root, '.godot', 'mercury-vulcan')) } catch { return out }
+  try { names = readdirSync(vulcanInstancesDir(root)) } catch { return out }
   for (const id of names.slice(0, 4096)) {
     if (!/^[a-f0-9]{32}$/.test(id)) continue
     try {
-      const row = parseVulcanInstance(JSON.parse(privateFile(path.join(instanceDir(root, id), 'instance.json'), 8192)))
+      const row = parseVulcanInstance(JSON.parse(privateFile(path.join(vulcanInstanceDir(root, id), 'instance.json'), 8192)))
       if (!row || row.id !== id || row.projectRoot !== canonical(root) || !vulcanProcessAlive(row.pid)) continue
       readVulcanInstanceToken(row)
       out.push(row)
