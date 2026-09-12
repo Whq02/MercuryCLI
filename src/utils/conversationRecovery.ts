@@ -2,6 +2,7 @@ import type { UUID } from 'crypto'
 import { basename, relative } from 'node:path'
 
 import { addInvokedSkill } from '../bootstrap/state.js'
+import { rehydrateScreenshots } from '../services/desktop/screenshotRetention.js'
 import { restoreBoundPrefixFromMessages } from '../services/providers/anthropic/boundPrefixRecord.js'
 import type { AttachmentMessage, Message, NormalizedUserMessage, UserMessage } from '../types/message.js'
 import type { LogOption, SerializedMessage, TranscriptMessage } from '../types/logs.js'
@@ -161,7 +162,7 @@ function detectInterruption(messages: Message[]): InternalInterruptionState {
 
 export function deserializeMessagesWithInterruptDetection(serialized: Message[]): DeserializeResult {
   try {
-    let messages = serialized.map(migrateLegacyAttachment).map(scrubPermissionMode)
+    let messages = rehydrateScreenshots(serialized.map(migrateLegacyAttachment).map(scrubPermissionMode))
     messages = filterUnresolvedToolUses(messages)
     messages = filterOrphanedThinkingOnlyMessages(messages)
     messages = filterWhitespaceOnlyAssistantMessages(messages)
