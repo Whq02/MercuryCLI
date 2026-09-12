@@ -25,11 +25,10 @@ the fix beside it.
 ## The asks
 
 Screenshots and the other reads — the cursor, the displays, the application
-in front, a timed wait — never ask. With the access type at `asks` (the
-default), the first act in each application — a click, a drag, a scroll,
-typed text, a key — asks by the application's name and identity, the card
-names the act, and it asks how long you want to allow. Five answers, in
-this order:
+in front, a timed wait — never ask. The first act in each application — a
+click, a drag, a scroll, typed text, a key — asks by the application's name
+and identity, the card names the act, and it asks how long you want to
+allow. Five answers, in this order:
 
 - **Yes** allows this act and every later act in this application for the
   rest of the session.
@@ -40,8 +39,9 @@ this order:
 - **Yes, for 24 hours — every application** does the same for twenty-four
   hours.
 - **Enable sovereign mode to avoid further permissions by default** turns
-  sovereign mode on for this session and saves it as the Boot Menu's access
-  type, so no later session asks either, until you change the row.
+  sovereign mode on for this session and saves the Boot Menu's `Sovereign
+  mode` row, so no later session asks either — for anything — until you
+  turn the row off.
 
 A timed grant lives with the session: a resume inside its span keeps it, a
 new session never inherits it, and it is never written into your settings.
@@ -50,25 +50,24 @@ permanent, and acts made under it leave no per-application grant behind.
 An act that lands in another application asks for that one before the next
 act there. An application that moved in front between the ask and the act
 is not driven: the act is refused and the model takes a new screenshot. No
-permission mode skips this ask and no classifier answers it: the screen,
-not you, chose the application, so the consent is yours alone.
+classifier answers this ask: the screen, not you, chose the application, so
+the consent is yours alone — and sovereign mode is the one posture that
+answers it, because sovereign mode answers every permission question.
 
-## The access type
+## Sovereign mode
 
-Under the Boot Menu's `Computer use` row sits `Access type`, with two
-values. `asks`, the default, is the card above: the first act in each
-application asks. `sovereign` is sovereign mode: full computer use granted
-by default, so no act asks in any application. Rules in a settings file
-hold either way — a `permissions.deny` rule refuses its application before
-any act, and a `permissions.ask` rule asks for its application even in
-sovereign mode — and so do the refusals that are the screen's, not yours:
-the terminal running Mercury is never typed into, and an application that
-moved in front between the check and the act is not driven. The row is
-saved where the Boot Menu keeps its other choices and reaches new
-sessions, and the ask card's last answer saves the same value;
-`MERCURY_COMPUTER_ACCESS=sovereign` in the environment sets it for one
-session. `mercury doctor` and `/health` name the access type beside the
-switch.
+Sovereign mode is Mercury's one bypass, and computer use is under it like
+everything else: with sovereign mode on, no permission question is asked —
+not for files, not for commands, not for computer use — and the crimson
+band says so. The Boot Menu's `Sovereign mode` row (in the trust combo)
+turns it on for new sessions; the ask card's last answer turns it on for
+the running session and saves the same row; `shift+tab` reaches it in a
+session launched with the bypass flag. What stays under sovereign mode is
+what was never a question: a `permissions.deny` rule refuses its
+application before any act, the terminal running Mercury is never typed
+into, and an application that moved in front between the check and the act
+is not driven. `mercury doctor` and `/health` carry a `Sovereign mode` row
+that names the one setting and what armed it.
 
 ## The allowlist
 
@@ -78,8 +77,9 @@ where the identity is the one the application's row shows beside its name
 — a bundle identifier on macOS (`com.apple.Safari`), an executable name on
 Windows (`chrome.exe`), a window class on Linux (`firefox`). You write the
 rule yourself; the card writes none. A rule in `permissions.deny` refuses
-that application before any ask, and a rule in `permissions.ask` asks for
-it even in sovereign mode. A rule written on one platform matches only that
+that application before any ask, in every mode; a rule in `permissions.ask`
+asks for it in every mode that asks and, like every other ask rule, stands
+down under sovereign mode. A rule written on one platform matches only that
 platform's identities.
 
 ## The stop key

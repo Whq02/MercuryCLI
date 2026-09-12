@@ -43,7 +43,6 @@ import {
 } from '../../services/desktop/desktopSession.js'
 import { claimDesktop, desktopClaimBusyNote, renewDesktopClaim } from '../../services/desktop/desktopClaim.js'
 import { screenshotVisibleInContext } from '../../services/desktop/screenshotRetention.js'
-import { computerAccess } from '../../services/desktop/computerAccess.js'
 import { readComputerGrant } from '../../services/desktop/computerGrant.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
@@ -693,9 +692,6 @@ Take a screenshot after acts that change the screen, act on what the latest one 
   isReadOnly(input: Input) {
     return READ_ACTIONS.has(input?.action)
   },
-  requiresUserInteraction() {
-    return true
-  },
   interruptBehavior() {
     return 'cancel' as const
   },
@@ -748,7 +744,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     if (ruled === 'allow' || (ruled === null && appApproved(owner, app.identity))) {
       return { behavior: 'allow' as const, updatedInput: input }
     }
-    if (ruled === null && (computerAccess() === 'sovereign' || readComputerGrant(String(getSessionId())) !== null)) {
+    if (ruled === null && readComputerGrant(String(getSessionId())) !== null) {
       noteCheckedActApp(owner, input.action, { identity: app.identity, name: app.name }, true)
       return { behavior: 'allow' as const, updatedInput: input }
     }
