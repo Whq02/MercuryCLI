@@ -106,6 +106,7 @@ export interface RosterOptions {
   onIdle?: (short: string) => void
   onControlRequest?: (short: string, frame: Record<string, unknown>) => void
   onChildLine?: (short: string, line: string) => void
+  onChildRelaunched?: (short: string, pid: number) => void
 }
 
 export interface DispatchOutcome {
@@ -569,6 +570,13 @@ export class TaskRoster {
 
     this.drainChildStdout(short, child, ll)
     this.superviseChildLife(short, h, ll, child)
+    if (ll.spawnGeneration > 1 && this.opts.onChildRelaunched && typeof child.pid === 'number') {
+      try {
+        this.opts.onChildRelaunched(short, child.pid)
+      } catch (e) {
+        logForDebugging(`[daemon] onChildRelaunched(${short}) hook threw (ignored): ${e}`)
+      }
+    }
     this.noteWorkerIdle(short)
     return child.pid
   }

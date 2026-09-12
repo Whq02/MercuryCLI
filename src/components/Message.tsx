@@ -388,6 +388,7 @@ function MessageInner({
 export function areMessagePropsEqual(prev: Props, next: Props): boolean {
   if (prev.message.uuid !== next.message.uuid) return false
   if ((prev.message as { queued?: true }).queued !== (next.message as { queued?: true }).queued) return false
+  if ((prev.message as { heldFor?: 'compaction' }).heldFor !== (next.message as { heldFor?: 'compaction' }).heldFor) return false
   if ((prev.message as { timestamp?: string }).timestamp !== (next.message as { timestamp?: string }).timestamp) return false
   if (
     prev.lastThinkingBlockId !== next.lastThinkingBlockId &&

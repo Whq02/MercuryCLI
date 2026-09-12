@@ -58,6 +58,7 @@ const FACTS_DEBOUNCE_MS = 250
 interface SeatState {
   short: string
   lastAnswer: SessionFactsAnswerV1 | null
+  generation: number
   requestSeq: number
   debounce: ReturnType<typeof setTimeout> | null
   workPoll: ReturnType<typeof setTimeout> | null
@@ -90,7 +91,7 @@ const seats = new Map<string, SeatState>()
 function seatOf(short: string): SeatState {
   let s = seats.get(short)
   if (!s) {
-    s = { short, lastAnswer: null, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
+    s = { short, lastAnswer: null, generation: 0, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
     seats.set(short, s)
   }
   return s
@@ -422,6 +423,7 @@ export function publishSeatFacts(short: string, dir?: string, roster?: SeatRoste
     sessionId: rec.sessionId,
     atMs: Date.now(),
     ...answer,
+    ...(seat.generation > 0 ? { runnerGeneration: seat.generation } : {}),
     model: {
       effective: seat.lastAnswer?.model.effective ?? rec.modelKey,
       setting: seat.lastAnswer?.model.setting ?? rec.modelKey,
@@ -783,6 +785,7 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   rejectModeWaiters(short, "the session's runner restarted before it answered the mode change — the band follows its facts")
   const seat = seatOf(short)
   seat.lastAnswer = null
+  seat.generation += 1
   seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
   seat.turnChars = 0
   seat.tailMessageId = null

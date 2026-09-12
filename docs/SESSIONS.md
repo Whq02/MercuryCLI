@@ -389,6 +389,25 @@ provider's own refusal never becomes the reply. `MERCURY_OVERFLOW_RECOVERY=0`
 turns the recovery off; `MERCURY_AUTO_COMPACT=0` keeps the automatic fold off
 while leaving the pruning step and the plain line.
 
+## A line sent while the session compacts
+
+A line sent while the session's runner is folding (by hand with `/compact`,
+or on its own) waits in the runner's own queue and is drawn as a queued row
+with the plate `held`; the hint row says "held until the compaction lands — it
+delivers once, on its own (↑ takes it back)". When the fold lands the runner
+takes the held lines as its next turn, in the order they were sent, behind
+nothing newer, each exactly once; a line sent after the fold rides behind
+them. `↑` on an empty composer while a line is held takes it back into the
+composer, the way it does for any queued line.
+
+A queued or held row stands only while the runner holds that line. When the
+runner reports that it no longer does — a runner that restarted after the
+send, whose queue died with it — the row leaves on its own and the hint row
+names the words once ("the runner restarted — “…” not taken; type it
+again"); `↑` on such a row answers "the session did not take “…” — type it
+again" and removes it. A row that stands for a line no runner holds is never
+left on the screen.
+
 ## Where the pieces live
 
 - The coordinator, teammates and the mailbox are [TEAMS.md](TEAMS.md)'s.
