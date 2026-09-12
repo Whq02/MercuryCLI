@@ -103,16 +103,19 @@ for (const [cols, rows] of [[120, 40], [80, 24]]) {
     check(`${cols}x${rows} ${arm}: no outside row reaches the terminal`, !glass.lines().some(line => line.includes('OUTSIDE')), glass.lines().slice(-2).join('|'))
     check(`${cols}x${rows} ${arm}: top row remains addressable`, glass.rowText(0) === (arm === 'diff' ? 'RAIL NEW' : 'RAIL TOP'), glass.rowText(0))
     check(`${cols}x${rows} ${arm}: alternate paint never advances by newline`, !bytes.includes('\n'))
+    check(`${cols}x${rows} ${arm}: no scrollback erase`, !bytes.includes('\x1b[3J'))
   }
   const writer = new FrameWriter({ isTTY: true, stylePool: ctx.stylePool })
   for (const [beforeRows, afterRows] of [[24, 40], [40, 24], [24, 40]]) {
     const before = frame(beforeRows, beforeRows)
     const after = frame(afterRows, afterRows)
     const patches = writer.render(before, after, true)
+    const bytes = bytesOf(patches)
     const glass = new AnsiEmulator(cols, afterRows, true)
     glass.feed(`\x1b[1;${cols}H!`)
-    glass.feed(bytesOf(patches))
+    glass.feed(bytes)
     check(`${cols} ${beforeRows}->${afterRows}: resize uses the contained repaint`, patches.some(p => p.type === 'clearTerminal' && p.reason === 'resize'))
+    check(`${cols} ${beforeRows}->${afterRows}: the repaint erases the display only, never the scrollback`, bytes.includes('\x1b[2J') && !bytes.includes('\x1b[3J'))
     check(`${cols} ${beforeRows}->${afterRows}: no unchanged stale cell survives`, glass.lines().join('\n') === screenLines(after.screen).join('\n'))
   }
 }

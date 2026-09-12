@@ -4,7 +4,7 @@ import { env as detectedEnv } from '../../utils/env.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { gte } from '../../utils/semver.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
-import { CURSOR_HOME, csi, ERASE_SCREEN, ERASE_SCROLLBACK } from '../termio/csi.js'
+import { CURSOR_HOME, csi, ERASE_SCREEN } from '../termio/csi.js'
 
 
 export function isSyncOutputForcedOff(): boolean {
@@ -228,10 +228,8 @@ export function isModernWindowsTerminal(
 }
 
 export function getClearTerminalSequence(): string {
-  if (process.platform === 'win32') {
-    return isModernWindowsTerminal()
-      ? ERASE_SCREEN + ERASE_SCROLLBACK + CURSOR_HOME
-      : ERASE_SCREEN + CURSOR_HOME_WINDOWS
+  if (process.platform === 'win32' && !isModernWindowsTerminal()) {
+    return ERASE_SCREEN + CURSOR_HOME_WINDOWS
   }
-  return ERASE_SCREEN + ERASE_SCROLLBACK + CURSOR_HOME
+  return ERASE_SCREEN + CURSOR_HOME
 }
