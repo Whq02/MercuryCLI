@@ -138,13 +138,13 @@ if (ledger === null || nudge === null) {
   const L = ledger
   const N = nudge
   delete process.env.MERCURY_NOTICE_DEADLINE_MS
-  check('N3 unset, the deadline is the product\'s thirty seconds', N.noticeDeadlineMs() === 30_000 && N.NOTICE_DEADLINE_DEFAULT_MS === 30_000)
+  check('N3 unset, the deadline is the product\'s three minutes', N.noticeDeadlineMs() === 180_000 && N.NOTICE_DEADLINE_DEFAULT_MS === 180_000)
   process.env.MERCURY_NOTICE_DEADLINE_MS = '1500'
   check('N3 the deadline reads the flag', N.noticeDeadlineMs() === 1_500)
   process.env.MERCURY_NOTICE_DEADLINE_MS = '20'
-  check('N3 a value below the floor reads as unset', N.noticeDeadlineMs() === 30_000)
+  check('N3 a value below the floor reads as unset', N.noticeDeadlineMs() === 180_000)
   process.env.MERCURY_NOTICE_DEADLINE_MS = 'soon'
-  check('N3 a value that is not a whole number reads as unset', N.noticeDeadlineMs() === 30_000)
+  check('N3 a value that is not a whole number reads as unset', N.noticeDeadlineMs() === 180_000)
   process.env.MERCURY_NOTICE_DEADLINE_MS = '1500'
   const spec = getFlagSpec('MERCURY_NOTICE_DEADLINE_MS')
   check('N3 the flag has its registry row: a value knob whose consumer is the nudge', spec?.kind === 'value' && spec.consumer === 'src/services/notices/idleNudge.ts' && src(spec.consumer).includes("flagEnv('MERCURY_NOTICE_DEADLINE_MS')"), JSON.stringify(spec))
