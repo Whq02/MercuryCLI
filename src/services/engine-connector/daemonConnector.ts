@@ -53,7 +53,7 @@ import {
 import { clearEphemeralProgress, publishEphemeralProgress } from '../../state/ephemeralProgressStore.js'
 import type { ProgressMessage } from '../../types/message.js'
 import type { MCPProgress, ShellProgress } from '../../types/tools.js'
-import { IDLE_LIVE, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
+import { IDLE_LIVE, type LostLineV1, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
 import { interruptLatchRelease } from './interruptLatch.js'
 import { createNoticeRow, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, queueOrderedSends } from './queuedNotices.js'
 import { FOLD_EXIT_LINGER_MS, decodeFoldStatus, type FoldStatusV1 } from '../compact/foldStatus.js'
@@ -127,6 +127,18 @@ interface SeatSend {
 const REFUSED_EMPTY: SendReceiptV1 = { state: 'refused', detail: 'nothing to send' }
 export const RECALL_TAKEN_LINE = 'already taken — esc interrupts the turn'
 export const RECALL_UNKNOWN_LINE = 'nothing queued to take back — esc interrupts the turn'
+const QUOTED_WORDS_MAX = 32
+function quoteWords(words: string): string {
+  const folded = words.replace(/\s+/g, ' ').trim()
+  return `“${folded.length > QUOTED_WORDS_MAX ? `${folded.slice(0, QUOTED_WORDS_MAX - 1).trimEnd()}…` : folded}”`
+}
+export function lostLine(words: string): string {
+  return `the session did not take ${quoteWords(words)} — type it again`
+}
+export function lostWithRunnerLine(lines: readonly string[]): string {
+  const named = lines.map(quoteWords).join(' · ')
+  return lines.length === 1 ? `the runner restarted — ${named} not taken; type it again` : `the runner restarted — ${named} not taken; type them again`
+}
 const PENDING_WITHDRAW_WAIT_MS = 10_000
 
 function reconstructedProgressMessage(parentToolUseID: string, entry: SessionProgressEntryV1): ProgressMessage {
@@ -426,6 +438,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private liveTurnChars = 0
   private liveStateWord: 'compacting' | 'waiting-on-agents' | null = null
   private liveAgentsWaiting = 0
+  private runnerGeneration: number | null = null
+  private lostLineNotice: LostLineV1 | null = null
   private liveFoldStatus: FoldStatusV1 | null = null
   private foldExitLatch: FoldStatusV1 | null = null
   private foldLatchTimer: ReturnType<typeof setTimeout> | null = null
@@ -919,6 +933,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   private reconcileQueuedSends(facts: SessionFactsV1): void {
     const queue = facts.queue ?? []
+    if (typeof facts.runnerGeneration === 'number') {
+      const moved = this.runnerGeneration !== null && facts.runnerGeneration !== this.runnerGeneration
+      this.runnerGeneration = facts.runnerGeneration
+      if (moved) this.retireSendsLostWithRunner(queue)
+    }
     let born = false
     for (const entry of queue) {
       if (!isNoticeFact(entry)) continue
@@ -975,6 +994,36 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   heldForCompaction(): string[] {
     return this.sends.filter(s => s.heldFor === 'compaction').map(s => s.clientMessageId)
+  }
+
+  private retireSendsLostWithRunner(queue: SessionFactsV1['queue']): void {
+    const listed = new Set<string>()
+    for (const entry of queue) if (typeof entry.uuid === 'string') listed.add(entry.uuid)
+    const lost = this.sends.filter(
+      s => s.state === 'queued' && s.withdrawing !== true && !isNoticeKey(s.clientMessageId) && !listed.has(s.clientMessageId),
+    )
+    if (lost.length === 0) return
+    const gone = new Set(lost.map(s => s.clientMessageId))
+    for (const id of gone) this.echoRows.delete(id)
+    this.sends = this.sends.filter(s => !gone.has(s.clientMessageId))
+    if (this.sends.length === 0) this.textRetiredRowUuids.clear()
+    this.lostLineNotice = { text: lostWithRunnerLine(lost.map(s => s.source?.text ?? s.text)), atMs: Date.now() }
+    connectorTrace({ ev: 'lost', sid: this.record.sessionId, reason: 'runner-relaunched', count: lost.length })
+    this.paint()
+    emitAll(this.liveListeners, 'live')
+  }
+
+  private retireSendUnknownToRunner(clientMessageId: string): void {
+    this.sends = this.sends.filter(s => s.clientMessageId !== clientMessageId)
+    this.echoRows.delete(clientMessageId)
+    if (this.sends.length === 0) this.textRetiredRowUuids.clear()
+    connectorTrace({ ev: 'lost', sid: this.record.sessionId, reason: 'unknown' })
+    this.paint()
+    emitAll(this.liveListeners, 'live')
+  }
+
+  lostLine(): LostLineV1 | null {
+    return this.lostLineNotice
   }
 
   private reconcileSends(): boolean {
@@ -1627,7 +1676,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         this.dressSend(clientMessageId, 'taken')
         return taken
       }
-      return nothing
+      this.retireSendUnknownToRunner(clientMessageId)
+      return { withdrawn: false, reason: 'unknown', detail: lostLine(send.source?.text ?? send.text), retired: true }
     } catch (e) {
       return refuse(`the daemon is not answering — ${e instanceof Error ? e.message : String(e)}`)
     }

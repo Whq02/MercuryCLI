@@ -252,6 +252,7 @@ const DOUBLED_SLASH = '//'
 const INPUT_TRUNCATION_THRESHOLD = 10_000
 const UNDO_BUFFER_SIZE = 50
 const UNDO_COALESCE_MS = 1000
+const LOST_LINE_NOTICE_MS = 8000
 
 type OverlaySurface =
   | null
@@ -1328,7 +1329,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         setCursorOffset(value.length)
         return
       }
-      addNotification({ key: 'recall-send', text: receipt.detail, priority: 'immediate', timeoutMs: 4000 })
+      addNotification({ key: 'recall-send', text: receipt.detail, priority: 'immediate', timeoutMs: receipt.retired === true ? LOST_LINE_NOTICE_MS : 4000 })
     })
     return true
   }, [applyRecalledEntry, setCursorOffset, addNotification])

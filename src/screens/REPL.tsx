@@ -1102,6 +1102,20 @@ export function REPL({
     return hasSeatLive(focusedConnector) ? focusedConnector.subscribeLive(paintNoRunnerLine) : undefined;
   }, [focusedConnector, addNotification]);
 
+  const lostLinePaintedAtRef = useRef(0);
+  useEffect(() => {
+    if (!hasSeatLive(focusedConnector) || focusedConnector.lostLine === undefined) return undefined;
+    const readLostLine = focusedConnector.lostLine.bind(focusedConnector);
+    const paintLostLine = (): void => {
+      const lost = readLostLine();
+      if (lost === null || lost.atMs <= lostLinePaintedAtRef.current) return;
+      lostLinePaintedAtRef.current = lost.atMs;
+      addNotification({ key: 'lost-line', text: lost.text, priority: 'high', color: 'error' as const, timeoutMs: RECEIPT_TIMEOUT_MS * 2 });
+    };
+    paintLostLine();
+    return focusedConnector.subscribeLive(paintLostLine);
+  }, [focusedConnector, addNotification]);
+
   const paintScreenCommandReceipt = useCallback((commandName: string, args: string, text: string): void => {
     const focused = getFocusedSessionConnector() as PaintsRows;
     if (typeof focused.addDisplayRow === 'function') {

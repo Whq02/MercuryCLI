@@ -29,7 +29,12 @@ export type RecallableSendV1 = { clientMessageId: string; text: string }
 
 export type WithdrawReceiptV1 =
   | { withdrawn: true; text: string; mode: PromptInputMode; pastedContents: Record<number, PastedContent> }
-  | { withdrawn: false; reason: 'taken' | 'unknown' | 'refused'; detail: string }
+  | {
+      withdrawn: false
+      reason: 'taken' | 'unknown' | 'refused'
+      detail: string
+      retired?: true
+    }
 
 
 export type SessionAskV1 = {
