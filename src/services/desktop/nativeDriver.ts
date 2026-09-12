@@ -1,7 +1,6 @@
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { voiceCheckoutRoot } from '../voice/voicePack.js'
-import { computerAccessWords } from './computerAccess.js'
 import {
   desktopAbortedAnswer,
   displaysFingerprint,
@@ -496,7 +495,7 @@ async function drivingWords(): Promise<string> {
 }
 
 export async function describeDesktopDriver(): Promise<DesktopDoctorFacts> {
-  const onWords = `computer use ${computerUseSwitchOn() ? `on (${computerAccessWords()})` : 'off'}`
+  const onWords = `computer use ${computerUseSwitchOn() ? 'on' : 'off'}`
   const buildFix = voiceCheckoutRoot() !== null ? `Build the desktop driver pack: ${DESKTOP_BUILD_COMMAND}, then rebuild.` : undefined
   const driving = await drivingWords()
   const resolution = resolveDesktopPackDir()

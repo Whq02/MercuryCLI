@@ -94,10 +94,12 @@ hostile repository cannot pre-accept the Sovereign-mode consent dialog.
 ## The permission-posture record
 
 The boot decision writes one composition record into the project config: whether
-bypass is armed, what armed it (standing env consent, CLI flag, or session
+Sovereign mode — the one bypass — is armed, what armed it (the Boot Menu's
+Sovereign mode row as standing consent, the CLI flag, or the session's own
 choice), whether the consent dialog was shown or suppressed, and whether
 workspace trust was accepted. A fresh config read alone answers "what permission
-posture does this project run under".
+posture does this project run under"; `mercury doctor` and `/health` show it
+as the `Sovereign mode` row.
 
 ## Release provenance — what "signed" means
 
