@@ -15,7 +15,8 @@ import {
 } from './editorPresence.js'
 import type { GodotProcess } from './godotProcessCensus.js'
 import { getVulcanClient, type VulcanResult } from './vulcanClient.js'
-import { vulcanTokenPath } from './vulcanToken.js'
+
+const LEGACY_TOKEN_FILE = path.join('.godot', 'mercury-vulcan-token')
 
 const ADDON_DIR = path.join('addons', 'mercury_vulcan')
 const PLUGIN_CFG_RES = 'res://addons/mercury_vulcan/plugin.cfg'
@@ -412,7 +413,7 @@ export async function applyVulcanUninstall(projectRoot: string, road: ChangeReco
     },
     road,
   )
-  rmSync(vulcanTokenPath(projectRoot), { force: true })
+  rmSync(path.join(projectRoot, LEGACY_TOKEN_FILE), { force: true })
   if (!mutated.ok) {
     return `addon files deleted and token removed, but project.godot was NOT modified: ${mutated.conflict}`
   }

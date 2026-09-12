@@ -184,8 +184,8 @@ func _handle_hello(conn: Conn, msg: Dictionary) -> void:
 	var expected := _read_expected_token()
 	if expected.is_empty():
 		_send(conn, {"ok": false, "error": _err_body("TOKEN_MISSING",
-			"no token file at .godot/mercury-vulcan-token",
-			"run vulcan_install / let Mercury write the token")})
+			"this instance has no token; its bridge did not start",
+			"op:\"vulcan_status\" lists the instances; restart this one")})
 		_drop(conn)
 		return
 	if not _ct_eq(String(msg.get("token", "")), expected):
