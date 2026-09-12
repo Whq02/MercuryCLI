@@ -3,10 +3,12 @@ import { useMemo } from 'react'
 import { Box, Text } from '../../../ink.js'
 import { Select } from '../../CustomSelect/select.js'
 import { COMPUTER_TOOL_NAME, peekCheckedActApp, type DesktopJudgedApp } from '../../../services/desktop/desktopSession.js'
-import { sovereignComputerGrant, timedComputerGrant, writeComputerGrant, type ComputerGrantRecord } from '../../../services/desktop/computerGrant.js'
+import { timedComputerGrant, writeComputerGrant, type ComputerGrantRecord } from '../../../services/desktop/computerGrant.js'
 import { conversationIdHere } from '../../../services/engine-connector/focusedConnector.js'
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
 import { writeBootEnvChoice } from '../../../substrate/startupMenu.js'
+import type { PermissionUpdate } from '../../../types/permissions.js'
+import { isBypassPermissionsModeDisabled } from '../../../utils/permissions/permissionSetup.js'
 import { getGlobalConfig } from '../../../utils/config.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getSystemThemeName } from '../../../utils/systemTheme.js'
@@ -34,7 +36,7 @@ export const COMPUTER_ASK_CHOICES: ReadonlyArray<{ value: ComputerAskChoice; lab
 
 export const COMPUTER_ASK_FIRST_ACT = 'first act in this application this session'
 export const COMPUTER_ASK_QUESTION = 'Do you want to allow Mercury to drive your mouse and keyboard here, and for how long?'
-export const COMPUTER_ASK_NOTE = "A timed grant covers every application and asks again when it runs out; sovereign mode is saved as the Boot Menu's access type and nothing asks after it."
+export const COMPUTER_ASK_NOTE = 'A timed grant covers every application and asks again when it runs out; sovereign mode is saved in the Boot Menu and no permission is asked after it, computer use included.'
 
 export function computerAskAppLine(app: DesktopJudgedApp | null): string {
   const where = app === null ? 'the application in front' : `${app.name} (${app.identity})`
@@ -60,26 +62,39 @@ export interface ComputerAskEffect {
   grant: ComputerGrantRecord | null
   saved: 'sovereign' | null
   savedError: string | null
+  permissionUpdates: PermissionUpdate[]
 }
+
+const NO_UPDATES: PermissionUpdate[] = []
+
+export const SOVEREIGN_MODE_DISABLED = 'Sovereign Mode is disabled by settings or organisation policy.'
 
 export function applyComputerAskChoice(choice: ComputerAskChoice, sessionId: string, now: number = Date.now()): ComputerAskEffect {
   switch (choice) {
     case 'yes':
-      return { allow: true, grant: null, saved: null, savedError: null }
+      return { allow: true, grant: null, saved: null, savedError: null, permissionUpdates: NO_UPDATES }
     case 'no':
-      return { allow: false, grant: null, saved: null, savedError: null }
+      return { allow: false, grant: null, saved: null, savedError: null, permissionUpdates: NO_UPDATES }
     case 'hour':
     case 'day': {
       const grant = timedComputerGrant(choice === 'hour' ? 1 : 24, now)
       writeComputerGrant(sessionId, grant)
-      return { allow: true, grant, saved: null, savedError: null }
+      return { allow: true, grant, saved: null, savedError: null, permissionUpdates: NO_UPDATES }
     }
     case 'sovereign': {
-      const grant = sovereignComputerGrant(now)
-      writeComputerGrant(sessionId, grant)
-      const written = writeBootEnvChoice('MERCURY_COMPUTER_ACCESS', 'sovereign')
-      if (!written.ok) logForDebugging(`computer ask: sovereign mode was not saved as the Boot Menu's access type — ${written.reason}`)
-      return { allow: true, grant, saved: written.ok ? 'sovereign' : null, savedError: written.ok ? null : written.reason }
+      if (isBypassPermissionsModeDisabled()) {
+        logForDebugging(`computer ask: sovereign mode was not turned on — ${SOVEREIGN_MODE_DISABLED}`)
+        return { allow: true, grant: null, saved: null, savedError: SOVEREIGN_MODE_DISABLED, permissionUpdates: NO_UPDATES }
+      }
+      const written = writeBootEnvChoice('MERCURY_SKIP_PERMISSIONS', '1')
+      if (!written.ok) logForDebugging(`computer ask: sovereign mode was not saved in the Boot Menu — ${written.reason}`)
+      return {
+        allow: true,
+        grant: null,
+        saved: written.ok ? 'sovereign' : null,
+        savedError: written.ok ? null : written.reason,
+        permissionUpdates: [{ type: 'setMode', mode: 'sovereign', destination: 'session' }],
+      }
     }
   }
 }
@@ -115,7 +130,7 @@ export function ComputerPermissionRequest({
       return
     }
     logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'accept', false)
-    toolUseConfirm.onAllow(toolUseConfirm.input, [])
+    toolUseConfirm.onAllow(toolUseConfirm.input, effect.permissionUpdates)
     onDone()
   }
 

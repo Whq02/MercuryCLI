@@ -90,16 +90,16 @@ export const STARTUP_MENU: readonly MenuRow[] = [
   },
   {
     env: 'MERCURY_SKIP_PERMISSIONS',
-    label: 'Skip permissions at boot',
+    label: 'Sovereign mode',
     group: 'trust combo',
     kind: 'toggle',
     options: ['1'],
     defaultLabel: 'off',
-    summary: 'boot interactive sessions as if --dangerously-bypass-permissions was passed — every tool call auto-approved',
+    summary: 'no permission question is asked — not for files, commands, or computer use; you take the wheel',
     detail: {
-      controls: "The env spelling of --dangerously-bypass-permissions: interactive boots start in sovereign mode without typing the flag. Saving this row is the standing consent; the launch confirmation dialog and the root/sudo refusal still apply. Headless runs (-p) and daemon workers NEVER inherit it — their stricter permission floor stands.",
-      on: ["interactive boots start with permissions bypassed (the crimson banner)", "the launch consent dialog still confirms once", "-p runs and daemon workers are unaffected"],
-      off: ["permissions prompt normally; the CLI flag still works when passed by hand"],
+      controls: "The one bypass: interactive boots start in sovereign mode, as if --dangerously-bypass-permissions was passed, and no permission question is asked — not for files, not for commands, not for computer use. Saving this row is the standing consent; the launch confirmation dialog and the root/sudo refusal still apply, a deny rule in a settings file still refuses, and the refusals that are the screen's own (the terminal running Mercury, an application that moved in front) still hold. Headless runs (-p) and daemon workers NEVER inherit it — their stricter permission floor stands. The computer ask card's last answer turns this row on for the running session and saves it here.",
+      on: ["interactive boots start in sovereign mode (the crimson banner): no permission question is asked, computer use included", "the launch consent dialog still confirms once", "-p runs and daemon workers are unaffected"],
+      off: ["every permission question is asked — files, commands, and the first act in each application for computer use; the CLI flag still works when passed by hand"],
     },
   },
   {
@@ -111,7 +111,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     defaultLabel: 'off',
     summary: 'a bypass-family mode where the agent may retune its own model/effort under rails — shift+tab past bypass to enter',
     detail: {
-      controls: "Adds the Autopilot station to the shift+tab mode cycle (after Sovereign Mode): the same bypassed-permissions posture, plus the agent may retune its own model and reasoning effort mid-run via the SetTier tool — under mechanical rails (opus/sonnet only by default; 3-turn cooldown; 8 switches per session; every switch shown in the transcript and the mode band). Requires the same launch consent as Sovereign Mode (pair it with the skip-permissions row or the CLI flag).",
+      controls: "Adds the Autopilot station to the shift+tab mode cycle (after Sovereign Mode): the same bypassed-permissions posture, plus the agent may retune its own model and reasoning effort mid-run via the SetTier tool — under mechanical rails (opus/sonnet only by default; 3-turn cooldown; 8 switches per session; every switch shown in the transcript and the mode band). Requires the same launch consent as Sovereign Mode (pair it with the Sovereign mode row or the CLI flag).",
       on: ["the mode cycle gains ⌖ Autopilot (only when bypass is available)", "the agent may downshift for mechanical work and upshift for hard work — always visibly", "opus, sonnet, fable and fable51 are the self-selectable tiers; MERCURY_AUTOPILOT_MODELS narrows them"],
       off: ["no autopilot station, no SetTier tool — the plain cycle"],
     },
@@ -125,23 +125,9 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     defaultLabel: 'on',
     summary: 'the model sees the screen and drives the mouse and keyboard in the application in front, on a machine that has the desktop driver — off removes the Computer tool from new sessions',
     detail: {
-      controls: "Whether new sessions carry the Computer tool: screenshots, clicks, typed text, key chords, scrolls and drags in the application in front, on every model route that receives images. On is the default wherever the desktop driver resolves; a machine without the driver never sees the tool. How consent works is the Access type row below. Off removes the tool before any driver is touched — the rest of Mercury does not depend on it.",
-      on: ['the Computer tool is in the catalog when the desktop driver resolves', 'consent follows the Access type row: the first act in each application asks by name, or sovereign mode grants everything', 'esc or ctrl+c ends the act in flight and the turn; one session drives at a time'],
+      controls: "Whether new sessions carry the Computer tool: screenshots, clicks, typed text, key chords, scrolls and drags in the application in front, on every model route that receives images. On is the default wherever the desktop driver resolves; a machine without the driver never sees the tool. The first act in each application asks by the application's name; Sovereign mode (the trust combo row) answers that question like every other. Off removes the tool before any driver is touched — the rest of Mercury does not depend on it.",
+      on: ['the Computer tool is in the catalog when the desktop driver resolves', 'the first act in each application asks by name and offers a timed grant or sovereign mode; under Sovereign mode nothing asks', 'esc or ctrl+c ends the act in flight and the turn; one session drives at a time'],
       off: ['the Computer tool is absent from new sessions — identical to a build without it', 'no desktop driver is loaded'],
-    },
-  },
-  {
-    env: 'MERCURY_COMPUTER_ACCESS',
-    label: 'Access type',
-    group: 'computer use',
-    kind: 'enum',
-    options: ['sovereign'],
-    defaultLabel: 'asks',
-    summary: "asks: the first act in each application asks you by the application's name · sovereign: sovereign mode — full computer use granted by default, nothing asks",
-    detail: {
-      controls: "How the Computer tool gets your consent. asks (the default): the first act in each application this session shows the card, which names the application and the act. sovereign — sovereign mode: every act in every application is granted by default and the card never appears. Either way a deny rule in a settings file refuses its application, an explicit ask rule still asks, the terminal running Mercury is never typed into, and an application that moved in front between the check and the act is refused.",
-      on: ['sovereign mode: no act asks, in any application', 'rules in a settings file still hold: deny refuses, an explicit ask rule asks', 'the terminal running Mercury and an application that moved in front are still refused'],
-      off: ['asks: the first act in each application asks by name; later acts in it ride the grant', 'an act that lands in another application asks for that one'],
     },
   },
   {
@@ -406,7 +392,7 @@ export function allSettingRows(): readonly MenuRow[] {
 }
 
 const RETIRED_MENU_ENV: ReadonlySet<string> = new Set(
-  'MERCURY_ENGINES MERCURY_HELM_HOME MERCURY_HELM_CONSOLE MERCURY_DECK_COMPANION MERCURY_CURSUS MERCURY_PARTY MERCURY_ROOM_REMOTE'.split(' '),
+  'MERCURY_ENGINES MERCURY_HELM_HOME MERCURY_HELM_CONSOLE MERCURY_DECK_COMPANION MERCURY_CURSUS MERCURY_PARTY MERCURY_ROOM_REMOTE MERCURY_COMPUTER_ACCESS'.split(' '),
 )
 
 export function menuRowChoices(row: MenuRow): MenuChoice[] {

@@ -1697,39 +1697,40 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         },
         {
           id: 'permission-posture',
-          label: 'Permission posture',
+          label: 'Sovereign mode',
           run: async () => {
             const { getCurrentProjectConfig } = await import('./config/projectConfig.js')
             const { flagEnv } = await import('../substrate/flagRegistry.js')
             const { isEnvTruthy } = await import('./envUtils.js')
             const posture = getCurrentProjectConfig().permissionPosture
             const envArmedNow = isEnvTruthy(flagEnv('MERCURY_SKIP_PERMISSIONS'))
+            const OFF = 'sovereign mode off — every permission question is asked (files, commands, the first act in each application for computer use)'
             if (!posture) {
               if (envArmedNow) {
                 return {
                   status: 'warn',
                   evidence:
-                    'bypass is armed by the skip-permissions env row but NO posture record exists yet',
+                    "sovereign mode is armed by the Boot Menu's Sovereign mode row (standing consent) but NO posture record exists yet",
                   fix: 'Open Mercury interactively once — the boot records its permission composition.',
                 }
               }
-              return { status: 'ok', evidence: 'standard permissions (no bypass posture recorded)' }
+              return { status: 'ok', evidence: `${OFF} · no posture recorded yet` }
             }
             const trust = posture.trustDialogAccepted ? 'trust dialog accepted' : 'trust dialog NOT accepted'
             if (posture.mode === 'bypass') {
               const armed =
                 posture.armedBy === 'env-standing-consent'
-                  ? 'armed by the skip-permissions env row (standing consent)'
+                  ? "saved in the Boot Menu's Sovereign mode row (standing consent)"
                   : posture.armedBy === 'cli-flag'
-                    ? 'armed by the CLI flag'
-                    : 'armed by the session permission mode'
+                    ? 'armed by the launch flag'
+                    : "armed by the session's own choice"
               const dialog =
                 posture.consentDialog === 'suppressed-by-standing-consent'
                   ? 'consent dialog suppressed by settings'
                   : 'consent dialog shown and accepted'
-              return { status: 'ok', evidence: `bypass — ${armed} · ${dialog} · ${trust}` }
+              return { status: 'ok', evidence: `sovereign mode on — no permission question is asked, computer use included · ${armed} · ${dialog} · ${trust}` }
             }
-            return { status: 'ok', evidence: `standard permissions · ${trust}` }
+            return { status: 'ok', evidence: `${OFF} · ${trust}` }
           },
         },
         {

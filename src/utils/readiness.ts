@@ -3,7 +3,6 @@ import { FLAG_REGISTRY, flagEnabled, flagEnv, type FlagSpec } from '../substrate
 import { realEnvPin } from '../substrate/startupMenu.js'
 import { driverNodeGate, resolveBrowser } from '../services/browser/browserResolver.js'
 import { lastDesktopPermissions, resolveDesktopDriver } from '../services/desktop/resolveDriver.js'
-import { computerAccessWords } from '../services/desktop/computerAccess.js'
 import { desktopGrantWords } from '../services/desktop/nativeDriver.js'
 import { desktopClaimFileSnapshot } from '../services/desktop/desktopClaim.js'
 import { desktopSnapshot } from '../services/desktop/desktopSession.js'
@@ -238,7 +237,7 @@ function computerToolRecord(): ReadinessRecord {
   return {
     ...base,
     state: 'configured',
-    detail: `driver ${resolution.source} resolved (${facts.kind}) — no session driving · access ${computerAccessWords()}`,
+    detail: `driver ${resolution.source} resolved (${facts.kind}) — no session driving`,
     latencyMs: Date.now() - t0,
   }
 }
