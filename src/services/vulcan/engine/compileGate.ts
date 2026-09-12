@@ -16,7 +16,7 @@ import {
 } from './frozenTree.js'
 import { engineLogErrors, stripEngineAnsi } from './logs.js'
 import { readEngineManifest, type EngineManifest } from './manifest.js'
-import { engineCheckDir, engineCheckProbeRelative, engineCheckTreeDir, engineCheckUserDir, engineChecksDir, ensureEngineEstate } from './paths.js'
+import { engineCheckDir, engineCheckProbeRelative, engineCheckTreeDir, engineCheckUserDir, ensureEngineEstate } from './paths.js'
 import { engineWorkerCount, newEngineJobId } from './service.js'
 import { spawnEngine } from './spawn.js'
 import { startEngineHeartbeat } from './liveness.js'
@@ -336,14 +336,13 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
   ensureEngineEstate(projectRoot)
   const checkId = newEngineJobId()
   const checkDir = engineCheckDir(projectRoot, checkId)
-  mkdirSync(engineChecksDir(projectRoot), { recursive: true })
+  mkdirSync(checkDir, { recursive: true })
   const heartbeat = startEngineHeartbeat(checkDir)
   let facts: Pick<EngineTreeFacts, 'commit' | 'baseBlobs' | 'overlay'>
   let enginePath = projectRoot
   let treePath: string | null = null
   const frozen = args.tree !== undefined && args.tree !== null && args.tree !== ''
   try {
-    mkdirSync(checkDir, { recursive: true })
     if (frozen) {
       treePath = engineCheckTreeDir(checkDir)
       const made = await materializeEngineTree(projectRoot, spec, treePath)

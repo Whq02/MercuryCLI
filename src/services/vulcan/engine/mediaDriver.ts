@@ -7,7 +7,6 @@ import { engineMediaBootFile, engineMediaConfigFile, engineMediaDir, engineMedia
 export const ENGINE_MEDIA_MARKER = 'MERCURY MEDIA PASS'
 
 export function writeEngineMediaDriver(runDir: string, treePath: string, request: EngineMediaRequest, variant: string, debuggerConnection?: { port: number; token: string }): { argv: string[]; outputDir: string; resultFile: string } {
-  if (request.route === 'hidden') throw new Error('hidden capture refused: stock Godot shows its native bootstrap window before scripts initialize; no verified hidden native bootstrap is available. Use headless with mercury_media_capture returning Image, or explicitly request route:"display".')
   const outputDir = engineMediaDir(runDir, variant)
   mkdirSync(outputDir, { recursive: true })
   const resultFile = engineMediaBootFile(runDir, variant)

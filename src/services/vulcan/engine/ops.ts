@@ -4,7 +4,6 @@ import { parseEngineTreeSpec } from './frozenTree.js'
 import { engineLogTail } from './logs.js'
 import { readEngineManifest } from './manifest.js'
 import { requestVulcanInstance } from '../vulcanClient.js'
-import { listVulcanInstances } from '../instances.js'
 import { listProjectLeases, projectLeaseHolder, releaseProjectLeases, takeProjectLeases, type LeaseHolder } from './leases.js'
 import {
   ENGINE_DEFAULT_PRIORITY,
@@ -17,7 +16,6 @@ import {
 } from './service.js'
 
 export const ENGINE_OPS: ReadonlySet<string> = new Set(['engine_run', 'engine_check', 'engine_jobs', 'engine_cancel', 'engine_result', 'engine_capture', 'engine_frames', 'engine_profile', 'engine_scene_tree', 'engine_node_get', 'engine_node_call', 'engine_signal_wait', 'lease_take', 'lease_release', 'lease_list'])
-export const ENGINE_EXEC_OPS: ReadonlySet<string> = new Set(['engine_run', 'engine_check', 'engine_capture', 'engine_profile', 'engine_node_call'])
 export const ENGINE_DEFAULT_TAIL_CHARS = 2000
 export const ENGINE_RESULT_TAIL_CHARS = 4000
 export const ENGINE_WAIT_GRACE_MS = 60_000
@@ -131,7 +129,8 @@ async function engineRun(a: Args, projectRoot: string, holder: LeaseHolder): Pro
   const manifest = readEngineManifest(projectRoot)
   const selected = manifest.suites.filter(s => request.suites.length === 0 || request.suites.includes(s.name))
   const own = request.budgetMs ?? selected.reduce((sum, s) => sum + s.timeoutMs, 0) + manifest.defaults.importTimeoutMs
-  const queuedAhead = service.jobs().queued.length + service.jobs().running.length
+  const snapshot = service.jobs()
+  const queuedAhead = snapshot.queued.length + snapshot.running.length
   const waitMs = intArg(a.waitMs) ?? own * Math.max(1, queuedAhead) + ENGINE_WAIT_GRACE_MS
   const settled = await service.wait(job.id, waitMs)
   if (settled && settled.record && settled.state !== 'queued' && settled.state !== 'running') {
@@ -155,7 +154,7 @@ async function engineMedia(kind: 'capture' | 'profile', a: Args, projectRoot: st
     const request: EngineJobRequest = {
       suites: [],
       tree: spec,
-      native: a.display === true,
+      native: media.route === 'display',
       capture: kind === 'capture',
       priority,
       budgetMs: intArg(a.budgetMs),
@@ -168,7 +167,8 @@ async function engineMedia(kind: 'capture' | 'profile', a: Args, projectRoot: st
     const job = await service.submit(request)
     if ('refused' in job) throw new Error(job.refused)
     if (!boolArg(a.wait, true)) return json({ id: job.id, state: job.state, tree: job.request.tree.label })
-    const ahead = Math.max(1, service.jobs().queued.length + service.jobs().running.length)
+    const snapshot = service.jobs()
+    const ahead = Math.max(1, snapshot.queued.length + snapshot.running.length)
     const waitMs = intArg(a.waitMs) ?? ((request.budgetMs ?? 240_000) + service.manifest().defaults.importTimeoutMs) * ahead + ENGINE_WAIT_GRACE_MS
     const settled = await service.wait(job.id, waitMs)
     if (settled?.record && settled.state !== 'queued' && settled.state !== 'running') {
@@ -231,7 +231,7 @@ export async function runEngineOp(op: string, args: Args | undefined, projectRoo
     }
     case 'engine_jobs': {
       const service = EngineJobService.for(projectRoot)
-      return json({ ...service.jobs(), instances: listVulcanInstances(projectRoot), runsOnDisk: listEngineRunIds(projectRoot).slice(0, 20) })
+      return json({ ...service.jobs(), runsOnDisk: listEngineRunIds(projectRoot).slice(0, 20) })
     }
     case 'engine_cancel': {
       const id = typeof a.id === 'string' ? a.id.trim() : ''

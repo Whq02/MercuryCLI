@@ -7,7 +7,7 @@ import * as path from 'node:path'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { availableCores } from '../../../utils/availableCores.js'
 import type { ProcessTreeKillReceipt } from '../../../utils/processGroup.js'
-import { describeGodotProcess, runningGodotProcesses, type GodotProcess } from '../godotProcessCensus.js'
+import { describeGodotProcess, runningGodotProcesses, strictGodotCensus, type GodotProcess } from '../godotProcessCensus.js'
 import { resolveGodotExecutable } from '../portabilityDoctor.js'
 import { engineConsoleSibling, engineImportArgv, engineSuiteArgv } from './argv.js'
 import {
@@ -35,7 +35,7 @@ import {
 } from './manifest.js'
 import { ENGINE_RESULT_FILE, engineContactSheetFile, engineMediaDriverFile, engineMediaUserDir, engineRunLogFile, engineRunPath, engineRunResultFile, engineRunUserDir, engineRunsDir, engineTreePath, engineUsersDir, ensureEngineEstate, isEnginePath } from './paths.js'
 import { liveEngines, removeDeadEngineTrees, spawnEngine, sweepEngineOrphans, type EngineHandle, type EngineOrphanSweep } from './spawn.js'
-import { engineMediaCensus, finishEngineProfileBaseline, newEngineMediaRecord, readEngineMediaBoot, type EngineMediaRecord, type EngineMediaRequest } from './media.js'
+import { finishEngineProfileBaseline, newEngineMediaRecord, readEngineMediaBoot, type EngineMediaRecord, type EngineMediaRequest } from './media.js'
 import { ENGINE_MEDIA_MARKER, writeEngineMediaDriver } from './mediaDriver.js'
 import { GodotDebuggerProfile } from './debuggerProfile.js'
 import { writeEngineContactSheet } from './frames.js'
@@ -256,6 +256,10 @@ function summarize(job: EngineJob): EngineJobSummary {
   }
 }
 
+function quietGuardRefusal(workers: readonly string[]): string {
+  return `quiet-machine guard refused profile: other engine workers are alive or the census is unavailable — ${workers.join('; ')}`
+}
+
 const SERVICES = new Map<string, EngineJobService>()
 const ACTIVE_SERVICES = new Set<EngineJobService>()
 let NATIVE_JOB: string | null = null
@@ -273,7 +277,7 @@ export class EngineJobService {
   private readonly busyWorkers = new Set<number>()
   private readonly heartbeats = new Map<string, () => void>()
   private readonly census: () => Promise<GodotProcess[]>
-  private readonly mediaCensus: () => Promise<GodotProcess[]>
+  private readonly strictCensus: () => Promise<GodotProcess[]>
   private readonly executableOption: string | null
   private executableCache: { resolved: string; note: string } | null = null
   private seq = 0
@@ -293,7 +297,7 @@ export class EngineJobService {
       this.workersSource = w.source === 'flag' ? ENGINE_WORKERS_FLAG : 'cores'
     }
     this.census = opts.census ?? (() => runningGodotProcesses())
-    this.mediaCensus = opts.census ?? engineMediaCensus
+    this.strictCensus = opts.census ?? strictGodotCensus
     this.executableOption = opts.executable ?? null
     this.ready = this.startup()
   }
@@ -315,7 +319,7 @@ export class EngineJobService {
   private async startup(): Promise<void> {
     let processes: GodotProcess[]
     try {
-      processes = await this.mediaCensus()
+      processes = await this.strictCensus()
       this.swept = await sweepEngineOrphans(this.projectRoot, processes)
     } catch (e) {
       this.swept = []
@@ -354,11 +358,12 @@ export class EngineJobService {
     if (request.media) request = { ...request, native: request.media.route === 'display', capture: false, suites: [] }
     request = freezeEngineRequest(request)
     await this.ready
-    if (request.media) {
-      if (request.media!.route === 'hidden') return { refused: 'hidden run refused: stock Godot shows its native bootstrap window before scripts initialize; no verified hidden bootstrap is available. Use headless project Image capture, or explicitly request route:"display".' }
-      if (request.media!.kind === 'profile' && request.media!.quiet === 'refuse') {
+    const media = request.media
+    if (media) {
+      if (media.route === 'hidden') return { refused: 'hidden run refused: stock Godot shows its native bootstrap window before scripts initialize; no verified hidden bootstrap is available. Use headless project Image capture, or explicitly request route:"display".' }
+      if (media.kind === 'profile' && media.quiet === 'refuse') {
         const workers = await this.otherEngineWorkers()
-        if (workers.length) return { refused: `quiet-machine guard refused profile: other engine workers are alive or the census is unavailable — ${workers.join('; ')}` }
+        if (workers.length) return { refused: quietGuardRefusal(workers) }
       }
     }
     const manifest = this.manifest()
@@ -626,7 +631,7 @@ export class EngineJobService {
       workers.add(`pid ${engine.pid} ${engine.label}`)
     }
     try {
-      for (const engine of await this.mediaCensus()) {
+      for (const engine of await this.strictCensus()) {
         if (job && (engine.pid === ownPid || (engine.project !== undefined && path.resolve(engine.project) === path.resolve(job.treePath)))) continue
         workers.add(describeGodotProcess(engine))
       }
@@ -644,7 +649,7 @@ export class EngineJobService {
     if (workers.length) media.quiet.contaminated = true
     if (workers.length || media.quiet.observations.length < 1024) media.quiet.observations.push({ at: new Date().toISOString(), stage, workers })
     if (media.quiet.contaminated !== contaminatedBefore) this.writeRecord(job)
-    if (refuse && workers.length && media.quiet.policy === 'refuse') throw new Error(`quiet-machine guard refused profile: other engine workers are alive or the census is unavailable — ${workers.join('; ')}`)
+    if (refuse && workers.length && media.quiet.policy === 'refuse') throw new Error(quietGuardRefusal(workers))
   }
 
   private async runMedia(job: EngineJob, executable: string, timeoutMs: number, budgetLeft: () => number, unclean: RegExp): Promise<void> {

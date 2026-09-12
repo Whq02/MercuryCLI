@@ -29,7 +29,3 @@ export function engineUserDataPath(dir: string, projectName: string, platform: N
       return path.join(dir, 'godot', 'app_userdata', projectName)
   }
 }
-
-export function engineUserEnvNames(platform: NodeJS.Platform = process.platform): string[] {
-  return Object.keys(engineUserEnv('x', platform))
-}
