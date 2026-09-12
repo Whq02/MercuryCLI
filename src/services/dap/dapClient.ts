@@ -417,7 +417,23 @@ export function mercuryDapEnabled(): boolean {
 }
 
 export function isDapToolCatalogEnabled(): boolean {
-  return mercuryDapEnabled()
+  return mercuryDapEnabled() && reachableDapAdapterKeys().length > 0
+}
+
+export function debugToolWithholding(): { withheld: false } | { withheld: true; why: string; remedy: string } {
+  if (!mercuryDapEnabled()) return { withheld: false }
+  const reachable = reachableDapAdapterKeys()
+  if (reachable.length > 0) return { withheld: false }
+  const hints = [
+    'python: pip install debugpy beside a python on PATH (or a build carrying the vendored adapter)',
+    `lldb: ${lldbDapInstallHint()}`,
+    ...dormantBuiltinAdapterHints().map(h => `${h.key}: ${h.hint}`),
+  ]
+  return {
+    withheld: true,
+    why: 'no debug adapter is reachable on this machine — none of debugpy beside a python, lldb-dap, gdb, dlv, js-debug, rdbg, netcoredbg or a configured adapter table — so no launch could work',
+    remedy: `arm one — ${hints.join(' · ')} — then start a new session or /clear for the tool to join`,
+  }
 }
 
 const __dapFilename = fileURLToPath(import.meta.url)

@@ -981,6 +981,7 @@
         "latency": "interactive",
         "gate": "MERCURY_GODOT_TOOLS",
         "conditions": [
+          "a Godot executable (PATH, a well-known install root, or MERCURY_GODOT_EXECUTABLE)",
           "a project.godot root",
           "the mercury_vulcan addon listening on loopback"
         ],

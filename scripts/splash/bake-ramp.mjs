@@ -1,10 +1,18 @@
 #!/usr/bin/env bun
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const SPLASH = join(here, '..', '..', 'assets', 'splash', 'splash-core.mjs')
+const ROW = {
+  assets: 'assets/splash/splash-core.mjs',
+  generator: 'bun scripts/splash/bake-ramp.mjs',
+  check: 'bun scripts/splash/bake-ramp.mjs --check',
+  sources: 'src/utils/mercuryTokens.ts src/components/mercury-ui/focalRamp.ts',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 
 const { TERRA, BELLY, IVORY, CLAW } = await import('../../src/components/mercuryPalette.ts')
 const { deriveAccentSoft, deriveFocalRamp } = await import('../../src/utils/mercuryTokens.ts')
@@ -121,4 +129,5 @@ if (process.argv.includes('--check')) {
   process.exit(1)
 }
 writeFileSync(SPLASH, next)
+registerGeneratedAsset(ROW)
 console.log(`bake-ramp: wrote RAMP (${RAMP.length} stops) + ${FIXTURE.length} fixture anchors + ${TRUTH.length} truth rows + ${Object.keys(FAMILIES).length} accent families (default ${DEFAULT_KEY})`)

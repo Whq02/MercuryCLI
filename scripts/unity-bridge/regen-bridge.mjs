@@ -2,11 +2,19 @@
 import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { fileURLToPath } from 'node:url'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const bridgeRoot = join(repo, 'assets', 'unity', 'bridge')
 const outPath = join(repo, 'src', 'services', 'unity', 'bridgeFiles.generated.ts')
+const ROW = {
+  assets: relative(repo, outPath),
+  generator: 'node scripts/unity-bridge/regen-bridge.mjs',
+  check: 'node scripts/unity-bridge/regen-bridge.mjs --check',
+  sources: 'assets/unity/bridge/**',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 
 const KEEP_SLASH = /^\s*\/\/\s*(gate-(class|watch|env|inputs):|@ts-|eslint|prettier|#|<reference)/
 function publishedSource(path, text) {
@@ -96,4 +104,5 @@ if (process.argv.includes('--check')) {
 }
 
 writeFileSync(outPath, generated)
+registerGeneratedAsset(ROW)
 console.log(`regen-bridge: wrote ${outPath} (${files.length} files, digest ${digest.slice(0, 12)}…)`)

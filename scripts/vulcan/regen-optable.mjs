@@ -1,13 +1,21 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { fileURLToPath } from 'node:url'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const srcPath = join(repo, 'assets', 'vulcan', 'optable.json')
 const outPath = join(repo, 'src', 'utils', 'vulcan', 'optable.generated.ts')
 const gdOutPath = join(repo, 'assets', 'vulcan', 'addon', 'core', 'op_classes.gd')
+const ROW = {
+  assets: [relative(repo, outPath), relative(repo, gdOutPath)],
+  generator: 'node scripts/vulcan/regen-optable.mjs',
+  check: 'node scripts/vulcan/regen-optable.mjs --check',
+  sources: relative(repo, srcPath),
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 
 const raw = readFileSync(srcPath, 'utf8')
 const digest = createHash('sha256').update(raw).digest('hex')
@@ -124,4 +132,5 @@ if (process.argv.includes('--check')) {
 
 writeFileSync(outPath, generated)
 writeFileSync(gdOutPath, gdGenerated)
+registerGeneratedAsset(ROW)
 console.log(`regen-optable: wrote ${outPath} + ${gdOutPath} (${ops.length} ops, digest ${digest.slice(0, 12)}…)`)

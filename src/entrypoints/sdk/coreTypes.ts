@@ -4,7 +4,7 @@ export type {
   SandboxFilesystemConfig,
   SandboxIgnoreViolations,
 } from '../sandboxTypes.js'
-export * from './coreTypes.generated.js'
+export * from './coreTypesInferred.js'
 
 export const MERCURY_SDK_CONTRACT_VERSION = 3
 

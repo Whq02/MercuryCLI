@@ -12,9 +12,14 @@ confused.
 ## Arming
 
 One switch, `MERCURY_GODOT_TOOLS=1` (the boot menu's Godot row). Off is
-byte-identical to a build without the tool. Inside a project — a
-`project.godot` at or above the working directory — the tool joins the
-catalog; without one every op answers with a teaching line.
+byte-identical to a build without the tool. On, the tool joins the
+catalog when a Godot executable is on this machine — on `PATH`, under a
+well-known install root, seen running, or pinned with
+`MERCURY_GODOT_EXECUTABLE` (a pin that names no executable file counts as
+none); without one the tool is withheld and the `Tools withheld` row of
+`mercury doctor` says so. Inside a project — a `project.godot` at or
+above the working directory — the ops work; without one every op answers
+with a teaching line.
 
 The bridge half needs the addon installed (`op:"vulcan_install"`) and the
 editor open with it loaded; `op:"vulcan_status"` names the state (no

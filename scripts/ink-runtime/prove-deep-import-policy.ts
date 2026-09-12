@@ -1,10 +1,18 @@
 #!/usr/bin/env bun
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const INVENTORY = join(import.meta.dir, 'deep-import-inventory.json')
 const record = process.argv.includes('--record')
+const ROW = {
+  assets: 'scripts/ink-runtime/deep-import-inventory.json',
+  generator: 'bun scripts/ink-runtime/prove-deep-import-policy.ts --record',
+  check: 'bun scripts/ink-runtime/prove-deep-import-policy.ts',
+  sources: 'src/**/*.{ts,tsx} scripts/**/*.{ts,tsx}',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -64,6 +72,7 @@ if (record) {
     if (g.modules.length === 0) delete inv.groups[name]
   }
   writeFileSync(INVENTORY, JSON.stringify(inv, null, 2) + '\n')
+  registerGeneratedAsset(ROW)
   console.log(`  recorded → ${INVENTORY} (+${additions.length} new, grouped inventory)`)
 } else {
   check('inventory exists (run --record once)', existsSync(INVENTORY))

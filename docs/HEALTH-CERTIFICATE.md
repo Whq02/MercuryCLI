@@ -52,6 +52,19 @@ A fast run certifies these sections (section id · title):
 | `router-fast` | ROUTER |
 | `architecture-fast` | ARCHITECTURE PRIMITIVES |
 
+RUNTIME's `Device headroom` row is joined by `Box lock`: the coordination
+directory of the box lock (`MERCURY_BOX_LOCK_DIR`), the slots held and by
+whom, and the tickets waiting — or the plain word that no lock directory is
+named. The resource `mercury://health/box` gives an agent the same reading
+live, with the memory guard's verdict on its own session.
+
+TOOL CAPABILITY carries the `Tools withheld` check: every built-in tool kept
+out of the model's catalog because a machine dependency is absent — a debug
+adapter for Debug, a Godot executable for Godot, the desktop driver for
+Computer, the search binary for Grep and Glob — with why and the remedy;
+the withheld tools also appear in `readiness[]` as `tool:withheld:<name>`
+rows. With nothing withheld the row says so and names what it checks.
+
 CREW & DAEMONS carries the `Store isolation` check, which reads the config
 home's harness records by Mercury's own fingerprint: a daemon-plane record carrying no Mercury
 fingerprint was written by another tool and is reported with its evidence

@@ -1,10 +1,18 @@
 #!/usr/bin/env bun
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 
 const ROOT = path.resolve(import.meta.dir, '../..')
 const OUT = path.join(ROOT, 'scripts/compositor/fixtures/surface-census.md')
 const WRITE = process.argv.includes('--write')
+const ROW = {
+  assets: path.relative(ROOT, OUT),
+  generator: 'bun scripts/compositor/prove-surface-census.ts --write',
+  check: 'bun scripts/compositor/prove-surface-census.ts',
+  sources: 'src/commands/** src/interactiveHelpers.tsx src/screens/ResumeConversation.tsx src/ink/components/AlternateScreen.tsx src/entrypoints/cli.tsx scripts/compositor/prove-surface-census.ts',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 
 let fail = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
@@ -208,6 +216,7 @@ for (const b of boot) {
 
 if (WRITE) {
   writeFileSync(OUT, generated)
+  registerGeneratedAsset(ROW)
   console.log(`\nwrote ${path.relative(ROOT, OUT)}`)
 } else {
   const committed = existsSync(OUT) ? readFileSync(OUT, 'utf8') : ''

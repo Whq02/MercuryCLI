@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: src/daemon/** src/substrate/flagRegistry* src/types/permissions*
+# gate-watch: src/utils/boxLock* src/services/resources/adapters/health*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -12,6 +13,7 @@ echo "############################################################"
 echo "# Mercury daemon — proof harness"
 echo "############################################################"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-pty-degrade.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-pty-degrade.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-box-facts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-box-facts.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-supervisor-lock.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-supervisor-lock.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-verbs.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-verbs.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-signin-live.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-signin-live.ts" "$__t" "$__rc"

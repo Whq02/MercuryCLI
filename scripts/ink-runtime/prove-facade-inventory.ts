@@ -1,12 +1,20 @@
 #!/usr/bin/env bun
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import ts from 'typescript'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const FACADE = join(ROOT, 'src', 'ink.ts')
 const INVENTORY = join(import.meta.dir, 'facade-inventory.json')
 const record = process.argv.includes('--record')
+const ROW = {
+  assets: 'scripts/ink-runtime/facade-inventory.json',
+  generator: 'bun scripts/ink-runtime/prove-facade-inventory.ts --record',
+  check: 'bun scripts/ink-runtime/prove-facade-inventory.ts',
+  sources: 'src/ink.ts',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -86,6 +94,7 @@ check(
 
 if (record) {
   writeFileSync(INVENTORY, JSON.stringify({ exports: scanned }, null, 2) + '\n')
+  registerGeneratedAsset(ROW)
   console.log(`  recorded ${scanned.length} exports → ${INVENTORY}`)
 } else {
   check('inventory file exists (run --record once)', existsSync(INVENTORY))

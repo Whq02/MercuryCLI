@@ -16,6 +16,7 @@ import { collapseHookSummaries } from '../../utils/collapseHookSummaries.js'
 import { collapseTeammateShutdowns } from '../../utils/collapseTeammateShutdowns.js'
 import { collapseBackgroundBashNotifications } from '../../utils/collapseBackgroundBashNotifications.js'
 import { injectTurnReceipts } from '../../utils/cockpit/turnReceipt.js'
+import { getMercuryTempDir } from '../../utils/permissions/filesystem.js'
 import {
   isNullRenderingAttachment,
   isNullRenderingSystemRow,
@@ -267,7 +268,7 @@ export function deriveTranscriptRows(
   )
   const { messages: grouped } = applyGrouping(prepared, tools, false)
   const collapsed = collapseBackgroundBashNotifications(
-    collapseHookSummaries(collapseTeammateShutdowns(collapseReadSearchGroups(injectTurnReceipts(grouped), tools))),
+    collapseHookSummaries(collapseTeammateShutdowns(collapseReadSearchGroups(injectTurnReceipts(grouped, getMercuryTempDir()), tools))),
     false,
   )
   const lookups = buildMessageLookups(normalized, messages)

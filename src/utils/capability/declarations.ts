@@ -201,7 +201,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     cancellation: 'cooperative',
     latency: 'interactive',
     gate: 'MERCURY_GODOT_TOOLS',
-    conditions: ['a project.godot root', 'the mercury_vulcan addon listening on loopback'],
+    conditions: ['a Godot executable (PATH, a well-known install root, or MERCURY_GODOT_EXECUTABLE)', 'a project.godot root', 'the mercury_vulcan addon listening on loopback'],
     proof: 'scripts/vulcan/run-all.sh',
   },
   Grep: {

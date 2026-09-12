@@ -159,6 +159,25 @@ const FACTS: KeyTable = {
   streamIdleTimeoutMs: 'stream_idle_timeout_ms',
   spawnSwitches: 'spawn_switches',
 }
+const BOX: KeyTable = {
+  atMs: 'at_ms',
+  loadPerCore: 'load_per_core',
+  lockNote: 'lock_note',
+}
+const BOX_MEMORY: KeyTable = {
+  availableMb: 'available_mb',
+  totalMb: 'total_mb',
+}
+const BOX_WAITER: KeyTable = {
+  waitedS: 'waited_s',
+}
+
+function boxNested(memory: KeyTable, waiter: KeyTable): (out: Row) => void {
+  return out => {
+    if (isRow(out.memory)) out.memory = renamed(out.memory, memory)
+    if (isRow(out.lock) && Array.isArray(out.lock.waiters)) out.lock = { ...out.lock, waiters: rows(out.lock.waiters, waiter) }
+  }
+}
 
 function usageNested(table: KeyTable, bandTable: KeyTable, observedKey: string): (out: Row) => void {
   return out => {
@@ -216,6 +235,7 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
   const samplesKey = 'samples'
   const noticesKey = 'notices'
   const kitKey = 'kit'
+  const boxKey = 'box'
   const editsKey = direction === 'to' ? 'pending_schedule_edits' : 'pendingScheduleEdits'
   const observedKey = direction === 'to' ? 'openai_observed' : 'openaiObserved'
   return out => {
@@ -227,6 +247,7 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
     if (samplesKey in out) out[samplesKey] = rows(out[samplesKey], t(SAMPLE_ROW))
     if (noticesKey in out) out[noticesKey] = rows(out[noticesKey], t(NOTICE_ROW))
     if (kitKey in out) out[kitKey] = row(out[kitKey], t(KIT), kitNested(t(KIT_DELTAS)))
+    if (boxKey in out) out[boxKey] = row(out[boxKey], t(BOX), boxNested(t(BOX_MEMORY), t(BOX_WAITER)))
     if (editsKey in out) out[editsKey] = rows(out[editsKey], t(SCHEDULE_EDIT), scheduleEditNested(t(SUBMISSION), t(WHEN), t(ACTION), t(BIRTH)))
   }
 }

@@ -68,8 +68,12 @@ export function delegatedSpendLine(c: TurnReceiptCounts): string | null {
   return `${parts.join(' · ')}${unpriced}`
 }
 
-export function isScratchpadPath(p: string): boolean {
-  return /(^|\/)scratchpad(\/|$)/.test(p)
+export function isScratchpadPath(p: string, tempRoot: string): boolean {
+  const slashes = (value: string): string => value.replace(/\\/g, '/')
+  const root = slashes(tempRoot).replace(/\/+$/, '') + '/'
+  const path = slashes(p)
+  if (!path.startsWith(root)) return false
+  return /\/scratchpad(\/|$)/.test(path.slice(root.length - 1))
 }
 
 type LooseMessage = {
@@ -106,13 +110,13 @@ function countDelegatedResult(m: LooseMessage, c: TurnReceiptCounts): void {
   else c.delegatedUnpriced += 1
 }
 
-function countEditResult(m: LooseMessage, c: TurnReceiptCounts): void {
+function countEditResult(m: LooseMessage, c: TurnReceiptCounts, tempRoot: string): void {
   const r = m.toolUseResult as
     | { filePath?: unknown; structuredPatch?: unknown; noChange?: unknown; type?: unknown }
     | undefined
   if (!r || typeof r.filePath !== 'string' || !Array.isArray(r.structuredPatch)) return
   if (r.noChange !== undefined || r.type === 'no-change') return
-  if (isScratchpadPath(r.filePath)) c.scratchpadEdits += 1
+  if (isScratchpadPath(r.filePath, tempRoot)) c.scratchpadEdits += 1
   else c.fileEdits += 1
   for (const hunk of r.structuredPatch as Array<{ lines?: unknown }>) {
     if (!Array.isArray(hunk?.lines)) continue
@@ -139,7 +143,7 @@ function makeReceipt(counts: TurnReceiptCounts, anchorUuid: string): TurnReceipt
   return { type: 'turn_receipt', uuid: `${anchorUuid}-turn-receipt`, counts }
 }
 
-export function injectTurnReceipts(messages: RenderableMessage[]): RenderableMessage[] {
+export function injectTurnReceipts(messages: RenderableMessage[], tempRoot: string): RenderableMessage[] {
   if (!isTurnReceiptEnabled()) return messages
   const out: RenderableMessage[] = []
   let counts = emptyCounts()
@@ -154,12 +158,12 @@ export function injectTurnReceipts(messages: RenderableMessage[]): RenderableMes
     out.push(raw)
     if (m.type === 'assistant') countToolUses(m, counts)
     else if (m.type === 'user') {
-      countEditResult(m, counts)
+      countEditResult(m, counts, tempRoot)
       countDelegatedResult(m, counts)
     } else if (m.type === 'grouped_tool_use') {
       for (const inner of m.messages ?? []) countToolUses(inner, counts)
       for (const res of m.results ?? []) {
-        countEditResult(res, counts)
+        countEditResult(res, counts, tempRoot)
         countDelegatedResult(res, counts)
       }
     }
