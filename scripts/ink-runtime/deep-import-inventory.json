@@ -114,6 +114,12 @@
       "modules": [
         "constants"
       ]
+    },
+    "unclassified": {
+      "why": "UNCLASSIFIED — justify into a real group or re-route through the facade",
+      "modules": [
+        "components/InkInstanceContext"
+      ]
     }
   }
 }
