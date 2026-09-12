@@ -2,7 +2,7 @@ import { constants, closeSync, fstatSync, lstatSync, mkdirSync, mkdtempSync, ope
 import * as path from 'node:path'
 import { inflateSync } from 'node:zlib'
 import { decodePng, downscaleRgba, encodePng, type RgbaImage } from '../../../tools/FileReadTool/imageProcessorJs.js'
-import { engineRunPath, engineRunsDir } from './paths.js'
+import { engineFramesDirPrefix, engineRunPath, engineRunResultFile, engineRunsDir, ensureEngineEstate, isEngineJobId } from './paths.js'
 
 const MAX_FILE_BYTES = 32 * 1024 * 1024
 const MAX_PIXELS = 4 * 1024 * 1024
@@ -160,12 +160,8 @@ function artifactDirectory(projectRoot: string): string {
     const stat = lstatSync(directory)
     if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error(`Engine run estate cannot use a linked or non-directory path: ${directory}`)
   }
-  try {
-    writeFileSync(path.join(path.dirname(runs), '.gdignore'), '', { flag: 'wx', mode: 0o600 })
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-  }
-  return mkdtempSync(path.join(runs, 'frames-'))
+  ensureEngineEstate(root)
+  return mkdtempSync(engineFramesDirPrefix(root))
 }
 
 function artifact<T>(projectRoot: string, write: (directory: string) => T): T {
@@ -382,11 +378,11 @@ function contactSheet(args: Record<string, unknown>, root: string): object {
   let paths: string[]
   if (args.id !== undefined) {
     const id = text(args.id, 'id')
-    if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(id)) throw new Error('id must be a run identifier, not a path')
+    if (!isEngineJobId(id)) throw new Error('id must be a run identifier, not a path')
     const runs = realpathSync(engineRunsDir(root))
     const run = realpathSync(engineRunPath(root, id))
     if (!inside(runs, run)) throw new Error('Run path escapes the engine run estate')
-    const resultPath = realpathSync(path.join(run, 'result.json'))
+    const resultPath = realpathSync(engineRunResultFile(run))
     if (!inside(run, resultPath)) throw new Error('Run result escapes its run directory')
     const record: unknown = JSON.parse(boundedFile(resultPath, 4 * 1024 * 1024).toString('utf8'))
     if (!record || typeof record !== 'object' || Array.isArray(record) || !('frames' in record) || !Array.isArray(record.frames) || record.frames.length < 1 || record.frames.length > MAX_FRAMES) throw new Error(`Run result must list 1..${MAX_FRAMES} frames`)

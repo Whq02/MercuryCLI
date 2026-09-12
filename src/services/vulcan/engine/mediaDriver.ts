@@ -2,16 +2,17 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { engineMediaArgv } from './argv.js'
 import type { EngineMediaRequest } from './media.js'
+import { engineMediaBootFile, engineMediaConfigFile, engineMediaDir, engineMediaDriverFile } from './paths.js'
 
 export const ENGINE_MEDIA_MARKER = 'MERCURY MEDIA PASS'
 
 export function writeEngineMediaDriver(runDir: string, treePath: string, request: EngineMediaRequest, variant: string, debuggerConnection?: { port: number; token: string }): { argv: string[]; outputDir: string; resultFile: string } {
   if (request.route === 'hidden') throw new Error('hidden capture refused: stock Godot shows its native bootstrap window before scripts initialize; no verified hidden native bootstrap is available. Use headless with mercury_media_capture returning Image, or explicitly request route:"display".')
-  const outputDir = path.join(runDir, 'media', variant)
+  const outputDir = engineMediaDir(runDir, variant)
   mkdirSync(outputDir, { recursive: true })
-  const resultFile = path.join(outputDir, 'boot.json')
-  const configFile = path.join(outputDir, 'request.json')
-  const scriptFile = path.join(outputDir, 'driver.gd')
+  const resultFile = engineMediaBootFile(runDir, variant)
+  const configFile = engineMediaConfigFile(runDir, variant)
+  const scriptFile = engineMediaDriverFile(runDir, variant)
   writeFileSync(configFile, JSON.stringify({ ...request, variant, outputDir, resultFile, debuggerConnection }))
   writeFileSync(scriptFile, ENGINE_MEDIA_DRIVER)
   const argv = engineMediaArgv(treePath, { headless: request.route === 'headless', fixedFps: request.kind === 'capture' ? request.clock.fps : null, debuggerPort: debuggerConnection?.port ?? null, script: scriptFile, config: configFile })
