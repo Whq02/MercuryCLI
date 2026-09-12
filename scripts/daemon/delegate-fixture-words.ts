@@ -1,0 +1,12 @@
+export const SPEND_ASK = 'spend the window'
+export const SUBAGENT_ASK = 'say done'
+export const SUBAGENT_REPLY = 'done: the delegate answered from the fixture'
+export const ERRAND_ASK = 'run the errand'
+export const ERRAND_LAUNCHED = 'done: the errand is launched'
+export const NOTICE_REPLY = 'noted: the errand reported'
+export const DELEGATE_SPEND_ASK = 'delegate the spend'
+export const DELEGATE_ASK = 'delegate the errand'
+export const DELEGATE_REPORT = 'the delegate reported:'
+export const GPT_ID = 'gpt-5.6-sol'
+export const DELEGATE_MODEL = 'claude-opus-5'
+export const RESET_IN_SECONDS = 7200
