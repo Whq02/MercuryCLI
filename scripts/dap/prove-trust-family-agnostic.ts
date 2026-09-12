@@ -143,10 +143,11 @@ async function main(): Promise<void> {
     delete process.env.MERCURY_DAP
     delete process.env.MERCURY_LSP
     delete process.env.MERCURY_LSP_CPP
+    process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ planted: { command: process.execPath, args: ['-e', '0'] } })
     for (const [label, model] of FAMILY_PLANTS) {
       const dap = withModelEnv(model, () => isDapToolCatalogEnabled())
       const cpp = withModelEnv(model, () => mercuryLspCppEnabled())
-      check(`${label}: Debug catalog gate answers true (default-on)`, dap === true)
+      check(`${label}: Debug catalog gate answers true (default-on, an adapter reachable)`, dap === true)
       check(`${label}: clangd lane gate answers true (default-on)`, cpp === true)
     }
     process.env.MERCURY_DAP = '0'

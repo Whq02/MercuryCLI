@@ -1,6 +1,7 @@
 
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { findGodotProjectRoot } from '../../services/lsp/godotLane.js'
+import { godotExecutablePresence } from '../../services/vulcan/portabilityDoctor.js'
 import { logForDebugging } from '../debug.js'
 
 export const VULCAN_DEFAULT_PORT = 6010
@@ -10,7 +11,15 @@ export function vulcanEnabled(): boolean {
 }
 
 export function vulcanToolCatalogEnabled(): boolean {
-  return vulcanEnabled()
+  return vulcanEnabled() && godotExecutablePresence().present
+}
+
+export type ToolWithholding = { withheld: false } | { withheld: true; why: string; remedy: string }
+
+export function godotToolWithholding(): ToolWithholding {
+  if (!vulcanEnabled()) return { withheld: false }
+  const presence = godotExecutablePresence()
+  return presence.present ? { withheld: false } : { withheld: true, why: presence.note, remedy: presence.remedy }
 }
 
 export function vulcanPort(): number {

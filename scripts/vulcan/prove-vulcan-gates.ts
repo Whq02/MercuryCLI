@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -21,6 +21,7 @@ function restoreEnv(): void {
   }
   Object.assign(process.env, savedEnv)
   delete process.env.MERCURY_GODOT_TOOLS
+  delete process.env.MERCURY_GODOT_EXECUTABLE
   delete process.env.MERCURY_GODOT_TOOLS_LITE
   delete process.env.MERCURY_GODOT_TOOLS_PORT
   delete process.env.MERCURY_GODOT_TOOLS_TOKEN
@@ -44,6 +45,10 @@ writeFileSync(
   '[application]\n\nconfig/name="fixture"\n',
 )
 const hasGodot = () => getAllBaseTools().some(t => t.name === 'Godot')
+const { _resetGodotExecutablePresenceForTesting: resetGodotPresence } = await import('../../src/services/vulcan/portabilityDoctor.js')
+const godotBin = path.join(scratch, 'godot')
+writeFileSync(godotBin, '#!/bin/sh\nexit 0\n')
+chmodSync(godotBin, 0o755)
 
 section('§1 · OFF (default) — byte-identical absence')
 {
@@ -63,9 +68,19 @@ section('§2 · ARMED — tool + seams + token hygiene')
   restoreEnv()
   resetVulcanClientForTest()
   process.env.MERCURY_GODOT_TOOLS = '1'
+  process.env.MERCURY_GODOT_EXECUTABLE = godotBin
+  resetGodotPresence()
   check('gate ON', gates.vulcanEnabled())
   check('Godot tool present inside a project', runWithCwdOverride(proj, () => hasGodot()))
   check('Godot tool present outside a project too (the flag seats it; the project is answered at call time)', runWithCwdOverride(scratch, () => hasGodot()))
+  process.env.MERCURY_GODOT_EXECUTABLE = path.join(scratch, 'no-such-godot')
+  resetGodotPresence()
+  check('with no Godot executable on the machine the tool is withheld from the catalog, flag or no flag', runWithCwdOverride(proj, () => !hasGodot()))
+  const withholding = gates.godotToolWithholding()
+  check('…and the withholding names the pin that names no executable', withholding.withheld === true && withholding.why.includes('MERCURY_GODOT_EXECUTABLE') && withholding.remedy.length > 0, JSON.stringify(withholding))
+  process.env.MERCURY_GODOT_EXECUTABLE = godotBin
+  resetGodotPresence()
+  check('the executable back, the tool is seated again', runWithCwdOverride(proj, () => hasGodot()))
   const outside = (await runWithCwdOverride(scratch, () => GodotTool.call({ op: 'vulcan_status' } as never, {} as never, {} as never, {} as never))) as { data: { result: string } }
   check('outside a project every op answers the teaching note, never a ghost surface', outside.data.result.includes('no project.godot found from the working directory'), outside.data.result.slice(0, 120))
   check('prompt section renders inside a project', runWithCwdOverride(proj, () => (gates.getVulcanSection() ?? '').includes('VULCAN')))

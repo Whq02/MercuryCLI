@@ -2,6 +2,7 @@
 import { accessSync, constants, existsSync, readdirSync, readFileSync, statSync } from 'fs'
 import { delimiter, join, posix as pathPosix, win32 as pathWin32 } from 'path'
 import { projectConfigCandidates } from '../../utils/projectConfig.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   censusPlatform,
   editorsForProject,
@@ -25,7 +26,7 @@ export interface ControlDiscrepancy {
 
 export interface ExecutableReceipt {
   resolved?: string
-  source: 'running-editor' | 'PATH' | 'well-known-location' | 'not-found'
+  source: 'pin' | 'running-editor' | 'PATH' | 'well-known-location' | 'not-found'
   note: string
   probed: string[]
 }
@@ -199,25 +200,48 @@ export interface ResolveGodotOptions {
   fs?: RootWalkFs
 }
 
-export async function resolveGodotExecutable(opts: ResolveGodotOptions = {}): Promise<ExecutableReceipt> {
-  const platform = opts.platform ?? censusPlatform()
-  const env = opts.env ?? process.env
-  const fs = opts.fs ?? realRootWalkFs
-  const census = opts.census ?? (await runningGodotProcesses({ platform }))
-  const probed = godotWellKnownRoots(platform, env)
+let lastExecutableReceipt: ExecutableReceipt | null = null
 
-  const mine = opts.projectRoot ? editorsForProject(census, opts.projectRoot, platform).filter(p => p.project) : []
-  if (mine[0]) {
-    return { resolved: mine[0].executable, source: 'running-editor', note: `the running editor's own executable (pid ${mine[0].pid}, this project)`, probed }
-  }
+function pinnedGodotExecutable(pinned: string | undefined, fs: RootWalkFs, probed: string[]): ExecutableReceipt | null {
+  const pin = (pinned ?? '').trim()
+  if (pin === '') return null
+  if (fs.executable(pin)) return { resolved: pin, source: 'pin', note: 'pinned by MERCURY_GODOT_EXECUTABLE', probed }
+  return { source: 'not-found', note: `MERCURY_GODOT_EXECUTABLE names ${pin}, which is not an executable file — fix or unset the pin`, probed }
+}
+
+function godotOnPath(platform: CensusPlatform, env: NodeJS.ProcessEnv, fs: RootWalkFs): { path: string; note: string } | undefined {
   const names = platform === 'win32' ? ['godot.exe', 'godot4.exe'] : ['godot', 'godot4']
   const joinPath = joinerFor(platform)
   for (const dir of (env.PATH ?? '').split(platform === 'win32' ? ';' : delimiter).filter(Boolean)) {
     for (const name of names) {
       const candidate = joinPath(dir, name)
-      if (fs.executable(candidate)) return { resolved: candidate, source: 'PATH', note: `resolved via PATH (${dir})`, probed }
+      if (fs.executable(candidate)) return { path: candidate, note: `resolved via PATH (${dir})` }
     }
   }
+  return undefined
+}
+
+export async function resolveGodotExecutable(opts: ResolveGodotOptions = {}): Promise<ExecutableReceipt> {
+  const receipt = await resolveGodotExecutableNow(opts)
+  lastExecutableReceipt = receipt
+  return receipt
+}
+
+async function resolveGodotExecutableNow(opts: ResolveGodotOptions): Promise<ExecutableReceipt> {
+  const platform = opts.platform ?? censusPlatform()
+  const env = opts.env ?? process.env
+  const fs = opts.fs ?? realRootWalkFs
+  const probed = godotWellKnownRoots(platform, env)
+  const pinned = pinnedGodotExecutable(opts.env === undefined ? flagEnv('MERCURY_GODOT_EXECUTABLE') : env.MERCURY_GODOT_EXECUTABLE, fs, probed)
+  if (pinned !== null) return pinned
+  const census = opts.census ?? (await runningGodotProcesses({ platform }))
+
+  const mine = opts.projectRoot ? editorsForProject(census, opts.projectRoot, platform).filter(p => p.project) : []
+  if (mine[0]) {
+    return { resolved: mine[0].executable, source: 'running-editor', note: `the running editor's own executable (pid ${mine[0].pid}, this project)`, probed }
+  }
+  const onPath = godotOnPath(platform, env, fs)
+  if (onPath !== undefined) return { resolved: onPath.path, source: 'PATH', note: onPath.note, probed }
   for (const root of probed) {
     const found = findGodotInRoot(root, platform, fs)
     if (found) return { resolved: found, source: 'well-known-location', note: `resolved under ${root}`, probed }
@@ -236,6 +260,52 @@ export async function resolveGodotExecutable(opts: ResolveGodotOptions = {}): Pr
     note: `no godot executable on PATH, under ${probed.length} well-known root(s), or running — install Godot or add it to PATH`,
     probed,
   }
+}
+
+export type GodotExecutablePresence =
+  | { present: true; path: string; source: ExecutableReceipt['source']; note: string }
+  | { present: false; note: string; remedy: string }
+
+const PRESENCE_MEMO_MS = 30_000
+let presenceMemo: { key: string; at: number; value: GodotExecutablePresence } | null = null
+
+export function _resetGodotExecutablePresenceForTesting(): void {
+  presenceMemo = null
+  lastExecutableReceipt = null
+}
+
+function godotExecutablePresenceNow(): GodotExecutablePresence {
+  const platform = censusPlatform()
+  const fs = realRootWalkFs
+  const probed = godotWellKnownRoots(platform, process.env)
+  const pinned = pinnedGodotExecutable(flagEnv('MERCURY_GODOT_EXECUTABLE'), fs, probed)
+  if (pinned !== null) {
+    return pinned.resolved !== undefined
+      ? { present: true, path: pinned.resolved, source: pinned.source, note: pinned.note }
+      : { present: false, note: pinned.note, remedy: 'point MERCURY_GODOT_EXECUTABLE at the Godot binary, or unset it' }
+  }
+  const onPath = godotOnPath(platform, process.env, fs)
+  if (onPath !== undefined) return { present: true, path: onPath.path, source: 'PATH', note: onPath.note }
+  for (const root of probed) {
+    const found = findGodotInRoot(root, platform, fs)
+    if (found) return { present: true, path: found, source: 'well-known-location', note: `resolved under ${root}` }
+  }
+  if (lastExecutableReceipt?.resolved !== undefined) {
+    return { present: true, path: lastExecutableReceipt.resolved, source: lastExecutableReceipt.source, note: lastExecutableReceipt.note }
+  }
+  return {
+    present: false,
+    note: `no Godot executable on PATH or under ${probed.length} well-known install root(s)`,
+    remedy: 'install Godot, add it to PATH, or pin it with MERCURY_GODOT_EXECUTABLE',
+  }
+}
+
+export function godotExecutablePresence(now: number = Date.now()): GodotExecutablePresence {
+  const key = [flagEnv('MERCURY_GODOT_EXECUTABLE') ?? '', process.env.PATH ?? '', process.env.HOME ?? '', process.env.USERPROFILE ?? '', lastExecutableReceipt?.resolved ?? ''].join('\u0000')
+  if (presenceMemo !== null && presenceMemo.key === key && now - presenceMemo.at < PRESENCE_MEMO_MS) return presenceMemo.value
+  const value = godotExecutablePresenceNow()
+  presenceMemo = { key, at: now, value }
+  return value
 }
 
 function projectSkillFiles(projectRoot: string): string[] {
