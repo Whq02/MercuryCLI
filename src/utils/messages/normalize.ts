@@ -137,6 +137,7 @@ export function normalizeMessages(messages: Message[]): NormalizedMessage[] {
               origin: message.origin,
             }),
             ...(message.queued === true ? { queued: true as const } : {}),
+            ...(message.heldFor === 'compaction' ? { heldFor: 'compaction' as const } : {}),
             uuid: isNewChain ? deriveUUID(message.uuid, index) : message.uuid,
           } as NormalizedMessage
         })
