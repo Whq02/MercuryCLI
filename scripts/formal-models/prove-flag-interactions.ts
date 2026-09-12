@@ -18,6 +18,7 @@ const { fsyncEnabled } = await import('../../src/substrate/durablePublish.ts')
 const { decideSplashReceipt } = await import('../../src/substrate/splashHandover.ts')
 const { resolveConcoursePolicy } = await import('../../src/context/surfaceRoute.ts')
 const { bornSpawnSwitch } = await import('../../src/services/switchboard/spawnSwitches.ts')
+const { resolveComputerAccess } = await import('../../src/substrate/startupMenu.ts')
 
 const byEnv = new Map(FLAG_REGISTRY.map(f => [f.env, f]))
 
@@ -100,6 +101,8 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_SESSION_SUBAGENTS: ['', '0'],
   MERCURY_SESSION_WORKFLOWS: ['', '0'],
   MERCURY_COMPUTER_USE: ['', '0'],
+  MERCURY_COMPUTER_ACCESS: ['', 'asks', 'permissive', 'full'],
+  MERCURY_SKIP_PERMISSIONS: ['', '1'],
   MERCURY_DESKTOP_DRIVER: ['', 'fake'],
   MERCURY_DESKTOP_FAKE_SCENE: ['', '/tmp/sweep-scene.json'],
   MERCURY_DESKTOP_FAKE_LOG: ['', '/tmp/sweep-acts.jsonl'],
@@ -225,6 +228,16 @@ function probeVector(clusterName: string, cluster: string[], vec: string[]): voi
         assertionFailures++
         console.log(`     bornSpawnSwitch(${kind}) = ${JSON.stringify(born)} ≠ on:${expectOn(env)} source:${wantSource} under ${JSON.stringify(vec)}`)
       }
+    }
+  }
+  if (clusterName === 'cross:MERCURY_COMPUTER_ACCESS×MERCURY_SKIP_PERMISSIONS' || clusterName === 'cross:MERCURY_COMPUTER_ACCESS×MERCURY_COMPUTER_USE') {
+    const savedAccess = val('MERCURY_COMPUTER_ACCESS')
+    const sovereign = flagEnabled('MERCURY_SKIP_PERMISSIONS')
+    const got = resolveComputerAccess(flagEnv('MERCURY_COMPUTER_ACCESS'), sovereign)
+    const want = savedAccess !== '' ? { value: savedAccess, source: 'saved' } : sovereign ? { value: 'full', source: 'sovereign mode' } : { value: 'asks', source: 'default' }
+    if (JSON.stringify(got) !== JSON.stringify(want)) {
+      assertionFailures++
+      console.log(`     resolveComputerAccess = ${JSON.stringify(got)} ≠ ${JSON.stringify(want)} under ${JSON.stringify(vec)}`)
     }
   }
   if (clusterName === 'splash-handover') {

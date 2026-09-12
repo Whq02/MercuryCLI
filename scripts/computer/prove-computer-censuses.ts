@@ -43,10 +43,12 @@ section('§3 the flag rows')
   check("MERCURY_DESKTOP_DRIVER is a value row consumed by the resolver", byEnv.get('MERCURY_DESKTOP_DRIVER')?.kind === 'value' && (byEnv.get('MERCURY_DESKTOP_DRIVER')?.consumer ?? '').includes('resolveDriver'))
   check("MERCURY_DESKTOP_FAKE_SCENE and MERCURY_DESKTOP_FAKE_LOG are value rows consumed by the fake driver", byEnv.get('MERCURY_DESKTOP_FAKE_SCENE')?.kind === 'value' && byEnv.get('MERCURY_DESKTOP_FAKE_LOG')?.kind === 'value' && byEnv.get('MERCURY_DESKTOP_FAKE_SCENE')?.consumer === 'src/services/desktop/fakeDesktopDriver.ts' && byEnv.get('MERCURY_DESKTOP_FAKE_LOG')?.consumer === 'src/services/desktop/fakeDesktopDriver.ts')
   check("MERCURY_DESKTOP_PACK_DIR is a value row consumed by the pack owner", byEnv.get('MERCURY_DESKTOP_PACK_DIR')?.kind === 'value' && (byEnv.get('MERCURY_DESKTOP_PACK_DIR')?.consumer ?? '').includes('desktop/pack'))
-  check('the retired computer-use access type is no registry row and the switch no longer names it', byEnv.get('MERCURY_COMPUTER_ACCESS') === undefined && !(gate?.interactsWith ?? []).includes('MERCURY_COMPUTER_ACCESS'), JSON.stringify(gate?.interactsWith))
+  const access = byEnv.get('MERCURY_COMPUTER_ACCESS')
+  check('MERCURY_COMPUTER_ACCESS is a value row consumed by the access owner, paired with the switch and the Sovereign mode row, its off words naming asks and Sovereign mode', access?.kind === 'value' && (access.consumer ?? '').includes('computerAccess') && (access.interactsWith ?? []).includes('MERCURY_COMPUTER_USE') && (access.interactsWith ?? []).includes('MERCURY_SKIP_PERMISSIONS') && (gate?.interactsWith ?? []).includes('MERCURY_COMPUTER_ACCESS') && /asks/.test(access.off ?? '') && /Sovereign mode/.test(access.off ?? ''), JSON.stringify(access))
+  check('its summary names the three values and the default that follows Sovereign mode', /'asks'/.test(access?.summary ?? '') && /'permissive'/.test(access?.summary ?? '') && /'full'/.test(access?.summary ?? '') && /follows Sovereign mode/.test(access?.summary ?? ''), access?.summary)
   const sovereign = byEnv.get('MERCURY_SKIP_PERMISSIONS')
-  check('the Sovereign mode row (the bypass posture) names computer use among what stops asking', /computer use/.test(sovereign?.summary ?? ''), sovereign?.summary)
-  const interacting = ['MERCURY_COMPUTER_USE', 'MERCURY_DESKTOP_DRIVER', 'MERCURY_DESKTOP_FAKE_SCENE', 'MERCURY_DESKTOP_FAKE_LOG']
+  check('the Sovereign mode row (the bypass posture) names computer use among what stops asking and the access type that follows it', /computer use/.test(sovereign?.summary ?? '') && (sovereign?.interactsWith ?? []).includes('MERCURY_COMPUTER_ACCESS'), sovereign?.summary)
+  const interacting = ['MERCURY_COMPUTER_USE', 'MERCURY_COMPUTER_ACCESS', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_DESKTOP_DRIVER', 'MERCURY_DESKTOP_FAKE_SCENE', 'MERCURY_DESKTOP_FAKE_LOG']
   let symmetric = true
   for (const env of interacting) {
     for (const ref of byEnv.get(env)?.interactsWith ?? []) {

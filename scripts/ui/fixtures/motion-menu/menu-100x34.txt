@@ -1,8 +1,8 @@
 
   (>_) MERCURY · boot menu
 
-  ↑ 8 more
-    Computer use                       default (on)
+  ↑ 9 more
+    Access type                        default (asks)
   samples
     Samples                            default (off)
   scale & spend

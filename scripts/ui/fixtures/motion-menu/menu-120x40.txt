@@ -9,7 +9,7 @@
 
    ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ … 18 more above                                                │  │ ❯ Motion                                   │
+   │ … 19 more above                                                │  │ ❯ Motion                                   │
    │   Project facts & decisions (MNEME)              default (off) │  │                                            │
    │   Repo generation (DAEDALUS)                     default (off) │  │ What it controls                           │
    │   Repo-gen planner model            default (ask per dispatch) │  │ The cockpit's idle motion — the mascot's   │
