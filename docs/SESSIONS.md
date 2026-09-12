@@ -389,6 +389,30 @@ provider's own refusal never becomes the reply. `MERCURY_OVERFLOW_RECOVERY=0`
 turns the recovery off; `MERCURY_AUTO_COMPACT=0` keeps the automatic fold off
 while leaving the pruning step and the plain line.
 
+## A line sent while the model works
+
+A plain line sent while a turn runs goes to the session at once and waits in
+the runner's own queue; its row paints under the composer with the plate
+`queued` and no clock. The runner reads that queue at every tool boundary of
+the running turn: once a tool round's results are in, and before the next
+request goes out, the line reaches the model with those results — introduced
+in Mercury's words ("The operator sent a new message while you were
+working:") and followed by what the message means for the active task: a
+correction applies before the affected work goes on, a question gets a brief
+answer and the task resumes, a stop or a replacement is followed, a separate
+task is kept for afterwards, the original objective stands unless the
+operator changes it, and the turn may not end without accounting for the
+message. Several lines sent before one boundary arrive together, each its
+own message, in the order sent. The row then lands in the transcript where
+the delivery happened, between the tool rows, and carries the clock the line
+was sent at, not the boundary's; a headless run (`-p
+--input-format=stream-json`) reads that clock from the user frame's
+`timestamp` and stamps the arrival when the frame carries none. A line sent
+after the turn's last tool round waits for the turn's end, as does a slash
+command sent at any point of the turn; lines that arrive between turns are
+joined into one row as before; esc interrupts the turn and anything still
+queued runs as the next turn.
+
 ## A line sent while the session compacts
 
 A line sent while the session's runner is folding (by hand with `/compact`,

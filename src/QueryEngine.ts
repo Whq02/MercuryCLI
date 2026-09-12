@@ -709,6 +709,9 @@ export class QueryEngine {
                 uuid:
                   (attachment as { source_uuid?: string }).source_uuid ??
                   (projected as { uuid?: string }).uuid,
+                ...(typeof (projected as { timestamp?: string }).timestamp === 'string'
+                  ? { timestamp: (projected as { timestamp?: string }).timestamp }
+                  : {}),
                 is_replay: true,
               })
             }

@@ -1482,6 +1482,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         workspaceDir: '',
         targetSessionId: this.record.sessionId,
         by: 'operator',
+        sentAt: new Date(send.sentAtMs).toISOString(),
         ...(mode === 'bash' ? { mode } : {}),
         ...(images.length > 0 ? { content: [...(expanded !== '' ? [{ type: 'text', text: expanded }] : []), ...images] } : {}),
       })
