@@ -43,6 +43,11 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
   layer over file edits, with read anchors and exactly-once records.
 - [STRUCTURAL-PATTERNS.md](STRUCTURAL-PATTERNS.md): the structural pattern
   grammar and the AstSearch / AstEdit tools over the packaged grammars.
+- [LANGUAGE-SERVICE.md](LANGUAGE-SERVICE.md): the LSP tool — code
+  intelligence from the language servers, and the refactors that ride the
+  compiler's knowledge: rename a symbol, move a declaration or a file with
+  every import rewritten, code actions by kind, each previewed as data and
+  applied through the edit road.
 - [WORKSHOP.md](WORKSHOP.md): persistent code cells, JS/TS/Python state
   across calls, honest state-loss reporting, and the mercury.* bridge.
 - [SAMPLES.md](SAMPLES.md): samples — a page the model draws when you ask
