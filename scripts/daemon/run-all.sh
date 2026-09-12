@@ -67,6 +67,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-seat-line-adversarial.ts" || { __r
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-worker-liveness-identity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-worker-liveness-identity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-quit-reaps-the-tree.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-quit-reaps-the-tree.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-owner-watch-budget.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-owner-watch-budget.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-compaction-hold.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-compaction-hold.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL DAEMON PROOFS PASS"; else echo "# ❌ SOME DAEMON PROOFS FAILED"; fi
 echo "############################################################"

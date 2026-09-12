@@ -19,7 +19,6 @@ const addon = path.join(repo, 'assets', 'vulcan', 'addon')
 const catDir = path.join(addon, 'categories')
 
 section('1. handler coverage vs the optable')
-const MERCURY_SIDE = new Set(['vulcan_status', 'vulcan_install', 'vulcan_uninstall', 'project_refresh_classes'])
 const owned = new Map<string, string>()
 const claimed: string[] = []
 for (const f of readdirSync(catDir).filter(f => f.endsWith('.gd'))) {
@@ -33,7 +32,7 @@ for (const f of readdirSync(catDir).filter(f => f.endsWith('.gd'))) {
     claimed.push(op)
   }
 }
-const expected = VULCAN_OPS.filter(o => !MERCURY_SIDE.has(o.name)).map(o => o.name)
+const expected = VULCAN_OPS.filter(o => o.side !== 'mercury').map(o => o.name)
 const missing = expected.filter(o => !owned.has(o))
 const extra = claimed.filter(o => !expected.includes(o))
 check(`every editor-side op owned (${expected.length})`, missing.length === 0, missing.slice(0, 8).join(','))
