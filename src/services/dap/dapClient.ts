@@ -1,6 +1,7 @@
 
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
+import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { accessSync, constants, existsSync, readFileSync } from 'node:fs'
 import { createServer as createNetServer, connect as netConnect, type Socket } from 'node:net'
 import { homedir } from 'node:os'
@@ -118,6 +119,7 @@ export interface GdbProbe {
 }
 
 let gdbProbeCache: { at: number; key: string; result: GdbProbe } | null = null
+let gdbProbeRun: Promise<GdbProbe> | null = null
 const GDB_PROBE_TTL_MS = 30_000
 
 function findOnPathLocal(name: string): string | undefined {
@@ -142,6 +144,7 @@ function findOnPathLocal(name: string): string | undefined {
 
 export function _resetGdbProbeForTesting(): void {
   gdbProbeCache = null
+  gdbProbeRun = null
 }
 
 
@@ -185,16 +188,28 @@ export interface LldbDapResolution {
 }
 
 let lldbDapMemo: LldbDapResolution | null | undefined
+let lldbDapProbeRun: Promise<LldbDapResolution | null> | null = null
 
 export function _resetLldbDapForTesting(): void {
   lldbDapMemo = undefined
+  lldbDapProbeRun = null
+}
+
+function lldbDapOnPathLocal(): LldbDapResolution | null {
+  const onPath = findOnPathLocal('lldb-dap')
+  return onPath ? { path: onPath, source: 'path' } : null
+}
+
+function lldbDapOfXcrun(status: number | null, stdout: string): LldbDapResolution | null {
+  const found = stdout.trim()
+  return status === 0 && found !== '' && existsSync(found) ? { path: found, source: 'xcrun' } : null
 }
 
 export function resolveLldbDap(): LldbDapResolution | null {
   if (lldbDapMemo !== undefined) return lldbDapMemo
-  const onPath = findOnPathLocal('lldb-dap')
+  const onPath = lldbDapOnPathLocal()
   if (onPath) {
-    lldbDapMemo = { path: onPath, source: 'path' }
+    lldbDapMemo = onPath
     return lldbDapMemo
   }
   if (process.platform === 'darwin') {
@@ -205,9 +220,9 @@ export function resolveLldbDap(): LldbDapResolution | null {
         encoding: 'utf8',
         env: { ...subprocessEnv() },
       })
-      const found = (r.stdout ?? '').trim()
-      if (r.status === 0 && found && existsSync(found)) {
-        lldbDapMemo = { path: found, source: 'xcrun' }
+      const found = lldbDapOfXcrun(r.status, r.stdout ?? '')
+      if (found) {
+        lldbDapMemo = found
         return lldbDapMemo
       }
     } catch {
@@ -217,11 +232,71 @@ export function resolveLldbDap(): LldbDapResolution | null {
   return lldbDapMemo
 }
 
+export function probeLldbDapAsync(): Promise<LldbDapResolution | null> {
+  if (lldbDapMemo !== undefined) return Promise.resolve(lldbDapMemo)
+  lldbDapProbeRun ??= (async (): Promise<LldbDapResolution | null> => {
+    const onPath = lldbDapOnPathLocal()
+    if (onPath) return onPath
+    if (process.platform !== 'darwin') return null
+    const r = await execFileNoThrow('xcrun', ['-f', 'lldb-dap'], { timeout: 5_000, useCwd: false })
+    return lldbDapOfXcrun(r.code, r.stdout)
+  })()
+    .then(found => {
+      if (lldbDapMemo === undefined) lldbDapMemo = found
+      return lldbDapMemo
+    })
+    .finally(() => {
+      lldbDapProbeRun = null
+    })
+  return lldbDapProbeRun
+}
+
+export function lldbDapFromMemo(): LldbDapResolution | null {
+  if (lldbDapMemo !== undefined) return lldbDapMemo
+  const onPath = lldbDapOnPathLocal()
+  if (onPath) {
+    lldbDapMemo = onPath
+    return onPath
+  }
+  if (process.platform !== 'darwin') {
+    lldbDapMemo = null
+    return null
+  }
+  void probeLldbDapAsync().catch(() => {})
+  return null
+}
+
+export function lldbDapProbePending(): boolean {
+  return lldbDapMemo === undefined && process.platform === 'darwin' && lldbDapOnPathLocal() === null
+}
+
+function gdbProbeFresh(key: string): GdbProbe | null {
+  return gdbProbeCache && gdbProbeCache.key === key && Date.now() - gdbProbeCache.at < GDB_PROBE_TTL_MS ? gdbProbeCache.result : null
+}
+
+function gdbProbeOf(stdout: string, status: number | null, timedOut: boolean): GdbProbe {
+  const firstLine = stdout.split('\n')[0] ?? ''
+  const m = firstLine.match(/(\d+)\.(\d+)/)
+  if (timedOut) {
+    return { viable: false, reason: 'gdb --version timed out after 5s — the binary hangs; check the install' }
+  }
+  if (status !== 0 || !m || m[1] === undefined) {
+    return { viable: false, reason: `gdb --version unparseable: ${firstLine.slice(0, 80) || `exit ${status ?? 'null'}`}` }
+  }
+  if (Number(m[1]) < GDB_DAP_MIN_MAJOR) {
+    return {
+      viable: false,
+      version: m[0],
+      reason: `gdb ${m[0]} predates the DAP interpreter — gdb ${GDB_DAP_MIN_MAJOR}+ provides -i=dap`,
+    }
+  }
+  return { viable: true, version: m[0] }
+}
+
 export function probeGdbDap(): GdbProbe {
   const key = process.env.PATH ?? ''
-  if (gdbProbeCache && gdbProbeCache.key === key && Date.now() - gdbProbeCache.at < GDB_PROBE_TTL_MS) {
-    return gdbProbeCache.result
-  }
+  const fresh = gdbProbeFresh(key)
+  if (fresh !== null) return fresh
   let result: GdbProbe
   const bin = findOnPathLocal('gdb')
   if (!bin) {
@@ -229,27 +304,44 @@ export function probeGdbDap(): GdbProbe {
   } else {
     try {
       const r = spawnSync(bin, ['--version'], { windowsHide: true, timeout: 5_000, encoding: 'utf8', env: { ...subprocessEnv() } })
-      const firstLine = (r.stdout ?? '').split('\n')[0] ?? ''
-      const m = firstLine.match(/(\d+)\.(\d+)/)
-      if ((r.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT') {
-        result = { viable: false, reason: 'gdb --version timed out after 5s — the binary hangs; check the install' }
-      } else if (r.status !== 0 || !m || m[1] === undefined) {
-        result = { viable: false, reason: `gdb --version unparseable: ${firstLine.slice(0, 80) || `exit ${r.status ?? 'null'}`}` }
-      } else if (Number(m[1]) < GDB_DAP_MIN_MAJOR) {
-        result = {
-          viable: false,
-          version: m[0],
-          reason: `gdb ${m[0]} predates the DAP interpreter — gdb ${GDB_DAP_MIN_MAJOR}+ provides -i=dap`,
-        }
-      } else {
-        result = { viable: true, version: m[0] }
-      }
+      result = gdbProbeOf(r.stdout ?? '', r.status, (r.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT')
     } catch (e) {
       result = { viable: false, reason: `gdb probe failed: ${e instanceof Error ? e.message : String(e)}` }
     }
   }
   gdbProbeCache = { at: Date.now(), key, result }
   return result
+}
+
+export function probeGdbDapAsync(): Promise<GdbProbe> {
+  const key = process.env.PATH ?? ''
+  const fresh = gdbProbeFresh(key)
+  if (fresh !== null) return Promise.resolve(fresh)
+  gdbProbeRun ??= (async (): Promise<GdbProbe> => {
+    const bin = findOnPathLocal('gdb')
+    if (!bin) return { viable: false, reason: 'no gdb on PATH' }
+    const r = await execFileNoThrow(bin, ['--version'], { timeout: 5_000, useCwd: false })
+    return gdbProbeOf(r.stdout, r.code, /timed out/i.test(r.error ?? ''))
+  })()
+    .then(result => {
+      gdbProbeCache = { at: Date.now(), key, result }
+      return result
+    })
+    .finally(() => {
+      gdbProbeRun = null
+    })
+  return gdbProbeRun
+}
+
+export function gdbProbeFromMemo(): GdbProbe {
+  if (findOnPathLocal('gdb') === undefined) return { viable: false, reason: 'no gdb on PATH' }
+  const last = gdbProbeCache
+  if (last === null || gdbProbeFresh(process.env.PATH ?? '') === null) void probeGdbDapAsync().catch(() => {})
+  return last?.result ?? { viable: false, reason: 'gdb --version has not answered yet' }
+}
+
+export function gdbProbePending(): boolean {
+  return gdbProbeCache === null && findOnPathLocal('gdb') !== undefined
 }
 
 
@@ -276,7 +368,7 @@ export function gdbInstallHint(platform: string = process.platform): string {
     : 'install gdb 14+ (the first release with the native -i=dap interpreter)'
 }
 
-function builtinAdapters(): Record<string, () => DapAdapterSpec> {
+function builtinAdapters(read: 'live' | 'memo' = 'live'): Record<string, () => DapAdapterSpec> {
   const table: Record<string, () => DapAdapterSpec> = {
     python: () => ({ ...pythonAdapterSpec(), attachShape: 'connect', fileTypes: ['.py'] }),
     lldb: () => {
@@ -333,7 +425,7 @@ function builtinAdapters(): Record<string, () => DapAdapterSpec> {
       installHint: 'gem install debug (provides rdbg)',
     })
   }
-  const gdb = probeGdbDap()
+  const gdb = read === 'memo' ? gdbProbeFromMemo() : probeGdbDap()
   if (gdb.viable) {
     table.gdb = () => ({
       command: 'gdb',
@@ -380,7 +472,7 @@ function builtinAdapters(): Record<string, () => DapAdapterSpec> {
 export function reachableDapAdapterKeys(): string[] {
   const reachable: string[] = []
   try {
-    const table = builtinAdapters()
+    const table = builtinAdapters('memo')
     for (const key of Object.keys(table)) {
       if (key === 'python') {
         if (
@@ -390,7 +482,7 @@ export function reachableDapAdapterKeys(): string[] {
           reachable.push(key)
         }
       } else if (key === 'lldb') {
-        if (resolveLldbDap() !== null) reachable.push(key)
+        if (lldbDapFromMemo() !== null) reachable.push(key)
       } else {
         reachable.push(key)
       }
@@ -420,6 +512,17 @@ export function isDapToolCatalogEnabled(): boolean {
   return mercuryDapEnabled() && reachableDapAdapterKeys().length > 0
 }
 
+export function dapAdapterProbePending(): boolean {
+  return lldbDapProbePending() || gdbProbePending()
+}
+
+export function settleDapAdapterProbes(): Promise<void> {
+  return Promise.all([probeLldbDapAsync(), probeGdbDapAsync()]).then(
+    () => undefined,
+    () => undefined,
+  )
+}
+
 export function debugToolWithholding(): { withheld: false } | { withheld: true; why: string; remedy: string } {
   if (!mercuryDapEnabled()) return { withheld: false }
   const reachable = reachableDapAdapterKeys()
@@ -427,11 +530,15 @@ export function debugToolWithholding(): { withheld: false } | { withheld: true; 
   const hints = [
     'python: pip install debugpy beside a python on PATH (or a build carrying the vendored adapter)',
     `lldb: ${lldbDapInstallHint()}`,
-    ...dormantBuiltinAdapterHints().map(h => `${h.key}: ${h.hint}`),
+    ...dormantBuiltinAdapterHints('memo').map(h => `${h.key}: ${h.hint}`),
   ]
+  const waiting = [lldbDapProbePending() ? 'xcrun -f lldb-dap' : null, gdbProbePending() ? 'gdb --version' : null].filter((w): w is string => w !== null)
   return {
     withheld: true,
-    why: 'no debug adapter is reachable on this machine — none of debugpy beside a python, lldb-dap, gdb, dlv, js-debug, rdbg, netcoredbg or a configured adapter table — so no launch could work',
+    why:
+      waiting.length > 0
+        ? `no debug adapter is reachable on this machine yet — none of debugpy beside a python, lldb-dap on PATH, dlv, js-debug, rdbg, netcoredbg or a configured adapter table, and the toolchain probe (${waiting.join(', ')}) has not answered — the tool joins at the next catalog build if it finds one`
+        : 'no debug adapter is reachable on this machine — none of debugpy beside a python, lldb-dap, gdb, dlv, js-debug, rdbg, netcoredbg or a configured adapter table — so no launch could work',
     remedy: `arm one — ${hints.join(' · ')} — then start a new session or /clear for the tool to join`,
   }
 }
@@ -528,8 +635,8 @@ export function resolveAdapter(key: string): DapAdapterSpec | null {
   return builtinAdapters()[key]?.() ?? null
 }
 
-export function dormantBuiltinAdapterHints(): Array<{ key: string; hint: string }> {
-  const table = builtinAdapters()
+export function dormantBuiltinAdapterHints(read: 'live' | 'memo' = 'live'): Array<{ key: string; hint: string }> {
+  const table = builtinAdapters(read)
   const out: Array<{ key: string; hint: string }> = []
   if (!('js' in table)) {
     out.push({

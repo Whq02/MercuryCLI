@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { cpus, loadavg } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { flagEnv } from '../substrate/flagRegistry.js'
-import { sampleAvailableMemory } from '../services/switchboard/capacityCheck.js'
+import { lastMemorySample, refreshMemorySample, runtimeMemorySample, type MemoryRead } from '../services/switchboard/capacityCheck.js'
 import { commandWords } from './hooks/generatedAssets.js'
 
 export const BOX_LOCK_SCRIPT = 'with-box-lock.sh'
@@ -29,7 +29,7 @@ export interface BoxLockState {
 export interface BoxLoadReading {
   cores: number
   loadPerCore: number | null
-  memory: { availableMb: number; totalMb: number }
+  memory: { availableMb: number; totalMb: number; read: MemoryRead; sampledAtMs: number }
 }
 
 export interface BoxReadingV1 extends BoxLoadReading {
@@ -132,15 +132,33 @@ export function readBoxLockState(dir: string, now: number = Date.now(), alive: (
   return { dir, holders, waiters }
 }
 
-export function boxLoadReading(): BoxLoadReading {
+export function boxLoadReading(now: number = Date.now()): BoxLoadReading {
   const cores = Math.max(1, cpus().length)
   const load1 = process.platform === 'win32' ? null : (loadavg()[0] ?? null)
-  const sample = sampleAvailableMemory()
+  const last = lastMemorySample(now)
+  const sample = last?.sample ?? runtimeMemorySample()
   return {
     cores,
     loadPerCore: load1 === null ? null : Math.round((load1 / cores) * 100) / 100,
-    memory: { availableMb: Math.round(sample.availableBytes / 2 ** 20), totalMb: Math.round(sample.totalBytes / 2 ** 20) },
+    memory: {
+      availableMb: Math.round(sample.availableBytes / 2 ** 20),
+      totalMb: Math.round(sample.totalBytes / 2 ** 20),
+      read: sample.read,
+      sampledAtMs: last?.sampledAt ?? now,
+    },
   }
+}
+
+export function refreshBoxReading(): Promise<void> {
+  return refreshMemorySample().then(
+    () => undefined,
+    () => undefined,
+  )
+}
+
+export function commandNamesBoxLock(command: string): boolean {
+  const words = commandWords(command)
+  return words !== null && boxLockScriptOf(words) !== null
 }
 
 export function boxReading(now: number = Date.now()): BoxReadingV1 {
@@ -148,7 +166,7 @@ export function boxReading(now: number = Date.now()): BoxReadingV1 {
   const lock = dir === null ? null : readBoxLockState(dir, now)
   return {
     atMs: now,
-    ...boxLoadReading(),
+    ...boxLoadReading(now),
     lock,
     ...(dir === null
       ? { lockNote: 'no box lock directory is named (MERCURY_BOX_LOCK_DIR) and no with-box-lock.sh command has run in this session' }
