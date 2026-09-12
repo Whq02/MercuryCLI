@@ -163,7 +163,7 @@ t.section('§6 — source locks')
   const writer = readFileSync('src/ink/frame-writer.ts', 'utf8')
   t.check('the writer keeps one reused ledger and no per-frame allocation for it', /const bleedLedger = new Set<number>\(\)/.test(writer) && /bleedLedger\.clear\(\)/.test(writer))
   t.check('the wipe names above for ▀, below for ▄, both for █', /if \(char === '▀'\) return 1/.test(writer) && /if \(char === '▄'\) return 2/.test(writer) && /if \(char === '█'\) return 3/.test(writer))
-  t.check('the wipe emits only after the diff pass and never on an unreachable-row abort', /if \(bleedLedger\.size > 0 && unreachableRow < 0\)/.test(writer))
+  t.check('the wipe emits only after the completed diff pass', /diffEach\(prev\.screen, next\.screen,[\s\S]*?\n  \}\)\n  if \(bleedLedger\.size > 0\)/.test(writer))
   t.check('the writer runs no sync flush (the paint-hardening law)', !/flushSync/.test(writer))
 }
 

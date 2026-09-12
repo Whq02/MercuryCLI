@@ -1,4 +1,5 @@
-import React, { useContext, useState, useSyncExternalStore } from 'react';
+import React, { useContext, useInsertionEffect, useState, useSyncExternalStore } from 'react';
+import { InkInstanceContext } from '../ink/components/InkInstanceContext.js';
 import { Box, MotionParkContext, Text } from '../ink.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import {
@@ -78,6 +79,11 @@ function SurfaceCrashCard({ kind }: { kind: string }): React.ReactElement {
 export function SurfaceRouter({ children }: { children: React.ReactNode }): React.ReactNode {
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const route = currentSurfaceRoute();
+  const routeId = surfaceRouteId(route);
+  const ink = useContext(InkInstanceContext);
+  useInsertionEffect(() => {
+    ink?.repaintAfterNestedAltScreenClose();
+  }, [ink, routeId]);
   const entry = getRouteSurface(route.kind);
   const liveSizeCtx = useContext(LiveTerminalSizeContext);
   const baseSizeCtx = useContext(TerminalSizeContext);
