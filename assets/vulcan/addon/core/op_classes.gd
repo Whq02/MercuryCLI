@@ -203,5 +203,30 @@ const CLASSES := {
 	"lease_list": "read",
 }
 
+const MERCURY_SIDE := [
+	"vulcan_status",
+	"vulcan_install",
+	"vulcan_uninstall",
+	"project_refresh_classes",
+	"engine_run",
+	"engine_check",
+	"engine_jobs",
+	"engine_cancel",
+	"engine_result",
+	"engine_capture",
+	"engine_profile",
+	"engine_frames",
+	"engine_scene_tree",
+	"engine_node_get",
+	"engine_node_call",
+	"engine_signal_wait",
+	"lease_take",
+	"lease_release",
+	"lease_list",
+]
+
 static func of(op: String) -> String:
 	return String(CLASSES.get(op, ""))
+
+static func mercury_side(op: String) -> bool:
+	return MERCURY_SIDE.has(op)

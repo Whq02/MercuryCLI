@@ -15,7 +15,6 @@ const MAX_CONNECTIONS := 8
 const UNAUTHED_GRACE_MS := 10000
 const RUNTIME_TIMEOUT_MS := 10000
 const PLAY_POLL_INTERVAL := 0.25
-const MERCURY_SIDE_OPS := ["vulcan_install", "vulcan_uninstall", "vulcan_status", "project_refresh_classes"]
 const LOOPBACK_HOSTS := ["127.0.0.1", "::1", "0:0:0:0:0:0:0:1", "::ffff:127.0.0.1"]
 
 class Conn:
@@ -282,7 +281,7 @@ func _serve(conn: Conn, id: int, op: String, args: Dictionary) -> void:
 func dispatch_op(op: String, args: Dictionary) -> Dictionary:
 	if ["engine_scene_tree", "engine_node_get", "engine_node_call", "engine_signal_wait"].has(op):
 		return await proxy_to_runtime(op, args)
-	if MERCURY_SIDE_OPS.has(op):
+	if OpClassesScript.mercury_side(op):
 		return _err("MERCURY_SIDE",
 			"\"%s\" is handled by Mercury before the wire" % op,
 			"run it through Mercury's Godot tool; it never reaches the editor")

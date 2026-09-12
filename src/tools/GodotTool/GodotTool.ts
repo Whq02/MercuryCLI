@@ -36,28 +36,6 @@ export type Output = {
   result: string
 }
 
-const LOCAL_OPS = new Set([
-  'vulcan_status',
-  'vulcan_install',
-  'vulcan_uninstall',
-  'project_refresh_classes',
-  'engine_run',
-  'engine_check',
-  'engine_jobs',
-  'engine_cancel',
-  'engine_result',
-  'engine_capture',
-  'engine_frames',
-  'engine_profile',
-  'engine_scene_tree',
-  'engine_node_get',
-  'engine_node_call',
-  'engine_signal_wait',
-  'lease_take',
-  'lease_release',
-  'lease_list',
-])
-
 const UNREACHABLE_CODES = new Set(['HANDSHAKE_CLOSED', 'CONNECTION_LOST', 'CLIENT_CLOSED'])
 
 const FILE_MUTATES = new Set(['import_set', 'refactor_rename_signal', 'refactor_rename_export', 'vulcan_install', 'vulcan_uninstall'])
@@ -109,8 +87,8 @@ async function runLocalOp(
   if (!root) {
     return `no project.godot found from the working directory — open/cd into a Godot project first`
   }
-  if (op.startsWith('engine_') || op.startsWith('lease_')) {
-    const { runEngineOp } = await import('../../services/vulcan/engine/ops.js')
+  const { ENGINE_OPS, runEngineOp } = await import('../../services/vulcan/engine/ops.js')
+  if (ENGINE_OPS.has(op)) {
     const { projectLeaseHolder } = await import('../../services/vulcan/engine/leases.js')
     return runEngineOp(op, args, root, projectLeaseHolder(context.agentId))
   }
@@ -169,7 +147,7 @@ async function runOp(input: Input, context: ToolUseContext, parentMessage: Assis
   if (vulcanLiteMode() && !spec.lite && spec.category !== 'frontier') {
     return `op "${input.op}" is outside the lite subset (MERCURY_GODOT_TOOLS_LITE is on) — use a core op, or unset the lite flag for the full surface`
   }
-  if (LOCAL_OPS.has(input.op)) return runLocalOp(input.op, input.args, context, parentMessage)
+  if (spec.side === 'mercury') return runLocalOp(input.op, input.args, context, parentMessage)
 
   const client = getVulcanClient(undefined, input.args?.instance)
   if (!client) {
@@ -236,7 +214,7 @@ export const GodotTool = buildTool({
         message: `Godot exec: project_refresh_classes — rebuilds the class cache: the editor's rescan over the bridge when one is up, else runs godot --headless --import --path <project> (bounded, no editor running)`,
       }
     }
-    if (input.op.startsWith('engine_')) {
+    if (spec.side === 'mercury') {
       const { engineOpPermissionMessage } = await import('../../services/vulcan/engine/ops.js')
       const message = engineOpPermissionMessage(input.op, input.args)
       if (message) return { behavior: 'ask' as const, message }
@@ -245,12 +223,6 @@ export const GodotTool = buildTool({
       return {
         behavior: 'ask' as const,
         message: `Godot exec: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — runs code / drives input in the ${input.op.startsWith('runtime_') || input.op.startsWith('input_') ? 'running game' : 'editor'}`,
-      }
-    }
-    if (input.op === 'lease_take' || input.op === 'lease_release') {
-      return {
-        behavior: 'ask' as const,
-        message: `Godot mutate: ${input.op} — changes this session and agent's project file leases (no editor undo step)`,
       }
     }
     if (input.op === 'vulcan_install' || input.op === 'vulcan_uninstall') {
