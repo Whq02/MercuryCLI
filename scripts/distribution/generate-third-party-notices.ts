@@ -1,9 +1,17 @@
 #!/usr/bin/env bun
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { CURRENT_NOTICE_SLOTS } from '../../src/constants/legalNotice.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
+const ROW = {
+  assets: 'THIRD_PARTY_NOTICES.md',
+  generator: 'bun scripts/distribution/generate-third-party-notices.ts',
+  check: 'bun scripts/distribution/prove-distribution-notices.ts',
+  sources: 'package.json bun.lock vendor/*.lock.json',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 
 type Row = { name: string; version: string; license: string; homepage?: string }
 
@@ -229,6 +237,7 @@ lines.push(
 lines.push('')
 
 writeFileSync(join(ROOT, 'THIRD_PARTY_NOTICES.md'), lines.join('\n'))
+registerGeneratedAsset(ROW)
 console.log(
   `THIRD_PARTY_NOTICES.md written — ${rows.length} runtime packages across ${byLicense.size} licence identifiers + 8 vendor payloads + source attributions`,
 )

@@ -2,11 +2,19 @@
 
 import { writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { buildToolCensus, stableCensus, CENSUS_VERSION } from '../../src/utils/capability/census.ts'
 
 const repoRoot = resolve(import.meta.dir, '..', '..')
 const jsonPath = join(repoRoot, 'scripts', 'builtin-tools', 'fixtures', 'tool-census.json')
 const mdPath = join(repoRoot, 'scripts', 'builtin-tools', 'fixtures', 'tool-census.md')
+const ROW = {
+  assets: 'scripts/builtin-tools/fixtures/tool-census.json scripts/builtin-tools/fixtures/tool-census.md',
+  generator: 'bun scripts/builtin-tools/census-gen.ts',
+  check: 'bun scripts/builtin-tools/prove-builtin-tools-census.ts',
+  sources: 'src/Tool.ts src/tools.ts src/tools/** src/utils/capability/** scripts/builtin-tools/census-gen.ts',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 
 const census = buildToolCensus()
 const anchor = { version: CENSUS_VERSION, rows: stableCensus(census) }
@@ -75,5 +83,6 @@ lines.push(
 )
 
 writeFileSync(mdPath, lines.join('\n'))
+registerGeneratedAsset(ROW)
 console.log(`census: ${s.tools} tools → ${jsonPath}`)
 console.log(`census: readable → ${mdPath}`)

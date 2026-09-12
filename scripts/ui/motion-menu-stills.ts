@@ -2,6 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '0.0.0-still' }
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { createSplashCore } from '../../assets/splash/splash-core.mjs'
 import { menuRowChoices, STARTUP_MENU, type MenuRow } from '../../src/substrate/startupMenu.js'
 import { SEATS_MENU_ROW } from '../../src/services/switchboard/capacityCheck.js'
@@ -93,10 +94,18 @@ export function renderStill(lines: string[]): string {
   return lines.map(l => l.replace(/\s+$/, '')).join('\n') + '\n'
 }
 
+const ROW = {
+  assets: 'scripts/ui/fixtures/motion-menu/*.txt',
+  generator: 'bun scripts/ui/motion-menu-stills.ts --write',
+  check: 'bun scripts/transcript-rows/prove-motion-setting.ts',
+  sources: 'scripts/ui/motion-menu-stills.ts assets/splash/splash-core.mjs src/substrate/startupMenu.ts src/services/switchboard/capacityCheck.ts src/utils/cockpit/motion* src/utils/cockpit/liveGlyphs.ts src/utils/cockpit/critterIdle.ts',
+}
+if (import.meta.main && registerOnlyRequested(ROW)) process.exit(0)
 if (import.meta.main && process.argv.includes('--write')) {
   mkdirSync(STILLS_DIR, { recursive: true })
   for (const still of STILLS) {
     writeFileSync(stillPath(still.id), renderStill(still.compose()))
     console.log(`wrote ${stillPath(still.id)}`)
   }
+  registerGeneratedAsset(ROW)
 }

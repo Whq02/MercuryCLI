@@ -2,11 +2,19 @@
 import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { fileURLToPath } from 'node:url'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const bridgeRoot = join(repo, 'assets', 'blender', 'bridge')
 const outPath = join(repo, 'src', 'services', 'blender', 'bridgeFiles.generated.ts')
+const ROW = {
+  assets: relative(repo, outPath),
+  generator: 'node scripts/blender-bridge/regen-bridge.mjs',
+  check: 'node scripts/blender-bridge/regen-bridge.mjs --check',
+  sources: 'assets/blender/bridge/**',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 
 function walk(dir) {
   const out = []
@@ -145,4 +153,5 @@ if (process.argv.includes('--check')) {
 }
 
 writeFileSync(outPath, generated)
+registerGeneratedAsset(ROW)
 console.log(`regen-bridge: wrote ${outPath} (${files.length} files, digest ${digest.slice(0, 12)}…)`)

@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { codeOnlyLines } from '../lib/codeText.ts'
 
 const argValue = (name: string): string | undefined => {
@@ -8,6 +9,14 @@ const argValue = (name: string): string | undefined => {
   return at >= 0 ? process.argv[at + 1] : undefined
 }
 const ROOT = argValue('--root') ?? join(import.meta.dir, '..', '..')
+const ROW = {
+  assets: 'scripts/consistency-census/basename-census.json',
+  generator: 'bun scripts/consistency-census/gen-basename-census.ts',
+  check: 'bun scripts/consistency-census/prove-basename-census.ts',
+  sources: 'src/**/*.{ts,tsx,mjs} scripts/consistency-census/gen-basename-census.ts scripts/lib/codeText.ts',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
+const REGISTERS = argValue('--root') === undefined && argValue('--out') === undefined
 
 const BASENAMES = [
   "'.claude'",
@@ -190,6 +199,7 @@ const out = {
 }
 const outPath = argValue('--out') ?? join(ROOT, 'scripts/consistency-census/basename-census.json')
 writeFileSync(outPath, JSON.stringify(out, null, 2) + '\n')
+if (REGISTERS) registerGeneratedAsset(ROW)
 console.log(
   `basename census: ${classified.length} site(s) across ${new Set(classified.map(c => c.file)).size} file(s); ` +
     Object.entries(counts)
