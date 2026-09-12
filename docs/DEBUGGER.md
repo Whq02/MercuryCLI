@@ -55,7 +55,11 @@ runners, and asking `debug` of one answers with exactly that.
 ## Gates
 
 `MERCURY_DAP` (default-on) carries the tool; `=0` removes it from the
-catalog. `MERCURY_DAP_ADAPTERS`, `MERCURY_DAP_ADAPTERS_FILE`,
+catalog. So does a machine on which no debug adapter is reachable: the
+Debug tool is withheld from the catalog rather than offered to refuse,
+the `Tools withheld` row of `mercury doctor` and `/health` names it with
+the adapters to arm, and a session already running picks the tool up at
+its next `/clear` or compaction. `MERCURY_DAP_ADAPTERS`, `MERCURY_DAP_ADAPTERS_FILE`,
 `MERCURY_JS_DEBUG_DAP`, and `MERCURY_DEBUGPY_VENDOR_DIR` tune the adapter
 table and the vendored payload roots — all registered rows of the in-code
 registry (`src/substrate/flagRegistry.ts`; rendered on demand to an

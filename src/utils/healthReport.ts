@@ -3811,6 +3811,22 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'tools-withheld',
+          label: 'Tools withheld',
+          run: async () => {
+            const { withheldTools, withheldToolsLine } = await import('./withheldTools.js')
+            const list = withheldTools()
+            if (list.length === 0) return { status: 'ok' as const, evidence: withheldToolsLine(list) }
+            const remedies = list.filter(w => w.remedy !== undefined).map(w => `${w.tool}: ${w.remedy}`)
+            return {
+              status: 'info' as const,
+              evidence: withheldToolsLine(list),
+              detail: list.map(w => `${w.tool} — needs ${w.dependency}: ${w.why}`).join('\n'),
+              ...(remedies.length > 0 ? { fix: remedies.join(' · ') } : {}),
+            }
+          },
+        },
+        {
           id: 'capability-integrations',
           label: 'Lifecycle integrations',
           run: async () => {
