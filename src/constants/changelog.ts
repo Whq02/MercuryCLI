@@ -1,6 +1,13 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.8
+- Changed sovereign mode to be the one bypass: the Boot Menu's Sovereign mode row skips every permission question, computer use included, and the computer-use ask card's fifth answer turns it on
+- Added the computer-use access type under it: asks, permissive or full, with asks as the default; with sovereign mode on the default is full, and a saved value wins either way; permissive lets the model work in the application in front when the turn began and asks once before any other
+- Fixed a line sent during a compaction standing under the composer for good when the session's runner was replaced before it took the line: the row is removed and a notice names the words to send again; a line the runner keeps is delivered once, in order, and its plate reads held while the compaction runs
+- Added the engine job service to the Godot tooling: Mercury runs headless Godot workers itself, in parallel, each on a frozen copy of the project, with a compile gate in seconds and results as data; \`mercury godot run|check|jobs|cancel|result\` for scripts
+- Changed the preserved-thinking notice: the chat no longer shows it; the doctor and health rows carry the count and the cause
+
 ## 1.0.0-beta.7
 - Added Samples, off by default: ask the model to show you something and it opens a page in your browser; mark it up, and your marks come back into the chat; every version is kept; the Boot Menu's Samples row turns it on
 - Changed computer use to be on by default where the desktop driver is present; the ask offers one-hour and 24-hour grants and a sovereign mode that stops the asks; the Boot Menu turns it off
