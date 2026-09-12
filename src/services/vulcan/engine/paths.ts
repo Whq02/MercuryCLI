@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
 import { projectLocalPath } from '../../projectLocal/paths.js'
@@ -121,6 +121,13 @@ export function isEnginePath(projectRoot: string, candidate: string, platform: N
     if (platform === 'win32') s = s.toLowerCase()
     return s
   }
-  const prefix = norm(engineDir(projectRoot)) + '/'
-  return norm(candidate).startsWith(prefix)
+  const spellings = [projectRoot]
+  try {
+    const real = realpathSync(projectRoot)
+    if (real !== projectRoot) spellings.push(real)
+  } catch {
+    return norm(candidate).startsWith(norm(engineDir(projectRoot)) + '/')
+  }
+  const c = norm(candidate)
+  return spellings.some(root => c.startsWith(norm(engineDir(root)) + '/'))
 }
