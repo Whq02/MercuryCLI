@@ -2,8 +2,8 @@ extends Node
 
 const OpClassesScript := preload("op_classes.gd")
 
-const TOKEN_FILE := "res://.godot/mercury-vulcan-token"
-const PORT_FILE := "res://.godot/mercury-vulcan-port"
+const InstanceScript := preload("instance.gd")
+const ListenerScript := preload("runtime_listener.gd")
 const REC_DIR := "res://.godot/mercury-vulcan-recordings"
 const SHOT_DIR := "res://.godot/mercury-vulcan-shots"
 const RING_MAX := 400
@@ -31,6 +31,9 @@ const MONITORS := {
 	"audio_output_latency": Performance.AUDIO_OUTPUT_LATENCY,
 }
 
+var _instance: RefCounted = null
+var _listener: RefCounted = null
+var _parent_ready := false
 var _peer: StreamPeerTCP = null
 var _bytes := PackedByteArray()
 var _hello_sent := false
@@ -57,18 +60,24 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_started_ms = Time.get_ticks_msec()
 	_install_logger()
-	var tok := _token()
-	if tok == "":
-		push_warning("mercury_vulcan: no token file at %s; runtime bridge staying idle" % TOKEN_FILE)
+	_instance = InstanceScript.new()
+	if not _instance.start(false):
+		push_warning("mercury_vulcan: runtime instance listener could not start")
 		set_process(false)
 		return
-	_peer = StreamPeerTCP.new()
-	if _peer.connect_to_host("127.0.0.1", _port()) != OK:
-		push_warning("mercury_vulcan: runtime bridge could not start connecting")
-		set_process(false)
+	_listener = ListenerScript.new()
+	_listener.setup(_instance, _dispatch)
+	if not _instance.parent.is_empty():
+		_peer = StreamPeerTCP.new()
+		if _peer.connect_to_host("127.0.0.1", int(_instance.parent["port"])) != OK:
+			_disconnect_parent()
 
 
 func _exit_tree() -> void:
+	if _listener != null:
+		_listener.stop()
+	if _instance != null:
+		_instance.stop()
 	if _logger != null and OS.has_method("remove_logger"):
 		OS.remove_logger(_logger)
 		_logger = null
@@ -78,33 +87,48 @@ func _exit_tree() -> void:
 
 
 func _process(_delta: float) -> void:
+	if _listener != null:
+		_listener.poll()
 	if _peer == null:
+		return
+	if not _parent_ready and Time.get_ticks_msec() - _started_ms > 5000:
+		_disconnect_parent()
 		return
 	_peer.poll()
 	var st := _peer.get_status()
 	if st == StreamPeerTCP.STATUS_CONNECTED:
 		if not _hello_sent:
-			_send({ "op": "hello", "token": _token(), "role": "runtime", "version": 1 })
+			var parent: Dictionary = _instance.parent
+			var hello := {"op": "hello", "token": parent["token"], "role": "runtime", "version": 1, "instance": parent["id"], "runtime_instance": _instance.identity}
+			_peer.put_data((JSON.stringify(hello) + "\n").to_utf8_buffer())
 			_hello_sent = true
-		var n := _peer.get_available_bytes()
+		var cap := MAX_BUF if _parent_ready else 16384
+		var n := mini(_peer.get_available_bytes(), cap + 1 - _bytes.size())
 		if n > 0:
 			var res := _peer.get_data(n)
 			if res[0] == OK:
 				_bytes.append_array(res[1])
-			while true:
-				var nl := _bytes.find(10)
-				if nl == -1:
-					break
-				var line := _bytes.slice(0, nl).get_string_from_utf8()
-				_bytes = _bytes.slice(nl + 1)
-				if line.strip_edges() != "":
-					_on_line(line)
-			if _bytes.size() > MAX_BUF:
-				_bytes = PackedByteArray()
-				_send({ "event": "runtime_error", "data": { "code": "LINE_TOO_LONG",
-					"message": "runtime bridge dropped an oversized partial frame (>8MB)" } })
-	elif st == StreamPeerTCP.STATUS_ERROR:
-		set_process(false)
+		while _peer != null:
+			var nl := _bytes.find(10)
+			cap = MAX_BUF if _parent_ready else 16384
+			if (nl < 0 and _bytes.size() > cap) or nl > cap:
+				_disconnect_parent()
+				break
+			if nl < 0:
+				break
+			var line := _bytes.slice(0, nl).get_string_from_utf8()
+			_bytes = _bytes.slice(nl + 1)
+			_on_line(line)
+	elif st == StreamPeerTCP.STATUS_ERROR or st == StreamPeerTCP.STATUS_NONE:
+		_disconnect_parent()
+
+
+func _disconnect_parent() -> void:
+	if _peer != null:
+		_peer.disconnect_from_host()
+		_peer = null
+	_bytes = PackedByteArray()
+	_parent_ready = false
 
 
 func _input(event: InputEvent) -> void:
@@ -116,7 +140,17 @@ func _input(event: InputEvent) -> void:
 
 func _on_line(line: String) -> void:
 	var msg = JSON.parse_string(line)
-	if typeof(msg) != TYPE_DICTIONARY or not msg.has("rop"):
+	if typeof(msg) != TYPE_DICTIONARY:
+		_disconnect_parent()
+		return
+	if not _parent_ready:
+		var identity = msg.get("instance", {})
+		if msg.get("ok") != true or not (identity is Dictionary) or not InstanceScript.matches(identity, _instance.parent):
+			_disconnect_parent()
+			return
+		_parent_ready = true
+		return
+	if not msg.has("rop"):
 		return
 	var args = msg.get("args", {})
 	if typeof(args) != TYPE_DICTIONARY:
@@ -132,6 +166,14 @@ func _handle_request(id: int, rop: String, args: Dictionary) -> void:
 
 func _dispatch(rop: String, args: Dictionary) -> Dictionary:
 	match rop:
+		"engine_scene_tree":
+			return _rop_tree(args)
+		"engine_node_get":
+			return _rop_node_get(args)
+		"engine_node_call":
+			return _rop_call(args)
+		"engine_signal_wait":
+			return await _rop_wait_signal(args)
 		"runtime_status":
 			return _rop_status(args)
 		"runtime_step":
@@ -983,9 +1025,15 @@ func _err(code: String, message: String, hint: String) -> Dictionary:
 
 
 func _send(obj: Dictionary) -> void:
-	if _peer == null or _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+	if _peer == null or not _parent_ready or _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
 		return
-	_peer.put_data((JSON.stringify(obj) + "\n").to_utf8_buffer())
+	var frame := obj.duplicate()
+	frame["instance"] = _instance.identity.duplicate()
+	var bytes := (JSON.stringify(frame) + "\n").to_utf8_buffer()
+	if bytes.size() > MAX_BUF:
+		_disconnect_parent()
+		return
+	_peer.put_data(bytes)
 
 
 func _find(path_s: String) -> Node:
@@ -1121,20 +1169,3 @@ func _jsonable(v):
 			return str(v)
 		_:
 			return var_to_str(v)
-
-
-static func _token() -> String:
-	if not FileAccess.file_exists(TOKEN_FILE):
-		return ""
-	return FileAccess.get_file_as_string(TOKEN_FILE).strip_edges()
-
-
-static func _port() -> int:
-	var env := OS.get_environment("MERCURY_GODOT_TOOLS_PORT")
-	if env != "" and env.is_valid_int():
-		return int(env)
-	if FileAccess.file_exists(PORT_FILE):
-		var t := FileAccess.get_file_as_string(PORT_FILE).strip_edges()
-		if t.is_valid_int():
-			return int(t)
-	return 6010

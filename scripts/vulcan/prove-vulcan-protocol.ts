@@ -15,10 +15,13 @@ function section(t: string): void {
 }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
+const fakeInstance = (port: number) => ({ version: 1 as const, id: 'f'.repeat(32), role: 'agent-editor' as const, port, pid: process.pid, projectRoot: process.cwd(), ownerPid: process.pid })
+
 type Mode = 'echo' | 'silent-after-hello' | 'drop-on-request' | 'no-pong' | 'oversize-on-request'
 
 interface FakeServer {
   port: number
+  instance: ReturnType<typeof fakeInstance>
   seenOps: string[]
   close: () => Promise<void>
   setMode: (m: Mode) => void
@@ -28,6 +31,7 @@ function startFakeServer(token: string, mode: Mode = 'echo'): Promise<FakeServer
   const state = { mode, seenOps: [] as string[] }
   const sockets = new Set<net.Socket>()
   const server = net.createServer(socket => {
+    const instance = fakeInstance(socket.localPort!)
     sockets.add(socket)
     socket.on('close', () => sockets.delete(socket))
     let buf = ''
@@ -43,7 +47,7 @@ function startFakeServer(token: string, mode: Mode = 'echo'): Promise<FakeServer
         if (!authed) {
           if (frame.op === 'hello' && frame.token === token) {
             authed = true
-            socket.write(JSON.stringify({ ok: true, result: { version: 1, godot: '4.3-fake', project: 'fixture' } }) + '\n')
+            socket.write(JSON.stringify({ ok: true, result: { version: 1, godot: '4.3-fake', project: 'fixture' }, instance }) + '\n')
           } else {
             socket.write(JSON.stringify({ ok: false, error: { code: 'AUTH_FAILED', message: 'bad token', hint: 'vulcan_install rewrites the token file' } }) + '\n')
             socket.end()
@@ -54,7 +58,7 @@ function startFakeServer(token: string, mode: Mode = 'echo'): Promise<FakeServer
         state.seenOps.push(op)
         if (op === 'ping') {
           if (state.mode !== 'no-pong') {
-            socket.write(JSON.stringify({ id: frame.id, ok: true, result: 'pong' }) + '\n')
+            socket.write(JSON.stringify({ id: frame.id, ok: true, result: 'pong', instance }) + '\n')
           }
           continue
         }
@@ -70,7 +74,7 @@ function startFakeServer(token: string, mode: Mode = 'echo'): Promise<FakeServer
         if (op === 'batch10') {
           continue
         }
-        socket.write(JSON.stringify({ id: frame.id, ok: true, result: { echo: op, args: frame.args ?? null } }) + '\n')
+        socket.write(JSON.stringify({ id: frame.id, ok: true, result: { echo: op, args: frame.args ?? null }, instance }) + '\n')
       }
     })
   })
@@ -78,6 +82,7 @@ function startFakeServer(token: string, mode: Mode = 'echo'): Promise<FakeServer
     server.listen(0, '127.0.0.1', () => {
       resolve({
         port: (server.address() as net.AddressInfo).port,
+        instance: fakeInstance((server.address() as net.AddressInfo).port),
         seenOps: state.seenOps,
         setMode: m => {
           state.mode = m
@@ -105,13 +110,19 @@ async function main(): Promise<void> {
   section('1. handshake — good + bad token')
   {
     const srv = await startFakeServer('tok-good')
-    const client = new VulcanClient({ port: srv.port, token: 'tok-good', ...FAST })
+    const client = new VulcanClient({ port: srv.port, instance: srv.instance, token: 'tok-good', ...FAST })
     const r = await client.request('project_info')
     check('good token round-trip', r.ok === true && (r as { result: { echo: string } }).result.echo === 'project_info')
     check('status ready', client.status() === 'ready')
+    check('the response identifies the selected instance and role', r.instance?.id === srv.instance.id && r.instance.role === 'agent-editor')
     client.close()
+    const beforeMismatch = srv.seenOps.length
+    const mismatch = new VulcanClient({ port: srv.port, token: 'tok-good', instance: { ...srv.instance, id: 'e'.repeat(32) }, ...FAST })
+    const refused = await mismatch.request('must_not_run')
+    check('a mismatched hello identity refuses before sending an operation', !refused.ok && refused.error.code === 'INSTANCE_MISMATCH' && srv.seenOps.length === beforeMismatch)
+    mismatch.close()
 
-    const bad = new VulcanClient({ port: srv.port, token: 'tok-WRONG', ...FAST })
+    const bad = new VulcanClient({ port: srv.port, instance: srv.instance, token: 'tok-WRONG', ...FAST })
     const rb = await bad.request('project_info')
     check('bad token ⇒ AUTH_FAILED', !rb.ok && rb.error.code === 'AUTH_FAILED', JSON.stringify(!rb.ok ? rb.error : {}))
     check('bad token carries the hint', !rb.ok && typeof rb.error.hint === 'string' && rb.error.hint!.length > 0)
@@ -122,7 +133,7 @@ async function main(): Promise<void> {
   section('2. correlation — 10 interleaved, answered out of order')
   {
     const srv = await startFakeServer('tok')
-    const client = new VulcanClient({ port: srv.port, token: 'tok', ...FAST })
+    const client = new VulcanClient({ port: srv.port, instance: srv.instance, token: 'tok', ...FAST })
     const results = await Promise.all(
       Array.from({ length: 10 }, (_, i) => client.request(`op_${i}`, { i })),
     )
@@ -135,7 +146,7 @@ async function main(): Promise<void> {
   section('3. heartbeat — pings flow; missed pong destroys')
   {
     const srv = await startFakeServer('tok')
-    const client = new VulcanClient({ port: srv.port, token: 'tok', ...FAST })
+    const client = new VulcanClient({ port: srv.port, instance: srv.instance, token: 'tok', ...FAST })
     await client.request('warm')
     await sleep(300)
     check('pings observed on the wire', srv.seenOps.filter(o => o === 'ping').length >= 1, `${srv.seenOps.filter(o => o === 'ping').length} pings`)
@@ -169,7 +180,7 @@ async function main(): Promise<void> {
     check('after the window a reconnect is attempted', !r3.ok && r3.error.code !== 'EDITOR_UNREACHABLE', !r3.ok ? r3.error.code : '')
     check('second failure doubles again', client.nextDelayMs() === FAST.backoffStartMs * 4, `${client.nextDelayMs()}`)
     const srv = await startFakeServer('tok')
-    const c2 = new VulcanClient({ port: srv.port, token: 'tok', ...FAST })
+    const c2 = new VulcanClient({ port: srv.port, instance: srv.instance, token: 'tok', ...FAST })
     await c2.request('warm')
     srv.setMode('drop-on-request')
     const rd = await c2.request('will-drop')
@@ -188,6 +199,7 @@ async function main(): Promise<void> {
   section('5. events — unsolicited frames buffer + drain')
   {
     const evtServer = net.createServer(socket => {
+      const instance = fakeInstance(socket.localPort!)
       let authed = false
       let buf = ''
       socket.on('data', chunk => {
@@ -200,23 +212,23 @@ async function main(): Promise<void> {
           const frame = JSON.parse(line) as Record<string, unknown>
           if (!authed) {
             authed = true
-            socket.write(JSON.stringify({ ok: true, result: {} }) + '\n')
+            socket.write(JSON.stringify({ ok: true, result: {}, instance }) + '\n')
             continue
           }
           if (frame.op === 'ping') {
-            socket.write(JSON.stringify({ id: frame.id, ok: true, result: 'pong' }) + '\n')
+            socket.write(JSON.stringify({ id: frame.id, ok: true, result: 'pong', instance }) + '\n')
             continue
           }
           socket.write(JSON.stringify({ event: 'play_started', data: { scene: 'res://main.tscn' } }) + '\n')
           socket.write(JSON.stringify({ event: 'runtime_log', data: { line: 'hello' } }) + '\n')
-          socket.write(JSON.stringify({ id: frame.id, ok: true, result: 'played' }) + '\n')
+          socket.write(JSON.stringify({ id: frame.id, ok: true, result: 'played', instance }) + '\n')
         }
       })
     })
     const evtPort = await new Promise<number>(resolve => {
       evtServer.listen(0, '127.0.0.1', () => resolve((evtServer.address() as net.AddressInfo).port))
     })
-    const ec = new VulcanClient({ port: evtPort, token: 'tok', ...FAST })
+    const ec = new VulcanClient({ port: evtPort, instance: fakeInstance(evtPort), token: 'tok', ...FAST })
     const pr = await ec.request('scene_play')
     check('request alongside events answers', pr.ok === true && (pr as { result: unknown }).result === 'played')
     const events = ec.drainEvents()
@@ -229,14 +241,14 @@ async function main(): Promise<void> {
   section('6. timeout + oversize')
   {
     const srv = await startFakeServer('tok', 'silent-after-hello')
-    const client = new VulcanClient({ port: srv.port, token: 'tok', ...FAST })
+    const client = new VulcanClient({ port: srv.port, instance: srv.instance, token: 'tok', ...FAST })
     const rt = await client.request('never_answered', undefined, 100)
     check('unanswered request ⇒ REQUEST_TIMEOUT naming the op', !rt.ok && rt.error.code === 'REQUEST_TIMEOUT' && /never_answered/.test(rt.error.message))
     client.close()
     await srv.close()
 
     const srv2 = await startFakeServer('tok', 'oversize-on-request')
-    const c2 = new VulcanClient({ port: srv2.port, token: 'tok', ...FAST })
+    const c2 = new VulcanClient({ port: srv2.port, instance: srv2.instance, token: 'tok', ...FAST })
     const ro = await c2.request('big', undefined, 2_000)
     check('oversized frame kills the connection (no forever-buffer)', !ro.ok && ro.error.code === 'CONNECTION_LOST', !ro.ok ? ro.error.code : 'ok?!')
     c2.close()
@@ -328,7 +340,7 @@ async function main(): Promise<void> {
   section('7. the step verbs on the wire + the declared budget')
   {
     const srv = await startFakeServer('tok')
-    const client = new VulcanClient({ port: srv.port, token: 'tok', ...FAST })
+    const client = new VulcanClient({ port: srv.port, instance: srv.instance, token: 'tok', ...FAST })
     const macro = { steps: [{ action: 'left', pressed: true, step_frames: 30 }, { action: 'left', pressed: false }, { action: 'jump', step_frames: 10 }] }
     const [pause, step, ms, seq, resume] = await Promise.all([
       client.request('runtime_pause'),

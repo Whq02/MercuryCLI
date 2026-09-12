@@ -194,6 +194,13 @@ const CLASSES := {
 	"engine_capture": "exec",
 	"engine_profile": "exec",
 	"engine_frames": "mutate",
+	"engine_scene_tree": "read",
+	"engine_node_get": "read",
+	"engine_node_call": "exec",
+	"engine_signal_wait": "read",
+	"lease_take": "mutate",
+	"lease_release": "mutate",
+	"lease_list": "read",
 }
 
 static func of(op: String) -> String:

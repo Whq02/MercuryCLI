@@ -1,5 +1,8 @@
-import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { createHash, randomBytes } from 'node:crypto'
+import { VULCAN_ADDON_DIGEST } from '../addonFiles.generated.js'
+import { injectVulcanWorkerScript, installVulcanWorkerAddon } from '../addonInstaller.js'
+import { engineTreeHasLiveOwner, listVulcanInstances, prepareVulcanInstance, type VulcanInstance } from '../instances.js'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { availableCores } from '../../../utils/availableCores.js'
@@ -36,6 +39,8 @@ import { engineMediaCensus, finishEngineProfileBaseline, newEngineMediaRecord, r
 import { ENGINE_MEDIA_MARKER, writeEngineMediaDriver } from './mediaDriver.js'
 import { writeEngineContactSheet } from './frames.js'
 import { engineTreeOwnerIsDead, writeEngineRunOwner } from './owner.js'
+import { engineLeaseRefusal, projectLeaseHolder, type LeaseHolder } from './leases.js'
+import { engineLogDrift, proofTreeFingerprint, sourceProofDrift, type ProofDriftRow } from './proofDrift.js'
 
 export type EnginePriority = 'verifier' | 'fold-gate' | 'lane-gate' | 'profile'
 
@@ -47,6 +52,7 @@ export const ENGINE_RECENT_KEEP = 50
 export const ENGINE_RESULT_FILE = 'result.json'
 
 export interface EngineJobRequest {
+  holder?: LeaseHolder
   suites: string[]
   tree: EngineTreeSpec
   native: boolean
@@ -85,6 +91,8 @@ export interface EngineResultRow {
   endedAt: string
   cancelled: boolean
   userDir: string
+  instance: VulcanInstance | null
+  drift: ProofDriftRow[]
 }
 
 export interface EngineSkippedRow {
@@ -96,6 +104,8 @@ export interface EngineSkippedRow {
 export type EngineRecordRow = EngineResultRow | EngineSkippedRow
 
 export interface EngineRunRecord {
+  proofTreeFingerprint: string
+  drift: ProofDriftRow[]
   root: string
   executable: string
   results: EngineRecordRow[]
@@ -165,7 +175,8 @@ export interface EngineJobsSnapshot {
   queued: EngineJobSummary[]
   running: EngineJobSummary[]
   recent: EngineJobSummary[]
-  liveEngines: Array<{ pid: number; label: string; startedAt: string }>
+  liveEngines: ReturnType<typeof liveEngines>
+  instances: VulcanInstance[]
   swept: EngineOrphanSweep[]
   staleTreesRemoved: string[]
   manifest: { file: string; found: boolean; suites: string[]; problems: string[] }
@@ -314,12 +325,14 @@ export class EngineJobService {
         continue
       }
       for (const name of names) {
-        const tree = path.join(dir, name)
-        if (!engineTreeOwnerIsDead(this.projectRoot, tree)) continue
+        const candidate = path.join(dir, name.replace(/\.(?:owner\.json|index)$/, ''))
+        const tree = candidate
+        if (!engineTreeOwnerIsDead(this.projectRoot, tree) || engineTreeHasLiveOwner(candidate)) continue
         const workers = processes.filter(p => p.project !== undefined && sameProjectPath(path.resolve(p.project), path.resolve(tree)))
         if (workers.some(p => !this.swept.some(s => s.pid === p.pid && s.receipt.survivors.length === 0))) continue
-        removeEngineTree(tree)
-        this.staleTreesRemoved.push(tree)
+        rmSync(path.join(dir, name), { recursive: true, force: true })
+        if (name === path.basename(tree)) removeEngineTree(tree)
+        this.staleTreesRemoved.push(path.join(dir, name))
       }
     }
   }
@@ -398,6 +411,8 @@ export class EngineJobService {
       return { refused: `cannot record engine job ownership before materialization: ${(e as Error).message}` }
     }
     this.byId.set(id, job)
+    mkdirSync(path.dirname(job.treePath), { recursive: true })
+    writeFileSync(`${job.treePath}.owner.json`, JSON.stringify({ pid: process.pid }), { mode: 0o600, flag: 'wx' })
     const facts = await materializeEngineTree(this.projectRoot, request.tree, job.treePath)
     if ('error' in facts) {
       job.state = 'failed'
@@ -408,10 +423,18 @@ export class EngineJobService {
       job.record.endedAt = job.endedAt
       this.writeRecord(job)
       removeEngineTree(job.treePath)
+      rmSync(`${job.treePath}.owner.json`, { force: true })
       this.remember(job)
       return job
     }
     job.tree = facts
+    const refusal = await engineLeaseRefusal(this.projectRoot, facts, request.holder ?? projectLeaseHolder())
+    if (refusal) {
+      removeEngineTree(job.treePath)
+      rmSync(`${job.treePath}.owner.json`, { force: true })
+      this.byId.delete(id)
+      return { refused: refusal }
+    }
     this.queue.push(job)
     this.pump()
     return job
@@ -419,6 +442,8 @@ export class EngineJobService {
 
   private baseRecord(job: EngineJob, executable: string, selected: string[]): EngineRunRecord {
     return {
+      proofTreeFingerprint: job.tree ? proofTreeFingerprint(job.tree) : '',
+      drift: [],
       root: this.projectRoot,
       executable,
       results: [],
@@ -529,10 +554,14 @@ export class EngineJobService {
     unclean: RegExp,
   ): Promise<EngineResultRow> {
     if (job.cancelRequested) throw new Error('engine job cancelled before launch')
-    const handle = spawnEngine({ executable, args: argv, cwd: job.treePath, userDir, timeoutMs, label: `${job.id}:${name}` })
+    const scriptIndex = argv.indexOf('--script')
+    if (scriptIndex >= 0 && argv[scriptIndex + 1] && !argv.includes('--check-only')) injectVulcanWorkerScript(job.treePath, argv[scriptIndex + 1]!)
+    const bridge = await prepareVulcanInstance(job.treePath, name === IMPORT_SUITE_NAME ? 'agent-editor' : job.request.native ? 'native-worker' : 'headless-worker')
+    const handle = spawnEngine({ executable, args: argv, cwd: job.treePath, userDir, timeoutMs, label: `${job.id}:${name}`, bridge })
     this.handles.set(job.id, handle)
     job.currentSuite = name
     const out = await handle.done
+    rmSync(path.join(job.treePath, '.godot', 'mercury-vulcan', bridge.id), { recursive: true, force: true })
     this.handles.delete(job.id)
     job.currentSuite = null
     const logFile = path.join(job.runDir, `${name}.log`)
@@ -545,7 +574,9 @@ export class EngineJobService {
     const clean = isCleanEngineLog(out.output, unclean)
     const markerLine = marker ? markerLineOf(marker, out.output) : null
     const markerHit = marker === null || markerLine !== null
-    const ok = out.exitCode === 0 && !out.signal && !out.timedOut && !out.spawnError && clean && markerHit
+    const drift = engineLogDrift(out.output, name, job.id)
+    job.record?.drift.push(...drift)
+    const ok = out.exitCode === 0 && !out.signal && !out.timedOut && !out.spawnError && clean && markerHit && drift.length === 0
     const errors: EngineRowError[] = []
     for (const e of engineLogErrors(out.output)) {
       let lastChange: string | null = null
@@ -574,6 +605,8 @@ export class EngineJobService {
       endedAt: out.endedAt,
       cancelled: out.killed === 'cancel',
       userDir,
+      instance: handle.bridge,
+      drift,
     }
   }
 
@@ -686,13 +719,20 @@ export class EngineJobService {
       if (!job.tree) throw new Error('the frozen tree was not materialised')
       if (record.media?.kind === 'profile') await this.observeProfileQuiet(job, 'before-import', true)
       if (job.cancelRequested) throw new Error('engine job cancelled before import')
+      const refusal = await engineLeaseRefusal(this.projectRoot, job.tree, job.request.holder ?? projectLeaseHolder())
+      if (refusal) throw new Error(refusal)
+      record.drift = await sourceProofDrift(this.projectRoot, job.treePath, job.tree, manifest.suites.map(suite => suiteRelativeFile(suite, manifest.defaults)))
+      if (record.drift.length > 0) throw new Error('proof drift against HEAD; see the named drift rows')
       if (job.request.native && !job.request.displayShared) {
         const holder = await this.displayHolder()
         if (job.cancelRequested) throw new Error('engine job cancelled while checking the display')
         if (holder) throw new Error(`native run refused: the display is held by ${holder} — pass displayShared:true to run beside it`)
       }
+      await installVulcanWorkerAddon(job.treePath)
       const hashes = engineTreeHashes(job.tree)
+      hashes.key = createHash('sha256').update(hashes.key).update(VULCAN_ADDON_DIGEST).digest('hex')
       const seed = seedEngineTree(this.projectRoot, job.treePath, hashes.key)
+      rmSync(path.join(job.treePath, '.godot', 'mercury-vulcan'), { recursive: true, force: true })
       record.importCache = { key: hashes.key, hit: seed.hit, ran: false, seededFrom: seed.seededFrom, stored: false }
       const explicitImport = selection.entries.some(e => e.kind === 'import')
       if (!seed.hit || explicitImport) {
@@ -736,7 +776,7 @@ export class EngineJobService {
       record.complete = selected.every(name => named.has(name))
       const ran = record.results.filter((r): r is EngineResultRow => !('skipped' in r) && r.name !== IMPORT_SUITE_NAME)
       const importRows = record.results.filter((r): r is EngineResultRow => !('skipped' in r) && r.name === IMPORT_SUITE_NAME)
-      record.allPass = !record.cancelled && !record.budgetExceeded && record.complete && ran.length > 0 && ran.every(r => r.ok) && importRows.every(r => r.ok)
+      record.allPass = record.drift.length === 0 && !record.cancelled && !record.budgetExceeded && record.complete && ran.length > 0 && ran.every(r => r.ok) && importRows.every(r => r.ok)
       if (record.media?.quiet.contaminated && record.media.quiet.policy === 'refuse') {
         record.allPass = false
         record.error = 'quiet-machine guard flagged contamination during the profile boot; timings are retained but are not a quiet comparison'
@@ -750,6 +790,7 @@ export class EngineJobService {
     } finally {
       record.cancelled = record.cancelled || job.cancelRequested
       if (!job.request.keepTree) removeEngineTree(job.treePath)
+      rmSync(`${job.treePath}.owner.json`, { force: true })
       record.tree.kept = job.request.keepTree && existsSync(job.treePath)
       if (job.request.media && budgetLeft() <= 0) record.budgetExceeded = true
       if (record.cancelled || record.budgetExceeded || record.error !== null) record.allPass = false
@@ -790,6 +831,7 @@ export class EngineJobService {
       job.record.endedAt = job.endedAt
       this.writeRecord(job)
       removeEngineTree(job.treePath)
+      rmSync(`${job.treePath}.owner.json`, { force: true })
       this.remember(job)
       this.pump()
       return { id, state: job.state, receipt: null }
@@ -840,6 +882,7 @@ export class EngineJobService {
       running: [...this.running.values()].map(summarize),
       recent: this.recent.slice(0, 20).map(summarize),
       liveEngines: liveEngines(),
+      instances: listVulcanInstances(this.projectRoot),
       swept: this.swept,
       staleTreesRemoved: this.staleTreesRemoved,
       manifest: { file: manifest.file, found: manifest.found, suites: manifest.suites.map(s => s.name), problems: manifest.problems },
