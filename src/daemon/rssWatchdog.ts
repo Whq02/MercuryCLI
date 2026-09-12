@@ -29,6 +29,33 @@ export function parsePsRss(output: string): Map<number, number> {
 
 export type RssBreachVerb = 'park' | 'park-after-turn' | 'kill' | 'defer'
 
+export interface RssReading {
+  rssMb: number
+  limitMb: number
+  verdict: 'within' | RssBreachVerb
+  atMs: number
+}
+
+const lastReadings = new Map<string, RssReading>()
+
+export function lastRssReadingOf(short: string): RssReading | null {
+  return lastReadings.get(short) ?? null
+}
+
+export function memoryGuardWords(reading: RssReading | null, limitMb: number | null = childRssLimitMb()): string {
+  if (limitMb === null) return 'off (MERCURY_CHILD_RSS_LIMIT_MB=0)'
+  if (reading === null) return `limit ${limitMb} MB, this session not yet swept`
+  const verdict =
+    reading.verdict === 'within'
+      ? 'within the limit'
+      : reading.verdict === 'park' || reading.verdict === 'park-after-turn'
+        ? `over the limit — parked${reading.verdict === 'park-after-turn' ? ' after this turn' : ''}`
+        : reading.verdict === 'defer'
+          ? 'over the limit — left to finish its turn'
+          : 'over the limit — stopped'
+  return `${reading.rssMb} MB of ${reading.limitMb} MB, ${verdict}`
+}
+
 export interface RssBreach {
   short: string
   pid: number
@@ -107,6 +134,13 @@ export function runRssSweep(
       rssByPid,
       limitMb,
     )
+    const sweptAt = Date.now()
+    for (const entry of live) {
+      const rssKb = rssByPid.get(entry.pid as number)
+      if (rssKb === undefined) continue
+      const breach = breaches.find(b => b.short === entry.short)
+      lastReadings.set(entry.short, { rssMb: Math.round(rssKb / 1024), limitMb, verdict: breach?.verb ?? 'within', atMs: sweptAt })
+    }
     for (const breach of breaches) {
       if (parking.has(breach.short)) continue
       const words = `${breach.rssMb}MB > ${limitMb}MB (MERCURY_CHILD_RSS_LIMIT_MB)`

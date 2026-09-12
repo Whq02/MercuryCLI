@@ -224,6 +224,14 @@ section('F3 — the seat-wire codecs: snake keys out, deep-equal back')
     fileCheckpoints: { capture: true, restorable: ['u1'] },
     streamIdleTimeoutMs: 90_000,
     spawnSwitches: { subagents: { on: true, source: 'default' }, workflows: { on: false, source: 'session' } },
+    box: {
+      atMs: 5,
+      cores: 8,
+      loadPerCore: 1.25,
+      memory: { availableMb: 2048, totalMb: 8192 },
+      lock: { dir: '/tmp/box', holders: [{ slot: 1, pid: 4242, label: 'lane-a', since: '08:00:00', alive: true }], waiters: [{ label: 'lane-b', waitedS: 12 }] },
+      lockNote: 'a note',
+    },
   }
   const opaque = ['kit.extensions', 'kit.deltas.skill_states', 'spawn_switches']
   const wire = seatWire.sessionFactsToWire(facts as never)
@@ -233,6 +241,8 @@ section('F3 — the seat-wire codecs: snake keys out, deep-equal back')
   check('the spawn switch kinds and the name-keyed maps keep their keys', deepEq(Object.keys((wire as { spawn_switches: object }).spawn_switches), ['subagents', 'workflows']) && deepEq(Object.keys(((wire as { kit: { extensions: object } }).kit).extensions), ['ext-a', 'ext-b']), j(wire))
   const back = seatWire.sessionFactsFromWire(JSON.parse(JSON.stringify(wire)))
   check('the facts answer decodes back deep-equal', deepEq(back, facts), j(back).slice(0, 400))
+  const wireBox = (wire as { box: { at_ms: number; load_per_core: number; lock_note: string; memory: { available_mb: number }; lock: { waiters: Array<{ waited_s: number }> } } }).box
+  check('the box row rides the wire in snake_case at every depth', wireBox.at_ms === 5 && wireBox.load_per_core === 1.25 && wireBox.lock_note === 'a note' && wireBox.memory.available_mb === 2048 && wireBox.lock.waiters[0]!.waited_s === 12, j(wireBox))
   check('a facts answer missing its required fields decodes null', seatWire.sessionFactsFromWire({ model: { effective: 'x' } }) === null && seatWire.sessionFactsFromWire('no') === null)
   const minimal = { model: { effective: 'x', setting: null }, usage: { total_cost_usd: 0 }, skills: [], mcp: [], permission_mode: 'default', workspace: { cwd: '/w' }, queue: [] }
   const minimalBack = seatWire.sessionFactsFromWire(minimal)

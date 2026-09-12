@@ -13,10 +13,44 @@ export const healthAdapter: ResourceAdapter = {
   kind: 'health',
   describe: 'the last health certificate + gate verdict (mercury://health/cert)',
   async resolve(ref: ParsedRef): Promise<ResourceResult> {
-    if (ref.id !== '' && ref.id !== 'cert' && ref.id !== 'gate') {
+    if (ref.id !== '' && ref.id !== 'cert' && ref.id !== 'gate' && ref.id !== 'box') {
       return {
         state: 'absent',
-        note: 'health refs: mercury://health/cert (last certificate) · mercury://health/gate (last gate verdict)',
+        note: 'health refs: mercury://health/cert (last certificate) · mercury://health/gate (last gate verdict) · mercury://health/box (this box now: load, memory, the box lock, the memory guard)',
+      }
+    }
+    if (ref.id === 'box') {
+      const [{ boxLoadWords, boxLockStateWords, boxReading }, { readSessionFacts }, { getSessionId }] = await Promise.all([
+        import('../../../utils/boxLock.js'),
+        import('../../engine-connector/seatProjections.js'),
+        import('../../../bootstrap/state.js'),
+      ])
+      const reading = boxReading()
+      let memoryGuard: string | undefined
+      try {
+        memoryGuard = readSessionFacts(getSessionId())?.box?.memoryGuard
+      } catch {
+        memoryGuard = undefined
+      }
+      const lockWords = reading.lock === null ? (reading.lockNote ?? 'no box lock directory is named') : `${reading.lock.dir}: ${boxLockStateWords(reading.lock)}`
+      const guardWords = memoryGuard ?? 'no verdict for this session yet (not hosted by the daemon, or not swept yet)'
+      return {
+        state: 'ok',
+        resource: {
+          ref: 'mercury://health/box',
+          kind: 'health',
+          title: 'the box now',
+          summary: `${boxLoadWords(reading)} · lock: ${lockWords} · memory guard: ${guardWords}`,
+          mutable: true,
+          structured: { ...reading, ...(memoryGuard !== undefined ? { memoryGuard } : {}) },
+          text: [
+            `load and memory: ${boxLoadWords(reading)}`,
+            `box lock: ${lockWords}`,
+            `memory guard: ${guardWords}`,
+            '',
+            'A live reading of this machine; the session facts carry the same box row. Nothing here schedules or throttles.',
+          ].join('\n'),
+        },
       }
     }
     if (ref.id === 'gate') {
