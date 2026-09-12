@@ -17,6 +17,7 @@ import { extractTextContent } from '../utils/messages/text.js'
 import { objectGroupBy } from '../utils/objectGroupBy.js'
 import { recordQueueOperation } from '../utils/sessionStorage.js'
 import { createSignal } from '../utils/signal.js'
+import { consumeNotices, queuedNoticeKeys, recordQueuedNotice, retireNotices } from '../services/notices/unreadLedger.js'
 
 export type SetAppState = (f: (prev: AppState) => AppState) => void
 
@@ -180,12 +181,14 @@ export function peek(
 
 
 export function enqueue(command: QueuedCommand): void {
-  queue.push({
+  const stamped: QueuedCommand = {
     ...command,
     priority: command.priority ?? 'next',
     queueId: mintQueueId(),
-  })
+  }
+  queue.push(stamped)
   commit()
+  recordQueuedNotice(stamped)
   logOperation(
     'enqueue',
     typeof command.value === 'string' ? command.value : undefined,
@@ -193,12 +196,14 @@ export function enqueue(command: QueuedCommand): void {
 }
 
 export function enqueuePendingNotification(command: QueuedCommand): void {
-  queue.push({
+  const stamped: QueuedCommand = {
     ...command,
     priority: command.priority ?? 'later',
     queueId: mintQueueId(),
-  })
+  }
+  queue.push(stamped)
   commit()
+  recordQueuedNotice(stamped)
   logOperation(
     'enqueue',
     typeof command.value === 'string' ? command.value : undefined,
@@ -214,6 +219,7 @@ export function dequeue(
   commit()
   logOperation('dequeue')
   rememberTaken(dequeued ? [dequeued] : [])
+  consumeNotices(queuedNoticeKeys(dequeued ? [dequeued] : []))
   emitConsumption('dequeued', dequeued ? [dequeued] : [])
   return dequeued
 }
@@ -229,6 +235,7 @@ export function dequeueAll(): QueuedCommand[] {
     logOperation('dequeue')
   }
   rememberTaken(commands)
+  consumeNotices(queuedNoticeKeys(commands))
   emitConsumption('dequeued', commands)
   return commands
 }
@@ -255,6 +262,7 @@ export function dequeueAllMatching(
     logOperation('dequeue')
   }
   rememberTaken(matched)
+  retireNotices(queuedNoticeKeys(matched), 'discarded when its agent was stopped')
   emitConsumption('dequeued', matched)
   return matched
 }
@@ -285,6 +293,7 @@ export function remove(commandsToRemove: QueuedCommand[]): void {
     logOperation('remove')
   }
   rememberTaken(removed)
+  consumeNotices(queuedNoticeKeys(removed))
   emitConsumption('removed', removed)
 }
 
@@ -317,6 +326,7 @@ export function popById(uuid: string): PopReceipt {
   queue.splice(idx, 1)
   commit()
   logOperation('pop', typeof cmd.value === 'string' ? cmd.value : undefined)
+  retireNotices(queuedNoticeKeys([cmd]), 'taken back before a turn read it')
   emitConsumption('popped', [cmd])
   return { popped: true, command: cmd, text: textOfCommand(cmd) }
 }

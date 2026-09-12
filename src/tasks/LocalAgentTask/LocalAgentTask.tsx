@@ -22,6 +22,7 @@ import { sliceHeadAtGrapheme, sliceTailAtGrapheme } from '../../utils/intl.js'
 import { calculateUSDCost, modelPricingBasis } from '../../utils/modelCost.js'
 import { getTokenCountFromUsage } from '../../utils/tokens.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
+import { consumeAgentMessages, recordAgentMessage } from '../../services/notices/unreadLedger.js'
 import { getAgentTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import type { AgentId } from '../../types/ids.js'
 import { asAgentId } from '../../types/ids.js'
@@ -809,10 +810,13 @@ export function queuePendingMessage(
   message: string,
   setAppState: SetAppState,
 ): void {
+  let queued = false
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
     if (!isLocalAgentTask(task)) return task
+    queued = true
     return { ...task, pendingMessages: [...(task.pendingMessages ?? []), message] }
   })
+  if (queued) recordAgentMessage(taskId, message)
 }
 
 export function drainPendingMessages(
@@ -828,6 +832,7 @@ export function drainPendingMessages(
     ...current,
     pendingMessages: [],
   }))
+  consumeAgentMessages(taskId)
   return pending
 }
 
