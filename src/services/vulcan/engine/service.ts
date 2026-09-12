@@ -672,7 +672,7 @@ export class EngineJobService {
       }
       const debuggerProfile = request.kind === 'profile' && request.source !== 'project' ? new GodotDebuggerProfile(request, engineMediaDriverFile(job.runDir, variant)) : null
       try {
-        if (debuggerProfile) await debuggerProfile.transport.listen()
+        if (debuggerProfile) await debuggerProfile.transport.open()
         if (job.cancelRequested) return
         if (budgetLeft() <= 0) { record.budgetExceeded = true; return }
         const connection = debuggerProfile ? { port: debuggerProfile.transport.port, token: debuggerProfile.transport.token } : undefined
