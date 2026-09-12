@@ -1,14 +1,19 @@
 
 import type { Dirent } from 'node:fs'
+import { realpathSync } from 'node:fs'
 import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, isAbsolute, relative, resolve } from 'node:path'
-import { createHash } from 'node:crypto'
+import { createHash, type UUID } from 'node:crypto'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import type { ServerCapabilities } from 'vscode-languageserver-protocol'
 
 import { runVerbatimTextCommit } from '../../services/changeTransaction/changeSetCommit.js'
-import { canonicalPathKey } from '../../services/changeTransaction/changeSetPlan.js'
+import { canonicalPathKey, sha256Hex } from '../../services/changeTransaction/changeSetPlan.js'
+import { checkSeenLines, dropSeenLines, fileGeneration } from '../../services/changeTransaction/seenLines.js'
+import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
+import { rememberAnchoredSnapshot } from '../../services/changeTransaction/snapshotRing.js'
+import { diagnosticTracker } from '../../services/diagnosticTracking.js'
 import {
   clearDeliveredDiagnosticsForFile,
   subscribeLSPDiagnosticPublish,
@@ -18,24 +23,31 @@ import type { LSPServerInstance } from '../../services/lsp/LSPServerInstance.js'
 import type { LSPServerManager } from '../../services/lsp/LSPServerManager.js'
 import {
   applyEditsToText,
+  editRowsOf,
   formatEditPreview,
   normalizeWorkspaceEdit,
+  type EditRow,
   type LspRangeLike,
   type LspTextEditLike,
   type NormalizedFileEdits,
   type WorkspaceEditLike,
 } from '../../services/lsp/workspaceEditApply.js'
+import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { noteRunEvent } from '../../services/run/runCoordinator.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { buildDiffHunks } from '../../services/structure/transform.js'
 import { renameWithWin32Retry } from '../../substrate/durablePublish.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { getFileModificationTime } from '../../utils/file.js'
+import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
 import { logError } from '../../utils/log.js'
+import { expandPath } from '../../utils/path.js'
 import {
   checkWritePermissionForTool,
   pathInAllowedWorkingPath,
 } from '../../utils/permissions/filesystem.js'
+import { MAX_LINES_TO_READ } from '../FileReadTool/prompt.js'
 
 
 export type MercuryLspOperation =
@@ -53,6 +65,7 @@ export type MercuryLspOperation =
   | 'organizeImports'
   | 'capabilities'
   | 'rawRequest'
+  | 'moveSymbol'
 
 export type MercuryLspOpInput = {
   operation: MercuryLspOperation
@@ -69,6 +82,9 @@ export type MercuryLspOpInput = {
   paths?: string[]
   method?: string
   params?: string
+  plan?: string
+  kind?: string
+  targetPath?: string
 }
 
 export type MercuryOpEffect = {
@@ -103,6 +119,9 @@ export type MercuryLspOpOutput = {
     files: LspChangeViewFile[]
     refs: string[]
   }
+  edits?: EditRow[]
+  omittedEdits?: number
+  plan?: string
 }
 
 type OpEnv = {
@@ -112,6 +131,7 @@ type OpEnv = {
   manager: LSPServerManager
   tool: { name: string; getPath?: (input: unknown) => string | undefined }
   context: ToolUseContext
+  messageId?: UUID
 }
 
 
@@ -145,9 +165,10 @@ function foldFilesByPath(files: NormalizedFileEdits[]): NormalizedFileEdits[] {
     const key = canonicalPathKey(uriToFilePath(file.uri))
     const prior = byKey.get(key)
     if (prior === undefined) {
-      byKey.set(key, { uri: file.uri, edits: [...file.edits] })
+      byKey.set(key, { uri: file.uri, edits: [...file.edits], ...(file.create === true ? { create: true } : {}) })
       continue
     }
+    if (file.create === true) prior.create = true
     for (const edit of file.edits) {
       const duplicate = prior.edits.some(
         held =>
@@ -641,6 +662,7 @@ type PreparedApply =
 async function prepareApply(
   env: OpEnv,
   requestEdit: () => Promise<WorkspaceEditLike | null | undefined>,
+  options: { allowCreate?: boolean } = {},
 ): Promise<PreparedApply> {
   const snapshots = new Map<string, string>()
   for (let round = 0; round < PREPARE_ROUNDS; round++) {
@@ -650,7 +672,7 @@ async function prepareApply(
     } catch (error) {
       return { ok: false, reason: error instanceof Error ? error.message : String(error) }
     }
-    const normalized = normalizeWorkspaceEdit(edit)
+    const normalized = normalizeWorkspaceEdit(edit, options)
     if (!normalized.ok) return { ok: false, reason: normalized.reason }
     const files = foldFilesByPath(normalized.files)
     const unsynced = files.filter(file => !snapshots.has(uriToFilePath(file.uri)))
@@ -659,6 +681,23 @@ async function prepareApply(
     }
     for (const file of unsynced) {
       const abs = uriToFilePath(file.uri)
+      if (file.create === true) {
+        let exists = false
+        try {
+          await stat(abs)
+          exists = true
+        } catch {
+          exists = false
+        }
+        if (exists) {
+          return {
+            ok: false,
+            reason: `${displayPathFor(env.cwd, abs)} already exists — the service planned to create it; name a file that does not exist or an existing module to move into`,
+          }
+        }
+        snapshots.set(abs, '')
+        continue
+      }
       try {
         snapshots.set(abs, await syncFileFromDisk(env.manager, abs))
       } catch (error) {
@@ -707,19 +746,86 @@ function changeViewOf(
   return { state, action: operation, files: viewFiles, refs: [] }
 }
 
+type PlannedFile = {
+  abs: string
+  originalText: string
+  newText: string
+  editCount: number
+  create: boolean
+}
+
+type PlannedSet = { ok: true; planned: PlannedFile[] } | { ok: false; reason: string }
+
+function planFiles(files: NormalizedFileEdits[], snapshots: Map<string, string>): PlannedSet {
+  const planned: PlannedFile[] = []
+  for (const file of files) {
+    const abs = uriToFilePath(file.uri)
+    const snapshot = snapshots.get(abs)
+    if (snapshot === undefined) return { ok: false, reason: `no held snapshot for ${abs}` }
+    const applied = applyEditsToText(snapshot, file.edits)
+    if (!applied.ok) return { ok: false, reason: applied.reason }
+    planned.push({
+      abs,
+      originalText: snapshot,
+      newText: applied.text,
+      editCount: applied.editCount,
+      create: file.create === true,
+    })
+  }
+  return { ok: true, planned }
+}
+
+function planTokenOf(planned: PlannedFile[]): string {
+  const material = JSON.stringify(
+    [...planned]
+      .map(file => [file.abs, sha256Hex(file.originalText), sha256Hex(file.newText)])
+      .sort((a, b) => (a[0]! < b[0]! ? -1 : a[0]! > b[0]! ? 1 : 0)),
+  )
+  return `lsp-${sha256Hex(material).slice(0, 12)}`
+}
+
+function editRowsFor(
+  env: OpEnv,
+  files: NormalizedFileEdits[],
+  snapshots: Map<string, string>,
+): { edits: EditRow[]; omittedEdits?: number } {
+  const { rows, omitted } = editRowsOf(
+    files,
+    uri => snapshots.get(uriToFilePath(uri)),
+    uri => displayPathFor(env.cwd, uriToFilePath(uri)),
+  )
+  return { edits: rows, ...(omitted > 0 ? { omittedEdits: omitted } : {}) }
+}
+
 function previewOf(
   env: OpEnv,
   operation: string,
   files: NormalizedFileEdits[],
   snapshots: Map<string, string>,
-  rerunHint: string,
+  purpose: string,
 ): MercuryLspOpOutput {
+  const set = planFiles(files, snapshots)
+  if (!set.ok) {
+    return {
+      result: `${operation} failed: ${set.reason}; nothing was written.`,
+      resultCount: 0,
+      fileCount: 0,
+      applied: false,
+      effect: { outcome: 'failed', changedPaths: [], evidence: 'edit set ambiguous — nothing written' },
+    }
+  }
+  const token = planTokenOf(set.planned)
   const preview = formatEditPreview(
     files,
     uri => snapshots.get(uriToFilePath(uri)),
     uri => displayPathFor(env.cwd, uriToFilePath(uri)),
   )
-  const result = `${preview}\n\nPreview only — nothing written. ${rerunHint}`
+  const created = set.planned.filter(file => file.create)
+  const createdNote =
+    created.length > 0
+      ? `\nCreates ${created.map(file => `${displayPathFor(env.cwd, file.abs)} (new file, ${file.newText.split('\n').length} line(s))`).join(', ')}.`
+      : ''
+  const result = `${preview}${createdNote}\n\nPreview only — nothing written. plan: ${token} — re-run with apply: true, plan: "${token}" ${purpose} (refused if any of these files changes first).`
   const totalEdits = files.reduce((sum, file) => sum + file.edits.length, 0)
   return {
     result,
@@ -730,10 +836,85 @@ function previewOf(
       outcome: 'succeeded',
       changedPaths: [],
       evidence: `previewed ${files.length} file(s), nothing written`,
-      details: { preview: true },
+      details: { preview: true, plan: token },
     },
     changeView: changeViewOf(operation, 'proposed', env.cwd, files, snapshots),
+    ...editRowsFor(env, files, snapshots),
+    plan: token,
   }
+}
+
+type ReadCache = {
+  get: (path: string) => { content: string; timestamp: number; offset: number | undefined; limit: number | undefined; isPartialView?: boolean } | undefined
+  entries?: () => IterableIterator<[string, { content: string; timestamp: number; offset: number | undefined; limit: number | undefined; isPartialView?: boolean }]>
+}
+
+function readEntryFor(cache: ReadCache | undefined, abs: string): ReturnType<ReadCache['get']> {
+  if (!cache) return undefined
+  const direct = cache.get(abs)
+  if (direct) return direct
+  let real: string
+  try {
+    real = realpathSync(abs)
+  } catch {
+    return undefined
+  }
+  if (real !== abs) {
+    const viaReal = cache.get(real)
+    if (viaReal) return viaReal
+  }
+  if (typeof cache.entries !== 'function') return undefined
+  let scanned = 0
+  for (const [key, entry] of cache.entries()) {
+    if (++scanned > 512) break
+    try {
+      if (realpathSync(key) === real) return entry
+    } catch {
+      continue
+    }
+  }
+  return undefined
+}
+
+const lineFeeds = (text: string): string => text.replaceAll('\r\n', '\n')
+
+function readKnowledgeHolds(
+  env: OpEnv,
+  abs: string,
+  snapshot: string,
+  touched: Array<{ start: number; end: number }>,
+): boolean {
+  const entry = readEntryFor(env.context.readFileState as unknown as ReadCache | undefined, abs)
+  if (entry && entry.isPartialView !== true) {
+    const full = (entry.offset === undefined || entry.offset === 0) && entry.limit === undefined
+    if (full) {
+      if (lineFeeds(entry.content) === lineFeeds(snapshot)) return true
+    } else {
+      const start = Math.max(1, entry.offset ?? 1)
+      const count = Math.min(entry.limit ?? MAX_LINES_TO_READ, entry.content.split('\n').length)
+      const covers = touched.every(range => range.start >= start && range.end < start + count)
+      if (covers && getFileModificationTime(abs) <= entry.timestamp) return true
+    }
+  }
+  try {
+    const generation = fileGeneration(abs)
+    if (generation !== null) {
+      const seen = checkSeenLines(
+        ownerFromToolUseContext(env.context),
+        abs,
+        generation,
+        touched.map((range, index) => ({ index: index + 1, start: range.start, end: range.end, replace: '' })),
+      )
+      if (seen.ok) return true
+    }
+  } catch {
+    return false
+  }
+  return false
+}
+
+function touchedLinesOf(file: NormalizedFileEdits): Array<{ start: number; end: number }> {
+  return file.edits.map(edit => ({ start: edit.range.start.line + 1, end: edit.range.end.line + 1 }))
 }
 
 type AppliedOutcome = {
@@ -789,45 +970,92 @@ async function applyPrepared(
     }
   }
 
-  const planned: Array<{ abs: string; originalText: string; newText: string; editCount: number }> =
-    []
-  for (const file of files) {
-    const abs = uriToFilePath(file.uri)
-    const snapshot = snapshots.get(abs)
-    if (snapshot === undefined) {
+  const set = planFiles(files, snapshots)
+  if (!set.ok) {
+    return {
+      output: {
+        result: `Apply aborted: ${set.reason}; nothing was written.`,
+        resultCount: 0,
+        fileCount: 0,
+        applied: false,
+        effect: {
+          outcome: 'failed',
+          changedPaths: [],
+          evidence: 'edit application failed — nothing written',
+        },
+      },
+      writtenPaths: [],
+    }
+  }
+  const planned = set.planned.filter(file => file.create || file.newText !== file.originalText)
+  const plannedFiles = files.filter(file => planned.some(p => p.abs === uriToFilePath(file.uri)))
+  if (planned.length === 0) {
+    return {
+      output: {
+        result: `Nothing to write: the ${operation} leaves every file exactly as it is.`,
+        resultCount: 0,
+        fileCount: 0,
+        applied: false,
+        effect: { outcome: 'no-change', changedPaths: [], evidence: 'edits change no bytes' },
+      },
+      writtenPaths: [],
+    }
+  }
+  const token = planTokenOf(planned)
+  const givenPlan = env.input.plan?.trim()
+  if (givenPlan !== undefined && givenPlan !== '') {
+    if (givenPlan !== token) {
       return {
         output: {
-          result: `Apply aborted: no held snapshot for ${displayPathFor(env.cwd, abs)}; nothing was written.`,
+          result: `Apply refused: plan ${givenPlan} no longer matches the edit set — a file changed since that dry run (the set is now ${planned.length} file(s)); re-run the dry run, read it, and apply the plan it prints. Nothing was written.`,
           resultCount: 0,
           fileCount: 0,
           applied: false,
-          effect: {
-            outcome: 'failed',
-            changedPaths: [],
-            evidence: 'missing snapshot — nothing written',
-          },
+          effect: { outcome: 'failed', changedPaths: [], evidence: 'stale plan — nothing written' },
         },
         writtenPaths: [],
       }
     }
-    const applied = applyEditsToText(snapshot, file.edits)
-    if (!applied.ok) {
+  } else {
+    const unread: string[] = []
+    for (const file of plannedFiles) {
+      const abs = uriToFilePath(file.uri)
+      if (file.create === true) continue
+      if (readKnowledgeHolds(env, abs, snapshots.get(abs) ?? '', touchedLinesOf(file))) continue
+      const lines = touchedLinesOf(file)
+      const first = Math.min(...lines.map(range => range.start))
+      const last = Math.max(...lines.map(range => range.end))
+      unread.push(`  ${displayPathFor(env.cwd, abs)} (lines ${first === last ? first : `${first}-${last}`})`)
+    }
+    if (unread.length > 0) {
       return {
         output: {
-          result: `Apply aborted: ${applied.reason}; nothing was written.`,
+          result:
+            `Apply refused — the read-before-edit law: ${unread.length} touched file(s) were not read in this session as they stand now:\n${unread.join('\n')}\n` +
+            `Read them (a Read covering the lines each edit touches), or attest the exact edit set: run the dry run (apply omitted), read it, and re-run with apply: true and the plan it prints. Nothing was written.`,
           resultCount: 0,
           fileCount: 0,
           applied: false,
-          effect: {
-            outcome: 'failed',
-            changedPaths: [],
-            evidence: 'edit application failed — nothing written',
-          },
+          effect: { outcome: 'failed', changedPaths: [], evidence: 'read-before-edit refusal — nothing written' },
         },
         writtenPaths: [],
       }
     }
-    planned.push({ abs, originalText: snapshot, newText: applied.text, editCount: applied.editCount })
+  }
+
+  for (const file of planned) {
+    try {
+      await diagnosticTracker.beforeFileEdited(file.abs)
+    } catch (error) {
+      logForDebugging(`lsp ops: diagnostics baseline failed for ${file.abs}: ${String(error)}`)
+    }
+    if (env.messageId !== undefined && fileHistoryEnabled()) {
+      try {
+        await fileHistoryTrackEdit(env.context.updateFileHistoryState, file.abs, env.messageId)
+      } catch (error) {
+        logForDebugging(`lsp ops: file history track failed for ${file.abs}: ${String(error)}`)
+      }
+    }
   }
 
   const owner = ownerFromToolUseContext(env.context)
@@ -839,6 +1067,7 @@ async function applyPrepared(
       canonicalPath: p.abs,
       originalText: p.originalText,
       plannedText: p.newText,
+      ...(p.create ? { kind: 'create' as const } : {}),
     })),
     ...(signal !== undefined ? { signal } : {}),
   })
@@ -919,8 +1148,29 @@ async function applyPrepared(
   const manager = env.manager
   const syncFailures: string[] = []
   for (const w of written) {
+    try {
+      env.context.readFileState.set(w.abs, {
+        content: w.newText,
+        timestamp: getFileModificationTime(w.abs),
+        offset: undefined,
+        limit: undefined,
+      })
+    } catch (error) {
+      logForDebugging(`lsp ops: read-state refresh failed for ${w.abs}: ${String(error)}`)
+    }
+    try {
+      notifyVscodeFileUpdated(w.abs, w.create ? null : w.originalText, w.newText)
+    } catch (error) {
+      logForDebugging(`lsp ops: editor notification failed for ${w.abs}: ${String(error)}`)
+    }
     const sync = await syncServersAfterWrite(manager, w.abs, w.newText)
     if (!sync.ok) syncFailures.push(`${displayPathFor(env.cwd, w.abs)}: ${sync.reason}`)
+    try {
+      rememberAnchoredSnapshot(owner, mintFileAnchor(w.newText), w.newText, w.abs)
+      dropSeenLines(owner, w.abs)
+    } catch (error) {
+      logForDebugging(`lsp ops: anchor bookkeeping failed for ${w.abs}: ${String(error)}`)
+    }
   }
   const primary = written[0]!.abs
   const stabilization = await awaitDiagnosticStabilization(manager, primary)
@@ -957,16 +1207,18 @@ async function applyPrepared(
           outcome: 'indeterminate',
           changedPaths: written.map(w => w.abs),
           evidence: 'writes landed; server sync unconfirmed',
-          details: { stabilization: stabilization.state },
+          details: { stabilization: stabilization.state, plan: token },
         },
-        changeView: changeViewOf(operation, 'applied', env.cwd, files, snapshots),
+        changeView: changeViewOf(operation, 'applied', env.cwd, plannedFiles, snapshots),
+        ...editRowsFor(env, plannedFiles, snapshots),
+        plan: token,
       },
       writtenPaths,
     }
   }
 
   const fileLines = written
-    .map(w => `  ${displayPathFor(env.cwd, w.abs)} (${w.editCount})`)
+    .map(w => `  ${displayPathFor(env.cwd, w.abs)} (${w.editCount}${w.create ? ', created' : ''})`)
     .join('\n')
   return {
     output: {
@@ -978,9 +1230,11 @@ async function applyPrepared(
         outcome: 'succeeded',
         changedPaths: written.map(w => w.abs),
         evidence: `${totalEdits} edit(s) written + servers synced`,
-        details: { stabilization: stabilization.state },
+        details: { stabilization: stabilization.state, plan: token },
       },
-      changeView: changeViewOf(operation, 'applied', env.cwd, files, snapshots),
+      changeView: changeViewOf(operation, 'applied', env.cwd, plannedFiles, snapshots),
+      ...editRowsFor(env, plannedFiles, snapshots),
+      plan: token,
     },
     writtenPaths,
   }
@@ -1176,13 +1430,7 @@ async function opRename(env: OpEnv): Promise<MercuryLspOpOutput> {
     }
   }
   if (input.apply !== true) {
-    return previewOf(
-      env,
-      'rename',
-      prepared.files,
-      prepared.snapshots,
-      `Re-run with apply: true to write the rename.`,
-    )
+    return previewOf(env, 'rename', prepared.files, prepared.snapshots, 'to write the rename')
   }
   const applied = await applyPrepared(env, 'rename', prepared.files, prepared.snapshots)
   return applied.output
@@ -1272,6 +1520,9 @@ async function opCodeActions(env: OpEnv): Promise<MercuryLspOpOutput> {
   const display = displayPathFor(env.cwd, env.absolutePath)
   await syncFileFromDisk(env.manager, env.absolutePath)
   const range = inputRange(input)
+  const kind = input.kind?.trim() || undefined
+  const only = kind !== undefined ? [kind] : undefined
+  const where = `${display}:${input.line ?? 1}:${input.character ?? 1}${kind !== undefined ? ` for kind ${kind}` : ''}`
 
   let contextDiagnostics: LspWireDiagnostic[] = []
   try {
@@ -1285,10 +1536,10 @@ async function opCodeActions(env: OpEnv): Promise<MercuryLspOpOutput> {
     )
   }
 
-  const actions = await fetchCodeActions(env, range, contextDiagnostics)
+  const actions = await fetchCodeActions(env, range, contextDiagnostics, only)
   if (actions.length === 0) {
     return {
-      result: `No code actions offered at ${display}:${input.line ?? 1}:${input.character ?? 1}.`,
+      result: `No code actions offered at ${where}.`,
       resultCount: 0,
       fileCount: 0,
       effect: {
@@ -1299,9 +1550,10 @@ async function opCodeActions(env: OpEnv): Promise<MercuryLspOpOutput> {
     }
   }
 
-  if (input.apply !== true) {
+  const selecting = input.apply === true || input.actionId !== undefined || input.actionIndex !== undefined
+  if (!selecting) {
     return {
-      result: `${actions.length} code action(s) at ${display}:${input.line ?? 1}:${input.character ?? 1}:\n${formatActionRows(actions)}\n${CODE_ACTION_RERUN_HINT}`,
+      result: `${actions.length} code action(s) at ${where}:\n${formatActionRows(actions)}\n${CODE_ACTION_RERUN_HINT}`,
       resultCount: actions.length,
       fileCount: 1,
       effect: {
@@ -1314,7 +1566,9 @@ async function opCodeActions(env: OpEnv): Promise<MercuryLspOpOutput> {
   }
 
   let selected: WireCodeAction
-  if (input.actionId !== undefined) {
+  if (input.actionId === undefined && input.actionIndex === undefined && kind !== undefined && actions.length === 1) {
+    selected = actions[0]!
+  } else if (input.actionId !== undefined) {
     const matches = actions.filter(action => actionIdentity(action) === input.actionId)
     if (matches.length === 0) {
       return {
@@ -1366,7 +1620,7 @@ async function opCodeActions(env: OpEnv): Promise<MercuryLspOpOutput> {
       input.actionIndex >= actions.length
     ) {
       return {
-        result: `apply: true requires actionId (preferred) or actionIndex in [0, ${actions.length - 1}]. Current list:\n${formatActionRows(actions)}`,
+        result: `apply: true requires actionId (preferred) or actionIndex in [0, ${actions.length - 1}]${kind !== undefined ? ` — or a kind that leaves exactly one action (${actions.length} match ${kind})` : ''}. Current list:\n${formatActionRows(actions)}`,
         resultCount: 0,
         fileCount: 0,
         applied: false,
@@ -1411,7 +1665,7 @@ async function opCodeActions(env: OpEnv): Promise<MercuryLspOpOutput> {
   const selectedTitle = selected.title
   const selectedKind = selected.kind
   const requestEdit = async (): Promise<WorkspaceEditLike | null> => {
-    const fresh = await fetchCodeActions(env, range, contextDiagnostics)
+    const fresh = await fetchCodeActions(env, range, contextDiagnostics, only)
     const matches = fresh.filter(
       action => action.title === selectedTitle && (action.kind ?? '') === (selectedKind ?? ''),
     )
@@ -1427,7 +1681,7 @@ async function opCodeActions(env: OpEnv): Promise<MercuryLspOpOutput> {
   const prepared = await prepareApply(env, requestEdit)
   if (!prepared.ok) {
     return {
-      result: `Apply failed for "${selected.title}": ${prepared.reason}`,
+      result: `${input.apply === true ? 'Apply' : 'Preview'} failed for "${selected.title}": ${prepared.reason}`,
       resultCount: 0,
       fileCount: 0,
       applied: false,
@@ -1437,6 +1691,10 @@ async function opCodeActions(env: OpEnv): Promise<MercuryLspOpOutput> {
         evidence: 'code-action preparation failed — nothing written',
       },
     }
+  }
+  if (input.apply !== true) {
+    const preview = previewOf(env, 'codeActions', prepared.files, prepared.snapshots, `and actionId: "${actionIdentity(selected)}" to apply it`)
+    return { ...preview, result: `"${selected.title}" (${actionIdentity(selected)})\n${preview.result}` }
   }
   const applied = await applyPrepared(
     env,
@@ -1963,6 +2221,17 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
   const preparedSnapshots = prepared.snapshots
   const notesBlock = fanOutNotes.length > 0 ? `\n${fanOutNotes.map(n => `note: ${n}`).join('\n')}` : ''
   if (input.apply !== true) {
+    const set = planFiles(preparedFiles, preparedSnapshots)
+    if (!set.ok) {
+      return {
+        result: `pathRename failed while planning the import edits: ${set.reason}. Nothing was moved.`,
+        resultCount: 0,
+        fileCount: 0,
+        applied: false,
+        effect: { outcome: 'failed', changedPaths: [], evidence: 'edit set ambiguous — nothing moved' },
+      }
+    }
+    const token = set.planned.length > 0 ? planTokenOf(set.planned) : undefined
     const editPreview =
       preparedFiles.length > 0
         ? `\n${formatEditPreview(
@@ -1971,8 +2240,12 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
             uri => displayPathFor(env.cwd, uriToFilePath(uri)),
           )}`
         : ''
+    const rerun =
+      token !== undefined
+        ? `plan: ${token} — re-run with apply: true, plan: "${token}" to move (refused if any of these files changes first).`
+        : 'Re-run with apply: true to move.'
     return {
-      result: `Move: ${display} → ${newDisplay}\n${supportNote}${notesBlock}${editPreview}\nPreview only — nothing moved, nothing written. Re-run with apply: true to move.`,
+      result: `Move: ${display} → ${newDisplay}\n${supportNote}${notesBlock}${editPreview}\nPreview only — nothing moved, nothing written. ${rerun}`,
       resultCount: preparedFiles.reduce((sum, file) => sum + file.edits.length, 0),
       fileCount: preparedFiles.length,
       applied: false,
@@ -1980,7 +2253,7 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
         outcome: 'succeeded',
         changedPaths: [],
         evidence: 'move previewed, nothing written',
-        details: { preview: true },
+        details: { preview: true, ...(token !== undefined ? { plan: token } : {}) },
       },
       ...(preparedFiles.length > 0
         ? {
@@ -1991,8 +2264,10 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
               preparedFiles,
               preparedSnapshots,
             ),
+            ...editRowsFor(env, preparedFiles, preparedSnapshots),
           }
         : {}),
+      ...(token !== undefined ? { plan: token } : {}),
     }
   }
 
@@ -2497,15 +2772,68 @@ async function opFormatFamily(env: OpEnv, want: FormatWant): Promise<MercuryLspO
     }
   }
   if (input.apply !== true) {
-    return previewOf(
-      env,
-      want,
-      prepared.files,
-      prepared.snapshots,
-      `Re-run with apply: true to write (${owner.name} is the formatting owner).`,
-    )
+    return previewOf(env, want, prepared.files, prepared.snapshots, `to write (${owner.name} is the formatting owner)`)
   }
   const applied = await applyPrepared(env, want, prepared.files, prepared.snapshots)
+  return applied.output
+}
+
+async function opMoveSymbol(env: OpEnv): Promise<MercuryLspOpOutput> {
+  const input = env.input
+  const display = displayPathFor(env.cwd, env.absolutePath)
+  const failed = (result: string, evidence: string): MercuryLspOpOutput => ({
+    result,
+    resultCount: 0,
+    fileCount: 0,
+    applied: false,
+    effect: { outcome: 'failed', changedPaths: [], evidence },
+  })
+  const rawTarget = input.targetPath?.trim() ?? ''
+  if (rawTarget === '') {
+    return failed(
+      'moveSymbol needs targetPath — the file the declaration moves to (created when it does not exist, appended to when it does).',
+      'missing targetPath',
+    )
+  }
+  const target = resolve(env.cwd, expandPath(rawTarget))
+  if (target === resolve(env.absolutePath)) {
+    return failed(`moveSymbol failed: targetPath must differ from filePath (${display} cannot move into itself).`, 'target is the source')
+  }
+  const claimant = env.manager.getServerForFile(env.absolutePath)
+  if (!claimant) {
+    const extension = extname(env.absolutePath).toLowerCase()
+    return {
+      result: `No language server claims ${display} (extension '${extension}') — nothing can move it. ${remedyForUnclaimedExtension(extension)}`,
+      resultCount: 0,
+      fileCount: 0,
+      effect: { outcome: 'no-change', changedPaths: [], evidence: `no language server claims '${extension}'` },
+    }
+  }
+  await syncFileFromDisk(env.manager, env.absolutePath)
+  const uri = pathToFileURL(resolve(env.absolutePath)).href
+  const position = { line: (input.line ?? 1) - 1, character: (input.character ?? 1) - 1 }
+  const requestEdit = (): Promise<WorkspaceEditLike | null | undefined> =>
+    env.manager.sendRequest<WorkspaceEditLike | null>(env.absolutePath, 'mercury/moveToFile', {
+      textDocument: { uri },
+      position,
+      targetUri: pathToFileURL(target).href,
+    })
+  const prepared = await prepareApply(env, requestEdit, { allowCreate: true })
+  if (!prepared.ok) {
+    if (isMethodNotFoundError(prepared.reason)) {
+      return {
+        result: `The ${claimant.name} server does not offer a symbol move — the TypeScript and JavaScript lane (mercury-ts) does; for other languages move the declaration with Edit and fix the imports with rename or pathRename.`,
+        resultCount: 0,
+        fileCount: 0,
+        effect: { outcome: 'no-change', changedPaths: [], evidence: 'symbol move unsupported by the claimant' },
+      }
+    }
+    return failed(`Move failed: ${prepared.reason}`, 'move preparation failed — nothing written')
+  }
+  if (input.apply !== true) {
+    return previewOf(env, 'moveSymbol', prepared.files, prepared.snapshots, `to move the declaration to ${displayPathFor(env.cwd, target)}`)
+  }
+  const applied = await applyPrepared(env, 'moveSymbol', prepared.files, prepared.snapshots)
   return applied.output
 }
 
@@ -2659,5 +2987,7 @@ export async function runMercuryLspOp(env: OpEnv): Promise<MercuryLspOpOutput> {
       return opFormatFamily(env, 'formatRange')
     case 'organizeImports':
       return opFormatFamily(env, 'organizeImports')
+    case 'moveSymbol':
+      return opMoveSymbol(env)
   }
 }

@@ -31,6 +31,7 @@ export const BRIDGE_LSP_OPERATIONS = [
   'organizeImports',
   'capabilities',
   'rawRequest',
+  'moveSymbol',
 ] as const
 
 const ALL_OPERATIONS: ReadonlySet<string> = new Set([
@@ -53,6 +54,10 @@ const APPLY = z
   .boolean()
   .optional()
   .describe('Actually write the change (default: preview only)')
+const PLAN = z
+  .string()
+  .optional()
+  .describe('With apply: the plan token the dry run printed (lsp-…) — the exact edit set to write')
 
 function positionalSchema<Op extends string>(operation: Op) {
   return z.strictObject({
@@ -75,6 +80,7 @@ function fileWithApplySchema<Op extends string>(operation: Op) {
     operation: z.literal(operation),
     filePath: FILE_PATH,
     apply: APPLY,
+    plan: PLAN,
   })
 }
 
@@ -101,6 +107,7 @@ const renameSchema = z.strictObject({
   character: CHARACTER,
   newName: z.string().min(1).describe('What the symbol should be called after the rename'),
   apply: APPLY,
+  plan: PLAN,
 })
 
 const codeActionsSchema = z.strictObject({
@@ -116,10 +123,15 @@ const codeActionsSchema = z.strictObject({
     .optional()
     .describe('Range end character (defaults to character)'),
   apply: APPLY,
+  plan: PLAN,
+  kind: z
+    .string()
+    .optional()
+    .describe('Filter by code-action kind: quickfix, refactor (or a sub-kind), source.organizeImports, source.addMissingImports, source.removeUnusedImports, source.removeUnused'),
   actionId: z
     .string()
     .optional()
-    .describe('Stable action id from a prior listing — the safe apply selector'),
+    .describe('Stable action id from a prior listing — the safe apply selector; without apply it previews that action'),
   actionIndex: z
     .number()
     .int()
@@ -142,6 +154,20 @@ const pathRenameSchema = z.strictObject({
   filePath: FILE_PATH,
   newPath: z.string().describe('The destination path'),
   apply: APPLY,
+  plan: PLAN,
+})
+
+const moveSymbolSchema = z.strictObject({
+  operation: z.literal('moveSymbol'),
+  filePath: FILE_PATH,
+  line: LINE,
+  character: CHARACTER,
+  targetPath: z
+    .string()
+    .min(1)
+    .describe('The file the declaration moves to — created when absent, appended to when present'),
+  apply: APPLY,
+  plan: PLAN,
 })
 
 const fixDiagnosticSchema = z.strictObject({
@@ -153,6 +179,7 @@ const fixDiagnosticSchema = z.strictObject({
   endCharacter: z.number().int().positive().optional(),
   actionId: z.string().optional().describe('Fix selector from a prior listing'),
   apply: APPLY,
+  plan: PLAN,
 })
 
 const formatRangeSchema = z.strictObject({
@@ -163,6 +190,7 @@ const formatRangeSchema = z.strictObject({
   endLine: z.number().int().positive().describe('Range end line'),
   endCharacter: z.number().int().positive().describe('Range end character'),
   apply: APPLY,
+  plan: PLAN,
 })
 
 const serverStatusSchema = z.strictObject({
@@ -226,6 +254,7 @@ function bridgeUnionMembers() {
     fileWithApplySchema('organizeImports'),
     capabilitiesSchema,
     rawRequestSchema,
+    moveSymbolSchema,
   ] as const
 }
 
