@@ -282,7 +282,7 @@ if (!godot) {
   writeFileSync(join(olderRoot, '.mercury', 'engine-suites.json'), JSON.stringify({
     version: 1, executable: godot, suites: [{ name: 'script_checks', marker: 'SCRIPT PASS', script: true, timeoutMs: 60000 }],
   }))
-  writeFileSync(join(olderRoot, 'tests', 'extra_checks.gd'), 'extends Node\nfunc verify(value: int) -> void:\n\tassert(value >= 1)\n')
+  writeFileSync(join(olderRoot, 'tests', 'extra_checks.gd'), 'extends Node\nfunc verify(value: int) -> void:\n\tassert(value >= 6)\n')
   git(olderRoot, 'add', 'tests/extra_checks.gd')
   git(olderRoot, 'commit', '-q', '-F', join(scratch, 'older-ref-commit.txt'))
   const olderCheck = await runEngineCheck(olderRoot, { files: ['tests/extra_checks.gd'], tree: 'HEAD~1', shaders: false }, { executable: godot })
@@ -291,6 +291,27 @@ if (!godot) {
   const olderCode = await godotEngineCli(['run', 'script_checks', '--tree', 'HEAD~1', '--project', olderRoot], { out: line => olderRun.push(line), err: line => olderRun.push(line), cliName: 'mercury' })
   const olderRecord = (() => { try { return JSON.parse(olderRun[0]) } catch { return {} } })()
   check('mercury godot run --tree HEAD~1 runs the suite and exits 0 with no drift rows', olderCode === 0 && olderRecord.allPass === true && Array.isArray(olderRecord.drift) && olderRecord.drift.length === 0, { code: olderCode, drift: olderRecord.drift, error: olderRecord.error })
+  writeFileSync(join(olderRoot, 'tests', 'extra_checks.gd'), 'extends Node\nfunc verify(value: int) -> void:\n\tassert(value >= 1)\n')
+  const driftedRun: string[] = []
+  const driftedCode = await godotEngineCli(['run', 'script_checks', '--tree', 'working', '--project', olderRoot], { out: line => driftedRun.push(line), err: line => driftedRun.push(line), cliName: 'mercury' })
+  const drifted = (() => { try { return JSON.parse(driftedRun[0]) } catch { return {} } })()
+  check('a drift row does not stop the run: the suite still runs and the verdict folds the drift', driftedCode === 1 && drifted.allPass === false && drifted.error === null && drifted.drift?.some((row: any) => row.kind === 'assertion-weakened') && drifted.results?.some((row: any) => row.name === 'script_checks' && row.ok === true), { code: driftedCode, error: drifted.error, results: drifted.results?.map((row: any) => row.name), drift: drifted.drift })
+  const onelineRoot = project('oneline')
+  writeFileSync(join(onelineRoot, 'tests', 'oneline_checks.gd'), 'extends SceneTree\nfunc _initialize(): call_deferred("go")\nfunc go() -> void:\n\tprint("ONELINE PASS")\n\tquit()\n')
+  writeFileSync(join(onelineRoot, '.mercury', 'engine-suites.json'), JSON.stringify({
+    version: 1, executable: godot, suites: [{ name: 'oneline_checks', marker: 'ONELINE PASS', script: true, timeoutMs: 60000 }],
+  }))
+  git(onelineRoot, 'add', 'tests/oneline_checks.gd')
+  git(onelineRoot, 'commit', '-q', '-F', join(scratch, 'oneline-commit.txt'))
+  const onelineService = EngineJobService.for(onelineRoot, { executable: godot })
+  try {
+    const onelineJob = await onelineService.submit(request(['oneline_checks']) as any)
+    if ('refused' in onelineJob) throw new Error(onelineJob.refused)
+    await onelineService.wait(onelineJob.id, 120000)
+    const onelineRecord = onelineService.result(onelineJob.id)!
+    const onelineRow = onelineRecord.results.find((row: any) => row.name === 'oneline_checks') as any
+    check('a suite whose _initialize the bridge cannot instrument still runs, uninstrumented and without an instance', onelineRecord.allPass === true && onelineRecord.error === null && onelineRow?.ok === true && onelineRow?.instance === null, { error: onelineRecord.error, row: onelineRow && { ok: onelineRow.ok, instance: onelineRow.instance } })
+  } finally { await onelineService.shutdown() }
   const errorRoot = project('error-under-pass')
   const errorFile = join(errorRoot, 'tests', 'error_checks.gd')
   writeFileSync(errorFile, 'extends SceneTree\nfunc _initialize() -> void:\n\tcall_deferred("verify")\nfunc broken() -> void:\n\tvar values: Array = []\n\tvar value = values[2]\n\tprint(value)\nfunc verify() -> void:\n\tbroken()\n\tprint("ERROR PASS")\n\tquit()\n')
@@ -339,11 +360,13 @@ if (!godot) {
       const firstToken = readVulcanInstanceToken(live[0])
       const secondToken = readVulcanInstanceToken(live[1])
       check('each worker has its own token file and private token', /^[a-f0-9]{64}$/.test(firstToken) && /^[a-f0-9]{64}$/.test(secondToken) && firstToken !== secondToken)
-      const wrongToken = new VulcanClient({ port: live[1].port, token: firstToken, connectTimeoutMs: 1000, helloTimeoutMs: 1000 })
+      const wrongToken = new VulcanClient({ port: live[1].port, token: firstToken, instance: live[1], connectTimeoutMs: 1000, helloTimeoutMs: 1000 })
+      const rightToken = new VulcanClient({ port: live[1].port, token: secondToken, instance: live[1], connectTimeoutMs: 1000, helloTimeoutMs: 1000 })
       try {
         const rejected = await wrongToken.request('engine_scene_tree', {}, 2000)
-        check('a worker refuses the other worker\'s token', rejected.ok === false, rejected)
-      } finally { wrongToken.close() }
+        const accepted = await rightToken.request('engine_scene_tree', {}, 5000)
+        check('a worker refuses the other worker\'s token on a hello that names it, and accepts its own', rejected.ok === false && accepted.ok === true, { rejected, accepted: accepted.ok })
+      } finally { wrongToken.close(); rightToken.close() }
       const timed = await op(root, 'engine_signal_wait', { instance: live[0].id, node: '/root/RuntimeFixture', signal: 'never', timeout_ms: 100 })
       check('engine_signal_wait fails with the signal and timeout named', timed.ok === false && /never/.test(JSON.stringify(timed)) && /timed out|timeout/i.test(JSON.stringify(timed)), timed)
     }

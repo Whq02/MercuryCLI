@@ -528,16 +528,16 @@ export async function installVulcanWorkerAddon(projectRoot: string): Promise<voi
   if (!result.ok) throw new Error(result.conflict)
 }
 
-export function injectVulcanWorkerScript(projectRoot: string, resScript: string): void {
+export function injectVulcanWorkerScript(projectRoot: string, resScript: string): boolean {
   if (!resScript.startsWith('res://') || resScript.split('/').includes('..')) throw new Error('worker script must be a project-relative resource')
   const file = preflightVulcanWorkerFiles(projectRoot, [resScript.slice(6)])[0]!
   const source = readFileSync(file, 'utf8')
   const marker = 'root.has_node("MercuryVulcanRuntimeBridge")'
-  if (source.includes(marker)) return
-  if (!/^extends[ \t]+SceneTree[ \t]*(?:#[^\r\n]*)?\r?$/m.test(source)) return
+  if (source.includes(marker)) return true
+  if (!/^extends[ \t]+SceneTree[ \t]*(?:#[^\r\n]*)?\r?$/m.test(source)) return false
   const declarations = [...source.matchAll(/\bfunc\s+_initialize\b/g)]
   const entry = /^func[ \t]+_initialize[ \t]*\([ \t]*\)[ \t]*(?:->[ \t]*void[ \t]*)?:[ \t]*(?:#[^\r\n]*)?\r?\n/m.exec(source)
-  if (declarations.length > 1 || (declarations.length > 0 && !entry)) throw new Error('worker bridge cannot instrument this _initialize declaration; script left unchanged')
+  if (declarations.length > 1 || (declarations.length > 0 && !entry)) return false
   const at = entry ? entry.index + entry[0].length : source.length
   const indent = entry ? /^([ \t]+)(?=[^ \t\r\n#])/m.exec(source.slice(at))?.[1] ?? '\t' : '\t'
   const newline = source.includes('\r\n') ? '\r\n' : '\n'
@@ -550,4 +550,5 @@ export function injectVulcanWorkerScript(projectRoot: string, resScript: string)
   ].join(newline)
   const injected = entry ? source.slice(0, at) + body + source.slice(at) : source + `${newline}${newline}func _initialize() -> void:${newline}` + body
   writeFileSync(file, injected)
+  return true
 }

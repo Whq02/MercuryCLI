@@ -182,6 +182,9 @@ if (!executable.resolved) {
     const profile = await op('engine_profile', { ...profileArgs, baseline: { save: true } })
     check('alone, the real profiler returns settled phases', profile.allPass === true && profile.media.phases.length === 4 && profile.media.quiet.contaminated === false, profile)
     check('both A/B halves stay inside one boot', profile.media.boots === 1 && profile.media.phases.map((phase: any) => phase.variant).join(',') === 'a,a,b,b')
+    const profileBoot = profile.results.find((row: any) => row.name === 'profile')
+    const bootObservations = profile.media.quiet.observations.filter((o: any) => o.stage === 'measurement-boot').length
+    check('the quiet guard samples the measurement boot about once a second and keeps the before and after observations', bootObservations <= Math.ceil(profileBoot.seconds) + 1 && ['before-import', 'before-measurement-boot', 'after-measurement-boot'].every(stage => profile.media.quiet.observations.some((o: any) => o.stage === stage)), { bootObservations, seconds: profileBoot.seconds })
     const profileLog = readFileSync(profile.results.find((row: any) => row.name === 'profile').log, 'utf8')
     const toggleLines = profileLog.split('\n').filter(line => line.startsWith('FIXTURE TOGGLE ')).map(line => JSON.parse(line.slice('FIXTURE TOGGLE '.length)))
     check('the toggle hook flips twice in the same engine process', toggleLines.length === 2 && toggleLines[0].pid === toggleLines[1].pid && JSON.stringify(toggleLines[1].values) === '[false,true]')
