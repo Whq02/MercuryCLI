@@ -10,7 +10,7 @@ Census version 1 — 72 built-in production tools · 184 operations · 72 with a
 
 ## Summary
 
-- support (at generation time): 44 available · 15 conditional · 0 degraded · 13 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- support (at generation time): 46 available · 14 conditional · 0 degraded · 12 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
 - class: 20 observation · 22 mutation · 11 execution · 19 coordination · 0 unclassified
 - integrations: 10 declare transactions · 13 declare executions · 32 declare mercury:// outputs · 37 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · planning · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access

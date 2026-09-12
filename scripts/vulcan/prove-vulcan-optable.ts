@@ -42,6 +42,7 @@ const EXEC_OPS = new Set([
   'export_run', 'runtime_wait_signal',
   'project_refresh_classes',
   'runtime_pause', 'runtime_step', 'runtime_resume',
+  'engine_run', 'engine_check',
 ])
 
 section('1. per-category counts — the 163-op contract')
@@ -57,7 +58,10 @@ check(
   [...byCat.keys()].every(c => c === 'frontier' || c in CONTRACT),
   [...byCat.keys()].filter(c => c !== 'frontier' && !(c in CONTRACT)).join(','),
 )
-check('frontier exists and is small', (byCat.get('frontier') ?? 0) >= 5 && (byCat.get('frontier') ?? 0) <= 20, `got ${byCat.get('frontier') ?? 0}`)
+check('frontier exists and is small', (byCat.get('frontier') ?? 0) >= 5 && (byCat.get('frontier') ?? 0) <= 25, `got ${byCat.get('frontier') ?? 0}`)
+check('the engine job service rides the frontier: engine_run/engine_check exec, engine_jobs/engine_result read, engine_cancel mutate',
+  vulcanOp('engine_run')?.cls === 'exec' && vulcanOp('engine_check')?.cls === 'exec' && vulcanOp('engine_jobs')?.cls === 'read' && vulcanOp('engine_result')?.cls === 'read' && vulcanOp('engine_cancel')?.cls === 'mutate' &&
+    ['engine_run', 'engine_check', 'engine_jobs', 'engine_cancel', 'engine_result'].every(n => vulcanOp(n)?.category === 'frontier' && vulcanOp(n)?.lite === false))
 
 section('2. the lite subset')
 const lite = VULCAN_OPS.filter(o => o.lite)
