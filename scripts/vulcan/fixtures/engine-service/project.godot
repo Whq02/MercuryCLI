@@ -1,0 +1,9 @@
+config_version=5
+
+[application]
+
+config/name="engine-service-fixture"
+
+[autoload]
+
+Events="*res://autoload/events.gd"
