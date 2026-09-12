@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -147,6 +147,18 @@ function env(input: Record<string, unknown>, absolutePath: string) {
   }
 }
 
+function markRead(...paths: string[]): void {
+  const rfs = (context as { readFileState: Map<string, unknown> }).readFileState
+  for (const p of paths) {
+    rfs.set(p, {
+      content: readFileSync(p, 'utf8'),
+      timestamp: Math.floor(statSync(p).mtimeMs),
+      offset: undefined,
+      limit: undefined,
+    })
+  }
+}
+
 section('PR. pathRename — the one-transaction import-updating move')
 {
   const newPath = join(dir, 'sub', 'a2.ts')
@@ -172,7 +184,7 @@ section('PR. pathRename — the one-transaction import-updating move')
   unlinkSync(newPath)
 
   const rfs = (context as { readFileState: Map<string, unknown> }).readFileState
-  rfs.set(aPath, { content: 'stale', timestamp: 0 })
+  markRead(aPath, bPath)
   const applied = await runMercuryLspOp(
     env({ operation: 'pathRename', filePath: aPath, newPath, apply: true, line: 1, character: 1 }, aPath),
   )
@@ -211,6 +223,7 @@ section('PR. pathRename — the one-transaction import-updating move')
     }
     return originalSendRequest(file, method, params)
   }
+  markRead(aPath, bPath)
   const drifted = await runMercuryLspOp(
     env({ operation: 'pathRename', filePath: aPath, newPath, apply: true, line: 1, character: 1 }, aPath),
   )
@@ -246,6 +259,7 @@ section('AI. code-action identity — reordered lists can never mis-apply')
 
   state.actionLists = [[actRemove, actFix], [actRemove, actFix], [actRemove, actFix]]
   state.actionFetches = 0
+  markRead(aPath)
   const applied = await runMercuryLspOp(
     env({ operation: 'codeActions', filePath: aPath, line: 2, character: 14, apply: true, actionId: fixId }, aPath),
   )
@@ -347,6 +361,7 @@ section('FX. fixDiagnostic — diagnose → fix → prove')
     preview.result.includes(`id:${actionIdentity(fixAction as never)}`))
 
   state.actionFetches = 0
+  markRead(aPath)
   const fixed = await runMercuryLspOp(
     env({ operation: 'fixDiagnostic', filePath: aPath, line, character: diag.range.start.character + 1, apply: true }, aPath),
   )

@@ -64,7 +64,8 @@ const PERMISSIVE_CTX = {
   shouldAvoidPermissionPrompts: false,
 }
 const tool = { name: 'LSP', getPath: (i: { filePath: string }) => i.filePath }
-const context = { getAppState: () => ({ toolPermissionContext: PERMISSIVE_CTX }) }
+const readFileState = new Map<string, { content: string; timestamp: number; offset: undefined; limit: undefined }>()
+const context = { readFileState, getAppState: () => ({ toolPermissionContext: PERMISSIVE_CTX }) }
 const opEnv = (input: Record<string, unknown>, absolutePath: string) => ({
   input: input as never,
   absolutePath,
@@ -132,6 +133,9 @@ try {
     ))
     check('rename preview spans BOTH files', preview.fileCount === 2 && preview.applied === false, `files=${preview.fileCount} result=${preview.result.split('\n')[0]}`)
 
+    for (const p of [libPy, mainPy]) {
+      readFileState.set(p, { content: readFileSync(p, 'utf8'), timestamp: Date.now(), offset: undefined, limit: undefined })
+    }
     const apply = await runMercuryLspOp(opEnv(
       { operation: 'rename', filePath: libPy, line: 1, character: 5, newName: 'double_it', apply: true },
       libPy,
