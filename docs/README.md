@@ -108,6 +108,11 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
 
 ### Editors and tools
 
+- [VULCAN-GODOT-TOOLS.md](VULCAN-GODOT-TOOLS.md): the `Godot` tool — the
+  editor bridge in brief, and the engine job service: Mercury's own
+  headless Godot workers in parallel, each on a frozen copy of the
+  project, the suites manifest, the compile gate in seconds, results as
+  data, and `mercury godot run|check|jobs|cancel|result`.
 - [UNITY-BRIDGE.md](UNITY-BRIDGE.md): the Unity editor bridge, the `Unity`
   tool, the in-repo C# package, the loopback protocol, the reload law.
 - [BLENDER-BRIDGE.md](BLENDER-BRIDGE.md): the Blender bridge, the `Blender`

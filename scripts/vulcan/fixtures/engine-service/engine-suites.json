@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "suites": [
+    { "name": "scene_checks", "marker": "FIXTURE PASS" },
+    { "name": "script_checks", "marker": "SCRIPT PASS", "script": true },
+    { "name": "preload_checks", "marker": "PRELOAD PASS", "script": true },
+    { "name": "fail_checks", "marker": "/^checks=\\d+ failures=0$/" },
+    { "name": "slow_checks", "marker": "SLOW PASS", "script": true, "quitAfter": 1000000, "timeoutMs": 4000 },
+    { "name": "long_checks", "marker": "LONG PASS", "script": true, "quitAfter": 1000000, "timeoutMs": 120000 },
+    { "name": "native_checks", "marker": "NATIVE PASS", "nativeOnly": true },
+    { "name": "draft_checks", "marker": "DRAFT PASS", "local": true }
+  ]
+}

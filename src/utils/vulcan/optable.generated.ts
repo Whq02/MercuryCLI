@@ -7,7 +7,7 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = '3840a5b785d44c0cfdf5e4c48198d49a00625f7c2a8dd5c197cd12f4c7a95f51'
+export const VULCAN_OPTABLE_DIGEST = '98cd8590bb1d4e72e07c3d9db6ae09b613ef3f69af15ab20f594d681d43cdc57'
 
 export const VULCAN_STEP_WALL_MS_PER_FRAME = 50
 
@@ -2014,6 +2014,69 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "lite": false,
     "summary": "Leave step mode: the game runs live again; anything still queued is delivered now",
     "args": {}
+  },
+  {
+    "name": "engine_run",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "summary": "Mercury-side engine job service: runs suites from .mercury/engine-suites.json on headless Godot workers Mercury owns, in parallel, each on a frozen copy of the project under .mercury/engine/ (a git ref, or HEAD plus a file list — never another agent's half-edit) with its own .godot and an empty user directory, fed from one import cache keyed by input hashes (no import when nothing changed); answers the runner-shaped record — root, executable, results[] {name, ok, exitCode, signal, timedOut, spawnError, clean, marker, seconds, log}, complete, allPass — plus each suite's marker line, FAIL and SCRIPT ERROR lines, and for every error the file it names and who last changed it (commit and author, or uncommitted)",
+    "args": {
+      "suites": "optional: suite names (array or comma list; default every manifest suite; \"import\" forces the import pass)",
+      "tree": "optional: HEAD (default) | <git ref> | working (HEAD plus every local change, frozen at submit) | <ref>+<comma list of files> | {ref, files}",
+      "native": "optional bool: a display run (one at a time; refused while the operator's editor holds the display unless displayShared)",
+      "capture": "optional bool: appends -- --capture (needs native)",
+      "priority": "optional: verifier | fold-gate | lane-gate (default) | profile — the queue order",
+      "budgetMs": "optional: whole-job wall-clock cap (each suite keeps its manifest timeout)",
+      "displayShared": "optional bool: run a native job beside the operator's editor",
+      "keepTree": "optional bool: keep the frozen tree after the run",
+      "wait": "optional bool (default true): wait for the record; false answers the job id at once",
+      "tailChars": "optional: log tail per failed suite in the answer (default 2000)",
+      "label": "optional: a short label for engine_jobs"
+    }
+  },
+  {
+    "name": "engine_check",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "summary": "Mercury-side compile gate, in seconds and with no lock: the changed .gd files parsed and type-checked one file at a time (godot --headless --check-only --script) and the changed .gdshader files compiled headlessly in a generated probe; the project's autoload identifiers (project.godot [autoload]) are ignored exactly — \"Identifier not found: <autoload>\" — and nothing else; flags a --script suite whose preload graph reaches a script that names an autoload; diagnostics as data {file, line, message, class, lastChange}",
+    "args": {
+      "files": "optional: res:// or project-relative paths (default: the files changed against HEAD)",
+      "all": "optional bool: every .gd and .gdshader in the project",
+      "tree": "optional: check a frozen copy instead of the live tree (same forms as engine_run)",
+      "shaders": "optional bool (default true): compile changed shaders",
+      "parallel": "optional: check-only processes at once (default: the worker count)"
+    }
+  },
+  {
+    "name": "engine_jobs",
+    "category": "frontier",
+    "cls": "read",
+    "lite": false,
+    "summary": "Mercury-side: the engine job queue and workers — the worker count and its source (MERCURY_GODOT_WORKERS or the cores), the queued and running jobs in priority order, the recent runs, the live engine processes, the orphans swept at start, and the manifest's suites",
+    "args": {}
+  },
+  {
+    "name": "engine_cancel",
+    "category": "frontier",
+    "cls": "mutate",
+    "lite": false,
+    "summary": "Mercury-side: cancel an engine job — a queued job leaves the queue; a running job's whole engine process tree is ended (taskkill /T /F on Windows, the process group on POSIX) and the record says cancelled",
+    "args": {
+      "id": "the job id from engine_run or engine_jobs"
+    }
+  },
+  {
+    "name": "engine_result",
+    "category": "frontier",
+    "cls": "read",
+    "lite": false,
+    "summary": "Mercury-side: one run's record by id (this session's memory, else .mercury/engine/runs/<id>/result.json) with the log tail of every failed suite",
+    "args": {
+      "id": "the job id",
+      "tail": "optional: log tail chars per failed suite (default 4000)"
+    }
   }
 ] as const
 

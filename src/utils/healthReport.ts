@@ -3209,11 +3209,14 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const { probeGodotEditorPresence, presenceNudge } = await import('../services/vulcan/editorPresence.js')
             const s = vulcanInstallStatus(root)
             const presence = await probeGodotEditorPresence(root, port)
+            const { engineWorkerCount } = await import('../services/vulcan/engine/service.js')
+            const engineWorkers = engineWorkerCount()
             const parts = [
               `project ${root}`,
               s.installed ? `addon installed${s.digestMatch ? '' : s.bundledFiles === 0 ? ' (dev bundle empty)' : ' (DRIFTED from bundle)'}` : 'addon NOT installed',
               s.enabled ? 'addon enabled' : 'addon not enabled',
               presence.reachable ? `bridge up :${port}` : `${presence.words} (:${port} dark)`,
+              `engine workers ${engineWorkers.count}${engineWorkers.source === 'flag' ? ' (MERCURY_GODOT_WORKERS)' : ''}`,
             ]
             if (!s.installed || !s.enabled || !presence.reachable) {
               return {
