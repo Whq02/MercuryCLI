@@ -1,6 +1,8 @@
+import { existsSync, readFileSync } from 'node:fs'
 import type { Message } from '../../types/message.js'
 import type { ContentBlockParam, ToolResultBlockParam } from '../../types/wire.js'
-import { screenshotPathForToolUse } from './desktopSession.js'
+import { detectImageFormatFromBuffer } from '../../utils/imageResizer.js'
+import { noteScreenshot, screenshotPathForToolUse } from './desktopSession.js'
 import { COMPUTER_TOOL_NAME } from './toolName.js'
 
 export const SCREENSHOT_KEEP_RECENT = 3
@@ -84,6 +86,51 @@ export function projectForTranscript<M extends Message>(message: M, transcript: 
     return withImagesReplaced(block, screenshotStubText(screenshotPathOf(block)))
   })
   return touched ? rebuildUser(message, projected) : message
+}
+
+const STUB_TEXT = /^\[screenshot not kept in the conversation file — the image is at (.+); take a new screenshot before acting\]$/
+
+function stubPathOf(part: ResultBlock): string | null {
+  if (part.type !== 'text') return null
+  return STUB_TEXT.exec(part.text)?.[1] ?? null
+}
+
+function imageBlockFromFile(file: string): ResultBlock | null {
+  for (const candidate of [`${file}.inline`, file]) {
+    try {
+      if (!existsSync(candidate)) continue
+      const bytes = readFileSync(candidate)
+      return { type: 'image', source: { type: 'base64', media_type: detectImageFormatFromBuffer(bytes), data: bytes.toString('base64') } }
+    } catch {
+      continue
+    }
+  }
+  return null
+}
+
+export function rehydrateScreenshots<M extends Message>(messages: M[]): M[] {
+  let changed = false
+  const out = messages.map(message => {
+    const blocks = userBlocks(message)
+    if (blocks === null) return message
+    let touched = false
+    const rebuilt = blocks.map(block => {
+      if (block.type !== 'tool_result' || !Array.isArray(block.content)) return block
+      const parts = block.content as ResultBlock[]
+      const at = parts.findIndex(part => stubPathOf(part) !== null)
+      if (at === -1) return block
+      const file = stubPathOf(parts[at]!)!
+      const image = imageBlockFromFile(file)
+      if (image === null) return block
+      noteScreenshot(null, block.tool_use_id, file)
+      touched = true
+      return { ...block, content: parts.map((part, index) => (index === at ? image : part)) }
+    })
+    if (!touched) return message
+    changed = true
+    return rebuildUser(message, rebuilt)
+  })
+  return changed ? out : messages
 }
 
 export function screenshotVisibleInContext(messages: readonly Message[], toolUseId: string): boolean {
