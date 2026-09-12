@@ -258,6 +258,7 @@ check("the fixture's replay of the API's binding check drops nothing on the resu
 ledger.resetPrefixLedger()
 const conversationKey = `proof|${String(live[0]!.uuid)}|${MODEL}`
 ledger.judgeAndRecordPrefix('proof-owner', conversationKey, { system: SYSTEM, tools: TOOLS, messages: liveWire.rows }, liveWire.ids)
+ledger.takePrefixVerdict('proof-owner')
 const crossRoad = ledger.judgeAndRecordPrefix('proof-owner', conversationKey, { system: SYSTEM, tools: TOOLS, messages: resumedWire.rows }, resumedWire.ids)
 check("the prefix ledger, holding the live road's record, names no mismatch on the resumed road", crossRoad.compared && crossRoad.mismatch === null, crossRoad.mismatch ? ledger.describePrefixMismatch(crossRoad.mismatch) : 'not compared')
 
@@ -289,6 +290,10 @@ const firstDrop = binding.classifyThinkingDrops(owner, drops, mark)
 check("the first process records a first drop (the recurrence reading's starting point)", firstDrop.kind === 'first' && firstDrop.consecutive === 1, `${firstDrop.kind} ${firstDrop.consecutive}`)
 ledger.resetPrefixLedger()
 binding.resetThinkingDropStates()
+const faithful = ledger.judgeAndRecordPrefix(owner, ownerKey, partsA, liveWire.ids)
+check('a fresh process whose first request matches byte for byte compares and names nothing (no false alarm)', faithful.compared && faithful.mismatch === null, faithful.mismatch ? ledger.describePrefixMismatch(faithful.mismatch) : 'not compared')
+ledger.resetPrefixLedger()
+binding.resetThinkingDropStates()
 const editedRows = liveWire.rows.map((row, k) => {
   if (k !== 2) return row
   const blocks = contentOf(row).map((b, i) => (i === 0 ? { ...b, content: '     1\tfunc _ready():\n     2\t\tprint("hello")\n' } : b))
@@ -304,10 +309,6 @@ if (revived.mismatch !== null && firstDrop.kind === 'first') {
   const words = binding.describeThinkingDrops(drops, outcome) ?? ''
   check("the receipt of such a first drop carries the ledger's clause", words.includes("Mercury's prefix ledger names the part that moved: turn 2's user row: tool_result block 0"), words)
 }
-ledger.resetPrefixLedger()
-binding.resetThinkingDropStates()
-const faithful = ledger.judgeAndRecordPrefix(owner, ownerKey, partsA, liveWire.ids)
-check('a fresh process whose first request matches byte for byte compares and names nothing (no false alarm)', faithful.compared && faithful.mismatch === null, faithful.mismatch ? ledger.describePrefixMismatch(faithful.mismatch) : 'not compared')
 ledger.resetPrefixLedger()
 binding.resetThinkingDropStates()
 const otherModel = ledger.judgeAndRecordPrefix(owner, `${owner}|${String(live[0]!.uuid)}|claude-opus-4-8`, partsA, liveWire.ids)
