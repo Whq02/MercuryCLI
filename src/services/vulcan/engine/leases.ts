@@ -234,8 +234,7 @@ export async function listProjectLeases(projectRoot: string): Promise<ProjectLea
 
 export async function engineLeaseRefusal(projectRoot: string, facts: ProofTreeFacts, holder: LeaseHolder = projectLeaseHolder()): Promise<string | null> {
   validateHolder(holder)
-  const changes = await selectedTreeChanges(projectRoot, facts)
-  if ('error' in changes) return changes.error
+  const changes = selectedTreeChanges(facts)
   if (changes.files.length === 0) return null
   const files = new Set(changes.files.map(file => canonicalProjectLeasePath(projectRoot, file)))
   const leases = await listProjectLeases(projectRoot)

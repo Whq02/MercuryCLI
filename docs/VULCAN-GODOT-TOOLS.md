@@ -178,9 +178,11 @@ where the file tools settle a batch of edits.
 
 ## Proof drift on every gate
 
-Every `engine_check` compares changed test assertions against `HEAD`,
-even when `files` narrows the compile checks. `tree` compares the selected
-frozen content, not unrelated live edits. The result's `drift` array
+Every `engine_check` compares the selected tree's changed test
+assertions against that tree's own commit — `HEAD` for the live tree,
+`working` and `HEAD+files`; a git ref carries no overlay and so no drift
+— even when `files` narrows the compile checks. `tree` compares the
+selected frozen content, not unrelated live edits. The result's `drift` array
 names the file, line, kind, before/after assertion and any fallen count.
 Removed assertions, weaker numeric bounds, fewer assertions and lower
 check counts make `ok` false. Multiline `expect(...)` and `assert(...)`
