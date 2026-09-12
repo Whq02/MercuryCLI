@@ -154,7 +154,7 @@ export default function createRenderer(
       screen: renderedScreen,
       viewport: {
         width: terminalWidth,
-        height: altScreen ? terminalRows + 1 : terminalRows,
+        height: terminalRows,
       },
       cursor: {
         x: 0,

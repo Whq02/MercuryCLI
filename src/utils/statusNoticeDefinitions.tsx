@@ -52,7 +52,7 @@ const largeMemoryFilesNotice: StatusNoticeDefinition = {
   render: (context: StatusNoticeContext) => (
     <Box flexDirection="column">
       {getLargeMemoryFiles(context.memoryFiles).map(file => (
-        <Text color="warning" key={file.path}>
+        <Text color="warning" key={file.path} wrap="truncate-middle">
           {GLYPH.warn} Large memory file slows every session: <Text bold>{shortenMemoryPath(file.path)}</Text> (
           {formatNumber(file.content.length)} chars {'>'} {formatNumber(MAX_MEMORY_CHARACTER_COUNT)}){' '}
           <Text dimColor>See /memory</Text>

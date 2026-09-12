@@ -28,10 +28,10 @@ export function PermissionRuleExplanation({
       const managed = reason.rule.source === 'policySettings'
       return (
         <Box flexDirection="column">
-          <Text>
+          <Text wrap="truncate-middle">
             The rule <Text bold>{ruleString}</Text> requires confirmation for this {toolType}
           </Text>
-          {managed ? null : <Text dimColor>{RULES_HINT}</Text>}
+          {managed ? null : <Text dimColor wrap="truncate-middle">{RULES_HINT}</Text>}
         </Box>
       )
     }
@@ -39,39 +39,39 @@ export function PermissionRuleExplanation({
       if (mode === 'flow') {
         return (
           <Box flexDirection="column">
-            <ThemedText color="warning">
+            <ThemedText color="warning" wrap="truncate-middle">
               The hook {reason.hookName} required confirmation
               {reason.hookSource ? ` [${reason.hookSource}]` : ''}
             </ThemedText>
-            {reason.reason ? <ThemedText color="warning">{reason.reason}</ThemedText> : null}
-            <Text dimColor>{HOOKS_HINT}</Text>
+            {reason.reason ? <ThemedText color="warning" wrap="truncate-middle">{reason.reason}</ThemedText> : null}
+            <Text dimColor wrap="truncate-middle">{HOOKS_HINT}</Text>
           </Box>
         )
       }
       return (
         <Box flexDirection="column">
           <Box gap={1}>
-            <Text>
+            <Text wrap="truncate-middle">
               The hook <Text bold>{reason.hookName}</Text> required confirmation
             </Text>
-            {reason.hookSource ? <Text dimColor>[{reason.hookSource}]</Text> : null}
+            {reason.hookSource ? <Text dimColor wrap="truncate-middle">[{reason.hookSource}]</Text> : null}
           </Box>
           {reason.reason ? (
-            <Text>
+            <Text wrap="truncate-middle">
               <Ansi>{reason.reason}</Ansi>
             </Text>
           ) : null}
-          <Text dimColor>{HOOKS_HINT}</Text>
+          <Text dimColor wrap="truncate-middle">{HOOKS_HINT}</Text>
         </Box>
       )
     }
     case 'workingDir':
       return (
         <Box flexDirection="column">
-          <Text>
+          <Text wrap="truncate-middle">
             <Ansi>{reason.reason}</Ansi>
           </Text>
-          <Text dimColor>{RULES_HINT}</Text>
+          <Text dimColor wrap="truncate-middle">{RULES_HINT}</Text>
         </Box>
       )
     case 'safetyCheck':
@@ -81,7 +81,7 @@ export function PermissionRuleExplanation({
         (reason as { message?: string; reason?: string }).reason
       if (!text) return null
       return (
-        <Text>
+        <Text wrap="truncate-middle">
           <Ansi>{text}</Ansi>
         </Text>
       )
@@ -90,11 +90,11 @@ export function PermissionRuleExplanation({
       if (reason.classifier === 'auto-mode') {
         return (
           <Box flexDirection="column">
-            <ThemedText color="warning">
+            <ThemedText color="warning" wrap="truncate-middle">
               Flow&apos;s safety check blocked this {toolType} — it runs only if you allow it
             </ThemedText>
             {reason.reason ? (
-              <Text>
+              <Text wrap="truncate-middle">
                 <Ansi>{reason.reason}</Ansi>
               </Text>
             ) : null}
@@ -103,7 +103,7 @@ export function PermissionRuleExplanation({
       }
       if (!reason.reason) return null
       return (
-        <Text>
+        <Text wrap="truncate-middle">
           <Ansi>{reason.reason}</Ansi>
         </Text>
       )
