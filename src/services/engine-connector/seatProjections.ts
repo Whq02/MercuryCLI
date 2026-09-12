@@ -69,6 +69,7 @@ export interface SessionFactsV1 extends Omit<SessionFactsAnswerV1, 'permissionMo
   turnStartedAt?: number
   schedules?: import('../../daemon/saturn.js').SaturnFactsRowV1[]
   heldFireCount?: number
+  runnerGeneration?: number
 }
 
 
