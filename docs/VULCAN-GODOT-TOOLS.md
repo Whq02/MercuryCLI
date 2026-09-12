@@ -43,8 +43,8 @@ by hand with a record.
   queued earlier.
 - **N headless workers** — `min(3, max(1, floor(cores / 2)))` by default,
   `MERCURY_GODOT_WORKERS` (1..16) overrides it, and `mercury doctor`'s
-  Godot control row names the effective count. Native jobs (a display, a
-  capture) run one at a time whatever the count, and never while the
+  Godot control row names the effective count. Explicit display jobs
+  run one at a time whatever the count, and never while the
   operator's own editor holds the display unless the job says
   `displayShared: true`.
 - **A frozen copy per job** under `<project>/.mercury/engine/trees/<id>`
@@ -75,8 +75,10 @@ by hand with a record.
   console wrapper, the engine and its `conhost` together). A timeout, a
   budget or a cancel ends the whole tree; engines found running under the
   project's `.mercury/engine/` at the service's start are swept; a normal
-  exit of Mercury ends every live engine; and there is no lock file to
-  leave behind.
+  exit of Mercury ends every live engine. A job's owner record distinguishes
+  a dead owner from another session's live worker; unknown ownership is
+  preserved rather than guessed dead. There is no engine exclusion lock
+  file to leave behind.
 
 ## The manifest
 
@@ -174,7 +176,7 @@ processes, the orphans swept at start and the manifest's suites.
 `engine_cancel {id}` takes a queued job out of the queue or ends a running
 job's whole engine tree; `engine_result {id}` reads one record by id.
 
-The same four verbs exist for scripts, on the project in the working
+The same service is available to scripts, on the project in the working
 directory: `mercury godot run [suites…] [--tree <spec>] [--native]
 [--capture] [--priority <p>] [--budget-ms <n>] [--label <s>]`, `mercury
 godot check [files…] [--all] [--tree <spec>] [--no-shaders]`, `mercury
@@ -183,6 +185,166 @@ Each prints its record as JSON; `run` exits 0 on `allPass`, `check` on no
 diagnostics. A fresh process owns no queue of its own: `jobs` lists the
 runs on disk and the engines alive under the project, and `cancel` ends
 the engine tree of a job id it finds running there.
+
+## Capture jobs and named tours
+
+```json
+{ "op": "engine_capture", "args": { "tour": "fixture", "clock": { "simulationTime": 2, "shaderTime": 3, "seed": 1234, "fps": 60 }, "pair": { "switch": "feature", "a": false, "b": true } } }
+```
+
+A capture uses the service's queue, frozen project, import cache and process
+ownership. It never attaches to the operator's editor or game. A pair boots
+the same frozen tour twice, changing only the named switch value. Each boot
+has a fresh user directory. `result.json` lists every frame under `frames`
+with its `variant`, `stepIndex`, complete `step`, `frameIndex`, and absolute
+`path`. `media.contactSheet.path` names the small contact sheet. There are
+at most 64 frames, including both halves, so the sheet includes every frame.
+
+Register tours in the top-level `tours` map of `.mercury/engine-suites.json`:
+
+```json
+{
+  "version": 1,
+  "tours": {
+    "fixture": {
+      "script": "res://tests/media_fixture.gd",
+      "steps": [
+        { "name": "front", "timeOfDay": 12,
+          "camera": { "node": "Camera", "position": [0, 2, 4],
+                      "target": [0, 0, 0], "fov": 70 } }
+      ]
+    }
+  }
+}
+```
+
+`tour` can instead carry that object inline. Supply exactly one `script`
+(a GDScript extending `Node`) or `scene` (a `.tscn`). A step names its camera
+relative to the tour root; position and target are world coordinates,
+rotation is local degrees, and `fov` is the lens angle in degrees. `frames`
+defaults to one. `timeOfDay` requires the project's step hook. Tour data is
+copied at submission, alongside the frozen resource tree.
+
+`route` defaults to `headless`. This uses the project's
+`mercury_media_capture` Image hook because stock Godot's headless driver
+has a dummy renderer. The result explicitly labels these as project Image
+pixels, not rendered GPU viewport evidence. `route: "display"` (or
+`display: true`) explicitly requests a real viewport window and takes the
+native display slot. `route: "hidden"` refuses before spawning: stock
+Godot shows its native bootstrap window before scripts can hide it. A
+minimized or offscreen-positioned window is not substituted. There is no
+automatic visible fallback.
+
+### The capture hook contract
+
+The tour root supplies:
+
+- `mercury_media_configure(context) -> Dictionary`: applies the requested
+  clock and RNG state, then returns `{simulationClock: true, shaderClock:
+  true, seeded: true, notes: "how this project freezes those inputs"}`.
+  Captures refuse absent or incomplete acknowledgement.
+- `mercury_media_step(step, context)`: optional for project-specific state;
+  required when a step names `timeOfDay`.
+- `mercury_media_toggle(switch_name, value)`: required for a pair.
+- `mercury_media_capture(context) -> Image`: required headlessly. With an
+  explicitly requested display, omitting it captures the root viewport.
+
+`context` contains `kind`, `clock`, `variant` (`single`, `a`, or `b`) and
+`stepIndex`; capture calls also carry `frameIndex`. The driver seeds Godot's
+global RNG before loading the tour resource, fixes frame deltas for capture,
+and sets `Engine.time_scale = 0`. The requested simulation and shader time
+must be applied by the project hook. Built-in shader `TIME`, wall clocks,
+autoload initialization and independent RNGs are not intercepted. These
+limitations and the hook's acknowledgement are retained in the result;
+acknowledgement is not proof that arbitrary project code is deterministic.
+
+`mercury godot capture fixture --request capture.json` runs the same op,
+where `capture.json` is an object of operation arguments. Common CLI flags
+include `--tree`, `--budget-ms`, `--priority`, `--display`,
+`--display-shared`, `--keep-tree`, and `--label`. The CLI waits for completion
+because its process owns the worker; `wait: false` is available through the
+Godot tool for a session-owned queued job, not the short-lived CLI.
+
+`mercury godot tour fixture --tree HEAD` runs the named tour on its own
+frozen instance and returns the same record with `media.contactSheet.path`.
+No operator editor or game is involved.
+
+## Settled profile jobs
+
+```json
+{ "op": "engine_profile", "args": { "tour": "fixture", "settleFrames": 30, "sampleFrames": 60, "pair": { "switch": "feature", "a": false, "b": true }, "baseline": { "save": true } } }
+```
+
+`mercury godot profile fixture --request profile.json` prints the profile
+record. A profile uses one boot for both A/B halves. Each variant visits
+every tour step and settles for `settleFrames` (default 60), then measures
+`sampleFrames` (default 120). `media.phases` retains each variant and step.
+Every timing summary has `samples`, `median`, and nearest-rank `p95`.
+
+`frameMs` measures real frame intervals with `Time.get_ticks_usec`;
+`processMs`, `physicsMs`, and `navigationMs` are Godot Performance monitor
+values converted to milliseconds. Positive engine-reported viewport CPU
+and GPU times are retained when available. Headless GPU timings are `null`,
+not a claim of zero rendering cost.
+
+The root must supply `mercury_media_sample() -> Dictionary`, returning
+`scripts: [{script, selfMs, totalMs, calls}]` and
+`physics: {componentName: milliseconds}` for each sample. Tables must remain
+consistent through a phase and contain at least one script and physics
+component. These are explicitly project-instrumented measurements, not the
+debugger's automatic engine-wide per-script profile. `mercury_media_toggle`
+provides the in-boot A/B switch; the configure and step hooks are available
+as for captures.
+
+The quiet-machine guard checks active service jobs, the global live worker
+registry, and the box's process census before import and measurement, during
+the measurement boot, and afterward. Other Godot processes or an unavailable
+census cause refusal by default. `quiet: "flag"` retains contaminated data
+with explicit evidence; it never hides the contention. Short-lived workers
+between census samples can escape detection, so a quiet report is sampled
+evidence, not a machine-wide exclusion lock.
+
+`baseline: {save: true}` writes an immutable
+`.mercury/engine-baselines/<commit>.json` only for an uncontaminated committed
+frozen tree. It never replaces an existing baseline. To compare, pass
+`baseline: {compare: "<full commit SHA>"}` with the same tour, settings,
+engine and machine. `media.baseline.metrics` lists each metric's `baseline`,
+`current`, `delta`, and percentage; incompatible runs are explicitly not
+comparable. Overlaid trees and contaminated measurements cannot establish a
+per-commit baseline.
+
+## Frame statistics without an engine
+
+```json
+{ "op": "engine_frames", "args": { "action": "diff", "a": "frames/off.png", "b": "frames/on.png" } }
+```
+
+`mercury godot frames diff frames/off.png frames/on.png` returns the changed
+pixel count and fraction, connected-region bounding boxes in source pixel
+coordinates, and a small mask PNG. `threshold` is the maximum channel
+change ignored, from 0 through 255; the default is zero. Frame dimensions
+must match. Inputs are PNG files; source images are never rewritten.
+
+```json
+{ "op": "engine_frames", "args": { "action": "stats", "frame": "frames/off.png", "grid": [4, 3], "maxLag": 32 } }
+```
+
+`mercury godot frames stats frames/off.png --grid 4x3 --max-lag 32` returns
+row and column autocorrelation, anisotropy, high-frequency energy, mean
+RGBA per grid cell, and a small preview PNG. Flat images have no defined
+correlation, rather than an invented tile repeat.
+
+```json
+{ "op": "engine_frames", "args": { "action": "contact-sheet", "id": "<run id>" } }
+```
+
+`mercury godot frames contact-sheet <run id>` reads the frames listed in a
+run's record and returns a small contact sheet and the placement of each
+source frame. The op can also take `frames: ["a.png", "b.png"]`. Each call
+writes new artifacts under the project's engine estate. The op is a
+file-writing mutation, not an editor undo step. It uses Mercury's existing
+TypeScript PNG decoder, encoder and downscaler; no native dependency is
+needed.
 
 ## The Windows path
 
@@ -196,7 +358,7 @@ is written to the facts and waits for a run on that box.
 
 ## What this is not
 
-The service does not drive the editor, capture frames, profile, lease
-files or answer runtime queries; those are the bridge's and later work.
-It does not persist a queue across a Mercury restart (the records on disk
-persist; a queued job does not).
+The service does not drive the operator's editor or game, lease files, or
+answer live runtime queries through the editor bridge. It does not persist
+a queue across a Mercury restart (the records on disk persist; a queued
+job does not).
