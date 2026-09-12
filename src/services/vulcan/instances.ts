@@ -140,9 +140,6 @@ export async function prepareVulcanInstance(projectRoot: string, role: VulcanIns
   return { id: randomBytes(16).toString('hex'), role, port, token: randomBytes(32).toString('hex'), projectRoot: canonical(projectRoot), ownerPid: process.pid }
 }
 
-export function engineTreeHasLiveOwner(treeRoot: string): boolean {
-  try {
-    const row = JSON.parse(readFileSync(`${treeRoot}.owner.json`, 'utf8')) as { pid?: number }
-    return typeof row.pid === 'number' && vulcanProcessAlive(row.pid)
-  } catch { return discoverRoot(treeRoot).length > 0 }
+export function vulcanInstancesUnder(root: string): VulcanInstance[] {
+  return discoverRoot(canonical(root))
 }

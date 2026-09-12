@@ -75,12 +75,18 @@ by hand with a record.
 - **Owner liveness** — every engine is Mercury's as a process tree: the
   process group on POSIX, `taskkill /PID <wrapper> /T /F` on Windows (the
   console wrapper, the engine and its `conhost` together). A timeout, a
-  budget or a cancel ends the whole tree; engines found running under the
-  project's `.mercury/engine/` at the service's start are swept when their
-  owner is dead; a live owner's workers and frozen trees are kept, and
-  unknown ownership is preserved rather than guessed dead. A normal exit
-  of Mercury ends every live engine of its own. Worker ownership uses
-  process liveness; there is no shared engine lock file to leave behind.
+  budget or a cancel ends the whole tree, and a normal exit of Mercury
+  ends every live engine of its own. Ownership has one record: the
+  instance descriptor a worker's bridge publishes under its frozen tree,
+  naming the engine's pid and the Mercury process that owns it. A worker
+  is alive only while that descriptor exists and its owner answers; a
+  worker whose owner is gone is swept at the service's start; a tree,
+  check tree or engine with no descriptor at all (a queued job, an import
+  pass before its bridge is up, a capture or profile boot, a compile
+  check) is swept only once its run directory has not been stamped for
+  `MERCURY_GODOT_ORPHAN_GRACE_MS` (thirty minutes unset) — a live job
+  stamps it once a minute. There is no shared engine lock file to leave
+  behind.
 
 ## The manifest
 
