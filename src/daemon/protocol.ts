@@ -273,6 +273,7 @@ export type DaemonRequest =
       mode?: 'prompt' | 'bash'
       priority?: 'now' | 'next' | 'later'
       content?: unknown[]
+      sentAt?: string
       kitPreset?: string
     }
   | {

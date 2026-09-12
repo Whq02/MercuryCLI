@@ -279,6 +279,7 @@ export type Attachment =
       commandMode?: string
       origin?: MessageOrigin
       isMeta?: boolean
+      sentAt?: string
     }
   | {
       type: 'diagnostics'

@@ -121,6 +121,7 @@ export type QueuedCommand = {
   bridgeOrigin?: boolean
   isMeta?: boolean
   origin?: MessageOrigin
+  sentAt?: string
   workload?: string
   agentId?: string
 }
