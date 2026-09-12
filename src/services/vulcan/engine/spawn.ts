@@ -1,15 +1,18 @@
 import { spawn, spawnSync } from 'node:child_process'
+import { readdirSync, rmSync } from 'node:fs'
+import * as path from 'node:path'
 import { endProcessTree, endProcessTreeSurvivors, win32TaskkillCommand, type ProcessTreeKillReceipt } from '../../../utils/processGroup.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { runningGodotProcesses, type GodotProcess } from '../godotProcessCensus.js'
-import { isEnginePath } from './paths.js'
+import { engineChecksDir, engineTreesDir, isEnginePath } from './paths.js'
 import { engineUserEnv } from './userDir.js'
-import { VULCAN_INSTANCE_ENV, type VulcanInstance, type VulcanInstanceLaunch } from '../instances.js'
-import { engineTreeLiveness } from './liveness.js'
+import { VULCAN_INSTANCE_ENV, launchedVulcanInstance, type VulcanInstance, type VulcanInstanceLaunch } from '../instances.js'
+import { engineEstateEntry, engineTreeLiveness } from './liveness.js'
+import { removeEngineTree } from './frozenTree.js'
 
 export const ENGINE_OUTPUT_CAP = 64 * 1024 * 1024
 
-export type EngineKillReason = 'timeout' | 'cancel' | 'budget' | 'shutdown'
+export type EngineKillReason = 'timeout' | 'cancel'
 
 export interface EngineSpawnRequest {
   executable: string
@@ -96,9 +99,8 @@ export function spawnEngine(req: EngineSpawnRequest): EngineHandle {
   const env = { ...subprocessEnv(), ...engineUserEnv(req.userDir) }
   delete env[VULCAN_INSTANCE_ENV]
   if (req.bridge) env[VULCAN_INSTANCE_ENV] = JSON.stringify(req.bridge)
-  const args = req.bridge ? req.args.map((arg, index) => index > 0 && req.args[index - 1] === '--path' ? req.bridge!.projectRoot : arg) : req.args
-  const child = spawn(req.executable, args, {
-    cwd: req.bridge?.projectRoot ?? req.cwd,
+  const child = spawn(req.executable, req.args, {
+    cwd: req.cwd,
     windowsHide: true,
     detached: process.platform !== 'win32',
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -120,7 +122,7 @@ export function spawnEngine(req: EngineSpawnRequest): EngineHandle {
     label: req.label,
     pid,
     startedAt,
-    bridge: req.bridge && pid !== null ? { version: 1, id: req.bridge.id, role: req.bridge.role, port: req.bridge.port, pid, projectRoot: req.bridge.projectRoot, ownerPid: req.bridge.ownerPid } : null,
+    bridge: req.bridge && pid !== null ? launchedVulcanInstance(req.bridge, pid) : null,
     done,
     async kill(reason) {
       if (settled) return { ended: 0, survivors: [] }
@@ -182,15 +184,6 @@ export function liveEngines(): Array<{ pid: number; label: string; startedAt: st
   return [...LIVE.values()].map(h => ({ pid: h.pid ?? 0, label: h.label, startedAt: h.startedAt, bridge: h.bridge }))
 }
 
-export async function killAllEngines(reason: EngineKillReason = 'shutdown'): Promise<number> {
-  let ended = 0
-  for (const handle of [...LIVE.values()]) {
-    const receipt = await handle.kill(reason)
-    ended += receipt.ended
-  }
-  return ended
-}
-
 export interface EngineOrphanSweep {
   pid: number
   project: string
@@ -207,6 +200,29 @@ export async function sweepEngineOrphans(projectRoot: string, census?: GodotProc
     out.push({ pid: p.pid, project: p.project, executable: p.executable, receipt })
   }
   return out
+}
+
+export function removeDeadEngineTrees(projectRoot: string, processes: readonly GodotProcess[], swept: readonly EngineOrphanSweep[]): string[] {
+  const removed: string[] = []
+  for (const dir of [engineTreesDir(projectRoot), engineChecksDir(projectRoot)]) {
+    let names: string[] = []
+    try {
+      names = readdirSync(dir)
+    } catch {
+      continue
+    }
+    for (const name of names) {
+      const target = path.join(dir, name)
+      const entry = engineEstateEntry(projectRoot, target)
+      if (!entry || engineTreeLiveness(projectRoot, entry.path).alive) continue
+      const workers = processes.filter(p => p.project !== undefined && engineEstateEntry(projectRoot, p.project)?.path === entry.path)
+      if (workers.some(p => !swept.some(s => s.pid === p.pid && s.receipt.survivors.length === 0))) continue
+      if (target === entry.path) removeEngineTree(target)
+      else rmSync(target, { recursive: true, force: true })
+      removed.push(target)
+    }
+  }
+  return removed
 }
 
 export function engineProcessesFor(projectRoot: string, processes: readonly GodotProcess[]): GodotProcess[] {

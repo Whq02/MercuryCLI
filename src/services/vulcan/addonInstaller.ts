@@ -218,23 +218,6 @@ function withoutRuntimeAutoload(text: string): { text: string; stripped: boolean
   }
 }
 
-export function readProjectVulcanPort(projectRoot: string): number | undefined {
-  let text: string
-  try {
-    text = readFileSync(projectGodotPath(projectRoot), 'utf8')
-  } catch {
-    return undefined
-  }
-  return vulcanPortFromText(text)
-}
-
-function vulcanPortFromText(text: string): number | undefined {
-  const span = sectionSpan(text, 'mercury_vulcan')
-  if (!span) return undefined
-  const m = text.slice(span[0], span[1]).match(/^port=(\d+)$/m)
-  return m ? Number(m[1]) : undefined
-}
-
 function withEnabledPlugins(text: string, plugins: string[]): string {
   const arr = `PackedStringArray(${plugins.map(p => JSON.stringify(p)).join(', ')})`
   if (/\[editor_plugins\][^[]*?enabled=PackedStringArray\([^)]*\)/s.test(text)) {
@@ -267,7 +250,7 @@ function serverStartedMs(r: VulcanResult): number | undefined {
   return typeof v === 'number' ? v : undefined
 }
 
-export async function reloadPluginOverBridge(_port: number, projectRoot?: string, selector?: unknown): Promise<string> {
+export async function reloadPluginOverBridge(projectRoot?: string, selector?: unknown): Promise<string> {
   let client = getVulcanClient(projectRoot, selector)
   const selected = projectRoot ? selectVulcanInstance(projectRoot, selector) : null
   if (!client) return 'plugin reload skipped: no VULCAN client (flag off, or not a project)'
@@ -369,7 +352,7 @@ export async function applyVulcanInstall(
     `editor: ${presence.words}`,
   ]
   if (presence.state === 'bridge-up') {
-    if (!before.digestMatch) lines.push(await reloadPluginOverBridge(presence.port, projectRoot, opts.instance))
+    if (!before.digestMatch) lines.push(await reloadPluginOverBridge(projectRoot, opts.instance))
     else lines.push('the running editor already serves this addon version — nothing to reload')
   } else {
     lines.push(`next: ${presenceNudge(presence, { installed: true, enabled: true })}`)

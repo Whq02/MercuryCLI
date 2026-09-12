@@ -28,6 +28,24 @@ export function engineSuiteArgv(root: string, suite: EngineSuite, defaults: Engi
   return argv
 }
 
+export interface MediaArgvOptions {
+  headless: boolean
+  fixedFps: number | null
+  debuggerPort: number | null
+  script: string
+  config: string
+}
+
+export function engineMediaArgv(root: string, opts: MediaArgvOptions): string[] {
+  const argv = ['--path', root, '--audio-driver', NATIVE_AUDIO_DRIVER, '--single-window']
+  if (opts.headless) argv.push('--headless')
+  else argv.push('--resolution', NATIVE_RESOLUTION, '--disable-vsync')
+  if (opts.fixedFps !== null) argv.push('--fixed-fps', String(opts.fixedFps))
+  if (opts.debuggerPort !== null) argv.push('--remote-debug', `tcp://127.0.0.1:${opts.debuggerPort}`)
+  argv.push('--script', opts.script, '--', opts.config)
+  return argv
+}
+
 export function engineCheckOnlyArgv(root: string, resScript: string): string[] {
   return ['--headless', '--path', root, '--check-only', '--script', resScript]
 }

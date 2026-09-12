@@ -2,7 +2,7 @@ import { realpathSync, statSync, utimesSync } from 'node:fs'
 import * as path from 'node:path'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { vulcanInstancesUnder, vulcanProcessAlive, type VulcanInstance } from '../instances.js'
-import { engineChecksDir, engineRunPath, engineTreesDir } from './paths.js'
+import { engineCheckTreeDir, engineChecksDir, engineRunPath, engineRunResultFile, engineTreesDir } from './paths.js'
 
 export const ENGINE_ORPHAN_GRACE_FLAG = 'MERCURY_GODOT_ORPHAN_GRACE_MS'
 export const ENGINE_ORPHAN_GRACE_DEFAULT_MS = 30 * 60_000
@@ -51,7 +51,7 @@ export function engineEstateEntry(projectRoot: string, candidate: string, platfo
       const rel = normalized(candidate, platform)
       if (!rel.startsWith(prefix)) continue
       const first = rel.slice(prefix.length).split('/')[0] ?? ''
-      const id = first.replace(/\.(?:owner\.json|index)$/, '')
+      const id = first.replace(/\.index$/, '')
       if (id.length === 0) return null
       return { kind, id, path: path.join(dir, id) }
     }
@@ -70,7 +70,7 @@ function mtimeOf(file: string): number | null {
 export function engineTreeLiveness(projectRoot: string, candidate: string, now: number = Date.now()): EngineTreeLiveness {
   const entry = engineEstateEntry(projectRoot, candidate)
   if (!entry) return { alive: false, why: 'absent' }
-  const roots = entry.kind === 'tree' ? [entry.path] : [path.join(entry.path, 'tree')]
+  const roots = entry.kind === 'tree' ? [entry.path] : [engineCheckTreeDir(entry.path)]
   let ownerGone: VulcanInstance | null = null
   for (const root of roots) {
     for (const instance of vulcanInstancesUnder(root)) {
@@ -83,7 +83,7 @@ export function engineTreeLiveness(projectRoot: string, candidate: string, now: 
   if (entry.kind === 'tree') {
     try {
       const runDir = engineRunPath(projectRoot, entry.id)
-      stamps.push(runDir, path.join(runDir, 'result.json'))
+      stamps.push(runDir, engineRunResultFile(runDir))
     } catch {
       void 0
     }

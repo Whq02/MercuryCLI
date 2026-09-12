@@ -289,7 +289,3 @@ export function suiteScriptRes(suite: EngineSuite, defaults: EngineManifestDefau
 export function suiteRelativeFile(suite: EngineSuite, defaults: EngineManifestDefaults): string {
   return suite.script ? `${defaults.suiteDir}/${suite.name}.gd` : suiteScenePath(suite, defaults)
 }
-
-export function describeSuite(suite: EngineSuite): string {
-  return `${suite.name}: ${describeMarker(suite.marker)}`
-}

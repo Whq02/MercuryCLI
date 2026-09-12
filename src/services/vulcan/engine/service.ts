@@ -1,13 +1,13 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { VULCAN_ADDON_DIGEST } from '../addonFiles.generated.js'
 import { injectVulcanWorkerScript, installVulcanWorkerAddon } from '../addonInstaller.js'
-import { listVulcanInstances, prepareVulcanInstance, type VulcanInstance } from '../instances.js'
+import { listVulcanInstances, prepareVulcanInstance, vulcanInstanceDir, vulcanInstancesDir, type VulcanInstance } from '../instances.js'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { availableCores } from '../../../utils/availableCores.js'
 import type { ProcessTreeKillReceipt } from '../../../utils/processGroup.js'
-import { describeGodotProcess, runningGodotProcesses, type GodotProcess } from '../godotProcessCensus.js'
+import { describeGodotProcess, runningGodotProcesses, strictGodotCensus, type GodotProcess } from '../godotProcessCensus.js'
 import { resolveGodotExecutable } from '../portabilityDoctor.js'
 import { engineConsoleSibling, engineImportArgv, engineSuiteArgv } from './argv.js'
 import {
@@ -33,12 +33,13 @@ import {
   type EngineMarker,
   type EngineSuite,
 } from './manifest.js'
-import { engineChecksDir, engineRunPath, engineRunsDir, engineTreePath, engineTreesDir, engineUsersDir, ensureEngineEstate, isEnginePath } from './paths.js'
-import { liveEngines, spawnEngine, sweepEngineOrphans, type EngineHandle, type EngineOrphanSweep } from './spawn.js'
-import { engineMediaCensus, finishEngineProfileBaseline, newEngineMediaRecord, readEngineMediaBoot, type EngineMediaRecord, type EngineMediaRequest } from './media.js'
+import { ENGINE_RESULT_FILE, engineContactSheetFile, engineMediaDriverFile, engineMediaUserDir, engineRunLogFile, engineRunPath, engineRunResultFile, engineRunUserDir, engineRunsDir, engineTreePath, engineUsersDir, ensureEngineEstate, isEnginePath } from './paths.js'
+import { liveEngines, removeDeadEngineTrees, spawnEngine, sweepEngineOrphans, type EngineHandle, type EngineOrphanSweep } from './spawn.js'
+import { finishEngineProfileBaseline, newEngineMediaRecord, readEngineMediaBoot, type EngineMediaRecord, type EngineMediaRequest } from './media.js'
 import { ENGINE_MEDIA_MARKER, writeEngineMediaDriver } from './mediaDriver.js'
+import { GodotDebuggerProfile } from './debuggerProfile.js'
 import { writeEngineContactSheet } from './frames.js'
-import { engineEstateEntry, engineTreeLiveness, startEngineHeartbeat } from './liveness.js'
+import { startEngineHeartbeat } from './liveness.js'
 import { engineLeaseRefusal, projectLeaseHolder, type LeaseHolder } from './leases.js'
 import { engineLogDrift, proofTreeFingerprint, sourceProofDrift, type ProofDriftRow } from './proofDrift.js'
 
@@ -49,7 +50,6 @@ export const ENGINE_DEFAULT_PRIORITY: EnginePriority = 'lane-gate'
 export const ENGINE_WORKERS_FLAG = 'MERCURY_GODOT_WORKERS'
 export const ENGINE_WORKERS_MAX = 16
 export const ENGINE_RECENT_KEEP = 50
-export const ENGINE_RESULT_FILE = 'result.json'
 export const ENGINE_QUIET_SAMPLE_MS = 1000
 
 export interface EngineJobRequest {
@@ -179,6 +179,7 @@ export interface EngineJobsSnapshot {
   liveEngines: ReturnType<typeof liveEngines>
   instances: VulcanInstance[]
   swept: EngineOrphanSweep[]
+  sweepError: string | null
   staleTreesRemoved: string[]
   manifest: { file: string; found: boolean; suites: string[]; problems: string[] }
 }
@@ -207,7 +208,7 @@ export function newEngineJobId(now: number = Date.now()): string {
 }
 
 export function readEngineRecord(projectRoot: string, jobId: string): EngineRunRecord | null {
-  const file = path.join(engineRunPath(projectRoot, jobId), ENGINE_RESULT_FILE)
+  const file = engineRunResultFile(engineRunPath(projectRoot, jobId))
   try {
     return JSON.parse(readFileSync(file, 'utf8')) as EngineRunRecord
   } catch {
@@ -255,6 +256,10 @@ function summarize(job: EngineJob): EngineJobSummary {
   }
 }
 
+function quietGuardRefusal(workers: readonly string[]): string {
+  return `quiet-machine guard refused profile: other engine workers are alive or the census is unavailable — ${workers.join('; ')}`
+}
+
 const SERVICES = new Map<string, EngineJobService>()
 const ACTIVE_SERVICES = new Set<EngineJobService>()
 let NATIVE_JOB: string | null = null
@@ -272,11 +277,12 @@ export class EngineJobService {
   private readonly busyWorkers = new Set<number>()
   private readonly heartbeats = new Map<string, () => void>()
   private readonly census: () => Promise<GodotProcess[]>
-  private readonly mediaCensus: () => Promise<GodotProcess[]>
+  private readonly strictCensus: () => Promise<GodotProcess[]>
   private readonly executableOption: string | null
   private executableCache: { resolved: string; note: string } | null = null
   private seq = 0
   private swept: EngineOrphanSweep[] = []
+  private sweepError: string | null = null
   private staleTreesRemoved: string[] = []
   private readonly ready: Promise<void>
 
@@ -291,7 +297,7 @@ export class EngineJobService {
       this.workersSource = w.source === 'flag' ? ENGINE_WORKERS_FLAG : 'cores'
     }
     this.census = opts.census ?? (() => runningGodotProcesses())
-    this.mediaCensus = opts.census ?? engineMediaCensus
+    this.strictCensus = opts.census ?? strictGodotCensus
     this.executableOption = opts.executable ?? null
     this.ready = this.startup()
   }
@@ -313,30 +319,14 @@ export class EngineJobService {
   private async startup(): Promise<void> {
     let processes: GodotProcess[]
     try {
-      processes = await this.mediaCensus()
+      processes = await this.strictCensus()
       this.swept = await sweepEngineOrphans(this.projectRoot, processes)
-    } catch {
+    } catch (e) {
       this.swept = []
+      this.sweepError = `the orphan sweep did not run: ${(e as Error).message}`
       return
     }
-    for (const dir of [engineTreesDir(this.projectRoot), engineChecksDir(this.projectRoot)]) {
-      let names: string[] = []
-      try {
-        names = readdirSync(dir)
-      } catch {
-        continue
-      }
-      for (const name of names) {
-        const target = path.join(dir, name)
-        const entry = engineEstateEntry(this.projectRoot, target)
-        if (!entry || engineTreeLiveness(this.projectRoot, entry.path).alive) continue
-        const workers = processes.filter(p => p.project !== undefined && engineEstateEntry(this.projectRoot, p.project)?.path === entry.path)
-        if (workers.some(p => !this.swept.some(s => s.pid === p.pid && s.receipt.survivors.length === 0))) continue
-        if (target === entry.path) removeEngineTree(target)
-        else rmSync(target, { recursive: true, force: true })
-        this.staleTreesRemoved.push(target)
-      }
-    }
+    this.staleTreesRemoved = removeDeadEngineTrees(this.projectRoot, processes, this.swept)
   }
 
   private stopHeartbeat(id: string): void {
@@ -368,11 +358,12 @@ export class EngineJobService {
     if (request.media) request = { ...request, native: request.media.route === 'display', capture: false, suites: [] }
     request = freezeEngineRequest(request)
     await this.ready
-    if (request.media) {
-      if (request.media!.route === 'hidden') return { refused: 'hidden run refused: stock Godot shows its native bootstrap window before scripts initialize; no verified hidden bootstrap is available. Use headless project Image capture, or explicitly request route:"display".' }
-      if (request.media!.kind === 'profile' && request.media!.quiet === 'refuse') {
+    const media = request.media
+    if (media) {
+      if (media.route === 'hidden') return { refused: 'hidden run refused: stock Godot shows its native bootstrap window before scripts initialize; no verified hidden bootstrap is available. Use headless project Image capture, or explicitly request route:"display".' }
+      if (media.kind === 'profile' && media.quiet === 'refuse') {
         const workers = await this.otherEngineWorkers()
-        if (workers.length) return { refused: `quiet-machine guard refused profile: other engine workers are alive or the census is unavailable — ${workers.join('; ')}` }
+        if (workers.length) return { refused: quietGuardRefusal(workers) }
       }
     }
     const manifest = this.manifest()
@@ -429,7 +420,7 @@ export class EngineJobService {
       return job
     }
     job.tree = facts
-    const refusal = await engineLeaseRefusal(this.projectRoot, facts, request.holder ?? projectLeaseHolder())
+    const refusal = await this.leaseRefusal(job)
     if (refusal) {
       removeEngineTree(job.treePath)
       this.stopHeartbeat(id)
@@ -440,6 +431,15 @@ export class EngineJobService {
     this.queue.push(job)
     this.pump()
     return job
+  }
+
+  private async leaseRefusal(job: EngineJob): Promise<string | null> {
+    if (!job.tree) return null
+    try {
+      return await engineLeaseRefusal(this.projectRoot, job.tree, job.request.holder ?? projectLeaseHolder())
+    } catch (e) {
+      return `cannot check the leases on the changed files: ${(e as Error).message}`
+    }
   }
 
   private baseRecord(job: EngineJob, executable: string, selected: string[]): EngineRunRecord {
@@ -469,7 +469,7 @@ export class EngineJobService {
       selected: job.request.media ? this.mediaNames(job.request.media) : selected,
       importCache: { key: '', hit: false, ran: false, seededFrom: null, stored: false },
       classCache: null,
-      userDir: path.join(job.runDir, 'user'),
+      userDir: engineRunUserDir(job.runDir),
       startedAt: job.startedAt ?? job.queuedAt,
       endedAt: null,
       cancelled: false,
@@ -483,7 +483,7 @@ export class EngineJobService {
     if (!job.record) return
     try {
       mkdirSync(job.runDir, { recursive: true })
-      writeFileSync(path.join(job.runDir, ENGINE_RESULT_FILE), JSON.stringify(job.record, null, 2))
+      writeFileSync(engineRunResultFile(job.runDir), JSON.stringify(job.record, null, 2))
     } catch {
       return
     }
@@ -540,7 +540,7 @@ export class EngineJobService {
   }
 
   private userDirFor(job: EngineJob, suite: EngineSuite | null): string {
-    const dir = suite && suite.userDir === 'keep' ? path.join(engineUsersDir(this.projectRoot), suite.name.replace(/[\\/]/g, '__')) : path.join(job.runDir, 'user')
+    const dir = suite && suite.userDir === 'keep' ? path.join(engineUsersDir(this.projectRoot), suite.name.replace(/[\\/]/g, '__')) : engineRunUserDir(job.runDir)
     mkdirSync(dir, { recursive: true })
     return dir
   }
@@ -549,26 +549,28 @@ export class EngineJobService {
     job: EngineJob,
     executable: string,
     name: string,
-    argv: string[],
+    argvFor: (root: string) => string[],
     timeoutMs: number,
     marker: EngineMarker | null,
     userDir: string,
     unclean: RegExp,
   ): Promise<EngineResultRow> {
     if (job.cancelRequested) throw new Error('engine job cancelled before launch')
+    const argv = argvFor(job.treePath)
     const scriptIndex = argv.indexOf('--script')
     const script = scriptIndex >= 0 ? argv[scriptIndex + 1] : undefined
     const bridged = !job.request.media && !argv.includes('--check-only') && (script === undefined || script.startsWith('res://'))
     const instrumented = bridged && script ? injectVulcanWorkerScript(job.treePath, script) : bridged
     const bridge = instrumented ? await prepareVulcanInstance(job.treePath, name === IMPORT_SUITE_NAME ? 'agent-editor' : job.request.native ? 'native-worker' : 'headless-worker') : undefined
-    const handle = spawnEngine({ executable, args: argv, cwd: job.treePath, userDir, timeoutMs, label: `${job.id}:${name}`, ...(bridge ? { bridge } : {}) })
+    const root = bridge?.projectRoot ?? job.treePath
+    const handle = spawnEngine({ executable, args: bridge ? argvFor(root) : argv, cwd: root, userDir, timeoutMs, label: `${job.id}:${name}`, ...(bridge ? { bridge } : {}) })
     this.handles.set(job.id, handle)
     job.currentSuite = name
     const out = await handle.done
-    if (bridge) rmSync(path.join(job.treePath, '.godot', 'mercury-vulcan', bridge.id), { recursive: true, force: true })
+    if (bridge) rmSync(vulcanInstanceDir(job.treePath, bridge.id), { recursive: true, force: true })
     this.handles.delete(job.id)
     job.currentSuite = null
-    const logFile = path.join(job.runDir, `${name}.log`)
+    const logFile = engineRunLogFile(job.runDir, name)
     try {
       mkdirSync(path.dirname(logFile), { recursive: true })
       writeFileSync(logFile, out.output)
@@ -629,7 +631,7 @@ export class EngineJobService {
       workers.add(`pid ${engine.pid} ${engine.label}`)
     }
     try {
-      for (const engine of await this.mediaCensus()) {
+      for (const engine of await this.strictCensus()) {
         if (job && (engine.pid === ownPid || (engine.project !== undefined && path.resolve(engine.project) === path.resolve(job.treePath)))) continue
         workers.add(describeGodotProcess(engine))
       }
@@ -647,7 +649,7 @@ export class EngineJobService {
     if (workers.length) media.quiet.contaminated = true
     if (workers.length || media.quiet.observations.length < 1024) media.quiet.observations.push({ at: new Date().toISOString(), stage, workers })
     if (media.quiet.contaminated !== contaminatedBefore) this.writeRecord(job)
-    if (refuse && workers.length && media.quiet.policy === 'refuse') throw new Error(`quiet-machine guard refused profile: other engine workers are alive or the census is unavailable — ${workers.join('; ')}`)
+    if (refuse && workers.length && media.quiet.policy === 'refuse') throw new Error(quietGuardRefusal(workers))
   }
 
   private async runMedia(job: EngineJob, executable: string, timeoutMs: number, budgetLeft: () => number, unclean: RegExp): Promise<void> {
@@ -668,40 +670,61 @@ export class EngineJobService {
         record.budgetExceeded = true
         return
       }
-      const boot = writeEngineMediaDriver(job.runDir, job.treePath, request, variant)
-      const userDir = path.join(job.runDir, 'media', variant, 'user')
-      mkdirSync(userDir, { recursive: true })
-      let timer: ReturnType<typeof setInterval> | null = null
-      let observing: Promise<void> | null = null
-      if (request.kind === 'profile') {
-        timer = setInterval(() => {
-          if (observing) return
-          observing = this.observeProfileQuiet(job, 'measurement-boot', false).finally(() => { observing = null })
-        }, ENGINE_QUIET_SAMPLE_MS)
-      }
-      let row: EngineResultRow
+      const debuggerProfile = request.kind === 'profile' && request.source !== 'project' ? new GodotDebuggerProfile(request, engineMediaDriverFile(job.runDir, variant)) : null
       try {
-        media.boots++
-        row = await this.runOne(job, executable, request.kind === 'profile' ? 'profile' : `capture-${variant}`, boot.argv, Math.max(1, Math.min(timeoutMs, budgetLeft())), { kind: 'line', text: ENGINE_MEDIA_MARKER }, userDir, unclean)
+        if (debuggerProfile) await debuggerProfile.transport.open()
+        if (job.cancelRequested) return
+        if (budgetLeft() <= 0) { record.budgetExceeded = true; return }
+        const connection = debuggerProfile ? { port: debuggerProfile.transport.port, token: debuggerProfile.transport.token } : undefined
+        const boot = writeEngineMediaDriver(job.runDir, job.treePath, request, variant, connection)
+        const userDir = engineMediaUserDir(job.runDir, variant)
+        mkdirSync(userDir, { recursive: true })
+        let timer: ReturnType<typeof setInterval> | null = null
+        let observing: Promise<void> | null = null
+        if (request.kind === 'profile') {
+          timer = setInterval(() => {
+            if (observing) return
+            observing = this.observeProfileQuiet(job, 'measurement-boot', false).finally(() => { observing = null })
+          }, ENGINE_QUIET_SAMPLE_MS)
+        }
+        let row: EngineResultRow
+        try {
+          media.boots++
+          row = await this.runOne(job, executable, request.kind === 'profile' ? 'profile' : `capture-${variant}`, () => boot.argv, Math.max(1, Math.min(timeoutMs, budgetLeft())), { kind: 'line', text: ENGINE_MEDIA_MARKER }, userDir, unclean)
+        } finally {
+          if (timer) clearInterval(timer)
+          if (observing) await observing
+        }
+        record.results.push(row)
+        if (row.timedOut && budgetLeft() <= 0) record.budgetExceeded = true
+        if (request.kind === 'profile') await this.observeProfileQuiet(job, 'after-measurement-boot', false)
+        this.writeRecord(job)
+        if (debuggerProfile) media.evidence.push(debuggerProfile.evidence())
+        if (debuggerProfile?.transport.error && row.signal === null) throw new Error(debuggerProfile.transport.error)
+        if (!row.ok || job.cancelRequested) return
+        if (debuggerProfile?.transport.accepted && !debuggerProfile.finished) throw new Error('Godot debugger connected but did not finish the profile; no project fallback is claimed')
+        if (request.source === 'engine' && !debuggerProfile?.finished) throw new Error('The game never connected to the engine debugger; source "engine" takes no project tables in its place (source "auto" falls back to them)')
+        const out = readEngineMediaBoot(boot.resultFile, request, variant, boot.outputDir)
+        if (request.kind === 'profile') media.evidence.unshift({ variant, ...out.evidence, source: 'project', phases: out.phases })
+        else media.evidence.push({ variant, ...out.evidence })
+        media.frames.push(...out.frames)
+        if (request.kind === 'capture') {
+          record.frames = media.frames
+          media.phases.push(...out.phases)
+        } else {
+          media.selectedSource = debuggerProfile?.finished ? 'engine' : 'project'
+          media.sources = ['project', ...(debuggerProfile?.finished ? ['engine debugger'] : [])]
+          media.fallbackReason = debuggerProfile && !debuggerProfile.finished ? 'The game never connected to the engine debugger; the project source is selected.' : null
+          media.phases.push(...(debuggerProfile?.finished ? debuggerProfile.phases : out.phases))
+        }
+        this.writeRecord(job)
       } finally {
-        if (timer) clearInterval(timer)
-        if (observing) await observing
+        await debuggerProfile?.transport.close()
       }
-      record.results.push(row)
-      if (row.timedOut && budgetLeft() <= 0) record.budgetExceeded = true
-      if (request.kind === 'profile') await this.observeProfileQuiet(job, 'after-measurement-boot', false)
-      this.writeRecord(job)
-      if (!row.ok || job.cancelRequested) return
-      const out = readEngineMediaBoot(boot.resultFile, request, variant, boot.outputDir)
-      media.evidence.push({ variant, ...out.evidence })
-      media.frames.push(...out.frames)
-      if (request.kind === 'capture') record.frames = media.frames
-      media.phases.push(...out.phases)
-      this.writeRecord(job)
     }
     if (budgetLeft() <= 0) record.budgetExceeded = true
     if (job.cancelRequested || record.budgetExceeded) return
-    if (request.kind === 'capture') media.contactSheet = await writeEngineContactSheet(media.frames.map(frame => frame.path), path.join(job.runDir, 'media', 'contact-sheet.png'))
+    if (request.kind === 'capture') media.contactSheet = await writeEngineContactSheet(media.frames.map(frame => frame.path), engineContactSheetFile(job.runDir))
     this.writeRecord(job)
   }
 
@@ -724,7 +747,7 @@ export class EngineJobService {
       if (!job.tree) throw new Error('the frozen tree was not materialised')
       if (record.media?.kind === 'profile') await this.observeProfileQuiet(job, 'before-import', true)
       if (job.cancelRequested) throw new Error('engine job cancelled before import')
-      const refusal = await engineLeaseRefusal(this.projectRoot, job.tree, job.request.holder ?? projectLeaseHolder())
+      const refusal = await this.leaseRefusal(job)
       if (refusal) throw new Error(refusal)
       record.drift = await sourceProofDrift(this.projectRoot, job.treePath, job.tree, manifest.suites.map(suite => suiteRelativeFile(suite, manifest.defaults)))
       if (job.request.native && !job.request.displayShared) {
@@ -737,12 +760,12 @@ export class EngineJobService {
       const hashes = engineTreeHashes(job.tree)
       if (bridged) hashes.key = createHash('sha256').update(hashes.key).update(VULCAN_ADDON_DIGEST).digest('hex')
       const seed = seedEngineTree(this.projectRoot, job.treePath, hashes.key)
-      rmSync(path.join(job.treePath, '.godot', 'mercury-vulcan'), { recursive: true, force: true })
+      rmSync(vulcanInstancesDir(job.treePath), { recursive: true, force: true })
       record.importCache = { key: hashes.key, hit: seed.hit, ran: false, seededFrom: seed.seededFrom, stored: false }
       const explicitImport = selection.entries.some(e => e.kind === 'import')
       if (!seed.hit || explicitImport) {
         const timeout = Math.max(1, Math.min(manifest.defaults.importTimeoutMs, budgetLeft()))
-        const row = await this.runOne(job, exe.resolved, IMPORT_SUITE_NAME, engineImportArgv(job.treePath), timeout, null, this.userDirFor(job, null), unclean)
+        const row = await this.runOne(job, exe.resolved, IMPORT_SUITE_NAME, root => engineImportArgv(root), timeout, null, this.userDirFor(job, null), unclean)
         record.results.push(row)
         record.importCache.ran = true
         if (row.ok) record.importCache.stored = storeEngineCache(this.projectRoot, job.treePath, hashes.key).stored
@@ -769,9 +792,8 @@ export class EngineJobService {
           this.writeRecord(job)
           continue
         }
-        const argv = engineSuiteArgv(job.treePath, suite, manifest.defaults, { native: job.request.native, capture: job.request.capture })
         const timeout = Math.max(1, Math.min(suite.timeoutMs, budgetLeft()))
-        const row = await this.runOne(job, exe.resolved, suite.name, argv, timeout, suite.marker, this.userDirFor(job, suite), unclean)
+        const row = await this.runOne(job, exe.resolved, suite.name, root => engineSuiteArgv(root, suite, manifest.defaults, { native: job.request.native, capture: job.request.capture }), timeout, suite.marker, this.userDirFor(job, suite), unclean)
         if (row.timedOut && deadline !== null && Date.now() >= deadline) record.budgetExceeded = true
         record.results.push(row)
         this.writeRecord(job)
@@ -889,6 +911,7 @@ export class EngineJobService {
       liveEngines: liveEngines(),
       instances: listVulcanInstances(this.projectRoot),
       swept: this.swept,
+      sweepError: this.sweepError,
       staleTreesRemoved: this.staleTreesRemoved,
       manifest: { file: manifest.file, found: manifest.found, suites: manifest.suites.map(s => s.name), problems: manifest.problems },
     }

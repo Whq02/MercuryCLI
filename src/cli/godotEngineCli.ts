@@ -16,7 +16,7 @@ export interface GodotCliParse {
   flags: Record<string, string | true>
 }
 
-const VALUE_FLAGS = new Set(['tree', 'priority', 'budget-ms', 'label', 'tail-chars', 'tail', 'parallel', 'project', 'wait-ms', 'threshold', 'max-lag', 'grid', 'request', 'run'])
+const VALUE_FLAGS = new Set(['tree', 'priority', 'budget-ms', 'label', 'tail-chars', 'tail', 'parallel', 'project', 'wait-ms', 'threshold', 'max-lag', 'grid', 'request', 'run', 'source'])
 
 export function parseGodotCliArgs(argv: readonly string[]): GodotCliParse {
   const positional: string[] = []
@@ -51,7 +51,7 @@ export function godotCliUsage(cliName: string): string {
     `  ${cliName} godot cancel <id>`,
     `  ${cliName} godot result <id> [--tail <n>]`,
     `  ${cliName} godot capture [tour] [--request <json file>] [--tree <spec>] [--display] [--display-shared]`,
-    `  ${cliName} godot profile [tour] [--request <json file>] [--tree <spec>] [--display]`,
+    `  ${cliName} godot profile [tour] [--source <engine|project|auto>] [--request <json file>] [--tree <spec>] [--display]`,
     `  ${cliName} godot tour <name> [--tree <spec>] [--request <json file>]`,
     `  ${cliName} godot frames diff <a.png> <b.png> [--threshold <0..255>]`,
     `  ${cliName} godot frames stats <frame.png> [--max-lag <n>] [--grid <columns>x<rows>]`,
@@ -96,6 +96,10 @@ export async function godotEngineCli(argv: readonly string[], io: GodotCliIo = d
   if (!(GODOT_CLI_VERBS as readonly string[]).includes(verb)) {
     io.err(`${io.cliName} godot: unknown verb "${verb}"`)
     io.err(godotCliUsage(io.cliName))
+    return 2
+  }
+  if (flags.source !== undefined && (verb !== 'profile' || !['engine', 'project', 'auto'].includes(String(flags.source)))) {
+    io.err('--source needs engine, project, or auto and is only supported by profile')
     return 2
   }
   const projectArg = typeof flags.project === 'string' ? path.resolve(flags.project) : undefined
@@ -161,7 +165,7 @@ export async function godotEngineCli(argv: readonly string[], io: GodotCliIo = d
         }
         if (positional[0]) args.tour = positional[0]
         if (verb === 'tour' && typeof args.tour !== 'string') throw new Error('tour needs the name of a registered tour')
-        for (const name of ['tree', 'priority', 'label']) if (flags[name] !== undefined) args[name] = flags[name]
+        for (const name of ['tree', 'priority', 'label', 'source']) if (flags[name] !== undefined) args[name] = flags[name]
         if (flags['budget-ms'] !== undefined) {
           const budget = num(flags['budget-ms'])
           if (budget === undefined) throw new Error('--budget-ms needs a positive number')

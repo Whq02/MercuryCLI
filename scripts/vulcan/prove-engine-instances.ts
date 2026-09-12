@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -160,6 +160,11 @@ try {
     writeFileSync(source, readFileSync(source, 'utf8') + '\n')
     const denied = await runEngineOp('engine_run', { suites: ['runtime_checks'], tree: 'working', wait: false }, leasedRoot, other)
     check('the engine refuses a run that consumes another holder\'s changed file', /leased by session first-session, agent first/.test(denied), denied)
+    writeFileSync(join(scratch, 'outside-file.gd'), 'extends Node\n')
+    symlinkSync(join(scratch, 'outside-file.gd'), join(leasedRoot, 'escape.gd'), 'file')
+    const escaped = await runEngineOp('engine_run', { suites: ['runtime_checks'], tree: 'working', wait: false }, leasedRoot, other).then(text => ({ text }), error => ({ thrown: String(error) }))
+    const estateEntries = (dir: string): string[] => existsSync(dir) ? readdirSync(dir) : []
+    check('a working tree whose changed file escapes the project through a symlink is refused with the reason, not thrown, and leaves no tree or run behind', 'text' in escaped && /engine_run refused: .*escapes the project through a symlink/.test(escaped.text) && estateEntries(join(leasedRoot, '.mercury', 'engine', 'trees')).length === 0 && estateEntries(join(leasedRoot, '.mercury', 'engine', 'runs')).length === 0, { ...escaped, trees: estateEntries(join(leasedRoot, '.mercury', 'engine', 'trees')), runs: estateEntries(join(leasedRoot, '.mercury', 'engine', 'runs')) })
   }
 } finally {
   leaseChild.stdin.end()
