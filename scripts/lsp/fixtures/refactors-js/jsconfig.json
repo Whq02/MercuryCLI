@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "checkJs": false
+  },
+  "include": ["**/*"]
+}

@@ -146,7 +146,8 @@ section('§2 the LSP apply folds two spellings of one document into one target')
     isBypassPermissionsModeAvailable: false,
     shouldAvoidPermissionPrompts: false,
   }
-  const context = { getAppState: () => ({ toolPermissionContext: permissionContext }) }
+  const readFileState = new Map([[target, { content: readFileSync(target, 'utf8'), timestamp: Date.now(), offset: undefined, limit: undefined }]])
+  const context = { readFileState, getAppState: () => ({ toolPermissionContext: permissionContext }) }
 
   const applied = await bounded(
     runMercuryLspOp({
