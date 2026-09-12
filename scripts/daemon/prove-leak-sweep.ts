@@ -325,7 +325,7 @@ section('§R1 — every listening socket binds LOOPBACK-ONLY by construction (th
   const unity = readFileSync(join(ROOT, 'src', 'services', 'unity', 'bridgeFiles.generated.ts'), 'utf-8')
   check('R1 the Unity bridge server binds IPAddress.Loopback', unity.includes('TcpListener(IPAddress.Loopback'))
   const vulcan = readFileSync(join(ROOT, 'src', 'services', 'vulcan', 'addonFiles.generated.ts'), 'utf-8')
-  check('R1 the Godot addon server binds 127.0.0.1', vulcan.includes('_server.listen(port, \\"127.0.0.1\\")'))
+  check('R1 the Godot addon instance listener binds 127.0.0.1', vulcan.includes('listener.listen(port, \\"127.0.0.1\\")'))
   const blenderBaked = join(ROOT, 'src', 'services', 'blender', 'bridgeFiles.generated.ts')
   const blenderPresent = ((): boolean => { try { statSync(blenderBaked); return true } catch { return false } })()
   if (blenderPresent) {
@@ -535,7 +535,7 @@ section('§B — every arm is paired with its release (the class-B lifecycle cen
       body.includes('clearTimeout(p.timer)') &&
       body.includes('if (q.queueTimer) clearTimeout(q.queueTimer)')
     check(`B2 ${rel} teardown releases heartbeat, pendings, queue, socket`, teardownWhole)
-    check(`B2 ${rel} singleton closes the old client before replacing`, body.includes('singleton?.client.close()'))
+    check(`B2 ${rel} closes a client before it leaves the cache`, body.includes('singleton?.client.close()') || body.includes('clients.get(oldest)?.close()'))
   }
   const unityBaked = src(join('services', 'unity', 'bridgeFiles.generated.ts'))
   check('B2 the baked server closes the old socket on accept-newest', unityBaked.includes('_client.Tcp.Close()') && unityBaked.includes('_client = client;'))
