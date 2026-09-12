@@ -417,3 +417,12 @@ left on the screen.
   [SATURN.md](SATURN.md)'s.
 - Workspace trust and the user-private commands are [TRUST.md](TRUST.md)'s.
 - The idle-retirement and birth-grace knobs are rows of the flag registry.
+- The box's state rides the session facts as the `box` row, for the agents
+  as much as the screen: the load per core and the memory available, the
+  box lock's slots with who holds each and who waits (the coordination
+  directory `MERCURY_BOX_LOCK_DIR` names, else the one the session's last
+  `with-box-lock.sh` command used), and the memory guard's verdict on this
+  session. An agent reads it as `mercury://health/box` through the Inspect
+  tool, and a Bash result whose command waited on the lock carries one
+  line saying how long, who held the slots, and the load at that moment.
+  This is visibility only: nothing here schedules or throttles.

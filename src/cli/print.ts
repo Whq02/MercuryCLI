@@ -43,6 +43,7 @@ import { capabilityHoldWords, runnerCapabilityHolds } from '../daemon/runnerCapa
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
 import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
 import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
+import { boxReading } from '../utils/boxLock.js'
 import { declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
 import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
@@ -1890,6 +1891,7 @@ export async function runHeadless(
               return sent === undefined ? {} : { effortSent: sent }
             })(),
             spawnSwitches: spawnSwitchFacts(),
+            box: boxReading(),
             workspace: {
               cwd: getCwd(),
               originalCwd: getOriginalCwd(),

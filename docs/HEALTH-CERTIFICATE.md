@@ -52,6 +52,12 @@ A fast run certifies these sections (section id · title):
 | `router-fast` | ROUTER |
 | `architecture-fast` | ARCHITECTURE PRIMITIVES |
 
+RUNTIME's `Device headroom` row is joined by `Box lock`: the coordination
+directory of the box lock (`MERCURY_BOX_LOCK_DIR`), the slots held and by
+whom, and the tickets waiting — or the plain word that no lock directory is
+named. The resource `mercury://health/box` gives an agent the same reading
+live, with the memory guard's verdict on its own session.
+
 TOOL CAPABILITY carries the `Tools withheld` check: every built-in tool kept
 out of the model's catalog because a machine dependency is absent — a debug
 adapter for Debug, a Godot executable for Godot, the desktop driver for
