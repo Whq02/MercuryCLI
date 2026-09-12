@@ -1,13 +1,16 @@
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { dirname } from 'node:path'
 import { getSessionId, isSessionPersistenceDisabled } from '../../../bootstrap/state.js'
-import { renameWithWin32RetrySync } from '../../../substrate/durablePublish.js'
+import { renameWithWin32Retry } from '../../../substrate/durablePublish.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
+import { registerCleanup } from '../../../utils/cleanupRegistry.js'
 import { logForDebugging } from '../../../utils/debug.js'
-import { getMercuryHome } from '../../../utils/envUtils.js'
+import { getTranscriptPath } from '../../../utils/sessionStorage/paths.js'
 import { processMainOwner } from '../../run/resolveOwner.js'
 import { isDeadThinkingPlaceholder } from './deadThinkingPlaceholder.js'
+import { PREFIX_LEDGER_FILE, prefixLedgerPath } from './prefixRecordStore.js'
 
 export interface WirePrefixParts {
   system: unknown
@@ -26,6 +29,7 @@ export interface PrefixVerdict {
   mismatch: PrefixMismatch | null
   lastThinkingIndex: number
   compared: boolean
+  behind: number
   key: string
   wireMessageIds: Array<string | null>
 }
@@ -286,25 +290,18 @@ function compareRecords(previous: PrefixRecord, current: PrefixRecord, lastThink
 const records = new Map<string, PrefixRecord>()
 const verdicts = new Map<string, PrefixVerdict>()
 
-export const PREFIX_LEDGER_FILE = 'prefix-ledger.json'
+export { PREFIX_LEDGER_FILE, prefixLedgerPath }
 
 interface PersistedPrefixLedger {
   version: 1
   owner: string
+  transcript?: string
   record: Omit<PrefixRecord, 'dropped'> & { dropped: string[] }
   drops: unknown
 }
 
 const consultedOwners = new Set<string>()
 let persistedDrops: unknown = null
-
-function sessionSegment(sessionId: string): string {
-  return sessionId.replace(/[^A-Za-z0-9_.:-]+/g, '-') || 'session'
-}
-
-export function prefixLedgerPath(sessionId: string = String(getSessionId()), home: string = getMercuryHome()): string {
-  return join(home, 'sessions', sessionSegment(sessionId), PREFIX_LEDGER_FILE)
-}
 
 function ownsSessionRecord(owner: string): boolean {
   try {
@@ -314,20 +311,110 @@ function ownsSessionRecord(owner: string): boolean {
   }
 }
 
-function writeSessionRecord(owner: string): void {
+interface PendingRecordWrite {
+  owner: string
+  sessionId: string
+}
+
+let pendingWrite: PendingRecordWrite | null = null
+let heldForWire = false
+let writeTimer: ReturnType<typeof setTimeout> | null = null
+let landing: Promise<void> | null = null
+let recordWrites = 0
+let flushRegistered = false
+
+function markRecordDirty(owner: string, opts: { holdForWire?: boolean } = {}): void {
   if (!ownsSessionRecord(owner) || isSessionPersistenceDisabled()) return
-  const record = records.get(owner)
+  pendingWrite = { owner, sessionId: String(getSessionId()) }
+  if (opts.holdForWire === true) heldForWire = true
+  if (!flushRegistered) {
+    flushRegistered = true
+    registerCleanup(() => flushPrefixLedger())
+  }
+  scheduleRecordWrite()
+}
+
+export function noteRequestOnWire(owner: string): void {
+  if (!heldForWire || !ownsSessionRecord(owner)) return
+  heldForWire = false
+  scheduleRecordWrite()
+}
+
+function scheduleRecordWrite(): void {
+  if (writeTimer !== null || heldForWire || pendingWrite === null) return
+  writeTimer = setTimeout(() => {
+    writeTimer = null
+    void landRecordWrites()
+  }, 0)
+  writeTimer.unref?.()
+}
+
+async function drainRecordWrites(): Promise<void> {
+  while (pendingWrite !== null && !heldForWire) {
+    const take = pendingWrite
+    pendingWrite = null
+    await writeSessionRecord(take)
+  }
+}
+
+function landRecordWrites(): Promise<void> {
+  if (landing === null) {
+    landing = drainRecordWrites().finally(() => {
+      landing = null
+    })
+  }
+  return landing
+}
+
+export async function flushPrefixLedger(): Promise<void> {
+  if (writeTimer !== null) {
+    clearTimeout(writeTimer)
+    writeTimer = null
+  }
+  await landRecordWrites()
+}
+
+export function prefixLedgerWriterState(): { pending: boolean; held: boolean; writes: number } {
+  return { pending: pendingWrite !== null, held: heldForWire, writes: recordWrites }
+}
+
+function transcriptStamp(): string | null {
+  try {
+    const path = getTranscriptPath()
+    return existsSync(path) ? path : null
+  } catch {
+    return null
+  }
+}
+
+async function writeSessionRecord(take: PendingRecordWrite): Promise<void> {
+  if (!ownsSessionRecord(take.owner) || isSessionPersistenceDisabled()) return
+  const record = records.get(take.owner)
   if (record === undefined) return
   try {
-    const path = prefixLedgerPath()
-    mkdirSync(dirname(path), { recursive: true })
-    const body: PersistedPrefixLedger = { version: 1, owner, record: { ...record, dropped: [...record.dropped] }, drops: persistedDrops }
+    const path = prefixLedgerPath(take.sessionId)
+    await mkdir(dirname(path), { recursive: true })
+    const transcript = transcriptStamp()
+    const body: PersistedPrefixLedger = {
+      version: 1,
+      owner: take.owner,
+      ...(transcript !== null ? { transcript } : {}),
+      record: { ...record, dropped: [...record.dropped] },
+      drops: persistedDrops,
+    }
     const staging = `${path}.${process.pid}.tmp`
-    writeFileSync(staging, JSON.stringify(body), { mode: 0o600 })
-    renameWithWin32RetrySync(staging, path)
+    await writeFile(staging, JSON.stringify(body), { mode: 0o600 })
+    await renameWithWin32Retry(staging, path)
+    recordWrites++
   } catch (error) {
     logForDebugging(`preserved thinking: the prefix ledger's record could not be written beside the session (${String(error)})`, { level: 'warn' })
   }
+}
+
+function requestsBehind(recorded: ReadonlyArray<string | null>, sent: ReadonlyArray<string | null>): number {
+  const known = new Set(recorded.filter((id): id is string => typeof id === 'string'))
+  const fresh = new Set(sent.filter((id): id is string => typeof id === 'string' && !known.has(id)))
+  return Math.max(0, fresh.size - 1)
 }
 
 function readSessionRecord(owner: string): void {
@@ -366,7 +453,7 @@ export function rememberDropState(owner: string, state: unknown): void {
   if (!ownsSessionRecord(owner)) return
   if (JSON.stringify(state) === JSON.stringify(persistedDrops)) return
   persistedDrops = state
-  writeSessionRecord(owner)
+  markRecordDirty(owner)
 }
 
 export function forgetPersistedDropState(): void {
@@ -378,6 +465,13 @@ export function resetPrefixLedger(): void {
   verdicts.clear()
   consultedOwners.clear()
   persistedDrops = null
+  pendingWrite = null
+  heldForWire = false
+  if (writeTimer !== null) {
+    clearTimeout(writeTimer)
+    writeTimer = null
+  }
+  recordWrites = 0
 }
 
 export function prefixRecordFor(owner: string): { key: string; whole: string; systemDigests: string[]; toolNames: string[]; messageDigests: string[] } | null {
@@ -400,22 +494,27 @@ export function judgeAndRecordPrefix(
   const previous = records.get(owner)
   if (previous !== undefined && previous.key === key && previous.whole === current.whole) {
     if (replace) records.set(owner, { ...current, dropped: previous.dropped })
-    return verdicts.get(owner) ?? { mismatch: null, lastThinkingIndex: lastThinkingMessageIndex(parts.messages), compared: true, key, wireMessageIds: current.wireMessageIds }
+    return verdicts.get(owner) ?? { mismatch: null, lastThinkingIndex: lastThinkingMessageIndex(parts.messages), compared: true, behind: 0, key, wireMessageIds: current.wireMessageIds }
   }
   const lastThinkingIndex = lastThinkingMessageIndex(parts.messages)
   let mismatch: PrefixMismatch | null = null
   const compared = previous !== undefined && previous.key === key
+  const behind = compared ? requestsBehind(previous.wireMessageIds, current.wireMessageIds) : 0
   if (compared && lastThinkingIndex >= 0) {
-    mismatch = compareRecords(previous, current, lastThinkingIndex)
-    if (mismatch !== null) {
-      logForDebugging(`preserved thinking: the prefix ledger names a rewrite of sent history before the request went out — ${mismatch.part} (${mismatch.path})${mismatch.before !== undefined ? `; before: ${j(mismatch.before)}; after: ${j(mismatch.after ?? '')}` : ''}`, { level: 'warn' })
+    if (behind > 0) {
+      logForDebugging(`preserved thinking: the prefix ledger's record is ${behind} request${behind === 1 ? '' : 's'} behind the history (the previous process ended before its last write); the part that moved is not named`, { level: 'warn' })
+    } else {
+      mismatch = compareRecords(previous, current, lastThinkingIndex)
+      if (mismatch !== null) {
+        logForDebugging(`preserved thinking: the prefix ledger names a rewrite of sent history before the request went out — ${mismatch.part} (${mismatch.path})${mismatch.before !== undefined ? `; before: ${j(mismatch.before)}; after: ${j(mismatch.after ?? '')}` : ''}`, { level: 'warn' })
+      }
     }
   }
-  const verdict: PrefixVerdict = { mismatch, lastThinkingIndex, compared, key, wireMessageIds: current.wireMessageIds }
+  const verdict: PrefixVerdict = { mismatch, lastThinkingIndex, compared, behind, key, wireMessageIds: current.wireMessageIds }
   if (replace) {
     records.set(owner, current)
     verdicts.set(owner, verdict)
-    writeSessionRecord(owner)
+    markRecordDirty(owner, { holdForWire: true })
   }
   return verdict
 }
@@ -436,7 +535,7 @@ export function recordDroppedThinking(owner: string, drops: ReadonlyArray<{ type
     record.dropped.add(mark)
     marked++
   }
-  if (marked > 0) writeSessionRecord(owner)
+  if (marked > 0) markRecordDirty(owner)
   return marked
 }
 
