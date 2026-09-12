@@ -396,20 +396,57 @@ every tour step and settles for `settleFrames` (default 60), then measures
 `sampleFrames` (default 120). `media.phases` retains each variant and step.
 Every timing summary has `samples`, `median`, and nearest-rank `p95`.
 
-`frameMs` measures real frame intervals with `Time.get_ticks_usec`;
-`processMs`, `physicsMs`, and `navigationMs` are Godot Performance monitor
-values converted to milliseconds. Positive engine-reported viewport CPU
-and GPU times are retained when available. Headless GPU timings are `null`,
-not a claim of zero rendering cost.
+Select the engine's own profiler without adding project instrumentation:
 
-The root must supply `mercury_media_sample() -> Dictionary`, returning
+```sh
+mercury godot profile fixture --source engine --request profile.json
+```
+
+The operation argument is `source: "engine"`; `source: "project"` selects
+the original project measurements. The default, `auto`, selects the engine
+when its debugger connects, otherwise project measurements with an explicit
+`media.fallbackReason`. A connected but incomplete, unsupported, or malformed
+debugger stream fails the job instead of silently falling back.
+`media.selectedSource` names the selection and `media.sources` lists the
+available sources. `media.phases` contains the selected summaries; labelled
+entries in `media.evidence` keep the project phases and the `engine debugger`
+phases separately. Project tables are unchanged when both are present.
+
+Each engine profile owns a loopback TCP listener on a free port, passed to
+its isolated worker through `--remote-debug`. The binary Variant decoder
+carries Godot 4.6 and refuses other versions or unknown types. The debugger
+evidence names both the decoder version and the connected engine version.
+Script rows name Godot's resource/line/function signature and include
+`selfMs`, `totalMs`, `internalMs`, per-frame `calls` summaries and `totalCalls`
+for the settled window. `servers` and `physics` contain the engine's server
+and physics-component timings. Engine `frameMs` measures engine work, not
+wall-clock spacing; it includes the profile driver's overhead.
+`physicsIntervalMs` is the simulation interval, not physics execution time.
+The `monitors` field carries frame and physics timings plus static memory
+and peak memory in bytes. Godot sends Performance samples once per second;
+memory and navigation summaries are `null` if none falls in the window.
+GPU and viewport CPU timings are not part of this debugger source.
+
+The decoder bounds packets to 8 MiB, each job stream to 64 MiB, and nesting to 64. A profile refuses
+when a script frame reaches the 4096-function reporting cap or collection
+exceeds two million retained values, rather than presenting incomplete
+tables as complete. Shorten a large profile window after a collection-limit
+refusal. No editor, existing game, or runtime bridge is attached to, and
+profiling remains headless unless the caller explicitly requests display.
+
+For the project source, `frameMs` measures real frame intervals with
+`Time.get_ticks_usec`; `processMs`, `physicsMs`, and `navigationMs` are Godot
+Performance values converted to milliseconds. Positive viewport CPU and
+GPU reports are retained when available. Headless GPU timings are `null`,
+not a claim of zero rendering cost. The root supplies
+`mercury_media_sample() -> Dictionary`, returning
 `scripts: [{script, selfMs, totalMs, calls}]` and
 `physics: {componentName: milliseconds}` for each sample. Tables must remain
 consistent through a phase and contain at least one script and physics
-component. These are explicitly project-instrumented measurements, not the
-debugger's automatic engine-wide per-script profile. `mercury_media_toggle`
-provides the in-boot A/B switch; the configure and step hooks are available
-as for captures.
+component. Without that hook, the engine source still works and the project
+evidence explicitly has `projectTables: false`; it retains driver monitors,
+not invented project tables. `mercury_media_toggle` provides the in-boot
+A/B switch; the configure and step hooks are available as for captures.
 
 The quiet-machine guard checks active service jobs, the global live worker
 registry, and the box's process census before import and measurement, during
