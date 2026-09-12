@@ -46,13 +46,13 @@ let exitHookArmed = false
 
 function killLiveEnginesSync(): void {
   for (const pid of LIVE.keys()) {
+    if (process.platform === 'win32') {
+      const { file, args } = win32TaskkillCommand(pid)
+      spawnSync(file, args, { windowsHide: true, stdio: 'ignore', timeout: 5_000, env: subprocessEnv() })
+      continue
+    }
     try {
-      if (process.platform === 'win32') {
-        const { file, args } = win32TaskkillCommand(pid)
-        spawnSync(file, args, { windowsHide: true, stdio: 'ignore' })
-      } else {
-        process.kill(-pid, 'SIGKILL')
-      }
+      process.kill(-pid, 'SIGKILL')
     } catch {
       try {
         process.kill(pid, 'SIGKILL')
