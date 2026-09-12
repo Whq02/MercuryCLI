@@ -169,6 +169,13 @@ if (!executable.resolved) {
       const fallback = await run({ tour: 'fixture', settleFrames: 10, sampleFrames: 12, quiet: 'flag' }, disconnected)
       check('a game that never connects falls back to project with the reason', fallback.media?.selectedSource === 'project' && /never connected/.test(fallback.media.fallbackReason ?? '') && engineEvidence(fallback).connected === false, fallback)
       check('the unused listener also closes', await portIsFree(engineEvidence(fallback).port))
+      const strict = await disconnected.submit(request({ tour: 'fixture', source: 'engine', settleFrames: 10, sampleFrames: 12, quiet: 'flag' }))
+      assert.ok(!('refused' in strict), JSON.stringify(strict))
+      const strictJob = strict as Exclude<typeof strict, { refused: string }>
+      await disconnected.wait(strictJob.id, 120_000)
+      const strictRecord = strictJob.record
+      check('an explicit engine source whose game never connects fails the job instead of answering project numbers', strictRecord?.allPass === false && /never connected/.test(strictRecord?.error ?? '') && strictRecord?.media?.selectedSource !== 'engine', { allPass: strictRecord?.allPass, error: strictRecord?.error, selectedSource: strictRecord?.media?.selectedSource })
+      check('the explicit engine listener also closes', await portIsFree(engineEvidence(strictRecord).port))
     } finally { await disconnected.shutdown() }
     const holdingScript = join(scratch, 'holding-engine.ts')
     writeFileSync(holdingScript, [

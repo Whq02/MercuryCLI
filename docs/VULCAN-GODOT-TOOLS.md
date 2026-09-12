@@ -405,8 +405,10 @@ mercury godot profile fixture --source engine --request profile.json
 The operation argument is `source: "engine"`; `source: "project"` selects
 the original project measurements. The default, `auto`, selects the engine
 when its debugger connects, otherwise project measurements with an explicit
-`media.fallbackReason`. A connected but incomplete, unsupported, or malformed
-debugger stream fails the job instead of silently falling back.
+`media.fallbackReason`. An explicit `engine` whose game never connects fails
+the job with that reason; only `auto` falls back. A connected but incomplete,
+unsupported, or malformed debugger stream fails the job instead of silently
+falling back.
 `media.selectedSource` names the selection and `media.sources` lists the
 available sources. `media.phases` contains the selected summaries; labelled
 entries in `media.evidence` keep the project phases and the `engine debugger`
