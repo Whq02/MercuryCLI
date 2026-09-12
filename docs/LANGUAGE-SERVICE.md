@@ -123,14 +123,10 @@ file; a `jsconfig.json` project is analysed whole, so a rename in one
 JavaScript file reaches the others. A file under neither lands in an
 inferred project that holds only the files the session has opened.
 
-## The proofs
+## The checks
 
-`scripts/lsp/fixtures/refactors/` is a TypeScript project with a barrel, an
-aliased re-export, a JSX file and a JavaScript file; `refactors-js/` is a
-JavaScript project with a `jsconfig.json`. `scripts/lsp/prove-lsp-refactor-rename.ts`,
-`prove-lsp-refactor-move.ts`, `prove-lsp-refactor-actions.ts` and
-`prove-lsp-edit-road.ts` drive the real sidecar through the real ops: a
-rename touches every reference and nothing else, a move rewrites every
-import, a colliding rename is refused with the reason, a dry run applies
-nothing, organise-imports changes only the import block, and the
-read-before-edit law is honoured on every touched file.
+Mercury's own checks drive the real sidecar through the real ops on a TypeScript
+project with a barrel, an aliased re-export, a JSX file and a JavaScript file, and
+on a JavaScript project with a `jsconfig.json`: a rename touches every reference
+and nothing else, a move rewrites every import, a colliding rename is refused
+with the reason, a dry run applies nothing, and a stale plan is refused.
