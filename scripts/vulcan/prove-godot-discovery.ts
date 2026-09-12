@@ -176,7 +176,7 @@ try {
   const noCensus = { census: { ok: true, processes: [] } }
   const install = await installer.applyVulcanInstall(proj, road, noCensus)
   const text = readFileSync(join(proj, 'project.godot'), 'utf8')
-  check('install answer: one receipt line per row — enabled plugin, port, autoload', /project\.godot \[editor_plugins\] enabled: \(absent\) → res:\/\/addons\/mercury_vulcan\/plugin\.cfg — /.test(install) && new RegExp(`project\\.godot \\[mercury_vulcan\\] port: \\(absent\\) → ${port} — `).test(install) && /project\.godot \[autoload\] MercuryVulcanRuntimeBridge: \(absent\) → "\*res:\/\/addons\/mercury_vulcan\/core\/runtime_bridge\.gd" — /.test(install), install.split('\n').slice(0, 5).join(' | '))
+  check('install receipts name the plugin and autoload without a shared port', install.includes('project.godot [editor_plugins] enabled:') && install.includes('project.godot [autoload] MercuryVulcanRuntimeBridge:') && !install.includes('[mercury_vulcan] port:') && !/^port=/m.test(text), install.split('\n').slice(0, 5).join(' | '))
   check('the autoload row lands in res:// form, written by Mercury (not left to the editor)', text.includes('[autoload]') && text.includes(`MercuryVulcanRuntimeBridge=${installer.RUNTIME_AUTOLOAD_ROW_VALUE}`))
   check('the receipt explains the editor\'s uid:// respelling law', /respells the row as uid:\/\//.test(install))
   check('the change-record road fired: before the write, then after with previous/next', JSON.stringify(calls) === JSON.stringify(['before:true', 'after:true:true']), JSON.stringify(calls))
@@ -197,7 +197,7 @@ try {
   const health = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
   check('the doctor row reads the presence owner and its nudge', health.includes("await import('../services/vulcan/editorPresence.js')") && health.includes('fix: presenceNudge(presence, s)') && !/focus\/restart the editor/.test(health))
   const prompt = readFileSync(join(ROOT, 'src/tools/GodotTool/prompt.ts'), 'utf8')
-  check('the tool prompt names the three states and project_refresh_classes', /no editor running \/ editor open but unbridged \/ bridge up/.test(prompt) && prompt.includes('project_refresh_classes') && !/picks it up on focus/.test(prompt))
+  check('the tool prompt requires an explicit operator instance and names class refresh', prompt.includes('Pass args.instance') && prompt.includes('never choose the operator-editor role unless the call explicitly names it') && prompt.includes('project_refresh_classes') && !/picks it up on focus/.test(prompt))
   const plugin = readFileSync(join(ROOT, 'assets/vulcan/addon/plugin.gd'), 'utf8')
   check('plugin.gd writes the autoload row only when absent, as the plain res:// setting (no add_autoload_singleton, no per-boot rewrite)', /if not ProjectSettings\.has_setting\("autoload\/" \+ RUNTIME_AUTOLOAD\):\n\t\tProjectSettings\.set_setting\("autoload\/" \+ RUNTIME_AUTOLOAD, "\*" \+ RUNTIME_BRIDGE_PATH\)/.test(plugin) && !/^\s*add_autoload_singleton\(/m.test(plugin))
   const scriptCategory = readFileSync(join(ROOT, 'assets/vulcan/addon/categories/script.gd'), 'utf8')
