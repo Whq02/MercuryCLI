@@ -261,6 +261,14 @@ raises) forgets the reader's state and asks for the account now signed in at
 once — the meter never keeps a departed account's figure or waits out its
 cadence.
 
+A sign-in or a removal also reaches the engines behind the open chats. The
+daemon tells every runner it hosts to read the account again, so a delegated
+agent is never refused with a departed account's usage window; a runner that
+missed the word is covered anyway — a limit verdict is trusted only for the
+account that observed it, and reads as unknown once the signed-in account is
+another, so the refusal for a reached window names the account it belongs to
+and when it was seen.
+
 `/usage` lists every provider, the signed-in ones first in the order of their
 most recent sign-in — the same sign-in record the computed default reads — and
 each in its own shape: the first-party subscription's rolling windows and
