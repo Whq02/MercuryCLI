@@ -74,6 +74,11 @@ section('§3 the reading the facts carry')
 const reading = box.boxReading(now)
 check('the reading carries the cores, the load per core (or n/a), and the memory', reading.cores >= 1 && (reading.loadPerCore === null || reading.loadPerCore >= 0) && reading.memory.totalMb > 0 && reading.memory.availableMb >= 0, j(reading))
 check('the reading carries the lock state of the remembered directory', reading.lock?.dir === lockDir && reading.lock.holders.length === 2 && reading.lockNote === undefined)
+check('an answer before any sample was taken carries the runtime figure, named so, with its clock — it never takes a sample', reading.memory.read === 'free' && reading.memory.sampledAtMs === now, j(reading.memory))
+await box.refreshBoxReading()
+const sampled = box.boxReading(Date.now())
+const source = process.platform === 'darwin' ? 'vm_stat' : process.platform === 'linux' ? 'meminfo' : 'counter'
+check(`an answer after the sampler ran reads the last sample (${source}) with the clock it was taken at`, sampled.memory.read === source && sampled.memory.sampledAtMs >= now && sampled.memory.sampledAtMs <= sampled.atMs && sampled.memory.availableMb > 0, j(sampled.memory))
 box.rememberBoxLockDir(join(scratch, 'vanished'))
 check('a lock directory that vanished is named as such', box.boxReading(now).lock === null && (box.boxReading(now).lockNote ?? '').includes('is not there'))
 box.rememberBoxLockDir(lockDir)
@@ -91,7 +96,7 @@ const answer = {
   box: reading,
 }
 const wire = seatWire.sessionFactsToWire(answer as never) as { box: Record<string, unknown> }
-check('the wire spells the box keys snake_case', 'at_ms' in wire.box && 'load_per_core' in wire.box && !('atMs' in wire.box) && 'available_mb' in (wire.box.memory as Record<string, unknown>) && 'waited_s' in ((wire.box.lock as { waiters: Record<string, unknown>[] }).waiters[0] ?? {}), j(wire.box))
+check('the wire spells the box keys snake_case', 'at_ms' in wire.box && 'load_per_core' in wire.box && !('atMs' in wire.box) && 'available_mb' in (wire.box.memory as Record<string, unknown>) && 'sampled_at_ms' in (wire.box.memory as Record<string, unknown>) && 'waited_s' in ((wire.box.lock as { waiters: Record<string, unknown>[] }).waiters[0] ?? {}), j(wire.box))
 const back = seatWire.sessionFactsFromWire(JSON.parse(JSON.stringify(wire)))
 check('the seat decodes the box row back deep-equal', JSON.stringify(back?.box) === JSON.stringify(reading), j(back?.box))
 
@@ -119,6 +124,7 @@ check('the refs note names the box', absent.state === 'absent' && ((absent as { 
 
 section('§7 the wiring: the child answers it, the daemon stamps it, the Bash tool speaks it')
 check('the runner\'s facts answer carries the reading', readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8').includes('box: boxReading(),'))
+check('the reading takes no sample of its own: it reads the last one and refreshes off the answer', readFileSync(join(ROOT, 'src/utils/boxLock.ts'), 'utf8').includes('const last = lastMemorySample(now)') && !readFileSync(join(ROOT, 'src/utils/boxLock.ts'), 'utf8').includes('sampleAvailableMemory('))
 check('the daemon stamps the memory guard\'s verdict onto the row it publishes', readFileSync(join(ROOT, 'src/daemon/sessionSeat.ts'), 'utf8').includes("box: { ...boxAnswer, memoryGuard: memoryGuardWords(lastRssReadingOf(short)) }"))
 check('the Bash tool appends the line to a result that waited', readFileSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx'), 'utf8').includes('boxLockLineForCommand(input.command'))
 check('the doctor carries the Box lock row', readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8').includes("id: 'box-lock'"))

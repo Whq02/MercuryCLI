@@ -20,11 +20,12 @@ export const healthAdapter: ResourceAdapter = {
       }
     }
     if (ref.id === 'box') {
-      const [{ boxLoadWords, boxLockStateWords, boxReading }, { readSessionFacts }, { getSessionId }] = await Promise.all([
+      const [{ boxLoadWords, boxLockStateWords, boxReading, refreshBoxReading }, { readSessionFacts }, { getSessionId }] = await Promise.all([
         import('../../../utils/boxLock.js'),
         import('../../engine-connector/seatProjections.js'),
         import('../../../bootstrap/state.js'),
       ])
+      await refreshBoxReading()
       const reading = boxReading()
       let memoryGuard: string | undefined
       try {
