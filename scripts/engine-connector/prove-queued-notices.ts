@@ -50,7 +50,23 @@ section('N3 — the landing test')
   check('a block-array prompt with the same words lands it too', notices.noticeRowLanded(drainedBlocks, NOTE))
   check('other words never do', !notices.noticeRowLanded(drained, OTHER))
   check('a prompt\'s drained row never does', !notices.noticeRowLanded(promptRow, NOTE))
-  check('a user row never does', !notices.noticeRowLanded(userRow, NOTE))
+  check('a user row with other words never does', !notices.noticeRowLanded(userRow, OTHER))
+  const at = Date.now()
+  const stamp = (offsetMs: number): string => new Date(at + offsetMs).toISOString()
+  const taken = { type: 'user', uuid: 'r5', timestamp: stamp(200), message: { role: 'user', content: NOTE } } as unknown as Message
+  const takenBlocks = { type: 'user', uuid: 'r6', timestamp: stamp(200), message: { role: 'user', content: [{ type: 'text', text: NOTE }] } } as unknown as Message
+  const batched = { type: 'user', uuid: 'r7', timestamp: stamp(200), message: { role: 'user', content: `${OTHER}\n\n${NOTE}` } } as unknown as Message
+  const older = { type: 'user', uuid: 'r8', timestamp: stamp(-5000), message: { role: 'user', content: NOTE } } as unknown as Message
+  const meta = { type: 'user', uuid: 'r9', isMeta: true, timestamp: stamp(200), message: { role: 'user', content: NOTE } } as unknown as Message
+  const otherId = { type: 'user', uuid: 'r10', timestamp: stamp(200), message: { role: 'user', content: NOTE.replace('<task-id>t1</task-id>', '<task-id>t9</task-id>') } } as unknown as Message
+  check('a user row carrying the notice, not older than the send, lands it (the between-turns take)', notices.noticeRowLanded(taken, NOTE, at))
+  check('a user row of text blocks carrying the notice lands it too', notices.noticeRowLanded(takenBlocks, NOTE, at))
+  check('a row that batched the notice behind other words lands it (the task id and the words)', notices.noticeRowLanded(batched, NOTE, at))
+  check('a user row older than the send never lands it (no old-history substring)', !notices.noticeRowLanded(older, NOTE, at))
+  check('a drained attachment older than the send never lands it either', !notices.noticeRowLanded({ ...(drained as unknown as Record<string, unknown>), timestamp: stamp(-5000) } as unknown as Message, NOTE, at))
+  check('a meta row never lands it', !notices.noticeRowLanded(meta, NOTE, at))
+  check('the same words under another task id never land it', !notices.noticeRowLanded(otherId, NOTE, at))
+  check('the task id is read off the frame', notices.noticeTaskId(NOTE) === 't1' && notices.noticeTaskId('no frame') === undefined)
 }
 
 section('N4 — the queue\'s order is the screen\'s order')

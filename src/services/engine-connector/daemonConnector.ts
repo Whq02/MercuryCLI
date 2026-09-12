@@ -944,7 +944,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       const key = noticeKeyOf(entry.value)
       if (this.sends.some(s => s.clientMessageId === key)) continue
       const atMs = Date.now()
-      this.sends = [...this.sends, { clientMessageId: key, text: entry.value, sentAtMs: atMs, state: 'queued', mode: 'prompt' }]
+      const heldSinceMs = typeof facts.atMs === 'number' && facts.atMs < atMs ? facts.atMs : atMs
+      this.sends = [...this.sends, { clientMessageId: key, text: entry.value, sentAtMs: heldSinceMs, state: 'queued', mode: 'prompt' }]
       this.echoRows.set(key, createNoticeRow(entry.value, atMs))
       connectorTrace({ ev: 'notice', sid: this.record.sessionId, state: 'queued' })
       born = true
@@ -1037,7 +1038,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       }
       if (isNoticeKey(s.clientMessageId)) {
         for (let i = this.rawRecords.length - 1; i >= 0; i--) {
-          if (noticeRowLanded(this.rawRecords[i]!, s.text)) {
+          if (noticeRowLanded(this.rawRecords[i]!, s.text, s.sentAtMs)) {
             landed.add(s.clientMessageId)
             break
           }
