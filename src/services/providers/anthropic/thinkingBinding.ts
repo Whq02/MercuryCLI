@@ -17,6 +17,7 @@ import { SPAWN_SWITCH_LABEL } from '../../switchboard/spawnSwitches.js'
 import { consumeLawfulPrefixChange } from '../lawfulPrefixChange.js'
 import { PUBLIC_HOME_SLUG } from '../../privateChannel/channelCore.js'
 import { DEAD_THINKING_PLACEHOLDER } from './deadThinkingPlaceholder.js'
+import { forgetPersistedDropState, persistedDropState, rememberDropState } from './prefixLedger.js'
 import type { RequestContextPlan } from '../../run/requestContextPlan.js'
 
 export type PrefixMismatchBehavior = 'drop_block' | 'error'
@@ -232,6 +233,32 @@ interface OwnerDropState {
 
 const dropStates = new Map<string, OwnerDropState>()
 
+const DROP_KINDS: ReadonlySet<string> = new Set(['none', 'first', 'lawful', 'recurrent'])
+
+function priorDropState(owner: string): OwnerDropState | undefined {
+  const held = dropStates.get(owner)
+  if (held !== undefined) return held
+  const stored = persistedDropState(owner) as Partial<OwnerDropState> | null
+  if (stored === null || typeof stored !== 'object') return undefined
+  const mark = stored.mark
+  if (mark === undefined || mark === null || typeof mark !== 'object' || typeof mark.model !== 'string' || typeof mark.settings !== 'string') return undefined
+  if (typeof stored.kind !== 'string' || !DROP_KINDS.has(stored.kind)) return undefined
+  const revived: OwnerDropState = {
+    mark,
+    kind: stored.kind,
+    consecutive: typeof stored.consecutive === 'number' ? stored.consecutive : 0,
+    defectNoticed: stored.defectNoticed === true,
+    editNoticed: stored.editNoticed === true,
+  }
+  dropStates.set(owner, revived)
+  return revived
+}
+
+function holdDropState(owner: string, state: OwnerDropState): void {
+  dropStates.set(owner, state)
+  rememberDropState(owner, state)
+}
+
 const rewriteNoticed = new Set<string>()
 
 export function takeRewriteNoticeOnce(owner: string): boolean {
@@ -243,6 +270,7 @@ export function takeRewriteNoticeOnce(owner: string): boolean {
 export function resetThinkingDropStates(): void {
   dropStates.clear()
   rewriteNoticed.clear()
+  forgetPersistedDropState()
 }
 
 export function classifyThinkingDrops(
@@ -252,10 +280,10 @@ export function classifyThinkingDrops(
   opts?: { byteMoved?: boolean },
 ): DropOutcome {
   const dropped = list.filter(entry => entry.type === 'thinking_dropped')
-  const previous = dropStates.get(owner)
+  const previous = priorDropState(owner)
   const declared = consumeLawfulPrefixChange(owner)
   if (dropped.length === 0) {
-    dropStates.set(owner, { mark, kind: 'none', consecutive: 0, defectNoticed: previous?.defectNoticed ?? false, editNoticed: previous?.editNoticed ?? false })
+    holdDropState(owner, { mark, kind: 'none', consecutive: 0, defectNoticed: previous?.defectNoticed ?? false, editNoticed: previous?.editNoticed ?? false })
     return { kind: 'none', lawful: null, detail: null, rosterChange: null, consecutive: 0, count: 0, path: null, reason: null, paint: false, part: null }
   }
   let lawful: LawfulPrefixChange | null = null
@@ -300,7 +328,7 @@ export function classifyThinkingDrops(
   const defectNoticed = previous?.defectNoticed ?? false
   const editNoticed = previous?.editNoticed ?? false
   const paint = isSelfEdit ? !editNoticed : kind !== 'recurrent'
-  dropStates.set(owner, {
+  holdDropState(owner, {
     mark,
     kind,
     consecutive,

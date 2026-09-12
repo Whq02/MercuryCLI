@@ -28,6 +28,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-dead-thinkin
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-thinking-drop-notice.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-thinking-drop-notice.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-wire-dump.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-wire-dump.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-prefix-ledger.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-prefix-ledger.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resume-history-bytes.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-resume-history-bytes.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-lawful-change-owners.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-lawful-change-owners.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-recovery-budget.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-recovery-budget.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-stream-liveness-tap.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-stream-liveness-tap.ts" "$__t" "$__rc"
