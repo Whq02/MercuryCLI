@@ -9,7 +9,7 @@ import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import type { ChangeRecordRoad } from '../../services/vulcan/addonInstaller.js'
 import { getVulcanClient, type VulcanResult } from '../../services/vulcan/vulcanClient.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
-import { vulcanLiteMode, vulcanPort } from '../../utils/vulcan/vulcanGates.js'
+import { vulcanLiteMode } from '../../utils/vulcan/vulcanGates.js'
 import { VULCAN_STEP_WALL_MS_PER_FRAME, vulcanOp, vulcanCategories } from '../../utils/vulcan/optable.generated.js'
 import { GODOT_TOOL_NAME, getGodotToolDescription } from './prompt.js'
 import {
@@ -123,7 +123,7 @@ async function runLocalOp(
       return installer.applyVulcanUninstall(root, changeRecordRoad(context, parentMessage))
     case 'project_refresh_classes': {
       const { runProjectRefreshClasses } = await import('../../services/vulcan/classCache.js')
-      return formatResult(await runProjectRefreshClasses(root, vulcanPort(), installer.vulcanInstallStatus(root), args?.instance))
+      return formatResult(await runProjectRefreshClasses(root, installer.vulcanInstallStatus(root), args?.instance))
     }
     default:
       return `unknown local op ${op}`

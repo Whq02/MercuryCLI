@@ -20,7 +20,7 @@ walk finds at least one `.blend` — Blender has no project-root marker; the
 file is the unit of work).
 
 Three value knobs: `MERCURY_BLENDER_BRIDGE_PORT` (default 6012; the
-loopback dev-lane family is Godot LSP 6005 · Godot DAP 6006 · VULCAN 6010 ·
+loopback dev-lane family is Godot LSP 6005 · Godot DAP 6006 · VULCAN on a port per instance ·
 Unity 6011 · this bridge 6012), `MERCURY_BLENDER_BRIDGE_TOKEN` (a
 proof/embedder override), and `MERCURY_BLENDER_BRIDGE_ADDON_DIR` (an
 authoritative install-home pin for nonstandard layouts).

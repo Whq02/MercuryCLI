@@ -66,8 +66,6 @@ function check(label: string, value: unknown, detail: unknown = ''): void {
 let legacyConnections = 0
 const legacy = createServer(socket => { legacyConnections++; socket.end() })
 await new Promise<void>(resolve => legacy.listen(0, '127.0.0.1', resolve))
-const legacyPort = (legacy.address() as { port: number }).port
-process.env.MERCURY_GODOT_TOOLS_PORT = String(legacyPort)
 const owner = makeOwnerKey({ workspace: project, sessionId: 'readiness-proof', lane: 'main' })
 
 async function instance(role: 'agent-editor' | 'operator-editor' | 'headless-worker') {
@@ -127,7 +125,7 @@ async function collect() {
 
 try {
   const empty = await collect()
-  check('a live legacy port never makes an undiscovered editor ready', empty.doctor.status !== 'ok' && empty.provider.state === 'not-answering' && empty.ide.vulcan.state === 'unreachable', empty)
+  check('a live loopback listener with no instance descriptor never makes an editor ready', empty.doctor.status !== 'ok' && empty.provider.state === 'not-answering' && empty.ide.vulcan.state === 'unreachable', empty)
   const editor = await instance('agent-editor')
   try {
     const ready = await collect()
@@ -165,7 +163,7 @@ try {
     } finally { await agent.close() }
     resetVulcanClientForTest()
   } finally { resetVulcanClientForTest(); await operator.close(); await worker.close() }
-  check('the legacy configured port was never contacted', legacyConnections === 0, legacyConnections)
+  check('the undiscovered listener was never contacted', legacyConnections === 0, legacyConnections)
 } finally {
   resetVulcanClientForTest()
   await new Promise<void>(resolve => legacy.close(() => resolve()))

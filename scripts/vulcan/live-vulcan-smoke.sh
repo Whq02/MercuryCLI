@@ -22,8 +22,7 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
   if ! (echo > "/dev/tcp/127.0.0.1/$SMOKE_PORT") 2>/dev/null; then break; fi
   SMOKE_PORT=$((SMOKE_PORT + 1))
 done
-export MERCURY_GODOT_TOOLS_PORT="$SMOKE_PORT"
-echo ">>> smoke port: $SMOKE_PORT"
+echo ">>> smoke debug port: $((SMOKE_PORT + 1))"
 work="$(mktemp -d "${TMPDIR:-/tmp}/vulcan-smoke-XXXXXX")"
 proj="$work/game"
 mkdir -p "$proj"

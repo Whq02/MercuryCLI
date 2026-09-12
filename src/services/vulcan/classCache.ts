@@ -271,7 +271,6 @@ function refused(before: ClassCacheReport, note: string): RefreshOutcome {
 
 export async function runProjectRefreshClasses(
   projectRoot: string,
-  _port: number,
   addon: AddonPresenceFacts = { installed: true, enabled: true },
   selector?: unknown,
 ): Promise<RefreshOutcome> {

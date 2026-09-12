@@ -353,7 +353,7 @@ section('§R1 — every listening socket binds LOOPBACK-ONLY by construction (th
   }
   check('R1 zero TCP listeners without a loopback bind on the line', offenders.length === 0, offenders.join(' · '))
 
-  for (const rel of [join('services', 'unity', 'bridgeToken.ts'), join('services', 'vulcan', 'vulcanToken.ts')]) {
+  for (const rel of [join('services', 'unity', 'bridgeToken.ts')]) {
     const body = readFileSync(join(ROOT, 'src', rel), 'utf-8')
     check(`R1 ${rel} writes the token 0600 with the chmod pin`, body.includes('{ mode: 0o600 }') && body.includes('chmodSync(file, 0o600)'))
   }

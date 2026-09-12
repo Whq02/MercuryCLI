@@ -6,7 +6,7 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'godot-disc-home-'))
 process.env.MERCURY_GODOT_TOOLS = '1'
-process.env.MERCURY_GODOT_TOOLS_PORT = String(29000 + (process.pid % 900))
+const PROBE_PORT = 29000 + (process.pid % 900)
 delete process.env.MERCURY_GODOT
 delete process.env.MERCURY_GODOT_TOOLS_LITE
 
@@ -112,7 +112,7 @@ try {
   check('darwin: Godot*.app bundles resolve to Contents/MacOS/Godot (no godot on PATH)', mac.source === 'well-known-location' && /\/Applications\/Godot[^/]*\.app\/Contents\/MacOS\/Godot$/.test(mac.resolved ?? ''), `${mac.resolved}`)
 
   section('3. three named states — never "closed" for a running editor')
-  const port = Number(process.env.MERCURY_GODOT_TOOLS_PORT)
+  const port = PROBE_PORT
   const noEditor = presence.derivePresence(port, false, { ok: true, processes: [] }, MAC_PROJ)
   const unbridged = presence.derivePresence(port, false, { ok: true, processes: darwin }, MAC_PROJ)
   const bridged = presence.derivePresence(port, true, { ok: true, processes: darwin }, MAC_PROJ)

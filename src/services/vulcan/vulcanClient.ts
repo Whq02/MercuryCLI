@@ -1,8 +1,10 @@
 
 import * as net from 'node:net'
-import { findGodotProjectRoot, godotEditorHint } from '../lsp/godotLane.js'
+import { findGodotProjectRoot } from '../lsp/godotLane.js'
 import { vulcanEnabled } from '../../utils/vulcan/vulcanGates.js'
 import { parseVulcanInstance, readVulcanInstanceToken, sameVulcanInstance, selectVulcanInstance, type VulcanInstance } from './instances.js'
+
+const INSTANCE_HINT = 'is that Godot instance still running with the addon loaded? op:"vulcan_status" lists the instances Mercury can see; name the one you mean with args.instance'
 
 export interface VulcanError {
   code: string
@@ -117,7 +119,7 @@ export class VulcanClient {
       return err(
         'EDITOR_UNREACHABLE',
         `the mercury_vulcan addon is not answering on 127.0.0.1:${this.port}`,
-        `${godotEditorHint(this.port)}; addon installed + enabled? (vulcan_install) — retrying in ${Math.ceil(remaining / 1000)}s`,
+        `${INSTANCE_HINT}; addon installed + enabled? (vulcan_install) — retrying in ${Math.ceil(remaining / 1000)}s`,
       )
     }
     return new Promise<VulcanResult>(resolve => {
@@ -135,7 +137,7 @@ export class VulcanClient {
           err(
             'REQUEST_TIMEOUT',
             `${op} timed out after ${timeoutMs}ms waiting for the VULCAN connection`,
-            `${godotEditorHint(this.port)}; op:"vulcan_status" to probe`,
+            `${INSTANCE_HINT}; op:"vulcan_status" to probe`,
           ),
         )
       }, timeoutMs)
@@ -335,7 +337,7 @@ export class VulcanClient {
         : err(
             'HANDSHAKE_CLOSED',
             `could not establish the VULCAN handshake on 127.0.0.1:${this.port}`,
-            `${godotEditorHint(this.port)}; addon installed + enabled? (vulcan_install)`,
+            `${INSTANCE_HINT}; addon installed + enabled? (vulcan_install)`,
           )
       : err('CONNECTION_LOST', 'the editor connection dropped mid-flight', 'retry — the client reconnects on the next call')
     this.teardown(reason)

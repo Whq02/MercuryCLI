@@ -5,8 +5,7 @@ import { join } from 'node:path'
 import { runWithCwdOverride } from '../../src/utils/cwd.js'
 import { applyVulcanInstall } from '../../src/services/vulcan/addonInstaller.js'
 import { VulcanClient } from '../../src/services/vulcan/vulcanClient.js'
-import { ensureVulcanToken } from '../../src/services/vulcan/vulcanToken.js'
-import { vulcanPort } from '../../src/utils/vulcan/vulcanGates.js'
+import { readVulcanInstanceToken, selectVulcanInstance } from '../../src/services/vulcan/instances.js'
 
 const [mode, proj] = process.argv.slice(2)
 if (!mode || !proj) {
@@ -240,8 +239,17 @@ async function gameLeg(client: VulcanClient, proj: string): Promise<void> {
   if (gameFailures > 0) process.exit(1)
 }
 
-const token = ensureVulcanToken(proj)
-const client = new VulcanClient({ port: vulcanPort(), token })
+let found: VulcanClient | null = null
+for (let i = 0; i < 30 && !found; i++) {
+  const selected = selectVulcanInstance(proj, 'operator-editor')
+  if (selected.ok) found = new VulcanClient({ port: selected.instance.port, token: readVulcanInstanceToken(selected.instance), instance: selected.instance })
+  else await new Promise(res => setTimeout(res, 2_000))
+}
+if (!found) {
+  console.error('✗ the editor never published its instance (see editor.log)')
+  process.exit(1)
+}
+const client: VulcanClient = found
 let up = false
 for (let i = 0; i < 30 && !up; i++) {
   const r = await client.request('ping', undefined, 3_000)
