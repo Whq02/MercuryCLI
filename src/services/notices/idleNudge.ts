@@ -13,7 +13,7 @@ import {
 } from './unreadLedger.js'
 
 
-export const NOTICE_DEADLINE_DEFAULT_MS = 30_000
+export const NOTICE_DEADLINE_DEFAULT_MS = 180_000
 export const NOTICE_DEADLINE_FLOOR_MS = 1_000
 const SWEEP_FLOOR_MS = 25
 

@@ -31,6 +31,7 @@ import { subscribeCurrentProject } from '../../utils/bootCardFacts.js';
 import { getFocusedSessionConnector, hasFocusedSession, subscribeFocusedSessionConnector, withLanding } from '../../services/engine-connector/focusedConnector.js';
 import { armEntryWarmth, settleEntryWarmth } from '../../services/concourse/sessionWarmth.js';
 import { isCrossProjectFinishedRef } from '../../services/concourse/crossProjectPings.js';
+import { removePrefixRecord } from '../../services/providers/anthropic/prefixRecordStore.js';
 import type { ConcourseCallbacks, ConcourseSnapshotV1, ControlNoteState } from './contracts.js';
 import { controlNoteOf, concourseWaitCopy } from './contracts.js';
 import { Box, Text, useInput } from '../../ink.js';
@@ -642,6 +643,7 @@ function LiveConcourse(): React.ReactNode {
             const parkedRow = snapshotRef.current?.groups.flatMap(g => g.rows).find(r => r.sessionId === sessionId)
             if (parkedRow?.state === 'parked') {
               await markParkedCleared(sessionId)
+              removePrefixRecord(sessionId)
               const supervisorSync = await import('../../daemon/concourseSupervisor.js')
               const parkedRecord = Object.values(supervisorSync.readSessionWorkers()).find(
                 r => r.sessionId === sessionId && r.endedAt === undefined,
@@ -679,6 +681,7 @@ function LiveConcourse(): React.ReactNode {
             }
             if (reply.ok === true && reply.settled !== false) {
               await markParkedCleared(sessionId).catch(() => {})
+              removePrefixRecord(sessionId)
             }
             if (reply.ok === true && reply.settled !== false) {
               try {

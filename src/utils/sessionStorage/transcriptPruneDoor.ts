@@ -1,4 +1,5 @@
 import { getFsImplementation } from '../fsOperations.js'
+import { removePrefixRecord } from '../../services/providers/anthropic/prefixRecordStore.js'
 import { receiptsPathBesideTranscript } from '../../services/switchboard/sessionReceipts.js'
 import { snapshotPathFor } from './resumeSnapshot.js'
 
@@ -86,6 +87,7 @@ export async function operatorPruneTranscripts(offer: PruneOffer): Promise<Prune
       receipt.deleted++
       receipt.bytesFreed += candidate.bytes
       receipt.deletedSessionIds.push(candidate.sessionId)
+      removePrefixRecord(candidate.sessionId)
       try {
         await fs.unlink(candidate.receiptsPath)
         receipt.receiptsDeleted++

@@ -1776,6 +1776,14 @@ async function interactiveLaunch(args: {
   registerBackgroundNode('session-registry', async () => {
     await registerSession()
     if (args.sessionTitle) await updateSessionName(args.sessionTitle)
+    try {
+      const { readSessionWorkers } = await import('./daemon/concourseSupervisor.js')
+      const { sweepPrefixRecords } = await import('./services/providers/anthropic/prefixRecordStore.js')
+      const liveSessionIds = Object.values(readSessionWorkers()).filter(record => record.endedAt === undefined).map(record => record.sessionId)
+      await sweepPrefixRecords({ liveSessionIds })
+    } catch (error) {
+      logForDebugging(`preserved thinking: the prefix record sweep did not run (${String(error)})`)
+    }
   })
   registerBackgroundNode('session-telemetry', async () => {
     void getMainLoopModel()

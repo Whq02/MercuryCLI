@@ -221,6 +221,7 @@ export interface DropOutcome {
   reason: string | null
   paint: boolean
   part: string | null
+  behind?: number
 }
 
 interface OwnerDropState {
@@ -351,7 +352,11 @@ export function classifyThinkingDrops(
 }
 
 function ledgerClause(outcome: DropOutcome): string {
-  return outcome.part === null ? '' : ` Mercury's prefix ledger names the part that moved: ${outcome.part}.`
+  if (outcome.part !== null) return ` Mercury's prefix ledger names the part that moved: ${outcome.part}.`
+  if (typeof outcome.behind === 'number' && outcome.behind > 0) {
+    return ` Mercury's prefix record was ${outcome.behind} request${outcome.behind === 1 ? '' : 's'} behind the history when this request went out (the previous process ended before its last write), so the part that moved is not named.`
+  }
+  return ''
 }
 
 export function describePrefixRewrite(part: string, path: string): string {
@@ -555,6 +560,7 @@ export interface ThinkingDropLedger {
     consecutive: number
     model: string
     part?: string | null
+    behind?: number
   }
   longestRun: number
   session?: {
@@ -594,6 +600,9 @@ export function recordThinkingDropLedger(
     if (outcome.part === null && outcome.kind === 'recurrent' && typeof previous?.last.part === 'string' && previous.last.kind !== 'lawful') {
       outcome.part = previous.last.part
     }
+    if (outcome.part === null && outcome.behind === undefined && outcome.kind === 'recurrent' && typeof previous?.last.behind === 'number' && previous.last.kind !== 'lawful') {
+      outcome.behind = previous.last.behind
+    }
     const ledger: ThinkingDropLedger = {
       last: {
         at: new Date().toISOString(),
@@ -606,6 +615,7 @@ export function recordThinkingDropLedger(
         consecutive: outcome.consecutive,
         model,
         ...(outcome.part !== null ? { part: outcome.part } : {}),
+        ...(typeof outcome.behind === 'number' && outcome.behind > 0 ? { behind: outcome.behind } : {}),
       },
       longestRun: Math.max(previous?.longestRun ?? 0, outcome.kind === 'lawful' ? 0 : outcome.consecutive),
       session: sessionRecord(previous, sessionId, 1, notice),
@@ -677,6 +687,7 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null, sessi
   const blocks = `${last.count} ${last.count === 1 ? 'block' : 'blocks'}`
   const where = `${last.reason ?? 'unknown reason'} at ${last.path ?? 'unknown path'}`
   const named = typeof last.part === 'string' && last.part.length > 0 ? ` Mercury's prefix ledger named the part that moved: ${last.part}.` : ''
+  const behindClause = named.length === 0 && typeof last.behind === 'number' && last.behind > 0 ? ` Mercury's prefix record was ${last.behind} request${last.behind === 1 ? '' : 's'} behind the history at that drop (the previous process ended before its last write), so the part is not named.` : ''
   const session = sessionClause(ledger, sessionId)
   if (last.kind === 'rewrite') {
     return {
@@ -709,14 +720,14 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null, sessi
   if (last.kind === 'first') {
     return {
       status: named.length > 0 ? 'warn' : 'info',
-      evidence: `last drop ${last.at}: ${blocks} (${where}, model ${last.model}) — ${named.length > 0 ? `a rewrite of sent history.${named}` : "a single drop; a resumed session's first request or a client-side edit"}${session}`,
+      evidence: `last drop ${last.at}: ${blocks} (${where}, model ${last.model}) — ${named.length > 0 ? `a rewrite of sent history.${named}` : `a single drop; a resumed session's first request or a client-side edit${behindClause.length > 0 ? `.${behindClause}` : ''}`}${session}`,
       detail: `Longest run of consecutive drops on this machine: ${ledger.longestRun}.`,
       ...(named.length > 0 ? { fix: `Paste this row into a bug report at ${issuesUrl()} (the bug template, with the output of mercury doctor --json).` } : {}),
     }
   }
   return {
     status: 'warn',
-    evidence: `Mercury rewrote sent history on ${last.consecutive} consecutive requests — last ${last.at}: ${blocks} dropped, ${where}, model ${last.model}${named}${session}`,
+    evidence: `Mercury rewrote sent history on ${last.consecutive} consecutive requests — last ${last.at}: ${blocks} dropped, ${where}, model ${last.model}${named}${behindClause}${session}`,
     detail: `${describePathClass(last.path)}. Longest run on this machine: ${ledger.longestRun}.`,
     fix: `Paste this row into a bug report at ${issuesUrl()} (the bug template, with the output of mercury doctor --json).`,
   }

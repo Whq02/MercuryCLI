@@ -621,6 +621,8 @@ async function* streamModel(
                 { byteMoved: rewrite !== null },
               )
               if (rewrite !== null && outcome.kind !== 'none' && outcome.lawful === null) outcome.part = rewrite.part
+              const recordBehind = prefixVerdict?.behind ?? 0
+              if (recordBehind > 0 && outcome.kind !== 'none' && outcome.lawful === null) outcome.behind = recordBehind
               const dropNotice = describeThinkingDrops(drops, outcome, turnOrdinalOfWirePath(outcome.path, prefixVerdict?.wireMessageIds ?? [], iter.messagesForQuery))
               if (outcome.kind !== 'none') {
                 recordThinkingDropLedger(outcome, iter.currentModel, dropNotice)
