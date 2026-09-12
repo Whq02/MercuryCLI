@@ -3,6 +3,15 @@
 
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
+
+const ROW = {
+  assets: 'scripts/settings/settings-schema.json',
+  generator: 'bun scripts/settings/gen-settings-schema.ts',
+  check: 'bun scripts/settings/prove-settings-schema.ts',
+  sources: 'src/utils/settings/**',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 
 const outFlag = process.argv.indexOf('--out')
 const outPath =
@@ -12,4 +21,5 @@ const outPath =
 
 const { generateSettingsJSONSchema } = await import('../../src/utils/settings/schemaOutput.js')
 writeFileSync(outPath, `${generateSettingsJSONSchema()}\n`)
+if (outFlag === -1) registerGeneratedAsset(ROW)
 console.log(`settings schema regenerated → ${outPath}`)

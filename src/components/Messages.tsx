@@ -53,6 +53,7 @@ import { collapseTeammateShutdowns } from '../utils/collapseTeammateShutdowns.js
 import { collapseHookSummaries } from '../utils/collapseHookSummaries.js'
 import { collapseBackgroundBashNotifications } from '../utils/collapseBackgroundBashNotifications.js'
 import { injectTurnReceipts, isTurnBoundary } from '../utils/cockpit/turnReceipt.js'
+import { getMercuryTempDir } from '../utils/permissions/filesystem.js'
 import { hasRealConversation as computeHasRealConversation } from '../utils/cockpit/realConversation.js'
 import {
   renderableSearchText,
@@ -379,7 +380,7 @@ function MessagesInner({
       tools,
       verbose,
     ).messages as RenderableMessage[]
-    collapsed = injectTurnReceipts(collapsed)
+    collapsed = injectTurnReceipts(collapsed, getMercuryTempDir())
     collapsed = collapseReadSearchGroups(
       collapsed as Parameters<typeof collapseReadSearchGroups>[0],
       tools,

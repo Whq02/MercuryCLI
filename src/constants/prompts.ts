@@ -19,6 +19,7 @@ import {
 } from '../utils/model/capabilities.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { getCurrentWorktreeSession } from '../utils/worktree.js'
+import { ensureScratchpadDir, scratchpadPromptLine } from '../utils/scratchpad.js'
 import { loadMemoryPrompt } from '../memdir/memdir.js'
 import { getSessionStartDate } from './common.js'
 import { CYBER_RISK_INSTRUCTION } from './cyberRiskInstruction.js'
@@ -116,6 +117,7 @@ export async function computeEnvInfo(
   return `The environment this session runs in:
 <env>
 Working directory: ${cwd}${extraDirs}
+${scratchpadPromptLine(ensureScratchpadDir())}
 Platform: ${platform()}
 ${shellLine()}
 OS Version: ${getUnameSR()}
@@ -139,6 +141,7 @@ export async function computeSimpleEnvInfo(
     items.push('Additional working directories:')
     items.push(additionalWorkingDirectories.map(dir => dir))
   }
+  items.push(scratchpadPromptLine(ensureScratchpadDir()))
   items.push(`Platform: ${platform()}`)
   items.push(shellLine())
   items.push(`OS Version: ${getUnameSR()}`)

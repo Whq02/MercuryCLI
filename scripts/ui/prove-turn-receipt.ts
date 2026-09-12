@@ -6,6 +6,8 @@ import { join } from 'node:path'
 const { injectTurnReceipts, isScratchpadPath, isTurnReceiptEnabled, delegatedSpendLine, formatDelegatedTokens, formatDelegatedCost } = await import(
   '../../src/utils/cockpit/turnReceipt.js'
 )
+const TEMP_ROOT = '/tmp/claude-1/'
+const inject = (rows: never[]) => injectTurnReceipts(rows, TEMP_ROOT)
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -87,7 +89,7 @@ console.log('============================================================')
 section('gate honesty (OFF ⇒ input array IDENTITY)')
 const someRows = [prompt('do work'), toolUse('Bash', { command: 'ls' })]
 withEnv('0', () => {
-  check('=0 ⇒ the very same array object returns (byte-identical render)', injectTurnReceipts(someRows) === someRows)
+  check('=0 ⇒ the very same array object returns (byte-identical render)', injectTurnReceipts(someRows, TEMP_ROOT) === someRows)
 })
 withEnv(undefined, () => {
   check('unset ⇒ enabled on the stamped build', isTurnReceiptEnabled() === true)
@@ -95,7 +97,7 @@ withEnv(undefined, () => {
 
 section('counting + classification')
 withEnv('1', () => {
-  const rows = injectTurnReceipts([
+  const rows = inject([
     prompt('build the thing', 'p1'),
     toolUse('Read', { file_path: '/repo/a.ts' }, 'a1'),
     toolUse('Grep', { pattern: 'x' }, 'a2'),
@@ -113,7 +115,7 @@ withEnv('1', () => {
 
 section('turn boundaries')
 withEnv('1', () => {
-  const rows = injectTurnReceipts([
+  const rows = inject([
     prompt('turn one', 'p1'),
     toolUse('Bash', { command: 'ls' }, 'a1'),
     prompt('turn two', 'p2'),
@@ -127,9 +129,9 @@ withEnv('1', () => {
   check('receipt 1 = the Bash turn; receipt 2 = the Read turn', rcpt[0]!.counts['commands'] === 1 && rcpt[1]!.counts['reads'] === 1)
 })
 withEnv('1', () => {
-  const rows = injectTurnReceipts([prompt('no tools at all', 'p1'), prompt('another', 'p2')])
+  const rows = inject([prompt('no tools at all', 'p1'), prompt('another', 'p2')])
   check('a turn with zero tool activity injects NOTHING', receipts(rows).length === 0)
-  const grouped = injectTurnReceipts([
+  const grouped = inject([
     prompt('grouped turn', 'p1'),
     {
       type: 'grouped_tool_use',
@@ -144,7 +146,7 @@ withEnv('1', () => {
 
 section('the delegated spend (a supercode turn\'s cost, visible in the transcript)')
 withEnv('1', () => {
-  const rows = injectTurnReceipts([
+  const rows = inject([
     prompt('delegate the sweep', 'p1'),
     toolUse('Agent', { description: 'reader one', prompt: 'read' }, 'a1'),
     toolUse('Agent', { description: 'reader two', prompt: 'read' }, 'a2'),
@@ -156,7 +158,7 @@ withEnv('1', () => {
   check('the settled results\' tokens are summed (a failed run\'s spend is spend)', c['delegatedTokens'] === 84_200)
   check('the list prices are summed and nothing was unpriced', Math.abs((c['delegatedCostUSD'] ?? 0) - 0.91) < 1e-9 && c['delegatedUnpriced'] === 0)
   check('the line reads `2 sub-agents · 84.2k tokens · $0.91`', delegatedSpendLine(c as never) === '2 sub-agents · 84.2k tokens · $0.91', String(delegatedSpendLine(c as never)))
-  const unpriced = injectTurnReceipts([
+  const unpriced = inject([
     prompt('one agent, no price', 'p1'),
     toolUse('Agent', { description: 'no price', prompt: 'x' }, 'a1'),
     agentResult(900, undefined, 'r1'),
@@ -164,28 +166,28 @@ withEnv('1', () => {
   const lc = receipts(unpriced)[0]!.counts
   check('a result without a price is unpriced, never free', lc['agents'] === 1 && lc['delegatedTokens'] === 900 && lc['delegatedCostUSD'] === 0 && lc['delegatedUnpriced'] === 1)
   check('the line says so: `1 sub-agent · 900 tokens (1 unpriced)`', delegatedSpendLine(lc as never) === '1 sub-agent · 900 tokens (1 unpriced)', String(delegatedSpendLine(lc as never)))
-  const solo = injectTurnReceipts([prompt('no delegation', 'p1'), toolUse('Bash', { command: 'ls' }, 'a1')])
+  const solo = inject([prompt('no delegation', 'p1'), toolUse('Bash', { command: 'ls' }, 'a1')])
   check('a turn that delegated nothing carries no spend line (null) and its counts stay zero', delegatedSpendLine(receipts(solo)[0]!.counts as never) === null && receipts(solo)[0]!.counts['agents'] === 0)
-  check('an Agent launch alone is activity (a receipt exists even with no other tool)', receipts(injectTurnReceipts([prompt('just launch', 'p1'), toolUse('Agent', {}, 'a1')])).length === 1)
+  check('an Agent launch alone is activity (a receipt exists even with no other tool)', receipts(inject([prompt('just launch', 'p1'), toolUse('Agent', {}, 'a1')])).length === 1)
   check('the token words: 84200 → 84.2k · 1500000 → 1.5M · 900 → 900', formatDelegatedTokens(84_200) === '84.2k' && formatDelegatedTokens(1_500_000) === '1.5M' && formatDelegatedTokens(900) === '900')
   check('the cost words: 0.91 → $0.91 · 0.004 → <$0.01 · 12 → $12.00', formatDelegatedCost(0.91) === '$0.91' && formatDelegatedCost(0.004) === '<$0.01' && formatDelegatedCost(12) === '$12.00')
-  const grouped = injectTurnReceipts([
+  const grouped = inject([
     prompt('grouped delegation', 'p1'),
     { type: 'grouped_tool_use', uuid: 'g1', messages: [toolUse('Agent', {}, 'a1')], results: [agentResult(1_000, 0.02, 'r1')] } as never,
   ])
   const gc = receipts(grouped)[0]!.counts
   check('grouped rows contribute their launches and settled results', gc['agents'] === 1 && gc['delegatedTokens'] === 1_000)
-  const older = injectTurnReceipts([prompt('an old row', 'p1'), toolUse('Agent', {}, 'a1'), olderAgentResult(500, 'r1')])
+  const older = inject([prompt('an old row', 'p1'), toolUse('Agent', {}, 'a1'), olderAgentResult(500, 'r1')])
   const oc = receipts(older)[0]!.counts
   check('a row persisted before the outcome and the price existed still counts: its tokens fold, unpriced', oc['agents'] === 1 && oc['delegatedTokens'] === 500 && oc['delegatedUnpriced'] === 1)
-  const background = injectTurnReceipts([
+  const background = inject([
     prompt('background launch', 'p1'),
     toolUse('Agent', { run_in_background: true }, 'a1'),
     launchResult({ isAsync: true, status: 'async_launched', agentId: 'agent-bg', description: 'later', prompt: 'x', outputFile: '/x', canReadOutputFile: true }, 'r1'),
   ])
   const bc = receipts(background)[0]!.counts
   check('a background launch is a launch with no spend yet (its report lands in a later turn): `1 sub-agent`, no tokens', bc['agents'] === 1 && bc['delegatedTokens'] === 0 && bc['delegatedUnpriced'] === 0 && delegatedSpendLine(bc as never) === '1 sub-agent')
-  const workflow = injectTurnReceipts([
+  const workflow = inject([
     prompt('a workflow', 'p1'),
     toolUse('Workflow', { script: 'x' }, 'a1'),
     launchResult({ status: 'async_launched', taskId: 'w1', taskType: 'local_workflow', runId: 'run-1' }, 'r1'),
@@ -198,14 +200,16 @@ withEnv('1', () => {
 })
 
 section('scratchpad path classification')
-check('…/scratchpad/… is scratchpad', isScratchpadPath('/tmp/claude-1/s1/scratchpad/x.py'))
-check('a repo path is not', !isScratchpadPath('/repo/src/scratchpadLike.ts'))
-check('bare dir form counts', isScratchpadPath('/x/scratchpad'))
+check('…/scratchpad/… under the temp root is scratchpad', isScratchpadPath('/tmp/claude-1/s1/scratchpad/x.py', '/tmp/claude-1/'))
+check('a repo path is not', !isScratchpadPath('/repo/src/scratchpadLike.ts', '/tmp/claude-1/'))
+check('a project folder named scratchpad is not (it is outside the temp root)', !isScratchpadPath('/repo/scratchpad/notes.md', '/tmp/claude-1/'))
+check('bare dir form counts', isScratchpadPath('/tmp/claude-1/s1/scratchpad', '/tmp/claude-1/'))
+check('the Windows spelling counts', isScratchpadPath('C:\\Temp\\mercury\\p\\s1\\scratchpad\\a.txt', 'C:\\Temp\\mercury\\'))
 
 section('render wiring (source + dist needles)')
 check(
   'Messages.tsx chain runs injectTurnReceipts before the collapse passes',
-  /collapsed = injectTurnReceipts\(collapsed\)\s*collapsed = collapseReadSearchGroups\(/.test(src('components', 'Messages.tsx')),
+  /collapsed = injectTurnReceipts\(collapsed, getMercuryTempDir\(\)\)\s*collapsed = collapseReadSearchGroups\(/.test(src('components', 'Messages.tsx')),
 )
 check(
   'Message.tsx dispatches turn_receipt → TurnReceiptRow',

@@ -13,6 +13,7 @@ import {
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 
 const repoRoot = resolve(import.meta.dir, '..', '..')
 const CONFIG_HOME = mkdtempSync(join(tmpdir(), 'builtin-tools-bench-home-'))
@@ -927,6 +928,13 @@ export function renderResultsMd(tasks: TaskResult[], anchor: StableAnchor): stri
   return lines.join('\n')
 }
 
+const ROW = {
+  assets: 'scripts/builtin-tools/fixtures/RESULTS.md scripts/builtin-tools/fixtures/results.json',
+  generator: 'bun scripts/builtin-tools/bench-builtin-tools.ts --write',
+  check: null,
+  sources: 'scripts/builtin-tools/bench-builtin-tools.ts',
+}
+if (import.meta.main && registerOnlyRequested(ROW)) process.exit(0)
 if (import.meta.main) {
   const write = process.argv.includes('--write')
   const tasks = await runCorpus()
@@ -953,6 +961,7 @@ if (import.meta.main) {
     mkdirSync(outDir, { recursive: true })
     writeFileSync(join(outDir, 'results.json'), anchorJson(anchor))
     writeFileSync(join(outDir, 'RESULTS.md'), renderResultsMd(tasks, anchor))
+    registerGeneratedAsset(ROW)
     console.log(`  wrote ${join(outDir, 'results.json')}`)
     console.log(`  wrote ${join(outDir, 'RESULTS.md')}`)
   }

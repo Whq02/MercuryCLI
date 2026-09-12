@@ -46,6 +46,7 @@ import { extensionReadinessRows } from '../extensions/boot.js'
 import { searchToolsAvailability } from './ripgrep.js'
 import { mcpGauge } from './cockpit/mcpGauge.js'
 import { whichSync } from './which.js'
+import { withheldTools } from './withheldTools.js'
 
 
 export type ReadinessState =
@@ -145,6 +146,20 @@ function toolRecords(): ReadinessRecord[] {
   })
 
   records.push(computerToolRecord())
+
+  for (const withheld of withheldTools()) {
+    if (withheld.tool === 'Computer' || withheld.tool === 'Grep and Glob') continue
+    records.push({
+      id: `tool:withheld:${withheld.tool.toLowerCase()}`,
+      kind: 'tool',
+      label: `${withheld.tool} tool`,
+      state: 'unavailable',
+      detail: `withheld from the catalog — ${bounded(withheld.why, 180)}`,
+      ...(withheld.remedy !== undefined ? { remedy: bounded(withheld.remedy, 240) } : {}),
+      source: 'catalog withholding census',
+      lastCheckedAt: Date.now(),
+    })
+  }
 
   const kills = listCapabilityKills()
   const pairs: string[] = []

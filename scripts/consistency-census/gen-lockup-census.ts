@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { codeOnlyLines } from '../lib/codeText.ts'
 
 const argValue = (name: string): string | undefined => {
@@ -9,6 +10,14 @@ const argValue = (name: string): string | undefined => {
 }
 const ROOT = argValue('--root') ?? join(import.meta.dir, '..', '..')
 const SRC = join(ROOT, 'src')
+const ROW = {
+  assets: 'scripts/consistency-census/lockup-census.json',
+  generator: 'bun scripts/consistency-census/gen-lockup-census.ts',
+  check: 'bun scripts/consistency-census/prove-lockup-census.ts',
+  sources: 'src/**/*.tsx scripts/consistency-census/gen-lockup-census.ts scripts/lib/codeText.ts',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
+const REGISTERS = argValue('--root') === undefined && argValue('--out') === undefined
 
 interface Site {
   file: string
@@ -154,6 +163,7 @@ const out = {
 }
 const outPath = argValue('--out') ?? join(ROOT, 'scripts', 'consistency-census', 'lockup-census.json')
 writeFileSync(outPath, JSON.stringify(out, null, 2) + '\n')
+if (REGISTERS) registerGeneratedAsset(ROW)
 const unclassified = census.filter(s => s.role === 'UNCLASSIFIED')
 console.log(`lockup census: ${census.length} site(s) across ${new Set(census.map(s => s.file)).size} file(s); ${unclassified.length} unclassified`)
 for (const u of unclassified) console.log(`  UNCLASSIFIED ${u.file} (${u.kind}) ${u.excerpt}`)

@@ -20,6 +20,7 @@ import type {
   WorkRowV1,
   WorkspaceFactsV1,
 } from './types.js'
+import type { BoxReadingV1 } from '../../utils/boxLock.js'
 
 
 export interface QueuedFactV1 {
@@ -51,6 +52,11 @@ export interface SessionFactsAnswerV1 {
   fileCheckpoints?: FileCheckpointFactsV1
   streamIdleTimeoutMs?: number
   spawnSwitches?: import('../switchboard/spawnSwitches.js').SpawnSwitchFacts
+  box?: BoxReadingV1
+}
+
+export interface BoxFactsV1 extends BoxReadingV1 {
+  memoryGuard: string
 }
 
 export interface FileCheckpointFactsV1 {
@@ -72,6 +78,7 @@ export interface SessionFactsV1 extends Omit<SessionFactsAnswerV1, 'permissionMo
   schedules?: import('../../daemon/saturn.js').SaturnFactsRowV1[]
   heldFireCount?: number
   runnerGeneration?: number
+  box?: BoxFactsV1
 }
 
 

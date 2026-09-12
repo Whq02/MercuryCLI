@@ -1,21 +1,23 @@
 #!/usr/bin/env bun
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { closeSync, existsSync, openSync, readFileSync, readSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import {
   GENERATED_ASSETS_MAP,
+  describeUnregisteredGeneratedFiles,
   generatedAssetsOwed,
   parseGeneratedAssetsMap,
+  unregisteredGeneratedFiles,
   type GeneratedAssetRow,
 } from '../../src/utils/hooks/generatedAssets.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const argv = process.argv.slice(2)
 const flag = (name: string): boolean => argv.includes(name)
-const args = argv.filter(a => !['--check', '--all', '--verify-map', '--staged'].includes(a))
+const args = argv.filter(a => !['--check', '--all', '--verify-map', '--staged', '--census'].includes(a))
 
 function usage(): never {
-  console.error('usage: bun scripts/gate/generated-assets.ts <rev-range> | --staged | --paths <path…> [--check] | --all | --verify-map')
+  console.error('usage: bun scripts/gate/generated-assets.ts <rev-range> | --staged | --paths <path…> [--check] | --all | --verify-map | --census')
   process.exit(2)
 }
 
@@ -33,6 +35,48 @@ if (map.errors.length > 0) {
 
 function scriptOf(command: string): string | null {
   return command.split(/\s+/).find(w => /[\\/]/.test(w) && !w.startsWith('-')) ?? null
+}
+
+const BINARY_EXTENSION = /\.(?:png|jpe?g|gif|webp|ico|icns|wav|mp3|mp4|mov|woff2?|ttf|otf|node|wasm|zip|gz|tgz|cast|pdf|dylib|so|dll|exe)$/i
+
+function trackedFileHeads(): Array<{ path: string; head: string }> {
+  const out: Array<{ path: string; head: string }> = []
+  const buffer = Buffer.alloc(2048)
+  for (const path of git('ls-files')) {
+    if (BINARY_EXTENSION.test(path)) continue
+    let fd: number
+    try {
+      fd = openSync(join(ROOT, path), 'r')
+    } catch {
+      continue
+    }
+    let read = 0
+    try {
+      read = readSync(fd, buffer, 0, buffer.length, 0)
+    } catch {
+      read = 0
+    } finally {
+      closeSync(fd)
+    }
+    const slice = buffer.subarray(0, read)
+    if (slice.includes(0)) continue
+    out.push({ path, head: slice.toString('utf8') })
+  }
+  return out
+}
+
+function runCensus(): number {
+  const unregistered = unregisteredGeneratedFiles(trackedFileHeads(), map.rows)
+  if (unregistered.length === 0) {
+    console.log(`${GENERATED_ASSETS_MAP}: every tracked file that declares a generator has a row`)
+    return 0
+  }
+  console.error(describeUnregisteredGeneratedFiles(unregistered))
+  return unregistered.length
+}
+
+if (flag('--census')) {
+  process.exit(runCensus() === 0 ? 0 : 1)
 }
 
 if (flag('--verify-map')) {
@@ -63,6 +107,7 @@ if (flag('--verify-map')) {
       }
     }
   }
+  bad += runCensus()
   console.log(`${GENERATED_ASSETS_MAP}: ${map.rows.length} row(s), ${bad} problem(s)`)
   process.exit(bad === 0 ? 0 : 1)
 }

@@ -2,11 +2,19 @@
 import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { fileURLToPath } from 'node:url'
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const addonRoot = join(repo, 'assets', 'vulcan', 'addon')
 const outPath = join(repo, 'src', 'services', 'vulcan', 'addonFiles.generated.ts')
+const ROW = {
+  assets: relative(repo, outPath),
+  generator: 'node scripts/vulcan/regen-addon.mjs',
+  check: 'node scripts/vulcan/regen-addon.mjs --check',
+  sources: 'assets/vulcan/addon/**',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 
 function walk(dir) {
   const out = []
@@ -102,4 +110,5 @@ if (process.argv.includes('--check')) {
 }
 
 writeFileSync(outPath, generated)
+registerGeneratedAsset(ROW)
 console.log(`regen-addon: wrote ${outPath} (${files.length} files, digest ${digest.slice(0, 12)}…)`)

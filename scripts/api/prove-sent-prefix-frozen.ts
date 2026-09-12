@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
@@ -427,12 +427,16 @@ if (!existsSync(DIST)) {
       const home = mkdtempSync(join(tmpdir(), 'sent-prefix-home-'))
       const cwd = mkdtempSync(join(tmpdir(), 'sent-prefix-cwd-'))
       mkdirSync(join(home, '.claude'), { recursive: true })
+      const godotBin = join(home, 'godot')
+      writeFileSync(godotBin, '#!/bin/sh\nexit 0\n')
+      chmodSync(godotBin, 0o755)
       return {
         home,
         cwd,
         env: {
           HOME: home,
           PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
+          MERCURY_GODOT_EXECUTABLE: godotBin,
           TERM: 'dumb',
           MERCURY_CONFIG_DIR: join(home, '.claude'),
           MERCURY_CREDENTIAL_STORE: 'file',

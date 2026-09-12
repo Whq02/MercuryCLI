@@ -75,8 +75,19 @@ import { copyFile, link, stat, truncate } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
+import { boxLockLineForCommand } from '../../utils/boxLock.js'
+import { readSessionFacts } from '../../services/engine-connector/seatProjections.js'
+import { getSessionId } from '../../bootstrap/state.js'
 
 export type { BashProgress }
+
+function ownMemoryGuardVerdict(): string | undefined {
+  try {
+    return readSessionFacts(getSessionId())?.box?.memoryGuard
+  } catch {
+    return undefined
+  }
+}
 
 
 const ASSISTANT_BLOCKING_BUDGET_MS = 15_000
@@ -550,6 +561,8 @@ async function* runBash(
     const accumulator = new EndTruncatingAccumulator()
     accumulator.append(result.stdout.trimEnd() + '\n')
     if (result.stderr.trim() !== '') accumulator.append(result.stderr.trimEnd() + '\n')
+    const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd: getCwd(), memoryGuard: ownMemoryGuardVerdict() })
+    if (boxLine !== null) accumulator.append(boxLine + '\n')
     const interpretation = interpretCommandResult(input.command, result.code, result.stdout, '')
     const returnCodeInterpretation = interpretation.message
     const noOutputExpected = isSilentCommand(input.command)

@@ -2,6 +2,15 @@
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
+
+const ROW = {
+  assets: 'assets/splash/splash-core.mjs',
+  generator: 'bun scripts/splash/bake-menu.mjs',
+  check: 'bun scripts/splash/bake-menu.mjs --check',
+  sources: 'src/substrate/startupMenu.ts',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 
 for (const k of [
   'MERCURY_DEFAULT_OPUS_MODEL',
@@ -107,3 +116,4 @@ if (changed) {
 } else {
   console.log('bake-menu: already current')
 }
+registerGeneratedAsset(ROW)

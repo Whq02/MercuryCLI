@@ -2,8 +2,16 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, dirname, extname, join, relative } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 
 const ROOT = join(import.meta.dir, '..', '..')
+const ROW = {
+  assets: 'src/skills/bundled/**',
+  generator: 'bun scripts/skills/gen-bundled.ts',
+  check: null,
+  sources: 'mercury-skills/**',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 const SOURCE_ROOTS = [join(ROOT, 'mercury-skills')]
 const DEST = join(ROOT, 'src', 'skills', 'bundled')
 
@@ -177,4 +185,5 @@ console.log('// imports:')
 console.log(wiring.map(w => w.importLine).join('\n'))
 console.log('// calls (inside initBundledSkills):')
 console.log(wiring.map(w => w.callLine).join('\n'))
+registerGeneratedAsset(ROW)
 console.log(`\n✅ generated ${wiring.length} skill(s)`)

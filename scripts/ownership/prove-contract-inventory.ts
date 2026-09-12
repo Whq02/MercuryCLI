@@ -3,12 +3,20 @@
 
 import { existsSync, readFileSync, readdirSync, writeFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import ts from 'typescript'
 import { parseWatchHeader } from '../verify/impactManifest.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const INVENTORY = join(import.meta.dir, 'contract-inventory.json')
 const record = process.argv.includes('--record')
+const ROW = {
+  assets: 'scripts/ownership/contract-inventory.json',
+  generator: 'bun scripts/ownership/prove-contract-inventory.ts --record',
+  check: 'bun scripts/ownership/prove-contract-inventory.ts',
+  sources: 'files-of:scripts/ownership/contract-inventory.json',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -282,6 +290,7 @@ interface Inventory {
 if (record) {
   const inv: Inventory = { modules: scanned, settingsKeys }
   writeFileSync(INVENTORY, JSON.stringify(inv, null, 1) + '\n')
+  registerGeneratedAsset(ROW)
   const total = Object.values(scanned).reduce(
     (n, files) => n + Object.values(files).reduce((m, e) => m + e.length, 0),
     0,

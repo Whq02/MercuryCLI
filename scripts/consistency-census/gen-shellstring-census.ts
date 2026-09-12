@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 import { codeOnlyLines } from '../lib/codeText.ts'
 
 const argValue = (name: string): string | undefined => {
@@ -8,6 +9,14 @@ const argValue = (name: string): string | undefined => {
   return at >= 0 ? process.argv[at + 1] : undefined
 }
 const ROOT = argValue('--root') ?? join(import.meta.dir, '..', '..')
+const ROW = {
+  assets: 'scripts/consistency-census/shellstring-census.json',
+  generator: 'bun scripts/consistency-census/gen-shellstring-census.ts',
+  check: 'bun scripts/consistency-census/prove-shellstring-census.ts',
+  sources: 'src/**/*.{ts,tsx,mjs} scripts/**/*.{ts,tsx,mjs}',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
+const REGISTERS = argValue('--root') === undefined && argValue('--out') === undefined
 
 interface Hit {
   file: string
@@ -147,6 +156,7 @@ writeFileSync(
     2,
   ) + '\n',
 )
+if (REGISTERS) registerGeneratedAsset(ROW)
 const un = census.filter(c => c.cls === 'UNCLASSIFIED')
 console.log(`shell-string census: ${census.length} site(s); ${un.length} unclassified`)
 for (const u of un.slice(0, 40)) console.log(`  UNCLASSIFIED ${u.file} (${u.mechanism}) ${u.excerpt}`)

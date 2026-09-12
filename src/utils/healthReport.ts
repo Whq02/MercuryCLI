@@ -3266,6 +3266,22 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             return { status: 'ok', evidence }
           },
         },
+        {
+          id: 'box-lock',
+          label: 'Box lock',
+          run: async () => {
+            const { boxLockDir, boxLockStateWords, readBoxLockState } = await import('./boxLock.js')
+            const dir = boxLockDir()
+            if (dir === null) {
+              return { status: 'info' as const, evidence: 'no box lock directory is named (MERCURY_BOX_LOCK_DIR) — the box row carries the load and memory only' }
+            }
+            const state = readBoxLockState(dir)
+            if (state === null) {
+              return { status: 'warn' as const, evidence: `MERCURY_BOX_LOCK_DIR names ${dir}, which is not there`, fix: 'Point MERCURY_BOX_LOCK_DIR at the coordination directory with-box-lock.sh uses (its BASE= line), or unset it.' }
+            }
+            return { status: 'ok' as const, evidence: `${dir}: ${boxLockStateWords(state)}` }
+          },
+        },
       ],
     },
     {
@@ -3807,6 +3823,22 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               ...(undeclared.length + s.unclassified.length + reasonless.length > 0
                 ? { fix: 'Declare the tool’s capability contract (gate/conditions for a gated tool), then re-run `bun run scripts/builtin-tools/census-gen.ts`.' }
                 : {}),
+            }
+          },
+        },
+        {
+          id: 'tools-withheld',
+          label: 'Tools withheld',
+          run: async () => {
+            const { withheldTools, withheldToolsLine } = await import('./withheldTools.js')
+            const list = withheldTools()
+            if (list.length === 0) return { status: 'ok' as const, evidence: withheldToolsLine(list) }
+            const remedies = list.filter(w => w.remedy !== undefined).map(w => `${w.tool}: ${w.remedy}`)
+            return {
+              status: 'info' as const,
+              evidence: withheldToolsLine(list),
+              detail: list.map(w => `${w.tool} — needs ${w.dependency}: ${w.why}`).join('\n'),
+              ...(remedies.length > 0 ? { fix: remedies.join(' · ') } : {}),
             }
           },
         },

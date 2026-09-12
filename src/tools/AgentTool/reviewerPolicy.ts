@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { whichSync } from '../../utils/which.js'
 import { getCwd } from '../../utils/cwd.js'
 import { commandWords } from '../../utils/hooks/generatedAssets.js'
+import { boxLockDirOfScript } from '../../utils/boxLock.js'
 import { quote } from '../../utils/bash/shellQuote.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
 import type { Tool, Tools } from '../../Tool.js'
@@ -46,7 +47,7 @@ function verificationCommand(command: string, worktree: string, receipt: string)
     if (!args[1] || !/^[A-Za-z0-9_.-]+$/.test(args[1])) return null
     const inner = verificationCommand(quote(args.slice(2)), worktree, receipt)
     if (inner === null || inner.lockRoot !== undefined) return null
-    const base = /^BASE=(\/[^\s'"$`\\]+)$/m.exec(readFileSync(path, 'utf8'))?.[1]
+    const base = boxLockDirOfScript(path)
     if (!base) return null
     let lockRoot: string
     try { lockRoot = realpathSync(base) } catch { return null }
