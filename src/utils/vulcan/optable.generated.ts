@@ -8,7 +8,7 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = 'ecfa82d520db12c2c40930f6efd2646fbbf32918008085c7cd3bd8571a8103ce'
+export const VULCAN_OPTABLE_DIGEST = '86d3ae85bb4a34d9c43cb54302d680a1a02d9d746a86fd3e7c5b2e3646a9dd17'
 
 export const VULCAN_STEP_WALL_MS_PER_FRAME = 50
 
@@ -2225,13 +2225,14 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "cls": "exec",
     "lite": false,
     "side": "mercury",
-    "summary": "Mercury-side compile gate, in seconds and with no lock: the changed .gd files parsed and type-checked one file at a time (godot --headless --check-only --script) and the changed .gdshader files compiled headlessly in a generated probe; the project's autoload identifiers (project.godot [autoload]) are ignored exactly — \"Identifier not found: <autoload>\" — and nothing else; flags a --script suite whose preload graph reaches a script that names an autoload; diagnostics as data {file, line, message, class, lastChange}",
+    "summary": "Mercury-side compile gate, in seconds and with no lock: the changed .gd files parsed and type-checked one file at a time (godot --headless --check-only --script) and the changed .gdshader files compiled headlessly in a generated probe; the project's autoload identifiers (project.godot [autoload]) are ignored exactly — \"Identifier not found: <autoload>\" — and nothing else; flags a --script suite whose preload graph reaches a script that names an autoload; diagnostics as data {file, line, message, class, lastChange}; every gate also compares changed test assertions and check counts against HEAD, and rejects SCRIPT ERROR under PASS in matching suite evidence, with named drift rows in JSON",
     "args": {
       "files": "optional: res:// or project-relative paths (default: the files changed against HEAD)",
       "all": "optional bool: every .gd and .gdshader in the project",
       "tree": "optional: check a frozen copy instead of the live tree (same forms as engine_run)",
       "shaders": "optional bool (default true): compile changed shaders",
-      "parallel": "optional: check-only processes at once (default: the worker count)"
+      "parallel": "optional: check-only processes at once (default: the worker count)",
+      "run": "optional: completed engine run id whose evidence must match this tree; default newest completed matching run"
     }
   },
   {
@@ -2265,6 +2266,91 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
       "id": "the job id",
       "tail": "optional: log tail chars per failed suite (default 4000)"
     }
+  },
+  {
+    "name": "engine_scene_tree",
+    "category": "frontier",
+    "cls": "read",
+    "lite": false,
+    "side": "mercury",
+    "summary": "Read the live scene tree directly from a named headless or native worker's own bridge; the answer names the instance reached",
+    "args": {
+      "instance": "instance id from engine_jobs",
+      "root": "optional NodePath",
+      "depth": "optional tree depth"
+    }
+  },
+  {
+    "name": "engine_node_get",
+    "category": "frontier",
+    "cls": "read",
+    "lite": false,
+    "side": "mercury",
+    "summary": "Read properties from a node in a running worker, without parsing its log",
+    "args": {
+      "instance": "instance id from engine_jobs",
+      "node": "NodePath",
+      "properties": "optional array of property names"
+    }
+  },
+  {
+    "name": "engine_node_call",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "side": "mercury",
+    "summary": "Call a method on a running worker's node and return its JSON result; runs code and always asks permission",
+    "args": {
+      "instance": "instance id from engine_jobs",
+      "node": "NodePath",
+      "method": "method name",
+      "args": "optional JSON argument array"
+    }
+  },
+  {
+    "name": "engine_signal_wait",
+    "category": "frontier",
+    "cls": "read",
+    "lite": false,
+    "side": "mercury",
+    "summary": "Wait for a named signal on a running worker without changing its state; return the signal name and wait duration or a named timeout",
+    "args": {
+      "instance": "instance id from engine_jobs",
+      "node": "NodePath",
+      "signal": "signal name",
+      "timeout_ms": "optional timeout in milliseconds (default 5000)"
+    }
+  },
+  {
+    "name": "lease_take",
+    "category": "frontier",
+    "cls": "mutate",
+    "lite": false,
+    "side": "mercury",
+    "summary": "Take file leases under this project without a team; an overlapping holder is refused with its session and agent named",
+    "args": {
+      "paths": "array of project-relative paths"
+    }
+  },
+  {
+    "name": "lease_release",
+    "category": "frontier",
+    "cls": "mutate",
+    "lite": false,
+    "side": "mercury",
+    "summary": "Release this session and agent's project file leases; never release another holder's leases",
+    "args": {
+      "paths": "optional array of project-relative paths (default all held paths)"
+    }
+  },
+  {
+    "name": "lease_list",
+    "category": "frontier",
+    "cls": "read",
+    "lite": false,
+    "side": "mercury",
+    "summary": "List live project file leases with the session and agent that holds each path; no team required",
+    "args": {}
   }
 ] as const
 

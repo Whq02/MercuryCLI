@@ -27,6 +27,9 @@ import {
 import { readMailbox } from '../../src/utils/teammateMailbox.js'
 import { getTeamsDir } from '../../src/utils/envUtils.js'
 import { sanitizePathComponent } from '../../src/utils/tasks.js'
+import { getSessionId, switchSession } from '../../src/bootstrap/state.js'
+
+switchSession(getSessionId(), tmpHome)
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -113,14 +116,14 @@ console.log(' the coordination server (coordination) — proof')
 console.log('============================================================')
 
 try {
-  section('all tools register (tools/list): 5 coordination verbs + render_tui')
+  section('all coordination tools register, including project lease_take')
   {
     const client = await connect()
     const names = (await client.listTools()).tools.map(t => t.name).sort()
     check(
-      'registers exactly the 5 coordination verbs + render_tui',
+      'registers the team and project lease verbs plus render_tui',
       names.join(',') ===
-        'brief,coord_say,lease_claim,lease_list,lease_release,render_tui',
+        'brief,coord_say,lease_claim,lease_list,lease_release,lease_take,render_tui',
       names.join(','),
     )
   }
@@ -167,11 +170,11 @@ try {
     }
   }
 
-  section('SOLO (no team): every verb is a benign no-op, NOT a tool error')
+  section('SOLO (no team): project leases work; team-only verbs stay benign')
   clearDynamicTeamContext()
   {
     const client = await connect()
-    for (const name of ['lease_claim', 'lease_release', 'lease_list']) {
+    for (const name of ['lease_claim']) {
       const args = name === 'lease_claim' ? { globs: ['src/**'] } : {}
       const r = await client.callTool({ name, arguments: args })
       check(
@@ -183,6 +186,12 @@ try {
         jsonOf(r).ok === false && jsonOf(r).reason === 'NOT_IN_TEAM',
       )
     }
+    const taken = await client.callTool({ name: 'lease_take', arguments: { paths: ['probe.gd'] } })
+    check('lease_take solo grants an exact project file', !isError(taken) && jsonOf(taken).ok === true)
+    const listed = await client.callTool({ name: 'lease_list', arguments: {} })
+    check('lease_list solo names the actual file holder', !isError(listed) && jsonOf(listed).ok === true && textOf(listed).includes('probe.gd') && textOf(listed).includes('sessionId'))
+    const released = await client.callTool({ name: 'lease_release', arguments: {} })
+    check('lease_release solo releases the calling holder', !isError(released) && jsonOf(released).ok === true)
     const say = await client.callTool({
       name: 'coord_say',
       arguments: { to: '*', message: 'hi' },

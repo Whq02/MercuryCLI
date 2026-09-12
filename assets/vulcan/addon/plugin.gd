@@ -4,16 +4,13 @@ extends EditorPlugin
 const ServerScript := preload("core/server.gd")
 const LogScript := preload("core/log.gd")
 
-const PORT_SETTING := "mercury_vulcan/port"
 const ALLOW_EXECUTE_SETTING := "mercury_vulcan/allow_execute_script"
-const DEFAULT_PORT := 6010
 const RUNTIME_AUTOLOAD := "MercuryVulcanRuntimeBridge"
 const RUNTIME_BRIDGE_PATH := "res://addons/mercury_vulcan/core/runtime_bridge.gd"
 
 var _server: Node = null
 
 func _enter_tree() -> void:
-	_ensure_setting(PORT_SETTING, DEFAULT_PORT)
 	_ensure_setting(ALLOW_EXECUTE_SETTING, true)
 	LogScript.install()
 	if not ProjectSettings.has_setting("autoload/" + RUNTIME_AUTOLOAD):
@@ -26,7 +23,8 @@ func _enter_tree() -> void:
 	_server.start()
 
 func _exit_tree() -> void:
-	remove_autoload_singleton(RUNTIME_AUTOLOAD)
+	if _server == null or int(_server.instance_identity().get("ownerPid", 0)) == 0:
+		remove_autoload_singleton(RUNTIME_AUTOLOAD)
 	if _server != null:
 		_server.stop()
 		_server.queue_free()

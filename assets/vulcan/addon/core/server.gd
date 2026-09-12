@@ -9,10 +9,7 @@ const PathsScript := preload("paths.gd")
 const RegistryScript := preload("registry.gd")
 const OpClassesScript := preload("op_classes.gd")
 
-const DEFAULT_PORT := 6010
-const PORT_SETTING := "mercury_vulcan/port"
-const TOKEN_PATH := "res://.godot/mercury-vulcan-token"
-const PORT_FILE := "res://.godot/mercury-vulcan-port"
+const InstanceScript := preload("instance.gd")
 const MAX_LINE_BYTES := 8 * 1024 * 1024
 const MAX_CONNECTIONS := 8
 const UNAUTHED_GRACE_MS := 10000
@@ -28,6 +25,7 @@ class Conn:
 	var authed := false
 	var role := ""
 	var opened_ms := 0
+	var identity: Dictionary = {}
 
 class RuntimeProxy:
 	extends RefCounted
@@ -43,6 +41,7 @@ class RuntimeProxy:
 				"hint": "start a play session with scene_play first"}}
 		return await _server.proxy_to_runtime(op, args)
 
+var _instance: RefCounted = null
 var _server: TCPServer = null
 var _conns: Array = []
 var _client: Conn = null
@@ -65,19 +64,12 @@ func setup(undo_manager: Object) -> void:
 func start() -> void:
 	if _server != null:
 		return
-	var port := DEFAULT_PORT
-	if ProjectSettings.has_setting(PORT_SETTING):
-		port = int(ProjectSettings.get_setting(PORT_SETTING, DEFAULT_PORT))
-	_server = TCPServer.new()
-	var listen_err := _server.listen(port, "127.0.0.1")
-	if listen_err != OK:
-		push_warning("mercury_vulcan: cannot listen on 127.0.0.1:%d (%s)" % [port, error_string(listen_err)])
-		_server = null
-		_remove_port_file()
+	_instance = InstanceScript.new()
+	if not _instance.start(true):
+		push_warning("mercury_vulcan: instance listener could not start")
 		return
-	var pf := FileAccess.open(PORT_FILE, FileAccess.WRITE)
-	if pf != null:
-		pf.store_string(str(port))
+	_server = _instance.listener
+	var port := _server.get_local_port()
 	started_ms = Time.get_ticks_msec()
 	set_process(true)
 	print("mercury_vulcan: listening on 127.0.0.1:%d" % port)
@@ -93,15 +85,15 @@ func stop() -> void:
 	if _server != null:
 		_server.stop()
 		_server = null
-	_remove_port_file()
+	if _instance != null:
+		_instance.stop()
 	set_process(false)
-
-func _remove_port_file() -> void:
-	if FileAccess.file_exists(PORT_FILE):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(PORT_FILE))
 
 func runtime_connected() -> bool:
 	return _runtime != null
+
+func instance_identity() -> Dictionary:
+	return _instance.identity.duplicate() if _instance != null else {}
 
 func _process(delta: float) -> void:
 	if _server == null:
@@ -129,7 +121,8 @@ func _process(delta: float) -> void:
 			continue
 		if status != StreamPeerTCP.STATUS_CONNECTED:
 			continue
-		var avail := conn.peer.get_available_bytes()
+		var cap := MAX_LINE_BYTES if conn.authed else 16384
+		var avail := mini(conn.peer.get_available_bytes(), cap + 1 - conn.buf.size())
 		if avail > 0:
 			var chunk := conn.peer.get_data(avail)
 			if chunk[0] == OK:
@@ -139,6 +132,10 @@ func _process(delta: float) -> void:
 
 func _drain_lines(conn: Conn) -> void:
 	while _conns.has(conn):
+		var cap := MAX_LINE_BYTES if conn.authed else 16384
+		if conn.buf.size() > cap and (conn.buf.find(10) == -1 or conn.buf.find(10) > cap):
+			_drop(conn)
+			return
 		var idx := conn.buf.find(10)
 		if idx == -1:
 			if conn.buf.size() > MAX_LINE_BYTES:
@@ -207,6 +204,16 @@ func _handle_hello(conn: Conn, msg: Dictionary) -> void:
 			"Mercury connects as role:\"client\"; the play-mode bridge as role:\"runtime\"")})
 		_drop(conn)
 		return
+	if str(msg.get("instance", "")) != str(_instance.identity["id"]):
+		_send(conn, {"ok": false, "error": _err_body("INSTANCE_MISMATCH", "hello must name this instance", "discover the instance before connecting")})
+		_drop(conn)
+		return
+	if role == "runtime":
+		var runtime_identity = msg.get("runtime_instance", {})
+		if not (runtime_identity is Dictionary) or runtime_identity.get("projectRoot") != _instance.identity["projectRoot"] or not ["headless-worker", "native-worker"].has(runtime_identity.get("role")) or int(runtime_identity.get("pid", 0)) < 1:
+			_drop(conn)
+			return
+		conn.identity = InstanceScript.public_identity(runtime_identity)
 	conn.authed = true
 	conn.role = role
 	if role == "client":
@@ -225,7 +232,7 @@ func _handle_hello(conn: Conn, msg: Dictionary) -> void:
 
 func _handle_runtime_frame(conn: Conn, msg: Dictionary) -> void:
 	if msg.has("event"):
-		emit_vulcan_event(String(msg["event"]), msg.get("data"))
+		_send(_client, {"event": String(msg["event"]), "data": msg.get("data"), "instance": conn.identity.duplicate(), "via": _instance.identity.duplicate()})
 		return
 	if msg.has("id"):
 		var rid := int(msg.get("id", -1))
@@ -273,6 +280,8 @@ func _serve(conn: Conn, id: int, op: String, args: Dictionary) -> void:
 	_send(conn, out)
 
 func dispatch_op(op: String, args: Dictionary) -> Dictionary:
+	if ["engine_scene_tree", "engine_node_get", "engine_node_call", "engine_signal_wait"].has(op):
+		return await proxy_to_runtime(op, args)
 	if MERCURY_SIDE_OPS.has(op):
 		return _err("MERCURY_SIDE",
 			"\"%s\" is handled by Mercury before the wire" % op,
@@ -295,6 +304,14 @@ func op_class_of(op: String) -> String:
 	return OpClassesScript.of(op)
 
 func proxy_to_runtime(op: String, args: Dictionary) -> Dictionary:
+	var reached := _runtime.identity.duplicate() if _runtime != null else {}
+	var result: Dictionary = await _proxy_to_runtime(op, args)
+	if not reached.is_empty():
+		result["instance"] = reached
+		result["via"] = _instance.identity.duplicate()
+	return result
+
+func _proxy_to_runtime(op: String, args: Dictionary) -> Dictionary:
 	if _runtime == null:
 		return _err("NO_RUNTIME", "no play session bridge is connected",
 			"start a play session with scene_play first")
@@ -318,6 +335,8 @@ func proxy_to_runtime(op: String, args: Dictionary) -> Dictionary:
 					"restart the play session (scene_stop, then scene_play)")
 			var out: Dictionary = resp.duplicate()
 			out.erase("id")
+			out["instance"] = _runtime.identity.duplicate()
+			out["via"] = _instance.identity.duplicate()
 			if not out.has("ok"):
 				return _err("BAD_RUNTIME_REPLY",
 					"the runtime bridge answered \"%s\" without an ok field" % op,
@@ -387,8 +406,14 @@ func _send(conn: Conn, frame: Dictionary) -> void:
 		return
 	if conn.peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
 		return
-	var line := JSON.stringify(frame) + "\n"
-	conn.peer.put_data(line.to_utf8_buffer())
+	var out := frame.duplicate()
+	if not out.has("instance"):
+		out["instance"] = _instance.identity.duplicate()
+	var bytes := (JSON.stringify(out) + "\n").to_utf8_buffer()
+	if bytes.size() > MAX_LINE_BYTES:
+		_drop(conn)
+		return
+	conn.peer.put_data(bytes)
 
 func _drop(conn: Conn) -> void:
 	if conn == null:
@@ -403,12 +428,7 @@ func _drop(conn: Conn) -> void:
 		_runtime_pending.clear()
 
 func _read_expected_token() -> String:
-	if not FileAccess.file_exists(TOKEN_PATH):
-		return ""
-	var f := FileAccess.open(TOKEN_PATH, FileAccess.READ)
-	if f == null:
-		return ""
-	return f.get_as_text().strip_edges()
+	return _instance.token if _instance != null else ""
 
 static func _ct_eq(a: String, b: String) -> bool:
 	var ab := a.to_utf8_buffer()

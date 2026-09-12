@@ -1,13 +1,13 @@
 # The Godot tool and the engine job service
 
-Mercury's `Godot` tool has two halves. The editor bridge drives the one
-open Godot editor over a token-authed loopback connection served by the
-`mercury_vulcan` addon (scenes, nodes, scripts, play-testing, runtime
-inspection). The engine job service runs headless Godot itself: Mercury's
-own workers, in parallel, each on a frozen copy of the project, with a
-compile gate that answers in seconds and every result as data. This page
-is about the second half; the first is summarised so the two are not
-confused.
+Mercury's `Godot` tool controls named Godot instances over token-authed
+loopback connections served by the `mercury_vulcan` addon. Each editor,
+headless worker and native worker has its own port and token. Editor
+operations edit scenes, nodes, scripts and resources; runtime queries
+read a running worker directly. The engine job service runs workers in
+parallel, each on a frozen copy of the project, with a compile and
+proof-drift gate and every result as data. Project file leases prevent a
+run from consuming changed files held by another session or agent.
 
 ## Arming
 
@@ -67,16 +67,18 @@ by hand with a record.
   is all the class cache is made of). When both hold, the job copies the
   cached `.godot` and runs no import; when either moves, the copy is
   seeded from the newest entry and the import pass runs incrementally,
-  then the result is stored under the new key. A function-body edit costs
-  no import; a renamed class or a new texture costs one. Naming `import`
+  then the result is stored under the new key. The bundled addon digest
+  also participates, so changed bridge code cannot reuse an older cache.
+  A function-body edit costs no import; a renamed class or a new texture
+  costs one. Naming `import`
   among the suites forces the pass.
 - **Owner liveness** — every engine is Mercury's as a process tree: the
   process group on POSIX, `taskkill /PID <wrapper> /T /F` on Windows (the
   console wrapper, the engine and its `conhost` together). A timeout, a
-  budget or a cancel ends the whole tree; engines found running under the
-  project's `.mercury/engine/` at the service's start are swept; a normal
-  exit of Mercury ends every live engine; and there is no lock file to
-  leave behind.
+  budget or a cancel ends the whole tree. At startup, owner sidecars
+  protect another live session's workers and frozen trees; only orphaned
+  engines are swept. A normal exit ends the session's own live engines.
+  Worker ownership uses process liveness rather than a shared engine lock.
 
 ## The manifest
 
@@ -166,6 +168,111 @@ suite would fail with that identifier the moment it ran. The gate
 enforces nothing by itself; a turn-end hook, if wanted, would call it
 where the file tools settle a batch of edits.
 
+## Proof drift on every gate
+
+Every `engine_check` compares changed test assertions against `HEAD`,
+even when `files` narrows the compile checks. `tree` compares the selected
+frozen content, not unrelated live edits. The result's `drift` array
+names the file, line, kind, before/after assertion and any fallen count.
+Removed assertions, weaker numeric bounds, fewer assertions and lower
+check counts make `ok` false. Multiline `expect(...)` and `assert(...)`
+calls are compared as logical statements, ignoring formatting and
+comments. Obvious stronger numeric bounds are accepted; other changed
+assertions are flagged for human review rather than pretending to prove
+arbitrary semantic equivalence.
+
+A suite that prints `PASS` and `SCRIPT ERROR` is a failure regardless of
+its exit code or a custom clean-log expression. `engine_run` carries the
+named drift rows in its record. `engine_check` also reads the newest
+completed run whose source fingerprint matches the selected tree; pass
+`run` to require a specific run. Mismatched or incomplete named evidence
+is refused instead of being credited to another tree. A compile check
+without matching suite evidence does not claim the suite was run.
+
+```json
+{ "op": "engine_check", "args": { "files": ["tests/drift_checks.gd"], "run": "run-id" } }
+```
+
+The script equivalent is `mercury godot check tests/drift_checks.gd
+--run run-id`. Both carry the drift rows as JSON and the command exits 1
+when drift is present. A source comparison is a review aid, not a proof
+that unchanged tests provide sufficient coverage.
+
+## Runtime queries on a named instance
+
+`engine_jobs` lists discovered instances. Pass the returned id as
+`args.instance`; never infer a port from the project. The roles are
+`operator-editor`, `agent-editor`, `headless-worker` and `native-worker`.
+An editor operation without an explicit selection can choose an agent
+editor, but never the operator's editor. Ambiguous selections are refused.
+Every bridge reply identifies the instance it actually reached.
+
+The service supplies a fresh port and token to each worker. An instance
+started outside the service chooses a free loopback port and creates its
+own discovery and token files under its `.godot`, including in a worktree.
+A standalone runtime needs the addon and its autoload installed first.
+The bridge stays disabled in exported games.
+
+Start a long-running scene with `engine_run` and `wait: false`, then read
+its instance id from `engine_jobs`. These examples use `worker-id` in
+place of that returned id:
+
+```json
+{ "op": "engine_scene_tree", "args": { "instance": "worker-id", "depth": 3 } }
+```
+
+Returns the live tree, not the scene file parsed from disk.
+
+```json
+{ "op": "engine_node_get", "args": { "instance": "worker-id", "node": "/root/RuntimeFixture", "properties": ["score"] } }
+```
+
+Returns named properties as JSON. The fixture's `score` is `42`.
+
+```json
+{ "op": "engine_node_call", "args": { "instance": "worker-id", "node": "/root/RuntimeFixture", "method": "describe", "args": [7] } }
+```
+
+Returns the method's JSON result. This operation runs code and has the
+same ask-always permission class as editor method calls. Tree, property
+and signal queries are read-only by default.
+
+```json
+{ "op": "engine_signal_wait", "args": { "instance": "worker-id", "node": "/root/RuntimeFixture", "signal": "never", "timeout_ms": 100 } }
+```
+
+Returns the signal name and wait duration when it fires, or a timeout
+naming the signal and its wait. A timeout is not a successful observation.
+
+## Project file leases without a team
+
+A directly launched agent uses the same Godot tool. Its trusted session
+and agent identity supply the holder; operation arguments cannot choose
+another holder. The project keeps one lease record under `.mercury/`.
+
+```json
+{ "op": "lease_take", "args": { "paths": ["tests/runtime_checks.gd"] } }
+```
+
+A conflicting take is refused with the existing holder's session and
+agent named. Paths must stay under the project, including through
+symbolic links.
+
+```json
+{ "op": "lease_list", "args": {} }
+```
+
+Lists live holders and their paths; it needs no team membership.
+
+```json
+{ "op": "lease_release", "args": {} }
+```
+
+Releases this holder's leases, never another agent's. Session termination
+releases its leases; a later reader prunes a holder whose process died.
+An engine run refuses changed files held elsewhere before it starts the
+engine on the frozen copy. A frozen `HEAD` run does not consume unrelated live edits.
+
 ## The queue, cancel and results
 
 `engine_jobs` shows the worker count and its source, the queued and
@@ -179,8 +286,8 @@ directory: `mercury godot run [suites…] [--tree <spec>] [--native]
 [--capture] [--priority <p>] [--budget-ms <n>] [--label <s>]`, `mercury
 godot check [files…] [--all] [--tree <spec>] [--no-shaders]`, `mercury
 godot jobs`, `mercury godot cancel <id>`, `mercury godot result <id>`.
-Each prints its record as JSON; `run` exits 0 on `allPass`, `check` on no
-diagnostics. A fresh process owns no queue of its own: `jobs` lists the
+Each prints its record as JSON; `run` exits 0 on `allPass`, `check` only
+when both diagnostics and proof drift are absent. A fresh process owns no queue of its own: `jobs` lists the
 runs on disk and the engines alive under the project, and `cancel` ends
 the engine tree of a job id it finds running there.
 
@@ -190,13 +297,14 @@ Written from the runner's facts on the operator's machine: the job's user
 directory rides `APPDATA`, the engine is spawned as the `_console.exe`
 wrapper beside a plain `_win64.exe` when one exists (the wrapper carries
 the output), and a kill is `taskkill /PID <wrapper> /T /F`, which ends
-the wrapper, the engine and its `conhost` together. The macOS and Linux
-halves are proved on this repository's fixture project; the Windows half
-is written to the facts and waits for a run on that box.
+the wrapper, the engine and its `conhost` together. Live fixture checks
+run on macOS. Linux and Windows environment and argument shapes are
+checked without launching those platforms; their live behavior still
+needs a run on the corresponding machine.
 
 ## What this is not
 
-The service does not drive the editor, capture frames, profile, lease
-files or answer runtime queries; those are the bridge's and later work.
-It does not persist a queue across a Mercury restart (the records on disk
+The service does not capture frames or profile. Native workers still use
+a display; runtime queries do not make a native run offscreen. It does
+not persist a queue across a Mercury restart (the records on disk
 persist; a queued job does not).

@@ -29,10 +29,12 @@ export function engineChecksDir(projectRoot: string): string {
 }
 
 export function engineTreePath(projectRoot: string, jobId: string): string {
+  if (!/^[A-Za-z0-9_-]+$/.test(jobId)) throw new Error('engine job id must be a project-local identifier, not a path')
   return path.join(engineTreesDir(projectRoot), jobId)
 }
 
 export function engineRunPath(projectRoot: string, jobId: string): string {
+  if (!/^[A-Za-z0-9_-]+$/.test(jobId)) throw new Error('engine job id must be a project-local identifier, not a path')
   return path.join(engineRunsDir(projectRoot), jobId)
 }
 
