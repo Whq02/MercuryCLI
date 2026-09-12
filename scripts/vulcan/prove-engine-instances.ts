@@ -272,9 +272,25 @@ if (!godot) {
     const code = await godotEngineCli(['check', 'tests/drift_checks.gd', '--no-shaders', '--project', driftRoot], { out: line => lines.push(line), err: line => lines.push(line), cliName: 'mercury' })
     check(`${label} makes mercury godot check exit 1 with JSON drift`, code === 1 && JSON.parse(lines[0]).drift.some((row: any) => row.kind === kind), { code, drift: JSON.parse(lines[0]).drift })
   }
+  writeFileSync(driftFile, baseline.replace('>= 6', '>= 1'))
+  const overlay = await runEngineCheck(driftRoot, { files: ['tests/drift_checks.gd'], tree: 'working', shaders: false }, { executable: godot })
+  check('a weakened assertion in the working overlay still produces its row against the tree\'s own commit', !overlay.ok && overlay.drift.some(row => row.kind === 'assertion-weakened' && row.file === 'tests/drift_checks.gd'), overlay.drift)
   writeFileSync(driftFile, baseline)
   const restored = await runEngineCheck(driftRoot, { files: ['tests/drift_checks.gd'], shaders: false }, { executable: godot })
   check('the original assertions restore a passing check without drift', restored.ok && restored.drift.length === 0, restored.diagnostics)
+  const olderRoot = project('older-ref')
+  writeFileSync(join(olderRoot, '.mercury', 'engine-suites.json'), JSON.stringify({
+    version: 1, executable: godot, suites: [{ name: 'script_checks', marker: 'SCRIPT PASS', script: true, timeoutMs: 60000 }],
+  }))
+  writeFileSync(join(olderRoot, 'tests', 'extra_checks.gd'), 'extends Node\nfunc verify(value: int) -> void:\n\tassert(value >= 1)\n')
+  git(olderRoot, 'add', 'tests/extra_checks.gd')
+  git(olderRoot, 'commit', '-q', '-F', join(scratch, 'older-ref-commit.txt'))
+  const olderCheck = await runEngineCheck(olderRoot, { files: ['tests/extra_checks.gd'], tree: 'HEAD~1', shaders: false }, { executable: godot })
+  check('a check of an older ref carries no drift rows for a test HEAD added later', olderCheck.ok && olderCheck.drift.length === 0, olderCheck.drift)
+  const olderRun: string[] = []
+  const olderCode = await godotEngineCli(['run', 'script_checks', '--tree', 'HEAD~1', '--project', olderRoot], { out: line => olderRun.push(line), err: line => olderRun.push(line), cliName: 'mercury' })
+  const olderRecord = (() => { try { return JSON.parse(olderRun[0]) } catch { return {} } })()
+  check('mercury godot run --tree HEAD~1 runs the suite and exits 0 with no drift rows', olderCode === 0 && olderRecord.allPass === true && Array.isArray(olderRecord.drift) && olderRecord.drift.length === 0, { code: olderCode, drift: olderRecord.drift, error: olderRecord.error })
   const errorRoot = project('error-under-pass')
   const errorFile = join(errorRoot, 'tests', 'error_checks.gd')
   writeFileSync(errorFile, 'extends SceneTree\nfunc _initialize() -> void:\n\tcall_deferred("verify")\nfunc broken() -> void:\n\tvar values: Array = []\n\tvar value = values[2]\n\tprint(value)\nfunc verify() -> void:\n\tbroken()\n\tprint("ERROR PASS")\n\tquit()\n')

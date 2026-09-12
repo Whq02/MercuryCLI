@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, realpathSync } from 'node:fs'
 import * as path from 'node:path'
-import { isEngineInternalPath, parseLsTreeZ, runGit, type EngineTreeFacts } from './frozenTree.js'
+import { isEngineInternalPath, runGit, type EngineTreeFacts } from './frozenTree.js'
 import { engineLogErrors, stripEngineAnsi } from './logs.js'
 import { engineRunPath, engineRunsDir } from './paths.js'
 
@@ -244,17 +244,17 @@ export function compareProofAssertions(file: string, before: string, after: stri
     const previous = removed[i]
     const current = remaining[i]
     if (!current) {
-      rows.push({ kind: 'assertion-removed', file, line: previous.line, message: 'assertion present in HEAD was removed from the selected tree', before: previous.text })
+      rows.push({ kind: 'assertion-removed', file, line: previous.line, message: "assertion present in the tree's base commit was removed from the selected tree", before: previous.text })
     } else if (!readilyStronger(previous, current)) {
       const weakened = readilyStronger(current, previous) || sameTokens(assertionCondition(current) ?? [], ['true'])
-      rows.push({ kind: weakened ? 'assertion-weakened' : 'assertion-changed', file, line: current.line, message: weakened ? 'the selected assertion accepts a readily decidable weaker condition than HEAD' : 'changed assertion needs human review; this syntactic comparison cannot establish arbitrary semantic strengthening or weakening', before: previous.text, after: current.text })
+      rows.push({ kind: weakened ? 'assertion-weakened' : 'assertion-changed', file, line: current.line, message: weakened ? "the selected assertion accepts a readily decidable weaker condition than the tree's base commit" : 'changed assertion needs human review; this syntactic comparison cannot establish arbitrary semantic strengthening or weakening', before: previous.text, after: current.text })
     }
   }
-  if (next.length < old.length) rows.push({ kind: 'assertion-count-decreased', file, line: old[0]?.line ?? null, message: `assertion count fell from ${old.length} in HEAD to ${next.length} in the selected tree`, beforeCount: old.length, afterCount: next.length })
+  if (next.length < old.length) rows.push({ kind: 'assertion-count-decreased', file, line: old[0]?.line ?? null, message: `assertion count fell from ${old.length} in the tree's base commit to ${next.length} in the selected tree`, beforeCount: old.length, afterCount: next.length })
   const newCounts = declaredCheckCounts(after, file)
   for (const previous of declaredCheckCounts(before, file)) {
     const current = newCounts.find(count => count.name === previous.name)
-    if (!current || current.count < previous.count) rows.push({ kind: 'check-count-decreased', file, line: current?.line ?? previous.line, message: `${previous.name} ${current ? `fell from ${previous.count} to ${current.count}` : `was removed (HEAD declared ${previous.count})`}; integer declarations and literal check counts require review`, beforeCount: previous.count, afterCount: current?.count ?? 0 })
+    if (!current || current.count < previous.count) rows.push({ kind: 'check-count-decreased', file, line: current?.line ?? previous.line, message: `${previous.name} ${current ? `fell from ${previous.count} to ${current.count}` : `was removed (the tree's base commit declared ${previous.count})`}; integer declarations and literal check counts require review`, beforeCount: previous.count, afterCount: current?.count ?? 0 })
   }
   return rows
 }
@@ -275,27 +275,24 @@ export function proofTreeFingerprint(facts: ProofTreeFacts): string {
   return hash.digest('hex')
 }
 
-export async function selectedTreeChanges(projectRoot: string, facts: ProofTreeFacts): Promise<{ files: string[]; head: Map<string, string> } | { error: string }> {
-  const listing = await runGit(projectRoot, ['ls-tree', '-r', '-z', 'HEAD'])
-  if (listing.code !== 0) return { error: `proof drift cannot read HEAD: ${listing.stderr.trim()}` }
-  const head = parseLsTreeZ(listing.stdout)
+export function selectedTreeChanges(facts: ProofTreeFacts): { files: string[]; base: Map<string, string> } {
+  const base = new Map([...facts.baseBlobs].filter(([file]) => !isEngineInternalPath(file)))
   const selected = selectedBlobs(facts)
-  const files = [...new Set([...head.keys(), ...selected.keys()])].filter(file => !isEngineInternalPath(file) && head.get(file) !== selected.get(file)).sort()
-  return { files, head }
+  const files = [...new Set([...base.keys(), ...selected.keys()])].filter(file => base.get(file) !== selected.get(file)).sort()
+  return { files, base }
 }
 
 export async function sourceProofDrift(projectRoot: string, enginePath: string, facts: ProofTreeFacts, testFiles: readonly string[] = []): Promise<ProofDriftRow[]> {
   if (!facts.commit) return []
-  const changed = await selectedTreeChanges(projectRoot, facts)
-  if ('error' in changed) return [{ kind: 'drift-unavailable', file: '', line: null, message: changed.error }]
+  const changed = selectedTreeChanges(facts)
   const selected = selectedBlobs(facts)
   const rows: ProofDriftRow[] = []
   for (const file of changed.files.filter(file => isProofTestFile(file) || testFiles.includes(file))) {
-    const blob = changed.head.get(file)
+    const blob = changed.base.get(file)
     if (!blob) continue
     const old = await runGit(projectRoot, ['cat-file', 'blob', blob])
     if (old.code !== 0) {
-      rows.push({ kind: 'drift-unavailable', file, line: null, message: `cannot read HEAD test blob: ${old.stderr.trim()}` })
+      rows.push({ kind: 'drift-unavailable', file, line: null, message: `cannot read the base commit's test blob: ${old.stderr.trim()}` })
       continue
     }
     let current = ''
