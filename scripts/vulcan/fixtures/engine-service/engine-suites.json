@@ -1,5 +1,14 @@
 {
   "version": 1,
+  "tours": {
+    "fixture": {
+      "script": "res://tests/media_fixture.gd",
+      "steps": [
+        { "name": "front", "timeOfDay": 12, "camera": { "node": "Camera", "position": [0, 2, 4], "target": [0, 0, 0], "fov": 70 } },
+        { "name": "side", "timeOfDay": 18, "camera": { "node": "Camera", "position": [4, 2, 0], "target": [0, 0, 0], "fov": 55 } }
+      ]
+    }
+  },
   "suites": [
     { "name": "scene_checks", "marker": "FIXTURE PASS" },
     { "name": "script_checks", "marker": "SCRIPT PASS", "script": true },
