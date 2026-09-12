@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -192,6 +192,57 @@ for (const [name, original] of [
   const after = readFileSync(file, 'utf8')
   check('script instrumentation never duplicates an existing initializer', (after.match(/func _initialize\s*\(/g) ?? []).length === 1 && after.includes('print(1)'), name)
 }
+const estateRoot = project('estate')
+{
+  const trees = join(estateRoot, '.mercury', 'engine', 'trees')
+  const checks = join(estateRoot, '.mercury', 'engine', 'checks')
+  const runs = join(estateRoot, '.mercury', 'engine', 'runs')
+  for (const dir of [trees, checks, runs]) mkdirSync(dir, { recursive: true })
+  const liveOwner = spawn(process.execPath, ['-e', 'process.stdin.resume()'], { stdio: ['pipe', 'ignore', 'inherit'] })
+  await once(liveOwner, 'spawn')
+  const liveEngine = spawn(process.execPath, ['-e', 'process.stdin.resume()'], { stdio: ['pipe', 'ignore', 'inherit'] })
+  await once(liveEngine, 'spawn')
+  const goneOwner = spawn(process.execPath, ['-e', ''], { stdio: 'ignore' })
+  await once(goneOwner, 'close')
+  const plant = (tree: string, pid: number, ownerPid: number): void => {
+    const id = randomBytes(16).toString('hex')
+    const dir = join(tree, '.godot', 'mercury-vulcan', id)
+    mkdirSync(dir, { recursive: true, mode: 0o700 })
+    writeFileSync(join(dir, 'token'), randomBytes(32).toString('hex'), { mode: 0o600 })
+    writeFileSync(join(dir, 'instance.json'), JSON.stringify({ version: 1, id, role: 'headless-worker', port: 1, pid, projectRoot: realpathSync(tree), ownerPid }), { mode: 0o600 })
+  }
+  const owned = join(trees, 'owned-tree')
+  const orphaned = join(trees, 'orphan-tree')
+  const young = join(trees, 'young-tree')
+  const old = join(trees, 'old-tree')
+  const oldCheck = join(checks, 'old-check')
+  const stamped = join(trees, 'stamped-tree')
+  for (const dir of [owned, orphaned, young, old, oldCheck, stamped, join(runs, 'stamped-tree')]) mkdirSync(dir, { recursive: true })
+  plant(owned, liveEngine.pid!, liveOwner.pid!)
+  plant(orphaned, liveEngine.pid!, goneOwner.pid!)
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000)
+  for (const dir of [old, oldCheck, stamped]) utimesSync(dir, twoHoursAgo, twoHoursAgo)
+  try {
+    const estate = new EngineJobService(estateRoot, { census: async () => [] })
+    await estate.submit(request(['no-such-suite']) as any)
+    const removed = estate.jobs().staleTreesRemoved
+    check('a tree whose instance descriptor names a live owner is kept', existsSync(owned) && !removed.includes(owned), removed)
+    check('a tree whose instance owner is gone is swept at once', !existsSync(orphaned) && removed.includes(orphaned), removed)
+    check('a tree with no descriptor inside the grace is kept', existsSync(young) && !removed.includes(young), removed)
+    check('a tree and a check tree with no descriptor older than the grace are swept', !existsSync(old) && !existsSync(oldCheck), removed)
+    check('an old tree whose run directory was stamped recently is kept', existsSync(stamped) && !removed.includes(stamped), removed)
+    process.env.MERCURY_GODOT_ORPHAN_GRACE_MS = '0'
+    const zeroGrace = new EngineJobService(estateRoot, { census: async () => [] })
+    await zeroGrace.submit(request(['no-such-suite']) as any)
+    check('the grace is read from the flag: at zero every unowned tree is swept and the owned one stays', !existsSync(young) && !existsSync(stamped) && existsSync(owned), zeroGrace.jobs().staleTreesRemoved)
+  } finally {
+    delete process.env.MERCURY_GODOT_ORPHAN_GRACE_MS
+    liveOwner.stdin!.end()
+    liveEngine.stdin!.end()
+    await Promise.all([once(liveOwner, 'close'), once(liveEngine, 'close')])
+  }
+}
+
 const tokenCollision = compareProofAssertions('tests/token_checks.gd', 'assert(foo and bar)\n', 'assert(fooandbar)\n')
 check('assertion tokens cannot collapse distinct conditions into an approved equality', tokenCollision.length > 0, tokenCollision)
 

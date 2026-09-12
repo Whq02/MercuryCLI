@@ -20,6 +20,7 @@ import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
 import { ENGINE_DIR_SEGMENT, engineChecksDir, ensureEngineEstate } from './paths.js'
 import { engineWorkerCount, newEngineJobId } from './service.js'
 import { spawnEngine } from './spawn.js'
+import { startEngineHeartbeat } from './liveness.js'
 import { engineLogDrift, latestMatchingEvidenceRun, proofTreeFingerprint, runEvidenceDrift, sourceProofDrift, type ProofDriftRow } from './proofDrift.js'
 
 export const ENGINE_CHECK_TIMEOUT_MS = 60_000
@@ -337,7 +338,7 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
   const checkId = newEngineJobId()
   const checkDir = path.join(engineChecksDir(projectRoot), checkId)
   mkdirSync(engineChecksDir(projectRoot), { recursive: true })
-  writeFileSync(`${checkDir}.owner.json`, JSON.stringify({ pid: process.pid }), { mode: 0o600, flag: 'wx' })
+  const heartbeat = startEngineHeartbeat(checkDir)
   let facts: Pick<EngineTreeFacts, 'commit' | 'baseBlobs' | 'overlay'>
   let enginePath = projectRoot
   let treePath: string | null = null
@@ -486,7 +487,7 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
   } finally {
     if (treePath) removeEngineTree(treePath)
     rmSync(checkDir, { recursive: true, force: true })
-    rmSync(`${checkDir}.owner.json`, { force: true })
+    heartbeat()
     result.seconds = Math.round((Date.now() - t0) / 100) / 10
   }
 }
