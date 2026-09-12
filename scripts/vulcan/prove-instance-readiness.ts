@@ -25,6 +25,7 @@ const { buildGodotIdeSession, discoverGodotLaunchProfiles } = await import('../.
 const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
 const { resetVulcanClientForTest } = await import('../../src/services/vulcan/vulcanClient.js')
+const { vulcanOp } = await import('../../src/utils/vulcan/optable.generated.js')
 
 cpSync(join(import.meta.dir, 'fixtures/engine-service'), project, { recursive: true })
 writeFileSync(join(project, 'project.godot'), 'config_version=5\n[application]\nconfig/name="readiness-fixture"\n[editor_plugins]\nenabled=PackedStringArray("res://addons/mercury_vulcan/plugin.cfg")\n')
@@ -152,9 +153,18 @@ try {
   const operator = await instance('operator-editor')
   const worker = await instance('headless-worker')
   try {
-    const protectedRows = await collect()
-    check('operator editors and runtime workers are never implicit readiness targets', protectedRows.doctor.status !== 'ok' && protectedRows.provider.state === 'not-answering' && protectedRows.ide.vulcan.state === 'unreachable' && operator.count() === 0 && worker.count() === 0)
-  } finally { await operator.close(); await worker.close() }
+    const operatorRows = await collect()
+    const expectedOperator = `project ${project} · addon installed · addon enabled · bridge up :${operator.port} · engine workers 2 (MERCURY_GODOT_WORKERS)`
+    check('a hand-started editor that answers when named reads as ready on the doctor, provider and IDE rows', operatorRows.doctor.status === 'ok' && operatorRows.doctor.evidence === expectedOperator && operatorRows.provider.state === 'ready' && operatorRows.provider.endpoint === `127.0.0.1:${operator.port}` && operatorRows.ide.vulcan.state === 'reachable' && operatorRows.ide.vulcan.port === operator.port, operatorRows.doctor)
+    check('the operator editor is reported through read-only calls and never operated on; a runtime worker is never a readiness target', operator.ops.length > 0 && operator.ops.every(op => op === 'ping' || vulcanOp(op)?.cls === 'read') && worker.count() === 0, operator.ops)
+    const agent = await instance('agent-editor')
+    try {
+      const before = operator.ops.length + agent.ops.length
+      const ambiguous = await collect()
+      check('an operator editor beside an agent editor is ambiguous: not ready, both named, neither queried', ambiguous.doctor.status !== 'ok' && ambiguous.provider.state === 'not-answering' && ambiguous.ide.vulcan.state === 'unreachable' && ambiguous.doctor.evidence.includes(operator.id) && ambiguous.doctor.evidence.includes(agent.id) && !/unbridged/.test(ambiguous.doctor.evidence) && operator.ops.length + agent.ops.length === before, ambiguous.doctor)
+    } finally { await agent.close() }
+    resetVulcanClientForTest()
+  } finally { resetVulcanClientForTest(); await operator.close(); await worker.close() }
   check('the legacy configured port was never contacted', legacyConnections === 0, legacyConnections)
 } finally {
   resetVulcanClientForTest()
