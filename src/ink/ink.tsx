@@ -514,6 +514,12 @@ export default class Ink {
   private applySettledResize = (): void => {
     this.resizeSettleTimer = null
     const { columns, rows } = this.liveSize()
+    this.applySize(columns, rows)
+    this.scheduler.releaseSettleHold(false)
+    if (this.currentTree !== null) this.render(this.currentTree)
+  }
+
+  private applySize(columns: number, rows: number): void {
     this.cachedColumns = columns
     this.cachedRows = rows
     this.parkPatch = this.buildParkPatch()
@@ -522,8 +528,6 @@ export default class Ink {
       this.resetFramesForAltScreen()
       this.needsEraseBeforePaint = true
     }
-    this.scheduler.releaseSettleHold(false)
-    if (this.currentTree !== null) this.render(this.currentTree)
   }
 
   private clearResizeSettle(): void {
@@ -644,10 +648,7 @@ export default class Ink {
           queueMicrotask(this.onRender)
           return
         }
-        this.cachedColumns = columns
-        this.cachedRows = rows
-        this.parkPatch = this.buildParkPatch()
-        this.ledger.contaminate('resize')
+        this.applySize(columns, rows)
         if (this.currentTree !== null) this.render(this.currentTree)
         this.calculateLayout()
       }
