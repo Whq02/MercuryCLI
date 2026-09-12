@@ -51,6 +51,7 @@ const RESULT_LABELS: Record<string, ResultLabel> = {
   formatDocument: { singular: 'edit', plural: 'edits' },
   formatRange: { singular: 'edit', plural: 'edits' },
   organizeImports: { singular: 'edit', plural: 'edits' },
+  moveSymbol: { singular: 'edit', plural: 'edits' },
 }
 
 function labelFor(operation: string, count: number): string {

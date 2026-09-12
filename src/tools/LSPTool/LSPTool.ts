@@ -1,3 +1,4 @@
+import type { UUID } from 'node:crypto'
 import { stat } from 'node:fs/promises'
 import { open } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
@@ -82,6 +83,7 @@ const MERCURY_BRIDGE_OPERATIONS = new Set([
   'organizeImports',
   'capabilities',
   'rawRequest',
+  'moveSymbol',
 ])
 
 const WRITE_CAPABLE_OPERATIONS: ReadonlySet<string> = new Set([
@@ -92,6 +94,7 @@ const WRITE_CAPABLE_OPERATIONS: ReadonlySet<string> = new Set([
   'formatDocument',
   'formatRange',
   'organizeImports',
+  'moveSymbol',
 ])
 
 type LooseInput = Partial<{
@@ -111,6 +114,9 @@ type LooseInput = Partial<{
   paths: string[]
   method: string
   params: string
+  plan: string
+  kind: string
+  targetPath: string
 }>
 
 function isMercuryApplyOp(input: LooseInput | undefined): boolean {
@@ -132,6 +138,9 @@ export type Output = {
   applied?: boolean
   outcome?: 'succeeded' | 'failed' | 'no-change' | 'indeterminate'
   changeView?: LspChangeView
+  edits?: NonNullable<MercuryLspOpOutput['edits']>
+  omittedEdits?: number
+  plan?: string
 }
 
 const lspPermissionShim = {
@@ -177,6 +186,21 @@ const outputSchema = lazySchema(() => {
         refs: z.array(z.string()),
       })
       .optional(),
+    edits: z
+      .array(
+        z.object({
+          file: z.string(),
+          range: z.object({
+            start: z.object({ line: z.number(), character: z.number() }),
+            end: z.object({ line: z.number(), character: z.number() }),
+          }),
+          before: z.string(),
+          after: z.string(),
+        }),
+      )
+      .optional(),
+    omittedEdits: z.number().optional(),
+    plan: z.string().optional(),
   })
 })
 
@@ -213,6 +237,9 @@ const flatSchema = lazySchema(() => {
     endLine: z.number().int().positive().optional().describe('Range end line'),
     endCharacter: z.number().int().positive().optional().describe('Range end character'),
     paths: z.array(z.string()).optional().describe('workspaceDiagnostics: files/directories (max 50)'),
+    plan: z.string().optional().describe('apply: the plan token the dry run printed (lsp-…)'),
+    kind: z.string().optional().describe('codeActions: a code-action kind to filter by (quickfix, refactor, source.organizeImports, source.addMissingImports, source.removeUnusedImports, source.removeUnused)'),
+    targetPath: z.string().optional().describe('moveSymbol: the file the declaration moves to'),
   })
 })
 
@@ -354,7 +381,7 @@ function documentSymbolCounts(result: unknown[]): { resultCount: number; fileCou
 }
 
 
-async function runLspToolCall(input: Input, context: ToolUseContext) {
+async function runLspToolCall(input: Input, context: ToolUseContext, messageId: UUID | undefined) {
   const startedAt = Date.now()
   const operation = input.operation
   const filePath = 'filePath' in input ? (input.filePath ?? '') : ''
@@ -390,6 +417,7 @@ async function runLspToolCall(input: Input, context: ToolUseContext) {
         manager,
         tool: lspPermissionShim as never,
         context,
+        ...(messageId !== undefined ? { messageId } : {}),
       })
       const data: Output = {
         operation,
@@ -402,6 +430,9 @@ async function runLspToolCall(input: Input, context: ToolUseContext) {
         ...(op.changeView && op.changeView.files.length > 0
           ? { changeView: op.changeView }
           : {}),
+        ...(op.edits !== undefined ? { edits: op.edits } : {}),
+        ...(op.omittedEdits !== undefined ? { omittedEdits: op.omittedEdits } : {}),
+        ...(op.plan !== undefined ? { plan: op.plan } : {}),
       }
       return {
         data,
@@ -657,7 +688,7 @@ export const LSPTool = buildTool({
   },
   get searchHint(): string {
     return mercuryLspEnabled()
-      ? 'code intelligence: definitions references hover symbols diagnostics rename code actions formatting'
+      ? 'code intelligence: definitions references hover symbols diagnostics rename move symbol refactor code actions formatting'
       : 'code intelligence: definitions references hover symbols call hierarchy'
   },
   isEnabled(): boolean {
@@ -750,8 +781,9 @@ export const LSPTool = buildTool({
     }
     return { result: true as const }
   },
-  async call(input: Input, context: ToolUseContext) {
-    return runWithLspAbortSignal(context.abortController.signal, () => runLspToolCall(input, context))
+  async call(input: Input, context: ToolUseContext, _canUseTool, parentMessage) {
+    const messageId = parentMessage?.uuid as UUID | undefined
+    return runWithLspAbortSignal(context.abortController.signal, () => runLspToolCall(input, context, messageId))
   },
   mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
     return { tool_use_id: toolUseID, type: 'tool_result' as const, content: data.result }
