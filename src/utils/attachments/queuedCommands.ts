@@ -42,6 +42,7 @@ export async function getQueuedCommandAttachments(
         commandMode: _.mode,
         origin: _.origin,
         isMeta: _.isMeta,
+        ...(_.sentAt !== undefined ? { sentAt: _.sentAt } : {}),
       }
     }),
   )

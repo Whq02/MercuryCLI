@@ -323,6 +323,7 @@ export function buildConcoursePromptFrame(prompt: string, extras?: ConcourseProm
     ...(extras?.mode === 'task-notification' && extras.agentId !== undefined
       ? { mode: 'task-notification', agent_id: extras.agentId }
       : {}),
+    ...(extras?.sentAt !== undefined ? { timestamp: extras.sentAt } : {}),
   })
 }
 
@@ -334,15 +335,17 @@ export interface ConcoursePromptExtras {
   priority?: 'now' | 'next' | 'later'
   content?: unknown[]
   identity?: string
+  sentAt?: string
 }
 
-function promptExtrasOf(req: Pick<ConcourseDispatchRequest, 'mode' | 'priority' | 'content' | 'agentId'>): ConcoursePromptExtras | undefined {
-  if (req.mode === undefined && req.priority === undefined && req.content === undefined) return undefined
+function promptExtrasOf(req: Pick<ConcourseDispatchRequest, 'mode' | 'priority' | 'content' | 'agentId' | 'sentAt'>): ConcoursePromptExtras | undefined {
+  if (req.mode === undefined && req.priority === undefined && req.content === undefined && req.sentAt === undefined) return undefined
   return {
     ...(req.mode !== undefined ? { mode: req.mode } : {}),
     ...(req.agentId !== undefined ? { agentId: req.agentId } : {}),
     ...(req.priority !== undefined ? { priority: req.priority } : {}),
     ...(req.content !== undefined ? { content: req.content } : {}),
+    ...(req.sentAt !== undefined ? { sentAt: req.sentAt } : {}),
   }
 }
 
@@ -466,6 +469,7 @@ export interface ConcourseDispatchRequest extends ConcourseAdmitRequest {
   agentId?: string
   priority?: 'now' | 'next' | 'later'
   content?: unknown[]
+  sentAt?: string
 }
 
 export type ConcourseDispatchResult = {

@@ -523,6 +523,11 @@ export function createAttachmentMessage(
     attachment,
     type: 'attachment',
     uuid: randomUUID(),
-    timestamp: new Date().toISOString(),
+    timestamp: sentClockOf(attachment) ?? new Date().toISOString(),
   }
+}
+
+function sentClockOf(attachment: Attachment): string | null {
+  if (attachment.type !== 'queued_command' || attachment.sentAt === undefined) return null
+  return Number.isFinite(Date.parse(attachment.sentAt)) ? attachment.sentAt : null
 }

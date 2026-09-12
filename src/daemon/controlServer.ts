@@ -839,6 +839,7 @@ async function routeControlRequest(
         ...(raw.mode === 'task-notification' && typeof raw.agentId === 'string' && raw.agentId !== '' ? { agentId: raw.agentId } : {}),
         ...(raw.priority === 'now' || raw.priority === 'next' || raw.priority === 'later' ? { priority: raw.priority } : {}),
         ...(Array.isArray(raw.content) && raw.content.length > 0 ? { content: raw.content } : {}),
+        ...(typeof raw.sentAt === 'string' && Number.isFinite(Date.parse(raw.sentAt)) ? { sentAt: raw.sentAt } : {}),
         ...(typeof raw.kitPreset === 'string' && raw.kitPreset !== '' ? { kitPreset: raw.kitPreset } : {}),
       })
       if (!r.ok) {

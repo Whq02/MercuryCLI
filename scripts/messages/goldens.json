@@ -24518,7 +24518,7 @@
  "stripPromptXMLTagsKeepEdges/edges": "    kept   ",
  "stripPromptXMLTagsKeepEdges/untouched": "<system-reminder>inner</system-reminder> visible",
  "wrapInSystemReminder/basic": "<system-reminder>\nremember this\n</system-reminder>",
- "wrapCommandText/basic": "The user sent a new message while you were working:\n/foo args\n\nIMPORTANT: After completing your current task, you MUST address the user's message above. Do not ignore it.",
+ "wrapCommandText/basic": "The operator sent a new message while you were working:\n/foo args\n\nIMPORTANT: Read this message before taking your next action and respond according to its intent.\n\n- If it corrects, clarifies, or adds a constraint to the active task, apply it before continuing any affected work.\n- If it asks a question or requests a status update, answer briefly, then resume the active task.\n- If it explicitly stops, cancels, replaces, or reprioritizes the task, follow that direction. Do not continue superseded work.\n- If it adds a separate task, retain it and complete it after the active task unless the operator specifies another order.\n\nA new message does not automatically replace the original objective. Preserve unfinished work and existing requirements unless the operator changes them.\n\nBefore ending your turn, account for this message: address it, incorporate it into the work, or explain any blocker. Do not silently drop it.",
  "formatCommandInputTags/basic": "<command-name>//compact</command-name>\n            <command-message>/compact</command-message>\n            <command-args>focus the summary</command-args>",
  "isEmptyMessageText/empty": true,
  "isEmptyMessageText/placeholder": true,
