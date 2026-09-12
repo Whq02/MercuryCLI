@@ -430,7 +430,7 @@ export class EngineJobService {
       return job
     }
     job.tree = facts
-    const refusal = await engineLeaseRefusal(this.projectRoot, facts, request.holder ?? projectLeaseHolder())
+    const refusal = await this.leaseRefusal(job)
     if (refusal) {
       removeEngineTree(job.treePath)
       this.stopHeartbeat(id)
@@ -441,6 +441,15 @@ export class EngineJobService {
     this.queue.push(job)
     this.pump()
     return job
+  }
+
+  private async leaseRefusal(job: EngineJob): Promise<string | null> {
+    if (!job.tree) return null
+    try {
+      return await engineLeaseRefusal(this.projectRoot, job.tree, job.request.holder ?? projectLeaseHolder())
+    } catch (e) {
+      return `cannot check the leases on the changed files: ${(e as Error).message}`
+    }
   }
 
   private baseRecord(job: EngineJob, executable: string, selected: string[]): EngineRunRecord {
@@ -745,7 +754,7 @@ export class EngineJobService {
       if (!job.tree) throw new Error('the frozen tree was not materialised')
       if (record.media?.kind === 'profile') await this.observeProfileQuiet(job, 'before-import', true)
       if (job.cancelRequested) throw new Error('engine job cancelled before import')
-      const refusal = await engineLeaseRefusal(this.projectRoot, job.tree, job.request.holder ?? projectLeaseHolder())
+      const refusal = await this.leaseRefusal(job)
       if (refusal) throw new Error(refusal)
       record.drift = await sourceProofDrift(this.projectRoot, job.treePath, job.tree, manifest.suites.map(suite => suiteRelativeFile(suite, manifest.defaults)))
       if (job.request.native && !job.request.displayShared) {
