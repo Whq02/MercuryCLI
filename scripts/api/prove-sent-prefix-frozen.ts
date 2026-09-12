@@ -781,7 +781,7 @@ process.stdin.on('end', () => process.exit(0))
       const last = ((reqs[reqs.length - 1]?.body as Body)?.messages ?? []) as Array<{ role: string; content: unknown }>
       const thinkingCount = last.reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0)
       check('the last request replays every earlier thinking block (four scripted)', thinkingCount === 4, String(thinkingCount))
-      check('no drop notice painted anywhere (the scripted lists are empty)', !(r.stdout + r.stderr).includes('reserved thinking'))
+      check('no drop receipt written anywhere (the scripted lists are empty)', !(r.stdout + r.stderr).includes('reserved thinking'))
       await fixture.close()
     }
 
@@ -835,7 +835,7 @@ process.stdin.on('end', () => process.exit(0))
       const diffs = census('§4', reqs, false)
       check('the post-compaction request starts from a rewritten messages[0] (the lawful change)', diffs[1] === 0, j(diffs))
       const notices = transcriptNotices(arena, SID)
-      check('the scripted drop paints exactly one receipt', notices.length === 1, `${notices.length} ${notices[0]?.slice(0, 200) ?? ''}`)
+      check('the scripted drop writes exactly one receipt (kept in the transcript, never painted)', notices.length === 1, `${notices.length} ${notices[0]?.slice(0, 200) ?? ''}`)
       const notice = notices[0] ?? ''
       check('…the receipt names compaction as the lawful cause', notice.includes('compaction'), notice.slice(0, 300))
       check('…and never the recurrence wording (nothing unlawful happened)', !notice.includes('rewriting') && !notice.includes('doctor'), notice.slice(0, 300))
