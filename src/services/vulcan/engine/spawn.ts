@@ -6,7 +6,7 @@ import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { runningGodotProcesses, type GodotProcess } from '../godotProcessCensus.js'
 import { engineChecksDir, engineTreesDir, isEnginePath } from './paths.js'
 import { engineUserEnv } from './userDir.js'
-import { VULCAN_INSTANCE_ENV, type VulcanInstance, type VulcanInstanceLaunch } from '../instances.js'
+import { VULCAN_INSTANCE_ENV, launchedVulcanInstance, type VulcanInstance, type VulcanInstanceLaunch } from '../instances.js'
 import { engineEstateEntry, engineTreeLiveness } from './liveness.js'
 import { removeEngineTree } from './frozenTree.js'
 
@@ -122,7 +122,7 @@ export function spawnEngine(req: EngineSpawnRequest): EngineHandle {
     label: req.label,
     pid,
     startedAt,
-    bridge: req.bridge && pid !== null ? { version: 1, id: req.bridge.id, role: req.bridge.role, port: req.bridge.port, pid, projectRoot: req.bridge.projectRoot, ownerPid: req.bridge.ownerPid } : null,
+    bridge: req.bridge && pid !== null ? launchedVulcanInstance(req.bridge, pid) : null,
     done,
     async kill(reason) {
       if (settled) return { ended: 0, survivors: [] }

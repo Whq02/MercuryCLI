@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, realpathSync } from 'node:fs'
 import * as path from 'node:path'
 import { isEngineInternalPath, runGit, type EngineTreeFacts } from './frozenTree.js'
 import { engineLogErrors, stripEngineAnsi } from './logs.js'
-import { engineRunPath, engineRunsDir } from './paths.js'
+import { engineRunPath, engineRunResultFile, engineRunsDir, isEngineJobId } from './paths.js'
 
 export type ProofTreeFacts = Pick<EngineTreeFacts, 'commit' | 'baseBlobs' | 'overlay'>
 
@@ -335,9 +335,9 @@ export function latestMatchingEvidenceRun(projectRoot: string, fingerprint: stri
   }
   let newest: { id: string; endedAt: number } | null = null
   for (const id of entries) {
-    if (!/^[A-Za-z0-9_-]+$/.test(id)) continue
+    if (!isEngineJobId(id)) continue
     try {
-      const record = JSON.parse(readFileSync(path.join(engineRunPath(projectRoot, id), 'result.json'), 'utf8')) as {
+      const record = JSON.parse(readFileSync(engineRunResultFile(engineRunPath(projectRoot, id)), 'utf8')) as {
         jobId: string; root: string; complete: boolean; endedAt: string | null; proofTreeFingerprint?: string
       }
       const endedAt = record.endedAt ? Date.parse(record.endedAt) : NaN
@@ -352,12 +352,12 @@ export function latestMatchingEvidenceRun(projectRoot: string, fingerprint: stri
 
 export function runEvidenceDrift(projectRoot: string, runId: string, fingerprint: string): ProofDriftRow[] {
   const refused = (message: string): ProofDriftRow[] => [{ kind: 'evidence-mismatch', file: '', line: null, runId, message }]
-  if (!/^[A-Za-z0-9_-]+$/.test(runId)) return refused('run evidence needs a project-local engine run ID, not a path')
+  if (!isEngineJobId(runId)) return refused('run evidence needs a project-local engine run ID, not a path')
   try {
     const dir = realpathSync(engineRunPath(projectRoot, runId))
     const expected = path.resolve(engineRunPath(realpathSync(projectRoot), runId))
     if (dir !== expected) return refused('run evidence directory is redirected outside its project run path')
-    const record = JSON.parse(readFileSync(path.join(dir, 'result.json'), 'utf8')) as {
+    const record = JSON.parse(readFileSync(engineRunResultFile(dir), 'utf8')) as {
       jobId: string
       root: string
       complete: boolean

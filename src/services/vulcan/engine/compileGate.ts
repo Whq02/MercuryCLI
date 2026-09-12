@@ -16,8 +16,7 @@ import {
 } from './frozenTree.js'
 import { engineLogErrors, stripEngineAnsi } from './logs.js'
 import { readEngineManifest, type EngineManifest } from './manifest.js'
-import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
-import { ENGINE_DIR_SEGMENT, engineChecksDir, ensureEngineEstate } from './paths.js'
+import { engineCheckDir, engineCheckProbeRelative, engineCheckTreeDir, engineCheckUserDir, engineChecksDir, ensureEngineEstate } from './paths.js'
 import { engineWorkerCount, newEngineJobId } from './service.js'
 import { spawnEngine } from './spawn.js'
 import { startEngineHeartbeat } from './liveness.js'
@@ -336,7 +335,7 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
   }
   ensureEngineEstate(projectRoot)
   const checkId = newEngineJobId()
-  const checkDir = path.join(engineChecksDir(projectRoot), checkId)
+  const checkDir = engineCheckDir(projectRoot, checkId)
   mkdirSync(engineChecksDir(projectRoot), { recursive: true })
   const heartbeat = startEngineHeartbeat(checkDir)
   let facts: Pick<EngineTreeFacts, 'commit' | 'baseBlobs' | 'overlay'>
@@ -346,7 +345,7 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
   try {
     mkdirSync(checkDir, { recursive: true })
     if (frozen) {
-      treePath = path.join(checkDir, 'tree')
+      treePath = engineCheckTreeDir(checkDir)
       const made = await materializeEngineTree(projectRoot, spec, treePath)
       if ('error' in made) {
         result.teaching = made.error
@@ -405,7 +404,7 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
       result.ok = result.drift.length === 0
       return result
     }
-    const userDir = path.join(checkDir, 'user')
+    const userDir = engineCheckUserDir(checkDir)
     mkdirSync(userDir, { recursive: true })
     const attribution = async (res: string): Promise<string | null> => {
       if (!res.startsWith('res://')) return null
@@ -437,7 +436,7 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
     }
     await Promise.all(Array.from({ length: Math.min(parallel, scripts.length) }, () => runNext()))
     if (shaders.length > 0) {
-      const scriptRel = path.posix.join(MERCURY_PROJECT_DIR, ENGINE_DIR_SEGMENT, 'checks', checkId, 'shader_check.gd')
+      const scriptRel = engineCheckProbeRelative(checkId)
       const scriptFile = path.join(enginePath, scriptRel)
       mkdirSync(path.dirname(scriptFile), { recursive: true })
       writeFileSync(scriptFile, shaderCheckScript(shaders.map(s => `res://${s}`)))

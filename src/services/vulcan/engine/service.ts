@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { VULCAN_ADDON_DIGEST } from '../addonFiles.generated.js'
 import { injectVulcanWorkerScript, installVulcanWorkerAddon } from '../addonInstaller.js'
-import { listVulcanInstances, prepareVulcanInstance, type VulcanInstance } from '../instances.js'
+import { listVulcanInstances, prepareVulcanInstance, vulcanInstanceDir, vulcanInstancesDir, type VulcanInstance } from '../instances.js'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
@@ -33,7 +33,7 @@ import {
   type EngineMarker,
   type EngineSuite,
 } from './manifest.js'
-import { engineRunPath, engineRunsDir, engineTreePath, engineUsersDir, ensureEngineEstate, isEnginePath } from './paths.js'
+import { ENGINE_RESULT_FILE, engineContactSheetFile, engineMediaDriverFile, engineMediaUserDir, engineRunLogFile, engineRunPath, engineRunResultFile, engineRunUserDir, engineRunsDir, engineTreePath, engineUsersDir, ensureEngineEstate, isEnginePath } from './paths.js'
 import { liveEngines, removeDeadEngineTrees, spawnEngine, sweepEngineOrphans, type EngineHandle, type EngineOrphanSweep } from './spawn.js'
 import { engineMediaCensus, finishEngineProfileBaseline, newEngineMediaRecord, readEngineMediaBoot, type EngineMediaRecord, type EngineMediaRequest } from './media.js'
 import { ENGINE_MEDIA_MARKER, writeEngineMediaDriver } from './mediaDriver.js'
@@ -50,7 +50,6 @@ export const ENGINE_DEFAULT_PRIORITY: EnginePriority = 'lane-gate'
 export const ENGINE_WORKERS_FLAG = 'MERCURY_GODOT_WORKERS'
 export const ENGINE_WORKERS_MAX = 16
 export const ENGINE_RECENT_KEEP = 50
-export const ENGINE_RESULT_FILE = 'result.json'
 export const ENGINE_QUIET_SAMPLE_MS = 1000
 
 export interface EngineJobRequest {
@@ -209,7 +208,7 @@ export function newEngineJobId(now: number = Date.now()): string {
 }
 
 export function readEngineRecord(projectRoot: string, jobId: string): EngineRunRecord | null {
-  const file = path.join(engineRunPath(projectRoot, jobId), ENGINE_RESULT_FILE)
+  const file = engineRunResultFile(engineRunPath(projectRoot, jobId))
   try {
     return JSON.parse(readFileSync(file, 'utf8')) as EngineRunRecord
   } catch {
@@ -465,7 +464,7 @@ export class EngineJobService {
       selected: job.request.media ? this.mediaNames(job.request.media) : selected,
       importCache: { key: '', hit: false, ran: false, seededFrom: null, stored: false },
       classCache: null,
-      userDir: path.join(job.runDir, 'user'),
+      userDir: engineRunUserDir(job.runDir),
       startedAt: job.startedAt ?? job.queuedAt,
       endedAt: null,
       cancelled: false,
@@ -479,7 +478,7 @@ export class EngineJobService {
     if (!job.record) return
     try {
       mkdirSync(job.runDir, { recursive: true })
-      writeFileSync(path.join(job.runDir, ENGINE_RESULT_FILE), JSON.stringify(job.record, null, 2))
+      writeFileSync(engineRunResultFile(job.runDir), JSON.stringify(job.record, null, 2))
     } catch {
       return
     }
@@ -536,7 +535,7 @@ export class EngineJobService {
   }
 
   private userDirFor(job: EngineJob, suite: EngineSuite | null): string {
-    const dir = suite && suite.userDir === 'keep' ? path.join(engineUsersDir(this.projectRoot), suite.name.replace(/[\\/]/g, '__')) : path.join(job.runDir, 'user')
+    const dir = suite && suite.userDir === 'keep' ? path.join(engineUsersDir(this.projectRoot), suite.name.replace(/[\\/]/g, '__')) : engineRunUserDir(job.runDir)
     mkdirSync(dir, { recursive: true })
     return dir
   }
@@ -563,10 +562,10 @@ export class EngineJobService {
     this.handles.set(job.id, handle)
     job.currentSuite = name
     const out = await handle.done
-    if (bridge) rmSync(path.join(job.treePath, '.godot', 'mercury-vulcan', bridge.id), { recursive: true, force: true })
+    if (bridge) rmSync(vulcanInstanceDir(job.treePath, bridge.id), { recursive: true, force: true })
     this.handles.delete(job.id)
     job.currentSuite = null
-    const logFile = path.join(job.runDir, `${name}.log`)
+    const logFile = engineRunLogFile(job.runDir, name)
     try {
       mkdirSync(path.dirname(logFile), { recursive: true })
       writeFileSync(logFile, out.output)
@@ -666,14 +665,14 @@ export class EngineJobService {
         record.budgetExceeded = true
         return
       }
-      const debuggerProfile = request.kind === 'profile' && request.source !== 'project' ? new GodotDebuggerProfile(request, path.join(job.runDir, 'media', variant, 'driver.gd')) : null
+      const debuggerProfile = request.kind === 'profile' && request.source !== 'project' ? new GodotDebuggerProfile(request, engineMediaDriverFile(job.runDir, variant)) : null
       try {
         if (debuggerProfile) await debuggerProfile.transport.listen()
         if (job.cancelRequested) return
         if (budgetLeft() <= 0) { record.budgetExceeded = true; return }
         const connection = debuggerProfile ? { port: debuggerProfile.transport.port, token: debuggerProfile.transport.token } : undefined
         const boot = writeEngineMediaDriver(job.runDir, job.treePath, request, variant, connection)
-        const userDir = path.join(job.runDir, 'media', variant, 'user')
+        const userDir = engineMediaUserDir(job.runDir, variant)
         mkdirSync(userDir, { recursive: true })
         let timer: ReturnType<typeof setInterval> | null = null
         let observing: Promise<void> | null = null
@@ -720,7 +719,7 @@ export class EngineJobService {
     }
     if (budgetLeft() <= 0) record.budgetExceeded = true
     if (job.cancelRequested || record.budgetExceeded) return
-    if (request.kind === 'capture') media.contactSheet = await writeEngineContactSheet(media.frames.map(frame => frame.path), path.join(job.runDir, 'media', 'contact-sheet.png'))
+    if (request.kind === 'capture') media.contactSheet = await writeEngineContactSheet(media.frames.map(frame => frame.path), engineContactSheetFile(job.runDir))
     this.writeRecord(job)
   }
 
@@ -756,7 +755,7 @@ export class EngineJobService {
       const hashes = engineTreeHashes(job.tree)
       if (bridged) hashes.key = createHash('sha256').update(hashes.key).update(VULCAN_ADDON_DIGEST).digest('hex')
       const seed = seedEngineTree(this.projectRoot, job.treePath, hashes.key)
-      rmSync(path.join(job.treePath, '.godot', 'mercury-vulcan'), { recursive: true, force: true })
+      rmSync(vulcanInstancesDir(job.treePath), { recursive: true, force: true })
       record.importCache = { key: hashes.key, hit: seed.hit, ran: false, seededFrom: seed.seededFrom, stored: false }
       const explicitImport = selection.entries.some(e => e.kind === 'import')
       if (!seed.hit || explicitImport) {
