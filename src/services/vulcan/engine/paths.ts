@@ -28,12 +28,17 @@ export function engineChecksDir(projectRoot: string): string {
   return path.join(engineDir(projectRoot), 'checks')
 }
 
+function runSegment(jobId: string): string {
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(jobId)) throw new Error('an engine job id must be a name, not a path')
+  return jobId
+}
+
 export function engineTreePath(projectRoot: string, jobId: string): string {
-  return path.join(engineTreesDir(projectRoot), jobId)
+  return path.join(engineTreesDir(projectRoot), runSegment(jobId))
 }
 
 export function engineRunPath(projectRoot: string, jobId: string): string {
-  return path.join(engineRunsDir(projectRoot), jobId)
+  return path.join(engineRunsDir(projectRoot), runSegment(jobId))
 }
 
 export function ensureEngineEstate(projectRoot: string): string {

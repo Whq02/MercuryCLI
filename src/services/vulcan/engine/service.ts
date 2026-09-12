@@ -1,10 +1,10 @@
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { availableCores } from '../../../utils/availableCores.js'
 import type { ProcessTreeKillReceipt } from '../../../utils/processGroup.js'
-import { describeGodotProcess, runningGodotProcesses, type GodotProcess } from '../godotProcessCensus.js'
+import { describeGodotProcess, runningGodotProcesses, sameProjectPath, type GodotProcess } from '../godotProcessCensus.js'
 import { resolveGodotExecutable } from '../portabilityDoctor.js'
 import { engineConsoleSibling, engineImportArgv, engineSuiteArgv } from './argv.js'
 import {
@@ -32,6 +32,10 @@ import {
 } from './manifest.js'
 import { engineChecksDir, engineRunPath, engineRunsDir, engineTreePath, engineTreesDir, engineUsersDir, ensureEngineEstate, isEnginePath } from './paths.js'
 import { liveEngines, spawnEngine, sweepEngineOrphans, type EngineHandle, type EngineOrphanSweep } from './spawn.js'
+import { engineMediaCensus, finishEngineProfileBaseline, newEngineMediaRecord, readEngineMediaBoot, type EngineMediaRecord, type EngineMediaRequest } from './media.js'
+import { ENGINE_MEDIA_MARKER, writeEngineMediaDriver } from './mediaDriver.js'
+import { writeEngineContactSheet } from './frames.js'
+import { engineTreeOwnerIsDead, writeEngineRunOwner } from './owner.js'
 
 export type EnginePriority = 'verifier' | 'fold-gate' | 'lane-gate' | 'profile'
 
@@ -52,6 +56,7 @@ export interface EngineJobRequest {
   displayShared: boolean
   keepTree: boolean
   label: string | null
+  media?: EngineMediaRequest
 }
 
 export type EngineJobState = 'queued' | 'running' | 'done' | 'cancelled' | 'failed'
@@ -113,6 +118,8 @@ export interface EngineRunRecord {
   budgetMs: number | null
   budgetExceeded: boolean
   error: string | null
+  media?: EngineMediaRecord
+  frames?: EngineMediaRecord['frames']
 }
 
 export interface EngineJob {
@@ -207,6 +214,15 @@ export function listEngineRunIds(projectRoot: string): string[] {
   }
 }
 
+function freezeEngineRequest<T>(value: T, seen = new WeakSet<object>()): T {
+  if (value !== null && typeof value === 'object' && !seen.has(value)) {
+    seen.add(value)
+    for (const nested of Object.values(value)) freezeEngineRequest(nested, seen)
+    Object.freeze(value)
+  }
+  return value
+}
+
 function summarize(job: EngineJob): EngineJobSummary {
   return {
     id: job.id,
@@ -228,6 +244,8 @@ function summarize(job: EngineJob): EngineJobSummary {
 }
 
 const SERVICES = new Map<string, EngineJobService>()
+const ACTIVE_SERVICES = new Set<EngineJobService>()
+let NATIVE_JOB: string | null = null
 
 export class EngineJobService {
   readonly projectRoot: string
@@ -241,9 +259,9 @@ export class EngineJobService {
   private readonly waiters = new Map<string, Array<() => void>>()
   private readonly busyWorkers = new Set<number>()
   private readonly census: () => Promise<GodotProcess[]>
+  private readonly mediaCensus: () => Promise<GodotProcess[]>
   private readonly executableOption: string | null
   private executableCache: { resolved: string; note: string } | null = null
-  private nativeJob: string | null = null
   private seq = 0
   private swept: EngineOrphanSweep[] = []
   private staleTreesRemoved: string[] = []
@@ -260,6 +278,7 @@ export class EngineJobService {
       this.workersSource = w.source === 'flag' ? ENGINE_WORKERS_FLAG : 'cores'
     }
     this.census = opts.census ?? (() => runningGodotProcesses())
+    this.mediaCensus = opts.census ?? engineMediaCensus
     this.executableOption = opts.executable ?? null
     this.ready = this.startup()
   }
@@ -279,10 +298,13 @@ export class EngineJobService {
   }
 
   private async startup(): Promise<void> {
+    let processes: GodotProcess[]
     try {
-      this.swept = await sweepEngineOrphans(this.projectRoot, await this.census())
+      processes = await this.mediaCensus()
+      this.swept = await sweepEngineOrphans(this.projectRoot, processes)
     } catch {
       this.swept = []
+      return
     }
     for (const dir of [engineTreesDir(this.projectRoot), engineChecksDir(this.projectRoot)]) {
       let names: string[] = []
@@ -292,8 +314,12 @@ export class EngineJobService {
         continue
       }
       for (const name of names) {
-        rmSync(path.join(dir, name), { recursive: true, force: true })
-        this.staleTreesRemoved.push(path.join(dir, name))
+        const tree = path.join(dir, name)
+        if (!engineTreeOwnerIsDead(this.projectRoot, tree)) continue
+        const workers = processes.filter(p => p.project !== undefined && sameProjectPath(path.resolve(p.project), path.resolve(tree)))
+        if (workers.some(p => !this.swept.some(s => s.pid === p.pid && s.receipt.survivors.length === 0))) continue
+        removeEngineTree(tree)
+        this.staleTreesRemoved.push(tree)
       }
     }
   }
@@ -318,16 +344,26 @@ export class EngineJobService {
   }
 
   async submit(request: EngineJobRequest): Promise<EngineJob | { refused: string }> {
+    request = structuredClone(request)
+    if (request.media) request = { ...request, native: request.media.route === 'display', capture: false, suites: [] }
+    request = freezeEngineRequest(request)
     await this.ready
+    if (request.media) {
+      if (request.media!.route === 'hidden') return { refused: 'hidden run refused: stock Godot shows its native bootstrap window before scripts initialize; no verified hidden bootstrap is available. Use headless project Image capture, or explicitly request route:"display".' }
+      if (request.media!.kind === 'profile' && request.media!.quiet === 'refuse') {
+        const workers = await this.otherEngineWorkers()
+        if (workers.length) return { refused: `quiet-machine guard refused profile: other engine workers are alive or the census is unavailable — ${workers.join('; ')}` }
+      }
+    }
     const manifest = this.manifest()
-    const selection = resolveEngineSuites(manifest, request.suites)
+    const selection = request.media ? { entries: [], unknown: [] } : resolveEngineSuites(manifest, request.suites)
     if (selection.unknown.length > 0) {
       const known = manifest.suites.map(s => s.name)
       return {
         refused: `Unknown suite: ${selection.unknown.join(', ')}${known.length > 0 ? ` — registered: ${known.join(', ')}` : ''}${manifest.teaching ? `; ${manifest.teaching}` : ''}`,
       }
     }
-    if (selection.entries.length === 0) {
+    if (!request.media && selection.entries.length === 0) {
       return { refused: manifest.teaching ?? `no suites selected — registered: ${manifest.suites.map(s => s.name).join(', ')}` }
     }
     if (request.capture && !request.native) return { refused: '--capture requires --native; headless runs do not prove appearance (pass native:true with capture:true)' }
@@ -354,8 +390,14 @@ export class EngineJobService {
       cancelRequested: false,
       tree: null,
     }
-    this.byId.set(id, job)
+    Object.defineProperty(job, 'request', { value: request, enumerable: true, writable: false, configurable: false })
     mkdirSync(job.runDir, { recursive: true })
+    try {
+      writeEngineRunOwner(this.projectRoot, id)
+    } catch (e) {
+      return { refused: `cannot record engine job ownership before materialization: ${(e as Error).message}` }
+    }
+    this.byId.set(id, job)
     const facts = await materializeEngineTree(this.projectRoot, request.tree, job.treePath)
     if ('error' in facts) {
       job.state = 'failed'
@@ -386,7 +428,7 @@ export class EngineJobService {
       label: job.request.label,
       priority: job.request.priority,
       native: job.request.native,
-      capture: job.request.capture,
+      capture: job.request.media?.kind === 'capture' || job.request.capture,
       enginePath: job.treePath,
       tree: {
         label: job.request.tree.label,
@@ -396,7 +438,8 @@ export class EngineJobService {
         skipped: job.tree?.skipped ?? [],
         kept: job.request.keepTree,
       },
-      selected,
+      ...(job.request.media ? { media: newEngineMediaRecord(job.request.media) } : {}),
+      selected: job.request.media ? this.mediaNames(job.request.media) : selected,
       importCache: { key: '', hit: false, ran: false, seededFrom: null, stored: false },
       classCache: null,
       userDir: path.join(job.runDir, 'user'),
@@ -433,13 +476,18 @@ export class EngineJobService {
   private pickNext(): EngineJob | null {
     const ordered = [...this.queue].sort((a, b) => priorityRank(a.request.priority) - priorityRank(b.request.priority) || a.seq - b.seq)
     for (const job of ordered) {
-      if (job.request.native && this.nativeJob !== null) continue
+      if (job.request.native && NATIVE_JOB !== null) continue
       return job
     }
     return null
   }
 
   private pump(): void {
+    if (this.queue.length === 0 && this.running.size === 0) {
+      ACTIVE_SERVICES.delete(this)
+      return
+    }
+    ACTIVE_SERVICES.add(this)
     while (this.running.size < this.workers) {
       const next = this.pickNext()
       if (!next) return
@@ -448,7 +496,7 @@ export class EngineJobService {
       while (this.busyWorkers.has(worker)) worker++
       this.busyWorkers.add(worker)
       this.running.set(next.id, next)
-      if (next.request.native) this.nativeJob = next.id
+      if (next.request.native) NATIVE_JOB = next.id
       void this.runJob(next, worker)
     }
   }
@@ -480,6 +528,7 @@ export class EngineJobService {
     userDir: string,
     unclean: RegExp,
   ): Promise<EngineResultRow> {
+    if (job.cancelRequested) throw new Error('engine job cancelled before launch')
     const handle = spawnEngine({ executable, args: argv, cwd: job.treePath, userDir, timeoutMs, label: `${job.id}:${name}` })
     this.handles.set(job.id, handle)
     job.currentSuite = name
@@ -528,13 +577,103 @@ export class EngineJobService {
     }
   }
 
+  private mediaNames(request: EngineMediaRequest): string[] {
+    return request.kind === 'profile' ? ['profile'] : request.pair ? ['capture-a', 'capture-b'] : ['capture-single']
+  }
+
+  private async otherEngineWorkers(job?: EngineJob): Promise<string[]> {
+    const workers = new Set<string>()
+    for (const service of ACTIVE_SERVICES) {
+      for (const active of service.running.values()) if (active !== job) workers.add(`engine job ${active.id} on ${service.projectRoot}`)
+    }
+    const ownPid = job ? this.handles.get(job.id)?.pid : null
+    for (const engine of liveEngines()) {
+      if (job && engine.label.startsWith(`${job.id}:`)) continue
+      workers.add(`pid ${engine.pid} ${engine.label}`)
+    }
+    try {
+      for (const engine of await this.mediaCensus()) {
+        if (job && (engine.pid === ownPid || (engine.project !== undefined && path.resolve(engine.project) === path.resolve(job.treePath)))) continue
+        workers.add(describeGodotProcess(engine))
+      }
+    } catch (e) {
+      workers.add(`census unavailable: ${(e as Error).message}`)
+    }
+    return [...workers]
+  }
+
+  private async observeProfileQuiet(job: EngineJob, stage: string, refuse: boolean): Promise<void> {
+    const media = job.record?.media
+    if (!media || media.kind !== 'profile') return
+    const workers = await this.otherEngineWorkers(job)
+    if (workers.length) media.quiet.contaminated = true
+    if (workers.length || media.quiet.observations.length < 1024) media.quiet.observations.push({ at: new Date().toISOString(), stage, workers })
+    this.writeRecord(job)
+    if (refuse && workers.length && media.quiet.policy === 'refuse') throw new Error(`quiet-machine guard refused profile: other engine workers are alive or the census is unavailable — ${workers.join('; ')}`)
+  }
+
+  private async runMedia(job: EngineJob, executable: string, timeoutMs: number, budgetLeft: () => number, unclean: RegExp): Promise<void> {
+    const request = job.request.media
+    const record = job.record
+    const media = record?.media
+    if (!request || !record || !media || !job.tree) throw new Error('media job is missing its frozen request or run record')
+    const variants = request.kind === 'capture' && request.pair ? ['a', 'b'] : ['single']
+    for (const variant of variants) {
+      if (job.cancelRequested) return
+      if (budgetLeft() <= 0) {
+        record.budgetExceeded = true
+        return
+      }
+      if (request.kind === 'profile') await this.observeProfileQuiet(job, 'before-measurement-boot', true)
+      if (job.cancelRequested) return
+      if (budgetLeft() <= 0) {
+        record.budgetExceeded = true
+        return
+      }
+      const boot = writeEngineMediaDriver(job.runDir, job.treePath, request, variant)
+      const userDir = path.join(job.runDir, 'media', variant, 'user')
+      mkdirSync(userDir, { recursive: true })
+      let timer: ReturnType<typeof setInterval> | null = null
+      let observing: Promise<void> | null = null
+      if (request.kind === 'profile') {
+        timer = setInterval(() => {
+          if (observing) return
+          observing = this.observeProfileQuiet(job, 'measurement-boot', false).finally(() => { observing = null })
+        }, 100)
+      }
+      let row: EngineResultRow
+      try {
+        media.boots++
+        row = await this.runOne(job, executable, request.kind === 'profile' ? 'profile' : `capture-${variant}`, boot.argv, Math.max(1, Math.min(timeoutMs, budgetLeft())), { kind: 'line', text: ENGINE_MEDIA_MARKER }, userDir, unclean)
+      } finally {
+        if (timer) clearInterval(timer)
+        if (observing) await observing
+      }
+      record.results.push(row)
+      if (row.timedOut && budgetLeft() <= 0) record.budgetExceeded = true
+      if (request.kind === 'profile') await this.observeProfileQuiet(job, 'after-measurement-boot', false)
+      this.writeRecord(job)
+      if (!row.ok || job.cancelRequested) return
+      const out = readEngineMediaBoot(boot.resultFile, request, variant, boot.outputDir)
+      media.evidence.push({ variant, ...out.evidence })
+      media.frames.push(...out.frames)
+      if (request.kind === 'capture') record.frames = media.frames
+      media.phases.push(...out.phases)
+      this.writeRecord(job)
+    }
+    if (budgetLeft() <= 0) record.budgetExceeded = true
+    if (job.cancelRequested || record.budgetExceeded) return
+    if (request.kind === 'capture') media.contactSheet = await writeEngineContactSheet(media.frames.map(frame => frame.path), path.join(job.runDir, 'media', 'contact-sheet.png'))
+    this.writeRecord(job)
+  }
+
   private async runJob(job: EngineJob, worker: number): Promise<void> {
     job.state = 'running'
     job.worker = worker
     job.startedAt = new Date().toISOString()
     const manifest = this.manifest()
-    const selection = resolveEngineSuites(manifest, job.request.suites)
-    const selected = selection.entries.map(e => (e.kind === 'import' ? IMPORT_SUITE_NAME : e.suite.name))
+    const selection = job.request.media ? { entries: [], unknown: [] } : resolveEngineSuites(manifest, job.request.suites)
+    const selected = job.request.media ? this.mediaNames(job.request.media) : selection.entries.map(e => (e.kind === 'import' ? IMPORT_SUITE_NAME : e.suite.name))
     const exe = await this.executable()
     const record = this.baseRecord(job, 'error' in exe ? '' : exe.resolved, selected)
     job.record = record
@@ -545,8 +684,11 @@ export class EngineJobService {
     try {
       if ('error' in exe) throw new Error(`no Godot executable: ${exe.error}`)
       if (!job.tree) throw new Error('the frozen tree was not materialised')
+      if (record.media?.kind === 'profile') await this.observeProfileQuiet(job, 'before-import', true)
+      if (job.cancelRequested) throw new Error('engine job cancelled before import')
       if (job.request.native && !job.request.displayShared) {
         const holder = await this.displayHolder()
+        if (job.cancelRequested) throw new Error('engine job cancelled while checking the display')
         if (holder) throw new Error(`native run refused: the display is held by ${holder} — pass displayShared:true to run beside it`)
       }
       const hashes = engineTreeHashes(job.tree)
@@ -559,9 +701,15 @@ export class EngineJobService {
         record.results.push(row)
         record.importCache.ran = true
         if (row.ok) record.importCache.stored = storeEngineCache(this.projectRoot, job.treePath, hashes.key).stored
+        if (row.timedOut && budgetLeft() <= 0) record.budgetExceeded = true
         this.writeRecord(job)
+        if (job.request.media && !row.ok) throw new Error('media import failed; no capture or measurement boot was started')
       }
       record.classCache = classCacheDigest(job.treePath)
+      if (job.request.media) {
+        await this.runMedia(job, exe.resolved, manifest.defaults.timeoutMs, budgetLeft, unclean)
+        if (budgetLeft() <= 0) record.budgetExceeded = true
+      }
       for (const entry of selection.entries) {
         if (entry.kind === 'import') continue
         if (job.cancelRequested) break
@@ -589,23 +737,42 @@ export class EngineJobService {
       const ran = record.results.filter((r): r is EngineResultRow => !('skipped' in r) && r.name !== IMPORT_SUITE_NAME)
       const importRows = record.results.filter((r): r is EngineResultRow => !('skipped' in r) && r.name === IMPORT_SUITE_NAME)
       record.allPass = !record.cancelled && !record.budgetExceeded && record.complete && ran.length > 0 && ran.every(r => r.ok) && importRows.every(r => r.ok)
+      if (record.media?.quiet.contaminated && record.media.quiet.policy === 'refuse') {
+        record.allPass = false
+        record.error = 'quiet-machine guard flagged contamination during the profile boot; timings are retained but are not a quiet comparison'
+        job.error = record.error
+      }
       job.state = job.cancelRequested ? 'cancelled' : 'done'
     } catch (e) {
       record.error = (e as Error).message
       job.error = record.error
       job.state = job.cancelRequested ? 'cancelled' : 'failed'
     } finally {
-      job.endedAt = new Date().toISOString()
-      record.endedAt = job.endedAt
       record.cancelled = record.cancelled || job.cancelRequested
       if (!job.request.keepTree) removeEngineTree(job.treePath)
       record.tree.kept = job.request.keepTree && existsSync(job.treePath)
+      if (job.request.media && budgetLeft() <= 0) record.budgetExceeded = true
+      if (record.cancelled || record.budgetExceeded || record.error !== null) record.allPass = false
+      job.endedAt = new Date().toISOString()
+      record.endedAt = job.endedAt
+      const media = record.media
+      if (media?.kind === 'profile' && (media.request.baseline.save || media.request.baseline.compare)) {
+        if (job.state === 'done' && record.allPass && !media.quiet.contaminated && job.tree) {
+          try {
+            finishEngineProfileBaseline(this.projectRoot, job.tree.commit, [...job.tree.overlay].some(([file, blob]) => blob !== job.tree!.baseBlobs.get(file)), record.executable, media)
+          } catch (e) {
+            media.baseline.reason = `Cannot finish baseline: ${(e as Error).message}`
+          }
+        } else {
+          media.baseline.reason = 'Baseline save and comparison require a successful quiet profile without cancellation, errors, or an exceeded budget.'
+        }
+      }
       this.writeRecord(job)
       this.running.delete(job.id)
       this.busyWorkers.delete(worker)
-      if (this.nativeJob === job.id) this.nativeJob = null
+      if (NATIVE_JOB === job.id) NATIVE_JOB = null
       this.remember(job)
-      this.pump()
+      for (const service of ACTIVE_SERVICES) service.pump()
     }
   }
 
@@ -668,7 +835,7 @@ export class EngineJobService {
     return {
       root: this.projectRoot,
       workers: { count: this.workers, source: this.workersSource, busy: this.running.size },
-      display: { nativeJob: this.nativeJob },
+      display: { nativeJob: NATIVE_JOB },
       queued: [...this.queue].sort((a, b) => priorityRank(a.request.priority) - priorityRank(b.request.priority) || a.seq - b.seq).map(summarize),
       running: [...this.running.values()].map(summarize),
       recent: this.recent.slice(0, 20).map(summarize),
@@ -682,5 +849,6 @@ export class EngineJobService {
   async shutdown(): Promise<void> {
     for (const job of [...this.queue]) await this.cancel(job.id)
     for (const id of [...this.running.keys()]) await this.cancel(id)
+    ACTIVE_SERVICES.delete(this)
   }
 }

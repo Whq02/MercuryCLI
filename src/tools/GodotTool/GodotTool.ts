@@ -46,6 +46,9 @@ const LOCAL_OPS = new Set([
   'engine_jobs',
   'engine_cancel',
   'engine_result',
+  'engine_capture',
+  'engine_frames',
+  'engine_profile',
 ])
 
 const UNREACHABLE_CODES = new Set(['HANDSHAKE_CLOSED', 'CONNECTION_LOST', 'CLIENT_CLOSED'])
