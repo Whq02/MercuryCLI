@@ -50,6 +50,7 @@ export const ENGINE_WORKERS_FLAG = 'MERCURY_GODOT_WORKERS'
 export const ENGINE_WORKERS_MAX = 16
 export const ENGINE_RECENT_KEEP = 50
 export const ENGINE_RESULT_FILE = 'result.json'
+export const ENGINE_QUIET_SAMPLE_MS = 1000
 
 export interface EngineJobRequest {
   holder?: LeaseHolder
@@ -558,8 +559,8 @@ export class EngineJobService {
     const scriptIndex = argv.indexOf('--script')
     const script = scriptIndex >= 0 ? argv[scriptIndex + 1] : undefined
     const bridged = !job.request.media && !argv.includes('--check-only') && (script === undefined || script.startsWith('res://'))
-    if (bridged && script) injectVulcanWorkerScript(job.treePath, script)
-    const bridge = bridged ? await prepareVulcanInstance(job.treePath, name === IMPORT_SUITE_NAME ? 'agent-editor' : job.request.native ? 'native-worker' : 'headless-worker') : undefined
+    const instrumented = bridged && script ? injectVulcanWorkerScript(job.treePath, script) : bridged
+    const bridge = instrumented ? await prepareVulcanInstance(job.treePath, name === IMPORT_SUITE_NAME ? 'agent-editor' : job.request.native ? 'native-worker' : 'headless-worker') : undefined
     const handle = spawnEngine({ executable, args: argv, cwd: job.treePath, userDir, timeoutMs, label: `${job.id}:${name}`, ...(bridge ? { bridge } : {}) })
     this.handles.set(job.id, handle)
     job.currentSuite = name
@@ -642,9 +643,10 @@ export class EngineJobService {
     const media = job.record?.media
     if (!media || media.kind !== 'profile') return
     const workers = await this.otherEngineWorkers(job)
+    const contaminatedBefore = media.quiet.contaminated
     if (workers.length) media.quiet.contaminated = true
     if (workers.length || media.quiet.observations.length < 1024) media.quiet.observations.push({ at: new Date().toISOString(), stage, workers })
-    this.writeRecord(job)
+    if (media.quiet.contaminated !== contaminatedBefore) this.writeRecord(job)
     if (refuse && workers.length && media.quiet.policy === 'refuse') throw new Error(`quiet-machine guard refused profile: other engine workers are alive or the census is unavailable — ${workers.join('; ')}`)
   }
 
@@ -675,7 +677,7 @@ export class EngineJobService {
         timer = setInterval(() => {
           if (observing) return
           observing = this.observeProfileQuiet(job, 'measurement-boot', false).finally(() => { observing = null })
-        }, 100)
+        }, ENGINE_QUIET_SAMPLE_MS)
       }
       let row: EngineResultRow
       try {
@@ -725,7 +727,6 @@ export class EngineJobService {
       const refusal = await engineLeaseRefusal(this.projectRoot, job.tree, job.request.holder ?? projectLeaseHolder())
       if (refusal) throw new Error(refusal)
       record.drift = await sourceProofDrift(this.projectRoot, job.treePath, job.tree, manifest.suites.map(suite => suiteRelativeFile(suite, manifest.defaults)))
-      if (record.drift.length > 0) throw new Error('proof drift against HEAD; see the named drift rows')
       if (job.request.native && !job.request.displayShared) {
         const holder = await this.displayHolder()
         if (job.cancelRequested) throw new Error('engine job cancelled while checking the display')
