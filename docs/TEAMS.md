@@ -105,7 +105,9 @@ rename, reconnect, or restart never mints a duplicate.
 
 `/team` opens the crew board on `/tasks` — the named agents, their phases and
 handoffs. `/teammates` is the Crew view: the session's sub-agents live, and the
-named agents' chats. `/crew` shows the directory with presence and external
+named agents' chats; each sub-agent row carries the count of notices delivered
+to it that no turn of its own has read yet ([SESSIONS.md](SESSIONS.md), "A
+notice an agent has not read"). `/crew` shows the directory with presence and external
 seat attach/detach. `/sessions` manages this project's sessions, including
 named-agent chats.
 

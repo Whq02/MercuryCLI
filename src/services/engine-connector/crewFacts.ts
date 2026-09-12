@@ -42,6 +42,7 @@ export interface CrewAgentFacts {
   phase: AgentWaitV1 | null
   paused: AgentPauseV1 | null
   pendingAsks: number
+  unreadNotices: number
   sessionId: string | null
 }
 
@@ -106,6 +107,7 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
     phase: row.phase ?? null,
     paused: decodeAgentPause(row.paused),
     pendingAsks: row.pendingAsks ?? 0,
+    unreadNotices: typeof row.unreadNotices === 'number' && Number.isFinite(row.unreadNotices) && row.unreadNotices > 0 ? Math.floor(row.unreadNotices) : 0,
     sessionId,
   }
 }
@@ -197,6 +199,11 @@ export function crewPauseLine(facts: CrewAgentFacts, nowMs: number): string | nu
 
 export function crewPaused(agents: readonly CrewAgentFacts[]): CrewAgentFacts[] {
   return agents.filter(a => a.state === 'paused')
+}
+
+export function crewUnreadLabel(facts: CrewAgentFacts): string | null {
+  if (!(facts.unreadNotices > 0)) return null
+  return `${facts.unreadNotices} unread`
 }
 
 export function crewToolUsesLabel(facts: CrewAgentFacts): string | null {

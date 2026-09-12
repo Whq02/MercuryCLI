@@ -16,6 +16,7 @@ import {
 } from '../../tools/WorkflowTool/runManifest.js'
 import { workflowPulseFacts } from '../../tools/WorkflowTool/livePulse.js'
 import type { WorkPhaseV1, WorkRowV1 } from '../../services/engine-connector/types.js'
+import { unreadNoticeCount } from '../../services/notices/unreadLedger.js'
 
 
 const MAX_NAME = 120
@@ -94,6 +95,12 @@ function plainRow(task: TaskState, kind: WorkRowV1['kind'], name: string): WorkR
 const finite = (v: unknown): number | undefined =>
   typeof v === 'number' && Number.isFinite(v) ? v : undefined
 
+function unreadNoticesOf(...ids: readonly string[]): Partial<WorkRowV1> {
+  let n = 0
+  for (const id of new Set(ids)) n += unreadNoticeCount(id)
+  return n > 0 ? { unreadNotices: n } : {}
+}
+
 function agentCounters(task: TaskState): Partial<WorkRowV1> {
   const progress = (task as { progress?: unknown }).progress
   if (typeof progress !== 'object' || progress === null) return {}
@@ -158,6 +165,7 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
         agentId: task.agentId,
         ...(task.agentType !== undefined ? { agentType: task.agentType } : {}),
         ...agentCounters(task),
+        ...unreadNoticesOf(task.id, String(task.agentId)),
         ...(typeof task.wait === 'string' && task.wait !== '' ? { wait: task.wait } : {}),
         ...(typeof task.pendingAsks === 'number' && task.pendingAsks > 0 ? { pendingAsks: task.pendingAsks } : {}),
         ...(task.paused !== undefined
@@ -176,6 +184,7 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
         agentId: task.identity.agentId,
         team: clip(task.identity.teamName, MAX_NAME),
         ...agentCounters(task),
+        ...unreadNoticesOf(task.id, task.identity.agentId),
       })
     } else if (isLocalShellTask(task)) {
       rows.push(plainRow(task, task.kind === 'monitor' ? 'monitor' : 'shell', task.command))

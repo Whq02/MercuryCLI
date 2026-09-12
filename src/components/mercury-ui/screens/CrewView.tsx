@@ -16,6 +16,7 @@ import {
   crewStatusWords,
   crewWaitLine,
   crewTokensLabel,
+  crewUnreadLabel,
   type CrewAgentFacts,
   crewWaitHolders,
 } from '../../../services/engine-connector/crewFacts.js'
@@ -296,6 +297,7 @@ function AgentRow({
   const spend = billed ? crewCostLabel(facts) : null
   const wait = crewWaitLine(facts)
   const holders = crewWaitHolders(facts)
+  const unread = crewUnreadLabel(facts)
   return (
     <Box width={width}>
       <Text wrap="truncate-end">
@@ -317,6 +319,7 @@ function AgentRow({
           {stopped || failed ? ` · ${facts.stopReason !== null ? `${facts.stopReason} · ` : ''}${CREW_RESUME_HINT}` : ''}
           {paused && facts.paused !== null ? ` · ${facts.paused.words} · ${CREW_RESUME_HINT}` : ''}
         </Text>
+        {unread !== null ? <Text color={tokens.warning}> · {unread}</Text> : null}
         {holders !== null ? <Text color={tokens.warning}> · {holders}</Text> : null}
       </Text>
     </Box>
