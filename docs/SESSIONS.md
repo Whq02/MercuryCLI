@@ -302,6 +302,25 @@ door, the whole estate is live behind the chat — the daemon, the board and
 every other running session — and a resume yields, drains, kills, swaps or
 respawns nothing.
 
+## The preserved-thinking record
+
+Each session keeps one small record beside its samples and its computer-use
+grant, `<config-home>/sessions/<session id>/prefix-ledger.json`: a digest of
+every part of the last request Mercury sent for it — each block of the system
+prompt (with its text, so a moved section can be named), each tool, each
+message block — and the response ids the history carried; never a word of
+the conversation, a tool's output or an image. A fresh process bringing the
+session back compares its first request against it, so a dropped thinking
+block is named by the part that moved, and a record a request behind (the
+previous process ended before its last write) says so instead of naming a
+part. The record is written in the background once a request is on the wire
+— never in the request path, one write for a burst of requests — and flushed
+when the process exits. It is removed with its session: when the row is
+removed from the board, and when the operator's prune deletes the transcript.
+An interactive boot sweeps the rest: a record whose transcript no longer
+exists goes, and so does one older than `MERCURY_PREFIX_RECORD_RETENTION_DAYS`
+(thirty days unset); a live session's record is never touched.
+
 ## Winding a chat back
 
 `/rewind` (alias `/checkpoint`) lists the turns of the focused chat and
@@ -454,7 +473,7 @@ finds the agent gone — its run ended, it was stopped, no such agent in the
 session — retires the notice: the row reads `retired` and says why, and the
 line nothing would read leaves the queue. The deadline is
 `MERCURY_NOTICE_DEADLINE_MS`, a whole number of milliseconds at or above
-1000; unset, it is thirty seconds.
+1000; unset, it is three minutes.
 
 ## Where the pieces live
 
@@ -464,8 +483,8 @@ line nothing would read leaves the queue. The deadline is
 - Schedules that wake a session or birth one on the clock are
   [SATURN.md](SATURN.md)'s.
 - Workspace trust and the user-private commands are [TRUST.md](TRUST.md)'s.
-- The idle-retirement, birth-grace and unread-notice deadline knobs are rows
-  of the flag registry.
+- The idle-retirement, birth-grace, unread-notice deadline and prefix-record
+  retention knobs are rows of the flag registry.
 - The box's state rides the session facts as the `box` row, for the agents
   as much as the screen: the load per core and the memory available, the
   box lock's slots with who holds each and who waits (the coordination
