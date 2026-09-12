@@ -1,11 +1,14 @@
 import { spawn, spawnSync } from 'node:child_process'
+import { readdirSync, rmSync } from 'node:fs'
+import * as path from 'node:path'
 import { endProcessTree, endProcessTreeSurvivors, win32TaskkillCommand, type ProcessTreeKillReceipt } from '../../../utils/processGroup.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { runningGodotProcesses, type GodotProcess } from '../godotProcessCensus.js'
-import { isEnginePath } from './paths.js'
+import { engineChecksDir, engineTreesDir, isEnginePath } from './paths.js'
 import { engineUserEnv } from './userDir.js'
 import { VULCAN_INSTANCE_ENV, type VulcanInstance, type VulcanInstanceLaunch } from '../instances.js'
-import { engineTreeLiveness } from './liveness.js'
+import { engineEstateEntry, engineTreeLiveness } from './liveness.js'
+import { removeEngineTree } from './frozenTree.js'
 
 export const ENGINE_OUTPUT_CAP = 64 * 1024 * 1024
 
@@ -207,6 +210,29 @@ export async function sweepEngineOrphans(projectRoot: string, census?: GodotProc
     out.push({ pid: p.pid, project: p.project, executable: p.executable, receipt })
   }
   return out
+}
+
+export function removeDeadEngineTrees(projectRoot: string, processes: readonly GodotProcess[], swept: readonly EngineOrphanSweep[]): string[] {
+  const removed: string[] = []
+  for (const dir of [engineTreesDir(projectRoot), engineChecksDir(projectRoot)]) {
+    let names: string[] = []
+    try {
+      names = readdirSync(dir)
+    } catch {
+      continue
+    }
+    for (const name of names) {
+      const target = path.join(dir, name)
+      const entry = engineEstateEntry(projectRoot, target)
+      if (!entry || engineTreeLiveness(projectRoot, entry.path).alive) continue
+      const workers = processes.filter(p => p.project !== undefined && engineEstateEntry(projectRoot, p.project)?.path === entry.path)
+      if (workers.some(p => !swept.some(s => s.pid === p.pid && s.receipt.survivors.length === 0))) continue
+      if (target === entry.path) removeEngineTree(target)
+      else rmSync(target, { recursive: true, force: true })
+      removed.push(target)
+    }
+  }
+  return removed
 }
 
 export function engineProcessesFor(projectRoot: string, processes: readonly GodotProcess[]): GodotProcess[] {

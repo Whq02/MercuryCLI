@@ -33,13 +33,13 @@ import {
   type EngineMarker,
   type EngineSuite,
 } from './manifest.js'
-import { engineChecksDir, engineRunPath, engineRunsDir, engineTreePath, engineTreesDir, engineUsersDir, ensureEngineEstate, isEnginePath } from './paths.js'
-import { liveEngines, spawnEngine, sweepEngineOrphans, type EngineHandle, type EngineOrphanSweep } from './spawn.js'
+import { engineRunPath, engineRunsDir, engineTreePath, engineUsersDir, ensureEngineEstate, isEnginePath } from './paths.js'
+import { liveEngines, removeDeadEngineTrees, spawnEngine, sweepEngineOrphans, type EngineHandle, type EngineOrphanSweep } from './spawn.js'
 import { engineMediaCensus, finishEngineProfileBaseline, newEngineMediaRecord, readEngineMediaBoot, type EngineMediaRecord, type EngineMediaRequest } from './media.js'
 import { ENGINE_MEDIA_MARKER, writeEngineMediaDriver } from './mediaDriver.js'
 import { GodotDebuggerProfile } from './debuggerProfile.js'
 import { writeEngineContactSheet } from './frames.js'
-import { engineEstateEntry, engineTreeLiveness, startEngineHeartbeat } from './liveness.js'
+import { startEngineHeartbeat } from './liveness.js'
 import { engineLeaseRefusal, projectLeaseHolder, type LeaseHolder } from './leases.js'
 import { engineLogDrift, proofTreeFingerprint, sourceProofDrift, type ProofDriftRow } from './proofDrift.js'
 
@@ -323,24 +323,7 @@ export class EngineJobService {
       this.sweepError = `the orphan sweep did not run: ${(e as Error).message}`
       return
     }
-    for (const dir of [engineTreesDir(this.projectRoot), engineChecksDir(this.projectRoot)]) {
-      let names: string[] = []
-      try {
-        names = readdirSync(dir)
-      } catch {
-        continue
-      }
-      for (const name of names) {
-        const target = path.join(dir, name)
-        const entry = engineEstateEntry(this.projectRoot, target)
-        if (!entry || engineTreeLiveness(this.projectRoot, entry.path).alive) continue
-        const workers = processes.filter(p => p.project !== undefined && engineEstateEntry(this.projectRoot, p.project)?.path === entry.path)
-        if (workers.some(p => !this.swept.some(s => s.pid === p.pid && s.receipt.survivors.length === 0))) continue
-        if (target === entry.path) removeEngineTree(target)
-        else rmSync(target, { recursive: true, force: true })
-        this.staleTreesRemoved.push(target)
-      }
-    }
+    this.staleTreesRemoved = removeDeadEngineTrees(this.projectRoot, processes, this.swept)
   }
 
   private stopHeartbeat(id: string): void {
