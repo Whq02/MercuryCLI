@@ -24,7 +24,7 @@ for (const k of ['MERCURY_ENTER_MENU', 'MERCURY_THEMIS', 'MERCURY_MNEME', 'MERCU
   delete process.env[k]
 }
 
-const { STARTUP_MENU, menuRowChoices, applyBootMenuEnv, BOOT_ENV_VERSION } = await import('../../src/substrate/startupMenu.js')
+const { STARTUP_MENU, menuRowChoices, menuRowValueLabel, applyBootMenuEnv, BOOT_ENV_VERSION, resolveComputerAccess, computerAccessDefaultLabel, resolveEffectiveSettingsSnapshot } = await import('../../src/substrate/startupMenu.js')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
 const { getWorkflowToolPrompt } = await import('../../src/tools/WorkflowTool/workflowPrompt.js')
 
@@ -51,18 +51,39 @@ section('registry floor — rows ⊆ FLAG_REGISTRY, sane choices')
   const computerAt = STARTUP_MENU.findIndex(r => r.env === 'MERCURY_COMPUTER_USE')
   check('the computer-use row is a toggle, on by default, off its one value',
     computerAt >= 0 && STARTUP_MENU[computerAt]!.kind === 'toggle' && STARTUP_MENU[computerAt]!.defaultLabel === 'on' && STARTUP_MENU[computerAt]!.options.join(',') === '0')
-  check('the computer-use row reaches new sessions (no live class)', STARTUP_MENU[computerAt]!.applicationClass === undefined)
+  const accessAt = STARTUP_MENU.findIndex(r => r.env === 'MERCURY_COMPUTER_ACCESS')
+  const access = STARTUP_MENU[accessAt]
+  check('the access-type row sits directly under it in the same group: an enum of asks, permissive, full — asks by default',
+    accessAt === computerAt + 1 && access !== undefined && access.group === STARTUP_MENU[computerAt]!.group && access.label === 'Access type' && access.kind === 'enum' && access.defaultLabel === 'asks' && access.options.join(',') === 'asks,permissive,full')
+  check('both computer rows reach new sessions (no live class)', STARTUP_MENU[computerAt]!.applicationClass === undefined && access?.applicationClass === undefined)
+  check('the access-type foot line says what each value does',
+    access?.summary === 'asks: the first act in each application asks · permissive: the application in front when the turn began never asks, any other asks once · full: nothing asks', access?.summary)
+  check('its detail says the same in full and that the default follows Sovereign mode, a saved value winning',
+    /asks \(the default\)/.test(access?.detail?.controls ?? '') && /permissive:/.test(access?.detail?.controls ?? '') && /full: nothing asks/.test(access?.detail?.controls ?? '') && (access?.detail?.controls ?? '').includes('With Sovereign mode on the default is full; a saved value here wins'))
+  check("its unset default follows the Sovereign mode row's on value, with the resolver's own label",
+    access?.defaultFollows?.env === 'MERCURY_SKIP_PERMISSIONS' && access?.defaultFollows?.value === '1' && access?.defaultFollows?.label === 'default (full · sovereign mode)', JSON.stringify(access?.defaultFollows))
+  check('the resolver: unset follows the posture — asks with Sovereign mode off, full with it on',
+    JSON.stringify(resolveComputerAccess(null, false)) === JSON.stringify({ value: 'asks', source: 'default' }) && JSON.stringify(resolveComputerAccess(undefined, true)) === JSON.stringify({ value: 'full', source: 'sovereign mode' }))
+  check('the resolver: a saved value wins in both postures',
+    ['asks', 'permissive', 'full'].every(v => [false, true].every(on => JSON.stringify(resolveComputerAccess(v, on)) === JSON.stringify({ value: v, source: 'saved' }))))
+  check("the resolver: the earlier value 'sovereign' is foreign and the default applies in each posture",
+    JSON.stringify(resolveComputerAccess('sovereign', false)) === JSON.stringify({ value: 'asks', source: 'default' }) && JSON.stringify(resolveComputerAccess('sovereign', true)) === JSON.stringify({ value: 'full', source: 'sovereign mode' }))
+  check('the default labels come from the resolver: default (asks) with the posture off, default (full · sovereign mode) with it on',
+    computerAccessDefaultLabel(false) === 'default (asks)' && menuRowChoices(access!)[0]!.label === 'default (asks)' && computerAccessDefaultLabel(true) === 'default (full · sovereign mode)')
+  const accessLabel = (saved: string | null, sovereign: string | null): string => menuRowValueLabel(access!, saved, env => (env === 'MERCURY_SKIP_PERMISSIONS' ? sovereign : null))
+  check('the value column: unset reads the derived default of its posture; a saved value reads itself in either posture',
+    accessLabel(null, null) === 'default (asks)' && accessLabel(null, '1') === 'default (full · sovereign mode)' && accessLabel('asks', '1') === 'asks' && accessLabel('permissive', null) === 'permissive' && accessLabel('full', '1') === 'full' && accessLabel('full', null) === 'full')
+  check('every other row reads its plain default through the same helper', STARTUP_MENU.filter(r => r.env !== 'MERCURY_COMPUTER_ACCESS').every(r => menuRowValueLabel(r, null, () => '1') === menuRowChoices(r)[0]!.label))
   const sovereign = STARTUP_MENU.find(r => r.env === 'MERCURY_SKIP_PERMISSIONS')
   check('the Sovereign mode row is the trust combo\'s bypass toggle, off by default, on its one value',
     sovereign !== undefined && sovereign.label === 'Sovereign mode' && sovereign.group === 'trust combo' && sovereign.kind === 'toggle' && sovereign.defaultLabel === 'off' && sovereign.options.join(',') === '1')
   check('its foot line says no permission question is asked — files, commands, computer use',
     sovereign?.summary === 'no permission question is asked — not for files, commands, or computer use; you take the wheel', sovereign?.summary)
   check('its detail names computer use among what stops asking', /computer use/.test(sovereign?.detail?.controls ?? '') && (sovereign?.detail?.on ?? []).some(l => /computer use included/.test(l)))
-  check('no other row carries the sovereign name and the access-type row is gone',
-    STARTUP_MENU.filter(r => /sovereign/i.test(r.label)).length === 1 && !STARTUP_MENU.some(r => r.env === 'MERCURY_COMPUTER_ACCESS'))
+  check('no other row carries the sovereign name', STARTUP_MENU.filter(r => /sovereign/i.test(r.label)).length === 1)
   const samplesAt = STARTUP_MENU.findIndex(r => r.env === 'MERCURY_SAMPLES')
-  check('the samples row is a toggle, off by default, 1 its one value, in its own group directly after the computer-use row',
-    samplesAt === computerAt + 1 && STARTUP_MENU[samplesAt]!.kind === 'toggle' && STARTUP_MENU[samplesAt]!.defaultLabel === 'off' && STARTUP_MENU[samplesAt]!.options.join(',') === '1' && STARTUP_MENU[samplesAt]!.group === 'samples' && STARTUP_MENU[samplesAt]!.label === 'Samples' && STARTUP_MENU[samplesAt]!.applicationClass === undefined)
+  check('the samples row is a toggle, off by default, 1 its one value, in its own group directly after the access-type row',
+    samplesAt === accessAt + 1 && STARTUP_MENU[samplesAt]!.kind === 'toggle' && STARTUP_MENU[samplesAt]!.defaultLabel === 'off' && STARTUP_MENU[samplesAt]!.options.join(',') === '1' && STARTUP_MENU[samplesAt]!.group === 'samples' && STARTUP_MENU[samplesAt]!.label === 'Samples' && STARTUP_MENU[samplesAt]!.applicationClass === undefined)
   check('the samples row\'s foot line says what a sample is', /a page the model draws when you ask to see something/.test(STARTUP_MENU[samplesAt]?.summary ?? '') && /your marks/.test(STARTUP_MENU[samplesAt]?.summary ?? ''))
   const enterMenu = getFlagSpec('MERCURY_ENTER_MENU')
   check('MERCURY_ENTER_MENU registered default-on / infra, consumed by the applier',
@@ -115,6 +136,12 @@ section('command-owned setting rows — the /caching dial law')
     w2.ok === true && savedAfter.MERCURY_CACHE_TTL === '1h' && savedAfter.MERCURY_THEMIS === 'warn')
   const wBad = writeBootEnvChoice('MERCURY_CACHE_TTL', 'forever', wFile)
   check('the writer refuses a foreign dial value', wBad.ok === false)
+  const staleFile = join(scratch, 'boot-env-stale-writer.json')
+  writeFileSync(staleFile, JSON.stringify({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_ACCESS: 'sovereign', MERCURY_THEMIS: 'warn' } }))
+  const wStale = writeBootEnvChoice('MERCURY_MNEME', '1', staleFile)
+  const afterStale = readBootEnvChoices(staleFile) ?? {}
+  check("a stale foreign value already in the file (an earlier build's 'sovereign') never refuses a later save: it is pruned and every other saved row is kept",
+    wStale.ok === true && afterStale.MERCURY_COMPUTER_ACCESS === undefined && afterStale.MERCURY_THEMIS === 'warn' && afterStale.MERCURY_MNEME === '1', JSON.stringify({ wStale, afterStale }))
   const splashCore = readFileSync(join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs'), 'utf-8')
   const menuStart = splashCore.indexOf('const MENU = [')
   const menuBlock = menuStart === -1 ? '' : splashCore.slice(menuStart, splashCore.indexOf('\n]', menuStart))
@@ -136,18 +163,26 @@ section('applyBootMenuEnv — apply, refuse, yield, no-op')
   check('valid file applies both keys', r1 !== null && r1.applied.length === 2 && env1.MERCURY_THEMIS === 'warn' && env1.MERCURY_MNEME === '1')
   check('nothing refused, nothing env-won', r1 !== null && r1.refused.length === 0 && r1.envWins.length === 0)
 
-  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_USE: '0', MERCURY_SKIP_PERMISSIONS: '1' } })
+  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_USE: '0', MERCURY_SKIP_PERMISSIONS: '1', MERCURY_COMPUTER_ACCESS: 'permissive' } })
   const envComputer: NodeJS.ProcessEnv = {}
   const rComputer = applyBootMenuEnv(file, envComputer)
-  check('the saved computer-use and Sovereign mode rows apply at boot (off, on)', rComputer !== null && rComputer.applied.length === 2 && envComputer.MERCURY_COMPUTER_USE === '0' && envComputer.MERCURY_SKIP_PERMISSIONS === '1')
+  check('the saved computer-use, Sovereign mode and access-type rows apply at boot (off, on, permissive)', rComputer !== null && rComputer.applied.length === 3 && envComputer.MERCURY_COMPUTER_USE === '0' && envComputer.MERCURY_SKIP_PERMISSIONS === '1' && envComputer.MERCURY_COMPUTER_ACCESS === 'permissive')
+  for (const value of ['asks', 'full']) {
+    write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_ACCESS: value } })
+    const envValue: NodeJS.ProcessEnv = {}
+    const rValue = applyBootMenuEnv(file, envValue)
+    check(`a saved access type ${value} applies at boot`, rValue !== null && rValue.applied.length === 1 && envValue.MERCURY_COMPUTER_ACCESS === value)
+  }
   write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_USE: '1', MERCURY_SKIP_PERMISSIONS: '0' } })
   const envForeign: NodeJS.ProcessEnv = {}
   const rForeign = applyBootMenuEnv(file, envForeign)
   check('values outside the two rows\' choices are refused (on is the default, off is the default)', rForeign !== null && rForeign.refused.length === 2 && Object.keys(envForeign).length === 0)
   write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_ACCESS: 'sovereign', MERCURY_COMPUTER_USE: '0' } })
-  const envRetired: NodeJS.ProcessEnv = {}
-  const rRetired = applyBootMenuEnv(file, envRetired)
-  check('a saved computer-use access type is reported retired, applies nothing and refuses nothing', rRetired !== null && rRetired.retired.join(',') === 'MERCURY_COMPUTER_ACCESS' && rRetired.refused.length === 0 && envRetired.MERCURY_COMPUTER_ACCESS === undefined && envRetired.MERCURY_COMPUTER_USE === '0', JSON.stringify(rRetired))
+  const envStale: NodeJS.ProcessEnv = {}
+  const rStale = applyBootMenuEnv(file, envStale)
+  check("a saved access type 'sovereign' from an earlier build is a foreign value: refused as a diagnostic, never applied, never migrated, the switch beside it still applied", rStale !== null && rStale.refused.length === 1 && rStale.refused[0]!.key === 'MERCURY_COMPUTER_ACCESS' && rStale.retired.length === 0 && envStale.MERCURY_COMPUTER_ACCESS === undefined && envStale.MERCURY_COMPUTER_USE === '0', JSON.stringify(rStale))
+  const staleSnapshot = resolveEffectiveSettingsSnapshot({ sessionId: 'stale', path: file, env: {} })
+  check('the effective snapshot reads that stale value as the default, not as the profile\'s', staleSnapshot.rows.find(r => r.env === 'MERCURY_COMPUTER_ACCESS')?.source === 'default' && staleSnapshot.rows.find(r => r.env === 'MERCURY_COMPUTER_USE')?.source === 'profile')
 
   write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_SAMPLES: '1' } })
   const envSamples: NodeJS.ProcessEnv = {}

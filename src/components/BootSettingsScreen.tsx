@@ -12,6 +12,7 @@ import {
   bootEnvPath,
   evaluateExplicitApply,
   menuRowChoices,
+  menuRowValueLabel,
   readBootDefaultsProfile,
   bootAdmissionSnapshot,
   resolveEffectiveSettingsSnapshot,
@@ -70,14 +71,9 @@ function savedChoicesByRow(profile: BootDefaultsProfileV1 | null): Record<string
   if (!profile) return out;
   for (const row of STARTUP_MENU) {
     const sp = flagSpellings(row.env).find(s => profile.env[s] !== undefined);
-    if (sp !== undefined) out[row.env] = profile.env[sp]!;
+    if (sp !== undefined && menuRowChoices(row).some(c => c.value === profile.env[sp])) out[row.env] = profile.env[sp]!;
   }
   return out;
-}
-
-function choiceLabel(row: MenuRow, saved: string | undefined): string {
-  const value = saved ?? null;
-  return menuRowChoices(row).find(c => c.value === value)?.label ?? JSON.stringify(saved);
 }
 
 interface WorkerApplySummary {
@@ -396,7 +392,10 @@ export function BootSettingsScreen({
         label: row.label,
         group: row.group,
         summary: row.summary,
-        valueLabel: choiceLabel(row, saved[row.env]),
+        valueLabel: menuRowValueLabel(row, saved[row.env] ?? null, env => {
+          const other = effectiveByEnv.get(env);
+          return other?.source === 'process-env' ? (other.value ?? null) : (saved[env] ?? null);
+        }),
         valueIsDefault: saved[row.env] === undefined,
         pinnedVal: envPinned ? (effective?.value ?? '') : null,
         detail: row.detail ?? null,
