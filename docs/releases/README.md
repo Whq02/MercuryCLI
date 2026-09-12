@@ -23,7 +23,6 @@ until the tag after it ships. Each page carries the same four parts:
 | v1.0.0-beta.9 | queued | [1.0.0-beta.9.md](1.0.0-beta.9.md) |
 | v1.0.0-beta.10 | queued | [1.0.0-beta.10.md](1.0.0-beta.10.md) |
 | v1.0.0-beta.11 | queued | [1.0.0-beta.11.md](1.0.0-beta.11.md) |
-| v1.0.0-beta.12 | queued | [1.0.0-beta.12.md](1.0.0-beta.12.md) |
 
 How a version moves: work lands on `working`; a release folds `working` into
 `main`, runs the local pool, then one hosted gate run; the verdict is recorded
