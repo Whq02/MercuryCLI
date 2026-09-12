@@ -80,6 +80,15 @@ const WORK_ROW: KeyTable = {
   pausedBy: 'paused_by',
   agentType: 'agent_type',
   stopReason: 'stop_reason',
+  unreadNotices: 'unread_notices',
+}
+const NOTICE_ROW: KeyTable = {
+  agentId: 'agent_id',
+  deliveredAtMs: 'delivered_at_ms',
+  consumedAtMs: 'consumed_at_ms',
+  nudgedAtMs: 'nudged_at_ms',
+  retiredAtMs: 'retired_at_ms',
+  retiredWhy: 'retired_why',
 }
 const WORK_PULSE: KeyTable = {
   phaseTitle: 'phase_title',
@@ -205,6 +214,7 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
   const workKey = 'work'
   const missionKey = 'mission'
   const samplesKey = 'samples'
+  const noticesKey = 'notices'
   const kitKey = 'kit'
   const editsKey = direction === 'to' ? 'pending_schedule_edits' : 'pendingScheduleEdits'
   const observedKey = direction === 'to' ? 'openai_observed' : 'openaiObserved'
@@ -215,6 +225,7 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
     if (workKey in out) out[workKey] = rows(out[workKey], t(WORK_ROW), workRowNested(t(WORK_PULSE), t(AGENT_WAIT), t(AGENT_PAUSE)))
     if (missionKey in out) out[missionKey] = rows(out[missionKey], t(MISSION_ROW))
     if (samplesKey in out) out[samplesKey] = rows(out[samplesKey], t(SAMPLE_ROW))
+    if (noticesKey in out) out[noticesKey] = rows(out[noticesKey], t(NOTICE_ROW))
     if (kitKey in out) out[kitKey] = row(out[kitKey], t(KIT), kitNested(t(KIT_DELTAS)))
     if (editsKey in out) out[editsKey] = rows(out[editsKey], t(SCHEDULE_EDIT), scheduleEditNested(t(SUBMISSION), t(WHEN), t(ACTION), t(BIRTH)))
   }

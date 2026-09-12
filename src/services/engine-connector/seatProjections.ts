@@ -12,6 +12,7 @@ import type { PromptInputMode, QueuePriority } from '../../types/textInputTypes.
 import type {
   McpRosterEntryV1,
   MissionRowV1,
+  NoticeRowV1,
   SampleRowV1,
   SeatIdentityV1,
   SkillsRosterEntryV1,
@@ -44,6 +45,7 @@ export interface SessionFactsAnswerV1 {
   work?: WorkRowV1[]
   mission?: MissionRowV1[]
   samples?: SampleRowV1[]
+  notices?: NoticeRowV1[]
   kit?: import('../../daemon/sessionKit.js').SessionKitV1
   pendingScheduleEdits?: import('../../daemon/saturn.js').ScheduleOpRequestV1[]
   fileCheckpoints?: FileCheckpointFactsV1
