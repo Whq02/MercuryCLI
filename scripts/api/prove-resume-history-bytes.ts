@@ -273,6 +273,8 @@ binding.resetThinkingDropStates()
 const partsA = { system: SYSTEM, tools: TOOLS, messages: liveWire.rows }
 const firstJudge = ledger.judgeAndRecordPrefix(owner, ownerKey, partsA, liveWire.ids)
 check('the first process judges its first request without a previous record (compared false, no mismatch)', !firstJudge.compared && firstJudge.mismatch === null)
+ledger.noteRequestOnWire(owner)
+await ledger.flushPrefixLedger()
 const storedText = storePath.length > 0 && existsSync(storePath) ? readFileSync(storePath, 'utf8') : ''
 check('the record is on disk after the request was judged', storedText.length > 0, storePath || 'no path')
 let stored: { version?: number; owner?: string; record?: { key?: string; messages?: unknown[]; system?: Array<{ digest?: string }>; tools?: Array<{ name?: string }> } } = {}
@@ -288,6 +290,7 @@ const mark = binding.prefixMarkOf(live as never, MODEL, { permissionMode: 'defau
 const drops = [{ type: 'thinking_dropped', path: 'messages.3.content.0', reason: 'prefix_binding_mismatch' }]
 const firstDrop = binding.classifyThinkingDrops(owner, drops, mark)
 check("the first process records a first drop (the recurrence reading's starting point)", firstDrop.kind === 'first' && firstDrop.consecutive === 1, `${firstDrop.kind} ${firstDrop.consecutive}`)
+await ledger.flushPrefixLedger()
 ledger.resetPrefixLedger()
 binding.resetThinkingDropStates()
 const faithful = ledger.judgeAndRecordPrefix(owner, ownerKey, partsA, liveWire.ids)
@@ -425,6 +428,9 @@ if (!existsSync(DIST)) {
     const recordFile = join(arena.home, '.claude', 'sessions', SID, 'prefix-ledger.json')
     check("[wire] the first process left the ledger's record beside its session", existsSync(recordFile), recordFile)
     if (existsSync(recordFile)) note(`the record beside the session is ${statSync(recordFile).size} bytes after two turns`)
+    const transcriptFiles = (() => { const out: string[] = []; const walkTranscripts = (dir: string): void => { for (const entry of readdirSync(dir, { withFileTypes: true })) { const full = join(dir, entry.name); if (entry.isDirectory()) walkTranscripts(full); else if (entry.name === `${SID}.jsonl`) out.push(full) } }; const root = join(arena.home, '.claude', 'projects'); if (existsSync(root)) walkTranscripts(root); return out })()
+    const transcriptBytes = transcriptFiles.reduce((sum, file) => sum + statSync(file).size, 0)
+    if (existsSync(recordFile) && transcriptBytes > 0) note(`the record is ${statSync(recordFile).size} bytes against a transcript of ${transcriptBytes} bytes: ${(statSync(recordFile).size / transcriptBytes).toFixed(2)} bytes of record per byte of transcript`)
     const revivedDebug = join(arena.home, 'revived.debug.log')
     const revivedArena = { ...arena, env: { ...arena.env, MERCURY_PREFIX_INDUCE_EDIT: 'system' } }
     const second = await runStreaming(revivedArena, [...common, '--resume', SID, '--debug-file', revivedDebug], ['revive turn 3'])

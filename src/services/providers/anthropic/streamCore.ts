@@ -93,7 +93,7 @@ import { gatewayHost } from '../deferralWire.js'
 import { deadlineBreachLine, isDeadlineBreach } from '../fetchDeadline.js'
 import { announcementMessage, conversationRosterKey, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
 import { declareLawfulPrefixChange } from '../lawfulPrefixChange.js'
-import { applyInducedPrefixEdit, inducedEditApplies, judgeAndRecordPrefix, resolveInducedPrefixEdit, type WirePrefixParts } from './prefixLedger.js'
+import { applyInducedPrefixEdit, inducedEditApplies, judgeAndRecordPrefix, noteRequestOnWire, resolveInducedPrefixEdit, type WirePrefixParts } from './prefixLedger.js'
 import { deadThinkingMarks, stripDeadThinking } from './thinkingBinding.js'
 import type {
   ConnectorTextBlock,
@@ -1126,6 +1126,7 @@ async function* queryModel(
         }
         streamRequestId = result.request_id
         streamResponse = result.response
+        if (isTurnOwningQuerySource(options.querySource)) noteRequestOnWire(rosterOwnerKey)
         return result.data
       },
       {
@@ -1674,6 +1675,7 @@ async function* queryModel(
       const m = mintAssistantMessage(result, nonStreamContent)
       newMessages.push(m)
       fallbackMessage = m
+      if (isTurnOwningQuerySource(options.querySource)) noteRequestOnWire(rosterOwnerKey)
       yield m
     } finally {
       clearStreamIdleTimers()
@@ -1737,6 +1739,7 @@ async function* queryModel(
         const m = mintAssistantMessage(result, nonStreamContent)
         newMessages.push(m)
         fallbackMessage = m
+        if (isTurnOwningQuerySource(options.querySource)) noteRequestOnWire(rosterOwnerKey)
         yield m
 
       } catch (fallbackError) {
