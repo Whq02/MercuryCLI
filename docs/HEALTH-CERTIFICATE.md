@@ -56,14 +56,20 @@ RUNTIME's `Device headroom` row is joined by `Box lock`: the coordination
 directory of the box lock (`MERCURY_BOX_LOCK_DIR`), the slots held and by
 whom, and the tickets waiting — or the plain word that no lock directory is
 named. The resource `mercury://health/box` gives an agent the same reading
-live, with the memory guard's verdict on its own session.
+live, with the memory guard's verdict on its own session. The memory
+figure on the box row is the last sample the process took, with the clock
+it was taken at and its source (`vm_stat`, `meminfo`, the Windows counter,
+or the runtime's own free figure before any sample); a facts answer never
+takes a sample, and `mercury://health/box` takes a fresh one.
 
 TOOL CAPABILITY carries the `Tools withheld` check: every built-in tool kept
 out of the model's catalog because a machine dependency is absent — a debug
 adapter for Debug, a Godot executable for Godot, the desktop driver for
 Computer, the search binary for Grep and Glob — with why and the remedy;
 the withheld tools also appear in `readiness[]` as `tool:withheld:<name>`
-rows. With nothing withheld the row says so and names what it checks.
+rows. With nothing withheld the row says so and names what it checks. The
+row waits for the debug adapter's toolchain probes to answer, so it never
+names the Debug tool as withheld for a probe still in flight.
 
 CREW & DAEMONS carries the `Store isolation` check, which reads the config
 home's harness records by Mercury's own fingerprint: a daemon-plane record carrying no Mercury
