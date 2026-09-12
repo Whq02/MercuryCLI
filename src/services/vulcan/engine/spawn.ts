@@ -4,6 +4,8 @@ import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { runningGodotProcesses, type GodotProcess } from '../godotProcessCensus.js'
 import { isEnginePath } from './paths.js'
 import { engineUserEnv } from './userDir.js'
+import { VULCAN_INSTANCE_ENV, type VulcanInstance, type VulcanInstanceLaunch } from '../instances.js'
+import { engineTreeLiveness } from './liveness.js'
 
 export const ENGINE_OUTPUT_CAP = 64 * 1024 * 1024
 
@@ -16,6 +18,7 @@ export interface EngineSpawnRequest {
   userDir: string
   timeoutMs: number
   label: string
+  bridge?: VulcanInstanceLaunch
 }
 
 export interface EngineSpawnOutcome {
@@ -37,6 +40,7 @@ export interface EngineHandle {
   label: string
   pid: number | null
   startedAt: string
+  bridge: VulcanInstance | null
   done: Promise<EngineSpawnOutcome>
   kill(reason: EngineKillReason): Promise<ProcessTreeKillReceipt>
 }
@@ -90,8 +94,11 @@ export function spawnEngine(req: EngineSpawnRequest): EngineHandle {
     resolveDone = resolve
   })
   const env = { ...subprocessEnv(), ...engineUserEnv(req.userDir) }
-  const child = spawn(req.executable, req.args, {
-    cwd: req.cwd,
+  delete env[VULCAN_INSTANCE_ENV]
+  if (req.bridge) env[VULCAN_INSTANCE_ENV] = JSON.stringify(req.bridge)
+  const args = req.bridge ? req.args.map((arg, index) => index > 0 && req.args[index - 1] === '--path' ? req.bridge!.projectRoot : arg) : req.args
+  const child = spawn(req.executable, args, {
+    cwd: req.bridge?.projectRoot ?? req.cwd,
     windowsHide: true,
     detached: process.platform !== 'win32',
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -113,6 +120,7 @@ export function spawnEngine(req: EngineSpawnRequest): EngineHandle {
     label: req.label,
     pid,
     startedAt,
+    bridge: req.bridge && pid !== null ? { version: 1, id: req.bridge.id, role: req.bridge.role, port: req.bridge.port, pid, projectRoot: req.bridge.projectRoot, ownerPid: req.bridge.ownerPid } : null,
     done,
     async kill(reason) {
       if (settled) return { ended: 0, survivors: [] }
@@ -170,8 +178,8 @@ export function spawnEngine(req: EngineSpawnRequest): EngineHandle {
   return handle
 }
 
-export function liveEngines(): Array<{ pid: number; label: string; startedAt: string }> {
-  return [...LIVE.values()].map(h => ({ pid: h.pid ?? 0, label: h.label, startedAt: h.startedAt }))
+export function liveEngines(): Array<{ pid: number; label: string; startedAt: string; bridge: VulcanInstance | null }> {
+  return [...LIVE.values()].map(h => ({ pid: h.pid ?? 0, label: h.label, startedAt: h.startedAt, bridge: h.bridge }))
 }
 
 export async function killAllEngines(reason: EngineKillReason = 'shutdown'): Promise<number> {
@@ -194,7 +202,7 @@ export async function sweepEngineOrphans(projectRoot: string, census?: GodotProc
   const processes = census ?? (await runningGodotProcesses())
   const out: EngineOrphanSweep[] = []
   for (const p of processes) {
-    if (!p.project || LIVE.has(p.pid) || !isEnginePath(projectRoot, p.project)) continue
+    if (!p.project || LIVE.has(p.pid) || !isEnginePath(projectRoot, p.project) || engineTreeLiveness(projectRoot, p.project).alive) continue
     const receipt = await endProcessTree(p.pid, 'SIGKILL')
     out.push({ pid: p.pid, project: p.project, executable: p.executable, receipt })
   }

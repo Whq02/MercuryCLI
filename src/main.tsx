@@ -965,7 +965,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
 
   program
     .command('godot [verb] [args...]')
-    .description('The engine job service for the Godot project in the working directory: run | check | jobs | cancel | result')
+    .description('Godot engine jobs on frozen projects: run | check | capture | frames | profile | tour | jobs | cancel | result')
     .allowUnknownOption(true)
     .allowExcessArguments(true)
     .action(async (_verb: string | undefined, _args: string[] | undefined, _options: unknown, command: { args: string[] }) => {

@@ -8,7 +8,7 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = 'ecfa82d520db12c2c40930f6efd2646fbbf32918008085c7cd3bd8571a8103ce'
+export const VULCAN_OPTABLE_DIGEST = 'bf756d8220d644ebb1013f481d1281ae45e16754a6bdac0e21eff56c9fc92497'
 
 export const VULCAN_STEP_WALL_MS_PER_FRAME = 50
 
@@ -2225,13 +2225,14 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "cls": "exec",
     "lite": false,
     "side": "mercury",
-    "summary": "Mercury-side compile gate, in seconds and with no lock: the changed .gd files parsed and type-checked one file at a time (godot --headless --check-only --script) and the changed .gdshader files compiled headlessly in a generated probe; the project's autoload identifiers (project.godot [autoload]) are ignored exactly — \"Identifier not found: <autoload>\" — and nothing else; flags a --script suite whose preload graph reaches a script that names an autoload; diagnostics as data {file, line, message, class, lastChange}",
+    "summary": "Mercury-side compile gate, in seconds and with no lock: the changed .gd files parsed and type-checked one file at a time (godot --headless --check-only --script) and the changed .gdshader files compiled headlessly in a generated probe; the project's autoload identifiers (project.godot [autoload]) are ignored exactly — \"Identifier not found: <autoload>\" — and nothing else; flags a --script suite whose preload graph reaches a script that names an autoload; diagnostics as data {file, line, message, class, lastChange}; every gate also compares changed test assertions and check counts against HEAD, and rejects SCRIPT ERROR under PASS in matching suite evidence, with named drift rows in JSON",
     "args": {
       "files": "optional: res:// or project-relative paths (default: the files changed against HEAD)",
       "all": "optional bool: every .gd and .gdshader in the project",
       "tree": "optional: check a frozen copy instead of the live tree (same forms as engine_run)",
       "shaders": "optional bool (default true): compile changed shaders",
-      "parallel": "optional: check-only processes at once (default: the worker count)"
+      "parallel": "optional: check-only processes at once (default: the worker count)",
+      "run": "optional: completed engine run id whose evidence must match this tree; default newest completed matching run"
     }
   },
   {
@@ -2265,6 +2266,163 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
       "id": "the job id",
       "tail": "optional: log tail chars per failed suite (default 4000)"
     }
+  },
+  {
+    "name": "engine_capture",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "side": "mercury",
+    "summary": "Mercury-side capture job on a frozen tree with acknowledged project clock/seed cooperation, run-scoped frames mapped to tour steps, and a contact sheet. A pair boots one tour twice with one switch flipped. Headless project Image pixels are labeled honestly; a real viewport window requires an explicit display request; unsupported hidden startup refuses",
+    "args": {
+      "tour": "registered tour name in .mercury/engine-suites.json tours, or {scene|script, steps:[{name,frames?,camera?,timeOfDay?}]}",
+      "clock": "optional: {simulationTime,shaderTime,seed,fps}; the project hook must apply and acknowledge deterministic clocks",
+      "pair": "optional: {switch,a,b}; two different scalar values for one project hook",
+      "route": "optional: headless (default) | hidden (refused without a verified bootstrap) | display (visible window)",
+      "display": "optional bool: true aliases route display",
+      "settleFrames": "optional: frames before each tour step capture, default 60",
+      "tree": "optional: frozen tree spec, default HEAD",
+      "priority": "optional: verifier | fold-gate | lane-gate | profile",
+      "budgetMs": "optional: whole-job deadline",
+      "displayShared": "optional bool: allow an explicitly requested display job beside another editor",
+      "keepTree": "optional bool: retain frozen project",
+      "wait": "optional bool: wait for result, default true",
+      "waitMs": "optional: bounded caller wait",
+      "tailChars": "optional: failed log tail length",
+      "label": "optional: job label"
+    }
+  },
+  {
+    "name": "engine_profile",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "side": "mercury",
+    "summary": "Mercury-side settled profile job: measured frame median/p95, engine process/physics/navigation monitors, GPU timings only when reported, and project-instrumented script/physics tables. A/B toggles share one boot. The quiet-machine guard refuses or flags contention; immutable commit baselines compare matching measurements side by side",
+    "args": {
+      "tour": "registered tour name or {scene|script,steps}; root supplies mercury_media_sample instrumentation",
+      "pair": "optional: {switch,a,b}; both values measured inside one boot",
+      "settleFrames": "optional: settle frames before each phase, default 60",
+      "sampleFrames": "optional: measured frames per phase, default 120",
+      "quiet": "optional: refuse (default) | flag; contamination cannot be ignored",
+      "baseline": "optional: {save:true,compare:fullCommitSha}; saves only quiet committed-tree measurements without replacing an existing baseline",
+      "clock": "optional: {simulationTime,shaderTime,seed,fps}",
+      "route": "optional: headless (default) | hidden (refused) | display (visible window)",
+      "display": "optional bool: true aliases route display",
+      "tree": "optional: frozen tree spec, default HEAD",
+      "priority": "optional: queue priority, default profile",
+      "budgetMs": "optional: whole-job deadline",
+      "displayShared": "optional bool: allow explicitly requested display sharing",
+      "keepTree": "optional bool: retain frozen project",
+      "wait": "optional bool: wait for result, default true",
+      "waitMs": "optional: bounded caller wait",
+      "tailChars": "optional: failed log tail length",
+      "label": "optional: job label"
+    }
+  },
+  {
+    "name": "engine_frames",
+    "category": "frontier",
+    "cls": "mutate",
+    "lite": false,
+    "side": "mercury",
+    "summary": "Mercury-side PNG measurements and small images: changed-pixel fraction and component boxes, row/column autocorrelation, anisotropy, high-frequency energy, grid mean RGBA, or a run contact sheet. Writes only new run-scoped files, never source frames; no engine or editor is opened",
+    "args": {
+      "action": "diff | stats | contact-sheet",
+      "a": "optional: first PNG for diff",
+      "b": "optional: second PNG for diff (same dimensions)",
+      "threshold": "optional: channel difference ignored, 0..255 (default 0)",
+      "frame": "optional: PNG for stats",
+      "grid": "optional: [columns, rows] for stats",
+      "maxLag": "optional: largest autocorrelation lag in pixels",
+      "id": "optional: run id for contact-sheet",
+      "frames": "optional: PNG path array instead of a run id"
+    }
+  },
+  {
+    "name": "engine_scene_tree",
+    "category": "frontier",
+    "cls": "read",
+    "lite": false,
+    "side": "mercury",
+    "summary": "Read the live scene tree directly from a named headless or native worker's own bridge; the answer names the instance reached",
+    "args": {
+      "instance": "instance id from engine_jobs",
+      "root": "optional NodePath",
+      "depth": "optional tree depth"
+    }
+  },
+  {
+    "name": "engine_node_get",
+    "category": "frontier",
+    "cls": "read",
+    "lite": false,
+    "side": "mercury",
+    "summary": "Read properties from a node in a running worker, without parsing its log",
+    "args": {
+      "instance": "instance id from engine_jobs",
+      "node": "NodePath",
+      "properties": "optional array of property names"
+    }
+  },
+  {
+    "name": "engine_node_call",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "side": "mercury",
+    "summary": "Call a method on a running worker's node and return its JSON result; runs code and always asks permission",
+    "args": {
+      "instance": "instance id from engine_jobs",
+      "node": "NodePath",
+      "method": "method name",
+      "args": "optional JSON argument array"
+    }
+  },
+  {
+    "name": "engine_signal_wait",
+    "category": "frontier",
+    "cls": "read",
+    "lite": false,
+    "side": "mercury",
+    "summary": "Wait for a named signal on a running worker without changing its state; return the signal name and wait duration or a named timeout",
+    "args": {
+      "instance": "instance id from engine_jobs",
+      "node": "NodePath",
+      "signal": "signal name",
+      "timeout_ms": "optional timeout in milliseconds (default 5000)"
+    }
+  },
+  {
+    "name": "lease_take",
+    "category": "frontier",
+    "cls": "mutate",
+    "lite": false,
+    "side": "mercury",
+    "summary": "Take file leases under this project without a team; an overlapping holder is refused with its session and agent named",
+    "args": {
+      "paths": "array of project-relative paths"
+    }
+  },
+  {
+    "name": "lease_release",
+    "category": "frontier",
+    "cls": "mutate",
+    "lite": false,
+    "side": "mercury",
+    "summary": "Release this session and agent's project file leases; never release another holder's leases",
+    "args": {
+      "paths": "optional array of project-relative paths (default all held paths)"
+    }
+  },
+  {
+    "name": "lease_list",
+    "category": "frontier",
+    "cls": "read",
+    "lite": false,
+    "side": "mercury",
+    "summary": "List live project file leases with the session and agent that holds each path; no team required",
+    "args": {}
   }
 ] as const
 

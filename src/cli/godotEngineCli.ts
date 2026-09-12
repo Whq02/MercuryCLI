@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { findGodotProjectRoot } from '../services/lsp/godotLane.js'
 import { runningGodotProcesses } from '../services/vulcan/godotProcessCensus.js'
@@ -5,7 +6,7 @@ import { engineTreePath } from '../services/vulcan/engine/paths.js'
 import { engineProcessesFor } from '../services/vulcan/engine/spawn.js'
 import { endProcessTree } from '../utils/processGroup.js'
 
-export const GODOT_CLI_VERBS = ['run', 'check', 'jobs', 'cancel', 'result'] as const
+export const GODOT_CLI_VERBS = ['run', 'check', 'jobs', 'cancel', 'result', 'capture', 'frames', 'profile', 'tour'] as const
 
 export type GodotCliVerb = (typeof GODOT_CLI_VERBS)[number]
 
@@ -15,7 +16,7 @@ export interface GodotCliParse {
   flags: Record<string, string | true>
 }
 
-const VALUE_FLAGS = new Set(['tree', 'priority', 'budget-ms', 'label', 'tail-chars', 'tail', 'parallel', 'project', 'wait-ms'])
+const VALUE_FLAGS = new Set(['tree', 'priority', 'budget-ms', 'label', 'tail-chars', 'tail', 'parallel', 'project', 'wait-ms', 'threshold', 'max-lag', 'grid', 'request', 'run'])
 
 export function parseGodotCliArgs(argv: readonly string[]): GodotCliParse {
   const positional: string[] = []
@@ -45,11 +46,17 @@ export function godotCliUsage(cliName: string): string {
   return [
     `Usage: ${cliName} godot <verb> …  — the engine job service for the Godot project in the working directory (or --project <dir>)`,
     `  ${cliName} godot run [suite …] [--tree <HEAD|ref|working|ref+a,b>] [--native] [--capture] [--priority <verifier|fold-gate|lane-gate|profile>] [--budget-ms <n>] [--display-shared] [--keep-tree] [--label <s>] [--no-wait] [--tail-chars <n>]`,
-    `  ${cliName} godot check [file …] [--all] [--tree <spec>] [--no-shaders] [--parallel <n>]`,
+    `  ${cliName} godot check [file …] [--all] [--tree <spec>] [--no-shaders] [--parallel <n>] [--run <id>]`,
     `  ${cliName} godot jobs`,
     `  ${cliName} godot cancel <id>`,
     `  ${cliName} godot result <id> [--tail <n>]`,
-    'Each verb prints its record as JSON; run exits 0 on allPass, check on no diagnostics, cancel and result on success, 2 on a usage or project error.',
+    `  ${cliName} godot capture [tour] [--request <json file>] [--tree <spec>] [--display] [--display-shared]`,
+    `  ${cliName} godot profile [tour] [--request <json file>] [--tree <spec>] [--display]`,
+    `  ${cliName} godot tour <name> [--tree <spec>] [--request <json file>]`,
+    `  ${cliName} godot frames diff <a.png> <b.png> [--threshold <0..255>]`,
+    `  ${cliName} godot frames stats <frame.png> [--max-lag <n>] [--grid <columns>x<rows>]`,
+    `  ${cliName} godot frames contact-sheet <id>`,
+    'Each verb prints its record as JSON; run exits 0 on allPass, check on no diagnostics or proof drift, cancel and result on success, 2 on a usage or project error.',
   ].join('\n')
 }
 
@@ -133,12 +140,65 @@ export async function godotEngineCli(argv: readonly string[], io: GodotCliIo = d
           tree: flags.tree,
           shaders: flags['no-shaders'] === true ? false : undefined,
           parallel: num(flags.parallel),
+          run: typeof flags.run === 'string' ? flags.run : undefined,
         },
         root,
       )
       io.out(text)
       const result = parsed(text)
       return result?.ok === true ? 0 : result ? 1 : 2
+    }
+    case 'capture':
+    case 'profile':
+    case 'tour': {
+      try {
+        let args: Record<string, unknown> = {}
+        if (flags.request !== undefined) {
+          if (typeof flags.request !== 'string') throw new Error('--request needs a JSON file path')
+          const value = parsed(readFileSync(path.resolve(flags.request), 'utf8'))
+          if (!value) throw new Error('--request must name a JSON object of operation arguments')
+          args = value
+        }
+        if (positional[0]) args.tour = positional[0]
+        if (verb === 'tour' && typeof args.tour !== 'string') throw new Error('tour needs the name of a registered tour')
+        for (const name of ['tree', 'priority', 'label']) if (flags[name] !== undefined) args[name] = flags[name]
+        if (flags['budget-ms'] !== undefined) {
+          const budget = num(flags['budget-ms'])
+          if (budget === undefined) throw new Error('--budget-ms needs a positive number')
+          args.budgetMs = budget
+        }
+        if (flags.display === true) args.display = true
+        if (flags['display-shared'] === true) args.displayShared = true
+        if (flags['keep-tree'] === true) args.keepTree = true
+        if (flags['no-wait'] || args.wait === false) throw new Error('capture, profile and tour wait for their worker; use the Godot tool for a queued job')
+        args.wait = true
+        const text = await runEngineOp(verb === 'profile' ? 'engine_profile' : 'engine_capture', args, root)
+        io.out(text)
+        const result = parsed(text)
+        return result?.allPass === true ? 0 : result ? 1 : 2
+      } catch (e) {
+        io.err(`${io.cliName} godot ${verb}: ${(e as Error).message}`)
+        return 2
+      }
+    }
+    case 'frames': {
+      const action = positional[0]
+      const args: Record<string, unknown> = { action }
+      if (action === 'diff') {
+        args.a = positional[1]
+        args.b = positional[2]
+        if (flags.threshold !== undefined) args.threshold = typeof flags.threshold === 'string' ? Number(flags.threshold) : flags.threshold
+      } else if (action === 'stats') {
+        args.frame = positional[1]
+        if (flags['max-lag'] !== undefined) args.maxLag = typeof flags['max-lag'] === 'string' ? Number(flags['max-lag']) : flags['max-lag']
+        if (flags.grid !== undefined) args.grid = typeof flags.grid === 'string' ? flags.grid.split('x').map(Number) : flags.grid
+      } else if (action === 'contact-sheet') {
+        args.id = positional[1]
+      }
+      const text = await runEngineOp('engine_frames', args, root)
+      io.out(text)
+      const result = parsed(text)
+      return result && !result.error ? 0 : 2
     }
     case 'jobs': {
       const text = await runEngineOp('engine_jobs', {}, root)

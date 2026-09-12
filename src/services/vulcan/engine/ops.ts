@@ -3,6 +3,9 @@ import { runEngineCheck, type EngineCheckArgs } from './compileGate.js'
 import { parseEngineTreeSpec } from './frozenTree.js'
 import { engineLogTail } from './logs.js'
 import { readEngineManifest } from './manifest.js'
+import { requestVulcanInstance } from '../vulcanClient.js'
+import { listVulcanInstances } from '../instances.js'
+import { listProjectLeases, projectLeaseHolder, releaseProjectLeases, takeProjectLeases, type LeaseHolder } from './leases.js'
 import {
   ENGINE_DEFAULT_PRIORITY,
   ENGINE_PRIORITIES,
@@ -13,8 +16,8 @@ import {
   type EngineRunRecord,
 } from './service.js'
 
-export const ENGINE_OPS: ReadonlySet<string> = new Set(['engine_run', 'engine_check', 'engine_jobs', 'engine_cancel', 'engine_result'])
-export const ENGINE_EXEC_OPS: ReadonlySet<string> = new Set(['engine_run', 'engine_check'])
+export const ENGINE_OPS: ReadonlySet<string> = new Set(['engine_run', 'engine_check', 'engine_jobs', 'engine_cancel', 'engine_result', 'engine_capture', 'engine_frames', 'engine_profile', 'engine_scene_tree', 'engine_node_get', 'engine_node_call', 'engine_signal_wait', 'lease_take', 'lease_release', 'lease_list'])
+export const ENGINE_EXEC_OPS: ReadonlySet<string> = new Set(['engine_run', 'engine_check', 'engine_capture', 'engine_profile', 'engine_node_call'])
 export const ENGINE_DEFAULT_TAIL_CHARS = 2000
 export const ENGINE_RESULT_TAIL_CHARS = 4000
 export const ENGINE_WAIT_GRACE_MS = 60_000
@@ -62,6 +65,17 @@ export function engineOpPermissionMessage(op: string, args: Args | undefined): s
     }
     case 'engine_check':
       return 'Godot exec: engine_check — parses the changed scripts and shaders with headless Godot, one file at a time (seconds; the editor is not touched)'
+    case 'engine_capture':
+    case 'engine_profile':
+      return `Godot exec: ${op} — runs a separate Godot instance on a frozen copy of the project, with its own user directory and result files; the operator's editor and game are not touched${a.display === true || a.route === 'display' ? '; this job asks for the real display' : '; no visible window is requested'}`
+    case 'engine_frames':
+      return 'Godot mutate: engine_frames — reads PNG frames and writes new statistics images under .mercury/engine/; no engine or editor is opened and no source frame is overwritten'
+    case 'engine_node_call':
+      return 'Godot exec: engine_node_call — runs a method on the explicitly selected running instance'
+    case 'lease_take':
+      return 'Godot mutate: lease_take — claims exact project files for this session and agent'
+    case 'lease_release':
+      return 'Godot mutate: lease_release — releases only this session and agent’s exact project leases'
     case 'engine_cancel':
       return `Godot mutate: engine_cancel${typeof a.id === 'string' ? ` (${a.id})` : ''} — ends that engine job's process tree; the editor is not touched`
     default:
@@ -84,12 +98,13 @@ function withTails(record: EngineRunRecord, chars: number): EngineRunRecord & { 
   return { ...record, logTails }
 }
 
-async function engineRun(a: Args, projectRoot: string): Promise<string> {
+async function engineRun(a: Args, projectRoot: string, holder: LeaseHolder): Promise<string> {
   const spec = parseEngineTreeSpec(a.tree)
   if ('error' in spec) return `engine_run refused: ${spec.error}`
   const priority = priorityArg(a.priority)
   if (typeof priority !== 'string') return `engine_run refused: ${priority.error}`
-  const request: EngineJobRequest = {
+  const request: EngineJobRequest & { holder: LeaseHolder } = {
+    holder,
     suites: listArg(a.suites),
     tree: spec,
     native: boolArg(a.native, false),
@@ -130,6 +145,42 @@ async function engineRun(a: Args, projectRoot: string): Promise<string> {
   })
 }
 
+async function engineMedia(kind: 'capture' | 'profile', a: Args, projectRoot: string): Promise<string> {
+  try {
+    const spec = parseEngineTreeSpec(a.tree)
+    if ('error' in spec) throw new Error(spec.error)
+    const priority = priorityArg(a.priority ?? (kind === 'profile' ? 'profile' : ENGINE_DEFAULT_PRIORITY))
+    if (typeof priority !== 'string') throw new Error(priority.error)
+    const { parseEngineMediaRequest } = await import('./media.js')
+    const media = parseEngineMediaRequest(kind, a, projectRoot)
+    const request: EngineJobRequest = {
+      suites: [],
+      tree: spec,
+      native: a.display === true,
+      capture: kind === 'capture',
+      priority,
+      budgetMs: intArg(a.budgetMs),
+      displayShared: boolArg(a.displayShared, false),
+      keepTree: boolArg(a.keepTree, false),
+      label: typeof a.label === 'string' ? a.label.trim().slice(0, 80) : null,
+      media,
+    }
+    const service = EngineJobService.for(projectRoot)
+    const job = await service.submit(request)
+    if ('refused' in job) throw new Error(job.refused)
+    if (!boolArg(a.wait, true)) return json({ id: job.id, state: job.state, tree: job.request.tree.label })
+    const ahead = Math.max(1, service.jobs().queued.length + service.jobs().running.length)
+    const waitMs = intArg(a.waitMs) ?? ((request.budgetMs ?? 240_000) + service.manifest().defaults.importTimeoutMs) * ahead + ENGINE_WAIT_GRACE_MS
+    const settled = await service.wait(job.id, waitMs)
+    if (settled?.record && settled.state !== 'queued' && settled.state !== 'running') {
+      return json(withTails(settled.record, intArg(a.tailChars) ?? ENGINE_DEFAULT_TAIL_CHARS))
+    }
+    return json({ id: job.id, state: settled?.state ?? job.state, note: 'The job still owns its worker; engine_result reads it and engine_cancel ends it.' })
+  } catch (e) {
+    return json({ error: `engine_${kind} refused: ${(e as Error).message}` })
+  }
+}
+
 async function engineCheck(a: Args, projectRoot: string): Promise<string> {
   const service = EngineJobService.for(projectRoot)
   const exe = await service.executable()
@@ -141,20 +192,47 @@ async function engineCheck(a: Args, projectRoot: string): Promise<string> {
     tree: a.tree,
     shaders: a.shaders === undefined ? undefined : boolArg(a.shaders, true),
     parallel: intArg(a.parallel) ?? undefined,
+    run: typeof a.run === 'string' ? a.run : undefined,
   }
   return json(await runEngineCheck(projectRoot, checkArgs, { executable: exe.resolved }))
 }
 
-export async function runEngineOp(op: string, args: Args | undefined, projectRoot: string): Promise<string> {
+export async function runEngineOp(op: string, args: Args | undefined, projectRoot: string, holder: LeaseHolder = projectLeaseHolder()): Promise<string> {
   const a = args ?? {}
   switch (op) {
+    case 'lease_take': {
+      const paths = listArg(a.paths)
+      if (paths.length === 0) return 'lease_take needs {paths:[...]} with exact project files, not globs'
+      return json(await takeProjectLeases(projectRoot, paths, holder))
+    }
+    case 'lease_release':
+      return json(await releaseProjectLeases(projectRoot, holder, a.paths === undefined ? undefined : listArg(a.paths)))
+    case 'lease_list':
+      return json({ ok: true, leases: await listProjectLeases(projectRoot) })
+    case 'engine_scene_tree':
+    case 'engine_node_get':
+    case 'engine_node_call':
+    case 'engine_signal_wait':
+      return json(await requestVulcanInstance(projectRoot, op, a, op === 'engine_signal_wait' ? Math.min(120000, intArg(a.timeout_ms) ?? 5000) + 2000 : undefined))
     case 'engine_run':
-      return engineRun(a, projectRoot)
+      return engineRun(a, projectRoot, holder)
     case 'engine_check':
       return engineCheck(a, projectRoot)
+    case 'engine_capture':
+      return engineMedia('capture', a, projectRoot)
+    case 'engine_profile':
+      return engineMedia('profile', a, projectRoot)
+    case 'engine_frames': {
+      try {
+        const { runEngineFrames } = await import('./frames.js')
+        return json(await runEngineFrames(a, projectRoot))
+      } catch (e) {
+        return json({ error: `engine_frames refused: ${(e as Error).message}` })
+      }
+    }
     case 'engine_jobs': {
       const service = EngineJobService.for(projectRoot)
-      return json({ ...service.jobs(), runsOnDisk: listEngineRunIds(projectRoot).slice(0, 20) })
+      return json({ ...service.jobs(), instances: listVulcanInstances(projectRoot), runsOnDisk: listEngineRunIds(projectRoot).slice(0, 20) })
     }
     case 'engine_cancel': {
       const id = typeof a.id === 'string' ? a.id.trim() : ''

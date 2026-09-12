@@ -20,6 +20,8 @@ import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
 import { ENGINE_DIR_SEGMENT, engineChecksDir, ensureEngineEstate } from './paths.js'
 import { engineWorkerCount, newEngineJobId } from './service.js'
 import { spawnEngine } from './spawn.js'
+import { startEngineHeartbeat } from './liveness.js'
+import { engineLogDrift, latestMatchingEvidenceRun, proofTreeFingerprint, runEvidenceDrift, sourceProofDrift, type ProofDriftRow } from './proofDrift.js'
 
 export const ENGINE_CHECK_TIMEOUT_MS = 60_000
 export const SHADER_MARKER_PREFIX = 'MERCURY SHADER '
@@ -57,6 +59,7 @@ export interface EngineCheckArgs {
   tree?: unknown
   shaders?: boolean
   parallel?: number
+  run?: string
 }
 
 export interface EngineCheckResult {
@@ -70,6 +73,10 @@ export interface EngineCheckResult {
   diagnostics: EngineDiagnostic[]
   ignored: EngineIgnoredLine[]
   failures: EngineCheckFailure[]
+  drift: ProofDriftRow[]
+  proofTreeFingerprint: string | null
+  evidenceRun: string | null
+  evidenceNote: string | null
   seconds: number
   parallel: number
   classCache: string | null
@@ -313,6 +320,10 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
     diagnostics: [],
     ignored: [],
     failures: [],
+    drift: [],
+    proofTreeFingerprint: null,
+    evidenceRun: args.run ?? null,
+    evidenceNote: null,
     seconds: 0,
     parallel,
     classCache: null,
@@ -326,12 +337,14 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
   ensureEngineEstate(projectRoot)
   const checkId = newEngineJobId()
   const checkDir = path.join(engineChecksDir(projectRoot), checkId)
-  mkdirSync(checkDir, { recursive: true })
+  mkdirSync(engineChecksDir(projectRoot), { recursive: true })
+  const heartbeat = startEngineHeartbeat(checkDir)
   let facts: Pick<EngineTreeFacts, 'commit' | 'baseBlobs' | 'overlay'>
   let enginePath = projectRoot
   let treePath: string | null = null
   const frozen = args.tree !== undefined && args.tree !== null && args.tree !== ''
   try {
+    mkdirSync(checkDir, { recursive: true })
     if (frozen) {
       treePath = path.join(checkDir, 'tree')
       const made = await materializeEngineTree(projectRoot, spec, treePath)
@@ -347,6 +360,16 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
     }
     result.enginePath = enginePath
     result.autoloads = projectAutoloads(enginePath)
+    result.proofTreeFingerprint = proofTreeFingerprint(facts)
+    const manifestTests = manifest.suites.filter(s => s.script).map(s => `${manifest.defaults.suiteDir}/${s.name}.gd`)
+    result.drift = await sourceProofDrift(projectRoot, enginePath, facts, manifestTests)
+    result.evidenceRun = args.run ?? latestMatchingEvidenceRun(projectRoot, result.proofTreeFingerprint)
+    if (result.evidenceRun !== null) {
+      result.drift.push(...runEvidenceDrift(projectRoot, result.evidenceRun, result.proofTreeFingerprint))
+      result.evidenceNote = args.run === undefined ? 'log evidence comes from the latest completed run matching the selected tree content' : 'log evidence comes from the explicitly named run'
+    } else {
+      result.evidenceNote = 'suite log evidence is not available for this selected tree; source drift and compile checks still run'
+    }
     let candidates: string[] = []
     if (Array.isArray(args.files) && args.files.length > 0) {
       for (const f of args.files) {
@@ -379,7 +402,7 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
         Array.isArray(args.files) && args.files.length > 0
           ? 'none of the named files exist as .gd or .gdshader under the project'
           : 'no changed .gd or .gdshader files against HEAD (git status is clean) — pass files:[...] to check named files, or all:true for every script and shader'
-      result.ok = true
+      result.ok = result.drift.length === 0
       return result
     }
     const userDir = path.join(checkDir, 'user')
@@ -402,6 +425,7 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
           label: `check:${rel}`,
         })
         const out = await handle.done
+        result.drift.push(...engineLogDrift(out.output, res))
         if (out.spawnError || out.timedOut || out.signal) {
           result.failures.push({ file: res, exitCode: out.exitCode, signal: out.signal, spawnError: out.spawnError, timedOut: out.timedOut })
           continue
@@ -426,6 +450,7 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
         label: 'check:shaders',
       })
       const out = await handle.done
+      result.drift.push(...engineLogDrift(out.output, 'shaders'))
       if (out.spawnError || out.timedOut || out.signal) {
         result.failures.push({ file: 'shaders', exitCode: out.exitCode, signal: out.signal, spawnError: out.spawnError, timedOut: out.timedOut })
       } else {
@@ -457,11 +482,12 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
     }
     const cache = classCacheReport(enginePath, 10)
     if (cache.state !== 'fresh') result.classCache = cache.hint
-    result.ok = result.diagnostics.length === 0 && result.failures.length === 0
+    result.ok = result.diagnostics.length === 0 && result.failures.length === 0 && result.drift.length === 0
     return result
   } finally {
     if (treePath) removeEngineTree(treePath)
     rmSync(checkDir, { recursive: true, force: true })
+    heartbeat()
     result.seconds = Math.round((Date.now() - t0) / 100) / 10
   }
 }

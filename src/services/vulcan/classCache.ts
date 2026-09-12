@@ -2,7 +2,8 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
-import { presenceNudge, probeGodotEditorPresence, takeCensus, type AddonPresenceFacts } from './editorPresence.js'
+import { presenceNudge, derivePresence, takeCensus, type AddonPresenceFacts } from './editorPresence.js'
+import { selectVulcanInstance } from './instances.js'
 import { resolveGodotExecutable } from './portabilityDoctor.js'
 import { getVulcanClient } from './vulcanClient.js'
 
@@ -226,9 +227,9 @@ export async function refreshClassesHeadless(executable: string, projectRoot: st
 const RESCAN_SETTLE_MS = 10_000
 const RESCAN_POLL_MS = 250
 
-async function refreshClassesViaEditor(projectRoot: string): Promise<RefreshOutcome> {
+async function refreshClassesViaEditor(projectRoot: string, selector?: unknown): Promise<RefreshOutcome> {
   const before = classCacheReport(projectRoot)
-  const client = getVulcanClient()
+  const client = getVulcanClient(projectRoot, selector)
   if (!client) {
     return refused(before, 'the bridge is up but no VULCAN client exists (flag off?) — op:"vulcan_status" explains')
   }
@@ -270,13 +271,23 @@ function refused(before: ClassCacheReport, note: string): RefreshOutcome {
 
 export async function runProjectRefreshClasses(
   projectRoot: string,
-  port: number,
   addon: AddonPresenceFacts = { installed: true, enabled: true },
+  selector?: unknown,
 ): Promise<RefreshOutcome> {
   const census = await takeCensus()
-  const presence = await probeGodotEditorPresence(projectRoot, port, census)
-  if (presence.state === 'bridge-up') return refreshClassesViaEditor(projectRoot)
+  const selected = selectVulcanInstance(projectRoot, selector)
+  const client = selected.ok && selected.instance.role.endsWith('-editor') ? getVulcanClient(projectRoot, selected.instance.id) : null
+  const ping = client ? await client.request('ping', undefined, 1000) : null
+  const presence = derivePresence(selected.ok ? selected.instance.port : 0, ping?.ok === true, census, projectRoot)
+  if (presence.state === 'bridge-up') {
+    const outcome = await refreshClassesViaEditor(projectRoot, selected.ok ? selected.instance.id : selector)
+    if (ping?.instance) outcome.note += `; instance ${ping.instance.id} (${ping.instance.role})`
+    return outcome
+  }
   const before = classCacheReport(projectRoot)
+  if (selector !== undefined && !selected.ok) return refused(before, selected.error.message)
+  if (selected.ok && !selected.instance.role.endsWith('-editor')) return refused(before, 'class refresh requires an editor instance')
+  if (selected.ok && ping?.ok !== true) return refused(before, 'the selected editor did not authenticate; no import was started')
   if (presence.state === 'editor-unbridged') {
     return refused(
       before,

@@ -17,6 +17,8 @@ import {
 } from '../coordination/coordinationService.js'
 import type { McpServerConfig } from './types.js'
 import { renderTui } from './renderTuiTool.js'
+import { getOriginalCwd, getSessionProjectDir } from '../../bootstrap/state.js'
+import { listProjectLeases, projectLeaseHolder, releaseProjectLeases, takeProjectLeases } from '../vulcan/engine/leases.js'
 
 export const COORDINATION_SERVER_NAME = 'mercury'
 
@@ -122,6 +124,23 @@ export async function createCoordinationServer(): Promise<{
   }
 
   server.registerTool(
+    'lease_take',
+    {
+      title: 'Take project file leases',
+      description: 'Take exact project-local file paths for the current session and agent, with no team required. Another live holder is named and refused. Leases end with their holder session; live holders are never expired by age.',
+      inputSchema: { paths: z.array(z.string()).min(1).describe('Exact project-relative file paths, not globs.') },
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    async ({ paths }): Promise<CallToolResult> => {
+      try {
+        return jsonResult(await takeProjectLeases(getSessionProjectDir() ?? getOriginalCwd(), paths, projectLeaseHolder()))
+      } catch (e) {
+        return errorResult(`lease_take failed: ${errorMessage(e)}`)
+      }
+    },
+  )
+
+  server.registerTool(
     'lease_claim',
     {
       title: 'Claim file leases',
@@ -164,10 +183,8 @@ export async function createCoordinationServer(): Promise<{
     {
       title: 'Release your file leases',
       description:
-        'TEAM-ONLY — no-op when solo. ' +
-        'Release all leases held by this agent on the team (idempotent — a ' +
-        'no-op if you hold none). Returns whether a lease was dropped.',
-      inputSchema: {},
+        'Release the current holder’s exact project leases when solo, or pass project:true or paths for project leases on a team. With a team and no project arguments, release the existing team glob lease. No other holder can be released.',
+      inputSchema: { paths: z.array(z.string()).optional(), project: z.boolean().optional() },
       outputSchema: {
         ok: z.boolean(),
         agentId: z.string().optional(),
@@ -177,10 +194,14 @@ export async function createCoordinationServer(): Promise<{
       },
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
-    async (): Promise<CallToolResult> => {
+    async ({ paths, project }): Promise<CallToolResult> => {
       const ctx = resolveCoordinationContext()
-      if (!ctx) return notInTeamResult()
       try {
+        if (!ctx || paths !== undefined || project === true) {
+          const holder = projectLeaseHolder()
+          const result = await releaseProjectLeases(getSessionProjectDir() ?? getOriginalCwd(), holder, paths)
+          return structuredJsonResult({ ok: true, agentId: holder.agentId, released: result.released.length > 0 })
+        }
         return structuredJsonResult({ ...(await releaseLeases(ctx)) })
       } catch (e) {
         return errorResult(`lease_release failed: ${errorMessage(e)}`)
@@ -193,25 +214,30 @@ export async function createCoordinationServer(): Promise<{
     {
       title: 'List current file leases',
       description:
-        'TEAM-ONLY — no-op when solo. ' +
-        'List all current (non-expired) file leases on the team — each ' +
-        "agent's held globs and when they claimed them.",
-      inputSchema: {},
+        'List exact project file leases with their session and agent holders, with no team required. On a team the existing glob leases remain in leases and exact leases appear in projectLeases; pass project:true for only exact leases. Dead processes are pruned; live holders never expire by age.',
+      inputSchema: { project: z.boolean().optional() },
       outputSchema: {
         ok: z.boolean(),
-        leases: z
-          .array(z.object({ agentId: z.string(), globs: z.array(z.string()), ts: z.string() }))
-          .optional(),
-        reason: z.string().optional(),
-        message: z.string().optional(),
+        leases: z.array(z.union([
+          z.object({ agentId: z.string(), globs: z.array(z.string()), ts: z.string() }),
+          z.object({ path: z.string(), acquiredAt: z.string(), holder: z.object({ sessionId: z.string(), agentId: z.string(), pid: z.number(), procStart: z.string().optional() }) }),
+        ])).optional(),
+        projectLeases: z.array(z.object({ path: z.string(), acquiredAt: z.string(), holder: z.object({ sessionId: z.string(), agentId: z.string(), pid: z.number(), procStart: z.string().optional() }) })).optional(),
+        projectLeaseError: z.string().optional(),
       },
       annotations: { readOnlyHint: true },
     },
-    async (): Promise<CallToolResult> => {
+    async ({ project }): Promise<CallToolResult> => {
       const ctx = resolveCoordinationContext()
-      if (!ctx) return notInTeamResult()
       try {
-        return structuredJsonResult({ ok: true, leases: await listTeamLeases(ctx) })
+        const root = getSessionProjectDir() ?? getOriginalCwd()
+        if (!ctx || project === true) return structuredJsonResult({ ok: true, leases: await listProjectLeases(root) })
+        const leases = await listTeamLeases(ctx)
+        try {
+          return structuredJsonResult({ ok: true, leases, projectLeases: await listProjectLeases(root) })
+        } catch (error) {
+          return structuredJsonResult({ ok: true, leases, projectLeaseError: errorMessage(error) })
+        }
       } catch (e) {
         return errorResult(`lease_list failed: ${errorMessage(e)}`)
       }
