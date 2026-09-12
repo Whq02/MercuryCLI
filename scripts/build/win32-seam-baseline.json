@@ -17,6 +17,7 @@
  "src/services/resources/adapters/transcript.ts :: split-slash": 1,
  "src/services/resources/adapters/workbench.ts :: split-slash": 1,
  "src/services/voice/voicePack.ts :: split-slash": 2,
+ "src/services/vulcan/engine/spawn.ts :: kill-signal": 2,
  "src/services/walkthrough/assembleWalkthrough.ts :: split-slash": 1,
  "src/skills/bundledSkills.ts :: split-slash": 1,
  "src/substrate/durablePublish.ts :: kill-signal": 1,

@@ -414,7 +414,7 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
     await Promise.all(Array.from({ length: Math.min(parallel, scripts.length) }, () => runNext()))
     if (shaders.length > 0) {
       const scriptRel = path.posix.join(MERCURY_PROJECT_DIR, ENGINE_DIR_SEGMENT, 'checks', checkId, 'shader_check.gd')
-      const scriptFile = path.join(enginePath, ...scriptRel.split('/'))
+      const scriptFile = path.join(enginePath, scriptRel)
       mkdirSync(path.dirname(scriptFile), { recursive: true })
       writeFileSync(scriptFile, shaderCheckScript(shaders.map(s => `res://${s}`)))
       const handle = spawnEngine({
