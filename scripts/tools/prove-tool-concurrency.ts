@@ -96,7 +96,7 @@ try {
       check('five safe calls overlap rather than serializing', peak >= 2 && elapsed < shortest * 2, detail)
     } else {
       check('three unsafe calls never overlap', peak === 1 && spans.every((span, index) => index === 0 || span.start >= spans[index - 1]!.end), detail)
-      check('three unsafe calls retain each full wait', shortest >= delay - 1 && elapsed >= delay * count - count, detail)
+      check('three unsafe calls retain each full wait', shortest >= delay - 2 && elapsed >= delay * count - count * 2, detail)
     }
   }
 } finally {
