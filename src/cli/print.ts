@@ -2773,9 +2773,11 @@ export async function runHeadless(
             })
             continue
           }
+          const sentAt = typeof typed.timestamp === 'string' && Number.isFinite(Date.parse(typed.timestamp)) ? typed.timestamp : new Date().toISOString()
           enqueue({
             value: content,
             mode: typed.mode === 'bash' ? 'bash' : 'prompt',
+            sentAt,
             ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
             ...(typed.priority !== undefined ? { priority: typed.priority } : {}),
           })
