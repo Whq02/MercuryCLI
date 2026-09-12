@@ -9,6 +9,11 @@ import { dirname, join, resolve } from 'node:path'
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'drop-notice-pure-'))
 process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-not-a-real-key'
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+for (const pin of ['MERCURY_CRITTER_IDLE', 'MERCURY_CRITTER_GAZE', 'MERCURY_CRITTER_SLEEP', 'MERCURY_LIVE_CLOCK', 'MERCURY_LIVE_GLYPHS']) {
+  process.env[pin] = '0'
+}
+process.env.MERCURY_FORCE_SYNC_OUTPUT = '1'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -29,6 +34,7 @@ const binding = await import('../../src/services/providers/anthropic/thinkingBin
 const { classifyThinkingDrops, describeThinkingDrops, prefixMarkOf, resetThinkingDropStates } = binding
 
 type Entry = { type: string; path: string; reason: string }
+type ThinkingLedgerShape = { last: unknown; longestRun: number }
 type Block = Record<string, unknown>
 const THINK = (text: string): Block => ({ type: 'thinking', thinking: text, signature: 'sig-' + text })
 const TEXT = (text: string): Block => ({ type: 'text', text })
@@ -77,10 +83,10 @@ section('§1 the classifier')
   check('a drop after a drop with unchanged marks is recurrent (run 2, the count is this response\'s)', second.kind === 'recurrent' && second.consecutive === 2 && second.count === 2, j(second))
   const third = classifyThinkingDrops('main', [DROP('messages.1.content.0')], mark())
   check('…and the run keeps counting (3)', third.kind === 'recurrent' && third.consecutive === 3, j(third))
-  check('the first drop paints the one warning of its episode; no recurrent drop paints', first.paint === true && second.paint === false && third.paint === false, `${first.paint} ${second.paint} ${third.paint}`)
+  check('the first drop writes the one receipt of its episode; no recurrent drop writes one', first.paint === true && second.paint === false && third.paint === false, `${first.paint} ${second.paint} ${third.paint}`)
   check('…the words follow: a sentence for the first, null for every recurrent', (describeThinkingDrops([DROP('messages.1.content.0')], first) ?? '').includes('dropped 1 thinking block') && describeThinkingDrops([DROP('messages.1.content.0')], second) === null && describeThinkingDrops([DROP('messages.1.content.0')], third) === null)
   const fourth = classifyThinkingDrops('main', [DROP('messages.1.content.0')], mark())
-  check('…and the run keeps counting for the ledger while nothing paints (4)', fourth.kind === 'recurrent' && fourth.consecutive === 4 && fourth.paint === false, j(fourth))
+  check('…and the run keeps counting for the ledger while nothing is written (4)', fourth.kind === 'recurrent' && fourth.consecutive === 4 && fourth.paint === false, j(fourth))
   const quiet = classifyThinkingDrops('main', [], mark())
   const again = classifyThinkingDrops('main', [DROP('messages.5.content.0')], mark())
   check('a no-drop response resets the run; the next drop is a first drop again', quiet.kind === 'none' && again.kind === 'first' && again.consecutive === 1, j(again))
@@ -213,7 +219,7 @@ section('§1b Mercury\'s own context edits are named, not read as a rewrite')
   const noSwitch = classifyThinkingDrops('noswitch', [DROP('messages.1.content.0')], mark(), { byteMoved: true })
   check('a no-switch byte move is a first rewrite (one warning), never a lawful model switch', noSwitch.kind === 'first' && noSwitch.lawful === null && noSwitch.paint === true, j(noSwitch))
   const noSwitch2 = classifyThinkingDrops('noswitch', [DROP('messages.1.content.0')], mark(), { byteMoved: true })
-  check('…and its recurrence paints nothing (the strip ends it; the doctor keeps the run)', noSwitch2.kind === 'recurrent' && noSwitch2.paint === false && describeThinkingDrops([DROP('messages.1.content.0')], noSwitch2) === null, j(noSwitch2))
+  check('…and its recurrence writes nothing (the strip ends it; the doctor keeps the run)', noSwitch2.kind === 'recurrent' && noSwitch2.paint === false && describeThinkingDrops([DROP('messages.1.content.0')], noSwitch2) === null, j(noSwitch2))
 
   resetThinkingDropStates()
   classifyThinkingDrops('idle', [], mark({ thinkingClearActive: true }))
@@ -256,21 +262,36 @@ section('§2 the words')
   check('…with no Mercury blame, no doctor pointer', !lawful.includes('Mercury') && !lawful.includes('doctor'), lawful)
   const { createThinkingNoteMessage } = await import('../../src/utils/messages/systemMessages.ts')
   const note = createThinkingNoteMessage(lawful)
-  check('the lawful note is a thinking_note system row at info level (dim), carrying the sentence', note.type === 'system' && note.subtype === 'thinking_note' && note.level === 'info' && note.content === lawful, j(note))
+  check('the lawful receipt is a thinking_note system row at info level, carrying the sentence', note.type === 'system' && note.subtype === 'thinking_note' && note.level === 'info' && note.content === lawful, j(note))
 
   resetThinkingDropStates()
   classifyThinkingDrops('w', [], mark())
   const first = describeThinkingDrops(list, classifyThinkingDrops('w', list, mark())) ?? ''
   check('a first drop keeps the client-side-edit sentence', first === binding.describeInputTransformations(list), first)
+  const warning = createThinkingNoteMessage(first, 'warning')
+  check('the rewrite receipt is the same thinking_note row at warning level — never an informational row the painter would draw', warning.type === 'system' && warning.subtype === 'thinking_note' && warning.level === 'warning' && warning.content === first, j(warning))
+  const nullRows = await import('../../src/components/messages/nullRenderingAttachments.ts').catch(() => null)
+  const hides = (row: unknown): boolean => nullRows !== null && typeof nullRows.isNullRenderingSystemRow === 'function' && nullRows.isNullRenderingSystemRow(row as never)
+  check('the transcript row filter hides the receipt at either level and the legacy dead row, never a user row', hides(note) && hides(warning) && hides({ type: 'system', subtype: 'thinking_dead', dead: [], content: '', level: 'info' }) && !hides(user('a question')) && !hides({ type: 'system', subtype: 'informational', content: 'a real notice', level: 'warning' }))
+  const { renderMessagesToPlainText } = await import('../../src/utils/exportRenderer.tsx')
+  const drawn = await renderMessagesToPlainText([user('a question the operator typed'), note, warning] as never, [] as never, 80)
+  check('drawn through the transcript pipeline, the operator row paints and neither receipt does', drawn.includes('a question the operator typed') && !drawn.includes('Preserved thinking') && !drawn.includes('dropped 1 thinking block'), j(drawn.slice(0, 400)))
+  const { createDeadThinkingAttachment, deadThinkingMarks, stripDeadThinking } = binding
+  const deadRow = assistant([THINK('the dropped reasoning'), TEXT('the kept words')])
+  const deadId = String((deadRow.message as { id: string }).id)
+  const record = createDeadThinkingAttachment([{ messageId: deadId, blockIndex: 0 }])
+  const history = [user('q'), deadRow, record, note, warning, user('next')]
+  const stripped = stripDeadThinking(history as never, deadThinkingMarks(history as never)) as unknown as Record<string, unknown>[]
+  check('the dead-block record is untouched by the quiet receipt: the marked block leaves the wire, its words stay, the receipts pass by reference', (record as { attachment: { type: string } }).attachment.type === 'dead_thinking' && !hasThinking(stripped[1]) && j(blocksOf(stripped[1])) === j([TEXT('the kept words')]) && stripped[3] === history[3] && stripped[4] === history[4], j(blocksOf(stripped[1])))
 
   const two = [DROP('messages.1.content.0'), DROP('messages.3.content.0')]
   const recurrentOutcome = classifyThinkingDrops('w', two, mark())
-  check('consecutive unlawful drops are recurrent (run 2) and paint nothing new', recurrentOutcome.kind === 'recurrent' && recurrentOutcome.consecutive === 2 && recurrentOutcome.paint === false && describeThinkingDrops(two, recurrentOutcome) === null, j(recurrentOutcome))
+  check('consecutive unlawful drops are recurrent (run 2) and write nothing new', recurrentOutcome.kind === 'recurrent' && recurrentOutcome.consecutive === 2 && recurrentOutcome.paint === false && describeThinkingDrops(two, recurrentOutcome) === null, j(recurrentOutcome))
   check('…the doctor row, not the transcript, names Mercury, the run and the road', (() => { const h = binding.preservedThinkingHealth({ last: { at: 't', kind: 'recurrent', lawful: null, reason: 'prefix_binding_mismatch', path: 'messages.1.content.0', count: 2, consecutive: 2, model: 'claude-fable-5-1' }, longestRun: 2 }); return h.status === 'warn' && h.evidence.includes('Mercury rewrote sent history on 2 consecutive requests') && (h.fix ?? '').includes('/issues') && (h.detail ?? '').includes('the first exchange changed') })())
 
   classifyThinkingDrops('w-deep', [DROP('messages.7.content.0')], mark())
   const deepOutcome = classifyThinkingDrops('w-deep', [DROP('messages.7.content.0')], mark())
-  check('a later recurrent drop paints nothing; the doctor row names the earlier turn class for its path', describeThinkingDrops([DROP('messages.7.content.0')], deepOutcome) === null && (binding.preservedThinkingHealth({ last: { at: 't', kind: 'recurrent', lawful: null, reason: 'prefix_binding_mismatch', path: 'messages.7.content.0', count: 1, consecutive: 2, model: 'claude-fable-5-1' }, longestRun: 2 }).detail ?? '').includes('a turn before messages.7 changed, or the system prompt or the tools array'), j(deepOutcome))
+  check('a later recurrent drop writes nothing; the doctor row names the earlier turn class for its path', describeThinkingDrops([DROP('messages.7.content.0')], deepOutcome) === null && (binding.preservedThinkingHealth({ last: { at: 't', kind: 'recurrent', lawful: null, reason: 'prefix_binding_mismatch', path: 'messages.7.content.0', count: 1, consecutive: 2, model: 'claude-fable-5-1' }, longestRun: 2 }).detail ?? '').includes('a turn before messages.7 changed, or the system prompt or the tools array'), j(deepOutcome))
 
   resetThinkingDropStates()
   classifyThinkingDrops('w', [], mark())
@@ -325,27 +346,42 @@ section('§3 the ledger and the doctor row')
   resetThinkingDropStates()
   classifyThinkingDrops('l', [], mark())
   const lawful = classifyThinkingDrops('l', [DROP('messages.1.content.0')], mark({ firstRow: 'summary-row' }))
-  recordThinkingDropLedger(lawful, 'claude-fable-5-1')
+  const lawfulNotice = describeThinkingDrops([DROP('messages.1.content.0')], lawful) ?? ''
+  const SESSION_A = 'aaaaaaaa-0000-4000-8000-00000000000a'
+  const SESSION_B = 'bbbbbbbb-0000-4000-8000-00000000000b'
+  recordThinkingDropLedger(lawful, 'claude-fable-5-1', lawfulNotice, SESSION_A)
   const l1 = readThinkingDropLedger()
   check('a lawful drop is recorded with its cause and no run', l1?.last.kind === 'lawful' && l1.last.lawful === 'compaction' && l1.last.path === 'messages.1.content.0' && l1.longestRun === 0, j(l1))
-  const r1 = preservedThinkingHealth(l1)
-  check('…and reads as an info row naming the compaction', r1.status === 'info' && r1.evidence.includes('after a compaction') && r1.evidence.includes('expected once'), j(r1))
+  check('…and the session record: one drop in that session, with the receipt sentence the chat no longer shows', l1?.session?.id === SESSION_A && l1.session.drops === 1 && l1.session.notice === lawfulNotice && lawfulNotice.startsWith('Preserved thinking: the API dropped 1 thinking block after the compaction'), j(l1?.session))
+  const r1 = preservedThinkingHealth(l1, SESSION_A)
+  check('…and reads as an info row naming the compaction, one drop this session and the cause, all on the evidence line the plain doctor prints', r1.status === 'info' && r1.evidence.includes('after a compaction') && r1.evidence.includes('expected once') && r1.evidence.endsWith(` · 1 drop this session · last cause: ${lawfulNotice}`) && r1.detail === undefined, j(r1))
+  const r1Elsewhere = preservedThinkingHealth(l1, SESSION_B)
+  check('…read from another process (mercury doctor), the row names the session by its short id', r1Elsewhere.evidence.includes(' · 1 drop in session aaaaaaaa · last cause: Preserved thinking:'), j(r1Elsewhere))
 
   const first = classifyThinkingDrops('l', [DROP('messages.1.content.0')], mark({ firstRow: 'summary-row' }))
-  recordThinkingDropLedger(first, 'claude-fable-5-1')
+  const firstNotice = describeThinkingDrops([DROP('messages.1.content.0')], first) ?? ''
+  recordThinkingDropLedger(first, 'claude-fable-5-1', firstNotice, SESSION_A)
   const second = classifyThinkingDrops('l', [DROP('messages.1.content.0'), DROP('messages.3.content.0'), DROP('messages.5.content.0')], mark({ firstRow: 'summary-row' }))
-  recordThinkingDropLedger(second, 'claude-fable-5-1')
+  check('the recurrent drop writes no receipt of its own', describeThinkingDrops([DROP('messages.1.content.0')], second) === null)
+  recordThinkingDropLedger(second, 'claude-fable-5-1', null, SESSION_A)
   const l2 = readThinkingDropLedger()
   check('a recurrent drop is recorded with the run and the count', l2?.last.kind === 'recurrent' && l2.last.consecutive === 2 && l2.last.count === 3 && l2.longestRun === 2, j(l2))
-  const r2 = preservedThinkingHealth(l2)
+  check('…the session count grows to three drops and keeps the first drop\'s sentence (the recurrent one wrote none)', l2?.session?.id === SESSION_A && l2.session.drops === 3 && l2.session.notice === firstNotice && firstNotice.includes('a client-side edit'), j(l2?.session))
+  const r2 = preservedThinkingHealth(l2, SESSION_A)
   check('…and reads as a warn row naming Mercury and the run', r2.status === 'warn' && r2.evidence.includes('Mercury rewrote sent history on 2 consecutive requests') && r2.evidence.includes('3 blocks') && r2.evidence.includes('prefix_binding_mismatch at messages.1.content.0'), j(r2))
-  check('…with the block class and the longest run in the detail', (r2.detail ?? '').includes('the first exchange changed') && (r2.detail ?? '').includes('Longest run on this machine: 2'), j(r2))
+  check('…with the block class and the longest run in the detail, and three drops this session with the last cause on the evidence line', (r2.detail ?? '').includes('the first exchange changed') && (r2.detail ?? '').endsWith('Longest run on this machine: 2.') && r2.evidence.endsWith(` · 3 drops this session · last cause: ${firstNotice}`), j(r2))
   check('…and a paste-ready fix pointing at the bug-report road', (r2.fix ?? '').includes('https://github.com/example/mercury/issues') && (r2.fix ?? '').includes('mercury doctor --json'), j(r2))
   check('…never at switching models', !/switch/i.test(`${r2.evidence} ${r2.detail ?? ''} ${r2.fix ?? ''}`), j(r2))
 
   classifyThinkingDrops('l', [], mark({ firstRow: 'summary-row' }))
   recordThinkingDropLedger(classifyThinkingDrops('l', [], mark({ firstRow: 'summary-row' })), 'claude-fable-5-1')
   check('a no-drop response writes nothing (the last drop stays)', readThinkingDropLedger()?.last.kind === 'recurrent')
+  recordThinkingDropLedger(classifyThinkingDrops('l2', [DROP('messages.1.content.0')], mark()), 'claude-fable-5-1', firstNotice, SESSION_B)
+  const lb = readThinkingDropLedger()
+  check('another session starts its own count at one; the earlier session\'s count is not carried into it', lb?.session?.id === SESSION_B && lb.session.drops === 1, j(lb?.session))
+  const legacy: ThinkingLedgerShape = { last: l2!.last, longestRun: l2!.longestRun }
+  const rLegacy = preservedThinkingHealth(legacy as never, SESSION_A)
+  check('a ledger written before the session record existed reads with the words it had (no count, no cause)', !rLegacy.evidence.includes('this session') && !rLegacy.evidence.includes('in session') && !rLegacy.evidence.includes('last cause'), j(rLegacy))
   const single = classifyThinkingDrops('l', [DROP('messages.9.content.0')], mark({ firstRow: 'summary-row' }))
   recordThinkingDropLedger(single, 'claude-fable-5-1')
   const l3 = readThinkingDropLedger()
@@ -440,6 +476,18 @@ if (!existsSync(DIST)) {
     if (staged !== null && existsSync(join(stagedHome, '.mercury', 'preserved-thinking.json'))) {
       check('the doctor never rewrites the ledger', readFileSync(join(stagedHome, '.mercury', 'preserved-thinking.json'), 'utf8').includes('"consecutive":4'))
     }
+    check('…a ledger without a session record reads with the words it had (no count, no cause)', staged !== null && !String(staged.evidence).includes('session') && !String(staged.evidence).includes('last cause'), j(staged))
+
+    const sessionHome = mkdtempSync(join(tmpdir(), 'drop-notice-doctor-session-'))
+    mkdirSync(join(sessionHome, '.mercury'), { recursive: true })
+    const stagedNotice = 'Preserved thinking: the API dropped 1 thinking block — the history before messages.1.content.0 changed since they were written (a client-side edit); the model re-plans without that reasoning this turn.'
+    writeFileSync(join(sessionHome, '.mercury', 'preserved-thinking.json'), j({
+      last: { at: '2026-09-02T12:00:00.000Z', kind: 'first', lawful: null, reason: 'prefix_binding_mismatch', path: 'messages.1.content.0', count: 1, consecutive: 1, model: 'claude-fable-5-1' },
+      longestRun: 1,
+      session: { id: '0badf00d-0000-4000-8000-00000000c0de', drops: 2, notice: stagedNotice },
+    }))
+    const withSession = doctor(sessionHome)
+    check('a staged session record: the row carries the drop count for that session and the last cause sentence on its evidence line', withSession !== null && String(withSession.evidence).endsWith(` · 2 drops in session 0badf00d · last cause: ${stagedNotice}`), j(withSession))
   }
 }
 

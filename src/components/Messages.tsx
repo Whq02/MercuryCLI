@@ -60,7 +60,10 @@ import {
   toolInputFiles,
   EMPTY_FACETS,
 } from '../utils/transcriptSearch.js'
-import { isNullRenderingAttachment } from './messages/nullRenderingAttachments.js'
+import {
+  isNullRenderingAttachment,
+  isNullRenderingSystemRow,
+} from './messages/nullRenderingAttachments.js'
 import {
   BRIEF_TOOL_NAME,
   LEGACY_BRIEF_TOOL_NAME,
@@ -289,6 +292,9 @@ function MessagesInner({
     working = working.filter(message => {
       if (message.type === 'progress') return false
       if (message.type === 'attachment' && isNullRenderingAttachment(message)) {
+        return false
+      }
+      if (message.type === 'system' && isNullRenderingSystemRow(message)) {
         return false
       }
       if (

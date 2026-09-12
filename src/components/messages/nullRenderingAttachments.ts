@@ -67,3 +67,21 @@ export function isNullRenderingAttachment(
   if (message.type !== 'attachment') return false
   return NULL_RENDERING_SET.has(message.attachment.type)
 }
+
+export const NULL_RENDERING_SYSTEM_SUBTYPES = [
+  'thinking_note',
+  'thinking_dead',
+] as const
+
+const NULL_RENDERING_SYSTEM_SET: ReadonlySet<string> = new Set(
+  NULL_RENDERING_SYSTEM_SUBTYPES,
+)
+
+export function isNullRenderingSystemRow(
+  message: Message | NormalizedMessage,
+): boolean {
+  if (message.type !== 'system') return false
+  return NULL_RENDERING_SYSTEM_SET.has(
+    (message as { subtype?: string }).subtype ?? '',
+  )
+}

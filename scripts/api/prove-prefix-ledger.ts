@@ -526,7 +526,7 @@ section('§2 the words and the doctor — the receipts carry the named part')
   check("a first drop's receipt ends with the ledger clause naming the part", words.includes('the history before messages.1.content.0 changed') && words.endsWith("Mercury's prefix ledger names the part that moved: the system prompt's Environment section."), words)
   const recurrent = classifyThinkingDrops('w', [DROP, { ...DROP, path: 'messages.3.content.0' }], mark)
   recurrent.part = "turn 0's user row: text block 0"
-  check('the recurrent drop paints nothing new — the clause rode the first warning', recurrent.paint === false && describeThinkingDrops([DROP], recurrent) === null, j(recurrent))
+  check('the recurrent drop writes nothing new — the clause rode the first receipt', recurrent.paint === false && describeThinkingDrops([DROP], recurrent) === null, j(recurrent))
   recordThinkingDropLedger(recurrent, 'claude-fable-5-1')
   const row = readThinkingDropLedger()
   check('the doctor ledger records the named part', row?.last.part === "turn 0's user row: text block 0" && row.last.kind === 'recurrent', j(row))
@@ -539,10 +539,11 @@ section('§2 the words and the doctor — the receipts carry the named part')
   check('a single drop the ledger named reads as a WARN row (a rewrite, never "a resumed session")', namedFirst.status === 'warn' && namedFirst.evidence.includes('a rewrite of sent history') && !namedFirst.evidence.includes('resumed') && (namedFirst.fix ?? '').includes('/issues'), j(namedFirst))
   const rewrite = describePrefixRewrite("the system prompt's Environment section", 'system[0].text@char 120')
   check('the rewrite-without-drop sentence names the part, the path, the API\'s silence and the doctor road', rewrite.startsWith("Preserved thinking: Mercury rewrote already-sent history before this request — the system prompt's Environment section (system[0].text@char 120); the API reported no dropped block this turn.") && rewrite.includes('mercury doctor') && rewrite.includes('https://github.com/example/mercury/issues'), rewrite)
-  recordPrefixRewriteLedger("the system prompt's Environment section", 'system[0].text@char 120', 'claude-fable-5-1')
+  recordPrefixRewriteLedger("the system prompt's Environment section", 'system[0].text@char 120', 'claude-fable-5-1', rewrite, 'cafe0000-0000-4000-8000-00000000cafe')
   const rewriteRow = readThinkingDropLedger()
-  const rewriteHealth = preservedThinkingHealth(rewriteRow)
+  const rewriteHealth = preservedThinkingHealth(rewriteRow, 'cafe0000-0000-4000-8000-00000000cafe')
   check("the rewrite row is kind 'rewrite' with the part, and the doctor warns with it", rewriteRow?.last.kind === 'rewrite' && rewriteRow.last.part === "the system prompt's Environment section" && rewriteHealth.status === 'warn' && rewriteHealth.evidence.includes("Mercury rewrote sent history at ") && rewriteHealth.evidence.includes('the API reported no dropped block'), j(rewriteHealth))
+  check("…the rewrite's receipt sentence rides the ledger as the session's last cause (no drop counted: the API dropped nothing), and the doctor row's evidence line carries it", rewriteRow?.session?.notice === rewrite && rewriteRow.session.drops === 0 && rewriteHealth.evidence.endsWith(` · 0 drops this session · last cause: ${rewrite}`), j(rewriteRow?.session))
 }
 
 section('§3 the wire — the built bundle, an induced edit per part, named end to end')
@@ -685,7 +686,7 @@ if (!existsSync(DIST)) {
       const r = await runStreaming(arena, [...common, '--session-id', SID], [{ prompt: 'quiet turn 1' }, { prompt: 'quiet turn 2' }, { prompt: 'quiet turn 3' }])
       check('[no drop] the three-turn process exits 0', r.exit === 0, `exit=${r.exit}`)
       const notices = transcriptNotices(arena, SID)
-      check('[no drop] the rewrite row paints, naming the part and the API\'s silence', notices.length === 1 && notices[0]!.includes("Mercury rewrote already-sent history before this request — the system prompt's") && notices[0]!.includes('the API reported no dropped block this turn'), j(notices))
+      check('[no drop] the rewrite receipt is written (kept in the transcript, never painted), naming the part and the API\'s silence', notices.length === 1 && notices[0]!.includes("Mercury rewrote already-sent history before this request — the system prompt's") && notices[0]!.includes('the API reported no dropped block this turn'), j(notices))
       const row = existsSync(ledgerFile(arena)) ? (JSON.parse(readFileSync(ledgerFile(arena), 'utf8')) as { last?: { kind?: string; part?: string } }) : null
       check("[no drop] the doctor ledger row is kind 'rewrite' with the part", row?.last?.kind === 'rewrite' && (row.last.part ?? '').startsWith("the system prompt's"), j(row))
       await fixture.close()
@@ -753,7 +754,7 @@ if (!existsSync(DIST)) {
       const rowsText = (() => { const dir = join(arena.home, '.claude', 'projects'); const files: string[] = []; const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }; if (existsSync(dir)) walk(dir); return files.map(f => readFileSync(f, 'utf8')).join('\n') })()
       check('[switch] the dead marks persist as a dead_thinking attachment across the resume', rowsText.includes('"attachmentType":"dead_thinking"'), rowsText.split('\n').filter(l => l.includes('dead_thinking')).join(' | ').slice(0, 200))
       const notices = transcriptNotices(arena, SID)
-      check('[switch] exactly one drop notice paints — never a repeating "again" run', notices.filter(n => n.includes('the API dropped')).length === 1 && !notices.some(n => n.includes('dropped') && n.includes('again')), j(notices))
+      check('[switch] exactly one drop receipt is written — never a repeating "again" run', notices.filter(n => n.includes('the API dropped')).length === 1 && !notices.some(n => n.includes('dropped') && n.includes('again')), j(notices))
       await fixture.close()
     }
 
@@ -777,7 +778,7 @@ if (!existsSync(DIST)) {
       check('[after drop] the fourth request carries the surviving and the new reasoning, never the dead block', j(thinkingOf(reqs[3])) === j(['ad one', 'ad three']), j(thinkingOf(reqs[3])))
       check('[after drop] the fixture drops nothing from the fourth request (the chain it holds is intact)', reqs.length === 4 && (bindingDropsFor(reqs[3]!) as unknown[]).length === 0)
       const notices = transcriptNotices(arena, SID)
-      check('[after drop] one drop notice paints for the report, and no "Mercury rewrote already-sent history" row follows it', notices.length === 1 && notices[0]!.includes('the API dropped') && !notices.some(n => n.includes('rewrote already-sent history')), j(notices))
+      check('[after drop] one drop receipt is written for the report, and no "Mercury rewrote already-sent history" row follows it', notices.length === 1 && notices[0]!.includes('the API dropped') && !notices.some(n => n.includes('rewrote already-sent history')), j(notices))
       check('[after drop] the ledger names no rewrite before the fourth request', !debugText(debugFile).includes('the prefix ledger names a rewrite'), debugText(debugFile).split('\n').filter(l => l.includes('prefix ledger')).join(' | ').slice(0, 300))
       const row = existsSync(ledgerFile(arena)) ? (JSON.parse(readFileSync(ledgerFile(arena), 'utf8')) as { last?: { kind?: string } }) : null
       check("[after drop] the doctor ledger keeps the drop's own row, never a rewrite row over it", typeof row?.last?.kind === 'string' && row.last.kind !== 'rewrite', j(row))

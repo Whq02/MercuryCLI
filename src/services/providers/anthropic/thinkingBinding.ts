@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { THINKING_BINDING_CONTROLS_BETA_HEADER } from '../../../constants/betas.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
+import { getSessionId } from '../../../bootstrap/state.js'
 import type { AttachmentMessage, DeadThinkingMark, Message } from '../../../types/message.js'
 import { isToolResultMessage } from '../../../utils/messages/merge.js'
 import { createAttachmentMessage } from '../../../utils/attachments/orchestrator.js'
@@ -528,13 +529,37 @@ export interface ThinkingDropLedger {
     part?: string | null
   }
   longestRun: number
+  session?: {
+    id: string
+    drops: number
+    notice: string | null
+  }
 }
 
 export function thinkingDropLedgerPath(): string {
   return join(getMercuryHome(), 'preserved-thinking.json')
 }
 
-export function recordThinkingDropLedger(outcome: DropOutcome, model: string): void {
+function sessionRecord(
+  previous: ThinkingDropLedger | null,
+  sessionId: string,
+  drops: number,
+  notice: string | null,
+): NonNullable<ThinkingDropLedger['session']> {
+  const same = previous?.session?.id === sessionId ? previous.session : undefined
+  return {
+    id: sessionId,
+    drops: (typeof same?.drops === 'number' ? same.drops : 0) + drops,
+    notice: notice ?? (typeof same?.notice === 'string' ? same.notice : null),
+  }
+}
+
+export function recordThinkingDropLedger(
+  outcome: DropOutcome,
+  model: string,
+  notice: string | null = null,
+  sessionId: string = getSessionId(),
+): void {
   if (outcome.kind === 'none') return
   try {
     const previous = readThinkingDropLedger()
@@ -555,6 +580,7 @@ export function recordThinkingDropLedger(outcome: DropOutcome, model: string): v
         ...(outcome.part !== null ? { part: outcome.part } : {}),
       },
       longestRun: Math.max(previous?.longestRun ?? 0, outcome.kind === 'lawful' ? 0 : outcome.consecutive),
+      session: sessionRecord(previous, sessionId, 1, notice),
     }
     writeThinkingDropLedger(ledger)
   } catch (error) {
@@ -562,12 +588,19 @@ export function recordThinkingDropLedger(outcome: DropOutcome, model: string): v
   }
 }
 
-export function recordPrefixRewriteLedger(part: string, path: string, model: string): void {
+export function recordPrefixRewriteLedger(
+  part: string,
+  path: string,
+  model: string,
+  notice: string | null = null,
+  sessionId: string = getSessionId(),
+): void {
   try {
     const previous = readThinkingDropLedger()
     writeThinkingDropLedger({
       last: { at: new Date().toISOString(), kind: 'rewrite', lawful: null, reason: null, path, count: 0, consecutive: 1, model, part },
       longestRun: Math.max(previous?.longestRun ?? 0, 1),
+      session: sessionRecord(previous, sessionId, 0, notice),
     })
   } catch (error) {
     logForDebugging(`preserved thinking: the doctor ledger could not be written (${String(error)})`, { level: 'warn' })
@@ -594,7 +627,16 @@ export function readThinkingDropLedger(): ThinkingDropLedger | null {
   }
 }
 
-export function preservedThinkingHealth(ledger: ThinkingDropLedger | null): {
+function sessionClause(ledger: ThinkingDropLedger, sessionId: string): string {
+  const session = ledger.session
+  if (session === undefined || typeof session.id !== 'string' || typeof session.drops !== 'number') return ''
+  const where = session.id === sessionId ? 'this session' : `in session ${session.id.slice(0, 8)}`
+  const count = ` · ${session.drops} ${session.drops === 1 ? 'drop' : 'drops'} ${where}`
+  const cause = typeof session.notice === 'string' && session.notice.length > 0 ? ` · last cause: ${session.notice}` : ''
+  return `${count}${cause}`
+}
+
+export function preservedThinkingHealth(ledger: ThinkingDropLedger | null, sessionId: string = getSessionId()): {
   status: 'ok' | 'info' | 'warn'
   evidence: string
   detail?: string
@@ -607,10 +649,11 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null): {
   const blocks = `${last.count} ${last.count === 1 ? 'block' : 'blocks'}`
   const where = `${last.reason ?? 'unknown reason'} at ${last.path ?? 'unknown path'}`
   const named = typeof last.part === 'string' && last.part.length > 0 ? ` Mercury's prefix ledger named the part that moved: ${last.part}.` : ''
+  const session = sessionClause(ledger, sessionId)
   if (last.kind === 'rewrite') {
     return {
       status: 'warn',
-      evidence: `Mercury rewrote sent history at ${last.at} — ${last.part ?? 'an unnamed part'} (${last.path ?? 'unknown path'}, model ${last.model}); the API reported no dropped block on that response`,
+      evidence: `Mercury rewrote sent history at ${last.at} — ${last.part ?? 'an unnamed part'} (${last.path ?? 'unknown path'}, model ${last.model}); the API reported no dropped block on that response${session}`,
       detail: `Longest run on this machine: ${ledger.longestRun}.`,
       fix: `Paste this row into a bug report at ${issuesUrl()} (the bug template, with the output of mercury doctor --json).`,
     }
@@ -632,20 +675,20 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null): {
                   : 'a model switch'
     return {
       status: 'info',
-      evidence: `last drop ${last.at}: ${blocks} after ${cause} (${where}, model ${last.model}) — expected once`,
+      evidence: `last drop ${last.at}: ${blocks} after ${cause} (${where}, model ${last.model}) — expected once${session}`,
     }
   }
   if (last.kind === 'first') {
     return {
       status: named.length > 0 ? 'warn' : 'info',
-      evidence: `last drop ${last.at}: ${blocks} (${where}, model ${last.model}) — ${named.length > 0 ? `a rewrite of sent history.${named}` : "a single drop; a resumed session's first request or a client-side edit"}`,
+      evidence: `last drop ${last.at}: ${blocks} (${where}, model ${last.model}) — ${named.length > 0 ? `a rewrite of sent history.${named}` : "a single drop; a resumed session's first request or a client-side edit"}${session}`,
       detail: `Longest run of consecutive drops on this machine: ${ledger.longestRun}.`,
       ...(named.length > 0 ? { fix: `Paste this row into a bug report at ${issuesUrl()} (the bug template, with the output of mercury doctor --json).` } : {}),
     }
   }
   return {
     status: 'warn',
-    evidence: `Mercury rewrote sent history on ${last.consecutive} consecutive requests — last ${last.at}: ${blocks} dropped, ${where}, model ${last.model}${named}`,
+    evidence: `Mercury rewrote sent history on ${last.consecutive} consecutive requests — last ${last.at}: ${blocks} dropped, ${where}, model ${last.model}${named}${session}`,
     detail: `${describePathClass(last.path)}. Longest run on this machine: ${ledger.longestRun}.`,
     fix: `Paste this row into a bug report at ${issuesUrl()} (the bug template, with the output of mercury doctor --json).`,
   }
