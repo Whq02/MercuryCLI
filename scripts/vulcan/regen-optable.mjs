@@ -104,8 +104,15 @@ const CLASSES := {
 ${ops.map(o => `\t"${o.name}": "${o.cls}",`).join('\n')}
 }
 
+const MERCURY_SIDE := [
+${ops.filter(o => o.side === 'mercury').map(o => `\t"${o.name}",`).join('\n')}
+]
+
 static func of(op: String) -> String:
 \treturn String(CLASSES.get(op, ""))
+
+static func mercury_side(op: String) -> bool:
+\treturn MERCURY_SIDE.has(op)
 `
 
 if (process.argv.includes('--check')) {

@@ -73,9 +73,8 @@ export function engineOpPermissionMessage(op: string, args: Args | undefined): s
     case 'engine_node_call':
       return 'Godot exec: engine_node_call — runs a method on the explicitly selected running instance'
     case 'lease_take':
-      return 'Godot mutate: lease_take — claims exact project files for this session and agent'
     case 'lease_release':
-      return 'Godot mutate: lease_release — releases only this session and agent’s exact project leases'
+      return `Godot mutate: ${op} — changes this session and agent's project file leases (no editor undo step)`
     case 'engine_cancel':
       return `Godot mutate: engine_cancel${typeof a.id === 'string' ? ` (${a.id})` : ''} — ends that engine job's process tree; the editor is not touched`
     default:
