@@ -49,7 +49,7 @@ function killLiveEnginesSync(): void {
     try {
       if (process.platform === 'win32') {
         const { file, args } = win32TaskkillCommand(pid)
-        spawnSync(file, args, { windowsHide: true, stdio: 'ignore', env: subprocessEnv() })
+        spawnSync(file, args, { windowsHide: true, stdio: 'ignore', timeout: 5_000, env: subprocessEnv() })
       } else {
         process.kill(-pid, 'SIGKILL')
       }
