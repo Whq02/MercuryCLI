@@ -621,19 +621,20 @@ async function* streamModel(
                 { byteMoved: rewrite !== null },
               )
               if (rewrite !== null && outcome.kind !== 'none' && outcome.lawful === null) outcome.part = rewrite.part
+              const dropNotice = describeThinkingDrops(drops, outcome, turnOrdinalOfWirePath(outcome.path, prefixVerdict?.wireMessageIds ?? [], iter.messagesForQuery))
               if (outcome.kind !== 'none') {
-                recordThinkingDropLedger(outcome, iter.currentModel)
+                recordThinkingDropLedger(outcome, iter.currentModel, dropNotice)
                 logForDebugging(`preserved thinking: ${JSON.stringify(drops)}`, { level: 'warn' })
               }
-              const dropNotice = describeThinkingDrops(drops, outcome, turnOrdinalOfWirePath(outcome.path, prefixVerdict?.wireMessageIds ?? [], iter.messagesForQuery))
               if (dropNotice !== null) {
                 const lawful = outcome.kind === 'lawful'
                 logForDebugging(`preserved thinking: ${lawful ? 'note' : 'warning'}: ${dropNotice}`)
-                yield emit({ kind: 'notice', message: lawful ? createThinkingNoteMessage(dropNotice) : createSystemMessage(dropNotice, 'warning') })
+                yield emit({ kind: 'notice', message: createThinkingNoteMessage(dropNotice, lawful ? 'info' : 'warning') })
               } else if (rewrite !== null && outcome.kind === 'none') {
-                recordPrefixRewriteLedger(rewrite.part, rewrite.path, iter.currentModel)
+                const rewriteNotice = describePrefixRewrite(rewrite.part, rewrite.path)
+                recordPrefixRewriteLedger(rewrite.part, rewrite.path, iter.currentModel, rewriteNotice)
                 if (takeRewriteNoticeOnce(String(ownerFromToolUseContext(toolUseContext)))) {
-                  yield emit({ kind: 'notice', message: createSystemMessage(describePrefixRewrite(rewrite.part, rewrite.path), 'warning') })
+                  yield emit({ kind: 'notice', message: createThinkingNoteMessage(rewriteNotice, 'warning') })
                 }
               }
               const dead = deadMarksFromDrops(drops, prefixVerdict?.wireMessageIds ?? [], deadThinkingMarks(iter.messagesForQuery))

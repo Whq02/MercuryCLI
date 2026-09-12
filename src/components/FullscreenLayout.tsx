@@ -52,7 +52,10 @@ import type {
   Message as WireMessage,
   NormalizedMessage,
 } from '../types/message.js'
-import { isNullRenderingAttachment } from './messages/nullRenderingAttachments.js'
+import {
+  isNullRenderingAttachment,
+  isNullRenderingSystemRow,
+} from './messages/nullRenderingAttachments.js'
 import { cockpitEngine } from '../render-engine/cockpit/engineMount.js'
 
 
@@ -102,6 +105,9 @@ export function computeUnseenDivider(
       message.type === 'attachment' &&
       isNullRenderingAttachment(message as never)
     ) {
+      continue
+    }
+    if (message.type === 'system' && isNullRenderingSystemRow(message as never)) {
       continue
     }
     anchor = message

@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
@@ -425,7 +425,23 @@ if (!existsSync(DIST)) {
     check('the notice reaches the debug log exactly once (one envelope per block, one response id)', debugNotices === 1, `debug lines=${debugNotices} stdout notices=${stdoutNotices} log=${debugLogOf(3).length}B`)
     console.log(`    (stream-json system rows carrying the notice: ${stdoutNotices})`)
     const earlyNotices = (r1.stdout + r1.stderr + r2.stdout + r2.stderr + debugLogOf(1) + debugLogOf(2)).includes('reserved thinking')
-    check('an empty or absent drop list never paints a notice (turns 1 and 2)', !earlyNotices)
+    check('an empty or absent drop list never writes a receipt (turns 1 and 2)', !earlyNotices)
+    const sessionRows = ((): string[] => {
+      const walk = (dir: string): string[] => {
+        const out: string[] = []
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const full = join(dir, entry.name)
+          if (entry.isDirectory()) out.push(...walk(full))
+          else if (entry.name === `${SID}.jsonl`) out.push(full)
+        }
+        return out
+      }
+      const root = join(arena.home, '.claude', 'projects')
+      return existsSync(root) ? walk(root).flatMap(file => readFileSync(file, 'utf8').split('\n')) : []
+    })()
+    const receiptRows = sessionRows.filter(line => line.includes('Preserved thinking')).map(line => { try { return JSON.parse(line) as { payload?: { kind?: string; noticeKind?: string; level?: string; content?: string } } } catch { return null } }).filter((row): row is { payload: { kind?: string; noticeKind?: string; level?: string; content?: string } } => row !== null && row.payload !== undefined)
+    check('the receipt persists in the session file as ONE warning-level thinking_note notice row (kept, never painted)', receiptRows.length === 1 && receiptRows[0]!.payload.kind === 'notice' && receiptRows[0]!.payload.noticeKind === 'thinking_note' && receiptRows[0]!.payload.level === 'warning' && (receiptRows[0]!.payload.content ?? '').startsWith(noticeText), j(receiptRows.map(r => r.payload)).slice(0, 400))
+    check('the dead-block record persists beside it (the next request reads it to keep the block off the wire)', sessionRows.some(line => line.includes('"attachmentType":"dead_thinking"') && line.includes('"blockIndex":0')), String(sessionRows.filter(l => l.includes('dead_thinking')).length))
 
     await fixture.close()
   }

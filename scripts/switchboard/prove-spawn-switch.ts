@@ -469,7 +469,7 @@ if (!existsSync(DIST)) {
       check('request 3 keeps the same roster (frozen)', toolNames(b3).includes(AgentTool.name) && j(toolNames(b2)) === j(toolNames(b3)))
     }
     const notices = transcriptNotices(arena, SID)
-    check('the scripted drop paints exactly one receipt', notices.length === 1, `${notices.length} ${notices[0]?.slice(0, 200) ?? ''}`)
+    check('the scripted drop writes exactly one receipt (kept in the transcript, never painted)', notices.length === 1, `${notices.length} ${notices[0]?.slice(0, 200) ?? ''}`)
     const notice = notices[0] ?? ''
     check("…the receipt names the operator's toggle, expected once — never a client-side edit, never Mercury", notice.includes('after the operator toggled sub-agents off') && notice.includes('(expected once)') && !notice.includes('client-side') && !notice.includes('Mercury defect'), notice.slice(0, 300))
     await fixture.close()

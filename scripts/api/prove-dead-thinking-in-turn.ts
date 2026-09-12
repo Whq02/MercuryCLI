@@ -259,7 +259,7 @@ if (!existsSync(DIST)) {
         j({ file_path: filePath, old_string: 'beta', new_string: 'gamma', replace_all: false }),
         j({ command: 'echo second', description: '', timeout: 5000, run_in_background: false }),
       ]), j(settledInputs))
-      check('§2 the ledger named no rewrite and no receipt painted', debugLines(debugFile, 'the prefix ledger names a rewrite of sent history').length === 0 && transcriptLines(arena, SID, 'Preserved thinking').length === 0 && readLedger(arena) === null, j(debugLines(debugFile, 'the prefix ledger names a rewrite of sent history')))
+      check('§2 the ledger named no rewrite and no receipt written', debugLines(debugFile, 'the prefix ledger names a rewrite of sent history').length === 0 && transcriptLines(arena, SID, 'Preserved thinking').length === 0 && readLedger(arena) === null, j(debugLines(debugFile, 'the prefix ledger names a rewrite of sent history')))
       await fixture.close()
     }
 
@@ -300,7 +300,7 @@ if (!existsSync(DIST)) {
       const deadRows = transcriptLines(arena, SID, '"dead_thinking"')
       check('§3 exactly one dead-block record was written (the one drop)', deadRows.length === 1, String(deadRows.length))
       const notices = transcriptLines(arena, SID, 'Preserved thinking')
-      check("§3 the one receipt names the edit and the ledger's part (the first drop's warning, painted once)", notices.length === 1 && notices[0]!.includes("turn 0's user row"), `${notices.length} ${(notices[0] ?? '').slice(0, 200)}`)
+      check("§3 the one receipt names the edit and the ledger's part (the first drop's warning-level receipt, written once, never painted)", notices.length === 1 && notices[0]!.includes("turn 0's user row"), `${notices.length} ${(notices[0] ?? '').slice(0, 200)}`)
       const ledger = readLedger(arena)
       check('§3 the doctor records ONE first drop (consecutive 1), never a run of consecutive rewrites', ledger?.last?.kind === 'first' && ledger.last.consecutive === 1 && ledger.longestRun === 1 && ledger.last.count === 1, j(ledger))
       const named = debugLines(debugFile, 'the prefix ledger names a rewrite of sent history')
