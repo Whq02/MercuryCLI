@@ -8,7 +8,7 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = '7a1d33c8563306b4e6b93ed48374bf6dca1c705094f8ecc67fcbf070a4719045'
+export const VULCAN_OPTABLE_DIGEST = 'c6e283e0d0110059fe6d2dcc98e0f29d40d875a22ed22a4fed22f08d2838dceb'
 
 export const VULCAN_STEP_WALL_MS_PER_FRAME = 50
 
@@ -2241,7 +2241,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "cls": "read",
     "lite": false,
     "side": "mercury",
-    "summary": "Mercury-side: the engine job queue and workers — the worker count and its source (MERCURY_GODOT_WORKERS or the cores), the queued and running jobs in priority order, the recent runs, the live engine processes, the orphans swept at start, and the manifest's suites",
+    "summary": "Mercury-side: the engine job queue and workers — the worker count and its source (MERCURY_GODOT_WORKERS or the cores), the queued and running jobs in priority order, the recent runs, the live engine processes, the orphans swept at start (or why that sweep could not run), and the manifest's suites",
     "args": {}
   },
   {
