@@ -699,7 +699,7 @@ export class EngineJobService {
         if (request.kind === 'profile') await this.observeProfileQuiet(job, 'after-measurement-boot', false)
         this.writeRecord(job)
         if (debuggerProfile) media.evidence.push(debuggerProfile.evidence())
-        if (debuggerProfile?.transport.error) throw new Error(debuggerProfile.transport.error)
+        if (debuggerProfile?.transport.error && row.signal === null) throw new Error(debuggerProfile.transport.error)
         if (!row.ok || job.cancelRequested) return
         if (debuggerProfile?.transport.accepted && !debuggerProfile.finished) throw new Error('Godot debugger connected but did not finish the profile; no project fallback is claimed')
         const out = readEngineMediaBoot(boot.resultFile, request, variant, boot.outputDir)

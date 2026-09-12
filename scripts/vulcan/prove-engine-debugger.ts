@@ -170,6 +170,41 @@ if (!executable.resolved) {
       check('a game that never connects falls back to project with the reason', fallback.media?.selectedSource === 'project' && /never connected/.test(fallback.media.fallbackReason ?? '') && engineEvidence(fallback).connected === false, fallback)
       check('the unused listener also closes', await portIsFree(engineEvidence(fallback).port))
     } finally { await disconnected.shutdown() }
+    const holdingScript = join(scratch, 'holding-engine.ts')
+    writeFileSync(holdingScript, [
+      `const godot = ${JSON.stringify(executable.resolved)}`,
+      `const transportModule = ${JSON.stringify(join(root, 'src/services/vulcan/engine/debuggerTransport.ts'))}`,
+      "const { spawnSync } = await import('node:child_process')",
+      "const { readFileSync } = await import('node:fs')",
+      "const { connect } = await import('node:net')",
+      'const args = process.argv.slice(2)',
+      "const at = args.indexOf('--remote-debug')",
+      "if (at < 0) process.exit(spawnSync(godot, args, { stdio: 'inherit', env: process.env }).status ?? 1)",
+      'const { encodeGodotPacket } = await import(transportModule)',
+      "const config = JSON.parse(readFileSync(args[args.indexOf('--') + 1], 'utf8'))",
+      "const socket = connect(Number(/:(\\d+)$/.exec(args[at + 1])[1]), '127.0.0.1')",
+      "socket.on('connect', () => socket.write(encodeGodotPacket(['mercury_profile:hello', 1, [config.debuggerConnection.token, { major: 4, minor: 6, patch: 1, hex: 263681, status: 'stable', build: 'official', hash: 'fixture', timestamp: 0, string: '4.6.1-stable (official)' }]])))",
+      "socket.on('data', () => socket.write(encodeGodotPacket(['servers:profile_frame', 1, [1, 0.001, 0.001, 0, 0.0166, 0.001, 0, 0]]).subarray(0, 9)))",
+      'setInterval(() => {}, 1000)',
+      '',
+    ].join('\n'))
+    const holding = join(scratch, 'holding-engine.sh')
+    writeFileSync(holding, `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(holdingScript)} "$@"\n`)
+    chmodSync(holding, 0o755)
+    const holder = new EngineJobService(project, { workers: 1, executable: holding })
+    try {
+      const held = await holder.submit(request({ tour: inlineTour, source: 'engine', settleFrames: 1, sampleFrames: 2, quiet: 'flag' }))
+      assert.ok(!('refused' in held), JSON.stringify(held))
+      const heldJob = held as Exclude<typeof held, { refused: string }>
+      for (let i = 0; i < 600 && !liveEngines().some(engine => engine.label === `${heldJob.id}:profile`); i++) await new Promise(resolve => setTimeout(resolve, 50))
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      await holder.cancel(heldJob.id)
+      const settled = await holder.wait(heldJob.id, 30_000)
+      const heldRecord = settled?.record
+      const heldEngine = engineEvidence(heldRecord)
+      check('a cancel that lands on a half-sent packet is recorded as a cancel, and the truncation stays in the evidence', settled?.state === 'cancelled' && heldRecord?.cancelled === true && heldRecord.error === null && /truncated packet/.test(heldEngine?.error ?? ''), { state: settled?.state, error: heldRecord?.error, evidence: heldEngine?.error })
+      check('the cancelled engine listener is closed', await portIsFree(heldEngine.port))
+    } finally { await holder.shutdown() }
     let cliText = ''
     const io = { out: (line: string) => { cliText = line }, err: (line: string) => { cliText = line }, cliName: 'mercury' }
     check('CLI refuses an unknown source without spawning', await godotEngineCli(['profile', '--source', 'invented', '--project', project], io) === 2 && /source needs/.test(cliText))
