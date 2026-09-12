@@ -3,11 +3,12 @@ export interface VulcanOp {
   category: string
   cls: 'read' | 'mutate' | 'exec'
   lite: boolean
+  side: 'editor' | 'mercury'
   summary: string
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = '98cd8590bb1d4e72e07c3d9db6ae09b613ef3f69af15ab20f594d681d43cdc57'
+export const VULCAN_OPTABLE_DIGEST = 'ecfa82d520db12c2c40930f6efd2646fbbf32918008085c7cd3bd8571a8103ce'
 
 export const VULCAN_STEP_WALL_MS_PER_FRAME = 50
 
@@ -17,6 +18,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "project",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Engine version, project name, main scene, feature tags",
     "args": {}
   },
@@ -25,6 +27,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "project",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Find project files by glob/substring, optionally by kind",
     "args": {
       "pattern": "glob or substring",
@@ -36,6 +39,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "project",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Read one ProjectSettings value",
     "args": {
       "setting": "settings path, e.g. application/config/name"
@@ -46,6 +50,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "project",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Set a ProjectSettings value (saved; smart-parsed)",
     "args": {
       "setting": "settings path",
@@ -57,6 +62,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "project",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "List ProjectSettings, optionally by section prefix",
     "args": {
       "prefix": "optional section filter"
@@ -67,6 +73,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "project",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Resolve uid:// to res:// path",
     "args": {
       "uid": "uid://…"
@@ -77,6 +84,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "project",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Resolve res:// path to its uid://",
     "args": {
       "path": "res://…"
@@ -87,6 +95,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "scene",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Node tree of the edited (or a named) scene",
     "args": {
       "path": "optional res://…tscn (default: edited scene)",
@@ -98,6 +107,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "scene",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Which scene is open/edited, dirty state, open scene list",
     "args": {}
   },
@@ -106,6 +116,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "scene",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Create + open a new scene with a chosen root",
     "args": {
       "path": "res://…tscn",
@@ -118,6 +129,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "scene",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Open a scene for editing",
     "args": {
       "path": "res://…tscn"
@@ -128,6 +140,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "scene",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Save the edited scene (optionally save-as)",
     "args": {
       "path": "optional res://… save-as target"
@@ -138,6 +151,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "scene",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Delete a scene file (refuses the open scene)",
     "args": {
       "path": "res://…tscn"
@@ -148,6 +162,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "scene",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Instance a PackedScene under a parent node",
     "args": {
       "scene": "res://…tscn",
@@ -160,6 +175,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "scene",
     "cls": "exec",
     "lite": true,
+    "side": "editor",
     "summary": "Play the project/current/named scene from the editor",
     "args": {
       "scene": "optional: main|current|res://…tscn"
@@ -170,6 +186,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "scene",
     "cls": "exec",
     "lite": true,
+    "side": "editor",
     "summary": "Stop the running play session",
     "args": {}
   },
@@ -178,6 +195,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "node",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "One node: type, path, script, groups, children summary",
     "args": {
       "node": "NodePath in the edited scene"
@@ -188,6 +206,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "node",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Property values of a node (optionally filtered)",
     "args": {
       "node": "NodePath",
@@ -199,6 +218,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "node",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Add a node under a parent (undoable)",
     "args": {
       "parent": "NodePath",
@@ -212,6 +232,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "node",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Delete a node (undoable)",
     "args": {
       "node": "NodePath"
@@ -222,6 +243,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "node",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Duplicate a node under the same parent",
     "args": {
       "node": "NodePath",
@@ -233,6 +255,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "node",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Reparent/reorder a node",
     "args": {
       "node": "NodePath",
@@ -245,6 +268,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "node",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Rename a node",
     "args": {
       "node": "NodePath",
@@ -256,6 +280,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "node",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Set one property (smart-parsed; undoable; optional expect anchor)",
     "args": {
       "node": "NodePath",
@@ -269,6 +294,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "node",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Call a method on an edited-scene node (tool context)",
     "args": {
       "node": "NodePath",
@@ -281,6 +307,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "node",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Signals of a node + current connections",
     "args": {
       "node": "NodePath"
@@ -291,6 +318,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "node",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Connect a signal to a target method (undoable)",
     "args": {
       "node": "NodePath",
@@ -304,6 +332,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "node",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Disconnect a signal connection (undoable)",
     "args": {
       "node": "NodePath",
@@ -317,6 +346,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "node",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Add a node to a group (persistent; undoable)",
     "args": {
       "node": "NodePath",
@@ -328,6 +358,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "node",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Remove a node from a group (undoable)",
     "args": {
       "node": "NodePath",
@@ -339,6 +370,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "script",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Read a script by path or by the node it is attached to",
     "args": {
       "path": "res://….gd, or a NodePath"
@@ -349,6 +381,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "script",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "List project scripts (path + attached-to summary)",
     "args": {}
   },
@@ -357,6 +390,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "script",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Search script sources for a string/regex",
     "args": {
       "query": "text or regex",
@@ -368,6 +402,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "script",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Create a script (template when no content), optionally attach",
     "args": {
       "path": "res://….gd",
@@ -381,6 +416,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "script",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Replace a script's source (full content or find/replace)",
     "args": {
       "path": "res://….gd",
@@ -394,6 +430,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "script",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Attach an existing script to a node (undoable)",
     "args": {
       "node": "NodePath",
@@ -405,6 +442,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "script",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Detach the script from a node (undoable)",
     "args": {
       "node": "NodePath"
@@ -415,6 +453,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "script",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Syntax-validate a script (by path or raw content)",
     "args": {
       "path": "optional res://….gd",
@@ -426,6 +465,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "editor",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Editor snapshot: version, edited scene, selection, play state",
     "args": {}
   },
@@ -434,6 +474,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "editor",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Recent editor log errors/warnings",
     "args": {
       "limit": "optional int"
@@ -444,6 +485,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "editor",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Screenshot the editor viewport to a project-private file",
     "args": {
       "out": "optional res:// target (default .godot/mercury-vulcan-shots/)"
@@ -454,6 +496,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "editor",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Select a node in the editor (inspector follows)",
     "args": {
       "node": "NodePath"
@@ -464,6 +507,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "editor",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Reveal + focus a scene/script/resource in the editor",
     "args": {
       "path": "res://…"
@@ -474,6 +518,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "editor",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Reload scripts / the edited scene / rescan the filesystem",
     "args": {
       "what": "scripts|scene|filesystem"
@@ -484,6 +529,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "editor",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Editor undo (one step)",
     "args": {}
   },
@@ -492,6 +538,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "editor",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Editor redo (one step)",
     "args": {}
   },
@@ -500,6 +547,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "editor",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Run a one-shot @tool GDScript with a run() func in the editor",
     "args": {
       "code": "GDScript source defining run()",
@@ -511,6 +559,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "input",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "InputMap actions + bound events",
     "args": {}
   },
@@ -519,6 +568,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "input",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add/extend an InputMap action (saved to project settings)",
     "args": {
       "action": "action name",
@@ -530,6 +580,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "input",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Simulate a key tap/press/release in the running game",
     "args": {
       "key": "key name, e.g. Space",
@@ -541,6 +592,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "input",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Simulate a mouse button at a position",
     "args": {
       "button": "left|right|middle|wheel_up|wheel_down",
@@ -553,6 +605,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "input",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Simulate mouse motion",
     "args": {
       "position": "Vector2",
@@ -564,6 +617,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "input",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Press/release a mapped input action — a real InputEventAction the game's _input/_unhandled_input callbacks and the polled action state both see (queued while the game is parked in step mode)",
     "args": {
       "action": "action name",
@@ -576,6 +630,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "input",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Run an input sequence as one call: inputs, waits, and advances (step_frames | step_ms) — in step mode each advance delivers the queued inputs and moves the parked game exactly that far",
     "args": {
       "steps": "array of {key|button|action|wait_ms|step_frames|step_ms, …}; an input step may carry step_frames/step_ms (advance after it); in step mode wait_ms is game time"
@@ -586,6 +641,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Is a play session live; scene, uptime, bridge state",
     "args": {}
   },
@@ -594,6 +650,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Live scene tree of the running game",
     "args": {
       "root": "optional NodePath",
@@ -605,6 +662,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Live node properties in the running game",
     "args": {
       "node": "NodePath",
@@ -616,6 +674,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Buffered print/log output of the running game",
     "args": {
       "limit": "optional int"
@@ -626,6 +685,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Runtime errors/warnings since play started",
     "args": {
       "limit": "optional int"
@@ -636,6 +696,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Visible Control nodes (buttons, fields) with rects",
     "args": {
       "interactable_only": "optional bool"
@@ -646,6 +707,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "read",
     "lite": false,
+    "side": "editor",
     "summary": "Visible UI text (one node or all)",
     "args": {
       "node": "optional NodePath"
@@ -656,6 +718,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "read",
     "lite": false,
+    "side": "editor",
     "summary": "Sample a property over a window, return the series",
     "args": {
       "node": "NodePath",
@@ -668,6 +731,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "read",
     "lite": false,
+    "side": "editor",
     "summary": "List saved input recordings",
     "args": {}
   },
@@ -676,6 +740,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Screenshot the running game viewport",
     "args": {
       "out": "optional res:// target"
@@ -686,6 +751,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Set a live property in the running game",
     "args": {
       "node": "NodePath",
@@ -698,6 +764,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Call a method on a live node",
     "args": {
       "node": "NodePath",
@@ -710,6 +777,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Evaluate an expression in the running game",
     "args": {
       "expression": "GDScript expression",
@@ -721,6 +789,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Click a UI control or a screen position in the running game",
     "args": {
       "target": "NodePath or Vector2 position"
@@ -731,6 +800,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Activate a UI path (press button, focus field) to navigate",
     "args": {
       "to": "NodePath to activate"
@@ -741,6 +811,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Change the running game's scene",
     "args": {
       "scene": "res://…tscn"
@@ -751,6 +822,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Start recording input + frame events",
     "args": {
       "name": "optional recording name"
@@ -761,6 +833,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Stop recording, persist under .godot/mercury-vulcan-recordings/",
     "args": {}
   },
@@ -769,6 +842,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "runtime",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Replay a saved recording into the running game",
     "args": {
       "name": "recording name",
@@ -780,6 +854,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "animation",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Animations of an AnimationPlayer (tracks, lengths)",
     "args": {
       "player": "optional NodePath (first AnimationPlayer when omitted)"
@@ -790,6 +865,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "animation",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Create an animation on a player (undoable)",
     "args": {
       "player": "NodePath",
@@ -802,6 +878,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "animation",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Remove an animation (undoable)",
     "args": {
       "player": "NodePath",
@@ -813,6 +890,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "animation",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add a track targeting node:property",
     "args": {
       "player": "NodePath",
@@ -827,6 +905,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "animation",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Insert a keyframe (easing supported)",
     "args": {
       "player": "NodePath",
@@ -842,6 +921,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "animation",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Preview-play an animation in the editor",
     "args": {
       "player": "NodePath",
@@ -853,6 +933,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "animtree",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Create an AnimationTree (state machine or blend tree root)",
     "args": {
       "parent": "NodePath",
@@ -866,6 +947,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "animtree",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add a state machine state bound to an animation",
     "args": {
       "tree": "NodePath",
@@ -878,6 +960,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "animtree",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Remove a state",
     "args": {
       "tree": "NodePath",
@@ -889,6 +972,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "animtree",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add a transition between states",
     "args": {
       "tree": "NodePath",
@@ -901,6 +985,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "animtree",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Tune a transition (xfade, switch mode, advance condition)",
     "args": {
       "tree": "NodePath",
@@ -915,6 +1000,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "animtree",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add a blend node to a blend tree",
     "args": {
       "tree": "NodePath",
@@ -928,6 +1014,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "animtree",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Set a tree parameter (blend amount, condition)",
     "args": {
       "tree": "NodePath",
@@ -940,6 +1027,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "animtree",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Travel the state machine to a state (preview)",
     "args": {
       "tree": "NodePath",
@@ -951,6 +1039,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "three_d",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add a MeshInstance3D with a primitive mesh",
     "args": {
       "parent": "NodePath",
@@ -965,6 +1054,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "three_d",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add a Camera3D (optionally current, aimed)",
     "args": {
       "parent": "NodePath",
@@ -980,6 +1070,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "three_d",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add a light (directional/omni/spot)",
     "args": {
       "parent": "NodePath",
@@ -995,6 +1086,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "three_d",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Create/edit WorldEnvironment settings (sky, ambient, fog, glow)",
     "args": {
       "settings": "dict of Environment properties (smart-parsed)",
@@ -1006,6 +1098,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "three_d",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Place a MeshLibrary item in a GridMap cell",
     "args": {
       "gridmap": "NodePath",
@@ -1019,6 +1112,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "three_d",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "GridMap used cells / one cell's item",
     "args": {
       "gridmap": "NodePath",
@@ -1030,6 +1124,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "physics",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add a physics body node",
     "args": {
       "parent": "NodePath",
@@ -1042,6 +1137,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "physics",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add a CollisionShape with a sized shape resource",
     "args": {
       "body": "NodePath",
@@ -1055,6 +1151,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "physics",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add an Area2D/Area3D",
     "args": {
       "parent": "NodePath",
@@ -1067,6 +1164,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "physics",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Set collision layers/masks on a body",
     "args": {
       "node": "NodePath",
@@ -1079,6 +1177,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "physics",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Cast a ray in the edited scene's space, report hits",
     "args": {
       "from": "Vector2/Vector3",
@@ -1092,6 +1191,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "physics",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Shape query (overlaps) in the edited scene's space",
     "args": {
       "space": "2d|3d",
@@ -1106,6 +1206,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "particles",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add a GPU/CPU particles node",
     "args": {
       "parent": "NodePath",
@@ -1119,6 +1220,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "particles",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Set ParticleProcessMaterial properties",
     "args": {
       "node": "NodePath",
@@ -1130,6 +1232,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "particles",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Set the color ramp gradient",
     "args": {
       "node": "NodePath",
@@ -1141,6 +1244,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "particles",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Apply an authored preset",
     "args": {
       "node": "NodePath",
@@ -1152,6 +1256,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "particles",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Toggle emission (editor preview)",
     "args": {
       "node": "NodePath",
@@ -1164,6 +1269,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "navigation",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add a NavigationRegion2D/3D",
     "args": {
       "parent": "NodePath",
@@ -1176,6 +1282,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "navigation",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add a NavigationAgent2D/3D to a body",
     "args": {
       "parent": "NodePath",
@@ -1189,6 +1296,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "navigation",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add a NavigationLink (jump/teleport edge)",
     "args": {
       "parent": "NodePath",
@@ -1203,6 +1311,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "navigation",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Set navigation layers on a region/agent/link",
     "args": {
       "node": "NodePath",
@@ -1214,6 +1323,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "navigation",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Bake the navigation mesh for a region",
     "args": {
       "region": "NodePath",
@@ -1225,6 +1335,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "navigation",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Query a path between two points on the nav map",
     "args": {
       "from": "Vector",
@@ -1237,6 +1348,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "audio",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Bus layout: buses, volumes, sends, effects",
     "args": {}
   },
@@ -1245,6 +1357,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "audio",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add an AudioStreamPlayer(/2D/3D) with a stream",
     "args": {
       "parent": "NodePath",
@@ -1260,6 +1373,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "audio",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add a bus to the layout (saved)",
     "args": {
       "name": "bus name",
@@ -1271,6 +1385,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "audio",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Set a bus property",
     "args": {
       "bus": "bus name",
@@ -1283,6 +1398,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "audio",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Add an effect to a bus",
     "args": {
       "bus": "bus name",
@@ -1295,6 +1411,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "audio",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Preview-play a player (editor)",
     "args": {
       "player": "NodePath",
@@ -1306,6 +1423,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "tilemap",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Used cells of a TileMapLayer (bounds + count + sample)",
     "args": {
       "tilemap": "NodePath",
@@ -1317,6 +1435,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "tilemap",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Source/atlas/alternative at one cell",
     "args": {
       "tilemap": "NodePath",
@@ -1329,6 +1448,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "tilemap",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "TileSet sources, atlas sizes, tile ids",
     "args": {
       "tilemap": "NodePath"
@@ -1339,6 +1459,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "tilemap",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Set one cell (undoable)",
     "args": {
       "tilemap": "NodePath",
@@ -1354,6 +1475,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "tilemap",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Fill a rect of cells (undoable)",
     "args": {
       "tilemap": "NodePath",
@@ -1369,6 +1491,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "tilemap",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Clear cells (one layer or all)",
     "args": {
       "tilemap": "NodePath",
@@ -1380,6 +1503,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "theme",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Create a Theme resource",
     "args": {
       "path": "res://….tres",
@@ -1391,6 +1515,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "theme",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Set a theme color entry",
     "args": {
       "theme": "res:// theme or NodePath",
@@ -1404,6 +1529,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "theme",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Set a theme font/size entry",
     "args": {
       "theme": "res:// or NodePath",
@@ -1418,6 +1544,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "theme",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Set a theme constant (margins, separation)",
     "args": {
       "theme": "res:// or NodePath",
@@ -1431,6 +1558,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "theme",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Set a StyleBox entry (flat/texture/line + props)",
     "args": {
       "theme": "res:// or NodePath",
@@ -1445,6 +1573,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "theme",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Assign a theme to a Control subtree",
     "args": {
       "node": "NodePath",
@@ -1456,6 +1585,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "shader",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Read shader source (by path or a node's material)",
     "args": {
       "path": "res://….gdshader, or a NodePath"
@@ -1466,6 +1596,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "shader",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Uniforms of a ShaderMaterial with current values",
     "args": {
       "material": "res:// material or NodePath"
@@ -1476,6 +1607,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "shader",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Create a shader (mode template or given code)",
     "args": {
       "path": "res://….gdshader",
@@ -1488,6 +1620,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "shader",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Replace shader source (compile-checked)",
     "args": {
       "path": "res://….gdshader",
@@ -1499,6 +1632,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "shader",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Assign a shader to a node via a ShaderMaterial",
     "args": {
       "node": "NodePath",
@@ -1510,6 +1644,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "shader",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Set a shader uniform (smart-parsed)",
     "args": {
       "material": "res:// or NodePath",
@@ -1522,6 +1657,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "resource",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Read a .tres/.res resource (type + properties)",
     "args": {
       "path": "res://….tres"
@@ -1532,6 +1668,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "resource",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Create a resource of a type with properties",
     "args": {
       "path": "res://….tres",
@@ -1544,6 +1681,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "resource",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Edit resource properties (undoable where loaded)",
     "args": {
       "path": "res://….tres",
@@ -1555,6 +1693,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "resource",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Duplicate a resource file",
     "args": {
       "path": "res:// source",
@@ -1566,6 +1705,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "resource",
     "cls": "mutate",
     "lite": true,
+    "side": "editor",
     "summary": "Register an autoload singleton (saved)",
     "args": {
       "name": "singleton name",
@@ -1577,6 +1717,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "resource",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Unregister an autoload (saved)",
     "args": {
       "name": "singleton name"
@@ -1587,6 +1728,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "batch",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Find nodes by class across scenes",
     "args": {
       "type": "node class",
@@ -1598,6 +1740,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "batch",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Find nodes by property (optionally value) across scenes",
     "args": {
       "property": "property name",
@@ -1610,6 +1753,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "batch",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "What a scene/resource depends on",
     "args": {
       "path": "res://…"
@@ -1620,6 +1764,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "batch",
     "cls": "read",
     "lite": false,
+    "side": "editor",
     "summary": "What depends ON a scene/resource",
     "args": {
       "path": "res://…"
@@ -1630,6 +1775,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "batch",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Set a property on every match across scenes (one undo step per scene)",
     "args": {
       "type": "node class filter",
@@ -1643,6 +1789,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "batch",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Replace node class across scenes (properties preserved where compatible)",
     "args": {
       "from_type": "class",
@@ -1655,6 +1802,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "batch",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Move/rename a resource and update every reference",
     "args": {
       "from": "res:// current",
@@ -1666,6 +1814,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "batch",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Apply a property update to matching nodes in named scenes",
     "args": {
       "scenes": "glob",
@@ -1679,6 +1828,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "analysis",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Scene complexity: node counts by class, depth, instancing",
     "args": {
       "scene": "optional res://… (default edited)"
@@ -1689,6 +1839,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "analysis",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Signal connection graph of a scene",
     "args": {
       "scene": "optional res://…"
@@ -1699,6 +1850,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "analysis",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Resources no scene/script references",
     "args": {}
   },
@@ -1707,6 +1859,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "analysis",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Orphaned nodes/subresources (unreachable, unreferenced)",
     "args": {}
   },
@@ -1715,6 +1868,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "testing",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Discover test scripts (mercury-vulcan test convention + GUT/gdUnit if present)",
     "args": {}
   },
@@ -1723,6 +1877,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "testing",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Last test run's results",
     "args": {
       "run": "optional run id"
@@ -1733,6 +1888,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "testing",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Run tests headlessly, capture results",
     "args": {
       "path": "optional test script/dir",
@@ -1744,6 +1900,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "testing",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Evaluate an assertion in the running game",
     "args": {
       "expression": "GDScript expression expected true",
@@ -1755,6 +1912,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "testing",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Capture a named screenshot baseline",
     "args": {
       "name": "baseline name",
@@ -1766,6 +1924,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "testing",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Screenshot now and diff against a baseline",
     "args": {
       "name": "baseline name",
@@ -1777,6 +1936,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "profiling",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Performance monitors now (fps, memory, draw calls, objects, physics)",
     "args": {
       "monitors": "optional array of monitor names"
@@ -1787,6 +1947,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "profiling",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Sample monitors over a window, return min/avg/max series",
     "args": {
       "duration_ms": "optional window (default 2000)"
@@ -1797,6 +1958,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "export",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Export presets (platform, options, paths)",
     "args": {}
   },
@@ -1805,6 +1967,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "export",
     "cls": "read",
     "lite": true,
+    "side": "editor",
     "summary": "Installed export template versions",
     "args": {}
   },
@@ -1813,6 +1976,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "export",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Validate preset/templates and return the exact godot --headless export CLI (Godot 4.x exposes no scriptable in-editor export API — the CLI runs outside this tool)",
     "args": {
       "preset": "preset name",
@@ -1825,6 +1989,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "read",
     "lite": false,
+    "side": "mercury",
     "summary": "Mercury-side: flag/project/addon/editor reachability + install digest drift",
     "args": {}
   },
@@ -1833,6 +1998,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "mutate",
     "lite": false,
+    "side": "mercury",
     "summary": "Mercury-side: materialize the addon into the project + enable the plugin",
     "args": {}
   },
@@ -1841,6 +2007,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "mutate",
     "lite": false,
+    "side": "mercury",
     "summary": "Mercury-side: remove the addon + disable the plugin",
     "args": {}
   },
@@ -1849,6 +2016,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "read",
     "lite": false,
+    "side": "editor",
     "summary": "Editor health snapshot: version, plugins, open scene, dirty state, ports",
     "args": {}
   },
@@ -1857,6 +2025,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "read",
     "lite": false,
+    "side": "editor",
     "summary": "One-call project picture: engine/project, main scene, autoloads, input actions, global classes (+ whether the class cache is stale), scene/script census, plugins, export presets (answers from project files when no bridge is up, naming the editor state)",
     "args": {
       "budget": "optional: max listed entries per slice (default 40)"
@@ -1867,6 +2036,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "exec",
     "lite": false,
+    "side": "mercury",
     "summary": "Mercury-side: rebuild .godot/global_script_class_cache.cfg so headless runs see new class_name scripts — the editor's rescan when the bridge is up, else the bounded headless import pass (godot --headless --import --path <project>); output folded into the answer",
     "args": {}
   },
@@ -1875,6 +2045,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "read",
     "lite": false,
+    "side": "editor",
     "summary": "Structural diff: scene file on disk vs its edited (unsaved) state",
     "args": {
       "path": "res://…tscn"
@@ -1885,6 +2056,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Apply N mutate ops as ONE editor undo step (atomic refactor)",
     "args": {
       "ops": "array of {op, args} mutate ops"
@@ -1895,6 +2067,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "read",
     "lite": false,
+    "side": "editor",
     "summary": "Project-wide reference triage: unresolvable scene/resource dependencies, stale uid:// mappings that only resolve by fallback path, dead res:// literals in scripts",
     "args": {
       "budget": "optional: max findings listed (default 40, max 200)"
@@ -1905,6 +2078,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "read",
     "lite": false,
+    "side": "editor",
     "summary": "Read an imported asset's .import sidecar: importer, type, uid, source/dest files, the [params] table",
     "args": {
       "path": "res:// path of the ASSET (its .import sidecar is read)"
@@ -1915,6 +2089,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Set .import [params] keys (smart-parsed) and reimport the asset; the receipt carries each key's previous value (not an editor undo step)",
     "args": {
       "path": "res:// path of the ASSET",
@@ -1927,6 +2102,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Rename a script's signal ONCE: every inspector-wired [connection] in every scene (engine-read, text-applied, reload-verified) + the declaring script's declaration/emits/self-connects; dynamic sites elsewhere are findings. Writes files (not an editor undo step); dry_run plans without writing",
     "args": {
       "script": "res://….gd declaring the signal",
@@ -1940,6 +2116,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "mutate",
     "lite": false,
+    "side": "editor",
     "summary": "Rename an @export var ONCE: every stored scene/resource override (engine-read, text-applied, reload-verified) + every identifier in the declaring script; other scripts' member accesses are findings. Writes files (not an editor undo step); dry_run plans without writing",
     "args": {
       "script": "res://….gd declaring the @export",
@@ -1953,6 +2130,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "read",
     "lite": false,
+    "side": "editor",
     "summary": "Frame-time evidence over a window of the running game: fps, frame_ms min/avg/p95/max, hitches over a threshold, render CPU/GPU ms",
     "args": {
       "duration_ms": "optional: sampling window ms (default 4000, max 30000)",
@@ -1964,6 +2142,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "One evidence-backed playtest: play, await the bridge, settle, sample frames + monitor deltas, drain errors/log, screenshot, optionally stop — one bundle, one ask",
     "args": {
       "scene": "optional: current|main|res://…tscn (default current)",
@@ -1980,6 +2159,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Await a signal on a live node with a timeout (deterministic sequencing)",
     "args": {
       "node": "NodePath",
@@ -1992,6 +2172,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Park the running game (step mode): the tree pauses — physics and pausable nodes stop — while the bridge keeps answering; input sent meanwhile queues for the next runtime_step",
     "args": {}
   },
@@ -2000,6 +2181,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Advance a parked game one bounded window — exactly N process frames, or N ms of game time (default one physics tick) — delivering the input queued since the last step at the window's start; answers with the frames run, the physics ticks, and the errors/log since; from a live game the first step arms step mode",
     "args": {
       "frames": "optional: process frames to run (whole, 1..3600; exact)",
@@ -2012,6 +2194,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "exec",
     "lite": false,
+    "side": "editor",
     "summary": "Leave step mode: the game runs live again; anything still queued is delivered now",
     "args": {}
   },
@@ -2020,6 +2203,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "exec",
     "lite": false,
+    "side": "mercury",
     "summary": "Mercury-side engine job service: runs suites from .mercury/engine-suites.json on headless Godot workers Mercury owns, in parallel, each on a frozen copy of the project under .mercury/engine/ (a git ref, or HEAD plus a file list — never another agent's half-edit) with its own .godot and an empty user directory, fed from one import cache keyed by input hashes (no import when nothing changed); answers the runner-shaped record — root, executable, results[] {name, ok, exitCode, signal, timedOut, spawnError, clean, marker, seconds, log}, complete, allPass — plus each suite's marker line, FAIL and SCRIPT ERROR lines, and for every error the file it names and who last changed it (commit and author, or uncommitted)",
     "args": {
       "suites": "optional: suite names (array or comma list; default every manifest suite; \"import\" forces the import pass)",
@@ -2040,6 +2224,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "exec",
     "lite": false,
+    "side": "mercury",
     "summary": "Mercury-side compile gate, in seconds and with no lock: the changed .gd files parsed and type-checked one file at a time (godot --headless --check-only --script) and the changed .gdshader files compiled headlessly in a generated probe; the project's autoload identifiers (project.godot [autoload]) are ignored exactly — \"Identifier not found: <autoload>\" — and nothing else; flags a --script suite whose preload graph reaches a script that names an autoload; diagnostics as data {file, line, message, class, lastChange}",
     "args": {
       "files": "optional: res:// or project-relative paths (default: the files changed against HEAD)",
@@ -2054,6 +2239,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "read",
     "lite": false,
+    "side": "mercury",
     "summary": "Mercury-side: the engine job queue and workers — the worker count and its source (MERCURY_GODOT_WORKERS or the cores), the queued and running jobs in priority order, the recent runs, the live engine processes, the orphans swept at start, and the manifest's suites",
     "args": {}
   },
@@ -2062,6 +2248,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "mutate",
     "lite": false,
+    "side": "mercury",
     "summary": "Mercury-side: cancel an engine job — a queued job leaves the queue; a running job's whole engine process tree is ended (taskkill /T /F on Windows, the process group on POSIX) and the record says cancelled",
     "args": {
       "id": "the job id from engine_run or engine_jobs"
@@ -2072,6 +2259,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "read",
     "lite": false,
+    "side": "mercury",
     "summary": "Mercury-side: one run's record by id (this session's memory, else .mercury/engine/runs/<id>/result.json) with the log tail of every failed suite",
     "args": {
       "id": "the job id",

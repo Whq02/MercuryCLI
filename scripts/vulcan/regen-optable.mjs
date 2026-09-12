@@ -30,7 +30,7 @@ for (const cat of table.categories) {
     process.exit(1)
   }
   for (const op of cat.ops) {
-    if (!op.name || !['read', 'mutate', 'exec'].includes(op.class) || typeof op.lite !== 'boolean' || !op.summary) {
+    if (!op.name || !['read', 'mutate', 'exec'].includes(op.class) || typeof op.lite !== 'boolean' || !op.summary || (op.side !== undefined && op.side !== 'mercury')) {
       console.error(`regen-optable: bad op ${JSON.stringify(op.name)} in ${cat.key}`)
       process.exit(1)
     }
@@ -44,6 +44,7 @@ for (const cat of table.categories) {
       category: cat.key,
       cls: op.class,
       lite: op.lite,
+      side: op.side === 'mercury' ? 'mercury' : 'editor',
       summary: op.summary,
       args: op.args ?? {},
     })
@@ -55,6 +56,7 @@ const header = `export interface VulcanOp {
   category: string
   cls: 'read' | 'mutate' | 'exec'
   lite: boolean
+  side: 'editor' | 'mercury'
   summary: string
   args: Readonly<Record<string, string>>
 }
