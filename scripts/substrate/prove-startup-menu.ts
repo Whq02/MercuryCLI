@@ -49,15 +49,20 @@ section('registry floor — rows ⊆ FLAG_REGISTRY, sane choices')
     STARTUP_MENU.some(r => r.env === 'MERCURY_LSP_CPP' && r.defaultLabel === 'on') &&
     STARTUP_MENU.some(r => r.env === 'MERCURY_GODOT' && r.defaultLabel === 'off'))
   const computerAt = STARTUP_MENU.findIndex(r => r.env === 'MERCURY_COMPUTER_USE')
-  const accessAt = STARTUP_MENU.findIndex(r => r.env === 'MERCURY_COMPUTER_ACCESS')
   check('the computer-use row is a toggle, on by default, off its one value',
     computerAt >= 0 && STARTUP_MENU[computerAt]!.kind === 'toggle' && STARTUP_MENU[computerAt]!.defaultLabel === 'on' && STARTUP_MENU[computerAt]!.options.join(',') === '0')
-  check('the access-type row sits directly under it in the same group: asks by default, sovereign its one value',
-    accessAt === computerAt + 1 && STARTUP_MENU[accessAt]!.group === STARTUP_MENU[computerAt]!.group && STARTUP_MENU[accessAt]!.kind === 'enum' && STARTUP_MENU[accessAt]!.defaultLabel === 'asks' && STARTUP_MENU[accessAt]!.options.join(',') === 'sovereign')
-  check('both computer rows reach new sessions (no live class)', STARTUP_MENU[computerAt]!.applicationClass === undefined && STARTUP_MENU[accessAt]!.applicationClass === undefined)
+  check('the computer-use row reaches new sessions (no live class)', STARTUP_MENU[computerAt]!.applicationClass === undefined)
+  const sovereign = STARTUP_MENU.find(r => r.env === 'MERCURY_SKIP_PERMISSIONS')
+  check('the Sovereign mode row is the trust combo\'s bypass toggle, off by default, on its one value',
+    sovereign !== undefined && sovereign.label === 'Sovereign mode' && sovereign.group === 'trust combo' && sovereign.kind === 'toggle' && sovereign.defaultLabel === 'off' && sovereign.options.join(',') === '1')
+  check('its foot line says no permission question is asked — files, commands, computer use',
+    sovereign?.summary === 'no permission question is asked — not for files, commands, or computer use; you take the wheel', sovereign?.summary)
+  check('its detail names computer use among what stops asking', /computer use/.test(sovereign?.detail?.controls ?? '') && (sovereign?.detail?.on ?? []).some(l => /computer use included/.test(l)))
+  check('no other row carries the sovereign name and the access-type row is gone',
+    STARTUP_MENU.filter(r => /sovereign/i.test(r.label)).length === 1 && !STARTUP_MENU.some(r => r.env === 'MERCURY_COMPUTER_ACCESS'))
   const samplesAt = STARTUP_MENU.findIndex(r => r.env === 'MERCURY_SAMPLES')
-  check('the samples row is a toggle, off by default, 1 its one value, in its own group directly after the computer-use group',
-    samplesAt === accessAt + 1 && STARTUP_MENU[samplesAt]!.kind === 'toggle' && STARTUP_MENU[samplesAt]!.defaultLabel === 'off' && STARTUP_MENU[samplesAt]!.options.join(',') === '1' && STARTUP_MENU[samplesAt]!.group === 'samples' && STARTUP_MENU[samplesAt]!.label === 'Samples' && STARTUP_MENU[samplesAt]!.applicationClass === undefined)
+  check('the samples row is a toggle, off by default, 1 its one value, in its own group directly after the computer-use row',
+    samplesAt === computerAt + 1 && STARTUP_MENU[samplesAt]!.kind === 'toggle' && STARTUP_MENU[samplesAt]!.defaultLabel === 'off' && STARTUP_MENU[samplesAt]!.options.join(',') === '1' && STARTUP_MENU[samplesAt]!.group === 'samples' && STARTUP_MENU[samplesAt]!.label === 'Samples' && STARTUP_MENU[samplesAt]!.applicationClass === undefined)
   check('the samples row\'s foot line says what a sample is', /a page the model draws when you ask to see something/.test(STARTUP_MENU[samplesAt]?.summary ?? '') && /your marks/.test(STARTUP_MENU[samplesAt]?.summary ?? ''))
   const enterMenu = getFlagSpec('MERCURY_ENTER_MENU')
   check('MERCURY_ENTER_MENU registered default-on / infra, consumed by the applier',
@@ -131,14 +136,18 @@ section('applyBootMenuEnv — apply, refuse, yield, no-op')
   check('valid file applies both keys', r1 !== null && r1.applied.length === 2 && env1.MERCURY_THEMIS === 'warn' && env1.MERCURY_MNEME === '1')
   check('nothing refused, nothing env-won', r1 !== null && r1.refused.length === 0 && r1.envWins.length === 0)
 
-  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_USE: '0', MERCURY_COMPUTER_ACCESS: 'sovereign' } })
+  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_USE: '0', MERCURY_SKIP_PERMISSIONS: '1' } })
   const envComputer: NodeJS.ProcessEnv = {}
   const rComputer = applyBootMenuEnv(file, envComputer)
-  check('the saved computer-use rows apply at boot (off, sovereign)', rComputer !== null && rComputer.applied.length === 2 && envComputer.MERCURY_COMPUTER_USE === '0' && envComputer.MERCURY_COMPUTER_ACCESS === 'sovereign')
-  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_USE: '1', MERCURY_COMPUTER_ACCESS: 'asks' } })
+  check('the saved computer-use and Sovereign mode rows apply at boot (off, on)', rComputer !== null && rComputer.applied.length === 2 && envComputer.MERCURY_COMPUTER_USE === '0' && envComputer.MERCURY_SKIP_PERMISSIONS === '1')
+  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_USE: '1', MERCURY_SKIP_PERMISSIONS: '0' } })
   const envForeign: NodeJS.ProcessEnv = {}
   const rForeign = applyBootMenuEnv(file, envForeign)
-  check('values outside the two rows\' choices are refused (on is the default, asks is the default)', rForeign !== null && rForeign.refused.length === 2 && Object.keys(envForeign).length === 0)
+  check('values outside the two rows\' choices are refused (on is the default, off is the default)', rForeign !== null && rForeign.refused.length === 2 && Object.keys(envForeign).length === 0)
+  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_ACCESS: 'sovereign', MERCURY_COMPUTER_USE: '0' } })
+  const envRetired: NodeJS.ProcessEnv = {}
+  const rRetired = applyBootMenuEnv(file, envRetired)
+  check('a saved computer-use access type is reported retired, applies nothing and refuses nothing', rRetired !== null && rRetired.retired.join(',') === 'MERCURY_COMPUTER_ACCESS' && rRetired.refused.length === 0 && envRetired.MERCURY_COMPUTER_ACCESS === undefined && envRetired.MERCURY_COMPUTER_USE === '0', JSON.stringify(rRetired))
 
   write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_SAMPLES: '1' } })
   const envSamples: NodeJS.ProcessEnv = {}
