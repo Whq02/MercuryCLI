@@ -4,19 +4,20 @@ import type { EngineMediaRequest } from './media.js'
 
 export const ENGINE_MEDIA_MARKER = 'MERCURY MEDIA PASS'
 
-export function writeEngineMediaDriver(runDir: string, treePath: string, request: EngineMediaRequest, variant: string): { argv: string[]; outputDir: string; resultFile: string } {
+export function writeEngineMediaDriver(runDir: string, treePath: string, request: EngineMediaRequest, variant: string, debuggerConnection?: { port: number; token: string }): { argv: string[]; outputDir: string; resultFile: string } {
   if (request.route === 'hidden') throw new Error('hidden capture refused: stock Godot shows its native bootstrap window before scripts initialize; no verified hidden native bootstrap is available. Use headless with mercury_media_capture returning Image, or explicitly request route:"display".')
   const outputDir = path.join(runDir, 'media', variant)
   mkdirSync(outputDir, { recursive: true })
   const resultFile = path.join(outputDir, 'boot.json')
   const configFile = path.join(outputDir, 'request.json')
   const scriptFile = path.join(outputDir, 'driver.gd')
-  writeFileSync(configFile, JSON.stringify({ ...request, variant, outputDir, resultFile }))
+  writeFileSync(configFile, JSON.stringify({ ...request, variant, outputDir, resultFile, debuggerConnection }))
   writeFileSync(scriptFile, ENGINE_MEDIA_DRIVER)
   const argv = ['--path', treePath, '--audio-driver', 'Dummy', '--single-window']
   if (request.route === 'headless') argv.push('--headless')
   else argv.push('--resolution', '1280x720', '--disable-vsync')
   if (request.kind === 'capture') argv.push('--fixed-fps', String(request.clock.fps))
+  if (debuggerConnection) argv.push('--remote-debug', `tcp://127.0.0.1:${debuggerConnection.port}`)
   argv.push('--script', scriptFile, '--', configFile)
   return { argv, outputDir, resultFile }
 }
@@ -27,6 +28,25 @@ var config: Dictionary = {}
 var subject: Node
 var viewport: Viewport
 var failed: bool = false
+var debugger_ready: bool = false
+var debugger_stopped: bool = false
+
+func _debugger_message(message: String, _data: Array) -> bool:
+	if message == "ready":
+		debugger_ready = true
+		return true
+	if message == "stopped":
+		debugger_stopped = true
+		return true
+	return false
+
+func _debugger_wait(stopping: bool) -> void:
+	var deadline: int = Time.get_ticks_msec() + 5000
+	while not (debugger_stopped if stopping else debugger_ready):
+		if Time.get_ticks_msec() >= deadline:
+			_fail("engine debugger handshake or profiler drain did not finish within five seconds")
+			return
+		await process_frame
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -116,6 +136,7 @@ func _sample(variant: String, step_index: int) -> Dictionary:
 	var phase: Dictionary = {"variant": variant, "stepIndex": step_index, "frameMs": [], "processMs": [], "physicsMs": [], "navigationMs": [], "gpuMs": [], "renderCpuMs": [], "scripts": [], "physics": {}}
 	var scripts: Dictionary = {}
 	await _wait_frames(int(config.settleFrames))
+	var first_frame: int = Engine.get_process_frames()
 	var before: int = Time.get_ticks_usec()
 	for _sample_index in range(int(config.sampleFrames)):
 		await process_frame
@@ -132,6 +153,8 @@ func _sample(variant: String, step_index: int) -> Dictionary:
 				phase.gpuMs.append(gpu)
 			if cpu > 0.0:
 				phase.renderCpuMs.append(cpu)
+		if not subject.has_method("mercury_media_sample"):
+			continue
 		var measured: Variant = subject.call("mercury_media_sample")
 		if not measured is Dictionary or not measured.get("scripts") is Array or not measured.get("physics") is Dictionary:
 			_fail("mercury_media_sample must return {scripts:[{script,selfMs,totalMs,calls}],physics:{component:ms}}")
@@ -150,14 +173,16 @@ func _sample(variant: String, step_index: int) -> Dictionary:
 			if not phase.physics.has(key):
 				phase.physics[key] = []
 			phase.physics[key].append(measured.physics[key])
+	if debugger_ready:
+		EngineDebugger.send_message("mercury_profile:window", [variant, step_index, first_frame, Engine.get_process_frames()])
 	for key in scripts:
 		phase.scripts.append(scripts[key])
 	return phase
 
 func _profile() -> Array:
 	var phases: Array = []
-	if not subject.has_method("mercury_media_sample"):
-		_fail("profile requires mercury_media_sample() for project per-script and physics component timings; Godot exposes no universal standalone script timing table")
+	if not debugger_ready and not subject.has_method("mercury_media_sample"):
+		_fail("project profile requires mercury_media_sample() for script and physics tables; the engine debugger did not connect or source project was selected")
 		return phases
 	var variants: Array = ["single"] if config.pair == null else ["a", "b"]
 	for variant in variants:
@@ -183,6 +208,12 @@ func _run() -> void:
 		_fail("media request is not a JSON object")
 		return
 	config = parsed
+	if config.kind == "profile" and config.has("debuggerConnection") and EngineDebugger.is_active():
+		EngineDebugger.register_message_capture("mercury_profile", _debugger_message)
+		EngineDebugger.send_message("mercury_profile:hello", [config.debuggerConnection.token, Engine.get_version_info()])
+		await _debugger_wait(false)
+		if failed:
+			return
 	seed(int(config.clock.seed))
 	Engine.physics_ticks_per_second = int(config.clock.fps)
 	Engine.max_fps = 0
@@ -221,6 +252,8 @@ func _run() -> void:
 			_fail("capture needs mercury_media_configure evidence {simulationClock:true,shaderClock:true,seeded:true,notes:how project clocks and RNGs cooperate}; built-in shader TIME and wall clocks are not frozen by this driver")
 			return
 	evidence["engine"] = Engine.get_version_info()
+	evidence["projectTables"] = subject.has_method("mercury_media_sample")
+	evidence["debuggerConnected"] = debugger_ready
 	evidence["displayDriver"] = DisplayServer.get_name()
 	evidence["renderer"] = {"driver": RenderingServer.get_current_rendering_driver_name(), "method": RenderingServer.get_current_rendering_method()}
 	if config.route != "headless":
@@ -235,6 +268,9 @@ func _run() -> void:
 		output.frames = await _capture(config.variant)
 	else:
 		output.phases = await _profile()
+		if debugger_ready and not failed:
+			EngineDebugger.send_message("mercury_profile:stop", [])
+			await _debugger_wait(true)
 	if failed:
 		return
 	var file: FileAccess = FileAccess.open(config.resultFile, FileAccess.WRITE)
@@ -243,6 +279,8 @@ func _run() -> void:
 		return
 	file.store_string(JSON.stringify(output))
 	file.close()
+	if debugger_ready:
+		EngineDebugger.unregister_message_capture("mercury_profile")
 	subject.queue_free()
 	await process_frame
 	print("MERCURY MEDIA PASS")

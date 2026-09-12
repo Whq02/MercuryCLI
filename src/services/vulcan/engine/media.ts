@@ -26,6 +26,7 @@ export interface EngineTour {
 
 export interface EngineMediaRequest {
   kind: EngineMediaKind
+  source: 'auto' | 'engine' | 'project'
   tour: EngineTour
   tourName: string | null
   route: EngineMediaRoute
@@ -58,7 +59,7 @@ export interface EngineMediaPhase {
   frameMs: EngineMediaStats
   processMs: EngineMediaStats
   physicsMs: EngineMediaStats
-  navigationMs: EngineMediaStats
+  navigationMs: EngineMediaStats | null
   gpuMs: EngineMediaStats | null
   renderCpuMs: EngineMediaStats | null
   scripts: Array<{ script: string; selfMs: EngineMediaStats; totalMs: EngineMediaStats; calls: EngineMediaStats }>
@@ -75,6 +76,9 @@ export interface EngineMediaRecord {
   frames: EngineMediaFrame[]
   contactSheet: { path: string; width: number; height: number; frames: Array<{ path: string; index: number; x: number; y: number; width: number; height: number }> } | null
   phases: EngineMediaPhase[]
+  selectedSource?: 'engine' | 'project'
+  sources?: string[]
+  fallbackReason?: string | null
   evidence: Array<Record<string, unknown>>
   limitations: string[]
   quiet: { policy: 'refuse' | 'flag'; contaminated: boolean; observations: Array<{ at: string; stage: string; workers: string[] }> }
@@ -175,10 +179,13 @@ export function parseEngineMediaRequest(kind: EngineMediaKind, args: Record<stri
   if (baseline.save !== undefined && typeof baseline.save !== 'boolean') throw new Error('baseline.save must be boolean')
   const compare = baseline.compare === undefined || baseline.compare === null ? null : text(baseline.compare, 'baseline.compare')
   if (compare !== null && !/^[0-9a-f]{40,64}$/.test(compare)) throw new Error('baseline.compare must be a full commit SHA from an earlier profile record')
+  const source = args.source ?? 'auto'
+  if (source !== 'auto' && source !== 'engine' && source !== 'project') throw new Error('source must be engine, project, or auto')
+  if (kind !== 'profile' && args.source !== undefined) throw new Error('source is only supported by profile jobs')
   const quiet = args.quiet ?? 'refuse'
   if (quiet !== 'refuse' && quiet !== 'flag') throw new Error('quiet must be refuse or flag; other engine workers cannot be ignored')
   return {
-    kind, tour, tourName, route,
+    kind, source, tour, tourName, route,
     clock: {
       simulationTime: finite(clock.simulationTime, 0, 'clock.simulationTime'),
       shaderTime: finite(clock.shaderTime, 0, 'clock.shaderTime'),
@@ -201,7 +208,7 @@ export function newEngineMediaRecord(request: EngineMediaRequest): EngineMediaRe
       'Headless uses Godot dummy rendering: images come from the project Image hook, not a rendered viewport.',
       'Godot global RNG is seeded; independently created RNGs, external randomness, wall clocks, autoload initialization, and shader TIME require project hook cooperation. No universal freeze is claimed.',
       'Capture simulation is paused with Engine.time_scale=0; the project hook applies the requested simulation time and deterministic shader uniforms. Built-in shader TIME has no exposed setter.',
-      'Script and physics component timings are project instrumentation, not an automatic engine-wide script profiler. Engine monitors and viewport timings are reported separately.',
+      'Project script and physics tables are instrumentation. The separately labelled engine debugger source carries Godot 4.6 profiler tables when connected; the selected source is named.',
       'The quiet guard samples the process census and live worker registry; short-lived workers between observations can escape detection.',
       'Hidden routing is refused on stock Godot: its native bootstrap shows the main window before scripts can hide it.',
     ],
@@ -249,7 +256,8 @@ export function readEngineMediaBoot(file: string, request: EngineMediaRequest, v
         const physics = object(p.physics, 'physics component samples')
         const components: Record<string, EngineMediaStats> = {}
         for (const [key, value] of Object.entries(physics)) components[key] = engineMediaStats(value, `physics.${key}`, n)
-        if (!Array.isArray(p.scripts) || p.scripts.length === 0 || Object.keys(components).length === 0) throw new Error('profile needs at least one instrumented script row and one physics component; empty tables do not establish decomposition')
+        if (!Array.isArray(p.scripts) || (evidence.projectTables !== false && (p.scripts.length === 0 || Object.keys(components).length === 0))) throw new Error('profile needs at least one instrumented script row and one physics component; empty tables do not establish decomposition')
+        if (evidence.projectTables === false && (evidence.debuggerConnected !== true || p.scripts.length || Object.keys(components).length)) throw new Error('uninstrumented profile requires engine debugger evidence and no project tables')
         phases.push({
           variant: v, stepIndex, step,
           frameMs: engineMediaStats(p.frameMs, 'frameMs', n), processMs: engineMediaStats(p.processMs, 'processMs', n),
@@ -288,7 +296,7 @@ function metrics(record: EngineMediaRecord): Record<string, number> {
 
 export function finishEngineProfileBaseline(projectRoot: string, commit: string, treeDirty: boolean, executable: string, record: EngineMediaRecord): void {
   const request = record.request
-  const signature = createHash('sha256').update(JSON.stringify({ version: 1, tour: request.tour, route: request.route, clock: request.clock, pair: request.pair, settleFrames: request.settleFrames, sampleFrames: request.sampleFrames, executable, engine: record.evidence.map(e => ({ version: e.engine, renderer: e.renderer })), platform: platform(), arch: arch(), machine: hostname(), cpus: cpus().map(c => c.model) })).digest('hex')
+  const signature = createHash('sha256').update(JSON.stringify({ version: 2, source: record.selectedSource, tour: request.tour, route: request.route, clock: request.clock, pair: request.pair, settleFrames: request.settleFrames, sampleFrames: request.sampleFrames, executable, engine: record.evidence.map(e => ({ version: e.engine, renderer: e.renderer })), platform: platform(), arch: arch(), machine: hostname(), cpus: cpus().map(c => c.model) })).digest('hex')
   const directory = projectLocalPath(projectRoot, 'engine-baselines')
   const current = metrics(record)
   if (request.baseline.compare) {

@@ -237,7 +237,7 @@ async function main(executable: string): Promise<void> {
     const hidden = await op('engine_capture', { ...captureArgs, display: false, route: 'hidden' })
     check('the unsupported hidden route refuses instead of opening a fallback window', typeof hidden.error === 'string' && hidden.error.includes('hidden run refused'), hidden)
     if (args.includes('--profile')) {
-      const profile = await op('engine_profile', { ...captureArgs, settleFrames: 90, sampleFrames: 120, quiet: 'flag', baseline: { save: false } })
+      const profile = await op('engine_profile', { ...captureArgs, source: 'project', settleFrames: 90, sampleFrames: 120, quiet: 'flag', baseline: { save: false } })
       check('one native profile completes with both variants in one boot', profile.allPass === true && profile.media?.boots === 1 && profile.media.phases.length === 2, profile)
       records.push(profile)
       ownedIds.add(profile.jobId)

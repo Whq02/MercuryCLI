@@ -154,7 +154,7 @@ if (!executable.resolved) {
     check('unavailable hidden startup refuses without a visible fallback', /hidden run refused/.test(hidden.error), hidden)
     const sceneCapture = await op('engine_capture', { ...captureArgs, tour: { scene: 'res://tests/media_scene.tscn', steps: [{ name: 'scene' }] } })
     check('a PackedScene tour uses the same isolated capture driver', sceneCapture.allPass === true && sceneCapture.frames.length === 1, sceneCapture)
-    const profileArgs = { tour: 'fixture', settleFrames: 30, sampleFrames: 60, budgetMs: 120_000, pair: { switch: 'feature', a: false, b: true } }
+    const profileArgs = { tour: 'fixture', source: 'project', settleFrames: 30, sampleFrames: 60, budgetMs: 120_000, pair: { switch: 'feature', a: false, b: true } }
     const spec = parseEngineTreeSpec('HEAD')
     assert.ok(!('error' in spec))
     const busy = await service.submit({ suites: ['long_checks'], tree: spec, native: false, capture: false, priority: 'lane-gate', budgetMs: 120_000, displayShared: false, keepTree: false, label: 'guard-worker' })

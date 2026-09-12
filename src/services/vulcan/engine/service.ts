@@ -37,6 +37,7 @@ import { engineChecksDir, engineRunPath, engineRunsDir, engineTreePath, engineTr
 import { liveEngines, spawnEngine, sweepEngineOrphans, type EngineHandle, type EngineOrphanSweep } from './spawn.js'
 import { engineMediaCensus, finishEngineProfileBaseline, newEngineMediaRecord, readEngineMediaBoot, type EngineMediaRecord, type EngineMediaRequest } from './media.js'
 import { ENGINE_MEDIA_MARKER, writeEngineMediaDriver } from './mediaDriver.js'
+import { GodotDebuggerProfile } from './debuggerProfile.js'
 import { writeEngineContactSheet } from './frames.js'
 import { engineEstateEntry, engineTreeLiveness, startEngineHeartbeat } from './liveness.js'
 import { engineLeaseRefusal, projectLeaseHolder, type LeaseHolder } from './leases.js'
@@ -668,36 +669,56 @@ export class EngineJobService {
         record.budgetExceeded = true
         return
       }
-      const boot = writeEngineMediaDriver(job.runDir, job.treePath, request, variant)
-      const userDir = path.join(job.runDir, 'media', variant, 'user')
-      mkdirSync(userDir, { recursive: true })
-      let timer: ReturnType<typeof setInterval> | null = null
-      let observing: Promise<void> | null = null
-      if (request.kind === 'profile') {
-        timer = setInterval(() => {
-          if (observing) return
-          observing = this.observeProfileQuiet(job, 'measurement-boot', false).finally(() => { observing = null })
-        }, ENGINE_QUIET_SAMPLE_MS)
-      }
-      let row: EngineResultRow
+      const debuggerProfile = request.kind === 'profile' && request.source !== 'project' ? new GodotDebuggerProfile(request, path.join(job.runDir, 'media', variant, 'driver.gd')) : null
       try {
-        media.boots++
-        row = await this.runOne(job, executable, request.kind === 'profile' ? 'profile' : `capture-${variant}`, boot.argv, Math.max(1, Math.min(timeoutMs, budgetLeft())), { kind: 'line', text: ENGINE_MEDIA_MARKER }, userDir, unclean)
+        if (debuggerProfile) await debuggerProfile.transport.listen()
+        if (job.cancelRequested) return
+        if (budgetLeft() <= 0) { record.budgetExceeded = true; return }
+        const connection = debuggerProfile ? { port: debuggerProfile.transport.port, token: debuggerProfile.transport.token } : undefined
+        const boot = writeEngineMediaDriver(job.runDir, job.treePath, request, variant, connection)
+        const userDir = path.join(job.runDir, 'media', variant, 'user')
+        mkdirSync(userDir, { recursive: true })
+        let timer: ReturnType<typeof setInterval> | null = null
+        let observing: Promise<void> | null = null
+        if (request.kind === 'profile') {
+          timer = setInterval(() => {
+            if (observing) return
+            observing = this.observeProfileQuiet(job, 'measurement-boot', false).finally(() => { observing = null })
+          }, ENGINE_QUIET_SAMPLE_MS)
+        }
+        let row: EngineResultRow
+        try {
+          media.boots++
+          row = await this.runOne(job, executable, request.kind === 'profile' ? 'profile' : `capture-${variant}`, boot.argv, Math.max(1, Math.min(timeoutMs, budgetLeft())), { kind: 'line', text: ENGINE_MEDIA_MARKER }, userDir, unclean)
+        } finally {
+          if (timer) clearInterval(timer)
+          if (observing) await observing
+        }
+        record.results.push(row)
+        if (row.timedOut && budgetLeft() <= 0) record.budgetExceeded = true
+        if (request.kind === 'profile') await this.observeProfileQuiet(job, 'after-measurement-boot', false)
+        this.writeRecord(job)
+        if (debuggerProfile) media.evidence.push(debuggerProfile.evidence())
+        if (debuggerProfile?.transport.error) throw new Error(debuggerProfile.transport.error)
+        if (!row.ok || job.cancelRequested) return
+        if (debuggerProfile?.transport.accepted && !debuggerProfile.finished) throw new Error('Godot debugger connected but did not finish the profile; no project fallback is claimed')
+        const out = readEngineMediaBoot(boot.resultFile, request, variant, boot.outputDir)
+        if (request.kind === 'profile') media.evidence.unshift({ variant, ...out.evidence, source: 'project', phases: out.phases })
+        else media.evidence.push({ variant, ...out.evidence })
+        media.frames.push(...out.frames)
+        if (request.kind === 'capture') {
+          record.frames = media.frames
+          media.phases.push(...out.phases)
+        } else {
+          media.selectedSource = debuggerProfile?.finished ? 'engine' : 'project'
+          media.sources = ['project', ...(debuggerProfile?.finished ? ['engine debugger'] : [])]
+          media.fallbackReason = debuggerProfile && !debuggerProfile.finished ? 'The game never connected to the engine debugger; the project source is selected.' : null
+          media.phases.push(...(debuggerProfile?.finished ? debuggerProfile.phases : out.phases))
+        }
+        this.writeRecord(job)
       } finally {
-        if (timer) clearInterval(timer)
-        if (observing) await observing
+        await debuggerProfile?.transport.close()
       }
-      record.results.push(row)
-      if (row.timedOut && budgetLeft() <= 0) record.budgetExceeded = true
-      if (request.kind === 'profile') await this.observeProfileQuiet(job, 'after-measurement-boot', false)
-      this.writeRecord(job)
-      if (!row.ok || job.cancelRequested) return
-      const out = readEngineMediaBoot(boot.resultFile, request, variant, boot.outputDir)
-      media.evidence.push({ variant, ...out.evidence })
-      media.frames.push(...out.frames)
-      if (request.kind === 'capture') record.frames = media.frames
-      media.phases.push(...out.phases)
-      this.writeRecord(job)
     }
     if (budgetLeft() <= 0) record.budgetExceeded = true
     if (job.cancelRequested || record.budgetExceeded) return
