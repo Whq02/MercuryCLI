@@ -408,6 +408,30 @@ again"); `↑` on such a row answers "the session did not take “…” — typ
 again" and removes it. A row that stands for a line no runner holds is never
 left on the screen.
 
+## A notice an agent has not read
+
+Every notice delivered to an agent of a session — a sub-agent's completion,
+a workflow's or a shell's, a monitor's tick, a message queued for a
+sub-agent, a schedule's wake — is a row of the session's unread-notice
+ledger from the moment it is delivered until a turn of that agent takes it.
+The session facts carry the ledger (`notices`: each row names its agent, its
+kind, the notice in a line, the clock it arrived at and what became of it),
+and every sub-agent's work row carries the count of its own unread notices;
+the Crew view (`/teammates`) paints that count on the agent's row — "2
+unread" — and nothing when there is none.
+
+An agent idle with unread notices past the deadline is nudged. The session's
+own main thread is woken through its queue with a line, in Mercury's words,
+that names how many notices waited, for how long, and each one; the notices
+themselves arrive as the turns just before it. A named agent parked between
+turns is woken with the notices' own text. Each notice is nudged once. A
+busy agent is never nudged: its own next tool round reads them. A nudge that
+finds the agent gone — its run ended, it was stopped, no such agent in the
+session — retires the notice: the row reads `retired` and says why, and the
+line nothing would read leaves the queue. The deadline is
+`MERCURY_NOTICE_DEADLINE_MS`, a whole number of milliseconds at or above
+1000; unset, it is thirty seconds.
+
 ## Where the pieces live
 
 - The coordinator, teammates and the mailbox are [TEAMS.md](TEAMS.md)'s.
@@ -416,4 +440,5 @@ left on the screen.
 - Schedules that wake a session or birth one on the clock are
   [SATURN.md](SATURN.md)'s.
 - Workspace trust and the user-private commands are [TRUST.md](TRUST.md)'s.
-- The idle-retirement and birth-grace knobs are rows of the flag registry.
+- The idle-retirement, birth-grace and unread-notice deadline knobs are rows
+  of the flag registry.
