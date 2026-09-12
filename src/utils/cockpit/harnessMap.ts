@@ -100,7 +100,7 @@ export function computeHarnessMapLines(): string[] {
       ? '- Scheduled/recurring runs (SATURN): the CronCreate · CronList · CronDelete tools; /saturn is the board; its `a` key creates a scheduled run.'
       : null,
     (isLspToolCatalogEnabled() && lspConnectedSafe()) || (isDapToolCatalogEnabled() && dapReachableSafe())
-      ? `- Code intelligence is native: ${[isLspToolCatalogEnabled() && lspConnectedSafe() ? 'the LSP tool (diagnostics, rename, code actions, pathRename file moves, fixDiagnostic)' : null, isDapToolCatalogEnabled() && dapReachableSafe() ? 'the Debug tool (a real DAP debugger: breakpoints, stepping, evaluate)' : null].filter(Boolean).join(' and ')} — prefer them over grep-and-rerun for symbol and runtime-state work.`
+      ? `- Code intelligence is native: ${[isLspToolCatalogEnabled() && lspConnectedSafe() ? 'the LSP tool (diagnostics, rename, moveSymbol, code actions, pathRename file moves, fixDiagnostic)' : null, isDapToolCatalogEnabled() && dapReachableSafe() ? 'the Debug tool (a real DAP debugger: breakpoints, stepping, evaluate)' : null].filter(Boolean).join(' and ')} — prefer them over grep-and-rerun for symbol and runtime-state work.`
       : null,
     isDapToolCatalogEnabled() && !dapReachableSafe()
       ? '- The Debug tool is cataloged but NO debug adapter is reachable on this machine — a launch will refuse with the per-adapter remedy. Arm one: Python `pip install debugpy` (or a build carrying the vendored adapter) · native `xcode-select --install` (lldb-dap) or gdb 14+ · JS: unpack js-debug to ~/.js-debug · Go `go install github.com/go-delve/delve/cmd/dlv@latest`.'

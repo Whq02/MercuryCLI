@@ -122,6 +122,7 @@ console.log('— P. preview computes the fan-out, writes nothing —')
 console.log('— F. the applied fan-out, byte-asserted —')
 {
   const moved = path.join(scratch, 'moved.zz')
+  readFileState.set(importsFile, { content: readFileSync(importsFile, 'utf8'), timestamp: Date.now() })
   const r = await drive({ operation: 'pathRename', filePath: movingFile, newPath: moved, apply: true }, movingFile)
   check('apply succeeded', r.effect.outcome === 'succeeded', r.result.slice(0, 300))
   check('the file moved', !existsSync(movingFile) && existsSync(moved))

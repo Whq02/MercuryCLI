@@ -658,6 +658,7 @@ export interface VerbatimCommitFile {
   canonicalPath: string
   originalText: string
   plannedText: string
+  kind?: 'write' | 'create'
 }
 
 export function commitPlanDigest(targets: CommitTarget[]): string {
@@ -679,12 +680,16 @@ export async function runVerbatimTextCommit(opts: {
 }): Promise<CommitOutcome> {
   const targets: CommitTarget[] = []
   for (const f of opts.files) {
-    const originalBytes = Buffer.from(f.originalText, 'utf8')
+    const kind = f.kind ?? 'write'
+    const originalBytes = kind === 'create' ? Buffer.alloc(0) : Buffer.from(f.originalText, 'utf8')
     const plannedBytes = Buffer.from(f.plannedText, 'utf8')
     let mode = 0o644
-    try {
-      mode = (await stat(f.canonicalPath)).mode & 0o7777
-    } catch {
+    if (kind === 'write') {
+      try {
+        mode = (await stat(f.canonicalPath)).mode & 0o7777
+      } catch {
+        mode = 0o644
+      }
     }
     targets.push({
       canonicalPath: f.canonicalPath,
@@ -693,6 +698,7 @@ export async function runVerbatimTextCommit(opts: {
       originalBytes,
       plannedBytes,
       mode,
+      ...(kind === 'create' ? { kind } : {}),
     })
   }
   return runTextChangeSetCommit({

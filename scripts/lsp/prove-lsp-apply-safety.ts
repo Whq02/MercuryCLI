@@ -1,5 +1,5 @@
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -104,8 +104,8 @@ function check(name: string, ok: boolean, detail?: string): void {
 
 
 {
-  const text = Array.from({ length: 30 }, (_, i) => `const v${i} = ${i}`).join('\n')
-  const edits = Array.from({ length: 20 }, (_, i) => ({
+  const text = Array.from({ length: 60 }, (_, i) => `const v${i} = ${i}`).join('\n')
+  const edits = Array.from({ length: 60 }, (_, i) => ({
     range: rangeOf(text, `v${i} `),
     newText: `w${i} `,
   }))
@@ -116,7 +116,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   )
   check(
     'preview: caps per-file lines and SAYS how many were dropped',
-    preview.includes('more in this file') && preview.includes('20 edits'),
+    preview.includes('more in this file') && preview.includes('60 edits'),
     preview.split('\n')[0],
   )
 }
@@ -156,10 +156,20 @@ function fakeEnvFor(dir: string, opts: {
     },
   }
   const tool = { name: 'LSP', getPath: (i: { filePath: string }) => i.filePath }
+  const readFileState = new Map<string, { content: string; timestamp: number; offset: undefined; limit: undefined }>()
   const context = {
+    readFileState,
     getAppState: () => ({ toolPermissionContext: opts.ctx ?? PERMISSIVE_CTX }),
   }
-  return { target, manager, tool, context, savedFiles }
+  const markRead = (): void => {
+    readFileState.set(target, {
+      content: readFileSync(target, 'utf8'),
+      timestamp: Math.floor(statSync(target).mtimeMs),
+      offset: undefined,
+      limit: undefined,
+    })
+  }
+  return { target, manager, tool, context, savedFiles, markRead }
 }
 
 const PERMISSIVE_CTX = {
@@ -189,6 +199,7 @@ function scratchDirInCwd(tag: string): string {
     }),
   })
   writeFileSync(env.target, 'const abc = 1\n')
+  env.markRead()
   const out = await runMercuryLspOp({
     input: { operation: 'rename', filePath: env.target, line: 1, character: 7, newName: 'xyz', apply: true },
     absolutePath: env.target,
@@ -218,6 +229,7 @@ function scratchDirInCwd(tag: string): string {
     }),
   })
   writeFileSync(env.target, 'const abc = 1\n')
+  env.markRead()
   let renameCalls = 0
   const origSend = env.manager.sendRequest
   env.manager.sendRequest = async (f: string, m: string) => {
@@ -262,6 +274,7 @@ function scratchDirInCwd(tag: string): string {
     }),
   })
   writeFileSync(env.target, 'const abc = 1\n')
+  env.markRead()
   const out = await runMercuryLspOp({
     input: { operation: 'rename', filePath: env.target, line: 1, character: 7, newName: 'xyz', apply: true },
     absolutePath: env.target,
@@ -295,6 +308,7 @@ function scratchDirInCwd(tag: string): string {
     }),
   })
   writeFileSync(env.target, 'const abc = 1\n')
+  env.markRead()
   const out = await runMercuryLspOp({
     input: { operation: 'rename', filePath: env.target, line: 1, character: 7, newName: 'xyz', apply: true },
     absolutePath: env.target,
@@ -330,6 +344,7 @@ function scratchDirInCwd(tag: string): string {
     }),
   })
   writeFileSync(env.target, 'const abc = 1\n')
+  env.markRead()
   const out = await runMercuryLspOp({
     input: { operation: 'rename', filePath: env.target, line: 1, character: 7, newName: 'xyz', apply: true },
     absolutePath: env.target,
@@ -367,6 +382,7 @@ function scratchDirInCwd(tag: string): string {
     },
   })
   writeFileSync(env.target, 'const abc = 1\n')
+  env.markRead()
   const out = await runMercuryLspOp({
     input: { operation: 'rename', filePath: env.target, line: 1, character: 7, newName: 'xyz', apply: true },
     absolutePath: env.target,

@@ -326,11 +326,7 @@ class SidecarState {
     ) {
       configPath = cached.value
     } else {
-      configPath = this.ts.findConfigFile(
-        dir,
-        f => this.ts.sys.fileExists(f),
-        'tsconfig.json',
-      )
+      configPath = this.nearestConfigFile(dir)
       this.configForDir.set(dir, { value: configPath, at: Date.now() })
     }
     let project: Project | undefined
@@ -366,8 +362,232 @@ class SidecarState {
     return project
   }
 
+  nearestConfigFile(startDir: string): string | undefined {
+    let dir = startDir
+    for (let i = 0; i < 64; i++) {
+      for (const name of ['tsconfig.json', 'jsconfig.json']) {
+        const candidate = path.join(dir, name)
+        if (this.ts.sys.fileExists(candidate)) return candidate
+      }
+      const parent = path.dirname(dir)
+      if (parent === dir) return undefined
+      dir = parent
+    }
+    return undefined
+  }
+
   allProjects(): Project[] {
     return [...this.projects.values()]
+  }
+}
+
+interface TextChangeLike {
+  start: number
+  length: number
+  newText: string
+}
+
+function applyTextChanges(text: string, changes: readonly TextChangeLike[]): string {
+  const ordered = [...changes].sort((a, b) => b.start - a.start)
+  let out = text
+  for (const change of ordered) {
+    out = out.slice(0, change.start) + change.newText + out.slice(change.start + change.length)
+  }
+  return out
+}
+
+function offsetMapper(changes: readonly TextChangeLike[]): (offset: number) => number {
+  const ordered = [...changes].sort((a, b) => a.start - b.start)
+  return offset => {
+    let delta = 0
+    for (const change of ordered) {
+      if (change.start + change.length <= offset) {
+        delta += change.newText.length - change.length
+        continue
+      }
+      if (change.start < offset) return change.start + delta
+      break
+    }
+    return offset + delta
+  }
+}
+
+function isIdentifierName(ts: TsModule, name: string, target: TS.ScriptTarget): boolean {
+  if (name.length === 0) return false
+  let first = true
+  for (const ch of name) {
+    const code = ch.codePointAt(0) ?? 0
+    const ok = first ? ts.isIdentifierStart(code, target) : ts.isIdentifierPart(code, target)
+    if (!ok) return false
+    first = false
+  }
+  return true
+}
+
+function reservedWordProblem(ts: TsModule, name: string): string | undefined {
+  const stringToToken = (ts as unknown as { stringToToken?: (s: string) => number | undefined }).stringToToken
+  if (typeof stringToToken !== 'function') return undefined
+  const token = stringToToken(name)
+  if (token === undefined) return undefined
+  if (token >= ts.SyntaxKind.FirstReservedWord && token <= ts.SyntaxKind.LastReservedWord) {
+    return `'${name}' is a reserved word and cannot name a symbol`
+  }
+  return undefined
+}
+
+function tokenOccurrences(ts: TsModule, text: string, word: string, target: TS.ScriptTarget): number[] {
+  const out: number[] = []
+  let from = 0
+  for (;;) {
+    const at = text.indexOf(word, from)
+    if (at === -1) return out
+    from = at + 1
+    const before = at > 0 ? text.codePointAt(at - 1) ?? 0 : 0
+    const after = at + word.length < text.length ? text.codePointAt(at + word.length) ?? 0 : 0
+    if (at > 0 && ts.isIdentifierPart(before, target)) continue
+    if (after !== 0 && ts.isIdentifierPart(after, target)) continue
+    out.push(at)
+  }
+}
+
+function positionLabel(root: string, file: string, text: string, offset: number): string {
+  const pos = positionAt(text, offset)
+  const rel = path.relative(root, file)
+  const shown = rel === '' || rel.startsWith('..') || path.isAbsolute(rel) ? file : rel
+  return `${shown}:${pos.line + 1}:${pos.character + 1}`
+}
+
+function errorKeysOf(ts: TsModule, diagnostics: readonly TS.Diagnostic[]): Map<string, TS.Diagnostic[]> {
+  const out = new Map<string, TS.Diagnostic[]>()
+  for (const d of diagnostics) {
+    if (d.category !== ts.DiagnosticCategory.Error) continue
+    const key = `${d.code}|${ts.flattenDiagnosticMessageText(d.messageText, ' ')}`
+    const list = out.get(key) ?? []
+    list.push(d)
+    out.set(key, list)
+  }
+  return out
+}
+
+function newErrorsAgainst(
+  ts: TsModule,
+  before: Map<string, TS.Diagnostic[]>,
+  after: readonly TS.Diagnostic[],
+): TS.Diagnostic[] {
+  const budget = new Map<string, number>()
+  for (const [key, list] of before) budget.set(key, list.length)
+  const fresh: TS.Diagnostic[] = []
+  for (const [key, list] of errorKeysOf(ts, after)) {
+    const allowed = budget.get(key) ?? 0
+    for (const d of list.slice(allowed)) fresh.push(d)
+  }
+  return fresh
+}
+
+interface RenamePlan {
+  file: string
+  changes: TextChangeLike[]
+}
+
+function renameSafetyProblem(
+  st: SidecarState,
+  project: Project,
+  displayName: string,
+  newName: string,
+  plans: RenamePlan[],
+): string | undefined {
+  const ts = st.ts
+  const target = project.service.getProgram()?.getCompilerOptions().target ?? ts.ScriptTarget.ES2022
+  const beforeTexts = new Map<string, string>()
+  const mappers = new Map<string, (offset: number) => number>()
+  const sensitive = new Set<string>()
+  const existingUses = new Map<string, number[]>()
+  for (const plan of plans) {
+    const text = st.textOf(plan.file) ?? ''
+    beforeTexts.set(plan.file, text)
+    mappers.set(plan.file, offsetMapper(plan.changes))
+    const renamedStarts = new Set(plan.changes.map(c => c.start))
+    const occurrences = tokenOccurrences(ts, text, newName, target)
+    const uses = occurrences.filter(at => !renamedStarts.has(at))
+    if (occurrences.length > 0) sensitive.add(plan.file)
+    if (uses.length > 0) existingUses.set(plan.file, uses)
+  }
+  const defKey = (file: string, offset: number): string => `${st.normalize(file)}:${offset}`
+  const mappedDefKeys = (defs: readonly TS.DefinitionInfo[] | undefined): string[] => {
+    const out: string[] = []
+    for (const def of defs ?? []) {
+      const file = st.normalize(def.fileName)
+      const map = mappers.get(file)
+      out.push(defKey(file, map ? map(def.textSpan.start) : def.textSpan.start))
+    }
+    return out
+  }
+  const renamedExpected = new Set<string>()
+  const renamedProbe: Array<{ file: string; offset: number }> = []
+  for (const plan of plans) {
+    if (!sensitive.has(plan.file)) continue
+    for (const change of plan.changes) {
+      renamedProbe.push({ file: plan.file, offset: change.start })
+      for (const key of mappedDefKeys(project.service.getDefinitionAtPosition(plan.file, change.start))) renamedExpected.add(key)
+    }
+  }
+  const usesBefore = new Map<string, string[][]>()
+  for (const [file, offsets] of existingUses) {
+    usesBefore.set(file, offsets.map(offset => mappedDefKeys(project.service.getDefinitionAtPosition(file, offset))))
+  }
+  const syntacticBefore = new Map<string, Map<string, TS.Diagnostic[]>>()
+  const semanticBefore = new Map<string, Map<string, TS.Diagnostic[]>>()
+  for (const plan of plans) {
+    syntacticBefore.set(plan.file, errorKeysOf(ts, project.service.getSyntacticDiagnostics(plan.file)))
+    if (sensitive.has(plan.file)) semanticBefore.set(plan.file, errorKeysOf(ts, project.service.getSemanticDiagnostics(plan.file)))
+  }
+  const saved = new Map<string, OpenDoc | undefined>()
+  for (const plan of plans) {
+    saved.set(plan.file, st.openDocs.get(plan.file))
+    st.changeDoc(plan.file, applyTextChanges(beforeTexts.get(plan.file) ?? '', plan.changes))
+  }
+  try {
+    const describe = (file: string, d: TS.Diagnostic): string => {
+      const text = st.textOf(file) ?? ''
+      return `${positionLabel(st.workspaceRoot, file, text, d.start ?? 0)}: ${ts.flattenDiagnosticMessageText(d.messageText, ' ')}`
+    }
+    for (const plan of plans) {
+      const fresh = newErrorsAgainst(ts, syntacticBefore.get(plan.file) ?? new Map(), project.service.getSyntacticDiagnostics(plan.file))
+      if (fresh[0]) return `renaming '${displayName}' to '${newName}' would collide — ${describe(plan.file, fresh[0])}`
+    }
+    for (const plan of plans) {
+      if (!sensitive.has(plan.file)) continue
+      const fresh = newErrorsAgainst(ts, semanticBefore.get(plan.file) ?? new Map(), project.service.getSemanticDiagnostics(plan.file))
+      if (fresh[0]) return `renaming '${displayName}' to '${newName}' would collide — ${describe(plan.file, fresh[0])}`
+    }
+    for (const probe of renamedProbe) {
+      const map = mappers.get(probe.file)!
+      const after = mappedDefKeys(project.service.getDefinitionAtPosition(probe.file, map(probe.offset)))
+      if (after.length > 0 && !after.some(key => renamedExpected.has(key))) {
+        const text = st.textOf(probe.file) ?? ''
+        return `renaming '${displayName}' to '${newName}' would leave the occurrence at ${positionLabel(st.workspaceRoot, probe.file, text, map(probe.offset))} bound to another '${newName}'`
+      }
+    }
+    for (const [file, offsets] of existingUses) {
+      const map = mappers.get(file)!
+      const before = usesBefore.get(file) ?? []
+      for (let i = 0; i < offsets.length; i++) {
+        const after = mappedDefKeys(project.service.getDefinitionAtPosition(file, map(offsets[i]!)))
+        const expected = before[i] ?? []
+        const same = after.length === expected.length && after.every(key => expected.includes(key))
+        if (!same) {
+          const text = st.textOf(file) ?? ''
+          return `renaming '${displayName}' to '${newName}' would change what '${newName}' at ${positionLabel(st.workspaceRoot, file, text, map(offsets[i]!))} refers to`
+        }
+      }
+    }
+    return undefined
+  } finally {
+    for (const plan of plans) {
+      const prior = saved.get(plan.file)
+      if (prior) st.changeDoc(plan.file, prior.text)
+      else st.closeDoc(plan.file)
+    }
   }
 }
 
@@ -640,6 +860,57 @@ export function runTsLspSidecar(
       return { changes }
     }
 
+    function fileTextChangesToDocumentChanges(
+      st: SidecarState,
+      changesList: readonly TS.FileTextChanges[],
+    ): { documentChanges: unknown[] } {
+      const documentChanges: unknown[] = []
+      for (const fileChanges of changesList) {
+        const file = st.normalize(fileChanges.fileName)
+        const text = fileChanges.isNewFile ? '' : st.textOf(file)
+        if (text === undefined) continue
+        const uri = toUri(file)
+        if (fileChanges.isNewFile) {
+          documentChanges.push({ kind: 'create', uri, options: { overwrite: false, ignoreIfExists: false } })
+        }
+        documentChanges.push({
+          textDocument: { uri, version: null },
+          edits: fileChanges.textChanges.map(tc => ({
+            range: spanToRange(text, tc.span.start, tc.span.length),
+            newText: tc.newText,
+          })),
+        })
+      }
+      return { documentChanges }
+    }
+
+    function declarationNamesOf(
+      ts: TsModule,
+      statement: TS.Statement,
+      sourceFile: TS.SourceFile,
+    ): Array<{ name: string; start: number; end: number }> {
+      const spanOf = (node: TS.Node): { name: string; start: number; end: number } => ({
+        name: node.getText(sourceFile),
+        start: node.getStart(sourceFile),
+        end: node.end,
+      })
+      if (ts.isVariableStatement(statement)) {
+        return statement.declarationList.declarations.map(d => spanOf(d.name))
+      }
+      if (
+        (ts.isFunctionDeclaration(statement) ||
+          ts.isClassDeclaration(statement) ||
+          ts.isInterfaceDeclaration(statement) ||
+          ts.isTypeAliasDeclaration(statement) ||
+          ts.isEnumDeclaration(statement) ||
+          ts.isModuleDeclaration(statement)) &&
+        statement.name
+      ) {
+        return [spanOf(statement.name)]
+      }
+      return []
+    }
+
     const FORMAT_OPTIONS: TS.FormatCodeSettings = {
       indentSize: 2,
       tabSize: 2,
@@ -701,7 +972,17 @@ export function runTsLspSidecar(
               typeDefinitionProvider: true,
               callHierarchyProvider: true,
               renameProvider: { prepareProvider: true },
-              codeActionProvider: { codeActionKinds: ['quickfix'] },
+              codeActionProvider: {
+                codeActionKinds: [
+                  'quickfix',
+                  'refactor',
+                  'source.organizeImports',
+                  'source.removeUnusedImports',
+                  'source.addMissingImports',
+                  'source.removeUnused',
+                ],
+                resolveProvider: true,
+              },
               diagnosticProvider: {
                 interFileDependencies: true,
                 workspaceDiagnostics: false,
@@ -994,6 +1275,22 @@ export function runTsLspSidecar(
               { rpcCode: RPC_INTERNAL_ERROR },
             )
           }
+          const target =
+            project.service.getProgram()?.getCompilerOptions().target ?? st.ts.ScriptTarget.ES2022
+          if (p.newName === info.displayName) {
+            throw Object.assign(new Error(`'${p.newName}' is already the symbol's name`), {
+              rpcCode: RPC_INTERNAL_ERROR,
+            })
+          }
+          if (isIdentifierName(st.ts, info.displayName, target)) {
+            const reserved = reservedWordProblem(st.ts, p.newName)
+            if (reserved) throw Object.assign(new Error(reserved), { rpcCode: RPC_INTERNAL_ERROR })
+            if (!isIdentifierName(st.ts, p.newName, target)) {
+              throw Object.assign(new Error(`'${p.newName}' is not a valid identifier`), {
+                rpcCode: RPC_INTERNAL_ERROR,
+              })
+            }
+          }
           const locations = project.service.findRenameLocations(
             file,
             offset,
@@ -1001,22 +1298,28 @@ export function runTsLspSidecar(
             false,
             { providePrefixAndSuffixTextForRename: false },
           )
-          const changes: Record<string, LspTextEdit[]> = {}
+          const plans = new Map<string, RenamePlan>()
           for (const loc of locations ?? []) {
             const locFile = st.normalize(loc.fileName)
-            const locText = st.textOf(locFile)
-            if (locText === undefined) continue
-            const uri = toUri(locFile)
-            const edits = (changes[uri] ??= [])
-            edits.push({
-              range: spanToRange(
-                locText,
-                loc.textSpan.start,
-                loc.textSpan.length,
-              ),
-              newText:
-                (loc.prefixText ?? '') + p.newName + (loc.suffixText ?? ''),
+            if (st.textOf(locFile) === undefined) continue
+            const plan = plans.get(locFile) ?? { file: locFile, changes: [] }
+            plan.changes.push({
+              start: loc.textSpan.start,
+              length: loc.textSpan.length,
+              newText: (loc.prefixText ?? '') + p.newName + (loc.suffixText ?? ''),
             })
+            plans.set(locFile, plan)
+          }
+          const problem = renameSafetyProblem(st, project, info.displayName, p.newName, [...plans.values()])
+          if (problem) throw Object.assign(new Error(problem), { rpcCode: RPC_INTERNAL_ERROR })
+          const changes: Record<string, LspTextEdit[]> = {}
+          for (const plan of plans.values()) {
+            const locText = st.textOf(plan.file)
+            if (locText === undefined) continue
+            changes[toUri(plan.file)] = plan.changes.map(change => ({
+              range: spanToRange(locText, change.start, change.length),
+              newText: change.newText,
+            }))
           }
           return { changes }
         }
@@ -1025,45 +1328,241 @@ export function runTsLspSidecar(
           const { st, project, file, text } = docContext(params)
           const p = params as {
             range: LspRange
-            context?: { diagnostics?: LspDiagnostic[] }
+            context?: { diagnostics?: LspDiagnostic[]; only?: string[] }
           }
           const start = offsetAt(text, p.range.start)
           const end = offsetAt(text, p.range.end)
-          let codes = (p.context?.diagnostics ?? [])
-            .map(d => (typeof d.code === 'number' ? d.code : Number(d.code)))
-            .filter(c => Number.isFinite(c))
-          if (codes.length === 0) {
-            const own = [
-              ...project.service.getSyntacticDiagnostics(file),
-              ...project.service.getSemanticDiagnostics(file),
-            ]
-            codes = own
-              .filter(d => {
-                const ds = d.start ?? 0
-                const de = ds + (d.length ?? 0)
-                return ds <= end && de >= start
-              })
-              .map(d => d.code)
-          }
-          const uniqueCodes = [...new Set(codes)]
-          if (uniqueCodes.length === 0) return []
-          const fixes = project.service.getCodeFixesAtPosition(
-            file,
-            start,
-            end,
-            uniqueCodes,
-            FORMAT_OPTIONS,
-            {},
-          )
+          const only = p.context?.only
+          const wanted = (kind: string): boolean =>
+            !only || only.some(o => kind === o || kind.startsWith(`${o}.`))
           const actions: LspCodeAction[] = []
-          for (const fix of fixes) {
-            actions.push({
-              title: fix.description,
-              kind: 'quickfix',
-              edit: fileTextChangesToWorkspaceEdit(st, fix.changes),
-            })
+          if (wanted('quickfix')) {
+            let codes = (p.context?.diagnostics ?? [])
+              .map(d => (typeof d.code === 'number' ? d.code : Number(d.code)))
+              .filter(c => Number.isFinite(c))
+            if (codes.length === 0) {
+              const own = [
+                ...project.service.getSyntacticDiagnostics(file),
+                ...project.service.getSemanticDiagnostics(file),
+              ]
+              codes = own
+                .filter(d => {
+                  const ds = d.start ?? 0
+                  const de = ds + (d.length ?? 0)
+                  return ds <= end && de >= start
+                })
+                .map(d => d.code)
+            }
+            const uniqueCodes = [...new Set(codes)]
+            if (uniqueCodes.length > 0) {
+              const fixes = project.service.getCodeFixesAtPosition(
+                file,
+                start,
+                end,
+                uniqueCodes,
+                FORMAT_OPTIONS,
+                {},
+              )
+              for (const fix of fixes) {
+                actions.push({
+                  title: fix.description,
+                  kind: 'quickfix',
+                  edit: fileTextChangesToWorkspaceEdit(st, fix.changes),
+                })
+              }
+            }
+          }
+          const wholeFile = { type: 'file' as const, fileName: file }
+          const sourceActions: Array<{
+            kind: string
+            title: string
+            compute: () => readonly TS.FileTextChanges[]
+          }> = [
+            {
+              kind: 'source.organizeImports',
+              title: 'Organize imports',
+              compute: () =>
+                project.service.organizeImports(
+                  { ...wholeFile, mode: st.ts.OrganizeImportsMode.All },
+                  FORMAT_OPTIONS,
+                  {},
+                ),
+            },
+            {
+              kind: 'source.removeUnusedImports',
+              title: 'Remove unused imports',
+              compute: () =>
+                project.service.organizeImports(
+                  { ...wholeFile, mode: st.ts.OrganizeImportsMode.RemoveUnused },
+                  FORMAT_OPTIONS,
+                  {},
+                ),
+            },
+            {
+              kind: 'source.addMissingImports',
+              title: 'Add all missing imports',
+              compute: () =>
+                project.service.getCombinedCodeFix(wholeFile, 'fixMissingImport', FORMAT_OPTIONS, {})
+                  .changes,
+            },
+            {
+              kind: 'source.removeUnused',
+              title: 'Remove all unused declarations',
+              compute: () =>
+                project.service.getCombinedCodeFix(
+                  wholeFile,
+                  'unusedIdentifier_delete',
+                  FORMAT_OPTIONS,
+                  {},
+                ).changes,
+            },
+          ]
+          for (const source of sourceActions) {
+            if (only === undefined || !wanted(source.kind)) continue
+            let changes: readonly TS.FileTextChanges[]
+            try {
+              changes = source.compute()
+            } catch {
+              continue
+            }
+            const edit = fileTextChangesToWorkspaceEdit(st, changes)
+            if (Object.values(edit.changes).every(list => list.length === 0)) continue
+            actions.push({ title: source.title, kind: source.kind, edit })
+          }
+          if (wanted('refactor')) {
+            const requestedKind = only?.find(o => o.startsWith('refactor.'))
+            const refactors = project.service.getApplicableRefactors(
+              file,
+              start === end ? start : { pos: start, end },
+              {},
+              'invoked',
+              requestedKind,
+            )
+            for (const refactor of refactors) {
+              for (const action of refactor.actions) {
+                if (action.notApplicableReason) continue
+                const kind = action.kind ?? 'refactor'
+                if (!wanted(kind)) continue
+                actions.push({
+                  title:
+                    refactor.description === action.description
+                      ? action.description
+                      : `${refactor.description}: ${action.description}`,
+                  kind,
+                  data: {
+                    uri: toUri(file),
+                    refactorName: refactor.name,
+                    actionName: action.name,
+                    start,
+                    end,
+                  },
+                })
+              }
+            }
           }
           return actions
+        }
+
+        case 'codeAction/resolve': {
+          const st = requireState()
+          const action = params as LspCodeAction
+          const data = action.data as
+            | { uri?: string; refactorName?: string; actionName?: string; start?: number; end?: number }
+            | undefined
+          if (!data?.uri || !data.refactorName || !data.actionName) return action
+          const file = st.normalize(fromUri(data.uri))
+          const project = st.projectFor(file)
+          const start = data.start ?? 0
+          const end = data.end ?? start
+          const info = project.service.getEditsForRefactor(
+            file,
+            FORMAT_OPTIONS,
+            start === end ? start : { pos: start, end },
+            data.refactorName,
+            data.actionName,
+            {},
+          )
+          if (!info) {
+            throw Object.assign(new Error(`the refactor '${action.title}' produced no edit`), {
+              rpcCode: RPC_INTERNAL_ERROR,
+            })
+          }
+          if (info.edits.some(e => e.isNewFile)) {
+            throw Object.assign(
+              new Error(
+                `the refactor '${action.title}' would create a file — a symbol move that creates its target goes through moveSymbol`,
+              ),
+              { rpcCode: RPC_INTERNAL_ERROR },
+            )
+          }
+          return { ...action, edit: fileTextChangesToWorkspaceEdit(st, info.edits) }
+        }
+
+        case 'mercury/moveToFile': {
+          const { st, project, file, offset } = docContext(params)
+          const p = params as { targetUri: string }
+          const refuse = (message: string): never => {
+            throw Object.assign(new Error(message), { rpcCode: RPC_INTERNAL_ERROR })
+          }
+          const targetFile = st.normalize(fromUri(p.targetUri))
+          if (targetFile === file) return refuse('the target must differ from the source file')
+          const sourceExt = path.extname(file).toLowerCase()
+          const targetExt = path.extname(targetFile).toLowerCase()
+          const families = [['.ts', '.tsx'], ['.js', '.jsx'], ['.mts'], ['.cts'], ['.mjs'], ['.cjs']]
+          const family = families.find(f => f.includes(sourceExt))
+          if (!family || !family.includes(targetExt)) {
+            return refuse(
+              `the target must be a ${(family ?? [sourceExt]).join(' or ')} file to match ${path.basename(file)} (got '${targetExt || 'no extension'}')`,
+            )
+          }
+          let targetIsDirectory = false
+          try {
+            targetIsDirectory = fs.statSync(targetFile).isDirectory()
+          } catch {
+            targetIsDirectory = false
+          }
+          if (targetIsDirectory) return refuse(`the target ${targetFile} is a directory — name a file`)
+          const sourceFile = project.service.getProgram()?.getSourceFile(file)
+          if (!sourceFile) return refuse('the source file is not part of the project')
+          const statement = sourceFile.statements.find(
+            s => s.getStart(sourceFile) <= offset && offset < s.end,
+          )
+          if (!statement) {
+            return refuse(
+              'the position is not inside a top-level statement — point at the name of the declaration to move',
+            )
+          }
+          const names = declarationNamesOf(st.ts, statement, sourceFile)
+          if (names.length === 0) {
+            return refuse(
+              `the statement at the position (${st.ts.SyntaxKind[statement.kind]}) is not a declaration that can move — point at the name of a function, class, interface, type, enum or variable declared at the top level`,
+            )
+          }
+          const headerEnd = Math.max(...names.map(n => n.end))
+          if (offset > headerEnd) {
+            const text = st.textOf(file) ?? ''
+            return refuse(
+              `the position is inside the body of '${names[0]!.name}' — point at its name (${positionLabel(st.workspaceRoot, file, text, names[0]!.start)}) to move the whole declaration`,
+            )
+          }
+          const range = { pos: statement.getStart(sourceFile), end: statement.end }
+          let info: TS.RefactorEditInfo | undefined
+          try {
+            info = project.service.getEditsForRefactor(
+              file,
+              FORMAT_OPTIONS,
+              range,
+              'Move to file',
+              'Move to file',
+              { allowTextChangesInNewFiles: true },
+              { targetFile },
+            )
+          } catch (e) {
+            return refuse(`the service refused the move: ${e instanceof Error ? e.message : String(e)}`)
+          }
+          if (!info) return refuse('the service offered no move for this declaration')
+          if (info.notApplicableReason) return refuse(`the service refused the move: ${info.notApplicableReason}`)
+          return fileTextChangesToDocumentChanges(st, info.edits)
         }
 
         case 'textDocument/diagnostic': {
