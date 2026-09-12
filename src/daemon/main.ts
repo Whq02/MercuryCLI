@@ -65,6 +65,7 @@ import {
   setSessionPermissionMode,
   setSessionSpawnSwitch,
   withdrawSessionSend,
+  relayCredentialChange,
 } from './sessionSeat.js'
 import { resetSeatProjections } from '../services/engine-connector/seatProjections.js'
 import { armChildRssWatchdog } from './rssWatchdog.js'
@@ -871,7 +872,14 @@ async function daemonRun(args: string[]): Promise<void> {
           warm: warmRunnerCount(),
           restartArmed,
         }),
-        signIns: opts => composeSignInView(opts),
+        signIns: opts => {
+          const view = composeSignInView(opts)
+          if (opts?.refresh === true && roster !== null) {
+            const told = relayCredentialChange(roster)
+            if (told.length > 0) logForDebugging(`[daemon] a credential moved in the screen: told ${told.length} runner(s) to read the account again — ${told.join(', ')}`)
+          }
+          return view
+        },
         restartWhenIdle: by => {
           const { live } = liveWorkers()
           if (foreground) {

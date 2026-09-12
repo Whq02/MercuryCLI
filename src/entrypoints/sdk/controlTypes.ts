@@ -142,6 +142,10 @@ export type SDKControlSpawnSwitchRequest = {
   on: boolean
 }
 
+export type SDKControlCredentialChangeRequest = {
+  subtype: 'credential_change'
+}
+
 export type SDKControlScheduleRosterRequest = {
   subtype: 'schedule_roster'
   schedules: unknown
@@ -299,6 +303,7 @@ export type SDKControlRequestInner =
   | SDKControlClaimSessionRequest
   | SDKControlSetEffortRequest
   | SDKControlWithdrawSendRequest
+  | SDKControlCredentialChangeRequest
 
 export type SDKControlRequest = {
   type: 'control_request'
