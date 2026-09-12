@@ -3,7 +3,7 @@ import { crewEnabled } from '../../daemon/crewSpawn.js'
 import { experienceCardsEnabled } from '../../memdir/experienceCards.js'
 import { mnemeEnabled } from '../../memdir/mnemeGates.js'
 import { isAutoMemoryEnabled } from '../../memdir/paths.js'
-import { isDapToolCatalogEnabled, mercuryDapEnabled, reachableDapAdapterKeys } from '../../services/dap/dapClient.js'
+import { dapAdapterProbePending, isDapToolCatalogEnabled, mercuryDapEnabled, reachableDapAdapterKeys } from '../../services/dap/dapClient.js'
 import { mercuryGodotEnabled } from '../../services/lsp/godotLane.js'
 import { mercuryUnityEnabled } from '../../services/ide/unityProject.js'
 import { mercuryBlenderEnabled } from '../../services/ide/blenderProject.js'
@@ -102,7 +102,7 @@ export function computeHarnessMapLines(): string[] {
     (isLspToolCatalogEnabled() && lspConnectedSafe()) || (isDapToolCatalogEnabled() && dapReachableSafe())
       ? `- Code intelligence is native: ${[isLspToolCatalogEnabled() && lspConnectedSafe() ? 'the LSP tool (diagnostics, rename, moveSymbol, code actions, pathRename file moves, fixDiagnostic)' : null, isDapToolCatalogEnabled() && dapReachableSafe() ? 'the Debug tool (a real DAP debugger: breakpoints, stepping, evaluate)' : null].filter(Boolean).join(' and ')} — prefer them over grep-and-rerun for symbol and runtime-state work.`
       : null,
-    mercuryDapEnabled() && !dapReachableSafe()
+    mercuryDapEnabled() && !dapReachableSafe() && !dapAdapterProbePending()
       ? '- The Debug tool is withheld on this machine: no debug adapter is reachable, so no launch could work. Arm one — Python `pip install debugpy` (or a build carrying the vendored adapter) · native `xcode-select --install` (lldb-dap) or gdb 14+ · JS: unpack js-debug to ~/.js-debug · Go `go install github.com/go-delve/delve/cmd/dlv@latest` — then start a new session or /clear for the tool to join.'
       : null,
     workshopEnabledSafe()

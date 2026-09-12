@@ -59,7 +59,15 @@ catalog. So does a machine on which no debug adapter is reachable: the
 Debug tool is withheld from the catalog rather than offered to refuse,
 the `Tools withheld` row of `mercury doctor` and `/health` names it with
 the adapters to arm, and a session already running picks the tool up at
-its next `/clear` or compaction. `MERCURY_DAP_ADAPTERS`, `MERCURY_DAP_ADAPTERS_FILE`,
+its next `/clear` or compaction. The census that decides it reads the
+filesystem only (the vendored packs, PATH, the adapter tables) and a memo
+for the two toolchain probes, `xcrun -f lldb-dap` on macOS and
+`gdb --version`, which run once per process in the background; a catalog
+built before they answer withholds the tool with words saying the probe
+has not answered yet, and the next build reads the answer. The doctor
+waits for the probes before it writes its row, so a boot never stalls on
+a spawn and the certificate never names a probe still in flight.
+`MERCURY_DAP_ADAPTERS`, `MERCURY_DAP_ADAPTERS_FILE`,
 `MERCURY_JS_DEBUG_DAP`, and `MERCURY_DEBUGPY_VENDOR_DIR` tune the adapter
 table and the vendored payload roots — all registered rows of the in-code
 registry (`src/substrate/flagRegistry.ts`; rendered on demand to an
