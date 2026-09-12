@@ -491,7 +491,8 @@ redrawn under every new message until it ages out.
 - The idle-retirement, birth-grace, unread-notice deadline and prefix-record
   retention knobs are rows of the flag registry.
 - The box's state rides the session facts as the `box` row, for the agents
-  as much as the screen: the load per core and the memory available, the
+  as much as the screen: the load per core and the memory available (the
+  last sample the process took, with the clock it was taken at), the
   box lock's slots with who holds each and who waits (the coordination
   directory `MERCURY_BOX_LOCK_DIR` names, else the one the session's last
   `with-box-lock.sh` command used), and the memory guard's verdict on this

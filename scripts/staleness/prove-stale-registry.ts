@@ -178,6 +178,7 @@ src/services/samples/facts.ts :: cached :: keyed-by-truth
 src/services/saturn/sessionScheduleBridge.ts :: rosterCache :: subscription-fed
 src/services/schema/jsonSchemaEngine.ts :: compileCache :: keyed-by-truth
 src/services/search/searchPacing.ts :: cache :: ttl-bounded
+src/services/switchboard/capacityCheck.ts :: memorySampleMemo :: ttl-bounded
 src/services/switchboard/ensureDaemon.ts :: bootRunnerOptionsMemo :: static-for-process
 src/services/switchboard/ensureDaemon.ts :: usableMemo :: ttl-bounded
 src/services/wallet/wallet.ts :: activeMemo :: ttl-bounded
