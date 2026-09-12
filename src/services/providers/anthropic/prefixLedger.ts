@@ -1,6 +1,12 @@
 import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { getSessionId, isSessionPersistenceDisabled } from '../../../bootstrap/state.js'
+import { renameWithWin32RetrySync } from '../../../substrate/durablePublish.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { getMercuryHome } from '../../../utils/envUtils.js'
+import { processMainOwner } from '../../run/resolveOwner.js'
 import { isDeadThinkingPlaceholder } from './deadThinkingPlaceholder.js'
 
 export interface WirePrefixParts {
@@ -280,9 +286,98 @@ function compareRecords(previous: PrefixRecord, current: PrefixRecord, lastThink
 const records = new Map<string, PrefixRecord>()
 const verdicts = new Map<string, PrefixVerdict>()
 
+export const PREFIX_LEDGER_FILE = 'prefix-ledger.json'
+
+interface PersistedPrefixLedger {
+  version: 1
+  owner: string
+  record: Omit<PrefixRecord, 'dropped'> & { dropped: string[] }
+  drops: unknown
+}
+
+const consultedOwners = new Set<string>()
+let persistedDrops: unknown = null
+
+function sessionSegment(sessionId: string): string {
+  return sessionId.replace(/[^A-Za-z0-9_.:-]+/g, '-') || 'session'
+}
+
+export function prefixLedgerPath(sessionId: string = String(getSessionId()), home: string = getMercuryHome()): string {
+  return join(home, 'sessions', sessionSegment(sessionId), PREFIX_LEDGER_FILE)
+}
+
+function ownsSessionRecord(owner: string): boolean {
+  try {
+    return owner === String(processMainOwner())
+  } catch {
+    return false
+  }
+}
+
+function writeSessionRecord(owner: string): void {
+  if (!ownsSessionRecord(owner) || isSessionPersistenceDisabled()) return
+  const record = records.get(owner)
+  if (record === undefined) return
+  try {
+    const path = prefixLedgerPath()
+    mkdirSync(dirname(path), { recursive: true })
+    const body: PersistedPrefixLedger = { version: 1, owner, record: { ...record, dropped: [...record.dropped] }, drops: persistedDrops }
+    const staging = `${path}.${process.pid}.tmp`
+    writeFileSync(staging, JSON.stringify(body), { mode: 0o600 })
+    renameWithWin32RetrySync(staging, path)
+  } catch (error) {
+    logForDebugging(`preserved thinking: the prefix ledger's record could not be written beside the session (${String(error)})`, { level: 'warn' })
+  }
+}
+
+function readSessionRecord(owner: string): void {
+  if (consultedOwners.has(owner)) return
+  consultedOwners.add(owner)
+  if (!ownsSessionRecord(owner)) return
+  try {
+    const path = prefixLedgerPath()
+    if (!existsSync(path)) return
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as Partial<PersistedPrefixLedger> | null
+    if (parsed === null || typeof parsed !== 'object' || parsed.version !== 1 || parsed.owner !== owner) return
+    const stored = parsed.record
+    if (stored === undefined || typeof stored.key !== 'string' || typeof stored.whole !== 'string' || !Array.isArray(stored.system) || !Array.isArray(stored.tools) || !Array.isArray(stored.messages)) return
+    records.set(owner, {
+      key: stored.key,
+      whole: stored.whole,
+      system: stored.system,
+      tools: stored.tools,
+      messages: stored.messages,
+      wireMessageIds: Array.isArray(stored.wireMessageIds) ? stored.wireMessageIds : [],
+      dropped: new Set(Array.isArray(stored.dropped) ? stored.dropped.filter((mark): mark is string => typeof mark === 'string') : []),
+    })
+    persistedDrops = parsed.drops ?? null
+    logForDebugging(`preserved thinking: the prefix ledger's record was read back beside the session (${stored.messages.length} messages recorded by the previous process)`)
+  } catch (error) {
+    logForDebugging(`preserved thinking: the prefix ledger's record beside the session could not be read (${String(error)})`, { level: 'warn' })
+  }
+}
+
+export function persistedDropState(owner: string): unknown {
+  readSessionRecord(owner)
+  return ownsSessionRecord(owner) ? persistedDrops : null
+}
+
+export function rememberDropState(owner: string, state: unknown): void {
+  if (!ownsSessionRecord(owner)) return
+  if (JSON.stringify(state) === JSON.stringify(persistedDrops)) return
+  persistedDrops = state
+  writeSessionRecord(owner)
+}
+
+export function forgetPersistedDropState(): void {
+  persistedDrops = null
+}
+
 export function resetPrefixLedger(): void {
   records.clear()
   verdicts.clear()
+  consultedOwners.clear()
+  persistedDrops = null
 }
 
 export function prefixRecordFor(owner: string): { key: string; whole: string; systemDigests: string[]; toolNames: string[]; messageDigests: string[] } | null {
@@ -301,6 +396,7 @@ export function judgeAndRecordPrefix(
   const replace = opts?.replaceRecord !== false
   const current = recordOf(key, parts)
   current.wireMessageIds = [...wireMessageIds]
+  readSessionRecord(owner)
   const previous = records.get(owner)
   if (previous !== undefined && previous.key === key && previous.whole === current.whole) {
     if (replace) records.set(owner, { ...current, dropped: previous.dropped })
@@ -319,6 +415,7 @@ export function judgeAndRecordPrefix(
   if (replace) {
     records.set(owner, current)
     verdicts.set(owner, verdict)
+    writeSessionRecord(owner)
   }
   return verdict
 }
@@ -339,6 +436,7 @@ export function recordDroppedThinking(owner: string, drops: ReadonlyArray<{ type
     record.dropped.add(mark)
     marked++
   }
+  if (marked > 0) writeSessionRecord(owner)
   return marked
 }
 
