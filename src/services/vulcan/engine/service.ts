@@ -180,6 +180,7 @@ export interface EngineJobsSnapshot {
   liveEngines: ReturnType<typeof liveEngines>
   instances: VulcanInstance[]
   swept: EngineOrphanSweep[]
+  sweepError: string | null
   staleTreesRemoved: string[]
   manifest: { file: string; found: boolean; suites: string[]; problems: string[] }
 }
@@ -278,6 +279,7 @@ export class EngineJobService {
   private executableCache: { resolved: string; note: string } | null = null
   private seq = 0
   private swept: EngineOrphanSweep[] = []
+  private sweepError: string | null = null
   private staleTreesRemoved: string[] = []
   private readonly ready: Promise<void>
 
@@ -316,8 +318,9 @@ export class EngineJobService {
     try {
       processes = await this.mediaCensus()
       this.swept = await sweepEngineOrphans(this.projectRoot, processes)
-    } catch {
+    } catch (e) {
       this.swept = []
+      this.sweepError = `the orphan sweep did not run: ${(e as Error).message}`
       return
     }
     for (const dir of [engineTreesDir(this.projectRoot), engineChecksDir(this.projectRoot)]) {
@@ -920,6 +923,7 @@ export class EngineJobService {
       liveEngines: liveEngines(),
       instances: listVulcanInstances(this.projectRoot),
       swept: this.swept,
+      sweepError: this.sweepError,
       staleTreesRemoved: this.staleTreesRemoved,
       manifest: { file: manifest.file, found: manifest.found, suites: manifest.suites.map(s => s.name), problems: manifest.problems },
     }

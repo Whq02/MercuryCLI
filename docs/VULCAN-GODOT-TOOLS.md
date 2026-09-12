@@ -287,7 +287,9 @@ engine on the frozen copy. A frozen `HEAD` run does not consume unrelated live e
 
 `engine_jobs` shows the worker count and its source, the queued and
 running jobs in priority order, the recent runs, the live engine
-processes, the orphans swept at start and the manifest's suites.
+processes, the orphans swept at start (`sweepError` says when the
+process table could not be read and the sweep did not run) and the
+manifest's suites.
 `engine_cancel {id}` takes a queued job out of the queue or ends a running
 job's whole engine tree; `engine_result {id}` reads one record by id.
 
