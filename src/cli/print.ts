@@ -192,6 +192,9 @@ import {
 } from '../utils/messageQueueManager.js'
 import type { QueuedCommand } from '../types/textInputTypes.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
+import { agentRecipientState, MAIN_THREAD_AGENT, noticeDeadlineMs, noticeRecipientTask, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
+import { noticeRows, type NoticeRecord } from '../services/notices/unreadLedger.js'
+import { injectUserMessageToTeammate } from '../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
 import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
 import { killTask } from '../tasks/LocalShellTask/killShellTasks.js'
 import {
@@ -1513,6 +1516,43 @@ export async function runHeadless(
     }
   })
 
+  const carriersOf = (notices: readonly NoticeRecord[]): QueuedCommand[] => {
+    const keys = new Set<string>()
+    for (const notice of notices) {
+      keys.add(notice.key)
+      if (notice.altKey !== undefined) keys.add(notice.altKey)
+    }
+    return getCommandQueue().filter(
+      command => (command.queueId !== undefined && keys.has(command.queueId)) || (command.uuid !== undefined && keys.has(String(command.uuid))),
+    )
+  }
+  const idleNudge = startIdleNudge({
+    recipient: agentId => {
+      if (agentId !== MAIN_THREAD_AGENT) return agentRecipientState(getAppState().tasks, agentId)
+      if (isShuttingDown()) return { state: 'gone', why: 'the session is shutting down' }
+      if (inputClosed) return { state: 'gone', why: "the session's input closed" }
+      return !sessionInitialized || driver.isRunning() ? { state: 'busy' } : { state: 'idle' }
+    },
+    wake: (agentId, notices) => {
+      const waitedMs = Date.now() - Math.min(...notices.map(notice => notice.deliveredAtMs))
+      if (agentId === MAIN_THREAD_AGENT) {
+        enqueue({ value: nudgeWords(notices, waitedMs), mode: 'prompt', priority: 'later', isMeta: true, uuid: randomUUID() })
+        return true
+      }
+      const task = noticeRecipientTask(getAppState().tasks, agentId)
+      if (task === undefined) return false
+      const carriers = carriersOf(notices)
+      const bodies = carriers.map(command => (typeof command.value === 'string' ? command.value : '')).filter(body => body !== '')
+      if (!injectUserMessageToTeammate(task.id, nudgeWords(notices, waitedMs, bodies), setAppState)) return false
+      if (carriers.length > 0) removeQueuedCommands(carriers)
+      return true
+    },
+    discard: notices => {
+      const carriers = carriersOf(notices)
+      if (carriers.length > 0) removeQueuedCommands(carriers)
+    },
+  })
+
   process.on('SIGINT', () => {
     logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGINT' })
     inFlightAbort?.abort()
@@ -1526,6 +1566,7 @@ export async function runHeadless(
   markPrintModeSignalsOwned()
   const { registerCleanup } = await import('../utils/cleanupRegistry.js')
   registerCleanup(async () => {
+    idleNudge.stop()
     logForDiagnosticsNoPII('info', 'headless_sigterm_state', {
       cycle_running: driver.isRunning(),
       phase: driver.phase(),
@@ -1910,6 +1951,7 @@ export async function runHeadless(
               ...(command.priority !== undefined ? { priority: command.priority } : {}),
             })),
             work: projectWorkRoster(state.tasks),
+            notices: noticeRows(),
             mission: (await listSessionMission().catch((): Awaited<ReturnType<typeof listSessionMission>> => [])).map(task => ({
               id: task.id,
               subject: task.subject.slice(0, 120),
