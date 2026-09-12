@@ -3,10 +3,18 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
 
 const repoRoot = resolve(import.meta.dir, '..', '..')
 const dist = join(repoRoot, 'dist', 'mercury.mjs')
 const outDir = join(repoRoot, 'assets', 'completions')
+const ROW = {
+  assets: 'assets/completions/mercury.bash assets/completions/_mercury assets/completions/mercury.fish',
+  generator: 'bun run build.ts && bun scripts/project-services/gen-completions.ts',
+  check: 'bun scripts/project-services/gen-completions.ts --check',
+  sources: 'src/main.tsx src/commands/mcp/addCommand.ts',
+}
+if (registerOnlyRequested(ROW)) process.exit(0)
 
 if (!existsSync(dist)) {
   console.error('dist/mercury.mjs missing — run `bun run build.ts` first (completions derive from the BUILT registry)')
@@ -157,4 +165,5 @@ for (const [name, content] of Object.entries(files)) {
   writeFileSync(join(outDir, name), content)
   console.log(`wrote assets/completions/${name}`)
 }
+registerGeneratedAsset(ROW)
 console.log(`(${subcommands.length} subcommands · ${rootOptions.length} root options · from ${dist})`)

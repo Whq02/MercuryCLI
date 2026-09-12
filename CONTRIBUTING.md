@@ -34,7 +34,11 @@ status is the verdict. [BUILD-NOTES.md](BUILD-NOTES.md) covers the build itself.
 - One concern per commit, with a message that says why.
 - The check nearest the change runs first; `bun run verify` closes.
 - Generated files (the third-party notices, the captured baselines) are
-  regenerated from their sources, never edited by hand.
+  regenerated from their sources, never edited by hand. Every generator
+  registers its output in `scripts/gate/generated-assets.tsv` when it runs
+  (`<generator> --register` writes the row alone); a tracked file that
+  declares a generator and has no row is a red on the commit gate's census
+  (`bun scripts/gate/generated-assets.ts --census`).
 - Documentation describes what Mercury does, in the present tense.
 
 ## Licence
