@@ -51,7 +51,7 @@ export function engineEstateEntry(projectRoot: string, candidate: string, platfo
       const rel = normalized(candidate, platform)
       if (!rel.startsWith(prefix)) continue
       const first = rel.slice(prefix.length).split('/')[0] ?? ''
-      const id = first.replace(/\.(?:owner\.json|index)$/, '')
+      const id = first.replace(/\.index$/, '')
       if (id.length === 0) return null
       return { kind, id, path: path.join(dir, id) }
     }

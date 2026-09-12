@@ -71,7 +71,8 @@ async function main(executable: string): Promise<void> {
   console.log('DISPLAY AUTHORIZED: isolated native Godot windows will open; external editors and games are not controlled')
 
   const { EngineJobService } = await import('../../src/services/vulcan/engine/service.js')
-  const { parseEngineMediaRequest, engineMediaCensus } = await import('../../src/services/vulcan/engine/media.js')
+  const { parseEngineMediaRequest } = await import('../../src/services/vulcan/engine/media.js')
+  const { strictGodotCensus } = await import('../../src/services/vulcan/godotProcessCensus.js')
   const { parseEngineTreeSpec } = await import('../../src/services/vulcan/engine/frozenTree.js')
   const { runEngineOp } = await import('../../src/services/vulcan/engine/ops.js')
   const { liveEngines, spawnEngine, sweepEngineOrphans } = await import('../../src/services/vulcan/engine/spawn.js')
@@ -274,10 +275,10 @@ async function main(executable: string): Promise<void> {
     try {
       if (cliHandle) await cliHandle.kill('shutdown')
       await service.shutdown()
-      const orphanReceipts = await sweepEngineOrphans(project, await engineMediaCensus())
+      const orphanReceipts = await sweepEngineOrphans(project, await strictGodotCensus())
       const remaining = service.jobs()
       const live = liveEngines().filter(engine => engine.label === 'native-display-built-cli' || [...ownedIds].some(id => engine.label.startsWith(`${id}:`)))
-      const ownedProcesses = (await engineMediaCensus()).filter(engine => engine.project !== undefined && (resolve(engine.project) === project || under(project, resolve(engine.project))))
+      const ownedProcesses = (await strictGodotCensus()).filter(engine => engine.project !== undefined && (resolve(engine.project) === project || under(project, resolve(engine.project))))
       check('finally removes queued/running proof jobs and reaps their engine workers', remaining.queued.length === 0 && remaining.running.length === 0 && live.length === 0 && ownedProcesses.length === 0, { queued: remaining.queued, running: remaining.running, live, ownedProcesses, orphanReceipts })
       EngineJobService.forget(project)
     } catch (e) {

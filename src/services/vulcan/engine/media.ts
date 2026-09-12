@@ -4,8 +4,6 @@ import * as path from 'node:path'
 import { cpus, platform, arch, hostname } from 'node:os'
 import { engineManifestPath } from './manifest.js'
 import { projectLocalPath } from '../../projectLocal/paths.js'
-import { execFileNoThrow } from '../../../utils/execFileNoThrow.js'
-import { runningGodotProcesses, type GodotProcess } from '../godotProcessCensus.js'
 
 export type EngineMediaKind = 'capture' | 'profile'
 export type EngineMediaRoute = 'headless' | 'hidden' | 'display'
@@ -335,23 +333,4 @@ export function finishEngineProfileBaseline(projectRoot: string, commit: string,
       record.baseline.reason = `Baseline was not replaced: ${(e as Error).message}`
     }
   }
-}
-export async function engineMediaCensus(): Promise<GodotProcess[]> {
-  let failure: string | null = null
-  const processes = await runningGodotProcesses({
-    runner: {
-      async exec(file, args) {
-        try {
-          const out = await execFileNoThrow(file, args, { useCwd: false, timeout: 8_000 })
-          if (out.code !== 0) failure = `${file} exited ${out.code}`
-          return { code: out.code, stdout: out.stdout }
-        } catch (e) {
-          failure = (e as Error).message
-          return { code: 1, stdout: '' }
-        }
-      },
-    },
-  })
-  if (failure !== null) throw new Error(`engine process census unavailable: ${failure}`)
-  return processes
 }

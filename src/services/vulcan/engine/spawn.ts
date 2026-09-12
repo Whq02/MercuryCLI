@@ -12,7 +12,7 @@ import { removeEngineTree } from './frozenTree.js'
 
 export const ENGINE_OUTPUT_CAP = 64 * 1024 * 1024
 
-export type EngineKillReason = 'timeout' | 'cancel' | 'budget' | 'shutdown'
+export type EngineKillReason = 'timeout' | 'cancel'
 
 export interface EngineSpawnRequest {
   executable: string
@@ -182,15 +182,6 @@ export function spawnEngine(req: EngineSpawnRequest): EngineHandle {
 
 export function liveEngines(): Array<{ pid: number; label: string; startedAt: string; bridge: VulcanInstance | null }> {
   return [...LIVE.values()].map(h => ({ pid: h.pid ?? 0, label: h.label, startedAt: h.startedAt, bridge: h.bridge }))
-}
-
-export async function killAllEngines(reason: EngineKillReason = 'shutdown'): Promise<number> {
-  let ended = 0
-  for (const handle of [...LIVE.values()]) {
-    const receipt = await handle.kill(reason)
-    ended += receipt.ended
-  }
-  return ended
 }
 
 export interface EngineOrphanSweep {
