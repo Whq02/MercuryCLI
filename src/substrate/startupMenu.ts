@@ -18,6 +18,7 @@ export interface MenuRow {
   options: readonly string[]
   defaultLabel: string
   applicationClass?: 'new-session' | 'live'
+  defaultFollows?: { env: string; value: string; label: string }
   summary: string
   detail?: {
     controls: string
@@ -29,6 +30,25 @@ export interface MenuRow {
 export interface MenuChoice {
   value: string | null
   label: string
+}
+
+export const COMPUTER_ACCESS_VALUES = ['asks', 'permissive', 'full'] as const
+export type ComputerAccess = (typeof COMPUTER_ACCESS_VALUES)[number]
+export type ComputerAccessSource = 'saved' | 'default' | 'sovereign mode'
+export interface ComputerAccessResolution {
+  value: ComputerAccess
+  source: ComputerAccessSource
+}
+
+export function resolveComputerAccess(saved: string | null | undefined, sovereignOn: boolean): ComputerAccessResolution {
+  const pinned = (saved ?? '').trim().toLowerCase()
+  if ((COMPUTER_ACCESS_VALUES as readonly string[]).includes(pinned)) return { value: pinned as ComputerAccess, source: 'saved' }
+  return sovereignOn ? { value: 'full', source: 'sovereign mode' } : { value: 'asks', source: 'default' }
+}
+
+export function computerAccessDefaultLabel(sovereignOn: boolean): string {
+  const access = resolveComputerAccess(null, sovereignOn)
+  return `default (${access.value}${access.source === 'sovereign mode' ? ' · sovereign mode' : ''})`
 }
 
 export const STARTUP_MENU: readonly MenuRow[] = [
@@ -125,9 +145,24 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     defaultLabel: 'on',
     summary: 'the model sees the screen and drives the mouse and keyboard in the application in front, on a machine that has the desktop driver — off removes the Computer tool from new sessions',
     detail: {
-      controls: "Whether new sessions carry the Computer tool: screenshots, clicks, typed text, key chords, scrolls and drags in the application in front, on every model route that receives images. On is the default wherever the desktop driver resolves; a machine without the driver never sees the tool. The first act in each application asks by the application's name; Sovereign mode (the trust combo row) answers that question like every other. Off removes the tool before any driver is touched — the rest of Mercury does not depend on it.",
-      on: ['the Computer tool is in the catalog when the desktop driver resolves', 'the first act in each application asks by name and offers a timed grant or sovereign mode; under Sovereign mode nothing asks', 'esc or ctrl+c ends the act in flight and the turn; one session drives at a time'],
+      controls: "Whether new sessions carry the Computer tool: screenshots, clicks, typed text, key chords, scrolls and drags in the application in front, on every model route that receives images. On is the default wherever the desktop driver resolves; a machine without the driver never sees the tool. How consent works is the Access type row below: asks, permissive or full, its default following Sovereign mode. Off removes the tool before any driver is touched — the rest of Mercury does not depend on it.",
+      on: ['the Computer tool is in the catalog when the desktop driver resolves', 'consent follows the Access type row below: the first act in each application asks by name, or the application in front when the turn began never asks, or nothing asks; under Sovereign mode the default is full', 'esc or ctrl+c ends the act in flight and the turn; one session drives at a time'],
       off: ['the Computer tool is absent from new sessions — identical to a build without it', 'no desktop driver is loaded'],
+    },
+  },
+  {
+    env: 'MERCURY_COMPUTER_ACCESS',
+    label: 'Access type',
+    group: 'computer use',
+    kind: 'enum',
+    options: COMPUTER_ACCESS_VALUES,
+    defaultLabel: 'asks',
+    defaultFollows: { env: 'MERCURY_SKIP_PERMISSIONS', value: '1', label: computerAccessDefaultLabel(true) },
+    summary: 'asks: the first act in each application asks · permissive: the application in front when the turn began never asks, any other asks once · full: nothing asks',
+    detail: {
+      controls: "How the Computer tool gets your consent. asks (the default): the first act in each application this session shows the card, which names the application and the act; a Yes covers that application for the session, and the timed grants cover every application for their span. permissive: the application in front at the turn's first Computer call — a screenshot counts — is the turn's home application, and acts in it never ask; an act that lands in any other application asks once, the same card, a Yes covering it for the session; a new turn records a new home application. full: nothing asks. With Sovereign mode on the default is full; a saved value here wins. Whatever the value, a deny rule in a settings file refuses its application, the terminal running Mercury is never typed into, an application that moved in front between the check and the act is refused, and one session drives at a time.",
+      on: ['asks: the first act in each application asks by name, even with Sovereign mode on', 'permissive: acts in the application in front when the turn began never ask; any other application asks once', 'full: no act asks, in any application'],
+      off: ['the default follows Sovereign mode: asks with it off, full with it on', 'a deny rule in a settings file still refuses; the terminal running Mercury and an application that moved in front are still refused'],
     },
   },
   {
@@ -392,7 +427,7 @@ export function allSettingRows(): readonly MenuRow[] {
 }
 
 const RETIRED_MENU_ENV: ReadonlySet<string> = new Set(
-  'MERCURY_ENGINES MERCURY_HELM_HOME MERCURY_HELM_CONSOLE MERCURY_DECK_COMPANION MERCURY_CURSUS MERCURY_PARTY MERCURY_ROOM_REMOTE MERCURY_COMPUTER_ACCESS'.split(' '),
+  'MERCURY_ENGINES MERCURY_HELM_HOME MERCURY_HELM_CONSOLE MERCURY_DECK_COMPANION MERCURY_CURSUS MERCURY_PARTY MERCURY_ROOM_REMOTE'.split(' '),
 )
 
 export function menuRowChoices(row: MenuRow): MenuChoice[] {
@@ -401,6 +436,14 @@ export function menuRowChoices(row: MenuRow): MenuChoice[] {
     label: row.kind === 'toggle' ? (v === '0' ? 'off' : 'on') : v,
   }))
   return [{ value: null, label: `default (${row.defaultLabel})` }, ...rest]
+}
+
+export function menuRowValueLabel(row: MenuRow, saved: string | null, effectiveOf: (env: string) => string | null): string {
+  const choices = menuRowChoices(row)
+  if (saved !== null) return choices.find(c => c.value === saved)?.label ?? JSON.stringify(saved)
+  const follows = row.defaultFollows
+  if (follows !== undefined && effectiveOf(follows.env) === follows.value) return follows.label
+  return choices[0]!.label
 }
 
 
@@ -585,7 +628,7 @@ export function writeBootEnvChoice(
   const env: Record<string, string> = {}
   for (const r of allSettingRows()) {
     const sp = flagSpellings(r.env).find(s => saved[s] !== undefined)
-    if (sp !== undefined) env[r.env] = saved[sp]!
+    if (sp !== undefined && menuRowChoices(r).some(c => c.value === saved[sp])) env[r.env] = saved[sp]!
   }
   if (value === null) delete env[row.env]
   else env[row.env] = value
@@ -717,8 +760,9 @@ export function resolveEffectiveSettingsSnapshot(args: {
     }
     const spellings = flagSpellings(row.env)
     const profSpelling = profile ? spellings.find(sp => profile.env[sp] !== undefined) : undefined
-    if (profile && profSpelling !== undefined) {
-      return { env: row.env, value: profile.env[profSpelling] ?? null, source: 'profile', applicationClass: row.applicationClass ?? 'new-session' }
+    const profValue = profile && profSpelling !== undefined ? (profile.env[profSpelling] ?? null) : null
+    if (profValue !== null && menuRowChoices(row).some(c => c.value === profValue)) {
+      return { env: row.env, value: profValue, source: 'profile', applicationClass: row.applicationClass ?? 'new-session' }
     }
     return { env: row.env, value: null, source: 'default', applicationClass: row.applicationClass ?? 'new-session' }
   })

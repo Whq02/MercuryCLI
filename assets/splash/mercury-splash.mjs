@@ -845,18 +845,26 @@ function activateCardRow(r2) {
 }
 
 function menuData() {
+  const pinOf = r2 => process.env[r2.env] !== undefined
+    ? process.env[r2.env]
+    : r2.legacy
+      ? process.env[r2.legacy]
+      : undefined
+  const effectiveOf = env => {
+    const r2 = MENU.find(x => x.env === env)
+    if (!r2) return null
+    const pin = pinOf(r2)
+    return pin !== undefined ? pin : choiceOf(r2).v
+  }
   const entries = MENU.map(r2 => {
     const ch = choiceOf(r2)
-    const pinnedVal = process.env[r2.env] !== undefined
-      ? process.env[r2.env]
-      : r2.legacy
-        ? process.env[r2.legacy]
-        : undefined
+    const pinnedVal = pinOf(r2)
+    const follows = r2.defaultFollows
     return {
       label: r2.label,
       group: r2.group,
       summary: r2.summary,
-      valueLabel: ch.l,
+      valueLabel: ch.v === null && follows && effectiveOf(follows.env) === follows.value ? follows.label : ch.l,
       valueIsDefault: ch.v === null,
       pinnedVal: pinnedVal === undefined ? null : pinnedVal,
       detail: r2.detail || null,

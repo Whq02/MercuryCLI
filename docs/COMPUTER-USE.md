@@ -25,10 +25,11 @@ the fix beside it.
 ## The asks
 
 Screenshots and the other reads — the cursor, the displays, the application
-in front, a timed wait — never ask. The first act in each application — a
-click, a drag, a scroll, typed text, a key — asks by the application's name
-and identity, the card names the act, and it asks how long you want to
-allow. Five answers, in this order:
+in front, a timed wait — never ask. With the access type at `asks` (the
+default), the first act in each application — a click, a drag, a scroll,
+typed text, a key — asks by the application's name and identity, the card
+names the act, and it asks how long you want to allow. Five answers, in
+this order:
 
 - **Yes** allows this act and every later act in this application for the
   rest of the session.
@@ -41,7 +42,9 @@ allow. Five answers, in this order:
 - **Enable sovereign mode to avoid further permissions by default** turns
   sovereign mode on for this session and saves the Boot Menu's `Sovereign
   mode` row, so no later session asks either — for anything — until you
-  turn the row off.
+  turn the row off. When the card is shown while sovereign mode is already
+  on (the access type saved as `asks` or `permissive`), this answer would
+  offer what is already on, so the card offers the first four answers only.
 
 A timed grant lives with the session: a resume inside its span keeps it, a
 new session never inherits it, and it is never written into your settings.
@@ -52,7 +55,47 @@ act there. An application that moved in front between the ask and the act
 is not driven: the act is refused and the model takes a new screenshot. No
 classifier answers this ask: the screen, not you, chose the application, so
 the consent is yours alone — and sovereign mode is the one posture that
-answers it, because sovereign mode answers every permission question.
+answers it, because sovereign mode answers every permission question,
+unless the access type below is saved as `asks` or `permissive`, which
+keeps this one question asked even then.
+
+## The access type
+
+Under the Boot Menu's `Computer use` row sits `Access type`, with three
+values. `asks`, the default, is the card above: the first act in each
+application asks, a Yes covers that application for the session, and the
+timed grants cover every application for their span. `permissive` takes
+the application in front at the turn's first Computer call — the
+screenshot the model takes before it acts counts, because that is the
+moment the task began, before the model could have moved anything — as
+the turn's home application: acts in it never ask, and an act that lands
+in any other application asks once, with the same card, a Yes covering
+that application for the session. A new turn records a new home
+application, and an act in the home application leaves no grant behind, so
+an application that was home in one turn asks in the next unless you said
+Yes to it. If the home application is the terminal running Mercury, the
+terminal refusal stands and the first act elsewhere asks. `full` never
+asks.
+
+Unset, the row follows sovereign mode: with the `Sovereign mode` row on the
+default is `full`, and the row's value reads `default (full · sovereign
+mode)`; with it off the default is `asks`, and it reads `default (asks)`.
+Sovereign mode writes nothing into the row. A saved value wins either way:
+`asks` or `permissive` saved with sovereign mode on keeps computer use
+asking while every other permission question is skipped, and `full` saved
+with sovereign mode off makes computer use never ask while files and
+commands ask as the permission mode says. Whatever the value, a
+`permissions.deny` rule refuses its application before any act, the
+terminal running Mercury is never typed into, an application that moved in
+front between the check and the act is not driven, and one session drives
+at a time. The row is saved where the Boot Menu keeps its other choices and
+reaches new sessions; `MERCURY_COMPUTER_ACCESS=asks`, `=permissive` or
+`=full` in the environment sets it for one session, and any other value —
+a `sovereign` saved by an earlier build among them — is refused as a
+diagnostic note and the default applies. `mercury doctor` and `/health`
+name the access beside the switch: `computer use on · access asks`,
+`access permissive`, `access full (by sovereign mode)` or `access full
+(saved)`.
 
 ## Sovereign mode
 
@@ -62,12 +105,15 @@ not for files, not for commands, not for computer use — and the crimson
 band says so. The Boot Menu's `Sovereign mode` row (in the trust combo)
 turns it on for new sessions; the ask card's last answer turns it on for
 the running session and saves the same row; `shift+tab` reaches it in a
-session launched with the bypass flag. What stays under sovereign mode is
-what was never a question: a `permissions.deny` rule refuses its
-application before any act, the terminal running Mercury is never typed
-into, and an application that moved in front between the check and the act
-is not driven. `mercury doctor` and `/health` carry a `Sovereign mode` row
-that names the one setting and what armed it.
+session launched with the bypass flag. Computer use follows it through the
+`Access type` row's default — unset, the row reads `full` under sovereign
+mode — and a saved `asks` or `permissive` keeps computer use asking even
+then. What stays under sovereign mode is what was never a question: a
+`permissions.deny` rule refuses its application before any act, the
+terminal running Mercury is never typed into, and an application that
+moved in front between the check and the act is not driven. `mercury
+doctor` and `/health` carry a `Sovereign mode` row that names the one
+setting and what armed it.
 
 ## The allowlist
 
@@ -192,7 +238,9 @@ macOS in this release; typed text is always layout-correct.
 section. Its line names the pack (its version and platform, and whether it
 was found beside the bundle, in the checkout, or through
 `MERCURY_DESKTOP_PACK_DIR`), the screen and input grants, the kind of
-session Mercury runs in, and whether computer use is on. The detail lists
+session Mercury runs in, whether computer use is on, and the access type in
+words (`access asks`, `access permissive`, `access full (by sovereign
+mode)`, `access full (saved)`). The detail lists
 the displays with their sizes and scales, the frontmost application, the
 permission words for your platform, and which session is driving the
 desktop right now, if any — one session drives at a time. A missing grant

@@ -27,7 +27,7 @@ section('§2 configured with the fake driver and nothing driving')
   process.env.MERCURY_DESKTOP_DRIVER = 'fake'
   resetDesktopDriverForTest()
   const record = row()
-  check('state configured, the detail names the resolved driver and that no session is driving', record?.state === 'configured' && /driver fake resolved/.test(record.detail) && record.detail.includes('no session driving'), JSON.stringify(record))
+  check('state configured, the detail names the resolved driver, that no session is driving and the access type', record?.state === 'configured' && /driver fake resolved/.test(record.detail) && record.detail.includes('no session driving · access asks'), JSON.stringify(record))
   check('the detail is under 300 characters', (record?.detail.length ?? 999) < 300)
   const label = record?.label ?? ''
   check('the label names the Computer tool', label.toLowerCase().includes('computer'), label)
@@ -73,6 +73,27 @@ section('§6 the health seam and the doctor row')
   const health = sourceText('src/utils/healthReport.ts')
   check("healthReport.ts carries the doctor row id 'iface-computer-use'", health.includes("'iface-computer-use'"))
   check("healthReport.ts labels it 'Computer use'", health.includes("'Computer use'"))
+}
+
+section('§7 the access words beside the switch: the setting in words, the posture read where the doctor reads it')
+{
+  const { computerAccessWords } = await import('../../src/services/desktop/computerAccess.ts')
+  delete process.env.MERCURY_COMPUTER_ACCESS
+  delete process.env.MERCURY_SKIP_PERMISSIONS
+  check('unset with Sovereign mode off: access asks', computerAccessWords() === 'access asks' && row()?.detail.endsWith('access asks') === true, JSON.stringify(row()))
+  process.env.MERCURY_COMPUTER_ACCESS = 'permissive'
+  check('permissive saved: access permissive', computerAccessWords() === 'access permissive' && row()?.detail.endsWith('access permissive') === true, JSON.stringify(row()))
+  process.env.MERCURY_COMPUTER_ACCESS = 'full'
+  check('full saved: access full (saved)', computerAccessWords() === 'access full (saved)' && row()?.detail.endsWith('access full (saved)') === true, JSON.stringify(row()))
+  delete process.env.MERCURY_COMPUTER_ACCESS
+  process.env.MERCURY_SKIP_PERMISSIONS = '1'
+  check('unset with Sovereign mode on: access full (by sovereign mode)', computerAccessWords() === 'access full (by sovereign mode)' && row()?.detail.endsWith('access full (by sovereign mode)') === true, JSON.stringify(row()))
+  process.env.MERCURY_COMPUTER_ACCESS = 'asks'
+  check('asks saved with Sovereign mode on: access asks — a saved value wins', computerAccessWords() === 'access asks', computerAccessWords())
+  delete process.env.MERCURY_COMPUTER_ACCESS
+  delete process.env.MERCURY_SKIP_PERMISSIONS
+  const driver = sourceText('src/services/desktop/nativeDriver.ts')
+  check("the doctor's Computer use line carries the same words after the switch", driver.includes('`on · ${computerAccessWords()}`'))
 }
 
 finish('prove-computer-readiness')

@@ -6,8 +6,10 @@ import { COMPUTER_TOOL_NAME, peekCheckedActApp, type DesktopJudgedApp } from '..
 import { timedComputerGrant, writeComputerGrant, type ComputerGrantRecord } from '../../../services/desktop/computerGrant.js'
 import { conversationIdHere } from '../../../services/engine-connector/focusedConnector.js'
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
+import { useAppState } from '../../../state/AppState.js'
 import { writeBootEnvChoice } from '../../../substrate/startupMenu.js'
 import type { PermissionUpdate } from '../../../types/permissions.js'
+import { postureBypassesAsks } from '../../../utils/permissions/decision/engine.js'
 import { isBypassPermissionsModeDisabled } from '../../../utils/permissions/permissionSetup.js'
 import { getGlobalConfig } from '../../../utils/config.js'
 import { logForDebugging } from '../../../utils/debug.js'
@@ -33,6 +35,10 @@ export const COMPUTER_ASK_CHOICES: ReadonlyArray<{ value: ComputerAskChoice; lab
   { value: 'day', label: 'Yes, for 24 hours — every application' },
   { value: 'sovereign', label: 'Enable sovereign mode to avoid further permissions by default' },
 ]
+
+export function computerAskChoicesFor(sovereignOn: boolean): ReadonlyArray<{ value: ComputerAskChoice; label: string }> {
+  return sovereignOn ? COMPUTER_ASK_CHOICES.filter(choice => choice.value !== 'sovereign') : COMPUTER_ASK_CHOICES
+}
 
 export const COMPUTER_ASK_FIRST_ACT = 'first act in this application this session'
 export const COMPUTER_ASK_QUESTION = 'Do you want to allow Mercury to drive your mouse and keyboard here, and for how long?'
@@ -118,7 +124,9 @@ export function ComputerPermissionRequest({
     useMemo(() => ({ completion_type: 'tool_use_single', language_name: 'none' }), []),
   )
 
-  const options = COMPUTER_ASK_CHOICES.map(choice => ({ label: choice.label, value: choice.value }))
+  const mode = useAppState(state => state.toolPermissionContext.mode)
+  const bypassAvailable = useAppState(state => state.toolPermissionContext.isBypassPermissionsModeAvailable)
+  const options = computerAskChoicesFor(postureBypassesAsks({ mode, isBypassPermissionsModeAvailable: bypassAvailable })).map(choice => ({ label: choice.label, value: choice.value }))
 
   function handleChange(value: ComputerAskChoice): void {
     const effect = applyComputerAskChoice(value, conversationIdHere())
