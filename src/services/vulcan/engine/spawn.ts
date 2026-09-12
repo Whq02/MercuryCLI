@@ -99,9 +99,8 @@ export function spawnEngine(req: EngineSpawnRequest): EngineHandle {
   const env = { ...subprocessEnv(), ...engineUserEnv(req.userDir) }
   delete env[VULCAN_INSTANCE_ENV]
   if (req.bridge) env[VULCAN_INSTANCE_ENV] = JSON.stringify(req.bridge)
-  const args = req.bridge ? req.args.map((arg, index) => index > 0 && req.args[index - 1] === '--path' ? req.bridge!.projectRoot : arg) : req.args
-  const child = spawn(req.executable, args, {
-    cwd: req.bridge?.projectRoot ?? req.cwd,
+  const child = spawn(req.executable, req.args, {
+    cwd: req.cwd,
     windowsHide: true,
     detached: process.platform !== 'win32',
     stdio: ['ignore', 'pipe', 'pipe'],
