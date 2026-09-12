@@ -147,7 +147,9 @@ suite, and `engine_result {id}` reads it later, from any session.
 Options: `native` (a display run), `capture` (appends `-- --capture`;
 needs `native`), `budgetMs` (a whole-job cap; each suite keeps its own
 timeout), `displayShared`, `keepTree`, `wait: false` (answer the job id
-at once), `label`.
+at once), `waitMs` (how long to wait for the record; the default is the
+selected suites' timeouts plus the import's, times the jobs ahead, plus
+a minute), `tailChars` (the log tail per failed suite), `label`.
 
 ## The compile gate
 
@@ -160,7 +162,9 @@ Parses and type-checks every changed `.gd` file (`godot --headless
 count at once, no lock) and compiles every changed `.gdshader` file
 headlessly through a generated probe, in seconds. Changed means changed
 against `HEAD`; `files` names files instead, `all: true` checks every
-script and shader, and `tree` checks a frozen copy. Diagnostics come as
+script and shader, and `tree` checks a frozen copy; `shaders: false`
+skips the shader probe and `parallel` caps the check-only processes
+(the worker count unset). Diagnostics come as
 data: `{ file, line, message, class, lastChange }` with the classes
 `parse-error`, `compile-error`, `shader-error`, `preload-reaches-autoload`
 and `engine-error`.
@@ -296,12 +300,15 @@ job's whole engine tree; `engine_result {id}` reads one record by id.
 The same service is available to scripts, on the project in the working
 directory: `mercury godot run [suites…] [--tree <spec>] [--native]
 [--capture] [--priority <p>] [--budget-ms <n>] [--label <s>]`, `mercury
-godot check [files…] [--all] [--tree <spec>] [--no-shaders]`, `mercury
-godot jobs`, `mercury godot cancel <id>`, `mercury godot result <id>`.
+godot check [files…] [--all] [--tree <spec>] [--no-shaders] [--parallel <n>]
+[--run <id>]`, `mercury godot jobs`, `mercury godot cancel <id>`,
+`mercury godot result <id>`, and for the media jobs below `mercury godot
+capture|profile|tour` and `mercury godot frames diff|stats|contact-sheet`.
 Each prints its record as JSON; `run` exits 0 on `allPass`, `check` only
-when both diagnostics and proof drift are absent. A fresh process owns no queue of its own: `jobs` lists the
-runs on disk and the engines alive under the project, and `cancel` ends
-the engine tree of a job id it finds running there.
+when diagnostics, failed probes and proof drift are all absent. A fresh
+process owns no queue of its own: `jobs` lists the runs on disk and the
+engines alive under the project, and `cancel` ends the engine tree of a
+job id it finds running there.
 
 ## Capture jobs and named tours
 
