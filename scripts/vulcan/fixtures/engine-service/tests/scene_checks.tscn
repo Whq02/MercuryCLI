@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cfixturescene1"]
+
+[ext_resource type="Script" path="res://tests/scene_checks.gd" id="1"]
+
+[node name="SceneChecks" type="Node"]
+script = ExtResource("1")

@@ -963,6 +963,16 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       })
     })
 
+  program
+    .command('godot [verb] [args...]')
+    .description('The engine job service for the Godot project in the working directory: run | check | jobs | cancel | result')
+    .allowUnknownOption(true)
+    .allowExcessArguments(true)
+    .action(async (_verb: string | undefined, _args: string[] | undefined, _options: unknown, command: { args: string[] }) => {
+      const { godotEngineCli } = await import('./cli/godotEngineCli.js')
+      process.exit(await godotEngineCli(command.args))
+    })
+
   for (const [name, usage] of [
     ['daemon [subcommand]', `Usage: ${cliName} daemon <run|status|stop>`],
     ['acp', `Usage: ${cliName} acp [--stdio]`],

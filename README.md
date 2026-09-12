@@ -280,6 +280,10 @@ the result envelope alone. The verbs:
 - `mercury daemon`: the background daemon that hosts sessions.
 - `mercury acp --stdio`: the editor bridge over the Agent Client Protocol;
   `mercury editor <action>` manages the IDE side.
+- `mercury godot run|check|jobs|cancel|result`: the engine job service
+  for the Godot project in the working directory — suites on Mercury's
+  own headless workers from a frozen copy, the compile gate, the queue,
+  a cancel, a record by id ([docs/VULCAN-GODOT-TOOLS.md](docs/VULCAN-GODOT-TOOLS.md)).
 - `mercury themis`: THEMIS integrity tooling.
 - `mercury show <image>`: render an image to the terminal.
 - `mercury install` and `mercury update` (alias `upgrade`): release archives

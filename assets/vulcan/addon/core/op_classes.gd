@@ -186,6 +186,11 @@ const CLASSES := {
 	"runtime_pause": "exec",
 	"runtime_step": "exec",
 	"runtime_resume": "exec",
+	"engine_run": "exec",
+	"engine_check": "exec",
+	"engine_jobs": "read",
+	"engine_cancel": "mutate",
+	"engine_result": "read",
 }
 
 static func of(op: String) -> String:

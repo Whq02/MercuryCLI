@@ -36,7 +36,17 @@ export type Output = {
   result: string
 }
 
-const LOCAL_OPS = new Set(['vulcan_status', 'vulcan_install', 'vulcan_uninstall', 'project_refresh_classes'])
+const LOCAL_OPS = new Set([
+  'vulcan_status',
+  'vulcan_install',
+  'vulcan_uninstall',
+  'project_refresh_classes',
+  'engine_run',
+  'engine_check',
+  'engine_jobs',
+  'engine_cancel',
+  'engine_result',
+])
 
 const UNREACHABLE_CODES = new Set(['HANDSHAKE_CLOSED', 'CONNECTION_LOST', 'CLIENT_CLOSED'])
 
@@ -78,11 +88,20 @@ function summarizeArgs(args: Record<string, unknown> | undefined, cap = 160): st
   return s.length > cap ? s.slice(0, cap - 1) + '…' : s
 }
 
-async function runLocalOp(op: string, context: ToolUseContext, parentMessage: AssistantMessage): Promise<string> {
+async function runLocalOp(
+  op: string,
+  args: Record<string, unknown> | undefined,
+  context: ToolUseContext,
+  parentMessage: AssistantMessage,
+): Promise<string> {
   const installer = await import('../../services/vulcan/addonInstaller.js')
   const root = findGodotProjectRoot()
   if (!root) {
     return `no project.godot found from the working directory — open/cd into a Godot project first`
+  }
+  if (op.startsWith('engine_')) {
+    const { runEngineOp } = await import('../../services/vulcan/engine/ops.js')
+    return runEngineOp(op, args, root)
   }
   switch (op) {
     case 'vulcan_status':
@@ -139,7 +158,7 @@ async function runOp(input: Input, context: ToolUseContext, parentMessage: Assis
   if (vulcanLiteMode() && !spec.lite && spec.category !== 'frontier') {
     return `op "${input.op}" is outside the lite subset (MERCURY_GODOT_TOOLS_LITE is on) — use a core op, or unset the lite flag for the full surface`
   }
-  if (LOCAL_OPS.has(input.op)) return runLocalOp(input.op, context, parentMessage)
+  if (LOCAL_OPS.has(input.op)) return runLocalOp(input.op, input.args, context, parentMessage)
 
   const client = getVulcanClient()
   if (!client) {
@@ -202,6 +221,11 @@ export const GodotTool = buildTool({
         behavior: 'ask' as const,
         message: `Godot exec: project_refresh_classes — rebuilds the class cache: the editor's rescan over the bridge when one is up, else runs godot --headless --import --path <project> (bounded, no editor running)`,
       }
+    }
+    if (input.op.startsWith('engine_')) {
+      const { engineOpPermissionMessage } = await import('../../services/vulcan/engine/ops.js')
+      const message = engineOpPermissionMessage(input.op, input.args)
+      if (message) return { behavior: 'ask' as const, message }
     }
     if (spec.cls === 'exec') {
       return {
