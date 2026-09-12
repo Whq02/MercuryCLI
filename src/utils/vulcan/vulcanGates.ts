@@ -1,10 +1,7 @@
 
-import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { findGodotProjectRoot } from '../../services/lsp/godotLane.js'
 import { godotExecutablePresence } from '../../services/vulcan/portabilityDoctor.js'
-import { logForDebugging } from '../debug.js'
-
-export const VULCAN_DEFAULT_PORT = 6010
 
 export function vulcanEnabled(): boolean {
   return flagEnabled('MERCURY_GODOT_TOOLS')
@@ -22,23 +19,8 @@ export function godotToolWithholding(): ToolWithholding {
   return presence.present ? { withheld: false } : { withheld: true, why: presence.note, remedy: presence.remedy }
 }
 
-export function vulcanPort(): number {
-  const raw = flagEnv('MERCURY_GODOT_TOOLS_PORT')
-  const parsed = Number(raw)
-  if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 65535) return parsed
-  if (raw && raw.trim().length > 0) {
-    logForDebugging(`[VULCAN] ignoring invalid port '${raw}' — using ${VULCAN_DEFAULT_PORT}`)
-  }
-  return VULCAN_DEFAULT_PORT
-}
-
 export function vulcanLiteMode(): boolean {
   return flagEnabled('MERCURY_GODOT_TOOLS_LITE')
-}
-
-export function vulcanTokenOverride(): string | undefined {
-  const raw = flagEnv('MERCURY_GODOT_TOOLS_TOKEN')
-  return raw && raw.trim().length > 0 ? raw.trim() : undefined
 }
 
 

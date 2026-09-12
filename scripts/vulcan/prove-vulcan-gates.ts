@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -23,14 +23,11 @@ function restoreEnv(): void {
   delete process.env.MERCURY_GODOT_TOOLS
   delete process.env.MERCURY_GODOT_EXECUTABLE
   delete process.env.MERCURY_GODOT_TOOLS_LITE
-  delete process.env.MERCURY_GODOT_TOOLS_PORT
-  delete process.env.MERCURY_GODOT_TOOLS_TOKEN
 }
 
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
 const gates = await import('../../src/utils/vulcan/vulcanGates.js')
 const { getVulcanClient, resetVulcanClientForTest } = await import('../../src/services/vulcan/vulcanClient.js')
-const { ensureVulcanToken, readVulcanToken, vulcanTokenPath } = await import('../../src/services/vulcan/vulcanToken.js')
 const installer = await import('../../src/services/vulcan/addonInstaller.js')
 const { getAllBaseTools } = await import('../../src/tools.js')
 const { GodotTool } = await import('../../src/tools/GodotTool/GodotTool.js')
@@ -60,10 +57,10 @@ section('§1 · OFF (default) — byte-identical absence')
   check('doctrine line null', gates.getVulcanDoctrineLine() === null)
   check('harness-map line null', gates.getVulcanHarnessMapLine() === null)
   check('no client', runWithCwdOverride(proj, () => getVulcanClient() === null))
-  check('NO token file was created by any OFF path', !existsSync(vulcanTokenPath(proj)))
+  check('NO instance files were created by any OFF path', !existsSync(path.join(proj, '.godot', 'mercury-vulcan')) && !existsSync(path.join(proj, '.godot', 'mercury-vulcan-token')))
 }
 
-section('§2 · ARMED — tool + seams + token hygiene')
+section('§2 · ARMED — tool + seams')
 {
   restoreEnv()
   resetVulcanClientForTest()
@@ -87,23 +84,9 @@ section('§2 · ARMED — tool + seams + token hygiene')
   check('prompt section null outside a project', runWithCwdOverride(scratch, () => gates.getVulcanSection() === null))
   check('doctrine line renders', runWithCwdOverride(proj, () => (gates.getVulcanDoctrineLine() ?? '').includes('Godot tool')))
   check('harness-map line renders (flag-gated)', (gates.getVulcanHarnessMapLine() ?? '').includes('ARMED'))
-  check('client exists inside a project', runWithCwdOverride(proj, () => getVulcanClient() !== null))
-  const tok1 = ensureVulcanToken(proj)
-  const tok2 = ensureVulcanToken(proj)
-  check('token created 64-hex + stable', /^[0-9a-f]{64}$/.test(tok1) && tok1 === tok2)
-  const mode = statSync(vulcanTokenPath(proj)).mode & 0o777
-  check('token file mode 0600', mode === 0o600, `0${mode.toString(8)}`)
-  process.env.MERCURY_GODOT_TOOLS_TOKEN = 'override-token'
-  check('env override wins (read + ensure)', ensureVulcanToken(proj) === 'override-token' && readVulcanToken(proj) === 'override-token')
-  delete process.env.MERCURY_GODOT_TOOLS_TOKEN
-  check('port default 6010 + validated override', gates.vulcanPort() === 6010 && (() => {
-    process.env.MERCURY_GODOT_TOOLS_PORT = '7011'
-    const ok = gates.vulcanPort() === 7011
-    process.env.MERCURY_GODOT_TOOLS_PORT = 'nope'
-    const fallback = gates.vulcanPort() === 6010
-    delete process.env.MERCURY_GODOT_TOOLS_PORT
-    return ok && fallback
-  })())
+  check('a project without a discovered agent editor gets no implicit bridge client', runWithCwdOverride(proj, () => getVulcanClient() === null))
+  check('no fixed bridge port and no shared token seam remain: every instance carries its own', !('vulcanPort' in gates) && !('vulcanTokenOverride' in gates) && !('VULCAN_DEFAULT_PORT' in gates))
+  check('arming writes no instance files into the project', !existsSync(path.join(proj, '.godot', 'mercury-vulcan')) && !existsSync(path.join(proj, '.godot', 'mercury-vulcan-token')))
 }
 
 section('§3 · LITE — the advertised surface shrinks; refusal teaches')
@@ -158,7 +141,7 @@ section('§5 · installer honesty on a fixture project')
   const report = await installer.applyVulcanInstall(p2)
   const st = installer.vulcanInstallStatus(p2)
   check('install materializes the full bundle', report.includes(`installed ${st.bundledFiles} addon files`) && st.bundledFiles > 0 && existsSync(path.join(p2, 'addons', 'mercury_vulcan', 'plugin.cfg')) && existsSync(path.join(p2, 'addons', 'mercury_vulcan', 'core', 'server.gd')))
-  check('install enables the plugin, preserves the OTHER entry, writes the token', st.installed && st.digestMatch && st.enabled && installer.readEnabledPlugins(p2).includes('res://addons/other/plugin.cfg') && existsSync(vulcanTokenPath(p2)))
+  check('install enables the plugin and preserves the other entry without a shared token', st.installed && st.digestMatch && st.enabled && installer.readEnabledPlugins(p2).includes('res://addons/other/plugin.cfg') && !existsSync(path.join(p2, '.godot', 'mercury-vulcan-token')))
   writeFileSync(path.join(p2, 'addons', 'mercury_vulcan', 'core', 'server.gd'), '# tampered\n')
   check('tamper flips digestMatch (status stays honest)', (() => {
     const t = installer.vulcanInstallStatus(p2)
@@ -172,21 +155,19 @@ section('§5 · installer honesty on a fixture project')
   )
   check('autoload entry readable while present', installer.readRuntimeAutoloadEntry(p2) !== undefined)
   const cleaned = await installer.applyVulcanUninstall(p2)
-  check('uninstall removes files + entry + token, preserves the OTHER plugin entry', cleaned.includes('removed') && !existsSync(path.join(p2, 'addons', 'mercury_vulcan')) && !existsSync(vulcanTokenPath(p2)) && installer.readEnabledPlugins(p2).includes('res://addons/other/plugin.cfg') && !installer.vulcanInstallStatus(p2).enabled)
+  check('uninstall removes files + entry + token, preserves the OTHER plugin entry', cleaned.includes('removed') && !existsSync(path.join(p2, 'addons', 'mercury_vulcan')) && !existsSync(path.join(p2, '.godot', 'mercury-vulcan-token')) && installer.readEnabledPlugins(p2).includes('res://addons/other/plugin.cfg') && !installer.vulcanInstallStatus(p2).enabled)
   check('uninstall strips the bridge autoload (receipted), preserves the OTHER autoload', cleaned.includes('[autoload] MercuryVulcanRuntimeBridge') && cleaned.includes('→ (removed)') && installer.readRuntimeAutoloadEntry(p2) === undefined && readFileSync(path.join(p2, 'project.godot'), 'utf8').includes('GameState="*res://autoload/game_state.gd"'))
   check('uninstall on a clean project stays honest', (await installer.applyVulcanUninstall(p2)).includes('was not installed'))
-  process.env.MERCURY_GODOT_TOOLS_PORT = '6011'
   await installer.applyVulcanInstall(p2)
-  check('install aligns mercury_vulcan/port with the env port', installer.readProjectVulcanPort(p2) === 6011)
+  check('install never writes a shared fixed-port setting', !/^port=/m.test(readFileSync(path.join(p2, 'project.godot'), 'utf8')))
   await installer.applyVulcanUninstall(p2)
-  delete process.env.MERCURY_GODOT_TOOLS_PORT
 }
 
 section('§6 · flag registry rows')
 {
   const master = getFlagSpec('MERCURY_GODOT_TOOLS')
   check('MERCURY_GODOT_TOOLS registered opt-in/behavioral', master?.kind === 'opt-in' && master?.tier === 'behavioral')
-  check('PORT/TOKEN value rows', getFlagSpec('MERCURY_GODOT_TOOLS_PORT')?.kind === 'value' && getFlagSpec('MERCURY_GODOT_TOOLS_TOKEN')?.kind === 'value')
+  check('the retired fixed-port and shared-token rows are gone', getFlagSpec('MERCURY_GODOT_TOOLS_PORT') === undefined && getFlagSpec('MERCURY_GODOT_TOOLS_TOKEN') === undefined)
   check('LITE opt-in/infra row', getFlagSpec('MERCURY_GODOT_TOOLS_LITE')?.kind === 'opt-in' && getFlagSpec('MERCURY_GODOT_TOOLS_LITE')?.tier === 'infra')
 }
 

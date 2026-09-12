@@ -3188,7 +3188,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'vulcan',
           label: 'Godot control (VULCAN)',
           run: async () => {
-            const { vulcanEnabled, vulcanLiteMode, vulcanPort } = await import('./vulcan/vulcanGates.js')
+            const { vulcanEnabled, vulcanLiteMode } = await import('./vulcan/vulcanGates.js')
             if (!vulcanEnabled()) {
               return {
                 status: 'off' as const,
@@ -3197,7 +3197,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             const { findGodotProjectRoot } = await import('../services/lsp/godotLane.js')
             const root = findGodotProjectRoot()
-            const port = vulcanPort()
+            let port = 0
             const lite = vulcanLiteMode() ? ' · lite subset' : ''
             if (!root) {
               return {
@@ -3206,9 +3206,10 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             const { vulcanInstallStatus } = await import('../services/vulcan/addonInstaller.js')
-            const { probeGodotEditorPresence, presenceNudge } = await import('../services/vulcan/editorPresence.js')
+            const { probeVulcanEditorPresence, presenceNudge } = await import('../services/vulcan/editorPresence.js')
             const s = vulcanInstallStatus(root)
-            const presence = await probeGodotEditorPresence(root, port)
+            const presence = await probeVulcanEditorPresence(root)
+            port = presence.port
             const { engineWorkerCount } = await import('../services/vulcan/engine/service.js')
             const engineWorkers = engineWorkerCount()
             const parts = [

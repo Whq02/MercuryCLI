@@ -15,12 +15,6 @@ work="$(mktemp -d "${TMPDIR:-/tmp}/vulcan-compile-XXXXXX")"
 proj="$work/game"
 mkdir -p "$proj"
 
-port=$((26000 + $$ % 1000))
-for _ in 1 2 3 4 5 6 7 8 9 10; do
-  if ! (echo > "/dev/tcp/127.0.0.1/$port") 2>/dev/null; then break; fi
-  port=$((port + 1))
-done
-
 cat > "$proj/project.godot" <<EOF
 config_version=5
 
@@ -39,19 +33,21 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo ">>> installing the addon into the fixture (port $port)"
-MERCURY_GODOT_TOOLS=1 MERCURY_GODOT_TOOLS_PORT="$port" "$bun" run "$here/smoke-driver.ts" install "$proj" >/dev/null
+echo ">>> installing the addon into the fixture"
+MERCURY_GODOT_TOOLS=1 "$bun" run "$here/smoke-driver.ts" install "$proj" >/dev/null
 
 echo ">>> boot 1: import pass"
 "$GODOT" --editor --headless --path "$proj" --quit > "$work/import.log" 2>&1 || true
 
-echo ">>> boot 2: serving pass (waiting for the VULCAN server to bind)"
+echo ">>> boot 2: serving pass (waiting for the VULCAN server to announce its port and bind it)"
 "$GODOT" --editor --headless --path "$proj" > "$work/editor.log" 2>&1 &
 GODOT_PID=$!
 
 bound=0
+port=""
 for _ in $(seq 1 60); do
-  if (echo > "/dev/tcp/127.0.0.1/$port") 2>/dev/null; then bound=1; break; fi
+  port="$(sed -n 's/.*mercury_vulcan: listening on 127\.0\.0\.1:\([0-9][0-9]*\).*/\1/p' "$work/editor.log" 2>/dev/null | head -1)"
+  if [ -n "$port" ] && (echo > "/dev/tcp/127.0.0.1/$port") 2>/dev/null; then bound=1; break; fi
   if ! kill -0 "$GODOT_PID" 2>/dev/null; then break; fi
   sleep 1
 done
@@ -65,7 +61,7 @@ if [ -n "$errors" ]; then
   exit 1
 fi
 if [ "$bound" != "1" ]; then
-  echo "❌ prove-addon-compiles FAIL — no script errors, but the VULCAN server never bound 127.0.0.1:$port on $GODOT_VERSION"
+  echo "❌ prove-addon-compiles FAIL — no script errors, but the VULCAN server never announced and bound a port (${port:-none announced}) on $GODOT_VERSION"
   echo "--- editor.log tail ---"
   tail -30 "$work/editor.log"
   exit 1

@@ -1,28 +1,28 @@
 
-import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { renameWithWin32RetrySync } from '../../substrate/durablePublish.js'
 import * as path from 'node:path'
-import { probeGodotEditorReachable } from '../lsp/godotLane.js'
-import { vulcanEnabled, vulcanLiteMode, vulcanPort } from '../../utils/vulcan/vulcanGates.js'
+import { vulcanEnabled, vulcanLiteMode } from '../../utils/vulcan/vulcanGates.js'
+import { listVulcanInstances, selectVulcanInstance } from './instances.js'
 import { VULCAN_ADDON_DIGEST, VULCAN_ADDON_FILES } from './addonFiles.generated.js'
 import { classCacheReport } from './classCache.js'
 import {
   describePresenceProcesses,
   presenceNudge,
-  probeGodotEditorPresence,
+  derivePresence,
   takeCensus,
   type GodotEditorPresence,
 } from './editorPresence.js'
 import type { GodotProcess } from './godotProcessCensus.js'
-import { getVulcanClient, type VulcanClient, type VulcanResult } from './vulcanClient.js'
-import { ensureVulcanToken, readVulcanToken, vulcanTokenPath } from './vulcanToken.js'
+import { getVulcanClient, type VulcanResult } from './vulcanClient.js'
+
+const LEGACY_TOKEN_FILE = path.join('.godot', 'mercury-vulcan-token')
 
 const ADDON_DIR = path.join('addons', 'mercury_vulcan')
 const PLUGIN_CFG_RES = 'res://addons/mercury_vulcan/plugin.cfg'
 const RUNTIME_AUTOLOAD = 'MercuryVulcanRuntimeBridge'
 const RUNTIME_AUTOLOAD_SCRIPT = 'res://addons/mercury_vulcan/core/runtime_bridge.gd'
 export const RUNTIME_AUTOLOAD_ROW_VALUE = `"*${RUNTIME_AUTOLOAD_SCRIPT}"`
-const DEFAULT_VULCAN_PORT = 6010
 const RECEIPT_VALUE_CAP = 160
 
 export interface VulcanInstallStatus {
@@ -228,18 +228,6 @@ export function readProjectVulcanPort(projectRoot: string): number | undefined {
   return vulcanPortFromText(text)
 }
 
-function withVulcanPort(text: string, port: number): string {
-  const span = sectionSpan(text, 'mercury_vulcan')
-  if (span) {
-    const section = text.slice(span[0], span[1])
-    const next = /^port=\d+$/m.test(section)
-      ? section.replace(/^port=\d+$/m, `port=${port}`)
-      : `\n\nport=${port}${section}`
-    return text.slice(0, span[0]) + next + text.slice(span[1])
-  }
-  return text.replace(/\s*$/, `\n\n[mercury_vulcan]\n\nport=${port}\n`)
-}
-
 function vulcanPortFromText(text: string): number | undefined {
   const span = sectionSpan(text, 'mercury_vulcan')
   if (!span) return undefined
@@ -279,8 +267,9 @@ function serverStartedMs(r: VulcanResult): number | undefined {
   return typeof v === 'number' ? v : undefined
 }
 
-export async function reloadPluginOverBridge(port: number): Promise<string> {
-  const client = getVulcanClient()
+export async function reloadPluginOverBridge(_port: number, projectRoot?: string, selector?: unknown): Promise<string> {
+  let client = getVulcanClient(projectRoot, selector)
+  const selected = projectRoot ? selectVulcanInstance(projectRoot, selector) : null
   if (!client) return 'plugin reload skipped: no VULCAN client (flag off, or not a project)'
   const startedBefore = serverStartedMs(await client.request('editor_state', undefined, RELOAD_OP_TIMEOUT_MS))
   const asked = await client.request('editor_execute_script', { code: PLUGIN_RELOAD_SCRIPT }, RELOAD_OP_TIMEOUT_MS)
@@ -291,6 +280,10 @@ export async function reloadPluginOverBridge(port: number): Promise<string> {
   let dropped = false
   let last: VulcanResult = asked
   while (Date.now() - t0 < RELOAD_SETTLE_MS) {
+    if (projectRoot && selected?.ok) {
+      const replacement = listVulcanInstances(projectRoot).find(row => row.pid === selected.instance.pid && row.role === selected.instance.role)
+      if (replacement) client = getVulcanClient(projectRoot, replacement.id) ?? client
+    }
     last = await client.request('editor_state', undefined, RELOAD_OP_TIMEOUT_MS)
     if (!last.ok) {
       dropped = true
@@ -309,7 +302,7 @@ export async function reloadPluginOverBridge(port: number): Promise<string> {
 export async function applyVulcanInstall(
   projectRoot: string,
   road: ChangeRecordRoad = {},
-  opts: { census?: { ok: boolean; processes: GodotProcess[] } } = {},
+  opts: { census?: { ok: boolean; processes: GodotProcess[] }; instance?: unknown } = {},
 ): Promise<string> {
   if (VULCAN_ADDON_FILES.length === 0) {
     return 'the addon bundle is empty (a dev build before regen-addon ran) — run: node scripts/vulcan/regen-addon.mjs and rebuild'
@@ -330,7 +323,6 @@ export async function applyVulcanInstall(
     writeFileSync(target, f.content)
     written++
   }
-  const port = vulcanPort()
   const mutated = await mutateProjectGodot(
     projectRoot,
     text => {
@@ -346,17 +338,6 @@ export async function applyVulcanInstall(
           ...(enabled.length > 0 ? { previous: enabled.join(', ') } : {}),
           next: list.join(', '),
           why: 'the editor loads the plugins listed here at startup (or from Project Settings > Plugins)',
-        })
-      }
-      const currentPort = vulcanPortFromText(next)
-      if (port !== (currentPort ?? DEFAULT_VULCAN_PORT)) {
-        next = withVulcanPort(next, port)
-        edits.push({
-          section: 'mercury_vulcan',
-          key: 'port',
-          ...(currentPort !== undefined ? { previous: String(currentPort) } : {}),
-          next: String(port),
-          why: 'the addon listens on this project setting; Mercury dials MERCURY_GODOT_TOOLS_PORT — the two must agree',
         })
       }
       const autoload = withRuntimeAutoload(next)
@@ -376,21 +357,19 @@ export async function applyVulcanInstall(
   if (!mutated.ok) {
     return `addon files staged under ${ADDON_DIR}/, but project.godot was NOT modified: ${mutated.conflict}`
   }
-  ensureVulcanToken(projectRoot)
-  const presence = await probeGodotEditorPresence(projectRoot, port, opts.census)
+  const presence = await vulcanEditorPresence(projectRoot, opts.instance, opts.census)
   const lines = [
     `installed ${VULCAN_ADDON_FILES.length} addon files under ${ADDON_DIR}/ (bundle ${VULCAN_ADDON_DIGEST.slice(0, 12)}…; ${written} written, ${VULCAN_ADDON_FILES.length - written} already current)${
       before.installed ? (before.digestMatch ? ' — already this version' : ' — refreshed an older copy') : ''
     }`,
     ...(mutated.receipts.length > 0
       ? mutated.receipts
-      : ['project.godot: no change needed (plugin enabled, port aligned, autoload row present)']),
-    `session token ready (${path.join('.godot', 'mercury-vulcan-token')})`,
+      : ['project.godot: no change needed (plugin enabled, autoload row present)']),
+    'each launched instance writes its own private token and discovery descriptor under .godot/mercury-vulcan',
     `editor: ${presence.words}`,
   ]
   if (presence.state === 'bridge-up') {
-    const portChanged = mutated.edits.some(e => e.section === 'mercury_vulcan' && e.key === 'port')
-    if (!before.digestMatch || portChanged) lines.push(await reloadPluginOverBridge(port))
+    if (!before.digestMatch) lines.push(await reloadPluginOverBridge(presence.port, projectRoot, opts.instance))
     else lines.push('the running editor already serves this addon version — nothing to reload')
   } else {
     lines.push(`next: ${presenceNudge(presence, { installed: true, enabled: true })}`)
@@ -434,7 +413,7 @@ export async function applyVulcanUninstall(projectRoot: string, road: ChangeReco
     },
     road,
   )
-  rmSync(vulcanTokenPath(projectRoot), { force: true })
+  rmSync(path.join(projectRoot, LEGACY_TOKEN_FILE), { force: true })
   if (!mutated.ok) {
     return `addon files deleted and token removed, but project.godot was NOT modified: ${mutated.conflict}`
   }
@@ -444,27 +423,23 @@ export async function applyVulcanUninstall(projectRoot: string, road: ChangeReco
   return [head, ...(mutated.receipts.length > 0 ? mutated.receipts : ['project.godot: no change needed'])].join('\n')
 }
 
-export async function describeVulcanStatus(projectRoot: string): Promise<string> {
+export async function describeVulcanStatus(projectRoot: string, selector?: unknown): Promise<string> {
   const s = vulcanInstallStatus(projectRoot)
-  const port = vulcanPort()
   const census = await takeCensus()
-  const presence = await probeGodotEditorPresence(projectRoot, port, census)
-  const client = getVulcanClient()
+  const presence = await vulcanEditorPresence(projectRoot, selector, census)
+  const port = presence.port
+  const client = getVulcanClient(projectRoot, selector)
+  const instances = listVulcanInstances(projectRoot)
   const lines = [
     `flag: ${vulcanEnabled() ? 'armed' : 'OFF'}${vulcanLiteMode() ? ' (lite subset)' : ''} · project: ${projectRoot}`,
     `addon: ${s.installed ? `installed${s.digestMatch ? ', matches the bundled version' : s.bundledFiles === 0 ? ' (bundle empty — dev build)' : ', DRIFTED from the bundle (vulcan_install refreshes)'}` : 'NOT installed (op:"vulcan_install")'} · plugin ${s.enabled ? 'enabled' : 'NOT enabled'}`,
-    `token file: ${readVulcanToken(projectRoot) ? 'present' : 'absent (vulcan_install writes it)'}`,
+    `instances: ${instances.length} discovered; default editor role: agent-editor; operator-editor requires an explicit selector`,
+    ...instances.map(row => `instance ${row.id}: ${row.role} pid ${row.pid} port ${row.port} project ${row.projectRoot}`),
     `editor: ${presence.words}${presence.state === 'bridge-up' ? ` — answering on 127.0.0.1:${port}` : ` — 127.0.0.1:${port} dark`}`,
   ]
   if (presence.state !== 'bridge-up') lines.push(`next: ${presenceNudge(presence, s)}`)
   lines.push(`client: ${client ? client.status() : 'unavailable'}`)
-  const projPort = readProjectVulcanPort(projectRoot) ?? DEFAULT_VULCAN_PORT
-  if (projPort !== port) {
-    lines.push(`PORT MISMATCH: Mercury dials ${port} but the addon listens on ${projPort} (project setting mercury_vulcan/port) — op:"vulcan_install" aligns them`)
-  }
   lines.push(`autoload row [autoload] ${RUNTIME_AUTOLOAD}: ${explainRuntimeAutoloadRow(readRuntimeAutoloadEntry(projectRoot), s.installed)}`)
-  const { godotProviderInventory, renderProviderRows } = await import('./godotProviders.js')
-  lines.push(...renderProviderRows(await godotProviderInventory(projectRoot, { census })).map(l => `provider ${l}`))
   const { godotPortabilityReport } = await import('./portabilityDoctor.js')
   const port2 = await godotPortabilityReport(projectRoot, { census: census.processes })
   lines.push(
@@ -495,6 +470,86 @@ export async function describeVulcanStatus(projectRoot: string): Promise<string>
   return lines.join('\n')
 }
 
-export async function vulcanEditorPresence(projectRoot: string): Promise<GodotEditorPresence> {
-  return probeGodotEditorPresence(projectRoot, vulcanPort())
+export async function vulcanEditorPresence(projectRoot: string, selector?: unknown, census?: { ok: boolean; processes: GodotProcess[] }): Promise<GodotEditorPresence> {
+  const seen = census ?? await takeCensus()
+  const selected = selectVulcanInstance(projectRoot, selector)
+  if (!selected.ok || !selected.instance.role.endsWith('-editor')) return derivePresence(0, false, seen, projectRoot)
+  const client = getVulcanClient(projectRoot, selected.instance.id)
+  const result = client ? await client.request('ping', undefined, 1000) : null
+  const presence = derivePresence(selected.instance.port, result?.ok === true, seen, projectRoot)
+  presence.words += `; instance ${selected.instance.id} (${selected.instance.role})`
+  return presence
+}
+
+function preflightVulcanWorkerFiles(projectRoot: string, files: string[]): string[] {
+  const root = path.resolve(projectRoot)
+  const rootStat = lstatSync(root)
+  if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) throw new Error('worker tree must be a directory, not a symbolic link')
+  const canonicalRoot = realpathSync(root)
+  return files.map(file => {
+    const target = path.resolve(root, file)
+    const relative = path.relative(root, target)
+    if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) throw new Error('worker write must stay inside the frozen tree')
+    const parts = relative.split(path.sep)
+    let current = root
+    for (let i = 0; i < parts.length; i++) {
+      current = path.join(current, parts[i]!)
+      let stat
+      try { stat = lstatSync(current) }
+      catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') break
+        throw error
+      }
+      if (stat.isSymbolicLink()) throw new Error(`worker write refuses a symbolic link: ${relative}`)
+      if (i < parts.length - 1 ? !stat.isDirectory() : !stat.isFile()) throw new Error(`worker write has an invalid destination: ${relative}`)
+      const canonicalRelative = path.relative(canonicalRoot, realpathSync(current))
+      if (canonicalRelative === '..' || canonicalRelative.startsWith(`..${path.sep}`) || path.isAbsolute(canonicalRelative)) throw new Error('worker write must stay inside the frozen tree')
+    }
+    return target
+  })
+}
+
+export async function installVulcanWorkerAddon(projectRoot: string): Promise<void> {
+  if (VULCAN_ADDON_FILES.length === 0) throw new Error('the bundled Godot addon is empty')
+  const targets = preflightVulcanWorkerFiles(projectRoot, [
+    ...VULCAN_ADDON_FILES.map(file => path.join(ADDON_DIR, file.path)),
+    'project.godot',
+    ...Array.from({ length: GODOT_MUTATION_ATTEMPTS }, (_, attempt) => `project.godot.mercury-tmp-${process.pid}-${attempt}`),
+  ])
+  for (const [index, file] of VULCAN_ADDON_FILES.entries()) {
+    const target = targets[index]!
+    mkdirSync(path.dirname(target), { recursive: true })
+    writeFileSync(target, file.content)
+  }
+  const result = await mutateProjectGodot(projectRoot, text => {
+    const plugins = enabledPluginsFromText(text)
+    const enabled = plugins.includes(PLUGIN_CFG_RES) ? text : withEnabledPlugins(text, [...plugins, PLUGIN_CFG_RES])
+    return { text: withRuntimeAutoload(enabled).text, edits: [] }
+  })
+  if (!result.ok) throw new Error(result.conflict)
+}
+
+export function injectVulcanWorkerScript(projectRoot: string, resScript: string): boolean {
+  if (!resScript.startsWith('res://') || resScript.split('/').includes('..')) throw new Error('worker script must be a project-relative resource')
+  const file = preflightVulcanWorkerFiles(projectRoot, [resScript.slice(6)])[0]!
+  const source = readFileSync(file, 'utf8')
+  const marker = 'root.has_node("MercuryVulcanRuntimeBridge")'
+  if (source.includes(marker)) return true
+  if (!/^extends[ \t]+SceneTree[ \t]*(?:#[^\r\n]*)?\r?$/m.test(source)) return false
+  const declarations = [...source.matchAll(/\bfunc\s+_initialize\b/g)]
+  const entry = /^func[ \t]+_initialize[ \t]*\([ \t]*\)[ \t]*(?:->[ \t]*void[ \t]*)?:[ \t]*(?:#[^\r\n]*)?\r?\n/m.exec(source)
+  if (declarations.length > 1 || (declarations.length > 0 && !entry)) return false
+  const at = entry ? entry.index + entry[0].length : source.length
+  const indent = entry ? /^([ \t]+)(?=[^ \t\r\n#])/m.exec(source.slice(at))?.[1] ?? '\t' : '\t'
+  const newline = source.includes('\r\n') ? '\r\n' : '\n'
+  const body = [
+    `${indent}if not ${marker}:`,
+    `${indent}${indent}var mercury_runtime_bridge = load("${RUNTIME_AUTOLOAD_SCRIPT}").new()`,
+    `${indent}${indent}mercury_runtime_bridge.name = "MercuryVulcanRuntimeBridge"`,
+    `${indent}${indent}root.add_child(mercury_runtime_bridge)`,
+    '',
+  ].join(newline)
+  const injected = entry ? source.slice(0, at) + body + source.slice(at) : source + `${newline}${newline}func _initialize() -> void:${newline}` + body
+  writeFileSync(file, injected)
+  return true
 }

@@ -1,9 +1,8 @@
 
 import { findGodotProjectRoot, probeGodotEditorReachable, godotDapPort, godotLspPort, mercuryGodotEnabled } from '../lsp/godotLane.js'
-import { vulcanEnabled, vulcanLiteMode, vulcanPort } from '../../utils/vulcan/vulcanGates.js'
-import { presenceNudge, probeGodotEditorPresence } from './editorPresence.js'
+import { vulcanEnabled, vulcanLiteMode } from '../../utils/vulcan/vulcanGates.js'
+import { presenceNudge, probeVulcanEditorPresence } from './editorPresence.js'
 import type { GodotProcess } from './godotProcessCensus.js'
-import { getVulcanClient } from './vulcanClient.js'
 import { vulcanInstallStatus } from './addonInstaller.js'
 
 export type GodotProviderState =
@@ -31,7 +30,7 @@ export async function godotProviderInventory(
   const rows: GodotProviderRow[] = []
 
   {
-    const port = vulcanPort()
+    const port = 0
     const caps = vulcanLiteMode()
       ? ['scene-read', 'project-read']
       : ['scene-read', 'scene-edit', 'script-run', 'project-read', 'editor-undo']
@@ -43,6 +42,8 @@ export async function godotProviderInventory(
       })
     } else {
       const install = vulcanInstallStatus(projectRoot)
+      const presence = await probeVulcanEditorPresence(projectRoot, opts.census)
+      const port = presence.port
       if (!install.installed) {
         rows.push({
           id: 'vulcan', source: 'mercury_vulcan editor addon', endpoint: `127.0.0.1:${port}`,
@@ -50,8 +51,6 @@ export async function godotProviderInventory(
           failureReason: 'addon not installed in this project (op:"vulcan_install")',
         })
       } else {
-        const presence = await probeGodotEditorPresence(projectRoot, port, opts.census)
-        const client = getVulcanClient()
         rows.push({
           id: 'vulcan', source: 'mercury_vulcan editor addon', endpoint: `127.0.0.1:${port}`,
           capabilities: caps,
@@ -59,7 +58,6 @@ export async function godotProviderInventory(
           ...(presence.reachable
             ? {}
             : { failureReason: `addon installed${install.enabled ? '' : ' but NOT enabled'}; ${presence.words} — ${presenceNudge(presence, install)}` }),
-          ...(client && presence.reachable ? {} : {}),
         })
       }
     }

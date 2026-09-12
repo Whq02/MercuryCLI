@@ -16,7 +16,7 @@ row, no line in the harness map the model reads. The tool joins the catalog
 only inside a Unity project (`Assets/` + `ProjectSettings/` at the root).
 
 Two value knobs: `MERCURY_UNITY_BRIDGE_PORT` (default 6011; the loopback
-dev-lane family is Godot LSP 6005 · Godot DAP 6006 · VULCAN 6010 · this
+dev-lane family is Godot LSP 6005 · Godot DAP 6006 · VULCAN on a port per instance · this
 bridge 6011) and `MERCURY_UNITY_BRIDGE_TOKEN` (a proof/embedder override —
 normally the token is a per-project 64-hex file).
 

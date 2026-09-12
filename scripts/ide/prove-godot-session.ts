@@ -26,7 +26,6 @@ guard.unref?.()
 const DRIVEN = [
   'MERCURY_GODOT',
   'MERCURY_GODOT_TOOLS',
-  'MERCURY_GODOT_TOOLS_PORT',
   'MERCURY_GODOT_LSP_PORT',
   'MERCURY_GODOT_DAP_PORT',
   'MERCURY_TCP_BRIDGE_ENTRY',
@@ -44,17 +43,6 @@ for (const k of DRIVEN) delete process.env[k]
 const godot = await import('../../src/services/ide/godotSession.js')
 const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
 
-async function freePort(): Promise<number> {
-  return new Promise<number>((res, rej) => {
-    const srv = createServer()
-    srv.listen(0, '127.0.0.1', () => {
-      const addr = srv.address()
-      const port = typeof addr === 'object' && addr ? addr.port : 0
-      srv.close(() => (port > 0 ? res(port) : rej(new Error('no port'))))
-    })
-    srv.once('error', rej)
-  })
-}
 
 console.log('============================================================')
 console.log(' godot session projection — identity · discovery · honesty')
@@ -169,7 +157,7 @@ try {
     check('C4 DAP adapter not registered, detail carries the arm surface', !session.dap.adapterRegistered && session.dap.detail.includes('MERCURY_GODOT=1'), session.dap.detail)
     check('C5 vulcan state disarmed', session.vulcan.state === 'disarmed', JSON.stringify(session.vulcan).slice(0, 160))
     check('C6 editor truth reads unavailable (VULCAN disarmed)', session.editor.state === 'unavailable' && session.editor.detail.includes('VULCAN disarmed'), JSON.stringify(session.editor).slice(0, 200))
-    check('C7 ports reported even while disarmed', session.lsp.port === 6005 && session.dap.port === 6006 && session.vulcan.port === 6010)
+    check('C7 language ports stay separate; no VULCAN endpoint is selected while disarmed', session.lsp.port === 6005 && session.dap.port === 6006 && session.vulcan.port === 0)
   }
 
   section('(D) VULCAN-absent honesty — armed, no editor, bounded, zero writes')
@@ -182,7 +170,6 @@ try {
     check('D2 armed flag re-read LIVE (no reset needed)', lanesOnly.godotLane.state === 'armed')
 
     process.env.MERCURY_GODOT_TOOLS = '1'
-    process.env.MERCURY_GODOT_TOOLS_PORT = String(await freePort())
     const t0 = Date.now()
     const unreachable = await godot.buildGodotIdeSession(owner, proj)
     const elapsed = Date.now() - t0
@@ -192,14 +179,13 @@ try {
       JSON.stringify(unreachable.vulcan).slice(0, 240),
     )
     check('D4 editor truth reads unavailable (VULCAN editor unreachable)', unreachable.editor.state === 'unavailable' && unreachable.editor.detail.includes('unreachable'), JSON.stringify(unreachable.editor).slice(0, 200))
-    check('D5 the unreachable path is BOUNDED (<3s; probe bound is 400ms)', elapsed < 3_000, `${elapsed}ms`)
+    check('D5 the unreachable path is bounded without a discovered editor (<3s)', elapsed < 3_000, `${elapsed}ms`)
     check('D6 addon truth from the existing probe: not installed', unreachable.vulcan.state === 'unreachable' && unreachable.vulcan.addon.installed === false)
-    check('D7 the projection writes NOTHING (no token file on unreachable)', !existsSync(join(proj, '.godot', 'mercury-vulcan-token')))
+    check('D7 the projection writes NOTHING (no instance files on unreachable)', !existsSync(join(proj, '.godot', 'mercury-vulcan')) && !existsSync(join(proj, '.godot', 'mercury-vulcan-token')))
     check('D8 discovery still yields no current profile (editor absent)', (await godot.discoverGodotLaunchProfiles(proj)).profiles.every(p => p.kind !== 'current'))
 
     delete process.env.MERCURY_GODOT
     delete process.env.MERCURY_GODOT_TOOLS
-    delete process.env.MERCURY_GODOT_TOOLS_PORT
   }
 
   section('(E) owner-scoped DAP listing')
@@ -226,7 +212,7 @@ try {
     }
     const consumed = [
       'findGodotProjectRoot',
-      'probeGodotEditorReachable',
+      'probeVulcanEditorPresence',
       'vulcanInstallStatus',
       'getVulcanClient',
       'listDapSessions',

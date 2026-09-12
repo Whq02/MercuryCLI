@@ -4,12 +4,12 @@ import { z } from 'zod/v4'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { findGodotProjectRoot, godotEditorHint } from '../../services/lsp/godotLane.js'
+import { findGodotProjectRoot } from '../../services/lsp/godotLane.js'
 import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import type { ChangeRecordRoad } from '../../services/vulcan/addonInstaller.js'
 import { getVulcanClient, type VulcanResult } from '../../services/vulcan/vulcanClient.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
-import { vulcanLiteMode, vulcanPort } from '../../utils/vulcan/vulcanGates.js'
+import { vulcanLiteMode } from '../../utils/vulcan/vulcanGates.js'
 import { VULCAN_STEP_WALL_MS_PER_FRAME, vulcanOp, vulcanCategories } from '../../utils/vulcan/optable.generated.js'
 import { GODOT_TOOL_NAME, getGodotToolDescription } from './prompt.js'
 import {
@@ -46,6 +46,16 @@ const LOCAL_OPS = new Set([
   'engine_jobs',
   'engine_cancel',
   'engine_result',
+  'engine_capture',
+  'engine_frames',
+  'engine_profile',
+  'engine_scene_tree',
+  'engine_node_get',
+  'engine_node_call',
+  'engine_signal_wait',
+  'lease_take',
+  'lease_release',
+  'lease_list',
 ])
 
 const UNREACHABLE_CODES = new Set(['HANDSHAKE_CLOSED', 'CONNECTION_LOST', 'CLIENT_CLOSED'])
@@ -99,20 +109,21 @@ async function runLocalOp(
   if (!root) {
     return `no project.godot found from the working directory — open/cd into a Godot project first`
   }
-  if (op.startsWith('engine_')) {
+  if (op.startsWith('engine_') || op.startsWith('lease_')) {
     const { runEngineOp } = await import('../../services/vulcan/engine/ops.js')
-    return runEngineOp(op, args, root)
+    const { projectLeaseHolder } = await import('../../services/vulcan/engine/leases.js')
+    return runEngineOp(op, args, root, projectLeaseHolder(context.agentId))
   }
   switch (op) {
     case 'vulcan_status':
-      return installer.describeVulcanStatus(root)
+      return installer.describeVulcanStatus(root, args?.instance)
     case 'vulcan_install':
-      return installer.applyVulcanInstall(root, changeRecordRoad(context, parentMessage))
+      return installer.applyVulcanInstall(root, changeRecordRoad(context, parentMessage), { instance: args?.instance })
     case 'vulcan_uninstall':
       return installer.applyVulcanUninstall(root, changeRecordRoad(context, parentMessage))
     case 'project_refresh_classes': {
       const { runProjectRefreshClasses } = await import('../../services/vulcan/classCache.js')
-      return formatResult(await runProjectRefreshClasses(root, vulcanPort(), installer.vulcanInstallStatus(root)))
+      return formatResult(await runProjectRefreshClasses(root, installer.vulcanInstallStatus(root), args?.instance))
     }
     default:
       return `unknown local op ${op}`
@@ -160,13 +171,14 @@ async function runOp(input: Input, context: ToolUseContext, parentMessage: Assis
   }
   if (LOCAL_OPS.has(input.op)) return runLocalOp(input.op, input.args, context, parentMessage)
 
-  const client = getVulcanClient()
+  const client = getVulcanClient(undefined, input.args?.instance)
   if (!client) {
-    if (input.op === 'project_capsule') return staticCapsuleAnswer(input)
-    return `the VULCAN surface is not available here (flag off or no project.godot from cwd) — op:"vulcan_status" explains`
+    if (input.op === 'project_capsule' && input.args?.instance === undefined) return staticCapsuleAnswer(input)
+    return `no unique Godot instance is available for this call — op:"vulcan_status" lists instances; pass args.instance with an id or role. The operator's editor is never selected implicitly`
   }
   const baseMs = input.op === 'playtest_run' ? 120_000 : 30_000
-  const r: VulcanResult = await client.request(input.op, input.args, baseMs + vulcanDeclaredBudgetMs(input.op, input.args))
+  const { instance: _instance, ...wireArgs } = input.args ?? {}
+  const r: VulcanResult = await client.request(input.op, wireArgs, baseMs + vulcanDeclaredBudgetMs(input.op, input.args))
   if (!r.ok && input.op === 'project_capsule' && UNREACHABLE_CODES.has(r.error.code)) {
     return staticCapsuleAnswer(input)
   }
@@ -176,6 +188,8 @@ async function runOp(input: Input, context: ToolUseContext, parentMessage: Assis
   } else {
     text = `${input.op} failed: [${r.error.code}] ${r.error.message}${r.error.hint ? `\nhint: ${r.error.hint}` : ''}`
   }
+  if (r.instance) text += `\ninstance: ${formatResult(r.instance)}`
+  if (r.via) text += `\nvia: ${formatResult(r.via)}`
   if (input.op === 'script_validate') text += await classCacheHint(input.args)
   const events = client.drainEvents()
   if (events.length > 0) {
@@ -233,6 +247,12 @@ export const GodotTool = buildTool({
         message: `Godot exec: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — runs code / drives input in the ${input.op.startsWith('runtime_') || input.op.startsWith('input_') ? 'running game' : 'editor'}`,
       }
     }
+    if (input.op === 'lease_take' || input.op === 'lease_release') {
+      return {
+        behavior: 'ask' as const,
+        message: `Godot mutate: ${input.op} — changes this session and agent's project file leases (no editor undo step)`,
+      }
+    }
     if (input.op === 'vulcan_install' || input.op === 'vulcan_uninstall') {
       return {
         behavior: 'ask' as const,
@@ -266,7 +286,7 @@ export const GodotTool = buildTool({
     try {
       result = await runOp(input, context, parentMessage)
     } catch (err) {
-      result = `${input.op} failed: ${(err as Error).message}\nhint: ${godotEditorHint(vulcanPort())}`
+      result = `${input.op} failed: ${(err as Error).message}\nhint: op:"vulcan_status" lists available instances; name the intended instance explicitly`
     }
     const output: Output = { op: input.op, result }
     return { data: output }
