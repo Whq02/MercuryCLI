@@ -233,6 +233,10 @@ export function getScratchpadDir(): string {
   return joinWithSep(joinWithSep(getProjectTempDir(), getSessionId()), 'scratchpad')
 }
 
+export function scratchpadDirFor(cwd: string, sessionId: string): string {
+  return joinWithSep(joinWithSep(ensureTrailingSep(joinWithSep(getMercuryTempDir(), sanitizePath(cwd))), sessionId), 'scratchpad')
+}
+
 export function getSessionMemoryDir(): string {
   const projectDir = joinWithSep(getProjectTempDir(), getSessionId())
   return ensureTrailingSep(joinWithSep(projectDir, 'session-memory'))

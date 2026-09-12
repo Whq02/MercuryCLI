@@ -17,6 +17,7 @@ import { foldLegacyWorkerModelKey, validateWorkerModelChoice } from '../services
 import { describeSignInRead, refreshSignInReads } from './signInView.js'
 import { describeSeatReading, resolveSeatCeiling } from '../services/switchboard/capacityCheck.js'
 import { retireSeatProjections } from '../services/engine-connector/seatProjections.js'
+import { scratchpadDirFor, sweepScratchpadDir } from '../utils/scratchpad.js'
 import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import type { WorkRowV1 } from '../services/engine-connector/types.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
@@ -1236,6 +1237,13 @@ export function settleConcourseWorker(runnerId: string, dir?: string): boolean {
     try {
       retireSeatProjections(endedSessionId, dir)
     } catch {
+    }
+  }
+  if (settled && settledRec !== undefined) {
+    try {
+      sweepScratchpadDir(scratchpadDirFor(settledRec.worktreePath ?? settledRec.workspaceId, settledRec.sessionId))
+    } catch {
+      settled = settled
     }
   }
   if (settled && endedSessionId !== undefined) {

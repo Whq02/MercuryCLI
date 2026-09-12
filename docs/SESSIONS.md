@@ -426,3 +426,10 @@ left on the screen.
   tool, and a Bash result whose command waited on the lock carries one
   line saying how long, who held the slots, and the load at that moment.
   This is visibility only: nothing here schedules or throttles.
+- A session's scratchpad — `<temp root>/mercury-<uid>/<project>/<session id>/scratchpad`
+  (`MERCURY_TMPDIR` moves the root) — is the place the model is told to put
+  temporary files: helper scripts, intermediate results, captures. It lies
+  outside the project, so `git status` never sees it; the turn receipt
+  counts an edit there as a scratchpad edit, not a file edit; and it is
+  swept when the session ends — by the daemon when a hosted session's
+  record settles, by the process itself when it is its own session.
