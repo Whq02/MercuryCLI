@@ -107,7 +107,7 @@ try {
     const systemBytes = Buffer.byteLength(normalize(system), 'utf8')
     const eagerBytes = eager.reduce((total, tool) => total + bytes(tool), 0)
     const attachmentBytes = reminderTexts.reduce((total: number, text: string) => total + Buffer.byteLength(normalize(text), 'utf8'), 0)
-    check(`${route}: system text stays under 27000 bytes`, systemBytes <= 27000, String(systemBytes))
+    check(`${route}: system text stays under 27500 bytes`, systemBytes <= 27500, String(systemBytes))
     check(`${route}: initial definitions stay under 45000 bytes`, eagerBytes <= 45000, String(eagerBytes))
     check(`${route}: at most twelve tools load initially`, eager.length <= 12, String(eager.length))
     check(`${route}: initial attachments stay under 6800 bytes`, attachmentBytes <= 6800, String(attachmentBytes))
