@@ -4,6 +4,7 @@ import { fluxCount } from '../../utils/flux/fluxProbe.js'
 export type ContaminationReason =
   | 'selection-overlay'
   | 'search-overlay'
+  | 'resize'
   | 'undelivered'
   | 'blank-reset'
   | 'self-heal'

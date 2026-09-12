@@ -2,7 +2,9 @@
 import React, {
   createContext,
   useCallback,
+  useContext,
   useEffect,
+  useInsertionEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -15,6 +17,7 @@ import ScrollBox, {
 } from '../ink/components/ScrollBox.js'
 import { AlternateScreen } from '../ink/components/AlternateScreen.js'
 import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
+import { InkInstanceContext } from '../ink/components/InkInstanceContext.js'
 import instances from '../ink/instances.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { CompactFooterNoticeContext, CompactFrameBudgetContext, useLayoutChrome } from '../context/layoutChromeContext.js'
@@ -337,6 +340,11 @@ export function FullscreenLayout({
   const centerFrame = cockpit
   const plan = railPlan(columns)
   const modalUp = modal !== undefined && modal !== null
+  const ink = useContext(InkInstanceContext)
+  const covered = useContext(MotionParkContext)
+  useInsertionEffect(() => {
+    if (fullscreen && !covered) ink?.repaintAfterNestedAltScreenClose()
+  }, [ink, fullscreen, covered, modalUp])
 
   useEffect(() => {
     cockpitEngine()?.noteOverlay(modalUp, false)

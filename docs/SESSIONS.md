@@ -7,6 +7,7 @@ live tile and the Boot face render sessions and never store their truth.
 This page is how sessions are born, focused, closed and brought back, how
 the folder you start in becomes a project, and the two boot switches that
 shape the journey. Every session is hosted by the background daemon.
+On Windows, each frame reads the window size from the console so the cockpit follows it even when no resize event arrives.
 
 ## A fresh boot has no chat
 

@@ -201,7 +201,7 @@ export function CrewView({
       <CommandCenter view={`crew › ${facts?.name ?? work.name}`} onClose={back} footer={cardFooter} captureInput={false}>
         <Box marginTop={1} flexDirection="column">
           <RosterWorkDetail work={work} now={now} onBack={back} />
-          {doorNote !== null ? <Text color={doorNote.tone === 'warning' ? tokens.warning : tokens.textMuted}>· {doorNote.text}</Text> : null}
+          {doorNote !== null ? <Text color={doorNote.tone === 'warning' ? tokens.warning : tokens.textMuted} wrap="truncate-middle">· {doorNote.text}</Text> : null}
         </Box>
       </CommandCenter>
     )
@@ -267,8 +267,8 @@ export function CrewView({
             </Text>
           </>
         ) : null}
-        {spawnNote !== null ? <Text color={tokens.warning}>· {spawnNote}</Text> : null}
-        {doorNote !== null ? <Text color={doorNote.tone === 'warning' ? tokens.warning : tokens.textMuted}>· {doorNote.text}</Text> : null}
+        {spawnNote !== null ? <Text color={tokens.warning} wrap="truncate-middle">· {spawnNote}</Text> : null}
+        {doorNote !== null ? <Text color={doorNote.tone === 'warning' ? tokens.warning : tokens.textMuted} wrap="truncate-middle">· {doorNote.text}</Text> : null}
       </Box>
     </CommandCenter>
   )

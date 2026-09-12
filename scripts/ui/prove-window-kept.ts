@@ -13,7 +13,13 @@ const sizeList = (argOf('--sizes') ?? '80x21,111x35,120x40').split(',').map(s =>
 const stage = argOf('--stage') === 'chat' ? 'chat' : 'card'
 const poison = process.argv.includes('--poison')
 const HOME_READY = stage === 'chat' ? ADMITTED : FACE_READY
-const extraEnv: Record<string, string | undefined> = { MERCURY_DESKTOP_DRIVER: 'none' }
+const extraEnv: Record<string, string | undefined> = {
+  MERCURY_DESKTOP_DRIVER: 'none',
+  TERM: 'xterm-256color',
+  TERM_PROGRAM: 'WezTerm',
+  TMUX: undefined,
+  MERCURY_NO_SYNC_OUTPUT: undefined,
+}
 for (const pair of process.argv.slice(2).filter(a => a.startsWith('--env=')).map(a => a.slice(6))) {
   const eq = pair.indexOf('=')
   extraEnv[pair.slice(0, eq)] = pair.slice(eq + 1) === '' ? undefined : pair.slice(eq + 1)
@@ -23,7 +29,7 @@ const SHIFT_RIGHT = '\x1b[1;2C'
 const SHIFT_LEFT = '\x1b[1;2D'
 const TO_CONCOURSE = stage === 'chat' ? SHIFT_LEFT : SHIFT_RIGHT
 const FROM_CONCOURSE = stage === 'chat' ? SHIFT_RIGHT : SHIFT_LEFT
-const CONCOURSE_READY = 'coordinator'
+const concourseReadyAt = (cols: number, rows: number): string => cols < 100 || rows < 26 ? 'live view' : 'coordinator'
 const ERASE_SCREEN = '\x1b[2J'
 const ERASE_SCROLLBACK = '\x1b[3J'
 const ALT_ENTER = '\x1b[?1049h'
@@ -65,6 +71,16 @@ function textOffsetOf(bytes: string, needle: string): number {
   for (let i = last; i < bytes.length; i++) { origin.push(i); text += bytes[i] }
   const at = text.indexOf(needle)
   return at < 0 ? -1 : origin[at]!
+}
+
+function eraseSharesSynchronizedPaint(bytes: string): boolean {
+  const erase = bytes.indexOf(ERASE_SCREEN)
+  if (erase < 0) return false
+  const begin = bytes.lastIndexOf('\x1b[?2026h', erase)
+  const previousEnd = bytes.lastIndexOf('\x1b[?2026l', erase)
+  const end = bytes.indexOf('\x1b[?2026l', erase)
+  return begin > previousEnd && end > erase &&
+    bytes.slice(erase + ERASE_SCREEN.length, end).replace(CONTROL_SEQUENCE, '').trim().length > 0
 }
 
 function afterFirstPaintOf(bytes: string, needle: string): string | null {
@@ -121,6 +137,7 @@ const table: string[] = []
 console.log(`window-kept artifacts: ${scratch} (build: ${buildLabel}, dist: ${dist})`)
 for (const journey of journeys) {
   const { cols, rows } = journey.size
+  const CONCOURSE_READY = concourseReadyAt(cols, rows)
   const tag = `window-kept-${cols}x${rows}`
   const leg = await startLeg(tag, [{ kind: 'text', text: 'Finished.' }], null)
   const out = join(scratch, `${tag}.json`)
@@ -208,9 +225,11 @@ for (const journey of journeys) {
       const counts = wipeCounts(window.bytes, window.rows)
       table.push(`${buildLabel} · ${cols}x${rows} · ${window.event}: ${describe(counts)}`)
       const resizeWindow = window.event.startsWith('resize')
+      const routeWindow = window.event.startsWith('shift-')
       check(`${tag} ${window.event}: no frame addresses a row below the terminal's last row (${window.rows})`, counts.tallestRow <= window.rows, describe(counts))
-      if (resizeWindow) {
+      if (resizeWindow || routeWindow) {
         check(`${tag} ${window.event}: exactly one contained erase, no scrollback erase, no alternate-screen switch`, counts.erase === 1 && counts.scrollback === 0 && counts.altEnter === 0 && counts.altLeave === 0, describe(counts))
+        check(`${tag} ${window.event}: the erase and repaint share one synchronized frame`, eraseSharesSynchronizedPaint(window.bytes))
       } else {
         check(`${tag} ${window.event}: the window is kept (no erase, no alternate-screen switch)`, !isWiped(counts), describe(counts))
       }

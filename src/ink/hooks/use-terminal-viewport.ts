@@ -1,6 +1,7 @@
 
 import { useCallback, useContext, useLayoutEffect, useRef } from 'react'
-import { TerminalSizeContext } from '../components/TerminalSizeContext.js'
+import { LiveTerminalSizeContext, TerminalSizeContext } from '../components/TerminalSizeContext.js'
+import { InkInstanceContext } from '../components/InkInstanceContext.js'
 import type { DOMElement } from '../dom.js'
 
 export type ViewportEntry = { isVisible: boolean }
@@ -13,6 +14,8 @@ export function useTerminalViewport(): [
   entry: ViewportEntry,
 ] {
   const size = useContext(TerminalSizeContext)
+  const liveSize = useContext(LiveTerminalSizeContext)
+  const ink = useContext(InkInstanceContext)
   const nodeRef = useRef<DOMElement | null>(null)
   const entryRef = useRef<ViewportEntry>(VISIBLE)
 
@@ -39,9 +42,10 @@ export function useTerminalViewport(): [
     }
 
     const screenHeight = root.layoutNode?.getComputedHeight() ?? 0
-    const viewportHeight = size.rows
+    const altScreen = ink?.isAltScreenActive === true
+    const viewportHeight = altScreen ? (liveSize ?? size).rows : size.rows
     const height = layout.getComputedHeight()
-    const overflow = screenHeight > viewportHeight
+    const overflow = !altScreen && screenHeight > viewportHeight
     const scrolledOff = overflow ? screenHeight - viewportHeight + 1 : 0
     const viewportTop = scrolledOff
     const viewportBottom = scrolledOff + viewportHeight

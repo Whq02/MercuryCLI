@@ -27,9 +27,9 @@ function DebugRow({
   return (
     <Box gap={1}>
       <Box width={10} flexShrink={0} justifyContent="flex-end">
-        <Text dimColor>{label}</Text>
+        <Text dimColor wrap="truncate-end">{label}</Text>
       </Box>
-      <Box flexDirection="column" flexGrow={1}>
+      <Box flexDirection="column" flexGrow={1} minWidth={0}>
         {children}
       </Box>
     </Box>
@@ -68,47 +68,47 @@ function ReasonView({
   reason: PermissionDecisionReason | undefined
   nested?: boolean
 }): React.ReactNode {
-  if (!reason) return <Text>undefined</Text>
+  if (!reason) return <Text wrap="truncate-middle">undefined</Text>
   switch (reason.type) {
     case 'rule':
       return (
-        <Text>
+        <Text wrap="truncate-middle">
           <Text bold>{permissionRuleValueToString(reason.rule.ruleValue)}</Text> from{' '}
           {permissionRuleSourceDisplayString(reason.rule.source)}
         </Text>
       )
     case 'mode':
-      return <Text>{permissionModeTitle(reason.mode)}</Text>
+      return <Text wrap="truncate-middle">{permissionModeTitle(reason.mode)}</Text>
     case 'sandboxOverride':
-      return <Text>Permission is needed to run outside the sandbox</Text>
+      return <Text wrap="truncate-middle">Permission is needed to run outside the sandbox</Text>
     case 'workingDir':
     case 'safetyCheck':
     case 'other':
-      return <Text>{reason.reason}</Text>
+      return <Text wrap="truncate-middle">{reason.reason}</Text>
     case 'asyncAgent':
-      return <Text>{reason.reason}</Text>
+      return <Text wrap="truncate-middle">{reason.reason}</Text>
     case 'bypassedAsk':
       return (
-        <Text>
+        <Text wrap="truncate-middle">
           {permissionModeTitle(reason.mode)} allowed it; {BYPASSED_ASK_ROAD_WORDS[reason.road]} would have asked:{' '}
           <ReasonView reason={reason.reason} nested={nested} />
         </Text>
       )
     case 'permissionPromptTool':
       return (
-        <Text>
+        <Text wrap="truncate-middle">
           <Text bold>{reason.permissionPromptToolName}</Text> permission prompt tool
         </Text>
       )
     case 'hook':
       return (
-        <Text>
+        <Text wrap="truncate-middle">
           <Text bold>{reason.hookName}</Text> hook
           {reason.reason ? `: ${reason.reason}` : ''}
         </Text>
       )
     case 'subcommandResults': {
-      if (nested) return <Text>{''}</Text>
+      if (nested) return <Text wrap="truncate-middle">{''}</Text>
       const rows: React.ReactNode[] = []
       for (const [subcommand, result] of reason.reasons.entries()) {
         const allowed = result.behavior === 'allow'
@@ -120,14 +120,14 @@ function ReasonView({
           <Box key={subcommand} flexDirection="column">
             <Box gap={1}>
               <StatusIcon status={allowed ? 'success' : 'error'} />
-              <Text>{subcommand}</Text>
+              <Text wrap="truncate-middle">{subcommand}</Text>
             </Box>
             <Box paddingLeft={2}>
               <ReasonView reason={subReason} nested />
             </Box>
             {result.behavior === 'ask' && suggestions.length > 0 ? (
               <Box paddingLeft={2}>
-                <Text>
+                <Text wrap="truncate-middle">
                   suggested rules:{' '}
                   <Text bold>
                     {suggestions.map(permissionRuleValueToString).join(', ')}
@@ -143,7 +143,7 @@ function ReasonView({
     default: {
       const display = String((reason as { reason?: unknown }).reason ?? '')
       return (
-        <Text>
+        <Text wrap="truncate-middle">
           <Ansi>{display}</Ansi>
         </Text>
       )
@@ -191,11 +191,11 @@ export function PermissionDecisionDebugInfo({
   return (
     <Box flexDirection="column">
       <DebugRow label="Behavior">
-        <Text>{permissionResult.behavior}</Text>
+        <Text wrap="truncate-middle">{permissionResult.behavior}</Text>
       </DebugRow>
       {permissionResult.behavior !== 'allow' && 'message' in permissionResult ? (
         <DebugRow label="Message">
-          <Text>{permissionResult.message}</Text>
+          <Text wrap="truncate-middle">{permissionResult.message}</Text>
         </DebugRow>
       ) : null}
       <DebugRow label="Reason">
@@ -203,46 +203,46 @@ export function PermissionDecisionDebugInfo({
       </DebugRow>
       <DebugRow label="Suggestions">
         {!hasSuggestionContent ? (
-          <Text>None</Text>
+          <Text wrap="truncate-middle">None</Text>
         ) : (
           <Box flexDirection="column">
             {suggestedRules.length > 0 ? (
               <Box flexDirection="column">
-                <Text>Rules</Text>
+                <Text wrap="truncate-middle">Rules</Text>
                 {suggestedRules.map((rule, index) => (
-                  <Text key={index}> - {permissionRuleValueToString(rule)}</Text>
+                  <Text key={index} wrap="truncate-middle"> - {permissionRuleValueToString(rule)}</Text>
                 ))}
               </Box>
             ) : null}
             {suggestedDirs.length > 0 ? (
               <Box flexDirection="column">
-                <Text>Directories</Text>
+                <Text wrap="truncate-middle">Directories</Text>
                 {suggestedDirs.map((dir, index) => (
-                  <Text key={index}> - {dir}</Text>
+                  <Text key={index} wrap="truncate-middle"> - {dir}</Text>
                 ))}
               </Box>
             ) : null}
             {suggestedMode !== undefined ? (
-              <Text>Mode: {permissionModeTitle(suggestedMode)}</Text>
+              <Text wrap="truncate-middle">Mode: {permissionModeTitle(suggestedMode)}</Text>
             ) : null}
           </Box>
         )}
       </DebugRow>
       {unreachable.length > 0 ? (
         <Box flexDirection="column" marginTop={1}>
-          <Text color="warning">
+          <Text color="warning" wrap="truncate-middle">
             {STATE_STYLE.gated.glyph} Unreachable rules ({unreachable.length})
           </Text>
           {unreachable.map((finding, index) => (
             <Box key={index} flexDirection="column" paddingLeft={2}>
-              <Text color="warning">
+              <Text color="warning" wrap="truncate-middle">
                 {permissionRuleValueToString(finding.rule.ruleValue)}
               </Text>
               <Box paddingLeft={2}>
-                <Text dimColor>{finding.reason}</Text>
+                <Text dimColor wrap="truncate-middle">{finding.reason}</Text>
               </Box>
               <Box paddingLeft={2}>
-                <Text dimColor>Fix: {finding.fix}</Text>
+                <Text dimColor wrap="truncate-middle">Fix: {finding.fix}</Text>
               </Box>
             </Box>
           ))}
