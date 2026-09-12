@@ -344,6 +344,10 @@ async function daemonRun(args: string[]): Promise<void> {
           onWarmRunnerLine(line)
           onSeatLine(short, line, roster)
         },
+        onChildRelaunched: short => {
+          if (!short.startsWith('concourse-w') || roster === null) return
+          onSeatSpawned(short, roster)
+        },
         onDegraded: (reason, short) => {
           // eslint-disable-next-line no-console
           console.error(`[daemon] ${GLYPH.warn} SUPERVISOR DEGRADED — ${reason}`)
