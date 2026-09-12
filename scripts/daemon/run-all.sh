@@ -58,6 +58,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-wire-answer-whole.ts" || { __rc=$?
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-saturn-core.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-saturn-core.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-saturn-adversarial.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-saturn-adversarial.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-saturn-keyless.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-saturn-keyless.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-saturn-fire-plain-frame.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-saturn-fire-plain-frame.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-leak-sweep.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-leak-sweep.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-loop-cadence.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-loop-cadence.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-live-turn-chars.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-live-turn-chars.ts" "$__t" "$__rc"
