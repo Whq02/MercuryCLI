@@ -72,6 +72,7 @@
       "modules": [
         "Ansi",
         "components/AlternateScreen",
+        "components/InkInstanceContext",
         "components/Link",
         "components/NoSelect",
         "components/ScrollBox",
@@ -113,12 +114,6 @@
       "why": "the runtime's frame interval, read by the cockpit's motion governor so the idle tickers pace themselves to the paint cadence it measures against (prove-motion-governor); a read of one constant, no decision body",
       "modules": [
         "constants"
-      ]
-    },
-    "unclassified": {
-      "why": "UNCLASSIFIED — justify into a real group or re-route through the facade",
-      "modules": [
-        "components/InkInstanceContext"
       ]
     }
   }
