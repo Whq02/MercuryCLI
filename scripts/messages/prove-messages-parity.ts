@@ -466,7 +466,7 @@ add('createToolUseSummaryMessage', 'basic', () =>
 
 const SKIPPED: Record<string, string> = {
   createThinkingDeadMessage: 'a system row constructor for the dead-thinking mark — its identity rides the response id and block index; pinned by scripts/api/prove-prefix-ledger.ts',
-  createThinkingNoteMessage: 'a system row constructor for the one quiet, dim line a LAWFUL preserved-thinking drop earns (never the warning glyph); pinned by scripts/api/prove-thinking-drop-notice.ts',
+  createThinkingNoteMessage: 'a system row constructor for the preserved-thinking receipt (info for a lawful drop, warning for a rewrite of sent history) — kept on the record, never painted; pinned by scripts/api/prove-thinking-drop-notice.ts',
   handleMessageFromStream: 'needs a live SSE stream context — covered by QueryEngine suites',
   isDroppedLateStreamFrame:
     'behaviorally covered by scripts/permissions/prove-permission-abort-total.ts (late-frame gate)',

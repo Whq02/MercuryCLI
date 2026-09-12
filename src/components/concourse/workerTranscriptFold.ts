@@ -16,7 +16,10 @@ import { collapseHookSummaries } from '../../utils/collapseHookSummaries.js'
 import { collapseTeammateShutdowns } from '../../utils/collapseTeammateShutdowns.js'
 import { collapseBackgroundBashNotifications } from '../../utils/collapseBackgroundBashNotifications.js'
 import { injectTurnReceipts } from '../../utils/cockpit/turnReceipt.js'
-import { isNullRenderingAttachment } from '../messages/nullRenderingAttachments.js'
+import {
+  isNullRenderingAttachment,
+  isNullRenderingSystemRow,
+} from '../messages/nullRenderingAttachments.js'
 
 
 export const RECORD_CAP = 500
@@ -258,6 +261,7 @@ export function deriveTranscriptRows(
     normalized
       .filter(m => m.type !== 'progress')
       .filter(m => !isNullRenderingAttachment(m))
+      .filter(m => !isNullRenderingSystemRow(m))
       .filter(m => shouldShowUserMessage(m, false)),
     [],
   )

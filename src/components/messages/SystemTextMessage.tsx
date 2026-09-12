@@ -315,7 +315,7 @@ export function SystemTextMessage({
       return <Text dimColor>{message.content}</Text>
 
     case 'thinking_note':
-      return <Text dimColor>{message.content}</Text>
+      return null
 
     case 'thinking_dead':
       return null

@@ -71,12 +71,13 @@ export function createRosterTransitionMessage(
 
 export function createThinkingNoteMessage(
   content: string,
+  level: SystemMessageLevel = 'info',
 ): import('../../types/message.js').SystemThinkingNoteMessage {
   return {
     type: 'system',
     subtype: 'thinking_note',
     content,
-    level: 'info',
+    level,
     isMeta: false,
     timestamp: new Date().toISOString(),
     uuid: randomUUID(),
