@@ -456,7 +456,7 @@ correlation, rather than an invented tile repeat.
 `mercury godot frames contact-sheet <run id>` reads the frames listed in a
 run's record and returns a small contact sheet and the placement of each
 source frame. The op can also take `frames: ["a.png", "b.png"]`. Each call
-writes new artifacts under the project's engine estate. The op is a
+writes new images under the project's engine estate. The op is a
 file-writing mutation, not an editor undo step. It uses Mercury's existing
 TypeScript PNG decoder, encoder and downscaler; no native dependency is
 needed.

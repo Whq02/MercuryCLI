@@ -8,7 +8,7 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = 'e8950ca9c4e98dd9511cc8061602c29cf3516ca6b3b1091a61fbccfa83673eaa'
+export const VULCAN_OPTABLE_DIGEST = 'bf756d8220d644ebb1013f481d1281ae45e16754a6bdac0e21eff56c9fc92497'
 
 export const VULCAN_STEP_WALL_MS_PER_FRAME = 50
 
@@ -2326,7 +2326,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "cls": "mutate",
     "lite": false,
     "side": "mercury",
-    "summary": "Mercury-side PNG measurements and small images: changed-pixel fraction and component boxes, row/column autocorrelation, anisotropy, high-frequency energy, grid mean RGBA, or a run contact sheet. Writes only new run-scoped artifacts, never source frames; no engine or editor is opened",
+    "summary": "Mercury-side PNG measurements and small images: changed-pixel fraction and component boxes, row/column autocorrelation, anisotropy, high-frequency energy, grid mean RGBA, or a run contact sheet. Writes only new run-scoped files, never source frames; no engine or editor is opened",
     "args": {
       "action": "diff | stats | contact-sheet",
       "a": "optional: first PNG for diff",

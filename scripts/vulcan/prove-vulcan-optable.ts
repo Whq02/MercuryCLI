@@ -67,7 +67,7 @@ check('the engine job service rides the frontier: engine_run/engine_check exec, 
   vulcanOp('engine_run')?.cls === 'exec' && vulcanOp('engine_check')?.cls === 'exec' && vulcanOp('engine_jobs')?.cls === 'read' && vulcanOp('engine_result')?.cls === 'read' && vulcanOp('engine_cancel')?.cls === 'mutate' &&
     ['engine_run', 'engine_check', 'engine_jobs', 'engine_cancel', 'engine_result'].every(n => vulcanOp(n)?.category === 'frontier' && vulcanOp(n)?.lite === false))
 
-check('capture and profile execute on Mercury; frame artifacts mutate only Mercury files',
+check('capture and profile execute on Mercury; frame images mutate only Mercury files',
   vulcanOp('engine_capture')?.cls === 'exec' && vulcanOp('engine_profile')?.cls === 'exec' && vulcanOp('engine_frames')?.cls === 'mutate' &&
     ['engine_capture', 'engine_profile', 'engine_frames'].every(n => vulcanOp(n)?.side === 'mercury' && vulcanOp(n)?.category === 'frontier' && vulcanOp(n)?.lite === false))
 
