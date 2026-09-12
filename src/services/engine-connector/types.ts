@@ -205,6 +205,24 @@ export type WorkRowV1 = {
   stopReason?: string
   phase?: AgentWaitV1
   paused?: AgentPauseV1
+  unreadNotices?: number
+}
+
+export type NoticeKind = 'completion' | 'message' | 'wake'
+
+export type NoticeState = 'unread' | 'nudged' | 'consumed' | 'retired'
+
+export type NoticeRowV1 = {
+  id: string
+  agentId: string
+  kind: NoticeKind
+  words: string
+  deliveredAtMs: number
+  state: NoticeState
+  consumedAtMs?: number
+  nudgedAtMs?: number
+  retiredAtMs?: number
+  retiredWhy?: string
 }
 
 export type MissionRowV1 = {
