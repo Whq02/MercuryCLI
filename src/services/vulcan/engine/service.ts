@@ -545,19 +545,21 @@ export class EngineJobService {
     job: EngineJob,
     executable: string,
     name: string,
-    argv: string[],
+    argvFor: (root: string) => string[],
     timeoutMs: number,
     marker: EngineMarker | null,
     userDir: string,
     unclean: RegExp,
   ): Promise<EngineResultRow> {
     if (job.cancelRequested) throw new Error('engine job cancelled before launch')
+    const argv = argvFor(job.treePath)
     const scriptIndex = argv.indexOf('--script')
     const script = scriptIndex >= 0 ? argv[scriptIndex + 1] : undefined
     const bridged = !job.request.media && !argv.includes('--check-only') && (script === undefined || script.startsWith('res://'))
     const instrumented = bridged && script ? injectVulcanWorkerScript(job.treePath, script) : bridged
     const bridge = instrumented ? await prepareVulcanInstance(job.treePath, name === IMPORT_SUITE_NAME ? 'agent-editor' : job.request.native ? 'native-worker' : 'headless-worker') : undefined
-    const handle = spawnEngine({ executable, args: argv, cwd: job.treePath, userDir, timeoutMs, label: `${job.id}:${name}`, ...(bridge ? { bridge } : {}) })
+    const root = bridge?.projectRoot ?? job.treePath
+    const handle = spawnEngine({ executable, args: bridge ? argvFor(root) : argv, cwd: root, userDir, timeoutMs, label: `${job.id}:${name}`, ...(bridge ? { bridge } : {}) })
     this.handles.set(job.id, handle)
     job.currentSuite = name
     const out = await handle.done
@@ -684,7 +686,7 @@ export class EngineJobService {
         let row: EngineResultRow
         try {
           media.boots++
-          row = await this.runOne(job, executable, request.kind === 'profile' ? 'profile' : `capture-${variant}`, boot.argv, Math.max(1, Math.min(timeoutMs, budgetLeft())), { kind: 'line', text: ENGINE_MEDIA_MARKER }, userDir, unclean)
+          row = await this.runOne(job, executable, request.kind === 'profile' ? 'profile' : `capture-${variant}`, () => boot.argv, Math.max(1, Math.min(timeoutMs, budgetLeft())), { kind: 'line', text: ENGINE_MEDIA_MARKER }, userDir, unclean)
         } finally {
           if (timer) clearInterval(timer)
           if (observing) await observing
@@ -759,7 +761,7 @@ export class EngineJobService {
       const explicitImport = selection.entries.some(e => e.kind === 'import')
       if (!seed.hit || explicitImport) {
         const timeout = Math.max(1, Math.min(manifest.defaults.importTimeoutMs, budgetLeft()))
-        const row = await this.runOne(job, exe.resolved, IMPORT_SUITE_NAME, engineImportArgv(job.treePath), timeout, null, this.userDirFor(job, null), unclean)
+        const row = await this.runOne(job, exe.resolved, IMPORT_SUITE_NAME, root => engineImportArgv(root), timeout, null, this.userDirFor(job, null), unclean)
         record.results.push(row)
         record.importCache.ran = true
         if (row.ok) record.importCache.stored = storeEngineCache(this.projectRoot, job.treePath, hashes.key).stored
@@ -786,9 +788,8 @@ export class EngineJobService {
           this.writeRecord(job)
           continue
         }
-        const argv = engineSuiteArgv(job.treePath, suite, manifest.defaults, { native: job.request.native, capture: job.request.capture })
         const timeout = Math.max(1, Math.min(suite.timeoutMs, budgetLeft()))
-        const row = await this.runOne(job, exe.resolved, suite.name, argv, timeout, suite.marker, this.userDirFor(job, suite), unclean)
+        const row = await this.runOne(job, exe.resolved, suite.name, root => engineSuiteArgv(root, suite, manifest.defaults, { native: job.request.native, capture: job.request.capture }), timeout, suite.marker, this.userDirFor(job, suite), unclean)
         if (row.timedOut && deadline !== null && Date.now() >= deadline) record.budgetExceeded = true
         record.results.push(row)
         this.writeRecord(job)

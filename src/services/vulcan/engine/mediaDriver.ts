@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
+import { engineMediaArgv } from './argv.js'
 import type { EngineMediaRequest } from './media.js'
 
 export const ENGINE_MEDIA_MARKER = 'MERCURY MEDIA PASS'
@@ -13,12 +14,7 @@ export function writeEngineMediaDriver(runDir: string, treePath: string, request
   const scriptFile = path.join(outputDir, 'driver.gd')
   writeFileSync(configFile, JSON.stringify({ ...request, variant, outputDir, resultFile, debuggerConnection }))
   writeFileSync(scriptFile, ENGINE_MEDIA_DRIVER)
-  const argv = ['--path', treePath, '--audio-driver', 'Dummy', '--single-window']
-  if (request.route === 'headless') argv.push('--headless')
-  else argv.push('--resolution', '1280x720', '--disable-vsync')
-  if (request.kind === 'capture') argv.push('--fixed-fps', String(request.clock.fps))
-  if (debuggerConnection) argv.push('--remote-debug', `tcp://127.0.0.1:${debuggerConnection.port}`)
-  argv.push('--script', scriptFile, '--', configFile)
+  const argv = engineMediaArgv(treePath, { headless: request.route === 'headless', fixedFps: request.kind === 'capture' ? request.clock.fps : null, debuggerPort: debuggerConnection?.port ?? null, script: scriptFile, config: configFile })
   return { argv, outputDir, resultFile }
 }
 
