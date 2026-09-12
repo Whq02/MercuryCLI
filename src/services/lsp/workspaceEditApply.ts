@@ -20,6 +20,11 @@ export interface WorkspaceEditLike {
 export interface NormalizedFileEdits {
   uri: string
   edits: LspTextEditLike[]
+  create?: boolean
+}
+
+export interface NormalizeOptions {
+  allowCreate?: boolean
 }
 
 export type NormalizeResult =
@@ -28,9 +33,11 @@ export type NormalizeResult =
 
 export function normalizeWorkspaceEdit(
   edit: WorkspaceEditLike | null | undefined,
+  options: NormalizeOptions = {},
 ): NormalizeResult {
   if (!edit) return { ok: false, reason: 'server returned no edit' }
   const byUri = new Map<string, LspTextEditLike[]>()
+  const created = new Set<string>()
 
   const add = (uri: string, edits: LspTextEditLike[]) => {
     const list = byUri.get(uri) ?? []
@@ -48,13 +55,19 @@ export function normalizeWorkspaceEdit(
     }
     const c = change as {
       kind?: string
+      uri?: string
       textDocument?: { uri?: string }
       edits?: LspTextEditLike[]
     }
     if (typeof c.kind === 'string') {
+      if (c.kind === 'create' && options.allowCreate === true && typeof c.uri === 'string') {
+        created.add(c.uri)
+        if (!byUri.has(c.uri)) byUri.set(c.uri, [])
+        continue
+      }
       return {
         ok: false,
-        reason: `resource operation '${c.kind}' not supported — apply refused (no file create/rename/delete powers)`,
+        reason: `resource operation '${c.kind}' not supported — apply refused (a file is created only by moveSymbol, moved only by pathRename, never by a code action)`,
       }
     }
     if (!c.textDocument?.uri || !Array.isArray(c.edits)) {
@@ -64,8 +77,8 @@ export function normalizeWorkspaceEdit(
   }
 
   const files = [...byUri.entries()]
-    .map(([uri, edits]) => ({ uri, edits }))
-    .filter(f => f.edits.length > 0)
+    .map(([uri, edits]) => (created.has(uri) ? { uri, edits, create: true } : { uri, edits }))
+    .filter(f => f.edits.length > 0 || f.create === true)
   if (files.length === 0) {
     return { ok: false, reason: 'edit set is empty — nothing to apply' }
   }
@@ -132,8 +145,46 @@ export function applyEditsToText(
   return { ok: true, text: out, editCount: ordered.length }
 }
 
-const PREVIEW_MAX_LINES_PER_FILE = 8
-const PREVIEW_MAX_TOTAL_LINES = 60
+const PREVIEW_MAX_LINES_PER_FILE = 40
+const PREVIEW_MAX_TOTAL_LINES = 200
+const EDIT_ROWS_CAP = 500
+
+export interface EditRow {
+  file: string
+  range: LspRangeLike
+  before: string
+  after: string
+}
+
+export function editRowsOf(
+  files: NormalizedFileEdits[],
+  textForUri: (uri: string) => string | undefined,
+  displayPath: (uri: string) => string,
+): { rows: EditRow[]; omitted: number } {
+  const rows: EditRow[] = []
+  let omitted = 0
+  for (const file of files) {
+    const text = textForUri(file.uri) ?? ''
+    for (const edit of file.edits) {
+      if (rows.length >= EDIT_ROWS_CAP) {
+        omitted++
+        continue
+      }
+      const start = offsetAtPosition(text, edit.range.start)
+      const end = offsetAtPosition(text, edit.range.end)
+      rows.push({
+        file: displayPath(file.uri),
+        range: {
+          start: { line: edit.range.start.line + 1, character: edit.range.start.character + 1 },
+          end: { line: edit.range.end.line + 1, character: edit.range.end.character + 1 },
+        },
+        before: text.slice(start, end),
+        after: edit.newText,
+      })
+    }
+  }
+  return { rows, omitted }
+}
 
 export function formatEditPreview(
   files: NormalizedFileEdits[],
@@ -146,7 +197,7 @@ export function formatEditPreview(
   for (const file of files) {
     totalEdits += file.edits.length
     const text = textForUri(file.uri)
-    const header = `${displayPath(file.uri)} — ${file.edits.length} edit${file.edits.length === 1 ? '' : 's'}`
+    const header = `${displayPath(file.uri)} — ${file.edits.length} edit${file.edits.length === 1 ? '' : 's'}${file.create === true ? ' (new file)' : ''}`
     lines.push(header)
     shownLines++
     if (text === undefined) {
@@ -170,7 +221,7 @@ export function formatEditPreview(
       const before = text.slice(start, end).replace(/\n/g, '\\n')
       const after = edit.newText.replace(/\n/g, '\\n')
       lines.push(
-        `  :${edit.range.start.line + 1}:${edit.range.start.character + 1}  ${truncate(before, 40)} → ${truncate(after, 40)}`,
+        `  :${edit.range.start.line + 1}:${edit.range.start.character + 1}-${edit.range.end.line + 1}:${edit.range.end.character + 1}  ${truncate(before, 72)} → ${truncate(after, 72)}`,
       )
       shownForFile++
       shownLines++
@@ -183,5 +234,6 @@ export function formatEditPreview(
 }
 
 function truncate(s: string, max: number): string {
+  if (s === '') return '∅'
   return s.length > max ? s.slice(0, max - 1) + '…' : s
 }
