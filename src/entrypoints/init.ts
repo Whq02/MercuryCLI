@@ -21,6 +21,7 @@ import { ConfigParseError, ConfigReadError } from '../utils/errors.js'
 import { logForDebugging } from '../utils/debug.js'
 import { isSessionMarkedNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { profileCheckpoint } from '../utils/startupProfiler.js'
+import { armScratchpadSweep } from '../utils/scratchpad.js'
 
 export const init: () => Promise<void> = memoize(async (): Promise<void> => {
   profileCheckpoint('init_function_start')
@@ -41,6 +42,7 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
     profileCheckpoint('init_ca_certs_applied')
 
     setupGracefulShutdown()
+    armScratchpadSweep()
     profileCheckpoint('init_shutdown_installed')
 
     void populateOAuthAccountInfoIfNeeded().catch((error: unknown) =>
