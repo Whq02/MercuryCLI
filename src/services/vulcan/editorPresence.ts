@@ -1,5 +1,7 @@
 
 import { probeGodotEditorReachable } from '../lsp/godotLane.js'
+import { sameVulcanInstance, selectVulcanInstance, type VulcanInstance } from './instances.js'
+import { getVulcanClient } from './vulcanClient.js'
 import {
   describeGodotProcess,
   editorsForProject,
@@ -64,6 +66,23 @@ export async function probeGodotEditorPresence(
     census ? Promise.resolve(census) : takeCensus(),
   ])
   return derivePresence(port, reachable, seen, projectRoot)
+}
+
+export async function probeVulcanEditorPresence(
+  projectRoot: string,
+  census?: { ok: boolean; processes: GodotProcess[] },
+): Promise<GodotEditorPresence & { instance?: VulcanInstance }> {
+  const selected = selectVulcanInstance(projectRoot)
+  const client = selected.ok ? getVulcanClient(projectRoot, selected.instance.id) : null
+  const [result, seen] = await Promise.all([
+    client ? client.request('ping', undefined, 1000) : Promise.resolve(null),
+    census ? Promise.resolve(census) : takeCensus(),
+  ])
+  const reachable = selected.ok && result?.ok === true && !!result.instance && sameVulcanInstance(result.instance, selected.instance)
+  return {
+    ...derivePresence(selected.ok ? selected.instance.port : 0, reachable, seen, projectRoot),
+    ...(selected.ok ? { instance: selected.instance } : {}),
+  }
 }
 
 export async function takeCensus(): Promise<{ ok: boolean; processes: GodotProcess[] }> {

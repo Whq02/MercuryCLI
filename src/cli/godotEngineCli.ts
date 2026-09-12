@@ -16,7 +16,7 @@ export interface GodotCliParse {
   flags: Record<string, string | true>
 }
 
-const VALUE_FLAGS = new Set(['tree', 'priority', 'budget-ms', 'label', 'tail-chars', 'tail', 'parallel', 'project', 'wait-ms', 'threshold', 'max-lag', 'grid', 'request'])
+const VALUE_FLAGS = new Set(['tree', 'priority', 'budget-ms', 'label', 'tail-chars', 'tail', 'parallel', 'project', 'wait-ms', 'threshold', 'max-lag', 'grid', 'request', 'run'])
 
 export function parseGodotCliArgs(argv: readonly string[]): GodotCliParse {
   const positional: string[] = []
@@ -46,7 +46,7 @@ export function godotCliUsage(cliName: string): string {
   return [
     `Usage: ${cliName} godot <verb> …  — the engine job service for the Godot project in the working directory (or --project <dir>)`,
     `  ${cliName} godot run [suite …] [--tree <HEAD|ref|working|ref+a,b>] [--native] [--capture] [--priority <verifier|fold-gate|lane-gate|profile>] [--budget-ms <n>] [--display-shared] [--keep-tree] [--label <s>] [--no-wait] [--tail-chars <n>]`,
-    `  ${cliName} godot check [file …] [--all] [--tree <spec>] [--no-shaders] [--parallel <n>]`,
+    `  ${cliName} godot check [file …] [--all] [--tree <spec>] [--no-shaders] [--parallel <n>] [--run <id>]`,
     `  ${cliName} godot jobs`,
     `  ${cliName} godot cancel <id>`,
     `  ${cliName} godot result <id> [--tail <n>]`,
@@ -56,7 +56,7 @@ export function godotCliUsage(cliName: string): string {
     `  ${cliName} godot frames diff <a.png> <b.png> [--threshold <0..255>]`,
     `  ${cliName} godot frames stats <frame.png> [--max-lag <n>] [--grid <columns>x<rows>]`,
     `  ${cliName} godot frames contact-sheet <id>`,
-    'Each verb prints its record as JSON; run exits 0 on allPass, check on no diagnostics, cancel and result on success, 2 on a usage or project error.',
+    'Each verb prints its record as JSON; run exits 0 on allPass, check on no diagnostics or proof drift, cancel and result on success, 2 on a usage or project error.',
   ].join('\n')
 }
 
@@ -140,6 +140,7 @@ export async function godotEngineCli(argv: readonly string[], io: GodotCliIo = d
           tree: flags.tree,
           shaders: flags['no-shaders'] === true ? false : undefined,
           parallel: num(flags.parallel),
+          run: typeof flags.run === 'string' ? flags.run : undefined,
         },
         root,
       )

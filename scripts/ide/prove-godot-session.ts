@@ -169,7 +169,7 @@ try {
     check('C4 DAP adapter not registered, detail carries the arm surface', !session.dap.adapterRegistered && session.dap.detail.includes('MERCURY_GODOT=1'), session.dap.detail)
     check('C5 vulcan state disarmed', session.vulcan.state === 'disarmed', JSON.stringify(session.vulcan).slice(0, 160))
     check('C6 editor truth reads unavailable (VULCAN disarmed)', session.editor.state === 'unavailable' && session.editor.detail.includes('VULCAN disarmed'), JSON.stringify(session.editor).slice(0, 200))
-    check('C7 ports reported even while disarmed', session.lsp.port === 6005 && session.dap.port === 6006 && session.vulcan.port === 6010)
+    check('C7 language ports stay separate; no VULCAN endpoint is selected while disarmed', session.lsp.port === 6005 && session.dap.port === 6006 && session.vulcan.port === 0)
   }
 
   section('(D) VULCAN-absent honesty — armed, no editor, bounded, zero writes')
@@ -192,7 +192,7 @@ try {
       JSON.stringify(unreachable.vulcan).slice(0, 240),
     )
     check('D4 editor truth reads unavailable (VULCAN editor unreachable)', unreachable.editor.state === 'unavailable' && unreachable.editor.detail.includes('unreachable'), JSON.stringify(unreachable.editor).slice(0, 200))
-    check('D5 the unreachable path is BOUNDED (<3s; probe bound is 400ms)', elapsed < 3_000, `${elapsed}ms`)
+    check('D5 the unreachable path is bounded without a discovered editor (<3s)', elapsed < 3_000, `${elapsed}ms`)
     check('D6 addon truth from the existing probe: not installed', unreachable.vulcan.state === 'unreachable' && unreachable.vulcan.addon.installed === false)
     check('D7 the projection writes NOTHING (no token file on unreachable)', !existsSync(join(proj, '.godot', 'mercury-vulcan-token')))
     check('D8 discovery still yields no current profile (editor absent)', (await godot.discoverGodotLaunchProfiles(proj)).profiles.every(p => p.kind !== 'current'))
@@ -226,7 +226,7 @@ try {
     }
     const consumed = [
       'findGodotProjectRoot',
-      'probeGodotEditorReachable',
+      'probeVulcanEditorPresence',
       'vulcanInstallStatus',
       'getVulcanClient',
       'listDapSessions',

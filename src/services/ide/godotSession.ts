@@ -11,7 +11,6 @@ import {
   godotEditorHint,
   godotLspPort,
   mercuryGodotEnabled,
-  probeGodotEditorReachable,
   probeGodotLane,
   GODOT_DAP_ADAPTER_KEY,
   MERCURY_GODOT_SERVER_NAME,
@@ -23,13 +22,13 @@ import {
   listDapSessions,
   resolveAdapter,
 } from '../dap/dapClient.js'
-import { vulcanEnabled, vulcanPort } from '../../utils/vulcan/vulcanGates.js'
+import { vulcanEnabled } from '../../utils/vulcan/vulcanGates.js'
 import {
   vulcanInstallStatus,
   type VulcanInstallStatus,
 } from '../vulcan/addonInstaller.js'
-import { presenceNudge, probeGodotEditorPresence } from '../vulcan/editorPresence.js'
-import { getVulcanClient, type VulcanResult } from '../vulcan/vulcanClient.js'
+import { presenceNudge, probeVulcanEditorPresence } from '../vulcan/editorPresence.js'
+import { getVulcanClient, type VulcanClient, type VulcanResult } from '../vulcan/vulcanClient.js'
 
 export const GODOT_LANES_ARM_SURFACE =
   'arm via the boot menu (miscellaneous > "Godot language lanes") or MERCURY_GODOT=1'
@@ -270,8 +269,8 @@ function collectDapState(owner: OwnerKey): GodotDapState {
       }
 }
 
-async function probeVulcanState(root: string | undefined): Promise<GodotVulcanState> {
-  const port = vulcanPort()
+async function probeVulcanState(root: string | undefined): Promise<GodotVulcanState & { client?: VulcanClient }> {
+  let port = 0
   if (!vulcanEnabled()) {
     return { state: 'disarmed', port, detail: `disarmed — ${VULCAN_ARM_SURFACE}` }
   }
@@ -283,7 +282,8 @@ async function probeVulcanState(root: string | undefined): Promise<GodotVulcanSt
     }
   }
   const addon = vulcanInstallStatus(root)
-  const presence = await probeGodotEditorPresence(root, port)
+  const presence = await probeVulcanEditorPresence(root)
+  port = presence.port
   if (!presence.reachable) {
     return {
       state: 'unreachable',
@@ -292,11 +292,12 @@ async function probeVulcanState(root: string | undefined): Promise<GodotVulcanSt
       detail: `${presence.words} — 127.0.0.1:${port} dark; ${presenceNudge(presence, addon)}`,
     }
   }
-  const client = getVulcanClient()
+  const client = presence.instance ? getVulcanClient(root, presence.instance.id) : null
   return {
     state: 'reachable',
     port,
     addon,
+    ...(client ? { client } : {}),
     clientStatus: client?.status() ?? 'disconnected',
     detail: `editor answering on 127.0.0.1:${port}`,
   }
@@ -305,6 +306,7 @@ async function probeVulcanState(root: string | undefined): Promise<GodotVulcanSt
 async function collectEditorTruth(
   root: string | undefined,
   vulcan: GodotVulcanState,
+  client?: VulcanClient,
 ): Promise<GodotEditorTruth> {
   if (vulcan.state !== 'reachable') {
     const why =
@@ -315,8 +317,7 @@ async function collectEditorTruth(
           : 'VULCAN editor unreachable'
     return { state: 'unavailable', detail: `unavailable (${why}) — ${vulcan.detail}` }
   }
-  const client = getVulcanClient()
-  if (!client || findGodotProjectRoot() !== root) {
+  if (!client || !root) {
     return {
       state: 'unavailable',
       detail:
@@ -365,7 +366,7 @@ export async function buildGodotIdeSession(
       detail: `no project.godot from ${path.resolve(from)} (walk-up)`,
     }
   }
-  const vulcan = await probeVulcanState(root)
+  const { client, ...vulcan } = await probeVulcanState(root)
   return {
     project,
     godotLane: laneArming(mercuryGodotEnabled(), GODOT_LANES_ARM_SURFACE),
@@ -373,7 +374,7 @@ export async function buildGodotIdeSession(
     lsp: collectLspState(),
     dap: collectDapState(owner),
     vulcan,
-    editor: await collectEditorTruth(root, vulcan),
+    editor: await collectEditorTruth(root, vulcan, client),
     collectedAt: Date.now(),
   }
 }
@@ -411,9 +412,9 @@ function walkScenes(root: string): { scenes: string[]; total: number } {
 
 async function vulcanCurrentScene(root: string): Promise<string | undefined> {
   if (!vulcanEnabled()) return undefined
-  if (findGodotProjectRoot() !== root) return undefined
-  if (!(await probeGodotEditorReachable(vulcanPort()))) return undefined
-  const client = getVulcanClient()
+  const presence = await probeVulcanEditorPresence(root)
+  if (!presence.reachable || !presence.instance) return undefined
+  const client = getVulcanClient(root, presence.instance.id)
   if (!client) return undefined
   const r = await client.request('scene_current', undefined, VULCAN_OP_TIMEOUT_MS)
   if (!r.ok) return undefined
