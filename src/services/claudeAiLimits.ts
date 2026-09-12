@@ -123,7 +123,8 @@ function currentAnthropicOwner(now: () => number = Date.now): string {
   let owner = 'none'
   try {
     const { activeWalletEntry } = require('./wallet/wallet.js') as typeof import('./wallet/wallet.js')
-    owner = activeWalletEntry('anthropic')?.id ?? 'none'
+    const entry = activeWalletEntry('anthropic')
+    owner = entry === undefined ? 'none' : entry.identity?.accountId ? `${entry.id}:${entry.identity.accountId}` : entry.id
   } catch {
   }
   ownerCache = { owner, atMs: at, epoch: usageCredentialEpoch }
@@ -131,12 +132,24 @@ function currentAnthropicOwner(now: () => number = Date.now): string {
 }
 
 let ownerOverrideForTest: (() => string) | null = null
-export function __setAnthropicOwnerResolverForTest(resolver: (() => string) | null): void {
+let accountNameOverrideForTest: (() => string) | null = null
+export function __setAnthropicOwnerResolverForTest(resolver: (() => string) | null, accountName: (() => string) | null = null): void {
   ownerOverrideForTest = resolver
+  accountNameOverrideForTest = accountName
   ownerCache = null
 }
 function resolveOwner(): string {
   return ownerOverrideForTest !== null ? ownerOverrideForTest() : currentAnthropicOwner()
+}
+function currentAnthropicAccountName(): string {
+  if (accountNameOverrideForTest !== null) return accountNameOverrideForTest()
+  try {
+    const { activeWalletEntry } = require('./wallet/wallet.js') as typeof import('./wallet/wallet.js')
+    const entry = activeWalletEntry('anthropic')
+    return entry?.identity?.email ?? entry?.label ?? 'the signed-in account'
+  } catch {
+    return 'the signed-in account'
+  }
 }
 
 function recomputeRawUtilization(headers: Headers): void {
@@ -378,9 +391,27 @@ export function getUsageCredentialEpoch(): number {
 }
 
 let windowObserved = false
+let verdictOwner: string | null = null
+let verdictObservedAtMs: number | null = null
+
+function stampVerdictOwner(): void {
+  verdictOwner = resolveOwner()
+  verdictObservedAtMs = Date.now()
+}
+function verdictOwnerStands(): boolean {
+  return verdictOwner === null || verdictOwner === resolveOwner()
+}
 
 export function claudeWindowObserved(): boolean {
-  return windowObserved
+  return windowObserved && verdictOwnerStands()
+}
+
+export type AnthropicLimitVerdict = { status: QuotaStatus | 'unknown'; observedAtMs?: number; account?: string }
+
+export function anthropicLimitVerdict(): AnthropicLimitVerdict {
+  if (!verdictOwnerStands()) return { status: 'unknown' }
+  if (verdictObservedAtMs === null) return { status: currentLimits.status }
+  return { status: currentLimits.status, observedAtMs: verdictObservedAtMs, account: currentAnthropicAccountName() }
 }
 
 function handleGateClosed(): void {
@@ -388,6 +419,8 @@ function handleGateClosed(): void {
   rawUtilization = {}
   endpointUtilization = {}
   observedOwner = null
+  verdictOwner = null
+  verdictObservedAtMs = null
   windowObserved = false
   noteUsageRecordChanged()
   if (currentLimits.status !== 'allowed' || currentLimits.resetsAt !== undefined) {
@@ -404,6 +437,7 @@ export function extractQuotaStatusFromHeaders(headers: Headers): void {
   recomputeRawUtilization(effective)
   const next = computeNewLimitsFromHeaders(effective)
   windowObserved = true
+  stampVerdictOwner()
   if (!limitsEqual(next, currentLimits)) {
     emitStatusChange(next)
   }
@@ -425,6 +459,7 @@ export function extractQuotaStatusFromError(error: unknown): void {
     }
     next.status = 'rejected'
     windowObserved = true
+    stampVerdictOwner()
     if (!limitsEqual(next, currentLimits)) {
       emitStatusChange(next)
     }
@@ -443,6 +478,8 @@ export function resetLimitsForCredentialSwitch(): void {
   usageCredentialEpoch++
   rawUtilization = {}
   observedOwner = null
+  verdictOwner = null
+  verdictObservedAtMs = null
   endpointUtilization = {}
   windowObserved = false
   noteUsageRecordChanged()

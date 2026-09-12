@@ -1,5 +1,6 @@
 import { getAnthropicApiKey, isClaudeAISubscriber } from '../../utils/auth.js'
-import { currentLimits } from '../claudeAiLimits.js'
+import { formatClock } from '../../utils/cockpit/quota.js'
+import { anthropicLimitVerdict } from '../claudeAiLimits.js'
 import { getGptSeatAvailability } from './openai/openaiCatalogue.js'
 import { providerDisplayName } from './routeLaw.js'
 
@@ -28,7 +29,8 @@ export interface ProviderUsabilityReads {
   anthropicApiKey: () => string | null
   anthropicSubscriber: () => boolean
   anthropicBearerToken?: () => boolean
-  anthropicLimitStatus: () => 'allowed' | 'allowed_warning' | 'rejected'
+  anthropicLimitStatus: () => 'allowed' | 'allowed_warning' | 'rejected' | 'unknown'
+  anthropicLimitObservation?: () => { account: string; observedAtMs: number } | undefined
   gptSeat: () => { state: 'ready' | 'disabled'; reason?: string; why?: string }
   zaiKeyPresent: () => boolean
   moonshotAccount?: () => { kind: 'kimi-oauth' | 'api-key' } | undefined
@@ -49,6 +51,18 @@ export interface ProviderUsabilityReads {
   ) => { state: 'credit-exhausted'; detail: string; remedy: string } | { state: 'clear' }
 }
 
+export function anthropicLimitReads(): Pick<ProviderUsabilityReads, 'anthropicLimitStatus' | 'anthropicLimitObservation'> {
+  return {
+    anthropicLimitStatus: () => anthropicLimitVerdict().status,
+    anthropicLimitObservation: () => {
+      const verdict = anthropicLimitVerdict()
+      return verdict.observedAtMs === undefined || verdict.account === undefined
+        ? undefined
+        : { account: verdict.account, observedAtMs: verdict.observedAtMs }
+    },
+  }
+}
+
 function liveProviderUsabilityReads(): ProviderUsabilityReads {
   return {
     anthropicApiKey: () => {
@@ -67,7 +81,7 @@ function liveProviderUsabilityReads(): ProviderUsabilityReads {
         anthropicApiKeyPresent: () => false,
       }).credentialed
     },
-    anthropicLimitStatus: () => currentLimits.status,
+    ...anthropicLimitReads(),
     gptSeat: () => getGptSeatAvailability(),
     zaiKeyPresent: () => {
       const { resolveZaiApiKey } =
@@ -169,7 +183,12 @@ export function resolveProviderUsability(
     anthropicBlockers.push('no Anthropic credential — /logins (or ANTHROPIC_API_KEY)')
   }
   if (limit === 'rejected') {
-    anthropicBlockers.push('the Anthropic usage window is reached — resets per /usage')
+    const seen = reads.anthropicLimitObservation?.()
+    anthropicBlockers.push(
+      seen === undefined
+        ? 'the Anthropic usage window is reached — resets per /usage'
+        : `the Anthropic usage window is reached for ${seen.account}, seen at ${formatClock(seen.observedAtMs)} — resets per /usage`,
+    )
   }
   const anthropic: ProviderUsability = {
     provider: 'anthropic',
