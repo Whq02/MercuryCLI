@@ -424,7 +424,8 @@ if (!existsSync(DIST)) {
     const debugNotices = debugLogOf(3).split('\n').filter(l => l.includes(dropLine)).length
     check('the notice reaches the debug log exactly once (one envelope per block, one response id)', debugNotices === 1, `debug lines=${debugNotices} stdout notices=${stdoutNotices} log=${debugLogOf(3).length}B`)
     console.log(`    (stream-json system rows carrying the notice: ${stdoutNotices})`)
-    const earlyNotices = (r1.stdout + r1.stderr + r2.stdout + r2.stderr + debugLogOf(1) + debugLogOf(2)).includes('reserved thinking')
+    const early = r1.stdout + r1.stderr + r2.stdout + r2.stderr + debugLogOf(1) + debugLogOf(2)
+    const earlyNotices = early.includes(noticeText) || early.includes(dropLine)
     check('an empty or absent drop list never writes a receipt (turns 1 and 2)', !earlyNotices)
     const sessionRows = ((): string[] => {
       const walk = (dir: string): string[] => {
