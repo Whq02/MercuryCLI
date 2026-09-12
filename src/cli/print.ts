@@ -97,7 +97,7 @@ import type {
   StdinMessage,
   StdoutMessage,
 } from '../entrypoints/sdk/controlTypes.js'
-import { statusListeners, type ClaudeAILimits } from '../services/claudeAiLimits.js'
+import { resetLimitsForCredentialSwitch, statusListeners, type ClaudeAILimits } from '../services/claudeAiLimits.js'
 import { providerLimitWarning } from '../services/providers/limitWarning.js'
 import {
   clearServerCache,
@@ -2212,6 +2212,12 @@ export async function runHeadless(
           } else {
             landSpawnSwitch(toggle.kind, toggle.on)
           }
+          respondSuccess(requestId)
+          return
+        }
+        case 'credential_change': {
+          resetLimitsForCredentialSwitch()
+          dropCredentialMemos()
           respondSuccess(requestId)
           return
         }

@@ -475,6 +475,10 @@ line nothing would read leaves the queue. The deadline is
 `MERCURY_NOTICE_DEADLINE_MS`, a whole number of milliseconds at or above
 1000; unset, it is three minutes.
 
+A task notification the chat shows — one the runner took mid-turn, or between
+turns as a plain message — the chat shows once, in its place; it is never
+redrawn under every new message until it ages out.
+
 ## Where the pieces live
 
 - The coordinator, teammates and the mailbox are [TEAMS.md](TEAMS.md)'s.

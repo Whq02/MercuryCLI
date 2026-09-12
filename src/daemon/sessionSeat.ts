@@ -54,6 +54,21 @@ export const SESSION_FACTS_REQUEST_PREFIX = 'mercury-session-facts-'
 const SEAT_VERB_REQUEST_PREFIX = 'mercury-seat-'
 const SEAT_REWIND_REQUEST_PREFIX = `${SEAT_VERB_REQUEST_PREFIX}rewind-`
 export const REWIND_ANSWER_DEADLINE_MS = 30_000
+const SEAT_CREDENTIAL_CHANGE_REQUEST_PREFIX = 'mercury-credential-change-'
+let credentialChangeSeq = 0
+
+export function relayCredentialChange(
+  roster: Pick<SeatRosterPort, 'control'> & { liveWorkerFacts(): ReadonlyArray<{ short: string; kind: 'long-lived' | 'one-shot' }> },
+): string[] {
+  const told: string[] = []
+  for (const worker of roster.liveWorkerFacts()) {
+    if (worker.kind !== 'long-lived') continue
+    const requestId = `${SEAT_CREDENTIAL_CHANGE_REQUEST_PREFIX}${Date.now().toString(36)}-${(++credentialChangeSeq).toString(36)}`
+    const frame = JSON.stringify({ type: 'control_request', request_id: requestId, request: { subtype: 'credential_change' } })
+    if (roster.control(worker.short, frame)) told.push(worker.short)
+  }
+  return told
+}
 const FACTS_DEBOUNCE_MS = 250
 
 interface SeatState {
