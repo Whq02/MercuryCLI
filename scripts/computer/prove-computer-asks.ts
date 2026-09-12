@@ -220,7 +220,7 @@ section('§8 the relayed ask keeps the application name and its rule identity di
   check('typed newlines and tabs are spelled on one display row', typeof multiline === 'string' && !/[\r\n\t]/.test(multiline) && multiline.includes('\\n') && multiline.includes('\\t'), String(multiline))
 }
 
-section('§9 sovereign mode is the one bypass: the first act asks in a posture that asks and is allowed under the bypass posture')
+section('§9 sovereign mode is the one bypass: with the access type unset the first act asks in a posture that asks and is allowed under the bypass posture, where the access reads full')
 for (const [mode, bypassAvailable, asks] of [['default', true, true], ['implement', true, true], ['strategy', false, true], ['strategy', true, false], ['sovereign', true, false], ['autopilot', true, false]] as const) {
   const tag = `${mode}${mode === 'strategy' ? (bypassAvailable ? ' (bypass available)' : ' (no bypass)') : ''}`
   const { context, owner } = await fresh(`posture-${mode}-${bypassAvailable ? 'b' : 'n'}`, null)
@@ -229,12 +229,12 @@ for (const [mode, bypassAvailable, asks] of [['default', true, true], ['implemen
   permissionContext.isBypassPermissionsModeAvailable = bypassAvailable
   const first = await decideToolPermission(ComputerTool, { action: 'click', x: 812, y: 300 }, context)
   if (asks) {
-    check(`${tag}: the first act in an application asks (the safety-check road, never bypass-immune)`, first.decision.behavior === 'ask' && first.trace.decidedBy === 'safetyCheckAsk', JSON.stringify(first.decision))
+    check(`${tag}: the first act in an application asks (the safety-check road, never bypass-immune while the access type is unset)`, first.decision.behavior === 'ask' && first.trace.decidedBy === 'safetyCheckAsk', JSON.stringify(first.decision))
   } else {
-    check(`${tag}: the first act in an application is allowed without an ask`, first.decision.behavior === 'allow' && first.trace.decidedBy === 'safetyCheckAsk', JSON.stringify(first.decision))
-    check(`${tag}: the allowance names the posture and what would have asked`, first.decision.behavior === 'allow' && first.decision.decisionReason?.type === 'bypassedAsk' && (first.decision.decisionReason as { mode?: string }).mode === mode, JSON.stringify(first.decision))
+    check(`${tag}: the first act in an application is allowed without an ask — the access reads full by the posture and the check itself allows`, first.decision.behavior === 'allow' && first.trace.decidedBy === 'bypassPosture', JSON.stringify(first.decision))
+    check(`${tag}: the allowance names the posture`, first.decision.behavior === 'allow' && first.decision.decisionReason?.type === 'mode' && (first.decision.decisionReason as { mode?: string }).mode === mode, JSON.stringify(first.decision))
     check(`${tag}: the check alone wrote no session grant`, session.appApproved(owner, TEXTEDIT.identity) === false)
-    check(`${tag}: the judged application still travels to the act (the moved-in-front refusal keeps its frame)`, session.peekCheckedActApp(owner)?.app.identity === TEXTEDIT.identity)
+    check(`${tag}: the judged application still travels to the act, marked as opened by the access (the moved-in-front refusal keeps its frame, no per-application grant follows)`, session.peekCheckedActApp(owner)?.app.identity === TEXTEDIT.identity && session.peekCheckedActApp(owner)?.viaGrant === true)
   }
   for (const action of COMPUTER_READS) {
     const read = await decideToolPermission(ComputerTool, { action }, context)
@@ -252,9 +252,21 @@ for (const [mode, bypassAvailable, asks] of [['default', true, true], ['implemen
   session.forgetDesktopOwner(owner)
 }
 
-section('§10 the computer tool declares no bypass-immune ask; the terminal refusal holds in sovereign mode; the posture is the state')
+section('§10 the computer tool declares its ask bypass-immune only while the access type is pinned to a value that asks; the terminal refusal holds in sovereign mode; the posture is the state')
 {
-  check('the Computer tool no longer declares requiresUserInteraction (the one exception to the bypass posture is gone)', ComputerTool.requiresUserInteraction === undefined && !sourceText('src/tools/ComputerTool/ComputerTool.ts').includes('requiresUserInteraction'))
+  const pinnedAsk = (): boolean => ComputerTool.requiresUserInteraction?.() === true
+  delete process.env.MERCURY_COMPUTER_ACCESS
+  check('with the access type unset the Computer tool declares no bypass-immune ask (the default follows the posture)', pinnedAsk() === false)
+  process.env.MERCURY_COMPUTER_ACCESS = 'asks'
+  const asksPinned = pinnedAsk()
+  process.env.MERCURY_COMPUTER_ACCESS = 'permissive'
+  const permissivePinned = pinnedAsk()
+  process.env.MERCURY_COMPUTER_ACCESS = 'full'
+  const fullPinned = pinnedAsk()
+  process.env.MERCURY_COMPUTER_ACCESS = 'sovereign'
+  const foreignPinned = pinnedAsk()
+  delete process.env.MERCURY_COMPUTER_ACCESS
+  check('pinned to asks or permissive it declares the ask bypass-immune; pinned to full, or to a foreign value, it does not', asksPinned === true && permissivePinned === true && fullPinned === false && foreignPinned === false)
   const { context: terminalContext, owner: terminalOwner } = await fresh('sovereign-terminal', { frontmost: TERMINAL })
   terminalContext.getAppState().toolPermissionContext.mode = 'sovereign'
   const typed = await decideToolPermission(ComputerTool, { action: 'type', text: 'hello' }, terminalContext)
@@ -269,6 +281,103 @@ section('§10 the computer tool declares no bypass-immune ask; the terminal refu
   const back = await decideToolPermission(ComputerTool, { action: 'click', x: 812, y: 300 }, sovereignContext)
   check('back in default mode, with no act made, the first act asks again — the posture is the state, nothing was written', back.decision.behavior === 'ask' && session.appApproved(sovereignOwner, TEXTEDIT.identity) === false, JSON.stringify(back.decision))
   session.forgetDesktopOwner(sovereignOwner)
+}
+
+section('§11 the access type: three values × two postures at the full decision chain')
+for (const value of ['asks', 'permissive', 'full'] as const) {
+  for (const posture of ['default', 'sovereign'] as const) {
+    const tag = `${value} · ${posture}`
+    const sovereign = posture === 'sovereign'
+    const { context, owner } = await fresh(`access-${value}-${posture}`, null)
+    process.env.MERCURY_COMPUTER_ACCESS = value
+    const permissionContext = context.getAppState().toolPermissionContext
+    permissionContext.mode = posture
+    permissionContext.isBypassPermissionsModeAvailable = true
+    check(`${tag}: the opening screenshot recorded TextEdit as the turn's home application`, session.turnHomeApp(owner, session.turnKeyOf(context))?.identity === TEXTEDIT.identity, JSON.stringify(session.turnHomeApp(owner, session.turnKeyOf(context))))
+    const home = await decideToolPermission(ComputerTool, { action: 'click', x: 812, y: 300 }, context)
+    if (value === 'asks') {
+      check(`${tag}: the first act in the home application asks${sovereign ? ' even under sovereign mode — a saved asks wins' : ''}, at the bypass-immune road a pinned value declares`, home.decision.behavior === 'ask' && home.trace.decidedBy === 'userInteractionAsk', JSON.stringify({ decidedBy: home.trace.decidedBy, decision: home.decision }))
+    } else {
+      check(`${tag}: the first act in the home application never asks (${sovereign ? 'the posture band' : 'the check itself'})`, home.decision.behavior === 'allow' && home.trace.decidedBy === (sovereign ? 'bypassPosture' : 'resolution'), JSON.stringify({ decidedBy: home.trace.decidedBy, decision: home.decision }))
+      check(`${tag}: the check wrote no per-application grant and marked the act as opened by the access`, session.appApproved(owner, TEXTEDIT.identity) === false && session.peekCheckedActApp(owner)?.viaGrant === true)
+    }
+    for (const action of COMPUTER_READS) {
+      const read = await decideToolPermission(ComputerTool, { action }, context)
+      check(`${tag}: ${action} remains allowed`, read.decision.behavior === 'allow', JSON.stringify(read.decision))
+    }
+    useScene(`access-${value}-${posture}-finder`, { frontmost: FINDER })
+    const other = await decideToolPermission(ComputerTool, { action: 'click', x: 100, y: 100 }, context)
+    if (value === 'full') {
+      check(`${tag}: an act in another application never asks either`, other.decision.behavior === 'allow', JSON.stringify(other.decision))
+    } else {
+      check(`${tag}: an act that lands in another application asks for it by name, at the bypass-immune road${sovereign ? ' — it asks under sovereign mode too' : ''}`, other.decision.behavior === 'ask' && other.trace.decidedBy === 'userInteractionAsk' && (other.decision.message ?? '').includes('Finder (com.example.Finder)'), JSON.stringify({ decidedBy: other.trace.decidedBy, decision: other.decision }))
+      session.approveApp(owner, { identity: FINDER.identity, name: FINDER.name })
+      const covered = await decideToolPermission(ComputerTool, { action: 'click', x: 100, y: 100 }, context)
+      check(`${tag}: a Yes covers that application for the session`, covered.decision.behavior === 'allow', JSON.stringify(covered.decision))
+    }
+    permissionContext.alwaysDenyRules = { localSettings: [`Computer(app:${FINDER.identity})`] }
+    const denied = await decideToolPermission(ComputerTool, { action: 'click', x: 100, y: 100 }, context)
+    check(`${tag}: a deny rule still refuses`, denied.decision.behavior === 'deny', JSON.stringify(denied.decision))
+    delete process.env.MERCURY_COMPUTER_ACCESS
+    session.forgetDesktopOwner(owner)
+  }
+}
+{
+  const { context, owner } = await fresh('access-foreign', null)
+  process.env.MERCURY_COMPUTER_ACCESS = 'sovereign'
+  const first = await decideToolPermission(ComputerTool, { action: 'click', x: 812, y: 300 }, context)
+  check("a foreign value ('sovereign' from an earlier build) reads as the default: the first act asks with the posture off", first.decision.behavior === 'ask' && first.trace.decidedBy === 'safetyCheckAsk', JSON.stringify(first.decision))
+  context.getAppState().toolPermissionContext.mode = 'sovereign'
+  const under = await decideToolPermission(ComputerTool, { action: 'click', x: 812, y: 300 }, context)
+  check('…and as full with the posture on', under.decision.behavior === 'allow' && under.trace.decidedBy === 'bypassPosture', JSON.stringify(under.decision))
+  delete process.env.MERCURY_COMPUTER_ACCESS
+  session.forgetDesktopOwner(owner)
+}
+
+section("§12 permissive: the application in front at the turn's first call is the home for that turn; a new turn records a new one; the terminal as home refuses and the first act elsewhere asks")
+{
+  process.env.MERCURY_COMPUTER_ACCESS = 'permissive'
+  const { context, owner } = await fresh('permissive-turns', { switches: [{ afterActs: 1, frontmost: FINDER }] })
+  const turnOne = session.turnKeyOf(context)
+  check("the turn key of a context without a query chain is the operator's last message — none here, so the one key", turnOne === '' && session.turnHomeApp(owner, turnOne)?.identity === TEXTEDIT.identity)
+  const first = await permission({ action: 'click', x: 812, y: 300 }, context)
+  check('the first act in the home application is allowed by the check', first.behavior === 'allow', JSON.stringify(first))
+  const acted = resultOf(await ComputerTool.call({ action: 'click', x: 812, y: 300, capture: false } as never, context, allowEverything, toolUseTurn('toolu_permissive_click', 'Computer', { action: 'click', x: 812, y: 300, capture: false })))
+  check('the act runs and leaves no per-application grant behind (the home is the turn\'s, not the session\'s)', acted.outcome === 'succeeded' && session.appApproved(owner, TEXTEDIT.identity) === false, acted.result)
+  const front = await fakeDriver().frontmostApplication()
+  check('Finder is now in front', front.ok && front.value.name === 'Finder')
+  const elsewhere = await permission({ action: 'click', x: 100, y: 100 }, context)
+  check('in the same turn an act in Finder asks for Finder by name', elsewhere.behavior === 'ask' && (elsewhere.message ?? '').includes('Finder (com.example.Finder)'), JSON.stringify(elsewhere))
+  check('the home stays TextEdit for this turn', session.turnHomeApp(owner, turnOne)?.identity === TEXTEDIT.identity)
+  const turnTwo = { ...context, queryTracking: { chainId: 'turn-two', depth: 0 } } as ToolUseContext
+  check('a new query chain is a new turn key', session.turnKeyOf(turnTwo) === 'chain:turn-two')
+  const shot = await withScreenshot(ComputerTool as never, turnTwo, 'toolu_permissive_turn_two_shot')
+  check('the new turn\'s opening screenshot succeeds and records Finder as its home', shot.outcome === 'succeeded' && session.turnHomeApp(owner, 'chain:turn-two')?.identity === FINDER.identity, JSON.stringify(session.turnHomeApp(owner, 'chain:turn-two')))
+  const homeTwo = await permission({ action: 'click', x: 100, y: 100 }, shot.context)
+  check('in the new turn an act in Finder never asks', homeTwo.behavior === 'allow', JSON.stringify(homeTwo))
+  useScene('permissive-back-to-textedit', null)
+  const back = await permission({ action: 'click', x: 812, y: 300 }, shot.context)
+  check('in the new turn TextEdit is another application again and asks (nothing was granted to it in the first turn)', back.behavior === 'ask' && (back.message ?? '').includes('TextEdit (com.example.TextEdit)'), JSON.stringify(back))
+  session.forgetDesktopOwner(owner)
+  const { context: terminalContext, owner: terminalOwner } = await fresh('permissive-terminal', { frontmost: TERMINAL })
+  check('with the terminal running this session in front, it is the home', session.turnHomeApp(terminalOwner, session.turnKeyOf(terminalContext))?.identity === TERMINAL.identity)
+  const typed = await permission({ action: 'type', text: 'hello' }, terminalContext)
+  check('the terminal refusal stands over the home rule', typed.behavior === 'deny' && (typed.message ?? '').includes('terminal running this session'), JSON.stringify(typed))
+  useScene('permissive-terminal-then-textedit', null)
+  const elsewhereFirst = await permission({ action: 'click', x: 812, y: 300 }, terminalContext)
+  check('the first act elsewhere asks', elsewhereFirst.behavior === 'ask' && (elsewhereFirst.message ?? '').includes('TextEdit'), JSON.stringify(elsewhereFirst))
+  session.forgetDesktopOwner(terminalOwner)
+  delete process.env.MERCURY_COMPUTER_ACCESS
+}
+
+section('§13 the card offers four answers while sovereign mode is already on, five otherwise — the same words in the same order')
+{
+  const { COMPUTER_ASK_CHOICES, computerAskChoicesFor } = await import('../../src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
+  check('with sovereign mode off the card offers the five answers exactly as they are', computerAskChoicesFor(false) === COMPUTER_ASK_CHOICES && COMPUTER_ASK_CHOICES.map(c => c.value).join(',') === 'yes,no,hour,day,sovereign')
+  const four = computerAskChoicesFor(true)
+  check('with sovereign mode on the card offers the first four answers only, unchanged', four.length === 4 && four.every((c, i) => c === COMPUTER_ASK_CHOICES[i]))
+  const card = sourceText('src/components/permissions/ComputerPermissionRequest/ComputerPermissionRequest.tsx')
+  check('the card reads the posture through the one predicate every ask road reads', card.includes('postureBypassesAsks(') && card.includes('computerAskChoicesFor('))
 }
 
 useScene('default', null)

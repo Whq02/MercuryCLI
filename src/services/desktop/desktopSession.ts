@@ -3,7 +3,9 @@ import * as path from 'node:path'
 import { canAnswerAsks, getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { isHumanTurn } from '../../utils/messagePredicates.js'
 import { isTeammate } from '../../utils/teammate.js'
+import type { Message } from '../../types/message.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
@@ -35,19 +37,26 @@ export interface DesktopCheckedAct {
   viaGrant: boolean
 }
 
+export interface DesktopTurnHome {
+  turn: string
+  app: DesktopJudgedApp
+}
+
 interface OwnerDesktopState {
   approvedApps: Map<string, string>
   checkedActApp: DesktopCheckedAct | null
   screen: ScreenMap | null
+  home: DesktopTurnHome | null
 }
 
 const ownerStates = new OwnerScopedStore<OwnerDesktopState>({
   name: 'desktop-sessions',
-  create: () => ({ approvedApps: new Map(), checkedActApp: null, screen: null }),
+  create: () => ({ approvedApps: new Map(), checkedActApp: null, screen: null, home: null }),
   dispose: state => {
     state.approvedApps.clear()
     state.checkedActApp = null
     state.screen = null
+    state.home = null
   },
   retain: state => state.checkedActApp !== null,
 })
@@ -89,6 +98,30 @@ export function consumeCheckedActApp(owner: OwnerKey, action: string): DesktopJu
 
 export function peekCheckedActApp(owner: OwnerKey): DesktopCheckedAct | null {
   return ownerStates.peek(owner)?.checkedActApp ?? null
+}
+
+export function turnKeyOf(context: { queryTracking?: { chainId: string }; messages?: readonly Message[] } | undefined): string {
+  const chain = context?.queryTracking?.chainId
+  if (typeof chain === 'string' && chain !== '') return `chain:${chain}`
+  const messages = context?.messages ?? []
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]!
+    if (!isHumanTurn(message)) continue
+    const content = message.message.content
+    if (typeof content === 'string' || !content.some(block => (block as { type?: string }).type === 'tool_result')) return `message:${message.uuid}`
+  }
+  return ''
+}
+
+export function noteTurnHome(owner: OwnerKey, turn: string, app: DesktopJudgedApp): DesktopJudgedApp {
+  const state = ownerStates.get(owner)
+  if (state.home === null || state.home.turn !== turn) state.home = { turn, app: { identity: app.identity, name: app.name } }
+  return state.home.app
+}
+
+export function turnHomeApp(owner: OwnerKey, turn: string): DesktopJudgedApp | null {
+  const home = ownerStates.peek(owner)?.home ?? null
+  return home !== null && home.turn === turn ? home.app : null
 }
 
 export function screenOf(owner: OwnerKey): ScreenMap | null {

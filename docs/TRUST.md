@@ -99,7 +99,10 @@ Sovereign mode row as standing consent, the CLI flag, or the session's own
 choice), whether the consent dialog was shown or suppressed, and whether
 workspace trust was accepted. A fresh config read alone answers "what permission
 posture does this project run under"; `mercury doctor` and `/health` show it
-as the `Sovereign mode` row.
+as the `Sovereign mode` row. Computer use keeps one setting under the
+posture, the Boot Menu's `Access type` row: unset, it follows Sovereign mode
+(`full` with it on, `asks` with it off); a saved value wins either way
+([COMPUTER-USE.md](COMPUTER-USE.md)).
 
 ## Release provenance — what "signed" means
 

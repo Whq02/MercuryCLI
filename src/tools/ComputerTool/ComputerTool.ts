@@ -34,16 +34,21 @@ import {
   imageRefusedFor,
   noteCheckedActApp,
   noteScreenshot,
+  noteTurnHome,
   pruneDesktopShots,
   screenOf,
   screenshotPath,
   setDrivingApp,
   setScreen,
+  turnKeyOf,
   type DesktopJudgedApp,
 } from '../../services/desktop/desktopSession.js'
 import { claimDesktop, desktopClaimBusyNote, renewDesktopClaim } from '../../services/desktop/desktopClaim.js'
 import { screenshotVisibleInContext } from '../../services/desktop/screenshotRetention.js'
 import { readComputerGrant } from '../../services/desktop/computerGrant.js'
+import { computerAccessPinnedToAsk, savedComputerAccess } from '../../services/desktop/computerAccess.js'
+import { resolveComputerAccess } from '../../substrate/startupMenu.js'
+import { postureBypassesAsks } from '../../utils/permissions/decision/engine.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
@@ -692,6 +697,9 @@ Take a screenshot after acts that change the screen, act on what the latest one 
   isReadOnly(input: Input) {
     return READ_ACTIONS.has(input?.action)
   },
+  requiresUserInteraction() {
+    return computerAccessPinnedToAsk()
+  },
   interruptBehavior() {
     return 'cancel' as const
   },
@@ -729,6 +737,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
       )
     }
     const app = front.value
+    const home = noteTurnHome(owner, turnKeyOf(context), { identity: app.identity, name: app.name })
     const plan = planOf(owner, context, input)
     if (isPlanRefusal(plan)) return denied(plan.refusal, 'the act has no screenshot frame')
     const terminal = await ownTerminalRefusal(driver, input, app, plan)
@@ -744,7 +753,9 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     if (ruled === 'allow' || (ruled === null && appApproved(owner, app.identity))) {
       return { behavior: 'allow' as const, updatedInput: input }
     }
-    if (ruled === null && readComputerGrant(String(getSessionId())) !== null) {
+    const access = resolveComputerAccess(savedComputerAccess(), permissionContext !== undefined && postureBypassesAsks(permissionContext))
+    const opened = access.value === 'full' || (access.value === 'permissive' && home.identity === app.identity)
+    if (ruled === null && (opened || readComputerGrant(String(getSessionId())) !== null)) {
       noteCheckedActApp(owner, input.action, { identity: app.identity, name: app.name }, true)
       return { behavior: 'allow' as const, updatedInput: input }
     }
@@ -871,6 +882,8 @@ Take a screenshot after acts that change the screen, act on what the latest one 
         result = `${act.words} · ${shot.line}`
         return finish()
       }
+      const turnFront = await driver.frontmostApplication()
+      if (turnFront.ok) noteTurnHome(owner, turnKeyOf(context), { identity: turnFront.value.identity, name: turnFront.value.name })
       switch (input.action) {
         case 'screenshot': {
           const shot = await takeShot(input.display, input.label)
