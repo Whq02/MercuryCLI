@@ -8,7 +8,7 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = 'aee4ea9d2ca5056723d6ad02ee6e815902d3079198958c3e1f4afcdd288c92b3'
+export const VULCAN_OPTABLE_DIGEST = '7a1d33c8563306b4e6b93ed48374bf6dca1c705094f8ecc67fcbf070a4719045'
 
 export const VULCAN_STEP_WALL_MS_PER_FRAME = 50
 
@@ -2301,7 +2301,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "summary": "Mercury-side settled profile job: Godot 4.6 debugger script/server timings and call counts, frame/physics/memory monitors, median/p95, beside unchanged project instrumentation and available viewport timings. Default engine source when connected, explicit project fallback when no game connects. A/B toggles share one boot. The quiet-machine guard refuses or flags contention; immutable commit baselines compare matching measurements side by side",
     "args": {
       "tour": "registered tour name or {scene|script,steps}; project source needs mercury_media_sample; engine source does not",
-      "source": "optional: auto (default) | engine | project; engine debugger uses its own loopback port, project preserves instrumentation; no connection falls back to project with a reason, unsupported protocol refuses",
+      "source": "optional: auto (default) | engine | project; engine reads the debugger over its own loopback port and fails when no game connects; project keeps the instrumented tables; auto takes the engine when it connects and otherwise falls back to project with a reason; an unsupported protocol refuses",
       "pair": "optional: {switch,a,b}; both values measured inside one boot",
       "settleFrames": "optional: settle frames before each phase, default 60",
       "sampleFrames": "optional: measured frames per phase, default 120",

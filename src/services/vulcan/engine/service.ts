@@ -711,6 +711,7 @@ export class EngineJobService {
         if (debuggerProfile?.transport.error && row.signal === null) throw new Error(debuggerProfile.transport.error)
         if (!row.ok || job.cancelRequested) return
         if (debuggerProfile?.transport.accepted && !debuggerProfile.finished) throw new Error('Godot debugger connected but did not finish the profile; no project fallback is claimed')
+        if (request.source === 'engine' && !debuggerProfile?.finished) throw new Error('The game never connected to the engine debugger; source "engine" takes no project tables in its place (source "auto" falls back to them)')
         const out = readEngineMediaBoot(boot.resultFile, request, variant, boot.outputDir)
         if (request.kind === 'profile') media.evidence.unshift({ variant, ...out.evidence, source: 'project', phases: out.phases })
         else media.evidence.push({ variant, ...out.evidence })
