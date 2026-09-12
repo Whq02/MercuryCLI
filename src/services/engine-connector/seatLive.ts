@@ -28,6 +28,8 @@ export interface SeatStatusV1 {
   branchLabel?: string
 }
 
+export type LostLineV1 = { text: string; atMs: number }
+
 export interface SeatLiveExtensionV1 {
   live(): SessionLiveV1
   subscribeLive(listener: () => void): () => void
@@ -36,6 +38,7 @@ export interface SeatLiveExtensionV1 {
   turnChars?(): number
   fold?(): FoldStatusV1 | null
   subscribeFold?(listener: () => void): () => void
+  lostLine?(): LostLineV1 | null
 }
 
 export function hasSeatLive(
