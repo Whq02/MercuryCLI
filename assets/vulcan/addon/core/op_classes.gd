@@ -191,6 +191,9 @@ const CLASSES := {
 	"engine_jobs": "read",
 	"engine_cancel": "mutate",
 	"engine_result": "read",
+	"engine_capture": "exec",
+	"engine_profile": "exec",
+	"engine_frames": "mutate",
 }
 
 static func of(op: String) -> String:

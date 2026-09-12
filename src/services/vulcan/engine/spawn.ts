@@ -4,6 +4,7 @@ import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { runningGodotProcesses, type GodotProcess } from '../godotProcessCensus.js'
 import { isEnginePath } from './paths.js'
 import { engineUserEnv } from './userDir.js'
+import { engineTreeOwnerIsDead } from './owner.js'
 
 export const ENGINE_OUTPUT_CAP = 64 * 1024 * 1024
 
@@ -194,7 +195,7 @@ export async function sweepEngineOrphans(projectRoot: string, census?: GodotProc
   const processes = census ?? (await runningGodotProcesses())
   const out: EngineOrphanSweep[] = []
   for (const p of processes) {
-    if (!p.project || LIVE.has(p.pid) || !isEnginePath(projectRoot, p.project)) continue
+    if (!p.project || LIVE.has(p.pid) || !isEnginePath(projectRoot, p.project) || !engineTreeOwnerIsDead(projectRoot, p.project)) continue
     const receipt = await endProcessTree(p.pid, 'SIGKILL')
     out.push({ pid: p.pid, project: p.project, executable: p.executable, receipt })
   }
