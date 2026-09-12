@@ -43,7 +43,7 @@ import { capabilityHoldWords, runnerCapabilityHolds } from '../daemon/runnerCapa
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
 import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
 import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
-import { boxReading } from '../utils/boxLock.js'
+import { boxReading, refreshBoxReading } from '../utils/boxLock.js'
 import { declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
 import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
@@ -536,6 +536,7 @@ export async function runHeadless(
   const isConcourseWorker = flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
   let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
   let sessionFactsHoldSpent = false
+  if (isConcourseWorker) void refreshBoxReading()
   const sessionWiringModules = (): Promise<
     [
       typeof import('../utils/hooks/wardsHook.js'),

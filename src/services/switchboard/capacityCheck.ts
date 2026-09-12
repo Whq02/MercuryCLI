@@ -53,26 +53,38 @@ export function availableFromCounter(bytes: number): number | null {
   return Number.isFinite(bytes) && bytes >= 0 ? bytes : null
 }
 
+export function runtimeMemorySample(): MemorySample {
+  return { availableBytes: freemem(), totalBytes: totalmem(), read: 'free' }
+}
+
+let memorySampleMemo: { sample: MemorySample; sampledAt: number } | null = null
+let pendingMemorySample: Promise<MemorySample> | null = null
+
+function rememberMemorySample(sample: MemorySample): MemorySample {
+  memorySampleMemo = { sample, sampledAt: Date.now() }
+  return sample
+}
+
 export function sampleAvailableMemory(): MemorySample {
   const totalBytes = totalmem()
-  const fallback: MemorySample = { availableBytes: freemem(), totalBytes, read: 'free' }
+  const fallback = runtimeMemorySample()
   try {
     if (process.platform === 'darwin') {
       const text = execFileSync('vm_stat', [], { encoding: 'utf8', timeout: 2000, env: { ...subprocessEnv() }, windowsHide: true })
       const available = availableFromVmStat(text)
-      return available === null ? fallback : { availableBytes: available, totalBytes, read: 'vm_stat' }
+      return rememberMemorySample(available === null ? fallback : { availableBytes: available, totalBytes, read: 'vm_stat' })
     }
     if (process.platform === 'linux') {
       const available = availableFromMeminfo(readFileSync('/proc/meminfo', 'utf8'))
-      return available === null ? fallback : { availableBytes: available, totalBytes, read: 'meminfo' }
+      return rememberMemorySample(available === null ? fallback : { availableBytes: available, totalBytes, read: 'meminfo' })
     }
     if (process.platform === 'win32') {
       const available = availableFromCounter(freemem())
-      return available === null ? fallback : { availableBytes: available, totalBytes, read: 'counter' }
+      return rememberMemorySample(available === null ? fallback : { availableBytes: available, totalBytes, read: 'counter' })
     }
   } catch {
   }
-  return fallback
+  return rememberMemorySample(fallback)
 }
 
 
@@ -102,9 +114,9 @@ let sampler: (() => { cores: number; availableBytes: number; read: MemoryRead })
 
 let pendingSample: Promise<void> | null = null
 
-async function sampleAvailableMemoryAsync(): Promise<MemorySample> {
+async function takeMemorySample(): Promise<MemorySample> {
   const totalBytes = totalmem()
-  const fallback: MemorySample = { availableBytes: freemem(), totalBytes, read: 'free' }
+  const fallback = runtimeMemorySample()
   try {
     if (process.platform === 'darwin') {
       const result = await execFileNoThrow('vm_stat', [], { timeout: 2000, useCwd: false })
@@ -129,10 +141,24 @@ async function sampleAvailableMemoryAsync(): Promise<MemorySample> {
   return fallback
 }
 
+export function refreshMemorySample(): Promise<MemorySample> {
+  pendingMemorySample ??= takeMemorySample()
+    .then(rememberMemorySample)
+    .finally(() => {
+      pendingMemorySample = null
+    })
+  return pendingMemorySample
+}
+
+export function lastMemorySample(now: number = Date.now()): { sample: MemorySample; sampledAt: number } | null {
+  if (memorySampleMemo === null || now - memorySampleMemo.sampledAt >= SAMPLE_TTL_MS) void refreshMemorySample().catch(() => {})
+  return memorySampleMemo
+}
+
 function refreshHeldReadingAsync(): Promise<void> {
   pendingSample ??= (async () => {
     await Promise.resolve()
-    const memory = sampler === null ? await sampleAvailableMemoryAsync() : sampler()
+    const memory = sampler === null ? await refreshMemorySample() : sampler()
     const sample: SeatReadingSample = { cores: 'cores' in memory ? memory.cores : availableCores(), availableBytes: memory.availableBytes, read: memory.read, sampledAt: Date.now() }
     lastSampledAt = sample.sampledAt
     const seats = machineSeatReading(sample.cores, sample.availableBytes)
@@ -295,7 +321,7 @@ async function countOtherAgentClis(): Promise<number> {
 }
 
 export async function probeCapacity(): Promise<CapacityProbe> {
-  const memory = sampleAvailableMemory()
+  const memory = await refreshMemorySample()
   return {
     cores: availableCores(),
     totalMemBytes: memory.totalBytes,

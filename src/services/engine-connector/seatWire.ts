@@ -167,6 +167,7 @@ const BOX: KeyTable = {
 const BOX_MEMORY: KeyTable = {
   availableMb: 'available_mb',
   totalMb: 'total_mb',
+  sampledAtMs: 'sampled_at_ms',
 }
 const BOX_WAITER: KeyTable = {
   waitedS: 'waited_s',
