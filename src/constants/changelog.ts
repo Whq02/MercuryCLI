@@ -2,18 +2,16 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.9
-- Fixed the cockpit losing the top of its rail and leaving fragments after a long notice, and not following the window's size on Windows
-- Fixed a woken session dropping its preserved thinking: the history is sent byte for byte after a revive, a computer-use screenshot is read back from its file instead of the note the session file keeps, and the prefix record lives beside the session so a fresh process names the part that moved
-- Moved the preserved-thinking record's write off the request path; the record is removed with its chat and swept when its transcript is gone or it is older than thirty days
-- Added a ledger of unread notices: an agent idle with a notice it never read is nudged after three minutes instead of stalling, and its crew row shows the unread count
-- Added refactors through the language service: rename a symbol, move a declaration to another file and apply code actions by kind, each previewed as data with a plan token and applied on a second call only after the files were read
-- Changed the catalog to withhold a tool whose machine dependency is absent, the Debug tool with no reachable adapter and the Godot tool with no Godot executable, with a doctor row naming each and why
-- Added the box's state to the session facts and to a shell result that waited on the box lock, and the session's scratchpad to the model's prompt as the place for temporary files, swept when the session ends
-- Changed the generated-asset map to be written by the generators themselves, so a generated file with no generator is caught before the gate
-- Changed the words a message sent while the model works arrives with, and its row now carries the time it was sent
-- Added Godot captures, frame statistics and settled profiles as engine jobs on a frozen copy of the project, a bridge per Godot instance with its own port and token, a runtime query surface, file leases without a team, a proof-drift check on every gate, and the engine's own profiler over the debugger protocol
+- Fixed a woken session losing its preserved thinking: the history it sends is the one the live session sent, and the record of what was sent survives the wake
 - Fixed a new sign-in not reaching the engine behind an open chat, which kept refusing delegated agents with the old account's usage window
-- Fixed a task notification redrawn under every new message until it aged out
+- Fixed the cockpit losing the top of its rail after a long notice, and not following the window's size on Windows
+- Fixed a task notification redrawn under every new message until it aged out, and a boot that waited on a tool probe
+- Added a ledger of unread notices: an idle agent that missed a completion is nudged after three minutes, and its crew row shows the count
+- Added refactors through the language service: rename, move a declaration, and code actions by kind, each previewed as data before it is applied
+- Added Godot captures, frame statistics and settled profiles as engine jobs, a bridge per Godot instance, a runtime query surface, file leases without a team, a proof-drift check, and the engine's own profiler over the debugger protocol
+- Changed the catalog to withhold a tool whose machine dependency is absent, with a doctor row naming why
+- Changed the words a message sent mid-turn arrives with, and its row now carries the time it was sent
+- Added the box's state and the session's scratchpad to what the model is told
 
 ## 1.0.0-beta.8
 - Changed sovereign mode to be the one bypass: the Boot Menu's Sovereign mode row skips every permission question, computer use included, and the computer-use ask card's fifth answer turns it on
