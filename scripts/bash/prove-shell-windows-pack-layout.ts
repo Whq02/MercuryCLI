@@ -56,6 +56,7 @@ console.log('── §3 the win-x64 layout ──')
     check('the engine pin (vendor/brush.lock.json) equals the probe\'s default version', parsed.version === pinnedVersion, `${parsed.version} vs ${pinnedVersion}`)
     const entry = parsed.platforms?.['win-x64']
     check('the lock carries a BUILD entry for win-x64 — the crate, its version at the pin, the MSVC target', entry?.kind === 'build' && entry.crate === 'brush-shell' && entry.crateVersion === parsed.version && entry.target === 'x86_64-pc-windows-msvc', JSON.stringify(entry))
+    check("the build entry pins the crate archive's sha256 (the crates.io index checksum), so a build refuses a changed crate", typeof entry?.crateSha256 === 'string' && /^[0-9a-f]{64}$/.test(entry.crateSha256), String(entry?.crateSha256))
   } else {
     console.log('  [SKIP] vendor/brush.lock.json is not on this tree — the version pin is the probe\'s default alone')
   }
