@@ -173,6 +173,7 @@ export const AstEditTool = buildTool({
   shouldDefer: true,
   name: AST_EDIT_TOOL_NAME,
   strict: true,
+  straightQuoteInputs: ['pattern', 'path', 'glob'],
   maxResultSizeChars: 60_000,
   searchHint: 'structural code rewrite by syntax pattern across files, dry-run diff then apply',
   capability: {

@@ -291,6 +291,7 @@ Conceptual asks this closes: "debug the failing Python test" (the rerun-failed p
   },
   userFacingName,
   shouldDefer: true,
+  straightQuoteInputs: ['file'],
   get inputSchema(): SchemaType {
     return inputSchema()
   },

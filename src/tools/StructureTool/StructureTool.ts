@@ -579,6 +579,7 @@ Everything is bounded and inspectable: mercury://structure/query/<id> · mercury
   },
   userFacingName,
   shouldDefer: true,
+  straightQuoteInputs: ['pattern', 'name', 'callee', 'module', 'within', 'files', 'to', 'newModule'],
   get inputSchema(): SchemaType {
     return inputSchema()
   },

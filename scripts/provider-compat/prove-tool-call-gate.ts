@@ -16,6 +16,7 @@ const section = (t: string): void => {
 }
 
 delete process.env.NODE_ENV
+for (const ambient of ['ANTHROPIC_API_KEY', 'MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE']) delete process.env[ambient]
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'tool-call-gate-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -82,6 +83,22 @@ function chatCompletionsSse(s: Script): string {
     }),
   )
   out.push('data: [DONE]\n\n')
+  return out.join('')
+}
+
+function anthropicSse(s: Script): string {
+  const evt = (name: string, obj: unknown): string => `event: ${name}\n${sseLine(obj)}`
+  const usage = { input_tokens: 8, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 3 }
+  const out: string[] = [
+    evt('message_start', { type: 'message_start', message: { id: 'msg_fixture', type: 'message', role: 'assistant', model: 'fixture', content: [], stop_reason: null, stop_sequence: null, usage } }),
+  ]
+  s.calls.forEach((call, index) => {
+    out.push(evt('content_block_start', { type: 'content_block_start', index, content_block: { type: 'tool_use', id: call.id ?? `toolu_${index}`, name: call.name ?? '', input: {} } }))
+    out.push(evt('content_block_delta', { type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: call.args } }))
+    out.push(evt('content_block_stop', { type: 'content_block_stop', index }))
+  })
+  out.push(evt('message_delta', { type: 'message_delta', delta: { stop_reason: s.calls.length > 0 ? 'tool_use' : 'end_turn', stop_sequence: null }, usage }))
+  out.push(evt('message_stop', { type: 'message_stop' }))
   return out.join('')
 }
 
@@ -159,6 +176,11 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       } else {
         res.end(JSON.stringify({ object: 'list', data: [{ id: 'fixture-local', object: 'model', owned_by: 'fixture' }] }))
       }
+      return
+    }
+    if (req.method === 'POST' && path.endsWith('/v1/messages')) {
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      res.end(anthropicSse(script))
       return
     }
     if (req.method === 'POST' && path.endsWith('/chat/completions')) {
@@ -565,6 +587,65 @@ for (const model of ['gpt-5.6-sol', 'deepseek-v4-pro']) {
   )
 }
 
+section('the straight-quote law: the gpt lane straightens a command, a pattern and a path; content and prose arrive as typed; every other wire carries the bytes as typed')
+{
+  const LS = '‘'
+  const RS = '’'
+  const LD = '“'
+  const RD = '”'
+  const GLOB = GlobTool.name
+  const WRITE = FileWriteTool.name
+  const curled: Record<string, Script> = {
+    bash: { calls: [{ id: 'call_curl_bash', name: BASH, args: JSON.stringify({ command: `echo ${LS}hi${RS} ${LD}there${RD}`, description: `say ${LS}hi${RS} ${LD}there${RD}` }) }] },
+    grep: { calls: [{ id: 'call_curl_grep', name: GREP, args: JSON.stringify({ pattern: `don${RS}t`, path: `/tmp/${LS}x${RS}`, glob: `${LD}*.md${RD}`, output_mode: 'content' }) }] },
+    glob: { calls: [{ id: 'call_curl_glob', name: GLOB, args: JSON.stringify({ pattern: `**/${LS}x${RS}*.md` }) }] },
+    write: { calls: [{ id: 'call_curl_write', name: WRITE, args: JSON.stringify({ file_path: `/tmp/${LS}f${RS}.md`, content: `it${RS}s ${LD}fine${RD}` }) }] },
+    edit: { calls: [{ id: 'call_curl_edit', name: EDIT, args: JSON.stringify({ file_path: `/tmp/${LS}f${RS}.md`, old_string: `it${RS}s`, new_string: `it${RS}s ${LD}fine${RD}` }) }] },
+  }
+  const minted = async (model: string, s: Script): Promise<{ input: Record<string, unknown>; detail: string }> => {
+    const o = await drive(model, s)
+    return {
+      input: (o.toolUses[0]?.input ?? {}) as Record<string, unknown>,
+      detail: `threw=${o.threw ? String(o.threw) : 'no'} apiError=${o.apiError ?? 'none'} mints=${o.toolUses.length} input=${JSON.stringify(o.toolUses[0]?.input)}`,
+    }
+  }
+  const lanes: Array<{ model: string; straight: boolean; wire: string }> = [
+    { model: 'gpt-5.6-sol', straight: true, wire: 'the Responses wire' },
+    { model: 'deepseek-v4-pro', straight: false, wire: 'a chat-completions wire' },
+    { model: 'claude-opus-4-8', straight: false, wire: 'the Anthropic wire' },
+  ]
+  for (const { model, straight, wire } of lanes) {
+    const word = straight ? 'arrives straight' : 'arrives as typed'
+    const bash = await minted(model, curled.bash!)
+    check(
+      `${model} (${wire}): the Bash command ${word}; the description arrives as typed`,
+      bash.input.command === (straight ? `echo 'hi' "there"` : `echo ${LS}hi${RS} ${LD}there${RD}`) && bash.input.description === `say ${LS}hi${RS} ${LD}there${RD}`,
+      bash.detail,
+    )
+    const grep = await minted(model, curled.grep!)
+    check(
+      `${model}: the Grep pattern, path and glob ${straight ? 'arrive straight' : 'arrive as typed'}`,
+      grep.input.pattern === (straight ? "don't" : `don${RS}t`) && grep.input.path === (straight ? "/tmp/'x'" : `/tmp/${LS}x${RS}`) && grep.input.glob === (straight ? '"*.md"' : `${LD}*.md${RD}`),
+      grep.detail,
+    )
+    const glob = await minted(model, curled.glob!)
+    check(`${model}: the Glob pattern ${word}`, glob.input.pattern === (straight ? "**/'x'*.md" : `**/${LS}x${RS}*.md`), glob.detail)
+    const write = await minted(model, curled.write!)
+    check(
+      `${model}: the Write file path ${word}; the content arrives as typed`,
+      write.input.file_path === (straight ? "/tmp/'f'.md" : `/tmp/${LS}f${RS}.md`) && write.input.content === `it${RS}s ${LD}fine${RD}`,
+      write.detail,
+    )
+    const edit = await minted(model, curled.edit!)
+    check(
+      `${model}: the Edit file path ${word}; old_string and new_string arrive as typed`,
+      edit.input.file_path === (straight ? "/tmp/'f'.md" : `/tmp/${LS}f${RS}.md`) && edit.input.old_string === `it${RS}s` && edit.input.new_string === `it${RS}s ${LD}fine${RD}`,
+      edit.detail,
+    )
+  }
+  check('the Anthropic drive rode the messages wire of the fixture', hits.some(h => h === 'POST /v1/messages'), hits.filter(h => h.includes('messages')).join(' | '))
+}
+
 section('the permissive-tool extra field rides the minted input verbatim (validated, never rewritten)')
 {
   const o = await drive('kimi-k3', CASES.find(c => c.label.startsWith('unknown field on a permissive'))!.script)
@@ -690,6 +771,78 @@ section('the gate as a pure function (the exact contract the adapters call)')
     const grep = dropEmptyOptionalArgs({ pattern: '', glob: '' }, GrepTool as never)
     return JSON.stringify(edit) === JSON.stringify({ file_path: '/tmp/x', old_string: '', new_string: '' }) && JSON.stringify(grep) === JSON.stringify({ pattern: '' })
   })())
+  const gateModule = (await import('../../src/services/providers/toolCallGate.ts')) as unknown as {
+    straightenQuoteArgs?: (input: Record<string, unknown>, tool: { straightQuoteInputs?: readonly string[] }) => Record<string, unknown>
+  }
+  check('straightenQuoteArgs is exported by the gate', typeof gateModule.straightenQuoteArgs === 'function')
+  const straighten = (input: Record<string, unknown>, tool: { straightQuoteInputs?: readonly string[] }): Record<string, unknown> =>
+    typeof gateModule.straightenQuoteArgs === 'function' ? gateModule.straightenQuoteArgs(input, tool) : input
+  const LS = '‘'
+  const RS = '’'
+  const LD = '“'
+  const RD = '”'
+  const listed = { straightQuoteInputs: ['command', 'paths', 'shape'] as const }
+  check('straightenQuoteArgs: a declared string field is straightened; an undeclared one stays as typed', (() => {
+    const out = straighten({ command: `echo ${LS}a${RS} ${LD}b${RD}`, description: `say ${LS}a${RS}` }, listed)
+    return out.command === `echo 'a' "b"` && out.description === `say ${LS}a${RS}`
+  })())
+  check('straightenQuoteArgs: a declared array field is straightened element by element; a non-string element rides', (() => {
+    const out = straighten({ paths: [`/tmp/${LS}x${RS}`, 3, `${LD}y${RD}`] }, listed)
+    return JSON.stringify(out.paths) === JSON.stringify(["/tmp/'x'", 3, '"y"'])
+  })())
+  check('straightenQuoteArgs: a nested value is never touched, even under a declared field', (() => {
+    const shape = { text: `${LS}nested${RS}` }
+    const out = straighten({ shape }, listed)
+    return out.shape === shape && (out.shape as { text: string }).text === `${LS}nested${RS}`
+  })())
+  check('straightenQuoteArgs: a call with nothing to straighten keeps the very object the model sent', (() => {
+    const input = { command: "echo 'plain'", paths: ['/tmp/x'] }
+    return straighten(input, listed) === input && straighten(input, {}) === input
+  })())
+  check('gateToolCall: the straightening hint straightens the real Bash command; without the hint the same bytes ride as typed (every lane but gpt)', (() => {
+    const raw = JSON.stringify({ command: `echo ${LS}hi${RS}` })
+    const hinted = gateToolCall(CATALOG, { id: 'c1', name: BASH, argumentsRaw: raw, malformed: false }, { straightenQuotes: true } as never)
+    const plain = gateToolCall(CATALOG, { id: 'c2', name: BASH, argumentsRaw: raw, malformed: false })
+    return hinted.ok && hinted.input.command === "echo 'hi'" && plain.ok && plain.input.command === `echo ${LS}hi${RS}`
+  })())
+  const declared = (tool: unknown): string => JSON.stringify((tool as { straightQuoteInputs?: readonly string[] }).straightQuoteInputs ?? null)
+  check('the shell, search and file tools declare their straightened fields: Bash command · Grep pattern, path, glob · Glob pattern, path · Read, Write and Edit file_path', (() => {
+    return (
+      declared(BashTool) === JSON.stringify(['command']) &&
+      declared(GrepTool) === JSON.stringify(['pattern', 'path', 'glob']) &&
+      declared(GlobTool) === JSON.stringify(['pattern', 'path']) &&
+      declared(FileReadTool) === JSON.stringify(['file_path']) &&
+      declared(FileWriteTool) === JSON.stringify(['file_path']) &&
+      declared(FileEditTool) === JSON.stringify(['file_path'])
+    )
+  })(), [BashTool, GrepTool, GlobTool, FileReadTool, FileWriteTool, FileEditTool].map(declared).join(' '))
+  {
+    const { LSPTool } = await import('../../src/tools/LSPTool/LSPTool.ts')
+    const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
+    const { NotebookEditTool } = await import('../../src/tools/NotebookEditTool/NotebookEditTool.ts')
+    const { AstSearchTool } = await import('../../src/tools/AstSearchTool/AstSearchTool.ts')
+    const { AstEditTool } = await import('../../src/tools/AstEditTool/AstEditTool.ts')
+    const { StructureTool } = await import('../../src/tools/StructureTool/StructureTool.ts')
+    const { PowerShellTool } = await import('../../src/tools/PowerShellTool/PowerShellTool.tsx')
+    const { GitTool } = await import('../../src/tools/GitTool/GitTool.ts')
+    const { SendUserFileTool } = await import('../../src/tools/SendUserFileTool/SendUserFileTool.ts')
+    const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
+    const { LaunchTool } = await import('../../src/tools/LaunchTool/LaunchTool.ts')
+    const { ServiceTool } = await import('../../src/tools/ServiceTool/ServiceTool.ts')
+    const { MonitorTool } = await import('../../src/tools/MonitorTool/MonitorTool.ts')
+    const { AsepriteTool } = await import('../../src/tools/AsepriteTool/AsepriteTool.ts')
+    const { WorkshopTool } = await import('../../src/tools/WorkshopTool/WorkshopTool.ts')
+    check('the language-server tool straightens its file, symbol and path fields: filePath, query, newName, newPath, targetPath, paths', declared(LSPTool) === JSON.stringify(['filePath', 'query', 'newName', 'newPath', 'targetPath', 'paths']), declared(LSPTool))
+    check('the debugger straightens its paths, expressions and symbols: program, file, expression, name, value, text, functions', declared(DebugTool) === JSON.stringify(['program', 'file', 'expression', 'name', 'value', 'text', 'functions']), declared(DebugTool))
+    check('the notebook editor straightens notebook_path and keeps new_source as typed', declared(NotebookEditTool) === JSON.stringify(['notebook_path']), declared(NotebookEditTool))
+    check('the structural search and rewrite tools straighten pattern, path and glob; the rewrite text stays as typed', declared(AstSearchTool) === JSON.stringify(['pattern', 'path', 'glob']) && declared(AstEditTool) === JSON.stringify(['pattern', 'path', 'glob']), `${declared(AstSearchTool)} ${declared(AstEditTool)}`)
+    check('the Structure tool straightens its pattern, symbol, glob and path fields: pattern, name, callee, module, within, files, to, newModule', declared(StructureTool) === JSON.stringify(['pattern', 'name', 'callee', 'module', 'within', 'files', 'to', 'newModule']), declared(StructureTool))
+    check('the PowerShell tool straightens its command', declared(PowerShellTool) === JSON.stringify(['command']), declared(PowerShellTool))
+    check('the git tool straightens its path fields: paths, files, path, file', declared(GitTool) === JSON.stringify(['paths', 'files', 'path', 'file']), declared(GitTool))
+    check('the file-delivery, test, launch, service and monitor tools straighten their paths and commands', declared(SendUserFileTool) === JSON.stringify(['files']) && declared(TestTool) === JSON.stringify(['path', 'file']) && declared(LaunchTool) === JSON.stringify(['file']) && declared(ServiceTool) === JSON.stringify(['command', 'cwd']) && declared(MonitorTool) === JSON.stringify(['command']), [SendUserFileTool, TestTool, LaunchTool, ServiceTool, MonitorTool].map(declared).join(' '))
+    check('the Aseprite tool straightens its sprite, output and data-output paths; the Lua source stays as typed', declared(AsepriteTool) === JSON.stringify(['file', 'output', 'dataOutput']), declared(AsepriteTool))
+    check('the Workshop tool declares nothing: a cell is content and arrives as typed', declared(WorkshopTool) === 'null', declared(WorkshopTool))
+  }
   check('replayableItems keeps the first function_call of a duplicated id and drops the rest', (() => {
     const pure = replayableItems(
       [

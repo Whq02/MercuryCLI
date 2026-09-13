@@ -429,6 +429,7 @@ export const FileEditTool = buildTool({
   name: FILE_EDIT_TOOL_NAME,
   strict: true,
   keepEmptyInputs: ['old_string', 'new_string'],
+  straightQuoteInputs: ['file_path'],
   maxResultSizeChars: 100_000,
   get inputSchema() {
     return inputSchema()

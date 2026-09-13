@@ -66,7 +66,13 @@ joins the one session cost ledger. On the wires that hand Mercury a tool
 call's arguments as text, an optional field the model sent empty (an empty
 string, an empty array, a null) reads as omitted, as the Anthropic wire
 carries it; a required field sent empty stays, and the tool's own refusal
-names it.
+names it. On the OpenAI Responses wire, a curly quote in a field whose
+value is a command, a pattern, a symbol or a path (the shell command; Grep's
+pattern, path and glob; every tool's file path; the language-server tool's
+symbol names and file fields; the debugger's expressions) reads as its
+straight twin, since none of those ever wants one; a field that carries
+content or prose — a Write's content, an Edit's new text, a Workshop cell —
+stays exactly as typed, and every other wire carries every byte as typed.
 
 Each wire carries its provider's documented quirks, the same pins the wire
 sends from: reasoning-effort vocabularies, sampling restrictions

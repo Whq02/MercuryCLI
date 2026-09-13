@@ -207,6 +207,7 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
 export const GrepTool = buildTool({
   name: GREP_TOOL_NAME,
   strict: true,
+  straightQuoteInputs: ['pattern', 'path', 'glob'],
   maxResultSizeChars: 20_000,
   inputSchema,
   outputSchema,
