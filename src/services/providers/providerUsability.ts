@@ -1,6 +1,6 @@
 import { getAnthropicApiKey, isClaudeAISubscriber } from '../../utils/auth.js'
-import { formatClock } from '../../utils/cockpit/quota.js'
 import { anthropicLimitVerdict } from '../claudeAiLimits.js'
+import { anthropicWindowWords, type AnthropicWindowObservation } from './anthropicRefusal.js'
 import { getGptSeatAvailability } from './openai/openaiCatalogue.js'
 import { providerDisplayName } from './routeLaw.js'
 
@@ -30,7 +30,7 @@ export interface ProviderUsabilityReads {
   anthropicSubscriber: () => boolean
   anthropicBearerToken?: () => boolean
   anthropicLimitStatus: () => 'allowed' | 'allowed_warning' | 'rejected' | 'unknown'
-  anthropicLimitObservation?: () => { account: string; observedAtMs: number } | undefined
+  anthropicLimitObservation?: () => AnthropicWindowObservation | undefined
   gptSeat: () => { state: 'ready' | 'disabled'; reason?: string; why?: string }
   zaiKeyPresent: () => boolean
   moonshotAccount?: () => { kind: 'kimi-oauth' | 'api-key' } | undefined
@@ -51,14 +51,20 @@ export interface ProviderUsabilityReads {
   ) => { state: 'credit-exhausted'; detail: string; remedy: string } | { state: 'clear' }
 }
 
-export function anthropicLimitReads(): Pick<ProviderUsabilityReads, 'anthropicLimitStatus' | 'anthropicLimitObservation'> {
+export function anthropicLimitReads(
+  clock: () => number = Date.now,
+): Pick<ProviderUsabilityReads, 'anthropicLimitStatus' | 'anthropicLimitObservation'> {
   return {
-    anthropicLimitStatus: () => anthropicLimitVerdict().status,
+    anthropicLimitStatus: () => anthropicLimitVerdict(clock()).status,
     anthropicLimitObservation: () => {
-      const verdict = anthropicLimitVerdict()
-      return verdict.observedAtMs === undefined || verdict.account === undefined
-        ? undefined
-        : { account: verdict.account, observedAtMs: verdict.observedAtMs }
+      const verdict = anthropicLimitVerdict(clock())
+      if (verdict.observedAtMs === undefined || verdict.account === undefined) return undefined
+      return {
+        account: verdict.account,
+        observedAtMs: verdict.observedAtMs,
+        ...(verdict.resetsAtMs !== undefined ? { resetsAtMs: verdict.resetsAtMs } : {}),
+        ...(verdict.lapsesAtMs !== undefined ? { lapsesAtMs: verdict.lapsesAtMs } : {}),
+      }
     },
   }
 }
@@ -183,12 +189,7 @@ export function resolveProviderUsability(
     anthropicBlockers.push('no Anthropic credential — /logins (or ANTHROPIC_API_KEY)')
   }
   if (limit === 'rejected') {
-    const seen = reads.anthropicLimitObservation?.()
-    anthropicBlockers.push(
-      seen === undefined
-        ? 'the Anthropic usage window is reached — resets per /usage'
-        : `the Anthropic usage window is reached for ${seen.account}, seen at ${formatClock(seen.observedAtMs)} — resets per /usage`,
-    )
+    anthropicBlockers.push(anthropicWindowWords(reads.anthropicLimitObservation?.()))
   }
   const anthropic: ProviderUsability = {
     provider: 'anthropic',
