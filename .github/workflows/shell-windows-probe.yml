@@ -179,9 +179,31 @@ jobs:
             $row = $d.readiness | Where-Object { $_.id -eq 'tool:shell' }
             $row | Format-List
             if ($versionCode -ne 0) { Write-Host '--version DID NOT EXIT 0 WITHOUT bash.exe'; $verdict = 1 }
-            if ($shell.status -ne 'warn') { Write-Host 'THE SHELL CHECK DID NOT WARN'; $verdict = 1 }
-            if ($row.state -ne 'unavailable') { Write-Host 'THE READINESS ROW DID NOT READ unavailable'; $verdict = 1 }
+            $packed = (Get-Content dist\manifest.json -Raw | ConvertFrom-Json).shellEngine.vendored -eq $true
+            Write-Host "shell engine pack in dist: $packed"
+            if ($packed) {
+              if ($shell.status -ne 'ok') { Write-Host 'THE SHELL CHECK IS NOT ok ON THE BUNDLED ENGINE'; $verdict = 1 }
+              if ($shell.evidence -notmatch 'bundled shell engine') { Write-Host 'THE SHELL CHECK DOES NOT NAME THE BUNDLED ENGINE'; $verdict = 1 }
+              if ($row.state -ne 'ready') { Write-Host 'THE READINESS ROW IS NOT ready ON THE BUNDLED ENGINE'; $verdict = 1 }
+            } else {
+              if ($shell.status -ne 'warn') { Write-Host 'THE SHELL CHECK DID NOT WARN'; $verdict = 1 }
+              if ($row.state -ne 'unavailable') { Write-Host 'THE READINESS ROW DID NOT READ unavailable'; $verdict = 1 }
+            }
             if ("$code" -ne "$env:DOCTOR_PRESENT_EXIT") { Write-Host 'THE EXIT CODE MOVED WITHOUT bash.exe'; $verdict = 1 }
+            Write-Host '== doctor --json with the engine forced off (MERCURY_SHELL_ENGINE=system)'
+            $env:MERCURY_SHELL_ENGINE = 'system'
+            $env:MERCURY_CONFIG_DIR = "$env:RUNNER_TEMP\home-absent-off"
+            node dist\mercury.mjs doctor --json > "$env:RUNNER_TEMP\doctor-absent-off.json"
+            $offCode = $LASTEXITCODE
+            Remove-Item Env:MERCURY_SHELL_ENGINE
+            $off = Get-Content "$env:RUNNER_TEMP\doctor-absent-off.json" -Raw | ConvertFrom-Json
+            $offShell = $off.sections | ForEach-Object { $_.checks } | Where-Object { $_.id -eq 'shell' }
+            $offShell | Format-List
+            $offRow = $off.readiness | Where-Object { $_.id -eq 'tool:shell' }
+            $offRow | Format-List
+            if ($offShell.status -ne 'warn') { Write-Host 'THE SHELL CHECK DID NOT WARN WITH THE ENGINE FORCED OFF'; $verdict = 1 }
+            if ($offRow.state -ne 'unavailable') { Write-Host 'THE READINESS ROW DID NOT READ unavailable WITH THE ENGINE FORCED OFF'; $verdict = 1 }
+            if ("$offCode" -ne "$env:DOCTOR_PRESENT_EXIT") { Write-Host 'THE EXIT CODE MOVED WITH THE ENGINE FORCED OFF'; $verdict = 1 }
           } finally {
             Rename-Item -Path "$bash.off" -NewName 'bash.exe'
           }

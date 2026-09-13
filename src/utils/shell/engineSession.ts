@@ -20,6 +20,8 @@ import { generateTaskId } from '../../Task.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { resolveBrushPackDir, type BrushPackResolution } from './brushPack.js'
 import { nativeCwdFromShellRecord } from '../windowsPaths.js'
+import { shellEngineArmWords, shellEngineRequest, type ShellEngineArm } from './shellEngineArm.js'
+import { windowsBashAbsent } from './windowsShellRoad.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { sandboxTempEnv } from './bashProvider.js'
 import type { ExecResult, ShellCommand } from '../ShellCommand.js'
@@ -52,22 +54,24 @@ export function engineSessionCeilingPinned(): boolean {
 }
 
 export type ShellEngineResolution =
-  | { engine: 'brush'; binaryPath: string; version: string; platform: string; source: 'vendored' | 'workspace' }
-  | { engine: 'system'; requested: 'system' | 'brush'; reason: string }
+  | { engine: 'brush'; binaryPath: string; version: string; platform: string; source: 'vendored' | 'workspace'; arm: ShellEngineArm }
+  | { engine: 'system'; requested: 'system' | 'brush'; arm: ShellEngineArm | 'default'; reason: string }
 
 export function resolveShellEngine(setting?: 'system' | 'brush'): ShellEngineResolution {
-  const pin = process.env.MERCURY_SHELL_ENGINE
-  const requested: 'system' | 'brush' =
-    pin === 'brush' ? 'brush' : pin === 'system' ? 'system' : setting === 'brush' ? 'brush' : 'system'
-  if (requested !== 'brush') {
-    return { engine: 'system', requested, reason: 'the system shell is selected' }
+  const request = shellEngineRequest(process.env.MERCURY_SHELL_ENGINE, setting, windowsBashAbsent())
+  if (request.requested !== 'brush') {
+    return { engine: 'system', requested: 'system', arm: request.arm, reason: `the system shell is selected (${shellEngineArmWords(request.arm)})` }
   }
   const pack = resolvedPack()
   if (pack.state !== 'ok') {
     return {
       engine: 'system',
       requested: 'brush',
-      reason: `the shell engine is unavailable, so the system shell serves instead — ${pack.note}`,
+      arm: request.arm,
+      reason:
+        request.arm === 'no-bash'
+          ? `the bundled shell engine is unavailable — ${pack.note}`
+          : `the shell engine is unavailable, so the system shell serves instead — ${pack.note}`,
     }
   }
   return {
@@ -76,6 +80,7 @@ export function resolveShellEngine(setting?: 'system' | 'brush'): ShellEngineRes
     version: pack.manifest.version,
     platform: pack.manifest.platform,
     source: pack.source,
+    arm: request.arm,
   }
 }
 
