@@ -47,7 +47,7 @@ section('§1 the fingerprint decides: COLORTERM or a known truecolor terminal, n
   check('Kitty is named by TERM or its window id', fp({ TERM: 'xterm-kitty' }) !== null && fp({ TERM: 'xterm-256color', KITTY_WINDOW_ID: '3' }) !== null)
   check('the depth words are spoken', colorize.colorDepthWhy().length > 20, colorize.colorDepthWhy())
   const src = readFileSync(join(ROOT, 'src', 'ink', 'colorize.ts'), 'utf8')
-  check('the fingerprint boost runs before the flag and the tmux clamp', src.indexOf('CHALK_BOOSTED_FOR_FINGERPRINT = ') < src.indexOf('CHALK_CLAMPED_FOR_MERCURY = ') && src.indexOf('CHALK_CLAMPED_FOR_MERCURY = ') < src.indexOf('CHALK_CLAMPED_FOR_TMUX = '))
+  check('the fingerprint boost runs before the flag and the tmux clamp', src.includes('CHALK_BOOSTED_FOR_FINGERPRINT = ') && src.includes('CHALK_CLAMPED_FOR_MERCURY = ') && src.includes('CHALK_CLAMPED_FOR_TMUX = ') && src.indexOf('CHALK_BOOSTED_FOR_FINGERPRINT = ') < src.indexOf('CHALK_CLAMPED_FOR_MERCURY = ') && src.indexOf('CHALK_CLAMPED_FOR_MERCURY = ') < src.indexOf('CHALK_CLAMPED_FOR_TMUX = '))
   check('no unconditional level-2 boost remains in the ladder', !/if \(chalk\.level === 2\) \{\s*chalk\.level = 3/.test(src))
 }
 
