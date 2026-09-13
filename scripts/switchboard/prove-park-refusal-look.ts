@@ -37,7 +37,7 @@ const record = {
   lastTurnSettledAt: now - 5 * 60_000,
   pid: process.pid,
 }
-const refusedLabel = snapshot.concourseNowLabel({ ...record, parkRefused: { reason: 'a turn is in flight', at: now, by: 'daemon: memory' } }, { alive: true, needsYou: false }, now)
+const refusedLabel = snapshot.concourseNowLabel({ ...record, parkRefused: { reason: 'a turn is in flight', at: now, by: 'operator:close' } }, { alive: true, needsYou: false }, now)
 const parkingLabel = snapshot.concourseNowLabel({ ...record, parkIntent: { token: 'tok-look', by: 'operator:close', at: now, pid: process.pid } }, { alive: true, needsYou: false }, now)
 check("the snapshot's NOW cell for a refused park is 'park refused — <reason>'", refusedLabel === 'park refused — a turn is in flight', String(refusedLabel))
 check("the snapshot's NOW cell for a park in flight is 'parking — <who asked>'", parkingLabel === 'parking — operator:close', String(parkingLabel))

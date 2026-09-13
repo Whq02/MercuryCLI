@@ -1847,9 +1847,10 @@ export async function* runEventCore(
 
     // eslint-disable-next-line custom-rules/require-tool-match-name -- ToolUseBlock.name has no aliases
     const sleepRan = toolUseBlocks.some(b => b.name === SLEEP_TOOL_NAME)
-    const isMainThread =
-      querySource.startsWith('repl_main_thread') || querySource === 'sdk'
     const currentAgentId = toolUseContext.agentId
+    const isMainThread =
+      currentAgentId === undefined &&
+      (querySource.startsWith('repl_main_thread') || querySource === 'sdk')
     const queuedCommandsSnapshot = selectDrainableCommands(
       getDrainableCommands(sleepRan),
       { sleepRan, isMainThread, agentId: currentAgentId },

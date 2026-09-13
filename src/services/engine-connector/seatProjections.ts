@@ -55,10 +55,6 @@ export interface SessionFactsAnswerV1 {
   box?: BoxReadingV1
 }
 
-export interface BoxFactsV1 extends BoxReadingV1 {
-  memoryGuard: string
-}
-
 export interface FileCheckpointFactsV1 {
   capture: boolean
   restorable: string[]
@@ -78,7 +74,7 @@ export interface SessionFactsV1 extends Omit<SessionFactsAnswerV1, 'permissionMo
   schedules?: import('../../daemon/saturn.js').SaturnFactsRowV1[]
   heldFireCount?: number
   runnerGeneration?: number
-  box?: BoxFactsV1
+  box?: BoxReadingV1
 }
 
 
