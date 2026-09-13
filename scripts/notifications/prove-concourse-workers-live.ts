@@ -110,8 +110,11 @@ check(
   await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000),
 )
 
+const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/warmRunner.ts')
+const ADMISSION_ANSWER_MS = WARM_BOOT_ALLOWANCE_MS
 type AdmitReply = {
   ok: boolean
+  code?: string
   workerId?: string
   sessionId?: string
   workspaceId?: string
@@ -119,8 +122,23 @@ type AdmitReply = {
   error?: string
   refusal?: string
 }
-const admit = async (workspaceDir: string, extra: Record<string, unknown> = {}): Promise<AdmitReply> =>
-  (await daemonControlRpc({ op: 'concourseAdmit', workspaceDir, ...extra } as never)) as AdmitReply
+type RosterRow = { workerId: string; sessionId: string; pid?: number }
+type ListReply = { ok: boolean; workers?: RosterRow[] }
+const listed = async (): Promise<RosterRow[]> => {
+  const r = (await daemonControlRpc({ op: 'concourseList' } as never)) as ListReply
+  return r.ok ? (r.workers ?? []) : []
+}
+const admit = async (workspaceDir: string, extra: Record<string, unknown> = {}): Promise<AdmitReply> => {
+  const before = new Set((await listed()).map(r => r.workerId))
+  const reply = (await daemonControlRpc({ op: 'concourseAdmit', workspaceDir, ...extra } as never, { timeoutMs: ADMISSION_ANSWER_MS })) as AdmitReply
+  if (reply.ok || reply.code !== 'ETIMEOUT') return reply
+  let joined: RosterRow | undefined
+  await untilAsync(async () => {
+    joined = (await listed()).find(r => !before.has(r.workerId) && r.pid !== undefined && alive(r.pid))
+    return joined !== undefined
+  }, ADMISSION_ANSWER_MS)
+  return joined === undefined ? reply : { ok: true, workerId: joined.workerId, sessionId: joined.sessionId, pid: joined.pid }
+}
 
 console.log('\n§1 — five real workers admit and run simultaneously (two isolated in ONE repo)')
 const admitted: Required<Pick<AdmitReply, 'workerId' | 'sessionId' | 'pid'>>[] = []
@@ -164,17 +182,12 @@ const dispatched = (await daemonControlRpc({
   clientMessageId: 'cm-live-1',
   prompt: 'summarize this workspace in one line',
   workspaceDir: workspaces[4]!,
-} as never)) as DispatchReply
+} as never, { timeoutMs: ADMISSION_ANSWER_MS })) as DispatchReply
 check(
   'the fifth session enters via concourseDispatch (prompt-to-session)',
   dispatched.ok === true && dispatched.state === 'working' && !!dispatched.workerId,
   JSON.stringify(dispatched),
 )
-type ListReply = { ok: boolean; workers?: Array<{ workerId: string; sessionId: string; pid?: number }> }
-const listed = async (): Promise<Array<{ workerId: string; sessionId: string; pid?: number }>> => {
-  const r = (await daemonControlRpc({ op: 'concourseList' } as never)) as ListReply
-  return r.ok ? (r.workers ?? []) : []
-}
 check(
   'five workers are simultaneously LIVE on the supervisor summary',
   await untilAsync(async () => (await listed()).length === 5, 60_000),
