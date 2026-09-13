@@ -48,7 +48,7 @@ import { declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } f
 import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
 import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
-import { getCurrentProjectConfig, getGlobalConfig } from '../utils/config.js'
+import { getCurrentProjectConfig, getGlobalConfig, readGlobalConfigAgain } from '../utils/config.js'
 import { mcpRosterEntriesOf, skillsRosterOf } from '../services/engine-connector/rosterTerms.js'
 import type { SessionFactsAnswerV1 } from '../services/engine-connector/seatProjections.js'
 import { effortSentOf } from '../services/engine-connector/seatProjections.js'
@@ -2217,6 +2217,7 @@ export async function runHeadless(
           return
         }
         case 'credential_change': {
+          readGlobalConfigAgain()
           resetLimitsForCredentialSwitch()
           dropCredentialMemos()
           respondSuccess(requestId)
