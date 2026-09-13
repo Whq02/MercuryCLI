@@ -573,10 +573,12 @@ function providerAuthChecks(): CheckSpec[] {
             }
           }
           if (presence.expired) {
+            const { anthropicSignInWords } =
+              require('../services/providers/anthropicRefusal.js') as typeof import('../services/providers/anthropicRefusal.js')
             return {
               status: 'warn' as const,
               evidence: `${presence.credentialLabel ?? 'claude.ai sign-in'} — sign-in EXPIRED (dead or spent refresh token; no network probe)`,
-              fix: 'Anthropic sign-in expired — /logins reconnects.',
+              fix: anthropicSignInWords(),
             }
           }
           const tok = getAuthTokenSource()
@@ -639,9 +641,21 @@ function providerUsageChecks(): CheckSpec[] {
       label: `${providerDisplayName(presence.id)} usage`,
       run: () => ({
         status: 'info' as const,
-        evidence: owner.usageSummaryWords(owner.usageForProvider(presence.id)),
+        evidence: `${owner.usageSummaryWords(owner.usageForProvider(presence.id))}${standingWindowWords(presence.id)}`,
       }),
     }))
+}
+
+function standingWindowWords(family: string): string {
+  if (family !== 'anthropic') return ''
+  try {
+    const { standingAnthropicRefusal } =
+      require('../services/providers/anthropicRefusal.js') as typeof import('../services/providers/anthropicRefusal.js')
+    const standing = standingAnthropicRefusal()
+    return standing?.kind === 'window' ? ` · ${standing.words}` : ''
+  } catch {
+    return ''
+  }
 }
 
 function webSearchDoorCheck(): CheckSpec {
