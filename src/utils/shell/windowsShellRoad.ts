@@ -4,17 +4,22 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { getPlatform } from '../platform.js'
 import { GIT_BASH_REMEDY, locateGitBash, type GitBashLocation } from '../windowsPaths.js'
+import type { ShellEngineResolution } from './engineSession.js'
+import { shellEngineArmWords, type ShellEngineArm } from './shellEngineArm.js'
 
 
 export type WindowsBashRoad =
   | { kind: 'git-bash'; path: string }
-  | { kind: 'engine'; path: string }
+  | { kind: 'engine'; path: string; arm: ShellEngineArm }
   | { kind: 'absent'; remedy: string }
 
-export type ShellEngineBinary = { path: string } | null
+export type ShellEngineBinary = { path: string; arm: ShellEngineArm } | null
 
 export const WINDOWS_BASH_NOTICE =
   'Bash tool absent — no bash.exe found: install Git for Windows, set MERCURY_GIT_BASH_PATH=<path to bash.exe>, or turn the shell engine on'
+
+export const WINDOWS_BASH_NOTICE_NO_PACK =
+  'Bash tool absent — no bash.exe found and the bundled shell engine is unavailable: install Git for Windows, set MERCURY_GIT_BASH_PATH=<path to bash.exe>, or restore the shell engine pack (a release archive carries it; a source build makes it with bun run scripts/vendor/build-brush.ts, then bun run build.ts)'
 
 function roadProbe(): 'no-bash' | 'locate' | null {
   const value = flagEnv('MERCURY_WINDOWS_SHELL_ROAD')
@@ -26,22 +31,29 @@ export function windowsShellRoadActive(): boolean {
 }
 
 export function composeWindowsBashRoad(gitBash: GitBashLocation, engine: ShellEngineBinary): WindowsBashRoad {
-  if (engine !== null) return { kind: 'engine', path: engine.path }
+  if (engine !== null) return { kind: 'engine', path: engine.path, arm: engine.arm }
   if ('path' in gitBash) return { kind: 'git-bash', path: gitBash.path }
   return { kind: 'absent', remedy: GIT_BASH_REMEDY }
 }
 
-function armedShellEngine(): ShellEngineBinary {
-  const { resolveShellEngine } = require('./engineSession.js') as typeof import('./engineSession.js')
-  const { getInitialSettings } = require('../settings/settings.js') as typeof import('../settings/settings.js')
-  const resolved = resolveShellEngine(getInitialSettings().shellEngine)
-  return resolved.engine === 'brush' ? { path: resolved.binaryPath } : null
+const locatedWindowsBash = memoize((): GitBashLocation => (roadProbe() === 'no-bash' ? { absent: true } : locateGitBash()))
+
+export function windowsBashAbsent(): boolean {
+  return windowsShellRoadActive() && !('path' in locatedWindowsBash())
 }
 
-export const windowsBashRoad = memoize((): WindowsBashRoad => {
-  const gitBash: GitBashLocation = roadProbe() === 'no-bash' ? { absent: true } : locateGitBash()
-  return composeWindowsBashRoad(gitBash, armedShellEngine())
-})
+function resolvedShellEngine(): ShellEngineResolution {
+  const { resolveShellEngine } = require('./engineSession.js') as typeof import('./engineSession.js')
+  const { getInitialSettings } = require('../settings/settings.js') as typeof import('../settings/settings.js')
+  return resolveShellEngine(getInitialSettings().shellEngine)
+}
+
+function armedShellEngine(): ShellEngineBinary {
+  const resolved = resolvedShellEngine()
+  return resolved.engine === 'brush' ? { path: resolved.binaryPath, arm: resolved.arm } : null
+}
+
+export const windowsBashRoad = memoize((): WindowsBashRoad => composeWindowsBashRoad(locatedWindowsBash(), armedShellEngine()))
 
 export function bashToolAvailable(): boolean {
   return !windowsShellRoadActive() || windowsBashRoad().kind !== 'absent'
@@ -70,15 +82,25 @@ export function describeWindowsShellRoad(): {
     return { road: 'system', absent: false, line: 'the system shell (bash or zsh on PATH) — the Bash tool runs under it' }
   }
   const road = windowsBashRoad()
-  if (road.kind === 'git-bash') return { road: 'git-bash', absent: false, line: `git-bash at ${road.path} — the Bash tool runs under it` }
+  if (road.kind === 'git-bash') return { road: 'git-bash', absent: false, line: `git-bash at ${road.path} — found on this machine; the Bash tool runs under it` }
   if (road.kind === 'engine') {
-    return { road: 'engine', absent: false, line: `the shell engine at ${road.path} — the Bash tool runs under it, no Git dependency` }
+    return {
+      road: 'engine',
+      absent: false,
+      line:
+        road.arm === 'no-bash'
+          ? `the bundled shell engine at ${road.path} — no bash.exe was found on this machine, so the Bash tool runs under Mercury's own bash-compatible engine`
+          : `the shell engine at ${road.path} — the Bash tool runs under it (${shellEngineArmWords(road.arm)}), no Git dependency`,
+    }
   }
+  const engine = resolvedShellEngine()
+  const noPack = engine.engine === 'system' && engine.requested === 'brush'
+  const why = engine.engine === 'system' && engine.requested === 'brush' ? engine.reason : `the shell engine is turned off (${shellEngineArmWords(engine.arm)})`
   return {
     road: 'absent',
     absent: true,
-    line: 'no bash.exe found and no shell engine pack — the Bash tool is absent from the roster; the PowerShell tool is present',
-    fix: WINDOWS_BASH_NOTICE,
+    line: `no bash.exe found and ${why} — the Bash tool is absent from the roster; the PowerShell tool is present`,
+    fix: noPack ? WINDOWS_BASH_NOTICE_NO_PACK : WINDOWS_BASH_NOTICE,
   }
 }
 
@@ -91,7 +113,7 @@ export function armWindowsShellRoad(): void {
     return
   }
   if (road.kind === 'engine') {
-    logForDebugging(`windows shell road: the shell engine at ${road.path}`)
+    logForDebugging(`windows shell road: the shell engine at ${road.path} (${shellEngineArmWords(road.arm)})`)
     return
   }
   logForDebugging(`windows shell road: ${WINDOWS_BASH_NOTICE}`, { level: 'warn' })
