@@ -17,7 +17,8 @@ if (registerOnlyRequested(ROW)) process.exit(0)
 const { TERRA, BELLY, IVORY, CLAW } = await import('../../src/components/mercuryPalette.ts')
 const { deriveAccentSoft, deriveFocalRamp } = await import('../../src/utils/mercuryTokens.ts')
 const { rampSampleAt } = await import('../../src/components/mercury-ui/focalRamp.ts')
-const { shouldHonorNoColor } = await import('../../src/ink/colorize.ts')
+const { shouldHonorNoColor, truecolorFingerprint } = await import('../../src/ink/colorize.ts')
+const { isEnvTruthy } = await import('../../src/utils/envUtils.ts')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 const critterData = await import('../../src/utils/cockpit/critterData.ts')
 
@@ -44,26 +45,39 @@ if (!(edge[4] === 172 && edge[5] === 59 && edge[6] === 59)) {
 const tcRow = getFlagSpec('MERCURY_TRUECOLOR')
 if (!tcRow) throw new Error('MERCURY_TRUECOLOR is not a registered flag — the truth table has no canonical anchor')
 const CASES = [
-  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'xterm-256color' },
-  { NO_COLOR: '1', FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'xterm-256color' },
-  { NO_COLOR: '1', FORCE_COLOR: '1', MERCURY_TRUECOLOR: null, TERM: 'xterm-256color' },
-  { NO_COLOR: '', FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'xterm-256color' },
-  { NO_COLOR: '1', FORCE_COLOR: '', MERCURY_TRUECOLOR: null, TERM: 'xterm-256color' },
-  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: '0', TERM: 'xterm-256color' },
-  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'dumb' },
-  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'linux' },
-  { NO_COLOR: '1', FORCE_COLOR: null, MERCURY_TRUECOLOR: '0', TERM: 'xterm-256color' },
+  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'xterm-256color', COLORTERM: 'truecolor', TERM_PROGRAM: null },
+  { NO_COLOR: '1', FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'xterm-256color', COLORTERM: 'truecolor', TERM_PROGRAM: null },
+  { NO_COLOR: '1', FORCE_COLOR: '1', MERCURY_TRUECOLOR: null, TERM: 'xterm-256color', COLORTERM: 'truecolor', TERM_PROGRAM: null },
+  { NO_COLOR: '', FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'xterm-256color', COLORTERM: 'truecolor', TERM_PROGRAM: null },
+  { NO_COLOR: '1', FORCE_COLOR: '', MERCURY_TRUECOLOR: null, TERM: 'xterm-256color', COLORTERM: 'truecolor', TERM_PROGRAM: null },
+  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: '0', TERM: 'xterm-256color', COLORTERM: 'truecolor', TERM_PROGRAM: null },
+  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'dumb', COLORTERM: 'truecolor', TERM_PROGRAM: null },
+  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'linux', COLORTERM: 'truecolor', TERM_PROGRAM: null },
+  { NO_COLOR: '1', FORCE_COLOR: null, MERCURY_TRUECOLOR: '0', TERM: 'xterm-256color', COLORTERM: 'truecolor', TERM_PROGRAM: null },
+  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'xterm-256color', COLORTERM: null, TERM_PROGRAM: null },
+  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'xterm-256color', COLORTERM: null, TERM_PROGRAM: 'Apple_Terminal' },
+  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'xterm-256color', COLORTERM: 'truecolor', TERM_PROGRAM: 'Apple_Terminal' },
+  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'xterm-256color', COLORTERM: '24bit', TERM_PROGRAM: null },
+  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'xterm-256color', COLORTERM: null, TERM_PROGRAM: 'vscode' },
+  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'xterm-256color', COLORTERM: null, TERM_PROGRAM: 'iTerm.app' },
+  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: null, TERM: 'xterm-kitty', COLORTERM: null, TERM_PROGRAM: null },
+  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: '1', TERM: 'xterm-256color', COLORTERM: null, TERM_PROGRAM: null },
+  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: '1', TERM: 'xterm-256color', COLORTERM: null, TERM_PROGRAM: 'Apple_Terminal' },
+  { NO_COLOR: '1', FORCE_COLOR: '1', MERCURY_TRUECOLOR: null, TERM: 'xterm-256color', COLORTERM: null, TERM_PROGRAM: null },
+  { NO_COLOR: null, FORCE_COLOR: null, MERCURY_TRUECOLOR: '1', TERM: 'linux', COLORTERM: null, TERM_PROGRAM: null },
 ]
 const modeOf = c => {
   const env = {}
-  if (c.NO_COLOR !== null) env.NO_COLOR = c.NO_COLOR
-  if (c.FORCE_COLOR !== null) env.FORCE_COLOR = c.FORCE_COLOR
+  for (const key of ['NO_COLOR', 'FORCE_COLOR', 'MERCURY_TRUECOLOR', 'TERM', 'COLORTERM', 'TERM_PROGRAM']) {
+    if (c[key] !== null) env[key] = c[key]
+  }
   if (shouldHonorNoColor(env)) return 'plain'
   if (/^(dumb|linux)$/.test(c.TERM)) return '256'
   if (c.MERCURY_TRUECOLOR === '0') return '256'
-  return 'truecolor'
+  if (isEnvTruthy(c.MERCURY_TRUECOLOR ?? undefined)) return 'truecolor'
+  return truecolorFingerprint(env) === null ? '256' : 'truecolor'
 }
-const TRUTH = CASES.map(c => [c.NO_COLOR, c.FORCE_COLOR, c.MERCURY_TRUECOLOR, c.TERM, modeOf(c)])
+const TRUTH = CASES.map(c => [c.NO_COLOR, c.FORCE_COLOR, c.MERCURY_TRUECOLOR, c.TERM, c.COLORTERM, c.TERM_PROGRAM, modeOf(c)])
 
 const hexOf = t => '#' + t.map(v => v.toString(16).padStart(2, '0')).join('')
 const cube256 = t => {

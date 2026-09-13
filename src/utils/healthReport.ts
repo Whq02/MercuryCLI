@@ -90,9 +90,10 @@ import { readPromptProvenance } from './cockpit/promptProvenance.js'
 import { getSettingsWithAllErrors } from './settings/allErrors.js'
 import { getRipgrepStatus } from './ripgrep.js'
 import {
-  CHALK_BOOSTED_FOR_MERCURY,
+  CHALK_CLAMPED_FOR_MERCURY,
   CHALK_CLAMPED_FOR_TMUX,
   CHALK_DISABLED_FOR_NO_COLOR,
+  colorDepthWhy,
 } from '../ink/colorize.js'
 import { getLiveContextUsage } from './cockpit/contextUsageLive.js'
 import { ctxForecastEnabled } from './cockpit/ctxForecast.js'
@@ -2614,7 +2615,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const p = resolveTerminalProfile()
             const cols = process.stdout.columns ?? 0
             const rows = process.stdout.rows ?? 0
-            const color = process.env.NO_COLOR ? 'no-color' : (flagEnv('MERCURY_TRUECOLOR') ?? '1') !== '0' ? 'truecolor' : 'reduced'
+            const color = chalk.level >= 3 ? 'truecolor' : chalk.level === 2 ? '256-color' : chalk.level === 1 ? '16-color' : 'no-color'
             const missing = p.checks.filter(c => !c.ok)
             const detail = [
               ...p.checks.map(c => `${c.ok ? '●' : c.requirement === 'required' ? '✕' : '○'} ${c.label} (${c.requirement}) — ${c.evidence}${c.ok ? '' : ` · ${c.remediation}`}`),
@@ -2943,7 +2944,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             if (level === 3) {
               return {
                 status: applied ? 'ok' : 'info',
-                evidence: `chalk level 3 — truecolor${CHALK_BOOSTED_FOR_MERCURY ? ' (Mercury-boosted)' : ''} · brand hues exact${appliedNote}`,
+                evidence: `chalk level 3 — truecolor · ${colorDepthWhy()} · brand hues exact${appliedNote}`,
               }
             }
             if (level === 1) {
@@ -2954,7 +2955,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             return {
               status: 'info',
-              evidence: `chalk level ${level} — 256-color; the brand accent renders on the nearest cube${appliedNote}`,
+              evidence: `chalk level ${level} — 256-color · ${colorDepthWhy()} · the brand accent renders on the nearest cube${appliedNote}`,
+              ...(CHALK_CLAMPED_FOR_MERCURY
+                ? {}
+                : {
+                    fix: 'The exact palette needs a terminal with 24-bit color (iTerm2, Ghostty, WezTerm, Kitty, Windows Terminal); MERCURY_TRUECOLOR=1 forces the full depth on a terminal that has it and does not say so.',
+                  }),
             }
           },
         },

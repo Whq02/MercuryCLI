@@ -14,6 +14,9 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
+process.env.FORCE_COLOR = '3'
+const chalk = (await import('chalk')).default
+const { rgbToXterm256 } = await import('../../src/ink/cell-grid.ts')
 const {
   _resetImageProtocolForTesting,
   detectImageProtocol,
@@ -109,6 +112,14 @@ function withTtyStdout<T>(fn: () => T): T {
     .toBuffer()
   const cells = await imageToCells(png, 20, 8)
   check('cells: half-blocks + truecolor SGR', cells.includes('▀') && cells.includes('[38;2;'))
+  chalk.level = 2
+  const reduced = await imageToCells(png, 20, 8)
+  chalk.level = 3
+  check('cells at 256 colours: no 24-bit SGR leaves the painter', !reduced.includes('[38;2;') && !reduced.includes('[48;2;'))
+  check(
+    'cells at 256 colours: the nearest index of the pixel',
+    reduced.includes(`[38;5;${rgbToXterm256(220, 68, 68)}m`) && reduced.includes(`[48;5;${rgbToXterm256(220, 68, 68)}m`),
+  )
   check('cells: reset-terminated lines', cells.split('\n').every(l => l.endsWith(`${ESC}[0m`)))
   check(
     'cells: Ink-safe — NO OSC/APC/DCS residue',

@@ -32,7 +32,7 @@ check('honorNoColor() forces chalk.level = 0', /honorNoColor[\s\S]*?chalk\.level
 check('MERCURY_HONORS_NO_COLOR derives from the pure rule', /MERCURY_HONORS_NO_COLOR = shouldHonorNoColor\(process\.env\)/.test(src))
 check('colorize() short-circuits to raw str when honoring', /if \(MERCURY_HONORS_NO_COLOR\) return str/.test(src))
 const noColorIdx = src.indexOf('CHALK_DISABLED_FOR_NO_COLOR = honorNoColor()')
-const boostIdx = src.indexOf('CHALK_BOOSTED_FOR_XTERMJS = boostChalkLevelForXtermJs()')
+const boostIdx = src.indexOf('CHALK_BOOSTED_FOR_FINGERPRINT = boostChalkLevelForFingerprint()')
 check('honorNoColor() runs BEFORE the chalk-level boosts', noColorIdx !== -1 && boostIdx !== -1 && noColorIdx < boostIdx)
 
 section('no-op when NO_COLOR unset — the normal colored path is byte-identical')

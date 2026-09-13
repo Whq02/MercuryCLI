@@ -1,5 +1,6 @@
 
 import { env as detectedEnv } from '../../utils/env.js'
+import { truecolorFingerprint } from '../colorize.js'
 import {
   isModernWindowsTerminal,
   isProgressReportingAvailable,
@@ -116,16 +117,15 @@ export function resolveTerminalProfile(probe: ProfileProbe = {}): TerminalProfil
   }
 
   const colorterm = env.COLORTERM
-  const truecolor =
-    colorterm === 'truecolor' || colorterm === '24bit' || Boolean(env.WT_SESSION) ||
-    env.TERM_PROGRAM === 'vscode' || env.TERM_PROGRAM === 'iTerm.app'
+  const fingerprint = truecolorFingerprint(env)
   checks.push({
     id: 'truecolor',
     label: '24-bit color',
     requirement: 'recommended',
-    ok: truecolor,
-    evidence: `COLORTERM=${colorterm ?? '(unset)'}`,
-    remediation: 'A truecolor terminal renders the exact brand palette; 256-color hosts get the quantized mapping.',
+    ok: fingerprint !== null,
+    evidence: fingerprint ?? `COLORTERM=${colorterm ?? '(unset)'} · no known truecolor terminal named`,
+    remediation:
+      'This terminal advertises no 24-bit color, so Mercury paints in 256 colors unless MERCURY_TRUECOLOR=1 forces the full depth. The exact palette needs a terminal with 24-bit color: iTerm2, Ghostty, WezTerm, Kitty or Windows Terminal.',
   })
   const sync = probe.syncOutput ?? syncOutputSupportedNow()
   const syncWhy = probe.syncOutput !== undefined ? 'probe injection' : syncOutputStatusNow().why
