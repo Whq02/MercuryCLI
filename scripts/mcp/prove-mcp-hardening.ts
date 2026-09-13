@@ -177,7 +177,7 @@ await (async () => {
   }
   const r = await client.callTool({ name: 'lease_list', arguments: {} })
   const sc = r.structuredContent as { ok?: boolean; reason?: string } | undefined
-  check('solo lease_list returns structured {ok:false, NOT_IN_TEAM}', !!sc && sc.ok === false && sc.reason === 'NOT_IN_TEAM')
+  check('solo lease_list answers structured {ok:true, leases:[]} — leases work without a team', !!sc && sc.ok === true && Array.isArray(sc.leases) && sc.leases.length === 0)
   await close()
 })()
 
