@@ -10,20 +10,20 @@ import { isENOENT } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { expandPath } from '../../utils/path.js'
 import { plural } from '../../utils/stringUtils.js'
+import {
+  LEFT_DOUBLE_CURLY_QUOTE,
+  LEFT_SINGLE_CURLY_QUOTE,
+  RIGHT_DOUBLE_CURLY_QUOTE,
+  RIGHT_SINGLE_CURLY_QUOTE,
+  straightenQuotes,
+} from '../../utils/curlyQuotes.js'
 import type { FileEdit } from './types.js'
 
 
-export const LEFT_SINGLE_CURLY_QUOTE = '‘'
-export const RIGHT_SINGLE_CURLY_QUOTE = '’'
-export const LEFT_DOUBLE_CURLY_QUOTE = '“'
-export const RIGHT_DOUBLE_CURLY_QUOTE = '”'
+export { LEFT_DOUBLE_CURLY_QUOTE, LEFT_SINGLE_CURLY_QUOTE, RIGHT_DOUBLE_CURLY_QUOTE, RIGHT_SINGLE_CURLY_QUOTE }
 
 export function normalizeQuotes(s: string): string {
-  return s
-    .replaceAll(LEFT_SINGLE_CURLY_QUOTE, "'")
-    .replaceAll(RIGHT_SINGLE_CURLY_QUOTE, "'")
-    .replaceAll(LEFT_DOUBLE_CURLY_QUOTE, '"')
-    .replaceAll(RIGHT_DOUBLE_CURLY_QUOTE, '"')
+  return straightenQuotes(s)
 }
 
 

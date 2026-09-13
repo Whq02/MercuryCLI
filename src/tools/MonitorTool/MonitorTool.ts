@@ -78,6 +78,7 @@ export const MonitorTool = buildTool({
   userFacingName() {
     return 'Monitor'
   },
+  straightQuoteInputs: ['command'],
   get inputSchema(): InputSchema {
     return inputSchema()
   },

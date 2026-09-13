@@ -135,6 +135,7 @@ export const NotebookEditTool = buildTool({
   name: NOTEBOOK_EDIT_TOOL_NAME,
   searchHint: 'edit Jupyter notebook .ipynb cells',
   shouldDefer: true,
+  straightQuoteInputs: ['notebook_path'],
   maxResultSizeChars: 100_000,
   get inputSchema(): InputSchema {
     return inputSchema()

@@ -63,6 +63,7 @@ function searchRootFor(path?: string, pattern?: string): string {
 
 export const GlobTool = buildTool({
   name: GLOB_TOOL_NAME,
+  straightQuoteInputs: ['pattern', 'path'],
   maxResultSizeChars: 100_000,
   inputSchema,
   outputSchema,

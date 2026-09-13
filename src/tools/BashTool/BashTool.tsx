@@ -710,6 +710,7 @@ export const BashTool = buildTool({
   },
   maxResultSizeChars: PERSIST_THRESHOLD_CHARS,
   strict: true,
+  straightQuoteInputs: ['command'],
   isEnabled: () => bashToolAvailable(),
   async description(input: BashToolInput): Promise<string> {
     return input?.description ?? 'Run a shell command'

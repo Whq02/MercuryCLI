@@ -408,6 +408,7 @@ export const AsepriteTool = buildTool({
   },
   userFacingName,
   shouldDefer: true,
+  straightQuoteInputs: ['file', 'output', 'dataOutput'],
   get inputSchema(): SchemaType {
     return inputSchema()
   },
