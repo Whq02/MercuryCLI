@@ -197,7 +197,7 @@ async function callUnderFoldStatus(
         autoCompactThreshold: getAutoCompactThreshold(context.options.mainLoopModel),
       },
       undefined,
-      foldModel.source === 'history' ? foldModel.model : undefined,
+      foldModel.model,
     )
     setLastSummarizedMessageId(undefined)
     suppressCompactWarning()

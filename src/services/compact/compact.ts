@@ -1142,7 +1142,6 @@ export async function withFoldStatus<T, C extends ToolUseContext>(
 
 
 export function withMainLoopModel<C extends ToolUseContext>(context: C, model: string): C {
-  if (context.options.mainLoopModel === model) return context
   return { ...context, options: { ...context.options, mainLoopModel: model } }
 }
 

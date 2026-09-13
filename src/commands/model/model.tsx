@@ -295,7 +295,14 @@ function ModelSet({
             return
           }
           setHeld(null)
-          if (held.plan.window?.fits === false) requestCommandDispatch('/compact')
+          if (held.plan.window?.fits === false) {
+            const foldingSession = getFocusedSessionConnector()
+            if (foldingSession.carrier === 'daemon') {
+              void foldingSession.sendWords('/compact').then(() => applyNow(held.plan))
+              return
+            }
+            requestCommandDispatch('/compact')
+          }
           void applyNow(held.plan)
         }}
         onCancel={() => {
