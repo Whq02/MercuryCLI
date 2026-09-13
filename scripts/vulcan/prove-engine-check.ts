@@ -123,7 +123,7 @@ if (!receipt.resolved) {
   cpSync(FIXTURE, P, { recursive: true })
   mkdirSync(join(P, '.mercury'), { recursive: true })
   cpSync(join(FIXTURE, 'engine-suites.json'), join(P, '.mercury', 'engine-suites.json'))
-  const git = (...a: string[]): string => execFileSync('git', ['-C', P, '-c', 'user.name=fixture', '-c', 'user.email=fixture@example.invalid', ...a], { encoding: 'utf8' })
+  const git = (...a: string[]): string => execFileSync('git', ['-C', P, '-c', 'user.name=fixture', '-c', 'user.email=fixture@example.invalid', ...a], { encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 'fixture', GIT_AUTHOR_EMAIL: 'fixture@example.invalid', GIT_COMMITTER_NAME: 'fixture', GIT_COMMITTER_EMAIL: 'fixture@example.invalid' } })
   git('init', '-q', '-b', 'main')
   git('add', '-A')
   git('commit', '-q', '-m', 'fixture')
