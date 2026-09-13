@@ -2278,19 +2278,6 @@ export function completeRequestedPark(
   return completed
 }
 
-export async function retireRequestedPark(
-  runnerId: string,
-  roster: Parameters<typeof retireConcourseSession>[2],
-  dir?: string,
-): Promise<ConcourseRetireOutcome | null> {
-  const standing = readSessionWorkers(dir)[runnerId]
-  if (!standing || standing.endedAt !== undefined || standing.parkedAt !== undefined || standing.parkRequestedAt === undefined) return null
-  if (turnInFlightOf(standing) && workerPidAlive(standing)) return null
-  const by = standing.parkRequestedBy ?? 'daemon'
-  const reason = standing.parkRequestedReason
-  return retireConcourseSession(standing.sessionId, by, roster, dir, reason !== undefined ? { reason } : undefined)
-}
-
 export function pendingParkRequests(dir?: string): string[] {
   return Object.values(readSessionWorkers(dir))
     .filter(r => r.endedAt === undefined && r.parkedAt === undefined && r.parkRequestedAt !== undefined && workerPidAlive(r))

@@ -56,11 +56,11 @@ RUNTIME's `Device headroom` row is joined by `Box lock`: the coordination
 directory of the box lock (`MERCURY_BOX_LOCK_DIR`), the slots held and by
 whom, and the tickets waiting — or the plain word that no lock directory is
 named. The resource `mercury://health/box` gives an agent the same reading
-live, with the memory guard's verdict on its own session. The memory
-figure on the box row is the last sample the process took, with the clock
-it was taken at and its source (`vm_stat`, `meminfo`, the Windows counter,
-or the runtime's own free figure before any sample); a facts answer never
-takes a sample, and `mercury://health/box` takes a fresh one.
+live. The memory figure on the box row is the last sample the process took,
+with the clock it was taken at and its source (`vm_stat`, `meminfo`, the
+Windows counter, or the runtime's own free figure before any sample); a
+facts answer never takes a sample, and `mercury://health/box` takes a fresh
+one.
 
 TOOL CAPABILITY carries the `Tools withheld` check: every built-in tool kept
 out of the model's catalog because a machine dependency is absent — a debug

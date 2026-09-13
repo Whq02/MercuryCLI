@@ -16,38 +16,26 @@ export const healthAdapter: ResourceAdapter = {
     if (ref.id !== '' && ref.id !== 'cert' && ref.id !== 'gate' && ref.id !== 'box') {
       return {
         state: 'absent',
-        note: 'health refs: mercury://health/cert (last certificate) · mercury://health/gate (last gate verdict) · mercury://health/box (this box now: load, memory, the box lock, the memory guard)',
+        note: 'health refs: mercury://health/cert (last certificate) · mercury://health/gate (last gate verdict) · mercury://health/box (this box now: load, memory, the box lock)',
       }
     }
     if (ref.id === 'box') {
-      const [{ boxLoadWords, boxLockStateWords, boxReading, refreshBoxReading }, { readSessionFacts }, { getSessionId }] = await Promise.all([
-        import('../../../utils/boxLock.js'),
-        import('../../engine-connector/seatProjections.js'),
-        import('../../../bootstrap/state.js'),
-      ])
+      const { boxLoadWords, boxLockStateWords, boxReading, refreshBoxReading } = await import('../../../utils/boxLock.js')
       await refreshBoxReading()
       const reading = boxReading()
-      let memoryGuard: string | undefined
-      try {
-        memoryGuard = readSessionFacts(getSessionId())?.box?.memoryGuard
-      } catch {
-        memoryGuard = undefined
-      }
       const lockWords = reading.lock === null ? (reading.lockNote ?? 'no box lock directory is named') : `${reading.lock.dir}: ${boxLockStateWords(reading.lock)}`
-      const guardWords = memoryGuard ?? 'no verdict for this session yet (not hosted by the daemon, or not swept yet)'
       return {
         state: 'ok',
         resource: {
           ref: 'mercury://health/box',
           kind: 'health',
           title: 'the box now',
-          summary: `${boxLoadWords(reading)} · lock: ${lockWords} · memory guard: ${guardWords}`,
+          summary: `${boxLoadWords(reading)} · lock: ${lockWords}`,
           mutable: true,
-          structured: { ...reading, ...(memoryGuard !== undefined ? { memoryGuard } : {}) },
+          structured: reading,
           text: [
             `load and memory: ${boxLoadWords(reading)}`,
             `box lock: ${lockWords}`,
-            `memory guard: ${guardWords}`,
             '',
             'A live reading of this machine; the session facts carry the same box row. Nothing here schedules or throttles.',
           ].join('\n'),

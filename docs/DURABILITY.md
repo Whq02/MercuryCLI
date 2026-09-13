@@ -71,13 +71,10 @@ the complete index; the load-bearing ones:
 - **Daemon run wall-clock** (`MERCURY_DAEMON_RUN_TIMEOUT_MS`, default 30
   minutes, read at fire time): a headless run past its cap gets SIGTERM, then
   SIGKILL after a five-second grace.
-- **Daemon child memory** (`MERCURY_CHILD_RSS_LIMIT_MB`, off unless set): live
-  roster children are swept once a minute, and a child whose resident set
-  crosses the limit is stopped through the roster's intentional-kill path —
-  durable sessions resume by explicit re-admission, and the spawn ledger
-  records the reap with its RSS.
 - **API connect budget** (`MERCURY_CONNECT_TIMEOUT_MS`, default 30000 ms): the
   transport's TCP/TLS connect timeout.
+
+Mercury never stops or parks a runner for its memory use.
 
 ## Resource bounds
 
