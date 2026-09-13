@@ -6,6 +6,7 @@ import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../constants/xml.js'
 import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js'
 import type { Message } from '../../types/message.js'
 import { usabilityForRoute } from '../../services/providers/providerUsability.js'
+import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import {
   previewForSelection,
   reconfirmTransitionPlan,
@@ -294,6 +295,7 @@ function ModelSet({
             return
           }
           setHeld(null)
+          if (held.plan.window?.fits === false) requestCommandDispatch('/compact')
           void applyNow(held.plan)
         }}
         onCancel={() => {

@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto'
+import { getSdkBetas } from '../../bootstrap/state.js'
 import type { Message } from '../../types/message.js'
+import { isConfigReadingAllowed } from '../../utils/config/globalConfig.js'
+import { resolveContextWindow } from '../../utils/model/capabilities.js'
+import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import {
   confirmTransitionPlan,
   MEANINGFUL_LOSS_CLASSES,
@@ -8,8 +12,13 @@ import {
   type TransitionDispositionClass,
   type TransitionPlan,
   type TransitionPlanItem,
+  type TransitionWindowFact,
 } from '../../utils/model/modelTransition.js'
 import { isUnsignedThinkingBlock } from '../../utils/messages.js'
+import { getMessagesAfterCompactBoundary } from '../../utils/messages/systemMessages.js'
+import { contextFill, usageAnchorModel } from '../../utils/tokens.js'
+import { getBlockingLimit, resolveAutoCompactWindow } from '../compact/autoCompact.js'
+import { declaredRouteOf } from './routeLaw.js'
 
 import { toBridgeMessages } from './openai/openaiCallModel.js'
 
@@ -30,10 +39,40 @@ export function transitionSourceRevision(messages: readonly Message[]): string {
 export function transitionCapabilityEpoch(
   to: string | null,
   imagesSupported: boolean,
+  window?: Pick<TransitionWindowFact, 'window' | 'limit'>,
 ): string {
   return sha256Hex(
-    JSON.stringify([providerFamilyOfSetting(to), imagesSupported]),
+    JSON.stringify([
+      providerFamilyOfSetting(to),
+      imagesSupported,
+      ...(window !== undefined ? [window.window, window.limit] : []),
+    ]),
   )
+}
+
+export function transitionWindowFact(
+  messages: readonly Message[],
+  to: string | null,
+): TransitionWindowFact | undefined {
+  if (!isConfigReadingAllowed()) return undefined
+  const target = parseUserSpecifiedModel(to ?? 'best')
+  if (declaredRouteOf(target) === null) return undefined
+  const live = getMessagesAfterCompactBoundary(messages as Message[])
+  const fenced = contextFill(live, target)
+  const anchored = contextFill(live)
+  const usageWins = anchored.source === 'usage' && anchored.tokens >= fenced.tokens
+  const count = Math.max(fenced.tokens, anchored.tokens)
+  const countModel = usageWins ? usageAnchorModel(live) : undefined
+  const limit = getBlockingLimit(target)
+  return {
+    count,
+    countSource: usageWins ? 'usage' : 'estimate',
+    ...(countModel !== undefined ? { countModel } : {}),
+    window: resolveAutoCompactWindow(target).window,
+    windowSource: resolveContextWindow(target, getSdkBetas()).source,
+    limit,
+    fits: count < limit,
+  }
 }
 
 function defaultImagesSupported(targetRoute: ProviderFamily): boolean {
@@ -175,8 +214,9 @@ export function buildTransitionPlan(args: {
   }
 
   const sourceRevision = transitionSourceRevision(messages)
-  const capabilityEpoch = transitionCapabilityEpoch(to, imagesSupported)
-  const needsChoice = MEANINGFUL_LOSS_CLASSES.some(cls => counts[cls] > 0)
+  const window = transitionWindowFact(messages, to)
+  const capabilityEpoch = transitionCapabilityEpoch(to, imagesSupported, window)
+  const needsChoice = MEANINGFUL_LOSS_CLASSES.some(cls => counts[cls] > 0) || window?.fits === false
   const planDigest = sha256Hex(
     JSON.stringify({
       v: 1,
@@ -188,6 +228,7 @@ export function buildTransitionPlan(args: {
       counts: Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)),
       items: items.map(i => [i.ref, i.disposition]),
       itemsTruncated,
+      window: window === undefined ? null : [window.count, window.window, window.limit, window.fits],
     }),
   )
 
@@ -203,6 +244,7 @@ export function buildTransitionPlan(args: {
     counts,
     items: items.map(i => Object.freeze(i)) as TransitionPlanItem[],
     itemsTruncated,
+    ...(window !== undefined ? { window: Object.freeze(window) } : {}),
     needsChoice,
     computedAt: new Date().toISOString(),
   }
@@ -228,7 +270,7 @@ export function reconfirmTransitionPlan(
   const imagesSupported = defaultImagesSupported(plan.targetRoute)
   const verdict = confirmTransitionPlan(plan, {
     sourceRevision: transitionSourceRevision(messages),
-    capabilityEpoch: transitionCapabilityEpoch(plan.to, imagesSupported),
+    capabilityEpoch: transitionCapabilityEpoch(plan.to, imagesSupported, transitionWindowFact(messages, plan.to)),
   })
   if (verdict.ok) return verdict
   return {
@@ -252,6 +294,12 @@ export function transitionPlanSummary(plan: TransitionPlan): string {
   }
   if (c['unknown-block-degraded'] > 0) {
     parts.push(`${c['unknown-block-degraded']} unsupported block(s) degrade to placeholders`)
+  }
+  if (plan.window !== undefined && !plan.window.fits) {
+    const fmt = (n: number): string => n.toLocaleString('en-US')
+    parts.push(
+      `about ${fmt(plan.window.count)} tokens by Mercury's count against the ${fmt(plan.window.window)}-token window — the conversation folds before the first request`,
+    )
   }
   return ` · this switch: ${parts.join(' · ')} — text and tool results replay exactly (plan ${plan.planDigest.slice(0, 8)})`
 }

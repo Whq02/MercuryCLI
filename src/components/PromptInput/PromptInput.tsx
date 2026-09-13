@@ -2598,6 +2598,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             return
           }
           setTransitionConfirm(null)
+          if (held.plan.window?.fits === false) requestCommandDispatch('/compact')
           applyModelSelection(held.value)
         }}
         onCancel={() => {
