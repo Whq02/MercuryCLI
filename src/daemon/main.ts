@@ -41,10 +41,8 @@ import {
   parkConcourseSession,
   pendingParkRequests,
   retireConcourseSession,
-  retireRequestedPark,
   revokeConcourseWorkflows,
   turnInFlightOf,
-  updateConcourseWorkers,
   workerPidAlive,
 } from './concourseSupervisor.js'
 import { answerPermissionAsk, onWorkerControlRequest } from './permissionAsks.js'
@@ -68,7 +66,6 @@ import {
   relayCredentialChange,
 } from './sessionSeat.js'
 import { resetSeatProjections } from '../services/engine-connector/seatProjections.js'
-import { armChildRssWatchdog } from './rssWatchdog.js'
 import { sessionParkDrainMs, sweepIdleEmptyConcourseSessions } from './idleRetirement.js'
 import {
   claimWarmRunner,
@@ -366,26 +363,7 @@ async function daemonRun(args: string[]): Promise<void> {
         onIdle: short => {
           idleNudges.get(short)?.()
           if (short.startsWith('concourse-w') && roster !== null) {
-            const requested = readSessionWorkers()[short]
-            if (requested?.parkRequestedBy === 'daemon: memory' && requested.parkedAt === undefined) {
-              const seats = roster
-              void retireRequestedPark(short, seats).then(retired => {
-                if (retired === null) return
-                // eslint-disable-next-line no-console
-                console.error(retired.outcome === 'parked'
-                  ? `[daemon] ${short} finished its turn and parked (the memory guard asked while it worked)`
-                  : `[daemon] ${short} finished its turn but the memory guard's park was refused: ${retired.reason}`)
-                if (retired.outcome === 'refused') {
-                  updateConcourseWorkers(workers => {
-                    const w = workers[short]
-                    if (!w) return
-                    delete w.parkRequestedAt
-                    delete w.parkRequestedBy
-                    delete w.parkRequestedReason
-                  })
-                }
-              }).catch(() => {})
-            } else if (completeRequestedPark(short, roster)) {
+            if (completeRequestedPark(short, roster)) {
               // eslint-disable-next-line no-console
               console.error(`[daemon] ${short} finished its turn and parked (a park was requested while it worked)`)
             }
@@ -394,20 +372,6 @@ async function daemonRun(args: string[]): Promise<void> {
         },
       })
       resetSeatProjections(dir)
-      armChildRssWatchdog(roster, {
-        sessionOf: short => {
-          const rec = readSessionWorkers()[short]
-          return rec !== undefined && rec.endedAt === undefined && rec.parkedAt === undefined ? rec.sessionId : undefined
-        },
-        park: async (sessionId, reason, afterTurn) => {
-          if (!afterTurn && roster) {
-            const retired = await retireConcourseSession(sessionId, 'daemon: memory', roster, undefined, { reason })
-            return retired.outcome === 'parked' ? { outcome: 'parked' } : { outcome: 'refused', detail: retired.reason }
-          }
-          const out = parkConcourseSession(sessionId, 'daemon: memory', roster ?? undefined, undefined, { reason, afterTurn: true })
-          return out.outcome === 'refused' ? { outcome: 'refused', detail: out.detail ?? out.reason } : { outcome: out.outcome, ...(out.outcome === 'noop' ? { detail: out.reason } : {}) }
-        },
-      })
       const controlKey = await mintControlKey()
       const warmDeps = {
         roster: () => roster ?? undefined,

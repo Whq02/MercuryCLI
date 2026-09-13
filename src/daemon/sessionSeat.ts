@@ -19,7 +19,6 @@ import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
 import { markConcourseWorkerActivity, readSessionWorkers, reviveConcourseWorker, updateConcourseWorkers, workerPidAlive, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
-import { lastRssReadingOf, memoryGuardWords } from './rssWatchdog.js'
 import type { PermissionMode } from '../types/permissions.js'
 import type { TextPhase } from '../types/wire.js'
 import { describeSignInRead, refreshSignInReads } from './signInView.js'
@@ -455,7 +454,7 @@ export function publishSeatFacts(short: string, dir?: string, roster?: SeatRoste
     busy: roster !== undefined ? seatBusy(short, roster) : seat.lastBusy,
     ...(roster !== undefined && seatTurnStartedAt(short, roster) !== undefined ? { turnStartedAt: seatTurnStartedAt(short, roster) } : {}),
     ...saturnFactsOf(rec, Date.now()),
-    ...(boxAnswer !== undefined ? { box: { ...boxAnswer, memoryGuard: memoryGuardWords(lastRssReadingOf(short)) } } : {}),
+    ...(boxAnswer !== undefined ? { box: boxAnswer } : {}),
   }
   seat.lastBusy = facts.busy
   try {

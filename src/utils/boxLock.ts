@@ -197,13 +197,12 @@ export function boxLoadWords(reading: BoxLoadReading): string {
   return `${load} (${reading.cores} cores), ${reading.memory.availableMb} MB available of ${reading.memory.totalMb}`
 }
 
-export function boxLockWaitLine(wait: BoxLockWait, reading: BoxReadingV1, memoryGuard?: string): string {
+export function boxLockWaitLine(wait: BoxLockWait, reading: BoxReadingV1): string {
   const state = reading.lock === null ? (reading.lockNote ?? 'the box lock state is not readable') : boxLockStateWords(reading.lock)
-  const guard = memoryGuard === undefined ? '' : `; memory guard: ${memoryGuard}`
-  return `Waited ${wait.waitedS} s for the box lock (${wait.label} took ${wait.slot}): ${state}; ${boxLoadWords(reading)}${guard}`
+  return `Waited ${wait.waitedS} s for the box lock (${wait.label} took ${wait.slot}): ${state}; ${boxLoadWords(reading)}`
 }
 
-export function boxLockLineForCommand(command: string, output: string, options: { cwd: string; memoryGuard?: string; now?: number }): string | null {
+export function boxLockLineForCommand(command: string, output: string, options: { cwd: string; now?: number }): string | null {
   const words = commandWords(command)
   const script = words === null ? null : boxLockScriptOf(words)
   if (script === null) return null
@@ -211,5 +210,5 @@ export function boxLockLineForCommand(command: string, output: string, options: 
   if (dir !== null) rememberBoxLockDir(dir)
   const wait = boxLockWaitOf(output)
   if (wait === null || wait.waitedS === 0) return null
-  return boxLockWaitLine(wait, boxReading(options.now), options.memoryGuard)
+  return boxLockWaitLine(wait, boxReading(options.now))
 }
