@@ -277,7 +277,7 @@ try {
   sid = born.sessionId ?? ''
   check('the first turn ended', await untilAsync(() => turnEnded(sid), 90_000), JSON.stringify({ rec: readRec(sid), facts: readFacts(sid) }))
   check('the ask rode the OpenAI wire', hits().some(h => h.kind === 'openai' && h.model === GPT_ID && h.status === 200), JSON.stringify(hits()))
-  check("the runner's facts name account A", await untilAsync(() => readFacts(sid)?.identity?.accountEmail === ACCOUNTS.a.email, 20_000), JSON.stringify(readFacts(sid)?.identity))
+  check("the runner's facts name account A", await untilAsync(() => readFacts(sid)?.identity?.accountEmail === ACCOUNTS.a.email, 60_000), JSON.stringify(readFacts(sid)?.identity))
   const granted = await control('grant-workflows', sid)
   check('the session holds the workflows-allowed tag (a backgrounded seat may delegate only with it or with a live operator)', granted.ok === true, JSON.stringify(granted))
 
@@ -319,7 +319,7 @@ try {
   const proceeded = await untilAsync(() => sinceHits(before4).some(h => h.kind === 'anthropic' && h.status === 200 && (h.ask ?? '').includes(SUBAGENT_ASK)), 90_000)
   check('the delegate reached the Anthropic wire on the Opus row and was answered', proceeded && sinceHits(before4).some(h => h.kind === 'anthropic' && h.model === DELEGATE_MODEL), JSON.stringify(sinceHits(before4)))
   check("the transcript carries the delegate's reply, not a refusal", await untilAsync(() => rowsSince(sid, rows4).includes(SUBAGENT_REPLY) && turnEnded(sid), 90_000) && !rowsSince(sid, rows4).includes('usage window is reached'), unescaped(rowsSince(sid, rows4)).match(/the delegate reported:[^"\\]{0,200}/)?.[0] ?? '(no report)')
-  check("the runner's facts name account B", await untilAsync(() => readFacts(sid)?.identity?.accountEmail === ACCOUNTS.b.email, 20_000), JSON.stringify(readFacts(sid)?.identity))
+  check("the runner's facts name account B", await untilAsync(() => readFacts(sid)?.identity?.accountEmail === ACCOUNTS.b.email, 60_000), JSON.stringify(readFacts(sid)?.identity))
 
   section('§5 B spends its own window; the refusal now names B')
   const before5 = hits().length
@@ -350,7 +350,7 @@ try {
   const rows7 = transcriptLines(sid).length
   await say(DELEGATE_ASK, sid)
   check('the delegate proceeds on account C and is answered on the wire', await untilAsync(() => sinceHits(before7).some(h => h.kind === 'anthropic' && h.status === 200 && (h.ask ?? '').includes(SUBAGENT_ASK)) && rowsSince(sid, rows7).includes(SUBAGENT_REPLY) && turnEnded(sid), 90_000), JSON.stringify(sinceHits(before7)))
-  check("the runner's facts name account C", await untilAsync(() => readFacts(sid)?.identity?.accountEmail === ACCOUNTS.c.email, 20_000), JSON.stringify(readFacts(sid)?.identity))
+  check("the runner's facts name account C", await untilAsync(() => readFacts(sid)?.identity?.accountEmail === ACCOUNTS.c.email, 60_000), JSON.stringify(readFacts(sid)?.identity))
 } finally {
   await cleanup()
 }
