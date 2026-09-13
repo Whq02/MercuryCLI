@@ -32,7 +32,7 @@ const installer = await import('../../src/services/vulcan/addonInstaller.js')
 const { getAllBaseTools } = await import('../../src/tools.js')
 const { GodotTool } = await import('../../src/tools/GodotTool/GodotTool.js')
 const { getGodotToolDescription } = await import('../../src/tools/GodotTool/prompt.js')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
+const { getFlagSpec, RETIRED_FLAGS } = await import('../../src/substrate/flagRegistry.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'vulcan-gates-'))
 const proj = path.join(scratch, 'game')
@@ -168,6 +168,7 @@ section('§6 · flag registry rows')
   const master = getFlagSpec('MERCURY_GODOT_TOOLS')
   check('MERCURY_GODOT_TOOLS registered opt-in/behavioral', master?.kind === 'opt-in' && master?.tier === 'behavioral')
   check('the retired fixed-port and shared-token rows are gone', getFlagSpec('MERCURY_GODOT_TOOLS_PORT') === undefined && getFlagSpec('MERCURY_GODOT_TOOLS_TOKEN') === undefined)
+  check('the registry names both as retired, with nothing in their place', RETIRED_FLAGS.map(r => r.env).sort().join(',') === 'MERCURY_GODOT_TOOLS_PORT,MERCURY_GODOT_TOOLS_TOKEN' && RETIRED_FLAGS.every(r => r.replacedBy === null))
   check('LITE opt-in/infra row', getFlagSpec('MERCURY_GODOT_TOOLS_LITE')?.kind === 'opt-in' && getFlagSpec('MERCURY_GODOT_TOOLS_LITE')?.tier === 'infra')
 }
 

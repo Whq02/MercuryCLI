@@ -71,6 +71,16 @@ rows. With nothing withheld the row says so and names what it checks. The
 row waits for the debug adapter's toolchain probes to answer, so it never
 names the Debug tool as withheld for a probe still in flight.
 
+SETTINGS & FLAGS carries the `Env overrides` check: the registered flags
+set in the environment, with Mercury's own stamps and the boot's saved
+defaults named apart from the operator's overrides. A retired setting
+still set (`MERCURY_GODOT_TOOLS_PORT` or `MERCURY_GODOT_TOOLS_TOKEN`,
+which nothing reads since every Godot instance carries its own port and
+token in its descriptor) turns the row to `warn`, names the setting and
+what replaced it or that nothing did, and the fix says to unset it. The
+flag registry's retired table is the one list of such settings; a
+retired name is never a registered flag.
+
 CREW & DAEMONS carries the `Store isolation` check, which reads the config
 home's harness records by Mercury's own fingerprint: a daemon-plane record carrying no Mercury
 fingerprint was written by another tool and is reported with its evidence

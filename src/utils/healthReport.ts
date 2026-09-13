@@ -35,7 +35,7 @@ import { getAutoMemPath } from '../memdir/paths.js'
 import { isAwaySummaryEnabled } from './cockpit/awaySummary.js'
 import { isMercuryCompactKeepTailEnabled } from '../services/compact/verbatimTail.js'
 import { publishAtomic } from '../substrate/fileStore.js'
-import { FLAG_REGISTRY, flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
+import { FLAG_REGISTRY, flagEnabled, flagEnv, retiredFlagsSet } from '../substrate/flagRegistry.js'
 import { realEnvPin } from '../substrate/startupMenu.js'
 import { isRunOrphaned, listWorkflowRunsDetailed } from '../tools/WorkflowTool/runManifest.js'
 import { getAnthropicApiKeyWithSource, getAuthTokenSource } from './auth.js'
@@ -2368,10 +2368,16 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const stampNote =
               (stamped.length > 0 ? ` · self-stamped (not an override): ${stamped.map(shortValue).join(', ')}` : '') +
               (bootApplied.length > 0 ? ` · saved boot defaults (boot-env.json, not an override): ${bootApplied.map(shortValue).join(', ')}` : '')
+            const retired = retiredFlagsSet()
+            const replacementOf = (spec: { replacedBy: string | null }): string => (spec.replacedBy === null ? 'nothing replaces it' : `replaced by ${spec.replacedBy}`)
+            const retiredNote = retired.length > 0 ? ` · retired, still set: ${retired.map(r => `${r.spec.env} (${replacementOf(r.spec)})`).join(', ')}` : ''
+            const retiredDetail = retired.map(r => `${r.spec.env}=${r.value.slice(0, 40)} — retired: it was ${r.spec.was}; ${replacementOf(r.spec)}: ${r.spec.now}`)
+            const retiredFix = retired.length > 0 ? `Unset ${retired.map(r => r.spec.env).join(' and ')}: ${retired.length === 1 ? 'it is retired and nothing reads it' : 'they are retired and nothing reads them'}. ${retired.map(r => `${r.spec.env}: ${r.spec.replacedBy === null ? r.spec.now : `set ${r.spec.replacedBy} instead`}`).join('. ')}.` : undefined
             if (overrides.length === 0) {
               return {
-                status: 'ok',
-                evidence: `no env overrides — all ${FLAG_REGISTRY.length} registered flags at their defaults${stampNote}`,
+                status: retired.length > 0 ? 'warn' : 'ok',
+                evidence: `no env overrides — all ${FLAG_REGISTRY.length} registered flags at their defaults${stampNote}${retiredNote}`,
+                ...(retired.length > 0 ? { detail: retiredDetail.join(' · '), fix: retiredFix } : {}),
               }
             }
             const show = overrides
@@ -2382,10 +2388,11 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               })
               .join(', ')
             return {
-              status: 'info',
-              evidence: `${overrides.length} flag(s) overridden in env: ${show}${overrides.length > 4 ? ` … +${overrides.length - 4} more` : ''}${stampNote}`,
-              detail: overrides.map(f => `${f.env}=${String(flagEnv(f.env)).slice(0, 40)} (${f.kind})`).join(' · '),
+              status: retired.length > 0 ? 'warn' : 'info',
+              evidence: `${overrides.length} flag(s) overridden in env: ${show}${overrides.length > 4 ? ` … +${overrides.length - 4} more` : ''}${stampNote}${retiredNote}`,
+              detail: [...overrides.map(f => `${f.env}=${String(flagEnv(f.env)).slice(0, 40)} (${f.kind})`), ...retiredDetail].join(' · '),
               link: '/substrate',
+              ...(retired.length > 0 ? { fix: retiredFix } : {}),
             }
           },
         },
