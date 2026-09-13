@@ -270,8 +270,15 @@ daemon tells every runner it hosts to read the account again, so a delegated
 agent is never refused with a departed account's usage window; a runner that
 missed the word is covered anyway — a limit verdict is trusted only for the
 account that observed it, and reads as unknown once the signed-in account is
-another, so the refusal for a reached window names the account it belongs to
-and when it was seen.
+another, so the refusal for a reached window names the account it belongs to,
+when it was seen, and the reset it knows. That verdict lapses at the reset the
+reply named — or after a bounded span when the reply named none — so a
+delegated agent is not refused after the window has reset, and the next reply
+that says allowed clears it at once. An expired sign-in is reported as an
+expired sign-in, never as a used-up window: the delegation refusal, the chat's
+notice and the doctor speak the one sign-in line (sign in again with
+`/logins anthropic`), and an authentication failure never sets the limit
+verdict.
 
 `/usage` lists every provider, the signed-in ones first in the order of their
 most recent sign-in — the same sign-in record the computed default reads — and
