@@ -1486,7 +1486,7 @@ section('§9 the evidence pair end-to-end + the dead-door sweep')
   )
   const errors = src('src/services/api/errors.ts')
   const wallAt = errors.indexOf('const wall = classifyCredentialWall(status, message)')
-  const observedExpiredAt = errors.indexOf('status === 401 && isAnthropicOAuthSignInExpired()')
+  const observedExpiredAt = errors.indexOf("classifyAnthropicRefusal({ status, wireText: message, signInExpired: isAnthropicOAuthSignInExpired() }) === 'sign-in'")
   const genericAt = errors.search(/\n  if \(status === 401 \|\| status === 403\) \{\n\s*logForDebugging\(`\[api\] \$\{status\} on/)
   check(
     'the presenter: the wall arm and the observed-expired arm both precede the generic 401/403 tail',
@@ -1503,6 +1503,33 @@ section('§9 the evidence pair end-to-end + the dead-door sweep')
       credentialWallLineForModel('claude-fable-5') ===
         'Anthropic sign-in expired — switch providers (/model) or reconnect (/logins anthropic)',
     credentialWallLineForModel('claude-fable-5'),
+  )
+  const { APIError } = await import('@anthropic-ai/sdk')
+  const { getAssistantMessageFromError } = await import('../../src/services/api/errors.js')
+  const { API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errorPrefix.js')
+  const { getIsNonInteractiveSession } = await import('../../src/bootstrap/state.js')
+  const posture = { nonInteractive: getIsNonInteractiveSession() }
+  const rowText = (row: { message: { content: unknown } }): string =>
+    (row.message.content as Array<{ type?: string; text?: string }>).map(b => (b.type === 'text' ? (b.text ?? '') : '')).join('')
+  const wire = (status: number, body: Record<string, unknown>) => new APIError(status, body as never, undefined, undefined as never)
+  const keyLimitRow = getAssistantMessageFromError(wire(403, { error: { message: 'Key limit exceeded', code: 403 } }), 'openrouter/qwen/qwen3-coder')
+  const keyLimitText = rowText(keyLimitRow as never)
+  check(
+    "the presenter answers a 403 key limit on the OpenRouter lane with the wall's own line, never the generic 403 tail",
+    keyLimitText === `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine('openrouter', 'key-limit', posture)}` &&
+      (keyLimitRow as { error?: string }).error === 'authentication_failed',
+    keyLimitText,
+  )
+  const expiredRow = getAssistantMessageFromError(
+    wire(401, { type: 'error', error: { type: 'authentication_error', message: 'OAuth token expired' } }),
+    'claude-fable-5',
+  )
+  const expiredText = rowText(expiredRow as never)
+  check(
+    'the presenter answers a 401 on the observed-expired Anthropic sign-in with the sign-in line, never the generic 401 tail',
+    expiredText === `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine('anthropic', 'sign-in', posture)}` &&
+      (expiredRow as { error?: string }).error === 'authentication_failed',
+    expiredText,
   )
   const { recordLaneBillingRefusal, recordLaneTurnSettled, __resetLaneBillingStateForTest } =
     await import('../../src/services/providers/laneBillingState.js')
