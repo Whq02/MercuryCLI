@@ -144,9 +144,8 @@ if (!existsSync(DIST)) {
   check('while the sub-agent runs, the line paints once, as a queued row', queuedRows.length === 1 && /(^|[^A-Za-z])queued\s+\[sam\]/.test(queuedRows[0]!), j(queuedRows))
   check('the connector retired exactly one send as lost with the relaunched runner', lostCount === 1, j(lostCount))
   check('twenty seconds after the line was queued, past the relaunch, no row carries the line (a row standing here would be the stray)', marks['queued+20s'] !== undefined && operatorRows(marks['queued+20s']).length === 0, j(operatorRows(marks['queued+20s'])))
-  for (const label of ['relaunched', 'relaunched+10s']) {
-    check(`at ${label}: the hint names the line as not taken and no row carries the line`, hintRows(marks[label]).length >= 1 && operatorRows(marks[label]).length === 0, j({ hint: hintRows(marks[label]), rows: operatorRows(marks[label]) }))
-  }
+  check('at relaunched: the hint names the line as not taken and no row carries the line', hintRows(marks.relaunched).length >= 1 && operatorRows(marks.relaunched).length === 0, j({ hint: hintRows(marks.relaunched), rows: operatorRows(marks.relaunched) }))
+  check('at relaunched+10s: no row carries the line (the hint has had its eight seconds)', marks['relaunched+10s'] !== undefined && operatorRows(marks['relaunched+10s']).length === 0, j(operatorRows(marks['relaunched+10s'])))
   for (const label of ['end', 'end+10s']) {
     const rows = operatorRows(marks[label])
     check(`at ${label}: exactly one row carries the line — the re-sent one, stamped with its own send clock (${resentMs === null ? '-' : clockText(resentMs)})`, rows.length === 1 && near(rows[0]!, resentMs), j(rows))
