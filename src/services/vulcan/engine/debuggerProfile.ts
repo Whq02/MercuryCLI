@@ -15,6 +15,92 @@ interface ProfileFrame {
   scripts: Array<{ id: number; calls: number; selfMs: number; totalMs: number; internalMs: number }>
 }
 
+export interface GodotSceneTreeNode {
+  name: string
+  type?: string
+  script?: string
+  scene?: string
+  id: number | bigint
+  visible?: boolean
+  children: GodotSceneTreeNode[]
+}
+
+export interface GodotSceneTreeView {
+  name: string
+  type?: string
+  script?: string
+  scene?: string
+  id: number | string
+  visible?: boolean
+  children?: GodotSceneTreeView[]
+  children_count?: number
+}
+
+const SCENE_TREE_VALUES = 6
+const SCENE_TREE_MAX_DEPTH = 32
+const SCENE_TREE_DEFAULT_DEPTH = 6
+const SCENE_TREE_ANSWER_MS = 5000
+const VIEW_HAS_VISIBLE_METHOD = 1
+const VIEW_VISIBLE = 2
+
+export function decodeGodotSceneTree(data: unknown[]): GodotSceneTreeNode {
+  if (data.length === 0 || data.length % SCENE_TREE_VALUES !== 0) throw new Error(`Godot debugger scene tree must carry ${SCENE_TREE_VALUES} values per node; received ${data.length}`)
+  let i = 0
+  const read = (depth: number): GodotSceneTreeNode => {
+    if (depth > 64) throw new Error('Godot debugger scene tree exceeds the nesting limit')
+    if (i + SCENE_TREE_VALUES > data.length) throw new Error('Godot debugger scene tree is truncated')
+    const childCount = count(data[i++], 'child count')
+    const name = data[i++]
+    if (typeof name !== 'string') throw new Error('Godot debugger node name must be a string')
+    const typeName = text(data[i++], 'node type')
+    const id = data[i++]
+    if (!(typeof id === 'bigint' || (typeof id === 'number' && Number.isSafeInteger(id) && id >= 0))) throw new Error('Godot debugger node id must be an integer')
+    const scene = data[i++]
+    if (typeof scene !== 'string') throw new Error('Godot debugger scene path must be a string')
+    const flags = count(data[i++], 'view flags')
+    const node: GodotSceneTreeNode = { name, id, children: [] }
+    if (typeName.startsWith('res://')) node.script = typeName
+    else node.type = typeName
+    if (scene.length > 0) node.scene = scene
+    if (flags & VIEW_HAS_VISIBLE_METHOD) node.visible = (flags & VIEW_VISIBLE) !== 0
+    for (let c = 0; c < childCount; c++) node.children.push(read(depth + 1))
+    return node
+  }
+  const root = read(0)
+  if (i !== data.length) throw new Error('Godot debugger scene tree has trailing values')
+  return root
+}
+
+export function findGodotSceneTreeNode(root: GodotSceneTreeNode, nodePath: string): GodotSceneTreeNode | null {
+  const trimmed = nodePath.trim()
+  if (trimmed === '' || trimmed === '/root' || trimmed === '.' || trimmed === root.name) return root
+  const segments = (trimmed.startsWith('/root/') ? trimmed.slice('/root/'.length) : trimmed.replace(/^\/+/, '')).split('/').filter(s => s.length > 0)
+  let node = root
+  for (const segment of segments) {
+    const next = node.children.find(child => child.name === segment)
+    if (!next) return null
+    node = next
+  }
+  return node
+}
+
+export function viewGodotSceneTree(node: GodotSceneTreeNode, depth: number = SCENE_TREE_DEFAULT_DEPTH): GodotSceneTreeView {
+  const limit = Math.min(SCENE_TREE_MAX_DEPTH, Math.max(1, Math.floor(depth)))
+  const view = (n: GodotSceneTreeNode, left: number): GodotSceneTreeView => {
+    const out: GodotSceneTreeView = { name: n.name, id: typeof n.id === 'bigint' ? n.id.toString() : n.id }
+    if (n.type !== undefined) out.type = n.type
+    if (n.script !== undefined) out.script = n.script
+    if (n.scene !== undefined) out.scene = n.scene
+    if (n.visible !== undefined) out.visible = n.visible
+    if (n.children.length > 0) {
+      if (left > 0) out.children = n.children.map(child => view(child, left - 1))
+      else out.children_count = n.children.length
+    }
+    return out
+  }
+  return view(node, limit)
+}
+
 export interface EngineDebuggerPhase extends EngineMediaPhase {
   firstFrame: number
   lastFrame: number
@@ -77,9 +163,37 @@ export class GodotDebuggerProfile {
   private retainedValues = 0
   private lastFrame = 0
   private stopping = false
+  private treeWaiters: Array<(answer: GodotSceneTreeNode | Error) => void> = []
 
   constructor(private request: EngineMediaRequest, private driverPath?: string) {
     this.transport = new GodotDebuggerTransport(message => this.receive(message))
+  }
+
+  sceneTree(): Promise<GodotSceneTreeNode> {
+    if (this.transport.error) return Promise.reject(new Error(this.transport.error))
+    if (this.thread === null) return Promise.reject(new Error('the worker has not sent its hello over the engine debugger yet'))
+    return new Promise((resolve, reject) => {
+      const waiter = (answer: GodotSceneTreeNode | Error): void => {
+        clearTimeout(timer)
+        if (answer instanceof Error) reject(answer)
+        else resolve(answer)
+      }
+      const timer = setTimeout(() => {
+        const at = this.treeWaiters.indexOf(waiter)
+        if (at >= 0) this.treeWaiters.splice(at, 1)
+        reject(new Error(`the game did not answer the scene tree request within ${SCENE_TREE_ANSWER_MS} ms; a parked or blocked game answers no debugger message`))
+      }, SCENE_TREE_ANSWER_MS)
+      timer.unref?.()
+      this.treeWaiters.push(waiter)
+      try {
+        this.send('scene:request_scene_tree', [])
+      } catch (e) {
+        const at = this.treeWaiters.indexOf(waiter)
+        if (at >= 0) this.treeWaiters.splice(at, 1)
+        clearTimeout(timer)
+        reject(e as Error)
+      }
+    })
   }
 
   private send(name: string, data: unknown[]): void {
@@ -106,6 +220,19 @@ export class GodotDebuggerProfile {
     if (!this.engine) return
     if (thread !== this.thread) return
     if (name === 'error' && data[9] !== true) throw new Error(`Godot debugger worker error: ${String(data[7])}: ${String(data[8])}`)
+    if (name === 'scene:scene_tree') {
+      const waiter = this.treeWaiters.shift()
+      if (waiter) {
+        let answer: GodotSceneTreeNode | Error
+        try {
+          answer = decodeGodotSceneTree(data)
+        } catch (e) {
+          answer = e as Error
+        }
+        waiter(answer)
+      }
+      return
+    }
     if (name === 'servers:function_signature') {
       if (data.length !== 2) throw new Error('Godot debugger function signature is malformed')
       const id = count(data[1], 'signature id')

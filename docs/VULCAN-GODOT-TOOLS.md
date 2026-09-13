@@ -237,6 +237,25 @@ place of that returned id:
 
 Returns the live tree, not the scene file parsed from disk.
 
+A job id from `engine_jobs` is a selector too. An `engine_run` job's id
+reaches its worker's bridge. A running `engine_profile` job's id, when
+the profile's source is `engine` or `auto`, reads the live scene tree
+over the engine debugger connection the profile already holds, during
+the measurement boot: the answer names the job, `source: "engine
+debugger"` and the port; `type` carries the class or the script's global
+class name, `script` a script path, `scene` the instanced scene, and
+`root` and `depth` work as on the bridge. Only the scene tree crosses the
+debugger; a node read, call or signal wait by a profile job's id answers
+`NOT_OVER_DEBUGGER`. Before a worker is up, a query says what it is
+waiting for instead of `INSTANCE_NOT_FOUND`: a queued job, the import
+pass, or a profile worker whose game has not connected yet answer
+`ENGINE_BOOTING` with the stage named, and a bridged worker whose
+descriptor is not published yet answers `BRIDGE_BOOTING`. A capture boot
+and a project-source profile have no bridge and no debugger connection:
+the query answers `NO_QUERY_ROAD` and points at the record. A job id is
+answered by the session that owns the job; a fresh process owns no
+queue, so there the instance id is the road.
+
 ```json
 { "op": "engine_node_get", "args": { "instance": "worker-id", "node": "/root/RuntimeFixture", "properties": ["score"] } }
 ```
