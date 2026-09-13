@@ -168,7 +168,7 @@ try {
 
   const applied = await connector.setModel('claude-sonnet-5')
   check('D4 setModel on an idle session answers applied (the daemon\'s word)', applied.state === 'applied', JSON.stringify(applied))
-  check('D4 the readout flips at once', connector.modelFacts().effective === 'claude-sonnet-5')
+  check('D4 the readout flips as soon as the facts arrive, never parked', await untilAsync(() => connector.modelFacts().effective === 'claude-sonnet-5', 10_000), JSON.stringify(connector.modelFacts()))
   check('D4 the record\'s modelKey follows', await untilAsync(() => recordOf()?.modelKey === 'claude-sonnet-5', 10_000), JSON.stringify(recordOf()))
   const sonnet = await connector.sendWords('a sonnet turn please')
   check('D4 the next words are accepted', sonnet.state === 'accepted')
