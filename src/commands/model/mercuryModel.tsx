@@ -603,6 +603,7 @@ function MercuryModelWrapper({
             return
           }
           setTransitionConfirm(null)
+          if (held.plan.window?.fits === false) requestCommandDispatch('/compact')
           applySelection(held.value, held.id)
         }}
         onCancel={() => {

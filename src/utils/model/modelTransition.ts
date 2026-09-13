@@ -203,6 +203,18 @@ export type TransitionPlanItem = {
   detail?: string
 }
 
+export type TransitionWindowSource = 'live-current' | 'static-pin' | 'capability' | 'fallback' | 'suffix-1m' | 'beta-header'
+
+export type TransitionWindowFact = {
+  count: number
+  countSource: 'usage' | 'estimate'
+  countModel?: string
+  window: number
+  windowSource: TransitionWindowSource
+  limit: number
+  fits: boolean
+}
+
 export type TransitionPlan = {
   v: 1
   planDigest: string
@@ -215,6 +227,7 @@ export type TransitionPlan = {
   counts: Record<TransitionDispositionClass, number>
   items: TransitionPlanItem[]
   itemsTruncated: boolean
+  window?: TransitionWindowFact
   needsChoice: boolean
   computedAt: string
 }

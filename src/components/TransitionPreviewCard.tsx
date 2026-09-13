@@ -6,6 +6,35 @@ import type { ProviderUsability } from '../services/providers/providerUsability.
 import { Dialog } from './design-system/Dialog.js'
 import { AMBER, FAINT, TEAL } from './mercuryPalette.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
+import { providerDisplayName } from '../services/providers/routeLaw.js'
+import { renderModelName } from '../utils/model/model.js'
+
+const fmtTokens = (n: number): string => n.toLocaleString('en-US')
+
+function windowSourceWords(plan: TransitionPlan): string {
+  const fact = plan.window
+  if (fact === undefined) return ''
+  switch (fact.windowSource) {
+    case 'live-current':
+      return plan.targetRoute === 'unrecognised' ? "the catalogue's figure for this account" : `the ${providerDisplayName(plan.targetRoute)} catalogue's figure for this account`
+    case 'static-pin':
+      return 'a pinned figure'
+    case 'capability':
+      return 'the capability table'
+    case 'fallback':
+      return 'the conservative default'
+    default:
+      return 'the 1M window'
+  }
+}
+
+export function windowRowWords(plan: TransitionPlan, fromLabel: string, toLabel: string): string | null {
+  const fact = plan.window
+  if (fact === undefined || fact.fits) return null
+  const counted = fact.countModel !== undefined ? `the last count on ${renderModelName(fact.countModel)}` : 'estimated'
+  const room = fact.count < fact.window ? ', which leaves no room for a reply' : ''
+  return `the conversation is about ${fmtTokens(fact.count)} tokens by Mercury's count (${counted}); ${toLabel}'s window is ${fmtTokens(fact.window)} tokens (${windowSourceWords(plan)})${room} — confirm folds the conversation on ${fromLabel} before the first request on ${toLabel}`
+}
 
 type Props = {
   plan: TransitionPlan
@@ -55,6 +84,7 @@ export function TransitionPreviewCard({
 }: Props): React.ReactNode {
   useKeybinding('confirm:yes', onConfirm, { context: 'Confirmation', isActive: true })
   const rows = lossRows(plan)
+  const windowRow = windowRowWords(plan, fromLabel, toLabel)
   return (
     <Dialog
       title="Model switch preview"
@@ -78,6 +108,11 @@ export function TransitionPreviewCard({
           <Text color={FAINT}>
             {GLYPH.dot} the capped window also caps Claude-backed delegation (subagents are
             not failover candidates)
+          </Text>
+        ) : null}
+        {windowRow !== null ? (
+          <Text>
+            <Text color={AMBER}>{GLYPH.warn}</Text> {windowRow}
           </Text>
         ) : null}
         {rows.map(r => (
