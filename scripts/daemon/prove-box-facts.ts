@@ -68,7 +68,7 @@ check('the BASE= line of the script names the lock directory', box.boxLockDirOfS
 process.env.MERCURY_BOX_LOCK_DIR = lockDir
 const line = box.boxLockLineForCommand(`bash ${script} harness-build bun run build.ts`, receipt, { cwd: scratch, memoryGuard: '400 MB of 1536 MB, within the limit', now })
 delete process.env.MERCURY_BOX_LOCK_DIR
-check('the line says how long, who took which slot, who holds, who waits, the load and the guard', line !== null && line.startsWith('Waited 84 s for the box lock (harness-build took box.lock.3): held by harness-build') && line.includes('2 waiting: lane-a 90s') && /load (n\/a|\d+\.\d\d\/core)/.test(line) && line.includes('MB available of') && line.endsWith('; memory guard: 400 MB of 1536 MB, within the limit'), line ?? 'null')
+check('the line says how long, who took which slot, who holds, who waits, the load and the guard', line !== null && line.startsWith('Waited 84 s for the box lock (harness-build took box.lock.3): held by harness-build') && line.includes('3 waiting: lane-a 90s, lane-c 60s') && /load (n\/a|\d+\.\d\d\/core)/.test(line) && line.includes('MB available of') && line.endsWith('; memory guard: 400 MB of 1536 MB, within the limit'), line ?? 'null')
 check('a command that names the script remembers its directory for the facts', box.boxLockDir() === lockDir)
 check('a command that did not wait gets no line', box.boxLockLineForCommand(`bash ${script} x true`, '[box-lock] x holds the box from 08:01:05 (waited 0s; slot box.lock)', { cwd: scratch }) === null)
 check('a command that names no lock script gets no line', box.boxLockLineForCommand('bun run build.ts', receipt, { cwd: scratch }) === null)
