@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -12,6 +12,7 @@ const argAfter = (flag: string): string | undefined => {
   return at >= 0 ? process.argv[at + 1] : undefined
 }
 const DIST = argAfter('--dist') ?? join(REPO, 'dist', 'mercury.mjs')
+const FRAMES = argAfter('--frames')
 const FIXTURE = join(import.meta.dir, 'dupline-fixture-server.ts')
 const WIN = process.platform === 'win32'
 const BUN = process.env.BUN ?? process.execPath
@@ -107,6 +108,27 @@ async function settledCarriers(projectsDir: string, timeoutMs: number): Promise<
     const carriers = carriersOf(projectsDir, LINE)
     if (carriers.some(isDrainedMainRow) || Date.now() >= until) return carriers
     await sleep(100)
+  }
+}
+function exportWorld(kind: 'runner' | 'terminal', home: string, extra: Record<string, string>): void {
+  if (FRAMES === undefined) return
+  const dest = join(FRAMES, kind)
+  const copy = (from: string, to: string, recursive: boolean): void => {
+    if (!existsSync(from)) return
+    try {
+      cpSync(from, to, { recursive })
+    } catch (err) {
+      console.log(`  [frames] ${from} not copied: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+  try {
+    mkdirSync(dest, { recursive: true })
+    for (const name of ['wire.jsonl', 'connector-trace.jsonl', 'cfg.json', 'grid.json']) copy(join(home, name), join(dest, name), false)
+    copy(join(home, 'projects'), join(dest, 'transcripts'), true)
+    for (const [name, text] of Object.entries(extra)) writeFileSync(join(dest, name), text)
+    console.log(`  [frames] ${kind} world written under ${dest}`)
+  } catch (err) {
+    console.log(`  [frames] ${kind} world not written: ${err instanceof Error ? err.message : String(err)}`)
   }
 }
 async function removeWorld(dir: string): Promise<void> {
@@ -324,6 +346,7 @@ if (!existsSync(DIST)) {
   } catch {
   }
   fx.kill()
+  exportWorld('runner', RUN_HOME, { 'frames.jsonl': lines.map(l => JSON.stringify(l)).join('\n') + '\n', 'stderr.txt': stderrText })
   if (failures === 0) await removeWorld(RUN_HOME)
   else console.log(`  [forensics] runner world kept: ${RUN_HOME}\n${stderrText.split('\n').slice(-12).join('\n')}`)
 
@@ -415,6 +438,7 @@ if (!existsSync(DIST)) {
     const ptyCarriers = carriersOf(join(PTY_HOME, 'projects'), LINE)
     const ptyMain = ptyCarriers.filter(isDrainedMainRow)
     check("the session's transcript holds the drained row once, stamped at the send, and no sub-agent's transcript holds it", ptyMain.length === 1 && ptyCarriers.every(inMainFile) && sentAtMs !== null && Math.abs(Date.parse(ptyMain[0]!.occurredAt) - sentAtMs) <= CLOCK_TOLERANCE_MS, briefly(ptyCarriers))
+    exportWorld('terminal', PTY_HOME, { ...Object.fromEntries(Object.entries(marks).map(([label, text]) => [`${label}.txt`, `${text}\n`])), 'capture-stderr.txt': stderr.join('') })
     if (failures === 0) await removeWorld(PTY_HOME)
     else {
       console.log(`  [forensics] terminal world kept: ${PTY_HOME}`)
