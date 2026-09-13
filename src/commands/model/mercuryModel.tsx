@@ -603,7 +603,14 @@ function MercuryModelWrapper({
             return
           }
           setTransitionConfirm(null)
-          if (held.plan.window?.fits === false) requestCommandDispatch('/compact')
+          if (held.plan.window?.fits === false) {
+            const foldingSession = getFocusedSessionConnector()
+            if (foldingSession.carrier === 'daemon') {
+              void foldingSession.sendWords('/compact').then(() => applySelection(held.value, held.id))
+              return
+            }
+            requestCommandDispatch('/compact')
+          }
           applySelection(held.value, held.id)
         }}
         onCancel={() => {

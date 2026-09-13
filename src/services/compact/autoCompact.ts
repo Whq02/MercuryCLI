@@ -415,7 +415,7 @@ export async function autoCompactIfNeeded(
       true,
       recompactionInfo,
       overflowSignal,
-      foldModel.source === 'history' ? foldModel.model : undefined,
+      foldModel.model,
     )
     setLastSummarizedMessageId(undefined)
     runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId })

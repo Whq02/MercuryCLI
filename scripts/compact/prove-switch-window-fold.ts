@@ -283,6 +283,62 @@ section('W3 no switch: a history the seated model wrote folds on the seated mode
   })
 }
 
+section('W3b the manual /compact right after a switch: the summary rides the source wire even when the seat flips under it')
+{
+  primeWindow(WINDOW)
+  fixture.script([
+    { text: 'SUMMARY BY OPUS: the long design note was written; the operator asks to carry on.' },
+    { text: 'never reached' },
+  ])
+  const before = fixture.captured.length
+  const messages = seed(SOURCE)
+  const ctx = makeCtx(SEATED)
+  ctx.messages = messages
+  const options = ctx.options as Record<string, unknown>
+  let liveModel = SEATED
+  Object.defineProperty(options, 'mainLoopModel', { get: () => liveModel, enumerable: true, configurable: true })
+  const { call } = await import('../../src/commands/compact/compact.ts')
+  let outcome: string
+  try {
+    const result = await call('', ctx as never)
+    outcome = result.type
+  } catch (error) {
+    outcome = `threw: ${error instanceof Error ? error.message : String(error)}`
+  }
+  const hits = fixture.captured.slice(before)
+  check('the manual fold landed', outcome === 'compact', outcome)
+  check("the manual fold's summary rode the SOURCE wire", hits.length === 1 && hits[0]!.dialect === 'anthropic', hits.map(h => h.dialect).join('→'))
+  liveModel = SOURCE
+  fixture.script([
+    { text: 'SUMMARY BY OPUS: the long design note was written; the operator asks to carry on.' },
+    { text: 'never reached' },
+  ])
+  const before2 = fixture.captured.length
+  const ctx2 = makeCtx(SOURCE)
+  ctx2.messages = seed(SOURCE)
+  const options2 = ctx2.options as Record<string, unknown>
+  let flipping = SOURCE
+  Object.defineProperty(options2, 'mainLoopModel', {
+    get: () => {
+      const now = flipping
+      flipping = SEATED
+      return now
+    },
+    enumerable: true,
+    configurable: true,
+  })
+  let outcome2: string
+  try {
+    const result = await call('', ctx2 as never)
+    outcome2 = result.type
+  } catch (error) {
+    outcome2 = `threw: ${error instanceof Error ? error.message : String(error)}`
+  }
+  const hits2 = fixture.captured.slice(before2)
+  check('a seat that flips to the target under the running fold still lands the fold', outcome2 === 'compact', outcome2)
+  check('…and its summary rode the wire the fold was chosen for (the source), never the flipped seat', hits2.length === 1 && hits2[0]!.dialect === 'anthropic', hits2.map(h => h.dialect).join('→'))
+}
+
 section('W4 the fold-model owner: the source wins only when the seat does not hold the history and the source does')
 {
   guarded('W4 the fold-model owner', () => {

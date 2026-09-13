@@ -56,7 +56,7 @@ function responsesInputText(body: Record<string, unknown>): string {
   return texts.join('\n')
 }
 
-const isSummaryRequest = (text: string): boolean => /summar/i.test(text) && !text.includes(BIG_ASK.toUpperCase())
+const isSummaryRequest = (text: string): boolean => text.includes('Produce the analysis and summary now')
 
 function anthropicReply(res: ServerResponse, text: string, usage: { input: number; output: number }, n: number): void {
   const usageBlock = { input_tokens: usage.input, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: usage.output }
