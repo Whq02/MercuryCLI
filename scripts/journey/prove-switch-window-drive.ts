@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -24,7 +24,7 @@ const BIG_REPLY_TAIL = 'the long design note ends here'
 const PICKUP_ASK = 'carry on from the note'
 const GPT_REPLY = 'sol carries on from the note'
 const OPUS_SUMMARY_HEAD = 'SUMMARY BY OPUS'
-const WINDOW = 20_000
+const WINDOW = 40_000
 const CEILING = 400_000
 const REPLY_CHARS = 120_000
 
@@ -173,6 +173,25 @@ async function runArm(arm: 'flat' | 'ceiling'): Promise<{ wire: Capture[]; paylo
   return { wire, payload, status: res.status, home: RUN_HOME }
 }
 
+function recordLines(home: string, needle: string): string[] {
+  const out: string[] = []
+  const walk = (dir: string): void => {
+    if (!existsSync(dir)) return
+    for (const name of readdirSync(dir)) {
+      const p = path.join(dir, name)
+      try {
+        if (statSync(p).isDirectory()) walk(p)
+        else if (name.endsWith('.jsonl')) {
+          for (const line of readFileSync(p, 'utf8').split('\n')) if (line.includes(needle)) out.push(line)
+        }
+      } catch {
+      }
+    }
+  }
+  walk(path.join(home, 'projects'))
+  return out
+}
+
 const markText = (payload: Payload | null, label: string): string => {
   const mark = payload?.marks?.find(m => m.label === label)
   return mark === undefined ? '' : gridText(mark.grid)
@@ -197,7 +216,7 @@ if (ARM === 'flat' || ARM === 'both') {
   const firstOpenai = r.wire.find(w => w.kind === 'openai')
   const refusedOpenai = r.wire.filter(w => w.kind === 'openai' && w.refused === true)
   check('the big reply rode the Anthropic leg', r.wire.some(w => w.kind === 'anthropic' && w.big === true), `wire=${r.wire.map(w => `${w.kind}${w.summary ? '/summary' : ''}${w.refused ? '/refused' : ''}`).join('→')} vshot=${r.status} end=${r.payload?.endReason ?? '?'}`)
-  check("the switch preview names Mercury's count of the history and the target's window", card.includes("by Mercury's count") && card.includes('20,000'), tail(card, 14))
+  check("the switch preview names Mercury's count of the history and the target's window", card.includes("by Mercury's count") && card.includes('40,000'), tail(card, 14))
   check('the preview says confirm folds the conversation on the source model first', card.includes('folds') && card.includes('Opus'), tail(card, 14))
   check('the fold ran on the SOURCE model before any request on the target (an Anthropic summary call precedes every OpenAI request)', summaries.length >= 1 && summaries[0]!.kind === 'anthropic' && (firstOpenai === undefined || summaries[0]!.at <= firstOpenai.at), `summaries=${JSON.stringify(summaries.map(s => [s.kind, s.count]))} firstOpenai=${JSON.stringify(firstOpenai)}`)
   check('no request on the target was refused for its size', refusedOpenai.length === 0, JSON.stringify(refusedOpenai.map(w => w.count)))
@@ -213,14 +232,15 @@ if (ARM === 'ceiling' || ARM === 'both') {
   const before = failures
   const r = await runArm('ceiling')
   const painted = anyText(r.payload)
-  const notice = markText(r.payload, 'notice')
-  const noticeText = notice !== '' ? notice : finalText(r.payload)
+  const noticeRows = recordLines(r.home, 'context overflowed')
+  if (FRAMES !== undefined) writeFileSync(path.join(FRAMES, `ceiling-notice-record-${COLS}x${ROWS}.jsonl`), noticeRows.join('\n') + '\n')
   const summaries = r.wire.filter(w => w.summary === true)
   const refusedOpenai = r.wire.filter(w => w.kind === 'openai' && w.refused === true)
   check('the big reply rode the Anthropic leg', r.wire.some(w => w.kind === 'anthropic' && w.big === true), `wire=${r.wire.map(w => `${w.kind}${w.summary ? '/summary' : ''}${w.refused ? '/refused' : ''}`).join('→')} vshot=${r.status} end=${r.payload?.endReason ?? '?'}`)
   check('the switch applied without a window warning (the declared ceiling holds the history by Mercury\'s budget)', !painted.includes('Model switch preview'), tail(markText(r.payload, 'pickup-sent'), 10))
   check('the first request on the target went out and the provider refused it (the ladder\'s road)', refusedOpenai.length >= 1, JSON.stringify(r.wire.map(w => [w.kind, w.count, w.refused ?? false])))
-  check("the overflow notice names Mercury's count and the window it measured against", noticeText.includes("by Mercury's count") && noticeText.includes('400,000'), tail(noticeText, 12))
+  check("the overflow notice in the session's record names Mercury's count and the window it measured against", noticeRows.some(line => /context overflowed \(OpenAI; about [\d,]+ tokens by Mercury's count against the 400,000-token window\) — folding the conversation and retrying/.test(line)), noticeRows.map(l => l.slice(0, 200)).join('\n') || 'no notice row in the record')
+  check('the notice or the fold row painted on the glass', painted.includes('context overflowed') || painted.includes('Context overflowed — folded and retried'), tail(finalText(r.payload), 12))
   check('the fold that answered the overflow ran on the SOURCE model (the summary call is Anthropic, never the refused target)', summaries.length >= 1 && summaries.every(s => s.kind === 'anthropic'), JSON.stringify(summaries.map(s => [s.kind, s.count, s.refused ?? false])))
   check('the retried request fitted and the reply painted', painted.includes(GPT_REPLY) && refusedOpenai.length === 1, tail(finalText(r.payload), 12))
   if (failures > before) kept.push(r.home)
