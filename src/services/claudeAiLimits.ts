@@ -406,12 +406,31 @@ export function claudeWindowObserved(): boolean {
   return windowObserved && verdictOwnerStands()
 }
 
-export type AnthropicLimitVerdict = { status: QuotaStatus | 'unknown'; observedAtMs?: number; account?: string }
+export type AnthropicLimitVerdict = {
+  status: QuotaStatus | 'unknown'
+  observedAtMs?: number
+  account?: string
+  resetsAtMs?: number
+  lapsesAtMs?: number
+}
 
-export function anthropicLimitVerdict(): AnthropicLimitVerdict {
+function statedResetMs(resetsAt: number | undefined): number | undefined {
+  return resetsAt !== undefined && Number.isFinite(resetsAt) && resetsAt > 0 ? resetsAt * 1000 : undefined
+}
+
+export function anthropicLimitVerdict(nowMs: number = Date.now()): AnthropicLimitVerdict {
   if (!verdictOwnerStands()) return { status: 'unknown' }
   if (verdictObservedAtMs === null) return { status: currentLimits.status }
-  return { status: currentLimits.status, observedAtMs: verdictObservedAtMs, account: currentAnthropicAccountName() }
+  const resetsAtMs = statedResetMs(currentLimits.resetsAt)
+  const lapsesAtMs = resetsAtMs ?? verdictObservedAtMs + SEED_DEFAULT_TTL_SECONDS * 1000
+  if (lapsesAtMs <= nowMs) return { status: 'unknown' }
+  return {
+    status: currentLimits.status,
+    observedAtMs: verdictObservedAtMs,
+    account: currentAnthropicAccountName(),
+    lapsesAtMs,
+    ...(resetsAtMs !== undefined ? { resetsAtMs } : {}),
+  }
 }
 
 function handleGateClosed(): void {

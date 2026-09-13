@@ -69,7 +69,7 @@ section('§1 a rejected verdict observed under account A refuses delegated work,
   check('a delegated dispatch is refused', refusal !== null && refusal.includes('usage window is reached'), String(refusal))
   check('the refusal names the account the verdict belongs to', refusal !== null && refusal.includes(ACCOUNT_A), String(refusal))
   check('the refusal names when the window was observed', refusal !== null && /seen at \d\d:\d\d/.test(refusal), String(refusal))
-  check('the refusal still points at /usage for the reset', refusal !== null && refusal.includes('resets per /usage'), String(refusal))
+  check('the refusal names the reset it knows', refusal !== null && /resets at (?:(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat) )?\d\d:\d\d/.test(refusal), String(refusal))
   console.log(`      refusal: ${refusal}`)
 }
 
@@ -137,7 +137,7 @@ section('§6 the road: the sign-in reaches the runners, and the live reads ride 
   const main = src('src/daemon/main.ts')
   check("the daemon relays on the client's refreshed sign-in view (the poke every sign-in and sign-out raises)", main.includes('relayCredentialChange(') && main.includes('refresh === true'))
   const usabilitySrc = src('src/services/providers/providerUsability.ts')
-  check('the live usability reads take the guarded verdict, never the raw latch', usabilitySrc.includes('anthropicLimitVerdict()') && !usabilitySrc.includes('currentLimits.status'))
+  check('the live usability reads take the guarded verdict, never the raw latch', usabilitySrc.includes('anthropicLimitVerdict(clock())') && !usabilitySrc.includes('currentLimits.status'))
   const limitsSrc = src('src/services/claudeAiLimits.ts')
   check('both wire paths stamp the verdict owner', (limitsSrc.match(/stampVerdictOwner\(\)/g) ?? []).length >= 2)
   check('the reset roads clear the stamp', (limitsSrc.match(/verdictOwner = null/g) ?? []).length >= 2)
