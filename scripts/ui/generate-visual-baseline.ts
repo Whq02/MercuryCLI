@@ -70,7 +70,7 @@ const DESCOPED = [
 function colorModeEnv(mode: CaptureSpec['colorMode']): Record<string, string> {
   switch (mode) {
     case 'truecolor':
-      return {}
+      return { COLORTERM: 'truecolor' }
     case '256':
       return { MERCURY_TRUECOLOR: '0', FORCE_COLOR: '2' }
     case 'ansi':
