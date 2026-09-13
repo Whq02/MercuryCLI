@@ -92,6 +92,14 @@ export function recordSeenLines(
   }
 }
 
+export function seenLinesOf(
+  owner: OwnerKey,
+  path: string,
+): { generation: string; ranges: readonly SeenRange[] } | undefined {
+  const entry = store.peek(owner)?.files.get(path)
+  return entry === undefined ? undefined : { generation: entry.generation, ranges: entry.ranges }
+}
+
 export type SeenLinesVerdict =
   | { ok: true }
   | {
