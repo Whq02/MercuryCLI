@@ -98,15 +98,19 @@ LTS runtime beside the bundle, and the launcher, `mercury install` and
 - bun 1.3.x, the build runtime (never vendored).
 - git. On Windows, Windows Terminal or PowerShell 7; the step-by-step guide
   is [docs/INSTALL-WINDOWS-FROM-SOURCE.md](docs/INSTALL-WINDOWS-FROM-SOURCE.md).
-  Git for Windows also supplies the `bash.exe` the Bash tool runs under by
-  default: without it Mercury still starts, the Bash tool is absent (the
-  PowerShell tool stays) and the doctor's `shell` row names the three ways
-  out — install Git for Windows, point `MERCURY_GIT_BASH_PATH` at a
-  `bash.exe`, or turn the built-in shell engine on (the `/config` row Shell
-  engine set to `brush`, or `MERCURY_SHELL_ENGINE=brush`), which needs no
-  Git for Windows but at this version cannot run a `.cmd` shim such as `npm`
-  directly (`cmd /c npm …` works) and needs an absolute path for a program
-  run after a `cd`.
+  Git for Windows also supplies the `bash.exe` the Bash tool runs under when
+  it is found. A release archive carries Mercury's own bash-compatible shell
+  engine too, so a Windows box with no `bash.exe` runs the Bash tool through
+  it with nothing to set; the doctor's `shell` row says which one runs and
+  why ("git-bash at … — found on this machine", or "the bundled shell engine
+  at … — no bash.exe was found"). The engine at this version cannot run a
+  `.cmd` shim such as `npm` directly (`cmd /c npm …` works) and needs an
+  absolute path for a program run after a `cd`. `MERCURY_SHELL_ENGINE=brush`
+  (or the `/config` row Shell engine set to `brush`) runs the engine even
+  with `bash.exe` present; `MERCURY_SHELL_ENGINE=system` keeps `bash.exe`
+  alone. A source build without the engine pack and without Git for Windows
+  still starts, with the Bash tool absent (the PowerShell tool stays) and
+  the `shell` row naming the ways out.
 
 The floor is 24.20.0 because it carries the fix for nodejs/node#56645. Below
 it, a headless `-p` run that dispatched any tool aborts at exit on Windows.
@@ -138,10 +142,11 @@ it, the on-device transcriber addon from `native/whisper` (the packs that
 are built, not fetched; without the toolchain each is skipped and the
 doctor says so); on Windows the shell engine is built the same way, since
 upstream publishes no Windows binary.
-The vendored shell engine (brush, a bash-compatible shell in Rust) is optional:
-the system shell stays the default, and the `shellEngine` setting (`/config`) or
-`MERCURY_SHELL_ENGINE=brush` runs the Bash tool on it, keeping shell state
-across calls; see [docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md).
+The vendored shell engine (brush, a bash-compatible shell in Rust) is optional
+on macOS and Linux: the system shell stays the default there, and the
+`shellEngine` setting (`/config`) or `MERCURY_SHELL_ENGINE=brush` runs the Bash
+tool on it, keeping shell state across calls; on Windows it arms itself when no
+`bash.exe` is found. See [docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md).
 The build writes only under `dist/`. Configuration and sessions live in the
 config home, `~/.mercury` or whatever `MERCURY_CONFIG_DIR` names; the first
 run creates it. Windows runs `node dist\mercury.mjs` directly.
