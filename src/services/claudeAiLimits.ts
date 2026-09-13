@@ -2,6 +2,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { isClaudeAISubscriber } from '../utils/auth.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logError } from '../utils/log.js'
+import { anthropicRefusalFactsOf, classifyAnthropicRefusal } from './providers/anthropicRefusal.js'
 import type { UsageFeed } from './providers/usageFreshness.js'
 import { processRateLimitHeaders, shouldProcessRateLimits } from './rateLimitMocking.js'
 
@@ -465,8 +466,7 @@ export function extractQuotaStatusFromHeaders(headers: Headers): void {
 export function extractQuotaStatusFromError(error: unknown): void {
   try {
     if (!shouldProcessRateLimits(isClaudeAISubscriber())) return
-    const status = (error as { status?: unknown }).status
-    if (status !== 429) return
+    if (classifyAnthropicRefusal(anthropicRefusalFactsOf(error)) !== 'window') return
     const headers = (error as { headers?: Headers }).headers
     let next: ClaudeAILimits
     if (headers) {
