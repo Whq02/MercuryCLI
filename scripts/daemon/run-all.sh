@@ -2,6 +2,7 @@
 # gate-class: cpu
 # gate-watch: src/daemon/** src/substrate/flagRegistry* src/types/permissions*
 # gate-watch: src/utils/boxLock* src/services/resources/adapters/health*
+# gate-watch: src/services/engine-connector/seatProjections* src/utils/spawnLedger* docs/DURABILITY.md
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -74,6 +75,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-compaction-hold.ts" || { __rc=$?; 
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-credential-change-reaches-runner.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-credential-change-reaches-runner.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-midturn-line.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-midturn-line.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-dupline-agent-drain.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-dupline-agent-drain.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-no-memory-guard.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-no-memory-guard.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL DAEMON PROOFS PASS"; else echo "# ❌ SOME DAEMON PROOFS FAILED"; fi
 echo "############################################################"
