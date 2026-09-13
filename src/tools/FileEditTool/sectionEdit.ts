@@ -1,4 +1,6 @@
 
+import { straightenQuotes } from '../../utils/curlyQuotes.js'
+
 export type SectionPlan =
   | { ok: true; updated: string; start: number; end: number; sectionText: string }
   | { ok: false; message: string }
@@ -50,7 +52,9 @@ export function findSection(content: string, heading: string): { ok: true; start
   const lines = content.split('\n')
   if (content.endsWith('\n')) lines.pop()
   const headings = sectionHeadings(content)
-  const hits = headings.filter(row => row.heading === wanted).map(row => row.line)
+  const exact = headings.filter(row => row.heading === wanted)
+  const wantedStraight = straightenQuotes(wanted)
+  const hits = (exact.length > 0 ? exact : headings.filter(row => straightenQuotes(row.heading) === wantedStraight)).map(row => row.line)
   if (hits.length === 0) {
     return { ok: false, message: `section heading not found in the file: ${JSON.stringify(wanted)}` }
   }
