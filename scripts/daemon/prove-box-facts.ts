@@ -7,11 +7,9 @@ import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const ROOT = join(import.meta.dir, '..', '..')
 delete process.env.MERCURY_BOX_LOCK_DIR
-delete process.env.MERCURY_CHILD_RSS_LIMIT_MB
 
 const box = await import('../../src/utils/boxLock.ts')
 const seatWire = await import('../../src/services/engine-connector/seatWire.ts')
-const watchdog = await import('../../src/daemon/rssWatchdog.ts')
 const { resolveResource } = await import('../../src/services/resources/registry.ts')
 
 let failures = 0
@@ -66,9 +64,9 @@ writeFileSync(script, `#!/bin/bash\nBASE=${lockDir}\nlabel=$1; shift\necho "[box
 chmodSync(script, 0o755)
 check('the BASE= line of the script names the lock directory', box.boxLockDirOfScript(script) === lockDir)
 process.env.MERCURY_BOX_LOCK_DIR = lockDir
-const line = box.boxLockLineForCommand(`bash ${script} harness-build bun run build.ts`, receipt, { cwd: scratch, memoryGuard: '400 MB of 1536 MB, within the limit', now })
+const line = box.boxLockLineForCommand(`bash ${script} harness-build bun run build.ts`, receipt, { cwd: scratch, now })
 delete process.env.MERCURY_BOX_LOCK_DIR
-check('the line says how long, who took which slot, who holds, who waits, the load and the guard', line !== null && line.startsWith('Waited 84 s for the box lock (harness-build took box.lock.3): held by harness-build') && line.includes('3 waiting: lane-a 90s, lane-c 60s') && /load (n\/a|\d+\.\d\d\/core)/.test(line) && line.includes('MB available of') && line.endsWith('; memory guard: 400 MB of 1536 MB, within the limit'), line ?? 'null')
+check('the line says how long, who took which slot, who holds, who waits and the load, and ends there', line !== null && line.startsWith('Waited 84 s for the box lock (harness-build took box.lock.3): held by harness-build') && line.includes('3 waiting: lane-a 90s, lane-c 60s') && /load (n\/a|\d+\.\d\d\/core)/.test(line) && line.includes('MB available of') && / MB available of \d+$/.test(line), line ?? 'null')
 check('a command that names the script remembers its directory for the facts', box.boxLockDir() === lockDir)
 check('a command that did not wait gets no line', box.boxLockLineForCommand(`bash ${script} x true`, '[box-lock] x holds the box from 08:01:05 (waited 0s; slot box.lock)', { cwd: scratch }) === null)
 check('a command that names no lock script gets no line', box.boxLockLineForCommand('bun run build.ts', receipt, { cwd: scratch }) === null)
@@ -103,32 +101,20 @@ check('the wire spells the box keys snake_case', 'at_ms' in wire.box && 'load_pe
 const back = seatWire.sessionFactsFromWire(JSON.parse(JSON.stringify(wire)))
 check('the seat decodes the box row back deep-equal', JSON.stringify(back?.box) === JSON.stringify(reading), j(back?.box))
 
-section('§5 the memory guard\'s verdict on the row')
-check('off reads off', watchdog.memoryGuardWords(null, null) === 'off (MERCURY_CHILD_RSS_LIMIT_MB=0)')
-check('not yet swept reads so, with the limit', watchdog.memoryGuardWords(null, 1536) === 'limit 1536 MB, this session not yet swept')
-check('within reads the numbers', watchdog.memoryGuardWords({ rssMb: 400, limitMb: 1536, verdict: 'within', atMs: now }, 1536) === '400 MB of 1536 MB, within the limit')
-check('a park reads over the limit', watchdog.memoryGuardWords({ rssMb: 1700, limitMb: 1536, verdict: 'park-after-turn', atMs: now }, 1536) === '1700 MB of 1536 MB, over the limit — parked after this turn')
-const killed: string[] = []
-const roster = { list: () => [{ short: 's1', pid: 4001 }, { short: 's2', pid: 4002 }], kill: (short: string) => (killed.push(short), true) }
-await watchdog.runRssSweep(roster, undefined, 1536, async () => new Map([[4001, 300 * 1024], [4002, 2000 * 1024]]), new Set())
-check('a sweep records each child\'s reading', watchdog.lastRssReadingOf('s1')?.rssMb === 300 && watchdog.lastRssReadingOf('s1')?.verdict === 'within', j(watchdog.lastRssReadingOf('s1')))
-check('…and the breach verdict beside its numbers', watchdog.lastRssReadingOf('s2')?.rssMb === 2000 && watchdog.lastRssReadingOf('s2')?.verdict === 'kill' && killed.join(',') === 's2', j(watchdog.lastRssReadingOf('s2')))
-check('a child never swept has no reading', watchdog.lastRssReadingOf('s3') === null)
-
-section('§6 mercury://health/box gives an agent the reading')
+section('§5 mercury://health/box gives an agent the reading')
 const ctx = { owner: { workspace: '/w', sessionId: 'box-proof', lane: 'main' } as never, cwd: scratch }
 const resolved = await resolveResource('mercury://health/box', ctx)
 check('the box ref resolves', resolved.state === 'ok', j(resolved).slice(0, 200))
 const resource = resolved.state === 'ok' ? resolved.resource : null
-check('its summary carries the load, the lock and the guard', (resource?.summary ?? '').includes('load') && (resource?.summary ?? '').includes(lockDir) && (resource?.summary ?? '').includes('memory guard:'), resource?.summary)
+check('its summary is the load and the lock, nothing after', /^load .* · lock: .*$/.test(resource?.summary ?? '') && (resource?.summary ?? '').includes(lockDir) && !(resource?.summary ?? '').includes('memory guard'), resource?.summary)
 check('its structured view is the reading', (resource?.structured as { lock?: { dir?: string } } | undefined)?.lock?.dir === lockDir)
 const absent = await resolveResource('mercury://health/nope', ctx)
 check('the refs note names the box', absent.state === 'absent' && ((absent as { note?: string }).note ?? '').includes('mercury://health/box'), j(absent))
 
-section('§7 the wiring: the child answers it, the daemon stamps it, the Bash tool speaks it')
+section('§6 the wiring: the child answers it, the daemon publishes it, the Bash tool speaks it')
 check('the runner\'s facts answer carries the reading', readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8').includes('box: boxReading(),'))
 check('the reading takes no sample of its own: it reads the last one and refreshes off the answer', readFileSync(join(ROOT, 'src/utils/boxLock.ts'), 'utf8').includes('const last = lastMemorySample(now)') && !readFileSync(join(ROOT, 'src/utils/boxLock.ts'), 'utf8').includes('sampleAvailableMemory('))
-check('the daemon stamps the memory guard\'s verdict onto the row it publishes', readFileSync(join(ROOT, 'src/daemon/sessionSeat.ts'), 'utf8').includes("box: { ...boxAnswer, memoryGuard: memoryGuardWords(lastRssReadingOf(short)) }"))
+check('the daemon publishes the box row as the child answered it, nothing stamped over it', readFileSync(join(ROOT, 'src/daemon/sessionSeat.ts'), 'utf8').includes("{ box: boxAnswer }"))
 check('the Bash tool appends the line to a result that waited', readFileSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx'), 'utf8').includes('boxLockLineForCommand(input.command'))
 check('the doctor carries the Box lock row', readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8').includes("id: 'box-lock'"))
 
