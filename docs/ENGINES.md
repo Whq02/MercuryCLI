@@ -62,7 +62,11 @@ tool calls stream as they arrive; the final usage and stop reason are
 recorded; a provider fault never crashes the turn — a terminal fault lands
 as an API-error message in the chat, cancellation returns quietly, and a
 retryable fault before any content is retried once; every request's usage
-joins the one session cost ledger.
+joins the one session cost ledger. On the wires that hand Mercury a tool
+call's arguments as text, an optional field the model sent empty (an empty
+string, an empty array, a null) reads as omitted, as the Anthropic wire
+carries it; a required field sent empty stays, and the tool's own refusal
+names it.
 
 Each wire carries its provider's documented quirks, the same pins the wire
 sends from: reasoning-effort vocabularies, sampling restrictions
