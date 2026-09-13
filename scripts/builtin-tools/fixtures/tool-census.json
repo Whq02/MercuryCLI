@@ -924,7 +924,7 @@
         "latency": "fast",
         "gate": "MERCURY_GIT_GRAPH",
         "conditions": [
-          "a git repository at the working directory"
+          "a git repository at, above, or directly below the working directory (or the given cwd)"
         ],
         "proof": "scripts/builtin-tools/prove-git-plans.ts"
       }
