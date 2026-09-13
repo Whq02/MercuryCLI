@@ -48,7 +48,7 @@ check('a dead holder reads as gone', state?.holders[1]?.pid === 2147483000 && st
 check('the tickets read as waiters, the oldest first, with the seconds waited', state?.waiters.map(w => `${w.label}:${w.waitedS}`).join(',') === 'lane-a:90,lane-c:60,lane-b:5', j(state?.waiters))
 check('a directory that is not there reads null', box.readBoxLockState(join(scratch, 'nowhere'), now) === null)
 const words = box.boxLockStateWords(state!)
-check('the words name every holder, the gone one, and the waiters', words.includes('harness-build (slot 1, pid') && words.includes('gone-lane (slot 3, pid 2147483000, gone)') && words.includes('2 waiting: lane-a 90s, lane-b 5s'), words)
+check('the words name every holder, the gone one, and the waiters', words.includes('harness-build (slot 1, pid') && words.includes('gone-lane (slot 3, pid 2147483000, gone)') && words.includes('3 waiting: lane-a 90s, lane-c 60s, lane-b 5s'), words)
 
 section('§2 the script receipt and the one line')
 const receipt = '[box-lock] harness-build holds the box from 08:01:05 (waited 84s; slot box.lock.3)'
