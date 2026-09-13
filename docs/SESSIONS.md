@@ -501,10 +501,10 @@ redrawn under every new message until it ages out.
   last sample the process took, with the clock it was taken at), the
   box lock's slots with who holds each and who waits (the coordination
   directory `MERCURY_BOX_LOCK_DIR` names, else the one the session's last
-  `with-box-lock.sh` command used), and the memory guard's verdict on this
-  session. An agent reads it as `mercury://health/box` through the Inspect
-  tool, and a Bash result whose command waited on the lock carries one
-  line saying how long, who held the slots, and the load at that moment.
+  `with-box-lock.sh` command used). An agent reads it as
+  `mercury://health/box` through the Inspect tool, and a Bash result whose
+  command waited on the lock carries one line saying how long, who held the
+  slots, and the load at that moment.
   This is visibility only: nothing here schedules or throttles.
 - A session's scratchpad — `<temp root>/mercury-<uid>/<project>/<session id>/scratchpad`
   (`MERCURY_TMPDIR` moves the root) — is the place the model is told to put
