@@ -1,5 +1,8 @@
-import sharp from 'sharp'
-import { spriteToAnsi } from '../../src/services/visual/spriteToAnsi.js'
+process.env.FORCE_COLOR = '3'
+const sharp = (await import('sharp')).default
+const chalk = (await import('chalk')).default
+const { rgbToXterm256 } = await import('../../src/ink/cell-grid.js')
+const { spriteToAnsi } = await import('../../src/services/visual/spriteToAnsi.js')
 
 const ESC = String.fromCharCode(27)
 
@@ -36,6 +39,15 @@ for (const ln of lines) {
   }
 }
 check('no stray control bytes (only ESC)', !strayControl)
+
+chalk.level = 2
+const reduced = (await spriteToAnsi(png, 8)).lines.join('')
+chalk.level = 3
+check('at 256 colours no 24-bit escape leaves the renderer', !reduced.includes('[38;2;') && !reduced.includes('[48;2;'))
+check(
+  'at 256 colours the cells carry the nearest index of the pixel',
+  reduced.includes(ESC + '[38;5;' + rgbToXterm256(222, 74, 53) + 'm'),
+)
 
 if (failed) {
   console.error('\n' + failed + ' sprite-painter check(s) FAILED')

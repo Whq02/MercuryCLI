@@ -1,6 +1,8 @@
 
 import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
+import { rgbToXterm256 } from '../../ink/cell-grid.js'
+import { truecolorActive } from '../../ink/colorize.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export type ImageProtocol = 'iterm' | 'kitty' | 'sixel' | 'cells' | 'link'
@@ -169,10 +171,18 @@ export async function imageToCells(png: Buffer, maxCols = 76, maxRows = 22): Pro
       const tr = data[top]!
       const tg = data[top + 1]!
       const tb = data[top + 2]!
+      const fg = truecolorActive()
+        ? `${ESC}[38;2;${tr};${tg};${tb}m`
+        : `${ESC}[38;5;${rgbToXterm256(tr, tg, tb)}m`
       if (hasBottom) {
-        line += `${ESC}[38;2;${tr};${tg};${tb}m${ESC}[48;2;${data[bot]};${data[bot + 1]};${data[bot + 2]}m▀`
+        const br = data[bot]!
+        const bg = data[bot + 1]!
+        const bb = data[bot + 2]!
+        line += truecolorActive()
+          ? `${fg}${ESC}[48;2;${br};${bg};${bb}m▀`
+          : `${fg}${ESC}[48;5;${rgbToXterm256(br, bg, bb)}m▀`
       } else {
-        line += `${ESC}[38;2;${tr};${tg};${tb}m▀`
+        line += `${fg}▀`
       }
     }
     line += `${ESC}[0m`

@@ -25,33 +25,56 @@ function honorNoColor(): boolean {
 }
 export const CHALK_DISABLED_FOR_NO_COLOR = honorNoColor()
 
-function boostChalkLevelForXtermJs(): boolean {
-  if (process.env.TERM_PROGRAM === 'vscode' && chalk.level === 2) {
+export function truecolorFingerprint(
+  env: Record<string, string | undefined> = process.env,
+): string | null {
+  const colorterm = env.COLORTERM
+  if (colorterm === 'truecolor' || colorterm === '24bit') return `COLORTERM=${colorterm}`
+  if (env.WT_SESSION) return 'WT_SESSION (Windows Terminal)'
+  const program = env.TERM_PROGRAM
+  if (program === 'vscode' || program === 'iTerm.app' || program === 'WezTerm' || program === 'ghostty') {
+    return `TERM_PROGRAM=${program}`
+  }
+  const term = env.TERM
+  if (term === 'xterm-kitty' || term === 'xterm-ghostty' || term === 'wezterm') return `TERM=${term}`
+  if (env.KITTY_WINDOW_ID) return 'KITTY_WINDOW_ID (kitty)'
+  return null
+}
+export const TRUECOLOR_FINGERPRINT = truecolorFingerprint(process.env)
+
+function boostChalkLevelForFingerprint(): boolean {
+  if (TRUECOLOR_FINGERPRINT !== null && chalk.level === 2) {
     chalk.level = 3
     return true
   }
   return false
 }
-export const CHALK_BOOSTED_FOR_XTERMJS = boostChalkLevelForXtermJs()
+export const CHALK_BOOSTED_FOR_FINGERPRINT = boostChalkLevelForFingerprint()
+
+function readTruecolorFlag(): string | undefined {
+  try {
+    return flagEnv('MERCURY_TRUECOLOR')
+  } catch {
+    return undefined
+  }
+}
+
+function clampChalkLevelForMercury(): boolean {
+  if (readTruecolorFlag() !== '0') return false
+  if (chalk.level > 2) chalk.level = 2
+  return true
+}
+export const CHALK_CLAMPED_FOR_MERCURY = clampChalkLevelForMercury()
 
 function boostChalkLevelForMercury(): boolean {
-  try {
-    if (flagEnv('MERCURY_TRUECOLOR') === '0') {
-      if (chalk.level > 2) chalk.level = 2
-      return false
-    }
-    if (chalk.level === 2) {
-      chalk.level = 3
-      return true
-    }
-  } catch {
-  }
-  return false
+  if (CHALK_CLAMPED_FOR_MERCURY || chalk.level !== 2 || !isEnvTruthy(readTruecolorFlag())) return false
+  chalk.level = 3
+  return true
 }
 export const CHALK_BOOSTED_FOR_MERCURY = boostChalkLevelForMercury()
 
 function clampChalkLevelForTmux(): boolean {
-  if (isEnvTruthy(flagEnv('MERCURY_TRUECOLOR'))) return false
+  if (isEnvTruthy(readTruecolorFlag())) return false
   if (process.env.TMUX && chalk.level > 2) {
     chalk.level = 2
     return true
@@ -66,6 +89,25 @@ export function paletteCollapsed(): boolean {
 
 export function truecolorActive(): boolean {
   return chalk.level >= 3
+}
+
+export function colorDepthWhy(): string {
+  if (CHALK_DISABLED_FOR_NO_COLOR) return 'NO_COLOR is set'
+  if (CHALK_CLAMPED_FOR_TMUX) return 'tmux carries 256 colors unless it is configured for 24-bit'
+  if (CHALK_CLAMPED_FOR_MERCURY) return 'MERCURY_TRUECOLOR=0 clamps the depth to 256 colors'
+  if (CHALK_BOOSTED_FOR_MERCURY) return 'MERCURY_TRUECOLOR=1 forces the full depth'
+  if (CHALK_BOOSTED_FOR_FINGERPRINT) {
+    return `${TRUECOLOR_FINGERPRINT} names a terminal with 24-bit color that does not advertise it`
+  }
+  if (chalk.level >= 3) {
+    return TRUECOLOR_FINGERPRINT === null
+      ? 'the terminal advertises 24-bit color'
+      : `the terminal advertises 24-bit color (${TRUECOLOR_FINGERPRINT})`
+  }
+  if (chalk.level === 2) {
+    return 'the terminal advertises no 24-bit color (COLORTERM is unset and no known truecolor terminal is named)'
+  }
+  return 'the terminal advertises fewer than 256 colors'
 }
 
 type Painter = { fg: (s: string) => string; bg: (s: string) => string }

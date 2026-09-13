@@ -36,7 +36,7 @@ report card, and the trace view.
 
 | id | What it checks |
 |---|---|
-| `truecolor` | 24-bit color (`COLORTERM=truecolor|24bit`, or a known truecolor host: Windows Terminal, VS Code, iTerm2). A truecolor terminal renders the exact brand palette; reduced-depth hosts get the quantized mapping |
+| `truecolor` | 24-bit color: `COLORTERM=truecolor|24bit`, or a known truecolor terminal (Windows Terminal, VS Code, iTerm2, WezTerm, Ghostty, Kitty). Mercury paints in 24-bit color where this row is met and in 256 colors everywhere else — Apple's Terminal on macOS 15 and older among them — with no flag needed; `MERCURY_TRUECOLOR=1` forces the full depth on a terminal that has it and does not say so, `MERCURY_TRUECOLOR=0` clamps it to 256 colors. The doctor's Terminal color row names the depth and why |
 | `synchronized-output` | atomic frames (mode 2026) — no tearing under load |
 | `extended-keys` | extended key reporting — more distinguishable chords |
 | `hyperlinks` | OSC 8 hyperlinks — clickable file and evidence references |
