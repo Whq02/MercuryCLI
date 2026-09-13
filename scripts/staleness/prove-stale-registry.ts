@@ -181,6 +181,7 @@ src/services/search/searchPacing.ts :: cache :: ttl-bounded
 src/services/switchboard/capacityCheck.ts :: memorySampleMemo :: ttl-bounded
 src/services/switchboard/ensureDaemon.ts :: bootRunnerOptionsMemo :: static-for-process
 src/services/switchboard/ensureDaemon.ts :: usableMemo :: ttl-bounded
+src/services/vulcan/portabilityDoctor.ts :: presenceMemo :: ttl-bounded
 src/services/wallet/wallet.ts :: activeMemo :: ttl-bounded
 src/services/wallet/wallet.ts :: entriesMemo :: ttl-bounded
 src/services/workbench/projection.ts :: agentMetaCache :: subscription-fed
@@ -315,6 +316,7 @@ src/utils/settings/settingsCache.ts :: sessionSettingsCache :: invalidator=reset
 src/utils/settings/snapshot.ts :: lastSnapshot :: keyed-by-truth
 src/utils/shell/engineSession.ts :: snapshotPromise :: static-for-process
 src/utils/shell/powershellDetection.ts :: cachedPowerShellPath :: static-for-process
+src/utils/shell/windowsShellRoad.ts :: windowsBashRoad :: static-for-process
 src/utils/suggestions/directoryCompletion.ts :: directoryCache :: ttl-bounded
 src/utils/suggestions/directoryCompletion.ts :: pathCache :: ttl-bounded
 src/utils/suggestions/shellHistoryCompletion.ts :: corpusCache :: ttl-bounded
@@ -336,7 +338,6 @@ src/utils/user.ts :: getGitEmail :: static-for-process
 src/utils/verification/projectGates.ts :: cache :: ttl-bounded
 src/utils/verification/verificationState.ts :: digestCache :: invalidator=markMutation
 src/utils/verification/verificationState.ts :: verifiableCache :: ttl-bounded
-src/utils/shell/windowsShellRoad.ts :: windowsBashRoad :: static-for-process
 src/utils/windowsPaths.ts :: locateGitBash :: static-for-process
 src/utils/zodToJsonSchema.ts :: conversionCache :: keyed-by-truth
 `.trim()
