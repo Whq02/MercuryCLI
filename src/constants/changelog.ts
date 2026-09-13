@@ -1,6 +1,12 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.10
+- Fixed the GPT route's tool calls: empty optional fields dropped at the decode, curly quotes straightened where a command, a pattern, a symbol or a path never wants one, and an Edit refusal that names the lines already read
+- Added a bundled shell to the Windows archive: a box with no bash runs the shell tool through Mercury's own bash-compatible engine
+- Fixed delegated agents refused long after a usage window reset, and an expired sign-in reported as a used-up window
+- Fixed the first-run screen, the enter screen and the mascot painting wrong colours in Apple's Terminal and other 256-colour terminals
+
 ## 1.0.0-beta.9
 - Fixed a woken session losing its preserved thinking: the history it sends is the one the live session sent, and the record of what was sent survives the wake
 - Fixed a new sign-in not reaching the engine behind an open chat, which kept refusing delegated agents with the old account's usage window
