@@ -181,9 +181,11 @@ operator; `MERCURY_UPDATE_NOTICE=0` disables it.
 ## The shell engine
 
 The Bash tool runs commands through a shell engine. The default is the
-**system** shell — the platform's bash or zsh (PowerShell on Windows), a
-fresh child per command: the working directory carries from call to call,
-everything else resets.
+**system** shell — the platform's bash or zsh (Git for Windows' `bash.exe`
+on Windows), a fresh child per command: the working directory carries from
+call to call, everything else resets. One exception: a Windows box where no
+`bash.exe` is found arms the bundled **brush** engine by itself, with
+nothing to set — a release archive always carries it.
 
 An optional **brush** engine is a vendored payload — brush, a
 bash-compatible shell written in Rust (MIT), shipped as one upstream release
@@ -223,9 +225,16 @@ Select it with the **Shell engine** row in `/config` (setting `shellEngine`:
 `system` | `brush`) or the `MERCURY_SHELL_ENGINE=brush` env pin, which
 outranks the setting; the system shell stays the default. A `brush` choice
 whose pack is absent degrades to the system shell and the `doctor` row names
-why — never a silent fallback. The Bash tool's own description always states
-which engine is live, and the command parser and permission rules judge the
-command text identically on either engine.
+why — never a silent fallback. On a Windows box with no `bash.exe`, `system`
+written as the setting's value or as the env pin turns the engine off and
+the Bash tool leaves the roster; the `/config` row's `system` is the
+default, which lets the engine arm itself. The `doctor` report's **Bash
+tool shell** row (check id `shell`) says which shell runs and why — a found
+`bash.exe`, the bundled engine because none was found, or the engine by the
+setting or the pin — and its **Shell engine** row (`iface-shell-engine`)
+says the same from the engine's side. The Bash tool's own description
+always states which engine is live, and the command parser and permission
+rules judge the command text identically on either engine.
 
 ## Diagnostics
 
