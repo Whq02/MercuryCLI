@@ -132,6 +132,12 @@ node dist/mercury.mjs doctor --json
 
 The cockpit needs a real TTY, with no minimum terminal size. The full layout
 starts at 100 columns and 26 rows; smaller windows use the compact layout.
+Mercury paints in 24-bit color where the terminal advertises it
+(`COLORTERM=truecolor`, or iTerm2, Ghostty, WezTerm, Kitty, Windows Terminal,
+VS Code) and in 256 colors everywhere else, Apple's Terminal on macOS 15 and
+older included; `mercury doctor` names the depth and why in its Terminal
+color row, `MERCURY_TRUECOLOR=1` forces the full depth on a terminal that has
+it and does not say so, and `MERCURY_TRUECOLOR=0` clamps it to 256 colors.
 
 `setup` fetches the vendored capability packs (pyright · debugpy · js-debug ·
 extra grammars · this machine's Node runtime · brush); a failed fetch skips its

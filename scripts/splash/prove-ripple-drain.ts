@@ -42,6 +42,7 @@ function runProbe(opts: {
         PATH: process.env.PATH ?? '/usr/bin:/bin',
         HOME: home,
         TERM: 'xterm-256color',
+        COLORTERM: 'truecolor',
         FORCE_COLOR: '1',
         MERCURY_CONFIG_DIR: configDir,
         PROBE_REPORT: reportPath,

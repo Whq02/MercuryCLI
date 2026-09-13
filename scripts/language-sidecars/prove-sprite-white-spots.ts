@@ -10,6 +10,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
+process.env.FORCE_COLOR = '3'
 const { spriteToAnsi } = await import('../../src/services/visual/spriteToAnsi.js')
 const ESC = String.fromCharCode(27)
 

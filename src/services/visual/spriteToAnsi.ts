@@ -1,3 +1,6 @@
+import { rgbToXterm256 } from '../../ink/cell-grid.js'
+import { truecolorActive } from '../../ink/colorize.js'
+
 type Sharp = typeof import('sharp').default
 let sharpLoad: Promise<Sharp> | null = null
 const loadSharp = (): Promise<Sharp> => {
@@ -8,6 +11,10 @@ const loadSharp = (): Promise<Sharp> => {
 }
 
 const ESC = String.fromCharCode(27)
+const fgSgr = (r: number, g: number, b: number): string =>
+  truecolorActive() ? `${ESC}[38;2;${r};${g};${b}m` : `${ESC}[38;5;${rgbToXterm256(r, g, b)}m`
+const bgSgr = (r: number, g: number, b: number): string =>
+  truecolorActive() ? `${ESC}[48;2;${r};${g};${b}m` : `${ESC}[48;5;${rgbToXterm256(r, g, b)}m`
 const isTransparent = (a: number): boolean => a < 40
 const isNearWhite = (r: number, g: number, b: number): boolean => {
   const mn = Math.min(r, g, b)
@@ -108,11 +115,11 @@ export async function spriteToAnsi(
       const botBg = isBg(x, y * 2 + 1, ba)
       if (topBg && botBg) { row += `${ESC}[0m ` ; continue }
       if (topBg) {
-        row += `${ESC}[49m${ESC}[38;2;${br};${bg2};${bb}m▄`
+        row += `${ESC}[49m${fgSgr(br, bg2, bb)}▄`
         continue
       }
-      const fg = `${ESC}[38;2;${tr};${tg};${tb}m`
-      const bg = botBg ? `${ESC}[49m` : `${ESC}[48;2;${br};${bg2};${bb}m`
+      const fg = fgSgr(tr, tg, tb)
+      const bg = botBg ? `${ESC}[49m` : bgSgr(br, bg2, bb)
       row += `${fg}${bg}▀`
     }
     lines.push(row + `${ESC}[0m`)

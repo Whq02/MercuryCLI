@@ -1,8 +1,7 @@
 import { shouldSkipHighlight } from '../../utils/cliHighlight.js'
 import { diffArrays } from 'diff'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { truecolorActive } from '../../ink/colorize.js'
 import { stringWidth } from '../../ink/stringWidth.js'
-import { isEnvTruthy } from '../../utils/envUtils.js'
 import { logError } from '../../utils/log.js'
 
 function charWidth(char: string): number {
@@ -26,12 +25,7 @@ type ColorMode = 'ansi' | 'truecolor' | 'color256'
 
 function detectColorMode(themeName: string): ColorMode {
   if (themeName.includes('ansi')) return 'ansi'
-  const inMultiplexer =
-    process.env.TMUX !== undefined && !isEnvTruthy(flagEnv('MERCURY_TRUECOLOR'))
-  if (flagEnv('MERCURY_TRUECOLOR') !== '0' && !inMultiplexer) return 'truecolor'
-  const colorterm = process.env.COLORTERM
-  if (colorterm === 'truecolor' || colorterm === '24bit') return 'truecolor'
-  return 'color256'
+  return truecolorActive() ? 'truecolor' : 'color256'
 }
 
 

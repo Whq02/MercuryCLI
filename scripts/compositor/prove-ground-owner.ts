@@ -28,7 +28,7 @@ function inProc(snippet: string, env: Record<string, string | undefined> = {}): 
   `
   const stdout = execFileSync(BUN, ['-e', code], {
     cwd: REPO,
-    env: { ...process.env, MERCURY_OASIS_BG: undefined, MERCURY_WARM_BG: undefined, ...env } as NodeJS.ProcessEnv,
+    env: { ...process.env, MERCURY_OASIS_BG: undefined, MERCURY_WARM_BG: undefined, COLORTERM: 'truecolor', MERCURY_TRUECOLOR: undefined, NO_COLOR: undefined, ...env } as NodeJS.ProcessEnv,
     timeout: 60_000,
   }).toString()
   const m = stdout.match(/%%%(.*)%%%/s)
@@ -131,6 +131,22 @@ console.log('the ONE terminal-ground lifecycle owner')
     { MERCURY_ALT_HELD: '1', NO_COLOR: '1' },
   ) as string[]
   check('C5b NO_COLOR handoff writes nothing at exit (the splash never recoloured)', r3.length === 0, JSON.stringify(r3))
+  const r4 = inProc(
+    `
+    mod.exitOasisBg(w)
+    const result = out
+  `,
+    { MERCURY_ALT_HELD: '1', COLORTERM: undefined, TERM_PROGRAM: 'Apple_Terminal' },
+  ) as string[]
+  check('C5b a terminal advertising no 24-bit colour writes nothing at exit (the splash painted 256 colours and never recoloured)', r4.length === 0, JSON.stringify(r4))
+  const r5 = inProc(
+    `
+    mod.exitOasisBg(w)
+    const result = out
+  `,
+    { MERCURY_ALT_HELD: '1', COLORTERM: undefined, TERM_PROGRAM: 'Apple_Terminal', MERCURY_TRUECOLOR: '1' },
+  ) as string[]
+  check('C5b MERCURY_TRUECOLOR=1 on that terminal heals once (the splash was forced to the full depth)', r5.length === 1 && r5[0] === RESET_111, JSON.stringify(r5))
 }
 
 {
