@@ -8,6 +8,12 @@ import { staleEditRecoveryEnabled } from '../../services/changeTransaction/stale
 import { fileGeneration, recordSeenLines } from '../../services/changeTransaction/seenLines.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { discoveryPoolWidth, mapWithConcurrency } from '../../utils/concurrency.js'
+import {
+  LEFT_DOUBLE_CURLY_QUOTE,
+  LEFT_SINGLE_CURLY_QUOTE,
+  RIGHT_DOUBLE_CURLY_QUOTE,
+  RIGHT_SINGLE_CURLY_QUOTE,
+} from '../../utils/curlyQuotes.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
 import { splitGrepGlobField } from '../../utils/globPattern.js'
@@ -160,6 +166,44 @@ function relativizePrefixed(line: string, splitOn: 'first' | 'last'): string {
   return `${toRelativePath(pathPart)}${line.slice(index)}`
 }
 
+const SINGLE_QUOTE_CLASS = `['${LEFT_SINGLE_CURLY_QUOTE}${RIGHT_SINGLE_CURLY_QUOTE}]`
+const DOUBLE_QUOTE_CLASS = `["${LEFT_DOUBLE_CURLY_QUOTE}${RIGHT_DOUBLE_CURLY_QUOTE}]`
+
+export function quoteTolerantPattern(pattern: string): string {
+  if (!pattern.includes("'") && !pattern.includes('"')) return pattern
+  let out = ''
+  let depth = 0
+  for (let i = 0; i < pattern.length; i++) {
+    const char = pattern[i]!
+    if (char === '\\') {
+      out += char + (pattern[i + 1] ?? '')
+      i++
+      continue
+    }
+    if (depth > 0) {
+      if (char === '[') depth++
+      else if (char === ']') depth--
+      out += char
+      continue
+    }
+    if (char === '[') {
+      depth = 1
+      out += char
+      if (pattern[i + 1] === '^') {
+        out += '^'
+        i++
+      }
+      if (pattern[i + 1] === ']') {
+        out += ']'
+        i++
+      }
+      continue
+    }
+    out += char === "'" ? SINGLE_QUOTE_CLASS : char === '"' ? DOUBLE_QUOTE_CLASS : char
+  }
+  return out
+}
+
 async function buildArgs(input: Input, context: ToolUseContext, searchRoot: string): Promise<string[]> {
   const mode = input.output_mode ?? 'files_with_matches'
   const args: string[] = ['--hidden']
@@ -184,10 +228,11 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
       if (input['-A'] !== undefined) args.push('-A', String(input['-A']))
     }
   }
-  if (input.pattern.startsWith('-')) {
-    args.push('-e', input.pattern)
+  const pattern = quoteTolerantPattern(input.pattern)
+  if (pattern.startsWith('-')) {
+    args.push('-e', pattern)
   } else {
-    args.push(input.pattern)
+    args.push(pattern)
   }
   if (input.type) args.push('--type', input.type)
   if (input.glob) {
@@ -207,6 +252,7 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
 export const GrepTool = buildTool({
   name: GREP_TOOL_NAME,
   strict: true,
+  straightQuoteInputs: ['pattern', 'path', 'glob'],
   maxResultSizeChars: 20_000,
   inputSchema,
   outputSchema,

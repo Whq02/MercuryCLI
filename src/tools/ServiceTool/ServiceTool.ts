@@ -235,6 +235,7 @@ export const ServiceTool = buildTool({
     'named project services: start/observe/wait/logs/stop long-lived processes (web servers, watch builds, local APIs)',
   maxResultSizeChars: 100_000,
   strict: true,
+  straightQuoteInputs: ['command', 'cwd'],
   isEnabled() {
     return servicesEnabled()
   },

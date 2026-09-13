@@ -553,6 +553,7 @@ Host observation (read-only, never publishes/pushes; MERCURY_REPO_HOST):
   },
   userFacingName,
   shouldDefer: true,
+  straightQuoteInputs: ['paths', 'files', 'path', 'file'],
   get inputSchema(): SchemaType {
     return inputSchema()
   },

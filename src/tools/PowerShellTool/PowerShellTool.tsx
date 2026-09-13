@@ -444,6 +444,7 @@ export const PowerShellTool = buildTool({
   get inputSchema() { return modelInputSchema() },
   maxResultSizeChars: PERSIST_THRESHOLD_CHARS,
   strict: true,
+  straightQuoteInputs: ['command'],
   async description(input: PowerShellToolInput): Promise<string> {
     return input?.description ?? 'Run a PowerShell command'
   },

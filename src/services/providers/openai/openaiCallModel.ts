@@ -1071,7 +1071,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
       argumentsRaw: call.argumentsRaw,
       malformed: call.malformed,
     })),
-    { deferredUnadmitted: ctx.deferredUnadmitted },
+    { deferredUnadmitted: ctx.deferredUnadmitted, straightenQuotes: true },
   )
   completed.forEach((call, index) => {
     const verdict = verdicts[index]!

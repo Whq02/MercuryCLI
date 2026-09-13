@@ -300,6 +300,7 @@ interface ToolMembers<TInput, TOutput, TProgress extends ToolProgressData> {
   outputSchema?: ZodType
   strict?: boolean
   keepEmptyInputs?: readonly string[]
+  straightQuoteInputs?: readonly string[]
   maxResultSizeChars: number
   shouldDefer?: boolean
   alwaysLoad?: boolean
