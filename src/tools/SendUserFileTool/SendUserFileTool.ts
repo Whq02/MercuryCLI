@@ -53,6 +53,7 @@ export const SendUserFileTool = buildTool({
   searchHint:
     'deliver files (screenshots, reports, artifacts) to the user',
   maxResultSizeChars: 100_000,
+  straightQuoteInputs: ['files'],
   get inputSchema(): InputSchema {
     return inputSchema()
   },

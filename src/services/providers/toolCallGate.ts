@@ -3,6 +3,7 @@ import { findToolByName } from '../../Tool.js'
 import type { AssistantMessage, RefusedToolCall } from '../../types/message.js'
 import { formatZodValidationError } from '../../utils/toolErrors.js'
 import { stripNullArgs } from './openai/openaiWire.js'
+import { straightenQuotes } from '../../utils/curlyQuotes.js'
 
 export interface IncomingToolCall {
   id: string
@@ -70,6 +71,36 @@ export function dropEmptyOptionalArgs(
   return out
 }
 
+function straightenValue(value: unknown): unknown {
+  if (typeof value === 'string') return straightenQuotes(value)
+  if (!Array.isArray(value)) return value
+  let changed = false
+  const items = value.map(item => {
+    if (typeof item !== 'string') return item
+    const straight = straightenQuotes(item)
+    if (straight !== item) changed = true
+    return straight
+  })
+  return changed ? items : value
+}
+
+export function straightenQuoteArgs(
+  input: Record<string, unknown>,
+  tool: { straightQuoteInputs?: readonly string[] },
+): Record<string, unknown> {
+  const fields = tool.straightQuoteInputs
+  if (!fields || fields.length === 0) return input
+  let out: Record<string, unknown> | undefined
+  for (const key of fields) {
+    if (!Object.prototype.hasOwnProperty.call(input, key)) continue
+    const straight = straightenValue(input[key])
+    if (straight === input[key]) continue
+    out ??= { ...input }
+    out[key] = straight
+  }
+  return out ?? input
+}
+
 function refused(call: IncomingToolCall, code: RefusedToolCall['code'], reason: string): ToolCallVerdict {
   return {
     ok: false,
@@ -79,6 +110,7 @@ function refused(call: IncomingToolCall, code: RefusedToolCall['code'], reason: 
 
 export interface ToolCallGateHints {
   deferredUnadmitted?: (name: string) => boolean
+  straightenQuotes?: boolean
 }
 
 export function schemaNotSentSentence(toolName: string): string {
@@ -115,7 +147,8 @@ export function gateToolCall(tools: Tools, call: IncomingToolCall, hints?: ToolC
       `the arguments must be a JSON object, not ${Array.isArray(stripped) ? 'an array' : stripped === null ? 'null' : `a ${typeof stripped}`}`,
     )
   }
-  const input = dropEmptyOptionalArgs(stripped as Record<string, unknown>, tool)
+  const dropped = dropEmptyOptionalArgs(stripped as Record<string, unknown>, tool)
+  const input = hints?.straightenQuotes === true ? straightenQuoteArgs(dropped, tool) : dropped
   try {
     const verdict = tool.inputSchema.safeParse(input)
     if (!verdict.success) {

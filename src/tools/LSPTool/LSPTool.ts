@@ -679,6 +679,7 @@ export const LSPTool = buildTool({
   name: LSP_TOOL_NAME,
   isLsp: true,
   shouldDefer: true,
+  straightQuoteInputs: ['filePath', 'query', 'newName', 'newPath', 'targetPath', 'paths'],
   maxResultSizeChars: 100_000,
   get inputSchema() {
     return flatSchema() as z.ZodType

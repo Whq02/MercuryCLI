@@ -95,6 +95,7 @@ const UNREAD_FILE_MESSAGE = 'Read the file before overwriting it — a prior rea
 export const FileWriteTool = buildTool({
   name: FILE_WRITE_TOOL_NAME,
   strict: true,
+  straightQuoteInputs: ['file_path'],
   maxResultSizeChars: 100_000,
   inputSchema,
   outputSchema,

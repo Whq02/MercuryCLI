@@ -704,6 +704,7 @@ function serializeTextResult(file: Extract<Output, { type: 'text' }>['file'], da
 export const FileReadTool = buildTool({
   name: FILE_READ_TOOL_NAME,
   strict: true,
+  straightQuoteInputs: ['file_path'],
   maxResultSizeChars: Infinity,
   get inputSchema() {
     return inputSchema()

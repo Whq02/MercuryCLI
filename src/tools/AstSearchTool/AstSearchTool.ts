@@ -116,6 +116,7 @@ export const AstSearchTool = buildTool({
   shouldDefer: true,
   name: AST_SEARCH_TOOL_NAME,
   strict: true,
+  straightQuoteInputs: ['pattern', 'path', 'glob'],
   maxResultSizeChars: 30_000,
   searchHint: 'structural code search by syntax pattern with meta-variables across languages',
   capability: {
