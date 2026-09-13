@@ -18,9 +18,10 @@ export function selectDrainableCommands<C extends DrainableCommand>(
   scope: DrainScope,
   isSlashCommand: (cmd: C) => boolean,
 ): C[] {
+  const ownsTheQueue = scope.isMainThread && scope.agentId === undefined
   return commands.filter(cmd => {
     if (isSlashCommand(cmd)) return false
-    if (scope.isMainThread) return cmd.agentId === undefined
+    if (ownsTheQueue) return cmd.agentId === undefined
     return cmd.mode === 'task-notification' && cmd.agentId === scope.agentId
   })
 }
