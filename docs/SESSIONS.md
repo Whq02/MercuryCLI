@@ -432,6 +432,12 @@ after the turn's last tool round waits for the turn's end, as does a slash
 command sent at any point of the turn; lines that arrive between turns are
 joined into one row as before; esc interrupts the turn and anything still
 queued runs as the next turn.
+The line always reaches the session's own model. A sub-agent the model is
+running (an Agent tool call) has tool boundaries of its own; those read only
+the notes addressed to that agent, never the operator's lines, so a line sent
+while a sub-agent works waits for the session's next boundary, the Agent
+tool's return included, and lands in the session's transcript, not the
+sub-agent's.
 
 ## A line sent while the session compacts
 
