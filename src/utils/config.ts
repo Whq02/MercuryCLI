@@ -33,6 +33,7 @@ export {
   isConfigReadingAllowed,
   saveGlobalConfig,
   saveGlobalConfigDeferred,
+  readGlobalConfigAgain,
 } from './config/globalConfig.js'
 export {
   getCurrentProjectConfig,
