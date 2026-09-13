@@ -1,3 +1,4 @@
+import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { fixture, option, ROOT } from './viewportFixture.ts'
@@ -11,7 +12,7 @@ const proofs: Record<string, string> = {
 export function runViewportProof(name: string): number {
   const entry = proofs[name]
   if (!entry) throw new Error(`Choose ${Object.keys(proofs).join(', ')}`)
-  const scratch = process.argv.includes('--scratch') ? option('--scratch') : process.env.TMPDIR
+  const scratch = process.argv.includes('--scratch') ? option('--scratch') : (process.env.TMPDIR ?? tmpdir())
   if (!scratch) throw new Error('Pass --scratch <absolute scratch directory>')
   const node = process.argv.includes('--node') ? option('--node') : Bun.which('node')
   if (!node) throw new Error('Node is required')
