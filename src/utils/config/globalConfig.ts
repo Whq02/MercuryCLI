@@ -301,6 +301,25 @@ export function writeThroughGlobalConfigCache(config: GlobalConfig): void {
   globalConfigCache = { config, mtime: Date.now() }
 }
 
+export function readGlobalConfigAgain(): void {
+  const file = getGlobalMercuryFile()
+  let stamp: number
+  let content: string
+  try {
+    stamp = getFsImplementation().statSync(file).mtimeMs
+    content = String(getFsImplementation().readFileSync(file, { encoding: 'utf-8' }))
+  } catch {
+    return
+  }
+  const parsed = safeParseJSON(stripBOM(content))
+  if (parsed === null || typeof parsed !== 'object') return
+  globalConfigCache = {
+    config: foldPendingUpdaters(migrateConfigFields({ ...createDefaultGlobalConfig(), ...(parsed as Partial<GlobalConfig>) })),
+    mtime: stamp,
+  }
+  notifyGlobalConfigCache()
+}
+
 export function getGlobalConfigCacheStamp(): number {
   return globalConfigCache.mtime
 }

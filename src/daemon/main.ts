@@ -876,6 +876,7 @@ async function daemonRun(args: string[]): Promise<void> {
           const view = composeSignInView(opts)
           if (opts?.refresh === true && roster !== null) {
             const told = relayCredentialChange(roster)
+            for (const short of told) requestSessionFacts(short, roster, { immediate: true })
             if (told.length > 0) logForDebugging(`[daemon] a credential moved in the screen: told ${told.length} runner(s) to read the account again — ${told.join(', ')}`)
           }
           return view
