@@ -13,6 +13,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { createAssistantAPIErrorMessage, NO_RESPONSE_REQUESTED } from '../../utils/messages.js'
 import { isNonCustomOpusModel } from '../../utils/model/model.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
+import { classifyAnthropicRefusal } from '../providers/anthropicRefusal.js'
 import { classifyCredentialWall, credentialWallLine, isRevokedSignInText } from '../providers/credentialWall.js'
 import { classifyOverflowFault, type OverflowFamily } from './overflowSignal.js'
 import type { ClaudeAILimits, OverageDisabledReason, QuotaStatus } from '../claudeAiLimits.js'
@@ -423,7 +424,7 @@ function composeAssistantMessageFromError(
     })
   }
 
-  if (status === 429 && shouldProcessRateLimits(isClaudeAISubscriber())) {
+  if (classifyAnthropicRefusal({ status, wireText: message }) === 'window' && shouldProcessRateLimits(isClaudeAISubscriber())) {
     const headers = errorHeaders(error)
     const claim = headerValue(headers, 'anthropic-ratelimit-unified-representative-claim')
     const overageStatus = headerValue(headers, 'anthropic-ratelimit-unified-overage-status')
@@ -676,7 +677,7 @@ function composeAssistantMessageFromError(
     })
   }
 
-  if (status === 401 && isAnthropicOAuthSignInExpired()) {
+  if (classifyAnthropicRefusal({ status, wireText: message, signInExpired: isAnthropicOAuthSignInExpired() }) === 'sign-in') {
     logForDebugging(`[api] credential wall (sign-in, observed expired) on ${model} — the wire said: ${message}`)
     return createAssistantAPIErrorMessage({
       content: `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine(routeOfModel(model), 'sign-in', { nonInteractive })}`,

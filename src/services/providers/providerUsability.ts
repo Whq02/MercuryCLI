@@ -1,6 +1,6 @@
 import { getAnthropicApiKey, isClaudeAISubscriber } from '../../utils/auth.js'
-import { formatClock } from '../../utils/cockpit/quota.js'
 import { anthropicLimitVerdict } from '../claudeAiLimits.js'
+import { anthropicSignInWords, anthropicWindowWords, type AnthropicWindowObservation } from './anthropicRefusal.js'
 import { getGptSeatAvailability } from './openai/openaiCatalogue.js'
 import { providerDisplayName } from './routeLaw.js'
 
@@ -23,6 +23,7 @@ export interface ProviderUsability {
   usable: boolean
   blockers: string[]
   delegationCapped?: boolean
+  signInExpired?: boolean
 }
 
 export interface ProviderUsabilityReads {
@@ -30,7 +31,8 @@ export interface ProviderUsabilityReads {
   anthropicSubscriber: () => boolean
   anthropicBearerToken?: () => boolean
   anthropicLimitStatus: () => 'allowed' | 'allowed_warning' | 'rejected' | 'unknown'
-  anthropicLimitObservation?: () => { account: string; observedAtMs: number } | undefined
+  anthropicLimitObservation?: () => AnthropicWindowObservation | undefined
+  anthropicSignInExpired?: () => boolean
   gptSeat: () => { state: 'ready' | 'disabled'; reason?: string; why?: string }
   zaiKeyPresent: () => boolean
   moonshotAccount?: () => { kind: 'kimi-oauth' | 'api-key' } | undefined
@@ -51,14 +53,20 @@ export interface ProviderUsabilityReads {
   ) => { state: 'credit-exhausted'; detail: string; remedy: string } | { state: 'clear' }
 }
 
-export function anthropicLimitReads(): Pick<ProviderUsabilityReads, 'anthropicLimitStatus' | 'anthropicLimitObservation'> {
+export function anthropicLimitReads(
+  clock: () => number = Date.now,
+): Pick<ProviderUsabilityReads, 'anthropicLimitStatus' | 'anthropicLimitObservation'> {
   return {
-    anthropicLimitStatus: () => anthropicLimitVerdict().status,
+    anthropicLimitStatus: () => anthropicLimitVerdict(clock()).status,
     anthropicLimitObservation: () => {
-      const verdict = anthropicLimitVerdict()
-      return verdict.observedAtMs === undefined || verdict.account === undefined
-        ? undefined
-        : { account: verdict.account, observedAtMs: verdict.observedAtMs }
+      const verdict = anthropicLimitVerdict(clock())
+      if (verdict.observedAtMs === undefined || verdict.account === undefined) return undefined
+      return {
+        account: verdict.account,
+        observedAtMs: verdict.observedAtMs,
+        ...(verdict.resetsAtMs !== undefined ? { resetsAtMs: verdict.resetsAtMs } : {}),
+        ...(verdict.lapsesAtMs !== undefined ? { lapsesAtMs: verdict.lapsesAtMs } : {}),
+      }
     },
   }
 }
@@ -82,6 +90,11 @@ function liveProviderUsabilityReads(): ProviderUsabilityReads {
       }).credentialed
     },
     ...anthropicLimitReads(),
+    anthropicSignInExpired: () => {
+      const { observedCredentialWall } =
+        require('./credentialWall.js') as typeof import('./credentialWall.js')
+      return observedCredentialWall('anthropic') === 'sign-in'
+    },
     gptSeat: () => getGptSeatAvailability(),
     zaiKeyPresent: () => {
       const { resolveZaiApiKey } =
@@ -183,12 +196,7 @@ export function resolveProviderUsability(
     anthropicBlockers.push('no Anthropic credential — /logins (or ANTHROPIC_API_KEY)')
   }
   if (limit === 'rejected') {
-    const seen = reads.anthropicLimitObservation?.()
-    anthropicBlockers.push(
-      seen === undefined
-        ? 'the Anthropic usage window is reached — resets per /usage'
-        : `the Anthropic usage window is reached for ${seen.account}, seen at ${formatClock(seen.observedAtMs)} — resets per /usage`,
-    )
+    anthropicBlockers.push(anthropicWindowWords(reads.anthropicLimitObservation?.()))
   }
   const anthropic: ProviderUsability = {
     provider: 'anthropic',
@@ -197,6 +205,7 @@ export function resolveProviderUsability(
     usable: anthropicBlockers.length === 0,
     blockers: anthropicBlockers,
     delegationCapped: limit === 'rejected',
+    ...(anthropicCredential !== 'none' && reads.anthropicSignInExpired?.() === true ? { signInExpired: true } : {}),
   }
 
   const seat = reads.gptSeat()
@@ -382,19 +391,27 @@ export function delegationDispatchBlocker(
   map: Record<ProviderId, ProviderUsability> = resolveProviderUsability(),
 ): string | null {
   const lane = map[route]
+  const signInExpired = route === 'anthropic' && lane.signInExpired === true
   const blocked =
-    route === 'anthropic'
+    signInExpired ||
+    (route === 'anthropic'
       ? lane.delegationCapped === true
-      : lane.limit === 'rejected'
+      : lane.limit === 'rejected')
   if (!blocked) return null
   const usableAlternatives = (Object.values(map) as ProviderUsability[])
     .filter(p => p.provider !== route && p.usable)
     .map(p => p.provider)
-  const why = lane.blockers.length > 0 ? lane.blockers.join('; ') : 'lane unavailable'
+  const why = signInExpired
+    ? anthropicSignInWords()
+    : lane.blockers.length > 0
+      ? lane.blockers.join('; ')
+      : 'lane unavailable'
   const alternatives =
     usableAlternatives.length > 0
       ? ` Lanes with usage right now: ${usableAlternatives.join(', ')} — dispatch there by naming a model explicitly (the Agent model parameter).`
-      : ' No other lane is usable right now — wait for the window to reset.'
+      : signInExpired
+        ? ' No other lane is usable right now — sign in again first.'
+        : ' No other lane is usable right now — wait for the window to reset.'
   return (
     `the ${route} lane cannot take delegated work right now (${why}). ` +
     `Delegated agents are never silently rerouted across providers.` +
