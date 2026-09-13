@@ -157,7 +157,6 @@ jobs:
         run: bun run scripts/vendor/build-voice.ts --target ${{ matrix.target }}
       - name: Build the shell engine pack (Windows)
         if: runner.os == 'Windows'
-        continue-on-error: true
         run: bun run scripts/vendor/build-brush.ts --target ${{ matrix.target }}
       - name: cmake for the on-device transcriber pack
         continue-on-error: true

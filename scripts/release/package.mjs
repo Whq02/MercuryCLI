@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { cmdLauncher, installingDoc, parseEnginesNode, posixLauncher, ps1Launcher, readmeFirst, updatingDoc } from './launcherTemplates.mjs'
-import { readCompatFloor, releaseLayoutSection, topAllowlist, unsignedArchiveName } from './payloadContract.mjs'
+import { bundledVendorPacks, checkBundledVendorPacks, readCompatFloor, releaseLayoutSection, topAllowlist, unsignedArchiveName } from './payloadContract.mjs'
 import { checkReleaseDocuments, LICENCE_DOCUMENTS } from './releaseDocuments.mjs'
 import { collectVerifyReceiptFacts, decideVerifyReceiptBind, readLedgerRows } from './verifyReceiptBind.mjs'
 
@@ -39,13 +39,17 @@ if (!existsSync(join(dist, 'manifest.json'))) fail('dist/manifest.json missing')
 const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8'))
 const degraded = Array.isArray(manifest.degraded) ? manifest.degraded : []
 const PUBLISHABLE_DEGRADATIONS = new Set(['voice-input', 'on-device-transcriber', 'desktop-driver'])
-if (IS_WIN) PUBLISHABLE_DEGRADATIONS.add('shell-engine')
+const ALLOW_DEGRADED = process.argv.includes('--allow-degraded')
+for (const pack of bundledVendorPacks(TARGET)) {
+  if (degraded.includes(pack.degradation) && !ALLOW_DEGRADED) {
+    fail(`dist ships without the ${pack.name} pack (degraded: ${pack.degradation}) — the ${TARGET} archive carries the bundled shell engine, so a box with no bash runs the Bash tool through it: bun run scripts/vendor/build-brush.ts --target ${TARGET}, then rebuild, or pass --allow-degraded deliberately`)
+  }
+}
 const blocking = degraded.filter(d => !PUBLISHABLE_DEGRADATIONS.has(d))
-if (blocking.length > 0 && !process.argv.includes('--allow-degraded')) {
+if (blocking.length > 0 && !ALLOW_DEGRADED) {
   fail(`dist manifest is DEGRADED (${blocking.join(', ')}) — run the scripts/vendor/fetch-*.ts commands and rebuild, or pass --allow-degraded deliberately`)
 }
 if (degraded.includes('voice-input')) ok('the voice capture pack is absent from this build — the archive ships without voice input (degraded: voice-input, publishable)')
-if (degraded.includes('shell-engine') && PUBLISHABLE_DEGRADATIONS.has('shell-engine')) ok('the shell engine pack is absent from this build — the archive ships without the vendored shell engine (degraded: shell-engine, publishable on this platform)')
 if (degraded.includes('on-device-transcriber')) ok('the on-device transcriber pack is absent from this build — the archive ships without it, the cloud transcribers serve (degraded: on-device-transcriber, publishable)')
 if (degraded.includes('desktop-driver')) ok('the desktop driver pack is absent from this build — the archive ships without computer use (degraded: desktop-driver, publishable)')
 const rgDirs = existsSync(join(dist, 'vendor', 'ripgrep')) ? readdirSync(join(dist, 'vendor', 'ripgrep')) : []
@@ -88,6 +92,11 @@ mkdirSync(pkgDir, { recursive: true })
 cpSync(join(dist, 'mercury.mjs'), join(pkgDir, 'mercury.mjs'))
 cpSync(join(dist, 'manifest.json'), join(pkgDir, 'manifest.json'))
 cpSync(join(dist, 'vendor'), join(pkgDir, 'vendor'), { recursive: true })
+if (!ALLOW_DEGRADED) {
+  const bundled = checkBundledVendorPacks(pkgDir, TARGET)
+  if (!bundled.ok) fail(`the ${TARGET} archive carries the bundled shell engine, and the staged payload does not: ${bundled.findings.join('; ')} — bun run scripts/vendor/build-brush.ts --target ${TARGET}, then rebuild`)
+  for (const pack of bundled.packs) ok(`bundled ${pack.name} ${pack.version} rides the archive at ${pack.dir}: ${pack.binary}, its record and its licence files, the binary's digest matching the record`)
+}
 
 const FLOOR = readCompatFloor()
 
