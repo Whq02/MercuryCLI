@@ -1,6 +1,8 @@
 import { z } from 'zod/v4'
 
-import { stopTask, taskNotFoundWords } from '../../tasks/stopTask.js'
+import { isLocalShellTask, type LocalShellTaskState } from '../../tasks/LocalShellTask/guards.js'
+import { isTerminalTaskStatus } from '../../Task.js'
+import { bareMissWords, finishedShellFromRow, finishedShellWords, finishedTaskOnDisk, stopTask, type FinishedShell } from '../../tasks/stopTask.js'
 import { buildTool, type ToolDef, type ToolUseContext, type ValidationResult } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { DESCRIPTION as PROMPT, TASK_STOP_TOOL_NAME } from './prompt.js'
@@ -10,7 +12,7 @@ import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
 
 const KILL_SHELL_ALIAS = 'KillShell'
 
-const DESCRIPTION = 'Stops a running background task by its id.'
+const DESCRIPTION = 'Stops a running background task by its id. A task that already finished is answered with how it ended, when, and where its output file is; nothing is stopped and that is not an error.'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
@@ -44,6 +46,12 @@ const outputSchema = lazySchema(() =>
       .number()
       .optional()
       .describe('How many pids outlived the bounded reap, when any did'),
+    already_finished: z
+      .string()
+      .optional()
+      .describe('Present when nothing was stopped because the task had already ended: how it ended (completed · failed · been stopped · timed out · been ended by policy)'),
+    finished_at: z.string().optional().describe('When the already-finished task ended (ISO 8601)'),
+    output_path: z.string().optional().describe("Where the already-finished task's output file is"),
   }),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
@@ -51,6 +59,23 @@ export type Output = z.infer<OutputSchema>
 
 function taskIdOf(input: Partial<Input> | undefined): string | undefined {
   return input?.task_id ?? input?.shell_id
+}
+
+function isFinishedShellRow(task: unknown): task is LocalShellTaskState {
+  return isLocalShellTask(task) && isTerminalTaskStatus(task.status)
+}
+
+function alreadyFinishedOutput(shell: FinishedShell): Output {
+  return {
+    message: finishedShellWords(shell),
+    task_id: shell.taskId,
+    task_type: 'local_bash',
+    command: shell.command,
+    already_finished: shell.ended,
+    finished_at: new Date(shell.endedAt).toISOString(),
+    ...(shell.outputPath !== undefined ? { output_path: shell.outputPath } : {}),
+    ...(shell.exitCode !== undefined ? { exit_code: shell.exitCode } : {}),
+  }
 }
 
 export const TaskStopTool = buildTool({
@@ -83,9 +108,12 @@ export const TaskStopTool = buildTool({
     }
     const task = context.getAppState().tasks?.[taskId]
     if (!task) {
-      return { result: false, message: await taskNotFoundWords(taskId), errorCode: 1 }
+      const finished = await finishedTaskOnDisk(taskId)
+      if (finished?.kind === 'shell') return { result: true }
+      return { result: false, message: finished?.words ?? bareMissWords(taskId), errorCode: 1 }
     }
     if (task.status !== 'running') {
+      if (isFinishedShellRow(task)) return { result: true }
       return {
         result: false,
         message: `Task ${taskId} is not running (status: ${task.status})`,
@@ -97,6 +125,13 @@ export const TaskStopTool = buildTool({
   async call(input: Input, context: ToolUseContext) {
     const taskId = taskIdOf(input)
     if (!taskId) throw new Error('Either task_id or shell_id is required.')
+    const task = context.getAppState().tasks?.[taskId]
+    if (!task) {
+      const finished = await finishedTaskOnDisk(taskId)
+      if (finished?.kind === 'shell') return { data: alreadyFinishedOutput(finished.shell) }
+    } else if (isFinishedShellRow(task)) {
+      return { data: alreadyFinishedOutput(finishedShellFromRow(task)) }
+    }
     const result = await stopTask(taskId, {
       getAppState: context.getAppState,
       setAppState: context.setAppState,
