@@ -6,17 +6,19 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, rea
 import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 
-import { adoptGroundFamily, createSplashCore, HEADSTD, WORD, MENU, MODEL_NAMES, GROUND, assembleCardRows, fmtAge, ACCENT_FAMILIES, DEFAULT_CRITTER, accentFamilyKeyOf, glowPhaseAt, glowSettled, GLOW_TICK_MS, WORD_W, CARD_LABEL_W, cpWidth, MARK_RE } from './splash-core.mjs'
+import { adoptGroundFamily, createSplashCore, HEADSTD, WORD, MENU, MODEL_NAMES, GROUND, assembleCardRows, fmtAge, ACCENT_FAMILIES, DEFAULT_CRITTER, accentFamilyKeyOf, glowPhaseAt, glowSettled, GLOW_TICK_MS, WORD_W, CARD_LABEL_W, cpWidth, MARK_RE, truecolorFingerprintOf } from './splash-core.mjs'
 
 const out = process.stdout
 
 const NOCOLOR =
   !!(process.env.NO_COLOR && process.env.NO_COLOR.length > 0) &&
   !(process.env.FORCE_COLOR && process.env.FORCE_COLOR.length > 0)
+const TRUECOLOR_FLAG = (process.env.MERCURY_TRUECOLOR || '').trim().toLowerCase()
 const TRUECOLOR =
   !NOCOLOR &&
   !/^(dumb|linux)$/.test(process.env.TERM || '') &&
-  process.env.MERCURY_TRUECOLOR !== '0'
+  TRUECOLOR_FLAG !== '0' &&
+  (['1', 'true', 'yes', 'on'].includes(TRUECOLOR_FLAG) || truecolorFingerprintOf(process.env) !== null)
 
 
 const COMPACT_HOST_COLS = 100

@@ -66,8 +66,13 @@ def run_pty(cols, rows, env_extra=None, send=None, send_after=0.6, oneshot=True,
             os.environ[spelling] = home_pin
         os.environ.pop('MERCURY_FULLSCREEN', None)
         os.environ.pop('TERM_PROGRAM', None)
+        os.environ.pop('TERM_PROGRAM_VERSION', None)
+        os.environ['COLORTERM'] = 'truecolor'
         for k, v in (env_extra or {}).items():
-            os.environ[k] = v
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
         if cwd:
             os.chdir(cwd)
         os.execvp('node', ['node', SPLASH])
@@ -640,13 +645,19 @@ def run_corpus(cols, rows, env_extra=None, steps=None, settle=1.4, resize=None):
     pid, fd = pty.fork()
     if pid == 0:
         os.environ['TERM'] = 'xterm-256color'
+        os.environ['COLORTERM'] = 'truecolor'
+        os.environ.pop('TERM_PROGRAM', None)
+        os.environ.pop('TERM_PROGRAM_VERSION', None)
         os.environ['MERCURY_REDUCED_MOTION'] = '1'
         os.environ['MERCURY_FULLSCREEN'] = '0'
         home_pin = (env_extra or {}).get('MERCURY_HOME', EMPTY_HOME)
         for spelling in ('MERCURY_HOME', 'MERCURY_CONFIG_DIR'):
             os.environ[spelling] = home_pin
         for k, v in (env_extra or {}).items():
-            os.environ[k] = v
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
         os.execvp('node', ['node', SPLASH])
     fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
     import select as _sel
@@ -1010,6 +1021,17 @@ check('MERCURY_TRUECOLOR=0 ⇒ the 256 fallback (no truecolor SGR)',
 raw256b = run_pty(120, 44, {'MERCURY_TRUECOLOR': '0'})
 check('legacy MERCURY_TRUECOLOR=0 honored identically',
       '\x1b[38;2;' not in raw256b and '\x1b[38;5;' in raw256b)
+bare256 = run_pty(120, 44, {'COLORTERM': None})
+check('no COLORTERM and no known truecolor terminal ⇒ the 256 fallback (no truecolor SGR)',
+      '\x1b[38;2;' not in bare256 and '\x1b[38;5;' in bare256)
+apple256 = run_pty(120, 44, {'COLORTERM': None, 'TERM_PROGRAM': 'Apple_Terminal', 'TERM_PROGRAM_VERSION': '455'})
+check('Apple Terminal 455 (the name alone, no COLORTERM) ⇒ the 256 fallback',
+      '\x1b[38;2;' not in apple256 and '\x1b[38;5;' in apple256)
+namedtc = run_pty(120, 44, {'COLORTERM': None, 'TERM_PROGRAM': 'vscode'})
+check('a known truecolor terminal without COLORTERM ⇒ truecolor', '\x1b[38;2;' in namedtc)
+forcedtc = run_pty(120, 44, {'COLORTERM': None, 'MERCURY_TRUECOLOR': '1'})
+check('MERCURY_TRUECOLOR=1 forces the full depth without COLORTERM', '\x1b[38;2;' in forcedtc)
+check('the 256 fallback without COLORTERM is byte-identical to the MERCURY_TRUECOLOR=0 fallback', bare256 == raw256)
 _base_txt = [l.rstrip() for l in vis_lines(raw_rf) if l.strip()]
 for _label, _rawx in (('NO_COLOR', plainraw), ('256-fallback', raw256)):
     _txt = [l.rstrip() for l in vis_lines(_rawx) if l.strip()]

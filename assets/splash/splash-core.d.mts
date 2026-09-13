@@ -213,6 +213,7 @@ export const MODEL_NAMES: Record<string, string>
 export const RAMP: number[][]
 export const RAMP_FIXTURE: number[][]
 export const CAPABILITY_TRUTH: Array<Array<string | null>>
+export function truecolorFingerprintOf(env: Record<string, string | undefined>): string | null
 export const ACCENT_FAMILIES: Record<string, SplashAccentFamily>
 export const DEFAULT_CRITTER: string
 export function accentFamilyKeyOf(raw: unknown): string
