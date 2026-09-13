@@ -5,3 +5,5 @@
 # list. A name listed here but missing on disk is a loud red in this runner.
 prove-parked-ask-drive.ts
 prove-dupline-agent-drain-drive.ts
+prove-dupline-arms-drive.ts
+prove-dupline-relaunch-drive.ts
