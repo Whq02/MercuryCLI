@@ -12,7 +12,8 @@ import {
   withFoldStatus,
   ERROR_MESSAGE_USER_ABORT,
 } from '../../services/compact/compact.js'
-import { getAutoCompactThreshold } from '../../services/compact/autoCompact.js'
+import { foldModelFor, getAutoCompactThreshold } from '../../services/compact/autoCompact.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { suppressCompactWarning } from '../../services/compact/compactWarningState.js'
 import { microcompactMessages } from '../../services/compact/microCompact.js'
 import { runPostCompactCleanup } from '../../services/compact/postCompactCleanup.js'
@@ -177,6 +178,12 @@ async function callUnderFoldStatus(
     context.onCompactProgress?.({ type: 'stage', stage: 'micro-compaction' })
     const { messages: microcompacted } = await microcompactMessages(projected, context, 'compact')
     const cacheSafeParams = await buildCompactCacheSafeParams(microcompacted, context)
+    const foldModel = foldModelFor(microcompacted, context.options.mainLoopModel, { forced: false })
+    if (foldModel.source === 'history') {
+      logForDebugging(
+        `compact: the summary is written by ${foldModel.model} — the seated ${context.options.mainLoopModel}'s window does not hold the history (about ${foldModel.count} tokens by Mercury's count)`,
+      )
+    }
     const result = await compactConversation(
       microcompacted,
       context,
@@ -189,6 +196,8 @@ async function callUnderFoldStatus(
         turnsSincePreviousCompact: -1,
         autoCompactThreshold: getAutoCompactThreshold(context.options.mainLoopModel),
       },
+      undefined,
+      foldModel.source === 'history' ? foldModel.model : undefined,
     )
     setLastSummarizedMessageId(undefined)
     suppressCompactWarning()

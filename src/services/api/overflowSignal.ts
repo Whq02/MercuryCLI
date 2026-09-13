@@ -21,6 +21,8 @@ export type OverflowSignal = {
   actualTokens?: number
   limitTokens?: number
   detail?: string
+  measuredTokens?: number
+  measuredWindow?: number
 }
 
 const DETAIL_MAX_CHARS = 240

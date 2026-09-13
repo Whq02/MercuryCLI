@@ -1141,6 +1141,11 @@ export async function withFoldStatus<T, C extends ToolUseContext>(
 }
 
 
+export function withMainLoopModel<C extends ToolUseContext>(context: C, model: string): C {
+  if (context.options.mainLoopModel === model) return context
+  return { ...context, options: { ...context.options, mainLoopModel: model } }
+}
+
 export async function compactConversation(
   messages: Message[],
   context: ToolUseContext,
@@ -1150,8 +1155,14 @@ export async function compactConversation(
   isAutoCompact: boolean = false,
   recompactionInfo?: RecompactionInfo,
   overflow?: OverflowSignal,
+  summaryModel?: string,
 ): Promise<CompactionResult> {
   const ceiling = recompactionInfo?.autoCompactThreshold
+  const summaryContext = summaryModel === undefined ? context : withMainLoopModel(context, summaryModel)
+  const summaryCacheSafeParams =
+    summaryModel === undefined
+      ? cacheSafeParams
+      : { ...cacheSafeParams, toolUseContext: withMainLoopModel(cacheSafeParams.toolUseContext, summaryModel) }
   const trigger = isAutoCompact ? 'auto' : 'manual'
   const boundaryTrigger: CompactMetadata['trigger'] = overflow !== undefined ? 'overflow' : trigger
   try {
@@ -1172,7 +1183,7 @@ export async function compactConversation(
     const owner = ownerFromToolUseContext(context)
     const capsuleProbe = buildRunContinuationCapsule(owner)
     const promptText = getCompactPrompt(mergedInstructions, { runCapsulePresent: capsuleProbe !== null })
-    const response = await summarizeWithPtlRetry(messages, cacheSafeParams, promptText, context)
+    const response = await summarizeWithPtlRetry(messages, summaryCacheSafeParams, promptText, summaryContext)
     const rawSummary = validateSummary(response, true)
     context.onCompactProgress?.({ type: 'stage', stage: 'restoring' })
 

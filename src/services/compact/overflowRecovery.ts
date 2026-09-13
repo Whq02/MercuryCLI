@@ -8,7 +8,8 @@ import {
   overflowNumbersClause,
 } from '../api/overflowSignal.js'
 import { providerDisplayName } from '../providers/routeLaw.js'
-import { isAutoCompactEnabled, type AutoCompactTrackingState } from './autoCompact.js'
+import { tokenCountWithEstimation } from '../../utils/tokens.js'
+import { isAutoCompactEnabled, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoCompact.js'
 import { compactionBreakerAllows } from './compactionPolicy.js'
 
 export const OVERFLOW_RECOVERY_FLAG = 'MERCURY_OVERFLOW_RECOVERY'
@@ -123,7 +124,24 @@ export function overflowWhoClause(signal: OverflowSignal): string {
   const numbers = overflowNumbersClause(signal)
   if (signal.source === 'estimate') return numbers !== undefined ? `estimated ${numbers}` : 'by estimate'
   const who = signal.family === 'unknown' ? 'the provider' : providerDisplayName(signal.family)
-  return numbers !== undefined ? `${who}: ${numbers}` : who
+  if (numbers !== undefined) return `${who}: ${numbers}`
+  const measured = overflowMeasuredClause(signal)
+  return measured !== undefined ? `${who}; ${measured}` : who
+}
+
+export function overflowMeasuredClause(signal: OverflowSignal): string | undefined {
+  if (signal.measuredTokens === undefined || signal.measuredWindow === undefined) return undefined
+  const fmt = (n: number): string => n.toLocaleString('en-US')
+  return `about ${fmt(signal.measuredTokens)} tokens by Mercury's count against the ${fmt(signal.measuredWindow)}-token window`
+}
+
+export function measureOverflow(signal: OverflowSignal, messages: readonly Message[], model: string): OverflowSignal {
+  if (signal.measuredTokens !== undefined && signal.measuredWindow !== undefined) return signal
+  return {
+    ...signal,
+    measuredTokens: tokenCountWithEstimation(messages, model),
+    measuredWindow: resolveAutoCompactWindow(model).window,
+  }
 }
 
 export function overflowRecoveryNotice(
