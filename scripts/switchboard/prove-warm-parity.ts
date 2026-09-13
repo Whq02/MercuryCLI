@@ -86,6 +86,8 @@ function normalize(text: string): string {
     .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<UUID>')
     .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g, '<TS>')
     .replace(/msg_[A-Za-z0-9_]+/g, 'msg_<ID>')
+    .replace(/"(loadPerCore|load_per_core)": [0-9.]+/g, '"$1": <N>')
+    .replace(/"(availableMb|available_mb|totalMb|total_mb|sampledAtMs|sampled_at_ms|atMs|at_ms|waitedS|waited_s)": [0-9.]+/g, '"$1": <N>')
     .replace(/req_[A-Za-z0-9_]+/g, 'req_<ID>')
     .replace(/concourse-w\d+/g, 'concourse-w<N>')
     .replace(/"pid":\s*\d+/g, '"pid":<P>')
