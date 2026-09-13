@@ -133,7 +133,20 @@ const MODEL_NAMES = {
 const mixc = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t))
 const RAMP = [[221,68,68],[229,132,132],[232,183,175]]
 const RAMP_FIXTURE = [[0,221,68,68,172,59,59],[7,223,85,85,173,68,68],[15,226,105,105,175,78,78],[22,228,122,122,176,86,86],[26,229,132,132,176,91,91],[30,229,140,139,176,95,95],[37,230,154,150,177,102,100],[45,231,169,163,177,110,107],[52,232,183,175,178,117,113]]
-const CAPABILITY_TRUTH = [[null,null,null,"xterm-256color","truecolor"],["1",null,null,"xterm-256color","plain"],["1","1",null,"xterm-256color","truecolor"],["",null,null,"xterm-256color","truecolor"],["1","",null,"xterm-256color","plain"],[null,null,"0","xterm-256color","256"],[null,null,null,"dumb","256"],[null,null,null,"linux","256"],["1",null,"0","xterm-256color","plain"]]
+const CAPABILITY_TRUTH = [[null,null,null,"xterm-256color","truecolor",null,"truecolor"],["1",null,null,"xterm-256color","truecolor",null,"plain"],["1","1",null,"xterm-256color","truecolor",null,"truecolor"],["",null,null,"xterm-256color","truecolor",null,"truecolor"],["1","",null,"xterm-256color","truecolor",null,"plain"],[null,null,"0","xterm-256color","truecolor",null,"256"],[null,null,null,"dumb","truecolor",null,"256"],[null,null,null,"linux","truecolor",null,"256"],["1",null,"0","xterm-256color","truecolor",null,"plain"],[null,null,null,"xterm-256color",null,null,"256"],[null,null,null,"xterm-256color",null,"Apple_Terminal","256"],[null,null,null,"xterm-256color","truecolor","Apple_Terminal","truecolor"],[null,null,null,"xterm-256color","24bit",null,"truecolor"],[null,null,null,"xterm-256color",null,"vscode","truecolor"],[null,null,null,"xterm-256color",null,"iTerm.app","truecolor"],[null,null,null,"xterm-kitty",null,null,"truecolor"],[null,null,"1","xterm-256color",null,null,"truecolor"],[null,null,"1","xterm-256color",null,"Apple_Terminal","truecolor"],["1","1",null,"xterm-256color",null,null,"256"],[null,null,"1","linux",null,null,"256"]]
+export function truecolorFingerprintOf(env) {
+  const colorterm = env.COLORTERM
+  if (colorterm === 'truecolor' || colorterm === '24bit') return `COLORTERM=${colorterm}`
+  if (env.WT_SESSION) return 'WT_SESSION (Windows Terminal)'
+  const program = env.TERM_PROGRAM
+  if (program === 'vscode' || program === 'iTerm.app' || program === 'WezTerm' || program === 'ghostty') {
+    return `TERM_PROGRAM=${program}`
+  }
+  const term = env.TERM
+  if (term === 'xterm-kitty' || term === 'xterm-ghostty' || term === 'wezterm') return `TERM=${term}`
+  if (env.KITTY_WINDOW_ID) return 'KITTY_WINDOW_ID (kitty)'
+  return null
+}
 const rampSample = u => {
   const s = Math.min(1, Math.max(0, u)) * (RAMP.length - 1)
   const i = Math.min(RAMP.length - 2, Math.floor(s))

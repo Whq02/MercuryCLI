@@ -160,7 +160,7 @@ section('§4 with TERM_PROGRAM=Apple_Terminal and COLORTERM unset no 24-bit sequ
   const read = applyAppleTerminalReading(apple.bytes)
   check('Apple Terminal reads every byte exactly as a 24-bit terminal would (the reading is a no-op)', Buffer.compare(Buffer.from(read), Buffer.from(apple.bytes)) === 0)
   const enter24 = colorSgrSequences(apple.enterScreen).filter(s => s.kind === '24-bit').length
-  console.log(`  [INFO] the enter screen before the first-run screen (assets/splash, its own colour law) wrote ${enter24} 24-bit sequences on this arm`)
+  check('the enter screen before the first-run screen paints in 256 colours too (no 38;2 / 48;2 across the whole boot)', enter24 === 0, `${enter24} 24-bit sequences before the first-run screen`)
 }
 
 section('§5 with COLORTERM=truecolor the same screens paint at full depth')

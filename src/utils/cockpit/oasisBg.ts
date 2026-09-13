@@ -6,6 +6,8 @@ import { isDarkThemeFamily } from '../mercuryTokens.js'
 import { DEFAULT_THEME_SETTING, resolveThemeSetting } from '../systemTheme.js'
 import type { ThemeName } from '../theme.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { truecolorFingerprint } from '../../ink/colorize.js'
+import { isEnvTruthy } from '../envUtils.js'
 
 function concreteTheme(): ThemeName {
   try {
@@ -118,12 +120,13 @@ export function exitOasisBg(write?: (s: string) => void): void {
 
 function splashCouldHaveRecoloured(): boolean {
   if (flagEnv('MERCURY_OASIS_BG') === '0') return false
-  if (flagEnv('MERCURY_TRUECOLOR') === '0') return false
+  const depth = flagEnv('MERCURY_TRUECOLOR')
+  if (depth === '0') return false
   if (/^(dumb|linux)$/.test(process.env.TERM || '')) return false
   const noColor = process.env.NO_COLOR
   const forceColor = process.env.FORCE_COLOR
   if (noColor && noColor.length > 0 && !(forceColor && forceColor.length > 0)) return false
-  return true
+  return isEnvTruthy(depth) || truecolorFingerprint(process.env) !== null
 }
 
 export function _resetGroundForTest(): void {

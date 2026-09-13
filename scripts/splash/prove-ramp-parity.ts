@@ -6,9 +6,10 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BELLY, CLAW, FAINT, IVORY, TERRA } from '../../src/components/mercuryPalette.ts'
 import { deriveFocalRamp } from '../../src/utils/mercuryTokens.ts'
-import { shouldHonorNoColor } from '../../src/ink/colorize.ts'
+import { shouldHonorNoColor, truecolorFingerprint } from '../../src/ink/colorize.ts'
+import { isEnvTruthy } from '../../src/utils/envUtils.ts'
 import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
-import { GROUND, GROUND_FAMILIES, adoptGroundFamily } from '../../assets/splash/splash-core.mjs'
+import { GROUND, GROUND_FAMILIES, adoptGroundFamily, truecolorFingerprintOf } from '../../assets/splash/splash-core.mjs'
 import { NIGHT, OASIS_GROUND, TRUE_BLACK_GROUND } from '../../src/components/mercuryPalette.ts'
 import { DEFAULT_THEME_SETTING } from '../../src/utils/systemTheme.ts'
 import { checker } from '../engine-durability/harness.ts'
@@ -83,26 +84,54 @@ t.section('§3 — baked capability truth equals the canonical law')
   const spec = getFlagSpec('MERCURY_TRUECOLOR')
   t.check('MERCURY_TRUECOLOR is a registered flag', !!spec, JSON.stringify(spec?.env))
   let allOk = TRUTH.length > 0
+  let splashOk = TRUTH.length > 0
   for (const row of TRUTH) {
-    const [nc, fc, mt, term, mode] = row
-    const env: { NO_COLOR?: string; FORCE_COLOR?: string } = {}
+    const [nc, fc, mt, term, colorterm, program, mode] = row
+    const env: Record<string, string | undefined> = {}
     if (nc !== null) env.NO_COLOR = nc ?? undefined
     if (fc !== null) env.FORCE_COLOR = fc ?? undefined
+    if (mt !== null) env.MERCURY_TRUECOLOR = mt ?? undefined
+    if (term !== null) env.TERM = term ?? undefined
+    if (colorterm !== null) env.COLORTERM = colorterm ?? undefined
+    if (program !== null) env.TERM_PROGRAM = program ?? undefined
     const want = shouldHonorNoColor(env)
       ? 'plain'
       : /^(dumb|linux)$/.test(term ?? '')
         ? '256'
         : mt === '0'
           ? '256'
-          : 'truecolor'
+          : isEnvTruthy(mt ?? undefined)
+            ? 'truecolor'
+            : truecolorFingerprint(env) === null
+              ? '256'
+              : 'truecolor'
     if (mode !== want) allOk = false
+    if (truecolorFingerprintOf(env) !== truecolorFingerprint(env)) splashOk = false
   }
-  t.check(`all ${TRUTH.length} truth rows match shouldHonorNoColor + the fallback law`, allOk, JSON.stringify(TRUTH))
-  const modes = new Set(TRUTH.map(r => r[4]))
+  t.check(`all ${TRUTH.length} truth rows match shouldHonorNoColor + the flag + the fingerprint law`, allOk, JSON.stringify(TRUTH))
+  t.check('the splash reads the same fingerprint as the process on every truth row', splashOk)
+  const modes = new Set(TRUTH.map(r => r[6]))
   t.check(
     'the table exercises all three modes (plain, 256, truecolor)',
     modes.has('plain') && modes.has('256') && modes.has('truecolor'),
     [...modes].join(','),
+  )
+  t.check(
+    'the table names the unadvertised terminal (256), Apple Terminal by name alone (256), Apple Terminal advertising COLORTERM (truecolor) and the forced depth (truecolor)',
+    TRUTH.some(r => r[3] === 'xterm-256color' && r[4] === null && r[5] === null && r[2] === null && r[0] === null && r[6] === '256') &&
+      TRUTH.some(r => r[5] === 'Apple_Terminal' && r[4] === null && r[2] === null && r[6] === '256') &&
+      TRUTH.some(r => r[5] === 'Apple_Terminal' && r[4] === 'truecolor' && r[6] === 'truecolor') &&
+      TRUTH.some(r => r[2] === '1' && r[4] === null && r[6] === 'truecolor'),
+  )
+  const probes: Array<Record<string, string | undefined>> = [
+    {}, { COLORTERM: 'truecolor' }, { COLORTERM: '24bit' }, { COLORTERM: 'yes' }, { WT_SESSION: 'w' }, { TERM_PROGRAM: 'vscode' },
+    { TERM_PROGRAM: 'iTerm.app' }, { TERM_PROGRAM: 'WezTerm' }, { TERM_PROGRAM: 'ghostty' }, { TERM_PROGRAM: 'Apple_Terminal' },
+    { TERM: 'xterm-kitty' }, { TERM: 'xterm-ghostty' }, { TERM: 'wezterm' }, { KITTY_WINDOW_ID: '1' }, { TERM: 'screen-256color', TMUX: 'x' },
+  ]
+  t.check(
+    'the splash fingerprint equals the process fingerprint over the probe matrix',
+    probes.every(p => truecolorFingerprintOf(p) === truecolorFingerprint(p)),
+    probes.map(p => `${JSON.stringify(p)}→${truecolorFingerprintOf(p)}/${truecolorFingerprint(p)}`).join(' '),
   )
 }
 
