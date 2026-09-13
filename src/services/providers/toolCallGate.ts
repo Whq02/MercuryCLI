@@ -17,6 +17,59 @@ export type ToolCallVerdict =
 
 const PLACEHOLDER_ID = /^missing-(call-)?id(-\d+)?$/
 
+function isEmptyPlaceholder(value: unknown): boolean {
+  return value === '' || (Array.isArray(value) && value.length === 0)
+}
+
+function acceptsAbsence(field: unknown): boolean {
+  const parse = (field as { safeParse?: unknown } | null | undefined)?.safeParse
+  if (typeof parse !== 'function') return false
+  try {
+    return (parse as (value: unknown) => { success: boolean }).call(field, undefined).success === true
+  } catch {
+    return false
+  }
+}
+
+function declaredShapes(schema: unknown, depth = 0): Array<Record<string, unknown>> {
+  if (typeof schema !== 'object' || schema === null || depth > 4) return []
+  const s = schema as { shape?: unknown; options?: unknown; unwrap?: unknown; out?: unknown }
+  if (typeof s.shape === 'object' && s.shape !== null) return [s.shape as Record<string, unknown>]
+  if (Array.isArray(s.options)) return s.options.flatMap(option => declaredShapes(option, depth + 1))
+  if (typeof s.unwrap === 'function') {
+    try {
+      return declaredShapes((s.unwrap as () => unknown).call(schema), depth + 1)
+    } catch {
+      return []
+    }
+  }
+  if (typeof s.out === 'object' && s.out !== null) return declaredShapes(s.out, depth + 1)
+  return []
+}
+
+export function dropEmptyOptionalArgs(
+  input: Record<string, unknown>,
+  tool: { inputSchema: unknown; keepEmptyInputs?: readonly string[] },
+): Record<string, unknown> {
+  const empties = Object.keys(input).filter(
+    key => isEmptyPlaceholder(input[key]) && !(tool.keepEmptyInputs?.includes(key) ?? false),
+  )
+  if (empties.length === 0) return input
+  let shapes: Array<Record<string, unknown>>
+  try {
+    shapes = declaredShapes(tool.inputSchema)
+  } catch {
+    return input
+  }
+  if (shapes.length === 0) return input
+  const out = { ...input }
+  for (const key of empties) {
+    const declaring = shapes.filter(shape => Object.prototype.hasOwnProperty.call(shape, key))
+    if (declaring.length > 0 && declaring.every(shape => acceptsAbsence(shape[key]))) delete out[key]
+  }
+  return out
+}
+
 function refused(call: IncomingToolCall, code: RefusedToolCall['code'], reason: string): ToolCallVerdict {
   return {
     ok: false,
@@ -62,7 +115,7 @@ export function gateToolCall(tools: Tools, call: IncomingToolCall, hints?: ToolC
       `the arguments must be a JSON object, not ${Array.isArray(stripped) ? 'an array' : stripped === null ? 'null' : `a ${typeof stripped}`}`,
     )
   }
-  const input = stripped as Record<string, unknown>
+  const input = dropEmptyOptionalArgs(stripped as Record<string, unknown>, tool)
   try {
     const verdict = tool.inputSchema.safeParse(input)
     if (!verdict.success) {

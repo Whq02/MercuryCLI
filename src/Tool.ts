@@ -299,6 +299,7 @@ interface ToolMembers<TInput, TOutput, TProgress extends ToolProgressData> {
   inputJSONSchema?: ToolInputJSONSchema
   outputSchema?: ZodType
   strict?: boolean
+  keepEmptyInputs?: readonly string[]
   maxResultSizeChars: number
   shouldDefer?: boolean
   alwaysLoad?: boolean

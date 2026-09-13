@@ -242,6 +242,17 @@ const PermissiveFixtureTool = {
   prompt: async () => 'fixture tool with a permissive schema',
   isReadOnly: () => true,
 }
+const RequiredFixtureTool = {
+  name: 'RequiredFixture',
+  inputSchema: z.strictObject({
+    kind: z.enum(['a', 'b']),
+    code: z.string().min(1),
+    note: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+  }),
+  prompt: async () => 'fixture tool with required and optional fields',
+  isReadOnly: () => true,
+}
 const CATALOG = [
   BashTool,
   FileReadTool,
@@ -251,11 +262,15 @@ const CATALOG = [
   GrepTool,
   EnterPlanModeTool,
   PermissiveFixtureTool,
+  RequiredFixtureTool,
 ] as never
 const BASH = BashTool.name
 const READ = FileReadTool.name
+const EDIT = FileEditTool.name
+const GREP = GrepTool.name
 const PLAN = EnterPlanModeTool.name
 const PERMISSIVE = PermissiveFixtureTool.name
+const REQUIRED = RequiredFixtureTool.name
 
 const LANES: Array<{ lane: string; model: string; dialect: 'responses' | 'chat' }> = [
   { lane: 'openai', model: 'gpt-5.6-sol', dialect: 'responses' },
@@ -343,6 +358,26 @@ const CASES: Case[] = [
     label: 'non-object arguments',
     script: { calls: [{ id: 'call_array', name: BASH, args: '[1,2]' }] },
     expect: { accepted: 0, refused: ['not-an-object'], stop: 'end_turn' },
+  },
+  {
+    label: 'empty placeholders on optional fields are dropped at the decode and the call is ACCEPTED (the empty-optional law)',
+    script: {
+      calls: [{ id: 'call_empties', name: BASH, args: '{"command":"echo ok","timeout":"","description":"","run_in_background":"","dangerouslyDisableSandbox":null}' }],
+    },
+    expect: { accepted: 1, refused: [], stop: 'tool_use' },
+  },
+  {
+    label: 'empty placeholders on every optional field of a real search call are dropped and the call is ACCEPTED',
+    script: {
+      calls: [{ id: 'call_grep_empties', name: GREP, args: '{"pattern":"needle","path":"","glob":"","type":"","-i":"","head_limit":"","output_mode":""}' }],
+    },
+    expect: { accepted: 1, refused: [], stop: 'tool_use' },
+  },
+  {
+    label: 'an empty value on a REQUIRED field stays and the schema refusal names the field',
+    script: { calls: [{ id: 'call_required_empty', name: REQUIRED, args: '{"kind":"","code":"","note":"","tags":[]}' }] },
+    expect: { accepted: 0, refused: ['schema'], stop: 'end_turn' },
+    reasonIncludes: '`kind` must be one of',
   },
   {
     label: 'mixed turn: one accepted, one refused',
@@ -477,6 +512,59 @@ section('the null-optional law stripped the nulls (accepted input carries no nul
   )
 }
 
+section('the empty-optional law: an optional field sent empty reads as omitted; a meaningful or required empty stays')
+for (const model of ['gpt-5.6-sol', 'deepseek-v4-pro']) {
+  const defined = (input: unknown): Record<string, unknown> =>
+    Object.fromEntries(
+      Object.entries((input ?? {}) as Record<string, unknown>).filter(([key, v]) => v !== undefined && !(key === 'replace_all' && v === false)),
+    )
+  const bash = await drive(model, CASES.find(c => c.label.startsWith('empty placeholders on optional fields'))!.script)
+  check(
+    `${model}: Bash carries only the command — timeout, description and the flags sent empty are gone, as the Anthropic wire would carry them`,
+    bash.toolUses.length === 1 && JSON.stringify(defined(bash.toolUses[0]!.input)) === JSON.stringify({ command: 'echo ok' }),
+    JSON.stringify(bash.toolUses[0]?.input),
+  )
+  const grep = await drive(model, CASES.find(c => c.label.startsWith('empty placeholders on every optional field'))!.script)
+  check(
+    `${model}: Grep carries only the pattern`,
+    grep.toolUses.length === 1 && JSON.stringify(defined(grep.toolUses[0]!.input)) === JSON.stringify({ pattern: 'needle' }),
+    JSON.stringify(grep.toolUses[0]?.input),
+  )
+  const deletion = await drive(model, {
+    calls: [{ id: 'call_edit_delete', name: EDIT, args: '{"file_path":"/tmp/fixture.txt","old_string":"gone","new_string":"","expected_anchor":"","append":"","section":"","hunks":[]}' }],
+  })
+  check(
+    `${model}: an Edit that deletes keeps its empty new_string; the empty anchor, append, section and hunks read as omitted`,
+    deletion.toolUses.length === 1 &&
+      JSON.stringify(defined(deletion.toolUses[0]!.input)) === JSON.stringify({ file_path: '/tmp/fixture.txt', old_string: 'gone', new_string: '' }),
+    JSON.stringify(deletion.toolUses[0]?.input),
+  )
+  const creation = await drive(model, {
+    calls: [{ id: 'call_edit_create', name: EDIT, args: '{"file_path":"/tmp/fixture-new.txt","old_string":"","new_string":"first line"}' }],
+  })
+  check(
+    `${model}: an Edit that creates a file keeps its empty old_string`,
+    creation.toolUses.length === 1 &&
+      JSON.stringify(defined(creation.toolUses[0]!.input)) === JSON.stringify({ file_path: '/tmp/fixture-new.txt', old_string: '', new_string: 'first line' }),
+    JSON.stringify(creation.toolUses[0]?.input),
+  )
+  const required = await drive(model, {
+    calls: [{ id: 'call_required_ok', name: REQUIRED, args: '{"kind":"a","code":"x","note":"","tags":[]}' }],
+  })
+  check(
+    `${model}: the required fields ride and the empty optionals are gone`,
+    required.toolUses.length === 1 && JSON.stringify(defined(required.toolUses[0]!.input)) === JSON.stringify({ kind: 'a', code: 'x' }),
+    JSON.stringify(required.toolUses[0]?.input),
+  )
+  const refusedRequired = await drive(model, CASES.find(c => c.label.startsWith('an empty value on a REQUIRED'))!.script)
+  const reason = refusedRequired.refusals[0]?.reason ?? ''
+  check(
+    `${model}: the refusal for required fields sent empty names both of them`,
+    refusedRequired.refusals.length === 1 && reason.includes('`kind` must be one of') && reason.includes('`code` must have a minimum of 1 character'),
+    reason,
+  )
+}
+
 section('the permissive-tool extra field rides the minted input verbatim (validated, never rewritten)')
 {
   const o = await drive('kimi-k3', CASES.find(c => c.label.startsWith('unknown field on a permissive'))!.script)
@@ -566,6 +654,41 @@ section('the gate as a pure function (the exact contract the adapters call)')
   check('the duplicate-id note and correction name the reused id', (() => {
     const refusal = { id: 'call_same', name: BASH, argumentsRaw: '{"command":"pwd"}', code: 'duplicate-id' as const, reason: 'the provider reused call id call_same for a second call in the same turn; only the first call carrying that id ran' }
     return toolCallRefusalNote('fixture', refusal).includes('call_same') && toolCallRefusalCorrection([refusal]).includes('duplicate call id for Bash')
+  })())
+  const { dropEmptyOptionalArgs } = await import('../../src/services/providers/toolCallGate.ts')
+  check('dropEmptyOptionalArgs: a union schema keeps an empty field one option requires', (() => {
+    const union = { inputSchema: z.union([z.strictObject({ k: z.literal('x'), t: z.string().optional() }), z.strictObject({ k: z.literal('y'), t: z.string() })]) }
+    return JSON.stringify(dropEmptyOptionalArgs({ k: 'x', t: '' }, union)) === JSON.stringify({ k: 'x', t: '' })
+  })())
+  check('dropEmptyOptionalArgs: a union schema drops an empty field every option marks optional', (() => {
+    const union = { inputSchema: z.union([z.strictObject({ k: z.literal('x'), t: z.string().optional() }), z.strictObject({ k: z.literal('y'), t: z.string().optional() })]) }
+    return JSON.stringify(dropEmptyOptionalArgs({ k: 'y', t: '', u: [] }, union)) === JSON.stringify({ k: 'y', u: [] })
+  })())
+  check('dropEmptyOptionalArgs: a schema with no declared fields (the MCP shape) is left exactly as sent', (() => {
+    const loose = { inputSchema: z.looseObject({}) }
+    return JSON.stringify(dropEmptyOptionalArgs({ a: '', b: [] }, loose)) === JSON.stringify({ a: '', b: [] })
+  })())
+  check('dropEmptyOptionalArgs: keepEmptyInputs holds a field the tool reads as meaningful when empty', (() => {
+    const keeper = { inputSchema: z.strictObject({ a: z.string().optional(), b: z.string().optional() }), keepEmptyInputs: ['a'] as const }
+    return JSON.stringify(dropEmptyOptionalArgs({ a: '', b: '' }, keeper)) === JSON.stringify({ a: '' })
+  })())
+  check('dropEmptyOptionalArgs: a preprocess-wrapped and a lazy object schema are read through to their fields', (() => {
+    const inner = z.strictObject({ a: z.string().optional(), b: z.string() })
+    const wrapped = { inputSchema: z.preprocess(value => value, inner) }
+    const lazy = { inputSchema: z.lazy(() => inner) }
+    return (
+      JSON.stringify(dropEmptyOptionalArgs({ a: '', b: '' }, wrapped)) === JSON.stringify({ b: '' }) &&
+      JSON.stringify(dropEmptyOptionalArgs({ a: '', b: '' }, lazy)) === JSON.stringify({ b: '' })
+    )
+  })())
+  check('dropEmptyOptionalArgs: nested empties are payload and stay', (() => {
+    const tool = { inputSchema: z.strictObject({ a: z.object({ x: z.string().optional() }).optional(), b: z.array(z.string()).optional() }) }
+    return JSON.stringify(dropEmptyOptionalArgs({ a: { x: '' }, b: [''] }, tool)) === JSON.stringify({ a: { x: '' }, b: [''] })
+  })())
+  check('the real Edit declares old_string and new_string as meaningful when empty; the real Grep keeps its required pattern', (() => {
+    const edit = dropEmptyOptionalArgs({ file_path: '/tmp/x', old_string: '', new_string: '', expected_anchor: '', hunks: [] }, FileEditTool as never)
+    const grep = dropEmptyOptionalArgs({ pattern: '', glob: '' }, GrepTool as never)
+    return JSON.stringify(edit) === JSON.stringify({ file_path: '/tmp/x', old_string: '', new_string: '' }) && JSON.stringify(grep) === JSON.stringify({ pattern: '' })
   })())
   check('replayableItems keeps the first function_call of a duplicated id and drops the rest', (() => {
     const pure = replayableItems(

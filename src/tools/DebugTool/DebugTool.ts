@@ -982,6 +982,7 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
 
 export const DebugTool = buildTool({
   name: DEBUG_TOOL_NAME,
+  keepEmptyInputs: ['functions'],
   get searchHint() {
     return (
       'real debugger via DAP: launch/attach, breakpoints (conditional/hit-count/logpoints), function breakpoints, stepping (incl. instruction), stack traces, scopes, variables, evaluate, disassemble, readMemory, restart (python debugpy, native lldb' +

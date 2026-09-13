@@ -14,7 +14,7 @@ import {
   spanText,
   type EditHunkInput,
 } from '../../services/changeTransaction/hunks.js'
-import { checkSeenLines, fileGeneration } from '../../services/changeTransaction/seenLines.js'
+import { checkSeenLines, fileGeneration, seenLinesOf } from '../../services/changeTransaction/seenLines.js'
 import {
   recordNoChangeOutcome,
 } from '../../services/changeTransaction/repetitionPolicy.js'
@@ -59,6 +59,7 @@ import { readFileSyncWithMetadata, type LineEndingType } from '../../utils/fileR
 import { formatFileSize } from '../../utils/format.js'
 import { logError } from '../../utils/log.js'
 import { expandPath } from '../../utils/path.js'
+import { plural } from '../../utils/stringUtils.js'
 import { checkWritePermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
 import { readFileInRange } from '../../utils/readFileInRange.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
@@ -229,6 +230,132 @@ function readCoversRanges(entry: FileState, ranges: { start: number; end: number
   return ranges !== null && ranges.every(range => range.start >= start && range.end < start + count)
 }
 
+const READ_RANGES_NAMED = 5
+
+type LineRange = { start: number; end: number }
+
+function coalesceLineRanges(ranges: readonly LineRange[]): LineRange[] {
+  const sorted = ranges.filter(range => range.end >= range.start).sort((a, b) => a.start - b.start || a.end - b.end)
+  const out: LineRange[] = []
+  for (const range of sorted) {
+    const last = out[out.length - 1]
+    if (last !== undefined && range.start <= last.end + 1) {
+      if (range.end > last.end) last.end = range.end
+    } else {
+      out.push({ start: range.start, end: range.end })
+    }
+  }
+  return out
+}
+
+function spellLineRanges(ranges: readonly LineRange[]): string {
+  return ranges.map(range => (range.start === range.end ? `${range.start}` : `${range.start}-${range.end}`)).join(', ')
+}
+
+function linesOutside(touched: readonly LineRange[], read: readonly LineRange[]): LineRange[] {
+  const gaps: LineRange[] = []
+  for (const range of touched) {
+    let cursor = range.start
+    for (const seen of read) {
+      if (seen.end < cursor) continue
+      if (seen.start > range.end) break
+      if (seen.start > cursor) gaps.push({ start: cursor, end: Math.min(seen.start - 1, range.end) })
+      cursor = Math.max(cursor, seen.end + 1)
+      if (cursor > range.end) break
+    }
+    if (cursor <= range.end) gaps.push({ start: cursor, end: range.end })
+  }
+  return coalesceLineRanges(gaps)
+}
+
+function linesOfHunks(hunks: readonly EditHunkInput[] | undefined): LineRange[] | null {
+  if (hunks === undefined || hunks.length === 0) return null
+  const ranges: LineRange[] = []
+  for (const hunk of hunks) {
+    const parsed = /^\s*(\d+)(?:#[0-9a-fA-F]+)?(?:-(\d+)(?:#[0-9a-fA-F]+)?)?\s*$/.exec(hunk.lines)
+    if (!parsed) return null
+    const start = Number(parsed[1])
+    const end = parsed[2] === undefined ? start : Number(parsed[2])
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start < 1 || end < start) return null
+    ranges.push({ start, end })
+  }
+  return coalesceLineRanges(ranges)
+}
+
+function lineCountOf(text: string): number {
+  if (text === '') return 0
+  return text.split('\n').length - (text.endsWith('\n') ? 1 : 0)
+}
+
+function ledgerLinesOf(context: ToolUseContext, expandedPath: string): { ranges: readonly LineRange[]; earlier: boolean } {
+  try {
+    const seen = seenLinesOf(ownerFromToolUseContext(context), expandedPath)
+    if (seen === undefined || seen.ranges.length === 0) return { ranges: [], earlier: false }
+    if (seen.generation === fileGeneration(expandedPath)) return { ranges: seen.ranges, earlier: false }
+    return { ranges: [], earlier: true }
+  } catch {
+    return { ranges: [], earlier: false }
+  }
+}
+
+type ReadLines = { ranges: LineRange[]; earlier: boolean; attachmentOnly: boolean }
+
+function readLinesOf(context: ToolUseContext, expandedPath: string, currentContent: string): ReadLines {
+  const ranges: LineRange[] = []
+  let earlier = false
+  let attachmentOnly = false
+  const entry = context.readFileState.get(expandedPath)
+  if (entry !== undefined) {
+    if (entry.isPartialView) {
+      attachmentOnly = true
+    } else {
+      const count = lineCountOf(entry.content)
+      if (isFullReadEntry(entry)) {
+        if (entry.content === currentContent && count > 0) ranges.push({ start: 1, end: count })
+        else earlier = true
+      } else if (count > 0) {
+        const start = Math.max(1, entry.offset ?? 1)
+        ranges.push({ start, end: start + count - 1 })
+      }
+    }
+  }
+  const ledger = ledgerLinesOf(context, expandedPath)
+  ranges.push(...ledger.ranges)
+  return { ranges: coalesceLineRanges(ranges), earlier: earlier || ledger.earlier, attachmentOnly }
+}
+
+function readKnowledgeWords(displayPath: string, read: ReadLines, addressed: LineRange[] | null, missing: string): string {
+  const named = read.ranges.slice(0, READ_RANGES_NAMED)
+  const rest = read.ranges.length - named.length
+  let reads: string
+  if (read.ranges.length > 0) {
+    reads = `Lines of ${displayPath} read this session: ${spellLineRanges(named)}${rest > 0 ? ` (and ${rest} more ${plural(rest, 'range')})` : ''}`
+    if (read.earlier) reads += ', plus a read of the file before it last changed'
+  } else if (read.earlier) {
+    reads = `The lines of ${displayPath} read this session were of the file before it last changed`
+  } else if (read.attachmentOnly) {
+    reads = `No lines of ${displayPath} were read this session (an automatic attachment showed part of it, which is not a read)`
+  } else {
+    reads = `No lines of ${displayPath} were read this session`
+  }
+  if (addressed === null || addressed.length === 0) {
+    return `${reads}; ${missing}, so the lines the edit touches are unknown — a Read of the file shows what stands.`
+  }
+  const one = addressed.length === 1 && addressed[0]!.start === addressed[0]!.end
+  const touches = `the edit touches ${one ? 'line' : 'lines'} ${spellLineRanges(addressed)}`
+  const gaps = linesOutside(addressed, read.ranges)
+  const first = gaps[0] ?? addressed[0]!
+  const covers =
+    gaps.length === 0
+      ? 'shows them in one read'
+      : read.ranges.length === 0
+        ? 'covers them'
+        : gaps.length === 1
+          ? 'covers the gap'
+          : `covers the first gap (unread: ${spellLineRanges(gaps)})`
+  return `${reads}; ${touches} — Read(offset: ${first.start}, limit: ${first.end - first.start + 1}) ${covers}.`
+}
+
 function readKnowledgeRefusal(
   context: ToolUseContext,
   expandedPath: string,
@@ -237,6 +364,7 @@ function readKnowledgeRefusal(
   expectedAnchor: string | undefined,
   touched: { start: number; end: number }[] | null,
   includeRead = true,
+  named?: { lines: LineRange[] | null; missing: string },
 ): string | null {
   const entry = context.readFileState.get(expandedPath)
   if (includeRead && entry !== undefined && readCoversRanges(entry, touched)) return null
@@ -251,7 +379,13 @@ function readKnowledgeRefusal(
     } catch {
     }
   }
-  return 'Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands).'
+  const words = readKnowledgeWords(
+    displayPath,
+    readLinesOf(context, expandedPath, currentContent),
+    named?.lines ?? touched,
+    named?.missing ?? 'the old_string was not found in the current content',
+  )
+  return `Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). ${words}`
 }
 
 function attemptStaleHunkRecovery(
@@ -294,6 +428,7 @@ function splitLeadingBom(content: string): { bom: string; body: string } {
 export const FileEditTool = buildTool({
   name: FILE_EDIT_TOOL_NAME,
   strict: true,
+  keepEmptyInputs: ['old_string', 'new_string'],
   maxResultSizeChars: 100_000,
   get inputSchema() {
     return inputSchema()
@@ -546,7 +681,15 @@ export const FileEditTool = buildTool({
     const knowledge =
       mode === 'append'
         ? null
-        : readKnowledgeRefusal(context, expandedPath, input.file_path, currentContent, input.expected_anchor, touched)
+        : readKnowledgeRefusal(context, expandedPath, input.file_path, currentContent, input.expected_anchor, touched, true, {
+            lines: mode === 'hunks' ? linesOfHunks(input.hunks as EditHunkInput[] | undefined) : touched,
+            missing:
+              mode === 'section'
+                ? 'the section heading was not found in the current content'
+                : mode === 'hunks'
+                  ? "a hunk's line address does not parse"
+                  : 'the old_string was not found in the current content',
+          })
     if (knowledge !== null) {
       return {
         result: false as const,
