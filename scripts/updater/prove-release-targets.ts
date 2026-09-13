@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
-import { existsSync, readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.chdir(join(import.meta.dir, '..', '..'))
@@ -10,7 +12,7 @@ const { assetNameFor, platformNote } = await import('../../src/services/privateC
 const { nodePackPlatform, readRuntimeRecord } = await import('../../src/services/privateChannel/vendoredRuntime.ts')
 const { imagePackPlatform } = await import('../../src/tools/FileReadTool/imagePackArm.ts')
 const { voiceCargoTriple, voicePackPlatform } = await import('../../src/services/voice/voicePack.ts')
-const { brushPackPlatform } = await import('../../src/utils/shell/brushPack.ts')
+const { BRUSH_PACK_PATH, brushBinaryFor, brushPackPlatform } = await import('../../src/utils/shell/brushPack.ts')
 const { lockedPackage, platformPackagesFor, registryTarballUrl, resolvePlatformPackage } = await import('../vendor/platformPackages.ts')
 
 let failures = 0
@@ -189,6 +191,75 @@ section('§8 the words — the archive README, the release page, the compatibili
   check('the beta.3 page carries the Intel Mac build as done, naming the archive', intelItem.includes('`macos-x64`') && /\bDone\.\s*$/.test(intelItem) && !/In progress\./.test(intelItem), intelItem.slice(-80))
   const compat = read('docs/COMPATIBILITY.md')
   check('the compatibility table carries the four archives with the Intel row', compat.includes('| `macos-x64` |') && compat.includes('| `macos-arm64` |') && compat.includes('| `linux-x64` |') && compat.includes('| `windows-x64` |'))
+}
+
+section('§9 the Windows archive carries the bundled shell engine — the contract, the packager, the verifier, the workflow')
+{
+  type Pack = { name: string; version: string; platform: string; binary: string; degradation: string; manifestKey: string; dir: string; files: string[] }
+  type Verdict = { ok: boolean; findings: string[]; packs: Pack[] }
+  const contract = (await import('../release/payloadContract.mjs')) as { bundledVendorPacks?: (target: string) => Pack[]; checkBundledVendorPacks?: (payloadDir: string, target: string) => Verdict }
+  const packsOf = (target: string): Pack[] => (typeof contract.bundledVendorPacks === 'function' ? contract.bundledVendorPacks(target) : [])
+  const checkAt = (dir: string, target: string): Verdict => (typeof contract.checkBundledVendorPacks === 'function' ? contract.checkBundledVendorPacks(dir, target) : { ok: false, findings: ['checkBundledVendorPacks is not exported'], packs: [] })
+  const win = packsOf('windows-x64')
+  const pack = win[0]
+  check("windows-x64 bundles exactly one pack beyond the build's own set: the shell engine", win.length === 1 && pack?.name === 'brush' && pack.degradation === 'shell-engine' && pack.manifestKey === 'shellEngine' && pack.platform === 'win-x64', JSON.stringify(win))
+  const packPlatform = brushPackPlatform('win32', 'x64')
+  check("the contract's pack directory and binary are the owner's spellings", pack?.dir === `${BRUSH_PACK_PATH}/${packPlatform}` && pack?.binary === brushBinaryFor(packPlatform!), `${pack?.dir} · ${pack?.binary}`)
+  check("its files are the binary, the pack's record, the crate inventory and the engine's own licence", pack !== undefined && pack.files.includes(pack.binary) && pack.files.includes('.vendor-manifest.json') && pack.files.includes('NOTICES.json') && pack.files.some(f => /^licenses\/brush-shell-\d+\.\d+\.\d+\/LICENSE$/.test(f)), JSON.stringify(pack?.files))
+  const lock = JSON.parse(read('vendor/brush.lock.json')) as { version: string; platforms: Record<string, { crate?: string; crateVersion?: string }> }
+  const entry = lock.platforms['win-x64']!
+  check('the pinned version and the licence path follow the lock', pack?.version === lock.version && (pack?.files.includes(`licenses/${entry.crate}-${entry.crateVersion}/LICENSE`) ?? false), `${pack?.version} vs ${lock.version}`)
+  for (const t of ['linux-x64', 'macos-arm64', 'macos-x64']) check(`${t} bundles nothing beyond the build's own packs`, typeof contract.bundledVendorPacks === 'function' && packsOf(t).length === 0)
+
+  const fixture = mkdtempSync(join(tmpdir(), 'bundled-shell-'))
+  try {
+    const empty = checkAt(fixture, 'windows-x64')
+    check('an empty windows-x64 payload fails the check, naming every missing file', !empty.ok && pack !== undefined && pack.files.every(f => empty.findings.some(line => line.includes(f))), JSON.stringify(empty.findings).slice(0, 300))
+    check('an empty linux-x64 payload passes it (nothing is bundled there)', checkAt(fixture, 'linux-x64').ok)
+    const packDir = join(fixture, ...(pack?.dir ?? 'vendor/brush/win-x64').split('/'))
+    const licenceDir = join(packDir, 'licenses', `${entry.crate}-${entry.crateVersion}`)
+    mkdirSync(licenceDir, { recursive: true })
+    const binary = Buffer.from('MZ not really an engine')
+    writeFileSync(join(packDir, 'brush.exe'), binary)
+    writeFileSync(join(packDir, 'NOTICES.json'), '{"crates":[]}\n')
+    writeFileSync(join(licenceDir, 'LICENSE'), 'MIT\n')
+    const record = { name: 'brush', source: 'cargo-build', version: lock.version, platform: 'win-x64', target: 'x86_64-pc-windows-msvc', crate: entry.crate, crateVersion: entry.crateVersion, crateSha256: null, cargo: 'cargo', binary: 'brush.exe', binarySha256: createHash('sha256').update(binary).digest('hex'), license: 'MIT', licenseFiles: ['NOTICES.json'], fileCount: 3, treeDigest: '0'.repeat(64) }
+    writeFileSync(join(packDir, '.vendor-manifest.json'), JSON.stringify(record))
+    const laid = checkAt(fixture, 'windows-x64')
+    check('a payload with the binary, its record and its licence files passes, the record agreeing with the bytes', laid.ok && laid.packs.length === 1, JSON.stringify(laid.findings))
+    const other = Buffer.from('MZ another binary')
+    writeFileSync(join(packDir, 'brush.exe'), other)
+    const swapped = checkAt(fixture, 'windows-x64')
+    check("a binary that no longer matches its record is refused, naming the digest", !swapped.ok && swapped.findings.some(f => /sha256/.test(f)), JSON.stringify(swapped.findings))
+    writeFileSync(join(packDir, '.vendor-manifest.json'), JSON.stringify({ ...record, version: '0.0.1', binarySha256: createHash('sha256').update(other).digest('hex') }))
+    const stale = checkAt(fixture, 'windows-x64')
+    check("a record of another version than the lock's is refused, naming both", !stale.ok && stale.findings.some(f => f.includes('0.0.1') && f.includes(lock.version)), JSON.stringify(stale.findings))
+  } finally {
+    rmSync(fixture, { recursive: true, force: true })
+  }
+
+  const packager = read('scripts/release/package.mjs')
+  check('the packager reads the pack back out of the staged payload and no longer tolerates its absence on Windows', packager.includes('checkBundledVendorPacks(pkgDir, TARGET)') && !packager.includes("PUBLISHABLE_DEGRADATIONS.add('shell-engine')"))
+  check('the packager names the build command when the dist lacks the pack', packager.includes('bundledVendorPacks(TARGET)') && packager.includes('bun run scripts/vendor/build-brush.ts --target ${TARGET}'))
+  const verifier = read('scripts/release/verifyArchive.mjs')
+  check('the verifier reads the pack back out of the extracted archive', verifier.includes('checkBundledVendorPacks(payload'))
+  const wf = read('.github/workflows/private-release.yml')
+  const step = wf.indexOf('- name: Build the shell engine pack (Windows)')
+  const stepEnd = wf.indexOf('\n      - name:', step + 1)
+  check("the release job's Windows pack build is no longer optional", step !== -1 && !wf.slice(step, stepEnd === -1 ? step + 300 : stepEnd).includes('continue-on-error'))
+
+  const manifestPath = join(ROOT, 'dist', 'manifest.json')
+  if (existsSync(manifestPath)) {
+    const built = readBuildTargetRecord(JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>)
+    if (built?.release === 'windows-x64') {
+      const onDisk = checkAt(join(ROOT, 'dist'), 'windows-x64')
+      check('the built Windows dist carries the bundled shell engine', onDisk.ok, JSON.stringify(onDisk.findings))
+    } else {
+      console.log(`  [SKIP] dist is built for ${built?.release ?? 'an unknown target'} — the bundled-pack check on a built dist runs on a windows-x64 build`)
+    }
+  } else {
+    console.log('  [SKIP] dist/manifest.json absent — the bundled-pack check on a built dist runs where a windows-x64 dist is')
+  }
 }
 
 console.log('')
