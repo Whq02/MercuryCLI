@@ -118,7 +118,9 @@ export function readBoxLockState(dir: string, now: number = Date.now(), alive: (
       let ageS = 0
       try {
         label = readFileSync(path, 'utf8').trim() || ticket.replace(/^\d+-/, '').replace(/\.ticket$/, '')
-        ageS = Math.max(0, Math.round((now - statSync(path).mtimeMs) / 1000))
+        const stamp = /^(\d{16,20})-/.exec(ticket)?.[1]
+        const arrivedAtMs = stamp === undefined ? statSync(path).mtimeMs : Number(BigInt(stamp) / 1_000_000n)
+        ageS = Math.max(0, Math.round((now - arrivedAtMs) / 1000))
       } catch {
         continue
       }
