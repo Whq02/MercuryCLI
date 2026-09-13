@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { unsignedArchiveName } from './payloadContract.mjs'
+import { checkBundledVendorPacks, unsignedArchiveName } from './payloadContract.mjs'
 import { checkReleaseDocuments } from './releaseDocuments.mjs'
 
 const args = process.argv.slice(2)
@@ -77,6 +77,12 @@ try {
   const docs = checkReleaseDocuments({ root, version, archiveDir: payload })
   if (!docs.ok) fail(`the archive's licence documents: ${docs.findings.join('; ')}`)
   console.log(`${basename(archive)}: LICENSE.md (${docs.parameters.version}, released ${docs.parameters.releaseDate}), TRADEMARKS.md and the production terms ride verbatim; the terms hash the licence states`)
+
+  const shipped = JSON.parse(readFileSync(join(payload, 'manifest.json'), 'utf8'))
+  const shippedTarget = shipped.target && typeof shipped.target === 'object' && typeof shipped.target.release === 'string' ? shipped.target.release : target
+  const bundled = checkBundledVendorPacks(payload, shippedTarget)
+  if (!bundled.ok) fail(`the archive's bundled packs: ${bundled.findings.join('; ')}`)
+  for (const pack of bundled.packs) console.log(`${basename(archive)}: bundled ${pack.name} ${pack.version} rides at ${pack.dir} — ${pack.binary}, its record and its licence files, the binary's digest matching the record`)
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

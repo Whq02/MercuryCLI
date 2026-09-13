@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -99,4 +99,56 @@ export function releaseLayoutSection(stagedDir, target, floor) {
     manifestMember: { path: 'manifest.json', role: 'manifest' },
     members,
   }
+}
+
+function readShellEngineLock() {
+  const here = dirname(fileURLToPath(import.meta.url))
+  return JSON.parse(readFileSync(join(here, '..', '..', 'vendor', 'brush.lock.json'), 'utf8'))
+}
+
+export function bundledVendorPacks(target) {
+  if (target !== 'windows-x64') return []
+  const lock = readShellEngineLock()
+  const entry = lock.platforms['win-x64']
+  return [
+    {
+      name: lock.name,
+      version: lock.version,
+      platform: 'win-x64',
+      binary: 'brush.exe',
+      degradation: 'shell-engine',
+      manifestKey: 'shellEngine',
+      dir: 'vendor/brush/win-x64',
+      files: ['brush.exe', '.vendor-manifest.json', 'NOTICES.json', `licenses/${entry.crate}-${entry.crateVersion}/LICENSE`],
+    },
+  ]
+}
+
+export function checkBundledVendorPacks(payloadDir, target) {
+  const findings = []
+  const packs = bundledVendorPacks(target)
+  for (const pack of packs) {
+    const dir = join(payloadDir, ...pack.dir.split('/'))
+    for (const file of pack.files) {
+      if (!existsSync(join(dir, ...file.split('/')))) findings.push(`${pack.dir}/${file} is missing`)
+    }
+    const recordPath = join(dir, '.vendor-manifest.json')
+    if (!existsSync(recordPath)) continue
+    let record
+    try {
+      record = JSON.parse(readFileSync(recordPath, 'utf8'))
+    } catch (e) {
+      findings.push(`${pack.dir}/.vendor-manifest.json does not parse: ${e instanceof Error ? e.message : String(e)}`)
+      continue
+    }
+    if (record.platform !== pack.platform) findings.push(`${pack.dir}/.vendor-manifest.json names the platform ${record.platform}; the archive ships ${pack.platform}`)
+    if (record.version !== pack.version) findings.push(`${pack.dir}/.vendor-manifest.json names ${pack.name} ${record.version}; the lock pins ${pack.version}`)
+    if (record.binary !== pack.binary) findings.push(`${pack.dir}/.vendor-manifest.json names the binary ${record.binary}; the archive ships ${pack.binary}`)
+    const binaryPath = join(dir, pack.binary)
+    if (existsSync(binaryPath)) {
+      const digest = sha256File(binaryPath)
+      if (digest !== record.binarySha256) findings.push(`${pack.dir}/${pack.binary} does not match its record's sha256 (the record says ${String(record.binarySha256).slice(0, 12)}…, the bytes hash to ${digest.slice(0, 12)}…)`)
+    }
+  }
+  return { ok: findings.length === 0, findings, packs }
 }

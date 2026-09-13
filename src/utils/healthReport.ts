@@ -2745,23 +2745,26 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Shell engine',
           run: async () => {
             const { engineSessionCeilingPinned, resolveEngineSessionCeiling, resolveShellEngine } = await import('./shell/engineSession.js')
+            const { shellEngineArmWords } = await import('./shell/shellEngineArm.js')
             const { getInitialSettings } = await import('./settings/settings.js')
             const settings = getInitialSettings()
             const setting = settings.shellEngine ?? 'system'
-            const resolved = resolveShellEngine(setting === 'brush' ? 'brush' : 'system')
+            const resolved = resolveShellEngine(settings.shellEngine)
             if (resolved.engine === 'brush') {
               const ceiling = resolveEngineSessionCeiling(settings.shellEngineSessions)
+              const armed = resolved.arm === 'no-bash' ? 'armed by itself: no bash.exe was found on this machine, so the bundled engine serves the Bash tool' : `armed by ${shellEngineArmWords(resolved.arm)}`
               return {
                 status: 'ok' as const,
-                evidence: `brush ${resolved.version} (${resolved.platform}, ${resolved.source}) — one persistent process per conversation and one per sub-agent, up to ${ceiling} at once; shell state persists between calls; a stop while a command runs resets the session`,
+                evidence: `brush ${resolved.version} (${resolved.platform}, ${resolved.source}) — ${armed} — one persistent process per conversation and one per sub-agent, up to ${ceiling} at once; shell state persists between calls; a stop while a command runs resets the session`,
                 detail: `setting: ${setting}${process.env.MERCURY_SHELL_ENGINE ? ` · env pin MERCURY_SHELL_ENGINE=${process.env.MERCURY_SHELL_ENGINE}` : ''} · sessions ceiling ${ceiling} (${engineSessionCeilingPinned() ? 'the env pin MERCURY_SHELL_ENGINE_SESSIONS' : 'the shellEngineSessions setting'})`,
               }
             }
             const wanted = resolved.requested === 'brush'
+            const packRemedy = process.platform === 'win32' ? 'Build the pack: bun run scripts/vendor/build-brush.ts, then rebuild — a release archive carries it.' : 'Fetch the pack: bun run scripts/vendor/fetch-brush.ts, then rebuild.'
             return {
               status: 'info' as const,
-              evidence: wanted ? resolved.reason : 'the system shell serves the Bash tool (the default); arm the vendored engine with the Shell engine setting or MERCURY_SHELL_ENGINE=brush',
-              ...(wanted ? { fix: 'Fetch the pack: bun run scripts/vendor/fetch-brush.ts, then rebuild.' } : {}),
+              evidence: wanted ? resolved.reason : `the system shell serves the Bash tool (${shellEngineArmWords(resolved.arm)}); arm the vendored engine with the Shell engine setting or MERCURY_SHELL_ENGINE=brush`,
+              ...(wanted ? { fix: packRemedy } : {}),
             }
           },
         },
