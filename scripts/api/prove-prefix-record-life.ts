@@ -225,7 +225,7 @@ const route = read('src/components/concourse/ConcourseRoute.tsx')
 const marks = [...route.matchAll(/markParkedCleared\(sessionId\)/g)].map(m => m.index ?? -1)
 check("the board's removal takes the record beside each of its cleared marks (the parked rung and the released rung)", marks.length === 2 && marks.every(at => route.slice(at, at + 240).includes('removePrefixRecord(sessionId)')), `${marks.length} marks`)
 const door = read('src/utils/sessionStorage/transcriptPruneDoor.ts')
-check("the operator's prune takes the record with the transcript it deletes, inside the same candidate", door.includes('removePrefixRecord(candidate.sessionId)') && door.indexOf('removePrefixRecord(candidate.sessionId)') > door.indexOf('await fs.unlink(candidate.transcriptPath)'))
+check("the operator's prune takes the record with the transcript it deletes, inside the same candidate", door.includes('removePrefixRecord(candidate.sessionId)') && door.includes('await fs.unlink(candidate.transcriptPath)') && door.indexOf('removePrefixRecord(candidate.sessionId)') > door.indexOf('await fs.unlink(candidate.transcriptPath)'))
 check('/clear leaves the record: the cleared-sessions mark parks a chat that Enter brings back', !read('src/utils/sessionStorage/clearedSessions.ts').includes('removePrefixRecord'))
 
 section("§5 the boot sweep: an orphan and an expired record go; a live session's record and a fresh orphan under the retention stay; the verdict is the flag's")
