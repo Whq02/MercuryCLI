@@ -1,6 +1,10 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.11
+- Fixed a line sent while a sub-agent was running being taken by that sub-agent and shown twice in the chat: it now reaches the session's own model once, with the time it was sent
+- Removed the daemon's memory limit on session runners: a session is never parked or restarted for its memory use, and its sub-agents are never stopped by it
+
 ## 1.0.0-beta.10
 - Fixed the GPT route's tool calls: empty optional fields dropped at the decode, curly quotes straightened where a command, a pattern, a symbol or a path never wants one, and an Edit refusal that names the lines already read
 - Added a bundled shell to the Windows archive: a box with no bash runs the shell tool through Mercury's own bash-compatible engine
