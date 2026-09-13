@@ -47,6 +47,7 @@ function rememberClassifiedResponse(id: string): void {
 import {
   FRESH_OVERFLOW_EPISODE,
   decideOverflowRecovery,
+  measureOverflow,
   foldAvailability,
   overflowGapFor,
   overflowLadderArmed,
@@ -1272,12 +1273,13 @@ export async function* runEventCore(
     if (!iter.needsFollowUp) {
       const lastMessage = assistantMessages.at(-1)
 
-      const overflow = overflowSignalOf(lastMessage)
-      if (overflow !== null && overflowLadderArmed(querySource)) {
+      const overflowStamped = overflowSignalOf(lastMessage)
+      if (overflowStamped !== null && overflowLadderArmed(querySource)) {
         const foldInput = [
           ...messagesForQuery,
           ...assistantMessages.filter(m => m.isApiErrorMessage !== true),
         ]
+        const overflow = measureOverflow(overflowStamped, foldInput, toolUseContext.options.mainLoopModel)
         const split = splitCarriedOperatorTail(foldInput)
         const pruneSaving =
           projectTimeBasedMicrocompact(foldInput, querySource, { pressure: true })?.tokensSaved ?? 0
