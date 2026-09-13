@@ -21,6 +21,8 @@ enableConfigs()
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setCwdState(scratch)
 const { getTools } = await import('../../src/tools.ts')
+const { withheldTools } = await import('../../src/utils/withheldTools.ts')
+const withheld = new Set(withheldTools().map(w => w.tool))
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { filterToolsForAgent, resolveAgentTools } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
 const lspManager = await import('../../src/services/lsp/manager.ts')
@@ -138,7 +140,7 @@ for (const kind of kinds) {
     const description = schema.description ?? ''
     descriptions.set(tool.name, description)
     for (const name of mentionedToolNames(description)) {
-      if (!offered.has(name)) pairs.push(`${tool.name} → ${name}`)
+      if (!offered.has(name) && !withheld.has(name)) pairs.push(`${tool.name} → ${name}`)
     }
   }
   rendered.set(kind.label, descriptions)
