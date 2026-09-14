@@ -2598,6 +2598,14 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             return
           }
           setTransitionConfirm(null)
+          if (held.plan.window?.fits === false) {
+            const foldingSession = getFocusedSessionConnector()
+            if (foldingSession.carrier === 'daemon') {
+              void foldingSession.sendWords('/compact').then(() => applyModelSelection(held.value))
+              return
+            }
+            requestCommandDispatch('/compact')
+          }
           applyModelSelection(held.value)
         }}
         onCancel={() => {

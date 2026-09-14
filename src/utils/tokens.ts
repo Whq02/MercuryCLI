@@ -60,6 +60,16 @@ export function getTokenUsage(message: Message | undefined): ApiUsage | undefine
 }
 
 
+export function usageAnchorModel(messages: readonly Message[]): string | undefined {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index]
+    if (getTokenUsage(message) === undefined) continue
+    const stamped = (message as AssistantMessage).message?.model
+    return typeof stamped === 'string' && stamped !== '' ? stamped : undefined
+  }
+  return undefined
+}
+
 export function tokenCountFromLastAPIResponse(messages: Message[]): number {
   for (let index = messages.length - 1; index >= 0; index--) {
     const usage = getTokenUsage(messages[index])
