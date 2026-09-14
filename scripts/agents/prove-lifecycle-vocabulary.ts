@@ -108,7 +108,7 @@ section('§E the transcript\'s own end — one fact for every verb once the regi
   const transcriptVerb = readFileSync(join(ROOT, 'src/services/resources/adapters/transcript.ts'), 'utf8')
   check('the transcript verb reads the same two facts, never "finished agent execution"', !transcriptVerb.includes('finished agent execution') && transcriptVerb.includes('registryStatusOf(ctx') && transcriptVerb.includes('transcriptEndWords('))
   const stop = readFileSync(join(ROOT, 'src/tasks/stopTask.ts'), 'utf8')
-  check('a stop of an evicted agent names the transcript\'s end and the resume door', stop.includes('export async function taskNotFoundWords') && stop.includes('its transcript on disk ends') && readFileSync(join(ROOT, 'src/tools/TaskStopTool/TaskStopTool.ts'), 'utf8').includes('await taskNotFoundWords(taskId)'))
+  check('a stop of an evicted agent names the transcript\'s end and the resume door', stop.includes('export async function taskNotFoundWords') && stop.includes('its transcript on disk ends') && readFileSync(join(ROOT, 'src/tools/TaskStopTool/TaskStopTool.ts'), 'utf8').includes('await finishedTaskOnDisk(taskId)') && readFileSync(join(ROOT, 'src/tools/TaskStopTool/TaskStopTool.ts'), 'utf8').includes('bareMissWords(taskId)'))
 }
 
 console.log('\n' + '='.repeat(60))
