@@ -22,6 +22,7 @@ export interface ProviderUsability {
   limit: 'allowed' | 'allowed_warning' | 'rejected' | 'unknown'
   usable: boolean
   blockers: string[]
+  limitBlocker?: string
   delegationCapped?: boolean
   signInExpired?: boolean
 }
@@ -142,12 +143,14 @@ function liveProviderUsabilityReads(): ProviderUsabilityReads {
       return resolveGeminiAccount()
     },
     openaiLimitWindow: () => {
-      const { openaiLimitWindow } =
+      const { openaiLimitWindow, noteOpenaiSourceIdentity } =
         require('./openai/openaiLimitState.js') as typeof import('./openai/openaiLimitState.js')
-      const { resolveOpenaiAccount } =
+      const { resolveOpenaiAccount, openaiSourceIdentity } =
         require('./openai/openaiAccounts.js') as typeof import('./openai/openaiAccounts.js')
       const active = resolveOpenaiAccount()
-      return active === undefined ? { state: 'clear' } : openaiLimitWindow(active.kind)
+      if (active === undefined) return { state: 'clear' }
+      noteOpenaiSourceIdentity(active.kind, openaiSourceIdentity(active.kind))
+      return openaiLimitWindow(active.kind)
     },
     openrouterLimitWindow: () => {
       const { openrouterLimitWindow } =
@@ -195,8 +198,9 @@ export function resolveProviderUsability(
   if (anthropicCredential === 'none') {
     anthropicBlockers.push('no Anthropic credential — /logins (or ANTHROPIC_API_KEY)')
   }
-  if (limit === 'rejected') {
-    anthropicBlockers.push(anthropicWindowWords(reads.anthropicLimitObservation?.()))
+  const anthropicWindowBlocker = limit === 'rejected' ? anthropicWindowWords(reads.anthropicLimitObservation?.()) : undefined
+  if (anthropicWindowBlocker !== undefined) {
+    anthropicBlockers.push(anthropicWindowBlocker)
   }
   const anthropic: ProviderUsability = {
     provider: 'anthropic',
@@ -204,6 +208,7 @@ export function resolveProviderUsability(
     limit,
     usable: anthropicBlockers.length === 0,
     blockers: anthropicBlockers,
+    ...(anthropicWindowBlocker !== undefined ? { limitBlocker: anthropicWindowBlocker } : {}),
     delegationCapped: limit === 'rejected',
     ...(anthropicCredential !== 'none' && reads.anthropicSignInExpired?.() === true ? { signInExpired: true } : {}),
   }
@@ -299,14 +304,13 @@ export function resolveProviderUsability(
     window: { state: 'limited' | 'clear' } | undefined,
   ): ProviderUsability => {
     if (window?.state !== 'limited' || lane.credential === 'none') return lane
+    const windowBlocker = `the ${lane.provider} usage window is reached — resets per /usage`
     return {
       ...lane,
       limit: 'rejected',
       usable: false,
-      blockers: [
-        ...lane.blockers,
-        `the ${lane.provider} usage window is reached — resets per /usage`,
-      ],
+      blockers: [...lane.blockers, windowBlocker],
+      limitBlocker: windowBlocker,
     }
   }
   const applyObservedBilling = (
@@ -403,9 +407,7 @@ export function delegationDispatchBlocker(
     .map(p => p.provider)
   const why = signInExpired
     ? anthropicSignInWords()
-    : lane.blockers.length > 0
-      ? lane.blockers.join('; ')
-      : 'lane unavailable'
+    : lane.limitBlocker ?? (lane.blockers.length > 0 ? lane.blockers.join('; ') : 'lane unavailable')
   const alternatives =
     usableAlternatives.length > 0
       ? ` Lanes with usage right now: ${usableAlternatives.join(', ')} — dispatch there by naming a model explicitly (the Agent model parameter).`

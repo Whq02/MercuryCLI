@@ -286,6 +286,18 @@ notice and the doctor speak the one sign-in line (sign in again with
 `/logins anthropic`), and an authentication failure never sets the limit
 verdict.
 
+The OpenAI lane keeps the same law in its own shape. A reached OpenAI window
+is observed on a reply's own reset fact and belongs to the sign-in or key that
+observed it: it lapses at the reset the reply named, and it reads clear the
+moment the credential behind that source is another one (a sign-in again, a
+switch, a sign-out), so a delegated agent on a GPT row is never refused with a
+departed sign-in's window. The runner's copy of the OpenAI model list follows
+the same credential: told to read the account again, it drops the departed
+sign-in's rows and reads the signed-in account's list once, bounded, and a
+delegated dispatch on the OpenAI route reads that list before it decides. The
+refusal for a reached window names the window that blocks; the state of the
+model list is never named as if it were the block.
+
 `/usage` lists every provider, the signed-in ones first in the order of their
 most recent sign-in — the same sign-in record the computed default reads — and
 each in its own shape: the first-party subscription's rolling windows and

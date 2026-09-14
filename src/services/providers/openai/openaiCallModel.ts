@@ -67,6 +67,7 @@ import {
   resolveBehaviourContract,
 } from '../../../prompt/behaviourContract.js'
 import {
+  openaiSourceIdentity,
   readPreferredOpenaiSource,
   resolveOpenaiAccount,
   resolveOpenaiRequestAuth,
@@ -84,7 +85,7 @@ import {
   type GptReasoningProfile,
 } from './openaiCatalogue.js'
 import { describeWireEffortProbeWindow, noteWireEffortAccepted, recordLiveQualification, recordWireEffortRefusal } from './qualificationStore.js'
-import { recordOpenaiUsageLimit } from './openaiLimitState.js'
+import { noteOpenaiSourceIdentity, recordOpenaiUsageLimit } from './openaiLimitState.js'
 import { resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { streamOpenaiResponses, type OpenaiLiveModel } from './openaiClient.js'
@@ -688,6 +689,7 @@ export async function* openaiCallModel(
       continue
     }
     if (outcome.fault.kind === 'usage-limit') {
+      noteOpenaiSourceIdentity(auth.account.kind, openaiSourceIdentity(auth.account.kind))
       recordOpenaiUsageLimit(outcome.fault.resetsAtMs, auth.account.kind)
       const slotAppendix = ((): string => {
         try {
