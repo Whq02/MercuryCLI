@@ -7,6 +7,7 @@ import { logForDiagnosticsNoPII } from '../diagLogs.js'
 import { getGlobalMercuryFile } from '../env.js'
 import { getMercuryHome } from '../envUtils.js'
 import { ConfigParseError, ConfigReadError, getErrnoCode } from '../errors.js'
+import { isReadOnlyDiagnostic } from '../diagnosticReadOnly.js'
 import { writeFileSyncAndFlush_DEPRECATED } from '../file.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { safeParseJSON } from '../json.js'
@@ -64,6 +65,7 @@ export function foldPendingUpdaters(current: GlobalConfig): GlobalConfig {
 export function saveGlobalConfigDeferred(
   updater: (currentConfig: GlobalConfig) => GlobalConfig,
 ): void {
+  if (isReadOnlyDiagnostic()) return
   if (process.env.NODE_ENV === 'test') {
     saveGlobalConfig(updater)
     return
@@ -103,6 +105,7 @@ export function hasPendingDeferredGlobalConfigSaves(): boolean {
 export function saveGlobalConfig(
   updater: (currentConfig: GlobalConfig) => GlobalConfig,
 ): void {
+  if (isReadOnlyDiagnostic()) return
   if (process.env.NODE_ENV === 'test') {
     const config = updater(TEST_GLOBAL_CONFIG_FOR_TESTING)
     if (config === TEST_GLOBAL_CONFIG_FOR_TESTING) {

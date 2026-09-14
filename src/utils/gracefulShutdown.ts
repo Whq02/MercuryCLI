@@ -31,6 +31,14 @@ type ShutdownRestorationModule = typeof import('./shutdownRestoration.js')
 
 let restorationModule: ShutdownRestorationModule | undefined
 
+let terminalGoneFlag = false
+export function markTerminalGone(): void {
+  terminalGoneFlag = true
+}
+function terminalIsGone(): boolean {
+  return terminalGoneFlag || process.stdout.writable === false
+}
+
 function resolveRestorationSync(): ShutdownRestorationModule | undefined {
   if (!restorationModule) {
     try {
@@ -49,6 +57,7 @@ const FALLBACK_EXIT_ALT_SCREEN = '\x1b[?1049l'
 const FALLBACK_SHOW_CURSOR = '\x1b[?25h'
 
 function runTerminalRestoration(): void {
+  if (terminalIsGone()) return
   if (restorationModule) {
     restorationModule.cleanupTerminalModes()
     return
@@ -68,6 +77,7 @@ function runTerminalRestoration(): void {
 }
 
 function runResumeHint(): void {
+  if (terminalIsGone()) return
   const restoration =
     restorationModule ?? (process.stdout.isTTY ? resolveRestorationSync() : undefined)
   restoration?.printResumeHint()
@@ -81,11 +91,12 @@ function forceExit(exitCode: number): void {
     clearTimeout(failsafeTimer)
     failsafeTimer = undefined
   }
-  try {
-    const restoration =
-      restorationModule ?? (process.stdout.isTTY ? resolveRestorationSync() : undefined)
-    restoration?.drainStdinForExit()
-  } catch {
+  if (!terminalIsGone()) {
+    try {
+      const restoration =
+        restorationModule ?? (process.stdout.isTTY ? resolveRestorationSync() : undefined)
+      restoration?.drainStdinForExit()
+    } catch {}
   }
   try {
     process.exit(exitCode)
@@ -116,6 +127,15 @@ export function isModuleLoadFailure(reason: unknown): boolean {
   return /^Cannot find (?:module|package) /.test(reason.message)
 }
 
+export function isMissingCwd(reason: unknown): boolean {
+  if (!(reason instanceof Error)) return false
+  const e = reason as NodeJS.ErrnoException
+  return e.code === 'ENOENT' && (e.syscall === 'uv_cwd' || /uv_cwd/.test(reason.message))
+}
+
+export const MISSING_CWD_LINE =
+  'the folder you started in no longer exists; start Mercury from another folder'
+
 export type LoudFailureOrigin = 'boot' | 'unhandled-rejection' | 'uncaught-exception'
 
 export function failLoud(error: unknown, origin: LoudFailureOrigin): void {
@@ -125,6 +145,14 @@ export function failLoud(error: unknown, origin: LoudFailureOrigin): void {
     `failLoud(${origin}): ${err.name}: ${truncate(err.message, 2000)}\n${truncate(err.stack ?? '', 4000)}`,
   )
   logForDiagnosticsNoPII('error', 'boot_failed_loud', { origin, moduleFailure })
+  if (isMissingCwd(err)) {
+    logForDiagnosticsNoPII('error', 'boot_cwd_missing', { origin })
+    try {
+      writeSync(2, `${MISSING_CWD_LINE}\n`)
+    } catch {}
+    forceExit(1)
+    return
+  }
   let reportPath: string | null = null
   let reportRefusal = 'the config home refused the write'
   try {
@@ -250,6 +278,7 @@ export const setupGracefulShutdown = (): void => {
       gracefulShutdownSync(143)
     })
     process.on('SIGHUP', () => {
+      markTerminalGone()
       logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGHUP' })
       gracefulShutdownSync(129)
     })
@@ -263,6 +292,7 @@ export const setupGracefulShutdown = (): void => {
           if (getIsScrollDraining()) return
           if (!process.stdout.writable || !process.stdin.readable) {
             clearInterval(orphanCheck)
+            markTerminalGone()
             logForDiagnosticsNoPII('warn', 'orphan_detected', {
               stdoutWritable: Boolean(process.stdout.writable),
               stdinReadable: Boolean(process.stdin.readable),
@@ -429,7 +459,7 @@ export async function gracefulShutdown(
   } catch {
   }
 
-  if (options?.finalMessage !== undefined) {
+  if (options?.finalMessage !== undefined && !terminalIsGone()) {
     try {
       process.stderr.write(`${options.finalMessage}\n`)
     } catch {

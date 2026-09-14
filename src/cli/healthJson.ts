@@ -1,6 +1,7 @@
 
 import { jsonStringify } from '../utils/slowOperations.js'
 import { writeOutAndExit } from './healthPresentation.js'
+import { beginReadOnlyDiagnostic } from '../utils/diagnosticReadOnly.js'
 
 /* eslint-disable custom-rules/no-process-exit -- CLI subcommand handler intentionally exits */
 
@@ -100,6 +101,7 @@ export async function runHealthFixCli(opts: { only?: string; yes: boolean }): Pr
 const JSON_RUN_DEADLINE_MS = { fast: 300_000, deep: 900_000 } as const
 
 export async function runHealthJsonCli(opts?: { deep?: boolean; only?: string }): Promise<never> {
+  beginReadOnlyDiagnostic()
   const depth: 'fast' | 'deep' = opts?.deep ? 'deep' : 'fast'
   const trace: RunTrace = { settled: 0, total: 0, lastSettled: null }
   const disarm = armSilenceGuards('health --json', trace, JSON_RUN_DEADLINE_MS[depth])

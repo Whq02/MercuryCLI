@@ -1063,6 +1063,8 @@ async function healthAction(options: {
     return
   }
   if (presentation.output === 'text' || presentation.depth === 'deep' || options.only !== undefined) {
+    const { beginReadOnlyDiagnostic } = await import('./utils/diagnosticReadOnly.js')
+    beginReadOnlyDiagnostic()
     const { runAndRecordHealthReport } = await import('./utils/healthReport.js')
     let completed = 0
     const cert = await runAndRecordHealthReport({
