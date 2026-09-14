@@ -55,6 +55,14 @@ transcript stands on disk; `r` resumes it from that transcript under the same
 id. Every stop, resume and failure reaches the main agent as a notification
 of its own kind, never silently.
 
+A named teammate spawned into a team with the Agent tool is answered only
+once its first turn has settled. A seat whose first dispatch fails — a
+provider refusal, a spent window, an error before its first response — is
+refused by name with the cause, is not on the roster, and a later message to
+it is refused with the same cause instead of landing in an inbox nobody
+reads. A seat that fails later leaves the roster the same way, so the team
+view and the brief never list a dead seat as running.
+
 Named agents spawn on demand over the daemon's authed control socket. The RPC
 carries only intent — a name and a model choice — and the daemon enforces the
 floor server-side, where a client bug cannot bypass it:
