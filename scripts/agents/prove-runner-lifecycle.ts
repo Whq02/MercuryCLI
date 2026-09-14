@@ -113,6 +113,7 @@ section('§3 — a mid-loop throw (failing auto-compaction) terminalizes FAILED 
     name: 'probe2',
     team,
     turns: [
+      { kind: 'text', text: 'S2 summary.' },
       { kind: 'text', text: 'S2 first reply.' },
       { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'compaction fixture refusal' },
       { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'compaction fixture refusal' },
@@ -146,7 +147,7 @@ section('§3 — a mid-loop throw (failing auto-compaction) terminalizes FAILED 
   const failedNote = idles.find(n => n.idleReason === 'failed')
   check("the lead is told: idleReason 'failed' + the cause", !!failedNote && !!failedNote.failureReason, JSON.stringify(idles))
   check(
-    'exactly three model calls (turn 1 + fork-lane compact + fallback-lane compact) — no runaway retry',
+    'exactly three model calls (the first fold\'s summary + turn 1 + the failing fold\'s one request) — no runaway retry',
     s.api.messageRequests().length === 3,
     `${s.api.messageRequests().length}`,
   )
