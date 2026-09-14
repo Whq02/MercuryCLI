@@ -120,9 +120,16 @@ export async function ensureOwnedDaemon(): Promise<boolean> {
     healing = (async () => {
       try {
         const { spawnOwnedDaemon } = await import('../../daemon/ownedDaemon.js')
+        const daemonExtraEnv: Record<string, string> = {}
+        if (bootCarriesRunnerOptions()) {
+          daemonExtraEnv.MERCURY_DAEMON_NO_SELF_WARM = '1'
+        } else {
+          const { bootBirthFacts } = await import('./bootBirthFacts.js')
+          if (bootBirthFacts().bypassConsent) daemonExtraEnv.MERCURY_DAEMON_SELF_WARM_CONSENT = '1'
+        }
         const pid = spawnOwnedDaemon(getCwd(), {
           label: 'switchboard',
-          ...(bootCarriesRunnerOptions() ? { extraEnv: { MERCURY_DAEMON_NO_SELF_WARM: '1' } } : {}),
+          ...(Object.keys(daemonExtraEnv).length > 0 ? { extraEnv: daemonExtraEnv } : {}),
         })
         if (pid === undefined) return false
         return await awaitUsable(hs)
