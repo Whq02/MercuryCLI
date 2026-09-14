@@ -240,7 +240,7 @@ if (ARM === 'ceiling' || ARM === 'both') {
   check('the switch applied without a window warning (the declared ceiling holds the history by Mercury\'s budget)', !painted.includes('Model switch preview'), tail(markText(r.payload, 'pickup-sent'), 10))
   check('the first request on the target went out and the provider refused it (the ladder\'s road)', refusedOpenai.length >= 1, JSON.stringify(r.wire.map(w => [w.kind, w.count, w.refused ?? false])))
   check("the overflow notice in the session's record names Mercury's count and the window it measured against", noticeRows.some(line => /context overflowed \(OpenAI; about [\d,]+ tokens by Mercury's count against the 400,000-token window\) — folding the conversation and retrying/.test(line)), noticeRows.map(l => l.slice(0, 200)).join('\n') || 'no notice row in the record')
-  check('the notice or the fold row painted on the glass', painted.includes('context overflowed') || painted.includes('Context overflowed — folded and retried'), tail(finalText(r.payload), 12))
+  check("the glass carries the numbers too — the notice row while the fold runs, the fold's own row once it lands", painted.includes("by Mercury's count") && painted.includes('400,000'), tail(finalText(r.payload), 12))
   check('the fold that answered the overflow ran on the SOURCE model (the summary call is Anthropic, never the refused target)', summaries.length >= 1 && summaries.every(s => s.kind === 'anthropic'), JSON.stringify(summaries.map(s => [s.kind, s.count, s.refused ?? false])))
   check('the retried request fitted and the reply painted', painted.includes(GPT_REPLY) && refusedOpenai.length === 1, tail(finalText(r.payload), 12))
   if (failures > before) kept.push(r.home)

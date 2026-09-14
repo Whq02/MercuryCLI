@@ -1,5 +1,6 @@
 import type { AssistantMessage, Message } from '../../types/message.js'
 import type { CallModelRoute } from '../providers/idSpaces.js'
+import { providerDisplayName } from '../providers/routeLaw.js'
 
 export type OverflowFamily = CallModelRoute | 'unknown'
 
@@ -169,4 +170,19 @@ export function overflowNumbersClause(signal: OverflowSignal): string | undefine
   if (signal.limitTokens !== undefined) return `over the ${fmt(signal.limitTokens)}-token window`
   if (signal.actualTokens !== undefined) return `${fmt(signal.actualTokens)} tokens`
   return undefined
+}
+
+export function overflowMeasuredClause(signal: OverflowSignal): string | undefined {
+  if (signal.measuredTokens === undefined || signal.measuredWindow === undefined) return undefined
+  const fmt = (n: number): string => n.toLocaleString('en-US')
+  return `about ${fmt(signal.measuredTokens)} tokens by Mercury's count against the ${fmt(signal.measuredWindow)}-token window`
+}
+
+export function overflowWhoClause(signal: OverflowSignal): string {
+  const numbers = overflowNumbersClause(signal)
+  if (signal.source === 'estimate') return numbers !== undefined ? `estimated ${numbers}` : 'by estimate'
+  const who = signal.family === 'unknown' ? 'the provider' : providerDisplayName(signal.family)
+  if (numbers !== undefined) return `${who}: ${numbers}`
+  const measured = overflowMeasuredClause(signal)
+  return measured !== undefined ? `${who}; ${measured}` : who
 }

@@ -397,9 +397,9 @@ anyway, the turn recovers instead of ending:
   on the same session — your message is carried across the fold word for
   word, and the request is retried once. The chat says "context overflowed …
   — folding the conversation and retrying", and the fold's own row reads
-  "Context overflowed — folded and retried". The words in the brackets are
-  the provider's own numbers when it named them; when it named none, they
-  are Mercury's own count of the conversation and the window it measured
+  "Context overflowed — folded and retried". Both carry the same words in
+  brackets: the provider's own numbers when it named them; when it named
+  none, Mercury's own count of the conversation and the window it measured
   that count against.
 - The fold's summary is written by a model whose window holds the
   conversation. After a switch to a model with a smaller window that is the
