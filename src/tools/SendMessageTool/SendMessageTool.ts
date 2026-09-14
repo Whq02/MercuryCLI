@@ -14,7 +14,7 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { getCwd } from '../../utils/cwd.js'
 import { pidAlive } from '../../utils/pidAlive.js'
 import { daemonControlRpc } from '../../daemon/controlSocket.js'
-import { findTeammateTaskByAgentId } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
+import { findTeammateTaskByAgentId, getAllInProcessTeammateTasks } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
 import { isLocalAgentTask, queuePendingMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isMainSessionTask } from '../../tasks/LocalMainSessionTask.js'
 import { workflowOwnedAgentWords, workflowOwningAgent } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
@@ -69,6 +69,8 @@ import {
   createShutdownApprovedMessage,
   createShutdownRejectedMessage,
   createShutdownRequestMessage,
+  isIdleNotification,
+  readMailbox,
   writeToMailbox,
 } from '../../utils/teammateMailbox.js'
 import { SEND_MESSAGE_TOOL_NAME } from './constants.js'
@@ -308,6 +310,37 @@ function teamContextOf(context: ToolUseContext): { teamName: string; leadAgentId
     | undefined
 }
 
+function deadInProcessSeat(rawTo: string, teamName: string, context: ToolUseContext): string | null {
+  const seats = getAllInProcessTeammateTasks(context.getAppState().tasks ?? {}).filter(
+    task => task.identity.teamName === teamName && task.identity.agentName.toLowerCase() === rawTo.toLowerCase(),
+  )
+  if (seats.length === 0 || seats.some(task => task.status === 'running')) return null
+  const last = seats.reduce((newest, task) => ((task.endTime ?? 0) >= (newest.endTime ?? 0) ? task : newest))
+  if (last.status === 'failed') return `failed${last.error ? ` (${last.error})` : ''}`
+  if (last.status === 'completed') return 'completed'
+  return `was ${agentStatusWord(last.status)}`
+}
+
+async function failedSeatNotice(rawTo: string, teamName: string): Promise<string | null> {
+  let rows: Awaited<ReturnType<typeof readMailbox>>
+  try {
+    rows = await readMailbox(TEAM_LEAD_NAME, teamName)
+  } catch {
+    return null
+  }
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const row = rows[i]!
+    if (row.from.toLowerCase() !== rawTo.toLowerCase()) continue
+    const notice = isIdleNotification(row.text)
+    if (notice === null) continue
+    if (notice.idleReason === 'failed' || notice.completedStatus === 'failed') {
+      return `failed${notice.failureReason ? ` (${notice.failureReason})` : ''}`
+    }
+    return null
+  }
+  return null
+}
+
 async function readRoster(teamName: string | undefined): Promise<TeamFile | null> {
   if (!teamName) return null
   try {
@@ -352,6 +385,15 @@ async function resolveDeliverableRecipient(
   }
   const roster = await readRoster(teamName)
   const member = roster?.members.find(candidate => candidate.name.toLowerCase() === rawTo.toLowerCase())
+  const deadSeat = deadInProcessSeat(rawTo, teamName, context) ?? (member ? null : await failedSeatNotice(rawTo, teamName))
+  if (deadSeat !== null) {
+    return {
+      ok: false,
+      refusal:
+        `Cannot deliver to "${rawTo}": that seat is not running — it ${deadSeat} — so the message would sit in an inbox nobody reads. ` +
+        `Spawn the seat again with the Agent tool, or address a running teammate.`,
+    }
+  }
   if (!member) {
     const memberList = roster?.members.map(candidate => candidate.name).join(', ') || 'none'
     return {

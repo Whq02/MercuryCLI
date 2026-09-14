@@ -492,6 +492,15 @@ export type WorkflowNotificationArgs = {
 
 const WORKFLOW_RESULT_MAX_CHARS = 8000
 
+const FIRST_FAILURE_MAX_CHARS = 240
+
+export function firstFailureWords(failures: readonly string[] | undefined): string {
+  const first = (failures ?? []).find(line => line.trim() !== '')
+  if (first === undefined) return 'no cause recorded'
+  const oneLine = first.replace(/\s+/g, ' ').trim()
+  return oneLine.length > FIRST_FAILURE_MAX_CHARS ? `${oneLine.slice(0, FIRST_FAILURE_MAX_CHARS)}…` : oneLine
+}
+
 const AGENT_INDEX_MAX_ROWS = 24
 
 export function enqueueWorkflowNotification(args: WorkflowNotificationArgs): void {
@@ -515,7 +524,7 @@ export function enqueueWorkflowNotification(args: WorkflowNotificationArgs): voi
       case 'completed':
         return `Dynamic workflow "${name}" completed`
       case 'completed_with_failures':
-        return `Dynamic workflow "${name}" completed WITH ${args.failures?.length ?? 0} agent failure(s) — the result is partial; read <failures> before trusting it`
+        return `Dynamic workflow "${name}" completed WITH ${args.failures?.length ?? 0} agent failure(s) — first: ${firstFailureWords(args.failures)} — the result is partial; read <failures> before trusting it`
       case 'failed':
         return `Dynamic workflow "${name}" failed: ${args.error || 'Unknown error'}`
       case 'killed':

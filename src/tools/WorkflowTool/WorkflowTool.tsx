@@ -710,6 +710,7 @@ const WorkflowToolDef = {
     const writeManifest = (final?: {
       status: WorkflowRunManifest['status']
       error?: string
+      failures?: string[]
       endedBy?: string
     }): Promise<boolean> => {
       if (manifestChain.finalized()) return Promise.resolve(true)
@@ -751,6 +752,7 @@ const WorkflowToolDef = {
         ...(live?.usage !== undefined ? { usage: live.usage } : {}),
         totalToolCalls: live?.totalToolCalls ?? 0,
         error: final?.error ?? live?.error,
+        ...(final?.failures !== undefined && final.failures.length > 0 ? { failures: [...final.failures] } : {}),
         logsTail: logsTail(live?.logs ?? []),
         agents: buildAgentSummaries(progressRows),
       }
@@ -765,6 +767,7 @@ const WorkflowToolDef = {
       await writeManifest({
         status: verdict.status,
         ...(verdict.error !== undefined ? { error: verdict.error } : {}),
+        ...(notification.failures !== undefined ? { failures: notification.failures } : {}),
       })
       const outputWriteError = (await transition()) ?? undefined
       enqueueWorkflowNotification({
