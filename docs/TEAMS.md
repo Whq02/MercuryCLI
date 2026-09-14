@@ -74,6 +74,11 @@ it is refused with the same cause instead of landing in an inbox nobody
 reads. A seat that fails later leaves the roster the same way, so the team
 view and the brief never list a dead seat as running.
 
+A workflow that ends with agent failures says so in the first line of its
+notification: the count, then the first failing agent and its cause — an
+error's words, a refusal's stop reason — and its run record carries the
+same failure lines beside the per-agent rows.
+
 Named agents spawn on demand over the daemon's authed control socket. The RPC
 carries only intent — a name and a model choice — and the daemon enforces the
 floor server-side, where a client bug cannot bypass it:
