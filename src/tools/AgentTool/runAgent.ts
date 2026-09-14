@@ -68,6 +68,7 @@ import { createChildAbortController } from '../../utils/abortController.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { getAgentModel } from '../../utils/model/agent.js'
+import { readCatalogueIfPending } from '../../services/providers/catalogueOnDemand.js'
 import { delegationDispatchBlocker } from '../../services/providers/providerUsability.js'
 import { classifyModelRoute } from '../../services/providers/callModelRouter.js'
 import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
@@ -534,6 +535,9 @@ export async function* runAgent(
   onResolvedIdentity?.({ model: resolvedAgentModel, ...(resolvedEffort !== undefined ? { effort: String(resolvedEffort) } : {}) })
 
   const agentRouteVerdict = classifyModelRoute(resolvedAgentModel)
+  if (agentRouteVerdict.kind === 'route' && agentRouteVerdict.route === 'openai') {
+    await readCatalogueIfPending('openai')
+  }
   const dispatchBlocker =
     agentRouteVerdict.kind === 'route' ? delegationDispatchBlocker(agentRouteVerdict.route) : null
   if (dispatchBlocker) {

@@ -9,6 +9,7 @@ import {
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict, connectToBrowseReason } from '../catalogueGate.js'
 import { fetchOpenaiLiveModels, type OpenaiLiveModel } from './openaiClient.js'
+import { noteOpenaiSourceIdentity } from './openaiLimitState.js'
 
 
 export const APEX_ARCHITECTURE_EPOCH = 'apex-1'
@@ -432,6 +433,29 @@ export function liveGptListedEffortWords(modelId: string): readonly string[] | u
   if (!account) return undefined
   const row = getCachedOpenaiCatalogue(account.kind)?.models.find(m => m.id.toLowerCase() === identity.canonicalId)
   return row === undefined ? undefined : [...row.supportedReasoningEfforts]
+}
+
+export function forgetDepartedOpenaiCatalogues(env: NodeJS.ProcessEnv = process.env): number {
+  const current = new Set<string>()
+  for (const kind of ['chatgpt-subscription', 'api-key'] as const) current.add(catalogueIdentity(kind, env))
+  let dropped = 0
+  for (const identity of [...catalogueCache.keys()]) {
+    if (current.has(identity)) continue
+    catalogueCache.delete(identity)
+    dropped++
+  }
+  if (dropped > 0) bumpCatalogueEpoch()
+  return dropped
+}
+
+export function readOpenaiAccountAgain(env: NodeJS.ProcessEnv = process.env): { forgotten: OpenaiAccountSourceKind[]; dropped: number } {
+  const forgotten: OpenaiAccountSourceKind[] = []
+  for (const kind of ['chatgpt-subscription', 'api-key'] as const) {
+    if (noteOpenaiSourceIdentity(kind, openaiSourceIdentity(kind, env))) forgotten.push(kind)
+  }
+  const dropped = forgetDepartedOpenaiCatalogues(env)
+  void readOpenaiCatalogueIfPending().catch(() => false)
+  return { forgotten, dropped }
 }
 
 export function __resetOpenaiCatalogueForTest(): void {
