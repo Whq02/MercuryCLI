@@ -15,6 +15,7 @@ import { registerOwnerScopedStore } from '../../services/run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../../services/run/ownerScopedStore.js'
 import { processMainOwner } from '../../services/run/resolveOwner.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { isReadOnlyDiagnostic } from '../diagnosticReadOnly.js'
 import { loadDeclaredGates, matchDeclaredGate } from './projectGates.js'
 
 export type VerificationScope =
@@ -515,6 +516,7 @@ async function scanTreeAsync(cwd: string, rec: TreeScanRecord): Promise<string |
 
 function scanTreePrivateSync(cwd: string, rec: TreeScanRecord): string | null {
   const idxDir = mkdtempSync(path.join(tmpdir(), 'verify-tree-'))
+  mkdirSync(path.join(idxDir, 'objects'), { recursive: true })
   try {
     const env = {
       ...subprocessEnv(),
@@ -618,6 +620,11 @@ export function computeWorkingTreeDigest(cwd: string, opts?: { fresh?: boolean }
     noticeCeiling(rec)
     digestCache.set(cwd, { digest: null, at: Date.now() })
     return null
+  }
+  if (isReadOnlyDiagnostic()) {
+    const digest = scanTreePrivateSync(cwd, rec)
+    digestCache.set(cwd, { digest, at: Date.now() })
+    return digest
   }
   if (!opts?.fresh && withinBudget(rec)) return rec.lastDigest ?? null
   if (digestInFlight.has(cwd)) return opts?.fresh ? scanTreePrivateSync(cwd, rec) : (rec.lastDigest ?? null)
