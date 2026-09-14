@@ -16,6 +16,17 @@ spawn ledger. Team creation and deletion are multi-record journal operations —
 an interrupted create rolls forward or compensates at the next boot rather
 than leaving a half-team behind.
 
+A team outlives its lead's session. When the lead exits — a quit, a closed
+terminal, a signal — the team's config, inboxes and leases stay where they
+are; only its pane-backed teammates are closed. Resuming the lead's session
+finds the team on disk and the resumed session is part of it again, in the
+cockpit and headless alike: TeamBrief names the team and its roster, the
+Agent tool spawns into it, and TeamCreate refuses the name as one this
+session already leads. Only TeamDelete removes a team (a headless lead
+removes its own before its final answer). A create never answers success
+without its config file on disk: a stale journal entry for a team whose
+folder is gone is not replayed as a result, the team is created afresh.
+
 ## The two spawn switches
 
 Every session carries two switches, Sub-agents and Workflows, set in the boot

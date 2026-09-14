@@ -14,6 +14,7 @@ import { deriveTeamCharter } from '../../utils/swarm/teamCharter.js'
 import {
   cleanupTeamDirectories,
   getTeamFilePath,
+  readTeamFileAsync,
   registerTeamForSessionCleanup,
   sanitizeName,
   unregisterTeamForSessionCleanup,
@@ -89,6 +90,12 @@ async function runCreate(input: Input, context: ToolUseContext): Promise<Output>
   }
 
   const finalTeamName = input.team_name
+  const ledOnDisk = await readTeamFileAsync(finalTeamName)
+  if (ledOnDisk && ledOnDisk.leadSessionId === getSessionId()) {
+    throw new TeamPreconditionError(
+      `Team "${finalTeamName}" already exists at ${getTeamFilePath(finalTeamName)} and this session leads it. Use ${TEAM_DELETE_TOOL_NAME} before creating another.`,
+    )
+  }
   const setAppState = context.setAppState
   const leadAgentId = formatAgentId(TEAM_LEAD_NAME, finalTeamName)
   const leadAgentType = input.agent_type ?? TEAM_LEAD_NAME
