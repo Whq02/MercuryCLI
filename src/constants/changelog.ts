@@ -1,6 +1,21 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.12
+- Fixed the Git tool refusing a session opened in a folder above its repository: it takes a folder, finds the repository above or directly below it, and names the folder when it refuses
+- Fixed stopping a background shell run that had already finished: the answer names when it completed, its exit code and its output file, and is not an error
+- Fixed a model switch overflowing the new model's context window: the switch card counts the conversation against the target's window and compacts it first, the summary is written by a model whose window holds the history, and the overflow notice carries Mercury's own count
+- Fixed the image limits on the OpenAI route: the pre-send check follows the provider's own rule per image and per request, and an image the provider refused leaves every later request, including after a resume
+- Fixed the notice for an agent stopped by a runner restart: it names the reason, after a crash, a settings change or a relaunch
+- Fixed the daemon spawning a throwaway warm runner at every boot: the first chat claims the runner that was warmed
+- Fixed a boot from a folder that no longer exists: one plain line instead of a crash screen and a crash notice on the next boot
+- Fixed the doctor writing the global config and a verify index on every run: a health check is read-only, and its daemon sign-in row no longer calls a catalogue timing gap a fault or asks for a daemon restart
+- Fixed a teammate that died at its first request being reported as running, a team lost when its lead restarted, and a workflow failure line that carried no cause
+- Fixed delegated agents refused on the OpenAI route after a usage window reset and a sign-in again: the session follows the current sign-in's window and model list, and a refusal names the window alone
+- Fixed the account board's family headers reading a slot ceiling as a count: they name the family alone
+- Added the Godot scene tree read over the engine debugger during a profile boot, plain answers for queries during a capture or profile boot, and a doctor warning for a retired Godot setting still set
+- Changed shutdown to write nothing to a terminal that is gone, and verified the release-channel check's timeout
+
 ## 1.0.0-beta.11
 - Fixed a line sent while a sub-agent was running being taken by that sub-agent and shown twice in the chat: it now reaches the session's own model once, with the time it was sent
 - Removed the daemon's memory limit on session runners: a session is never parked or restarted for its memory use, and its sub-agents are never stopped by it
