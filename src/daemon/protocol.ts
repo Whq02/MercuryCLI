@@ -312,6 +312,7 @@ export interface SignInFamilyViewV1 {
   usable: boolean
   row?: string
   why?: string
+  unfetched?: boolean
   signedInAt?: number | null
 }
 

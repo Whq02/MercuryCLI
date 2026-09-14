@@ -31,6 +31,7 @@ export function composeSignInView(opts?: { refresh?: boolean }): DaemonSignInVie
     ...(c.label !== undefined ? { label: c.label } : {}),
     usable: c.verdict.usable,
     ...(c.verdict.usable ? { row: c.verdict.row } : {}),
+    ...(!c.verdict.usable && c.verdict.unfetched === true ? { unfetched: true } : {}),
     why: c.verdict.why,
     signedInAt: c.at,
   }))
@@ -80,8 +81,11 @@ export interface SignInViewDifference {
 export function compareSignInViews(client: DaemonSignInViewV1, daemon: DaemonSignInViewV1): SignInViewDifference[] {
   const words = (f: SignInFamilyViewV1 | undefined): string =>
     f === undefined ? 'not listed' : !f.credentialed ? 'no credential' : f.usable ? `signed in, usable (${f.row ?? '?'})` : `signed in, no usable row (${f.why ?? '?'})`
-  const same = (a: SignInFamilyViewV1 | undefined, b: SignInFamilyViewV1 | undefined): boolean =>
-    (a?.credentialed ?? false) === (b?.credentialed ?? false) && (a?.usable ?? false) === (b?.usable ?? false)
+  const same = (a: SignInFamilyViewV1 | undefined, b: SignInFamilyViewV1 | undefined): boolean => {
+    if ((a?.credentialed ?? false) !== (b?.credentialed ?? false)) return false
+    if ((a?.usable ?? false) === (b?.usable ?? false)) return true
+    return Boolean(a?.unfetched) || Boolean(b?.unfetched)
+  }
   const out: SignInViewDifference[] = []
   const names = new Set([...client.families.map(f => f.family), ...daemon.families.map(f => f.family)])
   for (const family of names) {
