@@ -171,26 +171,38 @@ try {
     console.log(`  ${words(row)}`)
   }
 
-  section('§3 a gap is red with both lists, and the restart is the way out')
+  section('§3 a real gap (a credential on one estate only) is red with both lists; its fix names sign-in or the estate, not a restart')
   {
     const r = runDoctor({ OPENAI_API_KEY: undefined, MERCURY_OPENAI_API_BASE: undefined }, ['--only', 'daemon-sign-ins'])
     const row = rowOf(r.cert)
     check('the row is fail', row?.status === 'fail', words(row))
     check('the evidence names the family that differs, with both readings', /openai: client no credential vs daemon signed in/.test(String(row?.evidence)), words(row))
     check('the evidence carries BOTH lists', /daemon: \[/.test(String(row?.evidence)) && /client: \[/.test(String(row?.evidence)), words(row))
-    check('the fix says restart the daemon, through the daemon verb\'s restart form', /restart the daemon/.test(String(row?.fix)) && /daemon restart/.test(String(row?.fix)), words(row))
+    check('the fix names signing in or aligning the estate, never a daemon restart', /sign in/.test(String(row?.fix)) && /home|store|env/.test(String(row?.fix)) && !/restart/.test(String(row?.fix)), words(row))
     check('a fail row faults the narrowed record (exit 3)', r.status === 3, `status=${r.status}`)
     console.log(`  ${words(row)}`)
   }
 
-  section('§4 the source: an older daemon reads warn with the restart words')
+  section('§4 the source: an older daemon reads warn with the restart words; the fail arm names sign-in/estate')
   {
     const health = readFileSync(join(REPO, 'src', 'utils', 'healthReport.ts'), 'utf8')
     const row = health.slice(health.indexOf("id: 'daemon-sign-ins'"), health.indexOf("id: 'daemon',"))
     check('the row exists once, ahead of the scheduler-daemon row', row.length > 0 && health.split("id: 'daemon-sign-ins'").length === 2)
     check('an unanswered verb reads warn and names the restart', /status: 'warn'/.test(row) && /did not answer signIns/.test(row) && /const restart = restartDaemonWords\(binaryName\(\)\)/.test(row))
     check('the comparison is the one owner\'s (compareSignInViews), never a hand table', row.includes('compareSignInViews(mine, reply.view)') && row.includes('composeSignInView()'))
-    check('the fail arm carries both lists and the restart', /status: 'fail'/.test(row) && /daemon: \[/.test(row) && /client: \[/.test(row) && /fix: `\$\{restart\}/.test(row))
+    check('the fail arm carries both lists and a sign-in/estate fix, not a restart', /status: 'fail'/.test(row) && /daemon: \[/.test(row) && /client: \[/.test(row) && /point both at the same home or sign in there/.test(row))
+  }
+
+  section('§5 a catalogue-timing gap (one side has not fetched) is NOT a disagreement')
+  {
+    const { compareSignInViews } = await import('../../src/daemon/signInView.ts')
+    const daemonView = { home, store: 'file', refreshed: true, families: [{ family: 'openrouter', credentialed: true, usable: true, row: 'a usable row' }] } as never
+    const clientUnfetched = { home, store: 'file', refreshed: true, families: [{ family: 'openrouter', credentialed: true, usable: false, unfetched: true, why: 'no selectable row in the catalogue yet' }] } as never
+    const clientRealGap = { home, store: 'file', refreshed: true, families: [{ family: 'openrouter', credentialed: true, usable: false, why: 'a gate refused every row' }] } as never
+    const timing = compareSignInViews(clientUnfetched, daemonView)
+    check('an unfetched client side yields no gap for that family', timing.length === 0, JSON.stringify(timing))
+    const real = compareSignInViews(clientRealGap, daemonView)
+    check('a genuine no-usable-row difference (neither side unfetched) still yields a gap', real.length === 1, JSON.stringify(real))
   }
 } catch (error) {
   failures++

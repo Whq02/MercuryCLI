@@ -18,7 +18,7 @@ export interface CredentialFact {
 
 export type LaneRowVerdict =
   | { usable: true; setting: string; row: string; why: string }
-  | { usable: false; why: string }
+  | { usable: false; why: string; unfetched?: boolean }
 
 export interface KeylessFact {
   setting: string
@@ -285,7 +285,8 @@ function pickerRowFor(family: string, rows: ModelOption[] | null): LaneRowVerdic
       const gate = (['huggingface', 'openrouter', 'gemini', 'openai', 'local'] as const).includes(family as never)
         ? catalogueTrafficVerdict(family as Parameters<typeof catalogueTrafficVerdict>[0])
         : null
-      return { usable: false, why: gate !== null && !gate.allowed ? gate.reason : 'no selectable row in the catalogue yet' }
+      if (gate !== null && !gate.allowed) return { usable: false, why: gate.reason }
+      return { usable: false, why: 'no selectable row in the catalogue yet', unfetched: true }
     }
     const fact = providerFrontierFact(family as CallModelRoute)
     const sameId = (value: string, id: string): boolean =>

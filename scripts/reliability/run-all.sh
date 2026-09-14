@@ -25,6 +25,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-artifact-faults.ts" || { __rc=$?; 
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-sync-spawn-bounds.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sync-spawn-bounds.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-crash-shutdown.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crash-shutdown.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-crash-report-identity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crash-report-identity.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-deleted-folder-boot.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-deleted-folder-boot.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-write-keeps-old-bytes.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-write-keeps-old-bytes.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL RELIABILITY PROOFS PASS"; else echo "# ❌ SOME RELIABILITY PROOFS FAILED"; fi

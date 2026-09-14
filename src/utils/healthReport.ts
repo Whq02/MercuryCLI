@@ -2,6 +2,7 @@
 import { getHistoryFlushHealth, historyEverFlushedThisProcess } from '../history.js'
 import { readBootAttemptResidue } from '../substrate/bootBeacon.js'
 import { adoptiveProjectPath } from './projectStoreAdoption.js'
+import { isReadOnlyDiagnostic } from './diagnosticReadOnly.js'
 import { projectHomeLeftovers, projectHomeStore } from './projectHomeStores.js'
 import { MERCURY_PROJECT_DIR } from './projectConfig.js'
 import { homeDirectory, isHomeDirectory, projectScopePathspec, USER_ROOT_NAMES } from './projectBoundary.js'
@@ -1443,7 +1444,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             return {
               status: 'fail',
               evidence: `daemon ≠ client${named !== '' ? ` — ${named}` : ' — different home or store'} · ${lists} · ${where}`,
-              fix: `${restart} — a restarted daemon reads the estate this screen reads; a gap that stands means the two run on different homes, stores or env keys (the evidence names both).`,
+              fix: `the daemon and this screen read different homes, stores or env keys, or a family is signed in on one estate and not the other — point both at the same home or sign in there; the evidence names both reads.`,
               link: '/daemon',
             }
           },
@@ -4498,10 +4499,11 @@ export async function runAndRecordHealthReport(opts?: RunHealthReportOptions): P
     } catch {
     }
   }
-  try {
-    const { runLifecycleVerbOpportunity } = await import('./backgroundHousekeeping.js')
-    await runLifecycleVerbOpportunity('doctor')
-  } catch {
+  if (!isReadOnlyDiagnostic()) {
+    try {
+      const { runLifecycleVerbOpportunity } = await import('./backgroundHousekeeping.js')
+      await runLifecycleVerbOpportunity('doctor')
+    } catch {}
   }
   return cert
 }

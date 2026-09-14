@@ -1221,6 +1221,13 @@
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
+      "file": "scripts/reliability/prove-deleted-folder-boot.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const r = spawnSync('bash', ['-c', script], {",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
       "file": "scripts/reliability/prove-sync-spawn-bounds.ts",
       "mechanism": "execSync-string",
       "excerpt": "const files = execSync(`grep -rln --include='*.ts' --include='*.tsx' -e 'spawnSync(' -e 'execFileSync(' -e 'execSync(' src`, {",
