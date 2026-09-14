@@ -31,7 +31,6 @@ import {
   familyDisplayName,
   familyRouteWords,
   familySigninCeiling,
-  familySigninHeaderNote,
   familySigninSummary,
   mainLoopIdentity,
   scopeSlotTail,
@@ -345,7 +344,6 @@ export function AccountView({
         const hiddenAbove = winStart
         const hiddenBelow = Math.max(0, rowsOfGroup.length - winStart - shown.length)
         const ceiling = familySigninCeiling(group.family.id)
-        const capacity = familySigninHeaderNote(group.family.id, group.slots, identities)
         const health = usabilityFor(group.family.id)
         const healthLine =
           health === undefined || (health.usable && health.limit !== 'allowed_warning')
@@ -355,7 +353,7 @@ export function AccountView({
               : (health.blockers[0] ?? 'not ready')
         return (
           <React.Fragment key={group.family.id}>
-            <SectionHeader {...(ceiling === undefined ? { count: signedIn } : {})}>{`${familyDisplayName(group.family.id)} accounts${capacity}`}</SectionHeader>
+            <SectionHeader {...(ceiling === undefined ? { count: signedIn } : {})}>{`${familyDisplayName(group.family.id)} accounts`}</SectionHeader>
             {healthLine !== null ? (
               <Box paddingLeft={2}>
                 <Text color={AMBER}>{`${GLYPH.warn} ${healthLine}`}</Text>

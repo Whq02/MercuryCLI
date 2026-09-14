@@ -70,7 +70,7 @@ section('§C the sign-in entry enumeration — one flow, headers read the ceilin
     check(`the ${leg} sign-in leg lives in the ONE flow`, flow.includes(leg))
   }
   const board = readFileSync(join(ROOT, 'src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
-  check('/accounts headers read familySigninCeiling (the headroom words)', board.includes('familySigninCeiling'))
+  check('/accounts headers read familySigninCeiling (the chip decision)', board.includes('familySigninCeiling'))
   const loginCommand = readFileSync(join(ROOT, 'src/commands/login/login.tsx'), 'utf8')
   check('/login and /logins mount that one flow', loginCommand.includes('ConsoleOAuthFlow'))
 }

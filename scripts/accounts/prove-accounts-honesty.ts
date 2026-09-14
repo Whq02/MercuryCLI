@@ -78,7 +78,6 @@ const slots = await import('../../src/services/providers/accountSlots.ts')
 const {
   deriveFamilySlotGroups,
   familySigninCount,
-  familySigninHeaderNote,
   familySigninSummary,
   mainLoopIdentity,
   scopeSlotTail,
@@ -202,7 +201,7 @@ section('§1 slotSigninState — one answer per slot')
   check('a non-scope slot without a credential is absent', !absent.signedIn && absent.basis === 'absent')
 }
 
-section("§2 the family header counts the SAME derivation the row paints (the operator's shape)")
+section("§2 the family summary counts the SAME derivation the row paints (the operator's shape)")
 {
   const expiredRead = { [SCOPE_DIR]: { state: 'expired' as const, snapshotEmail: 'stale@fixture.example' } }
   const anthropic = [scopeSlot(true)]
@@ -210,21 +209,21 @@ section("§2 the family header counts the SAME derivation the row paints (the op
   check('BEFORE (existence): the scan’s authed bit counted 1 sign-in', before === 1, String(before))
   const after = familySigninCount(anthropic, expiredRead)
   check('AFTER (one derivation): the expired credential counts ZERO sign-ins', after === 0, String(after))
-  const header = familySigninHeaderNote('anthropic', anthropic, expiredRead)
-  check("the Anthropic header reads ' · 0/2 signed in'", header === ' · 0/2 signed in', header)
-  const openaiHeader = familySigninHeaderNote('openai', [subscriptionSlot], {})
-  check("the OpenAI header reads ' · 1/2 signed in' (the subscription is present)", openaiHeader === ' · 1/2 signed in', openaiHeader)
-  const verifiedHeader = familySigninHeaderNote('anthropic', anthropic, { [SCOPE_DIR]: { state: 'verified', email: 'live@fixture.example' } })
-  check("a verified scope reads ' · 1/2 signed in'", verifiedHeader === ' · 1/2 signed in', verifiedHeader)
-  const checkingHeader = familySigninHeaderNote('anthropic', anthropic, {})
-  check('an in-flight probe is NAMED beside the count, never counted', checkingHeader === ' · 0/2 signed in · verifying…', checkingHeader)
-  const offlineHeader = familySigninHeaderNote('anthropic', anthropic, { [SCOPE_DIR]: { state: 'unverified', email: 'stale@fixture.example', note: 'offline' } })
-  check('an offline fallback is NAMED beside the count, never counted', offlineHeader === ' · 0/2 signed in · 1 unverified (offline)', offlineHeader)
+  const expiredSummary = familySigninSummary(anthropic, expiredRead)
+  check('the Anthropic family summary holds ZERO sign-ins over the expired read', expiredSummary.held === 0 && expiredSummary.signedIn === 0, JSON.stringify(expiredSummary))
+  const openaiSummary = familySigninSummary([subscriptionSlot], {})
+  check('the OpenAI family summary holds ONE sign-in (the subscription is present)', openaiSummary.held === 1, JSON.stringify(openaiSummary))
+  const verifiedSummary = familySigninSummary(anthropic, { [SCOPE_DIR]: { state: 'verified', email: 'live@fixture.example' } })
+  check('a verified scope is ONE held sign-in', verifiedSummary.held === 1, JSON.stringify(verifiedSummary))
+  const checkingSummary = familySigninSummary(anthropic, {})
+  check('an in-flight probe is counted as checking, never as a sign-in', checkingSummary.checking === 1 && checkingSummary.held === 0, JSON.stringify(checkingSummary))
+  const offlineSummary = familySigninSummary(anthropic, { [SCOPE_DIR]: { state: 'unverified', email: 'stale@fixture.example', note: 'offline' } })
+  check('an offline fallback is counted as unverified, never as a sign-in', offlineSummary.unverified === 1 && offlineSummary.held === 0, JSON.stringify(offlineSummary))
   const withKey = familySigninSummary([scopeSlot(true), keySlot('anthropic', false)], expiredRead)
   check('a Mercury-held key still counts beside an expired scope (held 1, signedIn 1)', withKey.held === 1 && withKey.signedIn === 1, JSON.stringify(withKey))
   const envPinned = familySigninSummary([keySlot('zai', true), keySlot('zai', false)], {})
   check('env pins are signed in but never Mercury-HELD (signedIn 2, held 1)', envPinned.signedIn === 2 && envPinned.held === 1, JSON.stringify(envPinned))
-  check('no ceiling ⇒ no header note (the plain count chip paints)', familySigninHeaderNote('zai', [keySlot('zai', false)], {}) === '')
+  check('a stored key on a family with no ceiling is one held sign-in (the plain count chip reads it)', familySigninSummary([keySlot('zai', false)], {}).held === 1)
 }
 
 section('§3 mainLoopIdentity — the route decides the family, the owner decides the credential')
@@ -302,13 +301,13 @@ section('§4 the REAL owners on the fixture home (credential refused live, subsc
   const identities = { [home]: identity }
 
   const beforeCount = anthropic!.slots.filter(slot => slot.signedIn && !slot.envPinned).length
-  const afterNote = familySigninHeaderNote('anthropic', anthropic!.slots, identities)
-  console.log(`    before: Anthropic accounts · ${beforeCount}/2 signed in   (existence)`)
-  console.log(`    after : Anthropic accounts${afterNote}   (the row: expired (snapshot stale@fixture.example) · not signed in)`)
-  check('BEFORE: existence counted 1/2', beforeCount === 1)
-  check("AFTER: the header reads ' · 0/2 signed in' over the expired row", afterNote === ' · 0/2 signed in', afterNote)
-  const openaiNote = familySigninHeaderNote('openai', openai!.slots, identities)
-  check("the OpenAI header reads ' · 1/2 signed in'", openaiNote === ' · 1/2 signed in', openaiNote)
+  const afterSummary = familySigninSummary(anthropic!.slots, identities)
+  console.log(`    existence: ${beforeCount} Anthropic credential on file`)
+  console.log(`    the one derivation: ${afterSummary.held} held sign-in   (the row: expired (snapshot stale@fixture.example) · not signed in)`)
+  check('existence counts the credential on file', beforeCount === 1)
+  check('the one derivation holds ZERO Anthropic sign-ins over the expired row', afterSummary.held === 0, JSON.stringify(afterSummary))
+  const openaiSummary = familySigninSummary(openai!.slots, identities)
+  check('the OpenAI family holds ONE sign-in', openaiSummary.held === 1, JSON.stringify(openaiSummary))
 
   const presences = providerFamilyPresences()
   const anthropicPresence = presences.find(presence => (presence.id as string) === 'anthropic')
@@ -360,12 +359,14 @@ section('§5 the presence owner counts what the wire would send')
 section('§6 the board wires the seam (structural)')
 {
   const board = readFileSync(join(import.meta.dir, '../../src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
-  check('the header counts through familySigninSummary / familySigninHeaderNote', board.includes('familySigninSummary(group.slots, identities).signedIn') && board.includes('familySigninHeaderNote(group.family.id, group.slots, identities)'))
+  check('the family header is the family name alone — no count against a ceiling, no chip for a ceilinged family', board.includes('{`${familyDisplayName(group.family.id)} accounts`}') && !board.includes('familySigninHeaderNote') && board.includes('ceiling === undefined ? { count: signedIn } : {}'))
+  check('the plain count chip still reads the one derivation for a family with no ceiling', board.includes('familySigninSummary(group.slots, identities).signedIn'))
   check("the scope row paints from slotSigninState through the seam's ONE row composer", board.includes('const state = slotSigninState(slot, identities)') && board.includes('scopeSlotTail(state, id, slot)') && !board.includes('function identityTail('))
   check('the main-loop row derives from mainLoopIdentity over the main model', board.includes('mainLoopIdentity({') && board.includes('model: mainLoopModel,'))
   check("no snapshot is dressed as the billing identity (the old '(snapshot)' fallback is gone)", !board.includes("`${acct.emailAddress} (snapshot)`"))
   check('the org fact is labelled a snapshot and rides only a verified Anthropic main loop', board.includes("mainLoop.basis === 'verified-live' && acct?.organizationName"))
   const seam = readFileSync(join(import.meta.dir, '../../src/services/providers/accountSlots.ts'), 'utf8')
+  check('the seam owns no header-note words (no "x/y signed in" template survives)', !seam.includes('familySigninHeaderNote') && !seam.includes('} signed in`'))
   check(
     'the seam splits existence from validity: the slot field is a bare boolean, the sign-in answer is the typed basis slotSigninState returns',
     seam.includes('signedIn: boolean') &&

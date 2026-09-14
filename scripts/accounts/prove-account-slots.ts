@@ -147,7 +147,7 @@ section('§5 the login gesture reroutes to Logins (board wiring — operator-rul
   check('a non-current scope names the honest road (never the wrong store)', board.includes('MERCURY_CONFIG_DIR='))
   const reauth = readFileSync(join(import.meta.dir, '../../src/utils/accounts/scopedReauth.ts'), 'utf8')
   check('the reauth save lands through the audited scope bracket', reauth.includes('setAuthScope(pending.dir)') && reauth.includes('saveOAuthTokensIfNeeded'))
-  check('the board headers surface the ceiling headroom through the one derivation', board.includes('familySigninCeiling(group.family.id)') && board.includes('familySigninHeaderNote(group.family.id, group.slots, identities)'))
+  check('the board headers carry the family name alone; the ceiling decides only whether the plain count chip paints', board.includes('familySigninCeiling(group.family.id)') && board.includes('{`${familyDisplayName(group.family.id)} accounts`}') && !board.includes('familySigninHeaderNote'))
 }
 
 console.log('\n' + '═'.repeat(60))

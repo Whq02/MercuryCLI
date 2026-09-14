@@ -310,22 +310,6 @@ export function familySigninCount(
   return familySigninSummary(slots, identities).held
 }
 
-export function familySigninHeaderNote(
-  family: string,
-  slots: readonly AccountSlot[],
-  identities: SlotIdentities,
-): string {
-  const ceiling = familySigninCeiling(family)
-  if (ceiling === undefined) return ''
-  const summary = familySigninSummary(slots, identities)
-  const parts = [`${summary.held}/${ceiling} signed in`]
-  if (summary.checking > 0) parts.push('verifying…')
-  if (summary.unverified > 0) {
-    parts.push(`${summary.unverified} unverified (offline)`)
-  }
-  return ` · ${parts.join(' · ')}`
-}
-
 
 export type MainLoopIdentityBasis =
   | 'verified-live'

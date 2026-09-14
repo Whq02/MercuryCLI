@@ -129,6 +129,11 @@ a Mercury-held sign-in. A ceiling caps concurrent Mercury-held sign-ins
 (two for anthropic, two for openai), and one typed refusal is consulted by
 every sign-in path before adding a concurrent login.
 
+On the `/accounts` board each family's header carries the family name
+alone, never a count of sign-ins against the ceiling; the rows beneath it
+name each sign-in with its kind and identity, and a family with no ceiling
+shows how many sign-ins it holds beside its name.
+
 On the claude.ai sign-in door the subscription endpoint gates models on a
 minimum client version it reads from the billing attribution line Mercury
 writes into the system prompt (never from the User-Agent, which stays
