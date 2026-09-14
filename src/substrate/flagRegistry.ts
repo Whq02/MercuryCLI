@@ -623,3 +623,24 @@ export function flagPair(name: string, value: string): Record<string, string> {
   for (const spelling of flagSpellings(name)) out[spelling] = value
   return out
 }
+
+export interface RetiredFlagSpec {
+  env: string
+  was: string
+  replacedBy: string | null
+  now: string
+}
+
+export const RETIRED_FLAGS: readonly RetiredFlagSpec[] = [
+  { env: 'MERCURY_GODOT_TOOLS_PORT', was: 'the fixed loopback port of the Godot bridge', replacedBy: null, now: 'every Godot instance publishes its own port in its descriptor; op:"vulcan_status" lists the instances and args.instance names one' },
+  { env: 'MERCURY_GODOT_TOOLS_TOKEN', was: 'the shared Godot bridge token override', replacedBy: null, now: 'every Godot instance keeps its own token file beside its descriptor; no token is read from the environment' },
+]
+
+export function retiredFlagsSet(env: NodeJS.ProcessEnv = process.env): Array<{ spec: RetiredFlagSpec; value: string }> {
+  const out: Array<{ spec: RetiredFlagSpec; value: string }> = []
+  for (const spec of RETIRED_FLAGS) {
+    const value = env[spec.env]
+    if (value !== undefined) out.push({ spec, value })
+  }
+  return out
+}
