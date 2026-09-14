@@ -60,8 +60,8 @@ console.log('\n§2 the artifact records its own verbs')
     }
     const m = evidence.match(/verbs (\d+)/)
     check(
-      'after four health invocations the row counts them (never verbs 0)',
-      m !== null && Number(m[1]) >= 3,
+      'after four health invocations the row counts the current one and no earlier one (the health check is read-only: nothing is persisted)',
+      m !== null && Number(m[1]) === 1,
       evidence,
     )
     check('the last-activity clause names the verb', evidence.includes('verb:health'), evidence)
