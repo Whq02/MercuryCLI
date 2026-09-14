@@ -4,6 +4,7 @@ import { parseEngineTreeSpec } from './frozenTree.js'
 import { engineLogTail } from './logs.js'
 import { readEngineManifest } from './manifest.js'
 import { requestVulcanInstance } from '../vulcanClient.js'
+import { liveEngines } from './spawn.js'
 import { listProjectLeases, projectLeaseHolder, releaseProjectLeases, takeProjectLeases, type LeaseHolder } from './leases.js'
 import {
   ENGINE_DEFAULT_PRIORITY,
@@ -196,6 +197,31 @@ async function engineCheck(a: Args, projectRoot: string): Promise<string> {
   return json(await runEngineCheck(projectRoot, checkArgs, { executable: exe.resolved }))
 }
 
+async function engineQuery(op: string, a: Args, projectRoot: string): Promise<unknown> {
+  const timeoutMs = op === 'engine_signal_wait' ? Math.min(120000, intArg(a.timeout_ms) ?? 5000) + 2000 : undefined
+  const selector = typeof a.instance === 'string' ? a.instance.trim() : ''
+  const service = selector.length > 0 ? EngineJobService.peek(projectRoot) : undefined
+  const road = service?.queryRoad(selector) ?? null
+  let args = a
+  if (road && service) {
+    const job = { id: road.job.id, state: road.job.state, label: road.job.request.label, stage: road.job.currentSuite }
+    if (road.kind === 'debugger') {
+      if (op !== 'engine_scene_tree') return { ok: false, error: { code: 'NOT_OVER_DEBUGGER', message: `only the scene tree is read over the engine debugger; ${op} needs a bridged worker (an engine_run job's instance)`, hint: 'op:"engine_run" workers carry the bridge that serves node reads, calls and signal waits' }, job }
+      return service.sceneTreeOverDebugger(selector, a)
+    }
+    if (road.kind === 'waiting') return { ok: false, error: { code: 'ENGINE_BOOTING', message: road.message, hint: road.hint }, job }
+    if (road.kind === 'none') return { ok: false, error: { code: 'NO_QUERY_ROAD', message: road.message, hint: road.hint }, job }
+    args = { ...a, instance: road.instance }
+  }
+  const answer = await requestVulcanInstance(projectRoot, op, args, timeoutMs)
+  const instance = typeof args.instance === 'string' ? args.instance : ''
+  if (!answer.ok && answer.error.code === 'INSTANCE_NOT_FOUND' && instance.length > 0) {
+    const booting = liveEngines().find(engine => engine.bridge?.id === instance)
+    if (booting) return { ok: false, error: { code: 'BRIDGE_BOOTING', message: `worker ${instance} (engine job ${booting.label}) is booting; its bridge has not published its descriptor yet`, hint: 'ask again in a moment; op:"engine_jobs" lists the instance once its bridge is up' }, ...(road ? { job: { id: road.job.id, state: road.job.state } } : {}) }
+  }
+  return answer
+}
+
 export async function runEngineOp(op: string, args: Args | undefined, projectRoot: string, holder: LeaseHolder = projectLeaseHolder()): Promise<string> {
   const a = args ?? {}
   switch (op) {
@@ -212,7 +238,7 @@ export async function runEngineOp(op: string, args: Args | undefined, projectRoo
     case 'engine_node_get':
     case 'engine_node_call':
     case 'engine_signal_wait':
-      return json(await requestVulcanInstance(projectRoot, op, a, op === 'engine_signal_wait' ? Math.min(120000, intArg(a.timeout_ms) ?? 5000) + 2000 : undefined))
+      return json(await engineQuery(op, a, projectRoot))
     case 'engine_run':
       return engineRun(a, projectRoot, holder)
     case 'engine_check':

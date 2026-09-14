@@ -37,7 +37,7 @@ import { ENGINE_RESULT_FILE, engineContactSheetFile, engineMediaDriverFile, engi
 import { liveEngines, removeDeadEngineTrees, spawnEngine, sweepEngineOrphans, type EngineHandle, type EngineOrphanSweep } from './spawn.js'
 import { finishEngineProfileBaseline, newEngineMediaRecord, readEngineMediaBoot, type EngineMediaRecord, type EngineMediaRequest } from './media.js'
 import { ENGINE_MEDIA_MARKER, writeEngineMediaDriver } from './mediaDriver.js'
-import { GodotDebuggerProfile } from './debuggerProfile.js'
+import { findGodotSceneTreeNode, GodotDebuggerProfile, viewGodotSceneTree } from './debuggerProfile.js'
 import { writeEngineContactSheet } from './frames.js'
 import { startEngineHeartbeat } from './liveness.js'
 import { engineLeaseRefusal, projectLeaseHolder, type LeaseHolder } from './leases.js'
@@ -191,6 +191,12 @@ export interface EngineServiceOptions {
   now?: () => number
 }
 
+export type EngineQueryRoad =
+  | { kind: 'debugger'; job: EngineJob; profile: GodotDebuggerProfile }
+  | { kind: 'bridge'; job: EngineJob; instance: string }
+  | { kind: 'waiting'; job: EngineJob; message: string; hint: string }
+  | { kind: 'none'; job: EngineJob; message: string; hint: string }
+
 export function engineWorkerCount(): { count: number; source: 'flag' | 'cores' } {
   const raw = flagEnv(ENGINE_WORKERS_FLAG)
   const n = Number(raw)
@@ -276,6 +282,7 @@ export class EngineJobService {
   private readonly waiters = new Map<string, Array<() => void>>()
   private readonly busyWorkers = new Set<number>()
   private readonly heartbeats = new Map<string, () => void>()
+  private readonly debuggers = new Map<string, GodotDebuggerProfile>()
   private readonly census: () => Promise<GodotProcess[]>
   private readonly strictCensus: () => Promise<GodotProcess[]>
   private readonly executableOption: string | null
@@ -310,6 +317,10 @@ export class EngineJobService {
       SERVICES.set(key, service)
     }
     return service
+  }
+
+  static peek(projectRoot: string): EngineJobService | undefined {
+    return SERVICES.get(path.resolve(projectRoot))
   }
 
   static forget(projectRoot: string): void {
@@ -672,7 +683,10 @@ export class EngineJobService {
       }
       const debuggerProfile = request.kind === 'profile' && request.source !== 'project' ? new GodotDebuggerProfile(request, engineMediaDriverFile(job.runDir, variant)) : null
       try {
-        if (debuggerProfile) await debuggerProfile.transport.open()
+        if (debuggerProfile) {
+          await debuggerProfile.transport.open()
+          this.debuggers.set(job.id, debuggerProfile)
+        }
         if (job.cancelRequested) return
         if (budgetLeft() <= 0) { record.budgetExceeded = true; return }
         const connection = debuggerProfile ? { port: debuggerProfile.transport.port, token: debuggerProfile.transport.token } : undefined
@@ -719,6 +733,7 @@ export class EngineJobService {
         }
         this.writeRecord(job)
       } finally {
+        this.debuggers.delete(job.id)
         await debuggerProfile?.transport.close()
       }
     }
@@ -842,6 +857,47 @@ export class EngineJobService {
       this.remember(job)
       for (const service of ACTIVE_SERVICES) service.pump()
     }
+  }
+
+  queryRoad(jobId: string): EngineQueryRoad | null {
+    const job = this.byId.get(jobId)
+    if (!job) return null
+    const media = job.request.media
+    const worker = media ? media.kind : 'suite'
+    if (job.state === 'queued') {
+      const order = [...this.queue].sort((a, b) => priorityRank(a.request.priority) - priorityRank(b.request.priority) || a.seq - b.seq)
+      const ahead = Math.max(0, order.findIndex(queued => queued.id === jobId))
+      return { kind: 'waiting', job, message: `engine job ${jobId} is queued (${this.running.size} running, ${ahead} queued ahead of it, ${this.workers} worker(s)); no engine is running for it yet`, hint: 'op:"engine_jobs" shows the queue; ask again once the job is running' }
+    }
+    if (job.state !== 'running') return { kind: 'none', job, message: `engine job ${jobId} is ${job.state}; no engine is running for it`, hint: 'op:"engine_result" {id} reads its record' }
+    if (job.currentSuite === null || job.currentSuite === IMPORT_SUITE_NAME) return { kind: 'waiting', job, message: `engine job ${jobId} is running its import pass; the ${worker} worker has not booted yet`, hint: 'ask again once op:"engine_jobs" names the worker under liveEngines' }
+    if (!media) {
+      const engine = liveEngines().find(live => live.label === `${jobId}:${job.currentSuite}`)
+      if (engine?.bridge) return { kind: 'bridge', job, instance: engine.bridge.id }
+      return { kind: 'none', job, message: `engine job ${jobId} is running suite ${job.currentSuite} without a bridge, so no live query reaches it`, hint: 'the suite log and op:"engine_result" carry its output' }
+    }
+    const profile = this.debuggers.get(jobId)
+    if (!profile) return { kind: 'none', job, message: `engine job ${jobId} is a ${media.kind === 'capture' ? 'capture' : 'project-source profile'} boot: it has no bridge and no engine debugger connection, so no live query reaches it`, hint: 'op:"engine_result" {id} reads its frames and tables; a profile with source "engine" or "auto" reads its scene tree while it runs' }
+    if (!profile.transport.accepted) return { kind: 'waiting', job, message: `engine job ${jobId} is booting its profile worker; the game has not connected to the engine debugger yet`, hint: 'ask again in a moment; op:"engine_jobs" lists the live engine' }
+    if (!profile.transport.connected) return { kind: 'waiting', job, message: `engine job ${jobId} connected its worker to the engine debugger; the worker's hello has not arrived yet`, hint: 'ask again in a moment' }
+    return { kind: 'debugger', job, profile }
+  }
+
+  async sceneTreeOverDebugger(jobId: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const road = this.queryRoad(jobId)
+    if (!road || road.kind !== 'debugger') return { ok: false, error: { code: 'NO_QUERY_ROAD', message: `engine job ${jobId} holds no engine debugger connection` }, job: jobId }
+    const answer = { job: jobId, source: 'engine debugger', port: road.profile.transport.port }
+    let tree
+    try {
+      tree = await road.profile.sceneTree()
+    } catch (e) {
+      return { ok: false, error: { code: 'DEBUGGER_NO_ANSWER', message: (e as Error).message, hint: 'op:"engine_jobs" shows whether the job is still running' }, ...answer }
+    }
+    const rootPath = typeof args.root === 'string' ? args.root : ''
+    const node = findGodotSceneTreeNode(tree, rootPath)
+    if (!node) return { ok: false, error: { code: 'NODE_NOT_FOUND', message: `no live node at '${rootPath}'`, hint: `paths resolve from /root; its children: ${tree.children.map(child => child.name).join(', ') || '(none)'}` }, ...answer }
+    const depth = typeof args.depth === 'string' ? Number(args.depth) : args.depth
+    return { ok: true, result: viewGodotSceneTree(node, typeof depth === 'number' && Number.isFinite(depth) ? depth : undefined), ...answer }
   }
 
   async cancel(id: string): Promise<{ id: string; state: EngineJobState; receipt: ProcessTreeKillReceipt | null } | { error: string }> {
