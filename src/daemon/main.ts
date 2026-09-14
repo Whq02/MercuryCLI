@@ -1042,7 +1042,7 @@ async function daemonRun(args: string[]): Promise<void> {
         },
       )
       if (parseOwnerPid() !== null && flagEnv('MERCURY_DAEMON_NO_SELF_WARM') !== '1') {
-        void ensureWarmRunner({ workspaceDir: dir }, warmDeps)
+        void ensureWarmRunner({ workspaceDir: dir, ...(flagEnv('MERCURY_DAEMON_SELF_WARM_CONSENT') === '1' ? { bypassConsent: true } : {}) }, warmDeps)
           .then(w => {
             if (w.state === 'refused') {
               // eslint-disable-next-line no-console

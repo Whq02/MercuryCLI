@@ -339,6 +339,7 @@ export async function claimWarmRunner(
     bypassConsent?: boolean
     kit: SessionKitV1
     resume?: true
+    restartReason?: string
     answerDeadlineMs?: number
   },
   deps: WarmRunnerDeps,
@@ -387,6 +388,7 @@ export async function claimWarmRunner(
       permission_mode: args.permissionMode,
       effort: args.effort,
       ...(args.resume === true ? { resume: true } : {}),
+      ...(args.restartReason !== undefined ? { restart_reason: args.restartReason } : {}),
       ...(openaiCatalogue !== null ? { openai_catalogue: openaiCatalogueToWire(openaiCatalogue) } : {}),
     },
   })

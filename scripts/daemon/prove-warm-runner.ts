@@ -19,7 +19,7 @@ function pinSeatCeiling(recommendedSeats: number): void {
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats } }))
 }
 pinSeatCeiling(8)
-const { makeConcourseAdmitHandler, readSessionWorkers, buildConcourseWorkerSpec, canonicalWorkspaceId } = await import(
+const { makeConcourseAdmitHandler, readSessionWorkers, buildConcourseWorkerSpec, canonicalWorkspaceId, runnerRestartReasonOf } = await import(
   '../../src/daemon/concourseSupervisor.ts'
 )
 const warm = await import('../../src/daemon/warmRunner.ts')
@@ -354,6 +354,9 @@ console.log('\n── W13: source pins ──')
   const dmain = read('src/daemon/main.ts')
   check('W13 only an OWNED daemon self-warms at boot (owner-pid gated)', dmain.includes('parseOwnerPid() !== null') && dmain.includes('boot self-warm'))
   check('W13 the warm sweep rides the daemon minute tick', dmain.includes('sweepIdleWarmRunners(warmDeps)'))
+  check('W13 (item 8) the boot self-warm wears the launch consent the screen stamped (no consent-drift throwaway)', dmain.includes("flagEnv('MERCURY_DAEMON_SELF_WARM_CONSENT') === '1' ? { bypassConsent: true }"))
+  const ensureDaemonSrc = read('src/services/switchboard/ensureDaemon.ts')
+  check('W13 (item 8) the screen stamps the launch consent onto the owned daemon spawn from the boot facts', ensureDaemonSrc.includes('MERCURY_DAEMON_SELF_WARM_CONSENT') && ensureDaemonSrc.includes('bootBirthFacts().bypassConsent'))
   const statusSrc = read('src/daemon/status.ts')
   check('W13 daemon status names warm runners on their own honest line', statusSrc.includes('warm runner'))
   const registry = read('src/substrate/flagRegistry.ts')
@@ -450,6 +453,41 @@ console.log('\n── W15: the newest kit trails the running warm-up ──')
     )
   }
   warm.resetWarmRunnersForTesting()
+}
+
+console.log('\n── WR: the restart reason travels to the resumed runner (item 3) ──')
+{
+  const { deriveSessionKitForWorkspace } = await import('../../src/daemon/sessionKit.ts')
+  const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
+
+  check('WR runnerRestartReasonOf reads the record: a crash fact ⇒ "crash", none ⇒ "relaunch"', typeof runnerRestartReasonOf === 'function' && runnerRestartReasonOf({ crash: { at: 1, reason: 'x', respawning: false } } as never) === 'crash' && runnerRestartReasonOf({} as never) === 'relaunch')
+
+  const coldSpec = buildConcourseWorkerSpec({ runnerId: 'concourse-w9', sessionId: '11111111-1111-4111-8111-111111111111', workspaceId: wsA, modelKey: 'claude-opus-5', effort: 'high', resume: true, restartReason: 'crash' } as never)
+  check('WR the cold reactivate/revive spec carries the reason as MERCURY_RUNNER_RESTART_REASON in extraEnv', (coldSpec.extraEnv as Record<string, string> | undefined)?.MERCURY_RUNNER_RESTART_REASON === 'crash')
+  const plainSpec = buildConcourseWorkerSpec({ runnerId: 'concourse-w9', sessionId: '11111111-1111-4111-8111-111111111111', workspaceId: wsA, modelKey: 'claude-opus-5', effort: 'high' })
+  check('WR a spec with no reason carries no MERCURY_RUNNER_RESTART_REASON (no stray stamp)', (plainSpec.extraEnv as Record<string, string> | undefined)?.MERCURY_RUNNER_RESTART_REASON === undefined)
+
+  warm.resetWarmRunnersForTesting()
+  roster.controls.length = 0
+  roster.answer = 'success'
+  pinSeatCeiling(100)
+  const wsR = canonicalWorkspaceId(mkdtempSync(join(tmpdir(), 'warm-ws-restart-')))
+  const warmedR = await warm.ensureWarmRunner({ workspaceDir: wsR }, warmDeps)
+  check('WR a runner warms for the reactivate claim', warmedR.state === 'warmed', warmedR.detail ?? '')
+  const claimedR = await warm.claimWarmRunner({ workspaceId: wsR, sessionId: '22222222-2222-4222-8222-222222222222', modelKey: 'claude-opus-5', effort: 'high', permissionMode: 'flow', kit: deriveSessionKitForWorkspace(wsR), resume: true, restartReason: 'crash', answerDeadlineMs: 1_500 } as never, warmDeps)
+  const claimFrameR = roster.controls.map(c => c.frame).find(f => f.includes('claim_session'))
+  check('WR the warm claim lands and its claim_session control carries restart_reason', claimedR.claimed === true && claimFrameR !== undefined && (JSON.parse(claimFrameR!).request as { restart_reason?: string }).restart_reason === 'crash', claimFrameR ?? '(no claim frame)')
+
+  const rosterSrc = read('src/daemon/roster.ts')
+  check('WR the roster stamps "crash" on the crash-respawn (MERCURY_RUNNER_RESTART_REASON on the respawn spec)', /crash-respawn'\)[\s\S]{0,220}flagPair\('MERCURY_RUNNER_RESTART_REASON', 'crash'\)/.test(rosterSrc))
+  check('WR the roster stamps "settings" on the reconfigure-respawn', /reconfiguring[\s\S]{0,220}flagPair\('MERCURY_RUNNER_RESTART_REASON', 'settings'\)/.test(rosterSrc))
+  const supSrc = read('src/daemon/concourseSupervisor.ts')
+  check('WR the cold revive passes the record-derived reason', /restartReason: runnerRestartReasonOf\(rec\)/.test(supSrc))
+  check('WR the reactivate warm road passes the reason to the claim', (supSrc.match(/restartReason: runnerRestartReasonOf\(rec\)/g) ?? []).length >= 2)
+  const printSrc = read('src/cli/print.ts')
+  check('WR print.ts reads the reason at boot and from the claim frame, coerces it, and passes it to the reconciliation', printSrc.includes("flagEnv('MERCURY_RUNNER_RESTART_REASON')") && printSrc.includes('runnerRestartReason = request.restart_reason') && /reconcileBackgroundLaunchesOnResume\(messages, getAppState, setAppState, Date\.now\(\), coerceRestartReason\(runnerRestartReason\)\)/.test(printSrc))
+  const registry = read('src/substrate/flagRegistry.ts')
+  check('WR the reason knob has its registry row', registry.includes("env: 'MERCURY_RUNNER_RESTART_REASON'"))
 }
 
 console.log('\n' + '═'.repeat(60))

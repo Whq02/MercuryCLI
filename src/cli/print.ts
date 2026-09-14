@@ -536,6 +536,7 @@ export async function runHeadless(
   const isConcourseWorker = flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
   let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
   let sessionFactsHoldSpent = false
+  let runnerRestartReason: string | undefined = flagEnv('MERCURY_RUNNER_RESTART_REASON')
   if (isConcourseWorker) void refreshBoxReading()
   const sessionWiringModules = (): Promise<
     [
@@ -605,8 +606,8 @@ export async function runHeadless(
       logError(error)
     }
     try {
-      const { reconcileBackgroundLaunchesOnResume } = await import('../tasks/LocalAgentTask/launchReceipts.js')
-      const settledLaunches = reconcileBackgroundLaunchesOnResume(messages, getAppState, setAppState)
+      const { reconcileBackgroundLaunchesOnResume, coerceRestartReason } = await import('../tasks/LocalAgentTask/launchReceipts.js')
+      const settledLaunches = reconcileBackgroundLaunchesOnResume(messages, getAppState, setAppState, Date.now(), coerceRestartReason(runnerRestartReason))
       if (settledLaunches.length > 0) {
         logForDebugging(`[session-runner] resume: ${settledLaunches.length} background launch(es) without a live record — stop notices written`)
       }
@@ -1872,6 +1873,7 @@ export async function runHeadless(
             setAppState(previous => ({ ...previous, toolPermissionContext: nextContext }))
           }
           await armSessionRunnerWiring(sid)
+          if (typeof request.restart_reason === 'string') runnerRestartReason = request.restart_reason
           if (request.resume === true) await hydrateResumedRun()
           awaitingSessionClaim = false
           logForDebugging(`[session-runner] claimed: session ${sid}${claimedModel !== undefined ? ` on ${claimedModel}` : ''}`)

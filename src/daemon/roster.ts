@@ -7,7 +7,7 @@ import { assertSpawnCwd, recordSpawn, recordSpawnExit } from '../utils/spawnLedg
 import { DaemonBreaker } from '../utils/daemonBreaker.js'
 import type { EffortValue } from '../utils/effort.js'
 import { validateSeatEffort, validateSeatModel } from '../utils/model/seatSlots.js'
-import { flagEnv } from '../substrate/flagRegistry.js'
+import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
 import {
   getTeammateExecutor,
   isInProcessEnabled,
@@ -683,6 +683,7 @@ export class TaskRoster {
       }
       if (ll.reconfiguring) {
         ll.reconfiguring = false
+        ll.spec = { ...ll.spec, extraEnv: { ...(ll.spec.extraEnv ?? {}), ...flagPair('MERCURY_RUNNER_RESTART_REASON', 'settings') } }
         logForDebugging(
           `[daemon] long-lived ${short} reconfiguring → immediate respawn (${ll.spec.model}@${ll.spec.effort}, no ceiling increment)`,
         )
@@ -750,6 +751,7 @@ export class TaskRoster {
       }
       ledgerExit('crash-respawn')
       stampCrash(true)
+      ll.spec = { ...ll.spec, extraEnv: { ...(ll.spec.extraEnv ?? {}), ...flagPair('MERCURY_RUNNER_RESTART_REASON', 'crash') } }
       h.entry.state = 'spawning'
       ll.respawnTimer = setTimeout(() => this.spawnLongLived(short), decision.delayMs)
       ll.respawnTimer.unref?.()
