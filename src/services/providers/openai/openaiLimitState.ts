@@ -57,6 +57,19 @@ export function forgetOpenaiLimitSource(source: OpenaiLimitSource): void {
   noteObservedChanged()
 }
 
+const identityBySource: Record<OpenaiLimitSource, string | null> = {
+  'chatgpt-subscription': null,
+  'api-key': null,
+}
+
+export function noteOpenaiSourceIdentity(source: OpenaiLimitSource, identity: string): boolean {
+  const held = identityBySource[source]
+  identityBySource[source] = identity
+  if (held === null || held === identity) return false
+  forgetOpenaiLimitSource(source)
+  return true
+}
+
 
 export interface OpenaiObservedWindow {
   usedPct?: number
@@ -152,5 +165,7 @@ export function adoptOpenaiObservedUsage(
 export function __resetOpenaiLimitStateForTest(): void {
   observedBySource['chatgpt-subscription'] = null
   observedBySource['api-key'] = null
+  identityBySource['chatgpt-subscription'] = null
+  identityBySource['api-key'] = null
   observedUsage = {}
 }

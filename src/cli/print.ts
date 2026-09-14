@@ -240,7 +240,7 @@ import { installStreamJsonStdoutGuard } from '../utils/streamJsonStdoutGuard.js'
 import { getRunningTasks } from '../utils/task/framework.js'
 import { AGENT_RESUME_NOTE, AGENT_STOP_BY_OPERATOR } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalWorkflowTask, killWorkflowTask } from '../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
-import { primeOpenaiCatalogue } from '../services/providers/openai/openaiCatalogue.js'
+import { primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
 import { stopOrDismissAgent } from '../state/teammateViewHelpers.js'
 import { markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
@@ -2222,6 +2222,7 @@ export async function runHeadless(
           readGlobalConfigAgain()
           resetLimitsForCredentialSwitch()
           dropCredentialMemos()
+          readOpenaiAccountAgain()
           respondSuccess(requestId)
           return
         }
