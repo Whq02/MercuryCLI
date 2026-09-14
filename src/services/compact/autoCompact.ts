@@ -9,7 +9,7 @@ import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import { logError } from '../../utils/log.js'
 import { getContextWindowForModel, getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
 import { awaitContextWindowSource } from '../../utils/model/contextWindowWarmup.js'
-import { getTokenUsage, tokenCountWithEstimation } from '../../utils/tokens.js'
+import { getTokenUsage, tokenCountWithEstimation, usageAnchorModel } from '../../utils/tokens.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
 import { ownerFromToolUseContext } from '../run/resolveOwner.js'
@@ -17,6 +17,8 @@ import { setLastSummarizedMessageId } from '../SessionMemory/sessionMemoryUtils.
 import { markPostCompaction } from '../api/logging.js'
 import type { OverflowSignal } from '../api/overflowSignal.js'
 import { notifyCompaction } from '../api/promptCacheBreakDetection.js'
+import { usabilityForRoute } from '../providers/providerUsability.js'
+import { declaredRouteOf } from '../providers/routeLaw.js'
 import {
   compactionBreakerAllows,
   type CompactionState,
@@ -155,6 +157,20 @@ export function calculateTokenWarningState(
   return { level, pctLeft }
 }
 
+
+export type FoldModelChoice = { model: string; source: 'seated' | 'history'; count: number }
+
+export function foldModelFor(messages: readonly Message[], seated: string, opts: { forced: boolean }): FoldModelChoice {
+  const count = Math.max(tokenCountWithEstimation(messages, seated), tokenCountWithEstimation(messages))
+  const onSeat: FoldModelChoice = { model: seated, source: 'seated', count }
+  if (!opts.forced && count < getBlockingLimit(seated)) return onSeat
+  const stamped = usageAnchorModel(messages)
+  if (stamped === undefined || stamped === seated) return onSeat
+  const route = declaredRouteOf(stamped)
+  if (route === null || !usabilityForRoute(route).usable) return onSeat
+  if (count >= getBlockingLimit(stamped)) return onSeat
+  return { model: stamped, source: 'history', count }
+}
 
 export function rapidRefillCount(tracking?: AutoCompactTrackingState): number {
   if (!tracking) return 0
@@ -342,6 +358,12 @@ export async function autoCompactIfNeeded(
   }
 
   const sessionMemoryArmed = shouldUseSessionMemoryCompaction()
+  const foldModel = foldModelFor(messages, model, { forced })
+  if (foldModel.source === 'history') {
+    logForDebugging(
+      `autoCompact: the summary is written by ${foldModel.model} — the seated ${model}'s window does not hold the history (about ${foldModel.count} tokens by Mercury's count)`,
+    )
+  }
   try {
     return await withFoldStatus(toolUseContext, async scoped => {
     if (isMaintenanceLadderEnabled()) {
@@ -393,6 +415,7 @@ export async function autoCompactIfNeeded(
       true,
       recompactionInfo,
       overflowSignal,
+      foldModel.model,
     )
     setLastSummarizedMessageId(undefined)
     runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId })

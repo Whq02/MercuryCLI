@@ -321,3 +321,14 @@ A model switch previews as a frozen plan — what would switching this
 history to the target do — with per-item typed dispositions computed
 against the real encode truth of the target lane's codec: replay carry,
 thinking drops, image handling.
+
+The plan also counts the conversation against the target's window before
+the first request on it. The count is Mercury's own: the larger of the last
+count the wire reported for the conversation and the character estimate.
+The window is the target's as Mercury resolves it — the live catalogue's
+figure for the account when it has been read, else the pinned figure. When
+the conversation does not fit, the preview says so with both numbers and
+where the window came from, and confirming folds the conversation before
+the first request on the new model; the fold's summary is written by the
+model the conversation was built on, whose window holds it. A conversation
+that fits switches as before.

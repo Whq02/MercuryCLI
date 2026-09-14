@@ -5,10 +5,10 @@ import { PROMPT_TOO_LONG_ERROR_MESSAGE } from '../api/errors.js'
 import {
   type OverflowSignal,
   overflowGapTokens,
-  overflowNumbersClause,
+  overflowWhoClause,
 } from '../api/overflowSignal.js'
-import { providerDisplayName } from '../providers/routeLaw.js'
-import { isAutoCompactEnabled, type AutoCompactTrackingState } from './autoCompact.js'
+import { tokenCountWithEstimation } from '../../utils/tokens.js'
+import { isAutoCompactEnabled, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoCompact.js'
 import { compactionBreakerAllows } from './compactionPolicy.js'
 
 export const OVERFLOW_RECOVERY_FLAG = 'MERCURY_OVERFLOW_RECOVERY'
@@ -119,11 +119,15 @@ export function splitCarriedOperatorTail(messages: readonly Message[]): {
 }
 
 
-export function overflowWhoClause(signal: OverflowSignal): string {
-  const numbers = overflowNumbersClause(signal)
-  if (signal.source === 'estimate') return numbers !== undefined ? `estimated ${numbers}` : 'by estimate'
-  const who = signal.family === 'unknown' ? 'the provider' : providerDisplayName(signal.family)
-  return numbers !== undefined ? `${who}: ${numbers}` : who
+export { overflowMeasuredClause, overflowWhoClause } from '../api/overflowSignal.js'
+
+export function measureOverflow(signal: OverflowSignal, messages: readonly Message[], model: string): OverflowSignal {
+  if (signal.measuredTokens !== undefined && signal.measuredWindow !== undefined) return signal
+  return {
+    ...signal,
+    measuredTokens: tokenCountWithEstimation(messages, model),
+    measuredWindow: resolveAutoCompactWindow(model).window,
+  }
 }
 
 export function overflowRecoveryNotice(

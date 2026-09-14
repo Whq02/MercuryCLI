@@ -164,7 +164,7 @@ section('§F stale-safe confirm')
   const plan = buildTransitionPlan({ messages: HISTORY as never, from: null, to: 'gpt-5.2' })
   const fresh = {
     sourceRevision: transitionSourceRevision(HISTORY as never),
-    capabilityEpoch: transitionCapabilityEpoch('gpt-5.2', true),
+    capabilityEpoch: transitionCapabilityEpoch('gpt-5.2', true, plan.window),
   }
   check('matching revision + epoch confirms', confirmTransitionPlan(plan, fresh).ok === true)
   const appended = [...HISTORY, user(9, 'a new turn landed after the preview')] as never[]
@@ -175,7 +175,7 @@ section('§F stale-safe confirm')
   check('a history append is stale-source', staleSource.ok === false && !staleSource.ok && staleSource.reason === 'stale-source')
   const staleCap = confirmTransitionPlan(plan, {
     sourceRevision: fresh.sourceRevision,
-    capabilityEpoch: transitionCapabilityEpoch('gpt-5.2', false),
+    capabilityEpoch: transitionCapabilityEpoch('gpt-5.2', false, plan.window),
   })
   check('a capability flip is stale-capability', staleCap.ok === false && !staleCap.ok && staleCap.reason === 'stale-capability')
 }
