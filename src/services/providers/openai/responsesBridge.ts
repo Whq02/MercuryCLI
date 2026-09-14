@@ -142,6 +142,16 @@ function toolResultOutput(
   ]
 }
 
+export function requestCarriesInputImage(request: { input?: unknown }): boolean {
+  if (!Array.isArray(request.input)) return false
+  for (const item of request.input as Array<Record<string, unknown>>) {
+    const parts = item.type === 'message' ? item.content : item.type === 'function_call_output' ? item.output : undefined
+    if (!Array.isArray(parts)) continue
+    if (parts.some(part => typeof part === 'object' && part !== null && (part as { type?: unknown }).type === 'input_image')) return true
+  }
+  return false
+}
+
 type UserPart = OpenaiMessageItem['content'][number]
 
 function flushUserParts(out: OpenaiInputItem[], parts: UserPart[]): void {
