@@ -9,6 +9,10 @@ import { semanticNumber } from '../../utils/semanticNumber.js'
 import { gitGraphEnabled, type GitPlanGroup } from '../../services/gitGraph/contracts.js'
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { stat } from 'node:fs/promises'
+import { expandPath } from '../../utils/path.js'
+import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
+import { resolveRepoFolder } from '../../services/gitGraph/repoFolder.js'
 
 function repoHostDiscoveryEnabled(): boolean {
   return !isEnvDefinedFalsy(flagEnv('MERCURY_REPO_HOST'))
@@ -86,6 +90,10 @@ const groupSchema = () =>
 const inputSchema = lazySchema(() =>
   z.strictObject({
     op: z.enum(OPS).describe('The git work-graph operation'),
+    cwd: z
+      .string()
+      .optional()
+      .describe('the folder to run in (default: the session folder). The repository containing it is used; when it is not inside one but holds exactly one repository directly below it, that one is used'),
     scope: z.enum(['worktree', 'staged', 'commit', 'range']).optional().describe('diff: what to diff (default worktree)'),
     ref: z.string().optional().describe("diff: a sha (scope 'commit') or 'A..B' (scope 'range')"),
     paths: z.array(z.string()).optional().describe('diff: limit to these paths'),
@@ -124,9 +132,9 @@ export type Output = {
 async function runOp(
   input: Input,
   context: ToolUseContext,
+  root: string,
 ): Promise<{ result: string; outcome: ToolEffectOutcome; changedPaths?: string[] }> {
   const owner = ownerFromToolUseContext(context)
-  const root = getCwd()
 
   switch (input.op) {
     case 'status': {
@@ -473,6 +481,20 @@ async function runOp(
 
 const MUTATING_OPS = new Set<Input['op']>(['apply', 'stage', 'restore', 'resolve'])
 
+function namedFolder(input: Pick<Input, 'cwd'>): string | undefined {
+  return input.cwd !== undefined && input.cwd.trim() !== '' ? expandPath(input.cwd) : undefined
+}
+
+function folderOf(input: Pick<Input, 'cwd'>): string {
+  return namedFolder(input) ?? getCwd()
+}
+
+function needsRepository(input: Input): boolean {
+  if (input.op === 'apply') return false
+  if (input.op === 'runWatch' && input.cancel === true) return false
+  return true
+}
+
 export const GitTool = buildTool({
   name: 'Git',
   searchHint: repoHostDiscoveryEnabled()
@@ -508,15 +530,17 @@ export const GitTool = buildTool({
     cancellation: 'cooperative',
     latency: 'fast',
     gate: 'MERCURY_GIT_GRAPH',
-    conditions: ['a git repository at the working directory'],
+    conditions: ['a git repository at, above, or directly below the working directory (or the given cwd)'],
     proof: 'scripts/builtin-tools/prove-git-plans.ts',
   },
   maxResultSizeChars: 60_000,
   async description() {
-    return 'Typed local Git work graph: bounded observation + preview-first atomic commit plans; repository-host PR/checks/issue context and the typed review record'
+    return 'Typed local Git work graph: bounded observation + preview-first atomic commit plans; repository-host PR/checks/issue context and the typed review record. Runs in the session folder or a given cwd: the repository containing that folder, or the one repository directly below it'
   },
   async prompt() {
     return `The typed LOCAL Git work-graph surface — structured observation and preview-first, stale-safe commit transactions. It never pushes, never fetches, never rewrites history, never discards uncommitted content. (Plain Bash git remains available; use this surface when the work should be inspectable and verifiable.)
+
+Where it runs: cwd (optional) names the folder; the session folder when absent. The repository containing that folder is used (git walks up from it). When the folder is not inside a repository but holds exactly one repository directly below it, that one is used and the result names it. A folder with no repository, or with several directly below it, is refused with the folder named — pass cwd:"<one of them>".
 
 Observation (free):
 - op:"status" — branch · changed files · the tree DIGEST plans pin to. mercury://git/status
@@ -553,7 +577,7 @@ Host observation (read-only, never publishes/pushes; MERCURY_REPO_HOST):
   },
   userFacingName,
   shouldDefer: true,
-  straightQuoteInputs: ['paths', 'files', 'path', 'file'],
+  straightQuoteInputs: ['paths', 'files', 'path', 'file', 'cwd'],
   get inputSchema(): SchemaType {
     return inputSchema()
   },
@@ -566,8 +590,14 @@ Host observation (read-only, never publishes/pushes; MERCURY_REPO_HOST):
   isReadOnly(input: Input) {
     return !MUTATING_OPS.has(input?.op)
   },
-  async checkPermissions(input: Input) {
+  getPath(input: Input) {
+    return namedFolder(input)
+  },
+  async checkPermissions(input: Input, context: ToolUseContext): Promise<ReturnType<typeof checkReadPermissionForTool>> {
     if (!MUTATING_OPS.has(input.op)) {
+      if (namedFolder(input) !== undefined) {
+        return checkReadPermissionForTool(GitTool, input, context.getAppState().toolPermissionContext)
+      }
       return { behavior: 'allow' as const, updatedInput: input }
     }
     const what =
@@ -578,14 +608,32 @@ Host observation (read-only, never publishes/pushes; MERCURY_REPO_HOST):
           : input.op === 'restore'
             ? `unstage ${input.files?.join(', ') ?? ''} (index only, working copy untouched)`
             : `resolve conflict ${input.path ?? ''}`
-    return { behavior: 'ask' as const, message: `Git ${what}` }
+    const where = namedFolder(input) !== undefined ? ` in ${input.cwd}` : ''
+    return { behavior: 'ask' as const, message: `Git ${what}${where}` }
   },
   toAutoClassifierInput(input: Input) {
-    return `git ${input.op}: ${input.planId ?? input.files?.join(' ') ?? input.path ?? input.ref ?? ''}`
+    const where = namedFolder(input) !== undefined ? ` in ${input.cwd}` : ''
+    return `git ${input.op}${where}: ${input.planId ?? input.files?.join(' ') ?? input.path ?? input.ref ?? ''}`
   },
   async validateInput(input: Input) {
     if (!gitGraphEnabled()) {
       return { result: false as const, message: 'the git work graph is disabled (MERCURY_GIT_GRAPH=0)', errorCode: 1 }
+    }
+    const folder = namedFolder(input)
+    if (folder !== undefined) {
+      let entry
+      try {
+        entry = await stat(folder)
+      } catch {
+        return {
+          result: false as const,
+          message: `cwd does not exist: ${input.cwd} (looked at ${folder}; the session folder is ${getCwd()})`,
+          errorCode: 2,
+        }
+      }
+      if (!entry.isDirectory()) {
+        return { result: false as const, message: `cwd is not a folder: ${input.cwd} (${folder})`, errorCode: 2 }
+      }
     }
     if (input.op === 'plan' && !input.groups?.length) {
       return { result: false as const, message: 'plan requires groups', errorCode: 1 }
@@ -597,11 +645,21 @@ Host observation (read-only, never publishes/pushes; MERCURY_REPO_HOST):
   },
   async call(input: Input, context: ToolUseContext) {
     const startedAt = Date.now()
+    const folder = folderOf(input)
+    const placed = needsRepository(input) ? resolveRepoFolder(folder) : null
     let op: { result: string; outcome: ToolEffectOutcome; changedPaths?: string[] }
-    try {
-      op = await runOp(input, context)
-    } catch (err) {
-      op = { result: `${input.op} failed: ${(err as Error).message}`, outcome: 'failed' }
+    if (placed !== null && placed.state === 'refused') {
+      op = { result: placed.note, outcome: 'failed' }
+    } else {
+      const root = placed !== null ? placed.root : folder
+      try {
+        op = await runOp(input, context, root)
+      } catch (err) {
+        op = { result: `${input.op} failed: ${(err as Error).message}`, outcome: 'failed' }
+      }
+      if (placed !== null && placed.via === 'below') {
+        op = { ...op, result: `${op.result}\nrepository: ${root} — the one git repository directly below ${folder}` }
+      }
     }
     const output: Output = { op: input.op, result: op.result, outcome: op.outcome }
     const operation =
