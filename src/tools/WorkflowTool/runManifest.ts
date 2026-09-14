@@ -90,6 +90,7 @@ export type WorkflowRunManifest = {
   usage?: WorkflowRunUsage
   totalToolCalls: number
   error?: string
+  failures?: string[]
   logsTail?: string[]
   agents: WorkflowRunAgentSummary[]
 }
