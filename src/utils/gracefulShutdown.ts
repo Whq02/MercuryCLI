@@ -150,7 +150,7 @@ export function failLoud(error: unknown, origin: LoudFailureOrigin): void {
     try {
       writeSync(2, `${MISSING_CWD_LINE}\n`)
     } catch {}
-    forceExit(1)
+    void crashShutdown(1)
     return
   }
   let reportPath: string | null = null
