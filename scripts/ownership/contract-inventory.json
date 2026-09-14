@@ -555,7 +555,8 @@
     "type:CompactionResult",
     "type:PostCompactFit",
     "type:RecompactionInfo",
-    "withFoldStatus"
+    "withFoldStatus",
+    "withMainLoopModel"
    ],
    "src/services/compact/autoCompact.ts": [
     "AUTOCOMPACT_THRASH_MESSAGE",
@@ -567,6 +568,7 @@
     "autoCompactIfNeeded",
     "calculateTokenWarningState",
     "detectFixedPrefixOverflow",
+    "foldModelFor",
     "getAutoCompactThreshold",
     "getBlockingLimit",
     "getEffectiveContextWindowSize",
@@ -576,6 +578,7 @@
     "shouldAutoCompact",
     "type:AutoCompactTrackingState",
     "type:AutoCompactWindowSource",
+    "type:FoldModelChoice",
     "type:TokenWarningLevel"
    ],
    "src/services/compact/compactionPolicy.ts": [
@@ -641,6 +644,7 @@
    "src/utils/swarm/inProcessRunner.ts": [
     "runInProcessTeammate",
     "startInProcessTeammate",
+    "type:FirstDispatchOutcome",
     "type:InProcessRunnerConfig",
     "type:InProcessRunnerResult"
    ],
