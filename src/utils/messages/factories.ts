@@ -92,6 +92,7 @@ function fabricateAssistantMessage({
   error,
   errorDetails,
   overflowSignal,
+  mediaRefusal,
   isVirtual,
   usage = ZERO_USAGE(),
 }: {
@@ -101,6 +102,7 @@ function fabricateAssistantMessage({
   error?: SDKAssistantMessageError
   errorDetails?: string
   overflowSignal?: AssistantMessage['overflowSignal']
+  mediaRefusal?: AssistantMessage['mediaRefusal']
   isVirtual?: true
   usage?: Usage
 }): AssistantMessage {
@@ -125,6 +127,7 @@ function fabricateAssistantMessage({
     error,
     errorDetails,
     ...(overflowSignal !== undefined ? { overflowSignal } : {}),
+    ...(mediaRefusal !== undefined ? { mediaRefusal } : {}),
     isApiErrorMessage,
     isVirtual,
   }
@@ -157,12 +160,14 @@ export function createAssistantAPIErrorMessage({
   error,
   errorDetails,
   overflow,
+  mediaRefusal,
 }: {
   content: string
   apiError?: AssistantMessage['apiError']
   error?: SDKAssistantMessageError
   errorDetails?: string
   overflow?: AssistantMessage['overflowSignal'] | null
+  mediaRefusal?: AssistantMessage['mediaRefusal'] | null
 }): AssistantMessage {
   return fabricateAssistantMessage({
     content: [
@@ -176,6 +181,7 @@ export function createAssistantAPIErrorMessage({
     error,
     errorDetails,
     ...(overflow !== undefined && overflow !== null ? { overflowSignal: overflow } : {}),
+    ...(mediaRefusal !== undefined && mediaRefusal !== null ? { mediaRefusal } : {}),
   })
 }
 

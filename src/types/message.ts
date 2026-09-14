@@ -2,6 +2,7 @@
 import type { ContentBlock, ApiMessage, ApiStreamEvent, ToolUseBlock, ApiUsage, ContentBlockParam, ToolResultBlockParam } from './wire.js'
 import type { APIError } from '../services/api/sdkErrors.js'
 import type { OverflowSignal } from '../services/api/overflowSignal.js'
+import type { MediaRefusal } from '../services/api/mediaRefusal.js'
 import type { StreamEndV1 } from '../services/providers/streamIdleBudget.js'
 import type { EffortAdjustedV1 } from '../utils/effort.js'
 import type { UUID } from 'crypto'
@@ -83,6 +84,7 @@ export type AssistantMessage = {
   errorDetails?: string
   providerWaitEndsAtMs?: number
   overflowSignal?: OverflowSignal
+  mediaRefusal?: MediaRefusal
   apiError?: 'max_output_tokens'
   isApiErrorMessage?: boolean
   isMeta?: boolean

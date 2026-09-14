@@ -35,6 +35,9 @@ import {
 } from '../anthropic/messageParams.js'
 import { toolToAPISchema } from '../../../utils/api.js'
 import { withToolReferenceTurnBoundary } from '../../../utils/messages/apiView.js'
+import { applyStripTargetsToMessages, errorDrivenStripTargets, stripImagesRefusedByStamp } from '../../../utils/messages/apiPlan.js'
+import { validateImagesForAPI } from '../../../utils/imageValidation.js'
+import { classifyImageRefusalFault, type MediaRefusal } from '../../api/mediaRefusal.js'
 import {
   createAssistantAPIErrorMessage,
   createSystemAPIErrorMessage,
@@ -91,6 +94,7 @@ import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import {
   buildOpenaiResponsesRequest,
   decodeOpenaiTurnRecord,
+  requestCarriesInputImage,
   type BridgeMessage,
   type OpenaiTurnRecord,
 } from './responsesBridge.js'
@@ -180,12 +184,14 @@ function apiErrorMessage(
   error: NonNullable<AssistantMessage['error']> = 'unknown',
   errorDetails?: string,
   overflow?: OverflowSignal | null,
+  mediaRefusal?: MediaRefusal | null,
 ): AssistantMessage {
   return createAssistantAPIErrorMessage({
     content,
     error,
     ...(errorDetails !== undefined ? { errorDetails } : {}),
     ...(overflow !== undefined ? { overflow } : {}),
+    ...(mediaRefusal !== undefined ? { mediaRefusal } : {}),
   })
 }
 
@@ -490,7 +496,8 @@ export async function* openaiCallModel(
     source: 'query',
   })
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey)
-  const projectedMessages = messages.map(message => message.type === 'user' ? withToolReferenceTurnBoundary(message) : message)
+  const strippedMessages = applyStripTargetsToMessages(messages, errorDrivenStripTargets(messages))
+  const projectedMessages = strippedMessages.map(message => message.type === 'user' ? withToolReferenceTurnBoundary(message) : message)
   const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(projectedMessages), plan)
   const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   let profile: GptReasoningProfile = candidate
@@ -529,7 +536,10 @@ export async function* openaiCallModel(
     retiredScreenshots.firstEdited === -1
       ? retiredScreenshots.messages
       : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
-  const bridge = toBridgeMessages(healWalkableForWire(wireMessagesForBridge), modelId)
+  const walkable = stripImagesRefusedByStamp(healWalkableForWire(wireMessagesForBridge))
+  const imagesRide = imagesSupportedForModel(candidate)
+  if (imagesRide) validateImagesForAPI(walkable, modelId)
+  const bridge = toBridgeMessages(walkable, modelId)
   const threadKey = `${getSessionId()}:${options.agentId ?? 'main'}`
   if (bridge.reconstructedGptTurns > 0 && !reconstructionNoted.has(threadKey)) {
     reconstructionNoted.add(threadKey)
@@ -561,7 +571,7 @@ export async function* openaiCallModel(
     tools: apiTools,
     ...(wireEffort ? { reasoningEffort: wireEffort } : {}),
     promptCacheKey,
-    imagesSupported: imagesSupportedForModel(candidate),
+    imagesSupported: imagesRide,
     ...(options.outputFormat ? { outputFormat: options.outputFormat } : {}),
     ...(options.nativeWebSearch ? { nativeWebSearch: options.nativeWebSearch } : {}),
   })
@@ -734,7 +744,11 @@ export async function* openaiCallModel(
         remedy: 'add credit to the OpenAI account, then retry; /model picks another model meanwhile.',
       })
     }
-    yield apiErrorMessage(text, typed, outcome.fault.code, overflowOf(outcome.fault))
+    const refusedMedia = classifyImageRefusalFault(
+      { status: outcome.fault.status, message: outcome.fault.message },
+      requestCarriesInputImage(request),
+    )
+    yield apiErrorMessage(text, typed, outcome.fault.code, overflowOf(outcome.fault), refusedMedia)
     return
   }
 }
