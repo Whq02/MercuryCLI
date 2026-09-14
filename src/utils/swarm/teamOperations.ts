@@ -39,13 +39,33 @@ export async function performTeamCreateOperation(args: {
   teamFile: TeamFile
 }): Promise<JournaledOperationOutcome<{ teamFilePath: string }>> {
   const { teamName, teamFile } = args
+  const teamFilePath = getTeamFilePath(teamName)
+  const first = await runTeamCreate(teamName, teamFile, `team-create:${sanitizeName(teamName)}`)
+  if (first.outcome === 'replayed' && (await readTeamFileAsync(teamName)) === null) {
+    const fresh = await runTeamCreate(teamName, teamFile, `team-create:${sanitizeName(teamName)}:${Date.now()}`)
+    if ((await readTeamFileAsync(teamName)) === null) {
+      throw new Error(`Team "${teamName}" was not written at ${teamFilePath} — the create did not land.`)
+    }
+    return fresh
+  }
+  if ((await readTeamFileAsync(teamName)) === null) {
+    throw new Error(`Team "${teamName}" was not written at ${teamFilePath} — the create did not land.`)
+  }
+  return first
+}
+
+async function runTeamCreate(
+  teamName: string,
+  teamFile: TeamFile,
+  idempotencyKey: string,
+): Promise<JournaledOperationOutcome<{ teamFilePath: string }>> {
   const sessionId = getSessionId()
   const teamFilePath = getTeamFilePath(teamName)
   const outcome = await runJournaledOperation<{ teamFilePath: string }>({
     journalDir: teamJournalDir(),
     ownerKey: sessionId,
     kind: 'team-create',
-    idempotencyKey: `team-create:${sanitizeName(teamName)}`,
+    idempotencyKey,
     steps: [
       {
         id: 'team-file',
@@ -122,12 +142,12 @@ export function teamJournalRecoveryHandlers(): Record<string, JournalRecoveryHan
   return {
     'team-create': {
       rollForward: async op => {
-        const name = op.idempotencyKey.replace(/^team-create:/, '')
+        const name = op.idempotencyKey.replace(/^team-create:/, '').replace(/:\d+$/, '')
         const tf = await readTeamFileAsync(name)
         if (!tf) throw new Error(`team-create roll-forward: "${name}" has no team file`)
       },
       compensate: async op => {
-        const name = op.idempotencyKey.replace(/^team-create:/, '')
+        const name = op.idempotencyKey.replace(/^team-create:/, '').replace(/:\d+$/, '')
         await compensateTeamCreate(name, op.ownerKey)
       },
     },

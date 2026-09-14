@@ -588,11 +588,27 @@ export async function runHeadless(
     if (messages.length === 0) return
     try {
       const { runBootRecovery } = await import('../substrate/recoveryOrchestrator.js')
-      await runBootRecovery({
+      const recovered = await runBootRecovery({
         scope: 'session',
         sessionId: getSessionId(),
         projectDir: getCwd(),
       })
+      const led = recovered.leaderProjection
+      if (led) {
+        setAppState(prev =>
+          prev.teamContext
+            ? prev
+            : {
+                ...prev,
+                teamContext: {
+                  teamName: led.teamName,
+                  teamFilePath: led.teamFilePath,
+                  leadAgentId: led.leadAgentId,
+                  teammates: led.teammates,
+                },
+              },
+        )
+      }
     } catch (error) {
       logError(error)
     }
