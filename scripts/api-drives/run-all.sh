@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: scripts/api/prove-prefix-frozen-drive.ts scripts/lib/fixtureApi.ts
+# gate-watch: scripts/api/prove-prefix-frozen-drive.ts scripts/lib/fixtureApi.ts scripts/api/prove-image-refusal-drive.ts scripts/api/prove-image-refusal-frames.ts
 # gate-watch: src/services/providers/anthropic/** src/services/providers/toolEconomy.ts src/constants/prompts.ts src/context.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
