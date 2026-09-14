@@ -16,6 +16,17 @@ spawn ledger. Team creation and deletion are multi-record journal operations —
 an interrupted create rolls forward or compensates at the next boot rather
 than leaving a half-team behind.
 
+A team outlives its lead's session. When the lead exits — a quit, a closed
+terminal, a signal — the team's config, inboxes and leases stay where they
+are; only its pane-backed teammates are closed. Resuming the lead's session
+finds the team on disk and the resumed session is part of it again, in the
+cockpit and headless alike: TeamBrief names the team and its roster, the
+Agent tool spawns into it, and TeamCreate refuses the name as one this
+session already leads. Only TeamDelete removes a team (a headless lead
+removes its own before its final answer). A create never answers success
+without its config file on disk: a stale journal entry for a team whose
+folder is gone is not replayed as a result, the team is created afresh.
+
 ## The two spawn switches
 
 Every session carries two switches, Sub-agents and Workflows, set in the boot
@@ -54,6 +65,19 @@ stops. A stopped agent's row reads `stopped` with the reason and its
 transcript stands on disk; `r` resumes it from that transcript under the same
 id. Every stop, resume and failure reaches the main agent as a notification
 of its own kind, never silently.
+
+A named teammate spawned into a team with the Agent tool is answered only
+once its first turn has settled. A seat whose first dispatch fails — a
+provider refusal, a spent window, an error before its first response — is
+refused by name with the cause, is not on the roster, and a later message to
+it is refused with the same cause instead of landing in an inbox nobody
+reads. A seat that fails later leaves the roster the same way, so the team
+view and the brief never list a dead seat as running.
+
+A workflow that ends with agent failures says so in the first line of its
+notification: the count, then the first failing agent and its cause — an
+error's words, a refusal's stop reason — and its run record carries the
+same failure lines beside the per-agent rows.
 
 Named agents spawn on demand over the daemon's authed control socket. The RPC
 carries only intent — a name and a model choice — and the daemon enforces the

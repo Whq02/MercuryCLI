@@ -78,9 +78,12 @@ import {
 } from './leaderPermissionBridge.js'
 import { createPermissionRequest, sendPermissionRequestViaMailbox } from './permissionSync.js'
 import { getRoleSystemPrompt, type ResolvedTeammateRole } from './roleResolver.js'
+import { removeMemberByAgentId } from './teamHelpers.js'
 import { formatCharterForContext, formatRolePacketForContext } from './teamCharter.js'
 import { buildTeammateAddendum } from './teammatePromptAddendum.js'
 
+
+export type FirstDispatchOutcome = { ok: true } | { ok: false; cause: string }
 
 export type InProcessRunnerConfig = {
   identity: {
@@ -105,6 +108,7 @@ export type InProcessRunnerConfig = {
   allowPermissionPrompts?: boolean
   description?: string
   invokingRequestId?: string
+  onFirstDispatch?: (outcome: FirstDispatchOutcome) => void
 }
 
 export type InProcessRunnerResult = {
@@ -539,6 +543,18 @@ export async function runInProcessTeammate(
   const { identity, taskId, toolUseContext } = config
   const setAppState = setAppStateOf(toolUseContext)
   const allMessages: Message[] = []
+  let firstDispatchSettled = false
+  let firstDispatch: FirstDispatchOutcome | undefined
+  const settleFirstDispatch = (outcome: FirstDispatchOutcome): void => {
+    if (firstDispatchSettled) return
+    firstDispatchSettled = true
+    firstDispatch = outcome
+    try {
+      config.onFirstDispatch?.(outcome)
+    } catch (error) {
+      logForDebugging(`teammate ${identity.agentName}: first-dispatch listener failed: ${errorMessage(error)}`)
+    }
+  }
 
   const agentContext: TeammateAgentContext = {
     agentType: 'teammate',
@@ -715,6 +731,17 @@ export async function runInProcessTeammate(
               turnInterrupted = true
               break
             }
+            if (!firstDispatchSettled && message.type === 'assistant') {
+              if (isSyntheticApiErrorMessage(message)) {
+                const failedContent = message.message.content
+                settleFirstDispatch({
+                  ok: false,
+                  cause: (typeof failedContent === 'string' ? failedContent : extractTextContent(failedContent)) || 'API error',
+                })
+              } else {
+                settleFirstDispatch({ ok: true })
+              }
+            }
             accumulated.push(message)
             turnMessages.push(message)
             allMessages.push(message)
@@ -746,7 +773,11 @@ export async function runInProcessTeammate(
         ...task,
         currentWorkAbortController: undefined,
       }))
-      if (config.abortController.signal.aborted) break
+      if (config.abortController.signal.aborted) {
+        settleFirstDispatch({ ok: false, cause: 'the seat was stopped before its first response' })
+        break
+      }
+      settleFirstDispatch({ ok: true })
 
       if (turnInterrupted) {
         updateTeammateTask(taskId, setAppState, task => ({
@@ -795,6 +826,11 @@ export async function runInProcessTeammate(
             failureReason,
             ...(summary !== undefined ? { summary } : {}),
           })
+          if (firstDispatch !== undefined && !firstDispatch.ok) {
+            const cause = new Error(failureReason)
+            terminalizeTeammateRun(config, setAppState, 'failed', cause)
+            return { success: false, error: cause, messages: allMessages }
+          }
         } else {
           await sendIdleNotificationToLead(identity, 'available', {
             ...(summary !== undefined ? { summary } : {}),
@@ -835,6 +871,7 @@ export async function runInProcessTeammate(
   } catch (error) {
     const cause = error instanceof Error ? error : new Error('unknown error')
     logError(error)
+    settleFirstDispatch({ ok: false, cause: cause.message })
     terminalizeTeammateRun(config, setAppState, 'failed', cause)
     const summary = undefined
     void summary
@@ -887,8 +924,24 @@ function terminalizeTeammateRun(
       unregisterCleanup: undefined,
       onIdleCallbacks: [],
     }
-    return { ...prevState, tasks: { ...prevState.tasks, [taskId]: nextTask } }
+    const teamContext = prevState.teamContext
+    const teammates = teamContext?.teammates
+    let nextTeamContext = teamContext
+    if (status === 'failed' && teamContext && teammates && (identity.agentName in teammates || identity.agentId in teammates)) {
+      const remaining = { ...teammates }
+      delete remaining[identity.agentName]
+      delete remaining[identity.agentId]
+      nextTeamContext = { ...teamContext, teammates: remaining }
+    }
+    return {
+      ...prevState,
+      tasks: { ...prevState.tasks, [taskId]: nextTask },
+      ...(nextTeamContext !== teamContext ? { teamContext: nextTeamContext } : {}),
+    }
   })
+  if (wasRunning && status === 'failed') {
+    removeMemberByAgentId(identity.teamName, identity.agentId)
+  }
 
   void evictTaskOutput(taskId)
   const evictionDelay = status === 'failed' ? 30_000 : STOPPED_DISPLAY_MS

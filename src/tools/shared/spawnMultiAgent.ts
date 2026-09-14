@@ -40,7 +40,7 @@ import {
   TMUX_COMMAND,
 } from '../../utils/swarm/constants.js'
 import { It2SetupPrompt } from '../../utils/swarm/It2SetupPrompt.js'
-import { startInProcessTeammate } from '../../utils/swarm/inProcessRunner.js'
+import { startInProcessTeammate, type FirstDispatchOutcome } from '../../utils/swarm/inProcessRunner.js'
 import { resolveTeammateRole, type ResolvedTeammateRole } from '../../utils/swarm/roleResolver.js'
 import { spawnInProcessTeammate } from '../../utils/swarm/spawnInProcess.js'
 import { buildInheritedEnvVars, getTeammateCommand } from '../../utils/swarm/spawnUtils.js'
@@ -625,6 +625,10 @@ async function spawnInProcessStrategy(
   } as never)
 
   if (spawnResult.taskId && spawnResult.teammateContext && spawnResult.abortController) {
+    let settleFirstDispatch: (outcome: FirstDispatchOutcome) => void = () => {}
+    const firstDispatch = new Promise<FirstDispatchOutcome>(resolve => {
+      settleFirstDispatch = resolve
+    })
     try {
     startInProcessTeammate({
       identity: {
@@ -645,10 +649,18 @@ async function spawnInProcessStrategy(
       abortController: spawnResult.abortController,
       ...(config.invokingRequestId ? { invokingRequestId: config.invokingRequestId } : {}),
       toolUseContext: { ...context, messages: [] },
+      onFirstDispatch: outcome => settleFirstDispatch(outcome),
     })
     } catch (error) {
       removeTeammateFromTeamFile(teamName, { agentId: teammateId })
       throw error
+    }
+    const outcome = await firstDispatch
+    if (!outcome.ok) {
+      removeTeammateFromTeamFile(teamName, { agentId: teammateId })
+      throw new Error(
+        `Teammate "${teammateName}" failed at its first dispatch and is not running: ${outcome.cause}`,
+      )
     }
   }
 

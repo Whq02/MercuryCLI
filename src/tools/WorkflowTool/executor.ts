@@ -398,9 +398,11 @@ export function deriveWorkflowTerminalStatus(input: {
   if (input.error) return { status: 'failed' }
   if (input.failures.length === 0) return { status: 'completed' }
   if (input.agentCount > 0 && input.failures.length >= input.agentCount) {
+    const first = String(input.failures[0] ?? '').replace(/\s+/g, ' ').trim()
+    const firstWords = first.length > 240 ? `${first.slice(0, 240)}…` : first
     return {
       status: 'failed',
-      derivedError: `all ${input.agentCount} agent(s) failed (${input.failures.length} failure(s) recorded) — the script returned, but no agent work succeeded`,
+      derivedError: `all ${input.agentCount} agent(s) failed (${input.failures.length} failure(s) recorded) — the script returned, but no agent work succeeded; first: ${firstWords || 'no cause recorded'}`,
     }
   }
   return { status: 'completed_with_failures' }

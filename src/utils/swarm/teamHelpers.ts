@@ -436,15 +436,6 @@ export async function cleanupSessionTeams(): Promise<void> {
       }),
     ),
   )
-  await Promise.all(
-    teams.map(teamName =>
-      cleanupTeamDirectories(teamName).catch(error => {
-        logForDebugging(
-          `session cleanup: directory cleanup for ${teamName} failed: ${errorMessage(error)}`,
-        )
-      }),
-    ),
-  )
   getSessionCreatedTeams().clear()
 }
 
