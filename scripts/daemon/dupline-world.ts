@@ -17,9 +17,7 @@ export const BUN = process.env.BUN ?? process.execPath
 const VENDORED_NODE = join(DIST, '..', 'vendor', 'node', ...(WIN ? ['node.exe'] : ['bin', 'node']))
 export const NODE = existsSync(VENDORED_NODE) ? VENDORED_NODE : 'node'
 export const SCRATCH_ROOT = WIN ? realpathSync.native(process.env.RUNNER_TEMP ?? tmpdir()) : realpathSync(tmpdir())
-export const LINE = 'the line during the agent'
-export const AGENT_TURN_ASK = 'agent turn'
-export const AGENT_DESCRIPTION = 'sub work'
+export { AGENT_DESCRIPTION, AGENT_TURN_ASK, LINE } from './dupline-fixture-words.ts'
 export const QUEUED_PLATE = 'queued   [sam]'
 export const PROBE_KEY = 'sk-ant-dupline-key'
 export const CLOCK_TOLERANCE_MS = 5_000
@@ -50,8 +48,8 @@ export function makeTally(name: string): { check: (label: string, cond: boolean,
   }
 }
 
-export type Rec = { recordId?: string; creationOrdinal?: string; occurredAt?: string; threadId?: string; payload?: { kind?: string; attachmentType?: string; metaKind?: string; content?: unknown; fields?: Record<string, unknown> } }
-export type Carrier = { file: string; kind: string; recordId: string; occurredAt: string; sourceUuid: string; sentAt: string; thread: string; agentId: string }
+export type Rec = { recordId?: string; creationOrdinal?: string; occurredAt?: string; threadId?: string; annotations?: { uuid?: string }; payload?: { kind?: string; attachmentType?: string; metaKind?: string; content?: unknown; fields?: Record<string, unknown>; meta?: Record<string, unknown> } }
+export type Carrier = { file: string; kind: string; recordId: string; occurredAt: string; sourceUuid: string; sentAt: string; thread: string; agentId: string; uuid: string }
 export function textOfRecord(r: Rec): string {
   const p = r.payload ?? {}
   if (p.kind === 'input') {
@@ -85,8 +83,9 @@ export function carriersOf(projectsDir: string, line: string): Carrier[] {
     } catch {
       continue
     }
+    const escaped = JSON.stringify(line).slice(1, -1)
     for (const raw of text.split('\n')) {
-      if (!raw.includes(line)) continue
+      if (!raw.includes(line) && !raw.includes(escaped)) continue
       let r: Rec
       try {
         r = JSON.parse(raw) as Rec
@@ -96,6 +95,7 @@ export function carriersOf(projectsDir: string, line: string): Carrier[] {
       if (!textOfRecord(r).includes(line)) continue
       const p2 = r.payload ?? {}
       const f = p2.fields ?? {}
+      const meta = p2.meta ?? {}
       const agent = /agent-([^/\\]+)\.jsonl$/.exec(p)
       out.push({
         file: relative(projectsDir, p),
@@ -103,9 +103,10 @@ export function carriersOf(projectsDir: string, line: string): Carrier[] {
         recordId: String(r.recordId ?? ''),
         occurredAt: String(r.occurredAt ?? ''),
         sourceUuid: String(f.source_uuid ?? ''),
-        sentAt: String(f.sentAt ?? ''),
+        sentAt: String(f.sentAt ?? meta.sentAt ?? ''),
         thread: String(r.threadId ?? ''),
         agentId: agent?.[1] ?? '',
+        uuid: String(r.annotations?.uuid ?? meta.uuid ?? ''),
       })
     }
   }
@@ -225,7 +226,7 @@ export function seedHome(runHome: string, cwd: string): void {
   writeFileSync(join(runHome, 'settings.json'), '{}')
   writeFileSync(join(cwd, 'README.md'), '# fixture\n')
 }
-export type Wire = { kind: string; n: number; arm?: string; step?: number; at: number; counts?: Record<string, number>; firstAt?: Record<string, number>; hasAgentTool?: boolean; toolNames?: string[]; usageInput?: number }
+export type Wire = { kind: string; n: number; arm?: string; step?: number; at: number; counts?: Record<string, number>; firstAt?: Record<string, number>; hasAgentTool?: boolean; hasWorkflowTool?: boolean; hasSleepTool?: boolean; folded?: boolean; lastToolResult?: { isError: boolean; text: string } | null; toolNames?: string[]; usageInput?: number }
 export type Fixture = { port: number; kill: () => void; wire: () => Wire[] }
 export async function startFixture(captureFile: string, agentSleepSeconds: number, mainSleepSeconds = 6, foldPaceMs = 0): Promise<Fixture> {
   writeFileSync(captureFile, '')

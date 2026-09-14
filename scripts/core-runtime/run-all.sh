@@ -48,6 +48,9 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-geometry-contract.ts
 echo "── core-runtime: runloop contract (T8)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-runloop-contract.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-runloop-contract.ts "$__t" "$__rc"
 
+echo "── core-runtime: the queue owner refuses a sub-agent the operator's line"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-drain-owner-guard.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-drain-owner-guard.ts "$__t" "$__rc"
+
 echo "── core-runtime: runsurface contract (T10-T12)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-runsurface-contract.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-runsurface-contract.ts "$__t" "$__rc"
 
