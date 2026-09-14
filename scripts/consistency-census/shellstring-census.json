@@ -892,6 +892,13 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
+      "file": "scripts/journey/prove-switch-window-drive.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
       "file": "scripts/lib/captureDriver.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const python = pin !== '' ? pin : '/usr/bin/python3'",
