@@ -6,7 +6,8 @@ export interface ImageLimits {
   doc: string
   maxSidePx: number | null
   manyImages: { threshold: number; maxSidePx: number } | null
-  maxBase64Bytes: number
+  maxBase64Bytes: number | null
+  maxPatchesPerImage: { patchPx: number; count: number } | null
   nativeLongEdgePx: { standard: number; highResolution: number }
   toolResultRejectsAboveNative: boolean
   maxImagesPerRequest: number
@@ -21,6 +22,7 @@ export const ANTHROPIC_IMAGE_LIMITS: ImageLimits = {
   maxSidePx: 8000,
   manyImages: { threshold: 20, maxSidePx: 2000 },
   maxBase64Bytes: 10 * MiB,
+  maxPatchesPerImage: null,
   nativeLongEdgePx: { standard: 1568, highResolution: 2576 },
   toolResultRejectsAboveNative: true,
   maxImagesPerRequest: 100,
@@ -32,7 +34,8 @@ export const OPENAI_IMAGE_LIMITS: ImageLimits = {
   doc: 'https://developers.openai.com/api/docs/guides/images-vision',
   maxSidePx: null,
   manyImages: null,
-  maxBase64Bytes: 512 * MiB,
+  maxBase64Bytes: null,
+  maxPatchesPerImage: { patchPx: 32, count: 30_000 },
   nativeLongEdgePx: { standard: 2048, highResolution: 2048 },
   toolResultRejectsAboveNative: false,
   maxImagesPerRequest: 1500,
@@ -45,6 +48,7 @@ export const GEMINI_IMAGE_LIMITS: ImageLimits = {
   maxSidePx: null,
   manyImages: null,
   maxBase64Bytes: 20 * MiB,
+  maxPatchesPerImage: null,
   nativeLongEdgePx: { standard: 768, highResolution: 768 },
   toolResultRejectsAboveNative: false,
   maxImagesPerRequest: 3600,
@@ -57,6 +61,7 @@ export const GENERIC_IMAGE_LIMITS: ImageLimits = {
   maxSidePx: 8000,
   manyImages: { threshold: 20, maxSidePx: 2000 },
   maxBase64Bytes: 5 * MiB,
+  maxPatchesPerImage: null,
   nativeLongEdgePx: { standard: 1568, highResolution: 1568 },
   toolResultRejectsAboveNative: true,
   maxImagesPerRequest: 100,
@@ -71,7 +76,7 @@ export const IMAGE_LIMITS_BY_FAMILY: Readonly<Record<ImageLimitFamily, ImageLimi
 }
 
 export const STRICTEST_IMAGE_MAX_BASE64_BYTES = Math.min(
-  ...Object.values(IMAGE_LIMITS_BY_FAMILY).map(limits => limits.maxBase64Bytes),
+  ...Object.values(IMAGE_LIMITS_BY_FAMILY).flatMap(limits => (limits.maxBase64Bytes === null ? [] : [limits.maxBase64Bytes])),
 )
 
 export const PDF_TARGET_RAW_SIZE = 20 * 1024 * 1024

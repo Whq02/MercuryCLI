@@ -78,7 +78,12 @@ type Caps = {
   limits: ImageLimits
   sidePx: number | null
   longEdgePx: number | null
+  patches: ImageLimits['maxPatchesPerImage']
   rawBytes: number
+}
+
+export function patchCountOf(width: number, height: number, patchPx: number): number {
+  return Math.ceil(width / patchPx) * Math.ceil(height / patchPx)
 }
 
 function base64LengthOf(rawBytes: number): number {
@@ -98,7 +103,8 @@ async function resolveCaps(options: ResizeOptions | undefined): Promise<Caps> {
     const tier = limits.family === 'anthropic' ? anthropicResolutionTier(model) : 'standard'
     longEdgePx = limits.nativeLongEdgePx[tier]
   }
-  return { limits, sidePx, longEdgePx, rawBytes: Math.floor((limits.maxBase64Bytes / 4) * 3) }
+  const base64Ceiling = limits.maxBase64Bytes ?? limits.maxRequestBytes
+  return { limits, sidePx, longEdgePx, patches: limits.maxPatchesPerImage, rawBytes: Math.floor((base64Ceiling / 4) * 3) }
 }
 
 
@@ -168,8 +174,19 @@ function fitDimensions(width: number, height: number, caps: Caps): { width: numb
   let scale = 1
   if (caps.sidePx !== null) scale = Math.min(scale, caps.sidePx / Math.max(width, height))
   if (caps.longEdgePx !== null) scale = Math.min(scale, caps.longEdgePx / Math.max(width, height))
+  if (caps.patches !== null && patchCountOf(width, height, caps.patches.patchPx) > caps.patches.count) {
+    scale = Math.min(scale, Math.sqrt((caps.patches.patchPx * caps.patches.patchPx * caps.patches.count) / (width * height)))
+  }
   if (scale >= 1) return null
-  return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) }
+  const at = (factor: number): { width: number; height: number } => ({ width: Math.max(1, Math.round(width * factor)), height: Math.max(1, Math.round(height * factor)) })
+  let target = at(scale)
+  if (caps.patches !== null) {
+    while (patchCountOf(target.width, target.height, caps.patches.patchPx) > caps.patches.count && (target.width > 1 || target.height > 1)) {
+      scale *= 0.995
+      target = at(scale)
+    }
+  }
+  return target
 }
 
 async function readDimensions(sharp: SharpFunction, buffer: Buffer): Promise<{ width: number; height: number } | null> {
@@ -186,7 +203,12 @@ function limitWords(caps: Caps, role: ImageRole): string {
   const parts: string[] = []
   if (caps.sidePx !== null) parts.push(`${caps.sidePx} px per side`)
   if (caps.longEdgePx !== null) parts.push(`${caps.longEdgePx} px on the long edge for a ${role === 'tool-result' ? 'tool result' : 'model input'}`)
-  parts.push(`${formatFileSize(caps.limits.maxBase64Bytes)} per image as base64`)
+  if (caps.patches !== null) parts.push(`${caps.patches.count.toLocaleString('en-US')} patches of ${caps.patches.patchPx} px per image`)
+  parts.push(
+    caps.limits.maxBase64Bytes === null
+      ? `${formatFileSize(caps.limits.maxRequestBytes)} per request as base64`
+      : `${formatFileSize(caps.limits.maxBase64Bytes)} per image as base64`,
+  )
   return `${caps.limits.family === 'generic' ? 'the strictest documented' : caps.limits.family} limits — ${parts.join(', ')} (${caps.limits.doc})`
 }
 
