@@ -892,6 +892,13 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
+      "file": "scripts/journey/prove-switch-window-drive.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
       "file": "scripts/lib/captureDriver.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const python = pin !== '' ? pin : '/usr/bin/python3'",
@@ -1212,6 +1219,13 @@
       "excerpt": "? execSync(['\"' + shim + '\"', '--version'].join(' '), { encoding: 'utf8', env: smokeEnv, timeout: 120_000 })",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/reliability/prove-deleted-folder-boot.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const r = spawnSync('bash', ['-c', script], {",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
       "file": "scripts/reliability/prove-sync-spawn-bounds.ts",
