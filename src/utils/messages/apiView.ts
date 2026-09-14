@@ -42,7 +42,7 @@ import {
 } from './apiFilters.js'
 import { normalizeAttachmentForAPI } from './attachmentText.js'
 import { createUserMessage } from './factories.js'
-import { planApiConversation } from './apiPlan.js'
+import { applyStripTargets, planApiConversation } from './apiPlan.js'
 import {
   isToolResultMessage,
   mergeAssistantMessages,
@@ -317,27 +317,11 @@ export function normalizeMessagesForAPI(
             )
           }
 
-          const typesToStrip = stripTargets.get(normalizedMessage.uuid)
-          if (typesToStrip && normalizedMessage.isMeta) {
-            const content = normalizedMessage.message.content
-            if (Array.isArray(content)) {
-              const filtered = content.filter(
-                block => !typesToStrip.has(block.type),
-              )
-              if (filtered.length === 0) {
-                return
-              }
-              if (filtered.length < content.length) {
-                normalizedMessage = {
-                  ...normalizedMessage,
-                  message: {
-                    ...normalizedMessage.message,
-                    content: filtered,
-                  },
-                }
-              }
-            }
+          const kept = applyStripTargets(normalizedMessage, stripTargets)
+          if (kept === null) {
+            return
           }
+          normalizedMessage = kept
 
           normalizedMessage = withToolReferenceTurnBoundary(normalizedMessage)
 

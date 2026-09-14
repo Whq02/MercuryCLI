@@ -1,3 +1,4 @@
+import { providerRefusedImage } from '../../api/mediaRefusal.js'
 import type { MessageParam } from '../../../types/wire.js'
 import type {
   ZaiChatRequest,
@@ -80,11 +81,7 @@ export function requestCarriesImage(messages: readonly ZaiMessage[]): boolean {
   return messages.some(message => Array.isArray(message.content) && message.content.some(part => part.type === 'image_url'))
 }
 
-const IMAGE_REFUSAL_NEEDLE = /\b(images?|image_url|vision|multimodal|modalit(?:y|ies))\b/i
-
-export function providerRefusedImage(faultMessage: string): boolean {
-  return IMAGE_REFUSAL_NEEDLE.test(faultMessage)
-}
+export { providerRefusedImage }
 
 export function imageRefusalWords(
   request: { messages: readonly ZaiMessage[] },
