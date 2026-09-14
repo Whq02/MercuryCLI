@@ -23,6 +23,17 @@ export function renderToolResultMessage(
   if (!verbose) {
     shown = truncateToWidthNoEllipsis(command.split('\n').slice(0, MAX_COMMAND_LINES).join('\n'), MAX_COMMAND_COLUMNS).trim()
   }
+  if (output.already_finished) {
+    return (
+      <MessageResponse>
+        <Text>
+          {shown}
+          {shown !== command ? '… already ' : ' already '}
+          {output.already_finished}
+        </Text>
+      </MessageResponse>
+    )
+  }
   const suffix = shown !== command ? '… stopped' : ' stopped'
   const ended = output.processes_ended
   const survivors = output.process_survivors
