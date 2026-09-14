@@ -24,8 +24,22 @@ export interface BackgroundLaunchReceipt {
   launchedAt: number
 }
 
-export function restartStopSummary(description: string): string {
-  return `Agent "${description}" was stopped — the session's runner restarted before it finished, so nothing it started will be delivered; relaunch it if the result is still wanted`
+export type RunnerRestartReason = 'crash' | 'settings' | 'relaunch'
+
+export function coerceRestartReason(value: unknown): RunnerRestartReason | undefined {
+  return value === 'crash' || value === 'settings' || value === 'relaunch' ? value : undefined
+}
+
+export function restartStopSummary(description: string, reason?: RunnerRestartReason): string {
+  const because =
+    reason === 'crash'
+      ? ' after a crash'
+      : reason === 'settings'
+        ? ' after a settings change'
+        : reason === 'relaunch'
+          ? ' after a relaunch'
+          : ''
+  return `Agent "${description}" was stopped — the session's runner restarted${because} before it finished, so nothing it started will be delivered; relaunch it if the result is still wanted`
 }
 
 export type BackgroundHandoverReason = 'turn-interrupted' | 'backgrounded' | 'agent-type' | 'sibling-ended'
@@ -148,6 +162,7 @@ export function reconcileBackgroundLaunchesOnResume(
   getAppState: () => AppState,
   setAppState: (updater: (prev: AppState) => AppState) => void,
   now: number = Date.now(),
+  reason?: RunnerRestartReason,
 ): BackgroundLaunchReceipt[] {
   const live = new Set(Object.keys(getAppState().tasks ?? {}))
   const orphans = orphanedBackgroundLaunches(messages, live)
@@ -166,7 +181,7 @@ export function reconcileBackgroundLaunchesOnResume(
       error: 'stopped by a runner restart',
       setAppState,
       toolUseId: receipt.toolUseId,
-      summary: restartStopSummary(receipt.description),
+      summary: restartStopSummary(receipt.description, reason),
     })
   }
   return orphans

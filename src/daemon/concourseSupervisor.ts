@@ -512,6 +512,7 @@ export function buildConcourseWorkerSpec(args: {
   runnerArgv?: readonly string[]
   warm?: boolean
   kit?: SessionKitV1
+  restartReason?: string
 }): StreamJsonChildSpec {
   const runnerArgv = splitAppendSystemPrompt(args.runnerArgv ?? [])
   const wireArgv = ['--permission-channel', 'stdio', '--include-partial-messages'] as const
@@ -534,6 +535,7 @@ export function buildConcourseWorkerSpec(args: {
       MERCURY_SESSION_HOME: getProjectDir(args.workspaceId),
       MERCURY_SEATS: String(effectiveSeatCeiling()),
       ...(args.kit !== undefined ? { MERCURY_SESSION_KIT: JSON.stringify(args.kit) } : {}),
+      ...(args.restartReason !== undefined ? { MERCURY_RUNNER_RESTART_REASON: args.restartReason } : {}),
     },
     permissionMode: seatInitialPermissionMode(args.permissionMode),
     ...(args.bypassConsent === true ? { allowBypass: true as const } : {}),
@@ -580,6 +582,7 @@ export interface ConcourseAdmitDeps {
     bypassConsent: boolean
     kit: SessionKitV1
     resume?: true
+    restartReason?: string
   }) => Promise<
     { claimed: true; short: string; pid?: number; spec: StreamJsonChildSpec } | { claimed: false; reason: string }
   >
@@ -1661,6 +1664,10 @@ export function concourseTranscriptPath(rec: Pick<ConcourseWorkerRecordV1, 'sess
   return join(getProjectDir(rec.workspaceId), `${rec.sessionId}.jsonl`)
 }
 
+export function runnerRestartReasonOf(rec: Pick<ConcourseWorkerRecordV1, 'crash'>): 'crash' | 'relaunch' {
+  return rec.crash !== undefined ? 'crash' : 'relaunch'
+}
+
 export function reviveConcourseWorker(
   sessionId: string,
   by: string,
@@ -1724,6 +1731,7 @@ export function reviveConcourseWorker(
     ...(reviveKit !== undefined ? { kit: reviveKit } : {}),
     ...(revivePosture !== undefined ? { permissionMode: revivePosture } : {}),
     ...(reviveConsent ? { bypassConsent: true as const } : {}),
+    restartReason: runnerRestartReasonOf(rec),
     resume: true,
     cwd: rec.worktreePath ?? rec.workspaceId,
   })
@@ -1854,6 +1862,7 @@ export async function reactivateConcourseSession(
       permissionMode: claimPosture,
       bypassConsent: args.bypassConsent === true,
       kit,
+      restartReason: runnerRestartReasonOf(rec),
       resume: true,
     })
     if (claimed.claimed) {
