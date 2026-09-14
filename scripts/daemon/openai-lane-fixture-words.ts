@@ -1,0 +1,16 @@
+export const GPT_ID = 'gpt-5.6-sol'
+export const MAIN_MODEL = 'claude-opus-4-8'
+export const DELEGATE_GPT_ASK = 'delegate the gpt errand'
+export const DELEGATE_GPT_SPEND_ASK = 'delegate the gpt spend'
+export const DELEGATE_GPT_SHORT_SPEND_ASK = 'delegate the short gpt spend'
+export const SUBAGENT_ASK = 'say done on gpt'
+export const SUBAGENT_REPLY = 'done: the gpt delegate answered from the fixture'
+export const SPEND_ASK = 'spend the gpt window'
+export const SHORT_SPEND_ASK = 'spend the short gpt window'
+export const DELEGATE_REPORT = 'the delegate reported:'
+export const RESET_LONG_SECONDS = 3600
+export const RESET_SHORT_SECONDS = 25
+export const MODELS_FAIL_FLAG = 'models-fail.flag'
+export const WINDOW_WORDS = 'usage window is reached'
+export const CATALOGUE_WORDS = 'live catalogue'
+export const REFUSAL_HEAD = 'Agent dispatch refused'
