@@ -126,7 +126,13 @@ image and come back to Mercury and it tells you the key. An image is never
 refused for its size: it is shrunk to the provider's published limits
 (`/health` names the image processor on this machine); the one refusal
 left is an image whose smallest encoding still exceeds them, and its words
-say which limit and what size.
+say which limit and what size. Each provider's rule is its own: the Claude
+API caps an image at 10 MB of base64 and 8000 px a side, while the OpenAI
+API caps a request at 512 MB and an image at 30,000 patches of 32 px, so a
+GPT session shrinks a large image to that patch count and never to a byte
+figure. Should a provider still refuse an attached file's image, that image
+leaves every later request of the session, a resumed one included, on the
+OpenAI route as on the Anthropic one.
 
 The status row under the composer carries the project and the CREW's
 clock — the sub-agents and workflow agents the session's runner hosts —
