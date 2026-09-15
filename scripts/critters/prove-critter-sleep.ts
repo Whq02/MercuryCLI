@@ -7,7 +7,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 
-process.env['MERCURY_CONFIG_DIR'] ??= mkdtempSync(join(tmpdir(), 'critter-sleep-'))
+process.env['MERCURY_CONFIG_DIR'] = mkdtempSync(join(tmpdir(), 'critter-sleep-'))
+process.env['MERCURY_HOME'] = join(process.env['MERCURY_CONFIG_DIR'], 'proof-home')
+delete process.env['MERCURY_DAEMON_DIR']
 
 const t = checker()
 const cd = await import('../../src/utils/cockpit/critterData.js')
