@@ -1,16 +1,16 @@
-# Live sources — fetch before citing
+Checked: 2026-09-15
+# Live sources
 
-Volatile facts — model ids, prices, context windows, rate limits, endpoint details — are verified against the provider's live pages at answer time. These are the roots:
+Fetch before naming models, prices, limits or endpoints; date each claim.
 
-- Anthropic: https://docs.claude.com (docs root) and https://docs.claude.com/en/api (API reference).
-- OpenAI: https://platform.openai.com/docs
-- Moonshot/Kimi: https://platform.moonshot.ai/docs
-- DeepSeek: https://api-docs.deepseek.com
-- Z.AI: https://docs.z.ai
-- OpenRouter: https://openrouter.ai/docs
-- Gemini: https://ai.google.dev/gemini-api/docs
-- Hugging Face: https://huggingface.co/docs/inference-providers
+- [Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview)
+- [OpenAI](https://developers.openai.com/api/docs/models)
+- [Kimi](https://platform.kimi.ai/docs/api/chat)
+- [DeepSeek](https://api-docs.deepseek.com/api/create-chat-completion/)
+- [Z.AI](https://docs.z.ai/api-reference/llm/chat-completion)
+- [OpenRouter](https://openrouter.ai/docs/guides/overview/models)
+- [Gemini](https://ai.google.dev/gemini-api/docs/openai)
+- [Hugging Face](https://huggingface.co/docs/inference-providers/en/tasks/chat-completion)
+- [Ollama](https://docs.ollama.com/api/openai-compatibility)
 
-Live /models listings answer "what exists right now" directly: every chat-completions family serves GET <base>/models with its Bearer credential; local servers answer their own discovery endpoints (Ollama GET /api/tags, LM Studio GET /api/v1/models).
-
-A claim sourced from one of these pages carries its date; a claim that cannot be verified is presented as unverified, never as fact.
+Use the configured server's documentation for other local endpoints.

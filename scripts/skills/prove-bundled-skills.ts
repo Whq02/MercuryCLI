@@ -129,7 +129,11 @@ section('§5 HELPERS + DISCOVERY BUDGET')
     check(/\b(use when|when (the user|asked|you))\b/i.test(d + ' ' + String(frontmatter.when_to_use ?? '')), `${n} description carries a trigger`)
     check(!descriptions.has(d), `${n} description is distinct`)
     descriptions.set(d, n)
-    if (dist) check(dist.includes(d.slice(0, 80)), `the BUILD inlined ${n}'s SKILL.md as text (description present in dist)`)
+    if (dist) {
+      const prefix = d.slice(0, 80)
+      const spellings = [prefix, JSON.stringify(prefix).slice(1, -1), prefix.replaceAll("'", "\\'")]
+      check(spellings.some(text => dist.includes(text)), `the BUILD inlined ${n}'s SKILL.md as text (description present in dist)`)
+    }
   }
 }
 
