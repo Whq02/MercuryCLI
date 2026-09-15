@@ -64,6 +64,13 @@ function errorResult(text: string): CallToolResult {
   return { content: [{ type: 'text', text }], isError: true }
 }
 
+const LEASE_LIST_MISSING =
+  'lease_claim needs paths: the repo-relative file paths or globs to lease, as an array (globs is accepted as the same argument).'
+
+function leaseList(paths: string[] | undefined, globs: string[] | undefined): string[] {
+  return Array.from(new Set([...(paths ?? []), ...(globs ?? [])]))
+}
+
 function notInTeamResult(): CallToolResult {
   return structuredJsonResult({ ...notInTeam() })
 }
@@ -146,15 +153,21 @@ export async function createCoordinationServer(): Promise<{
       title: 'Claim file leases',
       description:
         'TEAM-ONLY — no-op when solo. ' +
-        'Claim a coordination lease over one or more repo-relative path ' +
-        'globs so other teammates avoid editing the same files. Returns the ' +
-        'granted lease, or the first conflicting {agentId, glob} if another ' +
-        'agent already holds an overlapping glob. Re-claiming renews your ' +
-        'lease; claiming an empty set releases it.',
+        'Claim a coordination lease over one or more repo-relative file paths ' +
+        '(a path may be a glob, e.g. "src/api/**") so other teammates avoid ' +
+        'editing the same files. Pass them as paths; globs is accepted as the ' +
+        'same argument. Returns the granted lease, or the first conflicting ' +
+        '{agentId, glob} if another agent already holds an overlapping path. ' +
+        'Re-claiming renews your lease; claiming an empty set releases it.',
       inputSchema: {
+        paths: z
+          .array(z.string())
+          .optional()
+          .describe('Repo-relative file paths or globs to lease (e.g. ["src/api/**"]).'),
         globs: z
           .array(z.string())
-          .describe('Repo-relative path globs to lease (e.g. ["src/api/**"]).'),
+          .optional()
+          .describe('The same list under its other name; paths is preferred.'),
       },
       outputSchema: {
         ok: z.boolean(),
@@ -167,11 +180,12 @@ export async function createCoordinationServer(): Promise<{
       },
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
-    async ({ globs }): Promise<CallToolResult> => {
+    async ({ paths, globs }): Promise<CallToolResult> => {
+      if (paths === undefined && globs === undefined) return errorResult(LEASE_LIST_MISSING)
       const ctx = resolveCoordinationContext()
       if (!ctx) return notInTeamResult()
       try {
-        return structuredJsonResult({ ...(await claimLeases(ctx, globs)) })
+        return structuredJsonResult({ ...(await claimLeases(ctx, leaseList(paths, globs))) })
       } catch (e) {
         return errorResult(`lease_claim failed: ${errorMessage(e)}`)
       }
@@ -183,8 +197,12 @@ export async function createCoordinationServer(): Promise<{
     {
       title: 'Release your file leases',
       description:
-        'Release the current holder’s exact project leases when solo, or pass project:true or paths for project leases on a team. With a team and no project arguments, release the existing team glob lease. No other holder can be released.',
-      inputSchema: { paths: z.array(z.string()).optional(), project: z.boolean().optional() },
+        'Release the current holder’s exact project leases when solo, or pass project:true or paths (globs is accepted as the same argument) for project leases on a team. With a team and no project arguments, release the existing team glob lease. No other holder can be released.',
+      inputSchema: {
+        paths: z.array(z.string()).optional().describe('Exact project-relative file paths to release.'),
+        globs: z.array(z.string()).optional().describe('The same list under its other name; paths is preferred.'),
+        project: z.boolean().optional(),
+      },
       outputSchema: {
         ok: z.boolean(),
         agentId: z.string().optional(),
@@ -194,12 +212,13 @@ export async function createCoordinationServer(): Promise<{
       },
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
-    async ({ paths, project }): Promise<CallToolResult> => {
+    async ({ paths, globs, project }): Promise<CallToolResult> => {
       const ctx = resolveCoordinationContext()
+      const list = paths === undefined && globs === undefined ? undefined : leaseList(paths, globs)
       try {
-        if (!ctx || paths !== undefined || project === true) {
+        if (!ctx || list !== undefined || project === true) {
           const holder = projectLeaseHolder()
-          const result = await releaseProjectLeases(getSessionProjectDir() ?? getOriginalCwd(), holder, paths)
+          const result = await releaseProjectLeases(getSessionProjectDir() ?? getOriginalCwd(), holder, list)
           return structuredJsonResult({ ok: true, agentId: holder.agentId, released: result.released.length > 0 })
         }
         return structuredJsonResult({ ...(await releaseLeases(ctx)) })

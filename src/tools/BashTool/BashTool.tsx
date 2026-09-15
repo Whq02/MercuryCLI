@@ -20,6 +20,7 @@ import {
   registerForeground,
   spawnShellTask,
   unregisterForeground,
+  type ShellLaunchFacts,
 } from '../../tasks/LocalShellTask/LocalShellTask.js'
 import { ShellError, isAbortError } from '../../utils/errors.js'
 import { EndTruncatingAccumulator } from '../../utils/stringUtils.js'
@@ -319,6 +320,7 @@ async function* runBash(
   const firstSubcommand = pinnedCommandAnalysis.splitCommand(input.command)[0]?.trim() ?? input.command.trim()
   const shouldAutoBackground = !BACKGROUND_TASKS_DISABLED && !NEVER_AUTO_BACKGROUND.has(firstCommandWord(firstSubcommand))
 
+  const launchedAt = Date.now()
   let progressResolve: (() => void) | null = null
   let latest: { recent: string; all: string; lines: number; bytes: number; incomplete: boolean } = {
     recent: '',
@@ -345,6 +347,14 @@ async function* runBash(
   let timeoutAutoBackgroundedAfterMs: number | undefined
   let foregroundTaskId: string | null = null
   let backgroundId: string | undefined
+  const launchFacts = (): ShellLaunchFacts => ({
+    command: input.command,
+    description: input.description ?? input.command,
+    agentId,
+    cwd: getCwd(),
+    startTime: launchedAt,
+    toolUseId: context.toolUseId,
+  })
 
   const startBackgrounding = async (fromTrigger?: (id: string) => void): Promise<void> => {
     if (foregroundTaskId !== null) {
@@ -354,6 +364,7 @@ async function* runBash(
         input.description ?? input.command,
         context.setAppState,
         context.toolUseId,
+        launchFacts(),
       )
       if (!converted) return
       backgroundId = foregroundTaskId
@@ -367,6 +378,7 @@ async function* runBash(
         shellCommand,
         toolUseId: context.toolUseId,
         agentId: agentId as never,
+        startTime: launchedAt,
       },
       {
         abortController,
@@ -407,6 +419,7 @@ async function* runBash(
         shellCommand,
         toolUseId: context.toolUseId,
         agentId: agentId as never,
+        startTime: launchedAt,
       },
       {
         abortController,
@@ -731,7 +744,10 @@ export const BashTool = buildTool({
     if (!input?.command) return 'Running a shell command'
     return `Running ${input.description ?? truncateForSummary(input.command)}`
   },
-  async validateInput() {
+  async validateInput(input: BashToolInput) {
+    if (input.command.trim() === '') {
+      return { result: false as const, message: EMPTY_COMMAND_REFUSAL, errorCode: 1 }
+    }
     return { result: true as const }
   },
   async checkPermissions(input: BashToolInput, context: ToolUseContext) {
@@ -781,6 +797,7 @@ export const BashTool = buildTool({
 })
 
 const TOOL_USE_SUMMARY_LIMIT = 100
+const EMPTY_COMMAND_REFUSAL = 'Nothing to run: the command is empty. Pass the command to execute.'
 function truncateForSummary(command: string): string {
   return command.length > TOOL_USE_SUMMARY_LIMIT ? command.slice(0, TOOL_USE_SUMMARY_LIMIT) : command
 }
