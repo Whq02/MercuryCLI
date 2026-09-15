@@ -30,6 +30,7 @@ import {
 import { primeEvalAvailability } from './interpreters.js'
 import { buildKernelEnv } from './kernelEnv.js'
 import { transformJsCell } from './jsCellTransform.js'
+import { jsEnvironmentNotes } from './jsKernelWords.js'
 import { ensureJsRunner, ensurePyRunner } from './runnerCache.js'
 import { ProcKernel, type CellEnd } from './procKernel.js'
 import type { BridgeRequestFrame } from './protocol.js'
@@ -563,6 +564,7 @@ export class EvalKernelManager {
     }
     if (status === 'error') {
       annotations.push(...stateAfterFailure(input.language, transformed?.persistedNames ?? [], cellError))
+      annotations.push(...jsEnvironmentNotes(input.language, cellError))
     }
     if (status === 'error' || nested.some(r => !r.ok)) {
       const line = nestedCallsLine(nested)
