@@ -9,13 +9,21 @@
 }
 
 import { execSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const ISOLATED_HOME = mkdtempSync(join(tmpdir(), 'commit-gate-home-'))
 process.env.MERCURY_CONFIG_DIR = ISOLATED_HOME
 process.env.MERCURY_HOME = ISOLATED_HOME
+const { getMercuryHome } = await import('../../src/utils/envUtils.js')
+const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.js')
+const { getCwd } = await import('../../src/utils/cwd.js')
+for (const driveCwd of new Set([getCwd(), process.cwd(), realpathSync(process.cwd())])) {
+  const verifyDir = join(getMercuryHome(), 'verify', sanitizePath(driveCwd))
+  mkdirSync(verifyDir, { recursive: true })
+  writeFileSync(join(verifyDir, 'evidence.json'), JSON.stringify({ schema: 1, records: [] }))
+}
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
