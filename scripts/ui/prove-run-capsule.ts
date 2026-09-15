@@ -54,7 +54,8 @@ async function main(): Promise<void> {
       blocker: { description: 'schema choice', ownedBy: 'operator', resumeCondition: 'pick one', at: 6 },
     })
     check('a blocker OUTRANKS the next action', /BLOCKED: schema choice/.test(model.buildRunCapsuleLine(blocked, 2_000)!))
-    const done = kernel.reduceRunEvent(live, { type: 'completed', at: 7, satisfied: ['all'] })
+    const closed = kernel.reduceRunEvent(live, { type: 'task-transition', at: 7, taskId: 't2', title: 'emitter', state: 'done' })
+    const done = kernel.reduceRunEvent(closed, { type: 'completed', at: 8, satisfied: ['all'] })
     check('a completed run shows NO standing capsule', model.buildRunCapsuleLine(done, 2_000) === null)
   }
 

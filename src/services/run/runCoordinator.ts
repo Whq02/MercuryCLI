@@ -14,6 +14,7 @@ import type { LaneSettlement } from '../../substrate/serialGeneration.js'
 import {
   emptyRunSnapshot,
   isTerminalLifecycle,
+  reconcileCompletion,
   reduceRunEvent,
   type DeliverableState,
   type RunBlocker,
@@ -312,9 +313,9 @@ export async function reconcileOnResume(owner: OwnerKey, cwd: string): Promise<R
     return { state: 'recoverable', reason: load.reason }
   }
   const state = runs.get(owner)
-  state.snapshot = load.snapshot
-  if (isTerminalLifecycle(load.snapshot.lifecycle)) {
-    return { state: 'terminal', snapshot: load.snapshot }
+  state.snapshot = reconcileCompletion(load.snapshot)
+  if (isTerminalLifecycle(state.snapshot.lifecycle)) {
+    return { state: 'terminal', snapshot: state.snapshot }
   }
   const at = Date.now()
   state.snapshot = reduceRunEvent(state.snapshot, {
