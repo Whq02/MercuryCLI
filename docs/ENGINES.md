@@ -85,6 +85,14 @@ their readiness detail until verified against a live endpoint.
 
 ## Typed refusals
 
+On the Anthropic wire, an authentication refusal never enters the backoff
+ladder. Mercury attempts credential recovery once when the active sign-in or
+key helper can refresh it. A changed credential gets one immediate retry;
+a failed refresh, an unchanged credential, or another authentication refusal
+ends the request. The blocker names the account when known and the sign-in
+command, or the environment variable or helper that supplied the rejected
+credential. A retry hint on an authentication refusal does not schedule a wait.
+
 Recognition is the law's fact; dispatch is the runtime's. A routed id can never
 silently fall through to another provider — each runtime owns honest, typed refusals:
 

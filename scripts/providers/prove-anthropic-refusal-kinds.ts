@@ -27,6 +27,8 @@ const section = (t: string): void => {
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
+const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+enableConfigs()
 const refusal = await import('../../src/services/providers/anthropicRefusal.ts')
 const limits = await import('../../src/services/claudeAiLimits.ts')
 const mock = await import('../../src/services/mockRateLimits.ts')

@@ -1478,11 +1478,16 @@ section('§9 the evidence pair end-to-end + the dead-door sweep')
   const src = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
   const retry = src('src/services/api/withRetry.ts')
-  const gateAt = retry.indexOf('previousStatus === 401 || isRevokedTokenError(previousError)')
+  const gateAt = retry.indexOf('if (status === 401 || isRevokedTokenError(error))')
   const refreshAt = retry.indexOf('await handleOAuth401Error(failedAccessToken)', gateAt)
+  const changedAt = retry.indexOf('refreshed && accessToken && accessToken !== failedAccessToken', refreshAt)
+  const terminalAt = retry.indexOf('throw new CannotRetryError(error, retryContext)', changedAt)
+  const waitAt = retry.indexOf('const delayMs = getRetryDelay(', terminalAt)
   check(
-    'the 401/revoked-403 ladder refreshes FIRST and retries — the wall only past a dead refresh',
-    gateAt !== -1 && refreshAt !== -1 && retry.includes('isRevokedSignInText(errorMessage(error))'),
+    '401/revoked-403 recovery checks the sent credential and settles before backoff',
+    gateAt !== -1 && refreshAt > gateAt && changedAt > refreshAt && terminalAt > changedAt && waitAt > terminalAt &&
+      retry.includes('!authenticationRecoveryAttempted') && retry.includes('const failedAccessToken = client.authToken') &&
+      retry.includes('isRevokedSignInText(errorMessage(error))'),
   )
   const errors = src('src/services/api/errors.ts')
   const wallAt = errors.indexOf('const wall = classifyCredentialWall(status, message)')

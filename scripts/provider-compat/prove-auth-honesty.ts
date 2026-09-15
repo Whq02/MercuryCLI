@@ -356,7 +356,7 @@ section('§5 · the ANTHROPIC lane: an OBSERVED-expired claude.ai sign-in fails 
 
   seed({ accessToken: 'at-old', refreshToken: 'rt-alive', expiresAt: Date.now() - 60_000, scopes: ['user:inference'], subscriptionType: 'pro', rateLimitTier: null })
   check('refreshable: NOT observed-expired', isAnthropicOAuthSignInExpired() === false)
-  check('refreshable: the 401 stays retryable (one recovery lap)', isRetryableError(err401) === true)
+  check('refreshable: a 401 never enters the backoff ladder; credential recovery is separate', isRetryableError(err401) === false)
   check('refreshable: no expired flag on the presence owner', anthropicCredentialPresence().expired === undefined)
 
   seed(null)
