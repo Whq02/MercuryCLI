@@ -19,6 +19,14 @@ const COMMAND_SEMANTICS: Record<string, CommandSemantic> = {
     isError: code >= 2,
     message: code === 1 ? 'files differ' : undefined,
   }),
+  cmp: code => ({
+    isError: code >= 2,
+    message: code === 1 ? 'files differ' : undefined,
+  }),
+  pgrep: code => ({
+    isError: code >= 2,
+    message: code === 1 ? 'no process matched' : undefined,
+  }),
   test: code => ({
     isError: code >= 2,
     message: code === 1 ? 'condition is false' : undefined,
@@ -32,7 +40,20 @@ const COMMAND_SEMANTICS: Record<string, CommandSemantic> = {
 function baseCommandFor(command: string): string {
   const subcommands = pinnedCommandAnalysis.splitCommand(command)
   const last = subcommands[subcommands.length - 1] ?? command
-  return last.trim().split(/\s+/)[0] ?? ''
+  return commandWord(last)
+}
+
+const ASSIGNMENT_WORD = /^[A-Za-z_][A-Za-z0-9_]*=/
+
+function commandWord(stage: string): string {
+  const words = stage.trim().split(/\s+/)
+  let i = 0
+  while (i < words.length && ASSIGNMENT_WORD.test(words[i] ?? '')) i++
+  if (words[i] === 'env') {
+    i++
+    while (i < words.length && (ASSIGNMENT_WORD.test(words[i] ?? '') || (words[i] ?? '').startsWith('-'))) i++
+  }
+  return words[i] ?? ''
 }
 
 export function interpretCommandResult(
