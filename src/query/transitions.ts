@@ -9,10 +9,6 @@ export type Terminal =
   | { reason: 'blocking_limit' }
   | { reason: 'rapid_refill_breaker' }
   | { reason: 'max_turns'; turnCount: number }
-  | {
-      reason: 'repetition_breaker'
-      cause: string
-    }
   | { reason: 'aborted_streaming' }
   | { reason: 'aborted_tools' }
   | { reason: 'stop_hook_prevented' }

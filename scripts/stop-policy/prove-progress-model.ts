@@ -10,12 +10,10 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'speedster-progress-home-'))
 
 const {
-  commandHead,
+  actionFingerprint,
   emptyProgressState,
-  fingerprintKey,
   foldEligibleProgress,
   foldStopDecision,
-  makeAttemptFingerprint,
 } = await import('../../src/services/run/progressModel.ts')
 const kernel = await import('../../src/services/run/runKernel.ts')
 const ok = await import('../../src/services/run/ownerKey.ts')
@@ -28,46 +26,11 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
 
-const CWD = '/Users/dev/project'
-
-section('§1 FINGERPRINT LAWS — digest equality, never prose')
+section('§1 THE ACTION DIGEST — case and whitespace never mint novelty')
 {
-  const a = makeAttemptFingerprint({
-    toolName: 'Write',
-    input: { file_path: `${CWD}/src/a.ts`, content: 'body-1', description: 'first try' },
-    cwd: CWD,
-  })
-  const b = makeAttemptFingerprint({
-    toolName: 'Write',
-    input: { description: 'RETRY with new wording!!', content: 'body-1', file_path: `${CWD}/src/a.ts` },
-    cwd: CWD,
-  })
-  check('identical salient input ⇒ identical key (key order + description ignored)', fingerprintKey(a) === fingerprintKey(b))
-  const c = makeAttemptFingerprint({ toolName: 'Write', input: { file_path: `${CWD}/src/a.ts`, content: 'body-2' }, cwd: CWD })
-  check('changed content ⇒ different key', fingerprintKey(a) !== fingerprintKey(c))
-  const d = makeAttemptFingerprint({ toolName: 'Write', input: { file_path: `${CWD}/src/b.ts`, content: 'body-1' }, cwd: CWD })
-  check('changed path ⇒ different key', fingerprintKey(a) !== fingerprintKey(d))
-  check('target normalizes cwd-relative posix', a.normalizedTarget === 'src/a.ts', a.normalizedTarget)
-
-  const winPath = makeAttemptFingerprint({
-    toolName: 'Edit',
-    input: { file_path: 'C:\\proj\\src\\x.ts', old_string: 'p', new_string: 'q' },
-    cwd: 'C:\\proj',
-  })
-  check('win32 separators normalize into the same posix law', winPath.normalizedTarget === 'src/x.ts', winPath.normalizedTarget)
-
-  const s1 = makeAttemptFingerprint({ toolName: 'Bash', input: { command: 'bun   test src/  # again' }, cwd: CWD })
-  const s2 = makeAttemptFingerprint({ toolName: 'Bash', input: { command: 'bun test src/' }, cwd: CWD })
-  check('shell whitespace/comment diffs ⇒ same key', fingerprintKey(s1) === fingerprintKey(s2))
-  const s3 = makeAttemptFingerprint({ toolName: 'Bash', input: { command: 'bun test src/other/' }, cwd: CWD })
-  check('different command ⇒ different key', fingerprintKey(s1) !== fingerprintKey(s3))
-  check('command head normalizes (env prefix + path + quotes)', commandHead('FOO=1 /usr/local/bin/PyTest -q') === 'pytest')
-  const verify = makeAttemptFingerprint({ toolName: 'Bash', input: { command: 'pytest -q' }, cwd: CWD })
-  check("verification heads classify evidence 'verification'", verify.expectedEvidenceClass === 'verification')
-  const read1 = makeAttemptFingerprint({ toolName: 'Read', input: { file_path: `${CWD}/notes.md` }, cwd: CWD })
-  const read2 = makeAttemptFingerprint({ toolName: 'Read', input: { file_path: `${CWD}/notes.md` }, cwd: CWD })
-  check('reads are digest-receipted — a repeat Read carries the SAME key', fingerprintKey(read1) === fingerprintKey(read2))
-  check('purpose is the ONE self-claimed field and never enters the key', fingerprintKey({ ...a, purpose: 'hypothesis X' }) === fingerprintKey(a))
+  check('the same words in another case and spacing digest alike', actionFingerprint('Work the  Open Deliverable') === actionFingerprint('work the open deliverable'))
+  check('different words digest apart', actionFingerprint('work the open deliverable') !== actionFingerprint('run the verification'))
+  check('the digest is the sixteen-hex prefix', /^[0-9a-f]{16}$/.test(actionFingerprint('x')))
 }
 
 section('§2 FOLD LAWS — real-event progress; the since-decision window')

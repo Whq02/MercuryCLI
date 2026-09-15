@@ -52,7 +52,8 @@ const src = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 type Block = { type?: string; text?: string }
 type Item = { role?: string; content?: unknown }
-export type Hit = { n: number; step: number; arm: string; userTexts: number; directive: boolean; at: number }
+export type Hit = { n: number; step: number; arm: string; userTexts: number; directive: boolean; refused: boolean; nudged: boolean; at: number }
+export const REPEAT_NUDGE_WORDS = 'in a row'
 
 function textParts(content: unknown): string[] {
   if (typeof content === 'string') return [content]
@@ -61,6 +62,15 @@ function textParts(content: unknown): string[] {
 }
 function hasToolResult(item: Item): boolean {
   return item.role === 'user' && Array.isArray(item.content) && (item.content as Block[]).some(b => b.type === 'tool_result')
+}
+function lastToolResultIsError(items: Item[]): boolean {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i]!
+    if (!hasToolResult(item)) continue
+    const results = (item.content as Array<Block & { is_error?: boolean }>).filter(b => b.type === 'tool_result')
+    return results[results.length - 1]?.is_error === true
+  }
+  return false
 }
 function userTextItems(items: Item[]): string[] {
   const out: string[] = []
@@ -97,7 +107,7 @@ function answerTool(res: ServerResponse, n: number, model: string, id: string, n
 
 export type RereadFixture = { port: number; hits: Hit[]; close: () => Promise<void> }
 
-export async function startRereadFixture(notesPath: string, rounds = REREAD_ROUNDS): Promise<RereadFixture> {
+export async function startRereadFixture(notesPath: string, rounds = REREAD_ROUNDS, grow = true): Promise<RereadFixture> {
   const hits: Hit[] = []
   let calls = 0
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
@@ -122,13 +132,16 @@ export async function startRereadFixture(notesPath: string, rounds = REREAD_ROUN
       const texts = userTextItems(items)
       const opening = (texts[0] ?? '').trim()
       const step = items.filter(hasToolResult).length
-      const directive = JSON.stringify(body).includes(HIDDEN_DIRECTIVE)
+      const raw = JSON.stringify(body)
+      const directive = raw.includes(HIDDEN_DIRECTIVE)
+      const refused = lastToolResultIsError(items)
+      const nudged = raw.includes(REPEAT_NUDGE_WORDS)
       const arm = tools === 0 || opening !== REREAD_ASK ? 'svc' : step === 0 ? 'write' : step <= rounds ? 'read' : 'end'
-      hits.push({ n, step, arm, userTexts: texts.length, directive, at: Date.now() })
+      hits.push({ n, step, arm, userTexts: texts.length, directive, refused, nudged, at: Date.now() })
       if (arm === 'svc') return answerText(res, n, model, 'svc')
       if (arm === 'write') return answerTool(res, n, model, `toolu_write_${n}`, 'Write', { file_path: notesPath, content: 'line 0\n' })
       if (arm === 'read') {
-        appendFileSync(notesPath, `line ${step}\n`)
+        if (grow) appendFileSync(notesPath, `line ${step}\n`)
         return answerTool(res, n, model, `toolu_read_${n}`, 'Read', { file_path: notesPath })
       }
       return answerText(res, n, model, REREAD_END)

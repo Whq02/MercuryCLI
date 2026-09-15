@@ -120,8 +120,6 @@ for (const poison of ['steering', 'queued —', 'waits for the next turn', 'Tab 
   check(`M4 the glass never says '${poison}'`, !flat.includes(poison))
 }
 
-check('M5 the breaker warning is on the glass (stopped + the tool + the streak)', /Stopped this turn/.test(flat) && /identical Read call/.test(flat), flat.slice(-600))
-
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {
   console.log(`DELIVERY-MID-TOOL: ${failures} check(s) FAILED`)

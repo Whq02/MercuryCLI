@@ -190,7 +190,6 @@ const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { TOOL_CALL_REFUSAL_CORRECTION_HEAD } = await import('../../src/services/providers/toolCallGate.ts')
-const guard = await import('../../src/services/tools/identicalFailureGuard.ts')
 type AnyMsg = Record<string, unknown> & { type?: string }
 
 function makeTool(name: string, behaviour: 'echo' | 'throw'): never {
@@ -497,11 +496,11 @@ for (const { lane, model, dialect } of LANES) {
   }
 
   {
-    const r = await drive(model, { turns: [{ calls: [{ id: 'call_hammer', name: 'FailTool', args: '{"text":"again"}' }] }], repeat: true })
-    const bound = guard.IDENTICAL_FAILURES_TO_STOP + 1
-    check(`P4 a model hammering the identical failing call is stopped after exactly ${bound} model calls`, r.terminal.reason === 'repetition_breaker' && r.wire.length === bound, `terminal=${JSON.stringify(r.terminal)} calls=${r.wire.length} threw=${r.threw ?? 'no'}`)
-    check('P4 the nudge reached the model once as an is_error result', toolResultsYielded(r.yields).filter(t => t.text.includes(guard.IDENTICAL_RETRY_NUDGE) && t.isError).length === 1)
-    check("P4 the operator's screen carries the warning", systemNotices(r.yields).some(t => t.includes('Stopped this turn') && t.includes('FailTool')))
+    const hammer = { calls: [{ id: 'call_hammer', name: 'FailTool', args: '{"text":"again"}' }] }
+    const r = await drive(model, { turns: [hammer, hammer, hammer, hammer, hammer, hammer, hammer, hammer, { text: 'done' }] })
+    check("P4 eight identical failing calls run to the script's own end (never stopped, terminal completed, nine model calls)", r.terminal.reason === 'completed' && r.wire.length === 9, `terminal=${JSON.stringify(r.terminal)} calls=${r.wire.length} threw=${r.threw ?? 'no'}`)
+    check("P4 every one of the eight calls ran and answered with the tool's own error (nothing refused, no nudge)", toolResultsYielded(r.yields).filter(t => t.isError).length === 8 && toolResultsYielded(r.yields).every(t => !t.text.includes('in a row')))
+    check("P4 the operator's screen carries no stop warning", !systemNotices(r.yields).some(t => /stopped/i.test(t) && t.includes('FailTool')))
   }
 }
 

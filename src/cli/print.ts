@@ -2916,11 +2916,6 @@ export async function runHeadless(
         process.stderr,
         `Reached the maximum number of turns (${options.maxTurns ?? 'configured limit'})\n`,
       )
-    } else if (last.subtype === 'error_repetition_breaker') {
-      await flushWrite(
-        process.stderr,
-        `${last.errors?.[0] ?? 'Stopped: the model repeated the identical tool call past the harness correction'}\n`,
-      )
     } else if (last.subtype === 'error_max_budget_usd') {
       await flushWrite(
         process.stderr,
