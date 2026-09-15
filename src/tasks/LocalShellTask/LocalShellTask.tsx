@@ -263,11 +263,22 @@ function artifactPathFor(taskId: string, toolUseId: string | undefined): string 
   return getTaskOutputPath(taskId)
 }
 
+export type ShellLaunchFacts = {
+  command: string
+  description: string
+  agentId?: string
+  cwd?: string
+  startTime: number
+  toolUseId?: string
+  kind?: BashTaskKind
+}
+
 async function settleShellTask(args: {
   taskId: string
   shellCommand: ShellCommand
   setAppState: SetAppState
   cancelWatchdog?: () => void
+  launch?: ShellLaunchFacts
   runCleanupAfterUpdate: boolean
 }): Promise<void> {
   const { taskId, shellCommand, setAppState } = args
@@ -294,13 +305,13 @@ async function settleShellTask(args: {
 
   let wasKilled = false
   let wasNotified = false
-  let startTime = Date.now()
-  let command = ''
-  let description = ''
-  let launchCwd: string | undefined
-  let toolUseId: string | undefined
-  let agentId: string | undefined
-  let kind: BashTaskKind | undefined
+  let startTime = args.launch?.startTime ?? Date.now()
+  let command = args.launch?.command ?? ''
+  let description = args.launch?.description ?? ''
+  let launchCwd: string | undefined = args.launch?.cwd
+  let toolUseId: string | undefined = args.launch?.toolUseId
+  let agentId: string | undefined = args.launch?.agentId
+  let kind: BashTaskKind | undefined = args.launch?.kind
   let cleanupToRun: (() => void) | undefined
   let transitioned = false
 
@@ -383,7 +394,7 @@ async function settleShellTask(args: {
 
 
 export async function spawnShellTask(
-  input: LocalShellSpawnInput & { shellCommand: ShellCommand },
+  input: LocalShellSpawnInput & { shellCommand: ShellCommand; startTime?: number },
   context: TaskContext,
 ): Promise<TaskHandle> {
   const { shellCommand } = input
@@ -396,6 +407,7 @@ export async function spawnShellTask(
 
   const state: LocalShellTaskState = {
     ...createTaskStateBase(taskId, 'local_bash', input.description, input.toolUseId),
+    ...(input.startTime !== undefined ? { startTime: input.startTime } : {}),
     type: 'local_bash',
     status: 'running',
     command: input.command,
@@ -409,6 +421,15 @@ export async function spawnShellTask(
     verifyCwd: getCwd(),
   }
   registerTask(state, setAppState)
+  const launch: ShellLaunchFacts = {
+    command: input.command,
+    description: input.description,
+    agentId: input.agentId,
+    cwd: state.verifyCwd,
+    startTime: state.startTime,
+    toolUseId: input.toolUseId,
+    kind: input.kind,
+  }
 
   const accepted = shellCommand.background(taskId)
   if (!accepted) {
@@ -419,8 +440,8 @@ export async function spawnShellTask(
       logError(error)
       result = { stdout: '', stderr: '', code: 1, interrupted: false }
     }
-    let startTime = Date.now()
-    let launchCwd: string | undefined
+    let startTime = launch.startTime
+    let launchCwd: string | undefined = launch.cwd
     updateTaskState<LocalShellTaskState>(taskId, setAppState, task => {
       startTime = task.startTime
       launchCwd = task.verifyCwd
@@ -479,6 +500,7 @@ export async function spawnShellTask(
     setAppState,
     cancelWatchdog,
     runCleanupAfterUpdate: false,
+    launch,
   })
 
   return { taskId, cleanup: unregister, accepted: true }
@@ -583,6 +605,7 @@ export function backgroundExistingForegroundTask(
   description: string,
   setAppState: SetAppState,
   toolUseId?: string,
+  launch?: ShellLaunchFacts,
 ): boolean {
   if (!shellCommand.background(taskId)) return false
 
@@ -602,6 +625,7 @@ export function backgroundExistingForegroundTask(
     setAppState,
     cancelWatchdog,
     runCleanupAfterUpdate: true,
+    launch,
   })
   return true
 }

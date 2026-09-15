@@ -198,6 +198,19 @@ function workspaceTypescript(cwd: string): TsCompiler | null {
 export interface PreparedWorkshopCell {
   code: string
   hasTopLevelAwait: boolean
+  parseError?: WorkshopParseError
+}
+
+export interface WorkshopParseError {
+  message: string
+  line: number
+  column: number
+}
+
+function parseDiagnosis(error: unknown): WorkshopParseError | undefined {
+  const e = error as { message?: unknown; loc?: { line?: unknown; column?: unknown } } | null
+  if (typeof e?.message !== 'string' || typeof e.loc?.line !== 'number' || typeof e.loc.column !== 'number') return undefined
+  return { message: e.message.replace(/ \(\d+:\d+\)$/, ''), line: e.loc.line, column: e.loc.column }
 }
 
 const FUNCTION_NODE_TYPES = new Set(['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression'])
@@ -242,8 +255,9 @@ export function prepareWorkshopCell(code: string): PreparedWorkshopCell {
       allowHashBang: true,
     }) as unknown as { body: StatementNode[] }
     statements = program.body
-  } catch {
-    return { code, hasTopLevelAwait: false }
+  } catch (error) {
+    const parseError = parseDiagnosis(error)
+    return { code, hasTopLevelAwait: false, ...(parseError ? { parseError } : {}) }
   }
   if (!containsTopLevelAwait(statements)) return { code, hasTopLevelAwait: false }
 
@@ -517,6 +531,7 @@ export async function runWorkshopCell(
         cellId,
         code: prepared.code,
         hasTopLevelAwait: prepared.hasTopLevelAwait,
+        ...(prepared.parseError ? { parseError: prepared.parseError } : {}),
       })
     })
 

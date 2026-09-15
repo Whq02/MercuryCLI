@@ -2,8 +2,10 @@ import { getCwd } from '../../utils/cwd.js'
 import { primeEvalAvailability } from '../../services/eval/interpreters.js'
 import {
   EVAL_DEFAULT_TIMEOUT_SECONDS,
+  EVAL_IDLE_TTL_MS,
   EVAL_MAX_TIMEOUT_SECONDS,
 } from '../../services/eval/contracts.js'
+import { JS_KERNEL_CRYPTO_WORDS, JS_KERNEL_MODULE_WORDS } from '../../services/eval/jsKernelWords.js'
 import { EVAL_TOOL_NAME } from './constants.js'
 
 export { EVAL_TOOL_NAME }
@@ -31,12 +33,13 @@ ${languageLines}
 - One cell per call; cells in one session never overlap.
 - State is keyed per (agent, language, working directory): your own cells share a runtime, another agent's do not.
 - \`reset: true\` wipes the named language only — the other language keeps its state.
+- A kernel idle for ${EVAL_IDLE_TTL_MS / 60_000} minutes is reaped: the next cell in that language starts a fresh runtime and its result says so — re-run your setup cell first.
 - If a kernel dies mid-cell it is replaced and your cell retried once; the result says so.
 
 ## In-cell helpers (both languages)
 - \`tool.<Name>(...)\` / \`tool('<Name>', {...})\` — call any session tool from code (Python: keyword args; JS: one input object). Re-entered calls obey the session's permission mode exactly like your direct tool calls: what would auto-allow auto-allows, what would ask asks the operator (the cell waits; its budget is paused meanwhile). A failed call RAISES into the cell — handle it or let the cell fail; do not retry a denial.
 - \`tool.attempt.<Name>(...)\` (JS) / \`tool.attempt('<Name>', ...)\` (both) — the same call with its error as a VALUE: \`{ok: true, value}\` or \`{ok: false, error}\`, so a batch of calls finishes and you read each outcome. Every cell result that failed, or that made a failed call, carries a \`[note] nested calls\` line listing each re-entered call in order with ok/failed — what landed before the failure is never in doubt.
-- A cell that throws keeps what it bound before the throw (JS: every top-level declaration is committed as it lands; Python: the namespace keeps assignments), and the result's \`[note]\` names the bindings that survived and the ones that never landed.
+- A cell that throws keeps what it bound before the throw (JS: every top-level declaration is committed as it lands, and a declaration whose initializer threw — \`var\` included — never lands; Python: the namespace keeps assignments), and the result's \`[note]\` names the bindings that survived and the ones that never landed.
 - \`agent(prompt, ...)\` — run one subagent from code (options: agentType, label, schema, strict, worktree). Returns its final text, or parsed+validated data when you pass a JSON schema. In-cell agents are one-shot and never share your kernel.
 - \`parallel(thunks, width?)\` — bounded fan-out over no-argument functions; results keep input order; the lowest-index failure propagates. Width defaults to the session's live delegation ceiling.
 - \`pipeline(items, ...stages)\` — staged waves with a barrier between stages.
@@ -52,7 +55,7 @@ ${languageLines}
 
 ## Dialect notes
 - Python: the last expression's value is the cell result (like a notebook).
-- JS: top-level await works; \`import\` statements and top-level \`const/let/class\` declarations persist across cells via a source transform. Keep top-level declarations simple (one per statement reads best); regex literals containing quotes or braces can confuse the transform — prefer \`new RegExp(...)\` at top level. \`import.meta\` is unavailable in cells.
+- JS: ${JS_KERNEL_MODULE_WORDS}. ${JS_KERNEL_CRYPTO_WORDS}. Node's own globals are there (\`process\`, \`Buffer\`, \`fetch\`, \`URL\`, the timers); \`import.meta\` is unavailable in cells. Top-level await works; \`import\` statements and top-level \`const/let/var/class/function\` declarations persist across cells via a source transform. Keep top-level declarations simple (one per statement reads best); regex literals containing quotes or braces can confuse the transform — prefer \`new RegExp(...)\` at top level.
 - Prefer cells over ${'`Bash`'} for anything stateful, iterative, or data-shaped; prefer ${'`Bash`'} for plain shell commands.
 
 ${available.length === 0 ? 'NO language is currently available — this tool will refuse every call and should not be used.' : ''}
