@@ -63,7 +63,7 @@ try {
   const s1 = await run('owner-S', 'js', 'var root, hb, logs\nroot = 1\nconst made = 2\nthrow new Error("boom")\nconst never = 3\n')
   check('S1 the JS cell failed', s1.status === 'error' && s1.error?.value === 'boom', JSON.stringify(s1.error))
   const survivedNote = s1.annotations.find(a => a.startsWith('bindings that survived'))
-  check('S2 the result names the survivors', survivedNote !== undefined && survivedNote.includes('root') && survivedNote.includes('made') && survivedNote.includes('logs'), JSON.stringify(s1.annotations))
+  check('S2 the result names the survivors, and the var never assigned before the throw as never bound', survivedNote === 'bindings that survived this failed cell: root, made; never bound (declared after the throw or uninitialised): hb, logs, never', JSON.stringify(s1.annotations))
   check('S3 …and the name declared after the throw as never bound', survivedNote !== undefined && /never bound.*never/.test(survivedNote), survivedNote ?? '')
   const s2 = await run('owner-S', 'js', 'JSON.stringify([root, made, typeof logs, typeof never])')
   check('S4 the next cell reads the survivors', s2.status === 'ok' && s2.resultRepr === "'[1,2,\"undefined\",\"undefined\"]'", s2.resultRepr ?? JSON.stringify(s2.error))

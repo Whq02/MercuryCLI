@@ -50,6 +50,10 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
   applied through the edit road.
 - [WORKSHOP.md](WORKSHOP.md): persistent code cells, JS/TS/Python state
   across calls, honest state-loss reporting, and the mercury.* bridge.
+- [EVAL.md](EVAL.md): the Eval tool — one code cell per call in a retained
+  Python or JavaScript runtime, what persists across cells and after a
+  failed cell, the JavaScript kernel's ES-module environment, and the
+  helpers inside a cell.
 - [SAMPLES.md](SAMPLES.md): samples — a page the model draws when you ask
   to see something, kept and versioned under the session, opened in your
   browser from its row or `/samples`, the marks you leave on it coming back
