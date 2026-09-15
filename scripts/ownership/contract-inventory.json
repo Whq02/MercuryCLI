@@ -691,6 +691,7 @@
     "type:QueryEngineConfig"
    ],
    "src/run-core/turn-machine.ts": [
+    "decideEmptyReplyRecovery",
     "decideStreamFaultRecovery",
     "decideToolCallRefusalRecovery",
     "runEventCore",
