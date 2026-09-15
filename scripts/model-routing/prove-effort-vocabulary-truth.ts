@@ -36,7 +36,7 @@ const PROVIDER_DEFAULT_LABEL = 'default'
 const moonshotWire = (request: string | undefined): string | undefined =>
   (wire.buildMoonshotExtras({ wireModel: 'kimi-k3', effortValue: request, thinkingEnabled: true, maxOutputTokensOverride: undefined }) as { reasoning_effort?: string }).reasoning_effort
 const deepseekWire = (request: string | undefined): string | undefined =>
-  ((wire.buildDeepseekExtras({ wireModel: 'deepseek-v4-flash', effortValue: request, thinkingEnabled: true, maxOutputTokensOverride: undefined }) as { thinking?: { reasoning_effort?: string } }).thinking ?? {}).reasoning_effort
+  (wire.buildDeepseekExtras({ wireModel: 'deepseek-v4-flash', effortValue: request, thinkingEnabled: true, maxOutputTokensOverride: undefined }) as { reasoning_effort?: string }).reasoning_effort
 const glmWire = (model: string, request: string | undefined): string | undefined => {
   const vocabulary = glmEffortsFor(model)
   return request && vocabulary ? (glmAcceptsEffort(model, request) ? request : nearestSupportedWireEffort(request, [...vocabulary])) : undefined
@@ -69,7 +69,7 @@ section('§2 DeepSeek: the same law on the second lane')
 {
   for (const level of LEVELS) {
     const truth = effort.resolveEffortTruth('deepseek-v4-flash', level)
-    check(`${level}: truth.wire ≡ the builder's thinking.reasoning_effort`, truth.wire === deepseekWire(level), `${String(truth.wire)} vs ${String(deepseekWire(level))}`)
+    check(`${level}: truth.wire ≡ the builder's top-level reasoning_effort`, truth.wire === deepseekWire(level), `${String(truth.wire)} vs ${String(deepseekWire(level))}`)
     check(`${level}: the label IS the wire tier`, truth.label === truth.wire)
   }
   const medium = effort.resolveEffortTruth('deepseek-v4-pro', 'medium')

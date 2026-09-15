@@ -18,7 +18,7 @@ Checked: 2026-09-15
 | Hugging Face | https://router.huggingface.co/v1 | Access token; no generic effort dial |
 | Compat/local | Configured/discovered | Server-specific capabilities; omit Ollama `tool_choice` |
 
-- Do not copy Mercury's DeepSeek effort placement: `compatWire.ts` nests `reasoning_effort` inside `thinking`; the current API requires a top-level sibling.
+- DeepSeek takes `reasoning_effort` (`low`/`high`/`max`) as a top-level field beside the `thinking` object, which carries `type` alone; Mercury sends it there, and omits the effort entirely when thinking is off.
 - Request `stream_options.include_usage` where supported. Mercury sends it on the shared client, not Z.AI; OpenRouter and DeepSeek supply final usage regardless.
 - Read standard `prompt_tokens_details.cached_tokens`, Kimi `cached_tokens`, or DeepSeek `prompt_cache_hit_tokens`/`prompt_cache_miss_tokens` under `usage`; spellings can coexist.
 - Preserve reasoning history only for the selected model's supported replay contract; do not generalise one family's rule.
