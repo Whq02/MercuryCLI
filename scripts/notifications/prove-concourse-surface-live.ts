@@ -18,15 +18,10 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
 
-import {
-  buildConcourseSnapshot,
-  readConcourseDraft,
-  subscribeConcourseDraft,
-  writeConcourseDraft,
-} from '../../src/services/concourse/concourseSnapshot.ts'
-import { boardRowsOf } from '../../src/components/concourse/contracts.ts'
-import { projectIdentity } from '../../src/utils/bootCardFacts.ts'
-import { upsertObligation } from '../../src/services/crew/obligations.ts'
+const { buildConcourseSnapshot, readConcourseDraft, subscribeConcourseDraft, writeConcourseDraft } = await import('../../src/services/concourse/concourseSnapshot.ts')
+const { boardRowsOf } = await import('../../src/components/concourse/contracts.ts')
+const { projectIdentity } = await import('../../src/utils/bootCardFacts.ts')
+const { upsertObligation } = await import('../../src/services/crew/obligations.ts')
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
 
 let failures = 0
