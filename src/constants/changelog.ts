@@ -1,6 +1,26 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.13
+- Removed the run governor that ended a turn for repeating a tool call with nothing written in between, and the repetition breaker that ended a turn on repeated identical results: a session is never stopped for repeating itself, and an empty provider reply is announced and the request sent again once
+- Fixed the live token counter reading near zero while a tool call's input streams: it counts the streamed input, and the wide layout's count keeps pace with the stream
+- Fixed an edit refused for lines the model had not read costing a read and a retry: the refusal carries those lines, numbered with their anchor, and a read past the window cap answers its first window with the offset to continue
+- Added a prune of superseded file results when the context reaches forty percent of the model's window, a setting, so a long session no longer carries dead results until it overflows
+- Fixed the lease verbs disagreeing on their argument's name: claim and release both take paths, read the older word as the same list, and a claim with neither is refused naming both
+- Fixed an empty shell command accepted as a background task: it is refused before it spawns
+- Fixed a background agent's background command recorded from defaults, missing from the tasks board and never reported back to the agent: the record carries its launch facts, the board lists it, and the agent is told when it finishes
+- Fixed a lookup's empty answer from grep, pgrep, cmp, diff or test reported as a failure: it is a result naming the exit code, and a real failure keeps its error
+- Fixed the JavaScript kernel's environment going unstated: the Eval tool says it is an ES module without require, where Node's crypto lives and how long an idle kernel is kept; a failed cell names the fact and the import; a declaration whose initializer threw is no longer reported as surviving, and a declaration after a block's closing brace persists
+- Fixed a script run from inside a Mercury session refusing the session's own environment stamp as foreign
+- Fixed a failed Workshop cell reporting the runtime's plumbing instead of its error: a syntax error carries the parser's diagnosis with line and column, a failed bridge call names the call and the cell line, and the transcript's error wrapper no longer rides inside the cell's message
+- Updated the eleven bundled skills, rewritten from current documentation at about half their length
+- Fixed the DeepSeek route sending the reasoning effort inside the thinking object where the API takes it at the top level
+- Fixed the summary line under a turn counting repeated reads of one file as files read: it counts reads
+- Fixed the Boot face's MCPs & Skills page calling the session empty while the bundled skills and the built-in server load: its empty states name what they list
+- Fixed --model and --effort on the command line losing to a resumed session's saved values, and /model forgetting its choice at the next boot: an explicit flag wins, the resume card names which won, and /model saves the choice as the default
+- Fixed a rejected credential retried ten times with growing waits: it is refreshed once, then the request settles as a sign-in blocker naming the account and the remedy
+- Fixed a run recording completed with deliverables still open: no run reports complete while requested deliverables stay open, and an older record that does reopens on resume
+
 ## 1.0.0-beta.12
 - Fixed the Git tool refusing a session opened in a folder above its repository: it takes a folder, finds the repository above or directly below it, and names the folder when it refuses
 - Fixed stopping a background shell run that had already finished: the answer names when it completed, its exit code and its output file, and is not an error
