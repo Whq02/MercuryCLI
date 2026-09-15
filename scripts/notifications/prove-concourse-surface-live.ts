@@ -237,6 +237,7 @@ console.log('§6 board interleave')
 console.log('§7 surface: preflight preview, typed collision scope, plain-folder fact')
 {
   const { recordCollisionEvidence, canonicalWorkspaceId } = await import('../../src/daemon/concourseSupervisor.ts')
+  saveGlobalConfig(c => ({ ...c, switchboardCapacity: { ...c.switchboardCapacity, operatorSeats: 5 } }))
   await writeConcourseDraft('ship the parser fix', draftDir)
   seedWorkers([])
   const okSnap = await build({ recordsDir, crewDir, draftDir, nowMs: NOW })
