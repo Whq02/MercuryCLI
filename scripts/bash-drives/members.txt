@@ -5,3 +5,4 @@
 # lists. A name listed here but missing on disk is a loud red in this runner.
 prove-shell-engine-drive.ts
 prove-session-shell-guard-drive.ts
+prove-sub-agent-shell-board-drive.ts

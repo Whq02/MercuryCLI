@@ -314,6 +314,7 @@ async function* runBash(
   const abortController = context.abortController
   const isMainThread = agentId === undefined
   const setToolJSX = context.setToolJSX
+  const setTaskState = context.setAppStateForTasks ?? context.setAppState
 
   const requestedTimeout = input.timeout
   const effectiveTimeout = Math.min(requestedTimeout || getDefaultTimeoutMs(), getMaxTimeoutMs())
@@ -363,7 +364,7 @@ async function* runBash(
         foregroundTaskId,
         shellCommand,
         input.description ?? input.command,
-        context.setAppState,
+        setTaskState,
         context.toolUseId,
         launchFacts(),
       )
@@ -386,7 +387,7 @@ async function* runBash(
         getAppState: () => {
           throw new Error('spawn must not read app state')
         },
-        setAppState: context.setAppState,
+        setAppState: setTaskState,
       },
     )
     if (handle.accepted === false) return
@@ -427,7 +428,7 @@ async function* runBash(
         getAppState: () => {
           throw new Error('spawn must not read app state')
         },
-        setAppState: context.setAppState,
+        setAppState: setTaskState,
       },
     )
     if (handle.accepted === false) {
@@ -476,14 +477,14 @@ async function* runBash(
 
       const settled = outcome === 'done' ? await shellCommand.result : null
       if (settled && settled.backgroundTaskId !== undefined) {
-        markTaskNotified(settled.backgroundTaskId, context.setAppState)
+        markTaskNotified(settled.backgroundTaskId, setTaskState)
         const reconstructed = reconstructLargeOutput(settled, shellCommand)
         shellCommand.cleanup()
         return await postProcess({ ...reconstructed, backgroundTaskId: undefined })
       }
 
       if (settled) {
-        if (foregroundTaskId !== null) unregisterForeground(foregroundTaskId, context.setAppState)
+        if (foregroundTaskId !== null) unregisterForeground(foregroundTaskId, setTaskState)
         shellCommand.cleanup()
         return await postProcess(settled)
       }
@@ -526,7 +527,7 @@ async function* runBash(
         if (foregroundTaskId === null) {
           foregroundTaskId = registerForeground(
             { command: input.command, description: input.description ?? input.command, shellCommand, toolUseId: context.toolUseId },
-            context.setAppState,
+            setTaskState,
             context.toolUseId,
           )
         }
