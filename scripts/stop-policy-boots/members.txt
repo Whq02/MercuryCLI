@@ -4,3 +4,4 @@
 # editing this list; a name listed here but missing on disk is a loud red.
 prove-no-stagnation-governor.ts
 prove-empty-reply-note.ts
+prove-no-repetition-breaker.ts

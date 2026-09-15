@@ -669,18 +669,6 @@ export class QueryEngine {
                 ...buildResultEnvelope(),
               })
               return
-            } else if (attachmentType === 'repetition_breaker') {
-              if (eagerFlush) await flushSessionStorage()
-              yield asSdk({
-                type: 'result',
-                subtype: 'error_repetition_breaker',
-                is_error: true,
-                num_turns: this.#turnCounter,
-                stop_reason: capturedStopReason,
-                errors: [(attachment as { cause?: string }).cause ?? 'repetition breaker'],
-                ...buildResultEnvelope(),
-              })
-              return
             } else if (attachmentType === 'queued_command' && config.replayUserMessages) {
               yield asSdk({
                 type: 'user',

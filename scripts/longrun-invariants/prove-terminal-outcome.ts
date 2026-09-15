@@ -12,7 +12,6 @@ const {
   finalizeAgentTool,
   runAsyncAgentLifecycle,
   PROMOTED_NARRATION_NOTE,
-  REPETITION_STOP_WORDS,
 } = await import('../../src/tools/AgentTool/agentToolUtils.js')
 const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.js')
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.js')
@@ -106,21 +105,9 @@ section('§A ONE derivation: decline fails, promotion is labeled, report survive
     r.totalTokens === 150, String(r.totalTokens))
 }
 {
-  const cause = 'the model ran the identical Bash call 3 times with the identical failure; the turn stopped'
-  const breaker = (): unknown => createAttachmentMessage({ type: 'repetition_breaker', toolName: 'Bash', outcome: 'failure', streak: 3, cause })
-  const stopped = [userMsg('go'), realReport('partial words before the loop'), breaker()]
-  const o = deriveAgentTerminalOutcome(stopped as never)
-  check('a repetition-breaker tail derives failed/repetition-stop carrying the breaker\'s cause',
-    o.status === 'failed' && o.reason === 'repetition-stop' && o.error === cause,
-    JSON.stringify(o))
-  const recovered = [userMsg('go'), breaker(), realReport('the report after a later turn')]
-  check('a breaker answered by a later assistant row is not a stop (the last turn decides)',
-    deriveAgentTerminalOutcome(recovered as never).status === 'completed')
-  check('the crew row\'s stop words are the one export the settle writes',
-    REPETITION_STOP_WORDS === 'stopped by the repetition breaker')
   const src = readFileSync(join(ROOT, 'src/tools/AgentTool/foregroundExecution.tsx'), 'utf8')
-  check('the foreground settle hands a derived failure\'s reason to the record (the row\'s tail says why)',
-    src.includes('stopReason: REPETITION_STOP_WORDS') && src.includes('settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker), why)'))
+  check("the foreground settle hands a derived failure's error to the record (the row's tail says why)",
+    src.includes('? { error: outcome.error }') && src.includes('settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker), why)'))
 }
 {
   const immediate = [userMsg('go'), declineTail('API Error: 400 context')]

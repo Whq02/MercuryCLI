@@ -422,13 +422,6 @@ export type Attachment =
       turnCount: number
     }
   | {
-      type: 'repetition_breaker'
-      toolName: string
-      outcome: 'failure' | 'success'
-      streak: number
-      cause: string
-    }
-  | {
       type: 'current_session_memory'
       content: string
       path: string

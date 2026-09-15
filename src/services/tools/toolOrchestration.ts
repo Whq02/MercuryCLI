@@ -7,19 +7,6 @@ import { all } from '../../utils/generators.js'
 import { logError } from '../../utils/log.js'
 import type { MessageUpdateLazy } from './toolExecution.js'
 import { runToolUse } from './toolExecution.js'
-import { getCwd } from '../../utils/cwd.js'
-import {
-  consultRepetitionGuard,
-  consultRoundRepetitionGuard,
-  identicalRetryRefusalMessage,
-  identityKeyFor,
-  recordRoundOutcome,
-  recordToolOutcome,
-  repetitionRoundNudgeFor,
-  roundIdentityOf,
-  toolResultOf,
-  type RoundSettlement,
-} from './identicalFailureGuard.js'
 
 
 export type MessageUpdate = {
@@ -86,27 +73,6 @@ export async function* runTools(
 ): AsyncGenerator<MessageUpdate> {
   let context = toolUseContext
 
-  const roundCalls = toolUseBlocks.map(block => ({
-    toolName: block.name,
-    key: identityKeyFor(block.name, block.input, getCwd()),
-  }))
-  const roundKey = roundIdentityOf(roundCalls)
-  if (roundKey !== null) {
-    const armed = consultRoundRepetitionGuard(toolUseContext.abortController, roundKey)
-    if (armed !== null) {
-      const nudge = repetitionRoundNudgeFor(armed, toolUseBlocks.length)
-      for (const block of toolUseBlocks) {
-        const parent = parentMessageFor(block, assistantMessages)
-        yield {
-          message: identicalRetryRefusalMessage(block.id, parent.uuid as string, armed, nudge),
-          newContext: context,
-        }
-      }
-      return
-    }
-  }
-  const roundSettlements = new Map<string, NonNullable<RoundSettlement>>()
-
   const batches: Array<{ concurrent: boolean; blocks: ToolUseBlock[] }> = []
   for (const block of toolUseBlocks) {
     const safe = isConcurrencySafeBlock(block, context)
@@ -123,17 +89,6 @@ export async function* runTools(
       const queuedModifiers = new Map<string, Array<(c: ToolUseContext) => ToolUseContext>>()
       const currentContext = context
       const generators = batch.blocks.map(block => {
-        const guardKey = identityKeyFor(block.name, block.input, getCwd())
-        const armed = consultRepetitionGuard(currentContext.abortController, guardKey)
-        if (armed !== null) {
-          const parent = parentMessageFor(block, assistantMessages)
-          return (async function* refused(): AsyncGenerator<MessageUpdate> {
-            yield {
-              message: identicalRetryRefusalMessage(block.id, parent.uuid as string, armed),
-              newContext: currentContext,
-            }
-          })()
-        }
         addInProgress(currentContext, block.id)
         const parent = parentMessageFor(block, assistantMessages)
         return (async function* one(): AsyncGenerator<MessageUpdate> {
@@ -143,11 +98,6 @@ export async function* runTools(
                 const queue = queuedModifiers.get(update.contextModifier.toolUseID) ?? []
                 queue.push(update.contextModifier.modifier)
                 queuedModifiers.set(update.contextModifier.toolUseID, queue)
-              }
-              const settled = toolResultOf(update.message, block.id)
-              if (settled) {
-                recordToolOutcome(currentContext.abortController, guardKey, settled[0], settled[1])
-                roundSettlements.set(block.id, { key: guardKey, resultText: settled[0], isError: settled[1] })
               }
               yield { message: update.message, newContext: currentContext }
             }
@@ -169,16 +119,6 @@ export async function* runTools(
       yield { newContext: context }
     } else {
       for (const block of batch.blocks) {
-        const guardKey = identityKeyFor(block.name, block.input, getCwd())
-        const armed = consultRepetitionGuard(context.abortController, guardKey)
-        if (armed !== null) {
-          const parent = parentMessageFor(block, assistantMessages)
-          yield {
-            message: identicalRetryRefusalMessage(block.id, parent.uuid as string, armed),
-            newContext: context,
-          }
-          continue
-        }
         addInProgress(context, block.id)
         const parent = parentMessageFor(block, assistantMessages)
         try {
@@ -190,11 +130,6 @@ export async function* runTools(
                 logError(error)
               }
             }
-            const settled = toolResultOf(update.message, block.id)
-            if (settled) {
-              recordToolOutcome(context.abortController, guardKey, settled[0], settled[1])
-              roundSettlements.set(block.id, { key: guardKey, resultText: settled[0], isError: settled[1] })
-            }
             yield { message: update.message, newContext: context }
           }
         } finally {
@@ -202,14 +137,5 @@ export async function* runTools(
         }
       }
     }
-  }
-
-  if (roundKey !== null) {
-    recordRoundOutcome(
-      toolUseContext.abortController,
-      roundKey,
-      roundCalls,
-      toolUseBlocks.map(block => roundSettlements.get(block.id) ?? null),
-    )
   }
 }

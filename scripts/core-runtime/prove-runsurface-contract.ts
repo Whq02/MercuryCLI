@@ -1695,7 +1695,7 @@ section('E15 OPERATOR NOTICES — warning/error system notices reach the transcr
   const { flushSessionStorage } = await import('../../src/utils/sessionStorage/writer.ts')
   const { readdirSync, statSync } = await import('node:fs')
   const noticeText =
-    'E15-MARKER Stopped this turn: the model ran the identical batch past the harness correction.'
+    'E15-MARKER a warning the operator must see after this turn.'
   const infoText = 'E15-MARKER background chatter that stays chrome'
   await runEngine({
     steps: [
@@ -1720,7 +1720,7 @@ section('E15 OPERATOR NOTICES — warning/error system notices reach the transcr
   const all = jsonlContents.join('\n')
   const noticeLine = all
     .split('\n')
-    .find(line => line.includes('E15-MARKER Stopped this turn'))
+    .find(line => line.includes('E15-MARKER a warning the operator must see'))
   check(
     'a warning-level system notice is RECORDED to the transcript file',
     noticeLine !== undefined,
