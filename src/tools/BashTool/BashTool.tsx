@@ -143,6 +143,7 @@ export type Out = {
   timeoutAutoBackgroundedAfterMs?: number
   dangerouslyDisableSandbox?: boolean
   returnCodeInterpretation?: string
+  exitNote?: string
   noOutputExpected?: boolean
   persistedOutputPath?: string
   persistedOutputSize?: number
@@ -570,6 +571,10 @@ async function* runBash(
     if (boxLine !== null) accumulator.append(boxLine + '\n')
     const interpretation = interpretCommandResult(input.command, result.code, result.stdout, '')
     const returnCodeInterpretation = interpretation.message
+    const exitNote =
+      !interpretation.isError && result.code !== 0 && interpretation.message !== undefined
+        ? `${interpretation.message} (exit code ${result.code})`
+        : undefined
     const noOutputExpected = isSilentCommand(input.command)
     const interruptedByUser = result.interrupted && abortController.signal.reason === 'interrupt'
     if (interpretation.isError && !interruptedByUser && result.code !== 0) {
@@ -635,6 +640,7 @@ async function* runBash(
       interrupted: result.interrupted,
       isImage,
       returnCodeInterpretation,
+      ...(exitNote !== undefined ? { exitNote } : {}),
       noOutputExpected,
       dangerouslyDisableSandbox: input.dangerouslyDisableSandbox,
       ...(persistedOutputPath ? { persistedOutputPath, persistedOutputSize } : {}),
@@ -679,7 +685,7 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
   }
   const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output) : ''
   const scrubNotice = scrubbedSessionEnvNotice(output.scrubbedSessionEnv)
-  const content = [stdout, errorText, backgroundNotice, scrubNotice].filter(part => part !== '').join('\n')
+  const content = [stdout, errorText, output.exitNote ?? '', backgroundNotice, scrubNotice].filter(part => part !== '').join('\n')
   return { tool_use_id: toolUseID, type: 'tool_result', content, is_error: output.interrupted }
 }
 

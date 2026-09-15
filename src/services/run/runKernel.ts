@@ -3,11 +3,8 @@ import type { ToolEffectOutcome } from '../../Tool.js'
 import type { OwnerKey } from './ownerKey.js'
 import {
   emptyProgressState,
-  foldAttempt,
   foldEligibleProgress,
   foldStopDecision,
-  foldTerminalProgress,
-  type AttemptFingerprint,
   type RunProgressState,
 } from './progressModel.js'
 
@@ -71,12 +68,6 @@ export type RunEvent =
       state: DeliverableState
     }
   | { type: 'tool-started'; at: number; toolName: string; toolUseId: string | undefined }
-  | {
-      type: 'attempt'
-      at: number
-      toolUseId: string | undefined
-      fingerprint: AttemptFingerprint
-    }
   | {
       type: 'tool-effected'
       at: number
@@ -236,7 +227,6 @@ function isMutatingEffect(e: { outcome: ToolEffectOutcome; changedPaths: string[
 
 export function reduceRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot {
   const progress = prev.progress ?? emptyProgressState()
-  const terminal = isTerminalLifecycle(prev.lifecycle)
   const base: RunSnapshot = {
     ...prev,
     updatedAt: event.at,
@@ -283,7 +273,7 @@ export function reduceRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot 
         substantive: true,
         progress:
           event.state === 'done'
-            ? foldEligibleProgress(progress, 'task-state', `${event.title || event.taskId} done`, event.at, terminal)
+            ? foldEligibleProgress(progress)
             : progress,
       }
     }
@@ -296,11 +286,6 @@ export function reduceRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot 
           { toolName: event.toolName, toolUseId: event.toolUseId, at: event.at },
           MAX_RECENT_EFFECTS,
         ),
-      }
-    case 'attempt':
-      return {
-        ...base,
-        progress: foldAttempt(progress, event.fingerprint, event.at, terminal),
       }
     case 'tool-effected': {
       const record: RunToolEffectRecord = {
@@ -335,13 +320,7 @@ export function reduceRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot 
               : prev.unresolvedBadEffects,
         progress:
           succeeded && event.changedPaths.length > 0
-            ? foldEligibleProgress(
-                progress,
-                'artifact-delta',
-                event.changedPaths.slice(0, 3).join(', '),
-                event.at,
-                terminal,
-              )
+            ? foldEligibleProgress(progress)
             : progress,
       }
     }
@@ -359,7 +338,7 @@ export function reduceRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot 
         verification: { state: event.state, detail: event.detail },
         progress:
           event.state === 'verified'
-            ? foldEligibleProgress(progress, 'verification', event.detail, event.at, terminal)
+            ? foldEligibleProgress(progress)
             : progress,
       }
     case 'continuation':
@@ -368,7 +347,7 @@ export function reduceRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot 
       return {
         ...base,
         lastStopDecision: { decision: event.decision, detail: event.detail, at: event.at },
-        progress: foldStopDecision(progress, event.decision, terminal),
+        progress: foldStopDecision(progress),
       }
     case 'next-action':
       return { ...base, nextAction: event.action }
@@ -395,9 +374,9 @@ export function reduceRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot 
     case 'interrupted':
       return { ...base, lifecycle: 'interrupted', phaseReason: event.reason }
     case 'cancelled':
-      return { ...base, lifecycle: 'cancelled', phaseReason: event.reason, progress: foldTerminalProgress(progress) }
+      return { ...base, lifecycle: 'cancelled', phaseReason: event.reason }
     case 'failed':
-      return { ...base, lifecycle: 'failed', phaseReason: event.reason, progress: foldTerminalProgress(progress) }
+      return { ...base, lifecycle: 'failed', phaseReason: event.reason }
     case 'completed':
       return {
         ...base,
@@ -405,7 +384,6 @@ export function reduceRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot 
         phase: 'done',
         phaseReason: event.satisfied.join('; ') || 'completed',
         nextAction: '',
-        progress: foldTerminalProgress(progress),
       }
   }
 }
