@@ -202,7 +202,7 @@ function textPhaseOf(raw: unknown): TextPhase | null {
 }
 
 function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean {
-  let frame: { type?: string; event?: { type?: string; content_block?: { type?: string; phase?: unknown }; delta?: { type?: string; text?: string; thinking?: string }; message?: { id?: string } } }
+  let frame: { type?: string; event?: { type?: string; content_block?: { type?: string; phase?: unknown; input?: unknown }; delta?: { type?: string; text?: string; thinking?: string; partial_json?: string }; message?: { id?: string } } }
   try {
     frame = JSON.parse(line) as typeof frame
   } catch {
@@ -214,6 +214,11 @@ function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean
   if (ev.type === 'content_block_start') {
     seat.streamBlock = streamBlockOf(ev.content_block?.type)
     seat.blockSinceMs = seat.streamBlock === null ? null : Date.now()
+    if (seat.streamBlock === 'tool_use') {
+      const input = ev.content_block?.input
+      if (typeof input === 'string') seat.turnChars += input.length
+      else if (input && typeof input === 'object' && Object.keys(input).length > 0) seat.turnChars += JSON.stringify(input).length
+    }
     if (ev.content_block?.type === 'text') seat.tailPhase = textPhaseOf(ev.content_block.phase)
     publishTailNow(seat, dir)
     return true
@@ -232,6 +237,9 @@ function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean
     setSeatTail(seat, (seat.tail ?? '') + ev.delta.text, dir)
   } else if (ev.type === 'content_block_delta' && ev.delta?.type === 'thinking_delta' && typeof ev.delta.thinking === 'string') {
     seat.turnChars += ev.delta.thinking.length
+    scheduleTailPublish(seat, dir)
+  } else if (ev.type === 'content_block_delta' && ev.delta?.type === 'input_json_delta' && typeof ev.delta.partial_json === 'string') {
+    seat.turnChars += ev.delta.partial_json.length
     scheduleTailPublish(seat, dir)
   } else if (ev.type === 'content_block_stop' || ev.type === 'message_stop') {
     if (ev.type === 'message_stop') {

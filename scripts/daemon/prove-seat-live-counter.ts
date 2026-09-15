@@ -64,5 +64,39 @@ await cadence()
   check(`C2 a text delta adds to the same count (${THINK.length + PROSE.length}) and carries its words`, t?.turnChars === THINK.length + PROSE.length && t?.text === PROSE, JSON.stringify(t))
 }
 
+onSeatLine(SHORT, ev({ type: 'content_block_stop', index: 1 }), roster as never, dir)
+let expected = THINK.length + PROSE.length
+for (const type of ['tool_use', 'server_tool_use', 'mcp_tool_use']) {
+  onSeatLine(SHORT, ev({ type: 'content_block_start', index: 2, content_block: { type, id: 'call_input', name: 'Write', input: {} } }), roster as never, dir)
+  check(`${type}: an empty input seed adds no characters`, tail()?.turnChars === expected)
+  const parts = ['{"content":"', 'the tool input '.repeat(500), '"}']
+  for (const partial_json of parts) {
+    onSeatLine(SHORT, ev({ type: 'content_block_delta', index: 2, delta: { type: 'input_json_delta', partial_json } }), roster as never, dir)
+    expected += partial_json.length
+  }
+  await cadence()
+  check(`${type}: every input fragment adds its length to the same count`, tail()?.turnChars === expected, JSON.stringify(tail()))
+  check(`${type}: input never appears as assistant prose`, tail()?.text === null)
+  onSeatLine(SHORT, ev({ type: 'content_block_stop', index: 2 }), roster as never, dir)
+  check(`${type}: block completion keeps the count`, tail()?.turnChars === expected)
+}
+for (const input of [{ content: 'already supplied' }, '{"content":"seeded"}']) {
+  onSeatLine(SHORT, ev({ type: 'content_block_start', index: 3, content_block: { type: 'tool_use', id: 'call_seed', name: 'Write', input } }), roster as never, dir)
+  expected += typeof input === 'string' ? input.length : JSON.stringify(input).length
+  check('nonempty input on the block start counts once', tail()?.turnChars === expected, JSON.stringify(tail()))
+  onSeatLine(SHORT, ev({ type: 'content_block_stop', index: 3 }), roster as never, dir)
+}
+for (const partial_json of ['', null, 7]) {
+  onSeatLine(SHORT, ev({ type: 'content_block_delta', index: 3, delta: { type: 'input_json_delta', partial_json } }), roster as never, dir)
+}
+await cadence()
+check('empty and malformed input fragments change no count', tail()?.turnChars === expected)
+onSeatLine(SHORT, ev({ type: 'message_stop' }), roster as never, dir)
+check('message completion does not reset the in-flight turn', tail()?.turnChars === expected)
+onSeatLine(SHORT, JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'call_input', name: 'Write', input: { content: 'the tool input' } }] } }), roster as never, dir)
+check('the settled tool call does not count its input a second time', tail()?.turnChars === expected)
+onSeatLine(SHORT, JSON.stringify({ type: 'result', subtype: 'success' }), roster as never, dir)
+check('the result clears the full count', (tail()?.turnChars ?? 0) === 0)
+
 console.log(failures === 0 ? '\n✅ seat live counter GREEN' : `\n❌ seat live counter RED — ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)
