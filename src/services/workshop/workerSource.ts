@@ -144,8 +144,8 @@ function excerptAt(code, pos) {
   const source = String(code).split('\n')[pos.line - 1];
   if (source === undefined) return [];
   const at = Math.max(0, Math.min(source.length, pos.column - 1));
-  const start = Math.max(0, at - 60);
-  const end = Math.min(source.length, at + 40);
+  const start = Math.max(0, at - 30);
+  const end = Math.min(source.length, at + 30);
   const head = start > 0 ? '…' : '';
   const tail = end < source.length ? '…' : '';
   return ['    near: ' + head + source.slice(start, end) + tail, '    ' + ' '.repeat(6 + head.length + (at - start)) + '^'];
