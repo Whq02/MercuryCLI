@@ -388,6 +388,33 @@ and `/meh` are yours alone: the line runs on the screen, never enters the
 session's conversation, never starts a turn and never rides the wire of a
 later turn. The law and its enforcement are in [TRUST.md](TRUST.md).
 
+## Before the context fills
+
+Mercury checks the estimated context before each request, on every provider
+route. At 40% of the seated model's window it can prune older file results
+that a later successful Read, Edit or Write of the same path superseded.
+The latest result for a path, unique results, failed or unfinished operations,
+skill and brief material, and the five most recent eligible results stay.
+Small results stay when a replacement would not save tokens.
+
+The **superseded-result prune threshold** is set with `MERCURY_PRUNE_PCT`,
+a percentage from 0 to 100. The default is 40; 0 disables this early prune,
+and an unset, blank or invalid value uses the default. Mercury clears only
+when the eligible results can bring the estimate down to two-thirds of that
+threshold: about 26.7% of the window at the default. Otherwise it leaves the
+history alone and the existing overflow recovery remains available. The
+threshold uses the model's window, independently of a smaller automatic-fold
+window you may have chosen; that earlier fold can run before this prune.
+
+The chat reports the context size, threshold, number of results pruned and
+estimated tokens saved. The replacements persist across later requests and
+resume. This uses the same clearing and persistence path as overflow
+recovery, without waiting for a provider refusal. It may invalidate part of
+the provider's cached prefix; fewer input tokens do not by themselves promise
+lower billed cost for a cache-heavy conversation. `MERCURY_AUTO_COMPACT=0`
+leaves this prune available; `MERCURY_COMPACT=0` disables the early prune.
+The time-gap trigger and emergency recovery retain their existing rules.
+
 ## When the context overflows
 
 A request can outgrow the model's window — a large paste, a long run of

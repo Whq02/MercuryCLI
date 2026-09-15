@@ -1,4 +1,7 @@
-import { flagEnabled } from '../../substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
+import { getSdkBetas } from '../../bootstrap/state.js'
+import { getContextWindowForModel } from '../../utils/model/capabilities.js'
+import { awaitContextWindowSource } from '../../utils/model/contextWindowWarmup.js'
 import type { Message } from '../../types/message.js'
 import { isTurnOwningQuerySource } from '../../utils/effort.js'
 import { PROMPT_TOO_LONG_ERROR_MESSAGE } from '../api/errors.js'
@@ -179,4 +182,23 @@ export function overflowRefusalText(
 
 export function overflowGapFor(signal: OverflowSignal): number | undefined {
   return overflowGapTokens(signal)
+}
+
+export type SizePruneRequest = { estimatedTokens: number; windowTokens: number; thresholdPercent: number; targetTokens: number }
+
+export async function sizePruneRequest(messages: readonly Message[], model: string, querySource: string | undefined): Promise<SizePruneRequest | undefined> {
+  if (!isTurnOwningQuerySource(querySource) || !flagEnabled('MERCURY_COMPACT')) return undefined
+  const raw = flagEnv('MERCURY_PRUNE_PCT')
+  const configured = raw?.trim() ? Number(raw) : 40
+  const thresholdPercent = Number.isFinite(configured) && configured >= 0 && configured <= 100 ? configured : 40
+  if (thresholdPercent === 0) return undefined
+  await awaitContextWindowSource(model)
+  const windowTokens = getContextWindowForModel(model, getSdkBetas())
+  const estimatedTokens = tokenCountWithEstimation(messages, model)
+  if (estimatedTokens < Math.ceil(windowTokens * thresholdPercent / 100)) return undefined
+  return { estimatedTokens, windowTokens, thresholdPercent, targetTokens: Math.floor(windowTokens * thresholdPercent / 150) }
+}
+
+export function sizePruneNotice(request: SizePruneRequest, pruned: { cleared: number; tokensSaved: number }): string {
+  return `context size (estimated ${request.estimatedTokens.toLocaleString('en-US')} of ${request.windowTokens.toLocaleString('en-US')} tokens; prune threshold ${request.thresholdPercent}%) — pruned ${pruned.cleared} superseded tool result${pruned.cleared === 1 ? '' : 's'} (~${pruned.tokensSaved.toLocaleString('en-US')} tokens)`
 }

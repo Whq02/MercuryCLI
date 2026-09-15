@@ -48,7 +48,7 @@ export interface RequestContextPlanInput {
   selectionBudget?: SelectionBudget | null
   calibrationKey?: string | null
   harnessContextPolicy?: ContextPolicyClass | null
-  pressurePrune?: true
+  pressurePrune?: true | { minimumTokensSaved: number }
 }
 
 export interface RequestContextPlan {
@@ -206,15 +206,19 @@ export async function buildRequestContextPlan(
         undefined,
         input.querySource,
         input.readFileState ? { readFileState: input.readFileState } : undefined,
-        input.pressurePrune === true ? { pressure: true } : undefined,
+        input.pressurePrune === true
+          ? { pressure: true }
+          : input.pressurePrune !== undefined && projected === null
+            ? { pressure: true, supersededOnly: true, minimumTokensSaved: input.pressurePrune.minimumTokensSaved }
+            : undefined,
       )
       view = result.messages
       if (result.deadMarks !== undefined && result.deadMarks.length > 0) deadThinkingMarks = result.deadMarks
       if (result.pruned !== undefined && result.pruned.cleared > 0) {
-        if (input.pressurePrune === true) {
+        if (input.pressurePrune === true || (input.pressurePrune !== undefined && projected === null)) {
           pressurePruned = { cleared: result.pruned.cleared, tokensSaved: result.pruned.tokensSaved }
           reasons.push(
-            `pressure prune (context overflow) cleared ${result.pruned.cleared} superseded tool result(s) (~${result.pruned.tokensSaved} tokens)`,
+            `pressure prune (${input.pressurePrune === true ? 'context overflow' : 'context size'}) cleared ${result.pruned.cleared} superseded tool result(s) (~${result.pruned.tokensSaved} tokens)`,
           )
         }
         if (input.contentReplacementState) {
