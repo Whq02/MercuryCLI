@@ -9,8 +9,13 @@
 }
 
 import { execSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
+const ISOLATED_HOME = mkdtempSync(join(tmpdir(), 'commit-gate-home-'))
+process.env.MERCURY_CONFIG_DIR = ISOLATED_HOME
+process.env.MERCURY_HOME = ISOLATED_HOME
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -156,6 +161,8 @@ section('dist: the wired standalone gate ships in dist/mercury.mjs')
     check('the commit-gate reprompt ships', present('Commit gate: this commit is not verified'))
   }
 }
+
+rmSync(ISOLATED_HOME, { recursive: true, force: true })
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL COMMIT-GATE PROOFS PASS')
