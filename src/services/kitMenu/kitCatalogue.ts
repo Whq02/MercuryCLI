@@ -154,6 +154,12 @@ export async function enumerateKitCatalogue(cwd: string, doors: KitDoors = REAL_
 
   rows.push(...skillRows)
   rows.push(...skillNotes)
-  rows.push({ kind: 'note', section: 'skill', text: MCP_SKILLS_NOTE })
+  rows.push({
+    kind: 'note',
+    section: 'skill',
+    text: skillRows.length === 0
+      ? 'bundled skills load in sessions; MCP skills on connection'
+      : MCP_SKILLS_NOTE,
+  })
   return { rows }
 }
