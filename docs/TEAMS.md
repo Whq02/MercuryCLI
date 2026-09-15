@@ -146,7 +146,11 @@ rename, reconnect, or restart never mints a duplicate.
 handoffs. `/teammates` is the Crew view: the session's sub-agents live, and the
 named agents' chats; each sub-agent row carries the count of notices delivered
 to it that no turn of its own has read yet ([SESSIONS.md](SESSIONS.md), "A
-notice an agent has not read"). `/crew` shows the directory with presence and external
+notice an agent has not read"). A command a sub-agent runs in the background
+is a shell task of the session like any other: it has its row on the `/tasks`
+board while it runs, the session's waiting line counts it, and when it
+finishes the notice goes to the agent that launched it, read at that agent's
+next turn. `/crew` shows the directory with presence and external
 seat attach/detach. `/sessions` manages this project's sessions, including
 named-agent chats.
 
