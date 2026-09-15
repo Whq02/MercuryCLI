@@ -112,6 +112,21 @@ while the session runs in a bypass-permissions mode are held, visibly, until
 the operator returns to a prompting mode (`MERCURY_INBOX_HOLD_BYPASS`); in
 prompting modes messages deliver as always.
 
+## File leases
+
+Teammates keep off each other's files with leases, through the coordination
+tools every session carries as `mcp__mercury__lease_claim`,
+`mcp__mercury__lease_release`, `mcp__mercury__lease_list` and
+`mcp__mercury__lease_take`. The list a lease verb takes is called `paths` on
+every one of them: repo-relative file paths, and for the team lease a path may
+be a glob such as `src/api/**`. A claim or a release sent with the older word
+`globs` is read as the same list, and a claim sent with neither is refused
+with words that name both. A team claim renews the caller's lease and replaces
+its set; claiming an empty set releases it. `lease_take` and a `lease_release`
+with a list act on exact project files and need no team; a `lease_release`
+with no list drops the caller's team lease. Another live holder is named and
+refused, and an edit under another agent's lease is denied before it runs.
+
 ## Roles
 
 Named-agent roles resolve through one resolver, whichever way the agent launches. A role is an agent definition — built-in,
