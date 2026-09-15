@@ -99,13 +99,13 @@ async function main(): Promise<void> {
     check('C12: compaction fold preserves deliverables', run.deliverables.length === 1)
     check('C12: compaction fold preserves changed-path truth', run.totalChangedPaths === 1)
     check(
-      'C12: the run snapshot carries typed progress/attempt state',
+      'C12: the run snapshot carries the typed progress window',
       'progress' in run,
-      'Stage-2 schema: progress record + attempt fingerprints on the snapshot',
+      'Stage-2 schema: the progress window on the snapshot',
     )
   }
 
-  section('class 1 — an unattainable objective settles after one changed strategy (S1/S3/S4)')
+  section('class 1 — an unattainable objective settles only at the operator budget, never on a repetition count')
   {
     const grind = fold('produce a photo of the finished UI', [
       { type: 'substantive', at: 2, reason: 'attempting the ask' },
@@ -113,8 +113,8 @@ async function main(): Promise<void> {
     ])
     const d3 = evaluateStop({ ...defaults, snapshot: grind, continuationsThisTurn: 2 })
     check(
-      'C1: stagnation settles by the second no-progress continuation (one replan max)',
-      d3.kind !== 'continue',
+      'C1: the third zero-progress continuation is issued like the first — nothing counts repetition',
+      d3.kind === 'continue' && !d3.nextAction.includes('REPLAN'),
       `third zero-progress stop attempt → ${d3.kind}`,
     )
     let issued = 0
@@ -129,13 +129,13 @@ async function main(): Promise<void> {
       break
     }
     check(
-      'C1: zero-progress settle is a typed stagnation handoff, not the raw budget fuse',
-      finalKind !== 'budget-exhausted' && finalKind !== '',
+      'C1: the zero-progress run settles on the operator budget, and only there',
+      finalKind === 'budget-exhausted' && issued === defaults.maxContinuationsPerTurn,
       `settled as ${finalKind || 'never'} after ${issued} continuation(s)`,
     )
   }
 
-  section('class 4 — an open task earning nothing stops earning continuations (S1)')
+  section('class 4 — an open task earning nothing keeps every budgeted continuation (S1)')
   {
     const idle = fold('improve the docs', [
       { type: 'substantive', at: 2, reason: 'task created' },
@@ -148,35 +148,29 @@ async function main(): Promise<void> {
       issued++
     }
     check(
-      'C4: a zero-progress open task issues at most 2 automatic continuations',
-      issued <= 2,
+      'C4: a zero-progress open task issues exactly the budgeted continuations, none refused early',
+      issued === defaults.maxContinuationsPerTurn,
       `issued ${issued}`,
     )
   }
 
-  section('class 3 — repeating the same failed operation is not a strategy (S3 · the 2.3 cycle guard)')
+  section('class 3 — repeating the same failed operation is never a reason to end the turn')
   {
-    const { evaluateCycleLease } = await import('../../src/services/run/cycleLease.js')
-    const { makeAttemptFingerprint } = await import('../../src/services/run/progressModel.js')
-    const fpTest = makeAttemptFingerprint({ toolName: 'Bash', input: { command: 'npm test' }, cwd: '/tmp/speedster' })
-    let repeat = fold('make the suite green', [{ type: 'substantive', at: 2, reason: 'implementation' }])
-    repeat = kernel.reduceRunEvent(repeat, { type: 'attempt', at: HOUR, toolUseId: 'b1', fingerprint: fpTest })
-    repeat = kernel.reduceRunEvent(repeat, { type: 'tool-effected', at: HOUR + 1, toolName: 'Bash', toolUseId: 'b1', operation: 'bash: npm test', outcome: 'failed', changedPaths: [] })
-    const afterFirst = evaluateCycleLease(repeat, false)
-    repeat = kernel.reduceRunEvent(repeat, { type: 'attempt', at: 2 * HOUR, toolUseId: 'b2', fingerprint: fpTest })
-    repeat = kernel.reduceRunEvent(repeat, { type: 'tool-effected', at: 2 * HOUR + 1, toolName: 'Bash', toolUseId: 'b2', operation: 'bash: npm test', outcome: 'failed', changedPaths: [] })
-    const afterSecond = evaluateCycleLease(repeat, false)
+    let repeat = fold('make the suite green', [
+      { type: 'substantive', at: 2, reason: 'implementation' },
+      { type: 'task-transition', at: 3, taskId: 't1', title: 'the suite', state: 'open' },
+    ])
+    for (let n = 1; n <= 4; n++) {
+      repeat = kernel.reduceRunEvent(repeat, { type: 'tool-started', at: n * HOUR, toolName: 'Bash', toolUseId: `b${n}` })
+      repeat = kernel.reduceRunEvent(repeat, { type: 'tool-effected', at: n * HOUR + 1, toolName: 'Bash', toolUseId: `b${n}`, operation: 'bash: npm test', outcome: 'failed', changedPaths: [] })
+    }
+    const afterFour = evaluateStop({ ...defaults, snapshot: repeat, continuationsThisTurn: 1 })
     check(
-      'C3: a second identical failure without new evidence changes strategy (replan directive) instead of repeating the same next action',
-      afterFirst.action === 'proceed' && afterSecond.action === 'replan',
-      `first=${afterFirst.action} second=${afterSecond.action}`,
+      'C3: four identical failed runs of one command earn the next continuation like any other, with no re-plan directive',
+      afterFour.kind === 'continue' && !afterFour.nextAction.includes('REPLAN'),
+      afterFour.kind,
     )
-    const spent = evaluateCycleLease(repeat, true)
-    check('C3 floor: the next stagnant cycle after the spent replan SETTLES (no third provider call)', spent.action === 'settle', spent.action)
-    const progressed = kernel.reduceRunEvent(repeat, {
-      type: 'tool-effected', at: 3 * HOUR, toolName: 'Edit', toolUseId: 'e1', operation: 'edit', outcome: 'succeeded', changedPaths: ['src/fix.ts'],
-    })
-    check('C3 floor: eligible progress re-arms the cycle (proceed again)', evaluateCycleLease(progressed, true).action === 'proceed')
+    check('C3: the snapshot keeps no attempt ledger, no phase and no repeat count', JSON.stringify(repeat.progress) === JSON.stringify({ progressSinceDecision: 0 }), JSON.stringify(repeat.progress))
   }
 
   section('interruption/kill/resume — progress state survives; nothing mints false success (2.3)')
@@ -186,9 +180,9 @@ async function main(): Promise<void> {
       type: 'tool-effected', at: 3, toolName: 'Write', toolUseId: 'w1', operation: 'write', outcome: 'succeeded', changedPaths: ['/tmp/x'],
     })
     irun = kernel.reduceRunEvent(irun, { type: 'interrupted', at: 4, reason: 'operator interrupt' })
-    check('interruption preserves progress and never mints completion', irun.lifecycle === 'interrupted' && irun.progress?.totalProgress === 1)
+    check('interruption preserves progress and never mints completion', irun.lifecycle === 'interrupted' && irun.progress?.progressSinceDecision === 1)
     irun = kernel.reduceRunEvent(irun, { type: 'resumed', at: 5, reason: 'reconnect' })
-    check('resume restores the active run with the ledger intact', irun.lifecycle === 'active' && irun.progress?.totalProgress === 1)
+    check('resume restores the active run with the progress window intact', irun.lifecycle === 'active' && irun.progress?.progressSinceDecision === 1)
   }
 
   section('class 9 — progress renews the lease; the fuse is not progress-blind (S2)')
@@ -218,34 +212,23 @@ async function main(): Promise<void> {
     )
   }
 
-  section('classes 5/11 — strategy fingerprints: repeats stop, changed preconditions re-arm (S3)')
+  section('classes 5/11 — no strategy watcher: the evaluator takes no repetition flag and refuses nothing for it')
   {
     const run = fold('fix the build', [
       { type: 'substantive', at: 2, reason: 'implementation' },
       { type: 'task-transition', at: 3, taskId: 't1', title: 'fix the build', state: 'open' },
     ])
-    const repeated = evaluateStop({
-      ...defaults,
-      snapshot: run,
-      continuationsThisTurn: 1,
-      strategyRepeated: true,
-    } as never)
+    const second = evaluateStop({ ...defaults, snapshot: run, continuationsThisTurn: 1 })
     check(
-      'C5: the evaluator is strategy-aware — a repeated normalized strategy without new evidence does not earn another continuation',
-      repeated.kind !== 'continue',
-      `repeated strategy → ${repeated.kind}`,
+      'C5: a second continuation with nothing new earns the same continue as the first',
+      second.kind === 'continue',
+      `second continuation → ${second.kind}`,
     )
-    const rearmed = evaluateStop({
-      ...defaults,
-      snapshot: run,
-      continuationsThisTurn: 1,
-      strategyRepeated: true,
-      preconditionChanged: true,
-    } as never)
+    const withFlag = evaluateStop({ ...defaults, snapshot: run, continuationsThisTurn: 1, strategyRepeated: true } as never)
     check(
-      'C11: a changed precondition re-arms a retry that a bare repeat does not (the pair must differ)',
-      rearmed.kind !== repeated.kind,
-      `repeat=${repeated.kind} vs precondition-changed=${rearmed.kind}`,
+      'C11: a stray repetition flag changes nothing (the evaluator has no such input)',
+      JSON.stringify(withFlag) === JSON.stringify(second),
+      `${withFlag.kind} vs ${second.kind}`,
     )
   }
 

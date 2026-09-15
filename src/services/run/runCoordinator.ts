@@ -6,7 +6,6 @@ import { logError } from '../../utils/log.js'
 import { getTaskListId, listTasks } from '../../utils/tasks.js'
 import { verificationSummary } from '../../utils/verification/verificationState.js'
 import { subscribeToolStart, subscribeToolTerminal } from './effectObserver.js'
-import { makeAttemptFingerprint } from './progressModel.js'
 import { parseOwnerKey, type OwnerKey } from './ownerKey.js'
 import { registerOwnerScopedStore } from './ownerLifecycle.js'
 import { OwnerScopedStore } from './ownerScopedStore.js'
@@ -416,16 +415,6 @@ subscribeToolStart(event => {
 subscribeToolTerminal(event => {
   const state = runs.peek(event.owner)
   if (!state?.snapshot || isTerminalLifecycle(state.snapshot.lifecycle)) return
-  noteRunEvent(event.owner, {
-    type: 'attempt',
-    at: Date.now(),
-    toolUseId: event.toolUseId,
-    fingerprint: makeAttemptFingerprint({
-      toolName: event.toolName,
-      input: event.input,
-      cwd: event.cwd,
-    }),
-  })
   if (event.effect) {
     noteRunEvent(event.owner, {
       type: 'tool-effected',

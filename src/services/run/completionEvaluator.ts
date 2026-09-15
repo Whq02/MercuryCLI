@@ -4,8 +4,6 @@ import {
   openDeliverables,
   type RunSnapshot,
 } from './runKernel.js'
-import { actionFingerprint } from './progressModel.js'
-import { buildHandoffReport, renderHandoffReport } from './cycleLease.js'
 
 export type StopDecision =
   | { kind: 'complete'; satisfied: string[] }
@@ -25,13 +23,6 @@ export type StopDecision =
   | { kind: 'cancel'; cause: string }
   | { kind: 'fail'; cause: string }
   | { kind: 'budget-exhausted'; unfinished: string[] }
-  | {
-      kind: 'handoff'
-      cause: string
-      unfinished: string[]
-      strategiesTried: number
-      report: string
-    }
 
 export interface StopEvaluationInput {
   snapshot: RunSnapshot | null
@@ -49,23 +40,6 @@ export interface StopEvaluationInput {
   pendingIdeFeedback: boolean
   surface?: 'interactive' | 'print' | 'sdk' | 'worker' | 'workflow' | 'external'
   terminalPolicy?: 'operator-led' | 'one-shot' | 'client-led' | 'mission-led'
-  strategyRepeated?: boolean
-  preconditionChanged?: boolean
-  revision?: {
-    runRevision: number
-    effectRevision: number
-    evidenceRevision: number
-    externalRevision: number
-  }
-  priorAdmission?: {
-    revision: {
-      runRevision: number
-      effectRevision: number
-      evidenceRevision: number
-      externalRevision: number
-    }
-    nextActionFingerprint: string
-  } | null
 }
 
 const MAX_EVIDENCE_DEMANDS = 2
@@ -167,92 +141,28 @@ export function evaluateStop(input: StopEvaluationInput): StopDecision {
     }
   }
 
-  const progressState = snap.progress
-  const noNewProgress = (progressState?.progressSinceDecision ?? 0) === 0
-  const strategyRepeated =
-    input.strategyRepeated === true ||
-    progressState?.phase === 'replan-required' ||
-    progressState?.phase === 'handoff-required'
-  const rearmed = input.preconditionChanged === true
-  const escalate = (candidate: StopDecision): StopDecision => {
-    if (candidate.kind !== 'continue' || candidate.evidenceDemand === true) return candidate
-    if (input.revision && input.priorAdmission && !rearmed) {
-      const r = input.revision
-      const p = input.priorAdmission.revision
-      const sameTuple =
-        r.runRevision === p.runRevision &&
-        r.effectRevision === p.effectRevision &&
-        r.evidenceRevision === p.evidenceRevision &&
-        r.externalRevision === p.externalRevision
-      const sameAction =
-        actionFingerprint(candidate.nextAction) === input.priorAdmission.nextActionFingerprint
-      if (sameTuple && sameAction) {
-        return {
-          kind: 'handoff',
-          cause:
-            'the same revision tuple and next action may not open another provider call (A04-A06 admission law)',
-          unfinished: openDeliverables(snap).map(d => d.title || d.id),
-          strategiesTried: progressState?.attempts.length ?? 0,
-          report: renderHandoffReport(
-            buildHandoffReport(snap, 'A04-A06 admission refusal: unchanged revision tuple + identical next action'),
-          ),
-        }
-      }
-    }
-    if (!noNewProgress || rearmed) return candidate
-    const attempts = input.continuationsThisTurn
-    if (attempts >= 2 || (strategyRepeated && attempts >= 1)) {
-      const unfinished = openDeliverables(snap).map(d => d.title || d.id)
-      if (snap.unresolvedBadEffects > 0) {
-        unfinished.push(`${snap.unresolvedBadEffects} failed/indeterminate effect(s)`)
-      }
-      return {
-        kind: 'handoff',
-        cause: strategyRepeated
-          ? 'the same strategy repeated with no new evidence (the one replan is spent)'
-          : 'no eligible progress across the allowed continuations — stagnation settles with a handoff',
-        unfinished,
-        strategiesTried: progressState?.attempts.length ?? 0,
-        report: renderHandoffReport(
-          buildHandoffReport(
-            snap,
-            strategyRepeated ? 'strategy repetition with no new evidence' : 'stagnation across allowed continuations',
-          ),
-        ),
-      }
-    }
-    if (attempts >= 1 || strategyRepeated) {
-      return {
-        ...candidate,
-        nextAction: `REPLAN: the prior approach earned no new evidence — change strategy (different tool family, target, or decomposition), then: ${candidate.nextAction}`,
-        reason: `${candidate.reason} — replan directive (no eligible progress since the last decision)`,
-      }
-    }
-    return candidate
-  }
-
   const open = openDeliverables(snap)
   if (open.length > 0) {
     const next = open[0]!
-    return escalate({
+    return {
       kind: 'continue',
       nextAction: `work the open deliverable: ${next.title || next.id}`,
       reason: `${open.length} deliverable(s) still open`,
-    })
+    }
   }
   if (snap.unresolvedBadEffects > 0) {
-    return escalate({
+    return {
       kind: 'continue',
       nextAction: 'inspect the failed/indeterminate operation and reconcile its real state',
       reason: `${snap.unresolvedBadEffects} mutating effect(s) failed or ended indeterminate`,
-    })
+    }
   }
   if (snap.pendingTools.length > 0) {
-    return escalate({
+    return {
       kind: 'continue',
       nextAction: `resolve the in-flight tool call (${snap.pendingTools[0]!.toolName})`,
       reason: 'a tool started without a terminal effect',
-    })
+    }
   }
   if (input.verification && input.verification.mutationsSinceEvidence > 0) {
     const v = input.verification
@@ -301,11 +211,11 @@ export function evaluateStop(input: StopEvaluationInput): StopDecision {
     }
   }
   if (input.pendingIdeFeedback) {
-    return escalate({
+    return {
       kind: 'continue',
       nextAction: 'drain the pending post-edit diagnostics once (bounded), then finish',
       reason: 'IDE feedback for the last edit is still stabilizing',
-    })
+    }
   }
 
   return { kind: 'complete', satisfied: satisfiedConditions(input) }
