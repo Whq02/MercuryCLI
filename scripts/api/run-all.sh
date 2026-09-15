@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/providers/anthropic/** src/services/api/client* src/services/api/transportEvidence*
+# gate-watch: src/services/providers/anthropic/** src/services/api/client* src/services/api/transportEvidence* src/services/api/withRetry.ts src/services/api/errors.ts scripts/api/authRetry* scripts/api/prove-authentication-retry.ts
 # gate-watch: src/services/providers/streamIdleBudget* src/services/providers/openai/** src/services/providers/zai/**
 # gate-watch: src/utils/proxy* src/utils/mtls* src/components/messages/SystemAPIErrorMessage*
 set -uo pipefail
@@ -10,6 +10,7 @@ prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/script
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fail=0
 echo "── api-client proofs ──"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-authentication-retry.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-authentication-retry.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-window-retry.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-window-retry.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-api-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-api-parity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transport-truth.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-transport-truth.ts" "$__t" "$__rc"
