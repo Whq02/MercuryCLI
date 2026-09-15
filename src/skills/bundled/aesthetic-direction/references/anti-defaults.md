@@ -1,19 +1,22 @@
-# Anti-defaults — the tells of an undesigned interface, and their replacements
+# Review the design choices
 
-| Tell | Why it reads as a template | Replace with |
-|---|---|---|
-| The framework's default sans at default weights | it is the face of ten thousand sites | a chosen display face plus a quiet text face, set on a scale |
-| Purple-to-blue gradient on buttons or heroes | the stock "modern" signal | one flat accent derived from the direction |
-| Three equal cards with icons in circles | the default feature grid | one strong statement and supporting detail at a smaller scale |
-| Centred everything | no hierarchy was decided | a left edge, a measure, one deliberately offset element |
-| Drop shadows at every elevation | depth without a system | one depth mechanism with two levels at most |
-| Pure #000 on pure #fff | no ground was chosen | an ink and a ground tinted toward the accent hue |
-| Rounded 8px radius on all things | the unexamined default | a radius that matches the direction (0 for brutal/editorial, 12–16 for soft product) |
-| Stock hero illustration or emoji icons | borrowed imagery | a typographic hero, real product imagery, or a single drawn mark |
-| Hover effects that scale and glow | motion without meaning | a colour or underline change that confirms the target |
-| Lorem ipsum or "Feature one / Feature two" | copy was never written | real words at real lengths; the copy shapes the layout |
-| A 12-column grid used as a 3-column grid | the grid was never decided | a grid chosen for the content, and one intentional break |
-| Identical section rhythm top to bottom | the page has no tempo | vary density: a dense section after an airy one |
+Keep established brand constraints. Replace unexamined defaults, not colours or shapes merely because they are common.
 
-When revising, fix the type and colour system first; most other tells dissolve
-once those two are deliberate.
+| Inspect | Choose deliberately |
+|---|---|
+| Default typography | Display/text roles and a scale |
+| Decorative gradients | Ground, ink, accent and semantic colours |
+| Equal feature cards | Primary claim and supporting hierarchy |
+| Centred content | Alignment and reading measure |
+| Repeated shadows | Consistent depth levels |
+| Untested colours | Contrast on the actual backgrounds |
+| Uniform radii | Geometry suited to the interface |
+| Stock imagery | Relevant product imagery or typography |
+| Scaling hover effects | Target/state feedback |
+| Placeholder copy | Actual content at realistic lengths |
+| Framework grid | Content-led columns and gutters |
+| Repeated section rhythm | Density suited to each section |
+
+Start with type and colour; inspect focus, font loading and reduced motion afterwards.
+
+Checked: 2026-09-15. [Contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html), [font loading](https://web.dev/articles/font-best-practices).

@@ -1,79 +1,24 @@
-# The OpenAI Responses dialect
+Checked: 2026-09-15
+# OpenAI Responses
 
-Mercury's native OpenAI lane. POST {base}/responses — base https://api.openai.com/v1 with an API key (`authorization: Bearer $OPENAI_API_KEY`); Mercury's subscription sign-in rides the same dialect against the vendor's subscription backend with OAuth bearer tokens.
-
-## Request shape, as Mercury sends it
-
-```json
-{
-  "model": "gpt-5.5",
-  "instructions": "system-level guidance",
-  "input": [
-    { "type": "message", "role": "user",
-      "content": [ { "type": "input_text", "text": "…" } ] }
-  ],
-  "tools": [
-    { "type": "function", "name": "get_weather", "description": "…",
-      "parameters": { "type": "object", "properties": { "city": { "type": "string" } } } }
-  ],
-  "parallel_tool_calls": true,
-  "reasoning": { "effort": "medium", "summary": "auto" },
-  "store": false,
-  "include": ["reasoning.encrypted_content"],
-  "prompt_cache_key": "<stable conversation key>",
-  "stream": true
-}
-```
-
-The knobs that matter:
-
-- Function tools are FLAT — name at the top level — unlike the chat-completions nested function:{} spelling.
-- Message content items are typed: input_text, output_text (assistant history), input_image (data or URL, with a detail level).
-- A tool call is a `function_call` item ({ call_id, name, arguments — a JSON-encoded string }); the answer is a `function_call_output` item carrying the same call_id.
-- An assistant `message` item may carry `phase`: `commentary` (a working note ahead of a tool call) or `final_answer`. Send it back unchanged on every assistant message you replay — the reference says dropping it can degrade performance.
-- reasoning.effort sets thinking depth; reasoning.summary asks for streamable summaries.
-- text.verbosity tunes answer length where the model supports it.
-
-## The stateless-replay continuation law
-
-Mercury sends `store: false` and includes `reasoning.encrypted_content`, then REPLAYS the encrypted reasoning items in order, each before its function call, on the next request. Do not build on `previous_response_id` server storage — statelessness is the contract that works on every lane, subscription included. `prompt_cache_key` keeps server-side prefix caching effective across stateless turns.
+## Request and continuation
+- POST `https://api.openai.com/v1/responses` with bearer API-key authentication.
+- Keep Mercury's subscription backend separate; its OAuth route is not the public API-key endpoint.
+- Send `model`, typed `input`, `stream:true`, `store:false` and `include:["reasoning.encrypted_content"]`.
+- Add non-empty `instructions`; add tools, `tool_choice:"auto"` and `parallel_tool_calls:true` only when tools exist.
+- Flatten function tools: `{type:"function",name,description,parameters}`; do not nest `function` as Chat Completions does.
+- Use `input_text`, `input_image` and assistant `output_text` content items.
+- Pair `function_call` and `function_call_output` by `call_id`; encode call arguments as JSON strings.
+- Preserve settled output-item order, encrypted reasoning and assistant `phase` (`commentary` or `final_answer`) when replaying.
+- Use Mercury's stateless replay, not `previous_response_id` storage.
+- Send `reasoning.summary:"auto"` and catalogue-resolved effort when available.
+- Supply a stable `prompt_cache_key`; do not infer a cache hit from its presence.
+- Distinguish public `text.verbosity`/`max_output_tokens` support from Mercury: its builder sends neither.
 
 ## Streaming
+- Decode `response.*` SSE events; accumulate text, reasoning and argument deltas.
+- Settle each call once at `response.output_item.done`; use accumulated arguments when the item omits them.
+- Refuse malformed arguments and streams missing a terminal event.
+- Distinguish `response.completed`, `response.failed` and `response.incomplete`; record unknown event kinds.
 
-SSE events, every one carrying a sequence_number: response.created; response.output_item.added / .done; response.content_part.*; response.output_text.delta / .done; response.refusal.*; response.function_call_arguments.delta / .done; response.reasoning_summary_*; and a terminal response.completed / .failed / .incomplete. Two rules Mercury holds and any client should: settle each tool call exactly once from the DONE item (the argument deltas are for display, and a done call whose arguments do not parse is a malformed call, not a half-call); a stream that ends without a terminal event is a truncation fault, not a success.
-
-## Shapes in three languages
-
-curl:
-```sh
-curl -N https://api.openai.com/v1/responses \
-  -H "authorization: Bearer $OPENAI_API_KEY" \
-  -H "content-type: application/json" \
-  -d '{"model":"gpt-5.5","stream":true,"store":false,
-       "input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"Say hi"}]}]}'
-```
-
-Python:
-```python
-from openai import OpenAI
-client = OpenAI()  # reads OPENAI_API_KEY
-with client.responses.stream(model="gpt-5.5", input="Say hi", store=False) as stream:
-    for event in stream:
-        if event.type == "response.output_text.delta":
-            print(event.delta, end="")
-```
-
-TypeScript:
-```ts
-import OpenAI from 'openai'
-const client = new OpenAI() // reads OPENAI_API_KEY
-const stream = await client.responses.create({ model: 'gpt-5.5', input: 'Say hi', store: false, stream: true })
-for await (const event of stream) {
-  if (event.type === 'response.output_text.delta') process.stdout.write(event.delta)
-}
-```
-
-## Failure notes
-
-- The GET {base}/models listing answers what the credential can see.
-- Unknown event types and unknown output-item kinds should be recorded, never crashed on and never silently dropped — vocabularies grow.
+Sources: [API](https://developers.openai.com/api/reference/resources/responses/methods/create), [reasoning](https://developers.openai.com/api/docs/guides/reasoning), [caching](https://developers.openai.com/api/docs/guides/prompt-caching), [Mercury](https://github.com/Whq02/MercuryCLI/tree/fc81e29e4129a56b1bfb3beca9819ebfb29875f9/src/services/providers/openai).

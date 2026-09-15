@@ -1,66 +1,28 @@
 ---
 name: extension-maker
-description: Make or publish a Mercury extension — a folder with one mercury-extension.json manifest contributing skills, commands, agents, hooks, MCP servers, language servers, channels or keybindings — or a source (a git repo, folder or archive carrying mercury-extensions.json) others can add. Use when asked to create an extension, package skills/hooks/servers into one, publish a source or catalogue, write a mercury-extension.json, or debug why one reads partial or broken.
+description: Use when creating, packaging or debugging a Mercury extension or source catalogue. Not for installing or approving an extension on the operator's behalf.
 ---
+# Make a Mercury extension
 
-# Making a Mercury extension
+- Put `mercury-extension.json` at the extension root.
+- Read `references/CONTRACT.md` for fields; apply the complete approval rule below.
+- Use lowercase letters, digits and hyphens for `name`, 1–40 characters, starting with a letter or digit.
+- Declare contributions explicitly; keep manifest paths inside the root.
+- Put skills in child directories containing `SKILL.md`; put commands and agents in Markdown files.
+- Use only command hooks and registered hook events; leave reserved `module` unset.
+- Substitute `${MERCURY_EXTENSION_ROOT}`, `${MERCURY_EXTENSION_DATA}` and `${option.KEY}` only where supported.
+- Declare secrets as sensitive options; read their environment values in scripts, not model-facing prose.
+- Bind approval to `contributes`, `needs` and delivered file bytes. A version-only manifest change preserves approval; changed delivered content re-asks.
 
-An extension is a folder with ONE manifest, `mercury-extension.json`, at its root. Mercury
-reads nothing the manifest does not declare. The full field-by-field contract is in
-`references/CONTRACT.md` (generated from the runtime schemas — trust it over memory);
-the source README template is `references/README-template.md`.
+## Build and validate
+- Scaffold with `mercury extensions init <name>`.
+- Develop in `.mercury/extensions/<name>/`; let the operator approve and reload through `/extensions`.
+- Run `mercury extensions validate <path>`; fix unknown keys, escaping paths and unmet needs.
+- Package a single-extension repository or a `mercury-extensions.json` catalogue.
+- Match catalogue name/version to the manifest; use either `path` or `git` with optional `ref`.
+- Use `references/README-template.md` for source setup, requirements and updates.
+- Never add a source on the operator's behalf; never approve an extension for them.
+- Hand over the validated folder and the operator's next command or `/extensions` action; do not publish without authorisation.
 
-## The shape
-
-```
-<name>/
-├── mercury-extension.json     required — the only file Mercury reads unprompted
-├── README.md                  recommended
-├── skills/<skill>/SKILL.md    one folder per skill
-├── commands/<cmd>.md          one prompt file per command
-├── agents/<agent>.md          one definition per agent
-└── …                          anything the extension's own servers need
-```
-
-Rules that bite:
-
-- `name`: lowercase kebab, 1–40 chars; it namespaces everything (`/<name>:<skill>`,
-  agent `<name>:<agent>`, server `ext:<name>:<server>`).
-- Every path in the manifest is relative and must stay inside the folder.
-- Unknown top-level keys warn at load and FAIL `mercury extensions validate`; typos
-  inside `contributes`/`servers`/`needs` fail at load.
-- Only `type: "command"` hooks; events come from Mercury's hook vocabulary.
-- `module` is reserved — this build loads declarative extensions.
-- `${MERCURY_EXTENSION_ROOT}`, `${MERCURY_EXTENSION_DATA}` and `${option.KEY}`
-  substitute in command lines, args, env values and prompt bodies; nothing else does.
-  Hooks and servers also receive those two folders plus one
-  `MERCURY_EXTENSION_OPTION_<KEY>` per option in their environment.
-- A `sensitive` option never appears in prose the model reads — it renders as a
-  placeholder; declare it under `needs.options` and read it from env in scripts.
-- Approval is per contributions hash (`contributes` + `needs`): changing a command
-  line, hook, server or need re-asks the operator; a version bump alone does not.
-
-## The loop
-
-1. Scaffold: `mercury extensions init <name>` (or write the folder by hand).
-2. Develop in place: put the folder at `.mercury/extensions/<name>/` in the project;
-   the operator approves it once from `/extensions`; after edits, `r` reloads —
-   a contributions change re-asks.
-3. Lint: `mercury extensions validate <path>` — it names ignored side files, dead
-   paths, unknown keys, unmet needs.
-4. Publish: push the folder as its own repository (a single-extension source), or add
-   an entry to a source's `mercury-extensions.json` catalogue (`path` inside the repo,
-   or `git` + `ref` for an entry hosted elsewhere). The catalogue's `name`/`version`
-   must equal the manifest's — a mismatch refuses the install as a lying catalogue.
-5. Ship a README from `references/README-template.md`.
-
-## Two rules this skill never breaks
-
-- **Never add a source on the operator's behalf.** Adding a source
-  (`mercury extensions add …`) is the operator's act.
-- **Never approve an extension on the operator's behalf.** Approval (the card, or
-  `--yes`) is the operator's act.
-
-Build the folder, validate it, and end by telling the operator exactly which verb to
-run next — typically `mercury extensions add <url>` for a new source, or `/extensions`
-→ `i` on the `◇ found` row for a project folder.
+## Source
+Checked: 2026-09-15. [Mercury extension implementation](https://github.com/Whq02/MercuryCLI/tree/fc81e29e4129a56b1bfb3beca9819ebfb29875f9/src/extensions).
