@@ -329,6 +329,12 @@ export type AwayRecapMetadata = {
   dirtyDelta?: string
   certVerdict?: string
   certAgeMs?: number
+  launchWon?: LaunchWonV1
+}
+
+export type LaunchWonV1 = {
+  model?: { launch: string; session: string }
+  effort?: { launch: string; session: string }
 }
 
 export type SystemAwaySummaryMessage = {

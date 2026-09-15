@@ -1933,6 +1933,8 @@ async function interactiveLaunch(args: {
       const outcome = await focusResumedSession(sessionId, log.fullPath, {
         ...(log.customTitle ?? log.agentName ? { title: (log.customTitle ?? log.agentName) as string } : {}),
         permissionMode: args.permissionMode,
+        ...(typedString(opts.model) !== undefined ? { model: args.resolvedInitialModel } : {}),
+        ...(typeof opts.effort === 'string' ? { effort: opts.effort } : {}),
       })
       if (outcome.ok) return true
       await exitWithError(root, `Failed to resume session ${sessionId}: ${outcome.reason}`)

@@ -62,6 +62,7 @@ import {
 } from '../../utils/effort.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { useCatalogueEpoch } from '../../hooks/useCatalogueEpoch.js'
+import { persistModelChoice } from './persistModelChoice.js'
 
 const CATALOGUE_DOORS: Record<string, () => ModelOption[]> = {
   [OPENROUTER_MODEL_GROUP]: () => getOpenrouterFullModelOptions(),
@@ -538,12 +539,13 @@ function MercuryModelWrapper({
       const label = labelOf(id)
       const factsBefore = focused.modelFacts()
       void focused.setModel(value).then(receipt => {
-        if (receipt.state === 'no-op') {
-          onDone(`Already on ${label} — nothing to change`)
-          return
-        }
         if (receipt.state === 'refused') {
           onDone(`The model switch was refused: ${receipt.detail}`)
+          return
+        }
+        const saved = persistModelChoice(value)
+        if (receipt.state === 'no-op') {
+          onDone(saved === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}`)
           return
         }
         const doorCross = providerFamilyOfSetting(factsBefore.effective) !== providerFamilyOfSetting(value) ? crossProviderNote(value) : ''
@@ -551,8 +553,8 @@ function MercuryModelWrapper({
         const lossNote = transitionPlanSummary(plan)
         onDone(
           receipt.state === 'queued'
-            ? `Model switch queued: ${label} applies when this session's turn settles (the running turn keeps its model)${doorCross}${lossNote}`
-            : `Set model to ${label} — this session's next message runs it${receipt.note !== undefined ? ` (${receipt.note})` : ''}${doorCross}${lossNote}`,
+            ? `Model switch queued: ${label}${saved} — applies when this session's turn settles (the running turn keeps its model)${doorCross}${lossNote}`
+            : `Set model to ${label}${saved} — this session's next message runs it${receipt.note !== undefined ? ` (${receipt.note})` : ''}${doorCross}${lossNote}`,
         )
       })
       return
@@ -562,13 +564,14 @@ function MercuryModelWrapper({
     const settled = settleModelSelection(stateNow, value, {
       turnActive: stateNow.foregroundTurnActive || stateNow.pendingModelSwitch !== null,
     })
+    const saved = persistModelChoice(value)
     if (settled.kind === 'no-op') {
-      onDone(`Already on ${label} — nothing to change`)
+      onDone(saved === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}`)
       return
     }
     if (settled.kind === 'cancelled-pending') {
       setAppState(prev => ({ ...prev, ...settled.patch }))
-      onDone(`Already on ${label} — queued switch cancelled`)
+      onDone(`Already on ${label} — queued switch cancelled${saved}`)
       return
     }
     const effectiveFrom = stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel
@@ -577,13 +580,13 @@ function MercuryModelWrapper({
     if (settled.kind === 'queued') {
       setAppState(prev => ({ ...prev, ...settled.patch }))
       onDone(
-        `Model switch queued: ${label} applies when the current turn settles (the running turn keeps its model)${settled.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
+        `Model switch queued: ${label}${saved} — applies when the current turn settles (the running turn keeps its model)${settled.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
       )
       return
     }
     setAppState(prev => ({ ...prev, ...settled.patch }))
     onDone(
-      `Set model to ${label}${settled.receipt.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
+      `Set model to ${label}${saved}${settled.receipt.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
     )
   }
 
