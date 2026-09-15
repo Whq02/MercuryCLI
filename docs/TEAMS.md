@@ -119,7 +119,7 @@ tools every session carries as `mcp__mercury__lease_claim`,
 `mcp__mercury__lease_release`, `mcp__mercury__lease_list` and
 `mcp__mercury__lease_take`. The list a lease verb takes is called `paths` on
 every one of them: repo-relative file paths, and for the team lease a path may
-be a glob such as `src/api/**`. A claim or a release sent with the older word
+be a glob, a pattern ending in `/**` that covers a folder and everything beneath it. A claim or a release sent with the older word
 `globs` is read as the same list, and a claim sent with neither is refused
 with words that name both. A team claim renews the caller's lease and replaces
 its set; claiming an empty set releases it. `lease_take` and a `lease_release`

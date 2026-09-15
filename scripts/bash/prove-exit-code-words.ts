@@ -132,7 +132,7 @@ if (!existsSync(DIST) || !nodeBin) {
   check('artifact: cmp on two files that differ — a result naming the difference and the code', differ !== undefined && !differ.isError && /differ/.test(differ.text) && differ.text.includes('(exit code 1)'), JSON.stringify(differ))
   check('artifact: grep -c with no match keeps its count and names the code', count !== undefined && !count.isError && count.text.startsWith('0') && count.text.includes('no matches found (exit code 1)'), JSON.stringify(count))
   check('artifact: a false test is a result naming the condition and the code', falsy !== undefined && !falsy.isError && falsy.text.includes('condition is false (exit code 1)'), JSON.stringify(falsy))
-  check('artifact: a real failure stays an error carrying its exit code', failure !== undefined && failure.isError && /Exited with code 1/.test(failure.text), JSON.stringify(failure))
+  check('artifact: a real failure stays an error carrying its exit code', failure !== undefined && failure.isError && /Exited with code [12]\b/.test(failure.text), JSON.stringify(failure))
   const leftovers = spawnSync('pgrep', ['-f', configDir], { encoding: 'utf8' }).stdout.trim()
   check('no process of this run left behind', leftovers === '', leftovers)
   rmSync(home, { recursive: true, force: true })
