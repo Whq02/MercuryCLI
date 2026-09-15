@@ -150,7 +150,8 @@ section('2 · wire knobs (the pure lane builders)')
   const dsOn = buildDeepseekExtras({ ...base, wireModel: 'deepseek-v4-pro', effortValue: 'xhigh' })
   const dsThinking = dsOn.thinking as Record<string, unknown>
   check('deepseek: thinking enabled', dsThinking.type === 'enabled')
-  check('deepseek: xhigh resolves nearest-below → high INSIDE thinking', dsThinking.reasoning_effort === 'high')
+  check('deepseek: xhigh resolves nearest-below → high at the TOP LEVEL', dsOn.reasoning_effort === 'high')
+  check('deepseek: the thinking object carries type alone', !('reasoning_effort' in dsThinking))
   check(
     'deepseek: include_usage always',
     (dsOn.stream_options as Record<string, unknown>).include_usage === true,
@@ -162,7 +163,7 @@ section('2 · wire knobs (the pure lane builders)')
     maxOutputTokensOverride: undefined,
   })
   const dsOffThinking = dsOff.thinking as Record<string, unknown>
-  check('deepseek: disabled thinking drops the effort key', dsOffThinking.type === 'disabled' && !('reasoning_effort' in dsOffThinking))
+  check('deepseek: disabled thinking drops the effort key', dsOffThinking.type === 'disabled' && !('reasoning_effort' in dsOffThinking) && !('reasoning_effort' in dsOff))
 
   const slot = buildCompatSlotExtras({ ...base, wireModel: 'qwen3-32b', effortValue: 'max' })
   check('compat: baseline only (no effort/thinking keys)', !('reasoning_effort' in slot) && !('thinking' in slot))

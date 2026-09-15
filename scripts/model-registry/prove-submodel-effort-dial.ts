@@ -329,9 +329,11 @@ section("§3 the dispatch: the chosen level rides each family's wire field; a mo
   const dsConsole = slots.subModelDispatchEffort('console', 'deepseek-v4-flash')
   const dsMinerva = slots.subModelDispatchEffort('minerva', 'deepseek-v4-flash')
   const dsWire = (value: Level | undefined, thinkingEnabled: boolean): string | undefined =>
+    (wire.buildDeepseekExtras(compat('deepseek-v4-flash', value, thinkingEnabled)) as { reasoning_effort?: string }).reasoning_effort
+  const dsNested = (value: Level | undefined, thinkingEnabled: boolean): string | undefined =>
     ((wire.buildDeepseekExtras(compat('deepseek-v4-flash', value, thinkingEnabled)) as { thinking?: { reasoning_effort?: string } }).thinking ?? {}).reasoning_effort
-  check('deepseek · high chosen: the console (thinking on) sends thinking.reasoning_effort high', dsConsole.effortValue === 'high' && dsWire(dsConsole.effortValue, true) === 'high', JSON.stringify(dsConsole))
-  check("deepseek · high chosen: Minerva (thinking off) carries no level, says so, and the builder sends no dial", dsMinerva.effortValue === undefined && /sends no effort dial on Minerva's thinking-off calls/.test(dsMinerva.fallback ?? '') && dsWire(dsMinerva.effortValue, false) === undefined, JSON.stringify(dsMinerva))
+  check('deepseek · high chosen: the console (thinking on) sends a top-level reasoning_effort high, never nested', dsConsole.effortValue === 'high' && dsWire(dsConsole.effortValue, true) === 'high' && dsNested(dsConsole.effortValue, true) === undefined, JSON.stringify(dsConsole))
+  check("deepseek · high chosen: Minerva (thinking off) carries no level, says so, and the builder sends no dial top-level or nested", dsMinerva.effortValue === undefined && /sends no effort dial on Minerva's thinking-off calls/.test(dsMinerva.fallback ?? '') && dsWire(dsMinerva.effortValue, false) === undefined && dsNested(dsMinerva.effortValue, false) === undefined, JSON.stringify(dsMinerva))
   slots.setSubModelEffort('console', null)
   slots.setSubModelEffort('minerva', null)
 

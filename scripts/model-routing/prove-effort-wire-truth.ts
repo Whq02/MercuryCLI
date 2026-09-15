@@ -250,7 +250,7 @@ section('§4 the compat wires, thinking on: every builder\'s dial ≡ the owner\
   const qwen = localCatalogue.localRecordFor('local/qwen3:8b')!
   const families: Array<{ model: string; dial: (request: Level | undefined) => string | undefined; vocabulary: readonly string[] }> = [
     { model: 'kimi-k3', vocabulary: ['low', 'high', 'max'], dial: r => (wire.buildMoonshotExtras(base('kimi-k3', r)) as { reasoning_effort?: string }).reasoning_effort },
-    { model: 'deepseek-v4-flash', vocabulary: ['low', 'high', 'max'], dial: r => ((wire.buildDeepseekExtras(base('deepseek-v4-flash', r)) as { thinking?: { reasoning_effort?: string } }).thinking ?? {}).reasoning_effort },
+    { model: 'deepseek-v4-flash', vocabulary: ['low', 'high', 'max'], dial: r => (wire.buildDeepseekExtras(base('deepseek-v4-flash', r)) as { reasoning_effort?: string }).reasoning_effort },
     { model: 'gemini-fixture-pro', vocabulary: ['low', 'medium', 'high'], dial: r => (wire.buildGeminiExtras({ ...base('gemini-fixture-pro', r), acceptsEffort: gemini.geminiEffortVocabularyFor('gemini-fixture-pro').length > 0 }) as { reasoning_effort?: string }).reasoning_effort },
     { model: 'openrouter/google/gemini-fixture-pro', vocabulary: ['low', 'medium', 'high', 'xhigh'], dial: r => ((wire.buildOpenrouterExtras({ ...base('google/gemini-fixture-pro', r, 'openrouter/google/gemini-fixture-pro'), vocabulary: openrouter.openrouterEffortVocabularyFor('openrouter/google/gemini-fixture-pro') }) as { reasoning?: { effort?: string } }).reasoning ?? {}).effort },
     { model: 'openrouter/deep/deep-fixture-tall', vocabulary: ['high', 'max'], dial: r => ((wire.buildOpenrouterExtras({ ...base('deep/deep-fixture-tall', r, 'openrouter/deep/deep-fixture-tall'), vocabulary: openrouter.openrouterEffortVocabularyFor('openrouter/deep/deep-fixture-tall') }) as { reasoning?: { effort?: string } }).reasoning ?? {}).effort },
@@ -287,7 +287,7 @@ section('§5 thinking off: DeepSeek sends nothing (its thinking object spells of
   const off = (wireModel: string, request: Level, model = wireModel) => ({ wireModel, effortValue: effort.resolveWireRequestedEffort(model, request), thinkingEnabled: false, maxOutputTokensOverride: undefined })
   const orVocabulary = openrouter.openrouterEffortVocabularyFor('openrouter/google/gemini-fixture-pro')
   const gated: Array<{ model: string; sent: string | undefined; floor: string | undefined }> = [
-    { model: 'deepseek-v4-flash', sent: ((wire.buildDeepseekExtras(off('deepseek-v4-flash', 'high')) as { thinking?: { reasoning_effort?: string } }).thinking ?? {}).reasoning_effort, floor: undefined },
+    { model: 'deepseek-v4-flash', sent: (wire.buildDeepseekExtras(off('deepseek-v4-flash', 'high')) as { reasoning_effort?: string }).reasoning_effort, floor: undefined },
     { model: 'gemini-fixture-pro', sent: (wire.buildGeminiExtras({ ...off('gemini-fixture-pro', 'high'), acceptsEffort: true }) as { reasoning_effort?: string }).reasoning_effort, floor: 'low' },
     { model: 'openrouter/google/gemini-fixture-pro', sent: ((wire.buildOpenrouterExtras({ ...off('google/gemini-fixture-pro', 'high', 'openrouter/google/gemini-fixture-pro'), vocabulary: orVocabulary }) as { reasoning?: { effort?: string } }).reasoning ?? {}).effort, floor: wire.thinkingOffWireEffort(orVocabulary) },
   ]

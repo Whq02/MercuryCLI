@@ -45,12 +45,10 @@ export function buildDeepseekExtras(args: LaneExtrasArgs): Record<string, unknow
         : nearestSupportedWireEffort(args.effortValue, [...DEEPSEEK_EFFORTS])
       : undefined
   return {
-    thinking: {
-      type: args.thinkingEnabled ? 'enabled' : 'disabled',
-      ...(args.thinkingEnabled && wireEffort !== undefined
-        ? { reasoning_effort: wireEffort }
-        : {}),
-    },
+    thinking: { type: args.thinkingEnabled ? 'enabled' : 'disabled' },
+    ...(args.thinkingEnabled && wireEffort !== undefined
+      ? { reasoning_effort: wireEffort }
+      : {}),
     stream_options: { include_usage: true },
     ...(args.maxOutputTokensOverride !== undefined
       ? { max_tokens: args.maxOutputTokensOverride }
