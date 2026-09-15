@@ -6,3 +6,4 @@
 prove-prefix-frozen-drive.ts
 prove-image-refusal-drive.ts
 prove-image-refusal-frames.ts
+prove-authentication-retry-frames.ts

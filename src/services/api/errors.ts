@@ -6,7 +6,7 @@ import { AFK_MODE_BETA_HEADER } from '../../constants/betas.js'
 import { describeAnthropicClientContract } from '../../constants/oauth.js'
 import { API_PDF_MAX_PAGES, PDF_TARGET_RAW_SIZE } from '../../constants/apiLimits.js'
 import type { AssistantMessage, AssistantMessageError, Message } from '../../types/message.js'
-import { getAnthropicApiKeyWithSource, getApiKeyHelperFailure, getAuthTokenSource, hasStoredOAuthToken, isClaudeAISubscriber, isAnthropicOAuthSignInExpired, wireCredentialSource, type WireCredentialSource } from '../../utils/auth.js'
+import { getAnthropicApiKeyWithSource, getApiKeyHelperFailure, getAuthTokenSource, getOauthAccountInfo, hasStoredOAuthToken, isClaudeAISubscriber, isAnthropicOAuthSignInExpired, wireCredentialSource, type WireCredentialSource } from '../../utils/auth.js'
 import { formatFileSize } from '../../utils/format.js'
 import { isEnvShadowedAuthSource } from '../../utils/loginShadow.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -393,6 +393,7 @@ export function getAssistantMessageFromError(
   _context?: { messages?: Message[]; messagesForAPI?: unknown[] },
 ): AssistantMessage {
   const row = composeAssistantMessageFromError(error, model, _context)
+  if (row.error === 'authentication_failed' && classifyCredentialWall(statusOf(error), messageOf(error)) !== 'key-limit') return row
   const asked = providerAskedWaitMs(error)
   return asked === undefined ? row : { ...row, providerWaitEndsAtMs: Date.now() + asked }
 }
@@ -662,8 +663,9 @@ function composeAssistantMessageFromError(
   const wall = classifyCredentialWall(status, message)
   if (wall !== undefined) {
     logForDebugging(`[api] credential wall (${wall}) on ${model} — the wire said: ${message}`)
+    const account = wall === 'sign-in' && ['anthropic', 'gateway'].includes(routeOfModel(model)) && isClaudeAISubscriber() ? getOauthAccountInfo()?.emailAddress : undefined
     return createAssistantAPIErrorMessage({
-      content: `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine(routeOfModel(model), wall, { nonInteractive })}`,
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine(routeOfModel(model), wall, { nonInteractive })}${account ? ` · account ${account}` : ''}`,
       error: 'authentication_failed',
     })
   }
@@ -677,10 +679,11 @@ function composeAssistantMessageFromError(
     })
   }
 
-  if (classifyAnthropicRefusal({ status, wireText: message, signInExpired: isAnthropicOAuthSignInExpired() }) === 'sign-in') {
-    logForDebugging(`[api] credential wall (sign-in, observed expired) on ${model} — the wire said: ${message}`)
+  if ((status === 401 && isClaudeAISubscriber()) || classifyAnthropicRefusal({ status, wireText: message, signInExpired: isAnthropicOAuthSignInExpired() }) === 'sign-in') {
+    logForDebugging(`[api] credential wall (sign-in) on ${model} — the wire said: ${message}`)
+    const account = ['anthropic', 'gateway'].includes(routeOfModel(model)) && isClaudeAISubscriber() ? getOauthAccountInfo()?.emailAddress : undefined
     return createAssistantAPIErrorMessage({
-      content: `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine(routeOfModel(model), 'sign-in', { nonInteractive })}`,
+      content: `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine(routeOfModel(model), 'sign-in', { nonInteractive })}${account ? ` · account ${account}` : ''}`,
       error: 'authentication_failed',
     })
   }
@@ -706,6 +709,15 @@ function composeAssistantMessageFromError(
         : `${clearVerb} and then run /logins`
       return createAssistantAPIErrorMessage({
         content: `Authentication failed: ${authSource} is set and overrides /logins — ${fix}. ${evidence}`,
+        error: 'authentication_failed',
+      })
+    }
+    const credentialSource: WireCredentialSource = authSource === 'apiKeyHelper'
+      ? { kind: 'helper' }
+      : wireCredentialSource(authSource === 'ANTHROPIC_AUTH_TOKEN' ? 'authorization' : 'x-api-key')
+    if (status === 401 && (credentialSource.kind === 'env' || credentialSource.kind === 'helper')) {
+      return createAssistantAPIErrorMessage({
+        content: `${invalidCredentialWords(credentialSource)}. ${evidence}`,
         error: 'authentication_failed',
       })
     }
