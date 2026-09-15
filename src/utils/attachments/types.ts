@@ -429,12 +429,6 @@ export type Attachment =
       cause: string
     }
   | {
-      type: 'cycle_handoff'
-      cause: string
-      unfinished: string[]
-      report: string
-    }
-  | {
       type: 'current_session_memory'
       content: string
       path: string

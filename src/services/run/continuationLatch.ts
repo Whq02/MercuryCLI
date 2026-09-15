@@ -3,23 +3,11 @@ import type { OwnerKey } from './ownerKey.js'
 import { registerOwnerScopedStore } from './ownerLifecycle.js'
 import { OwnerScopedStore } from './ownerScopedStore.js'
 
-export interface AdmissionRecord {
-  revision: {
-    runRevision: number
-    effectRevision: number
-    evidenceRevision: number
-    externalRevision: number
-  }
-  nextActionFingerprint: string
-  attempt: number
-}
-
 interface LatchState {
   lastAttemptId: string | null
   claimedAttemptId: string | null
   turnIdx: number
   continuationsThisTurn: number
-  lastAdmission: AdmissionRecord | null
 }
 
 const latches = new OwnerScopedStore<LatchState>({
@@ -29,7 +17,6 @@ const latches = new OwnerScopedStore<LatchState>({
     claimedAttemptId: null,
     turnIdx: -1,
     continuationsThisTurn: 0,
-    lastAdmission: null,
   }),
 })
 registerOwnerScopedStore(latches)
@@ -50,20 +37,7 @@ function rollTurn(state: LatchState, turnIdx: number): void {
     state.continuationsThisTurn = 0
     state.claimedAttemptId = null
     state.lastAttemptId = null
-    state.lastAdmission = null
   }
-}
-
-export function lastAdmission(owner: OwnerKey, turnIdx: number): AdmissionRecord | null {
-  const s = latches.get(owner)
-  rollTurn(s, turnIdx)
-  return s.lastAdmission
-}
-
-export function recordAdmission(owner: OwnerKey, turnIdx: number, record: AdmissionRecord): void {
-  const s = latches.get(owner)
-  rollTurn(s, turnIdx)
-  s.lastAdmission = record
 }
 
 export function continuationsThisTurn(owner: OwnerKey, turnIdx: number): number {

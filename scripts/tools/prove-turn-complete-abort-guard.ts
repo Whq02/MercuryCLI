@@ -62,8 +62,8 @@ check(
   /const endTurnCarveOut = !terminalMessage && capturedStopReason === 'end_turn'\s*if \(\(!terminalMessage \|\| !isResultSuccessful\(terminalMessage\)\) && !endTurnCarveOut\) \{[\s\S]{0,400}?subtype: 'error_during_execution',[\s\S]{0,400}?return/.test(engine),
 )
 check(
-  'the success envelopes are the closed three (local command · cycle_handoff · the gated settlement)',
-  (engine.match(/subtype: 'success',/g) ?? []).length === 3,
+  'the success envelopes are the closed two (local command · the gated settlement)',
+  (engine.match(/subtype: 'success',/g) ?? []).length === 2,
 )
 check(
   'the turn settlement’s success yield is the LAST envelope, past the gate',

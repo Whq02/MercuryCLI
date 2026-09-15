@@ -62,6 +62,7 @@ import {
 } from '../../../utils/pulse/turnPhase.js'
 import { notePrintPhase } from '../../../utils/printPhases.js'
 import type { ApiShapedTool } from '../zai/zaiCodec.js'
+import { emptyReplyNote, markEmptyReply } from '../emptyReply.js'
 import {
   renderOpenaiInstructions,
   resolveBehaviourContract,
@@ -1146,11 +1147,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
     )
   }
   if (minted.length === 0) {
-    yield* emitSettledBlock(
-      { type: 'text', text: '', citations: null },
-      [],
-      { type: 'text', text: '', citations: null },
-    )
+    yield* emitNoteBlock(emptyReplyNote('openai'), markEmptyReply)
   }
 
   const mappedFinish = FINISH_TO_STOP[finish?.reason ?? 'completed'] ?? 'end_turn'
