@@ -29,10 +29,11 @@ const everyRunnerText = readdirSync(SCRIPTS)
   .join('\n')
 const memberEnrolled = new Set<string>()
 for (const dir of readdirSync(SCRIPTS)) {
-  if (!dir.endsWith('-drives')) continue
+  const suffix = dir.endsWith('-drives') ? '-drives' : dir.endsWith('-boots') ? '-boots' : null
+  if (suffix === null) continue
   const members = join(SCRIPTS, dir, 'members.txt')
   if (!existsSync(members)) continue
-  const parent = dir.slice(0, -'-drives'.length)
+  const parent = dir.slice(0, -suffix.length)
   for (const raw of readFileSync(members, 'utf8').split('\n')) {
     const name = raw.trim()
     if (name === '' || name.startsWith('#')) continue
