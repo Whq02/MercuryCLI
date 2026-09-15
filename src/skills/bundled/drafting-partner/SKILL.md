@@ -1,69 +1,32 @@
 ---
 name: drafting-partner
-description: Co-write a substantial document with the user — a proposal, spec, report, policy, or long memo — by agreeing the brief, building the outline together, drafting section by section, and running review passes that the user steers. Use when the user wants to write something with you rather than have it generated in one shot; not for code, short messages, or editing a finished file's formatting.
-when-to-use: The user says "help me write", "let's draft", "I need a document for…", shares notes to turn into a document, or wants structured feedback on a draft.
-argument-hint: "<document type and purpose> [existing notes or draft path]"
+description: Use when co-writing a proposal, specification, report, policy or long memo through an agreed brief, outline and review. Not for code, short messages or file formatting.
+argument-hint: "<document type and purpose> [notes or draft path]"
 ---
-
 # Drafting partner
 
-Long documents fail when the writer drafts before the reader is known. Work in
-four moves, each closing with something the user can react to, and never
-skip a move because the answer seems obvious.
+## Agree the structure
+- Read supplied drafts and supporting material fully.
+- Record the reader, decision, outcome, length, format and deadline.
+- Ask for missing constraints together; confirm the brief and current argument.
+- Propose a section sequence with each section's claim or purpose.
+- Incorporate the user's structural changes before drafting.
 
-## 1. The brief (one exchange)
+## Draft
+- Follow the agreed order; lead each section with its claim.
+- Pause between sections when collaboration is requested; otherwise produce the requested full pass.
+- Cite factual sources, verify figures and mark unresolved claims `[confirm]`.
+- Number specification requirements and acceptance criteria.
+- Put proposal recommendations before options and report findings before detail.
 
-Ask, in one message, for what is missing from: the reader and what they
-decide after reading; the outcome the author wants; length and form; the
-material that exists (notes, data, prior versions); and the deadline.
-Restate the brief in four lines and get a yes. If the user gave a draft, read
-it fully first and restate what it currently argues.
+## Review
+- Run only the selected passes: argument, reader, cut, line or fact.
+- Check support and objections; first-page decisions and defined terms; length; sentences and consistency; dates, names and numbers.
+- Resolve or remove `[confirm]` items; record revisions and exclusions.
+- Resolve `${MERCURY_SKILL_DIR}` from the supplied base directory.
+- Check headings, empty sections, duplicates and length balance with `python3 "${MERCURY_SKILL_DIR}/scripts/outline_check.py" draft.md`; use `--self-test` to test the helper.
+- Check the outline and final draft; deliver the agreed format.
+- Use word-documents for Word output and pdf-documents for PDF output.
 
-## 2. The outline (agree before drafting)
-
-Propose an outline with one line per section stating the section's claim or
-job, not its topic ("Costs rise 12% under option B" rather than "Costs").
-Keep it to what the reader needs to decide; cut sections that only show
-work. Ask the user to strike, reorder, or add, then freeze it. Check the
-structure mechanically:
-
-```bash
-python3 scripts/outline_check.py draft.md     # heading levels, empty sections, duplicates, length balance
-python3 scripts/outline_check.py --self-test
-```
-
-## 3. Drafting
-
-- Draft one section at a time in the agreed order, lead each with its claim,
-  and stop after each for a steer when the user asked to be involved; draft
-  the whole when they asked for a full pass.
-- Use the user's material verbatim for facts and figures; mark every number
-  you did not get from them as `[confirm]`. Never invent a statistic, quote,
-  or citation.
-- Match the form: a spec gets numbered requirements and acceptance criteria;
-  a proposal gets a recommendation first and options after; a report leads
-  with findings.
-- Keep the voice the user writes in. Read two paragraphs of their prior
-  writing and hold to that register.
-
-## 4. Review passes (the user picks which)
-
-Offer these as separate passes and run only the ones chosen:
-
-- **Argument** — does each section deliver its claim; is anything asserted
-  without support; would the reader's first objection be answered?
-- **Reader** — can the decision be made from the first page; is every term
-  defined the first time it appears?
-- **Cut** — remove what the reader does not need; target a length.
-- **Line** — sentences, transitions, consistency of names and numbers.
-- **Fact** — every `[confirm]` resolved or removed; dates, figures, and names
-  checked against the source material.
-
-After each pass, list what changed and what you left alone on purpose.
-
-## Finishing
-
-Deliver in the form agreed (Markdown, a Word file via the word-documents
-skill, a PDF via the pdf-documents skill). Run the outline check once more
-on the final draft and hand over with the three open questions the reader
-will most likely raise.
+## Source
+Checked: 2026-09-15. [User needs](https://www.gov.uk/service-manual/user-research/start-by-learning-user-needs).
