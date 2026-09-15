@@ -10,6 +10,7 @@ const FUNC_DECL = /^(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/
 const CLASS_DECL = /^class\s+([A-Za-z_$][\w$]*)/
 const IMPORT_FROM = /^import\s+([\s\S]+?)\s+from\s*(['"])([^'"\n]+)\2\s*;?$/
 const IMPORT_BARE = /^import\s*(['"])([^'"\n]+)\1\s*;?$/
+const BLOCK_FOLLOWER = /^[ \t]*(?:var|let|const|function|async[ \t]+function|class|import|export)\b/
 const STATEMENT_KEYWORD =
   /^(?:const|let|var|function|class|if|for|while|do|switch|try|throw|return|break|continue|import|export|async\s+function|debugger)\b/
 
@@ -123,6 +124,10 @@ export function splitTopLevelSegments(source: string): Segment[] {
         continue
       }
       i++
+      if (c === '}' && depth === 0 && BLOCK_FOLLOWER.test(source.slice(i, i + 40))) {
+        segments.push({ text: source.slice(start, i) })
+        start = i
+      }
       continue
     }
     if (c === ';' && depth === 0) {
@@ -366,10 +371,17 @@ export function transformJsCell(source: string): TransformedCell {
     out.push(text)
   }
   const unique = [...new Set(names)].filter(n => /^[A-Za-z_$][\w$]*$/.test(n))
-  const persist = unique.map(n => `try { globalThis.${n} = ${n}; globalThis.__mercuryPersistedNames.push(${JSON.stringify(n)}); } catch {}`).join(' ')
-  const save = `__mercuryPersist${Math.abs(hashCode(source))}`
+  const persist = unique
+    .map(
+      n =>
+        `try { const __mercuryValue = ${n}; if (!(__mercuryThrew && __mercuryValue === undefined)) { globalThis.${n} = __mercuryValue; globalThis.__mercuryPersistedNames.push(${JSON.stringify(n)}); } } catch {}`,
+    )
+    .join(' ')
+  const stamp = Math.abs(hashCode(source))
+  const save = `__mercuryPersist${stamp}`
+  const threw = `__mercuryThrew${stamp}`
   return {
-    code: `${directivePrologue(source)}\nlet ${save};\ntry {\n${save} = () => { globalThis.__mercuryPersistedNames = []; ${persist} };\n${out.join('')}\n} finally { ${save}(); }`,
+    code: `${directivePrologue(source)}\nlet ${save}, ${threw} = false;\ntry {\n${save} = (__mercuryThrew) => { globalThis.__mercuryPersistedNames = []; ${persist} };\n${out.join('')}\n} catch (__mercuryError) { ${threw} = true; throw __mercuryError } finally { ${save}(${threw}); }`,
     persistedNames: unique,
     capturesResult,
   }

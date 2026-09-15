@@ -10,10 +10,6 @@ export type Terminal =
   | { reason: 'rapid_refill_breaker' }
   | { reason: 'max_turns'; turnCount: number }
   | {
-      reason: 'cycle_handoff'
-      cause: string
-    }
-  | {
       reason: 'repetition_breaker'
       cause: string
     }
@@ -32,5 +28,6 @@ export type Continue =
   | { reason: 'token_budget_continuation' }
   | { reason: 'stream_fault_recovery'; attempt: number }
   | { reason: 'tool_call_refusal_recovery'; attempt: number }
+  | { reason: 'empty_reply_retry'; attempt: number }
   | { reason: 'checkpoint_settle_guard' }
   | { reason: 'overflow_recovery'; rung: 'prune' | 'fold'; source: 'provider' | 'estimate' }

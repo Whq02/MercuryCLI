@@ -84,42 +84,23 @@ async function main(): Promise<void> {
     check('BM-01 floor: the surface-less (interactive) posture still demands evidence', interactive.kind === 'continue', interactive.kind)
   }
 
-  section('BM-02 — admission by revision key, not elapsed attempts')
+  section('BM-02 — an unchanged run continues until the operator budget; no revision gate refuses it')
   {
     const evaluator = src('src/services/run/completionEvaluator.ts')
     check(
-      'BM-02: continuation admission is revision-keyed (runRevision/evidenceRevision/nextActionFingerprint in the decision input)',
-      /runRevision|evidenceRevision|nextActionFingerprint/.test(evaluator),
+      'BM-02: the decision input carries no revision tuple and no admission record',
+      !/runRevision|evidenceRevision|nextActionFingerprint|priorAdmission/.test(evaluator),
     )
-  }
-
-  section('BM-02 — the same tuple + action may not open another provider call')
-  {
-    const { actionFingerprint } = await import('../../src/services/run/progressModel.js')
     const open = fold('churny run', [
       { type: 'substantive', at: 2, reason: 'work' },
       { type: 'task-transition', at: 3, taskId: 't1', title: 'the work', state: 'open' },
     ] as never[])
-    const tuple = { runRevision: 3, effectRevision: 0, evidenceRevision: 0, externalRevision: 0 }
-    const first = evaluateStop({ ...defaults, snapshot: open, revision: tuple, priorAdmission: null } as never)
-    check('BM-02: the FIRST admission continues (nothing admitted yet)', first.kind === 'continue', first.kind)
-    const prior = first.kind === 'continue'
-      ? { revision: tuple, nextActionFingerprint: actionFingerprint(first.nextAction) }
-      : { revision: tuple, nextActionFingerprint: '' }
-    const identical = evaluateStop({ ...defaults, snapshot: open, continuationsThisTurn: 1, revision: tuple, priorAdmission: prior } as never)
-    check(
-      'BM-02: an UNCHANGED tuple + the same action is refused with the typed handoff (A04-A06)',
-      identical.kind === 'handoff',
-      identical.kind,
-    )
-    const moved = evaluateStop({
-      ...defaults,
-      snapshot: open,
-      continuationsThisTurn: 1,
-      revision: { ...tuple, evidenceRevision: 31 },
-      priorAdmission: prior,
-    } as never)
-    check('BM-02: a MOVED evidence revision re-arms admission (the world changed)', moved.kind === 'continue', moved.kind)
+    const first = evaluateStop({ ...defaults, snapshot: open })
+    check('BM-02: the FIRST continuation is issued', first.kind === 'continue', first.kind)
+    const identical = evaluateStop({ ...defaults, snapshot: open, continuationsThisTurn: 1 })
+    check('BM-02: an UNCHANGED run with the same next action is continued again, never refused', identical.kind === 'continue', identical.kind)
+    const atBudget = evaluateStop({ ...defaults, snapshot: open, continuationsThisTurn: defaults.maxContinuationsPerTurn })
+    check('BM-02: the operator budget is the one fuse (budget-exhausted, naming the open work)', atBudget.kind === 'budget-exhausted' && atBudget.unfinished.includes('the work'), atBudget.kind)
   }
 
   section('BM-03/BM-09 — receipts over read-back; evidence outside the checkout')
