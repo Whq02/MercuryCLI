@@ -5,9 +5,10 @@ import type { SystemAPIErrorMessage } from '../../types/message.js'
 import {
   apiKeyHelperFailedLast,
   clearApiKeyHelperCache,
+  getApiKeyFromApiKeyHelperCached,
+  getAuthTokenSource,
   getClaudeAIOAuthTokens,
   handleOAuth401Error,
-  isAnthropicOAuthSignInExpired,
   isClaudeAISubscriber,
   isEnterpriseSubscriber,
 } from '../../utils/auth.js'
@@ -127,6 +128,11 @@ function isRevokedTokenError(error: unknown): boolean {
 export function isRetryableError(error: unknown): boolean {
   if (isMockRateLimitError(error)) return false
   const status = statusOf(error)
+  if (status === 401) {
+    clearApiKeyHelperCache()
+    return false
+  }
+  if (isRevokedTokenError(error)) return false
   if (providerWaitIsWindow(providerAskedWaitMs(error))) return false
   if (errorMessage(error).includes(OVERLOADED_TYPE_MARKER)) return true
   if (parseMaxTokensContextOverflowError(error) !== undefined) return true
@@ -140,14 +146,6 @@ export function isRetryableError(error: unknown): boolean {
     if (isClaudeAISubscriber() && !isEnterpriseSubscriber() && isSpentUsageWindowAnswer(error)) return false
     return true
   }
-  if (status === 401) {
-    const helperFailed = apiKeyHelperFailedLast()
-    clearApiKeyHelperCache()
-    if (helperFailed) return false
-    if (isAnthropicOAuthSignInExpired()) return false
-    return true
-  }
-  if (isRevokedTokenError(error)) return true
   return false
 }
 
@@ -211,28 +209,21 @@ export async function* withRetry<T>(
   let lastError: unknown
   let previousError: unknown
   let consecutive529Errors = options.initialConsecutive529Errors ?? 0
+  let authenticationRecoveryAttempted = false
 
   for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
     if (options.signal?.aborted) throw new APIUserAbortError()
 
-    const previousStatus = statusOf(previousError)
-    const needsRebuild =
-      client === null ||
-      previousStatus === 401 ||
-      isRevokedTokenError(previousError) ||
-      isStaleConnectionError(previousError)
-    if (needsRebuild) {
-      if (previousStatus === 401 || isRevokedTokenError(previousError)) {
-        const failedAccessToken = getClaudeAIOAuthTokens()?.accessToken
-        if (failedAccessToken !== undefined) {
-          await handleOAuth401Error(failedAccessToken).catch(() => false)
-        }
-      }
+    if (client === null || isStaleConnectionError(previousError)) {
       if (isStaleConnectionError(previousError)) {
         disableKeepAlive()
       }
       client = await getClient()
     }
+    const failedAccessToken = client.authToken
+    const failedHelperToken = !failedAccessToken && getAuthTokenSource().source === 'apiKeyHelper'
+      ? getApiKeyFromApiKeyHelperCached()
+      : null
 
     try {
       return await operation(client as Anthropic, attempt, retryContext)
@@ -250,6 +241,27 @@ export async function* withRetry<T>(
       }
 
       const status = statusOf(error)
+      if (status === 401 || isRevokedTokenError(error)) {
+        const helperFailed = apiKeyHelperFailedLast()
+        clearApiKeyHelperCache()
+        if (!authenticationRecoveryAttempted && !helperFailed && attempt <= maxRetries) {
+          authenticationRecoveryAttempted = true
+          if (failedAccessToken && getAuthTokenSource().source === 'claude.ai') {
+            const refreshed = await handleOAuth401Error(failedAccessToken).catch(() => false)
+            const accessToken = getClaudeAIOAuthTokens()?.accessToken
+            if (refreshed && accessToken && accessToken !== failedAccessToken) {
+              client = await getClient()
+              if (client.authToken && client.authToken !== failedAccessToken) continue
+            }
+          } else if (failedHelperToken) {
+            client = await getClient()
+            const helperToken = getApiKeyFromApiKeyHelperCached()
+            if (!apiKeyHelperFailedLast() && helperToken && helperToken !== failedHelperToken) continue
+          }
+        }
+        if (options.signal?.aborted) throw new APIUserAbortError()
+        throw new CannotRetryError(error, retryContext)
+      }
       const overload = is529Error(error)
 
       if (overload) {

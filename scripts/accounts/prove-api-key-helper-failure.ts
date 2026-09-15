@@ -102,7 +102,7 @@ section('§3 A HEALED HELPER SERVES ITS KEY')
   check('the key is served', healed === 'sk-ant-ok', JSON.stringify(healed))
   check('the cached reader agrees', auth.getApiKeyFromApiKeyHelperCached() === 'sk-ant-ok')
   check('the failure record clears on success', helperFailure() === null && failedLast() === false)
-  check('a 401 is retryable again — the one recovery lap stands', retry.isRetryableError(err401()) === true)
+  check('a healed helper does not make a 401 enter generic backoff; changed-credential recovery is separate', retry.isRetryableError(err401()) === false)
 }
 
 section('§4 THE RAW STDERR LINE RIDES THE HEADLESS ROAD ONLY')
