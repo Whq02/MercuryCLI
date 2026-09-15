@@ -1,0 +1,6 @@
+# scripts/stop-policy-boots/members.txt — the stop-policy suite's built-bundle
+# boots, one basename per line (the files live in scripts/stop-policy/). The
+# parent suite runs its own explicit list, so a boot lands here only by
+# editing this list; a name listed here but missing on disk is a loud red.
+prove-no-stagnation-governor.ts
+prove-empty-reply-note.ts

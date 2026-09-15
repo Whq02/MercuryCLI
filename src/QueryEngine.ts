@@ -681,22 +681,6 @@ export class QueryEngine {
                 ...buildResultEnvelope(),
               })
               return
-            } else if (attachmentType === 'cycle_handoff') {
-              const cause = (attachment as { cause?: string }).cause ?? ''
-              const openItems = (attachment as { openItems?: string[] }).openItems ?? []
-              const report = (attachment as { report?: string }).report ?? ''
-              const openClause =
-                openItems.length > 0 ? ` Unfinished: ${openItems.join('; ')}.` : ''
-              yield asSdk({
-                type: 'result',
-                subtype: 'success',
-                is_error: false,
-                num_turns: turnMessages.length - 1,
-                result: `HANDOFF: ${cause}${openClause}\n${report}`,
-                stop_reason: capturedStopReason,
-                ...buildResultEnvelope(),
-              })
-              return
             } else if (attachmentType === 'queued_command' && config.replayUserMessages) {
               yield asSdk({
                 type: 'user',
