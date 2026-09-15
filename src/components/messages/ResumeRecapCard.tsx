@@ -45,10 +45,22 @@ function shapeCounts(m: AwayRecapMetadata): string {
   return parts.join(` ${GLYPH.dot} `);
 }
 
+function launchWonRows(m: AwayRecapMetadata): string[] {
+  const rows: string[] = [];
+  if (m.launchWon?.model) {
+    rows.push(`--model ${m.launchWon.model.launch} wins over the session's ${m.launchWon.model.session}`);
+  }
+  if (m.launchWon?.effort) {
+    rows.push(`--effort ${m.launchWon.effort.launch} wins over the session's ${m.launchWon.effort.session}`);
+  }
+  return rows;
+}
+
 export function ResumeRecapCard({ metadata, addMargin, bg }: Props): React.ReactNode {
   const tokens = useMercuryTokens();
   const shape = shapeCounts(metadata);
   const tail = repoHealthTail(metadata);
+  const won = launchWonRows(metadata);
   const toolFailures = metadata.toolFailures ?? 0;
   const verdictTone = metadata.endedOnError
     ? tokens.failure
@@ -107,6 +119,14 @@ export function ResumeRecapCard({ metadata, addMargin, bg }: Props): React.React
           </Text>
         </Box>
       ) : null}
+      {won.map(row => (
+        <Box key={row} flexDirection="row">
+          <Box minWidth={2} />
+          <Text color={tokens.textSecondary} wrap="truncate">
+            {row}
+          </Text>
+        </Box>
+      ))}
     </Box>
   );
 }

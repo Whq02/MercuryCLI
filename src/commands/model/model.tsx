@@ -36,6 +36,7 @@ import { resolveEffortTruth, type EffortValue } from '../../utils/effort.js'
 import { errorMessage } from '../../utils/errors.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import type { ModelSwitchReceiptV1 } from '../../services/engine-connector/types.js'
+import { persistModelChoice } from './persistModelChoice.js'
 
 function renderModelLabel(setting: ModelSetting): string {
   if (setting === null) return renderDefaultModelLabel()
@@ -67,15 +68,15 @@ function effortParenthetical(
   return ` (effort: ${requested})`
 }
 
-function focusedSwitchSentence(receipt: ModelSwitchReceiptV1, target: ModelSetting): string {
+function focusedSwitchSentence(receipt: ModelSwitchReceiptV1, target: ModelSetting, saved: string): string {
   const label = renderModelLabel(target)
   switch (receipt.state) {
     case 'applied':
-      return `Model set to ${label} — this session's next message runs it${receipt.note !== undefined ? ` (${receipt.note})` : ''}`
+      return `Model set to ${label}${saved} — this session's next message runs it${receipt.note !== undefined ? ` (${receipt.note})` : ''}`
     case 'queued':
-      return `Model switch queued: ${label} takes effect when this session's turn settles — the running turn keeps its model`
+      return `Model switch queued: ${label}${saved} — takes effect when this session's turn settles, the running turn keeps its model`
     case 'no-op':
-      return `Already on ${label} — nothing to change.`
+      return saved === '' ? `Already on ${label} — nothing to change.` : `Already on ${label}${saved}.`
     default:
       return `The model switch was refused: ${receipt.detail}`
   }
@@ -135,21 +136,22 @@ function ModelSet({
   const settlementMessage = (
     landed: SettledSelection,
     plan: TransitionPlan | null,
+    saved: string,
   ): string => {
     const label = renderModelLabel(target)
     if (landed.kind === 'no-op') {
-      return `Already on ${label} — nothing to change.`
+      return saved === '' ? `Already on ${label} — nothing to change.` : `Already on ${label}${saved}.`
     }
     if (landed.kind === 'cancelled-pending') {
-      return `Already on ${label} — cancelled the previously queued model switch.`
+      return `Already on ${label} — cancelled the previously queued model switch${saved}.`
     }
     const lossNote = plan ? transitionPlanSummary(plan) : ''
     if (landed.kind === 'queued') {
       const cross = landed.crossProvider ? crossProviderNote(target) : ''
-      return `Model switch queued: ${label} takes effect when the current turn settles — the running turn keeps its model.${cross}${lossNote}`
+      return `Model switch queued: ${label}${saved} — takes effect when the current turn settles, the running turn keeps its model.${cross}${lossNote}`
     }
     const cross = landed.receipt.crossProvider ? crossProviderNote(target) : ''
-    return `Model set to ${label}${cross}${lossNote}`
+    return `Model set to ${label}${saved}${cross}${lossNote}`
   }
 
   const applyNow = async (plan: TransitionPlan | null): Promise<void> => {
@@ -163,7 +165,8 @@ function ModelSet({
           ? crossProviderNote(target)
           : ''
       const lossNote = plan && receipt.state !== 'no-op' && receipt.state !== 'refused' ? transitionPlanSummary(plan) : ''
-      onDone(`${focusedSwitchSentence(receipt, target)}${doorCross}${lossNote}`)
+      const saved = receipt.state === 'refused' ? '' : persistModelChoice(target)
+      onDone(`${focusedSwitchSentence(receipt, target, saved)}${doorCross}${lossNote}`)
       return
     }
     let landed = {
@@ -177,7 +180,7 @@ function ModelSet({
       })
       return landed.patch ? { ...prev, ...landed.patch } : prev
     })
-    onDone(settlementMessage(landed, plan))
+    onDone(settlementMessage(landed, plan, persistModelChoice(target)))
   }
 
   useEffect(() => {
