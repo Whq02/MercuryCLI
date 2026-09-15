@@ -161,6 +161,27 @@ check('the engine session spawns scrubbed and reports the names on the handle', 
 const shell = readFileSync(join(ROOT, 'src/utils/Shell.ts'), 'utf8')
 check('an inheriting call takes the classic per-command shell (the engine session cannot change per call)', /options\.inheritSessionEnv !== true\) \{\s*\n\s*const engine = resolveShellEngine/.test(shell))
 
+section("§4 the owned daemon's extra stamps ride its receipt: a runner's tool shell scrubs them and a suite guard inside it runs")
+const ownedDaemon = readFileSync(join(ROOT, 'src/daemon/ownedDaemon.ts'), 'utf8')
+check('the owned daemon spawn names its extraEnv stamps in the spawn receipt beside the owner pid and fd', ownedDaemon.includes('stampSpawnReceipt(env, [...flagSpellings(OWNER_PID_ENV), ...flagSpellings(OWNER_FD_ENV), ...Object.keys(opts?.extraEnv ?? {})])'))
+const daemonEnv: NodeJS.ProcessEnv = { PATH: process.env.PATH, MERCURY_DAEMON_OWNER_PID: '4242', MERCURY_DAEMON_SELF_WARM_CONSENT: '1' }
+stampSpawnReceipt(daemonEnv, ['MERCURY_DAEMON_OWNER_PID', 'MERCURY_DAEMON_SELF_WARM_CONSENT'])
+check('the consent stamp the receipt names is a session stamp', sessionEnvStamps(daemonEnv).includes('MERCURY_DAEMON_SELF_WARM_CONSENT'), JSON.stringify(sessionEnvStamps(daemonEnv)))
+check('…and the same value with no carrier stays, as an operator pin would', !sessionEnvStamps({ PATH: process.env.PATH, MERCURY_DAEMON_SELF_WARM_CONSENT: '1' }).includes('MERCURY_DAEMON_SELF_WARM_CONSENT'))
+delete process.env.MERCURY_MODEL_LANES
+process.env.MERCURY_DAEMON_SELF_WARM_CONSENT = '1'
+stampSpawnReceipt(process.env, ['MERCURY_DAEMON_SELF_WARM_CONSENT'])
+const guardCommand = `. ${JSON.stringify(join(ROOT, 'scripts/lib/suite-env.sh'))} && suite_env_guard ${JSON.stringify(join(ROOT, 'scripts/substrate/run-all.sh'))} && echo guard-admitted-the-shell`
+async function guardRun(inherit: boolean): Promise<{ code: number; text: string }> {
+  const handle = await exec(guardCommand, new AbortController().signal, 'bash', { timeout: 20_000, shouldAutoBackground: false, ...(inherit ? { inheritSessionEnv: true } : {}) })
+  const result = await handle.result
+  return { code: result.code, text: `${result.stdout}\n${result.stderr}` }
+}
+const guarded = await guardRun(false)
+check('a suite guard run from the tool shell admits the shell: the session stamps, the consent stamp included, never reach it', guarded.code === 0 && guarded.text.includes('guard-admitted-the-shell'), `rc=${guarded.code} ${guarded.text.trim().slice(0, 300)}`)
+const inheritedGuard = await guardRun(true)
+check('the same guard refuses an inheriting call, naming the consent stamp among the foreign values (the guard stays strict)', poisoned ? inheritedGuard.code === 0 : inheritedGuard.code === 78 && inheritedGuard.text.includes('MERCURY_DAEMON_SELF_WARM_CONSENT'), `rc=${inheritedGuard.code} ${inheritedGuard.text.trim().slice(0, 300)}`)
+
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 let appState = getDefaultAppState()
 const toolContext = {

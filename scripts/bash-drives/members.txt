@@ -4,3 +4,4 @@
 # by one, so a new prover lands there and moves here only by editing both
 # lists. A name listed here but missing on disk is a loud red in this runner.
 prove-shell-engine-drive.ts
+prove-session-shell-guard-drive.ts
