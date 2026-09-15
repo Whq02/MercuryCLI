@@ -182,7 +182,7 @@ t.section('§6 — THE STILLS (byte-compare against the written fixtures)')
 
 t.section('§7 — THE REAL MOUNT (staticRender with an injected certificate)')
 {
-  process.env['MERCURY_CONFIG_DIR'] ??= (await import('node:fs')).mkdtempSync(
+  process.env['MERCURY_CONFIG_DIR'] = (await import('node:fs')).mkdtempSync(
     join((await import('node:os')).tmpdir(), 'face-doors-prove-'),
   )
   process.env['FORCE_COLOR'] = '3'

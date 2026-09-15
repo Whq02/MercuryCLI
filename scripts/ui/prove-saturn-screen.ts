@@ -181,7 +181,7 @@ t.section('§3 — THE TIERS AND THE STILLS (64×12 floor · classic · wide; by
 
 t.section('§4 — THE REAL MOUNT (staticRender, injected facts) + route silence')
 {
-  process.env['MERCURY_CONFIG_DIR'] ??= (await import('node:fs')).mkdtempSync(
+  process.env['MERCURY_CONFIG_DIR'] = (await import('node:fs')).mkdtempSync(
     join((await import('node:os')).tmpdir(), 'saturn-screen-prove-'),
   )
   process.env['FORCE_COLOR'] = '3'
@@ -425,7 +425,7 @@ t.section('§8 — THE CONCOURSE ROW FACT (smallest honest read from the project
 t.section('§9 — THE REACTIVATION WARN (retained schedules say when they would hold)')
 {
   const src = readFileSync(join(process.cwd(), 'src/services/switchboard/hopIntoSession.ts'), 'utf8')
-  t.check('§9 the warn rides the one resume door beside the recap (both courtesy roads)', src.includes('void paintResumeRecap(sessionId)') && src.includes('void paintReactivationScheduleWarn(sessionId)'))
+  t.check('§9 the warn rides the one resume door beside the recap (both courtesy roads)', src.includes('void paintResumeRecap(sessionId, launchWon)') && src.includes('void paintReactivationScheduleWarn(sessionId)'))
   const fn = src.slice(src.indexOf('async function paintReactivationScheduleWarn'), src.indexOf('async function paintResumeRecap'))
   t.check('§9 the warn speaks THE ONE VERDICT over live facts (never a re-derived judgment)', fn.includes('scheduleAccountVerdict({') && fn.includes('readLiveAccountFacts(s.account)') && !fn.includes('isAnthropicOAuthSignInExpired'))
   t.check('§9 paused rows never warn; a ready world paints nothing', fn.includes("if (s.paused === true) continue") && fn.includes('if (worst === null) return'))
