@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { EFFORT_HIGH } from '../../src/constants/figures.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const argAfter = (flag: string): string | undefined => {
@@ -226,6 +227,19 @@ function wireRequests(): Array<{ path: string; body: Record<string, unknown> | n
 const stripLine = (grid: string, model: string): string =>
   grid.split('\n').find(l => l.includes(model) && /\b(high|max|medium|low|xhigh)\b/.test(l)) ?? ''
 
+function stripLatency(world: World, name: string, from: string, to: string): string {
+  try {
+    const payload = JSON.parse(readFileSync(path.join(world.home, `grid-${name}.json`), 'utf8')) as { marks?: Array<{ label: string; atTick: number }> }
+    const tick = (label: string): number | undefined => payload.marks?.find(m => m.label === label)?.atTick
+    const a = tick(from)
+    const b = tick(to)
+    if (a === undefined || b === undefined) return 'at an unknown tick'
+    return `${b - a} ticks (~${((b - a) / 5).toFixed(1)} s)`
+  } catch {
+    return 'at an unknown tick'
+  }
+}
+
 console.log('============================================================')
 console.log(' launch overrides on a resume — --model/--effort win over the saved values')
 console.log(`   bundle: ${DIST}`)
@@ -323,6 +337,7 @@ const c = drive(
   ['--continue', '--model', HOP_MODEL, '--effort', HOP_EFFORT],
   [
     { atTick: 260, minTick: 24, awaitText: 'wins over', awaitSettleTicks: 8, data: '', mark: 'hopped' },
+    { atTick: 340, minTick: 26, awaitText: `Sonnet 5 · ${EFFORT_HIGH} ${HOP_EFFORT}`, awaitSettleTicks: 2, data: '', mark: 'strip' },
     { afterPrevTicks: 2, data: `${TURN_THREE}\r` },
   ],
   ['reply to [[launch turn three'],
@@ -337,8 +352,10 @@ const hopped = c.marks.hopped ?? c.grid
 check('the second screen entered the live session (the prior turns painted)', hopped.includes('alpha-goose') || c.grid.includes('alpha-goose'), c.grid.slice(-400))
 check(`the receipt row names which won: --model Sonnet 5 over the session's Opus 5`, /--model Sonnet 5 wins over the session's Opus 5/.test(hopped.replace(/\s+/g, ' ')), hopped.split('\n').filter(l => /wins|refused/.test(l)).join(' | ').trim() || '(no receipt row)')
 check(`the receipt row names which won: --effort high over the session's max`, /--effort high wins over the session's max/.test(hopped.replace(/\s+/g, ' ')), hopped.split('\n').filter(l => /wins|refused/.test(l)).join(' | ').trim() || '(no receipt row)')
-const stripC = stripLine(hopped, 'Sonnet 5')
-check(`the strip reads Sonnet 5 · ${HOP_EFFORT} on the hopped chat`, /Sonnet 5/.test(stripC) && new RegExp(`\\b${HOP_EFFORT}\\b`).test(stripC), (stripLine(hopped, 'Opus 5') || stripLine(hopped, 'Sonnet 5') || '(no strip line)').trim())
+const stripFrame = c.marks.strip ?? hopped
+const stripC = stripLine(stripFrame, 'Sonnet 5')
+check(`the strip reads Sonnet 5 · ${HOP_EFFORT} on the hopped chat`, /Sonnet 5/.test(stripC) && new RegExp(`\\b${HOP_EFFORT}\\b`).test(stripC), (stripLine(stripFrame, 'Opus 5') || stripLine(stripFrame, 'Sonnet 5') || '(no strip line)').trim())
+console.log(`  [note] the strip read the hop's effort ${stripLatency(world, 'hop', 'hopped', 'strip')} after the receipt rows (the facts feed's idle heartbeat is the 10 s backstop for a missed watch event)`)
 check('the turn after the hop answered', c.grid.includes('reply to [[launch turn three'), c.grid.slice(-400))
 const hopBodies = wireRequests().slice(requestsBeforeHop).filter(r => JSON.stringify(r.body ?? null).includes(TURN_THREE))
 const lastHop = hopBodies[hopBodies.length - 1]?.body ?? null
