@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
-process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'input-claims-home-'))
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'input-claims-home-'))
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -105,7 +105,7 @@ console.log('\n── §2 wiring pinned in source ──────────
   const prompt = read('src/components/PromptInput/PromptInput.tsx')
   check(
     'the REPL boot seed consumes the early-input capture (a hardcoded empty seed discarded boot keystrokes)',
-    repl.includes('pendingInput.initSession(getSessionId(), consumeEarlyInput())'),
+    repl.includes('pendingInput.initSession(conversationIdHere(), consumeEarlyInput())'),
   )
   check(
     'the queued notice retires the transition-applied notice (the screen paints no model-switched receipt of its own)',
