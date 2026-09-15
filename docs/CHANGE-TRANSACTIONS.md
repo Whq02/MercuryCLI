@@ -70,6 +70,25 @@ keeps a per-line seen-lines evidence ledger and a bounded
 unique-relocation recovery for stale anchors; success returns fresh anchors
 per touched file, so patches chain without a reread.
 
+## The lines a refusal carries
+
+An Edit that touches lines the model has not read is refused, and the
+refusal carries those lines: each unread stretch widened by a small margin,
+numbered as a Read shows them, each block with its own range anchor. The
+carried lines are recorded as displayed for the file's current generation,
+and the refusal says so — the edit is repeated without a Read. The carry is
+bounded like a Read window (the Read's line budget and token cap); past the
+bound the refusal names the Read that covers the rest. A file that changes
+on disk after the carry refuses again, with the lines of the new state.
+
+A Read of a file over the token cap answers with its first window as an
+ordinary result, bounded by the Read's own line budget and token cap, and
+records it as a windowed read of exactly those lines; the result's first
+line names the file's size in tokens, the lines returned, and the Read that
+continues from the window's end. Only a read the model asked for itself
+answers this way: an automatic attachment that overflows keeps the refusal
+it always had.
+
 ## Change receipts
 
 Every mutation-shaped tool call lands exactly one receipt: the intent (what

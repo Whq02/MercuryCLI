@@ -61,7 +61,8 @@ import { extractPDFPages, getPDFPageCount, readPDF } from '../../utils/pdf.js'
 import { isPDFExtension, isPDFSupported, parsePDFPageRange } from '../../utils/pdfUtils.js'
 import { resolveModelCapabilities } from '../../utils/model/capabilities.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
-import { readFileInRange } from '../../utils/readFileInRange.js'
+import { readFileInRange, type ReadFileRangeResult } from '../../utils/readFileInRange.js'
+import { planReadThrough } from '../FileEditTool/readThrough.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
@@ -140,6 +141,8 @@ function selectedPages(pages: string | undefined): string | undefined {
 export type Input = z.infer<WidestReadSchema>
 
 
+export type OverCapNote = { tokens: number; maxTokens: number; next: { offset: number; limit: number } }
+
 export type Output =
   | {
       type: 'text'
@@ -149,6 +152,7 @@ export type Output =
         numLines: number
         startLine: number
         totalLines: number
+        overCap?: OverCapNote
         anchor?: string
         memoryUpdatedAt?: number
       }
@@ -181,6 +185,9 @@ const outputSchema = z.discriminatedUnion('type', [
       totalLines: z.number(),
       anchor: z.string().optional(),
       memoryUpdatedAt: z.number().optional(),
+      overCap: z
+        .object({ tokens: z.number(), maxTokens: z.number(), next: z.object({ offset: z.number(), limit: z.number() }) })
+        .optional(),
     }),
   }),
   z.object({
@@ -257,6 +264,35 @@ export class MaxFileReadTokenExceededError extends Error {
     this.name = 'MaxFileReadTokenExceededError'
     this.tokenCount = tokenCount
     this.maxTokens = maxTokens
+  }
+}
+
+function firstWindowUnderCap(
+  whole: ReadFileRangeResult,
+  lineOffset: number,
+  resolvedPath: string,
+  ext: string,
+  limits: FileReadingLimits,
+  tokenCount: number,
+): { shown: ReadFileRangeResult; note: OverCapNote } | null {
+  const estimate = roughTokenCountEstimationForFileType(whole.content, ext)
+  const density = estimate > 0 ? Math.max(1, tokenCount / estimate) : 1
+  const first = lineOffset + 1
+  const plan = planReadThrough(
+    whole.content,
+    [{ start: first, end: first + whole.lineCount - 1 }],
+    resolvedPath,
+    { maxLines: MAX_LINES_TO_READ, maxTokens: Math.floor(limits.maxTokens / density) },
+    first,
+  )
+  const window = plan.windows[0]
+  if (window === undefined || window.start !== first) return null
+  const count = window.end - window.start + 1
+  if (count >= whole.lineCount) return null
+  const remaining = Math.max(1, whole.totalLines - window.end)
+  return {
+    shown: { ...whole, content: window.content, lineCount: count, readBytes: Buffer.byteLength(window.content) },
+    note: { tokens: tokenCount, maxTokens: limits.maxTokens, next: { offset: window.end + 1, limit: Math.min(count, remaining) } },
   }
 }
 
@@ -592,6 +628,7 @@ async function readTextLane(
   ext: string,
   context: ToolUseContext,
   limits: FileReadingLimits,
+  ownRead = false,
 ): Promise<LaneResult> {
   const lineOffset = Math.max(0, (input.offset ?? 1) - 1)
   const maxLines = input.limit ?? MAX_LINES_TO_READ
@@ -613,22 +650,31 @@ async function readTextLane(
     }
   }
   const maxBytes = input.limit === undefined ? limits.maxSizeBytes : undefined
-  const range = await readFileInRange(
+  let range = await readFileInRange(
     resolvedPath,
     lineOffset,
     maxLines,
     maxBytes,
     context.abortController.signal,
   )
-  await validateContentTokens(range.content, ext, limits.maxTokens)
+  let overCap: OverCapNote | undefined
+  try {
+    await validateContentTokens(range.content, ext, limits.maxTokens)
+  } catch (err) {
+    if (!(err instanceof MaxFileReadTokenExceededError) || !ownRead) throw err
+    const window = firstWindowUnderCap(range, lineOffset, resolvedPath, ext, limits, err.tokenCount)
+    if (window === null) throw err
+    range = window.shown
+    overCap = window.note
+  }
 
   const coveredWholeFile =
     lineOffset === 0 && range.lineCount === range.totalLines && range.readBytes === range.totalBytes
   context.readFileState.set(keyPath, {
     content: range.content,
     timestamp: Math.floor(range.mtimeMs),
-    offset: coveredWholeFile ? 0 : (input.offset ?? 0),
-    limit: coveredWholeFile ? undefined : input.limit,
+    offset: coveredWholeFile ? 0 : overCap !== undefined ? lineOffset + 1 : (input.offset ?? 0),
+    limit: coveredWholeFile ? undefined : overCap !== undefined ? range.lineCount : input.limit,
   })
   context.nestedMemoryAttachmentTriggers?.add(keyPath)
   notifyFileReadListeners(resolvedPath, range.content)
@@ -654,6 +700,7 @@ async function readTextLane(
       totalLines: range.totalLines,
       ...(anchor !== undefined ? { anchor } : {}),
       ...(memoryUpdatedAt !== undefined ? { memoryUpdatedAt } : {}),
+      ...(overCap !== undefined ? { overCap } : {}),
     },
   }
 
@@ -689,6 +736,7 @@ function serializeTextResult(file: Extract<Output, { type: 'text' }>['file'], da
     file.memoryUpdatedAt !== undefined
       ? `(memory file — last updated ${new Date(file.memoryUpdatedAt).toISOString()})\n`
       : ''
+  const capNote = file.overCap === undefined ? '' : `${overCapWords(file)}\n`
   const numbered = resultLineAnchors.has(data)
     ? addAnchoredLineNumbers({
         content: file.content,
@@ -697,7 +745,17 @@ function serializeTextResult(file: Extract<Output, { type: 'text' }>['file'], da
       })
     : addLineNumbers({ content: file.content, startLine: file.startLine })
   const anchorSuffix = file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''
-  return `${prefix}${numbered}${anchorSuffix}`
+  return `${prefix}${capNote}${numbered}${anchorSuffix}`
+}
+
+function overCapWords(file: Extract<Output, { type: 'text' }>['file']): string {
+  const note = file.overCap!
+  const last = file.startLine + file.numLines - 1
+  const shown = file.numLines === 1 ? `line ${file.startLine} is below and counts as read` : `lines ${file.startLine}-${last} are below and count as read`
+  return (
+    `File content (${note.tokens} tokens) exceeds maximum allowed tokens (${note.maxTokens}): ${shown}; ` +
+    `Read(offset: ${note.next.offset}, limit: ${note.next.limit}) continues from there, or search for specific content instead of reading the whole file.`
+  )
 }
 
 
@@ -848,7 +906,8 @@ export const FileReadTool = buildTool({
 
     return { result: true as const }
   },
-  async call(input: Input, context: ToolUseContext) {
+  async call(input: Input, context: ToolUseContext, _canUseTool?: unknown, parentMessage?: unknown) {
+    const ownRead = parentMessage !== undefined
     const limits: FileReadingLimits =
       (context.fileReadingLimits as FileReadingLimits | undefined) ?? getDefaultFileReadingLimits()
     const ext = extensionOf(input.file_path)
@@ -944,7 +1003,7 @@ export const FileReadTool = buildTool({
       if (ext === 'ipynb') return readNotebookLane(resolvedPath, fullFilePath, input, context, limits)
       if (IMAGE_EXTENSIONS.has(ext)) return readImageLane(resolvedPath, fullFilePath, context, limits)
       if (isPDFExtension(ext)) return readPdfLane(resolvedPath, fullFilePath, input, context)
-      return readTextLane(resolvedPath, fullFilePath, input, ext, context, limits)
+      return readTextLane(resolvedPath, fullFilePath, input, ext, context, limits, ownRead)
     }
 
     let lane: LaneResult
