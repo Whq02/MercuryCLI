@@ -84,6 +84,13 @@ When a provider answers a request with no content at all, the chat says so
 in a note and the same request is sent again once before the note stands as
 the turn's end.
 
+A run is never recorded complete while a task it filed stays open, on a
+print or worker seat exactly as in the cockpit: the stop asks for the open
+work instead, and the record names how many deliverables remain. A record
+that reads complete with open deliverables (one written by an earlier build)
+is reopened as continuing on its next fold, with the open count named, never
+left as a receipt that contradicts its own task list.
+
 ## Resource bounds
 
 Every long-lived durable structure has a declared writer, a bound and a

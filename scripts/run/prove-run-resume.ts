@@ -117,7 +117,8 @@ async function main(): Promise<void> {
 
   section('4. a terminal run is a receipt — never reactivated')
   {
-    const done = kernel.reduceRunEvent(snapshot, {
+    const finished = kernel.reduceRunEvent(snapshot, { type: 'task-transition', at: 8, taskId: 't2', title: 'emitter', state: 'done' })
+    const done = kernel.reduceRunEvent(finished, {
       type: 'completed',
       at: 9,
       satisfied: ['all deliverables closed'],
@@ -205,7 +206,10 @@ async function main(): Promise<void> {
     check('the notice carries the re-emitted blocker', blockedNotice?.blocker?.description === 'needs the API key decision', JSON.stringify(blockedNotice))
 
     const terminalBootOwner = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'agree-done', lane: 'main' })
-    const doneAgain = kernel.reduceRunEvent(snapshot, { type: 'completed', at: 9, satisfied: ['done'] })
+    const doneAgain = kernel.reduceRunEvent(
+      kernel.reduceRunEvent(snapshot, { type: 'task-transition', at: 8, taskId: 't2', title: 'emitter', state: 'done' }),
+      { type: 'completed', at: 9, satisfied: ['done'] },
+    )
     mkdirSync(dirname(sidecar.runSidecarPath(terminalBootOwner)), { recursive: true })
     await sidecar.saveRunSidecar(terminalBootOwner, { ...doneAgain, owner: terminalBootOwner })
     const foldedDone = await coordinator.foldResumedRunForBoot(terminalBootOwner, process.cwd())
