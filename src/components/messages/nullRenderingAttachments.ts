@@ -37,7 +37,6 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'bagel_console',
   'max_turns_reached',
   'repetition_breaker',
-  'cycle_handoff',
   'task_reminder',
   'contract_reminder',
   'auto_mode',
