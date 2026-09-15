@@ -54,6 +54,8 @@ import {
   overflowRecoveryNotice,
   overflowRefusalText,
   splitCarriedOperatorTail,
+  sizePruneRequest,
+  sizePruneNotice,
   type OverflowEpisode,
   type OverflowRung,
 } from '../services/compact/overflowRecovery.js'
@@ -903,6 +905,15 @@ export async function* runEventCore(
       querySource === 'sdk' ||
       querySource.startsWith('agent:') ||
       querySource.startsWith('repl_main_thread')
+    const prunePermissionMode = toolUseContext.getAppState().toolPermissionContext.mode
+    const pruneModel = getRuntimeMainLoopModel({
+      permissionMode: prunePermissionMode,
+      mainLoopModel: toolUseContext.options.mainLoopModel,
+      exceeds200kTokens: prunePermissionMode === 'strategy' && doesMostRecentAssistantMessageExceed200k(messages),
+    })
+    const proactivePrune = pendingOverflow === undefined
+      ? await sizePruneRequest(messages, isTurnOwningQuerySource(querySource) ? applyTurnTierModel(toolUseContext.agentId, pruneModel) : pruneModel, querySource)
+      : undefined
     const requestPlan = await buildRequestContextPlan(
       {
         messages,
@@ -934,7 +945,11 @@ export async function* runEventCore(
             : null,
           toolUseContext.getAppState?.()?.effortValue,
         ),
-        ...(pendingOverflow?.rung === 'prune' ? { pressurePrune: true as const } : {}),
+        ...(pendingOverflow?.rung === 'prune'
+          ? { pressurePrune: true as const }
+          : proactivePrune !== undefined
+            ? { pressurePrune: { minimumTokensSaved: proactivePrune.estimatedTokens - proactivePrune.targetTokens } }
+            : {}),
       },
       'apply',
     )
@@ -948,6 +963,12 @@ export async function* runEventCore(
         yield emit({ kind: 'attachment', message: record })
         deadThinkingRecords.push(record)
       }
+    }
+    if (proactivePrune !== undefined && requestPlan.reductions.pressurePruned !== undefined && requestPlan.reductions.timeBasedCleared === 0) {
+      yield emit({
+        kind: 'notice',
+        message: createSystemMessage(sizePruneNotice(proactivePrune, requestPlan.reductions.pressurePruned), 'warning'),
+      })
     }
     if (pendingOverflow?.rung === 'prune') {
       const pruned = requestPlan.reductions.pressurePruned
