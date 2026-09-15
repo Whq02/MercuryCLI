@@ -1,5 +1,3 @@
-
-
 import React, { useRef } from 'react'
 import { Box, Text } from '../../ink.js'
 import { stringWidth } from '../../ink/stringWidth.js'
@@ -77,12 +75,6 @@ export type SpinnerAnimationRowProps = {
   still?: boolean
 }
 
-function easeStep(gap: number): number {
-  if (gap < 70) return 5
-  if (gap < 200) return Math.max(13, Math.floor(gap / 4))
-  return 80
-}
-
 export function SpinnerAnimationRow(
   props: SpinnerAnimationRowProps,
 ): React.ReactNode {
@@ -158,28 +150,11 @@ export function SpinnerAnimationRow(
     reducedMotion,
   })
 
-  const displayedCountRef = useRef(0)
   const currentResponseLength = responseLengthRef.current ?? 0
-  const [, easedCount] = useAnimationValue(
-    reducedMotion || displayedCountRef.current >= currentResponseLength
-      ? null
-      : FOCAL_TICK_MS,
-    () => {
-      const current = displayedCountRef.current
-      const gap = currentResponseLength - current
-      if (gap <= 0) return current
-      const next = Math.min(currentResponseLength, current + easeStep(gap))
-      displayedCountRef.current = next
-      return next
-    },
+  useAnimationValue(
+    reducedMotion ? null : FOCAL_TICK_MS,
+    () => responseLengthRef.current ?? 0,
   )
-  const displayedChars = reducedMotion
-    ? currentResponseLength
-    : Math.max(
-        easedCount,
-        Math.min(displayedCountRef.current, currentResponseLength),
-      )
-  if (reducedMotion) displayedCountRef.current = currentResponseLength
   const foregroundedActive =
     foregroundedTeammate !== undefined &&
     (foregroundedTeammate as { status?: string }).status === 'running' &&
@@ -191,7 +166,7 @@ export function SpinnerAnimationRow(
   const displayedTokens =
     teammateOnlyTokens !== null
       ? teammateOnlyTokens
-      : Math.floor(displayedChars / 4) + teammateTokens
+      : Math.floor(currentResponseLength / 4) + teammateTokens
 
   const rateSampleRef = useRef({ at: 0, len: 0 })
   const smoothedOtpsRef = useRef(0)

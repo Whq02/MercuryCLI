@@ -228,8 +228,13 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17], [120, 40]] as const) {
       const tokens = tokensOf(text)
       const rate = /([\d,.]+)\s*tok\/s/.exec(text)?.[1] ?? null
       check(`${geometry} ${label}: tool input is arriving before completion`, emitted >= 8192 && stillStreaming, `chars=${emitted}`)
-      check(`${geometry} ${label}: the spinner counts more than the opening prose without overtaking the wire`, tokens !== null && tokens > Math.floor(opening.length / 4) && tokens <= Math.floor((emitted + opening.length) / 4), `tokens=${tokens}, inputChars=${emitted}`)
-      if (cols >= 100) check(`${geometry} ${label}: the token rate grows on the same stream`, rate !== null && Number(rate.replaceAll(',', '')) > 0, `rate=${rate}`)
+      const rounding = cols >= 100 ? 50 : 0
+      check(`${geometry} ${label}: the spinner counts more than the opening prose without overtaking the rounded wire count`, tokens !== null && tokens > Math.floor(opening.length / 4) && tokens <= Math.floor((emitted + opening.length) / 4) + rounding, `tokens=${tokens}, inputChars=${emitted}`)
+      if (cols >= 100) {
+        check(`${geometry} ${label}: the token rate grows on the same stream`, rate !== null && Number(rate.replaceAll(',', '')) > 0, `rate=${rate}`)
+        const recentCounts = wire.filter(row => row.kind === 'input' && row.at <= markAt && row.at >= markAt - vshotBudgetMs(1000)).map(row => Math.floor((row.emitted! + opening.length) / 4))
+        check(`${geometry} ${label}: the wide counter shows a raw count from the last second, rounded for display`, tokens !== null && recentCounts.some(count => Math.abs(tokens - count) <= rounding), `tokens=${tokens}, recentRawTokens=${JSON.stringify(recentCounts)}`)
+      }
       const sample = samples.filter(sample => sample.at <= markAt).at(-1)
       check(`${geometry} ${label}: the published count is an exact input prefix without exposing it as prose`, sample !== undefined && sample.turnChars > opening.length && wire.some(row => row.kind === 'input' && row.at <= sample.at && row.emitted === sample.turnChars - opening.length) && sample.text === null && sample.streamBlock === 'tool_use', JSON.stringify(sample))
       measured.push({ label, markAt, emitted, tokens, rate, stillStreaming, sample })
