@@ -31,6 +31,17 @@ output as a bounded tail (the full stream spills to an artifact when it
 overflows), and any `mercury.display()` items the cell emitted — text,
 json, markdown, tables, or refs.
 
+A failed cell's result names the error first and then only the cell's own
+lines: a thrown error reads as its name and message followed by the frames
+inside the cell (and inside any local module it required), never the
+runtime's own plumbing. A bridge call that fails names the call — its
+ordinal within the cell and the tool — carries that tool's own words, says
+the cell stopped at that call, and points at the cell line that made it; a
+cell that catches the rejection continues. A cell that does not parse
+reports the syntax error with its line and column, an excerpt of the source
+around that position and a caret under it, never an echo of the whole cell.
+Every error text is bounded, with the message kept ahead of the bound.
+
 ## The mercury.* bridge
 
 Cells can reach Mercury itself: `mercury.inspect`, `mercury.tool`, and

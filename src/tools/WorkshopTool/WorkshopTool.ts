@@ -16,6 +16,7 @@ import {
 } from '../../services/workshop/runtime.js'
 import { getCwd } from '../../utils/cwd.js'
 import { lazySchema } from '../../utils/lazySchema.js'
+import { unwrapToolUseError } from '../../utils/messages/rejectionText.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import {
@@ -194,7 +195,7 @@ Output streams to a bounded tail; large output spills to an artifact ref. The la
           }
         }
       }
-      if (isError) throw new Error(resultText || `tool '${name}' failed`)
+      if (isError) throw new Error(unwrapToolUseError(resultText) || `tool '${name}' failed`)
       return resultText
     }
 
