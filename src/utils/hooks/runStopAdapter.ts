@@ -8,11 +8,8 @@ import { evaluateStop, type StopDecision } from '../../services/run/completionEv
 import {
   claimContinuation,
   continuationsThisTurn,
-  lastAdmission,
-  recordAdmission,
   turnBoundaryIndex,
 } from '../../services/run/continuationLatch.js'
-import { actionFingerprint } from '../../services/run/progressModel.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
 import { processMainOwner } from '../../services/run/resolveOwner.js'
 import {
@@ -186,17 +183,6 @@ export async function evaluateStopAttempt(
     interactive: safeIsInteractive(),
     missionArmed: missionArmedForSession(),
   })
-  const VERIFICATION_RANK = { unverified: 0, stale: 1, failed: 2, verified: 3 } as const
-  const revision = snapshot
-    ? {
-        runRevision: snapshot.totalEvents,
-        effectRevision: snapshot.totalChangedPaths * 1009 + snapshot.unresolvedBadEffects,
-        evidenceRevision:
-          (snapshot.progress?.totalProgress ?? 0) * 31 +
-          (verification ? VERIFICATION_RANK[verification.state] : 0),
-        externalRevision: snapshot.contextEpoch,
-      }
-    : undefined
   let decision = evaluateStop({
     snapshot,
     wordingUnfinished: opts.wordingUnfinished,
@@ -208,8 +194,6 @@ export async function evaluateStopAttempt(
     pendingIdeFeedback: snapshot?.ideFeedback.state === 'pending',
     surface: contract.surface,
     terminalPolicy: contract.terminalPolicy,
-    revision,
-    priorAdmission: lastAdmission(owner, turnIdx),
   })
   if (blockerRefusal && decision.kind === 'continue') {
     decision = {
@@ -233,9 +217,7 @@ export async function evaluateStopAttempt(
               ? decision.satisfied.join('; ')
               : decision.kind === 'budget-exhausted'
                 ? `unfinished: ${decision.unfinished.join('; ') || '(none named)'}`
-                : decision.kind === 'handoff'
-                  ? `${decision.cause} — unfinished: ${decision.unfinished.join('; ') || '(none named)'} · ${decision.strategiesTried} strateg${decision.strategiesTried === 1 ? 'y' : 'ies'} tried`
-                  : decision.cause,
+                : decision.cause,
     })
   }
 
@@ -245,18 +227,8 @@ export async function evaluateStopAttempt(
       const claimed = claimContinuation(owner, turnIdx, messages.length)
       if (!claimed) return { decision, allowStop: true }
       if (decision.evidenceDemand) noteEvidenceDemandIssued(owner)
-      const admissionLine = revision
-        ? ` [admission r${revision.runRevision}/e${revision.effectRevision}/v${revision.evidenceRevision}/x${revision.externalRevision} fp:${actionFingerprint(decision.nextAction).slice(0, 8)} #${continuationsThisTurn(owner, turnIdx)}]`
-        : ''
-      if (revision) {
-        recordAdmission(owner, turnIdx, {
-          revision,
-          nextActionFingerprint: actionFingerprint(decision.nextAction),
-          attempt: continuationsThisTurn(owner, turnIdx),
-        })
-      }
       if (snapshot) {
-        noteRunEvent(owner, { type: 'continuation', at, reason: `${decision.reason}${admissionLine}` })
+        noteRunEvent(owner, { type: 'continuation', at, reason: decision.reason })
         noteRunEvent(owner, { type: 'next-action', at, action: decision.nextAction })
       }
       return { decision, allowStop: false }

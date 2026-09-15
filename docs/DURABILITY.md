@@ -76,6 +76,13 @@ the complete index; the load-bearing ones:
 
 Mercury never stops or parks a runner for its memory use.
 
+A session is never stopped for re-reading a file or re-running a command
+that answers with new content: Mercury keeps no count of a turn's repeated
+tool calls against its progress, and no watcher ends a turn on that count.
+When a provider answers a request with no content at all, the chat says so
+in a note and the same request is sent again once before the note stands as
+the turn's end.
+
 ## Resource bounds
 
 Every long-lived durable structure has a declared writer, a bound and a
