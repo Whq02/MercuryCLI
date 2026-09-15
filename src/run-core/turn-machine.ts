@@ -157,10 +157,6 @@ import {
   setPulsePhase,
 } from '../utils/pulse/index.js'
 import { runTools } from '../services/tools/toolOrchestration.js'
-import {
-  repetitionStopNotice,
-  takeRepetitionStop,
-} from '../services/tools/identicalFailureGuard.js'
 import { emitCompactionTrace } from '../utils/observability/invocationTrace.js'
 import { flushSessionStorage, recordContentReplacement } from '../utils/sessionStorage.js'
 import { handleStopHooks } from '../query/stopHooks.js'
@@ -1821,30 +1817,6 @@ export async function* runEventCore(
       const terminal: Terminal = { reason: 'hook_stopped' }
       yield emit({ kind: 'run_terminal', terminal })
       return terminal
-    }
-
-    {
-      const stop = takeRepetitionStop(toolUseContext.abortController)
-      if (stop !== null) {
-        const cause = repetitionStopNotice(stop)
-        yield emit({
-          kind: 'notice',
-          message: createSystemMessage(cause, 'warning'),
-        })
-        yield emit({
-          kind: 'attachment',
-          message: createAttachmentMessage({
-            type: 'repetition_breaker',
-            toolName: stop.toolName,
-            outcome: stop.outcome,
-            streak: stop.streak,
-            cause,
-          }),
-        })
-        const terminal: Terminal = { reason: 'repetition_breaker', cause }
-        yield emit({ kind: 'run_terminal', terminal })
-        return terminal
-      }
     }
 
     {

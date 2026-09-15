@@ -31,7 +31,6 @@ const { createAssistantMessage, createUserMessage } = await import(
 )
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const queueStore = await import('../../src/input-core/command-queue.ts')
-const guard = await import('../../src/services/tools/identicalFailureGuard.ts')
 
 let failures = 0
 let checks = 0
@@ -253,42 +252,6 @@ section('A2 — two identical-text sends are two deliveries, never deduped')
   const body = JSON.stringify(calls[1]?.messages ?? [])
   check('the next call carries the words TWICE (two rows — one per send)', countIn(body, 'the same words twice') === 2, String(countIn(body, 'the same words twice')))
   check('the queue is empty after the turn', queueStore.getCommandQueue().length === 0)
-}
-
-section("A3 — words enqueued during the breaker's refused round ride to the next turn")
-{
-  queueStore.resetCommandQueue()
-  const U = '33333333-cccc-4ccc-8ccc-000000000001'
-  const stopAt = guard.IDENTICAL_FAILURES_TO_STOP + 1
-  const rig = makeGen(() => toolTurn('EchoTool', { text: 'fail:always the same' }))
-  let enqueued = false
-  const yields: AnyMsg[] = []
-  let terminal: Record<string, unknown> | undefined
-  for (;;) {
-    const r = await rig.gen.next()
-    if (r.done) {
-      terminal = r.value
-      break
-    }
-    yields.push(r.value)
-    if (!enqueued && rig.calls.length === stopAt) {
-      enqueued = true
-      enqueueSteer('words racing the breaker stop', U)
-    }
-  }
-  await settle()
-  check('the stop fired (terminal repetition_breaker)', (terminal as { reason?: string } | undefined)?.reason === 'repetition_breaker', JSON.stringify(terminal))
-  check('the racing words were enqueued during the refused round', enqueued)
-  const drained = yields.filter(isQueuedCommandAttachment)
-  check('the stopped turn yielded NO queued_command attachment (the stop precedes the drain)', drained.length === 0, String(drained.length))
-  const left = queueStore.getCommandQueue()
-  check('the words SURVIVE queued — never lost into the stopped turn', left.length === 1 && left[0]?.uuid === U, JSON.stringify(left.map(c => c.value)))
-  const second = makeGen(i => (i === 0 ? toolTurn('EchoTool', { text: 'round one' }) : textTurn('done')))
-  const yields2 = await runWhole(second.gen)
-  const drained2 = yields2.filter(isQueuedCommandAttachment)
-  check('the next turn delivers exactly once', drained2.length === 1, String(drained2.length))
-  check('…into its next model call', JSON.stringify(second.calls[1]?.messages ?? []).includes('words racing the breaker stop'))
-  check('the queue is empty after', queueStore.getCommandQueue().length === 0)
 }
 
 section('A4 — words enqueued at a tool settle, then the turn aborts')

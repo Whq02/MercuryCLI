@@ -203,20 +203,7 @@ export function resolveAgentTools(
 
 export type AgentTerminalOutcome =
   | { status: 'completed'; promotedNarration: boolean }
-  | { status: 'failed'; reason: 'provider-declined' | 'schema-mismatch' | 'repetition-stop'; error: string }
-
-export const REPETITION_STOP_WORDS = 'stopped by the repetition breaker'
-
-function repetitionStopOf(messages: readonly Message[]): { cause: string } | null {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]!
-    if (message.type === 'assistant') return null
-    if (message.type === 'attachment' && message.attachment.type === 'repetition_breaker') {
-      return { cause: message.attachment.cause }
-    }
-  }
-  return null
-}
+  | { status: 'failed'; reason: 'provider-declined' | 'schema-mismatch'; error: string }
 
 const GENERIC_API_ERROR_PHRASE = 'API error'
 
@@ -244,8 +231,6 @@ export function deriveAgentTerminalOutcome(
       error: text && text.trim() !== '' ? text : GENERIC_API_ERROR_PHRASE,
     }
   }
-  const stop = repetitionStopOf(messages)
-  if (stop !== null) return { status: 'failed', reason: 'repetition-stop', error: stop.cause }
   return { status: 'completed', promotedNarration: false }
 }
 
@@ -264,7 +249,7 @@ export const agentToolResultSchema = lazySchema(() =>
         }),
         z.object({
           status: z.literal('failed'),
-          reason: z.enum(['provider-declined', 'schema-mismatch', 'repetition-stop']),
+          reason: z.enum(['provider-declined', 'schema-mismatch']),
           error: z.string(),
         }),
       ])
