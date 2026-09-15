@@ -13,16 +13,23 @@ record. Flip a switch on the menu, start a session, and it obeys.
 frame as the boot menu, with a NEXT SESSION summary counting what the next
 session actually gets. Two sections:
 
-- **MCP** — every configured server, by its resolved name (`ext:<extension>:
-  <server>` for extension-shipped ones), each `on ⇄ off`. Mercury's own
-  built-in organs are never listed.
-- **Skills** — every discoverable skill, tri-state: `on` is ambient (the
-  agent can reach for it), `invocable` is listed but loads only when you
-  `/name` it, `off` is absent from the next session. An extension's **master
-  row** sits above its items in each section it contributes to; items under
-  an off master read `off (extension)` and keep their own state underneath.
-  Skills that arrive from a connected MCP server appear once a session
-  connects them, so the face lists none.
+- **MCP** — configured servers, extension servers and eligible account
+  connectors, by their resolved names (`ext:<extension>:<server>` for
+  extension-shipped ones), each `on ⇄ off`. Session-only servers, including
+  Mercury's built-in `mercury` server and the reserved `ide` bridge, are not
+  listed here. The `ide` bridge is managed through `/ide`, not this menu.
+- **Skills** — added directory skills (user, project and managed settings)
+  and extension skills, tri-state: `on` is ambient (the agent can reach for
+  it), `invocable` is listed but loads only when you `/name` it, `off` is
+  absent from the next session. An extension's **master row** sits above its
+  items in each section it contributes to; items under an off master read
+  `off (extension)` and keep their own state underneath. Bundled skills load
+  in sessions but are not listed here. Skills supplied by an MCP server are
+  available once a session connects that server; Boot does not list them.
+
+The empty states say **no added MCPs** or **no added skills**. They
+refer to this menu's inventory, not everything a session can use. The NEXT
+SESSION counts likewise cover the listed entries, not built-in capabilities.
 
 Every state is a word, absence means on, and every toggle commits to the
 record at once — the legend reads `↑↓ move · ↵ change (saved) · ⌫ default ·

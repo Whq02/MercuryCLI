@@ -34,8 +34,8 @@ export function isKitMember(row: KitRow): row is Extract<KitRow, { kind: 'mcp' |
 
 export function emptySectionText(section: KitSection): string {
   return section === 'mcp'
-    ? 'no MCP servers configured — add one with /mcp add'
-    : 'no skills found — create one under .mercury/skills/'
+    ? 'no added MCPs (/mcp add); mercury / ide not listed'
+    : 'no added skills — create one under .mercury/skills/'
 }
 
 export function kitRowId(row: KitRow): string {

@@ -130,10 +130,7 @@ t.section("§3 — THE COMPOSER STAYS ONE: composeBootMenu's host fields are opt
     t.check(`${cols}x${rows}: the boot menu keeps its caption and panels`, a.includes(cols >= 110 ? '⌁ boot menu' : '· boot menu') && (cols < 110 || (a.includes('LAUNCH SUMMARY') && a.includes('Profile') && a.includes('ENVIRONMENT'))))
   }
   const inertM = {
-    entries: [
-      { label: 'no MCP servers configured — add one with /mcp add', group: 'MCPs', groupTitle: 'MCPs', summary: '', valueLabel: '—', valueIsDefault: true, pinnedVal: null, detail: null, inert: true },
-      { label: 'no skills found — create one under .mercury/skills/', group: 'Skills', groupTitle: 'Skills', summary: '', valueLabel: '—', valueIsDefault: true, pinnedVal: null, detail: null, inert: true },
-    ],
+    entries: sectionRows(EMPTY_KIT_CATALOGUE).map(row => kitEntryOf(row)),
     selIdx: -1,
     title: 'mcps & skills',
     summaryTitle: 'NEXT SESSION',
@@ -162,8 +159,11 @@ t.section("§3 — THE COMPOSER STAYS ONE: composeBootMenu's host fields are opt
 t.section("§4 — THE SCREEN'S ENTRIES: words for every state, the master row's plain sentence, both sections always")
 {
   const empty = sectionRows(EMPTY_KIT_CATALOGUE)
-  t.check('an empty catalogue yields both sections in the ruled order, one inert line each', empty.length === 2 && empty[0]?.kind === 'empty' && empty[0]?.section === 'mcp' && empty[1]?.kind === 'empty' && empty[1]?.section === 'skill')
-  t.check("the empty lines say what is not there AND the door (no nag): '… — add one with /mcp add' · '… — create one under .mercury/skills/'", empty[0]?.kind === 'empty' && empty[0].text === 'no MCP servers configured — add one with /mcp add' && empty[1]?.kind === 'empty' && empty[1].text === 'no skills found — create one under .mercury/skills/')
+  const emptyLines = empty.filter(row => row.kind === 'empty')
+  t.check('an empty catalogue keeps one inert line per section in the same order', empty.map(row => `${row.section}:${row.kind}`).join(',') === 'mcp:empty,skill:empty')
+  t.check('the empty lines name added entries, the adding doors and the excluded servers', emptyLines[0]?.text === 'no added MCPs (/mcp add); mercury / ide not listed' && emptyLines[1]?.text === 'no added skills — create one under .mercury/skills/')
+  const pending: KitRow[] = [{ kind: 'empty', section: 'mcp', text: 'reading the MCP configs…' }, { kind: 'empty', section: 'skill', text: 'the skills could not be read' }]
+  t.check('loading and unreadable states are not rewritten as empty inventories', JSON.stringify(sectionRows({ rows: pending })) === JSON.stringify(pending))
   const master: KitRow = { kind: 'extension', section: 'skill', name: 'orchard-tools', contributes: '2 skills · 1 server · 1 command · hooks' }
   const e = kitEntryOf(master)
   t.check("the master row names the extension and says plainly that off turns off EVERYTHING it contributes", e.label === 'orchard-tools (extension)' && e.summary.includes('off turns off EVERYTHING it contributes') && e.summary.includes('2 skills · 1 server · 1 command · hooks'))
@@ -285,6 +285,25 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
   const names = (section: 'mcp' | 'skill') => cat.rows.filter(r => r.section === section).map(r => (r.kind === 'note' || r.kind === 'empty' ? `(${r.kind})` : r.kind === 'extension' ? `[${r.name}]` : r.name))
   t.check("MCPs: the doors' keys verbatim, the ide client excluded (the /mcp exemption), the extension's server under its master row", JSON.stringify(names('mcp')) === JSON.stringify(['github', 'postgres', '[orchard-tools]', 'ext:orchard-tools:db']), names('mcp').join(' · '))
   t.check("Skills: loader skills verbatim (SKILL.md + legacy commands), NO bundled organ, NO mcp-derived row, the extension's skills under its master, the commands/hooks-only extension's master in Skills, the ruled note LAST", JSON.stringify(names('skill')) === JSON.stringify(['deploy', 'notes', '[orchard-tools]', 'orchard-tools:prune', 'orchard-tools:graft', '[quiet-hooks]', '(note)']), names('skill').join(' · '))
+  for (const refused of [false, true]) {
+    const sparse = await enumerateKitCatalogue('/proof/cwd', {
+      mcpConfigs: async () => ({ servers: {} }),
+      dirSkills: async () => [],
+      extensionSkills: () => [],
+      activeExtensions: () => [],
+      skillRefusals: () => refused ? [{ path: '/proof/cwd/.mercury/skills/broken/SKILL.md', error: 'the file is empty', source: 'project' }] : [],
+    })
+    const sparseRows = sectionRows(sparse)
+    t.check(`empty inventory${refused ? ' with a refused skill' : ''}: scope uses the existing note, never extra rows`, sparseRows.length === (refused ? 4 : 3) && sparseRows.at(-1)?.kind === 'note' && (sparseRows.at(-1) as { text: string }).text === 'bundled skills load in sessions; MCP skills on connection')
+    for (const [cols, height] of [[80, 21], [80, 14], [82, 17], [120, 40]]) {
+      const frame = composeManager(cols!, height!, sparse, -1).join('\n')
+      t.check(`${cols}x${height}: empty inventory scope stays whole${refused ? ' beside its refusal' : ''}`, frame.includes('no added MCPs (/mcp add); mercury / ide not listed') && frame.includes('no added skills — create one under .mercury/skills/') && frame.includes('bundled skills load in sessions; MCP skills on connection') && (!refused || frame.includes('refused: .mercury/skills/broken/SKILL.md')) && !/↓ \d+ more/.test(frame))
+    }
+    for (const cols of [110, 111, 112, 113, 114]) {
+      const frame = composeManager(cols, 40, sparse, -1).join('\n')
+      t.check(`${cols}x40: the MCP scope fits the narrowest wide panel`, frame.includes('no added MCPs (/mcp add); mercury / ide not listed'))
+    }
+  }
   const note = cat.rows.find(r => r.kind === 'note')
   t.check('the note is the ruled sentence', note?.kind === 'note' && note.text === MCP_SKILLS_NOTE && MCP_SKILLS_NOTE === 'skills from MCP servers appear once a session connects them')
   t.check('the note composes WHOLE at the wide tier (no clipped ellipsis — it carries no value word)', kitValueLabel(note!) === '' && composeManager(120, 40).some(l => l.includes('skills from MCP servers appear once a session connects them') && !l.includes('them…')))
