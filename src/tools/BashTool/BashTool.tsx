@@ -731,7 +731,10 @@ export const BashTool = buildTool({
     if (!input?.command) return 'Running a shell command'
     return `Running ${input.description ?? truncateForSummary(input.command)}`
   },
-  async validateInput() {
+  async validateInput(input: BashToolInput) {
+    if (input.command.trim() === '') {
+      return { result: false as const, message: EMPTY_COMMAND_REFUSAL, errorCode: 1 }
+    }
     return { result: true as const }
   },
   async checkPermissions(input: BashToolInput, context: ToolUseContext) {
@@ -781,6 +784,7 @@ export const BashTool = buildTool({
 })
 
 const TOOL_USE_SUMMARY_LIMIT = 100
+const EMPTY_COMMAND_REFUSAL = 'Nothing to run: the command is empty. Pass the command to execute.'
 function truncateForSummary(command: string): string {
   return command.length > TOOL_USE_SUMMARY_LIMIT ? command.slice(0, TOOL_USE_SUMMARY_LIMIT) : command
 }
