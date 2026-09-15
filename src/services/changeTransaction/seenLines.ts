@@ -28,10 +28,13 @@ const store = new OwnerScopedStore<LedgerState>({
 })
 registerOwnerScopedStore(store)
 
+export function generationOf(st: { mtimeMs: number; size: number }): string {
+  return `m${Math.floor(st.mtimeMs)}:${st.size}`
+}
+
 export function fileGeneration(path: string): string | null {
   try {
-    const st = statSync(path)
-    return `m${Math.floor(st.mtimeMs)}:${st.size}`
+    return generationOf(statSync(path))
   } catch {
     return null
   }
