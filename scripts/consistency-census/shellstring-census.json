@@ -171,6 +171,13 @@
       "why": "shell parsing is the subject under test"
     },
     {
+      "file": "scripts/bash/prove-sub-agent-shell-board-drive.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], { env: { ...process.env, ...env }, stdio: ['ignore', 'ignore', 'pipe'] })",
+      "cls": "test-fixture",
+      "why": "shell parsing is the subject under test"
+    },
+    {
       "file": "scripts/build-identity/prove-config-home.ts",
       "mechanism": "execSync-string",
       "excerpt": "const trackedFiles = execSync(`git ls-files -z -- ${SWEEP_SCOPES.join(' ')}`, { cwd: ROOT })",
