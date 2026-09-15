@@ -140,7 +140,7 @@ export interface OverflowFixture {
   captured: Captured[]
   inputRule: boolean
   refusals: Array<{ request: number; message: string }>
-  script(turns: Turn[]): void
+  script(turns: Turn[] | ((request: Captured) => Turn)): void
   env: Record<string, string>
   close(): Promise<void>
 }
@@ -149,7 +149,7 @@ export async function startOverflowFixture(): Promise<OverflowFixture> {
   const captured: Captured[] = []
   const refusals: OverflowFixture['refusals'] = []
   const control = { inputRule: false }
-  let turns: Turn[] = [{ text: 'idle' }]
+  let turns: Turn[] | ((request: Captured) => Turn) = [{ text: 'idle' }]
   let ordinal = 0
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = []
@@ -189,7 +189,7 @@ export async function startOverflowFixture(): Promise<OverflowFixture> {
             return
           }
         }
-        const turn = turns[ordinal] ?? { text: 'script exhausted' }
+        const turn = typeof turns === 'function' ? turns({ dialect, path, body }) : turns[ordinal] ?? { text: 'script exhausted' }
         const n = ordinal++
         if ('error' in turn) {
           res.writeHead(turn.error.status, { 'content-type': 'application/json' })
@@ -257,7 +257,7 @@ export async function startOverflowFixture(): Promise<OverflowFixture> {
     },
     refusals,
     env,
-    script(next: Turn[]): void {
+    script(next: Turn[] | ((request: Captured) => Turn)): void {
       turns = next
       ordinal = 0
     },

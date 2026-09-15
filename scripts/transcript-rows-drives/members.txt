@@ -9,3 +9,4 @@ prove-composer-seed.ts
 prove-row-identity.ts
 prove-settle-slot.ts
 prove-streaming-hold.ts
+prove-size-prune-drive.ts

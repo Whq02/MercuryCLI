@@ -22,7 +22,6 @@ import { PROVIDER_SEARCH_TOOL_NAME, WEB_SEARCH_TOOL_NAME } from '../../tools/Web
 import { WEB_FETCH_TOOL_NAME } from '../../tools/WebFetchTool/prompt.js'
 import { SHELL_TOOL_NAMES } from '../../utils/shell/shellToolUtils.js'
 
-
 export const TIME_BASED_MC_CLEARED_MESSAGE = '[stale tool result pruned — content cleared]'
 
 export type PendingCacheEdits = {
@@ -41,7 +40,7 @@ export type MicrocompactResult = {
   deadMarks?: DeadThinkingMark[]
 }
 
-export type MicrocompactTrigger = { pressure: true }
+export type MicrocompactTrigger = { pressure: true; supersededOnly?: true; minimumTokensSaved?: number }
 
 
 const MEDIA_BLOCK_TOKENS = 2000
@@ -189,6 +188,7 @@ export function projectTimeBasedMicrocompact(
 
   const compactableIds: string[] = []
   const readPathById = new Map<string, string>()
+  const filePathById = trigger?.supersededOnly === true ? new Map<string, string>() : null
   for (const message of messages) {
     if (message.type !== 'assistant') continue
     const content = (message as { message?: { content?: unknown } }).message?.content
@@ -196,6 +196,10 @@ export function projectTimeBasedMicrocompact(
     for (const block of content) {
       const record = block as { type?: string; id?: string; name?: string; input?: unknown }
       if (record.type === 'tool_use' && typeof record.id === 'string' && typeof record.name === 'string') {
+        if (filePathById !== null && (record.name === FILE_READ_TOOL_NAME || record.name === FILE_EDIT_TOOL_NAME || record.name === FILE_WRITE_TOOL_NAME)) {
+          const filePath = (record.input as { file_path?: unknown } | undefined)?.file_path
+          if (typeof filePath === 'string') filePathById.set(record.id, filePath)
+        }
         if (
           COMPACTABLE_TOOL_NAMES.has(record.name) &&
           !isProtectedFromPruning(record.name, record.input)
@@ -213,6 +217,37 @@ export function projectTimeBasedMicrocompact(
   const keepCount = Math.max(1, fired.config.keepRecent)
   const clearSet = new Set(compactableIds.slice(0, Math.max(0, compactableIds.length - keepCount)))
   if (clearSet.size === 0) return null
+  if (filePathById !== null) {
+    const latestByPath = new Map<string, string>()
+    const supersededIds = new Set<string>()
+    for (const message of messages) {
+      if (message.type !== 'user' || !Array.isArray(message.message.content)) continue
+      if ((message.toolUseResult as { type?: string } | undefined)?.type === 'file_unchanged') continue
+      for (const block of message.message.content) {
+        if (block.type !== 'tool_result' || block.is_error === true || isClearedOrDigested(block.content)) continue
+        const path = filePathById.get(block.tool_use_id)
+        if (path === undefined) continue
+        const prior = latestByPath.get(path)
+        if (prior !== undefined) supersededIds.add(prior)
+        latestByPath.set(path, block.tool_use_id)
+      }
+    }
+    for (const id of clearSet) if (!supersededIds.has(id)) clearSet.delete(id)
+    if (clearSet.size === 0) return null
+  }
+
+  if (trigger?.minimumTokensSaved !== undefined) {
+    let availableTokens = 0
+    for (const message of messages) {
+      if (message.type !== 'user' || !Array.isArray(message.message.content)) continue
+      for (const block of message.message.content) {
+        if (block.type === 'tool_result' && clearSet.has(block.tool_use_id) && !isClearedOrDigested(block.content)) {
+          availableTokens += estimateToolResultTokens(block.content)
+        }
+      }
+    }
+    if (availableTokens < trigger.minimumTokensSaved) return null
+  }
 
   let tokensSaved = 0
   let cleared = 0
@@ -234,11 +269,12 @@ export function projectTimeBasedMicrocompact(
       ) {
         touched = true
         cleared++
-        tokensSaved += estimateToolResultTokens(block.content)
+        const replacement = digestClearedToolResult(block.content)
+        tokensSaved += estimateToolResultTokens(block.content) - (trigger?.supersededOnly === true ? estimateToolResultTokens(replacement) : 0)
         clearedIds.push(block.tool_use_id)
         const readPath = readPathById.get(block.tool_use_id)
         if (readPath !== undefined) clearedReadPaths.push(readPath)
-        return { ...block, content: digestClearedToolResult(block.content) }
+        return { ...block, content: replacement }
       }
       return rawBlock
     })
@@ -249,7 +285,7 @@ export function projectTimeBasedMicrocompact(
     } as Message
   })
 
-  if (tokensSaved === 0) return null
+  if (tokensSaved === 0 || tokensSaved < (trigger?.minimumTokensSaved ?? 0)) return null
   const firstCleared = projected.findIndex((message, index) => message !== messages[index])
   const withValidThinking = firstCleared === -1 ? projected : stripThinkingFromIndex(projected, firstCleared)
   const deadMarks: DeadThinkingMark[] = []
@@ -338,7 +374,7 @@ export async function microcompactMessages(
     const config = getTimeBasedMCConfig()
     logForDebugging(
       trigger?.pressure === true
-        ? `pressure microcompact (context overflow): cleared ${projected.cleared} tool results (~${projected.tokensSaved} tokens)`
+        ? `pressure microcompact (${trigger.supersededOnly === true ? 'context size' : 'context overflow'}): cleared ${projected.cleared} tool results (~${projected.tokensSaved} tokens)`
         : `time-based microcompact: gap ${Math.round(projected.gapMinutes)}min ≥ ${config.thresholdMinutes}min — cleared ${projected.cleared} tool results (~${projected.tokensSaved} tokens)`,
     )
     suppressCompactWarning()
