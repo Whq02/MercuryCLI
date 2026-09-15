@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
-process.env['MERCURY_CONFIG_DIR'] ??= mkdtempSync(join(tmpdir(), 'hook-detail-prove-'))
+process.env['MERCURY_CONFIG_DIR'] = mkdtempSync(join(tmpdir(), 'hook-detail-prove-'))
 process.env['FORCE_COLOR'] = '0'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 

@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker, waitUntil } from '../engine-durability/harness.ts'
 
-process.env['MERCURY_CONFIG_DIR'] ??= mkdtempSync(join(tmpdir(), 'agent-face-prove-'))
+process.env['MERCURY_CONFIG_DIR'] = mkdtempSync(join(tmpdir(), 'agent-face-prove-'))
 
 const t = checker()
 
