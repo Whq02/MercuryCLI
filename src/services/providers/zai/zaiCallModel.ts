@@ -45,6 +45,7 @@ import { addToTotalSessionCost } from '../../../cost-tracker.js'
 import { calculateUSDCost } from '../../../utils/modelCost.js'
 import { estimateFaultedRequestUsage } from '../faultUsageEstimate.js'
 import { resolveZaiDispatch } from '../../../utils/router/providerDiscovery.js'
+import { emptyReplyNote, markEmptyReply } from '../emptyReply.js'
 import {
   renderGenericInstructions,
   resolveBehaviourContract,
@@ -604,10 +605,12 @@ async function* streamOneZaiAttempt(ctx: {
     )
   }
   if (minted.length === 0) {
+    const note = emptyReplyNote('zai')
     yield* emitSettledBlock(
+      { type: 'text', text: note, citations: null },
+      [{ type: 'text_delta', text: note }],
       { type: 'text', text: '', citations: null },
-      [],
-      { type: 'text', text: '', citations: null },
+      markEmptyReply,
     )
   }
 

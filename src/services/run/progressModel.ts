@@ -142,152 +142,18 @@ export function actionFingerprint(nextAction: string): string {
 }
 
 
-export type ProgressPhase =
-  | 'productive'
-  | 'stagnant'
-  | 'replan-required'
-  | 'handoff-required'
-  | 'terminal'
-
-export interface AttemptLedgerRow {
-  key: string
-  family: string
-  target: string
-  count: number
-  barrenRepeats: number
-  lastAt: number
-}
-
 export interface RunProgressState {
-  phase: ProgressPhase
   progressSinceDecision: number
-  totalProgress: number
-  attemptsSinceProgress: number
-  repeatAttemptsSinceProgress: number
-  replansUsed: number
-  attempts: AttemptLedgerRow[]
-  totalAttempts: number
-  lastEligibleProgress: { kind: string; detail: string; at: number } | null
 }
-
-export const MAX_ATTEMPT_LEDGER = 64
-
-export const STAGNANT_AFTER_BARREN_ATTEMPTS = 4
-export const REPLAN_AFTER_BARREN_REPEATS = 1
-export const HANDOFF_AFTER_REPLANS = 1
 
 export function emptyProgressState(): RunProgressState {
-  return {
-    phase: 'productive',
-    progressSinceDecision: 0,
-    totalProgress: 0,
-    attemptsSinceProgress: 0,
-    repeatAttemptsSinceProgress: 0,
-    replansUsed: 0,
-    attempts: [],
-    totalAttempts: 0,
-    lastEligibleProgress: null,
-  }
+  return { progressSinceDecision: 0 }
 }
 
-export function deriveProgressPhase(
-  s: Omit<RunProgressState, 'phase'>,
-  terminalLifecycle: boolean,
-): ProgressPhase {
-  if (terminalLifecycle) return 'terminal'
-  if (s.repeatAttemptsSinceProgress >= REPLAN_AFTER_BARREN_REPEATS) {
-    return s.replansUsed >= HANDOFF_AFTER_REPLANS ? 'handoff-required' : 'replan-required'
-  }
-  if (s.attemptsSinceProgress >= STAGNANT_AFTER_BARREN_ATTEMPTS) return 'stagnant'
-  return 'productive'
+export function foldEligibleProgress(prev: RunProgressState): RunProgressState {
+  return { ...prev, progressSinceDecision: prev.progressSinceDecision + 1 }
 }
 
-
-function rephase(s: Omit<RunProgressState, 'phase'>, terminal: boolean): RunProgressState {
-  return { ...s, phase: deriveProgressPhase(s, terminal) }
-}
-
-export function foldAttempt(
-  prev: RunProgressState,
-  fp: AttemptFingerprint,
-  at: number,
-  terminalLifecycle: boolean,
-): RunProgressState {
-  const key = fingerprintKey(fp)
-  const existing = prev.attempts.find(r => r.key === key)
-  const isBarrenRepeat = existing !== undefined && existingSeenSinceProgress(existing, prev)
-  const row: AttemptLedgerRow = existing
-    ? {
-        ...existing,
-        count: existing.count + 1,
-        barrenRepeats: isBarrenRepeat ? existing.barrenRepeats + 1 : existing.barrenRepeats,
-        lastAt: at,
-      }
-    : {
-        key,
-        family: fp.toolFamily,
-        target: fp.normalizedTarget,
-        count: 1,
-        barrenRepeats: 0,
-        lastAt: at,
-      }
-  const others = prev.attempts.filter(r => r.key !== key)
-  const attempts = [...others, row]
-    .sort((a, b) => a.lastAt - b.lastAt)
-    .slice(-MAX_ATTEMPT_LEDGER)
-  return rephase(
-    {
-      ...prev,
-      attempts,
-      totalAttempts: prev.totalAttempts + 1,
-      attemptsSinceProgress: prev.attemptsSinceProgress + 1,
-      repeatAttemptsSinceProgress: isBarrenRepeat
-        ? prev.repeatAttemptsSinceProgress + 1
-        : prev.repeatAttemptsSinceProgress,
-    },
-    terminalLifecycle,
-  )
-}
-
-function existingSeenSinceProgress(row: AttemptLedgerRow, s: RunProgressState): boolean {
-  return s.lastEligibleProgress === null || row.lastAt >= s.lastEligibleProgress.at
-}
-
-export function foldEligibleProgress(
-  prev: RunProgressState,
-  kind: 'artifact-delta' | 'verification' | 'task-state' | 'prerequisite-change',
-  detail: string,
-  at: number,
-  terminalLifecycle: boolean,
-): RunProgressState {
-  return rephase(
-    {
-      ...prev,
-      progressSinceDecision: prev.progressSinceDecision + 1,
-      totalProgress: prev.totalProgress + 1,
-      attemptsSinceProgress: 0,
-      repeatAttemptsSinceProgress: 0,
-      lastEligibleProgress: { kind, detail, at },
-    },
-    terminalLifecycle,
-  )
-}
-
-export function foldStopDecision(
-  prev: RunProgressState,
-  decision: string,
-  terminalLifecycle: boolean,
-): RunProgressState {
-  return rephase(
-    {
-      ...prev,
-      progressSinceDecision: 0,
-      replansUsed: /replan/i.test(decision) ? prev.replansUsed + 1 : prev.replansUsed,
-    },
-    terminalLifecycle,
-  )
-}
-
-export function foldTerminalProgress(prev: RunProgressState): RunProgressState {
-  return { ...prev, phase: 'terminal' }
+export function foldStopDecision(prev: RunProgressState): RunProgressState {
+  return { ...prev, progressSinceDecision: 0 }
 }

@@ -172,8 +172,7 @@ import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
 import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import { recordSentRequest } from '../utils/forkedAgent.js'
-import { evaluateCycleLease, renderHandoffReport } from '../services/run/cycleLease.js'
-import { getRunSnapshot, noteRunEvent } from '../services/run/runCoordinator.js'
+import { emptyReplyNoticeLine, isEmptyReplyMessage } from '../services/providers/emptyReply.js'
 import { buildQueryConfig, type QueryConfig } from '../query/config.js'
 import { productionDeps, type QueryDeps } from '../query/deps.js'
 import type { Terminal, Continue } from '../query/transitions.js'
@@ -227,7 +226,7 @@ type TurnState = {
   stopHookActive: boolean | undefined
   turnCount: number
   transition: Continue | undefined
-  cycleReplanInjected?: boolean
+  emptyReplyRecoveryCount?: number
   overflowEpisode: OverflowEpisode
   pendingOverflow: { signal: OverflowSignal; rung: OverflowRung } | undefined
 }
@@ -355,6 +354,15 @@ export function decideToolCallRefusalRecovery(input: {
   recoveryCount: number
 }): StreamFaultDecision {
   if (input.refusals > 0 && input.recoveryCount < TOOL_CALL_REFUSAL_RECOVERY_LIMIT) {
+    return { kind: 'continue', attempt: input.recoveryCount + 1 }
+  }
+  return { kind: 'surface' }
+}
+
+const EMPTY_REPLY_RECOVERY_LIMIT = 1
+
+export function decideEmptyReplyRecovery(input: { recoveryCount: number }): StreamFaultDecision {
+  if (input.recoveryCount < EMPTY_REPLY_RECOVERY_LIMIT) {
     return { kind: 'continue', attempt: input.recoveryCount + 1 }
   }
   return { kind: 'surface' }
@@ -1474,6 +1482,46 @@ export async function* runEventCore(
         })
       }
 
+      if (lastMessage && isEmptyReplyMessage(lastMessage)) {
+        const emptyReplyRecoveryCount = state.emptyReplyRecoveryCount ?? 0
+        const decision = decideEmptyReplyRecovery({ recoveryCount: emptyReplyRecoveryCount })
+        if (decision.kind === 'continue') {
+          yield emit({
+            kind: 'notice',
+            message: createSystemMessage(
+              emptyReplyNoticeLine(`sending the same request again (retry ${decision.attempt} of ${EMPTY_REPLY_RECOVERY_LIMIT})`),
+              'warning',
+            ),
+          })
+          const next: TurnState = {
+            messages: messagesForQuery,
+            toolUseContext,
+            autoCompactTracking: tracking,
+            maxOutputTokensRecoveryCount,
+            maxOutputTokensOverride,
+            streamFaultRecoveryCount,
+            toolCallRefusalRecoveryCount,
+            pendingToolUseSummary: undefined,
+            stopHookActive: undefined,
+            turnCount,
+            overflowEpisode,
+            pendingOverflow: undefined,
+            emptyReplyRecoveryCount: emptyReplyRecoveryCount + 1,
+            transition: { reason: 'empty_reply_retry', attempt: decision.attempt },
+          }
+          yield emit({ kind: 'turn_settled', transition: next.transition! })
+          state = next
+          continue
+        }
+        yield emit({
+          kind: 'notice',
+          message: createSystemMessage(
+            emptyReplyNoticeLine(`the same request was already sent again ${emptyReplyRecoveryCount === 1 ? 'once' : `${emptyReplyRecoveryCount} times`}; the turn ends here`),
+            'warning',
+          ),
+        })
+      }
+
       if (refusedToolCalls.length > 0) {
         const decision = decideToolCallRefusalRecovery({
           refusals: refusedToolCalls.length,
@@ -1986,47 +2034,8 @@ export async function* runEventCore(
       return terminal
     }
 
-    let cycleReplanInjected = state.cycleReplanInjected === true
-    const cycleDirectiveMessages: Message[] = []
-    {
-      const leaseOwner = ownerFromToolUseContext(updatedToolUseContext)
-      const lease = evaluateCycleLease(
-        getRunSnapshot(leaseOwner),
-        cycleReplanInjected,
-      )
-      if (lease.action === 'settle') {
-        noteRunEvent(leaseOwner, {
-          type: 'stop-decision',
-          at: Date.now(),
-          decision: 'handoff',
-          detail: lease.cause,
-        })
-        yield emit({
-          kind: 'attachment',
-          message: createAttachmentMessage({
-            type: 'cycle_handoff',
-            cause: lease.cause,
-            unfinished: lease.unfinished,
-            report: renderHandoffReport(lease.report),
-          }),
-        })
-        const terminal: Terminal = { reason: 'cycle_handoff', cause: lease.cause }
-        yield emit({ kind: 'run_terminal', terminal })
-        return terminal
-      }
-      if (lease.action === 'replan') {
-        cycleReplanInjected = true
-        cycleDirectiveMessages.push(
-          createUserMessage({ content: lease.directive, isMeta: true }),
-        )
-        for (const m of cycleDirectiveMessages) {
-          yield emit({ kind: 'hook_message', message: m })
-        }
-      }
-    }
-
     const next: TurnState = {
-      messages: [...messagesForQuery, ...assistantMessages, ...toolResults, ...cycleDirectiveMessages],
+      messages: [...messagesForQuery, ...assistantMessages, ...toolResults],
       toolUseContext: toolUseContextWithQueryTracking,
       autoCompactTracking: tracking,
       turnCount: nextTurnCount,
@@ -2037,7 +2046,6 @@ export async function* runEventCore(
       maxOutputTokensOverride: undefined,
       stopHookActive,
       transition: { reason: 'next_turn' },
-      cycleReplanInjected,
       overflowEpisode: FRESH_OVERFLOW_EPISODE,
       pendingOverflow: undefined,
     }
