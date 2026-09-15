@@ -46,7 +46,7 @@ section('BM-19 — splash OSC 11 ground write, emitted bytes under the one spell
   )
   const runProbe = (env: Record<string, string>): { osc11: boolean; bytes: number } => {
     const out = execFileSync(process.execPath, [probe], {
-      env: { PATH: process.env.PATH, TERM: 'xterm-256color', MERCURY_CONFIG_DIR: scratch, ...env },
+      env: { PATH: process.env.PATH, TERM: 'xterm-256color', COLORTERM: 'truecolor', MERCURY_CONFIG_DIR: scratch, ...env },
       encoding: 'utf8',
       timeout: 30_000,
     })
@@ -55,6 +55,7 @@ section('BM-19 — splash OSC 11 ground write, emitted bytes under the one spell
   const baseline = runProbe({})
   const canonicalOff = runProbe({ MERCURY_OASIS_BG: '0' })
   const canonicalOn = runProbe({ MERCURY_OASIS_BG: '1' })
+  const bare = runProbe({ COLORTERM: '' })
   check(
     'floor: the splash emits the OSC 11 ground write by default (a real splash frame was captured)',
     baseline.osc11 && baseline.bytes > 1000,
@@ -69,6 +70,11 @@ section('BM-19 — splash OSC 11 ground write, emitted bytes under the one spell
     'UI-016: an explicit MERCURY_OASIS_BG=1 keeps the ground write (the one spelling reads its own value)',
     canonicalOn.osc11,
     `explicit =1 suppressed the ground write (osc11=${canonicalOn.osc11})`,
+  )
+  check(
+    'the depth law: a bare xterm-256color with nothing advertised is never recoloured (no OSC 11 ground write on the 256-colour tier)',
+    !bare.osc11 && bare.bytes > 1000,
+    `osc11=${bare.osc11} bytes=${bare.bytes}`,
   )
   check(
     'UI-017 parity: the splash and the runtime owner read the ONE opt-out spelling (MERCURY_OASIS_BG in the asset; the registry row for oasisBg)',
