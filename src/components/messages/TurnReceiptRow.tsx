@@ -42,7 +42,7 @@ export function TurnReceiptRow({
   if (c.reads > 0) {
     push(
       <Text key="reads">
-        {c.reads} {plural(c.reads, 'file')} read
+        {c.reads} {plural(c.reads, 'read')}
       </Text>,
     )
   }
