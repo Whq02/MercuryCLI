@@ -5,3 +5,4 @@
 prove-no-stagnation-governor.ts
 prove-empty-reply-note.ts
 prove-no-repetition-breaker.ts
+prove-one-shot-open-deliverables.ts

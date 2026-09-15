@@ -225,7 +225,7 @@ function isMutatingEffect(e: { outcome: ToolEffectOutcome; changedPaths: string[
   return /\b(apply|write|edit|launch)\b/i.test(e.operation)
 }
 
-export function reduceRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot {
+function foldRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot {
   const progress = prev.progress ?? emptyProgressState()
   const base: RunSnapshot = {
     ...prev,
@@ -377,7 +377,11 @@ export function reduceRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot 
       return { ...base, lifecycle: 'cancelled', phaseReason: event.reason }
     case 'failed':
       return { ...base, lifecycle: 'failed', phaseReason: event.reason }
-    case 'completed':
+    case 'completed': {
+      const open = openDeliverables(prev)
+      if (open.length > 0) {
+        return { ...base, phaseReason: `not complete: ${open.length} deliverable(s) still open` }
+      }
       return {
         ...base,
         lifecycle: 'completed',
@@ -385,6 +389,23 @@ export function reduceRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot 
         phaseReason: event.satisfied.join('; ') || 'completed',
         nextAction: '',
       }
+    }
+  }
+}
+
+export function reduceRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot {
+  return reconcileCompletion(foldRunEvent(prev, event))
+}
+
+export function reconcileCompletion(snapshot: RunSnapshot): RunSnapshot {
+  if (snapshot.lifecycle !== 'completed') return snapshot
+  const open = openDeliverables(snapshot)
+  if (open.length === 0) return snapshot
+  return {
+    ...snapshot,
+    lifecycle: 'active',
+    phase: snapshot.phase === 'done' ? 'implementation' : snapshot.phase,
+    phaseReason: `reopened: ${open.length} deliverable(s) still open after completion`,
   }
 }
 
