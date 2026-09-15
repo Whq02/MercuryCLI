@@ -8,13 +8,31 @@ const path = require('node:path');
 
 const cwd = workerData.cwd;
 const cellRequire = createRequire(path.join(cwd, '__workshop__.js'));
+const cwdReal = (() => {
+  try {
+    return require('node:fs').realpathSync(cwd);
+  } catch {
+    return cwd;
+  }
+})();
 
 let rpcSeq = 0;
+let cellRpcSeq = 0;
 const pendingRpc = new Map();
 function rpc(kind, payload) {
+  const site = new Error();
+  const call = { ordinal: ++cellRpcSeq, label: kind === 'tool' && payload && payload.name ? String(payload.name) : kind };
   return new Promise((resolve, reject) => {
     const id = ++rpcSeq;
-    pendingRpc.set(id, { resolve, reject });
+    pendingRpc.set(id, {
+      resolve,
+      reject: (message) => {
+        const err = new Error(message);
+        err.bridgeCall = call;
+        err.stack = site.stack;
+        reject(err);
+      },
+    });
     parentPort.postMessage({ type: 'rpc', id, kind, payload });
   });
 }
@@ -90,9 +108,75 @@ function dropFreshRequireCache() {
 
 let active = null;
 
+const ERROR_TEXT_CAP = 4000;
+const ERROR_HEAD_CAP = 3500;
+const ERROR_FRAME_CAP = 8;
+const escapeRe = (s) => s.replace(/[.*+?^$(){}|[\]\\]/g, '\\$&');
+const clip = (s, n) => (s.length > n ? s.slice(0, n) + '…' : s);
+
+function cellFrames(stack, cellId, lineOffset, lineCount) {
+  const file = cellId + '.js';
+  const fileAt = new RegExp(escapeRe(file) + ':(\\d+)(:\\d+)?');
+  const out = [];
+  for (const raw of String(stack || '').split('\n')) {
+    const line = raw.trim();
+    if (!line.startsWith('at ')) continue;
+    const inCell = line.includes(file + ':');
+    const inCwd = line.includes(cwd + path.sep) || line.includes(cwdReal + path.sep);
+    if (!inCell && !inCwd) continue;
+    let text = line;
+    if (inCell) {
+      let outside = false;
+      text = text.replace(fileAt, (m, l, c) => {
+        const n = Number(l) - lineOffset;
+        if (n < 1 || n > lineCount) outside = true;
+        return file + ':' + n + (c || '');
+      });
+      if (outside) continue;
+    }
+    out.push('    ' + clip(text, 200));
+    if (out.length >= ERROR_FRAME_CAP) break;
+  }
+  return out;
+}
+
+function excerptAt(code, pos) {
+  const source = String(code).split('\n')[pos.line - 1];
+  if (source === undefined) return [];
+  const at = Math.max(0, Math.min(source.length, pos.column - 1));
+  const start = Math.max(0, at - 60);
+  const end = Math.min(source.length, at + 40);
+  const head = start > 0 ? '…' : '';
+  const tail = end < source.length ? '…' : '';
+  return ['    near: ' + head + source.slice(start, end) + tail, '    ' + ' '.repeat(6 + head.length + (at - start)) + '^'];
+}
+
+function describeCellError(err, cellId, code, hasTopLevelAwait, parseError) {
+  if (err === null || typeof err !== 'object') return String(err);
+  if (typeof err.stack !== 'string' && typeof err.message !== 'string') return bounded(err, 2);
+  const lineOffset = hasTopLevelAwait ? 1 : 0;
+  const lineCount = String(code).split('\n').length;
+  const message = err.message === undefined ? '' : String(err.message);
+  const lines = [];
+  if (err.bridgeCall) {
+    lines.push(clip('bridge call ' + err.bridgeCall.ordinal + ' (' + err.bridgeCall.label + ') failed: ' + message, ERROR_HEAD_CAP));
+    lines.push('the cell stopped at that call');
+    lines.push(...cellFrames(err.stack, cellId, lineOffset, lineCount));
+  } else if (parseError && String(err.name) === 'SyntaxError') {
+    const pos = { line: parseError.line, column: parseError.column + 1 };
+    lines.push(clip('SyntaxError: ' + parseError.message, ERROR_HEAD_CAP) + ' (' + cellId + '.js:' + pos.line + ':' + pos.column + ')');
+    lines.push(...excerptAt(code, pos));
+  } else {
+    lines.push(clip(String(err.name || 'Error') + (message ? ': ' + message : ''), ERROR_HEAD_CAP));
+    lines.push(...cellFrames(err.stack, cellId, lineOffset, lineCount));
+  }
+  return lines.join('\n').slice(0, ERROR_TEXT_CAP);
+}
+
 async function runCell(msg) {
-  const { cellId, code, hasTopLevelAwait } = msg;
+  const { cellId, code, hasTopLevelAwait, parseError } = msg;
   dropFreshRequireCache();
+  cellRpcSeq = 0;
   let value;
   try {
     if (hasTopLevelAwait) {
@@ -116,7 +200,7 @@ async function runCell(msg) {
       type: 'cell-done',
       cellId,
       ok: false,
-      error: err && err.stack ? String(err.stack).slice(0, 4000) : String(err),
+      error: describeCellError(err, cellId, code, hasTopLevelAwait, parseError),
     });
   }
 }
@@ -129,7 +213,7 @@ parentPort.on('message', (msg) => {
     if (pending) {
       pendingRpc.delete(msg.id);
       if (msg.ok) pending.resolve(msg.value);
-      else pending.reject(new Error(msg.error || 'bridge call failed'));
+      else pending.reject(msg.error || 'bridge call failed');
     }
   }
 });
