@@ -68,6 +68,17 @@ The boot's own options ride into the sessions it opens: `-n <name>` titles
 the first session you open (one-shot; later ones name themselves — below),
 and `--effort`, the permission mode and the runner-side options apply to
 every session this screen births.
+
+The model and the effort a session runs follow one law. An explicit
+`--model` or `--effort` on the command line wins, for a new session and for
+a resumed one alike. Without the flag, a new session starts on your saved
+choice — `/model` and `/effort` both save the pick as your default, and say
+so — and, with nothing saved, on the family default. A resumed session
+keeps the model and effort it ran on unless the command line says
+otherwise: `--continue --model <id> --effort <level>` brings the session
+back on the launch's model and effort, its record is re-stamped, and the
+resume card names which won when the launch's word and the session's saved
+word differ. `/model default` clears the saved choice.
 Every ↵ on New Session opens another session; whatever the chat held keeps
 running and shows on the board. If the daemon that hosts sessions is not up,
 the row says so, and ↵ again starts it and retries.
@@ -304,7 +315,9 @@ at once from its file and the daemon admits the same durable session behind
 the paint; the chat lands ready on the first ↵ — a slow transcript never
 leaves the press dead — the first words you type wait for that admission,
 and the away recap paints as a display-only row, never in the model's
-conversation. Whichever
+conversation. The session comes back on its own model and effort, unless
+the boot named a `--model` or `--effort`: then the launch's word wins and
+the recap card says so. Whichever
 door, the whole estate is live behind the chat — the daemon, the board and
 every other running session — and a resume yields, drains, kills, swaps or
 respawns nothing.
