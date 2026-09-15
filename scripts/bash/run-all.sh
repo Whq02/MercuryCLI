@@ -3,7 +3,7 @@
 # gate-env: MERCURY_PROOF_POISON_SCRUB MERCURY_SHELL_ENGINE MERCURY_TMPDIR
 # gate-watch: src/utils/permissions/shellRuleMatching* src/utils/shell/globPreamble*
 # gate-watch: src/utils/shell/readOnlyCommandValidation*
-# gate-watch: src/utils/ShellCommand.ts src/tasks/LocalShellTask/* src/tools/BashTool/BashTool.tsx
+# gate-watch: src/utils/ShellCommand.ts src/tasks/LocalShellTask/* src/tools/BashTool/BashTool.tsx src/tools/BashTool/commandSemantics.ts
 # gate-watch: src/utils/processGroup.ts src/tools/TaskStopTool/* src/tasks/stopTask.ts src/Task.ts
 # gate-watch: src/utils/task/TaskOutput.ts src/utils/hooks/AsyncHookRegistry.ts src/tools/MonitorTool/*
 # gate-watch: src/tools/AgentTool/runAgent.ts src/daemon/headlessRun.ts src/utils/fileHistory.ts
@@ -46,6 +46,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-snapshot-path.ts" || { __rc=
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-teardown-ends-the-tree.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-teardown-ends-the-tree.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-cwd-record.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-cwd-record.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-tool-seams.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-tool-seams.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-exit-code-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-exit-code-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-session-env.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-session-env.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-pack.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-pack.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-session.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-session.ts" "$__t" "$__rc"
