@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 
-process.env['MERCURY_CONFIG_DIR'] ??= mkdtempSync(join(tmpdir(), 'critter-frame-cache-'))
+process.env['MERCURY_CONFIG_DIR'] = mkdtempSync(join(tmpdir(), 'critter-frame-cache-'))
 process.env['FORCE_COLOR'] = '3'
 delete process.env['NO_COLOR']
 process.env['MERCURY_CRITTER_GAZE'] = '0'

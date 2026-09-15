@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import { checker } from '../engine-durability/harness.ts'
 
-process.env['MERCURY_CONFIG_DIR'] ??= mkdtempSync(join(tmpdir(), 'accent-snapshot-'))
+process.env['MERCURY_CONFIG_DIR'] = mkdtempSync(join(tmpdir(), 'accent-snapshot-'))
 delete process.env['MERCURY_CRITTER']
 
 const t = checker()
