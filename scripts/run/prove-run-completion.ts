@@ -588,6 +588,168 @@ async function main(): Promise<void> {
     vs.disposeVerificationOwner(codeOwner)
   }
 
+  section('10. the one-shot policy: open deliverables gate completion on every surface')
+  {
+    const oneShot = { surface: 'print' as const, terminalPolicy: 'one-shot' as const }
+    const openRun = fold([
+      { type: 'substantive', at: 2, reason: 'created tasks' },
+      { type: 'task-transition', at: 3, taskId: 't1', title: 'write the parser', state: 'open' },
+    ])
+    const d1 = evaluateStop({ ...defaults, snapshot: openRun, ...oneShot })
+    check(
+      'one-shot + an open deliverable → continue naming the deliverable',
+      d1.kind === 'continue' && d1.nextAction.includes('write the parser') && /1 deliverable\(s\) still open/.test(d1.reason),
+      JSON.stringify(d1),
+    )
+    const w1 = evaluateStop({ ...defaults, snapshot: openRun, ...oneShot, surface: 'worker' })
+    check('the worker seat obeys the same gate', w1.kind === 'continue', w1.kind)
+    for (const surface of ['interactive', 'print', 'sdk', 'worker', 'workflow', 'external'] as const) {
+      for (const policy of ['operator-led', 'one-shot', 'client-led', 'mission-led'] as const) {
+        const d = evaluateStop({ ...defaults, snapshot: openRun, surface, terminalPolicy: policy })
+        check(`${surface}/${policy}: an open deliverable never completes`, d.kind !== 'complete', JSON.stringify(d))
+      }
+    }
+    const closedRun = fold([
+      { type: 'substantive', at: 2, reason: 'created tasks' },
+      { type: 'task-transition', at: 3, taskId: 't1', title: 'write the parser', state: 'done' },
+    ])
+    const d2 = evaluateStop({
+      ...defaults,
+      snapshot: closedRun,
+      ...oneShot,
+      verification: { state: 'stale', mutationsSinceEvidence: 1, workspaceVerifiable: true },
+    })
+    check(
+      'one-shot + every deliverable closed + settled effects → complete without an evidence demand (the settled-print law stands)',
+      d2.kind === 'complete' && d2.satisfied.some(s => s.includes('all 1 deliverable(s) closed')) && !d2.satisfied.some(s => s.includes('UNSATISFIED')),
+      JSON.stringify(d2),
+    )
+    const d3 = evaluateStop({ ...defaults, snapshot: openRun, ...oneShot, continuationsThisTurn: 3 })
+    check(
+      'one-shot at the budget → budget-exhausted naming the open deliverable, never complete',
+      d3.kind === 'budget-exhausted' && d3.unfinished.includes('write the parser'),
+      JSON.stringify(d3),
+    )
+  }
+
+  section('11. a run recorded complete with open deliverables is reconciled, never a terminal receipt')
+  {
+    const openEvents = [
+      { type: 'substantive', at: 2, reason: 'created tasks' },
+      { type: 'task-transition', at: 3, taskId: 't1', title: 'write the parser', state: 'open' },
+    ] as Parameters<typeof fold>[0]
+    const refused = kernel.reduceRunEvent(fold(openEvents), { type: 'completed', at: 4, satisfied: ['UNSATISFIED: 1 open'] })
+    check(
+      'the kernel never folds a completed lifecycle over an open deliverable',
+      refused.lifecycle === 'active' && refused.phase !== 'done',
+      `${refused.lifecycle}/${refused.phase}`,
+    )
+    check('the refused fold names the open count', /not complete: 1 deliverable\(s\) still open/.test(refused.phaseReason), refused.phaseReason)
+    const persisted = { ...fold(openEvents), lifecycle: 'completed' as const, phase: 'done', phaseReason: 'UNSATISFIED: 1 open', nextAction: '' }
+    const d1 = evaluateStop({ ...defaults, snapshot: persisted })
+    check(
+      'a completed snapshot holding an open deliverable → continue on the deliverable, not "run already completed"',
+      d1.kind === 'continue' && d1.nextAction.includes('write the parser'),
+      JSON.stringify(d1),
+    )
+    check('…and the reason names the contradiction', d1.kind === 'continue' && /still open on a run recorded as completed/.test(d1.reason), JSON.stringify(d1))
+    const d1o = evaluateStop({ ...defaults, snapshot: persisted, surface: 'print', terminalPolicy: 'one-shot' })
+    check('the same on the one-shot seat', d1o.kind === 'continue', d1o.kind)
+    const reopened = kernel.reduceRunEvent(persisted, {
+      type: 'stop-decision',
+      at: 5,
+      decision: 'continue',
+      detail: '1 deliverable(s) still open on a run recorded as completed',
+    })
+    check('the next fold reopens the run as active', reopened.lifecycle === 'active' && reopened.phase === 'implementation', `${reopened.lifecycle}/${reopened.phase}`)
+    check('the reopen names the count', /reopened: 1 deliverable\(s\) still open after completion/.test(reopened.phaseReason), reopened.phaseReason)
+    const reconcile = (kernel as { reconcileCompletion?: (s: typeof persisted) => typeof persisted }).reconcileCompletion
+    check('reconcileCompletion is the same law, callable on a loaded snapshot', reconcile !== undefined && reconcile(persisted).lifecycle === 'active')
+    const doneRun = kernel.reduceRunEvent(
+      fold([
+        { type: 'substantive', at: 2, reason: 'created tasks' },
+        { type: 'task-transition', at: 3, taskId: 't1', title: 'write the parser', state: 'done' },
+      ]),
+      { type: 'completed', at: 4, satisfied: ['all 1 deliverable(s) closed'] },
+    )
+    check('negative: a run whose deliverables are all closed completes', doneRun.lifecycle === 'completed' && doneRun.phase === 'done', `${doneRun.lifecycle}/${doneRun.phase}`)
+    const later = kernel.reduceRunEvent(doneRun, { type: 'stop-decision', at: 6, decision: 'complete', detail: 'run already completed' })
+    check('negative: a later fold on a real receipt keeps it completed', later.lifecycle === 'completed', later.lifecycle)
+    check('negative: the evaluator still calls a real receipt already completed', evaluateStop({ ...defaults, snapshot: doneRun }).kind === 'complete')
+    check('negative: reconcileCompletion leaves a real receipt untouched', reconcile !== undefined && reconcile(doneRun) === doneRun)
+    const cancelled = kernel.reduceRunEvent(fold(openEvents), { type: 'cancelled', at: 4, reason: 'operator interrupt' })
+    check(
+      'negative: a cancelled run with open deliverables is no contradiction — it stays cancelled and terminal',
+      cancelled.lifecycle === 'cancelled' && evaluateStop({ ...defaults, snapshot: cancelled }).kind === 'complete',
+      cancelled.lifecycle,
+    )
+    const reopenedByTask = kernel.reduceRunEvent(doneRun, { type: 'task-transition', at: 7, taskId: 't2', title: 'fix the lexer', state: 'open' })
+    check('a new open deliverable landing on a completed run reopens it', reopenedByTask.lifecycle === 'active' && /reopened: 1 deliverable\(s\)/.test(reopenedByTask.phaseReason), `${reopenedByTask.lifecycle}: ${reopenedByTask.phaseReason}`)
+  }
+
+  section('12. the adapter on a non-interactive seat: the record never closes over an open task')
+  {
+    const { mkdtempSync, rmSync } = await import('node:fs')
+    const { tmpdir } = await import('node:os')
+    const { join } = await import('node:path')
+    const { setIsInteractive } = await import('../../src/bootstrap/state.js')
+    const scratch = mkdtempSync(join(tmpdir(), 'run-one-shot-proof-'))
+    const prevConfig = process.env.MERCURY_CONFIG_DIR
+    process.env.MERCURY_CONFIG_DIR = scratch
+    setIsInteractive(false)
+    try {
+      const coord = await import('../../src/services/run/runCoordinator.js')
+      const tasksMod = await import('../../src/utils/tasks.js')
+      const adapter = await import('../../src/utils/hooks/runStopAdapter.js')
+      type Msg = Parameters<typeof adapter.evaluateStopAttempt>[0]
+      const messages = [
+        { type: 'user', message: { content: 'file the parser task and end the turn' }, isMeta: false },
+        { type: 'assistant', message: { content: [{ type: 'text', text: 'done: the parser task is filed' }] } },
+      ] as unknown as Msg
+      const seatOwner = ok.makeOwnerKey({ workspace: scratch, sessionId: 'run-one-shot-seat', lane: 'main' })
+      coord.acceptUserRequest(seatOwner, { objective: 'file the parser task', rootMessageId: 'u1' })
+      const listId = tasksMod.getTaskListId()
+      const tid = await tasksMod.createTask(listId, {
+        subject: 'write the parser',
+        description: 'the one deliverable',
+        status: 'pending',
+        blocks: [],
+        blockedBy: [],
+      })
+      const verdict = await adapter.evaluateStopAttempt(messages, { maxBlocks: 3, wordingUnfinished: false, owner: seatOwner, recordOnly: true })
+      check(
+        'non-interactive seat + an open task → continue (the stop stands in record mode)',
+        verdict.decision.kind === 'continue' && verdict.allowStop === true,
+        JSON.stringify(verdict.decision),
+      )
+      const snap = coord.getRunSnapshot(seatOwner)
+      check(
+        'the run record stays active with the deliverable open — never completed/done',
+        snap?.lifecycle === 'active' && snap.phase !== 'done' && snap.deliverables.some(d => d.id === tid && d.state === 'open'),
+        `${String(snap?.lifecycle)}/${String(snap?.phase)}`,
+      )
+      check(
+        'the recorded stop decision names the open count',
+        snap?.lastStopDecision?.decision === 'continue' && /1 deliverable\(s\) still open/.test(snap.lastStopDecision.detail),
+        JSON.stringify(snap?.lastStopDecision),
+      )
+      await tasksMod.updateTask(listId, tid, { status: 'completed' })
+      const verdict2 = await adapter.evaluateStopAttempt(messages, { maxBlocks: 3, wordingUnfinished: false, owner: seatOwner, recordOnly: true })
+      const snap2 = coord.getRunSnapshot(seatOwner)
+      check(
+        'closing the task completes the one-shot run and the record reads completed with all deliverables closed',
+        verdict2.decision.kind === 'complete' && snap2?.lifecycle === 'completed' && snap2.phase === 'done' && snap2.deliverables.every(d => d.state === 'done'),
+        `${JSON.stringify(verdict2.decision)} ${String(snap2?.lifecycle)}`,
+      )
+      await tasksMod.resetTaskList(listId)
+    } finally {
+      setIsInteractive(true)
+      if (prevConfig === undefined) delete process.env.MERCURY_CONFIG_DIR
+      else process.env.MERCURY_CONFIG_DIR = prevConfig
+      rmSync(scratch, { recursive: true, force: true })
+    }
+  }
+
   console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)
   process.exit(failures === 0 ? 0 : 1)
 }

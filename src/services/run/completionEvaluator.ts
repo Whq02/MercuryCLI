@@ -120,12 +120,25 @@ export function evaluateStop(input: StopEvaluationInput): StopDecision {
     return { kind: 'complete', satisfied: ['no active implementation run; tail is a finished status'] }
   }
 
-  if (isTerminalLifecycle(snap.lifecycle)) {
+  const open = openDeliverables(snap)
+  const recordedCompleteWithOpenWork = snap.lifecycle === 'completed' && open.length > 0
+  if (isTerminalLifecycle(snap.lifecycle) && !recordedCompleteWithOpenWork) {
     return { kind: 'complete', satisfied: [`run already ${snap.lifecycle}`] }
   }
 
   if (snap.lifecycle === 'paused') {
     return { kind: 'pause', cause: snap.phaseReason || 'run paused' }
+  }
+
+  if (open.length > 0) {
+    const next = open[0]!
+    return {
+      kind: 'continue',
+      nextAction: `work the open deliverable: ${next.title || next.id}`,
+      reason: recordedCompleteWithOpenWork
+        ? `${open.length} deliverable(s) still open on a run recorded as completed`
+        : `${open.length} deliverable(s) still open`,
+    }
   }
 
   const oneShot =
@@ -141,15 +154,6 @@ export function evaluateStop(input: StopEvaluationInput): StopDecision {
     }
   }
 
-  const open = openDeliverables(snap)
-  if (open.length > 0) {
-    const next = open[0]!
-    return {
-      kind: 'continue',
-      nextAction: `work the open deliverable: ${next.title || next.id}`,
-      reason: `${open.length} deliverable(s) still open`,
-    }
-  }
   if (snap.unresolvedBadEffects > 0) {
     return {
       kind: 'continue',
