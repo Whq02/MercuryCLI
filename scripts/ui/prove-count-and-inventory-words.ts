@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -33,7 +33,7 @@ type Grid = { cols: number; rows: number; grid: Cell[][]; marks?: Array<{ label:
 for (const [cols, rows] of geometries) {
   for (const scene of scenes) {
     const name = `${scene}-${cols}x${rows}`
-    const home = mkdtempSync(join(arg('--scratch-root') ?? tmpdir(), `${name}-world-`))
+    const home = realpathSync(mkdtempSync(join(arg('--scratch-root') ?? tmpdir(), `${name}-world-`)))
     const cwd = join(home, 'work')
     const config = join(home, 'config')
     mkdirSync(cwd)
