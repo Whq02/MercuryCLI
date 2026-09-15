@@ -22,6 +22,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
+const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+enableConfigs()
+
 const {
   classifyCredentialWall,
   credentialWallLine,
