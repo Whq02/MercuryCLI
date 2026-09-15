@@ -152,7 +152,7 @@ t.section('§9 — the theme-aware compact mark SET (CR-3, operator addition)')
 
 t.section('§10 — the header STILL: the square dock at the header, one surface only)')
 {
-  process.env['MERCURY_CONFIG_DIR'] ??= (await import('node:fs')).mkdtempSync(
+  process.env['MERCURY_CONFIG_DIR'] = (await import('node:fs')).mkdtempSync(
     (await import('node:path')).join((await import('node:os')).tmpdir(), 'concourse-critter-still-'),
   )
   process.env['FORCE_COLOR'] = '3'

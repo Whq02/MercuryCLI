@@ -12,7 +12,7 @@ const t = checker()
 const REPO = join(import.meta.dir, '..', '..')
 const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
-process.env['MERCURY_CONFIG_DIR'] ??= mkdtempSync(join(tmpdir(), 'face-logins-prove-'))
+process.env['MERCURY_CONFIG_DIR'] = mkdtempSync(join(tmpdir(), 'face-logins-prove-'))
 process.env['FORCE_COLOR'] = '0'
 
 const {
