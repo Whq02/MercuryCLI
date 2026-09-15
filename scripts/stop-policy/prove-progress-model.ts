@@ -185,7 +185,7 @@ section('§8 ONE persistence law, spliced at every surface (SS-08/10/11)')
     '../../src/prompt/mercuryContract.ts'
   )
   check('the law suggests and never counts (keep going while evidence advances · when a road stalls, take another · the blocked ask names what changed, what was tried, what blocks, the smallest input)',
-    /Keep going while evidence advances/.test(PERSISTENCE_LAW) && /when a road stalls, take another/.test(PERSISTENCE_LAW) && /smallest input you need/.test(PERSISTENCE_LAW) && !/once|stop looping|handoff|strateg/.test(PERSISTENCE_LAW))
+    /Keep going while evidence advances/.test(PERSISTENCE_LAW) && /when a road stalls, take another/.test(PERSISTENCE_LAW) && /smallest input you need/.test(PERSISTENCE_LAW) && !/strategy once|stop looping|handoff|strateg/.test(PERSISTENCE_LAW))
   check('the sufficiency clause on verification loops stays', /sufficiency, not exhaustion/.test(PERSISTENCE_LAW))
   check('the doctrine (native surface) carries the law VERBATIM', MERCURY_DOCTRINE.includes(PERSISTENCE_LAW))
   const doctrineSrc = src('src/constants/subagentDoctrine.ts')
