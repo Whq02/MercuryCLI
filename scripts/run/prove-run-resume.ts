@@ -133,6 +133,24 @@ async function main(): Promise<void> {
     }
   }
 
+  section('4b. a record that reads complete with open deliverables resumes reopened, as the same run')
+  {
+    const contradiction = { ...snapshot, lifecycle: 'completed' as const, phase: 'done', phaseReason: 'UNSATISFIED: 1 open', nextAction: '', pendingTools: [] }
+    const stuckOwner = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'stuck-sess', lane: 'main' })
+    mkdirSync(dirname(sidecar.runSidecarPath(stuckOwner)), { recursive: true })
+    await sidecar.saveRunSidecar(stuckOwner, { ...contradiction, owner: stuckOwner })
+    const rec = await coordinator.reconcileOnResume(stuckOwner, process.cwd())
+    check('the contradiction loads as reconciled, not as a terminal receipt', rec.state === 'reconciled', rec.state)
+    if (rec.state === 'reconciled') {
+      check('the run is active with the deliverable still open', rec.snapshot.lifecycle === 'active' && rec.snapshot.deliverables.some(d => d.id === 't2' && d.state === 'open'), rec.snapshot.lifecycle)
+      check('the same run continues (run id kept)', rec.snapshot.runId === snapshot.runId, rec.snapshot.runId)
+      check('the next action names the open deliverable', /continue the open deliverable: emitter/.test(rec.snapshot.nextAction), rec.snapshot.nextAction)
+      check('the reopen is on the timeline', rec.snapshot.recentEvents.some(e => e.type === 'resumed'), JSON.stringify(rec.snapshot.recentEvents.map(e => e.type)))
+    }
+    const persisted = JSON.parse(readFileSync(sidecar.runSidecarPath(stuckOwner), 'utf8')) as { snapshot: { lifecycle: string } }
+    check('the reopened record is persisted before continuing', persisted.snapshot.lifecycle === 'active', persisted.snapshot.lifecycle)
+  }
+
   section('5. agent lanes never persist sidecars (workflow manifests own that lane)')
   {
     const agentOwner = ok.makeOwnerKey({
