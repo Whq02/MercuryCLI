@@ -17,7 +17,6 @@ import { isClaudeAISubscriber } from '../auth.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { getCanonicalName } from './model.js'
 import { getModelCapability } from './modelCapabilities.js'
-import { AUGUR_BETA_HEADER, isAugurHeader } from './augur.js'
 import { isCarrierShapedId } from '../../services/providers/idSpaces.js'
 import {
   gptDisplayPin,
@@ -898,10 +897,6 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     (antOptedIntoToolClearing || thinkingPreservationEnabled)
   ) {
     betaHeaders.push(CONTEXT_MANAGEMENT_BETA_HEADER)
-  }
-
-  if (includeFirstPartyOnlyBetas && isAugurHeader()) {
-    betaHeaders.push(AUGUR_BETA_HEADER)
   }
 
   if (includeFirstPartyOnlyBetas) {

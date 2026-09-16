@@ -69,7 +69,6 @@ enableConfigs()
 const prov = await import('../../src/utils/model/providers.js')
 const betas = await import('../../src/utils/betas.js')
 const B = await import('../../src/constants/betas.js')
-const augur = await import('../../src/utils/model/augur.js')
 const model = await import('../../src/utils/model/model.js')
 const thinking = await import('../../src/utils/thinking.js')
 const effort = await import('../../src/utils/effort.js')
@@ -150,7 +149,6 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     B.CONTEXT_MANAGEMENT_BETA_HEADER,
     B.PROMPT_CACHING_SCOPE_BETA_HEADER,
     B.STRUCTURED_OUTPUTS_BETA_HEADER,
-    augur.AUGUR_BETA_HEADER,
   ]
   for (const f of forbidden) {
     check(
