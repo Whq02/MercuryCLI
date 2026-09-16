@@ -73,7 +73,7 @@ import {
   modelSupportsThinking,
   type ThinkingConfig,
 } from 'src/utils/thinking.js'
-import { foldToolChoiceForModel, refusalFallbackRequest, servesPerMessageEffort } from 'src/utils/model/capabilities.js'
+import { foldToolChoiceForModel, servesPerMessageEffort } from 'src/utils/model/capabilities.js'
 import { API_MAX_MEDIA_PER_REQUEST } from '../../../constants/apiLimits.js'
 import { ADVISOR_BETA_HEADER, MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER } from '../../../constants/betas.js'
 import {
@@ -661,8 +661,6 @@ async function* queryModel(
   const system = buildSystemPromptBlocks(systemPrompt, enablePromptCaching, {
     skipGlobalCacheForSystemPrompt: needsToolBasedCacheMarker,
   })
-  const useBetas = betas.length > 0
-
   const extraToolSchemas = [...(options.extraToolSchemas ?? [])]
   if (options.nativeWebSearch) {
     const { allowedDomains, blockedDomains, maxUses } = options.nativeWebSearch
@@ -738,11 +736,6 @@ async function* queryModel(
       outputConfig as BetaOutputConfig & { task_budget?: TaskBudgetParam },
       betasParams,
     )
-
-    const refusalFallback = useBetas ? refusalFallbackRequest(options.model) : null
-    if (refusalFallback && !betasParams.includes(refusalFallback.beta)) {
-      betasParams.push(refusalFallback.beta)
-    }
 
     if (options.outputFormat && !('format' in outputConfig)) {
       outputConfig.format = options.outputFormat as BetaJSONOutputFormat
@@ -851,7 +844,6 @@ async function* queryModel(
       system: wireParts.system as typeof system,
       tools: wireParts.tools as typeof allTools,
       tool_choice: toolChoice,
-      ...(refusalFallback && { fallbacks: refusalFallback.fallbacks }),
       ...((sendBetas || effortRow !== null) && { betas: betasParams }),
       metadata: getAPIMetadata(),
       max_tokens: maxOutputTokens,
@@ -911,26 +903,18 @@ async function* queryModel(
 
   const requestedWire = normalizeModelStringForAPI(options.model)
   let servedModel: string | undefined
-  let servedWholeTurn = false
-  const noteServedModel = (
-    model: string | undefined,
-    learnedFrom: 'start' | 'block',
-  ): void => {
+  const noteServedModel = (model: string | undefined): void => {
     if (!model || model === servedModel) return
     if (getCanonicalName(model) === getCanonicalName(requestedWire)) return
     servedModel = model
-    servedWholeTurn = learnedFrom === 'start'
-    logForDebugging(
-      `served by ${model} (requested ${requestedWire}; ${learnedFrom === 'start' ? 'the whole turn' : 'from a mid-output handover'})`,
-    )
+    logForDebugging(`served by ${model} (requested ${requestedWire})`)
     if (pulseMain) {
       setPulsePhase(getActivePulseTrace()?.generation ?? 0, getPulsePhase().phase, {
         servedBy: getPublicModelDisplayName(model) ?? model,
       })
     }
   }
-  const pricingModel = (): string =>
-    servedModel && servedWholeTurn ? servedModel : resolvedModel
+  const pricingModel = (): string => servedModel ?? resolvedModel
   let stopReason: BetaStopReason | null = null
   let ledgerSettled = false
   let didFallBackToNonStreaming = false
@@ -1291,7 +1275,7 @@ async function* queryModel(
             partialMessage = part.message
             ttftMs = Date.now() - start
             usage = updateUsage(usage, part.message?.usage)
-            noteServedModel(part.message?.model, 'start')
+            noteServedModel(part.message?.model)
             break
           }
           case 'content_block_start':
@@ -1330,12 +1314,6 @@ async function* queryModel(
                 break
               default:
                 contentBlocks[part.index] = { ...part.content_block }
-                if ((part.content_block.type as string) === 'fallback') {
-                  noteServedModel(
-                    (part.content_block as { to?: { model?: string } }).to?.model,
-                    'block',
-                  )
-                }
                 if (
                   (part.content_block.type as string) === 'advisor_tool_result'
                 ) {
@@ -1668,10 +1646,7 @@ async function* queryModel(
       )
 
       const nonStreamContent = Array.isArray(result.content) ? result.content : []
-      noteServedModel(
-        result.model,
-        nonStreamContent.some(b => (b.type as string) === 'fallback') ? 'block' : 'start',
-      )
+      noteServedModel(result.model)
       const m = mintAssistantMessage(result, nonStreamContent)
       newMessages.push(m)
       fallbackMessage = m
@@ -1732,10 +1707,7 @@ async function* queryModel(
         )
 
         const nonStreamContent = Array.isArray(result.content) ? result.content : []
-        noteServedModel(
-          result.model,
-          nonStreamContent.some(b => (b.type as string) === 'fallback') ? 'block' : 'start',
-        )
+        noteServedModel(result.model)
         const m = mintAssistantMessage(result, nonStreamContent)
         newMessages.push(m)
         fallbackMessage = m
