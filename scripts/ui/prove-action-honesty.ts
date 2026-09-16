@@ -1,6 +1,7 @@
 process.env.NODE_ENV = 'test';
 
 import { readFileSync } from 'node:fs';
+import { codeOnlyText } from '../lib/codeText.ts';
 
 let fail = 0;
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -65,9 +66,12 @@ check(
   'SessionTabs swaps scopes in the SAME render (no cross-scope flash)',
   /if \(tabs\.key !== scopeKey\) \{\s*\n\s*setTabs\(\{ key: scopeKey/.test(tabs),
 );
+const tabsErrorArm = codeOnlyText('SessionTabs.tsx', tabs)
+  .match(/\}\s*catch\s*\{([\s\S]*?)\}\s*\}\)\(\)/)?.[1] ?? '';
 check(
   'SessionTabs never caches errors',
-  /catch \{\s*\n\s*\/\/ Errors render as empty but are NOT cached/.test(tabs),
+  /if\s*\(alive\)\s*setTabs\(\{\s*key:\s*scopeKey,\s*rows:\s*\[\]\s*\}\)/.test(tabsErrorArm) &&
+    !/\blastKnownTabs\b/.test(tabsErrorArm),
 );
 check(
   'rail RECENT lane seeds from its scope-keyed cache',

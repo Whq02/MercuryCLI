@@ -177,6 +177,7 @@ function supplementalTools(): Tool[] {
     /* eslint-disable @typescript-eslint/no-require-imports */
     () => require('../../tools/GlobTool/GlobTool.js').GlobTool,
     () => require('../../tools/GrepTool/GrepTool.js').GrepTool,
+    () => require('../../tools/DebugTool/DebugTool.js').DebugTool,
     () => require('../../tools/TaskCreateTool/TaskCreateTool.js').TaskCreateTool,
     () => require('../../tools/TaskGetTool/TaskGetTool.js').TaskGetTool,
     () => require('../../tools/TaskUpdateTool/TaskUpdateTool.js').TaskUpdateTool,

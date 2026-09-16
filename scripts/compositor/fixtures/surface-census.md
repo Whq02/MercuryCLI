@@ -47,14 +47,14 @@ the interaction primitives the view actually mounts (1-hop join).
 | /caching | irow | `src/commands/caching` |
 | /capabilities | — | `src/commands/capabilities` |
 | /capabilities-detail | — | `src/commands/capabilities-detail` |
-| /cards | — | `src/commands/cards` |
+| /cards | flat | `src/commands/cards` |
 | /cockpit | irow | `src/commands/cockpit` |
 | /color | — | `src/commands/color` |
 | /config | — | `src/commands/config` |
 | /console | irow | `src/commands/console` |
 | /context | — | `src/commands/context` |
 | /contract | — | `src/commands/contract` |
-| /copy | irow | `src/commands/copy` |
+| /copy | ilist irow | `src/commands/copy` |
 | /critter | ilist | `src/commands/critter` |
 | /daemon | — | `src/commands/daemon` |
 | /defaultprovider | — | `src/commands/defaultprovider` |
@@ -77,8 +77,8 @@ the interaction primitives the view actually mounts (1-hop join).
 | /live | — | `src/commands/live` |
 | /logins | irow | `src/commands/login` |
 | /logout | — | `src/commands/logout` |
-| /mcp | irow | `src/commands/mcp` |
-| /memory | irow | `src/commands/memory` |
+| /mcp | ilist irow | `src/commands/mcp` |
+| /memory | flat irow | `src/commands/memory` |
 | /mission | — | `src/commands/mission` |
 | /model | irow | `src/commands/model` |
 | /monitor | panes | `src/commands/monitor` |
@@ -93,15 +93,15 @@ the interaction primitives the view actually mounts (1-hop join).
 | /run | irow | `src/commands/run` |
 | /samples | irow | `src/commands/samples` |
 | /sandbox | — | `src/commands/sandbox-toggle` |
-| /saturn | irow | `src/commands/saturn` |
+| /saturn | ilist irow | `src/commands/saturn` |
 | /sessions | irow | `src/commands/sessions` |
 | /sessiontab | — | `src/commands/sessiontab` |
 | /showcase | — | `src/commands/showcase` |
-| /skills | irow | `src/commands/skills` |
+| /skills | ilist irow | `src/commands/skills` |
 | /sovereign | — | `src/commands/sovereign` |
 | /status | ilist irow | `src/commands/status` |
 | /strategy | — | `src/commands/plan` |
-| /submodels | irow | `src/commands/submodels` |
+| /submodels | ilist irow | `src/commands/submodels` |
 | /substrate | — | `src/commands/substrate` |
 | /supercode | ilist irow | `src/commands/supercode` |
 | /surfaces | ilist irow | `src/commands/manager` |
