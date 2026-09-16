@@ -121,6 +121,18 @@ check(
   conditioned.filter(r => r.support !== 'conditional').map(r => `${r.name}=${r.support}`).join(', '),
 )
 
+const dapSetting = process.env.MERCURY_DAP
+process.env.MERCURY_DAP = '0'
+try {
+  const debug = buildToolCensus().rows.find(row => row.name === 'Debug')
+  check('Debug remains in the census while its catalogue gate is off',
+    debug !== undefined && !debug.inCatalogNow && debug.support === 'unavailable',
+    JSON.stringify(debug ?? null))
+} finally {
+  if (dapSetting === undefined) delete process.env.MERCURY_DAP
+  else process.env.MERCURY_DAP = dapSetting
+}
+
 const { existsSync } = await import('node:fs')
 const { join, resolve } = await import('node:path')
 const repoRoot = resolve(import.meta.dir, '..', '..')
