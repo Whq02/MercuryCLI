@@ -21,18 +21,10 @@ import type { Stream } from '@anthropic-ai/sdk/streaming.mjs'
 import { randomUUID } from 'crypto'
 import {
   getCacheEditingHeaderLatched,
-  getLastApiCompletionTimestamp,
-  getThinkingClearLatched,
   setLastMainRequestId,
-  setThinkingClearLatched,
   setLastApiCompletionTimestamp,
 } from 'src/bootstrap/state.js'
-import {
-  CONTEXT_MANAGEMENT_BETA_HEADER,
-  PROMPT_CACHING_SCOPE_BETA_HEADER,
-  REDACT_THINKING_BETA_HEADER,
-  STRUCTURED_OUTPUTS_BETA_HEADER,
-} from 'src/constants/betas.js'
+import { STRUCTURED_OUTPUTS_BETA_HEADER } from 'src/constants/betas.js'
 import type { QuerySource } from 'src/constants/querySource.js'
 import type { Notification } from 'src/context/notifications.js'
 import { applyThinkingBinding } from './thinkingBinding.js'
@@ -43,7 +35,6 @@ import { getAgentContext } from 'src/utils/agentContext.js'
 import {
   getToolSearchBetaHeader,
   modelSupportsStructuredOutputs,
-  shouldUseGlobalCacheScope,
 } from 'src/utils/betas.js'
 import {
   cacheClockObserve,
@@ -160,7 +151,6 @@ import {
   extractQuotaStatusFromError,
   extractQuotaStatusFromHeaders,
 } from '../../claudeAiLimits.js'
-import { getAPIContextManagement } from '../../compact/apiMicrocompact.js'
 import {
   consumePendingCacheEdits,
   getPinnedCacheEdits,
@@ -183,7 +173,6 @@ import {
   type NonNullableUsage,
 } from '../../api/logging.js'
 import {
-  CACHE_TTL_1HOUR_MS,
   checkResponseForCacheBreak,
   recordPromptState,
   type NeutralSystemBlock,
@@ -550,18 +539,7 @@ async function* queryModel(
   const cachedMCEnabled = false
   const cacheEditingBetaHeader = ''
 
-  const useGlobalCacheFeature = shouldUseGlobalCacheScope()
   const willDefer = (t: Tool) => useToolSearch && blockForm && deferredToolNames.has(t.name)
-  const needsToolBasedCacheMarker =
-    useGlobalCacheFeature &&
-    filteredTools.some(t => t.isMcp === true && !willDefer(t))
-
-  if (
-    useGlobalCacheFeature &&
-    !betas.includes(PROMPT_CACHING_SCOPE_BETA_HEADER)
-  ) {
-    betas.push(PROMPT_CACHING_SCOPE_BETA_HEADER)
-  }
 
   const toolSchemas = await Promise.all(
     filteredTools.map(tool =>
@@ -658,9 +636,7 @@ async function* queryModel(
 
   const enablePromptCaching =
     options.enablePromptCaching ?? getPromptCachingEnabled(options.model)
-  const system = buildSystemPromptBlocks(systemPrompt, enablePromptCaching, {
-    skipGlobalCacheForSystemPrompt: needsToolBasedCacheMarker,
-  })
+  const system = buildSystemPromptBlocks(systemPrompt, enablePromptCaching)
   const useBetas = betas.length > 0
 
   const extraToolSchemas = [...(options.extraToolSchemas ?? [])]
@@ -678,19 +654,6 @@ async function* queryModel(
 
 
   const cacheEditingHeaderLatched = getCacheEditingHeaderLatched() === true
-
-  let thinkingClearLatched = getThinkingClearLatched() === true
-  if (!thinkingClearLatched && isAgenticQuery) {
-    const lastCompletion = getLastApiCompletionTimestamp()
-    if (
-      isEnvTruthy(process.env.MERCURY_THINKING_CLEAR_NOW) ||
-      (lastCompletion !== null &&
-        Date.now() - lastCompletion > CACHE_TTL_1HOUR_MS)
-    ) {
-      thinkingClearLatched = true
-      setThinkingClearLatched(true)
-    }
-  }
 
   const effort = resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId })
 
@@ -729,7 +692,6 @@ async function* queryModel(
       effort,
       outputConfig,
       extraBodyParams,
-      betasParams,
       options.model,
     )
 
@@ -785,12 +747,6 @@ async function* queryModel(
 
     thinking = applyThinkingBinding(thinking, betasParams) as typeof thinking
     const sendBetas = betasParams.length > 0
-
-    const contextManagement = getAPIContextManagement({
-      hasThinking,
-      isRedactThinkingActive: betasParams.includes(REDACT_THINKING_BETA_HEADER),
-      clearAllThinking: thinkingClearLatched,
-    })
 
     const enablePromptCaching =
       options.enablePromptCaching ?? getPromptCachingEnabled(retryContext.model)
@@ -857,11 +813,6 @@ async function* queryModel(
       max_tokens: maxOutputTokens,
       thinking,
       ...(temperature !== undefined && { temperature }),
-      ...(contextManagement &&
-        sendBetas &&
-        betasParams.includes(CONTEXT_MANAGEMENT_BETA_HEADER) && {
-          context_management: contextManagement,
-        }),
       ...extraBodyParams,
       ...(Object.keys(outputConfig).length > 0 && {
         output_config: outputConfig,

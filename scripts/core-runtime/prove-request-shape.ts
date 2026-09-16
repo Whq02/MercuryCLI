@@ -156,7 +156,7 @@ section('WIRE — first-party composed request bodies (fetchOverride capture)')
 
 section('PIECES — cache control · metadata · task budget · message params')
 {
-  const cc = requestParams.getCacheControl({ model: 'claude-opus-4-8' } as never)
+  const cc = requestParams.getCacheControl()
   check('cacheControl: opus gets ephemeral cache_control',
     normalize(cc).includes('ephemeral'), normalize(cc))
 

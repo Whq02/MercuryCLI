@@ -10,7 +10,6 @@ import {
 } from '../services/compact/autoCompact.js'
 import { buildPostCompactMessages } from '../services/compact/compact.js'
 import { projectTimeBasedMicrocompact } from '../services/compact/microCompact.js'
-import { getThinkingClearLatched } from '../bootstrap/state.js'
 import {
   classifyThinkingDrops,
   createDeadThinkingAttachment,
@@ -620,10 +619,7 @@ async function* streamModel(
                   iter.messagesForQuery,
                   iter.currentModel,
                   { permissionMode: toolUseContext.getAppState().toolPermissionContext.mode },
-                  {
-                    thinkingClearActive: getThinkingClearLatched() === true,
-                    requestPlan: iter.requestPlan,
-                  },
+                  { requestPlan: iter.requestPlan },
                 ),
                 { byteMoved: rewrite !== null },
               )

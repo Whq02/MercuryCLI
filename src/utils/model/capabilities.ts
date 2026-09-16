@@ -5,8 +5,6 @@ import { getIsNonInteractiveSession, getSdkBetas } from '../../bootstrap/state.j
 import {
   CODING_20250219_BETA_HEADER,
   CONTEXT_1M_BETA_HEADER,
-  CONTEXT_MANAGEMENT_BETA_HEADER,
-  PROMPT_CACHING_SCOPE_BETA_HEADER,
   REDACT_THINKING_BETA_HEADER,
   SERVER_SIDE_FALLBACK_BETA_HEADER,
   TOOL_SEARCH_BETA_HEADER_1P,
@@ -119,10 +117,6 @@ export function foldToolChoiceForModel<T extends { type: string }>(
   return { type: 'auto' }
 }
 
-
-export function modelSupportsContextManagement(model: string): boolean {
-  return !getCanonicalName(model).includes('claude-3-')
-}
 
 export function modelSupportsStructuredOutputs(model: string): boolean {
   if (declaredRouteOf(model) !== 'anthropic') return false
@@ -837,10 +831,6 @@ export function shouldIncludeFirstPartyOnlyBetas(): boolean {
   return !isEnvTruthy('1')
 }
 
-export function shouldUseGlobalCacheScope(): boolean {
-  return !isEnvTruthy('1')
-}
-
 const KEY_SEP = String.fromCharCode(0)
 
 function betasEnvFingerprint(): string {
@@ -875,23 +865,6 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     getInitialSettings().showThinkingSummaries !== true
   ) {
     betaHeaders.push(REDACT_THINKING_BETA_HEADER)
-  }
-
-  const antOptedIntoToolClearing =
-    flagEnabled('MERCURY_API_CONTEXT_MANAGEMENT') &&
-    false
-
-  const thinkingPreservationEnabled = modelSupportsContextManagement(model)
-
-  if (
-    shouldIncludeFirstPartyOnlyBetas() &&
-    (antOptedIntoToolClearing || thinkingPreservationEnabled)
-  ) {
-    betaHeaders.push(CONTEXT_MANAGEMENT_BETA_HEADER)
-  }
-
-  if (includeFirstPartyOnlyBetas) {
-    betaHeaders.push(PROMPT_CACHING_SCOPE_BETA_HEADER)
   }
 
   if (process.env.MERCURY_PROVIDER_BETAS) {
@@ -1090,7 +1063,6 @@ export type ModelCapabilityRecord = Readonly<{
   }>
   tools: Readonly<{
     structuredOutputs: boolean
-    contextManagement: boolean
     autoMode: boolean
     toolSearchBetaHeader: string
     advisor: boolean
@@ -1133,7 +1105,6 @@ export function resolveModelCapabilities(model: string): ModelCapabilityRecord {
     }),
     tools: Object.freeze({
       structuredOutputs: modelSupportsStructuredOutputs(model),
-      contextManagement: modelSupportsContextManagement(model),
       autoMode: modelSupportsAutoMode(model),
       toolSearchBetaHeader: getToolSearchBetaHeader(),
       advisor: modelSupportsAdvisor(model),
