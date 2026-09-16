@@ -37,7 +37,6 @@ const realQueryEvents = realQueryModule.queryEvents
 type EngineQueryCall = {
   querySource: unknown
   maxTurns: unknown
-  taskBudget: unknown
   mainLoopModel: unknown
   messages: unknown[]
 }
@@ -62,7 +61,6 @@ async function* dispatchQuery(
   engineQueryCalls.push({
     querySource: params.querySource,
     maxTurns: params.maxTurns,
-    taskBudget: params.taskBudget,
     mainLoopModel: (
       (params.toolUseContext as Record<string, unknown>)?.options as
         | Record<string, unknown>
@@ -94,7 +92,6 @@ async function* dispatchQueryEvents(
   engineQueryCalls.push({
     querySource: params.querySource,
     maxTurns: params.maxTurns,
-    taskBudget: params.taskBudget,
     mainLoopModel: (
       (params.toolUseContext as Record<string, unknown>)?.options as
         | Record<string, unknown>
@@ -243,7 +240,6 @@ type EngineOpts = {
   canUseTool?: (...args: unknown[]) => Promise<PermissionDecision>
   maxTurns?: number
   maxBudgetUsd?: number
-  taskBudget?: { total: number }
   jsonSchema?: Record<string, unknown>
   replayUserMessages?: boolean
   includePartialMessages?: boolean
@@ -291,7 +287,6 @@ function makeEngine(opts: EngineOpts): InstanceType<typeof QueryEngine> {
     userSpecifiedModel: MODEL,
     maxTurns: opts.maxTurns,
     maxBudgetUsd: opts.maxBudgetUsd,
-    taskBudget: opts.taskBudget,
     jsonSchema: opts.jsonSchema,
     replayUserMessages: opts.replayUserMessages,
     includePartialMessages: opts.includePartialMessages,

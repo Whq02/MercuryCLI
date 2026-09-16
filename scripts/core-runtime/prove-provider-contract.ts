@@ -107,15 +107,6 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     'beta-guard: first-party-only betas suppressed (folded define)',
     betas.shouldIncludeFirstPartyOnlyBetas() === false,
   )
-
-  const oc: Record<string, unknown> = {}
-  const tbBetas: string[] = []
-  rp.configureTaskBudgetParams({ total: 100_000, remaining: 50_000 }, oc as never, tbBetas)
-  check(
-    'beta-guard: task_budget NEVER configured (beta-only request field, the 400 class)',
-    !('task_budget' in oc) && tbBetas.length === 0,
-    JSON.stringify({ oc, tbBetas }),
-  )
 }
 
 {

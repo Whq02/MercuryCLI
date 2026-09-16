@@ -508,17 +508,6 @@ async function run(): Promise<void> {
       }
       return parsed
     })
-    .addOption(
-      new Option('--task-budget <tokens>', 'Token budget for the whole turn')
-        .argParser(value => {
-          const parsed = Number(value)
-          if (!Number.isInteger(parsed) || parsed <= 0) {
-            failCli('--task-budget must be a positive integer')
-          }
-          return parsed
-        })
-        .hideHelp(),
-    )
     .option('--replay-user-messages', 'Replay user messages on the stream-json output')
     .option('--allowed-tools <tools...>', 'Allowed tool rules')
     .option('--tools <tools...>', 'Base tool set')
@@ -2269,7 +2258,6 @@ async function printLaunch(args: {
         thinkingConfig: args.thinkingConfig,
         maxTurns: opts.maxTurns as number | undefined,
         maxBudgetUsd: opts.maxBudgetUsd as number | undefined,
-        taskBudget: opts.taskBudget !== undefined ? { total: opts.taskBudget as number } : undefined,
         systemPrompt: args.customSystemPrompt,
         appendSystemPrompt: args.appendSystemPrompt,
         userSpecifiedModel: args.userSpecifiedModel ?? args.mainThreadAgentDefinition?.model ?? undefined,

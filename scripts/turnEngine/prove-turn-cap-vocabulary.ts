@@ -16,7 +16,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 console.log('§1 the guard matrix')
 {
   const { BudgetGuard } = await import('../../src/run-core/budget-guard.js')
-  const guard = new BudgetGuard(undefined as never)
+  const guard = new BudgetGuard()
   check('a positive cap fires past the cap', guard.maxTurnsExceeded(3, 2) === true)
   check('… and not at or under it', guard.maxTurnsExceeded(2, 2) === false && guard.maxTurnsExceeded(1, 2) === false)
   check('absent ⇒ uncapped (unchanged)', guard.maxTurnsExceeded(999, undefined) === false)

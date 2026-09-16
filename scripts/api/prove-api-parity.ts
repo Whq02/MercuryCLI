@@ -90,14 +90,6 @@ add('adjustParamsForNonStreaming', 'caps-tokens', () =>
     messages: [],
   } as never),
 )
-add('configureTaskBudgetParams', 'passthrough', () =>
-  snap(() =>
-    C.configureTaskBudgetParams(
-      { model: 'claude-sonnet-5', max_tokens: 8000 } as never,
-      undefined as never,
-    ),
-  ),
-)
 
 const USAGE_A = {
   input_tokens: 100,
