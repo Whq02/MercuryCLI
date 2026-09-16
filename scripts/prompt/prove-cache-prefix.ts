@@ -76,14 +76,8 @@ for (const [family, model] of FAMILY_MODELS) {
   check('the renders differ across the boundary (the input is render-visible)', base !== moved)
   check('a non-empty shared prefix precedes the first difference', firstDiff > 0,
     `firstDiff=${firstDiff}`)
-  const boundaryIdx = base.indexOf(prompts.SYSTEM_PROMPT_DYNAMIC_BOUNDARY)
-  if (boundaryIdx !== -1) {
-    check('the static head (through the cache boundary) is inside the shared prefix',
-      firstDiff > boundaryIdx, `boundary@${boundaryIdx} firstDiff@${firstDiff}`)
-  } else {
-    check('the shared prefix covers the intro section', firstDiff > 200,
-      `firstDiff=${firstDiff}`)
-  }
+  check('the shared prefix covers the intro section', firstDiff > 200,
+    `firstDiff=${firstDiff}`)
 
   section(`§4 the per-turn context tail — ${family}`)
   const tailed = [...turn1, 'gitStatus: clean (turn weather)']

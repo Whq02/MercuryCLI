@@ -6,7 +6,6 @@ export {
   modelSupportsAutoMode,
   getToolSearchBetaHeader,
   shouldIncludeFirstPartyOnlyBetas,
-  shouldUseGlobalCacheScope,
   getAllModelBetas,
   getModelBetas,
   getMergedBetas,

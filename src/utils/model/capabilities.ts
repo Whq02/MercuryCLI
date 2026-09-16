@@ -5,7 +5,6 @@ import { getIsNonInteractiveSession, getSdkBetas } from '../../bootstrap/state.j
 import {
   CODING_20250219_BETA_HEADER,
   CONTEXT_1M_BETA_HEADER,
-  PROMPT_CACHING_SCOPE_BETA_HEADER,
   REDACT_THINKING_BETA_HEADER,
   SERVER_SIDE_FALLBACK_BETA_HEADER,
   TOOL_SEARCH_BETA_HEADER_1P,
@@ -832,10 +831,6 @@ export function shouldIncludeFirstPartyOnlyBetas(): boolean {
   return !isEnvTruthy('1')
 }
 
-export function shouldUseGlobalCacheScope(): boolean {
-  return !isEnvTruthy('1')
-}
-
 const KEY_SEP = String.fromCharCode(0)
 
 function betasEnvFingerprint(): string {
@@ -870,10 +865,6 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     getInitialSettings().showThinkingSummaries !== true
   ) {
     betaHeaders.push(REDACT_THINKING_BETA_HEADER)
-  }
-
-  if (includeFirstPartyOnlyBetas) {
-    betaHeaders.push(PROMPT_CACHING_SCOPE_BETA_HEADER)
   }
 
   if (process.env.MERCURY_PROVIDER_BETAS) {

@@ -24,10 +24,7 @@ import {
   setLastMainRequestId,
   setLastApiCompletionTimestamp,
 } from 'src/bootstrap/state.js'
-import {
-  PROMPT_CACHING_SCOPE_BETA_HEADER,
-  STRUCTURED_OUTPUTS_BETA_HEADER,
-} from 'src/constants/betas.js'
+import { STRUCTURED_OUTPUTS_BETA_HEADER } from 'src/constants/betas.js'
 import type { QuerySource } from 'src/constants/querySource.js'
 import type { Notification } from 'src/context/notifications.js'
 import { applyThinkingBinding } from './thinkingBinding.js'
@@ -38,7 +35,6 @@ import { getAgentContext } from 'src/utils/agentContext.js'
 import {
   getToolSearchBetaHeader,
   modelSupportsStructuredOutputs,
-  shouldUseGlobalCacheScope,
 } from 'src/utils/betas.js'
 import {
   cacheClockObserve,
@@ -543,18 +539,7 @@ async function* queryModel(
   const cachedMCEnabled = false
   const cacheEditingBetaHeader = ''
 
-  const useGlobalCacheFeature = shouldUseGlobalCacheScope()
   const willDefer = (t: Tool) => useToolSearch && blockForm && deferredToolNames.has(t.name)
-  const needsToolBasedCacheMarker =
-    useGlobalCacheFeature &&
-    filteredTools.some(t => t.isMcp === true && !willDefer(t))
-
-  if (
-    useGlobalCacheFeature &&
-    !betas.includes(PROMPT_CACHING_SCOPE_BETA_HEADER)
-  ) {
-    betas.push(PROMPT_CACHING_SCOPE_BETA_HEADER)
-  }
 
   const toolSchemas = await Promise.all(
     filteredTools.map(tool =>
@@ -651,9 +636,7 @@ async function* queryModel(
 
   const enablePromptCaching =
     options.enablePromptCaching ?? getPromptCachingEnabled(options.model)
-  const system = buildSystemPromptBlocks(systemPrompt, enablePromptCaching, {
-    skipGlobalCacheForSystemPrompt: needsToolBasedCacheMarker,
-  })
+  const system = buildSystemPromptBlocks(systemPrompt, enablePromptCaching)
   const useBetas = betas.length > 0
 
   const extraToolSchemas = [...(options.extraToolSchemas ?? [])]

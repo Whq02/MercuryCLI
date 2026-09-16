@@ -1,4 +1,4 @@
-import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY, getSystemPrompt } from '../constants/prompts.js'
+import { getSystemPrompt } from '../constants/prompts.js'
 import { getSystemContext } from '../context.js'
 import {
   countMessagesTokensWithAPI,
@@ -309,9 +309,7 @@ async function countSystemPrompt(
     appendSystemPrompt: options?.appendSystemPrompt as string | undefined,
   })
 
-  const parts = (effective as readonly string[]).filter(
-    part => part !== '' && part !== SYSTEM_PROMPT_DYNAMIC_BOUNDARY,
-  )
+  const parts = (effective as readonly string[]).filter(part => part !== '')
   const systemContext = await getSystemContext()
   const contextEntries = Object.entries(systemContext).filter(([, value]) => value !== '')
   if (parts.length === 0 && contextEntries.length === 0) {
