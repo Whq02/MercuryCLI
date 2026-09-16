@@ -173,7 +173,7 @@ One model→capability edge answers everything the harness asks of a model:
 identity, context window and output ceilings, thinking
 (supported/adaptive/interleaved), sampling, effort (vocabulary and ceiling
 per family, from the same pins the wires send), tools (structured outputs,
-context management, auto mode, tool-search header, advisor), media (PDF and
+context management, auto mode, tool-search header), media (PDF and
 image support), and beta-header emission. It re-reads live state on every
 call by design.
 

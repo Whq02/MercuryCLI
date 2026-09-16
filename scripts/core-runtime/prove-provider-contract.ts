@@ -627,7 +627,6 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
       r.tools.contextManagement === betas.modelSupportsContextManagement(m) &&
       r.tools.autoMode === betas.modelSupportsAutoMode(m) &&
       r.tools.toolSearchBetaHeader === betas.getToolSearchBetaHeader() &&
-      r.tools.advisor === caps.modelSupportsAdvisor(m) &&
       r.media.pdf === caps.modelSupportsPDF(m) &&
       eq(r.betas.all, betas.getAllModelBetas(m)) &&
       eq(r.betas.headers, betas.getModelBetas(m))

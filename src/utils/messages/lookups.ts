@@ -282,15 +282,6 @@ export function buildMessageLookups(
             (content as { tool_use_id: string }).tool_use_id,
           )
         }
-        if ((content.type as string) === 'advisor_tool_result') {
-          const result = content as {
-            tool_use_id: string
-            content: { type: string }
-          }
-          if (result.content.type === 'advisor_tool_result_error') {
-            erroredToolUseIDs.add(result.tool_use_id)
-          }
-        }
       }
     }
 
