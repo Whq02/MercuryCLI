@@ -35,6 +35,7 @@ const KEEP = process.env.MERCURY_UNIFY_KEEP === '1'
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudgetScale } = await import('../lib/captureDriver.ts')
 const PACE = vshotBudgetScale()
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
@@ -392,7 +393,7 @@ for (const [cols, rows] of [
       g('WORKING', '\t', { awaitSettleTicks: 4, mark: 'board' }),
       { afterPrevTicks: 3, data: '\r' },
       { afterPrevTicks: 3, data: '\r' },
-      g('⇧← back', '', { awaitSettleTicks: 3, mark: 'back' }),
+      g(keyHintLabel('⇧← back'), '', { awaitSettleTicks: 3, mark: 'back' }),
     ],
     ready: 'streaming-word-24',
     total: 260,
@@ -409,7 +410,7 @@ for (const [cols, rows] of [
       console.log(`  [PAINT] u5 ${cols}x${rows}: partial reply text visible mid-turn: ${partialOnScreen ? 'YES' : 'NO (the reply lands whole when the runner settles it)'}`)
       check(`u5 ${cols}x${rows}: the reply streams on screen mid-turn (the live tail paints partial words)`, partialOnScreen)
       check(`u5 ${cols}x${rows}: the board shows the boot session as an ordinary WORKING row`, board.includes('WORKING'), board === '' ? 'no mark' : '')
-      check(`u5 ${cols}x${rows}: hopping back lands in the same session mid-turn (status row + ⇧← back)`, back.includes('⇧← back') && back.includes('stream a long reply please'))
+      check(`u5 ${cols}x${rows}: hopping back lands in the same session mid-turn (status row + ⇧← back)`, back.includes(keyHintLabel('⇧← back')) && back.includes('stream a long reply please'))
       const backMidTurn = back.includes('esc interrupts')
       console.log(`  [PAINT] u5 ${cols}x${rows}: the hopped-into chat caught the reply ${backMidTurn ? 'MID-TURN (partial words + the live status row)' : 'SETTLED (the hop landed after the settle)'}`)
       check(`u5 ${cols}x${rows}: the hopped-into chat paints the reply's words (the reveal rides the hop)`, /streaming-word-\d\d/.test(back))
@@ -422,7 +423,6 @@ for (const [cols, rows] of [
 }
 
 const FACE_ROWS = ['New Session', 'Boot Menu', 'MCPs & Skills', 'Doctor / Health Check', 'Session Concourse', 'Sessions · Projects']
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const KEY_MAP = keyHintLabel('⇧→ concourse')
 function assertFace(id: string, r: DriveResult, opts: { births?: boolean } = {}): void {
   for (const row of FACE_ROWS) check(`${id}: the face carries '${row}'`, r.text.includes(row))
@@ -709,7 +709,7 @@ for (const [cols, rows] of [[120, 40]] as const) {
         whenModel: 'sonnet',
         preText: 'Running it.\n',
         name: 'Bash',
-        input: { command: 'sleep 3 && echo bash-round-done' },
+        input: { command: `sleep ${Math.round(3 * PACE)} && echo bash-round-done` },
       },
       { kind: 'text' as const, whenModel: 'sonnet', text: 'Round done.' },
       {

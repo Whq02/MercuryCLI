@@ -34,10 +34,11 @@ const ALIVE = 'MAIN-ALIVE'
 const LINE_1 = 'MAIL-OP-1 first queued line'
 const LINE_2 = 'MAIL-OP-2 second queued line'
 const SLEEP_SECONDS = 40
+const SEAT_SLEEP_SECONDS = 1
 const TEAM_CREATE = 'TeamCreate'
 const SEND_MESSAGE = 'SendMessage'
 
-type Route = 'launch' | 'team-made' | 'spawned' | 'mailed' | 'slept' | 'note' | 'seat-hold' | 'seat' | 'alive' | 'side'
+type Route = 'launch' | 'team-made' | 'spawned' | 'mailed' | 'slept' | 'note' | 'seat-first' | 'seat-hold' | 'seat' | 'alive' | 'side'
 type Block = { type?: string; id?: string; name?: string; text?: string; tool_use_id?: string; content?: unknown; input?: Record<string, unknown> }
 type Item = { role?: string; content?: unknown }
 const itemsOf = (body: unknown): Item[] => {
@@ -147,7 +148,7 @@ async function startFixture(port: number): Promise<Fixture> {
       const lastUserText = lastUser ? textOf(lastUser.content) : ''
       const answered = answeredTool(items)
       let route: Route
-      if (isSeat(items)) route = seatCalls === 0 ? 'seat-hold' : 'seat'
+      if (isSeat(items)) route = seatCalls === 0 ? 'seat-first' : seatCalls === 1 ? 'seat-hold' : 'seat'
       else if (lastUserText.includes('task-notification')) route = 'note'
       else if (lastUserText.includes('mail-drive: alive')) route = 'alive'
       else if (answered === TEAM_CREATE) route = 'team-made'
@@ -182,6 +183,10 @@ async function startFixture(port: number): Promise<Fixture> {
       }
       let blocks: Answer[]
       switch (route) {
+        case 'seat-first':
+          seatCalls++
+          blocks = [{ type: 'tool_use', id: 'toolu_mail_seat_sleep_1', name: 'Sleep', input: { seconds: SEAT_SLEEP_SECONDS } }]
+          break
         case 'launch':
           blocks = [{ type: 'tool_use', id: 'toolu_mail_team_1', name: TEAM_CREATE, input: { team_name: TEAM, description: 'the mail probe team' } }]
           break
@@ -408,20 +413,21 @@ if (cap !== null) {
   const sendAt = (index: number): number => cap!.receipts[index]?.ts ?? Number.POSITIVE_INFINITY
   const escAt = sendAt(2)
   const exitAt = sendAt(6)
-  const seatHits = fixture.hits.filter(h => h.route === 'seat-hold' || h.route === 'seat')
+  const seatHits = fixture.hits.filter(h => h.route === 'seat-first' || h.route === 'seat-hold' || h.route === 'seat')
   const seatHitsBefore = (untilMs: number): number => seatHits.filter(h => h.atMs <= untilMs).length
   const mailed = fixture.hits.find(h => h.route === 'mailed')
 
   console.log('\n— M1 the mail queues at the running teammate —')
   check('the team was made and the teammate spawned on the product\'s own road', fixture.hits.some(h => h.route === 'team-made') && fixture.hits.some(h => h.route === 'spawned'))
-  check('M1 the teammate held its seat (served once, the connection held)', seatHitsBefore(escAt) === 1, `${seatHitsBefore(escAt)} seat calls before esc`)
-  check('M1 both messages were sent to the teammate while it held (the tool answered for each)', mailed !== undefined && mailed.results.length === 2 && mailed.results.every(r => /sent|delivered|queued/i.test(r) && !/error|fail/i.test(r)), mailed?.results.map(flat).join(' | ').slice(0, 300) ?? 'no request after the sends')
+  const seatFirst = fixture.hits.find(h => h.route === 'seat-first')
+  check('M1 the teammate held its seat (its first call answered, its second call held until the exit)', seatFirst !== undefined && fixture.hits.some(h => h.route === 'seat-hold') && seatHitsBefore(exitAt) === 2, `${seatHitsBefore(exitAt)} seat calls by the exit`)
+  check('M1 both messages were sent to the teammate while its turn ran (the tool answered for each, after the seat\'s first call)', mailed !== undefined && seatFirst !== undefined && mailed.atMs >= seatFirst.atMs && mailed.results.length === 2 && mailed.results.every(r => /sent|delivered|queued/i.test(r) && !/error|fail/i.test(r)), mailed?.results.map(flat).join(' | ').slice(0, 300) ?? 'no request after the sends')
 
   console.log('\n— M2 esc ends the chat\'s turn alone; the loop is live —')
   check('M2 the chat\'s Bash sleep was running when esc landed', rowsWith(m['tool-running'], 'running…').length > 0, rowsWith(m['tool-running'], /Bash|running/).map(flat).join(' | ').slice(0, 200))
   check('M2 after esc the composer is back (the chat\'s turn ended)', rowsWith(m['after-esc'], 'ype a prompt').length > 0, rowsWith(m['after-esc'], /prompt|interrupt/).map(flat).join(' | ').slice(0, 200))
   check('M2 the teammate\'s held connection stood through esc', holdClosedAt === null || holdClosedAt > exitAt - 500, holdClosedAt === null ? 'never closed' : `closed ${holdClosedAt - escAt} ms after esc`)
-  check('M2 no second seat call before the exit (esc did not touch the teammate; its mail waited)', seatHitsBefore(exitAt) === 1, `${seatHitsBefore(exitAt)} seat calls by the exit`)
+  check('M2 no third seat call before the exit (esc did not touch the teammate; its mail waited)', seatHitsBefore(exitAt) === 2, `${seatHitsBefore(exitAt)} seat calls by the exit`)
   check('M2 the chat answered the line typed after esc', rowsWith(m['alive'], ALIVE).length > 0, rowsWith(m['alive'], /ALIVE|alive/).map(flat).join(' | ').slice(0, 200))
 
   console.log('\n— M3 the exit aborts the teammate with its mail queued; nothing blocks, nothing survives —')

@@ -83,7 +83,10 @@ console.log('§2 the screen — the board-browse arm no longer names the coordin
     'the live panel keeps its browse because its ↵ ENTERS the selection on an empty draft (arrows and ↵ agree there)',
     enter.includes("if (region !== 'live') return") && enter.includes('if (sel) enterSession(sel.sessionId)'),
   )
-  check('the screen names the law where the arm lives', screen.includes('THE ARROW-FOCUS LAW'))
+  check(
+    'the browse arm names the board-side regions only (the live panel and the split chat pane; the coordinator is not one)',
+    /if \(\s*\(region === 'live' && \(key\.upArrow \|\| key\.downArrow\) && !liveDraftRef\.current\.text\.includes\(NL\)\) \|\|\s*\(region === 'chat' && \(key\.upArrow \|\| key\.downArrow\)\)\s*\) \{/.test(screen),
+  )
   const pane = read('src/components/concourse/CoordinatorPane.tsx')
   check(
     'the pane owns its ↑↓ only while focused (the zero-state example walk consumes them before the screen)',
@@ -100,8 +103,9 @@ console.log('§3 the legend — the footer hands its region to the resolver; the
   check('the atlas reads the region-less rows (the row names where it fires)', screen.includes('keys: [...browseKeysFor({ chatPresent: chat }), CONCOURSE_HELP_KEY]'))
   const manifest = read('src/components/concourse/controlManifest.ts')
   check(
-    'the manifest states the law at the resolver',
-    manifest.includes('THE ARROW-FOCUS LAW') && manifest.includes("opts.region === 'coordinator' ? CONCOURSE_BROWSE_KEYS.filter(k => k.keys !== '↑↓')"),
+    'the resolver drops the ↑↓ row for the coordinator and the region-less row names where the key fires',
+    manifest.includes("opts.region === 'coordinator' ? CONCOURSE_BROWSE_KEYS.filter(k => k.keys !== '↑↓')") &&
+      manifest.includes("? { keys: '↑↓', label: 'browse (list · live · split)' }"),
   )
 }
 

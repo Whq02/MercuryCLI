@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, base64, fcntl, json, os, pty, re, select, signal, struct, sys, termios, time
+import argparse, base64, errno, fcntl, json, os, pty, re, select, signal, struct, sys, termios, time
 
 ANSI_RE = re.compile(rb"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-Z\\-_]")
 
@@ -118,8 +118,8 @@ def main() -> None:
                 continue
             try:
                 data = os.read(fd, 65536)
-            except OSError:
-                ended = "read-error"
+            except OSError as e:
+                ended = "eof" if e.errno == errno.EIO else "read-error"
                 break
             if not data:
                 ended = "eof"

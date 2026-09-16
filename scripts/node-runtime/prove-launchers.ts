@@ -582,6 +582,10 @@ section('(8) the skip-verb set DERIVES from the product\'s registered verb surfa
     const splashMarker = join(opsHome, 'splash-ran')
     mkdirSync(join(opsHome, 'bin'), { recursive: true })
     writeFileSync(opsLauncher, ops)
+    const vendoredNode = join(repo, 'dist', 'vendor', 'node', 'bin', 'node')
+    const pathNode = (process.env.PATH ?? '').split(':').filter(dir => dir !== '').map(dir => join(dir, 'node')).find(candidate => existsSync(candidate))
+    const opsNode = existsSync(vendoredNode) ? vendoredNode : pathNode
+    check('operator launcher: a real node runs the built verb (the vendored runtime when the build carries one, else the PATH node)', opsNode !== undefined, 'no node on PATH and no vendored runtime')
     writeFileSync(join(opsHome, 'splash.mjs'),
       `import { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(splashMarker)}, 'ran'); process.exit(130)\n`)
     const opsEnv: NodeJS.ProcessEnv = {
@@ -590,7 +594,7 @@ section('(8) the skip-verb set DERIVES from the product\'s registered verb surfa
       MERCURY_HOME: opsHome,
       MERCURY_DAEMON_DIR: join(opsHome, 'daemon'),
       MERCURY_DIST: join(repo, 'dist', 'mercury.mjs'),
-      MERCURY_NODE: join(repo, 'dist', 'vendor', 'node', 'bin', 'node'),
+      ...(opsNode !== undefined ? { MERCURY_NODE: opsNode } : {}),
       MERCURY_LAUNCH_NO_VERIFY: '0',
     }
     for (const key of ['MERCURY_NO_BANNER', 'MERCURY_SPLASH', 'MERCURY_ALT_HELD', 'MERCURY_SPLASH_HANDOFF', 'NODE_ENV']) delete opsEnv[key]

@@ -6,6 +6,9 @@ import {
   printFrame, requireCaptureDriver, scratch, startLeg,
 } from '../computer/computerDriveKit.ts'
 import { compactBandForm, compactBandRows } from '../../src/components/mercury-ui/geometry.ts'
+import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
+import { compactWorkSummaryText } from '../../src/components/tasks/useFocusedWork.ts'
+import { stringWidth } from '../../src/ink/stringWidth.ts'
 
 const driver = requireCaptureDriver('compact-frames')
 console.log(`compact frame artifacts: ${scratch}`)
@@ -15,12 +18,14 @@ const sizes = process.argv.includes('--size')
 for (const [cols, rows] of sizes) {
   if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols! < 1 || rows! < 1) throw new Error('size must be positive columns x rows')
   const tag = `compact-frame-${cols}-${rows}`
+  const summaryWords = compactWorkSummaryText({ sessionsOn: 1, monitorsHere: 0, agentsHere: 0 }, cols! - (stringWidth(keyHintLabel('⇧← boot face')) + 1))
+  const summaryNeedle = summaryWords.includes('agents here') ? 'agents here' : 'A:'
   const leg = await startLeg(tag, [], null)
   try {
     const result = await drive(driver, leg, { cols: cols!, rows: rows! }, [
       { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
       { atTick: 100, awaitText: ADMITTED, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: 'compact-draft' },
-      { atTick: 999, awaitText: cols! >= 60 ? 'agents here' : 'A:', targetText: cols! >= 60 ? 'agents here' : 'A:', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'typed' },
+      { atTick: 999, awaitText: summaryNeedle, targetText: summaryNeedle, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'typed' },
     ], 135, { MERCURY_DESKTOP_DRIVER: 'none' })
     const frame = result.marks.typed ?? []
     printFrame(`${cols}x${rows} Boot`, result.marks.boot ?? [])
