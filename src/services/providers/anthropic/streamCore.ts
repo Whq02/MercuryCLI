@@ -214,11 +214,9 @@ import {
 import { nonstreamingFallbackCeilingMs, patienceSeconds } from '../patience.js'
 import {
   configureEffortParams,
-  configureTaskBudgetParams,
   getAPIMetadata,
   getExtraBodyParams,
   getPromptCachingEnabled,
-  type TaskBudgetParam,
 } from './requestParams.js'
 
 export const ANTHROPIC_STREAM_ADVERTISEMENT: StreamCapabilityAdvertisement = {
@@ -258,7 +256,6 @@ export type Options = {
   ownerKey?: string
   outputFormat?: JsonOutputFormat
   addNotification?: (notif: Notification) => void
-  taskBudget?: { total: number; remaining?: number }
   callReference?: ModelCallReference
 }
 
@@ -687,12 +684,6 @@ async function* queryModel(
       outputConfig,
       extraBodyParams,
       options.model,
-    )
-
-    configureTaskBudgetParams(
-      options.taskBudget,
-      outputConfig as BetaOutputConfig & { task_budget?: TaskBudgetParam },
-      betasParams,
     )
 
     if (options.outputFormat && !('format' in outputConfig)) {

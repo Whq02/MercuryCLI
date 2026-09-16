@@ -135,7 +135,7 @@ section('WIRE — first-party composed request bodies (fetchOverride capture)')
   check('opus: anthropic-beta header present and non-empty (the pinned tables ride here)',
     typeof opus.headers['anthropic-beta'] === 'string' && opus.headers['anthropic-beta']!.length > 0,
     JSON.stringify(opus.headers['anthropic-beta']))
-  check('opus: task_budget NEVER rides output_config (the folded GATEWAY-GUARD gate is constant-false in this build — provider-contract quirk)',
+  check('opus: no task_budget rides output_config',
     !('task_budget' in ((opus.body as Record<string, unknown>)?.output_config as Record<string, unknown> ?? {})))
 
   const sonnet = await captureRequest('claude-sonnet-5')
@@ -154,7 +154,7 @@ section('WIRE — first-party composed request bodies (fetchOverride capture)')
 }
 
 
-section('PIECES — cache control · metadata · task budget · message params')
+section('PIECES — cache control · metadata · message params')
 {
   const cc = requestParams.getCacheControl()
   check('cacheControl: opus gets ephemeral cache_control',
@@ -163,22 +163,6 @@ section('PIECES — cache control · metadata · task budget · message params')
   const meta = requestParams.getAPIMetadata()
   check('metadata: the shape is {user_id} only',
     JSON.stringify(Object.keys(meta as Record<string, unknown>)) === '["user_id"]')
-
-  const oc: Record<string, unknown> = {}
-  const tbBetas: string[] = []
-  requestParams.configureTaskBudgetParams(
-    { total: 500000, remaining: 350000 } as never,
-    oc as never,
-    tbBetas,
-  )
-  check('taskBudget: the folded first-party-only gate ⇒ NEVER mutates, NEVER pushes the beta (current truth)',
-    Object.keys(oc).length === 0 && tbBetas.length === 0,
-    `${normalize(oc)} betas=${tbBetas.length}`)
-  const oc2: Record<string, unknown> = { task_budget: { type: 'tokens', total: 1 } }
-  const tbBetas2: string[] = []
-  requestParams.configureTaskBudgetParams({ total: 9 } as never, oc2 as never, tbBetas2)
-  check('taskBudget: an existing task_budget is never overwritten (idempotence)',
-    (oc2.task_budget as { total: number }).total === 1 && tbBetas2.length === 0)
 
   const um = messageParams.userMessageToMessageParam(
     createUserMessage({ content: 'piece fixture' }) as never,

@@ -716,8 +716,7 @@
     "type:TurnBatch"
    ],
    "src/run-core/budget-guard.ts": [
-    "BudgetGuard",
-    "type:TaskBudgetParam"
+    "BudgetGuard"
    ],
    "src/run-core/attachment-drain.ts": [
     "consumeDrainedCommands",
