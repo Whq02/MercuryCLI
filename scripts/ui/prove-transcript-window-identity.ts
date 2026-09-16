@@ -4,7 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { CONFIG_HOME, RUNTIME_CWD, cleanupScenario, encodeFixtureTranscript, scenario } from './renderScenarios.ts'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { buildCompass1k, COMPASS_SID, TAIL_SENTINEL } from '../navigation/fixture1k.ts'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { composerCaret, inspect, rowsOf } from './frameChecks.ts'
@@ -38,7 +38,7 @@ if (driver.kind !== 'posix-pty') {
   failures++
 } else {
   const base = scenario('resume-2turn', 120, 40)
-  const projects = join(CONFIG_HOME, 'projects', sanitizePath(RUNTIME_CWD))
+  const projects = getProjectDir(RUNTIME_CWD)
   mkdirSync(projects, { recursive: true })
   const staged = join(projects, `${COMPASS_SID}.jsonl`)
   writeFileSync(staged, encodeFixtureTranscript(buildCompass1k(RUNTIME_CWD).lines, COMPASS_SID))
