@@ -21,14 +21,14 @@
 # the suite's grant or the default — so a stale row still changes no
 # verdict: a low row costs balance, a high row lets a wedge run longer.
 
-ui	1800
+ui	4350
 ui-2	200
-ui-3	850
+ui-3	1950
 ui-4	1800
 ui-5	1500
 ui-6	1500
 render-continuity	1500
-streaming	850
+streaming	2250
 pulse	850
 core-runtime	200
 interview	800
@@ -71,7 +71,7 @@ terminal-boundary	60
 agent-experience	105
 harness-compare	10
 run-recovery	45
-verify	15
+verify	1350
 navigation	80
 visual-finish	200
 compositor	250
@@ -154,7 +154,7 @@ providers	55
 repo-generation	6
 settings	37
 api	210
-api-drives	120
+api-drives	1700
 context	5
 decisions	5
 model-policy	5
@@ -225,7 +225,7 @@ bash-drives	60
 core-runtime-drives	350
 critters-drives	175
 engine-connector-drives	74
-daemon-drives	260
+daemon-drives	1000
 health-drives	91
 helm-console-drives	30
 mcp-drives	84
@@ -236,7 +236,7 @@ notifications-drives	350
 primitives-kernel-drives	30
 smoke-drives	30
 splash-drives	119
-switchboard-drives	595
+switchboard-drives	1700
 switchboard-2-drives	595
 switchboard-3-drives	1260
 switchboard-4-drives	560
