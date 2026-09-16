@@ -12,7 +12,6 @@ for (const k of [
   'MERCURY_DEFAULT_OPUS_MODEL',
   'MERCURY_DEFAULT_SONNET_MODEL',
   'MERCURY_DEFAULT_HAIKU_MODEL',
-  'MERCURY_INTERLEAVED_THINKING',
   'MERCURY_DISABLE_1M_CONTEXT',
   'MERCURY_PROMPT_CACHING',
   'MERCURY_PROMPT_CACHING_HAIKU',
@@ -131,12 +130,11 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     })
 
   const rows: Array<[string, Record<string, string>, string, string[]]> = [
-    ['firstParty opus-4-8', {}, 'claude-opus-4-8', [B.CODING_20250219_BETA_HEADER, B.INTERLEAVED_THINKING_BETA_HEADER]],
-    ['firstParty haiku (no coding-20250219 beta)', {}, 'claude-haiku-4-5-20251001', [B.INTERLEAVED_THINKING_BETA_HEADER]],
-    ['firstParty opus-4-6[1m]', {}, 'claude-opus-4-6[1m]', [B.CODING_20250219_BETA_HEADER, B.CONTEXT_1M_BETA_HEADER, B.INTERLEAVED_THINKING_BETA_HEADER]],
-    ['MERCURY_INTERLEAVED_THINKING strips the ISP header', { MERCURY_INTERLEAVED_THINKING: '0' }, 'claude-opus-4-8', [B.CODING_20250219_BETA_HEADER]],
-    ['MERCURY_DISABLE_1M_CONTEXT beats the [1m] suffix', { MERCURY_DISABLE_1M_CONTEXT: '1' }, 'claude-opus-4-6[1m]', [B.CODING_20250219_BETA_HEADER, B.INTERLEAVED_THINKING_BETA_HEADER]],
-    ['MERCURY_PROVIDER_BETAS passthrough splits + trims', { MERCURY_PROVIDER_BETAS: ' user-beta-1 , user-beta-2,' }, 'claude-opus-4-8', [B.CODING_20250219_BETA_HEADER, B.INTERLEAVED_THINKING_BETA_HEADER, 'user-beta-1', 'user-beta-2']],
+    ['firstParty opus-4-8', {}, 'claude-opus-4-8', [B.CODING_20250219_BETA_HEADER]],
+    ['firstParty haiku (no coding-20250219 beta)', {}, 'claude-haiku-4-5-20251001', []],
+    ['firstParty opus-4-6[1m]', {}, 'claude-opus-4-6[1m]', [B.CODING_20250219_BETA_HEADER, B.CONTEXT_1M_BETA_HEADER]],
+    ['MERCURY_DISABLE_1M_CONTEXT beats the [1m] suffix', { MERCURY_DISABLE_1M_CONTEXT: '1' }, 'claude-opus-4-6[1m]', [B.CODING_20250219_BETA_HEADER]],
+    ['MERCURY_PROVIDER_BETAS passthrough splits + trims', { MERCURY_PROVIDER_BETAS: ' user-beta-1 , user-beta-2,' }, 'claude-opus-4-8', [B.CODING_20250219_BETA_HEADER, 'user-beta-1', 'user-beta-2']],
   ]
   const seen: string[][] = []
   for (const [label, env, m, want] of rows) {
@@ -149,6 +147,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     B.CONTEXT_MANAGEMENT_BETA_HEADER,
     B.PROMPT_CACHING_SCOPE_BETA_HEADER,
     B.STRUCTURED_OUTPUTS_BETA_HEADER,
+    'interleaved-thinking-2025-05-14',
   ]
   for (const f of forbidden) {
     check(
@@ -168,23 +167,23 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   )
 
   betas.clearBetasCaches()
-  const before = betas.getAllModelBetas('claude-opus-4-8')
-  const flipped = withEnv({ MERCURY_INTERLEAVED_THINKING: '0' }, () => betas.getAllModelBetas('claude-opus-4-8'))
+  const before = betas.getAllModelBetas('claude-opus-4-6[1m]')
+  const flipped = withEnv({ MERCURY_DISABLE_1M_CONTEXT: '1' }, () => betas.getAllModelBetas('claude-opus-4-6[1m]'))
   check(
     'beta-table: an env flip resolves FRESH — no stale memo (T16 resolve-once)',
-    !flipped.includes(B.INTERLEAVED_THINKING_BETA_HEADER) && before.includes(B.INTERLEAVED_THINKING_BETA_HEADER),
+    !flipped.includes(B.CONTEXT_1M_BETA_HEADER) && before.includes(B.CONTEXT_1M_BETA_HEADER),
   )
   check(
     'beta-table: flipping back re-serves the base list unchanged',
-    eq(betas.getAllModelBetas('claude-opus-4-8'), before),
+    eq(betas.getAllModelBetas('claude-opus-4-6[1m]'), before),
   )
-  const cleared = withEnv({ MERCURY_INTERLEAVED_THINKING: '0' }, () => {
+  const cleared = withEnv({ MERCURY_DISABLE_1M_CONTEXT: '1' }, () => {
     betas.clearBetasCaches()
-    const out = [...betas.getAllModelBetas('claude-opus-4-8')]
+    const out = [...betas.getAllModelBetas('claude-opus-4-6[1m]')]
     betas.clearBetasCaches()
     return out
   })
-  check('beta-table: clearBetasCaches still functions (auth-flip seam)', !cleared.includes(B.INTERLEAVED_THINKING_BETA_HEADER))
+  check('beta-table: clearBetasCaches still functions (auth-flip seam)', !cleared.includes(B.CONTEXT_1M_BETA_HEADER))
 
   check('sdk-betas: undefined/empty pass through as undefined', betas.filterAllowedSdkBetas(undefined) === undefined && betas.filterAllowedSdkBetas([]) === undefined)
   check(
@@ -206,7 +205,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   const agentic = betas.getMergedBetas('claude-haiku-4-5-20251001', { isAgenticQuery: true })
   check(
     'sdk-betas: an agentic Haiku query gets the coding-20250219 beta APPENDED',
-    eq(agentic, [B.INTERLEAVED_THINKING_BETA_HEADER, B.CODING_20250219_BETA_HEADER]),
+    eq(agentic, [B.CODING_20250219_BETA_HEADER]),
     JSON.stringify(agentic),
   )
   betas.clearBetasCaches()

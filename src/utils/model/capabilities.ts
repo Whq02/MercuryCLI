@@ -1,12 +1,11 @@
 import memoize from 'lodash-es/memoize.js'
-import { flagEnabled, flagEnv } from 'src/substrate/flagRegistry.js'
+import { flagEnabled } from 'src/substrate/flagRegistry.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../entrypoints/sdk/runtimeTypes.js'
 import { getIsNonInteractiveSession, getSdkBetas } from '../../bootstrap/state.js'
 import {
   CODING_20250219_BETA_HEADER,
   CONTEXT_1M_BETA_HEADER,
   CONTEXT_MANAGEMENT_BETA_HEADER,
-  INTERLEAVED_THINKING_BETA_HEADER,
   PROMPT_CACHING_SCOPE_BETA_HEADER,
   REDACT_THINKING_BETA_HEADER,
   SERVER_SIDE_FALLBACK_BETA_HEADER,
@@ -846,7 +845,6 @@ const KEY_SEP = String.fromCharCode(0)
 
 function betasEnvFingerprint(): string {
   return [
-    flagEnv('MERCURY_INTERLEAVED_THINKING') ?? '',
     process.env.MERCURY_DISABLE_1M_CONTEXT ?? '',
     process.env.MERCURY_PROVIDER_BETAS ?? '',
   ].join(KEY_SEP)
@@ -870,13 +868,6 @@ export const getAllModelBetas = memoize((model: string): string[] => {
   if (has1mContext(model)) {
     betaHeaders.push(CONTEXT_1M_BETA_HEADER)
   }
-  if (
-    flagEnabled('MERCURY_INTERLEAVED_THINKING') &&
-    modelSupportsISP(model)
-  ) {
-    betaHeaders.push(INTERLEAVED_THINKING_BETA_HEADER)
-  }
-
   if (
     includeFirstPartyOnlyBetas &&
     modelSupportsISP(model) &&
