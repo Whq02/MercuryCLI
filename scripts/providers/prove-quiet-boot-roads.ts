@@ -139,9 +139,9 @@ section('§2 the wire is quiet — the features the roads fed still answer, and 
   delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
 
   const augur = await import('../../src/utils/model/augur.js')
-  check('a variant switch is off by default', augur.isAugurHeader() === false)
+  check('a variant switch is off by default', augur.isAugurTool() === false)
   process.env.MERCURY_AUGUR = '1'
-  check('…and on by the operator\'s own environment', augur.isAugurHeader() === true)
+  check('…and on by the operator\'s own environment', augur.isAugurTool() === true)
   delete process.env.MERCURY_AUGUR
 
   await sleep(300)

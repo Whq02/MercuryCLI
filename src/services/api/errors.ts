@@ -2,7 +2,6 @@ import { APIConnectionError, APIConnectionTimeoutError, APIError } from '@anthro
 import type { BetaMessage } from '@anthropic-ai/sdk/resources/beta/messages/messages'
 
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
-import { AFK_MODE_BETA_HEADER } from '../../constants/betas.js'
 import { describeAnthropicClientContract } from '../../constants/oauth.js'
 import { API_PDF_MAX_PAGES, PDF_TARGET_RAW_SIZE } from '../../constants/apiLimits.js'
 import type { AssistantMessage, AssistantMessageError, Message } from '../../types/message.js'
@@ -555,18 +554,6 @@ function composeAssistantMessageFromError(
         : `${base} Run /compact to drop old images, or start a new session.`,
       error: 'invalid_request',
       errorDetails: message,
-    })
-  }
-
-  if (
-    AFK_MODE_BETA_HEADER !== '' &&
-    status === 400 &&
-    message.includes(AFK_MODE_BETA_HEADER) &&
-    message.includes('anthropic-beta')
-  ) {
-    return createAssistantAPIErrorMessage({
-      content: 'Flow is unavailable for your plan.',
-      error: 'invalid_request',
     })
   }
 
