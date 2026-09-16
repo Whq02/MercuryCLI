@@ -8,7 +8,6 @@ import {
   CONTEXT_MANAGEMENT_BETA_HEADER,
   PROMPT_CACHING_SCOPE_BETA_HEADER,
   REDACT_THINKING_BETA_HEADER,
-  SERVER_SIDE_FALLBACK_BETA_HEADER,
   TOOL_SEARCH_BETA_HEADER_1P,
 } from '../../constants/betas.js'
 import { OAUTH_BETA_HEADER } from '../../constants/oauth.js'
@@ -933,29 +932,6 @@ export function getMergedBetas(
 export function clearBetasCaches(): void {
   getAllModelBetas.cache?.clear?.()
   getModelBetas.cache?.clear?.()
-}
-
-
-export function modelSupportsServerSideFallback(model: string): boolean {
-  if (isCarrierShapedId(model)) return false
-  const canonical = getCanonicalName(model)
-  return (
-    canonical === 'claude-fable-5-1' ||
-    canonical === 'claude-fable-5' ||
-    canonical === 'claude-opus-5'
-  )
-}
-
-export function refusalFallbackEnabled(): boolean {
-  return flagEnabled('MERCURY_REFUSAL_FALLBACK')
-}
-
-export function refusalFallbackRequest(
-  model: string,
-): { beta: string; fallbacks: 'default' } | null {
-  if (!refusalFallbackEnabled()) return null
-  if (!modelSupportsServerSideFallback(model)) return null
-  return { beta: SERVER_SIDE_FALLBACK_BETA_HEADER, fallbacks: 'default' }
 }
 
 

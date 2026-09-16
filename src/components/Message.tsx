@@ -31,7 +31,6 @@ import { UserToolResultMessage } from './messages/UserToolResultMessage/UserTool
 import { MessageModel } from './MessageModel.js'
 import { MessageTimestamp } from './MessageTimestamp.js'
 import { SYNTHETIC_MODEL } from '../utils/messages/factories.js'
-import { renderModelName } from '../utils/model/model.js'
 
 export type Props = {
   message: RenderableMessage
@@ -268,15 +267,6 @@ function MessageInner({
                   advisorModel={advisorModel}
                 />
               )
-            case 'fallback': {
-              const from = renderModelName(String(block.from?.model ?? ''))
-              const to = renderModelName(String(block.to?.model ?? ''))
-              return (
-                <Box key={index} marginTop={addMargin ? 1 : 0}>
-                  <Text dimColor>{`↳ served by ${to} — ${from} declined`}</Text>
-                </Box>
-              )
-            }
             default:
               return null
           }
