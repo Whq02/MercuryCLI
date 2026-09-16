@@ -764,14 +764,6 @@ export function setPromptCache1hEligible(eligible: boolean | null): void {
   cacheLatches.promptCache1hEligible = eligible
 }
 
-export function getAfkModeHeaderLatched(): boolean | null {
-  return cacheLatches.afkModeHeaderLatched
-}
-
-export function setAfkModeHeaderLatched(value: boolean | null): void {
-  cacheLatches.afkModeHeaderLatched = value
-}
-
 export function getCacheEditingHeaderLatched(): boolean | null {
   return cacheLatches.cacheEditingHeaderLatched
 }
