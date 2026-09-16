@@ -576,6 +576,32 @@ section('(8) the skip-verb set DERIVES from the product\'s registered verb surfa
     const opsArm = /^\s*([a-z-]+(?:\|[a-z-]+)+)\) MERCURY_TAKEOVER=0 ;;/m.exec(ops)
     const opsVerbs = opsArm ? opsArm[1]!.split('|').sort() : []
     check('the operator launcher case arm equals the derived set', JSON.stringify(opsVerbs) === JSON.stringify(derived), `ops: ${opsVerbs.join(' ')}`)
+
+    const opsHome = join(base, 'operator home')
+    const opsLauncher = join(opsHome, 'bin', 'mercury')
+    const splashMarker = join(opsHome, 'splash-ran')
+    mkdirSync(join(opsHome, 'bin'), { recursive: true })
+    writeFileSync(opsLauncher, ops)
+    writeFileSync(join(opsHome, 'splash.mjs'),
+      `import { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(splashMarker)}, 'ran'); process.exit(130)\n`)
+    const opsEnv: NodeJS.ProcessEnv = {
+      ...process.env,
+      MERCURY_CONFIG_DIR: opsHome,
+      MERCURY_HOME: opsHome,
+      MERCURY_DAEMON_DIR: join(opsHome, 'daemon'),
+      MERCURY_DIST: join(repo, 'dist', 'mercury.mjs'),
+      MERCURY_NODE: join(repo, 'dist', 'vendor', 'node', 'bin', 'node'),
+      MERCURY_LAUNCH_NO_VERIFY: '0',
+    }
+    for (const key of ['MERCURY_NO_BANNER', 'MERCURY_SPLASH', 'MERCURY_ALT_HELD', 'MERCURY_SPLASH_HANDOFF', 'NODE_ENV']) delete opsEnv[key]
+    const driven = spawnSync('python3', ['-c',
+      'import pty, sys, os; sys.exit(os.waitstatus_to_exitcode(pty.spawn(sys.argv[1:])))',
+      'bash', opsLauncher, 'godot', 'help',
+    ], { cwd: opsHome, env: opsEnv, encoding: 'utf8', timeout: 30_000, input: '' })
+    const output = (driven.stdout ?? '') + (driven.stderr ?? '')
+    check('operator launcher: godot skips the splash on a real terminal', !existsSync(splashMarker), output.slice(-400))
+    check('operator launcher: the built Godot verb answers on a real terminal', output.includes('Usage: mercury godot <verb>'), output.slice(-400))
+    check('operator launcher: Godot help preserves its usage exit code', driven.status === 2, `status=${driven.status}`)
   }
 }
 
