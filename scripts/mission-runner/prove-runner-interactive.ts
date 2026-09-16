@@ -73,8 +73,8 @@ check('§4 no quit => the ceiling wins as incomplete', stuck.status === 'incompl
 process.env.HELIX_TIME_CEILING_OVERRIDE = '900'
 
 const runnerSource = readFileSync(join(import.meta.dir, 'live/runner.ts'), 'utf8')
-const laneSpawn = runnerSource.slice(runnerSource.indexOf('the §5.9 interactive PTY lane'), runnerSource.indexOf('} else if (agentCmd)'))
-check('§5 the pty capture spawn pins an explicit maxBuffer', /maxBuffer:\s*64 \* 1024 \* 1024/.test(laneSpawn))
+const laneSpawn = runnerSource.slice(runnerSource.indexOf('if (options.interactive) {'), runnerSource.indexOf('} else if (agentCmd)'))
+check('§5 the pty capture spawn pins an explicit maxBuffer', laneSpawn.length > 0 && /maxBuffer:\s*64 \* 1024 \* 1024/.test(laneSpawn))
 
 if (failures > 0) {
   console.error('prove-runner-interactive: ' + failures + ' failure(s)')
