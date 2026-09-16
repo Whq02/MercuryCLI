@@ -64,7 +64,7 @@ check('any real diff resets the streak', /\} else \{\s*\n\s*this\.zeroByteRender
 check(
   'the arming seams are the field-suspicion set: SIGCONT re-enter + stdin resume (handover exit rides resume)',
   /reenterAltScreen\(\);[\s\S]{0,220}this\.armScreenWatchdog\(\);/.test(ink) &&
-    /this\.reconcileSize\(\);\s*\n\s*\/\/ F1′[\s\S]{0,120}this\.armScreenWatchdog\(\);\s*\n\s*\}/.test(ink),
+    /this\.reconcileSize\(\);\s*\n(?:\s*\/\/[^\n]*\n)*\s*this\.armScreenWatchdog\(\);\s*\n\s*\}/.test(ink),
 );
 check(
   'the 30s idle-gap heal is RETAINED beside it (external-write drift stays covered — recorded adjudication)',
@@ -99,7 +99,7 @@ check(
 );
 check(
   'the raw-mode re-enable seam reconciles (suspended windows queue records undrained)',
-  /this\.wasRawMode = false;\s*\n\s*\}\s*\n\s*\/\/ F2[\s\S]{0,220}this\.reconcileSize\(\);/.test(ink),
+  /this\.wasRawMode = false;\s*\n\s*\}\s*\n(?:\s*\/\/[^\n]*\n)*\s*this\.reconcileSize\(\);/.test(ink),
 );
 
 console.log(fail === 0 ? '\n✅ SCREEN-REASSERT GREEN' : '\n❌ SCREEN-REASSERT RED');

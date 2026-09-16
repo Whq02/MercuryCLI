@@ -61,7 +61,7 @@ console.log('§2 applied-filter esc layer (the zero-match hint is true)')
   )
   check(
     'the layer peels between the row peek and the marks (view layers before staged sets)',
-    ordered(screen, '// Line 5: esc closes the row peek first', "if (filterRef.current.text !== '') {") &&
+    /if \(rowPeekOpenRef\.current\) \{\s*\n(?:\s*\/\/[^\n]*\n)*\s*setRowPeekOpen\(false\)\s*\n\s*return\s*\n\s*\}\s*\n\s*if \(filterRef\.current\.text !== ''\) \{/.test(screen) &&
       ordered(screen, "if (filterRef.current.text !== '') {", 'if (markedIdsRef.current.size > 0) {'),
   )
   check(
@@ -128,8 +128,12 @@ console.log('§4 live meta row: enter-grammar on an empty draft, send only with 
       screen.includes("'↵ enter session · tab panes'"),
   )
   check('the live composer mount carries the derived hint', screen.includes('{...(liveKeysHint !== undefined ? { keysHint: liveKeysHint } : {})}'))
-  const manifest = readFileSync(join(ROOT, 'src/components/concourse/controlManifest.ts'), 'utf8')
-  check('the manifest contract the row now honors still stands', manifest.includes("its own meta row carries '↵ send' while a draft exists") || manifest.includes("meta row says '↵ send' while a draft exists") || manifest.includes("meta row carries '↵ send'") || manifest.includes("'↵ send' while a draft exists"))
+  const { CONCOURSE_REGION_KEYS } = await import('../../src/components/concourse/controlManifest.ts')
+  const rows = (declared: ReadonlyArray<{ keys: string; label: string }>): ReadonlyArray<{ keys: string; label: string }> => declared
+  check(
+    "the manifest leaves the live composer's ↵ to the layout (no ↵ row declared there) while the coordinator's own row says send",
+    rows(CONCOURSE_REGION_KEYS.live).every(k => k.keys !== '↵') && rows(CONCOURSE_REGION_KEYS.coordinator).some(k => k.keys === '↵' && k.label === 'send'),
+  )
 }
 
 process.exit(failures === 0 ? 0 : 1)

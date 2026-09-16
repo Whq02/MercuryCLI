@@ -169,7 +169,7 @@ section('§5 structural: one gate, two halves')
   const messages = readFileSync(join(ROOT, 'src/components/Messages.tsx'), 'utf8')
   check('Messages threads the gate to the leaf', messages.includes('textSuppressed={streamingTextSuppressed}'))
   const message = readFileSync(join(ROOT, 'src/components/Message.tsx'), 'utf8')
-  check('Message.tsx keeps the pure suppression with the tail as the owner', message.includes("declaredRouteOf(servedModel) === 'openai'") && message.includes('the LiveStreamingTail owns the'))
+  check('Message.tsx keeps the pure suppression with the tail as the owner', /declaredRouteOf\(servedModel\) === 'openai' &&\s*\n\s*!isTranscriptMode &&\s*\n\s*!verbose\s*\n\s*\) \{\s*\n(?:\s*\/\/[^\n]*\n)*\s*return null\s*\n\s*\}/.test(message))
   const leaf = readFileSync(join(ROOT, 'src/components/LiveStreamingTail.tsx'), 'utf8')
   check('the suppressed leaf reads the phase, not the text', leaf.includes('textSuppressed ? readPhase : store.getSnapshot'))
 }

@@ -4,8 +4,9 @@
 
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { codeOnlyText } from '../lib/codeText.ts'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -818,7 +819,12 @@ t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the 
   t.check('the resolver PEEKS without consuming; the face consumes ONCE', handover.peekFaceDoorDeepLink() === 'logins' && handover.consumeFaceDoorDeepLink() === 'logins' && handover.consumeFaceDoorDeepLink() === null)
   const handoverSrc = read('src/substrate/splashHandover.ts')
   t.check("the union carries 'logins'; ACTIONS gained the wire word at the recut", handoverSrc.includes("export type FaceDoorDeepLink = 'health' | 'resume' | 'saturn' | 'logins' | 'agents'") && handoverSrc.includes("const ACTIONS = new Set(['continue', 'doctor', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])") && handoverSrc.includes("receipt.action === 'logins'"))
-  t.check('the SATURN-form arming stays a NAMED SEAM only', handoverSrc.includes('"re-login now" arming is a NAMED SEAM ONLY'))
+  const sourceFiles = (dir: string): string[] =>
+    readdirSync(join(REPO, dir), { withFileTypes: true }).flatMap(entry =>
+      entry.isDirectory() ? sourceFiles(join(dir, entry.name)) : /\.(ts|tsx)$/.test(entry.name) ? [join(dir, entry.name)] : [],
+    )
+  const armCallers = sourceFiles('src').filter(rel => rel !== 'src/substrate/splashHandover.ts' && codeOnlyText(rel, read(rel)).includes('armFaceDoorDeepLink('))
+  t.check('the logins arming stays a NAMED SEAM only (the export stands; no product site calls it)', handoverSrc.includes('export function armFaceDoorDeepLink(door: FaceDoorDeepLink): void {') && armCallers.length === 0, armCallers.join(' '))
 
   const React = (await import('react')).default
   const { renderToString } = await import('../../src/utils/staticRender.tsx')
@@ -984,7 +990,7 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
   )
   t.check(
     'the roster clears the seen notice and the mount threads it into the composer',
-    screen.includes('setNotice(null); // the operator moved on') &&
+    /const openFlow = \(arm: LoginsArmV1\): void => \{\s*\n\s*setDraft\(''\);\s*\n\s*setNotice\(null\);/.test(screen) &&
       screen.includes('summaryRows: loginsSummaryRows(facts, opts.notice ?? null)'),
   )
 
