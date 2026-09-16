@@ -4,7 +4,6 @@ import { isAnalyticsDisabled } from '../services/analytics/config.js'
 import {
   fineGrainedToolStreamingEnabled,
   resolveModelCapabilities,
-  shouldUseGlobalCacheScope,
   toolDeferralEnabled,
 } from './model/capabilities.js'
 import { getMainLoopModel } from './model/model.js'
@@ -12,7 +11,6 @@ import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { deferralWireFormFor, toolReferenceWireAccepted } from '../services/providers/deferralWire.js'
 import { isAgentSwarmsEnabled } from './agentSwarmsEnabled.js'
 import { zodToJsonSchema } from './zodToJsonSchema.js'
-import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from '../constants/prompts.js'
 import { CLI_SYSPROMPT_PREFIXES } from '../constants/system.js'
 import { getSystemContext, getUserContext } from '../context.js'
 import { userContextReminderBody } from './userContextReminder.js'
@@ -42,8 +40,7 @@ import type { ApiTool, ApiToolUnion, ToolInputSchema } from '../types/wire.js'
 import type { Message } from '../types/message.js'
 
 
-export type CacheScope = 'global' | 'org'
-export type SystemPromptBlock = { text: string; cacheScope: CacheScope | null }
+export type SystemPromptBlock = { text: string; cached: boolean }
 
 const BILLING_HEADER_PREFIX = 'x-anthropic-billing-header'
 
@@ -57,64 +54,22 @@ function joinGroup(blocks: string[]): string {
   return blocks.filter(block => block).join('\n\n')
 }
 
-export function splitSysPromptPrefix(
-  systemPrompt: readonly string[],
-  options?: { skipGlobalCacheForSystemPrompt?: boolean },
-): SystemPromptBlock[] {
-  const skipGlobal = options?.skipGlobalCacheForSystemPrompt === true
-  const globalCacheOn = shouldUseGlobalCacheScope()
-  const hasBoundary = systemPrompt.some(block => block === SYSTEM_PROMPT_DYNAMIC_BOUNDARY)
-
+export function splitSysPromptPrefix(systemPrompt: readonly string[]): SystemPromptBlock[] {
   let attribution: string | undefined
   let prefix: string | undefined
   const rest: string[] = []
-  const staticGroup: string[] = []
-  const dynamicGroup: string[] = []
-
-  if (globalCacheOn && hasBoundary && !skipGlobal) {
-    let seenBoundary = false
-    for (const block of systemPrompt) {
-      if (!block) continue
-      if (block === SYSTEM_PROMPT_DYNAMIC_BOUNDARY) {
-        seenBoundary = true
-        continue
-      }
-      const kind = classifyBlock(block)
-      if (kind === 'attribution') {
-        attribution = block
-        continue
-      }
-      if (kind === 'prefix') {
-        prefix = block
-        continue
-      }
-      if (seenBoundary) dynamicGroup.push(block)
-      else staticGroup.push(block)
-    }
-    const blocks: SystemPromptBlock[] = []
-    if (attribution) blocks.push({ text: attribution, cacheScope: null })
-    if (prefix) blocks.push({ text: prefix, cacheScope: null })
-    const staticText = joinGroup(staticGroup)
-    if (staticText) blocks.push({ text: staticText, cacheScope: 'global' })
-    const dynamicText = joinGroup(dynamicGroup)
-    if (dynamicText) blocks.push({ text: dynamicText, cacheScope: null })
-    return blocks
-  }
-
-  const dropBoundary = skipGlobal && globalCacheOn
   for (const block of systemPrompt) {
     if (!block) continue
-    if (block === SYSTEM_PROMPT_DYNAMIC_BOUNDARY && dropBoundary) continue
     const kind = classifyBlock(block)
     if (kind === 'attribution') attribution = block
     else if (kind === 'prefix') prefix = block
     else rest.push(block)
   }
   const blocks: SystemPromptBlock[] = []
-  if (attribution) blocks.push({ text: attribution, cacheScope: null })
-  if (prefix) blocks.push({ text: prefix, cacheScope: 'org' })
+  if (attribution) blocks.push({ text: attribution, cached: false })
+  if (prefix) blocks.push({ text: prefix, cached: true })
   const restText = joinGroup(rest)
-  if (restText) blocks.push({ text: restText, cacheScope: 'org' })
+  if (restText) blocks.push({ text: restText, cached: true })
   return blocks
 }
 

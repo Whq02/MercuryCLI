@@ -31,7 +31,7 @@ add('getMaxOutputTokensForModel', 'families', () =>
   ].map(m => C.getMaxOutputTokensForModel(m)),
 )
 add('getPromptCachingEnabled', 'probe', () => C.getPromptCachingEnabled())
-add('getCacheControl', 'shape', () => snap(() => C.getCacheControl('claude-sonnet-5' as never)))
+add('getCacheControl', 'shape', () => snap(() => C.getCacheControl()))
 
 const USER = {
   type: 'user',

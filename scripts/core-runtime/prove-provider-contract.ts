@@ -107,7 +107,6 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     'beta-guard: first-party-only betas suppressed (folded define)',
     betas.shouldIncludeFirstPartyOnlyBetas() === false,
   )
-  check('beta-guard: global cache scope suppressed (folded define)', betas.shouldUseGlobalCacheScope() === false)
 
   const oc: Record<string, unknown> = {}
   const tbBetas: string[] = []
@@ -144,7 +143,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   const forbidden = [
     B.REDACT_THINKING_BETA_HEADER,
     'context-management-2025-06-27',
-    B.PROMPT_CACHING_SCOPE_BETA_HEADER,
+    'prompt-caching-scope-2026-01-05',
     B.STRUCTURED_OUTPUTS_BETA_HEADER,
     'interleaved-thinking-2025-05-14',
   ]

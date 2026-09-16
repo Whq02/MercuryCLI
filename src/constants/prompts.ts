@@ -13,10 +13,7 @@ import { isEnvTruthy } from '../utils/envUtils.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
 import { getVulcanSection } from '../utils/vulcan/vulcanGates.js'
 import { mercuryEngineIdentityLine } from '../prompt/engineIdentity.js'
-import {
-  getModelKnowledgeCutoff,
-  shouldUseGlobalCacheScope,
-} from '../utils/model/capabilities.js'
+import { getModelKnowledgeCutoff } from '../utils/model/capabilities.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { getCurrentWorktreeSession } from '../utils/worktree.js'
 import { ensureScratchpadDir, scratchpadPromptLine } from '../utils/scratchpad.js'
@@ -54,8 +51,6 @@ import { getHarnessMapSection } from '../utils/cockpit/harnessMap.js'
 import { getRunProtocolSection } from '../utils/cockpit/runProtocol.js'
 import type { Tools } from '../Tool.js'
 import type { MCPServerConnection } from '../services/mcp/types.js'
-
-export const SYSTEM_PROMPT_DYNAMIC_BOUNDARY = '__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__'
 
 function isCapableDirectProfile(): boolean {
   return true
@@ -524,7 +519,7 @@ export async function getSystemPrompt(
 
   return composeSystemPrompt({
     staticSections,
-    dynamicBoundary: shouldUseGlobalCacheScope() ? [SYSTEM_PROMPT_DYNAMIC_BOUNDARY] : [],
+    dynamicBoundary: [],
     dynamicSpecs: dynamicSpecs.map(spec => ({
       name: spec.name,
       cacheBreak: spec.cacheBreaking,

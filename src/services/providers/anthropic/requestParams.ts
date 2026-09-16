@@ -11,7 +11,6 @@ import {
   setPromptCache1hEligible,
 } from 'src/bootstrap/state.js'
 import { TASK_BUDGETS_BETA_HEADER } from 'src/constants/betas.js'
-import { type CacheScope } from '../../../utils/api.js'
 import { getOauthAccountInfo, isClaudeAISubscriber } from '../../../utils/auth.js'
 import {
   getModelBetas,
@@ -94,19 +93,13 @@ export function getPromptCachingEnabled(model: string): boolean {
   return true
 }
 
-export function getCacheControl({
-  scope,
-}: {
-  scope?: CacheScope
-} = {}): {
+export function getCacheControl(): {
   type: 'ephemeral'
   ttl?: '1h'
-  scope?: CacheScope
 } {
   return {
     type: 'ephemeral',
     ...(should1hCacheTTL() && { ttl: '1h' }),
-    ...(scope === 'global' && { scope }),
   }
 }
 

@@ -23,9 +23,9 @@ check(
 )
 
 check(
-  'SYSTEM_PROMPT_DYNAMIC_BOUNDARY marker present',
-  prompts.includes('SYSTEM_PROMPT_DYNAMIC_BOUNDARY'),
-  'the static/dynamic cache boundary marker was removed',
+  'no SYSTEM_PROMPT_DYNAMIC_BOUNDARY marker',
+  !prompts.includes('SYSTEM_PROMPT_DYNAMIC_BOUNDARY'),
+  'a static/dynamic cache boundary marker came back',
 )
 
 check(

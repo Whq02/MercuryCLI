@@ -91,7 +91,7 @@ release slug from it — never a second hand-held literal. A missing
 `engines.node` or an unrecognized `repository.url` fails the build.
 
 Also defined: `process.env.NODE_ENV = 'production'`. Beta-only API request
-shapes (global-scope prompt-cache blocks, deferred tool loading, the
+shapes (deferred tool loading, the
 experimental beta-header family — shapes the production API and proxy
 providers reject) are baked off at source.
 
