@@ -709,7 +709,6 @@ async function* queryModel(
       effort,
       outputConfig,
       extraBodyParams,
-      betasParams,
       options.model,
     )
 

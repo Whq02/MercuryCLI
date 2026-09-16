@@ -160,11 +160,10 @@ check('rig: the Ollama fixture was discovered', localCatalogue.localRecordFor('l
 
 section('§1 the first-party wire: output_config.effort ≡ the owner, per family, per request')
 {
-  const anthropicWire = (model: string, request: Level | undefined): { effort: string | undefined; beta: boolean } => {
+  const anthropicWire = (model: string, request: Level | undefined): { effort: string | undefined } => {
     const outputConfig: Record<string, unknown> = {}
-    const betasOut: string[] = []
-    requestParams.configureEffortParams(effort.resolveAppliedEffort(model, request), outputConfig as never, {}, betasOut, model)
-    return { effort: outputConfig.effort as string | undefined, beta: betasOut.length > 0 }
+    requestParams.configureEffortParams(effort.resolveAppliedEffort(model, request), outputConfig as never, {}, model)
+    return { effort: outputConfig.effort as string | undefined }
   }
   for (const model of ['claude-opus-5', 'claude-sonnet-5', 'claude-fable-5-1', 'claude-opus-4-8', 'claude-opus-4-6', 'claude-sonnet-4-6']) {
     for (const request of REQUESTS) {
@@ -172,7 +171,6 @@ section('§1 the first-party wire: output_config.effort ≡ the owner, per famil
       const sent = anthropicWire(model, request)
       check(`${model} · ${request ?? 'unset'}: output_config.effort ≡ owner.wire (${String(truth.wire)})`, sent.effort === truth.wire, `sent ${String(sent.effort)}`)
       check(`${model} · ${request ?? 'unset'}: the label IS the wire tier`, truth.label === (truth.wire ?? 'high'))
-      check(`${model} · ${request ?? 'unset'}: no beta header rides for the effort setting`, !sent.beta)
     }
   }
   check('sonnet-4-6 · xhigh steps to high on the wire and in the word', anthropicWire('claude-sonnet-4-6', 'xhigh').effort === 'high' && effort.resolveEffortTruth('claude-sonnet-4-6', 'xhigh').label === 'high' && effort.resolveEffortTruth('claude-sonnet-4-6', 'xhigh').adjustedFrom === 'xhigh')

@@ -256,7 +256,7 @@ section("§3 the dispatch: the chosen level rides each family's wire field; a mo
 {
   const anthropicWire = (model: string, value: Level | undefined): string | undefined => {
     const outputConfig: Record<string, unknown> = {}
-    requestParams.configureEffortParams(effort.resolveAppliedEffort(model, value), outputConfig as never, {}, [], model)
+    requestParams.configureEffortParams(effort.resolveAppliedEffort(model, value), outputConfig as never, {}, model)
     return outputConfig.effort as string | undefined
   }
   const gptWire = (model: string, value: Level | undefined): string | undefined => {

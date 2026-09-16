@@ -1,7 +1,6 @@
 
 export class CacheLatchOwner {
   promptCache1hEligible: boolean | null = null
-  afkModeHeaderLatched: boolean | null = null
   cacheEditingHeaderLatched: boolean | null = null
   systemPromptSectionCache: Map<
     string,
@@ -10,7 +9,6 @@ export class CacheLatchOwner {
   lastEmittedDate: string | null = null
 
   clearBetaHeaderLatches(): void {
-    this.afkModeHeaderLatched = null
     this.cacheEditingHeaderLatched = null
   }
 }

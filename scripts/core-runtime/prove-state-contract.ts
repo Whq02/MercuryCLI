@@ -134,7 +134,6 @@ const OBSERVABLES: Array<{
   { key: 'lastMainRequestId', family: 'apiCapture', scope: 'conversation', read: () => state.getLastMainRequestId() },
   { key: 'lastApiCompletionTimestamp', family: 'apiCapture', scope: 'conversation', read: () => state.getLastApiCompletionTimestamp() },
   { key: 'promptCache1hEligible', family: 'latches', scope: 'session', read: () => state.getPromptCache1hEligible() },
-  { key: 'afkModeHeaderLatched', family: 'latches', scope: 'conversation', read: () => state.getAfkModeHeaderLatched() },
   { key: 'cacheEditingHeaderLatched', family: 'latches', scope: 'conversation', read: () => state.getCacheEditingHeaderLatched() },
   { key: 'systemPromptSectionCache', family: 'caches', scope: 'session', read: () => state.getSystemPromptSectionCache() },
   { key: 'lastEmittedDate', family: 'caches', scope: 'session', read: () => state.getLastEmittedDate() },
@@ -269,7 +268,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'clearInvokedSkills', 'clearInvokedSkillsForAgent', 'clearRegisteredHooks',
     'clearRegisteredExtensionHooks', 'clearSystemPromptSectionState', 'consumePostCompaction',
     'flushInteractionTime', 'getAddedDirectories',
-    'getAfkModeHeaderLatched', 'getAgentColorMap', 'getAllowedChannels', 'getAskChannel',
+    'getAgentColorMap', 'getAllowedChannels', 'getAskChannel',
     'getAllowedSettingSources', 'getApiKeyFromFd', 'getBudgetContinuationCount',
     'getCacheEditingHeaderLatched', 'getCachedInstructionPrompt',
     'getClientType', 'getCurrentTurnTokenBudget', 'getCwdState', 'getDirectConnectServerUrl', 'getFlagSettingsInline', 'getFlagSettingsPath',
@@ -306,7 +305,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'resetSdkInitState', 'resetStateForTests',
     'resetTotalDurationStateAndCost_FOR_TESTS_ONLY', 'resetTurnClassifierDuration',
     'resetTurnHookDuration', 'resetTurnToolDuration', 'setAddedDirectories',
-    'setAfkModeHeaderLatched', 'setAllowedChannels', 'setAllowedSettingSources',
+    'setAllowedChannels', 'setAllowedSettingSources',
     'setApiKeyFromFd', 'setAskChannel', 'setCacheEditingHeaderLatched', 'setCachedInstructionPrompt',
     'setClientType', 'setCostStateForRestore', 'setCwdState',
     'setDirectConnectServerUrl',
@@ -853,24 +852,23 @@ section('LAW 4 ONE-SHOT — postCompaction · the plan/auto transition tables')
 section('LAW 5 LATCH — sticky beta headers · clear completeness · tripwire')
 {
   state.clearBetaHeaderLatches()
-  check('latches: both null after clear', state.getAfkModeHeaderLatched() === null && state.getCacheEditingHeaderLatched() === null)
+  check('latches: null after clear', state.getCacheEditingHeaderLatched() === null)
 
-  state.setAfkModeHeaderLatched(true)
   state.setCacheEditingHeaderLatched(true)
   state.setPromptCache1hEligible(true)
 
   state.addToTotalCostState(0.01, usage(1), 'latch-noise')
   state.setIsInteractive(true)
   state.switchSession('33333333-3333-4333-8333-333333333333' as SessionId)
-  check('latches: survive unrelated mutations incl. switchSession', state.getAfkModeHeaderLatched() === true && state.getCacheEditingHeaderLatched() === true)
+  check('latches: survive unrelated mutations incl. switchSession', state.getCacheEditingHeaderLatched() === true)
   state.setIsInteractive(false)
 
-  state.setAfkModeHeaderLatched(false)
-  check('latches: setter accepts false (stickiness is caller discipline — characterized)', state.getAfkModeHeaderLatched() === false)
-  state.setAfkModeHeaderLatched(true)
+  state.setCacheEditingHeaderLatched(false)
+  check('latches: setter accepts false (stickiness is caller discipline — characterized)', state.getCacheEditingHeaderLatched() === false)
+  state.setCacheEditingHeaderLatched(true)
 
   state.clearBetaHeaderLatches()
-  check('clearBetaHeaderLatches: nulls BOTH', state.getAfkModeHeaderLatched() === null && state.getCacheEditingHeaderLatched() === null)
+  check('clearBetaHeaderLatches: nulls the latch', state.getCacheEditingHeaderLatched() === null)
   check('clearBetaHeaderLatches: 1h eligibility NOT in the clear set (session-latched)', state.getPromptCache1hEligible() === true)
   state.setPromptCache1hEligible(null)
 
@@ -885,9 +883,9 @@ section('LAW 5 LATCH — sticky beta headers · clear completeness · tripwire')
     ]),
   ].sort()
   check(
-    'tripwire: exactly the two *Latched fields exist',
+    'tripwire: exactly the one *Latched field exists',
     JSON.stringify(latchFields) ===
-      JSON.stringify(['afkModeHeaderLatched', 'cacheEditingHeaderLatched']),
+      JSON.stringify(['cacheEditingHeaderLatched']),
     latchFields.join(','),
   )
   const clearBody = latchOwnerSrc.match(/clearBetaHeaderLatches\(\): void \{([\s\S]*?)\n {2}\}/)?.[1] ?? ''
@@ -1174,7 +1172,6 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.setLastClassifierRequests(['pop'])
     state.setCachedInstructionPrompt('pop-cmd')
     state.markPostCompaction()
-    state.setAfkModeHeaderLatched(true)
     state.setCacheEditingHeaderLatched(true)
     state.setPromptCache1hEligible(true)
     state.setSystemPromptSectionCacheEntry('section-a', 'value-a')
@@ -1241,9 +1238,9 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     ],
   )
   scopeLeg(
-    'clearBetaHeaderLatches (/clear + /compact) touches ONLY the two latches',
+    'clearBetaHeaderLatches (/clear + /compact) touches ONLY the latch',
     () => state.clearBetaHeaderLatches(),
-    ['afkModeHeaderLatched', 'cacheEditingHeaderLatched'],
+    ['cacheEditingHeaderLatched'],
   )
   scopeLeg(
     'resetSdkInitState touches ONLY schema + hooks',

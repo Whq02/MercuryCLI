@@ -138,7 +138,6 @@ export function configureEffortParams(
   effortValue: EffortValue | undefined,
   outputConfig: BetaOutputConfig,
   extraBodyParams: Record<string, unknown>,
-  betas: string[],
   model: string,
 ): void {
   if (!modelSupportsEffort(model) || 'effort' in outputConfig) {
