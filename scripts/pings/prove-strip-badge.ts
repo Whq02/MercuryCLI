@@ -6,6 +6,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const { ACTION_GRAPH } = await import('../../src/keybindings/actionGraph.js')
 const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.js')
 const { FLAG_ICON } = await import('../../src/constants/figures.js')
+const { needsYouJump } = await import('../../src/components/mercury-ui/needsYouJump.js')
 
 let failures = 0
 function check(name: string, ok: boolean, detail?: string): void {
@@ -52,7 +53,23 @@ check(
   "the advert rides useShortcutDisplay('app:openSurfaceSwitcher', 'Global', …)",
   /useShortcutDisplay\('app:openSurfaceSwitcher',\s*'Global'/.test(frame),
 )
-check('the badge advertises the chord beside the count', frame.includes('{boardChord} board'))
+check(
+  'the badge advertises the resolved jump beside the count',
+  /needsYouJump\(\{[\s\S]*?\bboardChord,?\s*\}\)/.test(frame) &&
+    frame.includes(' · {needsJump}'),
+)
+check(
+  'the board jump advertises the resolver chord, including a rebind',
+  needsYouJump({ plain: false, ownOnly: false, boardChord: 'alt+g' }) === 'alt+g board',
+)
+check(
+  'the plain chat names its own waiting ask without advertising a board',
+  needsYouJump({ plain: true, ownOnly: true, boardChord: 'alt+g' }) === 'this chat',
+)
+check(
+  'the plain chat names the resume door for another waiting session',
+  needsYouJump({ plain: true, ownOnly: false, boardChord: 'alt+g' }) === '/resume',
+)
 
 section('§3 the advertised action is real and reaches the board')
 check(
