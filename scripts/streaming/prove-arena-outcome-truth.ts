@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -53,6 +54,47 @@ console.log('§2 the driver on a synthetic child: early exit versus a full deadl
   check('…and the driver fired its send', fullRun.outcome.report?.sends === 1 && fullRun.sendLog.length === 1)
   const crashRun = await run(crashing, 3, null)
   check('a child that exits 7 at once: INCOMPLETE by eof (the driver survives the child and reports it)', !crashRun.outcome.complete && crashRun.outcome.report?.ended === 'eof', JSON.stringify(crashRun.outcome))
+  rmSync(scratch, { recursive: true, force: true })
+}
+
+console.log('§2b the pty master after the child leaves: an EIO read is the eof ending, any other read error stays read-error')
+{
+  const scratch = mkdtempSync(join(tmpdir(), 'arena-eio-'))
+  const harness = join(scratch, 'read-fault.py')
+  writeFileSync(
+    harness,
+    [
+      'import errno, os, sys',
+      `sys.path.insert(0, ${JSON.stringify(import.meta.dir)})`,
+      'import ptydrive',
+      'fault = getattr(errno, sys.argv[1])',
+      'real_read = os.read',
+      'def faulting_read(fd, n):',
+      '    data = real_read(fd, n)',
+      "    if data == b'':",
+      '        raise OSError(fault, os.strerror(fault))',
+      '    return data',
+      'os.read = faulting_read',
+      "sys.argv = ['ptydrive.py', '--cols', '80', '--rows', '24', '--seconds', '4', '--', 'sh', '-c', 'exit 7']",
+      'ptydrive.main()',
+      '',
+    ].join('\n'),
+  )
+  const endingUnder = (fault: string): { ended: string; detail: string } => {
+    const res = spawnSync('/usr/bin/python3', [harness, fault], { encoding: 'utf8', timeout: 20_000 })
+    const line = (res.stdout ?? '').trim().split('\n').pop() ?? ''
+    let ended = ''
+    try {
+      ended = String((JSON.parse(line) as { ended?: string }).ended ?? '')
+    } catch {
+      ended = ''
+    }
+    return { ended, detail: `exit ${res.status} · ${line.slice(0, 200)} · ${(res.stderr ?? '').trim().slice(-200)}` }
+  }
+  const eio = endingUnder('EIO')
+  check('a read that fails with EIO once the child has left the pty ends the capture as eof (the Linux spelling of the master\'s end of file)', eio.ended === 'eof', eio.detail)
+  const other = endingUnder('EBADF')
+  check('a read that fails any other way still ends the capture as read-error (the arm names EIO alone)', other.ended === 'read-error', other.detail)
   rmSync(scratch, { recursive: true, force: true })
 }
 
