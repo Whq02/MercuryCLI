@@ -95,7 +95,6 @@ export type QueryEngineConfig = {
   thinkingConfig?: ThinkingConfig
   maxTurns?: number
   maxBudgetUsd?: number
-  taskBudget?: { total: number }
   jsonSchema?: Record<string, unknown>
   replayUserMessages?: boolean
   handleElicitation?: ToolUseContext['handleElicitation']
@@ -570,7 +569,6 @@ export class QueryEngine {
       fallbackModel: config.fallbackModel,
       querySource: 'sdk' as QueryParams['querySource'],
       maxTurns: config.maxTurns,
-      taskBudget: config.taskBudget,
     }
 
     const seedMessages = new Set<Message>(turnMessages)

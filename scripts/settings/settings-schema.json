@@ -655,9 +655,6 @@
     "prefersReducedMotion": {
       "type": "boolean"
     },
-    "showThinkingSummaries": {
-      "type": "boolean"
-    },
     "showClearContextOnStrategyAccept": {
       "type": "boolean"
     },

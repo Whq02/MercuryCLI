@@ -134,7 +134,6 @@ import {
 } from '../utils/model/model.js'
 import {
   doesMostRecentAssistantMessageExceed200k,
-  finalContextTokensFromLastResponse,
   tokenCountWithEstimation,
 } from '../utils/tokens.js'
 import { ESCALATED_MAX_TOKENS } from '../utils/context.js'
@@ -204,7 +203,6 @@ export type QueryParams = {
   maxTurns?: number
   skipCacheWrite?: boolean
   effortMessage?: EffortValue
-  taskBudget?: { total: number }
   deps?: QueryDeps
 }
 
@@ -579,9 +577,6 @@ async function* streamModel(
             agentId: toolUseContext.agentId,
             ownerKey: String(rosterOwnerFromToolUseContext(toolUseContext)),
             addNotification: toolUseContext.addNotification,
-            ...(run.params.taskBudget && {
-              taskBudget: run.budgetGuard.requestBag()!,
-            }),
           },
         })) {
           if (streamingFallbackOccured) {
@@ -816,7 +811,7 @@ export async function* runEventCore(
     pendingOverflow: undefined,
   }
 
-  const budgetGuard = new BudgetGuard(params.taskBudget)
+  const budgetGuard = new BudgetGuard()
 
   const config = buildQueryConfig()
 
@@ -1077,13 +1072,6 @@ export async function* runEventCore(
             ? preCompactTokenCount - postForTrace
             : undefined,
       })
-
-
-      if (params.taskBudget) {
-        budgetGuard.applyCompactionCarryover(
-          finalContextTokensFromLastResponse(messagesForQuery),
-        )
-      }
 
       tracking = {
         compacted: true,

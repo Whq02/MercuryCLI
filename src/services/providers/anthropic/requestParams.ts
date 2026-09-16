@@ -10,12 +10,10 @@ import {
   getSessionId,
   setPromptCache1hEligible,
 } from 'src/bootstrap/state.js'
-import { TASK_BUDGETS_BETA_HEADER } from 'src/constants/betas.js'
 import { getOauthAccountInfo, isClaudeAISubscriber } from '../../../utils/auth.js'
 import {
   getModelBetas,
   modelSupportsTemperature,
-  shouldIncludeFirstPartyOnlyBetas,
 } from '../../../utils/betas.js'
 import { cacheClockTtlDecision } from 'src/utils/cache/cacheClock.js'
 import { logForDebugging } from 'src/utils/debug.js'
@@ -33,8 +31,6 @@ import { jsonStringify } from '../../../utils/slowOperations.js'
 import { currentLimits } from '../../claudeAiLimits.js'
 import { getAnthropicClient } from '../../api/client.js'
 import { CannotRetryError, withRetry } from '../../api/withRetry.js'
-import type { Options } from './index.js'
-
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray
 type JsonObject = { [key: string]: JsonValue }
 type JsonArray = JsonValue[]
@@ -147,36 +143,6 @@ export function configureEffortParams(
       `configureEffortParams: effort ${effortValue} has no first-party wire encoding — sending without effort`,
       { level: 'warn' },
     )
-  }
-}
-
-export type TaskBudgetParam = {
-  type: 'tokens'
-  total: number
-  remaining?: number
-}
-
-export function configureTaskBudgetParams(
-  taskBudget: Options['taskBudget'],
-  outputConfig: BetaOutputConfig & { task_budget?: TaskBudgetParam },
-  betas: string[],
-): void {
-  if (
-    !taskBudget ||
-    'task_budget' in outputConfig ||
-    !shouldIncludeFirstPartyOnlyBetas()
-  ) {
-    return
-  }
-  outputConfig.task_budget = {
-    type: 'tokens',
-    total: taskBudget.total,
-    ...(taskBudget.remaining !== undefined && {
-      remaining: taskBudget.remaining,
-    }),
-  }
-  if (!betas.includes(TASK_BUDGETS_BETA_HEADER)) {
-    betas.push(TASK_BUDGETS_BETA_HEADER)
   }
 }
 

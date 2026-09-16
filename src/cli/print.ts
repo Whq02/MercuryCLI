@@ -296,7 +296,6 @@ type HeadlessOptions = {
   thinkingConfig?: ThinkingConfig
   maxTurns?: number
   maxBudgetUsd?: number
-  taskBudget?: { total: number }
   systemPrompt?: string
   appendSystemPrompt?: string
   userSpecifiedModel?: string
@@ -1195,7 +1194,6 @@ export async function runHeadless(
           thinkingConfig,
           maxTurns: options.maxTurns,
           maxBudgetUsd: options.maxBudgetUsd,
-          taskBudget: options.taskBudget,
           canUseTool,
           ...(options.permissionChannel === undefined ? {} : { permissionChannel: options.permissionChannel }),
           userSpecifiedModel: activeModel,

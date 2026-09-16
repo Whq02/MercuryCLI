@@ -317,7 +317,6 @@ type RunOpts = {
   script: ModelStep[][]
   autocompact?: Array<Record<string, unknown>>
   maxTurns?: number
-  taskBudget?: { total: number }
   fallbackModel?: string
   querySource?: string
   beforeRun?: (rig: {
@@ -353,7 +352,6 @@ function buildRun(opts: RunOpts): {
     toolUseContext: rig.ctx as never,
     querySource: (opts.querySource ?? 'sdk') as never,
     maxTurns: opts.maxTurns,
-    taskBudget: opts.taskBudget,
     fallbackModel: opts.fallbackModel,
     deps: {
       callModel: callModel as never,
@@ -919,7 +917,6 @@ section('L13 COMPACTION BOUNDARY — boundary yields, post-compact input, budget
   const r = record(
     await run({
       seed: [seedUser('hello there rig'), preCompactAssistant],
-      taskBudget: { total: 10_000 },
       autocompact: [{ wasCompacted: true, compactionResult }],
       script: [[y(asstText('post-compact turn'))]],
     }),
@@ -941,8 +938,8 @@ section('L13 COMPACTION BOUNDARY — boundary yields, post-compact input, budget
     digest(r.calls[0]!.messages) === digest([boundaryMarker, summary]),
   )
   check(
-    'task-budget carryover: remaining = total − pre-compact final window',
-    JSON.stringify(r.calls[0]!.taskBudget) === JSON.stringify({ total: 10_000, remaining: 9_250 }),
+    'no task budget rides the request bag across the boundary',
+    r.calls[0]!.taskBudget === undefined,
     JSON.stringify(r.calls[0]!.taskBudget),
   )
 }
