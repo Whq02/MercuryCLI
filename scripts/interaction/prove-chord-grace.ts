@@ -45,7 +45,7 @@ check('grace resolution rides the SAME resolver with the stashed prefix', src.in
 check('a NON-completing late key passes through untouched (never eaten)', src.includes("viaGrace && result.type === 'chord_cancelled'"))
 check('the stash clears one-shot on the next key', src.includes('expiredChordRef.current = null'))
 check('the base timeout is 2s (was the 1s that bit)', src.includes('CHORD_TIMEOUT_MS = 2000'))
-check('an explicit resolve/cancel supersedes an armed grace', /else \{\s*\n\s*\/\/ An explicit resolve\/cancel supersedes any armed grace\./.test(src))
+check('an explicit resolve/cancel supersedes an armed grace (the else arm clears the stash)', /\} else \{(?:\s*\/\/[^\n]*)*\s*expiredChordRef\.current = null\s*\}/.test(src))
 
 console.log(failures === 0 ? '\nprove-chord-grace: GREEN' : `\nprove-chord-grace: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

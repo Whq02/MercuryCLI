@@ -70,7 +70,7 @@ section('structural — the three seams')
     "PromptInput registers the adapter on the selection bridge (the composer's own range first, the mapped screen selection behind it)",
     pi.includes('registerInputSelectionOwner({') &&
       pi.includes('range: () => inputSelectionRangeRef.current(),') &&
-      pi.includes('inputSelectionRangeRef.current = () => ownSelectionOf(pendingInput.text()) ?? mapSelectionToInputRange()'),
+      /inputSelectionRangeRef\.current\s*=\s*\(\)\s*=>\s*ownSelectionOf\(pendingInput\.text\(\)\)\s*\?\?\s*mapSelectionToInputRange\(\)/.test(pi),
   )
   const skh = readFileSync('src/components/ScrollKeybindingHandler.tsx', 'utf8')
   check(
