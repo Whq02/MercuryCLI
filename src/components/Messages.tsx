@@ -561,7 +561,6 @@ function MessagesInner({
             first.thinking.trim().length > 0
           )
         }
-        if (first?.type === 'advisor_tool_result') return true
         if (
           !verbose &&
           first?.type === 'tool_use' && isAgentToolName(first.name) &&

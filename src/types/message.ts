@@ -89,7 +89,6 @@ export type AssistantMessage = {
   isApiErrorMessage?: boolean
   isMeta?: boolean
   isVirtual?: true
-  advisorModel?: string
   research?: unknown
   refusedToolCalls?: RefusedToolCall[]
   apexProviderTurn?: {

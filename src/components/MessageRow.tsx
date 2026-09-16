@@ -135,7 +135,6 @@ export type MessageRowProps = {
   isCursorRow?: boolean
   cursorExpanded?: boolean
   clickExpanded?: boolean
-  advisorModel?: string | null
   style?: 'condensed'
 }
 
@@ -158,7 +157,6 @@ function MessageRowInner({
   isCursorRow = false,
   cursorExpanded = false,
   clickExpanded = false,
-  advisorModel,
   style,
 }: MessageRowProps): React.ReactNode {
   const isTranscriptMode = screen === 'transcript'
@@ -250,7 +248,6 @@ function MessageRowInner({
       lastThinkingBlockId={lastThinkingBlockId}
       hasContentAfter={hasContentAfter}
       isActiveGroup={isActiveGroup}
-      advisorModel={advisorModel}
     />
   )
 

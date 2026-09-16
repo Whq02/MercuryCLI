@@ -6,7 +6,6 @@ import {
   CODING_20250219_BETA_HEADER,
   CONTEXT_1M_BETA_HEADER,
   REDACT_THINKING_BETA_HEADER,
-  SERVER_SIDE_FALLBACK_BETA_HEADER,
   TOOL_SEARCH_BETA_HEADER_1P,
 } from '../../constants/betas.js'
 import { OAUTH_BETA_HEADER } from '../../constants/oauth.js'
@@ -909,29 +908,6 @@ export function clearBetasCaches(): void {
 }
 
 
-export function modelSupportsServerSideFallback(model: string): boolean {
-  if (isCarrierShapedId(model)) return false
-  const canonical = getCanonicalName(model)
-  return (
-    canonical === 'claude-fable-5-1' ||
-    canonical === 'claude-fable-5' ||
-    canonical === 'claude-opus-5'
-  )
-}
-
-export function refusalFallbackEnabled(): boolean {
-  return flagEnabled('MERCURY_REFUSAL_FALLBACK')
-}
-
-export function refusalFallbackRequest(
-  model: string,
-): { beta: string; fallbacks: 'default' } | null {
-  if (!refusalFallbackEnabled()) return null
-  if (!modelSupportsServerSideFallback(model)) return null
-  return { beta: SERVER_SIDE_FALLBACK_BETA_HEADER, fallbacks: 'default' }
-}
-
-
 export function getModelKnowledgeCutoff(modelId: string): string | null {
   if (isCarrierShapedId(modelId)) return null
   if (modelId.includes('claude-opus-5')) {
@@ -1014,27 +990,6 @@ export function toolDeferralEnabled(): boolean {
 }
 
 
-export function modelSupportsAdvisor(model: string): boolean {
-  if (declaredRouteOf(model) !== 'anthropic') return false
-  const m = model.toLowerCase()
-  return (
-    m.includes('opus-4-6') ||
-    m.includes('sonnet-4-6') ||
-    false
-  )
-}
-
-export function isValidAdvisorModel(model: string): boolean {
-  if (declaredRouteOf(model) !== 'anthropic') return false
-  const m = model.toLowerCase()
-  return (
-    m.includes('opus-4-6') ||
-    m.includes('sonnet-4-6') ||
-    false
-  )
-}
-
-
 export type ModelCapabilityRecord = Readonly<{
   model: string
   canonical: string
@@ -1065,7 +1020,6 @@ export type ModelCapabilityRecord = Readonly<{
     structuredOutputs: boolean
     autoMode: boolean
     toolSearchBetaHeader: string
-    advisor: boolean
   }>
   media: Readonly<{ pdf: boolean; images: boolean }>
   betas: Readonly<{
@@ -1107,7 +1061,6 @@ export function resolveModelCapabilities(model: string): ModelCapabilityRecord {
       structuredOutputs: modelSupportsStructuredOutputs(model),
       autoMode: modelSupportsAutoMode(model),
       toolSearchBetaHeader: getToolSearchBetaHeader(),
-      advisor: modelSupportsAdvisor(model),
     }),
     media: Object.freeze({
       pdf: modelSupportsPDF(model),
