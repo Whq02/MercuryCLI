@@ -35,6 +35,7 @@ const LADDER = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 const LIST_WORD = 'ultra'
 const TOP = 'max'
 const SEAT_TITLE = 'Effort Ultra'
+const [COLS, ROWS] = (process.env.EFFORT_ULTRA_SIZE ?? '120x40').split('x').map(Number) as [number, number]
 const TURN = 'hello effort ultra'
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
@@ -102,8 +103,8 @@ const run = await runArtifactArena({
     `after:${SEAT_TITLE}:36000:\r`,
   ],
   seconds: 44,
-  cols: 120,
-  rows: 40,
+  cols: COLS,
+  rows: ROWS,
   keep: true,
   seedHome: async (configDir, cwd) => {
     seedFirstRun(configDir, [cwd, work])
@@ -134,7 +135,7 @@ const run = await runArtifactArena({
 try {
   const offsets: number[] = []
   for (let ms = 6000; ms <= 42000; ms += 500) offsets.push(S(ms))
-  const grabs = grabScreens(run, 120, 40, offsets)
+  const grabs = grabScreens(run, COLS, ROWS, offsets)
   const frames = grabs.map(g => ({ atMs: g.atMs, text: g.rows.map(r => r.replace(/\s+$/, '')).join('\n') }))
   const distinct = frames.filter((f, i) => i === 0 || f.text !== frames[i - 1]!.text)
   const KEEP_DIR = process.env.EFFORT_ULTRA_CAPTURE_DIR
@@ -165,7 +166,7 @@ try {
   check('U1 the rail carries six stops — five base tiers and the supercode extension past the junction', stops === 6 && railRow !== undefined && railRow.includes('┆'), `stops=${stops} rail=${String(railRow).trim()}`)
   check('U1 esc closed the slider with the running word (the seat runs the admission word, high)', anyFrame(`Effort unchanged (${SEAT_EFFORT})`), distinct.map(f => flat(f.text)).filter(t => t.includes('Effort unchanged')).map(t => t.slice(t.indexOf('Effort unchanged'), t.indexOf('Effort unchanged') + 60)).join(' | ').slice(0, 200))
 
-  check(`U2 "/effort ${LIST_WORD}" is refused as not an effort option`, anyFrame(`"${LIST_WORD}" is not an effort option`), distinct.map(f => flat(f.text)).filter(t => t.includes('not an effort option')).map(t => t.slice(t.indexOf('"'), t.indexOf('"') + 120)).join(' | ').slice(0, 400))
+  check(`U2 "/effort ${LIST_WORD}" is refused as not an effort option (the ladder leads, the refused word follows)`, anyFrame(`|supercode|auto — "${LIST_WORD}`), distinct.map(f => flat(f.text)).filter(t => t.includes('not an effort option')).map(t => t.slice(t.indexOf('"'), t.indexOf('"') + 120)).join(' | ').slice(0, 400))
   check('U2 the refusal names the ladder up to max and no further', anyFrame(`Valid options: ${LADDER.join('|')}|supercode|auto`), distinct.map(f => flat(f.text)).filter(t => t.includes('Valid options')).map(t => t.slice(t.indexOf('Valid options'), t.indexOf('Valid options') + 80)).join(' | ').slice(0, 300))
   check(`U2 no frame ever says the seat was set to the list's word`, !anyFrame(`Effort set to ${LIST_WORD}`))
 
@@ -182,7 +183,7 @@ try {
   const facts = projections.readSessionFacts(seatId)
   check(`U3 the record carries the one word twice — effort ${TOP} (asked), effortSent ${TOP} (sent)`, facts !== null && facts.effort === TOP && facts.effortSent === TOP, JSON.stringify({ effort: facts?.effort, effortSent: facts?.effortSent }))
 
-  const lateStrip = distinct.filter(f => f.atMs >= 30000).flatMap(f => f.text.split('\n').filter(r => r.includes('▚▛▀▜▞')))
+  const lateStrip = distinct.filter(f => f.atMs >= S(30000)).flatMap(f => f.text.split('\n').filter(r => r.includes('▚▛▀▜▞')))
   check(`U4 after the turn the strip's chip paints ${TOP}`, lateStrip.length > 0 && lateStrip.every(r => new RegExp(`\\b${TOP}\\b`).test(r)), lateStrip.slice(-2).join(' | ').slice(0, 300))
   check(`U4 "/effort current" names the word ("Effort is ${TOP}")`, anyFrame(`Effort is ${TOP} —`), distinct.map(f => flat(f.text)).filter(t => t.includes('Effort is')).map(t => t.slice(t.indexOf('Effort is'), t.indexOf('Effort is') + 120)).join(' | ').slice(0, 400))
   check('U4 the readout never says the seat runs another word', !anyFrame(`(it runs`) && !anyFrame('runs its provider default'), rowsWith(distinct.map(f => f.text).join('\n'), 'it runs').join(' | ').slice(0, 200))

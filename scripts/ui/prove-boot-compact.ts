@@ -11,6 +11,8 @@ import { createSplashCore } from '../../assets/splash/splash-core.mjs'
 
 const REFUSAL = /needs \d+ rows|this window is|needs at least|terminal too small|too small for|resize to continue/i
 const CONCOURSE_HINT = '⇧→ concourse'
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const CONCOURSE_HINT_HOST = keyHintLabel(CONCOURSE_HINT)
 const HINT_ROW = '↵ start · ↑↓ choose · m menu'
 const CHAT_READY = 'Type a prompt'
 const HINT_SEGMENTS = [
@@ -20,7 +22,7 @@ const HINT_SEGMENTS = [
 ]
 const strip = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '')
 const bottomRight = (frame: string[], cols: number, rows: number): boolean =>
-  frame[rows - 1] === ' '.repeat(cols - CONCOURSE_HINT.length - 2) + CONCOURSE_HINT
+  frame[rows - 1] === ' '.repeat(cols - CONCOURSE_HINT_HOST.length - 2) + CONCOURSE_HINT_HOST
 const inFrameHint = (line: string): boolean => /^\s*│ ↵ start · ↑↓ choose · m menu\s*│$/.test(line)
 const topBorder = (cols: number, at: number): string => ' '.repeat(at) + '╭' + '─'.repeat(cols - 2) + '╮'
 
@@ -179,7 +181,7 @@ for (const [cols, rows] of sizes) {
       check('40x10: no banner, no frame, no descriptions, the list scrolls behind a cut with the caret on screen', !boot.some(l => l.includes('██▄██')) && !boot.some(l => l.includes('╭')) && !boot.some(l => l.includes('start fresh here')) && boot.some(l => /[↑↓] \d+ more/.test(l)) && boot.some(l => l.includes('❯ New Session')))
     }
     if (!compact) {
-      check(`${cols}x${rows}: the full-size face is untouched (its own ready line, its key-map at the left, no compact frame)`, joined(boot).includes('>_ ready') && (boot[rows - 1] ?? '').startsWith('  ' + CONCOURSE_HINT) && !boot.some(inFrameHint))
+      check(`${cols}x${rows}: the full-size face is untouched (its own ready line, its key-map at the left, no compact frame)`, joined(boot).includes('>_ ready') && (boot[rows - 1] ?? '').startsWith('  ' + CONCOURSE_HINT_HOST) && !boot.some(inFrameHint))
     }
   } finally {
     await endLeg(leg)

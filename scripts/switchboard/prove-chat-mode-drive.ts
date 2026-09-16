@@ -266,7 +266,7 @@ for (const size of [
   const landing = markText(c, 'landing')
   const again = markText(c, 'face-again')
   printFrame(`${size.id} (the --chat landing, ${size.cols}×${size.rows})`, landing.split('\n'))
-  check(`${size.id.toUpperCase()} the landing is the face with New Session · Doctor · Resume`, isFace(landing) && landing.includes('Doctor') && landing.includes('Resume Session'), firstRows(landing))
+  check(`${size.id.toUpperCase()} the landing is the face with New Session · Doctor / Health Check · Sessions · Projects`, isFace(landing) && landing.includes('Doctor / Health Check') && landing.includes('Sessions · Projects'), firstRows(landing))
   check(`${size.id.toUpperCase()} NO "Session Concourse" row on the --chat card (seven rows at most); the key-map row says "⇧→ no chat open"`, isChatFace(landing), hintRows(landing))
   check(`${size.id.toUpperCase()} ↵ births the chat`, isChat(markText(c, 'chat')), firstRows(markText(c, 'chat')))
   check(`${size.id.toUpperCase()} ⇧← from the chat is the same face — still no concourse row — whose row now names the chat ("⇧→ chat")`, isFace(again) && !again.includes('Session Concourse') && again.includes(FACE_TO_CHAT) && !again.includes(FACE_TO_CONCOURSE), again.split('\n').filter(l => /Concourse|⇧/.test(l)).join(' | '))
@@ -304,7 +304,7 @@ console.log('P4 — --chat: /party answers the sentence, /sessions opens, /statu
     sends: [
       g(READY_LINE, ''),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
-      g(COMPOSER, '/party', { awaitSettleTicks: 4 }),
+      g(COMPOSER, '/fleet', { awaitSettleTicks: 4 }),
       { afterPrevTicks: 3, data: '\r' },
       { afterPrevTicks: 2, data: '\r' },
       g('opens a Session Concourse surface', '', { mark: 'party', awaitSettleTicks: 3 }),
@@ -324,7 +324,7 @@ console.log('P4 — --chat: /party answers the sentence, /sessions opens, /statu
   printFrame('p4 (after the three commands)', c.lines)
   const party = markText(c, 'party')
   const partyFlat = party.split('\n').map(l => l.replace(/[│╭╮╰╯]/g, ' ').trim()).join(' ').replace(/ +/g, ' ')
-  check('P4 /party typed in the plain world answers the router\'s sentence (off in this boot (--chat), a plain boot has it)', partyFlat.includes('The /party command opens a Session Concourse surface') && partyFlat.includes('the Session Concourse is off in this boot (--chat)') && partyFlat.includes('a plain mercury boot has it.'), party.split('\n').filter(l => /party|Concourse/i.test(l)).join(' | ').slice(0, 300))
+  check('P4 /fleet typed in the plain world answers the router\'s sentence (off in this boot (--chat), a plain boot has it)', partyFlat.includes('The /fleet command opens a Session Concourse surface') && partyFlat.includes('the Session Concourse is off in this boot (--chat)') && partyFlat.includes('a plain mercury boot has it.'), party.split('\n').filter(l => /party|Concourse/i.test(l)).join(' | ').slice(0, 300))
   check('P4 POISON absent: never "Unknown skill", never the generic enablement line, no crash', !c.text.includes('Unknown skill') && !c.text.includes('exists but is not enabled') && !c.text.includes('Mercury exited on an error'))
   check('P4 /sessions opens the session manager (the plain CLI\'s own — not gated with the concourse)', markText(c, 'sessions').includes(MANAGER_FOOTER), firstRows(markText(c, 'sessions')))
   check('P4 /status carries the Concourse row: "off this boot (--chat)" with the way back', markText(c, 'status').includes('off this boot (--chat)') && markText(c, 'status').includes('a plain `mercury` boot has it'), markText(c, 'status').split('\n').filter(l => /Concourse/i.test(l)).join(' | ').slice(0, 300))

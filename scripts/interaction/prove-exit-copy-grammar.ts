@@ -172,7 +172,7 @@ console.log('== 5 · one receipt · truthful footer ==')
     '…consumes the press when it copies (stopImmediatePropagation)',
     skh.slice(guardAt, guardAt + 500).includes('event.stopImmediatePropagation()'),
   )
-  const clearAt = skh.indexOf('key-driven selection clear')
+  const clearAt = skh.indexOf('if (shouldClearSelectionOnKey(key_0)) {')
   check('…and registers BEFORE the key-driven clear listener', guardAt !== -1 && clearAt !== -1 && guardAt < clearAt)
   const repl = read('src/screens/REPL.tsx')
   check(

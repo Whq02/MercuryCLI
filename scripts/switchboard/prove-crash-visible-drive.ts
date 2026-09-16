@@ -118,12 +118,19 @@ const killLeg = (async () => {
       }
     }
   }
+  await new Promise(r => setTimeout(r, S(34_000)))
+  if (daemon?.pid !== undefined) {
+    try {
+      process.kill(daemon.pid, 'SIGKILL')
+      console.log(`  [info] SIGKILLed the daemon pid ${daemon.pid} while the screen still runs (a whole-tree crash: no park-all on the screen's exit)`)
+    } catch {}
+  }
 })()
 const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
 const run = await runArtifactArena({
   turns: [],
   sends: [],
-  seconds: 38,
+  seconds: 44,
   cols: 120,
   rows: 40,
   keep: true,
