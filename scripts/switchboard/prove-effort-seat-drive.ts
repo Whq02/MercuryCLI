@@ -159,7 +159,7 @@ try {
   check('the seat was entered from the board (its own body on screen)', entered, `frames: ${frames.length}`)
 
   check(`W0 at birth the runner's sent word is the served word (${SERVED}) or unresolved (absent) — never null, never the asked word`, bornSent === SERVED || bornSent === 'absent', `effortSent at birth: ${bornSent}`)
-  const windowStrip = frames.filter(f => f.atMs >= 6000 && f.atMs <= 8500).flatMap(f => rowsWith(f.text, `${SEAT_MODEL_LABEL} ·`).filter(r => r.includes('▚▛▀▜▞')))
+  const windowStrip = frames.filter(f => f.atMs >= S(6000) && f.atMs <= S(8500)).flatMap(f => rowsWith(f.text, `${SEAT_MODEL_LABEL} ·`).filter(r => r.includes('▚▛▀▜▞')))
   check(`W1 in the window the strip's chip paints the runner's word (${SERVED}) or "${ASKED} (asked)" — never the asked word bare, never "default"`, windowStrip.length > 0 && windowStrip.every(r => new RegExp(`\\b${SERVED}\\b`).test(r) || r.includes(`${ASKED} (asked)`)) && !windowStrip.some(r => /\bdefault\b/.test(r) || /◉ max(?! \(asked\))/.test(r)), windowStrip.slice(0, 3).join(' | ').slice(0, 300))
 
   check(`E1 the /effort ${SERVED} receipt is the seat's ("Effort set to ${SERVED} for this session — its next request runs it")`, anyFrame(`Effort set to ${SERVED} for this session`), distinct.map(f => flat(f.text)).filter(t => t.includes('Effort')).map(t => t.slice(0, 200)).join(' | ').slice(0, 600))
@@ -180,7 +180,7 @@ try {
   const facts = projections.readSessionFacts(seatId)
   check(`E2 the record keeps BOTH words — effort ${ASKED} (asked), effortSent ${SERVED} (sent)`, facts !== null && facts.effort === ASKED && facts.effortSent === SERVED, JSON.stringify({ effort: facts?.effort, effortSent: facts?.effortSent }))
   const stripRows = allRows(`${SEAT_MODEL_LABEL} ·`).filter(r => r.includes('▚▛▀▜▞'))
-  const lateStrip = distinct.filter(f => f.atMs >= 24000).flatMap(f => rowsWith(f.text, `${SEAT_MODEL_LABEL} ·`).filter(r => r.includes('▚▛▀▜▞')))
+  const lateStrip = distinct.filter(f => f.atMs >= S(24000)).flatMap(f => rowsWith(f.text, `${SEAT_MODEL_LABEL} ·`).filter(r => r.includes('▚▛▀▜▞')))
   check(`E2 after the turn the strip's chip paints the SENT word (${SERVED}), never the asked one`, lateStrip.length > 0 && lateStrip.every(r => new RegExp(`\\b${SERVED}\\b`).test(r) && !/\bmax\b/.test(r)), lateStrip.slice(-2).join(' | ').slice(0, 300))
   check(`E1 the chip took ${SERVED} once the seat verb applied it`, stripRows.some(r => new RegExp(`\\b${SERVED}\\b`).test(r)), stripRows.slice(0, 3).join(' | ').slice(0, 300))
 
