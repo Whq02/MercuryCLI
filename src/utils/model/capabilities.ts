@@ -10,15 +10,11 @@ import {
   PROMPT_CACHING_SCOPE_BETA_HEADER,
   REDACT_THINKING_BETA_HEADER,
   SERVER_SIDE_FALLBACK_BETA_HEADER,
-  SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER,
   TOOL_SEARCH_BETA_HEADER_1P,
 } from '../../constants/betas.js'
 import { OAUTH_BETA_HEADER } from '../../constants/oauth.js'
 import { isClaudeAISubscriber } from '../auth.js'
-import {
-  isEnvDefinedFalsy,
-  isEnvTruthy,
-} from '../envUtils.js'
+import { isEnvTruthy } from '../envUtils.js'
 import { getCanonicalName } from './model.js'
 import { getModelCapability } from './modelCapabilities.js'
 import { AUGUR_BETA_HEADER, isAugurHeader } from './augur.js'
@@ -889,16 +885,6 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     getInitialSettings().showThinkingSummaries !== true
   ) {
     betaHeaders.push(REDACT_THINKING_BETA_HEADER)
-  }
-
-  if (
-    SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER &&
-    false &&
-    includeFirstPartyOnlyBetas &&
-    !isEnvDefinedFalsy(flagEnv('MERCURY_CONNECTOR_TEXT_SUMMARIZATION')) &&
-    isEnvTruthy(flagEnv('MERCURY_CONNECTOR_TEXT_SUMMARIZATION'))
-  ) {
-    betaHeaders.push(SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER)
   }
 
   const antOptedIntoToolClearing =

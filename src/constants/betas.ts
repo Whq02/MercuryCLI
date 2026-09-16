@@ -14,7 +14,3 @@ export const ADVISOR_BETA_HEADER = 'advisor-tool-2026-03-01'
 export const MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER = 'mid-conversation-output-config-2026-07-01'
 export const THINKING_BINDING_CONTROLS_BETA_HEADER = 'thinking-binding-controls-2026-08-01'
 export const SERVER_SIDE_FALLBACK_BETA_HEADER = 'server-side-fallback-2026-07-01'
-
-export const SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER = ''
-export const AFK_MODE_BETA_HEADER = ''
-export const CLI_INTERNAL_BETA_HEADER = ''
