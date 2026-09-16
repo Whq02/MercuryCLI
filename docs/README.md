@@ -150,8 +150,8 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
   matrix, the state-lifecycle manifest, and the reachability manifest.
 - Releases: [releases/README.md](releases/README.md) keeps one page per
   tag — its state, the verdict it stands on, what shipped, its known gaps
-  and the queue for the next one ([1.0.0-beta.12](releases/1.0.0-beta.12.md)
-  is the newest tag; [1.0.0-beta.13](releases/1.0.0-beta.13.md) is
+  and the queue for the next one ([1.0.0-beta.13](releases/1.0.0-beta.13.md)
+  is the newest tag; [1.0.0-beta.14](releases/1.0.0-beta.14.md) is
   the queue). The
   notes themselves ride each release and `/release-notes`
   prints the bundled history.
