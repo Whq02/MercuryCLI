@@ -7,6 +7,8 @@ import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { referenceFixtureSnapshot } from '../notifications/concourseReferenceSeed.ts'
 import { synthesizeToneWav } from '../../src/services/voice/wav.ts'
+import { NO_BACKEND_RECEIPT } from '../../src/services/voice/capture.ts'
+import { NO_TRANSCRIBER_DOORS } from '../../src/services/voice/transcribe.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -310,14 +312,14 @@ console.log('[B] a keyless, packless home — v answers the no-transcriber recei
     [
       ...OPENING,
       { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
-      { requireAwait: true, awaitText: '\nnothing transcribes yet — on-device pack pin broken; or /logins openai (API key) or /logins gemini', awaitStableTicks: 2, mark: 'receipt', data: '' },
+      { requireAwait: true, awaitText: 'files · nothing transcribes yet — on-device pack pin broken; or /logins', awaitStableTicks: 2, mark: 'receipt', data: '' },
       { afterPrevTicks: 3, data: '' },
     ],
     90,
     { MERCURY_WHISPER_PACK_DIR: EMPTY_PACK },
   )
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
-  check('the receipt names the on-device reason, then the doors in the neutral grammar', (res.marks.receipt ?? '').includes('nothing transcribes yet — on-device pack pin broken; or /logins openai (API key) or /logins gemini'), (res.marks.receipt ?? '').split('\n').filter(l => l.includes('transcribes')).join(' · '))
+  check('the receipt rides the hint row: the on-device reason, then the doors in the neutral grammar (the row cuts the doors; their words are the product\'s own)', (res.marks.receipt ?? '').split('\n').some(l => l.includes('files · nothing transcribes yet — on-device pack pin broken; or /logins')) && NO_TRANSCRIBER_DOORS === '/logins openai (API key) or /logins gemini', (res.marks.receipt ?? '').split('\n').filter(l => l.includes('transcribes')).join(' · '))
   check('no take started (the footer never said recording)', !(res.marks.receipt ?? '').includes('recording ·'))
   const stray = nonLoopback(netlines(netlog))
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
@@ -333,7 +335,7 @@ console.log('[C] no pack, no recorder — v answers the no-backend receipt')
     [
       ...OPENING,
       { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
-      { requireAwait: true, awaitText: 'run `bun run setup` (needs cargo)', awaitStableTicks: 1, mark: 'receipt', data: '' },
+      { requireAwait: true, awaitText: 'files · no microphone backend — the voice pack is absent on this install', awaitStableTicks: 1, mark: 'receipt', data: '' },
       { afterPrevTicks: 3, data: '' },
     ],
     90,
@@ -346,7 +348,7 @@ console.log('[C] no pack, no recorder — v answers the no-backend receipt')
     },
   )
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
-  check('the receipt names both remedies: the pack (bun run setup, cargo) and a PATH recorder', (res.marks.receipt ?? '').includes('no microphone backend') && (res.marks.receipt ?? '').includes('bun run setup'), (res.marks.receipt ?? '').split('\n').filter(l => l.includes('backend')).join(' · '))
+  check('the receipt rides the hint row and names both remedies: the pack (bun run setup, cargo) and a PATH recorder (the row cuts the remedies; their words are the product\'s own)', (res.marks.receipt ?? '').split('\n').some(l => l.includes('files · no microphone backend — the voice pack is absent on this install')) && NO_BACKEND_RECEIPT.includes('run `bun run setup` (needs cargo)') && NO_BACKEND_RECEIPT.includes('sox/ffmpeg on PATH'), (res.marks.receipt ?? '').split('\n').filter(l => l.includes('backend')).join(' · '))
   const stray = nonLoopback(netlines(netlog))
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
@@ -472,7 +474,7 @@ console.log('[G] the bound — with the proof seam at 1.5 s the take stops by it
       ...OPENING,
       { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
       { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: '' },
-      { requireAwait: true, awaitText: 'bound — transcribing', mark: 'bound', data: '' },
+      { requireAwait: true, awaitText: 'transcribing…', mark: 'bound', data: '' },
       { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: '' },
       { afterPrevTicks: 2, data: '' },
     ],
@@ -481,7 +483,7 @@ console.log('[G] the bound — with the proof seam at 1.5 s the take stops by it
   )
   fx.child.kill('SIGTERM')
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
-  check('the bound receipt names the bound and says the take is transcribing', (res.marks.bound ?? '').includes('capture stopped at the 1.5-second bound — transcribing'), (res.marks.bound ?? '').split('\n').filter(l => l.includes('bound') || l.includes('transcribing')).join(' · '))
+  check('the take stopped by itself: the footer flipped from recording to transcribing with no key pressed', (res.marks.bound ?? '').includes('transcribing…') && !(res.marks.bound ?? '').includes('● recording'), (res.marks.bound ?? '').split('\n').filter(l => l.includes('recording') || l.includes('transcribing')).join(' · '))
   check('the auto-stopped take lands in the composer', (res.marks.landed ?? '').includes(TRANSCRIPT) && (res.marks.landed ?? '').includes('transcribed by OpenAI'), (res.marks.landed ?? '').split('\n').filter(l => l.includes('❯') || l.includes('transcribed')).join(' · '))
   const served = ledgerPosts(fx.ledger)
   check('exactly ONE take reached the transcriber', served.length === 1, served.join(' | '))
