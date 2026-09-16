@@ -27,7 +27,6 @@ for (const k of [
   'MERCURY_AUGUR_TOOL',
   'MERCURY_AUGUR_BRIEF',
   'MERCURY_AUGUR_MODEL',
-  'MERCURY_API_CONTEXT_MANAGEMENT',
 ]) {
   delete process.env[k]
 }
@@ -144,7 +143,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   }
   const forbidden = [
     B.REDACT_THINKING_BETA_HEADER,
-    B.CONTEXT_MANAGEMENT_BETA_HEADER,
+    'context-management-2025-06-27',
     B.PROMPT_CACHING_SCOPE_BETA_HEADER,
     B.STRUCTURED_OUTPUTS_BETA_HEADER,
     'interleaved-thinking-2025-05-14',
@@ -624,7 +623,6 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
       r.effort.xhigh === effort.modelSupportsXHighEffort(m) &&
       r.effort.ceiling === effort.getMaxSupportedEffortLevel(m) &&
       r.tools.structuredOutputs === betas.modelSupportsStructuredOutputs(m) &&
-      r.tools.contextManagement === betas.modelSupportsContextManagement(m) &&
       r.tools.autoMode === betas.modelSupportsAutoMode(m) &&
       r.tools.toolSearchBetaHeader === betas.getToolSearchBetaHeader() &&
       r.tools.advisor === caps.modelSupportsAdvisor(m) &&

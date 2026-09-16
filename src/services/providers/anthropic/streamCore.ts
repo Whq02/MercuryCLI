@@ -21,16 +21,11 @@ import type { Stream } from '@anthropic-ai/sdk/streaming.mjs'
 import { randomUUID } from 'crypto'
 import {
   getCacheEditingHeaderLatched,
-  getLastApiCompletionTimestamp,
-  getThinkingClearLatched,
   setLastMainRequestId,
-  setThinkingClearLatched,
   setLastApiCompletionTimestamp,
 } from 'src/bootstrap/state.js'
 import {
-  CONTEXT_MANAGEMENT_BETA_HEADER,
   PROMPT_CACHING_SCOPE_BETA_HEADER,
-  REDACT_THINKING_BETA_HEADER,
   STRUCTURED_OUTPUTS_BETA_HEADER,
 } from 'src/constants/betas.js'
 import type { QuerySource } from 'src/constants/querySource.js'
@@ -160,7 +155,6 @@ import {
   extractQuotaStatusFromError,
   extractQuotaStatusFromHeaders,
 } from '../../claudeAiLimits.js'
-import { getAPIContextManagement } from '../../compact/apiMicrocompact.js'
 import {
   consumePendingCacheEdits,
   getPinnedCacheEdits,
@@ -183,7 +177,6 @@ import {
   type NonNullableUsage,
 } from '../../api/logging.js'
 import {
-  CACHE_TTL_1HOUR_MS,
   checkResponseForCacheBreak,
   recordPromptState,
   type NeutralSystemBlock,
@@ -679,19 +672,6 @@ async function* queryModel(
 
   const cacheEditingHeaderLatched = getCacheEditingHeaderLatched() === true
 
-  let thinkingClearLatched = getThinkingClearLatched() === true
-  if (!thinkingClearLatched && isAgenticQuery) {
-    const lastCompletion = getLastApiCompletionTimestamp()
-    if (
-      isEnvTruthy(process.env.MERCURY_THINKING_CLEAR_NOW) ||
-      (lastCompletion !== null &&
-        Date.now() - lastCompletion > CACHE_TTL_1HOUR_MS)
-    ) {
-      thinkingClearLatched = true
-      setThinkingClearLatched(true)
-    }
-  }
-
   const effort = resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId })
 
   const startIncludingRetries = Date.now()
@@ -786,12 +766,6 @@ async function* queryModel(
     thinking = applyThinkingBinding(thinking, betasParams) as typeof thinking
     const sendBetas = betasParams.length > 0
 
-    const contextManagement = getAPIContextManagement({
-      hasThinking,
-      isRedactThinkingActive: betasParams.includes(REDACT_THINKING_BETA_HEADER),
-      clearAllThinking: thinkingClearLatched,
-    })
-
     const enablePromptCaching =
       options.enablePromptCaching ?? getPromptCachingEnabled(retryContext.model)
 
@@ -857,11 +831,6 @@ async function* queryModel(
       max_tokens: maxOutputTokens,
       thinking,
       ...(temperature !== undefined && { temperature }),
-      ...(contextManagement &&
-        sendBetas &&
-        betasParams.includes(CONTEXT_MANAGEMENT_BETA_HEADER) && {
-          context_management: contextManagement,
-        }),
       ...extraBodyParams,
       ...(Object.keys(outputConfig).length > 0 && {
         output_config: outputConfig,

@@ -1,7 +1,6 @@
 export {
   filterAllowedSdkBetas,
   modelSupportsISP,
-  modelSupportsContextManagement,
   modelSupportsStructuredOutputs,
   modelSupportsTemperature,
   modelSupportsAutoMode,

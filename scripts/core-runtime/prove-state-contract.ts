@@ -136,7 +136,6 @@ const OBSERVABLES: Array<{
   { key: 'promptCache1hEligible', family: 'latches', scope: 'session', read: () => state.getPromptCache1hEligible() },
   { key: 'afkModeHeaderLatched', family: 'latches', scope: 'conversation', read: () => state.getAfkModeHeaderLatched() },
   { key: 'cacheEditingHeaderLatched', family: 'latches', scope: 'conversation', read: () => state.getCacheEditingHeaderLatched() },
-  { key: 'thinkingClearLatched', family: 'latches', scope: 'conversation', read: () => state.getThinkingClearLatched() },
   { key: 'systemPromptSectionCache', family: 'caches', scope: 'session', read: () => state.getSystemPromptSectionCache() },
   { key: 'lastEmittedDate', family: 'caches', scope: 'session', read: () => state.getLastEmittedDate() },
   { key: 'isInteractive', family: 'posture', scope: 'session', read: () => state.getIsInteractive() },
@@ -288,7 +287,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'getSessionIngressToken', 'getSessionProjectDir', 'getSessionSource',
     'getSessionTrustAccepted', 'getStatsStore',
     'getStrictToolResultPairing', 'getSystemPromptSectionCache',
-    'getThinkingClearLatched', 'getTotalAPIDuration',
+    'getTotalAPIDuration',
     'getTotalAPIDurationWithoutRetries', 'getTotalCacheCreationInputTokens',
     'getTotalCacheReadInputTokens', 'getTotalCostUSD', 'getTotalDuration',
     'getTotalInputTokens', 'getTotalLinesAdded', 'getTotalLinesRemoved',
@@ -324,7 +323,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'setSessionBypassPermissionsMode', 'setSessionIngressToken',
     'setSessionPersistenceDisabled', 'setSessionSource', 'setSessionTrustAccepted',
     'setStatsStore', 'setStrictToolResultPairing', 'setSystemPromptSectionCacheEntry',
-    'setThinkingClearLatched', 'setUserMsgOptIn', 'snapshotOutputTokensForTurn', 'subscribeCwdState', 'subscribeMainLoopModelOverride', 'switchSession',
+    'setUserMsgOptIn', 'snapshotOutputTokensForTurn', 'subscribeCwdState', 'subscribeMainLoopModelOverride', 'switchSession',
     'updateLastInteractionTime', 'waitForScrollIdle',
   ]
   const actual = Object.keys(state).sort()
@@ -854,17 +853,16 @@ section('LAW 4 ONE-SHOT — postCompaction · the plan/auto transition tables')
 section('LAW 5 LATCH — sticky beta headers · clear completeness · tripwire')
 {
   state.clearBetaHeaderLatches()
-  check('latches: all three null after clear', state.getAfkModeHeaderLatched() === null && state.getCacheEditingHeaderLatched() === null && state.getThinkingClearLatched() === null)
+  check('latches: both null after clear', state.getAfkModeHeaderLatched() === null && state.getCacheEditingHeaderLatched() === null)
 
   state.setAfkModeHeaderLatched(true)
   state.setCacheEditingHeaderLatched(true)
-  state.setThinkingClearLatched(true)
   state.setPromptCache1hEligible(true)
 
   state.addToTotalCostState(0.01, usage(1), 'latch-noise')
   state.setIsInteractive(true)
   state.switchSession('33333333-3333-4333-8333-333333333333' as SessionId)
-  check('latches: survive unrelated mutations incl. switchSession', state.getAfkModeHeaderLatched() === true && state.getCacheEditingHeaderLatched() === true && state.getThinkingClearLatched() === true)
+  check('latches: survive unrelated mutations incl. switchSession', state.getAfkModeHeaderLatched() === true && state.getCacheEditingHeaderLatched() === true)
   state.setIsInteractive(false)
 
   state.setAfkModeHeaderLatched(false)
@@ -872,7 +870,7 @@ section('LAW 5 LATCH — sticky beta headers · clear completeness · tripwire')
   state.setAfkModeHeaderLatched(true)
 
   state.clearBetaHeaderLatches()
-  check('clearBetaHeaderLatches: nulls ALL THREE', state.getAfkModeHeaderLatched() === null && state.getCacheEditingHeaderLatched() === null && state.getThinkingClearLatched() === null)
+  check('clearBetaHeaderLatches: nulls BOTH', state.getAfkModeHeaderLatched() === null && state.getCacheEditingHeaderLatched() === null)
   check('clearBetaHeaderLatches: 1h eligibility NOT in the clear set (session-latched)', state.getPromptCache1hEligible() === true)
   state.setPromptCache1hEligible(null)
 
@@ -887,9 +885,9 @@ section('LAW 5 LATCH — sticky beta headers · clear completeness · tripwire')
     ]),
   ].sort()
   check(
-    'tripwire: exactly the three *Latched fields exist',
+    'tripwire: exactly the two *Latched fields exist',
     JSON.stringify(latchFields) ===
-      JSON.stringify(['afkModeHeaderLatched', 'cacheEditingHeaderLatched', 'thinkingClearLatched']),
+      JSON.stringify(['afkModeHeaderLatched', 'cacheEditingHeaderLatched']),
     latchFields.join(','),
   )
   const clearBody = latchOwnerSrc.match(/clearBetaHeaderLatches\(\): void \{([\s\S]*?)\n {2}\}/)?.[1] ?? ''
@@ -1178,7 +1176,6 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.markPostCompaction()
     state.setAfkModeHeaderLatched(true)
     state.setCacheEditingHeaderLatched(true)
-    state.setThinkingClearLatched(true)
     state.setPromptCache1hEligible(true)
     state.setSystemPromptSectionCacheEntry('section-a', 'value-a')
     state.setLastEmittedDate('2026-07-16')
@@ -1244,9 +1241,9 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     ],
   )
   scopeLeg(
-    'clearBetaHeaderLatches (/clear + /compact) touches ONLY the three latches',
+    'clearBetaHeaderLatches (/clear + /compact) touches ONLY the two latches',
     () => state.clearBetaHeaderLatches(),
-    ['afkModeHeaderLatched', 'cacheEditingHeaderLatched', 'thinkingClearLatched'],
+    ['afkModeHeaderLatched', 'cacheEditingHeaderLatched'],
   )
   scopeLeg(
     'resetSdkInitState touches ONLY schema + hooks',

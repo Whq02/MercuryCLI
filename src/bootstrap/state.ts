@@ -780,14 +780,6 @@ export function setCacheEditingHeaderLatched(value: boolean | null): void {
   cacheLatches.cacheEditingHeaderLatched = value
 }
 
-export function getThinkingClearLatched(): boolean | null {
-  return cacheLatches.thinkingClearLatched
-}
-
-export function setThinkingClearLatched(value: boolean | null): void {
-  cacheLatches.thinkingClearLatched = value
-}
-
 export function clearBetaHeaderLatches(): void {
   cacheLatches.clearBetaHeaderLatches()
 }
