@@ -2,7 +2,8 @@
 import * as React from 'react'
 import { Box, Text, useAnimationFrame, useInput } from '../../ink.js'
 import { useMainLoopModel } from '../../hooks/useMainLoopModel.js'
-import { useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
+import { useFocusedSentEffort, useFocusedServedEffort, useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
+import { focusedEffortLabelOf } from '../../components/mercury-ui/EffortChip.js'
 import { useAppState } from '../../state/AppState.js'
 import type { AppState } from '../../state/AppState.js'
 import type { EffortLevel, EffortValue } from '../../utils/effort.js'
@@ -314,6 +315,12 @@ export function EffortSlider({
   const supercode = useAppState((s: AppState) => s.supercode)
   const sessionEffortValue = useAppState((s: AppState) => s.effortValue)
   const effortValue = initialEffortOverride ?? sessionEffortValue
+  const seatEffort = useFocusedServedEffort()
+  const sentEffort = useFocusedSentEffort()
+  const standingLabel =
+    modelOverride !== undefined || initialEffortOverride !== undefined
+      ? getDisplayedEffortLabel(model, effortValue)
+      : focusedEffortLabelOf(model, seatEffort, sentEffort, effortValue)
 
   const [selected, setSelected] = React.useState(() =>
     resolveOpeningStop(model, supercode, sessionEffortValue, initialEffortOverride),
@@ -365,9 +372,7 @@ export function EffortSlider({
     (_input, key) => {
       if (done) return
       if (key.escape) {
-        finish(
-          `Effort unchanged (${supercode ? 'supercode · ' : ''}${getDisplayedEffortLabel(model, effortValue)})`,
-        )
+        finish(`Effort unchanged (${supercode ? 'supercode · ' : ''}${standingLabel})`)
         return
       }
       if (key.leftArrow) {

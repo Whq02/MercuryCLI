@@ -126,7 +126,7 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
 
   const level = normalizeEffortLevelString(token)
   if (level === undefined) {
-    return { message: `"${args}" is not an effort option. Valid options: ${OPTION_LIST}.` }
+    return { message: `Valid options: ${OPTION_LIST} — "${args}" is not an effort option.` }
   }
 
   const persistable = toPersistableEffort(level) !== undefined
