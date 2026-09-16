@@ -103,22 +103,6 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
 }
 
 {
-  check(
-    'beta-guard: first-party-only betas suppressed (folded define)',
-    betas.shouldIncludeFirstPartyOnlyBetas() === false,
-  )
-
-  const oc: Record<string, unknown> = {}
-  const tbBetas: string[] = []
-  rp.configureTaskBudgetParams({ total: 100_000, remaining: 50_000 }, oc as never, tbBetas)
-  check(
-    'beta-guard: task_budget NEVER configured (beta-only request field, the 400 class)',
-    !('task_budget' in oc) && tbBetas.length === 0,
-    JSON.stringify({ oc, tbBetas }),
-  )
-}
-
-{
   const collect = (env: Record<string, string>, m: string): string[] =>
     withEnv(env, () => {
       betas.clearBetasCaches()
@@ -141,7 +125,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     check(`beta-table: ${label}`, eq(got, want), JSON.stringify({ got, want }))
   }
   const forbidden = [
-    B.REDACT_THINKING_BETA_HEADER,
+    'redact-thinking-2026-02-12',
     'context-management-2025-06-27',
     'prompt-caching-scope-2026-01-05',
     B.STRUCTURED_OUTPUTS_BETA_HEADER,

@@ -5,7 +5,6 @@ export {
   modelSupportsTemperature,
   modelSupportsAutoMode,
   getToolSearchBetaHeader,
-  shouldIncludeFirstPartyOnlyBetas,
   getAllModelBetas,
   getModelBetas,
   getMergedBetas,

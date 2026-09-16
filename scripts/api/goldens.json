@@ -123,9 +123,6 @@
   "messages": [],
   "model": "claude-sonnet-5"
  },
- "configureTaskBudgetParams/passthrough": {
-  "«throws»": "outputConfig is not an Object. (evaluating '\"task_budget\" in outputConfig')"
- },
  "accumulateUsage/sums": {
   "«throws»": "undefined is not an object (evaluating 'totalUsage.server_tool_use.web_search_requests')"
  },

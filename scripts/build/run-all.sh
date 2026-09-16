@@ -45,9 +45,9 @@ if [[ "$hits" == "0" ]]; then ok "no surviving feature('…') macro call in dist
 fi
 
 if grep -q "shouldIncludeFirstPartyOnlyBetas" "$dist"; then
-  ok "experimental-betas source fold present"
+  bad "experimental-betas fold symbol still in dist"
 else
-  bad "experimental-betas source fold not found in dist"
+  ok "no experimental-betas fold symbol in dist"
 fi
 
 booted_version=$(node "$dist" --version 2>&1)
