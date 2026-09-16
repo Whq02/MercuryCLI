@@ -416,7 +416,18 @@ export function ConcourseLayout({
         <Box flexDirection="column">
           {filtering ? <Text wrap="truncate-end">{(() => { const lens = caretLens({ text: filterText, caret: filterCaret }, interior); return `${lens.before}${lens.at || ' '}${lens.after}` })()}</Text> : null}
           {sessionRows.length === 0 ? <Text wrap="truncate-end">no sessions · n starts one</Text> : sessionRows.slice(win.start, win.end).map(r => (
-            <Box key={r.sessionId} height={1} onClick={() => wiring.selectSession(r.sessionId)}><Text bold={r.sessionId === boardSelectedId} color={r.sessionId === boardSelectedId ? t.info : t.textSecondary} wrap="truncate-end">{r.title}</Text></Box>
+            <Box key={r.sessionId} height={1}>
+              <InteractiveRow
+                id={`concourse:board:row:${r.sessionId}`}
+                selected={r.sessionId === boardSelectedId}
+                focused={region === 'list'}
+                onSelect={() => wiring.selectSession(r.sessionId)}
+                onActivate={() => wiring.enterSession(r.sessionId)}
+                flexGrow={1}
+              >
+                <Text bold={r.sessionId === boardSelectedId} color={r.sessionId === boardSelectedId ? t.info : t.textSecondary} wrap="truncate-end">{r.title}</Text>
+              </InteractiveRow>
+            </Box>
           ))}
         </Box>
       ) : <>

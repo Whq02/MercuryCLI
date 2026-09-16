@@ -81,6 +81,7 @@ reg(
     'src/components/BootResumeScreen.tsx',
     'src/components/KitMenuScreen.tsx',
     'src/components/LedgerView.tsx',
+    'src/components/concourse/CompactConcourse.tsx',
     'src/components/RouterBoard.tsx',
  'src/components/concourse/ConcourseScreen.tsx',
  'src/components/concourse/ConcourseLayout.tsx',
@@ -249,9 +250,14 @@ reg(
   'NewMessagesPill jump-to-tail — one true single-purpose control',
 )
 reg(
-  ['src/components/mercury-ui/MiniCritter.tsx'],
+  ['src/components/CompactIdentityBand.tsx', 'src/components/mercury-ui/MiniCritter.tsx'],
   'direct-control',
   'the compact critter berth (the deck dock and the session card): one click cycles the session critter at every size, the same single-purpose control the hero berth carries — no hover paint, no selection state',
+)
+reg(
+  ['src/components/tasks/CompactWorkSummary.tsx'],
+  'direct-control',
+  'one click focuses the compact work summary; the task-toggle binding reaches the same focus gate without a pointer',
 )
 reg(
   ['src/components/PromptInput/PromptInputFooterLeftSide.tsx'],
