@@ -45,9 +45,11 @@ export function birthModelOf(record: Pick<BootBirthFacts, 'model'>, doorModel: s
 }
 
 export function screenBirthModel(): string | undefined {
+  const { getMainLoopModel } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
+  const { getMainLoopModelOverride } = require('../../bootstrap/state.js') as typeof import('../../bootstrap/state.js')
+  if (getMainLoopModelOverride() !== undefined) return getMainLoopModel()
   const { computedDefault } = require('../../utils/model/computedDefault.js') as typeof import('../../utils/model/computedDefault.js')
   if (computedDefault().source === 'keyless') return undefined
-  const { getMainLoopModel } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
   return getMainLoopModel()
 }
 

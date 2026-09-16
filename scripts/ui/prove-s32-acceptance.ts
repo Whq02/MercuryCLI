@@ -974,7 +974,7 @@ pin('69. local-JSX load failure resolves empty + clears the JSX (no deadlock)', 
 
 pin('70. compact display line timestamp pushed future-ward so resume picks it as leaf', /timestamp/i.test(slashSrc) && /compact/i.test(slashSrc))
 
-pin('71. bang stdout NOT XML-escaped; stderr escaped', bashSrc.includes('escapeXml(stderr)') && !/escapeXml\(stdout\)/.test(bashSrc) && !/escapeXml\(data\.stdout\)/.test(bashSrc) && /NOT escaped|NEVER/.test(bashSrc))
+pin('71. bang stdout NOT XML-escaped; stderr escaped', bashSrc.includes('${BASH_STDOUT_TAG}>${stdout}</${BASH_STDOUT_TAG}>') && bashSrc.includes('${BASH_STDERR_TAG}>${escapeXml(stderr)}</${BASH_STDERR_TAG}>') && !/escapeXml\(stdout\)/.test(bashSrc) && !/escapeXml\(data\.stdout\)/.test(bashSrc))
 
 pin('72. pasted-image metadata: ONE meta message appended LAST on all three paths', /meta/i.test(processUserInputSrc) && /metadata/i.test(processUserInputSrc))
 

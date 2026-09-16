@@ -27,7 +27,7 @@ console.log('§1 B1 — the width-resize scale preserves recorded zeros')
   check('the resize loop rides the pure scale (no inline Math.max survives)', hook.includes('cache.set(key, scaleHeightForWidth(height, ratio))') && !hook.includes('cache.set(key, Math.max(1, Math.round(height * ratio)))'))
   check(
     'the zero-record law this pairs with still stands (rows that painted nothing record 0)',
-    hook.includes('cache.set(key, 0)') && hook.includes('a recorded zero is what lets the start-advance guard move on'),
+    /\} else if \(width > 0\) \{\s*\n(?:\s*\/\/[^\n]*\n)*\s*if \(cache\.get\(key\) !== 0\) \{\s*\n\s*cache\.set\(key, 0\)/.test(hook),
   )
 }
 
@@ -311,7 +311,7 @@ console.log('§17 — the virtual list holds its pin across an out-of-layout win
     hook.includes('} else if (spacer?.layoutNode && laidOutRef.current && !outOfLayoutRef.current) {') &&
       hook.includes('outOfLayoutRef.current = true\n      reflowHoldRef.current = true'))
   check('re-entry re-arms the hold and pumps a re-resolve (the reflow discipline)',
-    hook.includes('if (outOfLayoutRef.current) {\n        // Back in layout: the re-entry is a reflow window (see the ref).\n        outOfLayoutRef.current = false\n        reflowHoldRef.current = true\n        forceResolve()'))
+    /if \(outOfLayoutRef\.current\) \{\s*\n(?:\s*\/\/[^\n]*\n)*\s*outOfLayoutRef\.current = false\s*\n\s*reflowHoldRef\.current = true\s*\n\s*forceResolve\(\)/.test(hook))
   check('the cold start is never read as a hidden surface (laid out once first)', hook.includes('laidOutRef.current = true') && hook.includes('const laidOutRef = useRef(false)'))
   check('the hold still suspends the outside-actor cancel and pumps until quiet (the reflow law it rides)',
     hook.includes('!reflowHoldRef.current') && hook.includes('reflowHoldRef.current = false'))

@@ -310,6 +310,7 @@ console.log('leg G — the main REPL (the control: the same words, the same exit
   const run = await runArtifactArena({
     turns: [{ kind: 'text', text: 'Spare.' }],
     sends: ['after:Type a prompt:1500:\x03', `after:Type a prompt:${1500 + Math.round(1100 / vshotBudgetScale())}:\x03`],
+    anchor: null,
     seconds: 25,
     cols: 120,
     rows: 40,

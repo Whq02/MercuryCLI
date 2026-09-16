@@ -392,6 +392,16 @@ section("§8 the operator's sighting: a fresh box's New Session is born keyless;
   const facts = await import('../../src/services/switchboard/bootBirthFacts.js')
   ;(await import('../../src/utils/model/computedDefault.js')).resetComputedDefaultMemo()
   check("LIVE: the face's road sends NO model on the fresh box (screenBirthModel is nothing while the default reads keyless)", facts.screenBirthModel() === undefined, String(facts.screenBirthModel()))
+  const { setMainLoopModelOverride } = await import('../../src/bootstrap/state.js')
+  const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.js')
+  process.env.OPENAI_API_KEY = 'fixture-openai-key-for-the-birth'
+  resetComputedDefaultMemo()
+  check("LIVE: an OpenAI key alone with no catalogue fetched still reads keyless at the face's road with no explicit choice (the verdict itself stands)", facts.screenBirthModel() === undefined, String(facts.screenBirthModel()))
+  setMainLoopModelOverride('gpt-5.5')
+  check("LIVE: with --model on argv the face's road carries the operator's own model to the birth on that OpenAI-only home (the keyless-until-catalogue read never drops it)", facts.screenBirthModel() === 'gpt-5.5', String(facts.screenBirthModel()))
+  setMainLoopModelOverride(undefined)
+  delete process.env.OPENAI_API_KEY
+  resetComputedDefaultMemo()
   const facedRegistry = await wm.composeWorkerModelRegistry()
   const facedId = wm.defaultWorkerModelId(facedRegistry, 'session')
   const faced = await wm.validateWorkerModelChoice(facedId, 'session')

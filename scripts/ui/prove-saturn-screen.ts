@@ -415,8 +415,8 @@ t.section('§8 — THE CONCOURSE ROW FACT (smallest honest read from the project
   t.check('§8 a spent one-shot answers null', saturnSoonestFireMs({ schedules: [sched('aaaa0001', NOW - 60_000)] as never }, NOW) === null)
 
   const contracts = readFileSync(join(process.cwd(), 'src/components/concourse/contracts.ts'), 'utf8')
-  t.check('§8 the contract carries scheduleNextFireMs under the SATURN docblock', contracts.includes('scheduleNextFireMs?: number') && contracts.includes('saturnSoonestFireMs'))
   const composer = readFileSync(join(process.cwd(), 'src/services/concourse/concourseSnapshot.ts'), 'utf8')
+  t.check('§8 the contract carries scheduleNextFireMs and the composer imports the projection it reads through', contracts.includes('scheduleNextFireMs?: number') && composer.includes("import { saturnSoonestFireMs } from '../../daemon/saturn.js'"))
   t.check('§8 the snapshot composer reads THROUGH the projection helper', composer.includes('saturnSoonestFireMs(rec, nowMs)') && composer.includes('scheduleNextFireMs: next'))
   const cell = readFileSync(join(process.cwd(), 'src/components/concourse/LiveNowCell.tsx'), 'utf8')
   t.check("§8 the NOW cell paints the tag in the workflows tag's grammar", cell.includes('next fire {fireDeltaWords(row.scheduleNextFireMs') && cell.includes("row.scheduleNextFireMs !== undefined"))
@@ -429,7 +429,7 @@ t.section('§9 — THE REACTIVATION WARN (retained schedules say when they would
   const fn = src.slice(src.indexOf('async function paintReactivationScheduleWarn'), src.indexOf('async function paintResumeRecap'))
   t.check('§9 the warn speaks THE ONE VERDICT over live facts (never a re-derived judgment)', fn.includes('scheduleAccountVerdict({') && fn.includes('readLiveAccountFacts(s.account)') && !fn.includes('isAnthropicOAuthSignInExpired'))
   t.check('§9 paused rows never warn; a ready world paints nothing', fn.includes("if (s.paused === true) continue") && fn.includes('if (worst === null) return'))
-  t.check('§9 the row is display-only, warning-leveled, fail-soft', fn.includes('addDisplayRow') && fn.includes("'warning'") && fn.includes('never blocks the hop'))
+  t.check('§9 the row is display-only, warning-leveled, fail-soft (an empty catch: the courtesy never throws into the hop)', fn.includes('addDisplayRow') && fn.includes("'warning'") && /\} catch \{\s*(?:\/\*[\s\S]*?\*\/)?\s*\}/.test(fn))
   t.check('§9 every non-ready state has its typed sentence (the /logins doors named; the keyless arm its own server road)', fn.includes('signed out — /logins connects an account') && fn.includes('sign-in expired — re-login now (/logins)') && fn.includes('rate-limited — due fires hold') && fn.includes("known expiry lands before the next fire") && fn.includes('no local server answering'))
   t.check('§9 the severity walk is the verdict order', fn.includes("{ 'signed-out': 4, unreachable: 4, expired: 3, 'rate-limited': 2, expiring: 1, ready: 0 }"))
 }

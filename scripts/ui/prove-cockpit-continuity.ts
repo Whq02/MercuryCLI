@@ -33,7 +33,7 @@ check(
 );
 check(
   'showSpinner = slot && the streaming-prose swap only',
-  /const showSpinner = spinnerSlotReserved && \(\s*\n\s*\/\/ Hide spinner when streaming text is visible/.test(repl),
+  /const showSpinner = spinnerSlotReserved && \(\s*\n(?:\s*\/\/[^\n]*\n)*\s*!textActive \|\| isBriefOnly \|\| streamingSuppressed\s*\n\s*\);/.test(repl),
 );
 check(
   'the streaming hold keeps the 1-row slot while prose streams',

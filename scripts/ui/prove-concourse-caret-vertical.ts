@@ -40,13 +40,16 @@ console.log('§2 the wire — the one editing-keys block routes ↑↓ to the ac
 {
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   check('POISON: caretVerticalOp is imported by the screen again (the pre-fix tree had no caller)', /import \{[^}]*\bcaretVerticalOp\b[^}]*\} from '\.\/lineDraft\.js'/.test(screen))
-  const blockStart = screen.indexOf("if (region === 'coordinator' || region === 'live') {\n      // Multiline drafts keep caret travel")
+  const blockStart = screen.indexOf("if (region === 'coordinator' || region === 'live') {")
   const blockEnd = screen.indexOf('if (input.length > 0 && !key.ctrl && !key.meta && !key.tab) {', blockStart)
   const block = screen.slice(blockStart, blockEnd)
   check('the vertical op rides the same `side` router as the horizontal motion (both composers, one wire)', blockStart > 0 && block.includes('const motion = editorMotionOp(key)') && block.includes('const vertical = caretVerticalOp(key, side.ref.current)') && block.includes('side.edit(vertical)'))
   check('the wire consumes the key (stopImmediatePropagation before the edit) and returns', /const vertical = caretVerticalOp\(key, side\.ref\.current\)\s*\n\s*if \(vertical !== null\) \{\s*\n\s*event\.stopImmediatePropagation\(\)\s*\n\s*side\.edit\(vertical\)\s*\n\s*return/.test(block))
   check('the board-browse arm still runs BEFORE the wire (a single-line live draft browses; the op is null there anyway)', screen.indexOf("(region === 'live' && (key.upArrow || key.downArrow) && !liveDraftRef.current.text.includes(NL))") < blockStart)
-  check('the wire sits inside the full-stage editing block (below the reduced-stage and chat-pane returns)', screen.indexOf('if (reducedStage) {\n      // THE REDUCED STAGE') < blockStart && screen.indexOf('TYPING REACHES ONLY THE FOCUSED PANE') < blockStart)
+  const reducedAt = screen.lastIndexOf('if (reducedStage) {', blockStart)
+  const chatAt = screen.lastIndexOf("if (region === 'chat') {", blockStart)
+  const bareReturn = (at: number): boolean => at > 0 && /^if \((?:reducedStage|region === 'chat')\) \{\s*\n(?:\s*\/\/[^\n]*\n)*\s*return\s*\n\s*\}/.test(screen.slice(at, at + 700))
+  check('the wire sits inside the full-stage editing block (below the reduced-stage and chat-pane returns)', reducedAt > 0 && reducedAt < blockStart && bareReturn(reducedAt) && chatAt > 0 && chatAt < blockStart && bareReturn(chatAt))
 }
 
 process.exit(failures === 0 ? 0 : 1)
