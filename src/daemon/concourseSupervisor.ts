@@ -1876,8 +1876,15 @@ export async function reactivateConcourseSession(
         const next: ConcourseWorkerRecordV1 = { ...current, runnerId: short, modelKey: args.modelKey, effort, lastLiveAt: Date.now() }
         if (args.keyless === true) next.keyless = true
         else delete next.keyless
-        if (claimed.pid !== undefined) next.pid = claimed.pid
-        else delete next.pid
+        if (claimed.pid !== undefined) {
+          next.pid = claimed.pid
+          const fields = pidFieldsOf(claimed.pid)
+          if (fields.procStart !== undefined) next.procStart = fields.procStart
+          else delete next.procStart
+        } else {
+          delete next.pid
+          delete next.procStart
+        }
         if (isolationDrift) next.isolation = claimIsolation
         clearReactivatedFields(next)
         restampSessionKit(next, kit, kitSource, args.by)
