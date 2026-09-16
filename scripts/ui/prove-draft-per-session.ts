@@ -3,6 +3,7 @@ process.env.NODE_ENV = 'test'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'draft-rekey-')))
 mkdirSync(join(SCRATCH, 'home'), { recursive: true })
@@ -68,7 +69,7 @@ check('(d) typing during the swap wins (the re-key never rolls it back)', p.text
 p.setStash({ text: 'the pocket', cursorOffset: 0, pastedContents: {} })
 await p.rekeyToSession('session-A')
 check("(e) the stash survives the hop (operator-scoped, named in the docblock)", p.stashedPrompt()?.text === 'the pocket')
-check('…and the docblock names the deliberate pocket', store.includes('the OPERATOR\'s pocket, not the session\'s page'))
+check("…and the re-key never touches the stash (the pocket is the operator's, not the page's)", rekeyBody.length > 0 && !/\bstash\b/.test(codeOnlyText('pending-input.ts', rekeyBody)))
 
 await p.rekeyToSession('session-C')
 p.edit('to send')

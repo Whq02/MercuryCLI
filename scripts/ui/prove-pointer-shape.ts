@@ -58,7 +58,8 @@ try {
     ink.includes('applyPointerShape(selectable'))
   check('empty cells read as NOT selectable', ink.includes('!isEmptyCellAt(screen, col, row)'))
   check('/mouse off resets the shape', /if \(!on\) resetPointerShape/.test(ink))
-  check('alt-screen exit resets the shape', /Leaving the alt screen hands the pointer back[\s\S]{0,200}resetPointerShape/.test(ink))
+  const altScreen = ink.slice(ink.indexOf('setAltScreenActive(active: boolean'), ink.indexOf('isMouseTrackingEnabled(): boolean'))
+  check('alt-screen exit resets the shape', /\} else \{[\s\S]*?resetPointerShape\(s => termWrite\(this\.options\.stdout, s, 'mode'\)\)[\s\S]*?this\.repaintMainScreen\(\)/.test(altScreen))
   const teardown = readFileSync(join(import.meta.dir, '../../src/ink/root/teardown.ts'), 'utf8')
   check('signal-exit unmount resets the shape (synchronous fd-1 teardown step)',
     ink.includes('resetPointer: resetPointerShape') &&

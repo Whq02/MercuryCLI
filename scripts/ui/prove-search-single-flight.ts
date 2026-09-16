@@ -54,7 +54,7 @@ console.log('\n── §1 live: an aborted grep stream settles, its child dies �
 console.log('\n── §2 the picker contract at its owner ──')
 {
   const rip = readFileSync(join(REPO, 'src/utils/ripgrep.ts'), 'utf8')
-  check('§2 the close arm settles totally under abort', rip.includes('a bare return would leak the promise pending forever'))
+  check('§2 the close arm settles totally under abort', /child\.on\('close', code => \{\s*\n\s*if \(abortSignal\.aborted\) \{\s*\n(?:\s*\/\/[^\n]*\n)*\s*settle\(\)\s*\n\s*return\s*\n\s*\}/.test(rip))
   const cs = readFileSync(join(REPO, 'src/components/MercuryContentSearch.tsx'), 'utf8')
   check('§2 a new query aborts the in-flight grep FIRST', /const gen = \+\+genRef\.current\s*\n\s*abortRef\.current\?\.abort\(\)/m.test(cs))
   check('§2 closing the picker aborts the in-flight grep (unmount cleanup)', /return \(\) => \{\s*alive = false\s*controller\.abort\(\)/m.test(cs))

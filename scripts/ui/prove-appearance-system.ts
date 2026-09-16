@@ -348,7 +348,7 @@ section('§7 — the default appearance: True Black, and a saved choice wins')
   check('the fresh-config factory reads the owner', src('utils', 'config', 'schema.ts').includes('theme: DEFAULT_THEME_SETTING,'))
   check(
     'the ground owner’s unreadable-config arm reads the owner',
-    src('utils', 'cockpit', 'oasisBg.ts').includes('return DEFAULT_THEME_SETTING //'),
+    /function concreteTheme\(\): ThemeName \{[\s\S]*?\} catch \{\s*\n\s*return DEFAULT_THEME_SETTING\b/.test(src('utils', 'cockpit', 'oasisBg.ts')),
   )
 }
 
