@@ -66,15 +66,22 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
   )
   check('A1 read-first law: unread file refuses with errorCode 6',
     unread.result === false && (unread as { errorCode?: number }).errorCode === 6)
+  const carried = await FileEditTool.validateInput!(
+    { file_path: filePath, old_string: 'const alpha = 1', new_string: 'const gamma = 1' } as never,
+    makeContext(new Map()),
+  )
+  check('A1b lines carried by the refusal count as current read evidence', carried.result === true)
 
-  const staleMap = new Map<string, ReadStamp>([[filePath, {
+  const stalePath = join(fixtureDir, 'stale.ts')
+  writeFileSync(stalePath, readFileSync(filePath, 'utf8'))
+  const staleMap = new Map<string, ReadStamp>([[stalePath, {
     content: 'something else entirely',
-    timestamp: statSync(filePath).mtimeMs - 5_000,
+    timestamp: statSync(stalePath).mtimeMs - 5_000,
     offset: undefined,
     limit: undefined,
   }]])
   const stale = await FileEditTool.validateInput!(
-    { file_path: filePath, old_string: 'const alpha = 1', new_string: 'const gamma = 1' } as never,
+    { file_path: stalePath, old_string: 'const alpha = 1', new_string: 'const gamma = 1' } as never,
     makeContext(staleMap),
   )
   check('A2 stale law: modified-since-read refuses with errorCode 7',
@@ -108,14 +115,16 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
   check('A3b SM-07a: byte-identical partial WINDOW passes despite older stamp',
     partialIntact.result === true, JSON.stringify(partialIntact).slice(0, 100))
 
-  const partialDrift = new Map<string, ReadStamp>([[filePath, {
+  const partialPath = join(fixtureDir, 'partial-stale.ts')
+  writeFileSync(partialPath, readFileSync(filePath, 'utf8'))
+  const partialDrift = new Map<string, ReadStamp>([[partialPath, {
     content: 'window content that no longer matches\n',
-    timestamp: statSync(filePath).mtimeMs - 5_000,
+    timestamp: statSync(partialPath).mtimeMs - 5_000,
     offset: 2,
     limit: 2,
   }]])
   const partialStale = await FileEditTool.validateInput!(
-    { file_path: filePath, old_string: 'const beta = 2', new_string: 'const beta = 4' } as never,
+    { file_path: partialPath, old_string: 'const beta = 2', new_string: 'const beta = 4' } as never,
     makeContext(partialDrift),
   )
   check('A3c SM-07a: drifted partial window still refuses (errorCode 7)',
