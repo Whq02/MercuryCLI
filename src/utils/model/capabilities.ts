@@ -1,11 +1,10 @@
 import memoize from 'lodash-es/memoize.js'
 import { flagEnabled } from 'src/substrate/flagRegistry.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../entrypoints/sdk/runtimeTypes.js'
-import { getIsNonInteractiveSession, getSdkBetas } from '../../bootstrap/state.js'
+import { getSdkBetas } from '../../bootstrap/state.js'
 import {
   CODING_20250219_BETA_HEADER,
   CONTEXT_1M_BETA_HEADER,
-  REDACT_THINKING_BETA_HEADER,
   TOOL_SEARCH_BETA_HEADER_1P,
 } from '../../constants/betas.js'
 import { OAUTH_BETA_HEADER } from '../../constants/oauth.js'
@@ -51,7 +50,6 @@ import { huggingfaceLiveModel } from '../../services/providers/huggingface/huggi
 import { localWireId } from '../../services/providers/local/localCatalogue.js'
 import { localModelRecord } from '../../services/providers/local/localDiscovery.js'
 import { isFirstPartyAnthropicBaseUrl } from './providers.js'
-import { getInitialSettings } from '../settings/settings.js'
 
 
 export function modelSupportsTemperature(model: string): boolean {
@@ -845,7 +843,6 @@ const betasMemoKey = (model: string): string =>
 export const getAllModelBetas = memoize((model: string): string[] => {
   const betaHeaders = []
   const isHaiku = getCanonicalName(model).includes('haiku')
-  const includeFirstPartyOnlyBetas = shouldIncludeFirstPartyOnlyBetas()
 
   if (!isHaiku) {
     betaHeaders.push(CODING_20250219_BETA_HEADER)
@@ -856,14 +853,6 @@ export const getAllModelBetas = memoize((model: string): string[] => {
   }
   if (has1mContext(model)) {
     betaHeaders.push(CONTEXT_1M_BETA_HEADER)
-  }
-  if (
-    includeFirstPartyOnlyBetas &&
-    modelSupportsISP(model) &&
-    !getIsNonInteractiveSession() &&
-    getInitialSettings().showThinkingSummaries !== true
-  ) {
-    betaHeaders.push(REDACT_THINKING_BETA_HEADER)
   }
 
   if (process.env.MERCURY_PROVIDER_BETAS) {
