@@ -11,7 +11,6 @@ import type { Tools } from '../Tool.js'
 import type { Command } from '../commands.js'
 import type { MessageLookups } from '../utils/messages/lookups.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
-import { AdvisorMessage } from './messages/AdvisorMessage.js'
 import { AssistantRedactedThinkingMessage } from './messages/AssistantRedactedThinkingMessage.js'
 import { AssistantTextMessage } from './messages/AssistantTextMessage.js'
 import { AssistantThinkingMessage } from './messages/AssistantThinkingMessage.js'
@@ -31,7 +30,6 @@ import { UserToolResultMessage } from './messages/UserToolResultMessage/UserTool
 import { MessageModel } from './MessageModel.js'
 import { MessageTimestamp } from './MessageTimestamp.js'
 import { SYNTHETIC_MODEL } from '../utils/messages/factories.js'
-import { renderModelName } from '../utils/model/model.js'
 
 export type Props = {
   message: RenderableMessage
@@ -54,7 +52,6 @@ export type Props = {
   lastThinkingBlockId?: string | null
   hasContentAfter?: boolean
   isActiveGroup?: boolean
-  advisorModel?: string | null
   streamFaultRecovered?: boolean
 }
 
@@ -98,7 +95,6 @@ function MessageInner({
   lastThinkingBlockId = null,
   hasContentAfter = false,
   isActiveGroup = false,
-  advisorModel,
   streamFaultRecovered = false,
 }: Props): React.ReactNode {
   void messages
@@ -252,29 +248,6 @@ function MessageInner({
                     lastThinkingBlockId !== reasoningId
                   }
                 />
-              )
-            }
-            case "server_tool_use":
-            case 'advisor_tool_result':
-              return (
-                <AdvisorMessage
-                  key={index}
-                  block={block}
-                  addMargin={addMargin}
-                  resolvedToolUseIDs={lookups.resolvedToolUseIDs}
-                  erroredToolUseIDs={lookups.erroredToolUseIDs}
-                  shouldAnimate={shouldAnimate}
-                  verbose={verbose}
-                  advisorModel={advisorModel}
-                />
-              )
-            case 'fallback': {
-              const from = renderModelName(String(block.from?.model ?? ''))
-              const to = renderModelName(String(block.to?.model ?? ''))
-              return (
-                <Box key={index} marginTop={addMargin ? 1 : 0}>
-                  <Text dimColor>{`↳ served by ${to} — ${from} declined`}</Text>
-                </Box>
               )
             }
             default:

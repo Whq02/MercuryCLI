@@ -120,7 +120,6 @@ perFixture('filterUnresolvedToolUses', m => M.filterUnresolvedToolUses(m));
 perFixture('filterWhitespaceOnlyAssistantMessages', m => M.filterWhitespaceOnlyAssistantMessages(m));
 perFixture('filterOrphanedThinkingOnlyMessages', m => M.filterOrphanedThinkingOnlyMessages(m));
 perFixture('stripSignatureBlocks', m => M.stripSignatureBlocks(m));
-perFixture('stripAdvisorBlocks', m => M.stripAdvisorBlocks(m as never));
 perFixture('stripUnsignedThinkingBlocks', m => M.stripUnsignedThinkingBlocks(m as never));
 perFixture('ensureToolResultPairing', m =>
   M.ensureToolResultPairing(
