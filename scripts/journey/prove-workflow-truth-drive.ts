@@ -37,9 +37,9 @@ const PHASE = 'Survey'
 const STATIONS = ['one', 'two'] as const
 type Station = (typeof STATIONS)[number]
 const SEAT_READS = 12
-const SEAT_STEP_MS = 3000
-const FIRST_HOLD_MS = 6000
-const FACTS_HOLD_MS = 4000
+const SEAT_STEP_MS = vshotBudgetMs(3000)
+const FIRST_HOLD_MS = vshotBudgetMs(6000)
+const FACTS_HOLD_MS = vshotBudgetMs(4000)
 const WF_SCRIPT = [
   `export const meta = { name: '${WF_NAME}', description: 'two agents survey the stations', phases: [{ title: '${PHASE}' }] }`,
   `phase('${PHASE}')`,
