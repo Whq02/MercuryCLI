@@ -33,9 +33,9 @@ t.section('the dormant-tier probe seam still exists (the reason for the rule)')
 {
   const src = readFileSync('src/daemon/runPtyHost.ts', 'utf8')
   t.check(
-    'runPtyHost still probes for node-pty by capability',
-    src.includes('node-pty'),
-    'probe text present',
+    'runPtyHost probes the PTY host by capability (Bun.Terminal on the global), never by a package probe',
+    src.includes("typeof maybeBun.Terminal !== 'undefined'") && !/require\(['"]node-pty['"]\)|from ['"]node-pty['"]/.test(src),
+    'the capability probe stands and no node-pty import exists',
   )
 }
 

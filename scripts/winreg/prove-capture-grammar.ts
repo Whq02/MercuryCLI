@@ -56,13 +56,13 @@ t.section('the shared capture laws hold in both engines')
   )
   const campaign = readFileSync('scripts/winreg/campaign-win.py', 'utf8')
   t.check(
-    "the lane label is honest: vshot-win names 'ConPTY + simulated WT environment'",
-    win.includes('ConPTY + simulated WT environment'),
+    'the wt profile is a simulated fingerprint: vshot-win sets WT_SESSION in the child environment and launches no Windows Terminal renderer',
+    win.includes('child_env["WT_SESSION"]') && win.includes('"hostProfile": profile or "conpty"') && !/wt\.exe|WindowsTerminal/i.test(win),
     'the WT fingerprint is a simulation, never the WT renderer',
   )
   t.check(
-    'campaign-win carries the simulated-fingerprint honesty note',
-    campaign.includes('simulated WT') && campaign.includes('renderer never runs'),
+    'campaign-win names its host profiles by the fingerprint (wt, vscode) and launches no Windows Terminal renderer',
+    campaign.includes('"hostProfile": "wt"') && campaign.includes('"hostProfile": "vscode"') && !/wt\.exe|WindowsTerminal/i.test(campaign),
     'WT-rendering claims belong to the field box',
   )
 }
