@@ -103,13 +103,6 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
 }
 
 {
-  check(
-    'beta-guard: first-party-only betas suppressed (folded define)',
-    betas.shouldIncludeFirstPartyOnlyBetas() === false,
-  )
-}
-
-{
   const collect = (env: Record<string, string>, m: string): string[] =>
     withEnv(env, () => {
       betas.clearBetasCaches()

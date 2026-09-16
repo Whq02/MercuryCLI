@@ -824,10 +824,6 @@ export function filterAllowedSdkBetas(
   return allowed.length > 0 ? allowed : undefined
 }
 
-export function shouldIncludeFirstPartyOnlyBetas(): boolean {
-  return !isEnvTruthy('1')
-}
-
 const KEY_SEP = String.fromCharCode(0)
 
 function betasEnvFingerprint(): string {
