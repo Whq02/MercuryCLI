@@ -29,8 +29,8 @@ console.log('§1 FC-131 — the packed line gates by level like the rail')
     panes.includes("['↑↓ select', resizeActive ? '+/- size' : undefined, detailFooterHints, '←/esc back']"),
   )
   check(
-    'detailFooterHints is a declared prop with the armed-law docblock',
-    panes.includes('detailFooterHints?: string') && panes.includes('DETAIL-level hotkeys (FC-131)'),
+    'detailFooterHints is a declared prop the panes take and thread to the detail tail',
+    panes.includes('detailFooterHints?: string') && /\n\s*detailFooterHints,\n/.test(panes),
   )
   check(
     "PromptsPanel advertises its one live detail verb (a new), section-scoped",
