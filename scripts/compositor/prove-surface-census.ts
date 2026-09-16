@@ -2,6 +2,8 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
+import ts from 'typescript'
+import { codeOnlyText } from '../lib/codeText.ts'
 
 const ROOT = path.resolve(import.meta.dir, '../..')
 const OUT = path.join(ROOT, 'scripts/compositor/fixtures/surface-census.md')
@@ -20,16 +22,30 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) fail = 1
 }
 
-const SIGNALS: Array<[string, RegExp]> = [
-  ['panes', /<NavigablePanes/],
-  ['irow', /<InteractiveRow/],
-  ['ilist', /useInteractiveList\(/],
-  ['flat', /useFlatList\(/],
-  ['disclosure', /<InteractiveDisclosure/],
-]
+const SIGNALS = new Map([
+  ['NavigablePanes', 'panes'],
+  ['InteractiveRow', 'irow'],
+  ['useInteractiveList', 'ilist'],
+  ['useFlatList', 'flat'],
+  ['InteractiveDisclosure', 'disclosure'],
+])
 
-function signalsOf(src: string): string[] {
-  return SIGNALS.filter(([, re]) => re.test(src)).map(([n]) => n)
+function signalsOf(file: string, src: string): string[] {
+  const source = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true)
+  const signals = new Set<string>()
+  const pending: ts.Node[] = [source]
+  while (pending.length > 0) {
+    const node = pending.pop()!
+    const name = ts.isCallExpression(node) && ts.isIdentifier(node.expression)
+      ? node.expression.text
+      : ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)
+        ? node.tagName.getText(source)
+        : ''
+    const signal = SIGNALS.get(name)
+    if (signal !== undefined) signals.add(signal)
+    ts.forEachChild(node, child => { pending.push(child) })
+  }
+  return [...signals].sort()
 }
 
 type Route = { name: string; type: string; unit: string; signals: string[] }
@@ -50,7 +66,7 @@ function unitFiles(unit: string): string[] {
 }
 
 function oneHopImports(file: string): string[] {
-  const src = readFileSync(path.join(ROOT, file), 'utf8')
+  const src = codeOnlyText(file, readFileSync(path.join(ROOT, file), 'utf8'))
   const out: string[] = []
   for (const m of src.matchAll(/from '((?:\.\.?\/)[^']+)'/g)) {
     const raw = m[1]!.replace(/\.js$/, '')
@@ -73,7 +89,7 @@ function collectRoutes(): Route[] {
     const files = unitFiles(unit)
     const defFile = files.find(f => /(?:^|\/)index\.tsx?$/.test(f)) ?? files[0]
     if (!defFile) continue
-    const defSrc = readFileSync(path.join(ROOT, defFile), 'utf8')
+    const defSrc = codeOnlyText(defFile, readFileSync(path.join(ROOT, defFile), 'utf8'))
     const name = defSrc.match(/\bname:\s*'([^']+)'/)?.[1]
     const type = defSrc.match(/\btype:\s*'([^']+)'/)?.[1]
     if (!name || !type) continue
@@ -82,7 +98,7 @@ function collectRoutes(): Route[] {
     for (const f of [...files, ...files.flatMap(oneHopImports)]) {
       if (seen.has(f)) continue
       seen.add(f)
-      for (const s of signalsOf(readFileSync(path.join(ROOT, f), 'utf8'))) sigSet.add(s)
+      for (const s of signalsOf(f, readFileSync(path.join(ROOT, f), 'utf8'))) sigSet.add(s)
     }
     routes.push({ name, type, unit, signals: [...sigSet].sort() })
   }
@@ -93,7 +109,7 @@ type BootRow = { surface: string; source: string; discipline: string; ok: boolea
 
 function collectBoot(): BootRow[] {
   const rows: BootRow[] = []
-  const read = (f: string): string => readFileSync(path.join(ROOT, f), 'utf8')
+  const read = (f: string): string => codeOnlyText(f, readFileSync(path.join(ROOT, f), 'utf8'))
 
   const helpers = read('src/interactiveHelpers.tsx')
   const hostBody = helpers.slice(helpers.indexOf('export function SetupScreenHost'))
@@ -204,6 +220,11 @@ function generate(): string {
   lines.push('')
   return lines.join('\n')
 }
+
+t('kernel signals ignore comments and string literals',
+  signalsOf('fixture.tsx', '/* <InteractiveRow /> useFlatList() */ const text = "<NavigablePanes />"').length === 0)
+t('kernel signals include generic calls and JSX controls',
+  signalsOf('fixture.tsx', 'useFlatList<{ id: string }>(options); <InteractiveRow />').join(' ') === 'flat irow')
 
 const generated = generate()
 const boot = collectBoot()

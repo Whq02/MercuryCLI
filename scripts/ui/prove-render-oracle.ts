@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join, sep } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
 import { evaluateCapture, type CapturedGrid } from './renderOracle.ts'
 
 let fail = 0
@@ -48,12 +47,12 @@ t('healthy capture accepted', good.ok, good.reason)
 
 const tmp = mkdtempSync(join(tmpdir(), 'mercury-oracle-'))
 const res = spawnSync(process.execPath, ['-e',
-  `const { scenario } = await import('${join(import.meta.dir, 'renderScenarios.ts')}'); const cfg = scenario('resume-2turn', 80, 44); console.log(cfg.argv[cfg.argv.indexOf('--resume') + 1])`,
+  `const { scenario, RUNTIME_CWD } = await import('${join(import.meta.dir, 'renderScenarios.ts')}'); const { getProjectDir } = await import('${join(import.meta.dir, '../../src/utils/sessionStoragePortable.ts')}'); const { join } = await import('node:path'); const cfg = scenario('resume-2turn', 80, 44); console.log(join(getProjectDir(RUNTIME_CWD), cfg.argv[cfg.argv.indexOf('--resume') + 1] + '.jsonl'))`,
 ], { encoding: 'utf-8', timeout: 20000, env: { ...process.env, MERCURY_CONFIG_DIR: tmp, MERCURY_DAEMON_DIR: join(tmp, 'daemon') } })
-const stagedSid = (res.stdout ?? '').trim().split('\n').pop() ?? ''
-const RUNTIME_CWD = (process.env.MERCURY_RENDER_CWD ?? join(import.meta.dir, '..', '..')).normalize('NFC')
-const staged = join(tmp, 'projects', sanitizePath(RUNTIME_CWD), `${stagedSid}.jsonl`)
-t('scenario() stages into MERCURY_CONFIG_DIR/projects', res.status === 0 && stagedSid.startsWith('00000000-aaaa-') && existsSync(staged),
+const staged = (res.stdout ?? '').trim().split('\n').pop() ?? ''
+t('scenario() stages in the product-resolved store under MERCURY_CONFIG_DIR/projects',
+  res.status === 0 && staged.startsWith(join(tmp, 'projects') + sep) &&
+    basename(staged).startsWith('00000000-aaaa-') && existsSync(staged),
   res.status !== 0 ? (res.stderr || '').trim().slice(0, 160) : staged)
 rmSync(tmp, { recursive: true, force: true })
 
