@@ -275,8 +275,9 @@ console.log('\nD2 — from a project nested under a home repository (Documents/v
   }
   for (const [k, v] of shapes) console.log(`    ${String(v.n).padStart(3)}×  paths-visited≤${v.max}  ${k}`)
   check('D2 the boot issued status/add/ls-files probes at all', probes.length >= 3, String(probes.length))
-  const unbounded = probes.filter(r => !(r.args.endsWith('-- .') || r.args.endsWith(`-- ${NEST}`)))
-  check('D2 every status/add/ls-files probe carries the boundary pathspec', unbounded.length === 0, unbounded.map(r => r.args).join(' | '))
+  const bare = (args: string): string => args.replace(/(?: :\(exclude,glob\)\S+)+$/, '')
+  const unbounded = probes.filter(r => !(bare(r.args).endsWith('-- .') || bare(r.args).endsWith(`-- ${NEST}`)))
+  check('D2 every status/add/ls-files probe carries the boundary pathspec (the exclude globs may follow it)', unbounded.length === 0, unbounded.map(r => r.args).join(' | '))
   const heavy = probes.filter(r => visited(r.pid) > 200)
   check(`D2 no probe visited more than 200 paths (the home holds ${BULK}+ entries)`, heavy.length === 0, heavy.map(r => `${r.args}=${visited(r.pid)}`).join(' | '))
   const atHome = probes.filter(r => r.effCwd === e.home && !r.args.endsWith(`-- ${NEST}`))

@@ -322,13 +322,17 @@ console.log('leg G — the main REPL (the control: the same words, the same exit
       .map(s => s.sent)
       .sort((a, b) => a - b)
     check('G: both presses were sent', presses.length === 2, String(presses.length))
+    const first = presses[0] ?? t0 + 3000
     const second = presses[1] ?? t0 + 5000
-    const grabs = grabScreens(run, 120, 40, [Math.max(0, second - t0 - 300), -1])
+    const between: number[] = []
+    for (let at = first - t0 + 100; at < second - t0; at += 100) between.push(Math.max(0, at))
+    const grabs = grabScreens(run, 120, 40, [...between, -1])
     const text = (g: { rows: string[] }): string => g.rows.join('\n')
-    check("G: the REPL's own notice stood before the second press (the same words)", text(grabs[0]!).includes(NOTICE))
+    const noticeFrame = grabs.slice(0, -1).find(g => text(g).includes(NOTICE))
+    check("G: the REPL's own notice stood before the second press (the same words)", noticeFrame !== undefined, noticeFrame === undefined ? `no frame between the presses carried the notice (${between.length} sampled)` : `on the frame at +${noticeFrame.atMs} ms`)
     const lastTee = run.teeLines.length > 0 ? run.teeLines[run.teeLines.length - 1]!.ts : 0
     check('G: the process left well inside the budget after the second press (the existing exit)', lastTee > 0 && lastTee - second < 6000, `${lastTee - second}ms`)
-    check('G: the final screen holds no composer (the chat is gone)', !text(grabs[1]!).includes('Type a prompt'))
+    check('G: the final screen holds no composer (the chat is gone)', !text(grabs[grabs.length - 1]!).includes('Type a prompt'))
   } finally {
     run.cleanup()
   }

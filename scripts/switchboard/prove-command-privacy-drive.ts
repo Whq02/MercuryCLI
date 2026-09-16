@@ -157,9 +157,9 @@ try {
   const wireHits = api.requests.filter((r: { raw: string }) => r.raw.includes('/note') || r.raw.includes('remember the milk') || r.raw.includes('/crew')).length
   check('§3 the wire saw NO request carrying either line', wireHits === 0, `${wireHits} of ${api.requests.length}`)
 
-  const chatFrames = grabs.filter(g => g.atMs >= 12000 && g.atMs <= 17000)
+  const chatFrames = grabs.filter(g => g.atMs >= S(12000) && g.atMs <= S(17000))
   check('§4 the /note receipt painted (Captured …)', chatFrames.some(g => /Captured/.test(text(g))), chatFrames.map(g => String(g.atMs)).join(','))
-  const crewFrames = grabs.filter(g => g.atMs >= 15000 && g.atMs <= 24000)
+  const crewFrames = grabs.filter(g => g.atMs >= S(15000) && g.atMs <= S(24000))
   check(
     '§4 the /crew directory painted as the chat receipt',
     crewFrames.some(g => /sources: identity|the crew directory is empty/.test(text(g))),
@@ -256,9 +256,9 @@ console.log('leg 2 — /halt mid-turn interrupts the running turn (never queues 
       }
     }
     const text2 = (g: { rows: string[] }): string => g.rows.join('\n')
-    const receiptFrames = grabs2.filter(g => g.atMs >= 12000 && /Hard stop/.test(text2(g)))
+    const receiptFrames = grabs2.filter(g => g.atMs >= S(12000) && /Hard stop/.test(text2(g)))
     check('§5 the /halt receipt painted (⊘ Hard stop …)', receiptFrames.length >= 1, grabs2.map(g => String(g.atMs)).join(','))
-    const lateFrames = grabs2.filter(g => g.atMs >= 16000)
+    const lateFrames = grabs2.filter(g => g.atMs >= S(16000))
     check(
       '§5 the running turn INTERRUPTED (no replying/running strip after the brake)',
       lateFrames.length > 0 && lateFrames.every(g => !/replying — your words land|running a tool — your words land/.test(text2(g))),

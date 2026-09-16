@@ -139,25 +139,30 @@ if (sendRecs.length === sends.length) {
     process.exit(1)
   }
   const [firstChat, cardFrame, afterEsc, fieldFrame, typedFrame, afterBirth, fin] = (JSON.parse(res.stdout) as { screens: { rows: string[] }[] }).screens.map(s => s.rows.join('\n'))
+  if (process.env.CONTRACT_OFFER_DUMP === '1') for (const [label, frame] of Object.entries({ afterEsc, fieldFrame, typedFrame, afterBirth, fin })) console.log(`\n═══ ${label}\n${frame}`)
   check('§0 the transcript needle paints in the first chat (the sibling-transcript poison is never vacuous)', TRANSCRIPT_TAIL.test(firstChat!), firstChat!.split('\n').find(r => /answered/.test(r))?.trim().slice(0, 110) ?? '')
   check('§1 the n tab raises the offer card in the live-view pane', /Start with a contract\?/.test(cardFrame!) && /No, start it plain \(esc\)/.test(cardFrame!))
-  check('§2 esc answers No THROUGH THE CARD — the NEW blank chat is focused (stage-1 tag)', /new session ·/.test(afterEsc!) && /· ready/.test(afterEsc!), (afterEsc ?? '').split('\n').find(r => /· ready|new session/.test(r))?.trim().slice(0, 110) ?? '')
+  check('§2 esc answers No THROUGH THE CARD — the NEW blank chat is focused (stage-1 tag: "new session" on the title row, the status row ready)', /✶ SESSION.*new session/.test(afterEsc!) && /· ready/.test(afterEsc!), (afterEsc ?? '').split('\n').find(r => /· ready|new session/.test(r))?.trim().slice(0, 110) ?? '')
   check("§2c POISON: it is never the OLD chat (the pre-fix esc landed the first session's transcript)", !/first words here/.test(afterEsc!))
   check('§4 ↵ on Yes opens "What is the contract?" INSIDE the standing card', /What is the contract\?/.test(fieldFrame!) && /Start with a contract\?/.test(fieldFrame!), fieldFrame!.split('\n').filter(r => /contract|❯|Start with|What is/i.test(r)).map(r => r.trim().slice(0, 100)).join(' | '))
   check("§4b POISON: no sibling transcript paints behind the card (the first session's answer tail is absent)", !TRANSCRIPT_TAIL.test(fieldFrame!) && !TRANSCRIPT_TAIL.test(typedFrame!))
   check('§4c POISON: the retired live-composer context line never paints', !/write the contract here/.test(fieldFrame!) && !/write the contract here/.test(typedFrame!))
   check('§4d the words type INTO the card (the frame carries them with the question still standing)', /Ship the widget/.test(typedFrame!) && /What is the contract\?/.test(typedFrame!))
   check('§4e the field advertises its keys truthfully (↵ starts · esc plain)', /↵ starts the session under it/.test(typedFrame!) && /esc starts it plain/.test(typedFrame!))
-  check('§5 ↵ births under the words — the NEW blank chat is focused (stage-1 tag)', /new session ·/.test(afterBirth!) && /· ready/.test(afterBirth!), (afterBirth ?? '').split('\n').find(r => /· ready|new session/.test(r))?.trim().slice(0, 110) ?? '')
+  check('§5 ↵ births under the words — the NEW blank chat is focused (stage-1 tag: "new session" on the title row, the status row ready)', /✶ SESSION.*new session/.test(afterBirth!) && /· ready/.test(afterBirth!), (afterBirth ?? '').split('\n').find(r => /· ready|new session/.test(r))?.trim().slice(0, 110) ?? '')
   check('§5b POISON: the birth never lands the OLD chat', !/first words here/.test(afterBirth!) && !TRANSCRIPT_TAIL.test(afterBirth!))
   check('§2b/§5c the rows join the board (the final frame)', /new session/.test(fin!) || /3 live/.test(fin!))
-  const workers = existsSync(join(daemonDir, 'concourse-workers.json')) ? (JSON.parse(readFileSync(join(daemonDir, 'concourse-workers.json'), 'utf8')) as { workers?: Record<string, { endedAt?: number; contract?: { text?: string; status?: string } }> }) : { workers: {} }
-  const live = Object.values(workers.workers ?? {}).filter(w => w.endedAt === undefined)
-  check('§3 the records agree: THREE live sessions (two plain births, one under its contract)', live.length === 3, `${live.length}`)
-  const contracted = live.filter(w => w.contract !== undefined)
+  const workers = existsSync(join(daemonDir, 'concourse-workers.json')) ? (JSON.parse(readFileSync(join(daemonDir, 'concourse-workers.json'), 'utf8')) as { workers?: Record<string, { sessionId?: string; endedAt?: number; contract?: { text?: string; status?: string } }> }) : { workers: {} }
+  const all = Object.values(workers.workers ?? {})
+  const born = new Set(all.map(w => w.sessionId))
+  check('§3 the records agree: THREE sessions were born (two plain births, one under its contract; the screen’s exit parks the chats and releases the blank newborns)', born.size === 3, `${born.size} session(s) across ${all.length} record(s)`)
+  const contracted = all.filter(w => w.contract !== undefined)
   check("§5d exactly ONE record carries the contract — the card's words verbatim, drafted for the agent's ack", contracted.length === 1 && contracted[0]?.contract?.text === CONTRACT_WORDS && contracted[0]?.contract?.status === 'draft', JSON.stringify(contracted.map(w => w.contract)))
 }
-rmSync(home, { recursive: true, force: true })
-rmSync(cwd, { recursive: true, force: true })
+if (process.env.CONTRACT_OFFER_KEEP === '1') console.log(`[kept] home=${home} cwd=${cwd}`)
+else {
+  rmSync(home, { recursive: true, force: true })
+  rmSync(cwd, { recursive: true, force: true })
+}
 console.log(failures === 0 ? '\nprove-contract-offer-drive: ALL LAWS HOLD' : `\nprove-contract-offer-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
