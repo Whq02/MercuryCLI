@@ -63,7 +63,9 @@ bun run artifact:smoke             # the built bundle, isolated, outside the rep
 ```
 
 Run the suite nearest your change while iterating; `bun run verify` closes,
-and its exit status is the verdict. BUILD-NOTES.md covers the build itself.
+and its exit status is the verdict. `git config core.hooksPath .githooks`
+turns on the committed pre-push guard; the build never sets it.
+BUILD-NOTES.md covers the build itself.
 
 ## Reporting a problem
 
