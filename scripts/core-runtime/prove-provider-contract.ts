@@ -141,7 +141,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     check(`beta-table: ${label}`, eq(got, want), JSON.stringify({ got, want }))
   }
   const forbidden = [
-    B.REDACT_THINKING_BETA_HEADER,
+    'redact-thinking-2026-02-12',
     'context-management-2025-06-27',
     'prompt-caching-scope-2026-01-05',
     B.STRUCTURED_OUTPUTS_BETA_HEADER,
