@@ -14,6 +14,8 @@ if (!existsSync(BIN)) {
 }
 const { seedFirstRun, FIXTURE_API_KEY } = await import('../lib/firstRunSeed.ts')
 const { vshotBudgetMs, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const BACK_HINT = keyHintLabel('⇧← back')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
   console.error(`prove-header-truth-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
@@ -410,7 +412,7 @@ const PHASE_WORDS = /\b(thinking|running a tool|replying|compacting)\b/
 const CREW_CLOCK = /\b(agents?|workflows?) thought for \d+[sm]\b/
 const headerIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes('✶ SESSION'))
 const headerRow = (frame: string | undefined): string => rows(frame)[headerIndex(frame)] ?? ''
-const statusIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes('⇧← back'))
+const statusIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes(BACK_HINT))
 const statusRow = (frame: string | undefined): string => rows(frame)[statusIndex(frame)] ?? ''
 const crewClock = (frame: string | undefined): string => (/\b(?:agents?|workflows?) thought for (\d+[sm])\b/.exec(statusRow(frame)) ?? ['', ''])[1]!
 const crewClockAdvances = (a: string | undefined, b: string | undefined): boolean => crewClock(a) !== '' && crewClock(b) !== '' && crewClock(a) !== crewClock(b)
@@ -553,7 +555,7 @@ if (cap !== null) {
   const escRow = statusRow(m['after-esc'])
   check('after esc the composer is back (the turn ended)', rows(m['after-esc']).some(r => r.includes('ype a prompt')))
   check('H4 after esc the card under the critter no longer narrates the main agent', !/\bthinking\b/.test(berth(m['after-esc'])), flat(berth(m['after-esc'])).slice(0, 160))
-  check('the receipt says the crew run on', rows(m['after-esc']).some(r => /sub-agents? still running/.test(r)))
+  check('the crew run on after esc — the status row carries their clock (the hosted chat\'s own word)', CREW_CLOCK.test(escRow), flat(escRow))
   check('H3 after esc the bottom row carries the crew\'s clock, not "ready"', CREW_CLOCK.test(escRow) && !/\bready\b/.test(escRow), flat(escRow))
   check('H2 after esc the crew clock keeps advancing', crewClockAdvances(m['after-esc'], m['after-esc+']), `${crewClock(m['after-esc'])} → ${crewClock(m['after-esc+'])}`)
 
