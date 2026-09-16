@@ -21,7 +21,7 @@
 # the suite's grant or the default — so a stale row still changes no
 # verdict: a low row costs balance, a high row lets a wedge run longer.
 
-ui	1800
+ui	4350
 ui-2	200
 ui-3	1950
 ui-4	1800

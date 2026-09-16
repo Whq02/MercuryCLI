@@ -1,10 +1,11 @@
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fixture, option, ROOT } from './viewportFixture.ts'
 
 if (!process.argv.includes('--out')) {
-  const scratch = process.argv.includes('--scratch') ? option('--scratch') : process.env.TMPDIR
+  const scratch = process.argv.includes('--scratch') ? option('--scratch') : realpathSync(tmpdir())
   if (!scratch) throw new Error('Pass --scratch <absolute scratch directory>')
   const world = fixture(scratch)
   let status = 1
