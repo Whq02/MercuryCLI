@@ -1,4 +1,5 @@
 import React from 'react'
+import figures from 'figures'
 import { Box, Text, paletteCollapsed } from '../../ink.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
@@ -208,7 +209,7 @@ export function CompactConcourse({
         {sessionRows.slice(0, Math.max(0, rows)).map(r => (
           <Box key={r.sessionId} height={1} flexShrink={0} overflow="hidden">
             <Text color={r.sessionId === selectedId ? t.info : t.textSecondary} wrap="truncate-end">
-              {r.sessionId === selectedId ? '❯ ' : '  '}
+              {r.sessionId === selectedId ? `${figures.pointer} ` : '  '}
               {r.title}
             </Text>
           </Box>
