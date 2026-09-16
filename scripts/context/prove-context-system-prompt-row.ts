@@ -21,7 +21,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { analyzeContextUsage } = await import('../../src/utils/analyzeContext.ts')
-const { getSystemPrompt, SYSTEM_PROMPT_DYNAMIC_BOUNDARY } = await import('../../src/constants/prompts.ts')
+const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { MERCURY_IDENTITY_FLOOR } = await import('../../src/prompt/mercuryContract.ts')
 
@@ -37,7 +37,7 @@ const rowsFor = async (options: Record<string, unknown>): Promise<string[]> => {
   const data = await analyzeContextUsage([], MODEL, async () => getEmptyToolPermissionContext(), [], agents, 120, { options } as never)
   return (data.systemPromptSections ?? []).map(s => s.name)
 }
-const defaultParts = (await getSystemPrompt([], MODEL)).filter(p => p !== '' && p !== SYSTEM_PROMPT_DYNAMIC_BOUNDARY)
+const defaultParts = (await getSystemPrompt([], MODEL)).filter(p => p !== '')
 const expectedDefault = defaultParts.map(displayName)
 const floorName = displayName(MERCURY_IDENTITY_FLOOR)
 const startsWith = (rows: string[], head: string[]): boolean => head.length <= rows.length && head.every((n, i) => rows[i] === n)

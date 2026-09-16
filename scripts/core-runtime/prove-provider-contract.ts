@@ -27,7 +27,6 @@ for (const k of [
   'MERCURY_AUGUR_TOOL',
   'MERCURY_AUGUR_BRIEF',
   'MERCURY_AUGUR_MODEL',
-  'MERCURY_API_CONTEXT_MANAGEMENT',
 ]) {
   delete process.env[k]
 }
@@ -108,7 +107,6 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     'beta-guard: first-party-only betas suppressed (folded define)',
     betas.shouldIncludeFirstPartyOnlyBetas() === false,
   )
-  check('beta-guard: global cache scope suppressed (folded define)', betas.shouldUseGlobalCacheScope() === false)
 
   const oc: Record<string, unknown> = {}
   const tbBetas: string[] = []
@@ -144,8 +142,8 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   }
   const forbidden = [
     B.REDACT_THINKING_BETA_HEADER,
-    B.CONTEXT_MANAGEMENT_BETA_HEADER,
-    B.PROMPT_CACHING_SCOPE_BETA_HEADER,
+    'context-management-2025-06-27',
+    'prompt-caching-scope-2026-01-05',
     B.STRUCTURED_OUTPUTS_BETA_HEADER,
     'interleaved-thinking-2025-05-14',
   ]
@@ -493,48 +491,42 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   check('assembly: default cache control is bare ephemeral', eq(rp.getCacheControl(), { type: 'ephemeral' }))
 
   const supported: Record<string, unknown> = {}
-  const supportedBetas: string[] = []
-  rp.configureEffortParams('max', supported as never, {}, supportedBetas, 'claude-opus-4-8')
+  rp.configureEffortParams('max', supported as never, {}, 'claude-opus-4-8')
   check(
-    'assembly: a supported model sends effort and no beta header',
-    eq(supported, { effort: 'max' }) && supportedBetas.length === 0,
-    JSON.stringify({ supported, supportedBetas }),
+    'assembly: a supported model sends effort',
+    eq(supported, { effort: 'max' }),
+    JSON.stringify({ supported }),
   )
   const noValue: Record<string, unknown> = {}
-  const noValueBetas: string[] = []
-  rp.configureEffortParams(undefined, noValue as never, {}, noValueBetas, 'claude-opus-4-8')
+  rp.configureEffortParams(undefined, noValue as never, {}, 'claude-opus-4-8')
   check(
-    'assembly: undefined effort on a supported model sends neither the key nor a header',
-    eq(noValue, {}) && noValueBetas.length === 0,
+    'assembly: undefined effort on a supported model sends no effort key',
+    eq(noValue, {}),
   )
   const unsupported: Record<string, unknown> = {}
-  const unsupportedBetas: string[] = []
-  rp.configureEffortParams('high', unsupported as never, {}, unsupportedBetas, 'claude-haiku-4-5-20251001')
+  rp.configureEffortParams('high', unsupported as never, {}, 'claude-haiku-4-5-20251001')
   check(
-    'assembly: an unsupported model drops BOTH the param and the beta',
-    eq(unsupported, {}) && unsupportedBetas.length === 0,
+    'assembly: an unsupported model drops the param',
+    eq(unsupported, {}),
   )
   const numeric: Record<string, unknown> = {}
-  const numericBetas: string[] = []
-  rp.configureEffortParams(5000 as never, numeric as never, {}, numericBetas, 'claude-opus-4-8')
+  rp.configureEffortParams(5000 as never, numeric as never, {}, 'claude-opus-4-8')
   check(
-    'assembly: NUMERIC effort silently drops param AND beta (quirk, requestParams.ts:309)',
-    eq(numeric, {}) && numericBetas.length === 0,
+    'assembly: NUMERIC effort silently drops the param (quirk, requestParams.ts:309)',
+    eq(numeric, {}),
   )
   const stray: Record<string, unknown> = {}
-  const strayBetas: string[] = []
-  rp.configureEffortParams('ultra' as never, stray as never, {}, strayBetas, 'claude-opus-4-8')
+  rp.configureEffortParams('ultra' as never, stray as never, {}, 'claude-opus-4-8')
   check(
-    'assembly: a raw word above the first-party wire enum drops param AND beta — the ladder ends at max, so no door ever hands this seam such a word',
-    eq(stray, {}) && strayBetas.length === 0 && !effort.isEffortLevel('ultra') && effort.parseEffortValue('ultra') === undefined,
-    JSON.stringify({ stray, strayBetas }),
+    'assembly: a raw word above the first-party wire enum drops the param — the ladder ends at max, so no door ever hands this seam such a word',
+    eq(stray, {}) && !effort.isEffortLevel('ultra') && effort.parseEffortValue('ultra') === undefined,
+    JSON.stringify({ stray }),
   )
   const preset: Record<string, unknown> = { effort: 'low' }
-  const presetBetas: string[] = []
-  rp.configureEffortParams('max', preset as never, {}, presetBetas, 'claude-opus-4-8')
+  rp.configureEffortParams('max', preset as never, {}, 'claude-opus-4-8')
   check(
     'assembly: a pre-set effort in outputConfig is never overwritten',
-    preset.effort === 'low' && presetBetas.length === 0,
+    preset.effort === 'low',
   )
 }
 
@@ -624,7 +616,6 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
       r.effort.xhigh === effort.modelSupportsXHighEffort(m) &&
       r.effort.ceiling === effort.getMaxSupportedEffortLevel(m) &&
       r.tools.structuredOutputs === betas.modelSupportsStructuredOutputs(m) &&
-      r.tools.contextManagement === betas.modelSupportsContextManagement(m) &&
       r.tools.autoMode === betas.modelSupportsAutoMode(m) &&
       r.tools.toolSearchBetaHeader === betas.getToolSearchBetaHeader() &&
       r.tools.advisor === caps.modelSupportsAdvisor(m) &&

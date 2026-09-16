@@ -269,21 +269,14 @@ export function addCacheBreakpoints(
 export function buildSystemPromptBlocks(
   systemPrompt: SystemPrompt,
   enablePromptCaching: boolean,
-  options?: {
-    skipGlobalCacheForSystemPrompt?: boolean
-  },
 ): TextBlockParam[] {
-  return splitSysPromptPrefix(systemPrompt, {
-    skipGlobalCacheForSystemPrompt: options?.skipGlobalCacheForSystemPrompt,
-  }).map(block => {
+  return splitSysPromptPrefix(systemPrompt).map(block => {
     return {
       type: 'text' as const,
       text: block.text,
       ...(enablePromptCaching &&
-        block.cacheScope !== null && {
-          cache_control: getCacheControl({
-            scope: block.cacheScope,
-          }),
+        block.cached && {
+          cache_control: getCacheControl(),
         }),
     }
   })

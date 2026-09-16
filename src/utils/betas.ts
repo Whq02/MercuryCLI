@@ -1,13 +1,11 @@
 export {
   filterAllowedSdkBetas,
   modelSupportsISP,
-  modelSupportsContextManagement,
   modelSupportsStructuredOutputs,
   modelSupportsTemperature,
   modelSupportsAutoMode,
   getToolSearchBetaHeader,
   shouldIncludeFirstPartyOnlyBetas,
-  shouldUseGlobalCacheScope,
   getAllModelBetas,
   getModelBetas,
   getMergedBetas,
