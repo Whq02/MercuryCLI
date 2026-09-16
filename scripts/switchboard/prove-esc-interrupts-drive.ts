@@ -85,9 +85,9 @@ const hoppedLeg = async (
   try {
     const grabs = grabScreens(run, cols, rows, [11000, 16000, 20000, 23000].map(m => S(m)))
     const text = (g: { rows: string[] }): string => g.rows.join('\n')
-    const before = grabs.filter(g => g.atMs <= 11000)
+    const before = grabs.filter(g => g.atMs <= S(11000))
     check(`${tag}: the turn was LIVE before esc (replying/thinking on screen)`, before.some(g => /replying — your words land|✶|thinking/.test(text(g))), before.map(g => String(g.atMs)).join(','))
-    const late = grabs.filter(g => g.atMs >= 16000)
+    const late = grabs.filter(g => g.atMs >= S(16000))
     check(`${tag}: esc INTERRUPTED — the screen says so (⨯ Interrupted)`, late.some(g => /Interrupted/.test(text(g))), late.map(g => String(g.atMs)).join(','))
     check(`${tag}: the composer returned (poison: still replying in every late frame)`, late.some(g => /Type a prompt/.test(text(g))) && !late.every(g => /replying — your words land/.test(text(g))))
     const recs = JSON.parse(readFileSync(join(daemonDir, 'concourse-workers.json'), 'utf8')) as { workers: Record<string, { sessionId: string; lastDeliveryAt?: number; lastTurnSettledAt?: number }> }
