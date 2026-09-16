@@ -261,7 +261,7 @@ function stageB(world: World, label: string, argvTail: string[]): void {
     after.slice(-300) || '(no debug lines)',
   )
   check('/mission paints the standing mission', shown.includes('Standing mission'), asked.split('\n').filter(l => l.trim()).slice(-12).join('\n'))
-  check('the panel carries the goal', shown.includes(GOAL))
+  check('the panel leads with its state and the re-arm reason; the goal follows them (user text of any length, cut at the row’s end)', /Standing mission · [^\n]*re-armed on resume/.test(shown), asked.split('\n').filter(l => /Standing mission/.test(l)).join(' | ').slice(0, 300))
   check('the panel names the resume re-arm', shown.includes('re-armed on resume'), asked.split('\n').filter(l => /mission|Mission/.test(l)).join(' | ').slice(0, 400))
   const cards = readCards(world)
   const armed = cards.filter(c => c.state === 'armed')
