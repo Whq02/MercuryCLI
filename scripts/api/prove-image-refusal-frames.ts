@@ -257,7 +257,7 @@ if (process.argv[2] === '--serve') {
     },
   }
 
-  section('seed · a session whose record holds a 6000x6000 image, written by the bundle that lets it through')
+  section('seed · a session whose record holds the image a first turn attached at 6000x6000')
   const SEED_DIST = OLD ?? DIST
   const sessionId = randomUUID()
   {
@@ -281,7 +281,7 @@ if (process.argv[2] === '--serve') {
   type Payload = { grid: Grid; marks?: Array<{ label: string; atTick: number; grid: Grid }>; endReason?: string }
   const gridText = (grid: Grid): string => grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
 
-  async function captureRefusal(label: string, dist: string, cols: number, rows: number, needle: string): Promise<{ text: string; hit: boolean; sent: number }> {
+  async function captureRefusal(label: string, dist: string, cols: number, rows: number, needle: string): Promise<{ text: string; hit: boolean; sent: number; images: Array<{ width: number; height: number }> }> {
     const home = join(SCRATCH, `home-${label}-${cols}x${rows}`)
     cpSync(SEED_HOME, home, { recursive: true })
     const fixture = await startFixture(`${label}-${cols}x${rows}`, [REFUSAL, REFUSAL, REFUSAL])
@@ -307,15 +307,17 @@ if (process.argv[2] === '--serve') {
     const mark = payload?.marks?.find(m => m.label === 'row')
     const text = payload ? gridText(mark?.grid ?? payload.grid) : `no capture (exit ${res.status}): ${(res.stderr ?? '').slice(-400)}`
     if (FRAMES) writeFileSync(join(FRAMES, `${label}-refusal-${cols}x${rows}.txt`), `${text}\n`)
-    return { text, hit: text.includes(needle), sent: fixture.capture().length }
+    const captured = fixture.capture()
+    return { text, hit: text.includes(needle), sent: captured.length, images: captured.flatMap(c => c.images) }
   }
+  const patches = (w: number, h: number): number => Math.ceil(w / 32) * Math.ceil(h / 32)
 
-  const NEW_NEEDLE = 'per-image limit'
+  const NEW_NEEDLE = 'openai-invalid_image'
   const OLD_NEEDLE = 'stream failed'
-  section(`new · the pre-send refusal on ${DIST}`)
+  section(`new · the image rides within the family's patch rule and the provider's refusal paints as the route's error row on ${DIST}`)
   for (const [cols, rows] of SIZES) {
     const shot = await captureRefusal('new', DIST, cols, rows, NEW_NEEDLE)
-    check(`${cols}x${rows}: the row names the provider's per-image limit and nothing reached the wire`, shot.hit && shot.sent === 0, `wire requests: ${shot.sent}; screen tail: ${shot.text.split('\n').slice(-8).join(' | ').slice(0, 500)}`)
+    check(`${cols}x${rows}: the image reached the wire once, within the family's patch rule, and the provider's refusal painted as the route's error row`, shot.hit && shot.sent === 1 && shot.images.length === 1 && shot.images.every(i => patches(i.width, i.height) <= 30_000), `wire requests: ${shot.sent}; images: ${j(shot.images)}; screen tail: ${shot.text.split('\n').slice(-8).join(' | ').slice(0, 500)}`)
   }
   if (OLD) {
     section(`old · the provider's refusal on ${OLD}`)
