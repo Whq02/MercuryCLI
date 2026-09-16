@@ -1,27 +1,21 @@
 import memoize from 'lodash-es/memoize.js'
-import { flagEnabled, flagEnv } from 'src/substrate/flagRegistry.js'
+import { flagEnabled } from 'src/substrate/flagRegistry.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../entrypoints/sdk/runtimeTypes.js'
 import { getIsNonInteractiveSession, getSdkBetas } from '../../bootstrap/state.js'
 import {
   CODING_20250219_BETA_HEADER,
   CONTEXT_1M_BETA_HEADER,
   CONTEXT_MANAGEMENT_BETA_HEADER,
-  INTERLEAVED_THINKING_BETA_HEADER,
   PROMPT_CACHING_SCOPE_BETA_HEADER,
   REDACT_THINKING_BETA_HEADER,
   SERVER_SIDE_FALLBACK_BETA_HEADER,
-  SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER,
   TOOL_SEARCH_BETA_HEADER_1P,
 } from '../../constants/betas.js'
 import { OAUTH_BETA_HEADER } from '../../constants/oauth.js'
 import { isClaudeAISubscriber } from '../auth.js'
-import {
-  isEnvDefinedFalsy,
-  isEnvTruthy,
-} from '../envUtils.js'
+import { isEnvTruthy } from '../envUtils.js'
 import { getCanonicalName } from './model.js'
 import { getModelCapability } from './modelCapabilities.js'
-import { AUGUR_BETA_HEADER, isAugurHeader } from './augur.js'
 import { isCarrierShapedId } from '../../services/providers/idSpaces.js'
 import {
   gptDisplayPin,
@@ -851,7 +845,6 @@ const KEY_SEP = String.fromCharCode(0)
 
 function betasEnvFingerprint(): string {
   return [
-    flagEnv('MERCURY_INTERLEAVED_THINKING') ?? '',
     process.env.MERCURY_DISABLE_1M_CONTEXT ?? '',
     process.env.MERCURY_PROVIDER_BETAS ?? '',
   ].join(KEY_SEP)
@@ -876,29 +869,12 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     betaHeaders.push(CONTEXT_1M_BETA_HEADER)
   }
   if (
-    flagEnabled('MERCURY_INTERLEAVED_THINKING') &&
-    modelSupportsISP(model)
-  ) {
-    betaHeaders.push(INTERLEAVED_THINKING_BETA_HEADER)
-  }
-
-  if (
     includeFirstPartyOnlyBetas &&
     modelSupportsISP(model) &&
     !getIsNonInteractiveSession() &&
     getInitialSettings().showThinkingSummaries !== true
   ) {
     betaHeaders.push(REDACT_THINKING_BETA_HEADER)
-  }
-
-  if (
-    SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER &&
-    false &&
-    includeFirstPartyOnlyBetas &&
-    !isEnvDefinedFalsy(flagEnv('MERCURY_CONNECTOR_TEXT_SUMMARIZATION')) &&
-    isEnvTruthy(flagEnv('MERCURY_CONNECTOR_TEXT_SUMMARIZATION'))
-  ) {
-    betaHeaders.push(SUMMARIZE_CONNECTOR_TEXT_BETA_HEADER)
   }
 
   const antOptedIntoToolClearing =
@@ -912,10 +888,6 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     (antOptedIntoToolClearing || thinkingPreservationEnabled)
   ) {
     betaHeaders.push(CONTEXT_MANAGEMENT_BETA_HEADER)
-  }
-
-  if (includeFirstPartyOnlyBetas && isAugurHeader()) {
-    betaHeaders.push(AUGUR_BETA_HEADER)
   }
 
   if (includeFirstPartyOnlyBetas) {

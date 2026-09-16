@@ -172,9 +172,9 @@ section('§0 the scanner trips on planted poison')
   check('a nested `service_tier` field is flagged', poisonNested.length === 1)
   const poisonBetas = scanRequest({ headers: {}, body: { betas: ['context-1m-2025-08-07', 'fast-mode-2026-02-01'] } })
   check('a fast-mode token in the body betas list is flagged', poisonBetas.some(h => h.where === 'body.betas[1]'))
-  const poisonHeader = scanRequest({ headers: { 'anthropic-beta': 'interleaved-thinking-2025-05-14,fast-mode-2026-02-01' }, body: {} })
+  const poisonHeader = scanRequest({ headers: { 'anthropic-beta': 'claude-code-20250219,fast-mode-2026-02-01' }, body: {} })
   check('a fast-mode token in the anthropic-beta header is flagged', poisonHeader.length === 1)
-  const clean = scanRequest({ headers: { 'anthropic-beta': 'interleaved-thinking-2025-05-14', 'content-type': 'application/json' }, body: { model: 'x', messages: [{ role: 'user', content: 'a fast answer please' }], betas: ['context-1m-2025-08-07'] } })
+  const clean = scanRequest({ headers: { 'anthropic-beta': 'claude-code-20250219', 'content-type': 'application/json' }, body: { model: 'x', messages: [{ role: 'user', content: 'a fast answer please' }], betas: ['context-1m-2025-08-07'] } })
   check('an ordinary request (prose may say "fast") is clean', clean.length === 0, JSON.stringify(clean))
 }
 

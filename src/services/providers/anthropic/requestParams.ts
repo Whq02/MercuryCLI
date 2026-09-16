@@ -10,10 +10,7 @@ import {
   getSessionId,
   setPromptCache1hEligible,
 } from 'src/bootstrap/state.js'
-import {
-  EFFORT_BETA_HEADER,
-  TASK_BUDGETS_BETA_HEADER,
-} from 'src/constants/betas.js'
+import { TASK_BUDGETS_BETA_HEADER } from 'src/constants/betas.js'
 import { type CacheScope } from '../../../utils/api.js'
 import { getOauthAccountInfo, isClaudeAISubscriber } from '../../../utils/auth.js'
 import {
@@ -149,10 +146,10 @@ export function configureEffortParams(
   }
 
   if (effortValue === undefined) {
-    betas.push(EFFORT_BETA_HEADER)
-  } else if (typeof effortValue === 'string' && isFirstPartyWireEffort(effortValue)) {
+    return
+  }
+  if (typeof effortValue === 'string' && isFirstPartyWireEffort(effortValue)) {
     outputConfig.effort = effortValue
-    betas.push(EFFORT_BETA_HEADER)
   } else {
     logForDebugging(
       `configureEffortParams: effort ${effortValue} has no first-party wire encoding — sending without effort`,

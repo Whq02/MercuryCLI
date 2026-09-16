@@ -53,7 +53,6 @@ const effort = await import('../../src/utils/effort.ts')
 const caps = await import('../../src/utils/model/capabilities.ts')
 const thinking = await import('../../src/utils/thinking.ts')
 const requestParams = await import('../../src/services/providers/anthropic/requestParams.ts')
-const betas = await import('../../src/constants/betas.ts')
 const openaiCatalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
 const responsesBridge = await import('../../src/services/providers/openai/responsesBridge.ts')
 const gptPins = await import('../../src/services/providers/openai/gptPins.ts')
@@ -165,7 +164,7 @@ section('§1 the first-party wire: output_config.effort ≡ the owner, per famil
     const outputConfig: Record<string, unknown> = {}
     const betasOut: string[] = []
     requestParams.configureEffortParams(effort.resolveAppliedEffort(model, request), outputConfig as never, {}, betasOut, model)
-    return { effort: outputConfig.effort as string | undefined, beta: betasOut.includes(betas.EFFORT_BETA_HEADER) }
+    return { effort: outputConfig.effort as string | undefined, beta: betasOut.length > 0 }
   }
   for (const model of ['claude-opus-5', 'claude-sonnet-5', 'claude-fable-5-1', 'claude-opus-4-8', 'claude-opus-4-6', 'claude-sonnet-4-6']) {
     for (const request of REQUESTS) {
@@ -173,7 +172,7 @@ section('§1 the first-party wire: output_config.effort ≡ the owner, per famil
       const sent = anthropicWire(model, request)
       check(`${model} · ${request ?? 'unset'}: output_config.effort ≡ owner.wire (${String(truth.wire)})`, sent.effort === truth.wire, `sent ${String(sent.effort)}`)
       check(`${model} · ${request ?? 'unset'}: the label IS the wire tier`, truth.label === (truth.wire ?? 'high'))
-      check(`${model} · ${request ?? 'unset'}: the effort beta rides`, sent.beta)
+      check(`${model} · ${request ?? 'unset'}: no beta header rides for the effort setting`, !sent.beta)
     }
   }
   check('sonnet-4-6 · xhigh steps to high on the wire and in the word', anthropicWire('claude-sonnet-4-6', 'xhigh').effort === 'high' && effort.resolveEffortTruth('claude-sonnet-4-6', 'xhigh').label === 'high' && effort.resolveEffortTruth('claude-sonnet-4-6', 'xhigh').adjustedFrom === 'xhigh')
@@ -181,7 +180,7 @@ section('§1 the first-party wire: output_config.effort ≡ the owner, per famil
   check('a no-dial first-party family sends no effort and no effort beta', haiku.effort === undefined && !haiku.beta)
   process.env.MERCURY_EFFORT_LEVEL = 'auto'
   const deferred = anthropicWire('claude-opus-5', 'max')
-  check('env=auto: no effort key, the beta rides, the label is the documented default word', deferred.effort === undefined && deferred.beta && effort.resolveEffortTruth('claude-opus-5', 'max').label === 'high')
+  check('env=auto: no effort key, no beta header, the label is the documented default word', deferred.effort === undefined && !deferred.beta && effort.resolveEffortTruth('claude-opus-5', 'max').label === 'high')
   delete process.env.MERCURY_EFFORT_LEVEL
 }
 

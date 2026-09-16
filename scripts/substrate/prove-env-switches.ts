@@ -30,7 +30,7 @@ const health = (await import('../../src/commands/health/index.ts')).default as {
 const login = ((await import('../../src/commands/login/index.ts')).default as () => { isEnabled?: () => boolean })()
 const logout = (await import('../../src/commands/logout/index.ts')).default as { isEnabled?: () => boolean }
 
-const SWITCHES = ['MERCURY_TELEMETRY', 'MERCURY_ERROR_REPORTING', 'MERCURY_BUG_COMMAND', 'MERCURY_FEEDBACK_COMMAND', 'MERCURY_DOCTOR_COMMAND', 'MERCURY_LOGIN_COMMAND', 'MERCURY_LOGOUT_COMMAND', 'MERCURY_PROMPT_CACHING', 'MERCURY_PROMPT_CACHING_HAIKU', 'MERCURY_PROMPT_CACHING_SONNET', 'MERCURY_PROMPT_CACHING_OPUS', 'MERCURY_INTERLEAVED_THINKING', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_BUILTIN_RIPGREP', 'MERCURY_MCP_LARGE_OUTPUT_FILES']
+const SWITCHES = ['MERCURY_TELEMETRY', 'MERCURY_ERROR_REPORTING', 'MERCURY_BUG_COMMAND', 'MERCURY_FEEDBACK_COMMAND', 'MERCURY_DOCTOR_COMMAND', 'MERCURY_LOGIN_COMMAND', 'MERCURY_LOGOUT_COMMAND', 'MERCURY_PROMPT_CACHING', 'MERCURY_PROMPT_CACHING_HAIKU', 'MERCURY_PROMPT_CACHING_SONNET', 'MERCURY_PROMPT_CACHING_OPUS', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_BUILTIN_RIPGREP', 'MERCURY_MCP_LARGE_OUTPUT_FILES']
 for (const name of SWITCHES) unset(name)
 
 section('§1 the registry polarity: unset ⇒ on, =0 ⇒ off, live')
@@ -71,7 +71,7 @@ section('§2 each switch at its owner')
   off('MERCURY_PROMPT_CACHING_SONNET'); check('sonnet caching: =0 ⇒ off on the sonnet tier alone', !getPromptCachingEnabled(sonnet) && getPromptCachingEnabled(opus)); unset('MERCURY_PROMPT_CACHING_SONNET')
   off('MERCURY_PROMPT_CACHING_OPUS'); check('opus caching: =0 ⇒ off on the opus tier alone', !getPromptCachingEnabled(opus) && getPromptCachingEnabled(sonnet)); unset('MERCURY_PROMPT_CACHING_OPUS')
 
-  check('interleaved thinking: the beta builder reads the switch', /flagEnabled\('MERCURY_INTERLEAVED_THINKING'\) &&/.test(src('src/utils/model/capabilities.ts')))
+  check('interleaved thinking: no switch and no header; neither the beta builder nor the registry names MERCURY_INTERLEAVED_THINKING', !src('src/utils/model/capabilities.ts').includes('MERCURY_INTERLEAVED_THINKING') && !src('src/substrate/flagRegistry.ts').includes('MERCURY_INTERLEAVED_THINKING'))
 
   check('compaction: unset ⇒ the automatic fold is on', isAutoCompactEnabled() === true)
   off('MERCURY_COMPACT'); check('compaction: =0 ⇒ the automatic fold is off', isAutoCompactEnabled() === false); unset('MERCURY_COMPACT')
