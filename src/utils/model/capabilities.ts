@@ -1017,27 +1017,6 @@ export function toolDeferralEnabled(): boolean {
 }
 
 
-export function modelSupportsAdvisor(model: string): boolean {
-  if (declaredRouteOf(model) !== 'anthropic') return false
-  const m = model.toLowerCase()
-  return (
-    m.includes('opus-4-6') ||
-    m.includes('sonnet-4-6') ||
-    false
-  )
-}
-
-export function isValidAdvisorModel(model: string): boolean {
-  if (declaredRouteOf(model) !== 'anthropic') return false
-  const m = model.toLowerCase()
-  return (
-    m.includes('opus-4-6') ||
-    m.includes('sonnet-4-6') ||
-    false
-  )
-}
-
-
 export type ModelCapabilityRecord = Readonly<{
   model: string
   canonical: string
@@ -1069,7 +1048,6 @@ export type ModelCapabilityRecord = Readonly<{
     contextManagement: boolean
     autoMode: boolean
     toolSearchBetaHeader: string
-    advisor: boolean
   }>
   media: Readonly<{ pdf: boolean; images: boolean }>
   betas: Readonly<{
@@ -1112,7 +1090,6 @@ export function resolveModelCapabilities(model: string): ModelCapabilityRecord {
       contextManagement: modelSupportsContextManagement(model),
       autoMode: modelSupportsAutoMode(model),
       toolSearchBetaHeader: getToolSearchBetaHeader(),
-      advisor: modelSupportsAdvisor(model),
     }),
     media: Object.freeze({
       pdf: modelSupportsPDF(model),

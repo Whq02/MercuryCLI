@@ -182,7 +182,6 @@ export type OutputMeta = {
   errorClassification?: string
   errorDetails?: string
   apiError?: string
-  advisorModel?: string
 }
 
 export type RecordKind = RecordPayload['kind']

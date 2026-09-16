@@ -155,6 +155,5 @@ export {
   healWalkableForWire,
   isUnsignedThinkingBlock,
   orderToolResultsByUse,
-  stripAdvisorBlocks,
   stripUnsignedThinkingBlocks,
 } from './messages/pairing.js'

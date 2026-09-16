@@ -84,7 +84,6 @@ export function normalizeMessages(messages: Message[]): NormalizedMessage[] {
             uuid,
             error: message.error,
             isApiErrorMessage: message.isApiErrorMessage,
-            advisorModel: message.advisorModel,
           } as NormalizedAssistantMessage
         })
         normalizedCacheSet(message, isNewChain, rows)

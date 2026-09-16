@@ -11,7 +11,6 @@ import type { Tools } from '../Tool.js'
 import type { Command } from '../commands.js'
 import type { MessageLookups } from '../utils/messages/lookups.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
-import { AdvisorMessage } from './messages/AdvisorMessage.js'
 import { AssistantRedactedThinkingMessage } from './messages/AssistantRedactedThinkingMessage.js'
 import { AssistantTextMessage } from './messages/AssistantTextMessage.js'
 import { AssistantThinkingMessage } from './messages/AssistantThinkingMessage.js'
@@ -53,7 +52,6 @@ export type Props = {
   lastThinkingBlockId?: string | null
   hasContentAfter?: boolean
   isActiveGroup?: boolean
-  advisorModel?: string | null
   streamFaultRecovered?: boolean
 }
 
@@ -97,7 +95,6 @@ function MessageInner({
   lastThinkingBlockId = null,
   hasContentAfter = false,
   isActiveGroup = false,
-  advisorModel,
   streamFaultRecovered = false,
 }: Props): React.ReactNode {
   void messages
@@ -253,20 +250,6 @@ function MessageInner({
                 />
               )
             }
-            case "server_tool_use":
-            case 'advisor_tool_result':
-              return (
-                <AdvisorMessage
-                  key={index}
-                  block={block}
-                  addMargin={addMargin}
-                  resolvedToolUseIDs={lookups.resolvedToolUseIDs}
-                  erroredToolUseIDs={lookups.erroredToolUseIDs}
-                  shouldAnimate={shouldAnimate}
-                  verbose={verbose}
-                  advisorModel={advisorModel}
-                />
-              )
             default:
               return null
           }

@@ -24,11 +24,10 @@ import type { NonNullableUsage } from './services/api/logging.js'
 import type { ProviderSessionSpend } from './services/providers/providerUsage.js'
 import { formatCost, formatSessionCost, formatLaneSpend } from './utils/spendSpelling.js'
 export { formatCost, formatSessionCost, formatLaneSpend }
-import { getAdvisorUsage } from './utils/advisor.js'
 import { getCurrentProjectConfig, saveCurrentProjectConfig } from './utils/config.js'
 import { formatDuration, formatNumber } from './utils/format.js'
 import type { FpsMetrics } from './utils/fpsTracker.js'
-import { calculateUSDCost, modelPricingBasis } from './utils/modelCost.js'
+import { modelPricingBasis } from './utils/modelCost.js'
 import { getCanonicalName } from './utils/model/model.js'
 import {
   getContextWindowForModel,
@@ -83,12 +82,7 @@ export function addToTotalSessionCost(
   }
   recordUsagePulse(cost)
 
-  let total = cost
-  for (const advisorUsage of getAdvisorUsage(usage)) {
-    const advisorCost = calculateUSDCost(advisorUsage.model, advisorUsage)
-    total += addToTotalSessionCost(advisorCost, advisorUsage, advisorUsage.model)
-  }
-  return total
+  return cost
 }
 
 export function sessionSawUsage(): boolean {

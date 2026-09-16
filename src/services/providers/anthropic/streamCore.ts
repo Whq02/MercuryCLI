@@ -75,7 +75,7 @@ import {
 } from 'src/utils/thinking.js'
 import { foldToolChoiceForModel, servesPerMessageEffort } from 'src/utils/model/capabilities.js'
 import { API_MAX_MEDIA_PER_REQUEST } from '../../../constants/apiLimits.js'
-import { ADVISOR_BETA_HEADER, MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER } from '../../../constants/betas.js'
+import { MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER } from '../../../constants/betas.js'
 import {
   getAttributionHeader,
   getCLISyspromptPrefix,
@@ -133,7 +133,6 @@ import {
   orderToolResultsByUse,
   normalizeContentFromAPI,
   normalizeMessagesForAPI,
-  stripAdvisorBlocks,
   stripCallerFieldFromAssistantMessage,
   stripToolReferenceBlocksFromUserMessage,
   stripUnsignedThinkingBlocks,
@@ -619,10 +618,6 @@ async function* queryModel(
     (a, b) => getCanonicalName(a) === getCanonicalName(b),
   )
 
-  if (!betas.includes(ADVISOR_BETA_HEADER)) {
-    messagesForAPI = stripAdvisorBlocks(messagesForAPI)
-  }
-
   messagesForAPI = stripExcessMediaItems(
     messagesForAPI,
     API_MAX_MEDIA_PER_REQUEST,
@@ -920,7 +915,6 @@ async function* queryModel(
   let didFallBackToNonStreaming = false
   let fallbackMessage: AssistantMessage | undefined
   let maxOutputTokens = 0
-  let isAdvisorInProgress = false
   let preFirstEventStreamRetryUsed = false
 
   const mintAssistantMessage = (
@@ -1153,7 +1147,6 @@ async function* queryModel(
     usage = EMPTY_USAGE
     stopReason = null
     ledgerSettled = false
-    isAdvisorInProgress = false
 
     const STREAM_IDLE_TIMEOUT_MS = streamIdleTimeoutMsForRoute('anthropic')
     const STREAM_IDLE_WARNING_MS = streamIdleWarningMsOf(STREAM_IDLE_TIMEOUT_MS)
@@ -1294,10 +1287,6 @@ async function* queryModel(
                   ...part.content_block,
                   input: '' as unknown as { [key: string]: unknown },
                 }
-                if ((part.content_block.name as string) === 'advisor') {
-                  isAdvisorInProgress = true
-                  logForDebugging(`[AdvisorTool] Advisor tool called`)
-                }
                 break
               case 'text':
                 contentBlocks[part.index] = {
@@ -1314,12 +1303,6 @@ async function* queryModel(
                 break
               default:
                 contentBlocks[part.index] = { ...part.content_block }
-                if (
-                  (part.content_block.type as string) === 'advisor_tool_result'
-                ) {
-                  isAdvisorInProgress = false
-                  logForDebugging(`[AdvisorTool] Advisor tool result received`)
-                }
                 break
             }
             break
@@ -1546,9 +1529,6 @@ async function* queryModel(
           logForDebugging(
             `Streaming aborted by user: ${errorMessage(streamingError)}`,
           )
-          if (isAdvisorInProgress) {
-            logForDebugging('[AdvisorTool] user abort landed mid-advisor-call')
-          }
           throw streamingError
         } else {
           logForDebugging(
