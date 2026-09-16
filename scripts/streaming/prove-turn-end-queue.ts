@@ -11,7 +11,8 @@ const DIST = path.join(REPO, 'dist/mercury.mjs')
 const VSHOT = path.join(REPO, 'scripts/ui/vshot.py')
 const FIXTURE = path.join(import.meta.dir, 'turn-end-fixture-server.ts')
 const BUN = process.env.BUN ?? path.join(process.env.HOME ?? '', '.bun/bin/bun')
-const BUDGET_MS = 8_000
+const BUDGET_AUTHORED_MS = 8_000
+const BUDGET_MS = vshotBudgetMs(BUDGET_AUTHORED_MS)
 
 let failures = 0
 let checks = 0
@@ -101,7 +102,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
       { afterPrevTicks: 10, data: `${SECOND}\r` },
       { afterPrevTicks: 12, data: '/workbench\r', mark: 'chat-queued' },
       { requireAwait: true, minTick: 5, awaitText: 'PROMPTS (', awaitSettleTicks: 6, data: '\x1b', mark: 'workbench' },
-      { afterPrevTicks: 5 + Math.ceil(BUDGET_MS / 200) + 40, data: '', mark: 'after-budget' },
+      { afterPrevTicks: 5 + Math.ceil(BUDGET_AUTHORED_MS / 200) + 40, data: '', mark: 'after-budget' },
   ]
   const toolSends = [
       { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
