@@ -499,16 +499,16 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   const supportedBetas: string[] = []
   rp.configureEffortParams('max', supported as never, {}, supportedBetas, 'claude-opus-4-8')
   check(
-    'assembly: a supported model sends effort + the effort beta',
-    eq(supported, { effort: 'max' }) && supportedBetas.length === 1,
+    'assembly: a supported model sends effort and no beta header',
+    eq(supported, { effort: 'max' }) && supportedBetas.length === 0,
     JSON.stringify({ supported, supportedBetas }),
   )
   const noValue: Record<string, unknown> = {}
   const noValueBetas: string[] = []
   rp.configureEffortParams(undefined, noValue as never, {}, noValueBetas, 'claude-opus-4-8')
   check(
-    'assembly: undefined effort on a supported model sends the beta only',
-    eq(noValue, {}) && noValueBetas.length === 1,
+    'assembly: undefined effort on a supported model sends neither the key nor a header',
+    eq(noValue, {}) && noValueBetas.length === 0,
   )
   const unsupported: Record<string, unknown> = {}
   const unsupportedBetas: string[] = []
