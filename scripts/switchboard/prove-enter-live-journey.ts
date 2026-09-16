@@ -174,12 +174,12 @@ try {
     const hostHome = paths.getProjectDir(run.paths.cwd)
     const foreignFiles = ((): string[] => {
       try {
-        return readdirSync(hostHome).filter(f => f.endsWith('.jsonl') && f !== `${sessionId}.jsonl`)
+        return readdirSync(hostHome).filter(f => f.endsWith('.jsonl') && f !== `${sessionId}.jsonl` && f !== `${sessionId}.receipts.jsonl`)
       } catch {
         return []
       }
     })()
-    check('§4 the host terminal wrote ZERO transcript rows of its own during the follow (a follow is a READ)', foreignFiles.length === 0, `${hostHome}: ${foreignFiles.join(',')}`)
+    check('§4 the host terminal wrote ZERO transcript rows of its own during the follow (a follow is a READ; the session’s own receipts sidecar is the runner’s)', foreignFiles.length === 0, `${hostHome}: ${foreignFiles.join(',')}`)
     const followedText = readFileSync(transcript, 'utf8')
     check("§4 the followed transcript carries no synthetic continuation rows", !followedText.includes('Continue from where you left off') && !followedText.includes('No response requested'))
     check("§4 the followed transcript carries no foreign session id", !followedText.split('\n').some(l => l.includes('"sessionId"') && !l.includes(sessionId)))

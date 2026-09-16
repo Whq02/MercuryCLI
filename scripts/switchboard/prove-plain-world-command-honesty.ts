@@ -2,7 +2,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
@@ -148,8 +148,9 @@ check(
 )
 const doubled = /· ready · [^\n·]+ · ready/
 check('§3b the status row never repeats "· <project> · ready" twice', !doubled.test(joined), joined.split('\n').filter(r => doubled.test(r)).map(r => r.trim().slice(0, 110)).join(' | ') || 'clean')
+const titleRows = joined.split('\n').filter(r => /✶ SESSION/.test(r))
 const statusRows = joined.split('\n').filter(r => /· ready|· thinking|· running a tool|· replying|esc interrupts/.test(r))
-check('§3c after the first words the status row names them (stage 2), not "new session"', statusRows.length > 0 && statusRows.some(r => /hello plain world/.test(r)) && !statusRows.some(r => /new session ·/.test(r)), statusRows.map(r => r.trim().slice(0, 100)).slice(0, 2).join(' | ') || 'no status row')
+check('§3c after the first words the title row names them (stage 2), never "new session"; the status row leads with the project and its state', titleRows.length > 0 && titleRows.every(r => /hello plain world/.test(r)) && !/new session/.test(joined) && statusRows.length > 0 && statusRows.every(r => r.trimStart().startsWith(`${basename(cwd)} · `)) && statusRows.some(r => r.includes(`${basename(cwd)} · ready`)), [...titleRows.slice(0, 1), ...statusRows.slice(0, 1)].map(r => r.trim().slice(0, 100)).join(' | ') || 'no title or status row')
 const typedNeedle = /(?<![:/\w])\/fleet\b/
 const wireHits = api.requests.filter((r: { raw: string }) => typedNeedle.test(r.raw))
 check('§4 the wire never saw /fleet', wireHits.length === 0, `${wireHits.length} of ${api.requests.length}`)

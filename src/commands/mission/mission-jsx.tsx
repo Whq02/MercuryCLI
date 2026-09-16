@@ -33,10 +33,10 @@ function MissionStatusPanel({ mission }: { mission: MissionView }): React.ReactN
     <Box flexDirection="column">
       <Text bold>Standing mission</Text>
       <Box marginTop={1}>
-        <Text>{mission.condition}</Text>
+        <Text dimColor>{stateLine}</Text>
       </Box>
       <Box marginTop={1}>
-        <Text dimColor>{stateLine}</Text>
+        <Text>{mission.condition}</Text>
       </Box>
       <Box marginTop={1}>
         <Text dimColor>"/mission clear" to drop it</Text>

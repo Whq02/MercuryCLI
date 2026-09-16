@@ -241,8 +241,9 @@ if (sendRecs.length === sends.length) {
   const landed = names.indexOf('birth-landed')
   const refused = names.indexOf('birth-refused')
   check('the milestones record the flip BEFORE the birth landed, then the second birth’s refusal', flipped !== -1 && landed > flipped && refused > landed, names.join(' → '))
-  const standing = Object.values(workers).filter(w => w.endedAt === undefined)
-  check('the daemon’s records hold exactly ONE session (a refused birth leaves no ghost on the board)', standing.length === 1, text(Object.values(workers).map(w => ({ sessionId: w.sessionId, endedAt: w.endedAt }))))
+  const records = Object.values(workers)
+  const lastOut = recs.filter(r => r.ts !== undefined).map(r => r.ts!).pop() ?? 0
+  check('the daemon’s records hold exactly ONE session (a refused birth leaves no ghost on the board; the one record ends with the screen’s own shutdown)', records.length === 1 && new Set(records.map(w => w.sessionId)).size === 1 && records.every(w => w.endedAt === undefined || w.endedAt >= lastOut - 5000), text(records.map(w => ({ sessionId: w.sessionId, endedAt: w.endedAt, endedAfterTheDrive: w.endedAt === undefined ? null : w.endedAt - lastOut }))))
 }
 
 section('§6 THE RESUME SIBLING — a resumed session whose retained model has no credential here is ADMITTED modelless: the receipt names the model and its door, and a shell line runs')

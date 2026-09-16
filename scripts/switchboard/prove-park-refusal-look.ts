@@ -69,7 +69,7 @@ writeFileSync(fixturePath, JSON.stringify(fixture))
 function capture(cols: number, rows: number): string[] {
   const out = join(OUT_DIR, `park-refusal-${cols}x${rows}.json`)
   const cfgPath = join(scratch, `vshot-${cols}.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends: [{ data: '', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 3, mark: 'board' }], total: 60, cols, rows, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends: [{ data: '', awaitText: cols >= 100 ? 'SESSIONS' : 'sessions ·', requireAwait: true, awaitSettleTicks: 3, mark: 'board' }], total: 60, cols, rows, out }))
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
     encoding: 'utf8',
     timeout: vshotBudgetMs(180_000),

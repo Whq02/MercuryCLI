@@ -248,8 +248,14 @@ console.log('S3 — the last chat closed from the board: the board stays, and th
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
       g('SESSIONS', '\t', { awaitSettleTicks: 3 }),
-      { afterPrevTicks: 3, data: 'x' },
-      { afterPrevTicks: 2, data: 'x' },
+      { afterPrevTicks: 3, data: '\x18' },
+      { afterPrevTicks: 3, data: '\x18' },
+      g('stopped', '\x18', { awaitSettleTicks: 3 }),
+      { afterPrevTicks: 3, data: '\x18' },
+      g('parked ·', '\x18', { awaitSettleTicks: 3 }),
+      { afterPrevTicks: 3, data: '\x18' },
+      { afterPrevTicks: 3, data: '\x18' },
+      { afterPrevTicks: 3, data: '\x18' },
       { afterPrevTicks: 35, data: '', mark: 'board-stays' },
       { afterPrevTicks: 3, data: SHIFT_RIGHT },
       { afterPrevTicks: 6, data: '', mark: 'board-after' },
@@ -257,7 +263,7 @@ console.log('S3 — the last chat closed from the board: the board stays, and th
       { afterPrevTicks: 8, data: '', mark: 'menu' },
     ],
     stableTicks: 4,
-    total: 260,
+    total: 460,
   })
   printFrame('s3 (the face after ⇧← from the emptied board)', c.lines)
   const stays = markText(c, 'board-stays')
@@ -268,7 +274,7 @@ console.log('S3 — the last chat closed from the board: the board stays, and th
   check('S3 ⇧→ from the board is NO MOVEMENT (byte-still): the closed chat is not a stop', stays !== '' && still(stays) === still(after))
   check('S3 ⇧← from the board is the face', isFace(menu) && !isChat(menu), firstRows(menu))
   check(`S3 the face's row names the concourse alone again (the chat stop vanished with the session)`, menu.includes(FACE_TO_CONCOURSE) && !menu.includes(FACE_TO_CHAT))
-  check('S3 the roster is empty (the record ended — x-x is final)', Object.keys(liveRecords(home)).length === 0, JSON.stringify(Object.keys(liveRecords(home))))
+  check('S3 the roster is empty (the record ended — the close chord walked stop, archive and delete)', Object.keys(liveRecords(home)).length === 0, JSON.stringify(Object.keys(liveRecords(home))))
   reapHome(home)
 }
 

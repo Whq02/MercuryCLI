@@ -17,6 +17,24 @@ import { effortLevelToSymbol } from '../EffortIndicator.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 
+export function focusedEffortLabelOf(
+  model: string,
+  seatEffort: string | null,
+  sentEffort: string | null | undefined,
+  effortValue: ReturnType<typeof parseEffortValue> | undefined,
+): string {
+  const stamped = seatEffort !== null ? parseEffortValue(seatEffort) : undefined
+  const seatResolution = stamped !== undefined ? resolveStampedEffortTruth(model, stamped) : null
+  const askedOnly = sentEffort === undefined && stamped !== undefined
+  return typeof sentEffort === 'string'
+    ? sentEffort
+    : askedOnly
+      ? `${String(stamped)} (asked)`
+      : seatResolution !== null
+        ? seatResolution.label
+        : getDisplayedEffortLabel(model, effortValue)
+}
+
 export function EffortChip({ model, plain = false, maxWidth = Number.POSITIVE_INFINITY }: { model: string; plain?: boolean; maxWidth?: number }): React.ReactNode {
   const effortValue = useAppStateMaybeOutsideOfProvider(s => s.effortValue)
   const supercode = useAppStateMaybeOutsideOfProvider(s => s.supercode)
@@ -39,14 +57,7 @@ export function EffortChip({ model, plain = false, maxWidth = Number.POSITIVE_IN
             ? convertEffortValueToLevel(seatResolution.appliedValue)
             : getDisplayedEffortLevel(model, undefined)
           : getDisplayedEffortLevel(model, effortValue)
-  const label =
-    typeof sentEffort === 'string'
-      ? sentEffort
-      : askedOnly
-        ? `${String(stamped)} (asked)`
-        : seatResolution !== null
-          ? seatResolution.label
-          : getDisplayedEffortLabel(model, effortValue)
+  const label = focusedEffortLabelOf(model, seatEffort, sentEffort, effortValue)
   if (plain) {
     const text = ` · effort ${label}`
     return stringWidth(text) <= maxWidth ? <Text color={SECOND}>{text}</Text> : null

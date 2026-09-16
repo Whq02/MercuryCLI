@@ -219,8 +219,14 @@ console.log('D1 — the only session: x-x ends it, the board stays with two stop
       { afterPrevTicks: 12, data: '', mark: 'switched' },
       { afterPrevTicks: 2, data: SHIFT_LEFT },
       g(BOARD, '\t', { awaitSettleTicks: 3 }),
-      { afterPrevTicks: 3, data: 'x' },
-      { afterPrevTicks: 2, data: 'x' },
+      { afterPrevTicks: 3, data: '\x18' },
+      { afterPrevTicks: 3, data: '\x18' },
+      g('stopped', '\x18', { awaitSettleTicks: 3 }),
+      { afterPrevTicks: 3, data: '\x18' },
+      g('parked ·', '\x18', { awaitSettleTicks: 3 }),
+      { afterPrevTicks: 3, data: '\x18' },
+      { afterPrevTicks: 3, data: '\x18' },
+      { afterPrevTicks: 3, data: '\x18' },
       { afterPrevTicks: 35, data: '', mark: 'board-stays' },
       { afterPrevTicks: 3, data: SHIFT_RIGHT },
       { afterPrevTicks: 6, data: '', mark: 'board-after' },
@@ -228,14 +234,14 @@ console.log('D1 — the only session: x-x ends it, the board stays with two stop
       { afterPrevTicks: 8, data: '', mark: 'menu' },
     ],
     stableTicks: 4,
-    total: 320,
+    total: 520,
   })
   printFrame('d1 (the board after x-x on the only session)', markText(c, 'board-stays').split('\n'))
   const stays = markText(c, 'board-stays')
   const after = markText(c, 'board-after')
   const menu = markText(c, 'menu')
   check('D1 the model switch landed on the chat (the set-model road the repro rode)', markText(c, 'switched').includes(COMPOSER), firstRows(markText(c, 'switched')))
-  check('D1 x-x on the only session ENDED it (no standing record)', standingOf(home).length === 0, JSON.stringify(standingOf(home).map(r => [r.runnerId, r.parkedAt !== undefined, r.crash?.reason])))
+  check('D1 the close chord walked its rungs on the only session — stop, archive, delete — and ENDED it (no standing record)', standingOf(home).length === 0, JSON.stringify(standingOf(home).map(r => [r.runnerId, r.parkedAt !== undefined, r.crash?.reason])))
   check('D1 the board STAYS the frame — the two screens — never the dead chat, never a bounce to the menu', isBoard(stays) && !isChat(stays) && !isFace(stays), firstRows(stays))
   check('D1 NO refusal painted (poison: "✕ refused — stop refused")', !/refused/.test(stays), stays.split('\n').filter(l => /refused/.test(l)).join(' | '))
   const still = (t: string): string => t.replace(/❯ ▌/g, '❯  ')
@@ -268,8 +274,10 @@ console.log('D2 — park, reactivate in place, park again, x-x: gone')
       { afterPrevTicks: 2, data: '\r' },
       { afterPrevTicks: 25, data: SHIFT_LEFT },
       g(BOARD, '', { awaitSettleTicks: 4, mark: 'board-parked-again' }),
-      { afterPrevTicks: 2, data: 'x' },
-      { afterPrevTicks: 2, data: 'x' },
+      { afterPrevTicks: 2, data: '\x18' },
+      { afterPrevTicks: 3, data: '\x18' },
+      { afterPrevTicks: 3, data: '\x18' },
+      { afterPrevTicks: 3, data: '\x18' },
       { afterPrevTicks: 20, data: '', mark: 'gone' },
     ],
     stableTicks: 4,
@@ -291,7 +299,7 @@ console.log('D2 — park, reactivate in place, park again, x-x: gone')
   console.log(`  [FELT] ↵ on the parked row at tick ${enterTick ?? '∅'}; the chat with its words was on screen at tick ${paintedTick ?? '∅'} (${enterTick !== undefined && paintedTick !== undefined ? `${(paintedTick - enterTick) * 200} ms` : '∅'}, budget ${REACTIVATE_BUDGET_TICKS * 200} ms — the warm road's class; the daemon log's "warm claim acked in Nms … takes back session" line carries the ack number for the receipt)`)
   check('D2 the parked row was reactivated IN PLACE: exactly ONE un-ended record ever owned the session', all.filter(r => r.sessionId === oldRec?.sessionId).length === 1, JSON.stringify(all.map(r => [r.runnerId, r.sessionId.slice(-4), r.endedAt !== undefined, r.parkedAt !== undefined])))
   check('D2 /clear parked it AGAIN: the board lists it parked once more', isBoard(again) && again.includes(WORDS) && /parked · \d\dm/.test(again), again.split('\n').filter(l => l.includes(WORDS)).join(' | '))
-  check('D2 x-x on the parked row: the record ENDED and the board\'s mark cleared it — gone', oldRec !== undefined && oldRec.endedAt !== undefined && parkedClearedOf(home).includes(oldRec.sessionId) && !gone.includes(WORDS), JSON.stringify({ ended: oldRec?.endedAt !== undefined, cleared: parkedClearedOf(home).length, onFrame: gone.includes(WORDS) }))
+  check('D2 the close chord on the parked row — arm, delete — ENDED the record and the board\'s mark cleared it — gone', oldRec !== undefined && oldRec.endedAt !== undefined && parkedClearedOf(home).includes(oldRec.sessionId) && !gone.includes(WORDS), JSON.stringify({ ended: oldRec?.endedAt !== undefined, cleared: parkedClearedOf(home).length, onFrame: gone.includes(WORDS) }))
   check('D2 the board stays the frame after the release (the newest chat is the survivor; nothing bounces)', isBoard(gone) && !isFace(gone), firstRows(gone))
   reapHome(home)
 }

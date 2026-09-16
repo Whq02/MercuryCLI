@@ -389,9 +389,11 @@ if (cap !== null) {
   for (const seat of ['fable', 'gpt'] as Seat[]) {
     const rows = rowsOf(seat)
     const firstByte = rows.filter(r => r.includes('waiting for the first byte'))
-    check(`W1 ${SEATS[seat]}: the first-byte wait names its budget ("waiting for the first byte · Ns, within N s")`, firstByte.some(r => /waiting for the first byte · \d+s, within \d+ s/.test(r)), firstByte[0]?.slice(0, 160) ?? rows[0]?.slice(0, 160) ?? '(no row)')
-    const reasoning = rows.map(r => /reasoning (\d+)s, no tokens yet/.exec(r)?.[1]).filter((v): v is string => v !== undefined).map(Number)
-    check(`W1 ${SEATS[seat]}: reasoning is named with a counter that moves (${reasoning.join(',') || 'none'})`, reasoning.length >= 2 && reasoning[reasoning.length - 1]! > reasoning[0]!)
+    check(`W1 ${SEATS[seat]}: the first-byte wait names its budget ("waiting for the first byte · Ns, within N s" — a minute or more spelled in minutes)`, firstByte.some(r => /waiting for the first byte · \d+s, within (?:\d+m(?: \d+s)?|\d+ ?s)\b/.test(r)), firstByte[0]?.slice(0, 160) ?? rows[0]?.slice(0, 160) ?? '(no row)')
+    const reasoningSeconds = rows.map(r => /reasoning (\d+)s\b/.exec(r)?.[1]).filter((v): v is string => v !== undefined).map(Number)
+    const reasoningTokens = rows.map(r => /reasoning \d+s · ~(\d+) tokens so far/.exec(r)?.[1]).filter((v): v is string => v !== undefined).map(Number)
+    const moves = (xs: readonly number[]): boolean => xs.length >= 2 && xs[xs.length - 1]! > xs[0]!
+    check(`W1 ${SEATS[seat]}: reasoning is named with a counter that moves (seconds ${reasoningSeconds.join(',') || 'none'} · tokens ${reasoningTokens.join(',') || 'none'})`, moves(reasoningSeconds) || moves(reasoningTokens))
     check(`W1 ${SEATS[seat]}: the tool phase paints the running tool's own line`, rows.some(r => /sleep 2|wait two seconds|Bash/.test(r)))
     check(`W1 ${SEATS[seat]}: the row lands`, rows.some(r => r.includes('landed')) || (cap.text.includes(SEATS[seat]) && seatRow(cap.text, seat)?.includes('landed') === true), seatRow(cap.text, seat)?.slice(0, 160) ?? '(no final row)')
     const distinct = new Set(rows.map(r => PHASE_WORDS.find(w => r.includes(w)) ?? (r.includes('landed') ? 'landed' : 'other')))
@@ -418,7 +420,7 @@ if (cap !== null) {
   const modelsAfterLaunch = fixture.hits.filter(h => h.lane === 'models' && h.atMs > launchTs)
   const seatFetches = modelsAfterLaunch.filter(h => !bootFetch(fixture.hits, h.atMs))
   const modelsBefore = fixture.hits.filter(h => h.lane === 'models' && h.atMs <= launchTs).length
-  check(`W3 no seat's models-list fetch reached the fixture after the launch (${modelsBefore} fetches before it; ${modelsAfterLaunch.length - seatFetches.length} boot warm-up fetch(es) after it, each behind a reachability probe)`, seatFetches.length === 0, `${seatFetches.length} seat fetch(es)`)
+  check(`W3 the GPT road paid at most ONE models-list fetch after the launch — the first seat's, the cache serving every later request; no catalogue is fetched at boot (${modelsBefore} fetches before it; ${modelsAfterLaunch.length - seatFetches.length} boot warm-up fetch(es) after it, each behind a reachability probe)`, seatFetches.length <= 1, `${seatFetches.length} seat fetch(es)`)
   const daemonLog = ((): string => {
     try {
       return readFileSync(join(home, 'daemon', 'daemon.log'), 'utf8')
@@ -426,7 +428,7 @@ if (cap !== null) {
       return ''
     }
   })()
-  check("W3 the warm claim carried the daemon's catalogue snapshot (the daemon's own line)", /warm claim carries the OpenAI catalogue: \d+ model/.test(daemonLog), daemonLog.split('\n').filter(l => l.includes('warm claim')).join(' | ').slice(0, 300))
+  check("W3 the warm claim named its catalogue hand-off (the snapshot when one is cached, \"nothing cached yet\" on a boot that fetched none — the daemon's own line)", /warm claim carries (?:the OpenAI catalogue: \d+ model|no OpenAI catalogue \()/.test(daemonLog), daemonLog.split('\n').filter(l => l.includes('warm claim')).join(' | ').slice(0, 300))
   check('W3 the GPT seat reached the fixture (its dispatch resolved on the primed catalogue)', gptFirst !== undefined)
 }
 

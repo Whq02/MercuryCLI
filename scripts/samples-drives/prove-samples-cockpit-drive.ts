@@ -27,8 +27,10 @@ const MARKS = { version: 1, pins: [{ x: 0.2, y: 0.1, target: 'h1 "Pricing"', tex
 const ADDRESS = /http:\/\/127\.0\.0\.1:\d+\/s\/[a-z0-9]{6,32}\?t=[0-9a-f]{32}/
 const BAR_TODAY = /^│ ⊞ SESSIONS › │  ▣ this session  │   \/sessions\s+│$/
 const BAR_WITH_SAMPLE = /^│ ⊞ SESSIONS › │  ▣ this session  │  ⧉ pricing table · v1  │   \/sessions\s+│$/
-const LINE_TODAY = /^\d+ sessions? on · 0 monitors here · 0 agents here\s+⇧← boot face$/
-const LINE_WITH_SAMPLE = /^\d+ sessions? on · 0 monitors here · 0 agents here · 1 sample\s+⇧← boot face$/
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const BOOT_FACE_HINT = keyHintLabel('⇧← boot face').replace(/\+/g, '\\+')
+const LINE_TODAY = new RegExp(`^\\d+ sessions? on · 0 monitors here · 0 agents here\\s+${BOOT_FACE_HINT}$`)
+const LINE_WITH_SAMPLE = new RegExp(`^\\d+ sessions? on · 0 monitors here · 0 agents here · 1 sample\\s+${BOOT_FACE_HINT}$`)
 const LIST_ROW = /❯ ⧉ pricing table          v1 · changes needed · \d+[smh] ago/
 const ESC = String.fromCharCode(27)
 

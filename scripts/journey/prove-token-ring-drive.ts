@@ -15,6 +15,7 @@ if (!existsSync(BIN)) {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { vshotBudgetMs, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
   console.error(`prove-token-ring-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
@@ -502,8 +503,9 @@ if (cap !== null) {
     codes.length > 0 && codes[codes.length - 1] === 0,
     `unanswered=${census.unanswered.length}`,
   )
-  const idleRows = rowsWith(m['after-interrupt'], / · ready/)
-  check("R3 the face is at rest after the interrupt (the status row's own word)", idleRows.length > 0, rowsWith(m['after-interrupt'], /⇧← back/).map(flat).join(' | ').slice(0, 200))
+  const restRows = rowsWith(m['after-interrupt'], keyHintLabel('⇧← back'))
+  const atRest = (r: string): boolean => (/ · ready\b/.test(r) || /\b(?:agents?|workflows?) thought for \d+[smh]\b/.test(r)) && !/interrupting|stopping|thinking|replying|running a tool|waiting on/.test(r)
+  check("R3 the face is at rest after the interrupt (the status row reads ready, or the crew's settled clock in the past tense)", restRows.length > 0 && restRows.every(atRest), restRows.map(flat).join(' | ').slice(0, 200) || 'no status row')
 }
 
 if (!KEEP) {
