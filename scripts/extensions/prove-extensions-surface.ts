@@ -14,7 +14,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-extui-surface-')))
 const TEMPLATE = join(SCRATCH, 'home-template')
@@ -36,7 +36,7 @@ if (CAPTURE_DIR) mkdirSync(CAPTURE_DIR, { recursive: true })
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const scenarios = await import('../ui/renderScenarios.ts')
-const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.ts')
+const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
 const core = {
   sources: await import('../../src/extensions/sources.ts'),
   install: await import('../../src/extensions/install.ts'),
@@ -211,8 +211,8 @@ function runDrive(drive: Drive): Promise<{ text: string; lines: string[]; status
   if (drive.freshHome) {
     mkdirSync(home, { recursive: true })
     seedFirstRun(home, [CWD_FRESH])
-    const from = join(TEMPLATE, 'projects', sanitizePath(CWD))
-    const to = join(home, 'projects', sanitizePath(CWD_FRESH))
+    const from = getProjectDir(CWD)
+    const to = join(home, relative(TEMPLATE, getProjectDir(CWD_FRESH)))
     mkdirSync(to, { recursive: true })
     for (const name of readdirSync(from)) {
       const body = readFileSync(join(from, name), 'utf8')
