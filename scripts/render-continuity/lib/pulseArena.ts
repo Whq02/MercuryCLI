@@ -36,44 +36,13 @@ export interface SendRecord {
   b64: string
 }
 
-export interface PulseDumpLine {
-  summary: Record<string, unknown> & {
-    generation?: number
-    status?: string
-    cold?: boolean
-    dispatched?: boolean
-    totalMs?: number
-    ackMs?: number | null
-    localPrepMs?: number | null
-    providerWaitMs?: number | null
-    firstVisibleMs?: number | null
-    paintMs?: number | null
-  }
-  events: { name: string; at: number; data?: Record<string, unknown> }[]
-  producers: { label: string; ms: number; outcome: string; count: number }[]
-}
-
-export function normalizeDumpLine(raw: unknown): PulseDumpLine | null {
-  if (!raw || typeof raw !== 'object') return null
-  const r = raw as Record<string, unknown>
-  const nested =
-    r.summary && typeof r.summary === 'object' ? (r.summary as Record<string, unknown>) : null
-  const trace = r.trace && typeof r.trace === 'object' ? (r.trace as Record<string, unknown>) : null
-  const events = (r.events ?? trace?.events ?? []) as PulseDumpLine['events']
-  const producers = (r.producers ?? trace?.producers ?? []) as PulseDumpLine['producers']
-  const summary = (nested ?? r) as PulseDumpLine['summary']
-  if (!Array.isArray(events) || !Array.isArray(producers)) return null
-  return { summary, events, producers }
-}
-
 export interface PulseRun {
   fixture: FixtureApi
   teeLines: TeeWrite[]
   sendLog: SendRecord[]
-  pulse: PulseDumpLine[]
   driverOut: string
   anchorShiftMs: number
-  paths: { home: string; cwd: string; drive: string; tee: string; dump: string }
+  paths: { home: string; cwd: string; drive: string; tee: string }
   cleanup: () => void
 }
 
@@ -109,11 +78,6 @@ export function requireDist(): void {
     console.error('dist/mercury.mjs missing — run `bun run build.ts` first')
     process.exit(2)
   }
-}
-
-export function distHasSpelling(spelling: string): boolean {
-  if (!existsSync(DIST)) return false
-  return readFileSync(DIST, 'utf8').includes(spelling)
 }
 
 export function nodeBinPath(): string {
@@ -155,7 +119,6 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
   seedFiles(configDir, opts.seedConfig ?? {})
   const tee = join(home, 'tee.jsonl')
   const drive = join(home, 'drive.jsonl')
-  const dump = join(home, 'pulse.jsonl')
 
   const sendArgs: string[] = []
   sendArgs.push('--send', `after:${FACE_READY_NEEDLE}:900:\\r`)
@@ -187,7 +150,6 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
         MERCURY_DAEMON_DIR: join(home, 'daemon'),
         MERCURY_TEAMS_DIR: join(home, 'teams'),
         MERCURY_TABULA_DIR: join(home, 'tabula'),
-        MERCURY_PULSE_DUMP: dump,
         INK_WRITE_TEE: tee,
         INK_WRITE_TEE_FULL: '1',
         MERCURY_TERMINAL_TITLE: '0',
@@ -237,7 +199,6 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
       ? (row as SendRecord)
       : null,
   )
-  const pulse = readJsonl<PulseDumpLine>(dump, normalizeDumpLine)
   const anchorShiftMs =
     readJsonl<{ shiftMs: number }>(drive, row =>
       row && typeof row === 'object' && typeof (row as { anchor?: unknown }).anchor === 'number'
@@ -256,10 +217,9 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
     fixture,
     teeLines,
     sendLog,
-    pulse,
     driverOut,
     anchorShiftMs,
-    paths: { home, cwd, drive, tee, dump },
+    paths: { home, cwd, drive, tee },
     cleanup,
   }
 }

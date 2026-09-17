@@ -16,11 +16,6 @@ import {
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import {
-  getPulseRing,
-  pulsePercentile,
-  type PulseTurnSummary,
-} from '../utils/pulse/index.js'
-import {
   frictionSnapshot,
   type FrictionTransition,
 } from '../utils/observability/frictionStopwatch.js'
@@ -137,10 +132,6 @@ export function TraceView({ onClose }: { onClose: () => void }): React.ReactNode
 
       {
 }
-      <PulseSection />
-
-      {
-}
       <FrictionSection />
       <FrameSection />
 
@@ -198,27 +189,6 @@ export function TraceView({ onClose }: { onClose: () => void }): React.ReactNode
   )
 }
 
-
-function fmtMs(ms: number | null): string {
-  if (ms === null) return '—'
-  return fmtDuration(ms)
-}
-
-function waterfallBar(s: PulseTurnSummary, width: number): React.ReactNode {
-  const prep = s.localPrepMs ?? 0
-  const wait = s.providerWaitMs ?? 0
-  const rest = Math.max(0, s.totalMs - prep - wait)
-  const total = prep + wait + rest
-  if (total <= 0) return null
-  const cells = (v: number) => (v <= 0 ? 0 : Math.max(1, Math.round((v / total) * width)))
-  return (
-    <Text>
-      <Text color={AMBER}>{'█'.repeat(cells(prep))}</Text>
-      <Text color={FAINT}>{'█'.repeat(cells(wait))}</Text>
-      <Text color={TEAL}>{'█'.repeat(cells(rest))}</Text>
-    </Text>
-  )
-}
 
 function FrictionSection(): React.ReactNode {
   const tok = useMercuryTokens()
@@ -307,65 +277,6 @@ export function FrameSection(): React.ReactNode {
           {`profile ${profile.verdict}${failing ? ` — ${failing.id}: ${failing.evidence}` : ' — every capability check ok'}`}
         </Text>
       </Box>
-    </>
-  )
-}
-
-function PulseSection(): React.ReactNode {
-  const ring = getPulseRing()
-  if (ring.length === 0) return null
-  const last = ring[ring.length - 1]!
-  const warm = (s: PulseTurnSummary) => !s.cold && s.dispatched
-  const p = (field: Parameters<typeof pulsePercentile>[0], pct: number) =>
-    pulsePercentile(field, pct, warm)
-  const warmCount = ring.filter(warm).length
-  return (
-    <>
-      <SectionHeader>
-        {`Turn pulse (${ring.length} turn${ring.length === 1 ? '' : 's'}${warmCount > 0 ? ` · ${warmCount} warm` : ''})`}
-      </SectionHeader>
-      {warmCount > 0 ? (
-        <Text>
-          <Text color={SECOND}>{'warm p50/p95  '}</Text>
-          <Text color={IVORY}>{`prep ${fmtMs(p('localPrepMs', 50))}/${fmtMs(p('localPrepMs', 95))}`}</Text>
-          <Text color={FAINT}>{' · '}</Text>
-          <Text color={IVORY}>{`provider ${fmtMs(p('providerWaitMs', 50))}/${fmtMs(p('providerWaitMs', 95))}`}</Text>
-          <Text color={FAINT}>{' · '}</Text>
-          <Text color={IVORY}>{`first visible ${fmtMs(p('firstVisibleMs', 50))}/${fmtMs(p('firstVisibleMs', 95))}`}</Text>
-        </Text>
-      ) : null}
-      <Text>
-        <Text color={SECOND}>{`last ${last.key} `}</Text>
-        <Text color={last.cold ? AMBER : FAINT}>{last.cold ? 'cold' : 'warm'}</Text>
-        <Text color={FAINT}>{` ${last.status}${last.model ? ` · ${last.model}${last.effort ? ` @${last.effort}` : ''}` : ''}`}</Text>
-      </Text>
-      <Text>
-        <Text color={SECOND}>{'  ack '}</Text>
-        <Text color={IVORY}>{fmtMs(last.ackMs)}</Text>
-        <Text color={SECOND}>{' · prep '}</Text>
-        <Text color={AMBER}>{fmtMs(last.localPrepMs)}</Text>
-        <Text color={SECOND}>{' · provider '}</Text>
-        <Text color={IVORY}>{fmtMs(last.providerWaitMs)}</Text>
-        <Text color={SECOND}>{' · paint '}</Text>
-        <Text color={TEAL}>{fmtMs(last.paintMs)}</Text>
-        <Text color={SECOND}>{' · total '}</Text>
-        <Text color={IVORY}>{fmtMs(last.totalMs)}</Text>
-      </Text>
-      {last.dispatched ? (
-        <Box>
-          <Text color={FAINT}>{'  '}</Text>
-          {waterfallBar(last, 40)}
-        </Box>
-      ) : (
-        <Text color={FAINT}>{'  local-only turn (never dispatched)'}</Text>
-      )}
-      {last.slowestStage || last.slowestProducer ? (
-        <Text color={FAINT}>
-          {`  slowest local${last.slowestStage ? ` ${last.slowestStage.name} ${fmtDuration(last.slowestStage.ms)}` : ''}${
-            last.slowestProducer ? ` · producer ${last.slowestProducer.label} ${fmtDuration(last.slowestProducer.ms)}` : ''
-          }`}
-        </Text>
-      ) : null}
     </>
   )
 }

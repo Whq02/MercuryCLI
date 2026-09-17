@@ -9,14 +9,6 @@ import { getRunProtocolDelta } from '../cockpit/runProtocol.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import type { IDESelection } from '../../hooks/useIdeSelection.js'
 import { createAbortController } from '../abortController.js'
-import {
-  getActivePulseTrace,
-  pulseNow,
-  pulseStageEnd,
-  pulseStageStart,
-  recordPulseProducer,
-  setPulsePhase,
-} from '../pulse/index.js'
 import { isAgentSwarmsEnabled } from '../agentSwarmsEnabled.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { logError } from '../log.js'
@@ -101,17 +93,8 @@ export async function getAttachments(
 
   const isMainThread = !toolUseContext.agentId
 
-  const collectionStart = pulseNow()
-  const maybe = makeMaybe(
-    isMainThread,
-    collectionStart + ATTACHMENT_HARD_DEADLINE_MS,
-  )
-  if (isMainThread) {
-    pulseStageStart('attachment_collection')
-    setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'preparing', {
-      reason: 'workspace',
-    })
-  }
+  const collectionStart = performance.now()
+  const maybe = makeMaybe(collectionStart + ATTACHMENT_HARD_DEADLINE_MS)
 
   const userInputAttachments = input
     ? [
@@ -319,7 +302,6 @@ export async function getAttachments(
     ])
 
   clearTimeout(timeoutId)
-  if (isMainThread) pulseStageEnd('attachment_collection')
   return [
     ...userAttachmentResults.flat(),
     ...threadAttachmentResults.flat(),
@@ -342,18 +324,17 @@ type MaybeFn = <A>(
 
 const producerInFlight = new Map<string, Promise<unknown>>()
 
-export function makeMaybe(record: boolean, deadlineAt: number): MaybeFn {
+export function makeMaybe(deadlineAt: number): MaybeFn {
   return async function maybe<A>(
     label: string,
     f: () => Promise<A[]>,
     opts?: MaybeOpts,
   ): Promise<A[]> {
-    const startTime = pulseNow()
+    const startTime = performance.now()
     let timer: ReturnType<typeof setTimeout> | null = null
     try {
       const remaining = deadlineAt - startTime
       if (remaining <= 0 && !opts?.priority) {
-        if (record) recordPulseProducer(label, 0, 'skipped', 0)
         logError(
           new Error(
             `attachment producer '${label}' skipped — the shared ${ATTACHMENT_HARD_DEADLINE_MS}ms budget was spent before it could start (recorded, not silent)`,
@@ -389,9 +370,7 @@ export function makeMaybe(record: boolean, deadlineAt: number): MaybeFn {
           ])
         : run)
       if (timer !== null) clearTimeout(timer)
-      const duration = pulseNow() - startTime
       if (result === 'pulse_deadline') {
-        if (record) recordPulseProducer(label, duration, 'timeout', 0)
         logError(
           new Error(
             `attachment producer '${label}' ignored cancellation past the ${ATTACHMENT_HARD_DEADLINE_MS}ms hard deadline — output dropped (recorded, not silent)`,
@@ -399,19 +378,9 @@ export function makeMaybe(record: boolean, deadlineAt: number): MaybeFn {
         )
         return []
       }
-      if (record) {
-        recordPulseProducer(
-          label,
-          duration,
-          result.length > 0 ? 'ok' : 'empty',
-          result.length,
-        )
-      }
       return result
     } catch (e) {
       if (timer !== null) clearTimeout(timer)
-      const duration = pulseNow() - startTime
-      if (record) recordPulseProducer(label, duration, 'error', 0)
       logError(e)
 
       return []

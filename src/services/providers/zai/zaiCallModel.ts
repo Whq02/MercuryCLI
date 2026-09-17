@@ -52,15 +52,6 @@ import {
 } from '../../../prompt/behaviourContract.js'
 import type { SystemPrompt } from '../../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../../utils/thinking.js'
-import {
-  getActivePulseTrace,
-  isPulseMainSource,
-  pulseMark,
-} from '../../../utils/pulse/turnTrace.js'
-import {
-  notePulseStreamActivity,
-  setPulsePhase,
-} from '../../../utils/pulse/turnPhase.js'
 import { imagesSupportedForCompatModel } from '../openaicompat/compatChatCallModel.js'
 import { noteImageRefusal } from '../../desktop/desktopSession.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
@@ -221,9 +212,6 @@ export async function* zaiCallModel(
   }
   const apiKey = dispatch.key
 
-  const pulseMain = isPulseMainSource(options.querySource, options.agentId)
-  const pulseGeneration = getActivePulseTrace()?.generation ?? 0
-
   const plan = await planToolPayload({
     model: modelId,
     tools,
@@ -279,10 +267,6 @@ export async function* zaiCallModel(
   let attemptStartedAtMs = turnStartedAtMs
   for (let attempt = 1; attempt <= ZAI_MAX_ATTEMPTS; attempt++) {
     attemptStartedAtMs = Date.now()
-    if (pulseMain) {
-      pulseMark('api_request_sent')
-      setPulsePhase(pulseGeneration, 'waiting')
-    }
     const outcome = yield* streamOneZaiAttempt({
       request,
       apiKey,
@@ -292,8 +276,6 @@ export async function* zaiCallModel(
       options,
       modelId,
       messages,
-      pulseMain,
-      pulseGeneration,
       deferredUnadmitted: plan.isDeferredUnadmitted,
     })
     if (outcome.kind === 'done') {
@@ -368,8 +350,6 @@ async function* streamOneZaiAttempt(ctx: {
   options: Options
   modelId: string
   messages: Message[]
-  pulseMain: boolean
-  pulseGeneration: number
   deferredUnadmitted?: (name: string) => boolean
 }): AsyncGenerator<StreamEvent | AssistantMessage, AttemptOutcome> {
   const { request, apiKey, requestUrl, signal, tools, options, modelId } = ctx
@@ -480,11 +460,6 @@ async function* streamOneZaiAttempt(ctx: {
   for await (const event of events) {
     if (!firstEventSeen) {
       firstEventSeen = true
-      if (ctx.pulseMain) {
-        pulseMark('response_headers_received')
-        pulseMark('first_stream_chunk_received')
-        notePulseStreamActivity(ctx.pulseGeneration, 'chunk')
-      }
     }
     switch (event.type) {
       case 'reasoning-delta': {

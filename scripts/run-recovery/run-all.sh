@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: src/run-core/** src/services/run/** src/substrate/** src/services/primitives/**
-# gate-watch: src/cli/headless/** src/utils/pulse/** src/utils/sessionStorage/** src/query.ts
+# gate-watch: src/cli/headless/** src/utils/sessionStorage/** src/query.ts
 # gate-watch: src/utils/sessionRestore.ts src/utils/conversationRecovery.ts src/utils/toolResultSummary.ts src/utils/cockpit/awaySummary.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

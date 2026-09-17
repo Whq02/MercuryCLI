@@ -39,7 +39,6 @@ type TurnObs = {
 
 const ALLOW = ['Bash(ls:*)', 'Bash(cat:*)', 'Bash(rg:*)', 'Bash(grep:*)', 'Bash(find:*)', 'Bash(git status:*)', 'Bash(git log:*)']
 
-const pulseDump = join(fixture, '..', `crown-pulse-${sid.slice(0, 8)}.jsonl`)
 
 function runStreamSession(): Promise<{ turns: TurnObs[]; exit: number | null }> {
   return new Promise(resolveP => {
@@ -52,7 +51,7 @@ function runStreamSession(): Promise<{ turns: TurnObs[]; exit: number | null }> 
     ]
     const child = spawn('node', argv, {
       cwd: fixture,
-      env: { ...childEnv(), MERCURY_PULSE_DUMP: pulseDump },
+      env: childEnv(),
       stdio: ['pipe', 'pipe', 'pipe'],
     })
     const turns: TurnObs[] = []
@@ -162,25 +161,6 @@ check('T4 default returns through the frontier decision', t4?.assistantModels.ev
 check('T5 stays on the default', t5?.assistantModels.every(m => m.includes('claude-fable-5')) === true, t5?.assistantModels.join(','))
 check('every turn completed', turns.every(t => t.resultSubtype === 'success'), turns.map(t => t.resultSubtype).join(','))
 
-const dumpLines = readFileSync(pulseDump, 'utf8').trim().split('\n')
-const perTurnAttached: number[] = []
-for (const line of dumpLines) {
-  try {
-    const e = JSON.parse(line) as { producers?: Array<{ label?: string; count?: number }> }
-    if (!e.producers) continue
-    perTurnAttached.push(
-      (e.producers ?? []).filter(p => p.label === 'context_capsule' && (p.count ?? 0) > 0).length,
-    )
-  } catch {  }
-}
-check(
-  'capsule law: T1 attaches (≥1 — a mid-turn read change lawfully re-attaches with a delta) · some later turn dedups to 0 · T5 verbatim-unchanged attaches NOTHING',
-  perTurnAttached.length === 5 &&
-    (perTurnAttached[0] ?? 0) >= 1 &&
-    perTurnAttached[4] === 0 &&
-    perTurnAttached.slice(1, 4).some(n => n === 0),
-  `per-turn=[${perTurnAttached.join(',')}] (dump ${pulseDump})`,
-)
 const jsonl = readFileSync(sessionJsonlPath(sid), 'utf8')
 const userCount = (jsonl.match(/"role":"user"/g) ?? []).length
 check('history intact (≥5 user turns in one conversation)', userCount >= 5, `users=${userCount}`)

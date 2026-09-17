@@ -16,7 +16,7 @@ enableConfigs()
 const { classifyAgentViewSubmission } = await import(
   '../../src/components/PromptInput/promptIntent.ts'
 )
-const { runPulseArena, anchoredOffset, restoreOffsets } = await import('../pulse/lib/pulseArena.ts')
+const { runPulseArena, anchoredOffset, restoreOffsets } = await import('./lib/pulseArena.ts')
 const { checker } = await import('../engine-durability/harness.ts')
 type ScriptedTurn = import('../lib/fixtureApi.ts').ScriptedTurn
 
