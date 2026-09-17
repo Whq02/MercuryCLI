@@ -182,6 +182,7 @@ export type WorkRowV1 = {
   startTime: number
   endTime?: number
   description?: string
+  exitCode?: number
   model?: string
   error?: string
   totalTokens?: number
