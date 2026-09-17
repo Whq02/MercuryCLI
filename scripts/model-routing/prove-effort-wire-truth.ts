@@ -34,6 +34,8 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'ollama=http://fixture.invalid:11434'
 process.env.OPENAI_API_KEY = 'prover-key'
 process.env.OPENROUTER_API_KEY = 'sk-or-v1-EFFORTWIREPROOF000000000'
 process.env.GEMINI_API_KEY = 'AIza-EFFORT-WIRE-PROOF-00000'
+process.env.ANTHROPIC_API_KEY = 'prover-key'
+delete process.env.ANTHROPIC_BASE_URL
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -68,6 +70,12 @@ const routerAnthropic = await import('../../src/utils/router/providers/anthropic
 const harness = await import('../../src/services/mission/harnessApplication.ts')
 const harnessProfiles = await import('../../src/services/mission/harnessProfiles.ts')
 const coordinatorModels = await import('../../src/services/concourse/coordinatorModels.ts')
+const bootstrap = await import('../../src/bootstrap/state.ts')
+bootstrap.setIsInteractive(false)
+const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.ts')
+const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+const B = await import('../../src/constants/betas.ts')
 
 type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max']
@@ -175,11 +183,75 @@ section('§1 the first-party wire: output_config.effort ≡ the owner, per famil
   }
   check('sonnet-4-6 · xhigh steps to high on the wire and in the word', anthropicWire('claude-sonnet-4-6', 'xhigh').effort === 'high' && effort.resolveEffortTruth('claude-sonnet-4-6', 'xhigh').label === 'high' && effort.resolveEffortTruth('claude-sonnet-4-6', 'xhigh').adjustedFrom === 'xhigh')
   const haiku = anthropicWire('claude-haiku-4-5-20251001', 'max')
-  check('a no-dial first-party family sends no effort and no effort beta', haiku.effort === undefined && !haiku.beta)
+  check('a no-dial first-party family sends no effort key', haiku.effort === undefined)
   process.env.MERCURY_EFFORT_LEVEL = 'auto'
   const deferred = anthropicWire('claude-opus-5', 'max')
-  check('env=auto: no effort key, no beta header, the label is the documented default word', deferred.effort === undefined && !deferred.beta && effort.resolveEffortTruth('claude-opus-5', 'max').label === 'high')
+  check('env=auto: no effort key, the label is the documented default word', deferred.effort === undefined && effort.resolveEffortTruth('claude-opus-5', 'max').label === 'high')
   delete process.env.MERCURY_EFFORT_LEVEL
+}
+
+section('§1b the request as sent: the effort rides output_config in the body, and no effort beta rides the anthropic-beta header')
+{
+  const EFFORT_BETA = 'effort-2025-11-24'
+  const tokensOf = (header: string | undefined): string[] => (header ?? '').split(',').map(s => s.trim()).filter(Boolean)
+  const carriesEffortBeta = (header: string | undefined): boolean => tokensOf(header).includes(EFFORT_BETA)
+  type Captured = { headers: Record<string, string>; body: { model?: string; output_config?: { effort?: string } } }
+  const SENTINEL = new Error('request-captured')
+  let captured: Captured | null = null
+  let abortCapture: (() => void) | null = null
+  const captureFetch: typeof fetch = async (_input, init) => {
+    const headers: Record<string, string> = {}
+    new Headers(init?.headers).forEach((v, k) => {
+      headers[k] = v
+    })
+    captured = { headers, body: init?.body ? (JSON.parse(String(init.body)) as Captured['body']) : {} }
+    abortCapture?.()
+    throw SENTINEL
+  }
+  async function captureRequest(model: string, level: Level): Promise<Captured | null> {
+    captured = null
+    const controller = new AbortController()
+    abortCapture = () => controller.abort()
+    const deadline = setTimeout(() => controller.abort(), 90_000)
+    const savedNodeEnv = process.env.NODE_ENV
+    delete process.env.NODE_ENV
+    const gen = queryModelWithStreaming({
+      messages: [createUserMessage({ content: 'effort wire fixture prompt' })],
+      systemPrompt: asSystemPrompt(['You are the effort wire fixture.']),
+      thinkingConfig: { type: 'disabled' } as never,
+      tools: [],
+      signal: controller.signal,
+      options: {
+        model,
+        effortValue: level,
+        querySource: 'sdk',
+        isNonInteractiveSession: true,
+        fetchOverride: captureFetch as never,
+        maxRetries: 0,
+        getToolPermissionContext: async () =>
+          ({ mode: 'default', additionalWorkingDirectories: new Map(), alwaysAllowRules: {}, alwaysDenyRules: {} }) as never,
+      } as never,
+    })
+    try {
+      for await (const _ of gen) {
+        void _
+      }
+    } catch {
+      void 0
+    }
+    clearTimeout(deadline)
+    abortCapture = null
+    if (savedNodeEnv !== undefined) process.env.NODE_ENV = savedNodeEnv
+    return captured
+  }
+  const opus = await captureRequest('claude-opus-5', 'max')
+  check('opus-5 · max: one request was captured for the model asked', opus !== null && opus.body.model === 'claude-opus-5', JSON.stringify(opus?.body.model))
+  check('opus-5 · max: the body carries output_config.effort=max', opus?.body.output_config?.effort === 'max', JSON.stringify(opus?.body.output_config))
+  check('opus-5 · max: the anthropic-beta header as sent carries no effort beta', opus !== null && !carriesEffortBeta(opus.headers['anthropic-beta']), String(opus?.headers['anthropic-beta']))
+  check('control: the same header carries the coding beta the request does ride (the reader sees the live tokens)', opus !== null && tokensOf(opus.headers['anthropic-beta']).includes(B.CODING_20250219_BETA_HEADER), String(opus?.headers['anthropic-beta']))
+  const opusLow = await captureRequest('claude-opus-5', 'low')
+  check('opus-5 · low: output_config.effort=low and still no effort beta rides (every effort level, not one)', opusLow !== null && opusLow.body.output_config?.effort === 'low' && !carriesEffortBeta(opusLow.headers['anthropic-beta']), JSON.stringify({ output_config: opusLow?.body.output_config, beta: opusLow?.headers['anthropic-beta'] }))
+  check('the reader is falsifiable: a header that did carry the effort beta reads as carrying it', carriesEffortBeta(`${opus?.headers['anthropic-beta'] ?? ''},${EFFORT_BETA}`) && !carriesEffortBeta(B.CODING_20250219_BETA_HEADER))
 }
 
 section('§2 the GPT wire: reasoning.effort of the built request ≡ the owner across the catalogue states')

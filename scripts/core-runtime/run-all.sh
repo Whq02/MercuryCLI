@@ -101,6 +101,12 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-attribution-spelling
 echo "── core-runtime: the ledger on every exit (FN-018 ranks 1 + 5 + 11)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-ledger-every-exit.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-ledger-every-exit.ts "$__t" "$__rc"
 
+echo "── core-runtime: the served-model law (the byline, the stamp and the bill follow the serving model)"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-served-model.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-served-model.ts "$__t" "$__rc"
+
+echo "── core-runtime: the post-idle thinking drop reads as an ordinary preserved-thinking notice (no independent idle arming)"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-idle-drop-receipt.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-idle-drop-receipt.ts "$__t" "$__rc"
+
 echo "── core-runtime: the fork's usage fold (FN-018 rank 8)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-fork-usage-fold.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-fork-usage-fold.ts "$__t" "$__rc"
 
