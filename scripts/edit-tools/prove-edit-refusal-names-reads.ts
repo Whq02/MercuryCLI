@@ -174,5 +174,56 @@ section('L. the law itself is unchanged')
   check('L6 an append still needs no read', appended.ok && readFileSync(file, 'utf8').endsWith('const v7 = 7\n'), messageOf(appended))
 }
 
+section('the diagnostic reads the same current knowledge as the gate')
+{
+  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { mintRangeAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
+  _resetSeenLinesForTesting()
+  const file = join(fixtures, 'generation.ts')
+  const original = lines(20)
+  writeFileSync(file, original)
+  const ctx = makeContext()
+  const parent = { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } }
+  await (FileReadTool as { call: Function }).call({ file_path: file, offset: 1, limit: 5, line_anchors: true }, ctx, null, parent)
+  const changed = original.replace('const v1 = 1', 'const v1 = 1000')
+  writeFileSync(file, changed)
+  const later = new Date(Date.now() + 120_000)
+  utimesSync(file, later, later)
+  recordSeenLines(owner, file, fileGeneration(file)!, 6, 5)
+  const refused = await validate({ file_path: file, expected_anchor: mintRangeAnchor(original.split('\n').slice(0, 5).join('\n'), 1, 5), hunks: [{ lines: '1-10', replace: 'replacement' }] }, ctx)
+  const words = messageOf(refused)
+  check('an old Read window is not combined with the current ledger to claim every refused line was read', !refused.ok && !words.includes('read this session: 1-10;') && words.includes('read this session: 6-10'), words)
+  check('the refusal names the generation and anchor checks and gives the next read or carried window', !refused.ok && words.includes('File generation check failed:') && words.includes('Anchor check failed:') && /Read\(offset:|count as read/.test(words), words)
+  check('the refused anchored edit leaves the current bytes untouched', readFileSync(file, 'utf8') === changed)
+  const exceptional = makeContext()
+  Object.defineProperty(exceptional, 'owner', { get() { throw new Error('planted ownership lookup failure') } })
+  let fault: { ok: true } | { ok: false; message: string }
+  try {
+    fault = await validate({ file_path: file, old_string: 'const v12 = 12', new_string: 'replacement' }, exceptional)
+  } catch (error) {
+    fault = { ok: false, message: error instanceof Error ? error.message : String(error) }
+  }
+  check('an ownership lookup exception keeps its own cause, never an unread-file explanation', !fault.ok && fault.message.includes('planted ownership lookup failure') && !fault.message.includes('No lines of'), messageOf(fault))
+  const bomFile = join(fixtures, 'bom.ts')
+  writeFileSync(bomFile, '\uFEFF' + original)
+  const bomContext = makeContext()
+  await (FileReadTool as { call: Function }).call({ file_path: bomFile, offset: 1, limit: 5 }, bomContext, null, parent)
+  _resetSeenLinesForTesting()
+  const bomRefused = await validate({ file_path: bomFile, old_string: 'const v12 = 12', new_string: 'replacement' }, bomContext)
+  check('an unchanged BOM is not misreported as a generation change', !bomRefused.ok && bomRefused.message.includes('read this session: 1-5') && !bomRefused.message.includes('File generation check failed:'), messageOf(bomRefused))
+  const separateFile = join(fixtures, 'separate.ts')
+  writeFileSync(separateFile, original)
+  const separateContext = makeContext()
+  await (FileReadTool as { call: Function }).call({ file_path: separateFile, offset: 1, limit: 5 }, separateContext, null, parent)
+  writeFileSync(separateFile, original.replace('const v18 = 18', 'const v18 = 1800'))
+  utimesSync(separateFile, later, later)
+  recordSeenLines(owner, separateFile, fileGeneration(separateFile)!, 6, 5)
+  const separateInput = { file_path: separateFile, old_string: original.split('\n').slice(0, 10).join('\n'), new_string: 'replacement' }
+  const separate = await validate(separateInput, separateContext)
+  check('separate sources are not advertised as one complete read', !separate.ok && !separate.message.includes('read this session: 1-10;') && separate.message.includes('separate Read') && separate.message.includes('count as read'), messageOf(separate))
+  const retry = await edit(separateInput, separateContext)
+  check('the current-ledger carry repairs the separate-source gap without widening admission', retry.ok && readFileSync(separateFile, 'utf8').startsWith('replacement'), messageOf(retry))
+}
+
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
 process.exit(failures === 0 ? 0 : 1)

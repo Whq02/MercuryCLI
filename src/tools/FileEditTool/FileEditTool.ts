@@ -14,7 +14,7 @@ import {
   spanText,
   type EditHunkInput,
 } from '../../services/changeTransaction/hunks.js'
-import { checkSeenLines, fileGeneration, generationOf, recordSeenLines, seenLinesOf } from '../../services/changeTransaction/seenLines.js'
+import { fileGeneration, generationOf, recordSeenLines, seenLinesOf } from '../../services/changeTransaction/seenLines.js'
 import {
   recordNoChangeOutcome,
 } from '../../services/changeTransaction/repetitionPolicy.js'
@@ -245,7 +245,7 @@ const READ_RANGES_NAMED = 5
 type CarriedLines = { ranges: LineRange[]; rest: LineRange[]; text: string }
 
 function carryUnreadLines(
-  context: ToolUseContext,
+  owner: ReturnType<typeof ownerFromToolUseContext>,
   expandedPath: string,
   currentContent: string,
   gaps: readonly LineRange[],
@@ -254,12 +254,6 @@ function carryUnreadLines(
   if (generationAtRead === null || fileGeneration(expandedPath) !== generationAtRead) return null
   const plan = planReadThrough(currentContent, widenLineRanges(gaps, READ_THROUGH_MARGIN, lineCountOf(currentContent)), expandedPath)
   if (plan.windows.length === 0) return null
-  let owner: ReturnType<typeof ownerFromToolUseContext>
-  try {
-    owner = ownerFromToolUseContext(context)
-  } catch {
-    return null
-  }
   for (const window of plan.windows) {
     recordSeenLines(owner, expandedPath, generationAtRead, window.start, window.end - window.start + 1)
     rememberAnchoredSnapshot(owner, window.anchor, window.content, expandedPath)
@@ -287,48 +281,43 @@ function lineCountOf(text: string): number {
   return text.split('\n').length - (text.endsWith('\n') ? 1 : 0)
 }
 
-function ledgerLinesOf(context: ToolUseContext, expandedPath: string): { ranges: readonly LineRange[]; earlier: boolean } {
-  try {
-    const seen = seenLinesOf(ownerFromToolUseContext(context), expandedPath)
-    if (seen === undefined || seen.ranges.length === 0) return { ranges: [], earlier: false }
-    if (seen.generation === fileGeneration(expandedPath)) return { ranges: seen.ranges, earlier: false }
-    return { ranges: [], earlier: true }
-  } catch {
-    return { ranges: [], earlier: false }
-  }
-}
+type ReadLines = { ranges: LineRange[]; recorded: LineRange[]; ledger: LineRange[]; earlier: boolean; attachmentOnly: boolean; separate?: boolean }
 
-type ReadLines = { ranges: LineRange[]; earlier: boolean; attachmentOnly: boolean }
-
-function readLinesOf(context: ToolUseContext, expandedPath: string, currentContent: string): ReadLines {
+function readLinesOf(entry: FileState | undefined, currentContent: string, includeRead: boolean, generation: string | null, ledger: ReturnType<typeof seenLinesOf>): ReadLines {
   const ranges: LineRange[] = []
+  const currentBody = splitLeadingBom(currentContent).body
   let earlier = false
   let attachmentOnly = false
-  const entry = context.readFileState.get(expandedPath)
-  if (entry !== undefined) {
+  if (includeRead && entry !== undefined) {
     if (entry.isPartialView) {
       attachmentOnly = true
     } else {
       const count = lineCountOf(entry.content)
       if (isFullReadEntry(entry)) {
-        if (entry.content === currentContent && count > 0) ranges.push({ start: 1, end: count })
+        if (entry.content === currentBody && count > 0) ranges.push({ start: 1, end: count })
         else earlier = true
       } else if (count > 0) {
         const start = Math.max(1, entry.offset ?? 1)
-        ranges.push({ start, end: start + count - 1 })
+        const currentWindow = currentBody.split('\n').slice(start - 1, start - 1 + count).join('\n')
+        if (currentWindow === entry.content) ranges.push({ start, end: start + count - 1 })
+        else earlier = true
       }
     }
   }
-  const ledger = ledgerLinesOf(context, expandedPath)
-  ranges.push(...ledger.ranges)
-  return { ranges: coalesceLineRanges(ranges), earlier: earlier || ledger.earlier, attachmentOnly }
+  const recorded = [...ranges]
+  const currentLedger = generation !== null && ledger?.generation === generation ? [...ledger.ranges] : []
+  if (ledger !== undefined && ledger.ranges.length > 0 && currentLedger.length === 0) earlier = true
+  ranges.push(...currentLedger)
+  return { ranges: coalesceLineRanges(ranges), recorded, ledger: currentLedger, earlier, attachmentOnly }
 }
 
 function readKnowledgeWords(displayPath: string, read: ReadLines, addressed: LineRange[] | null, missing: string, carried: CarriedLines | null = null): string {
   const named = read.ranges.slice(0, READ_RANGES_NAMED)
   const rest = read.ranges.length - named.length
   let reads: string
-  if (read.ranges.length > 0) {
+  if (read.separate) {
+    reads = `Current owner ledger for ${displayPath}: ${spellLineRanges(read.ledger)}; a separate Read showed ${spellLineRanges(read.recorded)}, but neither source covers the whole edit`
+  } else if (read.ranges.length > 0) {
     reads = `Lines of ${displayPath} read this session: ${spellLineRanges(named)}${rest > 0 ? ` (and ${rest} more ${plural(rest, 'range')})` : ''}`
     if (read.earlier) reads += ', plus a read of the file before it last changed'
   } else if (read.earlier) {
@@ -376,26 +365,44 @@ function readKnowledgeRefusal(
 ): string | null {
   const entry = context.readFileState.get(expandedPath)
   if (includeRead && entry !== undefined && readCoversRanges(entry, touched)) return null
-  if (hasText(expectedAnchor) && expectedAnchor.startsWith('fa:') && checkAnchor(expectedAnchor, currentContent, displayPath).ok) return null
-  if (touched !== null) {
-    try {
-      const generation = fileGeneration(expandedPath)
-      if (generation !== null) {
-        const seen = checkSeenLines(ownerFromToolUseContext(context), expandedPath, generation, touched.map((range, index) => ({ index: index + 1, start: range.start, end: range.end, replace: '' })), displayPath)
-        if (seen.ok) return null
-      }
-    } catch {
-    }
+  const anchor = hasText(expectedAnchor) ? checkAnchor(expectedAnchor, currentContent, displayPath) : null
+  if (expectedAnchor?.startsWith('fa:') && anchor?.ok) return null
+  let owner: ReturnType<typeof ownerFromToolUseContext>
+  let generation: string | null
+  let ledger: ReturnType<typeof seenLinesOf>
+  let checking = 'ownership'
+  try {
+    owner = ownerFromToolUseContext(context)
+    checking = 'file generation'
+    generation = fileGeneration(expandedPath)
+    checking = 'read ledger'
+    ledger = seenLinesOf(owner, expandedPath)
+  } catch (error) {
+    throw new Error(`Read-knowledge ${checking} check failed for ${displayPath}: ${error instanceof Error ? error.message : String(error)}. No edit was applied; retry the Read and edit after that check is available.`, { cause: error })
   }
-  const read = readLinesOf(context, expandedPath, currentContent)
+  const read = readLinesOf(entry, currentContent, includeRead, generation, ledger)
+  if (touched !== null && generation !== null && linesOutside(touched, read.ledger).length === 0) return null
   const addressed = named?.lines ?? touched
+  if (addressed !== null && addressed.length > 0 && linesOutside(addressed, read.ranges).length === 0) {
+    read.separate = true
+    read.ranges = read.ledger
+  }
   let carried: CarriedLines | null = null
   if (carry !== undefined && addressed !== null && addressed.length > 0) {
     const gaps = linesOutside(addressed, read.ranges)
-    if (gaps.length > 0) carried = carryUnreadLines(context, expandedPath, currentContent, gaps, carry.generation)
+    try {
+      if (gaps.length > 0) carried = carryUnreadLines(owner, expandedPath, currentContent, gaps, carry.generation)
+    } catch (error) {
+      throw new Error(`Read-knowledge carry failed for ${displayPath}: ${error instanceof Error ? error.message : String(error)}. No edit was applied; Read the addressed lines before retrying.`, { cause: error })
+    }
   }
+  const failed = [
+    ...(anchor !== null && !anchor.ok ? [`Anchor check failed: ${formatAnchorFailure(anchor, expectedAnchor!)}`] : []),
+    ...(generation === null ? ['File generation check failed: the current generation could not be read.'] : read.earlier ? ['File generation check failed: earlier read coverage belongs to the file before it changed.'] : []),
+    'Read ownership/coverage check failed: neither a recorded Read nor the current owner\'s ledger covers all addressed lines.',
+  ].join(' ')
   const words = readKnowledgeWords(displayPath, read, addressed, named?.missing ?? 'the old_string was not found in the current content', carried)
-  const law = `Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). ${words}`
+  const law = `Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). ${failed} ${words}`
   return carried === null ? law : `${law}\n\n${carried.text}`
 }
 
@@ -721,8 +728,8 @@ export const FileEditTool = buildTool({
       mode !== 'append' &&
       entry !== undefined &&
       !entry.isPartialView &&
-      readKnowledgeRefusal(context, expandedPath, input.file_path, currentContent, input.expected_anchor, touched, false) !== null &&
-      (await staleAtValidation(entry, expandedPath, currentContent, context.abortController.signal))
+      (await staleAtValidation(entry, expandedPath, currentContent, context.abortController.signal)) &&
+      readKnowledgeRefusal(context, expandedPath, input.file_path, currentContent, input.expected_anchor, touched, false) !== null
     ) {
       return {
         result: false as const,
@@ -888,14 +895,13 @@ export const FileEditTool = buildTool({
           : mode === 'hunks'
             ? linesOfHunks(input.hunks as EditHunkInput[] | undefined)
             : null
-      const knowledge = readKnowledgeRefusal(context, expandedPath, input.file_path, freshContent, input.expected_anchor, touched, false)
-      if (knowledge !== null) {
-        const entry = context.readFileState.get(expandedPath)
-        const intact = entry !== undefined && readCoversRanges(entry, touched) && (
-          getFileModificationTime(expandedPath) <= entry.timestamp ||
-          (isFullReadEntry(entry) && entry.content === freshContent)
-        )
-        if (!intact) throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
+      const entry = context.readFileState.get(expandedPath)
+      const intact = entry !== undefined && readCoversRanges(entry, touched) && (
+        getFileModificationTime(expandedPath) <= entry.timestamp ||
+        (isFullReadEntry(entry) && entry.content === freshContent)
+      )
+      if (!intact && readKnowledgeRefusal(context, expandedPath, input.file_path, freshContent, input.expected_anchor, touched, false) !== null) {
+        throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
       }
     }
 

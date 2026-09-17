@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DIST, SCRATCH_ROOT, makeTally } from '../daemon/dupline-world.ts'
 import { runScriptedTurn, startScriptedFixture, type SeenResult } from '../lib/scriptedTurn.ts'
@@ -21,6 +21,10 @@ writeFileSync(small, Array.from({ length: 40 }, (_, i) => `const v${i + 1} = ${i
 const wide = join(work, 'wide.ts')
 writeFileSync(wide, Array.from({ length: 1500 }, (_, i) => `export const wide${i + 1} = '${'x'.repeat(100)}' + '${i + 1}'`).join('\n') + '\n')
 
+const knowledgeFile = join(work, 'knowledge.ts')
+const knowledgeOriginal = Array.from({ length: 20 }, (_, i) => `const k${i + 1} = ${i + 1}`).join('\n') + '\n'
+writeFileSync(knowledgeFile, knowledgeOriginal)
+let knowledgeAnchor = ''
 const ASK = 'readthrough-probe'
 const seen: Record<string, SeenResult> = {}
 const smallEdit = { file_path: small, old_string: 'const v20 = 20', new_string: 'const v20 = 2000' }
@@ -44,8 +48,19 @@ const fixture = await startScriptedFixture(req => {
     case 4:
       if (last) seen.overCap = last
       return [{ type: 'tool_use', name: 'Edit', input: wideEdit }]
+    case 5:
+      if (last) seen.wideEdit = last
+      return [{ type: 'tool_use', name: 'Read', input: { file_path: knowledgeFile, offset: 1, limit: 5, line_anchors: true } }]
+    case 6:
+      knowledgeAnchor = /\(anchor: ([^)]+)\)/.exec(last?.text ?? '')?.[1] ?? ''
+      writeFileSync(knowledgeFile, knowledgeOriginal.replace('const k1 = 1', 'const k1 = 1000'))
+      const changedAt = new Date(Date.now() + 120_000)
+      utimesSync(knowledgeFile, changedAt, changedAt)
+      return [{ type: 'tool_use', name: 'Grep', input: { pattern: '^const k(6|7|8|9|10) =', path: knowledgeFile, output_mode: 'content' } }]
+    case 7:
+      return [{ type: 'tool_use', name: 'Edit', input: { file_path: knowledgeFile, expected_anchor: knowledgeAnchor, hunks: [{ lines: '1-10', replace: 'replacement' }] } }]
     default:
-      if (req.step === 5 && last) seen.wideEdit = last
+      if (req.step === 8 && last) seen.knowledge = last
       return [{ type: 'text', text: 'done' }]
   }
 })
@@ -110,6 +125,14 @@ tally.check('B3 the window is contiguous and bounded like a Read window', carrie
 tally.check('B4 the words say the window counts as read and name the Read that continues it', seen.overCap !== undefined && carried.length > 0 && new RegExp(`lines 1-${carried.length} are below and count as read; Read\\(offset: ${carried.length + 1}, limit: ${carried.length}\\) continues from there`).test(seen.overCap.text), seen.overCap?.text.split('\n')[0])
 tally.check('B5 an Edit inside the carried window lands with no Read between', seen.wideEdit !== undefined && !seen.wideEdit.isError && /has been updated successfully/.test(seen.wideEdit.text), seen.wideEdit?.text.slice(0, 300))
 tally.check('B6 the file on disk carries the change', readFileSync(wide, 'utf8').includes("export const wideThree = '"))
+
+tally.section('C. a same-path change does not merge old and current read knowledge')
+show('the anchored Edit after the file changed and Grep showed another range', seen.knowledge)
+const knowledge = seen.knowledge?.text ?? ''
+tally.check('C1 the actual Read supplied the range anchor and the Edit was refused', knowledgeAnchor.startsWith('ra:') && seen.knowledge?.isError === true)
+tally.check('C2 the refusal does not claim every refused line was read', !knowledge.includes('read this session: 1-10;') && knowledge.includes('read this session: 6-10'), knowledge.slice(0, 1200))
+tally.check('C3 the words name the failed anchor and generation checks', knowledge.includes('Anchor check failed:') && knowledge.includes('File generation check failed:'), knowledge.slice(0, 1200))
+tally.check('C4 the refused edit writes nothing', readFileSync(knowledgeFile, 'utf8') === knowledgeOriginal.replace('const k1 = 1', 'const k1 = 1000'))
 
 if (tally.failed() === 0 && !KEEP) rmSync(scratch, { recursive: true, force: true })
 else console.log(`\nworld kept: ${scratch}`)
