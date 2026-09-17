@@ -28,7 +28,7 @@ t.section('§1 — the focus graph nodes')
   const panesC = readFileSync('src/components/mercury-ui/NavigablePanes.tsx', 'utf8')
   t.check('focus restores BY KEY (Wave A law still holds)', panesC.includes('rowKey(r) === selKeyRef.current'))
   t.check('identity-first sections still hold', hook.includes('sectionMemoKey'))
-  t.check('the nearest-neighbour fallback still holds', /clamped index/.test(panesC))
+  t.check('the nearest-neighbour fallback still holds', panesC.includes('selKeyRef.current !== null && sectionRows.length > 0') && panesC.includes('rowKey(under) !== selKeyRef.current'))
 }
 
 t.section('§2 — keyboard/pointer equivalence at the grammar')

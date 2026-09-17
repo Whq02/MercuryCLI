@@ -240,7 +240,7 @@ section('BM-20 — held is a settled receipt; release is obligation-exact (UI-02
     splash.includes("writeScreenReceipt('held')") &&
       splash.includes("writeScreenReceipt('restored')") &&
       !splash.includes("writeScreenReceipt('not-entered')") &&
-      splash.includes('the not-entered path writes NO receipt'),
+      (splash.match(/writeScreenReceipt\(/g) ?? []).length === 3,
   )
   check(
     'UI-032 (re-anchored by BM-30): the 130 cancel stands every shell down, and any OTHER nonzero exit gets the bounded owner-scoped heal + a plain boot',
@@ -396,8 +396,7 @@ section('BM-22/23 — the remaining desired laws, pinned as flip targets')
     check(
       'UI-121: the local attention cue precedes the notification hooks (emit first, hooks after)',
       notifier.indexOf("case 'terminal_bell':") !== -1 &&
-        notifier.indexOf("case 'terminal_bell':") < notifier.indexOf('await executeNotificationHooks') &&
-        notifier.includes('Hooks run AFTER the local cue'),
+        notifier.indexOf("case 'terminal_bell':") < notifier.indexOf('await executeNotificationHooks'),
     )
     check(
       'UI-120: the Apple profile lookup is CACHED (one bounded lookup per process, off the emission path)',
@@ -526,7 +525,7 @@ section('RV — reasoning depth is not answer length; one balanced default + one
   )
   check(
     'RV-02: the wire verbosity seam stays typed-but-UNSET (no builder sends it before the provider-contract capture)',
-    src('src/services/providers/openai/openaiWire.ts').includes('NEVER SET by any builder') &&
+    src('src/services/providers/openai/openaiWire.ts').includes("verbosity?: 'low' | 'medium' | 'high'") &&
       !src('src/services/providers/openai/openaiCallModel.ts').includes('verbosity:'),
   )
   check(
@@ -561,7 +560,7 @@ section('UI-124/125 — copy confirmations name the route that actually settled'
     osc.includes('export interface ClipboardReceipt') &&
       osc.includes("if (nativeRoute) settled.push(nativeRoute)") &&
       osc.includes("if (tmuxBufferLoaded) settled.push('tmux-buffer')") &&
-      osc.includes('an offer, not a delivery'),
+      !/settled\.push\('osc52'\)/.test(osc),
   )
   check(
     'UI-125: the confirmation copy is honest both ways — settled routes named, or the OSC-52 offer stated with its dependency',
