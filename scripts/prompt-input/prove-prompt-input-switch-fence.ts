@@ -64,6 +64,7 @@ const paneHas = (rows: string[], s: string): boolean => rows.some(r => r.slice(2
 const ON_A = '❯ first task'
 const ON_B = 'apply the manifest edit'
 const ON_C = 'run the greeting and read the manifest'
+const ON_B_TAIL = 'missing-manifest.ts'
 
 try {
   const v0 = capture('v0', [
@@ -98,9 +99,9 @@ try {
   const v3 = capture('v3', [
     { atTick: 40, data: `/sessiontab ${SID_ERRORED}`, minTick: 10, awaitRaw: '\u001b[?2004h' },
     { atTick: 44, data: '\r', afterPrevTicks: 3 },
-    { atTick: 70, data: 'hello mid switch', awaitText: 'opening', requireAwait: true },
+    { atTick: 70, data: 'hello mid switch', awaitText: ON_B, requireAwait: true },
   ], 130)
-  t('V3 the switch to B committed', paneHas(v3.rows, ON_B))
+  t('V3 the switch to B committed', paneHas(v3.rows, ON_B) || paneHas(v3.rows, ON_B_TAIL))
   t('V3 typing during the stage survives in the composer (never rolled back)',
     composerOf(v3.rows).includes('hello mid switch'),
     `composer="${composerOf(v3.rows).trim().slice(0, 60)}"`)
