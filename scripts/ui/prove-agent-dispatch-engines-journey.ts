@@ -33,21 +33,37 @@ function capture(cfg: Record<string, unknown>, env: Record<string, string>): Cap
   const cfgPath = join(dir, 'cfg.json')
   const outPath = join(dir, 'grid.json')
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: outPath }))
-  execFileSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'vshot.py'), cfgPath], {
-    env: { ...process.env, ...env },
-    stdio: ['ignore', 'ignore', 'pipe'],
-    timeout: vshotBudgetMs(180_000),
-  })
   type Grid = Array<Array<{ c?: string }>>
-  const payload = JSON.parse(readFileSync(outPath, 'utf8')) as {
-    grid: Grid
-    sendReceipts?: unknown[]
-    marks?: Array<{ label: string; grid: Grid }>
-  }
   const gridText = (grid: Grid): string =>
     grid
       .map(row => row.map(c => (typeof c === 'object' && c !== null ? (c.c ?? ' ') : String(c))).join('').trimEnd())
       .join('\n')
+  type Payload = { grid: Grid; sendReceipts?: unknown[]; marks?: Array<{ label: string; grid: Grid }> }
+  let refusal = ''
+  try {
+    execFileSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'vshot.py'), cfgPath], {
+      env: { ...process.env, ...env },
+      stdio: ['ignore', 'ignore', 'pipe'],
+      timeout: vshotBudgetMs(180_000),
+    })
+  } catch (error) {
+    const stderr = (error as { stderr?: Buffer | string }).stderr
+    refusal = stderr ? String(stderr).trim() : String(error)
+  }
+  if (refusal !== '') {
+    console.log(`  [FAIL] the capture settled — ${refusal.split('\n')[0]}`)
+    if (existsSync(outPath)) {
+      const partial = JSON.parse(readFileSync(outPath, 'utf8')) as Payload
+      for (const m of partial.marks ?? []) {
+        console.log(`\n── the ${m.label} frame (mark) ──`)
+        for (const row of gridText(m.grid).split('\n')) console.log(`│ ${row}`)
+      }
+      console.log(`\n── the final grid (${Array.isArray(partial.sendReceipts) ? partial.sendReceipts.length : 0} of ${Array.isArray(cfg.sends) ? cfg.sends.length : 0} sends delivered) ──`)
+      for (const row of gridText(partial.grid).split('\n')) console.log(`│ ${row}`)
+    }
+    process.exit(1)
+  }
+  const payload = JSON.parse(readFileSync(outPath, 'utf8')) as Payload
   const text = gridText(payload.grid)
   const marks: Record<string, string> = {}
   for (const m of payload.marks ?? []) marks[m.label] = gridText(m.grid).replace(/\s+/g, ' ')
@@ -98,12 +114,12 @@ console.log('============================================================')
   const { text, flat, sends, receipts, marks } = capture(
     {
       cols: 80,
-      rows: 44,
+      rows: 72,
       total: 200,
       argv: ['node', DIST],
       sends: [
         { data: '\r', atTick: 999, awaitText: '↵ start', requireAwait: true, minTick: 8, awaitSettleTicks: 3 },
-        { data: '/router key\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
+        { data: '/router key\r', atTick: 999, awaitText: '1 session on', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: KEY, atTick: 999, awaitText: 'Z.AI API key', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
         { data: '\r', afterPrevTicks: 4 },
         { data: '/router engines\r', atTick: 999, awaitText: 'Z.AI API key stored', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'receipt' },
@@ -130,7 +146,7 @@ console.log('============================================================')
     "openai row carries the native transport + official pins",
     report.includes('openai-responses'),
   )
-  check('seats-stay-Anthropic line present', report.includes('party') && report.includes('seats stay Anthropic'))
+  check('seats-stay-Anthropic line present', report.includes('roster seats stay Anthropic (the ruled crew fence)'))
   check('FIRST-KEY-KEPT: the post-receipt keypress landed in the composer', /❯ *Q/.test(text))
 
   const secretsPath = join(home, '.provider-secrets.json')
@@ -145,6 +161,20 @@ console.log('============================================================')
     console.log('\n── the final grid ──')
     for (const row of text.split('\n')) console.log(`│ ${row}`)
   }
+}
+
+{
+  const repl = readFileSync(join(ROOT, 'src', 'screens', 'REPL.tsx'), 'utf8')
+  const from = repl.indexOf("seatCommand.type === 'local-jsx'")
+  const dialogRoad = from < 0 ? '' : repl.slice(from, repl.indexOf('module.call(onDone', from))
+  console.log('\nthe dialog road — where a dialog command\'s result paints')
+  check(
+    'a result of more than one line paints as the command\'s receipt rows on the focused chat; one line stays the notice; a skipped result paints nothing',
+    /display !== 'skip'/.test(dialogRoad) &&
+      /> 1\) paintScreenCommandReceipt\(dialogName, args, result\)/.test(dialogRoad) &&
+      /else addNotification\(\{ key: `command-\$\{seatCommand\.name\}`, text: result/.test(dialogRoad),
+    dialogRoad === '' ? 'the dialog road was not found in REPL.tsx' : '',
+  )
 }
 
 console.log('\n' + '═'.repeat(76))
