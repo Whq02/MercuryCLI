@@ -78,20 +78,6 @@ export function tokenCountFromLastAPIResponse(messages: Message[]): number {
   return 0
 }
 
-export function finalContextTokensFromLastResponse(messages: Message[]): number {
-  for (let index = messages.length - 1; index >= 0; index--) {
-    const usage = getTokenUsage(messages[index])
-    if (!usage) continue
-    const iterations = usage.iterations as Array<{ input_tokens?: number; output_tokens?: number }> | null
-    if (Array.isArray(iterations) && iterations.length > 0) {
-      const last = iterations[iterations.length - 1] as { input_tokens?: number; output_tokens?: number }
-      return (last.input_tokens ?? 0) + (last.output_tokens ?? 0)
-    }
-    return usage.input_tokens + usage.output_tokens
-  }
-  return 0
-}
-
 export function getCurrentUsage(messages: Message[]): {
   input_tokens: number
   output_tokens: number
