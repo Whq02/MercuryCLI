@@ -49,7 +49,7 @@ t.section('§1 disk↔live convergence: mergeDiskPrefix laws')
   }
 }
 
-t.section('§2 guidance queued during a running turn drains into a real resume')
+t.section("§2 words typed while an agent runs are the session's own turn, never dropped")
 {
   const turns: ScriptedTurn[] = [
     {
@@ -79,8 +79,10 @@ t.section('§2 guidance queued during a running turn drains into a real resume')
       '6000:spawn the probe\\r',
       `after:poise pro:800:${sgrClick(10, 7)}`,
       `after:poise pro:1500:${sgrClick(10, 7)}`,
-      'after:Main ‹ @poise probe:1200:steer the count gently',
-      'after:Main ‹ @poise probe:2400:\\r',
+      `after:agent › poise probe:1500:${ESC}`,
+      `after:agent › poise probe:2500:${ESC}`,
+      'after:agent › poise probe:4000:steer the count gently',
+      'after:agent › poise probe:5500:\\r',
     ],
     seconds: 24,
     cols: 120,
@@ -88,7 +90,7 @@ t.section('§2 guidance queued during a running turn drains into a real resume')
     keep: true,
   })
 
-  const offsets = Array.from({ length: 40 }, (_, i) => String(9000 + i * 300))
+  const offsets = Array.from({ length: 50 }, (_, i) => String(S(6000 + i * 300)))
   const grab = spawnSync(
     '/usr/bin/python3',
     [SCREENGRAB, run.paths.drive, '120', '40', ...offsets, '-1'],
@@ -99,11 +101,20 @@ t.section('§2 guidance queued during a running turn drains into a real resume')
   } else {
     const { screens } = JSON.parse(grab.stdout) as { screens: Frame[] }
     const timed = screens.filter(f => f.atMs !== -1)
-    const queued = timed.find(f => f.rows.some(r => r.includes('steer the count gently')))
+    const has = (f: Frame, needle: string | RegExp): boolean =>
+      f.rows.some(r => (typeof needle === 'string' ? r.includes(needle) : needle.test(r)))
+    const iCard = timed.findIndex(f => has(f, /agent › poise probe/) && has(f, /esc back/))
     t.check(
-      'the guidance row paints once in the viewed transcript at submit time',
-      queued !== undefined &&
-        queued.rows.filter(r => r.includes('steer the count gently')).length === 1,
+      "the drill opens the running agent's work card (its stream and controls live with the session's runner)",
+      iCard >= 0,
+      iCard >= 0 ? `frame @${timed[iCard]!.atMs}` : 'no card frame in the series',
+    )
+    const transcriptRows = (f: Frame): string[] => f.rows.filter(r => /\] ❯ steer the count gently/.test(r))
+    const iSteer = timed.findIndex((f, i) => i > iCard && !has(f, /agent › poise probe/) && transcriptRows(f).length > 0)
+    t.check(
+      'back at main, the words typed while the agent runs are the session\'s own turn: one transcript row, never a message to the agent',
+      iCard >= 0 && iSteer > iCard && transcriptRows(timed[iSteer]!).length === 1,
+      iSteer >= 0 ? `frame @${timed[iSteer]!.atMs}` : 'no steer row after the card frame',
     )
 
     type Msg = { role: string; content: unknown }
@@ -112,41 +123,38 @@ t.section('§2 guidance queued during a running turn drains into a real resume')
       .filter((b): b is { messages: Msg[] } => Boolean(b?.messages))
     const isCommandRecord = (text: string): boolean =>
       text.includes('<local-command-caveat>') || text.includes('<command-name>')
-    const deliveredBodies = bodies.filter(b =>
-      b.messages.some(
-        m =>
-          m.role === 'user' &&
-          (typeof m.content === 'string'
-            ? m.content.includes('steer the count gently') && !isCommandRecord(m.content)
-            : Array.isArray(m.content) &&
-              m.content.some(
-                (c: { type?: string; text?: string }) =>
-                  c?.type === 'text' &&
-                  typeof c.text === 'string' &&
-                  c.text.includes('steer the count gently') &&
-                  !isCommandRecord(c.text),
-              )),
-      ),
-    )
+    const userTexts = (b: { messages: Msg[] }): string[] =>
+      b.messages.flatMap(m => {
+        if (m.role !== 'user') return []
+        if (typeof m.content === 'string') return [m.content]
+        return Array.isArray(m.content)
+          ? m.content.flatMap((c: { type?: string; text?: string }) => (c?.type === 'text' && typeof c.text === 'string' ? [c.text] : []))
+          : []
+      })
+    const carriesSteer = (b: { messages: Msg[] }): boolean => userTexts(b).some(text => text.includes('steer the count gently') && !isCommandRecord(text))
+    const isAgentBody = (b: { messages: Msg[] }): boolean => userTexts(b).some(text => text.includes('Count to three slowly.'))
+    const deliveredBodies = bodies.filter(carriesSteer)
     t.check(
-      'the drained guidance reaches a REAL model call after the turn ends (never dropped)',
-      deliveredBodies.length >= 1,
-      `${deliveredBodies.length} bodies carry it`,
+      'the words reach a REAL model call of the session (never dropped)',
+      deliveredBodies.length >= 1 && deliveredBodies.every(b => !isAgentBody(b)),
+      `${deliveredBodies.length} session bodies carry them · ${bodies.filter(isAgentBody).length} agent bodies, ${bodies.filter(b => isAgentBody(b) && carriesSteer(b)).length} of them carry the words`,
     )
     const final = frameIn(screens, -1)
     t.check(
-      'the agent visibly continued after the drain (resume reply present)',
-      final.rows.some(r => r.includes('Taking your steer into account')),
+      'the session answered the words and the agent ran on to its landing',
+      final.rows.some(r => r.includes('Taking your steer into account')) && final.rows.some(r => /Agent "poise probe" completed/.test(r)),
+      final.rows.filter(r => /steer into account|poise probe" completed/.test(r)).map(r => r.trim().slice(0, 60)).join(' | '),
     )
     t.check(
-      'the guidance row still paints exactly once at settlement',
-      final.rows.filter(r => r.includes('steer the count gently')).length === 1,
+      'the words still paint exactly once on the transcript at settlement',
+      transcriptRows(final).length === 1,
+      `${transcriptRows(final).length} transcript row(s); every row: ${final.rows.filter(r => r.includes('steer the count gently')).map(r => r.trim().slice(0, 50)).join(' | ')}`,
     )
   }
   run.cleanup()
 }
 
-t.section('§3 per-target composer drafts across main/A/B switches')
+t.section('§3 one composer, one draft: the draft survives the drill into either card and the way back')
 {
   const agentInput = (name: string): Record<string, unknown> => ({
     description: name,
@@ -186,13 +194,12 @@ t.section('§3 per-target composer drafts across main/A/B switches')
       'after:beta pro:1000:draft-main-text',
       `after:beta pro:3000:${sgrClick(10, 7)}`,
       `after:beta pro:3700:${sgrClick(10, 7)}`,
-      'after:Main ‹ @:1400:draft-for-first',
-      `after:Main ‹ @:3800:${sgrClick(10, 8)}`,
-      `after:Main ‹ @:4500:${sgrClick(10, 8)}`,
-      'after:Main ‹ @:6900:draft-for-second',
-      `after:Main ‹ @:9300:${ESC}`,
-      `after:Main ‹ @:11700:${sgrClick(10, 7)}`,
-      `after:Main ‹ @:12400:${sgrClick(10, 7)}`,
+      `after:agent › :1400:${ESC}`,
+      `after:agent › :2400:${ESC}`,
+      `after:agent › :3800:${sgrClick(10, 8)}`,
+      `after:agent › :4500:${sgrClick(10, 8)}`,
+      `after:agent › :6900:${ESC}`,
+      `after:agent › :7900:${ESC}`,
     ],
     seconds: 26,
     cols: 120,
@@ -201,11 +208,11 @@ t.section('§3 per-target composer drafts across main/A/B switches')
   })
 
   const offsets: string[] = []
-  for (let ms = S(10000); ms <= S(25500); ms += S(250)) offsets.push(String(ms))
+  for (let ms = S(6000); ms <= S(25500); ms += S(250)) offsets.push(String(ms))
   const grab = spawnSync(
     '/usr/bin/python3',
     [SCREENGRAB, run.paths.drive, '120', '40', ...offsets, '-1'],
-    { encoding: 'utf8' },
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   )
   if (grab.status !== 0) {
     t.check('screengrab ran', false, grab.stderr)
@@ -218,50 +225,27 @@ t.section('§3 per-target composer drafts across main/A/B switches')
       })
       return (rows[rows.length - 1] ?? '').replace(/[│]/g, '').trim()
     }
-    const crumbOf = (f: Frame): string | undefined => {
-      const row = f.rows.find(r => /Main ‹ @/.test(r))
-      return row ? /Main ‹ @([a-z]+ probe)/.exec(row)?.[1] : undefined
+    const cardOf = (f: Frame): string | undefined => {
+      const row = f.rows.find(r => /agent › [a-z]+ probe/.test(r))
+      return row ? /agent › ([a-z]+ probe)/.exec(row)?.[1] : undefined
     }
     const timed = screens.filter(f => f.atMs !== -1)
 
+    const iDraft = timed.findIndex(f => !cardOf(f) && composerOf(f).includes('draft-main-text'))
+    t.check('the draft is typed and visible in a main-view frame', iDraft >= 0)
+    const iFirst = timed.findIndex((f, i) => i > iDraft && cardOf(f) !== undefined)
+    const n1 = iFirst >= 0 ? cardOf(timed[iFirst]!) : undefined
+    t.check("the drill opens a child's work card over the chat", iDraft >= 0 && iFirst > iDraft, `first card: ${n1 ?? 'none'}`)
+    const iBack1 = timed.findIndex((f, i) => i > iFirst && !cardOf(f) && composerOf(f).includes('draft-main-text'))
+    t.check('the way back from the card RESTORES the draft (one composer, one draft)', iFirst >= 0 && iBack1 > iFirst)
+    const iSecond = timed.findIndex((f, i) => i > iBack1 && cardOf(f) !== undefined && cardOf(f) !== n1)
+    const n2 = iSecond >= 0 ? cardOf(timed[iSecond]!) : undefined
+    t.check('the second drill opens the OTHER child\'s card', iBack1 >= 0 && iSecond > iBack1 && n1 !== undefined && n2 !== undefined && n1 !== n2, `first@${n1} second@${n2}`)
+    const iBack2 = timed.findIndex((f, i) => i > iSecond && !cardOf(f) && composerOf(f).includes('draft-main-text'))
+    t.check('the way back from the second card restores the draft again, exactly', iSecond >= 0 && iBack2 > iSecond && composerOf(timed[iBack2]!).replace(/^❯\s*/, '') === 'draft-main-text')
     t.check(
-      'the main draft is typed and visible in a main-view frame',
-      timed.some(f => !crumbOf(f) && composerOf(f).includes('draft-main-text')),
-    )
-    t.check(
-      'INVARIANT: no agent-view frame ever shows the main draft in the composer',
-      timed.every(f => !crumbOf(f) || !composerOf(f).includes('draft-main-text')),
-    )
-    t.check(
-      'INVARIANT: no main-view frame ever shows an agent draft in the composer',
-      timed.every(f => crumbOf(f) !== undefined || !composerOf(f).includes('draft-for-')),
-    )
-    const firstFrames = timed.filter(f => composerOf(f).includes('draft-for-first') && crumbOf(f))
-    const secondFrames = timed.filter(f => composerOf(f).includes('draft-for-second') && crumbOf(f))
-    const n1 = firstFrames[0] ? crumbOf(firstFrames[0]) : undefined
-    const n2 = secondFrames[0] ? crumbOf(secondFrames[0]) : undefined
-    t.check(
-      'each agent draft is typed inside ITS OWN viewed target',
-      n1 !== undefined && n2 !== undefined && n1 !== n2,
-      `first@${n1} second@${n2}`,
-    )
-    const lastSecondAt = secondFrames.length ? secondFrames[secondFrames.length - 1].atMs : -1
-    t.check(
-      "returning to main RESTORES the main draft (after the second agent's draft existed)",
-      timed.some(
-        f => f.atMs > lastSecondAt && !crumbOf(f) && composerOf(f).includes('draft-main-text'),
-      ),
-    )
-    t.check(
-      "re-drilling the first agent restores ITS draft exactly",
-      n1 !== undefined &&
-        timed.some(
-          f =>
-            f.atMs > lastSecondAt &&
-            crumbOf(f) === n1 &&
-            composerOf(f).includes('draft-for-first') &&
-            !composerOf(f).includes('draft-main-text'),
-        ),
+      'INVARIANT: the draft never leaves the composer for the transcript (no drilled card submits it)',
+      timed.every(f => !f.rows.some(r => /\[\w+\] ❯ draft-main-text/.test(r))),
     )
   }
   run.cleanup()

@@ -4306,9 +4306,11 @@ export function cleanupScenario(name: string): void {
   if (name.startsWith('companion-')) {
     process.env.MERCURY_DECK_COMPANION = '0'
   }
-  try {
-    rmSync(join(tmpdir(), `mercury-render-tabula-${process.pid}`), { recursive: true, force: true })
-  } catch {
+  for (const store of ['tabula', 'daemon', 'crew', 'teams', 'doctor']) {
+    try {
+      rmSync(join(tmpdir(), `mercury-render-${store}-${process.pid}`), { recursive: true, force: true })
+    } catch {
+    }
   }
   if (name === 'critter-home') {
     delete process.env.MERCURY_CRITTER

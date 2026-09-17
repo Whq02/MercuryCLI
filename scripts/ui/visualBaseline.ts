@@ -63,6 +63,7 @@ export const DEFAULT_MASKS = [
   'row:│ \\S+ │ ⤳',
   '⌥ ?\\S+ *',
   'row: · \\S+ · \\S+ +⇧← back',
+  'row:^ ?\\S+ · \\S+ +⇧← back',
   'row:gate [✓◓✕·]',
 ]
 
@@ -100,10 +101,13 @@ export function canonicalizeCheckoutRows(
   checkout: { basename: string; branch: string },
 ): StoredGrid {
   const swaps: Array<[string, string]> = [
+    [`${checkout.basename} ⌥ ${checkout.branch}*`, 'mercury ⌥ main'],
+    [`${checkout.basename} ⌥ ${checkout.branch}`, 'mercury ⌥ main'],
     [`${checkout.basename} ⌥${checkout.branch}*`, 'mercury ⌥main'],
     [`${checkout.basename} ⌥${checkout.branch}`, 'mercury ⌥main'],
     [`│ ${checkout.basename} │ ⤳`, '│ mercury │ ⤳'],
     [` · ${checkout.basename} · `, ' · mercury · '],
+    [` ${checkout.basename} · `, ' mercury · '],
   ]
   const restore = (row: string, delta: number): string => {
     const runs = [...row.matchAll(/ {2,}/g)]

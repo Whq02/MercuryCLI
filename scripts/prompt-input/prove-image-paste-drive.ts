@@ -77,6 +77,20 @@ if (driver.kind !== 'posix-pty') {
   console.error(`prove-image-paste-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
   process.exit(1)
 }
+const python = driver.python
+const runCapture = (cfgPath: string, env: Record<string, string>, timeoutMs: number): Promise<{ status: number | null; stderr: string }> =>
+  new Promise(resolve => {
+    const child = spawn(python, [join(REPO, 'scripts', 'ui', 'vshot.py'), cfgPath], { env, stdio: ['ignore', 'ignore', 'pipe'] })
+    let stderr = ''
+    child.stderr.on('data', c => {
+      stderr += String(c)
+    })
+    const timer = setTimeout(() => child.kill(), timeoutMs)
+    child.on('exit', code => {
+      clearTimeout(timer)
+      resolve({ status: code, stderr })
+    })
+  })
 
 if (ROAD === 'obligation') {
   const { upsertObligation } = await import('../../src/services/crew/obligations.ts')
@@ -139,7 +153,7 @@ if (ROAD === 'obligation') {
     { atTick: 565, cols: 80, rows: 14 },
   ]
   writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN, '--resume', SID, '--model', 'claude-sonnet-5'], cwd: cfg.cwd, sends, resizes, total: 620, cols: 120, rows: 40, out }))
-  const res = spawnSync(driver.python, [join(REPO, 'scripts', 'ui', 'vshot.py'), cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env: childEnv })
+  const res = await runCapture(cfgPath, childEnv, vshotBudgetMs(240_000))
   let payload: Grid | null = null
   try {
     payload = JSON.parse(readFileSync(out, 'utf8')) as Grid
@@ -261,10 +275,10 @@ const sends = [
   { afterPrevTicks: 4, atTick: 430, data: FOCUS_IN },
   { awaitText: 'clipboard holds an image', atTick: 460, afterPrevTicks: 8, data: '', mark: 'hint' },
   { afterPrevTicks: 2, atTick: 465, data: '\r' },
-  { awaitText: 'Seen both.', atTick: 560, afterPrevTicks: 6, data: '', mark: 'reply' },
+  { awaitText: 'Seen both.', atTick: 600, data: '', mark: 'reply' },
 ]
-writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN, '--resume', SID, '--model', 'claude-sonnet-5'], cwd: cfg.cwd, sends, total: 570, cols: 120, rows: 40, out }))
-const res = spawnSync(driver.python, [join(REPO, 'scripts', 'ui', 'vshot.py'), cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env: childEnv })
+writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN, '--resume', SID, '--model', 'claude-sonnet-5'], cwd: cfg.cwd, sends, total: 610, cols: 120, rows: 40, out }))
+const res = await runCapture(cfgPath, childEnv, vshotBudgetMs(240_000))
 let payload: Grid | null = null
 try {
   payload = JSON.parse(readFileSync(out, 'utf8')) as Grid
@@ -284,7 +298,7 @@ check('a focus regain with an image on the clipboard tells the chord', /clipboar
 check('Enter never meets the 1MB frame wall', !/request exceeds \d+MB/.test(everywhere))
 check('Enter sends the message (the composer clears, the turn runs)', !composer(markRows('reply')).includes('[Image #1]'), composer(markRows('reply')))
 const replied = markRows('reply').join('\n').includes('Seen both.') || finalRows.join('\n').includes('Seen both.')
-console.log(`  ${TAG}: the fixture's reply ${replied ? 'painted' : 'had not painted'} within the window (${(markRows('reply').find(r => /ingesting|thinking|ready/.test(r)) ?? '').trim().slice(0, 120)})`)
+console.log(`  ${TAG}: the fixture's reply ${replied ? 'painted' : 'had not painted by the reply mark\'s deadline'} (${(markRows('reply').find(r => /spend|ingesting|thinking/.test(r)) ?? '').trim().slice(0, 120)})`)
 const store = join(HOME, 'image-cache')
 const sessions = existsSync(store) ? readdirSync(store) : []
 const files = sessions.flatMap(s => readdirSync(join(store, s)).map(f => `${s}/${f}`))
@@ -298,12 +312,15 @@ for (const f of files) {
     check(`${f} decodes`, false, String(e))
   }
 }
+const wireWaitMs = vshotBudgetMs(30_000)
+const wireT0 = Date.now()
+const landed = await untilAsync(() => api.messageRequests().length >= 1, wireWaitMs)
 const requests = api.messageRequests()
 const imageBlocks = requests.flatMap(r => {
   const body = r.body as { messages?: { content?: unknown }[] }
   return (body.messages ?? []).flatMap(m => (Array.isArray(m.content) ? (m.content as { type: string }[]).filter(b => b.type === 'image') : []))
 })
-console.log(`  ${TAG}: ${requests.length} request(s) reached the fixture (${requests.map(r => r.path).join(', ')}), ${imageBlocks.length} image block(s) across them`)
+console.log(`  ${TAG}: ${requests.length} request(s) reached the fixture (${requests.map(r => r.path).join(', ')}), ${imageBlocks.length} image block(s) across them — ${landed ? `on the wire ${((Date.now() - wireT0) / 1000).toFixed(1)}s after the capture` : `none within ${(wireWaitMs / 1000).toFixed(0)}s of the capture`}`)
 check('the wire carried the two images as base64 blocks', imageBlocks.length >= 2 && imageBlocks.every(b => (b as { source?: { type?: string } }).source?.type === 'base64'), `${requests.length} requests, ${imageBlocks.length} image blocks`)
 
 if (failures > 0) {
