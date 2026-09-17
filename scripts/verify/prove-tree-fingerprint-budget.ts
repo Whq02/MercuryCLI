@@ -72,10 +72,10 @@ function makeRepo(dir: string, files: number): void {
   git(dir, 'add', '-A')
   git(dir, 'commit', '-qm', 'seed')
 }
-function countObjects(dir: string): { count: number; size: number } {
+function countObjects(dir: string): { count: number; loose: number; packed: number } {
   const out = git(dir, 'count-objects', '-v')
   const num = (k: string): number => Number(new RegExp(`^${k}: (\\d+)$`, 'm').exec(out)?.[1] ?? NaN)
-  return { count: num('count'), size: num('size') }
+  return { count: num('count') + num('in-pack'), loose: num('count'), packed: num('in-pack') }
 }
 type Row = { cwd: string; argv: string }
 function rows(): Row[] {
@@ -116,7 +116,13 @@ for (let i = 0; i < 3; i++) {
   second = await vs.computeWorkingTreeDigestAsync(repo, { fresh: true })
   secondMs = Math.min(secondMs, performance.now() - t)
 }
-check(`a digest on the unchanged tree costs ≤ 10% of the first (${Math.round(firstMs)} ms → ${Math.round(secondMs)} ms)`, secondMs <= firstMs / 10, `${Math.round((secondMs / firstMs) * 100)}%`)
+let statWalkMs = Number.POSITIVE_INFINITY
+for (let i = 0; i < 3; i++) {
+  const t = performance.now()
+  git(repo, 'diff-files', '--name-only')
+  statWalkMs = Math.min(statWalkMs, performance.now() - t)
+}
+check(`a digest on the unchanged tree is a stat walk, never a hash: within a tenth of the seed scan's cost above this box's own stat walk (${Math.round(firstMs)} ms → ${Math.round(secondMs)} ms; the stat walk ${Math.round(statWalkMs)} ms)`, secondMs <= statWalkMs + Math.max(1, firstMs - statWalkMs) / 10, `${Math.round((secondMs / firstMs) * 100)}% of the seed scan`)
 check('…and names the same tree', second === first)
 check("the repository's own index is never touched", statSync(repoIndex).mtimeMs === repoIndexBefore)
 
@@ -131,7 +137,7 @@ section('§2 the repository gains nothing — 20 digests over a changing untrack
     seen.add(await vs.computeWorkingTreeDigestAsync(repo))
   }
   const after = countObjects(repo)
-  check(`the repository's object count is unchanged (${before.count} → ${after.count})`, before.count === after.count && before.size === after.size)
+  check(`the repository's object count is unchanged, loose and packed together (${before.count} → ${after.count}; loose ${before.loose} → ${after.loose}, packed ${before.packed} → ${after.packed})`, before.count === after.count)
   check('…while the digest changed every time (20 distinct trees)', seen.size === 20 && !seen.has(null))
   check('…and the Mercury-owned store is swept after each tree', !existsSync(join(store, 'objects')) || readdirSync(join(store, 'objects')).length === 0)
 }

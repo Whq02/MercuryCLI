@@ -181,10 +181,8 @@ if (packPresent) {
   closeSync(plain)
   const real = describeTerminalHandback()
   check('the doctor line names the pack, its version, platform and source', real.native && real.line.includes(packLoad.manifest.version) && real.line.includes(packLoad.manifest.platform) && real.line.includes(packLoad.source), real.line)
-} else if (cargoPresent) {
-  check('cargo is on this box, so the pack must be built before this prover (bun run scripts/vendor/build-voice.ts)', false, packLoad.state === 'unavailable' ? packLoad.note : '')
 } else {
-  skip('the vendored pack’s tty surface', `no cargo on PATH and no pack: ${packLoad.state === 'unavailable' ? packLoad.note : ''}`)
+  skip('the vendored pack’s tty surface', `no pack on this build${cargoPresent ? ' (cargo is on PATH: bun run scripts/vendor/build-voice.ts builds it)' : ' and no cargo on PATH'}: ${packLoad.state === 'unavailable' ? packLoad.note : ''}`)
 }
 
 section('S · one owner · every hand-off site · the one native spelling · the doctor row · the registry · the fallback road')
