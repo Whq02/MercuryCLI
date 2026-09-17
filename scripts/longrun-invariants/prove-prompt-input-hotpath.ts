@@ -106,7 +106,7 @@ section('K3 — unchanged sweeps are identity-stable; the poll parks off-board')
     join(import.meta.dir, '..', '..', 'src', 'components', 'tasks', 'WorkflowsBoard.tsx'),
     'utf8',
   )
-  check('the poll is suspended beneath nested views', board.includes('if (!onBoard) return'))
+  check('the poll is suspended beneath nested views (a watched hosted run keeps it)', board.includes('if (!onBoard && !watchingHostedRun) return'))
   check('an unchanged sweep keeps the previous array identity',
     board.includes('sameRunListing(prev, listing.rows) ? prev : listing.rows'))
 }
@@ -117,7 +117,7 @@ section('K4 — unmoved slices keep identity; the notify pulse always fires')
   check('unchanged slices are dropped before assignment (identity holds)',
     bus.includes('if (jsonStringify(prev) === jsonStringify(fresh))'))
   check('the heartbeat notify ALWAYS fires (sync-read surfaces ride the pulse)',
-    !bus.includes('if (!changed) return') && bus.includes('K4 CORRECTION'))
+    !bus.includes('if (!changed) return') && /version: snapshots\.version \+ 1,\s*\}\s*emit\(\)/.test(bus))
   check('the selector overload exists for slice-scoped subscribers',
     bus.includes('export function useTelemetry<T>(selector: (s: TelemetrySnapshots) => T): T'))
   check('the bus passes its bound into the listing (never lifetime history)',

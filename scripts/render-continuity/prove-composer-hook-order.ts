@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const FILE = join(import.meta.dir, '..', '..', 'src', 'components', 'PromptInput', 'PromptInput.tsx')
-const MARKER = 'composer-scoped overlays (after every hook)'
+const MARKER = 'if (externalEditorActive) {'
 const HOOK = /\buse(State|Ref|Effect|LayoutEffect|InsertionEffect|Memo|Callback|Context|Reducer|SyncExternalStore|DeferredValue|Transition|Id|ImperativeHandle|Keybinding|Input|AppState)\b\s*[(<]/
 
 let failures = 0
@@ -14,8 +14,8 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 
 const lines = readFileSync(FILE, 'utf8').split('\n')
 const markerAt = lines.findIndex(l => l.includes(MARKER))
-t('§1 the after-every-hook marker exists', markerAt >= 0)
-t('§1 the marker appears exactly once', lines.filter(l => l.includes(MARKER)).length === 1)
+t('§1 the overlay region opens on the external-editor return (the first return after every hook)', markerAt >= 0)
+t('§1 that return appears exactly once', lines.filter(l => l.includes(MARKER)).length === 1)
 
 if (markerAt >= 0) {
   let end = lines.length

@@ -27,7 +27,7 @@ const norm = (c: unknown): string => String(c ?? '').replace('#', '').toLowerCas
 {
   const home = read('src/components/MercuryHome.tsx')
   const berth = home.slice(home.indexOf('export function PinnedCritterBerth'))
-  const berthBody = berth.slice(0, berth.indexOf('\n}'))
+  const berthBody = berth.slice(0, berth.indexOf('\nexport ', 1))
   t('berth passes hero= to AnimatedCritterArt', /AnimatedCritterArt[^/]*hero=\{heroFits\}/.test(berthBody))
   t('berth floors through the ONE form decision (decideCritterForm over allocated cells)',
     berthBody.includes('decideCritterForm({ columns, rows }') &&

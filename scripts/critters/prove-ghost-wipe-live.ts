@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { encodeTranscriptLine } from '../../src/utils/sessionStorage/vnext.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
 import { vshotBudgetScale } from '../lib/captureDriver.ts'
@@ -22,7 +22,7 @@ const CONFIG_HOME = resolveProofHome([REPO])
 const SID = '00000000-aaaa-bbbb-cccc-0000000ab1e5'
 
 {
-  const projects = join(CONFIG_HOME, 'projects', sanitizePath(REPO))
+  const projects = getProjectDir(REPO)
   if (!existsSync(projects)) mkdirSync(projects, { recursive: true })
   const path = join(projects, `${SID}.jsonl`)
   const line = {
