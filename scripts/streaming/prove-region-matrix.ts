@@ -27,10 +27,14 @@ function inWindow(run: ArenaRun, kind: string, w: [number, number]): number {
 }
 
 function bootTs(run: ArenaRun): number {
-  return run.teeLines[0]?.ts ?? 0
+  return run.teeLines.find(t => typeof t.ts === 'number')?.ts ?? 0
 }
 function endTs(run: ArenaRun): number {
-  return run.teeLines[run.teeLines.length - 1]?.ts ?? 0
+  for (let i = run.teeLines.length - 1; i >= 0; i--) {
+    const ts = run.teeLines[i]?.ts
+    if (typeof ts === 'number') return ts
+  }
+  return 0
 }
 
 
