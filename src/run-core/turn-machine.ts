@@ -166,7 +166,7 @@ import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
 import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import { recordSentRequest } from '../utils/forkedAgent.js'
-import { emptyReplyNoticeLine, isEmptyReplyMessage } from '../services/providers/emptyReply.js'
+import { emptyReplyKindOf, emptyReplyNoticeLine } from '../services/providers/emptyReply.js'
 import { buildQueryConfig, type QueryConfig } from '../query/config.js'
 import { productionDeps, type QueryDeps } from '../query/deps.js'
 import type { Terminal, Continue } from '../query/transitions.js'
@@ -1462,7 +1462,7 @@ export async function* runEventCore(
         })
       }
 
-      if (lastMessage && isEmptyReplyMessage(lastMessage)) {
+      if (lastMessage && emptyReplyKindOf(lastMessage) === 'empty') {
         const emptyReplyRecoveryCount = state.emptyReplyRecoveryCount ?? 0
         const decision = decideEmptyReplyRecovery({ recoveryCount: emptyReplyRecoveryCount })
         if (decision.kind === 'continue') {
