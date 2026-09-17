@@ -1471,6 +1471,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
           sessionId: this.record.sessionId,
           clientMessageId,
           answer: expanded,
+          ...(images.length > 0 ? { content: [...(expanded !== '' ? [{ type: 'text', text: expanded }] : []), ...images] } : {}),
           by: 'operator',
         })
         if (receipt.outcome === 'applied' || receipt.outcome === 'noop') return settle('delivered')
