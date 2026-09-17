@@ -55,7 +55,7 @@ const INVENTORY: Record<string, string[]> = {
   'upsertObligation': ['src/services/crew/dispatch.ts'],
   'resolveObligationByRef': ['src/services/crew/dispatch.ts'],
   'openObligations': ['src/services/crew/obligationsBridge.ts', 'src/hooks/useObligationSignals.ts'],
-  'resolveObligation': ['src/components/concourse/ConcourseRoute.tsx'],
+  'resolveObligation': ['src/components/concourse/ConcourseRoute.tsx', 'src/hooks/useObligationSignals.ts'],
   'obligationOf': ['src/components/concourse/ConcourseRoute.tsx'],
   'subscribeObligations': ['src/services/crew/obligationsBridge.ts', 'src/hooks/useObligationSignals.ts'],
   'noteObligationEmission': ['src/services/notificationPolicy.ts'],

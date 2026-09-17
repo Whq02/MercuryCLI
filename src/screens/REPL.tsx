@@ -97,7 +97,6 @@ import { useMergedCommands } from '../hooks/useMergedCommands.js';
 import { useMergedTools } from '../hooks/useMergedTools.js';
 import { useObligationSignals } from '../hooks/useObligationSignals.js';
 import { usePingEngine } from '../hooks/usePingEngine.js';
-import { useCrossProjectFinishPings } from '../hooks/useCrossProjectFinishPings.js';
 import { useSessionTitleMint } from '../hooks/useSessionTitleMint.js';
 import { useSearchInput } from '../hooks/useSearchInput.js';
 import { useSettingsChange } from '../hooks/useSettingsChange.js';
@@ -1375,7 +1374,6 @@ export function REPL({
   useConcourseLifecycleSignals(terminal);
   useObligationSignals(terminal);
   usePingEngine();
-  useCrossProjectFinishPings();
   useSessionTitleMint();
   useSettingsChange(() => {});
   useAgentsChange(getCwd());

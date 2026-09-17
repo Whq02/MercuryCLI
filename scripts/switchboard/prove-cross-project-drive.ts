@@ -84,13 +84,11 @@ const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSION CONCOURSE'
 const TAG = keyHintLabel('⇧← back')
 const FROM_P = `✦ from ${basename(CWD)}`
-const FROM_Q = `✦ from ${basename(OTHER)}`
 const LINE_P = `running in ${basename(CWD)}`
 const LINE_Q = `running in ${basename(OTHER)}`
 const lineRe = (count: number | null, project: string): RegExp => new RegExp(`${count === null ? '\\d+' : String(count)} running in …?${basename(project)}\\b`)
 const DOOR = 'switch to see them'
 const GROUP = 'OTHER PROJECTS'
-const PING_Q = `switch to ${basename(OTHER)} · finished`
 const SHIFT_LEFT = '\x1b[1;2D'
 const SHIFT_RIGHT = '\x1b[1;2C'
 const DOWN = '\x1b[B'
@@ -115,9 +113,8 @@ function freshHome(id: string): string {
   return home
 }
 
-async function capture(opts: { id: string; home: string; argv?: string[]; sends: Send[]; ready?: string; total?: number; stableTicks?: number; replies?: number; slowFirstReply?: boolean }): Promise<Capture> {
+async function capture(opts: { id: string; home: string; argv?: string[]; sends: Send[]; ready?: string; total?: number; stableTicks?: number; replies?: number }): Promise<Capture> {
   const api = await startFixtureApi([
-    ...(opts.slowFirstReply === true ? [{ kind: 'paced' as const, deltas: ['Spare', '.'], gapMs: 300, startDelayMs: 6000 }] : []),
     ...Array.from({ length: opts.replies ?? 4 }, () => ({ kind: 'text' as const, text: 'Spare.' })),
   ])
   const cfgPath = join(SCRATCH, `cfg-${opts.id}.json`)
@@ -307,46 +304,6 @@ console.log('D2 — ↵ on P\'s line switches the view to P (X, Y plain; Z ★ f
   check(`D2 P's sessions are plain live rows now (no line for P, no star on them); Z (focused, of Q) is the star (glyph + home)`, !lineRe(null, CWD).test(pBoard) && pBoard.split('\n').some(l => l.includes('✦') && l.includes('proj-q')), rowsWith(pBoard, '✦'))
   check('D2 Q has no line (its one session is on this board as the star — the line counts what you do not see)', !lineRe(null, OTHER).test(pBoard))
   check('D2 ⇧← is the face; its Sessions · Projects row counts the repos it knows ("1 repo · pick a session" — the running count is the board\'s line, never the face\'s)', isFace(face) && /\b[1-9]\d* repos? · pick a session/.test(face), rowsWith(face, 'pick a session'))
-  reapHome(home)
-}
-
-console.log('D3 — a turn settles in Q while the view is P: the rail rows "switch to Q · finished"; ↵ switches the view to Q and opens the chat')
-{
-  const home = freshHome('ping')
-  const c = await capture({
-    id: 'd3-ping-is-a-door',
-    home,
-    sends: [
-      g(READY_LINE, ''),
-      { afterPrevTicks: WARM_TICKS, data: '\r' },
-      g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
-      ...PICK_Q,
-      { afterPrevTicks: 12, data: '\t' },
-      { afterPrevTicks: 2, data: 'n' },
-      { afterPrevTicks: 6, data: ESC },
-      g(COMPOSER, 'hello there\r', { awaitSettleTicks: 2 }),
-      { afterPrevTicks: 2, data: SHIFT_LEFT },
-      ...PICK_P,
-      { afterPrevTicks: 60, data: '', mark: 'p-board-pinged' },
-      { afterPrevTicks: 4, data: '\t' },
-      { afterPrevTicks: 3, data: '\t' },
-      { afterPrevTicks: 4, data: '\r', mark: 'rail-focused' },
-      { afterPrevTicks: 25, data: SHIFT_LEFT, mark: 'chat-via-door' },
-      { afterPrevTicks: 12, data: '', mark: 'q-board-after-door' },
-    ],
-    stableTicks: 4,
-    total: 520,
-    replies: 6,
-    slowFirstReply: true,
-  })
-  printFrame('d3 (Q\'s board after the door)', c.lines)
-  const pinged = markText(c, 'p-board-pinged')
-  const chat = markText(c, 'chat-via-door')
-  const qAfter = markText(c, 'q-board-after-door')
-  check(`D3 the finish elsewhere rows on P's rail as "${PING_Q}" (NEEDS YOU · the ⚑ counts it)`, isBoard(pinged) && pinged.includes('NEEDS YOU') && pinged.includes(PING_Q), rowsWith(pinged, 'switch to'))
-  check('D3 the rail row\'s one affordance is "switch & open"', pinged.includes('switch & open'), rowsWith(pinged, 'switch &'))
-  check('D3 ↵ on the ping opened Z\'s chat (the door: switch + focus)', isChat(chat) && chat.includes('hello there'), firstRows(chat))
-  check('D3 ⇧← from that chat is Q\'s board — the view switched with the door; Z a plain row; the need settled (no rail)', isBoard(qAfter) && !qAfter.includes(FROM_Q) && !qAfter.includes(PING_Q), rowsWith(qAfter, 'switch to'))
   reapHome(home)
 }
 
