@@ -12,7 +12,7 @@ import {
 } from '../../services/engine-connector/focusedConnector.js'
 import { hasSeatLive } from '../../services/engine-connector/seatLive.js'
 import { useAppState, type AppState } from '../../state/AppState.js'
-import { footerNoticeLine, noticeRowBlock, noticeRowText } from '../PromptInput/Notifications.js'
+import { footerNoticeLine, noticeRowText } from '../PromptInput/Notifications.js'
 
 export type CompactWorkFocus = 'composer' | 'summary' | 'detail'
 export type CompactWorkControls = {
@@ -74,7 +74,6 @@ export function CompactWorkSummary({
   const hintWidth = hint === '' ? 0 : stringWidth(hint) + 1
   const currentNotice = useAppState((state: AppState) => state.notifications.current)
   const noticeText = noticeRowText(currentNotice)
-  const noticeBlock = noticeText === null ? noticeRowBlock(currentNotice) : null
   const noticeWidth = currentNotice !== null && !('jsx' in currentNotice) ? stringWidth(footerNoticeLine(currentNotice.text)) + 3 : 0
   return (
     <Box height={1} flexShrink={0} overflow="hidden" flexDirection="row">
@@ -89,12 +88,6 @@ export function CompactWorkSummary({
           ) : null}
         </Text>
       </Box>
-      {noticeBlock !== null ? (
-        <Box flexShrink={1} minWidth={0} height={1} overflow="hidden">
-          <Text color={tokens.textMuted}> · </Text>
-          {noticeBlock}
-        </Box>
-      ) : null}
       {hint !== '' ? (
         <Box flexShrink={0} marginLeft={1}>
           <Text color={focused ? tokens.textSecondary : tokens.textMuted}>{hint}</Text>

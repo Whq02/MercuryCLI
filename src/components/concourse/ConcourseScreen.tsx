@@ -16,7 +16,7 @@ import { AnimatedCritterArt } from '../mercury-ui/AnimatedCritterArt.js';
 import { critterDefForKey } from '../../utils/cockpit/critterData.js';
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js';
 import type { ConcourseCallbacks, ConcourseRowV1, ConcourseSnapshotV1, ControlNoteState } from './contracts.js';
-import { controlNoteOf, stableSelectionFallback, concourseWaitCopy } from './contracts.js';
+import { CONTROL_NOTE_REFUSED_MS, controlNoteOf, stableSelectionFallback, concourseWaitCopy } from './contracts.js';
 import {
   backspaceAt,
   caretVerticalOp,
@@ -77,7 +77,7 @@ import {
 } from './splitView.js';
 import { SplitChatPane } from './SplitChatPane.js';
 import { CompactConcourse, type CompactFootNote } from './CompactConcourse.js';
-import { COMPACT_DOOR_NOTE, COMPACT_DOOR_NOTE_MS, COMPACT_DOOR_REST_HINT, compactConcourseGeometry, compactConcourseProfileOf, compactSteerable } from './compactBoard.js';
+import { COMPACT_DOOR_NOTE, COMPACT_DOOR_NOTE_MS, COMPACT_DOOR_REST_HINT, compactConcourseGeometry, compactConcourseProfileOf, compactParkNoteOf, compactSteerable } from './compactBoard.js';
 import { CREW_ASK_WAIT_WORDS } from '../../services/engine-connector/crewFacts.js';
 import { hasFocusedSession, landingInFlight } from '../../services/engine-connector/focusedConnector.js';
 import { isPathTrusted, setPathTrusted } from '../../utils/config.js';
@@ -260,6 +260,30 @@ export function ConcourseScreen({
   )
   const boardSelRef = useRef<string | null>(boardSel)
   boardSelRef.current = boardSel
+  const parkSightRef = useRef(new Map<string, number>())
+  const [parkNoteEpoch, setParkNoteEpoch] = useState(0)
+  const compactParkNote = compact
+    ? compactParkNoteOf(
+        sessionRows,
+        boardSel,
+        key => {
+          const seen = parkSightRef.current.get(key)
+          if (seen !== undefined) return seen
+          const at = Date.now()
+          parkSightRef.current.set(key, at)
+          return at
+        },
+        Date.now(),
+        CONTROL_NOTE_REFUSED_MS,
+      )
+    : null
+  const compactParkNoteExpiresAt = compactParkNote?.expiresAtMs ?? null
+  useEffect(() => {
+    if (compactParkNoteExpiresAt === null) return
+    const timer = setTimeout(() => setParkNoteEpoch(epoch => epoch + 1), Math.max(0, compactParkNoteExpiresAt - Date.now()) + 1)
+    timer.unref?.()
+    return () => clearTimeout(timer)
+  }, [compactParkNoteExpiresAt, parkNoteEpoch])
   const lastIdxRef = useRef(0)
   useEffect(() => {
     const fb = stableSelectionFallback(sessionRows.map(r => r.sessionId), boardSel, lastIdxRef.current)
@@ -2011,6 +2035,7 @@ export function ConcourseScreen({
       noteOf(controlNotes?.['strip:composer']) ??
       noteOf(controlNotes?.['board:open']) ??
       noteOf(rowControlNote) ??
+      compactParkNote ??
       (face !== null ? liveNote : compactDoorSelected ? null : gateNote) ??
       note
     )

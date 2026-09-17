@@ -18,7 +18,7 @@ const {
 const { isManageableTask } = await import(
   '../../src/components/tasks/taskStatusUtils.tsx'
 )
-const { runPulseArena } = await import('../pulse/lib/pulseArena.ts')
+const { runPulseArena } = await import('./lib/pulseArena.ts')
 const { checker } = await import('../engine-durability/harness.ts')
 type ScriptedTurn = import('../lib/fixtureApi.ts').ScriptedTurn
 

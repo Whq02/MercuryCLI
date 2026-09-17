@@ -61,6 +61,9 @@ export function concourseRecordState(
                   : 'starting'
 }
 
+export const PARKING_NOW_LEAD = 'parking — '
+export const PARK_REFUSED_NOW_LEAD = 'park refused — '
+
 export function concourseNowLabel(
   rec: Parameters<typeof concourseRecordState>[0] & Pick<ConcourseWorkerRecordV1, 'sessionId' | 'workspaceId' | 'spawnedAt' | 'parkReason' | 'parkIntent' | 'parkRefused' | 'retired'>,
   liveness: { needsYou: boolean; alive: boolean },
@@ -78,9 +81,9 @@ export function concourseNowLabel(
         ?
           'its process is gone'
         : (state === 'working' || state === 'ready-to-review') && rec.parkIntent !== undefined
-          ? `parking — ${sanitizeLabel(rec.parkIntent.by)}`
+          ? `${PARKING_NOW_LEAD}${sanitizeLabel(rec.parkIntent.by)}`
           : (state === 'working' || state === 'ready-to-review') && rec.parkRefused !== undefined
-            ? `park refused — ${sanitizeLabel(rec.parkRefused.reason)}`
+            ? `${PARK_REFUSED_NOW_LEAD}${sanitizeLabel(rec.parkRefused.reason)}`
             : state === 'working' || state === 'ready-to-review' || state === 'needs-you'
               ? tailActivityLabel(rec)
               : state === 'attached'

@@ -51,15 +51,6 @@ import { estimateFaultedRequestUsage } from '../faultUsageEstimate.js'
 import type { SystemPrompt } from '../../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../../utils/thinking.js'
 import { getSessionId } from '../../../bootstrap/state.js'
-import {
-  getActivePulseTrace,
-  isPulseMainSource,
-  pulseMark,
-} from '../../../utils/pulse/turnTrace.js'
-import {
-  notePulseStreamActivity,
-  setPulsePhase,
-} from '../../../utils/pulse/turnPhase.js'
 import { notePrintPhase } from '../../../utils/printPhases.js'
 import type { ApiShapedTool } from '../zai/zaiCodec.js'
 import { emptyReplyNote, markEmptyReply, type EmptyReplyKind } from '../emptyReply.js'
@@ -484,9 +475,6 @@ export async function* openaiCallModel(
   const modelId = qualification.modelId
   const candidate = qualification.kind === 'ok' ? qualification.candidate : undefined
 
-  const pulseMain = isPulseMainSource(options.querySource, options.agentId)
-  const pulseGeneration = getActivePulseTrace()?.generation ?? 0
-
   const plan = await planToolPayload({
     model: modelId,
     tools,
@@ -596,10 +584,6 @@ export async function* openaiCallModel(
   for (let attempt = 1; attempt <= OPENAI_MAX_ATTEMPTS; attempt++) {
     attemptStartedAtMs = Date.now()
     notePrintPhase('dispatch')
-    if (pulseMain) {
-      pulseMark('api_request_sent')
-      setPulsePhase(pulseGeneration, 'waiting')
-    }
     const outcome = yield* streamOneOpenaiAttempt({
       request,
       auth,
@@ -611,8 +595,6 @@ export async function* openaiCallModel(
       attempt,
       settlementNotes,
       ...(effortAdjusted !== undefined ? { effortAdjusted } : {}),
-      pulseMain,
-      pulseGeneration,
       contractDigest: contract.digest,
       deferredUnadmitted: plan.isDeferredUnadmitted,
     })
@@ -767,8 +749,6 @@ export async function* streamOneOpenaiAttempt(ctx: {
   messages: Message[]
   settlementNotes: readonly string[]
   effortAdjusted?: EffortAdjustedV1
-  pulseMain: boolean
-  pulseGeneration: number
   contractDigest: string
   deferredUnadmitted?: (name: string) => boolean
   attempt?: number
@@ -954,11 +934,6 @@ export async function* streamOneOpenaiAttempt(ctx: {
     if (!firstEventSeen) {
       firstEventSeen = true
       notePrintPhase('first_byte')
-      if (ctx.pulseMain) {
-        pulseMark('response_headers_received')
-        pulseMark('first_stream_chunk_received')
-        notePulseStreamActivity(ctx.pulseGeneration, 'chunk')
-      }
     }
     switch (event.type) {
       case 'response-id':

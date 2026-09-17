@@ -23,8 +23,6 @@ import {
   getFocusedSessionConnector,
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
-import { usePulsePhase } from '../utils/pulse/turnPhase.js'
-import { getActivePulseTrace } from '../utils/pulse/turnTrace.js'
 import type { Theme } from '../utils/theme.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { plural } from '../utils/stringUtils.js'
@@ -80,19 +78,6 @@ export type SpinnerWithVerbProps = {
   >
 }
 
-function phaseToMode(phase: string): SpinnerMode {
-  switch (phase) {
-    case 'thinking':
-      return 'thinking'
-    case 'responding':
-      return 'responding'
-    case 'tool-work':
-      return 'tool-use'
-    default:
-      return 'requesting'
-  }
-}
-
 export function nextPendingTask<T extends { id: string; status: string; blockedBy?: readonly string[] }>(tasks: readonly T[]): T | undefined {
   const pending = tasks.filter(task => task.status === 'pending')
   const byId = new Map(tasks.map(task => [task.id, task]))
@@ -129,7 +114,6 @@ export function SpinnerWithVerb({
   const { columns } = useTerminalSize()
   const inCockpit = useContext(CockpitActiveContext)
   const inWorkCapsule = useContext(WorkCapsuleContext)
-  const snapshot = usePulsePhase()
   const mainLoopModel = useSyncExternalStore(subscribeFocusedSpinnerModel, getFocusedSpinnerModel, getFocusedSpinnerModel)
   const reducedMotion =
     useAppState(state => state.settings.prefersReducedMotion === true) ||
@@ -138,10 +122,7 @@ export function SpinnerWithVerb({
   const appEffort = useAppState(state => state.effortValue)
   const mission = useFocusedMission()
 
-  const turnOpen = snapshot.generation > 0 && snapshot.phase !== 'idle'
-  const effectiveMode: SpinnerMode = turnOpen
-    ? phaseToMode(snapshot.phase)
-    : mode
+  const effectiveMode: SpinnerMode = mode
 
   const runningTeammateCount = useAppState(state =>
     Object.values(state.tasks).filter(
@@ -176,7 +157,6 @@ export function SpinnerWithVerb({
     return () => clearInterval(timer)
   }, [])
 
-  const activeTask = turnOpen ? mission.find(task => task.status === 'in_progress') : undefined
   const teammateVerbRaw = foregroundedTeammate
     ? (foregroundedTeammate as Record<string, unknown>)['verb']
     : undefined
@@ -190,8 +170,6 @@ export function SpinnerWithVerb({
     chosenVerb = teammateVerb ?? whimsyVerb
   } else if (overrideMessage != null && overrideMessage !== '') {
     chosenVerb = overrideMessage
-  } else if (activeTask) {
-    chosenVerb = activeTask.activeForm ?? activeTask.subject
   } else if (hasActiveTools && activeToolLabel) {
     chosenVerb = activeToolLabel
   } else {
@@ -199,7 +177,6 @@ export function SpinnerWithVerb({
   }
   const effectiveVerb = chosenVerb
   const message = still || effectiveVerb.endsWith('…') ? effectiveVerb : `${effectiveVerb}…`
-  const phaseBylineEligible = !overrideMessage && !(foregroundedTeammate && !foregroundedTeammate.isIdle)
 
   const requesting =
     effectiveMode !== 'thinking' &&
@@ -212,21 +189,9 @@ export function SpinnerWithVerb({
     overrideShimmerColor ?? (requesting ? 'infoShimmer' : 'brandShimmer')
 
   const ttftText = useMemo(() => {
-    const trace = getActivePulseTrace()
-    if (trace) {
-      const sent = trace.events.find(event => event.name === 'api_request_sent')
-      const first = trace.events.find(
-        event => event.name === 'first_stream_chunk_received',
-      )
-      if (sent && first && first.at > sent.at) {
-        return `ttft ${((first.at - sent.at) / 1000).toFixed(1)}s`
-      }
-      return null
-    }
     const sample = apiMetricsRef.current?.[0]
     return sample ? `ttft ${(sample.ttftMs / 1000).toFixed(1)}s` : null
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- sampled per phase change
-  }, [snapshot.phase, snapshot.generation, apiMetricsRef])
+  }, [apiMetricsRef])
 
   useEffect(() => {
     const id = `spinner:${effectiveMode}`
@@ -334,8 +299,6 @@ export function SpinnerWithVerb({
       foregroundedTeammate={foregroundedTeammate}
       leaderIsIdle={leaderIsIdle}
       effortSuffix={getEffortSuffix(mainLoopModel, appEffort)}
-      phaseBylineEligible={phaseBylineEligible}
-      bylineVerb={effectiveVerb}
       ttftText={ttftText}
       inWorkCapsule={inWorkCapsule}
       still={still}

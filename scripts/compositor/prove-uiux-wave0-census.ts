@@ -612,8 +612,9 @@ section('UI-088..100 — selection/tokens/plates/transitions adjudicated to thei
     )
   }
   check(
-    'UI-096: first-text latching + plate settlement ride the shared stream owners (no plate delays first text)',
-    src('src/utils/messages/streaming.ts').includes("pulseMark('first_text_delta')"),
+    'UI-096: first text rides the shared stream owner (no plate delays first text)',
+    src('src/utils/messages/streaming.ts').includes("case 'text_delta': {") &&
+      src('src/utils/messages/streaming.ts').includes("onStreamingText?.(text => (text ?? '') + deltaText)"),
   )
   check(
     'UI-097..100: the transition families keep their standing owners (board-coverage · view-target-parity · agent-resume-visibility)',

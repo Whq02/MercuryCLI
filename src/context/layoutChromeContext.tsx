@@ -16,7 +16,7 @@ export type LayoutChromeState = Readonly<{
 
 const LayoutChromeContext = createContext<LayoutChromeState | null>(null)
 export const CompactFrameBudgetContext = createContext<CompactFrameBudget | null>(null)
-export const CompactFooterNoticeContext = createContext<((active: boolean) => void) | null>(null)
+export const CompactFooterNoticeContext = createContext<((rows: number) => void) | null>(null)
 
 export function LayoutChromeProvider({ children, fullscreen: fullscreenOverride }: { children: React.ReactNode; fullscreen?: boolean }): React.ReactNode {
   const { columns, rows } = useRealTerminalSize()

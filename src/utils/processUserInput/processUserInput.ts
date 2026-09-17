@@ -27,13 +27,6 @@ import {
 } from '../messages.js'
 import { maybeResizeAndDownsampleImageBlock } from '../imageResizer.js'
 import { isStoredImageRef, readStoredImageRef, storeImages } from '../imageStore.js'
-import {
-  getActivePulseTrace,
-  pulseMark,
-  pulseStageEnd,
-  pulseStageStart,
-  setPulsePhase,
-} from '../pulse/index.js'
 import { logError } from '../log.js'
 
 export type ProcessUserInputContext = ToolUseContext &
@@ -91,80 +84,71 @@ export async function processUserInput(
     setUserInputOnProcessing?.(input)
   }
 
-  const generation = getActivePulseTrace()?.generation
-  pulseMark('process_user_input_base_start', undefined, generation)
   const base = await processUserInputBase(options)
-  pulseMark('process_user_input_base_end', undefined, generation)
   if (!base.shouldQuery) return base
 
   const promptText =
     typeof input === 'string' ? input : extractTextContent(input, '\n')
   const permissionMode = context.getAppState().toolPermissionContext.mode
-  pulseStageStart('user_prompt_hooks', undefined, generation)
-  if (generation !== undefined) setPulsePhase(generation, 'preparing', { reason: 'hooks' })
-  try {
-    const hookMessages: Message[] = []
-    for await (const result of executeUserPromptSubmitHooks(promptText, permissionMode, context)) {
-      if (result.message?.type === 'progress') continue
-      if (result.blockingError) {
-        return {
-          messages: [
-            createSystemMessage(
-              `Operation blocked by hook: ${result.blockingError.blockingError}\n\nOriginal prompt: ${promptText}`,
-              'warning',
-            ),
-          ],
-          shouldQuery: false,
-          hookBlocked: true,
-          resultText: `Operation blocked by hook: ${result.blockingError.blockingError}`,
-          ...(base.allowedTools !== undefined ? { allowedTools: base.allowedTools } : {}),
-        }
-      }
-      if (result.preventContinuation) {
-        return {
-          ...base,
-          messages: [
-            ...base.messages,
-            createUserMessage({
-              content: result.stopReason
-                ? `Operation stopped by hook: ${result.stopReason}`
-                : 'Operation stopped by hook',
-            }),
-          ],
-          shouldQuery: false,
-        }
-      }
-      if (result.additionalContexts && result.additionalContexts.length > 0) {
-        hookMessages.push(
-          createAttachmentMessage({
-            type: 'hook_additional_context',
-            content: result.additionalContexts.map(truncateHookText),
-            hookName: result.hookSource ?? 'hook',
-            toolUseID: `${HOOK_TOOL_USE_ID_PREFIX}${randomUUID()}`,
-            hookEvent: 'UserPromptSubmit',
-          }),
-        )
-        continue
-      }
-      if (result.message) {
-        const attachment = (
-          result.message as { attachment?: { type?: string; content?: string } }
-        ).attachment
-        if (attachment?.type === 'hook_success') {
-          if (!attachment.content || attachment.content.trim() === '') continue
-          hookMessages.push({
-            ...result.message,
-            attachment: { ...attachment, content: truncateHookText(attachment.content) },
-          } as Message)
-          continue
-        }
-        hookMessages.push(result.message as Message)
+  const hookMessages: Message[] = []
+  for await (const result of executeUserPromptSubmitHooks(promptText, permissionMode, context)) {
+    if (result.message?.type === 'progress') continue
+    if (result.blockingError) {
+      return {
+        messages: [
+          createSystemMessage(
+            `Operation blocked by hook: ${result.blockingError.blockingError}\n\nOriginal prompt: ${promptText}`,
+            'warning',
+          ),
+        ],
+        shouldQuery: false,
+        hookBlocked: true,
+        resultText: `Operation blocked by hook: ${result.blockingError.blockingError}`,
+        ...(base.allowedTools !== undefined ? { allowedTools: base.allowedTools } : {}),
       }
     }
-    return { ...base, messages: [...base.messages, ...hookMessages] }
-  } finally {
-    pulseStageEnd('user_prompt_hooks', undefined, generation)
+    if (result.preventContinuation) {
+      return {
+        ...base,
+        messages: [
+          ...base.messages,
+          createUserMessage({
+            content: result.stopReason
+              ? `Operation stopped by hook: ${result.stopReason}`
+              : 'Operation stopped by hook',
+          }),
+        ],
+        shouldQuery: false,
+      }
+    }
+    if (result.additionalContexts && result.additionalContexts.length > 0) {
+      hookMessages.push(
+        createAttachmentMessage({
+          type: 'hook_additional_context',
+          content: result.additionalContexts.map(truncateHookText),
+          hookName: result.hookSource ?? 'hook',
+          toolUseID: `${HOOK_TOOL_USE_ID_PREFIX}${randomUUID()}`,
+          hookEvent: 'UserPromptSubmit',
+        }),
+      )
+      continue
+    }
+    if (result.message) {
+      const attachment = (
+        result.message as { attachment?: { type?: string; content?: string } }
+      ).attachment
+      if (attachment?.type === 'hook_success') {
+        if (!attachment.content || attachment.content.trim() === '') continue
+        hookMessages.push({
+          ...result.message,
+          attachment: { ...attachment, content: truncateHookText(attachment.content) },
+        } as Message)
+        continue
+      }
+      hookMessages.push(result.message as Message)
+    }
   }
+  return { ...base, messages: [...base.messages, ...hookMessages] }
 }
 
 
@@ -192,12 +176,9 @@ async function processUserInputBase(
     isAlreadyProcessing,
   } = options
   let skipSlashCommands = options.skipSlashCommands === true
-  const generation = getActivePulseTrace()?.generation
-
   const imageMetadataTexts: string[] = []
   let normalizedInput: string | ContentBlockParam[] = input
   if (Array.isArray(input)) {
-    pulseMark('image_processing_start', undefined, generation)
     const processed: ContentBlockParam[] = []
     for (const raw of input) {
       let block = raw
@@ -231,7 +212,6 @@ async function processUserInputBase(
       }
     }
     normalizedInput = processed
-    pulseMark('image_processing_end', undefined, generation)
   }
 
   let prompt: string | null
@@ -256,7 +236,6 @@ async function processUserInputBase(
   const imageContentBlocks: ContentBlockParam[] = []
   const imagePasteIds: number[] = []
   if (pastedContents && Object.keys(pastedContents).length > 0) {
-    pulseMark('pasted_image_processing_start', undefined, generation)
     void storeImages(pastedContents).catch(error => logError(error))
     const imageEntries = Object.entries(pastedContents)
       .map(([id, content]) => ({ id: Number(id), content }))
@@ -298,7 +277,6 @@ async function processUserInputBase(
         imageMetadataTexts.push(`[Image #${entry.id} source: ${sourcePath}]`)
       }
     }
-    pulseMark('pasted_image_processing_end', undefined, generation)
   }
 
   if (bridgeOrigin === true && typeof prompt === 'string' && prompt.startsWith('/')) {
@@ -334,7 +312,6 @@ async function processUserInputBase(
     typeof prompt === 'string' &&
     (mode !== 'prompt' || skipSlashCommands || !prompt.startsWith('/'))
   if (collectAttachments) {
-    pulseMark('attachment_loading_start', undefined, generation)
     try {
       for await (const attachment of getAttachmentMessages(
         prompt,
@@ -350,7 +327,6 @@ async function processUserInputBase(
     } catch (error) {
       logError(error)
     }
-    pulseMark('attachment_loading_end', undefined, generation)
   }
 
   let result: ProcessUserInputBaseResult
