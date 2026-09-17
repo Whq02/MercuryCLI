@@ -198,12 +198,20 @@ const usageBlock = (frame: string): string => {
 }
 
 const RAIL = { cols: 160, rows: 45 }
-function checkLiveAge(label: string, frame: string): void {
+function checkLiveAge(label: string, frame: string, markAtMs: number | undefined, answered: readonly number[]): void {
   const row = rowOf(frame, new RegExp(`5h ${BAR} \\d+%`))
   const m = row !== undefined ? new RegExp(`(${AGE})`).exec(row) : null
   const age = m ? m[1]! : undefined
   const seconds = age !== undefined && /s$/.test(age) ? Number(age.slice(1, -1)) : undefined
-  check(`${label}: the 5h row names its age, younger than the floor (${age ?? 'no age word'})`, seconds !== undefined && seconds <= POLL_MS / 1000 && !/stale/.test(row ?? ''), row ?? usageBlock(frame))
+  const lastRead = markAtMs === undefined ? undefined : answered.filter(at => at <= markAtMs).at(-1)
+  const wall = markAtMs === undefined || lastRead === undefined ? undefined : (markAtMs - lastRead) / 1000
+  const staleAt = (2 * POLL_MS) / 1000
+  const staleWord = /stale/.test(row ?? '')
+  check(
+    `${label}: the 5h row names the age of the read it shows (${age ?? 'no age word'} · ${wall === undefined ? 'no read before the mark' : `${wall.toFixed(1)} s on the wall`}), stale exactly past 2 × floor`,
+    seconds !== undefined && wall !== undefined && seconds <= wall + 1 && (Math.abs(seconds - staleAt) <= 1 || staleWord === seconds >= staleAt),
+    row ?? usageBlock(frame),
+  )
 }
 
 console.log('============================================================')
@@ -260,7 +268,7 @@ if (LEGS.has('a')) {
   const after = c.marks['after-usage'] ?? ''
   const shown = fiveHourPct(after)
   check(`A: the tab's own ask is the second read and wins the row (5h ${shown ?? '—'}% = 46)`, shown === 46, usageBlock(after))
-  checkLiveAge('A: after the tab', after)
+  checkLiveAge('A: after the tab', after, c.markAt['after-usage'], api.usageRequests.filter(r => r.mode === 'ok').map(r => r.at))
   const f1 = fiveHourPct(c.marks.floor1 ?? '')
   const f2 = fiveHourPct(c.marks.floor2 ?? '')
   const f3 = fiveHourPct(c.marks.floor3 ?? '')
@@ -277,7 +285,7 @@ if (LEGS.has('a')) {
   check(`A: the age tail grows in the open and reads stale past 2 × floor (${ageOf(c.marks.floor3 ?? '') ?? 'no age word'})`, /^stale ↻/.test(ageOf(c.marks.floor3 ?? '') ?? ''), usageBlock(c.marks.floor3 ?? ''))
   const retried = fiveHourPct(c.marks['retried-rail'] ?? c.marks.retried ?? '')
   check(`A: the tab's retry reads again — the row moves (5h ${retried ?? '—'}% > ${shown})`, retried !== undefined && shown !== undefined && retried > shown, usageBlock(c.marks['retried-rail'] ?? ''))
-  checkLiveAge('A: after the retry', c.marks['retried-rail'] ?? '')
+  checkLiveAge('A: after the retry', c.marks['retried-rail'] ?? '', c.markAt['retried-rail'], api.usageRequests.filter(r => r.mode === 'ok').map(r => r.at))
   check('A: the week and the pool ride the same answer (7d 44% · Opus 61%)', new RegExp(`7d ${BAR} 44%`).test(c.marks['retried-rail']?.replace(/\s+/g, ' ') ?? '') && new RegExp(`Opus ${BAR} 61%`).test(c.marks['retried-rail']?.replace(/\s+/g, ' ') ?? ''), usageBlock(c.marks['retried-rail'] ?? ''))
 }
 
@@ -383,7 +391,8 @@ if (LEGS.has('c')) {
   check('every send became due', c.sends > 0 && c.receipts === c.sends, c.tail.slice(-200))
   const young = c.marks.young ?? ''
   const youngRow = rowOf(young, new RegExp(`5h ${BAR} 36%`))
-  check("C: the mount's figure stands with its age while the tab's ask hangs (5h 36% ↻Ns, not yet stale)", youngRow !== undefined && new RegExp(AGE).test(youngRow) && !/stale/.test(youngRow), youngRow ?? usageBlock(young))
+  check("C: the mount's figure stands while the tab's ask hangs (5h 36%)", youngRow !== undefined, youngRow ?? usageBlock(young))
+  checkLiveAge("C: while the tab's ask hangs", young, c.markAt.young, api.usageRequests.filter(r => r.mode === 'ok').map(r => r.at))
   const stale = c.marks.stale ?? ''
   const staleRow = rowOf(stale, new RegExp(`5h ${BAR} 36%`))
   check(`C: past 2 × floor the same figure reads STALE with its age (${staleRow?.match(new RegExp(`stale ${AGE}`))?.[0] ?? 'no stale word'}) — no request landed on its own`, staleRow !== undefined && new RegExp(`stale ${AGE}`).test(staleRow) && api.usageRequests.length === 2, `${api.usageRequests.length} request(s) · ${staleRow ?? usageBlock(stale)}`)

@@ -1294,7 +1294,9 @@ export function REPL({
         releaseDialogSlot();
         setToolJSX(null);
         if (result && doneOptions?.display !== 'skip') {
-          addNotification({ key: `command-${seatCommand.name}`, text: result, priority: 'immediate' });
+          const resultLines = result.split(/\r?\n/).filter(line => line.trim() !== '').length;
+          if (resultLines > 1) paintScreenCommandReceipt(dialogName, args, result);
+          else addNotification({ key: `command-${seatCommand.name}`, text: result, priority: 'immediate' });
         }
         if (doneOptions?.nextInput) {
           if (doneOptions.submitNextInput) void onSubmitRef.current(doneOptions.nextInput, INERT_PROMPT_HELPERS);

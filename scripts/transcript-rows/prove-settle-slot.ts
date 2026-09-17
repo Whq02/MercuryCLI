@@ -2,9 +2,9 @@
 
 import {
   findRows,
-  firstOutputTs,
   grabScreens,
   runArtifactArena,
+  sendStamp,
 } from '../streaming/artifactArena.ts'
 import { vshotBudgetScale } from '../lib/captureDriver.ts'
 
@@ -37,10 +37,9 @@ const run = await runArtifactArena({
   probe: true,
   keep: true,
 })
-const base = firstOutputTs(run)
 const emits = run.fixture.pacedEmits
 check('fixture streamed fully', emits.length === deltas.length, `${emits.length}/${deltas.length}`)
-const streamEnd = (emits.at(-1)?.at ?? 0) - base
+const streamEnd = sendStamp(run, { sent: emits.at(-1)?.at ?? 0, atMs: 0, b64: '' })
 const settleAt = streamEnd + SETTLE_HOLD
 
 const [before, after, late] = grabScreens(run, 120, 40, [

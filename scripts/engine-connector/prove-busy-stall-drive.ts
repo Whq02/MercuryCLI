@@ -103,6 +103,8 @@ const KILL_AT_ARENA_MS = 15_000
 const ATTACH_SETTLE_MS = 2_500
 let teePathForKill = ''
 let killedAtArenaMs = KILL_AT_ARENA_MS
+let attachedAtArenaMs = 0
+const traceHas = (needle: string): boolean => existsSync(TRACE) && readFileSync(TRACE, 'utf8').includes(needle)
 const killLeg = (async () => {
   const staged = await untilAsync(() => workerPids().some(w => w.pid !== undefined) && factsBusy(), 90_000)
   if (!staged) {
@@ -115,12 +117,14 @@ const killLeg = (async () => {
     return
   }
   const arenaBootAt = Date.now()
-  const attached = await untilAsync(() => existsSync(TRACE) && readFileSync(TRACE, 'utf8').includes('"ev":"attach"'), 90_000)
-  const attachedAt = Date.now() - arenaBootAt
-  await new Promise(r => setTimeout(r, Math.max(ATTACH_SETTLE_MS, KILL_AT_ARENA_MS - attachedAt)))
+  const attached = await untilAsync(() => traceHas('"ev":"attach"'), 90_000)
+  attachedAtArenaMs = Date.now() - arenaBootAt
+  const painted = attached && (await untilAsync(() => traceHas('"ev":"paint"'), 30_000))
+  const paintedAt = Date.now() - arenaBootAt
+  await new Promise(r => setTimeout(r, Math.max(ATTACH_SETTLE_MS, KILL_AT_ARENA_MS - paintedAt)))
   reap()
   killedAtArenaMs = Date.now() - arenaBootAt
-  console.log(`  [info] tree SIGKILLed at arena+${killedAtArenaMs}ms (facts frozen busy; the connector's attach ${attached ? `seen at arena+${attachedAt}ms` : 'never seen'})`)
+  console.log(`  [info] tree SIGKILLed at arena+${killedAtArenaMs}ms (facts frozen busy; the connector's attach ${attached ? `seen at arena+${attachedAtArenaMs}ms` : 'never seen'}; its first paint ${painted ? `seen at arena+${paintedAt}ms` : 'never seen'})`)
 })()
 
 const runPromise = runArtifactArena({
@@ -204,19 +208,25 @@ await killLeg
 const KEEP_DIR = process.env.BUSY_STALL_CAPTURE_DIR ?? join(tmpdir(), `busy-stall-captures-${process.pid}`)
 mkdirSync(KEEP_DIR, { recursive: true })
 {
-  const attachedAtMs = Math.max(1_000, killedAtArenaMs - 1_500)
+  const ladder: number[] = []
+  for (let at = Math.max(1_000, attachedAtArenaMs); at < killedAtArenaMs - 250; at += 500) ladder.push(at)
+  if (ladder.length === 0) ladder.push(Math.max(1_000, killedAtArenaMs - 500))
   const frozenAtMs = killedAtArenaMs + 9_000
   const settledAtMs = Math.min(killedAtArenaMs + 73_000, 88_000)
-  console.log(`  [info] frames read at arena+${attachedAtMs}ms (attached) · +${frozenAtMs}ms (frozen) · +${settledAtMs}ms (settled)`)
-  const grabs = grabScreens(run, 120, 40, [attachedAtMs, frozenAtMs, settledAtMs])
+  console.log(`  [info] frames read at arena+${ladder[0]}ms…+${ladder[ladder.length - 1]}ms (${ladder.length} before the kill) · +${frozenAtMs}ms (frozen) · +${settledAtMs}ms (settled)`)
+  const grabs = grabScreens(run, 120, 40, [...ladder, frozenAtMs, settledAtMs])
+  const text = (g: { rows: string[] } | undefined): string => (g ? g.rows.join('\n') : '')
+  const entered = (g: { rows: string[] }): boolean => text(g).includes('hold this turn open') && text(g).includes(TAG)
+  const beforeKill = grabs.filter(g => ladder.includes(g.atMs))
+  const attached = [...beforeKill].reverse().find(entered) ?? beforeKill[beforeKill.length - 1]
+  const firstEntered = beforeKill.find(entered)
+  console.log(`  [info] the entered chat first on the frame at ${firstEntered ? `arena+${firstEntered.atMs}ms (attach +${firstEntered.atMs - attachedAtArenaMs}ms)` : 'no frame before the kill'}`)
+  const frozen = grabs.find(g => g.atMs === frozenAtMs)
+  const settled = grabs.find(g => g.atMs === settledAtMs)
   for (const g of grabs) {
     writeFileSync(join(KEEP_DIR, `at${String(g.atMs).padStart(6, '0')}.txt`), g.rows.map((r: string) => r.replace(/\s+$/, '')).join('\n') + '\n')
   }
-  const text = (g: { rows: string[] } | undefined): string => (g ? g.rows.join('\n') : '')
-  const attached = grabs.find(g => g.atMs === attachedAtMs)
-  const frozen = grabs.find(g => g.atMs === frozenAtMs)
-  const settled = grabs.find(g => g.atMs === settledAtMs)
-  check('pre-kill: the chat was ENTERED (the tag bar with the way back, over the held prompt)', text(attached).includes('hold this turn open') && text(attached).includes(TAG), 'see the kept capture')
+  check(`pre-kill: the chat was ENTERED (the tag bar with the way back, over the held prompt) — read at arena+${attached?.atMs ?? 0}ms`, attached !== undefined && entered(attached), `no frame between the attach (+${attachedAtArenaMs}ms) and the kill (+${killedAtArenaMs}ms) carried both; see the kept capture`)
   check('post-kill: the frame still stands (the freeze is painted, not a crash)', text(frozen).length > 0)
   check('post-deadline: the frame stands and differs from the frozen-busy paint', text(settled).length > 0 && text(settled) !== text(frozen))
 

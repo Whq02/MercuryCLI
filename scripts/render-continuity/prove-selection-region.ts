@@ -6,7 +6,7 @@ import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { runPulseArena } = await import('./lib/pulseArena.ts')
+const { runPulseArena, anchoredOffset } = await import('./lib/pulseArena.ts')
 const { checker } = await import('../engine-durability/harness.ts')
 type ScriptedTurn = import('../lib/fixtureApi.ts').ScriptedTurn
 
@@ -65,9 +65,9 @@ const specs: RunSpec[] = [
     name: 'run1 first-row origin',
     turns: turnsSettled,
     dragAt: 9500,
-    origin: [40, 23],
-    path: [[60, 24], [70, 25], [78, 26]],
-    end: [82, 27],
+    origin: [48, 18],
+    path: [[60, 19], [70, 20], [78, 21]],
+    end: [82, 22],
     seconds: 14,
     kind: 'transcript',
   },
@@ -75,9 +75,9 @@ const specs: RunSpec[] = [
     name: 'run2 middle-wrapped origin',
     turns: turnsSettled,
     dragAt: 9500,
-    origin: [40, 26],
-    path: [[60, 26], [70, 26], [78, 27]],
-    end: [82, 27],
+    origin: [40, 23],
+    path: [[60, 23], [70, 23], [78, 24]],
+    end: [82, 24],
     seconds: 14,
     kind: 'transcript',
   },
@@ -95,9 +95,9 @@ const specs: RunSpec[] = [
     name: 'run4 blank-row origin',
     turns: turnsSettled,
     dragAt: 9500,
-    origin: [40, 22],
-    path: [[60, 23], [70, 24], [78, 25]],
-    end: [82, 26],
+    origin: [40, 17],
+    path: [[60, 18], [70, 19], [78, 20]],
+    end: [82, 21],
     seconds: 14,
     kind: 'transcript',
   },
@@ -115,9 +115,9 @@ const specs: RunSpec[] = [
     name: 'run6 REVERSE drag (end -> start of run1 range)',
     turns: turnsSettled,
     dragAt: 9500,
-    origin: [82, 27],
-    path: [[78, 26], [70, 25], [60, 24]],
-    end: [40, 23],
+    origin: [82, 22],
+    path: [[78, 21], [70, 20], [60, 19]],
+    end: [48, 18],
     seconds: 14,
     kind: 'transcript',
   },
@@ -146,9 +146,9 @@ specs.push({
   name: 'run7 wide-glyph (CJK) drag',
   turns: turnsCjk,
   dragAt: 9500,
-  origin: [27, 23],
-  path: [[60, 23], [90, 23]],
-  end: [112, 23],
+  origin: [46, 18],
+  path: [[60, 18], [90, 18]],
+  end: [112, 18],
   seconds: 14,
   kind: 'cjk' as never,
 })
@@ -181,11 +181,11 @@ for (const spec of activeSpecs) {
     cols: 120,
     rows: 40,
     keep: true,
-    extraEnv: OSC52_ENV,
+    extraEnv: { ...OSC52_ENV, COLORTERM: 'truecolor' },
   })
   const grab = spawnSync(
     '/usr/bin/python3',
-    [ATTRGRAB, run.paths.drive, '120', '40', String(S(spec.dragAt - 200)), String(S(spec.dragAt + 650)), String(S(spec.dragAt + 1150)), '-1'],
+    [ATTRGRAB, run.paths.drive, '120', '40', String(anchoredOffset(run, S(spec.dragAt - 200))), String(anchoredOffset(run, S(spec.dragAt + 650))), String(anchoredOffset(run, S(spec.dragAt + 1150))), '-1'],
     { encoding: 'utf8' },
   )
   t.section(spec.name)
