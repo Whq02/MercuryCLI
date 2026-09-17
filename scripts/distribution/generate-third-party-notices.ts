@@ -63,6 +63,7 @@ const brush = vendorLock('brush.lock.json')
 const tsMeta = pkgMeta('typescript')
 const treeSitterMeta = pkgMeta('@vscode/tree-sitter-wasm')
 const ripgrepMeta = pkgMeta('@vscode/ripgrep')
+const sandboxMeta = pkgMeta('@anthropic-ai/sandbox-runtime')
 
 interface FoundNotice {
   pkg: string
@@ -197,6 +198,10 @@ lines.push(
 }
 lines.push(
   `- **shell engine pack** (\`dist/vendor/brush/<platform>/brush\`, \`brush.exe\` on Windows) — brush, a bash-compatible shell written in Rust, ${brush.license ?? 'MIT'} (${brush.repository ?? 'https://github.com/reubeno/brush'}). Receipt: vendor/brush.lock.json (one upstream release archive + sha256 per platform, every digest copied from that release's published \`<archive>.sha256\` asset; for win-x64, where upstream publishes no binary, the published crate \`brush-shell\` at the same version and its crate archive's sha256). A macOS or Linux archive ships the platform's engine binary and upstream's own \`LICENSE\` + \`THIRD_PARTY_LICENSES.html\` (the crate notices of everything linked into the binary) at dist/vendor/brush/<platform>/; the Windows archive ships the binary built from that crate with \`NOTICES.json\` (every linked crate: name, version, licence, repository) and \`licenses/<crate>-<version>/\` (each crate's own licence text) beside it, and carries the pack on every Windows install, since a box with no bash runs the Bash tool through it.`,
+)
+lines.push('')
+lines.push(
+  `- **sandbox socket-filter helper** (\`dist/vendor/seccomp/<x64|arm64>/apply-seccomp\`, Linux archives only) — \`apply-seccomp\` from **${sandboxMeta.name}** ${sandboxMeta.version}, ${sandboxMeta.license} (${sandboxMeta.homepage ?? 'https://github.com/anthropic-experimental/sandbox-runtime'}): the helper the Linux sandbox runs in front of each confined command to install a seccomp filter that blocks unix-socket creation. Redistributed unmodified from the package's own \`vendor/seccomp/<arch>/\` — a stripped, statically linked ELF (glibc linked in); the package's licence text ships beside it at dist/vendor/seccomp/LICENSE.`,
 )
 lines.push('')
 lines.push('## Preserved NOTICE files (Apache-2.0 §4(d))')
