@@ -254,8 +254,17 @@ section('A. an automatic attachment read that overflows records nothing')
   const err = read.error
   check('A1 the bare read is refused by the same class', err instanceof MaxFileReadTokenExceededError, String(err))
   const text = err instanceof Error ? err.message : ''
-  check('A2 …with the bare words and no window', numberedLines(text).length === 0 && text.endsWith('instead of reading the whole file.'), text.slice(0, 200))
+  check('A2 …with a bounded next Read and no lines claimed as returned', numberedLines(text).length === 0 && /Read\(offset: 1, limit: \d+\)/.test(text) && !text.includes('count as read'), text)
   check('A3 …and nothing is recorded as read', ctx.readFileState.get(wide) === undefined && seenLinesOf(owner, wide) === undefined)
+  const next = (err as { next?: { offset: number; limit: number } } | undefined)?.next
+  check('A4 the throw carries the same next-window shape as the note', next !== undefined && next.offset === 1 && next.limit > 0 && next.limit < 1500 && next.limit <= MAX_LINES_TO_READ, JSON.stringify(next))
+  if (next) {
+    const retry = await readViaTool({ file_path: wide, ...next }, ctx, true)
+    check('A5 the suggested next window actually fits', retry.error === undefined && (retry.data as { type?: string; file?: { overCap?: unknown } })?.type === 'text' && (retry.data as { file?: { overCap?: unknown } })?.file?.overCap === undefined, String(retry.error ?? 'text'))
+  }
+  const later = await readViaTool({ file_path: wide, offset: 50 }, makeContext(), false)
+  const laterNext = (later.error as { next?: { offset: number; limit: number } } | undefined)?.next
+  check('A6 a throw from a later offset never sends the caller back to line 1', laterNext?.offset === 50 && laterNext.limit > 0, String(later.error))
 }
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)

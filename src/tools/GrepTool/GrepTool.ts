@@ -16,7 +16,7 @@ import {
 } from '../../utils/curlyQuotes.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
-import { splitGrepGlobField } from '../../utils/globPattern.js'
+import { globSearchDepth, splitGrepGlobField } from '../../utils/globPattern.js'
 import {
   FILE_NOT_FOUND_CWD_NOTE,
   findSimilarFile,
@@ -236,7 +236,11 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
   }
   if (input.type) args.push('--type', input.type)
   if (input.glob) {
-    for (const value of splitGrepGlobField(input.glob)) {
+    const patterns = splitGrepGlobField(input.glob)
+    const anchored = patterns.every(value => value.startsWith('!') || value.includes('/'))
+    const depth = anchored ? globSearchDepth(patterns) : undefined
+    if (depth !== undefined) args.push('--max-depth', String(depth))
+    for (const value of patterns) {
       args.push('--glob', value)
     }
   }
