@@ -36,6 +36,8 @@ run_proof "$root/scripts/build/prove-vendor-tar-dialect.ts" "${BUN:-$HOME/.bun/b
 
 run_proof "$root/scripts/build/prove-image-processor-pack.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-image-processor-pack.ts" || fail=1
 
+run_proof "$root/scripts/build/prove-seccomp-pack.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-seccomp-pack.ts" || fail=1
+
 run_proof "$root/scripts/build/prove-bundle-neutral-paths.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-bundle-neutral-paths.ts" || fail=1
 
 hits=$(grep -oE "(^|[^A-Za-z0-9_])feature\((['\"])" "$dist" | wc -l | tr -d ' ')
