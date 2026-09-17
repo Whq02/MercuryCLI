@@ -357,8 +357,16 @@ const c = drive(
   ['reply to [[launch turn three'],
   460,
   GEOMETRY,
-  { NODE_OPTIONS: `--require ${SILENCE_HOOK}`, PROOF_SILENCE_FACTS_WATCH: 'session-facts' },
+  { NODE_OPTIONS: `--require ${SILENCE_HOOK}`, PROOF_SILENCE_FACTS_WATCH: 'session-facts', PROOF_SILENCE_FACTS_WATCH_LOG: path.join(world.home, 'silence-count.txt') },
 )
+const silencedWatchers = ((): string => {
+  try {
+    return readFileSync(path.join(world.home, 'silence-count.txt'), 'utf8').trim()
+  } catch {
+    return '0'
+  }
+})()
+console.log(`  [note] the facts watch was forced silent by ${SILENCE_HOOK} — ${silencedWatchers} session-facts watcher(s) kept live but with the callback swallowed (the FSEvents reschedule drop)`)
 try {
   hold.kill('SIGTERM')
 } catch {
