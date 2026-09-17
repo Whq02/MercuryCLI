@@ -184,7 +184,7 @@ if (runLeg('arrows')) {
   fixture.needsYou = []
   const fixturePath = join(scratch, 'concourse-fixture.json')
   writeFileSync(fixturePath, JSON.stringify(fixture))
-  const settle = { atTick: 999, awaitText: 'Fix OAuth callback', minTick: 5, awaitSettleTicks: 2 }
+  const settle = { atTick: 999, awaitText: 'Fix OAuth cal', minTick: 5, awaitSettleTicks: 2 }
   const before = capture('arrows-before', scratch, fixturePath, 120, 40, [], 45)
   const after = capture('arrows-after', scratch, fixturePath, 120, 40, [{ ...settle, data: '\t' }, { afterPrevTicks: 3, data: DOWN }], 60)
   const selRow = (lines: string[]): number => lines.findIndex(l => /▸ /.test(l) && /Audit|Fix OAuth|Refactor|Update/.test(l))

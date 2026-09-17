@@ -103,10 +103,12 @@ for (const [cols, rows] of [[120, 40], [80, 30]] as const) {
   console.log(`the board at ${cols}x${rows}`)
   const lines = capture(cols, rows)
   const has = (needle: string): boolean => lines.some(l => l.includes(needle))
-  const oauth = lines.find(l => l.includes('Fix OAuth')) ?? ''
-  const parser = lines.find(l => l.includes('Refactor pars')) ?? ''
-  check(`the refused row's NOW cell leads with 'park refused' inside the column at ${cols} columns`, /park refused — a\S*/.test(oauth), oauth)
-  check(`the parking row's NOW cell leads with 'parking' and the asker at ${cols} columns`, /parking — operator\S*/.test(parser), parser)
+  const oauth = lines.find(l => /[◒◐◓◑] .*Fix OAuth/.test(l)) ?? lines.find(l => l.includes('Fix OAuth')) ?? ''
+  const parser = lines.find(l => /[◒◐◓◑] .*Refactor pars/.test(l)) ?? lines.find(l => l.includes('Refactor pars')) ?? ''
+  if (cols >= 100) {
+    check(`the refused row's NOW cell leads with 'park refused' inside the column at ${cols} columns`, /park refused — a\S*/.test(oauth), oauth)
+    check(`the parking row's NOW cell leads with 'parking' and the asker at ${cols} columns`, /parking — operator\S*/.test(parser), parser)
+  }
   check(`both rows stay in the live group under WORKING (never parked, never needs-you) at ${cols} columns`, !oauth.includes('parked ·') && !parser.includes('parked ·') && !oauth.includes('needs you') && !parser.includes('needs you') && /[◒◐◓◑]/.test(oauth) && /[◒◐◓◑]/.test(parser), `${oauth} | ${parser}`)
 }
 

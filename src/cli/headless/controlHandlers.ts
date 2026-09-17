@@ -274,7 +274,7 @@ export async function handleRewindSession(
     const record = createOperatorRewindRecordMessage({ turnUuid: uuid, removed })
     ctx.messages.push(record)
     try {
-      await recordTranscript([record], undefined, undefined, ctx.messages)
+      await recordTranscript([record], undefined, uuid as UUID, ctx.messages)
       await flushSessionStorage()
     } catch (error) {
       const landed = receipt.code !== undefined ? `the files were restored (${receipt.code.filesChanged.length}); ` : ''

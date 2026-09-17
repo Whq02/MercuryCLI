@@ -162,6 +162,12 @@ if (!existsSync(DIST)) {
       console.log(`\n── ${label} ──`)
       for (const row of (marks[label] ?? '(no frame)').split('\n')) if (row.trim()) console.log(`│ ${row.slice(0, 150)}`)
     }
+    for (const file of ['daemon/daemon.log', 'connector-trace.jsonl']) {
+      const path = join(PTY_HOME, file)
+      if (!existsSync(path)) continue
+      console.log(`\n── ${file} (the last forty lines) ──`)
+      for (const row of readFileSync(path, 'utf8').trim().split('\n').slice(-40)) console.log(`│ ${row.slice(0, 220)}`)
+    }
   }
 }
 
