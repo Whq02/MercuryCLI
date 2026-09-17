@@ -224,7 +224,7 @@ async function lifecycleCase(
   resetCommandQueue()
   const store = makeStore()
   const taskId = `ag-life-${name}`
-  registerAsyncAgent({
+  const registered = registerAsyncAgent({
     agentId: taskId,
     description: `lifecycle ${name}`,
     prompt: 'work',
@@ -233,7 +233,7 @@ async function lifecycleCase(
   })
   await runAsyncAgentLifecycle({
     taskId,
-    abortController: new AbortController(),
+    abortController: registered.abortController,
     makeStream: () =>
       (async function* () {
         for (const m of stream) yield m
