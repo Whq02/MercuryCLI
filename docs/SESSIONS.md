@@ -124,7 +124,10 @@ holds the workflows-allowed grant (asked of the coordinator, chosen as
 keep-and-background on leave, or the manual-start option); a hop flips both
 answers at once. `/tasks`,
 `/workflows` and the board's work chip show the focused session's own work
-and never another's.
+and never another's. A shell's row on the board, or in the cockpit rail's RUNS
+lane, opens its card: the whole command, the directory it runs in, the time it
+has run, and the last lines of its output, read from the output file the
+session's runner writes on this machine.
 
 An image goes into the composer three ways: paste it from the clipboard
 with ctrl+v on macOS and Linux, or alt+v on Windows (the terminal owns
