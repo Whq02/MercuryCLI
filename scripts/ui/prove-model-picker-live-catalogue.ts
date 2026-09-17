@@ -111,6 +111,7 @@ section('mechanism pins: subscription · in-place retry · every catalogue bumps
     'src/services/providers/openai/openaiCatalogue.ts',
     'src/services/providers/gemini/geminiCatalogue.ts',
     'src/services/providers/huggingface/huggingfaceCatalogue.ts',
+    'src/services/providers/deepseek/deepseekCatalogue.ts',
   ]) {
     const src = readFileSync(join(REPO, rel), 'utf8')
     check(`${rel.split('/').pop()} bumps the epoch when its refresh settles (the finally block)`, /finally \{[^}]*bumpCatalogueEpoch\(\)/.test(src))

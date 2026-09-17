@@ -1,10 +1,11 @@
 import { getEssentialTrafficOnlyReason } from '../../utils/privacyLevel.js'
+import { resolveDeepseekApiKey } from './deepseek/deepseekAccounts.js'
 import { resolveGeminiAccount } from './gemini/geminiAccounts.js'
 import { resolveHuggingfaceApiKey } from './huggingface/huggingfaceAccounts.js'
 import { resolveOpenaiAccount } from './openai/openaiAccounts.js'
 import { resolveOpenrouterRequestAuth } from './openrouter/openrouterAccounts.js'
 
-export type CatalogueFamily = 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'local'
+export type CatalogueFamily = 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'local'
 
 export type CatalogueGateVerdict =
   | { allowed: true; exempt?: 'local-endpoint' }
@@ -19,6 +20,7 @@ const FAMILY_NAMES: Record<Exclude<CatalogueFamily, 'local'>, string> = {
   openrouter: 'OpenRouter',
   gemini: 'Gemini',
   openai: 'OpenAI',
+  deepseek: 'DeepSeek',
 }
 
 export function connectToBrowseReason(family: Exclude<CatalogueFamily, 'local'>): string {
@@ -35,6 +37,8 @@ function credentialPresent(family: Exclude<CatalogueFamily, 'local'>, env: NodeJ
       return resolveGeminiAccount(env) !== undefined
     case 'openai':
       return resolveOpenaiAccount(env) !== undefined
+    case 'deepseek':
+      return resolveDeepseekApiKey(env) !== undefined
   }
 }
 

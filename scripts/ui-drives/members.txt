@@ -1,2 +1,3 @@
 prove-count-and-inventory-words.ts
 prove-runs-row-detail-drive.ts
+prove-deepseek-live-rows-drive.ts
