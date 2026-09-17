@@ -113,7 +113,7 @@ import { isMcpCatalogueMember } from '../services/mcp/membership.js'
 import { applyProcessSessionKitEdit, completeProcessSessionKit, sessionKitOf, setProcessSessionKit } from '../services/mcp/sessionKitPin.js'
 import { kitDialCandidates, kitEditMcpDelta, dropMcpServerFromAppState } from '../services/mcp/kitDial.js'
 import { validateSessionKit } from '../daemon/sessionKit.js'
-import { MISSION_UPDATED_SUBTYPE, missionUpdatedFrame, SAMPLES_UPDATED_SUBTYPE, samplesUpdatedFrame, TURN_STARTED_SUBTYPE, turnStartedFrame } from '../daemon/runnerFrames.js'
+import { MISSION_UPDATED_SUBTYPE, missionUpdatedFrame, SAMPLES_UPDATED_SUBTYPE, samplesUpdatedFrame, seatVerbAppliedFrame, TURN_STARTED_SUBTYPE, turnStartedFrame } from '../daemon/runnerFrames.js'
 import { sampleRowsOf } from '../services/samples/facts.js'
 import { subscribeSampleChanges } from '../services/samples/store.js'
 import {
@@ -735,6 +735,8 @@ export async function runHeadless(
   let inputClosed = false
   let inFlightAbort: AbortController | null = null
   let deferredModelBreadcrumb: string | null = null
+  let heldSeatModel: { requestId: string; model: string } | null = null
+  let heldSeatEffort: { requestId: string; effort: string } | null = null
   let deferredSpawnSwitches: Array<{ kind: 'subagents' | 'workflows'; on: boolean }> = []
   const landSpawnSwitch = (kind: 'subagents' | 'workflows', on: boolean): void => {
     const landed = setSpawnSwitch(kind, on)
@@ -942,6 +944,19 @@ export async function runHeadless(
         })
       }
     }
+  }
+
+  const applySeatModel = async (model: string): Promise<void> => {
+    const previous = activeModel ?? getMainLoopModel()
+    activeModel = model
+    setMainLoopModelOverride(model)
+    notifySessionStateChanged('idle')
+    if (model !== previous) await injectModelSwitchBreadcrumbs(model)
+  }
+  const applySeatEffort = (effort: string): void => {
+    if (!isEffortLevel(effort)) return
+    setFlagEnv('MERCURY_EFFORT_LEVEL', effort)
+    setAppState(previous => ({ ...previous, effortValue: effort }))
   }
 
   const SDK_MODES = new Set(['default', 'implement', 'sovereign', 'strategy', 'flow', 'dontAsk'])
@@ -1256,6 +1271,18 @@ export async function runHeadless(
     } finally {
       turnWatchdog.cancel()
       inFlightAbort = null
+      if (heldSeatModel !== null) {
+        const held = heldSeatModel
+        heldSeatModel = null
+        await applySeatModel(held.model)
+        io.outbound.enqueue(seatVerbAppliedFrame(getSessionId(), held.requestId, { verb: 'set_model', model: held.model }, randomUUID()))
+      }
+      if (heldSeatEffort !== null) {
+        const held = heldSeatEffort
+        heldSeatEffort = null
+        applySeatEffort(held.effort)
+        io.outbound.enqueue(seatVerbAppliedFrame(getSessionId(), held.requestId, { verb: 'set_effort', effort: held.effort }, randomUUID()))
+      }
       if (deferredModelBreadcrumb !== null) {
         const toModel = deferredModelBreadcrumb
         deferredModelBreadcrumb = null
@@ -1812,17 +1839,17 @@ export async function runHeadless(
         }
         case 'set_model': {
           const requested = request.model
-          const previousModel = activeModel ?? getMainLoopModel()
           const resolved =
             requested === undefined || requested === 'default'
               ? (getDefaultMainLoopModelSetting() ?? getMainLoopModel())
               : parseUserSpecifiedModel(requested)
-          activeModel = resolved ?? undefined
-          setMainLoopModelOverride(resolved ?? null)
-          notifySessionStateChanged('idle')
-          if (inFlightAbort !== null) deferredModelBreadcrumb = String(resolved)
-          else await injectModelSwitchBreadcrumbs(String(resolved))
-          respondSuccess(requestId)
+          if (inFlightAbort !== null) {
+            heldSeatModel = { requestId, model: String(resolved) }
+            respondSuccess(requestId, { model: String(resolved), at: 'turn-boundary' })
+            return
+          }
+          await applySeatModel(String(resolved))
+          respondSuccess(requestId, { model: String(resolved), at: 'now' })
           return
         }
         case 'claim_session': {
@@ -1912,9 +1939,13 @@ export async function runHeadless(
             respondError(requestId, `effort refused ('${requestedEffort}' is not on the shared ladder)`)
             return
           }
-          setFlagEnv('MERCURY_EFFORT_LEVEL', requestedEffort)
-          setAppState(previous => ({ ...previous, effortValue: requestedEffort }))
-          respondSuccess(requestId, { effort: requestedEffort })
+          if (inFlightAbort !== null) {
+            heldSeatEffort = { requestId, effort: requestedEffort }
+            respondSuccess(requestId, { effort: requestedEffort, at: 'turn-boundary' })
+            return
+          }
+          applySeatEffort(requestedEffort)
+          respondSuccess(requestId, { effort: requestedEffort, at: 'now' })
           return
         }
         case 'session_facts': {
