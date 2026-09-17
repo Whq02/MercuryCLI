@@ -1,4 +1,3 @@
-
 import type { ContentBlock, ContentBlockParam, ToolResultBlockParam, ToolUseBlock, ToolUseBlockParam } from '../../types/wire.js'
 import { randomUUID } from 'crypto'
 import { getStrictToolResultPairing } from '../../bootstrap/state.js'
