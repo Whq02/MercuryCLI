@@ -8,8 +8,10 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { EFFORT_HIGH } from '../../src/constants/figures.ts'
+import { SEAT_VERB_SETTLE_MS } from '../../src/services/engine-connector/daemonConnector.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
+const SILENCE_HOOK = path.join(import.meta.dir, 'silent-facts-watch.cjs')
 const argAfter = (flag: string): string | undefined => {
   const at = process.argv.indexOf(flag)
   return at >= 0 ? process.argv[at + 1] : undefined
@@ -20,10 +22,12 @@ const NODE = existsSync(VENDORED_NODE) ? VENDORED_NODE : 'node'
 const VSHOT = path.join(REPO, 'scripts/ui/vshot.py')
 const BUN = process.env.BUN ?? path.join(process.env.HOME ?? '', '.bun/bin/bun')
 const FRAMES = argAfter('--frames')
+const HOP_FRAMES = argAfter('--hop-frames')
 const GEOMETRY = ((): { cols: number; rows: number } => {
   const m = /^(\d+)x(\d+)$/.exec(argAfter('--geometry') ?? '')
   return m ? { cols: Number(m[1]), rows: Number(m[2]) } : { cols: 110, rows: 44 }
 })()
+const FULL_LAYOUT = GEOMETRY.cols >= 100 && GEOMETRY.rows >= 26
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -47,6 +51,7 @@ const TURN_TWO = 'launch turn two beta-heron'
 const TURN_THREE = 'launch turn three gamma-ibis'
 const HOP_MODEL = 'claude-sonnet-5'
 const HOP_EFFORT = 'high'
+const HOP_HIGH_NEEDLE = FULL_LAYOUT ? `${EFFORT_HIGH} ${HOP_EFFORT}` : `effort ${HOP_EFFORT}`
 
 const SCRATCH = path.join(realpathSync(tmpdir()), `mercury-launchover-${process.pid}`)
 rmSync(SCRATCH, { recursive: true, force: true })
@@ -156,6 +161,7 @@ function drive(
   readyText: string[],
   total: number,
   geometry: { cols: number; rows: number },
+  envExtra?: NodeJS.ProcessEnv,
 ): { grid: string; marks: Record<string, string> } {
   const out = path.join(world.home, `grid-${name}.json`)
   const cfg = {
@@ -175,7 +181,7 @@ function drive(
     encoding: 'utf-8',
     timeout: vshotBudgetMs(180_000),
     cwd: world.cwd,
-    env: worldEnv(world),
+    env: { ...worldEnv(world), ...(envExtra ?? {}) },
   })
   if (!existsSync(out)) {
     check(`${name}: capture produced a grid`, false, `vshot: ${String(res.stderr).slice(0, 300)}`)
@@ -227,16 +233,22 @@ function wireRequests(): Array<{ path: string; body: Record<string, unknown> | n
 const stripLine = (grid: string, model: string): string =>
   grid.split('\n').find(l => l.includes(model) && /\b(high|max|medium|low|xhigh)\b/.test(l)) ?? ''
 
-function stripLatency(world: World, name: string, from: string, to: string): string {
+type LatencyMark = { label: string; atMs: number; grid: Grid }
+function convergenceLatencyMs(world: World, name: string, model: string, effortWord: string): { ms: number | undefined; label: string; hoppedAtMs: number | undefined; sampleGrids: Array<{ label: string; atMs: number; text: string; high: boolean }> } {
   try {
-    const payload = JSON.parse(readFileSync(path.join(world.home, `grid-${name}.json`), 'utf8')) as { marks?: Array<{ label: string; atTick: number }> }
-    const tick = (label: string): number | undefined => payload.marks?.find(m => m.label === label)?.atTick
-    const a = tick(from)
-    const b = tick(to)
-    if (a === undefined || b === undefined) return 'at an unknown tick'
-    return `${b - a} ticks (~${((b - a) / 5).toFixed(1)} s)`
-  } catch {
-    return 'at an unknown tick'
+    const payload = JSON.parse(readFileSync(path.join(world.home, `grid-${name}.json`), 'utf8')) as { marks?: LatencyMark[] }
+    const marks = payload.marks ?? []
+    const hopped = marks.find(m => m.label === 'hopped')
+    const samples = marks.filter(m => /^s\d+$/.test(m.label)).sort((a, b) => a.atMs - b.atMs)
+    const isHigh = (text: string): boolean =>
+      text.split('\n').some(l => l.includes(model) && new RegExp(`(${EFFORT_HIGH}|effort)\\s*${effortWord}\\b`).test(l))
+    const sampleGrids = samples.map(s => ({ label: s.label, atMs: s.atMs, text: textOf(s.grid), high: false }))
+    for (const g of sampleGrids) g.high = isHigh(g.text)
+    if (hopped === undefined) return { ms: undefined, label: 'hopped-missing', hoppedAtMs: undefined, sampleGrids }
+    const firstHigh = sampleGrids.find(g => g.high)
+    return { ms: firstHigh === undefined ? undefined : firstHigh.atMs - hopped.atMs, label: firstHigh?.label ?? 'never-in-samples', hoppedAtMs: hopped.atMs, sampleGrids }
+  } catch (e) {
+    return { ms: undefined, label: `read-error ${String(e).slice(0, 60)}`, hoppedAtMs: undefined, sampleGrids: [] }
   }
 }
 
@@ -331,18 +343,21 @@ for (let waited = 0; waited < 60_000 && !live; waited += 500) {
 }
 check('the first screen holds the session live (its runner alive, the record focused)', live, JSON.stringify(newestRecord(world)).slice(0, 300))
 const requestsBeforeHop = wireRequests().length
+const HOP_SAMPLES = Array.from({ length: 12 }, (_, i) => ({ afterPrevTicks: 3, data: '', mark: `s${i + 1}` }))
 const c = drive(
   world,
   'hop',
   ['--continue', '--model', HOP_MODEL, '--effort', HOP_EFFORT],
   [
-    { atTick: 260, minTick: 24, awaitText: 'wins over', awaitSettleTicks: 8, data: '', mark: 'hopped' },
-    { atTick: 340, minTick: 26, awaitText: `Sonnet 5 · ${EFFORT_HIGH} ${HOP_EFFORT}`, awaitSettleTicks: 2, data: '', mark: 'strip' },
+    { atTick: 260, minTick: 24, awaitText: 'wins over', awaitSettleTicks: 4, data: '', mark: 'hopped' },
+    ...HOP_SAMPLES,
+    { atTick: 340, minTick: 26, awaitText: HOP_HIGH_NEEDLE, awaitSettleTicks: 2, data: '', mark: 'strip' },
     { afterPrevTicks: 2, data: `${TURN_THREE}\r` },
   ],
   ['reply to [[launch turn three'],
   460,
-  { cols: 110, rows: 44 },
+  GEOMETRY,
+  { NODE_OPTIONS: `--require ${SILENCE_HOOK}`, PROOF_SILENCE_FACTS_WATCH: 'session-facts' },
 )
 try {
   hold.kill('SIGTERM')
@@ -355,7 +370,18 @@ check(`the receipt row names which won: --effort high over the session's max`, /
 const stripFrame = c.marks.strip ?? hopped
 const stripC = stripLine(stripFrame, 'Sonnet 5')
 check(`the strip reads Sonnet 5 · ${HOP_EFFORT} on the hopped chat`, /Sonnet 5/.test(stripC) && new RegExp(`\\b${HOP_EFFORT}\\b`).test(stripC), (stripLine(stripFrame, 'Opus 5') || stripLine(stripFrame, 'Sonnet 5') || '(no strip line)').trim())
-console.log(`  [note] the strip read the hop's effort ${stripLatency(world, 'hop', 'hopped', 'strip')} after the receipt rows (the facts feed's idle heartbeat is the 10 s backstop for a missed watch event)`)
+const conv = convergenceLatencyMs(world, 'hop', 'Sonnet 5', HOP_EFFORT)
+console.log(`  [note] with the facts watch silenced (the FSEvents reschedule drop, forced), the strip converged to ${HOP_EFFORT} ${conv.ms === undefined ? 'NOT within the sampled window — it waited the idle floor' : `${conv.ms} ms (${conv.label})`} after the receipt; the seat-verb settle nudge bounds this at ${SEAT_VERB_SETTLE_MS} ms, the old build without it waits IDLE_PROJECTION_FLOOR_MS`)
+check(`the strip converges to the hop's effort within SEAT_VERB_SETTLE_MS (${SEAT_VERB_SETTLE_MS} ms) of the receipt, not the idle floor`, conv.ms !== undefined && conv.ms < SEAT_VERB_SETTLE_MS, `latency=${conv.ms === undefined ? 'never in samples (idle-floor lag)' : `${conv.ms} ms`} bound=${SEAT_VERB_SETTLE_MS} ms`)
+if (HOP_FRAMES !== undefined) {
+  mkdirSync(HOP_FRAMES, { recursive: true })
+  const base = conv.hoppedAtMs ?? conv.sampleGrids[0]?.atMs ?? 0
+  const boundSample = conv.sampleGrids
+    .slice()
+    .sort((a, b) => Math.abs(a.atMs - base - SEAT_VERB_SETTLE_MS) - Math.abs(b.atMs - base - SEAT_VERB_SETTLE_MS))[0]
+  if (boundSample !== undefined) writeFileSync(path.join(HOP_FRAMES, `effort-chip-${GEOMETRY.cols}x${GEOMETRY.rows}.txt`), boundSample.text)
+  writeFileSync(path.join(HOP_FRAMES, `effort-chip-strip-${GEOMETRY.cols}x${GEOMETRY.rows}.txt`), c.marks.strip ?? c.grid)
+}
 check('the turn after the hop answered', c.grid.includes('reply to [[launch turn three'), c.grid.slice(-400))
 const hopBodies = wireRequests().slice(requestsBeforeHop).filter(r => JSON.stringify(r.body ?? null).includes(TURN_THREE))
 const lastHop = hopBodies[hopBodies.length - 1]?.body ?? null
