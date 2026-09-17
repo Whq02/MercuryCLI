@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { distProvenance, distProvenanceLine } from '../lib/distProvenance.ts'
 
 const CONFIG_SCRATCH = mkdtempSync(join(tmpdir(), 'treekill-home-'))
 process.env.MERCURY_CONFIG_DIR = CONFIG_SCRATCH
@@ -156,23 +157,13 @@ section('§4 the stop receipt on screen — source + dist pins')
   check('§4 tool message says how many the stop ended', toolSrc.includes('The stop ended ') && toolSrc.includes('processes_ended'))
   check('§4 survivors named when the reap could not confirm', toolSrc.includes('did not confirm ending within the reap bound'))
   check('§4 screen line carries the count', uiSrc.includes('ended ${ended} process'))
-  const distPath = join(ROOT, 'dist', 'mercury.mjs')
-  if (!existsSync(distPath)) {
-    console.log('  [SKIP] dist/mercury.mjs not built — dist pins skipped (pool Phase 0 rebuilds it)')
-  } else {
-    const newestSrc = Math.max(
-      statSync(join(ROOT, 'src/tools/TaskStopTool/TaskStopTool.ts')).mtimeMs,
-      statSync(join(ROOT, 'src/tools/TaskStopTool/stopSettlement.ts')).mtimeMs,
-      statSync(join(ROOT, 'src/utils/processGroup.ts')).mtimeMs,
-    )
-    if (statSync(distPath).mtimeMs < newestSrc) {
-      console.log('  [SKIP] dist/mercury.mjs is OLDER than the pinned sources — stale build; dist pins skipped')
-    } else {
-      const dist = readFileSync(distPath, 'utf8')
-      const pins = ['The stop ended ', 'did not confirm ending within the reap bound']
-      const missing = pins.filter(p => !dist.includes(p))
-      check('§4 dist carries the counted-receipt literals', missing.length === 0, missing.join(', '))
-    }
+  const provenance = distProvenance(ROOT)
+  console.log(`  ${distProvenanceLine(provenance)}`)
+  if (provenance.kind === 'own') {
+    const dist = readFileSync(join(ROOT, 'dist', 'mercury.mjs'), 'utf8')
+    const pins = ['The stop ended ', 'did not confirm ending within the reap bound']
+    const missing = pins.filter(p => !dist.includes(p))
+    check('§4 dist carries the counted-receipt literals', missing.length === 0, missing.join(', '))
   }
 }
 
