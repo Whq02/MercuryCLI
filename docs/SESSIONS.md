@@ -349,6 +349,11 @@ An interactive boot sweeps the rest: a record whose transcript no longer
 exists goes, and so does one older than `MERCURY_PREFIX_RECORD_RETENTION_DAYS`
 (thirty days unset); a live session's record is never touched.
 
+A thinking drop after a long idle is named the same way as any other, by the
+part of the request that moved. Mercury no longer asks the server to clear
+reasoning older than the last turn once a session has sat idle for an hour, so
+such a drop is never attributed to an idle clear.
+
 ## Winding a chat back
 
 `/rewind` (alias `/checkpoint`) lists the turns of the focused chat and
