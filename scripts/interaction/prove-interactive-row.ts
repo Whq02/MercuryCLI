@@ -124,8 +124,9 @@ if (process.env.IROW_CHILD) {
   }
   setTimeout(() => process.exit(0), 30_000)
 } else {
-  const { ASH_RAISED } = await import('../../src/components/mercuryPalette.ts')
-  const HOVER_BG = ASH_RAISED.slice(1).toLowerCase()
+  const { DEFAULT_THEME_SETTING } = await import('../../src/utils/systemTheme.ts')
+  const { resolveMercuryTokens } = await import('../../src/utils/mercuryTokens.ts')
+  const HOVER_BG = resolveMercuryTokens(DEFAULT_THEME_SETTING, '#DD4444').surface2.replace(/^#/, '').toLowerCase()
 
   let failures = 0
   const check = (label: string, cond: boolean, detail = ''): void => {
