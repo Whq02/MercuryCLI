@@ -200,6 +200,33 @@ function readFixtureSnapshot(): ConcourseSnapshotV1 | null {
   }
 }
 
+async function restFocusedSlotAfterRelease(
+  sessionId: string,
+  rows: ReadonlyArray<{ sessionId: string; state: string }>,
+): Promise<void> {
+  try {
+    const slot = await import('../../services/engine-connector/focusedConnector.js')
+    if (slot.getFocusedSessionConnector().sessionId() !== sessionId) return
+    const hops = await import('../../services/switchboard/hopIntoSession.js')
+    const survivors = rows.filter(
+      r =>
+        r.sessionId !== sessionId &&
+        !r.sessionId.startsWith('dispatch:') &&
+        !r.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX) &&
+        r.state !== 'queued' &&
+        r.state !== 'stopped' &&
+        r.state !== 'parked',
+    )
+    for (const next of survivors) {
+      const hop = await hops.hopIntoBoardSession(next.sessionId)
+      if (hop.ok) return
+    }
+    slot.releaseFocusedSessionConnector()
+  } catch (e) {
+    logForDebugging(`[concourse] focus re-point after reap failed: ${e}`)
+  }
+}
+
 function LiveConcourse(): React.ReactNode {
   const fixture = useMemo(() => readFixtureSnapshot(), [])
   const { snapshot: liveSnapshot, failing, setPeek, noteResident: noteLiveResident, refresh } = useConcourseSnapshot()
@@ -598,10 +625,20 @@ function LiveConcourse(): React.ReactNode {
               { op: 'sessionControl', action: 'park', sessionId, by: 'operator' } as never,
               { timeoutMs: 15_000 },
             )) as { ok?: boolean; outcome?: string; detail?: string; error?: string; code?: string }
+            const parkApplied = reply.ok === true && reply.outcome !== 'refused'
+            const supervisor = await import('../../daemon/concourseSupervisor.js')
+            const released = parkApplied && !Object.values(supervisor.readSessionWorkers()).some(r => r.sessionId === sessionId && r.endedAt === undefined)
+            if (released) {
+              await markParkedCleared(sessionId).catch(() => {})
+              removePrefixRecord(sessionId)
+              await restFocusedSlotAfterRelease(sessionId, snapshotRef.current?.groups.flatMap(g => g.rows) ?? [])
+            }
             noteControl(
               'strip:composer',
-              reply.ok === true && reply.outcome !== 'refused'
-                ? { state: 'applied', reason: `archived — the chat stands parked; ${keyHintLabel('⌃x ⌃x')} again deletes it` }
+              parkApplied
+                ? released
+                  ? { state: 'applied', reason: 'removed from the board — the transcript survives' }
+                  : { state: 'applied', reason: `archived — the chat stands parked; ${keyHintLabel('⌃x ⌃x')} again deletes it` }
                 : { state: 'refused', reason: reply.detail ?? reply.error ?? `archive refused${reply.code !== undefined ? ` (${reply.code})` : ''}` },
             )
           } catch {
@@ -685,32 +722,7 @@ function LiveConcourse(): React.ReactNode {
               removePrefixRecord(sessionId)
             }
             if (reply.ok === true && reply.settled !== false) {
-              try {
-                const slot = await import('../../services/engine-connector/focusedConnector.js')
-                if (slot.getFocusedSessionConnector().sessionId() === sessionId) {
-                  const hops = await import('../../services/switchboard/hopIntoSession.js')
-                  const survivors = (snapshotRef.current?.groups.flatMap(g => g.rows) ?? []).filter(
-                    r =>
-                      r.sessionId !== sessionId &&
-                      !r.sessionId.startsWith('dispatch:') &&
-                      !r.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX) &&
-                      r.state !== 'queued' &&
-                      r.state !== 'stopped' &&
-                      r.state !== 'parked',
-                  )
-                  let repointed = false
-                  for (const next of survivors) {
-                    const hop = await hops.hopIntoBoardSession(next.sessionId)
-                    if (hop.ok) {
-                      repointed = true
-                      break
-                    }
-                  }
-                  if (!repointed) slot.releaseFocusedSessionConnector()
-                }
-              } catch (e) {
-                logForDebugging(`[concourse] focus re-point after reap failed: ${e}`)
-              }
+              await restFocusedSlotAfterRelease(sessionId, snapshotRef.current?.groups.flatMap(g => g.rows) ?? [])
             }
             noteControl(
               'strip:composer',
