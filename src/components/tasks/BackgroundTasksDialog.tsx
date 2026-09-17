@@ -83,7 +83,7 @@ import { AsyncAgentDetailDialog } from './AsyncAgentDetailDialog.js'
 import { BackgroundTask as BackgroundTaskComponent } from './BackgroundTask.js'
 import { DreamDetailDialog } from './DreamDetailDialog.js'
 import { InProcessTeammateDetailDialog } from './InProcessTeammateDetailDialog.js'
-import { ShellDetailDialog } from './ShellDetailDialog.js'
+import { ShellDetailDialog, shellCardFactsOfRow, shellCardFactsOfTask } from './ShellDetailDialog.js'
 import { WorkflowDetailDialog } from './WorkflowDetailDialog.js'
 import { isManageableTask } from './taskStatusUtils.js'
 
@@ -606,7 +606,7 @@ export function BackgroundTasksDialog({
       const shell = detailTask as LocalShellTaskState
       return (
         <ShellDetailDialog
-          shell={shell}
+          shell={shellCardFactsOfTask(shell)}
           onDone={onDone}
           onBack={backFromDetail}
           onKillShell={() => void killTask(shell.id, setAppState)}
@@ -639,6 +639,15 @@ export function BackgroundTasksDialog({
     }
   }
   if (inDetail && detailTask === undefined && detailWork !== undefined) {
+    if (detailWork.kind === 'shell' || (detailWork.kind === 'monitor' && detailWork.command !== undefined)) {
+      return (
+        <ShellDetailDialog
+          shell={shellCardFactsOfRow(detailWork)}
+          onDone={onDone}
+          onBack={backFromDetail}
+        />
+      )
+    }
     return (
       <CommandCenter
         view={`${detailWork.kind} › ${detailWork.name}`}

@@ -206,6 +206,9 @@ export type WorkRowV1 = {
   phase?: AgentWaitV1
   paused?: AgentPauseV1
   unreadNotices?: number
+  command?: string
+  cwd?: string
+  outputFile?: string
 }
 
 export type NoticeKind = 'completion' | 'message' | 'wake'
