@@ -42,6 +42,21 @@ let fail = 0
   const left = canonicalizeCheckoutRows(tight, { basename: 'm', branch: 'x' }).text[0] === tight.text[0]
   console.log(`  [${left ? 'PASS' : 'FAIL'}] a name the fixed spelling would not fit is left as captured`)
   if (!left) fail = 1
+  const bandNow = '│ ▚▛▀▜▞ │ Opus 5 · ● high │ some-worktree ⌥ fix/some-lane │ ⤳2' + ' '.repeat(55) + '│'
+  const tagNow = ' some-worktree · ready' + ' '.repeat(90) + '⇧← back '
+  const canonNow = canonicalizeCheckoutRows({ schema: 1, cols: bandNow.length, rows: 2, text: [bandNow, tagNow], styles: [[], []] }, { basename: 'some-worktree', branch: 'fix/some-lane' })
+  const nowOk =
+    canonNow.text[0].includes('│ mercury ⌥ main │ ⤳2') &&
+    canonNow.text[1].startsWith(' mercury · ready  ') &&
+    canonNow.text[0].length === bandNow.length &&
+    canonNow.text[1].length === tagNow.length &&
+    !canonNow.text.some(r => r.includes('some-worktree') || r.includes('some-lane'))
+  console.log(`  [${nowOk ? 'PASS' : 'FAIL'}] the checkout rows as painted today (a space after ⌥, the tag bar leading with the checkout) store the fixed spelling too`)
+  if (!nowOk) fail = 1
+  const tagThere = ' a-much-longer-checkout-name · ready' + ' '.repeat(76) + '⇧← back '
+  const sameNow = neutralizeGrid(oneRow(tagNow), DEFAULT_MASKS).text[0] === neutralizeGrid(oneRow(tagThere), DEFAULT_MASKS).text[0]
+  console.log(`  [${sameNow ? 'PASS' : 'FAIL'}] the session tag bar as painted today canonicalizes across checkout basenames`)
+  if (!sameNow) fail = 1
 }
 
 const run = (only?: string): void => {

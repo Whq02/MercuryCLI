@@ -4,6 +4,9 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
+import { DEFAULT_CRITTER_KEY } from '../../src/utils/cockpit/critterData.ts'
 
 function baselineDriverPython(): string {
   const driver = resolveCaptureDriver()
@@ -22,6 +25,7 @@ import {
 
 const REPO = join(import.meta.dir, '..', '..')
 const RUN_HOME = join(tmpdir(), `mercury-vbl-${process.pid}`)
+const RAIL_SCAN_SETTLE_MARK = 'RECENT'
 
 const SIZES: Array<[number, number]> = [
   [60, 18], [80, 24], [97, 30], [99, 30], [100, 30], [101, 30], [120, 40],
@@ -81,7 +85,9 @@ function colorModeEnv(mode: CaptureSpec['colorMode']): Record<string, string> {
 }
 
 function seedRunHome(spec: CaptureSpec): void {
+  rmSync(RUN_HOME, { recursive: true, force: true })
   mkdirSync(RUN_HOME, { recursive: true })
+  seedFirstRun(RUN_HOME, [REPO])
   writeFileSync(
     join(RUN_HOME, '.claude.json'),
     JSON.stringify({
@@ -124,7 +130,8 @@ function captureSpec(
   const cfg = mods.scenarios.scenario(spec.scenario, spec.cols, spec.rows)
   const gridPath = join(RUN_HOME, 'capture-grid.json')
   const cfgPath = join(RUN_HOME, 'capture-cfg.json')
-  writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: gridPath }))
+  const railSettle = spec.cols >= HELM_HOME_MIN_COLS ? { readyText: RAIL_SCAN_SETTLE_MARK, stableTicks: 8 } : {}
+  writeFileSync(cfgPath, JSON.stringify({ ...cfg, ...railSettle, out: gridPath }))
   try {
     let lastReason = 'capture never ran'
     for (let attempt = 1; attempt <= 2; attempt++) {
@@ -138,6 +145,7 @@ function captureSpec(
           COLORFGBG: spec.theme.startsWith('light') ? '0;15' : '15;0',
           MERCURY_THEME_PIN: spec.theme,
           TERM_PROGRAM: 'kitty',
+          MERCURY_CRITTER: DEFAULT_CRITTER_KEY,
           ...colorModeEnv(spec.colorMode),
         },
       })
