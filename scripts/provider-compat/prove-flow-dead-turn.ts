@@ -368,7 +368,6 @@ section('S5 — an unmapped INCOMPLETE finish on the GPT lane settles visibly, n
     messages: [] as never,
     settlementNotes: [] as never,
     pulseMain: false,
-    pulseGeneration: 0,
     contractDigest: 'prover-digest',
   })
   const texts: string[] = []

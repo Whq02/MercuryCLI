@@ -185,7 +185,6 @@ async function mint(events: Array<Record<string, unknown>>): Promise<{ blocks: M
     messages: [] as never,
     settlementNotes: [] as never,
     pulseMain: false,
-    pulseGeneration: 0,
     contractDigest: 'prover-digest',
   })
   const blocks: Minted[] = []
