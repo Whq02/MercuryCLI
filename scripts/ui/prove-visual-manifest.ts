@@ -2,6 +2,7 @@
 import { execSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { resolveExecutionProfile } from '../lib/executionProfile.ts'
 import {
   LIVE_DIR, MANIFEST_PATH, gridDigest, readManifest, readStoredGrid, styleDigest,
 } from './visualBaseline.ts'
@@ -41,7 +42,13 @@ if (manifest) {
   } catch {
     sourceShaOk = false
   }
-  check('sourceSha is a real source tree of this repo', sourceShaOk, manifest.sourceSha)
+  const wellFormedSha = /^[0-9a-f]{40}$/.test(manifest.sourceSha)
+  const profile = resolveExecutionProfile(join(import.meta.dir, '..', '..'))
+  if (!sourceShaOk && wellFormedSha && profile.kind === 'hosted-gate') {
+    console.log(`  - sourceSha ${manifest.sourceSha} is a tree id this checkout's history does not hold (the hosted gate runs the published tree, whose history is rewritten); the tree check runs where the source history lives`)
+  } else {
+    check('sourceSha is a real source tree of this repo', sourceShaOk, manifest.sourceSha)
+  }
 
   const REQUIRED: Array<keyof (typeof manifest.entries)[number]> = [
     'id', 'sourceSha', 'buildDigest', 'scenario', 'cols', 'rows', 'theme',
