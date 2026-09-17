@@ -45,7 +45,7 @@ const teeDir = mkdtempSync(join(tmpdir(), 'glide-park-'))
 const tee = join(teeDir, 'tee.jsonl')
 const run = await runArtifactArena({
   turns: [{ kind: 'text', text: 'REPLY-PARK done.' }],
-  sends: ['3500:warm up', '4300:\\r', '6000:/model', '6800:\\r', '26000:\\x1b'],
+  sends: ['4500:warm up', '5300:\\r', '7000:/model', '7800:\\r', '27000:\\x1b'],
   seconds: 30,
   keep: true,
   extraEnv: { MERCURY_LIVE_GLYPHS: '1', INK_COMPOSED_TEE: tee },
