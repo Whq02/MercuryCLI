@@ -19,13 +19,13 @@ const faceSrc = read('src/components/BootSplashScreen.tsx')
 t.section('§1 — one grid owner, two consuming hosts (share-by-extraction)')
 {
   t.check(
-    'the helmet + WORD grids live in the core (baked markers present)',
-    coreSrc.includes('HEADSTD-GRID-START') && coreSrc.includes('WORD-GRID-START'),
-    'core markers',
+    'the helmet + WORD grids live in the core (the baked grids present)',
+    coreSrc.includes('const HEADSTD = [') && coreSrc.includes('const WORD = ['),
+    'core grids',
   )
   t.check(
     'the driver carries NO grid of its own (the extraction is complete)',
-    !driverSrc.includes('HEADSTD-GRID-START') && !driverSrc.includes('WORD-GRID-START') && !driverSrc.includes('const HEADSTD ='),
+    !driverSrc.includes('const HEADSTD = [') && !driverSrc.includes('const WORD = ['),
     'driver grid-free',
   )
   t.check(

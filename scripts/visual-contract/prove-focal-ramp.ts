@@ -273,11 +273,9 @@ t.section('§4 — the BOUNDED identity set')
     'src/components/mercury-ui/assets.tsx',
     'src/components/mercury-ui/components.tsx',
     'src/components/concourse/ConcourseHeader.tsx',
-    'src/components/mercury-ui/CritterArt.tsx',
-    'src/utils/cockpit/greetingShimmer.ts',
-    'src/components/mercury-ui/useGreetingShimmer.ts',
     'src/components/mercury-ui/useSplashCoreAccent.ts',
   ])
+  const codeOnly = (s: string): string => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\s\/\/.*$/gm, '')
   const consumers: string[] = []
   const walk = (dir: string): void => {
     for (const name of readdirSync(dir)) {
@@ -291,7 +289,7 @@ t.section('§4 — the BOUNDED identity set')
       const rel = relative(process.cwd(), full).replaceAll('\\', '/')
       if (rel === 'src/components/mercury-ui/focalRamp.ts' || rel === 'src/utils/mercuryTokens.ts') continue
       const src = readFileSync(full, 'utf8')
-      if (/rampSegments|rampSampleAt|focalRamp/.test(src)) consumers.push(rel)
+      if (/rampSegments|rampSampleAt|focalRamp/.test(codeOnly(src))) consumers.push(rel)
     }
   }
   walk(join(process.cwd(), 'src'))
