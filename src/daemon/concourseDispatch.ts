@@ -40,6 +40,7 @@ export interface ConcourseDispatchRecordV1 {
   title?: string
   workspaceId?: string
   by?: string
+  contentImageBlocks?: number
   heldOp?: HeldOpEnvelopeV1
 }
 
@@ -703,6 +704,10 @@ export function makeConcourseDispatchHandler(
     if (req.title !== undefined && req.title.length > 0) rec.title = req.title.slice(0, 120)
     rec.workspaceId = canonicalWorkspaceId(req.workspaceDir)
     if (req.by !== undefined && req.by.length > 0) rec.by = req.by.slice(0, 64)
+    if (Array.isArray(req.content)) {
+      const imageBlocks = req.content.filter(b => (b as { type?: string })?.type === 'image').length
+      if (imageBlocks > 0) rec.contentImageBlocks = imageBlocks
+    }
     dispatches[req.clientMessageId] = rec
     publishDispatches(dispatches, deps.dir)
 
