@@ -44,6 +44,7 @@ const marks: FluxMark[] = []
 let markAt = 0
 const counters = new Map<string, number>()
 const frameDur: number[] = []
+const frameEnd: number[] = []
 let frameAt = 0
 let framesTotal = 0
 let longestFrameMs = 0
@@ -90,9 +91,13 @@ export function fluxFrame(durationMs: number, patches: number): void {
   if (!fluxProbeEnabled()) return
   framesTotal++
   if (durationMs > longestFrameMs) longestFrameMs = durationMs
-  if (frameDur.length < RING_CAP) frameDur.push(durationMs)
-  else {
+  const endedAt = performance.now()
+  if (frameDur.length < RING_CAP) {
+    frameDur.push(durationMs)
+    frameEnd.push(endedAt)
+  } else {
     frameDur[frameAt] = durationMs
+    frameEnd[frameAt] = endedAt
     frameAt = (frameAt + 1) % RING_CAP
   }
   if (patches > 0) fluxCount('patches', patches)
@@ -132,15 +137,18 @@ export function fluxSummary(): FluxSummary {
 
 export type FluxProbeDump = FluxSummary & {
   allMarks: FluxMark[]
+  frameRecords: Array<{ t: number; ms: number }>
   epochMinusPerfNow: number
 }
 
 export function fluxProbeDump(): FluxProbeDump {
   const all =
     marks.length < RING_CAP ? [...marks] : [...marks.slice(markAt), ...marks.slice(0, markAt)]
+  const order = frameDur.length < RING_CAP ? frameDur.map((_, i) => i) : [...frameDur.keys()].map(i => (frameAt + i) % RING_CAP)
   return {
     ...fluxSummary(),
     allMarks: all,
+    frameRecords: order.map(i => ({ t: frameEnd[i]!, ms: frameDur[i]! })),
     epochMinusPerfNow: Date.now() - performance.now(),
   }
 }
@@ -151,6 +159,7 @@ export function __fluxProbeResetForTest(): void {
   markAt = 0
   counters.clear()
   frameDur.length = 0
+  frameEnd.length = 0
   frameAt = 0
   framesTotal = 0
   longestFrameMs = 0

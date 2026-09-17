@@ -320,7 +320,7 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
   )
 }
 
-t.section('§4 journey: completed agent stays reachable from the footer')
+t.section('§4 journey: completed agent stays reachable through the tasks board')
 {
   const ESC = String.fromCharCode(27)
   const turns: ScriptedTurn[] = [
@@ -347,10 +347,8 @@ t.section('§4 journey: completed agent stays reachable from the footer')
     sends: [
       '2000:\\r',
       '6000:run the quick probe\\r',
-      `13000:${ESC}[B`,
-      `14000:${ESC}[B`,
-      '15200:f',
-      `17200:${ESC}`,
+      'after:quick probe" completed:2500:/tasks\\r',
+      `after:agent › quick probe:2500:${ESC}`,
     ],
     seconds: 20,
     cols: 120,
@@ -358,7 +356,7 @@ t.section('§4 journey: completed agent stays reachable from the footer')
     keep: true,
   })
 
-  const offsets = Array.from({ length: 36 }, (_, i) => String(S(9000 + i * 300)))
+  const offsets = Array.from({ length: 40 }, (_, i) => String(S(6000 + i * 300)))
   const grab = spawnSync(
     '/usr/bin/python3',
     [SCREENGRAB, run.paths.drive, '120', '40', ...offsets, '-1'],
@@ -377,51 +375,38 @@ t.section('§4 journey: completed agent stays reachable from the footer')
       return -1
     }
 
-    const iPill = findFrom(
+    const iLanded = findFrom(
       0,
       f =>
-        has(f, '1 local agent') &&
-        has(f, /manage|view tasks/) &&
-        has(f, 'quick pro') &&
-        !has(f, /Main ‹/) &&
-        !has(f, /agent › quick probe/),
+        has(f, /Agent "quick probe" completed/) &&
+        has(f, 'run the quick probe') &&
+        !has(f, /agent › quick probe/) &&
+        !has(f, /Mercury — tasks/),
     )
     t.check(
-      'after completion the footer still offers the manage surface (CREW agrees)',
-      iPill >= 0,
-      iPill >= 0 ? `frame @${screens[iPill]!.atMs}` : 'no such frame in the series',
+      'after completion the transcript carries the landing and nothing is open over it',
+      iLanded >= 0,
+      iLanded >= 0 ? `frame @${screens[iLanded]!.atMs}` : 'no such frame in the series',
     )
 
     const iCard = findFrom(
-      iPill + 1,
-      f => has(f, /agent › quick probe/) && has(f, /foreground/) && has(f, /Completed/),
+      iLanded + 1,
+      f => has(f, /agent › quick probe/) && has(f, /state\s+landed/) && has(f, /esc back/),
     )
     t.check(
-      'the manage surface reaches the detail card offering foreground for the COMPLETED agent',
-      iPill >= 0 && iCard > iPill,
-      iCard >= 0 ? `frame @${screens[iCard]!.atMs}` : 'no card frame after the pill frame',
-    )
-
-    const iView = findFrom(
-      iCard + 1,
-      f => has(f, /Main ‹ @quick probe/) && has(f, /completed/) && has(f, /esc.*main/i),
-    )
-    t.check(
-      'f foregrounded the completed agent: breadcrumb + completed + esc main',
-      iCard >= 0 && iView > iCard,
-      iView >= 0
-        ? screens[iView]!.rows.find(r => r.includes('Main ‹'))?.trim().slice(0, 70)
-        : 'no breadcrumb frame after the card frame',
+      "the tasks board still reaches the COMPLETED agent: its card opens with the settled state ('landed') and its esc back hint",
+      iLanded >= 0 && iCard > iLanded,
+      iCard >= 0 ? screens[iCard]!.rows.find(r => /state\s+landed/.test(r))?.trim().slice(0, 70) : 'no card frame after the landing frame',
     )
 
     const iBack = findFrom(
-      iView + 1,
-      f => !has(f, /Main ‹/) && has(f, 'run the quick probe'),
+      iCard + 1,
+      f => !has(f, /agent › quick probe/) && !has(f, /Mercury — tasks/) && has(f, 'run the quick probe') && has(f, /Agent "quick probe" completed/),
     )
     t.check(
-      'esc returned to main (breadcrumb gone, transcript back)',
-      iView >= 0 && iBack > iView,
-      iBack >= 0 ? `frame @${screens[iBack]!.atMs}` : 'no main frame after the view frame',
+      'esc returned to main (the card gone, the transcript back with the landing on it)',
+      iCard >= 0 && iBack > iCard,
+      iBack >= 0 ? `frame @${screens[iBack]!.atMs}` : 'no main frame after the card frame',
     )
   }
   run.cleanup()

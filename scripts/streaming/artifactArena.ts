@@ -51,6 +51,7 @@ export interface ProbeDump {
   counters: Record<string, number>
   frames: { total: number; window: number; p50: number; p95: number; p99: number; maxMs: number }
   allMarks: ProbeMark[]
+  frameRecords?: Array<{ t: number; ms: number }>
   epochMinusPerfNow: number
 }
 
