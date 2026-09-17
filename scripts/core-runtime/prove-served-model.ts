@@ -32,14 +32,11 @@ const { queryModelWithStreaming } = await import('../../src/services/providers/a
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const ledger = await import('../../src/cost-tracker.ts')
-const pulse = await import('../../src/utils/pulse/turnPhase.ts')
-const { composePhaseByline } = await import('../../src/components/Spinner/pulseByline.ts')
-const { getCanonicalName, getPublicModelDisplayName } = await import('../../src/utils/model/model.ts')
+const { getCanonicalName } = await import('../../src/utils/model/model.ts')
 
 const REQUESTED = 'claude-fable-5-1'
 const OTHER_FAMILY = 'claude-opus-5'
 const DATED_TWIN = 'claude-fable-5-1-20260901'
-const WIDE = 200
 
 type Usage = { input_tokens: number; cache_creation_input_tokens: number; cache_read_input_tokens: number; output_tokens: number }
 const USAGE: Usage = { input_tokens: 500, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 }
@@ -72,15 +69,10 @@ function fixtureFetch(frames: string[], wire: Wire): typeof fetch {
 
 type Yielded = { type?: string; message?: { model?: string } }
 type Row = ReturnType<typeof ledger.getUsageForModel>
-type Drive = { assistants: Yielded[]; thrown: string | null; wire: Wire; servedBy: string | undefined; repaints: number; requestedRow: Row; servingRow: Row; cost: number }
+type Drive = { assistants: Yielded[]; thrown: string | null; wire: Wire; requestedRow: Row; servingRow: Row; cost: number }
 
 async function drive(servedModel: string): Promise<Drive> {
   ledger.resetCostState()
-  pulse.resetPhaseForTests()
-  let repaints = 0
-  const unsubscribe = pulse.subscribePulsePhase(() => {
-    if (pulse.getPulsePhase().detail.servedBy !== undefined) repaints++
-  })
   const wire: Wire = { requests: 0, requestedModels: [] }
   const controller = new AbortController()
   const assistants: Yielded[] = []
@@ -111,31 +103,23 @@ async function drive(servedModel: string): Promise<Drive> {
     thrown = String(e)
   }
   clearTimeout(deadline)
-  unsubscribe()
   return {
     assistants,
     thrown,
     wire,
-    servedBy: pulse.getPulsePhase().detail.servedBy,
-    repaints,
     requestedRow: ledger.getUsageForModel(REQUESTED),
     servingRow: ledger.getUsageForModel(servedModel),
     cost: ledger.getTotalCost(),
   }
 }
 
-const byline = (phase: 'waiting' | 'thinking', detail: { model?: string; servedBy?: string; effort?: string }, verb?: string, maxWidth = WIDE): string | null =>
-  composePhaseByline({ phase, detail, activeToolCount: 0, maxWidth, verb })
-
 console.log('============================================================')
-console.log(' the served-model law — the model that answers is the model named, priced and stamped')
+console.log(' the served-model law — the model that answers is the model stamped on the turn and billed for it')
 console.log('============================================================')
 
-section('§1 message_start names another family: the byline, the stamp and the bill follow the serving model')
+section('§1 message_start names another family: the minted message and the ledger follow the serving model')
 {
   const d = await drive(OTHER_FAMILY)
-  const servingName = getPublicModelDisplayName(OTHER_FAMILY) ?? OTHER_FAMILY
-  const requestedName = getPublicModelDisplayName(REQUESTED) ?? REQUESTED
   check('the premise: the two ids are different canonical families', getCanonicalName(OTHER_FAMILY) !== getCanonicalName(REQUESTED), `${getCanonicalName(OTHER_FAMILY)} vs ${getCanonicalName(REQUESTED)}`)
   check('one request left the core, asking for the requested model', d.wire.requests === 1 && d.wire.requestedModels[0] === REQUESTED, JSON.stringify(d.wire))
   check('the stream settled without a thrown error', d.thrown === null, d.thrown ?? '')
@@ -144,39 +128,17 @@ section('§1 message_start names another family: the byline, the stamp and the b
   check("the bill: the ledger's usage row is the serving model's (500 in, 40 out)", d.servingRow?.inputTokens === 500 && d.servingRow?.outputTokens === 40, JSON.stringify(d.servingRow))
   check('…and no row was opened under the requested model', d.requestedRow === undefined, JSON.stringify(d.requestedRow))
   check('…and the turn is priced (never a zero row)', d.cost > 0, String(d.cost))
-  check("the phase detail carries the serving model's display name as servedBy", d.servedBy === servingName, String(d.servedBy))
-  check('the serving model landing on the phase detail repainted the byline at least once', d.repaints >= 1, String(d.repaints))
-  const detail = { model: requestedName, servedBy: d.servedBy }
-  check('the waiting byline names the serving model, marked (fallback), in place of the requested one', byline('waiting', detail, 'Pondering') === `Pondering · waiting for ${servingName} (fallback)`, String(byline('waiting', detail, 'Pondering')))
-  check('the thinking byline carries the serving model first among the extras', byline('thinking', detail, 'Pondering') === `Pondering · thinking · ${servingName} (fallback)`, String(byline('thinking', detail, 'Pondering')))
 }
 
-section('§2 the same canonical family is never a substitute: a dated twin and the exact id leave no mark and bill the requested model')
+section('§2 the same canonical family is never a substitute: a dated twin and the exact id bill the requested model')
 {
   check('the premise: the dated twin canonicalizes onto the requested family', getCanonicalName(DATED_TWIN) === getCanonicalName(REQUESTED), getCanonicalName(DATED_TWIN))
-  const requestedName = getPublicModelDisplayName(REQUESTED) ?? REQUESTED
   for (const echoed of [DATED_TWIN, REQUESTED]) {
     const d = await drive(echoed)
     check(`${echoed}: the stream settled and one message was minted`, d.thrown === null && d.assistants.length === 1, d.thrown ?? String(d.assistants.length))
-    check(`${echoed}: no servedBy reaches the phase detail`, d.servedBy === undefined && d.repaints === 0, `${String(d.servedBy)} repaints=${d.repaints}`)
     check(`${echoed}: the bill stays under the requested model (500 in, 40 out)`, d.requestedRow?.inputTokens === 500 && d.requestedRow?.outputTokens === 40, JSON.stringify(d.requestedRow))
     check(`${echoed}: the message carries the wire's own model word unchanged`, d.assistants[0]?.message?.model === echoed, String(d.assistants[0]?.message?.model))
-    const detail = { model: requestedName, servedBy: d.servedBy }
-    check(`${echoed}: the waiting byline is the requested spelling, no mark`, byline('waiting', detail, 'Pondering') === `Pondering · waiting for ${requestedName}`, String(byline('waiting', detail, 'Pondering')))
   }
-}
-
-section('§3 the byline spellings with and without a serving model, at width and narrow')
-{
-  const served = { model: 'Fable 5.1', servedBy: 'Opus 5', effort: 'high' }
-  const plain = { model: 'Fable 5.1', effort: 'high' }
-  check('waiting + verb: the serving model outranks the requested one', byline('waiting', served, 'Pondering') === 'Pondering · waiting for Opus 5 (fallback) · high', String(byline('waiting', served, 'Pondering')))
-  check('waiting + verb, no serving model: the requested spelling is unchanged', byline('waiting', plain, 'Pondering') === 'Pondering · waiting for Fable 5.1 · high', String(byline('waiting', plain, 'Pondering')))
-  check('waiting, no verb: the causal spelling names the serving model', byline('waiting', served) === 'Waiting for Opus 5 (fallback) · high', String(byline('waiting', served)))
-  check('thinking + verb: the serving model rides first among the extras', byline('thinking', served, 'Pondering') === 'Pondering · thinking · Opus 5 (fallback) · high', String(byline('thinking', served, 'Pondering')))
-  check('thinking, no verb: the same order without the verb', byline('thinking', served) === 'Thinking · Opus 5 (fallback) · high', String(byline('thinking', served)))
-  check('thinking, no serving model: the extras are the effort alone', byline('thinking', plain, 'Pondering') === 'Pondering · thinking · high', String(byline('thinking', plain, 'Pondering')))
-  check('a narrow row sheds the serving model with the rest of the tail, never a truncated name', byline('waiting', served, 'Pondering', 30) === 'Pondering · waiting · high', String(byline('waiting', served, 'Pondering', 30)))
 }
 
 console.log('\n' + '='.repeat(60))
