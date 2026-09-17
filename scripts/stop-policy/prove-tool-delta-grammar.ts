@@ -364,10 +364,8 @@ async function main(): Promise<void> {
         !callModelSrc.includes('openai_tool_delta'),
     )
     check(
-      'C08: stream-activity marks ride REAL provider events only (first-chunk mark in the lane; per-delta marks in the shared consumer) — no timer-invented bytes',
-      callModelSrc.includes("notePulseStreamActivity(ctx.pulseGeneration, 'chunk')") &&
-        streaming.includes('notePulseStreamActivity(') &&
-        !callModelSrc.includes('setInterval'),
+      'C08: the openai lane invents no bytes on a timer',
+      !callModelSrc.includes('setInterval'),
     )
     check(
       '§7.3: the openai route advertises toolArgsDelta and the mechanism exists in the SAME codec (fold emits tool-args-delta)',

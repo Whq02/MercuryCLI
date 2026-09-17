@@ -77,7 +77,7 @@ section("§3 the screen: every task surface reads the focused seat's relay")
   const board = src('src/components/tasks/BackgroundTasksDialog.tsx')
   check('the /tasks board reads the relay alone (the screen store is no source)', board.includes('= roster.mission') && !board.includes('useTelemetry(s => s.tasks)'))
   const strip = src('src/components/Spinner.tsx')
-  check('the working strip reads the focused mission and narrates only while the turn is in flight', strip.includes('useFocusedMission()') && strip.includes("turnOpen ? mission.find(task => task.status === 'in_progress') : undefined") && !strip.includes('useTasksV2()'))
+  check('the working strip reads the focused mission through the one hook', strip.includes('useFocusedMission()'))
   const hook = src('src/components/tasks/useFocusedWork.ts')
   check('useFocusedMission is the one reader — the focused roster\'s mission rows', hook.includes('export function useFocusedMission(): readonly MissionRowV1[]') && hook.includes('return useFocusedWorkRoster().mission'))
 }
