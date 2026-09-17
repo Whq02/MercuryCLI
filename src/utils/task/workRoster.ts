@@ -21,6 +21,7 @@ import { unreadNoticeCount } from '../../services/notices/unreadLedger.js'
 
 const MAX_NAME = 120
 const MAX_ERROR = 200
+const MAX_COMMAND = 4000
 
 function clip(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`
@@ -187,7 +188,12 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
         ...unreadNoticesOf(task.id, task.identity.agentId),
       })
     } else if (isLocalShellTask(task)) {
-      rows.push(plainRow(task, task.kind === 'monitor' ? 'monitor' : 'shell', task.command))
+      rows.push({
+        ...plainRow(task, task.kind === 'monitor' ? 'monitor' : 'shell', task.command),
+        command: clip(task.command, MAX_COMMAND),
+        ...(task.verifyCwd !== undefined ? { cwd: task.verifyCwd } : {}),
+        outputFile: task.outputFile,
+      })
     } else if (isDreamTask(task)) {
       rows.push(plainRow(task, 'dream', task.description))
     } else {

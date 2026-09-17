@@ -81,6 +81,7 @@ const WORK_ROW: KeyTable = {
   agentType: 'agent_type',
   stopReason: 'stop_reason',
   unreadNotices: 'unread_notices',
+  outputFile: 'output_file',
 }
 const NOTICE_ROW: KeyTable = {
   agentId: 'agent_id',
