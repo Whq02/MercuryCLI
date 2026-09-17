@@ -1,8 +1,9 @@
 import cliBoxes from 'cli-boxes'
 import { stringWidth } from '../../ink/stringWidth.js'
-import { truncateToWidth } from '../mercury-ui/glyphs.js'
+import { GLYPH, truncateToWidth } from '../mercury-ui/glyphs.js'
 import { paneWindow, shedToFit } from '../mercury-ui/geometry.js'
 import { composerBorderStyle } from '../mercury-ui/replFloor.js'
+import { PARKING_NOW_LEAD, PARK_REFUSED_NOW_LEAD } from '../../services/concourse/concourseSnapshot.js'
 
 export const COMPACT_SPLIT_MIN_COLS = 60
 export const COMPACT_LIST_FRAME_COLS = 28
@@ -241,4 +242,29 @@ export function compactBoardRowText(
   const age = tail ? (row.ageLabel ?? '—').slice(0, COMPACT_AGE_COL).padStart(COMPACT_AGE_COL) : ''
   const budget = Math.max(0, inner - COMPACT_LIST_ROW_LEAD - (tail ? COMPACT_STATE_COL + COMPACT_AGE_COL + 3 : 1))
   return { lead, name: truncateToWidth(row.title, budget), state, age }
+}
+
+export type CompactParkNote = { tone: 'failure' | 'info'; text: string; expiresAtMs: number | null }
+
+export function compactParkNoteOf(
+  rows: ReadonlyArray<{ sessionId: string; title: string; nowLabel?: string | null }>,
+  selectedId: string | null,
+  firstSeenAt: (key: string) => number,
+  nowMs: number,
+  refusalBeatMs: number,
+): CompactParkNote | null {
+  const ordered = [...rows].sort((a, b) => (a.sessionId === selectedId ? -1 : b.sessionId === selectedId ? 1 : 0))
+  for (const row of ordered) {
+    const label = row.nowLabel ?? ''
+    const refused = label.startsWith(PARK_REFUSED_NOW_LEAD)
+    const parking = label.startsWith(PARKING_NOW_LEAD)
+    if (!refused && !parking) continue
+    const own = row.sessionId === selectedId
+    const words = own ? label : `${row.title}: ${label}`
+    if (parking) return { tone: 'info', text: words, expiresAtMs: null }
+    const expiresAtMs = firstSeenAt(`${row.sessionId}|${label}`) + refusalBeatMs
+    if (nowMs >= expiresAtMs) continue
+    return { tone: 'failure', text: `${GLYPH.fail} ${words}`, expiresAtMs }
+  }
+  return null
 }
