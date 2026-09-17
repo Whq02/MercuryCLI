@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { DIST, argAfter, makeTally } from '../daemon/dupline-world.ts'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startScriptedFixture, type ScriptedFixture } from '../lib/scriptedTurn.ts'
 
@@ -24,7 +24,8 @@ console.log(`build under proof: ${DIST}`)
 
 const ASK = 'runs-row: start the background run'
 const LANDED = 'runs-row: the background run is started'
-const COMMAND = 'for i in 1 2 3 4 5 6 7 8; do echo "runs-row line $i of the background run"; sleep 1; done; echo "runs-row tail line"; sleep 240'
+const PACE = Math.max(1, Math.round(vshotBudgetScale()))
+const COMMAND = `for i in 1 2 3 4 5 6 7 8; do echo "runs-row line $i of the background run"; sleep ${PACE}; done; echo "runs-row tail line"; sleep 240`
 const CLICK = '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m'
 
 type Cell = string | { c?: string } | null

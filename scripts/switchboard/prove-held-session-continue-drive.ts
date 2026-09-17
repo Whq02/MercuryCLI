@@ -201,6 +201,12 @@ const sizeResizes: Resize[] = [
   { afterPrevMs: 2500, cols: 82, rows: 17 },
   { afterPrevMs: 2500, cols: 120, rows: 40 },
 ]
+const refusalResizes: Resize[] = [
+  { afterMark: 'continued', afterMs: 300, cols: 80, rows: 21 },
+  { afterMark: 'at-80x21', afterMs: 300, cols: 80, rows: 14 },
+  { afterMark: 'at-80x14', afterMs: 300, cols: 82, rows: 17 },
+  { afterMark: 'at-82x17', afterMs: 300, cols: 120, rows: 40 },
+]
 function printFrame(id: string, text: string): void {
   console.log(`\n┌── ${id} ──`)
   for (const l of text.split('\n')) console.log(`│${l}`)
@@ -298,8 +304,16 @@ if (holder.ok !== true) bail(`the read-only holder was not admitted: ${JSON.stri
 if (!(await until(async () => (await has(String(holder.runnerId))).ready, vshotBudgetMs(30_000)))) bail('the holder never came up')
 const r = await capture({
   id: 'runnerless-continue',
-  sends: [g(READY_LINE, ARROW_DOWN), { afterPrevTicks: 2, data: '\r' }, { afterPrevTicks: 20, data: '', mark: 'continued' }, { afterPrevTicks: 60, data: '', mark: 'settled' }],
-  resizes: sizeResizes,
+  sends: [
+    g(READY_LINE, ARROW_DOWN),
+    { afterPrevTicks: 2, data: '\r' },
+    g('revives it', '', { mark: 'continued', awaitSettleTicks: 3 }),
+    g('← concourse', '', { mark: 'at-80x21', awaitStableTicks: 2 }),
+    g('\n❯ Type a prompt', '', { mark: 'at-80x14', awaitStableTicks: 2 }),
+    g('│❯ Type a prompt', '', { mark: 'at-82x17', awaitStableTicks: 2 }),
+    { afterPrevTicks: 60, data: '', mark: 'settled' },
+  ],
+  resizes: refusalResizes,
   total: 160,
 })
 const refused = markText(r, 'continued')
