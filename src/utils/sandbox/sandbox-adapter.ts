@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, lstatSync, realpathSync, rmSync, statSync } from 'node:fs'
 import { readFileSync } from 'node:fs'
-import { isAbsolute, join, resolve, sep } from 'node:path'
+import { dirname, isAbsolute, join, resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   SandboxManager as RuntimeSandboxManager,
   SandboxViolationStore,
@@ -26,8 +27,10 @@ import { memoize } from 'lodash-es'
 import { getMercuryHome } from '../envUtils.js'
 import { expandPath } from '../path.js'
 import { getPlatform } from '../platform.js'
+import { ripgrepCommand, searchToolsAvailability } from '../ripgrep.js'
 import type { PermissionUpdate } from '../../types/permissions.js'
 import { subprocessEnv } from '../subprocessEnv.js'
+import { whichSync } from '../which.js'
 
 export type {
   FsReadRestrictionConfig,
@@ -80,11 +83,65 @@ function isSupportedPlatformSync(): boolean {
 let cachedDepCheck: SandboxDependencyCheck = { warnings: [], errors: [] }
 let dependenciesChecked = false
 
+function isLinuxSandboxPlatform(): boolean {
+  const platform = getPlatform()
+  return platform === 'linux' || platform === 'wsl'
+}
+
+type LinuxSandboxTools = {
+  bwrapPath: string | null
+  socatPath: string | null
+  ripgrep: { command: string; args: string[]; argv0?: string }
+  applySeccompPath: string | null
+}
+
+function seccompArchDir(): string | null {
+  if (process.arch === 'x64') return 'x64'
+  if (process.arch === 'arm64') return 'arm64'
+  return null
+}
+
+function vendoredApplySeccompPath(): string | null {
+  const archDir = seccompArchDir()
+  if (archDir === null) return null
+  const moduleDir = dirname(fileURLToPath(import.meta.url))
+  const candidates = [
+    join(moduleDir, 'vendor', 'seccomp', archDir, 'apply-seccomp'),
+    join(moduleDir, '..', '..', '..', 'node_modules', '@anthropic-ai', 'sandbox-runtime', 'vendor', 'seccomp', archDir, 'apply-seccomp'),
+  ]
+  return candidates.find(candidate => existsSync(candidate)) ?? null
+}
+
+const linuxSandboxTools = memoize((): LinuxSandboxTools => {
+  const search = ripgrepCommand()
+  const ripgrep: LinuxSandboxTools['ripgrep'] = { command: search.rgPath, args: [...search.rgArgs] }
+  if (search.argv0 !== undefined) ripgrep.argv0 = search.argv0
+  return {
+    bwrapPath: whichSync('bwrap'),
+    socatPath: whichSync('socat'),
+    ripgrep,
+    applySeccompPath: vendoredApplySeccompPath(),
+  }
+})
+
+function linuxDependencyCheck(): SandboxDependencyCheck {
+  if (String(getWslVersion() ?? '') === '1') return { errors: ['Unsupported platform'], warnings: [] }
+  const tools = linuxSandboxTools()
+  const errors: string[] = []
+  const warnings: string[] = []
+  const search = searchToolsAvailability()
+  if (!search.available) errors.push(`ripgrep (${search.path}) not found`)
+  if (tools.bwrapPath === null) errors.push('bubblewrap (bwrap) not installed')
+  if (tools.socatPath === null) errors.push('socat not installed')
+  if (tools.applySeccompPath === null) warnings.push('seccomp not available - unix socket access not restricted')
+  return { warnings, errors }
+}
+
 function ensureDependencyCheck(): void {
   if (dependenciesChecked) return
   dependenciesChecked = true
   try {
-    const result = RuntimeSandboxManager.checkDependencies()
+    const result = isLinuxSandboxPlatform() ? linuxDependencyCheck() : RuntimeSandboxManager.checkDependencies()
     cachedDepCheck = result
     dependenciesOk = result.errors.length === 0
   } catch {
@@ -287,6 +344,13 @@ export function convertToSandboxRuntimeConfig(settings: SettingsShape): SandboxR
       allowRead: boundPathList('filesystem.allowRead', (getSandboxFilesystem(settings)?.allowRead as string[] | undefined) ?? []),
       denyRead: boundPathList('filesystem.denyRead', (getSandboxFilesystem(settings)?.denyRead as string[] | undefined) ?? []),
     },
+  }
+  if (isLinuxSandboxPlatform()) {
+    const tools = linuxSandboxTools()
+    config.ripgrep = { ...tools.ripgrep, args: [...tools.ripgrep.args] }
+    if (tools.bwrapPath !== null) config.bwrapPath = tools.bwrapPath
+    if (tools.socatPath !== null) config.socatPath = tools.socatPath
+    if (tools.applySeccompPath !== null) config.seccomp = { applyPath: tools.applySeccompPath }
   }
   return config
 }
@@ -523,6 +587,7 @@ export const SandboxManager: ISandboxManager = {
     worktreeResolved = false
     scrubList = []
     isSupportedPlatformMemo.cache.clear?.()
+    linuxSandboxTools.cache.clear?.()
     cachedDepCheck = { warnings: [], errors: [] }
     dependenciesOk = true
     dependenciesChecked = false
