@@ -18,7 +18,9 @@ The verdict is one of:
 - `unsupported` — a required row failed. Interactive boot shows the
   requirement card **before** the main interface: the operator can exit (with the missing
   labels named, and the pointer that non-interactive use works anywhere via
-  `--print`) or continue knowingly — never a silently degraded cockpit.
+  `--print`) or continue knowingly — never a silently degraded cockpit. The
+  exit guidance is written as plain lines below the card, so a terminal
+  without cursor addressing shows it whole.
 
 Consumers: the boot requirement surface, the `/health` terminal-profile
 report card, and the trace view.

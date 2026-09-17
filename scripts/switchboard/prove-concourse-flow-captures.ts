@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -231,10 +232,10 @@ if (runLeg('queued')) {
     const lines = capture('queued-enter', scratch, fixturePath, cols, rows, [{ ...settle, data: '\t' }, { afterPrevTicks: 3, data: '\r' }], 60)
     check(`${cols}×${rows}: ↵ on the queued row keeps the board`, has(lines, 'SESSIONS') && has(lines, 'queued probe'))
     check(`${cols}×${rows}: the in-place line — a disclaimer in the estate's voice`, lines.some(l => /queued — waits for a seat · \d+\/\d+ seats/.test(l)), lines.find(l => l.includes('queued —')) ?? '(no queued line)')
-    check(`${cols}×${rows}: the void screen did NOT open`, !has(lines, 'add a message — it delivers') && !has(lines, '⇧← back to the concourse'))
+    check(`${cols}×${rows}: the void screen did NOT open`, !has(lines, 'add a message — it delivers') && !has(lines, keyHintLabel('⇧← back to the concourse')))
   }
   const room = capture('queued-room', scratch, fixturePath, 120, 40, [{ ...settle, data: '\t' }, { afterPrevTicks: 4, data: 'm' }], 70)
-  check('m on the queued row opens the deliver-on-start room (the explicit door)', has(room, 'add a message — it delivers when the session starts') && has(room, '⇧← back to the concourse'))
+  check('m on the queued row opens the deliver-on-start room (the explicit door)', has(room, 'add a message — it delivers when the session starts') && has(room, keyHintLabel('⇧← back to the concourse')), room.filter(l => /add a message|back to the concourse|queued probe/.test(l)).map(l => l.trim().slice(0, 100)).join(' | ').slice(0, 300))
   check('the room names the queued session', has(room, 'queued probe'))
   check('the list legend advertises m', lines120HasM(scratch, fixturePath))
 }

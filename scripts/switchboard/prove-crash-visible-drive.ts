@@ -29,6 +29,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const DISPATCH_DEADLINE_MS = 20_000
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 
 const countingTurn = (n: number) => ({
@@ -154,7 +155,7 @@ const run = await runArtifactArena({
       title: 'Alpha count',
       modelKey: 'claude-opus-5',
       effort: 'xhigh',
-    } as never)) as { ok?: boolean; sessionId?: string }
+    } as never, { timeoutMs: DISPATCH_DEADLINE_MS })) as { ok?: boolean; sessionId?: string }
     check('alpha dispatched', a.ok === true, JSON.stringify(a))
     if (a.ok !== true) bail('alpha refused — the crash pair never staged')
     alphaId = a.sessionId ?? ''
@@ -168,7 +169,7 @@ const run = await runArtifactArena({
       title: 'Beta count',
       modelKey: 'claude-opus-5',
       effort: 'xhigh',
-    } as never)) as { ok?: boolean; sessionId?: string }
+    } as never, { timeoutMs: DISPATCH_DEADLINE_MS })) as { ok?: boolean; sessionId?: string }
     check('beta dispatched (defaulted → the worktree fork)', b.ok === true, JSON.stringify(b))
     if (b.ok !== true) bail('beta refused — the crash pair never staged')
     betaId = b.sessionId ?? ''
