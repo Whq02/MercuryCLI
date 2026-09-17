@@ -7,6 +7,7 @@ import { DIST, argAfter, makeTally } from '../daemon/dupline-world.ts'
 import { vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startScriptedFixture, type ScriptedFixture } from '../lib/scriptedTurn.ts'
+import wrapText from '../../src/ink/wrap-text.ts'
 
 const VSHOT = join(import.meta.dir, 'vshot.py')
 const tally = makeTally('prove-runs-row-detail-drive')
@@ -187,6 +188,82 @@ for (const { cols, rows } of sizes) {
   tally.check(`${label} F3 the card shows the elapsed time, running`, card !== undefined && /running · \d+[smh]/.test(flat(card)), card === undefined ? '' : flat(card).slice(0, 400))
   tally.check(`${label} F4 the card shows the last lines of output`, card !== undefined && /runs-row line \d of the background run/.test(flat(card)), card === undefined ? '' : flat(card).slice(0, 400))
   tally.check(`${label} F5 the card follows the run: a later frame shows a later line or a later elapsed`, later !== undefined && card !== undefined && (later !== card) && /runs-row line \d|runs-row tail line/.test(flat(later)) && /running · \d+[smh]/.test(flat(later)))
+  if (tally.failed() === 0 && !KEEP) {
+    rmSync(home, { recursive: true, force: true })
+    rmSync(cwd, { recursive: true, force: true })
+  } else console.log(`world kept: ${home} ${cwd}`)
+}
+
+const ASK2 = 'runs-row: start the failing run'
+const LANDED2 = 'runs-row: the failing run is over'
+const DESCRIPTION2 = 'the failing run'
+const LONG_COMMAND = `for i in $(seq 1 30); do echo "long-run line $i of thirty"; done; : "the rest of this command is padding so that its text wraps across many rows of the card: alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu"; exit 3`
+const HOLD_SECONDS = 14 * PACE
+
+function settledFixture(): Promise<ScriptedFixture> {
+  return startScriptedFixture(req => {
+    if (req.ask.trim() !== ASK2) return [{ type: 'text', text: 'ok' }]
+    if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: LONG_COMMAND, run_in_background: true, description: DESCRIPTION2 } }]
+    if (req.step === 1) return [{ type: 'tool_use', name: 'Bash', input: { command: `sleep ${HOLD_SECONDS}`, description: 'hold the turn' } }]
+    return [{ type: 'text', text: LANDED2 }]
+  })
+}
+
+for (const { cols, rows } of sizes) {
+  const label = `${cols}x${rows}`
+  const { home, cwd } = seedWorld()
+  const fixture = await settledFixture()
+  let cap: Capture | null = null
+  try {
+    cap = await capture(
+      {
+        cols,
+        rows,
+        total: 300,
+        cwd,
+        argv: ['node', DIST, '--dangerously-bypass-permissions'],
+        sends: [
+          ...bootSends(ASK2),
+          { data: '', afterPrevTicks: 20 * PACE, mark: 'settled-chat' },
+          { data: '/tasks', afterPrevTicks: 2 },
+          { data: '\r', afterPrevTicks: 4 },
+          { data: '', afterPrevTicks: 8, mark: 'settled-board' },
+          { data: '', atTick: 999, awaitText: 'Mercury — shell', requireAwait: true, minTick: 2, awaitSettleTicks: 8, mark: 'settled-card' },
+          { data: '\x1b', afterPrevTicks: 2 },
+          { data: '', atTick: 999, awaitText: LANDED2, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'settled-landed' },
+        ],
+        stableTicks: 4,
+      },
+      driveEnv(home, fixture.base),
+    )
+  } finally {
+    await fixture.close()
+  }
+  const card = cap.marks['settled-card']
+  dump(`${label} · the chat while the turn holds`, cap.marks['settled-chat'], cols)
+  dump(`${label} · after /tasks`, cap.marks['settled-board'], cols)
+  dump(`${label} · the settled card (the run ended with exit 3 while the turn still runs)`, card, cols)
+  if (FRAMES) {
+    mkdirSync(FRAMES, { recursive: true })
+    for (const [name, frame] of Object.entries(cap.marks)) writeFileSync(join(FRAMES, `${name}-${label}.txt`), frame ?? '')
+  }
+  const rowsOfCard = card === undefined ? [] : cardRows(card)
+  const commandRowsOnCard = rowsOfCard.filter((r, i) => i > 0 && !/^\s*│?\s*(cwd|Output|◐|failed|done|killed|running)/.test(r) && (i === 1 || /^\s*│?\s{8}/.test(r))).slice(0, 12)
+  const countLine = card === undefined ? undefined : /(\d+) of (\d+) lines? shown/.exec(flat(card))
+  tally.section(`${label}: a settled shell's card — the exit code, the description, the count line and the one-line floor`)
+  tally.check(`${label} S1 every send became due`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason} ${cap.stderr.slice(-200)}`)
+  tally.check(`${label} S2 the shell card opened for the settled row while the turn still ran`, card !== undefined && card.includes('Mercury — shell'))
+  tally.check(`${label} S3 the header carries the command's description as its subtitle`, card !== undefined && flat(card).includes(`Mercury — shell · ${DESCRIPTION2}`), card === undefined ? '' : flat(card).slice(0, 200))
+  tally.check(`${label} S4 the state line names the exit code: failed (exit 3) · <elapsed>`, card !== undefined && /failed \(exit 3\) · \d+[smh]/.test(flat(card)), card === undefined ? '' : flat(card).slice(0, 400))
+  tally.check(`${label} S5 the count line reads how many lines show of how many the run wrote (N of 30)`, countLine !== undefined && countLine !== null && Number(countLine[2]) === 30 && Number(countLine[1]) >= 1 && Number(countLine[1]) <= 30, countLine === undefined || countLine === null ? (card === undefined ? '' : flat(card).slice(-300)) : countLine[0])
+  tally.check(`${label} S6 at least one output line shows whatever the command's length (the floor counts content lines)`, card !== undefined && /long-run line \d+ of thirty/.test(flat(card)), card === undefined ? '' : flat(card).slice(-400))
+  const whole = card !== undefined && joined(card).replace(/\s+/g, '').includes(LONG_COMMAND.replace(/\s+/g, ''))
+  const clipped = commandRowsOnCard.some(r => r.trimEnd().endsWith('…'))
+  const commandRowsNeeded = wrapText(LONG_COMMAND, cols - 4 - 8, 'wrap').split('\n').length
+  const rowsForCommand = rows - 9 - 1 - 1
+  const expectWhole = commandRowsNeeded <= rowsForCommand
+  tally.check(expectWhole ? `${label} S7 the window has rows for the whole command (${commandRowsNeeded} of ${rowsForCommand}) and the card shows it whole` : `${label} S7 the command needs ${commandRowsNeeded} rows and the window affords ${rowsForCommand}: the card clips it with … and keeps the output line`, expectWhole ? whole : clipped && !whole, `whole=${whole} clipped=${clipped} rows=${JSON.stringify(commandRowsOnCard.slice(0, 3))}`)
+  tally.check(`${label} S8 the turn ended after the card closed`, (cap.marks['settled-landed'] ?? '').includes(LANDED2))
   if (tally.failed() === 0 && !KEEP) {
     rmSync(home, { recursive: true, force: true })
     rmSync(cwd, { recursive: true, force: true })

@@ -1,5 +1,6 @@
 
-import React, { useDeferredValue, useEffect, useState } from 'react'
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { closeSync, openSync, readSync } from 'node:fs'
 import { exitChordNoticeText } from '../PromptInput/ExitChordNotice.js'
 import { Box, Text, useInput } from '../../ink.js'
 import { KeyboardEvent } from '../../ink/events/keyboard-event.js'
@@ -11,17 +12,20 @@ import type { BashTaskKind, LocalShellTaskState } from '../../tasks/LocalShellTa
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { formatFileSize } from '../../utils/format.js'
 import { tailFileSync } from '../../utils/fsOperations.js'
-import { displayWidth } from '../mercury-ui/glyphs.js'
+import wrapText from '../../ink/wrap-text.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 import { CommandCenter, SectionHeader } from '../mercury-ui/components.js'
 import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 
 const TAIL_BYTES = 8 * 1024
+const COUNT_CHUNK_BYTES = 64 * 1024
 const OUTPUT_LINES = 10
 const FRAME_ROWS = 12
 const FRAME_ROWS_FLOOR = 3
 const CARD_CHROME_ROWS = 11
+const CARD_ROWS_ABOVE_KEYS = 6 + FRAME_ROWS_FLOOR
+const HOST_FOOTER_ROWS = 1
 const LABEL_WIDTH = 8
 const OUTPUT_UNREPORTED = 'output not reported by the runner'
 const OUTPUT_ABSENT = 'output file not found on this box'
@@ -64,20 +68,72 @@ export function shellCardFactsOfRow(row: WorkRowV1): ShellCardFacts {
     ...(row.outputFile !== undefined ? { outputFile: row.outputFile } : {}),
     ...(row.cwd !== undefined ? { cwd: row.cwd } : {}),
     ...(row.kind === 'monitor' ? { kind: 'monitor' as const } : {}),
+    ...(row.exitCode !== undefined ? { exitCode: row.exitCode } : {}),
   }
 }
 
-type Tail = { content: string; totalBytes: number; present: boolean }
+type Tail = { content: string; totalBytes: number; totalLines: number; present: boolean }
 
-function readTail(path: string | undefined): Tail {
-  if (path === undefined) return { content: '', totalBytes: 0, present: false }
+type LineCount = { path: string | undefined; scanned: number; lines: number; open: boolean }
+
+export function freshLineCount(path: string | undefined): LineCount {
+  return { path, scanned: 0, lines: 0, open: false }
+}
+
+export function advanceLineCount(count: LineCount, size: number): number {
+  if (count.path === undefined) return 0
+  if (size < count.scanned) {
+    count.scanned = 0
+    count.lines = 0
+    count.open = false
+  }
+  if (size > count.scanned) {
+    const fd = openSync(count.path, 'r')
+    try {
+      const chunk = Buffer.alloc(Math.min(COUNT_CHUNK_BYTES, size - count.scanned))
+      while (count.scanned < size) {
+        const read = readSync(fd, chunk, 0, Math.min(chunk.length, size - count.scanned), count.scanned)
+        if (read === 0) break
+        for (let i = 0; i < read; i++) {
+          if (chunk[i] === 10) {
+            if (count.open) count.lines++
+            count.open = false
+          } else {
+            count.open = true
+          }
+        }
+        count.scanned += read
+      }
+    } finally {
+      closeSync(fd)
+    }
+  }
+  return count.lines + (count.open ? 1 : 0)
+}
+
+function readTail(path: string | undefined, count: LineCount): Tail {
+  if (path === undefined) return { content: '', totalBytes: 0, totalLines: 0, present: false }
   try {
     const tail = tailFileSync(path, TAIL_BYTES)
-    return { content: tail.content, totalBytes: tail.bytesTotal, present: true }
+    return { content: tail.content, totalBytes: tail.bytesTotal, totalLines: advanceLineCount(count, tail.bytesTotal), present: true }
   } catch (error) {
     const missing = (error as { code?: string }).code === 'ENOENT'
-    return { content: '', totalBytes: 0, present: !missing }
+    return { content: '', totalBytes: 0, totalLines: 0, present: !missing }
   }
+}
+
+const wrappedRows = (text: string, width: number): number => wrapText(text, width, 'wrap').split('\n').length
+
+export function fitRows(text: string, width: number, maxRows: number): string {
+  if (wrappedRows(text, width) <= maxRows) return text
+  let low = 0
+  let high = text.length
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2)
+    if (wrappedRows(`${text.slice(0, mid)}…`, width) <= maxRows) low = mid
+    else high = mid - 1
+  }
+  return `${text.slice(0, low)}…`
 }
 
 function stateWord(shell: ShellCardFacts): string {
@@ -116,12 +172,14 @@ export function ShellDetailDialog({
   )
   const exitState = useExitOnCtrlCD(useKeybindings)
 
-  const [tail, setTail] = useState(() => readTail(shell.outputFile))
+  const count = useRef(freshLineCount(shell.outputFile))
+  const [tail, setTail] = useState(() => readTail(shell.outputFile, count.current))
   useEffect(() => {
-    setTail(readTail(shell.outputFile))
+    if (count.current.path !== shell.outputFile) count.current = freshLineCount(shell.outputFile)
+    setTail(readTail(shell.outputFile, count.current))
     if (!running) return
     const timer = setInterval(() => {
-      setTail(readTail(shell.outputFile))
+      setTail(readTail(shell.outputFile, count.current))
     }, 1000)
     return () => clearInterval(timer)
   }, [shell.outputFile, running])
@@ -153,8 +211,11 @@ export function ShellDetailDialog({
   const commandLabel = isMonitor ? 'script' : 'command'
   const exitCode = shell.exitCode
   const valueWidth = Math.max(20, columns - 4 - LABEL_WIDTH)
-  const commandRows = Math.max(1, Math.ceil(displayWidth(shell.command) / valueWidth))
-  const fixedRows = commandRows + (shell.cwd !== undefined ? 1 : 0) + CARD_CHROME_ROWS
+  const cwdRows = shell.cwd !== undefined ? 1 : 0
+  const commandRowsMax = Math.max(1, rows - CARD_ROWS_ABOVE_KEYS - HOST_FOOTER_ROWS - cwdRows)
+  const commandText = useMemo(() => fitRows(shell.command, valueWidth, commandRowsMax), [shell.command, valueWidth, commandRowsMax])
+  const commandRows = wrappedRows(commandText, valueWidth)
+  const fixedRows = commandRows + cwdRows + CARD_CHROME_ROWS
   const frameRows = Math.max(FRAME_ROWS_FLOOR, Math.min(FRAME_ROWS, rows - fixedRows))
   const lines = deferredTail.content
     .split('\n')
@@ -175,9 +236,9 @@ export function ShellDetailDialog({
           <Box width={LABEL_WIDTH} flexShrink={0}>
             <Text dimColor>{commandLabel}</Text>
           </Box>
-          <Box flexGrow={1} minWidth={0}>
+          <Box flexGrow={1} minWidth={0} height={commandRows} overflow="hidden">
             <Text dimColor wrap="wrap">
-              {shell.command}
+              {commandText}
             </Text>
           </Box>
         </Box>
@@ -242,7 +303,7 @@ export function ShellDetailDialog({
           )}
         </Box>
         <Text dimColor italic>
-          {shown.length} {shown.length === 1 ? 'line' : 'lines'} shown
+          {shown.length} of {deferredTail.totalLines} {deferredTail.totalLines === 1 ? 'line' : 'lines'} shown
           {truncatedRead
             ? ` · ${formatFileSize(deferredTail.totalBytes)} total`
             : ''}
