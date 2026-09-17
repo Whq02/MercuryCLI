@@ -188,9 +188,10 @@ export function imageBlocksOf(pastes: Record<number, PastedContent>): ContentBlo
     )
 }
 const RPC_TIMEOUT_MS = 15_000
-const HEARTBEAT_MS = 400
+export const HEARTBEAT_MS = 400
 const IDLE_TRANSCRIPT_FLOOR_MS = 2000
-const IDLE_PROJECTION_FLOOR_MS = 10_000
+export const IDLE_PROJECTION_FLOOR_MS = 10_000
+export const SEAT_VERB_SETTLE_MS = 4000
 const LIVENESS_TICK_MS = 1000
 const ECHO_RETIRE_MS = 10 * 60_000
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -248,6 +249,7 @@ export class ProjectionFeed {
   private timer: ReturnType<typeof setInterval> | null = null
   private timerMs = 0
   private lastKey = PROJECTION_ABSENT
+  private settleUntilMs = 0
   constructor(
     private readonly dir: string,
     private readonly path: string,
@@ -267,7 +269,9 @@ export class ProjectionFeed {
     }
   }
   private cadenceMs(): number {
-    return this.watcher === null ? HEARTBEAT_MS : this.idleFloorMs()
+    if (this.watcher === null) return HEARTBEAT_MS
+    if (this.settleUntilMs > Date.now()) return HEARTBEAT_MS
+    return this.idleFloorMs()
   }
   rearm(): void {
     if (this.timer === null) return
@@ -277,6 +281,13 @@ export class ProjectionFeed {
     this.timer = setInterval(this.tick, ms)
     this.timer.unref?.()
     this.timerMs = ms
+  }
+  settle(windowMs: number): void {
+    if (windowMs <= 0) return
+    this.settleUntilMs = Math.max(this.settleUntilMs, Date.now() + windowMs)
+    this.rearm()
+    const revert = setTimeout(() => this.rearm(), windowMs)
+    revert.unref?.()
   }
   heartbeatMs(): number {
     return this.timer === null ? 0 : this.timerMs
@@ -316,6 +327,7 @@ export class ProjectionFeed {
     }
     this.watcher = null
     this.lastKey = PROJECTION_ABSENT
+    this.settleUntilMs = 0
   }
 }
 
@@ -1830,6 +1842,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (outcome !== 'applied' && outcome !== 'queued' && outcome !== 'noop') return refuse(`unexpected outcome ${String(outcome)}`)
       if ((outcome === 'queued') !== busy) this.readFacts()
       if (outcome === 'noop') return { state: 'no-op' }
+      this.factsFeed.settle(SEAT_VERB_SETTLE_MS)
       return { state: outcome }
     } catch (e) {
       return refuse(`the daemon is not answering — the effort did not land (${e instanceof Error ? e.message : String(e)})`)
