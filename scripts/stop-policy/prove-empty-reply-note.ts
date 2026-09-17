@@ -19,6 +19,7 @@ const NODE = join(dirname(DIST), 'vendor', 'node', process.platform === 'win32' 
 export const EMPTY_REPLY_ASK = 'read the readme, then say what it holds'
 export const EMPTY_REPLY_END = 'done: the readme holds one heading'
 export const EMPTY_REPLY_NOTE_WORDS = 'returned an empty reply'
+export const ZAI_SILENCE_WORDS = 'finished this response with nothing said'
 
 let failures = 0
 let checks = 0
@@ -225,10 +226,18 @@ async function runRoute(route: { route: string; model: string; dialect: Dialect 
   const requests = fixture.captured.filter(c => c.dialect === route.dialect)
   const tail = stderr.split('\n').filter(l => l.trim() !== '').slice(-4).join(' | ')
   check(`${route.route}: the turn settled with a result`, exit === 0 && result !== undefined, `exit ${String(exit)} ${tail}`)
-  check(`${route.route}: the tool round ran and the second request answered empty`, requests.length >= 2 && (requests[1] !== undefined) , `${requests.length} request(s)`)
-  check(`${route.route}: a visible note says the provider returned an empty reply`, texts.some(t => t.includes(EMPTY_REPLY_NOTE_WORDS)), JSON.stringify(texts).slice(0, 300))
-  check(`${route.route}: the request was re-issued once, unchanged`, requests.length === 3 && JSON.stringify(inputOf(requests[2]!)) === JSON.stringify(inputOf(requests[1]!)), `${requests.length} request(s)`)
-  check(`${route.route}: the turn's result is the model's answer from the re-issue, not silence`, resultText === EMPTY_REPLY_END, `result: ${JSON.stringify(resultText.slice(0, 200))}`)
+  if (route.route === 'zai') {
+    check(`${route.route}: the tool round ran and the second request finished with no words`, requests.length === 2 && requests[1] !== undefined, `${requests.length} request(s)`)
+    check(`${route.route}: a visible note says the provider finished this response with nothing said`, texts.some(t => t.includes(ZAI_SILENCE_WORDS)), JSON.stringify(texts).slice(0, 300))
+    check(`${route.route}: the note is not the old cut wording`, !texts.some(t => t.includes(EMPTY_REPLY_NOTE_WORDS)), JSON.stringify(texts).slice(0, 300))
+    check(`${route.route}: silence is not re-issued`, requests.length === 2, `${requests.length} request(s)`)
+    check(`${route.route}: the turn's result is the silence note, the turn's end`, resultText.includes(ZAI_SILENCE_WORDS), `result: ${JSON.stringify(resultText.slice(0, 200))}`)
+  } else {
+    check(`${route.route}: the tool round ran and the second request answered empty`, requests.length >= 2 && (requests[1] !== undefined) , `${requests.length} request(s)`)
+    check(`${route.route}: a visible note says the provider returned an empty reply`, texts.some(t => t.includes(EMPTY_REPLY_NOTE_WORDS)), JSON.stringify(texts).slice(0, 300))
+    check(`${route.route}: the request was re-issued once, unchanged`, requests.length === 3 && JSON.stringify(inputOf(requests[2]!)) === JSON.stringify(inputOf(requests[1]!)), `${requests.length} request(s)`)
+    check(`${route.route}: the turn's result is the model's answer from the re-issue, not silence`, resultText === EMPTY_REPLY_END, `result: ${JSON.stringify(resultText.slice(0, 200))}`)
+  }
   if (failures === 0) rmSync(home, { recursive: true, force: true })
   else console.log(`  [forensics] the world stays at ${home}\n${stderr.split('\n').slice(-8).join('\n')}`)
 }
