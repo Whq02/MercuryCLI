@@ -164,6 +164,7 @@ src/services/mcp/eraVerdictCache.ts :: readMemo :: invalidator=resetEraVerdictMe
 src/services/mission/harnessApplication.ts :: liveEpochMemo :: keyed-by-truth
 src/services/mission/harnessProfiles.ts :: resolutionCache :: keyed-by-truth
 src/services/privateChannel/installProvenance.ts :: memoized :: static-for-process
+src/services/providers/deepseek/deepseekCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/deferralProbe.ts :: cache :: keyed-by-truth
 src/services/providers/gemini/geminiCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/huggingface/huggingfaceCatalogue.ts :: catalogueCache :: ttl-bounded
@@ -295,6 +296,7 @@ src/utils/router/modelRegistry.ts :: snapshotMemo :: ttl-bounded
 src/utils/router/providerDiscovery.ts :: cache :: ttl-bounded
 src/utils/sandbox/sandbox-adapter.ts :: cachedWorktreeMainRepo :: static-for-process
 src/utils/sandbox/sandbox-adapter.ts :: isSupportedPlatformMemo :: static-for-process
+src/utils/sandbox/sandbox-adapter.ts :: linuxSandboxTools :: static-for-process
 src/utils/sandbox/sandbox-adapter.ts :: platformUserTempDir :: static-for-process
 src/utils/savedPrompts/minervaRefinedStore.ts :: cache :: subscription-fed
 src/utils/savedPrompts/savedPromptsStore.ts :: cache :: subscription-fed

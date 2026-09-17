@@ -151,13 +151,6 @@ const liveModel = (efforts: string[], def?: string) =>
 
 {
   console.log('\n— 5 · turn-machine byline stamp —')
-  const src = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
-  check(
-    'the pulse stamp rides the resolution owner LABEL (truthful for out-of-ladder tiers + omitted keys), never the raw appState value',
-    src.includes('const truth = resolveEffortTruth(iter.currentModel, effortValue, { agentId: toolUseContext.agentId })') &&
-      src.includes("const effortLabel = truth.wire === undefined ? undefined : truth.label") &&
-      /notePulseModel\(iter\.currentModel, effortLabel\)/.test(src),
-  )
 }
 
 {

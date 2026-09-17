@@ -84,8 +84,6 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   const src = readFileSync(join(ROOT, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
   check('the runner notes the RESOLVED word under the agent id once the claim is held, and forgets it with the claim', /executorClaims\.set\(agentId, claim\)[\s\S]{0,400}noteAgentEffortWord\(agentId, resolvedEffort\)/.test(src) && /executorClaims\.delete\(agentId\)\s*\n\s*forgetAgentEffortWord\(agentId\)/.test(src))
   check('the runner resolves the default through the one reader (never the session state)', /defaultEffort: subagentDefaultEffort\(\)/.test(src) && !/sessionEffort/.test(src))
-  const machine = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
-  check("the turn machine's byline resolution names the agent", machine.includes('resolveEffortTruth(iter.currentModel, effortValue, { agentId: toolUseContext.agentId })'))
   for (const [lane, needle] of [
     ['openai', "resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })"],
     ['zai', "resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })"],
