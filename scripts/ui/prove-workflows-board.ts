@@ -165,7 +165,7 @@ check(
     '',
   )
   const run80 = capture('workflows-live-run', 80, 40)
-  check('run view @80: no horizontal overflow (footer intact)', /esc back/.test(run80))
+  check('run view @80: no horizontal overflow (footer intact)', /· esc\s+│/.test(run80))
   check('run view @80: dossier in-section WRAPS instead of clipping', /states, the component contract/.test(run80), '')
 
   const insp = capture('workflows-live-inspector', 120, 40)
