@@ -4,9 +4,18 @@ import type { StdoutMessage } from '../../entrypoints/sdk/controlTypes.js'
 
 export type PromptValue = string | ContentBlockParam[]
 
+const AGENT_WAIT_TICK_MS = 100
+
 function toBlocks(v: PromptValue): ContentBlockParam[] {
   return typeof v === 'string' ? [{ type: 'text', text: v }] : v
 }
+
+export function foldNotificationValues(values: PromptValue[]): ContentBlockParam[] {
+  return values.flatMap(toBlocks)
+}
+
+const isTaskNotification = (command: QueuedCommand | undefined): command is QueuedCommand =>
+  command !== undefined && command.mode === 'task-notification'
 
 export function joinPromptValues(values: PromptValue[]): PromptValue {
   if (values.length === 1) return values[0]!
@@ -70,7 +79,9 @@ export type TurnDriverPorts = {
   idleTimerStart(): void
   onCycleError(error: unknown): StdoutMessage
   shutdown(code: number): void
-  clock: { sleep(ms: number): Promise<void> }
+  clock: { sleep(ms: number): Promise<void>; now?(): number }
+  queuedMainThread?(): readonly QueuedCommand[]
+  settleWindowMs?: number
 }
 
 export type TurnDriver = {
@@ -87,6 +98,45 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   let heldBackResult: StdoutMessage | null = null
   let outputClosed = false
   let holdReleased = false
+
+  const settledAt = new Map<string, number>()
+  let holding = false
+  const now = (): number => ports.clock.now?.() ?? Date.now()
+  const queuedMainThread = (): readonly QueuedCommand[] => ports.queuedMainThread?.() ?? []
+
+  const takeQueued = (): QueuedCommand | undefined => {
+    const taken = ports.dequeue()
+    if (taken?.queueId !== undefined) settledAt.delete(taken.queueId)
+    return taken
+  }
+
+  const nextDue = (): QueuedCommand | undefined => {
+    holding = false
+    const head = ports.peek()
+    if (head === undefined) return undefined
+    const window = ports.settleWindowMs ?? 0
+    if (isTaskNotification(head) && head.queueId !== undefined && window > 0) {
+      const queued = queuedMainThread()
+      for (const id of settledAt.keys()) {
+        if (!queued.some(c => c.queueId === id)) settledAt.delete(id)
+      }
+      if (queued.every(isTaskNotification)) {
+        const seen = settledAt.get(head.queueId)
+        if (seen === undefined) settledAt.set(head.queueId, now())
+        if (seen === undefined || now() - seen < window) {
+          holding = true
+          return undefined
+        }
+      }
+    }
+    return takeQueued()
+  }
+
+  const settleQueued = (): void => {
+    for (const command of queuedMainThread()) {
+      if (isTaskNotification(command) && command.queueId !== undefined) settledAt.set(command.queueId, -Infinity)
+    }
+  }
 
   const flushSdkEvents = (): void => {
     for (const event of ports.drainSdkEvents()) {
@@ -112,6 +162,17 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
         command = {
           ...command,
           value: joinPromptValues(batch.map(c => c.value as PromptValue)),
+          uuid: batch.findLast((c: QueuedCommand) => c.uuid)?.uuid ?? command.uuid,
+        }
+      }
+    } else if (command.mode === 'task-notification') {
+      while (isTaskNotification(ports.peek())) {
+        batch.push(takeQueued()!)
+      }
+      if (batch.length > 1) {
+        command = {
+          ...command,
+          value: foldNotificationValues(batch.map(c => c.value as PromptValue)),
           uuid: batch.findLast((c: QueuedCommand) => c.uuid)?.uuid ?? command.uuid,
         }
       }
@@ -177,7 +238,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
 
         phase = 'draining_commands'
         let command: QueuedCommand | undefined
-        while ((command = ports.dequeue())) {
+        while ((command = nextDue())) {
           announceWait(0)
           if (
             command.mode !== 'prompt' &&
@@ -190,15 +251,17 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
             )
           }
           await runOneTurn(command)
+          settleQueued()
         }
 
         waitingForAgents = false
         if ((!holdReleased && ports.hasWaitableBackgroundTasks()) || ports.peek() !== undefined) {
           waitingForAgents = true
-          if (ports.peek() === undefined) {
+          if (ports.peek() === undefined || holding) {
             phase = 'waiting_for_agents'
-            announceWait(Math.max(1, ports.waitableBackgroundTaskCount?.() ?? 1))
-            await ports.clock.sleep(100)
+            const running = ports.waitableBackgroundTaskCount?.() ?? (ports.hasWaitableBackgroundTasks() ? 1 : 0)
+            announceWait(holding ? running : Math.max(1, running))
+            await ports.clock.sleep(AGENT_WAIT_TICK_MS)
           }
         }
       } while (waitingForAgents)
