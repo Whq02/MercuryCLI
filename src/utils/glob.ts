@@ -3,7 +3,7 @@ import { resolveRelativePatternPrefix } from './globPrefix.js'
 
 import type { ToolPermissionContext } from '../Tool.js'
 import { isEnvTruthy } from './envUtils.js'
-import { normalizeGlobPattern } from './globPattern.js'
+import { globSearchDepth, normalizeGlobPattern } from './globPattern.js'
 import { getFileReadIgnorePatterns, normalizePatternsToPath } from './permissions/filesystem.js'
 import { getPlatform } from './platform.js'
 import { ripGrepAnswer } from './ripgrep.js'
@@ -69,6 +69,8 @@ export async function glob(
   }
 
   const args = ['--files', '--glob', normalizeGlobPattern(pattern), '--sortr=modified']
+  const depth = globSearchDepth([normalizeGlobPattern(pattern)])
+  if (depth !== undefined) args.push('--max-depth', String(depth))
   if (envFlagDefaultOn('MERCURY_GLOB_NO_IGNORE')) args.push('--no-ignore')
   if (envFlagDefaultOn('MERCURY_GLOB_HIDDEN')) args.push('--hidden')
 
