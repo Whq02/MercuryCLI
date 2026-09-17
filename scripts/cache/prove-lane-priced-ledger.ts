@@ -36,7 +36,7 @@ console.log('every lane with a recorded price feeds the ledger at that price')
 
 section('§1 DeepSeek and Kimi price at their own recorded rates (the base priced them at the Anthropic fallback tier)')
 {
-  for (const id of ['deepseek-v4-flash', 'deepseek-v4-pro']) {
+  for (const id of ['deepseek-flash', 'deepseek-v4-pro']) {
     const pin = deepseekDisplayPin(id)
     const tier = getModelCosts(id)
     check(`${id}: the pin records a price (the fixture is meaningful)`, pin?.costInPerMtok !== undefined && pin?.costOutPerMtok !== undefined)
@@ -45,12 +45,13 @@ section('§1 DeepSeek and Kimi price at their own recorded rates (the base price
     check(`${id}: cache-read at the pin's documented cached rate`, tier.promptCacheReadTokens === pin?.cachedInPerMtok)
     check(`${id}: cache-write at the input rate (nothing extra to populate the prefix cache)`, tier.promptCacheWriteTokens === pin?.costInPerMtok)
   }
-  const flash = deepseekDisplayPin('deepseek-v4-flash')!
+  const flash = deepseekDisplayPin('deepseek-flash')!
   const specimen = usage(100_000, 10_000, 20_000)
-  const priced = calculateUSDCost('deepseek-v4-flash', specimen)
+  const priced = calculateUSDCost('deepseek-flash', specimen)
   const expected = perM(100_000, flash.costInPerMtok!) + perM(10_000, flash.costOutPerMtok!) + perM(20_000, flash.cachedInPerMtok!)
   const fallback = perM(100_000, COST_TIER_5_25.inputTokens) + perM(10_000, COST_TIER_5_25.outputTokens) + perM(20_000, COST_TIER_5_25.promptCacheReadTokens)
   check('a DeepSeek V4.1 Flash turn prices at the pin arithmetic', near(priced, expected), `${priced} vs ${expected}`)
+  check('the retired deepseek-v4-flash id prices at the same pin (the alias folds before the lookup)', near(calculateUSDCost('deepseek-v4-flash', specimen), expected) && getModelCosts('deepseek-v4-flash').inputTokens === flash.costInPerMtok)
   check('…an order of magnitude under the fallback tier the base charged', priced < fallback / 8, `${priced} vs fallback ${fallback}`)
   const kimi = kimiDisplayPin('kimi-k3')!
   const kimiTier = getModelCosts('kimi-k3')

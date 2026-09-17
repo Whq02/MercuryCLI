@@ -10,7 +10,7 @@ import { refreshProviderDiscovery } from '../router/providerDiscovery.js'
 import { DEPRECATED_GPT_IDS } from '../router/providers/openai.js'
 import { GLM_STATIC_CATALOGUE } from '../router/providers/zai.js'
 import { KIMI_STATIC_CATALOGUE } from '../router/providers/moonshot.js'
-import { DEEPSEEK_STATIC_CATALOGUE } from '../router/providers/deepseek.js'
+import { DEEPSEEK_STATIC_CATALOGUE, deepseekCatalogueEntries, deepseekCatalogueEntry } from '../router/providers/deepseek.js'
 import {
   compatSlotModelIds,
   resolveCompatSlotConfig,
@@ -316,7 +316,7 @@ export async function resolveEngineDispatch(
     }
     if (modelParam === 'deepseek') {
       await requireProviderAvailable('deepseek')
-      const pin = DEEPSEEK_STATIC_CATALOGUE[0]
+      const pin = deepseekCatalogueEntries()[0]
       if (!pin) throw new Error('Engine provider deepseek has no catalogue entry — cannot resolve a model.')
       return { backend: 'deepseek', model: pin.id, displayLabel: pin.displayLabel }
     }
@@ -363,10 +363,10 @@ export async function resolveEngineDispatch(
     }
     if (/^deepseek-/i.test(id)) {
       await requireProviderAvailable('deepseek')
-      const pin = DEEPSEEK_STATIC_CATALOGUE.find(entry => entry.id === id.toLowerCase())
+      const pin = deepseekCatalogueEntry(id)
       if (!pin) {
         throw new Error(
-          `DeepSeek model '${id}' is not a catalogue-verified id (pins: ${DEEPSEEK_STATIC_CATALOGUE.map(c => c.id).join(', ')}) — never dispatching an unverified id.`,
+          `DeepSeek model '${id}' is not a catalogue-verified id (listed: ${deepseekCatalogueEntries().map(c => c.id).join(', ')}) — never dispatching an unverified id.`,
         )
       }
       return { backend: 'deepseek', model: pin.id, displayLabel: pin.displayLabel }

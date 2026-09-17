@@ -16,6 +16,7 @@ import { resolveAntModel } from './antModels.js'
 import { ALL_MODEL_CONFIGS, newestGenerationKey } from './configs.js'
 import { getModelStrings, resolveOverriddenModel } from './modelStrings.js'
 import { isCarrierShapedId, recognizeModelId } from '../../services/providers/idSpaces.js'
+import { deepseekRetiredAliasTarget } from '../../services/providers/deepseek/deepseekPins.js'
 import { enforceSubagentModelFloor } from './modelFloor.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
@@ -142,6 +143,11 @@ function parseUserSpecifiedModelCore(input: string, catalogueFold: boolean): str
 
   if (RETIRED_LARGE_IDS.has(bare)) {
     return reattach(getDefaultOpusModel())
+  }
+
+  const deepseekCurrent = deepseekRetiredAliasTarget(lowered)
+  if (deepseekCurrent !== undefined) {
+    return reattach(deepseekCurrent)
   }
 
   if (catalogueFold && recognizeModelId(bare).kind === 'unrecognised') {

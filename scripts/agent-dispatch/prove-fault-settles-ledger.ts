@@ -177,7 +177,7 @@ console.log(' a faulted stream still joins the ledger — three lanes')
 console.log('============================================================')
 
 const LANES: Array<{ title: string; model: string; ledgerKey?: string }> = [
-  { title: '§1 DeepSeek (the shared compat runtime)', model: 'deepseek-v4-flash' },
+  { title: '§1 DeepSeek (the shared compat runtime)', model: 'deepseek-flash' },
   { title: '§2 Z.AI (the native GLM runtime)', model: 'glm-5.3' },
   { title: '§3 OpenAI (the Responses runtime)', model: 'gpt-5.6-sol' },
 ]
@@ -207,7 +207,7 @@ section('§4 control: a completed stream records the wire\'s own usage, never an
   mode = 'complete'
   timeline.length = 0
   sectionStart = Date.now()
-  const d = await drive('deepseek-v4-flash')
+  const d = await drive('deepseek-flash')
   check('the completed stream settled without throwing', d.thrown === null, d.thrown ?? '')
   const usage = d.usage ?? ledger.getModelUsage()[Object.keys(ledger.getModelUsage())[0] ?? '']
   check("the wire's prompt count is what the ledger holds (1234)", usage?.inputTokens === 1234, JSON.stringify(usage))

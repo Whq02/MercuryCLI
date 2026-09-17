@@ -79,9 +79,11 @@ section('§1 one owner per route — each family prices at its own recorded rate
   check('moonshot: kimi-k3 at its pin, basis recorded', kimiPricing.basis === 'recorded' && kimiPricing.costs.inputTokens === kimi.costInPerMtok && kimiPricing.costs.promptCacheReadTokens === kimi.cachedInPerMtok)
   check('moonshot: an unpriced pin row (kimi-k2.6 states no price) is unpriced, never a tier', cost.resolveModelPricing('kimi-k2.6').basis === 'unpriced')
 
-  const flash = deepseekDisplayPin('deepseek-v4-flash')!
-  const dsPricing = cost.resolveModelPricing('deepseek-v4-flash')
-  check('deepseek: deepseek-v4-flash at its pin, basis recorded', dsPricing.basis === 'recorded' && dsPricing.costs.inputTokens === flash.costInPerMtok && dsPricing.costs.outputTokens === flash.costOutPerMtok)
+  const flash = deepseekDisplayPin('deepseek-flash')!
+  const dsPricing = cost.resolveModelPricing('deepseek-flash')
+  check('deepseek: deepseek-flash at its pin, basis recorded', dsPricing.basis === 'recorded' && dsPricing.costs.inputTokens === flash.costInPerMtok && dsPricing.costs.outputTokens === flash.costOutPerMtok)
+  const retired = cost.resolveModelPricing('deepseek-v4-flash')
+  check('deepseek: the retired deepseek-v4-flash id prices at the same pin (the alias)', retired.basis === 'recorded' && retired.costs.inputTokens === flash.costInPerMtok && retired.costs.outputTokens === flash.costOutPerMtok)
 
   const pro = geminiPricePin('gemini-2.5-pro')!
   const proBase = cost.resolveModelPricing('gemini-2.5-pro', { promptTokens: 150_000 })
