@@ -1810,6 +1810,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (outcome !== 'applied' && outcome !== 'queued' && outcome !== 'noop') return refuse(`unexpected outcome ${String(outcome)}`)
       if ((outcome === 'queued') !== busy) this.readFacts()
       if (outcome === 'noop') return { state: 'no-op' }
+      this.factsFeed.settle(SEAT_VERB_SETTLE_MS)
       if (outcome === 'applied' && (reply as { respawned?: unknown }).respawned === true) {
         this.readFacts()
         return detail !== undefined ? { state: 'applied', note: detail } : { state: 'applied' }
@@ -1966,6 +1967,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       logForDebugging(`[engine-connector] daemon set-permission-mode failed: ${e}`)
       receipt = { outcome: 'refused', detail: 'the daemon is not answering — the mode change did not land' }
     }
+    if (receipt.outcome === 'applied') this.factsFeed.settle(SEAT_VERB_SETTLE_MS)
     if (receipt.outcome === 'refused') {
       if (this.facts !== null && this.facts.permissionMode === mode) {
         this.facts = before !== null ? before : this.facts
