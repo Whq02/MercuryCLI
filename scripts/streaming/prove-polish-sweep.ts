@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runArtifactArena } from './artifactArena.ts'
@@ -27,20 +28,22 @@ const run = await runArtifactArena({
   extraEnv: { MERCURY_LIVE_GLYPHS: '1' },
 })
 
+type Screen = { atMs: number; rows: string[]; cursor?: { x: number; y: number; hidden: boolean }; reverseCells?: [number, number][] }
+const stamps = readFileSync(run.paths.drive, 'utf8')
+  .split('\n')
+  .filter(Boolean)
+  .map(line => (JSON.parse(line) as { ts?: number }).ts)
+  .filter((ts): ts is number => typeof ts === 'number')
+const endMs = stamps.length > 0 ? stamps[stamps.length - 1]! - stamps[0]! : 0
+const BLINK_PERIOD_MS = 1200
+const tailOffsets = Array.from({ length: BLINK_PERIOD_MS / 100 + 1 }, (_, i) => Math.max(0, endMs - BLINK_PERIOD_MS + i * 100))
 const res = spawnSync(
   '/usr/bin/python3',
-  [join(HERE, 'screengrab.py'), run.paths.drive, '120', '40', '-1'],
+  [join(HERE, 'screengrab.py'), run.paths.drive, '120', '40', ...tailOffsets.map(String), '-1'],
   { encoding: 'utf8', timeout: 60_000 },
 )
-const fin = (
-  JSON.parse(res.stdout) as {
-    screens: {
-      rows: string[]
-      cursor?: { x: number; y: number; hidden: boolean }
-      reverseCells?: [number, number][]
-    }[]
-  }
-).screens[0]!
+const screens = (JSON.parse(res.stdout) as { screens: Screen[] }).screens
+const fin = screens.find(s => s.atMs === -1)!
 const flat = fin.rows.join('\n')
 
 check('P3a settled prose painted', flat.includes('settled prose after the tool.'))
@@ -50,11 +53,15 @@ check('P3c composer usable', /type a prompt|↵ sends|\? for shortcuts/.test(fla
 const sweepRows = fin.rows.filter(r => !r.includes('← back') && !r.includes('esc interrupts'))
 check('P1 no ◐◓◑◒ running family after settle (outside the status row\'s resting glyph)', !/[◐◓◑◒]/.test(sweepRows.join('\n')))
 
-const caretDrawn = (fin.reverseCells ?? []).some(([, y]) => fin.cursor !== undefined && Math.abs(y - fin.cursor.y) <= 1)
+const caretOn = (s: Screen): boolean =>
+  (s.cursor !== undefined && !s.cursor.hidden) ||
+  (s.reverseCells ?? []).some(([, y]) => fin.cursor !== undefined && Math.abs(y - fin.cursor.y) <= 1)
+const blinkFrames = screens.filter(s => s.atMs >= 0)
+const caretFrames = blinkFrames.filter(caretOn).length
 check(
-  'P2a a caret is visible at settle (hardware cursor OR drawn inverse cell)',
-  (fin.cursor !== undefined && !fin.cursor.hidden) || caretDrawn,
-  `cursor=${JSON.stringify(fin.cursor)} reverseNearCursor=${caretDrawn}`,
+  'P2a a caret is visible at settle (hardware cursor OR drawn inverse cell, on some frame of the last blink period)',
+  caretOn(fin) || caretFrames > 0,
+  `cursor=${JSON.stringify(fin.cursor)} · caret on ${caretFrames} of ${blinkFrames.length} frames over the last ${BLINK_PERIOD_MS} ms · phases=${blinkFrames.map(s => (caretOn(s) ? '1' : '0')).join('')}`,
 )
 const composerRowIdx = fin.rows.findIndex(r => r.includes('ΛΘ'))
 check('P2b post-settle glyphs echoed', composerRowIdx >= 0)
