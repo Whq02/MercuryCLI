@@ -108,10 +108,13 @@ function drive(tag: string, sends: Send[], total: number, cols = 120, rows = 40)
   return lines
 }
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const { GLYPH } = await import('../../src/components/mercury-ui/glyphs.ts')
+const { SESSION_LABEL } = await import('../../src/components/HelmCenterHeader.tsx')
 const ARCHIVE_LEGEND = keyHintLabel('⌃x ⌃x archive · delete')
 const DELETE_LEGEND = keyHintLabel('⌃x ⌃x delete')
 const TAG = keyHintLabel('⇧← back')
 const tagLine = (lines: string[]): string | undefined => lines.find(l => l.includes(TAG))
+const titleRow = (lines: string[]): string | undefined => lines.find(l => l.includes(`${GLYPH.spark} ${SESSION_LABEL}`))
 const has = (lines: string[], needle: string): boolean => lines.some(l => l.includes(needle))
 const isBoard = (lines: string[]): boolean => has(lines, 'SESSIONS') && has(lines, 'STATUS & TITLE')
 const isFace = (lines: string[]): boolean => has(lines, 'New Session') && has(lines, '↵ start')
@@ -195,11 +198,16 @@ try {
   }
 
   const board = drive('reap-board', [], 40)
-  const rowA = board.findIndex(l => l.includes('alpha probe'))
-  const rowB = board.findIndex(l => l.includes('beta probe'))
-  check('the live board shows both sessions', rowA >= 0 && rowB >= 0, `alpha=${rowA} beta=${rowB}`)
-  const firstTitle = rowA >= 0 && (rowB < 0 || rowA < rowB) ? 'alpha probe' : 'beta probe'
+  const listHeader = board.findIndex(l => l.includes('STATUS & TITLE'))
+  const listRows = listHeader >= 0 ? board.slice(listHeader + 1) : []
+  const listCell = (l: string): string => l.split('│').find(c => c.includes('alpha probe') || c.includes('beta probe'))?.trim() ?? ''
+  const rowA = listRows.findIndex(l => listCell(l).includes('alpha probe'))
+  const rowB = listRows.findIndex(l => listCell(l).includes('beta probe'))
+  check('the live board lists both sessions under STATUS & TITLE', listHeader >= 0 && rowA >= 0 && rowB >= 0, `header=${listHeader} alpha=${rowA} beta=${rowB}`)
+  const selectedCell = listRows.map(listCell).find(c => c.startsWith('▸')) ?? listRows.map(listCell).find(c => c !== '') ?? ''
+  const firstTitle = selectedCell.includes('beta probe') ? 'beta probe' : 'alpha probe'
   const otherTitle = firstTitle === 'alpha probe' ? 'beta probe' : 'alpha probe'
+  console.log(`  [INFO] the list's selected row: ${selectedCell.slice(0, 60)}`)
 
   console.log('R1 reap the focused session — the focused chat is the survivor')
   const r1 = drive(
@@ -213,8 +221,9 @@ try {
     160,
   )
   const tag1 = tagLine(r1)
-  check('R1 the focused chat opened onto a live session (tag bar present)', tag1 !== undefined, r1.filter(l => l.trim()).slice(0, 6).join(' | '))
-  check(`R1 …and it is the SURVIVOR (${otherTitle}), never the reaped ${firstTitle}`, tag1 !== undefined && tag1.includes(otherTitle) && !tag1.includes(firstTitle), tag1 ?? '')
+  const title1 = titleRow(r1)
+  check('R1 the focused chat opened onto a live session (tag bar present)', tag1 !== undefined && title1 !== undefined, r1.filter(l => l.trim()).slice(0, 6).join(' | '))
+  check(`R1 …and it is the SURVIVOR (${otherTitle}), never the reaped ${firstTitle}`, title1 !== undefined && title1.includes(otherTitle) && !title1.includes(firstTitle), title1 ?? '')
   check('R1 the reaped session left the roster', await untilAsync(() => liveIds().length === 1, 15_000), liveIds().join(','))
   const survivorId = liveIds()[0] ?? ''
   check('R1 the roster survivor is the other session', survivorId === (firstTitle === 'alpha probe' ? sidB : sidA))
