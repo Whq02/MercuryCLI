@@ -85,11 +85,11 @@ const env: Record<string, string> = {
   ZAI_API_KEY: 'fixture-zai-key-123',
 }
 
-{
-  const { marks } = await capture(
-    'boot1',
+const switchBoot = (tag: string, cols: number): Promise<{ text: string; marks: Record<string, string> }> =>
+  capture(
+    tag,
     {
-      cols: 100,
+      cols,
       rows: 40,
       total: 140,
       argv: ['node', DIST],
@@ -104,11 +104,20 @@ const env: Record<string, string> = {
     },
     env,
   )
+{
+  const { marks } = await switchBoot('boot1', 100)
   const face1 = (marks.face1 ?? '').replace(/\s+/g, ' ')
   check('boot 1: two untimed env keys and no ledger — the registry order leads (the GLM lane), never DeepSeek, never "no sign-in yet"', !face1.includes('DeepSeek V4') && !face1.includes('deepseek-v4') && !face1.includes('no sign-in yet'), face1.slice(0, 160))
-  const receipt = (marks.receipt ?? '').replace(/\s+/g, ' ')
+  const receiptRow = (marks.receipt ?? '').split('\n').find(row => row.includes('Default provider set to DeepSeek')) ?? ''
   check(
-    'the receipt names the switch + the resolved default model',
+    'at 100 columns the receipt rides the hint row after the hints, names the switch, and sheds its tail at the ellipsis before the model id',
+    receiptRow.includes('? for shortcuts') && receiptRow.trimEnd().endsWith('…') && !(marks.receipt ?? '').includes('deepseek-v4-pro'),
+    receiptRow.trim() || '(no receipt row)',
+  )
+  const wide = await switchBoot('boot1-wide', 140)
+  const receipt = (wide.marks.receipt ?? '').replace(/\s+/g, ' ')
+  check(
+    'at 140 columns the receipt names the switch + the resolved default model',
     receipt.includes('Default provider set to DeepSeek') && receipt.includes('deepseek-v4-pro'),
     receipt.slice(-260) || '(no receipt frame)',
   )

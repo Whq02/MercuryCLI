@@ -5,15 +5,15 @@ import { vshotBudgetScale } from '../lib/captureDriver.ts'
 import { join } from 'node:path'
 import {
   type ArenaRun,
-  firstOutputTs,
   grabScreens,
   runArtifactArena,
+  sendStamp,
 } from '../streaming/artifactArena.ts'
 
-const sendTs = (run: ArenaRun, needle: string): number[] =>
-  run.sendLog
-    .filter(s => Buffer.from(s.b64, 'base64').toString('utf8').includes(needle))
-    .map(s => s.sent)
+const stampOf = (run: ArenaRun, needle: string): number => {
+  const send = run.sendLog.find(s => Buffer.from(s.b64, 'base64').toString('utf8').includes(needle))
+  return send === undefined ? 0 : sendStamp(run, send)
+}
 import {
   __composerSeedResetForTest,
   armComposerSeed,
@@ -117,9 +117,8 @@ console.log('── composer type-through (shipped artifact) ──')
   })
   const cardUp = (rows: string[]): boolean =>
     rows.some(r => /Do you want to (create|overwrite)/.test(r))
-  const base = firstOutputTs(run)
-  const seedAt = (sendTs(run, 'w')[0] ?? 0) - base
-  const lastKeyAt = (sendTs(run, 'atch')[0] ?? 0) - base
+  const seedAt = stampOf(run, 'w')
+  const lastKeyAt = stampOf(run, 'atch')
   const [t1, t2, t3] = grabScreens(run, 120, 40, [
     seedAt - 600,
     lastKeyAt + 800,
@@ -161,7 +160,7 @@ console.log('── composer type-through (shipped artifact) ──')
     probe: true,
     keep: true,
   })
-  const digitAt = (sendTs(run, '1')[0] ?? 0) - firstOutputTs(run)
+  const digitAt = stampOf(run, '1')
   const [after] = grabScreens(run, 120, 40, [digitAt + 4000])
   check(
     "digit '1' approved: the Write landed on disk",

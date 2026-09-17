@@ -48,6 +48,7 @@ const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLa
 const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSION CONCOURSE'
+const EMPTY_BOARD = 'no sessions yet'
 const TAG = keyHintLabel('⇧← back')
 const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')
 const FACE_TO_CHAT = keyHintLabel('⇧→ chat')
@@ -65,6 +66,8 @@ type Capture = {
   status: number
   tail: string
   payload: Record<string, unknown>
+  asked: number
+  delivered: number
 }
 
 function freshHome(id: string): string {
@@ -130,7 +133,7 @@ async function capture(opts: { id: string; home: string; argv?: string[]; sends:
         }
       } catch {
       }
-      resolvePromise({ home: opts.home, text, lines, status: status ?? 1, tail, payload })
+      resolvePromise({ home: opts.home, text, lines, status: status ?? 1, tail, payload, asked: opts.sends.length, delivered: Array.isArray(payload.sendReceipts) ? payload.sendReceipts.length : 0 })
     })
   })
   try {
@@ -252,11 +255,7 @@ console.log('S3 — the last chat closed from the board: the board stays, and th
       { afterPrevTicks: 3, data: '\x18' },
       g('stopped', '\x18', { awaitSettleTicks: 3 }),
       { afterPrevTicks: 3, data: '\x18' },
-      g('parked ·', '\x18', { awaitSettleTicks: 3 }),
-      { afterPrevTicks: 3, data: '\x18' },
-      { afterPrevTicks: 3, data: '\x18' },
-      { afterPrevTicks: 3, data: '\x18' },
-      { afterPrevTicks: 35, data: '', mark: 'board-stays' },
+      g(EMPTY_BOARD, '', { awaitSettleTicks: 35, mark: 'board-stays' }),
       { afterPrevTicks: 3, data: SHIFT_RIGHT },
       { afterPrevTicks: 6, data: '', mark: 'board-after' },
       { afterPrevTicks: 3, data: SHIFT_LEFT },
@@ -266,6 +265,7 @@ console.log('S3 — the last chat closed from the board: the board stays, and th
     total: 460,
   })
   printFrame('s3 (the face after ⇧← from the emptied board)', c.lines)
+  check('S3 every send of the ladder became due (a mark never taken reads as an empty frame below)', c.delivered === c.asked, `${c.delivered} of ${c.asked} sends delivered · ${c.tail.trim().split('\n').pop() ?? ''}`)
   const stays = markText(c, 'board-stays')
   const after = markText(c, 'board-after')
   const menu = markText(c, 'menu')
@@ -274,7 +274,19 @@ console.log('S3 — the last chat closed from the board: the board stays, and th
   check('S3 ⇧→ from the board is NO MOVEMENT (byte-still): the closed chat is not a stop', stays !== '' && still(stays) === still(after))
   check('S3 ⇧← from the board is the face', isFace(menu) && !isChat(menu), firstRows(menu))
   check(`S3 the face's row names the concourse alone again (the chat stop vanished with the session)`, menu.includes(FACE_TO_CONCOURSE) && !menu.includes(FACE_TO_CHAT))
-  check('S3 the roster is empty (the record ended — the close chord walked stop, archive and delete)', Object.keys(liveRecords(home)).length === 0, JSON.stringify(Object.keys(liveRecords(home))))
+  check('S3 the roster is empty (the record ended — the close chord stopped the chat and its archive rung released it: a chat never messaged has nothing to park)', Object.keys(liveRecords(home)).length === 0, JSON.stringify(Object.keys(liveRecords(home))))
+  {
+    const route = readFileSync(join(REPO, 'src', 'components', 'concourse', 'ConcourseRoute.tsx'), 'utf8')
+    const from = route.indexOf('archiveSession: sessionId =>')
+    const rung = from < 0 ? '' : route.slice(from, route.indexOf('removeSession: sessionId =>', from))
+    check(
+      'S3 the archive rung reads the record after an applied park: with no live record left it clears the mark, rests the focused slot and speaks the release, never "stands parked"',
+      /readSessionWorkers\(\)\)\.some\(r => r\.sessionId === sessionId && r\.endedAt === undefined\)/.test(rung) &&
+        /if \(released\) \{[\s\S]*markParkedCleared\(sessionId\)[\s\S]*restFocusedSlotAfterRelease\(sessionId,/.test(rung) &&
+        /released\s*\?\s*\{ state: 'applied', reason: 'removed from the board/.test(rung),
+      rung === '' ? 'the archive rung was not found in ConcourseRoute.tsx' : '',
+    )
+  }
   reapHome(home)
 }
 

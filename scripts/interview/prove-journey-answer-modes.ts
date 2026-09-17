@@ -13,6 +13,7 @@ import {
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import { checker } from '../engine-durability/harness.ts'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
+import { GLYPH } from '../../src/components/mercury-ui/glyphs.ts'
 
 const t = checker()
 requireDist()
@@ -149,7 +150,7 @@ try {
   if (returned) {
     const titleRow = findRows(returned.rows, 'Review your answers')[0] ?? 0
     const pointerRows = findRows(returned.rows, '❯').filter(r => r >= titleRow)
-    const q1Rows = findRows(returned.rows, '✔ Cache').filter(r => r >= titleRow)
+    const q1Rows = findRows(returned.rows, `${GLYPH.check} Cache`).filter(r => r >= titleRow)
     t.check(
       'the review cursor returned to the SAME row (q1)',
       pointerRows.some(r => q1Rows.includes(r)),

@@ -197,7 +197,7 @@ function drive(name: string, world: { home: string; cwd: string }, env: NodeJS.P
   const cfg = { argv: ['node', DIST, '--model', model], cwd: world.cwd, sends, stableTicks: 4, total, cols: 110, rows: 34, out }
   const cfgPath = path.join(world.home, `cfg-${name}.json`)
   writeFileSync(cfgPath, JSON.stringify(cfg))
-  const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf-8', timeout: vshotBudgetMs(240_000), cwd: world.cwd, env })
+  const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf-8', timeout: vshotBudgetMs(total * 200 + 30_000), cwd: world.cwd, env })
   const payload = existsSync(out) ? (JSON.parse(readFileSync(out, 'utf8')) as Payload) : null
   return { payload, wire: readCaptures().slice(before), status: res.status }
 }

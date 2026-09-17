@@ -1,12 +1,13 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import {
   check, childEnv, DIST, endLeg, FACE_READY, finish, joined, netlines, nonLoopback,
   printFrame, productNode, requireCaptureDriver, ROOT, scratch, startLeg,
 } from '../computer/computerDriveKit.ts'
 import { captureEngineEntry, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { createSplashCore } from '../../assets/splash/splash-core.mjs'
 
 const REFUSAL = /needs \d+ rows|this window is|needs at least|terminal too small|too small for|resize to continue/i
@@ -21,8 +22,8 @@ const HINT_SEGMENTS = [
   { key: 'm', label: ' menu', tone: 'faint' as const },
 ]
 const strip = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '')
-const bottomRight = (frame: string[], cols: number, rows: number): boolean =>
-  frame[rows - 1] === ' '.repeat(cols - CONCOURSE_HINT_HOST.length - 2) + CONCOURSE_HINT_HOST
+const bottomRight = (frame: string[], cols: number, rows: number, hint: string = CONCOURSE_HINT_HOST): boolean =>
+  frame[rows - 1] === ' '.repeat(cols - hint.length - 2) + hint
 const inFrameHint = (line: string): boolean => /^\s*│ ↵ start · ↑↓ choose · m menu\s*│$/.test(line)
 const topBorder = (cols: number, at: number): string => ' '.repeat(at) + '╭' + '─'.repeat(cols - 2) + '╮'
 
@@ -88,9 +89,9 @@ console.log('§0 the composer against the approved grids')
   check('80×21 composes the approved grid row for row', text(80, 21).join('\n') === APPROVED_80x21.join('\n'), text(80, 21).join('\n'))
   check('80×14 composes the approved grid row for row', text(80, 14).join('\n') === APPROVED_80x14.join('\n'), text(80, 14).join('\n'))
   const at60 = text(60, 16)
-  check('60×16: the banner gives way, the frame narrows to the window and keeps the descriptions', !at60.some(l => l.includes('██▄██')) && at60[1] === topBorder(60, 0) && at60.some(l => l.includes('start fresh here')) && at60.some(inFrameHint) && bottomRight(at60, 60, 16), at60.join('\n'))
+  check('60×16: the banner gives way, the frame narrows to the window and keeps the descriptions', !at60.some(l => l.includes('██▄██')) && at60[1] === topBorder(60, 0) && at60.some(l => l.includes('start fresh here')) && at60.some(inFrameHint) && bottomRight(at60, 60, 16, CONCOURSE_HINT), at60.join('\n'))
   const at40 = text(40, 10)
-  check('40×10: the descriptions and the frame give way, the list scrolls with a cut, the hint and the key-map stay', !at40.some(l => l.includes('╭')) && !at40.some(l => l.includes('start fresh here')) && at40.some(l => /↓ \d+ more/.test(l)) && at40.some(l => l.includes('❯ New Session')) && at40.some(l => l.includes(HINT_ROW)) && bottomRight(at40, 40, 10), at40.join('\n'))
+  check('40×10: the descriptions and the frame give way, the list scrolls with a cut, the hint and the key-map stay', !at40.some(l => l.includes('╭')) && !at40.some(l => l.includes('start fresh here')) && at40.some(l => /↓ \d+ more/.test(l)) && at40.some(l => l.includes('❯ New Session')) && at40.some(l => l.includes(HINT_ROW)) && bottomRight(at40, 40, 10, CONCOURSE_HINT), at40.join('\n'))
   const last = compose(40, 10, MOCK_ROWS.length - 1)
   check('40×10: the last row selected scrolls the window down behind an ↑ cut', last.lines.map(strip).some(l => /↑ \d+ more/.test(l)) && last.actions.some(a => a.index === MOCK_ROWS.length - 1), last.lines.map(strip).join('\n'))
   let sound = true
@@ -124,10 +125,13 @@ const sizes: Array<[number, number]> = process.argv.includes('--size')
 const dist = process.argv.includes('--dist') ? process.argv[process.argv.indexOf('--dist') + 1]! : DIST
 const tree = dist === DIST ? ROOT : dirname(dirname(dist))
 const driver = requireCaptureDriver('boot-compact')
+const fixtureCwd = join(scratch, 'boot-compact-cwd')
+mkdirSync(fixtureCwd, { recursive: true })
 console.log(`boot compact artifacts: ${scratch} (dist ${dist})`)
 for (const [cols, rows] of sizes) {
   if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 1 || rows < 1) throw new Error('size must be positive columns x rows')
   const tag = `boot-compact-${cols}x${rows}`
+  seedFirstRun(join(scratch, `home-${tag}`), [tree, fixtureCwd])
   const leg = await startLeg(tag, [{ kind: 'text', text: 'Finished.' }], null)
   try {
     const out = join(scratch, `${tag}-grid.json`)
@@ -136,7 +140,7 @@ for (const [cols, rows] of sizes) {
       { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
       { atTick: 120, awaitText: CHAT_READY, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'chat' },
     ]
-    writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), dist], cwd: tree, cols, rows, sends, resizes: [], readyText: CHAT_READY, readySettleTicks: 2, total: 220, out }))
+    writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), dist], cwd: fixtureCwd, cols, rows, sends, resizes: [], readyText: CHAT_READY, readySettleTicks: 2, total: 220, out }))
     const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: tree, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none', MERCURY_SPLASH: 'off' }), stdio: ['ignore', 'pipe', 'pipe'] })
     let stderr = ''
     child.stdout.on('data', chunk => { stderr += String(chunk) })
