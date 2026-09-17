@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
+import { vshotBudgetMs as S, vshotBudgetScale } from '../lib/captureDriver.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'switch-seamless-')))
 const home = join(SCRATCH, 'home')
@@ -36,11 +36,12 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work, work2])
 
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+const ALPHA_PAUSE_S = 8 * vshotBudgetScale()
 const api = await startFixtureApi([
-  { kind: 'paced_tool_use', preDeltas: ['alpha-01 body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: 'sleep 8; echo a1', description: 'alpha pause one' } }] },
+  { kind: 'paced_tool_use', preDeltas: ['alpha-01 body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: `sleep ${ALPHA_PAUSE_S}; echo a1`, description: 'alpha pause one' } }] },
   { kind: 'text', text: 'beta-01 settled body.' },
-  { kind: 'paced_tool_use', preDeltas: ['alpha-02 body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: 'sleep 8; echo a2', description: 'alpha pause two' } }] },
-  { kind: 'paced_tool_use', preDeltas: ['alpha-03 body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: 'sleep 8; echo a3', description: 'alpha pause three' } }] },
+  { kind: 'paced_tool_use', preDeltas: ['alpha-02 body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: `sleep ${ALPHA_PAUSE_S}; echo a2`, description: 'alpha pause two' } }] },
+  { kind: 'paced_tool_use', preDeltas: ['alpha-03 body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: `sleep ${ALPHA_PAUSE_S}; echo a3`, description: 'alpha pause three' } }] },
   { kind: 'paced', deltas: ['alpha-04 body. ', 'alpha-05 body. '], gapMs: 400, settleDelayMs: 1500 },
   { kind: 'text', text: 'Spare.' },
   { kind: 'text', text: 'Spare.' },
