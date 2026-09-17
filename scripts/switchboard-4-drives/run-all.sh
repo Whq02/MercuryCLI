@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_ONEDOOR_CAPTURE_DIR MERCURY_ONEDOOR_KEEP MERCURY_REACTIVATE_CAPTURE_DIR MERCURY_REACTIVATE_DRIVE_MODEL MERCURY_REACTIVATE_KEEP
+# gate-env: MERCURY_HELD_CONTINUE_BIN MERCURY_HELD_CONTINUE_CAPTURE_DIR MERCURY_HELD_CONTINUE_KEEP MERCURY_ONEDOOR_CAPTURE_DIR MERCURY_ONEDOOR_KEEP MERCURY_REACTIVATE_CAPTURE_DIR MERCURY_REACTIVATE_DRIVE_MODEL MERCURY_REACTIVATE_KEEP
 # gate-watch: scripts/switchboard/** scripts/switchboard-4/**
 # gate-watch: src/services/concourse/** src/components/concourse/** src/daemon/concourseSupervisor.ts
 # gate-watch: src/daemon/concourseDispatch.ts src/daemon/permissionAsks.ts src/services/switchboard/attachedSession.ts

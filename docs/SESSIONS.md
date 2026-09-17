@@ -312,10 +312,15 @@ history opens a new session there instead), `/resume`, `-c`/`--continue`,
 through one door. A
 session live on the board is simply entered. Otherwise its transcript paints
 at once from its file and the daemon admits the same durable session behind
-the paint; the chat lands ready on the first ↵ — a slow transcript never
-leaves the press dead — the first words you type wait for that admission,
-and the away recap paints as a display-only row, never in the model's
-conversation. The session comes back on its own model and effort, unless
+the paint; a session whose runner the daemon still holds (one mid-respawn
+after a crash, or one the records read as gone) is entered the same way and
+one receipt row says so — `<title>: a live runner still holds this session —
+re-attached to it` — while a session with no runner at all is revived, and
+a refusal names the daemon's own reason; the chat lands ready on the first
+↵ — a slow transcript never leaves the press dead — the first words you
+type wait for that admission, and the away recap paints as a display-only
+row, never in the model's conversation. The session comes back on its own
+model and effort, unless
 the boot named a `--model` or `--effort`: then the launch's word wins and
 the recap card says so. Whichever
 door, the whole estate is live behind the chat — the daemon, the board and
