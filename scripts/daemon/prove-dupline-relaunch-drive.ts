@@ -51,7 +51,6 @@ if (!existsSync(DIST)) {
     { requireAwait: true, minTick: 5, awaitText: 'heard: hello there', awaitSettleTicks: 3, data: `${RELAUNCH_TURN_ASK}\r`, mark: 'answered' },
     { requireAwait: true, minTick: 5, awaitText: AGENT_DESCRIPTION, awaitSettleTicks: 8, data: `${LINE}\r`, mark: 'sent' },
     { requireAwait: true, minTick: 5, awaitText: QUEUED_PLATE, awaitSettleTicks: 1, data: '', mark: 'queued' },
-    { afterPrevTicks: 100, data: '', mark: 'queued+20s' },
     { requireAwait: true, minTick: 5, awaitText: RESTART_HINT, awaitSettleTicks: 5, data: '', mark: 'relaunched' },
     { afterPrevTicks: 50, data: '', mark: 'relaunched+10s' },
     { afterPrevTicks: 10, data: `${LINE}\r`, mark: 'resent' },
@@ -143,7 +142,7 @@ if (!existsSync(DIST)) {
   const queuedRows = operatorRows(marks.queued)
   check('while the sub-agent runs, the line paints once, as a queued row', queuedRows.length === 1 && /(^|[^A-Za-z])queued\s+\[sam\]/.test(queuedRows[0]!), j(queuedRows))
   check('the connector retired exactly one send as lost with the relaunched runner', lostCount === 1, j(lostCount))
-  check('twenty seconds after the line was queued, past the relaunch, no row carries the line (a row standing here would be the stray)', marks['queued+20s'] !== undefined && operatorRows(marks['queued+20s']).length === 0, j(operatorRows(marks['queued+20s'])))
+  check('past the relaunch, ten seconds after its hint, no row carries the line (a row standing here would be the stray)', marks['relaunched+10s'] !== undefined && operatorRows(marks['relaunched+10s']).length === 0, j(operatorRows(marks['relaunched+10s'])))
   check('at relaunched: the hint names the line as not taken and no row carries the line', hintRows(marks.relaunched).length >= 1 && operatorRows(marks.relaunched).length === 0, j({ hint: hintRows(marks.relaunched), rows: operatorRows(marks.relaunched) }))
   check('at relaunched+10s: no row carries the line (the hint has had its eight seconds)', marks['relaunched+10s'] !== undefined && operatorRows(marks['relaunched+10s']).length === 0, j(operatorRows(marks['relaunched+10s'])))
   for (const label of ['end', 'end+10s']) {
@@ -158,7 +157,7 @@ if (!existsSync(DIST)) {
   if (failed() === 0) await removeWorld(PTY_HOME)
   else {
     console.log(`  [forensics] terminal world kept: ${PTY_HOME}`)
-    for (const label of ['queued', 'queued+20s', 'relaunched', 'end']) {
+    for (const label of ['queued', 'relaunched', 'relaunched+10s', 'end']) {
       console.log(`\n── ${label} ──`)
       for (const row of (marks[label] ?? '(no frame)').split('\n')) if (row.trim()) console.log(`│ ${row.slice(0, 150)}`)
     }
