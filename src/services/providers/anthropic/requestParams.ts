@@ -1,4 +1,3 @@
-
 import { flagEnabled } from '../../../substrate/flagRegistry.js'
 import {
   type BetaMessageParam as MessageParam,

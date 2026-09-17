@@ -49,7 +49,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     label: 'model & effort',
     names: [
       'model', 'effort', 'strategy', 'supercode', 'submodels', 'ultraplan',
-      'advisor', 'counsel', 'harness', 'caching',
+      'counsel', 'harness', 'caching',
     ],
   },
   {

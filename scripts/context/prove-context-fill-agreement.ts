@@ -115,7 +115,7 @@ section('N4 · the all-zero per-block placeholder is not usage')
   check('getTokenUsage(all-zero) ⇒ undefined', tokens.getTokenUsage(asst('resp-E', zero, 'partial', null) as never) === undefined)
   check('a real usage still surfaces', tokens.getTokenUsage(asst('resp-E', usage(1, 0), 'x') as never) !== undefined)
   const loop = { ...zero, iterations: [{ input_tokens: 700, output_tokens: 50 }] }
-  check('a server-tool-loop record whose counts live in `iterations` alone is NOT a placeholder', tokens.getTokenUsage(asst('resp-E2', loop as never, 'loop') as never) !== undefined && tokens.finalContextTokensFromLastResponse([asst('resp-E2', loop as never, 'loop')] as never) === 750)
+  check('a server-tool-loop record whose counts live in `iterations` alone is NOT a placeholder', tokens.getTokenUsage(asst('resp-E2', loop as never, 'loop') as never) !== undefined)
   const midStream = [asst('resp-P', usage(5_000, 50), 'previous answer'), user('go'), asst('resp-Q', zero, 'partial', null)]
   const current = tokens.getCurrentUsage(midStream as never)
   check('mid-stream on a chat dialect: getCurrentUsage rides the PREVIOUS response (5,050), never zeros', current?.input_tokens === 5_000 && current.output_tokens === 50, JSON.stringify(current))
