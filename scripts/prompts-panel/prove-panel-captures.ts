@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { CONFIG_HOME, RUNTIME_CWD, SID, cleanupScenario, encodeFixtureTranscript, scenario } from '../ui/renderScenarios.ts'
 import { gridToPng } from '../ui/gridToPng.ts'
 import { FIXTURE_MODEL } from './minerva-fixture-server.ts'
-import { projectSlug, sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir, projectSlug } from '../../src/utils/sessionStoragePortable.ts'
 import { readSessionWorkers } from '../../src/daemon/concourseSupervisor.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
@@ -35,7 +35,7 @@ const VSHOT = join(import.meta.dir, '..', 'ui', 'vshot.py')
 const REPO = join(import.meta.dir, '..', '..')
 const CAPTURE_DIR = process.env.PROMPTS_PANEL_CAPTURE_DIR ?? join(tmpdir(), 'prompts-panel-captures')
 const FIXTURE_PORT = 36211
-const PROJECTS = join(CONFIG_HOME, 'projects', sanitizePath(RUNTIME_CWD))
+const PROJECTS = getProjectDir(RUNTIME_CWD)
 
 type Cell = { c: string }
 type Grid = { grid: Cell[][]; endReason?: string }

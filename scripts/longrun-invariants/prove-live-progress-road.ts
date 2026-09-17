@@ -21,7 +21,7 @@ const {
   retireSeatProjections,
   sessionProgressPath,
 } = await import('../../src/services/engine-connector/seatProjections.js')
-const { daemonSessionConnectorFor } = await import('../../src/services/engine-connector/daemonConnector.js')
+const { daemonSessionConnectorFor, HEARTBEAT_MS, IDLE_PROJECTION_FLOOR_MS } = await import('../../src/services/engine-connector/daemonConnector.js')
 const { getEphemeralProgressFrame, _resetEphemeralProgressForTesting } = await import(
   '../../src/state/ephemeralProgressStore.js'
 )
@@ -36,6 +36,12 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
+const FEED_BOUND_MS = IDLE_PROJECTION_FLOOR_MS + HEARTBEAT_MS
+const until = async (cond: () => boolean, boundMs: number): Promise<number> => {
+  const t0 = Date.now()
+  while (!cond() && Date.now() - t0 < boundMs) await sleep(50)
+  return Date.now() - t0
+}
 
 section('§A the runner tap — one bounded latest-line frame per beat per tool')
 type TapFrame = {
@@ -162,9 +168,9 @@ const connector = daemonSessionConnectorFor({
     schema: 1, sessionId: SESSION, atMs: Date.now(),
     tools: { toolu_A: { toolUseID: 'progress_a_3', dataType: 'bash_progress', seq: 3, latestLine: 'compiling module 7', elapsedTimeSeconds: 4, totalLines: 21 } },
   })
-  await sleep(700)
+  const filledMs = await until(() => getEphemeralProgressFrame('toolu_A') !== undefined, FEED_BOUND_MS)
   const frame = getEphemeralProgressFrame('toolu_A') as { data?: { type?: string; output?: string } } | undefined
-  check('the store fills from the driven feed (the writer is BACK)', frame?.data?.type === 'bash_progress' && frame?.data?.output === 'compiling module 7')
+  check('the store fills from the driven feed (the writer is BACK)', frame?.data?.type === 'bash_progress' && frame?.data?.output === 'compiling module 7', `after ${filledMs} ms (the feed's own bound ${FEED_BOUND_MS} ms)`)
 
   const before = getEphemeralProgressFrame('toolu_A')
   publishSessionProgress({
@@ -175,17 +181,17 @@ const connector = daemonSessionConnectorFor({
   check('an unmoved seq keeps the SAME store frame (no phantom re-renders)', getEphemeralProgressFrame('toolu_A') === before)
 
   publishSessionProgress({ schema: 1, sessionId: SESSION, atMs: Date.now(), tools: {} })
-  await sleep(700)
-  check('the seat\'s empty map empties the store (clear-on-settle, screen side)', getEphemeralProgressFrame('toolu_A') === undefined)
+  const emptiedMs = await until(() => getEphemeralProgressFrame('toolu_A') === undefined, FEED_BOUND_MS)
+  check('the seat\'s empty map empties the store (clear-on-settle, screen side)', getEphemeralProgressFrame('toolu_A') === undefined, `after ${emptiedMs} ms`)
 
   publishSessionProgress({
     schema: 1, sessionId: SESSION, atMs: Date.now(),
     tools: { toolu_A: { toolUseID: 'progress_a_9', dataType: 'bash_progress', seq: 9, latestLine: 'refilled', elapsedTimeSeconds: 9, totalLines: 1 } },
   })
-  await sleep(700)
+  const refilledMs = await until(() => getEphemeralProgressFrame('toolu_A') !== undefined, FEED_BOUND_MS)
   const refilled = getEphemeralProgressFrame('toolu_A') !== undefined
   connector.detach()
-  check('detach empties the store with the slot (no ghost line after a hop)', refilled && getEphemeralProgressFrame('toolu_A') === undefined)
+  check('detach empties the store with the slot (no ghost line after a hop)', refilled && getEphemeralProgressFrame('toolu_A') === undefined, `refilled after ${refilledMs} ms`)
 }
 
 section('§D the row paint — one in-place line; a new beat replaces, never appends')
@@ -254,8 +260,8 @@ section('§E mixed-version — absence is lawful both directions')
   const seat = readFileSync(join(import.meta.dir, '../../src/daemon/sessionSeat.ts'), 'utf8')
   check('the seat arm is substring-dispatched (an OLD daemon simply has no arm — no throw road)',
     seat.includes(`line.includes('"ephemeral_tail"')`))
-  check('the projection docblock names the transient-by-design law (no last-line guarantee)',
-    readFileSync(join(import.meta.dir, '../../src/services/engine-connector/seatProjections.ts'), 'utf8').includes('TRANSIENT BY DESIGN'))
+  check('the seat republishes its whole progress map and clears it at the result frame (transient by design, no last-line guarantee)',
+    seat.includes('tools: Object.fromEntries(seat.progress)') && seat.includes('seat.progress.clear()'))
 }
 
 rmSync(HOME, { recursive: true, force: true })

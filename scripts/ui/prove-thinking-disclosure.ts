@@ -22,9 +22,10 @@ const message = readFileSync('src/components/Message.tsx', 'utf8');
 const messages = readFileSync('src/components/Messages.tsx', 'utf8');
 const thinkingCmp = readFileSync('src/components/messages/AssistantThinkingMessage.tsx', 'utf8');
 
+const thinkingStart = message.indexOf('case "thinking":');
 const thinkingCase = message.slice(
-  message.indexOf('case "thinking":'),
-  message.indexOf('case "server_tool_use":'),
+  thinkingStart,
+  message.indexOf('default:', thinkingStart),
 );
 check(
   'Message.tsx thinking case exists',

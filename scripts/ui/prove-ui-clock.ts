@@ -92,7 +92,16 @@ unsubC()
 }
 
 {
-  _setUiClockMeterForProofs({ budgetMs: 4, probeMs: 1500 })
+  const METER = { budgetMs: 4, probeMs: 1500 }
+  const WINDOW_MS = 1000
+  const DEGRADE_WINDOWS = 2
+  const RECOVER_PROBES = 2
+  _setUiClockMeterForProofs(METER)
+  const untilPosture = async (want: boolean, boundMs: number): Promise<number> => {
+    const t0 = performance.now()
+    while (uiClockPostureForProofs()[50] !== want && performance.now() - t0 < boundMs) await sleep(25)
+    return Math.round(performance.now() - t0)
+  }
   let heavy = true
   let ticks = 0
   const spin = (ms: number): void => {
@@ -104,17 +113,17 @@ unsubC()
     ticks++
     if (heavy) spin(2)
   })
-  await sleep(2600)
+  const degradedAfter = await untilPosture(true, (DEGRADE_WINDOWS + 1) * WINDOW_MS)
   const posture = uiClockPostureForProofs()
-  check('§7 two over-budget windows degrade the bucket', posture[50] === true, JSON.stringify(posture))
+  check('§7 two over-budget windows degrade the bucket', posture[50] === true, `${JSON.stringify(posture)} after ${degradedAfter} ms`)
   const before = ticks
   await sleep(1000)
   const halved = ticks - before
   check('§7 a degraded bucket fans out at about half its cadence (every other tick skipped)', halved >= 6 && halved <= 15, `${halved} fan-outs in 1 s @50 ms`)
   heavy = false
-  await sleep(5500)
+  const recoveredAfter = await untilPosture(false, (RECOVER_PROBES + 1) * (METER.probeMs + WINDOW_MS))
   const recovered = uiClockPostureForProofs()
-  check('§7 two quiet probes restore the cadence', recovered[50] === false, JSON.stringify(recovered))
+  check('§7 two quiet probes restore the cadence', recovered[50] === false, `${JSON.stringify(recovered)} after ${recoveredAfter} ms`)
   unsub()
   _setUiClockMeterForProofs(null)
 }
