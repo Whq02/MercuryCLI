@@ -41,6 +41,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-runner-refusal-drive.ts" || { __rc
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-parked-state.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-parked-state.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-reactivate-door.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-reactivate-door.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-close-all.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-close-all.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-switch-boundary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-switch-boundary.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-status-honesty.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-status-honesty.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-focus-one-writer.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-focus-one-writer.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-protocol-shape.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-protocol-shape.ts" "$__t" "$__rc"

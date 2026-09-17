@@ -136,7 +136,7 @@ console.log('E set-effort mirrors set-model at every owner (poison: an effort wr
   check('E2 the router forwards the effort field (bounded), and the requires-string names the action', serverSrc.includes("raw.action === 'set-effort'") && serverSrc.includes('raw.effort.slice(0, 32)') && serverSrc.includes('park-all|set-effort'))
   check('E3 an effort write WITHOUT the field refuses at the one handler (the poison inverted)', mainSrc.includes("detail: 'set-effort requires effort'") && mainSrc.includes('setSessionEffort(sessionId, effort, roster)'))
   check('E4 the seat verb validates the value against the ONE effort owner and speaks the child set_effort control', seatSrc.includes('normalizeEffortLevelString(effort)') && seatSrc.includes("request: { subtype: 'set_effort', effort }"))
-  check('E5 the busy arm parks on the record and the idle edge applies it (the set-model grammar, mirrored)', seatSrc.includes('w.pendingEffort = effort') && seatSrc.includes('if (rec.pendingEffort !== undefined) applyEffortNow(rec, rec.pendingEffort, roster, dir)'))
+  check('E5 the busy arm parks on the record and the idle edge forwards it to the runner, which lands it at its turn boundary (the set-model grammar, mirrored)', seatSrc.includes('w.pendingEffort = effort') && seatSrc.includes('if (parkedEffort !== undefined) void forwardEffort(rec, parkedEffort, roster, dir, { parked: true })'))
   check('E6 the spec follows without a bounce (patchSeatEffort beside patchSeatModel)', seatSrc.includes('patchSeatEffort(short: string, effort: string): boolean') && read('src/daemon/roster.ts').includes('patchSeatEffort(short: string, effort: string): boolean'))
 }
 

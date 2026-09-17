@@ -79,6 +79,12 @@ otherwise: `--continue --model <id> --effort <level>` brings the session
 back on the launch's model and effort, its record is re-stamped, and the
 resume card names which won when the launch's word and the session's saved
 word differ. `/model default` clears the saved choice.
+`/model` or `/effort` sent while a turn runs answers "applies when this turn
+ends", and lands exactly there: at that turn's end, before any line waiting
+for the next turn. A line that joined the running turn at a tool boundary is
+that turn's own and runs on its model. Sent while the session only waits on
+its background work, or holds a finished task's notice, the pick applies at
+once.
 Every ↵ on New Session opens another session; whatever the chat held keeps
 running and shows on the board. If the daemon that hosts sessions is not up,
 the row says so, and ↵ again starts it and retries.
