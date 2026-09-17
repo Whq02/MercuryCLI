@@ -13,7 +13,7 @@ if (!existsSync(BIN)) {
   process.exit(0)
 }
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
-const { vshotBudgetMs, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
+const { vshotBudgetMs, vshotBudgetScale, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
   console.error(`prove-seats-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
@@ -37,7 +37,7 @@ const STATIONS = ['a', 'b', 'c', 'd'] as const
 type Station = (typeof STATIONS)[number]
 const labelOf = (s: Station): string => `seat-${s}`
 const SEAT_CEILING = 2
-const HOLD_MS = 20_000
+const HOLD_MS = 20_000 * vshotBudgetScale()
 const IDLE_FIRST_S = 5
 const IDLE_SECOND_S = 20
 const WF_SCRIPT = [
