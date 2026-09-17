@@ -28,7 +28,6 @@ import { getProjectDir } from '../../utils/sessionStoragePortable.js'
 import type { ConcourseElsewhereV1, ConcourseRowV1, ConcourseSnapshotV1 } from '../../components/concourse/contracts.js'
 import { ELSEWHERE_CAP, elsewhereLine, projectActivity } from './projectActivity.js'
 import { sessionTitleOf } from './sessionNaming.js'
-import { isCrossProjectFinishedRef } from './crossProjectPings.js'
 import { keyHintLabel } from '../../components/mercury-ui/keyHintLabel.js'
 import type { ConcourseWorkerRecordV1 } from '../../daemon/concourseSupervisor.js'
 import type { DaemonSessionRecordV1 } from '../engine-connector/daemonConnector.js'
@@ -1312,14 +1311,13 @@ export async function buildConcourseSnapshot(
     needsYou: openObl.map(o => {
       const rec = allRecords.find(r => r.sessionId === o.sessionId)
       const home = rec !== undefined ? foreignOf(rec.workspaceId) : undefined
-      const finished = isCrossProjectFinishedRef(o.ref)
       return {
         obligationId: o.obligationId,
         ...(o.ref !== undefined ? { ref: o.ref } : {}),
         sessionId: o.sessionId,
         title:
           home !== undefined
-            ? sanitizeLabel(`switch to ${home} · ${finished ? 'finished' : 'needs you'}`)
+            ? sanitizeLabel(`switch to ${home} · needs you`)
             : sanitizeLabel(o.question.length > 24 ? `${o.question.slice(0, 24)}…` : o.question),
         question: sanitizeLabel(o.question),
         projectLabel: rec !== undefined ? sanitizeLabel(projectDisplayName(rec.workspaceId)) : projectLabel,

@@ -30,7 +30,6 @@ import { subscribeObligations, resolveObligation } from '../../services/crew/obl
 import { subscribeCurrentProject } from '../../utils/bootCardFacts.js';
 import { getFocusedSessionConnector, hasFocusedSession, subscribeFocusedSessionConnector, withLanding } from '../../services/engine-connector/focusedConnector.js';
 import { armEntryWarmth, settleEntryWarmth } from '../../services/concourse/sessionWarmth.js';
-import { isCrossProjectFinishedRef } from '../../services/concourse/crossProjectPings.js';
 import { removePrefixRecord } from '../../services/providers/anthropic/prefixRecordStore.js';
 import type { ConcourseCallbacks, ConcourseSnapshotV1, ControlNoteState } from './contracts.js';
 import { controlNoteOf, concourseWaitCopy } from './contracts.js';
@@ -774,11 +773,6 @@ function LiveConcourse(): React.ReactNode {
           }
           void subject
           attachAndEnter(row.sessionId, 'board:open', { fullChat: true, entry: 'settled' })
-          if (isCrossProjectFinishedRef(row.ref)) {
-            void o
-              .resolveObligation(obligationId, { kind: 'resolved', by: 'operator', scope: 'switchboard' })
-              .catch(e => logForDebugging(`[concourse] cross-project ping settle failed: ${e}`))
-          }
         })
       },
       withdrawObligation: obligationId => {

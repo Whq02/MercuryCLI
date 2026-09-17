@@ -542,7 +542,7 @@ section('§B — every arm is paired with its release (the class-B lifecycle cen
 
   const skills = src(join('utils', 'skills', 'skillChangeDetector.ts'))
   check('B4 skill watcher: rearm and dispose both close the old watcher', (skills.match(/watcher\?\.close\(\) \?\? Promise\.resolve\(\)/g) ?? []).length >= 3 && skills.includes('clearTimeout(reloadTimer)'))
-  for (const rel of [join('components', 'concourse', 'liveTiles.ts'), join('components', 'concourse', 'workerTranscriptFold.ts'), join('services', 'concourse', 'crossProjectPings.ts')]) {
+  for (const rel of [join('components', 'concourse', 'liveTiles.ts'), join('components', 'concourse', 'workerTranscriptFold.ts')]) {
     const body = src(rel)
     check(`B4 ${rel} pairs its watch with a close`, body.includes('.close()'))
   }
