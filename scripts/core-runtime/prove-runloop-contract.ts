@@ -889,7 +889,7 @@ section('L12 RAPID-REFILL BREAKER — thrash message, ZERO model calls')
   check('the AUTOCOMPACT_THRASH_MESSAGE is yielded', thrash !== undefined)
 }
 
-section('L13 COMPACTION BOUNDARY — boundary yields, post-compact input, budget carryover')
+section('L13 COMPACTION BOUNDARY — boundary yields, post-compact input')
 {
   const boundaryMarker = createUserMessage({ content: '[rig boundary]', isMeta: true })
   const summary = createUserMessage({ content: 'RIG SUMMARY', isCompactSummary: true })
