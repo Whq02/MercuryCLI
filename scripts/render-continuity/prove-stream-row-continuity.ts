@@ -282,14 +282,17 @@ for (const scene of scenes) {
       }
       return -1
     }
+    const lastToken = TOKENS[TOKENS.length - 1]!
+    const streamEnd = withText.findIndex(f => f.rows.some(r => r.includes(`${lastToken} stream body`)))
+    const liveFrames = streamEnd >= 0 ? withText.slice(0, streamEnd + 1) : withText
     let slidesForward = true
     let last = -1
-    for (const f of withText) {
+    for (const f of liveFrames) {
       const v = firstVisibleIdx(f)
       if (v < last) slidesForward = false
       last = v
     }
-    t.check('the scroll window slides forward only (no backward jumps mid-stream)', slidesForward)
+    t.check('the scroll window slides forward only (no backward jumps mid-stream)', slidesForward, `${liveFrames.length} live frames`)
     const lastLive = withText[withText.length - 1]
     t.check(
       'the settled window matches the last live window (no anchor jump at settlement)',
