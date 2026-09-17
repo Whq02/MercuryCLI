@@ -6,6 +6,16 @@ export function isDeepseekModelId(model: string): boolean {
 
 export const DEEPSEEK_EFFORTS: ReadonlySet<string> = new Set(['low', 'high', 'max'])
 
+export const DEEPSEEK_RETIRED_ALIASES: ReadonlyMap<string, string> = new Map([['deepseek-v4-flash', 'deepseek-flash']])
+
+export function deepseekRetiredAliasTarget(id: string): string | undefined {
+  return DEEPSEEK_RETIRED_ALIASES.get(id.trim().toLowerCase())
+}
+
+export function deepseekCurrentModelId(id: string): string {
+  return deepseekRetiredAliasTarget(id) ?? id
+}
+
 export function deepseekAcceptsEffort(model: string, effort: string): boolean {
   return isDeepseekModelId(model) && DEEPSEEK_EFFORTS.has(effort)
 }
@@ -33,7 +43,7 @@ export const DEEPSEEK_DISPLAY_PINS: readonly DeepseekDisplayPin[] = [
     cachedInPerMtok: 0.044,
   },
   {
-    id: 'deepseek-v4-flash',
+    id: 'deepseek-flash',
     displayName: 'DeepSeek V4.1 Flash',
     observedAt: '2026-09-17',
     contextWindow: 1_000_000,
@@ -45,8 +55,8 @@ export const DEEPSEEK_DISPLAY_PINS: readonly DeepseekDisplayPin[] = [
 ]
 
 export function deepseekDisplayPin(id: string): DeepseekDisplayPin | undefined {
-  const lower = id.trim().toLowerCase()
-  return DEEPSEEK_DISPLAY_PINS.find(p => p.id === lower)
+  const current = deepseekCurrentModelId(id.trim().toLowerCase())
+  return DEEPSEEK_DISPLAY_PINS.find(p => p.id === current)
 }
 
 export function deepseekDisplayName(id: string): string | undefined {

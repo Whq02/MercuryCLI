@@ -30,6 +30,11 @@ Display names have the same one-owner rule: every surface that names a
 family derives its label from it, and an unknown id shows itself. Persisted
 ids stay provider-qualified; the namespace detaches for the wire.
 
+A retired DeepSeek id resolves to its current one wherever a model id is
+read — a saved setting, `MERCURY_MODEL`, `/model`, a sub-agent's model —
+and paints as the current id: `deepseek-v4-flash` is `deepseek-flash`, and
+the wire is sent the current id.
+
 ## Dispatch
 
 Every call dispatches on the resolved route to that family's own runtime;

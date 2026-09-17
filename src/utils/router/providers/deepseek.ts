@@ -2,6 +2,7 @@ import { getCachedProviderDiscovery, primeDeepseekDiscovery } from '../providerD
 import {
   DEEPSEEK_DISPLAY_PINS,
   DEEPSEEK_EFFORTS,
+  deepseekCurrentModelId,
 } from '../../../services/providers/deepseek/deepseekPins.js'
 import type {
   ProviderCatalogueEntry,
@@ -27,6 +28,15 @@ export const DEEPSEEK_STATIC_CATALOGUE: readonly ProviderCatalogueEntry[] =
     efforts: [...DEEPSEEK_EFFORTS],
     roles: ALL_ROLES,
   }))
+
+export function deepseekCatalogueEntries(): readonly ProviderCatalogueEntry[] {
+  return DEEPSEEK_STATIC_CATALOGUE
+}
+
+export function deepseekCatalogueEntry(id: string): ProviderCatalogueEntry | undefined {
+  const current = deepseekCurrentModelId(id.trim().toLowerCase())
+  return deepseekCatalogueEntries().find(entry => entry.id === current)
+}
 
 export function describeDeepseekProvider(): ProviderDescription {
   const discovery = getCachedProviderDiscovery('deepseek')

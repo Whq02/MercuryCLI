@@ -53,6 +53,7 @@ const routes: Array<[string | undefined, string]> = [
   ['deepseek', 'deepseek'],
   ['deepseek-v4-pro', 'deepseek'],
   ['deepseek-v4-flash', 'deepseek'],
+  ['deepseek-flash', 'deepseek'],
   ['compat/qwen3-32b', 'openai-compat'],
   ['compat/llama-3.3-70b-instruct', 'openai-compat'],
   ['openrouter/auto', 'openrouter'],
