@@ -2,7 +2,9 @@ import { getCachedProviderDiscovery, primeDeepseekDiscovery } from '../providerD
 import {
   DEEPSEEK_DISPLAY_PINS,
   DEEPSEEK_EFFORTS,
+  deepseekCurrentModelId,
 } from '../../../services/providers/deepseek/deepseekPins.js'
+import { deepseekCatalogueRows } from '../../../services/providers/deepseek/deepseekCatalogue.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
@@ -28,9 +30,35 @@ export const DEEPSEEK_STATIC_CATALOGUE: readonly ProviderCatalogueEntry[] =
     roles: ALL_ROLES,
   }))
 
+export function deepseekLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
+  const { rows, source } = deepseekCatalogueRows()
+  if (source.kind !== 'live') return undefined
+  return {
+    fetchedAtMs: source.fetchedAtMs,
+    entries: rows.map(row => ({
+      id: row.id,
+      displayLabel: row.displayName,
+      modelClass: 'deepseek' as const,
+      ...(row.contextWindow !== undefined ? { contextWindow: row.contextWindow } : {}),
+      efforts: [...DEEPSEEK_EFFORTS],
+      roles: ALL_ROLES,
+    })),
+  }
+}
+
+export function deepseekCatalogueEntries(): readonly ProviderCatalogueEntry[] {
+  return deepseekLiveCatalogue()?.entries ?? DEEPSEEK_STATIC_CATALOGUE
+}
+
+export function deepseekCatalogueEntry(id: string): ProviderCatalogueEntry | undefined {
+  const current = deepseekCurrentModelId(id.trim().toLowerCase())
+  return deepseekCatalogueEntries().find(entry => entry.id === current)
+}
+
 export function describeDeepseekProvider(): ProviderDescription {
   const discovery = getCachedProviderDiscovery('deepseek')
   const record = discovery?.provider === 'deepseek' ? discovery : undefined
+  const live = deepseekLiveCatalogue()
   return {
     transport: 'openai-compat-chat-completions',
     capabilities: [
@@ -51,8 +79,10 @@ export function describeDeepseekProvider(): ProviderDescription {
               : 'DEEPSEEK_API_KEY (env)',
         }
       : { kind: 'none', label: 'no DeepSeek API key detected' },
-    catalogue: DEEPSEEK_STATIC_CATALOGUE,
-    catalogueSource: 'static-pin',
+    catalogue: live?.entries ?? DEEPSEEK_STATIC_CATALOGUE,
+    ...(live
+      ? { catalogueSource: 'live-discovery' as const, discoveredAtMs: live.fetchedAtMs }
+      : { catalogueSource: 'static-pin' as const }),
   }
 }
 
@@ -65,7 +95,7 @@ export function deepseekStatus(): RouterProviderStatus {
 
 export function listDeepseekModels(): RouterProviderModel[] {
   if (!deepseekStatus().available) return []
-  return DEEPSEEK_STATIC_CATALOGUE.map(entry => ({
+  return deepseekCatalogueEntries().map(entry => ({
     ref: {
       provider: 'deepseek' as const,
       model: entry.id,

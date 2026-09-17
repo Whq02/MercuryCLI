@@ -36,7 +36,7 @@ const PROVIDER_DEFAULT_LABEL = 'default'
 const moonshotWire = (request: string | undefined): string | undefined =>
   (wire.buildMoonshotExtras({ wireModel: 'kimi-k3', effortValue: request, thinkingEnabled: true, maxOutputTokensOverride: undefined }) as { reasoning_effort?: string }).reasoning_effort
 const deepseekWire = (request: string | undefined): string | undefined =>
-  (wire.buildDeepseekExtras({ wireModel: 'deepseek-v4-flash', effortValue: request, thinkingEnabled: true, maxOutputTokensOverride: undefined }) as { reasoning_effort?: string }).reasoning_effort
+  (wire.buildDeepseekExtras({ wireModel: 'deepseek-flash', effortValue: request, thinkingEnabled: true, maxOutputTokensOverride: undefined }) as { reasoning_effort?: string }).reasoning_effort
 const glmWire = (model: string, request: string | undefined): string | undefined => {
   const vocabulary = glmEffortsFor(model)
   return request && vocabulary ? (glmAcceptsEffort(model, request) ? request : nearestSupportedWireEffort(request, [...vocabulary])) : undefined
@@ -68,14 +68,14 @@ section('§1 Kimi K3: the truth steps through the wire\'s vocabulary (low | high
 section('§2 DeepSeek: the same law on the second lane')
 {
   for (const level of LEVELS) {
-    const truth = effort.resolveEffortTruth('deepseek-v4-flash', level)
+    const truth = effort.resolveEffortTruth('deepseek-flash', level)
     check(`${level}: truth.wire ≡ the builder's top-level reasoning_effort`, truth.wire === deepseekWire(level), `${String(truth.wire)} vs ${String(deepseekWire(level))}`)
     check(`${level}: the label IS the wire tier`, truth.label === truth.wire)
   }
   const medium = effort.resolveEffortTruth('deepseek-v4-pro', 'medium')
   check("medium on DeepSeek Pro ⇒ low, adjusted from medium (the base said 'medium')", medium.wire === 'low' && medium.adjustedFrom === 'medium' && medium.label === 'low')
   check('the selectable stops are low | high | max', JSON.stringify(medium.selectable) === JSON.stringify([...DEEPSEEK_EFFORTS].filter(l => LEVELS.includes(l as Level))))
-  const numeric = effort.resolveEffortTruth('deepseek-v4-flash', 50)
+  const numeric = effort.resolveEffortTruth('deepseek-flash', 50)
   check('a numeric request is not a documented word: no key, provider default', numeric.wire === undefined && numeric.label === PROVIDER_DEFAULT_LABEL)
 }
 
@@ -104,7 +104,7 @@ section('§4 the projections every surface reads agree with the truth')
 {
   check("the chip's word for medium on kimi-k3 is low", effort.getDisplayedEffortLevel('kimi-k3', 'medium') === 'low')
   check("the chip's word for xhigh on glm-5.3 is high", effort.getDisplayedEffortLevel('glm-5.3', 'xhigh') === 'high')
-  check('the applied value follows the wire', effort.resolveAppliedEffort('deepseek-v4-flash', 'medium') === 'low')
+  check('the applied value follows the wire', effort.resolveAppliedEffort('deepseek-flash', 'medium') === 'low')
   check('the selectable stops on kimi-k3 carry no medium', !effort.selectableEffortLevels('kimi-k3').includes('medium'))
   check("the wire's requested string stays the REQUEST (the builders step it themselves — one table, two readers)", effort.resolveWireRequestedEffort('kimi-k3', 'medium') === 'medium')
   const sonnet = effort.resolveEffortTruth('claude-sonnet-5', 'medium')
