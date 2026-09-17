@@ -1543,6 +1543,13 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
+      "file": "scripts/streaming/prove-arena-outcome-truth.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [harness, fault], { encoding: 'utf8', timeout: 20_000 })",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
       "file": "scripts/streaming/prove-artifact-fluidity.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(HERE, 'screengrab.py'), run.paths.drive, '120', '44', '-1'], { encoding: 'utf8', timeout: 60",
