@@ -237,7 +237,7 @@ import { getSettingsSnapshot, settingsRevision } from '../utils/settings/snapsho
 import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { armRunnerAgentFreshness } from './agentFreshness.js'
 import { installStreamJsonStdoutGuard } from '../utils/streamJsonStdoutGuard.js'
-import { getRunningTasks } from '../utils/task/framework.js'
+import { getRunningTasks, POLL_INTERVAL_MS } from '../utils/task/framework.js'
 import { AGENT_RESUME_NOTE, AGENT_STOP_BY_OPERATOR } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalWorkflowTask, killWorkflowTask } from '../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import { primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
@@ -1090,13 +1090,23 @@ export async function runHeadless(
     return undefined
   }
 
+  const taskNotificationPayloads = (command: QueuedCommand): string[] => {
+    const texts =
+      typeof command.value === 'string'
+        ? [command.value]
+        : Array.isArray(command.value)
+          ? command.value.flatMap(block => (block.type === 'text' && typeof block.text === 'string' ? [block.text] : []))
+          : []
+    if (command.mode !== 'task-notification' && !texts.some(text => text.includes('<task-notification>'))) return []
+    return texts.flatMap(text => text.match(/<task-notification>[\s\S]*?<\/task-notification>/g) ?? [text])
+  }
+
   const executeTurn = async (
     command: QueuedCommand,
     batchUuids: string[],
     onMessage: (message: StdoutMessage) => void,
   ): Promise<void> => {
-    if (command.mode === 'task-notification' || /<task-notification>/.test(String(command.value ?? ''))) {
-      const payload = typeof command.value === 'string' ? command.value : ''
+    for (const payload of taskNotificationPayloads(command)) {
       const pick = (tag: string): string | undefined => {
         const match = payload.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))
         return match?.[1]?.trim()
@@ -1521,6 +1531,8 @@ export async function runHeadless(
     },
     shutdown: code => void gracefulShutdown(code),
     clock: { sleep: ms => new Promise(resolve => setTimeout(resolve, ms)) },
+    queuedMainThread: () => getCommandQueue().filter(isMainThreadCommand),
+    settleWindowMs: POLL_INTERVAL_MS,
   })
 
   subscribeToCommandQueue(() => {
