@@ -56,11 +56,15 @@ t.section('§1 — the branch glyph is vocabulary (D13)')
     'src/components/MercuryPromptFooter.tsx',
     'src/components/BootSettingsScreen.tsx',
   ]
-  const missing = promoted.filter(p => !readFileSync(join(ROOT, p), 'utf8').includes('GLYPH.branch'))
+  const missing = promoted.filter(p => !readFileSync(join(ROOT, p), 'utf8').includes('branchChip('))
   t.check(
-    'every promoted site consumes GLYPH.branch',
+    'every promoted site paints the branch through branchChip (the one owner)',
     missing.length === 0,
     missing.join(', ') || `${promoted.length} sites`,
+  )
+  t.check(
+    'the one owner spells GLYPH.branch into the chip',
+    readFileSync(join(ROOT, 'src/components/mercury-ui/glyphs.ts'), 'utf8').includes('return `${GLYPH.branch} ${name}`'),
   )
 }
 
