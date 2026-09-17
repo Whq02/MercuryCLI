@@ -514,6 +514,13 @@
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
+      "file": "scripts/gate/prove-skip-census.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const PYTHON = '/usr/bin/python3'",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
       "file": "scripts/gate/prove-suite-class-census.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "w('scripts/lib/arena.ts', \"import { spawn } from 'node:child_process'\\nexport type Row = { a: number }\\nexport const run = (r: string) => sp",
