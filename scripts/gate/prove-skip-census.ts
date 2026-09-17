@@ -71,7 +71,7 @@ const agg = census(['--aggregate', results], { GITHUB_STEP_SUMMARY: summaryPath 
 check('aggregate mode exits 0', agg.status === 0, `rc ${agg.status} ${agg.stderr}`)
 check('the heading names it a count, never a verdict', agg.stdout.includes('## Skip census (a count, never a verdict)'))
 check('the counts line: suites with skips, counted, none, not counted', agg.stdout.includes('- suites with `[SKIP]` lines: **2** of 4 counted; 1 carried none; 1 not counted'), agg.stdout)
-check('the rows sort by count then name, and a pipe inside a skip line is escaped', agg.stdout.indexOf('| gamma | 3 | [SKIP] gamma g |') > 0 && agg.stdout.indexOf('| alpha | 2 | [SKIP] alpha a\\|b |') > agg.stdout.indexOf('| gamma | 3 |'), agg.stdout)
+check('the rows sort by count then name, and a pipe inside a skip line is escaped', agg.stdout.indexOf('| gamma | 3 | [SKIP] gamma g |') > 0 && ((): boolean => { const alpha = agg.stdout.indexOf('| alpha | 2 | [SKIP] alpha a\\|b |'); const gamma = agg.stdout.indexOf('| gamma | 3 |'); return alpha !== -1 && gamma !== -1 && alpha > gamma })(), agg.stdout)
 check('suites a shard reported without a census are named', agg.stdout.includes('- no census from: zeta'))
 check('the not-counted suites carry their reason', agg.stdout.includes('- not counted: delta (no output file)'))
 const summary = existsSync(summaryPath) ? readFileSync(summaryPath, 'utf8') : ''
