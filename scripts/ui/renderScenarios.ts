@@ -3,6 +3,7 @@ import { writeFileSync, mkdirSync, mkdtempSync, existsSync, readFileSync, readdi
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { REJECT_MESSAGE } from '../../src/utils/messages/rejectionText.ts'
+import { HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
 import {
   STREAM_FAULT_RECOVERY_NUDGE,
   streamFaultAfterPartialText,
@@ -3332,7 +3333,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
         { atTick: 36, data: '\r' },
         { atTick: 120, minTick: 10, awaitText: 'input atlas', awaitSettleTicks: 3, data: '\x1b', mark: 'atlas-open' },
       ],
-      readyText: 'for commands', stableTicks: 6,
+      readyText: cols >= HELM_HOME_MIN_COLS ? 'for commands' : 'Type a prompt', stableTicks: 6,
       total: 170, cols, rows,
     }
   }
