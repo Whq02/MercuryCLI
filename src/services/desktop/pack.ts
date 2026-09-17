@@ -209,6 +209,8 @@ export interface DesktopAddonApplication {
   pid?: number | null
   title?: string | null
   bounds?: DesktopAddonBounds | null
+  windowId?: string | null
+  tty?: string | null
   reason?: string | null
 }
 
@@ -231,7 +233,7 @@ export interface DesktopAddon {
   displays(): DesktopAddonDisplays
   capture(display: number): Promise<DesktopAddonCapture>
   frontmostApplication(): DesktopAddonApplication
-  ownTerminalApplication(): DesktopAddonApplication
+  ownTerminalApplication(identity?: string, tty?: string, front?: number): DesktopAddonApplication
   cursor(): DesktopAddonCursor
   mouseMove(x: number, y: number): void
   mouseDown(button: string): void

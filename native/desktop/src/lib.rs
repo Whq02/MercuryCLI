@@ -96,16 +96,18 @@ pub struct ApplicationAnswer {
     pub pid: Option<u32>,
     pub title: Option<String>,
     pub bounds: Option<BoundsRecord>,
+    pub window_id: Option<String>,
+    pub tty: Option<String>,
     pub reason: Option<String>,
 }
 
 impl ApplicationAnswer {
     pub fn refused(reason: &str) -> ApplicationAnswer {
-        ApplicationAnswer { identity: None, name: None, pid: None, title: None, bounds: None, reason: Some(reason.to_string()) }
+        ApplicationAnswer { identity: None, name: None, pid: None, title: None, bounds: None, window_id: None, tty: None, reason: Some(reason.to_string()) }
     }
 
     pub fn found(identity: String, name: Option<String>, pid: Option<u32>, title: Option<String>, bounds: Option<BoundsRecord>) -> ApplicationAnswer {
-        ApplicationAnswer { identity: Some(identity), name, pid, title, bounds, reason: None }
+        ApplicationAnswer { identity: Some(identity), name, pid, title, bounds, window_id: None, tty: None, reason: None }
     }
 }
 
@@ -298,7 +300,13 @@ pub fn frontmost_application() -> ApplicationAnswer {
 }
 
 #[napi]
-pub fn own_terminal_application() -> ApplicationAnswer {
+pub fn own_terminal_application(identity: Option<String>, tty: Option<String>, front: Option<u32>) -> ApplicationAnswer {
+    #[cfg(target_os = "macos")]
+    if let (Some(identity), Some(tty)) = (identity.as_deref(), tty.as_deref()) {
+        return imp::terminal_window_application(identity, tty, front);
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = (identity, tty, front);
     imp::own_terminal_application()
 }
 
