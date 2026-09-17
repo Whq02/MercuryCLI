@@ -397,11 +397,11 @@ async function switchLeg(): Promise<void> {
   check(`${tag}: the Inspect answer landed within ${INSPECT_BOUND_MS} ms at ${COLS}×${ROWS}`, acks.every(h => (h.inspectMs ?? Infinity) < INSPECT_BOUND_MS), acks.map(h => `${h.inspectMs}ms`).join(' '))
   for (const label of ['launched', 'after-opus', 'after-fable']) {
     const frame = marks[label] ?? ''
-    check(`${tag}: the rail's crew rows read both agents running with tokens at '${label}'`, (flat(frame).match(/◐ [a-z-…]+ · \d[\d.,]*k? tokens/g) ?? []).length >= 2, flat(frame).slice(0, 200))
+    check(`${tag}: the rail's crew rows read both agents running with tokens at '${label}'`, (flat(frame).match(/◐ [a-z-…]+ · \d[\d.,]*k? context/g) ?? []).length >= 2, flat(frame).slice(0, 200))
   }
   for (const label of ['crew-launched', 'crew-opus', 'crew-fable']) {
     const frame = marks[label] ?? ''
-    check(`${tag}: the Crew view at '${label}' — both rows running, the count label`, agentRow(frame, SEAT_ONE, /\brunning\b/) && agentRow(frame, SEAT_TWO, /\brunning\b/) && frame.includes('2 running · 2 sub-agents'))
+    check(`${tag}: the Crew view at '${label}' — both rows running, the count label`, agentRow(frame, SEAT_ONE, /\bRunning\b/) && agentRow(frame, SEAT_TWO, /\bRunning\b/) && frame.includes('2 running · 2 sub-agents'))
   }
   check(`${tag}: the transcript carries the registry's own words after each switch`, (marks['after-opus'] ?? '').includes('check 1: registry says 2 task(s) · 2 running') && (marks['after-fable'] ?? '').includes('check 2: registry says 2 task(s) · 2 running'))
   if (failures > before && !KEEP) for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame, COLS)
