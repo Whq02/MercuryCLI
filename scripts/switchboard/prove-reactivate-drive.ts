@@ -51,6 +51,7 @@ const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLa
 const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSION CONCOURSE'
+const EMPTY_BOARD = 'no sessions yet'
 const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')
 const FACE_TO_CHAT = keyHintLabel('⇧→ chat')
 const SHIFT_LEFT = '\x1b[1;2D'
@@ -62,7 +63,7 @@ const REPLY = 'Spare.'
 const REACTIVATE_BUDGET_TICKS = 15
 
 type Send = Record<string, unknown>
-type Capture = { home: string; text: string; lines: string[]; status: number; tail: string; payload: Record<string, unknown> }
+type Capture = { home: string; text: string; lines: string[]; status: number; tail: string; payload: Record<string, unknown>; asked: number; delivered: number }
 
 function freshHome(id: string): string {
   const home = join(SCRATCH, `home-${id}`)
@@ -127,7 +128,7 @@ async function capture(opts: { id: string; home: string; argv?: string[]; sends:
         }
       } catch {
       }
-      resolvePromise({ home: opts.home, text, lines, status: status ?? 1, tail, payload })
+      resolvePromise({ home: opts.home, text, lines, status: status ?? 1, tail, payload, asked: opts.sends.length, delivered: Array.isArray(payload.sendReceipts) ? payload.sendReceipts.length : 0 })
     })
   })
   try {
@@ -223,11 +224,7 @@ console.log('D1 — the only session: x-x ends it, the board stays with two stop
       { afterPrevTicks: 3, data: '\x18' },
       g('stopped', '\x18', { awaitSettleTicks: 3 }),
       { afterPrevTicks: 3, data: '\x18' },
-      g('parked ·', '\x18', { awaitSettleTicks: 3 }),
-      { afterPrevTicks: 3, data: '\x18' },
-      { afterPrevTicks: 3, data: '\x18' },
-      { afterPrevTicks: 3, data: '\x18' },
-      { afterPrevTicks: 35, data: '', mark: 'board-stays' },
+      g(EMPTY_BOARD, '', { awaitSettleTicks: 35, mark: 'board-stays' }),
       { afterPrevTicks: 3, data: SHIFT_RIGHT },
       { afterPrevTicks: 6, data: '', mark: 'board-after' },
       { afterPrevTicks: 3, data: SHIFT_LEFT },
@@ -237,11 +234,12 @@ console.log('D1 — the only session: x-x ends it, the board stays with two stop
     total: 520,
   })
   printFrame('d1 (the board after x-x on the only session)', markText(c, 'board-stays').split('\n'))
+  check('D1 every send of the ladder became due (a mark never taken reads as an empty frame below)', c.delivered === c.asked, `${c.delivered} of ${c.asked} sends delivered · ${c.tail.trim().split('\n').pop() ?? ''}`)
   const stays = markText(c, 'board-stays')
   const after = markText(c, 'board-after')
   const menu = markText(c, 'menu')
   check('D1 the model switch landed on the chat (the set-model road the repro rode)', markText(c, 'switched').includes(COMPOSER), firstRows(markText(c, 'switched')))
-  check('D1 the close chord walked its rungs on the only session — stop, archive, delete — and ENDED it (no standing record)', standingOf(home).length === 0, JSON.stringify(standingOf(home).map(r => [r.runnerId, r.parkedAt !== undefined, r.crash?.reason])))
+  check('D1 the close chord walked its rungs on the only session — stop, then the archive rung releasing a chat never messaged — and ENDED it (no standing record)', standingOf(home).length === 0, JSON.stringify(standingOf(home).map(r => [r.runnerId, r.parkedAt !== undefined, r.crash?.reason])))
   check('D1 the board STAYS the frame — the two screens — never the dead chat, never a bounce to the menu', isBoard(stays) && !isChat(stays) && !isFace(stays), firstRows(stays))
   check('D1 NO refusal painted (poison: "✕ refused — stop refused")', !/refused/.test(stays), stays.split('\n').filter(l => /refused/.test(l)).join(' | '))
   const still = (t: string): string => t.replace(/❯ ▌/g, '❯  ')

@@ -226,7 +226,9 @@ row stays, wearing stopped and the next step); on a stopped row it
 archives — the row parks; on a parked row a first chord says the next one
 deletes, and that next chord (or a chord straight after the archive)
 deletes the record — the transcript survives on disk, and the Boot face and
-`/resume` still offer the chat. A door row
+`/resume` still offer the chat. A chat that was never messaged has nothing
+to park: its archive rung releases it, the row leaves the board, and when it
+was the only chat the strip is back to its two stops. A door row
 (another project, the repo picker) has nothing to close. Everything else the project
 holds — chats older than a week, past the ten, cleared from the board, or
 never given words — is counted into one last line, "N older chats · ↵ to
