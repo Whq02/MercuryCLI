@@ -138,15 +138,21 @@ export async function exitWithMessage(
     color?: string
     exitCode?: number
     beforeExit?: () => void | Promise<void>
+    plainLines?: boolean
   },
 ): Promise<never> {
   releaseLauncherAltHoldNow()
-  root.render(
-    <Box>
-      <Text color={options?.color}>{message}</Text>
-    </Box>,
-  )
-  root.unmount()
+  if (options?.plainLines === true) {
+    root.unmount()
+    process.stdout.write(`\n${message}\n`)
+  } else {
+    root.render(
+      <Box>
+        <Text color={options?.color}>{message}</Text>
+      </Box>,
+    )
+    root.unmount()
+  }
   await options?.beforeExit?.()
   gracefulShutdownSync(options?.exitCode ?? 1)
   return new Promise<never>(() => {})
@@ -205,7 +211,7 @@ export async function showSetupScreens(
         `This terminal is missing required capabilities: ${missing || 'see the card above'}.\n` +
           `Use a supported terminal${process.platform === 'win32' ? ' (the stable Windows Terminal or your editor’s integrated terminal; PowerShell 7 preferred)' : ''}.\n` +
           'Non-interactive use works anywhere via --print.',
-        { exitCode: 1 },
+        { exitCode: 1, plainLines: true },
       )
     }
   }
