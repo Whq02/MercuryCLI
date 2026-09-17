@@ -55,14 +55,14 @@ console.log('\n── cockpit (120 cols): the berth carries the creature ──�
   }
 }
 
-console.log('\n── deck strip (80 cols): the COMPANION DOCK carries it ─────')
+console.log('\n── compact (80 cols): no deck strip, the mascot stands alone ───')
 {
   const all = capture('companion-deck', 80, 40)
   if (all) {
-    check('the creature name paints in the dock', namesRow(all))
+    check('the compact layout stands at 80 columns (its sessions line paints, no deck strip)', /\d+ sessions? on/.test(all) && !all.includes('fleet'))
+    check('the creature name does NOT paint at 80 columns either (no deck strip, so no dock)', !namesRow(all))
     check('no rarity stars paint', !STARS.test(all))
     check('no personality archetype paints', !ARCHETYPE.test(all))
-    check('ops row paints under it (daemon · fleet · trace)', all.includes('daemon') && all.includes('fleet'))
   }
 }
 
