@@ -259,4 +259,6 @@ for dom in ${MINE[@]+"${MINE[@]}"}; do
   fi
 done
 
+/usr/bin/python3 scripts/gate/skip-census.py "$OUT" || echo "  skip census did not run (rc $?) — no skips.tsv beside results.tsv"
+
 exit "$FAILED"
