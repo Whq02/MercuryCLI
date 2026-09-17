@@ -11,6 +11,7 @@ import {
 } from '../openaicompat/compatChatCallModel.js'
 import { buildDeepseekExtras } from '../openaicompat/compatWire.js'
 import { deepseekChatCompletionsUrl, resolveDeepseekApiKey } from './deepseekAccounts.js'
+import { deepseekCurrentModelId } from './deepseekPins.js'
 
 export const deepseekLaneProfile: CompatLaneProfile = {
   lane: 'deepseek',
@@ -26,7 +27,7 @@ export const deepseekLaneProfile: CompatLaneProfile = {
   billingRemedy:
     'the DeepSeek balance is exhausted — top up the account, then retry; /model picks another model meanwhile.',
   requestUrl: () => deepseekChatCompletionsUrl(),
-  wireModelId: modelId => modelId,
+  wireModelId: modelId => deepseekCurrentModelId(modelId),
   buildExtras: buildDeepseekExtras,
 }
 

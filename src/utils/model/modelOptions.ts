@@ -24,6 +24,7 @@ import {
   getHuggingfaceModelOptions,
 } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { LOCAL_MODEL_GROUP, getLocalModelOptions } from '../../services/providers/local/localCatalogue.js'
+import { kickDeepseekCatalogue } from '../../services/providers/deepseek/deepseekCatalogue.js'
 import { has1mContext, modelSupports1M } from './capabilities.js'
 import {
   getBestModel,
@@ -381,6 +382,7 @@ export interface KeyLanePin {
   displayName: string
   observedAt: string
   contextWindow?: number
+  listedLive?: boolean
 }
 
 export interface KeyLaneReads {
@@ -442,13 +444,14 @@ export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek'): KeyLaneP
       ...(pin.contextWindow !== undefined ? { contextWindow: pin.contextWindow } : {}),
     }))
   }
-  const { DEEPSEEK_DISPLAY_PINS } =
-    require('../../services/providers/deepseek/deepseekPins.js') as typeof import('../../services/providers/deepseek/deepseekPins.js')
-  return DEEPSEEK_DISPLAY_PINS.map(pin => ({
-    id: pin.id,
-    displayName: pin.displayName,
-    observedAt: pin.observedAt,
-    ...(pin.contextWindow !== undefined ? { contextWindow: pin.contextWindow } : {}),
+  const { deepseekCatalogueRows } =
+    require('../../services/providers/deepseek/deepseekCatalogue.js') as typeof import('../../services/providers/deepseek/deepseekCatalogue.js')
+  return deepseekCatalogueRows().rows.map(row => ({
+    id: row.id,
+    displayName: row.displayName,
+    observedAt: row.observedAt,
+    ...(row.contextWindow !== undefined ? { contextWindow: row.contextWindow } : {}),
+    listedLive: row.listedLive,
   }))
 }
 
@@ -466,7 +469,7 @@ export function keyLaneGroupRows(args: {
       value: pin.id,
       label: pin.displayName,
       description: '',
-      descriptionForModel: `${pin.displayName} (${pin.id}) — ${args.providerName} model on the native chat-completions engine, billed to the attached API key. Catalogue facts observed ${pin.observedAt}; the provider's live answer governs.`,
+      descriptionForModel: `${pin.displayName} (${pin.id}) — ${args.providerName} model on the native chat-completions engine, billed to the attached API key. ${pin.listedLive ? `Listed by the provider's live model list; display facts observed ${pin.observedAt}.` : `Catalogue facts observed ${pin.observedAt}; the provider's live answer governs.`}`,
       group: args.group,
       ...(pin.contextWindow !== undefined ? { statedContextWindow: pin.contextWindow } : {}),
     }))
@@ -593,6 +596,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
   for (const row of getHuggingfaceModelOptions()) {
     pushIfAbsent(options, row)
   }
+  kickDeepseekCatalogue()
   for (const row of keyLaneProviderRows()) {
     pushIfAbsent(options, row)
   }

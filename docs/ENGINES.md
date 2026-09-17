@@ -30,6 +30,21 @@ Display names have the same one-owner rule: every surface that names a
 family derives its label from it, and an unknown id shows itself. Persisted
 ids stay provider-qualified; the namespace detaches for the wire.
 
+DeepSeek's rows come from its live model list. With a DeepSeek key present,
+Mercury reads the provider's models endpoint when the picker composes its
+rows (never without a key, and never while catalogue traffic is switched
+off) and paints the ids the list names, the group line saying how many are
+live. The list states ids only, so a listed id keeps the label, window and
+prices recorded from the pricing page, and an id the page has not recorded
+paints under its own name at the conservative window Mercury budgets for an
+unrecorded id; while the list is unreachable the recorded rows stand in
+with their date.
+
+A retired DeepSeek id resolves to its current one wherever a model id is
+read — a saved setting, `MERCURY_MODEL`, `/model`, a sub-agent's model —
+and paints as the current id: `deepseek-v4-flash` is `deepseek-flash`, and
+the wire is sent the current id.
+
 ## Dispatch
 
 Every call dispatches on the resolved route to that family's own runtime;

@@ -206,7 +206,7 @@ section("§2 cross-family accuracy: the strip lists exactly the owner's levels u
     'claude-opus-5', 'claude-sonnet-5', 'claude-fable-5-1', 'claude-opus-4-8', 'claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001',
     'gpt-5.6-sol', 'gpt-5.6-luna', 'gpt-5.6-deep', 'gpt-5.6-void', 'gpt-5.6-bare',
     'glm-5.2', 'glm-5.3', 'glm-4',
-    'kimi-k3', 'deepseek-v4-flash',
+    'kimi-k3', 'deepseek-flash',
     'gemini-fixture-pro', 'gemini-fixture-lite',
     'openrouter/google/gemini-fixture-pro', 'openrouter/deep/deep-fixture-tall', 'openrouter/qwen/qwen-fixture-small', 'openrouter/anthropic/claude-opus-5', 'openrouter/mistral/mistral-fixture-bare',
     'local/qwen3:8b', 'local/llama3.2:latest',
@@ -326,12 +326,12 @@ section("§3 the dispatch: the chosen level rides each family's wire field; a mo
     JSON.stringify({ kimiConsole, kimiMinerva }))
   slots.setSubModelEffort('console', 'high')
   slots.setSubModelEffort('minerva', 'high')
-  const dsConsole = slots.subModelDispatchEffort('console', 'deepseek-v4-flash')
-  const dsMinerva = slots.subModelDispatchEffort('minerva', 'deepseek-v4-flash')
+  const dsConsole = slots.subModelDispatchEffort('console', 'deepseek-flash')
+  const dsMinerva = slots.subModelDispatchEffort('minerva', 'deepseek-flash')
   const dsWire = (value: Level | undefined, thinkingEnabled: boolean): string | undefined =>
-    (wire.buildDeepseekExtras(compat('deepseek-v4-flash', value, thinkingEnabled)) as { reasoning_effort?: string }).reasoning_effort
+    (wire.buildDeepseekExtras(compat('deepseek-flash', value, thinkingEnabled)) as { reasoning_effort?: string }).reasoning_effort
   const dsNested = (value: Level | undefined, thinkingEnabled: boolean): string | undefined =>
-    ((wire.buildDeepseekExtras(compat('deepseek-v4-flash', value, thinkingEnabled)) as { thinking?: { reasoning_effort?: string } }).thinking ?? {}).reasoning_effort
+    ((wire.buildDeepseekExtras(compat('deepseek-flash', value, thinkingEnabled)) as { thinking?: { reasoning_effort?: string } }).thinking ?? {}).reasoning_effort
   check('deepseek · high chosen: the console (thinking on) sends a top-level reasoning_effort high, never nested', dsConsole.effortValue === 'high' && dsWire(dsConsole.effortValue, true) === 'high' && dsNested(dsConsole.effortValue, true) === undefined, JSON.stringify(dsConsole))
   check("deepseek · high chosen: Minerva (thinking off) carries no level, says so, and the builder sends no dial top-level or nested", dsMinerva.effortValue === undefined && /sends no effort dial on Minerva's thinking-off calls/.test(dsMinerva.fallback ?? '') && dsWire(dsMinerva.effortValue, false) === undefined && dsNested(dsMinerva.effortValue, false) === undefined, JSON.stringify(dsMinerva))
   slots.setSubModelEffort('console', null)
