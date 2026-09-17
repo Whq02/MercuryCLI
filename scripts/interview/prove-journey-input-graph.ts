@@ -15,6 +15,7 @@ import {
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import { checker } from '../engine-durability/harness.ts'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
+import { REJECT_MESSAGE } from '../../src/utils/messages/rejectionText.ts'
 
 const t = checker()
 requireDist()
@@ -134,7 +135,7 @@ try {
   const denialRounds = mainRounds.filter(r => roundShape(r).includes('tool_result'))
   t.check(
     'the cancel crosses as ONE denial round the model reads, then the turn ends',
-    mainRounds.length === 2 && denialRounds.length === 1 && roundShape(denialRounds[0]!).includes('want to proceed'),
+    mainRounds.length === 2 && denialRounds.length === 1 && roundShape(denialRounds[0]!).includes(REJECT_MESSAGE.split(';')[0]!),
     `${mainRounds.length} main-model request(s): ${mainRounds.map(roundShape).join(' · ')}`,
   )
   t.check('the composer returned to the operator', textOf(final).includes('? for shortcuts'))
