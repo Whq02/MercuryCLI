@@ -35,7 +35,7 @@ import { CompactFooterNoticeContext } from '../../context/layoutChromeContext.js
 import { isManageableTask, shouldHideTasksFooter } from '../tasks/taskStatusUtils.js'
 import { BASH_MODE_CHARACTER } from './inputModes.js'
 import { ExitChordNotice } from './ExitChordNotice.js'
-import { noticeRowBlock, noticeRowText } from './Notifications.js'
+import { noticeBlockRows, noticeRowBlock, noticeRowText } from './Notifications.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 
@@ -99,6 +99,9 @@ export function PromptInputFooterLeftSide({
     (state: AppState) => state.notifications.current?.key === 'kill-agents-confirm',
   )
   const currentNotice = useAppState((state: AppState) => state.notifications.current)
+  const noticeText = noticeRowText(currentNotice)
+  const noticeBlock = noticeText === null ? noticeRowBlock(currentNotice) : null
+  const blockRows = noticeBlock === null ? 0 : noticeBlockRows(currentNotice)
   const prStatus = usePrStatus(
     isLoading,
     !compact && getGlobalConfig().prStatusFooterEnabled !== false,
@@ -113,10 +116,11 @@ export function PromptInputFooterLeftSide({
   const driving = desktop.phase === 'driving' ? desktop : desktopFile.phase === 'driving' ? desktopFile : null
   const reportNotice = useContext(CompactFooterNoticeContext)
   const criticalNotice = exitPending || isPasting || voice.phase === 'recording' || voice.phase === 'transcribing' || (driving !== null && isLoading) || (compact && searchField !== undefined)
+  const requestedRows = criticalNotice ? 1 : compact ? blockRows : 0
   useEffect(() => {
-    reportNotice?.(criticalNotice)
-    return () => reportNotice?.(false)
-  }, [reportNotice, criticalNotice])
+    reportNotice?.(requestedRows)
+    return () => reportNotice?.(0)
+  }, [reportNotice, requestedRows])
 
   if (exitPending) {
     return <ExitChordNotice keyName={exitKeyName} />
@@ -153,7 +157,8 @@ export function PromptInputFooterLeftSide({
   }
 
   if (compact) {
-    return searchField !== undefined ? <Box height={1} overflow="hidden">{searchField}</Box> : null
+    if (searchField !== undefined) return <Box height={1} overflow="hidden">{searchField}</Box>
+    return noticeBlock !== null ? <Box flexDirection="column" height={blockRows} overflow="hidden">{noticeBlock}</Box> : null
   }
 
   const taskList = Object.values(tasks)
@@ -279,8 +284,6 @@ export function PromptInputFooterLeftSide({
 
   const idleHintShows =
     parts.length === 0 && !showTasksPill && hintsEnabled && !showPrBadge
-  const noticeText = noticeRowText(currentNotice)
-  const noticeBlock = noticeText === null ? noticeRowBlock(currentNotice) : null
   const noticeJoinsParts = !vimInsert && parts.length > 0 && noticeText !== null
   if (noticeJoinsParts) parts.push(noticeText)
   const rowHasContent =
@@ -288,7 +291,7 @@ export function PromptInputFooterLeftSide({
   const cluster = (
     <Box
       flexDirection="row"
-      height={isFullscreenActive() ? 1 : undefined}
+      height={isFullscreenActive() ? Math.max(1, blockRows) : undefined}
       overflow="hidden"
     >
       {searchField ?? null}
@@ -364,7 +367,7 @@ export function PromptInputFooterLeftSide({
         </Box>
       ) : null}
       {noticeBlock !== null ? (
-        <Box flexShrink={1} minWidth={0} height={1} overflow="hidden">
+        <Box flexShrink={1} minWidth={0} height={blockRows} overflow="hidden">
           {rowHasContent ? <Text color={tokens.textMuted}> · </Text> : null}
           {noticeBlock}
         </Box>
