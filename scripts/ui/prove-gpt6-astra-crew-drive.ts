@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { firstByteBudgetMs } from '../../src/services/providers/streamIdleBudget.ts'
+import { GLYPH } from '../../src/components/mercury-ui/glyphs.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -466,9 +467,9 @@ try {
         { data: '/teammates', atTick: 999, awaitText: 'Running 3 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'running' },
         { data: '\r', afterPrevTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-mid' },
-        { data: '/teammates', afterPrevTicks: 90 },
+        { data: '/teammates', afterPrevTicks: 3 },
         { data: '\r', afterPrevTicks: 3 },
-        { data: '\x1b', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-wait' },
+        { data: '\x1b', atTick: 999, awaitText: `${GLYPH.done} ${SEATS.quick.name}`, requireAwait: true, minTick: 2, awaitSettleTicks: 1, mark: 'crew-wait' },
         { data: '\r', atTick: 999, awaitText: 'Yes, run this workflow', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'wf-ask' },
         { data: '\r', afterPrevTicks: 5 },
         { data: '/teammates', atTick: 999, awaitText: 'the survey landed.', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'landed' },
