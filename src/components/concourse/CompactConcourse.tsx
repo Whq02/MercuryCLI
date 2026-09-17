@@ -199,6 +199,7 @@ export function CompactConcourse({
   const selected = sessionRows[selectedIndex]
   const stateWordOf = (row: ConcourseRowV1): string => STATE_WORD[row.state] ?? row.state
   const stateInkOf = (row: ConcourseRowV1): string => {
+    if (row.finishedUnseen === true) return t.warning
     const spine = STATE_GLYPH[row.state]
     return spine !== undefined ? t[spine.color] : t.textMuted
   }

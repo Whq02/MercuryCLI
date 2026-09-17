@@ -257,10 +257,13 @@ face's Projects rows do.
 turn runs, and never rides into a session runner. Attention rides one bell: a session taps the
 terminal bell once when it needs you or finishes a run, the status strip's ⚑
 badge counts what needs you, and `/pings` quiets the tap for you — the rows
-and the badge stay. A question from another project stays a door — ↵
-switches the view to its project and opens the chat; an untrusted folder
-is never switched into silently — the chat still opens, and the note says
-where the view stayed.
+and the badge stay. A session that finishes a run while you are elsewhere
+is not a question: its row wears its state glyph and word in amber until
+you open the chat again, and a run you watched to its end in the chat
+leaves no mark. A question from another project stays a door — ↵ switches
+the view to its project and opens the chat; an untrusted folder is never
+switched into silently — the chat still opens, and the note says where the
+view stayed.
 
 The coordinator that sits behind the board — launching, watching, messaging
 and queueing sessions — is [TEAMS.md](TEAMS.md)'s.

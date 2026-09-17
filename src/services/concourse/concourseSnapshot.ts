@@ -240,6 +240,7 @@ interface ConcourseDraftFileV1 {
   coordinatorDraft?: string
   coordinatorDraftCaret?: number
   parkedCleared?: Record<string, number>
+  sessionSeenAt?: Record<string, number>
 }
 
 const PARKED_CLEARED_CAP = 256
@@ -396,7 +397,8 @@ const draftStore = defineStore<ConcourseDraftFileV1, [dir?: string]>({
       ...(queuedStacks !== undefined ? { queuedStacks } : {}),
       ...(() => {
         const parkedCleared = decodeParkedCleared(r.parkedCleared)
-        return parkedCleared !== undefined ? { parkedCleared } : {}
+        const sessionSeenAt = decodeParkedCleared(r.sessionSeenAt)
+        return { ...(parkedCleared !== undefined ? { parkedCleared } : {}), ...(sessionSeenAt !== undefined ? { sessionSeenAt } : {}) }
       })(),
       ...(r.pendingHandback &&
       typeof r.pendingHandback === 'object' &&
@@ -434,6 +436,20 @@ export async function markParkedCleared(sessionId: string, dir?: string): Promis
 
 export async function readParkedCleared(dir?: string): Promise<ReadonlySet<string>> {
   return new Set(Object.keys((await draftStore(dir).read()).parkedCleared ?? {}))
+}
+
+export async function markSessionSeen(sessionId: string, dir?: string): Promise<void> {
+  await draftStore(dir).mutate(prev => {
+    const map = { ...(prev.sessionSeenAt ?? {}) }
+    delete map[sessionId]
+    map[sessionId] = Date.now()
+    const entries = Object.entries(map).sort((a, b) => a[1] - b[1]).slice(-PARKED_CLEARED_CAP)
+    return { ...prev, updatedAtMs: Date.now(), sessionSeenAt: Object.fromEntries(entries) }
+  })
+}
+
+export async function readSessionSeenAt(dir?: string): Promise<Readonly<Record<string, number>>> {
+  return (await draftStore(dir).read()).sessionSeenAt ?? {}
 }
 
 export async function writeConcourseHeldDispatch(
@@ -1005,6 +1021,7 @@ export async function buildConcourseSnapshot(
 
   const aliveById = new Map<string, boolean>()
   const workspaceOfRow = new Map<string, string>()
+  const seenAt = await readSessionSeenAt(opts.draftDir)
   const allRows: ConcourseRowV1[] = allRecords.map(rec => {
     const alive = rec.pid !== undefined && isProcessAlive(rec.pid)
     aliveById.set(rec.sessionId, alive)
@@ -1021,6 +1038,7 @@ export async function buildConcourseSnapshot(
       ageLabel: ageLabelOf(nowMs, rec.spawnedAt),
       seats: null,
       nowLabel,
+      ...(state === 'ready-to-review' && rec.lastTurnSettledAt !== undefined && rec.lastTurnSettledAt > (seenAt[rec.sessionId] ?? 0) ? { finishedUnseen: true as const } : {}),
       ...(rec.workflowsAllowed === true ? { workflowsAllowed: true } : {}),
       ...((): { scheduleNextFireMs?: number } => {
         const next = saturnSoonestFireMs(rec, nowMs)

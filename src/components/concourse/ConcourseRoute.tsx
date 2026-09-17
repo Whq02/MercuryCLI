@@ -18,6 +18,7 @@ import {
   buildConcourseSnapshot,
   dispatchSeedInputs,
   markParkedCleared,
+  markSessionSeen,
   OLDER_CHATS_ROW_PREFIX,
   readConcourseSeedOverrides,
   resolveHarnessGround,
@@ -366,6 +367,7 @@ function LiveConcourse(): React.ReactNode {
         noteControl(noteKey, { state: 'refused', reason: 'the older chats unfold on the board — ↵ on the line opens them' })
         return
       }
+      void markSessionSeen(sessionId).catch(() => {})
       const row = snapshotRef.current?.groups.flatMap(g => g.rows).find(r => r.sessionId === sessionId)
       const rowParked = row?.state === 'parked' ? { transcriptPath: row.transcriptPath, title: row.title } : undefined
       const parked = opts?.parkedFact ?? rowParked

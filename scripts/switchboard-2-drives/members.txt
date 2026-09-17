@@ -7,5 +7,6 @@
 prove-broadcast-look.ts
 prove-contract-offer-drive.ts
 prove-cross-project-drive.ts
+prove-finish-mark-drive.ts
 prove-folder-project-drive.ts
 prove-strip-bridge-drive.ts
