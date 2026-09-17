@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -104,6 +104,33 @@ section('W5 — the row carries the asked wait as a fact')
   check('a refusal row that names a wait carries it; one that names none carries none', typeof keyRow.providerWaitEndsAtMs === 'number' && keyRow.providerWaitEndsAtMs >= before + 90_000 - 5_000 && errors.getAssistantMessageFromError(answer(429), 'claude-opus-5').providerWaitEndsAtMs === undefined, JSON.stringify(keyRow.providerWaitEndsAtMs))
   const fault = errors.getAssistantMessageFromError(answer(503, { 'retry-after': HOURS_3 }), 'claude-opus-5')
   check('a fault asking for hours carries the moment too', typeof fault.providerWaitEndsAtMs === 'number' && fault.providerWaitEndsAtMs >= before + 3 * 3_600_000 - 5_000, JSON.stringify(fault.providerWaitEndsAtMs))
+}
+
+section('W6 — the sign-in wall row needs no open config; an open one names the account')
+{
+  const revoked = (): Error =>
+    new APIError(401, { type: 'error', error: { type: 'authentication_error', message: 'OAuth access token has been revoked' } }, '401 revoked', new Headers())
+  const textOf = (row: { message: { content: unknown } } | undefined): string => {
+    const c = row?.message.content
+    if (typeof c === 'string') return c
+    return Array.isArray(c) ? c.map(b => String((b as { text?: string }).text ?? '')).join('') : ''
+  }
+  check('the road is still the first-party subscription (the stored sign-in)', auth.isClaudeAISubscriber())
+  let closedRow: ReturnType<typeof errors.getAssistantMessageFromError> | undefined
+  let closedThrow = ''
+  try {
+    closedRow = errors.getAssistantMessageFromError(revoked(), 'claude-opus-5')
+  } catch (e) {
+    closedThrow = String(e)
+  }
+  const closedText = textOf(closedRow)
+  check('with the config closed the wall row composes: the one line, no account suffix', closedRow !== undefined && closedRow.error === 'authentication_failed' && closedText.includes('Anthropic sign-in expired') && !closedText.includes('· account'), closedThrow || closedText)
+  writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, '.mercury.json'), JSON.stringify({ oauthAccount: { accountUuid: 'fixture-account', emailAddress: 'fixture@example.invalid', organizationUuid: 'fixture-organization' } }))
+  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  enableConfigs()
+  const openRow = errors.getAssistantMessageFromError(revoked(), 'claude-opus-5')
+  const openText = textOf(openRow)
+  check('with the config open the same row names the account', openRow.error === 'authentication_failed' && openText.includes('Anthropic sign-in expired') && openText.endsWith(' · account fixture@example.invalid'), openText)
 }
 
 console.log(failures === 0 ? '\nprove-window-retry: all green' : `\nprove-window-retry: ${failures} FAILURE(S)`)

@@ -10,6 +10,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const scratch = mkdtempSync(join(tmpdir(), 'client-contract-door-'))
 process.env.MERCURY_CONFIG_DIR = scratch
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_PROVIDER_HEADERS
@@ -177,6 +178,27 @@ check('an unrelated 400 is not', !isClientContractGateText('400 {"error":{"messa
   const plain400 = new APIError(400, plainBody, `400 ${JSON.stringify(plainBody)}`, undefined as never)
   const text = textOf(getAssistantMessageFromError(plain400, 'claude-fable-5-1') as never)
   check('an unrelated 400 keeps its generic tail', text.includes('API Error: 400') && !text.includes('client-contract'), text)
+}
+
+{
+  const auth = await import('../../src/utils/auth.js')
+  const { CLAUDE_AI_OAUTH_SCOPES } = await import('../../src/constants/oauth.js')
+  auth.saveOAuthTokensIfNeeded({
+    accessToken: 'at-fixture', refreshToken: 'rt-fixture', expiresAt: Date.now() + 3_600_000,
+    scopes: [...CLAUDE_AI_OAUTH_SCOPES], subscriptionType: 'max', rateLimitTier: 'default_claude_max_5x',
+  } as never)
+  auth.clearOAuthTokenCache()
+  const revokedBody = { type: 'error', error: { type: 'authentication_error', message: 'OAuth access token has been revoked' } }
+  const revoked401 = new APIError(401, revokedBody, `401 ${JSON.stringify(revokedBody)}`, undefined as never)
+  let wallRow: { message: { content: unknown }; error?: string } | undefined
+  let wallThrow = ''
+  try {
+    wallRow = getAssistantMessageFromError(revoked401, 'claude-fable-5-1') as never
+  } catch (e) {
+    wallThrow = String(e)
+  }
+  const wallText = wallRow ? textOf(wallRow) : ''
+  check('a sign-in wall row composes with the config closed (a stored sign-in, no account suffix)', auth.isClaudeAISubscriber() && wallRow !== undefined && wallRow.error === 'authentication_failed' && wallText.includes('Anthropic sign-in expired') && !wallText.includes('· account'), wallThrow || wallText)
 }
 
 section('§5 THE DOCTOR — the identity section carries the row from the one describer')
