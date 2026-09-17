@@ -14,6 +14,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_PROVIDER_HEADERS
+delete process.env.ANTHROPIC_API_KEY
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
