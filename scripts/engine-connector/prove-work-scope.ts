@@ -504,8 +504,21 @@ try {
   )
   check('P5 B\'s roster is STILL empty after A\'s run', connB.workRoster().rows.length === 0, JSON.stringify(connB.workRoster().rows))
 
+  {
+    const root = join(home, 'projects')
+    const completionRead = (): boolean => {
+      if (!existsSync(root)) return false
+      for (const entry of readdirSync(root)) {
+        const candidate = join(root, entry, `${A.sessionId}.jsonl`)
+        if (existsSync(candidate) && readFileSync(candidate, 'utf8').includes('noted.')) return true
+      }
+      return false
+    }
+    check('P5 A reads its run\'s completion before the switch (the runner holds a completion for its settle window, and a switch sent inside that window parks behind the queued words)', await untilAsync(completionRead, 60_000))
+    check('P5 A reads idle after the completion turn', await untilAsync(() => connA.live().inFlight === false, 30_000), JSON.stringify(connA.live()))
+  }
   const switched = await connA.setModel('claude-haiku-4-5')
-  check('P5 the model switch applies while idle', switched.state === 'applied' || switched.state === 'queued', JSON.stringify(switched))
+  check('P5 the model switch applies while idle', switched.state === 'applied', JSON.stringify(switched))
   const sentAgent = await connA.sendWords('dispatch a background helper')
   check('P5 the helper words deliver', sentAgent.state === 'accepted' || sentAgent.state === 'queued', JSON.stringify(sentAgent))
   check(
