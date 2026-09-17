@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -13,7 +13,7 @@ const BIN = join(REPO, 'dist', 'mercury.mjs')
 const VSHOT = join(REPO, 'scripts', 'ui', 'vshot.py')
 const RUNTIME_CWD = (process.env.MERCURY_RENDER_CWD ?? REPO).normalize('NFC')
 const CONFIG_HOME = resolveProofHome([RUNTIME_CWD])
-const PROJECTS = join(CONFIG_HOME, 'projects', sanitizePath(RUNTIME_CWD))
+const PROJECTS = getProjectDir(RUNTIME_CWD)
 
 const SCRATCH = join(tmpdir(), `spectra-hold-${process.pid}`)
 mkdirSync(SCRATCH, { recursive: true })
