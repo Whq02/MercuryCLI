@@ -141,6 +141,9 @@ jobs:
           path: |
             ci-gate-out/results.tsv
             ci-gate-out/notes.tsv
+            ci-gate-out/skips.tsv
+            ci-gate-out/*.out
+            ci-gate-out/retry/*.out
           retention-days: 7
           if-no-files-found: error
 
@@ -197,6 +200,9 @@ jobs:
           path: |
             ci-gate-out/results.tsv
             ci-gate-out/notes.tsv
+            ci-gate-out/skips.tsv
+            ci-gate-out/*.out
+            ci-gate-out/retry/*.out
           retention-days: 7
           if-no-files-found: error
 
@@ -214,6 +220,8 @@ jobs:
         with:
           pattern: drives-results-*
           path: results
+      - name: Skip census (a count, never a verdict)
+        run: /usr/bin/python3 scripts/gate/skip-census.py --aggregate results
       - name: Aggregate (drives scope — per suite, with the driver's first stuck send)
         run: /usr/bin/python3 scripts/gate/ci-verdict.py results --scope drives
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
