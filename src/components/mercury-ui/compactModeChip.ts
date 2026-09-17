@@ -6,7 +6,7 @@ import {
   type PermissionMode,
 } from '../../utils/permissions/PermissionMode.js'
 
-export type CompactModeChipTone = 'bypass' | 'unreported' | 'mode'
+export type CompactModeChipTone = 'bypass' | 'mode'
 
 export type CompactModeChip = Readonly<{
   text: string
@@ -15,8 +15,7 @@ export type CompactModeChip = Readonly<{
 }>
 
 export function compactModeChip(mode: PermissionMode | null): CompactModeChip | null {
-  if (mode === null) return { text: 'permissions unreported', tone: 'unreported', modeColor: 'warning' }
-  if (isDefaultMode(mode)) return null
+  if (mode === null || isDefaultMode(mode)) return null
   if (mode === 'sovereign') {
     return { text: `${permissionModeSymbol(mode)} sovereign · auto-approved`, tone: 'bypass', modeColor: getModeColor(mode) }
   }
