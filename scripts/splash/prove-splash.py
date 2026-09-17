@@ -136,7 +136,7 @@ print('=' * 60)
 
 print('\n── SOURCE (WORD grid: the corrected Y survives re-bakes)')
 _mjs = open(CORE, encoding='utf-8').read() + '\n' + open(SPLASH, encoding='utf-8').read()
-_m = re.search(r"WORD-GRID-START.*?const WORD = \[(.*?)\]", _mjs, re.S)
+_m = re.search(r"const WORD = \[(.*?)\]", _mjs, re.S)
 check('WORD grid block present', bool(_m))
 if _m:
     _rows = re.findall(r"'([Rd.]+)'", _m.group(1))
@@ -564,7 +564,8 @@ try:
     with open(CORE) as f:
         baked = f.read()
     autopilot_idx = None
-    for i, m in enumerate(re.finditer(r'"label":"([^"]+)"', baked[baked.index('MERCURY-MENU-START'):baked.index('MERCURY-MENU-END')])):
+    _menu_at = baked.index('const MENU = [')
+    for i, m in enumerate(re.finditer(r'"label":"([^"]+)"', baked[_menu_at:baked.index('\n]', _menu_at)])):
         if m.group(1) == 'Autopilot tier mode':
             autopilot_idx = i
             break

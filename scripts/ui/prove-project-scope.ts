@@ -70,7 +70,7 @@ section('3. the /clear'.concat("'ed-session cache (operator model: cleared = clo
     const clear = src('commands', 'clear', 'clear.ts')
     check('/clear parks the focused session and births a fresh one (the one-door law)', clear.includes('clearFocusedSession()'))
     const screen = src('components', 'concourse', 'ConcourseRoute.tsx')
-    check('the double-x on a PARKED row is the cleared mark\'s writer (the board hides the chat; the transcript stays)', screen.includes('THE DOUBLE-X ON A PARKED ROW'))
+    check('the double-x on a PARKED row is the cleared mark\'s writer (the board hides the chat; the transcript stays)', /parkedRow\?\.state === 'parked'\)\s*\{\s*await markParkedCleared\(sessionId\)/.test(screen))
     for (const [label, path] of [
       ['berth ring', ['components', 'mercury-ui', 'SessionTabs.tsx']],
       ['/sessiontab flip', ['commands', 'sessiontab', 'sessiontab.tsx']],
