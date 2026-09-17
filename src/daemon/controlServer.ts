@@ -182,7 +182,7 @@ export interface ControlServerDeps {
     kitEdit?: SessionKitEditV1
     scheduleEdit?: ScheduleOpRequestV1
     spawnSwitch?: { kind: 'subagents' | 'workflows'; on: boolean }
-    terminalApplication?: { identity: string; name: string } | null
+    terminalApplication?: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null
     agentId?: string
     note?: string
     mintedAtMs?: number
@@ -960,13 +960,16 @@ async function routeControlRequest(
           scheduleEdit = { op, scheduleId }
         }
       }
-      let terminalApplication: { identity: string; name: string } | null | undefined
+      let terminalApplication: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null | undefined
       if (raw.terminalApplication !== undefined) {
         if (action !== 'focus') return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication belongs to focus only' })
-        const candidate = raw.terminalApplication as { identity?: unknown; name?: unknown } | null
+        const candidate = raw.terminalApplication as { identity?: unknown; name?: unknown; windowId?: unknown; tty?: unknown } | null
         if (candidate === null) terminalApplication = null
-        else if (typeof candidate === 'object' && !Array.isArray(candidate) && typeof candidate.identity === 'string' && candidate.identity.length > 0 && candidate.identity.length <= 512 && typeof candidate.name === 'string' && candidate.name.length > 0 && candidate.name.length <= 512) terminalApplication = { identity: candidate.identity, name: candidate.name }
-        else return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication requires nonempty identity and name strings' })
+        else if (typeof candidate === 'object' && !Array.isArray(candidate) && typeof candidate.identity === 'string' && candidate.identity.length > 0 && candidate.identity.length <= 512 && typeof candidate.name === 'string' && candidate.name.length > 0 && candidate.name.length <= 512) {
+          if (candidate.windowId !== undefined && candidate.windowId !== null && (typeof candidate.windowId !== 'string' || candidate.windowId.length === 0 || candidate.windowId.length > 128)) return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication.windowId requires a nonempty string of at most 128 characters or null' })
+          if (candidate.tty !== undefined && candidate.tty !== null && (typeof candidate.tty !== 'string' || candidate.tty.length > 1024 || !/^\/dev\/[A-Za-z0-9/_]+$/.test(candidate.tty))) return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication.tty requires a terminal device path or null' })
+          terminalApplication = { identity: candidate.identity, name: candidate.name, ...(candidate.windowId !== undefined ? { windowId: candidate.windowId as string | null } : {}), ...(candidate.tty !== undefined ? { tty: candidate.tty as string | null } : {}) }
+        } else return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication requires nonempty identity and name strings' })
       }
       const r = await deps.concourseControl({
         action,

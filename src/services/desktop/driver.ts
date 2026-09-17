@@ -76,6 +76,8 @@ export interface DesktopApplication {
   pid: number | null
   title: string | null
   bounds: DesktopBounds | null
+  windowId?: string | null
+  tty?: string | null
 }
 
 export interface DesktopCursor {
@@ -140,7 +142,7 @@ export interface DesktopDriver {
   displays(): Promise<DesktopAnswer<DesktopDisplays>>
   capture(display: number, signal: AbortSignal): Promise<DesktopAnswer<DesktopCapture>>
   frontmostApplication(): Promise<DesktopAnswer<DesktopApplication>>
-  ownTerminalApplication(): Promise<DesktopAnswer<DesktopApplication | null>>
+  ownTerminalApplication(front?: DesktopApplication): Promise<DesktopAnswer<DesktopApplication | null>>
   cursor(): Promise<DesktopAnswer<DesktopCursor>>
   mouseMove(to: DesktopPoint, signal: AbortSignal): Promise<DesktopAnswer<DesktopActReceipt>>
   mouseDown(button: DesktopButton, signal: AbortSignal): Promise<DesktopAnswer<DesktopActReceipt>>

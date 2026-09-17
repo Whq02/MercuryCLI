@@ -249,7 +249,7 @@ export type DaemonRequest =
       kitEdit?: SessionKitEditV1
       scheduleEdit?: import('./saturn.js').ScheduleOpRequestV1
       spawnSwitch?: { kind: 'subagents' | 'workflows'; on: boolean }
-      terminalApplication?: { identity: string; name: string } | null
+      terminalApplication?: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null
       agentId?: string
       note?: string
       clientOpId?: string

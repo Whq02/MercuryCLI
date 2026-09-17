@@ -155,7 +155,18 @@ console.log('A every relayed result crosses the control socket whole')
     const terminalApplication = { identity: 'com.example.CockpitTerminal', name: 'Cockpit terminal' }
     const focused = await rawRequest(path, { ...base, op: 'sessionControl', action: 'focus', sessionId: 's-1', by: 'operator:1234', terminalApplication })
     check('the authenticated focus carries the exact cockpit terminal identity', focused.ok === true && JSON.stringify(controlRequests.at(-1)?.terminalApplication) === JSON.stringify(terminalApplication))
+    const ownedWindow = { ...terminalApplication, windowId: '101', tty: '/dev/ttys001' }
+    const windowFocus = await rawRequest(path, { ...base, op: 'sessionControl', action: 'focus', sessionId: 's-1', by: 'operator:1234', terminalApplication: ownedWindow })
+    check('the authenticated focus carries the owned window identity unchanged', windowFocus.ok === true && JSON.stringify(controlRequests.at(-1)?.terminalApplication) === JSON.stringify(ownedWindow))
     const count = controlRequests.length
+    for (const windowId of ['', 101, {}, 'x'.repeat(129)]) {
+      const invalidWindow = await rawRequest(path, { ...base, op: 'sessionControl', action: 'focus', sessionId: 's-1', by: 'operator:1234', terminalApplication: { ...terminalApplication, windowId } })
+      check('an invalid window identity is refused before the handler', invalidWindow.ok === false && controlRequests.length === count, JSON.stringify(invalidWindow))
+    }
+    for (const tty of ['', 7, '/dev/tty;command', '/dev/../file', 'x'.repeat(1025)]) {
+      const invalidTty = await rawRequest(path, { ...base, op: 'sessionControl', action: 'focus', sessionId: 's-1', by: 'operator:1234', terminalApplication: { ...terminalApplication, tty } })
+      check('an invalid tty is refused before the handler', invalidTty.ok === false && controlRequests.length === count, JSON.stringify(invalidTty))
+    }
     const malformed = await rawRequest(path, { ...base, op: 'sessionControl', action: 'focus', sessionId: 's-1', by: 'operator:1234', terminalApplication: { identity: '', name: 'wrong' } })
     check('an empty terminal identity is refused before the handler', malformed.ok === false && controlRequests.length === count)
     const wrongVerb = await rawRequest(path, { ...base, op: 'sessionControl', action: 'blur', sessionId: 's-1', by: 'operator:1234', terminalApplication })

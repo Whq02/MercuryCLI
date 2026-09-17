@@ -82,6 +82,11 @@ extern "C" {
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
     fn AXIsProcessTrustedWithOptions(options: CFTypeRef) -> u8;
+    fn AXIsProcessTrusted() -> bool;
+    fn AXUIElementCreateApplication(pid: i32) -> CFTypeRef;
+    fn AXUIElementSetMessagingTimeout(element: CFTypeRef, timeout: f32) -> i32;
+    fn AXUIElementCopyAttributeValue(element: CFTypeRef, attribute: CFTypeRef, value: *mut CFTypeRef) -> i32;
+    fn AXValueGetValue(value: CFTypeRef, kind: u32, output: *mut c_void) -> bool;
     static kAXTrustedCheckOptionPrompt: CFTypeRef;
 }
 
@@ -322,15 +327,17 @@ unsafe fn app_facts(app: &AnyObject) -> (Option<String>, Option<String>, i32, is
     (identity.map(|s| s.to_string()), name.map(|s| s.to_string()), pid, policy)
 }
 
-unsafe fn front_window_bounds(pid: i32) -> Option<BoundsRecord> {
-    let list = CGWindowListCopyWindowInfo(WINDOW_LIST_OPTION_ON_SCREEN_ONLY | WINDOW_LIST_EXCLUDE_DESKTOP_ELEMENTS, NULL_WINDOW_ID);
+unsafe fn window_facts(pid: i32, wanted: Option<u32>, exact: Option<&BoundsRecord>) -> (Option<String>, Option<BoundsRecord>) {
+    let options = if wanted.is_some() { WINDOW_LIST_EXCLUDE_DESKTOP_ELEMENTS } else { WINDOW_LIST_OPTION_ON_SCREEN_ONLY | WINDOW_LIST_EXCLUDE_DESKTOP_ELEMENTS };
+    let list = CGWindowListCopyWindowInfo(options, NULL_WINDOW_ID);
     if list.is_null() {
-        return None;
+        return (None, None);
     }
     let key_pid = cf_string("kCGWindowOwnerPID");
     let key_layer = cf_string("kCGWindowLayer");
     let key_bounds = cf_string("kCGWindowBounds");
-    let mut found: Option<BoundsRecord> = None;
+    let key_number = cf_string("kCGWindowNumber");
+    let mut found = (None, None);
     let count = CFArrayGetCount(list);
     for i in 0..count {
         let dict = CFArrayGetValueAtIndex(list, i);
@@ -343,23 +350,109 @@ unsafe fn front_window_bounds(pid: i32) -> Option<BoundsRecord> {
         if cf_number_i64(CFDictionaryGetValue(dict, key_layer)).unwrap_or(0) != 0 {
             continue;
         }
-        let bounds = CFDictionaryGetValue(dict, key_bounds);
-        if bounds.is_null() {
+        let number = cf_number_i64(CFDictionaryGetValue(dict, key_number)).and_then(|n| u32::try_from(n).ok()).filter(|n| *n != 0);
+        if wanted.is_some() && number != wanted {
             continue;
         }
+        let bounds = CFDictionaryGetValue(dict, key_bounds);
         let mut r = rect(0.0, 0.0, 0.0, 0.0);
-        if CGRectMakeWithDictionaryRepresentation(bounds, &mut r) {
-            found = Some(BoundsRecord { x: r.origin.x, y: r.origin.y, width: r.size.width, height: r.size.height });
-            break;
+        let geometry = if !bounds.is_null() && CGRectMakeWithDictionaryRepresentation(bounds, &mut r) {
+            Some(BoundsRecord { x: r.origin.x, y: r.origin.y, width: r.size.width, height: r.size.height })
+        } else { None };
+        if let Some(expected) = exact {
+            let Some(actual) = geometry.as_ref() else { continue };
+            if expected.x != actual.x || expected.y != actual.y || expected.width != actual.width || expected.height != actual.height {
+                continue;
+            }
+            if found.0.is_some() {
+                found = (None, None);
+                break;
+            }
         }
+        found = (number.map(|n| n.to_string()), geometry);
+        if exact.is_none() { break; }
     }
-    for key in [key_pid, key_layer, key_bounds] {
+    for key in [key_pid, key_layer, key_bounds, key_number] {
         if !key.is_null() {
             CFRelease(key);
         }
     }
     CFRelease(list);
     found
+}
+
+unsafe fn terminal_window_id(identity: &str, tty: &str, front: Option<u32>) -> Option<u32> {
+    if identity != "com.apple.Terminal" && identity != "com.googlecode.iterm2" {
+        return None;
+    }
+    if !tty.starts_with("/dev/") || !tty.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'/' || b == b'_') {
+        return None;
+    }
+    let walk = if identity == "com.apple.Terminal" {
+        format!("repeat with w in windows\nrepeat with t in tabs of w\nif tty of t is \"{tty}\" then return id of w as text\nend repeat\nend repeat")
+    } else {
+        format!("repeat with w in windows\nrepeat with t in tabs of w\nrepeat with s in sessions of t\nif tty of s is \"{tty}\" then return id of w as text\nend repeat\nend repeat\nend repeat")
+    };
+    let target_check = front.map(|id| format!("if not (exists window id {id}) then return \"\"\nif (count of tabs of window id {id}) is 0 then return \"\"\n")).unwrap_or_default();
+    let source = NSString::from_str(&format!("tell application id \"{identity}\"\n{target_check}{walk}\nend tell\nreturn \"\""));
+    let class = AnyClass::get(c"NSAppleScript")?;
+    let allocated: *mut AnyObject = msg_send![class, alloc];
+    if allocated.is_null() {
+        return None;
+    }
+    let initialized: *mut AnyObject = msg_send![allocated, initWithSource: &*source];
+    let script = Retained::from_raw(initialized)?;
+    let mut error: *mut AnyObject = ptr::null_mut();
+    let result: *mut AnyObject = msg_send![&*script, executeAndReturnError: &mut error];
+    if result.is_null() || !error.is_null() {
+        return None;
+    }
+    let value: Option<Retained<NSString>> = msg_send![&*result, stringValue];
+    value?.to_string().parse::<u32>().ok().filter(|n| *n != 0)
+}
+
+unsafe fn ax_attribute(element: CFTypeRef, name: &str) -> CFTypeRef {
+    let key = cf_string(name);
+    let mut value: CFTypeRef = ptr::null();
+    let status = AXUIElementCopyAttributeValue(element, key, &mut value);
+    CFRelease(key);
+    if status == 0 { value } else { ptr::null() }
+}
+
+unsafe fn focused_window_facts(pid: i32) -> (Option<String>, Option<BoundsRecord>) {
+    if !AXIsProcessTrusted() { return (None, None); }
+    let app = AXUIElementCreateApplication(pid);
+    if app.is_null() { return (None, None); }
+    let budget = std::env::var("MERCURY_DESKTOP_OWNER_TIMEOUT_MS").ok().and_then(|s| s.parse::<u32>().ok()).filter(|n| *n > 0 && *n <= 5000).unwrap_or(1000);
+    AXUIElementSetMessagingTimeout(app, budget as f32 / 1000.0);
+    let focused = ax_attribute(app, "AXFocusedWindow");
+    CFRelease(app);
+    if focused.is_null() { return (None, None); }
+    let symbol = libc::dlsym(libc::RTLD_DEFAULT, c"_AXUIElementGetWindow".as_ptr());
+    let mut window_id = 0u32;
+    let private_id = if !symbol.is_null() {
+        let get_window: unsafe extern "C" fn(CFTypeRef, *mut u32) -> i32 = std::mem::transmute(symbol);
+        if get_window(focused, &mut window_id) == 0 && window_id != 0 { Some(window_id) } else { None }
+    } else { None };
+    let position = ax_attribute(focused, "AXPosition");
+    let size = ax_attribute(focused, "AXSize");
+    let mut p = point(0.0, 0.0);
+    let mut s = CGSize { width: 0.0, height: 0.0 };
+    let geometry = if !position.is_null() && !size.is_null() && AXValueGetValue(position, 1, &mut p as *mut CGPoint as *mut c_void) && AXValueGetValue(size, 2, &mut s as *mut CGSize as *mut c_void) {
+        Some(BoundsRecord { x: p.x, y: p.y, width: s.width, height: s.height })
+    } else { None };
+    for value in [position, size, focused] {
+        if !value.is_null() { CFRelease(value); }
+    }
+    let public = geometry.as_ref().map(|bounds| window_facts(pid, None, Some(bounds))).unwrap_or((None, None));
+    if let Some(id) = private_id {
+        let private = window_facts(pid, Some(id), None);
+        if let (Some(a), Some(b)) = (&private.0, &public.0) {
+            if a != b { return (None, None); }
+        }
+        if private.0.is_some() { return private; }
+    }
+    public
 }
 
 pub fn frontmost_application() -> ApplicationAnswer {
@@ -379,8 +472,10 @@ pub fn frontmost_application() -> ApplicationAnswer {
         let Some(identity) = identity.filter(|s| !s.is_empty()) else {
             return ApplicationAnswer::refused("the frontmost application has no bundle identifier");
         };
-        let bounds = front_window_bounds(pid);
-        ApplicationAnswer::found(identity, name, Some(pid as u32), None, bounds)
+        let (window_id, bounds) = focused_window_facts(pid);
+        let mut answer = ApplicationAnswer::found(identity, name, Some(pid as u32), None, bounds);
+        answer.window_id = window_id;
+        answer
     })
 }
 
@@ -394,8 +489,51 @@ fn parent_of(pid: i32) -> Option<i32> {
     Some(info.pbi_ppid as i32)
 }
 
+pub fn terminal_window_application(identity: &str, tty: &str, front: Option<u32>) -> ApplicationAnswer {
+    autoreleasepool(|_| unsafe {
+        let Some(running_class) = AnyClass::get(c"NSRunningApplication") else {
+            return ApplicationAnswer::refused("the application layer is not loaded");
+        };
+        let Some(owned) = terminal_window_id(identity, tty, front) else {
+            return ApplicationAnswer::refused("the terminal tty could not be mapped to a window");
+        };
+        let bundle = NSString::from_str(identity);
+        let apps: *mut AnyObject = msg_send![running_class, runningApplicationsWithBundleIdentifier: &*bundle];
+        if !apps.is_null() {
+            let count: usize = msg_send![&*apps, count];
+            for i in 0..count {
+                let app: *mut AnyObject = msg_send![&*apps, objectAtIndex: i];
+                let (_, name, pid, _) = app_facts(&*app);
+                let (window_id, bounds) = window_facts(pid, Some(owned), None);
+                if window_id.is_some() {
+                    let mut answer = ApplicationAnswer::found(identity.to_string(), name, Some(pid as u32), None, bounds);
+                    answer.window_id = window_id;
+                    answer.tty = Some(tty.to_string());
+                    return answer;
+                }
+            }
+        }
+        ApplicationAnswer::refused("the tty's window is not owned by the terminal application")
+    })
+}
+
 pub fn own_terminal_application() -> ApplicationAnswer {
     autoreleasepool(|_| unsafe {
+        let mut buffer = [0 as c_char; 1024];
+        let tty = if libc::ttyname_r(libc::STDIN_FILENO, buffer.as_mut_ptr(), buffer.len()) == 0 {
+            std::ffi::CStr::from_ptr(buffer.as_ptr()).to_str().ok().map(str::to_string)
+        } else { None };
+        let program = std::env::var("TERM_PROGRAM").unwrap_or_default();
+        let terminal = match program.as_str() {
+            "Apple_Terminal" => Some(("com.apple.Terminal", "Terminal")),
+            "iTerm.app" => Some(("com.googlecode.iterm2", "iTerm2")),
+            _ => None,
+        };
+        if let Some((identity, name)) = terminal {
+            let mut answer = ApplicationAnswer::found(identity.to_string(), Some(name.to_string()), None, None, None);
+            answer.tty = tty;
+            return answer;
+        }
         let Some(running_class) = AnyClass::get(c"NSRunningApplication") else {
             return ApplicationAnswer::refused("the application layer is not loaded");
         };
@@ -409,8 +547,9 @@ pub fn own_terminal_application() -> ApplicationAnswer {
                 let (identity, name, _, policy) = app_facts(&*app);
                 if policy == ACTIVATION_POLICY_REGULAR {
                     if let Some(identity) = identity.filter(|s| !s.is_empty()) {
-                        let bounds = front_window_bounds(pid);
-                        return ApplicationAnswer::found(identity, name, Some(pid as u32), None, bounds);
+                        let mut answer = ApplicationAnswer::found(identity, name, Some(pid as u32), None, None);
+                        answer.tty = tty;
+                        return answer;
                     }
                 }
             }

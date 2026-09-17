@@ -36,6 +36,7 @@ export interface FakeSceneSwitch {
 export interface FakeScene {
   displays: DesktopDisplay[]
   frontmost: DesktopApplication
+  focusedWindow?: DesktopApplication
   cursor: DesktopPoint
   lines: string[]
   noise?: boolean
@@ -54,7 +55,7 @@ export const FAKE_SCENE_DEFAULT: FakeScene = {
   lines: ['Untitled — TextEdit', 'The quick brown fox jumps over the lazy dog.', 'A second line of the document.'],
   switches: [],
   holdMs: 0,
-  ownTerminal: { identity: 'com.example.Terminal', name: 'Terminal', pid: 4100, title: 'mercury', bounds: { x: 0, y: 700, width: 1440, height: 200 } },
+  ownTerminal: { identity: 'com.example.Terminal', name: 'Terminal', pid: 4100, title: 'mercury', windowId: '101', bounds: { x: 0, y: 700, width: 1440, height: 200 } },
   permissions: { session: 'desktop', screenCapture: 'granted', input: 'granted', reason: null },
 }
 
@@ -113,6 +114,8 @@ function applicationProblem(value: unknown, at: string): string | null {
   if (!isText(value.name) || value.name === '') return `${at}.name must be a non-empty string`
   if (!(value.pid === null || value.pid === undefined || finiteNumber(value.pid))) return `${at}.pid must be a number or null`
   if (!(value.title === null || value.title === undefined || isText(value.title))) return `${at}.title must be a string or null`
+  if (!(value.windowId === null || value.windowId === undefined || (isText(value.windowId) && value.windowId !== ''))) return `${at}.windowId must be a non-empty string or null`
+  if (!(value.tty === null || value.tty === undefined || (isText(value.tty) && value.tty !== ''))) return `${at}.tty must be a non-empty string or null`
   return boundsProblem(value.bounds ?? null, `${at}.bounds`)
 }
 
@@ -142,6 +145,10 @@ export function fakeSceneProblem(value: unknown): string | null {
   }
   if (value.frontmost !== undefined) {
     const problem = applicationProblem(value.frontmost, 'frontmost')
+    if (problem !== null) return problem
+  }
+  if (value.focusedWindow !== undefined) {
+    const problem = applicationProblem(value.focusedWindow, 'focusedWindow')
     if (problem !== null) return problem
   }
   if (value.cursor !== undefined) {
@@ -189,6 +196,8 @@ function applicationFrom(value: Record<string, unknown>): DesktopApplication {
     pid: finiteNumber(value.pid) ? value.pid : null,
     title: isText(value.title) ? value.title : null,
     bounds: isRecord(bounds) ? { x: bounds.x as number, y: bounds.y as number, width: bounds.width as number, height: bounds.height as number } : null,
+    windowId: isText(value.windowId) && value.windowId !== '' ? value.windowId : null,
+    tty: isText(value.tty) && value.tty !== '' ? value.tty : null,
   }
 }
 
@@ -207,6 +216,7 @@ function sceneFrom(value: Record<string, unknown>): FakeScene {
     }))
   }
   if (isRecord(value.frontmost)) base.frontmost = applicationFrom(value.frontmost)
+  if (isRecord(value.focusedWindow)) base.focusedWindow = applicationFrom(value.focusedWindow)
   if (isRecord(value.cursor)) base.cursor = { x: value.cursor.x as number, y: value.cursor.y as number }
   if (Array.isArray(value.lines)) base.lines = [...(value.lines as string[])]
   if (typeof value.noise === 'boolean') base.noise = value.noise
@@ -447,7 +457,7 @@ export class FakeDesktopDriver implements DesktopDriver {
   }
 
   async frontmostApplication(): Promise<DesktopAnswer<DesktopApplication>> {
-    let current = this.scene.frontmost
+    let current = this.scene.focusedWindow ?? this.scene.frontmost
     for (const s of this.scene.switches) if (s.afterActs <= this.sceneActs) current = s.frontmost
     return answer({ ...current, bounds: current.bounds ? { ...current.bounds } : null })
   }
