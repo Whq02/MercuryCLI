@@ -1016,7 +1016,7 @@ export function Config({
         (item.searchText ?? '').toLowerCase().includes(needle),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps -- items rebuilt every render; the query is the real input
-  }, [query, version, appState, themeSetting])
+  }, [query, version, appState, themeSetting, seatFacts])
 
   const paneHeight = contentHeight ?? 20
   const windowSize = Math.max(5, paneHeight - 10)
