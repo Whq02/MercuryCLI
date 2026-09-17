@@ -268,6 +268,23 @@ against their checked-in lock files before a byte is consumed.
   through unshrunk); the release packager refuses to publish that
   degradation, so an archive packaged from this tree carries the pack.
 
+- **Sandbox socket-filter helper** (Linux ships only; from the repo
+  dependency, never fetched). `apply-seccomp`, the statically linked helper
+  the Linux sandbox runs in front of each confined command to install its
+  seccomp filter (unix-socket creation blocked), arrives with `bun install`
+  under `node_modules/@anthropic-ai/sandbox-runtime/vendor/seccomp/<x64|arm64>/`.
+  A build that ships for Linux copies the shipped arch's binary to
+  `dist/vendor/seccomp/<arch>/apply-seccomp` (mode 755) with the package's
+  LICENSE beside it at `dist/vendor/seccomp/LICENSE`, and records it as the
+  manifest's `seccomp` (bytes, sha256, the package version and licence). The
+  runtime reads that path beside the bundle first
+  (`src/utils/sandbox/sandbox-adapter.ts`), so with it present the sandbox's
+  dependency check carries no seccomp warning. Absent on a Linux ship ⇒
+  degraded `seccomp-filter`, which the release packager refuses to publish;
+  a macOS or Windows ship vendors nothing and the record says the helper
+  serves Linux only. `MERCURY_BUILD_NO_VENDOR_SECCOMP=1` forces the degraded
+  arm.
+
 ## The NOTICE stamp
 
 Both JS artifacts receive a composed NOTICE head (`src/constants/legalNotice.ts`):
@@ -283,7 +300,7 @@ reproducible-build comparisons are unaffected.
 `dist/manifest.json`, schema 2: `{schema, name, version, buildTime,
 buildTree, bundle, bundleBytes, bundleSha256, node, selfContained, search,
 pythonDebugger, pyright, jsDebug, runtime, typescript, treeSitter,
-imageProcessing, degraded}`. `bun run artifact:smoke` asserts every claim against the real
+imageProcessing, seccomp, degraded}`. `bun run artifact:smoke` asserts every claim against the real
 files. The runtime tool catalog does not read it — it probes the real
 binary state live, which agrees by construction since both derive from the
 same vendored files. `bundleSha256` names the exact bundle bytes;

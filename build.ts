@@ -352,6 +352,42 @@ let rgSourceLabel = '';
   }
 }
 
+const seccompRelPath = SHIP.platform === 'linux' ? `vendor/seccomp/${SHIP.arch}/apply-seccomp` : 'vendor/seccomp';
+let seccompVendored = false;
+let seccompMeta: { arch: string; bytes: number; sha256: string; version: string; license: string } | null = null;
+{
+  const seccompDir = resolve(OUT, 'vendor', 'seccomp');
+  rmSync(seccompDir, { recursive: true, force: true });
+  const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_SECCOMP === '1';
+  const packageDir = resolve(ROOT, 'node_modules', '@anthropic-ai', 'sandbox-runtime');
+  const source = resolve(packageDir, 'vendor', 'seccomp', SHIP.arch, 'apply-seccomp');
+  const licenseSource = resolve(packageDir, 'LICENSE');
+  if (SHIP.platform !== 'linux') {
+    console.log(`apply-seccomp not vendored: the sandbox's unix-socket filter helper serves Linux only (this build ships for ${SHIP_KEY})`);
+  } else if (forceNo) {
+    console.warn('MERCURY_BUILD_NO_VENDOR_SECCOMP=1 — apply-seccomp NOT vendored (degraded: seccomp-filter; proof seam).');
+  } else if (statSync(source, { throwIfNoEntry: false })?.isFile() && statSync(licenseSource, { throwIfNoEntry: false })?.isFile()) {
+    const dest = resolve(OUT, seccompRelPath);
+    mkdirSync(resolve(dest, '..'), { recursive: true });
+    copyFileSync(source, dest);
+    chmodSync(dest, 0o755);
+    copyFileSync(licenseSource, resolve(seccompDir, 'LICENSE'));
+    const sourceSha256 = createHash('sha256').update(readFileSync(source)).digest('hex');
+    const shipped = readFileSync(dest);
+    const digest = createHash('sha256').update(shipped).digest('hex');
+    if (digest !== sourceSha256) {
+      console.error(`BUILD FAILED: the apply-seccomp copy at ${dest} does not match its source ${source}`);
+      process.exit(1);
+    }
+    const pkg = JSON.parse(readFileSync(resolve(packageDir, 'package.json'), 'utf8')) as { version: string; license: string };
+    seccompMeta = { arch: SHIP.arch, bytes: shipped.length, sha256: digest, version: pkg.version, license: pkg.license };
+    seccompVendored = true;
+    console.log(`VENDORED apply-seccomp ${SHIP.arch} from @anthropic-ai/sandbox-runtime ${pkg.version} (${shipped.length} bytes, ${pkg.license}; the licence text beside it)\n  -> ${dest}`);
+  } else {
+    console.warn(`no apply-seccomp for ${SHIP_KEY} under node_modules/@anthropic-ai/sandbox-runtime/vendor/seccomp — the artifact ships WITHOUT the sandbox's unix-socket filter (degraded: seccomp-filter; a Linux sandbox runs with unix sockets open and /sandbox says so). Restore the package: bun install`);
+  }
+}
+
 const debugpyRelPath = 'vendor/debugpy';
 let debugpyVendored = false;
 let debugpyMeta: { version: string; wheel: string; sha256: string } | null = null;
@@ -1207,6 +1243,30 @@ const manifest = {
         remedy:
           'install the platform\'s prebuilt sharp packages (bun install fetches node_modules/@img/*), then re-run `bun run build.ts` — the runtime takes the pure-JavaScript image road meanwhile (PNG/BMP shrink; JPEG/WebP/GIF pass through unshrunk)',
       },
+  seccomp: seccompVendored && seccompMeta
+    ? {
+        vendored: true,
+        path: seccompRelPath,
+        arch: seccompMeta.arch,
+        bytes: seccompMeta.bytes,
+        sha256: seccompMeta.sha256,
+        source: `@anthropic-ai/sandbox-runtime ${seccompMeta.version}`,
+        license: seccompMeta.license,
+        licensePath: 'vendor/seccomp/LICENSE',
+      }
+    : SHIP.platform === 'linux'
+      ? {
+          vendored: false,
+          path: seccompRelPath,
+          remedy:
+            'restore node_modules/@anthropic-ai/sandbox-runtime (bun install), then re-run `bun run build.ts` — a Linux sandbox runs with unix sockets open meanwhile, and /sandbox says so',
+        }
+      : {
+          vendored: false,
+          path: seccompRelPath,
+          platform: 'linux',
+          note: `the sandbox's unix-socket filter helper serves Linux only; this build ships for ${SHIP_KEY}`,
+        },
   degraded: [
     ...(rgVendored ? [] : ['search']),
     ...(debugpyVendored ? [] : ['python-debugger']),
@@ -1217,6 +1277,7 @@ const manifest = {
     ...(whisperVendored ? [] : ['on-device-transcriber']),
     ...(desktopVendored ? [] : ['desktop-driver']),
     ...(imagePackVendored ? [] : ['image-processing']),
+    ...(SHIP.platform === 'linux' && !seccompVendored ? ['seccomp-filter'] : []),
     ...(brushVendored ? [] : ['shell-engine']),
     ...(typescriptVendored ? [] : ['structural-intelligence']),
     ...(treesitterVendored ? [] : ['structure-polyglot']),
