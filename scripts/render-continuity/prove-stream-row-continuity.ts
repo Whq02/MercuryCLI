@@ -219,7 +219,9 @@ for (const scene of scenes) {
   let elapsedLawHolds = true
   let monotonic = true
   let prev = -1
-  const spinnerFrames = timed.filter(f => f.rows.some(r => /\b\d+s\b/.test(r) && /esc|interrupt|thinking|✻|✶/i.test(r)))
+  const withoutPostscript = (r: string): string => r.replace(/\w+ thought for \d+[smhd]\b/g, '')
+  const carriesElapsed = (r: string): boolean => /\b\d+s\b/.test(withoutPostscript(r)) && /esc|interrupt|thinking|✻|✶/i.test(r)
+  const spinnerFrames = timed.filter(f => f.rows.some(carriesElapsed))
   const turnFrames: typeof timed = []
   let seenGap = false
   for (const f of timed) {
@@ -232,9 +234,9 @@ for (const scene of scenes) {
     else if (!hasSpinner) seenGap = true
   }
   for (const f of turnFrames) {
-    const elapsedRows = f.rows.filter(r => /\b\d+s\b/.test(r) && /esc|interrupt|thinking|✻|✶/i.test(r))
+    const elapsedRows = f.rows.filter(carriesElapsed)
     if (elapsedRows.length > 1) elapsedLawHolds = false
-    const row = (elapsedRows[0] ?? '').replace(/thought for \d+s/g, '')
+    const row = withoutPostscript(elapsedRows[0] ?? '')
     const ints = [...row.matchAll(/(?:^|[^.\d])(\d+)s\b/g)].map(m => Number(m[1]))
     if (ints.length) {
       const v = ints[ints.length - 1]
