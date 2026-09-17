@@ -18,6 +18,7 @@ import {
   buildConcourseSnapshot,
   dispatchSeedInputs,
   markParkedCleared,
+  markSessionSeen,
   OLDER_CHATS_ROW_PREFIX,
   readConcourseSeedOverrides,
   resolveHarnessGround,
@@ -30,7 +31,6 @@ import { subscribeObligations, resolveObligation } from '../../services/crew/obl
 import { subscribeCurrentProject } from '../../utils/bootCardFacts.js';
 import { getFocusedSessionConnector, hasFocusedSession, subscribeFocusedSessionConnector, withLanding } from '../../services/engine-connector/focusedConnector.js';
 import { armEntryWarmth, settleEntryWarmth } from '../../services/concourse/sessionWarmth.js';
-import { isCrossProjectFinishedRef } from '../../services/concourse/crossProjectPings.js';
 import { removePrefixRecord } from '../../services/providers/anthropic/prefixRecordStore.js';
 import type { ConcourseCallbacks, ConcourseSnapshotV1, ControlNoteState } from './contracts.js';
 import { controlNoteOf, concourseWaitCopy } from './contracts.js';
@@ -367,6 +367,7 @@ function LiveConcourse(): React.ReactNode {
         noteControl(noteKey, { state: 'refused', reason: 'the older chats unfold on the board — ↵ on the line opens them' })
         return
       }
+      void markSessionSeen(sessionId).catch(() => {})
       const row = snapshotRef.current?.groups.flatMap(g => g.rows).find(r => r.sessionId === sessionId)
       const rowParked = row?.state === 'parked' ? { transcriptPath: row.transcriptPath, title: row.title } : undefined
       const parked = opts?.parkedFact ?? rowParked
@@ -774,11 +775,6 @@ function LiveConcourse(): React.ReactNode {
           }
           void subject
           attachAndEnter(row.sessionId, 'board:open', { fullChat: true, entry: 'settled' })
-          if (isCrossProjectFinishedRef(row.ref)) {
-            void o
-              .resolveObligation(obligationId, { kind: 'resolved', by: 'operator', scope: 'switchboard' })
-              .catch(e => logForDebugging(`[concourse] cross-project ping settle failed: ${e}`))
-          }
         })
       },
       withdrawObligation: obligationId => {

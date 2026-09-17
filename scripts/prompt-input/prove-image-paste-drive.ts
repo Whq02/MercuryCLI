@@ -93,9 +93,9 @@ if (ROAD === 'obligation') {
   const cfg = scenario('resume-2turn', 120, 40)
   writeSyntheticSession('short', SID)
   await upsertObligation({
-    ref: `cross-project:finished:${SID}:${Date.now()}`,
+    ref: `ask:${SID}:${Date.now()}`,
     sessionId: SID,
-    question: 'your agent in another project finished · concourse-w1',
+    question: 'is this the right screenshot?',
     owner: 'operator',
     scope: 'switchboard',
   })
