@@ -397,6 +397,15 @@ export function getAssistantMessageFromError(
   return asked === undefined ? row : { ...row, providerWaitEndsAtMs: Date.now() + asked }
 }
 
+function signInWallAccount(model: string): string | undefined {
+  if (!['anthropic', 'gateway'].includes(routeOfModel(model)) || !isClaudeAISubscriber()) return undefined
+  try {
+    return getOauthAccountInfo()?.emailAddress
+  } catch {
+    return undefined
+  }
+}
+
 function composeAssistantMessageFromError(
   error: unknown,
   model: string,
@@ -650,7 +659,7 @@ function composeAssistantMessageFromError(
   const wall = classifyCredentialWall(status, message)
   if (wall !== undefined) {
     logForDebugging(`[api] credential wall (${wall}) on ${model} — the wire said: ${message}`)
-    const account = wall === 'sign-in' && ['anthropic', 'gateway'].includes(routeOfModel(model)) && isClaudeAISubscriber() ? getOauthAccountInfo()?.emailAddress : undefined
+    const account = wall === 'sign-in' ? signInWallAccount(model) : undefined
     return createAssistantAPIErrorMessage({
       content: `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine(routeOfModel(model), wall, { nonInteractive })}${account ? ` · account ${account}` : ''}`,
       error: 'authentication_failed',
@@ -668,7 +677,7 @@ function composeAssistantMessageFromError(
 
   if ((status === 401 && isClaudeAISubscriber()) || classifyAnthropicRefusal({ status, wireText: message, signInExpired: isAnthropicOAuthSignInExpired() }) === 'sign-in') {
     logForDebugging(`[api] credential wall (sign-in) on ${model} — the wire said: ${message}`)
-    const account = ['anthropic', 'gateway'].includes(routeOfModel(model)) && isClaudeAISubscriber() ? getOauthAccountInfo()?.emailAddress : undefined
+    const account = signInWallAccount(model)
     return createAssistantAPIErrorMessage({
       content: `${API_ERROR_MESSAGE_PREFIX}: ${credentialWallLine(routeOfModel(model), 'sign-in', { nonInteractive })}${account ? ` · account ${account}` : ''}`,
       error: 'authentication_failed',

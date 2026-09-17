@@ -50,7 +50,7 @@ section('§1 DeepSeek and Kimi price at their own recorded rates (the base price
   const priced = calculateUSDCost('deepseek-v4-flash', specimen)
   const expected = perM(100_000, flash.costInPerMtok!) + perM(10_000, flash.costOutPerMtok!) + perM(20_000, flash.cachedInPerMtok!)
   const fallback = perM(100_000, COST_TIER_5_25.inputTokens) + perM(10_000, COST_TIER_5_25.outputTokens) + perM(20_000, COST_TIER_5_25.promptCacheReadTokens)
-  check('a DeepSeek V4 Flash turn prices at the pin arithmetic', near(priced, expected), `${priced} vs ${expected}`)
+  check('a DeepSeek V4.1 Flash turn prices at the pin arithmetic', near(priced, expected), `${priced} vs ${expected}`)
   check('…an order of magnitude under the fallback tier the base charged', priced < fallback / 8, `${priced} vs fallback ${fallback}`)
   const kimi = kimiDisplayPin('kimi-k3')!
   const kimiTier = getModelCosts('kimi-k3')
