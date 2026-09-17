@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { markEpochs, runArtifactArena, type ArenaRun } from './artifactArena.ts'
+import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 
 const REGIONS = [
   'render:repl-root',
@@ -40,7 +41,7 @@ if (!idle.probe) {
   console.error('✗ no probe dump from the idle scene — MERCURY_FLUX_PROBE_TEE egress broken')
   process.exit(1)
 }
-const idleWin: [number, number] = [bootTs(idle) + 4000, bootTs(idle) + 10000]
+const idleWin: [number, number] = [bootTs(idle) + S(4000), endTs(idle) - 800]
 const idleSec = (idleWin[1] - idleWin[0]) / 1000
 const idleRate: Record<string, number> = {}
 for (const r of REGIONS) idleRate[r] = inWindow(idle, r, idleWin) / idleSec
