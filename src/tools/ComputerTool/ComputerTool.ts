@@ -326,28 +326,50 @@ async function ownTerminalRefusal(
   front: DesktopApplication,
   plan: ActPlan,
 ): Promise<string | null> {
-  const own = await driver.ownTerminalApplication()
+  const own = await driver.ownTerminalApplication(front)
   const action = input.action
   if (!own.ok || own.value === null) {
     if (action === 'type' || action === 'hold' || (action === 'key' && !(plan.chord !== null && isAppSwitchChord(plan.chord)))) return `${action} refused: the terminal running this session could not be identified — keep the cockpit attached in a supported terminal before sending keystrokes`
     return null
   }
   if (own.value.identity !== front.identity) return null
+  if (own.value.tty) {
+    const current = await driver.frontmostApplication()
+    if (!current.ok || current.value.identity !== front.identity || current.value.windowId !== front.windowId) {
+      return `${action} refused: the front window changed while checking terminal ownership by tty — nothing done; take a screenshot and re-issue`
+    }
+  }
+  const windowKnown = own.value.windowId != null && front.windowId != null
+  if (windowKnown && own.value.windowId !== front.windowId) {
+    for (const point of [plan.point, plan.target]) {
+      if (point === null || (front.bounds !== null && insideBounds(point, front.bounds))) continue
+      if (own.value.bounds === null) return `${action} refused: the point is outside the target window and the terminal running this session has unknown bounds — keep the act inside the target window`
+      if (insideBounds(point, own.value.bounds)) return `${action} refused: ${pixelWordsOf(input, point, plan)} is inside the window of the terminal running this session`
+    }
+    return null
+  }
+  const windowCheck = windowKnown && own.value.tty ? '\nWindow ownership checked by tty.' : ''
+  const unknownWindow = 'the terminal application running this session is in front, but its window identity is unknown — all windows of this application remain protected; switch to another application first'
+  if (!windowKnown && (action === 'type' || action === 'hold' || (action === 'key' && !(plan.chord !== null && isAppSwitchChord(plan.chord))))) {
+    return `${action} refused: ${unknownWindow}`
+  }
   if (action === 'type' || action === 'hold') {
-    return `${action} refused: the application in front is the terminal running this session — a keystroke there would land in this conversation; switch to the target application first`
+    return `${action} refused: the application in front is the terminal running this session — a keystroke there would land in this conversation; switch to the target application first${windowCheck}`
   }
   if (action === 'key') {
     if (plan.chord !== null && isAppSwitchChord(plan.chord)) return null
-    return `key refused: the terminal running this session is in front — only the application switch chord (${switchChordWords()}) is allowed there; switch to the target application first`
+    return `key refused: the terminal running this session is in front — only the application switch chord (${switchChordWords()}) is allowed there; switch to the target application first${windowCheck}`
   }
   const points = [plan.point, plan.target].filter((point): point is DesktopPoint => point !== null)
   if (front.bounds === null) {
-    return `${action} refused: the terminal running this session is in front and its window bounds are unknown — switch to the target application first`
+    if (!windowKnown) return `${action} refused: ${unknownWindow}; the front window's bounds are also unknown`
+    return `${action} refused: the terminal running this session is in front and its window bounds are unknown — switch to the target application first${windowCheck}`
   }
   for (const point of points) {
     if (insideBounds(point, front.bounds)) {
       const pixel = pixelWordsOf(input, point, plan)
-      return `${action} refused: ${pixel} is inside the window of the terminal running this session`
+      if (!windowKnown) return `${action} refused: ${pixel} is inside the front window; ${unknownWindow}`
+      return `${action} refused: ${pixel} is inside the window of the terminal running this session${windowCheck}`
     }
   }
   return null
@@ -741,7 +763,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     const plan = planOf(owner, context, input)
     if (isPlanRefusal(plan)) return denied(plan.refusal, 'the act has no screenshot frame')
     const terminal = await ownTerminalRefusal(driver, input, app, plan)
-    if (terminal !== null) return denied(terminal, 'the terminal running this session is in front')
+    if (terminal !== null) return denied(terminal, 'the own-terminal guard refused the act')
     const permissionContext = (context as Partial<ToolUseContext> | undefined)?.getAppState?.()
       ?.toolPermissionContext as ToolPermissionContext | undefined
     const content = `app:${app.identity}`
@@ -840,6 +862,12 @@ Take a screenshot after acts that change the screen, act on what the latest one 
           return finish()
         }
         claimedForAct = true
+        const atAct = await driver.frontmostApplication()
+        if (!atAct.ok || atAct.value.identity !== front.value.identity || atAct.value.windowId !== front.value.windowId || JSON.stringify(atAct.value.bounds) !== JSON.stringify(front.value.bounds)) {
+          result = `${input.action} refused: the front window changed before the act — nothing done; take a screenshot and re-issue`
+          outcome = 'failed'
+          return finish()
+        }
         setDrivingApp(live)
         let act: ActWords
         try {

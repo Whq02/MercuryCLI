@@ -203,12 +203,12 @@ function seatVerb(action: 'focus' | 'blur', sessionId: string): void {
   seatChain = seatChain
     .then(async () => {
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-      let terminalApplication: { identity: string; name: string } | null | undefined
+      let terminalApplication: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null | undefined
       if (action === 'focus' && flagEnabled('MERCURY_COMPUTER_USE')) {
         const { resolveDesktopDriver } = await import('../desktop/resolveDriver.js')
         const driver = resolveDesktopDriver()
         const terminal = driver.state === 'ok' ? await driver.driver.ownTerminalApplication() : null
-        terminalApplication = terminal?.ok && terminal.value !== null ? { identity: terminal.value.identity, name: terminal.value.name } : null
+        terminalApplication = terminal?.ok && terminal.value !== null ? { identity: terminal.value.identity, name: terminal.value.name, windowId: terminal.value.windowId ?? null, tty: terminal.value.tty ?? null } : null
       }
       const reply = (await daemonControlRpc({ op: 'sessionControl', action, sessionId, by: SEAT_BY, ...(terminalApplication !== undefined ? { terminalApplication } : {}) } as never, { timeoutMs: RPC_TIMEOUT_MS })) as { ok?: boolean; error?: string }
       if (reply.ok !== true) logForDebugging(`[engine-connector] ${action} ${sessionId} not applied: ${reply.error ?? 'no reply'}`)

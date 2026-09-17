@@ -15,7 +15,7 @@ type FakeDesktopDriver = import('../../src/services/desktop/fakeDesktopDriver.ts
 const scratch = scratchDir('asks')
 const TEXTEDIT = { identity: 'com.example.TextEdit', name: 'TextEdit' }
 const FINDER = { identity: 'com.example.Finder', name: 'Finder', pid: 4300, title: null, bounds: { x: 0, y: 0, width: 600, height: 400 } }
-const TERMINAL = { identity: 'com.example.Terminal', name: 'Terminal', pid: 4100, title: 'mercury', bounds: { x: 0, y: 700, width: 1440, height: 200 } }
+const TERMINAL = { identity: 'com.example.Terminal', name: 'Terminal', pid: 4100, title: 'mercury', windowId: '101', bounds: { x: 0, y: 700, width: 1440, height: 200 } }
 
 function useScene(name: string, scene: Record<string, unknown> | null): void {
   if (scene === null) delete process.env.MERCURY_DESKTOP_FAKE_SCENE
@@ -183,6 +183,61 @@ section('§7 the terminal running this session: keystrokes never land in it')
   const outside = await refusalOf({ action: 'click', x: outsidePixel.x, y: outsidePixel.y, capture: false }, context)
   check('a click outside its window is allowed', outside === null, outside ?? '')
   check('no keystroke reached the driver', !fakeDriver().acts.some(a => a.act === 'typeText' || a.act === 'keyDown'), JSON.stringify(fakeDriver().acts.map(a => a.act)))
+  session.forgetDesktopOwner(owner)
+}
+
+section('the owned window, not every window of its application')
+{
+  const sibling = { ...TERMINAL, windowId: '102' }
+  const { context, owner, screen } = await fresh('sibling-window', { ownTerminal: TERMINAL, frontmost: sibling })
+  session.approveApp(owner, { identity: TERMINAL.identity, name: TERMINAL.name })
+  const pixel = pixelOfPointOn(screen, 50, 750)
+  for (const input of [
+    { action: 'type', text: 'hello', capture: false },
+    { action: 'key', key: 'Enter', capture: false },
+    { action: 'hold', key: 'shift', durationMs: 50, capture: false },
+    { action: 'click', ...pixel, capture: false },
+  ]) {
+    const refused = await refusalOf(input, context)
+    check(`${input.action}: a sibling with the same title and bounds is allowed by its distinct window identity`, refused === null, refused ?? '')
+  }
+  useScene('fullscreen-panel', { ownTerminal: TERMINAL, frontmost: { ...TERMINAL, windowId: '999', bounds: { x: 0, y: 0, width: 1440, height: 68 } }, focusedWindow: TERMINAL })
+  const fullscreen = await permission({ action: 'type', text: 'hello' }, context)
+  check('a fullscreen panel above the terminal never replaces its focused window', fullscreen.behavior === 'deny' && (fullscreen.message ?? '').includes('a keystroke there would land in this conversation'), JSON.stringify(fullscreen))
+  const macOwner = sourceText('native/desktop/src/mac.rs')
+  check('the native front-window path reads Accessibility focus without a prompt or private link', macOwner.includes('focused_window_facts(pid)') && macOwner.includes('AXFocusedWindow') && macOwner.includes('if !AXIsProcessTrusted()') && macOwner.includes('libc::dlsym(libc::RTLD_DEFAULT, c"_AXUIElementGetWindow"') && !macOwner.includes('fn _AXUIElementGetWindow('))
+  useScene('sibling-beside-own', { ownTerminal: TERMINAL, frontmost: { ...sibling, bounds: { x: 0, y: 0, width: 600, height: 400 } } })
+  const ownPoint = await permission({ action: 'click', ...pixel, capture: false }, context)
+  check('a point outside the sibling but inside the own window is refused', ownPoint.behavior === 'deny' && (ownPoint.message ?? '').includes('inside the window of the terminal running this session'), JSON.stringify(ownPoint))
+  const outside = pixelOfPointOn(screen, 50, 50)
+  const dropped = await permission({ action: 'drag', ...outside, toX: pixel.x, toY: pixel.y, capture: false }, context)
+  check('a drag ending on the own window behind the sibling is refused', dropped.behavior === 'deny', JSON.stringify(dropped))
+  useScene('front-moves-after-lookup', { ownTerminal: { ...TERMINAL, tty: '/dev/ttys001' }, frontmost: sibling })
+  const claimedDriver = fakeDriver()
+  let frontReads = 0
+  claimedDriver.frontmostApplication = async () => ({ ok: true, value: ++frontReads <= 2 ? sibling : TERMINAL })
+  const afterLookup = resultOf(await ComputerTool.call({ action: 'type', text: 'hello', capture: false } as never, context, allowEverything, toolUseTurn('toolu_after_lookup', 'Computer', { action: 'type', text: 'hello' })))
+  check('a front-window change after the lookup refuses before the act', afterLookup.outcome === 'failed' && claimedDriver.acts.length === 0, afterLookup.result)
+  useScene('front-moves-during-lookup', { ownTerminal: { ...TERMINAL, tty: '/dev/ttys001' }, frontmost: sibling })
+  const movingDriver = fakeDriver()
+  const readOwn = movingDriver.ownTerminalApplication.bind(movingDriver)
+  movingDriver.ownTerminalApplication = async () => {
+    movingDriver.frontmostApplication = async () => ({ ok: true, value: TERMINAL })
+    return readOwn()
+  }
+  const whileLooking = resultOf(await ComputerTool.call({ action: 'type', text: 'hello', capture: false } as never, context, allowEverything, toolUseTurn('toolu_during_lookup', 'Computer', { action: 'type', text: 'hello' })))
+  check('a front-window change during tty lookup refuses before input', whileLooking.outcome === 'failed' && whileLooking.result.includes('changed while checking') && movingDriver.acts.length === 0, whileLooking.result)
+  useScene('moved-own-window', { ownTerminal: { ...sibling, tty: '/dev/ttys001' }, frontmost: sibling })
+  const moved = await permission({ action: 'type', text: 'hello' }, context)
+  check('a tab moved into the formerly allowed window is refused by its fresh tty mapping', moved.behavior === 'deny' && (moved.message ?? '').includes('Window ownership checked by tty.'), JSON.stringify(moved))
+  useScene('own-before-act', { ownTerminal: TERMINAL, frontmost: TERMINAL })
+  const drifted = resultOf(await ComputerTool.call({ action: 'type', text: 'hello', capture: false } as never, context, allowEverything, toolUseTurn('toolu_window_drift', 'Computer', { action: 'type', text: 'hello' })))
+  check('the act rechecks the own window after a sibling was approved', drifted.outcome === 'failed' && drifted.result.includes('a keystroke there would land in this conversation') && fakeDriver().acts.length === 0, drifted.result)
+  for (const missing of ['own', 'front'] as const) {
+    useScene(`unknown-window-${missing}`, { ownTerminal: missing === 'own' ? { ...TERMINAL, windowId: null } : TERMINAL, frontmost: missing === 'front' ? { ...sibling, windowId: null } : sibling })
+    const refused = await permission({ action: 'type', text: 'hello' }, context)
+    check(`${missing} window identity unknown: the application guard remains and says what is unknown`, refused.behavior === 'deny' && (refused.message ?? '').includes('window identity is unknown') && (refused.message ?? '').includes('application'), JSON.stringify(refused))
+  }
   session.forgetDesktopOwner(owner)
 }
 

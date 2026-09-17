@@ -1,3 +1,4 @@
 prove-computer-ask-drive.ts
 prove-computer-refusal-drive.ts
 prove-computer-interrupt-drive.ts
+prove-computer-own-window-drive.ts

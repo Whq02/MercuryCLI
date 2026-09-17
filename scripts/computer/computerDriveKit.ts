@@ -9,7 +9,8 @@ import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
 export const ROOT = resolve(import.meta.dir, '..', '..')
-export const DIST = join(ROOT, 'dist', 'mercury.mjs')
+const distArg = process.argv.indexOf('--dist')
+export const DIST = distArg < 0 ? join(ROOT, 'dist', 'mercury.mjs') : resolve(process.argv[distArg + 1]!)
 export const ADMITTED = 'Type a prompt'
 const VENDORED_NODE = join(ROOT, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
 export function productNode(): string {
@@ -115,11 +116,12 @@ export interface Leg {
   scene: string | null
   log: string
   netlog: string
+  cwd: string
 }
 
-export function seededHome(name: string): string {
+export function seededHome(name: string, cwd = ROOT): string {
   const home = join(scratch, name)
-  seedFirstRun(home, [ROOT])
+  seedFirstRun(home, [cwd])
   return home
 }
 
@@ -129,16 +131,17 @@ export function writeScene(name: string, scene: Record<string, unknown>): string
   return path
 }
 
-export async function startLeg(tag: string, turns: ScriptedTurn[], scene: Record<string, unknown> | null): Promise<Leg> {
+export async function startLeg(tag: string, turns: ScriptedTurn[], scene: Record<string, unknown> | null, cwd = ROOT): Promise<Leg> {
   const scripted = turns.map(turn => (turn.whenModel === undefined ? { ...turn, whenModel: 'opus' } : turn))
   const fixture = await startFixtureApi(scripted)
   return {
     tag,
-    home: seededHome(`home-${tag}`),
+    home: seededHome(`home-${tag}`, cwd),
     fixture,
     scene: scene === null ? null : writeScene(`scene-${tag}`, scene),
     log: join(scratch, `${tag}-acts.jsonl`),
     netlog: join(scratch, `${tag}-net.log`),
+    cwd,
   }
 }
 
@@ -190,12 +193,12 @@ export interface DriveResult {
   endReason: string
 }
 
-export async function drive(driver: AvailableCaptureDriver, leg: Leg, size: { cols: number; rows: number }, sends: unknown[], total: number, extra: Record<string, string | undefined> = {}): Promise<DriveResult> {
+export async function drive(driver: AvailableCaptureDriver, leg: Leg, size: { cols: number; rows: number }, sends: unknown[], total: number, extra: Record<string, string | undefined> = {}, readyText?: string): Promise<DriveResult> {
   const tag = `${leg.tag}-${size.cols}x${size.rows}`
   const grid = join(scratch, `${tag}-grid.json`)
   const cfgPath = join(scratch, `${tag}-vshot.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST, '--chat'], sends, total, cols: size.cols, rows: size.rows, out: grid, title: tag }))
-  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { env: childEnv(leg, extra), cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] })
+  writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST, '--chat'], sends, total, cols: size.cols, rows: size.rows, out: grid, title: tag, ...(readyText === undefined ? {} : { readyText }) }))
+  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { env: childEnv(leg, extra), cwd: leg.cwd, stdio: ['ignore', 'pipe', 'pipe'] })
   let stderr = ''
   child.stdout.on('data', chunk => { stderr += String(chunk) })
   child.stderr.on('data', chunk => { stderr += String(chunk) })

@@ -160,10 +160,31 @@ by `+` with a named key (Enter, Escape, Tab, Space, Backspace, Delete, Home,
 End, PageUp, PageDown, the arrows, F1 to F12) or one character. The model
 never types into the terminal running Mercury: with that terminal in front,
 typed text and held keys are refused, a key chord is allowed only to switch
-applications, and a click must land outside the terminal's window. A worker
-uses the terminal identity supplied by the attached cockpit, not the daemon
-that spawned it. If that identity cannot be read, typing, holding keys and
-ordinary key chords refuse rather than guessing; the application-switch
+applications, and a click must land outside the terminal's window. Another
+window of the same application can be driven when both window identities
+are known. On macOS, Apple Terminal and iTerm2 map the cockpit's tty to its
+window through their scripting bridge; titles and window positions are not
+ownership evidence. A worker uses the tty supplied by the attached cockpit,
+not the daemon that spawned it. Each guard check resolves that tty afresh,
+so moving a tab between windows does not leave stale ownership behind.
+The lookup runs only when the terminal application is in front, in a
+separate helper with a 1000 ms deadline. `MERCURY_DESKTOP_OWNER_TIMEOUT_MS`
+accepts 1–5000 ms; an invalid value keeps the default. A failed or timed-out
+lookup keeps the application-wide guard and does not block the event loop.
+
+The front window comes from the Accessibility API, not the first window in
+the screen list, which may be a fullscreen title panel. Mercury resolves
+the private `_AXUIElementGetWindow` symbol at runtime. If it is unavailable,
+exact position and size must identify one on-screen window of that process;
+ambiguous matches stay unknown. When both mappings answer, they must agree.
+This path checks the existing Accessibility grant without opening a dialog.
+
+When either window identity is unknown, the guard still protects every
+window of the terminal application and says that it is comparing the
+application, not the window. Windows, Linux, terminal multiplexers and
+terminals without a supported scripting bridge take that conservative
+road. If the application itself cannot be identified, typing, holding keys
+and ordinary key chords refuse rather than guessing; the application-switch
 chord remains available.
 
 ## Models and routes

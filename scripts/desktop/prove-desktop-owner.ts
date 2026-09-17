@@ -35,6 +35,7 @@ interface StubAnswers {
   permissions?: Record<string, unknown>
   throws?: Record<string, string>
   abort?: string[]
+  ownedWindowFile?: string
 }
 
 type Calls = Record<string, number>
@@ -55,7 +56,9 @@ function stubSource(answers: StubAnswers, exports: readonly string[]): string {
     "  displays: () => { count('displays'); return { displays: [{ index: 0, id: 'fixture-1', originX: 0, originY: 0, width: 1440, height: 900, scale: 2, primary: true }, { index: 1, id: 'fixture-2', originX: -1920, originY: 0, width: 1920, height: 1080, scale: 1, primary: false }], reason: null } },",
     "  capture: async () => { count('capture'); return { png: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]), width: 2880, height: 1800, scale: 2, display: 0, displayId: 'fixture-1', originX: 0, originY: 0, capturedAt: 1 } },",
     "  frontmostApplication: () => { count('frontmostApplication'); return { identity: 'com.example.editor', name: 'Editor', pid: 4242, title: 'Untitled', bounds: { x: 100, y: 100, width: 800, height: 600 }, reason: null } },",
-    "  ownTerminalApplication: () => { count('ownTerminalApplication'); return { identity: null, name: null, pid: null, title: null, bounds: null, reason: 'fixture: no terminal' } },",
+    answers.ownedWindowFile === undefined
+      ? "  ownTerminalApplication: () => { count('ownTerminalApplication'); return { identity: null, name: null, pid: null, title: null, bounds: null, reason: 'fixture: no terminal' } },"
+      : `  ownTerminalApplication: (identity, tty) => { count('ownTerminalApplication'); if (!identity || !tty) return { identity: null }; const fs = require('node:fs'); fs.appendFileSync(${JSON.stringify(`${answers.ownedWindowFile}.calls`)}, tty + '\\n'); const answer = JSON.parse(fs.readFileSync(${JSON.stringify(answers.ownedWindowFile)}, 'utf8')); if (answer.delayMs) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, answer.delayMs); return { identity, name: 'Terminal', tty, windowId: answer.windowId, bounds: null } },`,
     "  cursor: () => { count('cursor'); return { x: 720, y: 450, display: 0, reason: null } },",
     "  mouseMove: () => { count('mouseMove') },",
     "  mouseDown: () => { count('mouseDown') },",
@@ -332,12 +335,61 @@ console.log('\n[13] a daemon worker reads the cockpit terminal, never the daemon
       const own = await d.ownTerminalApplication()
       check('the worker reads the focused cockpit identity from the durable record', own.ok && own.value?.identity === 'com.example.CockpitTerminal' && own.value.name === 'Cockpit terminal', JSON.stringify(own))
       check('the worker never consults its add-on ancestry for this identity', (calls().ownTerminalApplication ?? 0) === 0, JSON.stringify(calls()))
+      check('an older cockpit without a window identity stays unknown', own.ok && own.value?.windowId == null, JSON.stringify(own))
+      const windowChanged = focusConcourseSession(sessionId, `operator:${process.pid}`, undefined, { identity: 'com.example.CockpitTerminal', name: 'Cockpit terminal', windowId: '101' })
+      const window = await d.ownTerminalApplication()
+      check('a published window id without a tty never authorizes input', windowChanged.outcome === 'applied' && window.ok && window.value?.windowId == null, JSON.stringify(window))
+      focusConcourseSession(sessionId, `operator:${process.pid}`, undefined, { identity: 'com.example.CockpitTerminal', name: 'Cockpit terminal' })
+      const withoutWindow = await d.ownTerminalApplication()
+      check('an older cockpit clears the prior window identity instead of inheriting it', withoutWindow.ok && withoutWindow.value?.windowId == null, JSON.stringify(withoutWindow))
       focusConcourseSession(sessionId, `operator:${process.pid}`, undefined, { identity: 'com.example.OtherTerminal', name: 'Other terminal' })
       const changed = await d.ownTerminalApplication()
       check('re-focusing in a different terminal refreshes the identity', changed.ok && changed.value?.identity === 'com.example.OtherTerminal')
       blurConcourseSession(sessionId, `operator:${process.pid}`)
       const blurred = await d.ownTerminalApplication()
       check('a blurred session cannot reuse the former terminal identity', blurred.ok && blurred.value === null)
+      if (process.platform === 'darwin') {
+        const mapping = join(SCRATCH, 'owned-window.json')
+        writeFileSync(mapping, JSON.stringify({ windowId: '101' }))
+        usePack(fixturePack({ answers: { ownedWindowFile: mapping } }))
+        const mapped = native.resolveNativeDesktopDriver()
+        if (mapped.state !== 'ok') check('the tty mapping stub resolves', false, mapped.note)
+        else {
+          const terminal = { identity: 'com.apple.Terminal', name: 'Terminal', windowId: '101', tty: '/dev/ttys001' }
+          focusConcourseSession(sessionId, `operator:${process.pid}`, undefined, terminal)
+          const before = await Bun.file(statePath).text()
+          const front = { ...terminal, pid: 4200, title: null, bounds: null, windowId: '202' }
+          const first = await mapped.driver.ownTerminalApplication(front)
+          check('the worker resolves the cockpit tty rather than the helper tty', first.ok && first.value?.windowId === '101' && first.value.tty === terminal.tty, JSON.stringify(first))
+          writeFileSync(mapping, JSON.stringify({ windowId: '202' }))
+          const moved = await mapped.driver.ownTerminalApplication(front)
+          check('a moved tab is revalidated on the next check without another focus verb', moved.ok && moved.value?.windowId === '202', JSON.stringify(moved))
+          check('the worker never becomes a second writer of the daemon record', await Bun.file(statePath).text() === before)
+          const callsBefore = await Bun.file(`${mapping}.calls`).text()
+          const elsewhere = await mapped.driver.ownTerminalApplication({ ...front, identity: 'com.example.Editor' })
+          check('another application in front never starts the scripting lookup', elsewhere.ok && elsewhere.value?.windowId == null && await Bun.file(`${mapping}.calls`).text() === callsBefore)
+          writeFileSync(mapping, JSON.stringify({ windowId: null }))
+          const noWindow = await mapped.driver.ownTerminalApplication(front)
+          check('a failed mapping returns unknown window ownership, not the stored id', noWindow.ok && noWindow.value?.windowId == null && noWindow.value?.identity === terminal.identity, JSON.stringify(noWindow))
+          const previousTimeout = process.env.MERCURY_DESKTOP_OWNER_TIMEOUT_MS
+          process.env.MERCURY_DESKTOP_OWNER_TIMEOUT_MS = '80'
+          writeFileSync(mapping, JSON.stringify({ windowId: '202', delayMs: 60_000 }))
+          let ticks = 0
+          const ticking = setInterval(() => ticks++, 10)
+          const started = performance.now()
+          const late = await mapped.driver.ownTerminalApplication(front)
+          clearInterval(ticking)
+          if (previousTimeout === undefined) delete process.env.MERCURY_DESKTOP_OWNER_TIMEOUT_MS
+          else process.env.MERCURY_DESKTOP_OWNER_TIMEOUT_MS = previousTimeout
+          check('a hung lookup is killed at the configured deadline and stays unknown', late.ok && late.value?.windowId == null && performance.now() - started < 2000, JSON.stringify(late))
+          check('the event loop stays live while the lookup is stuck', ticks > 0, `${ticks} ticks`)
+          writeFileSync(mapping, JSON.stringify({ windowId: '202', delayMs: 150 }))
+          const changedFocus = setTimeout(() => blurConcourseSession(sessionId, `operator:${process.pid}`), 30)
+          const stale = await mapped.driver.ownTerminalApplication(front)
+          clearTimeout(changedFocus)
+          check('focus lost during the lookup invalidates its answer', stale.ok && stale.value === null, JSON.stringify(stale))
+        }
+      }
     }
   } finally {
     if (previousRole === undefined) delete process.env.MERCURY_CONCOURSE_WORKER
