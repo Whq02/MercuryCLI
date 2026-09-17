@@ -96,8 +96,14 @@ ordinary result, bounded by the Read's own line budget and token cap, and
 records it as a windowed read of exactly those lines; the result's first
 line names the file's size in tokens, the lines returned, and the Read that
 continues from the window's end. Only a read the model asked for itself
-answers this way: an automatic attachment that overflows keeps the refusal
-it always had.
+answers this way. An automatic attachment that overflows still refuses and
+records no lines as read, but its error names the bounded `Read(offset,
+limit)` window to try next. The error carries the same next-window fields
+as the ordinary result. If even one line exceeds the cap, the refusal says
+that a line window cannot split it and directs the caller to search rather
+than repeating that Read. A notebook over the cap has no line window at all
+(`offset` and `limit` do not select cells): its refusal says so and names
+the shell cell-slice commands instead of a Read.
 
 ## Change receipts
 

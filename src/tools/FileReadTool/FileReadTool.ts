@@ -255,16 +255,27 @@ function notifyFileReadListeners(filePath: string, content: string): void {
 export class MaxFileReadTokenExceededError extends Error {
   readonly tokenCount: number
   readonly maxTokens: number
+  readonly next: OverCapNote['next'] | undefined
 
-  constructor(tokenCount: number, maxTokens: number) {
-    super(
-      `File content (${tokenCount} tokens) exceeds maximum allowed tokens (${maxTokens}). ` +
-        `Use offset and limit parameters to read specific portions of the file, or search for specific content instead of reading the whole file.`,
-    )
+  constructor(tokenCount: number, maxTokens: number, words: string, next?: OverCapNote['next']) {
+    super(`File content (${tokenCount} tokens) exceeds maximum allowed tokens (${maxTokens}): ${words}`)
     this.name = 'MaxFileReadTokenExceededError'
     this.tokenCount = tokenCount
     this.maxTokens = maxTokens
+    this.next = next
   }
+}
+
+function overCapNextWords(next: OverCapNote['next']): string {
+  return `Read(offset: ${next.offset}, limit: ${next.limit}) continues from there, or search for specific content instead of reading the whole file.`
+}
+
+function notebookSliceRemedy(resolvedPath: string): string {
+  return `Read a slice of the notebook from the shell instead, e.g.:
+- first 10 cells: jq '.cells[:10]' "${resolvedPath}"
+- a cell range: jq '.cells[10:20]' "${resolvedPath}"
+- the cell count: jq '.cells | length' "${resolvedPath}"
+- all code sources: jq -r '.cells[] | select(.cell_type=="code") | .source[]' "${resolvedPath}"`
 }
 
 function firstWindowUnderCap(
@@ -296,18 +307,16 @@ function firstWindowUnderCap(
   }
 }
 
-async function validateContentTokens(content: string, ext: string, maxTokens: number): Promise<void> {
+async function tokensOverCap(content: string, ext: string, maxTokens: number): Promise<number | undefined> {
   const estimate = roughTokenCountEstimationForFileType(content, ext)
-  if (!estimate || estimate <= maxTokens / 4) return
+  if (!estimate || estimate <= maxTokens / 4) return undefined
   let effective = estimate
   try {
     const accurate = await countTokensWithAPI(content)
     if (accurate !== null) effective = accurate
   } catch {
   }
-  if (effective > maxTokens) {
-    throw new MaxFileReadTokenExceededError(effective, maxTokens)
-  }
+  return effective > maxTokens ? effective : undefined
 }
 
 
@@ -486,14 +495,17 @@ async function readNotebookLane(
   const serializedBytes = Buffer.byteLength(serialized, 'utf8')
   if (serializedBytes > limits.maxSizeBytes) {
     throw new Error(
-      `Notebook content (${formatFileSize(serializedBytes)}) exceeds the maximum allowed size (${formatFileSize(limits.maxSizeBytes)}). Read a slice of the notebook from the shell instead, e.g.:
-- first 10 cells: jq '.cells[:10]' "${resolvedPath}"
-- a cell range: jq '.cells[10:20]' "${resolvedPath}"
-- the cell count: jq '.cells | length' "${resolvedPath}"
-- all code sources: jq -r '.cells[] | select(.cell_type=="code") | .source[]' "${resolvedPath}"`,
+      `Notebook content (${formatFileSize(serializedBytes)}) exceeds the maximum allowed size (${formatFileSize(limits.maxSizeBytes)}). ${notebookSliceRemedy(resolvedPath)}`,
     )
   }
-  await validateContentTokens(serialized, 'ipynb', limits.maxTokens)
+  const tokens = await tokensOverCap(serialized, 'ipynb', limits.maxTokens)
+  if (tokens !== undefined) {
+    throw new MaxFileReadTokenExceededError(
+      tokens,
+      limits.maxTokens,
+      `no cells were returned, and a notebook Read has no line window (offset and limit do not select cells). ${notebookSliceRemedy(resolvedPath)}`,
+    )
+  }
   const timestamp = getFileModificationTime(resolvedPath)
   context.readFileState.set(keyPath, {
     content: serialized,
@@ -658,12 +670,18 @@ async function readTextLane(
     context.abortController.signal,
   )
   let overCap: OverCapNote | undefined
-  try {
-    await validateContentTokens(range.content, ext, limits.maxTokens)
-  } catch (err) {
-    if (!(err instanceof MaxFileReadTokenExceededError) || !ownRead) throw err
-    const window = firstWindowUnderCap(range, lineOffset, resolvedPath, ext, limits, err.tokenCount)
-    if (window === null) throw err
+  const tokens = await tokensOverCap(range.content, ext, limits.maxTokens)
+  if (tokens !== undefined) {
+    const window = firstWindowUnderCap(range, lineOffset, resolvedPath, ext, limits, tokens)
+    if (!ownRead || window === null) {
+      const next = { offset: lineOffset + 1, limit: window?.shown.lineCount ?? 1 }
+      throw new MaxFileReadTokenExceededError(
+        tokens,
+        limits.maxTokens,
+        `no lines were returned; ${overCapNextWords(next)}${window === null ? ' A single line exceeds the cap; offset and limit cannot split it, so search for the needed content instead of repeating that Read.' : ''}`,
+        next,
+      )
+    }
     range = window.shown
     overCap = window.note
   }
@@ -754,7 +772,7 @@ function overCapWords(file: Extract<Output, { type: 'text' }>['file']): string {
   const shown = file.numLines === 1 ? `line ${file.startLine} is below and counts as read` : `lines ${file.startLine}-${last} are below and count as read`
   return (
     `File content (${note.tokens} tokens) exceeds maximum allowed tokens (${note.maxTokens}): ${shown}; ` +
-    `Read(offset: ${note.next.offset}, limit: ${note.next.limit}) continues from there, or search for specific content instead of reading the whole file.`
+    overCapNextWords(note.next)
   )
 }
 
