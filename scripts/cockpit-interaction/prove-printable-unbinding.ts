@@ -14,7 +14,7 @@ import {
 } from '../../src/keybindings/resolver.ts'
 import { parseBindings } from '../../src/keybindings/parser.ts'
 import type { Key } from '../../src/ink.js'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 
 const t = checker()
 
@@ -165,7 +165,7 @@ t.section('§5 — REAL BINARY: chord timing is deterministic in the product')
       sends: unknown[],
       readyText: string,
       total = 160,
-    ): { status: number | null; text: string } => {
+    ): { status: number | null; text: string; endReason: string; tail: string } => {
       const out = join(scratch, `${name}.json`)
       const cfgPath = join(scratch, `${name}-cfg.json`)
       writeFileSync(
@@ -191,16 +191,21 @@ t.section('§5 — REAL BINARY: chord timing is deterministic in the product')
         timeout: vshotBudgetMs(180_000),
       })
       let text = ''
+      let endReason = 'no grid'
       try {
-        const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: Array<Array<{ c: string }>> }
+        const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: Array<Array<{ c: string }>>; endReason?: string }
         text = payload.grid.map(row => row.map(c => c.c).join('')).join('\n')
+        endReason = payload.endReason ?? '?'
       } catch {
       }
-      return { status: r.status, text }
+      const tail = text.split('\n').map(l => l.trimEnd()).filter(l => l.trim() !== '').slice(-6).join(' | ').slice(0, 400)
+      return { status: r.status, text, endReason, tail }
     }
 
-    const FACE = { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' }
-    const boot = { atTick: 60, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3 }
+    const FACE = { atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 3, awaitSettleTicks: 2, data: '\r' }
+    const boot = { atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 5, awaitSettleTicks: 3 }
+    const SCALE = vshotBudgetScale()
+    const real = (ticks: number): number => Math.max(1, Math.round(ticks / SCALE))
 
     const immediate = drive(
       'immediate',
@@ -210,7 +215,7 @@ t.section('§5 — REAL BINARY: chord timing is deterministic in the product')
     t.check(
       'ctrl+x p opens the palette',
       immediate.status === 0 && immediate.text.includes('run a command'),
-      `exit=${immediate.status}`,
+      `exit=${immediate.status} end=${immediate.endReason} · ${immediate.tail}`,
     )
     t.check(
       'and the prefix never leaked into the composer as text',
@@ -220,26 +225,26 @@ t.section('§5 — REAL BINARY: chord timing is deterministic in the product')
 
     const late = drive(
       'late',
-      [FACE, { ...boot, data: '\x18' }, { afterPrevTicks: 16, atTick: 120, data: 'p' }],
+      [FACE, { ...boot, data: '\x18' }, { afterPrevTicks: real(16), data: 'p' }],
       'run a command',
       200,
     )
     t.check(
       'a suffix inside the grace window still completes the chord',
       late.status === 0 && late.text.includes('run a command'),
-      `exit=${late.status}`,
+      `exit=${late.status} end=${late.endReason} · ${late.tail}`,
     )
 
     const expired = drive(
       'expired',
-      [FACE, { ...boot, data: '\x18' }, { afterPrevTicks: 26, atTick: 150, data: 'z' }],
+      [FACE, { ...boot, data: '\x18' }, { afterPrevTicks: real(26), data: 'z' }],
       '❯ z',
       220,
     )
     t.check(
       'past the grace window the key types normally',
       expired.status === 0 && expired.text.includes('❯ z'),
-      `exit=${expired.status}`,
+      `exit=${expired.status} end=${expired.endReason} · ${expired.tail}`,
     )
     rmSync(scratch, { recursive: true, force: true })
   }
