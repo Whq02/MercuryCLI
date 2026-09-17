@@ -43,6 +43,27 @@ check("the snapshot's NOW cell for a refused park is 'park refused — <reason>'
 check("the snapshot's NOW cell for a park in flight is 'parking — <who asked>'", parkingLabel === 'parking — operator:close', String(parkingLabel))
 check('a parked row keeps its own cell (the refusal never outranks parked)', snapshot.concourseNowLabel({ ...record, parkedAt: now - 60_000, parkRefused: { reason: 'stale', at: now, by: 'x' } }, { alive: false, needsYou: false }, now) === 'parked · 01m')
 
+const { compactParkNoteOf } = await import('../../src/components/concourse/compactBoard.ts')
+const { CONTROL_NOTE_REFUSED_MS } = await import('../../src/components/concourse/contracts.ts')
+{
+  const rows = [
+    { sessionId: 's-oauth', title: 'Fix OAuth callback', nowLabel: refusedLabel },
+    { sessionId: 's-parser', title: 'Refactor parser', nowLabel: parkingLabel },
+    { sessionId: 's-plain', title: 'Plain chat', nowLabel: 'Bash: npm test' },
+  ]
+  const sightings = new Map<string, number>()
+  const seenAt = (key: string): number => { const at = sightings.get(key) ?? 1_000; sightings.set(key, at); return at }
+  const own = compactParkNoteOf(rows, 's-oauth', seenAt, 1_000, CONTROL_NOTE_REFUSED_MS)
+  check("the selected row's refusal carries its own words on the compact foot, in failure tone", own?.tone === 'failure' && own.text === `\u2715 ${refusedLabel}` && own.expiresAtMs === 1_000 + CONTROL_NOTE_REFUSED_MS, JSON.stringify(own))
+  const other = compactParkNoteOf(rows, 's-plain', seenAt, 1_000, CONTROL_NOTE_REFUSED_MS)
+  check("another row's refusal names the row before its words", other?.text === `\u2715 Fix OAuth callback: ${refusedLabel}`, JSON.stringify(other))
+  const gone = compactParkNoteOf(rows, 's-plain', seenAt, 1_000 + CONTROL_NOTE_REFUSED_MS, CONTROL_NOTE_REFUSED_MS)
+  check("after the route's refusal beat the refusal leaves the foot and the park in flight stands, in info tone, with no expiry", gone?.tone === 'info' && gone.text === `Refactor parser: ${parkingLabel}` && gone.expiresAtMs === null, JSON.stringify(gone))
+  const parkingOwn = compactParkNoteOf(rows, 's-parser', seenAt, 1_000, CONTROL_NOTE_REFUSED_MS)
+  check("the selected row's park in flight carries its own words", parkingOwn?.text === parkingLabel, JSON.stringify(parkingOwn))
+  check('no park words, no note', compactParkNoteOf([rows[2]!], 's-plain', seenAt, 1_000, CONTROL_NOTE_REFUSED_MS) === null)
+}
+
 const scratch = join(tmpdir(), `park-refusal-look-${process.pid}-home`)
 rmSync(scratch, { recursive: true, force: true })
 seedFirstRun(scratch, [REPO])
@@ -69,7 +90,7 @@ writeFileSync(fixturePath, JSON.stringify(fixture))
 function capture(cols: number, rows: number): string[] {
   const out = join(OUT_DIR, `park-refusal-${cols}x${rows}.json`)
   const cfgPath = join(scratch, `vshot-${cols}.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends: [{ data: '', awaitText: cols >= 100 ? 'SESSIONS' : 'sessions ·', requireAwait: true, awaitSettleTicks: 3, mark: 'board' }], total: 60, cols, rows, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends: [{ data: '', awaitText: cols >= 100 ? 'SESSIONS' : 'sessions ·', requireAwait: true, awaitSettleTicks: 3, mark: 'board' }, { afterPrevTicks: 58, data: '', mark: 'later' }], total: 130, cols, rows, out }))
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
     encoding: 'utf8',
     timeout: vshotBudgetMs(180_000),
@@ -96,8 +117,12 @@ function capture(cols: number, rows: number): string[] {
   const mark = payload.marks?.find(m => m.label === 'board')
   const lines = mark ? linesOf(mark) : linesOf(payload)
   writeFileSync(join(OUT_DIR, `park-refusal-${cols}x${rows}.txt`), lines.join('\n') + '\n')
+  const later = payload.marks?.find(m => m.label === 'later')
+  laterLines = later ? linesOf(later) : []
+  writeFileSync(join(OUT_DIR, `park-refusal-${cols}x${rows}--later.txt`), laterLines.join('\n') + '\n')
   return lines
 }
+let laterLines: string[] = []
 
 for (const [cols, rows] of [[120, 40], [80, 30]] as const) {
   console.log(`the board at ${cols}x${rows}`)
@@ -110,6 +135,11 @@ for (const [cols, rows] of [[120, 40], [80, 30]] as const) {
     check(`the parking row's NOW cell leads with 'parking' and the asker at ${cols} columns`, /parking — operator\S*/.test(parser), parser)
   }
   check(`both rows stay in the live group under WORKING (never parked, never needs-you) at ${cols} columns`, !oauth.includes('parked ·') && !parser.includes('parked ·') && !oauth.includes('needs you') && !parser.includes('needs you') && /[◒◐◓◑]/.test(oauth) && /[◒◐◓◑]/.test(parser), `${oauth} | ${parser}`)
+  if (cols < 100) {
+    const foot = lines.find(l => l.includes('park refused')) ?? ''
+    check(`under 100 columns the live frame's foot carries the refusal's words for the route's beat at ${cols} columns`, /\u2715 (Fix OAuth callback: )?park refused — a turn is in flight/.test(foot), foot || lines.slice(-4).join(' | '))
+    check(`after the beat the foot has let the refusal go at ${cols} columns`, laterLines.length > 0 && !laterLines.some(l => l.includes('park refused')), laterLines.filter(l => l.includes('park')).join(' | '))
+  }
 }
 
 console.log(failures === 0 ? `\npark refusal look: GREEN (frames under ${OUT_DIR})` : `\npark refusal look: ${failures} RED (frames under ${OUT_DIR})`)

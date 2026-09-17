@@ -33,7 +33,7 @@ import { armEntryWarmth, settleEntryWarmth } from '../../services/concourse/sess
 import { isCrossProjectFinishedRef } from '../../services/concourse/crossProjectPings.js';
 import { removePrefixRecord } from '../../services/providers/anthropic/prefixRecordStore.js';
 import type { ConcourseCallbacks, ConcourseSnapshotV1, ControlNoteState } from './contracts.js';
-import { controlNoteOf, concourseWaitCopy } from './contracts.js';
+import { CONTROL_NOTE_REFUSED_MS, CONTROL_NOTE_SETTLED_MS, controlNoteOf, concourseWaitCopy } from './contracts.js';
 import { Box, Text, useInput } from '../../ink.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { splitAvailableAt, splitViewOn } from './splitView.js';
@@ -264,7 +264,7 @@ function LiveConcourse(): React.ReactNode {
           delete next[control]
           return next
         })
-      }, kind === 'refused' || kind === 'failed' ? 10_000 : 4000)
+      }, kind === 'refused' || kind === 'failed' ? CONTROL_NOTE_REFUSED_MS : CONTROL_NOTE_SETTLED_MS)
       timer.unref?.()
       noteTimersRef.current[control] = timer
     }
