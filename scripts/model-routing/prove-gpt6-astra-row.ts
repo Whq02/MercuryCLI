@@ -357,7 +357,6 @@ section('§3 THE WIRE — a fixture Responses stream on the id: the summary and 
     messages: [] as never,
     settlementNotes: [] as never,
     pulseMain: false,
-    pulseGeneration: 0,
     contractDigest: 'prover-digest',
   })
   const blocks: Array<{ type: string; text: string; phase?: string }> = []

@@ -150,7 +150,6 @@ async function main(): Promise<void> {
       messages: [] as never,
       settlementNotes: [] as never,
       pulseMain: false,
-      pulseGeneration: 0,
       contractDigest: 'prover-digest',
     })
     const streamEvents: Array<Record<string, unknown>> = []
