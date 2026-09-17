@@ -82,13 +82,13 @@ against its progress, no call is refused for repeating an earlier one, and
 no watcher ends a turn on a repeated call or a repeated result.
 When a provider answers a request with no content at all, the chat says so
 in a note and the same request is sent again once before the note stands as
-the turn's end. On the OpenAI route the note names the case. A response the
-provider completed with reasoning and no words is silence: the note says so
+the turn's end. On the OpenAI and Z.AI routes the note names the case. A
+response the provider completed with no words is silence: the note says so
 and the turn ends there, with no second request. A response the provider
-stopped at its own output cap before any words names the cap and the
-reasoning tokens spent by the provider's count, and the turn ends there,
-with no second request. Only a stream that ends with nothing at all is sent
-again once.
+stopped at its own output cap before any words names the cap, and the
+reasoning tokens spent by the provider's count when the provider states
+them, and the turn ends there, with no second request. Only a stream that
+ends with nothing at all is sent again once.
 
 A run is never recorded complete while a task it filed stays open, on a
 print or worker seat exactly as in the cockpit: the stop asks for the open

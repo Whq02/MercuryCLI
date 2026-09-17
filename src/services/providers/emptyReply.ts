@@ -8,7 +8,11 @@ type MarkedAssistantMessage = AssistantMessage & { providerEmptyReply?: true; pr
 
 export function emptyReplyNote(route: EmptyReplyRoute, kind: EmptyReplyKind = 'empty', reasoningTokens?: number): string {
   if (kind === 'silence') {
-    return `[${route}] the provider finished this response with nothing said — the model reasoned and returned no words; the turn ends here, not cut.`
+    const detail =
+      route === 'zai'
+        ? 'no words and no reasoning came back'
+        : 'the model reasoned and returned no words'
+    return `[${route}] the provider finished this response with nothing said — ${detail}; the turn ends here, not cut.`
   }
   if (kind === 'cap') {
     const spent =
