@@ -32,6 +32,9 @@ export function paneRows(grid: Grid): PaneRow[] {
   if (/^\s*╭/.test(rows[0] ?? '')) {
     const end = rows.findIndex(r => /^\s*╰/.test(r))
     y = end >= 0 ? end + 1 : 0
+  } else {
+    const rule = rows.findIndex(r => /^─{20,}\s*$/.test(r))
+    y = rule >= 0 ? rule + 1 : 0
   }
   for (; y < rows.length; y++) {
     const r = rows[y]!

@@ -197,10 +197,14 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       !search.includes('extractSearchText(Out) on the Tool interface (TODO)'),
       'closed',
     )
+    const fallbackAt = search.indexOf('export function toolResultSearchText(result: unknown): string')
+    const fallbackArm = fallbackAt >= 0 ? search.slice(fallbackAt, fallbackAt + 1600) : ''
     t.check(
-      'and the duck-type arm says plainly that it is the FALLBACK',
-      search.includes('This is the FALLBACK arm, not the contract'),
-      'named',
+      'and the duck-type arm is the FALLBACK, not the contract: it walks named fields only, never every key',
+      fallbackAt >= 0 &&
+        fallbackArm.includes("for (const field of ['content', 'output', 'result', 'text', 'message'])") &&
+        !/Object\.(keys|entries|values)\(record\)/.test(fallbackArm),
+      fallbackAt >= 0 ? 'named fields' : 'no fallback arm',
     )
   }
 

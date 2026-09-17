@@ -21,7 +21,7 @@ import {
   subscribeCockpitActivity,
   type ActivityState,
 } from '../../src/utils/cockpit/cockpitActivity.ts'
-import { critterDefForKey } from '../../src/utils/cockpit/critterData.ts'
+import { critterDefForKey, squareArtFor } from '../../src/utils/cockpit/critterData.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const t = checker()
@@ -231,10 +231,31 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
 
     const octoDef = critterDefForKey('octopus').mark
     const octopusMark = octoDef.pre + octoDef.core + octoDef.post
+    const silhouette = (grid: readonly string[]): string[] => {
+      const out: string[] = []
+      for (let y = 0; y + 1 < grid.length; y += 2) {
+        const top = grid[y]!
+        const bottom = grid[y + 1]!
+        let row = ''
+        for (let x = 0; x < Math.max(top.length, bottom.length); x++) row += (top[x] ?? '.') !== '.' || (bottom[x] ?? '.') !== '.' ? '#' : ' '
+        out.push(row.trim())
+      }
+      return out.filter(r => r.length > 0)
+    }
+    const octopusSquare = silhouette(squareArtFor('octopus'))
+    const bandMask = (line: string): string => line.replace(/[▀▄█]/g, '#').replace(/[^# ]/g, ' ').trim()
+    const wearsSquare = (lines: string[], shape: string[]): boolean => {
+      const masks = lines.map(bandMask)
+      for (let i = 0; i + shape.length <= masks.length; i++) {
+        if (shape.every((row, k) => masks[i + k] === row)) return true
+      }
+      return false
+    }
     for (const stage of stages) {
       const lines = stage.grid.map(row => row.map(c => c.c).join(''))
       const text = lines.join('\n')
       const label = `${stage.cols}x${stage.rows}`
+      const compactTier = !lines.some(l => l.includes('✶ SESSION'))
       t.check(
         `${label}: not a blank or half-painted frame`,
         lines.filter(l => l.trim().length > 0).length >= 8,
@@ -242,9 +263,11 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
       )
       t.check(`${label}: the composer is present`, text.includes('❯'), 'caret')
       t.check(
-        `${label}: the SELECTED critter, never a reverted crab`,
-        text.includes(octopusMark),
-        `expected ${octopusMark}`,
+        compactTier
+          ? `${label}: the identity band paints the critter's square form (the selection is read at the cockpit widths)`
+          : `${label}: the SELECTED critter, never a reverted crab`,
+        compactTier ? wearsSquare(lines, octopusSquare) : text.includes(octopusMark),
+        compactTier ? `expected the square form ${JSON.stringify(octopusSquare)}` : `expected ${octopusMark}`,
       )
       t.check(
         `${label}: no line is mainly an ellipsis`,
