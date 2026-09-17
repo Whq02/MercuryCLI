@@ -6,7 +6,7 @@ import { PROBE_KEY, bootRunner, bound, childEnv, configKeyOf, isResult, user } f
 
 export type WireBlock = { type: 'text'; text: string } | { type: 'tool_use'; name: string; input: Record<string, unknown> }
 export type SeenResult = { toolUseId: string; text: string; isError: boolean }
-export type ScriptedRequest = { n: number; ask: string; opening: string; step: number; results: SeenResult[]; toolNames: string[] }
+export type ScriptedRequest = { n: number; ask: string; askTexts: string[]; opening: string; step: number; results: SeenResult[]; toolNames: string[] }
 export type Script = (req: ScriptedRequest) => WireBlock[]
 export type ScriptedFixture = { base: string; requests: ScriptedRequest[]; close: () => Promise<void> }
 
@@ -28,6 +28,12 @@ function askOf(content: unknown): string {
     if (part.type === 'text' && typeof part.text === 'string' && !part.text.trimStart().startsWith('<system-reminder>')) return part.text
   }
   return ''
+}
+
+function askTextsOf(content: unknown): string[] {
+  if (typeof content === 'string') return content.trimStart().startsWith('<system-reminder>') ? [] : [content]
+  if (!Array.isArray(content)) return []
+  return (content as Block[]).flatMap(part => (part.type === 'text' && typeof part.text === 'string' && !part.text.trimStart().startsWith('<system-reminder>') ? [part.text] : []))
 }
 
 const carriesResults = (item: Item): boolean => item.role === 'user' && Array.isArray(item.content) && (item.content as Block[]).some(p => p.type === 'tool_result')
@@ -65,6 +71,7 @@ export function describeRequest(body: unknown, n: number): ScriptedRequest {
   return {
     n,
     ask: askIndex === -1 ? '' : askOf(items[askIndex]!.content),
+    askTexts: askIndex === -1 ? [] : askTextsOf(items[askIndex]!.content),
     opening,
     step: after.length,
     results: resultsOf(after[after.length - 1]),

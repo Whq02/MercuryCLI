@@ -548,6 +548,14 @@ A task notification the chat shows — one the runner took mid-turn, or between
 turns as a plain message — the chat shows once, in its place; it is never
 redrawn under every new message until it ages out.
 
+Completions that land while the session waits between turns fold into one
+turn. The runner holds the first for the task poll's second and carries every
+completion that has arrived by then in one message, one block each, so a
+burst of background commands ending together costs one turn, not one per
+command. A completion that lands during a turn is read as soon as that turn
+ends, together with any queued beside it. The chat paints the carried message
+as one counted row, exactly as it paints a run of separate notices.
+
 ## Where the pieces live
 
 - The coordinator, teammates and the mailbox are [TEAMS.md](TEAMS.md)'s.

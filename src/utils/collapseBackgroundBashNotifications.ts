@@ -24,15 +24,17 @@ export interface ShellNotice {
   queued: boolean
 }
 
-function noticeText(msg: RenderableMessage): { text: string; shape: 'attachment' | 'user' } | null {
+type NoticeText = { text: string; shape: 'attachment' | 'user' }
+
+function noticeTexts(msg: RenderableMessage): NoticeText[] {
   if (msg.type === 'user') {
-    const head = msg.message.content[0]
-    if (head?.type !== 'text') return null
-    return { text: head.text, shape: 'user' }
+    const texts = msg.message.content.filter(block => block.type === 'text')
+    if (texts.length === 0 || msg.message.content[0]?.type !== 'text') return []
+    return texts.map(block => ({ text: (block as { text: string }).text, shape: 'user' as const }))
   }
   if (msg.type === 'attachment') {
     const att = msg.attachment as { type?: string; commandMode?: string; prompt?: unknown }
-    if (att.type !== 'queued_command' || att.commandMode !== 'task-notification') return null
+    if (att.type !== 'queued_command' || att.commandMode !== 'task-notification') return []
     const prompt = att.prompt
     const text =
       typeof prompt === 'string'
@@ -42,14 +44,13 @@ function noticeText(msg: RenderableMessage): { text: string; shape: 'attachment'
               .map(block => ((block as { type?: string }).type === 'text' ? ((block as { text?: string }).text ?? '') : ''))
               .join('\n')
           : ''
-    return { text, shape: 'attachment' }
+    return [{ text, shape: 'attachment' }]
   }
-  return null
+  return []
 }
 
-export function shellNoticeOf(msg: RenderableMessage): ShellNotice | null {
-  const found = noticeText(msg)
-  if (found === null || !found.text.includes(`<${TASK_NOTIFICATION_TAG}`)) return null
+function shellNoticeIn(msg: RenderableMessage, found: NoticeText): ShellNotice | null {
+  if (!found.text.includes(`<${TASK_NOTIFICATION_TAG}`)) return null
   const status = extractTag(found.text, STATUS_TAG)
   if (status !== 'completed' && status !== 'failed' && status !== 'killed') return null
   const summary = extractTag(found.text, SUMMARY_TAG) ?? ''
@@ -61,6 +62,20 @@ export function shellNoticeOf(msg: RenderableMessage): ShellNotice | null {
     detail: summary.slice(BACKGROUND_BASH_SUMMARY_PREFIX.length).trim(),
     queued: (msg as { queued?: true }).queued === true,
   }
+}
+
+export function shellNoticesOf(msg: RenderableMessage): ShellNotice[] {
+  const notices: ShellNotice[] = []
+  for (const found of noticeTexts(msg)) {
+    const notice = shellNoticeIn(msg, found)
+    if (notice === null) return []
+    notices.push(notice)
+  }
+  return notices
+}
+
+export function shellNoticeOf(msg: RenderableMessage): ShellNotice | null {
+  return shellNoticesOf(msg)[0] ?? null
 }
 
 function titleOf(detail: string): string {
@@ -116,20 +131,20 @@ export function collapseBackgroundBashNotifications(
 
   const out: RenderableMessage[] = []
   for (let i = 0; i < messages.length; ) {
-    const first = shellNoticeOf(messages[i]!)
-    if (first === null) {
+    const first = shellNoticesOf(messages[i]!)
+    if (first.length === 0) {
       out.push(messages[i]!)
       i += 1
       continue
     }
-    const run = [first]
+    const run = [...first]
     let end = i + 1
     for (; end < messages.length; end++) {
-      const next = shellNoticeOf(messages[end]!)
-      if (next === null || next.queued !== first.queued) break
-      run.push(next)
+      const next = shellNoticesOf(messages[end]!)
+      if (next.length === 0 || next[0]!.queued !== first[0]!.queued) break
+      run.push(...next)
     }
-    out.push(run.length === 1 ? first.message : foldedRow(run))
+    out.push(run.length === 1 ? first[0]!.message : foldedRow(run))
     i = end
   }
   return out
