@@ -19,7 +19,6 @@ function section(t: string): void {
 
 const kernel = await import('../../src/services/run/runKernel.ts')
 const plane = await import('../../src/services/primitives/executionPlane.ts')
-const phase = await import('../../src/utils/pulse/turnPhase.ts')
 const sidecar = await import('../../src/services/run/runSidecar.ts')
 const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
 
@@ -105,26 +104,6 @@ section('§2 execution plane — duplicate settle inert; stale generation refuse
   const current = plane.transitionExecution(owner, 'exec-2', 'starting', { generation: gen })
   check('the same transition with the CURRENT generation lands (the fence refuses staleness, not motion)', current?.state === 'starting' && plane.getExecution(owner, 'exec-2')?.state === 'starting', `state=${plane.getExecution(owner, 'exec-2')?.state}`)
   plane.settleExecution(owner, 'exec-2', 'succeeded', { outcome: { reason: 'done' } })
-}
-
-section('§3 turn phase — a stale-generation write never repaints the newer turn')
-{
-  phase.resetPhaseForTests()
-  phase.beginPhaseGeneration(1)
-  phase.setPulsePhase(1, 'preparing')
-  phase.beginPhaseGeneration(2)
-  for (const p of ['preparing', 'dispatching', 'waiting', 'thinking', 'responding'] as const) {
-    phase.setPulsePhase(2, p)
-  }
-  const before = phase.getPulsePhase()
-  check('generation 2 is live and responding', before.generation === 2 && before.phase === 'responding', `gen=${before.generation} phase=${before.phase}`)
-  phase.setPulsePhase(1, 'tool-work')
-  const after = phase.getPulsePhase()
-  check('the stale write changed NOTHING', after.generation === 2 && after.phase === 'responding', `gen=${after.generation} phase=${after.phase}`)
-  phase.setPulsePhase(2, 'responding')
-  const dup = phase.getPulsePhase()
-  check('a duplicate current write is idempotent', dup.generation === 2 && dup.phase === 'responding')
-  phase.resetPhaseForTests()
 }
 
 section('§4 run sidecar — double-save yields ONE stable durable record')

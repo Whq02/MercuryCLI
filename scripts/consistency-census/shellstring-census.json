@@ -1228,20 +1228,6 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
-      "file": "scripts/pulse/lib/pulseArena.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "'/usr/bin/python3',",
-      "cls": "platform-owner",
-      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
-    },
-    {
-      "file": "scripts/pulse/spinner/render-pulse-byline.tsx",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const grid = execFileSync('/usr/bin/python3', [VSHOT, cfg], {",
-      "cls": "platform-owner",
-      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
-    },
-    {
       "file": "scripts/release/package.mjs",
       "mechanism": "execSync-string",
       "excerpt": "execSync('bash scripts/vscode/build-vsix.sh', { cwd: ROOT, stdio: 'pipe' })",
@@ -1275,6 +1261,13 @@
       "excerpt": "const files = execSync(`grep -rln --include='*.ts' --include='*.tsx' -e 'spawnSync(' -e 'execFileSync(' -e 'execSync(' src`, {",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/render-continuity/lib/pulseArena.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "'/usr/bin/python3',",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
       "file": "scripts/render-continuity/prove-agent-resume-visibility.ts",

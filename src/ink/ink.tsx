@@ -12,7 +12,6 @@ import { fluxFrame, fluxMark } from '../utils/flux/fluxProbe.js'
 import { isMouseCaptureEnabled } from '../utils/config/derived.js'
 import { isMouseTrackingEnabled as mouseTrackingEnabledByEnvironment } from '../utils/fullscreen.js'
 import { logError } from '../utils/log.js'
-import { notePulseFrameWritten } from '../utils/pulse/turnTrace.js'
 import { applyPointerShape, resetPointerShape } from '../utils/cockpit/pointerShape.js'
 import { burnFrameCostPad, noteFrameCost } from '../utils/cockpit/motionGovernor.js'
 import {
@@ -869,7 +868,6 @@ export default class Ink {
     }
 
     this.ledger.settle(delivered, null)
-    notePulseFrameWritten(delivered)
 
     if (!delivered) {
       logForDebugging(

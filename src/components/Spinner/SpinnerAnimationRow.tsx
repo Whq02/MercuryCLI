@@ -10,20 +10,12 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { gaugeColor } from '../mercury-ui/theme.js'
 import { FOCAL_TICK_MS, WORK_TICK_MS } from '../../utils/cockpit/liveGlyphs.js'
 import { getLiveContextUsage } from '../../utils/cockpit/contextUsageLive.js'
-import { usePulsePhase } from '../../utils/pulse/turnPhase.js'
 import { formatDuration, formatNumber } from '../../utils/format.js'
 import { GLYPH, SPARK } from '../mercury-ui/glyphs.js'
 import { GlimmerMessage } from './GlimmerMessage.js'
 import { SpinnerGlyph } from './SpinnerGlyph.js'
 import { useShimmerAnimation } from './useShimmerAnimation.js'
 import { useStalledAnimation } from './useStalledAnimation.js'
-import {
-  IDLE_THINKING_TRACKER,
-  composePhaseByline,
-  nextDisplayedPhase,
-  nextThinkingSpan,
-  thinkingPostscript,
-} from './pulseByline.js'
 import { THINKING_COLOR, THINKING_WORD } from '../messages/thinkingGrammar.js'
 import { isQuicksilverLine } from '../../constants/spinnerVerbs.js'
 import type { SpinnerMode } from './types.js'
@@ -68,8 +60,6 @@ export type SpinnerAnimationRowProps = {
   foregroundedTeammate: InProcessTeammateTaskState | undefined
   leaderIsIdle?: boolean
   effortSuffix?: string
-  phaseBylineEligible: boolean
-  bylineVerb?: string
   ttftText?: string | null
   inWorkCapsule?: boolean
   still?: boolean
@@ -99,8 +89,6 @@ export function SpinnerAnimationRow(
     foregroundedTeammate,
     leaderIsIdle,
     effortSuffix,
-    phaseBylineEligible,
-    bylineVerb,
     ttftText,
     inWorkCapsule = false,
     still = false,
@@ -108,8 +96,6 @@ export function SpinnerAnimationRow(
   const [themeName] = useTheme()
   const theme = getTheme(themeName)
   const tokens = useMercuryTokens()
-  const snapshot = usePulsePhase()
-  const pulseOpen = snapshot.generation > 0 && snapshot.phase !== 'idle'
   const now = Date.now()
 
   if (loadingStartTimeRef.current === 0) {
@@ -142,8 +128,6 @@ export function SpinnerAnimationRow(
   const time = Math.max(workTime, focalTime, slowTime)
 
   const { stillWaiting, attentionIntensity } = useStalledAnimation(time, {
-    pulseOpen,
-    phase: snapshot.phase,
     mode,
     currentResponseLength: responseLengthRef.current ?? 0,
     suppressed: overrideColor !== null,
@@ -188,46 +172,9 @@ export function SpinnerAnimationRow(
   const otpsEligible =
     (mode === 'responding' || mode === 'tool-input') && otps >= 1
 
-  const displayedPhaseRef = useRef({
-    generation: 0,
-    phase: 'idle' as typeof snapshot.phase,
-  })
-  const displayedPhase = nextDisplayedPhase(
-    displayedPhaseRef.current,
-    snapshot,
-    now,
-    reducedMotion,
-  )
-  displayedPhaseRef.current = {
-    generation: snapshot.generation,
-    phase: displayedPhase,
-  }
-  const thinkingTrackerRef = useRef(IDLE_THINKING_TRACKER)
-  thinkingTrackerRef.current = nextThinkingSpan(
-    thinkingTrackerRef.current,
-    displayedPhase,
-    now,
-  )
-  const postscript = thinkingPostscript(thinkingTrackerRef.current, now)
-
-  const phaseByline =
-    pulseOpen && phaseBylineEligible
-      ? composePhaseByline({
-          phase: displayedPhase,
-          detail: snapshot.detail,
-          activeToolCount,
-          maxWidth: Math.max(10, columns - 9),
-          verb: bylineVerb,
-        })
-      : null
-  const bylineNarratesThinking =
-    phaseByline !== null && displayedPhase === 'thinking'
-
-  const inThinking = pulseOpen
-    ? displayedPhase === 'thinking'
-    : mode === 'thinking'
+  const inThinking = mode === 'thinking'
   const thinkingLabelFull = `${THINKING_WORD}${effortSuffix ?? ''}`
-  const message = phaseByline ?? messageProp
+  const message = messageProp
   const messageWidth = stringWidth(message) + 2
   const separatorWidth = 3
   const suffixText = spinnerSuffix ?? ''
@@ -240,11 +187,8 @@ export function SpinnerAnimationRow(
   const foregroundedIdleQuiet =
     foregroundedTeammate !== undefined && !foregroundedActive
 
-  const thinkingText = inThinking
-    ? thinkingLabelFull
-    : postscript
-  const wantsThinking =
-    thinkingText !== null && !(phaseByline !== null && inThinking)
+  const thinkingText = inThinking ? thinkingLabelFull : null
+  const wantsThinking = thinkingText !== null
   const timerText = formatDuration(effectiveElapsedMs, { mostSignificantOnly: true })
   const tokensAfterMs = 0
   void tokensAfterMs

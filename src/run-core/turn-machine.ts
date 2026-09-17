@@ -74,7 +74,6 @@ import {
 import {
   effortAdjustedReceiptLine,
   isTurnOwningQuerySource,
-  resolveEffortTruth,
 } from '../utils/effort.js'
 import { asSystemPrompt, type SystemPrompt } from '../utils/systemPromptType.js'
 import type {
@@ -128,7 +127,6 @@ import {
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
 import { headlessProfilerCheckpoint } from '../utils/headlessProfiler.js'
 import {
-  getPublicModelDisplayName,
   getRuntimeMainLoopModel,
   renderModelName,
 } from '../utils/model/model.js'
@@ -145,15 +143,6 @@ import {
 import { executePostSamplingHooks } from '../utils/hooks/postSamplingHooks.js'
 import { executeStopFailureHooks } from '../utils/hooks.js'
 import type { QuerySource } from '../constants/querySource.js'
-import {
-  getActivePulseTrace,
-  isPulseMainSource,
-  notePulseModel,
-  pulseMark,
-  pulseStageEnd,
-  pulseStageStart,
-  setPulsePhase,
-} from '../utils/pulse/index.js'
 import { runTools } from '../services/tools/toolOrchestration.js'
 import { emitCompactionTrace } from '../utils/observability/invocationTrace.js'
 import { flushSessionStorage, recordContentReplacement } from '../utils/sessionStorage.js'
@@ -456,8 +445,6 @@ async function* streamModel(
   const { toolUseContext, queryTracking } = iter
   let attemptWithFallback = true
 
-  const pulseMain = isPulseMainSource(run.querySource, toolUseContext.agentId)
-  if (pulseMain) pulseMark('api_loop_start')
   try {
     while (attemptWithFallback) {
       attemptWithFallback = false
@@ -506,16 +493,6 @@ async function* streamModel(
         maxOutputTokensOverride: iter.maxOutputTokensOverride,
         reference: callReference,
       })
-      if (pulseMain) {
-        const truth = resolveEffortTruth(iter.currentModel, effortValue, { agentId: toolUseContext.agentId })
-        const effortLabel = truth.wire === undefined ? undefined : truth.label
-        notePulseModel(iter.currentModel, effortLabel)
-        setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'dispatching', {
-          model:
-            getPublicModelDisplayName(iter.currentModel) ?? iter.currentModel,
-          effort: effortLabel,
-        })
-      }
       {
         const receipt = modelSwitchReceipt(
           String(ownerFromToolUseContext(toolUseContext)),
@@ -530,7 +507,6 @@ async function* streamModel(
       }
       try {
         let streamingFallbackOccured = false
-        if (pulseMain) pulseMark('model_call_stream_start')
         const requestMessages =
           latestUserContextBody(iter.messagesForQuery) === null
             ? prependUserContext(iter.messagesForQuery, run.userContext)
@@ -669,25 +645,9 @@ async function* streamModel(
               iter.needsFollowUp = true
             }
           } else {
-            if (pulseMain && yieldMessage.type === 'stream_event') {
-              const ev = (yieldMessage as { event?: { type?: string; content_block?: { type?: string }; delta?: { type?: string } } }).event
-              if (
-                ev?.type === 'content_block_start' &&
-                (ev.content_block?.type === 'thinking' ||
-                  ev.content_block?.type === 'redacted_thinking')
-              ) {
-                pulseMark('first_thinking_event')
-              } else if (
-                ev?.type === 'content_block_delta' &&
-                ev.delta?.type === 'text_delta'
-              ) {
-                pulseMark('first_text_delta')
-              }
-            }
             yield emit({ kind: 'stream_delta', callId, raw: yieldMessage })
           }
         }
-        if (pulseMain) pulseMark('model_call_stream_end')
         for (const settled of iter.assistantMessages) {
           if (settled.streamEnd === undefined || streamEndsReceipted.has(settled.uuid)) continue
           streamEndsReceipted.add(settled.uuid)
@@ -793,8 +753,6 @@ export async function* runEventCore(
   } = params
   const deps = params.deps ?? productionDeps()
 
-  const owningPulseGeneration = getActivePulseTrace()?.generation ?? -1
-
   let state: TurnState = {
     messages: params.messages,
     toolUseContext: params.toolUseContext,
@@ -863,9 +821,6 @@ export async function* runEventCore(
     const turnId = `t${ordinal}`
     yield emit({ kind: 'turn_started', turnId, n: ordinal })
 
-    const pulseMain = isPulseMainSource(querySource, toolUseContext.agentId)
-    if (pulseMain) pulseMark('iteration_started', { n: ordinal })
-
     if (!toolUseContext.agentId) {
       headlessProfilerCheckpoint('query_started')
     }
@@ -890,12 +845,6 @@ export async function* runEventCore(
 
     let tracking = autoCompactTracking
 
-    if (pulseMain) {
-      pulseStageStart('request_context_plan')
-      setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'preparing', {
-        reason: 'context',
-      })
-    }
     const persistReplacements =
       querySource === 'sdk' ||
       querySource.startsWith('agent:') ||
@@ -982,7 +931,6 @@ export async function* runEventCore(
         messagesAfter: messagesForQuery.length,
       })
     }
-    if (pulseMain) pulseStageEnd('request_context_plan')
 
     const fullSystemPrompt = asSystemPrompt(
       appendSystemContext(systemPrompt, systemContext),
@@ -993,7 +941,6 @@ export async function* runEventCore(
       forcedFold !== undefined
         ? splitCarriedOperatorTail(messagesForQuery)
         : { head: messagesForQuery, carry: [] as Message[], hasHistory: true }
-    if (pulseMain) pulseStageStart('autocompact')
     const {
       compactionResult,
       consecutiveFailures,
@@ -1017,8 +964,6 @@ export async function* runEventCore(
       0,
       forcedFold,
     )
-    if (pulseMain)
-      pulseStageEnd('autocompact', { compacted: Boolean(compactionResult) })
 
     if (rapidRefillBreakerTripped) {
       yield emit({
@@ -1103,7 +1048,6 @@ export async function* runEventCore(
       messages: messagesForQuery,
     }
 
-    if (pulseMain) pulseStageStart('model_assembly')
     const appState = toolUseContext.getAppState()
     const permissionMode = appState.toolPermissionContext.mode
     let currentModel = getRuntimeMainLoopModel({
@@ -1117,7 +1061,6 @@ export async function* runEventCore(
       currentModel = applyTurnTierModel(toolUseContext.agentId, currentModel)
     }
 
-    if (pulseMain) pulseStageEnd('model_assembly')
 
     const justCompactedUnderLimit =
       compactionResult !== undefined &&
@@ -1631,12 +1574,6 @@ export async function* runEventCore(
     let shouldPreventContinuation = false
     let updatedToolUseContext = toolUseContext
 
-    if (pulseMain) {
-      pulseStageStart('tool_execution', { toolCount: toolUseBlocks.length })
-      setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'tool-work', {
-        toolCount: toolUseBlocks.length,
-      })
-    }
 
     for (const block of toolUseBlocks) {
       yield emit({
@@ -1678,7 +1615,6 @@ export async function* runEventCore(
         }
       }
     }
-    if (pulseMain) pulseStageEnd('tool_execution')
 
     if (refusedToolCalls.length > 0) {
       const correction = createUserMessage({

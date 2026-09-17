@@ -6,7 +6,7 @@ import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { runPulseArena, anchoredOffset, restoreOffsets } = await import('../pulse/lib/pulseArena.ts')
+const { runPulseArena, anchoredOffset, restoreOffsets } = await import('./lib/pulseArena.ts')
 const { checker } = await import('../engine-durability/harness.ts')
 type ScriptedTurn = import('../lib/fixtureApi.ts').ScriptedTurn
 

@@ -10,7 +10,6 @@ process.env.MERCURY_PROJECT_INTEL = '1'
 
 await import('../../src/tasks.js')
 const { makeMaybe, getAttachments } = await import('../../src/utils/attachments/orchestrator.js')
-const { pulseNow } = await import('../../src/utils/pulse/turnPhase.js')
 const { getProjectSnapshot, _resetProjectIntelForTesting } = await import(
   '../../src/services/projectIntel/snapshot.js'
 )
@@ -31,7 +30,7 @@ const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
 section('C1 §maybe — expired optional work never starts; priority still runs')
 {
-  const expired = makeMaybe(false, 0)
+  const expired = makeMaybe(0)
   let optionalStarts = 0
   const optional = await expired('opt', async () => {
     optionalStarts++
@@ -51,7 +50,7 @@ section('C1 §maybe — expired optional work never starts; priority still runs'
     priorityStarts === 1 && priority.length === 1)
 }
 {
-  const live = makeMaybe(false, pulseNow() + 60_000)
+  const live = makeMaybe(performance.now() + 60_000)
   let starts = 0
   const slowBody = (): Promise<string[]> =>
     new Promise(resolve => {

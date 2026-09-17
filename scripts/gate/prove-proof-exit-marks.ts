@@ -3,7 +3,7 @@ import { strict as assert } from 'node:assert'
 import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, relative, resolve, sep } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 
 const root = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'proof-exits-'))
@@ -88,13 +88,27 @@ try {
   const attentionSkip = spawnSync('bash', [copiedRunners.get('attention')!], { cwd: estate, env: { ...env(0), TMPDIR: scratch }, encoding: 'utf8', timeout: 10000 })
   check('a machine-gated journey skips by a [SKIP] line on a green mark: rc=0 recorded, the suite green, the line in the suite output', attentionSkip.status === 0 && marks(attentionSkip.stdout).some(row => row.path.endsWith('/journey-fixture.ts') && row.code === 0) && /\[SKIP\] journey-fixture/.test(attentionSkip.stdout))
   writeFileSync(stub, fixture)
-  const spinnerDir = join(estate, 'scripts/pulse/spinner')
-  mkdirSync(spinnerDir, { recursive: true })
-  const spinnerRunner = join(spinnerDir, 'run-all.sh')
-  writeFileSync(spinnerRunner, readFileSync(join(root, 'scripts/pulse/spinner/run-all.sh')))
-  const spinner = spawnSync('bash', [spinnerRunner], { cwd: estate, env: { ...env(7), UI_RENDER: '1' }, encoding: 'utf8', timeout: 10000 })
-  const rendererPath = relative(estate, join(spinnerDir, 'render-pulse-byline.tsx')).split(sep).join('/')
-  check('the nested spinner runner names its real renderer and records its result', spinner.status === 1 && marks(spinner.stdout).length === 4 && marks(spinner.stdout).some(row => row.path === rendererPath && row.code === 7))
+  const nestedDir = join(estate, 'scripts/nested/sub')
+  mkdirSync(nestedDir, { recursive: true })
+  const nestedRunner = join(nestedDir, 'run-all.sh')
+  writeFileSync(nestedRunner, [
+    '#!/usr/bin/env bash',
+    'set -euo pipefail',
+    '. "$(dirname "$0")/../../lib/proof-runner.sh"',
+    'cd "$(dirname "$0")/../../.."',
+    'BUN="${BUN:-$HOME/.bun/bin/bun}"',
+    'fail=0',
+    'run_proof scripts/nested/sub/prove-one.ts "$BUN" run scripts/nested/sub/prove-one.ts || fail=1',
+    'run_proof scripts/nested/sub/prove-two.ts "$BUN" run scripts/nested/sub/prove-two.ts || fail=1',
+    'run_proof scripts/nested/sub/prove-three.ts "$BUN" run scripts/nested/sub/prove-three.ts || fail=1',
+    'if [[ "${UI_RENDER:-}" == "1" ]]; then',
+    '  run_proof scripts/nested/sub/render-one.tsx "$BUN" run scripts/nested/sub/render-one.tsx || fail=1',
+    'fi',
+    'exit "$fail"',
+    '',
+  ].join('\n'))
+  const nested = spawnSync('bash', [nestedRunner], { cwd: estate, env: { ...env(7), UI_RENDER: '1' }, encoding: 'utf8', timeout: 10000 })
+  check('a nested runner names its render leg and records its result', nested.status === 1 && marks(nested.stdout).length === 4 && marks(nested.stdout).some(row => row.path === 'scripts/nested/sub/render-one.tsx' && row.code === 7))
   const helper = join(root, 'scripts/lib/proof-runner.sh')
   for (const code of [0, 3, 19, 143]) {
     const result = spawnSync('bash', ['-c', '. "$1"; run_proof "scripts/example/prove-silent.ts" bash -c "exit $2"', 'test', helper, String(code)], { encoding: 'utf8' })

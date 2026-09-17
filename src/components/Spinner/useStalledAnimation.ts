@@ -1,5 +1,4 @@
 import { useRef } from 'react'
-import { getPulseActivity, pulseNow, type TurnPhaseName } from '../../utils/pulse/index.js'
 import type { SpinnerMode } from './types.js'
 
 
@@ -8,8 +7,6 @@ export const MID_STREAM_STILL_WAITING_MS = 10_000
 export const STILL_WAITING_MAX_INTENSITY = 0.5
 
 export type StallViewInput = {
-  pulseOpen: boolean
-  phase: TurnPhaseName
   mode: SpinnerMode
   suppressed: boolean
   lastEventAt: number | null
@@ -24,7 +21,7 @@ export type StallView = {
 export function computeStallView(a: StallViewInput): StallView {
   const calm: StallView = { stillWaiting: false, targetIntensity: 0 }
   if (a.suppressed) return calm
-  if (a.pulseOpen ? a.phase !== 'responding' : a.mode !== 'responding') return calm
+  if (a.mode !== 'responding') return calm
   if (a.lastEventAt === null) return calm
   const gap = a.now - a.lastEventAt
   if (gap < MID_STREAM_STILL_WAITING_MS) return calm
@@ -50,8 +47,6 @@ export function easeAttention(
 }
 
 export type StalledAnimationArgs = {
-  pulseOpen: boolean
-  phase: TurnPhaseName
   mode: SpinnerMode
   currentResponseLength: number
   suppressed: boolean
@@ -61,8 +56,6 @@ export type StalledAnimationArgs = {
 export function useStalledAnimation(
   time: number,
   {
-    pulseOpen,
-    phase,
     mode,
     currentResponseLength,
     suppressed,
@@ -75,19 +68,15 @@ export function useStalledAnimation(
   const lastLenRef = useRef(currentResponseLength)
   const lastGrowthAtRef = useRef<number | null>(null)
   if (currentResponseLength > lastLenRef.current) {
-    lastGrowthAtRef.current = pulseNow()
+    lastGrowthAtRef.current = performance.now()
   } else if (currentResponseLength < lastLenRef.current) {
     lastGrowthAtRef.current = null
   }
   lastLenRef.current = currentResponseLength
 
-  const now = pulseNow()
-  const lastEventAt = pulseOpen
-    ? getPulseActivity().lastEventAt
-    : lastGrowthAtRef.current
+  const now = performance.now()
+  const lastEventAt = lastGrowthAtRef.current
   const { stillWaiting, targetIntensity } = computeStallView({
-    pulseOpen,
-    phase,
     mode,
     suppressed,
     lastEventAt,
