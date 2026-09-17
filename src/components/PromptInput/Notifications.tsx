@@ -55,9 +55,27 @@ export function noticeRowText(current: Notification | null): React.ReactNode | n
   return current.color === undefined ? line : <Text color={current.color}>{line}</Text>
 }
 
+export const NOTICE_BLOCK_MAX_ROWS = 3
+
+function noticeBlockChildren(block: React.ReactNode): React.ReactNode[] | null {
+  if (!React.isValidElement(block)) return null
+  const children = (block.props as { children?: React.ReactNode }).children
+  return React.Children.toArray(children)
+}
+
 export function noticeRowBlock(current: Notification | null): React.ReactNode | null {
   if (current === null || !('jsx' in current)) return null
-  return React.isValidElement(current.jsx) && current.jsx.type === Text ? null : current.jsx
+  if (!React.isValidElement(current.jsx) || current.jsx.type === Text) return React.isValidElement(current.jsx) ? null : current.jsx
+  const rows = noticeBlockChildren(current.jsx)
+  if (rows === null || rows.length <= NOTICE_BLOCK_MAX_ROWS) return current.jsx
+  return React.cloneElement(current.jsx as React.ReactElement<{ children?: React.ReactNode }>, undefined, ...rows.slice(0, NOTICE_BLOCK_MAX_ROWS - 1), rows[rows.length - 1])
+}
+
+export function noticeBlockRows(current: Notification | null): number {
+  const block = noticeRowBlock(current)
+  if (block === null) return 0
+  const rows = noticeBlockChildren(block)
+  return rows === null ? 1 : Math.min(NOTICE_BLOCK_MAX_ROWS, Math.max(1, rows.length))
 }
 
 const SLOW_HELPER_THRESHOLD_MS = 10_000

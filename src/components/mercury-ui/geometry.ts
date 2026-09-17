@@ -160,12 +160,12 @@ export function compactFrameBudget(
   columns: number,
   availableRows: number,
   activityRequested: boolean,
-  noticeRequested = false,
+  noticeRequested = 0,
 ): CompactFrameBudget {
   const width = Math.max(0, Math.floor(columns))
   const rows = Math.max(0, Math.floor(availableRows))
   let left = Math.max(0, rows - 1)
-  const noticeRows = noticeRequested && left > 0 ? 1 : 0
+  const noticeRows = Math.max(0, Math.min(left, Math.floor(noticeRequested)))
   left -= noticeRows
   const summaryRows = left > 0 ? 1 : 0
   left -= summaryRows
