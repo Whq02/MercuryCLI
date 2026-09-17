@@ -486,7 +486,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     ], cols)
     if (chosen.length === 0) return null
     const line = chosen.map(part => part.text).join(' · ')
-    const chipColor = chip === null ? tok.textSecondary : chip.tone === 'bypass' ? tok.failure : chip.tone === 'unreported' ? tok.warning : chip.modeColor
+    const chipColor = chip === null ? tok.textSecondary : chip.tone === 'bypass' ? tok.failure : chip.modeColor
     return (
       <Box height={1} flexShrink={0} overflow="hidden">
         <Text wrap="truncate-end">
