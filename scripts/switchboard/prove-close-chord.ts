@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -193,7 +193,7 @@ if (POISON_DIST === undefined) {
   const offenders = driveMembers.filter(name => existsSync(join(REPO, 'scripts', 'switchboard', name)) && retiredRungWords.some(rx => rx.test(readFileSync(join(REPO, 'scripts', 'switchboard', name), 'utf8'))))
   check('C5 no real-terminal drive still spells the retired two-rung chord (stop, then remove)', offenders.length === 0, offenders.join(', ') || 'none')
   const reap = readFileSync(join(REPO, 'scripts', 'switchboard', 'prove-reap-focus-drive.ts'), 'utf8')
-  check('C5 the reap drive walks the three rungs — stop, archive, delete — each its own completed chord', reap.includes('THE STOP RUNG') && reap.includes('THE ARCHIVE RUNG') && reap.includes('THE DELETE RUNG') && reap.split('data: CTRL_X').length === 7)
+  check('C5 the reap drive walks the three rungs — stop, archive, delete — each its own completed chord', reap.includes("const ARCHIVE_LEGEND = keyHintLabel('⌃x ⌃x archive · delete')") && reap.includes("const DELETE_LEGEND = keyHintLabel('⌃x ⌃x delete')") && reap.includes('awaitText: ARCHIVE_LEGEND') && reap.includes('awaitText: DELETE_LEGEND') && reap.split('data: CTRL_X').length === 7)
 }
 
 section(POISON_DIST === undefined ? '§4 the drive: x types · the ladder stops → archives → deletes exactly the highlighted row · the window, the note, the parked row\'s one ↵' : '§4 POISON: the pre-fix bundle — x stops instead of typing, the chord removes nothing')
@@ -246,29 +246,33 @@ send(undefined, 13400, `${ESC}[1;2D`)
 send(undefined, 14200, '\t')
 send(undefined, 15000, `${ESC}[B`)
 send(undefined, 15600, '\t')
+const SCALE = vshotBudgetScale()
+const real = (ms: number): number => Math.round(ms / SCALE)
 send('x', 16000, 'x')
 send(undefined, 18200, BACKSPACE)
 ;[...'keep me'].forEach((ch, i) => send(undefined, 18800 + i * 80, ch))
-send('arm', 20600, CTRL_X)
-send('disarm', 21900, 'q')
-send(undefined, 23600, CTRL_X)
-send('stop', 24050, CTRL_X)
-send('archiveArm', 35100, CTRL_X)
-send('archive', 36000, CTRL_X)
-send('flipLeader', 39800, CTRL_X)
-send('lateLeader', 45200, CTRL_X)
-send('lateArm', 46100, CTRL_X)
-send('deleteLeader', 47700, CTRL_X)
-send('delete', 48600, CTRL_X)
-;[...Array(7)].forEach((_, i) => send(undefined, 51800 + i * 80, BACKSPACE))
-send(undefined, 52800, `${ESC}[A`)
-send(undefined, 53700, CTRL_X)
-send('nStop', 54100, CTRL_X)
-send(undefined, 57100, CTRL_X)
-send('nArchive', 57500, CTRL_X)
-send('enter', 60700, '\r')
+let clock = 20600
+send('arm', clock, CTRL_X)
+send('disarm', (clock += real(1300)), 'q')
+send(undefined, (clock += real(1700)), CTRL_X)
+send('stop', (clock += real(900)), CTRL_X)
+send('archiveArm', (clock += 11050), CTRL_X)
+send('archive', (clock += real(900)), CTRL_X)
+send('flipLeader', (clock += real(3800)), CTRL_X)
+send('lateLeader', (clock += real(5400)), CTRL_X)
+send('lateArm', (clock += real(900)), CTRL_X)
+send('deleteLeader', (clock += real(1600)), CTRL_X)
+send('delete', (clock += real(900)), CTRL_X)
+clock += 3200
+;[...Array(7)].forEach((_, i) => send(undefined, clock + i * 80, BACKSPACE))
+send(undefined, (clock += 1000), `${ESC}[A`)
+send(undefined, (clock += 900), CTRL_X)
+send('nStop', (clock += real(900)), CTRL_X)
+send(undefined, (clock += 3000), CTRL_X)
+send('nArchive', (clock += real(900)), CTRL_X)
+send('enter', (clock += 3200), '\r')
 const sends = sendList
-const WALL_S = driveWallSeconds(sends, { tailMs: 2500 })
+const WALL_S = driveWallSeconds(sends, { tailMs: 9000 })
 const drive = join(home, 'drive.jsonl')
 const nodeBin = spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
 const child = spawn(
@@ -336,8 +340,8 @@ if (sendRecs.length === sends.length) {
     lateArm: at('lateArm') + 700,
     gone: at('delete') + 2500,
     nParked: at('nArchive') + 2500,
-    entered: at('enter') + 2500,
   }
+  const enteredSeries = [2500, 4000, 6000, 8000].map(o => at('enter') + o)
   const LEADER_OFFSETS = [300, 500, 700]
   const leaderSeries = {
     arm: LEADER_OFFSETS.map(o => at('arm') + o),
@@ -346,7 +350,7 @@ if (sendRecs.length === sends.length) {
     lateLeader: LEADER_OFFSETS.map(o => at('lateLeader') + o),
     deleteArm: LEADER_OFFSETS.map(o => at('deleteLeader') + o),
   }
-  const times = [...receiptAt, ...Object.values(grabs), ...Object.values(leaderSeries).flat()]
+  const times = [...receiptAt, ...Object.values(grabs), ...Object.values(leaderSeries).flat(), ...enteredSeries]
   const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', ...times.map(String), '-1'], { encoding: 'utf8', timeout: 120_000, maxBuffer: 256 * 1024 * 1024 })
   if (res.status !== 0) {
     console.error(`screengrab failed: ${res.stderr}`)
@@ -371,6 +375,7 @@ if (sendRecs.length === sends.length) {
     for (const [name, ms] of Object.entries(grabs)) writeFileSync(join(dir, `${name}-${ms}.txt`), t(frameAt(ms)) + '\n')
     for (const [name, series] of Object.entries(leaderSeries)) for (const ms of series) writeFileSync(join(dir, `${name}-${ms}.txt`), t(frameAt(ms)) + '\n')
     for (const g of receiptFrames) writeFileSync(join(dir, `receipt-${g.atMs}.txt`), t(g) + '\n')
+    for (const ms of enteredSeries) writeFileSync(join(dir, `entered-${ms}.txt`), t(frameAt(ms)) + '\n')
   }
   const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
   const stopWords = (g: { rows: string[] }): string => g.rows.filter(r => /stopp|park|⌃x|ctrl\+x|stream slowly|neighbour ready|deletes|arms/i.test(r)).map(r => r.trim().slice(0, 150)).join(' | ')
@@ -404,8 +409,10 @@ if (sendRecs.length === sends.length) {
     check('…and the draft survives the whole ladder un-mangled', f('gone').rows.some(r => /❯\s+keep me(\s|▌|$)/.test(r)), draftRows(f('gone')))
     check('C3 NO STALE NOTE: after the delete no line still carries the arm\'s note (it left with its row)', !/archived — |within 5 s deletes it/.test(t(f('gone'))), f('gone').rows.filter(r => /deletes it|archived/.test(r)).map(r => r.trim().slice(0, 120)).join(' | ') || '(no chord note)')
     check('C1 the neighbour parked on its own two rungs (stop, archive) — the board still the frame', /\bparked\s+neighbour rea/.test(t(f('nParked'))) && /SESSIONS/.test(t(f('nParked'))), stopWords(f('nParked')))
-    const enteredWords = f('entered').rows.filter(r => /⇧← back|shift\+← back|SESSIONS|armed|neighbour rea|bringing/.test(r)).map(r => r.trim().slice(0, 120)).join(' | ')
-    check('C1 ONE ↵ on the parked row brings it back: the chat is the frame (its tag bar stands, the board is gone), never an "armed — ↵ again" stall', t(f('entered')).includes(keyHintLabel('⇧← back')) && !/STATUS & TITLE/.test(t(f('entered'))) && !/armed — ↵ again enters/.test(t(f('entered'))), enteredWords)
+    const enteredFrames = enteredSeries.map(frameAt)
+    const entered = enteredFrames.find(g => t(g).includes(keyHintLabel('⇧← back'))) ?? enteredFrames[enteredFrames.length - 1]!
+    const enteredWords = `+${entered.atMs - at('enter')}ms: ${entered.rows.filter(r => /⇧← back|shift\+← back|SESSIONS|armed|neighbour rea|bringing/.test(r)).map(r => r.trim().slice(0, 120)).join(' | ')}`
+    check('C1 ONE ↵ on the parked row brings it back: the chat is the frame (its tag bar stands, the board is gone), never an "armed — ↵ again" stall', t(entered).includes(keyHintLabel('⇧← back')) && !/STATUS & TITLE/.test(t(entered)) && !/armed — ↵ again enters/.test(t(entered)), enteredWords)
   } else {
     check(
       'POISON (pre-fix bundle): the bare x was a VERB — it stopped the streaming session instead of typing',

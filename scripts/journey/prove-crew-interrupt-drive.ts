@@ -349,6 +349,7 @@ try {
       sends: [
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: 'crew-drive: launch\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
+        { data: '', afterPrevTicks: 8, mark: 'launched' },
         { data: '\x1b', awaitText: 'waiting on 2 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'waiting' },
         { data: '', afterPrevTicks: 15, mark: 'after-esc' },
         { data: '/teammates\r', afterPrevTicks: 2 },
@@ -377,12 +378,13 @@ if (cap !== null) {
   console.log(`  routes: ${fixture.hits.map(h => (h.seat !== null ? `seat:${h.seat}` : h.route)).join(' → ')}`)
   const t0 = fixture.hits[0]?.atMs ?? 0
   for (const h of fixture.hits) console.log(`  hit +${((h.atMs - t0) / 1000).toFixed(1)}s ${h.seat !== null ? `seat:${h.seat}` : h.route} reads=${h.priorReads} · items: ${h.firstUserText.slice(0, 400)}`)
-  console.log(`  esc sent at +${(((cap.receipts[2]?.ts ?? 0) - t0) / 1000).toFixed(1)}s · resume sent at +${(((cap.receipts[8]?.ts ?? 0) - t0) / 1000).toFixed(1)}s`)
+  console.log(`  esc sent at +${(((cap.receipts[3]?.ts ?? 0) - t0) / 1000).toFixed(1)}s · resume sent at +${(((cap.receipts[9]?.ts ?? 0) - t0) / 1000).toFixed(1)}s`)
   console.log(`  send ticks: ${cap.receipts.map(r => r.atTick).join(',')} · marks: ${Object.entries(cap.markTicks).map(([k, v]) => `${k}@${v}`).join(' ')} · end: ${cap.endReason}`)
-  for (const label of ['waiting', 'after-esc', 'crew', 'x1', 'x2', 'resumed', 'chat-again', 'end']) dump(label, m[label])
+  for (const label of ['launched', 'waiting', 'after-esc', 'crew', 'x1', 'x2', 'resumed', 'chat-again', 'end']) dump(label, m[label])
+  if (cap.receipts.length < 13) dump('final grid', cap.text)
 
-  const escAt = cap.receipts[2]?.ts ?? Number.POSITIVE_INFINITY
-  const resumeAt = cap.receipts[8]?.ts ?? Number.POSITIVE_INFINITY
+  const escAt = cap.receipts[3]?.ts ?? Number.POSITIVE_INFINITY
+  const resumeAt = cap.receipts[9]?.ts ?? Number.POSITIVE_INFINITY
   const after = (seat: Seat, sinceMs: number): Hit[] => fixture.hits.filter(h => h.seat === seat && h.atMs > sinceMs + 300)
 
   console.log('\n— K1 esc is the chat\'s —')
