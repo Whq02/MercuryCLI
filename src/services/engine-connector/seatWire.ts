@@ -82,6 +82,7 @@ const WORK_ROW: KeyTable = {
   stopReason: 'stop_reason',
   unreadNotices: 'unread_notices',
   outputFile: 'output_file',
+  exitCode: 'exit_code',
 }
 const NOTICE_ROW: KeyTable = {
   agentId: 'agent_id',

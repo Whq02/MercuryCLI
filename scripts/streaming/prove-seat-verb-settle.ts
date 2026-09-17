@@ -33,6 +33,8 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
+let verbSeq = 0
+const seqOf = (_verb: string): number => ++verbSeq
 
 const connector = (await import(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'))) as {
   ProjectionFeed?: new (
@@ -126,6 +128,42 @@ section('§3 THE DEFECT PIN, live: with the watch silent, a publish is read only
     check('THE FIX: the feed exposes settle() so the missed publish is read within the nudge', false, 'settle() absent — the publish waits the idle floor')
   }
   feed.stop()
+}
+
+section('§4 the seat verbs that arm the nudge: set-model and set-permission-mode beside set-effort')
+{
+  const { DaemonSessionConnector } = (await import(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'))) as {
+    DaemonSessionConnector: new (record: unknown) => {
+      setModel(setting: string | null): Promise<{ state: string }>
+      setEffort(level: string): Promise<{ state: string }>
+      setPermissionMode(mode: string): Promise<{ outcome: string }>
+    }
+  }
+  const home = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'seat-verb-connector-'))
+  const verbs: Array<{ verb: string; run: (c: Record<string, unknown>) => Promise<unknown>; expectedFlip: boolean }> = [
+    { verb: 'set-effort (the control: armed since the effort chip fix)', run: c => (c as { setEffort: (l: string) => Promise<unknown> }).setEffort('low'), expectedFlip: true },
+    { verb: 'set-model', run: c => (c as { setModel: (m: string) => Promise<unknown> }).setModel('claude-sonnet-5'), expectedFlip: true },
+    { verb: 'set-permission-mode', run: c => (c as { setPermissionMode: (m: string) => Promise<unknown> }).setPermissionMode('strategy'), expectedFlip: true },
+  ]
+  for (const { verb, run, expectedFlip } of verbs) {
+    const record = { schema: 1, sessionId: `aaaaaaaa-bbbb-4ccc-8ddd-${String(seqOf(verb)).padStart(12, '0')}`, home, workspaceId: home, isolation: 'exclusive', modelKey: 'claude-opus-5', effort: 'high', spawnedAt: Date.now(), lastLiveAt: Date.now() }
+    const connector = new DaemonSessionConnector(record) as unknown as Record<string, unknown>
+    const feed = connector.factsFeed as { start(): void; stop(): void; heartbeatMs(): number }
+    connector.rpc = async () => ({ ok: true, outcome: 'applied' })
+    feed.start()
+    const before = feed.heartbeatMs()
+    let outcome: unknown = null
+    try {
+      outcome = await run(connector)
+    } catch (e) {
+      outcome = `threw: ${e instanceof Error ? e.message : String(e)}`
+    }
+    const after = feed.heartbeatMs()
+    check(`${verb}: the feed rests at the idle floor before the verb`, before === IDLE_FLOOR, `heartbeatMs=${before}`)
+    check(`${verb}: the daemon answered applied through the stubbed door`, typeof outcome === 'object' && outcome !== null && ((outcome as { state?: string }).state === 'applied' || (outcome as { outcome?: string }).outcome === 'applied'), JSON.stringify(outcome))
+    check(`${verb}: ${expectedFlip ? 'arms the nudge — the feed ticks at HEARTBEAT_MS for the settle window' : 'leaves the cadence'}`, expectedFlip ? after === HEARTBEAT_MS : after === before, `heartbeatMs before=${before} after=${after} (HEARTBEAT_MS ${String(HEARTBEAT_MS)}, floor ${String(IDLE_FLOOR)})`)
+    feed.stop()
+  }
 }
 
 console.log(`\n${'='.repeat(60)}`)

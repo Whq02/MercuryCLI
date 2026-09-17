@@ -117,7 +117,7 @@ function bandChecks(tag: string, cols: number, rows: number, grid: Grid, chip: '
     const expected = compactModeChip('sovereign')!.text
     check(`${tag}: the mode chip line sits directly above the composer`, chipRow.startsWith(expected), JSON.stringify(chipRow))
   } else if (form !== 'none') {
-    check(`${tag}: no chip line in default mode with nothing needing you`, !/sovereign|need you|permissions unreported/.test(chipRow) && !chipRow.includes('Opus 5'), JSON.stringify(chipRow))
+    check(`${tag}: no chip line in default mode with nothing needing you`, !/sovereign|need you/.test(chipRow) && !chipRow.includes('Opus 5'), JSON.stringify(chipRow))
   } else {
     check(`${tag}: under 14 rows the model returns to the chip line`, /^Opus 5 · effort/.test(chipRow), JSON.stringify(chipRow))
   }
@@ -289,7 +289,7 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
   const chip = compactModeChip('sovereign')
   check('the chip owner spells the sovereign chip as approved', chip !== null && chip.text === '⊠ sovereign · auto-approved' && chip.tone === 'bypass')
   check('the chip owner paints nothing for the default mode', compactModeChip('default') === null)
-  check('the chip owner names an unreported mode', compactModeChip(null)?.text === 'permissions unreported')
+  check('the chip owner paints nothing for an unreported mode (the honest blank, never a word)', compactModeChip(null) === null)
   check('the sessions line hint folds the focus, the interrupt rung and the way back in order', compactSummaryHint({ focused: true, vimInsert: true, escHint: 'esc interrupts', stripHint: '⇧← concourse' }) === '↵ details · esc back' && compactSummaryHint({ focused: false, vimInsert: true, escHint: 'esc interrupts', stripHint: '⇧← concourse' }) === 'INSERT · esc interrupts · ⇧← concourse' && compactSummaryHint({ focused: false, vimInsert: false, escHint: '', stripHint: '' }) === '')
   check('the band form ladder is the approved one', compactBandForm(90, 31) === 'square' && compactBandForm(80, 26) === 'square' && compactBandForm(80, 25) === 'dock' && compactBandForm(80, 20) === 'dock' && compactBandForm(82, 19) === 'line' && compactBandForm(82, 14) === 'line' && compactBandForm(40, 13) === 'none' && compactBandForm(20, 31) === 'line')
   check('the band rows follow the forms', compactBandRows(90, 31) === 7 && compactBandRows(80, 24) === 4 && compactBandRows(82, 17) === 2 && compactBandRows(40, 10) === 0)

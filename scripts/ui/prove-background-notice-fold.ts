@@ -90,6 +90,18 @@ console.log('§1 the pure owner — one row per run, counted by outcome')
   const sout = run(single)
   check('a run of one passes through unchanged (the same object)', sout.length === 3 && sout[1] === single[1])
 
+  const carried: Row = {
+    type: 'user',
+    uuid: 'u-carried',
+    timestamp: stamp(),
+    message: { role: 'user', content: [['c1', 'lint'], ['c2', 'docs'], ['c3', 'tests']].map(([id, title]) => ({ type: 'text', text: notice(id!, 'completed', shellSummary(title!, 'completed', 0)) })) },
+  }
+  const cout = run([carried])
+  check('one message carrying three completions (the folded turn) paints the one counted row', cout.length === 1 && summaryOf(cout[0]!) === '3 background commands completed' && foldedOf(cout[0]!) === '3' && cout[0]!.uuid === carried.uuid, cout.length === 1 ? summaryOf(cout[0]!) : String(cout.length))
+  check('the carried message counts one notice per block, and the viewer keeps the message whole', fold.shellNoticesOf(carried as never).length === 3 && run([carried], true).length === 1 && run([carried], true)[0] === carried)
+  const mixedBlocks: Row = { ...carried, uuid: 'u-mixed', message: { role: 'user', content: [{ type: 'text', text: notice('m1', 'completed', shellSummary('lint', 'completed', 0)) }, { type: 'text', text: 'and a word of my own' }] } }
+  check('a message whose blocks are not all shell notices keeps its own row', run([mixedBlocks]).length === 1 && run([mixedBlocks])[0] === mixedBlocks && fold.shellNoticesOf(mixedBlocks as never).length === 0)
+
   const unfolded = [userNotice('l1', 'lint', 'completed', 0), userNotice('l2', 'docs', 'completed', 0), userNotice('l3', 'tests', 'completed', 0)]
   const lout = run(unfolded)
   check('the older user-row form folds too, and clean completions keep the plain count', lout.length === 1 && lout[0]!.type === 'user' && summaryOf(lout[0]!) === '3 background commands completed' && foldedOf(lout[0]!) === '3', lout.length === 1 ? summaryOf(lout[0]!) : String(lout.length))
