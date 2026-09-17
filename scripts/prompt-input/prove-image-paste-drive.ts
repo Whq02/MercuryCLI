@@ -6,7 +6,8 @@ import { join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
-const BIN = join(REPO, 'dist', 'mercury.mjs')
+const binArg = process.argv.find(a => a.startsWith('--bin='))
+const BIN = binArg !== undefined ? binArg.slice('--bin='.length) : join(REPO, 'dist', 'mercury.mjs')
 if (!existsSync(BIN)) {
   console.error('✗ dist/mercury.mjs missing — run `bun run build.ts` first')
   process.exit(1)
@@ -15,7 +16,7 @@ if (!existsSync(BIN)) {
 const roadArg = process.argv.find(a => a.startsWith('--road='))
 if (roadArg === undefined) {
   let exit = 0
-  for (const road of ['native', 'javascript']) {
+  for (const road of ['native', 'javascript', 'obligation']) {
     const child = spawnSync(process.execPath, ['run', import.meta.path, `--road=${road}`], { cwd: REPO, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
     process.stdout.write(child.stdout)
     if (child.status !== 0) {
@@ -27,7 +28,7 @@ if (roadArg === undefined) {
   process.exit(exit)
 }
 const ROAD = roadArg.slice('--road='.length)
-const TAG = ROAD === 'javascript' ? 'javascript-road' : 'native'
+const TAG = ROAD === 'javascript' ? 'javascript-road' : ROAD === 'obligation' ? 'obligation-road' : 'native'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), `mercury-imagepaste-${TAG}-`)))
 const CWD = join(SCRATCH, 'ground')
@@ -75,6 +76,136 @@ const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
   console.error(`prove-image-paste-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
   process.exit(1)
+}
+
+if (ROAD === 'obligation') {
+  const { upsertObligation } = await import('../../src/services/crew/obligations.ts')
+  console.log(`\n── ${TAG} ──`)
+  const jpeg = join(SCRATCH, 'shot.jpeg')
+  const svg = Buffer.from(
+    `<svg width="1600" height="1200" xmlns="http://www.w3.org/2000/svg"><rect width="1600" height="1200" fill="#f4f4f0"/>` +
+      Array.from({ length: 24 }, (_, i) => `<rect x="60" y="${60 + i * 46}" width="${500 + ((i * 137) % 900)}" height="22" fill="#2b2b2b"/>`).join('') +
+      `</svg>`,
+  )
+  await sharp(svg).jpeg().toFile(jpeg)
+  const jpegBytes = readFileSync(jpeg).length
+  check('the fixture JPEG on disk decodes over a few KB', jpegBytes > 2000, `${jpegBytes} bytes`)
+  const cfg = scenario('resume-2turn', 120, 40)
+  writeSyntheticSession('short', SID)
+  await upsertObligation({
+    ref: `cross-project:finished:${SID}:${Date.now()}`,
+    sessionId: SID,
+    question: 'your agent in another project finished · concourse-w1',
+    owner: 'operator',
+    scope: 'switchboard',
+  })
+  const api = await startFixtureApi([
+    { kind: 'text', text: 'I received the image.' },
+    { kind: 'text', text: 'Spare.' },
+    { kind: 'text', text: 'Spare.' },
+  ])
+  const childEnv: Record<string, string> = {
+    ...(process.env as Record<string, string>),
+    MERCURY_CONFIG_DIR: HOME,
+    MERCURY_DAEMON_DIR: DAEMON_DIR,
+    ANTHROPIC_API_KEY: 'fixture-key-000',
+    ANTHROPIC_BASE_URL: api.url,
+    MERCURY_AWAY_SUMMARY: '0',
+    MERCURY_PARTY: '0',
+    MERCURY_CACHE_CLOCK: '0',
+  }
+  const logFd = openSync(join(SCRATCH, 'daemon.log'), 'a')
+  const daemon = spawn('node', [BIN, 'daemon', 'run', CWD], { cwd: CWD, env: childEnv, stdio: ['ignore', logFd, logFd] })
+  const daemonLog = (): string => (existsSync(join(SCRATCH, 'daemon.log')) ? readFileSync(join(SCRATCH, 'daemon.log'), 'utf8') : '')
+  check('the daemon serves', await untilAsync(() => daemonLog().includes('control socket up'), 60_000), daemonLog().slice(-300))
+  const ESC = String.fromCharCode(27)
+  type Grid = { grid: { c: string }[][]; marks?: { label: string; grid: { c: string }[][] }[] }
+  const rowsOf = (g: { c: string }[][]): string[] => g.map(r => r.map(c => c.c || ' ').join('').replace(/\s+$/, ''))
+  const out = join(SCRATCH, 'grid.json')
+  const cfgPath = join(SCRATCH, 'cfg.json')
+  const sends = [
+    { awaitText: 'Type a prompt', atTick: 90, minTick: 15, data: `${ESC}[200~${jpeg}${ESC}[201~` },
+    { awaitText: '[Image #1]', atTick: 320, afterPrevTicks: 2, data: '', mark: 'chip' },
+    { afterPrevTicks: 3, atTick: 325, data: ' here in my downloads' },
+    { afterPrevTicks: 3, atTick: 330, data: '\r', mark: 'sent' },
+    { awaitText: 'I received the image.', atTick: 470, afterPrevTicks: 60, data: '', mark: 'f-120x40' },
+    { afterPrevTicks: 20, atTick: 500, data: '', mark: 'f-82x17' },
+    { afterPrevTicks: 20, atTick: 540, data: '', mark: 'f-80x21' },
+    { afterPrevTicks: 20, atTick: 580, data: '', mark: 'f-80x14' },
+  ]
+  const resizes = [
+    { atTick: 485, cols: 82, rows: 17 },
+    { atTick: 525, cols: 80, rows: 21 },
+    { atTick: 565, cols: 80, rows: 14 },
+  ]
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN, '--resume', SID, '--model', 'claude-sonnet-5'], cwd: cfg.cwd, sends, resizes, total: 620, cols: 120, rows: 40, out }))
+  const res = spawnSync(driver.python, [join(REPO, 'scripts', 'ui', 'vshot.py'), cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env: childEnv })
+  let payload: Grid | null = null
+  try {
+    payload = JSON.parse(readFileSync(out, 'utf8')) as Grid
+  } catch {
+    payload = null
+  }
+  check('the capture ran whole', res.status === 0 && payload !== null, `vshot exit ${res.status}: ${(res.stderr ?? '').slice(-400)}`)
+  const markRows = (label: string): string[] => rowsOf((payload?.marks ?? []).find(m => m.label === label)?.grid ?? [])
+  const composer = (rows: string[]): string => rows.filter(r => r.includes('│❯')).join(' | ')
+  check('the JPEG attached from disk (the chip landed)', composer(markRows('chip')).includes('[Image #1]'), composer(markRows('chip')))
+  const ledgerPath = join(DAEMON_DIR, 'concourse-dispatches.json')
+  await untilAsync(() => existsSync(ledgerPath) && /obl-answer:/.test(readFileSync(ledgerPath, 'utf8')), 30_000)
+  let count = 0
+  let oblState = 'absent'
+  try {
+    const ledger = JSON.parse(readFileSync(ledgerPath, 'utf8')) as {
+      dispatches: Record<string, { clientMessageId: string; state?: string; contentImageBlocks?: number }>
+    }
+    const row = Object.values(ledger.dispatches).find(r => String(r.clientMessageId).startsWith('obl-answer:'))
+    count = row?.contentImageBlocks ?? 0
+    oblState = row?.state ?? 'absent'
+  } catch {
+    oblState = 'unreadable'
+  }
+  console.log(`  ${TAG}: the obligation-answer dispatch is '${oblState}', contentImageBlocks=${count}`)
+  check('the pasted image rode the obligation answer to the daemon (contentImageBlocks >= 1)', count >= 1, `contentImageBlocks=${count} on a '${oblState}' dispatch`)
+  const requests = api.messageRequests()
+  const wireImages = requests.flatMap(r => {
+    const body = r.body as { messages?: { content?: unknown }[] }
+    return (body.messages ?? []).flatMap(m => (Array.isArray(m.content) ? (m.content as { type: string }[]).filter(b => b.type === 'image') : []))
+  })
+  console.log(`  ${TAG}: ${requests.length} provider request(s), ${wireImages.length} image block(s) on the wire`)
+  if (requests.length > 0) {
+    check(
+      'the provider request carried the image block',
+      wireImages.length >= 1 && wireImages.every(b => (b as { source?: { type?: string } }).source?.type === 'base64'),
+      `${requests.length} requests, ${wireImages.length} image blocks`,
+    )
+  } else {
+    console.log(`  ${TAG}: no provider request landed in the window — the ledger count is the wire witness`)
+  }
+  const framesArg = process.argv.find(a => a.startsWith('--frames='))
+  if (framesArg !== undefined) {
+    const framesDir = framesArg.slice('--frames='.length)
+    mkdirSync(framesDir, { recursive: true })
+    for (const label of ['f-120x40', 'f-82x17', 'f-80x21', 'f-80x14']) {
+      writeFileSync(join(framesDir, `${label}.txt`), `${markRows(label).join('\n')}\n`)
+    }
+  }
+  if (failures > 0) {
+    for (const label of ['chip', 'sent', 'f-120x40', 'f-82x17', 'f-80x21', 'f-80x14']) {
+      console.log(`\n┌── ${TAG} · ${label}`)
+      for (const l of markRows(label)) console.log(`│${l}`)
+    }
+    console.log(`\n── daemon log tail ──\n${daemonLog().slice(-1200)}`)
+  }
+  try {
+    await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
+  } catch {
+    void 0
+  }
+  daemon.kill()
+  await api.close()
+  if (failures === 0) rmSync(SCRATCH, { recursive: true, force: true })
+  console.log(failures === 0 ? `✅ ${TAG}: the pasted image rides the obligation answer to the daemon` : `❌ ${TAG}: ${failures} failure(s)`)
+  process.exit(failures === 0 ? 0 : 1)
 }
 
 console.log(`\n── ${TAG} ──`)

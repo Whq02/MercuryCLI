@@ -71,6 +71,7 @@ export type KernelDecisionV1 =
       sessionId: string
       clientMessageId: string
       answer: string
+      content?: unknown[]
       by: string
     }
 
@@ -351,6 +352,7 @@ export async function executeKernelDecision(
               workspaceDir: '',
               targetSessionId: decision.sessionId,
               by: decision.by,
+              ...(decision.content !== undefined && decision.content.length > 0 ? { content: decision.content } : {}),
             } as never,
             { timeoutMs: 15_000 },
           )) as { ok?: boolean; state?: string; stateRevision?: number; error?: string; replay?: string; code?: string }
