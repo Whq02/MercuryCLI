@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { distProvenance, distProvenanceLine } from '../lib/distProvenance.ts'
 
 const CONFIG_SCRATCH = mkdtempSync(join(tmpdir(), 'settle-home-'))
 process.env.MERCURY_CONFIG_DIR = CONFIG_SCRATCH
@@ -231,26 +232,16 @@ section('ST-1 / XC-4 / ST-2-message — source pins at the BashTool caller')
   check('SM-04/XC-4: PowerShell git tracking gated on executed, settled results', psToolSrc.includes('const notExecuted = result.preSpawnError !== undefined || result.backgroundTaskId !== undefined'))
 }
 {
-  const distPath = join(ROOT, 'dist', 'mercury.mjs')
-  if (!existsSync(distPath)) {
-    console.log('  [SKIP] dist/mercury.mjs not built — dist pins skipped (pool Phase 0 rebuilds it)')
-  } else {
-    const { statSync } = await import('node:fs')
-    const newestSrc = Math.max(
-      statSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx')).mtimeMs,
-      statSync(join(ROOT, 'src/utils/ShellCommand.ts')).mtimeMs,
-    )
-    if (statSync(distPath).mtimeMs < newestSrc) {
-      console.log('  [SKIP] dist/mercury.mjs is OLDER than the pinned sources — stale build; dist pins skipped (rebuild or run in the pool for the strict leg)')
-    } else {
-      const dist = readFileSync(distPath, 'utf8')
-      const pins = [
-        'absolute deadline elapsed',
-        'and was moved to the background with ID',
-      ]
-      const stale = pins.filter(p => !dist.includes(p))
-      check('dist carries the SM-B caller-layer literals', stale.length === 0, stale.length ? `missing from a CURRENT dist: ${stale.join(', ')}` : '')
-    }
+  const provenance = distProvenance(ROOT)
+  console.log(`  ${distProvenanceLine(provenance)}`)
+  if (provenance.kind === 'own') {
+    const dist = readFileSync(join(ROOT, 'dist', 'mercury.mjs'), 'utf8')
+    const pins = [
+      'absolute deadline elapsed',
+      'and was moved to the background with ID',
+    ]
+    const stale = pins.filter(p => !dist.includes(p))
+    check('dist carries the SM-B caller-layer literals', stale.length === 0, stale.length ? `missing from a CURRENT dist: ${stale.join(', ')}` : '')
   }
 }
 
