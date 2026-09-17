@@ -9,6 +9,7 @@ import signal
 import struct
 import subprocess
 import sys
+import tempfile
 import termios
 import time
 
@@ -58,13 +59,18 @@ for num, name in [(1000, "mouse-normal"), (1002, "mouse-button"), (1003, "mouse-
 screen = pyte.Screen(cols, rows)
 stream = pyte.ByteStream(screen)
 
+inputrc_path = os.path.join(tempfile.gettempdir(), "jobcontrol-inputrc-%d" % os.getpid())
+with open(inputrc_path, "w") as inputrc:
+    inputrc.write("set enable-bracketed-paste off\n")
 shell_pid, fd = pty.fork()
 if shell_pid == 0:
+    os.environ["INPUTRC"] = inputrc_path
     os.environ["COLUMNS"], os.environ["LINES"] = str(cols), str(rows)
     if cfg.get("cwd"):
         os.chdir(cfg["cwd"])
     os.environ["PS1"] = "host$ "
-    os.execvp("/bin/bash", ["/bin/bash", "--noprofile", "--norc", "-i"])
+    shell = os.environ.get("JOBCONTROL_HOST_SHELL", "/bin/bash")
+    os.execvp(shell, [shell, "--noprofile", "--norc", "-i"])
 
 fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
 raw = bytearray()
@@ -323,6 +329,10 @@ finally:
     try:
         os.waitpid(shell_pid, 0)
     except ChildProcessError:
+        pass
+    try:
+        os.remove(inputrc_path)
+    except OSError:
         pass
     final_text = text()
     shell_lines = [l.strip() for l in final_text.split("\n")
