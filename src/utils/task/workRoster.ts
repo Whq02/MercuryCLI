@@ -191,7 +191,7 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
       rows.push({
         ...plainRow(task, task.kind === 'monitor' ? 'monitor' : 'shell', task.command),
         command: clip(task.command, MAX_COMMAND),
-        ...(task.description !== '' ? { description: clip(task.description, MAX_NAME) } : {}),
+        ...(task.description ? { description: clip(task.description, MAX_NAME) } : {}),
         ...(task.verifyCwd !== undefined ? { cwd: task.verifyCwd } : {}),
         ...(task.result !== undefined ? { exitCode: task.result.code } : {}),
         outputFile: task.outputFile,
