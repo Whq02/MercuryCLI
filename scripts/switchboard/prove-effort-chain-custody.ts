@@ -62,9 +62,9 @@ section('§2 — the set-effort verb door: same normalizer, same typed refusal')
 {
   const seat = await import('../../src/daemon/sessionSeat.ts')
   const roster = { has: () => ({ present: false, alive: false }), control: () => false } as never
-  const junk = seat.setSessionEffort('00000000-0000-0000-0000-000000000000', 'turbo', roster, join(scratch, 'daemon'))
+  const junk = await seat.setSessionEffort('00000000-0000-0000-0000-000000000000', 'turbo', roster, join(scratch, 'daemon'))
   check('junk effort refuses at the door', junk.outcome === 'refused' && /the levels are/.test(junk.detail ?? ''), JSON.stringify(junk))
-  const spoken = seat.setSessionEffort('00000000-0000-0000-0000-000000000000', 'x high', roster, join(scratch, 'daemon'))
+  const spoken = await seat.setSessionEffort('00000000-0000-0000-0000-000000000000', 'x high', roster, join(scratch, 'daemon'))
   check(
     "'x high' normalizes and walks on to the session lookup",
     spoken.outcome === 'refused' && /unknown-session/.test(spoken.detail ?? ''),
