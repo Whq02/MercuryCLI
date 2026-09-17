@@ -61,7 +61,7 @@ section('§2 pure — the notice in its row form')
 {
   const React = (await import('react')).default
   const { Box, Text } = await import('../../src/ink.ts')
-  const { footerNoticeLine, noticeRowBlock, noticeRowText } = await import('../../src/components/PromptInput/Notifications.tsx')
+  const { footerNoticeLine, noticeBlockRows, noticeRowBlock, noticeRowText } = await import('../../src/components/PromptInput/Notifications.tsx')
   const plain = noticeRowText({ key: 'k', priority: 'immediate', text: 'Copied to clipboard' })
   check('a plain text notice is its one line', plain === 'Copied to clipboard', JSON.stringify(plain))
   const folded = noticeRowText({ key: 'k', priority: 'low', text: 'hook said\nline two\nline three' })
@@ -88,6 +88,12 @@ section('§2 pure — the notice in its row form')
       noticeRowBlock({ key: 'k', priority: 'high', jsx: boxJsx }) === boxJsx,
   )
   check('no notice, nothing on the row', noticeRowText(null) === null && noticeRowBlock(null) === null)
+  const threeRows = React.createElement(Box, { flexDirection: 'column' }, ['one', 'two', 'three'].map(row => React.createElement(Text, { key: row }, row)))
+  check('a block notice asks the footer for as many rows as it stacks; a text or Text-shaped notice asks for none', noticeBlockRows({ key: 'k', priority: 'high', jsx: threeRows }) === 3 && noticeBlockRows({ key: 'k', priority: 'high', jsx: boxJsx }) === 1 && noticeBlockRows({ key: 'k', priority: 'immediate', jsx: textJsx }) === 0 && noticeBlockRows({ key: 'k', priority: 'low', text: 'a\nb\nc' }) === 0 && noticeBlockRows(null) === 0)
+  const fiveRows = React.createElement(Box, { flexDirection: 'column' }, ['one', 'two', 'three', 'four', 'five'].map(row => React.createElement(Text, { key: row }, row)))
+  const capped = noticeRowBlock({ key: 'k', priority: 'high', jsx: fiveRows })
+  const cappedRows = React.isValidElement(capped) ? React.Children.toArray((capped.props as { children?: React.ReactNode }).children) : []
+  check('a block taller than three rows keeps its first two rows and its last, the action row last', noticeBlockRows({ key: 'k', priority: 'high', jsx: fiveRows }) === 3 && cappedRows.length === 3 && cappedRows.every((row, i) => React.isValidElement(row) && (row.props as { children?: unknown }).children === ['one', 'two', 'five'][i]))
 }
 
 section('§3 pty — the real binary: the receipt and the escape hint ride the hint row, the composer never moves')

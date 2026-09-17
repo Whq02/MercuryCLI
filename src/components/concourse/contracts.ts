@@ -215,6 +215,9 @@ export type ControlNoteState = ControlNoteKind | ControlNote
 export const controlNoteOf = (n: ControlNoteState): ControlNote =>
   typeof n === 'string' ? { state: n } : n
 
+export const CONTROL_NOTE_REFUSED_MS = 10_000
+export const CONTROL_NOTE_SETTLED_MS = 4_000
+
 export interface ConcourseCallbacks {
   enterSession: (sessionId: string) => void
   resumeOlderChat?: (sessionId: string, transcriptPath: string, title: string) => void

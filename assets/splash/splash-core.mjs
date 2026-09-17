@@ -1155,7 +1155,7 @@ function composeCompactFace(cols, rows, opts) {
     const shown = vis(keyMap) + 2 <= cols ? keyMap : clipVis(keyMap, cols)
     lines[rows - 1] = ' '.repeat(Math.max(0, cols - vis(shown) - 2)) + faint + shown + R
   }
-  const ready = red + '▶_ ' + R + ivory + 'ready' + R + faint + '  ·  ' + R + red + '↵ ' + R + ivory + 'start' + R
+  const ready = red + '►_ ' + R + ivory + 'ready' + R + faint + '  ·  ' + R + red + '↵ ' + R + ivory + 'start' + R
   const tiny = red + '(>_) ' + ivory + 'MERCURY' + R + '  ' + faint + '↵ start' + R
   const heroLine = banner || vis(tiny) > cols ? ready : tiny
   const hero = placed.slice(0, top + cardAt)

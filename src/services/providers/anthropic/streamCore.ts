@@ -50,16 +50,6 @@ import { isFirstPartyAnthropicBaseUrl } from 'src/utils/model/providers.js'
 import { notePrintPhase } from 'src/utils/printPhases.js'
 import { resetApiConnectionPool } from 'src/utils/proxy.js'
 import {
-  getActivePulseTrace,
-  getPulsePhase,
-  isPulseMainSource,
-  notePulseStreamActivity,
-  pulseMark,
-  pulseStageEnd,
-  pulseStageStart,
-  setPulsePhase,
-} from 'src/utils/pulse/index.js'
-import {
   modelSupportsAdaptiveThinking,
   modelSupportsThinking,
   type ThinkingConfig,
@@ -200,7 +190,6 @@ import {
   estimateRequestTokens,
   firstByteBudgetMs,
   firstByteTimeoutLine,
-  requestWaitLine,
   retryReasonWords,
   streamActivityFetchOptions,
   createStreamActivityRelay,
@@ -480,8 +469,6 @@ async function* queryModel(
 
   const resolvedModel = options.model
 
-  const pulseMain = isPulseMainSource(options.querySource, options.agentId)
-  if (pulseMain) pulseStageStart('tool_schema')
   const isAgenticQuery =
     options.querySource.startsWith('repl_main_thread') ||
     options.querySource.startsWith('agent:') ||
@@ -560,11 +547,7 @@ async function* queryModel(
     )
   }
 
-  if (pulseMain) pulseStageEnd('tool_schema')
-
-  if (pulseMain) pulseStageStart('message_normalization')
   let messagesForAPI = normalizeMessagesForAPI(messages, filteredTools)
-  if (pulseMain) pulseStageEnd('message_normalization')
 
   if (!useToolSearch) {
     messagesForAPI = messagesForAPI.map(msg => {
@@ -846,11 +829,6 @@ async function* queryModel(
     if (getCanonicalName(model) === getCanonicalName(requestedWire)) return
     servedModel = model
     logForDebugging(`served by ${model} (requested ${requestedWire})`)
-    if (pulseMain) {
-      setPulsePhase(getActivePulseTrace()?.generation ?? 0, getPulsePhase().phase, {
-        servedBy: getPublicModelDisplayName(model) ?? model,
-      })
-    }
   }
   const pricingModel = (): string => servedModel ?? resolvedModel
   let stopReason: BetaStopReason | null = null
@@ -961,7 +939,6 @@ async function* queryModel(
 
   try {
     streamingPass: for (;;) {
-    if (pulseMain) pulseStageStart('client_setup')
     let noteTransportActivity: (() => void) | null = null
     const generator = withRetry(
       () =>
@@ -973,7 +950,6 @@ async function* queryModel(
       async (anthropic, attempt, context) => {
         attemptNumber = attempt
         start = Date.now()
-        if (pulseMain) pulseStageEnd('client_setup')
 
         const params = paramsFromContext(context)
         captureAPIRequest(params, options.querySource)
@@ -1005,10 +981,6 @@ async function* queryModel(
         }
         options.onWait?.(wait)
 
-        if (pulseMain) {
-          pulseMark('api_request_sent')
-          setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'waiting', { wait: requestWaitLine(wait) })
-        }
         if (!options.agentId) {
           headlessProfilerCheckpoint('api_request_sent')
           notePrintPhase('dispatch')
@@ -1041,10 +1013,6 @@ async function* queryModel(
           throw sent
         }
         options.onWait?.(null)
-        if (pulseMain) {
-          pulseMark('response_headers_received')
-          setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'waiting', { wait: undefined })
-        }
         streamRequestId = result.request_id
         streamResponse = result.response
         if (isTurnOwningQuerySource(options.querySource)) noteRequestOnWire(rosterOwnerKey)
@@ -1074,7 +1042,6 @@ async function* queryModel(
             sinceMs: Date.now(),
           }
           options.onWait?.(retryWait)
-          if (pulseMain) setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'waiting', { wait: requestWaitLine(retryWait) })
         }
         yield e.value
       }
@@ -1192,13 +1159,6 @@ async function* queryModel(
 
         if (isFirstChunk) {
           logForDebugging('stream live — first chunk received')
-          if (pulseMain) {
-            pulseMark('first_stream_chunk_received')
-            notePulseStreamActivity(
-              getActivePulseTrace()?.generation ?? 0,
-              'chunk',
-            )
-          }
           if (!options.agentId) {
             headlessProfilerCheckpoint('first_chunk')
             notePrintPhase('first_byte')

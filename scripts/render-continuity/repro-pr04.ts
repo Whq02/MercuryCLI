@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { runPulseArena } from '../pulse/lib/pulseArena.ts'
+import { runPulseArena } from './lib/pulseArena.ts'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))

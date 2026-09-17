@@ -27,8 +27,6 @@ const { createAssistantMessage, createUserMessage } = await import('../../src/ut
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const qm = await import('../../src/utils/messageQueueManager.ts')
 const plane = await import('../../src/services/primitives/executionPlane.ts')
-const phase = await import('../../src/utils/pulse/turnPhase.ts')
-const pulse = await import('../../src/utils/pulse/index.ts')
 const coordinator = await import('../../src/services/run/runCoordinator.ts')
 const lifecycle = await import('../../src/services/run/ownerLifecycle.ts')
 const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
@@ -213,15 +211,9 @@ const shapeRuns = new Map<TurnShape, number>()
 
 for (let n = 1; n <= 100; n++) {
   const shape = SHAPES[n % SHAPES.length]!
-  pulse.beginPulseTurn({ querySource: 'repl_main_thread' } as never)
   const evidence = await runTurn(n, shape)
   if (shapeHolds(shape, evidence)) shapeRuns.set(shape, (shapeRuns.get(shape) ?? 0) + 1)
   else check(`turn ${n}: the ${shape} shape executed as named`, false, JSON.stringify(evidence))
-  const gen = pulse.getActivePulseTrace()?.generation
-  if (gen !== undefined) {
-    phase.setPulsePhase(gen, 'settling')
-    pulse.completePulseTurn()
-  }
   if (n % 20 === 0) {
     const live = plane
       .listExecutions(owner)
@@ -242,10 +234,6 @@ for (const shape of SHAPES) {
   const all = plane.listExecutions(owner)
   const live = all.filter(rec => !['succeeded', 'failed', 'cancelled', 'indeterminate'].includes(rec.state))
   check('execution plane: zero live records after 100 turns', live.length === 0, live.map(l => `${l.id}:${l.state}`).join(','))
-
-  const snapshotPhase = phase.getPulsePhase()
-  check('turn phase: at the NEWEST generation (no drift)', snapshotPhase.generation === 100, `gen=${snapshotPhase.generation}`)
-  check('turn phase: settled (settling/idle), never a stuck busy phase', snapshotPhase.phase === 'settling' || snapshotPhase.phase === 'idle', snapshotPhase.phase)
 
   check('run coordinator: exactly ONE owner accumulated', coordinator._runOwnerCountForTesting() === 1, String(coordinator._runOwnerCountForTesting()))
 

@@ -322,8 +322,18 @@ const recRefused = recordOf(parkedId)
 check('R the daemon refused the reactivate and left the record parked with its own reason', recRefused !== undefined && recRefused.parkedAt !== undefined && /held by a live session/.test(recRefused.parkReason ?? ''), JSON.stringify({ parkedAt: recRefused?.parkedAt, parkReason: recRefused?.parkReason }))
 check('R the no-live-runner line paints with the daemon\'s reason, its words unchanged (↵ revives it · the checkout held by a live session)', refused.includes(WORDS3) && refused.includes('revives it') && /held by a live session/.test(refused), footerLines(refused))
 check('R no re-attach row for a session without a runner', refused !== '' && !refused.includes(HELD_ROW), footerLines(refused))
+const stackOf = (text: string): { lead: number; reason: number; action: number } => {
+  const rows = text.split('\n')
+  return { lead: rows.findIndex(l => l.includes('no live runner')), reason: rows.findIndex(l => /held by a live session/.test(l)), action: rows.findIndex(l => l.includes('\u21b5 revives it')) }
+}
+const stacked = (text: string): boolean => {
+  const s = stackOf(text)
+  return s.lead >= 0 && s.reason > s.lead && s.action > s.reason
+}
+check('R the notification stacks its rows under the composer: the lead row whole, the reason under it, the action last', stacked(refused), JSON.stringify(stackOf(refused)))
 for (const [cols, rows] of SIZES) {
   const frame = stageOf(r, cols, rows)
+  check(`R at ${cols}×${rows} the notification's rows stack, the action last`, stacked(frame), JSON.stringify(stackOf(frame)))
   check(`R at ${cols}×${rows} the refusal stands on the footer and no re-attach row paints`, frame.includes(WORDS3) && frame.includes('revives it') && !frame.includes(HELD_ROW), footerLines(frame) || frame.split('\n').slice(0, 2).join(' | '))
 }
 

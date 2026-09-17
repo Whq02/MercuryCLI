@@ -1,13 +1,6 @@
 
 import type { ToolUseBlock } from '../../types/wire.js'
 import { fluxCount, fluxMark } from '../flux/fluxProbe.js'
-import {
-  armPulseTerminalWriteMark,
-  getActivePulseTrace,
-  notePulseStreamActivity,
-  pulseMark,
-  setPulsePhase,
-} from '../pulse/index.js'
 import type { SpinnerMode } from '../../components/Spinner.js'
 import type {
   Message,
@@ -118,24 +111,14 @@ export function handleMessageFromStream(
       switch (message.event.content_block.type) {
         case 'thinking':
         case 'redacted_thinking': {
-          const g = getActivePulseTrace()?.generation ?? 0
-          pulseMark('first_thinking_event')
-          notePulseStreamActivity(g, 'thinking')
-          setPulsePhase(g, 'thinking')
           onSetStreamMode('thinking')
           return
         }
         case 'text': {
-          const g = getActivePulseTrace()?.generation ?? 0
-          notePulseStreamActivity(g, 'text')
-          setPulsePhase(g, 'responding')
           onSetStreamMode('responding')
           return
         }
         case 'tool_use': {
-          const g = getActivePulseTrace()?.generation ?? 0
-          notePulseStreamActivity(g, 'tool-input')
-          setPulsePhase(g, 'responding')
           onSetStreamMode('tool-input')
           const contentBlock = message.event.content_block
           const index = message.event.index
@@ -166,12 +149,6 @@ export function handleMessageFromStream(
           const deltaText = message.event.delta.text
           fluxCount('text-delta')
           fluxMark('delta:text', deltaText.length)
-          {
-            const g = getActivePulseTrace()?.generation ?? 0
-            pulseMark('first_text_delta')
-            armPulseTerminalWriteMark('first_text_terminal_write', g)
-            notePulseStreamActivity(g, 'text')
-          }
           onUpdateLength(deltaText)
           onStreamingText?.(text => (text ?? '') + deltaText)
           return
@@ -180,10 +157,6 @@ export function handleMessageFromStream(
           const delta = message.event.delta.partial_json
           const index = message.event.index
           fluxCount('tool-delta')
-          notePulseStreamActivity(
-            getActivePulseTrace()?.generation ?? 0,
-            'tool-input',
-          )
           onUpdateLength(delta)
           onStreamingToolUses(
             current => {
@@ -201,10 +174,6 @@ export function handleMessageFromStream(
           return
         }
         case 'thinking_delta':
-          notePulseStreamActivity(
-            getActivePulseTrace()?.generation ?? 0,
-            'thinking',
-          )
           onUpdateLength(message.event.delta.thinking)
           return
         case 'signature_delta':

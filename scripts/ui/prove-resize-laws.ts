@@ -275,7 +275,7 @@ console.log('§15 — live geometry and a bounded compact frame at every size')
   for (const [columns, rows] of [[1, 1], [2, 2], [1, 40], [200, 1], [40, 10], [60, 16], [80, 24], [120, 24]]) {
     for (const activity of [false, true]) {
       for (const notice of [false, true]) {
-        const b = compactFrameBudget(columns!, rows!, activity, notice)
+        const b = compactFrameBudget(columns!, rows!, activity, notice ? 1 : 0)
         const sum = b.summaryRows + b.modelRows + b.activityRows + b.footerRows + b.noticeRows + b.composerBorderRows + b.editorPoolRows + b.transcriptMinRows
         check(`${columns}x${rows} activity=${activity} notice=${notice}: grants tile the real rows`, sum === rows && Object.values(b).every(v => v >= 0))
         check(`${columns}x${rows}: the editor owns a real cell`, b.inputColumns >= 1 && b.inputColumns + b.inputPrefixColumns + b.composerBorderColumns === columns && b.editorPoolRows >= 1)
