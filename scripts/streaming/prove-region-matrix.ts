@@ -45,11 +45,13 @@ const idleSec = (idleWin[1] - idleWin[0]) / 1000
 const idleRate: Record<string, number> = {}
 for (const r of REGIONS) idleRate[r] = inWindow(idle, r, idleWin) / idleSec
 
+const LANDED = { needle: '⊞ SESSIONS', atMs: 3000 }
 const typing = await runArtifactArena({
   turns: [],
   sends: GLYPHS.map((g, i) => `${4500 + i * 500}:${g}`),
   seconds: 11,
   probe: true,
+  anchor: LANDED,
 })
 const glyphSends = typing.sendLog
   .filter(s => GLYPHS.includes(Buffer.from(s.b64, 'base64').toString('utf8')))
@@ -83,6 +85,7 @@ const spinner = await runArtifactArena({
   sends: ['4500:hello', '5300:\\r'],
   seconds: 11,
   probe: true,
+  anchor: LANDED,
 })
 const spinnerSubmit = spinner.sendLog[spinner.sendLog.length - 1]?.sent ?? 0
 const spinnerWin: [number, number] = [spinnerSubmit + 1500, endTs(spinner) - 800]

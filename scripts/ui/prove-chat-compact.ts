@@ -128,7 +128,7 @@ function bandChecks(tag: string, cols: number, rows: number, grid: Grid, chip: '
 const idleSends = (cols: number, rows: number): unknown[] => [
   { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
   { atTick: 100, awaitText: ADMITTED, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '' },
-  { atTick: 999, awaitText: compactBandForm(cols, rows) === 'square' && cols >= 100 ? ADMITTED : cols >= 60 ? '0 agents here' : 'A:0', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'idle' },
+  { atTick: 999, awaitText: compactBandForm(cols, rows) === 'square' && cols >= 100 ? ADMITTED : cols >= 60 ? '1 session on · 0 monitors here · 0 agents here' : 'S:1 · M:0 · A:0', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, requireAwait: true, data: '', mark: 'idle' },
 ]
 
 async function capture(tag: string, cols: number, rows: number, sends: unknown[], opts: { turns?: Parameters<typeof startLeg>[1]; argv?: string[]; resizes?: unknown[]; total?: number; settings?: Record<string, unknown> }): Promise<{ marks: Map<string, Mark>; status: number | null; log: string; leg: Awaited<ReturnType<typeof startLeg>> }> {
@@ -138,7 +138,7 @@ async function capture(tag: string, cols: number, rows: number, sends: unknown[]
   const cfgPath = join(scratch, `${tag}-config.json`)
   const log = join(scratch, `${tag}-engine.log`)
   writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), dist, '--chat', ...(opts.argv ?? [])], cwd: ROOT, cols, rows, sends, resizes: opts.resizes ?? [], total: opts.total ?? 200, out }))
-  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none' }), stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none', MERCURY_DECK_COMPANION: '0' }), stdio: ['ignore', 'pipe', 'pipe'] })
   let output = ''
   child.stdout.on('data', chunk => { output += String(chunk) })
   child.stderr.on('data', chunk => { output += String(chunk) })
@@ -227,7 +227,7 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
       const activity = text[chipAt - 1] ?? ''
       check(`${tag}: the glyph line rides directly above the chip line`, activity.startsWith('✶') && activity.includes('tokens') && /thinking|writing|working|waiting/.test(activity), JSON.stringify(activity))
       check(`${tag}: the band keeps the lockup without the readiness word while the turn runs`, text.some(l => l.includes('✶ Mercury')) && !text.some(l => l.includes('● ready')))
-      check(`${tag}: the sessions line carries the interrupt rung beside the way back`, /esc interrupts · ⇧← (?:boot face|concourse)$/.test(text[23] ?? ''), JSON.stringify(text[23] ?? ''))
+      check(`${tag}: the sessions line carries the interrupt rung beside the way back`, /esc interrupts · (?:⇧|shift\+)← (?:boot face|concourse)$/.test(text[23] ?? ''), JSON.stringify(text[23] ?? ''))
       check(`${tag}: the model still appears on exactly one row while streaming`, text.filter(l => l.includes('Opus 5')).length === 1)
     }
     check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0)

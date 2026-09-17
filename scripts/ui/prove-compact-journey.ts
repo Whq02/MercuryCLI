@@ -110,7 +110,7 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
         const stream = rowsAt(label)
         const activity = stream.findIndex(row => row.includes('writing') && row.includes('tokens'))
         const models = stream.map((row, i) => row.includes('Opus 5') ? i : -1).filter(i => i >= 0)
-        const composerTop = stream.findIndex(row => /^╭/.test(row) || /^❯ /.test(row))
+        const composerTop = stream.findIndex(row => /^╭/.test(row) || /^❯( |$)/.test(row))
         const chipAt = composerTop > 0 && /Opus 5|sovereign|need you|permissions unreported/.test(stream[composerTop - 1]!) ? composerTop - 1 : -1
         check(`${tag} ${label}: one activity row sits directly above the chip line, or above the composer when no chip line is up, and the model paints once`, activity >= 0 && models.length === 1 && activity === (chipAt >= 0 ? chipAt : composerTop) - 1, `activity=${activity} chip=${chipAt} composer=${composerTop} models=${JSON.stringify(models)}`)
       }

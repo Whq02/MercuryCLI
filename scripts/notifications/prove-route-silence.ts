@@ -183,9 +183,9 @@ try {
     (e): e is DriveEntry & { sent: number; atMs: number } =>
       typeof (e as { sent?: unknown }).sent === 'number' && typeof (e as { atMs?: unknown }).atMs === 'number',
   )
-  const bSent = sentStamps.find(e => e.atMs === B_AT)?.sent
+  const bSent = sentStamps.find(e => e.atMs === S(B_AT))?.sent
   const base = chunks.length ? chunks[0]!.ts : 0
-  const windowStart = bSent !== undefined ? bSent - 200 : base + B_AT
+  const windowStart = bSent !== undefined ? bSent - 200 : base + S(B_AT)
   const windowText = chunks
     .filter(c => c.ts >= windowStart)
     .map(c => c.text)
@@ -196,8 +196,8 @@ try {
     const squash = (rows: { rows: unknown[] } | undefined): string =>
       ((rows?.rows ?? []) as Parameters<typeof visibleText>[0][]).map(visibleText).join('\n').replace(/\s+/g, '')
     const sentRel = (atMs: number): number => {
-      const st = sentStamps.find(e => e.atMs === atMs)?.sent
-      return st !== undefined ? st - base : atMs
+      const st = sentStamps.find(e => e.atMs === S(atMs))?.sent
+      return st !== undefined ? st - base : S(atMs)
     }
     const LADDER = [400, 800, 1200, 1600, 2200, 3000, 4200, 6000, 8000, 10_000]
     const NONBLANK = 200

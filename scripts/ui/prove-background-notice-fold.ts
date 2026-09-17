@@ -120,7 +120,7 @@ console.log('§2 the real bundle — one folded row in the chat, the three in th
     console.log(`  (skipped: capture driver ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind})`)
   } else {
     const { CONFIG_HOME, RUNTIME_CWD, SID, cleanupScenario, encodeFixtureTranscript, scenario } = await import('./renderScenarios.ts')
-    const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.ts')
+    const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
     const cfg = scenario('cockpit-scrolled', 150, 40) as Record<string, unknown>
     const base = (extra: Record<string, unknown>): Record<string, unknown> => ({ isSidechain: false, userType: 'external', entrypoint: 'cli', cwd: RUNTIME_CWD, sessionId: SID, version: '1.0.0-beta.1', gitBranch: 'main', ...extra })
     const U1 = '00000000-0000-4000-8000-000000000001'
@@ -137,7 +137,7 @@ console.log('§2 the real bundle — one folded row in the chat, the three in th
       base({ parentUuid: N(3), type: 'user', uuid: '00000000-0000-4000-8000-000000000021', message: { role: 'user', content: 'what failed?' }, timestamp: '2026-06-19T12:00:06.000Z' }),
       base({ parentUuid: '00000000-0000-4000-8000-000000000021', type: 'assistant', uuid: '00000000-0000-4000-8000-000000000022', requestId: 'req_fold_2', message: { id: 'msg_fold_2', type: 'message', role: 'assistant', model: 'claude-opus-4-8', content: [{ type: 'text', text: 'The typecheck failed with exit code 2; lint and the unit tests passed.' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }, timestamp: '2026-06-19T12:00:07.000Z' }),
     ]
-    const projects = join(CONFIG_HOME, 'projects', sanitizePath(RUNTIME_CWD))
+    const projects = getProjectDir(RUNTIME_CWD)
     mkdirSync(projects, { recursive: true })
     writeFileSync(join(projects, `${SID}.jsonl`), encodeFixtureTranscript(lines, SID))
     cfg.sends = [
