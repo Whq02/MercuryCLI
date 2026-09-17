@@ -227,12 +227,12 @@ section('§4 the ruled copy and the never-a-bell law (structural)')
   )
   check(
     'the connector rings no bell (no BEL, no termWrite, no notifyBell anywhere in it)',
-    !connectorSrc.includes('BEL') && !connectorSrc.includes('termWrite') && !connectorSrc.includes('notifyBell'),
+    !/\bBEL\b/.test(connectorSrc) && !connectorSrc.includes('termWrite') && !connectorSrc.includes('notifyBell'),
   )
   const seatSrc = readFileSync(join(ROOT, 'src', 'daemon', 'sessionSeat.ts'), 'utf8')
   check(
-    'the seat STAMPS the receipt where the idle edge applies the parked switch',
-    seatSrc.includes('parkedSettle: true') && seatSrc.includes('lastModelSettle = {'),
+    'the seat STAMPS the receipt where the parked switch lands: the idle edge forwards it as a settle, and the runner\'s applied frame lands a switch the record still parks',
+    seatSrc.includes('{ parked: true, settle: true }') && seatSrc.includes('landModel(rec, model, roster, dir, rec.pendingModelKey === model)') && seatSrc.includes('lastModelSettle = {'),
   )
   check(
     'the publisher carries the stamp on every facts publish',
