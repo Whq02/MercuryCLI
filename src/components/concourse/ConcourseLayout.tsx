@@ -589,7 +589,7 @@ export function ConcourseLayout({
           for (const r of inWindow) {
             const isSel = r.sessionId === boardSelectedId
             const base = STATE_GLYPH[r.state] ?? { glyph: GLYPH.read, color: 'textMuted' as const }
-            const sg = r.state === 'working' && isSel ? { glyph: GLYPH.ok, color: 'info' as const } : base
+            const sg = r.state === 'working' && isSel ? { glyph: GLYPH.ok, color: 'info' as const } : r.finishedUnseen === true ? { glyph: base.glyph, color: 'warning' as const } : base
             const ageBlock = padStartTo(r.state === 'queued' ? 'waits' : (r.ageLabel ?? '—'), 5)
             out.push(
               <Box key={r.sessionId} flexShrink={0} paddingX={1}>

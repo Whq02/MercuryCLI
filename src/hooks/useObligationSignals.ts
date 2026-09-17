@@ -4,9 +4,10 @@ import { getOperatorName } from '../utils/cockpit/presenceLive.js'
 import { logForDebugging } from '../utils/debug.js'
 import { sendNotification } from '../services/notifier.js'
 import { emitConcourseSignal } from '../services/notificationPolicy.js'
-import { openObligations, subscribeObligations } from '../services/crew/obligations.js'
+import { openObligations, resolveObligation, subscribeObligations } from '../services/crew/obligations.js'
 import { notePendingActivation } from '../services/concourse/pendingActivation.js'
-import { isCrossProjectFinishedRef } from '../services/concourse/crossProjectPings.js'
+
+const RETIRED_FINISH_REF = 'cross-project:finished:'
 
 export function useObligationSignals(terminal: TerminalNotification): void {
   useEffect(() => {
@@ -16,12 +17,16 @@ export function useObligationSignals(terminal: TerminalNotification): void {
         .then(async rows => {
           if (cancelled) return
           for (const o of rows) {
+            if (o.ref !== undefined && o.ref.startsWith(RETIRED_FINISH_REF)) {
+              await resolveObligation(o.obligationId, { kind: 'withdrawn', by: 'retired-kind', scope: 'switchboard' })
+              continue
+            }
             const outcome = await emitConcourseSignal(
               {
                 kind: 'needs-you',
                 targetId: o.obligationId,
                 revision: o.revision,
-                title: isCrossProjectFinishedRef(o.ref) ? 'an agent finished in another project — switch to see it' : 'a session needs you',
+                title: 'a session needs you',
                 detail: o.question,
                 deepLink: { sessionId: o.sessionId, obligationId: o.obligationId },
                 obligationBacked: true,

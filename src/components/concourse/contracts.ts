@@ -35,6 +35,7 @@ export interface ConcourseRowV1 {
   modelId?: string
   seats: { held: number; ceiling: number } | 'waits' | null
   nowLabel?: string | null
+  finishedUnseen?: true
   workflowsAllowed?: boolean
   scheduleNextFireMs?: number
   workspaceDir?: string
