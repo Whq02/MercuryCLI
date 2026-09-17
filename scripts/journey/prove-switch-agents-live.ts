@@ -75,7 +75,10 @@ function answeredTool(items: Item[]): { name: string; resultText: string } | nul
 }
 
 const noticeCount = (items: Item[]): number =>
-  items.filter(item => item.role === 'user' && /<task-notification>[\s\S]*<status>(killed|stopped)<\/status>/.test(textOf(item.content))).length
+  items
+    .filter(item => item.role === 'user')
+    .flatMap(item => (typeof item.content === 'string' ? [item.content] : blocksOf(item.content).map(b => (b.type === 'text' && typeof b.text === 'string' ? b.text : ''))))
+    .filter(text => /<task-notification>[\s\S]*<status>(killed|stopped)<\/status>/.test(text)).length
 
 function routeOf(body: unknown): { route: Route; seat: string | null; resultText: string; notices: number } {
   const items = itemsOf(body)
@@ -189,7 +192,7 @@ async function startFixture(port: number, home: string, opts: { killAfterLaunchM
               if (pid === null) return
               fixture.killedPid = pid
               try {
-                process.kill(pid, 'SIGTERM')
+                process.kill(pid, 'SIGKILL')
               } catch {
               }
             }, delay).unref?.()
