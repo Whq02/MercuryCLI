@@ -313,9 +313,10 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
       p => src(p).includes('isManageableTask'),
     ),
   )
+  const dialog = src('src/components/tasks/BackgroundTasksDialog.tsx')
   t.check(
     'the tasks dialog binds Escape itself (kill/foreground/detail dispatch per kind)',
-    src('src/components/tasks/BackgroundTasksDialog.tsx').includes('Escape is bound here'),
+    /useKeybindings\(\s*\{\s*'confirm:no': \(\) => \{[\s\S]{0,200}?onDone\(\)/.test(dialog) && dialog.includes("{ context: 'Confirmation', isActive: !inDetail }"),
   )
 }
 

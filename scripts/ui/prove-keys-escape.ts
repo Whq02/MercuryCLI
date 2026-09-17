@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { scenario } from './renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -51,7 +52,7 @@ for (const cols of [80, 120]) {
     !/input atlas/.test(final),
     'the final frame still shows the atlas — Escape is dead in browse mode',
   )
-  check(`@${cols}: the session view is back`, /for commands/.test(final))
+  check(`@${cols}: the session view is back`, cols >= HELM_HOME_MIN_COLS ? /for commands/.test(final) : /Type a prompt/.test(final) && /agents here/.test(final))
 }
 
 console.log(failures === 0 ? '\nALL GREEN' : `\n${failures} FAILURE(S)`)

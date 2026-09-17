@@ -204,6 +204,7 @@ section('§4 RECURRING RE-ARM (G09)')
   const recurring = queue[queue.length - 1]
   check('the 24h recurring cadence is ARMED (the dead constant lives)', recurring?.ms === 24 * 60 * 60 * 1000, `ms=${recurring?.ms}`)
 
+  backdate(join(HOME, '.last-cleanup'), 0)
   NOW += 40 * DAY
   ticks = 0
   const sentinelNow = (): string =>
