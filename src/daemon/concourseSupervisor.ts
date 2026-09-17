@@ -163,7 +163,7 @@ export interface ConcourseWorkerRecordV1 {
   workflowsGrantedAt?: number
   focusedAt?: number
   focusedBy?: string
-  terminalApplication?: { identity: string; name: string } | null
+  terminalApplication?: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null
   parkedAt?: number
   parkedBy?: string
   parkReason?: string
@@ -2412,7 +2412,7 @@ export function stampedTerminalPid(by: string | undefined): number | undefined {
   return pid === undefined ? undefined : Number(pid)
 }
 
-export function focusConcourseSession(sessionId: string, by: string, dir?: string, terminalApplication?: { identity: string; name: string } | null): ConcourseFocusOutcome {
+export function focusConcourseSession(sessionId: string, by: string, dir?: string, terminalApplication?: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null): ConcourseFocusOutcome {
   let out: ConcourseFocusOutcome = { outcome: 'refused', reason: 'unknown-session' }
   updateConcourseWorkers(workers => {
     const rec = Object.values(workers).find(r => r.sessionId === sessionId && r.endedAt === undefined)
@@ -2425,7 +2425,7 @@ export function focusConcourseSession(sessionId: string, by: string, dir?: strin
       delete other.terminalApplication
       cleared.push(other.runnerId)
     }
-    const terminalChanged = terminalApplication !== undefined && (rec.terminalApplication?.identity !== terminalApplication?.identity || rec.terminalApplication?.name !== terminalApplication?.name)
+    const terminalChanged = terminalApplication !== undefined && (rec.terminalApplication?.identity !== terminalApplication?.identity || rec.terminalApplication?.name !== terminalApplication?.name || rec.terminalApplication?.windowId !== terminalApplication?.windowId || rec.terminalApplication?.tty !== terminalApplication?.tty)
     if (rec.focusedAt !== undefined && rec.focusedBy === by && cleared.length === 0 && !terminalChanged) {
       out = { outcome: 'noop', reason: 'already-focused' }
       return

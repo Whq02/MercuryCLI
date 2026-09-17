@@ -1,3 +1,6 @@
+import { join } from 'node:path'
+import { execFile } from 'node:child_process'
+import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { voiceCheckoutRoot } from '../voice/voicePack.js'
@@ -137,6 +140,8 @@ function application(raw: DesktopAddonApplication, identity: string): DesktopApp
     pid: typeof raw.pid === 'number' && Number.isFinite(raw.pid) ? raw.pid : null,
     title: typeof raw.title === 'string' && raw.title !== '' ? raw.title : null,
     bounds,
+    windowId: typeof raw.windowId === 'string' && raw.windowId !== '' ? raw.windowId : null,
+    tty: typeof raw.tty === 'string' && raw.tty !== '' ? raw.tty : null,
   }
 }
 
@@ -152,6 +157,7 @@ class NativeDesktopDriver implements DesktopDriver {
   constructor(
     private readonly addon: DesktopAddon,
     private readonly facts: DesktopDriverFacts,
+    private readonly addonPath: string,
   ) {}
 
   describe(): DesktopDriverFacts {
@@ -305,29 +311,56 @@ class NativeDesktopDriver implements DesktopDriver {
     }
   }
 
-  async ownTerminalApplication(): Promise<DesktopAnswer<DesktopApplication | null>> {
+  async ownTerminalApplication(front?: DesktopApplication): Promise<DesktopAnswer<DesktopApplication | null>> {
     const closed = this.closedRefusal<DesktopApplication | null>()
     if (closed !== null) return closed
+    let terminal: DesktopApplication | null = null
+    let stillOwned: (() => boolean) | undefined
     if (flagEnv('MERCURY_CONCOURSE_WORKER') === '1') {
       const { getSessionId } = await import('../../bootstrap/state.js')
       const { readSessionWorkers, stampedTerminalPid } = await import('../../daemon/concourseSupervisor.js')
       const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
       const record = Object.values(readSessionWorkers()).find(row => row.sessionId === String(getSessionId()) && row.endedAt === undefined)
       const pid = stampedTerminalPid(record?.focusedBy)
-      const terminal = record?.terminalApplication
-      if (record?.focusedAt === undefined || pid === undefined || pid <= 1 || !isProcessAlive(pid) || terminal == null || typeof terminal.identity !== 'string' || terminal.identity === '' || typeof terminal.name !== 'string' || terminal.name === '') return { ok: true, value: null }
-      return { ok: true, value: { identity: terminal.identity, name: terminal.name, pid: null, title: null, bounds: null } }
+      const attached = record?.terminalApplication
+      if (record?.focusedAt === undefined || pid === undefined || pid <= 1 || !isProcessAlive(pid) || attached == null || typeof attached.identity !== 'string' || attached.identity === '' || typeof attached.name !== 'string' || attached.name === '') return { ok: true, value: null }
+      terminal = { identity: attached.identity, name: attached.name, pid: null, title: null, bounds: null, windowId: null, tty: attached.tty ?? null }
+      stillOwned = () => {
+        const current = readSessionWorkers()[record.runnerId]
+        return current?.endedAt === undefined && current?.focusedAt === record.focusedAt && current?.focusedBy === record.focusedBy && current?.terminalApplication?.identity === attached.identity && current?.terminalApplication?.tty === attached.tty && isProcessAlive(pid)
+      }
+    } else {
+      try {
+        const raw = this.addon.ownTerminalApplication()
+        if (typeof raw.identity === 'string' && raw.identity !== '') terminal = application(raw, raw.identity)
+      } catch (error) {
+        return fail(classifyThrown(error))
+      }
+      if (terminal === null) {
+        const program = (process.env.TERM_PROGRAM ?? '').trim()
+        const identity = process.platform === 'darwin' && Object.hasOwn(TERMINAL_IDENTITIES, program) ? TERMINAL_IDENTITIES[program] : undefined
+        if (identity !== undefined) terminal = { identity, name: program, pid: null, title: null, bounds: null }
+      }
     }
-    try {
-      const raw = this.addon.ownTerminalApplication()
-      if (typeof raw.identity === 'string' && raw.identity !== '') return { ok: true, value: application(raw, raw.identity) }
-    } catch (error) {
-      return fail(classifyThrown(error))
-    }
-    const program = (process.env.TERM_PROGRAM ?? '').trim()
-    const identity = process.platform === 'darwin' && Object.hasOwn(TERMINAL_IDENTITIES, program) ? TERMINAL_IDENTITIES[program] : undefined
-    if (identity === undefined) return { ok: true, value: null }
-    return { ok: true, value: { identity, name: program, pid: null, title: null, bounds: null } }
+    if (terminal === null) return { ok: true, value: null }
+    terminal.windowId = null
+    if (process.platform !== 'darwin' || front?.identity !== terminal.identity || !terminal.tty || !['com.apple.Terminal', 'com.googlecode.iterm2'].includes(terminal.identity)) return { ok: true, value: terminal }
+    const configured = Number(flagEnv('MERCURY_DESKTOP_OWNER_TIMEOUT_MS') ?? 1000)
+    const timeout = Number.isInteger(configured) && configured > 0 && configured <= 5000 ? configured : 1000
+    const args = ['-e', 'const a=require(process.argv[1]); process.stdout.write(JSON.stringify(a.ownTerminalApplication(process.argv[2],process.argv[3],Number(process.argv[4]))))', this.addonPath, terminal.identity, terminal.tty, front.windowId ?? '0']
+    const raw = await new Promise<DesktopAddonApplication | null>(resolve => {
+      execFile(process.execPath, args, { timeout, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: 64 * 1024, encoding: 'utf8' }, (error, stdout) => {
+        if (error) return resolve(null)
+        try {
+          resolve(JSON.parse(stdout) as DesktopAddonApplication)
+        } catch {
+          resolve(null)
+        }
+      })
+    })
+    if (stillOwned !== undefined && !stillOwned()) return { ok: true, value: null }
+    if (raw?.identity === terminal.identity && raw.tty === terminal.tty && typeof raw.windowId === 'string' && raw.windowId !== '') terminal = application(raw, terminal.identity)
+    return { ok: true, value: terminal }
   }
 
   async cursor(): Promise<DesktopAnswer<DesktopCursor>> {
@@ -459,7 +492,7 @@ export function resolveNativeDesktopDriver(): DesktopDriverLoad {
     return { state: 'unavailable', note: load.note, remedy: load.note.startsWith(DESKTOP_PACK_ABSENT_PREFIX) ? desktopPackAbsentNote() : null }
   }
   const facts: DesktopDriverFacts = { kind: 'native', version: load.manifest.version, platform: load.manifest.platform, source: load.source }
-  driverLoad = { state: 'ok', driver: new NativeDesktopDriver(load.addon, facts) }
+  driverLoad = { state: 'ok', driver: new NativeDesktopDriver(load.addon, facts, join(load.dir, load.manifest.addon)) }
   return driverLoad
 }
 

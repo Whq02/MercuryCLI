@@ -81,6 +81,16 @@ bounded like a Read window (the Read's line budget and token cap); past the
 bound the refusal names the Read that covers the rest. A file that changes
 on disk after the carry refuses again, with the lines of the new state.
 
+A Read of lines 1–5 followed by a file change and a search showing lines
+6–10 does not establish current knowledge of lines 1–10. The refusal names
+which anchor, generation or ownership/coverage check failed. It counts only
+current read windows and the current owner's ledger, and distinguishes
+older reads from current coverage. A separate Read window and ledger range
+are named separately when neither alone covers the whole edit; the refusal
+carries the ledger's missing lines so the unchanged edit law permits the
+retry. If a required knowledge lookup throws, its own error is reported
+instead of claiming the file was never read.
+
 A Read of a file over the token cap answers with its first window as an
 ordinary result, bounded by the Read's own line budget and token cap, and
 records it as a windowed read of exactly those lines; the result's first
