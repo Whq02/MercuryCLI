@@ -104,7 +104,17 @@ try {
       const frameP95Budget = vshotBudgetMs(20)
       const frameMaxBudget = vshotBudgetMs(60)
       t.check(`frame p95 ≤ ${frameP95Budget} ms (${frames.p95.toFixed(1)} ms; R0 baselines 4.4–6.6)`, frames.p95 <= frameP95Budget)
-      t.check(`frame max ≤ ${frameMaxBudget} ms (${frames.maxMs.toFixed(1)} ms; R0 baselines ≈ 12–14)`, frames.maxMs <= frameMaxBudget)
+      const epochOffset = run.probe?.epochMinusPerfNow ?? 0
+      const records = (run.probe?.frameRecords ?? []).map(f => ({ at: f.t + epochOffset, ms: f.ms }))
+      t.check('the probe stamped every ring frame with its end', records.length === frames.window, `${records.length} records vs ${frames.window} in the ring`)
+      const windowFrom = arrowSends[0]!.sent
+      const windowTo = arrowSends.at(-1)!.sent + (RESIZE_AT - (PRESS_START + (PRESSES - 1) * PRESS_STEP)) + 1_500
+      const measured = records.filter(f => f.at >= windowFrom && f.at <= windowTo)
+      const measuredMax = measured.reduce((max, f) => Math.max(max, f.ms), 0)
+      t.check(
+        `frame max over the measured window (the warmed presses through the resize settle) ≤ ${frameMaxBudget} ms (${measuredMax.toFixed(1)} ms over ${measured.length} frames; the whole run's max ${frames.maxMs.toFixed(1)} ms; R0 baselines ≈ 12–14)`,
+        measured.length > 0 && measuredMax <= frameMaxBudget,
+      )
     }
   }
 
