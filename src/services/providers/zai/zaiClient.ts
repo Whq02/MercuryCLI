@@ -98,6 +98,7 @@ export type ZaiStreamEvent =
       reason: ZaiFinishReason
       rawReason: string
       toolCalls: ZaiCompletedToolCall[]
+      stated: boolean
     }
   | { type: 'stream-fault'; fault: ZaiFault }
 
@@ -365,7 +366,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
         if (payload.trim() === '[DONE]') {
           if (!finished) {
             finished = true
-            yield { type: 'finish', reason: 'stop', rawReason: 'stop', toolCalls: finalizeToolCalls(toolAcc) }
+            yield { type: 'finish', reason: 'stop', rawReason: 'stop', toolCalls: finalizeToolCalls(toolAcc), stated: false }
           }
           break readLoop
         }
@@ -504,6 +505,7 @@ function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>)
       reason: known ? (finishRaw as ZaiFinishReason) : 'other',
       rawReason: finishRaw,
       toolCalls: finalizeToolCalls(toolAcc),
+      stated: true,
     })
   }
   return out

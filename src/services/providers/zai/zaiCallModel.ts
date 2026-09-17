@@ -45,7 +45,7 @@ import { addToTotalSessionCost } from '../../../cost-tracker.js'
 import { calculateUSDCost } from '../../../utils/modelCost.js'
 import { estimateFaultedRequestUsage } from '../faultUsageEstimate.js'
 import { resolveZaiDispatch } from '../../../utils/router/providerDiscovery.js'
-import { emptyReplyNote, markEmptyReply } from '../emptyReply.js'
+import { emptyReplyNote, markEmptyReply, type EmptyReplyKind } from '../emptyReply.js'
 import {
   renderGenericInstructions,
   resolveBehaviourContract,
@@ -410,7 +410,7 @@ async function* streamOneZaiAttempt(ctx: {
   const minted: AssistantMessage[] = []
   let usageSeen: ZaiUsage | undefined
   let finish:
-    | { reason: ZaiFinishReason; rawReason: string; toolCalls: ZaiCompletedToolCall[] }
+    | { reason: ZaiFinishReason; rawReason: string; toolCalls: ZaiCompletedToolCall[]; stated: boolean }
     | undefined
   let fault: ZaiFault | undefined
 
@@ -519,6 +519,7 @@ async function* streamOneZaiAttempt(ctx: {
           reason: event.reason,
           rawReason: event.rawReason,
           toolCalls: event.toolCalls,
+          stated: event.stated,
         }
         break
       case 'stream-fault':
@@ -605,12 +606,18 @@ async function* streamOneZaiAttempt(ctx: {
     )
   }
   if (minted.length === 0) {
-    const note = emptyReplyNote('zai')
+    const emptyKind: EmptyReplyKind =
+      finish?.reason === 'length'
+        ? 'cap'
+        : finish?.reason === 'stop' && finish.stated
+          ? 'silence'
+          : 'empty'
+    const note = emptyReplyNote('zai', emptyKind)
     yield* emitSettledBlock(
       { type: 'text', text: note, citations: null },
       [{ type: 'text_delta', text: note }],
       { type: 'text', text: '', citations: null },
-      markEmptyReply,
+      message => markEmptyReply(message, emptyKind),
     )
   }
 
