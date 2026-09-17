@@ -206,7 +206,39 @@ globalThis.fetch = (input, init) => {
 
   const T1 = 'the quick brown fox jumps over the lazy dog'
   const RECEIPT = 'Copied to clipboard'
+  const ESCAPE_TRANSFER = " (terminal escape transfer — check the terminal's clipboard settings if pasting fails)"
+  const receiptWhole = (platform: 'macos' | 'linux'): string => (platform === 'macos' ? RECEIPT : `${RECEIPT}${ESCAPE_TRANSFER}`)
+  const HOST: 'macos' | 'linux' = process.platform === 'darwin' ? 'macos' : 'linux'
+  const RECEIPT_WHOLE = receiptWhole(HOST)
   const ESC_HINT = 'Press escape again to clear the input'
+  const { compactWorkSummaryText } = await import('../../src/components/tasks/useFocusedWork.ts')
+  const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+  const { stringWidth } = await import('../../src/ink/stringWidth.ts')
+  const { footerNoticeLine } = await import('../../src/components/PromptInput/Notifications.tsx')
+  const COMPACT_COUNTS = { sessionsOn: 1, monitorsHere: 0, agentsHere: 0, samples: 0 }
+  const compactHint = (platform: 'macos' | 'linux'): string => keyHintLabel('⇧← boot face', platform)
+  const COMPACT_HINT = compactHint(HOST)
+  const compactSummary = (cols: number, notice: string | null, platform: 'macos' | 'linux' = HOST): string =>
+    compactWorkSummaryText(COMPACT_COUNTS, Math.max(0, cols - (stringWidth(compactHint(platform)) + 1) - (notice === null ? 0 : stringWidth(footerNoticeLine(notice)) + 3)))
+  {
+    const linuxRow = ` · ${receiptWhole('linux').slice(0, 58)}… ${compactHint('linux')}`
+    const macRow = `${compactSummary(82, receiptWhole('macos'), 'macos')} · ${receiptWhole('macos')}  ${compactHint('macos')}`
+    check(
+      'the 82-column copy receipt keeps the whole count line beside the native clipboard\'s short receipt (macOS) and sheds it whole beside the escape transfer\'s long one under the wider key spelling (Linux)',
+      compactSummary(82, receiptWhole('macos'), 'macos') === '1 session on · 0 monitors here · 0 agents here' && compactSummary(82, receiptWhole('linux'), 'linux') === '',
+      `macOS ${JSON.stringify(compactSummary(82, receiptWhole('macos'), 'macos'))} · Linux ${JSON.stringify(compactSummary(82, receiptWhole('linux'), 'linux'))}`,
+    )
+    check(
+      "the hosted runner's own 82-column receipt row satisfies the Linux expectation (the counts gone, the receipt leading, the way back on the right) where a count anchor never could",
+      linuxRow.startsWith(`${compactSummary(82, receiptWhole('linux'), 'linux')} · ${RECEIPT}`) && linuxRow.trimEnd().endsWith(compactHint('linux')) && !/\d sessions? on|S:\d/.test(linuxRow),
+      JSON.stringify(linuxRow),
+    )
+    check(
+      "this box's 82-column receipt row satisfies the macOS expectation the same way",
+      macRow.startsWith(`${compactSummary(82, receiptWhole('macos'), 'macos')} · ${RECEIPT}`) && macRow.trimEnd().endsWith(compactHint('macos')),
+      JSON.stringify(macRow),
+    )
+  }
   const PRESS = '\x1b[<0;{X};{Y}M'
   const MOVE = '\x1b[<32;{X};{Y}M'
   const RELEASE = '\x1b[<0;{X};{Y}m'
@@ -288,7 +320,7 @@ globalThis.fetch = (input, init) => {
     tag: string,
     got: Capture | null,
     notice: string,
-    anchor: RegExp,
+    anchor: RegExp | { idle: string; showing: string },
     marks: { before: string; showing: string; after: string },
   ): void => {
     if (!got) return
@@ -300,19 +332,31 @@ globalThis.fetch = (input, init) => {
     check(`${at} ${tag}: the notice is on screen at its moment`, textOf(showing.grid).includes(notice))
     const row = rowOf(showing.grid, notice)
     const line = row === -1 ? '' : rowText(showing.grid, row)
-    check(
-      `${at} ${tag}: the notice rides the hint row, after the hints`,
-      row !== -1 && line.search(anchor) !== -1 && line.search(anchor) < line.indexOf(notice),
-      JSON.stringify(line.trimEnd()),
-    )
+    if (anchor instanceof RegExp) {
+      check(
+        `${at} ${tag}: the notice rides the hint row, after the hints`,
+        row !== -1 && line.search(anchor) !== -1 && line.search(anchor) < line.indexOf(notice),
+        JSON.stringify(line.trimEnd()),
+      )
+    } else {
+      check(
+        `${at} ${tag}: the notice rides the count row after the counts the width leaves (${JSON.stringify(anchor.showing)}), the way back on its right`,
+        row !== -1 && line.startsWith(`${anchor.showing} · ${notice}`) && line.trimEnd().endsWith(COMPACT_HINT),
+        JSON.stringify(line.trimEnd()),
+      )
+    }
     check(
       `${at} ${tag}: the composer's frame does not move while the notice shows`,
       sameFrame(before, showing),
       `${frameWords(before)} → ${frameWords(showing)}`,
     )
+    const underComposer = (m: Mark): string => rowText(m.grid, frameOf(m.grid).bottom + 1)
     check(
       `${at} ${tag}: the hint row sits right under the composer before, during and after`,
-      [before, showing, after].every(m => anchor.test(rowText(m.grid, frameOf(m.grid).bottom + 1))),
+      anchor instanceof RegExp
+        ? [before, showing, after].every(m => anchor.test(underComposer(m)))
+        : underComposer(before).startsWith(anchor.idle) && underComposer(after).startsWith(anchor.idle) && underComposer(showing).startsWith(`${anchor.showing} · ${notice}`),
+      anchor instanceof RegExp ? '' : [before, showing, after].map(m => JSON.stringify(underComposer(m).trimEnd())).join(' → '),
     )
     check(`${at} ${tag}: the notice leaves after its moment`, !textOf(after.grid).includes(notice))
     check(`${at} ${tag}: …and the frame is where it was`, sameFrame(before, after), `${frameWords(before)} → ${frameWords(after)}`)
@@ -323,7 +367,9 @@ globalThis.fetch = (input, init) => {
     { cols: 82, rows: 17 },
   ]) {
     const at = `${size.cols}x${size.rows}`
-    const anchor = size.cols >= 100 ? /for commands \+ files/ : /\d sessions? on|S:\d/
+    const wide = size.cols >= 100
+    const expectFor = (notice: string): RegExp | { idle: string; showing: string } =>
+      wide ? /for commands \+ files/ : { idle: compactSummary(size.cols, null), showing: compactSummary(size.cols, notice) }
     console.log(`\n  ── ${at}`)
 
     const copy = capture(`copy-${at}`, size, T1, true, [
@@ -335,7 +381,7 @@ globalThis.fetch = (input, init) => {
       mark('receipt', 2),
       mark('later', 14),
     ])
-    noticeLeg(at, 'copy receipt', copy, RECEIPT, anchor, { before: 'typed', showing: 'receipt', after: 'later' })
+    noticeLeg(at, 'copy receipt', copy, RECEIPT, expectFor(RECEIPT_WHOLE), { before: 'typed', showing: 'receipt', after: 'later' })
 
     const esc = capture(`esc-${at}`, size, T1, false, [
       mark('typed'),
@@ -343,7 +389,7 @@ globalThis.fetch = (input, init) => {
       mark('notice', 2),
       mark('later', 18),
     ])
-    noticeLeg(at, 'escape hint', esc, ESC_HINT, anchor, { before: 'typed', showing: 'notice', after: 'later' })
+    noticeLeg(at, 'escape hint', esc, ESC_HINT, expectFor(ESC_HINT), { before: 'typed', showing: 'notice', after: 'later' })
   }
 }
 
