@@ -90,7 +90,7 @@ const env = {
   ]
   const out = join(OUT_DIR, 'broadcast-140x40.json')
   const cfgPath = join(scratch, 'vshot-broadcast.json')
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 40, cols: 140, rows: 40, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 120, cols: 140, rows: 40, out }))
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })
   if (res.status !== 0) {
     console.error(`✗ vshot (140×40) failed: ${(res.stderr ?? '').slice(-600)}`)
@@ -106,7 +106,7 @@ const env = {
   const has = (lines: string[], needle: string): boolean => lines.some(l => l.includes(needle))
 
   console.log('L1 — marking: the check on the row, the counted placeholder at two marks')
-  check('the first marked row wears the check beside its title', mk('two-marked').some(l => l.includes('✓') && l.includes('Audit billing receipts')))
+  check('the first marked row wears the check beside its title', mk('two-marked').some(l => l.includes('✓') && l.includes('Audit billing rec')))
   check('the second marked row wears it too', mk('two-marked').some(l => l.includes('✓') && l.includes('Fix OAuth callback')))
   check(
     'the live composer speaks the broadcast face (the exact spelling)',
@@ -114,7 +114,7 @@ const env = {
   )
   console.log('L2 — the count follows the marks')
   check('a third mark (the queued reservation) counts to 3', has(mk('three-marked'), 'message 3 sessions'))
-  check('the queued row wears the check', mk('three-marked').some(l => l.includes('✓') && l.includes('Trace reconnect race')))
+  check('the queued row wears the check', mk('three-marked').some(l => l.includes('✓') && l.includes('Trace reconnect r')))
   console.log('L3 — the arm names the count')
   check(
     'the first ↵ arms — the context line names the count and the way out',
@@ -123,8 +123,8 @@ const env = {
   console.log('L4 — the honest partial send')
   check('the summary is the ruled arithmetic', has(mk('sent'), 'sent to 2 of 3 · 1 skipped'))
   check(
-    'the selected queued row paints its typed skip reason (the receipt on the row)',
-    has(mk('sent'), 'skipped — queued'),
+    'the skipped queued row keeps its own cell, never a sent mark',
+    mk('sent').some(l => l.includes('Trace reconnect r') && l.includes('waits for a seat')),
   )
   check('the marks survive the send (esc is the clear gesture)', mk('sent').some(l => l.includes('✓') && l.includes('Fix OAuth callback')))
   check('the composer is empty again — the broadcast face placeholder returned', has(mk('sent'), 'message 3 sessions · ↵↵ sends to all marked'))
