@@ -8,11 +8,13 @@ import {
   getSmallFastModel,
 } from './model.js'
 import { keyLanePins } from './modelOptions.js'
+import { deepseekCatalogueSourceWords } from '../../services/providers/deepseek/deepseekCatalogue.js'
 
 export interface ProviderFrontierFact {
   modelId: string
   displayName: string
   observedAt?: string
+  source?: string
 }
 
 export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFact | undefined {
@@ -48,6 +50,8 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
       case 'deepseek': {
         const pin = keyLanePins(route)[0]
         if (!pin) return undefined
+        const liveWords = route === 'deepseek' ? deepseekCatalogueSourceWords() : undefined
+        if (liveWords !== undefined) return { modelId: pin.id, displayName: pin.displayName, source: liveWords }
         return { modelId: pin.id, displayName: pin.displayName, observedAt: pin.observedAt }
       }
       case 'gemini':
@@ -170,5 +174,6 @@ export function sessionLightModel(): string {
 export function providerFrontierLine(route: CallModelRoute): string | undefined {
   const fact = providerFrontierFact(route)
   if (!fact) return undefined
-  return `frontier: ${fact.displayName}${fact.observedAt ? ` · ${fact.observedAt}` : ''}`
+  const detail = fact.source ?? fact.observedAt
+  return `frontier: ${fact.displayName}${detail ? ` · ${detail}` : ''}`
 }
