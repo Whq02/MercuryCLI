@@ -261,7 +261,11 @@ function stageB(world: World, label: string, argvTail: string[]): void {
     after.slice(-300) || '(no debug lines)',
   )
   check('/mission paints the standing mission', shown.includes('Standing mission'), asked.split('\n').filter(l => l.trim()).slice(-12).join('\n'))
-  check('the panel leads with its state and the re-arm reason; the goal follows them (user text of any length, cut at the row’s end)', /Standing mission · [^\n]*re-armed on resume/.test(shown), asked.split('\n').filter(l => /Standing mission/.test(l)).join(' | ').slice(0, 300))
+  const panelRows = asked.split('\n')
+  const titleRow = panelRows.findIndex(l => l.includes('Standing mission'))
+  const stateRow = panelRows.findIndex((l, i) => i > titleRow && l.includes('re-armed on resume'))
+  const goalRow = panelRows.findIndex((l, i) => i > stateRow && l.includes(GOAL))
+  check('the panel paints as rows: the title, then the state with the re-arm reason, then the goal whole', titleRow >= 0 && stateRow > titleRow && goalRow > stateRow, `title@${titleRow} state@${stateRow} goal@${goalRow} · ${panelRows.filter(l => /Standing mission|re-armed|clear" to drop/.test(l) || l.includes(GOAL)).map(l => l.trim()).join(' | ').slice(0, 300)}`)
   check('the panel names the resume re-arm', shown.includes('re-armed on resume'), asked.split('\n').filter(l => /mission|Mission/.test(l)).join(' | ').slice(0, 400))
   const cards = readCards(world)
   const armed = cards.filter(c => c.state === 'armed')
