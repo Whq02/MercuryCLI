@@ -13,7 +13,7 @@ if (!existsSync(BIN)) {
   process.exit(1)
 }
 const { seedFirstRun, FIXTURE_API_KEY } = await import('../lib/firstRunSeed.ts')
-const { vshotBudgetMs, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
+const { vshotBudgetMs, vshotBudgetScale, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const BACK_HINT = keyHintLabel('⇧← back')
 const driver = resolveCaptureDriver()
@@ -33,7 +33,8 @@ const NOTE_FILES = 30
 const noteFile = (n: number): string => `hdr-notes-${n}.txt`
 const SEATS = { one: 'hdr-one', two: 'hdr-two', three: 'hdr-three', four: 'hdr-four', five: 'hdr-five' } as const
 type Seat = keyof typeof SEATS
-const SEAT_READS: Record<Seat, number> = { one: 30, two: 30, three: 4, four: 4, five: 3 }
+const SCALE = vshotBudgetScale()
+const SEAT_READS: Record<Seat, number> = { one: 30, two: 30, three: Math.ceil(4 * SCALE), four: Math.ceil(4 * SCALE), five: Math.ceil(3 * SCALE) }
 const SEAT_STEP_MS = 2500
 const THINK_LONG_STEPS = 40
 const THINK_SHORT_STEPS = 3
