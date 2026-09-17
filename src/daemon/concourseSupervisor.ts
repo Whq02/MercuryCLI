@@ -1674,7 +1674,7 @@ export function reviveConcourseWorker(
   roster:
     | {
         kill(short: string): boolean
-        has(short: string): { present: boolean }
+        has(short: string): { present: boolean; alive?: boolean }
         registerLongLived(
           short: string,
           spec: StreamJsonChildSpec,
@@ -1706,6 +1706,7 @@ export function reviveConcourseWorker(
   if (workerPidAlive(rec)) return { outcome: 'noop', reason: 'already-live' }
   if (!roster)
     return { outcome: 'refused', reason: 'respawn-failed', detail: 'daemon roster not ready' }
+  if (roster.has(rec.runnerId).alive === true) return { outcome: 'noop', reason: 'already-live' }
   if (!existsSync(concourseTranscriptPath(rec))) {
     const detail = 'its transcript is gone — nothing to resume it around; start a new session'
     updateConcourseWorkers(workers => {
@@ -1814,7 +1815,8 @@ export async function reactivateConcourseSession(
   if (!roster) return refuseReactivate(rec, 'not-ready', 'parked — the daemon roster is not ready · ↵ again retries', deps.dir)
   const display = args.modelDisplayName !== undefined ? { modelDisplayName: args.modelDisplayName } : {}
   const alive = workerPidAlive(rec)
-  if (alive || rec.attachedAt !== undefined) {
+  const held = roster.list().some(r => r.short === rec.runnerId && r.outcome === undefined)
+  if (alive || held || rec.attachedAt !== undefined) {
     if (rec.parkRequestedAt !== undefined) {
       updateConcourseWorkers(workers => {
         const w = workers[rec.runnerId]

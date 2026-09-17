@@ -87,6 +87,10 @@ export function composeNoRunnerLine(title: string, reason: string): string {
   return `${title}: the session has no live runner — a replay revives it and delivers into the same chat · ${plain} · ↵ revives it`
 }
 
+export function composeHeldLine(title: string): string {
+  return `${title}: a live runner still holds this session — re-attached to it`
+}
+
 async function workspaceOfTranscript(transcriptPath: string | undefined): Promise<string> {
   if (transcriptPath !== undefined) {
     try {
@@ -186,6 +190,7 @@ async function focusResumedSessionLanding(
         ...(typeof reply.effort === 'string' ? { effort: reply.effort } : {}),
       })
       if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')
+      if (reply.liveHop === true) mintImmediateReceipt(composeHeldLine(title))
       if (worn !== null && reply.liveHop !== true) takeWornPresetKit()
       const settled = Object.values(supervisor.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
       if (settled === undefined) return 'no live session record owns this id'
