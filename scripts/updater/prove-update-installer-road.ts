@@ -141,7 +141,7 @@ const kegBundle = join(libexec, 'mercury.mjs')
   const y = run(kegBundle, ['update'], env(pathOf(stubs)), 'y\n')
   check('y: exit 0 and the result names the versions, the installer and its command', y.code === 0 && y.stdout.includes(`updated: ${RUNNING} → ${V_NEW} (Homebrew: \`${BREW_COMMAND}\`)`), y.all.slice(0, 500))
   check('y: the stub brew ran the upgrade of the formula', calls().join('\n') === `brew upgrade Whq02/mercury/mercury`, calls().join(' | '))
-  check("y: brew's own lines streamed through before the result line", y.stdout.indexOf('==> Upgrading 1 outdated package:') >= 0 && y.stdout.indexOf('==> Pouring') < y.stdout.indexOf('updated:'), y.stdout.slice(0, 400))
+  check("y: brew's own lines streamed through before the result line", y.stdout.includes('==> Upgrading 1 outdated package:') && y.stdout.includes('==> Pouring') && y.stdout.indexOf('==> Pouring') < y.stdout.indexOf('updated:'), y.stdout.slice(0, 400))
   check('y: the running command is announced on stderr and the re-read names the `mercury` the shell runs', y.stderr.includes(`running: ${BREW_COMMAND}`) && y.stdout.includes(`the \`mercury\` your shell runs is ${join(stubs, 'mercury')}`), y.all.slice(0, 500))
   check('y: no channel request was made for the brew road', requests() === 0)
 
