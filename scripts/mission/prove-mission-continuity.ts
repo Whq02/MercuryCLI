@@ -25,9 +25,13 @@ const {
   setActiveMission,
   clearActiveMission,
   getActiveMission,
+  getActiveMissionVersion,
   rearmMissionFromCard,
+  subscribeActiveMission,
+  syncMissionFromCard,
   MISSION_MET_SENTINEL,
 } = await import('../../src/utils/hooks/missionHook.js')
+const { readFileSync } = await import('node:fs')
 const { readMissionCard, writeMissionCard } = await import('../../src/services/mission/missionCard.js')
 const { composeMissionView } = await import('../../src/services/mission/projection.js')
 
@@ -199,6 +203,33 @@ section('§7 clearing writes the terminal card')
   check('clear hands back the condition', cleared === 'finish the migration and record the receipt')
   const card = readMissionCard(S3)
   check('the card is terminal', card?.state === 'cleared' && card?.nextStep === null, JSON.stringify(card))
+}
+
+section('§8 the store speaks: a mission\'s birth and death wake their subscribers')
+{
+  const S4 = 'cont-session-4'
+  let woken = 0
+  const unsubscribe = subscribeActiveMission(() => {
+    woken += 1
+  })
+  const before = getActiveMissionVersion()
+  setActiveMission(setAppState as never, 'the rail hears the birth', { sessionId: S4 })
+  check('arming wakes the subscriber once and moves the version', woken === 1 && getActiveMissionVersion() === before + 1, `woken=${woken} version ${before}→${getActiveMissionVersion()}`)
+  check('the snapshot is a number the rail can hold (never a fresh object)', typeof getActiveMissionVersion() === 'number')
+  clearActiveMission(setAppState as never, S4)
+  check('clearing wakes the subscriber again', woken === 2 && getActiveMissionVersion() === before + 2, `woken=${woken}`)
+  setActiveMission(setAppState as never, 'released by the card', { sessionId: S4 })
+  writeMissionCard({ schema: 1, sessionId: S4, goal: 'released by the card', state: 'met', nextStep: null, iterations: 1, setAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
+  const wokenBeforeSync = woken
+  syncMissionFromCard(setAppState as never, S4)
+  check('a card that settled elsewhere releases the live mission and wakes the subscriber', getActiveMission(S4) === undefined && woken === wokenBeforeSync + 1, `woken=${woken}`)
+  unsubscribe()
+  setActiveMission(setAppState as never, 'after the unsubscribe', { sessionId: S4 })
+  check('an unsubscribed listener hears nothing more', woken === wokenBeforeSync + 1)
+  clearActiveMission(setAppState as never, S4)
+  const rail = readFileSync(join(import.meta.dir, '..', '..', 'src/components/HelmLanesRail.tsx'), 'utf8')
+  check('the lanes rail subscribes to the store through useSyncExternalStore and still reads the mission at render', rail.includes('useSyncExternalStore(subscribeActiveMission, getActiveMissionVersion, getActiveMissionVersion)') && rail.includes('const mission = getActiveMission()'))
+  check('no poll and no timer stands behind it', !/setInterval\([^)]*mission/i.test(rail))
 }
 
 console.log('\n' + '═'.repeat(76))

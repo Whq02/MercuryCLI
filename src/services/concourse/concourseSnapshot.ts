@@ -9,7 +9,7 @@ import { retiredNowLabel } from '../../daemon/idleRetirement.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { getGraphemeSegmenter } from '../../utils/intl.js'
 import { getCwd } from '../../utils/cwd.js'
-import { isEffortLevel } from '../../utils/effort.js'
+import { getInitialEffortSetting, isEffortLevel } from '../../utils/effort.js'
 import { workspaceKindOf } from '../../daemon/concourseWorktrees.js'
 import { saturnSoonestFireMs } from '../../daemon/saturn.js'
 import { GROUND_NOTE_MARK, stripGroundNote } from '../../daemon/isolationNote.js'
@@ -732,6 +732,7 @@ export function dispatchSeedInputs(
   seeds: ConcourseSeedOverridesV1,
   cwd: string,
   resolvedModelId?: string,
+  savedEffort?: string,
 ): {
   workspaceDir: string
   modelKey?: string
@@ -742,6 +743,7 @@ export function dispatchSeedInputs(
   seatsMax?: 1 | 2
 } {
   const isolation = resolveIsolationSeed(seeds, cwd)
+  const effort = seeds.effort ?? savedEffort
   return {
     workspaceDir: seeds.projectDir ?? cwd,
     ...(seeds.modelKey !== undefined
@@ -749,7 +751,7 @@ export function dispatchSeedInputs(
       : resolvedModelId !== undefined
         ? { modelKey: resolvedModelId }
         : {}),
-    ...(seeds.effort !== undefined ? { effort: seeds.effort } : {}),
+    ...(effort !== undefined ? { effort } : {}),
     ...(seeds.title !== undefined ? { title: seeds.title } : {}),
     ...(seeds.agentName !== undefined ? { agentName: seeds.agentName } : {}),
     ...(seeds.seatsMax !== undefined ? { seatsMax: seeds.seatsMax } : {}),
@@ -1297,8 +1299,9 @@ export async function buildConcourseSnapshot(
 
   const railModelId =
     peekRecord !== null ? await canonicalWorkerModelId(peekRecord.modelKey ?? 'fable') : chosenModelId
+  const savedEffort = getInitialEffortSetting()
   const railEffort =
-    (peekRecord !== null ? peekRecord.effort : seedOverrides.effort) ??
+    (peekRecord !== null ? peekRecord.effort : (seedOverrides.effort ?? savedEffort)) ??
     workerRegistry.entries.find(e => e.modelId === railModelId)?.effort
   return {
     schema: 1,
@@ -1404,8 +1407,8 @@ export async function buildConcourseSnapshot(
         modelLabel,
         modelId: chosenModelId,
         modelIsDefault: chosenModelId === defaultWorkerModelId(workerRegistry, 'session'),
-        effortLevel: seedOverrides.effort ?? 'high',
-        effortIsDefault: (seedOverrides.effort ?? 'high') === 'high',
+        effortLevel: seedOverrides.effort ?? savedEffort ?? 'high',
+        effortIsDefault: (seedOverrides.effort ?? savedEffort ?? 'high') === (savedEffort ?? 'high'),
         isolation: resolveIsolationSeed(seedOverrides, getCwd()),
         seatsMax: seedOverrides.seatsMax ?? 2,
       },

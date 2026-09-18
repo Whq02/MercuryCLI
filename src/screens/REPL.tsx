@@ -264,6 +264,10 @@ const getFocusedLiveResponseChars = (): number => {
   const connector = getFocusedSessionConnector();
   return hasSeatLive(connector) ? (connector.turnChars?.() ?? 0) : 0;
 };
+const getFocusedLiveOutputTokens = (): number | null => {
+  const connector = getFocusedSessionConnector();
+  return hasSeatLive(connector) ? (connector.turnOutputTokens?.() ?? null) : null;
+};
 const getFocusedStatusKey = (): string => {
   const connector = getFocusedSessionConnector();
   return hasSeatLive(connector) ? `${connector.status().interrupting ? 1 : 0}` : '0';
@@ -2116,6 +2120,14 @@ export function REPL({
     }),
     [],
   );
+  const outputTokensRef = useMemo(
+    () => ({
+      get current(): number | null {
+        return getFocusedLiveOutputTokens();
+      },
+    }),
+    [],
+  );
   const apiMetricsRef = useRef<Array<{ ttftMs: number; firstTokenTime: number; lastTokenTime: number; responseLengthBaseline: number; endResponseLength: number }>>([]);
   const onlySleepToolActive = useMemo(() => {
     if (viewInProgressToolUseIDs.size === 0) return false;
@@ -2148,6 +2160,7 @@ export function REPL({
         pauseStartTimeRef={seatPauseStartRef}
         spinnerTip={spinnerTip}
         responseLengthRef={responseLengthRef}
+        outputTokensRef={outputTokensRef}
         overrideColor={null}
         overrideShimmerColor={null}
         overrideMessage={compactStatus !== '' && compactStatus !== 'ready' ? compactStatus : viewCompacting ? FOLD_ROW_HEAD : viewAgentWait}
@@ -2160,7 +2173,7 @@ export function REPL({
         leaderIsIdle={!isLoading}
         apiMetricsRef={apiMetricsRef}
       />
-    ) : spinnerSlotReserved ? <StreamingHoldRow loadingStartTimeRef={seatStartTimeRef} totalPausedMsRef={seatPausedMsRef} pauseStartTimeRef={seatPauseStartRef} responseLengthRef={responseLengthRef} /> : null}
+    ) : spinnerSlotReserved ? <StreamingHoldRow loadingStartTimeRef={seatStartTimeRef} totalPausedMsRef={seatPausedMsRef} pauseStartTimeRef={seatPauseStartRef} responseLengthRef={responseLengthRef} outputTokensRef={outputTokensRef} /> : null}
     {!isCompact ? <MercuryTurnRollup
       messages={messages}
       tools={mergedTools}

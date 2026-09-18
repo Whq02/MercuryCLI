@@ -87,6 +87,8 @@ interface SeatState {
   tailDirty: boolean
   streamedThisTurn: boolean
   turnChars: number
+  turnOutputTokens: number | null
+  messageOutputTokens: number
   stateWord: 'compacting' | 'waiting-on-agents' | null
   waitingOnAgents: number
   fold: FoldStatusV1 | null
@@ -109,7 +111,7 @@ const seats = new Map<string, SeatState>()
 function seatOf(short: string): SeatState {
   let s = seats.get(short)
   if (!s) {
-    s = { short, lastAnswer: null, generation: 0, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, heldModel: null, heldEffort: null, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
+    s = { short, lastAnswer: null, generation: 0, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, turnOutputTokens: null, messageOutputTokens: 0, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, heldModel: null, heldEffort: null, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
     seats.set(short, s)
   }
   return s
@@ -129,6 +131,7 @@ function publishTailNow(seat: SeatState, dir?: string): void {
         atMs: Date.now(),
         text: seat.tail,
         ...(seat.turnChars > 0 ? { turnChars: seat.turnChars } : {}),
+        ...(seat.turnOutputTokens !== null ? { turnOutputTokens: seat.turnOutputTokens + seat.messageOutputTokens } : {}),
         ...(seat.tailMessageId !== null ? { messageId: seat.tailMessageId } : {}),
         ...(seat.tailPhase !== null ? { phase: seat.tailPhase } : {}),
         ...(seat.stateWord !== null ? { stateWord: seat.stateWord } : {}),
@@ -204,8 +207,13 @@ function textPhaseOf(raw: unknown): TextPhase | null {
   return raw === 'commentary' || raw === 'final_answer' ? raw : null
 }
 
+function foldMessageOutputTokens(seat: SeatState): void {
+  if (seat.turnOutputTokens !== null) seat.turnOutputTokens += seat.messageOutputTokens
+  seat.messageOutputTokens = 0
+}
+
 function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean {
-  let frame: { type?: string; event?: { type?: string; content_block?: { type?: string; phase?: unknown; input?: unknown }; delta?: { type?: string; text?: string; thinking?: string; partial_json?: string }; message?: { id?: string } } }
+  let frame: { type?: string; event?: { type?: string; content_block?: { type?: string; phase?: unknown; input?: unknown }; delta?: { type?: string; text?: string; thinking?: string; partial_json?: string }; message?: { id?: string }; usage?: { output_tokens?: unknown } } }
   try {
     frame = JSON.parse(line) as typeof frame
   } catch {
@@ -230,6 +238,7 @@ function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean
     if (seat.tail !== null) setSeatTail(seat, null, dir)
     const id = ev.message?.id
     seat.tailMessageId = typeof id === 'string' && id !== '' ? id : null
+    foldMessageOutputTokens(seat)
     seat.tailPhase = null
     seat.streamBlock = null
     seat.blockSinceMs = null
@@ -244,10 +253,18 @@ function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean
   } else if (ev.type === 'content_block_delta' && ev.delta?.type === 'input_json_delta' && typeof ev.delta.partial_json === 'string') {
     seat.turnChars += ev.delta.partial_json.length
     scheduleTailPublish(seat, dir)
+  } else if (ev.type === 'message_delta') {
+    const outputTokens = ev.usage?.output_tokens
+    if (typeof outputTokens === 'number' && Number.isFinite(outputTokens) && outputTokens > 0) {
+      seat.messageOutputTokens = Math.floor(outputTokens)
+      if (seat.turnOutputTokens === null) seat.turnOutputTokens = 0
+      publishTailNow(seat, dir)
+    }
   } else if (ev.type === 'content_block_stop' || ev.type === 'message_stop') {
     if (ev.type === 'message_stop') {
       seat.streamBlock = null
       seat.blockSinceMs = null
+      foldMessageOutputTokens(seat)
     }
     if (seat.tail !== null) setSeatTail(seat, null, dir)
     else publishTailNow(seat, dir)
@@ -794,6 +811,8 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       const seat = seatOf(short)
       seat.streamedThisTurn = false
       seat.turnChars = 0
+      seat.turnOutputTokens = null
+      seat.messageOutputTokens = 0
       seat.tailMessageId = null
       seat.tailPhase = null
       seat.stateWord = null
@@ -839,6 +858,8 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   rejectSeatVerbWaiters(short)
   seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
   seat.turnChars = 0
+  seat.turnOutputTokens = null
+  seat.messageOutputTokens = 0
   seat.tailMessageId = null
   seat.tailPhase = null
   const hadWord = seat.stateWord !== null || seat.wait !== null

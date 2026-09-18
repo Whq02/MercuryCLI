@@ -448,6 +448,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readonly tailStore: StreamingTailStore = createStreamingTailStore()
   private tailAtMs = -1
   private liveTurnChars = 0
+  private liveTurnOutputTokens: number | null = null
   private liveStateWord: 'compacting' | 'waiting-on-agents' | null = null
   private liveAgentsWaiting = 0
   private runnerGeneration: number | null = null
@@ -532,6 +533,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.tailStore.setPhase(null)
     this.tailAtMs = -1
     this.liveTurnChars = 0
+    this.liveTurnOutputTokens = null
     this.clearLiveStateWord()
     clearEphemeralProgress()
     this.publishedProgressSeqs.clear()
@@ -566,6 +568,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const tail = readSessionTail(this.record.sessionId)
     if (tail === null) {
       this.liveTurnChars = 0
+      this.liveTurnOutputTokens = null
       this.setLiveStateWord(null)
       this.setLiveFold(null)
       this.setStreamBlock(null, null)
@@ -574,6 +577,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       return
     }
     this.liveTurnChars = tail.turnChars ?? 0
+    this.liveTurnOutputTokens = typeof tail.turnOutputTokens === 'number' ? tail.turnOutputTokens : null
     this.setLiveStateWord(
       tail.stateWord === 'compacting' ? 'compacting' : tail.stateWord === 'waiting-on-agents' ? 'waiting-on-agents' : null,
       tail.stateWord === 'waiting-on-agents' && typeof tail.waitingOnAgents === 'number' ? Math.max(1, Math.floor(tail.waitingOnAgents)) : 0,
@@ -597,6 +601,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   turnChars(): number {
     return this.liveTurnChars
+  }
+
+  turnOutputTokens(): number | null {
+    return this.liveTurnOutputTokens
   }
 
   private clearLiveStateWord(): void {
@@ -914,6 +922,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     if (!inFlight && this.tailStore.read() !== null) this.tailStore.reset(null)
     if (!inFlight) this.liveTurnChars = 0
+    if (!inFlight) this.liveTurnOutputTokens = null
     if (!inFlight) this.clearLiveStateWord()
     if (!inFlight && this.liveFoldStatus !== null && this.liveFoldStatus.exit === undefined) {
       const gone = this.liveFoldStatus
