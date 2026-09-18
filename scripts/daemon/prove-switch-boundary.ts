@@ -104,6 +104,7 @@ if (ONLY === undefined || ONLY === 'R') {
     { kind: 'text', text: 'the late words answered.', whenBody: 'the drained words' },
     { kind: 'text', text: 'the late pair answered.', whenBody: 'the late pair words' },
     { kind: 'text', text: 'the effort words answered.', whenBody: 'the effort words' },
+    { kind: 'text', text: 'the flip words answered.', whenBody: 'the flip words' },
     { kind: 'text', text: 'ok.' },
     { kind: 'text', text: 'ok.' },
   ])
@@ -290,12 +291,19 @@ if (ONLY === undefined || ONLY === 'R') {
     control('sb-spawn-1', { subtype: 'spawn_switch', switch: 'subagents', on: false })
     const ack8 = await runner.waitFor('the spawn_switch answer', answerTo('sb-spawn-1'), bound(10_000), before8)
     const resultsAtAck8 = resultsSoFar()
+    runner.send(user('the flip words', randomUUID()))
     tally.check('R8b a spawn switch sent mid-turn is answered at once with where it lands — the turn boundary — naming the switch', ack8 !== null && payloadOf(ack8).at === 'turn-boundary' && payloadOf(ack8).switch === 'subagents' && payloadOf(ack8).on === false && resultsAtAck8 === results8, JSON.stringify(ack8))
     tally.check('R8c the held turn settles', await waitResults(results8 + 1, bound(60_000)), describeRequests(api))
     const applied8 = await runner.waitFor('the spawn switch applied frame', appliedFrameFor('sb-spawn-1'), bound(10_000), before8)
     const result9 = indexOf(isResultFrame, before8)
     const appliedAt8 = indexOf(appliedFrameFor('sb-spawn-1'), before8)
     tally.check("R8d the applied frame follows the held turn's result and names the switch it landed", applied8 !== null && result9 !== -1 && appliedAt8 > result9 && applied8.verb === 'spawn_switch' && applied8.switch === 'subagents' && applied8.on === false, `result ${result9} · applied ${appliedAt8} · ${JSON.stringify(applied8)} · ${timeline(before8)}`)
+    const flipWordsTurn = await waitResults(results8 + 2, bound(30_000))
+    const continuation7 = firstRequestWith(api, resultOf('tu-hold-7'))
+    const flipWords = firstRequestWith(api, 'the flip words')
+    tally.check('R8g words sent after the held spawn switch, during the same tool call, do not join the running turn — they wait for its end and run as the next turn', flipWordsTurn && continuation7 !== undefined && flipWords !== undefined && flipWords !== continuation7 && !JSON.stringify(continuation7.body).includes('the flip words'), describeRequests(api))
+    const flipTurn = indexOf(isTurnStarted, indexOf(isTurnStarted, before8) + 1)
+    tally.check("R8h on the wire: the held turn's result, then the switch's applied frame, then the words' own open edge", result9 !== -1 && appliedAt8 !== -1 && flipTurn !== -1 && result9 < appliedAt8 && appliedAt8 < flipTurn, `result ${result9} · applied ${appliedAt8} · turn_started ${flipTurn} · ${timeline(before8)}`)
     control('sb-facts-1', { subtype: 'session_facts' })
     const facts8 = await runner.waitFor('the facts answer', answerTo('sb-facts-1'), bound(10_000), before8)
     const factsPayload8 = payloadOf(facts8) as { spawn_switches?: { subagents?: { on?: boolean; source?: string } }; spawnSwitches?: { subagents?: { on?: boolean; source?: string } } }
@@ -347,8 +355,11 @@ if (ONLY === undefined || ONLY === 'D') {
     stream(resultOf('tu-f'), 'flipping'),
     { kind: 'tool_use', name: 'Agent', input: { description: 'a second probe', prompt: 'hold the probe two', run_in_background: true }, id: 'tu-agent-2', whenBody: 'spawn a probe now', preText: 'spawning. ' },
     { kind: 'text', text: 'the probe leg done.', whenBody: resultOf('tu-agent-2') },
+    { kind: 'tool_use', name: 'Sleep', input: { seconds: HOLD_SECONDS + 1 }, id: 'tu-g', whenBody: 'hold then toggle workflows', preText: 'holding then toggling. ' },
+    { kind: 'text', text: 'toggled through.', whenBody: resultOf('tu-g') },
     { kind: 'text', text: 'the late words answered.', whenBody: 'the late words' },
     { kind: 'text', text: 'the late effort words answered.', whenBody: 'the late effort words' },
+    { kind: 'text', text: 'the toggle words answered.', whenBody: 'the toggle words' },
     { kind: 'text', text: 'probe two done.', whenBody: 'hold the probe two' },
     { kind: 'text', text: 'done.' },
     { kind: 'text', text: 'done.' },
@@ -535,6 +546,25 @@ if (ONLY === undefined || ONLY === 'D') {
     tally.check('DH8 THE SYMPTOM: the switch landed before the next turn, so its launch met the switch — the Agent tool gone from the roster, or the valve\'s receipt — instead of starting a probe', launchH !== undefined && launchMetTheSwitch, launchH === undefined ? describeRequests(api) : launchBodyH.slice(launchBodyH.indexOf('tu-agent-2'), launchBodyH.indexOf('tu-agent-2') + 260))
     tally.check("DH9 the record reads the switch off with nothing parked", await untilAsync(() => record()?.spawnSwitches?.subagents === 'off' && (record()?.pendingSpawnSwitches ?? []).length === 0, bound(15_000), 50), JSON.stringify({ parked: record()?.pendingSpawnSwitches, switches: record()?.spawnSwitches }))
     tally.check('DH10 the facts read the switch off, in-session, with no parked toggle', await untilAsync(() => facts()?.spawnSwitches?.subagents.on === false && facts()?.spawnSwitches?.subagents.source === 'in-session' && facts()?.pendingSpawnSwitches === undefined, bound(15_000), 50), JSON.stringify(facts()?.spawnSwitches))
+
+    tally.section('D·I the drained shape after a spawn switch: a workflows switch during the Sleep, then words during the same Sleep — the words wait for the turn')
+    await idle()
+    tally.check('DI1 the hold turn is taken', await send('hold then toggle workflows', 'sb-hold-i'))
+    tally.check('DI2 the stream holds on the Sleep call', await untilAsync(() => transcript().includes('"callId":"tu-g"'), bound(60_000), 50))
+    await sleep(300)
+    const toggledI = await seatVerb('set-spawn-switch', { spawnSwitch: { kind: 'workflows', on: false } })
+    tally.check("DI3 the switch parks: 'queued', applies when this turn ends", toggledI.ok === true && toggledI.outcome === 'queued' && (toggledI.detail ?? '').includes('applies when this turn ends'), JSON.stringify(toggledI))
+    const continuationOutI = firstRequestWith(api, resultOf('tu-g')) !== undefined
+    const sentI = await send('the toggle words', 'sb-words-i')
+    tally.check('DI4 the words are sent during the same Sleep, before the continuation goes out', sentI && !continuationOutI, describeRequests(api))
+    tally.check('DI5 the held turn settles', await untilAsync(() => transcript().includes('toggled through.'), bound(60_000)), describeRequests(api))
+    const wordsTurnI = await untilAsync(() => transcript().includes('the toggle words answered.'), bound(30_000))
+    const continuationI = firstRequestWith(api, resultOf('tu-g'))
+    const wordsI = firstRequestWith(api, 'the toggle words')
+    tally.check('DI6 THE SYMPTOM: the words sent after the parked switch do not join the running turn — they wait for its end and run as the next turn', wordsTurnI && continuationI !== undefined && wordsI !== undefined && wordsI !== continuationI, describeRequests(api))
+    tally.check("DI7 the running turn's continuation carried no words", continuationI !== undefined && !JSON.stringify(continuationI.body).includes('the toggle words'), describeRequests(api))
+    tally.check('DI8 the record reads workflows off with nothing parked', await untilAsync(() => record()?.spawnSwitches?.workflows === 'off' && (record()?.pendingSpawnSwitches ?? []).length === 0, bound(15_000), 50), JSON.stringify({ parked: record()?.pendingSpawnSwitches, switches: record()?.spawnSwitches }))
+    tally.check('DI9 the facts read workflows off, in-session, with no parked toggle', await untilAsync(() => facts()?.spawnSwitches?.workflows.on === false && facts()?.spawnSwitches?.workflows.source === 'in-session' && facts()?.pendingSpawnSwitches === undefined, bound(15_000), 50), JSON.stringify(facts()?.spawnSwitches))
 
     tally.section("D·E the connector's facts after the boundary")
     const seat = await import('../../src/services/engine-connector/daemonConnector.ts')

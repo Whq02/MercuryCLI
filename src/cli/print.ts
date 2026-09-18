@@ -2276,6 +2276,7 @@ export async function runHeadless(
           const toggle = { kind: request.switch, on: request.on }
           if (inFlightAbort !== null) {
             deferredSpawnSwitches = [...deferredSpawnSwitches.filter(d => d.kind !== toggle.kind), { ...toggle, requestId }]
+            holdQueuedWordsForTurnEnd(true)
             respondSuccess(requestId, { switch: toggle.kind, on: toggle.on, at: 'turn-boundary' })
             return
           }
