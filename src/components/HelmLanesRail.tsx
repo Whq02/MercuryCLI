@@ -384,13 +384,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const ctxUsageVersion = useSyncExternalStore(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion)
   const peers: PresenceSeat[] = getLivePresence()
   const lanesVersion = useSyncExternalStore(subscribeHelmFocus, getHelmLanesVersion, getHelmLanesVersion)
-<<<<<<< HEAD
-=======
-  // The TABULA ask line (minervaRepl store) — compose keystrokes, pending
-  // state, and the settle receipt all repaint through this subscription.
-  const minervaVersion = useSyncExternalStore(subscribeMinervaRepl, getMinervaReplVersion, getMinervaReplVersion)
   const missionVersion = useSyncExternalStore(subscribeActiveMission, getActiveMissionVersion, getActiveMissionVersion)
->>>>>>> lane/beta15-friction-fixes
   const focused = getHelmFocus() === 'lanes'
   const cur = getHelmCursor('lanes')
   const { accent } = useSessionAccent()
@@ -476,11 +470,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     presenceVersion,
     ctxUsageVersion,
     lanesVersion,
-<<<<<<< HEAD
-=======
-    minervaVersion,
     missionVersion,
->>>>>>> lane/beta15-friction-fixes
     accent,
     focusedRecords,
     workRunSnap,
