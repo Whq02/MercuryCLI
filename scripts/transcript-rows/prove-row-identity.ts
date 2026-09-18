@@ -76,7 +76,12 @@ console.log('── row-identity ratchet (shipped artifact) ──')
   const toolRows = markCounts(run, 'mount:tool-row:')
   check('the read group mounted exactly once', group['mount:read-group'] === 1, JSON.stringify(group))
   check('the group never remounted', (groupUn['unmount:read-group'] ?? 0) === 0, JSON.stringify(groupUn))
-  check('reads ride the group — zero individual tool-row mounts', Object.keys(toolRows).length === 0, JSON.stringify(toolRows))
+  const toolRowsUn = markCounts(run, 'unmount:tool-row:')
+  check(
+    'reads ride the group — no tool row stands alone once the group forms: a read may paint its own row while it runs, and every such mount is unmounted once, never mounted twice',
+    Object.keys(toolRows).every(k => toolRows[k] === 1 && (toolRowsUn[k.replace('mount:', 'unmount:')] ?? 0) === 1),
+    JSON.stringify({ ...toolRows, ...toolRowsUn }),
+  )
   const tailUn = markCounts(run, 'unmount:tail')
   check('the tail is one persistent mount across streams', tail['mount:tail'] === 1 && (tailUn['unmount:tail'] ?? 0) === 0, JSON.stringify({ ...tail, ...tailUn }))
 }
