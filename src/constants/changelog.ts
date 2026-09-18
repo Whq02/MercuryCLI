@@ -1,6 +1,26 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.14
+- Removed the dead and stale provider beta headers from every request, and removed the context-management and cache-scope estates, the server-side refusal fallback opt-in with its advisor, and the experimental betas with task budgets and redact-thinking; a request on the default path is byte-equal to before but for the headers named
+- Fixed an empty reply on the OpenAI and Z.AI routes printing one note and re-sending every time: the note says why the reply carried no words (silence, the output cap, or an empty stream) and only the empty stream is sent again, once
+- Added the shell card for a hosted shell's row in Runs: the whole command, its directory, the elapsed time, the exit code and the last lines of output with a count of the lines shown; a long command is clipped so the output stays visible on a short window
+- Fixed Continue Last Session calling a session the daemon still holds runner-less: it re-attaches
+- Fixed the effort chip, and the model and permission-mode words on the strip, missing a change when the facts feed dropped the event: they catch it within a bounded window
+- Updated the DeepSeek rows to the pricing page, and DeepSeek's models now come from its live list with the dated rows standing in when the list is refused; the retired Flash id opens the Flash card
+- Fixed a pasted image arriving as text when the message answered an open question
+- Fixed the /config row for /seats needing a keystroke before it showed the capacity, and a rewind on a resumed session losing its chain
+- Fixed a session that finished elsewhere minting a note the next message answered: it mints none, and a finished session not yet opened wears its state glyph in amber on the board until it is opened
+- Fixed background commands that finished together starting one turn each: they start one turn
+- Fixed the enter screen's ready glyph painting as an emoji; the narrow board carries a park refusal's words; a notice of several rows stacks under the composer for its moment; the spinner's phase byline and the trace timing that never painted are gone
+- Fixed a dialog command's result of more than one line painting as one clipped line: it paints as rows on the chat; closing the only chat before its first message leaves two screens, not a third stop on a dead chat
+- Fixed a model or effort change made while a turn runs applying only after the messages waiting for the next turn: it lands at the turn boundary, before them
+- Fixed the Computer tool refusing every window of the terminal application: it refuses the window that holds the session and checks the window again before each act
+- Fixed an edit refusal claiming the lines it refused were read: it names which check failed and what to read next
+- Fixed a filename pattern with no separator walking the whole tree: it walks only as deep as it says; an over-cap read carries its next window on every path, and a notebook names a bounded cell slice
+- Fixed the sandbox dependency check on Linux creating a process at boot, and added the sandbox's unix-socket filter helper to the Linux archive so a Linux sandbox blocks unix sockets and /sandbox no longer warns
+- Updated the release gate to keep every suite's output and count the checks it skips
+
 ## 1.0.0-beta.13
 - Removed the run governor that ended a turn for repeating a tool call with nothing written in between, and the repetition breaker that ended a turn on repeated identical results: a session is never stopped for repeating itself, and an empty provider reply is announced and the request sent again once
 - Fixed the live token counter reading near zero while a tool call's input streams: it counts the streamed input, and the wide layout's count keeps pace with the stream
