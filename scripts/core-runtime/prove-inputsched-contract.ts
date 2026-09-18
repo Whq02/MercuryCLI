@@ -491,8 +491,8 @@ console.log('native-core T13/T14 — input-scheduling contract')
 
   const sendIdx = repl.indexOf('.sendWords(text, {', onSubmitStart)
   const receiptBlock = repl.slice(sendIdx, sendIdx + 900)
-  check('lock: a submit rides the session door and a refused receipt returns the words',
-    sendIdx !== -1 && !repl.includes('queryGuard') && receiptBlock.includes("receipt.state !== 'refused'") && receiptBlock.includes("if (pendingInput.text() === '') setInputValue(input);"))
+  check('lock: a submit rides the session door and a refused receipt returns the words and the pastes',
+    sendIdx !== -1 && !repl.includes('queryGuard') && receiptBlock.includes("receipt.state !== 'refused'") && receiptBlock.includes("pendingInput.text() === ''") && receiptBlock.includes('setInputValue(input)') && receiptBlock.includes('setPastedContents(seatPastes)'))
 
   check('lock: the composer seeder appends through the owner chokepoint',
     repl.includes('registerComposerSeeder(seed => pendingInput.append(seed))'))
