@@ -124,6 +124,7 @@ export type QueuedCommand = {
   sentAt?: string
   workload?: string
   agentId?: string
+  waitsForTurnEnd?: true
 }
 
 export function isValidImagePaste(content: PastedContent): boolean {

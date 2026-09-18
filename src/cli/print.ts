@@ -190,6 +190,7 @@ import {
   remove as removeQueuedCommands,
   subscribeToCommandQueue,
   getCommandQueue,
+  holdQueuedWordsForTurnEnd,
 } from '../utils/messageQueueManager.js'
 import type { QueuedCommand } from '../types/textInputTypes.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
@@ -1283,6 +1284,7 @@ export async function runHeadless(
         applySeatEffort(held.effort)
         io.outbound.enqueue(seatVerbAppliedFrame(getSessionId(), held.requestId, { verb: 'set_effort', effort: held.effort }, randomUUID()))
       }
+      holdQueuedWordsForTurnEnd(false)
       if (deferredModelBreadcrumb !== null) {
         const toModel = deferredModelBreadcrumb
         deferredModelBreadcrumb = null
@@ -1845,6 +1847,7 @@ export async function runHeadless(
               : parseUserSpecifiedModel(requested)
           if (inFlightAbort !== null) {
             heldSeatModel = { requestId, model: String(resolved) }
+            holdQueuedWordsForTurnEnd(true)
             respondSuccess(requestId, { model: String(resolved), at: 'turn-boundary' })
             return
           }
@@ -1941,6 +1944,7 @@ export async function runHeadless(
           }
           if (inFlightAbort !== null) {
             heldSeatEffort = { requestId, effort: requestedEffort }
+            holdQueuedWordsForTurnEnd(true)
             respondSuccess(requestId, { effort: requestedEffort, at: 'turn-boundary' })
             return
           }
