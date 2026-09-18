@@ -40,7 +40,6 @@ const CONTAINER_META: Record<
   SubModelContainer,
   { label: string; blurb: string }
 > = {
-  minerva: { label: 'MINERVA', blurb: 'notepad curator' },
   console: { label: 'CONSOLE', blurb: 'side questions' },
 }
 
@@ -385,7 +384,7 @@ function ContainerList({
 export function SubModelPicker({
   onClose,
   onRoute,
-  initialContainer = 'minerva',
+  initialContainer = 'console',
   initialNote,
   initialModelId,
 }: {
@@ -396,16 +395,8 @@ export function SubModelPicker({
   initialModelId?: string
 }): React.ReactNode {
   const t = useMercuryTokens()
-  const accent = useSessionAccent().accent
   const { columns, rows: termRows } = useTerminalSize()
-  const [container, setContainer] = useState<SubModelContainer>(initialContainer)
-
-  useInput((_input, key, event) => {
-    if (key.tab || key.leftArrow || key.rightArrow) {
-      event.stopImmediatePropagation()
-      setContainer(prev => (prev === 'minerva' ? 'console' : 'minerva'))
-    }
-  })
+  const container = initialContainer
 
   const width = Math.max(56, Math.min(100, columns - 6))
   const listRows = Math.max(4, termRows - 12)
@@ -416,23 +407,9 @@ export function SubModelPicker({
       {
 }
       <Box width={width}>
-        <Text wrap="truncate-end">
-          {(['minerva', 'console'] as const).map(candidate => (
-            <React.Fragment key={candidate}>
-              <Text
-                bold={candidate === container}
-                color={candidate === container ? accent : t.textMuted}
-              >
-                {candidate === container ? `[${CONTAINER_META[candidate].label}]` : ` ${CONTAINER_META[candidate].label} `}
-              </Text>
-              <Text> </Text>
-            </React.Fragment>
-          ))}
-          <Text color={t.textMuted}>{`· main: ${mainModel} — context only; /model changes it`}</Text>
-        </Text>
+        <Text color={t.textMuted} wrap="truncate-end">{`main: ${mainModel} — context only; /model changes it`}</Text>
       </Box>
       <ContainerList
-        key={container}
         container={container}
         active
         width={width}
@@ -440,8 +417,8 @@ export function SubModelPicker({
         onRoute={onRoute}
         onClose={onClose}
         compact={false}
-        {...(container === initialContainer && initialNote !== undefined ? { initialNote } : {})}
-        {...(container === initialContainer && initialModelId !== undefined ? { initialModelId } : {})}
+        {...(initialNote !== undefined ? { initialNote } : {})}
+        {...(initialModelId !== undefined ? { initialModelId } : {})}
       />
     </Box>
   )

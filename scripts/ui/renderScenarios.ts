@@ -1482,7 +1482,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
       argv: ['node', BIN, '--resume', SID],
       sends: [
         { atTick: 30, data: '/submodels\r' },
-        { afterPrevTicks: 8, data: '\t', mark: 'opened' },
+        { afterPrevTicks: 8, data: '', mark: 'opened' },
         { afterPrevTicks: 4, data: '\u001b[B' },
         { afterPrevTicks: 2, data: '\u001b[B' },
         { afterPrevTicks: 2, data: '\u001b[B' },

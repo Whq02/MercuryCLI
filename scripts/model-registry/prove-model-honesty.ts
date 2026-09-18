@@ -27,7 +27,6 @@ for (const key of [
   'MERCURY_COMPAT_BASE_URL',
   'MERCURY_LOCAL_BASE_URL',
   'MERCURY_CUSTOM_MODEL_OPTION',
-  'MERCURY_MINERVA_MODEL',
   'MERCURY_CONSOLE_MODEL',
 ]) {
   delete process.env[key]

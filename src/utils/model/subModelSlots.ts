@@ -30,14 +30,14 @@ import {
 } from './modelOptions.js'
 import { parseUserSpecifiedModel } from './model.js'
 
-export type SubModelContainer = 'minerva' | 'console'
+export type SubModelContainer = 'console'
 
-export const SUB_MODEL_CONTAINERS: readonly SubModelContainer[] = ['minerva', 'console']
+export const SUB_MODEL_CONTAINERS: readonly SubModelContainer[] = ['console']
 
 export const SUB_MODEL_UNSET_HINT = 'use /submodels to pin one of the available model catalogues'
 
-export function subModelEnvVar(container: SubModelContainer): string {
-  return container === 'minerva' ? 'MERCURY_MINERVA_MODEL' : 'MERCURY_CONSOLE_MODEL'
+export function subModelEnvVar(_container: SubModelContainer): string {
+  return 'MERCURY_CONSOLE_MODEL'
 }
 
 export function canonicalSubModelId(value: string): string {
@@ -87,9 +87,8 @@ export function consoleModelOverride(sessionModel: string): string | undefined {
     : resolved.model
 }
 
-export function subModelIdentityLine(container: SubModelContainer, pin: SubModelPin): string {
-  const name =
-    container === 'minerva' ? 'Minerva, the notepad curator' : 'the Console, the side-question assistant'
+export function subModelIdentityLine(_container: SubModelContainer, pin: SubModelPin): string {
+  const name = 'the Console, the side-question assistant'
   return (
     `Engine identity — a fact stamped by the Mercury harness (you cannot know it on your own): ` +
     `you are ${name}, running on model id "${pin.model}" via the ${providerDisplayName(pin.route)} wire. ` +
@@ -278,7 +277,7 @@ export function setSubModel(
       reason: `${container} is pinned by ${envVar} this session — unset it to pick here`,
     }
   }
-  const label = container === 'minerva' ? 'Minerva' : 'Console'
+  const label = containerLabel(container)
   if (modelId === null) {
     const had = getGlobalConfig().subModels?.[container] !== undefined
     if (had) {
@@ -308,17 +307,17 @@ export function setSubModel(
   }))
   return {
     ok: true,
-    receipt: `${label} model set to ${entry.displayName} (${providerDisplayName(entry.source)}) — ${subModelEffortClause(container, wanted)} — live on the next ${container === 'minerva' ? 'curator pass' : 'side question'}`,
+    receipt: `${label} model set to ${entry.displayName} (${providerDisplayName(entry.source)}) — ${subModelEffortClause(container, wanted)} — live on the next side question`,
   }
 }
 
 
-function containerLabel(container: SubModelContainer): string {
-  return container === 'minerva' ? 'Minerva' : 'Console'
+function containerLabel(_container: SubModelContainer): string {
+  return 'Console'
 }
 
-export function subModelEffortContext(container: SubModelContainer): EffortTruthContext {
-  return container === 'minerva' ? { thinkingEnabled: false } : {}
+export function subModelEffortContext(_container: SubModelContainer): EffortTruthContext {
+  return {}
 }
 
 export function resolveSubModelEffort(container: SubModelContainer): EffortLevel | undefined {
