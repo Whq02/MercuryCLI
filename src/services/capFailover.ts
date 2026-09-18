@@ -41,13 +41,23 @@ export interface CapHandoffNote {
 }
 
 let capHandoff: CapHandoffNote | null = null
+let capHandoffVersion = 0
+const capHandoffListeners = new Set<() => void>()
+
+function capHandoffChanged(): void {
+  capHandoffVersion += 1
+  for (const listener of capHandoffListeners) listener()
+}
 
 export function noteCapHandoff(homeModel: string | null, homeFamily: string): void {
   capHandoff = { homeModel, homeFamily }
+  capHandoffChanged()
 }
 
 export function noteCapReturn(): void {
+  if (capHandoff === null) return
   capHandoff = null
+  capHandoffChanged()
 }
 
 export function capHandoffState(): CapHandoffNote | null {
@@ -55,7 +65,66 @@ export function capHandoffState(): CapHandoffNote | null {
 }
 
 export function clearCapHandoffForFamily(family: string): void {
-  if (capHandoff !== null && capHandoff.homeFamily === family) capHandoff = null
+  if (capHandoff !== null && capHandoff.homeFamily === family) {
+    capHandoff = null
+    capHandoffChanged()
+  }
+}
+
+export function subscribeCapHandoff(listener: () => void): () => void {
+  capHandoffListeners.add(listener)
+  return () => {
+    capHandoffListeners.delete(listener)
+  }
+}
+
+export function getCapHandoffVersion(): number {
+  return capHandoffVersion
+}
+
+export function capFailoverLaneOf(liveRoute: string | null): string | null {
+  return capHandoff !== null && liveRoute !== null && liveRoute !== capHandoff.homeFamily ? liveRoute : null
+}
+
+export const FAILOVER_LINE_DEFAULT_MS = 120_000
+const FAILOVER_LINE_FLOOR_MS = 1000
+
+export function failoverLineMs(): number {
+  const raw = flagEnv('MERCURY_FAILOVER_LINE_MS')
+  if (raw === undefined || !/^\d+$/.test(raw.trim())) return FAILOVER_LINE_DEFAULT_MS
+  const parsed = Number(raw.trim())
+  return parsed >= FAILOVER_LINE_FLOOR_MS ? parsed : FAILOVER_LINE_DEFAULT_MS
+}
+
+export interface CapLaneLineFacts {
+  lane: string
+  modelName: string
+  homeName: string
+  homeWindow: FamilyWindowFact | null
+  resetText: string | undefined
+}
+
+export function capLaneLineWords(facts: CapLaneLineFacts): string {
+  const reset =
+    facts.homeWindow !== null && (facts.homeWindow.state === 'rejected' || facts.homeWindow.state === 'warning') && facts.resetText !== undefined
+      ? ` · ${facts.homeName} window resets ${facts.resetText}`
+      : ''
+  return `on the ${facts.lane} failover lane · ${facts.modelName}${reset} · /model to return`
+}
+
+export function capLaneLineKey(facts: CapLaneLineFacts): string {
+  return `${capLaneLineWords(facts)}|${facts.homeWindow?.state ?? 'unknown'}`
+}
+
+let laneLine: { key: string; armedAtMs: number } | null = null
+
+export function capLaneLineUntil(key: string | null, nowMs: number): number | null {
+  if (key === null) {
+    laneLine = null
+    return null
+  }
+  if (laneLine === null || laneLine.key !== key) laneLine = { key, armedAtMs: nowMs }
+  return laneLine.armedAtMs + failoverLineMs()
 }
 
 
@@ -94,6 +163,7 @@ export function _resetOfferMemoriesForTesting(): void {
   offerAutoActions.clear()
   answeredCapOffers.clear()
   capHandoff = null
+  laneLine = null
 }
 
 

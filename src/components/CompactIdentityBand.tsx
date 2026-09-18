@@ -8,6 +8,7 @@ import { AnimatedCritterArt, BreathingDot } from './mercury-ui/AnimatedCritterAr
 import { cycleSessionCritter, useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { Wordmark } from './mercury-ui/assets.js'
 import { EffortChip } from './mercury-ui/EffortChip.js'
+import { FailoverMark } from './mercury-ui/FailoverMark.js'
 import { GLYPH, branchChip } from './mercury-ui/glyphs.js'
 import {
   CR_COLS,
@@ -90,6 +91,7 @@ export function CompactIdentityBand(): React.ReactNode {
   const modelFacts = (
     <Text>
       <Text color={tok.textSecondary}>{modelName || 'model unreported'}</Text>
+      <FailoverMark model={effectiveModel} />
       <EffortChip model={effectiveModel} plain />
       <Text color={tok.textMuted}> · ctx </Text>
       <Text color={ctxColor}>{contextPercentLabel(used, ctx.fillSource)}</Text>

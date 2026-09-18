@@ -8,7 +8,8 @@ import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
-const DIST = path.join(REPO, 'dist/mercury.mjs')
+const distArg = process.argv.indexOf('--dist')
+const DIST = distArg !== -1 && process.argv[distArg + 1] !== undefined ? path.resolve(process.argv[distArg + 1]!) : path.join(REPO, 'dist/mercury.mjs')
 const VSHOT = path.join(REPO, 'scripts/ui/vshot.py')
 
 let failures = 0
@@ -34,6 +35,11 @@ const TARGET_ID = 'claude-fable-5-1'
 const TARGET_CHIP = 'Fable 5.1 · ●'
 const HOME_CHIP = 'GPT-5.6 Sol ·'
 const OFFER_TITLE = 'OpenAI usage window'
+const LANE_LINE = /on the anthropic failover lane · (Fable 5\.1|Sonnet 5) · OpenAI window resets [^·]+ · \/model to return/
+const LANE_MARK_FABLE = 'Fable 5.1 · failover'
+const LANE_MARK_SONNET = 'Sonnet 5 · failover'
+const LANE_LINE_MS = 4000
+const LANE_LINE_TICKS = 30
 
 const RUN_HOME = path.join(realpathSync(tmpdir()), `mercury-capoffer-${process.pid}`)
 const FIXTURE_CWD = path.join(RUN_HOME, 'fixture-repo')
@@ -157,6 +163,7 @@ const childEnv: NodeJS.ProcessEnv = {
   MERCURY_TEAMS_DIR: path.join(RUN_HOME, 'teams'),
   MERCURY_TABULA_DIR: path.join(RUN_HOME, 'tabula'),
   MERCURY_HOME: path.join(RUN_HOME, 'proof-home'),
+  MERCURY_FAILOVER_LINE_MS: String(LANE_LINE_MS),
 }
 delete childEnv.NODE_ENV
 delete childEnv.ANTHROPIC_AUTH_TOKEN
@@ -213,6 +220,11 @@ const legSettle = drive(
     { requireAwait: true, awaitText: OFFER_TITLE, minTick: 10, awaitSettleTicks: 4, data: '\r', mark: 'offer' },
     { requireAwait: true, awaitText: 'Model switch preview', minTick: 8, awaitSettleTicks: 2, data: '\r', mark: 'preview' },
     { requireAwait: true, awaitText: TARGET_CHIP, minTick: 10, awaitSettleTicks: 2, data: 'pick up from gpt pls\r', mark: 'switched' },
+    { requireAwait: true, awaitText: 'failover lane', minTick: 2, awaitSettleTicks: 2, data: '', mark: 'line-t0' },
+    { afterPrevTicks: LANE_LINE_TICKS, data: '', mark: 'line-later' },
+    { afterPrevTicks: 2, data: '/model sonnet\r' },
+    { requireAwait: true, awaitText: 'Model switch preview', minTick: 3, awaitSettleTicks: 2, data: '\r', mark: 'sonnet-preview' },
+    { requireAwait: true, awaitText: 'failover lane · Sonnet 5', minTick: 2, awaitSettleTicks: 2, data: '', mark: 'line-again' },
     { afterPrevTicks: PROBE_GAP, awaitText: OFFER_TITLE, data: '', mark: 'probe' },
   ],
   { total: 900 },
@@ -251,14 +263,31 @@ const legSettle = drive(
   check('the GPT-leg history rides the switched request', main !== undefined && JSON.stringify(main.body).includes('hello sol'))
 
   section('L5 — the offer does not re-paint after the settlement')
-  const probeTick = receiptTick(p, 5)
-  check('the no-repaint probe fired on its DEADLINE, never on its await (the card never returned)', switchedTick > 0 && probeTick >= switchedTick + PROBE_GAP - 1, `probe fired at tick ${probeTick} (pickup at ${switchedTick}, gap ${PROBE_GAP})`)
+  const againTick = receiptTick(p, 9)
+  const probeTick = receiptTick(p, 10)
+  check('the no-repaint probe fired on its DEADLINE, never on its await (the card never returned)', againTick > 0 && probeTick >= againTick + PROBE_GAP - 1, `probe fired at tick ${probeTick} (the lane line again at ${againTick}, gap ${PROBE_GAP})`)
   const switchedGrid = markGrid(p, 'switched')
   check('no offer card on the switched screen', !switchedGrid.includes(OFFER_TITLE))
   check('no offer card on the final screen', !finalGrid.includes(OFFER_TITLE) && !finalGrid.includes('Model switch preview'))
 
   section('L6 — the switched reply painted')
   check('the Anthropic reply painted', finalGrid.includes(FABLE_REPLY) || markGrid(p, 'probe').includes(FABLE_REPLY), finalGrid.split('\n').slice(-12).join('\n'))
+
+  section("L7 — the failover lane's sentence stands its window after the switch, then the strip's mark carries the fact; a change of state brings the sentence back")
+  const lineRow = (grid: string): string => grid.split('\n').find(l => l.includes('failover lane')) ?? ''
+  const t0 = markGrid(p, 'line-t0')
+  const t0Tick = receiptTick(p, 5)
+  check('at the switch the sentence stands above the composer, in its own words (the lane, the served model, the home window\'s stated reset, the way home)', t0Tick > 0 && LANE_LINE.test(lineRow(t0)) && lineRow(t0).includes('Fable 5.1'), lineRow(t0) || `(no sentence; line-t0 at tick ${t0Tick}; endReason=${p?.endReason ?? '?'})`)
+  check('the strip carries the mark beside the served model while the session runs on the lane', t0.includes(LANE_MARK_FABLE), t0.split('\n').filter(l => l.includes('Fable 5.1')).join(' | '))
+  const later = markGrid(p, 'line-later')
+  const laterTick = receiptTick(p, 6)
+  check(`past its window (${LANE_LINE_MS} ms here; two minutes unset) the sentence has left the composer`, laterTick >= t0Tick + LANE_LINE_TICKS - 1 && !later.includes('failover lane'), lineRow(later) || `(line-later at tick ${laterTick})`)
+  check('…and the strip\'s mark still says where the session runs (Fable 5.1 · failover)', later.includes(LANE_MARK_FABLE), later.split('\n').filter(l => l.includes('Fable 5.1')).join(' | '))
+  const again = markGrid(p, 'line-again')
+  check('a switch on the lane (/model sonnet, confirmed at its preview) is a change of state: the sentence returns for its window, naming the new served model', receiptTick(p, 9) > 0 && LANE_LINE.test(lineRow(again)) && lineRow(again).includes('Sonnet 5'), lineRow(again) || `(no sentence; endReason=${p?.endReason ?? '?'})`)
+  check('the mark follows the served model (Sonnet 5 · failover)', again.includes(LANE_MARK_SONNET), again.split('\n').filter(l => l.includes('Sonnet 5')).join(' | '))
+  const probeGrid = markGrid(p, 'probe')
+  check('by the probe the sentence has left again and the mark stands', !probeGrid.includes('failover lane') && probeGrid.includes(LANE_MARK_SONNET), probeGrid.split('\n').filter(l => l.includes('failover')).join(' | '))
 }
 
 const legEsc = drive(
@@ -288,6 +317,7 @@ const legEsc = drive(
   check('the second reply painted', finalGrid.includes(GPT_REPLY_AGAIN) || markGrid(p, 'probe').includes(GPT_REPLY_AGAIN), finalGrid.split('\n').slice(-12).join('\n'))
   check('the session stayed on its GPT seat', finalGrid.includes(HOME_CHIP) && !finalGrid.includes('Fable 5.1'), finalGrid.split('\n').filter(l => l.includes('·')).slice(-3).join('\n'))
   check('no offer card on the final screen', !finalGrid.includes(OFFER_TITLE))
+  check('at home the strip carries no failover mark and no sentence stands', !finalGrid.includes('· failover') && !finalGrid.includes('failover lane') && !markGrid(p, 'again').includes('· failover'), finalGrid.split('\n').filter(l => l.includes('failover')).join(' | '))
 }
 
 if (failures > 0) {
