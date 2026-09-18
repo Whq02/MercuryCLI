@@ -29,7 +29,7 @@ console.log('§1 RHP-1 — the multi-line measure wraps like the compositor')
   check('wrapped-then-measured equals the painted row count (the law the measure now follows)', measureText(wrappedLines.join('\n'), 80).height === paintedRows)
   const dom = read('src/ink/dom.ts')
   const branch = dom.slice(dom.indexOf("if (text.includes('\\n')) {"), dom.indexOf('const wrapped = wrapText(text, width, node.style.textWrap'))
-  check('the carried-constraint branch wraps every source line before measuring', branch.includes('for (let i = 0; i < lines.length; i++) lines[i] = wrapText(lines[i]!, width, textWrap)') && branch.includes("return measureText(lines.join('\\n'), width)"))
+  check('the carried-constraint branch wraps every source line at whole cells before measuring', branch.includes('for (let i = 0; i < lines.length; i++) lines[i] = wrapText(lines[i]!, cells, textWrap)') && branch.includes("return measureText(lines.join('\\n'), cells)"))
   check('POISON: the unwrapped multi-line measure is gone from that branch', !branch.includes('return measureText(text, width)'))
   check('the width-less probe branch stands (a pre-wrapped string is never re-wrapped at a probe width)', branch.includes('return measureText(text, Math.max(width, natural.width))'))
 }
