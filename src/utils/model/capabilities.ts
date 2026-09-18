@@ -425,6 +425,7 @@ export interface ContextResolution {
     | 'capability'
     | 'beta-header'
     | 'fallback'
+  pinAwaitingLive?: boolean
   outputReserve: number
   fallbackReason?: string
 }
@@ -571,6 +572,7 @@ export function resolveContextWindow(
         effectiveWindow: MODEL_CONTEXT_WINDOW_DEFAULT,
         source: 'static-pin',
         staticDefault: gptPin.contextWindow,
+        pinAwaitingLive: true,
         fallbackReason: 'clamped by the 1M kill-switch',
       })
     }
@@ -578,6 +580,7 @@ export function resolveContextWindow(
       effectiveWindow: gptPin.contextWindow,
       source: 'static-pin',
       staticDefault: gptPin.contextWindow,
+      pinAwaitingLive: true,
     })
   }
 
@@ -586,15 +589,17 @@ export function resolveContextWindow(
       require('../../services/providers/huggingface/huggingfaceCatalogue.js') as typeof import('../../services/providers/huggingface/huggingfaceCatalogue.js')
     const stated = huggingfaceContextWindowFor(normalizeForEnginePins(model))
     if (stated) {
+      const pinned = stated.source === 'static-pin' ? { pinAwaitingLive: true } : {}
       if (stated.window > MODEL_CONTEXT_WINDOW_DEFAULT && is1mContextDisabled()) {
         return finish({
           effectiveWindow: MODEL_CONTEXT_WINDOW_DEFAULT,
           source: stated.source,
           staticDefault: stated.window,
+          ...pinned,
           fallbackReason: 'clamped by the 1M kill-switch',
         })
       }
-      return finish({ effectiveWindow: stated.window, source: stated.source, staticDefault: stated.window })
+      return finish({ effectiveWindow: stated.window, source: stated.source, staticDefault: stated.window, ...pinned })
     }
   }
 

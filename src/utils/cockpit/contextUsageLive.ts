@@ -17,12 +17,14 @@ export interface LiveContextUsage {
   usedTokens: number | null
   fillSource: ContextFillSource | null
   windowSource: ContextWindowSource | null
+  windowPinned: boolean
 }
 
 export interface ContextUsageDetail {
   usedTokens?: number | null
   fillSource?: ContextFillSource | null
   windowSource?: ContextWindowSource | null
+  windowPinned?: boolean
 }
 
 const usageSlots = new OwnerScopedStore<LiveContextUsage>({
@@ -34,6 +36,7 @@ const usageSlots = new OwnerScopedStore<LiveContextUsage>({
     usedTokens: null,
     fillSource: null,
     windowSource: null,
+    windowPinned: false,
   }),
 })
 registerOwnerScopedStore(usageSlots)
@@ -57,6 +60,7 @@ export function publishContextUsage(
     usedTokens: detail?.usedTokens ?? null,
     fillSource: detail?.fillSource ?? null,
     windowSource: detail?.windowSource ?? null,
+    windowPinned: detail?.windowPinned === true,
   }
   const changed =
     slot.usedPct !== next.usedPct ||
@@ -64,7 +68,8 @@ export function publishContextUsage(
     slot.compactAtPct !== next.compactAtPct ||
     slot.usedTokens !== next.usedTokens ||
     slot.fillSource !== next.fillSource ||
-    slot.windowSource !== next.windowSource
+    slot.windowSource !== next.windowSource ||
+    slot.windowPinned !== next.windowPinned
   Object.assign(slot, next)
   if (ctxForecastEnabled()) recordCtxSample(usedPct, key)
   if (changed) {
@@ -89,6 +94,7 @@ export function getLiveContextUsage(owner?: OwnerKey): LiveContextUsage {
       usedTokens: null,
       fillSource: null,
       windowSource: null,
+      windowPinned: false,
     }
   }
   return { ...slot }

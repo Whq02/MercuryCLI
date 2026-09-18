@@ -1110,7 +1110,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
             }`
           : 'usage — after first reply'
     const ctxLive = getLiveContextUsage()
-    const ctxLabel = `ctx ${contextPercentLabel(ctxLive.usedPct, ctxLive.fillSource)} · ${contextWindowLabel(ctxLive.window, ctxLive.windowSource)}`
+    const ctxLabel = `ctx ${contextPercentLabel(ctxLive.usedPct, ctxLive.fillSource)} · ${contextWindowLabel(ctxLive.window, ctxLive.windowSource, ctxLive.windowPinned)}`
     const chip = healthCertSnapshot().data
     const verdictUp = chip.verdict != null ? String(chip.verdict).toUpperCase() : null
     const healthLabel =
