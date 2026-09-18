@@ -2412,6 +2412,23 @@ export function stampedTerminalPid(by: string | undefined): number | undefined {
   return pid === undefined ? undefined : Number(pid)
 }
 
+export function nextLiveCockpitOwner(exceptPid: number | null, dir?: string): number | undefined {
+  let best: { pid: number; at: number } | undefined
+  for (const rec of Object.values(readSessionWorkers(dir))) {
+    if (rec.endedAt !== undefined || rec.parkedAt !== undefined) continue
+    for (const [by, at] of [
+      [rec.focusedBy, rec.focusedAt] as const,
+      [rec.attachedBy, rec.attachedAt] as const,
+    ]) {
+      const pid = stampedTerminalPid(by)
+      if (pid === undefined || pid === exceptPid || !isProcessAlive(pid)) continue
+      const stampedAt = at ?? 0
+      if (best === undefined || stampedAt < best.at) best = { pid, at: stampedAt }
+    }
+  }
+  return best?.pid
+}
+
 export function focusConcourseSession(sessionId: string, by: string, dir?: string, terminalApplication?: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null): ConcourseFocusOutcome {
   let out: ConcourseFocusOutcome = { outcome: 'refused', reason: 'unknown-session' }
   updateConcourseWorkers(workers => {

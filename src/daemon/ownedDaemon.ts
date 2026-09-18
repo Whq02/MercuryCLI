@@ -1,6 +1,6 @@
 import { daemonDir } from './controlSocket.js'
 import { spawn } from 'node:child_process'
-import { closeSync, mkdirSync, openSync, statSync } from 'node:fs'
+import { closeSync, mkdirSync, openSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { renameWithWin32RetrySync } from '../substrate/durablePublish.js'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
@@ -9,7 +9,7 @@ import { getMercuryHome } from '../utils/envUtils.js'
 import { hasStoredOAuthToken } from '../utils/auth.js'
 import { subscribeSignInEpoch } from '../utils/accounts/signInLedger.js'
 import { STORED_TOKEN_SCRUB_VARS } from '../utils/subprocessEnv.js'
-import { OWNER_FD_ENV, OWNER_PID_ENV } from './ownerWatch.js'
+import { isProcessAlive, OWNER_FD_ENV, OWNER_PID_ENV } from './ownerWatch.js'
 import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
 import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import type { Socket } from 'node:net'
@@ -95,6 +95,28 @@ export async function shutdownOwnedDaemonGracefully(
 
 export const DAEMON_GRACEFUL_WAIT_MS = 1_500
 
+export function anotherLiveCockpitHoldsDaemon(
+  exceptPid: number,
+  workersPath: string = join(daemonDir(), 'concourse-workers.json'),
+): boolean {
+  let parsed: { workers?: Record<string, { endedAt?: number; parkedAt?: number; focusedBy?: string; attachedBy?: string }> }
+  try {
+    parsed = JSON.parse(readFileSync(workersPath, 'utf8'))
+  } catch {
+    return false
+  }
+  for (const rec of Object.values(parsed.workers ?? {})) {
+    if (rec.endedAt !== undefined || rec.parkedAt !== undefined) continue
+    for (const by of [rec.focusedBy, rec.attachedBy]) {
+      const matched = /^operator:(\d+)$/.exec(by ?? '')
+      if (matched === null) continue
+      const pid = Number(matched[1])
+      if (pid !== exceptPid && isProcessAlive(pid)) return true
+    }
+  }
+  return false
+}
+
 const reapedPids = new Set<number>()
 function reapDaemonOnSessionExit(pid: number): void {
   if (reapedPids.has(pid)) return
@@ -103,12 +125,14 @@ function reapDaemonOnSessionExit(pid: number): void {
   if (process.platform === 'win32') {
     registerCleanup(async () => {
       if (!daemonAlive(pid)) return
+      if (anotherLiveCockpitHoldsDaemon(process.pid)) return
       gracefulAsked = true
       const outcome = await shutdownOwnedDaemonGracefully(pid)
       logForDebugging(`[daemon] the owned daemon (pid ${pid}) was asked to shut down: ${outcome}`)
     })
   }
   const reap = (): void => {
+    if (anotherLiveCockpitHoldsDaemon(process.pid)) return
     const verdict = decideDaemonReap({
       platform: process.platform,
       gracefulAsked,
