@@ -307,6 +307,16 @@ const FILENAME_LANGUAGES: Record<string, string> = {
   CMakeLists: 'cmake',
 }
 
+const PROSE_LANGUAGES = ['markdown', 'plaintext', 'asciidoc']
+
+export function fileLanguageKind(filePath: string, firstLine?: string): 'prose' | 'code' | 'unknown' {
+  const language = detectLanguage(filePath, firstLine)
+  if (language === undefined) return 'unknown'
+  const hl = getHighlighter()
+  const definition = hl.getLanguage(language)
+  return PROSE_LANGUAGES.some(name => hl.getLanguage(name) === definition) ? 'prose' : 'code'
+}
+
 function detectLanguage(filePath: string, firstLine?: string): string | undefined {
   const hl = getHighlighter()
   const base = filePath.split(/[\\/]/).pop() ?? ''

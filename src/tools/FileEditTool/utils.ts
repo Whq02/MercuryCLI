@@ -67,6 +67,7 @@ export function preserveQuoteStyle(
   oldString: string,
   actualOldString: string,
   newString: string,
+  styleQuotes: () => boolean = () => true,
 ): string {
   if (actualOldString.length !== oldString.length) return newString
   const limit = Math.min(oldString.length, newString.length)
@@ -78,10 +79,11 @@ export function preserveQuoteStyle(
   const lineEnd = actualOldString.indexOf('\n', actualOldString.length - tail)
   const replaced = actualOldString.slice(lineStart, lineEnd === -1 ? actualOldString.length : lineEnd)
   const styled =
-    replaced.includes(LEFT_DOUBLE_CURLY_QUOTE) ||
-    replaced.includes(RIGHT_DOUBLE_CURLY_QUOTE) ||
-    replaced.includes(LEFT_SINGLE_CURLY_QUOTE) ||
-    replaced.includes(RIGHT_SINGLE_CURLY_QUOTE)
+    (replaced.includes(LEFT_DOUBLE_CURLY_QUOTE) ||
+      replaced.includes(RIGHT_DOUBLE_CURLY_QUOTE) ||
+      replaced.includes(LEFT_SINGLE_CURLY_QUOTE) ||
+      replaced.includes(RIGHT_SINGLE_CURLY_QUOTE)) &&
+    styleQuotes()
   const end = newString.length - tail
   let result = actualOldString.slice(0, head)
   for (let i = head; i < end; i++) {
@@ -103,6 +105,20 @@ export function preserveQuoteStyle(
     result += char
   }
   return result + actualOldString.slice(actualOldString.length - tail)
+}
+
+export async function preserveQuoteStyleForFile(
+  filePath: string,
+  fileContent: string,
+  oldString: string,
+  actualOldString: string,
+  newString: string,
+): Promise<string> {
+  const exact = preserveQuoteStyle(oldString, actualOldString, newString, () => false)
+  const styled = preserveQuoteStyle(oldString, actualOldString, newString)
+  if (exact === styled) return exact
+  const { fileLanguageKind } = await import('../../native-ts/color-diff/index.js')
+  return fileLanguageKind(filePath, fileContent.split('\n', 1)[0]) === 'code' ? exact : styled
 }
 
 

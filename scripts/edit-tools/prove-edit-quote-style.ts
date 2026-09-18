@@ -113,5 +113,44 @@ section('R. through the real tool: a whole-file edit on a mixed file')
   check('R4 the typographic UI text and the code quotes both survive', curlyCount(after) === curlyCount(MIXED) && straightCount(after) === straightCount(MIXED))
 }
 
+section('S. through the real tool: the file\'s language decides — code stays byte-exact, prose keeps the style')
+{
+  const fixtures = mkdtempSync(join(tmpdir(), 'edit-quote-language-'))
+  const edit = async (name: string, content: string, oldString: string, newString: string): Promise<{ error: string; after: string }> => {
+    const file = join(fixtures, name)
+    writeFileSync(file, content)
+    const ctx = {
+      readFileState: new Map<string, unknown>(),
+      userModified: false,
+      updateFileHistoryState: () => {},
+      dynamicSkillDirTriggers: new Set<string>(),
+      nestedMemoryAttachmentTriggers: new Set<string>(),
+      abortController: new AbortController(),
+      getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }),
+    }
+    ctx.readFileState.set(file, { content, timestamp: Date.now() + 60_000 })
+    let error = ''
+    try {
+      await (FileEditTool as { call: Function }).call({ file_path: file, old_string: oldString, new_string: newString }, ctx, null, { uuid: '00000000-0000-0000-0000-000000000005', message: { id: 'msg_fixture' } })
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err)
+    }
+    return { error, after: readFileSync(file, 'utf8') }
+  }
+  const row = `export const rows = [{ summary: 'the daemon${RS}s runner', off: 'stopped' }]\n`
+  const code = await edit('flags.ts', row, "daemon's runner', off: 'stopped'", "daemon's runner', off: 'stopped', on: 'running'")
+  check('S1 a TypeScript row: the straightened old string still finds the line', code.error === '', code.error)
+  check("S2 a TypeScript row: the new straight quotes land byte for byte and the file's apostrophe outside the change stands", code.after === `export const rows = [{ summary: 'the daemon${RS}s runner', off: 'stopped', on: 'running' }]\n`, JSON.stringify(code.after))
+  const literal = await edit('literal.ts', row, "runner', off: 'stopped'", "runner', off: 'stopped', on: 'running'")
+  check('S3 a literal match whose old string carries no typographic quote styles nothing (the decision reads the matched text, never the rest of the line)', literal.after === `export const rows = [{ summary: 'the daemon${RS}s runner', off: 'stopped', on: 'running' }]\n`, JSON.stringify(literal.after))
+  const note = `The daemon${RS}s runner stays warm, said the note.\n`
+  const md = await edit('notes.md', note, "The daemon's runner stays warm, said the note.", `The daemon's runner stays "warm", said the note.`)
+  check("S4 a Markdown note: the new quotes take the file's style, the apostrophe stands", md.after === `The daemon${RS}s runner stays ${LD}warm${RD}, said the note.\n`, JSON.stringify(md.after))
+  const plain = await edit('NOTES', note, "The daemon's runner stays warm, said the note.", `The daemon's runner stays "warm", said the note.`)
+  check("S5 a file of no language the highlighter knows reads as prose and keeps today's style", plain.after === `The daemon${RS}s runner stays ${LD}warm${RD}, said the note.\n`, JSON.stringify(plain.after))
+  const { fileLanguageKind } = await import('../../src/native-ts/color-diff/index.ts')
+  check('S6 the classifier is the diff highlighter\'s own: code for the languages the incident named, prose for markdown and plain text, unknown for a bare name', ['a.ts', 'a.js', 'a.py', 'a.rs', 'a.go', 'a.c', 'a.sh', 'a.json', 'a.yaml', 'a.toml', 'a.css', 'a.html', 'Dockerfile'].every(name => fileLanguageKind(name) === 'code') && fileLanguageKind('a.md') === 'prose' && fileLanguageKind('a.txt') === 'prose' && fileLanguageKind('NOTES') === 'unknown' && fileLanguageKind('run', '#!/usr/bin/env bash') === 'code')
+}
+
 console.log(`\n${failures === 0 ? 'EDIT QUOTE STYLE GREEN' : `${failures} EDIT QUOTE STYLE FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)
