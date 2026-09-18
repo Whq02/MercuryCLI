@@ -26,6 +26,7 @@ import {
 const REPO = join(import.meta.dir, '..', '..')
 const RUN_HOME = join(tmpdir(), `mercury-vbl-${process.pid}`)
 const RAIL_SCAN_SETTLE_MARK = 'RECENT'
+const RAIL_SCAN_LANDED_MARK = '○ '
 
 const SIZES: Array<[number, number]> = [
   [60, 18], [80, 24], [97, 30], [99, 30], [100, 30], [101, 30], [120, 40],
@@ -130,7 +131,7 @@ function captureSpec(
   const cfg = mods.scenarios.scenario(spec.scenario, spec.cols, spec.rows)
   const gridPath = join(RUN_HOME, 'capture-grid.json')
   const cfgPath = join(RUN_HOME, 'capture-cfg.json')
-  const railSettle = spec.cols >= HELM_HOME_MIN_COLS ? { readyText: RAIL_SCAN_SETTLE_MARK, stableTicks: 8 } : {}
+  const railSettle = spec.cols >= HELM_HOME_MIN_COLS ? { readyText: [RAIL_SCAN_SETTLE_MARK, RAIL_SCAN_LANDED_MARK], stableTicks: 8 } : {}
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, ...railSettle, out: gridPath }))
   try {
     let lastReason = 'capture never ran'
