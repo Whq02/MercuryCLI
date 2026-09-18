@@ -73,16 +73,20 @@ const daemon = spawn('node', [DIST, 'daemon', 'run', work], {
 
 try {
   const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+  const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/warmRunner.ts')
   check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
-  const d = (await daemonControlRpc({
-    op: 'concourseDispatch',
-    clientMessageId: 'daemon-laws',
-    prompt: 'tidy the scratch folder',
-    workspaceDir: work,
-    title: 'Law probe',
-    modelKey: 'claude-opus-5',
-    effort: 'xhigh',
-  } as never)) as { ok?: boolean; sessionId?: string; runnerId?: string }
+  const d = (await daemonControlRpc(
+    {
+      op: 'concourseDispatch',
+      clientMessageId: 'daemon-laws',
+      prompt: 'tidy the scratch folder',
+      workspaceDir: work,
+      title: 'Law probe',
+      modelKey: 'claude-opus-5',
+      effort: 'xhigh',
+    } as never,
+    { timeoutMs: WARM_BOOT_ALLOWANCE_MS },
+  )) as { ok?: boolean; sessionId?: string; runnerId?: string }
   check('the session dispatched', d.ok === true && d.sessionId !== undefined, JSON.stringify(d))
   const sid = d.sessionId ?? ''
   const paths = await import('../../src/utils/sessionStorage/paths.ts')

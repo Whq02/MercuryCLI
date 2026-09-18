@@ -49,6 +49,7 @@ seedFirstRun(configDir, [work])
   writeFileSync(cfgPath, `${JSON.stringify(cfg, null, 2)}\n`)
 }
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/warmRunner.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const projectDir = paths.getProjectDir(work)
 
@@ -152,7 +153,7 @@ try {
     title: 'queued interrupt',
     model: 'claude-opus-5',
     effort: 'high',
-  } as never)) as { ok?: boolean; sessionId?: string; error?: string }
+  } as never, { timeoutMs: WARM_BOOT_ALLOWANCE_MS })) as { ok?: boolean; sessionId?: string; error?: string }
   check('the session opened', opened.ok === true && typeof opened.sessionId === 'string', JSON.stringify(opened))
   const sid = opened.sessionId ?? ''
   await untilAsync(async () => (await transcriptRows(sid)).some(r => textOf(r).includes('fixture answers')) && readFacts(sid)?.busy === false, 45_000, 50)
@@ -179,7 +180,7 @@ try {
     model: 'claude-opus-5',
     effort: 'high',
     targetSessionId: sid,
-  } as never)) as { ok?: boolean; sessionId?: string }
+  } as never, { timeoutMs: WARM_BOOT_ALLOWANCE_MS })) as { ok?: boolean; sessionId?: string }
   check('the ask delivered into the opened session', run.ok === true && run.sessionId === sid, JSON.stringify(run))
   check('Q1 the seat\'s stream is held alive by the fixture (the parent waits on it)', await untilAsync(() => wire().some(c => c.kind === 'held-alive' && c.arm === ARM), 45_000), JSON.stringify(wire().map(c => c.kind)))
   check('Q1 the parent is busy in its wait', await untilAsync(() => readFacts(sid)?.busy === true, 10_000))

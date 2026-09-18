@@ -169,7 +169,7 @@ try {
     title: 'Retire probe',
     model: 'claude-sonnet-5',
     effort: 'high',
-  } as never)) as { ok?: boolean; sessionId?: string }
+  } as never, { timeoutMs: 30_000 })) as { ok?: boolean; sessionId?: string }
   check('R1 a session dispatched through the door', reply.ok === true && typeof reply.sessionId === 'string', JSON.stringify(reply))
   const sid = reply.sessionId ?? ''
   check('R1 the turn completed and the seat went idle', await untilAsync(() => transcriptOf(sid).includes('retire-probe: first answer') && readFacts(sid)?.busy === false, 60_000), transcriptOf(sid).slice(-300))
