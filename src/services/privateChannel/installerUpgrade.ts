@@ -50,7 +50,7 @@ function startCommand(argv: string[], stdio: StdioOptions): ReturnType<typeof sp
     })
   }
   const [file, ...args] = argv
-  return spawn(file ?? '', args, { stdio, env })
+  return spawn(file ?? '', args, { stdio, env, windowsHide: true })
 }
 
 export function runInstallerUpgrade(installer: ForeignInstaller, opts: { stdoutTo: 'inherit' | 'stderr' }): Promise<InstallerRunOutcome> {
@@ -84,7 +84,7 @@ function versionOutput(command: string): string {
     if (r.error) throw r.error
     return String(r.stdout ?? '')
   }
-  return execFileSync(command, ['--version'], { encoding: 'utf8', timeout: 60_000, env, stdio: ['ignore', 'pipe', 'pipe'] })
+  return execFileSync(command, ['--version'], { encoding: 'utf8', timeout: 60_000, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
 }
 
 export function readVersionAfterUpgrade(roots: LayoutRoots): VersionAfterUpgrade {
