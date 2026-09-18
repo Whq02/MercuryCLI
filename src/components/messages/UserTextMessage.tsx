@@ -75,7 +75,7 @@ export function UserTextMessage({
     param.text.startsWith('<local-command-stdout') ||
     param.text.startsWith('<local-command-stderr')
   ) {
-    return <UserLocalCommandOutputMessage content={param.text} />
+    return <UserLocalCommandOutputMessage content={param.text} verbose={verbose || isTranscriptMode === true} />
   }
 
   const cut = turnCutOfText(param.text)
