@@ -214,7 +214,7 @@ section("§5 the record's view — the admission snapshot's rows and the in-sess
   check('the lines read as the operator sees them', sw.spawnSwitchLine('subagents', { on: false, source: 'boot-menu' }) === 'sub-agents off (boot menu)' && sw.spawnSwitchLine('workflows', { on: true, source: 'in-session' }) === 'workflows on (in-session)' && sw.spawnSwitchLine('workflows', { on: false, source: 'env' }) === 'workflows off (environment)')
 }
 
-section('§6 the seat verb — idle applies, busy parks, the idle edge drains, the respawn re-forwards')
+section("§6 the seat verb — idle applies, busy parks and forwards, the runner's frame lands it, the respawn re-forwards")
 {
   const seat = await import('../../src/daemon/sessionSeat.ts')
   const sup = await import('../../src/daemon/concourseSupervisor.ts')
@@ -230,11 +230,11 @@ section('§6 the seat verb — idle applies, busy parks, the idle edge drains, t
     ws[short] = { schema: 1, runnerId: short, sessionId: sid, workspaceId, isolation: 'exclusive', modelKey: 'claude-fable-5', spawnedAt: 1, lastLiveAt: Date.now(), settingsSnapshot: snapshot }
   }, recDir)
   let busy = false
-  const frames: Array<{ subtype?: string; switch?: string; on?: boolean }> = []
+  const frames: Array<{ subtype?: string; switch?: string; on?: boolean; requestId?: string }> = []
   const roster = {
     control: (_short: string, frame: string): boolean => {
-      const parsed = JSON.parse(frame) as { request?: { subtype?: string; switch?: string; on?: boolean } }
-      frames.push({ subtype: parsed.request?.subtype, switch: parsed.request?.switch, on: parsed.request?.on })
+      const parsed = JSON.parse(frame) as { request_id?: string; request?: { subtype?: string; switch?: string; on?: boolean } }
+      frames.push({ subtype: parsed.request?.subtype, switch: parsed.request?.switch, on: parsed.request?.on, requestId: parsed.request_id })
       return true
     },
     list: () => [{ short, busy, turnActive: busy }],
@@ -250,42 +250,73 @@ section('§6 the seat verb — idle applies, busy parks, the idle edge drains, t
     }
     return true
   }
-  const toggles = (): Array<{ subtype?: string; switch?: string; on?: boolean }> => frames.filter(f => f.subtype === 'spawn_switch')
+  const toggles = (): Array<{ subtype?: string; switch?: string; on?: boolean; requestId?: string }> => frames.filter(f => f.subtype === 'spawn_switch')
   const rec = (): ReturnType<typeof sup.readSessionWorkers>[string] | undefined => sup.readSessionWorkers(recDir)[short]
+  const lastToggle = (): { switch?: string; on?: boolean; requestId?: string } => toggles()[toggles().length - 1] ?? {}
+  const runnerAnswers = (at: 'now' | 'turn-boundary'): string => {
+    const last = lastToggle()
+    seat.onSeatLine(short, JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: last.requestId, response: { switch: last.switch, on: last.on, at } } }), roster as never, recDir)
+    return last.requestId ?? ''
+  }
+  const runnerLands = (requestId: string, kind: string, on: boolean): void => {
+    seat.onSeatLine(short, JSON.stringify({ type: 'system', subtype: 'seat_verb_applied', request_id: requestId, verb: 'spawn_switch', switch: kind, on, uuid: 'u', session_id: sid }), roster as never, recDir)
+  }
 
-  const applied = seat.setSessionSpawnSwitch(sid, { kind: 'subagents', on: false }, 'operator', roster, recDir)
+  const appliedCall = seat.setSessionSpawnSwitch(sid, { kind: 'subagents', on: false }, 'operator', roster, recDir)
+  runnerAnswers('now')
+  const applied = await appliedCall
   check("idle: the toggle applies with the receipt (the Agent tool leaves the roster; reasoning restarts; a running spawn finishes)", applied.outcome === 'applied' && applied.detail === sw.spawnSwitchToggleReceipt('subagents', false, 'applied') && (applied.detail ?? '').includes('the Agent tool leaves the roster from the next turn') && (applied.detail ?? '').includes('reasoning restarts on the next turn') && (applied.detail ?? '').includes('a spawn already running finishes'), j(applied))
   check('…the record carries the toggle (the durable truth)', rec()?.spawnSwitches?.subagents === 'off', j(rec()?.spawnSwitches))
-  check('…one spawn_switch frame reached the child', toggles().length === 1 && toggles()[0]?.switch === 'subagents' && toggles()[0]?.on === false, j(toggles()))
+  check('…one spawn_switch frame reached the child, and the runner said where it landed (now)', toggles().length === 1 && toggles()[0]?.switch === 'subagents' && toggles()[0]?.on === false, j(toggles()))
   await settled()
   const facts = readSessionFacts(sid, recDir)
   check("…the facts projection carries the record's view (off, in-session) and no parked toggle", facts?.spawnSwitches?.subagents.on === false && facts.spawnSwitches.subagents.source === 'in-session' && facts.spawnSwitches.workflows.on === true && facts.pendingSpawnSwitches === undefined, j(facts?.spawnSwitches))
-  const same = seat.setSessionSpawnSwitch(sid, { kind: 'subagents', on: false }, 'operator', roster, recDir)
+  const same = await seat.setSessionSpawnSwitch(sid, { kind: 'subagents', on: false }, 'operator', roster, recDir)
   check('the same state no-ops', same.outcome === 'noop' && same.detail === 'sub-agents already off for this session', j(same))
 
   busy = true
-  const queued = seat.setSessionSpawnSwitch(sid, { kind: 'subagents', on: true }, 'operator', roster, recDir)
+  const queuedCall = seat.setSessionSpawnSwitch(sid, { kind: 'subagents', on: true }, 'operator', roster, recDir)
+  const heldId = runnerAnswers('turn-boundary')
+  const queued = await queuedCall
   check("busy: the toggle parks with the honest 'queued' line", queued.outcome === 'queued' && queued.detail === sw.spawnSwitchToggleReceipt('subagents', true, 'queued') && (queued.detail ?? '').includes('applies when this turn ends'), j(queued))
   check('…the record parks it and still reads off', rec()?.pendingSpawnSwitches?.length === 1 && rec()?.pendingSpawnSwitches?.[0]?.on === true && rec()?.spawnSwitches?.subagents === 'off')
-  check('…no frame reached the child yet (a running spawn is never touched)', toggles().length === 1)
+  check("…the toggle was forwarded at the park and the runner holds it for its turn boundary (the process moves the switch at the turn's end; a running spawn is never touched)", toggles().length === 2 && toggles()[1]?.on === true && heldId !== '', j(toggles()))
   const parkedSeen = await until(() => readSessionFacts(sid, recDir)?.pendingSpawnSwitches?.[0]?.on === true)
   check('…the facts say a toggle is parked', parkedSeen, j(readSessionFacts(sid, recDir)?.pendingSpawnSwitches))
-  const parkedAgain = seat.setSessionSpawnSwitch(sid, { kind: 'subagents', on: true }, 'operator', roster, recDir)
+  const parkedAgain = await seat.setSessionSpawnSwitch(sid, { kind: 'subagents', on: true }, 'operator', roster, recDir)
   check('the parked state decides noop (asking again for the parked value)', parkedAgain.outcome === 'noop')
   busy = false
   seat.onSeatIdle(short, roster, recDir)
-  check('the idle edge drains the parked toggle: the record reads on, nothing parked', rec()?.spawnSwitches?.subagents === 'on' && rec()?.pendingSpawnSwitches === undefined, j(rec()?.spawnSwitches))
-  check('…and the child hears it', toggles().length === 2 && toggles()[1]?.on === true, j(toggles()))
+  check('the idle edge sends nothing for a toggle the runner holds, and the record keeps the park', toggles().length === 2 && rec()?.pendingSpawnSwitches?.length === 1 && rec()?.spawnSwitches?.subagents === 'off', j({ toggles: toggles(), switches: rec()?.spawnSwitches }))
+  runnerLands(heldId, 'subagents', true)
+  check("the runner's applied frame lands the toggle on the record: on, nothing parked", rec()?.spawnSwitches?.subagents === 'on' && rec()?.pendingSpawnSwitches === undefined, j(rec()?.spawnSwitches))
   const before = toggles().length
   seat.onSeatSpawned(short, roster, recDir)
   check("the respawn re-forwards the record's toggles to the fresh child", toggles().length === before + 1 && toggles()[before]?.switch === 'subagents' && toggles()[before]?.on === true, j(toggles()))
-  const unknown = seat.setSessionSpawnSwitch('no-such-session', { kind: 'workflows', on: false }, 'operator', roster, recDir)
+  const racedCall = seat.setSessionSpawnSwitch(sid, { kind: 'workflows', on: false }, 'operator', roster, recDir)
+  const racedId = runnerAnswers('turn-boundary')
+  const raced = await racedCall
+  check('a toggle the seat read as idle but the runner holds parks truthfully: queued, the record parks it, the applied state untouched', raced.outcome === 'queued' && rec()?.pendingSpawnSwitches?.[0]?.kind === 'workflows' && rec()?.spawnSwitches?.workflows === undefined, j({ raced, switches: rec()?.spawnSwitches, parked: rec()?.pendingSpawnSwitches }))
+  runnerLands(racedId, 'workflows', false)
+  check("…and the runner's frame lands it", rec()?.spawnSwitches?.workflows === 'off' && rec()?.pendingSpawnSwitches === undefined, j(rec()?.spawnSwitches))
+  busy = true
+  const silentCall = seat.setSessionSpawnSwitch(sid, { kind: 'workflows', on: true }, 'operator', roster, recDir)
+  const silent = await silentCall
+  check('a runner silent past the deadline leaves the park standing: queued', silent.outcome === 'queued' && rec()?.pendingSpawnSwitches?.[0]?.kind === 'workflows' && rec()?.spawnSwitches?.workflows === 'off', j({ silent, parked: rec()?.pendingSpawnSwitches }))
+  busy = false
+  const drainBefore = toggles().length
+  seat.onSeatIdle(short, roster, recDir)
+  check('the idle edge forwards a parked toggle the runner does not hold', toggles().length === drainBefore + 1 && lastToggle().switch === 'workflows' && lastToggle().on === true, j(toggles()))
+  runnerAnswers('now')
+  const drained = await until(() => rec()?.spawnSwitches?.workflows === 'on' && rec()?.pendingSpawnSwitches === undefined)
+  check("…and the runner's answer lands it on the record: on, nothing parked", drained, j(rec()))
+  const unknown = await seat.setSessionSpawnSwitch('no-such-session', { kind: 'workflows', on: false }, 'operator', roster, recDir)
   check('an unknown session refuses typed', unknown.outcome === 'refused' && (unknown.detail ?? '').includes('unknown-session'))
   const daemonMain = src('src/daemon/main.ts')
   check("the daemon's control dispatcher routes 'set-spawn-switch' to the seat verb", daemonMain.includes("if (action === 'set-spawn-switch')") && daemonMain.includes('setSessionSpawnSwitch(sessionId, spawnSwitch, by, roster)'))
   check('the control server admits the action and narrows the payload', src('src/daemon/controlServer.ts').includes("raw.action === 'set-spawn-switch'") && src('src/daemon/controlServer.ts').includes("spawnSwitch refused — { kind: subagents|workflows, on: boolean }"))
   const printSrc = src('src/cli/print.ts')
-  check("the runner lands 'spawn_switch' now when idle and defers a mid-turn one to the turn's end", printSrc.includes("case 'spawn_switch': {") && printSrc.includes('deferredSpawnSwitches = [...deferredSpawnSwitches.filter(d => d.kind !== toggle.kind), toggle]') && printSrc.includes('for (const toggle of toggles) landSpawnSwitch(toggle.kind, toggle.on)'))
+  check("the runner answers a 'spawn_switch' with where it lands — now when idle, the turn boundary otherwise — and lands a deferred one at the turn's end with an applied frame", printSrc.includes("case 'spawn_switch': {") && printSrc.includes('deferredSpawnSwitches = [...deferredSpawnSwitches.filter(d => d.kind !== toggle.kind), { ...toggle, requestId }]') && printSrc.includes("respondSuccess(requestId, { switch: toggle.kind, on: toggle.on, at: 'turn-boundary' })") && printSrc.includes("respondSuccess(requestId, { switch: toggle.kind, on: toggle.on, at: 'now' })") && printSrc.includes("seatVerbAppliedFrame(getSessionId(), toggle.requestId, { verb: 'spawn_switch', switch: toggle.kind, on: toggle.on }, randomUUID())"))
   check('…the landing moves the switch and marks the transition row', printSrc.includes('const landed = setSpawnSwitch(kind, on)') && printSrc.includes('messages.push(createRosterTransitionMessage(kind, on, spawnSwitchTransitionLine(kind, on)))'))
   check("the runner's facts carry its switches", printSrc.includes('spawnSwitches: spawnSwitchFacts(),'))
 }

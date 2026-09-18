@@ -99,6 +99,8 @@ if (ONLY === undefined || ONLY === 'R') {
     { kind: 'text', text: 'the effort held.', whenBody: resultOf('tu-hold-5') },
     { kind: 'tool_use', name: 'Sleep', input: { seconds: HOLD_SECONDS }, id: 'tu-hold-6', whenBody: 'hold with nothing held', preText: 'holding plain. ' },
     { kind: 'text', text: 'the plain held.', whenBody: resultOf('tu-hold-6') },
+    { kind: 'tool_use', name: 'Sleep', input: { seconds: HOLD_SECONDS }, id: 'tu-hold-7', whenBody: 'hold for the flip', preText: 'holding for the flip. ' },
+    { kind: 'text', text: 'flipped.', whenBody: resultOf('tu-hold-7') },
     { kind: 'text', text: 'the late words answered.', whenBody: 'the drained words' },
     { kind: 'text', text: 'the late pair answered.', whenBody: 'the late pair words' },
     { kind: 'text', text: 'the effort words answered.', whenBody: 'the effort words' },
@@ -278,6 +280,31 @@ if (ONLY === undefined || ONLY === 'R') {
     const plain = firstRequestWith(api, 'the plain words')
     tally.check(`R7c with no verb held the standing law is untouched: words sent during a tool call join the running turn at its boundary and run on its model (${MODEL})`, continuation6 !== undefined && plain !== undefined && plain === continuation6 && bodyOf(plain).model === MODEL, describeRequests(api))
     tally.check('R7d no second turn opened for them', resultsSoFar() === results7 + 1 && indexOf(isTurnStarted, indexOf(isTurnStarted, before7) + 1) === -1, timeline(before7))
+
+    const before8 = frames.length
+    const results8 = resultsSoFar()
+    runner.send(user('hold for the flip', randomUUID()))
+    const sleeping7 = await runner.waitFor('the eighth Sleep call streams', isSleepCall, bound(60_000), before8)
+    tally.check('R8a the eighth ask calls Sleep', sleeping7 !== null, describeRequests(api))
+    await sleep(300)
+    control('sb-spawn-1', { subtype: 'spawn_switch', switch: 'subagents', on: false })
+    const ack8 = await runner.waitFor('the spawn_switch answer', answerTo('sb-spawn-1'), bound(10_000), before8)
+    const resultsAtAck8 = resultsSoFar()
+    tally.check('R8b a spawn switch sent mid-turn is answered at once with where it lands — the turn boundary — naming the switch', ack8 !== null && payloadOf(ack8).at === 'turn-boundary' && payloadOf(ack8).switch === 'subagents' && payloadOf(ack8).on === false && resultsAtAck8 === results8, JSON.stringify(ack8))
+    tally.check('R8c the held turn settles', await waitResults(results8 + 1, bound(60_000)), describeRequests(api))
+    const applied8 = await runner.waitFor('the spawn switch applied frame', appliedFrameFor('sb-spawn-1'), bound(10_000), before8)
+    const result9 = indexOf(isResultFrame, before8)
+    const appliedAt8 = indexOf(appliedFrameFor('sb-spawn-1'), before8)
+    tally.check("R8d the applied frame follows the held turn's result and names the switch it landed", applied8 !== null && result9 !== -1 && appliedAt8 > result9 && applied8.verb === 'spawn_switch' && applied8.switch === 'subagents' && applied8.on === false, `result ${result9} · applied ${appliedAt8} · ${JSON.stringify(applied8)} · ${timeline(before8)}`)
+    control('sb-facts-1', { subtype: 'session_facts' })
+    const facts8 = await runner.waitFor('the facts answer', answerTo('sb-facts-1'), bound(10_000), before8)
+    const factsPayload8 = payloadOf(facts8) as { spawn_switches?: { subagents?: { on?: boolean; source?: string } }; spawnSwitches?: { subagents?: { on?: boolean; source?: string } } }
+    const switches8 = factsPayload8.spawn_switches ?? factsPayload8.spawnSwitches
+    tally.check("R8e the runner's own facts read the switch off, in-session, before any next turn opens", switches8?.subagents?.on === false && switches8?.subagents?.source === 'in-session', JSON.stringify(switches8))
+    control('sb-spawn-2', { subtype: 'spawn_switch', switch: 'subagents', on: true })
+    const ack9 = await runner.waitFor('the idle spawn_switch answer', answerTo('sb-spawn-2'), bound(10_000), before8)
+    await sleep(300)
+    tally.check('R8f a spawn switch while no turn runs applies now — the answer says so and no applied frame follows', ack9 !== null && payloadOf(ack9).at === 'now' && payloadOf(ack9).switch === 'subagents' && payloadOf(ack9).on === true && indexOf(appliedFrameFor('sb-spawn-2'), before8) === -1, JSON.stringify(ack9))
   } finally {
     keepFrames()
     keepRequests(api, 'runner-requests.json')
@@ -316,8 +343,13 @@ if (ONLY === undefined || ONLY === 'D') {
     { kind: 'text', text: 'held through.', whenBody: resultOf('tu-d') },
     { kind: 'tool_use', name: 'Sleep', input: { seconds: HOLD_SECONDS + 1 }, id: 'tu-e', whenBody: 'hold then dial', preText: 'holding then dialling. ' },
     { kind: 'text', text: 'dialed through.', whenBody: resultOf('tu-e') },
+    { kind: 'tool_use', name: 'Sleep', input: { seconds: HOLD_SECONDS + 1 }, id: 'tu-f', whenBody: 'hold then flip', preText: 'holding then flipping. ' },
+    stream(resultOf('tu-f'), 'flipping'),
+    { kind: 'tool_use', name: 'Agent', input: { description: 'a second probe', prompt: 'hold the probe two', run_in_background: true }, id: 'tu-agent-2', whenBody: 'spawn a probe now', preText: 'spawning. ' },
+    { kind: 'text', text: 'the probe leg done.', whenBody: resultOf('tu-agent-2') },
     { kind: 'text', text: 'the late words answered.', whenBody: 'the late words' },
     { kind: 'text', text: 'the late effort words answered.', whenBody: 'the late effort words' },
+    { kind: 'text', text: 'probe two done.', whenBody: 'hold the probe two' },
     { kind: 'text', text: 'done.' },
     { kind: 'text', text: 'done.' },
     { kind: 'text', text: 'done.' },
@@ -371,7 +403,7 @@ if (ONLY === undefined || ONLY === 'D') {
       return ''
     }
     tally.check("D0 A's first turn settles", await untilAsync(() => transcript().includes('ready.'), bound(60_000)))
-    const record = (): { modelKey?: string; pendingModelKey?: string; effort?: string; pendingEffort?: string; pid?: number } | undefined => sup.readSessionWorkers(daemonDir)[runnerId]
+    const record = (): { modelKey?: string; pendingModelKey?: string; effort?: string; pendingEffort?: string; pid?: number; spawnSwitches?: Partial<Record<'subagents' | 'workflows', 'on' | 'off'>>; pendingSpawnSwitches?: Array<{ kind: string; on: boolean }> } | undefined => sup.readSessionWorkers(daemonDir)[runnerId]
     await untilAsync(() => record()?.pid !== undefined, bound(30_000))
     {
       const p = record()?.pid
@@ -484,6 +516,25 @@ if (ONLY === undefined || ONLY === 'D') {
     tally.check('DG6 THE SYMPTOM FOR EFFORT: the words sent after the parked effort wait for the turn and run as the next turn at the new effort (high)', wordsTurnG && continuationG !== undefined && wordsG !== undefined && wordsG !== continuationG && bodyOf(wordsG).output_config?.effort === 'high', describeRequests(api))
     tally.check("DG7 the running turn's continuation kept its effort (low) and carried no words", continuationG !== undefined && bodyOf(continuationG).output_config?.effort === 'low' && !JSON.stringify(continuationG.body).includes('the late effort words'), describeRequests(api))
     tally.check('DG8 the record reads the new effort with nothing parked', await untilAsync(() => record()?.effort === 'high' && record()?.pendingEffort === undefined, bound(15_000), 50), JSON.stringify(record()))
+
+    tally.section("D·H the spawn switches on the boundary: a sub-agents switch made mid-turn lands at the turn's end, before the next turn's launch")
+    await idle()
+    tally.check('DH1 the hold turn is taken', await send('hold then flip', 'sb-hold-h'))
+    tally.check('DH2 the stream holds on the Sleep call', await untilAsync(() => transcript().includes('"callId":"tu-f"'), bound(60_000), 50))
+    await sleep(300)
+    const flipped = await seatVerb('set-spawn-switch', { spawnSwitch: { kind: 'subagents', on: false } })
+    tally.check("DH3 the switch parks: the receipt is 'queued' and says it applies when this turn ends", flipped.ok === true && flipped.outcome === 'queued' && (flipped.detail ?? '').includes('applies when this turn ends'), JSON.stringify(flipped))
+    tally.check('DH4 the record parks the toggle beside the running turn', (record()?.pendingSpawnSwitches ?? []).some(p => p.kind === 'subagents' && p.on === false) && record()?.spawnSwitches?.subagents === undefined, JSON.stringify({ parked: record()?.pendingSpawnSwitches, switches: record()?.spawnSwitches }))
+    tally.check("DH5 the running turn's continuation goes out after the Sleep", await untilAsync(() => firstRequestWith(api, resultOf('tu-f')) !== undefined, bound(30_000), 50), describeRequests(api))
+    await sleep(300)
+    tally.check('DH6 the words asking for a spawn are sent during the final stream, before the turn ends', await send('spawn a probe now', 'sb-words-h'))
+    tally.check("DH7 the words run as the next turn and its launch settles", await untilAsync(() => transcript().includes('the probe leg done.'), bound(90_000)), describeRequests(api))
+    const launchH = firstRequestWith(api, resultOf('tu-agent-2'))
+    const launchBodyH = launchH === undefined ? '' : JSON.stringify(launchH.body)
+    const launchMetTheSwitch = launchBodyH.includes('sub-agents are off for this session') || launchBodyH.includes('No such tool available: Agent')
+    tally.check('DH8 THE SYMPTOM: the switch landed before the next turn, so its launch met the switch — the Agent tool gone from the roster, or the valve\'s receipt — instead of starting a probe', launchH !== undefined && launchMetTheSwitch, launchH === undefined ? describeRequests(api) : launchBodyH.slice(launchBodyH.indexOf('tu-agent-2'), launchBodyH.indexOf('tu-agent-2') + 260))
+    tally.check("DH9 the record reads the switch off with nothing parked", await untilAsync(() => record()?.spawnSwitches?.subagents === 'off' && (record()?.pendingSpawnSwitches ?? []).length === 0, bound(15_000), 50), JSON.stringify({ parked: record()?.pendingSpawnSwitches, switches: record()?.spawnSwitches }))
+    tally.check('DH10 the facts read the switch off, in-session, with no parked toggle', await untilAsync(() => facts()?.spawnSwitches?.subagents.on === false && facts()?.spawnSwitches?.subagents.source === 'in-session' && facts()?.pendingSpawnSwitches === undefined, bound(15_000), 50), JSON.stringify(facts()?.spawnSwitches))
 
     tally.section("D·E the connector's facts after the boundary")
     const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
