@@ -79,7 +79,6 @@ const EXPECTED: ReadonlyArray<[string, Area, Stage, string, string | undefined]>
   ['worktrees.realms', 'worktrees', 3, '/realms lists the folders you trust.', 'realms'],
   ['worktrees.orient', 'worktrees', 3, '/orient maps a new repo in one read.', 'orient'],
   ['worktrees.branch', 'worktrees', 3, '/branch asks a side question, no derail.', 'branch'],
-  ['minerva.tabula', 'minerva', 3, '/tabula asks Minerva to refine a prompt.', 'tabula'],
   ['minerva.tidy', 'minerva', 3, '/minerva turns your words into notes.', 'minerva'],
   ['minerva.free', 'minerva', 3, 'Minerva bills one call per line sent.', undefined],
   ['minerva.outlive', 'minerva', 3, 'Notes outlive /clear: they live on disk.', 'note'],
@@ -184,7 +183,7 @@ section('§1 the words — the curriculum bank')
   check('every ungated tip surface is enabled in the default world', offUngated.length === 0, offUngated.map(t => t.id).join(', '))
   check(
     'the gated tips carry the gate their surface reads (the notepad, the fleet, the repo map)',
-    ['minerva.note', 'minerva.tabula', 'minerva.tidy', 'minerva.free', 'minerva.outlive', 'agents.fleet', 'agents.workflows', 'agents.teammates', 'worktrees.orient'].every(
+    ['minerva.note', 'minerva.tidy', 'minerva.free', 'minerva.outlive', 'agents.fleet', 'agents.workflows', 'agents.teammates', 'worktrees.orient'].every(
       id => typeof bank.find(t => t.id === id)?.when === 'function',
     ),
   )

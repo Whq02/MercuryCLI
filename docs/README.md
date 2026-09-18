@@ -62,8 +62,8 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
 - [DEBUGGER.md](DEBUGGER.md): the debugger over the Debug Adapter Protocol,
   launch and attach, the adapter table, child-session trees, and
   one-gesture test-debug.
-- [TABULA-NOTES.md](TABULA-NOTES.md): Minerva's room (`/tabula`, refining
-  your saved prompts) and the project notepad file underneath (`/note`).
+- [TABULA-NOTES.md](TABULA-NOTES.md): the project notepad file (`/note`) and
+  the Minerva curator over it.
 - [APOLLO-MODE.md](APOLLO-MODE.md): the Apollo permission mode, the
   pre-flight interview that writes the spec and builds a prototype from it.
 - [VOICE.md](VOICE.md): voice input — `/speak on`, space in an empty composer

@@ -1,34 +1,11 @@
-# Tabula — Minerva's room, and the project notepad underneath
+# Tabula — the project notepad, and the Minerva curator over it
 
-`/tabula` is **Minerva's room**: you talk to Minerva there, and its one job is refining
-your **saved prompts** — the third tab of the prompts panel (`/workbench`). It refines a
-saved prompt only when you ask ("tighten prompt 2"); a refinement lands beside your
-wording, never over it — and every refinement ALSO lands in the panel's dedicated
-**MINERVA** tab, a durable per-project feed of refined prompts. A landed refinement is
-usable in one gesture: `s` — on the refined prompt in the room's list, or on a MINERVA
-tab row — puts the refined text in the main composer, ready to send; nothing is ever
-submitted for you, your own ↵ is the send. With no Minerva model pinned (`/submodels`)
-the room says so in one line and the saved prompts sit. Composing is free; ↵ is the one
-billed call.
-
-The room opens with the arrow focus on the saved-prompts list: ↑↓ pick a prompt and ↵
-asks Minerva to refine that one; the chat box sits one ↓ (or tab) past the list for a
-direct message. Which prompts a sentence is about comes from the sentence itself — a
-number, an ordinal, or a prompt id — and an ambiguous ask gets the room's own "which one"
-question back, never a guess. `m` on a saved prompt, in the panel or in the room's list,
-stages its text into the room's message box as an editable draft; your ↵ is the only
-send. `s` on a prompt that carries a refinement sends the refined text to the composer
-(the room closes onto it); the selected refined line advertises exactly that. esc
-from the list closes the room (a running turn keeps thinking); while Minerva is working,
-one esc at the composer only arms — esc·esc interrupts her; esc on an idle composer steps
-back to the list with the draft kept.
-
-The **project notepad** stays underneath, as a file: `/note <text>` captures into the
-per-project journal and its `notepad.md` mirror under the Mercury config home — never
-inside the repo tree — so notes are private by construction and survive `/clear`.
-`/minerva <msg>` still turns a line into note operations on that journal, and the opt-in
-boot pass still curates it. The room offers no note-leaving; earlier notes stay readable
-in their plain file, and the room points at it.
+The **project notepad** is a file: `/note <text>` captures into the per-project journal
+and its `notepad.md` mirror under the Mercury config home — never inside the repo tree —
+so notes are private by construction and survive `/clear`. The lanes rail keeps a
+display-only TABULA card over it: the notes count and the top open notes, or the
+`no notes — /note` hint on a clean slate. `/minerva <msg>` turns a line into note
+operations on that journal, and the opt-in boot pass curates it.
 
 ## Gates
 
@@ -36,7 +13,7 @@ All three gates are read live on every call — a gate that latches env at impor
 after a live authority toggle:
 
 - `MERCURY_TABULA` — default on; `=0` is the only off switch. Off means the store,
-  all three commands, the board, and the rail card are absent, byte-identically.
+  both commands, and the rail card are absent, byte-identically.
 - `MERCURY_TABULA_MINERVA` — default off, explicit opt-in. Arming it is the billing
   consent for the boot-time curator pass (the boot-menu row); it rides the master
   gate, so a tabula kill silences the curator too.
@@ -65,18 +42,16 @@ order events rather than dropping them. Every read path degrades to empty-with-r
 
 ## Commands
 
-All three commands are interactive-only and gated on the master gate:
+Both commands are interactive-only and gated on the master gate:
 
 - `/note <text>` — one-keypress capture: zero model turns, an appended journal event,
   and a re-materialized notepad.
-- `/tabula` — Minerva's room, above.
-- `/minerva <message>` — the notepad chat without opening the room: one billed
+- `/minerva <message>` — the notepad chat: one billed
   curator call per invocation (typing the command is the consent); Minerva turns the
   message into structured note operations — add, done, pri, refine — never delete.
 
 `/note` and `/minerva` are user-private: the line acts on the screen and never enters
-the session's conversation, on any seat ([TRUST.md](TRUST.md) states the law). The
-lanes rail keeps a glance at the notepad's top open notes; ↵ there opens the room.
+the session's conversation, on any seat ([TRUST.md](TRUST.md) states the law).
 
 ## Minerva — the curator
 
@@ -102,13 +77,8 @@ One engine sits behind every curator surface. Its rails:
   honest count in the prompt); a refined line is a one-line polish with a hard
   character cap.
 
-Two further surfaces ride the same engine:
+One further surface rides the same engine:
 
-- The cockpit ask line: a mini-REPL under the
-  lanes rail's tabula section. Usage honesty is its invariant — the store cannot
-  construct an API request; the injected runner fires exactly once per explicit enter
-  and never otherwise, one exchange in flight, abort rewinds the buffer and stops the
-  stream.
 - The staged refined-draft handoff: Minerva
   refines, the operator dispatches. A refinement stages original and refined text side
   by side and never dispatches or completes anything by itself; each staged draft
@@ -127,8 +97,7 @@ saved pick > unset**. The env pins are registered flags (`MERCURY_MINERVA_MODEL`
 `MERCURY_CONSOLE_MODEL`). No default derives: a container nobody pinned is *unset*, and
 messaging it spends no model call — the reply is exactly the line
 `use /submodels to pin one of the available model catalogues`, painted where the answer
-would be (the console overlay and rail, the Minerva ask line, the board's chip, the
-`/minerva` line). A saved pick persists across sessions. Ids are canonicalized (aliases
+would be (the console overlay and rail, the `/minerva` line). A saved pick persists across sessions. Ids are canonicalized (aliases
 resolved, the context-window tag folded — the window is a call-time flavor, never a
 second identity), and nothing in the module re-spells a model id or family name: rows
 come from the model options catalogue, families and display names from the routing law,

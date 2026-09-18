@@ -333,7 +333,7 @@ export function materializeNotepad(dir: string, projectName: string): string {
   lines.push(...(done.length ? done.map(renderNoteLine) : ['_(empty)_']))
   lines.push('')
   lines.push('---')
-  lines.push('_Generated from journal.jsonl — edit via `/tabula` (or `/note <text>` to capture)._')
+  lines.push('_Generated from journal.jsonl — `/note <text>` captures._')
   const md = lines.join('\n') + '\n'
   try {
     durableAtomicPublishSync(join(dir, NOTEPAD), md)

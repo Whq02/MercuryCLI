@@ -64,7 +64,6 @@ console.log('== membership + consumption + editor-ownership source pins ==')
   const resume = read('src/components/MercuryResume.tsx')
   const config = read('src/components/MercuryConfig.tsx')
   const consoleSrc = read('src/commands/console/console.tsx')
-  const tabula = read('src/components/tabula/MinervaRoom.tsx')
   const promptsPanel = read('src/components/prompts-panel/PromptsPanel.tsx')
   const logsel = read('src/components/LogSelector.tsx')
 
@@ -91,9 +90,8 @@ console.log('== membership + consumption + editor-ownership source pins ==')
 
   check('console ask line is a real TextInput', consoleSrc.includes('<TextInput') && consoleSrc.includes('onChangeCursorOffset'))
   check('console: the setTimeout ready flag is DEAD (event-identity gate)', !consoleSrc.includes('setReady') && consoleSrc.includes('useOpenEventGate'))
-  check('tabula (Minerva room) editor is a real TextInput', tabula.includes('<TextInput') && tabula.includes('onChangeCursorOffset'))
   check('prompts-panel editor is a real TextInput', promptsPanel.includes('<TextInput') && promptsPanel.includes('onChangeCursorOffset'))
-  check('tabula: the append-only ⌫ branch is dead', !tabula.includes('buffer: ed.buffer.slice(0, -1)') && !promptsPanel.includes('buffer: ed.buffer.slice(0, -1)'))
+  check('prompts-panel: the append-only ⌫ branch is dead', !promptsPanel.includes('buffer: ed.buffer.slice(0, -1)'))
   check('LogSelector rename rides TextInput (pre-existing)', logsel.includes('<TextInput value={renameValue}'))
 
   const sharedList = read('src/components/mercury-ui/useInteractiveList.ts')

@@ -29,7 +29,7 @@
 | REPL cockpit (direct boot / --continue / --resume <id>) | `src/screens/REPL.tsx → src/ink/components/AlternateScreen.tsx` | claims the held screen (outermost mount consumes + arms the takeover erase) |
 | non-takeover argv paths (-p · --help · subcommands · piped stdout) | `src/entrypoints/cli.tsx` | releases the hold before any output |
 
-## Slash routes — modal-slot views (local-jsx: 78)
+## Slash routes — modal-slot views (local-jsx: 77)
 
 Host: the FullscreenLayout modal slot (opaque claim; SURFACE-CLAIM
 INVARIANT forces height = terminalRows at peek 0). Kernel signals name
@@ -105,7 +105,6 @@ the interaction primitives the view actually mounts (1-hop join).
 | /substrate | — | `src/commands/substrate` |
 | /supercode | ilist irow | `src/commands/supercode` |
 | /surfaces | ilist irow | `src/commands/manager` |
-| /tabula | — | `src/commands/tabula` |
 | /tasks | — | `src/commands/tasks` |
 | /team | — | `src/commands/team` |
 | /teammates | — | `src/commands/teammates` |
@@ -116,9 +115,9 @@ the interaction primitives the view actually mounts (1-hop join).
 | /workbench | panes | `src/commands/workbench` |
 | /workflows | panes | `src/commands/workflows` |
 
-## Slash routes — transcript prints (local: 32)
+## Slash routes — transcript prints (local: 33)
 
-`/accent` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/companion` · `/concourse` · `/cost` · `/counsel` · `/debrief` · `/good` · `/halt` · `/heapdump` · `/keybindings` · `/kill` · `/meh` · `/mock-limits` · `/mouse` · `/orient` · `/pings` · `/release-notes` · `/remember` · `/rewind` · `/seats` · `/speak` · `/subagents` · `/supervisor` · `/themis` · `/vim` · `/voice`
+`/accent` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/companion` · `/concourse` · `/cost` · `/counsel` · `/debrief` · `/good` · `/halt` · `/heapdump` · `/keybindings` · `/kill` · `/meh` · `/mock-limits` · `/mouse` · `/note` · `/orient` · `/pings` · `/release-notes` · `/remember` · `/rewind` · `/seats` · `/speak` · `/subagents` · `/supervisor` · `/themis` · `/vim` · `/voice`
 
 ## Slash routes — model turns (prompt: 3)
 

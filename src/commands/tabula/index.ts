@@ -2,15 +2,6 @@ import type { Command } from '../../commands.js'
 import { isTabulaEnabled } from '../../utils/tabula/tabulaGates.js'
 
 
-export const tabulaCommand = {
-  type: 'local-jsx',
-  name: 'tabula',
-  description: "Minerva's room — talk to Minerva; it refines your saved prompts when you ask (model: /submodels)",
-  isEnabled: () => isTabulaEnabled(),
-  isHidden: false,
-  load: () => import('./tabula.js'),
-} satisfies Command
-
 export const noteCommand = {
   type: 'local',
   name: 'note',
@@ -34,5 +25,3 @@ export const minervaCommand = {
   userPrivate: true,
   load: () => import('./minerva.js'),
 } satisfies Command
-
-export default tabulaCommand
