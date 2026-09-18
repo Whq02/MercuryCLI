@@ -36,6 +36,7 @@ import {
   focusConcourseSession,
   grantConcourseWorkflows,
   isNewbornRecord,
+  nextLiveCockpitOwner,
   PARK_DRAIN_CUT_REASON,
   parkAllConcourseSessions,
   parkConcourseSession,
@@ -288,6 +289,7 @@ async function daemonRun(args: string[]): Promise<void> {
   const idleNudges = new Map<string, () => void>()
   let ownerWatch: OwnerWatchHandleV1 | undefined
   let ownerPipe: OwnerPipeHandleV1 | undefined
+  let currentOwnerPid = parseOwnerPid()
   let ready = false
   let wakeReady: () => void = () => {}
   const readyPromise = new Promise<void>(resolve => {
@@ -830,7 +832,7 @@ async function daemonRun(args: string[]): Promise<void> {
           buildTree: bootBuildTree,
           pid: process.pid,
           startedAt,
-          ownerPid: parseOwnerPid(),
+          ownerPid: currentOwnerPid,
           foreground,
           ...liveWorkers(),
           warm: warmRunnerCount(),
@@ -871,19 +873,21 @@ async function daemonRun(args: string[]): Promise<void> {
         },
       })
       const bootStartToken = await getProcessStartTokenAsync(process.pid)
-      await writeSupervisorState({
-        pid: process.pid,
-        version: currentVersion(),
-        origin: 'transient',
-        startedAt,
-        dir,
-        controlSock: controlSockPath(),
-        proto: MERCURY_DAEMON_PROTO,
-        buildTree: bootBuildTree,
-        ownerPid: parseOwnerPid(),
-        foreground,
-        startToken: bootStartToken,
-      })
+      const persistSupervisorRecord = (owner: number | null): Promise<void> =>
+        writeSupervisorState({
+          pid: process.pid,
+          version: currentVersion(),
+          origin: 'transient',
+          startedAt,
+          dir,
+          controlSock: controlSockPath(),
+          proto: MERCURY_DAEMON_PROTO,
+          buildTree: bootBuildTree,
+          ownerPid: owner,
+          foreground,
+          startToken: bootStartToken,
+        })
+      await persistSupervisorRecord(currentOwnerPid)
       {
         let healInflight = false
         let healQueued = false
@@ -913,19 +917,7 @@ async function daemonRun(args: string[]): Promise<void> {
               `[daemon] control plane degraded (sock:${sockMissing} key:${keyMissing} state:${stateMissing}) — re-asserting`,
             )
             await reassertControlKey(controlKey)
-            await writeSupervisorState({
-              pid: process.pid,
-              version: currentVersion(),
-              origin: 'transient',
-              startedAt,
-              dir,
-              controlSock: controlSockPath(),
-              proto: MERCURY_DAEMON_PROTO,
-              buildTree: bootBuildTree,
-              ownerPid: parseOwnerPid(),
-              foreground,
-              startToken: bootStartToken,
-            })
+            await persistSupervisorRecord(currentOwnerPid)
             if (sockMissing) await controlServer?.rebind()
           } catch (e) {
             logForDebugging(`[daemon] plane self-heal failed (the next signal or floor retries): ${e}`)
@@ -1216,31 +1208,49 @@ async function daemonRun(args: string[]): Promise<void> {
     process.on('uncaughtException', err => crashShutdown('uncaughtException', err))
     process.on('unhandledRejection', reason => crashShutdown('unhandledRejection', reason))
 
-    const ownerPid = parseOwnerPid()
     const persist = isEnvTruthy(flagEnv('MERCURY_DAEMON_PERSIST'))
-    if (ownerPid !== null && !persist) {
-      const ownerStartToken = getProcessStartToken(ownerPid)
+    const armOwnerWatch = (pid: number, withPipe: boolean): void => {
+      ownerWatch?.stop()
+      ownerPipe?.close()
+      ownerPipe = undefined
+      const ownerStartToken = getProcessStartToken(pid)
       ownerWatch = startOwnerWatch({
-        ownerPid,
+        ownerPid: pid,
         baselineToken: ownerStartToken,
         // eslint-disable-next-line no-console
         log: line => console.error(line),
         onOrphan: why => {
           ownerPipe?.close()
+          const next = nextLiveCockpitOwner(pid)
+          if (next !== undefined) {
+            currentOwnerPid = next
+            void readSupervisorState()
+              .then(rec => (rec ? writeSupervisorState({ ...rec, ownerPid: next }) : undefined))
+              .catch(() => {})
+            // eslint-disable-next-line no-console
+            console.error(`[daemon] owner pid ${pid} gone (${why}) — ownership passes to the live cockpit pid ${next}; the daemon stays up`)
+            armOwnerWatch(next, false)
+            return
+          }
           // eslint-disable-next-line no-console
-          console.error(`[daemon] owner pid ${ownerPid} gone (${why}) — parking every active session, then self-reaping (orphaned auto-start)`)
+          console.error(`[daemon] owner pid ${pid} gone (${why}) — no live cockpit remains: parking every active session, then self-reaping (orphaned auto-start)`)
           void parkAllThenShutdown('owner-orphaned')
         },
       })
-      const ownerFd = parseOwnerFd()
-      if (ownerFd !== null) {
-        // eslint-disable-next-line no-console
-        ownerPipe = armOwnerPipe(ownerFd, () => ownerWatch?.ownerPipeClosed(), line => console.error(line))
-        if (!ownerPipe.armed) {
+      if (withPipe) {
+        const ownerFd = parseOwnerFd()
+        if (ownerFd !== null) {
           // eslint-disable-next-line no-console
-          console.error(`[daemon] owner pipe not armed (${ownerPipe.why ?? 'unknown'}) — the liveness beat and the minute identity probe watch alone`)
+          ownerPipe = armOwnerPipe(ownerFd, () => ownerWatch?.ownerPipeClosed(), line => console.error(line))
+          if (!ownerPipe.armed) {
+            // eslint-disable-next-line no-console
+            console.error(`[daemon] owner pipe not armed (${ownerPipe.why ?? 'unknown'}) — the liveness beat and the minute identity probe watch alone`)
+          }
         }
       }
+    }
+    if (currentOwnerPid !== null && !persist) {
+      armOwnerWatch(currentOwnerPid, true)
     }
   })
 }
