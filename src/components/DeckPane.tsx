@@ -122,7 +122,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
       : ctx.usedPct != null
         ? Math.round((ctx.window * ctx.usedPct) / 100 / 1000)
         : 0
-  const ctxWinLabel = contextWindowLabel(ctx.window, ctx.windowSource)
+  const ctxWinLabel = contextWindowLabel(ctx.window, ctx.windowSource, ctx.windowPinned)
   const agent = agentStateSnapshot()
   useSyncExternalStore(subscribePresence, getPresenceVersion, getPresenceVersion)
   const seats = getLivePresence()

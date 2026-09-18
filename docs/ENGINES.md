@@ -192,6 +192,14 @@ auto mode, tool-search header), media (PDF and
 image support), and beta-header emission. It re-reads live state on every
 call by design.
 
+A context window can come from a dated pin while the account's live list has
+not answered yet — the GPT pin table, the Hugging Face pins. The rail's
+context figure then carries the word `pin` after the size (`ctx 12% · 1050k
+pin`), so a pin reads apart from a fact; when the list answers, the mark goes
+and the figure is the list's. A pin no live list ever replaces — the
+first-party rows, the GLM, Kimi and DeepSeek pins — carries no mark, and `~`
+keeps its one meaning: the conservative default no source has stated.
+
 ## Web search
 
 The web-search estate is one provider-neutral contract and TWO tools under
@@ -271,6 +279,17 @@ never a Sonnet one). A lane that serves no percent-shaped usage signal warns
 never — an absent signal is an absent warning, not a fabricated meter. The engine
 feeders read the same window views the settings tab and the rail meters read, so
 the strip and the meters can never disagree about a percent.
+
+The same derivation puts one notice into the session's own context when the
+binding window crosses that threshold, so an agent working in the session can
+save its work before the provider stops it. At the next turn boundary — the
+next submission or the next tool round — the model reads the provider and the
+window, the percent used, the reset when the wire stated one, and what to do:
+finish the step in hand, commit what is done, write down where the work stands.
+The notice enters once per window per session and returns only after the window
+has reset and the next one closes in; a resumed session remembers the windows it
+was told about. A lane that serves no usage signal gets no notice, and a
+headless run gets it by the same road. Nothing on the screen changes for it.
 
 Every meter surface — the telemetry rail's USAGE panel, `/deck`, the frame
 band, `/usage` and the doctor's per-family usage rows — reads one owner and

@@ -12,6 +12,7 @@ export interface ContextFillView {
   fillSource: 'usage' | 'estimate' | null
   window: number
   windowSource: ContextResolution['source']
+  windowPinned: boolean
   windowReason?: string
   compactAtPct: number | null
   leftUntilCompactPct: number | null
@@ -41,15 +42,16 @@ export function contextFillView(messages: readonly Message[], model: string): Co
     fillSource: usedTokens === null ? null : fill.source,
     window,
     windowSource: resolution.source,
+    windowPinned: resolution.source === 'static-pin' && resolution.pinAwaitingLive === true,
     ...(resolution.fallbackReason ? { windowReason: resolution.fallbackReason } : {}),
     compactAtPct,
     leftUntilCompactPct,
   }
 }
 
-export function contextWindowLabel(window: number, windowSource: ContextResolution['source'] | null): string {
+export function contextWindowLabel(window: number, windowSource: ContextResolution['source'] | null, windowPinned = false): string {
   if (!(window > 0)) return '—'
-  return `${windowSource === 'fallback' ? '~' : ''}${Math.round(window / 1000)}k`
+  return `${windowSource === 'fallback' ? '~' : ''}${Math.round(window / 1000)}k${windowPinned ? ' pin' : ''}`
 }
 
 export function contextPercentLabel(usedPct: number | null, fillSource: 'usage' | 'estimate' | null): string {
