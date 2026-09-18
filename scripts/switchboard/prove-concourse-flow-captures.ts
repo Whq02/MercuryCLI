@@ -231,7 +231,7 @@ if (runLeg('queued')) {
   for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
     const lines = capture('queued-enter', scratch, fixturePath, cols, rows, [{ ...settle, data: '\t' }, { afterPrevTicks: 3, data: '\r' }], 60)
     check(`${cols}×${rows}: ↵ on the queued row keeps the board`, has(lines, 'SESSIONS') && has(lines, 'queued probe'))
-    check(`${cols}×${rows}: the in-place line — a disclaimer in the estate's voice`, lines.some(l => /queued — waits for a seat · \d+\/\d+ seats/.test(l)), lines.find(l => l.includes('queued —')) ?? '(no queued line)')
+    check(`${cols}×${rows}: the in-place line — a disclaimer in the estate's voice, whole (the seat count and the m door both on the row)`, lines.some(l => /queued · \d+\/\d+ busy · m queues a message/.test(l)), lines.find(l => l.includes('queued ')) ?? '(no queued line)')
     check(`${cols}×${rows}: the void screen did NOT open`, !has(lines, 'add a message — it delivers') && !has(lines, keyHintLabel('⇧← back to the concourse')))
   }
   const room = capture('queued-room', scratch, fixturePath, 120, 40, [{ ...settle, data: '\t' }, { afterPrevTicks: 4, data: 'm' }], 70)
