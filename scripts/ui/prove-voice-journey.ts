@@ -312,7 +312,7 @@ console.log('[B] a keyless, packless home — v answers the no-transcriber recei
     [
       ...OPENING,
       { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
-      { requireAwait: true, awaitText: 'files · nothing transcribes yet — on-device pack pin broken; or /logins', awaitStableTicks: 2, mark: 'receipt', data: '' },
+      { requireAwait: true, awaitText: 'nothing transcribes yet — on-device pack pin broken; or /logins', awaitStableTicks: 2, mark: 'receipt', data: '' },
       { afterPrevTicks: 3, data: '' },
     ],
     90,
@@ -335,7 +335,7 @@ console.log('[C] no pack, no recorder — v answers the no-backend receipt')
     [
       ...OPENING,
       { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
-      { requireAwait: true, awaitText: 'files · no microphone backend — the voice pack is absent on this install', awaitStableTicks: 1, mark: 'receipt', data: '' },
+      { requireAwait: true, awaitText: 'no microphone backend — the voice pack is absent on this install', awaitStableTicks: 1, mark: 'receipt', data: '' },
       { afterPrevTicks: 3, data: '' },
     ],
     90,
