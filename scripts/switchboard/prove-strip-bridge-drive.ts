@@ -254,7 +254,8 @@ console.log('S3 — the last chat closed from the board: the board stays, and th
       { afterPrevTicks: 3, data: '\x18' },
       { afterPrevTicks: 3, data: '\x18' },
       g('stopped', '\x18', { awaitSettleTicks: 3 }),
-      { afterPrevTicks: 3, data: '\x18' },
+      { afterPrevTicks: 3, data: '\x18', mark: 'hint' },
+      g(EMPTY_BOARD, '', { awaitSettleTicks: 2, mark: 'receipt' }),
       g(EMPTY_BOARD, '', { awaitSettleTicks: 35, mark: 'board-stays' }),
       { afterPrevTicks: 3, data: SHIFT_RIGHT },
       { afterPrevTicks: 6, data: '', mark: 'board-after' },
@@ -269,6 +270,10 @@ console.log('S3 — the last chat closed from the board: the board stays, and th
   const stays = markText(c, 'board-stays')
   const after = markText(c, 'board-after')
   const menu = markText(c, 'menu')
+  const hint = markText(c, 'hint')
+  const receipt = markText(c, 'receipt')
+  check('S3 the stopped newborn\'s pending leader says the chord REMOVES it (a chat with no message is released, never parked)', hint.includes(keyHintLabel('⌃x again removes it (the chat held no message)')) && !hint.includes(keyHintLabel('⌃x again archives it (the chat stands parked)')), hint.split('\n').filter(l => /again (removes|archives)/.test(l)).map(l => l.trim().slice(0, 120)).join(' | ') || '(no chord hint on the frame)')
+  check('S3 the release receipt says the chat held no message — never "the transcript survives"', receipt.includes('removed from the board — the chat held no message') && !receipt.includes('the transcript survives'), receipt.split('\n').filter(l => /removed from the board/.test(l)).map(l => l.trim().slice(0, 120)).join(' | ') || '(no receipt row on the frame)')
   check('S3 releasing the last row left THE BOARD on the frame (the two screens) — never the dead chat, never a bounce to the menu', isBoard(stays) && !isChat(stays) && !isFace(stays), firstRows(stays))
   check('S3 the release painted no refusal (poison: "✕ refused — stop refused" on the only session)', !/refused/.test(stays), stays.split('\n').filter(l => /refused/.test(l)).join(' | '))
   check('S3 ⇧→ from the board is NO MOVEMENT (byte-still): the closed chat is not a stop', stays !== '' && still(stays) === still(after))

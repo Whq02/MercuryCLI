@@ -171,7 +171,7 @@ export function closeChordRungOf(selection: BoardSelectionClass, staged: boolean
 
 const CLOSE_CHORD_WINDOW_WORDS = `${CLOSE_CHORD_STAGE_WINDOW_MS / 1000} s`
 
-export function closeChordHintOf(rung: CloseChordRung): string | null {
+export function closeChordHintOf(rung: CloseChordRung, newborn = false): string | null {
   switch (rung) {
     case 'none':
       return null
@@ -182,7 +182,7 @@ export function closeChordHintOf(rung: CloseChordRung): string | null {
     case 'resend-stop':
       return '⌃x again re-sends the stop (the row reads stopped once its runner is gone)'
     case 'archive':
-      return '⌃x again archives it (the chat stands parked)'
+      return newborn ? '⌃x again removes it (the chat held no message)' : '⌃x again archives it (the chat stands parked)'
     case 'arm-delete':
       return `⌃x again arms the delete · ⌃x ⌃x in ${CLOSE_CHORD_WINDOW_WORDS} ends it`
     case 'delete':

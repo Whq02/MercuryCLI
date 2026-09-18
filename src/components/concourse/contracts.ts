@@ -42,6 +42,7 @@ export interface ConcourseRowV1 {
   worktreeBranch?: string
   waitReason?: 'seat' | 'repo-held' | 'session-paused' | 'session-retiring' | 'no-repository' | 'git-unavailable' | 'unborn-head' | 'unblocked'
   waitDetail?: string
+  newborn?: true
   transcriptPath?: string
   foreignProject?: string
   door?:

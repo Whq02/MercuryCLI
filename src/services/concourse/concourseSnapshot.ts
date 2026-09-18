@@ -1041,6 +1041,7 @@ export async function buildConcourseSnapshot(
       ageLabel: ageLabelOf(nowMs, rec.spawnedAt),
       seats: null,
       nowLabel,
+      ...(rec.bornBlankAt !== undefined && rec.lastDeliveryAt === undefined ? { newborn: true as const } : {}),
       ...(state === 'ready-to-review' && rec.lastTurnSettledAt !== undefined && rec.lastTurnSettledAt > (seenAt[rec.sessionId] ?? 0) ? { finishedUnseen: true as const } : {}),
       ...(rec.workflowsAllowed === true ? { workflowsAllowed: true } : {}),
       ...((): { scheduleNextFireMs?: number } => {
