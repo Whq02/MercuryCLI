@@ -81,6 +81,19 @@ let fail = 0
   const backDiverged = rowOf(tagMac, withoutBackMask) !== rowOf(tagLinux, withoutBackMask)
   console.log(`  [${backDiverged ? 'PASS' : 'FAIL'}] without the back hint's mask the two hosts diverge on that row (the one-spelling mask left the Linux row raw) — the reason the old vocabulary was false`)
   if (!backDiverged) fail = 1
+
+  const hintMac = 'shift + ↵ for a new line · ⇧← concourse'.padEnd(120)
+  const hintLinux = 'shift + ↵ for a new line · shift+← concourse'.padEnd(120)
+  const countsMac = '1 session on · 0 monitors here · 0 agents here' + ' '.repeat(23) + '⇧← concourse'
+  const countsLinux = '1 session on · 0 monitors here · 0 agents here' + ' '.repeat(18) + 'shift+← concourse'
+  const concourseSame = rowOf(hintMac, DEFAULT_MASKS) === rowOf(hintLinux, DEFAULT_MASKS) && rowOf(countsMac, DEFAULT_MASKS) === rowOf(countsLinux, DEFAULT_MASKS)
+  const concourseKeepsWords = rowOf(hintLinux, DEFAULT_MASKS).startsWith('shift + ↵ for a new line ·') && rowOf(countsLinux, DEFAULT_MASKS).startsWith('1 session on · 0 monitors here · 0 agents here')
+  console.log(`  [${concourseSame && concourseKeepsWords ? 'PASS' : 'FAIL'}] the composer hint row and the compact count row canonicalize across the concourse hint's host spellings (⇧← · shift+←) and keep their words — ${JSON.stringify(rowOf(hintLinux, DEFAULT_MASKS))} · ${JSON.stringify(rowOf(countsLinux, DEFAULT_MASKS))}`)
+  if (!(concourseSame && concourseKeepsWords)) fail = 1
+  const withoutConcourseMask = DEFAULT_MASKS.filter(m => !m.includes('← concourse'))
+  const concourseDiverged = rowOf(hintMac, withoutConcourseMask) !== rowOf(hintLinux, withoutConcourseMask)
+  console.log(`  [${concourseDiverged ? 'PASS' : 'FAIL'}] without the concourse hint's mask the two hosts diverge on that row (no mask read the composer's hint) — the reason the old vocabulary was false`)
+  if (!concourseDiverged) fail = 1
 }
 
 const run = (only?: string): void => {

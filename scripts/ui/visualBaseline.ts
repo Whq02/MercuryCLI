@@ -65,6 +65,7 @@ export const DEFAULT_MASKS = [
   '⌥ ?\\S+ *',
   'row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back',
   'row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back',
+  ' *(?:⇧|shift\\+)← concourse *',
   'row:gate [✓◓✕·]',
 ]
 
