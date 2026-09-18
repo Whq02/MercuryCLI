@@ -1,9 +1,17 @@
-import { reconcileManagedShims, resolveLayoutRoots } from 'src/services/privateChannel/installLayout.js'
-import { commandOnPath, commandOnPathWarning } from 'src/services/privateChannel/installPath.js'
+import { reconcileManagedShims, resolveLayoutRoots, type LayoutRoots } from 'src/services/privateChannel/installLayout.js'
+import { commandOnPath, commandOnPathWarning, npmWrapperOnPath } from 'src/services/privateChannel/installPath.js'
+import {
+  askYesNo,
+  installerConsentQuestion,
+  installerRoadWords,
+  readVersionAfterUpgrade,
+  runInstallerUpgrade,
+} from 'src/services/privateChannel/installerUpgrade.js'
 import {
   foreignInstallerOf,
+  NPM_WRAPPER_ROAD_WORDS,
   resolveInstallProvenance,
-  UPDATE_VERB_SCOPE_WORDS,
+  type ForeignInstaller,
   type InstallProvenanceV1,
 } from 'src/services/privateChannel/installProvenance.js'
 import {
@@ -24,6 +32,7 @@ export interface UpdateCliOptions {
   status?: boolean
   rollback?: boolean
   allowUnsigned?: boolean
+  yes?: boolean
   json?: boolean
 }
 
@@ -34,18 +43,86 @@ const progressToStderr: Progress = (state, detail) => {
 const emitJson = (value: unknown): never => cliOk(jsonStringify(value, null, 1) ?? '{}')
 const failJson = (value: unknown): never => cliError(jsonStringify(value, null, 1) ?? '{}')
 
-function provenanceStatusWords(p: InstallProvenanceV1): string {
+function provenanceStatusWords(p: InstallProvenanceV1, npmWrapper: string | null): string {
   const installer = foreignInstallerOf(p)
-  if (installer) return `installed by ${installer.name} at ${p.activeRoot} — update it with \`${installer.updateCommand}\`; ${UPDATE_VERB_SCOPE_WORDS}`
+  if (installer) return `installed by ${installer.name} at ${p.activeRoot} — ${installerRoadWords(installer)}`
   switch (p.kind) {
     case 'managed':
-      return `installed by \`mercury install\` or the install script at ${p.activeRoot} — \`mercury update\` manages it`
+      return `installed by \`mercury install\` or the install script at ${p.activeRoot} — \`mercury update\` manages it${npmWrapper === null ? '' : ` (${NPM_WRAPPER_ROAD_WORDS})`}`
     case 'extracted-release':
       return `a release archive run in place at ${p.activeRoot} — \`mercury update\` manages the install under the versions directory`
     case 'development':
       return `a source checkout at ${p.activeRoot} — rebuild it with \`git pull && bun run build.ts\``
     default:
       return `an unrecognized install shape at ${p.activeRoot || '(no entry path)'} — adopt the managed layout with \`mercury install\` for update support`
+  }
+}
+
+async function installerRoad(
+  installer: ForeignInstaller,
+  options: UpdateCliOptions,
+  roots: LayoutRoots,
+  provenance: Record<string, unknown>,
+): Promise<never> {
+  const command = installer.updateCommand
+  if (!options.yes) {
+    if (options.json) {
+      return failJson({
+        mode: 'update',
+        state: 'refused',
+        stage: 'consent',
+        reason: `this Mercury was installed by ${installer.name}; \`mercury update\` runs \`${command}\` after asking`,
+        remedy: 'run `mercury update --yes` to run it without the question',
+        provenance,
+      })
+    }
+    const agreed = await askYesNo(installerConsentQuestion(installer))
+    if (!agreed) {
+      return cliError(`update not run — answer y to run \`${command}\`, or run \`mercury update --yes\`\nthe active installation was not changed`)
+    }
+  }
+  if (!options.json) process.stderr.write(`running: ${command}\n`)
+  const from = MACRO.VERSION
+  const ran = await runInstallerUpgrade(installer, { stdoutTo: options.json ? 'stderr' : 'inherit' })
+  if (ran.state === 'not-found') {
+    if (options.json) return failJson({ mode: 'update', state: 'installer-missing', installer: installer.name, command, executable: ran.executable, provenance })
+    return cliError(`update not run: \`${ran.executable}\` is not on PATH, so \`${command}\` cannot run here\nthe active installation was not changed`)
+  }
+  if (ran.state === 'failed') {
+    if (options.json) return failJson({ mode: 'update', state: 'installer-failed', installer: installer.name, command, note: ran.note, provenance })
+    return cliError(`update not completed: \`${command}\` could not run (${ran.note})`)
+  }
+  if (ran.exitCode !== 0) {
+    if (options.json) return failJson({ mode: 'update', state: 'installer-failed', installer: installer.name, command, exitCode: ran.exitCode, provenance })
+    return cliError(`update not completed: \`${command}\` exited ${ran.exitCode}\n  its own words are above; the installation is whatever ${installer.name} left`)
+  }
+  const after = readVersionAfterUpgrade(roots)
+  if (options.json) {
+    const record = {
+      mode: 'update',
+      state: 'installer-ran',
+      installer: installer.name,
+      command,
+      exitCode: 0,
+      from,
+      to: after.state === 'read' ? after.version : null,
+      commandOnPath: after.state === 'no-command' ? null : after.command,
+      ...(after.state === 'unreadable' ? { note: after.note } : {}),
+      provenance,
+    }
+    return after.state === 'read' ? emitJson(record) : failJson(record)
+  }
+  switch (after.state) {
+    case 'read':
+      return cliOk(
+        after.version === from
+          ? `Mercury is still ${from} after \`${command}\` — ${installer.name}'s package has not moved past it yet\n  the \`mercury\` your shell runs is ${after.command}`
+          : `updated: ${from} → ${after.version} (${installer.name}: \`${command}\`)\n  the \`mercury\` your shell runs is ${after.command}`,
+      )
+    case 'no-command':
+      return cliError(`\`${command}\` finished; no \`mercury\` is on your PATH to read the installed version from`)
+    case 'unreadable':
+      return cliError(`\`${command}\` finished; ${after.command} --version did not answer (${after.note})`)
   }
 }
 
@@ -58,11 +135,13 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
   const roots = resolveLayoutRoots()
   const provenance = resolveInstallProvenance()
   const installer = foreignInstallerOf(provenance)
+  const npmWrapper = provenance.kind === 'managed' ? npmWrapperOnPath(commandOnPath(roots)) : null
   const provenanceRecord = {
     kind: provenance.kind,
     activeRoot: provenance.activeRoot,
     updateOwner: provenance.updateOwner,
     updateCommand: installer?.updateCommand ?? null,
+    npmWrapper,
   }
   const progress: Progress = options.json ? () => {} : progressToStderr
 
@@ -89,7 +168,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
             : '(pointer file unreadable — fix permissions on <versions>/current.txt)'
     const lines = [
       `running version:   ${status.runningVersion}`,
-      `this Mercury:      ${provenanceStatusWords(provenance)}`,
+      `this Mercury:      ${provenanceStatusWords(provenance, npmWrapper)}`,
       `installed version: ${installedLine}`,
       `previous version:  ${status.previousVersion ?? '(none)'}`,
       `versions present:  ${status.versionsPresent.join(', ') || '(none)'}`,
@@ -105,7 +184,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
   if (options.rollback) {
     if (installer) {
       const reason = `this Mercury was installed by ${installer.name}; \`mercury update --rollback\` manages installs made by \`mercury install\` or the install script`
-      const remedy = `${installer.name} manages this install; \`${installer.updateCommand}\` updates it`
+      const remedy = `${installer.name} manages this install's versions; ${installerRoadWords(installer)}`
       if (options.json) return failJson({ mode: 'rollback', state: 'refused', reason, remedy, provenance: provenanceRecord })
       return cliError(`rollback refused: ${reason}\n  ${remedy}`)
     }
@@ -133,8 +212,8 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
     switch (check.state) {
       case 'update-available': {
         const next = installer
-          ? `this Mercury was installed by ${installer.name}; update it with \`${installer.updateCommand}\``
-          : 'run `mercury update` to install it'
+          ? `this Mercury was installed by ${installer.name}; ${installerRoadWords(installer)}`
+          : `run \`mercury update\` to install it${npmWrapper === null ? '' : ` (${NPM_WRAPPER_ROAD_WORDS})`}`
         return cliOk(
           `update available: ${check.tag} (installed: ${check.installed})\n  asset: ${check.assetName}\n  channel: ${check.channelRepo} (${describeChannelRoad(check.road)})\n${next}`,
         )
@@ -160,13 +239,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
     }
   }
 
-  if (installer) {
-    const reason = `this Mercury was installed by ${installer.name}; update it with \`${installer.updateCommand}\``
-    if (options.json) {
-      return failJson({ mode: 'update', state: 'refused', stage: 'provenance', reason, remedy: UPDATE_VERB_SCOPE_WORDS, provenance: provenanceRecord })
-    }
-    return cliError(`update refused: ${reason}\n  ${UPDATE_VERB_SCOPE_WORDS}\nnothing was downloaded; the active installation was not changed`)
-  }
+  if (installer) return installerRoad(installer, options, roots, provenanceRecord)
   const result = await performUpdate(roots, progress, { allowUnsigned: options.allowUnsigned })
   if (result.state === 'updated' || (result.state === 'no-update' && result.check.state === 'current')) {
     reconcileManagedShims(roots)

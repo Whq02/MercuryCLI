@@ -5,6 +5,7 @@ import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { armInactivityDeadline } from '../../utils/deadline.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { comparePrivateVersions, parsePrivateVersion } from './channelCore.js'
 import { resolveLayoutRoots } from './installLayout.js'
 import { checkForUpdate, type CheckOutcome } from './updateService.js'
 
@@ -19,6 +20,7 @@ export interface UpdateNoticeCacheV1 {
   checkedAtMs: number
   runningVersion: string
   available?: { version: string; tag: string }
+  faceAnnounced?: string
 }
 
 export type QuietCheckDecision =
@@ -45,6 +47,46 @@ export function updateNoticeText(version: string): string {
   return `v${version} available — mercury update`
 }
 
+export function faceUpdateNoticeText(version: string): string {
+  return `v${version} available · mercury update`
+}
+
+function newerThanRunning(available: string, runningVersion: string): boolean {
+  const a = parsePrivateVersion(available)
+  const r = parsePrivateVersion(runningVersion)
+  return a !== null && r !== null ? comparePrivateVersions(a, r) > 0 : available !== runningVersion
+}
+
+export function decideFaceNotice(cache: UpdateNoticeCacheV1 | null, runningVersion: string): string | null {
+  if (cache === null || cache.runningVersion !== runningVersion || cache.available === undefined) return null
+  const version = cache.available.version
+  if (!newerThanRunning(version, runningVersion) || cache.faceAnnounced === version) return null
+  return version
+}
+
+export interface FaceNoticeDeps {
+  readCache: () => UpdateNoticeCacheV1 | null
+  writeCache: (cache: UpdateNoticeCacheV1) => void
+  runningVersion: string
+  enabled: () => boolean
+}
+
+export function takeFaceUpdateNotice(
+  deps: FaceNoticeDeps = {
+    readCache: () => readUpdateNoticeCache(),
+    writeCache: cache => writeUpdateNoticeCache(cache),
+    runningVersion: MACRO.VERSION,
+    enabled: () => flagEnabled('MERCURY_UPDATE_NOTICE'),
+  },
+): string | null {
+  if (!deps.enabled()) return null
+  const cache = deps.readCache()
+  const version = decideFaceNotice(cache, deps.runningVersion)
+  if (version === null || cache === null) return null
+  deps.writeCache({ ...cache, faceAnnounced: version })
+  return faceUpdateNoticeText(version)
+}
+
 export function updateNoticeCachePath(home: string = getMercuryHome()): string {
   return join(home, UPDATE_NOTICE_CACHE_FILE)
 }
@@ -57,7 +99,14 @@ export function readUpdateNoticeCache(path: string = updateNoticeCachePath()): U
       raw.available && typeof raw.available.version === 'string' && typeof raw.available.tag === 'string'
         ? { version: raw.available.version, tag: raw.available.tag }
         : undefined
-    return { schema: 1, checkedAtMs: raw.checkedAtMs, runningVersion: raw.runningVersion, ...(available ? { available } : {}) }
+    const faceAnnounced = typeof raw.faceAnnounced === 'string' ? raw.faceAnnounced : undefined
+    return {
+      schema: 1,
+      checkedAtMs: raw.checkedAtMs,
+      runningVersion: raw.runningVersion,
+      ...(available ? { available } : {}),
+      ...(faceAnnounced ? { faceAnnounced } : {}),
+    }
   } catch {
     return null
   }
@@ -87,7 +136,9 @@ export interface QuietCheckDeps {
 export type QuietCheckResult = 'notified' | 'notified-from-cache' | 'current' | 'skipped' | 'failed'
 
 export async function runQuietUpdateCheck(deps: QuietCheckDeps): Promise<QuietCheckResult> {
-  const decision = decideQuietCheck(deps.readCache(), deps.now(), deps.runningVersion)
+  const cache = deps.readCache()
+  const carried = cache?.faceAnnounced ? { faceAnnounced: cache.faceAnnounced } : {}
+  const decision = decideQuietCheck(cache, deps.now(), deps.runningVersion)
   if (decision.action === 'skip') return 'skipped'
   if (decision.action === 'notify-from-cache') {
     deps.notify(updateNoticeText(decision.available.version))
@@ -105,12 +156,12 @@ export async function runQuietUpdateCheck(deps: QuietCheckDeps): Promise<QuietCh
   }
   const checkedAtMs = deps.now()
   if (outcome.state === 'update-available') {
-    deps.writeCache({ schema: 1, checkedAtMs, runningVersion: deps.runningVersion, available: { version: outcome.version, tag: outcome.tag } })
+    deps.writeCache({ schema: 1, checkedAtMs, runningVersion: deps.runningVersion, available: { version: outcome.version, tag: outcome.tag }, ...carried })
     deps.notify(updateNoticeText(outcome.version))
     return 'notified'
   }
   if (outcome.state === 'current' || outcome.state === 'no-releases') {
-    deps.writeCache({ schema: 1, checkedAtMs, runningVersion: deps.runningVersion })
+    deps.writeCache({ schema: 1, checkedAtMs, runningVersion: deps.runningVersion, ...carried })
     return 'current'
   }
   logForDebugging(`update notice: check unavailable (${outcome.state}) — silent`)

@@ -48,16 +48,26 @@ guarded line in your shell's startup file; the user PATH on Windows), so a
 new terminal finds `mercury`; the terminal you installed from needs the
 line the installer prints. `mercury --version` is the check.
 
-`mercury update` keeps an install made by the install one-liners or by
-`mercury install` current in place (`--check`, `--status`, `--rollback`; the
-previous version stays on disk). An install made by Homebrew is updated with
-`brew upgrade Whq02/mercury/mercury` and one made by npm with
-`npm update -g mercury-tech-cli`; `mercury update` run inside either says so
-and changes nothing. It reads the public release list and the archive
-anonymously — no account, no sign-in, no token — and verifies the archive
-against the release's `SHA256SUMS.txt` before anything activates; a signed-in
-GitHub CLI (`gh`) is asked only when that anonymous request is refused, and is
-never required. Update and install also require a payload signed by the
+`mercury update` is the one update command on every channel. An install
+made by the install one-liners or by `mercury install` it keeps current in
+place (`--check`, `--status`, `--rollback`; the previous version stays on
+disk). Inside an install made by Homebrew it asks once — "This Mercury was
+installed by Homebrew. Run `brew upgrade Whq02/mercury/mercury` now? [y/N]" —
+runs that command on `y` with its output as it comes, and reads the installed
+version back; `--yes` skips the question for scripts. The npm package
+(`mercury-tech-cli`) installs the release into the same layout as the
+one-liners and hands every run to it, so `mercury update` updates an npm
+install in place through Mercury's own channel; `npm update -g
+mercury-tech-cli` moves only the package's first-run release. `--check`
+reads one release list everywhere and ends with the road that applies. The
+Boot face says once, in its bottom-right corner, when a newer release exists
+("vX.Y.Z available · mercury update"), and the chat shows one expiring line;
+`MERCURY_UPDATE_NOTICE=0` turns both off. The channel road reads the public
+release list and the archive anonymously — no account, no sign-in, no token
+— and verifies the archive against the release's `SHA256SUMS.txt` before
+anything activates; a signed-in GitHub CLI (`gh`) is asked only when that
+anonymous request is refused, and is never required. Update and install also
+require a payload signed by the
 Mercury release key in the compiled-in trust roster before staging it. Every
 other signature verdict refuses without changing the active installation. The
 explicit `--allow-unsigned` flag accepts an unsigned payload only, never an

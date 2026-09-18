@@ -58,11 +58,11 @@ _mercury_completions() {
       return 0
       ;;
     update)
-      COMPREPLY=( $(compgen -W "--allow-unsigned --check --help --json --rollback --status" -- "$cur") )
+      COMPREPLY=( $(compgen -W "--allow-unsigned --check --help --json --rollback --status --yes" -- "$cur") )
       return 0
       ;;
     upgrade)
-      COMPREPLY=( $(compgen -W "--allow-unsigned --check --help --json --rollback --status" -- "$cur") )
+      COMPREPLY=( $(compgen -W "--allow-unsigned --check --help --json --rollback --status --yes" -- "$cur") )
       return 0
       ;;
   esac
