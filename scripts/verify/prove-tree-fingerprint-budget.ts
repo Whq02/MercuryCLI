@@ -69,13 +69,17 @@ function makeRepo(dir: string, files: number): void {
   for (let i = 0; i < 5; i++) writeFileSync(join(nested, `note${i}.txt`), `note ${i}\n`)
   writeFileSync(join(dir, 'README.md'), '# fixture\n')
   git(dir, 'init', '-q')
+  git(dir, 'config', 'gc.auto', '0')
+  git(dir, 'config', 'gc.autoDetach', 'false')
+  git(dir, 'config', 'maintenance.auto', 'false')
   git(dir, 'add', '-A')
   git(dir, 'commit', '-qm', 'seed')
 }
 function countObjects(dir: string): { count: number; loose: number; packed: number } {
   const out = git(dir, 'count-objects', '-v')
   const num = (k: string): number => Number(new RegExp(`^${k}: (\\d+)$`, 'm').exec(out)?.[1] ?? NaN)
-  return { count: num('count') + num('in-pack'), loose: num('count'), packed: num('in-pack') }
+  const unique = git(dir, 'cat-file', '--batch-all-objects', '--batch-check=%(objectname)', '--unordered').split('\n').filter(Boolean).length
+  return { count: unique, loose: num('count'), packed: num('in-pack') }
 }
 type Row = { cwd: string; argv: string }
 function rows(): Row[] {
@@ -137,7 +141,7 @@ section('§2 the repository gains nothing — 20 digests over a changing untrack
     seen.add(await vs.computeWorkingTreeDigestAsync(repo))
   }
   const after = countObjects(repo)
-  check(`the repository's object count is unchanged, loose and packed together (${before.count} → ${after.count}; loose ${before.loose} → ${after.loose}, packed ${before.packed} → ${after.packed})`, before.count === after.count)
+  check(`the repository's distinct objects are unchanged, wherever a copy sits (${before.count} → ${after.count}; loose ${before.loose} → ${after.loose}, packed ${before.packed} → ${after.packed})`, before.count === after.count)
   check('…while the digest changed every time (20 distinct trees)', seen.size === 20 && !seen.has(null))
   check('…and the Mercury-owned store is swept after each tree', !existsSync(join(store, 'objects')) || readdirSync(join(store, 'objects')).length === 0)
 }
