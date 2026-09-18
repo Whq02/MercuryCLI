@@ -1,7 +1,13 @@
 import { existsSync } from 'node:fs'
 import type { Message } from '../../types/message.js'
 import type { SetAppState } from '../messageQueueManager.js'
-import { conversationIdHere } from '../../services/engine-connector/focusedConnector.js'
+import {
+  conversationIdHere,
+  getFocusedSessionConnector,
+  hasFocusedSession,
+  landingInFlight,
+  subscribeFocusedSessionConnector,
+} from '../../services/engine-connector/focusedConnector.js'
 import { logForDebugging } from '../debug.js'
 import {
   claimContinuation,
@@ -195,6 +201,51 @@ export function sawMissionMetSentinel(messages: Message[]): boolean {
   return false
 }
 
+let armedAtLanding: { sessionId: string; setAppState: SetAppState } | null = null
+let seatWatch: (() => void) | null = null
+
+function dropSeatWatch(): void {
+  armedAtLanding = null
+  if (seatWatch !== null) {
+    seatWatch()
+    seatWatch = null
+  }
+}
+
+function followSeatAtAdmission(): void {
+  const pending = armedAtLanding
+  if (pending === null) return
+  if (!hasFocusedSession()) {
+    if (!landingInFlight()) dropSeatWatch()
+    return
+  }
+  const hostedId = getFocusedSessionConnector().sessionId()
+  if (hostedId === '' || hostedId === pending.sessionId) return
+  dropSeatWatch()
+  const prior = missionsBySession.get(pending.sessionId)
+  if (prior === undefined) return
+  removeFunctionHook(pending.setAppState, pending.sessionId, 'Stop', prior.hookId)
+  missionsBySession.delete(pending.sessionId)
+  setActiveMission(pending.setAppState, prior.condition, { sessionId: hostedId })
+  const moved = missionsBySession.get(hostedId)
+  if (moved !== undefined) {
+    moved.iterations = prior.iterations
+    moved.lastReason = `armed while the chat was landing; follows the seat ${hostedId}`
+    persistCard(hostedId, moved, 'armed')
+  }
+  const card = readMissionCard(pending.sessionId)
+  if (card !== null && card.state === 'armed') {
+    writeMissionCard({
+      ...card,
+      state: 'continued',
+      nextStep: `continued in session ${hostedId}`,
+      updatedAt: new Date().toISOString(),
+    })
+  }
+  logForDebugging(`[mission] the mission armed while the chat was landing follows the seat (${pending.sessionId} → ${hostedId})`)
+  notifyMissionChange()
+}
+
 export function setActiveMission(
   setAppState: SetAppState,
   condition: string,
@@ -280,6 +331,10 @@ export function setActiveMission(
   persistCard(sessionId, record, record.met ? 'met' : 'armed')
   logForDebugging(`[mission] installed standing mission for session ${sessionId}`)
   notifyMissionChange()
+  if (options?.sessionId === undefined && landingInFlight() && !hasFocusedSession()) {
+    armedAtLanding = { sessionId, setAppState }
+    if (seatWatch === null) seatWatch = subscribeFocusedSessionConnector(followSeatAtAdmission)
+  }
   return buildMissionDirective(condition)
 }
 
@@ -289,6 +344,7 @@ export function clearActiveMission(
 ): string | null {
   const mission = missionsBySession.get(sessionId)
   if (!mission) return null
+  if (armedAtLanding?.sessionId === sessionId) dropSeatWatch()
   removeFunctionHook(setAppState, sessionId, 'Stop', mission.hookId)
   missionsBySession.delete(sessionId)
   persistCard(sessionId, mission, 'cleared')
