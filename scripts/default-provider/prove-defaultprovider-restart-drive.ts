@@ -12,7 +12,8 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
-const DIST = join(ROOT, 'dist', 'mercury.mjs')
+const distArg = process.argv.indexOf('--dist')
+const DIST = distArg !== -1 && process.argv[distArg + 1] !== undefined ? process.argv[distArg + 1]! : join(ROOT, 'dist', 'mercury.mjs')
 const VSHOT = join(ROOT, 'scripts', 'ui', 'vshot.py')
 if (!existsSync(DIST)) {
   console.log('  [SKIP] dist/mercury.mjs absent — build first (the gate prebuilds)')
@@ -95,7 +96,7 @@ const switchBoot = (tag: string, cols: number): Promise<{ text: string; marks: R
       argv: ['node', DIST],
       cwd: workspace,
       sends: [
-        { data: '', atTick: 999, awaitText: '↵ start', requireAwait: true, minTick: 8, awaitSettleTicks: 2, mark: 'face1' },
+        { data: '', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 8, awaitSettleTicks: 3, mark: 'face1' },
         { data: '\r', afterPrevTicks: 2 },
         { data: '/defaultprovider deepseek\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '', atTick: 999, awaitText: 'Default provider set to DeepSeek', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'receipt' },
@@ -110,8 +111,8 @@ const switchBoot = (tag: string, cols: number): Promise<{ text: string; marks: R
   check('boot 1: two untimed env keys and no ledger — the registry order leads (the GLM lane), never DeepSeek, never "no sign-in yet"', !face1.includes('DeepSeek V4') && !face1.includes('deepseek-v4') && !face1.includes('no sign-in yet'), face1.slice(0, 160))
   const receiptRow = (marks.receipt ?? '').split('\n').find(row => row.includes('Default provider set to DeepSeek')) ?? ''
   check(
-    'at 100 columns the receipt rides the hint row after the hints, names the switch, and sheds its tail at the ellipsis before the model id',
-    receiptRow.includes('? for shortcuts') && receiptRow.trimEnd().endsWith('…') && !(marks.receipt ?? '').includes('deepseek-v4-pro'),
+    'at 100 columns the receipt takes the hint row whole (the standing hints step aside for its moment): it leads the row, names the switch and the resolved default model id, and sheds only its tail',
+    receiptRow.startsWith('Default provider set to DeepSeek — default model now deepseek-v4-pro') && !receiptRow.includes('? for shortcuts') && receiptRow.trimEnd().endsWith('…'),
     receiptRow.trim() || '(no receipt row)',
   )
   const wide = await switchBoot('boot1-wide', 140)
@@ -137,7 +138,7 @@ const switchBoot = (tag: string, cols: number): Promise<{ text: string; marks: R
       argv: ['node', DIST],
       cwd: workspace,
       sends: [
-        { data: '', atTick: 999, awaitText: '↵ start', requireAwait: true, minTick: 8, awaitSettleTicks: 4, mark: 'face' },
+        { data: '', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 8, awaitSettleTicks: 4, mark: 'face' },
       ],
       stableTicks: 4,
     },
