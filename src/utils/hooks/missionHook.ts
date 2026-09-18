@@ -86,6 +86,31 @@ const CLEAR_WORDS = new Set([
 
 const missionsBySession = new Map<string, ActiveMission>()
 
+const missionListeners = new Set<() => void>()
+let missionVersion = 0
+
+function notifyMissionChange(): void {
+  missionVersion += 1
+  for (const listener of missionListeners) {
+    try {
+      listener()
+    } catch (e) {
+      logForDebugging(`[mission] listener threw (ignored): ${e}`)
+    }
+  }
+}
+
+export function subscribeActiveMission(listener: () => void): () => void {
+  missionListeners.add(listener)
+  return () => {
+    missionListeners.delete(listener)
+  }
+}
+
+export function getActiveMissionVersion(): number {
+  return missionVersion
+}
+
 function persistCard(sessionId: string, mission: ActiveMission, state: MissionCardState): void {
   writeMissionCard({
     schema: 1,
@@ -254,6 +279,7 @@ export function setActiveMission(
   missionsBySession.set(sessionId, record)
   persistCard(sessionId, record, record.met ? 'met' : 'armed')
   logForDebugging(`[mission] installed standing mission for session ${sessionId}`)
+  notifyMissionChange()
   return buildMissionDirective(condition)
 }
 
@@ -267,6 +293,7 @@ export function clearActiveMission(
   missionsBySession.delete(sessionId)
   persistCard(sessionId, mission, 'cleared')
   logForDebugging(`[mission] cleared standing mission for session ${sessionId}`)
+  notifyMissionChange()
   return mission.condition
 }
 
@@ -281,6 +308,7 @@ export function syncMissionFromCard(setAppState: SetAppState, sessionId: string)
     removeFunctionHook(setAppState, sessionId, 'Stop', live.hookId)
     missionsBySession.delete(sessionId)
     logForDebugging(`[mission] released the standing mission for session ${sessionId} (the card reads ${card.state})`)
+    notifyMissionChange()
   }
 }
 
