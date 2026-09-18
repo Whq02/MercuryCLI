@@ -137,17 +137,23 @@ if (rowA >= 0 && rowB >= 0) {
   const sweep = capture('sweep', sweepSends, 150, undefined, 120, 40, { stableTicks: 8, region: [0, 0, RAIL_COLS, 40] })
   if (sweep) {
     const lit = hoverRows(sweep.grid)
-    check('exactly ONE left-rail row wears the hover fill', lit.length === 1, `lit=${lit.join(',') || 'none'}`)
+    const startB = sweep.lines.findIndex(l => l.includes('second task'))
+    let endB = startB
+    while (startB >= 0 && endB + 1 < sweep.lines.length && /^ {2}\S/.test((sweep.lines[endB + 1] ?? '').slice(0, RAIL_COLS))) endB++
+    const cardRows = startB >= 0 ? Array.from({ length: endB - startB + 1 }, (_, i) => startB + i) : []
+    const contiguous = lit.length > 0 && lit.every((y, i) => i === 0 || y === lit[i - 1]! + 1)
+    const wholeCard = startB >= 0 && lit.length === cardRows.length && lit.every((y, i) => y === cardRows[i])
+    check('exactly ONE hover-armed item wears the hover fill: one contiguous block of rail rows', contiguous, `lit=${lit.join(',') || 'none'}`)
     check(
-      "the lit row is B (the pointer's current target)",
-      lit.length === 1 && (sweep.lines[lit[0]!] ?? '').includes('second task'),
-      lit.length === 1 ? `lit row: ${sweep.lines[lit[0]!]?.slice(0, 40)}` : '',
+      "the lit block is B (the pointer's current target): the WORKBENCH card's wrapped rows, whole, and no other row",
+      wholeCard,
+      `lit=${lit.join(',') || 'none'} card=${cardRows.join(',') || 'none'}${startB >= 0 ? ` first: ${sweep.lines[startB]?.slice(0, 40)}` : ''}`,
     )
     check(
       'row A carries no stranded highlight',
       !lit.some(y => (sweep.lines[y] ?? '').includes('op (you)')),
     )
-    if (lit.length !== 1 || !(sweep.lines[lit[0]!] ?? '').includes('second task')) {
+    if (!contiguous || !wholeCard) {
       console.log('  … rail rows 0-16 (first 40 cols) at capture end:')
       sweep.lines.slice(0, 17).forEach((l, i) => console.log(`  ${String(i).padStart(2)}│${l.slice(0, 40)}`))
     }
