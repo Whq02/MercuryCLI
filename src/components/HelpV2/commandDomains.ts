@@ -94,7 +94,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'account',
     label: 'account & app',
     names: [
-      'logins', 'logout', 'accounts', 'defaultprovider', 'version', 'release-notes',
+      'logins', 'logout', 'accounts', 'defaultprovider', 'version', 'update-notes',
       'feedback', 'help', 'exit',
     ],
   },

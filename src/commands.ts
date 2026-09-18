@@ -62,7 +62,7 @@ import memory from './commands/memory/index.js'
 import model from './commands/model/index.js'
 import extensions from './commands/extensions/index.js'
 import prComments from './commands/pr_comments/index.js'
-import releaseNotes from './commands/release-notes/index.js'
+import updateNotes, { releaseNotes } from './commands/update-notes/index.js'
 import rename from './commands/rename/index.js'
 import title from './commands/title/index.js'
 import resume from './commands/resume/index.js'
@@ -251,6 +251,7 @@ const COMMANDS = memoize((): Command[] => [
   model,
   extensions,
   prComments,
+  updateNotes,
   releaseNotes,
   rename,
   resume,
@@ -545,7 +546,7 @@ export const getSlashCommandToolSkills = memoize(
 )
 
 export const BRIDGE_SAFE_COMMANDS: Set<Command> = new Set(
-  [compact, clear, cost, releaseNotes].filter(Boolean),
+  [compact, clear, cost, updateNotes, releaseNotes].filter(Boolean),
 )
 
 export function isBridgeSafeCommand(cmd: Command): boolean {

@@ -153,7 +153,8 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
   and the queue for the next one ([1.0.0-beta.14](releases/1.0.0-beta.14.md)
   is the newest tag; [1.0.0-beta.15](releases/1.0.0-beta.15.md) is the
   queue). The
-  notes themselves ride each release and `/release-notes`
-  prints the bundled history.
+  notes themselves ride each release: `/update-notes` shows the running
+  release's notes in the chat, with the earlier releases behind the
+  transcript key, and a headless run prints every release.
 - Generated sections are regenerated from their sources, never hand-edited
   ([CONTRIBUTING.md](../CONTRIBUTING.md), Conventions).

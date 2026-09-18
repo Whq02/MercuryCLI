@@ -11,3 +11,4 @@ prove-settle-slot.ts
 prove-streaming-hold.ts
 prove-size-prune-drive.ts
 prove-local-result-band-drive.ts
+prove-update-notes-card-drive.ts
