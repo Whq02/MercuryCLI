@@ -210,8 +210,9 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
       usedTokens: fill.usedTokens,
       fillSource: fill.fillSource,
       windowSource: fill.windowSource,
+      windowPinned: fill.windowPinned,
     })
-  }, [used, windowSize, fill.compactAtPct, fill.usedTokens, fill.fillSource, fill.windowSource])
+  }, [used, windowSize, fill.compactAtPct, fill.usedTokens, fill.fillSource, fill.windowSource, fill.windowPinned])
 
   const ctxNode = !usageOwnedElsewhere ? (
     <Text>
