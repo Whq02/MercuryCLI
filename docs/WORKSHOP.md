@@ -42,6 +42,20 @@ reports the syntax error with its line and column, an excerpt of the source
 around that position and a caret under it, never an echo of the whole cell.
 Every error text is bounded, with the message kept ahead of the bound.
 
+In the chat, a cell's row paints its state, id, duration and generation,
+the first line of its error, the first line of its value and the last four
+output lines (every line under ctrl+o). A failed or timed-out cell's row
+opens a card, the way a shell's row in the background board opens its own:
+click the row or type `/tasks <cell id>` (the row says so on its last
+line). The card carries the cell's language and title, its code, the whole
+error, the output tail with a count of the lines shown, the duration, the
+generation and the runtime-killed fact; on a short window the code is
+clipped first so the error stays visible, and the output section folds into
+a count on the state line when it has no room. `esc` closes the card, `←`
+returns to the board. The card reads the cell's own row in the transcript,
+so it stands for the cells this session painted; a succeeded cell opens no
+card.
+
 ## The mercury.* bridge
 
 Cells can reach Mercury itself: `mercury.inspect`, `mercury.tool`, and
