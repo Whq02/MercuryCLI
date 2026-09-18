@@ -309,8 +309,6 @@ const pool = drive(
   [
     { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: '/mock-limits clear\r', mark: 'observed' },
-    { requireAwait: true, awaitText: '? for shortcuts', minTick: 6, awaitSettleTicks: 3, data: '/usage\r', mark: 'usage' },
-    { afterPrevTicks: 15, data: '\x1b', mark: 'usage-close' },
     { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 6, awaitSettleTicks: 4, data: '\r', mark: 'pool-offer' },
     { requireAwait: true, awaitText: 'Set model to', minTick: 6, awaitSettleTicks: 2, data: 'pick up from fable pls\r', mark: 'settled' },
     { afterPrevTicks: PROBE_GAP, awaitText: ANTHROPIC_OFFER_TITLE, data: '', mark: 'probe' },
@@ -322,7 +320,7 @@ const pool = drive(
   const wire = pool.wire
   const finalGrid = p ? gridText(p.grid) : ''
   section("P1 — the offer fires on the BINDING window (the Fable pool) and names it in the usage owner's words")
-  const offerTick = receiptTick(p, 4)
+  const offerTick = receiptTick(p, 2)
   check('the offer fired from the fixture usage response alone (no turn ran; the send fired on its await)', offerTick > 0, `offer send at tick ${offerTick}; status=${pool.status}; endReason=${p?.endReason ?? '?'}\n${tail(markGrid(p, 'observed'))}`)
   const offer = markGrid(p, 'pool-offer')
   check('the card stood when enter was sent', offer.includes(ANTHROPIC_OFFER_TITLE), tail(offer))
@@ -338,8 +336,8 @@ const pool = drive(
   check(`the switched request targets the exact chosen row (${ZAI_ROW})`, String(main?.body?.model ?? '').startsWith(ZAI_ROW), String(main?.body?.model))
   check('no MAIN turn reached the Anthropic wire (the seat left before any turn; a utility probe is not a turn)', !wire.some(c => c.kind === 'anthropic' && JSON.stringify(c.body ?? {}).includes('pick up from fable pls')))
   check('the switched reply painted', finalGrid.includes(ZAI_REPLY) || markGrid(p, 'probe').includes(ZAI_REPLY), tail(finalGrid, 10))
-  const settledTick = receiptTick(p, 5)
-  const probeTick = receiptTick(p, 6)
+  const settledTick = receiptTick(p, 3)
+  const probeTick = receiptTick(p, 4)
   check('the offer never re-paints after the settlement (the probe fired on its deadline)', settledTick > 0 && probeTick >= settledTick + PROBE_GAP - 1, `probe at tick ${probeTick} (pickup at ${settledTick}, gap ${PROBE_GAP})`)
   check('no false way-home card after the switch (the home window is read for the seat\'s own model)', !finalGrid.includes('window reset') && !markGrid(p, 'probe').includes('window reset'), tail(finalGrid, 10))
 }

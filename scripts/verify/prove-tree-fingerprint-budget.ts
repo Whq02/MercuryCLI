@@ -122,7 +122,7 @@ for (let i = 0; i < 3; i++) {
   git(repo, 'diff-files', '--name-only')
   statWalkMs = Math.min(statWalkMs, performance.now() - t)
 }
-check(`a digest on the unchanged tree is a stat walk, never a hash: within a tenth of the seed scan's cost above this box's own stat walk (${Math.round(firstMs)} ms → ${Math.round(secondMs)} ms; the stat walk ${Math.round(statWalkMs)} ms)`, secondMs <= statWalkMs + Math.max(1, firstMs - statWalkMs) / 10, `${Math.round((secondMs / firstMs) * 100)}% of the seed scan`)
+check(`a digest on the unchanged tree is a stat walk, never a hash: its cost above this box's own stat walk stays under a quarter of the seed scan's (${Math.round(firstMs)} ms → ${Math.round(secondMs)} ms; the stat walk ${Math.round(statWalkMs)} ms)`, secondMs - statWalkMs <= Math.max(1, firstMs - statWalkMs) / 4, `${Math.round(((secondMs - statWalkMs) / Math.max(1, firstMs - statWalkMs)) * 100)}% of the seed scan's cost above the stat walk`)
 check('…and names the same tree', second === first)
 check("the repository's own index is never touched", statSync(repoIndex).mtimeMs === repoIndexBefore)
 

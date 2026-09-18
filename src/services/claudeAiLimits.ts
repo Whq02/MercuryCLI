@@ -394,17 +394,31 @@ export function getUsageCredentialEpoch(): number {
 let windowObserved = false
 let verdictOwner: string | null = null
 let verdictObservedAtMs: number | null = null
+let lastWindowReadKey: string | null = null
 
 function stampVerdictOwner(): void {
   verdictOwner = resolveOwner()
   verdictObservedAtMs = Date.now()
+  logForDebugging(`[limits] window observed · ${currentLimits.status} · owner ${verdictOwner}`)
 }
 function verdictOwnerStands(): boolean {
   return verdictOwner === null || verdictOwner === resolveOwner()
 }
 
 export function claudeWindowObserved(): boolean {
-  return windowObserved && verdictOwnerStands()
+  const stands = verdictOwnerStands()
+  const key = windowObserved ? (stands ? 'observed' : `drift ${verdictOwner} ${resolveOwner()}`) : 'unobserved'
+  if (key !== lastWindowReadKey) {
+    lastWindowReadKey = key
+    logForDebugging(
+      windowObserved
+        ? stands
+          ? `[limits] window read: observed · owner ${verdictOwner}`
+          : `[limits] window read: unobserved · the verdict is stamped for ${verdictOwner} and the active slot is ${resolveOwner()}`
+        : '[limits] window read: unobserved · no response has spoken since the last credential change',
+    )
+  }
+  return windowObserved && stands
 }
 
 export type AnthropicLimitVerdict = {
@@ -435,6 +449,7 @@ export function anthropicLimitVerdict(nowMs: number = Date.now()): AnthropicLimi
 }
 
 function handleGateClosed(): void {
+  logForDebugging(`[limits] gate closed · the subscriber gate read false · the window record clears (${windowObserved ? `it was observed · owner ${verdictOwner}` : 'it was unobserved'})`)
   usageCredentialEpoch++
   rawUtilization = {}
   endpointUtilization = {}
