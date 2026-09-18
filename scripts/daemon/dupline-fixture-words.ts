@@ -35,6 +35,16 @@ export const FOLD_MARKER = 'Write the running record of this conversation'
 export const FOLD_SUMMARY_MARK = 'the folded record of the sub agent fold work'
 export const FOLD_TRIGGER_INPUT_TOKENS = 190_000
 export const CREW_NOTICE = `Agent "${QUICK_DESCRIPTION}" completed`
+export const BG_SLEEP_TURN_ASK = 'agent turn background sleep'
+export const BG_SLEEP_PROMPT = 'sub agent background sleep work'
+export const BG_SLEEP_DESCRIPTION = 'background sleeper'
+export const BG_SHELL_DESCRIPTION = 'the sub agent background shell'
+export const BG_SHELL_NOTICE = `Background command "${BG_SHELL_DESCRIPTION}" completed`
+export const BG_AGENT_NOTICE = `Agent "${BG_SLEEP_DESCRIPTION}" completed`
+export const BG_SLEEP_DONE = 'agent done: the background sleeping sub agent finished'
+export const BG_SHELL_SECONDS = 4
+export const BG_SUB_SLEEP_SECONDS = 40
+export const BG_MAIN_SLEEP_SECONDS = 90
 export const WATCHED_WORDS = [
   LINE,
   'the line during the main tool',
@@ -49,5 +59,7 @@ export const WATCHED_WORDS = [
   DEEPER_DONE,
   FORK_DONE,
   WORKFLOW_AGENT_DONE,
+  BG_SHELL_NOTICE,
+  BG_AGENT_NOTICE,
 ] as const
 export const doneText = (ask: string): string => `done: ${ask}`

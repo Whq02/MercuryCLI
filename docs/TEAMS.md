@@ -150,7 +150,12 @@ notice an agent has not read"). A command a sub-agent runs in the background
 is a shell task of the session like any other: it has its row on the `/tasks`
 board while it runs, the session's waiting line counts it, and when it
 finishes the notice goes to the agent that launched it, read at that agent's
-next turn. `/crew` shows the directory with presence and external
+next turn. A sub-agent with nothing to do until then waits with the Sleep
+tool, which every sub-agent's roster carries, in a foreground and a
+background run alike: the wait names a ceiling (at most an hour, the same as
+the session's own) and ends the moment the shells that sub-agent launched
+settle, so the notice is read at that boundary and never after a full timer.
+`/crew` shows the directory with presence and external
 seat attach/detach. `/sessions` manages this project's sessions, including
 named-agent chats.
 

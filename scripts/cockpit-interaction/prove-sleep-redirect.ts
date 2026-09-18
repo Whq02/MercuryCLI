@@ -11,6 +11,7 @@ import { startFixtureApi } from '../lib/fixtureApi.ts'
 import {
   countTrackedRunningAgents,
   SleepTool,
+  SUBAGENT_TRACKED_TASK_TYPES,
   TERMINAL_TASK_STATUSES,
   TRACKED_AGENT_TASK_TYPES,
   TRACKED_ARM_GRACE_TICKS,
@@ -106,6 +107,32 @@ t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union
       throw new Error('no state')
     }) === 0,
     'safe',
+  )
+  t.check(
+    "a sub-agent's tracked types are main-thread exclusions, each with both reasons on the record",
+    [...SUBAGENT_TRACKED_TASK_TYPES.keys()].every(ty => UNTRACKED_TASK_TYPES.has(ty) && union.includes(ty)) && [...SUBAGENT_TRACKED_TASK_TYPES.values()].every(r => r.length > 10),
+    [...SUBAGENT_TRACKED_TASK_TYPES.keys()].join(','),
+  )
+  const ownedShell = { s: { id: 'shell-1', type: 'local_bash', status: 'running', agentId: 'agent-self' } }
+  t.check(
+    "a sub-agent's wait counts the background shell it launched",
+    countTrackedRunningAgents(stateWith(ownedShell), 'agent-self') === 1,
+    'one owned shell',
+  )
+  t.check(
+    "another agent's shell, and the main thread's, do not count for it",
+    countTrackedRunningAgents(stateWith({ a: { id: 'shell-2', type: 'local_bash', status: 'running', agentId: 'agent-other' }, b: { id: 'shell-3', type: 'local_bash', status: 'running' } }), 'agent-self') === 0,
+    'not its own',
+  )
+  t.check(
+    "the main thread's wait still leaves every shell out",
+    countTrackedRunningAgents(stateWith({ ...ownedShell, b: { id: 'shell-3', type: 'local_bash', status: 'running' } })) === 0,
+    'local_bash excluded for the main thread',
+  )
+  t.check(
+    "a settled owned shell no longer counts",
+    countTrackedRunningAgents(stateWith({ s: { id: 'shell-1', type: 'local_bash', status: 'completed', agentId: 'agent-self' } }), 'agent-self') === 0,
+    'zero',
   )
 }
 
