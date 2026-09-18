@@ -62,6 +62,23 @@ Windows counter, or the runtime's own free figure before any sample); a
 facts answer never takes a sample, and `mercury://health/box` takes a fresh
 one.
 
+RUNTIME's `OS Bash sandbox` row reads the one OS-level boundary in the stack.
+Off, the shipped default, reads `info`: `off — Bash runs unconfined (no OS
+filesystem/network boundary)`. Enabled but unavailable (an unsupported
+platform, a platform left out of `sandbox.enabledPlatforms`, a missing
+dependency) reads `warn` with the reason. On, the row names what confines
+Bash. On macOS it reads `ON — Bash filesystem + network confined
+(seatbelt/bubblewrap)`. On Linux and WSL2 it also says what the sandbox does
+about unix sockets, read from the apply-seccomp helper the sandbox resolves
+beside the bundle (the Linux archive ships it under `vendor/seccomp/<arch>/`):
+`ON — Bash filesystem + network confined (bubblewrap; unix sockets blocked)`
+with the helper found; `ON — Bash filesystem + network confined (bubblewrap;
+unix sockets open — no seccomp helper)` without it; and `ON — Bash filesystem
++ network confined (bubblewrap; unix sockets open —
+sandbox.network.allowAllUnixSockets)` when that setting tells the sandbox to
+skip the filter. The `/sandbox` dependencies tab shows the same helper as its
+`seccomp filter` row.
+
 TOOL CAPABILITY carries the `Tools withheld` check: every built-in tool kept
 out of the model's catalog because a machine dependency is absent — a debug
 adapter for Debug, a Godot executable for Godot, the desktop driver for

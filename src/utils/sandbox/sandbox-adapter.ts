@@ -356,11 +356,14 @@ export function convertToSandboxRuntimeConfig(settings: SettingsShape): SandboxR
 }
 
 
+export type UnixSocketFilter = 'blocked' | 'open-no-helper' | 'open-by-setting'
+
 export type ISandboxManager = {
   initialize(askCallback?: SandboxAskCallback): Promise<void>
   isSupportedPlatform(): Promise<boolean>
   isPlatformInEnabledList(): boolean
   getSandboxUnavailableReason(): string | null
+  getUnixSocketFilter(): UnixSocketFilter | null
   isSandboxingEnabled(): boolean
   isSandboxEnabledInSettings(): boolean
   checkDependencies(): SandboxDependencyCheck
@@ -457,6 +460,12 @@ export const SandboxManager: ISandboxManager = {
       return `The sandbox (sandbox.enabled) is missing dependencies: ${errors}. ${hint}`
     }
     return null
+  },
+
+  getUnixSocketFilter(): UnixSocketFilter | null {
+    if (!isLinuxSandboxPlatform()) return null
+    if (getSandboxNetwork(getMergedSettings())?.allowAllUnixSockets === true) return 'open-by-setting'
+    return linuxSandboxTools().applySeccompPath === null ? 'open-no-helper' : 'blocked'
   },
 
   isSandboxingEnabled(): boolean {

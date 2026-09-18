@@ -2915,9 +2915,17 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return { status: 'unknown', evidence: 'sandbox state unreadable' }
             }
             if (enabled) {
+              const filter = SandboxManager.getUnixSocketFilter()
+              const boundary = filter === null
+                ? 'seatbelt/bubblewrap'
+                : {
+                    blocked: 'bubblewrap; unix sockets blocked',
+                    'open-no-helper': 'bubblewrap; unix sockets open — no seccomp helper',
+                    'open-by-setting': 'bubblewrap; unix sockets open — sandbox.network.allowAllUnixSockets',
+                  }[filter]
               return {
                 status: 'ok',
-                evidence: 'ON — Bash filesystem + network confined (seatbelt/bubblewrap)',
+                evidence: `ON — Bash filesystem + network confined (${boundary})`,
               }
             }
             const reason = SandboxManager.getSandboxUnavailableReason()
