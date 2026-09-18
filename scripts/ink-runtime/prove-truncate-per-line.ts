@@ -69,7 +69,7 @@ section('§4 layout parity, structurally')
   const walk = readFileSync(join(ROOT, 'src/ink/compose-walk.ts'), 'utf8')
   check('the compositor truncates per source line', walk.includes(".map(line => wrapText(line, maxWidth, textWrap))"))
   const dom = readFileSync(join(ROOT, 'src/ink/dom.ts'), 'utf8')
-  check('layout truncates per source line (the parity partner)', dom.includes('lines[i] = wrapText(lines[i]!, width, textWrap)'))
+  check('layout truncates per source line (the parity partner)', dom.includes('lines[i] = wrapText(lines[i]!, cells, textWrap)'))
 }
 
 console.log(failures === 0 ? '\nprove-truncate-per-line: ALL LAWS HOLD' : `\nprove-truncate-per-line: ${failures} FAILURE(S)`)
