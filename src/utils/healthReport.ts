@@ -790,9 +790,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'install-provenance',
           label: 'Install provenance',
           run: async () => {
-            const { resolveInstallProvenance, provenanceGuidance, provenanceLine } = await import(
-              '../services/privateChannel/installProvenance.js'
-            )
+            const [{ resolveInstallProvenance, provenanceGuidance, provenanceLine, NPM_WRAPPER_ROAD_WORDS }, { resolveLayoutRoots }, { commandOnPath, npmWrapperOnPath }] =
+              await Promise.all([
+                import('../services/privateChannel/installProvenance.js'),
+                import('../services/privateChannel/installLayout.js'),
+                import('../services/privateChannel/installPath.js'),
+              ])
             const p = resolveInstallProvenance()
             if (p.kind === 'unknown' || p.disagreements.length > 0) {
               return {
@@ -801,9 +804,10 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 fix: provenanceGuidance(p),
               }
             }
+            const wrapper = p.kind === 'managed' ? npmWrapperOnPath(commandOnPath(resolveLayoutRoots())) : null
             return {
               status: 'ok',
-              evidence: `${provenanceLine(p)} · ${provenanceGuidance(p)}`,
+              evidence: `${provenanceLine(p)} · ${wrapper === null ? '' : `${NPM_WRAPPER_ROAD_WORDS} · `}${provenanceGuidance(p)}`,
             }
           },
         },
@@ -811,7 +815,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'command-on-path',
           label: 'Command on PATH',
           run: async () => {
-            const [{ resolveInstallProvenance }, { resolveLayoutRoots }, { commandOnPath, commandOnPathWarning }] = await Promise.all([
+            const [{ resolveInstallProvenance }, { resolveLayoutRoots }, { commandOnPath, commandOnPathWarning, npmWrapperOnPath }] = await Promise.all([
               import('../services/privateChannel/installProvenance.js'),
               import('../services/privateChannel/installLayout.js'),
               import('../services/privateChannel/installPath.js'),
@@ -820,6 +824,10 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const roots = resolveLayoutRoots()
             const found = commandOnPath(roots)
             if (p.kind === 'managed') {
+              const wrapper = npmWrapperOnPath(found)
+              if (wrapper !== null) {
+                return { status: 'ok', evidence: `the \`mercury\` your shell runs is npm's wrapper at ${wrapper}; it hands over to the stable command ${roots.shimPath}` }
+              }
               const warning = commandOnPathWarning(roots, found)
               if (warning === null) {
                 return { status: 'ok', evidence: `the \`mercury\` your shell runs is the stable command ${found.state === 'stable' ? found.resolved : roots.shimPath}` }

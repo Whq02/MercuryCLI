@@ -13,7 +13,9 @@ export type InstallProvenanceKind =
 
 export const HOMEBREW_UPGRADE_COMMAND = 'brew upgrade Whq02/mercury/mercury'
 export const NPM_UPDATE_COMMAND = 'npm update -g mercury-tech-cli'
-export const UPDATE_VERB_SCOPE_WORDS = '`mercury update` manages installs made by `mercury install` or the install script'
+export const UPDATE_VERB_SCOPE_WORDS =
+  '`mercury update` manages installs made by `mercury install` or the install script, and runs the channel\'s own upgrade inside an install made by Homebrew or npm'
+export const NPM_WRAPPER_ROAD_WORDS = "installed through npm's wrapper, updated through Mercury's own channel"
 
 export interface InstallProvenanceV1 {
   v: 1
@@ -333,9 +335,9 @@ export function provenanceGuidance(p: InstallProvenanceV1): string {
     case 'managed':
       return 'update with `mercury update` (check: `mercury update --check`; rollback: `mercury update --rollback`)'
     case 'homebrew':
-      return `update it with \`${HOMEBREW_UPGRADE_COMMAND}\`; ${UPDATE_VERB_SCOPE_WORDS}`
+      return `update with \`mercury update\` (it runs \`${HOMEBREW_UPGRADE_COMMAND}\` after asking; \`--yes\` skips the question; check: \`mercury update --check\`)`
     case 'npm':
-      return `update it with \`${NPM_UPDATE_COMMAND}\`; ${UPDATE_VERB_SCOPE_WORDS}`
+      return `update with \`mercury update\` (it runs \`${NPM_UPDATE_COMMAND}\` after asking; \`--yes\` skips the question; check: \`mercury update --check\`)`
     case 'development':
       return 'rebuild with `git pull && bun run build.ts`'
     case 'extracted-release':
@@ -348,6 +350,10 @@ export function provenanceGuidance(p: InstallProvenanceV1): string {
 export interface ForeignInstaller {
   name: 'Homebrew' | 'npm'
   updateCommand: string
+}
+
+export function isNpmWrapperCommand(commandPath: string): boolean {
+  return npmPackageDirOf(realpathSafe(commandPath)) !== null
 }
 
 export function foreignInstallerOf(p: Pick<InstallProvenanceV1, 'kind'>): ForeignInstaller | null {

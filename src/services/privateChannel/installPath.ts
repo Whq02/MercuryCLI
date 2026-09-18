@@ -6,6 +6,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { whichSync } from '../../utils/which.js'
 import { pathEntryEquals, type LayoutRoots } from './installLayout.js'
+import { isNpmWrapperCommand } from './installProvenance.js'
 
 export const PATH_SENTINEL = 'mercury-managed-path'
 export const WIN32_USER_PATH_STORE = 'the user PATH (HKCU\\Environment)'
@@ -112,14 +113,20 @@ function sameFile(a: string, b: string, isWindows: boolean): boolean {
 
 export type CommandOnPath =
   | { state: 'stable'; resolved: string }
-  | { state: 'other'; resolved: string }
+  | { state: 'other'; resolved: string; npmWrapper: boolean }
   | { state: 'absent' }
 
 export function commandOnPath(roots: LayoutRoots, resolveCommand: (name: string) => string | null = whichSync): CommandOnPath {
   const resolved = resolveCommand('mercury')
   if (resolved === null) return { state: 'absent' }
   const members = [roots.shimPath, ...(roots.shimSetPaths ?? [])]
-  return members.some(member => sameFile(member, resolved, roots.isWindows)) ? { state: 'stable', resolved } : { state: 'other', resolved }
+  return members.some(member => sameFile(member, resolved, roots.isWindows))
+    ? { state: 'stable', resolved }
+    : { state: 'other', resolved, npmWrapper: isNpmWrapperCommand(resolved) }
+}
+
+export function npmWrapperOnPath(found: CommandOnPath): string | null {
+  return found.state === 'other' && found.npmWrapper ? found.resolved : null
 }
 
 export function commandOnPathWarning(
@@ -129,6 +136,7 @@ export function commandOnPathWarning(
   io: Pick<PathEntryIo, 'env' | 'home'> = { env: process.env, home: homedir() },
 ): [fact: string, fix: string] | null {
   if (found.state === 'stable') return null
+  if (found.state === 'other' && found.npmWrapper) return null
   const fact =
     found.state === 'other'
       ? `the \`mercury\` your shell runs is ${found.resolved}; ${stableWords} is ${roots.shimPath}`

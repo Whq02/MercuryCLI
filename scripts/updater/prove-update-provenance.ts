@@ -93,11 +93,12 @@ const seedInstalled = (version: string, opts: { realBundle?: boolean } = {}): st
   return join(versionsDir, version, 'mercury.mjs')
 }
 
-const SCOPE_WORDS = '`mercury update` manages installs made by `mercury install` or the install script'
 const BREW_COMMAND = 'brew upgrade Whq02/mercury/mercury'
 const NPM_COMMAND = 'npm update -g mercury-tech-cli'
+const consentQuestion = (name: string, command: string): string => `This Mercury was installed by ${name}. Run \`${command}\` now? [y/N] `
+const declined = (command: string): string => `update not run — answer y to run \`${command}\`, or run \`mercury update --yes\``
 
-section('§1 A HOMEBREW KEG — the update verb declines before it reads the channel, and names brew')
+section('§1 A HOMEBREW KEG — the update verb asks before it runs brew, declines on no answer, and never reads the channel for it')
 const keg = join(scratch, 'homebrew', 'Cellar', 'mercury', '1.0.0-beta.4')
 const libexec = join(keg, 'libexec')
 makePayload(libexec, '1.0.0-beta.4', { bundlePath: DIST })
@@ -107,24 +108,24 @@ seedInstalled(V_NEW)
   const before = listing()
   const pointerBefore = pointer()
   const r = run(kegBundle, ['update'], env(pathOf()))
-  check('the bare update exits 1', r.code === 1, r.all.slice(0, 300))
+  check('the bare update with no answer on stdin exits 1', r.code === 1, r.all.slice(0, 300))
   check(
-    'it names who installed this Mercury, the brew command, what the verb manages, and that nothing was downloaded',
-    r.stderr.includes(`update refused: this Mercury was installed by Homebrew; update it with \`${BREW_COMMAND}\``) &&
-      r.stderr.includes(`  ${SCOPE_WORDS}`) &&
-      r.stderr.includes('nothing was downloaded; the active installation was not changed'),
+    'it asks the consent question naming Homebrew and the brew command, and with no answer says the update was not run and the install unchanged',
+    r.stderr.includes(consentQuestion('Homebrew', BREW_COMMAND)) &&
+      r.stderr.includes(declined(BREW_COMMAND)) &&
+      r.stderr.includes('the active installation was not changed'),
     r.stderr.slice(0, 400),
   )
   check('no request reached the release server and gh was never called', requests() === 0 && !existsSync(ghLog), `requests=${requests()}`)
   check('the versions layout and the stable command path are untouched', listing() === before && pointer() === pointerBefore && !existsSync(shim))
   const a = run(kegBundle, ['update', '--allow-unsigned'], env(pathOf()))
-  check('--allow-unsigned changes nothing about it', a.code === 1 && a.stderr.includes(`installed by Homebrew; update it with \`${BREW_COMMAND}\``) && requests() === 0, a.stderr.slice(0, 200))
+  check('--allow-unsigned changes nothing about it', a.code === 1 && a.stderr.includes(consentQuestion('Homebrew', BREW_COMMAND)) && requests() === 0, a.stderr.slice(0, 200))
   const j = run(kegBundle, ['update', '--json'], env(pathOf()))
   const record = parse(j.stderr)
   const jp = record?.provenance as { kind?: string; updateCommand?: string } | undefined
   check(
-    '--json: refused at stage provenance, carrying the provenance record',
-    j.code === 1 && record?.state === 'refused' && record?.stage === 'provenance' && jp?.kind === 'homebrew' && jp?.updateCommand === BREW_COMMAND,
+    '--json without --yes: refused at stage consent naming --yes, carrying the provenance record',
+    j.code === 1 && record?.state === 'refused' && record?.stage === 'consent' && String(record?.remedy).includes('mercury update --yes') && jp?.kind === 'homebrew' && jp?.updateCommand === BREW_COMMAND,
     j.stderr.slice(0, 300),
   )
   const rb = run(kegBundle, ['update', '--rollback'], env(pathOf()))
@@ -132,7 +133,7 @@ seedInstalled(V_NEW)
     '--rollback declines with the same fact and the pointer stays',
     rb.code === 1 &&
       rb.stderr.includes('rollback refused: this Mercury was installed by Homebrew; `mercury update --rollback` manages installs made by `mercury install` or the install script') &&
-      rb.stderr.includes(`  Homebrew manages this install; \`${BREW_COMMAND}\` updates it`) &&
+      rb.stderr.includes(`  Homebrew manages this install's versions; \`mercury update\` runs \`${BREW_COMMAND}\``) &&
       pointer() === pointerBefore,
     rb.stderr.slice(0, 300),
   )
@@ -143,15 +144,15 @@ seedInstalled(V_NEW)
     c.all.slice(0, 300),
   )
   check(
-    '--check ends on the brew command, never on `mercury update`',
-    c.stdout.trim().endsWith(`this Mercury was installed by Homebrew; update it with \`${BREW_COMMAND}\``) && !c.stdout.includes('run `mercury update` to install it'),
+    '--check ends on the road: `mercury update` runs the brew command',
+    c.stdout.trim().endsWith(`this Mercury was installed by Homebrew; \`mercury update\` runs \`${BREW_COMMAND}\``) && !c.stdout.includes('run `mercury update` to install it'),
     c.stdout.slice(-200),
   )
   const s = run(kegBundle, ['update', '--status'], env(pathOf()))
   check(
     '--status names the provenance beside the running and the installed version',
     s.code === 0 &&
-      s.stdout.includes(`this Mercury:      installed by Homebrew at ${libexec} — update it with \`${BREW_COMMAND}\`; ${SCOPE_WORDS}`) &&
+      s.stdout.includes(`this Mercury:      installed by Homebrew at ${libexec} — \`mercury update\` runs \`${BREW_COMMAND}\``) &&
       s.stdout.includes(`running version:   ${RUNNING}`) &&
       s.stdout.includes(`installed version: ${V_NEW}`),
     s.stdout.slice(0, 700),
@@ -161,7 +162,7 @@ seedInstalled(V_NEW)
   check('--status --json carries the provenance record', sj.code === 0 && sp?.kind === 'homebrew' && sp?.updateCommand === BREW_COMMAND, sj.stdout.slice(0, 200))
 }
 
-section('§2 THE NPM PACKAGE — the same refusal, naming npm')
+section('§2 THE NPM PACKAGE — the same question, naming npm')
 const pkg = join(scratch, 'npm', 'lib', 'node_modules', 'mercury-tech-cli')
 mkdirSync(pkg, { recursive: true })
 copyFileSync(DIST, join(pkg, 'mercury.mjs'))
@@ -169,13 +170,13 @@ copyFileSync(DIST, join(pkg, 'mercury.mjs'))
   const requestsBefore = requests()
   const r = run(join(pkg, 'mercury.mjs'), ['update'], env(pathOf()))
   check(
-    'the bare update exits 1 naming npm and its command',
-    r.code === 1 && r.stderr.includes(`update refused: this Mercury was installed by npm; update it with \`${NPM_COMMAND}\``) && r.stderr.includes(SCOPE_WORDS),
+    'the bare update with no answer exits 1 after asking about npm and its command',
+    r.code === 1 && r.stderr.includes(consentQuestion('npm', NPM_COMMAND)) && r.stderr.includes(declined(NPM_COMMAND)),
     r.stderr.slice(0, 300),
   )
   check('no request reached the release server', requests() === requestsBefore)
   const c = run(join(pkg, 'mercury.mjs'), ['update', '--check'], env(pathOf()))
-  check('--check ends on the npm command', c.code === 0 && c.stdout.trim().endsWith(`this Mercury was installed by npm; update it with \`${NPM_COMMAND}\``), c.stdout.slice(-200))
+  check('--check ends on the road: `mercury update` runs the npm command', c.code === 0 && c.stdout.trim().endsWith(`this Mercury was installed by npm; \`mercury update\` runs \`${NPM_COMMAND}\``), c.stdout.slice(-200))
 }
 
 section('§3 A VERSIONS-ROOT INSTALL — still updates; the `mercury` the shell runs is named when it is not the stable command')
@@ -237,8 +238,8 @@ const doctorRow = (bundle: string, id: string, environment: Record<string, strin
 {
   const row = doctorRow(kegBundle, 'install-provenance', env(pathOf()))
   check(
-    "a Homebrew install's provenance row says homebrew and names the brew command",
-    row?.status === 'ok' && (row?.evidence ?? '').startsWith('homebrew ') && (row?.evidence ?? '').includes(`update it with \`${BREW_COMMAND}\``),
+    "a Homebrew install's provenance row says homebrew and names `mercury update` as the road that runs the brew command",
+    row?.status === 'ok' && (row?.evidence ?? '').startsWith('homebrew ') && (row?.evidence ?? '').includes('update with `mercury update`') && (row?.evidence ?? '').includes(`it runs \`${BREW_COMMAND}\` after asking`),
     JSON.stringify(row),
   )
   const onPath = doctorRow(kegBundle, 'command-on-path', env(pathOf(otherBin)))
