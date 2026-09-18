@@ -57,7 +57,10 @@ while a chat exists.
 the chip shows, and enters it. The session, the chat and its board row come
 into being together — the record is on the board before the chat paints —
 and no words are sent: the session is blank and ready, exactly like a row
-entered from the board. Enter stays instant because a warm runner already
+entered from the board. A `/mission` typed in the moment before the seat
+lands still belongs to the chat you opened: it moves to the session at
+admission, its card and its Stop hook with it, and the rail shows it once
+the seat is in. Enter stays instant because a warm runner already
 stands behind the menu; the birth claims it instead of paying a spawn. The session is born wearing the
 repository's MCPs & Skills record — or the preset armed on the face — and
 the launch receipt names which ([KIT.md](KIT.md)). The board's own `+ new session · n`
