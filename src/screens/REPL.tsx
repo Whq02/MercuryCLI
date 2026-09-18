@@ -1219,7 +1219,10 @@ export function REPL({
         })
         .then(receipt => {
           if (receipt.state !== 'refused') return;
-          if (pendingInput.text() === '') setInputValue(input);
+          if (pendingInput.text() === '') {
+            setInputValue(input);
+            setPastedContents(seatPastes);
+          }
           addNotification({
             key: 'focused-session-send',
             text: receipt.detail,
