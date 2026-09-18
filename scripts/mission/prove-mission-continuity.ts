@@ -232,6 +232,50 @@ section('§8 the store speaks: a mission\'s birth and death wake their subscribe
   check('no poll and no timer stands behind it', !/setInterval\([^)]*mission/i.test(rail))
 }
 
+section('§9 a mission armed while the chat is landing follows the seat: at admission the record, the card and the Stop hook re-key to the hosted chat')
+{
+  const fc = await import('../../src/services/engine-connector/focusedConnector.js')
+  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
+  const { getSessionId } = await import('../../src/bootstrap/state.js')
+  const HOSTED = 'cont-hosted-1'
+  class HostedConnector extends NoSessionConnector {
+    override sessionId(): string {
+      return HOSTED
+    }
+  }
+  const stopHooks = (sessionId: string): number => {
+    const groups = (state.sessionHooks.get(sessionId)?.hooks?.['Stop'] ?? []) as Array<{ hooks: unknown[] }>
+    return groups.reduce((n, g) => n + g.hooks.length, 0)
+  }
+  fc._resetFocusedSessionConnectorForTesting()
+  const bootstrapId = String(getSessionId())
+  let admit: () => void = () => {}
+  const landing = fc.withLanding(new Promise<void>(resolve => { admit = resolve }))
+  check('while the birth is landing no session holds the slot and the bootstrap id answers', fc.landingInFlight() && !fc.hasFocusedSession() && fc.conversationIdHere() === bootstrapId)
+  let woken = 0
+  const unsubscribe = subscribeActiveMission(() => { woken += 1 })
+  setActiveMission(setAppState as never, 'follow the seat')
+  check('before admission the mission is keyed by the bootstrap id, its Stop hook there', getActiveMission(bootstrapId)?.condition === 'follow the seat' && stopHooks(bootstrapId) === 1)
+  fc.setFocusedSessionConnector(new HostedConnector())
+  admit()
+  await landing
+  check("at admission the mission lives under the hosted chat's id and no longer under the bootstrap id", getActiveMission(HOSTED)?.condition === 'follow the seat' && getActiveMission(bootstrapId) === undefined, JSON.stringify({ hosted: getActiveMission(HOSTED)?.condition, bootstrap: getActiveMission(bootstrapId)?.condition }))
+  check("the hosted chat's card is armed with the goal (the seat's runner reads it at its next turn start)", readMissionCard(HOSTED)?.state === 'armed' && readMissionCard(HOSTED)?.goal === 'follow the seat', JSON.stringify(readMissionCard(HOSTED)))
+  check('the bootstrap card reads continued and names the hosted chat', readMissionCard(bootstrapId)?.state === 'continued' && (readMissionCard(bootstrapId)?.nextStep ?? '').includes(HOSTED), JSON.stringify(readMissionCard(bootstrapId)))
+  check('the Stop hook stands under the hosted id alone', stopHooks(HOSTED) === 1 && stopHooks(bootstrapId) === 0, `hosted=${stopHooks(HOSTED)} bootstrap=${stopHooks(bootstrapId)}`)
+  check('the store woke its subscribers for the move (the rail repaints its card)', woken >= 2, `woken=${woken}`)
+  check("the conversation's id now answers the hosted chat, so the rail's render-time read finds the mission", fc.conversationIdHere() === HOSTED && getActiveMission()?.condition === 'follow the seat')
+  unsubscribe()
+  clearActiveMission(setAppState as never, HOSTED)
+  fc._resetFocusedSessionConnectorForTesting()
+  const S9 = 'cont-session-9'
+  setActiveMission(setAppState as never, 'a plain arm stays put', { sessionId: S9 })
+  fc.setFocusedSessionConnector(new HostedConnector())
+  check('a mission armed under a named session never follows a later slot move', getActiveMission(S9)?.condition === 'a plain arm stays put' && getActiveMission(HOSTED) === undefined)
+  clearActiveMission(setAppState as never, S9)
+  fc._resetFocusedSessionConnectorForTesting()
+}
+
 console.log('\n' + '═'.repeat(76))
 console.log(failures === 0 ? '✅ ALL MISSION-CONTINUITY PROOFS PASS' : `❌ ${failures} MISSION-CONTINUITY CHECK(S) FAILED`)
 console.log('═'.repeat(76))
