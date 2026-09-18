@@ -22,6 +22,7 @@ import {
   CRON_LIST_TOOL_NAME,
 } from '../tools/ScheduleCronTool/prompt.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../tools/SendMessageTool/constants.js'
+import { SLEEP_TOOL_NAME } from '../tools/SleepTool/prompt.js'
 import { SKILL_TOOL_NAME } from '../tools/SkillTool/constants.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/constants.js'
 import { TASK_CREATE_TOOL_NAME } from '../tools/TaskCreateTool/constants.js'
@@ -70,6 +71,7 @@ export const ASYNC_AGENT_ALLOWED_TOOLS: Set<string> = new Set([
   TOOL_SEARCH_TOOL_NAME,
   ENTER_WORKTREE_TOOL_NAME,
   EXIT_WORKTREE_TOOL_NAME,
+  SLEEP_TOOL_NAME,
 ])
 
 export const IN_PROCESS_TEAMMATE_ALLOWED_TOOLS: Set<string> = new Set([

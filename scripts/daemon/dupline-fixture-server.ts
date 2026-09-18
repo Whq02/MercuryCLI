@@ -6,6 +6,14 @@ import {
   AGENT_DESCRIPTION,
   AGENT_PROMPT,
   AGENT_TURN_ASK,
+  BG_MAIN_SLEEP_SECONDS,
+  BG_SHELL_DESCRIPTION,
+  BG_SHELL_SECONDS,
+  BG_SLEEP_DESCRIPTION,
+  BG_SLEEP_DONE,
+  BG_SLEEP_PROMPT,
+  BG_SLEEP_TURN_ASK,
+  BG_SUB_SLEEP_SECONDS,
   CREW_TURN_ASK,
   DEEPER_DONE,
   DEEPER_PROMPT,
@@ -223,7 +231,9 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
                       ? 'wfwork'
                       : openingTrimmed === RELAUNCH_PROMPT
                         ? 'subrelaunch'
-                        : null
+                        : openingTrimmed === BG_SLEEP_PROMPT
+                          ? 'subbgsleep'
+                          : null
     const mainArm =
       trimmedAsk === AGENT_TURN_ASK
         ? 'agent'
@@ -243,7 +253,9 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
                       ? 'agentrelaunch'
                       : trimmedAsk === THREE_ROUNDS_ASK
                         ? 'three'
-                        : 'plain'
+                        : trimmedAsk === BG_SLEEP_TURN_ASK
+                          ? 'agentbgsleep'
+                          : 'plain'
     const arm = subArm ?? mainArm
     const fold = raw.includes(FOLD_MARKER)
     const text = messagesText(items)
@@ -317,6 +329,14 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         if (step === 0) return answerSleep(res, n, model, `toolu_relaunch1_c${n}`, AGENT_SLEEP_SECONDS)
         if (step === 1) return answerSleep(res, n, model, `toolu_relaunch2_c${n}`, MAIN_SLEEP_SECONDS * 4)
         return answerText(res, n, model, 'agent done: the relaunch sub agent finished')
+      case 'agentbgsleep':
+        if (step === 0) return answerAgent(res, n, model, `toolu_bgagent_c${n}`, BG_SLEEP_PROMPT, { description: BG_SLEEP_DESCRIPTION, run_in_background: true })
+        if (step === 1) return answerTool(res, n, model, `toolu_bgwait_c${n}`, 'Sleep', { seconds: BG_MAIN_SLEEP_SECONDS })
+        return answerText(res, n, model, doneText(BG_SLEEP_TURN_ASK))
+      case 'subbgsleep':
+        if (step === 0) return answerTool(res, n, model, `toolu_bgshell_c${n}`, 'Bash', { command: `sleep ${BG_SHELL_SECONDS}`, description: BG_SHELL_DESCRIPTION, run_in_background: true })
+        if (step === 1) return answerTool(res, n, model, `toolu_bgsub_c${n}`, 'Sleep', { seconds: BG_SUB_SLEEP_SECONDS })
+        return answerText(res, n, model, BG_SLEEP_DONE)
       case 'three':
         if (step === 0) return answerSleep(res, n, model, `toolu_r1_c${n}`, MAIN_SLEEP_SECONDS)
         if (step === 1) return answerSleep(res, n, model, `toolu_r2_c${n}`, 3)

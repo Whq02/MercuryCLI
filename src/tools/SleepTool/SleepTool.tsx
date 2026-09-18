@@ -27,6 +27,10 @@ export const UNTRACKED_TASK_TYPES: ReadonlyMap<string, string> = new Map([
   ['dream', 'internal daemon work; never model-awaited'],
 ])
 
+export const SUBAGENT_TRACKED_TASK_TYPES: ReadonlyMap<string, string> = new Map([
+  ['local_bash', "a sub-agent's wait ends when the background shells it launched settle; a shell task carries the spawning agent's id, so only the sub-agent's own shells count"],
+])
+
 export const TERMINAL_TASK_STATUSES: ReadonlySet<string> = new Set([
   'completed',
   'failed',
@@ -40,10 +44,11 @@ export function countTrackedRunningAgents(
   let running = 0
   try {
     for (const task of Object.values(getAppState().tasks ?? {})) {
-      const t = task as { id?: unknown; status?: unknown; type?: unknown }
+      const t = task as { id?: unknown; status?: unknown; type?: unknown; agentId?: unknown }
       if (typeof t.status === 'string' && TERMINAL_TASK_STATUSES.has(t.status)) continue
       if (selfTaskId !== undefined && t.id === selfTaskId) continue
       if (typeof t.type === 'string' && TRACKED_AGENT_TASK_TYPES.has(t.type)) running++
+      else if (selfTaskId !== undefined && typeof t.type === 'string' && SUBAGENT_TRACKED_TASK_TYPES.has(t.type) && t.agentId === selfTaskId) running++
     }
   } catch {
     return 0

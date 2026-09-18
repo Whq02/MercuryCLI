@@ -23,6 +23,8 @@ type Props = {
   verbose: boolean;
   isTranscriptMode?: boolean;
   hermesKill?: HermesKillInfo;
+  toolUseResult?: unknown;
+  input?: unknown;
 };
 export function UserToolErrorMessage({
   progressMessagesForMessage,
@@ -32,6 +34,8 @@ export function UserToolErrorMessage({
   verbose,
   isTranscriptMode,
   hermesKill,
+  toolUseResult,
+  input,
 }: Props): React.ReactNode {
   if (hermesKill) {
     const reason =
@@ -96,6 +100,8 @@ export function UserToolErrorMessage({
       tools,
       verbose,
       isTranscriptMode,
+      toolUseResult,
+      input,
     }) ?? <FallbackToolUseErrorMessage result={param.content} verbose={verbose} />
   );
 }
