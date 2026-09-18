@@ -54,6 +54,7 @@ import {
   getMaxBudgetUsdAttachment,
   getOutputTokenUsageAttachment,
   getTasteRecallAttachment,
+  getUsageLimitNoticeAttachment,
 } from './sessionContext.js'
 import {
   getDynamicSkillAttachments,
@@ -288,6 +289,9 @@ export async function getAttachments(
         ),
         maybe('output_token_usage', async () =>
           Promise.resolve(getOutputTokenUsageAttachment()),
+        ),
+        maybe('usage_limit_notice', async () =>
+          Promise.resolve(getUsageLimitNoticeAttachment(toolUseContext, messages ?? [])),
         ),
         maybe('verify_plan_reminder', async () =>
           getVerifyPlanReminderAttachment(messages, toolUseContext),

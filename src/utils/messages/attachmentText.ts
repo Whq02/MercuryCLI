@@ -1008,6 +1008,15 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
           isMeta: true,
         }),
       ]
+    case 'usage_limit_notice':
+      return [
+        createUserMessage({
+          content: wrapInSystemReminder(
+            `Usage limit near — ${attachment.text}. The provider stops this session when the window is used up. Finish the step in hand, commit what is done, and write down where the work stands before the stop; start nothing that cannot be saved in time.`,
+          ),
+          isMeta: true,
+        }),
+      ]
     case 'output_token_usage': {
       const turnText =
         attachment.budget !== null
