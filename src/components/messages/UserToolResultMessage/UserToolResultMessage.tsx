@@ -76,6 +76,8 @@ export function UserToolResultMessage({
         verbose={verbose}
         isTranscriptMode={isTranscriptMode}
         hermesKill={hermesKill}
+        toolUseResult={message.toolUseResult}
+        input={lookups.toolUseByToolUseID.get(toolUse.toolUse.id)?.input}
       />
     );
   }

@@ -1,10 +1,15 @@
 ;
 import type { ToolResultBlockParam } from '../../types/wire.js'
-import React from 'react';
+import React, { useEffect } from 'react';
+import { OUTPUT_CONNECTOR } from '../../constants/figures.js';
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js';
+import { MessageResponse } from '../../components/MessageResponse.js';
 import { AMBER, FAINT, TERRA } from '../../components/mercuryPalette.js';
+import { InteractiveRow } from '../../components/mercury-ui/InteractiveRow.js';
 import { WithCardTone } from '../../components/mercury-ui/toolCardGrammar.js';
 import { Box, Text } from '../../ink.js';
+import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js';
+import { cellCardFactsOf, rememberCellCard, type WorkshopCellCardFacts } from './cellCards.js';
 import type { Input, Output } from './WorkshopTool.js';
 
 export function renderToolUseMessage(
@@ -17,11 +22,55 @@ export function renderToolUseMessage(
   return `${cells.length} ${first.language} cell${cells.length === 1 ? '' : 's'}${first.title ? ` · ${first.title}` : ''}`;
 }
 
+export function cellCardHint(cellId: string): string {
+  return `${OUTPUT_CONNECTOR}view the card: /tasks ${cellId} · click to open`;
+}
+
+export function cellCardFactsOfResult(toolUseResult: unknown, input: Partial<Input> | undefined): WorkshopCellCardFacts[] {
+  const cells = (toolUseResult as Partial<Output> | null | undefined)?.cells;
+  if (!Array.isArray(cells)) return [];
+  const facts: WorkshopCellCardFacts[] = [];
+  cells.forEach((cell, index) => {
+    const found = cellCardFactsOf(cell, input?.cells?.[index]?.code);
+    if (found !== null) facts.push(found);
+  });
+  return facts;
+}
+
+function FailedCellsRow({ result, verbose, facts }: { result: ToolResultBlockParam['content']; verbose: boolean; facts: WorkshopCellCardFacts[] }): React.ReactNode {
+  useEffect(() => {
+    for (const cell of facts) rememberCellCard(cell);
+  }, [facts]);
+  const first = facts[0]!;
+  return (
+    <InteractiveRow
+      id={`workshop-cell:${first.cellId}`}
+      directActivate
+      selectionBand={false}
+      flexDirection="column"
+      onActivate={() => requestCommandDispatch(`/tasks ${first.cellId}`)}
+    >
+      <MessageResponse>
+        <Box flexDirection="column">
+          <FallbackToolUseErrorMessage result={result} verbose={verbose} />
+          {facts.map(cell => (
+            <Text key={cell.cellId} color={FAINT}>
+              {cellCardHint(cell.cellId)}
+            </Text>
+          ))}
+        </Box>
+      </MessageResponse>
+    </InteractiveRow>
+  );
+}
+
 export function renderToolUseErrorMessage(
   result: ToolResultBlockParam['content'],
-  { verbose }: { verbose: boolean },
+  { verbose, toolUseResult, input }: { verbose: boolean; toolUseResult?: unknown; input?: Partial<Input> },
 ): React.ReactNode {
-  return <FallbackToolUseErrorMessage result={result} verbose={verbose} />;
+  const facts = cellCardFactsOfResult(toolUseResult, input);
+  if (facts.length === 0) return <FallbackToolUseErrorMessage result={result} verbose={verbose} />;
+  return <FailedCellsRow result={result} verbose={verbose} facts={facts} />;
 }
 
 export function renderToolResultMessage(

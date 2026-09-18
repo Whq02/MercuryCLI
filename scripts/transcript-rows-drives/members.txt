@@ -12,3 +12,4 @@ prove-streaming-hold.ts
 prove-size-prune-drive.ts
 prove-local-result-band-drive.ts
 prove-update-notes-card-drive.ts
+prove-workshop-cell-card-drive.ts
