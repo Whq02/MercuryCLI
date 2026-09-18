@@ -147,7 +147,7 @@ for (const cols of [100, 120]) {
       },
     }),
   )
-  const { marks, sends, receipts } = await capture(
+  const { marks, sends, receipts, text } = await capture(
     `anthropic-${cols}`,
     {
       cols,
@@ -157,9 +157,9 @@ for (const cols of [100, 120]) {
       cwd: workspace,
       sends: [
         ...FACE_THEN_COMPOSER,
+        { data: '', atTick: 999, awaitText: 'of weekly limit used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
         { data: '/usage\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: 'Current week', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
-        { data: '', atTick: 999, awaitText: 'of weekly limit used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
       ],
       readyText: ['? for shortcuts'],
       stableTicks: 4,
@@ -182,6 +182,7 @@ for (const cols of [100, 120]) {
     frame.slice(-260) || '(no warning frame)',
   )
   check(`…with the warn lead (${cols})`, frame.includes('▲ Anthropic: 92%'), frame.slice(-140))
+  check(`the hints return once the notice clears (${cols})`, text.includes('? for shortcuts') && !text.includes('limit used'), text.slice(-200))
 }
 
 for (const cols of [100, 120]) {
@@ -198,7 +199,7 @@ for (const cols of [100, 120]) {
       },
     }),
   )
-  const { marks, sends, receipts } = await capture(
+  const { marks, sends, receipts, text } = await capture(
     `anthropic-fable-${cols}`,
     {
       cols,
@@ -208,9 +209,9 @@ for (const cols of [100, 120]) {
       cwd: workspace,
       sends: [
         ...FACE_THEN_COMPOSER,
+        { data: '', atTick: 999, awaitText: 'of Opus limit used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
         { data: '/usage\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: 'Current week (Opus)', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
-        { data: '', atTick: 999, awaitText: 'of Opus limit used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
       ],
       readyText: ['? for shortcuts'],
       stableTicks: 4,
@@ -235,6 +236,7 @@ for (const cols of [100, 120]) {
     frame.slice(-260) || '(no warning frame)',
   )
   check(`…with the warn lead (${cols})`, frame.includes('▲ Anthropic: 99%'), frame.slice(-140))
+  check(`the hints return once the notice clears (${cols})`, text.includes('? for shortcuts') && !text.includes('limit used'), text.slice(-200))
 }
 
 const PORT = 38031
@@ -282,7 +284,7 @@ await new Promise<void>(resolvePort => server.listen(PORT, '127.0.0.1', resolveP
 
 for (const cols of [100, 120]) {
   const { home, workspace } = seedHome('openrouter/nvidia/nemotron-nano-9b-v2:free')
-  const { marks, sends, receipts } = await capture(
+  const { marks, sends, receipts, text } = await capture(
     `openrouter-${cols}`,
     {
       cols,
@@ -292,9 +294,9 @@ for (const cols of [100, 120]) {
       cwd: workspace,
       sends: [
         ...FACE_THEN_COMPOSER,
+        { data: '', atTick: 999, awaitText: 'of credit cap used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
         { data: '/usage\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: 'OpenRouter', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
-        { data: '', atTick: 999, awaitText: 'of credit cap used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
       ],
       readyText: ['? for shortcuts'],
       stableTicks: 4,
@@ -314,6 +316,7 @@ for (const cols of [100, 120]) {
     frame.slice(-260) || '(no warning frame)',
   )
   check(`…with the warn lead (${cols})`, frame.includes('▲ OpenRouter: 84%'), frame.slice(-140))
+  check(`the hints return once the notice clears (${cols})`, text.includes('? for shortcuts') && !text.includes('credit cap used'), text.slice(-200))
 }
 
 server.close()
