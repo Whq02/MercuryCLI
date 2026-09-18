@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -20,6 +20,8 @@ const setStamp = (on: boolean) => {
 setStamp(true)
 const scratch = mkdtempSync(join(tmpdir(), 'startup-menu-'))
 process.chdir(scratch)
+process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
+mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 for (const k of ['MERCURY_ENTER_MENU', 'MERCURY_THEMIS', 'MERCURY_MNEME', 'MERCURY_DAEDALUS', 'MERCURY_DAEDALUS_MODEL', 'MERCURY_DAEDALUS_EXECUTOR_MODEL']) {
   delete process.env[k]
 }
