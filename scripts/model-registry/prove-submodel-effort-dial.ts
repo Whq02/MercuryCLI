@@ -462,12 +462,8 @@ section('§5 the panel, driven: e opens the strip, → moves, ↵ persists and t
   slots.setSubModelEffort('minerva', null)
 }
 
-section('§6 the wiring: the runners spread the dispatch answer, the console passes its dial, the surfaces share one strip')
+section('§6 the wiring: the console passes its dial, the surfaces share one strip')
 {
-  const minerva = src('src/utils/tabula/minerva.ts')
-  check('the boot pass spreads the dispatch answer into its call options', /\.\.\.minervaEffort\(slot\.model\),\s*querySource: 'tabula_minerva',/.test(minerva))
-  check('the chat runner too', /\.\.\.minervaEffort\(slot\.model\),\s*querySource: 'tabula_minerva_chat',/.test(minerva))
-  check('…through the one dispatch composer, logging a fallback', minerva.includes("subModelDispatchEffort('minerva', model)") && minerva.includes('logForDebugging(`minerva effort: ${dispatch.fallback}`)'))
   const consoleAsk = src('src/utils/cockpit/helmConsoleAsk.ts')
   check('the console passes its dial, or null for NO level, to the fork', consoleAsk.includes("subModelDispatchEffort('console', slot.model)") && consoleAsk.includes('effortValue: effort.effortValue ?? null,'))
   const sq = src('src/utils/sideQuestion.ts')

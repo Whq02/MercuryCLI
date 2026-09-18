@@ -10,20 +10,11 @@ here="$(cd "$(dirname "$0")" && pwd)"
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 echo "############################################################"
-echo "# TABULA — note ledger + MINERVA curator"
+echo "# TABULA — note ledger"
 echo "############################################################"
 __t=$SECONDS; __rc=0; "$BUN" run "$here/prove-tabula-store.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tabula-store.ts" "$__t" "$__rc"
 if [ -f "$here/prove-tabula-surfaces.ts" ]; then
   __t=$SECONDS; __rc=0; "$BUN" run "$here/prove-tabula-surfaces.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tabula-surfaces.ts" "$__t" "$__rc"
-fi
-if [ -f "$here/prove-minerva.ts" ]; then
-  __t=$SECONDS; __rc=0; "$BUN" run "$here/prove-minerva.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-minerva.ts" "$__t" "$__rc"
-fi
-if [ -f "$here/prove-minerva-decode.ts" ]; then
-  __t=$SECONDS; __rc=0; "$BUN" run "$here/prove-minerva-decode.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-minerva-decode.ts" "$__t" "$__rc"
-fi
-if [ -f "$here/prove-structured-output-dialect.ts" ]; then
-  __t=$SECONDS; __rc=0; "$BUN" run "$here/prove-structured-output-dialect.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-structured-output-dialect.ts" "$__t" "$__rc"
 fi
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ TABULA PASS"; else echo "# ❌ TABULA FAILED"; fi

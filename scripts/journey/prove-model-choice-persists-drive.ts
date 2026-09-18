@@ -126,7 +126,6 @@ function worldEnv(world: World): NodeJS.ProcessEnv {
     MERCURY_DAEMON_DIR: path.join(world.home, 'daemon'),
     MERCURY_TEAMS_DIR: path.join(world.home, 'teams'),
     MERCURY_TABULA_DIR: path.join(world.home, 'tabula'),
-    MERCURY_TABULA_MINERVA: '0',
     MERCURY_HOME: path.join(world.home, 'proof-home'),
   }
   delete env.NODE_ENV

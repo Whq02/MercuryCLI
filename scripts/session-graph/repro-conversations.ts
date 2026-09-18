@@ -60,18 +60,6 @@ t.section('CS-14/16 — every surface rides the ONE registry (journey-final pins
     consoleMints,
     'helmConsole.ts does not touch the conversation registry yet',
   )
-  let minervaHandoff = false
-  try {
-    const files = readdirSync('src/services/crew')
-    minervaHandoff = files.includes('minervaHandoff.ts')
-  } catch {
-    minervaHandoff = false
-  }
-  t.check(
-    'the Minerva handoff owner exists beside the registry (M6)',
-    minervaHandoff,
-    'src/services/crew/minervaHandoff.ts absent',
-  )
   let acpCursorWire = false
   try {
     const acp = readFileSync('src/services/acp/acpServer.ts', 'utf8')

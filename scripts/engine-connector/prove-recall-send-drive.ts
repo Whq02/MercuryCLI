@@ -165,7 +165,6 @@ async function drive(scene: Scene): Promise<void> {
     MERCURY_DAEMON_DIR: daemonDir,
     MERCURY_TEAMS_DIR: path.join(RUN_HOME, 'teams'),
     MERCURY_TABULA_DIR: path.join(RUN_HOME, 'tabula'),
-    MERCURY_TABULA_MINERVA: '0',
     MERCURY_HOME: path.join(RUN_HOME, 'proof-home'),
     MERCURY_CONNECTOR_TRACE: path.join(RUN_HOME, 'connector-trace.jsonl'),
     MERCURY_SUBMIT_TRACE: censusPath,

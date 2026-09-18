@@ -1,12 +1,12 @@
 
   (>_) MERCURY · boot menu
 
-  ↑ 9 more
+  ↑ 7 more
+  computer use
+    Computer use                       default (on)
     Access type                        default (asks)
   samples
     Samples                            default (off)
-  scale & spend
-    Minerva note curator               default (off)
   memory & missions
     Project facts & decisions (MNEME)  default (off)
     Repo generation (DAEDALUS)         default (off)

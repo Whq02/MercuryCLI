@@ -74,10 +74,10 @@ function buildBank(): readonly Tip[] {
     t('mcp.permissions', 'mcp', 2, '/permissions: what runs free, what asks.', 'permissions'),
     t('mcp.list', 'mcp', 2, '/mcp lists servers and toggles each.', 'mcp'),
     t('mcp.kill', 'mcp', 2, '/kill turns a tool off for this session.', 'kill'),
-    t('minerva.note', 'minerva', 2, 'Type /note to keep a thought for later.', 'note', notepadWorld),
+    t('notes.note', 'notes', 2, 'Type /note to keep a thought for later.', 'note', notepadWorld),
     t('context.window', 'context', 3, '/auto-compact-window sets the fold size.', 'auto-compact-window'),
     t('models.cap', 'models', 3, 'Unserved effort runs the nearest level.'),
-    t('models.submodels', 'models', 3, '/submodels seats Minerva and Console.', 'submodels'),
+    t('models.submodels', 'models', 3, '/submodels seats the Console.', 'submodels'),
     t('mcp.extensions', 'mcp', 3, '/extensions installs from added sources.', 'extensions'),
     t('agents.workflows', 'agents', 3, '/workflows shows runs, live and past.', 'workflows', fleetWorld),
     t('agents.teammates', 'agents', 3, '/teammates shows the crew, live.', 'teammates', fleetWorld),
@@ -89,9 +89,7 @@ function buildBank(): readonly Tip[] {
     t('worktrees.realms', 'worktrees', 3, '/realms lists the folders you trust.', 'realms'),
     t('worktrees.orient', 'worktrees', 3, '/orient maps a new repo in one read.', 'orient', repoSurfaceMapEnabled),
     t('worktrees.branch', 'worktrees', 3, '/branch asks a side question, no derail.', 'branch'),
-    t('minerva.tidy', 'minerva', 3, '/minerva turns your words into notes.', 'minerva', notepadWorld),
-    t('minerva.free', 'minerva', 3, 'Minerva bills one call per line sent.', undefined, notepadWorld),
-    t('minerva.outlive', 'minerva', 3, 'Notes outlive /clear: they live on disk.', 'note', notepadWorld),
+    t('notes.outlive', 'notes', 3, 'Notes outlive /clear: they live on disk.', 'note', notepadWorld),
   ]
 }
 

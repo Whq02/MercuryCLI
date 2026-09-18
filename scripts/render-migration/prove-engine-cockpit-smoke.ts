@@ -71,7 +71,6 @@ function drive(leg: 'off' | 'on', tag = leg, argv: string[] = ['node', BIN]): Dr
     MERCURY_SCRIPTED_STREAM: 'slow-text',
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_CRITTER_GAZE: '0',
-    MERCURY_TABULA_MINERVA: '0',
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(OUT, `daemon-${tag}`),
     MERCURY_TEAMS_DIR: join(OUT, `teams-${tag}`),

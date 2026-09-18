@@ -599,7 +599,7 @@ t.section('§10 — THE WAKE EDGES (the operator\'s word): a turn wakes, a view 
   )
   sleep.noteCritterRealActivity()
   t.check(
-    'a Minerva/Console DISPATCH wakes the critter in the same tick (push, no poll)',
+    'a Console DISPATCH wakes the critter in the same tick (push, no poll)',
     !sleep.isCritterAsleep(),
   )
   off()
@@ -627,12 +627,7 @@ t.section('§10 — THE WAKE EDGES (the operator\'s word): a turn wakes, a view 
   off()
   sleep.resetCritterSleepForTests()
 
-  const minervaSrc = await Bun.file('src/utils/tabula/minerva.ts').text()
   const consoleSrc = await Bun.file('src/utils/cockpit/helmConsoleAsk.ts').text()
-  t.check(
-    'both Minerva runners stamp the wake at dispatch',
-    (minervaSrc.match(/noteCritterRealActivity\(\)/g) ?? []).length === 2,
-  )
   t.check(
     'the console ask stamps at dispatch and settle',
     (consoleSrc.match(/noteCritterRealActivity\(\)/g) ?? []).length === 2,

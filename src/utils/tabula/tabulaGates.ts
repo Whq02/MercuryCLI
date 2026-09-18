@@ -1,17 +1,12 @@
 
 import { join } from 'node:path'
-import { getMercuryHome, isEnvTruthy } from '../envUtils.js'
+import { getMercuryHome } from '../envUtils.js'
 import { sanitizePath } from '../sessionStoragePortable.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export function isTabulaEnabled(): boolean {
   if (flagEnv('MERCURY_TABULA') === '0') return false
   return true
-}
-
-export function isMinervaEnabled(): boolean {
-  if (!isTabulaEnabled()) return false
-  return isEnvTruthy(flagEnv('MERCURY_TABULA_MINERVA'))
 }
 
 export function tabulaRoot(): string {
