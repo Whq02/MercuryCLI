@@ -73,7 +73,9 @@ The model and the effort a session runs follow one law. An explicit
 `--model` or `--effort` on the command line wins, for a new session and for
 a resumed one alike. Without the flag, a new session starts on your saved
 choice — `/model` and `/effort` both save the pick as your default, and say
-so — and, with nothing saved, on the family default. A resumed session
+so — and, with nothing saved, on the family default. The board's New
+Session strip births on the same saved choice; its own effort pick, when
+you make one, holds for that one birth. A resumed session
 keeps the model and effort it ran on unless the command line says
 otherwise: `--continue --model <id> --effort <level>` brings the session
 back on the launch's model and effort, its record is re-stamped, and the

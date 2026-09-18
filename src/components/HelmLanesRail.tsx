@@ -31,7 +31,7 @@ function formatSpan(ms: number): string {
   if (h < 48) return `${h.toFixed(h < 10 ? 1 : 0)}h`
   return `${Math.round(h / 24)}d`
 }
-import { getActiveMission } from '../utils/hooks/missionHook.js'
+import { getActiveMission, getActiveMissionVersion, subscribeActiveMission } from '../utils/hooks/missionHook.js'
 import { isTabulaEnabled, tabulaProjectDir } from '../utils/tabula/tabulaGates.js'
 import { readNotesAsync, type TabulaNote } from '../utils/tabula/tabulaStore.js'
 import { isProjectSession, isSubstantiveSession } from '../utils/sessionFilter.js'
@@ -384,6 +384,13 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const ctxUsageVersion = useSyncExternalStore(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion)
   const peers: PresenceSeat[] = getLivePresence()
   const lanesVersion = useSyncExternalStore(subscribeHelmFocus, getHelmLanesVersion, getHelmLanesVersion)
+<<<<<<< HEAD
+=======
+  // The TABULA ask line (minervaRepl store) — compose keystrokes, pending
+  // state, and the settle receipt all repaint through this subscription.
+  const minervaVersion = useSyncExternalStore(subscribeMinervaRepl, getMinervaReplVersion, getMinervaReplVersion)
+  const missionVersion = useSyncExternalStore(subscribeActiveMission, getActiveMissionVersion, getActiveMissionVersion)
+>>>>>>> lane/beta15-friction-fixes
   const focused = getHelmFocus() === 'lanes'
   const cur = getHelmCursor('lanes')
   const { accent } = useSessionAccent()
@@ -469,6 +476,11 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     presenceVersion,
     ctxUsageVersion,
     lanesVersion,
+<<<<<<< HEAD
+=======
+    minervaVersion,
+    missionVersion,
+>>>>>>> lane/beta15-friction-fixes
     accent,
     focusedRecords,
     workRunSnap,
