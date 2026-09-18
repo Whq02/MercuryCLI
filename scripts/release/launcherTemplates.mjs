@@ -574,10 +574,12 @@ and restores it automatically if the new one fails its startup smoke. See
 UPDATING.md for every failure mode and manual recovery. Mercury never
 auto-updates in the background — updates happen only when you run the command.
 
-Installed through Homebrew or npm rather than from this archive? Those tools
-update their own installs: \`brew upgrade Whq02/mercury/mercury\` and
-\`npm update -g mercury-tech-cli\`. \`mercury update\` manages installs made by
-\`mercury install\` or the install script, and says so when run inside another.
+Installed through Homebrew rather than from this archive? \`mercury update\`
+is still the command: inside a Homebrew install it asks once and runs
+\`brew upgrade Whq02/mercury/mercury\` for you (\`--yes\` skips the question).
+The npm package installs this same archive into the managed layout, so
+\`mercury update\` updates an npm install in place through Mercury's own
+channel.
 
 ## The facts
 
@@ -734,9 +736,11 @@ mercury update --status     # layout, versions present, channel access
 \`\`\`
 
 \`mercury update\` manages installs made by \`mercury install\` or the install
-script. Inside an install Homebrew or npm made it declines before it reads the
-channel and names that tool's command — \`brew upgrade Whq02/mercury/mercury\`
-or \`npm update -g mercury-tech-cli\`; \`--check\` and \`--status\` still answer.
+script — the npm package's installs among them, since the package installs
+this archive into that layout. Inside a Homebrew install it asks once and runs
+\`brew upgrade Whq02/mercury/mercury\` on \`y\` (\`--yes\` skips the question),
+then reads the installed version back; \`--check\` and \`--status\` answer there
+too and end with the road that applies.
 
 A normal update: discovers the newest convention-valid prerelease,
 downloads YOUR platform's archive plus SHA256SUMS.txt from that SAME release,
