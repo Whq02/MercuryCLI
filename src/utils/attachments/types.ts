@@ -398,6 +398,15 @@ export type Attachment =
       budget: number | null
     }
   | {
+      type: 'usage_limit_notice'
+      key: string
+      provider: string
+      window: string
+      pct: number
+      resetsAt?: number
+      text: string
+    }
+  | {
       type: 'structured_output'
       data: unknown
     }

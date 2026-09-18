@@ -272,6 +272,17 @@ never — an absent signal is an absent warning, not a fabricated meter. The eng
 feeders read the same window views the settings tab and the rail meters read, so
 the strip and the meters can never disagree about a percent.
 
+The same derivation puts one notice into the session's own context when the
+binding window crosses that threshold, so an agent working in the session can
+save its work before the provider stops it. At the next turn boundary — the
+next submission or the next tool round — the model reads the provider and the
+window, the percent used, the reset when the wire stated one, and what to do:
+finish the step in hand, commit what is done, write down where the work stands.
+The notice enters once per window per session and returns only after the window
+has reset and the next one closes in; a resumed session remembers the windows it
+was told about. A lane that serves no usage signal gets no notice, and a
+headless run gets it by the same road. Nothing on the screen changes for it.
+
 Every meter surface — the telemetry rail's USAGE panel, `/deck`, the frame
 band, `/usage` and the doctor's per-family usage rows — reads one owner and
 paints one grammar: a family's shared windows first, then every per-model
