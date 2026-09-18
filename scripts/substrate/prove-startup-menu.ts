@@ -184,6 +184,12 @@ section('applyBootMenuEnv — apply, refuse, yield, no-op')
   const staleSnapshot = resolveEffectiveSettingsSnapshot({ sessionId: 'stale', path: file, env: {} })
   check('the effective snapshot reads that stale value as the default, not as the profile\'s', staleSnapshot.rows.find(r => r.env === 'MERCURY_COMPUTER_ACCESS')?.source === 'default' && staleSnapshot.rows.find(r => r.env === 'MERCURY_COMPUTER_USE')?.source === 'profile')
 
+  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_TABULA_MINERVA: '1', MERCURY_SAMPLES: '1' } })
+  const envCurator: NodeJS.ProcessEnv = {}
+  const rCurator = applyBootMenuEnv(file, envCurator)
+  check('a saved choice for the retired notepad-curator row is dropped as retired (never applied, never refused), the row beside it still applied', rCurator !== null && rCurator.retired.length === 1 && rCurator.retired[0] === 'MERCURY_TABULA_MINERVA' && rCurator.refused.length === 0 && envCurator.MERCURY_TABULA_MINERVA === undefined && envCurator.MERCURY_SAMPLES === '1')
+  check('no menu row is the retired curator row', STARTUP_MENU.every(r => r.env !== 'MERCURY_TABULA_MINERVA'))
+
   write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_SAMPLES: '1' } })
   const envSamples: NodeJS.ProcessEnv = {}
   const rSamples = applyBootMenuEnv(file, envSamples)

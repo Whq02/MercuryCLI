@@ -21,8 +21,6 @@ const { toOpenaiStrictSchema, stripExplicitNulls } = await import(
 const { buildOpenaiResponsesRequest } = await import(
   '../../src/services/providers/openai/responsesBridge.ts'
 )
-const { minervaOutputFormat, minervaChatOutputFormat, validateMinervaPlan, validateMinervaChatPlan } =
-  await import('../../src/utils/tabula/minerva.ts')
 const { VERDICT_JSON_SCHEMA } = await import('../../src/utils/hooks/execPromptHook.ts')
 const { hookResponseSchema } = await import('../../src/utils/hooks/hookHelpers.ts')
 
@@ -32,6 +30,30 @@ console.log('============================================================')
 
 type Node = Record<string, unknown>
 const isRecord = (v: unknown): v is Node => typeof v === 'object' && v !== null && !Array.isArray(v)
+
+const opsPlanSchema = (): Node => ({
+  type: 'object',
+  properties: {
+    ops: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          op: { type: 'string', enum: ['add', 'done', 'pri', 'refine'] },
+          id: { type: 'string' },
+          text: { type: 'string' },
+          pri: { type: 'string', enum: ['now', 'next', 'later'] },
+          refinedText: { type: 'string' },
+        },
+        required: ['op'],
+        additionalProperties: false,
+      },
+    },
+    reply: { type: 'string' },
+  },
+  required: ['ops', 'reply'],
+  additionalProperties: false,
+})
 
 function strictViolations(node: unknown, path: string, out: string[]): string[] {
   if (Array.isArray(node)) {
@@ -78,8 +100,7 @@ function wireSchemaOf(fmt: { schema: Node }): Node {
 section('§1 the wire is the strict dialect for every product schema')
 {
   const rows: Array<[string, { schema: Node }]> = [
-    ['minerva boot', minervaOutputFormat() as { schema: Node }],
-    ['minerva chat', minervaChatOutputFormat() as { schema: Node }],
+    ['ops plan (the sighting shape)', { type: 'json_schema', schema: opsPlanSchema() } as never],
     ['prompt-hook verdict', { type: 'json_schema', schema: VERDICT_JSON_SCHEMA as unknown as Node } as never],
   ]
   for (const [name, fmt] of rows) {
@@ -87,7 +108,7 @@ section('§1 the wire is the strict dialect for every product schema')
     const violations = strictViolations(wire, name, [])
     check(`${name}: zero strict-dialect violations on the wire`, violations.length === 0, violations.join(' · '))
   }
-  const chatWire = wireSchemaOf(minervaChatOutputFormat() as { schema: Node })
+  const chatWire = wireSchemaOf({ type: 'json_schema', schema: opsPlanSchema() } as never)
   const ops = ((chatWire.properties as Node).ops as Node).items as Node
   const props = ops.properties as Node
   check('chat ops.items: op (originally required) stays non-nullable', !admitsNull(props.op))
@@ -100,7 +121,7 @@ section('§1 the wire is the strict dialect for every product schema')
 
 section('§2 the transform: idempotent, lawful-preserving, never over-nullable')
 {
-  const once = toOpenaiStrictSchema(minervaChatOutputFormat().schema as Node)
+  const once = toOpenaiStrictSchema(opsPlanSchema())
   const twice = toOpenaiStrictSchema(once)
   check('idempotent: transforming twice equals once', JSON.stringify(once) === JSON.stringify(twice))
   const lawful: Node = {
@@ -116,7 +137,9 @@ section('§2 the transform: idempotent, lawful-preserving, never over-nullable')
     JSON.stringify((lawfulItems.required as string[]).slice().sort()) === JSON.stringify(['prompt', 'text']),
   )
   check('a lawful schema gains no nullability (reply)', !admitsNull((lawfulStrict.properties as Node).reply))
-  check('input is not mutated', (minervaChatOutputFormat().schema as { properties: { ops: { items: { required: string[] } } } }).properties.ops.items.required.length === 1)
+  const input = opsPlanSchema()
+  toOpenaiStrictSchema(input)
+  check('input is not mutated', ((((input.properties as Node).ops as Node).items as Node).required as string[]).length === 1)
 }
 
 section('§3 stripExplicitNulls: object keys drop, array elements stay')
@@ -128,39 +151,16 @@ section('§3 stripExplicitNulls: object keys drop, array elements stay')
 
 section('§4 strict-shaped answers validate ONLY through the strip (the tooth)')
 {
-  const bootAnswer = {
-    notes: [{ id: 'n1', pri: null, refinedText: null }],
-    orderedIds: ['n1'],
-    doneIds: null,
-    receipt: 'ok',
-  }
-  const live = new Set(['n1'])
-  const refused = validateMinervaPlan(bootAnswer, live, live)
-  check('CONTROL: the unstripped boot answer refuses', refused.ok === false)
-  const healed = validateMinervaPlan(stripExplicitNulls(bootAnswer), live, live)
-  check('the stripped boot answer validates', healed.ok === true)
-
-  const chatAnswer = {
-    ops: [{ op: 'add', id: null, text: 'a note', pri: null, refinedText: null }],
-    reply: 'added',
-  }
-  const chatRefused = validateMinervaChatPlan(chatAnswer, new Set<string>())
-  check('CONTROL: the unstripped chat answer refuses', chatRefused.ok === false)
-  const chatHealed = validateMinervaChatPlan(stripExplicitNulls(chatAnswer), new Set<string>())
-  check('the stripped chat answer validates as one add', chatHealed.ok === true && chatHealed.ok && chatHealed.plan.ops.length === 1)
-
   const hookRefused = hookResponseSchema().safeParse({ ok: true, reason: null })
   check('CONTROL: the unstripped hook verdict refuses zod', hookRefused.success === false)
   const hookHealed = hookResponseSchema().safeParse(stripExplicitNulls({ ok: true, reason: null }))
   check('the stripped hook verdict passes zod', hookHealed.success === true)
 }
 
-section('§5 the wiring: transform at the bridge, strip at every decode site')
+section('§5 the wiring: transform at the bridge, strip at the decode site')
 {
   const bridge = readFileSync(join(ROOT, 'src/services/providers/openai/responsesBridge.ts'), 'utf8')
   check('the bridge wears the transform at its one schema site', bridge.includes('schema: toOpenaiStrictSchema(i.outputFormat.schema)'))
-  const minerva = readFileSync(join(ROOT, 'src/utils/tabula/minerva.ts'), 'utf8')
-  check('both minerva decode sites wear the strip', minerva.split('stripExplicitNulls(decoded.value)').length === 3)
   const hook = readFileSync(join(ROOT, 'src/utils/hooks/execPromptHook.ts'), 'utf8')
   check('the hook verdict wears the strip', hook.includes('safeParse(stripExplicitNulls(parsed))'))
 }

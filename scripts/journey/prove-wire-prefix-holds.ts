@@ -536,7 +536,6 @@ async function drive(): Promise<void> {
     MERCURY_DAEMON_DIR: path.join(RUN_HOME, 'daemon'),
     MERCURY_TEAMS_DIR: path.join(RUN_HOME, 'teams'),
     MERCURY_TABULA_DIR: path.join(RUN_HOME, 'tabula'),
-    MERCURY_TABULA_MINERVA: '0',
   }
   delete baseEnv.NODE_ENV
   delete baseEnv.ANTHROPIC_AUTH_TOKEN

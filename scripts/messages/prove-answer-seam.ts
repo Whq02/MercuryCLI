@@ -76,14 +76,6 @@ section('§3 settledProviderFailure — one classification, every consumer asks 
     String(empty),
   )
 
-  const minerva = read('src/utils/tabula/minerva.ts')
-  const bootLeg = minerva.indexOf('settledProviderFailure(result)')
-  const bootDecode = minerva.indexOf('decodeModelJson(text)')
-  check('minerva boot leg asks settledProviderFailure before its decode', bootLeg !== -1 && bootDecode !== -1 && bootLeg < bootDecode)
-  check(
-    'minerva chat leg asks it too (two call sites in the file)',
-    minerva.indexOf('settledProviderFailure(result)', bootLeg + 1) !== -1,
-  )
   const memories = read('src/memdir/findRelevantMemories.ts')
   check('findRelevantMemories keeps its pre-decode api-error arm', memories.includes('isApiErrorMessage'))
   const coordinator = read('src/services/concourse/coordinatorCall.ts')

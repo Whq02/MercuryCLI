@@ -16,29 +16,11 @@ t.check(
   mod ? 'loaded' : 'module absent',
 )
 t.check(
-  'stream kinds distinguish main | console-side | minerva-refinement',
+  'stream kinds distinguish main | console-side',
   Array.isArray(mod?.CONVERSATION_KINDS) &&
-    ['main', 'console-side', 'minerva-refinement'].every(k =>
+    ['main', 'console-side'].every(k =>
       (mod!.CONVERSATION_KINDS as string[]).includes(k),
     ),
-)
-
-t.section('CS-18 — Minerva staging: refinement never dispatches by itself')
-let minerva: Record<string, unknown> | null = null
-try {
-  minerva = (await import('../../src/services/crew/minervaHandoff.ts')) as Record<string, unknown>
-} catch {
-  minerva = null
-}
-t.check(
-  'the staged-handoff owner loads (src/services/crew/minervaHandoff.ts)',
-  minerva !== null,
-  minerva ? 'loaded' : 'module absent — no staged Minerva handoff',
-)
-t.check('staging exists (stageRefinedDraft)', typeof minerva?.stageRefinedDraft === 'function')
-t.check(
-  'staged drafts carry original AND refined text (the side-by-side law)',
-  typeof minerva?.stagedDraftOf === 'function',
 )
 
 t.section('CS-19 — Console handoff: explicit lineage, never transcript merge')

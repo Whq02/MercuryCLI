@@ -13,15 +13,3 @@ export const noteCommand = {
   userPrivate: true,
   load: () => import('./note.js'),
 } satisfies Command
-
-export const minervaCommand = {
-  type: 'local',
-  name: 'minerva',
-  description: 'Message the notepad curator — one billed Minerva call turns your words into notes in the notepad file (model: /submodels)',
-  argumentHint: '<tell Minerva what to capture, close, or re-prioritize>',
-  isEnabled: () => isTabulaEnabled(),
-  isHidden: false,
-  supportsNonInteractive: false,
-  userPrivate: true,
-  load: () => import('./minerva.js'),
-} satisfies Command

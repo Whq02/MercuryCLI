@@ -187,8 +187,6 @@ section('(3) the sandbox boundary — source pins at the owners')
     nonAllow !== -1 && executeStep !== -1 && nonAllow < executeStep && toolExec.slice(nonAllow, executeStep).includes('return'),
   )
 
-  const minerva = read('src/utils/tabula/minerva.ts')
-  check('Minerva dispatches through queryWithModel only (no fork, no tool loop)', (minerva.match(/queryWithModel\(/g) ?? []).length === 2 && !minerva.includes('runForkedAgent') && !minerva.includes('canUseTool'))
   const core = read('src/services/providers/anthropic/streamCore.ts')
   const qwm = core.slice(core.indexOf('export async function queryWithModel('))
   check(

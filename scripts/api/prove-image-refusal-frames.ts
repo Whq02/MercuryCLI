@@ -212,7 +212,6 @@ if (process.argv[2] === '--serve') {
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_TEAMS_DIR: join(home, 'teams'),
       MERCURY_TABULA_DIR: join(home, 'tabula'),
-      MERCURY_TABULA_MINERVA: '0',
       MERCURY_HOME: join(home, 'proof-home'),
       MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
       ANTHROPIC_API_KEY: PROBE_KEY,

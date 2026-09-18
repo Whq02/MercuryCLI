@@ -64,10 +64,10 @@ const EXPECTED: ReadonlyArray<[string, Area, Stage, string, string | undefined]>
   ['mcp.permissions', 'mcp', 2, '/permissions: what runs free, what asks.', 'permissions'],
   ['mcp.list', 'mcp', 2, '/mcp lists servers and toggles each.', 'mcp'],
   ['mcp.kill', 'mcp', 2, '/kill turns a tool off for this session.', 'kill'],
-  ['minerva.note', 'minerva', 2, 'Type /note to keep a thought for later.', 'note'],
+  ['notes.note', 'notes', 2, 'Type /note to keep a thought for later.', 'note'],
   ['context.window', 'context', 3, '/auto-compact-window sets the fold size.', 'auto-compact-window'],
   ['models.cap', 'models', 3, 'Unserved effort runs the nearest level.', undefined],
-  ['models.submodels', 'models', 3, '/submodels seats Minerva and Console.', 'submodels'],
+  ['models.submodels', 'models', 3, '/submodels seats the Console.', 'submodels'],
   ['mcp.extensions', 'mcp', 3, '/extensions installs from added sources.', 'extensions'],
   ['agents.workflows', 'agents', 3, '/workflows shows runs, live and past.', 'workflows'],
   ['agents.teammates', 'agents', 3, '/teammates shows the crew, live.', 'teammates'],
@@ -79,9 +79,7 @@ const EXPECTED: ReadonlyArray<[string, Area, Stage, string, string | undefined]>
   ['worktrees.realms', 'worktrees', 3, '/realms lists the folders you trust.', 'realms'],
   ['worktrees.orient', 'worktrees', 3, '/orient maps a new repo in one read.', 'orient'],
   ['worktrees.branch', 'worktrees', 3, '/branch asks a side question, no derail.', 'branch'],
-  ['minerva.tidy', 'minerva', 3, '/minerva turns your words into notes.', 'minerva'],
-  ['minerva.free', 'minerva', 3, 'Minerva bills one call per line sent.', undefined],
-  ['minerva.outlive', 'minerva', 3, 'Notes outlive /clear: they live on disk.', 'note'],
+  ['notes.outlive', 'notes', 3, 'Notes outlive /clear: they live on disk.', 'note'],
 ]
 
 function chordsSpelled(line: string): string[] {
@@ -130,8 +128,8 @@ section('§1 the words — the curriculum bank')
   check('every tip id is unique', ids.size === bank.length)
   const areas = new Set(bank.map(t => t.area))
   check(
-    'every area of the ruling has tips (minerva · context · models · mcp · sessions · keys · agents · worktrees)',
-    ['minerva', 'context', 'models', 'mcp', 'sessions', 'keys', 'agents', 'worktrees'].every(a => areas.has(a as never)),
+    'every area of the ruling has tips (notes · context · models · mcp · sessions · keys · agents · worktrees)',
+    ['notes', 'context', 'models', 'mcp', 'sessions', 'keys', 'agents', 'worktrees'].every(a => areas.has(a as never)),
   )
   check(
     "the operator's two lines stand verbatim",
@@ -183,7 +181,7 @@ section('§1 the words — the curriculum bank')
   check('every ungated tip surface is enabled in the default world', offUngated.length === 0, offUngated.map(t => t.id).join(', '))
   check(
     'the gated tips carry the gate their surface reads (the notepad, the fleet, the repo map)',
-    ['minerva.note', 'minerva.tidy', 'minerva.free', 'minerva.outlive', 'agents.fleet', 'agents.workflows', 'agents.teammates', 'worktrees.orient'].every(
+    ['notes.note', 'notes.outlive', 'agents.fleet', 'agents.workflows', 'agents.teammates', 'worktrees.orient'].every(
       id => typeof bank.find(t => t.id === id)?.when === 'function',
     ),
   )

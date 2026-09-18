@@ -3,7 +3,7 @@
 # gate-watch: scripts/session-graph/**
 # gate-watch: src/services/attention/** src/services/attention/relations.ts
 # gate-watch: src/services/workbench/** src/services/acp/** src/input-core/composer-document.ts
-# gate-watch: src/utils/artifacts/** src/utils/sideQuestion.ts src/utils/tabula/minerva.ts
+# gate-watch: src/utils/artifacts/** src/utils/sideQuestion.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

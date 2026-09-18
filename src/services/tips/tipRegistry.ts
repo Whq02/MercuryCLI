@@ -223,7 +223,7 @@ const GENERAL_TIPS: Tip[] = [
     id: 'submodels-seats',
     cooldownSessions: 20,
     async content() {
-      return '/submodels seats the sub-models — Console for side questions, Minerva for the notepad.'
+      return '/submodels seats the Console model for side questions.'
     },
     async isRelevant() {
       return true

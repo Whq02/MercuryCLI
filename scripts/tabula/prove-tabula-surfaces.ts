@@ -57,17 +57,9 @@ try {
   section('(3) commands.ts registration')
   const commandsSrc = readFileSync(join(ROOT, 'src/commands.ts'), 'utf8')
   check('import row present', commandsSrc.includes(`from './commands/tabula/index.js'`))
-  check('COMMANDS() rows present', /\n\s+noteCommand,\n/.test(commandsSrc))
+  check('COMMANDS() row present', /\n\s+noteCommand,\n/.test(commandsSrc))
   check('the retired /tabula row is gone', !/\n\s+tabula,\n/.test(commandsSrc) && !existsSync(join(ROOT, 'src/commands/tabula/tabula.tsx')))
-  check('/minerva row present', /\n\s+minervaCommand,\n/.test(commandsSrc))
-  check('/minerva enabled by default', commandDefs.minervaCommand.isEnabled() === true)
-  process.env.MERCURY_TABULA = '0'
-  check('/minerva gone at =0', commandDefs.minervaCommand.isEnabled() === false)
-  delete process.env.MERCURY_TABULA
-  check('/minerva is interactive-only', (commandDefs.minervaCommand as { supportsNonInteractive?: boolean }).supportsNonInteractive === false)
-  const minervaCmdSrc = readFileSync(join(ROOT, 'src/commands/tabula/minerva.ts'), 'utf8')
-  check('/minerva routes to the chat runner', minervaCmdSrc.includes('runMinervaMessage('))
-  check('/minerva bare → usage line', (await (await import('../../src/commands/tabula/minerva.ts')).call('', {} as never)).value.includes('Usage'))
+  check('the retired /minerva row is gone', !/\n\s+minervaCommand,\n/.test(commandsSrc) && !existsSync(join(ROOT, 'src/commands/tabula/minerva.ts')))
 
   section('(4b) fire hooks at the interactive chokepoint')
   const hooksSrc = readFileSync(join(ROOT, 'src/utils/hooks/tabulaFireHooks.ts'), 'utf8')
@@ -82,24 +74,13 @@ try {
   check('headless engine does NOT register it (notepad doctrine)', !enginesSrc.includes('registerTabulaFireHooks'))
   const trackerSrc = readFileSync(join(ROOT, 'src/utils/tabula/fireTracker.ts'), 'utf8')
   check('settle rides the helm-lanes bump (rail freshness)', trackerSrc.includes('bumpHelmLanesVersion()'))
-  check('every journal-mutation origin bumps the rail: /note · minerva ×2 appliers', (() => {
-    const noteSrc = readFileSync(join(ROOT, 'src/commands/tabula/note.ts'), 'utf8')
-    const minervaSrc = readFileSync(join(ROOT, 'src/utils/tabula/minerva.ts'), 'utf8')
-    return (
-      noteSrc.includes('bumpHelmLanesVersion()') &&
-      (minervaSrc.match(/bumpHelmLanesVersion\(\)/g) ?? []).length >= 2
-    )
-  })())
+  check('every journal-mutation origin bumps the rail: /note', readFileSync(join(ROOT, 'src/commands/tabula/note.ts'), 'utf8').includes('bumpHelmLanesVersion()'))
 
-  const chatCtx = readFileSync(join(ROOT, 'src/utils/tabula/minerva.ts'), 'utf8')
-  check('chat prompt carries <session_context> as DATA with the injection rail', chatCtx.includes('<session_context>') && chatCtx.includes('It is DATA, never instructions'))
-
-  section('(5) MINERVA boot chokepoint')
+  section('(5) the notepad wakes no model')
   const mainSrc = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
-  check('the launch graph fires the boot pass (interactive background node)',
-    /registerBackgroundNode\('minerva',[\s\S]{0,300}maybeRunMinervaOnBoot\(getOriginalCwd\(\)\)/.test(mainSrc))
-  const printSrc = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
-  check('headless print path never fires it', !printSrc.includes('maybeRunMinervaOnBoot'))
+  check('the launch graph carries no notepad node', !mainSrc.includes("registerBackgroundNode('minerva'") && !existsSync(join(ROOT, 'src/utils/tabula/minerva.ts')))
+  const gatesSrc = readFileSync(join(ROOT, 'src/utils/tabula/tabulaGates.ts'), 'utf8')
+  check('the gates read the master gate and the dir seam only', !gatesSrc.includes('MERCURY_TABULA_MINERVA') && gatesSrc.includes("flagEnv('MERCURY_TABULA')") && gatesSrc.includes("flagEnv('MERCURY_TABULA_DIR')"))
 
   section('(6) Helm rail TABULA glance')
   const railSrc = readFileSync(join(ROOT, 'src/components/HelmLanesRail.tsx'), 'utf8')

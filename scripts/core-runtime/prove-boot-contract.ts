@@ -373,17 +373,12 @@ function staticImports(src: string): {
     'launch-graph: renderAndRun no longer fires startDeferredPrefetches inline',
     !/startDeferredPrefetches\(\)/.test(helpersSrc),
   )
-  check(
-    'launch-graph: renderAndRun no longer fires the MINERVA boot pass inline',
-    !helpersSrc.includes('maybeRunMinervaOnBoot'),
-  )
   for (const node of [
     'example-commands',
     'lsp-manager',
     'session-registry',
     'session-telemetry',
     'deferred-prefetches',
-    'minerva',
   ]) {
     check(
       `launch-graph: background node '${node}' is declared`,

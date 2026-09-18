@@ -118,7 +118,6 @@ function captureLeg(leg: 'off' | 'on'): LegResult {
     '--env', 'MERCURY_LIVE_GLYPHS=0',
     '--env', 'MERCURY_CRITTER_GAZE=0',
     '--env', 'MERCURY_TURN_RECEIPT=0',
-    '--env', 'MERCURY_TABULA_MINERVA=0',
     '--env', 'MERCURY_LOCAL_PROBE_TARGETS=none',
     '--env', 'VISUAL=', '--env', 'EDITOR=',
     ...(leg === 'on' ? ['--env', 'MERCURY_RENDER_ENGINE=1', '--env', 'MERCURY_ENGINE_ASSERT=1'] : ['--env', 'MERCURY_RENDER_ENGINE=']),
