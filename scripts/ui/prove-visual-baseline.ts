@@ -68,6 +68,19 @@ let fail = 0
   const oldVocabularyDiverged = neutralizeGrid(oneRow(cardMac), withoutHintMask).text[0] !== neutralizeGrid(oneRow(cardLinux), withoutHintMask).text[0]
   console.log(`  [${oldVocabularyDiverged ? 'PASS' : 'FAIL'}] without the hint's mask the two hosts diverge on that row (the branch mask ate the Mac glyph alone) — the reason the old vocabulary was false`)
   if (!oldVocabularyDiverged) fail = 1
+
+  const tagMac = ' mercury · ready' + ' '.repeat(96) + '⇧← back '
+  const tagLinux = ' mercury · ready' + ' '.repeat(92) + 'shift+← back '
+  const taskMac = '◐ first task · mercury · ready' + ' '.repeat(82) + '⇧← back '
+  const taskLinux = '◐ first task · mercury · ready' + ' '.repeat(78) + 'shift+← back '
+  const rowOf = (text: string, masks: string[]) => neutralizeGrid(oneRow(text), masks).text[0]
+  const backSame = rowOf(tagMac, DEFAULT_MASKS) === rowOf(tagLinux, DEFAULT_MASKS) && rowOf(taskMac, DEFAULT_MASKS) === rowOf(taskLinux, DEFAULT_MASKS)
+  console.log(`  [${backSame ? 'PASS' : 'FAIL'}] the session tag bar canonicalizes across the back hint's host spellings (⇧← back · shift+← back) in both of its shapes — ${JSON.stringify(rowOf(tagLinux, DEFAULT_MASKS))} · ${JSON.stringify(rowOf(taskLinux, DEFAULT_MASKS))}`)
+  if (!backSame) fail = 1
+  const withoutBackMask = DEFAULT_MASKS.filter(m => !m.includes('← back'))
+  const backDiverged = rowOf(tagMac, withoutBackMask) !== rowOf(tagLinux, withoutBackMask)
+  console.log(`  [${backDiverged ? 'PASS' : 'FAIL'}] without the back hint's mask the two hosts diverge on that row (the one-spelling mask left the Linux row raw) — the reason the old vocabulary was false`)
+  if (!backDiverged) fail = 1
 }
 
 const run = (only?: string): void => {

@@ -63,8 +63,8 @@ export const DEFAULT_MASKS = [
   'row:│ \\S+ │ ⤳',
   '(?:⌥|alt\\+)←→ flip · /sessions *',
   '⌥ ?\\S+ *',
-  'row: · \\S+ · \\S+ +⇧← back',
-  'row:^ ?\\S+ · \\S+ +⇧← back',
+  'row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back',
+  'row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back',
   'row:gate [✓◓✕·]',
 ]
 
