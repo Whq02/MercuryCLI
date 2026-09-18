@@ -59,13 +59,14 @@ export const DEFAULT_MASKS = [
   '\\b\\d+[smhd] old\\b',
   '\\b\\d+ uncommitted \\(\\+\\d+/-\\d+\\) *',
   'health [▲●◌◐✕✓·◓] \\S+( · \\d+[smhd])? *',
-  'row:\\S+ ⌥ ?\\S+',
+  'row:\\S+ ⌥ ?[^…\\s]\\S*',
   'row:│ \\S+ │ ⤳',
   '(?:⌥|alt\\+)←→ flip · /sessions *',
   '⌥ ?\\S+ *',
   'row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back',
   'row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back',
   ' *(?:⇧|shift\\+)← concourse *',
+  '(?<= · effort [^·]+ · ctx \\S+ · )\\S.*',
   'row:gate [✓◓✕·]',
 ]
 

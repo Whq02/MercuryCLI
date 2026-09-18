@@ -94,6 +94,20 @@ let fail = 0
   const concourseDiverged = rowOf(hintMac, withoutConcourseMask) !== rowOf(hintLinux, withoutConcourseMask)
   console.log(`  [${concourseDiverged ? 'PASS' : 'FAIL'}] without the concourse hint's mask the two hosts diverge on that row (no mask read the composer's hint) — the reason the old vocabulary was false`)
   if (!concourseDiverged) fail = 1
+
+  const bandHere = '✶ Mercury · ● ready · Opus 5 · effort high · ctx — · tree ⌥…'
+  const bandThere = '✶ Mercury · ● ready · Opus 5 · effort high · ctx — · mercur…'
+  const bandHosted = '✶ Mercury · ● ready · Opus 5 · effort high · ctx — · PreRel…'
+  const bandSame = rowOf(bandHere, DEFAULT_MASKS) === rowOf(bandThere, DEFAULT_MASKS) && rowOf(bandThere, DEFAULT_MASKS) === rowOf(bandHosted, DEFAULT_MASKS)
+  const bandKeepsWords = rowOf(bandThere, DEFAULT_MASKS).startsWith('✶ Mercury · ● ready · Opus 5 · effort high · ctx — ·')
+  const chipRowsStillMasked = rowOf('  ▀▀▀▀▀▀▀▀▀   tree ⌥ HEAD · ⤳2', DEFAULT_MASKS) === '⟪row⟫' && rowOf('  ▀▀▀▀▀▀▀▀▀   a-much-longer-checkout-name ⌥lane/x · ⤳2', DEFAULT_MASKS) === '⟪row⟫'
+  const railCtxUntouched = rowOf('  · ctx — · 1000k       │', DEFAULT_MASKS) === '  · ctx — · 1000k       │'
+  console.log(`  [${bandSame && bandKeepsWords && chipRowsStillMasked && railCtxUntouched ? 'PASS' : 'FAIL'}] the compact band's checkout chip canonicalizes across checkout names cut before the branch glyph, the band's words kept, the wide chip rows still row-masked and the rail's ctx row untouched — ${JSON.stringify(rowOf(bandThere, DEFAULT_MASKS))}`)
+  if (!(bandSame && bandKeepsWords && chipRowsStillMasked && railCtxUntouched)) fail = 1
+  const glyphOnly = ['row:\\S+ ⌥ ?\\S+']
+  const bandDiverged = rowOf(bandHere, glyphOnly) !== rowOf(bandThere, glyphOnly)
+  console.log(`  [${bandDiverged ? 'PASS' : 'FAIL'}] keyed on the branch glyph alone the two checkouts diverge on that row (the glyph is cut with the name at 60 columns) — the reason the old vocabulary was false`)
+  if (!bandDiverged) fail = 1
 }
 
 const run = (only?: string): void => {
