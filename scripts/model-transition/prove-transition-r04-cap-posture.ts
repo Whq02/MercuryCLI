@@ -362,8 +362,15 @@ section('§I the words — the card names the family; the spend posture is per f
   check('the home usability is read only while parked away (never a per-keystroke walk at home)', composer.includes("onFailoverLane ? usabilityForRoute(homeFamily as CallModelRoute) : null"))
   check('an ACCEPT latches the STABLE armed-state owner (direction+family) and settles the CHOSEN row — a state/reset jitter never re-fires the card', /onAccept=\{chosen => \{[\s\S]{0,900}?noteCapOfferAnswered\(offer\.direction, offer\.homeRoute\)[\s\S]{0,1400}?handleModelSelect\(chosen\.model\)/.test(composer))
   check('the armed state is keyed on the stable facts, never the volatile window state|reset string', /capOfferAnswered\(direction, homeFamily\)/.test(composer) && !/`\$\{direction\}\|\$\{homeFamily\}\|\$\{window\.state\}/.test(composer))
-  check("the handoff note records the home FAMILY beside the SEAT's own model (the connector's facts, never the screen's ambient state)", composer.includes('noteCapHandoff(seat.sessionPin ?? seat.setting ?? seat.effective, offer.homeRoute)') && composer.includes('noteCapHandoff(effective, homeFamily)'))
-  check('the standing lane line names the home family, never Claude by default', composer.includes('capRoute !== capNote.homeFamily') && !composer.includes('Claude window resets'))
+  check("the accepted handoff records the home FAMILY beside the SEAT's own model (the connector's facts, never the screen's ambient state) as an intent, and the note is written only when the switch lands (applied or queued) — the preview's wait and the door's flight never lose it to the self-heal", composer.includes('capHandoffIntentRef.current = { homeModel: seat.sessionPin ?? seat.setting ?? seat.effective, homeFamily: offer.homeRoute }') && composer.includes('capHandoffIntentRef.current = { homeModel: effective, homeFamily }') && composer.includes("settleCapHandoffIntent(receipt.state === 'applied' || receipt.state === 'queued')") && composer.includes("settleCapHandoffIntent(settled.kind === 'applied' || settled.kind === 'queued')") && composer.includes('if (intent !== null && landed) noteCapHandoff(intent.homeModel, intent.homeFamily)') && !composer.includes('noteCapHandoff(seat.') && !composer.includes('noteCapHandoff(effective, homeFamily)'))
+  check('the self-heal (the route home again clears the note) stands down while a switch is parked for the turn boundary', composer.includes("liveRoute === noted.homeFamily && modelFactsNow.pendingSwitch === null && appStateStore.getState().pendingModelSwitch === null"))
+  check('the lane line reads the lane from the ONE owner (the handoff note against the live route) and takes its words from that owner — the composer spells none of them, and never Claude by default', composer.includes('capFailoverLaneOf(declaredRouteOf(capEffectiveModel))') && composer.includes('capLaneLineWords(capLaneFacts)') && !composer.includes('failover lane ·') && !composer.includes('Claude window resets'))
+  check('the lane line stands on the product clock: its deadline is the owner\'s (capLaneLineUntil), the composer ticks only while the sentence stands and parks the tick after', composer.includes('const capLaneUntil = capLaneLineUntil(capLaneFacts === null ? null : capLaneLineKey(capLaneFacts), Date.now())') && composer.includes('useNowTick(capLaneStanding ? 1000 : null)') && composer.includes('const capLaneLine = capLaneStanding && capLaneFacts !== null ? capLaneLineWords(capLaneFacts) : null'))
+  check('the composer is told of every change of the note, the way the strip is (a note that lands on the door\'s receipt paints its sentence without a keystroke)', composer.includes('useSyncExternalStore(subscribeCapHandoff, getCapHandoffVersion, getCapHandoffVersion)'))
+  const strip = readFileSync(join(ROOT, 'src/components/MercuryFrame.tsx'), 'utf8')
+  const band = readFileSync(join(ROOT, 'src/components/CompactIdentityBand.tsx'), 'utf8')
+  const markOwner = readFileSync(join(ROOT, 'src/components/mercury-ui/FailoverMark.tsx'), 'utf8')
+  check("the strip's three model segments mount the ONE mark beside the served model (the wide statusRow, the compact line, the identity band), and the mark's owner subscribes to the note", (strip.match(/<FailoverMark model=/g) ?? []).length === 2 && band.includes('<FailoverMark model={effectiveModel} />') && markOwner.includes('useSyncExternalStore(subscribeCapHandoff, getCapHandoffVersion, getCapHandoffVersion)') && markOwner.includes("export const FAILOVER_MARK = 'failover'"))
   const registry = readFileSync(join(ROOT, 'src/substrate/flagRegistry.ts'), 'utf8')
   const menu = readFileSync(join(ROOT, 'src/substrate/startupMenu.ts'), 'utf8')
   check('the registry row and the /config text spell the neutral law (no favoured family, most recent sign-in first)', registry.includes('NEUTRAL across every signed-in family') && menu.includes('no favourite') && !menu.includes('OpenAI first') && !registry.includes('OpenAI first'))
@@ -372,5 +379,55 @@ section('§I the words — the card names the family; the spend posture is per f
   check('the OpenAI wall row carries the cross-family lane remedy through the same composer the Anthropic row uses', openaiCall.includes("crossFamilyLaneRemedy('openai')") && messages.includes("crossFamilyLaneRemedy('anthropic'") && messages.includes('export function crossFamilyLaneRemedy('))
 }
 
-console.log(failures === 0 ? '\n ✅ SUBSTRATE — posture core + the revived journey seam + the neutral candidate law + the family window resolver' : `\n ❌ ${failures} FAILED`)
+section('§J the failover lane line — one owner of the words, the two-minute clock on the product flag, the strip\'s mark only on the lane')
+{
+  const cap = await import('../../src/services/capFailover.ts')
+  const { failoverMarkFor, FAILOVER_MARK } = await import('../../src/components/mercury-ui/FailoverMark.tsx')
+  cap._resetOfferMemoriesForTesting()
+  const homeWindow = { family: 'openai', state: 'warning' as const, basis: 'observed' as const, resetsAtMs: 1, windowName: '5h window' }
+  const facts = { lane: 'anthropic', modelName: 'Opus 5', homeName: 'OpenAI', homeWindow, resetText: '24 Sept, 8:15 pm' }
+  check("the sentence's words are the owner's, unchanged: the lane, the served model, the home window's stated reset, the way home", cap.capLaneLineWords(facts) === 'on the anthropic failover lane · Opus 5 · OpenAI window resets 24 Sept, 8:15 pm · /model to return', cap.capLaneLineWords(facts))
+  check('a home window with no stated reset (or one neither warning nor rejected) drops the reset clause and keeps the way home', cap.capLaneLineWords({ ...facts, resetText: undefined }) === 'on the anthropic failover lane · Opus 5 · /model to return' && cap.capLaneLineWords({ ...facts, homeWindow: { ...homeWindow, state: 'allowed' } }) === 'on the anthropic failover lane · Opus 5 · /model to return')
+  delete process.env.MERCURY_FAILOVER_LINE_MS
+  check('unset, the sentence stands two minutes', cap.failoverLineMs() === 120_000 && cap.FAILOVER_LINE_DEFAULT_MS === 120_000)
+  process.env.MERCURY_FAILOVER_LINE_MS = '4000'
+  check('the registered flag drives the window (a proof reads seconds where the operator reads minutes)', cap.failoverLineMs() === 4000)
+  process.env.MERCURY_FAILOVER_LINE_MS = '250'
+  check('below the floor the flag reads as unset', cap.failoverLineMs() === 120_000)
+  process.env.MERCURY_FAILOVER_LINE_MS = 'soon'
+  check('a non-number reads as unset', cap.failoverLineMs() === 120_000)
+  process.env.MERCURY_FAILOVER_LINE_MS = '4000'
+  check('the flag is registered at its consumer', getFlagSpec('MERCURY_FAILOVER_LINE_MS')?.consumer === 'src/services/capFailover.ts')
+  const key = cap.capLaneLineKey(facts)
+  const t0 = 1_000_000
+  check('the sentence arms at its first read: it stands until the window from that moment', cap.capLaneLineUntil(key, t0) === t0 + 4000)
+  check('a later read of the SAME state keeps the deadline (no re-arm on a repaint)', cap.capLaneLineUntil(key, t0 + 3000) === t0 + 4000 && cap.capLaneLineUntil(key, t0 + 9000) === t0 + 4000)
+  const moved = cap.capLaneLineKey({ ...facts, resetText: '24 Sept, 9:15 pm' })
+  check("the home window's stated reset changing is a change of state: the sentence re-arms for its window from that moment", moved !== key && cap.capLaneLineUntil(moved, t0 + 9000) === t0 + 13_000)
+  const opened = cap.capLaneLineKey({ ...facts, homeWindow: { ...homeWindow, state: 'allowed' as const } })
+  check('the way home opening (the home window observed allowed) is a change of state even where the words alone would not move', opened !== moved && cap.capLaneLineUntil(opened, t0 + 20_000) === t0 + 24_000)
+  const flipped = cap.capLaneLineKey({ ...facts, lane: 'zai', modelName: 'GLM 5.3' })
+  check('the lane flipping to another family is a change of state', flipped !== key && cap.capLaneLineUntil(flipped, t0 + 30_000) === t0 + 34_000)
+  check('off the lane the clock clears, and the next arm starts afresh', cap.capLaneLineUntil(null, t0 + 40_000) === null && cap.capLaneLineUntil(key, t0 + 50_000) === t0 + 54_000)
+  delete process.env.MERCURY_FAILOVER_LINE_MS
+  let fired = 0
+  const unsubscribe = cap.subscribeCapHandoff(() => { fired += 1 })
+  check('with no handoff note there is no lane and no mark, whatever the route', cap.capFailoverLaneOf('anthropic') === null && cap.capFailoverLaneOf('openai') === null && failoverMarkFor('claude-fable-5-1') === null)
+  cap.noteCapHandoff('gpt-5.6-sol', 'openai')
+  check('parked away from an OpenAI home on the anthropic lane: the lane is anthropic and the mark stands beside the served model', cap.capFailoverLaneOf('anthropic') === 'anthropic' && failoverMarkFor('claude-fable-5-1') === FAILOVER_MARK && FAILOVER_MARK === 'failover')
+  check('at home (the live route is the home family) there is no lane and no mark, even with the note standing', cap.capFailoverLaneOf('openai') === null && failoverMarkFor('gpt-5.6-sol') === null)
+  check('an unrecognised route names no lane', cap.capFailoverLaneOf(null) === null)
+  cap.noteCapReturn()
+  check('the way home clears the lane and the mark', cap.capFailoverLaneOf('anthropic') === null && failoverMarkFor('claude-fable-5-1') === null)
+  cap.noteCapHandoff('gpt-5.6-sol', 'openai')
+  cap.clearCapHandoffForFamily('anthropic')
+  check("a sign-out of another family leaves the lane standing", cap.capFailoverLaneOf('anthropic') === 'anthropic')
+  cap.clearCapHandoffForFamily('openai')
+  check('a sign-out of the home family clears it', cap.capFailoverLaneOf('anthropic') === null)
+  unsubscribe()
+  check('the strip is told of every change of the note (the handoff, the return, the handoff again, the home sign-out), never of another family\'s sign-out or a no-op return', fired === 4 && (cap.noteCapReturn(), fired === 4))
+  cap._resetOfferMemoriesForTesting()
+}
+
+console.log(failures === 0 ? '\n ✅ SUBSTRATE — posture core + the revived journey seam + the neutral candidate law + the family window resolver + the lane line\'s clock and mark' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)
