@@ -72,6 +72,7 @@ function writePatience(recoveryBudgetMinutes: number): void {
 }
 writePatience(BUDGET_MINUTES)
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/warmRunner.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 
 type Capture = { kind: string; at: number; arm?: string; route?: string; status?: number; streaming?: boolean; nth?: number; toolResult?: boolean }
@@ -278,7 +279,7 @@ const runLeg = async (arm: string): Promise<Leg> => {
     title: `throttle ${arm}`,
     model: 'claude-opus-5',
     effort: 'high',
-  } as never)) as { ok?: boolean; sessionId?: string; runnerId?: string; error?: string }
+  } as never, { timeoutMs: WARM_BOOT_ALLOWANCE_MS })) as { ok?: boolean; sessionId?: string; runnerId?: string; error?: string }
   check(`${arm}: the session opened`, opened.ok === true && typeof opened.sessionId === 'string', JSON.stringify(opened))
   const sid = opened.sessionId ?? ''
   await untilAsync(() => parentTranscript(sid).includes('fixture answers') && readFacts(sid)?.busy === false, 45_000, 50)
@@ -301,7 +302,7 @@ const runLeg = async (arm: string): Promise<Leg> => {
     model: 'claude-opus-5',
     effort: 'high',
     targetSessionId: sid,
-  } as never)) as { ok?: boolean; sessionId?: string; error?: string }
+  } as never, { timeoutMs: WARM_BOOT_ALLOWANCE_MS })) as { ok?: boolean; sessionId?: string; error?: string }
   check(`${arm}: the ask delivered into the opened session`, reply.ok === true && reply.sessionId === sid, JSON.stringify(reply))
   const leg: Leg = { arm, sid, notices: 0, waits: [], firstNoticeAt: null, cutAt: null, cut: null, receipt: null, seatStatus: null, seatError: null, landed: false, parentDone: false, paused: null, endedAt: null }
   const t0 = Date.now()
