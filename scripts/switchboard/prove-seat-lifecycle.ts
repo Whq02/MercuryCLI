@@ -90,7 +90,7 @@ function walk(root: string): string[] {
   check('P3 the birth body is anchored (the slice cannot go vacuous)', fnAt !== -1)
   check('P3 the birth door admits through the daemon (born = registered) and then hops', body.includes("op: 'sessionAdmit'") && body.indexOf("op: 'sessionAdmit'") < body.indexOf('hopIntoBoardSession(sessionId'))
   check('P3 the birth is marked blank for the daemon (the birth grace reads it)', body.includes('bornBlank: true'))
-  check('P3 the birth carries the model only when one is named (nothing on a keyless home), the title, the effort, the posture and the runner options', body.includes('...(model !== undefined ? { model } : {}),') && body.includes('{ title }') && body.includes('effort: facts.effort') && body.includes('permissionMode: facts.permissionMode') && body.includes('runnerArgv: [...facts.runnerArgv]'))
+  check('P3 the birth carries the model only when one is named (nothing on a keyless home), the title, the effort (the launch word, else the saved default, else absent), the posture and the runner options', body.includes('...(model !== undefined ? { model } : {}),') && body.includes('{ title }') && body.includes('const effort = facts.effort ?? getInitialEffortSetting() ?? null') && body.includes('{ effort }') && body.includes('permissionMode: facts.permissionMode') && body.includes('runnerArgv: [...facts.runnerArgv]'))
   check('P3 the birth sends NO words (a blank, ready session — never a dispatch)', !body.includes("op: 'sessionDispatch'") && !body.includes('prompt:'))
   check('P3 the daemon heals before the birth (the first Enter never meets ENOENT)', body.indexOf('ensureOwnedDaemon()') !== -1 && body.indexOf('ensureOwnedDaemon()') < body.indexOf("op: 'sessionAdmit'"))
 }
