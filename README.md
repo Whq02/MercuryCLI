@@ -60,11 +60,14 @@ one-liners and hands every run to it, so `mercury update` updates an npm
 install in place through Mercury's own channel; `npm update -g
 mercury-tech-cli` moves only the package's first-run release. `--check`
 reads one release list everywhere and ends with the road that applies. The
-channel road reads the public release list and the archive anonymously — no
-account, no sign-in, no token — and verifies the archive against the
-release's `SHA256SUMS.txt` before anything activates; a signed-in GitHub CLI
-(`gh`) is asked only when that anonymous request is refused, and is never
-required. Update and install also require a payload signed by the
+Boot face says once, in its bottom-right corner, when a newer release exists
+("vX.Y.Z available · mercury update"), and the chat shows one expiring line;
+`MERCURY_UPDATE_NOTICE=0` turns both off. The channel road reads the public
+release list and the archive anonymously — no account, no sign-in, no token
+— and verifies the archive against the release's `SHA256SUMS.txt` before
+anything activates; a signed-in GitHub CLI (`gh`) is asked only when that
+anonymous request is refused, and is never required. Update and install also
+require a payload signed by the
 Mercury release key in the compiled-in trust roster before staging it. Every
 other signature verdict refuses without changing the active installation. The
 explicit `--allow-unsigned` flag accepts an unsigned payload only, never an

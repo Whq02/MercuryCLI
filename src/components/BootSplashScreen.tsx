@@ -25,6 +25,7 @@ import { getSessionId } from '../bootstrap/state.js';
 import { getUserSpecifiedModelSetting, renderModelChip } from '../utils/model/model.js';
 import { computedDefault } from '../utils/model/computedDefault.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
+import { takeFaceUpdateNotice } from '../services/privateChannel/quietUpdateNotice.js';
 import { providerFamilyPresences } from '../services/providers/providerUsage.js';
 import { sessionAccountWords } from '../utils/accounts/sessionAccount.js';
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js';
@@ -73,6 +74,28 @@ type BootRow = {
 const KEY_MAP_ROW = (core: ReturnType<typeof createSplashCore>, hint: string): string =>
   '  ' + core.hexFg(core.FAINT, core.T256.faint) + hint + core.R;
 
+function bottomRowWithNotice(
+  core: ReturnType<typeof createSplashCore>,
+  columns: number,
+  keyMapHint: string,
+  notice: string | null,
+  compact: boolean,
+): string | null {
+  if (notice === null) return null;
+  const faint = (text: string): string => core.hexFg(core.FAINT, core.T256.faint) + text + core.R;
+  const noticeW = core.vis(notice);
+  if (keyMapHint === '') {
+    return noticeW + 2 <= columns ? ' '.repeat(columns - noticeW - 2) + faint(notice) : null;
+  }
+  const hintW = core.vis(keyMapHint);
+  if (compact) {
+    if (noticeW + 3 + hintW + 2 > columns) return null;
+    return ' '.repeat(columns - noticeW - 3 - hintW - 2) + faint(notice) + '   ' + faint(keyMapHint);
+  }
+  if (2 + hintW + 2 + noticeW + 2 > columns) return null;
+  return KEY_MAP_ROW(core, keyMapHint) + ' '.repeat(columns - 2 - hintW - noticeW - 2) + faint(notice);
+}
+
 export function concourseRowCtx(facts: { live: boolean; why: PlainWorldWhy | null; liveCount: number }): string {
   if (!facts.live) return 'unregistered in this build';
   const count = facts.liveCount > 0 ? ` · ${facts.liveCount} live` : '';
@@ -120,6 +143,7 @@ export function BootSplashScreen(): React.ReactNode {
   const signInEpoch = useSignInEpoch();
 
   const [facts] = useState(() => scanBootCardFacts(getCwd(), getSessionId()));
+  const [updateLine] = useState(() => takeFaceUpdateNotice());
 
   const concourseLive = routeSurfaceRegistered('concourse');
   const plainWhy = plainWorldWhy();
@@ -465,8 +489,11 @@ export function BootSplashScreen(): React.ReactNode {
         glowWord: wordGlow,
         glowRow: rowGlow,
       });
+      const placed = [...compact.lines];
+      const corner = bottomRowWithNotice(core, columns, keyMapHint, updateLine, true);
+      if (corner !== null && ((keyMapHint !== '' && rows > 2) || placed[rows - 1] === '')) placed[rows - 1] = corner;
       return {
-        placed: compact.lines,
+        placed,
         actionAt: new Map<number, number>(compact.actions.map(a => [a.line, a.index])),
         lastRowFree: false,
       };
@@ -506,7 +533,7 @@ export function BootSplashScreen(): React.ReactNode {
       lastRowFree: faceRows !== rows || top + (composed.lines as string[]).length <= rows - 1,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [core, columns, rows, isCompact, plainWhy, keyMapHint, selectedIndex, composedRows, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
+  }, [core, columns, rows, isCompact, plainWhy, keyMapHint, updateLine, selectedIndex, composedRows, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
 
 
   if (settingsOpen) {
@@ -603,10 +630,12 @@ export function BootSplashScreen(): React.ReactNode {
             </Box>
           );
         }
-        if (i === rows - 1 && composition.lastRowFree && keyMapHint !== '') {
+        if (i === rows - 1 && composition.lastRowFree && (keyMapHint !== '' || updateLine !== null)) {
+          const bottomLine =
+            bottomRowWithNotice(core, columns, keyMapHint, updateLine, false) ?? (keyMapHint !== '' ? KEY_MAP_ROW(core, keyMapHint) : '');
           return (
             <Box key="boot-keymap" height={1} flexShrink={0}>
-              {renderSceneLine(isCompact ? truncateToWidth(KEY_MAP_ROW(core, keyMapHint), columns) : KEY_MAP_ROW(core, keyMapHint))}
+              {bottomLine === '' ? null : renderSceneLine(isCompact ? truncateToWidth(bottomLine, columns) : bottomLine)}
             </Box>
           );
         }

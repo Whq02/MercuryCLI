@@ -169,8 +169,14 @@ recovery. Output lines never carry GitHub access material.
 A quiet once-a-day update notice performs the same
 release-list read, deferred past first paint, silent on every failure, and
 renders one expiring line ("vX.Y.Z available — mercury update") in the
-existing notice surface. It sends nothing about the machine or the
-operator; `MERCURY_UPDATE_NOTICE=0` disables it.
+existing notice surface. The Boot face reads the same cache and paints one
+small line in its bottom-right corner — "vX.Y.Z available · mercury update" —
+once per newer release: the cache records the version the face announced, the
+line does not return for that version on later boots, and it returns for the
+next release. The face never reads the channel itself; in the compact layout
+the line sits on the last row to the left of the key-map hint. The check
+sends nothing about the machine or the operator; `MERCURY_UPDATE_NOTICE=0`
+disables the check, the cache and both lines.
 
 ## Boot recovery
 
