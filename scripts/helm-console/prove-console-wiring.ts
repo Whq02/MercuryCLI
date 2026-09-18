@@ -36,8 +36,8 @@ const pi = read('src/components/PromptInput/PromptInput.tsx')
 check('compose branch gated on telemetry pane', pi.includes("focusPane === 'telemetry' && isConsoleComposing()"))
 check('↵ submits through the store (single usage seam)', pi.includes('consoleSubmitBuffer((question, controller) =>') && pi.includes('runConsoleAsk({'))
 check('esc aborts a pending ask first', pi.includes('if (!consoleAbortAsk()) exitConsoleCompose()'))
-check('Tab always escapes compose (never a trap)', pi.includes('if (isConsole) exitConsoleCompose()') && pi.includes('setHelmFocus(nextHelmPane(focusPane))'))
-check('ctrl+l clears', pi.includes("isConsole && key.ctrl && rawInput === 'l'") && pi.includes('consoleClear()'))
+check('Tab always escapes compose (never a trap)', /exitConsoleCompose\(\)\s*\n\s*setHelmFocus\(nextHelmPane\(focusPane\)\)/.test(pi))
+check('ctrl+l clears', pi.includes("key.ctrl && rawInput === 'l'") && pi.includes('consoleClear()'))
 check(
   '↵ on the console row enters compose in place',
   pi.includes('requestHelmRowActivation(focusPane, getHelmCursor(focusPane))') &&
