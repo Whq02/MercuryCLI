@@ -89,6 +89,15 @@ Every ↵ on New Session opens another session; whatever the chat held keeps
 running and shows on the board. If the daemon that hosts sessions is not up,
 the row says so, and ↵ again starts it and retries.
 
+One background daemon hosts every session on the machine, and it outlives
+whichever window started it. Close that window and the daemon passes to
+another that is still open, so the sessions your other windows hold keep
+their runners and lose nothing; it shuts down only when the last window
+closes, and parks every session on its way out so the next boot brings them
+back. A deploy that arrives while sessions are live waits for every one of
+them — the ones open when it landed and any opened since — before it
+restarts, and never cuts a live runner short.
+
 A chat you just opened is never reaped before your first message. An empty
 background session retires after `MERCURY_SESSION_IDLE_RETIRE_MINUTES`
 (default 10; 0 disables; the row stays on the board as stopped — "retired —
