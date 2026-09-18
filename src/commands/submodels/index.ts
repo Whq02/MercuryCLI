@@ -4,7 +4,7 @@ import { shouldInferenceConfigCommandBeImmediate } from '../../utils/immediateCo
 const command = {
   type: 'local-jsx',
   name: 'submodels',
-  description: 'Sub-model containers — the Minerva and Console models',
+  description: "The Console's model — the sub-model for side questions",
   get immediate() {
     return shouldInferenceConfigCommandBeImmediate()
   },

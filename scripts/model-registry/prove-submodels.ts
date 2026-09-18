@@ -6,7 +6,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'submodels-proof-'))
-delete process.env.MERCURY_MINERVA_MODEL
 delete process.env.MERCURY_CONSOLE_MODEL
 for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR']) {
   delete process.env[key]
@@ -25,7 +24,7 @@ const {
   subModelIdentityLine,
 } = await import('../../src/utils/model/subModelSlots.ts')
 const { providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
-const { getGlobalConfig } = await import('../../src/utils/config.ts')
+const { getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
 const { noteCredentialChange } = await import('../../src/utils/accounts/signInLedger.ts')
 
 let failures = 0
@@ -143,16 +142,12 @@ section('2 · signed-out routing — the row IS the route to the attach home')
   )
 }
 
-section('3 · ONE catalogue for both containers — no serve law, no tier (ruled)')
+section('3 · ONE catalogue — no serve law, no tier (ruled)')
 {
   const registry = composeSubModelRegistry(reads)
   check(
     'no row is refused for a serve reason (the container decides nothing)',
-    registry.entries.every(
-      entry =>
-        !String(entry.reason ?? '').includes('structured output') &&
-        !String(entry.reason ?? '').includes("Minerva's plans"),
-    ),
+    registry.entries.every(entry => !String(entry.reason ?? '').includes('structured output')),
     JSON.stringify(registry.entries.map(e => [e.modelId, e.state, e.reason])),
   )
   const kimi = registry.entries.find(entry => entry.modelId === 'kimi-k3')
@@ -188,7 +183,7 @@ section("3b · THE UNSET DEFAULT (the operator's word) — the choice is the ope
     'openrouter/nvidia/nemotron-3.5-lightning:free',
   ]) {
     process.env.MERCURY_MODEL = main
-    for (const container of ['minerva', 'console'] as const) {
+    for (const container of ['console'] as const) {
       const resolution = resolveSubModel(container)
       check(
         `main ${main}: ${container} resolves UNSET with the hint`,
@@ -250,13 +245,35 @@ section('4 · persistence — env pin > saved pick > UNSET')
     JSON.stringify(getGlobalConfig().subModels),
   )
 
+  saveGlobalConfig(config => ({
+    ...config,
+    subModels: { ...(config.subModels as Record<string, unknown>), minerva: 'claude-opus-5', effort: { minerva: 'xhigh' } } as never,
+  }))
+  const leftoverRead = resolveSubModel('console')
+  check('a leftover pick for an unknown container leaves the Console UNSET', leftoverRead.origin === 'unset', JSON.stringify(leftoverRead))
+  const besideLeftover = setSubModel('console', 'opus', reads)
+  const leftoverConfig = getGlobalConfig().subModels as Record<string, unknown> | undefined
   check(
-    'the two containers persist independently',
+    "this build's own write lands beside the leftover and leaves it untouched",
+    besideLeftover.ok &&
+      leftoverConfig?.console === canonicalSubModelId('opus') &&
+      leftoverConfig?.minerva === 'claude-opus-5' &&
+      (leftoverConfig?.effort as Record<string, unknown> | undefined)?.minerva === 'xhigh',
+    JSON.stringify(leftoverConfig),
+  )
+  setSubModel('console', null, reads)
+  check('clearing the Console pick keeps the leftover (never pruned by a write it did not own)', (getGlobalConfig().subModels as Record<string, unknown> | undefined)?.minerva === 'claude-opus-5', JSON.stringify(getGlobalConfig().subModels))
+  saveGlobalConfig(config => {
+    const { subModels: _dropped, ...rest } = config
+    return rest as typeof config
+  })
+  check('rig: the leftover is cleared for the legs below', getGlobalConfig().subModels === undefined)
+
+  check(
+    'a pick persists',
     (() => {
-      const wrote = setSubModel('minerva', 'opus', reads)
-      const minerva = resolveSubModel('minerva')
-      const consoleRes = resolveSubModel('console')
-      return wrote.ok && minerva.origin === 'saved' && consoleRes.origin === 'unset'
+      const wrote = setSubModel('console', 'opus', reads)
+      return wrote.ok && resolveSubModel('console').origin === 'saved'
     })(),
   )
 
@@ -271,7 +288,7 @@ section('4 · persistence — env pin > saved pick > UNSET')
           `const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '..', '..', 'src', 'utils', 'config.ts'))})`,
           `enableConfigs()`,
           `const { resolveSubModel } = await import(${JSON.stringify(join(import.meta.dir, '..', '..', 'src', 'utils', 'model', 'subModelSlots.ts'))})`,
-          `console.log(JSON.stringify({ minerva: resolveSubModel('minerva'), console: resolveSubModel('console') }))`,
+          `console.log(JSON.stringify({ console: resolveSubModel('console') }))`,
         ].join('\n'),
       ],
       {
@@ -281,26 +298,21 @@ section('4 · persistence — env pin > saved pick > UNSET')
       },
     )
     const line = (child.stdout ?? '').trim().split('\n').at(-1) ?? ''
-    let restarted: { minerva?: { origin?: string; model?: string }; console?: { origin?: string } } = {}
+    let restarted: { console?: { origin?: string; model?: string } } = {}
     try {
       restarted = JSON.parse(line) as typeof restarted
     } catch {
       restarted = {}
     }
     check(
-      'a fresh process resolves the persisted minerva pick (survives a restart)',
+      'a fresh process resolves the persisted console pick (survives a restart)',
       child.status === 0 &&
-        restarted.minerva?.origin === 'saved' &&
-        restarted.minerva?.model === canonicalSubModelId('opus'),
+        restarted.console?.origin === 'saved' &&
+        restarted.console?.model === canonicalSubModelId('opus'),
       `status=${String(child.status)} stdout=${line.slice(0, 200)} stderr=${(child.stderr ?? '').slice(0, 200)}`,
     )
-    check(
-      '…and the never-pinned console is still UNSET there',
-      restarted.console?.origin === 'unset',
-      JSON.stringify(restarted.console),
-    )
   }
-  setSubModel('minerva', null, reads)
+  setSubModel('console', null, reads)
 }
 
 section('5 · the console dispatch read — override only on a real difference, nothing when unset')
@@ -672,7 +684,7 @@ section("8 · CATALOGUE EQUALITY — both containers list exactly the main picke
     providers,
   } as never)
   check(
-    'a second derivation (the other tab) is identical row for row',
+    'a second derivation is identical row for row',
     JSON.stringify(again.entries) === JSON.stringify(registry.entries),
   )
   const carrierReads = {
@@ -680,29 +692,24 @@ section("8 · CATALOGUE EQUALITY — both containers list exactly the main picke
     presences: presencesWithCarrier,
     providers,
   } as never
-  const minervaPick = setSubModel('minerva', 'openrouter/fixture-vendor/ox-alpha', carrierReads)
   const consolePick = setSubModel('console', 'openrouter/fixture-vendor/hummingbird:free', carrierReads)
   check(
-    'an OpenRouter row persists for Minerva AND for the Console',
-    minervaPick.ok &&
-      consolePick.ok &&
-      getGlobalConfig().subModels?.minerva === 'openrouter/fixture-vendor/ox-alpha' &&
-      getGlobalConfig().subModels?.console === 'openrouter/fixture-vendor/hummingbird:free',
-    JSON.stringify([minervaPick, consolePick, getGlobalConfig().subModels]),
+    'an OpenRouter row persists for the Console',
+    consolePick.ok && getGlobalConfig().subModels?.console === 'openrouter/fixture-vendor/hummingbird:free',
+    JSON.stringify([consolePick, getGlobalConfig().subModels]),
   )
-  const minervaResolved = resolveSubModel('minerva')
+  const consoleResolved = resolveSubModel('console')
   check(
-    'the Minerva carrier pick resolves on the openrouter route',
-    minervaResolved.origin === 'saved' && minervaResolved.route === 'openrouter',
-    JSON.stringify(minervaResolved),
+    'the carrier pick resolves on the openrouter route',
+    consoleResolved.origin === 'saved' && consoleResolved.route === 'openrouter',
+    JSON.stringify(consoleResolved),
   )
-  setSubModel('minerva', null, carrierReads)
   setSubModel('console', null, carrierReads)
   delete process.env.OPENROUTER_API_KEY
   __resetOpenrouterCatalogueForTest()
 }
 
-section('9 · THE IDENTITY STAMP — the fact line names the resolved slot, one writer for both prompts')
+section('9 · THE IDENTITY STAMP — the fact line names the resolved slot')
 {
   const wrote = setSubModel('console', 'opus', reads)
   const pin = resolveSubModel('console')
@@ -715,11 +722,7 @@ section('9 · THE IDENTITY STAMP — the fact line names the resolved slot, one 
       '…as a harness-stamped fact the model answers with',
       line.includes('stamped by the Mercury harness') && line.includes('answer with exactly that id and wire'),
     )
-    const minervaLine = subModelIdentityLine('minerva', pin)
-    check(
-      'the Minerva line names Minerva; the console line names the Console',
-      minervaLine.includes('you are Minerva, the notepad curator') && line.includes('you are the Console'),
-    )
+    check('the line names the Console', line.includes('you are the Console'))
     process.env.MERCURY_CONSOLE_MODEL = 'kimi-k3'
     const envPin = resolveSubModel('console')
     check(

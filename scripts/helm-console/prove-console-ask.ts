@@ -6,7 +6,6 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'console-ask-proof-'))
 delete process.env.MERCURY_CONSOLE_MODEL
-delete process.env.MERCURY_MINERVA_MODEL
 for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN']) {
   delete process.env[key]
 }
