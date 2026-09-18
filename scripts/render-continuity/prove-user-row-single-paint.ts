@@ -251,17 +251,15 @@ for (const scene of scenes) {
       'after:New Session:800:\\r',
       'after:Type a prompt:900:\t',
       'after:Type a prompt:1600:railprobe',
-      `after:Type a prompt:3400:${String.fromCharCode(27)}`,
-      `after:Type a prompt:4000:${String.fromCharCode(27)}`,
-      'after:Type a prompt:4700:composerprobe',
+      'after:railprobe:2400:composerprobe',
     ],
-    seconds: 18,
+    seconds: 16,
     cols: 120,
     rows: 40,
     keep: true,
   })
-  t.section('E rail compose one-owner (tab-then-type)')
-  t.check('the journey ran whole (6 sends delivered)', run.sendLog.length === 6, `${run.sendLog.length}/6`)
+  t.section('E rail typing one-owner (tab-then-type)')
+  t.check('the journey ran whole (4 sends delivered)', run.sendLog.length === 4, `${run.sendLog.length}/4`)
   const eZero = driveZero(run.paths.drive)
   const railOff = sendOffOf(run.sendLog, 'railprobe', eZero)
   const composerOff = sendOffOf(run.sendLog, 'composerprobe', eZero)
@@ -281,7 +279,7 @@ for (const scene of scenes) {
     const count = (f: Frame, needle: string): number =>
       f.rows.filter(r => r.includes(needle)).length
     const railFrames = screens.filter(f => count(f, 'railprobe') > 0)
-    t.check('the rail compose received the typed text', railFrames.length > 0)
+    t.check('the composer received the text typed with the rail focused', railFrames.length > 0)
     const railDoubled = railFrames.find(f => count(f, 'railprobe') > 1)
     if (railDoubled) {
       for (const r of railDoubled.rows) {
@@ -289,20 +287,18 @@ for (const scene of scenes) {
       }
     }
     t.check(
-      'rail-compose keystrokes paint in EXACTLY ONE place (no composer leak)',
+      'rail-focused keystrokes paint in EXACTLY ONE place (no rail leak)',
       railDoubled === undefined,
       railDoubled ? `doubled at ${railDoubled.atMs}ms` : '',
     )
     const composerFrames = screens.filter(f => count(f, 'composerprobe') > 0)
-    t.check('the composer received the post-Esc typing', composerFrames.length > 0)
+    t.check('the composer received the later typing', composerFrames.length > 0)
     const composerDoubled = composerFrames.find(f => count(f, 'composerprobe') > 1)
     t.check(
       'composer keystrokes paint in EXACTLY ONE place (no rail leak)',
       composerDoubled === undefined,
       composerDoubled ? `doubled at ${composerDoubled.atMs}ms` : '',
     )
-    const final = screens[screens.length - 1]!
-    t.check('the exited compose leaves no residue in the final frame', count(final, 'railprobe') === 0)
   }
   run.cleanup()
 }

@@ -175,7 +175,6 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     MERCURY_DAEMON_DIR: path.join(RUN_HOME, 'daemon'),
     MERCURY_TEAMS_DIR: path.join(RUN_HOME, 'teams'),
     MERCURY_TABULA_DIR: path.join(RUN_HOME, 'tabula'),
-    MERCURY_TABULA_MINERVA: '0',
     MERCURY_HOME: path.join(RUN_HOME, 'proof-home'),
     MERCURY_CONNECTOR_TRACE: path.join(RUN_HOME, 'connector-trace.jsonl'),
   }

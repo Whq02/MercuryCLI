@@ -345,8 +345,8 @@ the result envelope alone. The verbs:
   ([docs/UNITY-BRIDGE.md](docs/UNITY-BRIDGE.md),
   [docs/BLENDER-BRIDGE.md](docs/BLENDER-BRIDGE.md),
   [docs/ASEPRITE-BRIDGE.md](docs/ASEPRITE-BRIDGE.md)).
-- **Memory**: experience cards, a project notepad, and Minerva's room over
-  your saved prompts ([docs/TABULA-NOTES.md](docs/TABULA-NOTES.md)).
+- **Memory**: experience cards and a project notepad
+  ([docs/TABULA-NOTES.md](docs/TABULA-NOTES.md)).
 - **Voice input**: `/speak on`, then space in an empty composer dictates
   into it — on this machine through the on-device transcriber (its 60 MB
   English model is a one-time `/speak download`), or through the cloud
@@ -382,7 +382,7 @@ catalogue, grouped the way `/help` groups it:
 | current work | `/run` `/tasks` `/workbench` `/diff` `/mission` `/themis` `/supervisor` |
 | crew & delegation | `/agents` `/subagents` `/teammates` `/crew` `/team` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/seats` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
 | session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/cost` `/usage` `/insights` `/debrief` `/add-dir` `/realms` |
-| memory & goals | `/memory` `/cards` `/remember` `/tabula` `/note` `/minerva` `/console` `/orient` |
+| memory & goals | `/memory` `/cards` `/remember` `/note` `/console` `/orient` |
 | model & effort | `/model` `/effort` `/strategy` `/supercode` `/submodels` `/counsel` `/harness` `/caching` |
 | git & review | `/branch` `/review` `/security-review` `/pr-comments` |
 | health & introspection | `/health` `/verify` `/status` `/trace` `/substrate` `/capabilities` `/capabilities-detail` `/ledger` `/provenance` |

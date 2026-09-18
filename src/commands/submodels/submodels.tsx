@@ -32,8 +32,8 @@ function SubModelsSurface({
   return (
     <CommandCenter
       view="submodels"
-      subtitle="the Minerva & Console models"
-      footer="↑↓ browse · ↵ select / sign in · e effort · tab container · esc close"
+      subtitle="the Console's model"
+      footer="↑↓ browse · ↵ select / sign in · e effort · esc close"
       onClose={close}
       captureInput={false}
       closeKeys="esc"
@@ -52,7 +52,7 @@ function SubModelsSurface({
 export const call: LocalJSXCommandCall = async (onDone, _context) => {
   const parked = parkedPick
   parkedPick = null
-  let initialContainer: SubModelContainer = 'minerva'
+  let initialContainer: SubModelContainer = 'console'
   let initialNote: string | undefined
   let initialModelId: string | undefined
   if (parked !== null) {

@@ -150,7 +150,6 @@ async function drive(cols: number, rows: number): Promise<string> {
     MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_IDLE: '0',
     MERCURY_DECK_COMPANION: '0',
-    MERCURY_TABULA_MINERVA: '0',
     MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_TEAMS_DIR: join(home, 'teams'),

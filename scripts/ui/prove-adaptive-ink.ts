@@ -32,11 +32,7 @@ const REGISTRY: Entry[] = [
   { file: 'src/components/MercuryHome.tsx' },
   { file: 'src/components/HelmCenterHeader.tsx' },
   { file: 'src/components/HelmTelemetryRail.tsx' },
-  {
-    file: 'src/components/HelmLanesRail.tsx',
-    allow: ['TERRA'],
-    reason: 'V-R-03 §8.7 — the resting ask-row ❯ sigil is brand art (TERRA, the named constant per UI-093); composing rides the live accent',
-  },
+  { file: 'src/components/HelmLanesRail.tsx' },
   { file: 'src/components/FullscreenLayout.tsx' },
   { file: 'src/components/Deck.tsx' },
   { file: 'src/components/DeckPane.tsx' },

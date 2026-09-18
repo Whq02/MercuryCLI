@@ -1795,41 +1795,6 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
-      "file": "scripts/tabula/live-chat-e2e.ts",
-      "mechanism": "hardcoded-tmp",
-      "excerpt": "writeFileSync('/tmp/vshot-live-minerva.json', JSON.stringify(cfg))",
-      "cls": "platform-owner",
-      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
-    },
-    {
-      "file": "scripts/tabula/live-chat-e2e.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "'/usr/bin/python3',",
-      "cls": "platform-owner",
-      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
-    },
-    {
-      "file": "scripts/tabula/live-repl-e2e.ts",
-      "mechanism": "hardcoded-tmp",
-      "excerpt": "writeFileSync('/tmp/vshot-live-repl.json', JSON.stringify(cfg))",
-      "cls": "platform-owner",
-      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
-    },
-    {
-      "file": "scripts/tabula/live-repl-e2e.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "'/usr/bin/python3',",
-      "cls": "platform-owner",
-      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
-    },
-    {
-      "file": "scripts/tabula/prove-minerva-flow.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "hits = execSync(\"grep -rn 'm to box' src docs 2>/dev/null || true\", { cwd: ROOT, encoding: 'utf8' }).trim()",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
       "file": "scripts/terminal-boundary/prove-terminal-restoration.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",

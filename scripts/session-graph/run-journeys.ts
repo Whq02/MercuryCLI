@@ -16,14 +16,9 @@ interface JourneyLeg {
 
 const LEGS: JourneyLeg[] = [
   {
-    journey: 'Main/Console/Minerva parallelism (three identities, no merge)',
+    journey: 'Main/Console parallelism (two identities, no merge)',
     prover: 'scripts/session-graph/prove-continuity-handoffs.ts',
     needles: ['the ask mints a NEW id (never the main id)', 'a failed side helper reads STALLED'],
-  },
-  {
-    journey: 'Explicit Minerva handoff (staged; receipt ref; one target event)',
-    prover: 'scripts/session-graph/prove-continuity-handoffs.ts',
-    needles: ['the operator dispatch records the EXACT receipt ref', 'no delivery event exists before the operator dispatches'],
   },
   {
     journey: 'Console side-thread handoff (both ids, lineage, never merge)',

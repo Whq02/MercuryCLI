@@ -25,13 +25,13 @@ const { builtinCommands, commandSeat, sessionSeatCommandTable } = await import('
 console.log('§1 the ONE DISPATCH RULE: private + screen-estate commands sit at the screen')
 const all = [...builtinCommands()]
 const byName = (n: string) => all.find(c => c.name === n)
-const USER_PRIVATE = ['note', 'minerva', 'remember', 'good', 'meh'] as const
+const USER_PRIVATE = ['note', 'remember', 'good', 'meh'] as const
 for (const name of [...USER_PRIVATE, 'halt', 'crew']) {
   const cmd = byName(name)
   check(`/${name} is registered and SCREEN-seat`, cmd !== undefined && commandSeat(cmd) === 'screen', cmd === undefined ? 'missing' : commandSeat(cmd))
 }
 check(
-  'the user-private set carries the userPrivate mark (note · minerva · remember · good · meh)',
+  'the user-private set carries the userPrivate mark (note · remember · good · meh)',
   USER_PRIVATE.every(n => (byName(n) as { userPrivate?: boolean } | undefined)?.userPrivate === true),
 )
 check('/halt is stop-class (interruptFirst)', (byName('halt') as { interruptFirst?: boolean } | undefined)?.interruptFirst === true)

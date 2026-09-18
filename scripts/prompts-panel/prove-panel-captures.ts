@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
-import { spawn, spawnSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { CONFIG_HOME, RUNTIME_CWD, SID, cleanupScenario, encodeFixtureTranscript, scenario } from '../ui/renderScenarios.ts'
 import { gridToPng } from '../ui/gridToPng.ts'
-import { FIXTURE_MODEL } from './minerva-fixture-server.ts'
 import { getProjectDir, projectSlug } from '../../src/utils/sessionStoragePortable.ts'
 import { readSessionWorkers } from '../../src/daemon/concourseSupervisor.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -34,7 +33,6 @@ function reapRenderDaemonSessions(): void {
 const VSHOT = join(import.meta.dir, '..', 'ui', 'vshot.py')
 const REPO = join(import.meta.dir, '..', '..')
 const CAPTURE_DIR = process.env.PROMPTS_PANEL_CAPTURE_DIR ?? join(tmpdir(), 'prompts-panel-captures')
-const FIXTURE_PORT = 36211
 const PROJECTS = getProjectDir(RUNTIME_CWD)
 
 type Cell = { c: string }
@@ -119,7 +117,7 @@ const savedPromptsDir = join(CONFIG_HOME, 'saved-prompts')
 function clearSavedPrompts(): void {
   rmSync(savedPromptsDir, { recursive: true, force: true })
 }
-function seedSavedPrompts(drafts: Array<{ id: string; text: string; refinedText?: string }>): string {
+function seedSavedPrompts(drafts: Array<{ id: string; text: string }>): string {
   mkdirSync(savedPromptsDir, { recursive: true })
   const file = join(savedPromptsDir, `${projectSlug(RUNTIME_CWD.normalize('NFC'))}.json`)
   writeFileSync(
@@ -144,7 +142,7 @@ function capture(
   },
 ): Grid {
   const gridPath = join(CAPTURE_DIR, `${tag}-${cols}x${rows}.grid.json`)
-  const cfg = { ...scenario('tabula-empty', cols, rows), out: gridPath } as Record<string, unknown> & { argv: string[]; sends: Send[] }
+  const cfg = { ...scenario('resume-2turn', cols, rows), out: gridPath } as Record<string, unknown> & { argv: string[]; sends: Send[] }
   if (opts.transcript === 'none') {
     cfg.argv = cfg.argv.filter((a: string) => a !== '--resume' && a !== SID)
   } else if (opts.transcript) {
@@ -178,7 +176,6 @@ function capture(
 const then = (awaitText: string, data: string, settle = 2): Send => ({ atTick: 999, awaitText, minTick: 5, awaitSettleTicks: settle, data })
 const after = (ticks: number, data: string): Send => ({ afterPrevTicks: ticks, data })
 const OPEN_PANEL: Send[] = [then('? for shortcuts', '/workbench'), then('/workbench', ENTER)]
-const OPEN_ROOM: Send[] = [then('? for shortcuts', '/tabula'), then('/tabula', ENTER)]
 const OPEN_PANEL_BARE: Send[] = [
   then('New Session', ENTER),
   then('Type a prompt', '/workbench'),
@@ -343,161 +340,6 @@ for (const [cols, rows] of SIZES) {
   }
 
   {
-    clearSavedPrompts()
-    seedSavedPrompts([
-      { id: 'aa11bb', text: 'audit the retry ladder — MUST name file:line' },
-      { id: 'bb22cc', text: 'write the release notes for 1.5.8' },
-    ])
-    const g = text(capture('L8-room-unset', cols, rows, { transcript: NO_CREW, sends: OPEN_ROOM, readyText: 'write the release notes for 1.5.8', env: { MERCURY_MINERVA_MODEL: undefined } }))
-    check(`[${size}] L8u the room says no model is set, in one honest line`, /no Minerva model set — \/submodels pins one · your saved prompts sit as written/.test(flat(g)))
-    check(`[${size}] L8u the saved prompts sit, listed`, /audit the retry ladder — MUST name file:line/.test(g) && /write the release notes for 1\.5\.8/.test(g))
-    check(`[${size}] L8u the ARROW FOCUS lands on the list — the ❯ caret sits on the newest prompt`, /❯\s+2\s+write the release notes/.test(g))
-    check(`[${size}] L8u the footer teaches the landed keys (↵ ask minerva to refine · ↑↓ pick · m edit in message box · esc close)`, /↵ ask minerva to refine/.test(g) && /↑↓ pick/.test(g) && /m edit in message box/.test(g) && /esc close/.test(g))
-    check(`[${size}] L8u the room is shaped like the console (a message line beneath the list)`, /message minerva/.test(g))
-    const roomBox = g.slice(g.indexOf("Minerva's room"))
-    check(`[${size}] L8u the room offers no note-leaving`, !/a add/.test(roomBox) && !/\/note/.test(roomBox))
-    check(`[${size}] L8u the room names itself`, /Minerva's room/.test(g))
-  }
-
-  {
-    const g = text(capture('L8-room-model', cols, rows, { transcript: NO_CREW, sends: OPEN_ROOM, readyText: 'message minerva', env: { MERCURY_MINERVA_MODEL: FIXTURE_MODEL } }))
-    check(`[${size}] L8m the status line names the model and the law`, new RegExp(`minerva · ${FIXTURE_MODEL.replace(/[/.]/g, '\\$&')}`).test(g) && /refines a saved prompt only when you ask · never sends anything/.test(g))
-    check(`[${size}] L8m the footer says ↵ is the one billed call`, /one billed call/.test(g))
-  }
-
-  {
-    const server = spawn(process.execPath, [join(import.meta.dir, 'minerva-fixture-server.ts'), '--port', String(FIXTURE_PORT)], { stdio: ['ignore', 'pipe', 'inherit'] })
-    let serverOut = ''
-    server.stdout.on('data', (c: Buffer) => {
-      serverOut += c.toString('utf8')
-    })
-    const started = Date.now()
-    while (!/listening/.test(serverOut) && Date.now() - started < 10000) {
-      spawnSync('sleep', ['0.2'])
-    }
-    const g = text(
-      capture('L9-room-refined', cols, rows, {
-        transcript: POPULATED,
-        sends: [...OPEN_ROOM, then('message minerva', TAB), then('↵ send to minerva', 'tighten prompt 2'), after(2, ENTER)],
-        readyText: 'refined prompt 2',
-        total: 200,
-        env: {
-          MERCURY_MINERVA_MODEL: FIXTURE_MODEL,
-          MERCURY_OPENROUTER_API_BASE: `http://127.0.0.1:${FIXTURE_PORT}/api/v1`,
-          OPENROUTER_API_KEY: 'sk-or-fixture-key',
-        },
-      }),
-    )
-    check(`[${size}] L9 tab reached the box — Minerva's reply landed under the typed line`, /tighten prompt 2/.test(g) && /refined prompt 2/.test(g))
-    check(`[${size}] L9 the refinement sits BESIDE prompt 2 (the refined line under it — ✦ on the selected row, ✧ elsewhere)`, /[✧✦] Refined: write the release notes for 1\.5\.8/.test(g))
-    seedSavedPrompts([
-      { id: 'ee55ff', text: 'audit the retry ladder — MUST name file:line' },
-      { id: 'ff66aa', text: 'write the release notes for 1.5.8' },
-    ])
-    const gk = text(
-      capture('L9-room-list-enter', cols, rows, {
-        transcript: POPULATED,
-        sends: [...OPEN_ROOM, then('message minerva', ENTER)],
-        readyText: 'refined prompt 2',
-        total: 200,
-        env: {
-          MERCURY_MINERVA_MODEL: FIXTURE_MODEL,
-          MERCURY_OPENROUTER_API_BASE: `http://127.0.0.1:${FIXTURE_PORT}/api/v1`,
-          OPENROUTER_API_KEY: 'sk-or-fixture-key',
-        },
-      }),
-    )
-    const gi = text(
-      capture('L8-room-esc-esc', cols, rows, {
-        transcript: NO_CREW,
-        sends: [
-          ...OPEN_ROOM,
-          then('message minerva', TAB),
-          then('↵ send to minerva', 'slow: think about it'),
-          after(2, ENTER),
-          then('minerva thinking', ESC),
-          then('esc again interrupts', ESC),
-        ],
-        readyText: 'aborted — nothing landed',
-        total: 200,
-        env: {
-          MERCURY_MINERVA_MODEL: FIXTURE_MODEL,
-          MERCURY_OPENROUTER_API_BASE: `http://127.0.0.1:${FIXTURE_PORT}/api/v1`,
-          OPENROUTER_API_KEY: 'sk-or-fixture-key',
-        },
-      }),
-    )
-    check(`[${size}] L8i one esc while Minerva runs paints the hint, esc·esc aborts — nothing landed`, /aborted — nothing landed/.test(gi))
-    check(`[${size}] L8i the interrupted exchange lands no refinement reply`, !/refined prompt/.test(gi))
-    const gm = text(
-      capture('L12-stage-then-send', cols, rows, {
-        transcript: NO_CREW,
-        sends: [
-          ...OPEN_PANEL,
-          then('SAVED PROMPTS', '3'),
-          then('audit the retry ladder', 'm'),
-          then('❯ audit the retry ladder', ENTER),
-        ],
-        readyText: 'I am Minerva',
-        total: 200,
-        env: {
-          MERCURY_MINERVA_MODEL: FIXTURE_MODEL,
-          MERCURY_OPENROUTER_API_BASE: `http://127.0.0.1:${FIXTURE_PORT}/api/v1`,
-          OPENROUTER_API_KEY: 'sk-or-fixture-key',
-        },
-      }),
-    )
-    check(`[${size}] L12b the staged text became the SENT message on the operator's own ↵ — exactly one exchange`, /❯ audit the retry ladder — MUST/.test(gm) && /I am Minerva/.test(gm) && /the conversation \(1\)/.test(gm))
-    server.kill('SIGTERM')
-    check(`[${size}] L9k ↵ on the landed selection asks by itself — "refine prompt 2" in the log`, /refine prompt 2/.test(gk) && /refined prompt 2/.test(gk))
-    check(`[${size}] L9k the refinement landed beside the selected prompt (✦ on the selected row)`, /✦ Refined: write the release notes for 1\.5\.8/.test(gk))
-    check(`[${size}] L9 prompt 2's own wording is unchanged on screen`, /2  write the release notes for 1\.5\.8/.test(g))
-    check(`[${size}] L9 prompt 1 untouched (no ✧ under it)`, !/[✧✦] Refined: audit/.test(g))
-    check(`[${size}] L9 the receipt says one refined, beside your wording`, /1 refined · beside your wording/.test(flat(g)))
-    const files = readdirSync(savedPromptsDir)
-    if (files.length === 1) {
-      const parsed = JSON.parse(readFileSync(join(savedPromptsDir, files[0]!), 'utf8')) as { drafts: Array<{ id: string; text: string; refinedText?: string }> }
-      check(`[${size}] L9 on disk: prompt 2 refined beside, prompt 1 byte-kept`, parsed.drafts[1]!.refinedText !== undefined && parsed.drafts[1]!.text === 'write the release notes for 1.5.8' && parsed.drafts[0]!.refinedText === undefined)
-    } else {
-      check(`[${size}] L9 on disk: one per-project file`, false, files.join(', '))
-    }
-  }
-
-  {
-    const g = text(
-      capture('L8-room-esc-close', cols, rows, {
-        transcript: NO_CREW,
-        sends: [...OPEN_ROOM, then('message minerva', ESC)],
-        readyText: 'second task',
-        total: 140,
-      }),
-    )
-    check(`[${size}] L8e esc from the list closes the room — the chat is back`, !/Minerva's room/.test(g) && /second task/.test(g))
-  }
-
-  {
-    const g = text(
-      capture('L12-stage-only', cols, rows, {
-        transcript: NO_CREW,
-        sends: [...OPEN_PANEL, then('SAVED PROMPTS', '3'), then('audit the retry ladder', 'm')],
-        readyText: '❯ audit the retry ladder',
-        env: { MERCURY_MINERVA_MODEL: undefined },
-      }),
-    )
-    check(`[${size}] L12a m stages the prompt into the room's box — prefilled, panel closed`, /Minerva's room/.test(g) && /❯ audit the retry ladder — MUST/.test(g) && !/SAVED PROMPTS \(/.test(g))
-    check(`[${size}] L12a NOTHING sent — zero exchanges until the operator's own ↵`, /the conversation \(0\)/.test(g))
-    const gr = text(
-      capture('L12-room-m', cols, rows, {
-        transcript: NO_CREW,
-        sends: [...OPEN_ROOM, then('write the release notes', 'm')],
-        readyText: '❯ write the release notes',
-        env: { MERCURY_MINERVA_MODEL: undefined },
-      }),
-    )
-    check(`[${size}] L12c the room's own m stages the selected prompt into the box`, /❯ write the release notes for 1\.5\.8/.test(gr) && /the conversation \(0\)/.test(gr) && /↵ send to minerva/.test(gr))
-  }
-
-  {
     const band = (s: string): string => s.split('\n').map(l => l.slice(0, 26)).join('\n')
     const berth = cols >= 120
     const gp = band(text(capture('L11-rail-populated', cols, rows, { transcript: POPULATED, sends: [], readyText: 'ship it', total: 90 })))
@@ -509,7 +351,7 @@ for (const [cols, rows] of SIZES) {
       check(`[${size}] L11 the card carries the LAST sent prompt (or the honest shed pointer names /workbench)`, cardShown || pointerShown, gp.includes('WORKBENCH') ? 'header without content' : 'no WORKBENCH in the rail band')
     }
     if (cardShown) {
-      check(`[${size}] L11 the card sits UNDER the Minerva card`, gp.indexOf('MINERVA') !== -1 && gp.indexOf('MINERVA') < gp.indexOf('WORKBENCH'))
+      check(`[${size}] L11 the card sits UNDER the TABULA card`, gp.indexOf('TABULA') !== -1 && gp.indexOf('TABULA') < gp.indexOf('WORKBENCH'))
     }
     const ge = band(text(capture('L11-rail-empty', cols, rows, { transcript: 'none', sends: [then('New Session', ENTER)], readyText: 'type a prompt', total: 110 })))
     const emptyShown = /WORKBENCH/.test(ge) && /no prompts sent/.test(ge)
@@ -522,7 +364,7 @@ for (const [cols, rows] of SIZES) {
   }
 }
 
-cleanupScenario('tabula-empty')
+cleanupScenario('resume-2turn')
 clearSavedPrompts()
 console.log(`\n  captures: ${CAPTURE_DIR}`)
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-panel-captures — ${failures === 0 ? 'all checks pass' : `${failures} check(s) failed`}`)

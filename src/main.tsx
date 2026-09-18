@@ -100,13 +100,12 @@ import { PERMISSION_MODES, decodePermissionModeSpelling, modeBypassesPermissions
 import { profileCheckpoint, profileReport } from './utils/startupProfiler.js'
 import { migrateChangelogFromConfig } from './utils/releaseNotes.js'
 import { resetUserCache, getCoreUserData } from './utils/user.js'
-import { maybeRunMinervaOnBoot } from './utils/tabula/minerva.js'
 import { settingsChangeDetector } from './utils/settings/changeDetector.js'
 import { skillChangeDetector } from './utils/skills/skillChangeDetector.js'
 import { getSettingsWithErrors, getInitialSettings } from './utils/settings/settings.js'
 import { parseSettingSourcesFlag } from './utils/settings/constants.js'
 import { resetSettingsCache, setSessionSettingsCache } from './utils/settings/settingsCache.js'
-import { setFlagSettingsInline, setFlagSettingsPath, setAllowedSettingSources, getSessionProjectDir, getOriginalCwd } from './bootstrap/state.js'
+import { setFlagSettingsInline, setFlagSettingsPath, setAllowedSettingSources, getSessionProjectDir } from './bootstrap/state.js'
 import { startMdmRawRead } from './utils/settings/mdm/rawRead.js'
 import { ensureKeychainPrefetchCompleted, startKeychainPrefetch } from './utils/secureStorage/keychainPrefetch.js'
 import { getLastSessionLog, getLogByIndex, searchSessionsByCustomTitle, fetchLogs, sessionIdExists } from './utils/sessionStorage.js'
@@ -1792,9 +1791,6 @@ async function interactiveLaunch(args: {
   registerBackgroundNode('deferred-prefetches', () => {
     startDeferredPrefetches()
     startBackgroundHousekeeping()
-  })
-  registerBackgroundNode('minerva', async () => {
-    maybeRunMinervaOnBoot(getOriginalCwd())
   })
 
   const settingsErrors = getSettingsWithErrors().errors.filter(

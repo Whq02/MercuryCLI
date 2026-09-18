@@ -9,7 +9,6 @@ import { projectWorkRoster } from '../utils/task/workRoster.js'
 import { promptRows } from './prompts-panel/rows.js'
 import { filterResumableSessions } from '../commands/resume/resume.js'
 import { Box, Text } from '../ink.js'
-import { TERRA } from './mercuryPalette.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { isTerminalTaskStatus, type TaskStatus } from '../Task.js'
 import { useAppState } from '../state/AppState.js'
@@ -35,16 +34,6 @@ function formatSpan(ms: number): string {
 import { getActiveMission } from '../utils/hooks/missionHook.js'
 import { isTabulaEnabled, tabulaProjectDir } from '../utils/tabula/tabulaGates.js'
 import { readNotesAsync, type TabulaNote } from '../utils/tabula/tabulaStore.js'
-import {
-  getMinervaBuffer,
-  getMinervaCursor,
-  getMinervaLastExchange,
-  getMinervaPending,
-  getMinervaReplVersion,
-  isMinervaComposing,
-  minervaReplEnabled,
-  subscribeMinervaRepl,
-} from '../utils/cockpit/minervaRepl.js'
 import { isProjectSession, isSubstantiveSession } from '../utils/sessionFilter.js'
 import { isSessionCleared } from '../utils/sessionStorage/clearedSessions.js'
 import { isCrewSession } from '../utils/sessionClass.js'
@@ -395,7 +384,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const ctxUsageVersion = useSyncExternalStore(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion)
   const peers: PresenceSeat[] = getLivePresence()
   const lanesVersion = useSyncExternalStore(subscribeHelmFocus, getHelmLanesVersion, getHelmLanesVersion)
-  const minervaVersion = useSyncExternalStore(subscribeMinervaRepl, getMinervaReplVersion, getMinervaReplVersion)
   const focused = getHelmFocus() === 'lanes'
   const cur = getHelmCursor('lanes')
   const { accent } = useSessionAccent()
@@ -481,7 +469,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     presenceVersion,
     ctxUsageVersion,
     lanesVersion,
-    minervaVersion,
     accent,
     focusedRecords,
     workRunSnap,
@@ -698,9 +685,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const selfName = getOperatorName()
   const peersShown = peers.slice(0, PEER_ROWS)
   const peersMore = peers.length - peersShown.length
-  const minervaPendingEarly = getMinervaPending()
-  const minervaComposingEarly = isMinervaComposing()
-  const minervaLastExEarly = getMinervaLastExchange()
 
   const SECTION_CHROME = boxed ? 3 : 2
   const shedCeiling = availRows ?? Infinity
@@ -708,9 +692,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const hintCap = hintBudget(density)
   const intentTabula = !isTabulaEnabled()
     ? 0
-    : (tabulaOpen.length === 0 ? 1 : Math.min(3, tabulaOpen.length) + (tabulaOpen.length > 3 ? 1 : 0)) +
-      1 +
-      (minervaLastExEarly && !minervaPendingEarly ? 1 : 0)
+    : tabulaOpen.length === 0 ? 1 : Math.min(3, tabulaOpen.length) + (tabulaOpen.length > 3 ? 1 : 0)
   const tasksIntent =
     Math.min(2, ledgerActive.length) + (ledgerActive.length > 2 ? 1 : 0) +
     Math.min(3, ledgerPending.length) + (ledgerPending.length > 3 ? 1 : 0)
@@ -734,7 +716,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const cursorSection =
     cursorLabel.startsWith('crew') ? 'crew'
     : cursorLabel.startsWith('recent') ? 'recent'
-    : cursorLabel.startsWith('tabula') ? 'tabula'
     : cursorLabel.startsWith('workbench') ? 'workbench'
     : cursorLabel.startsWith('hint') ? 'next'
     : null
@@ -1022,7 +1003,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
           glyphColor={tok.textMuted}
           name="no notes — /note"
           nameColor={tok.textMuted}
-          {...railRowProps(isOn, sel, { kind: 'command', command: '/tabula', label: 'tabula:empty' })}
         />,
       )
     }
@@ -1033,9 +1013,8 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
           width={rowW}
           glyph={n.firedAt ? GLYPH.busy : n.pri === 'now' ? GLYPH.spark : GLYPH.sparkFaint}
           glyphColor={n.firedAt ? tok.success : n.pri === 'now' ? tok.warning : tok.textMuted}
-          name={n.refinedText ?? n.text}
+          name={n.text}
           nameColor={tok.textPrimary}
-          {...railRowProps(isOn, sel, { kind: 'command', command: '/tabula', label: `tabula:${n.id}` })}
         />,
       )
     }
@@ -1048,70 +1027,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
           glyphColor={tok.textMuted}
           name={`+${tabulaOpen.length - 3} more`}
           nameColor={tok.textMuted}
-          {...railRowProps(isOn, sel, { kind: 'command', command: '/tabula', label: 'tabula:more' })}
         />,
-      )
-    }
-    const minervaPending = minervaPendingEarly
-    if (minervaPending) {
-      tabulaNodes.push(
-        <RailRow
-          key="tabula:ask"
-          width={rowW}
-          glyph={GLYPH.busy}
-          glyphColor={tok.success}
-          glyphLive
-          name={`minerva · ${Math.max(1, Math.round((Date.now() - minervaPending.startedAt) / 1000))}s`}
-          nameColor={tok.textSecondary}
-          {...railRowProps(isOn, sel, { kind: 'minerva', label: 'tabula:ask' })}
-        />,
-      )
-    } else if (minervaComposingEarly) {
-      const askIdx = sel({ kind: 'minerva', label: 'tabula:ask' })
-      const buf = getMinervaBuffer()
-      const at = getMinervaCursor()
-      tabulaNodes.push(
-        <Box key="tabula:ask" width={rowW}>
-          {}
-          <Text wrap="truncate-start">
-            <Text color={accent}>{isOn(askIdx) ? `${GLYPH.prompt} ` : '  '}</Text>
-            <Text color={tok.textPrimary}>{buf.slice(0, at)}</Text>
-            <Text color={accent}>{GLYPH.caretBlock}</Text>
-            <Text color={tok.textPrimary}>{buf.slice(at)}</Text>
-          </Text>
-        </Box>,
-      )
-    } else {
-      tabulaNodes.push(
-        <RailRow
-          key="tabula:ask"
-          width={rowW}
-          glyph={GLYPH.prompt}
-          glyphColor={TERRA}
-          name="ask minerva"
-          nameColor={tok.textMuted}
-          {...railRowProps(isOn, sel, { kind: 'minerva', label: 'tabula:ask' })}
-        />,
-      )
-    }
-    const lastEx = minervaLastExEarly
-    if (lastEx && !minervaPending) {
-      tabulaNodes.push(
-        <Box key="tabula:receipt" width={rowW}>
-          <Text wrap="truncate-end">
-            <Text>{'  '}</Text>
-            {lastEx.error ? (
-              <Text color={tok.failure}>{`${GLYPH.fail} ${lastEx.error}`}</Text>
-            ) : (
-              <>
-                <Text color={tok.textSecondary}>{`${GLYPH.sparkBright} ${lastEx.reply ?? ''}`}</Text>
-                {(lastEx.counts?.refined ?? 0) > 0 ? (
-                  <Text color={tok.accent}>{' · /workbench MINERVA sends it'}</Text>
-                ) : null}
-              </>
-            )}
-          </Text>
-        </Box>,
       )
     }
   }
@@ -1169,9 +1085,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     />
   ) : null
 
-  useNowTick(
-    getMinervaPending() ? 1_000 : mergedTelemetry || runsLive > 0 ? 15_000 : null,
-  )
+  useNowTick(mergedTelemetry || runsLive > 0 ? 15_000 : null)
   useProviderUsageOnShow(mergedTelemetry)
   let glanceSection: React.ReactNode = null
   if (mergedTelemetry) {
@@ -1291,11 +1205,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
           </ValueGlow>
           {!focused ? (
             <Text color={tok.textMuted}>{'lanes'}</Text>
-          ) : isMinervaComposing() ? (
-            <>
-              <Text color={accent} bold>{'minerva'}</Text>
-              <Text color={tok.textMuted}>{getMinervaPending() ? ' · esc abort' : ' · ↵ send · esc · ^u'}</Text>
-            </>
           ) : (
             <>
               <Text color={accent} bold>{'lanes'}</Text>
@@ -1340,7 +1249,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
           {
 }
           {tabulaNodes.length > 0
-            ? section('tabula', GLYPH.leaseHeld, 'MINERVA', String(tabulaOpen.length), tabulaNodes, { open: '/tabula' })
+            ? section('tabula', GLYPH.leaseHeld, 'TABULA', String(tabulaOpen.length), tabulaNodes)
             : null}
 
           {
@@ -1406,7 +1315,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
           {
 }
           {tabulaNodes.length > 0
-            ? section('tabula', GLYPH.leaseHeld, 'MINERVA', String(tabulaOpen.length), tabulaNodes, { open: '/tabula' })
+            ? section('tabula', GLYPH.leaseHeld, 'TABULA', String(tabulaOpen.length), tabulaNodes)
             : null}
 
           {

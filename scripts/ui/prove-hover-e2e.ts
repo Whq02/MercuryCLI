@@ -100,7 +100,7 @@ console.log(' hover E2E — one highlight on sweep, none mid-drag')
 console.log('============================================================')
 
 console.log('\n── baseline: anchor two hover-armed rail rows ──────────────')
-const base = capture('base', [], 90, ['op (you)', 'ask minerva'], 120, 40, {
+const base = capture('base', [], 90, ['op (you)', 'second task'], 120, 40, {
   stableTicks: 8,
   region: [0, 0, RAIL_COLS, 40],
 })
@@ -108,7 +108,7 @@ let rowA = -1
 let rowB = -1
 if (base) {
   rowA = base.lines.findIndex(l => l.includes('op (you)'))
-  rowB = base.lines.findIndex(l => l.includes('ask minerva'))
+  rowB = base.lines.findIndex(l => l.includes('second task'))
   check('both anchor rows present', rowA >= 0 && rowB >= 0, `A=${rowA} B=${rowB}`)
   if (rowA < 0 || rowB < 0) {
     console.log('  … rail rows 0-16 (first 40 cols):')
@@ -125,14 +125,14 @@ if (rowA >= 0 && rowB >= 0) {
       data: motionT,
       targetText: 'op (you)',
       targetDx: 1,
-      awaitText: 'ask minerva',
+      awaitText: 'second task',
       minTick: 8,
       awaitSettleTicks: 8,
       awaitStableTicks: 8,
       awaitStableRegion: [0, 0, RAIL_COLS, 40],
       requireAwait: true,
     },
-    { data: motionT, targetText: 'ask minerva', targetDx: 2, afterPrevTicks: 6 },
+    { data: motionT, targetText: 'second task', targetDx: 2, afterPrevTicks: 6 },
   ]
   const sweep = capture('sweep', sweepSends, 150, undefined, 120, 40, { stableTicks: 8, region: [0, 0, RAIL_COLS, 40] })
   if (sweep) {
@@ -140,14 +140,14 @@ if (rowA >= 0 && rowB >= 0) {
     check('exactly ONE left-rail row wears the hover fill', lit.length === 1, `lit=${lit.join(',') || 'none'}`)
     check(
       "the lit row is B (the pointer's current target)",
-      lit.length === 1 && (sweep.lines[lit[0]!] ?? '').includes('ask minerva'),
+      lit.length === 1 && (sweep.lines[lit[0]!] ?? '').includes('second task'),
       lit.length === 1 ? `lit row: ${sweep.lines[lit[0]!]?.slice(0, 40)}` : '',
     )
     check(
       'row A carries no stranded highlight',
       !lit.some(y => (sweep.lines[y] ?? '').includes('op (you)')),
     )
-    if (lit.length !== 1 || !(sweep.lines[lit[0]!] ?? '').includes('ask minerva')) {
+    if (lit.length !== 1 || !(sweep.lines[lit[0]!] ?? '').includes('second task')) {
       console.log('  … rail rows 0-16 (first 40 cols) at capture end:')
       sweep.lines.slice(0, 17).forEach((l, i) => console.log(`  ${String(i).padStart(2)}│${l.slice(0, 40)}`))
     }
@@ -162,7 +162,7 @@ if (rowA >= 0 && rowB >= 0) {
         data: motionT,
         targetText: 'op (you)',
         targetDx: 1,
-        awaitText: 'ask minerva',
+        awaitText: 'second task',
         minTick: 8,
         awaitSettleTicks: 8,
         awaitStableTicks: 8,
@@ -170,7 +170,7 @@ if (rowA >= 0 && rowB >= 0) {
         requireAwait: true,
       },
       { data: pressT, targetText: 'op (you)', targetDx: 1, afterPrevTicks: 4 },
-      { data: dragT, targetText: 'ask minerva', targetDx: 2, afterPrevTicks: 4 },
+      { data: dragT, targetText: 'second task', targetDx: 2, afterPrevTicks: 4 },
     ],
     152,
   )
