@@ -851,7 +851,7 @@ export function ConcourseScreen({
       const row = sessionRows.find(r => r.sessionId === sessionId)
       const line =
         row?.waitReason === undefined || row.waitReason === 'seat'
-          ? `queued — waits for a seat · ${snapshot.counts.live}/${effectiveSeatCeiling()} seats busy`
+          ? `queued · ${snapshot.counts.live}/${effectiveSeatCeiling()} busy`
           : `queued — ${concourseWaitCopy(row.waitReason, row.waitDetail)}`
       setNote({ tone: 'muted', text: `${line} · m queues a message` })
       return
@@ -1209,7 +1209,7 @@ export function ConcourseScreen({
         coordinatorFocused: region === 'coordinator',
       }) === null
     if (!boardOwned) return null
-    const hint = closeChordHintOf(closeChordRungOf(boardSelectionClassOf(peekSelRow), closeChordStaged))
+    const hint = closeChordHintOf(closeChordRungOf(boardSelectionClassOf(peekSelRow), closeChordStaged), peekSelRow?.newborn === true)
     return hint === null ? null : keyHintLabel(hint)
   })()
   const chipRows =

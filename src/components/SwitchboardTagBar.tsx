@@ -134,24 +134,19 @@ function getFocusedSeatStatusKey(): string {
 export function SwitchboardAttributionProvider({ children }: { children: React.ReactNode }): React.ReactNode {
   useSyncExternalStore(subscribeFocusedSeat, getFocusedSeatIdentityKey, getFocusedSeatIdentityKey)
   const c = getFocusedSessionConnector()
-  if (!hasSeatLive(c)) return <>{children}</>
-  const sessionId = c.sessionId()
-  return (
-    <SwitchboardAttributionBridge key={sessionId} sessionId={sessionId}>
-      {children}
-    </SwitchboardAttributionBridge>
-  )
+  const sessionId = hasSeatLive(c) ? c.sessionId() : null
+  return <SwitchboardAttributionBridge sessionId={sessionId}>{children}</SwitchboardAttributionBridge>
 }
 
 function SwitchboardAttributionBridge({
   sessionId,
   children,
 }: {
-  sessionId: string
+  sessionId: string | null
   children: React.ReactNode
 }): React.ReactNode {
-  const classify = useCoordinatorAttribution(sessionId, null)
-  return <AttachedAttributionContext.Provider value={classify}>{children}</AttachedAttributionContext.Provider>
+  const classify = useCoordinatorAttribution(sessionId ?? '', null)
+  return <AttachedAttributionContext.Provider value={sessionId === null ? null : classify}>{children}</AttachedAttributionContext.Provider>
 }
 
 export function FocusedSessionStatusRow(): React.ReactNode {

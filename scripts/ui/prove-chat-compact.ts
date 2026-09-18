@@ -24,6 +24,7 @@ const tree = basename(ROOT)
 const SOVEREIGN_ARGV = ['--dangerously-bypass-permissions']
 const SOVEREIGN_SETTINGS = { skipSovereignConsentPrompt: true }
 const HINT_TEXTS = ['? for shortcuts', 'for commands + files', 'ctrl+t activity', 'for a new line', 'shift + ↵']
+const STATUS_ROW = '← back'
 const SESSIONS_LINE = /^(\d+ sessions? on · \d+ monitors? here · \d+ agents? here|S:\d+ · M:\d+ · A:\d+|S:\d+ · M:\d+ …|S:\d+ …|…)\s+(⇧← (?:boot face|concourse)|shift\+← (?:boot face|concourse))$/
 const textRows = (grid: Grid): string[] => grid.map(row => row.map(c => c.c).join('').replace(/\s+$/, ''))
 const cellsAt = (grid: Grid, y: number): Cell[] => grid[y] ?? []
@@ -241,11 +242,11 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
   const gate = { requireAwait: true, minTick: 3, awaitStableTicks: 6, awaitSettleTicks: 2 }
   const run = await capture(tag, 120, 40, [
     { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
-    { ...gate, awaitText: ADMITTED, data: '', mark: 'full-1' },
+    { ...gate, awaitText: STATUS_ROW, data: '', mark: 'full-1' },
     { ...gate, awaitText: ADMITTED, data: '', mark: 'r90x31' },
     { ...gate, awaitText: ADMITTED, data: '', mark: 'r80x24' },
     { ...gate, awaitText: ADMITTED, data: '', mark: 'r82x17' },
-    { ...gate, awaitText: ADMITTED, data: '', mark: 'full-2' },
+    { ...gate, awaitText: STATUS_ROW, data: '', mark: 'full-2' },
   ], {
     resizes: [
       { afterMark: 'full-1', afterMs: 400, cols: 90, rows: 31 },
@@ -274,6 +275,7 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
     const second = at('full-2')
     if (first !== undefined && second !== undefined) {
       check(`${tag}: both full marks are 120x40`, first.cols === 120 && first.rows === 40 && second.cols === 120 && second.rows === 40)
+      check(`${tag}: both full marks carry the focused session's status row (the seat's facts had landed before each mark)`, joined(textRows(first.grid)).includes(STATUS_ROW) && joined(textRows(second.grid)).includes(STATUS_ROW))
       const bytes = (g: Grid): string => g.map(row => row.map(c => `${c.c}|${c.fg}|${c.bg}|${c.bold ? 1 : 0}${c.rev ? 1 : 0}`).join('\t')).join('\n')
       check(`${tag}: the full cockpit returns byte-identical (every cell, colour and attribute)`, bytes(first.grid) === bytes(second.grid), textRows(second.grid).filter((l, i) => l !== textRows(first.grid)[i]).slice(0, 3).join(' | '))
       const fullText = joined(textRows(first.grid))
