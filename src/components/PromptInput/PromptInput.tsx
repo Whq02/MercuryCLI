@@ -169,6 +169,7 @@ import { abortSpeculation, handleSpeculationAccept } from '../../services/Prompt
 import type { PromptInputHelpers } from '../../types/promptInputHelpers.js'
 import { composerBorderRole, composerBorderStyle, COMPOSER_BORDER_SHED_ROWS } from '../mercury-ui/replFloor.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
+import { useNowTick } from '../mercury-ui/components.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
 import { getPlatform } from '../../utils/platform.js'
 import { crossProviderNote, providerFamilyOfSetting, settleModelSelection, type TransitionPlan } from '../../utils/model/modelTransition.js'
@@ -186,15 +187,21 @@ import { GEMINI_CONNECT_OPTION_VALUE } from '../../services/providers/gemini/gem
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import { renderModelName } from '../../utils/model/model.js'
 import {
+  capFailoverLaneOf,
   capHandoffState,
+  capLaneLineKey,
+  capLaneLineUntil,
+  capLaneLineWords,
   capOfferAnswered,
   decideCapAction,
   decideCapReturn,
   decideSlotWallAction,
+  getCapHandoffVersion,
   liveCapFailoverCandidates,
   liveCapFailoverTarget,
   noteCapHandoff,
   type CapFailoverListedFamily,
+  type CapHandoffNote,
   noteCapOfferAnswered,
   noteCapReturn,
   noteCapWindowObserved,
@@ -206,6 +213,7 @@ import {
   offerDismissed,
   resolveCapPosture,
   slotWallKey,
+  subscribeCapHandoff,
 } from '../../services/capFailover.js'
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
 import { slotSeatView, slotSwitchTransient, switchActiveSlot } from '../../services/providers/slotSwitch.js'
@@ -314,6 +322,7 @@ export const __stripControlsForTest = stripControls
 
 const subscribeFocusedComposerModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 const getFocusedComposerMainModel = (): string => getFocusedSessionConnector().modelFacts().main
+const getFocusedComposerEffectiveModel = (): string => getFocusedSessionConnector().modelFacts().effective
 
 function PromptInputInner(props: PromptInputProps): React.ReactNode {
   fluxMark('render:composer')
@@ -396,6 +405,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     subscribeFocusedComposerModel,
     getFocusedComposerMainModel,
     getFocusedComposerMainModel,
+  )
+  const focusedEffectiveModel = useSyncExternalStore(
+    subscribeFocusedComposerModel,
+    getFocusedComposerEffectiveModel,
+    getFocusedComposerEffectiveModel,
   )
   void editGen
   const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
@@ -617,8 +631,15 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     resetText: string | null
   } | null>(null)
   const limits = useClaudeAiLimits()
+  const capHandoffIntentRef = useRef<CapHandoffNote | null>(null)
+  const settleCapHandoffIntent = (landed: boolean): void => {
+    const intent = capHandoffIntentRef.current
+    capHandoffIntentRef.current = null
+    if (intent !== null && landed) noteCapHandoff(intent.homeModel, intent.homeFamily)
+  }
   useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)
+  useSyncExternalStore(subscribeCapHandoff, getCapHandoffVersion, getCapHandoffVersion)
 
   const applyModelSelection = (value: string | null): void => {
     const focused = getFocusedSessionConnector()
@@ -627,6 +648,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       setOverlay(null)
       const effectiveBefore = focused.modelFacts().effective
       void focused.setModel(value).then(receipt => {
+        settleCapHandoffIntent(receipt.state === 'applied' || receipt.state === 'queued')
         if (receipt.state === 'no-op') {
           addNotification({ key: 'model-switched', text: `Already on ${label} — nothing to change`, priority: 'high', timeoutMs: 3000 })
           return
@@ -662,6 +684,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       turnActive:
         stateNow.foregroundTurnActive || stateNow.pendingModelSwitch !== null,
     })
+    settleCapHandoffIntent(settled.kind === 'applied' || settled.kind === 'queued')
     const label = value === null ? 'Default' : renderModelName(value)
     setOverlay(null)
     if (settled.kind === 'no-op') {
@@ -813,7 +836,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       modelFactsNow.sessionPin ?? modelFactsNow.setting ?? modelFactsNow.main
     const liveRoute = declaredRouteOf(effective)
     const noted = capHandoffState()
-    if (noted !== null && liveRoute === noted.homeFamily) {
+    if (noted !== null && liveRoute === noted.homeFamily && modelFactsNow.pendingSwitch === null && appStateStore.getState().pendingModelSwitch === null) {
       noteCapReturn()
       return
     }
@@ -875,7 +898,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     if (direction === 'handoff') {
       const target = liveCapFailoverTarget(homeFamily)?.model
       if (target === undefined) return
-      noteCapHandoff(effective, homeFamily)
+      capHandoffIntentRef.current = { homeModel: effective, homeFamily }
       applyModelSelection(target)
       addNotification({
         key: 'cap-failover',
@@ -2405,6 +2428,27 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     }
     return rawInput
   }, [])
+  const capEffectiveModel = focusedEffectiveModel !== '' ? focusedEffectiveModel : (mainLoopModelForSession ?? mainLoopModel ?? focusedMainModel)
+  const capLane = capFailoverLaneOf(declaredRouteOf(capEffectiveModel))
+  const capNote = capHandoffState()
+  const capHomeWindow = capLane !== null && capNote !== null ? observedFamilyWindow(capNote.homeFamily) : null
+  const capLaneFacts =
+    capLane !== null && capNote !== null
+      ? {
+          lane: capLane,
+          modelName: renderModelName(capEffectiveModel),
+          homeName: providerDisplayName(capNote.homeFamily),
+          homeWindow: capHomeWindow,
+          resetText:
+            capHomeWindow !== null && capHomeWindow.resetsAtMs !== undefined
+              ? formatResetTime(capHomeWindow.resetsAtMs / 1000)
+              : undefined,
+        }
+      : null
+  const capLaneUntil = capLaneLineUntil(capLaneFacts === null ? null : capLaneLineKey(capLaneFacts), Date.now())
+  const capLaneStanding = capLaneUntil !== null && Date.now() < capLaneUntil
+  useNowTick(capLaneStanding ? 1000 : null)
+  const capLaneLine = capLaneStanding && capLaneFacts !== null ? capLaneLineWords(capLaneFacts) : null
   if (externalEditorActive) {
     return (
       <Box
@@ -2542,6 +2586,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           applyModelSelection(held.value)
         }}
         onCancel={() => {
+          capHandoffIntentRef.current = null
           setTransitionConfirm(null)
           setOverlay(null)
           addNotification({
@@ -2603,7 +2648,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           noteCapOfferAnswered(offer.direction, offer.homeRoute)
           if (offer.direction === 'handoff') {
             const seat = getFocusedSessionConnector().modelFacts()
-            noteCapHandoff(seat.sessionPin ?? seat.setting ?? seat.effective, offer.homeRoute)
+            capHandoffIntentRef.current = { homeModel: seat.sessionPin ?? seat.setting ?? seat.effective, homeFamily: offer.homeRoute }
           }
           handleModelSelect(chosen.model)
         }}
@@ -2823,18 +2868,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       </Box>
     )
 
-  const capEffectiveModel = mainLoopModelForSession ?? mainLoopModel ?? focusedMainModel
-  const capRoute = declaredRouteOf(capEffectiveModel)
-  const capNote = capHandoffState()
-  const capHomeWindow = capNote !== null ? observedFamilyWindow(capNote.homeFamily) : null
-  const capResetText =
-    capHomeWindow !== null && capHomeWindow.resetsAtMs !== undefined
-      ? formatResetTime(capHomeWindow.resetsAtMs / 1000)
-      : undefined
-  const capLaneLine =
-    capNote !== null && capRoute !== null && capRoute !== capNote.homeFamily
-      ? `on the ${capRoute} failover lane · ${renderModelName(capEffectiveModel)}${capHomeWindow !== null && (capHomeWindow.state === 'rejected' || capHomeWindow.state === 'warning') && capResetText !== undefined ? ` · ${providerDisplayName(capNote.homeFamily)} window resets ${capResetText}` : ''} · /model to return`
-      : null
 
   return (
     <Box flexDirection="column">
