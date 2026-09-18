@@ -118,7 +118,7 @@ the interaction primitives the view actually mounts (1-hop join).
 
 ## Slash routes — transcript prints (local: 32)
 
-`/accent` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/companion` · `/concourse` · `/cost` · `/counsel` · `/debrief` · `/good` · `/halt` · `/heapdump` · `/keybindings` · `/kill` · `/meh` · `/mock-limits` · `/mouse` · `/orient` · `/pings` · `/release-notes` · `/remember` · `/rewind` · `/seats` · `/speak` · `/subagents` · `/supervisor` · `/themis` · `/vim` · `/voice`
+`/accent` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/companion` · `/concourse` · `/cost` · `/counsel` · `/debrief` · `/good` · `/halt` · `/heapdump` · `/keybindings` · `/kill` · `/meh` · `/mock-limits` · `/mouse` · `/orient` · `/pings` · `/remember` · `/rewind` · `/seats` · `/speak` · `/subagents` · `/supervisor` · `/themis` · `/update-notes` · `/vim` · `/voice`
 
 ## Slash routes — model turns (prompt: 3)
 

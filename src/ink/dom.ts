@@ -75,12 +75,18 @@ function isElement(node: DOMNode): node is DOMElement {
   return node.nodeName !== '#text'
 }
 
+function wrapCells(width: number, widthMode: LayoutMeasureMode): number {
+  if (!Number.isFinite(width)) return width
+  return widthMode === LayoutMeasureMode.Exactly ? Math.ceil(width) : Math.floor(width)
+}
+
 function makeTextMeasureFunc(node: DOMElement) {
   return (width: number, widthMode: LayoutMeasureMode) => {
     const raw = squashTextNodes(node)
     const text = expandTabs(raw)
     const natural = measureText(text, Number.POSITIVE_INFINITY)
-    if (natural.width <= width) return natural
+    const cells = wrapCells(width, widthMode)
+    if (natural.width <= cells) return natural
     if (natural.width >= 1 && width > 0 && width < 1) return natural
     if (text.includes('\n')) {
       if (widthMode === LayoutMeasureMode.Undefined) {
@@ -88,11 +94,11 @@ function makeTextMeasureFunc(node: DOMElement) {
       }
       const textWrap = node.style.textWrap ?? 'wrap'
       const lines = text.split('\n')
-      for (let i = 0; i < lines.length; i++) lines[i] = wrapText(lines[i]!, width, textWrap)
-      return measureText(lines.join('\n'), width)
+      for (let i = 0; i < lines.length; i++) lines[i] = wrapText(lines[i]!, cells, textWrap)
+      return measureText(lines.join('\n'), cells)
     }
-    const wrapped = wrapText(text, width, node.style.textWrap ?? 'wrap')
-    return measureText(wrapped, width)
+    const wrapped = wrapText(text, cells, node.style.textWrap ?? 'wrap')
+    return measureText(wrapped, cells)
   }
 }
 
