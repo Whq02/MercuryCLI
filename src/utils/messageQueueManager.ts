@@ -14,6 +14,7 @@ export {
   popById,
   type PopReceipt,
   getDrainableCommands,
+  holdQueuedWordsForTurnEnd,
   markDraining,
   resetCommandQueue,
   isSlashCommand,

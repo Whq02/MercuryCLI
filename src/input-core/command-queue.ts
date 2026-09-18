@@ -117,12 +117,20 @@ function getCommandsByMaxPriority(
 }
 
 export function getDrainableCommands(sleepBoundary: boolean): QueuedCommand[] {
-  if (!sleepBoundary) return getCommandsByMaxPriority('next')
+  const waits = (cmd: QueuedCommand): boolean => wordsWaitForTurnEnd && cmd.waitsForTurnEnd === true
+  if (!sleepBoundary) return getCommandsByMaxPriority('next').filter(cmd => !waits(cmd))
   const nextThreshold = PRIORITY_ORDER['next']
   return queue.filter(cmd => {
+    if (waits(cmd)) return false
     if (PRIORITY_ORDER[cmd.priority ?? 'next'] <= nextThreshold) return true
     return cmd.mode === 'task-notification'
   })
+}
+
+let wordsWaitForTurnEnd = false
+
+export function holdQueuedWordsForTurnEnd(on: boolean): void {
+  wordsWaitForTurnEnd = on
 }
 
 let drainingNow: ReadonlySet<QueuedCommand> = new Set()
@@ -185,6 +193,7 @@ export function enqueue(command: QueuedCommand): void {
     ...command,
     priority: command.priority ?? 'next',
     queueId: mintQueueId(),
+    ...(wordsWaitForTurnEnd && command.mode === 'prompt' && command.agentId === undefined ? { waitsForTurnEnd: true } : {}),
   }
   queue.push(stamped)
   commit()
@@ -338,6 +347,7 @@ export function resetCommandQueue(): void {
   owningSessionId = null
   parkedQueues.clear()
   takenUuids.length = 0
+  wordsWaitForTurnEnd = false
 }
 
 

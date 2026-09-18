@@ -190,6 +190,7 @@ import {
   remove as removeQueuedCommands,
   subscribeToCommandQueue,
   getCommandQueue,
+  holdQueuedWordsForTurnEnd,
 } from '../utils/messageQueueManager.js'
 import type { QueuedCommand } from '../types/textInputTypes.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
@@ -737,7 +738,7 @@ export async function runHeadless(
   let deferredModelBreadcrumb: string | null = null
   let heldSeatModel: { requestId: string; model: string } | null = null
   let heldSeatEffort: { requestId: string; effort: string } | null = null
-  let deferredSpawnSwitches: Array<{ kind: 'subagents' | 'workflows'; on: boolean }> = []
+  let deferredSpawnSwitches: Array<{ kind: 'subagents' | 'workflows'; on: boolean; requestId: string }> = []
   const landSpawnSwitch = (kind: 'subagents' | 'workflows', on: boolean): void => {
     const landed = setSpawnSwitch(kind, on)
     if (!landed.changed) return
@@ -1283,6 +1284,7 @@ export async function runHeadless(
         applySeatEffort(held.effort)
         io.outbound.enqueue(seatVerbAppliedFrame(getSessionId(), held.requestId, { verb: 'set_effort', effort: held.effort }, randomUUID()))
       }
+      holdQueuedWordsForTurnEnd(false)
       if (deferredModelBreadcrumb !== null) {
         const toModel = deferredModelBreadcrumb
         deferredModelBreadcrumb = null
@@ -1291,7 +1293,10 @@ export async function runHeadless(
       if (deferredSpawnSwitches.length > 0) {
         const toggles = deferredSpawnSwitches
         deferredSpawnSwitches = []
-        for (const toggle of toggles) landSpawnSwitch(toggle.kind, toggle.on)
+        for (const toggle of toggles) {
+          landSpawnSwitch(toggle.kind, toggle.on)
+          io.outbound.enqueue(seatVerbAppliedFrame(getSessionId(), toggle.requestId, { verb: 'spawn_switch', switch: toggle.kind, on: toggle.on }, randomUUID()))
+        }
       }
     }
     if (turnWatchdog.fired) {
@@ -1845,6 +1850,7 @@ export async function runHeadless(
               : parseUserSpecifiedModel(requested)
           if (inFlightAbort !== null) {
             heldSeatModel = { requestId, model: String(resolved) }
+            holdQueuedWordsForTurnEnd(true)
             respondSuccess(requestId, { model: String(resolved), at: 'turn-boundary' })
             return
           }
@@ -1941,6 +1947,7 @@ export async function runHeadless(
           }
           if (inFlightAbort !== null) {
             heldSeatEffort = { requestId, effort: requestedEffort }
+            holdQueuedWordsForTurnEnd(true)
             respondSuccess(requestId, { effort: requestedEffort, at: 'turn-boundary' })
             return
           }
@@ -2268,11 +2275,13 @@ export async function runHeadless(
         case 'spawn_switch': {
           const toggle = { kind: request.switch, on: request.on }
           if (inFlightAbort !== null) {
-            deferredSpawnSwitches = [...deferredSpawnSwitches.filter(d => d.kind !== toggle.kind), toggle]
-          } else {
-            landSpawnSwitch(toggle.kind, toggle.on)
+            deferredSpawnSwitches = [...deferredSpawnSwitches.filter(d => d.kind !== toggle.kind), { ...toggle, requestId }]
+            holdQueuedWordsForTurnEnd(true)
+            respondSuccess(requestId, { switch: toggle.kind, on: toggle.on, at: 'turn-boundary' })
+            return
           }
-          respondSuccess(requestId)
+          landSpawnSwitch(toggle.kind, toggle.on)
+          respondSuccess(requestId, { switch: toggle.kind, on: toggle.on, at: 'now' })
           return
         }
         case 'credential_change': {
