@@ -409,7 +409,7 @@ section('G · wiring: ensureDaemon rides the handshake; main wires hello/restart
   check('G4 restart-when-idle: armed while live, refused on a terminal, storm-guarded', dmain.includes('restartWhenIdle: by =>') && dmain.includes('restartArmed = true') && dmain.includes('runs on a terminal') && dmain.includes('RESTART_STORM_GUARD_MS'))
   check('G5 the successor is spawned BEFORE the lock release and waits for the lock', dmain.indexOf('spawnSuccessorDaemon()') !== -1 && dmain.indexOf('spawnSuccessorDaemon()') < dmain.indexOf('await supervisorLock?.release()') && dmain.includes('SUCCESSOR_LOCK_WAIT_MS'))
   check('G6 the successor re-executes THIS daemon: own argv, env, cwd', dmain.includes('[...process.execArgv, ...process.argv.slice(1)]') && dmain.includes('cwd: process.cwd()'))
-  check('G7 supervisor.json carries the version fact', dmain.includes('proto: MERCURY_DAEMON_PROTO') && dmain.includes('ownerPid: parseOwnerPid()'))
+  check('G7 supervisor.json carries the version fact and the LIVE owner (the hand-over updates it)', dmain.includes('proto: MERCURY_DAEMON_PROTO') && dmain.includes('let currentOwnerPid = parseOwnerPid()') && dmain.includes('ownerPid: currentOwnerPid'))
   const repl = read('src/screens/REPL.tsx')
   check('G8 the REPL paints the one line and clears it on match', repl.includes('subscribeDaemonHandshake') && repl.includes("removeNotification(key)"))
   const health = read('src/utils/healthReport.ts')
