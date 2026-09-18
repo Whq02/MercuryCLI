@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync, appendFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, appendFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -24,22 +24,15 @@ console.log('============================================================')
 const work = mkdtempSync(join(tmpdir(), 'tabula-proof-'))
 const prevDir = process.env.MERCURY_TABULA_DIR
 const prevTabula = process.env.MERCURY_TABULA
-const prevMinerva = process.env.MERCURY_TABULA_MINERVA
 
 try {
   section('(1) gate shapes')
   delete process.env.MERCURY_TABULA
-  delete process.env.MERCURY_TABULA_MINERVA
   process.env.MERCURY_TABULA_DIR = join(work, 'root')
   check('default-ON', gates.isTabulaEnabled() === true)
   process.env.MERCURY_TABULA = '0'
   check('=0 kills', gates.isTabulaEnabled() === false)
-  check('minerva follows master kill', gates.isMinervaEnabled() === false)
   delete process.env.MERCURY_TABULA
-  check('minerva default-OFF', gates.isMinervaEnabled() === false)
-  process.env.MERCURY_TABULA_MINERVA = '1'
-  check('minerva =1 arms', gates.isMinervaEnabled() === true)
-  delete process.env.MERCURY_TABULA_MINERVA
   check('dir seam respected', gates.tabulaRoot() === join(work, 'root'))
   const projDir = gates.tabulaProjectDir('/Users/nobody/dev/proj')
   check('project dir keyed by sanitized slug', projDir === join(work, 'root', '-Users-nobody-dev-proj'))
@@ -84,27 +77,20 @@ try {
   r = store.readNotes(dir)
   check('appends after a torn tail still fold', r.notes.some(n => n.id === 'eee555'))
 
-  section('(4) refine guard (anti-stale, anti-clobber)')
-  const target = r.notes.find(n => n.id === 'bbb222')!
-  const goodHash = store.noteTextHash(target.text)
-  store.appendEvents(dir, [
-    { t: '2026-07-08T10:10:00Z', op: 'refine', id: 'bbb222', refinedText: 'Refactor MercuryModelPicker for the tier rows', baseHash: goodHash },
-  ])
+  section('(4) leftover curator events (refine · done via:minerva) fold without a crash')
+  appendFileSync(
+    join(dir, 'journal.jsonl'),
+    '{"t":"2026-07-08T10:10:00Z","op":"refine","id":"bbb222","refinedText":"Refactor MercuryModelPicker for the tier rows","baseHash":"abc"}\n' +
+      '{"t":"2026-07-08T10:11:00Z","op":"edit","id":"bbb222","text":"refactor the model picker rows"}\n' +
+      '{"t":"2026-07-08T10:12:00Z","op":"done","id":"eee555","done":true,"via":"minerva"}\n',
+  )
   r = store.readNotes(dir)
-  check('matching-hash refine attaches BESIDE text', r.notes.find(n => n.id === 'bbb222')?.refinedText === 'Refactor MercuryModelPicker for the tier rows')
-  check('original text untouched by refine', r.notes.find(n => n.id === 'bbb222')?.text === 'refactor the model picker')
-  store.appendEvents(dir, [
-    { t: '2026-07-08T10:11:00Z', op: 'edit', id: 'bbb222', text: 'refactor the model picker rows' },
-    { t: '2026-07-08T10:12:00Z', op: 'refine', id: 'bbb222', refinedText: 'STALE refinement', baseHash: goodHash },
-  ])
+  check('the refine event is skipped; the note keeps its operator text', r.notes.find(n => n.id === 'bbb222')?.text === 'refactor the model picker rows' && !('refinedText' in (r.notes.find(n => n.id === 'bbb222') as object)))
+  check('a done via:minerva stays done, its provenance dropped at parse', r.notes.find(n => n.id === 'eee555')?.done === true && r.notes.find(n => n.id === 'eee555')?.doneVia === undefined)
+  check('nothing else was lost', r.notes.length === 3)
+  store.appendEvents(dir, [{ t: '2026-07-08T10:13:00Z', op: 'done', id: 'eee555', done: false }])
   r = store.readNotes(dir)
-  check('edit clears refinedText', true)
-  check('stale refine (hash of pre-edit text) SKIPPED', r.notes.find(n => n.id === 'bbb222')?.refinedText === undefined)
-  store.appendEvents(dir, [
-    { t: '2026-07-08T10:13:00Z', op: 'refine', id: 'zzz999', refinedText: 'dangling id', baseHash: 'x' },
-  ])
-  r = store.readNotes(dir)
-  check('dangling-id refine tolerated', r.notes.length === 3)
+  check('the leftover-done note reopens like any other', r.notes.find(n => n.id === 'eee555')?.done === false)
 
   section('(5) order')
   store.appendEvents(dir, [{ t: '2026-07-08T10:14:00Z', op: 'order', ids: ['eee555', 'bbb222'] }])
@@ -133,7 +119,7 @@ try {
   fr = store.readNotes(fdir)
   check('reopen clears doneVia + firedAt', fr.notes[0]?.done === false && fr.notes[0]?.doneVia === undefined && fr.notes[0]?.firedAt === undefined)
   store.appendEvents(fdir, [
-    { t: '2026-07-09T09:06:00Z', op: 'done', id: 'fff111', done: true, via: 'minerva' },
+    { t: '2026-07-09T09:06:00Z', op: 'done', id: 'fff111', done: true, via: 'auto' },
     { t: '2026-07-09T09:07:00Z', op: 'done', id: 'fff111', done: true },
   ])
   fr = store.readNotes(fdir)
@@ -198,30 +184,11 @@ try {
   const md2 = store.materializeNotepad(dir, 'proj')
   check('byte-identical across runs', md1 === md2)
   check('sections present', md1.includes('## Now') && md1.includes('## Done'))
-  check('generated-file footer (edit via /tabula)', md1.includes('/tabula'))
+  check('generated-file footer (the /note pointer)', md1.includes('`/note <text>` captures'))
   check('notepad.md written', existsSync(join(dir, 'notepad.md')))
   check('no wall-clock in output (uses latest event stamp)', md1.includes('2026-07-08T10:14:00Z') || md1.includes('2026-07-08'))
 
-  section('(8) applyMinervaPlan')
-  const before = store.readNotes(dir)
-  const plan = {
-    notes: [{ id: 'bbb222', pri: 'now' as const, refinedText: 'Refactor the model picker rows (tier work)' }],
-    orderedIds: ['bbb222', 'eee555', 'aaa111'],
-    receipt: '3 notes · 1 promoted · 1 refined',
-  }
-  const applied = store.applyMinervaPlan(dir, 'proj', plan, before.journalBytes)
-  check('apply ok', applied.ok === true)
-  r = store.readNotes(dir)
-  check('plan pri applied', r.notes.find(n => n.id === 'bbb222')?.pri === 'now')
-  check('plan refine applied (fresh hash)', r.notes.find(n => n.id === 'bbb222')?.refinedText?.includes('tier work') === true)
-  check('plan order applied', r.notes[0]?.id === 'bbb222')
-  check('history archived', readdirSync(join(dir, 'history')).length === 1)
-  const meta = JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf8'))
-  check('meta stamps receipt', meta.lastReceipt === plan.receipt)
-  for (let i = 0; i < 25; i++) store.applyMinervaPlan(dir, 'proj', plan, store.readNotes(dir).journalBytes)
-  check('history bounded at 20', readdirSync(join(dir, 'history')).length <= 20)
-
-  section('(9) OFF ⇒ no dir creation, empty reads')
+  section('(8) OFF ⇒ no dir creation, empty reads')
   process.env.MERCURY_TABULA = '0'
   const offDir = join(work, 'root', '-off-target')
   store.appendEvents(offDir, [{ t: '2026-07-08T12:00:00Z', op: 'add', id: 'off', text: 'never lands' }])
@@ -233,8 +200,6 @@ try {
   else process.env.MERCURY_TABULA_DIR = prevDir
   if (prevTabula === undefined) delete process.env.MERCURY_TABULA
   else process.env.MERCURY_TABULA = prevTabula
-  if (prevMinerva === undefined) delete process.env.MERCURY_TABULA_MINERVA
-  else process.env.MERCURY_TABULA_MINERVA = prevMinerva
   rmSync(work, { recursive: true, force: true })
 }
 

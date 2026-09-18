@@ -91,7 +91,7 @@ export function computeHarnessMapLines(): string[] {
       ? '- Experience cards: /cards reviews the durable lessons in memory.'
       : null,
     isTabulaEnabled()
-      ? '- Project notepad (TABULA): /note <text> captures a note for this project; /tabula opens the board. Notes survive /clear — prefer them for cross-session reminders.'
+      ? '- Project notepad (TABULA): /note <text> captures a note for this project into a notepad file under the config home. Notes survive /clear — prefer them for cross-session reminders.'
       : null,
     dynamicWorkflowsEnabled()
       ? '- Deterministic multi-agent orchestration: the Workflow tool; /workflows is its board → run → inspector.'

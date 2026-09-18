@@ -84,7 +84,7 @@ resetHarnessMapForTest()
 process.env.MERCURY_TABULA = '0'
 const partial = getHarnessMapSection()
 check('map still present with some gates off', partial !== null)
-check('TABULA line dropped when MERCURY_TABULA=0', partial !== null && !partial.includes('/note') && !partial.includes('/tabula'))
+check('TABULA line dropped when MERCURY_TABULA=0', partial !== null && !partial.includes('/note'))
 check('missing-surface disclaimer present', partial !== null && partial.includes('gated off in this boot'))
 delete process.env.MERCURY_TABULA
 

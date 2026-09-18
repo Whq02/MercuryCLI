@@ -9,8 +9,6 @@ import { projectSlug, sanitizePath } from '../sessionStoragePortable.js'
 export interface SavedPromptV1 {
   id: string
   text: string
-  refinedText?: string
-  refinedAt?: string
   createdAt: string
   updatedAt: string
 }
@@ -56,10 +54,6 @@ function sanitizeDraft(raw: unknown): SavedPromptV1 | null {
     text: d.text.slice(0, MAX_SAVED_PROMPT_CHARS),
     createdAt,
     updatedAt: isIso(d.updatedAt) ? d.updatedAt : createdAt,
-  }
-  if (typeof d.refinedText === 'string' && d.refinedText.trim().length > 0) {
-    out.refinedText = d.refinedText.slice(0, MAX_SAVED_PROMPT_CHARS)
-    if (isIso(d.refinedAt)) out.refinedAt = d.refinedAt
   }
   return out
 }
@@ -161,41 +155,6 @@ export async function moveSavedPrompt(projectPath: string, id: string, delta: -1
     const drafts = current.drafts.slice()
     const [moved] = drafts.splice(i, 1)
     drafts.splice(j, 0, moved!)
-    return { next: { drafts }, result: { ok: true as const, id } }
-  })
-}
-
-export async function refineSavedPrompt(
-  projectPath: string,
-  id: string,
-  refinedRaw: string,
-  baseText: string,
-): Promise<SavedPromptsReceipt> {
-  const refinedText = normalizeSavedPromptText(refinedRaw)
-  if (refinedText.length === 0) return { ok: false, reason: 'an empty refinement lands nothing' }
-  return store(projectPath).update<SavedPromptsReceipt>(current => {
-    const i = current.drafts.findIndex(d => d.id === id)
-    if (i < 0) return { next: current, result: { ok: false as const, reason: 'that saved prompt is gone' } }
-    const live = current.drafts[i]!
-    if (live.text !== baseText) {
-      return { next: current, result: { ok: false as const, reason: 'the prompt changed since Minerva read it — ask again' } }
-    }
-    if (live.refinedText === refinedText) return { next: current, result: { ok: true as const, id } }
-    const drafts = current.drafts.slice()
-    drafts[i] = { ...live, refinedText, refinedAt: new Date().toISOString() }
-    return { next: { drafts }, result: { ok: true as const, id } }
-  })
-}
-
-export async function discardSavedPromptRefinement(projectPath: string, id: string): Promise<SavedPromptsReceipt> {
-  return store(projectPath).update<SavedPromptsReceipt>(current => {
-    const i = current.drafts.findIndex(d => d.id === id)
-    if (i < 0) return { next: current, result: { ok: false as const, reason: 'that saved prompt is gone' } }
-    const live = current.drafts[i]!
-    if (live.refinedText === undefined) return { next: current, result: { ok: true as const, id } }
-    const { refinedText: _r, refinedAt: _a, ...rest } = live
-    const drafts = current.drafts.slice()
-    drafts[i] = rest
     return { next: { drafts }, result: { ok: true as const, id } }
   })
 }

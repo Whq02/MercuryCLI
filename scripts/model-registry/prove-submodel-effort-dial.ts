@@ -20,7 +20,6 @@ for (const key of [
   'MERCURY_CONFIG_DIR',
   'MERCURY_AUTH_SCOPE_DIR',
   'MERCURY_EFFORT_LEVEL',
-  'MERCURY_MINERVA_MODEL',
   'MERCURY_CONSOLE_MODEL',
   'MERCURY_OPENAI_API_BASE',
   'MERCURY_OPENROUTER_API_BASE',
@@ -80,8 +79,8 @@ const sideQuestion = await import('../../src/utils/sideQuestion.ts')
 
 type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max']
-type Container = 'minerva' | 'console'
-const CONTAINERS: Container[] = ['minerva', 'console']
+type Container = 'console'
+const CONTAINERS: Container[] = ['console']
 
 const GPT_ROWS = [
   { id: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol', visibility: 'list', priority: 1, supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max'], default_reasoning_level: 'low' },
@@ -174,30 +173,29 @@ check('rig: the Ollama fixture was discovered', localCatalogue.localRecordFor('l
 
 section('§1 the persistence owner: normalize · refuse typed · per container · validated at read · no residue')
 {
-  check('nothing saved ⇒ no effort for either container', slots.resolveSubModelEffort('minerva') === undefined && slots.resolveSubModelEffort('console') === undefined)
-  const junk = slots.setSubModelEffort('minerva', 'ludicrous speed')
+  check('nothing saved ⇒ no effort for the container', slots.resolveSubModelEffort('console') === undefined)
+  const junk = slots.setSubModelEffort('console', 'ludicrous speed')
   check('junk refuses typed, naming the whole ladder', !junk.ok && /low \| medium \| high \| xhigh \| max/.test(junk.ok ? '' : junk.reason), JSON.stringify(junk))
   check('…config untouched', getGlobalConfig().subModels === undefined, JSON.stringify(getGlobalConfig().subModels))
-  const spoken = slots.setSubModelEffort('minerva', 'x high')
-  check("'x high' applies through the one normalizer; the config carries the canonical word", spoken.ok && getGlobalConfig().subModels?.effort?.minerva === 'xhigh', JSON.stringify(getGlobalConfig().subModels))
-  check('…the receipt says it applies when a model is pinned (Minerva is unset)', spoken.ok && spoken.receipt === 'Minerva effort set to xhigh — applies when a model is pinned', JSON.stringify(spoken))
-  const low = slots.setSubModelEffort('console', 'low')
-  check('the two containers persist independently', low.ok && getGlobalConfig().subModels?.effort?.minerva === 'xhigh' && getGlobalConfig().subModels?.effort?.console === 'low' && slots.resolveSubModelEffort('console') === 'low')
-  saveGlobalConfig(c => ({ ...c, subModels: { ...c.subModels, effort: { ...c.subModels?.effort, minerva: 'hyper' } } }))
-  check('a hand-poisoned spelling reads absent (no guess, no substitute); the sibling stands', slots.resolveSubModelEffort('minerva') === undefined && slots.resolveSubModelEffort('console') === 'low')
-  const cleared = slots.setSubModelEffort('minerva', null)
-  check('null clears the one container alone', cleared.ok && getGlobalConfig().subModels?.effort?.minerva === undefined && getGlobalConfig().subModels?.effort?.console === 'low', JSON.stringify(getGlobalConfig().subModels))
-  check('…with a receipt that names the default', cleared.ok && cleared.receipt === 'Minerva effort cleared — the model default applies')
-  slots.setSubModelEffort('console', null)
+  const spoken = slots.setSubModelEffort('console', 'x high')
+  check("'x high' applies through the one normalizer; the config carries the canonical word", spoken.ok && getGlobalConfig().subModels?.effort?.console === 'xhigh', JSON.stringify(getGlobalConfig().subModels))
+  check('…the receipt says it applies when a model is pinned (the Console is unset)', spoken.ok && spoken.receipt === 'Console effort set to xhigh — applies when a model is pinned', JSON.stringify(spoken))
+  saveGlobalConfig(c => ({ ...c, subModels: { ...c.subModels, effort: { ...c.subModels?.effort, console: 'hyper' } } }))
+  check('a hand-poisoned spelling reads absent (no guess, no substitute)', slots.resolveSubModelEffort('console') === undefined)
+  saveGlobalConfig(c => ({ ...c, subModels: { ...c.subModels, effort: { ...c.subModels?.effort, console: 'low' } } }))
+  check('a lawful stored spelling reads back', slots.resolveSubModelEffort('console') === 'low')
+  const cleared = slots.setSubModelEffort('console', null)
+  check('null clears the container', cleared.ok && getGlobalConfig().subModels?.effort?.console === undefined, JSON.stringify(getGlobalConfig().subModels))
+  check('…with a receipt that names the default', cleared.ok && cleared.receipt === 'Console effort cleared — the model default applies')
   check('clearing the last effort leaves NO residue key', getGlobalConfig().subModels === undefined, JSON.stringify(getGlobalConfig().subModels))
-  const written = slots.setSubModel('minerva', 'claude-opus-5', reads)
+  const written = slots.setSubModel('console', 'claude-opus-5', reads)
   check('rig: a model pick lands over the injected catalogue', written.ok, JSON.stringify(written))
-  slots.setSubModelEffort('minerva', 'high')
-  check('a model pick and an effort pick coexist in the sub-models config', getGlobalConfig().subModels?.minerva === 'claude-opus-5' && getGlobalConfig().subModels?.effort?.minerva === 'high', JSON.stringify(getGlobalConfig().subModels))
-  slots.setSubModel('minerva', null, reads)
-  check("clearing the model keeps the effort (the dial is the container's, not the model's)", slots.resolveSubModel('minerva').origin === 'unset' && slots.resolveSubModelEffort('minerva') === 'high', JSON.stringify(getGlobalConfig().subModels))
-  slots.setSubModelEffort('minerva', null)
-  check('the env model pin locks the model, not the dial: the effort still writes', (() => { process.env.MERCURY_MINERVA_MODEL = 'claude-opus-5'; const r = slots.setSubModelEffort('minerva', 'low'); delete process.env.MERCURY_MINERVA_MODEL; slots.setSubModelEffort('minerva', null); return r.ok && r.receipt.includes('claude-opus-5 runs @low (chosen)') })())
+  slots.setSubModelEffort('console', 'high')
+  check('a model pick and an effort pick coexist in the sub-models config', getGlobalConfig().subModels?.console === 'claude-opus-5' && getGlobalConfig().subModels?.effort?.console === 'high', JSON.stringify(getGlobalConfig().subModels))
+  slots.setSubModel('console', null, reads)
+  check("clearing the model keeps the effort (the dial is the container's, not the model's)", slots.resolveSubModel('console').origin === 'unset' && slots.resolveSubModelEffort('console') === 'high', JSON.stringify(getGlobalConfig().subModels))
+  slots.setSubModelEffort('console', null)
+  check('the env model pin locks the model, not the dial: the effort still writes', (() => { process.env.MERCURY_CONSOLE_MODEL = 'claude-opus-5'; const r = slots.setSubModelEffort('console', 'low'); delete process.env.MERCURY_CONSOLE_MODEL; slots.setSubModelEffort('console', null); return r.ok && r.receipt.includes('claude-opus-5 runs @low (chosen)') })())
 }
 
 section("§2 cross-family accuracy: the strip lists exactly the owner's levels under the container's call context")
@@ -212,7 +210,6 @@ section("§2 cross-family accuracy: the strip lists exactly the owner's levels u
     'local/qwen3:8b', 'local/llama3.2:latest',
     'huggingface/openai/gpt-oss-120b', 'compat/fixture-model',
   ]
-  let gatedSeen = 0
   for (const container of CONTAINERS) {
     for (const model of roster) {
       const ctx = slots.subModelEffortContext(container)
@@ -225,20 +222,15 @@ section("§2 cross-family accuracy: the strip lists exactly the owner's levels u
           JSON.stringify(strip),
         )
       } else {
-        const why = !truth.supportsEffort ? 'no effort control' : truth.suppressedBy === 'thinking-off' ? 'thinking-off suppressed' : truth.flooredBy === 'thinking-off' ? 'thinking-off floored' : 'UNEXPLAINED'
-        if (truth.supportsEffort && (truth.suppressedBy === 'thinking-off' || truth.flooredBy === 'thinking-off')) gatedSeen++
+        const why = !truth.supportsEffort ? 'no effort control' : 'UNEXPLAINED'
         check(`${container} · ${model}: no strip — ${why}; the receipt names the model`, why !== 'UNEXPLAINED' && strip.receipt.includes(model), JSON.stringify(strip))
       }
     }
   }
-  check('Minerva (thinking off) turns at least one reasoning-dial lane into the receipt', gatedSeen > 0, String(gatedSeen))
   for (const model of roster) {
-    const gatedTruth = effort.resolveEffortTruth(model, 'high', { thinkingEnabled: false })
-    const gated = gatedTruth.suppressedBy === 'thinking-off' || gatedTruth.flooredBy === 'thinking-off'
     const supports = effort.resolveEffortTruth(model, undefined).supportsEffort
-    const minerva = slots.subModelEffortStrip('minerva', model).kind
     const console_ = slots.subModelEffortStrip('console', model).kind
-    check(`${model}: Minerva ${gated || !supports ? 'answers the receipt' : 'offers levels'}; the console ${supports ? 'offers levels' : 'answers the receipt'}`, minerva === (gated || !supports ? 'none' : 'levels') && console_ === (supports ? 'levels' : 'none'), `minerva=${minerva} console=${console_}`)
+    check(`${model}: the console ${supports ? 'offers levels' : 'answers the receipt'}`, console_ === (supports ? 'levels' : 'none'), `console=${console_}`)
   }
   slots.setSubModelEffort('console', 'max')
   const opusStrip = slots.subModelEffortStrip('console', 'claude-opus-5')
@@ -283,20 +275,20 @@ section("§3 the dispatch: the chosen level rides each family's wire field; a mo
     maxOutputTokensOverride: undefined,
   })
 
-  slots.setSubModelEffort('minerva', 'xhigh')
-  const opus = slots.subModelDispatchEffort('minerva', 'claude-opus-5')
+  slots.setSubModelEffort('console', 'xhigh')
+  const opus = slots.subModelDispatchEffort('console', 'claude-opus-5')
   check('opus-5 · xhigh chosen: the call carries xhigh and output_config.effort is xhigh', opus.effortValue === 'xhigh' && opus.fallback === undefined && anthropicWire('claude-opus-5', opus.effortValue) === 'xhigh', JSON.stringify(opus))
-  const sonnet = slots.subModelDispatchEffort('minerva', 'claude-sonnet-4-6')
-  const sonnetDefault = effort.resolveEffortTruth('claude-sonnet-4-6', undefined, { thinkingEnabled: false })
+  const sonnet = slots.subModelDispatchEffort('console', 'claude-sonnet-4-6')
+  const sonnetDefault = effort.resolveEffortTruth('claude-sonnet-4-6', undefined, slots.subModelEffortContext('console'))
   check(
     'sonnet-4-6 lacks xhigh: no level rides, the wire is the model default, the receipt says so — never the nearest tier',
     sonnet.effortValue === undefined && /claude-sonnet-4-6 does not offer xhigh — runs @/.test(sonnet.fallback ?? '') && /\(the model default\); xhigh stays saved/.test(sonnet.fallback ?? '') && anthropicWire('claude-sonnet-4-6', sonnet.effortValue) === sonnetDefault.wire && effort.resolveEffortTruth('claude-sonnet-4-6', 'xhigh').wire === 'high' && anthropicWire('claude-sonnet-4-6', sonnet.effortValue) !== 'high',
     JSON.stringify({ sonnet, defaultWire: sonnetDefault.wire }),
   )
-  const haiku = slots.subModelDispatchEffort('minerva', 'claude-haiku-4-5-20251001')
+  const haiku = slots.subModelDispatchEffort('console', 'claude-haiku-4-5-20251001')
   check('a no-dial first-party family: no level, the receipt names the absence and the saved pick', haiku.effortValue === undefined && /claude-haiku-4-5-20251001 has no effort control — xhigh stays saved/.test(haiku.fallback ?? '') && anthropicWire('claude-haiku-4-5-20251001', haiku.effortValue) === undefined, JSON.stringify(haiku))
-  slots.setSubModelEffort('minerva', null)
-  check('no pick: the call carries nothing and the wire is the model default (opus-5: high)', slots.subModelDispatchEffort('minerva', 'claude-opus-5').effortValue === undefined && anthropicWire('claude-opus-5', undefined) === effort.resolveEffortTruth('claude-opus-5', undefined).wire)
+  slots.setSubModelEffort('console', null)
+  check('no pick: the call carries nothing and the wire is the model default (opus-5: high)', slots.subModelDispatchEffort('console', 'claude-opus-5').effortValue === undefined && anthropicWire('claude-opus-5', undefined) === effort.resolveEffortTruth('claude-opus-5', undefined).wire)
 
   slots.setSubModelEffort('console', 'high')
   const luna = slots.subModelDispatchEffort('console', 'gpt-5.6-luna')
@@ -317,25 +309,18 @@ section("§3 the dispatch: the chosen level rides each family's wire field; a mo
   check('glm-5.3 (low|high|max) · medium chosen: no level rides and no key is sent — never low, the nearest tier', glmMedium.effortValue === undefined && /glm-5.3 does not offer medium/.test(glmMedium.fallback ?? '') && glmWire('glm-5.3', glmMedium.effortValue) === undefined && effort.resolveEffortTruth('glm-5.3', 'medium').wire === 'low', JSON.stringify(glmMedium))
 
   slots.setSubModelEffort('console', 'low')
-  slots.setSubModelEffort('minerva', 'low')
   const kimiConsole = slots.subModelDispatchEffort('console', 'kimi-k3')
-  const kimiMinerva = slots.subModelDispatchEffort('minerva', 'kimi-k3')
-  check('kimi-k3 · low chosen: reasoning_effort low on the console (thinking on) and on Minerva (its dial is independent of thinking)',
-    kimiConsole.effortValue === 'low' && (wire.buildMoonshotExtras(compat('kimi-k3', kimiConsole.effortValue, true)) as { reasoning_effort?: string }).reasoning_effort === 'low' &&
-      kimiMinerva.effortValue === 'low' && (wire.buildMoonshotExtras(compat('kimi-k3', kimiMinerva.effortValue, false)) as { reasoning_effort?: string }).reasoning_effort === 'low',
-    JSON.stringify({ kimiConsole, kimiMinerva }))
+  check('kimi-k3 · low chosen: reasoning_effort low on the console (thinking on)',
+    kimiConsole.effortValue === 'low' && (wire.buildMoonshotExtras(compat('kimi-k3', kimiConsole.effortValue, true)) as { reasoning_effort?: string }).reasoning_effort === 'low',
+    JSON.stringify({ kimiConsole }))
   slots.setSubModelEffort('console', 'high')
-  slots.setSubModelEffort('minerva', 'high')
   const dsConsole = slots.subModelDispatchEffort('console', 'deepseek-flash')
-  const dsMinerva = slots.subModelDispatchEffort('minerva', 'deepseek-flash')
   const dsWire = (value: Level | undefined, thinkingEnabled: boolean): string | undefined =>
     (wire.buildDeepseekExtras(compat('deepseek-flash', value, thinkingEnabled)) as { reasoning_effort?: string }).reasoning_effort
   const dsNested = (value: Level | undefined, thinkingEnabled: boolean): string | undefined =>
     ((wire.buildDeepseekExtras(compat('deepseek-flash', value, thinkingEnabled)) as { thinking?: { reasoning_effort?: string } }).thinking ?? {}).reasoning_effort
   check('deepseek · high chosen: the console (thinking on) sends a top-level reasoning_effort high, never nested', dsConsole.effortValue === 'high' && dsWire(dsConsole.effortValue, true) === 'high' && dsNested(dsConsole.effortValue, true) === undefined, JSON.stringify(dsConsole))
-  check("deepseek · high chosen: Minerva (thinking off) carries no level, says so, and the builder sends no dial top-level or nested", dsMinerva.effortValue === undefined && /sends no effort dial on Minerva's thinking-off calls/.test(dsMinerva.fallback ?? '') && dsWire(dsMinerva.effortValue, false) === undefined && dsNested(dsMinerva.effortValue, false) === undefined, JSON.stringify(dsMinerva))
   slots.setSubModelEffort('console', null)
-  slots.setSubModelEffort('minerva', null)
 
   const parent = { effortValue: 'max', toolPermissionContext: { mode: 'default', shouldAvoidPermissionPrompts: false }, other: 'kept' } as never
   const dialled = sideQuestion.sideQuestionAppState(parent, 'low') as unknown as { effortValue?: string; toolPermissionContext: { shouldAvoidPermissionPrompts: boolean; mode: string }; other: string }
@@ -348,28 +333,28 @@ section("§3 the dispatch: the chosen level rides each family's wire field; a mo
 section('§4 the copy: one clause for what the model runs; the model-pick receipt names the effort')
 {
   const clause = (container: Container, model: string): string => slots.subModelEffortClause(container, model)
-  slots.setSubModelEffort('minerva', null)
-  const opusDefault = effort.resolveEffortTruth('claude-opus-5', undefined, { thinkingEnabled: false }).label
-  check(`no pick: runs @${opusDefault} (the model default)`, clause('minerva', 'claude-opus-5') === `runs @${opusDefault} (the model default)`, clause('minerva', 'claude-opus-5'))
-  check('no pick, no effort control: the one absence word', clause('minerva', 'claude-haiku-4-5-20251001') === effort.NO_EFFORT_CONTROL_LABEL, clause('minerva', 'claude-haiku-4-5-20251001'))
-  slots.setSubModelEffort('minerva', 'xhigh')
-  check('chosen and offered: runs @xhigh (chosen)', clause('minerva', 'claude-opus-5') === 'runs @xhigh (chosen)', clause('minerva', 'claude-opus-5'))
-  check('chosen, not offered: the fallback sentence names the default and the saved pick', /^claude-sonnet-4-6 does not offer xhigh — runs @.+ \(the model default\); xhigh stays saved$/.test(clause('minerva', 'claude-sonnet-4-6')), clause('minerva', 'claude-sonnet-4-6'))
-  check('chosen over no effort control: the absence and the saved pick', clause('minerva', 'claude-haiku-4-5-20251001') === 'claude-haiku-4-5-20251001 has no effort control — xhigh stays saved and applies when Minerva runs an effort-capable model', clause('minerva', 'claude-haiku-4-5-20251001'))
+  slots.setSubModelEffort('console', null)
+  const opusDefault = effort.resolveEffortTruth('claude-opus-5', undefined, slots.subModelEffortContext('console')).label
+  check(`no pick: runs @${opusDefault} (the model default)`, clause('console', 'claude-opus-5') === `runs @${opusDefault} (the model default)`, clause('console', 'claude-opus-5'))
+  check('no pick, no effort control: the one absence word', clause('console', 'claude-haiku-4-5-20251001') === effort.NO_EFFORT_CONTROL_LABEL, clause('console', 'claude-haiku-4-5-20251001'))
+  slots.setSubModelEffort('console', 'xhigh')
+  check('chosen and offered: runs @xhigh (chosen)', clause('console', 'claude-opus-5') === 'runs @xhigh (chosen)', clause('console', 'claude-opus-5'))
+  check('chosen, not offered: the fallback sentence names the default and the saved pick', /^claude-sonnet-4-6 does not offer xhigh — runs @.+ \(the model default\); xhigh stays saved$/.test(clause('console', 'claude-sonnet-4-6')), clause('console', 'claude-sonnet-4-6'))
+  check('chosen over no effort control: the absence and the saved pick', clause('console', 'claude-haiku-4-5-20251001') === 'claude-haiku-4-5-20251001 has no effort control — xhigh stays saved and applies when Console runs an effort-capable model', clause('console', 'claude-haiku-4-5-20251001'))
   slots.setSubModelEffort('console', 'max')
   check('an unstated GPT row: runs @default, the pick named as resolved live', clause('console', 'gpt-5.6-bare') === 'runs @default (max chosen — resolved live at dispatch)', clause('console', 'gpt-5.6-bare'))
-  slots.setSubModelEffort('console', null)
-  const pick = slots.setSubModel('minerva', 'claude-opus-5', reads)
-  check('the model-pick receipt names the effort beside the model', pick.ok && pick.receipt === 'Minerva model set to Opus 5 (Anthropic) — runs @xhigh (chosen) — live on the next curator pass', JSON.stringify(pick))
-  const pick2 = slots.setSubModel('minerva', 'claude-sonnet-4-6', reads)
+  slots.setSubModelEffort('console', 'xhigh')
+  const pick = slots.setSubModel('console', 'claude-opus-5', reads)
+  check('the model-pick receipt names the effort beside the model', pick.ok && pick.receipt === 'Console model set to Opus 5 (Anthropic) — runs @xhigh (chosen) — live on the next side question', JSON.stringify(pick))
+  const pick2 = slots.setSubModel('console', 'claude-sonnet-4-6', reads)
   check('…and the fallback at the moment the pick stops applying (a model change under a standing pick)', pick2.ok && /Sonnet 4\.6 \(Anthropic\) — claude-sonnet-4-6 does not offer xhigh — runs @/.test(pick2.receipt), JSON.stringify(pick2))
-  const set = slots.setSubModelEffort('minerva', 'high')
-  check("the effort receipt names the pinned model's clause", set.ok && set.receipt === 'Minerva effort set to high — claude-sonnet-4-6 runs @high (chosen)', JSON.stringify(set))
+  const set = slots.setSubModelEffort('console', 'high')
+  check("the effort receipt names the pinned model's clause", set.ok && set.receipt === 'Console effort set to high — claude-sonnet-4-6 runs @high (chosen)', JSON.stringify(set))
   process.env.MERCURY_EFFORT_LEVEL = 'low'
-  check('the env door outranks the dial and the clause says so', clause('minerva', 'claude-sonnet-4-6') === 'runs @low (pinned by MERCURY_EFFORT_LEVEL)', clause('minerva', 'claude-sonnet-4-6'))
+  check('the env door outranks the dial and the clause says so', clause('console', 'claude-sonnet-4-6') === 'runs @low (pinned by MERCURY_EFFORT_LEVEL)', clause('console', 'claude-sonnet-4-6'))
   delete process.env.MERCURY_EFFORT_LEVEL
-  slots.setSubModel('minerva', null, reads)
-  slots.setSubModelEffort('minerva', null)
+  slots.setSubModel('console', null, reads)
+  slots.setSubModelEffort('console', null)
 }
 
 section('§5 the panel, driven: e opens the strip, → moves, ↵ persists and the row says (chosen), esc keeps; a no-control row answers the receipt')
@@ -394,7 +379,7 @@ section('§5 the panel, driven: e opens the strip, → moves, ↵ persists and t
     for (let i = windows.length - 1; i >= 0; i--) {
       if (stripAnsi(windows[i]!).trim() !== '') return stripAnsi(windows[i]!)
     }
-    const HEADER = '[MINERVA]'
+    const HEADER = 'main: '
     const segments = stripAnsi(output).split(HEADER)
     return segments.length > 1 ? HEADER + segments[segments.length - 1]! : stripAnsi(output)
   }
@@ -410,7 +395,7 @@ section('§5 the panel, driven: e opens the strip, → moves, ↵ persists and t
     let output = ''
     stdout.on('data', (chunk: Buffer | string) => { output += chunk.toString() })
     const instance = await render(
-      React.createElement(SubModelPicker, { onClose: () => {}, onRoute: () => {}, initialContainer: 'minerva', initialModelId }),
+      React.createElement(SubModelPicker, { onClose: () => {}, onRoute: () => {}, initialContainer: 'console', initialModelId }),
       { stdout: stdout as never, stdin: stdin as never, patchConsole: false },
     )
     await sleep(150)
@@ -425,8 +410,8 @@ section('§5 the panel, driven: e opens the strip, → moves, ↵ persists and t
   const registry = slots.composeSubModelRegistry()
   const opusRow = registry.entries.find(entry => entry.modelId === 'claude-opus-5')
   check('rig: the live registry offers claude-opus-5 selectable (the fixture Anthropic key)', opusRow?.state === 'selectable', JSON.stringify(opusRow ?? registry.families))
-  slots.setSubModelEffort('minerva', null)
-  const opusLevels = effort.resolveEffortTruth('claude-opus-5', undefined, { thinkingEnabled: false }).selectable
+  slots.setSubModelEffort('console', null)
+  const opusLevels = effort.resolveEffortTruth('claude-opus-5', undefined, slots.subModelEffortContext('console')).selectable
   const panel = await mountPanel('claude-opus-5')
   const rest = flat(panel.frame())
   check('at rest the hovered row spells the range and runs @high (the model default)', new RegExp(`effort ${opusLevels.join(' · ')} — runs @high \\(the model default\\)`).test(rest), rest)
@@ -434,13 +419,13 @@ section('§5 the panel, driven: e opens the strip, → moves, ↵ persists and t
   const opened = flat(panel.frame())
   const stripLine = `effort ${opusLevels.map(l => (l === 'high' ? `[${l}]` : l)).join(' ')}`
   check("e opens the strip with exactly the owner's levels, the bracket on the default", opened.includes(stripLine), opened)
-  check('…the note line teaches the strip keys', /Opus 5 · ←→ choose · ↵ sets the minerva effort · esc keeps it/.test(opened), opened)
+  check('…the note line teaches the strip keys', /Opus 5 · ←→ choose · ↵ sets the console effort · esc keeps it/.test(opened), opened)
   await panel.press(`${ESC}[C`)
   check('→ moves the bracket one stop', flat(panel.frame()).includes('[xhigh]'), flat(panel.frame()))
   await panel.press('\r')
   const picked = flat(panel.frame())
-  check('↵ persists per container (subModels.effort.minerva)', getGlobalConfig().subModels?.effort?.minerva === 'xhigh', JSON.stringify(getGlobalConfig().subModels))
-  check('…the row reads runs @xhigh (chosen) and the receipt paints on the note line', /runs @xhigh \(chosen\)/.test(picked) && /Minerva effort set to xhigh/.test(picked), picked)
+  check('↵ persists per container (subModels.effort.console)', getGlobalConfig().subModels?.effort?.console === 'xhigh', JSON.stringify(getGlobalConfig().subModels))
+  check('…the row reads runs @xhigh (chosen) and the receipt paints on the note line', /runs @xhigh \(chosen\)/.test(picked) && /Console effort set to xhigh/.test(picked), picked)
   check('…and the strip is gone', !picked.includes('[xhigh] max') && !/←→ choose/.test(picked), picked)
   await panel.press('e')
   check('reopening brackets the chosen level', flat(panel.frame()).includes('[xhigh]'), flat(panel.frame()))
@@ -449,7 +434,7 @@ section('§5 the panel, driven: e opens the strip, → moves, ↵ persists and t
   await panel.press(ESC)
   await sleep(300)
   const kept = flat(panel.frame())
-  check('esc keeps the saved level and closes the strip', getGlobalConfig().subModels?.effort?.minerva === 'xhigh' && !/←→ choose/.test(kept) && /minerva effort kept/.test(kept), kept)
+  check('esc keeps the saved level and closes the strip', getGlobalConfig().subModels?.effort?.console === 'xhigh' && !/←→ choose/.test(kept) && /console effort kept/.test(kept), kept)
   panel.unmount()
 
   const llamaRow = registry.entries.find(entry => entry.modelId === 'local/llama3.2:latest')
@@ -459,16 +444,11 @@ section('§5 the panel, driven: e opens the strip, → moves, ↵ persists and t
   const answered = flat(panel2.frame())
   check('e over a no-control model answers the receipt on the note line and opens no strip', /local\/llama3\.2:latest has no effort control/.test(answered) && !/←→ choose/.test(answered) && !/\[high\]/.test(answered), answered)
   panel2.unmount()
-  slots.setSubModelEffort('minerva', null)
+  slots.setSubModelEffort('console', null)
 }
 
-section('§6 the wiring: the runners spread the dispatch answer, the console passes its dial, the surfaces share one strip')
+section('§6 the wiring: the console passes its dial, the surfaces share one strip')
 {
-  const minerva = src('src/utils/tabula/minerva.ts')
-  check('the boot pass spreads the dispatch answer into its call options', /\.\.\.minervaEffort\(slot\.model\),\s*querySource: 'tabula_minerva',/.test(minerva))
-  check('the chat runner too', /\.\.\.minervaEffort\(slot\.model\),\s*querySource: 'tabula_minerva_chat',/.test(minerva))
-  check('…through the one dispatch composer, logging a fallback', minerva.includes("subModelDispatchEffort('minerva', model)") && minerva.includes('logForDebugging(`minerva effort: ${dispatch.fallback}`)'))
-  check('the room spreads the same answer', /\.\.\.minervaEffort\(slot\.model\),\s*querySource: 'tabula_minerva_chat',/.test(src('src/utils/tabula/minervaRoom.ts')))
   const consoleAsk = src('src/utils/cockpit/helmConsoleAsk.ts')
   check('the console passes its dial, or null for NO level, to the fork', consoleAsk.includes("subModelDispatchEffort('console', slot.model)") && consoleAsk.includes('effortValue: effort.effortValue ?? null,'))
   const sq = src('src/utils/sideQuestion.ts')

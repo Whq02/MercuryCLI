@@ -173,10 +173,8 @@ export type GlobalConfig = {
   supervisorEnabled?: boolean
   pingsBell?: boolean
   subModels?: {
-    minerva?: string
     console?: string
     effort?: {
-      minerva?: string
       console?: string
     }
   }

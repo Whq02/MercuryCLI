@@ -298,7 +298,6 @@ src/utils/sandbox/sandbox-adapter.ts :: cachedWorktreeMainRepo :: static-for-pro
 src/utils/sandbox/sandbox-adapter.ts :: isSupportedPlatformMemo :: static-for-process
 src/utils/sandbox/sandbox-adapter.ts :: linuxSandboxTools :: static-for-process
 src/utils/sandbox/sandbox-adapter.ts :: platformUserTempDir :: static-for-process
-src/utils/savedPrompts/minervaRefinedStore.ts :: cache :: subscription-fed
 src/utils/savedPrompts/savedPromptsStore.ts :: cache :: subscription-fed
 src/utils/secureStorage/macOsKeychainHelpers.ts :: keychainCacheState :: invalidator=clearKeychainCache
 src/utils/secureStorage/macOsKeychainStorage.ts :: keychainLockedMemo :: static-for-process

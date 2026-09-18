@@ -14,7 +14,6 @@ const dir = join(scratch, 'store')
 
 const conv = await import('../../src/services/crew/conversations.ts')
 const consoleHandoff = await import('../../src/services/crew/consoleHandoff.ts')
-const minerva = await import('../../src/services/crew/minervaHandoff.ts')
 const inbox = await import('../../src/services/crew/inbox.ts')
 const composer = await import('../../src/input-core/composer-document.ts')
 const picker = await import('../../src/services/crew/targetPicker.ts')
@@ -106,53 +105,6 @@ t.section('§2 — the handoff law: lineage, never merge')
     { dir },
   )
   t.check('an unknown conversation refuses (never a silent edge)', ghost.ok === false)
-}
-
-t.section('§3 — Minerva staging: refinement alone dispatches NOTHING')
-{
-  const staged = await minerva.stageRefinedDraft({
-    originalText: 'fix tests',
-    refinedText: 'Run the vitest pool for src/services/crew and fix the two failing seat-bridge cases',
-    provenance: { source: 'minerva-chat', noteRef: 'note-42', refinedBy: 'minerva' },
-    dir,
-  })
-  t.check('staging returns the staged state', staged.state === 'staged')
-  const readBack = await minerva.stagedDraftOf(staged.stagedId, { dir })
-  t.check(
-    'BOTH texts survive side by side with provenance',
-    readBack !== null &&
-      readBack.originalText === 'fix tests' &&
-      /vitest pool/.test(readBack.refinedText) &&
-      readBack.provenance.noteRef === 'note-42',
-  )
-  const refConv = await conv.conversationOf(staged.conversationId, { dir })
-  t.check(
-    'the refinement minted its OWN minerva-refinement conversation with parent lineage',
-    refConv !== null &&
-      refConv.kind === 'minerva-refinement' &&
-      refConv.lineage.some(l => l.kind === 'parent'),
-  )
-  t.check('no delivery event exists before the operator dispatches', refConv!.events.every(e => e.kind !== 'delivery'))
-  const marked = await minerva.markStagedDispatched(staged.stagedId, 'msg-777', { dir })
-  const afterMark = await minerva.stagedDraftOf(staged.stagedId, { dir })
-  const convAfter = await conv.conversationOf(staged.conversationId, { dir })
-  t.check(
-    'the operator dispatch records the EXACT receipt ref + the delivery event',
-    marked === true &&
-      afterMark!.state === 'dispatched' &&
-      afterMark!.deliveryReceiptRef === 'msg-777' &&
-      convAfter!.events.some(e => e.kind === 'delivery' && e.ref === 'receipt:msg-777'),
-  )
-  const again = await minerva.markStagedDispatched(staged.stagedId, 'msg-778', { dir })
-  t.check('a settled draft cannot re-dispatch through the stage', again === false)
-  const staged2 = await minerva.stageRefinedDraft({
-    originalText: 'b',
-    refinedText: 'refined b',
-    provenance: { source: 'minerva-chat', refinedBy: 'minerva' },
-    dir,
-  })
-  const dismissed = await minerva.dismissStagedDraft(staged2.stagedId, { dir })
-  t.check('dismissal settles ONLY the draft', dismissed === true && (await minerva.stagedDraftOf(staged2.stagedId, { dir }))!.state === 'dismissed')
 }
 
 t.section('§4 — per-conversation draft identity on the ONE document owner')

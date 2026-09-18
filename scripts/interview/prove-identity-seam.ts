@@ -60,12 +60,6 @@ t.section('§2 — every surface consumes THE handle')
     'an explicit --origin still wins over the default',
     /originMatch\?\.\[1\] !== undefined\s*\?\s*decodeURIComponent\(originMatch\[1\]\)\s*:\s*\(currentInterviewRef\(\) \?\? undefined\)/s.test(consoleSrc),
   )
-  const promptSrc = readFileSync('src/components/PromptInput/PromptInput.tsx', 'utf8')
-  t.check(
-    "Minerva's session context carries the interview BY REFERENCE",
-    promptSrc.includes('const interviewRef = currentInterviewRef()') &&
-      promptSrc.includes('`live interview: ${interviewRef}`'),
-  )
   const echoed = toContextItem(
     {
       response: 'the trade-off is X',

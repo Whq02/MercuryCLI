@@ -17,7 +17,6 @@ t.section('§1 — the focus graph nodes')
     'prompts:move-saved',
     'prompts:delete-saved',
     'prompts:send-saved',
-    'prompts:drop-refinement',
   ]) {
     t.check(`the graph names ${id}`, keys.includes(id))
   }

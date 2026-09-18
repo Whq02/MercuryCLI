@@ -100,34 +100,26 @@ try {
   const halfPath = store.savedPromptsPath(halfProject)
   writeFileSync(
     halfPath,
-    JSON.stringify({ _v: 1, drafts: [{ id: 'ok1', text: 'kept' }, { text: 'no id' }, { id: 'ok1', text: 'dup id' }, 'junk', { id: 'ok2', text: 'kept too', refinedText: '  ' }] }),
+    JSON.stringify({ _v: 1, drafts: [{ id: 'ok1', text: 'kept' }, { text: 'no id' }, { id: 'ok1', text: 'dup id' }, 'junk', { id: 'ok2', text: 'kept too' }] }),
   )
   const half = await store.listSavedPrompts(halfProject)
-  check('decode is tolerant: rows without an id, duplicates and junk drop; blank refinements drop', half.length === 2 && half[0]!.id === 'ok1' && half[0]!.text === 'kept' && half[1]!.refinedText === undefined)
+  check('decode is tolerant: rows without an id, duplicates and junk drop', half.length === 2 && half[0]!.id === 'ok1' && half[0]!.text === 'kept')
 
-  section('§4 — the refinement law (beside, never over)')
+  section('§4 — an earlier build\'s refinement beside a prompt is dropped at read')
+  const leftoverProject = '/Users/example/dev/leftover-project'
+  writeFileSync(
+    store.savedPromptsPath(leftoverProject),
+    JSON.stringify({ _v: 1, drafts: [{ id: 'l1', text: 'ship the notes', refinedText: 'Ship the release notes with proof paths.', refinedAt: '2026-07-08T09:00:00.000Z', createdAt: '2026-07-08T08:00:00.000Z', updatedAt: '2026-07-08T08:00:00.000Z' }] }),
+  )
+  const leftover = await store.listSavedPrompts(leftoverProject)
+  check('the prompt reads with the operator wording alone; the refinement fields are not carried', leftover.length === 1 && leftover[0]!.text === 'ship the notes' && !('refinedText' in leftover[0]!) && !('refinedAt' in leftover[0]!))
   list = await store.listSavedPrompts(project)
   const target = list[1]!
   const before = JSON.stringify(list[0])
-  const ref = await store.refineSavedPrompt(project, target.id, 'Write the 1.5.8 release notes: list every landed line with its proof path; MUST keep the patch-series wording.', target.text)
-  list = await store.listSavedPrompts(project)
-  check('refine lands beside the original', ref.ok && list[1]!.refinedText !== undefined && list[1]!.refinedAt !== undefined)
-  check('the original wording is byte-kept', list[1]!.text === target.text)
-  check('the untouched sibling is byte-identical', JSON.stringify(list[0]) === before)
-  const stale = await store.refineSavedPrompt(project, target.id, 'a polish of words that changed', 'some older wording')
-  check('a stale base is refused (the operator edited meanwhile)', !stale.ok && /changed since/.test(stale.ok ? '' : stale.reason))
-  const empty = await store.refineSavedPrompt(project, target.id, '   ', target.text)
-  check('an empty refinement lands nothing', !empty.ok)
-  list = await store.listSavedPrompts(project)
-  const keptRefinement = list[1]!.refinedText
-  check('… and the landed refinement still stands', keptRefinement !== undefined)
   await store.editSavedPrompt(project, target.id, 'write the 1.5.8 release notes (reworded by hand)')
   list = await store.listSavedPrompts(project)
-  check('an operator edit drops the refinement beside the OLD wording', list[1]!.refinedText === undefined && list[1]!.refinedAt === undefined)
-  await store.refineSavedPrompt(project, list[1]!.id, 'Rewrite the 1.5.8 release notes by hand.', list[1]!.text)
-  const drop = await store.discardSavedPromptRefinement(project, list[1]!.id)
-  list = await store.listSavedPrompts(project)
-  check('x discards the refinement; the wording stays', drop.ok && list[1]!.refinedText === undefined && list[1]!.text === 'write the 1.5.8 release notes (reworded by hand)')
+  check('an operator edit changes the one row', list[1]!.text === 'write the 1.5.8 release notes (reworded by hand)' && list[1]!.updatedAt !== target.updatedAt)
+  check('the untouched sibling is byte-identical', JSON.stringify(list[0]) === before)
 
   section('§5 — restart survival (a fresh process reads the same list)')
   const child = spawnSync(

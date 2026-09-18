@@ -139,7 +139,7 @@ export function chooseLine(deck: Deck, state: VoiceState, moment: Moment, pool: 
 }
 
 
-export type TipArea = 'minerva' | 'context' | 'models' | 'mcp' | 'sessions' | 'keys' | 'agents' | 'worktrees'
+export type TipArea = 'notes' | 'context' | 'models' | 'mcp' | 'sessions' | 'keys' | 'agents' | 'worktrees'
 
 export interface Tip {
   id: string

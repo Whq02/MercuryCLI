@@ -182,7 +182,6 @@ export function childEnv(runHome: string, port: number): NodeJS.ProcessEnv {
     MERCURY_DAEMON_DIR: join(runHome, 'daemon'),
     MERCURY_TEAMS_DIR: join(runHome, 'teams'),
     MERCURY_TABULA_DIR: join(runHome, 'tabula'),
-    MERCURY_TABULA_MINERVA: '0',
     MERCURY_HOME: join(runHome, 'proof-home'),
     MERCURY_DOCTOR_STATE_DIR: join(runHome, 'doctor-state'),
     ANTHROPIC_API_KEY: PROBE_KEY,

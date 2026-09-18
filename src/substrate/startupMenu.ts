@@ -180,21 +180,6 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     },
   },
   {
-    env: 'MERCURY_TABULA_MINERVA',
-    label: 'Minerva note curator',
-    group: 'scale & spend',
-    kind: 'toggle',
-    options: ['1'],
-    defaultLabel: 'off',
-    summary: 'tidy the project notepad file (/note) once per boot with one pass of the Minerva model \u2014 the model you pin in /submodels (unset until you do); one billed call',
-    detail: {
-      controls: "The notepad curator: once per boot, one pass of the Minerva model reorganizes your project notepad journal (/note, its notepad.md on disk) \u2014 priorities, ordering, and one-line refinements beside your original wording. The Minerva model is the one you pin in /submodels \u2014 any row of the /model catalogue, carriers included; until you pin one Minerva is unset and the pass is skipped with that hint, spending nothing. One billed API call per boot once pinned; your notes never leave the machine otherwise. Minerva's room (/tabula) is separate: it refines your saved prompts only when you ask, one call per \u21b5.",
-      on: ["one Minerva-model call per boot when the notepad changed", "notes get prioritized, ordered, and polished \u2014 originals always kept", "a rejected pass changes nothing (deterministic validation)"],
-      off: ["the notepad stays manual \u2014 capture with /note, organize with /minerva <msg>", "Minerva's room (/tabula) still answers each \u21b5 on demand"],
-    },
-  },
-
-  {
     env: 'MERCURY_MNEME',
     label: 'Project facts & decisions (MNEME)',
     group: 'memory & missions',
@@ -427,7 +412,7 @@ export function allSettingRows(): readonly MenuRow[] {
 }
 
 const RETIRED_MENU_ENV: ReadonlySet<string> = new Set(
-  'MERCURY_ENGINES MERCURY_HELM_HOME MERCURY_HELM_CONSOLE MERCURY_DECK_COMPANION MERCURY_CURSUS MERCURY_PARTY MERCURY_ROOM_REMOTE'.split(' '),
+  'MERCURY_ENGINES MERCURY_HELM_HOME MERCURY_HELM_CONSOLE MERCURY_DECK_COMPANION MERCURY_CURSUS MERCURY_PARTY MERCURY_ROOM_REMOTE MERCURY_TABULA_MINERVA'.split(' '),
 )
 
 export function menuRowChoices(row: MenuRow): MenuChoice[] {

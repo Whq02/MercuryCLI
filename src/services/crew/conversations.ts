@@ -13,7 +13,6 @@ export const MAIN_CONVERSATION_ID = 'cv-main' as CrewConversationId
 export const CONVERSATION_KINDS = [
   'main',
   'console-side',
-  'minerva-refinement',
   'work',
   'artifact',
   'direct',
