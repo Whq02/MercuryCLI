@@ -8,3 +8,4 @@ prove-dupline-agent-drain-drive.ts
 prove-dupline-arms-drive.ts
 prove-dupline-relaunch-drive.ts
 prove-tool-input-counter-drive.ts
+prove-turn-output-tokens-drive.ts
