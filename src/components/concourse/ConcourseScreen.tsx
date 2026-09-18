@@ -1209,7 +1209,7 @@ export function ConcourseScreen({
         coordinatorFocused: region === 'coordinator',
       }) === null
     if (!boardOwned) return null
-    const hint = closeChordHintOf(closeChordRungOf(boardSelectionClassOf(peekSelRow), closeChordStaged))
+    const hint = closeChordHintOf(closeChordRungOf(boardSelectionClassOf(peekSelRow), closeChordStaged), peekSelRow?.newborn === true)
     return hint === null ? null : keyHintLabel(hint)
   })()
   const chipRows =
