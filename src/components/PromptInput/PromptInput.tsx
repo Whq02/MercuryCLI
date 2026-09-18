@@ -540,17 +540,22 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   }
 
   const cursorSessionRef = useRef(getFocusedSessionConnector().sessionId())
+  const cursorAtRepointRef = useRef<number | null>(null)
   useEffect(() => {
     const focusedId = getFocusedSessionConnector().sessionId()
     if (cursorSessionRef.current === focusedId) return
+    if (cursorAtRepointRef.current === null) cursorAtRepointRef.current = cursorOffset
     const draft = pendingInput.readDraftFor(focusedId)
     if (draft !== null && draft.text === input && input !== '') {
       cursorSessionRef.current = focusedId
-      if (typeof draft.cursorOffset === 'number') {
+      const untouched = cursorAtRepointRef.current === cursorOffset
+      cursorAtRepointRef.current = null
+      if (untouched && typeof draft.cursorOffset === 'number') {
         setCursorOffset(Math.max(0, Math.min(draft.cursorOffset, input.length)))
       }
     } else if (input === '' && (draft === null || (draft.text ?? '') === '')) {
       cursorSessionRef.current = focusedId
+      cursorAtRepointRef.current = null
     }
   })
 
