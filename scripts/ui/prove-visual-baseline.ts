@@ -57,6 +57,17 @@ let fail = 0
   const sameNow = neutralizeGrid(oneRow(tagNow), DEFAULT_MASKS).text[0] === neutralizeGrid(oneRow(tagThere), DEFAULT_MASKS).text[0]
   console.log(`  [${sameNow ? 'PASS' : 'FAIL'}] the session tag bar as painted today canonicalizes across checkout basenames`)
   if (!sameNow) fail = 1
+
+  const cardMac = '│ ⊞ SESSIONS › │  ▣ this session  │  ▢ first task   ⌥←→ flip · /sessions' + ' '.repeat(47) + '│'
+  const cardLinux = '│ ⊞ SESSIONS › │  ▣ this session  │  ▢ first task   alt+←→ flip · /sessions' + ' '.repeat(44) + '│'
+  const cardSame = neutralizeGrid(oneRow(cardMac), DEFAULT_MASKS).text[0] === neutralizeGrid(oneRow(cardLinux), DEFAULT_MASKS).text[0]
+  const cardKeepsTabs = neutralizeGrid(oneRow(cardMac), DEFAULT_MASKS).text[0].includes('▣ this session  │  ▢ first task')
+  console.log(`  [${cardSame && cardKeepsTabs ? 'PASS' : 'FAIL'}] the SESSIONS card row canonicalizes across the flip hint's host spellings (⌥←→ · alt+←→) and keeps its tabs — ${JSON.stringify(neutralizeGrid(oneRow(cardLinux), DEFAULT_MASKS).text[0])}`)
+  if (!(cardSame && cardKeepsTabs)) fail = 1
+  const withoutHintMask = DEFAULT_MASKS.filter(m => !m.includes('←→ flip'))
+  const oldVocabularyDiverged = neutralizeGrid(oneRow(cardMac), withoutHintMask).text[0] !== neutralizeGrid(oneRow(cardLinux), withoutHintMask).text[0]
+  console.log(`  [${oldVocabularyDiverged ? 'PASS' : 'FAIL'}] without the hint's mask the two hosts diverge on that row (the branch mask ate the Mac glyph alone) — the reason the old vocabulary was false`)
+  if (!oldVocabularyDiverged) fail = 1
 }
 
 const run = (only?: string): void => {

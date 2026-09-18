@@ -163,7 +163,7 @@ t.section('§5 — REAL BINARY: chord timing is deterministic in the product')
     const drive = (
       name: string,
       sends: unknown[],
-      readyText: string,
+      readyText: string | string[],
       total = 160,
     ): { status: number | null; text: string; endReason: string; tail: string } => {
       const out = join(scratch, `${name}.json`)
@@ -207,20 +207,42 @@ t.section('§5 — REAL BINARY: chord timing is deterministic in the product')
     const SCALE = vshotBudgetScale()
     const real = (ticks: number): number => Math.max(1, Math.round(ticks / SCALE))
 
+    const STATUS_ROW = '← back'
+    const landed = { ...boot, awaitSettleTicks: 1 }
     const immediate = drive(
       'immediate',
-      [FACE, { ...boot, data: '\x18' }, { afterPrevTicks: 2, atTick: 90, data: 'p' }],
-      'run a command',
+      [FACE, { ...landed, data: '\x18' }, { afterPrevTicks: 1, atTick: 90, data: 'p' }],
+      ['run a command', STATUS_ROW],
     )
     t.check(
-      'ctrl+x p opens the palette',
-      immediate.status === 0 && immediate.text.includes('run a command'),
+      "ctrl+x p opens the palette, and the palette stands once the session's seat has landed beneath it",
+      immediate.status === 0 && immediate.text.includes('run a command') && immediate.text.includes(STATUS_ROW),
       `exit=${immediate.status} end=${immediate.endReason} · ${immediate.tail}`,
     )
     t.check(
       'and the prefix never leaked into the composer as text',
       !immediate.text.includes('❯ p'),
       'no stray p',
+    )
+    const fileOpen = drive(
+      'fileopen',
+      [FACE, { ...landed, data: '\x18' }, { afterPrevTicks: 1, atTick: 90, data: 'f' }],
+      ['fuzzy-find a file to reference', STATUS_ROW],
+    )
+    t.check(
+      "ctrl+x f opened before the seat landed keeps the file-open surface after it",
+      fileOpen.status === 0 && fileOpen.text.includes('fuzzy-find a file to reference') && fileOpen.text.includes(STATUS_ROW),
+      `exit=${fileOpen.status} end=${fileOpen.endReason} · ${fileOpen.tail}`,
+    )
+    const search = drive(
+      'search',
+      [FACE, { ...landed, data: '\x18' }, { afterPrevTicks: 1, atTick: 90, data: 'g' }],
+      ['grep the working tree for', STATUS_ROW],
+    )
+    t.check(
+      "ctrl+x g opened before the seat landed keeps the content search after it",
+      search.status === 0 && search.text.includes('grep the working tree for') && search.text.includes(STATUS_ROW),
+      `exit=${search.status} end=${search.endReason} · ${search.tail}`,
     )
 
     const late = drive(

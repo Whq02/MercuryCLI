@@ -637,7 +637,7 @@ function LiveConcourse(): React.ReactNode {
               'strip:composer',
               parkApplied
                 ? released
-                  ? { state: 'applied', reason: 'removed from the board — the transcript survives' }
+                  ? { state: 'applied', reason: 'removed from the board — the chat held no message' }
                   : { state: 'applied', reason: `archived — the chat stands parked; ${keyHintLabel('⌃x ⌃x')} again deletes it` }
                 : { state: 'refused', reason: reply.detail ?? reply.error ?? `archive refused${reply.code !== undefined ? ` (${reply.code})` : ''}` },
             )
