@@ -52,10 +52,10 @@ _mercury() {
       compadd -- '--help'
       ;;
     update)
-      compadd -- '--allow-unsigned' '--check' '--help' '--json' '--rollback' '--status'
+      compadd -- '--allow-unsigned' '--check' '--help' '--json' '--rollback' '--status' '--yes'
       ;;
     upgrade)
-      compadd -- '--allow-unsigned' '--check' '--help' '--json' '--rollback' '--status'
+      compadd -- '--allow-unsigned' '--check' '--help' '--json' '--rollback' '--status' '--yes'
       ;;
     *)
       compadd -- ${root_opts[@]}

@@ -6,3 +6,4 @@
 # loud red in this runner.
 prove-install-path.ts
 prove-orphan-terminal-close.py
+prove-face-update-line.ts

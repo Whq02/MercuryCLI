@@ -196,8 +196,8 @@ section('§2 GUIDANCE (IP-07/08/09)')
   const brew = gather(join(keg, 'mercury.mjs'), join(SCRATCH, 'no-versions-7'))
   const brewWords = provenanceGuidance(brew)
   check(
-    'Homebrew guidance names brew upgrade and what `mercury update` manages',
-    brewWords.includes('update it with `brew upgrade Whq02/mercury/mercury`') && brewWords.includes('`mercury update` manages installs made by `mercury install` or the install script') && !brewWords.includes('git pull'),
+    'Homebrew guidance names `mercury update` as the road and brew upgrade as what it runs after asking',
+    brewWords.startsWith('update with `mercury update`') && brewWords.includes('it runs `brew upgrade Whq02/mercury/mercury` after asking') && brewWords.includes('`--yes` skips the question') && !brewWords.includes('git pull'),
     brewWords,
   )
   const pkg = join(SCRATCH, 'g-npm', 'node_modules', 'mercury-tech-cli')
@@ -205,7 +205,7 @@ section('§2 GUIDANCE (IP-07/08/09)')
   writeFileSync(join(pkg, 'mercury.mjs'), '//\n')
   const npm = gather(join(pkg, 'mercury.mjs'), join(SCRATCH, 'no-versions-8'))
   const npmWords = provenanceGuidance(npm)
-  check('npm guidance names npm update and what `mercury update` manages', npmWords.includes('update it with `npm update -g mercury-tech-cli`') && npmWords.includes('`mercury update` manages installs made by'), npmWords)
+  check('npm guidance names `mercury update` as the road and npm update as what it runs after asking', npmWords.startsWith('update with `mercury update`') && npmWords.includes('it runs `npm update -g mercury-tech-cli` after asking') && npmWords.includes('check: `mercury update --check`'), npmWords)
   check(
     'the foreign-installer view names Homebrew and npm with their commands, and nothing for the shapes `mercury update` manages',
     foreignInstallerOf(brew)?.name === 'Homebrew' && foreignInstallerOf(brew)?.updateCommand === 'brew upgrade Whq02/mercury/mercury' && foreignInstallerOf(npm)?.name === 'npm' && foreignInstallerOf(npm)?.updateCommand === 'npm update -g mercury-tech-cli' && foreignInstallerOf(managed) === null && foreignInstallerOf(dev) === null && foreignInstallerOf(unknown) === null,

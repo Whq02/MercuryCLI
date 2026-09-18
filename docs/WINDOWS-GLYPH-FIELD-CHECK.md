@@ -18,7 +18,7 @@ below.
 ## Before you start
 
 1. Update to the current release (`mercury update` on a release install,
-   `npm update -g mercury-tech-cli` on an npm install, or pull and rebuild
+   an npm install included, or pull and rebuild
    from source as the Windows install guide describes).
 2. Confirm the version:
 

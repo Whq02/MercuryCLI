@@ -125,16 +125,33 @@ stderr the progress; exit 0 includes "already current", 1 is operational
 failure, 2 is usage.
 
 The verb manages the versioned layout that `mercury install` and the install
-script create. Inside a Homebrew install (the keg under `Cellar/mercury/`) or
-an npm install (`node_modules/mercury-tech-cli`) the bare update and
-`--rollback` decline before the channel is read and name the command that
-updates that install (`brew upgrade Whq02/mercury/mercury`,
-`npm update -g mercury-tech-cli`); `--check` still reports the newest release
-against the version running, and `--status` names where this Mercury came
-from. After an update of a managed install, the last lines name the `mercury`
-the shell would run when it is not the stable command — another file ahead of
-it on PATH, or none at all — with the fix; the doctor's Command on PATH row
-says the same.
+script create. Inside a Homebrew install (the keg under `Cellar/mercury/`) the
+bare update asks one question — "This Mercury was installed by Homebrew. Run
+`brew upgrade Whq02/mercury/mercury` now? [y/N]" — and on `y` runs that
+command with its output streamed as it comes, then reads the installed
+version back through the `mercury` the shell runs and says `updated: <from> →
+<to>`, or that the version is still the same when Homebrew's formula has not
+moved yet. `n`, or no answer, leaves the install untouched (exit 1); `--yes`
+skips the question; `--json` needs `--yes` and puts the command's own lines on
+stderr. `--rollback` still declines there: Homebrew keeps its own versions. A
+bundle running from inside `node_modules/mercury-tech-cli` takes the same road
+with `npm update -g mercury-tech-cli`. The shipped npm package does not run
+Mercury from there: its first run installs the release archive into the
+managed layout and every later run hands over to the stable command, so an
+npm-made install is a managed install and `mercury update` updates it through
+Mercury's own channel; when the `mercury` the shell runs is npm's wrapper,
+`--check`, `--status` and the doctor say so in one line ("installed through
+npm's wrapper, updated through Mercury's own channel") and the doctor's
+Command on PATH row does not ask for a PATH change. `--check` reports the
+newest release against the version running on every channel and ends with the
+road that applies (`mercury update` runs Homebrew's upgrade; `run mercury
+update to install it` on the channel's own layout); `--status` names where
+this Mercury came from. On Windows the PowerShell installer and the `.zip`
+archive make a managed install, so the channel road applies there; Homebrew
+does not exist on Windows and the npm road there is untested. After an update
+of a managed install, the last lines name the `mercury` the shell would run
+when it is not the stable command — another file ahead of it on PATH, or none
+at all — with the fix; the doctor's Command on PATH row says the same.
 
 The activation law:
 
@@ -152,8 +169,14 @@ recovery. Output lines never carry GitHub access material.
 A quiet once-a-day update notice performs the same
 release-list read, deferred past first paint, silent on every failure, and
 renders one expiring line ("vX.Y.Z available — mercury update") in the
-existing notice surface. It sends nothing about the machine or the
-operator; `MERCURY_UPDATE_NOTICE=0` disables it.
+existing notice surface. The Boot face reads the same cache and paints one
+small line in its bottom-right corner — "vX.Y.Z available · mercury update" —
+once per newer release: the cache records the version the face announced, the
+line does not return for that version on later boots, and it returns for the
+next release. The face never reads the channel itself; in the compact layout
+the line sits on the last row to the left of the key-map hint. The check
+sends nothing about the machine or the operator; `MERCURY_UPDATE_NOTICE=0`
+disables the check, the cache and both lines.
 
 ## Boot recovery
 

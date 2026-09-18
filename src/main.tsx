@@ -1008,6 +1008,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     .option('--check', 'Only check for updates')
     .option('--status', 'Show update status')
     .option('--rollback', 'Roll back to the previous version')
+    .option('--yes', "Run the channel's own upgrade without asking (an install made by Homebrew or npm)")
     .option('--json', 'JSON output')
     .action(async options => {
       await updateCli(options)
