@@ -81,7 +81,7 @@ import {
   areFileEditsInputsEquivalent,
   findActualString,
   getPatchForEdit,
-  preserveQuoteStyle,
+  preserveQuoteStyleForFile,
 } from './utils.js'
 import { findSection, planAppend, planSectionEdit } from './sectionEdit.js'
 import {
@@ -832,7 +832,7 @@ export const FileEditTool = buildTool({
       }
     }
 
-    const preservedNewString = preserveQuoteStyle(oldString, actualOldString, newString)
+    const preservedNewString = await preserveQuoteStyleForFile(expandedPath, currentContent, oldString, actualOldString, newString)
     const settingsRefusal = validateInputForSettingsFileEdit(expandedPath, currentContent, () =>
       applyEditToFile(currentContent, actualOldString, preservedNewString, input.replace_all),
     )
@@ -990,7 +990,7 @@ export const FileEditTool = buildTool({
       const oldString = input.old_string ?? ''
       const newString = input.new_string ?? ''
       const actualOldString = findActualString(freshContent, oldString) ?? oldString
-      const preserved = preserveQuoteStyle(oldString, actualOldString, newString)
+      const preserved = await preserveQuoteStyleForFile(expandedPath, freshContent, oldString, actualOldString, newString)
       const result = getPatchForEdit({
         filePath: expandedPath,
         fileContents: freshContent,
