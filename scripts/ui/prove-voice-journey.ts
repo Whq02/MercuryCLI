@@ -319,7 +319,7 @@ console.log('[B] a keyless, packless home — v answers the no-transcriber recei
     { MERCURY_WHISPER_PACK_DIR: EMPTY_PACK },
   )
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
-  check('the receipt rides the hint row: the on-device reason, then the doors in the neutral grammar (the row cuts the doors; their words are the product\'s own)', (res.marks.receipt ?? '').split('\n').some(l => l.includes('files · nothing transcribes yet — on-device pack pin broken; or /logins')) && NO_TRANSCRIBER_DOORS === '/logins openai (API key) or /logins gemini', (res.marks.receipt ?? '').split('\n').filter(l => l.includes('transcribes')).join(' · '))
+  check('the receipt takes the hint row whole (the standing hints step aside): the on-device reason, then the doors in the neutral grammar (their words are the product\'s own)', (res.marks.receipt ?? '').split('\n').some(l => l.startsWith('nothing transcribes yet — on-device pack pin broken; or /logins') && !l.includes('for shortcuts')) && NO_TRANSCRIBER_DOORS === '/logins openai (API key) or /logins gemini', (res.marks.receipt ?? '').split('\n').filter(l => l.includes('transcribes')).join(' · '))
   check('no take started (the footer never said recording)', !(res.marks.receipt ?? '').includes('recording ·'))
   const stray = nonLoopback(netlines(netlog))
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
@@ -348,7 +348,7 @@ console.log('[C] no pack, no recorder — v answers the no-backend receipt')
     },
   )
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
-  check('the receipt rides the hint row and names both remedies: the pack (bun run setup, cargo) and a PATH recorder (the row cuts the remedies; their words are the product\'s own)', (res.marks.receipt ?? '').split('\n').some(l => l.includes('files · no microphone backend — the voice pack is absent on this install')) && NO_BACKEND_RECEIPT.includes('run `bun run setup` (needs cargo)') && NO_BACKEND_RECEIPT.includes('sox/ffmpeg on PATH'), (res.marks.receipt ?? '').split('\n').filter(l => l.includes('backend')).join(' · '))
+  check('the receipt takes the hint row whole (the standing hints step aside) and names both remedies: the pack (bun run setup, cargo) and a PATH recorder (their words are the product\'s own)', (res.marks.receipt ?? '').split('\n').some(l => l.startsWith('no microphone backend — the voice pack is absent on this install') && !l.includes('for shortcuts')) && NO_BACKEND_RECEIPT.includes('run `bun run setup` (needs cargo)') && NO_BACKEND_RECEIPT.includes('sox/ffmpeg on PATH'), (res.marks.receipt ?? '').split('\n').filter(l => l.includes('backend')).join(' · '))
   const stray = nonLoopback(netlines(netlog))
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }

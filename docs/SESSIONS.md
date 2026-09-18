@@ -547,6 +547,14 @@ again"); `↑` on such a row answers "the session did not take “…” — typ
 again" and removes it. A row that stands for a line no runner holds is never
 left on the screen.
 
+The hint row under the composer is where every such receipt or notice
+paints, for its seconds. While one stands it takes the whole row: the standing
+hints (`? for shortcuts · ctrl+x p for commands + files`, and on a narrow
+window the session counts and the way-back hint) step aside and return in the
+same place when it clears, so a receipt's fact — the model id a
+`/defaultprovider` switch resolved, say — is readable at 80 columns. The
+composer never moves for a notice.
+
 ## A notice an agent has not read
 
 Every notice delivered to an agent of a session — a sub-agent's completion,

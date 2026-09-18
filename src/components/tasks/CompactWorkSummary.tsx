@@ -12,7 +12,7 @@ import {
 } from '../../services/engine-connector/focusedConnector.js'
 import { hasSeatLive } from '../../services/engine-connector/seatLive.js'
 import { useAppState, type AppState } from '../../state/AppState.js'
-import { footerNoticeLine, noticeRowText } from '../PromptInput/Notifications.js'
+import { noticeRowText } from '../PromptInput/Notifications.js'
 
 export type CompactWorkFocus = 'composer' | 'summary' | 'detail'
 export type CompactWorkControls = {
@@ -70,22 +70,15 @@ export function CompactWorkSummary({
   const tokens = useMercuryTokens()
   const rung = useSyncExternalStore(subscribeFocusedSeat, getFocusedEscRung, getFocusedEscRung)
   const stripHint = useSyncExternalStore(subscribeSurfaceRoute, getStripHint, noHint)
-  const hint = compactSummaryHint({ focused, vimInsert, escHint: escRungHint(rung), stripHint })
-  const hintWidth = hint === '' ? 0 : stringWidth(hint) + 1
   const currentNotice = useAppState((state: AppState) => state.notifications.current)
   const noticeText = noticeRowText(currentNotice)
-  const noticeWidth = currentNotice !== null && !('jsx' in currentNotice) ? stringWidth(footerNoticeLine(currentNotice.text)) + 3 : 0
+  const hint = noticeText !== null ? '' : compactSummaryHint({ focused, vimInsert, escHint: escRungHint(rung), stripHint })
+  const hintWidth = hint === '' ? 0 : stringWidth(hint) + 1
   return (
     <Box height={1} flexShrink={0} overflow="hidden" flexDirection="row">
       <Box flexGrow={1} minWidth={0} onClick={onFocus}>
         <Text wrap="truncate-end" bold={focused} color={focused ? tokens.textPrimary : tokens.textMuted} backgroundColor={focused ? tokens.selectionBand : undefined}>
-          {compactWorkSummaryText(counts, Math.max(0, columns - hintWidth - noticeWidth))}
-          {noticeText !== null ? (
-            <Text>
-              <Text color={tokens.textMuted}> · </Text>
-              {noticeText}
-            </Text>
-          ) : null}
+          {noticeText !== null ? noticeText : compactWorkSummaryText(counts, Math.max(0, columns - hintWidth))}
         </Text>
       </Box>
       {hint !== '' ? (
