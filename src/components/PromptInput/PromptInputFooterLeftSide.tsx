@@ -282,12 +282,12 @@ export function PromptInputFooterLeftSide({
     )
   }
 
+  const noticeStands = noticeText !== null || noticeBlock !== null
+  const hintsShow = !vimInsert && !noticeStands && parts.length > 0
   const idleHintShows =
-    parts.length === 0 && !showTasksPill && hintsEnabled && !showPrBadge
-  const noticeJoinsParts = !vimInsert && parts.length > 0 && noticeText !== null
-  if (noticeJoinsParts) parts.push(noticeText)
+    parts.length === 0 && !showTasksPill && hintsEnabled && !showPrBadge && !noticeStands
   const rowHasContent =
-    searchField !== undefined || vimInsert || showTasksPill || teamsPresent || showPrBadge || idleHintShows || parts.length > 0
+    searchField !== undefined || vimInsert || showTasksPill || teamsPresent || showPrBadge
   const cluster = (
     <Box
       flexDirection="row"
@@ -329,7 +329,7 @@ export function PromptInputFooterLeftSide({
       ) : null}
       {
 }
-      {!vimInsert && parts.length > 0 ? (
+      {hintsShow ? (
         <Text dimColor wrap="truncate-end">
           {parts.map((part, index) => (
             <React.Fragment key={index}>
@@ -358,7 +358,7 @@ export function PromptInputFooterLeftSide({
           </Text>
         </Box>
       ) : null}
-      {!noticeJoinsParts && noticeText !== null ? (
+      {noticeText !== null ? (
         <Box flexShrink={1} minWidth={0}>
           <Text dimColor wrap="truncate-end">
             {rowHasContent ? <Text color={tokens.textMuted}> · </Text> : null}
@@ -372,7 +372,7 @@ export function PromptInputFooterLeftSide({
           {noticeBlock}
         </Box>
       ) : null}
-      {parts.length === 0 && !idleHintShows && !showTasksPill && !teamsPresent && !showPrBadge && !vimInsert && searchField === undefined && noticeText === null && noticeBlock === null ? (
+      {!hintsShow && !idleHintShows && !rowHasContent && !noticeStands ? (
         <Text> </Text>
       ) : null}
     </Box>

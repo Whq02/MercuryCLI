@@ -40,7 +40,11 @@ const {
   noteCapHandoff,
   noteCapReturn,
   capHandoffState,
+  capFailoverLaneOf,
+  capLaneLineKey,
+  capLaneLineUntil,
 } = await import('../../src/services/capFailover.ts')
+const { failoverMarkFor } = await import('../../src/components/mercury-ui/FailoverMark.tsx')
 
 type Slice = {
   mainLoopModel: string | null
@@ -156,13 +160,21 @@ section('§5 cap-failover: posture × quota × candidates × return guard')
   if (handoff.kind === 'applied') slice = { ...slice, ...handoff.patch }
   noteCapHandoff('claude-sonnet-5', 'anthropic')
   check('the handoff note records the way home — model and family', capHandoffState()?.homeModel === 'claude-sonnet-5' && capHandoffState()?.homeFamily === 'anthropic')
+  check('on the openai lane away from an anthropic home the strip carries the mark; at home it carries none', capFailoverLaneOf('openai') === 'openai' && failoverMarkFor('gpt-5.6-sol') === 'failover' && capFailoverLaneOf('anthropic') === null && failoverMarkFor('claude-sonnet-5') === null)
+  process.env.MERCURY_FAILOVER_LINE_MS = '2000'
+  const laneFacts = { lane: 'openai', modelName: 'GPT-5.6 Sol', homeName: 'Anthropic', homeWindow: null, resetText: undefined }
+  const laneKey = capLaneLineKey(laneFacts)
+  check("the sentence stands its window from the switch and no longer past it — the same state never re-arms", capLaneLineUntil(laneKey, 10_000) === 12_000 && capLaneLineUntil(laneKey, 11_999) === 12_000 && capLaneLineUntil(laneKey, 12_000) === 12_000)
+  const switched = capLaneLineKey({ ...laneFacts, modelName: 'GPT-5.4' })
+  check('a switch on the lane (the served model changes) is a change of state: the sentence stands its window again', capLaneLineUntil(switched, 30_000) === 32_000)
+  delete process.env.MERCURY_FAILOVER_LINE_MS
   const reset = { window: 'allowed', credentialUsable: true } as const
   check('the return guard NEVER fires off the failover lane, even with the note standing', decideCapReturn('auto', reset, false).kind === 'none' && decideCapReturn('offer', reset, false).kind === 'none')
   check('on the failover lane with the home window OBSERVED reset, the posture speaks (offer/auto)', decideCapReturn('offer', reset, true).kind === 'offer' && decideCapReturn('auto', reset, true).kind === 'auto-handoff')
   check('an unreset home window keeps everyone parked', decideCapReturn('auto', { window: 'rejected', credentialUsable: true }, true).kind === 'none' && decideCapReturn('auto', { window: 'allowed_warning', credentialUsable: true }, true).kind === 'none')
   check("'unknown' is not a reset, and a signed-out home is no home", decideCapReturn('auto', { window: 'unknown', credentialUsable: true }, true).kind === 'none' && decideCapReturn('auto', { window: 'allowed', credentialUsable: false }, true).kind === 'none')
   noteCapReturn()
-  check('the way home clears the note', capHandoffState() === null)
+  check('the way home clears the note, the lane and the mark', capHandoffState() === null && capFailoverLaneOf('openai') === null && failoverMarkFor('gpt-5.6-sol') === null)
 }
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
