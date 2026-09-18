@@ -155,7 +155,7 @@ if (POISON_DIST === undefined) {
   const screen = readFileSync(join(REPO, 'src', 'components', 'concourse', 'ConcourseScreen.tsx'), 'utf8')
   check('the board claims the slot at mount and releases by unmount cleanup', screen.includes('useEffect(() => claimConcourseCloseChord(() => closeChordRoutineRef.current()), [])'))
   check('the hint reads the MIRROR, never a provider of its own (the covered-provider truth)', screen.includes('useSyncExternalStore(subscribePendingChordMirror, getPendingChordMirror, getPendingChordMirror)'))
-  check('the hint reads the STAGE through its own subscription (the window\'s end repaints it) and spells the rung from the one owner', screen.includes('useSyncExternalStore(closeChordStage.subscribe, closeChordStage.read, closeChordStage.read)') && screen.includes('closeChordHintOf(closeChordRungOf(boardSelectionClassOf(peekSelRow), closeChordStaged))'))
+  check('the hint reads the STAGE through its own subscription (the window\'s end repaints it) and spells the rung from the one owner, the row\'s newborn fact beside it', screen.includes('useSyncExternalStore(closeChordStage.subscribe, closeChordStage.read, closeChordStage.read)') && screen.includes('closeChordHintOf(closeChordRungOf(boardSelectionClassOf(peekSelRow), closeChordStaged), peekSelRow?.newborn === true)'))
   const gestureAt = screen.indexOf('const closeChordGesture = (): void => {')
   const gesture = gestureAt !== -1 ? screen.slice(gestureAt, screen.indexOf('const closeChordRoutineRef', gestureAt)) : ''
   const rungBlock = (rung: string): string => {
