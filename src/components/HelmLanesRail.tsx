@@ -32,7 +32,7 @@ function formatSpan(ms: number): string {
   if (h < 48) return `${h.toFixed(h < 10 ? 1 : 0)}h`
   return `${Math.round(h / 24)}d`
 }
-import { getActiveMission } from '../utils/hooks/missionHook.js'
+import { getActiveMission, getActiveMissionVersion, subscribeActiveMission } from '../utils/hooks/missionHook.js'
 import { isTabulaEnabled, tabulaProjectDir } from '../utils/tabula/tabulaGates.js'
 import { readNotesAsync, type TabulaNote } from '../utils/tabula/tabulaStore.js'
 import {
@@ -396,6 +396,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const peers: PresenceSeat[] = getLivePresence()
   const lanesVersion = useSyncExternalStore(subscribeHelmFocus, getHelmLanesVersion, getHelmLanesVersion)
   const minervaVersion = useSyncExternalStore(subscribeMinervaRepl, getMinervaReplVersion, getMinervaReplVersion)
+  const missionVersion = useSyncExternalStore(subscribeActiveMission, getActiveMissionVersion, getActiveMissionVersion)
   const focused = getHelmFocus() === 'lanes'
   const cur = getHelmCursor('lanes')
   const { accent } = useSessionAccent()
@@ -482,6 +483,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     ctxUsageVersion,
     lanesVersion,
     minervaVersion,
+    missionVersion,
     accent,
     focusedRecords,
     workRunSnap,
