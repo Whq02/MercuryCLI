@@ -175,14 +175,9 @@ export const ACTION_GRAPH = {
     rebindOnly: "reached through the SAVED PROMPTS tab's own d key on a row",
   },
   'prompts:send-saved': {
-    description: "Hand the selected saved prompt to the focused chat's composer — never submitted; you review first (r hands Minerva's refinement beside it instead)",
+    description: "Hand the selected saved prompt to the focused chat's composer — never submitted; you review first",
     contexts: ['Workbench'],
-    rebindOnly: "reached through the SAVED PROMPTS tab's own s key (r for the refinement) on a row",
-  },
-  'prompts:drop-refinement': {
-    description: "Drop Minerva's refinement beside the selected saved prompt — your wording stays",
-    contexts: ['Workbench'],
-    rebindOnly: "reached through the SAVED PROMPTS tab's own x key on a refined row",
+    rebindOnly: "reached through the SAVED PROMPTS tab's own s key on a row",
   },
   'prompts:clear-saved': {
     description: 'Clear EVERY saved prompt — one in-place confirm first (↵ clears · esc keeps them), never bare; the list paints its honest empty state after',
