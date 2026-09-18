@@ -4,6 +4,7 @@ import { withLanding } from '../engine-connector/focusedConnector.js'
 import { birthModelOf, bootBirthFacts, carriedConsentOf, carriedKitOf, screenBirthModel, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
 import { hopIntoBoardSession } from './hopIntoSession.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
+import { getInitialEffortSetting } from '../../utils/effort.js'
 
 export type BirthOutcome =
   | { ok: true; sessionId: string; title: string }
@@ -38,6 +39,7 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
   const worn = takeWornPresetKit()
   const screen = screenBirthModel()
   const model = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)
+  const effort = facts.effort ?? getInitialEffortSetting() ?? null
   let reply: Record<string, unknown>
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
@@ -49,7 +51,7 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
         ...(model !== undefined ? { model } : {}),
         bornBlank: true,
         ...(title !== null ? { title } : {}),
-        ...(facts.effort !== null ? { effort: facts.effort } : {}),
+        ...(effort !== null ? { effort } : {}),
         ...(facts.permissionMode !== null ? { permissionMode: facts.permissionMode } : {}),
         ...carriedConsentOf(facts),
         ...(facts.runnerArgv.length > 0 ? { runnerArgv: [...facts.runnerArgv] } : {}),

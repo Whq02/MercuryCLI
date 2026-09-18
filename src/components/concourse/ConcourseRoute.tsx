@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { logForDebugging } from '../../utils/debug.js';
 import { getCwd } from '../../utils/cwd.js';
+import { getInitialEffortSetting } from '../../utils/effort.js';
 import {
   chatOnlyBoot,
   chatPresent,
@@ -1113,7 +1114,7 @@ function LiveConcourse(): React.ReactNode {
           const { randomUUID } = await import('../../utils/crypto.js')
           await seedWriteChain.current
           const seeds = await readConcourseSeedOverrides()
-          const si = dispatchSeedInputs(seeds, getCwd(), snapshotRef.current?.newSession.seeds.modelId)
+          const si = dispatchSeedInputs(seeds, getCwd(), snapshotRef.current?.newSession.seeds.modelId, getInitialEffortSetting())
           const envelopeKey = `${draft}\u0000${JSON.stringify(si)}`
           const minted = submitIdRef.current
           const clientMessageId =
