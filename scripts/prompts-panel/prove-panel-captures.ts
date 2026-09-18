@@ -117,7 +117,7 @@ const savedPromptsDir = join(CONFIG_HOME, 'saved-prompts')
 function clearSavedPrompts(): void {
   rmSync(savedPromptsDir, { recursive: true, force: true })
 }
-function seedSavedPrompts(drafts: Array<{ id: string; text: string; refinedText?: string }>): string {
+function seedSavedPrompts(drafts: Array<{ id: string; text: string }>): string {
   mkdirSync(savedPromptsDir, { recursive: true })
   const file = join(savedPromptsDir, `${projectSlug(RUNTIME_CWD.normalize('NFC'))}.json`)
   writeFileSync(

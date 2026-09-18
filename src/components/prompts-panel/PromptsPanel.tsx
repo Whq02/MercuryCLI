@@ -7,7 +7,6 @@ import {
   addSavedPrompt,
   clearSavedPrompts,
   deleteSavedPrompt,
-  discardSavedPromptRefinement,
   editSavedPrompt,
   getSavedPromptsProblem,
   getSavedPromptsSnapshot,
@@ -16,13 +15,6 @@ import {
   subscribeSavedPrompts,
   type SavedPromptV1,
 } from '../../utils/savedPrompts/savedPromptsStore.js'
-import {
-  getMinervaRefinedProblem,
-  getMinervaRefinedSnapshot,
-  removeMinervaRefined,
-  subscribeMinervaRefined,
-  type MinervaRefinedV1,
-} from '../../utils/savedPrompts/minervaRefinedStore.js'
 import { COMPOSER_COLUMNS, promptsComposerRows } from './composerLayout.js'
 import TextInput from '../TextInput.js'
 import { KeyValueGrid, type KVRow } from '../mercury-ui/components.js'
@@ -47,10 +39,9 @@ import {
 
 
 type SavedRow = { kind: 'saved'; key: string; n: number; draft: SavedPromptV1 }
-type MinervaRow = { kind: 'minerva'; key: string; n: number; entry: MinervaRefinedV1 }
-type Row = PromptRow | CrewTrafficRow | SavedRow | MinervaRow
+type Row = PromptRow | CrewTrafficRow | SavedRow
 
-type SectionId = 'prompts' | 'crew' | 'saved' | 'minerva'
+type SectionId = 'prompts' | 'crew' | 'saved'
 
 type Editor =
   | { kind: 'add'; buffer: string }
@@ -94,16 +85,6 @@ export function PromptsPanel({
     useCallback(() => getSavedPromptsProblem(project), [project]),
     useCallback(() => getSavedPromptsProblem(project), [project]),
   )
-  const refinedFeed = useSyncExternalStore(
-    useCallback((cb: () => void) => subscribeMinervaRefined(project, cb), [project]),
-    useCallback(() => getMinervaRefinedSnapshot(project), [project]),
-    useCallback(() => getMinervaRefinedSnapshot(project), [project]),
-  )
-  const refinedProblem = useSyncExternalStore(
-    useCallback((cb: () => void) => subscribeMinervaRefined(project, cb), [project]),
-    useCallback(() => getMinervaRefinedProblem(project), [project]),
-    useCallback(() => getMinervaRefinedProblem(project), [project]),
-  )
 
   const [section, setSection] = useState<SectionId>('prompts')
   const [editor, setEditor] = useState<Editor>(null)
@@ -118,10 +99,6 @@ export function PromptsPanel({
   const saved = useMemo<SavedRow[]>(
     () => (drafts ?? []).map((d, i) => ({ kind: 'saved', key: `saved:${d.id}`, n: i + 1, draft: d })),
     [drafts],
-  )
-  const refined = useMemo<MinervaRow[]>(
-    () => (refinedFeed ?? []).map((e, i) => ({ kind: 'minerva', key: `minerva:${e.id}`, n: i + 1, entry: e })),
-    [refinedFeed],
   )
   const limits = useMemo(() => recordLimits(records, startedAtRef.current), [records])
 
@@ -151,20 +128,8 @@ export function PromptsPanel({
               ? 'reading saved prompts…'
               : 'no saved prompts yet — a writes one',
       },
-      {
-        id: 'minerva',
-        label: 'MINERVA',
-        count: refined.length,
-        rows: refined,
-        emptyHint:
-          refinedProblem !== null
-            ? `the refined feed could not be read (${truncateToWidth(refinedProblem, 40)}) — the next refinement starts fresh; the damaged copy is kept beside it`
-            : refinedFeed === null
-              ? 'reading refined prompts…'
-              : 'nothing refined yet',
-      },
     ],
-    [prompts, crew, saved, drafts, problem, refined, refinedFeed, refinedProblem],
+    [prompts, crew, saved, drafts, problem],
   )
 
   const columns = useMemo<ColumnDef<Row>[]>(() => {
@@ -214,32 +179,6 @@ export function PromptsPanel({
         },
       ]
     }
-    if (section === 'minerva') {
-      return [
-        {
-          key: 'n',
-          header: '#',
-          width: 3,
-          align: 'right',
-          cell: row => <Text color={tokens.textMuted}>{row.kind === 'minerva' ? String(row.n) : ''}</Text>,
-        },
-        {
-          key: 'mark',
-          header: ' ',
-          width: 1,
-          cell: row => <Text color={tokens.accent}>{row.kind === 'minerva' ? GLYPH.sparkBright : ' '}</Text>,
-        },
-        {
-          key: 'body',
-          header: 'refined prompt — s sends it to the composer',
-          cell: row => (
-            <Text color={tokens.textPrimary} wrap="truncate-end">
-              {row.kind === 'minerva' ? row.entry.refined : ''}
-            </Text>
-          ),
-        },
-      ]
-    }
     if (section === 'saved') {
       return [
         {
@@ -248,14 +187,6 @@ export function PromptsPanel({
           width: 3,
           align: 'right',
           cell: row => <Text color={tokens.textMuted}>{row.kind === 'saved' ? String(row.n) : ''}</Text>,
-        },
-        {
-          key: 'mark',
-          header: ' ',
-          width: 1,
-          cell: row => (
-            <Text color={tokens.info}>{row.kind === 'saved' && row.draft.refinedText ? GLYPH.sparkFaint : ' '}</Text>
-          ),
         },
         {
           key: 'body',
@@ -320,24 +251,10 @@ export function PromptsPanel({
       {
         key: 's',
         label: 'to composer',
-        when: row => row.kind === 'saved' || row.kind === 'minerva',
+        when: row => row.kind === 'saved',
         run: row => {
-          if (row.kind === 'saved') {
-            onClose(row.draft.text)
-            return
-          }
-          if (row.kind === 'minerva') {
-            onClose(row.entry.refined)
-          }
-        },
-      },
-      {
-        key: 'r',
-        label: 'refined to composer',
-        when: row => row.kind === 'saved' && row.draft.refinedText !== undefined,
-        run: row => {
-          if (row.kind !== 'saved' || row.draft.refinedText === undefined) return
-          onClose(row.draft.refinedText)
+          if (row.kind !== 'saved') return
+          onClose(row.draft.text)
         },
       },
       {
@@ -370,31 +287,10 @@ export function PromptsPanel({
         },
       },
       {
-        key: 'x',
-        label: 'drop refinement',
-        when: row => row.kind === 'saved' && row.draft.refinedText !== undefined,
-        run: row => {
-          if (row.kind !== 'saved') return
-          void discardSavedPromptRefinement(project, row.draft.id).then(r =>
-            receipt(r, `dropped the refinement beside #${row.n} — your wording stays`),
-          )
-        },
-      },
-      {
         key: 'd',
         label: 'delete',
-        when: row => row.kind === 'saved' || row.kind === 'minerva',
+        when: row => row.kind === 'saved',
         run: row => {
-          if (row.kind === 'minerva') {
-            if (confirmDelete === row.entry.id) {
-              setConfirmDelete(null)
-              void removeMinervaRefined(project, row.entry.id).then(r => receipt(r, `removed refined #${row.n}`))
-              return
-            }
-            setConfirmDelete(row.entry.id)
-            setNote({ text: `remove refined prompt #${row.n}? d again confirms`, tone: 'warn' })
-            return
-          }
           if (row.kind !== 'saved') return
           if (confirmDelete === row.draft.id) {
             setConfirmDelete(null)
@@ -443,12 +339,10 @@ export function PromptsPanel({
           receipt(r, r.ok ? `saved prompt #${saved.length + 1} written — s hands it to the composer` : ''),
         )
       } else {
-        void editSavedPrompt(project, ed.id, value).then(r =>
-          receipt(r, `edited #${ed.n}${saved.find(s => s.draft.id === ed.id)?.draft.refinedText ? ' — the refinement beside it was for the old wording and is dropped' : ''}`),
-        )
+        void editSavedPrompt(project, ed.id, value).then(r => receipt(r, `edited #${ed.n}`))
       }
     },
-    [editor, project, receipt, saved],
+    [editor, project, receipt, saved.length],
   )
 
   const confirmDeleteLive = useRef<string | null>(null)
@@ -488,19 +382,10 @@ export function PromptsPanel({
         { k: 'last', v: clockSecondsOf(row.lastAt) },
       ]
     }
-    if (row.kind === 'minerva') {
-      return [
-        { k: 'refined', v: `#${row.n} of ${refined.length}` },
-        { k: 'landed', v: clockSecondsOf(row.entry.refinedAt) },
-        { k: 'via', v: row.entry.source === 'room' ? "Minerva's room" : row.entry.source === 'chat' ? 'the Minerva chat' : 'the boot pass' },
-        { k: 'send', v: 's puts the refined prompt in the composer' },
-      ]
-    }
     return [
       { k: 'saved', v: `#${row.n} of ${saved.length}` },
       { k: 'written', v: clockSecondsOf(row.draft.createdAt) },
       { k: 'edited', v: row.draft.updatedAt === row.draft.createdAt ? '—' : clockSecondsOf(row.draft.updatedAt) },
-      { k: 'refined', v: row.draft.refinedText ? `${GLYPH.sparkFaint} beside it${row.draft.refinedAt ? ` · ${clockSecondsOf(row.draft.refinedAt)}` : ''}` : 'no' },
     ]
   }
 
@@ -508,15 +393,7 @@ export function PromptsPanel({
     if (row.kind === 'prompt') return [{ title: 'the prompt as sent', text: row.text }]
     if (row.kind === 'crew') return [{ title: row.via === 'launch' ? 'the brief' : 'the message', text: row.text }]
     if (row.kind === 'crew-thread') return []
-    if (row.kind === 'minerva') {
-      return [
-        ...(row.entry.original.trim().length > 0 ? [{ title: 'the original wording', text: row.entry.original }] : []),
-        { title: `Minerva's refined prompt (${GLYPH.sparkBright} s sends this one)`, text: row.entry.refined },
-      ]
-    }
-    const out = [{ title: 'your wording', text: row.draft.text }]
-    if (row.draft.refinedText) out.push({ title: `Minerva's refinement (${GLYPH.sparkFaint} r sends this one)`, text: row.draft.refinedText })
-    return out
+    return [{ title: 'your wording', text: row.draft.text }]
   }
 
   const renderDetail = (row: Row): React.ReactNode => (
@@ -554,7 +431,6 @@ export function PromptsPanel({
     if (row.kind === 'prompt') return `prompt #${row.n} · ${truncateToWidth(row.firstLine, 40)}`
     if (row.kind === 'crew') return row.dir === 'to' ? `to ${row.agent}` : `${row.agent} replied`
     if (row.kind === 'crew-thread') return `${row.agent} · thread`
-    if (row.kind === 'minerva') return `refined prompt #${row.n}`
     return `saved prompt #${row.n}`
   }
 
@@ -568,12 +444,6 @@ export function PromptsPanel({
           ? crew.length === 0
             ? 'no agent traffic this session · the threads fill as the lead delegates'
             : `${crew.filter(r => r.kind === 'crew-thread').length} agent${crew.filter(r => r.kind === 'crew-thread').length === 1 ? '' : 's'} · read from this chat's own records`
-          : section === 'minerva'
-            ? refinedProblem !== null
-              ? `${GLYPH.warn} refined feed unreadable · the next refinement starts fresh and keeps the damaged copy beside the file`
-              : refinedFeed === null
-                ? 'reading refined prompts…'
-                : `${refined.length === 1 ? '1 refined prompt' : `${refined.length} refined prompts`} · kept per project · s sends the selected one to the composer`
           : problem !== null
             ? `${GLYPH.warn} saved prompts unreadable · a write starts fresh and keeps the damaged copy beside the file`
             : drafts === null
