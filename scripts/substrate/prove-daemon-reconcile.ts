@@ -270,8 +270,10 @@ check(
   headlessTs.includes('WORKER_PARENT_PID_ENV, String(process.pid)'),
 )
 check(
-  'the daemon stamps its identity baseline on BOTH record writes (boot + plane heal)',
-  (mainTs.match(/startToken: bootStartToken/g) || []).length === 2 &&
+  'the daemon stamps its identity baseline on EVERY record write: the one writer at boot and at the plane heal, and the hand-over rewrite carries the stored baseline',
+  (mainTs.match(/startToken: bootStartToken/g) || []).length === 1 &&
+    (mainTs.match(/await persistSupervisorRecord\(currentOwnerPid\)/g) || []).length === 2 &&
+    mainTs.includes('writeSupervisorState({ ...rec, ownerPid: next })') &&
     mainTs.includes('await getProcessStartTokenAsync(process.pid)'),
 )
 check(
