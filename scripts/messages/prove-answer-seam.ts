@@ -84,11 +84,6 @@ section('§3 settledProviderFailure — one classification, every consumer asks 
     'minerva chat leg asks it too (two call sites in the file)',
     minerva.indexOf('settledProviderFailure(result)', bootLeg + 1) !== -1,
   )
-  const room = read('src/utils/tabula/minervaRoom.ts')
-  check(
-    'the minerva room keeps its own pre-decode refusal arm',
-    room.includes('result.isApiErrorMessage === true'),
-  )
   const memories = read('src/memdir/findRelevantMemories.ts')
   check('findRelevantMemories keeps its pre-decode api-error arm', memories.includes('isApiErrorMessage'))
   const coordinator = read('src/services/concourse/coordinatorCall.ts')

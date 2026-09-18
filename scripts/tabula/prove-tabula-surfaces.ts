@@ -21,7 +21,7 @@ function section(t: string): void {
 }
 
 console.log('============================================================')
-console.log(' TABULA surfaces — commands · board wiring · boot · rail')
+console.log(' TABULA surfaces — commands · boot · rail')
 console.log('============================================================')
 
 const work = mkdtempSync(join(tmpdir(), 'tabula-surfaces-'))
@@ -31,11 +31,9 @@ process.env.MERCURY_TABULA_DIR = join(work, 'root')
 delete process.env.MERCURY_TABULA
 
 try {
-  section('(1) command gating (default-ON, =0 kills both)')
-  check('/tabula enabled by default', commandDefs.tabulaCommand.isEnabled() === true)
+  section('(1) command gating (default-ON, =0 kills it)')
   check('/note enabled by default', commandDefs.noteCommand.isEnabled() === true)
   process.env.MERCURY_TABULA = '0'
-  check('/tabula gone at =0', commandDefs.tabulaCommand.isEnabled() === false)
   check('/note gone at =0', commandDefs.noteCommand.isEnabled() === false)
   delete process.env.MERCURY_TABULA
   check('/note is interactive-only', (commandDefs.noteCommand as { supportsNonInteractive?: boolean }).supportsNonInteractive === false)
@@ -59,7 +57,8 @@ try {
   section('(3) commands.ts registration')
   const commandsSrc = readFileSync(join(ROOT, 'src/commands.ts'), 'utf8')
   check('import row present', commandsSrc.includes(`from './commands/tabula/index.js'`))
-  check('COMMANDS() rows present', /\n\s+tabula,\n/.test(commandsSrc) && /\n\s+noteCommand,\n/.test(commandsSrc))
+  check('COMMANDS() rows present', /\n\s+noteCommand,\n/.test(commandsSrc))
+  check('the retired /tabula row is gone', !/\n\s+tabula,\n/.test(commandsSrc) && !existsSync(join(ROOT, 'src/commands/tabula/tabula.tsx')))
   check('/minerva row present', /\n\s+minervaCommand,\n/.test(commandsSrc))
   check('/minerva enabled by default', commandDefs.minervaCommand.isEnabled() === true)
   process.env.MERCURY_TABULA = '0'
@@ -69,22 +68,6 @@ try {
   const minervaCmdSrc = readFileSync(join(ROOT, 'src/commands/tabula/minerva.ts'), 'utf8')
   check('/minerva routes to the chat runner', minervaCmdSrc.includes('runMinervaMessage('))
   check('/minerva bare → usage line', (await (await import('../../src/commands/tabula/minerva.ts')).call('', {} as never)).value.includes('Usage'))
-
-  section("(4) Minerva's room wiring (composer · esc · never sends)")
-  const roomSrc = readFileSync(join(ROOT, 'src/components/tabula/MinervaRoom.tsx'), 'utf8')
-  check('the notes board is gone from the tree', !existsSync(join(ROOT, 'src/components/tabula/TabulaBoard.tsx')))
-  check('the composer ↵ is the ONE submit path (submitMinervaRoomMessage)', roomSrc.includes('submitMinervaRoomMessage(project, text, sentPrompts)'))
-  check('a composed message is never silently dropped while busy', roomSrc.includes('minerva is still thinking'))
-  check('esc aborts an exchange in flight, else closes', roomSrc.includes('abortMinervaRoomExchange()') && roomSrc.includes('onClose()'))
-  check('the room reads the saved prompts store (never the note journal)', roomSrc.includes('subscribeSavedPrompts') && !roomSrc.includes('readNotes'))
-  check('the room offers no note-leaving', !roomSrc.includes('appendEvents') && !roomSrc.includes("'/note"))
-  check('the honest unset line is spelled in-source', roomSrc.includes('no Minerva model set — /submodels pins one · your saved prompts sit as written'))
-  const jsxSrc = readFileSync(join(ROOT, 'src/commands/tabula/tabula.tsx'), 'utf8')
-  check(
-    "the route's one hand-off is the close road (nextInput as a composer draft — the s gesture; COORDKEYS item 4)",
-    jsxSrc.includes("display: 'skip', nextInput"),
-  )
-  check('never auto-submits', !jsxSrc.includes('submitNextInput'))
 
   section('(4b) fire hooks at the interactive chokepoint')
   const hooksSrc = readFileSync(join(ROOT, 'src/utils/hooks/tabulaFireHooks.ts'), 'utf8')

@@ -23,7 +23,6 @@ const { buildOpenaiResponsesRequest } = await import(
 )
 const { minervaOutputFormat, minervaChatOutputFormat, validateMinervaPlan, validateMinervaChatPlan } =
   await import('../../src/utils/tabula/minerva.ts')
-const { minervaRoomOutputFormat } = await import('../../src/utils/tabula/minervaRoom.ts')
 const { VERDICT_JSON_SCHEMA } = await import('../../src/utils/hooks/execPromptHook.ts')
 const { hookResponseSchema } = await import('../../src/utils/hooks/hookHelpers.ts')
 
@@ -81,7 +80,6 @@ section('§1 the wire is the strict dialect for every product schema')
   const rows: Array<[string, { schema: Node }]> = [
     ['minerva boot', minervaOutputFormat() as { schema: Node }],
     ['minerva chat', minervaChatOutputFormat() as { schema: Node }],
-    ['minerva room', minervaRoomOutputFormat() as { schema: Node }],
     ['prompt-hook verdict', { type: 'json_schema', schema: VERDICT_JSON_SCHEMA as unknown as Node } as never],
   ]
   for (const [name, fmt] of rows) {
@@ -105,14 +103,19 @@ section('§2 the transform: idempotent, lawful-preserving, never over-nullable')
   const once = toOpenaiStrictSchema(minervaChatOutputFormat().schema as Node)
   const twice = toOpenaiStrictSchema(once)
   check('idempotent: transforming twice equals once', JSON.stringify(once) === JSON.stringify(twice))
-  const room = minervaRoomOutputFormat().schema as Node
-  const roomStrict = toOpenaiStrictSchema(room)
-  const refits = ((roomStrict.properties as Node).refinements as Node).items as Node
+  const lawful: Node = {
+    type: 'object',
+    properties: { reply: { type: 'string' }, items: { type: 'array', items: { type: 'object', properties: { prompt: { type: 'string' }, text: { type: 'string' } }, required: ['prompt', 'text'], additionalProperties: false } } },
+    required: ['reply', 'items'],
+    additionalProperties: false,
+  }
+  const lawfulStrict = toOpenaiStrictSchema(lawful)
+  const lawfulItems = ((lawfulStrict.properties as Node).items as Node).items as Node
   check(
-    'a lawful schema keeps its required set (room refinements.items)',
-    JSON.stringify((refits.required as string[]).slice().sort()) === JSON.stringify(['prompt', 'refinedText']),
+    'a lawful schema keeps its required set (items)',
+    JSON.stringify((lawfulItems.required as string[]).slice().sort()) === JSON.stringify(['prompt', 'text']),
   )
-  check('a lawful schema gains no nullability (room reply)', !admitsNull((roomStrict.properties as Node).reply))
+  check('a lawful schema gains no nullability (reply)', !admitsNull((lawfulStrict.properties as Node).reply))
   check('input is not mutated', (minervaChatOutputFormat().schema as { properties: { ops: { items: { required: string[] } } } }).properties.ops.items.required.length === 1)
 }
 

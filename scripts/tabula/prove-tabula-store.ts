@@ -198,7 +198,7 @@ try {
   const md2 = store.materializeNotepad(dir, 'proj')
   check('byte-identical across runs', md1 === md2)
   check('sections present', md1.includes('## Now') && md1.includes('## Done'))
-  check('generated-file footer (edit via /tabula)', md1.includes('/tabula'))
+  check('generated-file footer (the /note pointer)', md1.includes('`/note <text>` captures'))
   check('notepad.md written', existsSync(join(dir, 'notepad.md')))
   check('no wall-clock in output (uses latest event stamp)', md1.includes('2026-07-08T10:14:00Z') || md1.includes('2026-07-08'))
 

@@ -3190,32 +3190,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
       total: 62, cols, rows,
     }
   }
-  if (name === 'tabula' || name === 'tabula-empty') {
-    writeSyntheticSession('short')
-    if (name === 'tabula') {
-      const slug = REPO.replace(/[^a-zA-Z0-9]/g, '-')
-      const dir = join(process.env.MERCURY_TABULA_DIR!, slug)
-      mkdirSync(dir, { recursive: true })
-      const refinedBase = 'fix picker jank'
-      let h = 0
-      for (let i = 0; i < refinedBase.length; i++) h = ((h << 5) - h + refinedBase.charCodeAt(i)) | 0
-      const ev = [
-        { t: '2026-07-08T09:00:00Z', op: 'add', id: 'aa11bb', text: 'ship the telemetry board', pri: 'now' },
-        { t: '2026-07-08T09:01:00Z', op: 'add', id: 'bb22cc', text: refinedBase, pri: 'now' },
-        { t: '2026-07-08T09:02:00Z', op: 'add', id: 'cc33dd', text: 'benchmark the pooled gate at 8 slots' },
-        { t: '2026-07-08T09:03:00Z', op: 'add', id: 'dd44ee', text: 'read the mneme consolidation paper again', pri: 'later' },
-        { t: '2026-07-08T09:04:00Z', op: 'add', id: 'ee55ff', text: 'retire the legacy splash art', pri: 'later' },
-        { t: '2026-07-08T09:05:00Z', op: 'done', id: 'ee55ff', done: true },
-        { t: '2026-07-08T09:06:00Z', op: 'refine', id: 'bb22cc', refinedText: 'Fix the model picker focus jank on the tier rows', baseHash: h.toString(36) },
-      ]
-      writeFileSync(join(dir, 'journal.jsonl'), ev.map(e => JSON.stringify(e)).join('\n') + '\n')
-    }
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends: [{ atTick: 30, data: '/tabula' }, { atTick: 36, data: '\r' }],
-      total: 56, cols, rows,
-    }
-  }
   if (name === 'capabilities') {
     writeSyntheticSession('short')
     return {

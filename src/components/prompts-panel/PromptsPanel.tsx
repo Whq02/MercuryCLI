@@ -23,8 +23,6 @@ import {
   subscribeMinervaRefined,
   type MinervaRefinedV1,
 } from '../../utils/savedPrompts/minervaRefinedStore.js'
-import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
-import { stageMinervaRoomDraft } from '../../utils/tabula/minervaRoom.js'
 import { COMPOSER_COLUMNS, promptsComposerRows } from './composerLayout.js'
 import TextInput from '../TextInput.js'
 import { KeyValueGrid, type KVRow } from '../mercury-ui/components.js'
@@ -163,7 +161,7 @@ export function PromptsPanel({
             ? `the refined feed could not be read (${truncateToWidth(refinedProblem, 40)}) — the next refinement starts fresh; the damaged copy is kept beside it`
             : refinedFeed === null
               ? 'reading refined prompts…'
-              : 'nothing refined yet — ask Minerva in /tabula, or m on a saved prompt',
+              : 'nothing refined yet',
       },
     ],
     [prompts, crew, saved, drafts, problem, refined, refinedFeed, refinedProblem],
@@ -416,17 +414,6 @@ export function PromptsPanel({
           setEditor({ kind: 'confirm-clear', count: saved.length })
         },
       },
-      {
-        key: 'm',
-        label: 'minerva',
-        when: row => row.kind === 'saved',
-        run: row => {
-          if (row.kind !== 'saved') return
-          stageMinervaRoomDraft(row.draft.text)
-          onClose()
-          requestCommandDispatch('/tabula')
-        },
-      },
     ],
     [confirmDelete, onClose, project, receipt, saved.length],
   )
@@ -513,7 +500,7 @@ export function PromptsPanel({
       { k: 'saved', v: `#${row.n} of ${saved.length}` },
       { k: 'written', v: clockSecondsOf(row.draft.createdAt) },
       { k: 'edited', v: row.draft.updatedAt === row.draft.createdAt ? '—' : clockSecondsOf(row.draft.updatedAt) },
-      { k: 'refined', v: row.draft.refinedText ? `${GLYPH.sparkFaint} beside it${row.draft.refinedAt ? ` · ${clockSecondsOf(row.draft.refinedAt)}` : ''}` : 'no · ask in /tabula' },
+      { k: 'refined', v: row.draft.refinedText ? `${GLYPH.sparkFaint} beside it${row.draft.refinedAt ? ` · ${clockSecondsOf(row.draft.refinedAt)}` : ''}` : 'no' },
     ]
   }
 

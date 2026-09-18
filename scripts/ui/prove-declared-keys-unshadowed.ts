@@ -245,11 +245,6 @@ section('§2b text-field hosts that compare raw single letters gate them off whi
 {
   type Host = { gate: Array<string | RegExp>; legend: Array<string | RegExp>; legendIn?: string; reason: string }
   const HOST_ROSTER: Record<string, Host> = {
-    'src/components/tabula/MinervaRoom.tsx': {
-      gate: ['if (!listFocus) {', "if ((_input === 'm' || _input === 'M') && !key.ctrl && !key.meta) {"],
-      legend: [/↵ send to minerva\$\{modelSet[^`]*· tab prompt list · esc/],
-      reason: 'm and s fire only while the prompt list holds focus (the handler leaves before them otherwise); the box footer names ↵ · tab · esc and neither letter',
-    },
     'src/components/agents/studio/AgentStudio.tsx': {
       gate: ["{ isActive: mode.kind === 'library' }", "{ isActive: mode.kind === 'inspect' }"],
       legend: ["'↵ clone under the new identifier · esc back'", "'↵ stage in composer · esc cancel'"],

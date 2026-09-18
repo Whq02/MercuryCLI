@@ -68,29 +68,8 @@ function expect(label: string, cond: boolean): void {
 }
 
 console.log('============================================================')
-console.log(' TABULA render-verify (vshot, 80 & 120 + cockpit rail)')
+console.log(' TABULA render-verify (vshot, the cockpit rail)')
 console.log('============================================================')
-
-console.log("\n▶ Minerva's room @120 (notes seeded on disk, none offered)")
-const b120 = text(capture('tabula', 120))
-const room120 = b120.slice(b120.indexOf("Minerva's room"))
-expect("room chrome (Mercury — tabula · Minerva's room)", /tabula/.test(b120) && /Minerva's room/.test(b120))
-expect('the honest unset line (no Minerva model pinned in a capture home)', /no Minerva model set/.test(room120))
-expect('the saved-prompts section + the conversation section render', /saved prompts \(/.test(room120) && /the conversation \(/.test(room120))
-expect('the console-shaped composer line', /message minerva/.test(room120) && /↵ ask minerva/.test(room120))
-expect('the seeded NOTES do not paint in the room (no note-leaving, no note list)', !/ship the telemetry board/.test(room120) && !/a add/.test(room120))
-
-console.log("\n▶ Minerva's room @80 (narrow holds)")
-const b80 = text(capture('tabula', 80))
-const room80 = b80.slice(b80.indexOf("Minerva's room"))
-expect('@80: chrome + sections intact', /Minerva's room/.test(b80) && /saved prompts \(/.test(room80))
-expect('@80: esc close visible', /esc close/.test(room80))
-
-console.log("\n▶ Minerva's room @80 (no saved prompts)")
-const e80 = text(capture('tabula-empty', 80))
-const roomE80 = e80.slice(e80.indexOf("Minerva's room"))
-expect('honest empty state for saved prompts', /no saved prompts yet/.test(roomE80))
-expect('the hint names the prompts panel, never /note', /\/workbench/.test(roomE80) && !/\/note/.test(roomE80))
 
 console.log('\n▶ cockpit rail @120 (solo TABULA glance)')
 const h120 = text(capture('resume-2turn', 120, { seedNotesForHelm: true }))

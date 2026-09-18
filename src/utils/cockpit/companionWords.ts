@@ -89,7 +89,6 @@ function buildBank(): readonly Tip[] {
     t('worktrees.realms', 'worktrees', 3, '/realms lists the folders you trust.', 'realms'),
     t('worktrees.orient', 'worktrees', 3, '/orient maps a new repo in one read.', 'orient', repoSurfaceMapEnabled),
     t('worktrees.branch', 'worktrees', 3, '/branch asks a side question, no derail.', 'branch'),
-    t('minerva.tabula', 'minerva', 3, '/tabula asks Minerva to refine a prompt.', 'tabula', notepadWorld),
     t('minerva.tidy', 'minerva', 3, '/minerva turns your words into notes.', 'minerva', notepadWorld),
     t('minerva.free', 'minerva', 3, 'Minerva bills one call per line sent.', undefined, notepadWorld),
     t('minerva.outlive', 'minerva', 3, 'Notes outlive /clear: they live on disk.', 'note', notepadWorld),
