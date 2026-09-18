@@ -6,6 +6,7 @@ import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { WORK_TICK_MS } from '../../utils/cockpit/liveGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { MID_STREAM_STILL_WAITING_MS } from './useStalledAnimation.js'
+import { liveTokenFigure } from './SpinnerAnimationRow.js'
 
 
 const STREAM_GLYPH_TICK_MS = WORK_TICK_MS / 4
@@ -15,11 +16,13 @@ export function StreamingHoldRow({
   totalPausedMsRef,
   pauseStartTimeRef,
   responseLengthRef,
+  outputTokensRef,
 }: {
   loadingStartTimeRef: React.MutableRefObject<number>
   totalPausedMsRef: React.MutableRefObject<number>
   pauseStartTimeRef: React.MutableRefObject<number | null>
   responseLengthRef?: React.RefObject<number>
+  outputTokensRef?: React.RefObject<number | null>
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const [, tick] = useAnimationValue(960, t => Math.floor(t / 960))
@@ -35,7 +38,8 @@ export function StreamingHoldRow({
         totalPausedMsRef.current
       : now - loadingStartTimeRef.current - totalPausedMsRef.current
   const liveChars = responseLengthRef?.current ?? 0
-  const liveTokens = Math.floor(liveChars / 4)
+  const liveFigure = liveTokenFigure(liveChars, outputTokensRef?.current ?? null)
+  const liveTokens = liveFigure.count
   const movementRef = useRef({ lastChars: -1, lastMovedAt: now })
   if (movementRef.current.lastChars !== liveChars) {
     movementRef.current = { lastChars: liveChars, lastMovedAt: now }
@@ -47,7 +51,7 @@ export function StreamingHoldRow({
         <WorkingGlyph color={tokens.textSecondary} tickMs={STREAM_GLYPH_TICK_MS} />
         <Text color={tokens.textMuted}> {formatDuration(Math.max(0, elapsedMs))}</Text>
         {liveTokens > 0 ? (
-          <Text color={tokens.textMuted}> · ↓ {liveTokens.toLocaleString('en-US')} tokens</Text>
+          <Text color={tokens.textMuted}> · ↓ {liveFigure.estimated ? '~' : ''}{liveTokens.toLocaleString('en-US')} tokens</Text>
         ) : null}
         {stillWaiting ? <Text color={tokens.textMuted}> · still waiting</Text> : null}
       </Text>

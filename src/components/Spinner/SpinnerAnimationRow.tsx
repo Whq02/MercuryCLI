@@ -21,6 +21,12 @@ import { isQuicksilverLine } from '../../constants/spinnerVerbs.js'
 import type { SpinnerMode } from './types.js'
 import { teammateRole } from '../tasks/taskStatusUtils.js'
 
+export function liveTokenFigure(streamedChars: number, wireOutputTokens: number | null): { count: number; estimated: boolean } {
+  return wireOutputTokens === null
+    ? { count: Math.floor(streamedChars / 4), estimated: true }
+    : { count: wireOutputTokens, estimated: false }
+}
+
 export const STACK_EXIT_SLACK = 6
 export function spinnerStackDecision(facts: {
   eligible: boolean
@@ -45,6 +51,7 @@ export type SpinnerAnimationRowProps = {
   hasActiveTools: boolean
   activeToolCount: number
   responseLengthRef: React.RefObject<number>
+  outputTokensRef?: React.RefObject<number | null>
   message: string
   messageColor: keyof Theme
   shimmerColor: keyof Theme
@@ -74,6 +81,7 @@ export function SpinnerAnimationRow(
     hasActiveTools,
     activeToolCount,
     responseLengthRef,
+    outputTokensRef,
     message: messageProp,
     messageColor,
     shimmerColor,
@@ -147,10 +155,12 @@ export function SpinnerAnimationRow(
     ? ((foregroundedTeammate.progress as { totalTokens?: number } | undefined)
         ?.totalTokens ?? 0)
     : null
+  const liveFigure = liveTokenFigure(currentResponseLength, outputTokensRef?.current ?? null)
   const displayedTokens =
     teammateOnlyTokens !== null
       ? teammateOnlyTokens
-      : Math.floor(currentResponseLength / 4) + teammateTokens
+      : liveFigure.count + teammateTokens
+  const tokensEstimated = teammateOnlyTokens === null && liveFigure.estimated
 
   const rateSampleRef = useRef({ at: 0, len: 0 })
   const smoothedOtpsRef = useRef(0)
@@ -198,7 +208,7 @@ export function SpinnerAnimationRow(
     : mode === 'requesting'
       ? '↑ '
       : '↓ '
-  const tokensText = `${tokenDirection}${formatNumber(displayedTokens)} tokens`
+  const tokensText = `${tokenDirection}${tokensEstimated ? '~' : ''}${formatNumber(displayedTokens)} tokens`
 
   const ctxPctRaw = getLiveContextUsage().usedPct
   const ctxPct = ctxPctRaw != null ? Math.round(ctxPctRaw) : null
@@ -213,7 +223,7 @@ export function SpinnerAnimationRow(
     activeToolCount >= 2 ? `${GLYPH.inProgress} ${activeToolCount} tools` : ''
   const wifWidth = stringWidth(wifText) + separatorWidth
 
-  const otpsText = otpsEligible ? `${otps} tok/s` : ''
+  const otpsText = otpsEligible ? `~${otps} tok/s` : ''
   const otpsWidth = stringWidth(otpsText) + separatorWidth
 
   const fullSegmentTexts: string[] = []

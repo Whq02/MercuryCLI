@@ -36,6 +36,7 @@ export interface SeatLiveExtensionV1 {
   status(): SeatStatusV1
   tail(): StreamingTailStore
   turnChars?(): number
+  turnOutputTokens?(): number | null
   fold?(): FoldStatusV1 | null
   subscribeFold?(listener: () => void): () => void
   lostLine?(): LostLineV1 | null
