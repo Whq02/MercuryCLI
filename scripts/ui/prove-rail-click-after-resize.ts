@@ -96,15 +96,17 @@ for (const shape of SHAPES) {
     sends: [
       { atTick: 999, awaitText: 'New Session', minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3, data: '\r', mark: 'face' },
       { atTick: 999, requireAwait: true, awaitText: 'shortcuts', minTick: 4, awaitSettleTicks: 8, data: '\x1b[I', mark: 'chat' },
-      { atTick: 999, requireAwait: true, awaitText: 'ask minerva', minTick: 2, awaitSettleTicks: 3, targetText: 'ask minerva', data: CLICK, mark: 'warmup' },
-      { atTick: 999, requireAwait: true, awaitText: 'no notes', minTick: 2, awaitSettleTicks: 3, targetText: 'no notes', data: CLICK, mark: 'click1' },
-      { atTick: 999, requireAwait: true, awaitText: '❯ ✧ no notes', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after1' },
-      { atTick: 999, requireAwait: true, awaitText: 'ask minerva', minTick: SHRINK_AT + 3, awaitSettleTicks: 3, targetText: 'ask minerva', data: CLICK, mark: 'click2' },
-      { atTick: 999, requireAwait: true, awaitText: '❯ ❯ ask minerva', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after2' },
-      { atTick: 999, requireAwait: true, awaitText: 'no notes', minTick: GROW_AT + 3, awaitSettleTicks: 3, targetText: 'no notes', data: CLICK, mark: 'click3' },
-      { atTick: 999, requireAwait: true, awaitText: '❯ ✧ no notes', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after3' },
-      { atTick: 999, requireAwait: true, awaitText: 'ask minerva', minTick: STORM_AT + 6, awaitSettleTicks: 3, targetText: 'ask minerva', data: CLICK, mark: 'click4' },
-      { atTick: 999, requireAwait: true, awaitText: '❯ ❯ ask minerva', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after4' },
+      { atTick: 999, requireAwait: true, awaitText: 'no prompts sent yet', minTick: 2, awaitSettleTicks: 3, data: '/mission relay probe\r', mark: 'mission' },
+      { atTick: 999, requireAwait: true, awaitText: 'no prompts sent yet', minTick: 2, awaitSettleTicks: 3, data: '\t', mark: 'focus' },
+      { atTick: 999, requireAwait: true, awaitText: '◆ relay probe', minTick: 2, awaitSettleTicks: 3, targetText: '◆ relay probe', targetDx: 2, data: CLICK, mark: 'warmup' },
+      { atTick: 999, requireAwait: true, awaitText: 'no prompts sent yet', minTick: 2, awaitSettleTicks: 3, targetText: 'no prompts sent yet', data: CLICK, mark: 'click1' },
+      { atTick: 999, requireAwait: true, awaitText: '❯ no prompts sent yet', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after1' },
+      { atTick: 999, requireAwait: true, awaitText: '◆ relay probe', minTick: SHRINK_AT + 3, awaitSettleTicks: 3, targetText: '◆ relay probe', targetDx: 2, data: CLICK, mark: 'click2' },
+      { atTick: 999, requireAwait: true, awaitText: '❯ ◆ relay probe', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after2' },
+      { atTick: 999, requireAwait: true, awaitText: 'no prompts sent yet', minTick: GROW_AT + 3, awaitSettleTicks: 3, targetText: 'no prompts sent yet', data: CLICK, mark: 'click3' },
+      { atTick: 999, requireAwait: true, awaitText: '❯ no prompts sent yet', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after3' },
+      { atTick: 999, requireAwait: true, awaitText: '◆ relay probe', minTick: STORM_AT + 6, awaitSettleTicks: 3, targetText: '◆ relay probe', targetDx: 2, data: CLICK, mark: 'click4' },
+      { atTick: 999, requireAwait: true, awaitText: '❯ ◆ relay probe', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after4' },
     ],
   }
   const cfgPath = join(SCRATCH, `${shape.tag}.cfg.json`)
@@ -132,30 +134,30 @@ for (const shape of SHAPES) {
     (click2?.atTick ?? 0) > tk(SHRINK_AT) && (after2?.atTick ?? 999) < tk(GROW_AT),
     `click2 @${click2?.atTick} after2 @${after2?.atTick}`)
 
-  check(`${shape.tag}: pre-resize click claims the notes row`,
-    after1 !== undefined && caretOn(after1.grid, 'no notes'),
-    after1 ? JSON.stringify(rowWith(after1.grid, 'no notes')) : 'no after1 mark')
+  check(`${shape.tag}: pre-resize click claims the workbench card`,
+    after1 !== undefined && caretOn(after1.grid, 'no prompts sent yet'),
+    after1 ? JSON.stringify(rowWith(after1.grid, 'no prompts sent yet')) : 'no after1 mark')
 
-  check(`${shape.tag}: post-shrink click claims the minerva row`,
-    after2 !== undefined && caretOn(after2.grid, 'ask minerva'),
-    after2 ? JSON.stringify(rowWith(after2.grid, 'ask minerva')) : 'no after2 mark')
-  check(`${shape.tag}: post-shrink the notes row released the caret`,
-    after2 !== undefined && !caretOn(after2.grid, 'no notes'),
-    after2 ? JSON.stringify(rowWith(after2.grid, 'no notes')) : 'no after2 mark')
+  check(`${shape.tag}: post-shrink click claims the mission row`,
+    after2 !== undefined && caretOn(after2.grid, '◆ relay probe'),
+    after2 ? JSON.stringify(rowWith(after2.grid, '◆ relay probe')) : 'no after2 mark')
+  check(`${shape.tag}: post-shrink the workbench card released the caret`,
+    after2 !== undefined && !caretOn(after2.grid, 'no prompts sent yet'),
+    after2 ? JSON.stringify(rowWith(after2.grid, 'no prompts sent yet')) : 'no after2 mark')
 
-  check(`${shape.tag}: post-grow click claims the notes row again`,
-    after3 !== undefined && caretOn(after3.grid, 'no notes'),
-    after3 ? JSON.stringify(rowWith(after3.grid, 'no notes')) : 'no after3 mark')
-  check(`${shape.tag}: post-grow the minerva row released the caret`,
-    after3 !== undefined && !caretOn(after3.grid, 'ask minerva'),
-    after3 ? JSON.stringify(rowWith(after3.grid, 'ask minerva')) : 'no after3 mark')
+  check(`${shape.tag}: post-grow click claims the workbench card again`,
+    after3 !== undefined && caretOn(after3.grid, 'no prompts sent yet'),
+    after3 ? JSON.stringify(rowWith(after3.grid, 'no prompts sent yet')) : 'no after3 mark')
+  check(`${shape.tag}: post-grow the mission row released the caret`,
+    after3 !== undefined && !caretOn(after3.grid, '◆ relay probe'),
+    after3 ? JSON.stringify(rowWith(after3.grid, '◆ relay probe')) : 'no after3 mark')
 
-  check(`${shape.tag}: post-storm click claims the minerva row`,
-    after4 !== undefined && caretOn(after4.grid, 'ask minerva'),
-    after4 ? JSON.stringify(rowWith(after4.grid, 'ask minerva')) : 'no after4 mark')
-  check(`${shape.tag}: post-storm the notes row released the caret`,
-    after4 !== undefined && !caretOn(after4.grid, 'no notes'),
-    after4 ? JSON.stringify(rowWith(after4.grid, 'no notes')) : 'no after4 mark')
+  check(`${shape.tag}: post-storm click claims the mission row`,
+    after4 !== undefined && caretOn(after4.grid, '◆ relay probe'),
+    after4 ? JSON.stringify(rowWith(after4.grid, '◆ relay probe')) : 'no after4 mark')
+  check(`${shape.tag}: post-storm the workbench card released the caret`,
+    after4 !== undefined && !caretOn(after4.grid, 'no prompts sent yet'),
+    after4 ? JSON.stringify(rowWith(after4.grid, 'no prompts sent yet')) : 'no after4 mark')
 
 }
 

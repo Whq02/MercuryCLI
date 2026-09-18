@@ -68,7 +68,7 @@ t('next builder gated', /if \(solo && !shedSet\.has\('next'\)\)/.test(rail))
 
 t('recent renders on soloNodes', /soloNodes\.length > 0 \? section\('recent'/.test(rail))
 t('next renders on hintNodes', /hintNodes\.length > 0 \? section\('next'/.test(rail))
-t('workbench renders on workbenchNodes, under the Minerva (tabula) card in BOTH branches', (rail.match(/workbenchNodes\.length > 0\n\s*\? section\('workbench'/g) ?? []).length === 2 && (() => {
+t('workbench renders on workbenchNodes, under the TABULA card in BOTH branches', (rail.match(/workbenchNodes\.length > 0\n\s*\? section\('workbench'/g) ?? []).length === 2 && (() => {
   const solo = rail.indexOf("section('tabula'")
   const soloWb = rail.indexOf("section('workbench'")
   const busy = rail.lastIndexOf("section('tabula'")

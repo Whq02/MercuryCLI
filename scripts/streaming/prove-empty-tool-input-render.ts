@@ -122,7 +122,7 @@ check('no app-root crash report under the config home', appRoot.length === 0,
 check('the resumed session rows paint', /make a tool call that does nothing/.test(screen),
   screen.trim().length < 40 ? 'screen empty (process died?)' : 'prompt row absent')
 check('the command-less Bash call renders as a transcript row', /bash command|Bash/.test(screen))
-check('the harness reached its idle composer', /type a prompt|↵ sends|for commands|ask minerva/.test(screen))
+check('the harness reached its idle composer', /type a prompt|↵ sends|for commands/.test(screen))
 
 rmSync(home, { recursive: true, force: true })
 rmSync(cwd, { recursive: true, force: true })

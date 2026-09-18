@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: scripts/ui/vshot.py src/bootstrap/state* src/commands/tabula/** src/utils/tabula/**
-# gate-watch: src/utils/cockpit/helmFocus* src/utils/cockpit/minervaRepl*
+# gate-watch: src/utils/cockpit/helmFocus*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -18,9 +18,6 @@ if [ -f "$here/prove-tabula-surfaces.ts" ]; then
 fi
 if [ -f "$here/prove-minerva.ts" ]; then
   __t=$SECONDS; __rc=0; "$BUN" run "$here/prove-minerva.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-minerva.ts" "$__t" "$__rc"
-fi
-if [ -f "$here/prove-minerva-repl.ts" ]; then
-  __t=$SECONDS; __rc=0; "$BUN" run "$here/prove-minerva-repl.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-minerva-repl.ts" "$__t" "$__rc"
 fi
 if [ -f "$here/prove-minerva-decode.ts" ]; then
   __t=$SECONDS; __rc=0; "$BUN" run "$here/prove-minerva-decode.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-minerva-decode.ts" "$__t" "$__rc"
