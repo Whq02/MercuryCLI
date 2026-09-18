@@ -44,7 +44,12 @@ session.
 Inside a session, `/subagents on|off` and `/workflows on|off` (or the boot
 menu opened there) flip a switch at the session's next turn boundary: the tool
 leaves or rejoins the roster, a receipt says so, reasoning restarts on the
-next turn, and a spawn already running finishes. Plain `/subagents` reads both
+next turn, and a spawn already running finishes. Flipped while no turn runs,
+the switch moves at once. Flipped while a turn runs, the receipt says the
+switch applies when this turn ends, and the session's runner moves it at that
+turn's end, before any line waiting for the next turn, so the next turn's
+launches already read it; the session's record follows the runner's own word
+that the switch moved, never a clock. Plain `/subagents` reads both
 switches with their sources; the doctor's "Sub-agents & workflows" row does
 the same.
 

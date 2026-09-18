@@ -97,6 +97,7 @@ interface SeatState {
   lastModelSettle: { from: string; to: string; atMs: number } | null
   heldModel: { requestId: string; model: string } | null
   heldEffort: { requestId: string; effort: string } | null
+  heldSpawnSwitches: Partial<Record<SpawnSwitchKind, { requestId: string; on: boolean }>>
   lastEventAtMs: number | null
   streamBlock: 'thinking' | 'text' | 'tool_use' | null
   blockSinceMs: number | null
@@ -109,7 +110,7 @@ const seats = new Map<string, SeatState>()
 function seatOf(short: string): SeatState {
   let s = seats.get(short)
   if (!s) {
-    s = { short, lastAnswer: null, generation: 0, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, heldModel: null, heldEffort: null, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
+    s = { short, lastAnswer: null, generation: 0, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, heldModel: null, heldEffort: null, heldSpawnSwitches: {}, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
     seats.set(short, s)
   }
   return s
@@ -676,7 +677,7 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       } catch {
       }
     }
-    if (line.includes(SEAT_MODEL_REQUEST_PREFIX) || line.includes(SEAT_EFFORT_REQUEST_PREFIX)) {
+    if (line.includes(SEAT_MODEL_REQUEST_PREFIX) || line.includes(SEAT_EFFORT_REQUEST_PREFIX) || line.includes(SEAT_SPAWN_SWITCH_REQUEST_PREFIX)) {
       try {
         settleSeatVerbAnswer(JSON.parse(line) as Parameters<typeof settleSeatVerbAnswer>[0])
       } catch {
@@ -836,6 +837,7 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   seat.generation += 1
   seat.heldModel = null
   seat.heldEffort = null
+  seat.heldSpawnSwitches = {}
   rejectSeatVerbWaiters(short)
   seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
   seat.turnChars = 0
@@ -1217,6 +1219,7 @@ export function _pendingWithdrawWaitersForTesting(): number {
 
 const SEAT_MODEL_REQUEST_PREFIX = `${SEAT_VERB_REQUEST_PREFIX}set-model-`
 const SEAT_EFFORT_REQUEST_PREFIX = `${SEAT_VERB_REQUEST_PREFIX}set-effort-`
+const SEAT_SPAWN_SWITCH_REQUEST_PREFIX = `${SEAT_VERB_REQUEST_PREFIX}spawn-switch-`
 export const SEAT_VERB_ANSWER_DEADLINE_MS = 5_000
 
 type SeatVerbAnswer = { at: 'now' | 'turn-boundary' } | { refused: string } | { silent: true }
@@ -1224,7 +1227,7 @@ type SeatVerbWaiter = { short: string; settle: (answer: SeatVerbAnswer) => void 
 const seatVerbWaiters = new Map<string, SeatVerbWaiter>()
 let seatVerbSeq = 0
 
-function seatVerbRequestId(short: string, verb: 'set-model' | 'set-effort'): string {
+function seatVerbRequestId(short: string, verb: 'set-model' | 'set-effort' | 'spawn-switch'): string {
   return `${SEAT_VERB_REQUEST_PREFIX}${verb}-${short}-${Date.now().toString(36)}-${(++seatVerbSeq).toString(36)}`
 }
 
@@ -1509,6 +1512,17 @@ function onSeatVerbApplied(short: string, frame: SeatVerbAppliedFrame, roster: S
     landModel(rec, model, roster, dir, rec.pendingModelKey === model)
     return
   }
+  if (frame.verb === 'spawn_switch') {
+    const kind = frame.switch
+    const on = frame.on
+    if ((kind !== 'subagents' && kind !== 'workflows') || typeof on !== 'boolean') return
+    const heldToggle = seat.heldSpawnSwitches[kind]
+    const known = heldToggle !== undefined ? heldToggle.requestId === frame.request_id : (rec.pendingSpawnSwitches ?? []).some(p => p.kind === kind && p.on === on)
+    if (!known) return
+    if (heldToggle !== undefined) dropHeldSpawnSwitch(seat, kind, heldToggle.requestId)
+    landSpawnSwitchOnRecord(rec, { kind, on }, roster, dir, true)
+    return
+  }
   const held = seat.heldEffort !== null && seat.heldEffort.requestId === frame.request_id ? seat.heldEffort : null
   const effort = held !== null ? held.effort : typeof frame.effort === 'string' && rec.pendingEffort === frame.effort ? frame.effort : undefined
   if (effort === undefined) return
@@ -1583,13 +1597,13 @@ function forwardSessionKit(short: string, roster: SeatRosterPort, dir?: string):
 }
 
 
-export function setSessionSpawnSwitch(
+export async function setSessionSpawnSwitch(
   sessionId: string,
   toggle: { kind: SpawnSwitchKind; on: boolean },
   by: string,
   roster: SeatRosterPort,
   dir?: string,
-): SeatVerbOutcome {
+): Promise<SeatVerbOutcome> {
   const rec = liveRecordBySession(sessionId, dir)
   if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
   const parkedForKind = (rec.pendingSpawnSwitches ?? []).filter(p => p.kind === toggle.kind)
@@ -1597,31 +1611,106 @@ export function setSessionSpawnSwitch(
   const effectiveOn = parked !== undefined ? parked.on : spawnSwitchOfRecord(rec, toggle.kind).on
   if (effectiveOn === toggle.on) return { outcome: 'noop', detail: spawnSwitchToggleReceipt(toggle.kind, toggle.on, 'noop') }
   if (seatBusy(rec.runnerId, roster)) {
-    updateConcourseWorkers(workers => {
-      const w = workers[rec.runnerId]
-      if (w && w.endedAt === undefined) {
-        w.pendingSpawnSwitches = [...(w.pendingSpawnSwitches ?? []).filter(p => p.kind !== toggle.kind), { kind: toggle.kind, on: toggle.on, by }]
-      }
-    }, dir)
+    parkSpawnSwitch(rec, toggle, by, dir)
     // eslint-disable-next-line no-console
     console.error(`[daemon] seat set-spawn-switch parked (the session is mid-turn): ${rec.runnerId} → ${toggle.kind} ${toggle.on ? 'on' : 'off'}`)
     publishSeatFacts(rec.runnerId, dir, roster)
-    return { outcome: 'queued', detail: spawnSwitchToggleReceipt(toggle.kind, toggle.on, 'queued') }
+    return forwardSpawnSwitchToBoundary(rec, toggle, by, roster, dir, { parked: true })
   }
-  return applySpawnSwitchNow(rec, toggle, roster, dir)
+  return forwardSpawnSwitchToBoundary(rec, toggle, by, roster, dir, { parked: false })
 }
 
-function applySpawnSwitchNow(
+function parkSpawnSwitch(rec: ConcourseWorkerRecordV1, toggle: { kind: SpawnSwitchKind; on: boolean }, by: string, dir?: string): void {
+  updateConcourseWorkers(workers => {
+    const w = workers[rec.runnerId]
+    if (w && w.endedAt === undefined) {
+      w.pendingSpawnSwitches = [...(w.pendingSpawnSwitches ?? []).filter(p => p.kind !== toggle.kind), { kind: toggle.kind, on: toggle.on, by }]
+    }
+  }, dir)
+}
+
+function unparkSpawnSwitch(rec: ConcourseWorkerRecordV1, kind: SpawnSwitchKind, dir?: string): void {
+  updateConcourseWorkers(workers => {
+    const w = workers[rec.runnerId]
+    if (!w || w.endedAt !== undefined) return
+    const rest = (w.pendingSpawnSwitches ?? []).filter(p => p.kind !== kind)
+    if (rest.length > 0) w.pendingSpawnSwitches = rest
+    else delete w.pendingSpawnSwitches
+  }, dir)
+}
+
+function dropHeldSpawnSwitch(seat: SeatState, kind: SpawnSwitchKind, requestId: string): void {
+  const held = seat.heldSpawnSwitches[kind]
+  if (held === undefined || held.requestId !== requestId) return
+  const rest: SeatState['heldSpawnSwitches'] = {}
+  for (const other of SPAWN_SWITCH_KINDS) {
+    const entry = seat.heldSpawnSwitches[other]
+    if (other !== kind && entry !== undefined) rest[other] = entry
+  }
+  seat.heldSpawnSwitches = rest
+}
+
+async function forwardSpawnSwitchToBoundary(
+  rec: ConcourseWorkerRecordV1,
+  toggle: { kind: SpawnSwitchKind; on: boolean },
+  by: string,
+  roster: SeatRosterPort,
+  dir: string | undefined,
+  opts: { parked: boolean },
+): Promise<SeatVerbOutcome> {
+  const queued: SeatVerbOutcome = { outcome: 'queued', detail: spawnSwitchToggleReceipt(toggle.kind, toggle.on, 'queued') }
+  const requestId = seatVerbRequestId(rec.runnerId, 'spawn-switch')
+  const waiter = awaitSeatVerbAnswer(rec.runnerId, requestId)
+  const delivered = roster.control(
+    rec.runnerId,
+    JSON.stringify({
+      type: 'control_request',
+      request_id: requestId,
+      request: { subtype: 'spawn_switch', switch: toggle.kind, on: toggle.on },
+    }),
+  )
+  if (!delivered) {
+    waiter.abandon()
+    return opts.parked ? queued : landSpawnSwitchOnRecord(rec, toggle, roster, dir, false)
+  }
+  const seat = seatOf(rec.runnerId)
+  seat.heldSpawnSwitches = { ...seat.heldSpawnSwitches, [toggle.kind]: { requestId, on: toggle.on } }
+  const word = await waiter.answer
+  if ('at' in word && word.at === 'turn-boundary') {
+    if (!opts.parked) {
+      parkSpawnSwitch(rec, toggle, by, dir)
+      publishSeatFacts(rec.runnerId, dir, roster)
+    }
+    logForDebugging(`[daemon] seat set-spawn-switch held by the runner for its turn boundary: ${rec.runnerId} → ${toggle.kind} ${toggle.on ? 'on' : 'off'}`)
+    return queued
+  }
+  dropHeldSpawnSwitch(seat, toggle.kind, requestId)
+  if ('refused' in word) {
+    if (opts.parked) {
+      unparkSpawnSwitch(rec, toggle.kind, dir)
+      publishSeatFacts(rec.runnerId, dir, roster)
+    }
+    return { outcome: 'refused', detail: spawnSwitchToggleReceipt(toggle.kind, toggle.on, 'refused', word.refused) }
+  }
+  if ('silent' in word && opts.parked) return queued
+  return landSpawnSwitchOnRecord(rec, toggle, roster, dir, true)
+}
+
+function landSpawnSwitchOnRecord(
   rec: ConcourseWorkerRecordV1,
   toggle: { kind: SpawnSwitchKind; on: boolean },
   roster: SeatRosterPort,
-  dir?: string,
+  dir: string | undefined,
+  delivered: boolean,
 ): SeatVerbOutcome {
   updateConcourseWorkers(workers => {
     const w = workers[rec.runnerId]
-    if (w && w.endedAt === undefined) w.spawnSwitches = { ...(w.spawnSwitches ?? {}), [toggle.kind]: toggle.on ? 'on' : 'off' }
+    if (!w || w.endedAt !== undefined) return
+    w.spawnSwitches = { ...(w.spawnSwitches ?? {}), [toggle.kind]: toggle.on ? 'on' : 'off' }
+    const rest = (w.pendingSpawnSwitches ?? []).filter(p => p.kind !== toggle.kind)
+    if (rest.length > 0) w.pendingSpawnSwitches = rest
+    else delete w.pendingSpawnSwitches
   }, dir)
-  const delivered = forwardSpawnSwitch(rec.runnerId, toggle, roster)
   // eslint-disable-next-line no-console
   console.error(`[daemon] seat set-spawn-switch applied: ${rec.runnerId} → ${toggle.kind} ${toggle.on ? 'on' : 'off'}${delivered ? '' : ' (no live control channel; the record holds it)'}`)
   publishSeatFacts(rec.runnerId, dir, roster)
@@ -1655,17 +1744,14 @@ function forwardRecordSpawnSwitches(short: string, roster: SeatRosterPort, dir?:
 function drainPendingSpawnSwitches(short: string, roster: SeatRosterPort, dir?: string): void {
   const rec = liveRecordByShort(short, dir)
   if (!rec) return
-  const parked = rec.pendingSpawnSwitches ?? []
+  const seat = seatOf(short)
+  const parked = (rec.pendingSpawnSwitches ?? []).filter(p => seat.heldSpawnSwitches[p.kind] === undefined)
   if (parked.length === 0) return
-  updateConcourseWorkers(workers => {
-    const w = workers[short]
-    if (w && w.endedAt === undefined) delete w.pendingSpawnSwitches
-  }, dir)
   // eslint-disable-next-line no-console
   console.error(`[daemon] seat set-spawn-switch applying ${parked.length} parked toggle${parked.length === 1 ? '' : 's'} at the turn's end: ${short}`)
   for (const entry of parked) {
     const fresh = liveRecordByShort(short, dir)
-    if (fresh) applySpawnSwitchNow(fresh, { kind: entry.kind, on: entry.on }, roster, dir)
+    if (fresh) void forwardSpawnSwitchToBoundary(fresh, { kind: entry.kind, on: entry.on }, entry.by, roster, dir, { parked: true })
   }
 }
 
