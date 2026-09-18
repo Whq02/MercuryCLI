@@ -107,6 +107,17 @@ export function getAllReleaseNotes(changelogContent: string = getStoredChangelog
   }
 }
 
+const EARLIER_RELEASES_LINE = /^\+(\d+) earlier releases?$/
+
+export function earlierReleasesLine(count: number): string {
+  return `+${count} earlier ${count === 1 ? 'release' : 'releases'}`
+}
+
+export function earlierReleasesCount(line: string): number | null {
+  const match = EARLIER_RELEASES_LINE.exec(line.trim())
+  return match ? Number(match[1]) : null
+}
+
 function currentVersionDefault(): string {
   return typeof MACRO !== 'undefined' && MACRO.VERSION ? MACRO.VERSION : '0.0.0'
 }

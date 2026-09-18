@@ -388,7 +388,7 @@ catalogue, grouped the way `/help` groups it:
 | health & introspection | `/health` `/verify` `/status` `/trace` `/substrate` `/capabilities` `/capabilities-detail` `/ledger` `/provenance` |
 | config & setup | `/config` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/policy` `/authority` `/sovereign` `/sandbox` `/ide` `/browser` `/init` `/keybindings` `/keys` `/vim` `/mouse` `/pings` `/terminal-setup` `/bootmenu` `/speak` `/voice` |
 | appearance & cockpit | `/cockpit` `/home` `/appearance` `/accent` `/color` `/critter` `/companion` `/palette` `/fullscreen` |
-| account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/release-notes` `/feedback` `/help` `/exit` |
+| account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/update-notes` `/feedback` `/help` `/exit` |
 
 `/mouse off` hands the pointer back to the terminal for native select and
 copy; the choice is saved for later boots, and `/config` shows it as Mouse

@@ -99,7 +99,7 @@ const ITEMS: GalleryItem[] = [
     item('onboarding', 'Onboarding', <MercuryOnboarding />),
     item('login', 'Login', <MercuryLogin />),
     item('api-key', 'API key', <MercuryApiKey />),
-    item('release-notes', 'Release notes', <MercuryReleaseNotes />),
+    item('update-notes', 'Update notes', <MercuryReleaseNotes />),
   ),
   ...group(
     'Prompt & input',
