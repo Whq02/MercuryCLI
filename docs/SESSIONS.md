@@ -84,11 +84,13 @@ ends", and lands exactly there: at that turn's end, before any line waiting
 for the next turn. A line sent after that pick, while the same turn still
 runs, waits for the turn's end as well and runs as the next turn, on the
 model and effort the pick named, so the order you gave is the order that
-runs; its row keeps the plate `queued` until then. A line sent before the
-pick keeps its place: it may still join the running turn at a tool boundary,
-and a line that joined the running turn is that turn's own and runs on its
-model. Sent while the session only waits on its background work, or holds a
-finished task's notice, the pick applies at once.
+runs; its row keeps the plate `queued` until then. `/subagents` and
+`/workflows` flipped while a turn runs hold a later line the same way: it
+waits for the turn's end and runs with the switched roster. A line sent
+before the pick keeps its place: it may still join the running turn at a
+tool boundary, and a line that joined the running turn is that turn's own
+and runs on its model. Sent while the session only waits on its background
+work, or holds a finished task's notice, the pick applies at once.
 Every ↵ on New Session opens another session; whatever the chat held keeps
 running and shows on the board. If the daemon that hosts sessions is not up,
 the row says so, and ↵ again starts it and retries.
@@ -523,8 +525,9 @@ was sent at, not the boundary's; a headless run (`-p
 `timestamp` and stamps the arrival when the frame carries none. A line sent
 after the turn's last tool round waits for the turn's end, as does a slash
 command sent at any point of the turn, and so does a line sent after a
-`/model` or `/effort` made while the turn runs (the pick lands first, and the
-line runs on it); lines that arrive between turns are joined into one row as
+`/model`, `/effort`, `/subagents` or `/workflows` made while the turn runs
+(the pick lands first, and the line runs on it); lines that arrive between
+turns are joined into one row as
 before; esc interrupts the turn and anything still queued runs as the next
 turn.
 The line always reaches the session's own model. A sub-agent the model is

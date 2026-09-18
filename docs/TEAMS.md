@@ -49,7 +49,9 @@ the switch moves at once. Flipped while a turn runs, the receipt says the
 switch applies when this turn ends, and the session's runner moves it at that
 turn's end, before any line waiting for the next turn, so the next turn's
 launches already read it; the session's record follows the runner's own word
-that the switch moved, never a clock. Plain `/subagents` reads both
+that the switch moved, never a clock. A line sent after the flip, while the
+same turn still runs, waits for the turn's end too and runs with the switched
+roster. Plain `/subagents` reads both
 switches with their sources; the doctor's "Sub-agents & workflows" row does
 the same.
 
