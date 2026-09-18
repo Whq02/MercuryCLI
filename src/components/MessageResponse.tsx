@@ -25,7 +25,7 @@ export function MessageResponse({
 
   const row = (
     <Box height={height} overflowY="hidden">
-      <NoSelect fromLeftEdge flexShrink={0}>
+      <NoSelect fromLeftEdge>
         <Text dimColor>{`  ${OUTPUT_CONNECTOR}`}</Text>
       </NoSelect>
       <MessageResponseContext.Provider value={true}>
