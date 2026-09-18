@@ -46,6 +46,7 @@ function capture(
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     MERCURY_CONFIG_DIR: CONFIG_HOME,
+    MERCURY_CHANNEL_ROOM: `tabula-${tag}-${process.pid}`,
     ...(opts?.seedNotesForHelm ? { MERCURY_HELM_HOME: '1' } : {}),
   }
   let grid: Grid = { grid: [] }
@@ -93,37 +94,34 @@ expect('the hint names the prompts panel, never /note', /\/workbench/.test(roomE
 
 console.log('\n▶ cockpit rail @120 (solo TABULA glance)')
 const h120 = text(capture('resume-2turn', 120, { seedNotesForHelm: true }))
-expect('MINERVA rail section present (the re-pointed header)', /MINERVA/.test(h120))
+expect('TABULA rail section present (the notepad file\'s own title word)', /TABULA/.test(h120))
 expect('top note in the rail', /ship the telemetry/.test(h120))
 expect('RECENT glanceable still present (nothing displaced)', /RECENT/.test(h120))
 
 console.log('\n▶ cockpit rail @120 (CLEAN SLATE — default-present card)')
 const c120 = text(capture('resume-2turn', 120))
-expect('MINERVA card present with zero notes (the operator's word)', /MINERVA/.test(c120))
+expect('TABULA card present with zero notes (the operator\'s word)', /TABULA/.test(c120))
 expect('invitation row teaches /note (untruncated at the 24-col rail)', /no notes — \/note/.test(c120))
 expect('NEXT hints still below it', /NEXT/.test(c120))
 
-console.log('\n▶ cockpit rail @120 (ASK LINE — compose in place, unbilled)')
+console.log('\n▶ cockpit rail @120 (KEYLESS CARD — typing lands in the prompt)')
 const TAB = String.fromCharCode(9)
-const DOWN = String.fromCharCode(27) + '[B'
 const a120raw = capture('resume-2turn', 120, {
-  tag: 'askline-120',
+  tag: 'keyless-120',
   sends: [
     { atTick: 30, data: TAB },
-    { atTick: 34, data: DOWN.repeat(5) },
     { atTick: 40, data: 'close the relay note' },
   ],
   total: 60,
 })
 const a120 = text(a120raw)
-const railText = a120raw.grid.map(r => r.slice(0, 25).map(c => c.c || ' ').join('')).join('\n')
-expect('typed chars landed IN THE RAIL (left region), not the prompt', /close the relay/.test(railText))
-expect('focus banner flips to the minerva grammar', /↵ send/.test(a120))
+const railText = a120raw.grid.slice(0, 28).map(r => r.slice(0, 25).map(c => c.c || ' ').join('')).join('\n')
+expect('typed chars did NOT land in the rail (left region, above the strips)', !/close the relay/.test(railText))
+expect('typed chars landed in the prompt', /close the relay note/.test(a120))
 
 console.log('\n▶ busy cockpit @120 (ROUTER UI — card persists)')
 const b120busy = text(capture('cockpit-runs', 120, { tag: 'busy-120' }))
-expect('busy branch: MINERVA card present', /MINERVA/.test(b120busy))
-expect('busy branch: the ask line rides along', /ask minerva/.test(b120busy))
+expect('busy branch: TABULA card present', /TABULA/.test(b120busy))
 expect('busy branch really is busy (CREW lane present)', /CREW/.test(b120busy))
 
 console.log('\n▶ cockpit rail @120 (LIVENESS — /note repaints the card)')
@@ -137,7 +135,7 @@ const l120 = text(
     total: 80,
   }),
 )
-expect('count refolds 0 → 1 without a rail event', /MINERVA · 1/.test(l120))
+expect('count refolds 0 → 1 without a rail event', /TABULA · 1/.test(l120))
 expect('the fresh note shows in the card', /live probe/.test(l120))
 
 console.log('\n' + '='.repeat(60))

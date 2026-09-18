@@ -94,26 +94,6 @@ import {
   isConsoleComposing,
 } from '../../utils/cockpit/helmConsole.js'
 import { runConsoleAsk } from '../../utils/cockpit/helmConsoleAsk.js'
-import {
-  beginMinervaCompose,
-  exitMinervaCompose,
-  getMinervaBuffer,
-  isMinervaComposing,
-  minervaAbortAsk,
-  minervaBackspace,
-  minervaCursorEnd,
-  minervaCursorHome,
-  minervaDeleteForward,
-  minervaInsert,
-  minervaKillLine,
-  minervaMoveCursor,
-  minervaReplEnabled,
-  minervaSubmitBuffer,
-} from '../../utils/cockpit/minervaRepl.js'
-import { buildMinervaSessionDigest, runMinervaMessage } from '../../utils/tabula/minerva.js'
-import { tabulaProjectDir } from '../../utils/tabula/tabulaGates.js'
-import { currentInterviewRef } from '../../services/interview/store.js'
-import { basename as pathBasename } from 'node:path'
 import { classifyAgentViewSubmission } from './promptIntent.js'
 import { MAIN_DRAFT_KEY, stashViewDraft, takeViewDraft } from './viewDrafts.js'
 import { getModeFromInput, getValueFromInput, prependModeCharacterToInput } from './inputModes.js'
@@ -1600,10 +1580,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           setHelmFocus('telemetry')
           beginConsoleCompose()
           break
-        case 'minerva':
-          setHelmFocus('lanes')
-          beginMinervaCompose()
-          break
       }
     }
     if (dispatch !== null) {
@@ -1926,117 +1902,78 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       const focusPane = getHelmFocus()
 
       if (focusPane !== 'prompt') {
-        const composing =
-          (focusPane === 'telemetry' && isConsoleComposing()) ||
-          (focusPane === 'lanes' && isMinervaComposing())
+        const composing = focusPane === 'telemetry' && isConsoleComposing()
         if (composing) {
-          const isConsole = focusPane === 'telemetry'
           event.stopImmediatePropagation()
           if (key.escape) {
-            if (isConsole) {
-              if (!consoleAbortAsk()) exitConsoleCompose()
-            } else {
-              if (!minervaAbortAsk()) exitMinervaCompose()
-            }
+            if (!consoleAbortAsk()) exitConsoleCompose()
             return
           }
           if (key.tab) {
-            if (isConsole) exitConsoleCompose()
-            else exitMinervaCompose()
+            exitConsoleCompose()
             setHelmFocus(nextHelmPane(focusPane))
             return
           }
           if (key.return) {
-            if (isConsole) {
-              const buffered = getConsoleBuffer()
-              if (buffered.trim() !== '') {
-                const context = getToolUseContext(
-                  messages,
-                  [],
-                  new AbortController(),
-                  mainLoopModel ?? '',
-                )
-                consoleSubmitBuffer((question, controller) =>
-                  runConsoleAsk({
-                    question,
-                    context,
-                    abortController: controller,
-                  }),
-                )
-              }
-            } else {
-              const buffered = getMinervaBuffer()
-              if (buffered.trim() !== '') {
-                const originalCwd = getFocusedSessionConnector().workspace().originalCwd
-                const interviewRef = currentInterviewRef()
-                const sessionContext = [
-                  buildMinervaSessionDigest(messages),
-                  ...(interviewRef !== null ? [`live interview: ${interviewRef}`] : []),
-                ].join('\n')
-                minervaSubmitBuffer((message, controller) =>
-                  runMinervaMessage(
-                    tabulaProjectDir(originalCwd),
-                    pathBasename(originalCwd) || 'project',
-                    message,
-                    { signal: controller.signal, sessionContext, projectPath: originalCwd },
-                  ),
-                )
-              }
+            const buffered = getConsoleBuffer()
+            if (buffered.trim() !== '') {
+              const context = getToolUseContext(
+                messages,
+                [],
+                new AbortController(),
+                mainLoopModel ?? '',
+              )
+              consoleSubmitBuffer((question, controller) =>
+                runConsoleAsk({
+                  question,
+                  context,
+                  abortController: controller,
+                }),
+              )
             }
             return
           }
           if (key.backspace || rawInput === '\u007f') {
-            if (isConsole) consoleBackspace()
-            else minervaBackspace()
+            consoleBackspace()
             return
           }
           if (key.delete) {
-            if (isConsole) {
-              consoleDeleteForward()
-            } else {
-              if (getMinervaBuffer() === '') exitMinervaCompose()
-              else minervaDeleteForward()
-            }
+            consoleDeleteForward()
             return
           }
           if (key.leftArrow) {
-            if (isConsole) consoleMoveCursor(-1)
-            else minervaMoveCursor(-1)
+            consoleMoveCursor(-1)
             return
           }
           if (key.rightArrow) {
-            if (isConsole) consoleMoveCursor(1)
-            else minervaMoveCursor(1)
+            consoleMoveCursor(1)
             return
           }
           if (key.ctrl && rawInput === 'a') {
-            if (isConsole) consoleCursorHome()
-            else minervaCursorHome()
+            consoleCursorHome()
             return
           }
           if (key.ctrl && rawInput === 'e') {
-            if (isConsole) consoleCursorEnd()
-            else minervaCursorEnd()
+            consoleCursorEnd()
             return
           }
           if (key.ctrl && rawInput === 'k') {
-            if (isConsole) consoleKillLine()
-            else minervaKillLine()
+            consoleKillLine()
             return
           }
-          if (isConsole && key.ctrl && rawInput === 'w') {
+          if (key.ctrl && rawInput === 'w') {
             consoleKillWord()
             return
           }
-          if (isConsole && key.ctrl && rawInput === 'l') {
+          if (key.ctrl && rawInput === 'l') {
             consoleClear()
             return
           }
-          if (isConsole && key.upArrow) {
+          if (key.upArrow) {
             consoleHistoryMove(-1)
             return
           }
-          if (isConsole && key.downArrow) {
+          if (key.downArrow) {
             consoleHistoryMove(1)
             return
           }
@@ -2046,8 +1983,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             !key.meta &&
             rawInput >= ' '
           ) {
-            if (isConsole) consoleInsert(rawInput)
-            else minervaInsert(rawInput)
+            consoleInsert(rawInput)
           }
           return
         }
@@ -2079,13 +2015,10 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           rawInput >= ' ' &&
           !key.tab
         ) {
-          const composeCapable =
-            (focusPane === 'telemetry' && consoleEnabled()) ||
-            (focusPane === 'lanes' && minervaReplEnabled())
+          const composeCapable = focusPane === 'telemetry' && consoleEnabled()
           event.stopImmediatePropagation()
           if (composeCapable) {
-            if (focusPane === 'telemetry') beginConsoleCompose(rawInput)
-            else beginMinervaCompose(rawInput)
+            beginConsoleCompose(rawInput)
           } else {
             setHelmFocus('prompt')
             insertAtCursor(rawInput)

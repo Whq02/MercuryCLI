@@ -8,14 +8,12 @@ export type HelmRow =
   | { kind: 'teammate'; id: string; label: string }
   | { kind: 'command'; command: string; label: string }
   | { kind: 'console'; label: string }
-  | { kind: 'minerva'; label: string }
   | { kind: 'main'; label: string }
 
 export type HelmRowAction =
   | { type: 'teammate'; id: string }
   | { type: 'command'; command: string }
   | { type: 'console' }
-  | { type: 'minerva' }
   | { type: 'main' }
 
 export function helmRowSig(r: HelmRow): string {
@@ -24,11 +22,9 @@ export function helmRowSig(r: HelmRow): string {
       ? `t:${r.id}`
       : r.kind === 'command'
         ? `c:${r.command}`
-        : r.kind === 'minerva'
-          ? 'k:minerva'
-          : r.kind === 'main'
-              ? 'k:main'
-              : 'k:console'
+        : r.kind === 'main'
+          ? 'k:main'
+          : 'k:console'
   return `${head}:${r.label}`
 }
 
@@ -80,7 +76,6 @@ export function helmRowAction(row: HelmRow | undefined): HelmRowAction | null {
   if (!row) return null
   if (row.kind === 'teammate') return { type: 'teammate', id: row.id }
   if (row.kind === 'console') return { type: 'console' }
-  if (row.kind === 'minerva') return { type: 'minerva' }
   if (row.kind === 'main') return { type: 'main' }
   return { type: 'command', command: row.command }
 }
