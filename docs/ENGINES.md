@@ -192,6 +192,14 @@ auto mode, tool-search header), media (PDF and
 image support), and beta-header emission. It re-reads live state on every
 call by design.
 
+A context window can come from a dated pin while the account's live list has
+not answered yet — the GPT pin table, the Hugging Face pins. The rail's
+context figure then carries the word `pin` after the size (`ctx 12% · 1050k
+pin`), so a pin reads apart from a fact; when the list answers, the mark goes
+and the figure is the list's. A pin no live list ever replaces — the
+first-party rows, the GLM, Kimi and DeepSeek pins — carries no mark, and `~`
+keeps its one meaning: the conservative default no source has stated.
+
 ## Web search
 
 The web-search estate is one provider-neutral contract and TWO tools under

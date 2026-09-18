@@ -395,7 +395,7 @@ function HelmTelemetryRailImpl({
           {
 }
           {turns == null ? (
-            <Text color={tok.textMuted}>{` · ${contextWindowLabel(ctx.window, ctx.windowSource)}`}</Text>
+            <Text color={tok.textMuted}>{` · ${contextWindowLabel(ctx.window, ctx.windowSource, ctx.windowPinned)}`}</Text>
           ) : null}
           {turns != null ? (
             <Text color={turns <= 2 ? gaugeColor(95) : tok.textMuted}>{` · ≈${turns} turns`}</Text>
