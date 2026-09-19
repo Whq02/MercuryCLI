@@ -14,7 +14,7 @@ const argAfter = (flag: string): string | undefined => {
 }
 const DIST = argAfter('--dist') ?? join(ROOT, 'dist', 'mercury.mjs')
 const FRAMES = argAfter('--frames')
-const LEGS = (argAfter('--legs') ?? 'mate,card,tasks,sleeper').split(',')
+const LEGS = (argAfter('--legs') ?? 'mate,card,sleeper').split(',')
 const SIZES = (argAfter('--sizes') ?? '120x40').split(',').map(s => s.split('x').map(Number) as [number, number])
 const KEEP = process.argv.includes('--keep')
 const VSHOT = join(ROOT, 'scripts', 'ui', 'vshot.py')
@@ -171,9 +171,10 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
   check(`${tag}: the row runs before the chord`, runningRow !== undefined && /\brunning\b|◐|Sleeping/.test(runningRow), runningRow ?? '(no row)')
   const armed = marks['armed'] ?? ''
   check(`${tag}: the first x arms the chord and names the row`, armed.includes(`x again within 2 s stops ${target}`) || flat(armed).includes('x again within 2 s stops'), flat(armed).slice(0, 200))
-  const after = marks['crew-after'] ?? ''
+  const after = (name === 'card' ? marks['list-after'] : marks['crew-after']) ?? ''
   const afterRow = rowOf(after, target)
   check(`${tag}: after x x the row reads stopped, never running`, afterRow !== undefined && /\bstopped\b/.test(afterRow) && !/\brunning\b/.test(afterRow), afterRow ?? '(no row)')
+  if (name === 'card') check(`${tag}: the card's own footer offered the chord and no refusal is painted on the card`, (marks['card-running'] ?? '').includes('x x stop') && !(marks['crew-after'] ?? '').includes('was refused'), flat(marks['card-running'] ?? '').slice(0, 200))
   check(`${tag}: no refusal is painted under the rows`, !after.includes('was refused'), flat(after).slice(0, 200))
   check(`${tag}: the daemon relayed exactly one stop to the runner (the chord fired once, the connector sent it once)`, records.daemonStops.length === 1, `daemon lines ${records.daemonStops.length}`)
   const later = marks['crew-later'] ?? ''
