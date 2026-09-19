@@ -2,7 +2,7 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.15
-- Added one update command for every install channel: `mercury update` inside a Homebrew or npm install asks once and runs that channel's own upgrade with its output streamed, then re-reads the installed version; `--yes` skips the question; `--check`, `--status`, `--rollback` and the doctor say the same in every channel; an npm-made install is named for what it is
+- Added one update command for every install channel: mercury update inside a Homebrew or npm install asks once and runs that channel's own upgrade with its output streamed, then re-reads the installed version; --yes skips the question; --check, --status, --rollback and the doctor say the same in every channel; an npm-made install is named for what it is
 - Added a once-per-release line to the boot screen's bottom-right corner, "vX.Y.Z available · mercury update", from the update notice's cached answer; the chat's expiring line stays
 - Fixed the shared daemon shutting down when the Mercury that started it closed, which cost every other open Mercury its runner: the daemon now passes to the oldest open Mercury still holding a session and stops only when the last one closes; a restart armed by a new build waits for every live session, including one opened after the arming
 - Fixed a refused send dropping the pasted text: the pastes come back with the words, so the next send carries them
@@ -24,7 +24,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a new chat starting at high effort although the operator had saved another level: a chat born from the boot screen or the New Session strip takes the saved level, and the daemon's high stands only when nothing is saved
 - Fixed words typed after a mid-turn model or effort change running on the old model when the turn still had tool rounds ahead: they wait for the turn's end and run as the next turn on the switched model; a sub-agents or workflows switch made mid-turn lands at the turn's end too, with the record following the runner's word
 - Fixed a mission set in a chat's first seconds being lost: a mission armed while the chat is still landing follows the session at admission, so its card, its rail row and the runner's stop check see it
-- Fixed the rate-limit fixture seam (`/mock-limits`, armed builds only) arming the runner's latch instead of the screen's on a daemon-hosted chat, so the failover offer card's scenarios read the process the card derives from; the cap latch logs its observe, clear and read on the debug log
+- Fixed the rate-limit fixture seam (/mock-limits, armed builds only) arming the runner's latch instead of the screen's on a daemon-hosted chat, so the failover offer card's scenarios read the process the card derives from; the cap latch logs its observe, clear and read on the debug log
 - Fixed the first caret move after typing in a chat's first seconds being undone: a click or an arrow key placed before the session's process connects now holds, instead of the caret jumping back to the end of the text one render later
 
 ## 1.0.0-beta.14
