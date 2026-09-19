@@ -105,6 +105,19 @@ than repeating that Read. A notebook over the cap has no line window at all
 (`offset` and `limit` do not select cells): its refusal says so and names
 the shell cell-slice commands instead of a Read.
 
+## The replacement's bytes
+
+The Edit tool writes a replacement as typed. Its search tolerates the
+file's typographic quotes: an old string typed with straight quotes still
+finds a line whose quotes are curly, and the bytes outside the change keep
+the file's own typography. Inside the change, only prose takes the file's
+quote style, and only on a line that already carries it: Markdown, plain
+text and AsciiDoc, as the diff highlighter's registry names them. Code,
+configuration, data, and every file the registry cannot name (no
+extension, a dotfile, a suffix it does not know, a script whose first line
+names no language it knows) land byte for byte, a comment block inside a
+code file included.
+
 ## Change receipts
 
 Every mutation-shaped tool call lands exactly one receipt: the intent (what

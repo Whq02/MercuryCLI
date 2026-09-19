@@ -118,7 +118,7 @@ export async function preserveQuoteStyleForFile(
   const styled = preserveQuoteStyle(oldString, actualOldString, newString)
   if (exact === styled) return exact
   const { fileLanguageKind } = await import('../../native-ts/color-diff/index.js')
-  return fileLanguageKind(filePath, fileContent.split('\n', 1)[0]) === 'code' ? exact : styled
+  return fileLanguageKind(filePath, fileContent.split('\n', 1)[0]) === 'prose' ? styled : exact
 }
 
 
