@@ -110,6 +110,37 @@ let fail = 0
   if (!bandDiverged) fail = 1
 }
 
+{
+  const { DEFAULT_MASKS, neutralizeGrid } = await import('./visualBaseline.ts')
+  const { compactWorkSummaryText } = await import('../../src/components/tasks/useFocusedWork.ts')
+  const { stringWidth } = await import('../../src/ink/stringWidth.ts')
+  const counts = { sessionsOn: 1, monitorsHere: 0, agentsHere: 0, samples: 0 }
+  const countRow = (columns: number, hint: string): string => {
+    const words = compactWorkSummaryText(counts, Math.max(0, columns - (stringWidth(hint) + 1)))
+    return `${words.padEnd(columns - stringWidth(hint) - 1)} ${hint}`
+  }
+  const oneRow = (text: string) => ({ schema: 1, cols: text.length, rows: 1, text: [text], styles: [[]] })
+  const canon = (text: string, masks: string[]): string => neutralizeGrid(oneRow(text), masks).text[0]
+  const mac60 = countRow(60, '⇧← concourse')
+  const linux60 = countRow(60, 'shift+← concourse')
+  const mac80 = countRow(80, '⇧← concourse')
+  const linux80 = countRow(80, 'shift+← concourse')
+  const squeezed = mac60.startsWith('1 session on · 0 monitors here · 0 agents here') && linux60.startsWith('S:1 · M:0 · A:0')
+  console.log(`  [${squeezed ? 'PASS' : 'FAIL'}] at 60 columns the count row keeps its words under the glyph and drops to its short form under the spelled hint (the product's own budget) — ${JSON.stringify([mac60.trim(), linux60.trim()])}`)
+  if (!squeezed) fail = 1
+  const rowMasked = canon(mac60, DEFAULT_MASKS) === canon(linux60, DEFAULT_MASKS) && canon(mac60, DEFAULT_MASKS) === '⟪row⟫'
+  console.log(`  [${rowMasked ? 'PASS' : 'FAIL'}] the squeezed count row canonicalizes across the hosts as one row`)
+  if (!rowMasked) fail = 1
+  const wide = canon(mac80, DEFAULT_MASKS)
+  const wideKept = wide === canon(linux80, DEFAULT_MASKS) && wide.includes('1 session on · 0 monitors here · 0 agents here') && !wide.includes('concourse')
+  console.log(`  [${wideKept ? 'PASS' : 'FAIL'}] at 80 columns the count row keeps its words on both hosts and only the hint is masked — ${wide.trim()}`)
+  if (!wideKept) fail = 1
+  const withoutRowMask = DEFAULT_MASKS.filter(m => !m.includes('sessions? on'))
+  const diverged = canon(mac60, withoutRowMask) !== canon(linux60, withoutRowMask)
+  console.log(`  [${diverged ? 'PASS' : 'FAIL'}] without the count row's mask the two hosts diverge at 60 columns (the hint's span mask cannot restore the words the spelling squeezed) — the reason the old vocabulary was false`)
+  if (!diverged) fail = 1
+}
+
 const run = (only?: string): void => {
   const args = ['run', 'scripts/ui/generate-visual-baseline.ts', '--check']
   if (only) args.push('--only', only)
