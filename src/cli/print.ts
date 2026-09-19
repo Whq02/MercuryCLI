@@ -97,7 +97,7 @@ import type {
   StdinMessage,
   StdoutMessage,
 } from '../entrypoints/sdk/controlTypes.js'
-import { resetLimitsForCredentialSwitch, statusListeners, type ClaudeAILimits } from '../services/claudeAiLimits.js'
+import { anthropicWindowFact, resetLimitsForCredentialSwitch, statusListeners, type ClaudeAILimits } from '../services/claudeAiLimits.js'
 import { providerLimitWarning } from '../services/providers/limitWarning.js'
 import {
   clearServerCache,
@@ -241,7 +241,7 @@ import { installStreamJsonStdoutGuard } from '../utils/streamJsonStdoutGuard.js'
 import { getRunningTasks, POLL_INTERVAL_MS } from '../utils/task/framework.js'
 import { AGENT_RESUME_NOTE, AGENT_STOP_BY_OPERATOR } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalWorkflowTask, killWorkflowTask } from '../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
-import { primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
+import { openaiCatalogueFact, primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
 import { stopOrDismissAgent } from '../state/teammateViewHelpers.js'
 import { markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
@@ -1962,6 +1962,8 @@ export async function runHeadless(
             if (Number.isFinite(holdMs) && holdMs > 0) await new Promise(resolve => setTimeout(resolve, holdMs))
           }
           const state = getAppState()
+          const anthropicWindow = anthropicWindowFact()
+          const openaiCatalogue = openaiCatalogueFact()
           const answer: SessionFactsAnswerV1 = {
             model: {
               effective: activeModel ?? getMainLoopModel(),
@@ -1984,6 +1986,7 @@ export async function runHeadless(
                 const observed = openaiObservedUsage()
                 return observed.primary || observed.secondary ? { openaiObserved: observed } : {}
               })(),
+              ...(anthropicWindow !== undefined ? { anthropicWindow } : {}),
             },
             identity: {
               firstPartyApi: is1PApiCustomer(),
@@ -2000,6 +2003,7 @@ export async function runHeadless(
             })(),
             spawnSwitches: spawnSwitchFacts(),
             box: boxReading(),
+            ...(openaiCatalogue !== undefined ? { openaiCatalogue } : {}),
             workspace: {
               cwd: getCwd(),
               originalCwd: getOriginalCwd(),

@@ -104,6 +104,7 @@ export type UsageFactsV1 = {
     primary?: OpenaiObservedBandV1
     secondary?: OpenaiObservedBandV1
   }
+  anthropicWindow?: AnthropicWindowFactV1
 }
 
 export type OpenaiObservedBandV1 = {
@@ -111,6 +112,14 @@ export type OpenaiObservedBandV1 = {
   windowMinutes?: number
   resetsAtMs?: number
   observedAtMs: number
+}
+
+export type AnthropicWindowFactV1 = {
+  status: 'allowed' | 'allowed_warning' | 'rejected'
+  observedAtMs: number
+  owner: string
+  resetsAtMs?: number
+  claim?: string
 }
 
 export type SeatIdentityV1 = {
