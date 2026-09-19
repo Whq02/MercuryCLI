@@ -470,6 +470,7 @@ if (LEG === 'face' || LEG === 'both') {
     check('the Logins layer opened on the stored sign-in', (claudeRow(rosterBefore) ?? '').includes(FIRST_EMAIL), tail(rosterBefore, 16) || r.stderr.slice(-600))
     check('the loopback callback completed the flow and the profile was read with the minted token', r.hits.some(h => h.startsWith('POST /v1/oauth/token')) && r.hits.some(h => h.startsWith('GET /api/oauth/profile') && h.includes(`bearer=${SECOND_ACCESS}`)), r.hits.join(' | '))
     check('the success pane names the account that just signed in', pane.includes(`Signed in as ${SECOND_EMAIL}`), tail(pane, 14))
+    check('the roster row behind the open pane already names the account that signed in', (claudeRow(pane) ?? '').includes(SECOND_EMAIL), claudeRow(pane)?.trim() ?? 'no row')
     check('↵ done leaves the roster naming the account that signed in', (claudeRow(roster) ?? '').includes(SECOND_EMAIL) && !(claudeRow(roster) ?? '').includes(FIRST_EMAIL), claudeRow(roster)?.trim() ?? 'no row')
     const chipLine = end.split('\n').find(l => l.includes('Acct'))
     if (chipLine === undefined) {
