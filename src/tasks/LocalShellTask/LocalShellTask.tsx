@@ -171,7 +171,7 @@ function enqueueShellNotification(
   enqueuePendingNotification({
     value: message,
     mode: 'task-notification',
-    priority: 'next',
+    priority: agentId !== undefined ? 'next' : 'later',
     agentId: agentId as AgentId | undefined,
   })
 }
