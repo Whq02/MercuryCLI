@@ -150,6 +150,7 @@ import { describeAttachedImage } from '../../utils/imageResizer.js'
 import { cacheImagePath, storeImage } from '../../utils/imageStore.js'
 import { editPromptInEditor } from '../../utils/promptEditor.js'
 import { expandPastedTextRefs } from '../../history.js'
+import { hashPastedText, storePastedText } from '../../utils/pasteStore.js'
 import {
   cyclePermissionMode,
   getNextPermissionMode,
@@ -1195,11 +1196,14 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       if (text.length > PASTE_THRESHOLD || lineCount > lineCap) {
         const id = allocatePasteId()
         const numLines = getPastedTextRefNumLines(text)
+        const contentHash = hashPastedText(text)
         const entry: PastedContent = {
           id,
           type: 'text',
           content: text,
+          contentHash,
         } as PastedContent
+        void storePastedText(contentHash, text).catch(() => {})
         setPastedContents(prev => ({ ...prev, [id]: entry }))
         insertAtCursor(formatPastedTextRef(id, numLines), { atomic: true })
         return
