@@ -66,6 +66,11 @@ repository's MCPs & Skills record — or the preset armed on the face — and
 the launch receipt names which ([KIT.md](KIT.md)). The board's own `+ new session · n`
 tab, at the right end of its SESSIONS title, is the same birth from the
 board: a blank session in the project the board shows, focused at once.
+The chat paints while the birth lands, and its first frame already names
+the model, the effort and the permission mode the birth resolved; once the
+session's own record and facts are read they take over, the same words
+standing. A word the birth did not resolve stays unpainted until the
+session's record names it.
 
 The boot's own options ride into the sessions it opens: `-n <name>` titles
 the first session you open (one-shot; later ones name themselves — below),

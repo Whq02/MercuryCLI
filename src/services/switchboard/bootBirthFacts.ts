@@ -1,6 +1,12 @@
 import type { PermissionMode } from '../../types/permissions.js'
 import type { SessionKitV1 } from '../../daemon/sessionKit.js'
 
+export interface LandingWords {
+  model: string | null
+  effort: string | null
+  permissionMode: PermissionMode | null
+}
+
 export interface BootBirthFacts {
   title: string | null
   model: string | null
@@ -10,9 +16,10 @@ export interface BootBirthFacts {
   kit: SessionKitV1 | null
   presetKit: { name: string; kit: SessionKitV1 } | null
   bypassConsent: boolean
+  landing: LandingWords | null
 }
 
-let facts: BootBirthFacts = { title: null, model: null, effort: null, permissionMode: null, runnerArgv: [], kit: null, presetKit: null, bypassConsent: false }
+let facts: BootBirthFacts = { title: null, model: null, effort: null, permissionMode: null, runnerArgv: [], kit: null, presetKit: null, bypassConsent: false, landing: null }
 
 export function setBootBirthFacts(next: Partial<BootBirthFacts>): void {
   facts = { ...facts, ...next, runnerArgv: [...(next.runnerArgv ?? facts.runnerArgv)] }
@@ -22,6 +29,20 @@ export const setNextSessionFacts = setBootBirthFacts
 
 export function bootBirthFacts(): BootBirthFacts {
   return facts
+}
+
+export function armLandingWords(words: LandingWords): void {
+  facts = { ...facts, landing: { model: words.model, effort: words.effort, permissionMode: words.permissionMode } }
+}
+
+export function settleLandingWords(): void {
+  if (facts.landing !== null) facts = { ...facts, landing: null }
+}
+
+export function landingWordsOf(record: Pick<BootBirthFacts, 'landing'>): LandingWords {
+  const landing = record.landing
+  if (landing === null) return { model: null, effort: null, permissionMode: null }
+  return { model: landing.model, effort: landing.effort, permissionMode: landing.permissionMode }
 }
 
 export function takeBootTitle(): string | null {
@@ -62,5 +83,5 @@ export function carriedConsentOf(record: Pick<BootBirthFacts, 'bypassConsent'>):
 }
 
 export function _resetBootBirthFactsForTesting(): void {
-  facts = { title: null, model: null, effort: null, permissionMode: null, runnerArgv: [], kit: null, presetKit: null, bypassConsent: false }
+  facts = { title: null, model: null, effort: null, permissionMode: null, runnerArgv: [], kit: null, presetKit: null, bypassConsent: false, landing: null }
 }
