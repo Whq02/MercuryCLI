@@ -24,6 +24,8 @@ import type {
   WorkspaceFactsV1,
 } from './types.js'
 import type { SpawnSwitchFacts } from '../switchboard/spawnSwitches.js'
+import type { PermissionMode } from '../../types/permissions.js'
+import { bootBirthFacts, landingWordsOf } from '../switchboard/bootBirthFacts.js'
 
 export const NO_CHAT_OPEN = 'no chat is open — ↵ New Session on the boot menu starts one'
 
@@ -111,9 +113,10 @@ export class NoSessionConnector implements EngineConnectorV1 {
     return { outcome: 'refused', detail: NO_CHAT_OPEN }
   }
   modelFacts(): ModelFactsV1 {
-    const main = getMainLoopModel()
-    if (this.cachedModelFacts === null || this.cachedModelFacts.main !== main) {
-      this.cachedModelFacts = { effective: main, main, setting: null, sessionPin: null, pendingSwitch: null }
+    const landing = landingWordsOf(bootBirthFacts())
+    const main = landing.model ?? getMainLoopModel()
+    if (this.cachedModelFacts === null || this.cachedModelFacts.main !== main || (this.cachedModelFacts.effort ?? null) !== landing.effort) {
+      this.cachedModelFacts = { effective: main, main, setting: null, sessionPin: null, ...(landing.effort !== null ? { effort: landing.effort } : {}), pendingSwitch: null }
     }
     return this.cachedModelFacts
   }
@@ -156,8 +159,11 @@ export class NoSessionConnector implements EngineConnectorV1 {
   async rewind(req: RewindRequestV1): Promise<RewindReceiptV1> {
     return { outcome: 'refused', mode: req.mode, refusal: 'no-chat', detail: NO_CHAT_OPEN }
   }
-  permissionMode(): null {
-    return null
+  permissionMode(): PermissionMode | null {
+    const born = landingWordsOf(bootBirthFacts()).permissionMode
+    if (born === null) return null
+    const { seatInitialPermissionMode } = require('../../daemon/concourseSupervisor.js') as typeof import('../../daemon/concourseSupervisor.js')
+    return seatInitialPermissionMode(born) as PermissionMode
   }
   subscribePermissionMode(): () => void {
     return NOOP_UNSUBSCRIBE

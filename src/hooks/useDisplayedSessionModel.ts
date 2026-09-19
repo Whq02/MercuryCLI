@@ -2,6 +2,7 @@ import { useMemo, useSyncExternalStore } from 'react'
 import {
   focusedSessionModelFacts,
   getFocusedSessionConnector,
+  hasFocusedSession,
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
 import { renderModelChip } from '../utils/model/model.js'
@@ -48,6 +49,13 @@ const getFocusedServedEffort = (): string => focusedSessionModelFacts()?.effort 
 export function useFocusedServedEffort(): string | null {
   const effort = useSyncExternalStore(subscribeFocusedModel, getFocusedServedEffort, getFocusedServedEffort)
   return effort === '' ? null : effort
+}
+
+const getFocusedBornEffort = (): string => (hasFocusedSession() ? '' : (getFocusedSessionConnector().modelFacts().effort ?? ''))
+
+export function useFocusedBornEffort(): string | null {
+  const born = useSyncExternalStore(subscribeFocusedModel, getFocusedBornEffort, getFocusedBornEffort)
+  return born === '' ? null : born
 }
 
 const getFocusedSentEffort = (): string => {
