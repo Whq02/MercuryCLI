@@ -214,7 +214,7 @@ async function main(): Promise<void> {
     const clock = src('src/utils/cache/cacheClock.ts')
     check(
       'E08: rollups live in the global per-project store (cross-process by construction)',
-      clock.includes("'cache-clock', 'sessions'") && clock.includes('getProjectsDir()'),
+      clock.includes("join(getProjectDir(identity), 'cache-clock', 'sessions')") && !clock.includes('getProjectsDir()'),
     )
     check(
       'E08: readPrior scans OTHER sessions (own rollup excluded) for the first-choice TTL',
