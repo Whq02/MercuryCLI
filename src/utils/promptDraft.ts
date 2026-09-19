@@ -1,5 +1,5 @@
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { defineStore } from '../substrate/fileStore.js'
@@ -71,15 +71,59 @@ function boundDraft(draft: PromptDraft): PromptDraft {
   } catch {
   }
   const missing: string[] = []
+  const kept: Record<number, PastedContent> = {}
   for (const [k, p] of Object.entries(draft.pastedContents)) {
+    if (p?.type === 'text' && typeof p.contentHash === 'string' && p.contentHash !== '') {
+      kept[Number(k)] = { id: p.id, type: 'text', content: '', contentHash: p.contentHash }
+      continue
+    }
     const label = p?.type === 'image' ? `pasted image #${k}` : `pasted text #${k}`
     missing.push(label)
   }
   return {
     ...draft,
-    pastedContents: {},
-    missingPastes: [...(draft.missingPastes ?? []), ...missing],
+    pastedContents: kept,
+    ...(missing.length > 0 || draft.missingPastes !== undefined ? { missingPastes: [...(draft.missingPastes ?? []), ...missing] } : {}),
   }
+}
+
+export function draftPasteHashes(): Set<string> {
+  const hashes = new Set<string>()
+  const dir = join(getMercuryHome(), 'drafts')
+  let files: string[]
+  try {
+    files = readdirSync(dir)
+  } catch {
+    return hashes
+  }
+  for (const file of files) {
+    if (!file.endsWith('.json')) continue
+    let parsed: Record<string, unknown>
+    try {
+      parsed = JSON.parse(readFileSync(join(dir, file), 'utf8')) as Record<string, unknown>
+    } catch {
+      continue
+    }
+    if (!parsed || typeof parsed !== 'object') continue
+    for (const [key, raw] of Object.entries(parsed)) {
+      if (key.startsWith('_')) continue
+      if (file.endsWith('-scoped.json')) {
+        if (!raw || typeof raw !== 'object') continue
+        for (const doc of Object.values(raw as Record<string, { items?: Array<{ kind?: string; ref?: string }> }>)) {
+          for (const item of doc?.items ?? []) {
+            if (item.kind === 'large-paste' && typeof item.ref === 'string' && /^[0-9a-f]{16}$/.test(item.ref)) hashes.add(item.ref)
+          }
+        }
+        continue
+      }
+      const draft = sanitizeDraft(raw)
+      if (!draft) continue
+      for (const p of Object.values(draft.pastedContents)) {
+        if (p?.type === 'text' && typeof p.contentHash === 'string' && p.contentHash !== '') hashes.add(p.contentHash)
+      }
+    }
+  }
+  return hashes
 }
 
 const isEmptyDraft = (d: { text: string; pastedContents: Record<number, PastedContent> }): boolean =>

@@ -1432,8 +1432,12 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     text: string,
     opts: { mode?: 'prompt' | 'bash'; pastedContents?: Record<number, PastedContent>; extraBlocks?: ContentBlockParam[] },
   ): Promise<SendReceiptV1> {
-    const pastes = opts.pastedContents ?? {}
-    const { expandPastedTextRefs } = await import('../../history.js')
+    const { expandPastedTextRefs, pasteUnavailableLine, resolvePastedContents } = await import('../../history.js')
+    const resolved = await resolvePastedContents(text, opts.pastedContents ?? {})
+    if (resolved.missing.length > 0) {
+      return { state: 'refused', detail: pasteUnavailableLine(resolved.missing[0]!) }
+    }
+    const pastes = resolved.pastedContents
     const expanded = expandPastedTextRefs(text, pastes).trim()
     const images = [...imageBlocksOf(pastes), ...(opts.extraBlocks ?? [])]
     if (expanded === '' && images.length === 0) return REFUSED_EMPTY

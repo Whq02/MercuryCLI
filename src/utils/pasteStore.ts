@@ -41,7 +41,7 @@ export async function retrievePastedText(hash: string): Promise<string | null> {
   }
 }
 
-export async function cleanupOldPastes(cutoffDate: Date): Promise<void> {
+export async function cleanupOldPastes(cutoffDate: Date, retained: ReadonlySet<string> = new Set()): Promise<void> {
   const dir = storeDir()
   let entries: string[]
   try {
@@ -51,6 +51,7 @@ export async function cleanupOldPastes(cutoffDate: Date): Promise<void> {
   }
   for (const entry of entries) {
     if (!entry.endsWith(STORE_EXTENSION)) continue
+    if (retained.has(entry.slice(0, -STORE_EXTENSION.length))) continue
     const path = join(dir, entry)
     try {
       const info = await stat(path)

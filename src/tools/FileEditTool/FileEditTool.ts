@@ -92,9 +92,11 @@ import {
   renderCarriedWindows,
   spellLineRanges,
   widenLineRanges,
+  type CarriedWindow,
   type LineRange,
+  type ReadThroughPlan,
 } from './readThrough.js'
-import { getPatchFromContents } from '../../utils/diff.js'
+import { getPatchFromContents, type StructuredPatchHunk } from '../../utils/diff.js'
 import { convertLeadingTabsToSpaces } from '../../utils/file.js'
 import {
   getToolUseSummary,
@@ -244,22 +246,82 @@ const READ_RANGES_NAMED = 5
 
 type CarriedLines = { ranges: LineRange[]; rest: LineRange[]; text: string }
 
-function carryUnreadLines(
-  owner: ReturnType<typeof ownerFromToolUseContext>,
+type Carry = { windows: CarriedWindow[]; ranges: LineRange[]; rest: LineRange[]; generation: string }
+
+function planCarry(content: string, expandedPath: string, gaps: readonly LineRange[]): ReadThroughPlan {
+  return planReadThrough(content, widenLineRanges(gaps, READ_THROUGH_MARGIN, lineCountOf(content)), expandedPath)
+}
+
+function planUnreadLines(
   expandedPath: string,
   currentContent: string,
   gaps: readonly LineRange[],
   generationAtRead: string | null,
-): CarriedLines | null {
+): Carry | null {
   if (generationAtRead === null || fileGeneration(expandedPath) !== generationAtRead) return null
-  const plan = planReadThrough(currentContent, widenLineRanges(gaps, READ_THROUGH_MARGIN, lineCountOf(currentContent)), expandedPath)
+  const plan = planCarry(currentContent, expandedPath, gaps)
   if (plan.windows.length === 0) return null
-  for (const window of plan.windows) {
-    recordSeenLines(owner, expandedPath, generationAtRead, window.start, window.end - window.start + 1)
+  const ranges = plan.windows.map(window => ({ start: window.start, end: window.end }))
+  return { windows: plan.windows, ranges, rest: linesOutside(gaps, ranges), generation: generationAtRead }
+}
+
+function recordCarry(
+  owner: ReturnType<typeof ownerFromToolUseContext>,
+  expandedPath: string,
+  generation: string,
+  windows: readonly CarriedWindow[],
+): void {
+  for (const window of windows) {
+    recordSeenLines(owner, expandedPath, generation, window.start, window.end - window.start + 1)
     rememberAnchoredSnapshot(owner, window.anchor, window.content, expandedPath)
   }
-  const ranges = plan.windows.map(window => ({ start: window.start, end: window.end }))
-  return { ranges, rest: linesOutside(gaps, ranges), text: renderCarriedWindows(plan.windows) }
+}
+
+function postLineAtOrAfter(line: number, hunks: readonly StructuredPatchHunk[]): number {
+  let delta = 0
+  for (const hunk of hunks) {
+    if (line < hunk.oldStart) return line + delta
+    if (line >= hunk.oldStart + hunk.oldLines) {
+      delta = hunk.newStart + hunk.newLines - (hunk.oldStart + hunk.oldLines)
+      continue
+    }
+    let oldLine = hunk.oldStart
+    let newLine = hunk.newStart
+    for (const text of hunk.lines) {
+      const mark = text[0]
+      if (mark === '+') {
+        newLine++
+      } else if (mark === ' ' || mark === '-') {
+        if (oldLine === line) return newLine
+        oldLine++
+        if (mark === ' ') newLine++
+      }
+    }
+    return newLine
+  }
+  return line + delta
+}
+
+function mapRangesThroughPatch(ranges: readonly LineRange[], hunks: readonly StructuredPatchHunk[], lastLine: number): LineRange[] {
+  const clamp = (n: number): number => Math.max(1, Math.min(n, lastLine))
+  return coalesceLineRanges(
+    ranges.map(range => {
+      const start = postLineAtOrAfter(range.start, hunks)
+      const end = postLineAtOrAfter(range.end + 1, hunks) - 1
+      return end < start ? { start: clamp(start), end: clamp(start) } : { start: clamp(start), end: clamp(end) }
+    }),
+  )
+}
+
+function sameCallReadThrough(gaps: readonly LineRange[], before: string, after: string, patch: readonly StructuredPatchHunk[], expandedPath: string): string {
+  const oneGap = gaps.length === 1 && gaps[0]!.start === gaps[0]!.end
+  const unread = `${oneGap ? 'Line' : 'Lines'} ${spellLineRanges(gaps)} did not count as read before this edit`
+  const mapped = after === before ? [...gaps] : mapRangesThroughPatch(gaps, patch, Math.max(1, lineCountOf(after)))
+  const plan = planCarry(after, expandedPath, mapped)
+  if (plan.windows.length === 0) return `${unread}.`
+  const shown = plan.windows.map(window => ({ start: window.start, end: window.end }))
+  const one = shown.length === 1 && shown[0]!.start === shown[0]!.end
+  return `${unread}; ${one ? 'line' : 'lines'} ${spellLineRanges(shown)} as ${one ? 'it stands' : 'they stand'} now ${one ? 'is' : 'are'} below, numbered with ${one ? 'its' : 'their'} anchor, and ${one ? 'counts' : 'count'} as read:\n\n${renderCarriedWindows(plan.windows)}`
 }
 
 function linesOfHunks(hunks: readonly EditHunkInput[] | undefined): LineRange[] | null {
@@ -311,7 +373,7 @@ function readLinesOf(entry: FileState | undefined, currentContent: string, inclu
   return { ranges: coalesceLineRanges(ranges), recorded, ledger: currentLedger, earlier, attachmentOnly }
 }
 
-function readKnowledgeWords(displayPath: string, read: ReadLines, addressed: LineRange[] | null, missing: string, carried: CarriedLines | null = null): string {
+function readKnowledgeWords(displayPath: string, read: ReadLines, addressed: LineRange[] | null, missing: string, carried: CarriedLines | null = null, retry = 'edit again without a Read.'): string {
   const named = read.ranges.slice(0, READ_RANGES_NAMED)
   const rest = read.ranges.length - named.length
   let reads: string
@@ -336,7 +398,7 @@ function readKnowledgeWords(displayPath: string, read: ReadLines, addressed: Lin
   if (carried !== null && carried.ranges.length > 0) {
     const oneBelow = carried.ranges.length === 1 && carried.ranges[0]!.start === carried.ranges[0]!.end
     const below = `${oneBelow ? 'line' : 'lines'} ${spellLineRanges(carried.ranges)} ${oneBelow ? 'is' : 'are'} below and ${oneBelow ? 'counts' : 'count'} as read`
-    if (carried.rest.length === 0) return `${reads}; ${touches} — ${below}: edit again without a Read.`
+    if (carried.rest.length === 0) return `${reads}; ${touches} — ${below}: ${retry}`
     const next = carried.rest[0]!
     return `${reads}; ${touches} — ${below}; Read(offset: ${next.start}, limit: ${next.end - next.start + 1}) covers the rest${carried.rest.length > 1 ? ` (unread: ${spellLineRanges(carried.rest)})` : ''}, then edit again.`
   }
@@ -352,21 +414,28 @@ function readKnowledgeWords(displayPath: string, read: ReadLines, addressed: Lin
   return `${reads}; ${touches} — Read(offset: ${first.start}, limit: ${first.end - first.start + 1}) ${covers}.`
 }
 
-function readKnowledgeRefusal(
+type ReadKnowledge =
+  | { verdict: 'known' }
+  | { verdict: 'refused'; message: string }
+  | { verdict: 'carry'; gaps: LineRange[]; carry: Carry }
+
+const READ_NEED = 'a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands)'
+
+function readKnowledge(
   context: ToolUseContext,
   expandedPath: string,
   displayPath: string,
   currentContent: string,
   expectedAnchor: string | undefined,
   touched: { start: number; end: number }[] | null,
-  includeRead = true,
-  named?: { lines: LineRange[] | null; missing: string },
-  carry?: { generation: string | null },
-): string | null {
+  includeRead: boolean | 'content' = true,
+  named?: { lines: LineRange[] | null; missing: string; hunks?: boolean },
+  carry?: { generation: string | null; record: boolean },
+): ReadKnowledge {
   const entry = context.readFileState.get(expandedPath)
-  if (includeRead && entry !== undefined && readCoversRanges(entry, touched)) return null
+  if (includeRead === true && entry !== undefined && readCoversRanges(entry, touched)) return { verdict: 'known' }
   const anchor = hasText(expectedAnchor) ? checkAnchor(expectedAnchor, currentContent, displayPath) : null
-  if (expectedAnchor?.startsWith('fa:') && anchor?.ok) return null
+  if (expectedAnchor?.startsWith('fa:') && anchor?.ok) return { verdict: 'known' }
   let owner: ReturnType<typeof ownerFromToolUseContext>
   let generation: string | null
   let ledger: ReturnType<typeof seenLinesOf>
@@ -380,30 +449,69 @@ function readKnowledgeRefusal(
   } catch (error) {
     throw new Error(`Read-knowledge ${checking} check failed for ${displayPath}: ${error instanceof Error ? error.message : String(error)}. No edit was applied; retry the Read and edit after that check is available.`, { cause: error })
   }
-  const read = readLinesOf(entry, currentContent, includeRead, generation, ledger)
-  if (touched !== null && generation !== null && linesOutside(touched, read.ledger).length === 0) return null
+  const read = readLinesOf(entry, currentContent, includeRead !== false, generation, ledger)
+  if (touched !== null && generation !== null && linesOutside(touched, read.ledger).length === 0) return { verdict: 'known' }
   const addressed = named?.lines ?? touched
   if (addressed !== null && addressed.length > 0 && linesOutside(addressed, read.ranges).length === 0) {
     read.separate = true
     read.ranges = read.ledger
   }
-  let carried: CarriedLines | null = null
+  const anchorFailed = anchor !== null && !anchor.ok
+  const bound = named?.hunks === true && anchor !== null && anchor.ok ? rangeAnchorWindow(expectedAnchor) : null
+  const outsideBound = bound !== null && addressed !== null && linesOutside(addressed, [bound]).length > 0
+  const admissible = read.ranges.length > 0 && !read.earlier && !anchorFailed && !outsideBound && generation !== null
+  let planned: Carry | null = null
   if (carry !== undefined && addressed !== null && addressed.length > 0) {
     const gaps = linesOutside(addressed, read.ranges)
     try {
-      if (gaps.length > 0) carried = carryUnreadLines(owner, expandedPath, currentContent, gaps, carry.generation)
+      if (gaps.length > 0) planned = planUnreadLines(expandedPath, currentContent, gaps, carry.generation)
     } catch (error) {
       throw new Error(`Read-knowledge carry failed for ${displayPath}: ${error instanceof Error ? error.message : String(error)}. No edit was applied; Read the addressed lines before retrying.`, { cause: error })
     }
+    if (planned !== null && planned.rest.length === 0 && admissible) return { verdict: 'carry', gaps, carry: planned }
+    if (planned !== null && carry.record) recordCarry(owner, expandedPath, planned.generation, planned.windows)
   }
+  const carried: CarriedLines | null = planned === null ? null : { ranges: planned.ranges, rest: planned.rest, text: renderCarriedWindows(planned.windows) }
+  const full = carried !== null && carried.rest.length === 0
+  const retry = anchorFailed || outsideBound ? 'edit again with a carried anchor, without a Read.' : 'edit again without a Read.'
   const failed = [
     ...(anchor !== null && !anchor.ok ? [`Anchor check failed: ${formatAnchorFailure(anchor, expectedAnchor!)}`] : []),
     ...(generation === null ? ['File generation check failed: the current generation could not be read.'] : read.earlier ? ['File generation check failed: earlier read coverage belongs to the file before it changed.'] : []),
     'Read ownership/coverage check failed: neither a recorded Read nor the current owner\'s ledger covers all addressed lines.',
   ].join(' ')
-  const words = readKnowledgeWords(displayPath, read, addressed, named?.missing ?? 'the old_string was not found in the current content', carried)
-  const law = `Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). ${failed} ${words}`
-  return carried === null ? law : `${law}\n\n${carried.text}`
+  const words = readKnowledgeWords(displayPath, read, addressed, named?.missing ?? 'the old_string was not found in the current content', carried, retry)
+  const lead = !full
+    ? `Read the file before editing it — the edit needs ${READ_NEED}.`
+    : anchorFailed
+      ? `expected_anchor does not match the file as it stands; the lines the edit touches are below with their current anchor and count as read: ${retry} The edit needs ${READ_NEED}.`
+      : outsideBound
+        ? `expected_anchor covers lines ${spellLineRanges([bound!])} only, not every line the edit touches; the lines the edit touches are below with their current anchor and count as read: ${retry} The edit needs ${READ_NEED}.`
+      : read.earlier
+        ? `The file ${displayPath} changed after the lines you read; the lines the edit touches, as they stand now, are below and count as read: check them, then ${retry} The edit needs ${READ_NEED}.`
+        : `The lines the edit touches are below and count as read: ${retry} The edit needs ${READ_NEED}.`
+  const law = `${lead} ${failed} ${words}`
+  return { verdict: 'refused', message: carried === null ? law : `${law}\n\n${carried.text}` }
+}
+
+function rangeAnchorWindow(anchor: string | undefined): LineRange | null {
+  const parsed = anchor === undefined ? null : /^ra:[0-9a-f]+:L(\d+)\+(\d+)$/.exec(anchor)
+  if (parsed === null) return null
+  const start = Number(parsed[1])
+  const count = Number(parsed[2])
+  return count > 0 ? { start, end: start + count - 1 } : null
+}
+
+function readKnowledgeRefusal(
+  context: ToolUseContext,
+  expandedPath: string,
+  displayPath: string,
+  currentContent: string,
+  expectedAnchor: string | undefined,
+  touched: { start: number; end: number }[] | null,
+  includeRead: boolean | 'content' = true,
+): string | null {
+  const knowledge = readKnowledge(context, expandedPath, displayPath, currentContent, expectedAnchor, touched, includeRead)
+  return knowledge.verdict === 'refused' ? knowledge.message : null
 }
 
 function attemptStaleHunkRecovery(
@@ -704,7 +812,7 @@ export const FileEditTool = buildTool({
     const knowledge =
       mode === 'append'
         ? null
-        : readKnowledgeRefusal(context, expandedPath, input.file_path, currentContent, input.expected_anchor, touched, true, {
+        : readKnowledge(context, expandedPath, input.file_path, currentContent, input.expected_anchor, touched, true, {
             lines: touched,
             missing:
               mode === 'section'
@@ -712,12 +820,13 @@ export const FileEditTool = buildTool({
                 : mode === 'hunks'
                   ? "a hunk's line address does not parse"
                   : 'the old_string was not found in the current content',
-          }, { generation: generationAtStat })
-    if (knowledge !== null) {
+            hunks: mode === 'hunks',
+          }, { generation: generationAtStat, record: true })
+    if (knowledge !== null && knowledge.verdict === 'refused') {
       return {
         result: false as const,
         behavior: 'ask' as const,
-        message: knowledge,
+        message: knowledge.message,
         errorCode: 6,
         meta: { isPathAbsolute: String(isAbsolute(input.file_path)) },
       }
@@ -884,6 +993,7 @@ export const FileEditTool = buildTool({
       fileExists = false
     }
 
+    let sameCall: Extract<ReadKnowledge, { verdict: 'carry' }> | null = null
     if (fileExists && mode !== 'append') {
       const touched = mode === 'exact'
         ? linesOfMatches(freshContent, input.old_string ?? '', input.replace_all === true)
@@ -900,8 +1010,13 @@ export const FileEditTool = buildTool({
         getFileModificationTime(expandedPath) <= entry.timestamp ||
         (isFullReadEntry(entry) && entry.content === freshContent)
       )
-      if (!intact && readKnowledgeRefusal(context, expandedPath, input.file_path, freshContent, input.expected_anchor, touched, false) !== null) {
-        throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
+      if (!intact) {
+        const knowledge = readKnowledge(context, expandedPath, input.file_path, freshContent, input.expected_anchor, touched, 'content', undefined, { generation: fileGeneration(expandedPath), record: false })
+        if (knowledge.verdict === 'refused') throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
+        if (knowledge.verdict === 'carry') {
+          recordCarry(ownerFromToolUseContext(context), expandedPath, knowledge.carry.generation, knowledge.carry.windows)
+          sameCall = knowledge
+        }
       }
     }
 
@@ -1003,6 +1118,7 @@ export const FileEditTool = buildTool({
       reportedOldString = oldString
       reportedNewString = newString
     }
+    const readThrough = sameCall === null ? undefined : sameCallReadThrough(sameCall.gaps, freshContent, updatedFile, patch, expandedPath)
 
     const userModified = context.userModifiedInput === true
     const replaceAll = input.replace_all ?? false
@@ -1039,6 +1155,7 @@ export const FileEditTool = buildTool({
         userModified,
         replaceAll,
         noChange: { streak: verdict.streak, stop: verdict.atCeiling, guidance: verdict.guidance },
+        ...(readThrough !== undefined ? { readThrough } : {}),
       }
       return {
         data,
@@ -1102,6 +1219,7 @@ export const FileEditTool = buildTool({
       ...(gitDiff !== undefined ? { gitDiff } : {}),
       ...(freshLineAnchors !== undefined ? { freshLineAnchors } : {}),
       ...(staleRecoveryNote !== undefined ? { staleRecovery: staleRecoveryNote } : {}),
+      ...(readThrough !== undefined ? { readThrough } : {}),
     }
     return {
       data,
@@ -1130,7 +1248,7 @@ export const FileEditTool = buildTool({
       return {
         tool_use_id: toolUseID,
         type: 'tool_result' as const,
-        content: text,
+        content: data.readThrough !== undefined ? `${text}\n\n${data.readThrough}` : text,
         ...(data.noChange.stop ? { is_error: true } : {}),
       }
     }
@@ -1139,7 +1257,8 @@ export const FileEditTool = buildTool({
     const text = data.replaceAll
       ? `The file ${data.filePath} has been updated${modifiedClause}. All occurrences of the string were replaced.${recoveredClause}`
       : `The file ${data.filePath} has been updated successfully${modifiedClause}.${recoveredClause}`
-    const content = data.freshLineAnchors !== undefined ? `${text}\n\n${data.freshLineAnchors}` : text
+    const anchored = data.freshLineAnchors !== undefined ? `${text}\n\n${data.freshLineAnchors}` : text
+    const content = data.readThrough !== undefined ? `${anchored}\n\n${data.readThrough}` : anchored
     return { tool_use_id: toolUseID, type: 'tool_result' as const, content }
   },
   extractSearchText(data: Output): string {

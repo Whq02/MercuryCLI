@@ -72,17 +72,29 @@ async function edit(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: tru
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
   }
 }
+async function editResult(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: true; text: string } | { ok: false; message: string }> {
+  const verdict = await validate(input, ctx)
+  if (!verdict.ok) return verdict
+  try {
+    const out = await (FileEditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } })
+    const block = (FileEditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_fixture')
+    return { ok: true, text: typeof block.content === 'string' ? block.content : '' }
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : String(err) }
+  }
+}
+const textOf = (v: { ok: boolean; text?: string; message?: string }): string => (v.ok ? v.text ?? '' : v.message ?? '')
 const lines = (n: number): string => Array.from({ length: n }, (_, i) => `const v${i + 1} = ${i + 1}`).join('\n') + '\n'
 const LAW = 'Read the file before editing it'
 const owner = processMainOwner()
 const messageOf = (v: { ok: boolean; message?: string }): string => (v.ok ? '(edited)' : v.message ?? '')
 
-section('R. the refusal names the lines read and the lines the edit touches')
+section('R. the refusal names the lines read and the lines the edit touches; a file read as it stands lands in one call')
 {
   const file = join(fixtures, 'thirty.ts')
   writeFileSync(file, lines(30))
   const none = await validate({ file_path: file, old_string: 'const v12 = 12\nconst v13 = 13', new_string: 'x' }, makeContext())
-  check('R1 with no read at all the law refuses in its own words', !none.ok && none.message.includes(LAW) && none.message.includes('expected_anchor'), messageOf(none))
+  check('R1 with no read at all the law refuses, leading with what to do', !none.ok && none.message.startsWith('The lines the edit touches are below and count as read: edit again without a Read.') && none.message.includes('expected_anchor'), messageOf(none))
   check('R1a …saying no lines were read', !none.ok && none.message.includes(`No lines of ${file} were read this session`), messageOf(none))
   check('R1b …naming the lines the edit touches and carrying them with a margin', !none.ok && none.message.includes('the edit touches lines 12-13 — lines 9-16 are below and count as read: edit again without a Read.'), messageOf(none))
   _resetSeenLinesForTesting()
@@ -90,36 +102,38 @@ section('R. the refusal names the lines read and the lines the edit touches')
   const ctx = makeContext()
   primeRead(ctx, file, { offset: 1, limit: 2 })
   recordSeenLines(owner, file, fileGeneration(file)!, 20, 3)
-  const partial = await validate({ file_path: file, old_string: 'const v12 = 12\nconst v13 = 13', new_string: 'x' }, ctx)
-  check('R2 a windowed read and a displayed range are both named, coalesced and in order', !partial.ok && partial.message.includes(`Lines of ${file} read this session: 1-2, 20-22;`), messageOf(partial))
-  check('R2a …with the touched lines carried below', !partial.ok && partial.message.includes('the edit touches lines 12-13 — lines 9-16 are below and count as read: edit again without a Read.'), messageOf(partial))
+  const partial = await editResult({ file_path: file, old_string: 'const v12 = 12\nconst v13 = 13', new_string: 'x' }, ctx)
+  check('R2 a windowed read beside a displayed range: the edit of lines between them lands in one call', partial.ok && readFileSync(file, 'utf8').includes('\nx\n'), textOf(partial))
+  check('R2a …and the result names the lines that did not count as read, then the edited lines as they now stand', partial.ok && partial.text.includes('has been updated successfully') && partial.text.includes('Lines 12-13 did not count as read before this edit; lines 9-15 as they stand now are below, numbered with their anchor, and count as read:') && /\n12\tx\n13\tconst v14 = 14\n/.test(partial.text), textOf(partial))
 
-  recordSeenLines(owner, file, fileGeneration(file)!, 5, 1)
-  recordSeenLines(owner, file, fileGeneration(file)!, 8, 1)
-  recordSeenLines(owner, file, fileGeneration(file)!, 10, 1)
-  recordSeenLines(owner, file, fileGeneration(file)!, 26, 2)
-  recordSeenLines(owner, file, fileGeneration(file)!, 29, 1)
-  const many = await validate({ file_path: file, old_string: 'const v18 = 18', new_string: 'x' }, ctx)
-  check('R3 more than a handful of ranges: five are named and the rest counted', !many.ok && many.message.includes('read this session: 1-2, 5, 8-16, 20-22, 26-27 (and 1 more range);'), messageOf(many))
+  _resetSeenLinesForTesting()
+  const many = makeContext()
+  for (const [start, count] of [[1, 2], [5, 1], [8, 1], [10, 1], [20, 3], [26, 2], [29, 1]] as const) recordSeenLines(owner, file, fileGeneration(file)!, start, count)
+  const manyRefused = await validate({ file_path: file, old_string: 'const v18 = 18', new_string: 'y', expected_anchor: mintFileAnchor('other bytes\n') }, many)
+  check('R3 more than a handful of ranges: five are named and the rest counted', !manyRefused.ok && manyRefused.message.includes('read this session: 1-2, 5, 8, 10, 20-22 (and 2 more ranges);'), messageOf(manyRefused))
 
-  const single = await validate({ file_path: file, old_string: 'const v4 = 4', new_string: 'x' }, ctx)
-  check('R4 a one-line edit names its line in the singular', !single.ok && single.message.includes('the edit touches line 4 — lines 1-7 are below and count as read: edit again without a Read.'), messageOf(single))
+  const single = await editResult({ file_path: file, old_string: 'const v4 = 4', new_string: 'const v4 = 44' }, many)
+  check('R4 a one-line edit names its line in the singular', single.ok && single.text.includes('Line 4 did not count as read before this edit; lines 1-7 as they stand now are below, numbered with their anchor, and count as read:') && /\n4\tconst v4 = 44\n/.test(single.text), textOf(single))
 
-  const missing = await validate({ file_path: file, old_string: 'const nowhere = 0', new_string: 'x' }, ctx)
+  const ctxWindow = makeContext()
+  primeRead(ctxWindow, file, { offset: 1, limit: 2 })
+  const missing = await validate({ file_path: file, old_string: 'const nowhere = 0', new_string: 'x' }, ctxWindow)
   check('R5 an old_string absent from the file says so instead of guessing lines', !missing.ok && missing.message.includes(LAW) && missing.message.includes('the old_string was not found in the current content, so the lines the edit touches are unknown'), messageOf(missing))
 
-  const heading = await validate({ file_path: file, section: '## Nope', new_string: '## Nope\n' }, ctx)
+  const heading = await validate({ file_path: file, section: '## Nope', new_string: '## Nope\n' }, ctxWindow)
   check('R6 a section edit whose heading is absent says so in section words', !heading.ok && heading.message.includes('the section heading was not found in the current content'), messageOf(heading))
 
   _resetSeenLinesForTesting()
   const hunks = await validate({ file_path: file, expected_anchor: mintFileAnchor('other bytes\n'), hunks: [{ lines: '3-4', replace: 'x' }, { lines: '9', replace: 'y' }] }, makeContext())
-  check('R7 a hunks edit names the hunk lines it addresses', !hunks.ok && hunks.message.includes(LAW) && hunks.message.includes(`No lines of ${file} were read this session; the edit touches lines 3-4, 9 — lines 1-12 are below and count as read: edit again without a Read.`), messageOf(hunks))
+  check('R7 a hunks edit with a stale anchor names the hunk lines it addresses and leads with the anchor', !hunks.ok && hunks.message.startsWith('expected_anchor does not match the file as it stands; the lines the edit touches are below with their current anchor and count as read: edit again with a carried anchor, without a Read.') && hunks.message.includes(`No lines of ${file} were read this session; the edit touches lines 3-4, 9 — lines 1-12 are below and count as read: edit again with a carried anchor, without a Read.`), messageOf(hunks))
 
   _resetSeenLinesForTesting()
+  const part = join(fixtures, 'part.ts')
+  writeFileSync(part, lines(30))
   const ctxCover = makeContext()
-  primeRead(ctxCover, file, { offset: 12, limit: 1 })
-  const half = await validate({ file_path: file, old_string: 'const v12 = 12\nconst v13 = 13', new_string: 'x' }, ctxCover)
-  check('R8 a read covering part of the touched lines carries the rest with its margin', !half.ok && half.message.includes('the edit touches lines 12-13 — lines 10-16 are below and count as read: edit again without a Read.'), messageOf(half))
+  primeRead(ctxCover, part, { offset: 12, limit: 1 })
+  const half = await editResult({ file_path: part, old_string: 'const v12 = 12\nconst v13 = 13', new_string: 'x' }, ctxCover)
+  check('R8 a read covering part of the touched lines: the edit lands in one call and the result carries the rest with its margin', half.ok && half.text.includes('Line 13 did not count as read before this edit; lines 9-15 as they stand now are below, numbered with their anchor, and count as read:'), textOf(half))
 
   const attachedFile = join(fixtures, 'attached.ts')
   writeFileSync(attachedFile, lines(12))
@@ -167,9 +181,15 @@ section('L. the law itself is unchanged')
   check('L4 a matching full anchor still edits without a read', anchored.ok && readFileSync(file, 'utf8').includes('const v2 = 22'), messageOf(anchored))
   const before = readFileSync(file, 'utf8')
   const refused = await edit({ file_path: file, old_string: 'const v6 = 6', new_string: 'const v6 = 66' }, makeContext())
-  check('L5 an unread line still refuses and writes nothing', !refused.ok && refused.message.includes(LAW) && readFileSync(file, 'utf8') === before, messageOf(refused))
+  check('L5 a line of a file that changed after the lines you read still refuses and writes nothing, leading with the change', !refused.ok && refused.message.startsWith(`The file ${file} changed after the lines you read; the lines the edit touches, as they stand now, are below and count as read: check them, then edit again without a Read.`) && readFileSync(file, 'utf8') === before, messageOf(refused))
   const carried = await edit({ file_path: file, old_string: 'const v6 = 6', new_string: 'const v6 = 66' }, makeContext())
   check('L5a …and the same edit lands on the lines the refusal carried', carried.ok && readFileSync(file, 'utf8').includes('const v6 = 66'), messageOf(carried))
+  const never = join(fixtures, 'never.ts')
+  writeFileSync(never, lines(6))
+  const neverRead = await edit({ file_path: never, old_string: 'const v6 = 6', new_string: 'const v6 = 66' }, makeContext())
+  check('L5b a file never read still refuses and writes nothing, leading with what to do', !neverRead.ok && neverRead.message.startsWith('The lines the edit touches are below and count as read: edit again without a Read.') && readFileSync(never, 'utf8') === lines(6), messageOf(neverRead))
+  const neverAgain = await edit({ file_path: never, old_string: 'const v6 = 6', new_string: 'const v6 = 66' }, makeContext())
+  check('L5c …and the same edit lands on the lines the refusal carried', neverAgain.ok && readFileSync(never, 'utf8').includes('const v6 = 66'), messageOf(neverAgain))
   const appended = await edit({ file_path: file, append: 'const v7 = 7\n' }, makeContext())
   check('L6 an append still needs no read', appended.ok && readFileSync(file, 'utf8').endsWith('const v7 = 7\n'), messageOf(appended))
 }
@@ -209,8 +229,8 @@ section('the diagnostic reads the same current knowledge as the gate')
   const bomContext = makeContext()
   await (FileReadTool as { call: Function }).call({ file_path: bomFile, offset: 1, limit: 5 }, bomContext, null, parent)
   _resetSeenLinesForTesting()
-  const bomRefused = await validate({ file_path: bomFile, old_string: 'const v12 = 12', new_string: 'replacement' }, bomContext)
-  check('an unchanged BOM is not misreported as a generation change', !bomRefused.ok && bomRefused.message.includes('read this session: 1-5') && !bomRefused.message.includes('File generation check failed:'), messageOf(bomRefused))
+  const bomEdit = await editResult({ file_path: bomFile, old_string: 'const v12 = 12', new_string: 'replacement' }, bomContext)
+  check('an unchanged BOM is not misreported as a generation change: the edit beside the window lands in one call', bomEdit.ok && bomEdit.text.includes('Line 12 did not count as read before this edit') && !bomEdit.text.includes('File generation check failed:'), textOf(bomEdit))
   const separateFile = join(fixtures, 'separate.ts')
   writeFileSync(separateFile, original)
   const separateContext = makeContext()
@@ -219,10 +239,8 @@ section('the diagnostic reads the same current knowledge as the gate')
   utimesSync(separateFile, later, later)
   recordSeenLines(owner, separateFile, fileGeneration(separateFile)!, 6, 5)
   const separateInput = { file_path: separateFile, old_string: original.split('\n').slice(0, 10).join('\n'), new_string: 'replacement' }
-  const separate = await validate(separateInput, separateContext)
-  check('separate sources are not advertised as one complete read', !separate.ok && !separate.message.includes('read this session: 1-10;') && separate.message.includes('separate Read') && separate.message.includes('count as read'), messageOf(separate))
-  const retry = await edit(separateInput, separateContext)
-  check('the current-ledger carry repairs the separate-source gap without widening admission', retry.ok && readFileSync(separateFile, 'utf8').startsWith('replacement'), messageOf(retry))
+  const separate = await editResult(separateInput, separateContext)
+  check("separate sources are never combined into one read: the ledger's missing lines are carried and the edit lands with them in its result", separate.ok && separate.text.includes('Lines 1-5 did not count as read before this edit') && !separate.text.includes('read this session: 1-10;') && readFileSync(separateFile, 'utf8').startsWith('replacement'), textOf(separate))
 }
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
