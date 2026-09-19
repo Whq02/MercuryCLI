@@ -8,7 +8,16 @@ import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
-const DIST = path.join(REPO, 'dist/mercury.mjs')
+const arg = (name: string): string | undefined => {
+  const at = process.argv.indexOf(name)
+  return at < 0 ? undefined : process.argv[at + 1]
+}
+const DIST = path.resolve(arg('--dist') ?? path.join(REPO, 'dist/mercury.mjs'))
+const VENDORED_NODE = path.join(path.dirname(DIST), 'vendor/node', process.platform === 'win32' ? 'node.exe' : path.join('bin', 'node'))
+const NODE = existsSync(VENDORED_NODE) ? VENDORED_NODE : 'node'
+const ONLY = new Set((arg('--only') ?? 'list,pool,wire').split(','))
+const FRAMES = arg('--frames')
+const SIZES = (arg('--sizes') ?? '80x21,80x14,82x17,120x40').split(',').map(size => size.split('x').map(Number) as [number, number])
 const VSHOT = path.join(REPO, 'scripts/ui/vshot.py')
 
 let failures = 0
@@ -23,12 +32,15 @@ const section = (t: string): void => {
 }
 
 if (!existsSync(DIST)) {
-  console.log('FAIL dist/mercury.mjs missing — run `bun run build.ts` first (the drive proves the BUILT binary)')
+  console.log(`FAIL ${DIST} missing — run \`bun run build.ts\` first, or name a bundle with --dist (the drive proves the BUILT binary)`)
   process.exit(1)
 }
+if (FRAMES !== undefined) mkdirSync(FRAMES, { recursive: true })
 
 const ZAI_REPLY = 'glm picked up the handoff'
 const DEEPSEEK_REPLY = 'deepseek picked up the handoff'
+const FABLE_REPLY = 'fable picked up the handoff'
+const GPT_REPLY = 'sol answers from the fixture'
 const ZAI_ROW = 'glm-5.3'
 const DEEPSEEK_ROW = 'deepseek-v4-pro'
 const FABLE_51 = 'claude-fable-5-1'
@@ -132,8 +144,9 @@ const reap = (): void => {
 process.on('exit', reap)
 
 console.log('============================================================')
-console.log(' cap offer LIST + BINDING POOL — the real binary, loopback lanes')
+console.log(' cap offer LIST + BINDING POOL + WIRE ROAD — the real binary, loopback lanes')
 console.log('============================================================')
+console.log(` bundle ${DIST}`)
 
 type Send = { atTick?: number; minTick?: number; afterPrevTicks?: number; requireAwait?: boolean; awaitText?: string; awaitSettleTicks?: number; data: string; mark?: string }
 type Mark = { label: string; atTick: number; grid: Array<Array<{ c: string }>> }
@@ -190,10 +203,10 @@ function readCaptures(): Capture[] {
     .map(l => JSON.parse(l) as Capture)
 }
 
-function drive(name: string, world: { home: string; cwd: string }, env: NodeJS.ProcessEnv, model: string, sends: Send[], total: number): { payload: Payload | null; wire: Capture[]; status: number | null } {
+function drive(name: string, world: { home: string; cwd: string }, env: NodeJS.ProcessEnv, model: string, sends: Send[], total: number, size: [number, number] = [110, 34]): { payload: Payload | null; wire: Capture[]; status: number | null } {
   const before = readCaptures().length
   const out = path.join(world.home, `grid-${name}.json`)
-  const cfg = { argv: ['node', DIST, '--model', model], cwd: world.cwd, sends, stableTicks: 4, total, cols: 110, rows: 34, out }
+  const cfg = { argv: [NODE, DIST, '--model', model], cwd: world.cwd, sends, stableTicks: 4, total, cols: size[0], rows: size[1], out }
   const cfgPath = path.join(world.home, `cfg-${name}.json`)
   writeFileSync(cfgPath, JSON.stringify(cfg))
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf-8', timeout: vshotBudgetMs(total * 200 + 30_000), cwd: world.cwd, env })
@@ -218,7 +231,7 @@ const listEnv = {
   }),
 }
 const PROBE_GAP = 60
-const list = drive(
+const list = ONLY.has('list') ? drive(
   'list',
   listWorld,
   listEnv,
@@ -239,8 +252,8 @@ const list = drive(
     { afterPrevTicks: PROBE_GAP, awaitText: OPENAI_OFFER_TITLE, data: '', mark: 'probe' },
   ],
   1200,
-)
-{
+) : null
+if (list !== null) {
   const p = list.payload
   const wire = list.wire
   const finalGrid = p ? gridText(p.grid) : ''
@@ -301,7 +314,7 @@ const poolEnv = {
     seven_day_fable: { utilization: 87, resets_at: poolResetIso },
   }),
 }
-const pool = drive(
+const pool = ONLY.has('pool') ? drive(
   'pool',
   poolWorld,
   poolEnv,
@@ -314,8 +327,8 @@ const pool = drive(
     { afterPrevTicks: PROBE_GAP, awaitText: ANTHROPIC_OFFER_TITLE, data: '', mark: 'probe' },
   ],
   900,
-)
-{
+) : null
+if (pool !== null) {
   const p = pool.payload
   const wire = pool.wire
   const finalGrid = p ? gridText(p.grid) : ''
@@ -342,8 +355,123 @@ const pool = drive(
   check('no false way-home card after the switch (the home window is read for the seat\'s own model)', !finalGrid.includes('window reset') && !markGrid(p, 'probe').includes('window reset'), tail(finalGrid, 10))
 }
 
+const wireWorld = ONLY.has('wire') || FRAMES !== undefined ? seedWorld('wire', { openaiSubscription: true, claudeSubscription: true, anthropicKeyApproved: false }) : null
+const wireEnv = (home: string): NodeJS.ProcessEnv => {
+  const env: NodeJS.ProcessEnv = {
+    ...baseEnv(home),
+    ANTHROPIC_BASE_URL: `${base}/capped`,
+    MERCURY_MOCK_USAGE_PAYLOAD: JSON.stringify({
+      five_hour: { utilization: 12, resets_at: new Date(Date.now() + 3600_000).toISOString() },
+      seven_day: { utilization: 40, resets_at: new Date(Date.now() + 5 * 86400_000).toISOString() },
+    }),
+  }
+  delete env.MERCURY_MOCK_LIMITS
+  return env
+}
+const wireSends = (ready: string): Send[] => [
+  { requireAwait: true, awaitText: 'New Session', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+  { requireAwait: true, awaitText: ready, minTick: 20, awaitSettleTicks: 2, data: 'hello fable\r', mark: 'ready' },
+  { requireAwait: true, awaitText: FABLE_REPLY, minTick: 6, awaitSettleTicks: 2, data: '', mark: 'replied' },
+]
+const isMainTurn = (c: Capture, ask: string): boolean => JSON.stringify(c.body ?? {}).includes(ask)
+const wire = wireWorld !== null && ONLY.has('wire')
+  ? drive(
+      'wire',
+      wireWorld,
+      wireEnv(wireWorld.home),
+      FABLE_51,
+      [
+        ...wireSends('· ready'),
+        { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 2, awaitSettleTicks: 4, data: '\x1b', mark: 'home-offer' },
+        { requireAwait: true, awaitText: '? for shortcuts', minTick: 4, awaitSettleTicks: 3, data: '/model gpt-5.6-sol\r', mark: 'after-esc' },
+        { afterPrevTicks: 45, awaitText: 'Model switch preview', minTick: 4, awaitSettleTicks: 2, data: '\r', mark: 'switch' },
+        { requireAwait: true, awaitText: 'Set model to', minTick: 4, awaitSettleTicks: 2, data: 'hello sol\r', mark: 'switched' },
+        { requireAwait: true, awaitText: OPENAI_OFFER_TITLE, minTick: 12, awaitSettleTicks: 4, data: '\x1b[B', mark: 'list' },
+        { requireAwait: true, awaitText: OPENAI_OFFER_TITLE, minTick: 4, awaitSettleTicks: 2, data: '\x1b[B', mark: 'down1' },
+        { requireAwait: true, awaitText: OPENAI_OFFER_TITLE, minTick: 4, awaitSettleTicks: 2, data: '\r', mark: 'down2' },
+        { requireAwait: true, awaitText: OPENAI_OFFER_TITLE, minTick: 4, awaitSettleTicks: 3, data: '\x1b', mark: 'inert' },
+        { requireAwait: true, awaitText: '? for shortcuts', minTick: 4, awaitSettleTicks: 3, data: '', mark: 'end' },
+      ],
+      900,
+    )
+  : null
+if (wire !== null) {
+  const p = wire.payload
+  const captured = wire.wire
+  const finalGrid = p ? gridText(p.grid) : ''
+  const kinds = captured.map(c => c.kind).join(',')
+  section("W1 — the home lane's own wire spoke its cap on a session turn, and the card rose from the runner's verdict")
+  const capped = captured.filter(c => c.kind === 'anthropic-capped' && isMainTurn(c, 'hello fable'))
+  check('the fixture answered the Anthropic turn on the capped route, the rejected verdict in its headers', capped.length === 1, `kinds=${kinds}`)
+  const replied = markGrid(p, 'replied')
+  check('the reply painted', replied.includes(FABLE_REPLY), `status=${wire.status} endReason=${p?.endReason ?? '?'}\n${tail(replied)}`)
+  const homeOffer = markGrid(p, 'home-offer')
+  check('the offer card rose after the turn — no seam typed, the wire alone spoke', homeOffer.includes(ANTHROPIC_OFFER_TITLE), `endReason=${p?.endReason ?? '?'}\n${tail(finalGrid)}`)
+  check('the card states the reached weekly limit and its reset', homeOffer.includes('the Anthropic weekly limit is reached') && homeOffer.includes('refused until reset') && homeOffer.includes('resets '), tail(homeOffer))
+  check('the card lists the key lanes as the way out, the Z.AI row highlighted first', (rowLine(homeOffer, 'Z.AI') ?? '').includes('▸') && rowLine(homeOffer, 'DeepSeek') !== undefined, tail(homeOffer))
+
+  section("W2 — esc leaves the card; the seat moves to the OpenAI row on the operator's word")
+  const afterEsc = markGrid(p, 'after-esc')
+  check('esc left the card and the composer is back', !afterEsc.includes(ANTHROPIC_OFFER_TITLE) && afterEsc.includes('? for shortcuts'), tail(afterEsc))
+  const switched = markGrid(p, 'switched')
+  check('the seat moved to gpt-5.6-sol (the receipt painted)', switched.includes('Set model to') && (switched.includes('gpt-5.6-sol') || switched.includes('GPT-5.6')), tail(switched, 8))
+
+  section("W3 — the GPT turn's card lists the Anthropic lane at its cap, last and marked, from the same relayed verdict")
+  const listGrid = markGrid(p, 'list')
+  check('the OpenAI card stood when the first ↓ was sent', listGrid.includes(OPENAI_OFFER_TITLE), `endReason=${p?.endReason ?? '?'}\n${tail(finalGrid)}`)
+  const zaiLine = rowLine(listGrid, 'Z.AI')
+  const deepseekLine = rowLine(listGrid, 'DeepSeek')
+  const anthropicLine = rowLine(listGrid, 'Anthropic')
+  check('three rows: Z.AI, DeepSeek and Anthropic', zaiLine !== undefined && deepseekLine !== undefined && anthropicLine !== undefined, tail(listGrid))
+  const order = ['Z.AI', 'DeepSeek', 'Anthropic'].map(f => lines(listGrid).findIndex(l => l.includes(` ${f} ⇄ `)))
+  check('the at-cap lane is LAST', order[0]! >= 0 && order[1]! > order[0]! && order[2]! > order[1]!, JSON.stringify(order))
+  check("the Anthropic row is marked at its cap on the weekly limit the wire named, with its reset", (anthropicLine ?? '').includes('at its cap') && (anthropicLine ?? '').includes('weekly limit') && (anthropicLine ?? '').includes('resets'), anthropicLine ?? '(no row)')
+  check("the key lanes report no usage ('no usage read')", (zaiLine ?? '').includes('no usage read') && (deepseekLine ?? '').includes('no usage read'))
+
+  section('W4 — the at-cap row: enter never advertised, ↵ inert, esc dismisses')
+  const down2 = markGrid(p, 'down2')
+  check('after two ↓ the cursor sits on the at-cap Anthropic row', (rowLine(down2, 'Anthropic') ?? '').includes('▸'), tail(down2))
+  check('the guide there never names enter; the lane is said not usable', !down2.includes('enter opens') && down2.includes('dismisses') && down2.includes('not usable right now'), tail(down2))
+  const inert = markGrid(p, 'inert')
+  check('↵ on the at-cap row is INERT — the card still stands, no preview opened', inert.includes(OPENAI_OFFER_TITLE) && !inert.includes('Model switch preview'), tail(inert))
+  const end = markGrid(p, 'end')
+  check('esc dismissed the card and the composer is back', !end.includes(OPENAI_OFFER_TITLE) && end.includes('? for shortcuts'), tail(end))
+
+  section('W5 — the wire: one Anthropic turn on the capped route, the GPT turn on the Responses wire, nothing else on the Anthropic wire')
+  check('exactly one MAIN Anthropic turn reached the wire, the capped one', capped.length === 1 && !captured.some(c => c.kind === 'anthropic' && isMainTurn(c, 'hello fable')), `kinds=${kinds}`)
+  check('the GPT turn ran on the Responses wire and its reply painted', captured.some(c => c.kind === 'openai' && isMainTurn(c, 'hello sol')) && (finalGrid.includes(GPT_REPLY) || end.includes(GPT_REPLY)), `kinds=${kinds}`)
+  check('no request after the switch reached the Anthropic wires', !captured.some(c => (c.kind === 'anthropic' || c.kind === 'anthropic-capped') && isMainTurn(c, 'hello sol')), `kinds=${kinds}`)
+}
+
+if (FRAMES !== undefined && wireWorld !== null) {
+  section(`FRAMES — the card after a session turn's capped reply, at ${SIZES.map(s => s.join('x')).join(', ')}`)
+  for (const size of SIZES) {
+    const tag = `${size[0]}x${size[1]}`
+    const cockpit = size[0] >= 100 && size[1] >= 26
+    const shot = drive(
+      `frames-${tag}`,
+      wireWorld,
+      wireEnv(wireWorld.home),
+      FABLE_51,
+      [
+        ...wireSends(cockpit ? '· ready' : 'Type a prompt'),
+        { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 2, awaitSettleTicks: 4, data: '', mark: 'home-offer' },
+      ],
+      260,
+      size,
+    )
+    const payload = shot.payload
+    const card = markGrid(payload, 'home-offer')
+    const final = payload ? gridText(payload.grid) : ''
+    const frame = card !== '' ? card : final
+    writeFileSync(path.join(FRAMES, `wire-card-${tag}.txt`), `${frame}\n`)
+    writeFileSync(path.join(FRAMES, `wire-card-${tag}-final.txt`), `${final}\n`)
+    console.log(`  ${tag}: ${card !== '' ? 'the card rose' : 'no card rose'} (receipts ${payload?.sendReceipts?.length ?? 0}/${4}, endReason=${payload?.endReason ?? '?'})`)
+  }
+}
+
 if (failures > 0) {
-  for (const world of ['list', 'pool']) {
+  for (const world of ['list', 'pool', 'wire']) {
     try {
       const debugDir = path.join(ROOT_TMP, world, 'debug')
       if (!existsSync(debugDir)) continue

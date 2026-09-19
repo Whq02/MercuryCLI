@@ -55,6 +55,20 @@ function anthropicSse(): string {
   ].join('')
 }
 
+function cappedHeaders(): Record<string, string> {
+  const nowSeconds = Math.floor(Date.now() / 1000)
+  const weekReset = nowSeconds + 5 * 86_400
+  return {
+    'anthropic-ratelimit-unified-status': 'rejected',
+    'anthropic-ratelimit-unified-reset': String(weekReset),
+    'anthropic-ratelimit-unified-representative-claim': 'seven_day',
+    'anthropic-ratelimit-unified-7d-utilization': '1',
+    'anthropic-ratelimit-unified-7d-reset': String(weekReset),
+    'anthropic-ratelimit-unified-5h-utilization': '0.12',
+    'anthropic-ratelimit-unified-5h-reset': String(nowSeconds + 3600),
+  }
+}
+
 function usageHeaders(call: number): Record<string, string> {
   const first = call === 1
   return {
@@ -110,8 +124,9 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       return
     }
     if (req.method === 'POST' && url.endsWith('/v1/messages')) {
-      record({ kind: 'anthropic', url, body, at: Date.now() })
-      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      const capped = url.startsWith('/capped/')
+      record({ kind: capped ? 'anthropic-capped' : 'anthropic', url, body, at: Date.now() })
+      res.writeHead(200, { 'content-type': 'text/event-stream', ...(capped ? cappedHeaders() : {}) })
       res.end(anthropicSse())
       return
     }
