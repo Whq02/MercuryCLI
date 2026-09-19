@@ -445,7 +445,13 @@ if (LEG === 'chat' || LEG === 'both') {
   check('the chat receipt lands after the pane is confirmed', receipt.includes('Login successful'), tail(receipt, 10))
   check('the credential on file is the one the sign-in landed', r.storedToken === SECOND_ACCESS, String(r.storedToken))
   check('the stored account beside it is the one that signed in, with no /accounts opened', r.storedEmail === SECOND_EMAIL, String(r.storedEmail))
-  check('/status names the account that just signed in, with no /accounts opened', end.includes(SECOND_EMAIL) && !end.includes(FIRST_EMAIL), tail(end, 20))
+  const statusRow = end.split('\n').find(l => /^\s*│?\s*Anthropic\s/.test(l))
+  if (statusRow === undefined) {
+    record('/status', `the account rows are folded at ${COLS}x${ROWS}; the Anthropic row is not on this frame`)
+    check('/status never names the account stored before the switch', end.includes('Mercury — status') && !end.includes(FIRST_EMAIL), tail(end, 20))
+  } else {
+    check('/status names the account that just signed in, with no /accounts opened', statusRow.includes(SECOND_EMAIL) && !statusRow.includes(FIRST_EMAIL), statusRow.trim())
+  }
   if (failures > 0 || KEEP) kept.push(r.home)
   else rmSync(r.home, { recursive: true, force: true })
 }
