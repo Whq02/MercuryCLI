@@ -7,7 +7,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getPlatform } from '../../utils/platform.js'
 import { exec } from '../../utils/Shell.js'
-import { scrubbedSessionEnvNotice } from '../shared/sessionEnvNotice.js'
+import { sessionEnvNoticeForResult } from '../shared/sessionEnvNotice.js'
 import type { ExecResult } from '../../utils/ShellCommand.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
@@ -119,6 +119,7 @@ export type Out = {
   persistedOutputSize?: number
   gitOperation?: unknown
   scrubbedSessionEnv?: readonly string[]
+  sessionEnvNotice?: string
 }
 
 
@@ -369,7 +370,7 @@ async function* runPowerShell(
     }
     if (interpretation.isError && !interruptedByUser) {
       const annotated = SandboxManager.annotateStderrWithSandboxFailures(input.command, out)
-      throw new ShellError(out, [annotated, scrubbedSessionEnvNotice(scrubbedSessionEnv)].filter(Boolean).join('\n'), result.code, result.interrupted)
+      throw new ShellError(out, [annotated, sessionEnvNoticeForResult({ scrubbed: scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\n'), result.code, result.interrupted)
     }
 
     let persistedOutputPath: string | undefined
@@ -422,7 +423,7 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
   let errorText = output.stderr.trimEnd()
   if (output.interrupted) errorText += `\n<error>The command was cut short before it finished.</error>`
   const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output) : ''
-  const scrubNotice = scrubbedSessionEnvNotice(output.scrubbedSessionEnv)
+  const scrubNotice = output.sessionEnvNotice ?? ''
   const content = [stdout, errorText, backgroundNotice, scrubNotice].filter(p => p !== '').join('\n')
   return { tool_use_id: toolUseID, type: 'tool_result', content, is_error: output.interrupted }
 }
@@ -495,7 +496,9 @@ export const PowerShellTool = buildTool({
         onProgress?.({ toolUseID: `${context.toolUseId ?? 'pwsh'}-${counter}`, data: step.value.data })
         step = await generator.next()
       }
-      return { data: step.value }
+      const out = step.value
+      out.sessionEnvNotice = sessionEnvNoticeForResult({ scrubbed: out.scrubbedSessionEnv, commandText: input.command })
+      return { data: out }
     } finally {
       context.setToolJSX?.(null)
     }
