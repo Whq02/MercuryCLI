@@ -30,37 +30,49 @@ const seen: Record<string, SeenResult> = {}
 const smallEdit = { file_path: small, old_string: 'const v20 = 20', new_string: 'const v20 = 2000' }
 const wideEdit = { file_path: wide, old_string: "export const wide3 = '", new_string: "export const wideThree = '" }
 
+let stage = 0
 const fixture = await startScriptedFixture(req => {
   if (req.ask.trim() !== ASK) return [{ type: 'text', text: 'ok' }]
   const last = req.results[req.results.length - 1]
-  switch (req.step) {
-    case 0:
-      return [{ type: 'tool_use', name: 'Read', input: { file_path: small, offset: 1, limit: 5 } }]
+  if (req.step === 0) {
+    stage = 1
+    return [{ type: 'tool_use', name: 'Read', input: { file_path: small, offset: 1, limit: 5 } }]
+  }
+  switch (stage) {
     case 1:
       if (last) seen.window = last
+      stage = 2
       return [{ type: 'tool_use', name: 'Edit', input: smallEdit }]
     case 2:
-      if (last) seen.refusal = last
-      return [{ type: 'tool_use', name: 'Edit', input: smallEdit }]
-    case 3:
-      if (last) seen.retry = last
+      if (seen.first === undefined) {
+        if (last) seen.first = last
+        if (last?.isError) return [{ type: 'tool_use', name: 'Edit', input: smallEdit }]
+      } else if (last) {
+        seen.retry = last
+      }
+      stage = 3
       return [{ type: 'tool_use', name: 'Read', input: { file_path: wide } }]
-    case 4:
+    case 3:
       if (last) seen.overCap = last
+      stage = 4
       return [{ type: 'tool_use', name: 'Edit', input: wideEdit }]
-    case 5:
+    case 4:
       if (last) seen.wideEdit = last
+      stage = 5
       return [{ type: 'tool_use', name: 'Read', input: { file_path: knowledgeFile, offset: 1, limit: 5, line_anchors: true } }]
-    case 6:
+    case 5:
       knowledgeAnchor = /\(anchor: ([^)]+)\)/.exec(last?.text ?? '')?.[1] ?? ''
       writeFileSync(knowledgeFile, knowledgeOriginal.replace('const k1 = 1', 'const k1 = 1000'))
       const changedAt = new Date(Date.now() + 120_000)
       utimesSync(knowledgeFile, changedAt, changedAt)
+      stage = 6
       return [{ type: 'tool_use', name: 'Grep', input: { pattern: '^const k(6|7|8|9|10) =', path: knowledgeFile, output_mode: 'content' } }]
-    case 7:
+    case 6:
+      stage = 7
       return [{ type: 'tool_use', name: 'Edit', input: { file_path: knowledgeFile, expected_anchor: knowledgeAnchor, hunks: [{ lines: '1-10', replace: 'replacement' }] } }]
     default:
-      if (req.step === 8 && last) seen.knowledge = last
+      if (stage === 7 && last) seen.knowledge = last
+      stage = 8
       return [{ type: 'text', text: 'done' }]
   }
 })
@@ -84,8 +96,8 @@ const show = (label: string, r: SeenResult | undefined, cap = 40): void => {
   if (lines.length > cap) console.log(`│ … (${lines.length - cap} more lines)`)
 }
 show('Read(offset: 1, limit: 5) of the forty-line file', seen.window, 8)
-show('Edit of line 20, outside the window', seen.refusal)
-show('the same Edit again, with no Read between', seen.retry)
+show('Edit of line 20, outside the window', seen.first)
+if (seen.retry) show('the same Edit again, with no Read between (the refuse-then-retry road)', seen.retry)
 show('Read of the wide file, over the token cap', seen.overCap, 6)
 show('Edit of line 3 of the wide file, inside the carried window', seen.wideEdit)
 
@@ -105,15 +117,15 @@ const rawCarried = (text: string): string =>
     .map(line => line.replace(/^\s*\d+(?:→|\t)/, ''))
     .join('\n')
 
-tally.section('A. an Edit outside a partial Read carries the lines it lacked')
+tally.section('A. an Edit outside a partial Read lands in one call and its result carries the lines it lacked')
 tally.check('A1 the windowed Read answered lines 1-5 and no more', seen.window !== undefined && !seen.window.isError && numbered(5, 'const v5 = 5').test(seen.window.text) && !numbered(6, 'const v6 = 6').test(seen.window.text), seen.window?.text.slice(0, 200))
-tally.check('A2 the Edit of an unread line is still refused by the law', seen.refusal !== undefined && seen.refusal.isError && /Read the file before editing it/.test(seen.refusal.text), seen.refusal?.text.slice(0, 200))
-tally.check('A3 the refusal names the lines read and the line the edit touches', seen.refusal !== undefined && /read this session: 1-5;/.test(seen.refusal.text) && /the edit touches line 20/.test(seen.refusal.text), seen.refusal?.text.slice(0, 300))
-tally.check('A4 the refusal carries line 20 numbered, the shape a Read returns', seen.refusal !== undefined && numbered(20, 'const v20 = 20').test(seen.refusal.text), seen.refusal?.text.slice(0, 300))
-tally.check('A5 the refusal carries a small margin around the gap and no more of the file', seen.refusal !== undefined && numbered(17, 'const v17 = 17').test(seen.refusal.text) && numbered(23, 'const v23 = 23').test(seen.refusal.text) && !numbered(16, 'const v16 = 16').test(seen.refusal.text) && !numbered(24, 'const v24 = 24').test(seen.refusal.text), seen.refusal === undefined ? '' : `numbered lines: ${numberedLines(seen.refusal.text).join(',')}`)
-tally.check('A6 the refusal says the lines below count as read and to edit again', seen.refusal !== undefined && /lines 17-23 are below and count as read/.test(seen.refusal.text) && /edit again/.test(seen.refusal.text), seen.refusal?.text.slice(0, 400))
-tally.check('A7 the refusal no longer sends the model to Read the gap', seen.refusal !== undefined && !/Read\(offset: 20, limit: 1\)/.test(seen.refusal.text), seen.refusal?.text.slice(0, 400))
-tally.check('A8 the same Edit, repeated with no Read between, lands', seen.retry !== undefined && !seen.retry.isError && /has been updated successfully/.test(seen.retry.text), seen.retry?.text.slice(0, 300))
+tally.check('A2 the Edit of an unread line beside the window lands in the same call', seen.first !== undefined && !seen.first.isError && /has been updated successfully/.test(seen.first.text), seen.first?.text.slice(0, 200))
+tally.check('A3 the result names the line that did not count as read and the lines it carries', seen.first !== undefined && /Line 20 did not count as read before this edit; lines 17-23 as they stand now are below, numbered with their anchor, and count as read:/.test(seen.first.text), seen.first?.text.slice(0, 300))
+tally.check('A4 the result carries line 20 as it now stands, numbered the shape a Read returns', seen.first !== undefined && numbered(20, 'const v20 = 2000').test(seen.first.text), seen.first?.text.slice(0, 300))
+tally.check('A5 the result carries a small margin around the gap and no more of the file', seen.first !== undefined && numbered(17, 'const v17 = 17').test(seen.first.text) && numbered(23, 'const v23 = 23').test(seen.first.text) && !numbered(16, 'const v16 = 16').test(seen.first.text) && !numbered(24, 'const v24 = 24').test(seen.first.text), seen.first === undefined ? '' : `numbered lines: ${numberedLines(seen.first.text).join(',')}`)
+tally.check('A6 the carried block ends in a range anchor', seen.first !== undefined && /\(anchor: ra:[0-9a-f]{12}:L17\+7\)/.test(seen.first.text), seen.first?.text.slice(-120))
+tally.check('A7 the result does not send the model to Read the gap', seen.first !== undefined && !/Read\(offset: 20, limit: 1\)/.test(seen.first.text), seen.first?.text.slice(0, 400))
+tally.check('A8 no second call was needed: one result, not a refusal and a retry', seen.first !== undefined && seen.retry === undefined, seen.retry === undefined ? '' : `retry: ${seen.retry.text.slice(0, 120)}`)
 tally.check('A9 the file on disk carries the change', readFileSync(small, 'utf8').includes('const v20 = 2000'))
 
 tally.section('B. a Read over the token cap answers its first window')
