@@ -113,7 +113,7 @@ section('R. through the real tool: a whole-file edit on a mixed file')
   check('R4 the typographic UI text and the code quotes both survive', curlyCount(after) === curlyCount(MIXED) && straightCount(after) === straightCount(MIXED))
 }
 
-section('S. through the real tool: the file\'s language decides — code stays byte-exact, prose keeps the style')
+section('S. through the real tool: the file\'s language decides — prose keeps the style, everything else stays byte-exact')
 {
   const fixtures = mkdtempSync(join(tmpdir(), 'edit-quote-language-'))
   const edit = async (name: string, content: string, oldString: string, newString: string): Promise<{ error: string; after: string }> => {
@@ -147,7 +147,11 @@ section('S. through the real tool: the file\'s language decides — code stays b
   const md = await edit('notes.md', note, "The daemon's runner stays warm, said the note.", `The daemon's runner stays "warm", said the note.`)
   check("S4 a Markdown note: the new quotes take the file's style, the apostrophe stands", md.after === `The daemon${RS}s runner stays ${LD}warm${RD}, said the note.\n`, JSON.stringify(md.after))
   const plain = await edit('NOTES', note, "The daemon's runner stays warm, said the note.", `The daemon's runner stays "warm", said the note.`)
-  check("S5 a file of no language the highlighter knows reads as prose and keeps today's style", plain.after === `The daemon${RS}s runner stays ${LD}warm${RD}, said the note.\n`, JSON.stringify(plain.after))
+  check('S5 a file of no language the highlighter knows lands byte for byte like code', plain.after === `The daemon${RS}s runner stays "warm", said the note.\n`, JSON.stringify(plain.after))
+  const dotfile = await edit('.editorconfig', `summary = 'the daemon${RS}s runner'\n`, "summary = 'the daemon's runner'", "summary = 'the daemon's runner'\noff = 'stopped'")
+  check('S5a a dotfile the registry cannot name lands byte for byte', dotfile.after === `summary = 'the daemon${RS}s runner'\noff = 'stopped'\n`, JSON.stringify(dotfile.after))
+  const conf = await edit('rows.conf', `text = "she said ${LD}warm${RD}"\n`, 'text = "she said "warm""', 'text = "she said "warm""\non = "running"')
+  check('S5b a suffix outside the registry with curly double quotes in the matched text lands the new double quotes straight', conf.after === `text = "she said ${LD}warm${RD}"\non = "running"\n`, JSON.stringify(conf.after))
   const { fileLanguageKind } = await import('../../src/native-ts/color-diff/index.ts')
   check('S6 the classifier is the diff highlighter\'s own: code for the languages the incident named, prose for markdown and plain text, unknown for a bare name', ['a.ts', 'a.js', 'a.py', 'a.rs', 'a.go', 'a.c', 'a.sh', 'a.json', 'a.yaml', 'a.toml', 'a.css', 'a.html', 'Dockerfile'].every(name => fileLanguageKind(name) === 'code') && fileLanguageKind('a.md') === 'prose' && fileLanguageKind('a.txt') === 'prose' && fileLanguageKind('NOTES') === 'unknown' && fileLanguageKind('run', '#!/usr/bin/env bash') === 'code')
 }
