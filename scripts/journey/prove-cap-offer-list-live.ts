@@ -41,6 +41,7 @@ const ZAI_REPLY = 'glm picked up the handoff'
 const DEEPSEEK_REPLY = 'deepseek picked up the handoff'
 const FABLE_REPLY = 'fable picked up the handoff'
 const GPT_REPLY = 'sol answers from the fixture'
+const GPT_REPLY_AGAIN = 'sol answers again from the fixture'
 const ZAI_ROW = 'glm-5.3'
 const DEEPSEEK_ROW = 'deepseek-v4-pro'
 const FABLE_51 = 'claude-fable-5-1'
@@ -439,7 +440,8 @@ if (wire !== null) {
 
   section('W5 — the wire: one Anthropic turn on the capped route, the GPT turn on the Responses wire, nothing else on the Anthropic wire')
   check('exactly one MAIN Anthropic turn reached the wire, the capped one', capped.length === 1 && !captured.some(c => c.kind === 'anthropic' && isMainTurn(c, 'hello fable')), `kinds=${kinds}`)
-  check('the GPT turn ran on the Responses wire and its reply painted', captured.some(c => c.kind === 'openai' && isMainTurn(c, 'hello sol')) && (finalGrid.includes(GPT_REPLY) || end.includes(GPT_REPLY)), `kinds=${kinds}`)
+  const gptReplied = [finalGrid, end].some(grid => grid.includes(GPT_REPLY) || grid.includes(GPT_REPLY_AGAIN))
+  check('the GPT turn ran on the Responses wire and its reply painted (the fixture answers a later call with its second sentence)', captured.some(c => c.kind === 'openai' && isMainTurn(c, 'hello sol')) && gptReplied, `kinds=${kinds}\n${tail(end, 8)}`)
   check('no request after the switch reached the Anthropic wires', !captured.some(c => (c.kind === 'anthropic' || c.kind === 'anthropic-capped') && isMainTurn(c, 'hello sol')), `kinds=${kinds}`)
 }
 
