@@ -1,6 +1,8 @@
 
 
 
+import { extractHeredocs } from '../../utils/bash/heredoc.js'
+
 export type ThemisBlockCategory =
   | 'auto-confirm-exec'
   | 'install-arbitrary-sha'
@@ -70,8 +72,8 @@ export const BLOCKLIST: readonly BlocklistEntry[] = [
   {
     id: 'git-hooks-path',
     category: 'git-hooks-path',
-    rationale: 'setting core.hooksPath redirects git hooks to an untrusted directory',
-    pattern: /\bcore\.hooksPath\b/,
+    rationale: 'setting core.hooksPath redirects git hooks to an untrusted directory (a bare read stays clear)',
+    pattern: /\bgit\s+config\b(?![^\n]*\s(?:--get|--get-all|--list|-l)\b)(?:[^\n]*\s(?:--add|--unset|--replace-all|--edit|--file)\b[^\n]*\bcore\.hooksPath\b|[^\n]*\bcore\.hooksPath\s+(?!\d*[<>])[^\s<>|&;)]+)/,
   },
   {
     id: 'git-internals-write',
@@ -93,9 +95,12 @@ export function checkBlocklist(
   input: { [k: string]: unknown } | null | undefined,
 ): BlocklistHit | null {
   try {
-    const text = commandTextOf(toolName, input)
-    if (!text) return null
+    const raw = commandTextOf(toolName, input, false)
+    if (!raw) return null
+    let words: string | null = null
     for (const entry of BLOCKLIST) {
+      const readsWords = entry.category === 'git-global-config' || entry.category === 'git-hooks-path'
+      const text = readsWords ? (words ??= commandTextOf(toolName, input, true)) : raw
       const m = entry.pattern.exec(text)
       if (m) {
         return {
@@ -112,12 +117,47 @@ export function checkBlocklist(
   }
 }
 
-function commandTextOf(toolName: string, input: { [k: string]: unknown } | null | undefined): string {
+function blankQuotedRuns(s: string): string {
+  let out = ''
+  let quote: '' | "'" | '"' = ''
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i]!
+    if (quote === '') {
+      out += ch
+      if (ch === "'" || ch === '"') quote = ch
+    } else if (quote === '"') {
+      if (ch === '\\' && i + 1 < s.length) {
+        i++
+        continue
+      }
+      if (ch === '"') {
+        out += ch
+        quote = ''
+      }
+    } else if (ch === "'") {
+      out += ch
+      quote = ''
+    }
+  }
+  return quote === '' ? out : s
+}
+
+function commandWords(command: string): string {
+  let text: string
+  try {
+    text = extractHeredocs(command).processedCommand
+  } catch {
+    text = command
+  }
+  return blankQuotedRuns(text)
+}
+
+function commandTextOf(toolName: string, input: { [k: string]: unknown } | null | undefined, strip: boolean): string {
   if (!input || typeof input !== 'object') return ''
   const parts: string[] = []
   for (const key of ['command', 'script', 'cmd']) {
     const v = (input as Record<string, unknown>)[key]
-    if (typeof v === 'string' && v) parts.push(v)
+    if (typeof v === 'string' && v) parts.push(strip ? commandWords(v) : v)
   }
   const fp = (input as Record<string, unknown>).file_path
   if (typeof fp === 'string' && fp) {
@@ -138,6 +178,12 @@ export const NEGATIVE_SAMPLES: ReadonlyArray<{ toolName: string; input: Record<s
   { toolName: 'Bash', input: { command: 'systemctl status nginx' } },
   { toolName: 'Bash', input: { command: 'node dist/mercury.mjs &' } },
   { toolName: 'Write', input: { file_path: 'src/index.ts', content: 'export const x = 1' } },
+  { toolName: 'Bash', input: { command: 'git config core.hooksPath' } },
+  { toolName: 'Bash', input: { command: 'git config --get core.hooksPath' } },
+  { toolName: 'Bash', input: { command: 'ls .githooks; git config core.hooksPath 2>/dev/null; ls .git/hooks' } },
+  { toolName: 'Bash', input: { command: 'git rev-parse --git-path hooks' } },
+  { toolName: 'Bash', input: { command: "cat >> comms/note.md <<'EOF'\na read of core.hooksPath was refused; git config core.hooksPath is a read\nEOF\n" } },
+  { toolName: 'Bash', input: { command: "echo 'git config core.hooksPath /tmp/x' > note.txt" } },
 ]
 
 export const POSITIVE_SAMPLES: ReadonlyArray<{ id: string; toolName: string; input: Record<string, unknown> }> = [
