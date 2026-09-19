@@ -32,6 +32,8 @@ import { MCPTool } from '../../tools/MCPTool/MCPTool.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { createStreamingTailStore, type StreamingTailStore } from '../../utils/messages/streamingTailStore.js'
 import { adoptOpenaiObservedUsage } from '../providers/openai/openaiLimitState.js'
+import { adoptOpenaiCatalogueFact } from '../providers/openai/openaiCatalogue.js'
+import { adoptAnthropicWindowFact } from '../claudeAiLimits.js'
 import { mergeRecordsContentKeyed } from './recordIdentity.js'
 import {
   readSessionAsks,
@@ -1207,6 +1209,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.facts = next
     this.refreshCheckpoints()
     adoptOpenaiObservedUsage(next.usage?.openaiObserved)
+    adoptAnthropicWindowFact(next.usage?.anthropicWindow)
+    if (next.openaiCatalogue !== undefined && next.openaiCatalogue.fetchedAtMs !== prev?.openaiCatalogue?.fetchedAtMs) {
+      adoptOpenaiCatalogueFact(next.openaiCatalogue)
+    }
     const settled = next.modelSettled
     if (
       prev !== null &&

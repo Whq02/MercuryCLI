@@ -45,6 +45,11 @@ const USAGE: KeyTable = {
   unpricedTurns: 'unpriced_turns',
   limitWarning: 'limit_warning',
   openaiObserved: 'openai_observed',
+  anthropicWindow: 'anthropic_window',
+}
+const ANTHROPIC_WINDOW: KeyTable = {
+  observedAtMs: 'observed_at_ms',
+  resetsAtMs: 'resets_at_ms',
 }
 const BAND: KeyTable = {
   usedPct: 'used_pct',
@@ -160,6 +165,7 @@ const FACTS: KeyTable = {
   fileCheckpoints: 'file_checkpoints',
   streamIdleTimeoutMs: 'stream_idle_timeout_ms',
   spawnSwitches: 'spawn_switches',
+  openaiCatalogue: 'openai_catalogue',
 }
 const BOX: KeyTable = {
   atMs: 'at_ms',
@@ -182,7 +188,7 @@ function boxNested(memory: KeyTable, waiter: KeyTable): (out: Row) => void {
   }
 }
 
-function usageNested(table: KeyTable, bandTable: KeyTable, observedKey: string): (out: Row) => void {
+function usageNested(table: KeyTable, bandTable: KeyTable, observedKey: string, windowTable: KeyTable, windowKey: string): (out: Row) => void {
   return out => {
     const observed = out[observedKey]
     if (isRow(observed)) {
@@ -192,6 +198,8 @@ function usageNested(table: KeyTable, bandTable: KeyTable, observedKey: string):
         ...(isRow(observed.secondary) ? { secondary: renamed(observed.secondary, bandTable) } : {}),
       }
     }
+    const window = out[windowKey]
+    if (isRow(window)) out[windowKey] = renamed(window, windowTable)
     void table
   }
 }
@@ -241,8 +249,10 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
   const boxKey = 'box'
   const editsKey = direction === 'to' ? 'pending_schedule_edits' : 'pendingScheduleEdits'
   const observedKey = direction === 'to' ? 'openai_observed' : 'openaiObserved'
+  const windowKey = direction === 'to' ? 'anthropic_window' : 'anthropicWindow'
+  const catalogueKey = direction === 'to' ? 'openai_catalogue' : 'openaiCatalogue'
   return out => {
-    out.usage = row(out.usage, t(USAGE), usageNested(t(USAGE), t(BAND), observedKey))
+    out.usage = row(out.usage, t(USAGE), usageNested(t(USAGE), t(BAND), observedKey, t(ANTHROPIC_WINDOW), windowKey))
     out.identity = row(out.identity, t(IDENTITY))
     out.workspace = row(out.workspace, t(WORKSPACE))
     if (workKey in out) out[workKey] = rows(out[workKey], t(WORK_ROW), workRowNested(t(WORK_PULSE), t(AGENT_WAIT), t(AGENT_PAUSE)))
@@ -252,6 +262,7 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
     if (kitKey in out) out[kitKey] = row(out[kitKey], t(KIT), kitNested(t(KIT_DELTAS)))
     if (boxKey in out) out[boxKey] = row(out[boxKey], t(BOX), boxNested(t(BOX_MEMORY), t(BOX_WAITER)))
     if (editsKey in out) out[editsKey] = rows(out[editsKey], t(SCHEDULE_EDIT), scheduleEditNested(t(SUBMISSION), t(WHEN), t(ACTION), t(BIRTH)))
+    if (catalogueKey in out) out[catalogueKey] = row(out[catalogueKey], t(CATALOGUE))
   }
 }
 
