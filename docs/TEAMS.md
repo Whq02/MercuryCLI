@@ -68,10 +68,19 @@ nothing else: the sub-agents and workflows the turn launched keep running on
 their own controllers, and the interrupted turn's receipt says how many. To
 stop one, open the Crew view (or the `/tasks` board), select it and press `x`
 twice within two seconds — the first press names the agent the second press
-stops. A stopped agent's row reads `stopped` with the reason and its
-transcript stands on disk; `r` resumes it from that transcript under the same
-id. Every stop, resume and failure reaches the main agent as a notification
-of its own kind, never silently.
+stops. The stop reaches every kind of row the same way: a dispatched
+sub-agent's controller aborts and its running tool ends with it, a named
+teammate's loop ends, a workflow run is killed. The receipt is the runner's
+own word: applied once the row has left `running`, or refused with the
+reason — an id the registry no longer holds, a row that had already settled,
+a loop that did not end within the runner's settle budget — and a refusal is
+painted under the rows. A stopped agent's row reads `stopped` with the reason
+and its transcript stands on disk; `r` resumes it from that transcript under
+the same id. Every stop, resume and failure reaches the main agent as a
+notification of its own kind, never silently. The main agent's own door is
+the TaskStop tool, which takes a task id, a named teammate's agent id
+(`name@team`, the id its spawn receipt gave) or its bare name, or a launch
+name.
 
 A named teammate spawned into a team with the Agent tool is answered only
 once its first turn has settled. A seat whose first dispatch fails — a

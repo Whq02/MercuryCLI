@@ -239,10 +239,9 @@ import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { armRunnerAgentFreshness } from './agentFreshness.js'
 import { installStreamJsonStdoutGuard } from '../utils/streamJsonStdoutGuard.js'
 import { getRunningTasks, POLL_INTERVAL_MS } from '../utils/task/framework.js'
-import { AGENT_RESUME_NOTE, AGENT_STOP_BY_OPERATOR } from '../tasks/LocalAgentTask/LocalAgentTask.js'
-import { isLocalWorkflowTask, killWorkflowTask } from '../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
+import { AGENT_RESUME_NOTE } from '../tasks/LocalAgentTask/LocalAgentTask.js'
+import { stopAgentByOperator } from '../services/agents/operatorStop.js'
 import { primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
-import { stopOrDismissAgent } from '../state/teammateViewHelpers.js'
 import { markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
 import { drainSdkEvents } from '../utils/sdkEventQueue.js'
@@ -2627,13 +2626,10 @@ export async function runHeadless(
         }
         case 'stop_task': {
           try {
-            const target = getAppState().tasks[request.task_id]
-            if (isLocalWorkflowTask(target)) {
-              respondSuccess(requestId, { receipt: killWorkflowTask(request.task_id, setAppState) })
-            } else {
-              stopOrDismissAgent(request.task_id, setAppState, AGENT_STOP_BY_OPERATOR)
-              respondSuccess(requestId, {})
-            }
+            const receipt = await stopAgentByOperator(request.task_id, { getAppState, setAppState })
+            if (receipt.outcome === 'applied') respondSuccess(requestId, { receipt: 'applied', kind: receipt.kind, status: receipt.status })
+            else respondError(requestId, receipt.reason)
+            for (const event of drainSdkEvents()) io.outbound.enqueue(event)
           } catch (error) {
             respondError(requestId, errorMessage(error))
           }
