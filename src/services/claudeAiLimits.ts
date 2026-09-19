@@ -448,6 +448,53 @@ export function anthropicLimitVerdict(nowMs: number = Date.now()): AnthropicLimi
   }
 }
 
+export type AnthropicWindowFact = {
+  status: QuotaStatus
+  observedAtMs: number
+  owner: string
+  resetsAtMs?: number
+  claim?: RateLimitType
+}
+
+export function anthropicWindowFact(): AnthropicWindowFact | undefined {
+  if (!windowObserved || verdictOwner === null || verdictObservedAtMs === null || !verdictOwnerStands()) return undefined
+  const resetsAtMs = statedResetMs(currentLimits.resetsAt)
+  return {
+    status: currentLimits.status,
+    observedAtMs: verdictObservedAtMs,
+    owner: verdictOwner,
+    ...(resetsAtMs !== undefined ? { resetsAtMs } : {}),
+    ...(currentLimits.rateLimitType !== undefined ? { claim: currentLimits.rateLimitType } : {}),
+  }
+}
+
+export function adoptAnthropicWindowFact(fact: unknown): boolean {
+  if (typeof fact !== 'object' || fact === null || Array.isArray(fact)) return false
+  const f = fact as Partial<AnthropicWindowFact>
+  if (f.status !== 'allowed' && f.status !== 'allowed_warning' && f.status !== 'rejected') return false
+  if (typeof f.observedAtMs !== 'number' || !Number.isFinite(f.observedAtMs) || f.observedAtMs <= 0) return false
+  if (typeof f.owner !== 'string' || f.owner === '' || f.owner === 'none') return false
+  if (f.owner !== resolveOwner()) return false
+  if (verdictObservedAtMs !== null && f.observedAtMs <= verdictObservedAtMs) return false
+  const resetsAtMs = typeof f.resetsAtMs === 'number' && Number.isFinite(f.resetsAtMs) && f.resetsAtMs > 0 ? f.resetsAtMs : undefined
+  const next: ClaudeAILimits = {
+    status: f.status,
+    unifiedRateLimitFallbackAvailable: false,
+    resetsAt: resetsAtMs !== undefined ? resetsAtMs / 1000 : undefined,
+    isUsingOverage: false,
+  }
+  const claim = (fact as { claim?: unknown }).claim
+  if (typeof claim === 'string' && claim !== '') next.rateLimitType = claim as RateLimitType
+  windowObserved = true
+  verdictOwner = f.owner
+  verdictObservedAtMs = f.observedAtMs
+  logForDebugging(`[limits] window observed · ${next.status} · owner ${verdictOwner} · relayed from the session's runner`)
+  if (!limitsEqual(next, currentLimits)) {
+    emitStatusChange(next)
+  }
+  return true
+}
+
 function handleGateClosed(): void {
   logForDebugging(`[limits] gate closed · the subscriber gate read false · the window record clears (${windowObserved ? `it was observed · owner ${verdictOwner}` : 'it was unobserved'})`)
   usageCredentialEpoch++
