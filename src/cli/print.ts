@@ -97,7 +97,7 @@ import type {
   StdinMessage,
   StdoutMessage,
 } from '../entrypoints/sdk/controlTypes.js'
-import { resetLimitsForCredentialSwitch, statusListeners, type ClaudeAILimits } from '../services/claudeAiLimits.js'
+import { anthropicWindowFact, resetLimitsForCredentialSwitch, statusListeners, type ClaudeAILimits } from '../services/claudeAiLimits.js'
 import { providerLimitWarning } from '../services/providers/limitWarning.js'
 import {
   clearServerCache,
@@ -1962,6 +1962,7 @@ export async function runHeadless(
             if (Number.isFinite(holdMs) && holdMs > 0) await new Promise(resolve => setTimeout(resolve, holdMs))
           }
           const state = getAppState()
+          const anthropicWindow = anthropicWindowFact()
           const answer: SessionFactsAnswerV1 = {
             model: {
               effective: activeModel ?? getMainLoopModel(),
@@ -1984,6 +1985,7 @@ export async function runHeadless(
                 const observed = openaiObservedUsage()
                 return observed.primary || observed.secondary ? { openaiObserved: observed } : {}
               })(),
+              ...(anthropicWindow !== undefined ? { anthropicWindow } : {}),
             },
             identity: {
               firstPartyApi: is1PApiCustomer(),

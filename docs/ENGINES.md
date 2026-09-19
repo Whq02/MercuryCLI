@@ -291,6 +291,15 @@ has reset and the next one closes in; a resumed session remembers the windows it
 was told about. A lane that serves no usage signal gets no notice, and a
 headless run gets it by the same road. Nothing on the screen changes for it.
 
+A usage-window verdict is what a reply's headers or a refusal said, observed
+by the process that made the request. A daemon-hosted chat's requests are its
+runner's, so the runner's verdict rides the session facts to the screen: the
+window state, when it was seen, the reset the wire named, and the account slot
+it was seen for. The screen folds it into its own record as a fresher
+observation of the same slot, and the offer card marks the lane as it would
+from a reply of its own. A verdict seen for another slot never enters, an
+older observation never replaces a newer one, and a sign-in change clears it.
+
 When a window walls and the session hands off to another signed-in family's
 lane (the offer card, or the unattended posture), the session runs on a
 failover lane until the home window is observed to reset. One amber sentence

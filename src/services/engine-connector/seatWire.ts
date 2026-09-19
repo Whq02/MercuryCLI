@@ -45,6 +45,11 @@ const USAGE: KeyTable = {
   unpricedTurns: 'unpriced_turns',
   limitWarning: 'limit_warning',
   openaiObserved: 'openai_observed',
+  anthropicWindow: 'anthropic_window',
+}
+const ANTHROPIC_WINDOW: KeyTable = {
+  observedAtMs: 'observed_at_ms',
+  resetsAtMs: 'resets_at_ms',
 }
 const BAND: KeyTable = {
   usedPct: 'used_pct',
@@ -182,7 +187,7 @@ function boxNested(memory: KeyTable, waiter: KeyTable): (out: Row) => void {
   }
 }
 
-function usageNested(table: KeyTable, bandTable: KeyTable, observedKey: string): (out: Row) => void {
+function usageNested(table: KeyTable, bandTable: KeyTable, observedKey: string, windowTable: KeyTable, windowKey: string): (out: Row) => void {
   return out => {
     const observed = out[observedKey]
     if (isRow(observed)) {
@@ -192,6 +197,8 @@ function usageNested(table: KeyTable, bandTable: KeyTable, observedKey: string):
         ...(isRow(observed.secondary) ? { secondary: renamed(observed.secondary, bandTable) } : {}),
       }
     }
+    const window = out[windowKey]
+    if (isRow(window)) out[windowKey] = renamed(window, windowTable)
     void table
   }
 }
@@ -241,8 +248,9 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
   const boxKey = 'box'
   const editsKey = direction === 'to' ? 'pending_schedule_edits' : 'pendingScheduleEdits'
   const observedKey = direction === 'to' ? 'openai_observed' : 'openaiObserved'
+  const windowKey = direction === 'to' ? 'anthropic_window' : 'anthropicWindow'
   return out => {
-    out.usage = row(out.usage, t(USAGE), usageNested(t(USAGE), t(BAND), observedKey))
+    out.usage = row(out.usage, t(USAGE), usageNested(t(USAGE), t(BAND), observedKey, t(ANTHROPIC_WINDOW), windowKey))
     out.identity = row(out.identity, t(IDENTITY))
     out.workspace = row(out.workspace, t(WORKSPACE))
     if (workKey in out) out[workKey] = rows(out[workKey], t(WORK_ROW), workRowNested(t(WORK_PULSE), t(AGENT_WAIT), t(AGENT_PAUSE)))
