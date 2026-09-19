@@ -1432,10 +1432,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     text: string,
     opts: { mode?: 'prompt' | 'bash'; pastedContents?: Record<number, PastedContent>; extraBlocks?: ContentBlockParam[] },
   ): Promise<SendReceiptV1> {
-    const { expandPastedTextRefs, resolvePastedContents } = await import('../../history.js')
+    const { expandPastedTextRefs, pasteUnavailableLine, resolvePastedContents } = await import('../../history.js')
     const resolved = await resolvePastedContents(text, opts.pastedContents ?? {})
     if (resolved.missing.length > 0) {
-      return { state: 'refused', detail: `${resolved.missing[0]} is no longer available — remove the reference or paste the content again` }
+      return { state: 'refused', detail: pasteUnavailableLine(resolved.missing[0]!) }
     }
     const pastes = resolved.pastedContents
     const expanded = expandPastedTextRefs(text, pastes).trim()

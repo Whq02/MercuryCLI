@@ -412,6 +412,10 @@ export function danglingReferences(
   })
 }
 
+export function pasteUnavailableLine(reference: string): string {
+  return `${reference} is no longer available — remove the reference or paste the content again`
+}
+
 export async function resolvePastedContents(
   input: string,
   pastedContents: Record<number, PastedContent>,
