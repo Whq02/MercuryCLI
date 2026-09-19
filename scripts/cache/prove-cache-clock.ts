@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -267,7 +267,6 @@ section('§3 SHELL — rollup persistence (the cadence prior on disk)')
   }
   const portable = await import('../../src/utils/sessionStoragePortable.ts')
   const dir = join(
-    portable.getProjectsDir(),
     portable.getProjectDir(process.cwd()),
     'cache-clock',
     'sessions',
@@ -283,6 +282,10 @@ section('§3 SHELL — rollup persistence (the cadence prior on disk)')
         return false
       }
     })(),
+  )
+  check(
+    'no nested absolute-path tree under the projects home (projects/Users, projects/private, …)',
+    !existsSync(join(portable.getProjectsDir(), portable.getProjectDir(process.cwd()), 'cache-clock')),
   )
   check('rollup file written (atomic, per-session)', files.length === 1, `found ${files.length}`)
   const rollup = JSON.parse(readFileSync(join(dir, files[0]!), 'utf8'))
@@ -327,7 +330,6 @@ section('§3b STORE KEYING — a worktree lane meters to its ORIGIN project (L24
   restoreWorktreeSession(null)
   const portable = await import('../../src/utils/sessionStoragePortable.ts')
   const originStore = join(
-    portable.getProjectsDir(),
     portable.getProjectDir(origin),
     'cache-clock',
     'sessions',
@@ -336,6 +338,10 @@ section('§3b STORE KEYING — a worktree lane meters to its ORIGIN project (L24
     'lane session rolls up under the ORIGIN project key',
     readdirSync(originStore).some(f => f.endsWith('.json')),
     originStore,
+  )
+  check(
+    'the origin project key nests no absolute-path tree under the projects home',
+    !existsSync(join(portable.getProjectsDir(), portable.getProjectDir(origin), 'cache-clock')),
   )
   check(
     'the lane checkout stays byte-clean',
