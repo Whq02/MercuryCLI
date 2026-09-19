@@ -76,6 +76,18 @@ async function edit(input: Record<string, unknown>, ctx: Ctx): Promise<Verdict> 
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
   }
 }
+async function editResult(input: Record<string, unknown>, ctx: Ctx): Promise<{ ok: true; text: string } | { ok: false; message: string }> {
+  const verdict = await validate(input, ctx)
+  if (!verdict.ok) return verdict
+  try {
+    const out = await (FileEditTool as { call: Function }).call(input, ctx, null, { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_fixture' } })
+    const block = (FileEditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(out.data, 'toolu_fixture')
+    return { ok: true, text: typeof block.content === 'string' ? block.content : '' }
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : String(err) }
+  }
+}
+const textOf = (v: { ok: boolean; text?: string; message?: string }): string => (v.ok ? v.text ?? '' : v.message ?? '')
 async function readViaTool(input: Record<string, unknown>, ctx: Ctx, own: boolean): Promise<{ data?: unknown; error?: unknown }> {
   try {
     const result = own
@@ -107,27 +119,28 @@ const LAW = 'Read the file before editing it'
 const owner = processMainOwner()
 const contentOf = (p: string): string => readFileSync(p, 'utf8').replaceAll('\r\n', '\n')
 
-section('C. the refusal carries the unread lines, records them, and the same edit then lands')
+section('C. an edit outside a read window lands in one call and its result carries the lines it lacked')
 {
   _resetSeenLinesForTesting()
   const file = join(fixtures, 'forty.ts')
   writeFileSync(file, lines(40))
   const ctx = makeContext()
   primeRead(ctx, file, { offset: 1, limit: 5 })
+  const generationBefore = fileGeneration(file)
   const input = { file_path: file, old_string: 'const v20 = 20', new_string: 'const v20 = 2000' }
-  const refused = await validate(input, ctx)
-  check('C1 the edit of an unread line is refused by the law', !refused.ok && refused.message.includes(LAW), messageOf(refused))
-  const text = refused.ok ? '' : refused.message
-  check('C2 the words name the read window, the touched line and the lines below', text.includes(`Lines of ${file} read this session: 1-5; the edit touches line 20 — lines 17-23 are below and count as read: edit again without a Read.`), text.slice(0, 400))
-  check('C3 the carried block is the gap widened by the margin, numbered as a Read numbers', JSON.stringify(numberedLines(text)) === JSON.stringify([17, 18, 19, 20, 21, 22, 23]) && READ_THROUGH_MARGIN === 3 && /\n20\tconst v20 = 20\n/.test(text), `numbered: ${numberedLines(text).join(',')}`)
+  const landed = await editResult(input, ctx)
+  const text = landed.ok ? landed.text : ''
+  check('C1 the edit of an unread line beside a read window lands in one call', landed.ok && contentOf(file).includes('const v20 = 2000'), textOf(landed))
+  check('C2 the result says the file was updated, names the line that did not count as read and the lines below', text.includes(`The file ${file} has been updated successfully.`) && text.includes('Line 20 did not count as read before this edit; lines 17-23 as they stand now are below, numbered with their anchor, and count as read:'), text.slice(0, 400))
+  check('C3 the carried block is the gap widened by the margin, numbered as a Read numbers, as the file now stands', JSON.stringify(numberedLines(text)) === JSON.stringify([17, 18, 19, 20, 21, 22, 23]) && READ_THROUGH_MARGIN === 3 && /\n20\tconst v20 = 2000\n/.test(text), `numbered: ${numberedLines(text).join(',')}`)
   const anchors = anchorsIn(text)
-  check('C4 the block carries a range anchor that verifies against the current content', anchors.length === 1 && anchors[0] === mintRangeAnchor(rawCarried(text), 17, 7) && checkAnchor(anchors[0]!, contentOf(file), file).ok, anchors.join(' '))
+  check('C4 the block carries a range anchor that verifies against the updated content', anchors.length === 1 && anchors[0] === mintRangeAnchor(rawCarried(text), 17, 7) && checkAnchor(anchors[0]!, contentOf(file), file).ok, anchors.join(' '))
   const ledger = seenLinesOf(owner, file)
-  check('C5 the ledger records the carried lines for the current generation', ledger !== undefined && ledger.generation === fileGeneration(file) && ledger.ranges.some(r => r.start <= 17 && r.end >= 23), JSON.stringify(ledger))
+  check('C5 the ledger recorded the carried lines for the generation the edit read', ledger !== undefined && ledger.generation === generationBefore && ledger.ranges.some(r => r.start <= 17 && r.end >= 23), JSON.stringify(ledger))
   const entry = ctx.readFileState.get(file)
-  check('C6 the read entry of the windowed Read is untouched by the carry', entry !== undefined && entry.offset === 1 && entry.limit === 5, JSON.stringify({ offset: entry?.offset, limit: entry?.limit }))
-  const landed = await edit(input, ctx)
-  check('C7 the same edit, with no Read between, lands', landed.ok && contentOf(file).includes('const v20 = 2000'), messageOf(landed))
+  check('C6 the read state now holds the updated file as a full read', entry !== undefined && entry.offset === undefined && entry.content === contentOf(file), JSON.stringify({ offset: entry?.offset, limit: entry?.limit }))
+  const later = await editResult({ file_path: file, old_string: 'const v30 = 30', new_string: 'const v30 = 3000' }, ctx)
+  check('C7 a later edit anywhere lands without a carry: the whole file is read', later.ok && contentOf(file).includes('const v30 = 3000') && !later.text.includes('did not count as read'), textOf(later))
 }
 
 section('H. a hunks edit outside its range anchor retries with the carried anchor')
@@ -140,7 +153,7 @@ section('H. a hunks edit outside its range anchor retries with the carried ancho
   const windowAnchor = mintRangeAnchor(contentOf(file).split('\n').slice(0, 5).join('\n'), 1, 5)
   const refused = await validate({ file_path: file, expected_anchor: windowAnchor, hunks: [{ lines: '30', replace: 'const v30 = 3000' }] }, ctx)
   const text = refused.ok ? '' : refused.message
-  check('H1 the hunks edit of an unread line is refused with the carry', !refused.ok && text.includes(LAW) && text.includes('the edit touches line 30 — lines 27-33 are below and count as read: edit again without a Read.'), text.slice(0, 400))
+  check('H1 the hunks edit outside its range anchor is refused with the carry, leading with the anchor', !refused.ok && text.startsWith('expected_anchor covers lines 1-5 only, not every line the edit touches; the lines the edit touches are below with their current anchor and count as read: edit again with a carried anchor, without a Read.') && text.includes('the edit touches line 30 — lines 27-33 are below and count as read: edit again with a carried anchor, without a Read.'), text.slice(0, 400))
   const carriedAnchor = anchorsIn(text)[0]
   const retried = await edit({ file_path: file, expected_anchor: carriedAnchor ?? windowAnchor, hunks: [{ lines: '30', replace: 'const v30 = 3000' }] }, ctx)
   check('H2 the retry with the carried anchor lands', retried.ok && contentOf(file).includes('const v30 = 3000'), messageOf(retried))
@@ -171,9 +184,9 @@ section('B. the carry is bounded like a Read window and never carries the whole 
   check('B4 a gap heavier than the token cap carries up to the cap and no more', fatCarried.length > 0 && fatCarried.length < 150 && Math.round(fatRaw.length / 4) <= DEFAULT_MAX_OUTPUT_TOKENS && Math.round((fatRaw.length + 1 + nextLine.length) / 4) > DEFAULT_MAX_OUTPUT_TOKENS, `carried ${fatCarried.length}, raw ${fatRaw.length}`)
   check('B5 …naming the Read that covers the rest', fatText.includes(`Read(offset: ${fatCarried.length + 1}, limit: ${150 - fatCarried.length}) covers the rest, then edit again.`), fatText.slice(0, 200))
 
-  const one = await validate({ file_path: tall, old_string: 'const v4000 = 4000', new_string: 'x' }, makeContext())
-  const oneText = one.ok ? '' : one.message
-  check('B6 a one-line edit in a tall file carries seven lines, never the file', JSON.stringify(numberedLines(oneText)) === JSON.stringify([3997, 3998, 3999, 4000, 4001, 4002, 4003]), `numbered ${numberedLines(oneText).length}`)
+  const one = await editResult({ file_path: tall, old_string: 'const v4000 = 4000', new_string: 'x' }, makeContext())
+  const oneText = textOf(one)
+  check('B6 a one-line edit in a tall file beside a carried window lands in one call carrying seven lines, never the file', one.ok && JSON.stringify(numberedLines(oneText)) === JSON.stringify([3997, 3998, 3999, 4000, 4001, 4002, 4003]), `numbered ${numberedLines(oneText).length}`)
   const plan = planReadThrough(contentOf(tall), [{ start: 1, end: 5000 }], tall)
   check('B7 the planner itself never exceeds the Read window', plan.lineCount === MAX_LINES_TO_READ && plan.cut && plan.windows.length === 1 && plan.windows[0]!.end === MAX_LINES_TO_READ)
 }
@@ -190,7 +203,7 @@ section('G. a file that changed on disk after the carry refuses again')
   const later = new Date(Date.now() + 120_000)
   utimesSync(file, later, later)
   const again = await validate(input, makeContext())
-  check('G2 after the file changed, the same edit is refused again, not admitted on the old carry', !again.ok && again.message.includes(LAW) && again.message.includes('were of the file before it last changed'), messageOf(again))
+  check('G2 after the file changed, the same edit is refused again, not admitted on the old carry, leading with the change', !again.ok && again.message.startsWith(`The file ${file} changed after the lines you read`) && again.message.includes('were of the file before it last changed'), messageOf(again))
   check('G3 …and carries the lines of the new state', !again.ok && again.message.includes('lines 17-23 are below and count as read'), messageOf(again))
   const landed = await edit(input, makeContext())
   check('G4 the retry after the fresh carry lands', landed.ok && contentOf(file).includes('const v20 = 2000'), messageOf(landed))
@@ -238,8 +251,8 @@ section('R. a Read over the token cap answers its first window and records it')
   const again = await readViaTool({ file_path: wide, offset: 1, limit: carried.length }, ctx, true)
   check('R8 a Read of exactly the carried window answers the unchanged stub', (again.data as { type?: string } | undefined)?.type === 'file_unchanged', JSON.stringify(again.data ?? String(again.error)).slice(0, 120))
   const outsideLine = carried.length + 10
-  const outside = await validate({ file_path: wide, old_string: `export const wide${outsideLine} = '`, new_string: 'x' }, ctx)
-  check('R9 an edit past the window is refused, naming the window as read', !outside.ok && outside.message.includes(`read this session: 1-${carried.length};`) && outside.message.includes(`the edit touches line ${outsideLine}`), messageOf(outside))
+  const outside = await editResult({ file_path: wide, old_string: `export const wide${outsideLine} = '`, new_string: 'x' }, ctx)
+  check('R9 an edit past the window lands in one call, its result naming the line that did not count as read', outside.ok && outside.text.includes(`Line ${outsideLine} did not count as read before this edit`) && !contentOf(wide).includes(`export const wide${outsideLine} = '`), textOf(outside))
   const inside = await edit({ file_path: wide, old_string: "export const wide3 = '", new_string: "export const wideThree = '" }, ctx)
   check('R10 an edit inside the window lands with no Read between', inside.ok && contentOf(wide).includes("export const wideThree = '"), messageOf(inside))
 }
