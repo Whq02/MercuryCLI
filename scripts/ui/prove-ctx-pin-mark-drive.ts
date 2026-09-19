@@ -224,7 +224,7 @@ const FACE_THEN_COMPOSER: Send[] = [
 ]
 const ctxRowOf = (frame: string): string => frame.split('\n').find(line => /\bctx\b/.test(line))?.trim() ?? ''
 
-console.log('the ctx figure marks a GPT pin until the live list answers — the built cockpit in a PTY at four sizes')
+console.log("the ctx figure marks a GPT pin until the session's runner reports the live list — the built cockpit in a PTY at four sizes")
 console.log(`  bundle ${DIST}\n  fixture ${base}\n  scratch ${SCRATCH}`)
 
 try {
@@ -238,11 +238,14 @@ try {
       ? [
           ...FACE_THEN_COMPOSER,
           { data: '', atTick: 999, awaitText: '1050k', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'boot' },
+          { data: 'hello\r', atTick: 999, awaitText: '· ready', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
+          { data: '', atTick: 999, awaitText: 'ctx — · 872k', requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'landed' },
           { data: '/model\r', atTick: 999, awaitText: readyText, requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
-          { data: '\x1b', atTick: 999, awaitText: '872k', requireAwait: true, minTick: 3, awaitSettleTicks: 4 },
+          { data: '\x1b', atTick: 999, awaitText: '· model IDs', requireAwait: true, minTick: 3, awaitSettleTicks: 2 },
           { data: '', atTick: 999, awaitText: 'ctx — · 872k', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'live' },
         ]
       : [...FACE_THEN_COMPOSER, { data: '', atTick: 999, awaitText: readyText, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'boot' }]
+    const hitsBefore = modelsHits.length
     let shot: Awaited<ReturnType<typeof capture>>
     try {
       shot = await capture(tag, home, cols, rows, sends, readyText)
@@ -258,11 +261,14 @@ try {
       continue
     }
     const bootRow = ctxRowOf(boot)
-    check(`${tag}: before the list answers, the rail's ctx row carries the pinned window with the mark`, /ctx — · 1050k pin\b/.test(bootRow), bootRow || '(no ctx row)')
+    check(`${tag}: before the session's first turn, the rail's ctx row carries the pinned window with the mark`, /ctx — · 1050k pin\b/.test(bootRow), bootRow || '(no ctx row)')
+    const landed = shot.marks.landed ?? ''
+    const landedRow = ctxRowOf(landed)
+    check(`${tag}: after the session's own turn, the figure is the list's ceiling and the mark is gone — no picker opened`, /ctx — · 872k(?!\s*pin)/.test(landedRow) && !/\bpin\b/.test(landedRow), landedRow || '(no ctx row)')
     const live = shot.marks.live ?? ''
     const liveRow = ctxRowOf(live)
-    check(`${tag}: after the list answers, the figure is the list's ceiling and the mark is gone`, /ctx — · 872k(?!\s*pin)/.test(liveRow) && !/\bpin\b/.test(liveRow), liveRow || '(no ctx row)')
-    check(`${tag}: the list was read on the picker's open (the one road the cockpit takes)`, modelsHits.length > 0, String(modelsHits.length))
+    check(`${tag}: after the picker's own read, the figure holds and stays unmarked`, /ctx — · 872k(?!\s*pin)/.test(liveRow) && !/\bpin\b/.test(liveRow), liveRow || '(no ctx row)')
+    check(`${tag}: the list was read by the session's runner for its turn and again by the picker`, modelsHits.length - hitsBefore >= 2, String(modelsHits.length - hitsBefore))
   }
 } finally {
   server.close()
