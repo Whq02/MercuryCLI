@@ -25,6 +25,9 @@ const SOVEREIGN_ARGV = ['--dangerously-bypass-permissions']
 const SOVEREIGN_SETTINGS = { skipSovereignConsentPrompt: true }
 const HINT_TEXTS = ['? for shortcuts', 'for commands + files', 'ctrl+t activity', 'for a new line', 'shift + ↵']
 const STATUS_ROW = '← back'
+const SHIFT_RIGHT = '\x1b[1;2C'
+const BOARD_NEW_DOOR = 'new session'
+const CONTRACT_OFFER = 'Do you want to proceed?'
 const SESSIONS_LINE = /^(\d+ sessions? on · \d+ monitors? here · \d+ agents? here|S:\d+ · M:\d+ · A:\d+|S:\d+ · M:\d+ …|S:\d+ …|…)\s+(⇧← (?:boot face|concourse)|shift\+← (?:boot face|concourse))$/
 const textRows = (grid: Grid): string[] => grid.map(row => row.map(c => c.c).join('').replace(/\s+$/, ''))
 const cellsAt = (grid: Grid, y: number): Cell[] => grid[y] ?? []
@@ -132,13 +135,13 @@ const idleSends = (cols: number, rows: number): unknown[] => [
   { atTick: 999, awaitText: compactBandForm(cols, rows) === 'square' && cols >= 100 ? ADMITTED : cols >= 60 ? '1 session on · 0 monitors here · 0 agents here' : 'S:1 · M:0 · A:0', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, requireAwait: true, data: '', mark: 'idle' },
 ]
 
-async function capture(tag: string, cols: number, rows: number, sends: unknown[], opts: { turns?: Parameters<typeof startLeg>[1]; argv?: string[]; resizes?: unknown[]; total?: number; settings?: Record<string, unknown> }): Promise<{ marks: Map<string, Mark>; status: number | null; log: string; leg: Awaited<ReturnType<typeof startLeg>> }> {
+async function capture(tag: string, cols: number, rows: number, sends: unknown[], opts: { turns?: Parameters<typeof startLeg>[1]; argv?: string[]; resizes?: unknown[]; total?: number; settings?: Record<string, unknown>; world?: 'chat' | 'strip' }): Promise<{ marks: Map<string, Mark>; status: number | null; log: string; leg: Awaited<ReturnType<typeof startLeg>> }> {
   const leg = await startLeg(tag, opts.turns ?? [{ kind: 'text', text: 'Finished.' }], null)
   if (opts.settings !== undefined) writeFileSync(join(leg.home, 'settings.json'), JSON.stringify(opts.settings))
   const out = join(scratch, `${tag}.json`)
   const cfgPath = join(scratch, `${tag}-config.json`)
   const log = join(scratch, `${tag}-engine.log`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), dist, '--chat', ...(opts.argv ?? [])], cwd: ROOT, cols, rows, sends, resizes: opts.resizes ?? [], total: opts.total ?? 200, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), dist, ...(opts.world === 'strip' ? [] : ['--chat']), ...(opts.argv ?? [])], cwd: ROOT, cols, rows, sends, resizes: opts.resizes ?? [], total: opts.total ?? 200, out }))
   const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none', MERCURY_DECK_COMPANION: '0' }), stdio: ['ignore', 'pipe', 'pipe'] })
   let output = ''
   child.stdout.on('data', chunk => { output += String(chunk) })
@@ -284,6 +287,56 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
     check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0)
   } finally {
     await endLeg(run.leg)
+  }
+}
+
+function chipRowAt(text: string[], cols: number, rows: number): number {
+  const promptAt = text.findIndex(l => /^(?:│)?❯ /.test(l))
+  if (promptAt < 0) return -1
+  return rows - compactBandRows(cols, rows) >= 14 ? promptAt - 2 : promptAt - 1
+}
+
+function firstFrameChecks(tag: string, cols: number, rows: number, grid: Grid): void {
+  const text = textRows(grid)
+  const chipAt = chipRowAt(text, cols, rows)
+  const expected = compactModeChip('sovereign')!.text
+  check(`${tag}: the born posture's chip stands on the row above the composer`, chipAt >= 0 && (text[chipAt] ?? '').startsWith(expected), JSON.stringify(chipAt >= 0 ? text[chipAt] ?? '' : '(no composer)'))
+  check(`${tag}: the born model and its effort word stand on one row`, text.filter(l => /Opus 5 · effort \S+/.test(l)).length === 1, JSON.stringify(text.filter(l => l.includes('Opus 5'))))
+  check(`${tag}: no size refusal replaced the chat`, !/resize to continue|terminal too small|too small for/.test(joined(text)))
+}
+
+for (const [cols, rows] of [[80, 21], [80, 14], [82, 17]] as const) {
+  for (const door of ['face', 'board'] as const) {
+    const tag = `chat-born-sovereign-${door}-${cols}x${rows}`
+    const settled = { atTick: 999, awaitText: '1 session on', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, requireAwait: true, data: '', mark: 'idle' }
+    const sends = door === 'face'
+      ? [
+          { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
+          { atTick: 100, awaitText: ADMITTED, minTick: 5, awaitSettleTicks: 0, requireAwait: true, data: '', mark: 'first' },
+          { afterPrevTicks: 3, data: '', mark: 'first-later' },
+          settled,
+        ]
+      : [
+          { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: SHIFT_RIGHT, mark: 'boot' },
+          { atTick: 100, awaitText: BOARD_NEW_DOOR, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: 'n', mark: 'board' },
+          { atTick: 160, awaitText: CONTRACT_OFFER, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\u001b', mark: 'offer' },
+          { atTick: 220, awaitText: ADMITTED, minTick: 3, awaitSettleTicks: 0, requireAwait: true, data: '', mark: 'first' },
+          { afterPrevTicks: 3, data: '', mark: 'first-later' },
+          settled,
+        ]
+    const run = await capture(tag, cols, rows, sends, { argv: SOVEREIGN_ARGV, settings: SOVEREIGN_SETTINGS, world: door === 'face' ? 'chat' : 'strip', total: 260 })
+    try {
+      check(`${tag}: the door opened and the chat painted (engine exit 0)`, run.status === 0 && run.marks.has('first') && run.marks.has('idle'), `exit=${run.status}; ${run.log.slice(-600)}`)
+      for (const label of ['first', 'first-later', 'idle'] as const) {
+        const mark = run.marks.get(label)
+        if (mark === undefined) continue
+        printFrame(`${tag} ${label}`, textRows(mark.grid))
+        firstFrameChecks(`${tag} ${label}`, cols, rows, mark.grid)
+      }
+      check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0)
+    } finally {
+      await endLeg(run.leg)
+    }
   }
 }
 

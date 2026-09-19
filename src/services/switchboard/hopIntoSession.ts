@@ -1,8 +1,9 @@
 import { statSync } from 'node:fs'
 import { basename, dirname } from 'node:path'
 import type { AwayRecapMetadata, LaunchWonV1 } from '../../types/message.js'
-import { withLanding } from '../engine-connector/focusedConnector.js'
-import { bootBirthFacts, carriedConsentOf, carriedKitOf, peekWornPresetKit, takeWornPresetKit } from './bootBirthFacts.js'
+import type { PermissionMode } from '../../types/permissions.js'
+import { emitFocusedSessionConnectorChanged, hasFocusedSession, withLanding } from '../engine-connector/focusedConnector.js'
+import { armLandingWords, bootBirthFacts, carriedConsentOf, carriedKitOf, peekWornPresetKit, settleLandingWords, takeWornPresetKit } from './bootBirthFacts.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 
 export function liveTitleDeriverFor(
@@ -56,6 +57,10 @@ async function hopIntoBoardSessionLanding(sessionId: string, opts?: { firstPaint
   const { headBriefLabel } = await import('../concourse/concourseSnapshot.js')
   const title = sessionTitleOf(rec, () => headBriefLabel(rec, 48))
   seat.registerLiveTitleDeriver(liveTitleDeriverFor(supervisor, sessionTitleOf, headBriefLabel))
+  if (!hasFocusedSession()) {
+    armLandingWords({ model: rec.modelKey ?? null, effort: rec.effort ?? null, permissionMode: (rec.permissionMode as PermissionMode | undefined) ?? null })
+    emitFocusedSessionConnectorChanged()
+  }
   const hop = seat.focusDaemonSession({
     sessionId,
     runnerId: rec.runnerId,
@@ -69,6 +74,7 @@ async function hopIntoBoardSessionLanding(sessionId: string, opts?: { firstPaint
     ...(rec.effort !== undefined ? { effort: rec.effort } : {}),
     ...(rec.worktreePath !== undefined ? { worktreePath: rec.worktreePath } : {}),
   })
+  void hop.catch(() => settleLandingWords())
   await Promise.race([hop, new Promise<void>(r => setTimeout(r, opts?.firstPaintMs ?? 250))])
   void withLanding(hop.then(() => undefined)).catch(() => {})
   void import('./ensureDaemon.js')

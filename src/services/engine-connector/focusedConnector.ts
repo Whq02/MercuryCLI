@@ -1,6 +1,7 @@
 import { getSessionId } from '../../bootstrap/state.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { noSessionConnector } from './noSessionConnector.js'
+import { settleLandingWords } from '../switchboard/bootBirthFacts.js'
 import type { EngineConnectorV1, ModelFactsV1 } from './types.js'
 
 let focused: EngineConnectorV1 | null = null
@@ -49,6 +50,7 @@ export function hasFocusedSession(): boolean {
 export function setFocusedSessionConnector(next: EngineConnectorV1): void {
   const before = getFocusedSessionConnector()
   focused = next
+  settleLandingWords()
   if (getFocusedSessionConnector() === before) return
   emit()
 }

@@ -92,6 +92,9 @@ function walk(root: string): string[] {
   check('P3 the birth is marked blank for the daemon (the birth grace reads it)', body.includes('bornBlank: true'))
   check('P3 the birth carries the model only when one is named (nothing on a keyless home), the title, the effort (the launch word, else the saved default, else absent), the posture and the runner options', body.includes('...(model !== undefined ? { model } : {}),') && body.includes('{ title }') && body.includes('const effort = facts.effort ?? getInitialEffortSetting() ?? null') && body.includes('{ effort }') && body.includes('permissionMode: facts.permissionMode') && body.includes('runnerArgv: [...facts.runnerArgv]'))
   check('P3 the birth sends NO words (a blank, ready session — never a dispatch)', !body.includes("op: 'sessionDispatch'") && !body.includes('prompt:'))
+  const armAt = body.indexOf('armLandingWords({ model: model ?? null, effort, permissionMode: facts.permissionMode })')
+  const admitAt = body.indexOf("op: 'sessionAdmit'")
+  check('P3 the door arms the landing words it resolved (the model, the effort, the posture) before the admit and settles them when it closes', armAt !== -1 && admitAt !== -1 && armAt < admitAt && body.includes('settleLandingWords()'))
   check('P3 the daemon heals before the birth (the first Enter never meets ENOENT)', body.indexOf('ensureOwnedDaemon()') !== -1 && body.indexOf('ensureOwnedDaemon()') < body.indexOf("op: 'sessionAdmit'"))
 }
 

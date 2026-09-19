@@ -1,10 +1,12 @@
 import { catalogFirstChat } from '../../utils/bootCardFacts.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { withLanding } from '../engine-connector/focusedConnector.js'
-import { birthModelOf, bootBirthFacts, carriedConsentOf, carriedKitOf, screenBirthModel, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
+import { emitFocusedSessionConnectorChanged, withLanding } from '../engine-connector/focusedConnector.js'
+import { armLandingWords, birthModelOf, bootBirthFacts, carriedConsentOf, carriedKitOf, screenBirthModel, settleLandingWords, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
 import { hopIntoBoardSession } from './hopIntoSession.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 import { getInitialEffortSetting } from '../../utils/effort.js'
+import type { SessionKitV1 } from '../../daemon/sessionKit.js'
+import type { BootBirthFacts } from './bootBirthFacts.js'
 
 export type BirthOutcome =
   | { ok: true; sessionId: string; title: string }
@@ -32,14 +34,28 @@ export function operatorFacingBirthReason(reason: string): string {
 }
 
 async function birth(req: BirthRequest): Promise<BirthOutcome> {
-  const { ensureOwnedDaemon } = await import('./ensureDaemon.js')
-  if (!(await ensureOwnedDaemon())) return { ok: false, reason: DAEMON_DID_NOT_START }
   const facts = bootBirthFacts()
-  const title = req.title !== undefined ? (req.title === null || req.title.trim() === '' ? null : req.title.trim()) : takeBootTitle()
-  const worn = takeWornPresetKit()
   const screen = screenBirthModel()
   const model = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)
   const effort = facts.effort ?? getInitialEffortSetting() ?? null
+  armLandingWords({ model: model ?? null, effort, permissionMode: facts.permissionMode })
+  emitFocusedSessionConnectorChanged()
+  try {
+    const { ensureOwnedDaemon } = await import('./ensureDaemon.js')
+    if (!(await ensureOwnedDaemon())) return { ok: false, reason: DAEMON_DID_NOT_START }
+    const title = req.title !== undefined ? (req.title === null || req.title.trim() === '' ? null : req.title.trim()) : takeBootTitle()
+    const worn = takeWornPresetKit()
+    return await admitAndEnter(req, { model, title, effort, worn, facts })
+  } finally {
+    settleLandingWords()
+  }
+}
+
+async function admitAndEnter(
+  req: BirthRequest,
+  birth: { model: string | undefined; title: string | null; effort: string | null; worn: { name: string; kit: SessionKitV1 } | null; facts: BootBirthFacts },
+): Promise<BirthOutcome> {
+  const { model, title, effort, worn, facts } = birth
   let reply: Record<string, unknown>
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')

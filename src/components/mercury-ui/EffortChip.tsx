@@ -3,7 +3,7 @@ import * as React from 'react'
 import { Text } from '../../ink.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useAppStateMaybeOutsideOfProvider } from '../../state/AppState.js'
-import { useFocusedSentEffort, useFocusedServedEffort } from '../../hooks/useDisplayedSessionModel.js'
+import { useFocusedBornEffort, useFocusedSentEffort, useFocusedServedEffort } from '../../hooks/useDisplayedSessionModel.js'
 import {
   convertEffortValueToLevel,
   getDisplayedEffortLabel,
@@ -17,12 +17,19 @@ import { effortLevelToSymbol } from '../EffortIndicator.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 
+export function bornEffortValueOf(seatEffort: string | null, bornEffort: string | null): ReturnType<typeof parseEffortValue> | undefined {
+  return seatEffort === null && bornEffort !== null ? parseEffortValue(bornEffort) : undefined
+}
+
 export function focusedEffortLabelOf(
   model: string,
   seatEffort: string | null,
   sentEffort: string | null | undefined,
   effortValue: ReturnType<typeof parseEffortValue> | undefined,
+  bornEffort: string | null = null,
 ): string {
+  const born = bornEffortValueOf(seatEffort, bornEffort)
+  if (born !== undefined) return String(born)
   const stamped = seatEffort !== null ? parseEffortValue(seatEffort) : undefined
   const seatResolution = stamped !== undefined ? resolveStampedEffortTruth(model, stamped) : null
   const askedOnly = sentEffort === undefined && stamped !== undefined
@@ -40,6 +47,7 @@ export function EffortChip({ model, plain = false, maxWidth = Number.POSITIVE_IN
   const supercode = useAppStateMaybeOutsideOfProvider(s => s.supercode)
   const seatEffort = useFocusedServedEffort()
   const sentEffort = useFocusedSentEffort()
+  const bornEffort = useFocusedBornEffort()
   const tokens = useMercuryTokens()
   const { columns } = useTerminalSize()
   if (!model || !modelSupportsEffort(model)) return null
@@ -47,8 +55,11 @@ export function EffortChip({ model, plain = false, maxWidth = Number.POSITIVE_IN
   const seatResolution = stamped !== undefined ? resolveStampedEffortTruth(model, stamped) : null
   const sent = typeof sentEffort === 'string' ? parseEffortValue(sentEffort) : undefined
   const askedOnly = sentEffort === undefined && stamped !== undefined
+  const born = bornEffortValueOf(seatEffort, bornEffort)
   const level =
-    sent !== undefined
+    born !== undefined
+      ? convertEffortValueToLevel(born)
+      : sent !== undefined
       ? convertEffortValueToLevel(sent)
       : askedOnly
         ? convertEffortValueToLevel(stamped)
@@ -57,7 +68,7 @@ export function EffortChip({ model, plain = false, maxWidth = Number.POSITIVE_IN
             ? convertEffortValueToLevel(seatResolution.appliedValue)
             : getDisplayedEffortLevel(model, undefined)
           : getDisplayedEffortLevel(model, effortValue)
-  const label = focusedEffortLabelOf(model, seatEffort, sentEffort, effortValue)
+  const label = focusedEffortLabelOf(model, seatEffort, sentEffort, effortValue, bornEffort)
   if (plain) {
     const text = ` · effort ${label}`
     return stringWidth(text) <= maxWidth ? <Text color={SECOND}>{text}</Text> : null
