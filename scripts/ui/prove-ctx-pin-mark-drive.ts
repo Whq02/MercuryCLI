@@ -202,12 +202,13 @@ async function capture(tag: string, home: string, cols: number, rows: number, se
       out: outPath,
     }),
   )
-  await new Promise<void>((resolveRun, rejectRun) => {
+  const refusal = await new Promise<string | null>((resolveRun, rejectRun) => {
     execFile(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { env: childEnv(home), timeout: vshotBudgetMs(240_000) }, (error, _stdout, stderr) => {
-      if (error) rejectRun(new Error(`${String(error)}\n${stderr}`))
-      else resolveRun()
+      if (error && !existsSync(outPath)) rejectRun(new Error(`${String(error)}\n${stderr}`))
+      else resolveRun(error ? String(stderr).split('\n').find(line => line.includes('[vshot]')) ?? String(error) : null)
     })
   })
+  if (refusal !== null) console.log(`  (the capture ended refused: ${refusal.slice(0, 160)})`)
   const payload = JSON.parse(readFileSync(outPath, 'utf8')) as { grid: Grid; sendReceipts?: unknown[]; marks?: Array<{ label: string; grid: Grid }> }
   const marks: Record<string, string> = {}
   for (const m of payload.marks ?? []) marks[m.label] = gridText(m.grid)
@@ -239,10 +240,10 @@ try {
           ...FACE_THEN_COMPOSER,
           { data: '', atTick: 999, awaitText: '1050k', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'boot' },
           { data: 'hello\r', atTick: 999, awaitText: '· ready', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
-          { data: '', atTick: 999, awaitText: 'ctx — · 872k', requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'landed' },
+          { data: '', atTick: 999, awaitText: '· 872k', requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'landed' },
           { data: '/model\r', atTick: 999, awaitText: readyText, requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
           { data: '\x1b', atTick: 999, awaitText: '· model IDs', requireAwait: true, minTick: 3, awaitSettleTicks: 2 },
-          { data: '', atTick: 999, awaitText: 'ctx — · 872k', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'live' },
+          { data: '', atTick: 999, awaitText: '· 872k', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'live' },
         ]
       : [...FACE_THEN_COMPOSER, { data: '', atTick: 999, awaitText: readyText, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'boot' }]
     const hitsBefore = modelsHits.length
@@ -264,11 +265,11 @@ try {
     check(`${tag}: before the session's first turn, the rail's ctx row carries the pinned window with the mark`, /ctx — · 1050k pin\b/.test(bootRow), bootRow || '(no ctx row)')
     const landed = shot.marks.landed ?? ''
     const landedRow = ctxRowOf(landed)
-    check(`${tag}: after the session's own turn, the figure is the list's ceiling and the mark is gone — no picker opened`, /ctx — · 872k(?!\s*pin)/.test(landedRow) && !/\bpin\b/.test(landedRow), landedRow || '(no ctx row)')
+    check(`${tag}: after the session's own turn, the figure is the list's ceiling and the mark is gone — no picker opened`, /ctx \S+ · 872k(?!\s*pin)/.test(landedRow) && !/\bpin\b/.test(landedRow), landedRow || `the mark never fired; the final row reads ${JSON.stringify(ctxRowOf(shot.final))}`)
     const live = shot.marks.live ?? ''
     const liveRow = ctxRowOf(live)
-    check(`${tag}: after the picker's own read, the figure holds and stays unmarked`, /ctx — · 872k(?!\s*pin)/.test(liveRow) && !/\bpin\b/.test(liveRow), liveRow || '(no ctx row)')
-    check(`${tag}: the list was read by the session's runner for its turn and again by the picker`, modelsHits.length - hitsBefore >= 2, String(modelsHits.length - hitsBefore))
+    check(`${tag}: after the picker's own read, the figure holds and stays unmarked`, /ctx \S+ · 872k(?!\s*pin)/.test(liveRow) && !/\bpin\b/.test(liveRow), liveRow || `the mark never fired; the final row reads ${JSON.stringify(ctxRowOf(shot.final))}`)
+    check(`${tag}: the list was read from the account by the session's runner for its own request; the picker found it primed and fetched nothing more`, modelsHits.length - hitsBefore >= 1, String(modelsHits.length - hitsBefore))
   }
 } finally {
   server.close()

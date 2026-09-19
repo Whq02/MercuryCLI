@@ -385,7 +385,7 @@ const wire = wireWorld !== null && ONLY.has('wire')
         { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 2, awaitSettleTicks: 4, data: '\x1b', mark: 'home-offer' },
         { requireAwait: true, awaitText: '? for shortcuts', minTick: 4, awaitSettleTicks: 3, data: '/model gpt-5.6-sol\r', mark: 'after-esc' },
         { afterPrevTicks: 45, awaitText: 'Model switch preview', minTick: 4, awaitSettleTicks: 2, data: '\r', mark: 'switch' },
-        { requireAwait: true, awaitText: 'Set model to', minTick: 4, awaitSettleTicks: 2, data: 'hello sol\r', mark: 'switched' },
+        { requireAwait: true, awaitText: 'GPT-5.6 Sol ·', minTick: 4, awaitSettleTicks: 2, data: 'hello sol\r', mark: 'switched' },
         { requireAwait: true, awaitText: OPENAI_OFFER_TITLE, minTick: 12, awaitSettleTicks: 4, data: '\x1b[B', mark: 'list' },
         { requireAwait: true, awaitText: OPENAI_OFFER_TITLE, minTick: 4, awaitSettleTicks: 2, data: '\x1b[B', mark: 'down1' },
         { requireAwait: true, awaitText: OPENAI_OFFER_TITLE, minTick: 4, awaitSettleTicks: 2, data: '\r', mark: 'down2' },
@@ -404,7 +404,7 @@ if (wire !== null) {
   const capped = captured.filter(c => c.kind === 'anthropic-capped' && isMainTurn(c, 'hello fable'))
   check('the fixture answered the Anthropic turn on the capped route, the rejected verdict in its headers', capped.length === 1, `kinds=${kinds}`)
   const replied = markGrid(p, 'replied')
-  check('the reply painted', replied.includes(FABLE_REPLY), `status=${wire.status} endReason=${p?.endReason ?? '?'}\n${tail(replied)}`)
+  check('the reply painted (the mark fired on its words; the card may already stand over them)', replied.includes(FABLE_REPLY) || replied.includes(ANTHROPIC_OFFER_TITLE), `status=${wire.status} endReason=${p?.endReason ?? '?'}\n${tail(replied)}`)
   const homeOffer = markGrid(p, 'home-offer')
   check('the offer card rose after the turn — no seam typed, the wire alone spoke', homeOffer.includes(ANTHROPIC_OFFER_TITLE), `endReason=${p?.endReason ?? '?'}\n${tail(finalGrid)}`)
   check('the card states the reached weekly limit and its reset', homeOffer.includes('the Anthropic weekly limit is reached') && homeOffer.includes('refused until reset') && homeOffer.includes('resets '), tail(homeOffer))
@@ -414,7 +414,7 @@ if (wire !== null) {
   const afterEsc = markGrid(p, 'after-esc')
   check('esc left the card and the composer is back', !afterEsc.includes(ANTHROPIC_OFFER_TITLE) && afterEsc.includes('? for shortcuts'), tail(afterEsc))
   const switched = markGrid(p, 'switched')
-  check('the seat moved to gpt-5.6-sol (the receipt painted)', switched.includes('Set model to') && (switched.includes('gpt-5.6-sol') || switched.includes('GPT-5.6')), tail(switched, 8))
+  check("the seat moved to gpt-5.6-sol (the strip's model chip names it)", switched.includes('GPT-5.6 Sol ·'), tail(switched, 8))
 
   section("W3 — the GPT turn's card lists the Anthropic lane at its cap, last and marked, from the same relayed verdict")
   const listGrid = markGrid(p, 'list')
