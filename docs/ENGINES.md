@@ -148,7 +148,14 @@ come from its owning account resolvers:
   credential with a refused, unavailable or unselectable catalogue is a catalogue
   refusal, not a missing sign-in; `no-credential:gemini` means no credential is
   present. An explicit Gemini model id can still dispatch with a credential,
-  and the model endpoint decides whether to accept it;
+  and the model endpoint decides whether to accept it. When Google refuses the
+  catalogue read, the `/model` group heading names the credential it tried and
+  the status it got — `the Google account's token was refused (HTTP 403) —
+  /logins re-connects`, `the stored Gemini API key was refused (HTTP 403) —
+  /logins replaces it`, or the environment key by its variable name — and the
+  debug log (`mercury --debug`; `debug/latest` under the config home) carries
+  one line per refused read with the source, the status and Google's error
+  body, every token, key and client secret masked;
 - **moonshot** — stored OAuth tokens or stored key;
 - **openrouter** — an OAuth-minted key or a stored key, env pin winning honestly;
 - **zai, deepseek, huggingface, local, compat** — env pins and stored keys.

@@ -121,6 +121,21 @@ process.env.GEMINI_API_KEY = 'AIza-PROVER-000000000000000'
     new Response('{}', { status: 403 })) as unknown as typeof fetch
   await refreshGeminiCatalogue('api-key', { force: true, fetchImpl: unauthorized })
   check('403 ⇒ disabled/auth-invalid', getGeminiAvailability().state === 'disabled' && (getGeminiAvailability() as { why?: string }).why === 'auth-invalid')
+  const refused = getGeminiAvailability()
+  check('the refusal names the key source and the status', refused.state === 'disabled' && refused.reason === 'the Gemini API key from GEMINI_API_KEY was refused (HTTP 403) — update GEMINI_API_KEY', JSON.stringify(refused))
+  check('the snapshot keeps the status the endpoint answered', catalogue.getCachedGeminiCatalogue('api-key')?.lastStatus === 403, String(catalogue.getCachedGeminiCatalogue('api-key')?.lastStatus))
+  __resetGeminiCatalogueForTest()
+  const unauthenticated: typeof fetch = (async () =>
+    new Response('{"error":{"code":401,"status":"UNAUTHENTICATED"}}', { status: 401 })) as unknown as typeof fetch
+  await refreshGeminiCatalogue('api-key', { force: true, fetchImpl: unauthenticated })
+  const refused401 = getGeminiAvailability()
+  check('401 ⇒ the same words with its own status', refused401.state === 'disabled' && refused401.why === 'auth-invalid' && refused401.reason.includes('(HTTP 401)'), JSON.stringify(refused401))
+  const words = catalogue.geminiCredentialRefusedReason
+  check('the OAuth template', words({ kind: 'oauth' }, 403) === "the Google account's token was refused (HTTP 403) — /logins re-connects")
+  check('the stored-key template', words({ kind: 'api-key', keySource: 'stored' }, 403) === 'the stored Gemini API key was refused (HTTP 403) — /logins replaces it')
+  check('the GOOGLE_API_KEY template', words({ kind: 'api-key', keySource: 'env-google' }, 401) === 'the Gemini API key from GOOGLE_API_KEY was refused (HTTP 401) — update GOOGLE_API_KEY')
+  check('the GEMINI_API_KEY template', words({ kind: 'api-key', keySource: 'env-gemini' }, 403) === 'the Gemini API key from GEMINI_API_KEY was refused (HTTP 403) — update GEMINI_API_KEY')
+  check('an unknown status leaves the parenthesis out', words({ kind: 'oauth' }, undefined) === "the Google account's token was refused — /logins re-connects")
 
   __resetGeminiCatalogueForTest()
   const noChat: typeof fetch = (async () =>
