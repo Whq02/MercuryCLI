@@ -23,6 +23,7 @@ const FAKE_TOKENS = {
   scopes: ['user:inference'],
   subscriptionType: null,
   rateLimitTier: null,
+  tokenAccount: { uuid: 'uuid_x', emailAddress: 'operator@example.test' },
 } as never
 
 type SaveResult = { success: boolean; warning?: string }
@@ -32,16 +33,21 @@ async function drive(save: () => SaveResult): Promise<{
   final: { name: string; warning?: string; message?: string }
   recorded: number
   notified: number
+  stored: number
+  label: string | null
 }> {
   const flows: string[] = []
   let recorded = 0
   let notified = 0
+  let stored = 0
+  let label: string | null = null
   let final: { name: string; warning?: string; message?: string } = { name: 'idle' }
   const machine = createAnthropicLoginMachine(
     { onDone: () => {} },
     snap => {
       flows.push(snap.flow.name)
       final = snap.flow as typeof final
+      label = snap.accountLabel
     },
     {
       createService: () => ({
@@ -62,7 +68,9 @@ async function drive(save: () => SaveResult): Promise<{
       },
       settings: () => ({}),
       shadowWarning: () => null,
-      accountInfo: () => null,
+      storeAccount: () => {
+        stored++
+      },
       clipboard: async () => null,
       writeStdout: () => {},
       log: () => {},
@@ -74,7 +82,7 @@ async function drive(save: () => SaveResult): Promise<{
   )
   machine.start(true)
   await new Promise(resolve => setTimeout(resolve, 20))
-  return { flows, final, recorded, notified }
+  return { flows, final, recorded, notified, stored, label }
 }
 
 {
@@ -82,6 +90,7 @@ async function drive(save: () => SaveResult): Promise<{
   t('§1 a failed save lands the error flow, never success', r.final.name === 'error' && !r.flows.includes('success'), `flows: ${r.flows.join('→')}`)
   t('§1 …recording nothing', r.recorded === 0)
   t('§1 …announcing nothing', r.notified === 0)
+  t('§1 …storing no account and naming nobody', r.stored === 0 && r.label === null, `stored ${r.stored}, label ${String(r.label)}`)
   t('§1 …and the error names the storage refusal', (r.final.message ?? '').includes('secure storage'), r.final.message ?? '')
 }
 
@@ -96,6 +105,7 @@ async function drive(save: () => SaveResult): Promise<{
   const r = await drive(() => ({ success: true }))
   t('§3 a clean save succeeds with no warning', r.final.name === 'success' && r.final.warning === undefined)
   t('§3 …and records + notifies exactly once', r.recorded === 1 && r.notified === 1)
+  t('§3 …storing the account the sign-in landed once and naming it on the pane', r.stored === 1 && r.label === 'operator@example.test', `stored ${r.stored}, label ${String(r.label)}`)
 }
 
 {

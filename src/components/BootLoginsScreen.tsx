@@ -1,5 +1,6 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { basename } from 'node:path';
+import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js';
 import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W, type BootMenuData } from '../../assets/splash/splash-core.mjs';
 import {
@@ -906,6 +907,12 @@ export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLogin
   const refreshFacts = (): void => {
     if (given === undefined) setFacts(collectLoginsScreenFacts());
   };
+  const signInEpoch = useSignInEpoch();
+  const mountSignInEpoch = useRef(signInEpoch);
+  useEffect(() => {
+    if (signInEpoch === mountSignInEpoch.current) return;
+    if (given === undefined) setFacts(collectLoginsScreenFacts());
+  }, [signInEpoch, given]);
 
   const setAppStateMaybe = useSetAppStateMaybe();
   const postLoginSettle = (): void => {
