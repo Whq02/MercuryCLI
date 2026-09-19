@@ -8,9 +8,26 @@ import { asAgentId } from '../types/ids.js'
 import { getAgentTranscriptPath } from '../utils/sessionStorage/paths.js'
 import { emitTaskTerminatedSdk } from '../utils/sdkEventQueue.js'
 import { updateTaskState } from '../utils/task/framework.js'
+import { isInProcessTeammateTask } from './InProcessTeammateTask/types.js'
 import { isLocalShellTask, type LocalShellTaskState } from './LocalShellTask/guards.js'
 import { findTaskOutcome, type TaskOutcomeEnvelope, type TaskOutcomeState } from './taskOutcomeEnvelope.js'
 
+
+export function resolveStopTargetId(raw: string, state: Pick<AppState, 'tasks' | 'agentNameRegistry'>): string {
+  const tasks = state.tasks ?? {}
+  if (tasks[raw] !== undefined) return raw
+  let settled: string | undefined
+  for (const task of Object.values(tasks)) {
+    if (!isInProcessTeammateTask(task)) continue
+    if (task.identity.agentId !== raw && task.identity.agentName !== raw) continue
+    if (task.status === 'running') return task.id
+    settled ??= task.id
+  }
+  if (settled !== undefined) return settled
+  const registered = (state.agentNameRegistry as ReadonlyMap<string, string> | undefined)?.get(raw)
+  if (registered !== undefined && tasks[String(registered)] !== undefined) return String(registered)
+  return raw
+}
 
 export type StopTaskErrorCode = 'not_found' | 'not_running' | 'unsupported_type'
 
