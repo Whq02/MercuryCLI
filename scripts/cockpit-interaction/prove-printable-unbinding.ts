@@ -159,15 +159,20 @@ t.section('§5 — REAL BINARY: chord timing is deterministic in the product')
     spawnSync(process.execPath, ['run', 'scripts/lib/firstRunSeed.ts', home, process.cwd()], {
       env: { ...process.env, ANTHROPIC_API_KEY: FIXTURE_KEY },
     })
+    const STATUS_ROW = '← back'
 
+    let boots = 0
+    type Grid = Array<Array<{ c: string }>>
+    const gridText = (grid: Grid): string => grid.map(row => row.map(c => c.c).join('')).join('\n')
     const drive = (
       name: string,
       sends: unknown[],
       readyText: string | string[],
       total = 160,
-    ): { status: number | null; text: string; endReason: string; tail: string } => {
+    ): { status: number | null; text: string; endReason: string; tail: string; facts: string; row: (needle: string) => string } => {
       const out = join(scratch, `${name}.json`)
       const cfgPath = join(scratch, `${name}-cfg.json`)
+      const plane = join(scratch, `p${boots++}`)
       writeFileSync(
         cfgPath,
         JSON.stringify({
@@ -184,22 +189,40 @@ t.section('§5 — REAL BINARY: chord timing is deterministic in the product')
           ANTHROPIC_API_KEY: FIXTURE_KEY,
           MERCURY_BOOT_PREFLIGHT: '0',
           MERCURY_LIVE_GLYPHS: '0',
-          MERCURY_DOCTOR_STATE_DIR: join(scratch, 'doctor'),
-          MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
+          MERCURY_DOCTOR_STATE_DIR: join(plane, 'doctor'),
+          MERCURY_DAEMON_DIR: join(plane, 'daemon'),
         },
         encoding: 'utf8',
         timeout: vshotBudgetMs(180_000),
       })
       let text = ''
       let endReason = 'no grid'
+      let readyAt: number | null = null
+      let endedAt: number | null = null
+      const seatAt: string[] = []
       try {
-        const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: Array<Array<{ c: string }>>; endReason?: string }
-        text = payload.grid.map(row => row.map(c => c.c).join('')).join('\n')
+        const payload = JSON.parse(readFileSync(out, 'utf8')) as {
+          grid: Grid
+          endReason?: string
+          readyAt?: number | null
+          endedAtTick?: number
+          marks?: Array<{ label: string; atTick: number; grid: Grid }>
+        }
+        text = gridText(payload.grid)
         endReason = payload.endReason ?? '?'
+        readyAt = payload.readyAt ?? null
+        endedAt = payload.endedAtTick ?? null
+        for (const m of payload.marks ?? []) {
+          seatAt.push(`${m.label}@${m.atTick} ${gridText(m.grid).includes(STATUS_ROW) ? 'seat live' : 'seat not yet live'}`)
+        }
       } catch {
       }
-      const tail = text.split('\n').map(l => l.trimEnd()).filter(l => l.trim() !== '').slice(-6).join(' | ').slice(0, 400)
-      return { status: r.status, text, endReason, tail }
+      const rows = text.split('\n').map(l => l.trimEnd())
+      const row = (needle: string): string => rows.find(l => l.includes(needle))?.trim().replace(/\s{2,}/g, '  ') ?? '(no row)'
+      const refusal = (r.stderr ?? '').split('\n').find(l => l.includes('[vshot]'))?.trim() ?? ''
+      const tail = rows.filter(l => l.trim() !== '').slice(-6).join(' | ').slice(0, 400)
+      const facts = `exit=${r.status} end=${endReason} ready=${readyAt ?? 'never'} ended=${endedAt ?? '?'} · ${seatAt.join(' · ') || 'no marks'} · status row: ${row(STATUS_ROW)}${refusal ? ` · ${refusal.slice(0, 240)}` : ''}`
+      return { status: r.status, text, endReason, tail, facts, row }
     }
 
     const FACE = { atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 3, awaitSettleTicks: 2, data: '\r' }
@@ -207,42 +230,34 @@ t.section('§5 — REAL BINARY: chord timing is deterministic in the product')
     const SCALE = vshotBudgetScale()
     const real = (ticks: number): number => Math.max(1, Math.round(ticks / SCALE))
 
-    const STATUS_ROW = '← back'
     const landed = { ...boot, awaitSettleTicks: 1 }
-    const immediate = drive(
-      'immediate',
-      [FACE, { ...landed, data: '\x18' }, { afterPrevTicks: 1, atTick: 90, data: 'p' }],
-      ['run a command', STATUS_ROW],
-    )
+    const chord = (suffix: string): unknown[] => [
+      FACE,
+      { ...landed, data: '\x18', mark: 'prefix' },
+      { afterPrevTicks: 1, atTick: 90, data: suffix, mark: 'suffix' },
+    ]
+    const immediate = drive('immediate', chord('p'), ['run a command', STATUS_ROW])
     t.check(
       "ctrl+x p opens the palette, and the palette stands once the session's seat has landed beneath it",
       immediate.status === 0 && immediate.text.includes('run a command') && immediate.text.includes(STATUS_ROW),
-      `exit=${immediate.status} end=${immediate.endReason} · ${immediate.tail}`,
+      `${immediate.facts} · surface: ${immediate.row('run a command')} · ${immediate.tail}`,
     )
     t.check(
       'and the prefix never leaked into the composer as text',
       !immediate.text.includes('❯ p'),
       'no stray p',
     )
-    const fileOpen = drive(
-      'fileopen',
-      [FACE, { ...landed, data: '\x18' }, { afterPrevTicks: 1, atTick: 90, data: 'f' }],
-      ['fuzzy-find a file to reference', STATUS_ROW],
-    )
+    const fileOpen = drive('fileopen', chord('f'), ['fuzzy-find a file to reference', STATUS_ROW])
     t.check(
       "ctrl+x f opened before the seat landed keeps the file-open surface after it",
       fileOpen.status === 0 && fileOpen.text.includes('fuzzy-find a file to reference') && fileOpen.text.includes(STATUS_ROW),
-      `exit=${fileOpen.status} end=${fileOpen.endReason} · ${fileOpen.tail}`,
+      `${fileOpen.facts} · surface: ${fileOpen.row('fuzzy-find a file to reference')} · ${fileOpen.tail}`,
     )
-    const search = drive(
-      'search',
-      [FACE, { ...landed, data: '\x18' }, { afterPrevTicks: 1, atTick: 90, data: 'g' }],
-      ['grep the working tree for', STATUS_ROW],
-    )
+    const search = drive('search', chord('g'), ['grep the working tree for', STATUS_ROW])
     t.check(
       "ctrl+x g opened before the seat landed keeps the content search after it",
       search.status === 0 && search.text.includes('grep the working tree for') && search.text.includes(STATUS_ROW),
-      `exit=${search.status} end=${search.endReason} · ${search.tail}`,
+      `${search.facts} · surface: ${search.row('grep the working tree for')} · ${search.tail}`,
     )
 
     const late = drive(
@@ -254,7 +269,7 @@ t.section('§5 — REAL BINARY: chord timing is deterministic in the product')
     t.check(
       'a suffix inside the grace window still completes the chord',
       late.status === 0 && late.text.includes('run a command'),
-      `exit=${late.status} end=${late.endReason} · ${late.tail}`,
+      `${late.facts} · ${late.tail}`,
     )
 
     const expired = drive(
@@ -266,7 +281,7 @@ t.section('§5 — REAL BINARY: chord timing is deterministic in the product')
     t.check(
       'past the grace window the key types normally',
       expired.status === 0 && expired.text.includes('❯ z'),
-      `exit=${expired.status} end=${expired.endReason} · ${expired.tail}`,
+      `${expired.facts} · ${expired.tail}`,
     )
     rmSync(scratch, { recursive: true, force: true })
   }
