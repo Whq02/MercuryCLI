@@ -458,6 +458,31 @@ export async function populateOAuthAccountInfoIfNeeded(): Promise<void> {
   }
 }
 
+export function accountInfoFromTokens(tokens: OAuthTokens): AccountInfo | undefined {
+  const profile = tokens.profile
+  if (profile !== undefined && profile.account?.uuid && profile.account.email) {
+    const organization = profile.organization
+    return {
+      accountUuid: profile.account.uuid,
+      emailAddress: profile.account.email,
+      ...(organization?.uuid ? { organizationUuid: organization.uuid } : {}),
+      ...(profile.account.display_name ? { displayName: profile.account.display_name } : {}),
+      ...(organization?.billing_type != null ? { billingType: organization.billing_type } : {}),
+      ...(profile.account.created_at ? { accountCreatedAt: profile.account.created_at } : {}),
+      ...(organization?.subscription_created_at ? { subscriptionCreatedAt: organization.subscription_created_at } : {}),
+    }
+  }
+  const account = tokens.tokenAccount
+  if (account !== undefined && account.uuid && account.emailAddress) {
+    return {
+      accountUuid: account.uuid,
+      emailAddress: account.emailAddress,
+      ...(account.organizationUuid ? { organizationUuid: account.organizationUuid } : {}),
+    }
+  }
+  return undefined
+}
+
 export function storeOAuthAccountInfo(info: AccountInfo): void {
   const existing = getGlobalConfig().oauthAccount
   if (existing !== undefined) {
