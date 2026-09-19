@@ -72,6 +72,7 @@ const spawnDaemonWithHome = (configHome: string): void => {
 }
 
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/warmRunner.ts')
 const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boolean> => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -130,7 +131,7 @@ try {
         title: 'Alpha probe',
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
-      } as never)) as { ok?: boolean; sessionId?: string }
+      } as never, { timeoutMs: WARM_BOOT_ALLOWANCE_MS })) as { ok?: boolean; sessionId?: string }
       check('ALPHA dispatched', a.ok === true && a.sessionId !== undefined, JSON.stringify(a))
       alphaSession = (a.sessionId ?? '').slice(0, 8)
       const alphaLog = join(paths.getProjectDir(cwd), `${a.sessionId ?? ''}.jsonl`)
@@ -146,7 +147,7 @@ try {
         title: 'Beta probe',
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
-      } as never)) as { ok?: boolean; sessionId?: string }
+      } as never, { timeoutMs: WARM_BOOT_ALLOWANCE_MS })) as { ok?: boolean; sessionId?: string }
       check('BETA dispatched', b.ok === true && b.sessionId !== undefined, JSON.stringify(b))
       betaSession = (b.sessionId ?? '').slice(0, 8)
       const betaLog = join(paths.getProjectDir(cwd), `${b.sessionId ?? ''}.jsonl`)
