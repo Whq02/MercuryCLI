@@ -342,7 +342,7 @@ check('an empty-file read WARNS inside a successful result', (emptyRead as { is_
 const webFetchSource = readFileSync(new URL('../../src/tools/WebFetchTool/utils.ts', import.meta.url), 'utf8')
 check(
   'WebFetch: a failed extraction leg DEGRADES to fetched content with a note',
-  webFetchSource.includes('The extraction model was unavailable') && webFetchSource.includes('catch (error)'),
+  webFetchSource.includes('no summariser model was available, so this is the page content itself') && webFetchSource.includes('catch (error)'),
 )
 check(
   'WebFetch: the degraded passthrough restates the quote ceiling for untrusted domains',
