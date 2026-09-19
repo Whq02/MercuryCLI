@@ -165,6 +165,7 @@ const FACTS: KeyTable = {
   fileCheckpoints: 'file_checkpoints',
   streamIdleTimeoutMs: 'stream_idle_timeout_ms',
   spawnSwitches: 'spawn_switches',
+  openaiCatalogue: 'openai_catalogue',
 }
 const BOX: KeyTable = {
   atMs: 'at_ms',
@@ -249,6 +250,7 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
   const editsKey = direction === 'to' ? 'pending_schedule_edits' : 'pendingScheduleEdits'
   const observedKey = direction === 'to' ? 'openai_observed' : 'openaiObserved'
   const windowKey = direction === 'to' ? 'anthropic_window' : 'anthropicWindow'
+  const catalogueKey = direction === 'to' ? 'openai_catalogue' : 'openaiCatalogue'
   return out => {
     out.usage = row(out.usage, t(USAGE), usageNested(t(USAGE), t(BAND), observedKey, t(ANTHROPIC_WINDOW), windowKey))
     out.identity = row(out.identity, t(IDENTITY))
@@ -260,6 +262,7 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
     if (kitKey in out) out[kitKey] = row(out[kitKey], t(KIT), kitNested(t(KIT_DELTAS)))
     if (boxKey in out) out[boxKey] = row(out[boxKey], t(BOX), boxNested(t(BOX_MEMORY), t(BOX_WAITER)))
     if (editsKey in out) out[editsKey] = rows(out[editsKey], t(SCHEDULE_EDIT), scheduleEditNested(t(SUBMISSION), t(WHEN), t(ACTION), t(BIRTH)))
+    if (catalogueKey in out) out[catalogueKey] = row(out[catalogueKey], t(CATALOGUE))
   }
 }
 

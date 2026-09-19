@@ -21,6 +21,7 @@ import type {
   WorkspaceFactsV1,
 } from './types.js'
 import type { BoxReadingV1 } from '../../utils/boxLock.js'
+import type { OpenaiLiveModel } from '../providers/openai/openaiClient.js'
 
 
 export interface QueuedFactV1 {
@@ -53,11 +54,18 @@ export interface SessionFactsAnswerV1 {
   streamIdleTimeoutMs?: number
   spawnSwitches?: import('../switchboard/spawnSwitches.js').SpawnSwitchFacts
   box?: BoxReadingV1
+  openaiCatalogue?: OpenaiCatalogueFactV1
 }
 
 export interface FileCheckpointFactsV1 {
   capture: boolean
   restorable: string[]
+}
+
+export interface OpenaiCatalogueFactV1 {
+  sourceKind: string
+  models: OpenaiLiveModel[]
+  fetchedAtMs: number
 }
 
 export interface SessionFactsV1 extends Omit<SessionFactsAnswerV1, 'permissionMode'> {

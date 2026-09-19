@@ -627,6 +627,14 @@ as one counted row, exactly as it paints a run of separate notices.
   command waited on the lock carries one line saying how long, who held the
   slots, and the load at that moment.
   This is visibility only: nothing here schedules or throttles.
+- Two more rows ride the session facts from the runner: the first-party
+  usage-window verdict its own replies stated (`usage.anthropicWindow`: the
+  state, when it was seen, the account slot, the reset and the window the
+  wire named) and the OpenAI model list it fetched for its requests
+  (`openaiCatalogue`). The screen folds both into its own record and
+  catalogue, so the offer card and the rail's context figure follow the
+  session's own wire; an older runner carries neither, and the screen's own
+  reads stand.
 - A session's scratchpad — `<temp root>/mercury-<uid>/<project>/<session id>/scratchpad`
   (`MERCURY_TMPDIR` moves the root) — is the place the model is told to put
   temporary files: helper scripts, intermediate results, captures. It lies

@@ -174,6 +174,29 @@ export function primeOpenaiCatalogue(
   return true
 }
 
+export function openaiCatalogueFact(env: NodeJS.ProcessEnv = process.env): { sourceKind: OpenaiAccountSourceKind; models: OpenaiLiveModel[]; fetchedAtMs: number } | undefined {
+  const account = resolveOpenaiAccount(env)
+  if (!account) return undefined
+  const snapshot = getCachedOpenaiCatalogue(account.kind, env)
+  if (snapshot === null || snapshot.models.length === 0 || !(snapshot.fetchedAtMs > 0)) return undefined
+  return { sourceKind: snapshot.sourceKind, models: snapshot.models, fetchedAtMs: snapshot.fetchedAtMs }
+}
+
+export function adoptOpenaiCatalogueFact(fact: unknown, env: NodeJS.ProcessEnv = process.env): boolean {
+  try {
+    if (typeof fact !== 'object' || fact === null || Array.isArray(fact)) return false
+    const f = fact as { sourceKind?: unknown; models?: unknown; fetchedAtMs?: unknown }
+    if (f.sourceKind !== 'chatgpt-subscription' && f.sourceKind !== 'api-key') return false
+    if (!Array.isArray(f.models) || f.models.length === 0) return false
+    if (typeof f.fetchedAtMs !== 'number' || !Number.isFinite(f.fetchedAtMs) || f.fetchedAtMs <= 0) return false
+    const models = f.models.filter((m): m is OpenaiLiveModel => typeof m === 'object' && m !== null && typeof (m as { id?: unknown }).id === 'string' && Array.isArray((m as { supportedReasoningEfforts?: unknown }).supportedReasoningEfforts))
+    if (models.length === 0) return false
+    return primeOpenaiCatalogue({ sourceKind: f.sourceKind, models, fetchedAtMs: f.fetchedAtMs }, env)
+  } catch {
+    return false
+  }
+}
+
 
 export const APEX_GPT_ROLES = [
   'primary',

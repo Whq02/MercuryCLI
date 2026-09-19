@@ -200,6 +200,12 @@ and the figure is the list's. A pin no live list ever replaces — the
 first-party rows, the GLM, Kimi and DeepSeek pins — carries no mark, and `~`
 keeps its one meaning: the conservative default no source has stated.
 
+A chat hosted by the daemon makes its requests in its own runner, and the
+runner reads the account's list for them. That list rides the session's facts
+to the screen, so the rail's figure becomes the list's and the mark goes the
+moment the seat reports it, with no picker opened; opening the picker still
+reads the list afresh.
+
 ## Web search
 
 The web-search estate is one provider-neutral contract and TWO tools under
