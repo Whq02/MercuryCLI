@@ -71,12 +71,14 @@ interface FakeWorld {
   services: Array<{
     opts: Record<string, unknown>
     urlCb: (url: string, manualUrl?: string) => void
-    resolve: (tokens: { accessToken: string; scopes: string[] }) => void
+    resolve: (tokens: { accessToken: string; scopes: string[]; tokenAccount?: { uuid: string; emailAddress: string } }) => void
     reject: (error: unknown) => void
     manualInputs: Array<{ authorizationCode: string; state: string }>
     cleanedUp: boolean
   }>
   saved: Array<{ accessToken: string }>
+  stored: Array<{ accountUuid: string; emailAddress: string }>
+  storedBeforeRecord: number
   minted: string[]
   recorded: number
   notices: Array<typeof LOGIN_SUCCESS_NOTICE>
@@ -99,6 +101,8 @@ function fakeDeps(
   const world: FakeWorld = {
     services: [],
     saved: [],
+    stored: [],
+    storedBeforeRecord: -1,
     minted: [],
     recorded: 0,
     notices: [],
@@ -145,9 +149,12 @@ function fakeDeps(
       world.orgValidated++
       return over.orgAnswer
     },
-    accountInfo: () => ({ emailAddress: 'op@example.test' }),
+    storeAccount: account => void world.stored.push({ accountUuid: account.accountUuid, emailAddress: account.emailAddress }),
     shadowWarning: () => 'AN ENV TOKEN SHADOWS THIS SIGN-IN',
-    recordSignIn: () => void world.recorded++,
+    recordSignIn: () => {
+      world.recorded++
+      world.storedBeforeRecord = world.stored.length
+    },
     settings: () => over.settings ?? {},
     ...(over.notify === false ? {} : { notify: notice => void world.notices.push(notice) }),
     clipboard: async text => {
@@ -202,11 +209,12 @@ t.section('§1 — THE ANTHROPIC MACHINE (both arms · setup-token · retry · b
   const waiting = m.snapshot()
   t.check('the url callback lands waiting on the MANUAL url with the prompt DOWN', waiting.flow.name === 'waiting' && (waiting.flow as { url: string }).url === 'manual-url' && waiting.pastePromptUp === false)
   t.check('the paste prompt waits its own 3s beat', bed.run().some(b => b.ms === PASTE_PROMPT_DELAY_MS) && m.snapshot().pastePromptUp === true)
-  world.services[0]!.resolve({ accessToken: 'at-1', scopes: ['claude'] })
+  world.services[0]!.resolve({ accessToken: 'at-1', scopes: ['claude'], tokenAccount: { uuid: 'uuid-op', emailAddress: 'op@example.test' } })
   await settle()
   const success = m.snapshot()
   t.check('the settle saves tokens, mints NOTHING, records the first login, notifies once and lands success', success.flow.name === 'success' && world.saved.length === 1 && world.minted.length === 0 && world.recorded === 1 && world.notices.length === 1 && world.notices[0] === LOGIN_SUCCESS_NOTICE)
-  t.check('the success facts ride the snapshot (shadow warning · account label)', success.shadowWarning === 'AN ENV TOKEN SHADOWS THIS SIGN-IN' && success.accountLabel === 'op@example.test')
+  t.check('the success facts ride the snapshot (shadow warning · the account the sign-in itself landed)', success.shadowWarning === 'AN ENV TOKEN SHADOWS THIS SIGN-IN' && success.accountLabel === 'op@example.test')
+  t.check('the landed account is stored from the sign-in result, before the ledger records the sign-in', world.stored.length === 1 && world.stored[0]!.emailAddress === 'op@example.test' && world.stored[0]!.accountUuid === 'uuid-op' && world.storedBeforeRecord === 1, JSON.stringify({ stored: world.stored, storedBeforeRecord: world.storedBeforeRecord }))
   t.check('creating-key never painted on the claude.ai arm', !states.includes('creating-key'), states.join('→'))
 
   const bed2 = beatBed()
@@ -218,6 +226,7 @@ t.section('§1 — THE ANTHROPIC MACHINE (both arms · setup-token · retry · b
   m2.world.services[0]!.resolve({ accessToken: 'at-2', scopes: ['console'] })
   await settle()
   t.check('console scopes paint creating-key then success (the mint ran)', m2.states.includes('creating-key') && m2.m.snapshot().flow.name === 'success', m2.states.join('→'))
+  t.check('a result that carries no account stores none and the pane names nobody, never a stored snapshot', m2.world.stored.length === 0 && m2.m.snapshot().accountLabel === null, JSON.stringify({ stored: m2.world.stored, label: m2.m.snapshot().accountLabel }))
 
   const bed3 = beatBed()
   const m3 = machineOf(bed3, { claudeAiScopes: false, mintAnswer: null })

@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { OAuthService } from '../../../services/oauth/index.js'
-import { createAndStoreApiKey, shouldUseClaudeAIAuth } from '../../../services/oauth/client.js'
+import {
+  accountInfoFromTokens,
+  createAndStoreApiKey,
+  shouldUseClaudeAIAuth,
+  storeOAuthAccountInfo,
+} from '../../../services/oauth/client.js'
 import type { OAuthTokens } from '../../../services/oauth/types.js'
 import {
-  getOauthAccountInfo,
   loginShadowWarning,
   saveOAuthTokensIfNeeded,
   validateForceLoginOrg,
 } from '../../../utils/auth.js'
+import type { AccountInfo } from '../../../utils/config.js'
 import { getInitialSettings } from '../../../utils/settings/settings.js'
 import { recordSignIn as recordSignInLedger, type SignInKind } from '../../../utils/accounts/signInLedger.js'
 import { setClipboard } from '../../../ink/termio/osc.js'
@@ -98,7 +103,7 @@ export interface AnthropicLoginDeps {
   usesClaudeAiAuth: (scopes: string[]) => boolean
   mintApiKey: (accessToken: string) => Promise<unknown>
   validateOrg: () => Promise<unknown>
-  accountInfo: () => { emailAddress?: string } | null | undefined
+  storeAccount: (account: AccountInfo) => void
   shadowWarning: () => string | null
   recordSignIn: (kind: SignInKind) => void
   settings: () => { forceLoginMethod?: 'claudeai' | 'console' | null; forceLoginOrgUUID?: string | null }
@@ -117,7 +122,7 @@ function liveDeps(): AnthropicLoginDeps {
     usesClaudeAiAuth: scopes => shouldUseClaudeAIAuth(scopes),
     mintApiKey: accessToken => createAndStoreApiKey(accessToken),
     validateOrg: () => validateForceLoginOrg(),
-    accountInfo: () => getOauthAccountInfo() as { emailAddress?: string } | null | undefined,
+    storeAccount: account => storeOAuthAccountInfo(account),
     shadowWarning: () => loginShadowWarning(),
     recordSignIn: kind => recordSignInLedger('anthropic', kind),
     settings: () => getInitialSettings(),
@@ -217,6 +222,8 @@ export function createAnthropicLoginMachine(
         throw new Error(saved.warning ?? 'the credential could not be saved to secure storage')
       }
       const saveWarning = saved.warning
+      const landed = accountInfoFromTokens(tokens)
+      if (landed !== undefined) deps.storeAccount(landed)
       if (!deps.usesClaudeAiAuth(tokens.scopes)) {
         setFlow({ name: 'creating-key' })
         const minted = await deps.mintApiKey(tokens.accessToken)
@@ -235,7 +242,7 @@ export function createAnthropicLoginMachine(
       deps.recordSignIn(deps.usesClaudeAiAuth(tokens.scopes) ? 'oauth' : 'api-key')
       deps.notify?.(LOGIN_SUCCESS_NOTICE)
       shadowWarning = deps.shadowWarning()
-      accountLabel = deps.accountInfo()?.emailAddress ?? null
+      accountLabel = landed?.emailAddress ?? null
       setFlow({ name: 'success', ...(saveWarning !== undefined ? { warning: saveWarning } : {}) })
     } catch (error) {
       setFlow({ name: 'error', message: String((error as Error).message ?? error) })
