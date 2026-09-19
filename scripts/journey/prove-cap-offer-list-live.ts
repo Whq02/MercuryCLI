@@ -372,9 +372,29 @@ const wireEnv = (home: string): NodeJS.ProcessEnv => {
 const wireSends = (ready: string): Send[] => [
   { requireAwait: true, awaitText: 'New Session', minTick: 3, awaitSettleTicks: 2, data: '\r' },
   { requireAwait: true, awaitText: ready, minTick: 20, awaitSettleTicks: 2, data: 'hello fable\r', mark: 'ready' },
-  { requireAwait: true, awaitText: FABLE_REPLY, minTick: 6, awaitSettleTicks: 2, data: '', mark: 'replied' },
 ]
 const isMainTurn = (c: Capture, ask: string): boolean => JSON.stringify(c.body ?? {}).includes(ask)
+const transcriptCarries = (home: string, text: string): boolean => {
+  const walk = (dir: string): boolean => {
+    let entries: string[]
+    try {
+      entries = readdirSync(dir)
+    } catch {
+      return false
+    }
+    for (const name of entries) {
+      const p = path.join(dir, name)
+      try {
+        if (name.endsWith('.jsonl') && readFileSync(p, 'utf8').includes(text)) return true
+        if (!name.includes('.') && walk(p)) return true
+      } catch {
+        continue
+      }
+    }
+    return false
+  }
+  return walk(path.join(home, 'projects'))
+}
 const wire = wireWorld !== null && ONLY.has('wire')
   ? drive(
       'wire',
@@ -383,7 +403,7 @@ const wire = wireWorld !== null && ONLY.has('wire')
       FABLE_51,
       [
         ...wireSends('· ready'),
-        { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 2, awaitSettleTicks: 4, data: '\x1b', mark: 'home-offer' },
+        { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 6, awaitSettleTicks: 4, data: '\x1b', mark: 'home-offer' },
         { requireAwait: true, awaitText: '? for shortcuts', minTick: 4, awaitSettleTicks: 3, data: '/model gpt-5.6-sol\r', mark: 'after-esc' },
         { afterPrevTicks: 45, awaitText: 'Model switch preview', minTick: 4, awaitSettleTicks: 2, data: '\r', mark: 'switch' },
         { requireAwait: true, awaitText: 'GPT-5.6 Sol ·', minTick: 4, awaitSettleTicks: 2, data: 'hello sol\r', mark: 'switched' },
@@ -404,8 +424,7 @@ if (wire !== null) {
   section("W1 — the home lane's own wire spoke its cap on a session turn, and the card rose from the runner's verdict")
   const capped = captured.filter(c => c.kind === 'anthropic-capped' && isMainTurn(c, 'hello fable'))
   check('the fixture answered the Anthropic turn on the capped route, the rejected verdict in its headers', capped.length === 1, `kinds=${kinds}`)
-  const replied = markGrid(p, 'replied')
-  check('the reply painted (the mark fired on its words; the card may already stand over them)', replied.includes(FABLE_REPLY) || replied.includes(ANTHROPIC_OFFER_TITLE), `status=${wire.status} endReason=${p?.endReason ?? '?'}\n${tail(replied)}`)
+  check("the reply landed in the session's transcript", transcriptCarries(wireWorld!.home, FABLE_REPLY), `status=${wire.status} endReason=${p?.endReason ?? '?'}`)
   const homeOffer = markGrid(p, 'home-offer')
   check('the offer card rose after the turn — no seam typed, the wire alone spoke', homeOffer.includes(ANTHROPIC_OFFER_TITLE), `endReason=${p?.endReason ?? '?'}\n${tail(finalGrid)}`)
   check('the card states the reached weekly limit and its reset', homeOffer.includes('the Anthropic weekly limit is reached') && homeOffer.includes('refused until reset') && homeOffer.includes('resets '), tail(homeOffer))
@@ -457,7 +476,7 @@ if (FRAMES !== undefined && wireWorld !== null) {
       FABLE_51,
       [
         ...wireSends(cockpit ? '· ready' : 'Type a prompt'),
-        { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 2, awaitSettleTicks: 4, data: '', mark: 'home-offer' },
+        { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 6, awaitSettleTicks: 4, data: '', mark: 'home-offer' },
       ],
       260,
       size,
@@ -468,7 +487,7 @@ if (FRAMES !== undefined && wireWorld !== null) {
     const frame = card !== '' ? card : final
     writeFileSync(path.join(FRAMES, `wire-card-${tag}.txt`), `${frame}\n`)
     writeFileSync(path.join(FRAMES, `wire-card-${tag}-final.txt`), `${final}\n`)
-    console.log(`  ${tag}: ${card !== '' ? 'the card rose' : 'no card rose'} (receipts ${payload?.sendReceipts?.length ?? 0}/${4}, endReason=${payload?.endReason ?? '?'})`)
+    console.log(`  ${tag}: ${card !== '' ? 'the card rose' : 'no card rose'} (receipts ${payload?.sendReceipts?.length ?? 0}/${3}, endReason=${payload?.endReason ?? '?'})`)
   }
 }
 
