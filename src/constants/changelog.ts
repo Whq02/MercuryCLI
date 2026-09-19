@@ -1,6 +1,32 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.15
+- Added one update command for every install channel: `mercury update` inside a Homebrew or npm install asks once and runs that channel's own upgrade with its output streamed, then re-reads the installed version; `--yes` skips the question; `--check`, `--status`, `--rollback` and the doctor say the same in every channel; an npm-made install is named for what it is
+- Added a once-per-release line to the boot screen's bottom-right corner, "vX.Y.Z available · mercury update", from the update notice's cached answer; the chat's expiring line stays
+- Fixed the shared daemon shutting down when the Mercury that started it closed, which cost every other open Mercury its runner: the daemon now passes to the oldest open Mercury still holding a session and stops only when the last one closes; a restart armed by a new build waits for every live session, including one opened after the arming
+- Fixed a refused send dropping the pasted text: the pastes come back with the words, so the next send carries them
+- Renamed /release-notes to /update-notes (the old name still answers for one release): the card shows the running release's section with the earlier releases one key away in the transcript pager, and a headless print carries every release
+- Fixed a long command result ending in a tall empty band, and the last character of a full-width line hiding under the pane's edge: the text is measured at whole cells and the gutter keeps its width, so a line that filled the old span wraps one column earlier at 120 columns and above
+- Removed Minerva, the notepad curator: its room and /tabula, the /minerva command, the ask line on the rail's notes card, the MINERVA tab of the prompts panel, the boot-menu row and the minerva sub-model container are gone; the notepad and /note stay as manual capture under a TABULA card, the prompts panel keeps its three tabs, and /submodels is the Console's picker; a configuration that still carries Minerva's settings is read without complaint
+- Added one notice into a session's own context when its provider's usage window is about to close: the provider, the window, the percent used, the reset and what to do before the stop; once per window, and never from a provider that states no usage
+- Fixed the context figure on the rail reading a provider's published window as a fact: it carries a mark until the account's live list answers, then shows the list's figure
+- Fixed the command palette, the file opener and the content search vanishing when opened in the first seconds of a session: the layout no longer remounts when the session's process connects
+- Fixed the words on a closed chat that never held a message: its stopped row says it is removed, not archived, and its receipt no longer promises a transcript; a queued row's state fits its cell at 120 columns
+- Added to the doctor's sandbox row on Linux whether unix sockets are blocked, from the sandbox's own facts: blocked with the helper, open without it, open when the setting allows all unix sockets
+- Added a card for a failed Workshop cell with its code, the whole error and the output tail, one keystroke from its row through /tasks and the cell's id
+- Added the Sleep tool to a background sub-agent's roster; its wait ends when the shells it launched settle, never on a bare timer
+- Fixed a receipt on the composer's hint row being cut off at ordinary widths: while a receipt or notice stands the hints step aside and it takes the whole row, so a default-provider change reads its model id whole at 80 columns
+- Changed the failover route's amber sentence to stand two minutes after the switch and after each change of state instead of the whole week; the strip's model segment carries a failover mark for as long as the session runs on the failover route, and /model is still the way home
+- Fixed the running turn's token figure counting the reply's characters instead of tokens: it reads the wire's output tokens for every provider once usage has arrived, thinking included, and shows its estimate mark until then
+- Fixed the Edit tool turning straight quotes into typographic ones inside code when the file already held some: the quote-style preservation applies to prose alone, and code lands byte for byte in every language
+- Fixed the rail not showing a new mission's card until something else repainted it
+- Fixed a new chat starting at high effort although the operator had saved another level: a chat born from the boot screen or the New Session strip takes the saved level, and the daemon's high stands only when nothing is saved
+- Fixed words typed after a mid-turn model or effort change running on the old model when the turn still had tool rounds ahead: they wait for the turn's end and run as the next turn on the switched model; a sub-agents or workflows switch made mid-turn lands at the turn's end too, with the record following the runner's word
+- Fixed a mission set in a chat's first seconds being lost: a mission armed while the chat is still landing follows the session at admission, so its card, its rail row and the runner's stop check see it
+- Fixed the rate-limit fixture seam (`/mock-limits`, armed builds only) arming the runner's latch instead of the screen's on a daemon-hosted chat, so the failover offer card's scenarios read the process the card derives from; the cap latch logs its observe, clear and read on the debug log
+- Fixed the first caret move after typing in a chat's first seconds being undone: a click or an arrow key placed before the session's process connects now holds, instead of the caret jumping back to the end of the text one render later
+
 ## 1.0.0-beta.14
 - Removed the dead and stale provider beta headers from every request, and removed the context-management and cache-scope estates, the server-side refusal fallback opt-in with its advisor, and the experimental betas with task budgets and redact-thinking; a request on the default path is byte-equal to before but for the headers named
 - Fixed an empty reply on the OpenAI and Z.AI routes printing one note and re-sending every time: the note says why the reply carried no words (silence, the output cap, or an empty stream) and only the empty stream is sent again, once
