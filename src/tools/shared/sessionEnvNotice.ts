@@ -25,6 +25,10 @@ export function sessionEnvNoticeForResult(args: {
   return shortScrubbedSessionEnvNotice(named)
 }
 
+export function resetSessionEnvNoticeOnCompaction(): void {
+  fullSessionEnvNoticeShown = false
+}
+
 export function resetSessionEnvNoticeForTesting(): void {
   fullSessionEnvNoticeShown = false
 }
