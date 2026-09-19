@@ -71,7 +71,7 @@ section('§2b the PowerShell family applies the in-memory head + tail cut Bash d
     'Bash still cuts the same way (the law has one owner: formatOutput, spill-aware)',
     bash.includes('const formatted = formatOutput(out, { preExcerpted: result.outputFilePath !== undefined })') && bash.includes('stdout: formatted.truncatedContent,'),
   )
-  check('the error throws keep uncut output beside scrub attribution on both shells', ps.includes("throw new ShellError(out, [annotated, scrubbedSessionEnvNotice(scrubbedSessionEnv)].filter(Boolean).join('\\n'), result.code, result.interrupted)") && bash.includes("throw new ShellError('', [out, scrubbedSessionEnvNotice(shellCommand.scrubbedSessionEnv)].filter(Boolean).join('\\n'), result.code, result.interrupted)"))
+  check('the error throws keep uncut output beside scrub attribution on both shells', ps.includes("throw new ShellError(out, [annotated, sessionEnvNoticeForResult({ scrubbed: scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\\n'), result.code, result.interrupted)") && bash.includes("throw new ShellError('', [out, sessionEnvNoticeForResult({ scrubbed: shellCommand.scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\\n'), result.code, result.interrupted)"))
 }
 
 section('§3 the notebook path still receives a bounded string')

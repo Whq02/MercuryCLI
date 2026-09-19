@@ -147,11 +147,32 @@ const bashTool = readFileSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx'), 'ut
 const psTool = readFileSync(join(ROOT, 'src/tools/PowerShellTool/PowerShellTool.tsx'), 'utf8')
 check('the Bash tool schema carries inherit_session_env and passes it to the seam', bashTool.includes('inherit_session_env: semanticBoolean(') && bashTool.includes('inheritSessionEnv: input.inherit_session_env === true'))
 check('the PowerShell tool mirrors it', psTool.includes('inherit_session_env: semanticBoolean(') && psTool.includes('inheritSessionEnv: input.inherit_session_env === true'))
-const { scrubbedSessionEnvNotice } = await import('../../src/tools/shared/sessionEnvNotice.ts')
+const { scrubbedSessionEnvNotice, sessionEnvNoticeForResult, shortScrubbedSessionEnvNotice, resetSessionEnvNoticeForTesting, resetSessionEnvNoticeOnCompaction } = await import('../../src/tools/shared/sessionEnvNotice.ts')
 const notice = scrubbedSessionEnvNotice(['MERCURY_ENTRYPOINT', 'MERCURY_SEATS'])
 check('the notice names the scrubbed variables and the inherit input', notice.includes('MERCURY_ENTRYPOINT, MERCURY_SEATS') && notice.includes('inherit_session_env'))
 check('no notice when nothing was scrubbed', scrubbedSessionEnvNotice([]) === '' && scrubbedSessionEnvNotice(undefined) === '')
-check('both tool results carry the notice', bashTool.includes('scrubbedSessionEnvNotice(output.scrubbedSessionEnv)') && psTool.includes('scrubbedSessionEnvNotice(output.scrubbedSessionEnv)'))
+check('the mapper reuses the once-per-session string the call settled', bashTool.includes('output.sessionEnvNotice ?? ') && psTool.includes('output.sessionEnvNotice ?? '))
+check('the call settles the notice once per command through the once-per-session seam', bashTool.includes('sessionEnvNoticeForResult({ scrubbed: out.scrubbedSessionEnv, commandText: input.command })') && psTool.includes('sessionEnvNoticeForResult({ scrubbed: out.scrubbedSessionEnv, commandText: input.command })'))
+
+section('§3b once per session: the full note first, then nothing unless the command names a scrubbed stamp')
+resetSessionEnvNoticeForTesting()
+const scrubbedSet = ['MERCURY_ENTRYPOINT', 'MERCURY_MODEL', 'MERCURY_SEATS']
+const first = sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls -la' })
+check('the first scrubbing result carries the full note with the inherit hint', first === scrubbedSessionEnvNotice(scrubbedSet) && first.includes('inherit_session_env'))
+const second = sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'echo hello' })
+check('a later result whose command names no stamp carries nothing', second === '')
+const third = sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'echo "$MERCURY_MODEL"' })
+check('a later result whose command names a stamp carries only the short line for that stamp', third === shortScrubbedSessionEnvNotice(['MERCURY_MODEL']) && third === '[session env scrubbed: MERCURY_MODEL]' && !third.includes('inherit_session_env'))
+const fourth = sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'printf %s "$MERCURY_SEATS-$MERCURY_ENTRYPOINT"' })
+check('the short line names every stamp the command referenced, in the scrubbed order', fourth === '[session env scrubbed: MERCURY_ENTRYPOINT, MERCURY_SEATS]')
+check('a call that scrubbed nothing carries nothing even as the first of a session', (resetSessionEnvNoticeForTesting(), sessionEnvNoticeForResult({ scrubbed: [], commandText: 'echo $MERCURY_MODEL' }) === '' && sessionEnvNoticeForResult({ scrubbed: undefined, commandText: 'x' }) === ''))
+resetSessionEnvNoticeForTesting()
+sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' })
+const afterCompaction = (resetSessionEnvNoticeOnCompaction(), sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' }))
+check('a compaction resets the latch, so the first result after the fold carries the full note again', afterCompaction === scrubbedSessionEnvNotice(scrubbedSet) && afterCompaction.includes('inherit_session_env'))
+const turnMachineSrc = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
+check('the turn machine resets the notice latch at the compaction boundary', turnMachineSrc.includes('resetSessionEnvNoticeOnCompaction()') && /compaction_boundary[\s\S]{0,200}resetSessionEnvNoticeOnCompaction\(\)/.test(turnMachineSrc))
+resetSessionEnvNoticeForTesting()
 const { normalizeToolInput } = await import('../../src/utils/api.ts')
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
 const normalized = normalizeToolInput(BashTool as never, { command: 'env', inherit_session_env: true }) as { inherit_session_env?: boolean }
@@ -193,6 +214,7 @@ const toolContext = {
   toolUseId: 'scrub-command',
 } as never
 let failureText = ''
+resetSessionEnvNoticeForTesting()
 try { await BashTool.call({ command: 'exit 7' }, toolContext) } catch (error) { failureText = String((error as { stderr?: string }).stderr ?? error) }
 check('a failed real Bash tool call preserves the scrub notice and exit', failureText.includes('MERCURY_ENTRYPOINT') && failureText.includes('7'), failureText)
 const background = await BashTool.call({ command: 'sleep 2', run_in_background: true }, toolContext)
@@ -202,6 +224,7 @@ await running?.shellCommand?.result
 const interruptedController = new AbortController()
 let interruptedText = ''
 let interruptionSent = false
+resetSessionEnvNoticeForTesting()
 try {
   const result = await BashTool.call({ command: 'while :; do printf "ready\\n"; sleep 0.2; done' }, { ...toolContext, abortController: interruptedController } as never, undefined, undefined, () => { interruptionSent = true; interruptedController.abort('proof-cancel') })
   interruptedText = JSON.stringify(BashTool.mapToolResultToToolResultBlockParam(result.data, 'interrupted'))

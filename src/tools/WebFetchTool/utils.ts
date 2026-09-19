@@ -1,7 +1,9 @@
 import axios, { type AxiosResponse } from 'axios'
 import { LRUCache } from 'lru-cache'
 
-import { querySmallFast } from '../../services/providers/anthropic/index.js'
+import { querySmallFast, queryWithModel } from '../../services/providers/anthropic/index.js'
+import { getMainLoopModel } from '../../utils/model/model.js'
+import { sessionSmallFastModel } from '../../utils/model/providerFrontier.js'
 import { AbortError } from '../../utils/errors.js'
 import { getWebFetchUserAgent } from '../../utils/http.js'
 import { isBinaryContentType, persistBinaryContent } from '../../utils/mcpOutputStorage.js'
@@ -226,44 +228,84 @@ export async function getURLMarkdownContent(
   return result
 }
 
+export interface FetchSummariseReads {
+  small?: typeof querySmallFast
+  withModel?: typeof queryWithModel
+  smallModelId?: () => string
+  mainModelId?: () => string
+}
+
 export async function applyPromptToMarkdown(
   prompt: string,
   markdown: string,
   signal: AbortSignal,
   isNonInteractive: boolean,
   isPreapprovedDomain: boolean,
+  reads?: FetchSummariseReads,
 ): Promise<string> {
   let bounded = markdown
   if (bounded.length > MAX_MARKDOWN_LENGTH) {
     bounded = `${bounded.slice(0, MAX_MARKDOWN_LENGTH)}\n\n[Content truncated due to length...]`
   }
-  let response
+  const small = reads?.small ?? querySmallFast
+  const withModel = reads?.withModel ?? queryWithModel
+  const smallModelId = reads?.smallModelId ?? sessionSmallFastModel
+  const mainModelId = reads?.mainModelId ?? getMainLoopModel
+  const userPrompt = makeSecondaryModelPrompt(bounded, prompt, isPreapprovedDomain)
+  const baseOptions = {
+    querySource: 'web_fetch_apply' as const,
+    isNonInteractiveSession: isNonInteractive,
+    agents: [],
+    mcpTools: [],
+    hasAppendSystemPrompt: false,
+  }
+  const textOf = (response: Awaited<ReturnType<typeof querySmallFast>>): string | null => {
+    const first = response.message.content[0]
+    return first?.type === 'text' ? first.text : null
+  }
+  const reasonOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+  const idOf = (fn: () => string): string => {
+    try {
+      return fn()
+    } catch {
+      return ''
+    }
+  }
+
+  const primaryModel = idOf(smallModelId)
+  let primaryReason: string
   try {
-    response = await querySmallFast({
-      systemPrompt: asSystemPrompt([]),
-      userPrompt: makeSecondaryModelPrompt(bounded, prompt, isPreapprovedDomain),
-      signal,
-      options: {
-        querySource: 'web_fetch_apply',
-        isNonInteractiveSession: isNonInteractive,
-        agents: [],
-        mcpTools: [],
-        hasAppendSystemPrompt: false,
-      },
-    })
+    const response = await small({ systemPrompt: asSystemPrompt([]), userPrompt, signal, options: baseOptions })
+    if (signal.aborted) throw new AbortError()
+    return textOf(response) ?? 'No response from model'
   } catch (error) {
     if (signal.aborted || error instanceof AbortError) throw new AbortError()
-    const reason = error instanceof Error ? error.message : String(error)
-    const quoteGuard = isPreapprovedDomain
-      ? ''
-      : ' When quoting from this content, keep every quotation under 125 characters and never reproduce song lyrics verbatim.'
-    return `[The extraction model was unavailable, so this is the fetched page content itself, not an answer to the prompt.${quoteGuard} Extraction failure: ${reason}]\n\n${bounded}`
+    primaryReason = reasonOf(error)
   }
-  if (signal.aborted) {
-    throw new AbortError()
+
+  const fallbackModel = idOf(mainModelId)
+  let fallbackReason: string | null = null
+  if (fallbackModel !== '' && fallbackModel !== primaryModel) {
+    try {
+      const response = await withModel({ systemPrompt: asSystemPrompt([]), userPrompt, signal, options: { ...baseOptions, model: fallbackModel } })
+      if (signal.aborted) throw new AbortError()
+      const text = textOf(response)
+      if (text !== null) return text
+      fallbackReason = 'the reply carried no text'
+    } catch (error) {
+      if (signal.aborted || error instanceof AbortError) throw new AbortError()
+      fallbackReason = reasonOf(error)
+    }
   }
-  const first = response.message.content[0]
-  return first?.type === 'text' ? first.text : 'No response from model'
+
+  const quoteGuard = isPreapprovedDomain
+    ? ''
+    : ' When quoting from this content, keep every quotation under 125 characters and never reproduce song lyrics verbatim.'
+  const road =
+    fallbackReason === null
+      ? `tried the small-fast model ${primaryModel || 'unknown'} (${primaryReason}); the session model is the same, so there was no second road`
+      : `tried the small-fast model ${primaryModel || 'unknown'} (${primaryReason}), then the session model ${fallbackModel || 'unknown'} (${fallbackReason})`
+  return `[The page was fetched, but no summariser model was available, so this is the page content itself, not an answer to the prompt.${quoteGuard} Road: ${road}.]\n\n${bounded}`
 }
 
 export { WEB_FETCH_TOOL_NAME }
