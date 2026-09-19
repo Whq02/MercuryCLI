@@ -9,6 +9,7 @@ export type PastedContent = {
   id: number
   type: 'text' | 'image'
   content: string
+  contentHash?: string
   mediaType?: string
   filename?: string
   dimensions?: ImageDimensions

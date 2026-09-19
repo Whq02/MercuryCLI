@@ -158,6 +158,16 @@ count of the lines shown against the lines it has written. On a short window
 the command yields rows to the output, so at least one line of it always
 shows.
 
+A block of pasted text longer than a couple of lines becomes a
+`[Pasted text #N +L lines]` chip in the composer, and its words reach the
+model whole when the line is sent. The chip carries the hash of its bytes,
+and the bytes are kept under the config home from the moment of the paste,
+so the chip survives a crash of the session, a relaunch and a refused send;
+a draft too large to keep whole keeps the chip and resolves its bytes from
+that store at the send. A chip whose bytes are gone is refused by name at
+the send, never sent bare, and the housekeeping sweep keeps every paste a
+draft or the prompt history can still recall.
+
 An image goes into the composer three ways: paste it from the clipboard
 with ctrl+v on macOS and Linux, or alt+v on Windows (the terminal owns
 ctrl+v there, and an image-only clipboard gives it nothing to paste); drag
