@@ -330,7 +330,6 @@ async function runLeg(leg: 'chat' | 'face'): Promise<{
     BROWSER: seeded.browser,
   }
   for (const key of [
-    'NODE_ENV',
     'ANTHROPIC_API_KEY',
     'ANTHROPIC_AUTH_TOKEN',
     'MERCURY_OAUTH_TOKEN',
@@ -351,6 +350,8 @@ async function runLeg(leg: 'chat' | 'face'): Promise<{
     'MERCURY_RENDER_THEME',
     'MERCURY_THEME_PIN',
     'VSHOT_ACTIVE',
+    'NODE_ENV',
+    'CI',
   ]) {
     delete childEnv[key]
   }
