@@ -2,7 +2,7 @@ import { z } from 'zod/v4'
 
 import { isLocalShellTask, type LocalShellTaskState } from '../../tasks/LocalShellTask/guards.js'
 import { isTerminalTaskStatus } from '../../Task.js'
-import { bareMissWords, finishedShellFromRow, finishedShellWords, finishedTaskOnDisk, stopTask, type FinishedShell } from '../../tasks/stopTask.js'
+import { bareMissWords, finishedShellFromRow, finishedShellWords, finishedTaskOnDisk, resolveStopTargetId, stopTask, type FinishedShell } from '../../tasks/stopTask.js'
 import { buildTool, type ToolDef, type ToolUseContext, type ValidationResult } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { DESCRIPTION as PROMPT, TASK_STOP_TOOL_NAME } from './prompt.js'
@@ -61,6 +61,11 @@ function taskIdOf(input: Partial<Input> | undefined): string | undefined {
   return input?.task_id ?? input?.shell_id
 }
 
+function targetIdOf(input: Partial<Input> | undefined, context: ToolUseContext): string | undefined {
+  const raw = taskIdOf(input)
+  return raw === undefined ? undefined : resolveStopTargetId(raw, context.getAppState())
+}
+
 function isFinishedShellRow(task: unknown): task is LocalShellTaskState {
   return isLocalShellTask(task) && isTerminalTaskStatus(task.status)
 }
@@ -102,7 +107,7 @@ export const TaskStopTool = buildTool({
     return PROMPT
   },
   async validateInput(input: Input, context: ToolUseContext): Promise<ValidationResult> {
-    const taskId = taskIdOf(input)
+    const taskId = targetIdOf(input, context)
     if (!taskId) {
       return { result: false, message: 'Either task_id or shell_id is required.', errorCode: 1 }
     }
@@ -123,7 +128,7 @@ export const TaskStopTool = buildTool({
     return { result: true }
   },
   async call(input: Input, context: ToolUseContext) {
-    const taskId = taskIdOf(input)
+    const taskId = targetIdOf(input, context)
     if (!taskId) throw new Error('Either task_id or shell_id is required.')
     const task = context.getAppState().tasks?.[taskId]
     if (!task) {

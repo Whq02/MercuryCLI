@@ -246,8 +246,11 @@ async function lifecycleWith(name: string, drive: (controller: AbortController) 
   const wfNotes = taskNotifications().map(n => (n as { value?: string }).value ?? '')
   check('its killed notice lands exactly once', wfNotes.length === 1 && wfNotes[0]!.includes('<status>killed</status>'))
   const runner = src('src/cli/print.ts')
-  const stopArm = runner.slice(runner.indexOf("case 'stop_task': {"), runner.indexOf("case 'resume_task': {"))
-  check('the runner\'s stop_task routes a workflow row to killWorkflowTask and an agent to the reasoned abort', stopArm.includes('isLocalWorkflowTask(target)') && stopArm.includes('killWorkflowTask(request.task_id, setAppState)') && stopArm.includes('stopOrDismissAgent(request.task_id, setAppState, AGENT_STOP_BY_OPERATOR)'))
+  const stopArmAt = runner.indexOf("case 'stop_task': {")
+  const stopArm = runner.slice(stopArmAt, runner.indexOf("case 'resume_task': {"))
+  check('the runner\'s stop_task rides the one operator-stop owner and answers applied or refused with its reason', stopArmAt !== -1 && stopArm.includes('stopAgentByOperator(request.task_id, { getAppState, setAppState })') && stopArm.includes("respondError(requestId, receipt.reason)") && !stopArm.includes('respondSuccess(requestId, {})'))
+  const owner = src('src/services/agents/operatorStop.ts')
+  check('the owner routes a workflow row to killWorkflowTask, a named teammate to killInProcessTeammate and an agent to the reasoned abort', owner.includes('killWorkflowTask(taskId, context.setAppState)') && owner.includes('killInProcessTeammate(taskId, context.setAppState)') && owner.includes('stopOrDismissAgent(taskId, context.setAppState, AGENT_STOP_BY_OPERATOR)'))
   resetCommandQueue()
 }
 
