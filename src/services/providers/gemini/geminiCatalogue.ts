@@ -6,10 +6,13 @@ import { GEMINI_REASONING_EFFORTS } from '../openaicompat/compatWire.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict, connectToBrowseReason } from '../catalogueGate.js'
 import { declaredRouteOf } from '../routeLaw.js'
+import { logForDebugging } from '../../../utils/debug.js'
 import {
   geminiSourceIdentity,
+  maskGeminiSecrets,
   resolveGeminiAccount,
   resolveGeminiRequestAuth,
+  type GeminiAccountRef,
 } from './geminiAccounts.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
@@ -59,6 +62,30 @@ function decodeModel(raw: unknown): GeminiLiveModel | undefined {
 
 const GEMINI_PAGE_SIZE = 1000
 const GEMINI_MAX_PAGES = 5
+const CATALOGUE_ERROR_BODY_LIMIT = 600
+
+export class GeminiCatalogueHttpError extends Error {
+  readonly status: number
+  readonly body: string
+  constructor(status: number, body: string) {
+    super(
+      status === 401 || status === 403
+        ? `gemini models endpoint refused the credential (HTTP ${status})`
+        : `gemini models endpoint returned HTTP ${status}`,
+    )
+    this.name = 'GeminiCatalogueHttpError'
+    this.status = status
+    this.body = body
+  }
+}
+
+async function catalogueErrorBody(response: Response): Promise<string> {
+  try {
+    return (await response.text()).replace(/\s+/g, ' ').trim().slice(0, CATALOGUE_ERROR_BODY_LIMIT)
+  } catch {
+    return ''
+  }
+}
 
 export async function fetchGeminiLiveModels(opts: {
   baseUrl: string
@@ -77,11 +104,7 @@ export async function fetchGeminiLiveModels(opts: {
       ...(getProxyFetchOptions() as Record<string, unknown>),
     } as RequestInit)
     if (!response.ok) {
-      throw new Error(
-        response.status === 401 || response.status === 403
-          ? `gemini models endpoint refused the credential (HTTP ${response.status})`
-          : `gemini models endpoint returned HTTP ${response.status}`,
-      )
+      throw new GeminiCatalogueHttpError(response.status, await catalogueErrorBody(response))
     }
     const parsed = (await response.json()) as Record<string, unknown>
     const data = Array.isArray(parsed.models) ? parsed.models : []
@@ -105,6 +128,7 @@ export interface GeminiCatalogueSnapshot {
   fetchedAtMs: number
   lastAttemptAtMs?: number
   lastError?: string
+  lastStatus?: number
 }
 
 const catalogueCache = new Map<string, GeminiCatalogueSnapshot>()
@@ -146,12 +170,14 @@ export function refreshGeminiCatalogue(
   const existing = catalogueInFlight.get(identity)
   if (existing) return existing
   const work = (async (): Promise<GeminiCatalogueSnapshot | null> => {
+    let source: string | undefined
     try {
       const auth = await resolveGeminiRequestAuth({
         sourceKind,
         ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
         ...(opts?.env ? { env: opts.env } : {}),
       })
+      source = auth?.account.label
       if (!auth) {
         const snapshot: GeminiCatalogueSnapshot = {
           sourceKind,
@@ -176,12 +202,20 @@ export function refreshGeminiCatalogue(
       storeSnapshot(identity, snapshot)
       return snapshot
     } catch (error) {
+      const answer = error instanceof GeminiCatalogueHttpError ? error : undefined
+      if (answer !== undefined) {
+        const verb = answer.status === 401 || answer.status === 403 ? 'refused the credential' : 'read failed'
+        logForDebugging(
+          `[gemini] catalogue ${verb} · source=${source ?? sourceKind} · HTTP ${answer.status} · body=${maskGeminiSecrets(answer.body === '' ? '(empty)' : answer.body, opts?.env)}`,
+        )
+      }
       const snapshot: GeminiCatalogueSnapshot = {
         sourceKind,
         models: cached?.models ?? [],
         fetchedAtMs: cached?.fetchedAtMs ?? 0,
         lastAttemptAtMs: now(),
         lastError: error instanceof Error ? error.message : String(error),
+        ...(answer !== undefined ? { lastStatus: answer.status } : {}),
       }
       storeSnapshot(identity, snapshot)
       return snapshot
@@ -260,6 +294,19 @@ export function geminiGenerateModels(snapshot: GeminiCatalogueSnapshot | null): 
   return snapshot.models.filter(m => m.supportedGenerationMethods?.includes('generateContent'))
 }
 
+export function geminiCredentialRefusedReason(account: Pick<GeminiAccountRef, 'kind' | 'keySource'>, status: number | undefined): string {
+  const http = status === undefined ? '' : ` (HTTP ${status})`
+  if (account.kind === 'oauth') return `the Google account's token was refused${http} — /logins re-connects`
+  if (account.keySource === 'env-google') return `the Gemini API key from GOOGLE_API_KEY was refused${http} — update GOOGLE_API_KEY`
+  if (account.keySource === 'env-gemini') return `the Gemini API key from GEMINI_API_KEY was refused${http} — update GEMINI_API_KEY`
+  return `the stored Gemini API key was refused${http} — /logins replaces it`
+}
+
+function httpStatusIn(message: string): number | undefined {
+  const match = /\(HTTP (\d{3})\)/.exec(message)
+  return match === null ? undefined : Number(match[1])
+}
+
 export function getGeminiAvailability(env: NodeJS.ProcessEnv = process.env): GeminiAvailability {
   const account = resolveGeminiAccount(env)
   if (!account) {
@@ -289,7 +336,7 @@ export function getGeminiAvailability(env: NodeJS.ProcessEnv = process.env): Gem
       return {
         state: 'disabled',
         why: 'auth-invalid',
-        reason: 'the Gemini credential was refused — /logins re-connects',
+        reason: geminiCredentialRefusedReason(account, snapshot.lastStatus ?? httpStatusIn(snapshot.lastError)),
       }
     }
     return {
