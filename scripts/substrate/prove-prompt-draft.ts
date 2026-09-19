@@ -73,6 +73,17 @@ await sleep(80)
   check('§5 oversized draft keeps its text', d?.text === 'text survives')
   check('§5 oversized pastes shed', Object.keys(d?.pastedContents ?? { x: 1 }).length === 0)
   check('§5 shed pastes recorded as honest labels', (d?.missingPastes ?? []).some(m => m.includes('pasted text #1')), JSON.stringify(d?.missingPastes))
+  saveDraftDebounced(S1, {
+    text: 'text survives [Pasted text #1 +3 lines]',
+    cursorOffset: 2,
+    mode: 'prompt',
+    pastedContents: { 1: { id: 1, type: 'text', content: big, contentHash: 'abc123def4567890' } as never },
+  })
+  await flushDraftSaves()
+  const hashed = readDraftSync(S1)
+  const slot = hashed?.pastedContents[1] as { type?: string; content?: string; contentHash?: string } | undefined
+  check('§5b an oversized paste that carries its hash survives as a hash-only reference', slot?.type === 'text' && slot.content === '' && slot.contentHash === 'abc123def4567890', JSON.stringify(hashed?.pastedContents))
+  check('§5b …and is not listed as missing', !(hashed?.missingPastes ?? []).some(m => m.includes('pasted text #1')), JSON.stringify(hashed?.missingPastes))
 }
 
 for (let i = 0; i < 25; i++) {

@@ -70,25 +70,33 @@ keeps a per-line seen-lines evidence ledger and a bounded
 unique-relocation recovery for stale anchors; success returns fresh anchors
 per touched file, so patches chain without a reread.
 
-## The lines a refusal carries
+## The lines an edit carries
 
-An Edit that touches lines the model has not read is refused, and the
-refusal carries those lines: each unread stretch widened by a small margin,
-numbered as a Read shows them, each block with its own range anchor. The
-carried lines are recorded as displayed for the file's current generation,
-and the refusal says so — the edit is repeated without a Read. The carry is
-bounded like a Read window (the Read's line budget and token cap); past the
-bound the refusal names the Read that covers the rest. A file that changes
-on disk after the carry refuses again, with the lines of the new state.
+An Edit that touches lines the model has not read, in a file it has read as
+it stands, lands in one call when those lines fit a Read window: the result
+carries the edited lines as they now stand, each stretch widened by a small
+margin, numbered as a Read shows them, each block with its own range
+anchor, and they count as read. A refusal followed by an identical retry
+bought nothing, so there is none.
+
+The edit is refused instead when the file was never read this session, when
+it changed after the lines the model read, when `expected_anchor` no longer
+matches or, for hunks, covers only part of the lines addressed, or when the
+unread lines exceed a Read window. The refusal carries the lines the same
+way, recorded as displayed for the file's current generation, and its first
+sentence says what to do: edit again without a Read, check the carried lines
+first, edit again with a carried anchor, or read the window the refusal
+names for the rest. A file that changes on disk after the carry refuses
+again, with the lines of the new state.
 
 A Read of lines 1–5 followed by a file change and a search showing lines
 6–10 does not establish current knowledge of lines 1–10. The refusal names
 which anchor, generation or ownership/coverage check failed. It counts only
 current read windows and the current owner's ledger, and distinguishes
-older reads from current coverage. A separate Read window and ledger range
-are named separately when neither alone covers the whole edit; the refusal
-carries the ledger's missing lines so the unchanged edit law permits the
-retry. If a required knowledge lookup throws, its own error is reported
+older reads from current coverage. A Read window and a ledger range that
+cover the edit only together are never combined into one complete read:
+the ledger's missing lines are carried, and the edit lands with them in its
+result. If a required knowledge lookup throws, its own error is reported
 instead of claiming the file was never read.
 
 A Read of a file over the token cap answers with its first window as an
@@ -104,6 +112,19 @@ that a line window cannot split it and directs the caller to search rather
 than repeating that Read. A notebook over the cap has no line window at all
 (`offset` and `limit` do not select cells): its refusal says so and names
 the shell cell-slice commands instead of a Read.
+
+## The replacement's bytes
+
+The Edit tool writes a replacement as typed. Its search tolerates the
+file's typographic quotes: an old string typed with straight quotes still
+finds a line whose quotes are curly, and the bytes outside the change keep
+the file's own typography. Inside the change, only prose takes the file's
+quote style, and only on a line that already carries it: Markdown, plain
+text and AsciiDoc, as the diff highlighter's registry names them. Code,
+configuration, data, and every file the registry cannot name (no
+extension, a dotfile, a suffix it does not know, a script whose first line
+names no language it knows) land byte for byte, a comment block inside a
+code file included.
 
 ## Change receipts
 

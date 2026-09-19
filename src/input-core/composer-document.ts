@@ -151,8 +151,8 @@ export function migrateDraft(
     } else {
       const bytes = pc.content.length
       const lines = pc.content.split('\n').length
-      const hash = hashPastedText(pc.content)
-      doc.bodies.set(hash, pc.content)
+      const hash = pc.contentHash ?? hashPastedText(pc.content)
+      if (pc.content !== '') doc.bodies.set(hash, pc.content)
       doc.items.push({
         id: mintItemId(),
         kind: 'large-paste',

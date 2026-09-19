@@ -136,6 +136,7 @@ export const outputSchema = lazySchema(() =>
     noChange: noChangeSchema().optional(),
     freshLineAnchors: z.string().optional(),
     staleRecovery: z.string().optional(),
+    readThrough: z.string().optional(),
   }),
 )
 

@@ -160,11 +160,15 @@ function toStoredPastes(
   const stored: Record<number, StoredPaste> = {}
   for (const [key, paste] of Object.entries(pastedContents)) {
     if (paste.type === 'image') continue
+    if (paste.content === '' && paste.contentHash !== undefined) {
+      stored[Number(key)] = { id: paste.id, type: 'text', contentHash: paste.contentHash }
+      continue
+    }
     if (paste.content.length <= INLINE_PASTE_MAX_CHARS) {
       stored[Number(key)] = { id: paste.id, type: 'text', content: paste.content }
       continue
     }
-    const contentHash = hashPastedText(paste.content)
+    const contentHash = paste.contentHash ?? hashPastedText(paste.content)
     void storePastedText(contentHash, paste.content).catch(() => {})
     stored[Number(key)] = { id: paste.id, type: 'text', contentHash }
   }
@@ -303,6 +307,7 @@ async function resolveRecord(record: HistoryRecord): Promise<HistoryEntry> {
           id: stored.id,
           type: stored.type,
           content: body,
+          contentHash: stored.contentHash,
           ...(stored.mediaType !== undefined && { mediaType: stored.mediaType }),
           ...(stored.filename !== undefined && { filename: stored.filename }),
         }
@@ -407,6 +412,45 @@ export function danglingReferences(
   })
 }
 
+export function pasteUnavailableLine(reference: string): string {
+  return `${reference} is no longer available — remove the reference or paste the content again`
+}
+
+export async function resolvePastedContents(
+  input: string,
+  pastedContents: Record<number, PastedContent>,
+): Promise<{ pastedContents: Record<number, PastedContent>; missing: string[] }> {
+  const resolved: Record<number, PastedContent> = { ...pastedContents }
+  const missing: string[] = []
+  for (const reference of parseReferences(input)) {
+    const paste = resolved[reference.id]
+    if (!paste || paste.type !== 'text' || paste.content !== '' || paste.contentHash === undefined) continue
+    const body = await retrievePastedText(paste.contentHash)
+    if (body === null) {
+      if (!missing.includes(reference.match)) missing.push(reference.match)
+      continue
+    }
+    resolved[reference.id] = { ...paste, content: body }
+  }
+  return { pastedContents: resolved, missing }
+}
+
+export async function historyPasteHashes(): Promise<Set<string>> {
+  const hashes = new Set<string>()
+  let corpus: HistoryCorpus
+  try {
+    corpus = await loadHistoryCorpus()
+  } catch {
+    return hashes
+  }
+  for (const record of corpus) {
+    for (const stored of Object.values(record.pastedContents ?? {})) {
+      if (typeof stored.contentHash === 'string' && stored.contentHash !== '') hashes.add(stored.contentHash)
+    }
+  }
+  return hashes
+}
+
 export function expandPastedTextRefs(
   input: string,
   pastedContents: Record<number, PastedContent>,
@@ -417,7 +461,7 @@ export function expandPastedTextRefs(
     const reference = references[i]!
     if (reference.match.startsWith('[Image')) continue
     const paste = pastedContents[reference.id]
-    if (!paste || paste.type !== 'text') continue
+    if (!paste || paste.type !== 'text' || (paste.content === '' && paste.contentHash !== undefined)) continue
     out =
       out.slice(0, reference.index) +
       paste.content +

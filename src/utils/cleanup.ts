@@ -8,6 +8,8 @@ import { getFsImplementation } from './fsOperations.js'
 import { cleanupOldImageCaches } from './imageStore.js'
 import { logError } from './log.js'
 import { cleanupOldPastes } from './pasteStore.js'
+import { historyPasteHashes } from '../history.js'
+import { draftPasteHashes } from './promptDraft.js'
 import { getProjectsDir } from './sessionStorage.js'
 import { getSettingsWithAllErrors } from './settings/allErrors.js'
 import { getInitialSettings, rawSettingsContainsKey } from './settings/settings.js'
@@ -397,6 +399,12 @@ export async function cleanupOldDebugLogs(): Promise<CleanupResult> {
   return result
 }
 
+async function recallablePasteHashes(): Promise<Set<string>> {
+  const retained = await historyPasteHashes()
+  for (const hash of draftPasteHashes()) retained.add(hash)
+  return retained
+}
+
 export async function cleanupOldMessageFilesInBackground(): Promise<CleanupResult> {
   const { errors: settingsErrors } = getSettingsWithAllErrors()
   if (settingsErrors.length > 0 && rawSettingsContainsKey('cleanupPeriodDays')) {
@@ -419,7 +427,7 @@ export async function cleanupOldMessageFilesInBackground(): Promise<CleanupResul
     result = addCleanupResults(result, { messages: 0, errors: 1 })
   }
   try {
-    await cleanupOldPastes(computeCutoffDate())
+    await cleanupOldPastes(computeCutoffDate(), await recallablePasteHashes())
   } catch {
     result = addCleanupResults(result, { messages: 0, errors: 1 })
   }
