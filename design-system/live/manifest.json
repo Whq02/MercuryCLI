@@ -44,6 +44,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -78,6 +79,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -112,6 +114,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -146,6 +149,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -180,6 +184,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -214,6 +219,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -248,6 +254,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -282,6 +289,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -316,6 +324,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -350,6 +359,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -384,6 +394,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -418,6 +429,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -452,6 +464,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -486,6 +499,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -520,6 +534,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -554,6 +569,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -588,6 +604,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -607,7 +624,7 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--60x18--dark--truecolor--full.grid.json",
-      "gridDigest": "b5b33a8440a5c008c2261e9835fde3d5fbd76cb2cf99cd79f3eb94e01fc77cd6",
+      "gridDigest": "1273ad4699db01c9287a3d72e84ee643fc1f307d7cc02a542deecb0dce88eb2a",
       "styleDigest": "02e560992b2eb4c13a2555be810ee828839a8e516080281a726f086d6fa3d45a",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -622,6 +639,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -656,6 +674,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -690,6 +709,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -724,6 +744,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -758,6 +779,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -792,6 +814,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -826,6 +849,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -860,6 +884,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -894,6 +919,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -928,6 +954,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -962,6 +989,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -996,6 +1024,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1030,6 +1059,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1064,6 +1094,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1098,6 +1129,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1132,6 +1164,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1166,6 +1199,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1200,6 +1234,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1234,6 +1269,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1268,6 +1304,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1287,7 +1324,7 @@
       "stateFixture": "resume-2turn",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--60x18--dark--truecolor--full.grid.json",
-      "gridDigest": "b5b33a8440a5c008c2261e9835fde3d5fbd76cb2cf99cd79f3eb94e01fc77cd6",
+      "gridDigest": "1273ad4699db01c9287a3d72e84ee643fc1f307d7cc02a542deecb0dce88eb2a",
       "styleDigest": "02e560992b2eb4c13a2555be810ee828839a8e516080281a726f086d6fa3d45a",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -1302,6 +1339,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1336,6 +1374,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1370,6 +1409,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1404,6 +1444,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1438,6 +1479,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1472,6 +1514,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1506,6 +1549,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1540,6 +1584,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1574,6 +1619,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1608,6 +1654,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
@@ -1642,6 +1689,7 @@
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
