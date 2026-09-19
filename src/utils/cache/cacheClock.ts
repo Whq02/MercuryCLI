@@ -2,7 +2,7 @@
 import { mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getIsNonInteractiveSession, getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
-import { getProjectDir, getProjectsDir } from '../sessionStoragePortable.js'
+import { getProjectDir } from '../sessionStoragePortable.js'
 import { getCurrentWorktreeSession } from '../worktree.js'
 import { logError } from '../log.js'
 import { logForDebugging } from '../debug.js'
@@ -89,7 +89,7 @@ function resolveClass(): CacheClockClass {
 
 function sessionsDir(): string {
   const identity = getCurrentWorktreeSession()?.originalCwd ?? getOriginalCwd()
-  return join(getProjectsDir(), getProjectDir(identity), 'cache-clock', 'sessions')
+  return join(getProjectDir(identity), 'cache-clock', 'sessions')
 }
 
 function readPrior(dir: string): CadencePrior {

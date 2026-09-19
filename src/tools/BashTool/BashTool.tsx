@@ -28,7 +28,7 @@ import { formatDuration } from '../../utils/format.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { recordBashAudit } from '../../utils/spawnLedger.js'
 import { trackGitOperations } from '../../tools/shared/gitOperationTracking.js'
-import { scrubbedSessionEnvNotice } from '../../tools/shared/sessionEnvNotice.js'
+import { sessionEnvNoticeForResult } from '../../tools/shared/sessionEnvNotice.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
 import {
   detectFileEncoding,
@@ -150,6 +150,7 @@ export type Out = {
   structuredContent?: ToolResultBlockParam['content']
   rawOutputPath?: string
   scrubbedSessionEnv?: readonly string[]
+  sessionEnvNotice?: string
 }
 
 
@@ -596,7 +597,7 @@ async function* runBash(
       throw new ShellError('', result.preSpawnError, result.code, result.interrupted)
     }
     if (interpretation.isError && !interruptedByUser) {
-      throw new ShellError('', [out, scrubbedSessionEnvNotice(shellCommand.scrubbedSessionEnv)].filter(Boolean).join('\n'), result.code, result.interrupted)
+      throw new ShellError('', [out, sessionEnvNoticeForResult({ scrubbed: shellCommand.scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\n'), result.code, result.interrupted)
     }
 
     let persistedOutputPath: string | undefined
@@ -684,7 +685,7 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
     errorText += `${sep}<error>The command was aborted before completion.</error>`
   }
   const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output) : ''
-  const scrubNotice = scrubbedSessionEnvNotice(output.scrubbedSessionEnv)
+  const scrubNotice = output.sessionEnvNotice ?? ''
   const content = [stdout, errorText, output.exitNote ?? '', backgroundNotice, scrubNotice].filter(part => part !== '').join('\n')
   return { tool_use_id: toolUseID, type: 'tool_result', content, is_error: output.interrupted }
 }
@@ -782,7 +783,9 @@ export const BashTool = buildTool({
         onProgress?.({ toolUseID: `${context.toolUseId ?? 'bash'}-${counter}`, data: step.value.data })
         step = await generator.next()
       }
-      return { data: step.value }
+      const out = step.value
+      out.sessionEnvNotice = sessionEnvNoticeForResult({ scrubbed: out.scrubbedSessionEnv, commandText: input.command })
+      return { data: out }
     } finally {
       context.setToolJSX?.(null)
     }
