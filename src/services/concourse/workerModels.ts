@@ -316,6 +316,27 @@ export async function validateWorkerModelChoice(idOrKey: string | undefined, arm
     }
   }
   if (idOrKey !== undefined && SEAT_FAMILY_WORDS.has(idOrKey) && familySeatSetting(idOrKey) === undefined) {
+    if (idOrKey === 'gemini') {
+      const { getGeminiAvailability } = await import('../providers/gemini/geminiCatalogue.js')
+      const availability = getGeminiAvailability()
+      if (availability.state === 'ready' || availability.why !== 'no-account') {
+        const why = availability.state === 'ready' ? 'no-selectable-models' : availability.why
+        return {
+          ok: false,
+          reason: `not-runnable:${why}`,
+          detail: availability.state === 'ready'
+            ? 'the live Gemini catalogue has no selectable model for this launch'
+            : availability.reason,
+          action: why === 'auth-invalid'
+            ? loginsActionFor('gemini')
+            : why === 'traffic-off'
+              ? 'unset MERCURY_DISABLE_NONESSENTIAL_TRAFFIC, then retry /model'
+              : why === 'catalogue-pending' || why === 'catalogue-error'
+                ? 'retry the catalogue from /model, or /model <id> names a model directly'
+                : 'choose another source through /logins gemini, or another family through /model',
+        }
+      }
+    }
     if (idOrKey === 'local') {
       return { ok: false, reason: 'unreachable:local', detail: 'no local server is discovered on this box', action: loginsActionFor(idOrKey) }
     }
