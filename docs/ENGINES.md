@@ -140,7 +140,15 @@ come from its owning account resolvers:
 
 - **anthropic** — the account scope ring plus the API-key ladder, source-honest;
 - **openai** — the subscription store and the stored key, both shown when both exist;
-- **gemini** — OAuth connection or stored key;
+- **gemini** — Google OAuth or an API key. The cockpit, daemon and session
+  runner read OAuth and locally stored keys from the same auth-scoped store.
+  The API-key resolver takes `GOOGLE_API_KEY` before `GEMINI_API_KEY`, then the
+  stored key; environment keys must be available to the process that uses them.
+  A launch naming `gemini` needs the live catalogue to choose a model. A present
+  credential with a refused, unavailable or unselectable catalogue is a catalogue
+  refusal, not a missing sign-in; `no-credential:gemini` means no credential is
+  present. An explicit Gemini model id can still dispatch with a credential,
+  and the model endpoint decides whether to accept it;
 - **moonshot** — stored OAuth tokens or stored key;
 - **openrouter** — an OAuth-minted key or a stored key, env pin winning honestly;
 - **zai, deepseek, huggingface, local, compat** — env pins and stored keys.
