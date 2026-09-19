@@ -11,7 +11,7 @@ const argAfter = (flag: string): string | undefined => {
   const at = process.argv.indexOf(flag)
   return at >= 0 ? process.argv[at + 1] : undefined
 }
-const DIST = argAfter('--dist') ?? path.join(REPO, 'dist/mercury.mjs')
+const DIST = path.resolve(argAfter('--dist') ?? path.join(REPO, 'dist/mercury.mjs'))
 const FRAMES = argAfter('--frames')
 const LABEL = argAfter('--label') ?? 'signin'
 const SIZE = argAfter('--size') ?? '120x40'
