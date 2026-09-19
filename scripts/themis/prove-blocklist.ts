@@ -30,6 +30,20 @@ for (const s of NEGATIVE_SAMPLES) {
   check(`clear: ${label.slice(0, 56)}`, hit === null, hit ? `FALSE POSITIVE ${hit.id}` : '')
 }
 
+section('§2b git-hooks-path: a write of core.hooksPath fires, a read stays clear')
+const hp = (command: string): string | null => checkBlocklist('Bash', { command })?.id ?? null
+check('a value after the key is a write', hp('git config core.hooksPath .githooks') === 'git-hooks-path')
+check('--unset core.hooksPath is a write', hp('git config --unset core.hooksPath') === 'git-hooks-path')
+check('--add with a value is a write', hp('git config --add core.hooksPath /tmp/h') === 'git-hooks-path')
+check('--replace-all is a write', hp('git config --replace-all core.hooksPath /tmp/h') === 'git-hooks-path')
+check('a bare read is clear', hp('git config core.hooksPath') === null)
+check('a --get read is clear', hp('git config --get core.hooksPath') === null)
+check('a redirected read is clear', hp('git config core.hooksPath 2>/dev/null') === null)
+check('a read inside a command substitution is clear', hp('ls $(git config core.hooksPath 2>/dev/null) 2>/dev/null | head') === null)
+check('rev-parse --git-path hooks is clear', hp('git rev-parse --git-path hooks') === null)
+check('the spelling a heredoc writes to a file is clear', hp("cat >> comms/x.md <<'EOF'\ngit config core.hooksPath is a read that was refused\nEOF\n") === null)
+check('the spelling a quoted string writes to a file is clear', hp("printf '%s' 'git config core.hooksPath /tmp/x' > note.txt") === null)
+
 section('§3 purity: hostile shapes, no fs writes')
 const scratch = mkdtempSync(join(tmpdir(), 'themis-bl-'))
 process.chdir(scratch)
