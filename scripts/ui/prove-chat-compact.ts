@@ -27,7 +27,7 @@ const HINT_TEXTS = ['? for shortcuts', 'for commands + files', 'ctrl+t activity'
 const STATUS_ROW = '← back'
 const SHIFT_RIGHT = '\x1b[1;2C'
 const BOARD_NEW_DOOR = 'new session'
-const CONTRACT_OFFER = 'Do you want to proceed?'
+const CONTRACT_OFFER = 'contract?'
 const SESSIONS_LINE = /^(\d+ sessions? on · \d+ monitors? here · \d+ agents? here|S:\d+ · M:\d+ · A:\d+|S:\d+ · M:\d+ …|S:\d+ …|…)\s+(⇧← (?:boot face|concourse)|shift\+← (?:boot face|concourse))$/
 const textRows = (grid: Grid): string[] => grid.map(row => row.map(c => c.c).join('').replace(/\s+$/, ''))
 const cellsAt = (grid: Grid, y: number): Cell[] => grid[y] ?? []
