@@ -2,3 +2,4 @@ prove-count-and-inventory-words.ts
 prove-runs-row-detail-drive.ts
 prove-deepseek-live-rows-drive.ts
 prove-ctx-pin-mark-drive.ts
+prove-crew-stop-drive.ts
