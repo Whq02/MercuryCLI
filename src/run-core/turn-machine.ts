@@ -2,6 +2,7 @@ import type { ToolResultBlockParam, ToolUseBlock } from '../types/wire.js'
 import type { EffortValue } from '../utils/effort.js'
 import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
 import { FallbackTriggeredError } from '../services/api/withRetry.js'
+import { resetSessionEnvNoticeOnCompaction } from '../tools/shared/sessionEnvNotice.js'
 import {
   AUTOCOMPACT_THRASH_MESSAGE,
   calculateTokenWarningState,
@@ -1033,6 +1034,7 @@ export async function* runEventCore(
         trigger: forcedFold !== undefined ? 'overflow' : 'auto',
         messages: postCompactMessages,
       })
+      resetSessionEnvNoticeOnCompaction()
 
       messagesForQuery = [...postCompactMessages, ...foldSplit.carry]
       overflowEpisode = { pruned: overflowEpisode.pruned, folded: true }
