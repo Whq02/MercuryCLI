@@ -25,7 +25,7 @@ delete process.env.MERCURY_SKIP_PERMISSIONS
 delete process.env.MERCURY_DAEMON_PERMISSION_MODE
 
 const REPO = join(import.meta.dir, '..', '..')
-const BIN = join(REPO, 'dist', 'mercury.mjs')
+const BIN = process.argv.find(a => a.startsWith('--dist='))?.slice('--dist='.length) ?? join(REPO, 'dist', 'mercury.mjs')
 const CAPTURE_DIR = process.env.MERCURY_MODE_BAND_DRIVE_CAPTURE_DIR ?? null
 if (CAPTURE_DIR) mkdirSync(CAPTURE_DIR, { recursive: true })
 if (!existsSync(BIN)) {
@@ -307,7 +307,8 @@ for (const run of RUNS) {
   const settledAt = series.find(s => s.mode === run.born)
   console.log(`  [BEATS] ${run.id}: born=${run.born} · first=${firstWord} · last=${lastWord} · foreign beats=${foreign.length}${foreign.length > 0 ? ` (${[...new Set(foreign.map(f => f.mode))].join(', ')} at ${foreign.map(f => f.label).join(',')})` : ''}${settledAt !== undefined ? ` · the born word first at ${settledAt.label} (+${((settledAt.atMs - t0) / 1000).toFixed(1)}s)` : ''}`)
   check(`${run.id} L1 no frame paints a mode word the runner never held`, foreign.length === 0, foreign.length > 0 ? `${foreign.length} foreign beat(s): ${[...new Set(foreign.map(f => f.mode))].join(', ')}` : '')
-  check(`${run.id} L2 the first frame reads the born posture or nothing (${run.born})`, firstWord === run.born || firstWord === 'blank', `first=${firstWord}`)
+  const firstMustName = run.door !== 'direct'
+  check(`${run.id} L2 the first frame reads the born posture${firstMustName ? ' (a birth paints it from the first frame)' : ' or nothing'} (${run.born})`, firstWord === run.born || (!firstMustName && firstWord === 'blank'), `first=${firstWord}`)
   check(`${run.id} L3 the last frame reads the born posture (${run.born})`, lastWord === run.born, `last=${lastWord}`)
   const live = Object.values(liveRecords(home))
   const sessionId = live[0]?.sessionId
