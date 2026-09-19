@@ -144,7 +144,7 @@ import { findSlackChannelPositions } from '../../utils/suggestions/slackChannelS
 import { findTokenBudgetPositions } from '../../utils/tokenBudget.js'
 import type { TextHighlight } from '../../utils/textHighlighting.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
-import { danglingReferences, getPastedTextRefNumLines, formatPastedTextRef, formatImageRef, parseReferences } from '../../history.js'
+import { danglingReferences, getPastedTextRefNumLines, formatPastedTextRef, formatImageRef, parseReferences, pasteUnavailableLine } from '../../history.js'
 import { PASTE_THRESHOLD, getImageFromClipboard } from '../../utils/imagePaste.js'
 import { describeAttachedImage } from '../../utils/imageResizer.js'
 import { cacheImagePath, storeImage } from '../../utils/imageStore.js'
@@ -1489,7 +1489,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         if (dangling.length > 0) {
           addNotification({
             key: 'paste-ref-dangling',
-            text: `${dangling[0]!.match} is no longer available — remove the reference or paste the content again`,
+            text: pasteUnavailableLine(dangling[0]!.match),
             color: 'warning',
             priority: 'high',
             timeoutMs: 8000,
