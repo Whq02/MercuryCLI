@@ -206,7 +206,7 @@ async function capture(tag: string, home: string, cols: number, rows: number, se
   const refusal = await new Promise<string | null>((resolveRun, rejectRun) => {
     execFile(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { env: childEnv(home), timeout: vshotBudgetMs(240_000) }, (error, _stdout, stderr) => {
       if (error && !existsSync(outPath)) rejectRun(new Error(`${String(error)}\n${stderr}`))
-      else resolveRun(error ? String(stderr).split('\n').find(line => line.includes('[vshot]')) ?? String(error) : null)
+      else resolveRun(error ? String(stderr).split('\n').find(line => line.includes('[vshot')) ?? String(error) : null)
     })
   })
   if (refusal !== null) console.log(`  (the capture ended refused: ${refusal.slice(0, 160)})`)
@@ -240,7 +240,7 @@ try {
       ? [
           ...FACE_THEN_COMPOSER,
           { data: '', atTick: 999, awaitText: '1050k', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'boot' },
-          { data: 'hello\r', atTick: 999, awaitText: '· ready', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
+          { data: 'hello\r', atTick: 999, awaitText: 'ready · type a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
           { data: '', atTick: 999, awaitText: '· 872k', requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'landed' },
           { data: '/model\r', atTick: 999, awaitText: readyText, requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
           { data: '\x1b', atTick: 999, awaitText: '· model IDs', requireAwait: true, minTick: 3, awaitSettleTicks: 2 },
