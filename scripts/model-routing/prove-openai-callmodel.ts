@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
+process.argv.push('--debug-to-stderr')
 
 import { z } from 'zod'
 import type { AssistantMessage, Message, StreamEvent } from '../../src/types/message.js'
@@ -622,10 +623,29 @@ section('3b · reconstruction classes + the cross-model replay guard')
     { type: 'user', message: { role: 'user', content: 'continue' }, uuid: 'uo1', timestamp: 't' } as unknown as Message,
   ]
   const afterPreCapture: unknown[] = []
-  for await (const y of openaiCallModel(preCapture)) afterPreCapture.push(y)
+  const debugLines: string[] = []
+  const stderrWrite = process.stderr.write.bind(process.stderr)
+  process.stderr.write = ((chunk: unknown, ...rest: unknown[]) => {
+    const text = typeof chunk === 'string' ? chunk : Buffer.isBuffer(chunk) ? chunk.toString('utf8') : ''
+    if (text.includes(RECONSTRUCTION_MARK)) {
+      debugLines.push(text)
+      return true
+    }
+    return (stderrWrite as (...args: unknown[]) => boolean)(chunk, ...rest)
+  }) as typeof process.stderr.write
+  try {
+    for await (const y of openaiCallModel(preCapture)) afterPreCapture.push(y)
+  } finally {
+    process.stderr.write = stderrWrite
+  }
   check(
-    'a settled pre-capture turn fires the reconstruction receipt',
-    JSON.stringify(afterPreCapture).includes(RECONSTRUCTION_MARK),
+    'a settled pre-capture turn keeps the reconstruction receipt out of the chat',
+    !JSON.stringify(afterPreCapture).includes(RECONSTRUCTION_MARK),
+  )
+  check(
+    '…and writes it to the debug log once, naming the count',
+    debugLines.length === 1 && debugLines[0]!.includes('1 earlier GPT turn(s) predate reasoning capture'),
+    `${debugLines.length} debug lines`,
   )
 
   const crossModel = callParams('gpt-5.6-sol')
