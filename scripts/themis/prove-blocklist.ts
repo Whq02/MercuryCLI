@@ -43,6 +43,10 @@ check('a read inside a command substitution is clear', hp('ls $(git config core.
 check('rev-parse --git-path hooks is clear', hp('git rev-parse --git-path hooks') === null)
 check('the spelling a heredoc writes to a file is clear', hp("cat >> comms/x.md <<'EOF'\ngit config core.hooksPath is a read that was refused\nEOF\n") === null)
 check('the spelling a quoted string writes to a file is clear', hp("printf '%s' 'git config core.hooksPath /tmp/x' > note.txt") === null)
+check('a bare read followed by another line is clear', hp('git config core.hooksPath\nls') === null)
+check('a bare read followed by a CRLF line is clear', hp('git config core.hooksPath\r\nls') === null)
+check('a write followed by another line still fires', hp('git config core.hooksPath /tmp/h\nls') === 'git-hooks-path')
+check('a write with a tab before the value still fires', hp('git config core.hooksPath\t/tmp/h') === 'git-hooks-path')
 
 section('§3 purity: hostile shapes, no fs writes')
 const scratch = mkdtempSync(join(tmpdir(), 'themis-bl-'))
