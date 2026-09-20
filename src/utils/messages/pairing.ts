@@ -309,6 +309,9 @@ export function foldSplitTurnsForWire(
         ...('apexProviderTurn' in msg && msg.apexProviderTurn !== undefined
           ? { apexProviderTurn: msg.apexProviderTurn }
           : {}),
+        ...(msg.geminiProviderTurn !== undefined
+          ? { geminiProviderTurn: msg.geminiProviderTurn }
+          : {}),
         message: {
           ...prev.message,
           content: [...prev.message.content, ...msg.message.content],

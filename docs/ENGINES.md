@@ -65,10 +65,10 @@ Three wires serve the ten families:
 
 - **The Anthropic home lane** — the first-party API, directly or through a
   base-URL proxy.
-- **Native wires** — Z.AI, and OpenAI through its Responses API.
+- **Native wires** — Z.AI, OpenAI through its Responses API, and Gemini
+  through generateContent when using a Google account.
 - **The OpenAI-compatible chat wire** — Moonshot/Kimi, DeepSeek, the
-  operator-named compat slot, OpenRouter, Gemini (through Google's
-  OpenAI-compatibility surface, a refreshed OAuth token serving each call),
+  operator-named compat slot, OpenRouter, Gemini with an API key,
   Hugging Face (the Hub router, Hub slugs with an optional backend suffix),
   and local servers.
 
@@ -142,6 +142,15 @@ come from its owning account resolvers:
 - **openai** — the subscription store and the stored key, both shown when both exist;
 - **gemini** — Google OAuth or an API key. The cockpit, daemon and session
   runner read OAuth and locally stored keys from the same auth-scoped store.
+  Google-account chats use the native generation endpoint and preserve signed
+  response parts across tool rounds and resume, exactly as Google returned
+  them (a signature that streams in after the text rides the text part it
+  closes); a tool call the history carries without a signed record (a chat
+  switched from another model) replays under Google's documented
+  skip-validation signature. An image the model generates is refused as
+  content this chat cannot display. API-key chats keep the compatibility
+  endpoint. A native token refusal names the Google account and `/logins`,
+  with a receipt when a refresh was attempted.
   The API-key resolver takes `GOOGLE_API_KEY` before `GEMINI_API_KEY`, then the
   stored key; environment keys must be available to the process that uses them.
   A launch naming `gemini` needs the live catalogue to choose a model. A present

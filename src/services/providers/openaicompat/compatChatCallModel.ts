@@ -65,6 +65,7 @@ import {
   type CompatFault,
   type CompatFinishReason,
   type CompatStreamEvent,
+  type CompatStreamOptions,
   type CompatUsage,
 } from './compatChatClient.js'
 import type { RefusedToolCall } from '../../../types/message.js'
@@ -100,6 +101,10 @@ export interface CompatCredential {
 
 export interface CompatLaneProfile {
   lane: CompatLaneId
+  streamTransport?(options: CompatStreamOptions, messages: readonly Message[]): {
+    events: AsyncGenerator<CompatStreamEvent>
+    settle?(messages: readonly AssistantMessage[]): void
+  }
   providerLabel: string
   resolveCredential(): CompatCredential | undefined | Promise<CompatCredential | undefined>
   credentialHint: string
@@ -370,9 +375,10 @@ export async function* compatChatCallModel(
     retiredScreenshots.firstEdited === -1
       ? retiredScreenshots.messages
       : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
+  const preparedMessages = healWalkableForWire(wireMessagesForBridge)
   const request: CompatChatRequest = {
     model: wireModel,
-    messages: mapMessagesToZai(systemText, toBridgeMessages(healWalkableForWire(wireMessagesForBridge)), {
+    messages: mapMessagesToZai(systemText, toBridgeMessages(preparedMessages), {
       keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel) ?? false,
       imagesSupported: imagesSupportedForCompatModel(modelId),
     }),
@@ -430,6 +436,7 @@ export async function* compatChatCallModel(
       options,
       modelId,
       messages,
+      preparedMessages,
       deferredUnadmitted: plan.isDeferredUnadmitted,
     })
     if (outcome.kind === 'done') {
@@ -530,6 +537,7 @@ async function* streamOneCompatAttempt(ctx: {
   options: Options
   modelId: string
   messages: Message[]
+  preparedMessages: Message[]
   deferredUnadmitted?: (name: string) => boolean
 }): AsyncGenerator<StreamEvent | AssistantMessage, AttemptOutcome> {
   const { profile, request, apiKey, requestUrl, signal, tools, options, modelId } = ctx
@@ -628,7 +636,7 @@ async function* streamOneCompatAttempt(ctx: {
   }
 
   const extraHeaders = profile.extraHeaders?.()
-  const events: AsyncGenerator<CompatStreamEvent> = streamCompatChat({
+  const streamOptions: CompatStreamOptions = {
     ...(apiKey !== undefined ? { apiKey } : {}),
     ...(profile.onResponseHeaders ? { onResponseHeaders: profile.onResponseHeaders } : {}),
     ...(extraHeaders && Object.keys(extraHeaders).length > 0 ? { extraHeaders } : {}),
@@ -643,7 +651,9 @@ async function* streamOneCompatAttempt(ctx: {
       model: getPublicModelDisplayName(modelId) ?? modelId,
       ...(options.onWait ? { onWait: options.onWait } : {}),
     },
-  })
+  }
+  const transport = profile.streamTransport?.(streamOptions, ctx.preparedMessages)
+  const events = transport?.events ?? streamCompatChat(streamOptions)
   for await (const event of events) {
     if (!firstEventSeen) {
       firstEventSeen = true
@@ -801,6 +811,7 @@ async function* streamOneCompatAttempt(ctx: {
     lastMessage.message.usage = finalUsage as AssistantMessage['message']['usage']
     lastMessage.message.stop_reason = stopReason as AssistantMessage['message']['stop_reason']
     if (typedEnd !== null) lastMessage.streamEnd = typedEnd
+    transport?.settle?.(minted)
     void settleTranscriptMessage(lastMessage)
   }
   yield streamEvent({
