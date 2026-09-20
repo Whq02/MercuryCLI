@@ -15,8 +15,17 @@ import { getCwd } from '../../utils/cwd.js'
 import { pidAlive } from '../../utils/pidAlive.js'
 import { daemonControlRpc } from '../../daemon/controlSocket.js'
 import { findTeammateTaskByAgentId, getAllInProcessTeammateTasks } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
-import { isLocalAgentTask, queuePendingMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import {
+  agentMessageNotice,
+  agentMessageSummary,
+  enqueueMessageToMainAgent,
+  isLocalAgentTask,
+  queuePendingMessage,
+  speakAgentMessageFrame,
+  type LocalAgentTaskState,
+} from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isMainSessionTask } from '../../tasks/LocalMainSessionTask.js'
+import { MAIN_THREAD_AGENT } from '../../services/notices/unreadLedger.js'
 import { workflowOwnedAgentWords, workflowOwningAgent } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import { generateRequestId } from '../../utils/agentId.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
@@ -503,6 +512,41 @@ async function sendBusEnvelope(
 }
 
 
+const DELIVERED_WORDS =
+  "it is read at the receiver's next tool boundary, else at the end of its turn; a receiver between turns starts a turn for it"
+
+function senderAgentTask(context: ToolUseContext): LocalAgentTaskState | undefined {
+  const agentId = context.agentId
+  if (agentId === undefined) return undefined
+  const task = context.getAppState().tasks?.[String(agentId)]
+  return task !== undefined && isLocalAgentTask(task) && !isMainSessionTask(task) ? task : undefined
+}
+
+function messageNoticeFor(receiverId: string, content: string, context: ToolUseContext): string {
+  const sender = senderAgentTask(context)
+  return agentMessageNotice({
+    taskId: receiverId,
+    summary: agentMessageSummary(sender === undefined ? null : { taskId: sender.id, description: sender.description }),
+    text: content,
+  })
+}
+
+function routeToMainAgent(rawTo: string, content: string, context: ToolUseContext): MessageOutput | undefined {
+  if (rawTo.toLowerCase() !== MAIN_THREAD_AGENT) return undefined
+  const sender = senderAgentTask(context)
+  if (sender === undefined) {
+    const team = getTeamName(teamContextOf(context))
+    return {
+      success: false,
+      message:
+        `Cannot deliver to "${rawTo}": that address names this session's own main agent, and only a background sub-agent reaches its main agent there. ` +
+        `Address a sub-agent by the id its launch receipt names or by its name${team ? `, or a teammate by name (the lead is "${TEAM_LEAD_NAME}")` : ''}.`,
+    }
+  }
+  enqueueMessageToMainAgent({ fromTaskId: sender.id, description: sender.description, text: content })
+  return { success: true, message: `Message delivered to the main agent — ${DELIVERED_WORDS}.` }
+}
+
 async function routeToLocalAgent(
   rawTo: string,
   content: string,
@@ -521,10 +565,10 @@ async function routeToLocalAgent(
 
   if (liveLocal) {
     if (liveLocal.status === 'running') {
-      queuePendingMessage(liveLocal.id, content, context.setAppStateForTasks ?? context.setAppState)
+      queuePendingMessage(liveLocal.id, messageNoticeFor(liveLocal.id, content, context), context.setAppStateForTasks ?? context.setAppState)
       return {
         success: true,
-        message: `Message queued for ${rawTo}; it will be delivered at the agent's next tool round.`,
+        message: `Message delivered to agent ${rawTo} — ${DELIVERED_WORDS}.`,
       }
     }
     const ended =
@@ -534,15 +578,17 @@ async function routeToLocalAgent(
           ? 'had completed'
           : `was ${agentStatusWord(liveLocal.status)}`
     try {
+      const notice = messageNoticeFor(String(agentId), content, context)
       const resumed = await (
         await import('../AgentTool/resumeAgent.js')
       ).resumeAgentBackground({
         agentId: String(agentId),
-        prompt: content,
+        prompt: notice,
         toolUseContext: context,
         canUseTool,
         invokingRequestId,
       })
+      speakAgentMessageFrame(String(agentId), notice)
       return {
         success: true,
         message:
@@ -588,15 +634,17 @@ async function routeToLocalAgent(
   const view = await readAgentTranscript(transcriptPath)
   const endedOnDisk = view !== undefined ? transcriptEndWords(view.end) : 'transcript on disk'
   try {
+    const notice = messageNoticeFor(String(agentId), content, context)
     const resumed = await (
       await import('../AgentTool/resumeAgent.js')
     ).resumeAgentBackground({
       agentId: String(agentId),
-      prompt: content,
+      prompt: notice,
       toolUseContext: context,
       canUseTool,
       invokingRequestId,
     })
+    speakAgentMessageFrame(String(agentId), notice)
     return {
       success: true,
       message:
@@ -1273,6 +1321,8 @@ export const SendMessageTool = buildTool({
         if (selfRefusal !== null) {
           return { data: { success: false, message: selfRefusal } }
         }
+        const toMain = routeToMainAgent(rawTo, content, context)
+        if (toMain !== undefined) return { data: toMain }
         const routed = await routeToLocalAgent(
           rawTo,
           content,
