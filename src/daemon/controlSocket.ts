@@ -13,7 +13,6 @@ import {
 import { platform, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { acquirePidLock, noteLockRelease, releasePidLock } from '../substrate/pidLock.js'
-import { renameWithWin32RetrySync } from '../substrate/durablePublish.js'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
 import { recordSpawnExit } from '../utils/spawnLedger.js'
@@ -113,17 +112,10 @@ export function markSupervisorStoppingSync(now = Date.now()): boolean {
     return false
   }
   if (current?.pid !== process.pid) return false
-  const temp = `${path}.stopping-${process.pid}`
   try {
-    writeFileSync(temp, JSON.stringify({ ...current, state: 'stopping', stoppingAt: now }, null, 2), 'utf8')
-    renameWithWin32RetrySync(temp, path)
+    writeFileSync(path, JSON.stringify({ ...current, state: 'stopping', stoppingAt: now }, null, 2), 'utf8')
     return true
   } catch (e) {
-    try {
-      unlinkSync(temp)
-    } catch {
-      logForDebugging(`[daemon] the stopping mark's temp file could not be removed: ${temp}`)
-    }
     logForDebugging(`[daemon] could not mark the supervisor record stopping: ${e}`)
     return false
   }
