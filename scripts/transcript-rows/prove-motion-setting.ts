@@ -192,7 +192,7 @@ section('S7 the documents')
   check('the terminal profile names the setting, its four values and both doors', /## Motion/.test(profile) && /`auto`/.test(profile) && /`off`/.test(profile) && /Motion row of `\/config`/.test(profile) && /Performance section/.test(profile))
   check('the terminal profile maps the two switches onto the choice', /MERCURY_CRITTER_IDLE=0`\s+holds the critter part off/.test(profile.replace(/\n/g, ' ')) && /MERCURY_LIVE_GLYPHS=0`\s+the glyph part/.test(profile.replace(/\n/g, ' ')))
   const readme = src('README.md')
-  check('the README names the Performance section and the /config row', /Performance section holds the Motion/.test(readme))
+  check('the README names the Performance section and the /config row', /Performance section includes a Motion setting/.test(readme) && /also available in `\/config`/.test(readme))
   const schema = generateSettingsJSONSchema()
   check('the settings schema snapshot carries no such key (the global config owns it)', !/"motion"/.test(schema))
 }
