@@ -105,8 +105,8 @@ model list the product has already read for that family's signed-in source.
 The row never fetches: it reads the catalogue the picker, a chat naming the
 family or a sub-agent launch already cached, so a family nothing has asked
 about reads `no list read in this process`, a family without a credential
-reads `no credential`, a family whose provider publishes no list (Z.AI,
-Moonshot) reads `no live list — typed table dated <date>`, and Anthropic
+reads `no credential`, a family whose provider publishes no list (Z.AI)
+reads `no live list — typed table dated <date>`, and Anthropic
 reads `no list read` because Mercury reads no Anthropic list. The evidence
 line is `served <n> · not served <m> · lists read <k> of <r>`; the detail
 names one line per family and, beneath a family whose list lacks a typed id,
