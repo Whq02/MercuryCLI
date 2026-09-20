@@ -77,7 +77,20 @@ tool calls stream as they arrive; the final usage and stop reason are
 recorded; a provider fault never crashes the turn — a terminal fault lands
 as an API-error message in the chat, cancellation returns quietly, and a
 retryable fault before any content is retried once; every request's usage
-joins the one session cost ledger. On the wires that hand Mercury a tool
+joins the one session cost ledger. A stream the provider cuts after some of
+the reply has arrived is continued once: Mercury asks the model to pick up
+where it stopped, the reply so far stands, and the chat shows one quiet line,
+`Continued after 1 stream cut · context sent again`, whose expansion names
+the road, what the provider sent and the code. The cost is in those last
+three words: the continuation sends the turn's context again — on a
+subscription that is usage-window consumption, on an API key it is input
+tokens, and prompt cache hits reduce it. A second cut in the same turn is
+not continued; it stands as a failure and reads as one. On the OpenAI
+Responses wire every cut also writes one line to the debug log naming the
+road, the protocol, the milliseconds since the request started and since the
+last byte, the bytes and events received, whether the model was mid-reasoning
+or mid-text, the request's size class and the response headers that name the
+edge. On the wires that hand Mercury a tool
 call's arguments as text, an optional field the model sent empty (an empty
 string, an empty array, a null) reads as omitted, as the Anthropic wire
 carries it; a required field sent empty stays, and the tool's own refusal
