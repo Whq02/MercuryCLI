@@ -8,6 +8,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { codeOnlyText } from '../lib/codeText.ts'
 import { checker } from '../engine-durability/harness.ts'
+import { configHomeIsReal, guardLoginDriverWrite } from '../lib/loginDriverGuard.ts'
 
 const t = checker()
 const REPO = join(import.meta.dir, '..', '..')
@@ -919,6 +920,8 @@ t.section('§11 — THE MERGED SESSIONS·PROJECTS SCREEN (B2, dark: the containe
 t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND absent from every receipt/notify/log surface)')
 {
   const SECRET = 'zz-SECRETBYTES-0f9e8d7c6b5a4321'
+  guardLoginDriverWrite('the credential-secrecy driver sweep')
+  t.check('the sweep runs only in a scratch home (the guard reads the pinned home as scratch)', !configHomeIsReal())
   const json = (status: number, body: Record<string, unknown>): Response =>
     new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 
