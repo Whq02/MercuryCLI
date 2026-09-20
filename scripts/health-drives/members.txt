@@ -6,3 +6,4 @@
 # loud red in this runner.
 prove-health-mcp-row.ts
 prove-health-json-tty.ts
+prove-model-lists-doctor-drive.ts
