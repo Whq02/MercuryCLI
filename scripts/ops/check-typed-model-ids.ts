@@ -17,6 +17,8 @@ type ProbeVerdict = { id: string; served: true } | { id: string; served: false; 
 type ListResult = { ids: string[] } | { unreachable: string } | { typedTable: string } | { probed: ProbeVerdict[] }
 type FamilyCheck = { family: string; source: string; typed: string[]; list: () => Promise<ListResult>; current?: (id: string) => string }
 
+const { enableConfigs } = await import('../../src/utils/config.js')
+enableConfigs()
 const { getApiFetch, getProxyFetchOptions } = await import('../../src/utils/proxy.js')
 const { fetchWithProviderDeadline } = await import('../../src/services/providers/fetchDeadline.js')
 const { catalogueTrafficVerdict } = await import('../../src/services/providers/catalogueGate.js')
