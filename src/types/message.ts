@@ -209,6 +209,20 @@ export type SystemRosterTransitionMessage = {
   timestamp: string
 }
 
+export type SystemStreamCutMessage = {
+  type: 'system'
+  subtype: 'stream_cut'
+  content: string
+  count: number
+  road?: string
+  sent?: string
+  code?: string
+  level: SystemMessageLevel
+  isMeta?: boolean
+  uuid: UUID
+  timestamp: string
+}
+
 export type SystemThinkingNoteMessage = {
   type: 'system'
   subtype: 'thinking_note'
@@ -486,6 +500,7 @@ export type SystemMessage =
   | SystemInformationalMessage
   | SystemSeatReceiptMessage
   | SystemRosterTransitionMessage
+  | SystemStreamCutMessage
   | SystemThinkingNoteMessage
   | SystemThinkingDeadMessage
   | SystemPermissionRetryMessage

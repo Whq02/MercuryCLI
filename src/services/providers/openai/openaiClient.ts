@@ -10,6 +10,13 @@ import {
   type OpenaiStreamEvent,
 } from './openaiWire.js'
 import { recordOpenaiRateHeaders } from './openaiLimitState.js'
+import {
+  causeWordsOf,
+  composeStreamCutForensics,
+  dispatcherProtocolWords,
+  edgeHeadersOf,
+  type StreamCutForensicsV1,
+} from './streamCutForensics.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import {
   createStreamActivityRelay,
@@ -48,6 +55,10 @@ export async function* streamOpenaiResponses(
 ): AsyncGenerator<OpenaiStreamEvent> {
   const idleMs = options.idleTimeoutMs ?? streamIdleTimeoutMs()
   const url = `${options.baseUrl.replace(/\/$/, '')}/responses`
+  const startedAtMs = Date.now()
+  const body = JSON.stringify(options.request)
+  const requestBytes = Buffer.byteLength(body)
+  const protocol = dispatcherProtocolWords(options.fetchImpl !== undefined)
   const controller = new AbortController()
   const onOuterAbort = () => controller.abort()
   options.signal?.addEventListener('abort', onOuterAbort, { once: true })
@@ -91,7 +102,7 @@ export async function* streamOpenaiResponses(
           'user-agent': getUserAgent(),
           ...options.headers,
         },
-        body: JSON.stringify(options.request),
+        body,
         signal: controller.signal,
         ...(proxyOptions as Record<string, unknown>),
       } as RequestInit)
@@ -123,6 +134,8 @@ export async function* streamOpenaiResponses(
     options.firstByte?.onWait?.(null)
 
     recordOpenaiRateHeaders(response.headers)
+    const headersAtMs = Date.now()
+    const edgeHeaders = edgeHeadersOf(response.headers)
 
     if (!response.ok) {
       let body: unknown
@@ -148,11 +161,44 @@ export async function* streamOpenaiResponses(
     idleWatchdog = watchdog
     const relay = createStreamActivityRelay(atMs => options.onStreamActivity?.(atMs))
 
+    let bytes = 0
+    let events = 0
+    let lastByteAtMs = headersAtMs
+    const seen = { textDeltas: 0, reasoningDeltas: 0, toolArgumentDeltas: 0, last: 'none' }
+    const forensics = (cause?: string): StreamCutForensicsV1 =>
+      composeStreamCutForensics({
+        nowMs: Date.now(),
+        startedAtMs,
+        headersAtMs,
+        lastByteAtMs,
+        bytes,
+        events,
+        textDeltas: seen.textDeltas,
+        reasoningDeltas: seen.reasoningDeltas,
+        toolArgumentDeltas: seen.toolArgumentDeltas,
+        last: seen.last,
+        itemsSettled: fold.settledItems().length,
+        headers: edgeHeaders,
+        requestBytes,
+        protocol,
+        ...(cause !== undefined ? { cause } : {}),
+      })
+    const noteEvent = (event: OpenaiStreamEvent): void => {
+      seen.last = event.type
+      if (event.type === 'text-delta' || event.type === 'refusal-delta') seen.textDeltas += 1
+      else if (event.type === 'reasoning-delta') seen.reasoningDeltas += 1
+      else if (event.type === 'tool-args-delta') seen.toolArgumentDeltas += 1
+    }
+
     readLoop: for (;;) {
       let chunk: ReadableStreamReadResult<Uint8Array>
       try {
         chunk = await watchdog.guard(reader.read())
         watchdog.noteActivity()
+        if (!chunk.done && chunk.value !== undefined) {
+          bytes += chunk.value.length
+          lastByteAtMs = Date.now()
+        }
       } catch (error) {
         const isIdle = error instanceof StreamIdleTimeoutError
         const cancelled = options.signal?.aborted === true
@@ -161,12 +207,13 @@ export async function* streamOpenaiResponses(
           fault: cancelled
             ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled mid-stream', retryable: false }
             : isIdle
-              ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
+              ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true, forensics: forensics() }
               : {
                   kind: 'transport-error',
                   code: 'read-failed',
                   message: error instanceof Error ? error.message : String(error),
                   retryable: true,
+                  forensics: forensics(causeWordsOf(error)),
                 },
           settledItems: fold.settledItems(),
         }
@@ -174,7 +221,9 @@ export async function* streamOpenaiResponses(
         return
       }
       const results = chunk.done ? decoder.flush() : decoder.push(Buffer.from(chunk.value!))
-      if (results.some(item => item.kind === 'event')) relay.noteEvent()
+      const eventCount = results.reduce((n, item) => n + (item.kind === 'event' ? 1 : 0), 0)
+      events += eventCount
+      if (eventCount > 0) relay.noteEvent()
       else relay.noteChunk()
       for (const item of results) {
         if (item.kind === 'fault') {
@@ -207,6 +256,7 @@ export async function* streamOpenaiResponses(
           continue
         }
         for (const event of fold.fold(parsed)) {
+          noteEvent(event)
           yield event
         }
         if (fold.finished) break readLoop
@@ -217,7 +267,7 @@ export async function* streamOpenaiResponses(
     if (!fold.finished) {
       const bare = fold.takeBareStreamError()
       if (bare !== null) {
-        yield { type: 'stream-fault', fault: bare, settledItems: fold.settledItems() }
+        yield { type: 'stream-fault', fault: { ...bare, forensics: forensics() }, settledItems: fold.settledItems() }
         return
       }
       yield {
@@ -227,6 +277,7 @@ export async function* streamOpenaiResponses(
           code: 'no-terminal-event',
           message: 'stream ended without response.completed/failed/incomplete',
           retryable: true,
+          forensics: forensics(),
         },
         settledItems: fold.settledItems(),
       }

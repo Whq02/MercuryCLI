@@ -740,7 +740,8 @@ export class QueryEngine {
               if (
                 (systemMessage as { level?: string }).level === 'warning' ||
                 (systemMessage as { level?: string }).level === 'error' ||
-                systemMessage.subtype === 'thinking_note'
+                systemMessage.subtype === 'thinking_note' ||
+                systemMessage.subtype === 'stream_cut'
               ) {
                 turnMessages.push(systemMessage)
                 await recordDelta()

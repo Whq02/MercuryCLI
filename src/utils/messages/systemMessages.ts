@@ -69,6 +69,28 @@ export function createRosterTransitionMessage(
   }
 }
 
+export function createStreamCutMessage(input: {
+  count: number
+  content: string
+  road?: string
+  sent?: string
+  code?: string
+}): import('../../types/message.js').SystemStreamCutMessage {
+  return {
+    type: 'system',
+    subtype: 'stream_cut',
+    content: input.content,
+    count: input.count,
+    ...(input.road !== undefined ? { road: input.road } : {}),
+    ...(input.sent !== undefined ? { sent: input.sent } : {}),
+    ...(input.code !== undefined ? { code: input.code } : {}),
+    level: 'info',
+    isMeta: false,
+    timestamp: new Date().toISOString(),
+    uuid: randomUUID(),
+  }
+}
+
 export function createThinkingNoteMessage(
   content: string,
   level: SystemMessageLevel = 'info',

@@ -22,6 +22,7 @@ import type {
   SystemAPIErrorMessage,
 } from '../../../types/message.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
+import { streamCutForensicsDetail, streamCutForensicsLine } from './streamCutForensics.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
 import { EMPTY_USAGE } from '../../api/emptyUsage.js'
 import {
@@ -535,8 +536,9 @@ export async function* openaiCallModel(
   const threadKey = `${getSessionId()}:${options.agentId ?? 'main'}`
   if (bridge.reconstructedGptTurns > 0 && !reconstructionNoted.has(threadKey)) {
     reconstructionNoted.add(threadKey)
-    settlementNotes.push(
+    logForDebugging(
       `[openai] reconstructed continuation: ${bridge.reconstructedGptTurns} earlier GPT turn(s) predate reasoning capture — their content replays from the Mercury transcript (benign; new turns record full replay items).`,
+      { level: 'info' },
     )
   }
   if (bridge.foreignRecordsDropped > 0 && !foreignRecordNoted.has(threadKey)) {
@@ -1026,6 +1028,9 @@ export async function* streamOneOpenaiAttempt(ctx: {
       case 'stream-fault':
         fault = fault ?? event.fault
         if (event.settledItems !== undefined) settledOnFault = event.settledItems
+        if (event.fault.forensics !== undefined) {
+          logForDebugging(streamCutForensicsLine(auth.account.label, event.fault, event.fault.forensics), { level: 'warn' })
+        }
         break
     }
   }
@@ -1195,7 +1200,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
     yield apiErrorMessage(
       streamFaultAfterPartialText(auth.account.label, fault.code, fault.message),
       undefined,
-      undefined,
+      fault.forensics === undefined ? undefined : streamCutForensicsDetail(fault, fault.forensics),
       overflowOf(fault),
     )
   }

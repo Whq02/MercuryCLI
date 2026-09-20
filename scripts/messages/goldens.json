@@ -23492,6 +23492,29 @@
   "type": "system",
   "uuid": "«u1»"
  },
+ "createStreamCutMessage/basic": {
+  "code": "read-failed",
+  "content": "OpenAI ended the stream after partial content — terminated (read-failed); asked the model to continue from where it stopped (continuation 1 of 1)",
+  "count": 1,
+  "isMeta": false,
+  "level": "info",
+  "road": "OpenAI",
+  "sent": "terminated",
+  "subtype": "stream_cut",
+  "timestamp": "«ts»",
+  "type": "system",
+  "uuid": "«u1»"
+ },
+ "createStreamCutMessage/no-facts": {
+  "content": "The provider stream dropped after partial content — asked the model to continue from where it stopped (continuation 1 of 1)",
+  "count": 1,
+  "isMeta": false,
+  "level": "info",
+  "subtype": "stream_cut",
+  "timestamp": "«ts»",
+  "type": "system",
+  "uuid": "«u1»"
+ },
  "createSeatReceiptMessage/basic": {
   "content": "⇄ reslot applied — worker → claude-fable-5 @max",
   "isMeta": false,

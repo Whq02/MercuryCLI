@@ -90,6 +90,7 @@ import {
   STREAM_FAULT_RECOVERY_NUDGE,
   continuableStreamFaultTextOf,
   isContinuableStreamFaultMessage,
+  streamFaultFactsOf,
   streamFaultNoticeLine,
 } from '../services/api/errors.js'
 import {
@@ -101,6 +102,7 @@ import {
   createUserInterruptionMessage,
   normalizeMessagesForAPI,
   createSystemMessage,
+  createStreamCutMessage,
   createThinkingNoteMessage,
   createAssistantAPIErrorMessage,
   createToolUseSummaryMessage,
@@ -1362,15 +1364,18 @@ export async function* runEventCore(
           recoveryCount: streamFaultRecoveryCount,
         })
         if (decision.kind === 'continue') {
+          const faultText = continuableStreamFaultTextOf(lastMessage)
+          const faultFacts = faultText === null ? null : streamFaultFactsOf(faultText)
           yield emit({
             kind: 'notice',
-            message: createSystemMessage(
-              streamFaultNoticeLine(
-                continuableStreamFaultTextOf(lastMessage),
+            message: createStreamCutMessage({
+              count: decision.attempt,
+              content: streamFaultNoticeLine(
+                faultText,
                 `asked the model to continue from where it stopped (continuation ${decision.attempt} of ${STREAM_FAULT_RECOVERY_LIMIT})`,
               ),
-              'warning',
-            ),
+              ...(faultFacts === null ? {} : { road: faultFacts.provider, sent: faultFacts.message, code: faultFacts.code }),
+            }),
           })
           const recoveryMessage = createUserMessage({
             content: STREAM_FAULT_RECOVERY_NUDGE,
