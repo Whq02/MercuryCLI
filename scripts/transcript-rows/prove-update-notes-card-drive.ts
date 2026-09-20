@@ -21,7 +21,7 @@ const { seedFirstRun } = await import(join(root, 'scripts/lib/firstRunSeed.ts'))
 const { encodeSeedTranscript } = await import(join(root, 'scripts/lib/seedTranscript.ts'))
 const { sanitizePath } = await import(join(root, 'src/utils/sessionStoragePortable.ts'))
 const { resolveCaptureDriver, captureEngineEntry, vshotBudgetMs } = await import(join(root, 'scripts/lib/captureDriver.ts'))
-const { getAllReleaseNotes, earlierReleasesLine } = await import(join(root, 'src/utils/releaseNotes.ts'))
+const { getAllReleaseNotes, earlierReleasesLine, earlierReleasesCount } = await import(join(root, 'src/utils/releaseNotes.ts'))
 const driver = resolveCaptureDriver()
 if (driver.kind === 'unavailable') throw new Error(driver.remedy)
 
@@ -132,6 +132,12 @@ console.log('── /update-notes: the running release on the chat, the earlier 
       { data: '', awaitText: foldTail, requireAwait: true, minTick: 2, atTick: 550, awaitSettleTicks: 10, mark: 'card' },
       { data: '\x1b[5~', afterPrevTicks: 3 },
       { data: '', afterPrevTicks: 8, mark: 'card-up' },
+      { data: '\x1b[5~', afterPrevTicks: 3 },
+      { data: '', afterPrevTicks: 8 },
+      { data: '\x1b[5~', afterPrevTicks: 3 },
+      { data: '', afterPrevTicks: 8 },
+      { data: '\x1b[5~', afterPrevTicks: 3 },
+      { data: '', awaitText: head(shown[0]), requireAwait: true, minTick: 2, atTick: 650, awaitSettleTicks: 8, mark: 'card-head' },
       { data: '\x1b[1;3B', afterPrevTicks: 3 },
       { data: '\x0f', afterPrevTicks: 8 },
       { data: '', awaitText: oldestTail, requireAwait: true, minTick: 2, atTick: 700, awaitSettleTicks: 8, mark: 'pager' },
@@ -158,8 +164,9 @@ console.log('── /update-notes: the running release on the chat, the earlier 
   check('the chat journey ran to its marks', exit === 0 && marks.has('alias'), `exit ${exit} marks ${[...marks.keys()].join(',')} ${stderr.slice(-240)}`)
   const card = marks.get('card') ? flat(marks.get('card')!.grid) : ''
   const cardUp = marks.get('card-up') ? flat(marks.get('card-up')!.grid) : ''
-  const cardBoth = `${card} ${cardUp}`
-  check(`the running release's section is painted (its head: ${head(shown[0])})`, cardBoth.includes(head(shown[0])) && cardBoth.includes(shownFirstBullet.replace(/\s+/g, ' ')))
+  const cardHead = marks.get('card-head') ? flat(marks.get('card-head')!.grid) : ''
+  const cardBoth = `${card} ${cardUp} ${cardHead}`
+  check(`the running release's section is painted from its head (${head(shown[0])}) once the chat is paged up to it`, cardHead.includes(head(shown[0])) && cardHead.includes(shownFirstBullet.replace(/\s+/g, ' ')), cardHead.slice(0, 200))
   check(`the card's last line offers the earlier releases behind the key: "${foldLine} (… to expand)"`, card.includes(foldLine) && card.includes(foldTail))
   check('no earlier release is painted on the chat before the key', earlier.every(([v]) => !cardBoth.includes(head(v))))
   const pager = marks.get('pager') ? flat(marks.get('pager')!.grid) : ''
@@ -178,7 +185,8 @@ console.log('── the headless road prints every release ──')
   }
   const printed = runHeadless('/update-notes')
   check('the headless run prints every release', newestFirst.every(([v]) => printed.includes(head(v))), `${(printed.match(/^Version /gm) ?? []).length} of ${newestFirst.length} heads`)
-  check('the headless run carries no key line', !printed.includes('earlier release'))
+  const keyLines = printed.split('\n').filter(line => earlierReleasesCount(line.trim()) !== null)
+  check('the headless run carries no key line', keyLines.length === 0, keyLines.join(' | '))
   const aliasPrinted = runHeadless('/release-notes')
   check('the headless /release-notes prints the same text', aliasPrinted === printed && printed.length > 0)
 }
