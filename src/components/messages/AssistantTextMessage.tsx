@@ -1,5 +1,4 @@
 
-import { GLYPH } from '../mercury-ui/glyphs.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import React, { useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
@@ -100,15 +99,8 @@ function ErrorCard({
   verbose: boolean
   recovered: boolean
 }): React.ReactNode {
-  if (recovered && isContinuableStreamFaultText(text) && !verbose) {
-    return (
-      <Text>
-        <Text color="warning">{GLYPH.warn} </Text>
-        <Text>The stream dropped mid-response.</Text>
-        <Text dimColor> It recovered and the reply resumed below. </Text>
-        <CtrlOToExpand />
-      </Text>
-    )
+  if (recovered && isContinuableStreamFaultText(text)) {
+    return <Text dimColor>{text}</Text>
   }
 
   let body = text
@@ -256,6 +248,7 @@ export function AssistantTextMessage({
   }
 
   if (startsWithApiErrorPrefix(text)) {
+    if (streamFaultRecovered && isContinuableStreamFaultText(text) && !verbose) return null
     return (
       <Box flexDirection="column" marginTop={addMargin ? 1 : 0}>
         <ErrorCard

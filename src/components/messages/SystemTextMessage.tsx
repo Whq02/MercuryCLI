@@ -314,6 +314,22 @@ export function SystemTextMessage({
     case 'roster_transition':
       return <Text dimColor>{message.content}</Text>
 
+    case 'stream_cut':
+      return (
+        <Box flexDirection="column">
+          <Text color="subtle">
+            Continued after <Text bold>{message.count}</Text> {plural(message.count, 'stream cut')} · context sent again
+            {verbose ? null : (
+              <>
+                {' '}
+                <CtrlOToExpand />
+              </>
+            )}
+          </Text>
+          {verbose ? <Text dimColor>{message.content}</Text> : null}
+        </Box>
+      )
+
     case 'thinking_note':
       return null
 
