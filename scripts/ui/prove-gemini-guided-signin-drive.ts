@@ -29,6 +29,8 @@ const FIXTURE_ACCESS = 'fixture-google-access-token-0001'
 const FIXTURE_REFRESH = 'fixture-google-refresh-token-0001'
 const LOOPBACK_PORT = 1457
 const CALLBACK = `http://127.0.0.1:${LOOPBACK_PORT}/oauth2/callback`
+const PASTED_CODE = `${CALLBACK}?code=fixture-authorization-code`
+const PASTED_REFUSAL = `${CALLBACK}?error=access_denied&error_description=fixture+refusal`
 const AI_STUDIO = 'https://aistudio.google.com/apikey'
 const STEP_PAGES = [
   'https://console.cloud.google.com/projectcreate',
@@ -138,7 +140,7 @@ function startFixture(): Promise<{ port: number; hits: string[]; close: () => vo
   })
 }
 
-function seedHome(runHome: string, fixtureCwd: string, opts: { storedClient: boolean; denyOnce: boolean }): { browser: string; opens: string } {
+function seedHome(runHome: string, fixtureCwd: string, opts: { storedClient: boolean }): { browser: string; opens: string } {
   rmSync(runHome, { recursive: true, force: true })
   mkdirSync(fixtureCwd, { recursive: true })
   writeFileSync(
@@ -159,30 +161,8 @@ function seedHome(runHome: string, fixtureCwd: string, opts: { storedClient: boo
   }
   writeFileSync(path.join(fixtureCwd, 'README.md'), '# guided sign-in drive fixture\n')
   const opens = path.join(runHome, 'browser-opens.log')
-  const deny = path.join(runHome, 'deny-once')
-  if (opts.denyOnce) writeFileSync(deny, '1')
   const browser = path.join(runHome, 'fixture-browser.sh')
-  writeFileSync(
-    browser,
-    [
-      '#!/bin/bash',
-      'url="$1"',
-      `printf '%s\\n' "$url" >> "${opens}"`,
-      'case "$url" in',
-      '  *state=*)',
-      `    state=$(printf '%s' "$url" | sed -n 's/.*[?&]state=\\([^&]*\\).*/\\1/p')`,
-      `    if [ -f "${deny}" ]; then`,
-      `      rm -f "${deny}"`,
-      `      ( sleep 1; /usr/bin/curl -s -o /dev/null "${CALLBACK}?error=access_denied&error_description=fixture+refusal&state=\${state}" ) >/dev/null 2>&1 &`,
-      '    else',
-      `      ( sleep 1; /usr/bin/curl -s -o /dev/null "${CALLBACK}?code=fixture-authorization-code&state=\${state}" ) >/dev/null 2>&1 &`,
-      '    fi',
-      '    ;;',
-      'esac',
-      'exit 0',
-      '',
-    ].join('\n'),
-  )
+  writeFileSync(browser, ['#!/bin/bash', `printf '%s\\n' "$1" >> "${opens}"`, 'exit 0', ''].join('\n'))
   chmodSync(browser, 0o755)
   return { browser, opens }
 }
@@ -269,11 +249,15 @@ function walkSends(): Send[] {
     after(4, '\r'),
     gate('Client secret', '\r', 'step5-secret', 3),
     gate('step 6 of 6', '', 'step6'),
+    after(2, PASTED_CODE),
+    after(3, '\r'),
     gate('Gemini connected: Google account', '', 'oauth-receipt'),
     ...reopenCard(),
     gate('Google account — connected', '\x1b[B', 'card-after'),
     after(3, '\r'),
     gate('step 6 of 6', '', 'step6-direct'),
+    after(2, PASTED_CODE),
+    after(3, '\r'),
     gate('Gemini connected: Google account', '', 'end-receipt', 6),
     ...statusEnd(),
   ]
@@ -284,11 +268,16 @@ function deniedSends(): Send[] {
     ...openCard(),
     gate('the client id is stored', '\x1b[B', 'card-stored'),
     after(3, '\r'),
+    gate('step 6 of 6', '', 'denied-step6-first'),
+    after(2, PASTED_REFUSAL),
+    after(3, '\r'),
     gate('step 3 of 6', '\r', 'denied-step3', 6),
     gate('step 4 of 6', '\r', 'denied-step4'),
     gate('step 5 of 6', '\r', 'denied-step5'),
     gate('Client secret', '\r', undefined, 3),
     gate('step 6 of 6', '', 'denied-step6'),
+    after(2, PASTED_CODE),
+    after(3, '\r'),
     gate('Gemini connected: Google account', '', 'denied-receipt'),
     ...statusEnd(),
   ]
@@ -311,7 +300,7 @@ async function runLeg(leg: 'walk' | 'denied' | 'look'): Promise<{
 }> {
   const RUN_HOME = path.join(WORLD_ROOT, `mercury-gemini-guided-${leg}-${process.pid}`)
   const FIXTURE_CWD = path.join(RUN_HOME, 'fixture-repo')
-  const seeded = seedHome(RUN_HOME, FIXTURE_CWD, { storedClient: leg === 'denied', denyOnce: leg === 'denied' })
+  const seeded = seedHome(RUN_HOME, FIXTURE_CWD, { storedClient: leg === 'denied' })
   const fixture = await startFixture()
   const out = path.join(RUN_HOME, 'grid.json')
   const cfg = {
@@ -497,7 +486,7 @@ if (LEG === 'walk' || LEG === 'all') {
   check('the four Console pages opened once each, in step order', consoleOpens.join('|') === STEP_PAGES.join('|'), consoleOpens.join(' | '))
   check('step 5 took the client id by paste and the store kept it', step5.includes('step 5 of 6') && step5.includes('Client id:') && r.auth.clientId === FIXTURE_CLIENT, `${r.auth.clientId ?? 'no client'} · ${tail(markText(r.payload, 'step5'), 10)}`)
   check('step 6 opened the browser sign-in and printed the fallback address', step6.includes('step 6 of 6') && step6.includes('If nothing opened, visit:') && r.opens.some(isAuthorize), tail(markText(r.payload, 'step6'), 12))
-  check('the loopback callback completed the exchange and the Google account was proved on the live catalogue', r.hits.some(h => h.startsWith('POST /token')) && r.hits.some(h => h.startsWith('GET /v1beta/models') && h.includes(`bearer=${FIXTURE_ACCESS}`)) && r.auth.refreshToken === FIXTURE_REFRESH, r.hits.join(' | '))
+  check('the pasted redirect completed the exchange and the Google account was proved on the live catalogue', r.hits.some(h => h.startsWith('POST /token')) && r.hits.some(h => h.startsWith('GET /v1beta/models') && h.includes(`bearer=${FIXTURE_ACCESS}`)) && r.auth.refreshToken === FIXTURE_REFRESH, r.hits.join(' | '))
   check('the chat receipt names the connected Google account', oauthReceipt.includes('Gemini connected: Google account (OAuth)'), tail(markText(r.payload, 'oauth-receipt'), 10))
   check('the reopened card shows the Google account as connected and signing in again from step 6', cardAfter.includes('Google account — connected · ↵ signs in again (step 6)'), tail(markText(r.payload, 'card-after'), 12))
   const firstAuthorize = r.opens.findIndex(isAuthorize)
@@ -513,14 +502,15 @@ if (LEG === 'denied' || LEG === 'all') {
   section('the refusal: access_denied returns the card to step 3 with its page opened; the walk on from there signs in')
   const r = await runLeg('denied')
   const cardStored = flat(markText(r.payload, 'card-stored'))
+  const step6First = flat(markText(r.payload, 'denied-step6-first'))
   const step3 = flat(markText(r.payload, 'denied-step3'))
   const step5 = flat(markText(r.payload, 'denied-step5'))
   const receipt = flat(markText(r.payload, 'denied-receipt'))
   record('capture', `vshot=${r.status} end=${r.payload?.endReason ?? '?'} marks=${(r.payload?.marks ?? []).map(m => m.label).join(',')} · ${r.daemon}`)
   record('fixture hits', r.hits.join(' | ') || 'none')
   record('browser opens', r.opens.map(u => (isAuthorize(u) ? 'authorize(state)' : u)).join(' | ') || 'none')
-  check('a stored client id reads on the row and the account road starts at step 6', cardStored.includes('Google account — the client id is stored · ↵ signs in (step 6)') && r.opens.length > 0 && isAuthorize(r.opens[0]!), `${r.opens[0] ?? 'no open'} · ${tail(markText(r.payload, 'card-stored'), 12)}`)
-  check("Google's access_denied returned the card to step 3 with today's refusal words under the page", step3.includes('step 3 of 6') && step3.includes('access_denied') && step3.includes('not one of its test users') && step3.includes('add your account under Test users'), tail(markText(r.payload, 'denied-step3'), 16) || r.stderr.slice(-600))
+  check('a stored client id reads on the row and the account road starts at step 6', cardStored.includes('Google account — the client id is stored · ↵ signs in (step 6)') && step6First.includes('step 6 of 6') && r.opens.length > 0 && isAuthorize(r.opens[0]!), `${r.opens[0] ?? 'no open'} · ${tail(markText(r.payload, 'card-stored'), 12)}`)
+  check("Google's access_denied, pasted as the redirected URL, returned the card to step 3 with today's refusal words under the page", step3.includes('step 3 of 6') && step3.includes('access_denied') && step3.includes('not one of its test users') && step3.includes('add your account under Test users'), tail(markText(r.payload, 'denied-step3'), 16) || r.stderr.slice(-600))
   check('the Audience page opened again for the return to step 3', r.opens[1] === STEP_PAGES[2], r.opens.join(' | '))
   check('step 5 started from the stored client id', step5.includes(FIXTURE_CLIENT), tail(markText(r.payload, 'denied-step5'), 10))
   check('the walk on from step 3 signed in: the exchange, the catalogue, the receipt', r.hits.some(h => h.startsWith('POST /token')) && r.auth.refreshToken === FIXTURE_REFRESH && receipt.includes('Gemini connected: Google account (OAuth)'), r.hits.join(' | '))
