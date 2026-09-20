@@ -59,6 +59,26 @@ try {
 }
 check('the abort throws AbortError', threw)
 
+section('§8 the first leg answers an API error message, not a throw: a failed leg, and the session model is asked')
+const errMsg = (text: string) => ({ isApiErrorMessage: true, message: { content: [{ type: 'text', text }] } })
+const REFUSAL = "API Error: model 'gpt-5.4-mini' is not offered by the ChatGPT pro subscription live catalogue. The catalogue offers: gpt-6-astra, gpt-5.6-sol."
+const r8 = await applyPromptToMarkdown('q', 'PAGE', sig, true, false, { small: async () => errMsg(REFUSAL) as never, withModel: async () => fakeMsg('FALLBACK') as never, smallModelId: () => 'gpt-5.4-mini', mainModelId: () => 'gpt-5.6-sol' })
+check('the refusal is never returned as the summary; the fallback summary is', r8 === 'FALLBACK', r8)
+
+section('§9 both legs answer API error messages: the page with the note naming both roads and both reasons')
+const r9 = await applyPromptToMarkdown('q', 'PAGE CONTENT', sig, true, false, { small: async () => errMsg('API Error: small refused') as never, withModel: async () => errMsg('API Error: session refused') as never, smallModelId: () => 'haiku', mainModelId: () => 'opus' })
+check('the note names both roads with the error words as the reasons', r9.includes('Road: tried the small-fast model haiku (API Error: small refused), then the session model opus (API Error: session refused)'), r9)
+check('the page content is delivered under the note', r9.trimEnd().endsWith('PAGE CONTENT'))
+
+section('§10 a thrown first leg, then an API error message on the fallback: the note carries each road its own reason')
+const r10 = await applyPromptToMarkdown('q', 'PAGE', sig, true, false, { small: thrower('small refused') as never, withModel: async () => errMsg('API Error: session refused') as never, smallModelId: () => 'haiku', mainModelId: () => 'opus' })
+check('the thrown reason and the error-message reason sit on their own roads', r10.includes('Road: tried the small-fast model haiku (small refused), then the session model opus (API Error: session refused)'), r10)
+
+section('§11 the marker decides, never the words: a true answer that quotes an error line is the summary')
+const QUOTING = 'API Error: the page quotes this line as an example, and it is the summary'
+const r11 = await applyPromptToMarkdown('q', 'PAGE', sig, true, false, { small: async () => fakeMsg(QUOTING) as never, withModel: thrower('should not run') as never, smallModelId: () => 'haiku', mainModelId: () => 'opus' })
+check('an unmarked reply is returned as is, whatever its words', r11 === QUOTING, r11)
+
 section('§7 the fetch tool wires the two roads')
 const utils = readFileSync(join(ROOT, 'src/tools/WebFetchTool/utils.ts'), 'utf8')
 check('it reaches for the session small-fast tier and the session model', utils.includes('sessionSmallFastModel') && utils.includes('getMainLoopModel') && utils.includes('queryWithModel'))
