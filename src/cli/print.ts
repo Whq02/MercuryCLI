@@ -1488,6 +1488,7 @@ export async function runHeadless(
 
   const driver: TurnDriver = createTurnDriver({
     dequeue: takeMainThread,
+    dequeueCommand: command => dequeue(queued => queued === command),
     peek: () => {
       const next = peek()
       return next && isMainThreadCommand(next) ? next : undefined

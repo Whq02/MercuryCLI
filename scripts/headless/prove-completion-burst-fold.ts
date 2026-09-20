@@ -21,10 +21,12 @@ const NOTICE_HEAD = '<task-notification>\n<task-id>'
 const LAUNCH_ASK = 'burst: launch the background commands'
 const LAUNCHED = 'burst: launched'
 const NOTED = 'burst: noted'
+const WORDS = 'burst: the operator speaks'
+const WORDS_ANSWERED = 'burst: words answered'
 
 type Frame = Record<string, unknown> & { atMs: number }
 type Runner = { frames: Frame[]; send: (frame: Record<string, unknown>) => void; stop: (graceMs: number) => Promise<void>; stderr: () => string }
-type World = { holdSeconds?: number; secondHoldSeconds?: number; finalAnswerDelayMs?: number }
+type World = { holdSeconds?: number; secondHoldSeconds?: number; finalAnswerDelayMs?: number; operatorWordsAfterCompletions?: boolean }
 
 function boot(cwd: string, env: NodeJS.ProcessEnv): Runner {
   const argv = [DIST, '-p', '--input-format=stream-json', '--output-format=stream-json', '--model', MODEL, '--permission-mode', 'bypassPermissions', '--allowed-tools', 'Bash']
@@ -90,11 +92,12 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
   const holdSeconds = world.holdSeconds ?? 0
   const secondHoldSeconds = world.secondHoldSeconds ?? 0
   const finalDelayMs = world.finalAnswerDelayMs ?? 0
+  const operatorWords = world.operatorWordsAfterCompletions === true
   const shape =
     holdSeconds > 0
       ? `while the launch turn runs a ${holdSeconds} s foreground command${secondHoldSeconds > 0 ? ` and then a ${secondHoldSeconds} s one` : ''}`
       : finalDelayMs > 0
-        ? `while the launch turn's last model answer is still ${finalDelayMs / 1000} s away`
+        ? `while the launch turn's last model answer is still ${finalDelayMs / 1000} s away${operatorWords ? ', and the operator types a line after they land' : ''}`
         : 'on an idle main thread'
   tally.section(`${label}: ${count} background command${count === 1 ? '' : 's'} launched in one turn, ending ${sleepsSeconds.join('/')} s later ${shape}`)
   const runHome = realpathSync(mkdtempSync(join(tmpdir(), 'burst-home-')))
@@ -103,6 +106,7 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
   const fixture: ScriptedFixture = await startScriptedFixture(
     req => {
       if (req.ask.includes(NOTIFICATION)) return [{ type: 'text', text: NOTED }]
+      if (req.ask.trim() === WORDS) return req.step === 0 ? [{ type: 'tool_use', name: 'Bash', input: { command: 'true', description: 'a quick look' } }] : [{ type: 'text', text: WORDS_ANSWERED }]
       if (req.ask.trim() !== LAUNCH_ASK) return [{ type: 'text', text: 'ok' }]
       if (req.step === 0) {
         return sleepsSeconds.slice(0, count).map((s, i): WireBlock => ({ type: 'tool_use', name: 'Bash', input: { command: `sleep ${s}; echo burst-done-${i + 1}; touch ${stamps}/done-${i + 1}`, run_in_background: true, description: `burst command ${i + 1}` } }))
@@ -119,6 +123,14 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
   const runner = boot(cwd, childEnv(runHome, port))
   const t0 = Date.now()
   runner.send({ type: 'user', message: { role: 'user', content: LAUNCH_ASK }, uuid: randomUUID(), session_id: '' })
+  let wordsSentAt = Number.NaN
+  if (operatorWords) {
+    const until = Date.now() + vshotBudgetMs(20_000)
+    while (Date.now() < until && readdirSync(stamps).length < count) await sleep(50)
+    await sleep(300)
+    wordsSentAt = Date.now()
+    runner.send({ type: 'user', message: { role: 'user', content: WORDS }, uuid: randomUUID(), session_id: '' })
+  }
   const expectedTurns = holdSeconds > 0 ? 1 : 2
   await untilQuiet(runner, expectedTurns, 6_000, vshotBudgetMs(60_000))
   await runner.stop(5_000)
@@ -137,6 +149,10 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
   const launchResultAt = runner.frames.find(f => f.type === 'result')?.atMs ?? Number.NaN
   const foldStartAt = runner.frames.filter(f => f.type === 'system' && f.subtype === 'turn_started')[1]?.atMs ?? Number.NaN
   const carriedAt = carrying[0]?.atMs ?? Number.NaN
+  const lastCompletion = completedAt.length > 0 ? Math.max(...completedAt) : Number.NaN
+  const launchLastN = Math.max(...fixture.requests.filter(r => r.ask.trim() === LAUNCH_ASK).map(r => r.n))
+  const nextAfterLaunch = fixture.requests.find(r => r.n === launchLastN + 1)
+  const secondOpen = runner.frames.findIndex((f, i) => f.type === 'system' && f.subtype === 'turn_started' && runner.frames.slice(0, i).some(g => g.type === 'system' && g.subtype === 'turn_started'))
   console.log(`  clock: launch result +${((launchResultAt - t0) / 1000).toFixed(2)}s · first completion +${((firstCompletion - t0) / 1000).toFixed(2)}s · the carrying request +${((carriedAt - t0) / 1000).toFixed(2)}s (${Math.round(carriedAt - firstCompletion)} ms after the first completion) · the completions' turn +${((foldStartAt - t0) / 1000).toFixed(2)}s · window ${POLL_INTERVAL_MS} ms`)
   console.log(`  requests: ${fixture.requests.length} total · ${carrying.length} carrying a notification · blocks per carrying request ${JSON.stringify(blocksPer)} · turn_started ${turnsStarted} · results ${results} · sdk task_notification frames ${sdkNotifications.length}`)
   tally.check(`${label} L1 the launch turn started ${count} background command${count === 1 ? '' : 's'} and ended with words`, launched && fixture.requests.some(r => r.step === 1), `${JSON.stringify(fixture.requests.map(r => [r.n, r.step, r.results.map(x => x.text.slice(0, 40))]))}`)
@@ -144,6 +160,8 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
   tally.check(`${label} L3 one request carries every notification, not ${count}`, carrying.length === 1 && blocksPer[0] === count, `carrying requests ${carrying.length} · blocks ${JSON.stringify(blocksPer)}`)
   if (holdSeconds > 0) {
     tally.check(`${label} L4 the wire's turn_started edges agree: ONE turn — the completions rode the live turn at its next tool boundary, no fold turn was needed`, turnsStarted === 1 && results === 1, `turn_started ${turnsStarted} · results ${results}`)
+  } else if (operatorWords) {
+    tally.check(`${label} L4 the wire's turn_started edges agree: ${1 + 1} turns — the launch and the operator's; the completions rode the operator's turn, no fold turn of their own`, turnsStarted === 2 && results === 2, `turn_started ${turnsStarted} · results ${results}`)
   } else {
     tally.check(`${label} L4 the wire's turn_started edges agree: ${1 + 1} turns for the launch and the fold`, turnsStarted === 2 && results === 2, `turn_started ${turnsStarted} · results ${results}`)
   }
@@ -156,6 +174,11 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
     if (secondHoldSeconds > 0) {
       tally.check(`${label} L7 the completions were read at the FIRST tool boundary after they landed — before the second command ran, not after the whole turn`, carrying.length === 1 && carrying[0]!.step === 2 && Number.isFinite(carriedAt) && carriedAt - firstCompletion < secondHoldSeconds * 1000, `carrying request step ${carrying[0]?.step} · read ${Math.round(carriedAt - firstCompletion)} ms after the first completion · the second command alone takes ${secondHoldSeconds * 1000} ms`)
     }
+  } else if (operatorWords) {
+    const frameIndexes = sdkNotifications.map(f => runner.frames.indexOf(f))
+    tally.check(`${label} L5 the runner speaks one task_notification frame per completion (${count}), each on the wire inside the operator's turn, after its open edge`, sdkNotifications.length === count && distinctTasks === count && secondOpen >= 0 && frameIndexes.every(i => i > secondOpen), `${sdkNotifications.length} frames at wire positions ${JSON.stringify(frameIndexes)} · the second turn's open edge at ${secondOpen}`)
+    tally.check(`${label} L6 the turn after the launch was the operator's, not the completions': the request after the launch turn's last carries the typed line, and so does the request carrying the completions`, nextAfterLaunch !== undefined && nextAfterLaunch.ask.trim() === WORDS && carrying.length === 1 && carrying[0]!.ask.trim() === WORDS, `next ask ${JSON.stringify(nextAfterLaunch?.ask.slice(0, 50))} · carrying ask ${JSON.stringify(carrying[0]?.ask.slice(0, 50))}`)
+    tally.check(`${label} L7 the completions were read at the operator's turn's first tool boundary (its second request), and the line was typed after they landed`, carrying.length === 1 && carrying[0]!.step === 1 && Number.isFinite(wordsSentAt) && wordsSentAt > lastCompletion, `carrying request step ${carrying[0]?.step} · the line typed at +${((wordsSentAt - t0) / 1000).toFixed(2)}s · last completion +${((lastCompletion - t0) / 1000).toFixed(2)}s`)
   } else {
     tally.check(`${label} L5 the runner still speaks one task_notification frame per completion (${count})`, sdkNotifications.length === count && distinctTasks === count, `${sdkNotifications.length} frames: ${JSON.stringify(sdkNotifications.map(f => (f as { task_id?: unknown }).task_id))}`)
     if (finalDelayMs > 0) {
@@ -173,4 +196,5 @@ await scenario('single', 1, [3])
 await scenario('during', 2, [1, 1.3], { holdSeconds: 4 })
 await scenario('long', 2, [1, 1.3], { holdSeconds: 3, secondHoldSeconds: 4 })
 await scenario('late', 2, [1.5, 1.8], { finalAnswerDelayMs: 3500 })
+await scenario('words', 2, [1.5, 1.8], { finalAnswerDelayMs: 4500, operatorWordsAfterCompletions: true })
 tally.finish()
