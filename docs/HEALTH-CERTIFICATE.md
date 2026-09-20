@@ -98,6 +98,28 @@ what replaced it or that nothing did, and the fix says to unset it. The
 flag registry's retired table is the one list of such settings; a
 retired name is never a registered flag.
 
+AUTH carries the `Model lists` row: for every provider family Mercury
+carries typed model ids for (Anthropic, OpenAI, Z.AI, Moonshot, DeepSeek,
+Gemini, Hugging Face), whether each typed id is still served by the live
+model list the product has already read for that family's signed-in source.
+The row never fetches: it reads the catalogue the picker, a chat naming the
+family or a sub-agent launch already cached, so a family nothing has asked
+about reads `no list read in this process`, a family without a credential
+reads `no credential`, a family whose provider publishes no list (Z.AI,
+Moonshot) reads `no live list — typed table dated <date>`, and Anthropic
+reads `no list read` because Mercury reads no Anthropic list. The evidence
+line is `served <n> · not served <m> · lists read <k> of <r>`; the detail
+names one line per family and, beneath a family whose list lacks a typed id,
+the ids it lacks. The row reads `ok` when every typed id a read list can
+judge is served, `warn` when a read list lacks one, `info` when no list has
+been read in this process or no signed-in family has a live list, and
+`unknown` only when a cached list could not be read. A headless
+`mercury doctor` is a fresh process, so its row reads what that process has
+read, which is nothing, and never rolls the certificate to caution for a list
+nobody asked for; the release-day check
+(`bun scripts/ops/check-typed-model-ids.ts`) fetches every list live and
+uses the same comparison.
+
 CREW & DAEMONS carries the `Store isolation` check, which reads the config
 home's harness records by Mercury's own fingerprint: a daemon-plane record carrying no Mercury
 fingerprint was written by another tool and is reported with its evidence
