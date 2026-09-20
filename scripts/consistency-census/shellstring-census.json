@@ -402,6 +402,13 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
+      "file": "scripts/daemon/prove-process-sweep-world.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const PYTHON = process.platform === 'darwin' ? '/usr/bin/python3' : 'python3'",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
       "file": "scripts/default-provider/prove-defaultprovider-restart-drive.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
