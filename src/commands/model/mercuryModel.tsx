@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { isDeepStrictEqual } from 'node:util'
 import type { CommandResultDisplay } from '../../commands.js'
 import { MercuryModelPicker, fmtCtx as fmtCtxWindow, type ModelChoice } from '../../components/MercuryModelPicker.js'
 import { MercuryModelLandingGate } from './modelPickerLandingGate.js'
@@ -43,7 +44,8 @@ import { HUGGINGFACE_UNVERIFIED_NOTE } from '../../services/providers/huggingfac
 import { LOCAL_MODEL_GROUP, localDiscoverySummary } from '../../services/providers/local/localCatalogue.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import { parseGptModelId, withGptServedWindowSuffix } from '../../services/providers/openai/gptPins.js'
-import { liveGptContextCeiling } from '../../services/providers/openai/openaiCatalogue.js'
+import { getCachedOpenaiCatalogue, liveGptContextCeiling, refreshOpenaiCatalogue } from '../../services/providers/openai/openaiCatalogue.js'
+import { openaiSourceIdentity, resolveOpenaiAccount } from '../../services/providers/openai/openaiAccounts.js'
 import { anthropicCredentialPresence } from '../../services/providers/providerUsage.js'
 import { slotSeatView, switchActiveSlot, type SwitchableFamily } from '../../services/providers/slotSwitch.js'
 import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
@@ -282,7 +284,7 @@ function MercuryModelWrapper({
     plan: TransitionPlan
     refreshed: boolean
   } | null>(null)
-  const gptAvailability = getGptSeatAvailability({ fetch: true })
+  const gptAvailability = getGptSeatAvailability()
   const withFrontier = (detail: string, route: Parameters<typeof providerFrontierLine>[0]): string => {
     const line = providerFrontierLine(route)
     return line ? `${line} · ${detail}` : detail
@@ -297,6 +299,28 @@ function MercuryModelWrapper({
   const anthropicPresence = anthropicCredentialPresence()
   const [slotVersion, setSlotVersion] = React.useState(0)
   void slotVersion
+  const gptSource = resolveOpenaiAccount()?.kind
+  const gptIdentity = gptSource === undefined ? undefined : `${gptSource}:${openaiSourceIdentity(gptSource)}`
+  React.useEffect(() => {
+    const account = resolveOpenaiAccount()
+    if (!account) return
+    const before = getCachedOpenaiCatalogue(account.kind)
+    let open = true
+    void refreshOpenaiCatalogue(account.kind, { force: true }).then(snapshot => {
+      if (
+        open && before && before.models.length > 0 && snapshot && !snapshot.lastError &&
+        resolveOpenaiAccount()?.kind === account.kind &&
+        getCachedOpenaiCatalogue(account.kind) === snapshot &&
+        !isDeepStrictEqual(
+          before.models.toSorted((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity)),
+          snapshot.models.toSorted((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity)),
+        )
+      ) {
+        setNotice('GPT — the live catalogue changed; the rows are updated')
+      }
+    })
+    return () => { open = false }
+  }, [gptIdentity])
   const seatDetail = (family: SwitchableFamily): string => {
     try {
       const view = slotSeatView(family)

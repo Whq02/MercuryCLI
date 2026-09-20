@@ -269,7 +269,7 @@ try {
     const live = shot.marks.live ?? ''
     const liveRow = ctxRowOf(live)
     check(`${tag}: after the picker's own read, the figure holds and stays unmarked`, /ctx \S+ · 872k(?!\s*pin)/.test(liveRow) && !/\bpin\b/.test(liveRow), liveRow || `the mark never fired; the final row reads ${JSON.stringify(ctxRowOf(shot.final))}`)
-    check(`${tag}: the list was read from the account by the session's runner for its own request; the picker found it primed and fetched nothing more`, modelsHits.length - hitsBefore >= 1, String(modelsHits.length - hitsBefore))
+    check(`${tag}: the runner primes the list and the picker refreshes it once on open`, modelsHits.length - hitsBefore === 2, String(modelsHits.length - hitsBefore))
   }
 } finally {
   server.close()

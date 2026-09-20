@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util'
 import { primeOpenaiDiscovery } from '../../../utils/router/providerDiscovery.js'
 import {
   openaiSourceIdentity,
@@ -132,7 +133,13 @@ export function refreshOpenaiCatalogue(
       return snapshot
     } finally {
       catalogueInFlight.delete(identity)
-      bumpCatalogueEpoch()
+      const settled = catalogueCache.get(identity)
+      if (settled?.lastError !== cached?.lastError || !isDeepStrictEqual(
+        settled?.models.toSorted((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity)),
+        cached?.models.toSorted((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity)),
+      )) {
+        bumpCatalogueEpoch()
+      }
     }
   })()
   catalogueInFlight.set(identity, work)
