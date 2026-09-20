@@ -65,7 +65,7 @@ const SCAN_DOUBLE = [
     authed: true,
     email: 'main@example.com',
     uuid: 'uuid-main',
-    claudeFamily: false,
+    foreignHarness: false,
   },
   {
     name: 'b',
@@ -73,7 +73,7 @@ const SCAN_DOUBLE = [
     isCurrent: false,
     hasConfig: true,
     authed: false,
-    claudeFamily: false,
+    foreignHarness: false,
   },
 ]
 
@@ -281,11 +281,11 @@ section('(4) executeSlotRemoval — each slot to exactly its owning store')
 
   const claudeSlot = deriveFamilySlotGroups(double, {
     ...FULL_READS,
-    scanScopes: () => [{ ...SCAN_DOUBLE[1]!, dir: '/proof-home/.claude', name: 'external', claudeFamily: true }],
+    scanScopes: () => [{ ...SCAN_DOUBLE[1]!, dir: '/proof-home/.claude', name: 'external', foreignHarness: true }],
   })[0]!.slots[0]!
   calls.length = 0
   const claudeOut = executeSlotRemoval(claudeSlot, spies)
-  check("a Claude-family scope is excluded (class isolation) — never a Mercury removal",
+  check("another harness's scope is excluded (class isolation) — never a Mercury removal",
     calls.length === 0 && !claudeOut.mutated && claudeOut.note.includes('not a Mercury slot'))
 
   const acme = groups[2]!.slots[0]!

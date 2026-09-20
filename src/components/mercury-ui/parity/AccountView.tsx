@@ -102,7 +102,7 @@ export function AccountView({
   useEffect(() => {
     let alive = true
     for (const slot of scopeSlots) {
-      if (slot.scope!.claudeFamily) continue
+      if (slot.scope!.foreignHarness) continue
       setIdentities(prev => (prev[slot.id] ? prev : { ...prev, [slot.id]: { state: 'checking' } }))
       void resolveLiveScopeIdentity(slot.id).then(v => {
         if (alive) setIdentities(prev => ({ ...prev, [slot.id]: v }))
@@ -132,7 +132,7 @@ export function AccountView({
 
   const activateScopeSlot = (slot: AccountSlot): string => {
     const s = slot.scope!
-    if (s.claudeFamily) {
+    if (s.foreignHarness) {
       return "another tool's credential scope — Mercury never bills through it; run under your Mercury home (no config-dir pin) to sign in"
     }
     if (s.isCurrent) return rerouteToLogins('anthropic', `opening Logins for the ${s.name} sign-in`)
@@ -226,7 +226,7 @@ export function AccountView({
     model: mainLoopModel,
     presences: groups.map(group => group.family),
     currentScopeIdentity: billingSlot ? identities[billingSlot.id] : undefined,
-    currentScopeClaudeFamily: billingSlot?.scope?.claudeFamily ?? false,
+    currentScopeClaudeFamily: billingSlot?.scope?.foreignHarness ?? false,
   })
   const mainLoopText = `${mainLoop.family} · ${renderModelName(mainLoopModel)} · ${mainLoop.text}`
   const orgText =
