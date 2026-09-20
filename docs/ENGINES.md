@@ -203,7 +203,9 @@ existed, env-pinned keys included, order after every recorded sign-in — the
 config's older `defaultProvider` record first, so a home keeps its lane until
 its next sign-in. With no sign-in anywhere there is no default: the face and
 `/model` say so and point at `/logins`. An explicit `/model` choice,
-`MERCURY_MODEL` or a session override always outranks the default.
+`MERCURY_MODEL` or a session override always outranks the default. A stored
+Gemini key with the test fixture's shape (`zz-SECRE…`) is named a test key
+on its `/logins` and `/accounts` rows, with the gesture that removes it.
 
 ## Capabilities
 
