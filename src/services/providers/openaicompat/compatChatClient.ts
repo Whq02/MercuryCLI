@@ -145,7 +145,8 @@ export function describeTransportFailure(error: unknown, baseURL: string | undef
 }
 
 export function mapCompatHttpFailure(status: number, body: unknown, headers?: { get(name: string): string | null }): CompatFault {
-  const o = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : undefined
+  const envelope = Array.isArray(body) ? body.find(item => item !== null && typeof item === 'object' && 'error' in item) : body
+  const o = typeof envelope === 'object' && envelope !== null ? (envelope as Record<string, unknown>) : undefined
   const err = typeof o?.error === 'object' && o.error !== null ? (o.error as Record<string, unknown>) : undefined
   const stringError = typeof o?.error === 'string' && o.error.trim() !== '' ? o.error : undefined
   const message = String(err?.message ?? stringError ?? o?.message ?? `HTTP ${status}`)
