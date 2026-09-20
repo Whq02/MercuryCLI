@@ -164,7 +164,10 @@ function psRow(pid: number): { stat: string; tty: string } | null {
   }
 }
 
-const alive = (pid: number): boolean => psRow(pid) !== null && !psRow(pid)!.stat.startsWith('Z')
+const alive = (pid: number): boolean => {
+  const row = psRow(pid)
+  return row !== null && !row.stat.startsWith('Z')
+}
 
 async function waitFor(label: string, predicate: () => boolean | Promise<boolean>, timeoutMs: number): Promise<boolean> {
   const until = Date.now() + timeoutMs
