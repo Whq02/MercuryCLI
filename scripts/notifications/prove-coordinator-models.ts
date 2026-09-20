@@ -307,6 +307,30 @@ console.log('§10 switch receipts row on the activity feed')
   )
 }
 
+console.log('§11 a typed pin the LANDED live list does not serve is never a ready row; the baseline stands only while no list has been fetched')
+{
+  const { primeOpenaiCatalogue, __resetOpenaiCatalogueForTest } = await import('../../src/services/providers/openai/openaiCatalogue.ts')
+  const served = ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5']
+  const typedOnly = GPT_DISPLAY_PINS.map(pin => pin.id).filter(id => !served.includes(id))
+  __resetOpenaiCatalogueForTest()
+  resetRouterModelSnapshotMemo()
+  check('the fixture list primes the subscription catalogue', primeOpenaiCatalogue({ sourceKind: 'chatgpt-subscription', models: served.map((id, i) => ({ id, displayName: id, supportedReasoningEfforts: ['low', 'high'], reasoningEffortsStated: true, visibility: 'list', priority: i + 1 })), fetchedAtMs: Date.now() }))
+  const landed = await composeCoordinatorModelRegistry()
+  const gptRows = landed.entries.filter(e => e.source === 'openai')
+  check('the five served ids read ready', served.every(id => gptRows.some(e => e.modelId === id && e.availability === 'ready')), JSON.stringify(gptRows.map(e => [e.modelId, e.availability])))
+  check(
+    `the typed pins the list lacks (${typedOnly.join(', ')}) never read ready — every row of theirs carries the catalogue's words`,
+    typedOnly.length > 0 && typedOnly.every(id => gptRows.some(e => e.modelId === id) && gptRows.filter(e => e.modelId === id).every(e => e.availability === 'provider-unavailable' && (e.detail ?? '').includes('not served'))),
+    JSON.stringify(gptRows.map(e => [e.modelId, e.availability, e.detail])),
+  )
+  check('no GPT id rows twice', new Set(gptRows.map(e => e.modelId)).size === gptRows.length, JSON.stringify(gptRows.map(e => e.modelId)))
+  __resetOpenaiCatalogueForTest()
+  resetRouterModelSnapshotMemo()
+  const pending = await composeCoordinatorModelRegistry()
+  const baseline = pending.entries.filter(e => e.source === 'openai')
+  check('with no list fetched, every typed pin stands as a ready baseline row', GPT_DISPLAY_PINS.every(pin => baseline.some(e => e.modelId === pin.id && e.availability === 'ready')), JSON.stringify(baseline.map(e => [e.modelId, e.availability])))
+}
+
 check('scratch really was the only home touched', existsSync(join(authHome, '.openai-auth.json')))
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nPROVE-COORDINATOR-MODELS: PASS' : `\nPROVE-COORDINATOR-MODELS: ${failures} FAILURE(S)`)
