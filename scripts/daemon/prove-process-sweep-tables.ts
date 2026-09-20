@@ -194,9 +194,9 @@ function world(): { table: ProcessSweepTable; records: ProcessSweepRecords } {
       supervisor: { pid: 4001, startToken: tokenFor(4001), ownerPid: 3002, persist: false, startedAt: born('2026-09-20T09:02:00+01:00') },
       supervisorReadable: true,
       answer: { pid: 4001, ownerPid: 3002, live: 1, liveSessions: 1, persist: false, runners: [
-        { pid: 4002, procStart: tokenFor(4002), endedAt: undefined, stoppedAt: undefined, attachedBy: 'operator:3002', focusedBy: undefined, schedules: 0, activity: 'idle', warm: false },
-        { pid: 4003, procStart: tokenFor(4003), endedAt: NOW - 1_200_000, stoppedAt: undefined, attachedBy: undefined, focusedBy: undefined, schedules: 0, activity: undefined, warm: false },
-        { pid: 9001, procStart: tokenFor(9001), endedAt: undefined, stoppedAt: undefined, attachedBy: undefined, focusedBy: undefined, schedules: 0, activity: undefined, warm: true },
+        { pid: 4002, procStart: tokenFor(4002), endedAt: undefined, stoppedAt: undefined, parkedAt: undefined, seatHolders: [{ stamp: 'operator:3002', terminalPid: 3002 }], schedules: 0, activity: 'idle', warm: false },
+        { pid: 4003, procStart: tokenFor(4003), endedAt: NOW - 1_200_000, stoppedAt: undefined, parkedAt: undefined, seatHolders: [], schedules: 0, activity: undefined, warm: false },
+        { pid: 9001, procStart: tokenFor(9001), endedAt: undefined, stoppedAt: undefined, parkedAt: undefined, seatHolders: [], schedules: 0, activity: undefined, warm: true },
       ] },
       runners: null,
     }],
@@ -353,12 +353,21 @@ await check('a registered window whose tty the table no longer names is gone onc
 await check('a released runner still held by a live seat, a scheduled one, and one whose daemon reads it working stay running', () => {
   const { table, records } = world()
   const runners = records.planes[0]!.answer!.runners!
-  const held = { ...records, planes: [{ ...records.planes[0]!, answer: { ...records.planes[0]!.answer!, runners: runners.map(runner => (runner.pid === 4003 ? { ...runner, attachedBy: 'operator:3002' } : runner)) } }] }
+  const held = { ...records, planes: [{ ...records.planes[0]!, answer: { ...records.planes[0]!.answer!, runners: runners.map(runner => (runner.pid === 4003 ? { ...runner, seatHolders: [{ stamp: 'operator:3002', terminalPid: 3002 }] } : runner)) } }] }
   assert.equal(classes(table, held).get(4003)!.classification, 'running')
   const scheduled = { ...records, planes: [{ ...records.planes[0]!, answer: { ...records.planes[0]!.answer!, runners: runners.map(runner => (runner.pid === 4003 ? { ...runner, schedules: 1 } : runner)) } }] }
   assert.equal(classes(table, scheduled).get(4003)!.classification, 'running')
   const fresh = { ...records, planes: [{ ...records.planes[0]!, answer: { ...records.planes[0]!.answer!, runners: runners.map(runner => (runner.pid === 4003 ? { ...runner, endedAt: NOW - 1_000 } : runner)) } }] }
   assert.match(classes(table, fresh).get(4003)!.reason, /waiting/)
+})
+
+await check('a seat holder that names no terminal pid still holds the runner; a holder whose terminal pid the table does not hold lets it read stale', () => {
+  const { table, records } = world()
+  const runners = records.planes[0]!.answer!.runners!
+  const unnamed = { ...records, planes: [{ ...records.planes[0]!, answer: { ...records.planes[0]!.answer!, runners: runners.map(runner => (runner.pid === 4003 ? { ...runner, seatHolders: [{ stamp: 'operator', terminalPid: undefined }] } : runner)) } }] }
+  assert.equal(classes(table, unnamed).get(4003)!.classification, 'running')
+  const departed = { ...records, planes: [{ ...records.planes[0]!, answer: { ...records.planes[0]!.answer!, runners: runners.map(runner => (runner.pid === 4003 ? { ...runner, seatHolders: [{ stamp: 'operator:31337', terminalPid: 31337 }] } : runner)) } }] }
+  assert.equal(classes(table, departed).get(4003)!.classification, 'stale')
 })
 
 await check('the reading process itself is running, and the roster file stands in when the daemon does not answer', () => {
@@ -433,9 +442,9 @@ await check('a parked session record is not an open session; an open one still p
   const { table, records } = world()
   const runner = records.planes[0]!.answer!.runners![0]!
   const base = { ...records, registrations: [records.registrations![1]!], memory: { [`daemon:4001:${table.observations.find(row => row.process.pid === 4001)!.startToken}`]: NOW - 700_000 } }
-  const parked = { ...base, planes: [{ ...records.planes[0]!, supervisor: { ...records.planes[0]!.supervisor!, ownerPid: 3999 }, answer: { ...records.planes[0]!.answer!, ownerPid: 3999, live: 0, liveSessions: 0, runners: [{ ...runner, pid: 4444, parkedAt: NOW - 5_000, attachedBy: undefined }] } }] }
+  const parked = { ...base, planes: [{ ...records.planes[0]!, supervisor: { ...records.planes[0]!.supervisor!, ownerPid: 3999 }, answer: { ...records.planes[0]!.answer!, ownerPid: 3999, live: 0, liveSessions: 0, runners: [{ ...runner, pid: 4444, parkedAt: NOW - 5_000, seatHolders: [] }] } }] }
   assert.equal(classes(table, parked).get(4001)!.classification, 'stale')
-  const open = { ...base, planes: [{ ...records.planes[0]!, supervisor: { ...records.planes[0]!.supervisor!, ownerPid: 3999 }, answer: { ...records.planes[0]!.answer!, ownerPid: 3999, live: 0, liveSessions: 0, runners: [{ ...runner, pid: 4444, attachedBy: undefined }] } }] }
+  const open = { ...base, planes: [{ ...records.planes[0]!, supervisor: { ...records.planes[0]!.supervisor!, ownerPid: 3999 }, answer: { ...records.planes[0]!.answer!, ownerPid: 3999, live: 0, liveSessions: 0, runners: [{ ...runner, pid: 4444, seatHolders: [] }] } }] }
   assert.equal(classes(table, open).get(4001)!.classification, 'running')
   assert.match(classes(table, open).get(4001)!.reason, /session/)
 })
@@ -451,17 +460,20 @@ await check('a runner record without a birth token binds nothing: the process ca
 console.log('§ the ending ladder over injected ports in a scratch home')
 const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = require('node:fs') as typeof import('node:fs')
 const { tmpdir } = require('node:os') as typeof import('node:os')
-const { endStaleProcesses, readMercuryProcesses }: typeof import('../../src/daemon/processSweepRun.ts') = await import(join(import.meta.dir, '../../src/daemon/processSweepRun.ts'))
+const { endStaleProcesses, readMercuryProcesses, recordProcessCensusAtBoot }: typeof import('../../src/daemon/processSweepRun.ts') = await import(join(import.meta.dir, '../../src/daemon/processSweepRun.ts'))
 const SCRATCH = mkdtempSync(join(tmpdir(), 'orphan-sweep-ladder-'))
 const home = join(SCRATCH, 'home')
 const daemonDir = join(home, 'daemon')
 mkdirSync(join(home, 'processes'), { recursive: true })
 mkdirSync(daemonDir, { recursive: true })
+const OWN_USER = typeof process.getuid === 'function' ? String(process.getuid()) : ''
+assert.ok(OWN_USER !== '', 'the ladder runs as a POSIX user the collector can name')
 const ladderTable = (): ProcessSweepTable => {
   const table = parsePosixProcessTable(darwinTable)
   for (const row of table.observations) {
     row.process.args = row.process.pid === 4001 ? ['/opt/mercury/vendor/node/bin/node', '/opt/mercury/dist/mercury.mjs', 'daemon', 'run', '/work'] : row.process.pid === 4003 ? ['mercury'] : ['/usr/libexec/other']
     row.process.exe = row.process.pid === 4001 || row.process.pid === 4003 ? 'node' : 'other'
+    if (row.process.pid === 4001 || row.process.pid === 4003) row.process.user = OWN_USER
   }
   return table
 }
@@ -486,7 +498,7 @@ const ladder = async (port: Port, targetPid: number): Promise<{ outcome: string;
   const ending = after.endings[0]!
   return { outcome: ending.outcome, road: ending.road, reason: ending.reason }
 }
-const facts = { pid: 4001, ownerPid: 3999, live: 0, liveSessions: 0, persist: false, runners: [{ pid: 4003, procStart: runnerToken, endedAt: NOW - 1_200_000, stoppedAt: undefined, parkedAt: undefined, attachedBy: undefined, focusedBy: undefined, schedules: 0, activity: undefined, warm: false }] }
+const facts = { pid: 4001, ownerPid: 3999, live: 0, liveSessions: 0, persist: false, runners: [{ pid: 4003, procStart: runnerToken, endedAt: NOW - 1_200_000, stoppedAt: undefined, parkedAt: undefined, seatHolders: [], schedules: 0, activity: undefined, warm: false }] }
 const answerFacts = { ok: true, op: 'processSweep', action: 'facts', facts }
 
 await check('the daemon road that does not answer refuses the end of the reader\'s own daemon: no signal is sent', async () => {
@@ -558,7 +570,7 @@ await check('a process that leaves on the termination signal is never sent the k
 
 await check('a process that is no longer stale after the termination signal is not sent the kill signal', async () => {
   let termed = false
-  const port: Port = { present: new Set([4001, 4003]), signals: [], rpc: request => (request.action === 'facts' ? (termed ? { ...answerFacts, facts: { ...facts, runners: [{ ...facts.runners[0]!, endedAt: undefined, attachedBy: 'operator:3002' }] } } : answerFacts) : { ok: true, op: 'processSweep', action: 'end', ended: true, road: 'daemon', reason: 'the daemon killed its released runner' }) }
+  const port: Port = { present: new Set([4001, 4003]), signals: [], rpc: request => (request.action === 'facts' ? (termed ? { ...answerFacts, facts: { ...facts, runners: [{ ...facts.runners[0]!, endedAt: undefined, seatHolders: [{ stamp: 'operator:3002', terminalPid: 3002 }] }] } } : answerFacts) : { ok: true, op: 'processSweep', action: 'end', ended: true, road: 'daemon', reason: 'the daemon killed its released runner' }) }
   const deps = { home, ownDaemonDir: daemonDir, waitMs: 120, record: false, nowMs: () => Date.now(), collect: async (): Promise<ProcessSweepTable> => ladderTable(), rpc: async (request: { action: string }) => port.rpc(request) as never, signal: (pid: number, name: string): boolean => { port.signals.push(`${pid}:${name}`); if (name === 'SIGTERM') termed = true; return true } }
   const listing = await readMercuryProcesses({ ...deps, nowMs: () => NOW })
   const entry = listing.entries.find(item => item.process.pid === 4003)!
@@ -567,6 +579,26 @@ await check('a process that is no longer stale after the termination signal is n
   assert.equal(after.endings[0]!.outcome, 'refused')
   assert.match(after.endings[0]!.reason, /no longer stale after the termination signal/)
   assert.deepEqual(port.signals, ['4003:SIGTERM'])
+})
+
+await check('a plain read records nothing under the home and prunes no registration; the boot road records the census and prunes a registration whose pid the table does not hold', async () => {
+  const { statSync, existsSync: exists } = require('node:fs') as typeof import('node:fs')
+  const gonePath = join(home, 'processes', 'cockpit-77777-deadbeef-0000.json')
+  writeFileSync(gonePath, JSON.stringify({ schema: 1, id: 'deadbeef-0000', pid: 77777, startToken: 'Sun 20 Sep 08:30:00 2026', exe: 'node', bundle: '/opt/mercury/dist/mercury.mjs', configHome: home, daemonDir: daemonDir, terminal: null, bornAt: NOW - 3_600_000, heartbeatAt: NOW - 3_600_000 }))
+  const censusPath = join(home, 'processes', 'census.json')
+  const stamp = statSync(censusPath).mtimeMs
+  const deps = { home, ownDaemonDir: daemonDir, waitMs: 120, collect: async (): Promise<ProcessSweepTable> => ladderTable(), nowMs: () => NOW, rpc: async () => answerFacts as never }
+  const plain = await readMercuryProcesses(deps)
+  assert.equal(plain.complete, true)
+  assert.equal(statSync(censusPath).mtimeMs, stamp)
+  assert.equal(exists(gonePath), true)
+  await new Promise(resolve => setTimeout(resolve, 20))
+  const boot = await recordProcessCensusAtBoot(deps)
+  assert.equal(boot.complete, true)
+  assert.notEqual(statSync(censusPath).mtimeMs, stamp)
+  assert.equal(exists(gonePath), false)
+  const recorded = JSON.parse((require('node:fs') as typeof import('node:fs')).readFileSync(censusPath, 'utf8')) as { memory: Record<string, number> }
+  assert.equal(recorded.memory[`daemon:4001:${daemonToken}`], NOW - 700_000)
 })
 
 rmSync(SCRATCH, { recursive: true, force: true })

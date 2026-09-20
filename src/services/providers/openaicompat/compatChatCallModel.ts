@@ -105,6 +105,7 @@ export interface CompatLaneProfile {
     events: AsyncGenerator<CompatStreamEvent>
     settle?(messages: readonly AssistantMessage[]): void
   }
+  leadingNotes?: readonly string[]
   providerLabel: string
   resolveCredential(): CompatCredential | undefined | Promise<CompatCredential | undefined>
   credentialHint: string
@@ -438,6 +439,7 @@ export async function* compatChatCallModel(
       messages,
       preparedMessages,
       deferredUnadmitted: plan.isDeferredUnadmitted,
+      ...(profile.leadingNotes !== undefined ? { leadingNotes: profile.leadingNotes } : {}),
     })
     if (outcome.kind === 'done') {
       liveProof.set(profile.lane, { at: Date.now(), model: modelId })
@@ -539,6 +541,7 @@ async function* streamOneCompatAttempt(ctx: {
   messages: Message[]
   preparedMessages: Message[]
   deferredUnadmitted?: (name: string) => boolean
+  leadingNotes?: readonly string[]
 }): AsyncGenerator<StreamEvent | AssistantMessage, AttemptOutcome> {
   const { profile, request, apiKey, requestUrl, signal, tools, options, modelId } = ctx
 
@@ -634,6 +637,18 @@ async function* streamOneCompatAttempt(ctx: {
     minted.push(m)
     yield m
   }
+  let leadingNotesEmitted = false
+  function* emitLeadingNotes(): Generator<StreamEvent | AssistantMessage> {
+    if (leadingNotesEmitted) return
+    leadingNotesEmitted = true
+    for (const note of ctx.leadingNotes ?? []) {
+      yield* emitSettledBlock(
+        { type: 'text', text: note, citations: null },
+        [{ type: 'text_delta', text: note }],
+        { type: 'text', text: '', citations: null },
+      )
+    }
+  }
 
   const extraHeaders = profile.extraHeaders?.()
   const streamOptions: CompatStreamOptions = {
@@ -661,6 +676,7 @@ async function* streamOneCompatAttempt(ctx: {
     switch (event.type) {
       case 'reasoning-delta': {
         yield* ensureMessageStart()
+        yield* emitLeadingNotes()
         if (blocks.open?.kind !== 'thinking') yield* openNewBlock('thinking')
         blocks.open!.value += event.text
         yield streamEvent({
@@ -672,6 +688,7 @@ async function* streamOneCompatAttempt(ctx: {
       }
       case 'text-delta': {
         yield* ensureMessageStart()
+        yield* emitLeadingNotes()
         if (blocks.open?.kind !== 'text') yield* openNewBlock('text')
         blocks.open!.value += event.text
         yield streamEvent({
@@ -718,6 +735,7 @@ async function* streamOneCompatAttempt(ctx: {
 
   yield* ensureMessageStart()
   yield* closeOpenBlock()
+  if ((finish?.toolCalls.length ?? 0) > 0) yield* emitLeadingNotes()
 
   const completed = finish?.toolCalls ?? []
   const accepted: Array<{ call: CompatCompletedToolCall; input: Record<string, unknown> }> = []

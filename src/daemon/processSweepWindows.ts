@@ -87,7 +87,7 @@ function openHost() {
   const lines = reader[Symbol.asyncIterator]()
   const endTree = (): void => {
     if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) return
-    spawn(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe'), ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }).on('error', () => child.kill())
+    spawn(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe'), ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, env: { ...subprocessEnv() }, stdio: 'ignore' }).on('error', () => child.kill())
   }
   return {
     async ask(request: Record<string, unknown>, timeoutMs = 30_000): Promise<Record<string, unknown>> {
