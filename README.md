@@ -2,24 +2,31 @@
 
 Website: [mercury-cli.ai](https://mercury-cli.ai)
 
-Mercury is an agentic coding harness. It reads, edits, runs and verifies
-code in your repository, keeps several sessions working side by side while
-you look elsewhere, and lets you switch providers and models without leaving
-the chat. Bring an API key or a provider sign-in,
-open it in any repository, and work in plain language.
+Mercury is a terminal-based coding harness for working with AI models in your
+own repositories. It reads and edits files, runs commands, and checks the
+results. You choose the provider, the model, and what the agent is allowed to
+do.
 
-Use it as a full-screen terminal app, from your editor, headless in scripts,
-or on a schedule; a session keeps its conversation, model, permissions and
-workspace, and comes back when you ask for it.
+Each session keeps its own conversation, model, permissions and workspace.
+Leave one running while you work in another, then return to it when you need
+to. You can switch providers and models within the same chat, use Mercury
+from your editor, run it headless in scripts, or schedule work for later.
+
+I use Mercury to develop Mercury, working with several agents and models
+across long sessions. Keeping track of that work matters to me: what is still
+running, what changed, and what needs a decision.
 
 ![One prompt launches two agents, each in its own worktree, and Mercury reports what each changed](docs/media/agents.gif)
 
+Mercury is source-available. See [Licence](#licence) for the production-use terms.
+
 ## Install
 
-Mercury ships as release archives, one per platform (Apple silicon and Intel
-Macs, Linux x64, Windows x64), each carrying its own Node runtime and ripgrep,
-so a release install needs `git` and nothing else. One command installs it;
-pick the channel you prefer:
+Release archives are available for Apple silicon and Intel Macs, Linux x64,
+and Windows x64. Each includes Node and ripgrep, so you need `git` but do not
+need to install Node separately.
+
+Choose one installation method:
 
 ```sh
 curl -fsSL https://mercury-cli.ai/install | sh     # macOS and Linux x64
@@ -29,104 +36,150 @@ npm install -g mercury-tech-cli                    # npm; `bun install -g mercur
 mise use -g npm:mercury-tech-cli                   # mise, through the npm package
 ```
 
-The first two look up the newest release at run time: they download this
-machine's archive from the repository's releases, check its SHA-256 against
-the release's `SHA256SUMS.txt`, unpack it, and run the archive's own
-`mercury install`. The Homebrew formula and the npm package
-(`mercury-tech-cli`, a launcher that downloads the release it names) are
-pinned to one release each and republished after a tag, so they can trail
-the newest release for a while; mise installs the npm package. Every
-channel is user-local and needs no administrator access; rerunning an
-install command is safe.
+After installation, open a new terminal and run `mercury --version` to check
+it. Then run `mercury` from a repository to start the [first run](#the-first-run).
+To use Mercury in the terminal you installed from, follow the PATH instruction
+printed by the installer.
 
-A release install lives under the config home,
-`~/.mercury/versions/<version>` (`%USERPROFILE%\.mercury\versions` on
-Windows), with a `mercury` command in a user-local bin folder:
-`~/.local/bin` on macOS and Linux, `%LOCALAPPDATA%\Mercury\bin` on
-Windows. `mercury install` puts that folder on your PATH itself, once (one
-guarded line in your shell's startup file; the user PATH on Windows), so a
-new terminal finds `mercury`; the terminal you installed from needs the
-line the installer prints. `mercury --version` is the check.
+<details>
+<summary>Installation paths, updates and release verification</summary>
 
-`mercury update` is the one update command on every channel. An install
-made by the install one-liners or by `mercury install` it keeps current in
-place (`--check`, `--status`, `--rollback`; the previous version stays on
-disk). Inside an install made by Homebrew it asks once — "This Mercury was
-installed by Homebrew. Run `brew upgrade Whq02/mercury/mercury` now? [y/N]" —
-runs that command on `y` with its output as it comes, and reads the installed
-version back; `--yes` skips the question for scripts. The npm package
-(`mercury-tech-cli`) installs the release into the same layout as the
-one-liners and hands every run to it, so `mercury update` updates an npm
-install in place through Mercury's own channel; `npm update -g
-mercury-tech-cli` moves only the package's first-run release. `--check`
-reads one release list everywhere and ends with the road that applies. The
-Boot face says once, in its bottom-right corner, when a newer release exists
-("vX.Y.Z available · mercury update"), and the chat shows one expiring line;
-`MERCURY_UPDATE_NOTICE=0` turns both off. The channel road reads the public
-release list and the archive anonymously — no account, no sign-in, no token
-— and verifies the archive against the release's `SHA256SUMS.txt` before
-anything activates; a signed-in GitHub CLI (`gh`) is asked only when that
-anonymous request is refused, and is never required. Update and install also
-require a payload signed by the
-Mercury release key in the compiled-in trust roster before staging it. Every
-other signature verdict refuses without changing the active installation. The
-explicit `--allow-unsigned` flag accepts an unsigned payload only, never an
-unknown key, a malformed signing block or tampered bytes; the result and local
-receipt name that exception. After an update, when the `mercury` your shell
-runs is not the updated command (another install ahead of it on PATH, or the
-folder not on PATH at all), the last lines say so and name the fix;
-`mercury doctor` reports the same.
+### How the installation methods differ
 
-From 1.0.0-beta.3 every release archive is signed with the Mercury release
-key at packaging, and the release is verified against that signature before
-it is published; a verified install prints nothing about it on boot, and
-`mercury doctor` shows `signed — key 627b54b734ca0e72`. The 1.0.0-beta.2
-archives are unsigned: such an install prints a `provenance — unsigned` line
-on a bare interactive boot (a plain `mercury` with no verb or flag), once per
-install, and `mercury doctor` carries the row every time. The line means the
-archive's manifest carries no signature; the download itself is checked
-against the release's `SHA256SUMS.txt`. What the verdicts mean and how to
-check an archive by hand is in [docs/TRUST.md](docs/TRUST.md); the boot-time
-verification is described in [docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md).
+The shell and PowerShell installers fetch the newest release for your
+platform, check its SHA-256 against `SHA256SUMS.txt`, unpack it, and run the
+archive's own `mercury install` command.
 
-No archive ships for a Linux arm64 machine or Windows on arm64: the installer
-says so on the first and points at building from source (below); on Windows
-arm64 the x64 build runs under emulation. The Intel Mac archive ships from
-1.0.0-beta.3, cross-packaged on the Apple silicon runner and booted under
-Rosetta before it publishes; on 1.0.0-beta.2 an Intel Mac builds from source.
+Homebrew and the npm package are each pinned to a particular release and are
+republished after a tag, so they can lag behind the newest release. The npm
+package, `mercury-tech-cli`, is a launcher that downloads its pinned release;
+mise installs that same package.
 
-Once installed, `mercury` in any repository starts the first run (below).
+Mercury's installation is user-local and does not require administrator
+access. You can safely rerun an installation command.
+
+### Installation paths
+
+Release versions live under the config home at `~/.mercury/versions/<version>`
+(`%USERPROFILE%\.mercury\versions` on Windows). The `mercury` command is
+installed in `~/.local/bin` on macOS and Linux, or
+`%LOCALAPPDATA%\Mercury\bin` on Windows.
+
+`mercury install` adds the command's directory to PATH once: a guarded line
+in your shell startup file, or an entry in the Windows user PATH. A new
+terminal picks up the change automatically.
+
+### Updates
+
+Use `mercury update` with any installation method.
+
+For an installation made with the shell or PowerShell installer, or with
+`mercury install`, it updates Mercury in place. `--check` checks for updates,
+`--status` reports update status, and `--rollback` returns to the previous
+version, which stays on disk.
+
+For Homebrew, it asks before running `brew upgrade Whq02/mercury/mercury`.
+The default answer is no; enter `y` to approve. Mercury streams the command's
+output and checks the installed version afterwards. Use `--yes` to skip the
+prompt in scripts.
+
+The npm launcher uses the same release layout as the installers and delegates
+each run to the installed release. `mercury update` therefore updates an npm
+installation in place through Mercury's own update channel.
+`npm update -g mercury-tech-cli` changes only the release the package installs
+on its first run. This also applies when using mise.
+
+`--check` reads the same release list for every installation method and tells
+you how to update yours. When an update is available, the home screen shows
+`vX.Y.Z available · mercury update` once in its bottom-right corner, and the
+chat shows a temporary notice. Set `MERCURY_UPDATE_NOTICE=0` to hide both.
+
+Install and update requests use the public release list and archives without
+an account or token. A signed-in GitHub CLI (`gh`) is consulted only if the
+anonymous request is refused; it is not a requirement.
+
+After an update, Mercury checks whether the command on your PATH points to
+the updated installation. If another installation takes precedence, or the
+updated command is missing from PATH, it explains the problem and the fix.
+`mercury doctor` reports the same issue.
+
+### Release verification
+
+Before activating a release, Mercury checks its archive against
+`SHA256SUMS.txt`. It also requires a payload signed by the Mercury release
+key in its compiled-in trust roster before staging the update. A rejected
+signature leaves the active installation unchanged.
+
+`--allow-unsigned` permits an unsigned payload only. It does not accept an
+unknown signing key, a malformed signing block, or tampered contents. Both
+the command's result and its local receipt record that exception.
+
+From 1.0.0-beta.3, archives are signed during packaging and their signatures
+are verified before publication. A verified installation adds no signature
+notice at startup. `mercury doctor` shows `signed — key 627b54b734ca0e72`.
+
+The 1.0.0-beta.2 archives are unsigned. These installations show
+`provenance — unsigned` once per install when you start Mercury interactively
+without a command or flag. The doctor continues to show that status. It means
+the archive manifest has no signature; the download is still checked against
+`SHA256SUMS.txt`.
+
+[docs/TRUST.md](docs/TRUST.md) explains the verification results and how to
+check an archive manually.
+[docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md) covers startup verification.
+
+### Platform notes
+
+There is no native Linux arm64 or Windows arm64 archive. On Linux arm64, the
+installer directs you to [build from source](#build-from-source). On Windows
+arm64, the x64 build runs under emulation.
+
+Intel Mac archives are available from 1.0.0-beta.3. They are cross-packaged on
+an Apple silicon runner and tested at startup under Rosetta before
+publication. Intel Macs using 1.0.0-beta.2 need a source build.
+
+</details>
 
 ## Requirements
 
-A release install needs `git` only: every archive carries its own Node 24
-LTS runtime beside the bundle, and the launcher, `mercury install` and
-`mercury update` run on it. Building from source needs:
+Release archives include Node 24 LTS. The launcher, `mercury install` and
+`mercury update` use that bundled runtime; `git` is the only separate
+requirement for the release itself.
 
-- Node 24 LTS: the supported range is `>=24.20.0 <25`, and `.node-version`
-  pins the exact patch used for builds and vendored into release archives.
-- bun 1.3.x, the build runtime (never vendored).
-- git. On Windows, Windows Terminal or PowerShell 7; the step-by-step guide
-  is [docs/INSTALL-WINDOWS-FROM-SOURCE.md](docs/INSTALL-WINDOWS-FROM-SOURCE.md).
-  Git for Windows also supplies the `bash.exe` the Bash tool runs under when
-  it is found. A release archive carries Mercury's own bash-compatible shell
-  engine too, so a Windows box with no `bash.exe` runs the Bash tool through
-  it with nothing to set; the doctor's `shell` row says which one runs and
-  why ("git-bash at … — found on this machine", or "the bundled shell engine
-  at … — no bash.exe was found"). The engine at this version cannot run a
-  `.cmd` shim such as `npm` directly (`cmd /c npm …` works) and needs an
-  absolute path for a program run after a `cd`. `MERCURY_SHELL_ENGINE=brush`
-  (or the `/config` row Shell engine set to `brush`) runs the engine even
-  with `bash.exe` present; `MERCURY_SHELL_ENGINE=system` keeps `bash.exe`
-  alone. A source build without the engine pack and without Git for Windows
-  still starts, with the Bash tool absent (the PowerShell tool stays) and
-  the `shell` row naming the ways out.
+To build from source, you need:
 
-The floor is 24.20.0 because it carries the fix for nodejs/node#56645. Below
-it, a headless `-p` run that dispatched any tool aborts at exit on Windows.
-Every launcher picks its Node in one order: `MERCURY_NODE` (an explicit
-binary), the vendored runtime beside the bundle, then a PATH node inside the
-range; a missing rung is named, never skipped silently.
+- **Node 24 LTS**, in the supported range `>=24.20.0 <25`. `.node-version`
+  pins the patch used for builds and included in release archives.
+- **bun 1.3.x** for the build. It is not bundled with releases.
+- **git**. On Windows, use Windows Terminal or PowerShell 7. See
+  [docs/INSTALL-WINDOWS-FROM-SOURCE.md](docs/INSTALL-WINDOWS-FROM-SOURCE.md).
+
+The Node minimum includes the fix for nodejs/node#56645. Below 24.20.0,
+headless `-p` runs that call a tool abort on exit on Windows.
+
+Launchers select Node in this order: the explicit `MERCURY_NODE` binary, the
+bundled runtime, then a compatible Node installation on PATH. A missing
+runtime is reported rather than silently skipped.
+
+### Windows shells
+
+Git for Windows supplies `bash.exe`, which the Bash tool uses when available.
+Release archives also include Mercury's bash-compatible shell engine. It is
+used automatically on Windows when `bash.exe` is missing.
+
+The doctor's `shell` row tells you which shell is active and why: Git Bash
+found on the machine, or the bundled engine because no `bash.exe` was found.
+The bundled engine currently cannot run a `.cmd` shim such as `npm` directly;
+use `cmd /c npm …` instead. It also needs an absolute program path when running
+a program after `cd`.
+
+Set `MERCURY_SHELL_ENGINE=brush`, or choose `brush` in `/config` under Shell
+engine, to use the bundled engine even when `bash.exe` is available.
+`MERCURY_SHELL_ENGINE=system` uses only the system `bash.exe`.
+
+A source build without the engine pack or Git for Windows still starts, but
+the Bash tool is unavailable. The PowerShell tool remains available, and the
+`shell` diagnostic explains how to restore Bash support.
 
 ## Build from source
 
@@ -140,242 +193,311 @@ node dist/mercury.mjs
 node dist/mercury.mjs doctor --json
 ```
 
-The cockpit needs a real TTY, with no minimum terminal size. The full layout
-starts at 100 columns and 26 rows; smaller windows use the compact layout.
-Mercury paints in 24-bit color where the terminal advertises it
-(`COLORTERM=truecolor`, or iTerm2, Ghostty, WezTerm, Kitty, Windows Terminal,
-VS Code) and in 256 colors everywhere else, Apple's Terminal on macOS 15 and
-older included; `mercury doctor` names the depth and why in its Terminal
-color row, `MERCURY_TRUECOLOR=1` forces the full depth on a terminal that has
-it and does not say so, and `MERCURY_TRUECOLOR=0` clamps it to 256 colors.
+### Terminal support
 
-`setup` fetches the vendored capability packs (pyright · debugpy · js-debug ·
-extra grammars · this machine's Node runtime · brush); a failed fetch skips its
-pack, and the build and the affected features say so (`bun install` alone ships
-that degraded build). With a Rust toolchain on the machine, `setup` also
-builds the voice capture addon from `native/voice` and, with cmake beside
-it, the on-device transcriber addon from `native/whisper` (the packs that
-are built, not fetched; without the toolchain each is skipped and the
-doctor says so); on Windows the shell engine is built the same way, since
-upstream publishes no Windows binary.
-The vendored shell engine (brush, a bash-compatible shell in Rust) is optional
-on macOS and Linux: the system shell stays the default there, and the
-`shellEngine` setting (`/config`) or `MERCURY_SHELL_ENGINE=brush` runs the Bash
-tool on it, keeping shell state across calls; on Windows it arms itself when no
-`bash.exe` is found. See [docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md).
-The build writes only under `dist/`. Configuration and sessions live in the
-config home, `~/.mercury` or whatever `MERCURY_CONFIG_DIR` names; the first
-run creates it. Windows runs `node dist\mercury.mjs` directly.
+The full-screen interface needs a real TTY, but has no minimum terminal size.
+The full layout starts at 100 columns by 26 rows; smaller windows use a
+compact layout.
 
-To run a source build as a command, `scripts/ops/deploy-runtime.sh`
-publishes a clean-tree build to `<config home>/runtime/dist` and
-`scripts/ops/deploy-launcher.sh` installs the `mercury` launcher at
-`<config home>/bin/mercury`; put that directory on your `PATH` (for zsh,
-`echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc`). A missing
-runtime is a loud launcher failure, never a silent fallback. A release
-install ([Install](#install)) uses `mercury install` and `mercury update`
-instead (no GitHub sign-in needed — the public releases are read anonymously;
-gh is asked only when that road is refused) and never touches a checkout.
-Both roads run the artifact on the
-vendored Node 24 LTS runtime the build carries, else on `MERCURY_NODE` or a
-PATH node inside the range. [AGENTS.md](AGENTS.md) is the one-screen
-build-and-run guide; [BUILD-NOTES.md](BUILD-NOTES.md) covers the build itself.
+Mercury uses 24-bit colour when the terminal advertises support through
+`COLORTERM=truecolor` or is recognised as iTerm2, Ghostty, WezTerm, Kitty,
+Windows Terminal or VS Code. Other terminals use 256 colours, including
+Apple's Terminal on macOS 15 and earlier.
+
+The doctor's Terminal color row reports the detected depth and the reason.
+Set `MERCURY_TRUECOLOR=1` for a terminal that supports true colour but does not
+advertise it, or `MERCURY_TRUECOLOR=0` to force 256 colours.
+
+### Optional components
+
+`setup` fetches the bundled capability packs: pyright, debugpy, js-debug,
+extra grammars, the platform's Node runtime, and brush. If a download fails,
+that pack is skipped and the build and affected features report the missing
+component. Running `bun install` alone produces a build without those packs.
+
+With a Rust toolchain installed, `setup` also builds the voice capture addon
+from `native/voice`. With Rust and cmake, it builds the on-device transcriber
+from `native/whisper`. These addons are built locally rather than downloaded;
+without the required tools, setup skips them and the doctor reports their
+absence. The Windows shell engine is also built locally because upstream
+provides no Windows binary.
+
+brush is a bash-compatible shell written in Rust. It is optional on macOS
+and Linux, where the system shell remains the default. Select it through
+`/config` (`shellEngine`) or `MERCURY_SHELL_ENGINE=brush` to use it for Bash
+tool calls with persistent shell state. On Windows, it is selected
+automatically when `bash.exe` is missing. See
+[docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md).
+
+The build writes only to `dist/`. Configuration and sessions live in
+`~/.mercury`, or the directory set by `MERCURY_CONFIG_DIR`, and are created on
+first run. On Windows, run `node dist\mercury.mjs` directly.
+
+### Installing a source build as a command
+
+`scripts/ops/deploy-runtime.sh` publishes a clean-tree build to
+`<config home>/runtime/dist`. `scripts/ops/deploy-launcher.sh` installs the
+launcher at `<config home>/bin/mercury`. Add that directory to PATH; for zsh:
+
+```sh
+echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc
+```
+
+The launcher reports a missing runtime as an error; it does not silently
+switch to another build. Node selection follows the order in
+[Requirements](#requirements).
+
+Release installations use `mercury install` and `mercury update` instead.
+They do not modify a source checkout or require a GitHub sign-in; `gh` is
+consulted only if the anonymous release request is refused.
+
+[AGENTS.md](AGENTS.md) is the short build-and-run guide.
+[BUILD-NOTES.md](BUILD-NOTES.md) covers the build in more detail.
 
 ## The first run
 
-The first interactive run is a short walk: pick an appearance (the screen
-re-tints as you move; True Black is the default, the oasis dark ground is the
-other row, and `/appearance` changes it later), then sign in to a provider or
-choose "sign in later" and look around logged-out. After the walk, Mercury
-asks whether you trust the folder
-you started in. Nothing a workspace config asks for runs before you trust
-the folder, a grant covers the whole repository, and declining exits
-([docs/TRUST.md](docs/TRUST.md)).
+On your first interactive run, choose an appearance, then sign in to a
+provider. The screen previews theme changes as you browse. True Black is
+the default; the other option is the oasis dark theme. You can change this
+later with `/appearance`.
 
-Every interactive boot with no explicit journey then lands on the Boot face,
-the ten-row card:
+You can also choose "sign in later" to look around without connecting an
+account.
 
-- **New Session in \<folder\>**: a fresh session here, born on Enter.
-- **Continue Last Session**: one keystroke back into the newest chat. It
-  appears once session history exists; a first boot has none yet.
-- **Boot Menu**: boot settings. Its Performance section holds the Motion
-  row (auto · full · reduced · off — how much idle motion the cockpit runs;
-  `/config` has the same row). Its Agents section holds two per-session
-  switches, Sub-agents and Workflows: off removes the Agent or Workflow tool
-  from the sessions born with it and every spawn road answers one receipt;
-  inside a session, `/subagents on|off` and `/workflows on|off` flip it at
-  the next turn boundary.
-- **MCPs & Skills**: what the next session loads ([docs/KIT.md](docs/KIT.md)).
-- **Agents**: create and edit agents.
-- **Doctor / Health Check**: the install's health certificate.
-- **Saturn Scheduler**: sessions born on the clock ([docs/SATURN.md](docs/SATURN.md)).
-- **Logins**: sign in to providers.
-- **Session Concourse**: the board of the project you are in.
-- **Sessions · Projects**: pick a session or a repository, one screen.
+Next, Mercury asks whether you trust the folder you opened. Nothing requested
+by a workspace configuration runs before you grant that trust. The grant
+covers the whole repository; declining exits Mercury. See
+[docs/TRUST.md](docs/TRUST.md).
 
-Every row but Session Concourse opens in place as a layer of the face, and
-esc lands back on the row; the concourse is the screen one shift+→ away. A
-prompt argument, `--continue` or `--resume` goes straight to the chat.
+A normal interactive launch opens the home screen, called the Boot face.
+It has ten menu entries, with Continue Last Session appearing only after you
+have session history:
+
+- **New Session in \<folder\>** starts a new session in the current folder.
+- **Continue Last Session** returns to your most recent chat.
+- **Boot Menu** configures future sessions, including motion, sub-agents and
+  workflows.
+- **MCPs & Skills** chooses what the next session loads. See
+  [docs/KIT.md](docs/KIT.md).
+- **Agents** creates and edits agents.
+- **Doctor / Health Check** checks the installation.
+- **Saturn Scheduler** schedules sessions. See
+  [docs/SATURN.md](docs/SATURN.md).
+- **Logins** connects provider accounts.
+- **Session Concourse** opens the current project's session board.
+- **Sessions · Projects** lets you choose a session or repository.
+
+Menu entries open over the home screen, and `Esc` returns to the entry you
+selected. Session Concourse is the exception: it opens a separate screen,
+also available with `Shift+→`. A prompt argument, `--continue` or `--resume`
+takes you directly to the chat.
+
+### Motion, sub-agents and workflows
+
+The Boot Menu's Performance section includes a Motion setting:
+`auto`, `full`, `reduced` or `off`. It controls idle animation in the
+interface and is also available in `/config`.
+
+Under Agents, the Sub-agents and Workflows switches determine whether new
+sessions receive the Agent and Workflow tools. Turning a switch off removes
+the corresponding tool; attempts to spawn that type of work return the same
+explanation. Within a session, `/subagents on|off` and `/workflows on|off`
+change the setting at the next turn boundary.
 
 ## The daily loop
 
-**New Session.** ↵ on New Session creates a real session for the current
-folder on the model the chip shows, and enters it. The session, the chat and
-its board row come into being together, and a warm runner already stands
-behind the menu, so Enter is instant. Every further ↵ opens another session
-while whatever the last chat held keeps running.
+### Starting a session
 
-**The chat.** You type; the agent reads, edits, runs and verifies code under
-the permission mode you chose, and each tool call shows in the chat as it
-runs, as a compact card or its full output (the `/config` row Tool output,
-saved for later boots). `/model` and `/effort` tune the session, `/permissions` shapes what
-runs free and what asks first, `/policy` is the governance posture, `/diff`
-reviews the changes by source, file and hunk, `/tasks` is the board of
-running shells and agents, and `/help` browses every command. `/clear` parks
-the chat and `/title` names it.
+Press `Enter` on New Session to create a session in the current folder with
+the model shown on screen. The session, chat and board entry are created
+together. Mercury keeps a runner ready behind the menu to reduce startup
+work.
 
-**The strip.** shift+← and shift+→ walk only the screens that exist. A fresh
-boot has the Boot face and the concourse; the chat joins the strip when a
-session is focused and leaves it when the last chat closes, and the dim
-key-map row names only the moves that exist. Closing every chat returns you
-to the Boot face. `--chat` is the plain world (the face and a chat, no
-concourse); `--concourse-off` saves that choice for every later boot, and
-`--concourse-on` or `/config` turns it back.
+Starting another session does not stop the previous one. You can leave a
+task running and work elsewhere.
 
-**The Session Concourse.** `/concourse`, or shift+→ from the face, is the
-board of the project you are in: its running sessions and, beneath them, its
-parked chats, newest first. Each live row is a tile whose NOW cell streams
-what the session is doing; ↵ brings a row back in place while every other
-session keeps working; a session that crashed stays on the board as NEEDS
-YOU with its reason until you release it; and a session taps the terminal
-bell once when it needs you or finishes a run. The whole lifecycle is
-[docs/SESSIONS.md](docs/SESSIONS.md).
+### Working in chat
+
+Describe the work in plain language. The agent reads, edits, runs and checks
+code under your chosen permission mode. Tool calls appear as they run, either
+as compact cards or with full output. Choose the display in `/config` under
+Tool output; the setting is saved for later launches.
+
+Use `/model` and `/effort` to adjust the session. `/permissions` controls what
+can run without approval and what must ask first; `/policy` controls the
+governance policy.
+
+Review changes with `/diff`, by source, file and hunk. `/tasks` shows running
+shells and agents. `/clear` parks the chat, `/title` names it, and `/help`
+lists the available commands.
+
+### Moving between screens
+
+`Shift+←` and `Shift+→` move between the screens currently available. A fresh
+launch has the home screen and Session Concourse. The chat screen is added
+when a session is focused and removed when the last chat closes. The key
+hints show only the available moves.
+
+Closing every chat returns you to the home screen. Use `--chat` for just the
+home screen and chat, without the concourse. `--concourse-off` saves that
+preference for future launches; `--concourse-on` or `/config` turns it back on.
+
+### Managing sessions
+
+Open Session Concourse with `/concourse` or `Shift+→` from the home screen.
+It shows the current project's running sessions, followed by parked chats,
+newest first.
+
+Each live session has a NOW cell showing its current activity. Select a row
+and press `Enter` to return to it while the other sessions keep running. A
+crashed session stays on the board as NEEDS YOU, with the reason, until you
+release it. The terminal bell sounds once when a session needs attention or
+finishes a run.
+
+[docs/SESSIONS.md](docs/SESSIONS.md) covers the session lifecycle.
 
 ## Providers and models
 
-`/logins` opens the sign-in catalogue, the same card the first run shows,
-and `/accounts` manages the provider slots afterwards. The doors:
+Use `/logins` to connect a provider. It opens the same sign-in catalogue used
+during setup. `/accounts` manages connected provider slots afterwards.
 
-- OpenAI: ChatGPT subscription or API key
-- Claude subscription account
-- Usage-based billing: Anthropic Console sign-in or API key
-- OpenRouter: one credential, the whole catalogue (OAuth or key)
-- Google Gemini: API key or Google OAuth
-- Hugging Face: device-code sign-in or a Hub token
-- Kimi (Moonshot): device-code sign-in or API key
-- GLM (Z.AI): API key
-- DeepSeek: API key
+- **OpenAI:** ChatGPT subscription or API key.
+- **Claude:** subscription account.
+- **Anthropic usage-based billing:** Console sign-in or API key.
+- **OpenRouter:** catalogue access through OAuth or an API key.
+- **Google Gemini:** API key or Google OAuth.
+- **Hugging Face:** device-code sign-in or Hub token.
+- **Kimi (Moonshot):** device-code sign-in or API key.
+- **GLM (Z.AI):** API key.
+- **DeepSeek:** API key.
 
-Local model servers and a custom OpenAI-compatible endpoint need no sign-in;
-they become ready by discovery or configuration. Each family owns its own
-wire, credentials and refusals, and nothing ever falls through from one
-provider to another ([docs/ENGINES.md](docs/ENGINES.md)).
+Local model servers and custom OpenAI-compatible endpoints are discovered or
+configured separately, without a provider sign-in. Each provider has its own
+protocol, credentials and error handling. A request does not fall back from
+one provider to another. See [docs/ENGINES.md](docs/ENGINES.md).
 
-A fresh session starts on the provider of your most recent sign-in, on the
-newest model that sign-in can use. A gated row is never chosen, a provider
-with no usable row falls through to the next most recent sign-in, and
-`/model` says which model was picked and why. With no sign-in yet, the face
-and `/model` say so and point at `/logins`. `/defaultprovider` makes a
-provider the most recent sign-in by your word.
+New sessions use your most recently connected provider and the newest model
+available to that account. Models the account cannot access are not selected.
+If that provider has no usable model, Mercury checks the next most recently
+connected provider. This is the selection process for a new session, not
+request failover.
+
+`/model` explains the selection. With no provider connected, the home screen
+and `/model` direct you to `/logins`. `/defaultprovider` lets you explicitly
+make a provider the most recent choice.
+
+Provider access remains subject to the provider's own terms and availability.
+Mercury's licence does not replace them.
 
 ## The headless CLI
 
-The same artifact is a command-line tool; `node dist/mercury.mjs --help`
-lists every flag. `-p "<prompt>"` runs one non-interactive turn (with
-`--output-format text|json|stream-json`), `-c` continues the most recent
-conversation, `-r` resumes by id, title or picker, `-w` runs the session
-inside a managed worktree, and `--bare` is the minimal mode. The stream-json
-feed is complete on its own: every event of the run, from the init row to
-the result envelope, rides it with no other option asked for; `json` prints
-the result envelope alone. The verbs:
+The same build runs without the interactive interface.
+`node dist/mercury.mjs --help` lists every flag.
 
-- `mercury health` (alias `doctor`): the health certificate; `--json` prints
-  it whole, `--deep` runs the deep inventory, `--fix` runs the guided fixes.
-- `mercury auth login|status|logout|token`: sign in, show the status, sign
-  out, mint a long-lived token.
-- `mercury mcp`: manage MCP servers (add, add-json, list, get, remove, serve).
-- `mercury extensions`: install extensions and manage their sources (list,
-  sources, add, remove, check, install, approve, enable, disable, update,
-  uninstall, block, unblock, validate, init).
-- `mercury agents`: print the agent inventory.
-- `mercury daemon`: the background daemon that hosts sessions.
-- `mercury acp --stdio`: the editor bridge over the Agent Client Protocol;
-  `mercury editor <action>` manages the IDE side.
-- `mercury godot run|check|capture|frames|profile|tour|jobs|cancel|result`:
-  the engine job service for the Godot project in the working directory —
-  suites on Mercury's own headless workers from a frozen copy, the compile
-  gate, captures, frame statistics and settled profiles, the queue, a
-  cancel, a record by id ([docs/VULCAN-GODOT-TOOLS.md](docs/VULCAN-GODOT-TOOLS.md)).
-- `mercury themis`: THEMIS integrity tooling.
-- `mercury show <image>`: render an image to the terminal.
-- `mercury install` and `mercury update` (alias `upgrade`): release archives
-  only; see [Install](#install).
+`-p "<prompt>"` runs one non-interactive turn. Choose its output with
+`--output-format text|json|stream-json`. `json` returns the result envelope;
+`stream-json` includes every event from initialisation to the final result,
+without needing another flag.
+
+Use `-c` to continue the most recent conversation, `-r` to resume by ID, title
+or picker, `-w` to run in a managed worktree, and `--bare` for minimal mode.
+
+Available commands include:
+
+- **`mercury health`** (alias `doctor`): diagnostic report, also called the
+  health certificate. `--json` returns the full report, `--deep` runs the deep
+  inventory, and `--fix` runs guided fixes.
+- **`mercury auth login|status|logout|token`**: sign in, check authentication,
+  sign out, or create a long-lived token.
+- **`mercury mcp`**: manage MCP servers with `add`, `add-json`, `list`, `get`,
+  `remove` and `serve`.
+- **`mercury extensions`**: install extensions and manage their sources.
+  Actions: `list`, `sources`, `add`, `remove`, `check`, `install`, `approve`,
+  `enable`, `disable`, `update`, `uninstall`, `block`, `unblock`, `validate`
+  and `init`.
+- **`mercury agents`**: list the agent inventory.
+- **`mercury daemon`**: run the background daemon that hosts sessions.
+- **`mercury acp --stdio`**: connect an editor through the Agent Client
+  Protocol. `mercury editor <action>` manages the IDE integration.
+- **`mercury godot run|check|capture|frames|profile|tour|jobs|cancel|result`**:
+  manage engine jobs for the Godot project in the current directory. Mercury
+  runs suites on its own headless workers from a frozen project copy. The
+  service includes a compilation gate, captures, frame statistics, settled
+  profiles, job queue access, cancellation and results by ID. See
+  [docs/VULCAN-GODOT-TOOLS.md](docs/VULCAN-GODOT-TOOLS.md).
+- **`mercury themis`**: run THEMIS integrity tools.
+- **`mercury show <image>`**: display an image in the terminal.
+- **`mercury install`** and **`mercury update`** (alias `upgrade`): install or
+  update release archives. See [Install](#install).
 
 ## What is inside
 
-- **The coding loop**: anchored reads and atomic multi-file edits
-  ([docs/CHANGE-TRANSACTIONS.md](docs/CHANGE-TRANSACTIONS.md)), search and
-  rewrite by syntax shape across 23 grammars
-  ([docs/STRUCTURAL-PATTERNS.md](docs/STRUCTURAL-PATTERNS.md)), persistent
-  code cells ([docs/WORKSHOP.md](docs/WORKSHOP.md)), and a debugger that
-  speaks the Debug Adapter Protocol ([docs/DEBUGGER.md](docs/DEBUGGER.md)).
-- **Extensions**: one manifest per extension, sources you add (a git URL, a
-  folder, an archive), approval per contributions hash
-  ([docs/EXTENSIONS.md](docs/EXTENSIONS.md)).
-- **MCPs & Skills**: what a session loads, as a per-repository record with
-  named presets and in-session dials ([docs/KIT.md](docs/KIT.md)).
-- **Agents and teams**: named agents, an agent studio, workflow runs and
-  the boards that watch them ([docs/TEAMS.md](docs/TEAMS.md)).
-- **Saturn**: wake a session with a prompt at a time or on a recurrence, or
-  schedule a fresh session's birth ([docs/SATURN.md](docs/SATURN.md)).
-- **The doctor and `/health`**: an evidence-backed certificate with a
-  `certified` / `caution` / `fault` verdict and verified fixes
-  ([docs/HEALTH-CERTIFICATE.md](docs/HEALTH-CERTIFICATE.md)).
-- **Trust, permissions and THEMIS**: workspace trust, permission rules and
-  modes, and the deterministic trust plane ([docs/TRUST.md](docs/TRUST.md),
-  [docs/THEMIS-CONTROL-PLANE.md](docs/THEMIS-CONTROL-PLANE.md)).
-- **Apollo Mode**: the pre-flight interview that writes the missing spec and
-  builds a prototype from it ([docs/APOLLO-MODE.md](docs/APOLLO-MODE.md)).
-- **Editor bridges**: `mercury acp` for any Agent Client Protocol editor,
-  the VS Code extension (`mercury editor install`) that runs Mercury in
-  the editor and attaches a terminal session to it (`/ide`: selection,
-  diagnostics, native diffs), in-editor bridges into a running Unity,
-  Blender or Godot editor, and a batch door into Aseprite, each behind its
-  own opt-in switch
-  ([docs/UNITY-BRIDGE.md](docs/UNITY-BRIDGE.md),
-  [docs/BLENDER-BRIDGE.md](docs/BLENDER-BRIDGE.md),
-  [docs/ASEPRITE-BRIDGE.md](docs/ASEPRITE-BRIDGE.md)).
-- **Memory**: experience cards and a project notepad
-  ([docs/TABULA-NOTES.md](docs/TABULA-NOTES.md)).
-- **Voice input**: `/speak on`, then space in an empty composer dictates
-  into it — on this machine through the on-device transcriber (its 60 MB
-  English model is a one-time `/speak download`), or through the cloud
-  family you choose; audio leaves only after you stop and only to a cloud
-  family, and Mercury never speaks aloud ([docs/VOICE.md](docs/VOICE.md)).
-- **Computer use**: on by default on a machine with the desktop driver, the
-  model sees your screen and drives the mouse and keyboard in the application
-  in front; the first act in each application asks by name, esc stops it, one
-  session drives at a time, screenshots never enter the saved conversation,
-  and `MERCURY_COMPUTER_USE=0` removes the tool
-  ([docs/COMPUTER-USE.md](docs/COMPUTER-USE.md)).
-- **Durability**: atomic publication, journaled operations and a boot-time
-  reconciliation pass ([docs/DURABILITY.md](docs/DURABILITY.md)).
-- **Web search for every model**: the provider's own live search beside
-  Mercury's vendored WebSearch (a Brave or Tavily key, else a keyless door),
-  every result naming the door that answered ([docs/ENGINES.md](docs/ENGINES.md)).
+- **Code editing and debugging.** Anchored reads and atomic multi-file edits;
+  syntax-based search and rewriting across 23 grammars; persistent code
+  cells; and a debugger using the Debug Adapter Protocol. See
+  [change transactions](docs/CHANGE-TRANSACTIONS.md),
+  [structural patterns](docs/STRUCTURAL-PATTERNS.md),
+  [Workshop](docs/WORKSHOP.md) and [the debugger](docs/DEBUGGER.md).
+- **Extensions.** Each extension has one manifest. Add sources from a git
+  URL, local folder or archive, with approval tied to the contributions hash.
+  See [docs/EXTENSIONS.md](docs/EXTENSIONS.md).
+- **MCPs & Skills.** Per-repository configuration for what sessions load,
+  with named presets and controls you can change during a session. See
+  [docs/KIT.md](docs/KIT.md).
+- **Agents and teams.** Named agents, an agent studio, workflow runs and
+  boards for monitoring their work. See [docs/TEAMS.md](docs/TEAMS.md).
+- **Saturn.** Schedule a prompt for an existing session or start a new
+  session at a set time. Schedules can run once or recur. See
+  [docs/SATURN.md](docs/SATURN.md).
+- **Diagnostics.** The doctor and `/health` produce a report backed by
+  diagnostic evidence, with a `certified`, `caution` or `fault` verdict and
+  verified fixes. See [docs/HEALTH-CERTIFICATE.md](docs/HEALTH-CERTIFICATE.md).
+- **Trust, permissions and THEMIS.** Workspace trust, permission rules and
+  modes, and the deterministic trust control plane. See
+  [docs/TRUST.md](docs/TRUST.md) and
+  [docs/THEMIS-CONTROL-PLANE.md](docs/THEMIS-CONTROL-PLANE.md).
+- **Apollo Mode.** An initial interview fills in the missing specification,
+  then uses it to build a prototype. See
+  [docs/APOLLO-MODE.md](docs/APOLLO-MODE.md).
+- **Editor integrations.** `mercury acp` connects to editors that support the
+  Agent Client Protocol. The VS Code extension (`mercury editor install`)
+  runs Mercury in the editor and connects a terminal session to it. `/ide`
+  provides access to selections, diagnostics and native diffs. Separate,
+  opt-in integrations connect to running Unity, Blender and Godot editors,
+  with batch access to Aseprite. See [Unity](docs/UNITY-BRIDGE.md),
+  [Blender](docs/BLENDER-BRIDGE.md) and [Aseprite](docs/ASEPRITE-BRIDGE.md).
+- **Memory.** Experience cards and a project notepad. See
+  [docs/TABULA-NOTES.md](docs/TABULA-NOTES.md).
+- **Voice input.** Run `/speak on`, then press space in an empty composer to
+  dictate. Transcription can run on-device or through your chosen cloud
+  provider. The on-device option uses a 60 MB English model, downloaded once
+  with `/speak download`. Audio leaves the machine only after you stop
+  recording, and only when using a cloud provider. See
+  [docs/VOICE.md](docs/VOICE.md).
+- **Computer use.** Enabled by default when the desktop driver is available.
+  The model can see your screen and control the mouse and keyboard in the
+  foreground application. The first action in each application asks for
+  permission by name. `Esc` stops it, only one session can control the
+  desktop at a time, and screenshots are not stored in the saved
+  conversation. Set `MERCURY_COMPUTER_USE=0` to remove the tool. See
+  [docs/COMPUTER-USE.md](docs/COMPUTER-USE.md).
+- **Recovery.** Atomic publication, journaled operations and startup
+  reconciliation. See [docs/DURABILITY.md](docs/DURABILITY.md).
+- **Web search for every model.** Provider-native live search and Mercury's
+  bundled WebSearch, using a Brave or Tavily key or a keyless fallback.
+  Results identify which search service answered. See
+  [docs/ENGINES.md](docs/ENGINES.md).
 
-Runtime behaviour is gated through the in-code flag registry
-(`src/substrate/flagRegistry.ts`, rendered on demand) with `MERCURY_*`
-spellings, and the interop surfaces are documented in
-[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md). The documentation index is
-[docs/README.md](docs/README.md).
+Runtime flags are defined in `src/substrate/flagRegistry.ts`, exposed as
+`MERCURY_*` settings and rendered on demand. Integration compatibility is
+documented in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md). The full
+documentation index is [docs/README.md](docs/README.md).
 
 ## Every slash command
 
-Every interactive surface is a slash command: `/help` browses them all,
-`/palette` fuzzy-searches the live roster, and `/surfaces` is the index of
-every discoverable surface. The table is the artifact's own effective
-catalogue, grouped the way `/help` groups it:
+`/help` lists the interactive commands, `/palette` provides fuzzy search over
+the current catalogue, and `/surfaces` indexes the available interfaces. The
+table below follows the grouping used by `/help`.
 
 | Domain | Commands |
 | --- | --- |
@@ -390,44 +512,55 @@ catalogue, grouped the way `/help` groups it:
 | appearance & cockpit | `/cockpit` `/home` `/appearance` `/accent` `/color` `/critter` `/companion` `/palette` `/fullscreen` |
 | account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/update-notes` `/feedback` `/help` `/exit` |
 
-`/mouse off` hands the pointer back to the terminal for native select and
-copy; the choice is saved for later boots, and `/config` shows it as Mouse
+`/mouse off` returns the pointer to the terminal for native text selection
+and copying. The preference is saved and appears in `/config` as Mouse
 capture.
 
 ## Reporting a problem
 
-Inside Mercury, `/bug <what happened>` shows you the exact report, then files
-it in the repository through your own signed-in GitHub CLI (`gh`); without
-`gh` it stays a local draft under the config home and the issues page is
-named. By hand, open an issue on the repository through one of its templates:
-a bug, a provider or model report, or a feature request. Every template asks for the
-`--version` line, the OS and terminal, and the exact steps; the bug and
-provider templates also ask for the output of `node dist/mercury.mjs doctor
---json` (`mercury doctor --json` for a release install). A pasted transcript
-of the failing screen helps. Security problems go through the repository's
-Security tab instead ([SECURITY.md](SECURITY.md)), and
-[CONTRIBUTING.md](CONTRIBUTING.md) covers issues, pull requests and the
-checks.
+Run `/bug <what happened>` inside Mercury to preview a report before filing
+it through your signed-in GitHub CLI (`gh`). Without `gh`, Mercury saves a
+local draft under the config home and points you to the repository's issues
+page.
+
+You can also open an issue directly using the bug, provider/model, or feature
+request template. Include your `--version` output, OS, terminal and exact
+steps. Bug and provider reports also need `mercury doctor --json`, or
+`node dist/mercury.mjs doctor --json` for a source build. A transcript of the
+failing screen helps.
+
+Report security problems through the repository's Security tab rather than
+a public issue. See [SECURITY.md](SECURITY.md).
+[CONTRIBUTING.md](CONTRIBUTING.md) covers issues, pull requests and checks.
 
 ## Licence
 
-Mercury is licensed under the Business Source License 1.1 with the Mercury
-Community Production Grant: [LICENSE.md](LICENSE.md) is the licence, the
-production terms it names are
-[MERCURY-COMMUNITY-PRODUCTION-TERMS.md](MERCURY-COMMUNITY-PRODUCTION-TERMS.md),
-and the trademark policy is [TRADEMARKS.md](TRADEMARKS.md). In plain words,
-with the licence text controlling: anyone may read, copy, modify and fork
-the source. An individual or an organisation below both community
-thresholds (under US$1,000,000 in consolidated annual revenue and under
-US$1,000,000 in total external funding) may use Mercury in production,
-free, to build and sell their own products, commercial ones included.
-Reaching either threshold starts a 90-day grace period; after it a
-commercial licence is needed for new products, while products already in
-production may be maintained on the versions obtained before the grace
-period ended. Selling, white-labelling or hosting Mercury itself for third
-parties, or offering a substitute for it, needs a commercial licence at any
-size. Each version's licence changes to the Apache License 2.0 on its own
-Change Date, three years after that version's release. Commercial licensing
-and trademark permission: https://mercury-cli.ai/licensing. Bundled
-third-party licences are inventoried in
+Mercury is source-available under the Business Source License 1.1, with the
+Mercury Community Production Grant. The licence is in
+[LICENSE.md](LICENSE.md), with its companion
+[production terms](MERCURY-COMMUNITY-PRODUCTION-TERMS.md) and
+[trademark policy](TRADEMARKS.md). The licence text controls; this is a summary.
+
+You may read, copy, modify and fork the source. Individuals and organisations
+below both community thresholds can use Mercury in production for free to
+build and sell their own products, including commercial products. Both
+consolidated annual revenue and total external funding must be below
+US$1,000,000.
+
+A qualifying user that reaches either threshold receives a 90-day grace
+period. After that, new product work, including substantial new functionality,
+requires a commercial licence. Products already in production when the
+threshold was reached can still be maintained using Mercury versions obtained
+before the grace period ended, subject to the licence's maintenance terms.
+
+Selling, white-labelling or hosting Mercury itself for third parties, or
+offering a substitute for it, requires a commercial licence regardless of
+your revenue or funding.
+
+Each version changes to the Apache License 2.0 on its own Change Date, three
+years after that version's release.
+
+For commercial licensing and trademark permission, visit
+[mercury-cli.ai/licensing](https://mercury-cli.ai/licensing). Bundled
+third-party licences are listed in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
