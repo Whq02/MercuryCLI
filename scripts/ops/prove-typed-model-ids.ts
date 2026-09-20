@@ -220,6 +220,11 @@ check('one line names the Z.AI family as skipped with its typed count', keyless.
 check('one line names the Moonshot family as skipped', keyless.lines.includes(`moonshot · no credential · ${lists.moonshot!.length} typed ids not judged`))
 check('no Z.AI request or Moonshot list was fetched', !hits.some(h => h.includes('/zai/') || h.endsWith('/moonshot/v1/models')), hits.join(', '))
 
+section('§4b no Anthropic key in the environment: the check still runs, reading any stored credential through the product, and never dies before the first list')
+const noEnvKey = await run({ ANTHROPIC_API_KEY: undefined })
+check('the script does not die before judging', !noEnvKey.stderr.includes('Config accessed before allowed') && typeof noEnvKey.status === 'number', `status ${noEnvKey.status}; stderr ${noEnvKey.stderr.slice(-240)}`)
+check('the Anthropic family reads no credential, every other typed id is still judged, exit 0', noEnvKey.lines.some(l => l.startsWith('anthropic · no credential · ')) && noEnvKey.lines.filter(l => l.endsWith(' · served')).length === typedTotal - anthropicIds.length && noEnvKey.status === 0, noEnvKey.lines.join('\n').slice(0, 600))
+
 section('§5 a stale ChatGPT sign-in is reported, never refreshed: no request to the token endpoint, the auth file untouched')
 seedSubscription(Date.now() - 60_000)
 const authBefore = readFileSync(join(home, '.openai-auth.json'), 'utf8')
