@@ -660,6 +660,18 @@ function standingWindowWords(family: string): string {
   }
 }
 
+function modelListsCheck(): CheckSpec {
+  return {
+    id: 'model-lists',
+    label: 'Model lists',
+    run: () => {
+      const { composeModelListsRow, readModelListFacts } =
+        require('../services/providers/typedModelIds.js') as typeof import('../services/providers/typedModelIds.js')
+      return composeModelListsRow(readModelListFacts(), Date.now())
+    },
+  }
+}
+
 function webSearchDoorCheck(): CheckSpec {
   return {
     id: 'web-search-door',
@@ -2654,7 +2666,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
     {
       id: 'auth',
       title: 'AUTH',
-      checks: [...providerAuthChecks(), ...providerUsageChecks(), webSearchDoorCheck(), extraCaCertsCheck()],
+      checks: [...providerAuthChecks(), ...providerUsageChecks(), modelListsCheck(), webSearchDoorCheck(), extraCaCertsCheck()],
     },
     {
       id: 'interface',
