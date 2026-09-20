@@ -25,7 +25,7 @@ _mercury() {
       compadd -- 
       ;;
     doctor)
-      compadd -- '--deep' '--fix' '--help' '--json' '--only' '--yes'
+      compadd -- '--deep' '--end-stale' '--fix' '--help' '--json' '--only' '--yes'
       ;;
     editor)
       compadd -- '--help'
@@ -37,7 +37,7 @@ _mercury() {
       compadd -- '--help'
       ;;
     health)
-      compadd -- '--deep' '--fix' '--help' '--json' '--only' '--yes'
+      compadd -- '--deep' '--end-stale' '--fix' '--help' '--json' '--only' '--yes'
       ;;
     install)
       compadd -- '--allow-unsigned' '--dry-run' '--force' '--help' '--json' '--uninstall'
