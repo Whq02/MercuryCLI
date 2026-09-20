@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { connect } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -50,7 +50,7 @@ const api = await startFixtureApi([
   { kind: 'text', text: 'the runner answers a fourth time' },
 ])
 const { daemonControlRpc, clearControlKeyMemo } = await import('../../src/daemon/controlSocket.ts')
-const { readMercuryProcesses, endStaleProcesses, COCKPIT_HEARTBEAT_ALLOWANCE_MS, processSweepCensusPath } = await import('../../src/daemon/processSweepRun.ts')
+const { readMercuryProcesses, recordProcessCensusAtBoot, endStaleProcesses, COCKPIT_HEARTBEAT_ALLOWANCE_MS, processSweepCensusPath } = await import('../../src/daemon/processSweepRun.ts')
 const { PROCESS_SWEEP_WORDS, sameSweepIdentity } = await import('../../src/daemon/processSweep.ts')
 const { getProcessStartTokenAsync } = await import('../../src/daemon/ownerWatch.ts')
 import type { ProcessSweepEntry } from '../../src/daemon/processSweep.ts'
@@ -408,7 +408,7 @@ try {
   check('a stand-in window whose terminal the table no longer names is registered with an expired heartbeat', typeof standInToken === 'string' && standInToken !== '' && psRow(standInPid)?.tty === '??', JSON.stringify(psRow(standInPid)))
 
   console.log('§2 the read-only census classifies every shape without ending anything')
-  const census = await readMercuryProcesses()
+  const census = await recordProcessCensusAtBoot()
   check('the census is complete', census.complete, census.error ?? '')
   const stale = census.entries.filter(entry => entry.classification === 'stale')
   const ownedD = entryOf(census.entries, staleDaemon.pid!)
@@ -431,6 +431,18 @@ try {
   check('a daemon on a plane this reader cannot ask stays unended (its work is unknown)', raceD === undefined || raceD.classification !== 'stale', JSON.stringify(raceD && [raceD.classification, raceD.reason]))
   check('the census names exactly the three stale shapes that exist so far', stale.length === 3 && [standInPid, runner2?.pid, runner3?.pid].every(pid => stale.some(entry => entry.process.pid === pid)), stale.map(entry => `${entry.process.pid}:${entry.kind}`).join(' '))
   check('the census was recorded beside the registrations', existsSync(processSweepCensusPath(home)))
+  const goneProbe = spawn('true', [], { stdio: 'ignore' })
+  await new Promise<void>(resolve => goneProbe.once('exit', () => resolve()))
+  const gonePid = goneProbe.pid!
+  const goneId = randomUUID()
+  const gonePath = join(home, 'processes', `cockpit-${gonePid}-${goneId}.json`)
+  writeFileSync(gonePath, JSON.stringify({ schema: 1, id: goneId, pid: gonePid, startToken: null, exe: process.execPath, bundle: DIST, configHome: home, daemonDir: dirs.live, terminal: null, bornAt: Date.now() - 600_000, heartbeatAt: Date.now() - 600_000 }, null, 2))
+  const censusStamp = statSync(processSweepCensusPath(home)).mtimeMs
+  const registrationsBefore = readdirSync(join(home, 'processes')).filter(name => name.startsWith('cockpit-')).length
+  const doctorRead = await readMercuryProcesses()
+  check('a doctor-shaped read lists the same shapes and writes nothing under the config home: the census stamp stands and a registration of a gone pid is not pruned', doctorRead.entries.length === census.entries.length && statSync(processSweepCensusPath(home)).mtimeMs === censusStamp && existsSync(gonePath) && readdirSync(join(home, 'processes')).filter(name => name.startsWith('cockpit-')).length === registrationsBefore, JSON.stringify({ entries: [doctorRead.entries.length, census.entries.length], stamp: [statSync(processSweepCensusPath(home)).mtimeMs, censusStamp], gone: existsSync(gonePath) }))
+  await recordProcessCensusAtBoot()
+  check('the boot road records the census anew and prunes the registration of the gone pid', statSync(processSweepCensusPath(home)).mtimeMs !== censusStamp && !existsSync(gonePath) && alive(gonePid) === false, JSON.stringify({ stamp: [statSync(processSweepCensusPath(home)).mtimeMs, censusStamp], gone: existsSync(gonePath) }))
   check('every shape still stands after two read-only censuses', [staleDaemon.pid!, windowPid, standInPid, livePid, liveHello.pid as number, runner1?.pid, runner2?.pid, runner3?.pid].every(pid => typeof pid === 'number' && alive(pid)))
 
   console.log('§3 the race: a client that arrives between the scan and the end vetoes it')
@@ -438,11 +450,11 @@ try {
   clearControlKeyMemo()
   sleeperRace.kill('SIGKILL')
   await waitFor('the race sleeper to leave', () => !alive(sleeperRace.pid!), 5000)
-  const raceFirst = await readMercuryProcesses({ ownDaemonDir: dirs.race })
+  const raceFirst = await recordProcessCensusAtBoot({ ownDaemonDir: dirs.race })
   const raceWaiting = entryOf(raceFirst.entries, raceDaemon.pid!)
   check('an owner-gone daemon waits for the drain allowance on its first sighting', raceWaiting?.classification === 'running' && raceWaiting.reason.includes('waiting'), JSON.stringify(raceWaiting && [raceWaiting.classification, raceWaiting.reason]))
   await sleep(800)
-  const raceCensus = await readMercuryProcesses({ ownDaemonDir: dirs.race })
+  const raceCensus = await recordProcessCensusAtBoot({ ownDaemonDir: dirs.race })
   const raceEntry = entryOf(raceCensus.entries, raceDaemon.pid!)
   check('the race daemon reads stale from its own plane', raceEntry?.classification === 'stale', JSON.stringify(raceEntry && [raceEntry.classification, raceEntry.reason, raceFirst.entries.length]))
   const raceRunner = await admitRunner(dirs.race, work.raceRunner, 'a client arrived')
@@ -484,11 +496,11 @@ try {
   check('the listing ended nothing', alive(windowPid) && alive(standInPid) && runner2 !== null && alive(runner2.pid) && alive(staleDaemon.pid!))
   sleeperStale.kill('SIGKILL')
   await waitFor('the stale sleeper to leave', () => !alive(sleeperStale.pid!), 5000)
-  const sighting = await readMercuryProcesses()
+  const sighting = await recordProcessCensusAtBoot()
   const sighted = entryOf(sighting.entries, staleDaemon.pid!)
   check('the owner-gone daemon is sighted first and waits for the drain allowance', sighted?.classification === 'running' && sighted.reason.includes('waiting'), JSON.stringify(sighted && [sighted.classification, sighted.reason]))
   await sleep(800)
-  const second = await readMercuryProcesses()
+  const second = await recordProcessCensusAtBoot()
   const staleDaemonEntry = entryOf(second.entries, staleDaemon.pid!)
   check('the owner-gone daemon reads stale once the drain allowance elapsed', staleDaemonEntry?.classification === 'stale' && staleDaemonEntry.kind === 'daemon', JSON.stringify(staleDaemonEntry && [staleDaemonEntry.classification, staleDaemonEntry.reason]))
   const daemonEnding = staleDaemonEntry === undefined ? null : await endStaleProcesses([staleDaemonEntry])

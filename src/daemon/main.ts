@@ -101,7 +101,7 @@ import {
 import { armDispatchDrain, type DispatchDrainHandle } from './dispatchDrain.js'
 import { startControlServer, type ControlServerHandle } from './controlServer.js'
 import { tokenBinding, type ProcessSweepDaemonAnswer, type ProcessSweepRunnerRecord } from './processSweep.js'
-import { readMercuryProcesses } from './processSweepRun.js'
+import { recordProcessCensusAtBoot } from './processSweepRun.js'
 import { DAEMON_USAGE, parseDaemonVerb, supervisorRecordIdentity } from './verbs.js'
 import {
   acquireSupervisorLock,
@@ -1111,7 +1111,7 @@ async function daemonRun(args: string[]): Promise<void> {
           roster ? roster.list().filter(j => !j.outcome).map(j => j.short) : [],
         )
         const bootReconcile = reconcileConcourseWorkers(liveShorts)
-        void readMercuryProcesses({ rpc: async () => ({ ok: false, code: 'ENOTSUP', error: 'the daemon reads its own facts in-process' }) })
+        void recordProcessCensusAtBoot({ rpc: async () => ({ ok: false, code: 'ENOTSUP', error: 'the daemon reads its own facts in-process' }) })
           .then(census => logForDebugging(`[daemon] boot process census: ${census.entries.length} Mercury process(es) read, ${census.entries.filter(entry => entry.classification === 'stale').length} stale — nothing ended at boot`))
           .catch(error => logForDebugging(`[daemon] boot process census failed: ${error}`))
         let reconcileRosterSig = [...liveShorts].sort().join(' ')

@@ -140,9 +140,12 @@ running; an explicit or persistent daemon is never stale; a process whose
 facts cannot be read cannot be ended and says why. The row's evidence is the
 four counts; its trail lists each stale and cannot-end process as
 `pid <pid> · <terminal or no terminal> · <age> · <reason>`. The sweep runs
-read-only at every daemon boot and window boot (a census under
-`<config home>/processes/census.json`); nothing is ever ended on its own. The
-row's destructive remedy shows exactly that list and asks `End these <N>
+read-only at every daemon boot and window boot, and those two boots are the
+only reads that record a census (under `<config home>/processes/census.json`)
+and prune the registrations of windows that are provably gone; the doctor's
+row and `mercury doctor processes` read the processes live and write nothing
+under the config home, and an ending records what it did in that census.
+Nothing is ever ended on its own. The row's destructive remedy shows exactly that list and asks `End these <N>
 stale processes?`; it ends them through Mercury's own roads first (the daemon
 re-checks identity and staleness inside itself before its shutdown or kill),
 then a termination signal, a bounded wait (`MERCURY_PROCESS_SWEEP_WAIT_MS`;

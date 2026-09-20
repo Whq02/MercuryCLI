@@ -263,11 +263,14 @@ async function gather(deps: ProcessSweepDeps): Promise<{ table: ProcessSweepTabl
 
 export async function readMercuryProcesses(deps: ProcessSweepDeps = {}): Promise<ProcessSweepCensus> {
   const { table, records } = await gather(deps)
+  return readProcessSweepCensus(table, records)
+}
+
+export async function recordProcessCensusAtBoot(deps: ProcessSweepDeps = {}): Promise<ProcessSweepCensus> {
+  const { table, records } = await gather(deps)
   const census = readProcessSweepCensus(table, records)
-  if (deps.record !== false) {
-    await recordCensus(records.configHome, census)
-    await pruneDeadRegistrations(records.configHome, table, records.registrations ?? [])
-  }
+  await recordCensus(records.configHome, census)
+  await pruneDeadRegistrations(records.configHome, table, records.registrations ?? [])
   return census
 }
 
@@ -422,7 +425,7 @@ export async function endStaleProcesses(reviewed: readonly ProcessSweepEntry[], 
     const after = await stillPresent(entry)
     record(entry, 'survived', 'signal', `${PROCESS_SWEEP_WORDS.unkillable} (state ${after.fresh?.state ?? entry.state} after the kill signal)`)
   }
-  const census = await readMercuryProcesses({ ...deps, record: false })
+  const census = await readMercuryProcesses(deps)
   const withEndings = { ...census, endings }
   if (deps.record !== false) await recordCensus(home, withEndings)
   return withEndings

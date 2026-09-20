@@ -1808,7 +1808,7 @@ async function interactiveLaunch(args: {
     startBackgroundHousekeeping()
   })
   registerBackgroundNode('process-registry', async () => {
-    const { registerCockpit, readMercuryProcesses, COCKPIT_HEARTBEAT_MS } = await import('./daemon/processSweepRun.js')
+    const { registerCockpit, recordProcessCensusAtBoot, COCKPIT_HEARTBEAT_MS } = await import('./daemon/processSweepRun.js')
     if (process.stdin.isTTY) {
       const registration = await registerCockpit({ terminal: null })
       if (registration !== null) {
@@ -1820,7 +1820,7 @@ async function interactiveLaunch(args: {
         })
       }
     }
-    const census = await readMercuryProcesses()
+    const census = await recordProcessCensusAtBoot()
     logForDebugging(`process census at boot: ${census.entries.length} Mercury process(es) read, ${census.entries.filter(entry => entry.classification === 'stale').length} stale — nothing ended at boot`)
   })
 
