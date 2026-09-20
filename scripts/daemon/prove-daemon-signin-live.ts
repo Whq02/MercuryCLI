@@ -15,6 +15,7 @@ for (const d of [home, daemonDir, work]) mkdirSync(d, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_DAEMON_DIR = daemonDir
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.MERCURY_CUSTOM_OAUTH_URL = 'http://127.0.0.1:1'
 for (const k of [
   'MERCURY_HOME',
   'CI',
