@@ -18,6 +18,28 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 
 type Grid = { grid: { c: string }[][] }
 
+function awaitCockpitDeparture(tag: string): void {
+  const started = Date.now()
+  const deadline = started + vshotBudgetMs(30_000)
+  for (;;) {
+    const table = spawnSync('ps', ['-eo', 'pid=,args='], { encoding: 'utf8' }).stdout ?? ''
+    const alive = table
+      .split('\n')
+      .filter(line => line.includes(`--resume ${SID}`))
+      .map(line => line.trim().split(/\s+/)[0] ?? '')
+      .filter(pid => pid !== '')
+    if (alive.length === 0) {
+      console.log(`  [departure] ${tag}: the capture's cockpit left the process table ${Date.now() - started} ms after the capture returned`)
+      return
+    }
+    if (Date.now() >= deadline) {
+      console.log(`  [departure] ${tag}: cockpit ${alive.join(', ')} still in the process table after the wait`)
+      return
+    }
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
+  }
+}
+
 function drive(tag: string, keyed: boolean): string[] | null {
   const cfg = scenario('resume-2turn', 120, 40)
   writeSyntheticSession('thinking', SID)
@@ -47,6 +69,7 @@ function drive(tag: string, keyed: boolean): string[] | null {
     env,
   })
   t(`${tag}: the capture ran`, res.status === 0, res.stderr?.slice(-300) ?? '')
+  awaitCockpitDeparture(tag)
   if (res.status !== 0 || !existsSync(out)) return null
   const g = JSON.parse(readFileSync(out, 'utf8')) as Grid
   return g.grid.map(r => r.map(c => c.c || ' ').join(''))

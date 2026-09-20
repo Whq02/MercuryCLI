@@ -969,10 +969,16 @@ t.section('§9 — THE BUILT-IN MODEL DIAL (AGENTDIALS C1: the override round-tr
         return false
       }
     })
-    output = ''
-    await press(DOWN)
-    const wearGone = await waitUntil(() => frameText().includes(firstType) && !frameText().includes('(override)'))
-    t.check('Inherit CLEARS the config row and the wear', fileCleared && wearGone, `file=${readFileSync(userOverridesPath(), 'utf-8').replace(/\s+/g, ' ').slice(0, 120)}`)
+    let wearGone = false
+    let lastPaint = ''
+    for (let nudge = 0; nudge < 200 && !wearGone; nudge++) {
+      output = ''
+      await press(nudge % 2 === 0 ? DOWN : UP)
+      lastPaint = frameText()
+      wearGone = lastPaint.includes(firstType) && !lastPaint.includes('(override)')
+      if (wearGone && nudge % 2 === 1) await press(DOWN)
+    }
+    t.check('Inherit CLEARS the config row and the wear', fileCleared && wearGone, `file=${readFileSync(userOverridesPath(), 'utf-8').replace(/\s+/g, ' ').slice(0, 120)}${wearGone ? '' : ` · last paint=${lastPaint.replace(/\s+/g, ' ').slice(-240)}`}`)
 
     const unavailIdx = dialRows.findIndex(r => r.kind === 'model' && r.unavailable !== undefined)
     if (unavailIdx > 0) {
