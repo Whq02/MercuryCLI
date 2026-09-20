@@ -984,6 +984,14 @@ export type UserAccountInfo = {
   email?: string
 }
 
+function readApiKeyOrNone(): { key: string | null; source: ApiKeySource } {
+  try {
+    return getAnthropicApiKeyWithSource()
+  } catch {
+    return { key: null, source: 'none' }
+  }
+}
+
 export function getAccountInformation(): UserAccountInfo | null {
   const info: UserAccountInfo = {}
   const { source: tokenSource } = getAuthTokenSource()
@@ -997,7 +1005,7 @@ export function getAccountInformation(): UserAccountInfo | null {
   } else {
     info.tokenSource = tokenSource
   }
-  const { key: apiKey, source: apiKeySource } = getAnthropicApiKeyWithSource()
+  const { key: apiKey, source: apiKeySource } = readApiKeyOrNone()
   if (apiKey) info.apiKeySource = apiKeySource
   if (tokenSource === 'claude.ai' || apiKeySource === '/logins managed key') {
     const account = getGlobalConfig().oauthAccount
