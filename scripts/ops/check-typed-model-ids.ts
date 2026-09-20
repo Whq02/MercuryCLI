@@ -302,9 +302,40 @@ for (const check of families) {
   }
 }
 for (const line of skipped) console.log(line)
+const pagesBase = (() => {
+  const at = process.argv.indexOf('--signin-pages-base')
+  return at >= 0 ? process.argv[at + 1]?.replace(/\/+$/, '') : undefined
+})()
+const { geminiGuidePages } = await import('../../src/components/geminiConnectGuide.js')
+const pages = geminiGuidePages()
+let deadPages = 0
+for (const page of pages) {
+  const parsed = new URL(page.address)
+  const target = pagesBase ? `${pagesBase}${parsed.pathname}${parsed.search}` : page.address
+  let verdict: string
+  try {
+    const response = await fetchWithProviderDeadline(getApiFetch(), 'gemini', LIST_TIMEOUT_MS, target, {
+      method: 'HEAD',
+      redirect: 'manual',
+      headers: { 'user-agent': getUserAgent() },
+      ...(getProxyFetchOptions() as Record<string, unknown>),
+    } as RequestInit)
+    if (response.status >= 400) deadPages++
+    verdict = response.status >= 400 ? `dead (HTTP ${response.status})` : `answers HTTP ${response.status}`
+  } catch (error) {
+    deadPages++
+    verdict = `dead (${error instanceof Error ? error.message : String(error)})`
+  }
+  console.log(`sign-in page · ${page.address} · observed ${page.observedAt} · ${verdict}`)
+}
+console.log(
+  deadPages === 0
+    ? `sign-in pages: every one of ${pages.length} answered (an unsigned HEAD on a Console path answers a redirect to Google's sign-in, so a page that moved behind that wall still reads alive here; only a dead host or a 404 reads dead)`
+    : `sign-in pages: ${deadPages} of ${pages.length} dead (a dead host or a 404; a page that moved behind Google's sign-in wall reads alive here)`,
+)
 console.log(
   notServed === 0
     ? `typed model ids: every typed id a fetched list could judge is served (${judged} of ${families.length} lists fetched)`
     : `typed model ids: ${notServed} typed id(s) not served by a fetched list (${judged} of ${families.length} lists fetched)`,
 )
-process.exit(notServed === 0 ? 0 : 1)
+process.exit(notServed === 0 && deadPages === 0 ? 0 : 1)

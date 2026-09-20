@@ -22,6 +22,8 @@ const { DEEPSEEK_DISPLAY_PINS } = await import('../../src/services/providers/dee
 const { GEMINI_PRICE_PINS } = await import('../../src/services/providers/gemini/geminiPins.js')
 const { HUGGINGFACE_DISPLAY_PINS } = await import('../../src/services/providers/huggingface/huggingfacePins.js')
 const model = await import('../../src/utils/model/model.js')
+const { geminiGuidePages } = await import('../../src/components/geminiConnectGuide.js')
+const pages = geminiGuidePages()
 
 const gptIds = GPT_DISPLAY_PINS.map(p => p.id)
 const OWNER_LIST = ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5']
@@ -40,6 +42,7 @@ const lists: Record<string, string[]> = {
   moonshot: KIMI_DISPLAY_PINS.map(p => p.id),
 }
 const failing: Record<string, number> = {}
+let deadPage: string | undefined
 const hits: string[] = []
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   const path = (req.url ?? '').split('?')[0] ?? ''
@@ -54,6 +57,10 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     res.writeHead(status, { 'content-type': 'application/json' })
     res.end(JSON.stringify({ error: { message: `fixture ${family} answers ${status}` } }))
     return true
+  }
+  if (req.method === 'HEAD') {
+    if (path === deadPage) { res.writeHead(404); res.end(); return }
+    res.writeHead(302, { location: 'https://accounts.google.com/ServiceLogin' }); res.end(); return
   }
   if (req.method !== 'GET') { json({}); return }
   if (path === '/openai/chatgpt/models') { if (failWith('subscription')) return; json({ models: lists.subscription!.map((slug, i) => ({ slug, display_name: slug, supported_reasoning_levels: ['low', 'high'], visibility: 'list', priority: i + 1 })) }); return }
@@ -122,7 +129,7 @@ const run = async (extra: Record<string, string | undefined> = {}): Promise<Run>
   const env: Record<string, string> = { ...baseEnv }
   for (const [k, v] of Object.entries(extra)) { if (v === undefined) delete env[k]; else env[k] = v }
   hits.length = 0
-  const child = spawn(process.execPath, [SCRIPT], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(process.execPath, [SCRIPT, '--signin-pages-base', `${base}/pages`], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] })
   let stdout = ''
   let stderr = ''
   child.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString('utf8') })
@@ -151,6 +158,10 @@ check('the OpenRouter list, with no typed ids, prints its count', all.lines.some
 check('every fixture list was fetched once', ['/openai/chatgpt/models', '/openai/v1/models', '/anthropic/v1/models', '/gemini/v1beta/models', '/deepseek/models', '/openrouter/api/v1/models', '/hf/v1/models', '/zai/v4/models', '/moonshot/v1/models'].every(p => hits.some(h => h.endsWith(p))), hits.join(', '))
 check('the summary line says every judged id is served', all.lines.some(l => l.startsWith('typed model ids: every typed id a fetched list could judge is served')), all.lines.at(-1))
 check('no credential value appears in the output', secretLeak(all) === undefined, secretLeak(all))
+const pageLines = all.lines.filter(l => l.startsWith('sign-in page · '))
+check(`one line per sign-in page from the one address owner (${pages.length}), each dated and answering the fixture's redirect`, pageLines.length === pages.length && pages.every(p => pageLines.some(l => l.includes(` · ${p.address} · observed ${p.observedAt} · answers HTTP 302`))), pageLines.join('\n'))
+check('every page was asked with one HEAD on the fixture, never a GET', pages.every(p => hits.includes(`HEAD /pages${new URL(p.address).pathname}`)) && !hits.some(h => h.startsWith('GET /pages')), hits.filter(h => h.includes('/pages')).join(', '))
+check('the pages summary says every page answered and names the sign-in wall the HEAD cannot see past', all.lines.some(l => l.startsWith(`sign-in pages: every one of ${pages.length} answered`) && l.includes("a page that moved behind that wall still reads alive here")), all.lines.filter(l => l.startsWith('sign-in pages')).join('\n'))
 
 section("§2 the subscription serves the owner's five ids: the retired typed ids read not served under that source, exit 1")
 lists.subscription = [...OWNER_LIST]
@@ -189,7 +200,17 @@ check('no subscription models request was made', !hits.some(h => h.endsWith('/op
 check('the stored auth file is byte-identical (no refresh, no rewrite)', readFileSync(join(home, '.openai-auth.json'), 'utf8') === authBefore)
 seedSubscription(Date.now() + 24 * 3600_000)
 
-section('§6 the check writes nothing under the config home across every run')
+section('§6 a dead sign-in page: the line names it, the summary counts it, the exit is 1 while every typed id still reads served')
+deadPage = '/pages/auth/clients'
+const dead = await run()
+check('exit 1', dead.status === 1, `status ${dead.status}`)
+check('the clients page reads dead with the status', dead.lines.some(l => l.startsWith('sign-in page · https://console.developers.google.com/auth/clients · ') && l.endsWith(' · dead (HTTP 404)')), dead.lines.filter(l => l.startsWith('sign-in page')).join('\n'))
+check('the other pages still answer', dead.lines.filter(l => l.startsWith('sign-in page · ') && l.endsWith(' · answers HTTP 302')).length === pages.length - 1)
+check(`the pages summary counts the one dead page of ${pages.length}`, dead.lines.some(l => l.startsWith(`sign-in pages: 1 of ${pages.length} dead`)), dead.lines.filter(l => l.startsWith('sign-in pages')).join('\n'))
+check('every typed id still reads served (the model-id judgement is untouched)', dead.lines.filter(l => l.endsWith(' · served')).length === typedTotal && dead.lines.some(l => l.startsWith('typed model ids: every typed id a fetched list could judge is served')))
+deadPage = undefined
+
+section('§7 the check writes nothing under the config home across every run')
 check('the home holds the same files with the same sizes and mtimes as before the first run, but the auth file the proof itself rewrote', snapshotHome().split('\n').filter(l => !l.startsWith('.openai-auth.json')).join('\n') === before.split('\n').filter(l => !l.startsWith('.openai-auth.json')).join('\n'), `before:\n${before}\nafter:\n${snapshotHome()}`)
 check('the script reads no MERCURY_ flag of its own (every seam rides the product resolvers)', !/process\.env\.MERCURY_|env\.MERCURY_|env\['MERCURY_/.test(readFileSync(SCRIPT, 'utf8')))
 
