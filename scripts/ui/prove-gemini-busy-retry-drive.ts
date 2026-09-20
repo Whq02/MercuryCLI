@@ -3,6 +3,7 @@
 
 import { execFile } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { dirname, join, resolve } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -26,7 +27,7 @@ if (driver.kind === 'unavailable') throw new Error(driver.remedy)
 const vendoredNode = join(dirname(DIST), 'vendor/node', process.platform === 'win32' ? 'node.exe' : join('bin', 'node'))
 const node = existsSync(vendoredNode) ? vendoredNode : 'node'
 
-const WORLD_ROOT = '/private/tmp/mw'
+const WORLD_ROOT = existsSync('/private/tmp/mw') ? '/private/tmp/mw' : realpathSync(tmpdir())
 mkdirSync(WORLD_ROOT, { recursive: true })
 const SCRATCH = realpathSync(mkdtempSync(join(WORLD_ROOT, 'gemini-busy-')))
 const work = join(SCRATCH, 'work')
