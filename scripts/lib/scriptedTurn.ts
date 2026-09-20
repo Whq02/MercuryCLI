@@ -6,9 +6,10 @@ import { PROBE_KEY, bootRunner, bound, childEnv, configKeyOf, isResult, user } f
 
 export type WireBlock = { type: 'text'; text: string } | { type: 'tool_use'; name: string; input: Record<string, unknown> }
 export type SeenResult = { toolUseId: string; text: string; isError: boolean }
-export type ScriptedRequest = { n: number; ask: string; askTexts: string[]; opening: string; step: number; results: SeenResult[]; toolNames: string[] }
+export type ScriptedRequest = { n: number; ask: string; askTexts: string[]; allTexts: string[]; atMs: number; opening: string; step: number; results: SeenResult[]; toolNames: string[] }
 export type Script = (req: ScriptedRequest) => WireBlock[]
 export type ScriptedFixture = { base: string; requests: ScriptedRequest[]; close: () => Promise<void> }
+export type ScriptedFixtureOptions = { answerDelayMs?: (req: ScriptedRequest) => number }
 
 type Block = { type?: string; text?: string; tool_use_id?: string; content?: unknown; is_error?: unknown }
 type Item = { role?: string; content?: unknown }
@@ -34,6 +35,28 @@ function askTextsOf(content: unknown): string[] {
   if (typeof content === 'string') return content.trimStart().startsWith('<system-reminder>') ? [] : [content]
   if (!Array.isArray(content)) return []
   return (content as Block[]).flatMap(part => (part.type === 'text' && typeof part.text === 'string' && !part.text.trimStart().startsWith('<system-reminder>') ? [part.text] : []))
+}
+
+function allTextsOf(items: Item[]): string[] {
+  const texts: string[] = []
+  for (const item of items) {
+    if (item.role !== 'user') continue
+    const content = item.content
+    if (typeof content === 'string') {
+      texts.push(content)
+      continue
+    }
+    if (!Array.isArray(content)) continue
+    for (const part of content as Block[]) {
+      if (part.type === 'text' && typeof part.text === 'string') texts.push(part.text)
+      if (part.type !== 'tool_result') continue
+      if (typeof part.content === 'string') texts.push(part.content)
+      if (Array.isArray(part.content)) {
+        for (const inner of part.content as Block[]) if (inner.type === 'text' && typeof inner.text === 'string') texts.push(inner.text)
+      }
+    }
+  }
+  return texts
 }
 
 const carriesResults = (item: Item): boolean => item.role === 'user' && Array.isArray(item.content) && (item.content as Block[]).some(p => p.type === 'tool_result')
@@ -72,6 +95,8 @@ export function describeRequest(body: unknown, n: number): ScriptedRequest {
     n,
     ask: askIndex === -1 ? '' : askOf(items[askIndex]!.content),
     askTexts: askIndex === -1 ? [] : askTextsOf(items[askIndex]!.content),
+    allTexts: allTextsOf(items),
+    atMs: Date.now(),
     opening,
     step: after.length,
     results: resultsOf(after[after.length - 1]),
@@ -110,7 +135,7 @@ function sseAnswer(n: number, model: string, blocks: WireBlock[]): string {
   return parts.join('')
 }
 
-export async function startScriptedFixture(script: Script): Promise<ScriptedFixture> {
+export async function startScriptedFixture(script: Script, options: ScriptedFixtureOptions = {}): Promise<ScriptedFixture> {
   const requests: ScriptedRequest[] = []
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = []
@@ -138,13 +163,18 @@ export async function startScriptedFixture(script: Script): Promise<ScriptedFixt
       } catch (err) {
         blocks = [{ type: 'text', text: `fixture script failed: ${err instanceof Error ? err.message : String(err)}` }]
       }
-      if (!streaming) {
-        res.writeHead(200, { 'content-type': 'application/json' })
-        res.end(jsonAnswer(described.n, model, blocks))
-        return
+      const answer = (): void => {
+        if (!streaming) {
+          res.writeHead(200, { 'content-type': 'application/json' })
+          res.end(jsonAnswer(described.n, model, blocks))
+          return
+        }
+        res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
+        res.end(sseAnswer(described.n, model, blocks))
       }
-      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
-      res.end(sseAnswer(described.n, model, blocks))
+      const delayMs = options.answerDelayMs?.(described) ?? 0
+      if (delayMs > 0) setTimeout(answer, delayMs)
+      else answer()
     })
   })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
