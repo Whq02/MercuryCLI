@@ -64,7 +64,12 @@ export async function fetchMoonshotLiveModels(opts: {
       ? `Moonshot models endpoint refused the credential (HTTP ${response.status})`
       : `Moonshot models endpoint returned HTTP ${response.status}`)
   }
-  const parsed: unknown = await response.json()
+  let parsed: unknown
+  try {
+    parsed = await response.json()
+  } catch {
+    throw new Error('the models endpoint answered a body that is not JSON')
+  }
   if (typeof parsed !== 'object' || parsed === null || !Array.isArray((parsed as Record<string, unknown>).data)) {
     throw new Error('Moonshot models endpoint returned a malformed catalogue')
   }
