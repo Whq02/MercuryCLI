@@ -97,5 +97,39 @@ console.log('R5 the effort chip: the born word stands plain while no seat holds 
   check('no born word and no seat word: the born rung is silent', bornEffortValueOf(null, null) === undefined)
 }
 
+console.log('R6 the birth falls back to a signed-in family when the saved default cannot run; the saved default is untouched')
+{
+  const provider = (f: string): string => (f === 'anthropic' ? 'Anthropic' : f)
+  const fallback = { setting: 'claude-fable-5-1', family: 'anthropic', row: 'Fable 5.1' }
+  const absent = facts.birthFallbackModel('gemini', { family: 'gemini', familyWord: 'gemini', hasCredential: false, familyUsable: false, familyReason: null, fallback, providerName: provider })
+  check('a saved default whose family holds no sign-in falls back with the no-sign-in receipt', absent !== undefined && absent.setting === 'claude-fable-5-1' && absent.receipt === '▲ the saved default gemini has no sign-in here — this chat runs on Fable 5.1 (Anthropic, the most recent sign-in); /logins gemini connects it, /model changes the default', absent?.receipt)
+  const refused = facts.birthFallbackModel('gemini', { family: 'gemini', familyWord: 'gemini', hasCredential: true, familyUsable: false, familyReason: "the Google account's token was refused (HTTP 403) · /logins re-connects", fallback, providerName: provider })
+  check('a present-but-refused credential falls back and carries the catalogue reason', refused !== undefined && refused.setting === 'claude-fable-5-1' && refused.receipt === "▲ the saved default gemini has no usable row: the Google account's token was refused (HTTP 403) · /logins re-connects. This chat runs on Fable 5.1 (Anthropic, the most recent sign-in); /model changes the default", refused?.receipt)
+  check('a usable family is not swapped (no receipt)', facts.birthFallbackModel('claude-opus-5', { family: 'anthropic', familyWord: 'anthropic', hasCredential: true, familyUsable: true, familyReason: null, fallback, providerName: provider }) === undefined)
+  check('a family that already IS the fallback is not swapped', facts.birthFallbackModel('claude-opus-5', { family: 'anthropic', familyWord: 'anthropic', hasCredential: true, familyUsable: false, familyReason: null, fallback, providerName: provider }) === undefined)
+  check('no signed-in family: no fallback, the daemon refuses honestly', facts.birthFallbackModel('gemini', { family: 'gemini', familyWord: 'gemini', hasCredential: false, familyUsable: false, familyReason: null, fallback: null, providerName: provider }) === undefined)
+  const readSrc = (rel: string): string => (require('node:fs') as typeof import('node:fs')).readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8')
+  const door = readSrc('src/services/switchboard/bornSession.ts')
+  check('the birth door drops the model on a keyless home, then wraps the resolved model in the signed-in fallback', door.includes('const resolved = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)') && door.includes('const born = birthModelForSignedInFamily(resolved, facts.model === null && (req.model ?? null) === null)') && door.includes('const model = born.setting'))
+  check("the fallback rides the saved-default road only (an explicit --model, MERCURY_MODEL or a door's inheritance keeps the daemon's own answer)", door.includes('if (getMainLoopModelOverride() !== undefined) return false') && door.includes('parseUserSpecifiedModel(saved) === resolved'))
+  const mintAt = door.indexOf("if (fallbackNote !== null && fallbackNote !== '') mintOnBornChat(sessionId, fallbackNote)")
+  const hopAt = door.indexOf('const hop = await hopIntoBoardSession(sessionId')
+  check('the receipt is minted after the hop, on the born chat itself (a display row the chat keeps, never a notification on the resting slot)', mintAt !== -1 && hopAt !== -1 && mintAt > hopAt && door.includes('if (focused.sessionId() !== sessionId) return false'))
+  check('the fallback never writes the saved default', !door.includes('persistModelChoice') && !door.includes('setBootBirthFacts') && !door.includes('updateSettingsForSource'))
+}
+
+console.log('R7 the one road from a /model pick to the next birth: the pick saves the default and sets the override the screen birth model reads (no chat open: the resting slot refuses, so the door is a chat)')
+{
+  const readSrc = (rel: string): string => (require('node:fs') as typeof import('node:fs')).readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8')
+  const door = readSrc('src/services/switchboard/bornSession.ts')
+  check("the resting slot's model door refuses (no chat open, nothing to switch)", (await new NoSessionConnector().setModel()).state === 'refused')
+  const picker = readSrc('src/commands/model/mercuryModel.tsx')
+  check("a pick on a chat's seat saves the default after the daemon's receipt (the road the fallback chat opens)", picker.includes('const saved = persistModelChoice(value)') && picker.includes("void focused.setModel(value).then(receipt => {"))
+  const { settleModelSelection } = await import('../../src/utils/model/modelTransition.js')
+  const settled = settleModelSelection({ mainLoopModel: 'gemini', mainLoopModelForSession: null, pendingModelSwitch: null, lastModelTransition: null } as never, 'claude-fable-5-1', { turnActive: false })
+  check('the settle road applies the pick to the main-loop model at once when no turn runs', settled.kind === 'applied' && settled.patch !== null && (settled.patch as { mainLoopModel?: string }).mainLoopModel === 'claude-fable-5-1', JSON.stringify(settled))
+  check('the screen birth model follows the main-loop override the pick sets', door.includes('screenBirthModel()') && readSrc('src/services/switchboard/bootBirthFacts.ts').includes('if (getMainLoopModelOverride() !== undefined) return getMainLoopModel()'))
+}
+
 console.log(failures === 0 ? '\nprove-birth-landing-words: ALL LAWS HOLD' : `\nprove-birth-landing-words: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

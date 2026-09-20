@@ -177,6 +177,24 @@ export function geminiSourceIdentity(
   return credentialFingerprint(tokens?.refreshToken ?? tokens?.accessToken)
 }
 
+const SECRET_MASK = '«masked»'
+const SECRET_SHAPES = [/ya29\.[A-Za-z0-9._-]+/g, /AIza[A-Za-z0-9_-]{20,}/g, /1\/\/[A-Za-z0-9._-]{20,}/g]
+
+export function maskGeminiSecrets(text: string, env: NodeJS.ProcessEnv = process.env): string {
+  const file = readAuthFile()
+  const material = [
+    file?.tokens?.accessToken,
+    file?.tokens?.refreshToken,
+    file?.client?.clientSecret,
+    file?.client?.clientId,
+    resolveGeminiApiKey(env)?.key,
+  ].filter((value): value is string => typeof value === 'string' && value.length >= 8)
+  let masked = text
+  for (const secret of material) masked = masked.split(secret).join(SECRET_MASK)
+  for (const shape of SECRET_SHAPES) masked = masked.replace(shape, SECRET_MASK)
+  return masked
+}
+
 export function writePreferredGeminiSource(kind: 'oauth' | 'api-key' | null): void {
   writeAuthFile(file => {
     const next = { ...file }
