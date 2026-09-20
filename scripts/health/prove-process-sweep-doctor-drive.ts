@@ -183,6 +183,18 @@ try {
   check('the certificate carries the row "Mercury processes"', row !== undefined && row.label === 'Mercury processes', rows.map(r => r.id).join(',').slice(0, 200))
   check('the row counts running · stale · cannot end · not ours', /^\d+ running · \d+ stale · \d+ cannot end · \d+ not ours/.test(row?.evidence ?? ''), row?.evidence)
   check('the row warns and lists the stand-in as a stale line with pid, terminal and age', row?.status === 'warn' && (row.detail ?? '').includes(`pid ${standIn} · no terminal ·`), (row?.detail ?? '').slice(0, 160))
+  if (!(row?.detail ?? '').includes(`pid ${standIn} · no terminal ·`)) {
+    const listing = spawnSync('node', [BIN, 'doctor', 'processes'], { cwd: CWD, encoding: 'utf8', timeout: vshotBudgetMs(120_000), env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] }).stdout ?? ''
+    let entries: Array<{ process?: { pid?: number; exe?: string; user?: string; args?: string[] }; classification?: string; reason?: string; startToken?: string | null }> = []
+    try {
+      entries = (JSON.parse(listing.slice(Math.max(0, listing.indexOf('{')))) as { entries?: typeof entries }).entries ?? []
+    } catch {
+      entries = []
+    }
+    const mine = entries.find(entry => entry.process?.pid === standIn)
+    const token = await getProcessStartTokenAsync(standIn)
+    console.log(`  … the stand-in as the headless listing reads it: ${mine === undefined ? `no entry among ${entries.length}` : `${mine.classification} · ${mine.reason} · exe=${mine.process?.exe} · user=${mine.process?.user} · args=${(mine.process?.args ?? []).join(' ').slice(0, 60)} · token=${mine.startToken}`} · reader uid=${typeof process.getuid === 'function' ? process.getuid() : 'n/a'} · registered token=${token}`)
+  }
   const rowIndex = Math.max(0, rows.findIndex(r => r.id === 'mercury-processes'))
   check('the stand-in is untouched by the read-only doctor', alive(standIn))
   process.kill(standIn, 'SIGKILL')
