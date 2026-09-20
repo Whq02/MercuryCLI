@@ -245,6 +245,14 @@ const noKeyFlag = await run({ ZAI_API_KEY: undefined }, ['--probe-by-completion'
 check('the flag without a Z.AI credential probes nothing and the family reads not judged', noKeyFlag.lines.includes(`zai · no credential · ${glmIds.length} typed ids not judged`) && zaiProbes.length === 0, noKeyFlag.lines.filter(l => l.startsWith('zai')).join('\n'))
 lists.zai = [...glmIds]
 
+section('§5c the traffic switch stops the probe: with MERCURY_DISABLE_NONESSENTIAL_TRAFFIC set, --probe-by-completion sends nothing and Z.AI reads the dated table')
+const dark = await run({ MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1' }, ['--probe-by-completion'])
+check('no completion reached the fixture and no Z.AI request of any kind was made', zaiProbes.length === 0 && !hits.some(h => h.includes('/zai/')), JSON.stringify(zaiProbes.map(p => p.model)))
+check('the script says so once, in its own words', dark.lines.filter(l => l === '--probe-by-completion sends nothing: MERCURY_DISABLE_NONESSENTIAL_TRAFFIC is set; the Z.AI ids read the dated table').length === 1, dark.lines.filter(l => l.startsWith('--probe')).join('\n'))
+check('the Z.AI ids read their dated-table lines exactly as without the flag', glmIds.every(id => dark.lines.includes(`zai · Z.AI API key (env) · ${id} · no live list — typed table dated ${glmDated}`)) && !dark.lines.some(l => l.startsWith('zai') && / · (served|not served|unreachable)/.test(l)), dark.lines.filter(l => l.startsWith('zai')).join('\n'))
+check('Z.AI stays out of the fetched count', dark.lines.some(l => / of 8 lists fetched\)$/.test(l)), dark.lines.at(-1))
+check('exit 0 and no credential value in the output', dark.status === 0 && secretLeak(dark) === undefined, `status ${dark.status}`)
+
 section('§6 the check writes nothing under the config home across every run')
 check('the home holds the same files with the same sizes and mtimes as before the first run, but the auth file the proof itself rewrote', snapshotHome().split('\n').filter(l => !l.startsWith('.openai-auth.json')).join('\n') === before.split('\n').filter(l => !l.startsWith('.openai-auth.json')).join('\n'), `before:\n${before}\nafter:\n${snapshotHome()}`)
 check('the script reads no MERCURY_ flag of its own (every seam rides the product resolvers)', !/process\.env\.MERCURY_|env\.MERCURY_|env\['MERCURY_/.test(readFileSync(SCRIPT, 'utf8')))
