@@ -345,7 +345,7 @@ section('9 · the /model GPT group is the FULL lineup; availability = the resolv
   )
   check(
     'the FULL current lineup is VISIBLE (every display pin has a row even when unavailable)',
-    ['gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4-mini', 'gpt-5.3-codex-spark'].every(id =>
+    ['gpt-5.6-luna', 'gpt-5.5'].every(id =>
       byValue.has(id),
     ),
     `gpt rows: ${gptRows.map(o => String(o.value)).join(', ')}`,

@@ -183,22 +183,6 @@ export const GPT_DISPLAY_PINS: readonly GptDisplayPin[] = [
     displayName: 'GPT-5.5',
     observedAt: '2026-07-17',
   },
-  {
-    id: 'gpt-5.4',
-    displayName: 'GPT-5.4',
-    observedAt: '2026-07-17',
-  },
-  {
-    id: 'gpt-5.4-mini',
-    displayName: 'GPT-5.4 Mini',
-    observedAt: '2026-07-17',
-  },
-  {
-    id: 'gpt-5.3-codex-spark',
-    displayName: 'GPT-5.3 Codex Spark',
-    observedAt: '2026-07-17',
-    availabilityNote: 'ChatGPT Pro only (research preview)',
-  },
 ]
 
 export function gptDisplayPin(id: string): GptDisplayPin | undefined {
