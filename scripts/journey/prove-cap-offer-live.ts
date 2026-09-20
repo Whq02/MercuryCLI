@@ -164,6 +164,7 @@ const childEnv: NodeJS.ProcessEnv = {
   MERCURY_TABULA_DIR: path.join(RUN_HOME, 'tabula'),
   MERCURY_HOME: path.join(RUN_HOME, 'proof-home'),
   MERCURY_FAILOVER_LINE_MS: String(LANE_LINE_MS),
+  MERCURY_CONNECTOR_TRACE: path.join(RUN_HOME, 'connector-trace.jsonl'),
 }
 delete childEnv.NODE_ENV
 delete childEnv.ANTHROPIC_AUTH_TOKEN
@@ -210,6 +211,24 @@ const markGrid = (payload: Payload | null, label: string): string => {
   return mark ? gridText(mark.grid) : ''
 }
 const receiptTick = (payload: Payload | null, index: number): number => payload?.sendReceipts?.[index]?.atTick ?? -1
+const strip = (grid: string): string => grid.split('\n').filter(l => l.includes('▚▛▀▜▞') || l.includes('failover') || l.includes('Model switch') || l.includes('·  ready') || l.includes('· ready')).map(l => l.trim()).join(' ‖ ')
+function forensics(leg: string, p: Payload | null, marks: string[]): void {
+  console.log(`[forensics] ${leg} send receipts (ticks): ${(p?.sendReceipts ?? []).map((r, i) => `${i}:${r.atTick ?? -1}`).join(' ')} · endReason=${p?.endReason ?? '?'}`)
+  for (const label of marks) {
+    const grid = markGrid(p, label)
+    console.log(`[forensics] ${leg} frame ${label}: ${grid === '' ? '(no mark)' : strip(grid) || '(no strip row)'}`)
+  }
+  if (p !== null) console.log(`[forensics] ${leg} final frame: ${strip(gridText(p.grid)) || '(no strip row)'}`)
+  for (const [name, needle] of [['daemon/daemon.log', /set-model|held by the runner|set-effort/], ['connector-trace.jsonl', /"ev":"facts"/]] as const) {
+    const file = path.join(RUN_HOME, name)
+    if (!existsSync(file)) {
+      console.log(`[forensics] ${name}: absent`)
+      continue
+    }
+    const lines = readFileSync(file, 'utf8').split('\n').filter(l => needle.test(l))
+    console.log(`[forensics] ${name} (${lines.length} lines, last 12):\n${lines.slice(-12).join('\n')}`)
+  }
+}
 
 const PROBE_GAP = 60
 const legSettle = drive(
@@ -288,6 +307,7 @@ const legSettle = drive(
   check('the mark follows the served model (Sonnet 5 · failover)', again.includes(LANE_MARK_SONNET), again.split('\n').filter(l => l.includes('Sonnet 5')).join(' | '))
   const probeGrid = markGrid(p, 'probe')
   check('by the probe the sentence has left again and the mark stands', !probeGrid.includes('failover lane') && probeGrid.includes(LANE_MARK_SONNET), probeGrid.split('\n').filter(l => l.includes('failover')).join(' | '))
+  if (failures > 0) forensics('settle', p, ['offer', 'preview', 'switched', 'line-t0', 'line-later', 'sonnet-preview', 'line-again', 'probe'])
 }
 
 const legEsc = drive(
@@ -318,6 +338,7 @@ const legEsc = drive(
   check('the session stayed on its GPT seat', finalGrid.includes(HOME_CHIP) && !finalGrid.includes('Fable 5.1'), finalGrid.split('\n').filter(l => l.includes('·')).slice(-3).join('\n'))
   check('no offer card on the final screen', !finalGrid.includes(OFFER_TITLE))
   check('at home the strip carries no failover mark and no sentence stands', !finalGrid.includes('· failover') && !finalGrid.includes('failover lane') && !markGrid(p, 'again').includes('· failover'), finalGrid.split('\n').filter(l => l.includes('failover')).join(' | '))
+  if (failures > 0) forensics('esc', p, ['esc', 'again', 'probe'])
 }
 
 if (failures > 0) {
