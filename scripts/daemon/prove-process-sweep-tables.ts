@@ -451,7 +451,7 @@ await check('a runner record without a birth token binds nothing: the process ca
 console.log('§ the ending ladder over injected ports in a scratch home')
 const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = require('node:fs') as typeof import('node:fs')
 const { tmpdir } = require('node:os') as typeof import('node:os')
-const { endStaleProcesses, readMercuryProcesses }: typeof import('../../src/daemon/processSweepRun.ts') = await import(join(import.meta.dir, '../../src/daemon/processSweepRun.ts'))
+const { endStaleProcesses, readMercuryProcesses, recordProcessCensusAtBoot }: typeof import('../../src/daemon/processSweepRun.ts') = await import(join(import.meta.dir, '../../src/daemon/processSweepRun.ts'))
 const SCRATCH = mkdtempSync(join(tmpdir(), 'orphan-sweep-ladder-'))
 const home = join(SCRATCH, 'home')
 const daemonDir = join(home, 'daemon')
@@ -567,6 +567,26 @@ await check('a process that is no longer stale after the termination signal is n
   assert.equal(after.endings[0]!.outcome, 'refused')
   assert.match(after.endings[0]!.reason, /no longer stale after the termination signal/)
   assert.deepEqual(port.signals, ['4003:SIGTERM'])
+})
+
+await check('a plain read records nothing under the home and prunes no registration; the boot road records the census and prunes a registration whose pid the table does not hold', async () => {
+  const { statSync, existsSync: exists } = require('node:fs') as typeof import('node:fs')
+  const gonePath = join(home, 'processes', 'cockpit-77777-deadbeef-0000.json')
+  writeFileSync(gonePath, JSON.stringify({ schema: 1, id: 'deadbeef-0000', pid: 77777, startToken: 'Sun 20 Sep 08:30:00 2026', exe: 'node', bundle: '/opt/mercury/dist/mercury.mjs', configHome: home, daemonDir: daemonDir, terminal: null, bornAt: NOW - 3_600_000, heartbeatAt: NOW - 3_600_000 }))
+  const censusPath = join(home, 'processes', 'census.json')
+  const stamp = statSync(censusPath).mtimeMs
+  const deps = { home, ownDaemonDir: daemonDir, waitMs: 120, collect: async (): Promise<ProcessSweepTable> => ladderTable(), nowMs: () => NOW, rpc: async () => answerFacts as never }
+  const plain = await readMercuryProcesses(deps)
+  assert.equal(plain.complete, true)
+  assert.equal(statSync(censusPath).mtimeMs, stamp)
+  assert.equal(exists(gonePath), true)
+  await new Promise(resolve => setTimeout(resolve, 20))
+  const boot = await recordProcessCensusAtBoot(deps)
+  assert.equal(boot.complete, true)
+  assert.notEqual(statSync(censusPath).mtimeMs, stamp)
+  assert.equal(exists(gonePath), false)
+  const recorded = JSON.parse((require('node:fs') as typeof import('node:fs')).readFileSync(censusPath, 'utf8')) as { memory: Record<string, number> }
+  assert.equal(recorded.memory[`daemon:4001:${daemonToken}`], NOW - 700_000)
 })
 
 rmSync(SCRATCH, { recursive: true, force: true })
