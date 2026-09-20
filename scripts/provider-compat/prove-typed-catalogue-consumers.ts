@@ -30,11 +30,19 @@ function onlyReads(body: string, name: string, reads: readonly string[]): boolea
   for (const read of reads) rest = rest.split(read).join('')
   return !new RegExp(`\\b${name}\\b`).test(rest)
 }
-function classification(file: string, table: string, owner: string, body: string): string | undefined {
+function fileSource(file: string): string {
+  try {
+    return readFileSync(join(ROOT, file), 'utf8')
+  } catch {
+    return ''
+  }
+}
+function classification(file: string, table: string, owner: string, body: string, source: string = fileSource(file)): string | undefined {
   if (table === 'KIMI_DISPLAY_PINS') {
     if (file === 'src/services/providers/moonshot/kimiPins.ts' && owner === 'kimiDisplayPin' && /KIMI_DISPLAY_PINS\.find\(/.test(body)) return 'display/price metadata by id'
     if (file === 'src/commands/caching/caching.tsx' && owner === 'familyRows' && body.includes('pinnedCacheHitLines(KIMI_DISPLAY_PINS)')) return 'price display'
     if (file === 'src/services/providers/moonshot/moonshotCatalogue.ts' && owner === 'moonshotCatalogueRows' && body.includes('getCachedMoonshotCatalogue(env)') && body.includes('snapshot.fetchedAtMs === 0')) return 'dated fallback behind the live snapshot'
+    if (file === 'src/services/providers/typedModelIds.ts' && owner === 'typed' && body.includes('KIMI_DISPLAY_PINS.map(pin => pin.id)') && onlyReads(body, 'KIMI_DISPLAY_PINS', ['KIMI_DISPLAY_PINS.map(pin => pin.id)']) && source.includes('export function judgeTypedIds(') && source.includes('typed: typed()') && source.includes('list: cachedListSource(getCachedMoonshotCatalogue(env))') && !/keyLaneRow|computedDefault|resolveEngineDispatch|getModelOptions|providerSmallFastFact|providerLightFact|providerFrontierFact/.test(source)) return 'judged reader: typed ids compared with the cached live list; chooses nothing'
     return undefined
   }
   if (table === 'GLM_STATIC_CATALOGUE') {
@@ -55,6 +63,7 @@ function classification(file: string, table: string, owner: string, body: string
   if (file === 'src/utils/model/providerFrontier.ts' && owner === 'openaiSmallFastChoice' && body.includes('for (const raw of served)') && body.includes('pins.find(candidate => candidate.id === identity.canonicalId)') && onlyReads(body, 'pins', ['pins: readonly GptDisplayPin[] = GPT_DISPLAY_PINS', 'pins.find(candidate => candidate.id === identity.canonicalId)'])) return 'price facts keyed by a served id; the live list supplies every id'
   if (file === 'src/utils/model/modelOptions.ts' && owner === 'gptCatalogueRefusalWords' && body.includes('evaluateGptCandidate(modelId, availability.sourceKind)') && body.includes('if (evaluated.ok) return undefined') && onlyReads(body, 'GPT_DISPLAY_PINS', ['GPT_DISPLAY_PINS.find(pin => pin.id === canonical)'])) return 'display name for an id already refused against the landed list'
   if (file === 'src/services/concourse/coordinatorModels.ts' && owner === 'composeCoordinatorModelRegistry' && body.includes('getModelOptions(') && body.includes('seen.has(pin.id)')) return 'display baseline behind the live-backed picker rows and seen guard'
+  if (file === 'src/services/providers/typedModelIds.ts' && owner === 'typed' && body.includes('GPT_DISPLAY_PINS.map(pin => pin.id)') && onlyReads(body, 'GPT_DISPLAY_PINS', ['GPT_DISPLAY_PINS.map(pin => pin.id)']) && source.includes('export function judgeTypedIds(') && source.includes('typed: typed()') && source.includes('list: cachedListSource(getCached') && !/keyLaneRow|computedDefault|resolveEngineDispatch|getModelOptions|providerSmallFastFact|providerLightFact|providerFrontierFact/.test(source)) return 'judged reader: typed ids compared with the cached live list; chooses nothing'
   return undefined
 }
 for (const table of tables) check(`${table}: a new unclassified chooser is refused`, classification('src/utils/model/newChooser.ts', table, 'choose', `return ${table}[0]`) === undefined)
@@ -66,6 +75,12 @@ check('the OpenAI helper chooser cannot add a second read of the pins beside its
 const refusalSignature = 'export function gptCatalogueRefusalWords(modelId: string): string | undefined {'
 check('the GPT refusal words cannot answer without the live qualification', classification('src/utils/model/modelOptions.ts', 'GPT_DISPLAY_PINS', 'gptCatalogueRefusalWords', `${refusalSignature} const canonical = modelId.trim().toLowerCase(); return gptDisqualificationCopy('not-in-live-catalogue', source, GPT_DISPLAY_PINS.find(pin => pin.id === canonical)) }`) === undefined)
 check('the GPT refusal words cannot enumerate the pins beside their keyed read', classification('src/utils/model/modelOptions.ts', 'GPT_DISPLAY_PINS', 'gptCatalogueRefusalWords', `${refusalSignature} const evaluated = evaluateGptCandidate(modelId, availability.sourceKind); if (evaluated.ok) return undefined; const canonical = modelId.trim().toLowerCase(); const offered = GPT_DISPLAY_PINS.map(pin => pin.id); return gptDisqualificationCopy(evaluated.why, source, GPT_DISPLAY_PINS.find(pin => pin.id === canonical)) }`) === undefined)
+const judgeSource = 'export function judgeTypedIds(typed, listed) { return typed.filter(id => listed.includes(id)) }\nfunction openaiFact() { const typed = () => GPT_DISPLAY_PINS.map(pin => pin.id); return { typed: typed(), list: cachedListSource(getCachedOpenaiCatalogue()) } }'
+check('the judged reader is classified only while its module compares typed ids with the cached live list', classification('src/services/providers/typedModelIds.ts', 'GPT_DISPLAY_PINS', 'typed', 'typed = (): string[] => GPT_DISPLAY_PINS.map(pin => pin.id)', judgeSource) !== undefined && classification('src/services/providers/typedModelIds.ts', 'GPT_DISPLAY_PINS', 'typed', 'typed = (): string[] => GPT_DISPLAY_PINS.map(pin => pin.id)', 'export function readModelListFacts() { return [] }') === undefined)
+const moonshotJudgeSource = 'export function judgeTypedIds(typed, listed) { return typed.filter(id => listed.includes(id)) }\nfunction moonshotFact() { const typed = () => KIMI_DISPLAY_PINS.map(pin => pin.id); return { typed: typed(), list: cachedListSource(getCachedMoonshotCatalogue(env)) } }'
+check('the judged reader\'s Moonshot typed read is classified only while its module compares the ids with the cached Moonshot list', classification('src/services/providers/typedModelIds.ts', 'KIMI_DISPLAY_PINS', 'typed', 'typed = (): string[] => KIMI_DISPLAY_PINS.map(pin => pin.id)', moonshotJudgeSource) !== undefined && classification('src/services/providers/typedModelIds.ts', 'KIMI_DISPLAY_PINS', 'typed', 'typed = (): string[] => KIMI_DISPLAY_PINS.map(pin => pin.id)', moonshotJudgeSource.replace('cachedListSource(getCachedMoonshotCatalogue(env))', "{ kind: 'no-endpoint' }")) === undefined)
+check('the judged reader cannot choose a Moonshot row from the table or reach a chooser', classification('src/services/providers/typedModelIds.ts', 'KIMI_DISPLAY_PINS', 'typed', 'typed = (): string => KIMI_DISPLAY_PINS[0]?.id ?? KIMI_DISPLAY_PINS.map(pin => pin.id)[0]', moonshotJudgeSource) === undefined && classification('src/services/providers/typedModelIds.ts', 'KIMI_DISPLAY_PINS', 'typed', 'typed = (): string[] => KIMI_DISPLAY_PINS.map(pin => pin.id)', `${moonshotJudgeSource}\nconst { computedDefault } = require("../../utils/model/computedDefault.js")`) === undefined)
+check('the judged reader cannot choose from the table or reach a chooser', classification('src/services/providers/typedModelIds.ts', 'GPT_DISPLAY_PINS', 'typed', 'typed = (): string => GPT_DISPLAY_PINS[0]?.id ?? GPT_DISPLAY_PINS.map(pin => pin.id)[0]', judgeSource) === undefined && classification('src/services/providers/typedModelIds.ts', 'GPT_DISPLAY_PINS', 'typed', 'typed = (): string[] => GPT_DISPLAY_PINS.map(pin => pin.id)', `${judgeSource}\nconst { computedDefault } = require("../../utils/model/computedDefault.js")`) === undefined)
 for (const path of files(SRC)) {
   const source = readFileSync(path, 'utf8')
   if (!tables.some(table => source.includes(table))) continue

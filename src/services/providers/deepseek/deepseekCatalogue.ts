@@ -4,6 +4,7 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
+import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { deepseekApiBase, resolveDeepseekApiKey } from './deepseekAccounts.js'
 import {
   DEEPSEEK_DISPLAY_PINS,
@@ -42,15 +43,20 @@ export async function fetchDeepseekLiveModels(opts: {
 }): Promise<{ models: DeepseekLiveModel[]; fetchedAtMs: number }> {
   const fetchImpl = opts.fetchImpl ?? getApiFetch()
   const proxyOptions = opts.fetchImpl ? {} : getProxyFetchOptions()
-  const response = await fetchWithProviderDeadline(fetchImpl, 'deepseek', CATALOGUE_FETCH_TIMEOUT_MS, `${opts.baseUrl}/models`, {
-    method: 'GET',
-    headers: {
-      accept: 'application/json',
-      authorization: `Bearer ${opts.key}`,
-      'user-agent': getUserAgent(),
-    },
-    ...(proxyOptions as Record<string, unknown>),
-  } as RequestInit)
+  let response: Response
+  try {
+    response = await fetchWithProviderDeadline(fetchImpl, 'deepseek', CATALOGUE_FETCH_TIMEOUT_MS, `${opts.baseUrl}/models`, {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+        authorization: `Bearer ${opts.key}`,
+        'user-agent': getUserAgent(),
+      },
+      ...(proxyOptions as Record<string, unknown>),
+    } as RequestInit)
+  } catch (error) {
+    throw modelsEndpointUnreachable(error) ?? error
+  }
   if (!response.ok) {
     throw new Error(
       response.status === 401 || response.status === 403
@@ -58,7 +64,7 @@ export async function fetchDeepseekLiveModels(opts: {
         : `deepseek models endpoint returned HTTP ${response.status}`,
     )
   }
-  const parsed = (await response.json()) as Record<string, unknown>
+  const parsed = (await catalogueBodyJson(response)) as Record<string, unknown>
   const data = Array.isArray(parsed.data) ? parsed.data : []
   const models: DeepseekLiveModel[] = []
   for (const raw of data) {

@@ -633,10 +633,11 @@ command. A completion that lands during a turn reaches the model at that
 turn's next tool boundary, as a note beside the tool's result; one the turn
 has not read by its end is read as soon as the turn ends, together with any
 queued beside it. When a line you typed and a completion both wait at a
-turn's end, your line starts the next turn and the completion is read at that
-turn's first tool boundary, or at its end: a completion never waits past one
-turn of yours. The chat paints the carried message as one counted row,
-exactly as it paints a run of separate notices.
+turn's end, your line starts the next turn, and lines you typed in a row share
+that turn even when a completion landed between them; the completion is read
+at that turn's first tool boundary, or at its end: a completion never waits
+past one turn of yours. The chat paints the carried message as one counted
+row, exactly as it paints a run of separate notices.
 
 A message one agent sends another takes the completion's road. A background
 sub-agent reaches the agent that launched it at `main`; the main agent reaches

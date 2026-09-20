@@ -127,7 +127,7 @@ section('4b · the FULL lineup sweeps the same consumers (provider parity)')
 {
   const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.js')
   const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.js')
-  check('the lineup is the full current models page (8 pins)', GPT_DISPLAY_PINS.length === 8)
+  check('the lineup is the current models page: GPT-6 Astra and the four 5.x rows the page still lists', GPT_DISPLAY_PINS.map(pin => pin.id).join(',') === 'gpt-6-astra,gpt-5.6-sol,gpt-5.6-terra,gpt-5.6-luna,gpt-5.5', GPT_DISPLAY_PINS.map(pin => pin.id).join(','))
   for (const pin of GPT_DISPLAY_PINS) {
     const identity = parseGptModelId(pin.id)
     check(`${pin.id}: identity parses (canonical = the pin id)`, identity?.canonicalId === pin.id)

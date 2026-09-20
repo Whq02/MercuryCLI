@@ -134,6 +134,23 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     return taken
   }
 
+  const batchableAfter = (head: QueuedCommand): QueuedCommand | undefined => {
+    const next = ports.peek()
+    if (!isTaskNotification(next) || bandOf(next) !== bandOf(head)) {
+      return canBatchWith(head, next) ? ports.dequeue() : undefined
+    }
+    const band = queuedMainThread().filter(c => bandOf(c) === bandOf(head))
+    const line = band.find(c => !isTaskNotification(c))
+    if (line === undefined || !canBatchWith(head, line)) return undefined
+    const taken = ports.dequeueCommand(line)
+    if (taken === undefined) return undefined
+    for (const c of band) {
+      if (c === line) break
+      if (isTaskNotification(c) && c.queueId !== undefined) yieldedOnce.add(c.queueId)
+    }
+    return taken
+  }
+
   const nextDue = (): QueuedCommand | undefined => {
     holding = false
     const head = ports.peek()
@@ -181,8 +198,8 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
 
     const batch: QueuedCommand[] = [command]
     if (command.mode === 'prompt') {
-      while (canBatchWith(command, ports.peek())) {
-        batch.push(ports.dequeue()!)
+      for (let next = batchableAfter(command); next !== undefined; next = batchableAfter(command)) {
+        batch.push(next)
       }
       if (batch.length > 1) {
         command = {

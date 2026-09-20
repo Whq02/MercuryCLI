@@ -4,6 +4,7 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
+import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
 import {
   kimiCodingBase,
@@ -54,17 +55,22 @@ export async function fetchMoonshotLiveModels(opts: {
 }): Promise<{ models: MoonshotLiveModel[]; fetchedAtMs: number }> {
   const fetchImpl = opts.fetchImpl ?? getApiFetch()
   const proxyOptions = opts.fetchImpl ? {} : getProxyFetchOptions()
-  const response = await fetchWithProviderDeadline(fetchImpl, 'moonshot', CATALOGUE_FETCH_TIMEOUT_MS, `${opts.baseUrl.replace(/\/+$/, '')}/models`, {
-    method: 'GET',
-    headers: { accept: 'application/json', authorization: `Bearer ${opts.key}`, 'user-agent': getUserAgent() },
-    ...(proxyOptions as Record<string, unknown>),
-  } as RequestInit)
+  let response: Response
+  try {
+    response = await fetchWithProviderDeadline(fetchImpl, 'moonshot', CATALOGUE_FETCH_TIMEOUT_MS, `${opts.baseUrl.replace(/\/+$/, '')}/models`, {
+      method: 'GET',
+      headers: { accept: 'application/json', authorization: `Bearer ${opts.key}`, 'user-agent': getUserAgent() },
+      ...(proxyOptions as Record<string, unknown>),
+    } as RequestInit)
+  } catch (error) {
+    throw modelsEndpointUnreachable(error) ?? error
+  }
   if (!response.ok) {
     throw new Error(response.status === 401 || response.status === 403
       ? `Moonshot models endpoint refused the credential (HTTP ${response.status})`
       : `Moonshot models endpoint returned HTTP ${response.status}`)
   }
-  const parsed: unknown = await response.json()
+  const parsed = await catalogueBodyJson(response)
   if (typeof parsed !== 'object' || parsed === null || !Array.isArray((parsed as Record<string, unknown>).data)) {
     throw new Error('Moonshot models endpoint returned a malformed catalogue')
   }
