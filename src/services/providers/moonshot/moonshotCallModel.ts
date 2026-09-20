@@ -19,7 +19,7 @@ import {
 } from './moonshotAccounts.js'
 import { qualifyMoonshotModel } from './moonshotCatalogue.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
-import { createAssistantAPIErrorMessage, createAssistantMessage } from '../../../utils/messages.js'
+import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { refreshKimiManagedUsage } from './moonshotUsageState.js'
 
@@ -73,7 +73,10 @@ export async function* moonshotCallModel(
       yield createAssistantAPIErrorMessage({ content: `${API_ERROR_MESSAGE_PREFIX}: ${qualification.message}` })
       return
     }
-    if (qualification.kind === 'degraded') yield createAssistantMessage({ content: qualification.note })
+    if (qualification.kind === 'degraded') {
+      yield* compatChatCallModel({ ...moonshotLaneProfile, leadingNotes: [qualification.note] }, params)
+      return
+    }
   }
   yield* compatChatCallModel(moonshotLaneProfile, params)
 }

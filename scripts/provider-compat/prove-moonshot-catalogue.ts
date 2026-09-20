@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
+import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -142,6 +143,201 @@ if (catalogue) {
   await priming
   await turn
   check('cancelling a chat never waits for a shared catalogue read', cancelled)
+  console.log('the reader against every list shape')
+  delete process.env.MOONSHOT_API_KEY
+  process.env.MERCURY_MOONSHOT_API_BASE = 'http://127.0.0.1:1/platform'
+  writeMoonshotTokens(null)
+  writeStoredMoonshotApiKey('fixture-stored-review')
+  const shapes: Array<{ name: string; fetchImpl: typeof fetch; error: string }> = [
+    { name: 'a 401', fetchImpl: pageFetch({ error: { message: 'bad key' } }, 401), error: 'Moonshot models endpoint refused the credential (HTTP 401)' },
+    { name: 'a 429', fetchImpl: pageFetch({ error: { message: 'slow down' } }, 429), error: 'Moonshot models endpoint returned HTTP 429' },
+    { name: 'a 5xx', fetchImpl: pageFetch({ error: { message: 'down' } }, 502), error: 'Moonshot models endpoint returned HTTP 502' },
+    { name: 'a 200 with a body that is not JSON', fetchImpl: (async () => new Response('<html>not a list</html>', { status: 200, headers: { 'content-type': 'text/html' } })) as typeof fetch, error: 'the models endpoint answered a body that is not JSON' },
+  ]
+  for (const shape of shapes) {
+    c.__resetMoonshotCatalogueForTest()
+    await c.refreshMoonshotCatalogue({ force: true, fetchImpl: shape.fetchImpl })
+    const snapshot = c.getCachedMoonshotCatalogue()
+    const rows = c.moonshotCatalogueRows()
+    resetComputedDefaultMemo()
+    const choice = computedDefault()
+    const verdict = await c.qualifyMoonshotModel('kimi-operator-named')
+    check(`${shape.name}: the snapshot records the failure and no fetched list`, snapshot !== null && snapshot.fetchedAtMs === 0 && snapshot.models.length === 0 && (shape.error !== '' ? snapshot.lastError === shape.error : (snapshot.lastError ?? '').length > 0), JSON.stringify(snapshot))
+    check(`${shape.name}: the picker reads the dated table`, rows.source.kind === 'pin' && rows.rows[0]?.id === 'kimi-k3' && keyLanePins('moonshot').every(row => !row.listedLive))
+    check(`${shape.name}: the default names the dated row and says no live list`, choice.provider === 'moonshot' && choice.setting === 'kimi-k3' && choice.why.includes('observed 2026-08-21; no live list'), choice.why)
+    check(`${shape.name}: an operator-named id proceeds with the degraded note carrying the reason`, verdict.kind === 'degraded' && verdict.note.startsWith('[moonshot] the live model catalogue is unavailable (') && (shape.error === '' || verdict.note.includes(shape.error)) && verdict.note.endsWith("— proceeding with 'kimi-operator-named'; the provider validates it at dispatch."), JSON.stringify(verdict))
+  }
+  c.__resetMoonshotCatalogueForTest()
+  const odd = { object: 'list', data: [
+    { id: 'kimi-extra', object: 'model', created: 300, owned_by: 'moonshot', context_length: 131072, supports_image_in: false, supports_video_in: false, supports_reasoning: false, unknown_field: { nested: true }, price: '9' },
+    { id: 'kimi-bare' },
+    { object: 'model', created: 400 },
+    { id: 'kimi-k2.6', object: 'model', owned_by: 'moonshot', created: 100 },
+  ] }
+  await c.refreshMoonshotCatalogue({ force: true, fetchImpl: pageFetch(odd) })
+  const oddRows = c.moonshotCatalogueRows()
+  check('extra fields are ignored and the row lands with its stated facts', oddRows.source.kind === 'live' && oddRows.rows.some(row => row.id === 'kimi-extra' && row.contextWindow === 131072 && row.listedLive), JSON.stringify(oddRows.rows))
+  check('a row with only an id lands after every dated row, with no invented context', oddRows.rows.at(-1)?.id === 'kimi-bare' && oddRows.rows.at(-1)?.contextWindow === undefined)
+  check('a row without an id is dropped, never a blank row', oddRows.rows.length === 3 && oddRows.rows.every(row => row.id.length > 0))
+  check('a typed id the list serves keeps its recorded display name', oddRows.rows.find(row => row.id === 'kimi-k2.6')?.displayName === 'Kimi K2.6')
+  const epochBefore = catalogueEpoch()
+  resetComputedDefaultMemo()
+  const beforeChange = computedDefault()
+  await c.refreshMoonshotCatalogue({ force: true, fetchImpl: pageFetch({ object: 'list', data: [{ id: 'kimi-fixture-newer', object: 'model', created: 900, owned_by: 'moonshot' }, { id: 'kimi-k2.6', object: 'model', created: 100, owned_by: 'moonshot' }] }) })
+  const afterChange = computedDefault()
+  check('a list that changes between two reads bumps the epoch and moves the default to the newest served row', catalogueEpoch() === epochBefore + 1 && beforeChange.setting === 'kimi-extra' && afterChange.setting === 'kimi-fixture-newer', JSON.stringify({ before: beforeChange.setting, after: afterChange.setting }))
+  check('an id the changed list no longer serves is refused at the next admission', (await c.qualifyMoonshotModel('kimi-extra')).kind === 'refused')
+  c.__resetMoonshotCatalogueForTest()
+  const hanging = ((_url: string | URL | Request, init?: RequestInit) => new Promise<Response>((_, reject) => { init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true }) })) as typeof fetch
+  const slowStart = Date.now()
+  await c.refreshMoonshotCatalogue({ force: true, fetchImpl: hanging })
+  const slow = c.getCachedMoonshotCatalogue()
+  check("a list that never answers ends at the provider deadline with the honest line, never the runtime's abort spelling", slow?.lastError === 'timed out after 15s — moonshot did not answer' && slow.fetchedAtMs === 0 && Date.now() - slowStart < 20000, JSON.stringify({ lastError: slow?.lastError, ms: Date.now() - slowStart }))
+  console.log('the choosers with a list present, absent, empty, or lacking every typed row')
+  c.__resetMoonshotCatalogueForTest()
+  resetComputedDefaultMemo()
+  const absentWorld = computedDefault()
+  check('absent: the dated row is the default with the observation words; the picker and the adapter carry the dated rows', absentWorld.setting === 'kimi-k3' && absentWorld.why.includes('observed 2026-08-21; no live list') && keyLanePins('moonshot').every(row => !row.listedLive) && listMoonshotModels()[0]?.ref.model === 'kimi-k3' && describeMoonshotProvider().catalogueSource === 'static-pin', absentWorld.why)
+  await c.refreshMoonshotCatalogue({ force: true, fetchImpl: pageFetch({ object: 'list', data: [] }) })
+  resetComputedDefaultMemo()
+  const emptyChoice = computedDefault()
+  check('empty: no Moonshot row is usable, the default leaves the family, the picker and the adapter list nothing', emptyChoice.provider !== 'moonshot' && emptyChoice.considered.find(entry => entry.family === 'moonshot')?.verdict.usable === false && keyLanePins('moonshot').length === 0 && listMoonshotModels().length === 0, JSON.stringify({ provider: emptyChoice.provider, considered: emptyChoice.considered.map(entry => [entry.family, entry.verdict.usable]) }))
+  await c.refreshMoonshotCatalogue({ force: true, fetchImpl: pageFetch({ object: 'list', data: [{ id: 'kimi-untyped-b', object: 'model', created: 10, owned_by: 'moonshot' }, { id: 'kimi-untyped-a', object: 'model', created: 20, owned_by: 'moonshot' }] }) })
+  resetComputedDefaultMemo()
+  const untyped = computedDefault()
+  check('lacking every typed row: the served rows stand under mechanical names, the newest is the default, the adapter agrees', untyped.setting === 'kimi-untyped-a' && untyped.row === 'Kimi Untyped A' && keyLanePins('moonshot').map(row => row.id).join(',') === 'kimi-untyped-a,kimi-untyped-b' && listMoonshotModels()[0]?.ref.model === 'kimi-untyped-a', JSON.stringify({ setting: untyped.setting, row: untyped.row }))
+  console.log('the unnamed-default boundary reads once, never for an explicit choice, never past the allowance')
+  const { readComputedDefaultCatalogue, mostRecentSignInFamily } = await import('../../src/utils/model/computedDefault.ts')
+  const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
+  const { CATALOGUE_READ_BOUND_MS } = await import('../../src/services/providers/catalogueOnDemand.ts')
+  const { getUserSpecifiedModelSetting, normalizeModelStringForAPI } = await import('../../src/utils/model/model.ts')
+  recordSignIn('moonshot', 'api-key')
+  c.__resetMoonshotCatalogueForTest()
+  process.env.MERCURY_MODEL = 'kimi-k2.6'
+  await readComputedDefaultCatalogue()
+  check('an explicit environment choice makes no list request at the boundary', getUserSpecifiedModelSetting() === 'kimi-k2.6' && c.getCachedMoonshotCatalogue() === null)
+  delete process.env.MERCURY_MODEL
+  let blackRequests = 0
+  const black = createServer(() => { blackRequests++ })
+  await new Promise<void>(resolve => black.listen(0, '127.0.0.1', resolve))
+  const blackPort = (black.address() as { port: number }).port
+  process.env.MERCURY_MOONSHOT_API_BASE = `http://127.0.0.1:${blackPort}/platform`
+  c.__resetMoonshotCatalogueForTest()
+  check('the world is the unnamed-default one: no explicit choice, Moonshot the most recent sign-in', getUserSpecifiedModelSetting() === null && mostRecentSignInFamily() === 'moonshot', `${String(getUserSpecifiedModelSetting())} ${String(mostRecentSignInFamily())}`)
+  const boundaryStart = Date.now()
+  await readComputedDefaultCatalogue()
+  const boundaryWait = Date.now() - boundaryStart
+  check('a list that never answers holds the boundary no longer than the catalogue allowance', boundaryWait < CATALOGUE_READ_BOUND_MS + 2000, `${boundaryWait} ms against ${CATALOGUE_READ_BOUND_MS}`)
+  check('the boundary made exactly one request, and the read is still in flight behind it', blackRequests === 1 && c.getCachedMoonshotCatalogue() === null, `${blackRequests} request(s)`)
+  black.closeAllConnections()
+  await new Promise<void>(resolve => black.close(() => resolve()))
+  process.env.MERCURY_MOONSHOT_API_BASE = 'http://127.0.0.1:1/platform'
+  const birthSource = readFileSync(join(import.meta.dir, '../../src/services/switchboard/bornSession.ts'), 'utf8')
+  const printSource = readFileSync(join(import.meta.dir, '../../src/main.tsx'), 'utf8')
+  const guardedRead = "const { readComputedDefaultCatalogue } = await import('../../utils/model/computedDefault.js')\n    await readComputedDefaultCatalogue()"
+  check('the cockpit birth reads the list only when neither the record nor the door names a model', birthSource.includes(`if (facts.model === null && (req.model ?? null) === null) {\n    ${guardedRead}\n  }`))
+  const printSet = 'setInitialMainLoopModel(userSpecifiedModel ?? null)'
+  const printRead = "if (printMode) {\n    const { readComputedDefaultCatalogue } = await import('./utils/model/computedDefault.js')\n    await readComputedDefaultCatalogue()\n  }"
+  check('the print seat reads it after the explicit choices are set, through the same guarded owner', printSource.includes(printRead) && printSource.includes(printSet) && printSource.indexOf(printSet) < printSource.indexOf(printRead))
+  console.log('the admission against the landed list')
+  c.__resetMoonshotCatalogueForTest()
+  await c.refreshMoonshotCatalogue({ force: true, fetchImpl: pageFetch() })
+  const named = await c.qualifyMoonshotModel('kimi-operator-named')
+  check('an operator-named id the landed list lacks is refused with the shared sentence naming the served ids', named.kind === 'refused' && named.message === "model 'kimi-operator-named' is not offered by the Moonshot API key (stored, auth-scoped) live catalogue. The catalogue offers: kimi-fixture-next, kimi-k2.6.", JSON.stringify(named))
+  check('a served id spelled in upper case is admitted', (await c.qualifyMoonshotModel('KIMI-FIXTURE-NEXT')).kind === 'ok')
+  check('the call road strips a window annotation before the admission, and the raw spelling alone is not a served id', (await c.qualifyMoonshotModel(normalizeModelStringForAPI('kimi-fixture-next[1m]'))).kind === 'ok' && (await c.qualifyMoonshotModel('kimi-fixture-next[1m]')).kind === 'refused')
+  const admissionOwner = readFileSync(join(import.meta.dir, '../../src/services/providers/catalogueAdmission.ts'), 'utf8')
+  const gptRoad = readFileSync(join(import.meta.dir, '../../src/services/providers/openai/openaiCallModel.ts'), 'utf8')
+  const moonshotRoad = readFileSync(join(import.meta.dir, '../../src/services/providers/moonshot/moonshotCatalogue.ts'), 'utf8')
+  check('the refusal sentence has one owner, imported by both admission roads and spelled by neither', admissionOwner.includes('is not offered by the ${accountLabel} live catalogue.') && gptRoad.includes("import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'") && moonshotRoad.includes("import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'") && !gptRoad.includes('is not offered by the') && !moonshotRoad.includes('is not offered by the'))
+  console.log('two chats on one held refresh')
+  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const chatParams = (signal: AbortSignal): Parameters<typeof moonshotCallModel>[0] => ({
+    messages: [createUserMessage({ content: 'say hi' })],
+    systemPrompt: ['fixture system prompt'],
+    thinkingConfig: { type: 'disabled' },
+    tools: [],
+    signal,
+    options: { getToolPermissionContext: async () => getEmptyToolPermissionContext(), model: 'kimi-fixture-next', isNonInteractiveSession: true, querySource: 'agent:builtin:test', agents: [], hasAppendSystemPrompt: false, mcpTools: [], effortValue: 'high' },
+  }) as never
+  c.__resetMoonshotCatalogueForTest()
+  let releaseTwo: (() => void) | undefined
+  const heldTwo = new Promise<void>(resolve => { releaseTwo = resolve })
+  const primingTwo = c.refreshMoonshotCatalogue({ force: true, fetchImpl: (async () => { await heldTwo; return Response.json(page) }) as typeof fetch })
+  const firstChat = new AbortController()
+  const secondChat = new AbortController()
+  const turnOne = moonshotCallModel(chatParams(firstChat.signal)).next()
+  const turnTwo = moonshotCallModel(chatParams(secondChat.signal)).next()
+  firstChat.abort()
+  let timerOne: ReturnType<typeof setTimeout> | undefined
+  const oneEnded = await Promise.race([turnOne.then(result => result.done === true), new Promise<boolean>(resolve => { timerOne = setTimeout(() => resolve(false), 500) })])
+  clearTimeout(timerOne)
+  let timerTwo: ReturnType<typeof setTimeout> | undefined
+  const twoWaits = await Promise.race([turnTwo.then(() => false), new Promise<boolean>(resolve => { timerTwo = setTimeout(() => resolve(true), 200) })])
+  clearTimeout(timerTwo)
+  releaseTwo?.()
+  await primingTwo
+  const two = await turnTwo.then(result => ({ done: result.done === true, text: JSON.stringify(result.value ?? null) }), error => ({ done: true, text: `threw ${String(error)}` }))
+  check('the cancelled chat ends at once while the other keeps waiting on the shared read', oneEnded && twoWaits)
+  check('the shared refresh outlives the cancelled chat: it lands, and the second chat proceeds past the admission to its wire', (c.getCachedMoonshotCatalogue()?.fetchedAtMs ?? 0) > 0 && !two.done && !two.text.includes('is not offered by the') && !two.text.includes('catalogue is unavailable'), two.text.slice(0, 300))
+  console.log('the degraded note rides the settled message')
+  const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
+  let chatStatus = 200
+  const chatFixture = createServer((req, res) => {
+    const path = (req.url ?? '').split('?')[0] ?? ''
+    req.on('data', () => {})
+    req.on('end', () => {
+      if (req.method === 'GET' && path.endsWith('/models')) {
+        res.writeHead(502, { 'content-type': 'application/json' })
+        res.end('{}')
+        return
+      }
+      if (req.method === 'POST' && path.endsWith('/chat/completions')) {
+        if (chatStatus !== 200) {
+          res.writeHead(chatStatus, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ error: { message: 'Invalid Authentication', type: 'invalid_authentication_error' } }))
+          return
+        }
+        res.writeHead(200, { 'content-type': 'text/event-stream' })
+        res.end(sse({ id: 'chat_fx', object: 'chat.completion.chunk', choices: [{ index: 0, delta: { role: 'assistant', content: 'fixture answer' } }] }) + sse({ id: 'chat_fx', object: 'chat.completion.chunk', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 9, completion_tokens: 3 } }) + 'data: [DONE]\n\n')
+        return
+      }
+      res.writeHead(404)
+      res.end('{}')
+    })
+  })
+  await new Promise<void>(resolve => chatFixture.listen(0, '127.0.0.1', resolve))
+  const chatPort = (chatFixture.address() as { port: number }).port
+  process.env.MERCURY_MOONSHOT_API_BASE = `http://127.0.0.1:${chatPort}/platform/v1`
+  c.__resetMoonshotCatalogueForTest()
+  type SettledItem = { id: string; api: boolean; text: string }
+  const collect = async (items: AsyncGenerator<unknown>): Promise<SettledItem[]> => {
+    const out: SettledItem[] = []
+    for await (const item of items) {
+      if ((item as { type?: string }).type !== 'assistant') continue
+      const message = item as { isApiErrorMessage?: boolean; message: { id: string; content: Array<{ type: string; text?: string }> } }
+      out.push({ id: message.message.id, api: message.isApiErrorMessage === true, text: message.message.content.map(block => block.text ?? '').join('') })
+    }
+    return out
+  }
+  const degradedTurn = await collect(moonshotCallModel(chatParams(new AbortController().signal)))
+  const degradedNote = "[moonshot] the live model catalogue is unavailable (Moonshot models endpoint returned HTTP 502) — proceeding with 'kimi-fixture-next'; the provider validates it at dispatch."
+  check('a degraded chat settles once: the note is the first block of the one settled message and the answer follows it', degradedTurn.length >= 2 && new Set(degradedTurn.map(item => item.id)).size === 1 && degradedTurn[0]?.text === degradedNote && degradedTurn.some(item => item.text === 'fixture answer') && degradedTurn.every(item => !item.api), JSON.stringify(degradedTurn))
+  chatStatus = 401
+  c.__resetMoonshotCatalogueForTest()
+  const refusedTurn = await collect(moonshotCallModel(chatParams(new AbortController().signal)))
+  check('a refusal after a degraded admission is one message, the refusal, with no note before it', refusedTurn.length === 1 && refusedTurn[0]?.api === true && !refusedTurn.some(item => item.text.includes('catalogue is unavailable')), JSON.stringify(refusedTurn))
+  chatStatus = 200
+  const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
+  const { moonshotLaneProfile } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
+  const plainTurn = await collect(compatChatCallModel(moonshotLaneProfile, chatParams(new AbortController().signal)))
+  check('a profile without the seam is the road as it was: the answer is the first settled block and no note rides', plainTurn[0]?.text === 'fixture answer' && !plainTurn.some(item => item.text.includes('catalogue is unavailable')), JSON.stringify(plainTurn))
+  const runtimeSource = readFileSync(join(import.meta.dir, '../../src/services/providers/openaicompat/compatChatCallModel.ts'), 'utf8')
+  check('the seam is read through one default of nothing, so an absent field is the road as it was', runtimeSource.includes('ctx.leadingNotes ?? []') && !readFileSync(join(import.meta.dir, '../../src/services/providers/moonshot/moonshotCallModel.ts'), 'utf8').includes('createAssistantMessage'))
+  chatFixture.closeAllConnections()
+  await new Promise<void>(resolve => chatFixture.close(() => resolve()))
+  process.env.MERCURY_MOONSHOT_API_BASE = 'http://127.0.0.1:1/platform'
   c.__resetMoonshotCatalogueForTest()
 }
 console.log(`${checks} checks, ${failures} failures`)

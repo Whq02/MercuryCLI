@@ -152,14 +152,23 @@ check('every fixture list was fetched once', ['/openai/chatgpt/models', '/openai
 check('the summary line says every judged id is served', all.lines.some(l => l.startsWith('typed model ids: every typed id a fetched list could judge is served')), all.lines.at(-1))
 check('no credential value appears in the output', secretLeak(all) === undefined, secretLeak(all))
 
-section("§2 the subscription serves the owner's five ids: the retired typed ids read not served under that source, exit 1")
+section("§2 the subscription serves the owner's five ids: every typed id served under that source, exit 0")
 lists.subscription = [...OWNER_LIST]
+const ownerServed = await run()
+check("exit 0 (no typed id is lacking on the owner's account)", ownerServed.status === 0, `status ${ownerServed.status}; ${ownerServed.lines.filter(l => l.includes('not served')).join('\n')}`)
+check('every typed id reads served under the subscription', gptIds.every(id => ownerServed.lines.includes(`openai · ChatGPT pro subscription · ${id} · served`)), ownerServed.lines.filter(l => l.includes('subscription')).join('\n'))
+check('the summary line says every judged id is served', ownerServed.lines.some(l => l.startsWith('typed model ids: every typed id a fetched list could judge is served')), ownerServed.lines.at(-1))
+
+section('§2b the subscription list lacks one typed id: it reads not served under that source, exit 1')
+const lacking = 'gpt-5.5'
+lists.subscription = OWNER_LIST.filter(id => id !== lacking)
 const owner = await run()
-const retired = gptIds.filter(id => !OWNER_LIST.includes(id))
+const retired = gptIds.filter(id => !lists.subscription!.includes(id))
+check('the typed table carries the lacking id (the leg judges something)', retired.length === 1 && retired[0] === lacking, retired.join(', '))
 check('exit 1', owner.status === 1, `status ${owner.status}`)
 check(`the typed ids the subscription list lacks read not served (${retired.join(', ')})`, retired.every(id => owner.lines.some(l => l === `openai · ChatGPT pro subscription · ${id} · not served`)), owner.lines.filter(l => l.includes('not served')).join('\n'))
-check('the five served ids read served under the subscription', OWNER_LIST.every(id => owner.lines.includes(`openai · ChatGPT pro subscription · ${id} · served`)))
-check('the same retired ids read served under the key source, whose list still serves them', retired.every(id => owner.lines.includes(`openai · OpenAI API key (env) · ${id} · served`)))
+check('the served ids read served under the subscription', lists.subscription!.every(id => owner.lines.includes(`openai · ChatGPT pro subscription · ${id} · served`)))
+check('the same lacking id reads served under the key source, whose list still serves it', retired.every(id => owner.lines.includes(`openai · OpenAI API key (env) · ${id} · served`)))
 check(`the summary counts them (${retired.length})`, owner.lines.some(l => l.startsWith(`typed model ids: ${retired.length} typed id(s) not served`)), owner.lines.at(-1))
 lists.subscription = [...gptIds]
 
