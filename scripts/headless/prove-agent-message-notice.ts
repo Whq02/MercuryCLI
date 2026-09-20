@@ -190,6 +190,7 @@ async function world(name: World): Promise<void> {
     }
     case 'main-to-sub-midturn':
       tally.check(`${name} L3 the sub-agent read it inside its running turn, at the boundary after its held command, and its run was not restarted`, first !== undefined && first.step === 1 && seen.filter(r => r.who === 'sub' && r.step === 0).length === 1, `carrying step ${first?.step} · sub runs ${seen.filter(r => r.who === 'sub' && r.step === 0).length}`)
+      tally.check(`${name} L4 the envelope came under the line "The main agent sent a message:" with the coordinator's tail`, first !== undefined && carriedTexts(first).some(t => t.includes(`${FROM_MAIN}:\n<task-notification>`) && t.includes('Address this before completing your current task.')), JSON.stringify(first === undefined ? null : carriedTexts(first)[0]?.slice(0, 200)))
       break
     case 'main-to-sub-ended':
       tally.check(`${name} L3 the ended sub-agent was resumed with the message as its next user text, in the notice's shape`, first !== undefined && first.step === 0 && first.ask.includes(MESSAGE_STATUS) && first.ask.includes(TO_SUB) && sends.some(x => x.includes('resumed in the background with your message')), `carrying step ${first?.step} ask ${JSON.stringify(first?.ask.slice(0, 80))}`)
