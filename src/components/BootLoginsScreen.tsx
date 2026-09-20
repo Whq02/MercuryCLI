@@ -141,7 +141,7 @@ export function loginsSwitchableFamily(
   if (arm.familyId !== 'anthropic' && arm.familyId !== 'openai') return null;
   const slots = facts.groups.find(g => g.family.id === arm.familyId)?.slots ?? [];
   if (arm.familyId === 'anthropic') {
-    const signIn = slots.some(s => s.scope !== undefined && !s.scope.claudeFamily && s.signedIn);
+    const signIn = slots.some(s => s.scope !== undefined && !s.scope.foreignHarness && s.signedIn);
     const managedKey = slots.some(s => s.removal.route === 'anthropic-managed-key' && s.signedIn);
     return signIn && managedKey ? 'anthropic' : null;
   }

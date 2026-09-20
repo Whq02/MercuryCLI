@@ -214,7 +214,7 @@ export function slotSigninState(slot: AccountSlot, identities: SlotIdentities): 
       ? { signedIn: true, basis: 'credential-present' }
       : { signedIn: false, basis: 'absent' }
   }
-  if (slot.scope.claudeFamily) return { signedIn: false, basis: 'excluded' }
+  if (slot.scope.foreignHarness) return { signedIn: false, basis: 'excluded' }
   if (!slot.signedIn) return { signedIn: false, basis: 'signed-out' }
   const identity = identities[slot.id]
   switch (identity?.state) {
@@ -439,21 +439,21 @@ function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
   const scopes = (reads.scanScopes ?? scanAccountScopes)()
   const subscriberSeat = reads.familyReads?.claudeSubscriber?.() ?? isClaudeAISubscriber()
   const slots: AccountSlot[] = scopes
-    .filter(scope => scope.authed || scope.email !== undefined || scope.uuid !== undefined || scope.claudeFamily)
+    .filter(scope => scope.authed || scope.email !== undefined || scope.uuid !== undefined || scope.foreignHarness)
     .map(scope => ({
       family: 'anthropic',
       id: scope.dir,
       name: 'claude',
       kind: 'oauth' as const,
       kindLabel: 'OAuth',
-      identity: scope.claudeFamily
+      identity: scope.foreignHarness
         ? "another tool's credential scope"
         : (scope.email ?? (scope.authed ? 'signed in' : 'not signed in')),
-      active: scope.claudeFamily ? scope.isCurrent : scope.isCurrent && subscriberSeat,
+      active: scope.foreignHarness ? scope.isCurrent : scope.isCurrent && subscriberSeat,
       envPinned: false,
       signedIn: scope.authed,
       scope,
-      removal: scope.claudeFamily
+      removal: scope.foreignHarness
         ? {
             route: 'excluded' as const,
             note: "another tool's credential scope is not a Mercury slot — nothing to remove here",

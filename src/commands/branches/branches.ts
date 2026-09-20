@@ -41,7 +41,7 @@ export const call: LocalCommandCall = async (_args, _context) => {
                 : []),
             ]
           : lane.status === 'active'
-            ? [`    resume it: claude -r ${lane.childSessionId}`]
+            ? [`    resume it: mercury --resume ${lane.childSessionId}`]
             : []),
         `    ref: mercury://lane/${lane.id}`,
       )

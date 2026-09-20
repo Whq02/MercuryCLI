@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -160,6 +160,9 @@ section('D. drop never destroys work')
 section('A. mercury://lane addressing')
 {
   await import('../../src/services/resources/adapters/lane.ts')
+  const src = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', 'src', rel), 'utf8')
+  const resumeHints = src('services/resources/adapters/lane.ts') + src('commands/branches/branches.ts')
+  check('the lane resume hints spell Mercury\'s own resume command', resumeHints.includes('resume: mercury --resume ${lane.childSessionId}') && resumeHints.includes('resume it: mercury --resume ${lane.childSessionId}') && !resumeHints.includes('claude -r'))
   const { resolveResource } = await import('../../src/services/resources/registry.ts')
   const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
   const owner = makeOwnerKey({ workspace: '/tmp', sessionId: PARENT, lane: 'main' } as never)

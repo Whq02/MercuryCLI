@@ -84,6 +84,7 @@ section('dist ships the owned-file decision boundaries (cd+git gate, read-only /
     check('read-only bare-repo git guard ships in dist', present('This directory has bare-repository structure, so git commands here go through the permission gate'))
     check("read-only auto-allow reason ('Read-only command is allowed') ships in dist", present('Read-only command is allowed'))
     check("sandbox auto-allow reason ('Auto-allowed with sandbox') ships in dist", present('Auto-allowed with sandbox'))
+    check("the read-only help spellings and the resume hints are the CLI's own: no other tool's spelling ships in dist", !present('claude -h') && !present('claude --help') && !present('claude -r '))
   }
 }
 

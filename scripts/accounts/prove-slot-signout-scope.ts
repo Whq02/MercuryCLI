@@ -95,7 +95,7 @@ section('§2 the /logins slot road — the default sign-out keeps the siblings')
   const slot = {
     family: 'anthropic', id: home, name: 'primary', kind: 'oauth' as const,
     kindLabel: 'OAuth', identity: 'a@x.com', active: true, envPinned: false, signedIn: true,
-    scope: { name: 'primary', dir: home, isCurrent: true, hasConfig: true, authed: true, claudeFamily: false },
+    scope: { name: 'primary', dir: home, isCurrent: true, hasConfig: true, authed: true, foreignHarness: false },
     removal: { route: 'anthropic-oauth' as const, dir: home },
   }
   const out = executeSlotRemoval(slot as never)

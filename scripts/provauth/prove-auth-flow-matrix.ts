@@ -517,7 +517,7 @@ section('§3 expiry-at-rest: the stranded states paint loud, with the right door
       hasConfig: true,
       authed: true,
       email: 'op@example.dev',
-      claudeFamily: false,
+      foreignHarness: false,
     },
     removal: { route: 'anthropic-oauth', dir: 'scope-dir-1' },
   } as unknown as AccountSlotT
@@ -1713,7 +1713,7 @@ section('§10 the cross-account laws: SF1 spoken · the structural ceiling fence
           hasConfig: true,
           authed: true,
           email: 'op@example.dev',
-          claudeFamily: false,
+          foreignHarness: false,
         } as never,
       ],
       anthropicApiKey: () => ({ key: 'key-fixture-000000000001', source: 'claude.ai' as never }),

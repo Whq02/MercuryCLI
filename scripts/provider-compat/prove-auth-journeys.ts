@@ -1109,8 +1109,8 @@ check("hygiene: maskedKeyTail refuses short values (nothing to mask ⇒ '')", ma
   ;(envUtils.getMercuryHome as unknown as { cache: { clear(): void } }).cache.clear()
   const claudeScan = scanAccountScopes()
   check(
-    'universe: a claude-family resolved home is the one row, marked claudeFamily (honesty, never billable)',
-    claudeScan.length === 1 && claudeScan[0]!.claudeFamily === true && claudeScan[0]!.dir === claudeHome,
+    'universe: a claude-family resolved home is the one row, marked foreignHarness (honesty, never billable)',
+    claudeScan.length === 1 && claudeScan[0]!.foreignHarness === true && claudeScan[0]!.dir === claudeHome,
     JSON.stringify(claudeScan),
   )
   process.env.MERCURY_CONFIG_DIR = HOME

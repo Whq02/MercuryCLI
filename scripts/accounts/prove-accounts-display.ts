@@ -80,7 +80,7 @@ try {
   check('the scan universe is the resolved home only (no enumeration)',
     scanSrc.includes('const dir = resolve(getMercuryHome())') && !scanSrc.includes('readdirSync'))
   check('a Claude-family resolved home is marked, never billable',
-    scanSrc.includes('claudeFamily: isClaudeFamilyDir(dir)') && src.includes("another tool's credential scope"))
+    scanSrc.includes('foreignHarness: isForeignHarnessDir(dir)') && src.includes("another tool's credential scope"))
   check('the board consumes the ONE scan owner (no second copy)',
     src.includes('deriveFamilySlotGroups()') && !src.includes('readdirSync(home'))
   check('no credential re-pointing arm survives on the board',

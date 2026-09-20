@@ -46,7 +46,7 @@ section('§2 the ceiling is structural (maximal stores) + found shapes recorded'
   const key = 'sk-test-000000000000'
   const reads = {
     scanScopes: () => [
-      { name: 'primary', dir: '/tmp/prove-slots-home', isCurrent: true, hasConfig: true, authed: true, email: 'a@x.com', uuid: 'u-1', claudeFamily: false },
+      { name: 'primary', dir: '/tmp/prove-slots-home', isCurrent: true, hasConfig: true, authed: true, email: 'a@x.com', uuid: 'u-1', foreignHarness: false },
     ],
     anthropicApiKey: () => ({ key, source: 'login-managed' as const }),
     openaiSubscription: () => ({ kind: 'chatgpt-subscription' as const, label: 'ChatGPT · plus' }),
@@ -104,7 +104,7 @@ section('§3 plain sign-out per slot (the anthropic OAuth slot)')
   const signedIn = {
     family: 'anthropic', id: '/tmp/prove-slots-home', name: 'primary', kind: 'oauth' as const,
     kindLabel: 'OAuth', identity: 'a@x.com', active: true, envPinned: false, signedIn: true,
-    scope: { name: 'primary', dir: '/tmp/prove-slots-home', isCurrent: true, hasConfig: true, authed: true, claudeFamily: false },
+    scope: { name: 'primary', dir: '/tmp/prove-slots-home', isCurrent: true, hasConfig: true, authed: true, foreignHarness: false },
     removal: { route: 'anthropic-oauth' as const, dir: '/tmp/prove-slots-home' },
   }
   let fired = 0

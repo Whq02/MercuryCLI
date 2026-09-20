@@ -48,6 +48,13 @@ the deploy command, exit 66 — never a silent fallback onto stale bits. When
 the deployed runtime is older than the repository HEAD, the launcher prints
 a calm one-line drift note and continues.
 
+A config home that is another harness's own — `~/.claude`, `~/.codex`,
+`~/.gemini`, `~/.copilot`, `~/.cursor`, `~/.kiro`, `~/.cline`, `~/.continue`,
+`~/.qwen`, `~/.pi`, `~/.omp`, `~/.config/opencode`, `~/.config/amp`,
+`~/.config/goose`, or a folder inside one — is treated as another tool's:
+Mercury never signs in or bills through its login and writes no identity
+into it; the accounts board shows it for honesty only.
+
 On an interactive boot the launcher paints the enter screen before the main
 bundle loads (release archives carry it as `splash.mjs` + `splash-core.mjs`);
 print, help and version runs and non-TTY invocations skip it, and
