@@ -78,6 +78,7 @@ import {
   warmRunnerShorts,
 } from './warmRunner.js'
 import { stopConcourseSession, reviveConcourseWorker, setConcourseSessionTitle } from './concourseSupervisor.js'
+import { readSessionWorkersSnapshot, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
 import { applyConcourseContractOp } from './sessionContract.js'
 import { applyConcourseScheduleOp } from './saturn.js'
 import { deriveScheduleAccountForModel, readLiveAccountFacts, scheduleAccountVerdict } from './saturnAccount.js'
@@ -99,6 +100,8 @@ import {
 } from './ownerWatch.js'
 import { armDispatchDrain, type DispatchDrainHandle } from './dispatchDrain.js'
 import { startControlServer, type ControlServerHandle } from './controlServer.js'
+import { tokenBinding, type ProcessSweepDaemonAnswer, type ProcessSweepRunnerRecord } from './processSweep.js'
+import { readMercuryProcesses } from './processSweepRun.js'
 import { DAEMON_USAGE, parseDaemonVerb, supervisorRecordIdentity } from './verbs.js'
 import {
   acquireSupervisorLock,
@@ -293,6 +296,7 @@ async function daemonRun(args: string[]): Promise<void> {
   let ownerWatch: OwnerWatchHandleV1 | undefined
   let ownerPipe: OwnerPipeHandleV1 | undefined
   let currentOwnerPid = parseOwnerPid()
+  const persist = isEnvTruthy(flagEnv('MERCURY_DAEMON_PERSIST'))
   let ready = false
   let wakeReady: () => void = () => {}
   const readyPromise = new Promise<void>(resolve => {
@@ -874,6 +878,61 @@ async function daemonRun(args: string[]): Promise<void> {
           setImmediate(() => requestShutdown('control:restart-when-idle'))
           return { state: 'restarting' as const, live: 0 }
         },
+        processSweep: async request => {
+          const snapshot = readSessionWorkersSnapshot()
+          const known = snapshot.state === 'known' ? snapshot.workers : null
+          const live = roster === null ? [] : roster.liveWorkerFacts()
+          const warm = new Set(warmRunnerShorts())
+          const runners: ProcessSweepRunnerRecord[] = []
+          const seen = new Set<string>()
+          const fromRecord = (record: ConcourseWorkerRecordV1 | undefined, pid: number | undefined, isWarm: boolean): ProcessSweepRunnerRecord => ({
+            pid,
+            procStart: record?.procStart,
+            endedAt: record?.endedAt,
+            stoppedAt: record?.stoppedAt,
+            parkedAt: record?.parkedAt,
+            attachedBy: record?.attachedBy,
+            focusedBy: record?.focusedBy,
+            schedules: Array.isArray(record?.schedules) ? record.schedules.length : 0,
+            activity: record?.activity?.state,
+            warm: isWarm,
+          })
+          for (const worker of live) {
+            const record = known?.[worker.short]
+            if (record !== undefined) seen.add(worker.short)
+            runners.push(fromRecord(record, worker.pid ?? record?.pid, warm.has(worker.short)))
+          }
+          for (const [short, record] of Object.entries(known ?? {})) {
+            if (!seen.has(short)) runners.push(fromRecord(record, record.pid, false))
+          }
+          const facts: ProcessSweepDaemonAnswer = { pid: process.pid, ownerPid: currentOwnerPid, ...liveWorkers(), persist, runners }
+          if (request.action === 'facts') return { ok: true, op: 'processSweep', action: 'facts', facts }
+          const refuse = (reason: string, road: 'daemon' | 'none' = 'daemon') => ({ ok: true as const, op: 'processSweep' as const, action: 'end' as const, ended: false, road, reason })
+          const expected = request.expected
+          if (expected === undefined) return refuse('no reviewed identity was given', 'none')
+          if (expected.kind === 'daemon') {
+            if (expected.process.pid !== process.pid || tokenBinding(bootStartToken, expected.startToken) !== 'bound') return refuse('the reviewed identity is not this daemon', 'none')
+            if (persist || currentOwnerPid === null) return refuse('this daemon persists by its own posture')
+            if (isProcessAlive(currentOwnerPid)) return refuse(`the owner pid ${currentOwnerPid} is alive`)
+            const { live: liveNow, liveSessions } = liveWorkers()
+            if (liveNow > 0 || liveSessions > 0) return refuse(`${liveNow} live worker(s) use this daemon`)
+            if (runners.some(runner => !runner.warm && runner.endedAt === undefined && runner.stoppedAt === undefined && runner.parkedAt === undefined)) return refuse('an open session record is held here')
+            logForDebugging(`[daemon] process sweep: no owner, session, schedule or persistence holds pid ${process.pid} — shutting down at the operator's request`)
+            setImmediate(() => requestShutdown('control:processSweep'))
+            return { ok: true, op: 'processSweep', action: 'end', ended: true, road: 'daemon', reason: 'the daemon confirmed nothing uses it and shut itself down' }
+          }
+          if (expected.kind === 'runner') {
+            const match = runners.find(runner => runner.pid === expected.process.pid)
+            if (match === undefined || tokenBinding(match.procStart, expected.startToken) !== 'bound') return refuse('this daemon does not roster the reviewed runner', 'none')
+            if (match.warm) return refuse('a warm runner is held by the daemon')
+            if (match.endedAt === undefined && match.stoppedAt === undefined) return refuse('the runner\'s session is still open here')
+            const short = live.find(worker => worker.pid === match.pid)?.short ?? Object.entries(known ?? {}).find(([, record]) => record.pid === match.pid)?.[0]
+            if (short === undefined || roster === null || !roster.kill(short)) return refuse(`the daemon holds no live handle for the released runner pid ${match.pid}; if it is truly abandoned, end it by hand`, 'none')
+            logForDebugging(`[daemon] process sweep: killed the released runner ${short} (pid ${match.pid}) at the operator's request`)
+            return { ok: true, op: 'processSweep', action: 'end', ended: true, road: 'daemon', reason: 'the daemon killed its released runner' }
+          }
+          return refuse('only a daemon or a runner takes the daemon road', 'none')
+        },
       })
       const bootStartToken = await getProcessStartTokenAsync(process.pid)
       const persistSupervisorRecord = (owner: number | null): Promise<void> =>
@@ -889,6 +948,7 @@ async function daemonRun(args: string[]): Promise<void> {
           ownerPid: owner,
           foreground,
           startToken: bootStartToken,
+          persist,
         })
       await persistSupervisorRecord(currentOwnerPid)
       {
@@ -1051,6 +1111,9 @@ async function daemonRun(args: string[]): Promise<void> {
           roster ? roster.list().filter(j => !j.outcome).map(j => j.short) : [],
         )
         const bootReconcile = reconcileConcourseWorkers(liveShorts)
+        void readMercuryProcesses({ rpc: async () => ({ ok: false, code: 'ENOTSUP', error: 'the daemon reads its own facts in-process' }) })
+          .then(census => logForDebugging(`[daemon] boot process census: ${census.entries.length} Mercury process(es) read, ${census.entries.filter(entry => entry.classification === 'stale').length} stale — nothing ended at boot`))
+          .catch(error => logForDebugging(`[daemon] boot process census failed: ${error}`))
         let reconcileRosterSig = [...liveShorts].sort().join(' ')
         let reconcileRecordsStamp = fileMoveStamp(concourseWorkersPath())
         let reconcileHadLive = bootReconcile.live.length > 0
@@ -1212,7 +1275,6 @@ async function daemonRun(args: string[]): Promise<void> {
     process.on('uncaughtException', err => crashShutdown('uncaughtException', err))
     process.on('unhandledRejection', reason => crashShutdown('unhandledRejection', reason))
 
-    const persist = isEnvTruthy(flagEnv('MERCURY_DAEMON_PERSIST'))
     const armOwnerWatch = (pid: number, withPipe: boolean): void => {
       ownerWatch?.stop()
       ownerPipe?.close()

@@ -147,7 +147,7 @@ section('§4 THE CHECK RUNNER (HL-26..28)')
 section('§5 WIRING (HL-01/13/16/21/30)')
 {
   const main = src('src/main.tsx')
-  const healthAction = main.slice(main.indexOf("program.command('health')"))
+  const healthAction = main.slice(main.indexOf("program.command('health [topic]')"))
   check(
     'the presentation resolves BEFORE any Ink/createRoot import (HL-01)',
     healthAction.indexOf('resolveHealthPresentation') !== -1 && healthAction.indexOf('resolveHealthPresentation') < healthAction.indexOf("import('./ink.js')"),
@@ -160,7 +160,7 @@ section('§5 WIRING (HL-01/13/16/21/30)')
   )
   check(
     'health and doctor share ONE command (alias) and one flag schema (HL-03/21)',
-    main.includes("program.command('health').alias('doctor')"),
+    main.includes("program.command('health [topic]').alias('doctor')"),
   )
   const healthJson = src('src/cli/healthJson.ts')
   check(

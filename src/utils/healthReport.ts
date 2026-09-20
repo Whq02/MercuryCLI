@@ -1499,6 +1499,45 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'mercury-processes',
+          label: 'Mercury processes',
+          run: async () => {
+            const { PROCESS_SWEEP_WORDS, processSweepCounts, processSweepLine } = await import('../daemon/processSweep.js')
+            const { readMercuryProcesses, endStaleProcesses, processSweepOutcomeLine } = await import('../daemon/processSweepRun.js')
+            const census = await readMercuryProcesses()
+            const counts = processSweepCounts(census.entries)
+            const stale = census.entries.filter(entry => entry.classification === 'stale')
+            const cannotEnd = census.entries.filter(entry => entry.classification === 'cannot-end')
+            const evidence = census.complete ? PROCESS_SWEEP_WORDS.counts(counts) : `${PROCESS_SWEEP_WORDS.counts(counts)} · ${census.error ?? 'the process table could not be read'}`
+            const detail = [...stale, ...cannotEnd].map(entry => processSweepLine(entry, census.readAt)).join(' · ')
+            const link = '/daemon'
+            if (stale.length === 0) {
+              return { status: census.complete ? 'ok' : 'warn', evidence, ...(detail === '' ? {} : { detail }), link }
+            }
+            const reviewed = stale
+            return {
+              status: 'warn',
+              evidence,
+              detail,
+              fix: `${PROCESS_SWEEP_WORDS.action}: press f here, or run \`${binaryName()} doctor processes --end-stale\``,
+              link,
+              remedy: {
+                plan: `${PROCESS_SWEEP_WORDS.confirm(reviewed.length)} ${reviewed.map(entry => processSweepLine(entry, census.readAt)).join(' · ')}`,
+                class: 'destructive' as const,
+                apply: async () => {
+                  const after = await endStaleProcesses(reviewed)
+                  return { ok: after.endings.every(ending => ending.outcome === 'ended'), note: processSweepOutcomeLine(after) }
+                },
+                verify: async () => {
+                  const again = await readMercuryProcesses()
+                  const left = again.entries.filter(entry => entry.classification === 'stale').length
+                  return { ok: left === 0, note: left === 0 ? `no stale Mercury process remains · ${PROCESS_SWEEP_WORDS.counts(processSweepCounts(again.entries))}` : `${left} stale Mercury process(es) remain` }
+                },
+              },
+            }
+          },
+        },
+        {
           id: 'history',
           label: 'Prompt history appends',
           run: () => {
