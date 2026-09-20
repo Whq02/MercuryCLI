@@ -180,6 +180,11 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         res.end(JSON.stringify(OPENAI_MODELS_BODY))
         return
       }
+      if (path === '/moonshot/v1/models') {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ object: 'list', data: [{ id: 'kimi-k3', object: 'model', owned_by: 'moonshot', context_length: 1048576 }] }))
+        return
+      }
       if (path === '/localsrv/v1/models') {
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(JSON.stringify({ data: [{ id: 'qwen3-32b', object: 'model', owned_by: 'vllm', max_model_len: 131072 }] }))
@@ -276,7 +281,7 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/file
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
 const { GLM_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/zai.ts')
-const { KIMI_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/moonshot.ts')
+const { moonshotCatalogueEntries } = await import('../../src/utils/router/providers/moonshot.ts')
 const { DEEPSEEK_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/deepseek.ts')
 const { HUGGINGFACE_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/huggingface.ts')
 type Message = import('../../src/types/message.ts').Message
@@ -415,7 +420,7 @@ const WORKER_SPELLINGS: Record<Family, { model: string; wireId: string }> = {
   anthropic: { model: 'claude-sonnet-5', wireId: 'claude-sonnet-5' },
   openai: { model: 'gpt-5.6-sol', wireId: 'gpt-5.6-sol' },
   zai: { model: GLM_STATIC_CATALOGUE[0]!.id, wireId: GLM_STATIC_CATALOGUE[0]!.id },
-  moonshot: { model: KIMI_STATIC_CATALOGUE[0]!.id, wireId: KIMI_STATIC_CATALOGUE[0]!.id },
+  moonshot: { model: moonshotCatalogueEntries()[0]!.id, wireId: moonshotCatalogueEntries()[0]!.id },
   deepseek: { model: DEEPSEEK_STATIC_CATALOGUE[0]!.id, wireId: DEEPSEEK_STATIC_CATALOGUE[0]!.id },
   gemini: { model: 'gemini-3-pro', wireId: 'gemini-3-pro' },
   openrouter: { model: 'openrouter/qwen/qwen3-coder', wireId: 'qwen/qwen3-coder' },

@@ -96,6 +96,10 @@ function birthModelForSignedInFamily(resolved: string | undefined, screenRoad: b
 
 async function birth(req: BirthRequest): Promise<BirthOutcome> {
   const facts = bootBirthFacts()
+  if (facts.model === null && (req.model ?? null) === null) {
+    const { readComputedDefaultCatalogue } = await import('../../utils/model/computedDefault.js')
+    await readComputedDefaultCatalogue()
+  }
   const screen = screenBirthModel()
   const resolved = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)
   const born = birthModelForSignedInFamily(resolved, facts.model === null && (req.model ?? null) === null)

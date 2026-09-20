@@ -131,7 +131,9 @@ async function validateNonAnthropicModel(
         error: 'Moonshot is unavailable — no Kimi sign-in or API key (/logins moonshot, or set MOONSHOT_API_KEY).',
       }
     }
-    return { valid: true }
+    const { qualifyMoonshotModel } = await import('../../services/providers/moonshot/moonshotCatalogue.js')
+    const verdict = await qualifyMoonshotModel(trimmed.toLowerCase())
+    return verdict.kind === 'refused' ? { valid: false, error: verdict.message } : { valid: true, skipCache: true }
   }
   if (route === 'deepseek') {
     const { resolveDeepseekApiKey } = await import(

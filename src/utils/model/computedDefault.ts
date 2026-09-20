@@ -233,15 +233,19 @@ function keyLaneRow(family: 'zai' | 'moonshot' | 'deepseek'): LaneRowVerdict {
   try {
     const { keyLanePins } = require('./modelOptions.js') as typeof import('./modelOptions.js')
     const pin = keyLanePins(family)[0]
-    if (pin === undefined) return { usable: false, why: 'no row in the pin table yet' }
+    if (pin === undefined) return { usable: false, why: 'no selectable row in the catalogue' }
     return {
       usable: true,
       setting: pin.id,
       row: pin.displayName,
-      why: `the newest row this sign-in can use (the recorded frontier, ${pin.observedAt})`,
+      why: family === 'deepseek'
+        ? `the newest row this sign-in can use (the recorded frontier, ${pin.observedAt})`
+        : pin.listedLive
+          ? 'the newest row this sign-in can use (the live catalogue)'
+          : `the newest recorded row this sign-in can use (observed ${pin.observedAt}; no live list)`,
     }
   } catch {
-    return { usable: false, why: 'the pin table could not be read' }
+    return { usable: false, why: 'the catalogue could not be read' }
   }
 }
 
@@ -395,6 +399,13 @@ export function gatherComputedDefaultFacts(): ComputedDefaultFacts & { degraded:
 
 const MEMO_TTL_MS = 2_000
 let memo: { at: number; epoch: number; catalogue: number; decision: ComputedDefault } | null = null
+
+export async function readComputedDefaultCatalogue(): Promise<void> {
+  const { getUserSpecifiedModelSetting } = require('./model.js') as typeof import('./model.js')
+  if (getUserSpecifiedModelSetting() !== null || mostRecentSignInFamily() !== 'moonshot') return
+  const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+  await readCatalogueIfPending('moonshot')
+}
 
 export function resetComputedDefaultMemo(): void {
   memo = null
