@@ -41,5 +41,6 @@ family's list unreachable — exiting non-zero on any typed id a fetched list
 does not serve; it writes nothing under the config home. A family that
 publishes no model list (Z.AI) is judged only with `--probe-by-completion`,
 which sends one minimal completion per typed id — a few tokens billed each —
-and is passed by hand, never by default; without it those ids read the dated
-typed table.
+and is passed by hand, never by default; with `MERCURY_DISABLE_NONESSENTIAL_TRAFFIC`
+set the flag sends nothing; without the flag those ids read the dated typed
+table.

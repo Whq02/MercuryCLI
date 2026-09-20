@@ -20,6 +20,7 @@ type FamilyCheck = { family: string; source: string; typed: string[]; list: () =
 const { getApiFetch, getProxyFetchOptions } = await import('../../src/utils/proxy.js')
 const { fetchWithProviderDeadline } = await import('../../src/services/providers/fetchDeadline.js')
 const { catalogueTrafficVerdict } = await import('../../src/services/providers/catalogueGate.js')
+const { getEssentialTrafficOnlyReason } = await import('../../src/utils/privacyLevel.js')
 const GATED_FAMILIES = new Set(['openai', 'gemini', 'deepseek', 'openrouter', 'huggingface'])
 const { getAuthHeaders, getUserAgent } = await import('../../src/utils/http.js')
 const { judgeTypedIds } = await import('../../src/services/providers/typedModelIds.js')
@@ -258,12 +259,14 @@ const skipped: string[] = []
   const typed = table.map(pin => pin.id)
   const datedAt = table[0]?.observedAt ?? 'unknown'
   const dispatch = resolveZaiDispatch(env)
+  const trafficOff = getEssentialTrafficOnlyReason(env)
+  if (dispatch && PROBE_BY_COMPLETION && trafficOff) console.log(`--probe-by-completion sends nothing: ${trafficOff} is set; the Z.AI ids read the dated table`)
   if (dispatch) {
     families.push({
       family: 'zai',
       source: dispatch.plan === 'coding' ? `GLM Coding Plan key (${dispatch.source})` : `Z.AI API key (${dispatch.source})`,
       typed,
-      list: PROBE_BY_COMPLETION
+      list: PROBE_BY_COMPLETION && !trafficOff
         ? () => probeByCompletion(typed, id => zaiCompletionVerdict({ apiKey: dispatch.key, requestUrl: zaiChatCompletionsUrl(env, dispatch.plan), id }))
         : () => Promise.resolve({ typedTable: datedAt }),
     })
