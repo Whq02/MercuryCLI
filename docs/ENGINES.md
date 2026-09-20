@@ -150,7 +150,10 @@ come from its owning account resolvers:
   skip-validation signature. An image the model generates is refused as
   content this chat cannot display. API-key chats keep the compatibility
   endpoint. A native token refusal names the Google account and `/logins`,
-  with a receipt when a refresh was attempted.
+  with a receipt when a refresh was attempted and Google's own reason after
+  it; a billing refusal on the Google sign-in says its quota and billing
+  cannot be changed from here and points at a Gemini API key on a project of
+  the operator's own.
   The API-key resolver takes `GOOGLE_API_KEY` before `GEMINI_API_KEY`, then the
   stored key; environment keys must be available to the process that uses them.
   A launch naming `gemini` needs the live catalogue to choose a model. A present
