@@ -219,8 +219,11 @@ keeps its one meaning: the conservative default no source has stated.
 A chat hosted by the daemon makes its requests in its own runner, and the
 runner reads the account's list for them. That list rides the session's facts
 to the screen, so the rail's figure becomes the list's and the mark goes the
-moment the seat reports it, with no picker opened; opening the picker still
-reads the list afresh.
+moment the seat reports it, with no picker opened. The model picker paints
+its cached GPT rows at once and refreshes the account's list in the background
+on every open, even when that cache is fresh. A changed list replaces the rows
+in place, keeps the highlighted model and adds a notice; an unchanged list
+stays quiet. The retry action shares any refresh already in flight.
 
 ## Web search
 

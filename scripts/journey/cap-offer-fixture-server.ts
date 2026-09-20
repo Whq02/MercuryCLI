@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, readFileSync } from 'node:fs'
 
 const captureFile = process.argv[2]
 if (!captureFile) {
@@ -94,6 +94,17 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         return {}
       }
     })()
+    if (req.method === 'GET' && url.endsWith('/models') && process.argv[3]) {
+      const fixture = JSON.parse(readFileSync(process.argv[3], 'utf8')) as { models: unknown[]; afterTurn: unknown[]; delayMs: number }
+      const models = responsesCalls === 0 ? fixture.models : fixture.afterTurn
+      record({ kind: 'models', method: req.method, url, models, at: Date.now() })
+      setTimeout(() => {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ data: models }))
+        record({ kind: 'models-landed', at: Date.now() })
+      }, responsesCalls === 0 ? 0 : fixture.delayMs)
+      return
+    }
     if (req.method === 'GET' && url.endsWith('/models')) {
       record({ kind: 'hit', method: req.method, url, at: Date.now() })
       res.writeHead(200, { 'content-type': 'application/json' })
@@ -119,7 +130,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     if (req.method === 'POST' && url.endsWith('/responses')) {
       responsesCalls += 1
       record({ kind: 'openai', url, body, call: responsesCalls, at: Date.now() })
-      res.writeHead(200, { 'content-type': 'text/event-stream', ...usageHeaders(responsesCalls) })
+      res.writeHead(200, { 'content-type': 'text/event-stream', ...(process.argv[3] ? {} : usageHeaders(responsesCalls)) })
       res.end(responsesSse(responsesCalls === 1 ? GPT_REPLY : GPT_REPLY_AGAIN))
       return
     }

@@ -99,7 +99,17 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const shedMeters = availRows < 13
   const startI = Math.max(0, models.findIndex(m => m.id === currentRow))
   const [cursor, setI] = useState(startI)
-  const i = Math.min(cursor, Math.max(0, totalRows - 1))
+  const [rowSnapshot, setRowSnapshot] = useState({ listed, models })
+  let i = Math.min(cursor, Math.max(0, totalRows - 1))
+  if (rowSnapshot.models !== models) {
+    if (rowSnapshot.listed !== listed) {
+      const prior = rowSnapshot.models[Math.min(cursor, Math.max(0, rowSnapshot.models.length - 1))]?.id
+      const moved = models.findIndex(model => model.id === prior)
+      if (moved >= 0) i = moved
+      if (i !== cursor) setI(i)
+    }
+    setRowSnapshot({ listed, models })
+  }
   const focusedModel = i < models.length ? models[i] : undefined
   const hasEffort = !!(efforts && efforts.length)
   const ei = hasEffort ? Math.max(0, efforts!.indexOf(effort ?? '')) : 0
