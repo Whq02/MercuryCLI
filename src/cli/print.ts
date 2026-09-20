@@ -172,6 +172,7 @@ import { processSetupHooks, takeInitialUserMessage, type processSessionStartHook
 import { createIdleTimeoutManager } from '../utils/idleTimeout.js'
 import { armInactivityDeadline, DeadlineExceededError, minutesKnobToMs } from '../utils/deadline.js'
 import { flagEnv, setFlagEnv } from '../substrate/flagRegistry.js'
+import { AGENT_MESSAGE_STATUS } from '../constants/agentMessage.js'
 
 const DEFAULT_HEADLESS_IDLE_MINUTES = 20
 import { getInMemoryErrors, logError } from '../utils/log.js'
@@ -1438,11 +1439,14 @@ export async function runHeadless(
       }
       const statusRaw = pick('status')
       if (statusRaw !== undefined) {
-        const normalized = ['completed', 'failed', 'stopped', 'killed'].includes(statusRaw)
-          ? statusRaw === 'killed'
-            ? 'stopped'
-            : statusRaw
-          : 'completed'
+        const normalized =
+          statusRaw === AGENT_MESSAGE_STATUS
+            ? undefined
+            : ['completed', 'failed', 'stopped', 'killed'].includes(statusRaw)
+              ? statusRaw === 'killed'
+                ? 'stopped'
+                : statusRaw
+              : 'completed'
         const totalTokens = Number(pick('total-tokens') ?? pick('total_tokens'))
         const toolUses = Number(pick('tool-uses') ?? pick('tool_uses'))
         io.outbound.enqueue({
@@ -1451,7 +1455,7 @@ export async function runHeadless(
           task_id: pick('task-id') ?? pick('task_id') ?? '',
           ...(pick('tool-use-id') !== undefined ? { tool_use_id: pick('tool-use-id') } : {}),
           output_file: pick('output-file') ?? pick('output_file') ?? '',
-          status: normalized,
+          ...(normalized !== undefined ? { status: normalized } : {}),
           summary: pick('summary') ?? '',
           ...(Number.isFinite(totalTokens) && Number.isFinite(toolUses)
             ? {
