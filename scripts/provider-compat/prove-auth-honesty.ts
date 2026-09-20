@@ -41,6 +41,11 @@ const responsesOk = (): string =>
     sse({ type: 'response.output_item.done', item: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'settled' }] } }),
     sse({ type: 'response.completed', response: { id: 'resp_ok', usage: { input_tokens: 10, output_tokens: 2, input_tokens_details: { cached_tokens: 4 } } } }),
   ].join('')
+const nativeOk = (): string =>
+  [
+    sse({ candidates: [{ content: { role: 'model', parts: [{ text: 'settled' }] } }] }),
+    sse({ candidates: [{ content: { role: 'model', parts: [{ text: '', thoughtSignature: 'fixture-signature' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 10, cachedContentTokenCount: 4, candidatesTokenCount: 2, totalTokenCount: 12 } }),
+  ].join('')
 const OPENAI_MODELS_BODY = {
   models: [{ slug: 'gpt-5.6-sol', display_name: 'GPT-5.6-Sol', supported_reasoning_levels: [{ effort: 'high', description: 'high' }], default_reasoning_level: 'high', visibility: 'list', priority: 1, context_window: 272_000, input_modalities: ['text'], supported_in_api: true }],
 }
@@ -62,13 +67,13 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       res.end(JSON.stringify(tokenAnswer.body))
       return
     }
-    if (req.method === 'POST' && (path.endsWith('/chat/completions') || path.endsWith('/responses'))) {
+    if (req.method === 'POST' && (path.endsWith('/chat/completions') || path.endsWith('/responses') || path.endsWith(':streamGenerateContent'))) {
       const auth = req.headers['authorization']
       hits.push({ path, bearer: typeof auth === 'string' ? auth : undefined })
       const answer = answers[Math.min(hits.length - 1, answers.length - 1)] ?? 'ok'
       if (answer === 'ok') {
         res.writeHead(200, { 'content-type': 'text/event-stream' })
-        res.end(path.endsWith('/responses') ? responsesOk() : chatOk())
+        res.end(path.endsWith('/responses') ? responsesOk() : path.endsWith(':streamGenerateContent') ? nativeOk() : chatOk())
         return
       }
       res.writeHead(answer.status, { 'content-type': 'application/json' })
