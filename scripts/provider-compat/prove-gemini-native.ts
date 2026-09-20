@@ -183,7 +183,7 @@ try {
   const refused = await drain(params([user('Say hello.')]))
   const refusal = text(refused)
   check('a repeated native 401 names the Google account and truthful retry, never an API key', refusal.includes("the Google account's token was refused (HTTP 401)") && refusal.includes('/logins re-connects the Google account') && refusal.includes('refreshed and the call retried once') && !refusal.includes('API_KEY') && !refusal.includes(access) && !refusal.includes(refreshed))
-  check("Google's own reason rides third in the compat detail shape, the bearer masked out of it", refusal.endsWith('before this refusal. The wire said: api-UNAUTHENTICATED: rejected Bearer «masked»') && refusal.indexOf('The wire said') > refusal.indexOf('retried once'))
+  check("Google's own reason rides third in the compat detail shape, the bearer masked out of it", refusal.endsWith('before this refusal. The wire said: api-UNAUTHENTICATED: rejected Bearer «masked»') && refusal.includes('retried once') && refusal.indexOf('The wire said') > refusal.indexOf('retried once'))
   scenario = 'overflow'
   const overflow = await drain(params([user('Say hello.')]))
   check('native context overflow retains the typed compaction signal', overflow.some(message => message.overflowSignal !== undefined && message.overflowSignal !== null))
