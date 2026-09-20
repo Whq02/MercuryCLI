@@ -2,10 +2,9 @@
 
 Website: [mercury-cli.ai](https://mercury-cli.ai)
 
-Mercury is a terminal-based coding harness for working with AI models in your
-own repositories. It reads and edits files, runs commands, and checks the
-results. You choose the provider, the model, and what the agent is allowed to
-do.
+Mercury runs AI coding agents in your terminal, inside your own repositories.
+An agent reads and edits files, runs commands, and checks the results. You
+choose the provider, the model, and what the agent is allowed to do.
 
 Each session keeps its own conversation, model, permissions and workspace.
 Leave one running while you work in another, then return to it when you need
