@@ -212,6 +212,20 @@ come from its owning account resolvers:
   it; a billing refusal on the Google sign-in says its quota and billing
   cannot be changed from here and points at a Gemini API key on a project of
   the operator's own.
+  A refusal that says try again later (Google's HTTP 503, its own words about
+  high demand) is retried quietly on a growing wait — 1 s, 2 s, 4 s, 8 s, 16 s
+  and 30 s, about a minute in all — before the chat gives up: nothing is
+  painted for the first thirty seconds, then the retry line shows the true
+  wait and the true count, and the red error line comes only once the whole
+  ladder is spent, saying how many retries it took and how long. A reply that
+  arrives inside the ladder shows one calm grey line above it, `Gemini was
+  busy · answered after 2 retries (7 s)`, whose ctrl+o expansion carries
+  Google's words and every wait; the debug log carries every retry either
+  way. Escape ends a wait at once. A wait Google itself asks for (Retry-After)
+  is honoured in place of the ladder's own when it fits the retry budget, as
+  on every road. On a chat without a screen (a print run, a dispatched agent)
+  the same ladder runs, and its retry frames reach the caller only past the
+  quiet window.
   The API-key resolver takes `GOOGLE_API_KEY` before `GEMINI_API_KEY`, then the
   stored key; environment keys must be available to the process that uses them.
   A launch naming `gemini` needs the live catalogue to choose a model. A present

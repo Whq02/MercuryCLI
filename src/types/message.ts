@@ -113,6 +113,7 @@ export type AssistantMessage = {
     }
   }
   streamEnd?: StreamEndV1
+  busyRecovery?: BusyRecoveryV1
   effortAdjusted?: EffortAdjustedV1
 }
 
@@ -216,6 +217,30 @@ export type SystemStreamCutMessage = {
   count: number
   road?: string
   sent?: string
+  code?: string
+  level: SystemMessageLevel
+  isMeta?: boolean
+  uuid: UUID
+  timestamp: string
+}
+
+export type BusyRecoveryV1 = {
+  provider: string
+  retries: number
+  elapsedMs: number
+  status?: number
+  code?: string
+  detail: string
+}
+
+export type SystemBusyRecoveryMessage = {
+  type: 'system'
+  subtype: 'busy_recovery'
+  content: string
+  provider: string
+  retries: number
+  elapsedMs: number
+  status?: number
   code?: string
   level: SystemMessageLevel
   isMeta?: boolean
@@ -501,6 +526,7 @@ export type SystemMessage =
   | SystemSeatReceiptMessage
   | SystemRosterTransitionMessage
   | SystemStreamCutMessage
+  | SystemBusyRecoveryMessage
   | SystemThinkingNoteMessage
   | SystemThinkingDeadMessage
   | SystemPermissionRetryMessage

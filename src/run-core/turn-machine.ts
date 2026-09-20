@@ -35,6 +35,7 @@ const switchReceipts = new Set<string>()
 const responsesClassified = new Set<string>()
 const streamEndsReceipted = new Set<string>()
 const effortAdjustmentsReceipted = new Set<string>()
+const busyRecoveriesReceipted = new Set<string>()
 const RESPONSES_CLASSIFIED_CAP = 64
 function rememberClassifiedResponse(id: string): void {
   responsesClassified.add(id)
@@ -103,6 +104,7 @@ import {
   normalizeMessagesForAPI,
   createSystemMessage,
   createStreamCutMessage,
+  createBusyRecoveryMessage,
   createThinkingNoteMessage,
   createAssistantAPIErrorMessage,
   createToolUseSummaryMessage,
@@ -571,6 +573,21 @@ async function* streamModel(
             name => findToolByName(toolUseContext.options.tools, name),
           )
           if (message.type === 'assistant') {
+            const busyRecovery = message.busyRecovery
+            if (busyRecovery !== undefined && !busyRecoveriesReceipted.has(message.uuid)) {
+              busyRecoveriesReceipted.add(message.uuid)
+              yield emit({
+                kind: 'notice',
+                message: createBusyRecoveryMessage({
+                  provider: busyRecovery.provider,
+                  retries: busyRecovery.retries,
+                  elapsedMs: busyRecovery.elapsedMs,
+                  content: busyRecovery.detail,
+                  ...(busyRecovery.status !== undefined ? { status: busyRecovery.status } : {}),
+                  ...(busyRecovery.code !== undefined ? { code: busyRecovery.code } : {}),
+                }),
+              })
+            }
             yield emit({
               kind: 'assistant_settled',
               callId,

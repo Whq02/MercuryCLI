@@ -120,6 +120,7 @@ export {
   createAgentsKilledMessage,
   createApiMetricsMessage,
   createAwaySummaryMessage,
+  createBusyRecoveryMessage,
   createModelTransitionMessage,
   createCommandInputMessage,
   createCompactBoundaryMessage,

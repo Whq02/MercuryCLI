@@ -193,9 +193,11 @@ try {
   check('a provider wait outside the retry budget is not slept or retried', hits.length === 1 && rate.some(message => message.error === 'rate_limit' && typeof message.providerWaitEndsAtMs === 'number'))
   scenario = 'overload'
   hits.length = 0
+  process.env.MERCURY_BUSY_RETRY_SCALE = '0.01'
   const overloaded = await drain(params([user('Say hello.')]))
+  delete process.env.MERCURY_BUSY_RETRY_SCALE
   const overloadWords = overloaded.filter(message => message.isApiErrorMessage).map(message => text([message]))
-  check("a native 503 is retried once by the shared runtime, then carries its overload words with Google's reason", hits.length === 2 && overloadWords.at(-1) === `API Error: Gemini stream failed (api-UNAVAILABLE) — ${overloadReason}` && overloaded.some(message => message.error === 'server_error'))
+  check("a native 503 that never clears is retried on the shared runtime's busy ladder (six retries, scaled by the product's own seam), then carries the ladder's sentence and its overload words with Google's reason", hits.length === 7 && /^API Error: Gemini stayed busy through 6 retries over \d+ s — Gemini stream failed \(api-UNAVAILABLE\) — /.test(overloadWords.at(-1) ?? '') && (overloadWords.at(-1) ?? '').endsWith(overloadReason) && overloadWords.length === 1 && overloaded.some(message => message.error === 'server_error'))
   scenario = 'billing'
   const billed = text(await drain(params([user('Say hello.')])))
   check('a native billing refusal names the Google sign-in remedy, the API-key form unchanged', billed.endsWith(`— ${GEMINI_ACCOUNT_BILLING_REMEDY}`) && billed.includes('out of credit (http-402: payment is required)') && geminiLaneProfile.billingRemedy!.includes('behind this key'))

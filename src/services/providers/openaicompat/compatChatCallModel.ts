@@ -17,9 +17,11 @@ import type {
 } from '../../../types/message.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
 import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
-import { providerWaitIsWindow, stampProviderWait } from '../../api/recoveryBudget.js'
+import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
 import { patienceSeconds } from '../patience.js'
 import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
+import { sleep } from '../../../utils/sleep.js'
+import { busyRecoveryDetail, isBusyRefusal, nextBusyRetry, openBusyRetryLadder, type BusyRetryLadder } from '../busyRetry.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
 import { EMPTY_USAGE } from '../../api/emptyUsage.js'
@@ -106,6 +108,7 @@ export interface CompatLaneProfile {
     settle?(messages: readonly AssistantMessage[]): void
   }
   leadingNotes?: readonly string[]
+  busyRetry?: true
   providerLabel: string
   resolveCredential(): CompatCredential | undefined | Promise<CompatCredential | undefined>
   credentialHint: string
@@ -425,7 +428,8 @@ export async function* compatChatCallModel(
   let recovery: 'retried' | 'no-new-credential' | undefined
   const turnStartedAtMs = Date.now()
   let attemptStartedAtMs = turnStartedAtMs
-  for (let attempt = 1; attempt <= COMPAT_MAX_ATTEMPTS; attempt++) {
+  let busy: { ladder: BusyRetryLadder; fault: CompatFault } | undefined
+  for (let attempt = 1; attempt <= COMPAT_MAX_ATTEMPTS || busy !== undefined; attempt++) {
     attemptStartedAtMs = Date.now()
     const outcome = yield* streamOneCompatAttempt({
       profile,
@@ -440,6 +444,7 @@ export async function* compatChatCallModel(
       preparedMessages,
       deferredUnadmitted: plan.isDeferredUnadmitted,
       ...(profile.leadingNotes !== undefined ? { leadingNotes: profile.leadingNotes } : {}),
+      ...(busy !== undefined ? { busy } : {}),
     })
     if (outcome.kind === 'done') {
       liveProof.set(profile.lane, { at: Date.now(), model: modelId })
@@ -470,8 +475,32 @@ export async function* compatChatCallModel(
       if (fresh !== null) recovery = 'no-new-credential'
     }
     const askedMs = outcome.fault.retryAfterMs
+    const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
+    if (profile.busyRetry === true && outcome.retryEligible && isBusyRefusal(outcome.fault) && !providerWaitIsWindow(askedMs)) {
+      const ladder = busy?.ladder ?? openBusyRetryLadder(Date.now())
+      busy = { ladder, fault: outcome.fault }
+      const step = nextBusyRetry(ladder, askedMs, Date.now())
+      if (step !== null) {
+        logForDebugging(`[compat:${profile.lane}] busy refusal (${wireDetail}) — retry ${step.attempt} of ${step.of} after ${retrySeconds(step.waitMs)}${step.quiet ? ' inside the quiet window' : ''}`)
+        if (!step.quiet) {
+          yield createSystemAPIErrorMessage(
+            Object.assign(new Error(outcome.fault.message), {
+              ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
+              ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
+            }),
+            step.waitMs,
+            step.attempt,
+            step.of,
+          )
+        }
+        await sleep(step.waitMs, signal)
+        if (signal.aborted) return
+        continue
+      }
+      logForDebugging(`[compat:${profile.lane}] busy refusal (${wireDetail}) — the retry ladder is spent after ${ladder.waitsMs.length} retries and ${retrySeconds(ladder.spentMs)} of waiting`)
+    }
     const retryable =
-      !providerWaitIsWindow(askedMs) && outcome.retryEligible && outcome.fault.retryable && attempt < COMPAT_MAX_ATTEMPTS
+      busy === undefined && !providerWaitIsWindow(askedMs) && outcome.retryEligible && outcome.fault.retryable && attempt < COMPAT_MAX_ATTEMPTS
     if (retryable) {
       const delayMs = Math.max(COMPAT_RETRY_BACKOFF_MS * attempt, askedMs ?? 0)
       yield createSystemAPIErrorMessage(
@@ -483,10 +512,7 @@ export async function* compatChatCallModel(
         attempt,
         COMPAT_MAX_ATTEMPTS - 1,
       )
-      await new Promise(resolve => {
-        const t = setTimeout(resolve, delayMs)
-        ;(t as any).unref?.()
-      })
+      await sleep(delayMs, signal)
       if (signal.aborted) return
       continue
     }
@@ -516,9 +542,14 @@ export async function* compatChatCallModel(
       )
       return
     }
+    const terminalText = compatTerminalFaultText(profile, outcome.fault, typed, recovery ? { recovery } : undefined)
+    const stayedBusy =
+      busy !== undefined && isBusyRefusal(outcome.fault)
+        ? `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
+        : terminalText
     yield stampProviderWait(
       apiErrorMessage(
-        compatTerminalFaultText(profile, outcome.fault, typed, recovery ? { recovery } : undefined),
+        stayedBusy,
         typed,
         outcome.fault.code,
         overflowOf(profile.lane, outcome.fault),
@@ -542,6 +573,7 @@ async function* streamOneCompatAttempt(ctx: {
   preparedMessages: Message[]
   deferredUnadmitted?: (name: string) => boolean
   leadingNotes?: readonly string[]
+  busy?: { ladder: BusyRetryLadder; fault: CompatFault }
 }): AsyncGenerator<StreamEvent | AssistantMessage, AttemptOutcome> {
   const { profile, request, apiKey, requestUrl, signal, tools, options, modelId } = ctx
 
@@ -561,16 +593,32 @@ async function* streamOneCompatAttempt(ctx: {
     type: 'stream_event',
     event,
   })
-  const mintBlock = (block: ContentBlock): AssistantMessage => ({
-    message: {
-      ...partial,
-      content: normalizeContentFromAPI([block], tools, options.agentId),
-    } as AssistantMessage['message'],
-    requestId: undefined,
-    type: 'assistant',
-    uuid: randomUUID(),
-    timestamp: new Date().toISOString(),
-  })
+  const busyRecoveryStamp = (): AssistantMessage['busyRecovery'] => {
+    if (ctx.busy === undefined || minted.length > 0) return undefined
+    const { ladder, fault } = ctx.busy
+    return {
+      provider: profile.providerLabel,
+      retries: ladder.waitsMs.length,
+      elapsedMs: Date.now() - ladder.startedAtMs,
+      ...(fault.status !== undefined ? { status: fault.status } : {}),
+      code: fault.code,
+      detail: busyRecoveryDetail({ provider: profile.providerLabel, status: fault.status, code: fault.code, message: fault.message, waitsMs: ladder.waitsMs }),
+    }
+  }
+  const mintBlock = (block: ContentBlock): AssistantMessage => {
+    const busyRecovery = busyRecoveryStamp()
+    return {
+      message: {
+        ...partial,
+        content: normalizeContentFromAPI([block], tools, options.agentId),
+      } as AssistantMessage['message'],
+      requestId: undefined,
+      type: 'assistant',
+      uuid: randomUUID(),
+      timestamp: new Date().toISOString(),
+      ...(busyRecovery !== undefined ? { busyRecovery } : {}),
+    }
+  }
 
   let messageStarted = false
   let firstEventSeen = false
