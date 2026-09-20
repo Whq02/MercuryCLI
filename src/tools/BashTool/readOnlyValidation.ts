@@ -278,7 +278,7 @@ function matchesRegexAllowlist(command: string): boolean {
 function matchesHandWrittenPattern(command: string): boolean {
   const trimmed = command.trim()
   const cli = binaryName()
-  if ([`${cli} -h`, `${cli} --help`, 'claude -h', 'claude --help'].includes(trimmed)) return true
+  if ([`${cli} -h`, `${cli} --help`].includes(trimmed)) return true
   if (['node -v', 'node --version', 'python --version', 'python3 --version'].includes(trimmed)) return true
   if (trimmed === 'pwd' || trimmed === 'whoami' || trimmed === 'alias') return true
   if (/^arch(?:\s+(?:-h|--help))?$/.test(trimmed)) return true
