@@ -19,6 +19,7 @@ const { fetchWithProviderDeadline } = await import('../../src/services/providers
 const { catalogueTrafficVerdict } = await import('../../src/services/providers/catalogueGate.js')
 const GATED_FAMILIES = new Set(['openai', 'gemini', 'deepseek', 'openrouter', 'huggingface'])
 const { getAuthHeaders, getUserAgent } = await import('../../src/utils/http.js')
+const { judgeTypedIds } = await import('../../src/services/providers/typedModelIds.js')
 
 async function getJson(provider: string, url: string, headers: Record<string, string>): Promise<{ status: number; body: unknown }> {
   const response = await fetchWithProviderDeadline(getApiFetch(), provider, LIST_TIMEOUT_MS, url, {
@@ -293,12 +294,11 @@ for (const check of families) {
     continue
   }
   judged++
-  const served = new Set(verdict.ids.map(id => (check.current ? check.current(id) : id).trim().toLowerCase()))
+  const judgement = judgeTypedIds(check.typed, verdict.ids, check.current)
   if (check.typed.length === 0) console.log(`${check.family} · ${check.source} · (no typed ids) · ${verdict.ids.length} served`)
-  for (const id of check.typed) {
-    const ok = served.has((check.current ? check.current(id) : id).trim().toLowerCase())
-    if (!ok) notServed++
-    console.log(`${check.family} · ${check.source} · ${id} · ${ok ? 'served' : 'not served'}`)
+  for (const row of judgement.rows) {
+    if (!row.served) notServed++
+    console.log(`${check.family} · ${check.source} · ${row.id} · ${row.served ? 'served' : 'not served'}`)
   }
 }
 for (const line of skipped) console.log(line)
