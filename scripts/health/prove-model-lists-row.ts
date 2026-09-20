@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const SCRATCH = realpathSync(mkdtempSync('/private/tmp/mw/doctor-model-lists-row-'))
+const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'doctor-model-lists-row-')))
 const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = HOME
