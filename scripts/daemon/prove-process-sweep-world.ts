@@ -153,12 +153,12 @@ async function rawRpc(dir: string, request: Record<string, unknown>, timeoutMs =
   })
 }
 
-function psRow(pid: number): { stat: string; tty: string } | null {
+function psRow(pid: number): { stat: string; tty: string | null } | null {
   try {
     const out = execFileSync('ps', ['-o', 'stat=,tty=', '-p', String(pid)], { encoding: 'utf8' }).trim()
     if (out === '') return null
     const [stat, tty] = out.split(/\s+/)
-    return { stat: stat ?? '', tty: tty ?? '' }
+    return { stat: stat ?? '', tty: tty === undefined || tty === '??' || tty === '?' || tty === '-' ? null : tty }
   } catch {
     return null
   }
@@ -240,8 +240,7 @@ function childOf(parentPid: number): number | null {
   }
 }
 
-function registrationFor(pid: number): { path: string; record: Record<string, unknown> } | null {
-  const dir = join(home, 'processes')
+function registrationFor(pid: number, dir = join(home, 'processes')): { path: string; record: Record<string, unknown> } | null {
   if (!existsSync(dir)) return null
   const registrationName = new RegExp(`^cockpit-${pid}-[0-9a-f-]+\\.json$`)
   for (const name of readdirSync(dir)) {
@@ -360,7 +359,7 @@ try {
     livePid = childOf(liveScript.pid!) ?? 0
     return livePid > 0
   }, 20000)
-  check('the live cockpit runs on a pty of its own', livePid > 0 && psRow(livePid)?.tty !== '??', JSON.stringify(psRow(livePid)))
+  check('the live cockpit runs on a pty of its own', livePid > 0 && (psRow(livePid)?.tty ?? null) !== null, JSON.stringify(psRow(livePid)))
   check('the live cockpit registers itself in the config home', await waitFor('the live registration', () => registrationFor(livePid) !== null, 90000))
   check('the live cockpit spawned its owned daemon', await waitFor('the live daemon', async () => (await rawRpc(dirs.live, { op: 'ping' }, 1500)).ok === true, 60000))
   const liveHello = await rawRpc(dirs.live, { op: 'hello' })
@@ -387,7 +386,12 @@ try {
     windowPid = childOf(windowScript.pid!) ?? 0
     return windowPid > 0
   }, 20000)
-  const writerTemp = join(home, 'processes', `cockpit-${windowPid}-${randomUUID()}.json.${windowPid}.tmp`)
+  const writerTempName = `cockpit-${windowPid}-${randomUUID()}.json.${windowPid}.tmp`
+  const pendingDir = mkdtempSync(join(SCRATCH, 'registration-pending-'))
+  writeFileSync(join(pendingDir, writerTempName), '')
+  check('an empty writer temp file is not a published cockpit registration', registrationFor(windowPid, pendingDir) === null)
+  rmSync(pendingDir, { recursive: true, force: true })
+  const writerTemp = join(home, 'processes', writerTempName)
   writeFileSync(writerTemp, '')
   check('the second cockpit registers itself, read past the writer\'s empty temp file beside its registration', await waitFor('the window registration', () => registrationFor(windowPid) !== null, 90000))
   rmSync(writerTemp, { force: true })
@@ -412,7 +416,7 @@ try {
   const standInExpired = new Date(Date.now() - (COCKPIT_HEARTBEAT_ALLOWANCE_MS + 60_000))
   writeFileSync(standInPath, JSON.stringify({ schema: 1, id: standInId, pid: standInPid, startToken: standInToken, exe: process.execPath, bundle: DIST, configHome: home, daemonDir: dirs.live, terminal: null, bornAt: standInExpired.getTime(), heartbeatAt: standInExpired.getTime() }, null, 2))
   utimesSync(standInPath, standInExpired, standInExpired)
-  check('a stand-in window whose terminal the table no longer names is registered with an expired heartbeat', typeof standInToken === 'string' && standInToken !== '' && psRow(standInPid)?.tty === '??', JSON.stringify(psRow(standInPid)))
+  check('a stand-in window whose terminal the table no longer names is registered with an expired heartbeat', typeof standInToken === 'string' && standInToken !== '' && psRow(standInPid)?.tty === null, JSON.stringify(psRow(standInPid)))
 
   console.log('§2 the read-only census classifies every shape without ending anything')
   const census = await recordProcessCensusAtBoot()
