@@ -43,8 +43,13 @@ const scenarios = await import('../ui/renderScenarios.ts')
 const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.ts')
 seedFirstRun(HOME, [CWD])
 
-const OWNER_LIST = ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5']
-const RETIRED = GPT_DISPLAY_PINS.map(pin => pin.id).filter(id => !OWNER_LIST.includes(id))
+const TYPED = GPT_DISPLAY_PINS.map(pin => pin.id)
+if (TYPED.length < 3) {
+  console.error(`✗ the GPT typed table holds ${TYPED.length} ids — the drive needs three to serve some and withhold two`)
+  process.exit(1)
+}
+const OWNER_LIST = TYPED.slice(0, -2)
+const RETIRED = TYPED.slice(-2)
 const hits: string[] = []
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   const path = (req.url ?? '').split('?')[0] ?? ''
