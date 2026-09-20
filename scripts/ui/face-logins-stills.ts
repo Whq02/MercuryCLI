@@ -212,9 +212,22 @@ export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
         sel: 6,
         flow: {
           kind: 'client',
-          client: { field: 'secret', clientId: 'my-client.apps.example', note: null },
+          client: { step: 5, from: 'walk', field: 'secret', clientId: 'my-client.apps.example', note: null },
           draftLen: 6,
           draft: '••••••',
+        },
+      }),
+  },
+  {
+    id: 'logins-120x40-guide-step3',
+    compose: () =>
+      composeLogins(120, 40, {
+        sel: 6,
+        flow: {
+          kind: 'client',
+          client: { step: 3, from: 'walk', field: 'id', clientId: '', note: null, opened: 'opened' },
+          draftLen: 0,
+          draft: '',
         },
       }),
   },

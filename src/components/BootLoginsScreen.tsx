@@ -43,10 +43,22 @@ import {
 import {
   beginGeminiBrowserConnect,
   geminiOauthClientConfig,
-  geminiOauthClientMissingCopy,
   GEMINI_CLIENT_STORED_UNVERIFIED_NOTE,
   writeGeminiOauthClientConfig,
 } from '../services/providers/gemini/geminiAccounts.js';
+import {
+  GEMINI_API_KEY_PAGE,
+  geminiConnectRows,
+  geminiGuideOpeningStep,
+  geminiGuidePaneLines,
+  geminiGuideReturnStep,
+  geminiGuideStep,
+  geminiKeyLegLines,
+  liveGeminiConnectFacts,
+  type GeminiConnectFacts,
+  type GeminiGuideOpenState,
+} from './geminiConnectGuide.js';
+import { errorMessageWithCause } from '../utils/errors.js';
 import { useSetAppStateMaybe } from '../state/AppState.js';
 import { openBrowser } from '../utils/browser.js';
 import { setClipboard } from '../ink/termio/osc.js';
@@ -392,27 +404,13 @@ export type FaceKeyLegId =
   | 'openrouter-key'
   | 'gemini-key';
 
-export function geminiPickOptions(clientMissing: boolean, clientStored: boolean): Array<{ label: string; value: string }> {
-  return [
-    { label: 'Paste an API key (stored locally, mode 600)', value: 'key' },
-    {
-      label: clientMissing
-        ? 'Google OAuth — needs an OAuth client first (set it below)'
-        : 'Sign in with Google (OAuth, browser)',
-      value: 'oauth',
-    },
-    {
-      label: clientStored
-        ? 'Update the stored OAuth client (id/secret)'
-        : 'Set the OAuth client (id/secret from Google Cloud Console)',
-      value: 'client',
-    },
-  ];
+export function geminiPickOptions(facts: GeminiConnectFacts): Array<{ label: string; value: string }> {
+  return geminiConnectRows(facts);
 }
 
 export function loginsPickOptions(
   pick: LoginsPickId,
-  geminiFacts?: { clientMissing: boolean; clientStored: boolean },
+  geminiFacts?: GeminiConnectFacts,
 ): Array<{ label: string; value: string }> {
   switch (pick) {
     case 'openrouter':
@@ -421,13 +419,8 @@ export function loginsPickOptions(
         { label: 'Headless — OpenRouter shows a code you paste here', value: 'headless' },
         { label: 'Paste an API key (stored locally, mode 600)', value: 'key' },
       ];
-    case 'gemini': {
-      const facts = geminiFacts ?? {
-        clientMissing: Boolean(geminiOauthClientMissingCopy()),
-        clientStored: Boolean(geminiOauthClientConfig()),
-      };
-      return geminiPickOptions(facts.clientMissing, facts.clientStored);
-    }
+    case 'gemini':
+      return geminiPickOptions(geminiFacts ?? liveGeminiConnectFacts());
     case 'openai':
       return [...openaiArmPickRows];
     case 'zai':
@@ -541,8 +534,12 @@ export function keyLegGuardOpts(leg: FaceKeyLegId): { stores: string; looksLike?
   }
 }
 
-export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draftLen: number, storing: boolean): string[] {
+export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draftLen: number, storing: boolean, opened?: GeminiGuideOpenState): string[] {
   const lines: string[] = [keyLegTitle(leg)];
+  if (leg === 'gemini-key') {
+    const [, sentence, address] = geminiKeyLegLines(opened);
+    lines.push(...wrapPlain(sentence!.text, DETAIL_W), ...wrapHard(address!.text, DETAIL_W));
+  }
   lines.push(...wrapPlain(keyLegStoreLine(leg), DETAIL_W));
   lines.push(maskedDraftLine(draftLen).replace('code:', 'key:'));
   if (note !== null) {
@@ -638,7 +635,7 @@ export function handlesWaitPaneLines(h: HandlesWaitStateV1, draftLen: number): s
     h.leg === 'openrouter-headless'
       ? 'Open this URL on any signed-in browser; OpenRouter displays a code — paste it below.'
       : h.leg === 'gemini-oauth'
-        ? 'A browser window should be opening for the Google sign-in; the loopback listener completes automatically.'
+        ? `${geminiGuideStep(6).title}: ${geminiGuideStep(6).detail}`
         : 'A browser window should be opening; the loopback listener completes automatically.';
   const lines: string[] = [...wrapPlain(opening, DETAIL_W)];
   if (h.listenerNote !== undefined) {
@@ -681,14 +678,34 @@ export function openaiDevicePaneLines(d: OpenaiDeviceStateV1): string[] {
 }
 
 export interface GeminiClientStateV1 {
+  step: 1 | 2 | 3 | 4 | 5;
+  from: 'walk' | 'pick';
   field: 'id' | 'secret';
   clientId: string;
   note: string | null;
+  opened?: GeminiGuideOpenState;
 }
 
 export function geminiClientPaneLines(c: GeminiClientStateV1, draftLen: number, draft: string): string[] {
-  const lines: string[] = ['Set the Google OAuth client (one-time)'];
-  lines.push(...wrapPlain('Google Cloud Console → Credentials → OAuth client ID, type "Desktop app"; enable the Generative Language API.', DETAIL_W));
+  const pane = geminiGuidePaneLines({
+    step: c.step,
+    ...(c.opened ? { opened: c.opened } : {}),
+    ...(c.note !== null && c.step !== 5 ? { note: c.note } : {}),
+    compact: true,
+  });
+  const address = (text: string): string[] => {
+    const at = text.indexOf('https://');
+    return at > 0 ? [text.slice(0, at).trimEnd(), ...wrapHard(text.slice(at), DETAIL_W)] : wrapHard(text, DETAIL_W);
+  };
+  const wrapped = (tones: string[]): string[] =>
+    pane.filter(line => tones.includes(line.tone)).flatMap(line => (line.tone === 'address' ? address(line.text) : wrapPlain(line.text, DETAIL_W)));
+  const lines: string[] = wrapped(['title', 'current']);
+  if (c.step !== 5) {
+    lines.push(...wrapped(['address', 'status', 'note']));
+    lines.push('↵ next · o open · esc back');
+    lines.push(...wrapped(['detail']));
+    return lines;
+  }
   if (c.field === 'id') {
     lines.push(`id: ${clampText(draft, DETAIL_W - 5)}▌`);
   } else {
@@ -696,15 +713,16 @@ export function geminiClientPaneLines(c: GeminiClientStateV1, draftLen: number, 
     lines.push(`secret (optional, ↵ skips): ${maskedDraftLine(draftLen).replace('code: ', '')}`);
   }
   if (c.note !== null) lines.push(...wrapPlain(c.note, DETAIL_W));
-  if (c.field === 'secret') lines.push(...wrapPlain(GEMINI_CLIENT_STORED_UNVERIFIED_NOTE, DETAIL_W));
   lines.push(c.field === 'id' ? '↵ continues · esc back' : '↵ stores · esc back to the id');
+  lines.push(...wrapped(['detail']));
+  if (c.field === 'secret') lines.push(...wrapPlain(GEMINI_CLIENT_STORED_UNVERIFIED_NOTE, DETAIL_W));
   return lines;
 }
 
 export type LoginsFlowPaneV1 =
   | { kind: 'anthropic'; snap: AnthropicLoginSnapshot; draftLen: number }
   | { kind: 'pick'; pick: LoginsPickId; pickSel: number }
-  | { kind: 'key'; leg: FaceKeyLegId; note: string | null; draftLen: number; storing: boolean }
+  | { kind: 'key'; leg: FaceKeyLegId; note: string | null; draftLen: number; storing: boolean; opened?: GeminiGuideOpenState }
   | { kind: 'device'; device: DeviceWaitStateV1; nowMs: number }
   | { kind: 'handles'; handles: HandlesWaitStateV1; draftLen: number }
   | { kind: 'opdevice'; opdevice: OpenaiDeviceStateV1 }
@@ -730,7 +748,7 @@ export function loginsFlowLegendOf(pane: LoginsFlowPaneV1): string {
     case 'opdevice':
       return 'c copy code · esc stop watching';
     case 'client':
-      return pane.client.field === 'id' ? '↵ continue · esc back' : '↵ store · esc back';
+      return pane.client.step !== 5 ? '↵ next · o open · esc back' : pane.client.field === 'id' ? '↵ continue · esc back' : '↵ store · esc back';
     case 'receipt':
       return '↵ done';
   }
@@ -755,7 +773,7 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
         case 'openrouter':
           return 'OpenRouter — three doors';
         case 'gemini':
-          return 'Gemini — key, OAuth, or the client';
+          return 'Gemini — an API key or a Google account';
       }
       break;
     case 'key':
@@ -775,7 +793,7 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
     case 'opdevice':
       return 'waiting on the OpenAI device code';
     case 'client':
-      return 'the one-time Google OAuth client';
+      return `Google account — step ${pane.client.step} of 6`;
     case 'receipt':
       return pane.ok ? 'connected — ↵ returns to the roster' : 'not connected — ↵ returns to the roster';
   }
@@ -788,7 +806,7 @@ export function loginsFlowPaneLines(pane: LoginsFlowPaneV1): string[] {
     case 'pick':
       return loginsPickPaneLines(pane.pick);
     case 'key':
-      return keyPromptPaneLines(pane.leg, pane.note, pane.draftLen, pane.storing);
+      return keyPromptPaneLines(pane.leg, pane.note, pane.draftLen, pane.storing, pane.opened);
     case 'device':
       return deviceWaitPaneLines(pane.device, pane.nowMs);
     case 'handles':
@@ -884,7 +902,7 @@ export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLogin
   type OpenFlowState =
     | { kind: 'anthropic' }
     | { kind: 'pick'; pick: LoginsPickId }
-    | { kind: 'key'; leg: FaceKeyLegId; note: string | null; storing: boolean }
+    | { kind: 'key'; leg: FaceKeyLegId; note: string | null; storing: boolean; opened?: GeminiGuideOpenState }
     | { kind: 'device'; device: DeviceWaitStateV1 }
     | { kind: 'handles'; handles: HandlesWaitStateV1 }
     | { kind: 'opdevice'; opdevice: OpenaiDeviceStateV1 }
@@ -1014,6 +1032,17 @@ export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLogin
     }
   };
 
+  const openGuideStep = (step: 1 | 2 | 3 | 4 | 5, from: 'walk' | 'pick', note: string | null = null): void => {
+    const stored = geminiOauthClientConfig()?.clientId ?? '';
+    const page = geminiGuideStep(step).page;
+    setDraft(step === 5 ? stored : '');
+    setFlow({ kind: 'client', client: { step, from, field: 'id', clientId: stored, note, ...(page ? { opened: 'opening' as const } : {}) } });
+    if (!page) return;
+    void openBrowser(page.address).then(ok => {
+      setFlow(f => (f?.kind === 'client' && f.client.step === step ? { kind: 'client', client: { ...f.client, opened: ok ? 'opened' : 'failed' } } : f));
+    });
+  };
+
   const startHandlesRun = (leg: HandlesLegId): void => {
     const run = (deviceRunRef.current += 1);
     const live = (): boolean => run === deviceRunRef.current;
@@ -1047,7 +1076,16 @@ export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLogin
     } else if (leg === 'gemini-oauth') {
       (handles.result as Promise<unknown>)
         .then(async () => land(await finishGeminiOauthConnect()))
-        .catch(error => land({ ok: false, receipt: geminiConnectFailedReceipt(error) }));
+        .catch(error => {
+          const back = geminiGuideReturnStep(errorMessageWithCause(error));
+          if (back === undefined || back === 6 || !live()) {
+            land({ ok: false, receipt: geminiConnectFailedReceipt(error) });
+            return;
+          }
+          handlesRef.current = null;
+          setDraft('');
+          openGuideStep(back, 'walk', errorMessageWithCause(error));
+        });
     } else {
       (handles.result as Promise<Parameters<typeof finishOpenrouterConnect>[0]>)
         .then(async ref => land(await finishOpenrouterConnect(ref)))
@@ -1173,16 +1211,21 @@ export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLogin
         return;
       case 'gemini':
         if (value === 'key') {
-          setFlow({ kind: 'key', leg: 'gemini-key', note: null, storing: false });
+          setFlow({ kind: 'key', leg: 'gemini-key', note: null, storing: false, opened: 'opening' });
+          void openBrowser(GEMINI_API_KEY_PAGE.address).then(ok => {
+            setFlow(f => (f?.kind === 'key' && f.leg === 'gemini-key' ? { ...f, opened: ok ? 'opened' : 'failed' } : f));
+          });
           return;
         }
-        if (value === 'client' || Boolean(geminiOauthClientMissingCopy())) {
-          const storedId = geminiOauthClientConfig()?.clientId ?? '';
-          setDraft(storedId);
-          setFlow({ kind: 'client', client: { field: 'id', clientId: storedId, note: null } });
+        if (value === 'client') {
+          openGuideStep(5, 'pick');
           return;
         }
-        startHandlesRun('gemini-oauth');
+        if (geminiGuideOpeningStep(liveGeminiConnectFacts()) === 6) {
+          startHandlesRun('gemini-oauth');
+          return;
+        }
+        openGuideStep(1, 'walk');
         return;
     }
   };
@@ -1403,14 +1446,32 @@ export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLogin
       }
       if (current.kind === 'client') {
         const c = current.client;
+        if (c.step !== 5) {
+          if (key.escape) {
+            if (c.step === 1) {
+              setDraft('');
+              openPick('gemini');
+              return;
+            }
+            openGuideStep((c.step - 1) as 1 | 2 | 3 | 4, c.from);
+            return;
+          }
+          if (key.return) {
+            openGuideStep((c.step + 1) as 2 | 3 | 4 | 5, c.from);
+            return;
+          }
+          if (input === 'o' && !key.ctrl && !key.meta) openGuideStep(c.step, c.from, c.note);
+          return;
+        }
         if (key.escape) {
           if (c.field === 'secret') {
             setDraft(c.clientId);
-            setFlow({ kind: 'client', client: { field: 'id', clientId: c.clientId, note: null } });
+            setFlow({ kind: 'client', client: { ...c, field: 'id', note: null } });
             return;
           }
           setDraft('');
-          openPick('gemini');
+          if (c.from === 'pick') openPick('gemini');
+          else openGuideStep(4, 'walk');
           return;
         }
         if (key.return) {
@@ -1421,7 +1482,7 @@ export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLogin
               return;
             }
             setDraft('');
-            setFlow({ kind: 'client', client: { field: 'secret', clientId: value, note: null } });
+            setFlow({ kind: 'client', client: { ...c, field: 'secret', clientId: value, note: null } });
             return;
           }
           try {
@@ -1434,7 +1495,7 @@ export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLogin
             return;
           }
           setDraft('');
-          openPick('gemini');
+          startHandlesRun('gemini-oauth');
           return;
         }
         if (key.backspace || key.delete) {
@@ -1560,7 +1621,7 @@ export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLogin
                 : flow.kind === 'pick'
                   ? { kind: 'pick' as const, pick: flow.pick, pickSel: pickList.selectedIndex }
                   : flow.kind === 'key'
-                    ? { kind: 'key' as const, leg: flow.leg, note: flow.note, draftLen: draft.length, storing: flow.storing }
+                    ? { kind: 'key' as const, leg: flow.leg, note: flow.note, draftLen: draft.length, storing: flow.storing, ...(flow.opened ? { opened: flow.opened } : {}) }
                     : flow.kind === 'device'
                       ? { kind: 'device' as const, device: flow.device, nowMs: Date.now() }
                       : flow.kind === 'handles'
