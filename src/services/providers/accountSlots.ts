@@ -694,6 +694,17 @@ function keyLaneSlots(args: {
   return slots
 }
 
+export function looksLikeProofFixtureKey(value: string | undefined | null): boolean {
+  return typeof value === 'string' && value.startsWith('zz-SECRETBYTES-')
+}
+
+function geminiStoredNote(storedKey: string, shadowed: boolean): string | undefined {
+  const notes: string[] = []
+  if (shadowed) notes.push('shadowed — an env pin wins')
+  if (looksLikeProofFixtureKey(storedKey)) notes.push('a test key (zz-SECRE…), not a real Gemini API key — ⌫ removes it')
+  return notes.length > 0 ? notes.join(' · ') : undefined
+}
+
 function geminiSlots(reads: AccountSlotReads): AccountSlot[] {
   const oauthConnected = (reads.geminiOauthConnected ?? geminiOauthConnected)()
   const active = (reads.geminiActiveAccount ?? resolveGeminiAccount)()
@@ -761,7 +772,9 @@ function geminiSlots(reads: AccountSlotReads): AccountSlot[] {
       active: active?.kind === 'api-key' && active.keySource === 'stored',
       envPinned: false,
       signedIn: true,
-      ...(envGoogle || envGemini ? { stateNote: 'shadowed — an env pin wins' } : {}),
+      ...(geminiStoredNote(storedKey, Boolean(envGoogle || envGemini)) !== undefined
+        ? { stateNote: geminiStoredNote(storedKey, Boolean(envGoogle || envGemini))! }
+        : {}),
       removal: { route: 'gemini-stored-key' },
     })
   }

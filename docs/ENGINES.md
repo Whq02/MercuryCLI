@@ -148,7 +148,15 @@ come from its owning account resolvers:
   credential with a refused, unavailable or unselectable catalogue is a catalogue
   refusal, not a missing sign-in; `no-credential:gemini` means no credential is
   present. An explicit Gemini model id can still dispatch with a credential,
-  and the model endpoint decides whether to accept it;
+  and the model endpoint decides whether to accept it. When Google refuses the
+  catalogue read, the `/model` group heading names the credential it tried and
+  the status it got — `the Google account's token was refused (HTTP 403) ·
+  /logins re-connects`, `the stored Gemini API key was refused (HTTP 403) ·
+  /logins replaces it`, or the environment key by its variable name (the
+  middle dot lets the picker's detail row wrap the remedy whole) — and the
+  debug log (`mercury --debug`; `debug/latest` under the config home) carries
+  one line per refused read with the source, the status and Google's error
+  body, every token, key and client secret masked;
 - **moonshot** — stored OAuth tokens or stored key;
 - **openrouter** — an OAuth-minted key or a stored key, env pin winning honestly;
 - **zai, deepseek, huggingface, local, compat** — env pins and stored keys.
@@ -196,7 +204,13 @@ existed, env-pinned keys included, order after every recorded sign-in — the
 config's older `defaultProvider` record first, so a home keeps its lane until
 its next sign-in. With no sign-in anywhere there is no default: the face and
 `/model` say so and point at `/logins`. An explicit `/model` choice,
-`MERCURY_MODEL` or a session override always outranks the default.
+`MERCURY_MODEL` or a session override always outranks the default. A saved
+`/model` choice whose family has no usable row when a chat is born — no
+sign-in here, or a catalogue that refused the credential — falls back to the
+computed default for that chat, with one receipt naming why; the saved
+choice stays. A stored
+Gemini key with the test fixture's shape (`zz-SECRE…`) is named a test key
+on its `/logins` and `/accounts` rows, with the gesture that removes it.
 
 ## Capabilities
 

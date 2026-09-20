@@ -81,7 +81,15 @@ The model and the effort a session runs follow one law. An explicit
 `--model` or `--effort` on the command line wins, for a new session and for
 a resumed one alike. Without the flag, a new session starts on your saved
 choice — `/model` and `/effort` both save the pick as your default, and say
-so — and, with nothing saved, on the family default. The board's New
+so — and, with nothing saved, on the family default. A saved choice whose
+family cannot serve it — no sign-in for that family here, or a sign-in whose
+catalogue refused it — does not stop the birth: the chat starts on the
+computed default (the most recent sign-in's newest usable row) and its first
+row says so, naming the family, the reason and the doors (`/logins <family>`
+connects it, `/model` changes the default); the saved choice is left as it
+stands, so the next chat returns to it the moment that family signs in;
+`/model` in that chat saves a new default and the next New Session runs it.
+The board's New
 Session strip births on the same saved choice; its own effort pick, when
 you make one, holds for that one birth. A resumed session
 keeps the model and effort it ran on unless the command line says

@@ -115,7 +115,7 @@ section('§2 — a keyless home: no neutral default, no roster, the two-door sen
   check('birthModelOf carries the nothing through (no record model, no door model)', facts.birthModelOf({ model: null }, null, facts.screenBirthModel()) === undefined)
   const door = read('src/services/switchboard/bornSession.ts')
   check('the admit frame omits the model field when the door has none', door.includes('...(model !== undefined ? { model } : {}),') && door.includes('screenBirthModel()'))
-  check('the door drops every inherited or chosen model on a keyless home', door.includes('const model = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
+  check('the door drops every inherited or chosen model on a keyless home', door.includes('const resolved = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
   const spelled = await wm.validateWorkerModelChoice('claude-opus-5', 'session')
   check("a spelled-out Claude id on a keyless home keeps its family's own door (only a launch with no id admits keyless)", !spelled.ok && spelled.reason === 'no-credential:anthropic', text(spelled))
   const { operatorFacingBirthReason } = await import('../../src/services/switchboard/bornSession.ts')

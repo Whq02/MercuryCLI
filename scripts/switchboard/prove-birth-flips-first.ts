@@ -63,7 +63,7 @@ section('§1 the source law — flip first, birth behind, the refusal on the sea
   check('…and a face mounting AFTER the mint reads the row back (the chat’s subscription drained it)', face.includes('useState<string | null>(() => recentWarningReceipt()?.text ?? null)'))
   const door = read('src/services/switchboard/bornSession.ts')
   check('a keyless birth carries NO model: the door’s screen arm is the neutral owner’s word and the frame omits the field', door.includes('screenBirthModel()') && door.includes('...(model !== undefined ? { model } : {}),'))
-  check('…and the door drops every inherited or chosen model on a keyless home (no product door ever spells the placeholder)', door.includes('const model = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
+  check('…and the door drops every inherited or chosen model on a keyless home (no product door ever spells the placeholder)', door.includes('const resolved = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
   const milestones = read('src/substrate/launchMilestones.ts')
   check('the milestone kinds exist', ["'chat-flipped'", "'birth-landed'", "'birth-refused'"].every(k => milestones.includes(k)))
   const picker = read('src/screens/ResumeConversation.tsx')
