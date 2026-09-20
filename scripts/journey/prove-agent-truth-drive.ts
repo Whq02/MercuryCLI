@@ -494,7 +494,7 @@ try {
         { data: '/teammates\r', awaitText: 'NOTED-1', requireAwait: true, minTick: 10, awaitSettleTicks: 6, mark: 'after-fault' },
         { data: '\x1b', awaitText: SEATS.foliage, requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'crew-fault' },
         { data: 'agent-truth: launch\r', afterPrevTicks: 4 },
-        { data: '\x1b', awaitText: 'waiting on 1 agent', requireAwait: true, minTick: 3, awaitSettleTicks: 3, mark: 'lantern-waiting' },
+        { data: '\x1b', awaitText: 'ACK-2', requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'lantern-waiting' },
         { data: 'agent-truth: message\r', afterPrevTicks: 8, mark: 'after-lantern-esc' },
         { data: '\x1b', awaitText: 'ACK-2', requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'message-id' },
         { data: 'agent-truth: message-name\r', afterPrevTicks: 6 },
@@ -585,6 +585,8 @@ if (cap !== null) {
   check('F1 the crew view lists the child failed', crewFoliage.some(r => /failed/.test(r)), crewFoliage.map(flat).join(' | ').slice(0, 300))
 
   console.log('\n— A the receipt\'s id routes, the name routes —')
+  const lanternWait = rowsWith(m['lantern-waiting'], 'waiting on 1 agent')
+  check('A0 the launch turn held open by its background agent paints the wait words, never the thinking dress', lanternWait.length > 0, rowsWith(m['lantern-waiting'], /waiting on|thinking|thought for/).map(flat).join(' | ').slice(0, 300))
   const sendResults = acks.flatMap(h => h.results.filter(r => r.name === 'SendMessage').map(r => r.text))
   for (const r of sendResults) console.log(`  send result: ${flat(r).slice(0, 240)}`)
   check(`A1 SendMessage to the receipt's id (${lanternId ?? 'none'}) delivered the message to the running agent`, lanternId !== null && sendResults.some(r => r.includes(`Message delivered to agent ${lanternId}`) && /"success":true/.test(r)))
