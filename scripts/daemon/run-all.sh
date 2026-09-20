@@ -76,6 +76,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-owner-watch-budget.ts" || {
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-owner-handover.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-owner-handover.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-log-stamps.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-log-stamps.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-restart-waits-live.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-restart-waits-live.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-departure.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-departure.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-compaction-hold.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-compaction-hold.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-credential-change-reaches-runner.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-credential-change-reaches-runner.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-openai-lane-after-relogin.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-openai-lane-after-relogin.ts" "$__t" "$__rc"

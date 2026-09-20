@@ -1,7 +1,7 @@
 
 import net from 'node:net'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
-import { readFileSync, unlinkSync } from 'node:fs'
+import { readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import {
   mkdir,
@@ -13,6 +13,7 @@ import {
 import { platform, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { acquirePidLock, noteLockRelease, releasePidLock } from '../substrate/pidLock.js'
+import { renameWithWin32RetrySync } from '../substrate/durablePublish.js'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
 import { recordSpawnExit } from '../utils/spawnLedger.js'
@@ -70,6 +71,8 @@ export interface SupervisorState {
   ownerPid?: number | null
   foreground?: boolean
   startToken?: string | null
+  state?: 'stopping'
+  stoppingAt?: number
 }
 
 export async function readSupervisorState(): Promise<SupervisorState | null> {
@@ -98,6 +101,31 @@ export async function writeSupervisorState(
     await writeFile(supervisorStatePath(), JSON.stringify(state, null, 2), 'utf8')
   } catch (e) {
     logForDebugging(`[daemon] could not write supervisor state: ${e}`)
+  }
+}
+
+export function markSupervisorStoppingSync(now = Date.now()): boolean {
+  const path = supervisorStatePath()
+  let current: SupervisorState
+  try {
+    current = JSON.parse(readFileSync(path, 'utf8')) as SupervisorState
+  } catch {
+    return false
+  }
+  if (current?.pid !== process.pid) return false
+  const temp = `${path}.stopping-${process.pid}`
+  try {
+    writeFileSync(temp, JSON.stringify({ ...current, state: 'stopping', stoppingAt: now }, null, 2), 'utf8')
+    renameWithWin32RetrySync(temp, path)
+    return true
+  } catch (e) {
+    try {
+      unlinkSync(temp)
+    } catch {
+      logForDebugging(`[daemon] the stopping mark's temp file could not be removed: ${temp}`)
+    }
+    logForDebugging(`[daemon] could not mark the supervisor record stopping: ${e}`)
+    return false
   }
 }
 
