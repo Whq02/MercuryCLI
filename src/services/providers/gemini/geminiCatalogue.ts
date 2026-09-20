@@ -208,6 +208,10 @@ export function refreshGeminiCatalogue(
         logForDebugging(
           `[gemini] catalogue ${verb} · source=${source ?? sourceKind} · HTTP ${answer.status} · body=${maskGeminiSecrets(answer.body === '' ? '(empty)' : answer.body, opts?.env)}`,
         )
+      } else {
+        logForDebugging(
+          `[gemini] catalogue unreachable · source=${source ?? sourceKind} · ${maskGeminiSecrets(error instanceof Error ? error.message : String(error), opts?.env)}`,
+        )
       }
       const snapshot: GeminiCatalogueSnapshot = {
         sourceKind,
@@ -302,6 +306,18 @@ export function geminiCredentialRefusedReason(account: Pick<GeminiAccountRef, 'k
   return `the stored Gemini API key was refused${http} · /logins replaces it`
 }
 
+export function geminiCatalogueUnreachableReason(account: Pick<GeminiAccountRef, 'kind' | 'keySource'>, lastError: string): string {
+  const source =
+    account.kind === 'oauth'
+      ? 'the Google account'
+      : account.keySource === 'env-google'
+        ? 'the Gemini API key from GOOGLE_API_KEY'
+        : account.keySource === 'env-gemini'
+          ? 'the Gemini API key from GEMINI_API_KEY'
+          : 'the stored Gemini API key'
+  return `${source} could not reach the live catalogue (${lastError}) · retry from /model, or /model <id> names a model directly`
+}
+
 function httpStatusIn(message: string): number | undefined {
   const match = /\(HTTP (\d{3})\)/.exec(message)
   return match === null ? undefined : Number(match[1])
@@ -342,7 +358,7 @@ export function getGeminiAvailability(env: NodeJS.ProcessEnv = process.env): Gem
     return {
       state: 'disabled',
       why: 'catalogue-error',
-      reason: `live catalogue unreachable (${snapshot.lastError})`,
+      reason: geminiCatalogueUnreachableReason(account, snapshot.lastError),
     }
   }
   const generate = geminiGenerateModels(snapshot)
