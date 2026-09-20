@@ -3,3 +3,4 @@ prove-runs-row-detail-drive.ts
 prove-deepseek-live-rows-drive.ts
 prove-ctx-pin-mark-drive.ts
 prove-crew-stop-drive.ts
+prove-key-catalogue-drive.ts

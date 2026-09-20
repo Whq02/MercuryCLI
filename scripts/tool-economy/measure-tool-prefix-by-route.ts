@@ -150,6 +150,11 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         res.end(JSON.stringify(OPENAI_MODELS_BODY))
         return
       }
+      if (path === '/moonshot/v1/models') {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ object: 'list', data: [{ id: 'kimi-k3', object: 'model', owned_by: 'moonshot', context_length: 1048576 }] }))
+        return
+      }
       if (path === '/localsrv/v1/models') {
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(JSON.stringify({ data: [{ id: 'qwen3-32b', object: 'model', owned_by: 'vllm', max_model_len: 131072 }] }))
@@ -242,7 +247,7 @@ const { createUserMessage, createAssistantMessage } = await import('../../src/ut
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
 const { isDeferredTool, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
 const { GLM_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/zai.ts')
-const { KIMI_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/moonshot.ts')
+const { moonshotCatalogueEntries } = await import('../../src/utils/router/providers/moonshot.ts')
 const { DEEPSEEK_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/deepseek.ts')
 const { HUGGINGFACE_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/huggingface.ts')
 const { getDeferredToolsDeltaAttachment } = await import('../../src/utils/attachments/deltas.ts')
@@ -267,7 +272,7 @@ const LEGS: Leg[] = [
   { route: 'anthropic-gateway', model: 'claude-sonnet-5', env: { ANTHROPIC_AUTH_TOKEN: 'fixture-token', ANTHROPIC_BASE_URL: base, MERCURY_TOOL_DEFER_PROBE: '1' } },
   { route: 'openai', model: 'gpt-5.6-sol', env: {} },
   { route: 'zai', model: GLM_STATIC_CATALOGUE[0]!.id, env: {} },
-  { route: 'moonshot', model: KIMI_STATIC_CATALOGUE[0]!.id, env: {} },
+  { route: 'moonshot', model: moonshotCatalogueEntries()[0]!.id, env: {} },
   { route: 'deepseek', model: DEEPSEEK_STATIC_CATALOGUE[0]!.id, env: {} },
   { route: 'openai-compat', model: 'compat/qwen-max', env: {} },
   { route: 'openrouter', model: 'openrouter/qwen/qwen3-coder', env: {} },
