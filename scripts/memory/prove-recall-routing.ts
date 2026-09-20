@@ -72,6 +72,7 @@ const pickFromManifest = (body: Body): string[] => {
   return picked
 }
 const captured: Array<{ path: string; body: Body }> = []
+let servedIds: string[] = ['gpt-5.6-sol', 'gpt-5.5']
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   const chunks: Buffer[] = []
   req.on('data', c => chunks.push(c as Buffer))
@@ -96,6 +97,11 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const wrapped = `Here is my selection:\n\`\`\`json\n${JSON.stringify({ selected_memories: picked })}\n\`\`\`\nHope that helps.`
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       res.end(responsesSse(wrapped))
+      return
+    }
+    if (req.method === 'GET' && path.endsWith('/models')) {
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ object: 'list', data: servedIds.map(id => ({ id, object: 'model' })) }))
       return
     }
     res.writeHead(404, { 'content-type': 'application/json' })
@@ -133,6 +139,7 @@ enableConfigs()
 const { findRelevantMemories } = await import('../../src/memdir/findRelevantMemories.js')
 const { getDefaultSonnetModel, normalizeModelStringForAPI } = await import('../../src/utils/model/model.js')
 const { providerLightFact } = await import('../../src/utils/model/providerFrontier.js')
+const { __resetOpenaiCatalogueForTest, refreshOpenaiCatalogue } = await import('../../src/services/providers/openai/openaiCatalogue.js')
 
 console.log('============================================================')
 console.log(' recall rides the session family — driven routing proof')
@@ -157,6 +164,8 @@ section('§1 anthropic session → the anthropic dialect, sonnet-class light own
 section('§2 openai session → the family\'s OWN wire, light fact, tolerant decode')
 {
   process.env.MERCURY_MODEL = 'gpt-5.6-sol'
+  __resetOpenaiCatalogueForTest()
+  await refreshOpenaiCatalogue('api-key', { force: true })
   const before = captured.length
   const got = await findRelevantMemories(QUERY, memoryDir, new AbortController().signal)
   const hit = captured[before]
@@ -164,8 +173,22 @@ section('§2 openai session → the family\'s OWN wire, light fact, tolerant dec
   check('it landed on /responses (the openai dialect — no cross-family hop)', hit?.path.endsWith('/responses') === true, hit?.path)
   const wireModel = String(hit?.body.model ?? '')
   const light = providerLightFact('openai')?.modelId ?? '(none)'
-  check('the wire model is the openai LIGHT fact (grammar-derived, never an Anthropic id)', wireModel === light && !wireModel.startsWith('claude'), `${wireModel} vs ${light}`)
+  check('the wire model is the openai LIGHT fact — the plain row the live list serves below the frontier (gpt-5.5), never an Anthropic id', wireModel === light && wireModel === 'gpt-5.5', `${wireModel} vs ${light}`)
   check('the fenced/prose-wrapped selection still decoded (tolerant ladder)', got.length === 1 && got[0]!.path.endsWith('undici-pairing.md'), JSON.stringify(got.map(g => g.path)))
+}
+
+section('§2b openai session whose live list serves no plain row → the session\'s own model, never a typed row')
+{
+  process.env.MERCURY_MODEL = 'gpt-5.6-sol'
+  servedIds = ['gpt-5.6-sol']
+  __resetOpenaiCatalogueForTest()
+  await refreshOpenaiCatalogue('api-key', { force: true })
+  const before = captured.length
+  await findRelevantMemories(QUERY, memoryDir, new AbortController().signal)
+  const hit = captured[before]
+  const wireModel = String(hit?.body.model ?? '')
+  check('the wire model is the session model itself (gpt-5.6-sol): no typed gpt-5.5, no Anthropic id', wireModel === 'gpt-5.6-sol', wireModel)
+  servedIds = ['gpt-5.6-sol', 'gpt-5.5']
 }
 
 section('§3 a signed-out family degrades honestly — empty, no cross-family fallback')

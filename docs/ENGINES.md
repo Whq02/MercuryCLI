@@ -89,6 +89,18 @@ straight twin, since none of those ever wants one; a field that carries
 content or prose — a Write's content, an Edit's new text, a Workshop cell —
 stays exactly as typed, and every other wire carries every byte as typed.
 
+A session's side jobs — the chat's title, the away summary, the tool-use
+summaries, the state read, the feedback card, a prompt hook's default model,
+the date parser and the fetch tool's summary — ride the session's own family
+on its helper tier. On the Anthropic lane that is the small family default
+(`MERCURY_SMALL_FAST_MODEL` pins it). On a GPT session it is the cheapest
+text model the account's live list serves, by the prices the GPT table
+records (a mini or nano row when the list serves one); no id the list lacks
+is ever asked for, and while the list has not answered, or serves no priced
+row, the side job runs on the session's own model. The hook agent's tier
+follows the same rule: the newest plain GPT row the list serves below the
+frontier, else the session's own model.
+
 Each wire carries its provider's documented quirks, the same pins the wire
 sends from: reasoning-effort vocabularies, sampling restrictions
 (the Kimi reasoning models fix their sampling, so that lane never sends
