@@ -33,4 +33,9 @@ How a version moves: work lands on `working`; a release folds `working` into
 `main`, runs the local pool, then one hosted gate run; the verdict is recorded
 in `scripts/gate/gate-ledger.jsonl`; the tag is cut on the release home
 (github.com/Whq02/MercuryCLI) and the release workflow builds and publishes
-the archives.
+the archives. Before the tag, `bun scripts/ops/check-typed-model-ids.ts` runs
+in the release owner's own shell: it reads the signed-in credentials through
+Mercury's own resolvers (never printing one), fetches every model list they
+can reach and prints one line per typed model id — served, not served, or the
+family's list unreachable — exiting non-zero on any typed id a fetched list
+does not serve; it writes nothing under the config home.
