@@ -42,6 +42,30 @@ function savedDefaultRoad(resolved: string): boolean {
   return typeof saved === 'string' && saved.trim() !== '' && parseUserSpecifiedModel(saved) === resolved
 }
 
+export function settledCatalogueRefusal(family: string): string | null {
+  if (family === 'gemini') {
+    const { getGeminiAvailability } = require('../providers/gemini/geminiCatalogue.js') as typeof import('../providers/gemini/geminiCatalogue.js')
+    const a = getGeminiAvailability()
+    return a.state === 'disabled' && a.why === 'auth-invalid' ? a.reason : null
+  }
+  if (family === 'openai') {
+    const { getGptSeatAvailability } = require('../providers/openai/openaiCatalogue.js') as typeof import('../providers/openai/openaiCatalogue.js')
+    const a = getGptSeatAvailability()
+    return a.state === 'disabled' && a.why === 'auth-expired' ? a.reason : null
+  }
+  if (family === 'openrouter') {
+    const { getOpenrouterAvailability } = require('../providers/openrouter/openrouterCatalogue.js') as typeof import('../providers/openrouter/openrouterCatalogue.js')
+    const a = getOpenrouterAvailability()
+    return a.state === 'disabled' && a.why === 'auth-invalid' ? a.reason : null
+  }
+  if (family === 'huggingface') {
+    const { getHuggingfaceAvailability } = require('../providers/huggingface/huggingfaceCatalogue.js') as typeof import('../providers/huggingface/huggingfaceCatalogue.js')
+    const a = getHuggingfaceAvailability()
+    return a.state === 'disabled' && a.why === 'auth-invalid' ? a.reason : null
+  }
+  return null
+}
+
 function birthModelForSignedInFamily(resolved: string | undefined, screenRoad: boolean): { setting: string | undefined; receipt: string | null } {
   if (resolved === undefined || !screenRoad) return { setting: resolved, receipt: null }
   try {
@@ -55,18 +79,12 @@ function birthModelForSignedInFamily(resolved: string | undefined, screenRoad: b
         : { setting: decision.setting, family: decision.provider, row: decision.row }
     const family = declaredRouteOf(resolved)
     const considered = family !== null ? decision.considered.find(c => c.family === family) : undefined
-    const familyReason =
-      family === 'gemini'
-        ? ((require('../providers/gemini/geminiCatalogue.js') as typeof import('../providers/gemini/geminiCatalogue.js')).getGeminiAvailability() as { reason?: string }).reason ?? null
-        : considered !== undefined && considered.verdict.usable === false
-          ? considered.verdict.why
-          : null
+    const refusal = considered === undefined || family === null ? null : settledCatalogueRefusal(family)
     const swap = birthFallbackModel(resolved, {
       family,
       familyWord: family ?? resolved,
       hasCredential: considered !== undefined,
-      familyUsable: considered?.verdict.usable === true,
-      familyReason,
+      refusal,
       fallback,
       providerName: providerDisplayName,
     })
