@@ -100,7 +100,7 @@ console.log(' /accounts honesty — one derivation per claim')
 console.log('============================================================')
 
 const SCOPE_DIR = '/fixture/home'
-const scopeSlot = (authed: boolean, claudeFamily = false): AccountSlot => ({
+const scopeSlot = (authed: boolean, foreignHarness = false): AccountSlot => ({
   family: 'anthropic',
   id: SCOPE_DIR,
   name: 'primary',
@@ -110,8 +110,8 @@ const scopeSlot = (authed: boolean, claudeFamily = false): AccountSlot => ({
   active: true,
   envPinned: false,
   signedIn: authed,
-  scope: { name: 'primary', dir: SCOPE_DIR, isCurrent: true, hasConfig: true, authed, claudeFamily, ...(authed ? { email: 'stale@fixture.example', uuid: 'uuid-fixture' } : {}) },
-  removal: claudeFamily ? { route: 'excluded', note: 'x' } : { route: 'anthropic-oauth', dir: SCOPE_DIR },
+  scope: { name: 'primary', dir: SCOPE_DIR, isCurrent: true, hasConfig: true, authed, foreignHarness, ...(authed ? { email: 'stale@fixture.example', uuid: 'uuid-fixture' } : {}) },
+  removal: foreignHarness ? { route: 'excluded', note: 'x' } : { route: 'anthropic-oauth', dir: SCOPE_DIR },
 })
 const keySlot = (family: string, envPinned: boolean): AccountSlot => ({
   family,

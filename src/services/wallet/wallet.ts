@@ -65,7 +65,7 @@ function composeWalletEntries(): WalletEntry[] {
   const entries: WalletEntry[] = []
 
   for (const scope of scanAccountScopes()) {
-    if (scope.claudeFamily || !scope.authed) continue
+    if (scope.foreignHarness || !scope.authed) continue
     entries.push({
       id: `anthropic:oauth:${scope.name}`,
       provider: 'anthropic',
@@ -246,7 +246,7 @@ function composeActiveWalletEntry(provider: WalletProvider): WalletEntry | undef
     )
   }
   const scopes = scanAccountScopes()
-  const current = scopes.find(s => s.isCurrent && s.authed && !s.claudeFamily)
+  const current = scopes.find(s => s.isCurrent && s.authed && !s.foreignHarness)
   if (current) {
     return entries.find(e => e.id === `anthropic:oauth:${current.name}`)
   }

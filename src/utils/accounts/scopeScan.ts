@@ -1,6 +1,6 @@
 
 import { existsSync, readFileSync } from 'node:fs'
-import { basename, join, resolve } from 'node:path'
+import { basename, dirname, resolve } from 'node:path'
 import { globalConfigFileIn } from '../env.js'
 import { getMercuryHome } from '../envUtils.js'
 
@@ -14,12 +14,17 @@ export type AccountScope = {
   authed: boolean
   email?: string
   uuid?: string
-  claudeFamily: boolean
+  foreignHarness: boolean
 }
 
-export function isClaudeFamilyDir(dir: string): boolean {
-  const base = basename(dir.replace(/[\\/]+$/, ''))
-  return base === '.claude' || base.startsWith('.claude-')
+const FOREIGN_HARNESS_HOMES = new Set(['.claude', '.codex', '.gemini', '.copilot', '.cursor', '.kiro', '.cline', '.continue', '.qwen', '.pi', '.omp'])
+const FOREIGN_HARNESS_CONFIG_HOMES = new Set(['opencode', 'amp', 'goose'])
+export function isForeignHarnessDir(dir: string): boolean {
+  const trimmed = dir.replace(/[\\/]+$/, '')
+  const base = basename(trimmed)
+  const parent = basename(dirname(trimmed))
+  if ([base, parent].some(s => FOREIGN_HARNESS_HOMES.has(s) || s.startsWith('.claude-'))) return true
+  return parent === '.config' && FOREIGN_HARNESS_CONFIG_HOMES.has(base)
 }
 
 export function readScopeIdentity(configFile: string): ScopeIdentity {
@@ -84,7 +89,7 @@ export function scanAccountScopes(reads: ScopeAuthReads = {}): AccountScope[] {
       dir,
       isCurrent: true,
       hasConfig: existsSync(globalConfigFileIn(dir)),
-      claudeFamily: isClaudeFamilyDir(dir),
+      foreignHarness: isForeignHarnessDir(dir),
       ...probeScopeAuth(dir, reads),
     },
   ]

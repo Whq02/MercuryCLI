@@ -79,7 +79,7 @@ section('§D masked tails — planted long keys never surface beyond last-four')
 {
   const KEY = (name: string): string => `sk-${name}-SECRETBODY-0123456789abcdef-${name}TAIL`
   const reads: import('../../src/services/providers/accountSlots.ts').AccountSlotReads = {
-    scanScopes: () => [{ name: 'primary', dir: process.env.MERCURY_CONFIG_DIR!, isCurrent: true, hasConfig: false, claudeFamily: false, authed: true }] as never,
+    scanScopes: () => [{ name: 'primary', dir: process.env.MERCURY_CONFIG_DIR!, isCurrent: true, hasConfig: false, foreignHarness: false, authed: true }] as never,
     anthropicApiKey: () => ({ key: KEY('anthropic'), source: 'apiKeyHelper' as never }),
     zaiEnvKey: () => KEY('zai'),
     openrouterEnvKey: () => KEY('openrouter'),
