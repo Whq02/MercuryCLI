@@ -240,8 +240,9 @@ function childOf(parentPid: number): number | null {
 function registrationFor(pid: number): { path: string; record: Record<string, unknown> } | null {
   const dir = join(home, 'processes')
   if (!existsSync(dir)) return null
+  const registrationName = new RegExp(`^cockpit-${pid}-[0-9a-f-]+\\.json$`)
   for (const name of readdirSync(dir)) {
-    if (name.startsWith(`cockpit-${pid}-`)) {
+    if (registrationName.test(name)) {
       const path = join(dir, name)
       return { path, record: JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown> }
     }
@@ -383,7 +384,10 @@ try {
     windowPid = childOf(windowScript.pid!) ?? 0
     return windowPid > 0
   }, 20000)
-  check('the second cockpit registers itself', await waitFor('the window registration', () => registrationFor(windowPid) !== null, 90000))
+  const writerTemp = join(home, 'processes', `cockpit-${windowPid}-${randomUUID()}.json.${windowPid}.tmp`)
+  writeFileSync(writerTemp, '')
+  check('the second cockpit registers itself, read past the writer\'s empty temp file beside its registration', await waitFor('the window registration', () => registrationFor(windowPid) !== null, 90000))
+  rmSync(writerTemp, { force: true })
   process.kill(windowPid, 'SIGSTOP')
   process.kill(windowScript.pid!, 'SIGKILL')
   await sleep(700)
