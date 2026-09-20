@@ -154,6 +154,7 @@ export function completeMainSessionTask(
 <${SUMMARY_TAG}>${escapeXml(summary)}</${SUMMARY_TAG}>
 </${TASK_NOTIFICATION_TAG}>`,
       mode: 'task-notification',
+      priority: 'next',
     })
   } else {
     let flipped = false

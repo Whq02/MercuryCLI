@@ -618,9 +618,11 @@ Completions that land while the session waits between turns fold into one
 turn. The runner holds the first for the task poll's second and carries every
 completion that has arrived by then in one message, one block each, so a
 burst of background commands ending together costs one turn, not one per
-command. A completion that lands during a turn is read as soon as that turn
-ends, together with any queued beside it. The chat paints the carried message
-as one counted row, exactly as it paints a run of separate notices.
+command. A completion that lands during a turn reaches the model at that
+turn's next tool boundary, as a note beside the tool's result; one the turn
+has not read by its end is read as soon as the turn ends, together with any
+queued beside it. The chat paints the carried message as one counted row,
+exactly as it paints a run of separate notices.
 
 ## Where the pieces live
 
