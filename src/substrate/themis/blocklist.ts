@@ -73,7 +73,7 @@ export const BLOCKLIST: readonly BlocklistEntry[] = [
     id: 'git-hooks-path',
     category: 'git-hooks-path',
     rationale: 'setting core.hooksPath redirects git hooks to an untrusted directory (a bare read stays clear)',
-    pattern: /\bgit\s+config\b(?![^\n]*\s(?:--get|--get-all|--list|-l)\b)(?:[^\n]*\s(?:--add|--unset|--replace-all|--edit|--file)\b[^\n]*\bcore\.hooksPath\b|[^\n]*\bcore\.hooksPath\s+(?!\d*[<>])[^\s<>|&;)]+)/,
+    pattern: /\bgit\s+config\b(?![^\n]*\s(?:--get|--get-all|--list|-l)\b)(?:[^\n]*\s(?:--add|--unset|--replace-all|--edit|--file)\b[^\n]*\bcore\.hooksPath\b|[^\n]*\bcore\.hooksPath[^\S\n]+(?!\d*[<>])[^\s<>|&;)]+)/,
   },
   {
     id: 'git-internals-write',
