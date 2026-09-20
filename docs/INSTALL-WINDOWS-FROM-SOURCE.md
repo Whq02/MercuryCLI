@@ -320,31 +320,24 @@ environmental and the verdict is unaffected. To run a single check, name it:
 `node dist\mercury.mjs doctor --only <check-id>` (the ids are the `id` fields
 in the JSON).
 
-The Windows leg of the process sweep lives in
-`src/daemon/processSweepWindows.ts`. `collectWindowsProcesses()` reads every
-process through CIM (no third-party module): real executable path, arguments,
-birth time and token, owner SID, and the terminal facts — the Win32 session id,
-whether a console window is attached, and whether that logon session is still
-connected. A process whose console host is still alive reads as having a live
-terminal; one with no console does not, whatever its session; when the
-console cannot be read, a connected interactive session counts as live and a
-disconnected one leaves the read unknown. An unknown read stays `null` and is
-never permission to stop anything, and a failed table reads `complete: false`
-rather than an empty success.
-`signalWindowsProcess(expected, force)` is the platform's stop for the shared
-sweep owner: it holds the target's process handle, refuses a process that is
-not the current user's, rechecks pid, birth, executable and user against
-`expected`, refuses a live or unknown terminal, re-reads all of that once more
-immediately before acting, then runs `taskkill /PID` (with `/F` when forced)
-against that one process — never a tree, never a bare parent relation. On
-Windows the polite stop reaches only a process with a window: for a
-console-less one `taskkill` answers that it can only be ended forcefully, and
-the signal reports that as `sent: false` with the reason, so the shared owner
-moves to its forced rung. A stop whose receipt is lost answers `sent: false`
-with a reason that says the outcome is unknown. A console counts as attached when the process still has
-one to attach to, which on Windows means its host (a console window or a
-pseudoconsole) is still alive. Nothing here ends a process on its own or adds
-a doctor row; the shared owner decides, on request.
+On Windows the process sweep reads every process through the system's own
+management interface (no third-party module): the real executable path, the
+arguments, the birth time and token, the owning account, and the terminal
+facts (the session, whether a console window is attached, and whether that
+logon session is still connected). A process whose console host is alive reads
+as having a live terminal; one with no console does not, whatever its session;
+when the console cannot be read, a connected interactive session counts as
+live and a disconnected one leaves the read unknown. An unknown read is never
+permission to end anything, and a failed table is reported as incomplete
+rather than as an empty success. Ending a process re-checks its pid, birth,
+executable and account against what was reviewed, refuses a process that is
+not the current user's or whose terminal is live or unknown, re-reads all of
+that once more immediately before acting, and then ends that one process,
+never a tree and never by a parent relation, forcibly only when the polite
+stop is impossible: Windows lets a polite stop reach only a process with a
+window, so a console-less one is reported as needing the forced stop, and a
+stop whose receipt is lost is reported as unknown. Nothing here ends a process
+on its own; the doctor's action decides, on request.
 
 Start Mercury (needs the 100-column window from step 1):
 
