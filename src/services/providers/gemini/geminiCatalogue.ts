@@ -296,10 +296,10 @@ export function geminiGenerateModels(snapshot: GeminiCatalogueSnapshot | null): 
 
 export function geminiCredentialRefusedReason(account: Pick<GeminiAccountRef, 'kind' | 'keySource'>, status: number | undefined): string {
   const http = status === undefined ? '' : ` (HTTP ${status})`
-  if (account.kind === 'oauth') return `the Google account's token was refused${http} — /logins re-connects`
-  if (account.keySource === 'env-google') return `the Gemini API key from GOOGLE_API_KEY was refused${http} — update GOOGLE_API_KEY`
-  if (account.keySource === 'env-gemini') return `the Gemini API key from GEMINI_API_KEY was refused${http} — update GEMINI_API_KEY`
-  return `the stored Gemini API key was refused${http} — /logins replaces it`
+  if (account.kind === 'oauth') return `the Google account's token was refused${http} · /logins re-connects`
+  if (account.keySource === 'env-google') return `the Gemini API key from GOOGLE_API_KEY was refused${http} · update GOOGLE_API_KEY`
+  if (account.keySource === 'env-gemini') return `the Gemini API key from GEMINI_API_KEY was refused${http} · update GEMINI_API_KEY`
+  return `the stored Gemini API key was refused${http} · /logins replaces it`
 }
 
 function httpStatusIn(message: string): number | undefined {

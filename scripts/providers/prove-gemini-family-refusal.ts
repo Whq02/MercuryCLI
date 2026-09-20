@@ -71,7 +71,7 @@ try {
         check(`${arm} HTTP ${code}: a refused catalogue is not a missing credential`, !family.ok && !family.reason.startsWith('no-credential:'), family)
         check(`${arm} HTTP ${code}: the refusal retains the catalogue reason`, !family.ok && family.reason === `not-runnable:${code === 500 ? 'catalogue-error' : 'auth-invalid'}`, family)
         if (code === 500) check(`${arm}: an unreachable catalogue offers a retry`, !family.ok && /retry/.test(family.action ?? ''), family)
-        if (code !== 500) check(`${arm} HTTP ${code}: the refusal names the Google account and the status`, !family.ok && family.detail === `the Google account's token was refused (HTTP ${code}) — /logins re-connects`, family)
+        if (code !== 500) check(`${arm} HTTP ${code}: the refusal names the Google account and the status`, !family.ok && family.detail === `the Google account's token was refused (HTTP ${code}) · /logins re-connects`, family)
         if (arm === 'session' && code === 403) {
           const lines = await debugLines()
           const refusals = lines.filter(line => line.includes('HTTP 403'))
@@ -130,7 +130,7 @@ try {
     resetComputedDefaultMemo()
     const keyRefusal = await validateWorkerModelChoice('gemini', 'session')
     check(`API key HTTP ${code}: a present key keeps the authentication refusal`, !keyRefusal.ok && keyRefusal.reason === 'not-runnable:auth-invalid', keyRefusal)
-    check(`API key HTTP ${code}: the refusal names GOOGLE_API_KEY and the status`, !keyRefusal.ok && keyRefusal.detail === `the Gemini API key from GOOGLE_API_KEY was refused (HTTP ${code}) — update GOOGLE_API_KEY`, keyRefusal)
+    check(`API key HTTP ${code}: the refusal names GOOGLE_API_KEY and the status`, !keyRefusal.ok && keyRefusal.detail === `the Gemini API key from GOOGLE_API_KEY was refused (HTTP ${code}) · update GOOGLE_API_KEY`, keyRefusal)
   }
   const keyLines = (await debugLines()).filter(line => line.includes('source=Gemini API key (GOOGLE_API_KEY env)'))
   check('the key refusals write debug lines naming the env key source, never the key', keyLines.length === 2 && keyLines.every(line => !line.includes('fixture-key') && line.includes('«masked»')), keyLines)
