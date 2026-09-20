@@ -121,9 +121,25 @@ writeFileSync(join(output, 'wire.json'), JSON.stringify(fixture.captured, null, 
 const captured = existsSync(cfg.out) ? JSON.parse(readFileSync(cfg.out, 'utf8')) as { marks?: Array<{ label: string; grid: Array<Array<{ c: string }>> }> } : {}
 const receipt = captured.marks?.find(mark => mark.label === 'receipt')
 const text = receipt?.grid.map(row => row.map(cell => cell.c).join('')).join(' ').replace(/\s+/g, ' ') ?? ''
-const mainRequest = fixture.captured.find(request => request.dialect === 'responses')
-const results = (mainRequest?.body.input as Array<{ type?: string; output?: string }> | undefined)?.filter(item => item.type === 'function_call_output') ?? []
-const success = exit === 0 && text.includes('context size') && text.includes('prune threshold 40%') && text.includes('pruned 11') && text.includes('superseded tool results') && results.length === 16 && results.filter(item => item.output?.startsWith('[stale tool result')).length === 11 && fixture.refusals.length === 0
+type ResponsesItem = { type?: string; output?: string }
+const inputItems = (request: { body: Record<string, unknown> }): ResponsesItem[] => (Array.isArray(request.body.input) ? (request.body.input as ResponsesItem[]) : [])
+const outputsOf = (request: { body: Record<string, unknown> }): ResponsesItem[] => inputItems(request).filter(item => item.type === 'function_call_output')
+const turnRequests = fixture.captured.filter(request => request.dialect === 'responses' && outputsOf(request).length > 0)
+const results = turnRequests[0] === undefined ? [] : outputsOf(turnRequests[0])
+const stale = results.filter(item => item.output?.startsWith('[stale tool result')).length
+const checks: Array<[string, boolean]> = [
+  ['the capture exited 0', exit === 0],
+  ['the receipt names the context size', text.includes('context size')],
+  ['the receipt names the prune threshold', text.includes('prune threshold 40%')],
+  ['the receipt counts eleven pruned results', text.includes('pruned 11')],
+  ['the receipt names superseded tool results', text.includes('superseded tool results')],
+  ["one Responses request carries the turn's sixteen tool results (the session's helper calls carry none)", turnRequests.length === 1 && results.length === 16],
+  ['eleven of the sixteen ride as stale placeholders', stale === 11],
+  ['the fixture refused nothing', fixture.refusals.length === 0],
+]
+const success = checks.every(([, ok]) => ok)
 console.log(`[${success ? 'PASS' : 'FAIL'}] the real chat displays the proactive-prune receipt at ${cols}x${height}`)
-console.log(JSON.stringify({ exit, requests: fixture.captured.length, home, output, marks: captured.marks?.map(mark => mark.label), stderr }))
+for (const [name, ok] of checks) if (!ok) console.log(`  [FAIL] ${name}`)
+console.log(JSON.stringify({ exit, requests: fixture.captured.map(request => ({ dialect: request.dialect, path: request.path, input: inputItems(request).length, outputs: outputsOf(request).length })), home, output, marks: captured.marks?.map(mark => mark.label), stderr }))
+if (!success) console.log(`  [receipt] ${text.slice(0, 600)}`)
 process.exit(success ? 0 : 1)
