@@ -455,6 +455,19 @@ console.log('native-core T13/T14 — input-scheduling contract')
   const query = readFileSync(join(repoRoot, 'src/query.ts'), 'utf8')
   const promptInput = readFileSync(join(repoRoot, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
 
+  const localShell = readFileSync(join(repoRoot, 'src/tasks/LocalShellTask/LocalShellTask.tsx'), 'utf8')
+  const localMainSession = readFileSync(join(repoRoot, 'src/tasks/LocalMainSessionTask.ts'), 'utf8')
+  const localAgent = readFileSync(join(repoRoot, 'src/tasks/LocalAgentTask/LocalAgentTask.tsx'), 'utf8')
+  const runner = readFileSync(join(repoRoot, 'src/cli/print.ts'), 'utf8')
+  check("lock: a background shell command's completion notice rides the 'next' band, so it drains at the next tool boundary (no Sleep, no turn end)",
+    localShell.includes("mode: 'task-notification',\n    priority: 'next',") && !localShell.includes("priority: agentId !== undefined ? 'next' : 'later'"))
+  check("lock: a background session's completion notice rides the 'next' band too",
+    localMainSession.includes("mode: 'task-notification',\n      priority: 'next',"))
+  check("lock: the sub-agent completion notice already rode the 'next' band (unchanged)",
+    localAgent.includes("mode: 'task-notification',\n    priority: 'next',"))
+  check("lock: the runner speaks one task_notification frame per completion on the drain road too — a main-thread notice the mid-turn drain consumed, never one the runner retired itself",
+    runner.includes('subscribeQueueConsumption(event => {') && runner.includes("if (event.kind !== 'removed' || retiringQueuedCommands) return") && runner.includes("if (drained.mode !== 'task-notification' || drained.agentId !== undefined) continue") && runner.includes('emitTaskNotificationFrames(taskNotificationPayloads(drained))') && runner.includes('emitTaskNotificationFrames(taskNotificationPayloads(command))'))
+
   check('lock: REPL registers the chokepoint interceptors (intercept + re-pin gate + active flip)',
     repl.includes('pendingInput.registerInterceptors({')
       && repl.includes('interceptSuggestion: () => false')

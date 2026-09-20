@@ -193,6 +193,7 @@ import {
   holdQueuedWordsForTurnEnd,
 } from '../utils/messageQueueManager.js'
 import type { QueuedCommand } from '../types/textInputTypes.js'
+import { subscribeQueueConsumption } from '../input-core/command-queue.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
 import { agentRecipientState, MAIN_THREAD_AGENT, noticeDeadlineMs, noticeRecipientTask, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
 import { noticeRows, type NoticeRecord } from '../services/notices/unreadLedger.js'
@@ -1121,42 +1122,7 @@ export async function runHeadless(
     batchUuids: string[],
     onMessage: (message: StdoutMessage) => void,
   ): Promise<void> => {
-    for (const payload of taskNotificationPayloads(command)) {
-      const pick = (tag: string): string | undefined => {
-        const match = payload.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))
-        return match?.[1]?.trim()
-      }
-      const statusRaw = pick('status')
-      if (statusRaw !== undefined) {
-        const normalized = ['completed', 'failed', 'stopped', 'killed'].includes(statusRaw)
-          ? statusRaw === 'killed'
-            ? 'stopped'
-            : statusRaw
-          : 'completed'
-        const totalTokens = Number(pick('total-tokens') ?? pick('total_tokens'))
-        const toolUses = Number(pick('tool-uses') ?? pick('tool_uses'))
-        io.outbound.enqueue({
-          type: 'system',
-          subtype: 'task_notification',
-          task_id: pick('task-id') ?? pick('task_id') ?? '',
-          ...(pick('tool-use-id') !== undefined ? { tool_use_id: pick('tool-use-id') } : {}),
-          output_file: pick('output-file') ?? pick('output_file') ?? '',
-          status: normalized,
-          summary: pick('summary') ?? '',
-          ...(Number.isFinite(totalTokens) && Number.isFinite(toolUses)
-            ? {
-                usage: {
-                  total_tokens: totalTokens,
-                  tool_uses: toolUses,
-                  duration_ms: Number(pick('duration-ms') ?? pick('duration_ms')) || 0,
-                },
-              }
-            : {}),
-          uuid: randomUUID(),
-          session_id: getSessionId(),
-        })
-      }
-    }
+    emitTaskNotificationFrames(taskNotificationPayloads(command))
     abortSuggestion()
     if (lastEmittedSuggestion && command.mode !== 'task-notification') {
       const value = command.value
@@ -1464,6 +1430,62 @@ export async function runHeadless(
     }
   }
 
+  const emitTaskNotificationFrames = (payloads: readonly string[]): void => {
+    for (const payload of payloads) {
+      const pick = (tag: string): string | undefined => {
+        const match = payload.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))
+        return match?.[1]?.trim()
+      }
+      const statusRaw = pick('status')
+      if (statusRaw !== undefined) {
+        const normalized = ['completed', 'failed', 'stopped', 'killed'].includes(statusRaw)
+          ? statusRaw === 'killed'
+            ? 'stopped'
+            : statusRaw
+          : 'completed'
+        const totalTokens = Number(pick('total-tokens') ?? pick('total_tokens'))
+        const toolUses = Number(pick('tool-uses') ?? pick('tool_uses'))
+        io.outbound.enqueue({
+          type: 'system',
+          subtype: 'task_notification',
+          task_id: pick('task-id') ?? pick('task_id') ?? '',
+          ...(pick('tool-use-id') !== undefined ? { tool_use_id: pick('tool-use-id') } : {}),
+          output_file: pick('output-file') ?? pick('output_file') ?? '',
+          status: normalized,
+          summary: pick('summary') ?? '',
+          ...(Number.isFinite(totalTokens) && Number.isFinite(toolUses)
+            ? {
+                usage: {
+                  total_tokens: totalTokens,
+                  tool_uses: toolUses,
+                  duration_ms: Number(pick('duration-ms') ?? pick('duration_ms')) || 0,
+                },
+              }
+            : {}),
+          uuid: randomUUID(),
+          session_id: getSessionId(),
+        })
+      }
+    }
+  }
+
+  let retiringQueuedCommands = false
+  const retireQueuedCommands = (commands: QueuedCommand[]): void => {
+    retiringQueuedCommands = true
+    try {
+      removeQueuedCommands(commands)
+    } finally {
+      retiringQueuedCommands = false
+    }
+  }
+  const stopDrainedNotificationFrames = subscribeQueueConsumption(event => {
+    if (event.kind !== 'removed' || retiringQueuedCommands) return
+    for (const drained of event.commands) {
+      if (drained.mode !== 'task-notification' || drained.agentId !== undefined) continue
+      emitTaskNotificationFrames(taskNotificationPayloads(drained))
+    }
+  })
+
   const driver: TurnDriver = createTurnDriver({
     dequeue: takeMainThread,
     peek: () => {
@@ -1547,6 +1569,7 @@ export async function runHeadless(
       await finalizePendingAsyncHooks().catch(() => {})
       skillChangeDetector.dispose()
       disarmAgentFreshness()
+      stopDrainedNotificationFrames()
       statusListeners.delete(rateLimitListener)
       notePrintPhase('flush_exit')
       logForDebugging(`[print-phases] ${jsonStringify(printPhaseReport(getTotalAPIDuration()))}`)
@@ -1604,12 +1627,12 @@ export async function runHeadless(
       const carriers = carriersOf(notices)
       const bodies = carriers.map(command => (typeof command.value === 'string' ? command.value : '')).filter(body => body !== '')
       if (!injectUserMessageToTeammate(task.id, nudgeWords(notices, waitedMs, bodies), setAppState)) return false
-      if (carriers.length > 0) removeQueuedCommands(carriers)
+      if (carriers.length > 0) retireQueuedCommands(carriers)
       return true
     },
     discard: notices => {
       const carriers = carriersOf(notices)
-      if (carriers.length > 0) removeQueuedCommands(carriers)
+      if (carriers.length > 0) retireQueuedCommands(carriers)
     },
   })
 
@@ -2140,7 +2163,7 @@ export async function runHeadless(
         case 'cancel_async_message': {
           const uuid = request.message_uuid
           const matching = getCommandQueue().filter(command => command.uuid === uuid)
-          if (matching.length > 0) removeQueuedCommands(matching)
+          if (matching.length > 0) retireQueuedCommands(matching)
           const removed = matching.length > 0
           respondSuccess(requestId, { cancelled: Boolean(removed) })
           return
