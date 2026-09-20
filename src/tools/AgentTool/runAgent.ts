@@ -1035,7 +1035,7 @@ export async function* runAgent(
         anyMessage.type === 'user' ||
         anyMessage.type === 'progress' ||
         (anyMessage.type === 'system' &&
-          (subtype === 'compact_boundary' || subtype === 'informational' || subtype === 'api_error'))
+          (subtype === 'compact_boundary' || subtype === 'informational' || subtype === 'api_error' || subtype === 'stream_cut' || subtype === 'busy_recovery'))
       if (!recordable) continue
 
       await landAgentTranscriptRows(
