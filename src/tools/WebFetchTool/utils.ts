@@ -263,6 +263,8 @@ export async function applyPromptToMarkdown(
     const first = response.message.content[0]
     return first?.type === 'text' ? first.text : null
   }
+  const refusalOf = (response: Awaited<ReturnType<typeof querySmallFast>>): string | null =>
+    response.isApiErrorMessage === true ? (textOf(response) ?? 'the reply carried no text') : null
   const reasonOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
   const idOf = (fn: () => string): string => {
     try {
@@ -277,7 +279,9 @@ export async function applyPromptToMarkdown(
   try {
     const response = await small({ systemPrompt: asSystemPrompt([]), userPrompt, signal, options: baseOptions })
     if (signal.aborted) throw new AbortError()
-    return textOf(response) ?? 'No response from model'
+    const refusal = refusalOf(response)
+    if (refusal === null) return textOf(response) ?? 'No response from model'
+    primaryReason = refusal
   } catch (error) {
     if (signal.aborted || error instanceof AbortError) throw new AbortError()
     primaryReason = reasonOf(error)
@@ -289,9 +293,10 @@ export async function applyPromptToMarkdown(
     try {
       const response = await withModel({ systemPrompt: asSystemPrompt([]), userPrompt, signal, options: { ...baseOptions, model: fallbackModel } })
       if (signal.aborted) throw new AbortError()
-      const text = textOf(response)
+      const refusal = refusalOf(response)
+      const text = refusal === null ? textOf(response) : null
       if (text !== null) return text
-      fallbackReason = 'the reply carried no text'
+      fallbackReason = refusal ?? 'the reply carried no text'
     } catch (error) {
       if (signal.aborted || error instanceof AbortError) throw new AbortError()
       fallbackReason = reasonOf(error)

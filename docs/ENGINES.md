@@ -321,7 +321,11 @@ fetch runs under Mercury's own URL validation and the hostname-scoped
 permission gate alone. A keyless home searches — and fetches — with zero
 first-party requests and zero model calls; a prompted fetch's extraction
 leg is the one model call, and it rides the session's own family through
-the routed seam, never a first-party hop.
+the routed seam, never a first-party hop. The leg asks the family's helper
+tier first and the session's own model when that fails; a helper that
+answers an API error is a failed leg, never the summary, and only when both
+roads fail does the page come back under a note naming each road and its
+reason.
 
 ## Usability, usage, and readiness
 
