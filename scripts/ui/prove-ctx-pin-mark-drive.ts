@@ -163,6 +163,7 @@ function childEnv(home: string): NodeJS.ProcessEnv {
     MERCURY_MODEL: GPT_ID,
     MERCURY_OPENAI_CHATGPT_BASE: `${base}/chatgpt`,
     MERCURY_OPENAI_API_BASE: `${base}/openai/v1`,
+    MERCURY_OPENAI_AUTH_BASE: 'http://127.0.0.1:9',
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
     ANTHROPIC_API_KEY: '',
     OPENAI_API_KEY: '',
