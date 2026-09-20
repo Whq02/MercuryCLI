@@ -70,6 +70,7 @@ const childEnv: NodeJS.ProcessEnv = {
 }
 
 const standIns: ChildProcess[] = []
+const registeredTokens = new Map<number, string | null>()
 async function standInWindow(): Promise<number> {
   const child = spawn('node', ['-e', 'setInterval(() => {}, 1000000)'], { stdio: 'ignore', detached: true })
   standIns.push(child)
@@ -94,6 +95,7 @@ async function standInWindow(): Promise<number> {
     heartbeatAt: expired.getTime(),
   }, null, 2))
   utimesSync(path, expired, expired)
+  registeredTokens.set(pid, startToken)
   return pid
 }
 const alive = (pid: number): boolean => {
@@ -192,7 +194,7 @@ try {
       entries = []
     }
     const mine = entries.find(entry => entry.process?.pid === standIn)
-    const token = await getProcessStartTokenAsync(standIn)
+    const token = registeredTokens.get(standIn)
     console.log(`  … the stand-in as the headless listing reads it: ${mine === undefined ? `no entry among ${entries.length}` : `${mine.classification} · ${mine.reason} · exe=${mine.process?.exe} · user=${mine.process?.user} · args=${(mine.process?.args ?? []).join(' ').slice(0, 60)} · token=${mine.startToken}`} · reader uid=${typeof process.getuid === 'function' ? process.getuid() : 'n/a'} · registered token=${token}`)
   }
   const rowIndex = Math.max(0, rows.findIndex(r => r.id === 'mercury-processes'))
