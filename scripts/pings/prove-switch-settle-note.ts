@@ -232,7 +232,7 @@ section('§4 the ruled copy and the never-a-bell law (structural)')
   const seatSrc = readFileSync(join(ROOT, 'src', 'daemon', 'sessionSeat.ts'), 'utf8')
   check(
     'the seat STAMPS the receipt where the parked switch lands: the idle edge forwards it as a settle, and the runner\'s applied frame lands a switch the record still parks',
-    seatSrc.includes('{ parked: true, settle: true }') && seatSrc.includes('landModel(rec, model, roster, dir, rec.pendingModelKey === model)') && seatSrc.includes('lastModelSettle = {'),
+    seatSrc.includes('{ parked: true, settle: true }') && seatSrc.includes('landModel(rec, model, roster, dir, rec.pendingModelKey === model, served)') && seatSrc.includes('lastModelSettle = {'),
   )
   check(
     'the publisher carries the stamp on every facts publish',

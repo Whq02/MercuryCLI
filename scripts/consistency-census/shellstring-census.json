@@ -808,6 +808,13 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
+      "file": "scripts/journey/prove-cap-handoff-facts.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const result = spawnSync('/usr/bin/python3', [join(repo, 'scripts/ui/vshot.py'), config], { cwd, env, encoding: 'utf8', timeout: budgetMs })",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
       "file": "scripts/journey/prove-cap-offer-list-live.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf-8', timeout: vshotBudgetMs(total * 200 + 30_000), cwd: world.cw",

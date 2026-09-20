@@ -1243,7 +1243,7 @@ const SEAT_EFFORT_REQUEST_PREFIX = `${SEAT_VERB_REQUEST_PREFIX}set-effort-`
 const SEAT_SPAWN_SWITCH_REQUEST_PREFIX = `${SEAT_VERB_REQUEST_PREFIX}spawn-switch-`
 export const SEAT_VERB_ANSWER_DEADLINE_MS = 5_000
 
-type SeatVerbAnswer = { at: 'now' | 'turn-boundary' } | { refused: string } | { silent: true }
+type SeatVerbAnswer = { at: 'now' | 'turn-boundary'; model?: string } | { refused: string } | { silent: true }
 type SeatVerbWaiter = { short: string; settle: (answer: SeatVerbAnswer) => void }
 const seatVerbWaiters = new Map<string, SeatVerbWaiter>()
 let seatVerbSeq = 0
@@ -1275,8 +1275,8 @@ function settleSeatVerbAnswer(frame: { type?: string; response?: { subtype?: str
   const waiter = seatVerbWaiters.get(response.request_id)
   if (waiter === undefined) return false
   if (response.subtype === 'success') {
-    const at = response.response !== null && typeof response.response === 'object' ? (response.response as { at?: unknown }).at : undefined
-    waiter.settle({ at: at === 'turn-boundary' ? 'turn-boundary' : 'now' })
+    const answer = response.response !== null && typeof response.response === 'object' ? (response.response as { at?: unknown; model?: unknown }) : {}
+    waiter.settle({ at: answer.at === 'turn-boundary' ? 'turn-boundary' : 'now', ...(typeof answer.model === 'string' && answer.model !== '' ? { model: answer.model } : {}) })
     return true
   }
   const error = typeof response.error === 'string' && response.error !== '' ? response.error : 'the runner refused the switch'
@@ -1307,13 +1307,16 @@ function unparkModel(rec: ConcourseWorkerRecordV1, dir?: string): void {
   }, dir)
 }
 
-function landModel(rec: ConcourseWorkerRecordV1, model: string, roster: SeatRosterPort, dir: string | undefined, settle: boolean): void {
+function landModel(rec: ConcourseWorkerRecordV1, model: string, roster: SeatRosterPort, dir: string | undefined, settle: boolean, served?: string): void {
   // eslint-disable-next-line no-console
   console.error(`[daemon] seat set-model applied: ${rec.runnerId} → ${model}`)
+  const seat = seatOf(rec.runnerId)
   if (settle) {
-    const seat = seatOf(rec.runnerId)
     const from = seat.lastAnswer?.model.effective ?? rec.modelKey
     seat.lastModelSettle = { from, to: model, atMs: Date.now() }
+  }
+  if (seat.lastAnswer !== null) {
+    seat.lastAnswer = { ...seat.lastAnswer, model: { effective: served ?? model, setting: model } }
   }
   roster.patchSeatModel(rec.runnerId, model)
   updateConcourseWorkers(workers => {
@@ -1362,7 +1365,7 @@ async function forwardModel(rec: ConcourseWorkerRecordV1, model: string, roster:
     return { outcome: 'refused', detail: word.refused }
   }
   if ('silent' in word && opts.parked) return queued
-  landModel(rec, model, roster, dir, 'at' in word && opts.settle)
+  landModel(rec, model, roster, dir, 'at' in word && opts.settle, 'model' in word ? word.model : undefined)
   return { outcome: 'applied', detail: `${rec.runnerId} → ${model}` }
 }
 
@@ -1530,7 +1533,8 @@ function onSeatVerbApplied(short: string, frame: SeatVerbAppliedFrame, roster: S
     const model = held !== null ? held.model : typeof frame.model === 'string' && rec.pendingModelKey === frame.model ? frame.model : undefined
     if (model === undefined) return
     if (held !== null) seat.heldModel = null
-    landModel(rec, model, roster, dir, rec.pendingModelKey === model)
+    const served = typeof frame.model === 'string' && frame.model !== '' ? frame.model : undefined
+    landModel(rec, model, roster, dir, rec.pendingModelKey === model, served)
     return
   }
   if (frame.verb === 'spawn_switch') {
