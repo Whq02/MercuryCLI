@@ -230,12 +230,12 @@ function leftoverPids(runHome: string): number[] {
 
 type Send = Record<string, unknown>
 
-const composerGate = { awaitText: 'Type a prompt', awaitSettleTicks: 6 }
+const composerGate = { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 6 }
 
 function chatSends(): Send[] {
   return [
     { atTick: 90, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r', mark: 'face' },
-    { atTick: 220, minTick: 10, ...composerGate, data: '/logins anthropic', mark: 'composer' },
+    { minTick: 10, ...composerGate, data: '/logins anthropic', mark: 'composer' },
     { afterPrevTicks: 4, data: '\r' },
     { atTick: 320, awaitText: 'Sign in', awaitSettleTicks: 3, data: '\r', mark: 'menu' },
     { atTick: 560, awaitText: 'Signed in as', awaitSettleTicks: 5, data: '\r', mark: 'pane' },
@@ -330,7 +330,6 @@ async function runLeg(leg: 'chat' | 'face'): Promise<{
     BROWSER: seeded.browser,
   }
   for (const key of [
-    'NODE_ENV',
     'ANTHROPIC_API_KEY',
     'ANTHROPIC_AUTH_TOKEN',
     'MERCURY_OAUTH_TOKEN',
@@ -351,6 +350,8 @@ async function runLeg(leg: 'chat' | 'face'): Promise<{
     'MERCURY_RENDER_THEME',
     'MERCURY_THEME_PIN',
     'VSHOT_ACTIVE',
+    'NODE_ENV',
+    'CI',
   ]) {
     delete childEnv[key]
   }
